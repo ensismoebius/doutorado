@@ -100,6 +100,11 @@ struct TrainerConfig
     int epochs = 10;
     float learning_rate = 0.001F;
 
+    // Which Optimizer the Trainer builds (via OptimizerFactory):
+    // "adam" | "sgd" | "lion" | "schedule-free-adamw".
+    std::string optimizer_type = "adam";
+    float optimizer_momentum = 0.0F;  // SGD only; ignored by the others
+
     // Adam parameters
     float adam_beta1 = 0.9F;
     float adam_beta2 = 0.999F;
@@ -130,9 +135,15 @@ struct TrainerConfig
 }
 ```
 
-**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics — large updates can push them into the `1e-6` clamp guard (see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)), destabilizing $\tau=R\cdot C$. Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3 — this is this project's own empirical default, not a value drawn from a specific literature source. Pass this scale to `Adam::attach_with_scales()`.
+**Optimizer selection**: `optimizer_type` picks the implementation, which the `Trainer`
+constructor builds through `OptimizerFactory` and holds as a `std::unique_ptr<Optimizer>`
+(fixme.md D5) — the loop is no longer hard-wired to `Adam`. Default `"adam"` preserves the
+previous behavior for every existing caller; an unknown token throws rather than silently
+falling back. See [Optimizers](Optimizers.md).
 
-**Weight decay rationale**: `weight_decay > 0` enables decoupled L2 regularization (AdamW). The `Trainer` constructor forwards it to `Adam::weight_decay`, which shrinks only 2-D weight matrices by `lr·weight_decay·θ` after each Adam step — biases and SNN scalars are skipped so `τ = R·C` and the threshold stay intact. See [Optimizers](Optimizers.md#decoupled-weight-decay-adamw).
+**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics — large updates can push them into the `1e-6` clamp guard (see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)), destabilizing $\tau=R\cdot C$. Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3 — this is this project's own empirical default, not a value drawn from a specific literature source. The `Trainer` constructor passes it to `Optimizer::attach_with_scales()`, assigning the reduced scale **only to parameters with `size() == 1`** (R, C and V_th are always 1×1; no weight or bias is). A uniform fill would make `snn_lr_scale` a *global* 10× lr throttle on the whole network instead — the D3 bug; guarded by `TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams`.
+
+**Weight decay rationale**: `weight_decay > 0` enables decoupled L2 regularization (AdamW / SGDW). The `Trainer` constructor forwards it to `Optimizer::weight_decay`, which shrinks only 2-D weight matrices by `lr·weight_decay·θ` after each step — biases and SNN scalars are skipped so `τ = R·C` and the threshold stay intact. See [Optimizers](Optimizers.md#decoupled-weight-decay-adamw--sgdw).
 
 **Nested CV rationale**: Single-level k-fold cross-validation with hyperparameter tuning leads to optimistic performance estimates.  Nested k-fold [41] uses an outer loop for unbiased test estimation and an inner loop for hyperparameter selection.
 
@@ -402,7 +413,7 @@ Transform is applied in **both** training and validation loops, immediately befo
 
 ## See Also
 
-- [Optimizers](./Optimizers.md) — Adam with per-group lr (`attach_with_scales`)
+- [Optimizers](./Optimizers.md) — polymorphic `Optimizer` base with per-group lr (`attach_with_scales`)
 - [Layers](./Layers.md) — Model layers
 - [Tensor](./Tensor.md) — Data structure
 - [Autoencoders](./Autoencoders.md) — Model being trained

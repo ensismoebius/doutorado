@@ -86,7 +86,7 @@ ctest --test-dir out/build/max-performance -R lif --output-on-failure
 ## Common Pitfalls
 
 1. **Time-major shape**: the SNN expects input of shape $(T \cdot B, F)$. Ensure Poisson-encoded spikes are packed with all time=0 rows first. See [Concepts/Time-Major-Layout](../Concepts/Time-Major-Layout.md).
-2. **LIF learning rate scale**: biophysical parameters ($R$, $C$, $V_\text{th}$) need ~10× smaller lr than weights. Use `Adam::attach_with_scales()` with `snn_lr_scale = 0.1`.
+2. **LIF learning rate scale**: biophysical parameters ($R$, $C$, $V_\text{th}$) need ~10× smaller lr than weights. Use `Optimizer::attach_with_scales()` with `snn_lr_scale = 0.1`.
 3. **`reset_state()` between utterances**: the shared library's `rede_snn` holds persistent membrane state. Call `reset_state()` before processing each new speaker sample.
 
 ---

@@ -211,7 +211,7 @@ After fused-block optimization, `x_t @ W^T` (BLAS `sgemm`) is 50%+ of full times
 1. **Call `reset_state()` between independent sequences.** Hidden and cell state persist across `forward()` calls on the 2-D path.
 2. **Gradient clipping** — essential for long sequences; clip $\|\nabla W\|$ to $[-\theta, \theta]$ [2].
 3. **Forget-gate bias = 1** — already initialised; do not zero-initialise the full bias vector.
-4. **Rate of learning** — biophysical SNN params need ~10× lower lr than weights; use `Adam::attach_with_scales()`.
+4. **Rate of learning** — biophysical SNN params need ~10× lower lr than weights; use `Optimizer::attach_with_scales()`.
 5. **`block()` is a copy.** Never call `block()` inside a hot loop if a fused alternative exists — prefer `sigmoid_fast_block` / `tanh_fast_block` from `FastActivations.hpp`.
 
 ## References

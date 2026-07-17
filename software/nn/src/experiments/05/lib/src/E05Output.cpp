@@ -84,6 +84,28 @@ void write_summary_json(const std::string& results_dir,
         {"n_samples", n_samples},
     };
 
+    // Training config actually used, recorded so a result file is self-describing and
+    // reproducible from itself. `learning_rate` is the RESOLVED value
+    // (Training::effective_learning_rate()): profiles may omit the field and inherit the
+    // optimizer's reference default, which differs ~10x between optimizers, so the declared
+    // profile is not always enough to know what ran. `learning_rate_source` says which it
+    // was. This exists because of fixme.md D3, where the published numbers had been produced
+    // at an effective lr 10x below the one the profiles declared, with nothing on disk
+    // recording the discrepancy.
+    j["training"] = {
+        {"optimizer_type", cfg.training.optimizer_type},
+        {"learning_rate", cfg.training.effective_learning_rate()},
+        {"learning_rate_source",
+            cfg.training.learning_rate.has_value() ? "profile" : "optimizer_default"},
+        {"epochs", cfg.training.epochs},
+        {"samples_per_batch", cfg.training.samples_per_batch},
+        {"weight_decay", cfg.training.weight_decay},
+    };
+    if (cfg.training.optimizer_type == "sgd")
+    {
+        j["training"]["optimizer_momentum"] = cfg.training.optimizer_momentum;
+    }
+
     // Feature-extraction config actually used to produce this run's vectors —
     // recorded so a result file is self-describing without cross-referencing
     // the source profile (e.g. distinguishing the 18 SNN-AE poisson/latency/

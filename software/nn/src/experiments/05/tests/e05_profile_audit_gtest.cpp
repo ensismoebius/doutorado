@@ -5,11 +5,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "../lib/include/E05Config.hpp"
 #include "nlohmann/json.hpp"
+#include "optimizers/OptimizerFactory.hpp"
 
 namespace fs = std::filesystem;
 using e05::E05Config;
@@ -424,10 +426,73 @@ TEST_P(E05ProfileAuditTest, TrainingParamsPositive)
 {
     auto cfg = load(GetParam());
     EXPECT_GT(cfg.training.epochs, 0);
-    EXPECT_GT(cfg.training.learning_rate, 0.0f);
+    // Check the lr the run will ACTUALLY use: resolved from the optimizer's reference
+    // default when the profile omits it, so this holds for every profile either way.
+    EXPECT_GT(cfg.training.effective_learning_rate(), 0.0f);
+
+    // The resolved lr must be right FOR THIS PROFILE'S OPTIMIZER. When the profile declares
+    // one, that value must survive verbatim (regression guard: making learning_rate optional
+    // must not have changed any already-published run). When it omits one, it must inherit
+    // its own optimizer's reference default -- never another optimizer's.
+    if (cfg.training.learning_rate.has_value())
+    {
+        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), *cfg.training.learning_rate);
+    }
+    else
+    {
+        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(),
+            nn::optimizers::reference_learning_rate(cfg.training.optimizer_type));
+    }
     EXPECT_GT(cfg.training.samples_per_batch, 0);
     EXPECT_GE(cfg.training.early_stop_patience, 0);
     EXPECT_GE(cfg.training.k_folds, 2);
+}
+
+// Each optimizer must resolve to ITS OWN reference lr, not another's. Their usable rates
+// differ by ~10x (Lion steps +/-lr on every coordinate), so a profile that names an
+// optimizer but inherits a foreign lr would measure the learning rate, not the optimizer.
+TEST(E05OptimizerLearningRate, EachOptimizerResolvesToItsOwnReferenceLr)
+{
+    E05Config cfg;
+    const std::vector<std::pair<std::string, float>> expected = {
+        {"adam", 1e-3f},
+        {"sgd", 1e-2f},
+        {"lion", 1e-4f},
+        {"schedule-free-adamw", 2.5e-3f},
+    };
+    for (const auto& [opt, lr] : expected)
+    {
+        cfg.training.optimizer_type = opt;
+        cfg.training.learning_rate = std::nullopt; // profile omits it
+        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), lr) << "optimizer: " << opt;
+    }
+
+    // No two of them share a default -- otherwise the whole mechanism would be pointless.
+    std::set<float> distinct;
+    for (const auto& [opt, lr] : expected) distinct.insert(lr);
+    EXPECT_EQ(distinct.size(), expected.size());
+}
+
+// An explicit profile lr still wins: sweeping lr per optimizer must remain possible.
+TEST(E05OptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
+{
+    E05Config cfg;
+    cfg.training.optimizer_type = "lion";
+    EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), 1e-4f); // inherited
+    cfg.training.learning_rate = 5e-5f;
+    EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), 5e-5f); // explicit wins
+}
+
+// Every profile must name an optimizer the OptimizerFactory can actually build; a typo
+// here would otherwise only surface as a runtime throw part-way into a long experiment.
+TEST_P(E05ProfileAuditTest, OptimizerTypeIsSupported)
+{
+    auto cfg = load(GetParam());
+    const auto& t = cfg.training.optimizer_type;
+    const bool known = (t == "adam" || t == "sgd" || t == "lion" || t == "schedule-free-adamw");
+    EXPECT_TRUE(known) << "unsupported training.optimizer_type: " << t;
+    EXPECT_GE(cfg.training.optimizer_momentum, 0.0f);
+    EXPECT_LT(cfg.training.optimizer_momentum, 1.0f);
 }
 
 TEST_P(E05ProfileAuditTest, RegularizationParamsValid)

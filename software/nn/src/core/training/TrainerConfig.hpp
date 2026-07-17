@@ -1,6 +1,8 @@
 #ifndef NN_TRAINING_TRAINER_CONFIG_HPP
 #define NN_TRAINING_TRAINER_CONFIG_HPP
 
+#include <string>
+
 namespace nn::training
 {
 
@@ -9,11 +11,14 @@ namespace nn::training
  *
  * SNN-specific fields (snn_lr_scale, nested_cv_*) are ignored for pure ANN models.
  *
- * **SNN learning rate guidance** (Frontiers Neuroscience 2025):
- * SNN biophysical parameters (R, C, V_th) are sensitive to large updates.
- * Literature recommends lr ≈ 1e-4 for SNN params vs 1e-3 for weight matrices.
- * Set snn_lr_scale = 0.1 to apply this 10× reduction automatically when the
- * optimizer is called with per-group learning rates via Adam::attach_with_scales().
+ * **SNN learning rate guidance**: SNN biophysical parameters (R, C, V_th) are
+ * sensitive to large updates (they set the membrane time constant tau=R*C and
+ * the spike threshold). Set snn_lr_scale = 0.1 to apply a 10x reduction
+ * automatically when the optimizer is called with per-group learning rates via
+ * Optimizer::attach_with_scales(). This 0.1 factor is this project's own
+ * empirical default, not a literature-sourced figure (a citation previously
+ * attached to this claim could not be verified and was removed — see
+ * `.wiki/Core/Optimizers.md`).
  *
  * **Nested CV** (PMC guide 2023 [41]):
  * For unbiased hyperparameter evaluation on biomedical data, enable nested k-fold:
@@ -24,6 +29,14 @@ struct TrainerConfig
 {
     int epochs = 10;
     float learning_rate = 0.001F;
+
+    /// Which Optimizer implementation Trainer constructs (via OptimizerFactory).
+    /// "adam" (default, preserves prior behavior) | "sgd".
+    std::string optimizer_type = "adam";
+
+    /// SGD momentum (Polyak heavy-ball). Ignored by "adam".
+    float optimizer_momentum = 0.0F;
+
     float adam_beta1 = 0.9F;
     float adam_beta2 = 0.999F;
     float adam_epsilon = 1e-8F;

@@ -61,8 +61,7 @@ TEST(E05AggregateStats, TwoFoldsStd)
 TEST(E05AggregateStats, AllSameMeanAndZeroStd)
 {
     ClassificationResult r;
-    for (int i = 0; i < 5; ++i)
-        r.outer_folds.push_back({i, 0.9, 0.05, 0.0});
+    for (int i = 0; i < 5; ++i) r.outer_folds.push_back({i, 0.9, 0.05, 0.0});
     compute_aggregate_stats(r);
     EXPECT_NEAR(r.mean_accuracy, 0.9, 1e-12);
     EXPECT_NEAR(r.std_accuracy, 0.0, 1e-12);
@@ -77,22 +76,22 @@ E05Config make_fast_cfg()
 {
     E05Config cfg;
     cfg.experiment.run_tag = "test";
-    cfg.experiment.seed    = 42;
+    cfg.experiment.seed = 42;
 
-    cfg.dataset.modality    = "eeg";
-    cfg.dataset.root        = "/dev/null"; // never accessed in unit test
+    cfg.dataset.modality = "eeg";
+    cfg.dataset.root = "/dev/null"; // never accessed in unit test
     cfg.dataset.results_dir = "/tmp/";
 
     cfg.feature_extraction.strategy = "handcrafted";
 
-    cfg.classifier.type      = "rnn";
+    cfg.classifier.type = "rnn";
     cfg.classifier.text_mode = "independent";
 
-    cfg.training.epochs              = 5;
-    cfg.training.learning_rate       = 1e-3;
-    cfg.training.samples_per_batch   = 4;
+    cfg.training.epochs = 5;
+    cfg.training.learning_rate = 1e-3f;
+    cfg.training.samples_per_batch = 4;
     cfg.training.early_stop_patience = 0; // disabled
-    cfg.training.k_folds             = 2;
+    cfg.training.k_folds = 2;
 
     cfg.paraconsistent.enabled = false;
     return cfg;
@@ -106,7 +105,7 @@ E05DatasetView make_view(int n_subjects, int samples_per_subject)
 {
     E05DatasetView view;
     view.n_subjects = n_subjects;
-    view.n_stimuli  = 1;
+    view.n_stimuli = 1;
 
     int id = 1;
     for (int s = 0; s < n_subjects; ++s, ++id)
@@ -114,8 +113,8 @@ E05DatasetView make_view(int n_subjects, int samples_per_subject)
         for (int k = 0; k < samples_per_subject; ++k)
         {
             E05Sample sam;
-            sam.subject_id  = id;
-            sam.stimulus    = k % 5; // vowel index 0-4
+            sam.subject_id = id;
+            sam.stimulus = k % 5; // vowel index 0-4
             sam.text_phrase = "a";
             // eeg/audio left default (0-dim scalar) — feature_vectors supplied externally
             view.samples.push_back(sam);
@@ -125,16 +124,19 @@ E05DatasetView make_view(int n_subjects, int samples_per_subject)
 }
 
 // Build linearly separable feature vectors: class c gets feature vector [c, 0, …].
-std::vector<std::vector<double>> make_features(const E05DatasetView& view,
-    int feat_dim = 8)
+std::vector<std::vector<double>> make_features(const E05DatasetView& view, int feat_dim = 8)
 {
     int id_idx = 0;
-    int prev   = -1;
+    int prev = -1;
     std::vector<std::vector<double>> fvs;
     fvs.reserve(view.samples.size());
     for (const auto& s : view.samples)
     {
-        if (s.subject_id != prev) { ++id_idx; prev = s.subject_id; }
+        if (s.subject_id != prev)
+        {
+            ++id_idx;
+            prev = s.subject_id;
+        }
         std::vector<double> fv(static_cast<size_t>(feat_dim), 0.0);
         fv[0] = static_cast<double>(id_idx);
         fvs.push_back(fv);
@@ -169,10 +171,10 @@ TEST(E05RunClassifier, ThrowsOnSizeMismatch)
 TEST(E05RunClassifier, ReturnsFoldCountMatchingKFolds)
 {
     const int n_subjects = 4;
-    const int sps        = 6;
-    auto view            = make_view(n_subjects, sps);
-    auto fvs             = make_features(view);
-    E05Config cfg        = make_fast_cfg();
+    const int sps = 6;
+    auto view = make_view(n_subjects, sps);
+    auto fvs = make_features(view);
+    E05Config cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
@@ -185,8 +187,8 @@ TEST(E05RunClassifier, VerificationOnlyAccuracyIsNaN)
     // Verification-only protocol (audit C-1): closed-set accuracy is not reported
     // (speaker-disjoint folds), so mean_accuracy aggregates to NaN. The run must
     // still produce one result per outer fold.
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
@@ -198,8 +200,8 @@ TEST(E05RunClassifier, VerificationOnlyAccuracyIsNaN)
 
 TEST(E05RunClassifier, FeatureLabelPropagated)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
@@ -209,8 +211,8 @@ TEST(E05RunClassifier, FeatureLabelPropagated)
 
 TEST(E05RunClassifier, FoldIndicesAreSequential)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
@@ -221,8 +223,8 @@ TEST(E05RunClassifier, FoldIndicesAreSequential)
 
 TEST(E05RunClassifier, DsnnPathRuns)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
     cfg.classifier.type = "dsnn";
     statistics::ClassificationEERScorer scorer;
@@ -239,14 +241,14 @@ TEST(E05RunClassifier, DsnnPathRuns)
 // throwing — exercises Adam::weight_decay and E05DsnnClassifier::add_firing_rate_grad.
 TEST(E05RunClassifier, DsnnWithRegularizationRuns)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
-    cfg.classifier.type                  = "dsnn";
-    cfg.training.weight_decay            = 1e-3f;
-    cfg.training.firing_rate_reg_lambda  = 0.05f;
-    cfg.training.firing_rate_min         = 0.05f;
-    cfg.training.firing_rate_max         = 0.80f;
+    cfg.classifier.type = "dsnn";
+    cfg.training.weight_decay = 1e-3f;
+    cfg.training.firing_rate_reg_lambda = 0.05f;
+    cfg.training.firing_rate_min = 0.05f;
+    cfg.training.firing_rate_max = 0.80f;
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth-dsnn-reg", cfg, &scorer);
@@ -257,8 +259,8 @@ TEST(E05RunClassifier, DsnnWithRegularizationRuns)
 // for the non-spiking ResNet classifier).
 TEST(E05RunClassifier, RnnWithWeightDecayRuns)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
     cfg.training.weight_decay = 1e-3f;
     statistics::ClassificationEERScorer scorer;
@@ -271,12 +273,12 @@ TEST(E05RunClassifier, RnnWithWeightDecayRuns)
 // without throwing — exercises the tdBN forward/backward wired into the DSNN.
 TEST(E05RunClassifier, DsnnWithTdbnRuns)
 {
-    auto view     = make_view(4, 6);
-    auto fvs      = make_features(view);
+    auto view = make_view(4, 6);
+    auto fvs = make_features(view);
     E05Config cfg = make_fast_cfg();
-    cfg.classifier.type             = "dsnn";
+    cfg.classifier.type = "dsnn";
     cfg.training.batch_normalization = "threshold-dependent";
-    cfg.training.tdbn_alpha          = 1.0f;
+    cfg.training.tdbn_alpha = 1.0f;
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth-dsnn-tdbn", cfg, &scorer);
@@ -293,23 +295,28 @@ TEST(E05RunClassifier, DsnnWithTdbnRuns)
 TEST(E05RunClassifier, TdbnComparativeBenchmark)
 {
     auto view = make_view(4, 6);
-    auto fvs  = make_features(view);
+    auto fvs = make_features(view);
     statistics::ClassificationEERScorer scorer;
 
-    struct Variant { const char* name; const char* bn; float alpha; };
+    struct Variant
+    {
+        const char* name;
+        const char* bn;
+        float alpha;
+    };
     const Variant variants[] = {
-        {"none",      "none",                 1.0f},
-        {"bn(aV=1)",  "threshold-dependent",  1.0f},
-        {"tdBN(a=2)", "threshold-dependent",  2.0f},
+        {"none", "none", 1.0f},
+        {"bn(aV=1)", "threshold-dependent", 1.0f},
+        {"tdBN(a=2)", "threshold-dependent", 2.0f},
     };
 
     std::cout << "\n[tdBN benchmark] variant     folds  mean_EER  mean_AUC\n";
     for (const auto& v : variants)
     {
         E05Config cfg = make_fast_cfg();
-        cfg.classifier.type              = "dsnn";
+        cfg.classifier.type = "dsnn";
         cfg.training.batch_normalization = v.bn;
-        cfg.training.tdbn_alpha          = v.alpha;
+        cfg.training.tdbn_alpha = v.alpha;
 
         auto result = run_classifier(view, fvs, std::string("synth-bench-") + v.name, cfg, &scorer);
 
@@ -318,8 +325,7 @@ TEST(E05RunClassifier, TdbnComparativeBenchmark)
         EXPECT_GE(result.mean_eer, 0.0);
         EXPECT_LE(result.mean_eer, 1.0);
 
-        std::cout << "[tdBN benchmark] " << v.name << "\t"
-                  << result.outer_folds.size() << "\t"
+        std::cout << "[tdBN benchmark] " << v.name << "\t" << result.outer_folds.size() << "\t"
                   << result.mean_eer << "\t" << result.mean_auc << "\n";
     }
 }

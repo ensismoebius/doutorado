@@ -15,10 +15,17 @@
  *   1. zero_grad now called BEFORE forward (was after).
  *   2. Single forward+loss pass (was double forward).
  *   3. Loss type is a template parameter (was hardcoded MSE).
- *   4. snn_lr_scale wired via attach_with_scales (was silently ignored).
+ *   4. snn_lr_scale is applied ONLY to size()==1 params (R, C, V_th), via
+ *      Optimizer::attach_with_scales. It was previously filled uniformly across every
+ *      parameter, which silently turned it into a global 10x lr throttle on the whole
+ *      network rather than a per-group rate (fixme.md D3). NOTE: an earlier revision of
+ *      this list claimed this line merely "wired snn_lr_scale (was silently ignored)" --
+ *      that was itself misleading, since the wiring existed but was wrong.
  *   5. fit_supervised_generic batch loss: output re-run per sample (shape mismatch fixed).
  *   6. EpochResult.mean_spike_rate / sops populated when LossType exposes last_mean_rate().
  *   7. No cout inside Trainer — output is callback responsibility.
+ *   8. The optimizer is built by OptimizerFactory from cfg.optimizer_type and held as
+ *      unique_ptr<Optimizer>, rather than being hard-coded to Adam (fixme.md D5).
  */
 #ifndef NN_TRAINING_TRAINER_HPP
 #define NN_TRAINING_TRAINER_HPP
@@ -38,7 +45,8 @@
 #include "core/training/EpochResult.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "layers/losses/MSELoss.hpp"
-#include "optimizers/Adam.hpp"
+#include "optimizers/Optimizer.hpp"
+#include "optimizers/OptimizerFactory.hpp"
 #include "tensor/Tensor.hpp"
 #include "training/ITrainingCallback.hpp"
 #include "utility/GradClip.hpp"
@@ -91,9 +99,14 @@ class Trainer
         : model_(model),
           cfg_(cfg),
           loss_(std::move(loss)),
-          optimizer_(cfg.learning_rate, cfg.adam_beta1, cfg.adam_beta2, cfg.adam_epsilon)
+          optimizer_(nn::optimizers::OptimizerFactory::create(cfg.optimizer_type,
+              cfg.learning_rate,
+              cfg.optimizer_momentum,
+              cfg.adam_beta1,
+              cfg.adam_beta2,
+              cfg.adam_epsilon))
     {
-        optimizer_.weight_decay = cfg_.weight_decay; // decoupled L2 (AdamW), 0 = off
+        optimizer_->weight_decay = cfg_.weight_decay; // decoupled L2, 0 = off
         if (cfg_.snn_lr_scale != 1.0F)
         {
             // snn_lr_scale must only reduce the lr of SNN biophysical scalars
@@ -104,11 +117,11 @@ class Trainer
             std::vector<float> scales(params.size(), 1.0F);
             for (std::size_t i = 0; i < params.size(); ++i)
                 if (params[i]->size() == 1) scales[i] = cfg_.snn_lr_scale;
-            optimizer_.attach_with_scales(params, scales);
+            optimizer_->attach_with_scales(params, scales);
         }
         else
         {
-            optimizer_.attach(model_.params());
+            optimizer_->attach(model_.params());
         }
     }
 
@@ -154,7 +167,10 @@ class Trainer
     ModelType& model_;
     TrainerConfig cfg_;
     LossType loss_;
-    Adam optimizer_;
+    // Held polymorphically (built by OptimizerFactory from cfg_.optimizer_type) so the
+    // training loop is not hard-wired to one optimizer. Never null: the factory either
+    // returns an instance or throws on an unknown type.
+    std::unique_ptr<::Optimizer> optimizer_;
     SampleTransform sample_transform_;
     std::vector<std::shared_ptr<ITrainingCallback>> callbacks_;
 
@@ -341,7 +357,7 @@ class Trainer
                     nn::opencl::OpenCLContext::BatchScope _gpu_batch;
 #endif
                     // zero_grad BEFORE forward (bug 1 fix)
-                    optimizer_.zero_grad(model_.params());
+                    optimizer_->zero_grad(model_.params());
 
                     // Single forward+loss+backward (bug 2 fix)
                     Tensor output = model_.forward(batch, true);
@@ -363,7 +379,7 @@ class Trainer
                     if (cfg_.grad_clip_norm > 0.0F)
                         clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
 
-                    optimizer_.step(model_.params());
+                    optimizer_->step(model_.params());
                 } // BatchScope destructs here: single clFinish per batch
 
                 const int bs = static_cast<int>(batch_end - batch_start);
@@ -383,6 +399,11 @@ class Trainer
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
             if (!val_samples.empty())
             {
+                // Schedule-free optimizers train at an extrapolated iterate but converge at
+                // an averaged one; this exposes the averaged iterate for the duration of the
+                // validation pass. No-op for every other optimizer (see Optimizer.hpp).
+                OptimizerEvalScope _eval_scope(*optimizer_);
+
                 float val_sum = 0.0F;
                 int n_val = 0;
 
@@ -487,7 +508,7 @@ class Trainer
                     // Adam's per-parameter kernels each paid a full clFinish.
                     nn::opencl::OpenCLContext::BatchScope _gpu_batch;
 #endif
-                    optimizer_.zero_grad(model_.params()); // zero BEFORE forward
+                    optimizer_->zero_grad(model_.params()); // zero BEFORE forward
 
                     const auto B = static_cast<nn::Index>(batch_sample_count);
                     const nn::Index in_cols =
@@ -530,7 +551,7 @@ class Trainer
                     state.batch_progress = 0.92F;
                     cb_batch_progress(state);
 
-                    optimizer_.step(model_.params());
+                    optimizer_->step(model_.params());
                 } // BatchScope destructs here: single clFinish per mini-batch
 
                 const int bs = static_cast<int>(batch_end - batch_start);
@@ -562,6 +583,9 @@ class Trainer
                     val_inp.setBlock(static_cast<nn::Index>(k), 0, val_inputs[k]);
                     val_tgt.setBlock(static_cast<nn::Index>(k), 0, val_targets[k]);
                 }
+                // See the note in fit_loop's validation block.
+                OptimizerEvalScope _eval_scope(*optimizer_);
+
                 Tensor vout = model_.forward(val_inp, false);
                 loss_.set_target(val_tgt);
                 Tensor vloss_t = loss_.forward(vout, false);

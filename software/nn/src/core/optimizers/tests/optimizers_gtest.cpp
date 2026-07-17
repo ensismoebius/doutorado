@@ -612,12 +612,15 @@ TEST(OptimizerBaseTest, ConvenienceMethodsAndDefaults)
     p.at(0, 0) = 1.0F;
     std::vector<nn::Tensor*> params = {&p};
 
-    // Base attach() is a no-op.
+    // Base attach() stores the params (enabling the no-arg dispatch paths below) and
+    // resets lr_scales_ to global lr. It used to be a literal no-op, which silently
+    // broke its own documented contract: any optimizer relying on the base to store
+    // params (SGD did) left attached_params_ empty, so no-arg step() always threw.
     EXPECT_NO_THROW(opt.attach(params));
-    EXPECT_TRUE(opt.attached_params_.empty());
+    ASSERT_EQ(opt.attached_params_.size(), 1U);
+    EXPECT_EQ(opt.attached_params_[0], &p);
+    EXPECT_TRUE(opt.lr_scales_.empty()); // no scales attached → global lr
 
-    // Manually populate attached params to exercise no-arg dispatch paths.
-    opt.attached_params_.assign(params.begin(), params.end());
     EXPECT_NO_THROW(opt.step());
     EXPECT_NO_THROW(opt.zero_grad());
     EXPECT_EQ(opt.step_count, 1U);
@@ -647,6 +650,83 @@ TEST(AdamTest, AttachWithScalesValidationAndSuccess)
     EXPECT_FLOAT_EQ(adam.lr_scales_[1], 0.5F);
     EXPECT_EQ(adam.moment1.size(), 2U);
     EXPECT_EQ(adam.moment2.size(), 2U);
+}
+
+// fixme.md D5: per-parameter-group lr scales live on the Optimizer base, so they work
+// through an `Optimizer&` without knowing the concrete type, and every optimizer honors
+// them. Previously attach_with_scales() existed only on Adam and was non-virtual.
+TEST(OptimizerBaseTest, AttachWithScalesIsPolymorphic)
+{
+    // Two params, identical fixed gradient of 1.0, scales 1.0 vs 0.1. After one step the
+    // deltas must differ by the scale ratio — for whichever optimizer is behind the ref.
+    auto run_one_step = [](::Optimizer& opt, float lr) -> std::pair<float, float>
+    {
+        nn::Tensor full(1, 1);
+        nn::Tensor scaled(1, 1);
+        full.at(0, 0) = 0.0F;
+        scaled.at(0, 0) = 0.0F;
+        std::vector<nn::Tensor*> params = {&full, &scaled};
+
+        const std::vector<float> scales = {1.0F, 0.1F};
+        opt.attach_with_scales(params, scales);
+
+        full.set_grad(test_helpers::make_constant_tensor(1, 1, 1.0F));
+        scaled.set_grad(test_helpers::make_constant_tensor(1, 1, 1.0F));
+        opt.step(params);
+
+        return {std::abs(full.at(0, 0)), std::abs(scaled.at(0, 0))};
+    };
+
+    // SGD: update is exactly -lr_i * grad, so the deltas are directly checkable.
+    {
+        constexpr float kLr = 0.01F;
+        SGD sgd(kLr);
+        auto [full_delta, scaled_delta] = run_one_step(sgd, kLr);
+        EXPECT_NEAR(full_delta, kLr, 1e-6F);
+        EXPECT_NEAR(scaled_delta, kLr * 0.1F, 1e-6F);
+    }
+
+    // Adam: the adaptive term makes the first step ≈ lr_i regardless of grad magnitude.
+    {
+        constexpr float kLr = 0.01F;
+        Adam adam(kLr);
+        auto [full_delta, scaled_delta] = run_one_step(adam, kLr);
+        EXPECT_NEAR(full_delta, kLr, 1e-4F);
+        EXPECT_NEAR(scaled_delta, kLr * 0.1F, 1e-4F);
+    }
+
+    // Through a base-class pointer built by the factory — the D5 use case (Trainer).
+    {
+        constexpr float kLr = 0.01F;
+        auto opt = nn::optimizers::OptimizerFactory::create("sgd", kLr);
+        auto [full_delta, scaled_delta] = run_one_step(*opt, kLr);
+        EXPECT_NEAR(full_delta, kLr, 1e-6F);
+        EXPECT_NEAR(scaled_delta, kLr * 0.1F, 1e-6F);
+    }
+}
+
+// SGD must honor the base's `weight_decay` (SGDW), and — like Adam — apply it only to
+// 2-D weight matrices, never to 1x1 SNN biophysical scalars (R, C, V_th).
+TEST(SGDTest, DecoupledWeightDecayOnly2DWeights)
+{
+    nn::Tensor weight(2, 2);
+    nn::Tensor scalar(1, 1); // stand-in for an SNN biophysical param
+    for (std::size_t i = 0; i < 2; ++i)
+        for (std::size_t j = 0; j < 2; ++j) weight.at(i, j) = 1.0F;
+    scalar.at(0, 0) = 1.0F;
+    std::vector<nn::Tensor*> params = {&weight, &scalar};
+
+    SGD sgd(/*lr=*/0.1F);
+    sgd.weight_decay = 0.5F; // decay factor = 1 - lr*wd = 1 - 0.05 = 0.95
+    sgd.attach(params);
+
+    // Zero gradients: any movement is attributable to weight decay alone.
+    weight.set_grad(test_helpers::make_constant_tensor(2, 2, 0.0F));
+    scalar.set_grad(test_helpers::make_constant_tensor(1, 1, 0.0F));
+    sgd.step(params);
+
+    EXPECT_NEAR(weight.at(0, 0), 0.95F, 1e-6F); // decayed
+    EXPECT_NEAR(scalar.at(0, 0), 1.0F, 1e-6F);  // untouched
 }
 
 TEST(AdamTest, StateDictRoundTripAndNullParamGuards)
@@ -690,9 +770,9 @@ TEST(AdamTest, StateDictRoundTripAndNullParamGuards)
 // scalar (R/C/V_th proxy) must remain untouched.
 TEST(AdamWeightDecay, DecaysOnly2DWeights)
 {
-    nn::Tensor weight(2, 2);   // 2-D weight matrix → decayed
-    nn::Tensor bias(2, 1);     // bias column      → excluded
-    nn::Tensor scalar(1, 1);   // biophysical scalar → excluded
+    nn::Tensor weight(2, 2); // 2-D weight matrix → decayed
+    nn::Tensor bias(2, 1);   // bias column      → excluded
+    nn::Tensor scalar(1, 1); // biophysical scalar → excluded
     for (size_t i = 0; i < 2; ++i)
         for (size_t j = 0; j < 2; ++j) weight.at(i, j) = 1.0F;
     bias.at(0, 0) = 3.0F;

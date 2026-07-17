@@ -42,15 +42,12 @@ struct Adam : public Optimizer
     float epsilon;            // Termo pequeno para evitar divisão por zero
     int time_step;            // Contador de iterações
 
-    /// Decoupled weight decay (AdamW). 0 = disabled. Applied only to 2-D weight
-    /// matrices (rows>1 && cols>1); biases and SNN biophysical scalars (R, C,
-    /// V_th, shape 1×1 or N×1) are skipped so tau=R·C and V_th are never decayed.
-    /// Reference: Loshchilov & Hutter, ICLR 2019 (Decoupled Weight Decay).
-    float weight_decay = 0.0F;
+    // `weight_decay` (decoupled L2 → AdamW) and `lr_scales_` (per-parameter lr
+    // multipliers) are inherited from Optimizer — see Optimizer.hpp. Both are read
+    // by step() below.
 
-    std::vector<Tensor> moment1;   // Vetor de médias móveis dos gradientes
-    std::vector<Tensor> moment2;   // Vetor de médias móveis dos quadrados dos gradientes
-    std::vector<float> lr_scales_; // Per-parameter lr multipliers (1.0 = global lr)
+    std::vector<Tensor> moment1; // Vetor de médias móveis dos gradientes
+    std::vector<Tensor> moment2; // Vetor de médias móveis dos quadrados dos gradientes
 
     // Inicializa o Adam com hiperparâmetros padrão recomendados na literatura.
     // learning_rate: taxa de aprendizado, decay_rate_moment1: decaimento do primeiro momento,
@@ -123,43 +120,21 @@ struct Adam : public Optimizer
         }
     }
 
-    /**
-     * @brief Attach parameters with individual learning-rate scales.
-     *
-     * Enables per-parameter-group learning rates — critical for SNN training
-     * where biophysical parameters (R, C, V_th) require a much smaller lr than
-     * weight matrices (recommended scale ≈ 0.1, giving lr_snn ≈ 1e-4).
-     *
-     * @param params     Parameter tensors to optimise.
-     * @param lr_scales  Per-parameter lr multiplier (same size as params).
-     *                   Effective lr for param i = learning_rate * lr_scales[i].
-     *
-     * Guidance (this project's own empirical default, not literature-sourced):
-     * lr=1e-4 for biophysical params vs lr=1e-3 for weight matrices.
-     */
-    void attach_with_scales(std::span<Tensor*> params, std::span<const float> lr_scales)
-    {
-        if (params.size() != lr_scales.size())
-        {
-            throw std::invalid_argument("attach_with_scales: params and lr_scales must match");
-        }
-        // attach() resets lr_scales_ to empty (global lr), so assign scales AFTER it.
-        attach(params);
-        lr_scales_.assign(lr_scales.begin(), lr_scales.end());
-    }
+    // attach_with_scales() is inherited from Optimizer: its base implementation calls
+    // this attach() (virtual, so Adam's moments are allocated) and then stores the
+    // scales, which step() reads below. No Adam-specific override is needed.
 
     // Inicializa os vetores moment1 e moment2 para cada parâmetro, com zeros do mesmo shape dos
     // gradientes. Deve ser chamado sempre que os parâmetros mudarem.
     void attach(std::span<Tensor*> params) override
     {
-        // Store attached params in base for convenience no-arg step()/zero_grad().
-        Optimizer::attached_params_.assign(params.begin(), params.end());
+        // Stores attached_params_ for the no-arg step()/zero_grad(), and resets
+        // lr_scales_ to global lr (audit a-1) — attach_with_scales() re-assigns
+        // them after calling this.
+        Optimizer::attach(params);
 
         // Why attach(): Adam needs one moment1/moment2 tensor per parameter.
         // Pitfall: if `params` changes size/order, moment1/moment2 will no longer align.
-        // Reset per-param lr scales to global lr (audit a-1); attach_with_scales()
-        // re-assigns them after calling attach().
-        lr_scales_.clear();
         moment1.clear();
         moment2.clear();
         for (auto* param : params)
@@ -240,16 +215,33 @@ struct Adam : public Optimizer
             // Per-parameter lr: use scale if provided, otherwise 1.0 (global lr).
             const float lr_i = learning_rate * (i < lr_scales_.size() ? lr_scales_[i] : 1.0f);
 
+            // Decoupled weight decay (AdamW): θ ← θ(1 - lr_i*wd), applied BEFORE the
+            // gradient step. Loshchilov & Hutter (ICLR 2019) define the decay against
+            // θ_{t-1}, i.e. the pre-update parameter, and torch.optim.AdamW implements it
+            // in exactly this order. Applying it after the update instead decays θ_t,
+            // leaving a systematic lr²·wd·u error — small, but a real deviation from the
+            // algorithm; ground truth (optimizer_parity_gtest vs torch.optim.AdamW) is
+            // what surfaced it. Restricted to 2-D weight matrices: biases (N×1) and SNN
+            // biophysical scalars (1×1: R, C, V_th) are skipped, so tau=R·C and the firing
+            // threshold are never decayed.
+            if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
+            {
+                // nn::Tensor is a value type: assigning to `param` replaces its storage and
+                // DROPS the gradient buffer (see SGDMinimal.hpp). Save the gradient across
+                // the decay and restore it, or every read below — including the fused
+                // kernel's grad_ref() — would see an empty gradient and skip the step.
+                const Tensor saved_grad = param.grad();
+                // Multiplicative form p*(1 - lr*wd) mirrors torch's p.mul_(1 - lr*wd):
+                // algebraically identical to p + p*(-lr*wd), but a single rounding.
+                param = param.multiply_scalar(1.0F - (lr_i * weight_decay));
+                param.set_grad(saved_grad);
+            }
+
             // Fused single-kernel update when the backend provides it (OpenCL:
             // adam_step_kernel) — same math as the generic path below, without
             // ~15 kernel launches and intermediate tensors per parameter.
             if (try_fused_step(param, moment1[i], moment2[i], lr_i))
             {
-                // Decoupled weight decay, same rule as the generic path below.
-                if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
-                {
-                    param = param.add(param.multiply_scalar(-lr_i * weight_decay));
-                }
                 continue;
             }
 
@@ -285,15 +277,10 @@ struct Adam : public Optimizer
 
             param = param.add(update_step.multiply_scalar(-1.0f));
 
-            // Decoupled weight decay (AdamW): θ ← θ - lr_i * weight_decay * θ.
-            // Decoupled (not folded into the gradient) so Adam's adaptive scaling
-            // does not distort the penalty. Restricted to 2-D weight matrices;
-            // biases (N×1) and SNN biophysical scalars (1×1: R, C, V_th) are
-            // skipped — decaying those would corrupt tau=R·C and the threshold.
-            if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
-            {
-                param = param.add(param.multiply_scalar(-lr_i * weight_decay));
-            }
+            // Weight decay is NOT applied here: it is decoupled and must act on the
+            // pre-update parameter, so it happens at the top of this loop iteration
+            // (see the comment there). Decoupled = not folded into the gradient, so
+            // Adam's adaptive 1/sqrt(v̂) scaling never distorts the penalty.
         }
     }
 

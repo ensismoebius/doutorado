@@ -403,7 +403,7 @@
 				\end{equation}
 				valor que, por ser relativamente baixo, pode colocar essa rede \textbf{sem nenhuma informação de classe} à frente de extratores genuinamente separáveis no ranking --- o critério confunde ``vetores idênticos entre si'' (que também são, trivialmente, muito parecidos dentro de cada classe) com ``vetores bem separados entre classes''.
 
-				\par Esse não é um risco hipotético: durante os experimentos desta tese, uma variante do \textit{autoencoder} de pulso treinada com uma taxa de aprendizado efetiva substancialmente menor que a configurada atingiu exatamente $\alpha=1{,}0000$ e $\beta=1{,}0000$, pontuando $D_{1,0}=1{,}4142$ --- o que a colocaria em primeiro lugar entre as 150 configurações avaliadas para o sinal de EEG, superando inclusive o extrator manual vencedor. A causa raiz --- uma taxa de aprendizado configurada incorretamente para os parâmetros biofísicos dos neurônios de pulso --- é discutida à parte; o ponto relevante aqui é que o critério de seleção, por si só, não protegia contra esse tipo de degenerescência.
+				\par Esse não é um risco hipotético: durante os experimentos desta tese, uma variante do \textit{autoencoder} de pulso treinada com uma taxa de aprendizado efetiva substancialmente menor que a configurada atingiu exatamente $\alpha=1{,}0000$ e $\beta=1{,}0000$, pontuando $D_{1,0}=1{,}4142$ --- o que a colocaria em primeiro lugar entre as 150 configurações avaliadas para o sinal de EEG, superando inclusive o extrator manual vencedor. A causa raiz --- uma taxa de aprendizado configurada incorretamente para os parâmetros biofísicos dos neurônios de pulso --- é discutida em \autoref{sec:snnLrScale}; o ponto relevante aqui é que o critério de seleção, por si só, não protegia contra esse tipo de degenerescência.
 
 				\par A generalização do problema fica clara ao observar que $\alpha=\beta$ força $G_2=\alpha+\beta-1=2\alpha-1$ e $G_1=\alpha-\beta=0$, ou seja, $(\alpha,\beta)=(k,k)$ desliza sobre o eixo $G_1=0$ conforme $k$ varia --- o eixo que liga exatamente os vértices \textit{Ambiguidade} $(0,1)$ e \textit{Indefinição} $(0,-1)$. Como $D_{1,0}$ só enxerga a distância até \textit{Verdade}, ele é cego à proximidade de um ponto desse eixo, que é sempre um estado degenerado: em $(0,1)$ há concordância perfeita mas sem qualquer poder discriminativo (\textit{Ambiguidade}); em $(0,-1)$ não há concordância nem estrutura alguma (\textit{Indefinição}).
 
@@ -1093,6 +1093,35 @@
 				\end{figure}
 
 				\par Vale registrar que a inicialização de He é uma evolução da inicialização de \textbf{Xavier} (ou Glorot), que usa $\ell = \sqrt{6/(n_{in}+n_{out})}$ e foi concebida para ativações simétricas como a tangente hiperbólica \cite{glorot2010understanding}. A forma de He ajusta o fator para não-linearidades retificadoras, sendo por isso a mais adequada às redes deste trabalho.
+
+			\subsubsection{Taxa de aprendizado por grupo de parâmetros}
+				\label{sec:snnLrScale}
+
+				\par Uma RNP treinada por retropropagação tem dois tipos de parâmetro qualitativamente distintos: os pesos e vieses das camadas Lineares, de um lado, e os parâmetros biofísicos do neurônio LIF ($R$, $C$ e $V_{th}$), do outro. Os primeiros só aparecem multiplicando ou somando o sinal; os segundos entram na constante de tempo $\tau=R\cdot C$ (\autoref{eq:finalMem}) e no próprio limiar de disparo --- uma atualização grande demais pode levar $\tau$ a um valor absurdo ou deslocar $V_{th}$ para fora da faixa em que o neurônio dispara de forma útil. Por essa razão, este trabalho usa uma taxa de aprendizado menor para o segundo grupo: um fator de escala interno de $0{,}1$ aplicado sobre a taxa global, isto é, $\eta_{\text{biofísico}} \approx 10^{-4}$ quando $\eta_{\text{global}} = 10^{-3}$. Registra-se aqui, por honestidade, que esse fator $0{,}1$ é uma escolha de engenharia deste projeto --- não um valor extraído de um estudo específico da literatura; uma citação anteriormente associada a essa escolha não pôde ser verificada e foi removida da documentação do código (Wiki, \texttt{Core/Optimizers.md}).
+
+				\par \textbf{Mecanismo.} O otimizador Adam implementado aceita um multiplicador de taxa de aprendizado por parâmetro: dado o vetor achatado de parâmetros do modelo $\theta_1,\dots,\theta_n$ e um vetor de escalas $s_1,\dots,s_n$, a taxa efetiva do parâmetro $i$ é
+
+				\begin{equation}
+					\label{eq:lrscale}
+					\eta_i = \eta_{\text{global}} \times s_i \: ,
+				\end{equation}
+
+				\par de modo que $s_i=1$ mantém a taxa global e $s_i=0{,}1$ aplica a redução --- em ambos os casos o restante da atualização de Adam (médias móveis dos gradientes, correção de viés) segue idêntico. A intenção de projeto era popular esse vetor com $s_i=0{,}1$ exatamente nas posições correspondentes a $R$, $C$ e $V_{th}$, e $s_i=1$ em todas as demais.
+
+				\par \textbf{O defeito e sua descoberta.} A implementação original não distinguia as posições do vetor $\theta$: preenchia $s_i$ com o mesmo fator para \textbf{todos} os parâmetros do modelo, sempre que o fator fosse diferente de $1$. O resultado não era uma taxa de aprendizado por grupo --- era um multiplicador global disfarçado, reduzindo em $10\times$ a taxa de aprendizado de \emph{toda} a rede, pesos incluídos, sempre que a redução biofísica estava habilitada. O defeito só veio à tona durante a investigação do latente colapsado descrita em \autoref{sec:dPenalizado}: ao rastrear por que uma variante do \textit{autoencoder} de pulso convergia para uma saída constante mesmo com uma taxa de aprendizado nominalmente razoável, ficou claro que a taxa \emph{efetivamente aplicada aos pesos} era dez vezes menor que a declarada no perfil do experimento --- o que os dados publicados descreviam não era o que, de fato, havia sido executado.
+
+				\par O alcance do defeito se estende além do ramo de \textit{autoencoders} pulsantes desta tese: o mesmo mecanismo de escala por grupo é usado pelo experimento de comparação SNN-\textit{vs}-LSTM (artigo de congresso, ainda em rascunho), cujos perfis de SNN também habilitam a redução biofísica. Nesse experimento, a rede LSTM de comparação --- sem parâmetros biofísicos --- treinava com a taxa de aprendizado declarada por completo, enquanto a rede de pulso, pelo mesmo defeito, treinava \textbf{todos os seus pesos} a um décimo dela --- uma desvantagem estrutural não-intencional contra a própria contribuição do artigo, introduzida não pelo método proposto, mas por uma falha de implementação do mecanismo de escala.
+
+				\par \textbf{Correção.} Rotular explicitamente quais posições do vetor achatado de parâmetros são biofísicas exigiria alterar a interface comum de todas as camadas da base de código. Em vez disso, a correção aproveita uma regularidade já verdadeira na implementação: $R$, $C$ e $V_{th}$ são, em todo neurônio LIF do projeto, tensores escalares $1\times1$, ao passo que nenhum peso ou viés jamais o é --- o mesmo critério de tamanho que a implementação de decaimento de peso (\textit{weight decay} desacoplado) já usava para excluir vieses e parâmetros biofísicos do próprio decaimento. A construção do vetor de escalas passou a testar o tamanho de cada parâmetro:
+
+				\begin{equation}
+					\label{eq:lrscalefix}
+					s_i = \begin{cases} 0{,}1 & \text{se } \theta_i \text{ tem exatamente 1 elemento} \\ 1{,}0 & \text{caso contrário} \end{cases}
+				\end{equation}
+
+				\par sem qualquer mudança na interface comum das camadas. Um teste de regressão foi acrescentado à suíte de testes do treinador genérico: um modelo sintético com um parâmetro $1\times1$ e um parâmetro $2\times2$, ambos recebendo o mesmo gradiente fixo a cada passo, confirma que, após um passo do Adam, o parâmetro $1\times1$ se desloca por $\eta_{\text{global}}\times0{,}1$ e o $2\times2$ pelo $\eta_{\text{global}}$ completo --- exatamente a distinção que o defeito original violava.
+
+				\par \textbf{Situação no momento da escrita.} A correção está no código e validada pelo teste de regressão acima, mas os resultados já publicados --- tanto os 300 \textit{rankings} da Fase~00 desta tese quanto as tabelas do artigo de comparação SNN-\textit{vs}-LSTM --- foram produzidos \textbf{antes} da correção, sob o comportamento antigo. Reexecutá-los para refletir a taxa de aprendizado corrigida é uma decisão em aberto, não tomada até o fechamento deste texto: trata-se de experimentos longos (horas, por configuração), e o artigo, ainda em rascunho, é o caso de maior urgência --- sua tabela comparativa atual favorece indevidamente a rede LSTM.
 
 		\subsection{\textit{Autoencoders}}
 		

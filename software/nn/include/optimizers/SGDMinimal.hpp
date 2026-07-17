@@ -12,7 +12,13 @@
  * @brief Minimal SGD implementation without momentum/state.
  *
  * This is the simplest optimizer in the project:
- *   param = param - lr * grad
+ *   param = param - lr_i * grad,   lr_i = learning_rate * lr_scales_[i]
+ *
+ * "Minimal" refers to the absence of optimizer *state* (no momentum, no moments) —
+ * it still honors the two stateless knobs on the Optimizer base (`lr_scales_` for
+ * per-parameter-group learning rates and `weight_decay` for decoupled L2), because an
+ * inherited field that a subclass silently ignores is a correctness trap, not a
+ * simplification.
  *
  * Implementation note (Tensor semantics):
  * - In this codebase, `nn::Tensor` behaves like a value type; assigning to `*param`
@@ -41,15 +47,31 @@ struct SGDMinimal : public Optimizer
 
     auto step(std::span<Tensor*> params) -> void override
     {
-        for (auto* param : params) [[likely]]
+        for (std::size_t i = 0; i < params.size(); ++i) [[likely]]
         {
-            if (param == nullptr)
+            if (params[i] == nullptr)
             {
                 throw std::invalid_argument("Parameter pointer is null");
             }
-            // Update: param = param - learning_rate * grad (uses backend operations)
+            auto* param = params[i];
+            // Per-parameter lr: use scale if provided, otherwise 1.0 (global lr).
+            const float lr_i = learning_rate * (i < lr_scales_.size() ? lr_scales_[i] : 1.0F);
+
+            // Read the gradient BEFORE any assignment to *param: assigning replaces the
+            // tensor's storage and drops the gradient buffer (see the file header).
             Tensor grad_copy = param->grad();
-            auto update = grad_copy.multiply_scalar(learning_rate);
+
+            // Decoupled weight decay: θ ← θ(1 - lr_i*wd), applied BEFORE the gradient step
+            // so it acts on θ_{t-1} as Loshchilov & Hutter (ICLR 2019) define it — the same
+            // ordering ground truth pinned for Adam (see Adam.hpp). Same 2-D-only
+            // restriction: biases and 1x1 SNN scalars (R, C, V_th) are skipped.
+            if (weight_decay > 0.0F && param->rows() > 1 && param->cols() > 1)
+            {
+                *param = param->multiply_scalar(1.0F - (lr_i * weight_decay));
+            }
+
+            // Update: param = param - lr_i * grad (uses backend operations)
+            auto update = grad_copy.multiply_scalar(lr_i);
             *param = *param - update;
 
             // Restore gradients (as they are lost during assignment)
@@ -77,7 +99,9 @@ struct SGDMinimal : public Optimizer
         {
             throw std::invalid_argument("Cannot attach null parameter to optimizer");
         }
-        // SGDMinimal doesn't need to store parameters as step/zero_grad take them as arguments
+        // SGDMinimal has no per-parameter state of its own, but the base still records
+        // `params` (for the no-arg step()/zero_grad()) and resets `lr_scales_`.
+        Optimizer::attach(params);
     }
 };
 

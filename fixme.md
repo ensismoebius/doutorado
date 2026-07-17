@@ -7,8 +7,8 @@
 | ~~D1~~ | ~~Critério da Fase 00 premia AE morto~~ → **RESOLVIDO** (métrica `d_penalized`) | ✅ | --- |
 | D2 | Conclusão do §08 confundida por D1 | 🔴 crítico | fechar §08 |
 | D3 | ~~`snn_lr_scale` quebrado~~ → **CORRIGIDO no código**, também afeta o artigo E04 (Guaiaquil, rascunho) | 🟡 re-execução pendente | D4, reprodutibilidade, artigo E04 |
-| D4 | Seção da tese sobre lr por grupo | 🟢 baixo | --- (depende de D3) |
-| D5 | Item 51: otimizadores | 🟢 baixo | --- |
+| ~~D4~~ | ~~Seção da tese sobre lr por grupo~~ → **ESCRITA** (§2.1.10.10) | ✅ | --- |
+| D5 | ~~Item 51: otimizadores~~ → **framework FEITO** (otimizador polimórfico + escalas por grupo na base); ablação pendente | 🟡 ablação pendente | item 51 |
 | D6 | Eixo `scale` do EEG é inócuo | 🟡 médio | contagem da grade na tese |
 
 ---
@@ -121,25 +121,63 @@ Nenhum dos dois lotes foi disparado --- ambos exigem confirmação explícita do
 
 ---
 
-### D4 --- Seção da tese sobre taxa de aprendizado por grupo 🟢 --- desbloqueada por D3
+### D4 --- Seção da tese sobre taxa de aprendizado por grupo ✅ ESCRITA (2026-07-16)
 
-Essa seção foi pedida durante a sessão, mas **deixei de escrevê-la de propósito**: o código, até D3 ser corrigido, não implementava taxa por grupo --- implementava uma escala global disfarçada. Escrever a seção antes disso documentaria uma intenção que o código não honrava.
+Essa seção tinha sido pedida durante a sessão, mas eu tinha **deixado de escrevê-la de propósito**: o código, até D3 ser corrigido, não implementava taxa por grupo --- implementava uma escala global disfarçada. Escrever a seção antes disso documentaria uma intenção que o código não honrava.
 
-**Agora que D3 está corrigido de verdade** (`Trainer.hpp` aplica `snn_lr_scale` só aos parâmetros 1×1 --- R, C, V_th --- e não mais a pesos/vieses), a seção passa a descrever um mecanismo real, não mais uma aspiração. Ainda não escrevi o texto --- fica pendente, mas agora **desbloqueada**: pode ser escrita já com a fórmula do critério de tamanho (`param.size() == 1`), o mesmo critério que o decaimento de peso do Adam já usa, e com o exemplo da regressão do E04 (artigo de Guaiaquil) como motivação concreta de por que a diferenciação por grupo importa na prática.
+**Texto escrito** em `chapters/07-bibliographicRevision.tex`, nova subseção "Taxa de aprendizado por grupo de parâmetros" (§2.1.10.10, `\label{sec:snnLrScale}`, logo após "Inicialização de Pesos" e antes de "Autoencoders"). Conteúdo: (1) motivação --- por que R/C/V_th precisam de uma taxa menor que pesos (τ=R·C e o limiar de disparo são sensíveis a atualizações grandes); (2) registro explícito de honestidade de que o fator 0,1 é escolha de engenharia do projeto, não valor de literatura, e que uma citação anterior para essa afirmação foi removida por não ser verificável (mesmo padrão do item 57); (3) o mecanismo real do Adam (`attach_with_scales`, $\eta_i=\eta_{\text{global}}\times s_i$); (4) o defeito original (preenchimento uniforme do vetor de escalas) e como foi descoberto --- durante a investigação do latente colapsado (cross-referenciado com `\autoref{sec:dPenalizado}`); (5) o alcance real do defeito, incluindo o artigo de Guaiaquil (SNN treinado a 1/10 da taxa da LSTM de comparação, uma desvantagem não intencional); (6) a correção pelo critério de tamanho (parâmetro 1×1 = biofísico), com a mesma fórmula usada no código; (7) o teste de regressão adicionado; (8) situação em aberto --- nem a Fase 00 nem o artigo foram reexecutados sob a correção. A referência cruzada em `sec:dPenalizado` ("a causa raiz... é discutida à parte") foi convertida num `\autoref` real para esta seção. Tese recompila limpa (120 pág., zero refs indefinidas), verificada visualmente.
 
 ---
 
-### D5 --- Item 51 (otimizadores) está bloqueado 🟢
+### D5 --- Item 51 (otimizadores) 🟢 --- **TRABALHO DE FRAMEWORK FEITO (2026-07-16)**, ablação ainda pendente
 
-Avaliar outros otimizadores não é uma questão de gerar perfis: hoje não existe seleção de otimizador em lugar nenhum do E05. Concretamente:
+O bloqueio original: avaliar outros otimizadores não era uma questão de gerar perfis --- não existia seleção de otimizador em lugar nenhum do E05. O `Trainer` fixava `Adam optimizer_` como membro concreto, nem `TrainerConfig` nem `E05Config` tinham campo de otimizador, e `attach_with_scales` era exclusivo do Adam (não-virtual, ausente do SGD).
 
-- o `Trainer` fixa `Adam optimizer_` como membro concreto (`Trainer.hpp:151`);
-- nem `TrainerConfig` nem `E05Config` têm campo de otimizador;
-- a `OptimizerFactory` só conhece `adam` e `sgd`, e apenas o Exp03 a utiliza;
-- Schedule-Free AdamW não existe no código;
-- `attach_with_scales` é exclusivo do Adam --- não é virtual na classe base e o SGD não o possui.
+**Decisão do autor:** "sim, tornar o otimizador polimórfico e estender a interface base para escalas por grupo". Implementado:
 
-A decisão, portanto, é se vale o trabalho de framework (tornar o otimizador polimórfico e estender a interface base para escalas por grupo) antes de qualquer ablação.
+**1. Escalas por grupo na classe base.** `attach_with_scales()` passou a ser `virtual` em `Optimizer`, com implementação padrão que chama o `attach()` virtual (preservando a alocação de estado por parâmetro de cada otimizador --- momentos do Adam, velocidade do SGD) e depois guarda as escalas. O armazenamento `lr_scales_` e o campo `weight_decay` subiram para a base, pois um chamador que segura um `Optimizer&` precisa configurá-los sem conhecer o tipo concreto. **Todos os três otimizadores** (`Adam`, `SGD`, `SGDMinimal`) agora leem `lr_scales_` no `step()` (`lr_i = learning_rate * lr_scales_[i]`, 1,0 além do fim do vetor) e aplicam `weight_decay` desacoplado com a mesma restrição a matrizes 2-D. Antes, só o Adam honrava escalas: `SGD` e `SGDMinimal` ignorariam silenciosamente qualquer escala passada --- exatamente a classe de bug que era D3.
+
+**2. `Trainer` polimórfico.** O membro virou `std::unique_ptr<::Optimizer> optimizer_`, construído por `OptimizerFactory` a partir de dois campos novos em `TrainerConfig`: `optimizer_type` (`"adam"` default --- comportamento idêntico ao anterior para todo chamador/perfil existente --- ou `"sgd"`) e `optimizer_momentum`. Tipo desconhecido lança em vez de cair silenciosamente no Adam.
+
+**3. Bug latente encontrado e corrigido de passagem.** O `Optimizer::attach()` da base era um no-op literal, embora o próprio comentário dissesse "concrete optimizers should call `Optimizer::attach(params)` to preserve this storage for no-arg convenience methods" --- não preservava nada. O Adam contornava atribuindo `attached_params_` à mão; o **`SGD` confiava no contrato e portanto nunca populava `attached_params_`, de modo que `sgd.step()` sem argumentos sempre lançava** mesmo após um `attach()` correto. A base agora honra o contrato que ela mesma documenta. O teste `OptimizerBaseTest.ConvenienceMethodsAndDefaults` afirmava o comportamento antigo (`EXPECT_TRUE(opt.attached_params_.empty())` sob o comentário "Base attach() is a no-op") e foi atualizado para o contrato novo.
+
+**Testes** (3 novos + 1 atualizado; 53/53 verdes no `ctest -R "Optim|Trainer|Adam|SGD|StateIO"`, incluindo os dois testes reais de convergência):
+- `OptimizerBaseTest.AttachWithScalesIsPolymorphic` --- dois parâmetros com gradiente fixo idêntico e escalas 1,0 vs 0,1; verifica que os deslocamentos diferem pela razão das escalas para SGD, para Adam, e através de um `Optimizer&` vindo da factory (o caso de uso do `Trainer`).
+- `SGDTest.DecoupledWeightDecayOnly2DWeights` --- com gradiente zero, só o parâmetro 2×2 decai; o 1×1 (biofísico) fica intacto.
+- `TrainerGenericity.OptimizerTypeSelectsImplementation` --- default é `"adam"`, ambos os tipos treinam, tipo inexistente lança.
+- `OptimizerBaseTest.ConvenienceMethodsAndDefaults` --- atualizado ao novo contrato do `attach()`.
+
+**Arquivos:** `Optimizer.hpp`, `Adam.hpp` (removidos os membros agora duplicados e o `attach_with_scales` próprio --- a base faz o mesmo), `SGD.hpp`, `SGDMinimal.hpp`, `Trainer.hpp`, `TrainerConfig.hpp`, `optimizers_gtest.cpp`, `trainer_genericity_gtest.cpp`. Docs: `.wiki/Core/Optimizers.md`, `.wiki/Core/Training.md`, `CLAUDE.md` (invariante 4 do SNN), + 4 páginas da wiki que citavam `Adam::attach_with_scales()`.
+
+**Otimizadores SOTA + plumbing + ground truth (2026-07-16):** por decisão do autor ("expose optimizer_type to profile JSON; implement SOTA optimizers; create ground truth comparing with pytorch/snntorch"), com o objetivo declarado de **ablação da tese**.
+
+**1. `optimizer_type` exposto no JSON.** `E05Config::Training::{optimizer_type, optimizer_momentum}` → validados em `validate()` → encaminhados a `TrainerConfig` nos **três** pontos onde o E05 constrói um `Trainer` (classificador em `E05Classifiers.cpp`; os dois AEs em `E05FeatureExtraction.cpp`). Chave JSON: `training.optimizer_type`. Default `"adam"` reproduz tudo que já foi publicado. Verificado ponta a ponta: `"lion"` parseia, `"nope"` lança. Novo teste `E05ProfileAuditTest.OptimizerTypeIsSupported` roda sobre os 333 perfis (suite: 2335 → 2668 testes).
+
+**2. Implementados: Lion e Schedule-Free AdamW.** Todos portados **lendo o código-fonte das implementações de referência** (baixadas via pip), não de memória --- decisão deliberada dada a precedência do item 57 (citação fabricada). Isso pegou detalhes que uma porta "de cabeça" erraria: a Lion aplica o decay **antes** do update e avança o momentum **depois** dele; a Schedule-Free mantém três sequências acopladas (x/y/z) e **avalia num ponto diferente do que treina**. Registrados na `OptimizerFactory` (tokens: `adam`, `sgd`, `lion`, `schedule-free-adamw`); `Optimizer::train_mode()` + o RAII `OptimizerEvalScope` foram adicionados para que o `Trainer` valide no iterado médio `x` da Schedule-Free (no-op para os demais).
+
+**3. Descartados, com motivo técnico concreto:**
+- **Muon** --- foi implementada e validada contra o `muon-optimizer` (parity verde nas duas orientações de matriz), e depois **removida a pedido do autor**. Motivo prático: ela ortogonaliza só matrizes 2-D de verdade (`rows>1 && cols>1`) e cai num fallback Adam para o resto --- como R, C e V_th são tensores 1×1 aqui, a Muon **nunca os tocaria**, afetando apenas as matrizes das Lineares. Somado ao alvo de projeto dela (pré-treino em escala de LLM), não havia papel plausível na ablação da tese. Recuperável no histórico do git se um dia fizer falta.
+- **Sophia** --- incompatível com o contrato atual `Optimizer::step(span<Tensor*>)`. Li a referência (`sophia-opt`): o Hessiano vem de um `update_hessian()` separado que precisa dos **gradientes de um segundo backward com rótulos reamostrados da distribuição de saída do modelo** (estimador Gauss-Newton-Bartlett). Nosso `step()` recebe só params + `.grad()` --- sem modelo, sem loss, sem como disparar esse passe. Implementá-la sem isso faria o "hessian" virar o gradiente² da loss real, que é ≈ o segundo momento do Adam com um rótulo "Sophia" --- mentira silenciosa. Exigiria mudança arquitetural no `Trainer`/loss.
+- **SOAP** --- exige decomposição em autovalores (`eigh` de `GGᵀ`/`GᵀG`), que não existe na interface `Tensor` agnóstica de backend. Adicioná-la significaria estender o `TensorBackendParityContract` nos **quatro** backends (XTensor, OpenCL, SYCL, Device). O `xtensor-blas` cobriria só o XTensor.
+
+**4. Ground truth contra as referências reais.** `scripts/testing/gen_optimizer_refs.py` (segue o padrão já existente do `gen_pytorch_refs.py`: gera `.npz` commitado, CI não precisa de torch) dirige **a implementação de referência** por uma sequência fixa de params/grads e grava o parâmetro após cada passo; `optimizer_parity_gtest` (13 testes, todos verdes) replica os mesmos dados pela nossa porta. Referências: `torch.optim.{Adam,AdamW,SGD}` + `lion-pytorch`, `schedulefree` (ambos no pypi). Cobre também o swap train/eval da Schedule-Free. **10 testes, todos verdes.**
+
+> **⚠️ Aviso de escala, para a ablação.** Os defaults de lr das referências divergem (Adam 1e-3, Lion 1e-4, Schedule-Free 2.5e-3), e o update da Lion é `±lr` em **toda** coordenada, independente da magnitude do gradiente --- por isso o lr utilizável dela é bem menor. **Um lr único não é comparável entre otimizadores**: a ablação precisa tunar lr por otimizador, senão mede a escolha de lr e não o otimizador.
+
+**Dois bugs reais encontrados pelo ground truth (o motivo de ele existir):**
+- **Ordem do weight decay do Adam estava errada.** Aplicávamos o decay *depois* do passo de gradiente; Loshchilov & Hutter (ICLR 2019) o definem sobre θ_{t-1}, e o `torch.optim.AdamW` faz nessa ordem. O nosso deixava um erro sistemático de `lr²·wd·u`. Confirmado numericamente: decay-antes reproduz o torch com erro **0.0**; decay-depois erra 1e-5. Corrigido no Adam e, por consistência, no SGD e no SGDMinimal (nesses dois não havia ground truth: o `weight_decay` do `torch.optim.SGD` é L2 acoplado, não desacoplado).
+- **Armadilha de valor-semântica do `nn::Tensor`.** Ao mover o decay para antes do update, o Adam parou de atualizar: atribuir a `param` **substitui o storage e descarta o buffer de gradiente** (armadilha já documentada no `SGDMinimal.hpp`), então `param.grad()` depois do decay lia gradiente vazio. Corrigido salvando/restaurando o gradiente em volta do decay.
+- (E um bug no próprio gerador de fixtures: `np.asarray()` sobre um tensor torch compartilha storage, e os otimizadores mutam in-place --- sem `copy=True` todos os passos gravados viravam alias do último. Pego porque Adam/SGD, que são corretos e antigos, falharam junto com os novos: 13/13 falhando é sintoma de harness, não de 13 algoritmos errados.)
+
+**Arquivos:** `Lion.hpp`, `ScheduleFreeAdamW.hpp` (novos), `Optimizer.hpp` (`train_mode`, `OptimizerEvalScope`), `Adam.hpp`, `SGD.hpp`, `SGDMinimal.hpp`, `OptimizerFactory.hpp`, `Trainer.hpp`, `TrainerConfig.hpp`, `E05Config.{hpp,cpp}`, `E05Classifiers.cpp`, `E05FeatureExtraction.cpp`, `scripts/testing/gen_optimizer_refs.py` (novo), `src/core/optimizers/tests/{optimizer_parity_gtest.cpp,fixtures/optimizer_refs.npz}` (novos), `.gitignore` (whitelist da fixture).
+
+**5. Cada perfil recebe o lr do SEU otimizador (2026-07-16).** Pedido do autor ("make sure that every profile gets its respective lr"). Diagnóstico: os 333 perfis hoje são todos `adam` + `lr=0.001` --- que **é** o default de referência do Adam, logo nada está errado *agora*. O risco é estrutural: no momento em que um perfil de ablação puser `optimizer_type: lion` e deixar `lr: 0.001`, a Lion treina 10× quente e a conclusão seria "Lion é pior" --- um achado falso do mesmo tipo de D3. Implementado para que a garantia valha **por construção**:
+- `nn::optimizers::reference_learning_rate(token)` --- fonte única de verdade com o default publicado de cada otimizador (adam 1e-3, sgd 1e-2, lion 1e-4, schedule-free-adamw 2.5e-3).
+- `training.learning_rate` virou **opcional** (`std::optional`) no perfil: omitido → `Training::effective_learning_rate()` resolve pelo otimizador escolhido; declarado → vence (varredura de lr continua possível). Os três pontos que constroem `TrainerConfig` passaram a usar o accessor, então ninguém lê um `nullopt` nem cravaria 1e-3 na mão.
+- **O summary agora grava o que de fato rodou**: bloco `training` com `optimizer_type`, o `learning_rate` **resolvido** e um `learning_rate_source` (`profile` | `optimizer_default`), além de epochs/batch/weight_decay. Antes o summary **não gravava nenhum parâmetro de treino** --- exatamente a lacuna que tornou D3 possível (o publicado não era o executado, e nada em disco registrava a diferença).
+- Testes: `E05OptimizerLearningRate.EachOptimizerResolvesToItsOwnReferenceLr` (cada otimizador resolve ao seu próprio lr, e os quatro defaults são distintos entre si --- senão o mecanismo seria inócuo), `...ExplicitProfileValueOverridesTheDefault`, e uma asserção por perfil no `e05_profile_audit_gtest` (2668 → 2670 testes): quem declara lr resolve exatamente para o declarado (**guarda de regressão: tornar o campo opcional não pode ter mudado nenhuma execução já publicada**), quem omite resolve para o default do próprio otimizador. Verificado ponta a ponta: perfil `lion` sem lr → summary grava `1e-4` / `optimizer_default`; perfil existente → `0.001` / `profile`, inalterado.
+
+**Ainda pendente (o item 51 em si):** **nenhuma ablação foi rodada** --- nenhum perfil real declara `optimizer_type` (todos usam o default `adam`). Rodar a ablação exige (a) decidir se basta o lr de referência por otimizador (agora automático) ou se cada um terá varredura própria de lr, e (b) tempo de máquina: é experimento caro, mesma ressalva de D1/D2/D3.
 
 ---
 
@@ -155,12 +193,31 @@ Duas opções: remover o eixo `scale` do EEG e corrigir a contagem na tese, ou m
 
 ---
 
+## Auditoria de comentários não-confiáveis (2026-07-16)
+
+Varredura pedida pelo autor ("scan the code looking for untrustworthy comments"). Priorizei a classe de defeito que já mordeu este projeto duas vezes: **comentário que afirma um contrato que o código não cumpre** (D3, D5) e **citação vaga/errada** (item 57). Não é uma varredura exaustiva de todo comentário do repo.
+
+**Corrigidos nesta sessão:**
+
+- [x] **C-1. `Optimizer::attach()` mentia sobre si mesmo.** O comentário mandava os otimizadores concretos chamarem `Optimizer::attach(params)` "to preserve this storage for no-arg convenience methods" --- mas o corpo era `{}`, um no-op literal, e não preservava nada. Consequência real: o **SGD confiava no contrato e nunca populava `attached_params_`**, então `sgd.step()` sem argumentos sempre lançava mesmo após um `attach()` correto. A base agora honra o que documenta (ver D5).
+- [x] **C-2. `TrainerConfig.hpp`: "SNN-specific fields are ignored for pure ANN models".** Era falso antes de D3 (escalava todos os pesos de qualquer modelo). Voltou a ser verdadeiro *por causa* da correção de D3, não por edição do texto --- ver F1.
+- [x] **C-3. `Trainer.hpp`, lista "Bugs fixed", item 4.** Dizia "snn_lr_scale wired via attach_with_scales (was silently ignored)" --- apresentava como *bug corrigido* justamente a linha que **era** o bug de D3 (o wiring existia, mas estava errado). Reescrito com o comportamento real e nota explícita de que a redação anterior era enganosa.
+- [x] **C-4. `Lif.hpp`: citação mal-atribuída.** Dizia "Reference: [34-35] MPD-ATP (IEEE Xplore 2025); AR-LIF (arXiv 2025)". `[35]` de fato é MPD-ATP (Wang et al., IEEE Xplore 2025) ✅, mas `[34]` é **Lv et al., PMC 2025**, sobre adaptação espaço-temporal --- não um arXiv chamado "AR-LIF". Corrigido contra `References.md`. Mesmo padrão do item 57, embora aqui as referências existam de verdade (só o rótulo estava errado).
+- [x] **C-5. `Adam.hpp`: comentário do weight decay descrevia a ordem errada.** Dizia que o decay é aplicado após o passo; a definição de AdamW (e o `torch.optim.AdamW`) o aplicam sobre θ_{t-1}. O comentário *descrevia fielmente o código* --- e o código é que estava errado. Ver D5.
+
+**Encontrados, não corrigidos (baixa severidade, registro para decisão):**
+
+- [ ] **C-6. 41 comentários `@file` apontam para caminhos inexistentes.** Reivindicam um prefixo `include/nn/...` (ex.: `include/nn/models/lstm/LSTMAutoencoder.hpp`) de um layout antigo; o real é `include/models/lstm/...`. Também `nn/dataLoaders/` vs `data_loaders/`. Puramente documental (Doxygen), mas é ruído que ensina o leitor a não confiar no cabeçalho. Correção é mecânica (sed) --- não fiz para não misturar 41 arquivos não relacionados no diff dos otimizadores.
+- [ ] **C-7. `LifBPTT.hpp:92`: `Tensor spike_history` --- "Placeholder for spike cache (currently unused in this implementation)".** O comentário é **honesto** (verifiquei: o membro é declarado e nunca referenciado). Mas é estado morto num layer serializável: decidir se remove ou se algum dia terá uso.
+
+---
+
 ## Correções mecânicas (decorrem das decisões acima)
 
-- [ ] **F1.** O comentário em `TrainerConfig.hpp:10` afirma que `snn_lr_scale` "is ignored for pure ANN models". Isso é falso: em modelos ANN puros ele escala todos os pesos por 0,1 --- o efeito medido no ANN-AE foi de +4,6σ. Corrigir junto com D3.
-- [ ] **F2.** Nenhum teste cobre o caminho em que `snn_lr_scale` é diferente de 1.0. Todos os testes de `trainer_genericity_gtest.cpp` (linhas 158, 198, 223, 243 e 276) o desligam com `= 1.0F`, e foi por isso que o bug passou despercebido. Vale acrescentar um teste que fixe o comportamento escolhido em D3.
-- [ ] **F3.** O diretório `results/phase00/` não é reproduzível a partir dos perfis: quem rodá-los como estão (com 1e-3 declarado) obtém resultados diferentes dos publicados (que usaram 1e-4 efetivo). Some assim que D3 for decidido.
-- [ ] **F4.** A tabela de `.wiki/Experiments/Experiment05.md` já foi corrigida no item 59, mas ainda não menciona D1 nem o fato de os números virem de uma taxa efetiva de 1e-4. Atualizar depois de D1 e D3.
+- [x] **F1.** O comentário em `TrainerConfig.hpp:10` afirma que `snn_lr_scale` "is ignored for pure ANN models". Era falso antes da correção de D3 (escalava todos os pesos por 0,1 mesmo em ANN puro --- o efeito medido no ANN-AE foi de +4,6σ). **Resolvido pela própria correção de D3**: com a escala agora restrita a parâmetros 1×1, e nenhum modelo ANN puro (ex. `ProtocolAutoencoder`) tendo parâmetro 1×1 algum (pesos e vieses são sempre >1 elemento), `snn_lr_scale` de fato não afeta mais modelos ANN --- o comentário voltou a ser verdadeiro sem precisar editá-lo.
+- [x] **F2.** Nenhum teste cobria o caminho em que `snn_lr_scale` é diferente de 1.0. Adicionado `TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams` (`trainer_genericity_gtest.cpp`): modelo com um parâmetro 1×1 e um 2×2, mesmo gradiente fixo nos dois, confirma que só o 1×1 recebe a escala reduzida. Verde.
+- [ ] **F3.** O diretório `results/phase00/` não é reproduzível a partir dos perfis: quem rodá-los como estão (agora com a correção de D3 já no código) obtém resultados **diferentes** dos publicados (que rodaram sob o bug, taxa efetiva 1e-4 nos pesos). D3 já foi decidido/corrigido no código --- falta só a re-execução dos 24 perfis AE para que `results/phase00/` volte a bater com os perfis atuais (ver decisão de re-execução em D3).
+- [ ] **F4.** A tabela de `.wiki/Experiments/Experiment05.md` já foi corrigida no item 59. A seção de SNN-AE agora também menciona D1 (via link para `D_penalized`) e traz a regularização de taxa de disparo, mas **ainda não** menciona explicitamente que os números da tabela "Measured separability" (linha ~107) vêm de execuções feitas sob o bug de D3 (taxa efetiva 1e-4 nos pesos, não 1e-3). Atualizar quando os 24 perfis forem re-executados sob D3 corrigido --- caso contrário a tabela ficaria com um aviso sobre dados que estão prestes a mudar.
 - [ ] **F5.** A contagem "138 variantes handcrafted por sinal", na seção "Referência" mais abaixo, continua enganosa para o EEG. Ver D6.
 
 ---
@@ -182,7 +239,7 @@ Duas opções: remover o eixo `scale` do EEG e corrigir a contagem na tese, ou m
 
 ## Pipeline Experiment05 (crítico para a tese, ordem de prioridade)
 
-1. **[BLOQUEADO POR D1]** Rodar `01_e05_phase00_rank.py` sobre o conjunto de 300 perfis agora completo para produzir `winners.json`. --- Rodar agora escolheria o vencedor por `D_truth` mínimo, critério que (D1) premia latente colapsado no ramo AE; para o EEG o vencedor atual (`ann_tiny`, d=1,4861) é um AE, logo é justamente o ramo afetado. Decidir D1 antes.
+1. **[DESBLOQUEADO POR D1 --- pendente de execução]** Rodar `01_e05_phase00_rank.py` sobre o conjunto de 300 perfis para produzir `winners.json`. D1 já foi decidido e implementado (o script agora seleciona por `d_penalized`, não mais por `D_truth` cru), então o bloqueio original caiu --- mas o script ainda não foi de fato executado contra o conjunto completo (`winners.json` não existe em disco). Falta só rodar. Considerar também se vale esperar a re-execução dos 24 perfis AE sob D3 (ver D3) antes, já que os resultados armazenados desses 24 ainda refletem a taxa de aprendizado efetiva errada.
 2. Rodar `02_e05_apply_winner.py` para injetar o vencedor real nos 32 perfis da phase01, substituindo o bloco `feature_extraction` provisório.
 3. Executar os 32 perfis `classifier.type=dsnn` da phase01 (`run_e05_profiles.sh phase01`) --- este é o experimento de autenticação real da tese e atualmente não tem nenhum resultado.
 4. Com resultados reais do DSNN em mãos, considerar uma rodada explícita de ablação para `weight_decay`, `firing_rate_reg_lambda` e tdBN --- nenhum dos três jamais foi exercitado fora do perfil debug/smoke:
@@ -198,7 +255,7 @@ Status completo verificado: ver "Log de status do Experiment05" abaixo.
 
 ## Aprofundar (revisão de texto/tese)
 
-- [ ] **51. Avaliar diferentes algoritmos de otimização.** → bloqueado, ver **D5**.
+- [ ] **51. Avaliar diferentes algoritmos de otimização.** → **infraestrutura pronta, ablação não rodada** (ver **D5**). Feito: otimizador polimórfico via `OptimizerFactory`; `attach_with_scales` virtual na base (todos honram escalas por grupo); `training.optimizer_type` exposto no JSON dos perfis; **Lion** e **Schedule-Free AdamW** implementados a partir do código-fonte das referências e validados por ground truth (`optimizer_parity_gtest`, 10/10). Sophia, SOAP e Muon descartados com motivo técnico registrado em D5. Falta apenas: (a) definir a grade de lr **por otimizador** (um lr único não é comparável --- ver aviso em D5) e (b) rodar a ablação, que é experimento caro (mesma ressalva de D1/D2/D3).
 
 **Feitos:**
 

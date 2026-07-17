@@ -102,7 +102,14 @@ struct LifImpl : public Module<Backend>
     // back toward zero at rate `adapt_decay`. This suppresses bursting and
     // improves temporal selectivity.
     //
-    // Reference: [34-35] MPD-ATP (IEEE Xplore 2025); AR-LIF (arXiv 2025).
+    // Reference: [34] Z. Lv et al., "Advancing spatio-temporal processing through
+    // adaptation in spiking neural networks," PMC, 2025; [35] X. Wang et al., "Membrane
+    // potential-driven adaptive threshold plasticity for SNNs" (MPD-ATP), IEEE Xplore,
+    // 2025. Both resolve in .wiki/References.md.
+    // (An earlier revision of this comment read "[34-35] MPD-ATP (IEEE Xplore 2025);
+    // AR-LIF (arXiv 2025)" -- it mislabeled [34], which is Lv et al. in PMC, not an
+    // arXiv paper called AR-LIF. Corrected against References.md; cf. fixme.md item 57,
+    // where an outright fabricated citation was found the same way.)
     // Set adapt_coupling = 0.0 (default) to disable adaptation.
 
     /// @brief Per-call decay of the adaptation variable (0 < adapt_decay < 1).
@@ -133,7 +140,7 @@ struct LifImpl : public Module<Backend>
     [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
-    } // 
+    } //
 
     auto state_dict() const -> std::map<std::string, Tensor> override
     {
@@ -141,8 +148,8 @@ struct LifImpl : public Module<Backend>
         d["resistance"] = resistance;
         d["capacitance"] = capacitance;
         d["voltage_threshold"] = voltage_threshold;
-        return d; // 
-    } // 
+        return d; //
+    } //
 
     void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
@@ -185,11 +192,11 @@ struct LifImpl : public Module<Backend>
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
     explicit LifImpl(float time_step_ = 1.0F, // time step
-        float resistance_ = 1.0F,               // resistance
-        float capacitance_ = 1.0F,              // capacitance
-        float voltage_threshold_ = 1.0F,        // voltage threshold
-        bool reset_zero_ = true,                // reset to zero or subtract threshold
-        float reset_potential_ = 0.0F,          // reset potential value
+        float resistance_ = 1.0F,             // resistance
+        float capacitance_ = 1.0F,            // capacitance
+        float voltage_threshold_ = 1.0F,      // voltage threshold
+        bool reset_zero_ = true,              // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F,        // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>(),
         float adapt_decay_ = 0.9F,    // adaptation decay rate (0,1)
@@ -220,8 +227,8 @@ struct LifImpl : public Module<Backend>
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
             [[unlikely]]
         {
-            v_mem = Tensor(input.rows(), input.cols()); // 
-            v_mem.setZero();                            // 
+            v_mem = Tensor(input.rows(), input.cols()); //
+            v_mem.setZero();                            //
         }
 
         // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
@@ -249,10 +256,10 @@ struct LifImpl : public Module<Backend>
         // kept as-is for safety/clarity. If you refactor, ensure state semantics
         // remain identical.
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
-            [[unlikely]] // 
+            [[unlikely]] //
         {
-            v_mem = Tensor(input.rows(), input.cols()); // 
-            v_mem.setZero();                            // 
+            v_mem = Tensor(input.rows(), input.cols()); //
+            v_mem.setZero();                            //
         }
 
         // Cache the membrane potential from the previous time step, v(t-1), for the backward
@@ -383,14 +390,14 @@ struct LifImpl : public Module<Backend>
                     v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * base_threshold;
                     if (use_adaptation && output.at(i, j) == 1.0f)
                     {
-                        adapt_a.at(i, j) += adapt_coupling; // 
+                        adapt_a.at(i, j) += adapt_coupling; //
                     }
                 }
             }
         }
 
-        return output; // 
-    } // 
+        return output; //
+    } //
 
     /**
      * @brief Backward pass for Lif neuron.
@@ -418,10 +425,10 @@ struct LifImpl : public Module<Backend>
         {
             sharpness = exp_surr->sharpness();
         }
-        else if (auto* box_surr = dynamic_cast<const BoxcarSurrogate*>( // 
-                     surrogate_gradient.get())) // 
-        { // 
-            sharpness = box_surr->width(); // 
+        else if (auto* box_surr = dynamic_cast<const BoxcarSurrogate*>( //
+                     surrogate_gradient.get()))                         //
+        {                                                               //
+            sharpness = box_surr->width();                              //
         }
 
         Tensor surrogate_grad;
@@ -432,17 +439,17 @@ struct LifImpl : public Module<Backend>
                 surrogate_grad =
                     Tensor(v_mem_pre_spike.get_backend().lif_grad(threshold, sharpness));
             }
-            else // 
-            { // 
-                Tensor diff = v_mem_pre_spike;                  // 
-                diff = diff.add_scalar(-threshold);             // 
-                diff = diff.abs();                              // 
-                diff = diff.divide_scalar(sharpness);           // 
-                diff = diff.multiply_scalar(-1.0f);             // 
-                diff = diff.exp();                              // 
-                diff.multiply_scalar_inplace(1.0f / sharpness); // 
-                surrogate_grad = diff;                          // 
-            } // 
+            else                                                //
+            {                                                   //
+                Tensor diff = v_mem_pre_spike;                  //
+                diff = diff.add_scalar(-threshold);             //
+                diff = diff.abs();                              //
+                diff = diff.divide_scalar(sharpness);           //
+                diff = diff.multiply_scalar(-1.0f);             //
+                diff = diff.exp();                              //
+                diff.multiply_scalar_inplace(1.0f / sharpness); //
+                surrogate_grad = diff;                          //
+            } //
         }
         else
         {
@@ -478,8 +485,8 @@ struct LifImpl : public Module<Backend>
         { // Avoid division by zero if R or C are zero
             const float beta = std::exp(-time_step / tau);
             // Keep gradient consistent with clamp-at-use semantics: once raw_R is in the
-            // clamped region, do not backprop through the clamped surrogate expression. // 
-            const float d_beta_dR = // 
+            // clamped region, do not backprop through the clamped surrogate expression. //
+            const float d_beta_dR = //
                 (raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0F;
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
@@ -494,22 +501,22 @@ struct LifImpl : public Module<Backend>
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
             // Same clamp-boundary rule for C: avoid artificial gradient amplification when
-            // the raw value is below the positive-stability floor. // 
-            const float d_beta_dC = // 
+            // the raw value is below the positive-stability floor. //
+            const float d_beta_dC = //
                 (raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             capacitance.set_grad(c_grad);
         }
-        else // 
-        { // 
-            Tensor r_grad(1, 1); // 
-            r_grad.set_zero(); // 
-            resistance.set_grad(r_grad); // 
-            Tensor c_grad(1, 1); // 
-            c_grad.set_zero(); // 
-            capacitance.set_grad(c_grad); // 
-        } // 
+        else                              //
+        {                                 //
+            Tensor r_grad(1, 1);          //
+            r_grad.set_zero();            //
+            resistance.set_grad(r_grad);  //
+            Tensor c_grad(1, 1);          //
+            c_grad.set_zero();            //
+            capacitance.set_grad(c_grad); //
+        } //
 
         // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
         // the gradient from the subsequent layer (`grad_output`) multiplied by this

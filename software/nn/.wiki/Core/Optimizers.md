@@ -30,6 +30,78 @@ Simple gradient descent with momentum:
 $$v_t = \gamma v_{t-1} + \eta \nabla L(\theta_t)$$
 $$\theta_{t+1} = \theta_t - v_t$$
 
+## Available Optimizers
+
+| Token (`optimizer_type`) | Class | Reference default lr | State/param | Notes |
+|---|---|---|---|---|
+| `adam` (default) | `Adam` | 1e-3 | 2 (m, v) | AdamW when `weight_decay > 0` |
+| `sgd` | `SGD` | — (0.01) | 1 (velocity) | Polyak momentum; SGDW when `weight_decay > 0` |
+| `lion` | `Lion` | 1e-4 | **1** (momentum) | Sign-based update; half Adam's optimizer memory |
+| `schedule-free-adamw` | `ScheduleFreeAdamW` | 2.5e-3 | 3 (x, z, v) | No lr schedule needed; train/eval iterates differ |
+
+Built by `OptimizerFactory` from `TrainerConfig::optimizer_type`; in Experiment05 this is set
+per profile via `training.optimizer_type`. An unknown token throws rather than falling back.
+
+> **⚠️ A single lr is not comparable across these.** Their reference defaults span 1e-3 (Adam)
+> to 1e-4 (Lion). Lion's update is `±lr` for *every* coordinate regardless of gradient
+> magnitude, which is why its usable lr is much smaller. Any optimizer ablation must tune lr
+> **per optimizer** or it measures the lr choice, not the optimizer.
+
+### Per-optimizer learning rate
+
+`reference_learning_rate(token)` (OptimizerFactory.hpp) is the single source of truth for each
+optimizer's published default. Experiment05's `training.learning_rate` is **optional**: omit it
+and `E05Config::Training::effective_learning_rate()` resolves it from the chosen optimizer, so
+naming an optimizer without naming a rate still trains at a rate that suits *that* optimizer
+rather than silently inheriting Adam's. An explicit value still wins, so sweeping lr works.
+
+The run summary records the resolved `learning_rate` **and** a `learning_rate_source`
+(`"profile"` or `"optimizer_default"`), so a result file says what it actually trained with —
+the gap that made fixme.md D3 possible, where published numbers came from an effective lr 10×
+below what the profiles declared, with nothing on disk recording it. Guarded by
+`E05OptimizerLearningRate.*` and by a per-profile assertion in `e05_profile_audit_gtest`.
+
+**Not implemented, deliberately** (fixme.md D5 records the full reasoning):
+- **Sophia** — its diagonal-Hessian estimate needs a *second backward pass with resampled
+  labels* (Gauss-Newton-Bartlett), which `Optimizer::step(span<Tensor*>)` cannot trigger: it
+  receives only parameters and their gradients. Implementing it without that pass would make
+  the "Hessian" equal to squared real-loss gradients — effectively Adam's second moment under
+  a different name.
+- **SOAP** — needs `eigh` of the Shampoo preconditioner, which does not exist in the
+  backend-agnostic `Tensor` interface; adding it means extending `TensorBackendParityContract`
+  across all four backends (XTensor, OpenCL, SYCL, Device).
+- **Muon** — was implemented and ground-truthed against `muon-optimizer`, then removed on the
+  author's instruction. It orthogonalizes 2-D matrices only and falls back to Adam for
+  everything else, so it could never touch this project's 1×1 biophysical params (R, C, V_th);
+  combined with its LLM-pretraining design target, it had no plausible role in the thesis
+  ablation. Recoverable from git history if ever needed.
+
+### Ground truth vs the reference implementations
+
+Every optimizer is checked element-by-element against its **authors' own implementation**:
+`scripts/testing/gen_optimizer_refs.py` drives the reference over a fixed parameter/gradient
+sequence and records the parameter after each step into the committed
+`src/core/optimizers/tests/fixtures/optimizer_refs.npz`; `optimizer_parity_gtest` replays the
+identical data through ours. CI needs no Python (same pattern as the
+[PyTorch layer parity](../Guides/Ground-Truth-and-Smoke-Testing.md) fixtures).
+
+| Ours | Reference |
+|---|---|
+| `Adam`, `Adam` + `weight_decay`, `SGD` | `torch.optim.Adam` / `torch.optim.AdamW` / `torch.optim.SGD` |
+| `Lion` | `lion-pytorch` |
+| `ScheduleFreeAdamW` | `schedulefree` (`AdamWScheduleFreeReference`) |
+
+This is not ceremony — it found two real bugs in code that had passed unit tests for months:
+Adam applied its decoupled weight decay *after* the gradient step (AdamW defines it against
+θ_{t-1}; torch agrees — decay-before reproduces torch with 0.0 error), and moving it earlier
+exposed that assigning to a parameter **drops its gradient buffer** (`nn::Tensor` is a value
+type). Both are fixed and pinned.
+
+One deviation from upstream is deliberate and encoded in the fixture generator:
+- **weight_decay scope** — upstream Lion/Schedule-Free decay every parameter; this project
+  decays only 2-D weight matrices so SNN scalars keep τ=R·C intact. Every decay fixture uses a
+  2-D parameter, where the two agree exactly.
+
 ## How It Is Implemented Here
 
 ### Adam — Standard Usage
@@ -66,9 +138,26 @@ previously attached to this claim could not be verified and was removed).
 Use `attach_with_scales()` to set per-parameter lr multipliers:
 
 ```cpp
-// File: include/optimizers/Adam.hpp
-void attach_with_scales(std::span<nn::Tensor*> params, std::span<const float> lr_scales);
+// File: include/optimizers/Optimizer.hpp — base class, virtual
+virtual auto attach_with_scales(std::span<nn::Tensor*> params,
+                                std::span<const float> lr_scales) -> void;
 ```
+
+`attach_with_scales()`, the `lr_scales_` storage it fills, and `weight_decay` all live on
+the **`Optimizer` base** (fixme.md D5), so a caller holding an `Optimizer&`/`unique_ptr<Optimizer>`
+— e.g. [`Trainer`](./Training.md), which builds its optimizer via `OptimizerFactory` — can
+configure per-group learning rates without knowing the concrete type. Every optimizer in the
+project (`Adam`, `SGD`, `SGDMinimal`) reads `lr_scales_` in its `step()`, computing
+$\eta_i = \eta_\text{global} \times \texttt{lr\_scales\_}[i]$ (defaulting to 1.0 past the
+vector's end). The base `attach_with_scales()` calls the virtual `attach()` (so concrete
+per-parameter state — Adam's moments, SGD's velocity — is still allocated) and then stores the
+scales; concrete optimizers do not override it.
+
+> **Base `attach()` stores its params.** `Optimizer::attach()` records `attached_params_`
+> (backing the no-arg `step()`/`zero_grad()`) and clears `lr_scales_`. Overrides must call
+> `Optimizer::attach(params)` first. It used to be a literal no-op while its own comment
+> claimed otherwise — so `SGD`, which relied on it, left `attached_params_` empty and its
+> no-arg `step()` always threw.
 
 The effective learning rate for parameter $i$ is:
 $$\eta_i = \eta_\text{global} \times \text{lr\_scales}[i]$$
@@ -88,14 +177,19 @@ optimizer.attach_with_scales(all_params, scales);
 optimizer.step(all_params);
 ```
 
-`TrainerConfig::snn_lr_scale` (default 0.1) documents the intended scale; the caller
-is responsible for populating the `scales` vector accordingly.
+`TrainerConfig::snn_lr_scale` (default 0.1) sets the scale; the caller populates the
+`scales` vector. [`Trainer`](./Training.md) does this for you, assigning the scale **only to
+parameters with `size() == 1`** — R, C and V_th are always 1×1 tensors, while no weight or
+bias ever is. Filling the vector uniformly instead (the pre-fix behavior) silently turned
+`snn_lr_scale` into a *global* lr multiplier that throttled the whole network 10× — see
+fixme.md D3.
 
-### Decoupled Weight Decay (AdamW)
+### Decoupled Weight Decay (AdamW / SGDW)
 
-`Adam::weight_decay` (default `0.0F`, disabled) applies L2 regularization in the
-**decoupled** form of Loshchilov & Hutter (ICLR 2019). After the standard Adam
-update, each parameter is shrunk multiplicatively:
+`Optimizer::weight_decay` (default `0.0F`, disabled — on the base, so it is settable through
+an `Optimizer&`) applies L2 regularization in the **decoupled** form of Loshchilov & Hutter
+(ICLR 2019), which defines both the AdamW and SGDW variants. All three optimizers implement
+it. After the standard update, each parameter is shrunk multiplicatively:
 
 $$\theta_i \leftarrow \theta_i - \eta_i \cdot \lambda_\text{wd} \cdot \theta_i$$
 

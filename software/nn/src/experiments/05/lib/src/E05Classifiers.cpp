@@ -1018,7 +1018,9 @@ auto run_classifier(const E05DatasetView& view,
 
     nn::training::TrainerConfig trainer_cfg;
     trainer_cfg.epochs = cfg.training.epochs;
-    trainer_cfg.learning_rate = cfg.training.learning_rate;
+    trainer_cfg.learning_rate = cfg.training.effective_learning_rate();
+    trainer_cfg.optimizer_type = cfg.training.optimizer_type;
+    trainer_cfg.optimizer_momentum = cfg.training.optimizer_momentum;
     trainer_cfg.batch_size = cfg.training.samples_per_batch;
     trainer_cfg.weight_decay = cfg.training.weight_decay; // decoupled L2 (rnn + dsnn)
 

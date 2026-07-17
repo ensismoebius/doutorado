@@ -70,7 +70,7 @@ Training spiking neural networks (SNNs) involves a mix of parameters with very d
 ## Common mistakes
 
 - **Forgetting to call `zero_grad()` before each batch** — gradients accumulate, making the update incorrect.
-- **Using the same learning rate for all parameter types** — SNN physical parameters need a lower rate; use `Adam::attach_with_scales()`.
+- **Using the same learning rate for all parameter types** — SNN physical parameters need a lower rate; use `Optimizer::attach_with_scales()`.
 - **Changing ε without a good reason** — only do this if you see NaN losses.
 
 ---

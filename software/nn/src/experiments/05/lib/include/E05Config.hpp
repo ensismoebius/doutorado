@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -110,7 +111,37 @@ struct E05Config
     struct Training
     {
         int epochs = 50;
-        float learning_rate = 1e-3f;
+
+        /// Learning rate. **Optional in the profile JSON**: when omitted it resolves to the
+        /// chosen optimizer's own reference default via
+        /// nn::optimizers::reference_learning_rate(optimizer_type) — 1e-3 for adam, 1e-4 for
+        /// lion, 2.5e-3 for schedule-free-adamw, 1e-2 for sgd.
+        ///
+        /// Why optional: these defaults differ by up to an order of magnitude because each
+        /// optimizer forms its update differently (Lion steps ±lr on every coordinate). A
+        /// profile that switches optimizer_type but keeps another optimizer's lr silently
+        /// measures the learning rate instead of the optimizer. Omitting the field makes
+        /// "every profile gets its respective lr" true by construction; setting it
+        /// explicitly (e.g. to sweep lr) still overrides, and either way the value actually
+        /// used is recorded in the run summary.
+        ///
+        /// Use effective_learning_rate() rather than reading this directly.
+        std::optional<float> learning_rate = std::nullopt;
+
+        /// Optimizer used to train the classifier AND the autoencoder feature
+        /// extractors. Forwarded to nn::training::TrainerConfig::optimizer_type,
+        /// which builds it via OptimizerFactory. One of: "adam" (default),
+        /// "sgd", "lion", "schedule-free-adamw".
+        /// Default "adam" reproduces every result published before this field existed.
+        std::string optimizer_type = "adam";
+
+        /// Momentum for optimizer_type="sgd" (Polyak). Ignored by the others.
+        float optimizer_momentum = 0.0f;
+
+        /// The lr this run will actually train with: the explicit `learning_rate` when the
+        /// profile sets one, otherwise `optimizer_type`'s reference default. Single accessor
+        /// so no caller can accidentally read an unresolved nullopt or hard-code 1e-3.
+        [[nodiscard]] auto effective_learning_rate() const -> float;
         int samples_per_batch = 32;
         int early_stop_patience = 10;
         int k_folds = 5;

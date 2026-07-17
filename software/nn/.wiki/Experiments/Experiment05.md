@@ -157,7 +157,7 @@ where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speak
 
 Three techniques guard generalisation / trainability on the small dysphonic-speaker dataset, all off by default and enabled per profile:
 
-- **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw).
+- **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw--sgdw).
 - **Firing-rate regularization** (`training.firing_rate_reg_lambda` for the DSNN classifier; `feature_extraction.autoencoder.firing_rate_reg_lambda` for the SNN-AE encoder): pushes each spiking layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same math as `SpikeCountLossImpl`, but two independent gradient-injection implementations: `E05DsnnClassifier::add_firing_rate_grad` (classifier, named layers) and `ProtocolSpikingAutoencoder`'s `backward_with_firing_rate_reg` (AE encoder, `Sequential`-based, Lif layers located via `dynamic_cast`; see the SNN-AE section above). Inert when `λ = 0` (the RNN classifier and the ANN-AE have no spiking layers to regularize either way).
 - **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, default 1), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
 
@@ -299,6 +299,12 @@ src/experiments/05/
     "early_stop_patience": 10,
     "k_folds": 5,
     "nested_cv": true,
+    "optimizer_type": "adam",        // adam | sgd | lion | schedule-free-adamw
+    "optimizer_momentum": 0.0,       // sgd only
+    // learning_rate is OPTIONAL: omit it and each optimizer gets its own reference
+    // default (adam 1e-3, sgd 1e-2, lion 1e-4, schedule-free-adamw 2.5e-3). Set it
+    // explicitly only to sweep. Either way the resolved value + its source land in
+    // the run summary's "training" block. See Core/Optimizers.md.
     "weight_decay": 1e-4,            // decoupled L2 (rnn + dsnn); 0 = off
     "firing_rate_reg_lambda": 0.01,  // dsnn-only band penalty; 0 = off
     "firing_rate_min": 0.05,

@@ -4,8 +4,18 @@
 #include <fstream>
 #include <stdexcept>
 
+#include "optimizers/OptimizerFactory.hpp"
+
 namespace e05
 {
+
+auto E05Config::Training::effective_learning_rate() const -> float
+{
+    // Explicit profile value wins; otherwise fall back to the chosen optimizer's own
+    // reference default, so a profile that names an optimizer without naming an lr still
+    // trains at a rate that makes sense FOR THAT optimizer (they differ by ~10x).
+    return learning_rate.value_or(nn::optimizers::reference_learning_rate(optimizer_type));
+}
 
 void E05Config::validate() const
 {
@@ -146,7 +156,7 @@ void E05Config::validate() const
     }
 
     if (training.epochs <= 0) throw std::invalid_argument("E05Config: training.epochs must be > 0");
-    if (training.learning_rate <= 0.0f)
+    if (training.learning_rate.has_value() && *training.learning_rate <= 0.0f)
         throw std::invalid_argument("E05Config: training.learning_rate must be > 0");
     if (training.samples_per_batch <= 0)
         throw std::invalid_argument("E05Config: training.samples_per_batch must be > 0");
@@ -154,6 +164,13 @@ void E05Config::validate() const
         throw std::invalid_argument("E05Config: training.early_stop_patience must be >= 0");
     if (training.k_folds < 2)
         throw std::invalid_argument("E05Config: training.k_folds must be >= 2");
+    if (training.optimizer_type != "adam" && training.optimizer_type != "sgd" &&
+        training.optimizer_type != "lion" && training.optimizer_type != "schedule-free-adamw")
+        throw std::invalid_argument(
+            "E05Config: training.optimizer_type must be one of "
+            "adam, sgd, lion, schedule-free-adamw");
+    if (training.optimizer_momentum < 0.0f || training.optimizer_momentum >= 1.0f)
+        throw std::invalid_argument("E05Config: require 0 <= training.optimizer_momentum < 1");
     if (training.weight_decay < 0.0f)
         throw std::invalid_argument("E05Config: training.weight_decay must be >= 0");
     if (training.firing_rate_reg_lambda < 0.0f)
@@ -279,6 +296,10 @@ E05Config E05Config::from_json(const nlohmann::json& j)
         if (t.contains("nested_cv")) cfg.training.nested_cv = t["nested_cv"];
         if (t.contains("standardize_features"))
             cfg.training.standardize_features = t["standardize_features"];
+        if (t.contains("optimizer_type"))
+            cfg.training.optimizer_type = t["optimizer_type"].get<std::string>();
+        if (t.contains("optimizer_momentum"))
+            cfg.training.optimizer_momentum = t["optimizer_momentum"].get<float>();
         if (t.contains("weight_decay")) cfg.training.weight_decay = t["weight_decay"].get<float>();
         if (t.contains("firing_rate_reg_lambda"))
             cfg.training.firing_rate_reg_lambda = t["firing_rate_reg_lambda"].get<float>();

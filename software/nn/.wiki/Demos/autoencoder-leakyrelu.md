@@ -80,7 +80,7 @@ ctest --test-dir out/build/max-performance -R lif_bptt --output-on-failure
 
 ## Common Pitfalls
 
-1. **LIF learning rate scale**: biophysical parameters ($R$, $C$, $V_\text{th}$) need a ~10× smaller lr than Linear weights. Without `Adam::attach_with_scales()`, the optimizer may drive $R$ or $C$ into the clamp region, freezing those parameters.
+1. **LIF learning rate scale**: biophysical parameters ($R$, $C$, $V_\text{th}$) need a ~10× smaller lr than Linear weights. Without `Optimizer::attach_with_scales()`, the optimizer may drive $R$ or $C$ into the clamp region, freezing those parameters.
 2. **Loss plateau near zero**: once spikes saturate (every neuron fires every step), MSE on spike means converges to a constant. Reduce `voltage_threshold` or add spike-rate regularisation.
 3. **`reset_state()` between epochs**: without resetting, membrane state from the end of epoch $n$ feeds into epoch $n+1$, causing non-reproducible training dynamics.
 

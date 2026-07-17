@@ -172,7 +172,7 @@ Gradient shape always matches forward input shape.
    - Latency-coded → `SpikeTimeLoss`
    - Mixing these reverses gradient direction.
 3. **Surrogate arg order**: `LifImpl` and `LifBPTTImpl` constructors take `surrogate_grad` **before** `adapt_decay`/`adapt_coupling`. Wrong type passed → compile error.
-4. **SNN lr**: biophysical params (R, C, V_th) need ~10× smaller lr than weights. Use `Adam::attach_with_scales()`. `TrainerConfig::snn_lr_scale = 0.1` documents the intent.
+4. **SNN lr**: biophysical params (R, C, V_th) need ~10× smaller lr than weights. Use `Optimizer::attach_with_scales()` (base-class, virtual — every optimizer honors it). `TrainerConfig::snn_lr_scale = 0.1` sets it; `Trainer` applies it **only to `size()==1` params** (R/C/V_th are always 1×1) — a uniform fill would make it a global lr multiplier instead (fixme.md D3).
 5. **β = exp(−Δt/(R·C))** clamped: R and C are clamped to `1e-6` in forward and grad is zeroed in clamped region. Never let optimizer drive them negative.
 6. **readout_mode**: `LifBPTTImpl` with `readout_mode=true` emits `v_mem` directly — no spike/reset. Backward is purely continuous. Don't mix with spike losses.
 7. **Experiment04 SNN architecture modes are INPUT TRANSFORMS, not network architecture changes.** `dense`/`conv1d`/`recurrent` in the profile `snn_architectures` list select how the raw signal is pre-processed before entering the shared autoencoder network. All three modes use the same `linear:64:leaky / linear:32:identity` network. `conv1d` = 3-tap smoothing `{0.25, 0.5, 0.25}`; `recurrent` = stand-alone LIF transform on input; `dense` = pass-through.
