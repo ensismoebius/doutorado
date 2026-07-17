@@ -16,6 +16,13 @@
  *
  * Design intent (snnTorch mental model):
  * - This is similar to snnTorch's leaky neuron module that is unrolled over time.
+ * - Equivalence is EXACT for reset_zero=true (the default, and the only mode production
+ *   uses); verified against snn.Leaky under a hard drive by micro_network_parity_gtest.
+ *   For reset_zero=false (subtract) it is NOT exact: we apply the reset immediately, so it
+ *   is decayed on the next step, whereas snnTorch subtracts it un-decayed one step later
+ *   (our reset term ends up multiplied by beta). Measured disagreement: ~2-3% of spikes.
+ *   Ours is the textbook soft-reset LIF; snnTorch's is snnTorch's convention — neither is
+ *   wrong, but they are not the same neuron, so do not assume snn.Leaky parity in subtract.
  * - Input is provided as a *flattened* time-major matrix: rows are concatenated time slices.
  *
  * Shape contract:

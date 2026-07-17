@@ -156,9 +156,20 @@ for idx, (B, T, D, H) in enumerate(LSTM_CASES):
 
 # ── LIF spiking neuron vs snnTorch Leaky ──────────────────────────────────────
 # Our LifBPTT recurrence  v[t] = beta*v[t-1] + input[t];  spike when v > V_th;
-# reset either subtract (v -= V_th) or zero (v = 0). This is exactly snnTorch's
-# snn.Leaky(beta, threshold, reset_mechanism). We pick R=C=1 and time_step=-ln(beta)
+# reset either subtract (v -= V_th) or zero (v = 0). We pick R=C=1 and time_step=-ln(beta)
 # in C++ so beta = exp(-time_step/(R*C)) reproduces the beta given to snnTorch.
+#
+# CAVEAT (measured, see micro_network_parity_gtest): this equals snnTorch's snn.Leaky only
+# for reset_mechanism="zero". An earlier revision of this comment claimed it was "exactly
+# snnTorch's snn.Leaky" for BOTH modes — it is not. Our reset is applied immediately, so it
+# is decayed on the next step; snnTorch subtracts it un-decayed one step later:
+#     ours     : v[t]   = beta*v[t-1]   + I[t] - V_th*spk[t]
+#     snnTorch : mem[t] = beta*mem[t-1] + I[t] - V_th*spk[t-1]
+# i.e. our reset term ends up multiplied by beta. Under "zero" the two coincide exactly
+# (0 stays 0 through the decay); under "subtract" they disagree on ~2-3% of spikes. The
+# lif_0 case below IS subtract and passes only because it spikes 3/36 times — too weakly
+# driven to exercise a reset. Production always uses zero (Lif/LifBPTT default
+# reset_zero=true), so this is a documentation defect, not a training one.
 #
 # Cases: (T, B, F, beta, V_th, reset_mechanism, readout)
 #   readout=1 emits the membrane (no spike/reset) — compared against a snnTorch

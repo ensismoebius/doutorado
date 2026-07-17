@@ -207,6 +207,28 @@ Recuperabilidade: os 900 CSVs eram **rastreados** e estão no histórico do git;
 
 ---
 
+## Testes de paridade de micro-redes vs PyTorch/snnTorch (2026-07-16)
+
+Pedido do autor: "create tests that implement micro ann, snn and lstm networks and compare it with the ground truth pytorch/snntorch versions so its guaranteed that ours networks works the way it should" --- antes das reexecuções.
+
+Já existia paridade **por camada** (`pytorch_parity_gtest` + `gen_pytorch_refs.py`). O que faltava era paridade da **rede inteira**: toda camada pode estar certa e a rede montada com elas estar errada (encadeamento de gradiente, estado vazando entre sequências, ordem de gates só visível na composição). Novos: `scripts/testing/gen_micro_network_refs.py` → `micro_network_refs.npz` (commitado, CI não precisa de torch) e `micro_network_parity_gtest` (**8 testes, todos verdes**), seguindo o padrão já estabelecido.
+
+**Três achados reais --- o teste pagou por si antes de rodar experimento nenhum:**
+
+1. 🔴 **`MSELoss`/`MAELoss` grampeavam o próprio gradiente, sempre, em norma 1,0** (`kMaxGradientNorm = 1.0F`, fixo, não-configurável). Confirmado exatamente: a norma verdadeira na fixture era `2,132514` e a nossa saía menor por exatamente esse fator. Gravidade: (a) `MSELossImpl` é o **LossType default do `Trainer`** --- atingia **todo autoencoder treinado no projeto**, incluindo os 24 perfis AE da Fase 00 e os modelos do artigo de Guaiaquil; (b) **contradizia a configuração**: `TrainerConfig::grad_clip_norm` tem default `0.0F` = "sem grampeamento", o `Trainer` respeita isso, e o `MSELoss` grampeava assim mesmo por baixo --- o chamador pedia "sem clip" e recebia clip; (c) não era um reescalonamento constante: só dispara quando a norma passa de 1, então a taxa de aprendizado efetiva virava função da magnitude do gradiente (distorção não-linear, não um "lr 2× menor"); (d) `CrossEntropyLoss`/`SpikeCountLoss`/`SpikeTimeLoss` **não** fazem isso --- as perdas eram mutuamente inconsistentes. Mesma espécie de D3: o declarado não era o executado. **Decisão do autor: tornar configurável, default OFF.** Agora `max_gradient_norm = 0.0F` (desligado) → `backward()` devolve o gradiente exato e bate com o `torch` na casa decimal; o clip continua disponível como escape hatch. O teste `MSELossTest.GradientIsClipped`, que fixava o comportamento antigo, foi substituído por `GradientIsExactByDefault` + `GradientIsClippedWhenExplicitlyEnabled`.
+
+2. 🟡 **O LIF não é "exatamente o `snn.Leaky`" do snnTorch --- só no modo que usamos.** `gen_pytorch_refs.py` afirmava "This is exactly snnTorch's snn.Leaky(beta, threshold, reset_mechanism)". Falso para `subtract`. Nosso reset é aplicado **imediatamente** (`v -= V_th`, e portanto decai no passo seguinte); o do snnTorch é subtraído **não-decaído** no passo seguinte:
+   - nós:      `v[t] = beta*v[t-1] + I[t] - V_th*spk[t]`
+   - snnTorch: `mem[t] = beta*mem[t-1] + I[t] - V_th*spk[t-1]`
+   
+   Ou seja, nosso termo de reset acaba multiplicado por `beta`. Medido: **desacordo de 1,9--3,0% dos disparos** no modo `subtract`, e **0,0% no modo `zero`**. **Impacto real: nenhum** --- `Lif`/`LifBPTT` têm `reset_zero = true` por default e **nenhum código de produção seleciona `subtract`**, então a tese usa exatamente o modo que casa perfeitamente. O nosso é a forma de livro-texto (soft-reset padrão); o do snnTorch é convenção do snnTorch. Nenhum está errado --- a **afirmação de equivalência** é que estava. Por que passou despercebido: a fixture por-camada existente dispara só **3 de 36 vezes (8%)**, fraca demais para exercitar o caminho de reset. Os novos testes fixam ambos os modos sob drive forte: `zero` bate exato, `subtract` diverge dentro de banda asseverada.
+
+3. 🟡 **Nosso LSTM não usa sigmoid/tanh.** Usa as aproximações racionais de `FastActivations.hpp` (`rat_sig(x)=0.5+x/(2(1+|x|))`, `rat_tanh(x)=x/(1+|x|)` --- gates *softsign*, escolha de velocidade). Não são próximas: `|tanh - rat_tanh|` chega a **0,306** em [-4,4] (em x=2: tanh=0,964 vs nosso=0,667), e a divergência medida nos estados ocultos vs `torch.nn.LSTM` é **0,1626**. Logo o nosso é um **LSTM de gates softsign** e não pode casar com o `torch` --- comparar contra ele exigiria tolerância tão frouxa que não provaria nada. O teste fixa contra um modelo NumPy da **nossa própria** recorrência (ainda pega ordem de gates i,f,o,g vs i,f,g,o do torch, ordem de atualização c/h, bias fundido, composição) e **assevera que a divergência do torch real fica na banda esperada**, para que a aproximação não cresça em silêncio nem alguém leia "LSTM" e assuma semântica padrão. Relevante para o artigo de Guaiaquil, que compara "LSTM-AE" vs SNN.
+
+**Limites deliberados, codificados e não escondidos:** o backward *spiking* não é comparável (nosso surrogate é exponencial, o do snnTorch é arctan --- funções diferentes), então o backward é fixado em **modo readout**, onde não há surrogate e ambos os lados têm de bater exato; o forward *com* disparos é comparado normalmente. Há também um teste de que `reset_state()` de fato isola sequências (a invariante #4 do `CLAUDE.md`), que nenhuma checagem de disparo único pegaria.
+
+---
+
 ## Auditoria de comentários não-confiáveis (2026-07-16)
 
 Varredura pedida pelo autor ("scan the code looking for untrustworthy comments"). Priorizei a classe de defeito que já mordeu este projeto duas vezes: **comentário que afirma um contrato que o código não cumpre** (D3, D5) e **citação vaga/errada** (item 57). Não é uma varredura exaustiva de todo comentário do repo.

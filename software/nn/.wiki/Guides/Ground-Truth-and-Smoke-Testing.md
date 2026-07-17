@@ -3,6 +3,17 @@
 Testing layers added to catch classes of bugs that unit tests and compilation miss:
 
 1. **PyTorch / snnTorch parity** — numerical ground-truth for individual layers.
+1b. **Micro-network parity** — ground-truth for whole small NETWORKS (ANN / SNN / LSTM),
+   because every layer can be individually correct while the network built from them is
+   wrong. `scripts/testing/gen_micro_network_refs.py` → committed
+   `src/core/layers/tests/fixtures/micro_network_refs.npz` → `micro_network_parity_gtest`.
+   It found three real defects on its first run: MSELoss/MAELoss silently clipping their own
+   gradient at norm 1.0 (Trainer's default loss — it hit every trained autoencoder, and
+   overrode `grad_clip_norm=0`); a false claim that our LIF is "exactly snnTorch's snn.Leaky"
+   (true only for reset="zero", which is what production uses — subtract diverges ~2-3%, and
+   the per-layer fixture missed it by spiking only 3/36 times); and that our LSTM uses
+   softsign gates, not sigmoid/tanh (|tanh − rat_tanh| reaches 0.306), so it can never match
+   torch.nn.LSTM. See fixme.md for the full write-up.
 2. **PyWavelets parity** — ground-truth for the wavelet transforms (see
    [Wavelet](../Core/Wavelet.md#ground-truth-vs-pywavelets-2026-07-15)); it
    caught a `malat` DWT buffer-corruption bug and three corrupted Daubechies

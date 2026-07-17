@@ -42,6 +42,7 @@ __pycache__/
 !software/nn/src/core/tensor/tests/fixtures/pytorch_refs.npz
 !software/nn/src/core/wavelet/tests/fixtures/pywt_refs.npz
 !software/nn/src/core/optimizers/tests/fixtures/optimizer_refs.npz
+!software/nn/src/core/layers/tests/fixtures/micro_network_refs.npz
 software/nn/tags
 software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
 *.sqlite

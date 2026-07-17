@@ -15,9 +15,9 @@
 #include "tensor/Tensor.hpp"
 
 using nn::Conv2d;
+using nn::LeakyReLU;
 using nn::Lif;
 using nn::LifIntegrator;
-using nn::LeakyReLU;
 using nn::Linear;
 using nn::MAELoss;
 using nn::MSELoss;
@@ -1966,9 +1966,31 @@ TEST(MSELossTest, TrainToggleAndNonFiniteBackward)
     EXPECT_FLOAT_EQ(grad.at(0, 0), 0.0F);
 }
 
-TEST(MSELossTest, GradientIsClipped)
+// Default: NO clipping — backward() returns the exact MSE gradient and matches
+// torch.nn.functional.mse_loss. This used to clip unconditionally at norm 1.0, which made
+// MSELoss silently not the MSE gradient and overrode TrainerConfig::grad_clip_norm=0 ("no
+// clipping") one layer down. Since MSELossImpl is Trainer's default LossType, that quietly
+// affected every trained autoencoder. Caught by micro_network_parity_gtest.
+TEST(MSELossTest, GradientIsExactByDefault)
 {
     MSELoss mse;
+    nn::Tensor pred(1, 1);
+    pred.at(0, 0) = 100.0F;
+    nn::Tensor target(1, 1);
+    target.at(0, 0) = 0.0F;
+
+    mse.set_target(target);
+    (void) mse.forward(pred, true);
+    nn::Tensor grad = mse.backward(pred);
+    // d/dpred mean((pred-target)^2) = 2*(pred-target)/n = 2*100/1 = 200 — NOT clipped to 1.
+    EXPECT_NEAR(grad.at(0, 0), 200.0F, 1e-3F);
+}
+
+// The clip remains available as an explicit escape hatch; prefer TrainerConfig::grad_clip_norm.
+TEST(MSELossTest, GradientIsClippedWhenExplicitlyEnabled)
+{
+    MSELoss mse;
+    mse.max_gradient_norm = 1.0F; // opt in
     nn::Tensor pred(1, 1);
     pred.at(0, 0) = 100.0F;
     nn::Tensor target(1, 1);

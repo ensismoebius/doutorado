@@ -28,11 +28,16 @@ class MSELossImpl : public Module<Backend>
 {
     using Tensor = typename Module<Backend>::Tensor;
 
+   public:
+    /// Optional gradient-norm clip applied inside backward(). 0 = disabled (default), which
+    /// makes backward() the exact MSE gradient and matches PyTorch. See backward() for why
+    /// this is off by default. Prefer TrainerConfig::grad_clip_norm.
+    float max_gradient_norm = 0.0F;
+
    private:
     // Constants for numerical stability in loss and gradient computations.
     static constexpr float kMaxValueFactor = 2.0F;
     static constexpr float kMseGradientFactor = 2.0F;
-    static constexpr float kMaxGradientNorm = 1.0F;
 
     Tensor last_input_;
     Tensor last_target_;
@@ -125,11 +130,27 @@ class MSELossImpl : public Module<Backend>
             return zero_grad;
         } //
 
-        // Gradient clipping to prevent explosion
-        float grad_norm = grad.norm();
-        if (grad_norm > kMaxGradientNorm) [[unlikely]]
+        // Optional gradient-norm clipping. OFF by default (0), so backward() returns the
+        // true 2*(pred-target)/n and matches torch.nn.functional.mse_loss exactly.
+        //
+        // This used to be unconditional at norm 1.0, which made MSELoss silently NOT the MSE
+        // gradient: any batch whose gradient norm exceeded 1 was rescaled, so the effective
+        // learning rate became gradient-magnitude dependent. It also contradicted
+        // TrainerConfig::grad_clip_norm (default 0 = "no clipping"), which Trainer honours —
+        // the caller asked for no clipping and got clipping anyway, one layer down. Since
+        // MSELossImpl is Trainer's DEFAULT LossType, that silently affected every trained
+        // autoencoder in the project. Found by micro_network_parity_gtest: the true gradient
+        // norm was 2.1325 and ours came out smaller by exactly that factor.
+        //
+        // Prefer TrainerConfig::grad_clip_norm, which clips parameter gradients where the
+        // training loop can see and record it. This field is kept only as an escape hatch.
+        if (max_gradient_norm > 0.0F) [[unlikely]]
         {
-            grad.multiply_scalar_inplace(kMaxGradientNorm / grad_norm);
+            const float grad_norm = grad.norm();
+            if (grad_norm > max_gradient_norm)
+            {
+                grad.multiply_scalar_inplace(max_gradient_norm / grad_norm);
+            }
         }
 
         return grad;

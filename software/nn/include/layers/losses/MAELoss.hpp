@@ -30,7 +30,6 @@ class MAELossImpl : public Module<Backend>
 
    private:
     static constexpr float kMaxValueFactor = 2.0F;
-    static constexpr float kMaxGradientNorm = 1.0F;
 
     Tensor last_input_;
     Tensor last_target_;
@@ -38,6 +37,10 @@ class MAELossImpl : public Module<Backend>
     bool training_ = true;
 
    public:
+    /// Optional gradient-norm clip applied inside backward(). 0 = disabled (default), which
+    /// makes backward() the exact MAE gradient. Prefer TrainerConfig::grad_clip_norm.
+    float max_gradient_norm = 0.0F;
+
     MAELossImpl() = default;
 
     void train(bool on) override
@@ -134,9 +137,14 @@ class MAELossImpl : public Module<Backend>
             return zero_grad; //
         } //
 
-        if (grad_check > kMaxGradientNorm) [[unlikely]]
-        {                                                                //
-            grad.multiply_scalar_inplace(kMaxGradientNorm / grad_check); //
+        // Optional gradient-norm clipping. OFF by default (0), so backward() returns the
+        // true MAE gradient. This was unconditional at norm 1.0, which silently made MAELoss
+        // not the MAE gradient and contradicted TrainerConfig::grad_clip_norm (default 0 =
+        // "no clipping"). Same defect as MSELoss — see the long note there. Prefer
+        // TrainerConfig::grad_clip_norm; this is only an escape hatch.
+        if (max_gradient_norm > 0.0F && grad_check > max_gradient_norm) [[unlikely]]
+        {
+            grad.multiply_scalar_inplace(max_gradient_norm / grad_check);
         }
 
         return grad;
