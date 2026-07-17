@@ -132,39 +132,44 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Overall progress across the whole 4-profile run — the same idea run_e05_profiles.sh uses:
-# mean wall-clock per COMPLETED profile, extrapolated to the ones left, refined at each
-# boundary. Each profile is a separate process with its own full-screen TUI, so we compute
-# the outer status here and hand the finished line to the binary via E04_OVERALL; the
-# comparative TUI renders it as a persistent top line above its own bars (see E04Experiment).
-#
-# CAVEAT the reader should know: this assumes the remaining profiles take about as long as
-# those already done. Here they do not — LSTM (~10 min) runs first, the three SNNs (~45 min
-# each) after — so the estimate is optimistic right after LSTM and corrects upward once the
-# first SNN lands. Like every ETA it refines; it is a guide, not a promise.
-fmt_mmss() { printf '%d:%02d' $(( $1 / 60 )) $(( $1 % 60 )); }
+# Overall progress across the whole 4-profile run. Each profile is a separate process with
+# its own full-screen TUI, so we compute the outer status here and hand the finished line to
+# the binary via E04_OVERALL; the comparative TUI renders it as a persistent top line above
+# its own bars (see E04Experiment). The ETA is work-weighted + EMA-smoothed (see run_eta.sh)
+# rather than a naive per-profile mean — essential here, where one fast LSTM precedes three
+# slow SNNs, so counting profiles equally would lurch badly at the first boundary.
+source scripts/lib/run_eta.sh
+
+# Relative cost of each profile (the "work" the ETA weights by). LSTM does one run; each SNN
+# profile sweeps architectures x thresholds x alphas, ~4-5x the wall-clock. 2 vs 9 encodes
+# that ratio; the EMA corrects it from real timings after the first of each kind completes.
+profile_weight() { case "$1" in *snn*) echo 9 ;; *) echo 2 ;; esac; }
 
 echo "[article-run] running article profiles"
 _total=${#PROFILES[@]}
 _start=$(date +%s)
+_total_w=0; for _p in "${PROFILES[@]}"; do _total_w=$((_total_w + $(profile_weight "$_p"))); done
+_done_w=0
 _i=0
+eta_reset
 for profile in "${PROFILES[@]}"; do
   _i=$((_i + 1))
-  _done=$((_i - 1))
+  _rem_w=$((_total_w - _done_w))
   _elapsed=$(( $(date +%s) - _start ))
-  if (( _done > 0 )); then
-    _eta="~$(fmt_mmss $(( _elapsed * (_total - _done) / _done )))"
-  else
-    _eta="calculating"
-  fi
+  _rem_s=$(eta_remaining "$_rem_w")
+  _eta=$([ -n "$_rem_s" ] && printf '~%s' "$(fmt_hms "$_rem_s")" || echo "calculating")
   export E04_OVERALL="$(printf 'Overall  [%d/%d]  elapsed %s  ETA %s   (%s)' \
-      "$_i" "$_total" "$(fmt_mmss "$_elapsed")" "$_eta" "$(basename "$profile" .json)")"
+      "$_i" "$_total" "$(fmt_hms "$_elapsed")" "$_eta" "$(basename "$profile" .json)")"
   echo "[article-run] profile $_i/$_total: $profile"
   echo "[article-run] $E04_OVERALL"
+
+  _p_start=$(date +%s)
   "$BIN" --comparative-config "$profile"
+  eta_update "$(profile_weight "$profile")" "$(( $(date +%s) - _p_start ))"
+  _done_w=$((_done_w + $(profile_weight "$profile")))
 done
 unset E04_OVERALL
-printf '[article-run] all %d profiles done in %s\n' "$_total" "$(fmt_mmss $(( $(date +%s) - _start )))"
+printf '[article-run] all %d profiles done in %s\n' "$_total" "$(fmt_hms $(( $(date +%s) - _start )))"
 
 echo "[article-run] converting NPZ artifacts to PT"
 python3 scripts/data/npz_to_pytorch.py --models-dir results/models || true

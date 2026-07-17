@@ -309,6 +309,9 @@ Varredura pedida pelo autor ("scan the code looking for untrustworthy comments")
 
 Status completo verificado: ver "Log de status do Experiment05" abaixo.
 
+## Fazer a tese gerar as mesmas informações que o paper de Guayaquil
+- Guayaquil também armazena informações e estatísticas muito boas sobre as execuções; faça com que a tese gere os mesmos dados.
+
 ## Questões em aberto
 
 - Estou vendo que você vai testar apenas o perfil de autoencoder com 4 camadas, mas acho bem provável que o estado da arte para dispositivos de baixo poder computacional (tipo Raspberry Pi B) use mais camadas. Estou errado?
