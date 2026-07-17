@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp
+ * @file include/data_loaders/10.1117/datasets/windowed/EEGWindowDataset.hpp
  * @brief Dataset that slices EEG recordings into overlapping windows.
  */
 

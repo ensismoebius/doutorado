@@ -8,7 +8,7 @@
  */
 
 /**
- * @file waveletOperations.h
+ * @file waveletOperations.hpp
  * @brief Core wavelet transform entry points (Mallat) and analysis helpers.
  *
  * Main API:

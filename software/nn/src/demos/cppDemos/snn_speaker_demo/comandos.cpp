@@ -1,5 +1,5 @@
 /**
- * @file src/demos/cppdemos/comandos.cpp
+ * @file src/demos/cppDemos/snn_speaker_demo/comandos.cpp
  * @brief Implementation for Comandos.
  *
 

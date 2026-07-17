@@ -1,5 +1,5 @@
 /**
- * @file src/demos/cppdemos/speaker_demo.cpp
+ * @file src/demos/cppDemos/snn_speaker_demo/speaker_demo.cpp
  * @brief Implementation for Speaker demo.
  *
 

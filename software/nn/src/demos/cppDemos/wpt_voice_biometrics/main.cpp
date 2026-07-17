@@ -1,5 +1,5 @@
 /**
- * @file src/demos/voice_biometrics_cpp/main.cpp
+ * @file src/demos/cppDemos/wpt_voice_biometrics/main.cpp
  * @brief Implementation for Main.
  *
 

@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/SequentialSampler.hpp
+ * @file include/data_loaders/samplers/SequentialSampler.hpp
  * @brief Sequentialsampler.
  *
  *

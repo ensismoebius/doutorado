@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/FusedWindowSpikingAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp
  * @brief SNN variant of the fused EEG+audio window autoencoder.
  */
 
@@ -92,8 +92,7 @@ FusedWindowSpikingAutoencoder::FusedWindowSpikingAutoencoder(const AutoencoderCo
     }
 }
 
-auto FusedWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_grad)
-    -> Tensor
+auto FusedWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     auto eeg = experiment03::autoencoders::slice_columns(input, 0, eeg_features_);
     auto audio = experiment03::autoencoders::slice_columns(input, eeg_features_, audio_features_);
@@ -103,8 +102,7 @@ auto FusedWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_gr
     return fusion_encoder_.forward(fused, requires_grad);
 }
 
-auto FusedWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad)
-    -> Tensor
+auto FusedWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     auto fused = fusion_decoder_.forward(latent, requires_grad);
     const int branch_cols = fused.cols() / 2;
@@ -116,8 +114,7 @@ auto FusedWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_g
     return experiment03::autoencoders::concat_columns(eeg_reconstruction, audio_reconstruction);
 }
 
-auto FusedWindowSpikingAutoencoder::forward(const Tensor& input, bool requires_grad)
-    -> Tensor
+auto FusedWindowSpikingAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }

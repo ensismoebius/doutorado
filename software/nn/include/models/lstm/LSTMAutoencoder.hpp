@@ -2,7 +2,7 @@
 #define NN_MODELS_LSTM_LSTMAUTOENCODER_HPP
 
 /**
- * @file include/nn/models/lstm/LSTMAutoencoder.hpp
+ * @file include/models/lstm/LSTMAutoencoder.hpp
  * @brief LSTM-based autoencoder for 1-D temporal signals.
  *
  * Architecture

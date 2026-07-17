@@ -114,19 +114,44 @@ All 18 profile names (`profiles/phase00/`):
 
 Each profile is identical except `feature_extraction.autoencoder.{encoding, time_steps, voltage_threshold}` and `encoder_layer_spec`/`decoder_layer_spec` widths (per size, see table below). `direct` profiles use `time_steps: 1` (ignored by the encoder anyway — a single analog frame) and `voltage_threshold: 1.0` (the LIF default — appropriate since `direct` is meant to reproduce the *un-encoded* baseline, not a tuned spiking regime); `poisson`/`latency` use `time_steps: 16`, `voltage_threshold: 0.2`.
 
-**Measured separability (tiny/eeg, full Phase 00 grid: 100 epochs, 5-fold nested CV, 3 repeats, `experiment.seed=42`)**. Per the convention established above (and in [Core/Paraconsistent.md](../Core/Paraconsistent.md)), **larger `α`** (intraclass compactness) **and smaller `D_truth`** (distance to the "Truth" vertex) mean better paraconsistent separability.
-
-> **Corrected (audit m-2, resolved):** the previous revision of this table was sourced from a preliminary *20-epoch, 2-fold* run, stated the direction backwards, mislabeled `α` as a "falsity/inconsistency degree", and concluded that `poisson` was best. Re-derived against the authoritative `results/phase00/*_summary.json` (300 configs × 3 reps), the ranking is **the exact opposite**. Numbers below are means over 3 repeats.
-
-| encoding | α | D_truth | rank (of 150, eeg) | reading |
-|---|---|---|---|---|
-| `direct`  | 0.667 | 1.493 | **#2** | best — and ≈ the ANN-AE of the same size (α=0.643): strip the spikes and the SNN-AE behaves like the dense AE |
-| `latency` | 0.116 | 1.875 | #145 | deterministic quantisation already costs most of the compactness |
-| `poisson` | 0.000 | 1.997 | **#150 (last)** | collapses onto the *Falsity* vertex — per-frame random sampling at T=16 is too high-variance |
-
-The pattern holds with **no exceptions** across both signals and all three sizes: `direct` always lowest `D_truth`, `poisson` always highest, with all three `poisson` variants occupying the last three places per signal.
-
-**This is a negative result for temporal coding under this metric**, not a justification for it. Mechanism: `α` is defined from the intraclass **min–max range**, so it is maximally outlier-sensitive — a few extreme samples per class widen the range to the full normalised interval and drive `α→0`. Encoding stochasticity therefore maps monotonically onto `α` (direct: none → 0.667; latency: deterministic quantisation → 0.116; poisson: random sampling → 0.000). Caveat: a high `D_truth` does **not** prove `poisson` features are useless to a classifier, only that they are diffuse under a range-based criterion — but Phase 00 selects on `D_truth`, so temporal encodings are never chosen by it. Before discarding temporal coding, `T` and a less outlier-sensitive selection criterion are the things worth revisiting.
+> ### ⚠️ Encoding comparison: withdrawn pending re-run (fixme.md D2/F4)
+>
+> A table used to sit here reporting measured `α`/`D_truth` per SNN-AE encoding (`direct` best,
+> `poisson` last) over the Phase 00 grid. **It has been removed rather than corrected**, because
+> every one of its numbers is unsupported and none can be recomputed:
+>
+> 1. **Produced under the `snn_lr_scale` bug (D3).** Every AE weight trained at an effective
+>    lr of 1e-4 while the profiles declared 1e-3. The numbers describe a run nobody configured.
+> 2. **Its ranks are arithmetically impossible now.** It said "rank (of 150, eeg)"; after D6
+>    retired the degenerate EEG bark/mel axis, EEG has **58** combinations (46 handcrafted + 12 AE).
+> 3. **The source data is gone.** All Phase 00 results were deleted (see `results/phase00/README.md`);
+>    the re-run is postponed, so the table cannot be regenerated.
+>
+> Correcting the figures was not an option — there are no figures to correct. Restating them with a
+> caveat would have kept three-decimal precision on numbers with no run behind them, which is how
+> the *previous* revision of this table (a 20-epoch/2-fold preliminary run, reported as if final and
+> with the direction backwards) survived long enough to reach the thesis.
+>
+> **What still stands** is the mechanism, which is theory rather than measurement, and which
+> predicts the ordering independently of any run:
+>
+> - `α` is built from the intraclass **min–max range**, so it is maximally outlier-sensitive: a few
+>   extreme samples per class widen the range to the whole normalised interval and drive `α→0`.
+> - Each encoding injects a different, *quantifiable* amount of noise **before any learning happens**.
+>   `poisson` redraws an independent Bernoulli per time step, so the mean over `T=16` frames carries
+>   variance `v(1-v)/T` — at `v=0.5` that is a standard deviation of **≈0.125, i.e. ~12.5% of the
+>   feature's full [0,1] range**, added per sample regardless of how well the encoder trained.
+>   `latency` is deterministic: the same `v` always yields the same spike time, and its quantisation
+>   error is at most `½·1/(T−1) ≈ 0.033`. `direct` injects none.
+> - That ladder (none / small-deterministic / large-random) predicts the observed ordering, and
+>   predicts it as an artifact of the **metric plus the encoder's noise floor**, not as evidence that
+>   temporal codes carry less speaker information.
+>
+> So the earlier framing — "a negative result for temporal coding" — **is not established**, and is
+> not merely uncertain: `α` cannot separate "the encoder failed to learn" from "this encoding has an
+> irreducible statistical floor at T=16". Since the floor scales as `1/T`, the claim is testable by
+> re-running `poisson` at larger `T` (T=64 shrinks the variance 4×). That test has **not** been run.
+> See fixme.md **D2** for the decision and the derivation.
 
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 

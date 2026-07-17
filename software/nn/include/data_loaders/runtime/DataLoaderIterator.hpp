@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/runtime/DataLoaderIterator.hpp
+ * @file include/data_loaders/runtime/DataLoaderIterator.hpp
  * @brief Dataloaderiterator.
  *
  *

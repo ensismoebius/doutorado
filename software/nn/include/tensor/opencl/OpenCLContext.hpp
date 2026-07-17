@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/OpenCLContext.hpp
+ * @file include/tensor/opencl/OpenCLContext.hpp
  * @brief OpenCL device and context management for the OpenCL backend.
  *
  * Manages device detection, context creation, and command queue handling.

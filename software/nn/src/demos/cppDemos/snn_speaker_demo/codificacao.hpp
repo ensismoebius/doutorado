@@ -1,5 +1,5 @@
 /**
- * @file src/demos/cppdemos/codificacao.hpp
+ * @file src/demos/cppDemos/snn_speaker_demo/codificacao.hpp
  * @brief Codificacao.
  *
  *

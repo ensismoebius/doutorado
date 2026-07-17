@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp
+ * @file include/data_loaders/10.1117/datasets/windowed/FusedWindowDataset.hpp
  * @brief Dataset that fuses synchronised EEG + audio windows into one input vector.
  */
 

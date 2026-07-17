@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/DistributedSampler.hpp
+ * @file include/data_loaders/samplers/DistributedSampler.hpp
  * @brief Distributedsampler.
  *
  *

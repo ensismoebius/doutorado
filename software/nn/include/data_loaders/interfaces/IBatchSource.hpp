@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/interfaces/IBatchSource.hpp
+ * @file include/data_loaders/interfaces/IBatchSource.hpp
  * @brief Ibatchsource.
  *
  *

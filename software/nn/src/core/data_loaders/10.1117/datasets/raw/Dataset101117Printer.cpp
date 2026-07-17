@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.cpp
+ * @file src/core/data_loaders/10.1117/datasets/raw/Dataset101117Printer.cpp
  * @brief Implementation of Dataset101117Printer.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/codec/batch_target_formatter_gtest.cpp
+ * @file src/core/data_loaders/10.1117/tests/codec/batch_target_formatter_gtest.cpp
  * @brief Implementation for Batch target formatter gtest.
  *
 

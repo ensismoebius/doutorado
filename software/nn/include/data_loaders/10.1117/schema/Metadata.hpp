@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/schema/METADATA.hpp
+ * @file include/data_loaders/10.1117/schema/Metadata.hpp
  * @brief Metadata.
  *
  *

@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/DeviceMemory.hpp
+ * @file include/tensor/opencl/DeviceMemory.hpp
  * @brief GPU device memory management and host<->device transfers.
  *
  * Provides RAII-based GPU buffer management with automatic synchronization.

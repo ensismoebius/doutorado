@@ -11,7 +11,7 @@
  */
 
 /**
- * @file Types.h
+ * @file Types.hpp
  * @brief Compile-time wavelet "tags" and coefficient traits.
  *
  * This header defines:

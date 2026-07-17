@@ -1,5 +1,5 @@
 /**
- * @file AudioData.h
+ * @file AudioData.hpp
  * @brief Lightweight POD type for a single audio record in the 10.1117 dataset loaders.
  *
  * This header intentionally contains *data-only* structures.

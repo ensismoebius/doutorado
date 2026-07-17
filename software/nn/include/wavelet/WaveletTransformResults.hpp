@@ -8,7 +8,7 @@
  */
 
 /**
- * @file WaveletTransformResults.h
+ * @file WaveletTransformResults.hpp
  * @brief Container for wavelet transform output and helpers to extract subbands.
  *
  * The `transformedSignal` vector stores the concatenated coefficients generated

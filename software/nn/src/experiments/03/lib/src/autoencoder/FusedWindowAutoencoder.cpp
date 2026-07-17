@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/FusedWindowAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp
  * @brief ANN variant of the fused EEG+audio window autoencoder.
  */
 

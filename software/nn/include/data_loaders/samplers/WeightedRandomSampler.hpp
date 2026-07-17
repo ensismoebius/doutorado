@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/WeightedRandomSampler.hpp
+ * @file include/data_loaders/samplers/WeightedRandomSampler.hpp
  * @brief Weightedrandomsampler.
  *
  *

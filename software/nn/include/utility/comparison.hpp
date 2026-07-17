@@ -10,7 +10,7 @@
  */
 
 /**
- * @file comparison.h
+ * @file comparison.hpp
  * @brief Small comparison helpers (range check).
  */
 

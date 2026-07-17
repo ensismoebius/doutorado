@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/tests/SqliteBatchSource_windowing_gtest.cpp
+ * @file src/core/data_loaders/tests/SqliteBatchSource_windowing_gtest.cpp
  * @brief Implementation for Sqlitebatchsource windowing gtest.
  *
 

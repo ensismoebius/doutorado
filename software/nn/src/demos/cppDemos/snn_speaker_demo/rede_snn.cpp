@@ -1,5 +1,5 @@
 /**
- * @file src/demos/cppdemos/rede_snn.cpp
+ * @file src/demos/cppDemos/snn_speaker_demo/rede_snn.cpp
  * @brief Implementation for Rede snn.
  *
 

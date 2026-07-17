@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/SubsetSampler.hpp
+ * @file include/data_loaders/samplers/SubsetSampler.hpp
  * @brief Sampler that serves a fixed, pre-determined subset of dataset indices.
  *
  * Intended for k-fold cross-validation: each fold provides its own train or

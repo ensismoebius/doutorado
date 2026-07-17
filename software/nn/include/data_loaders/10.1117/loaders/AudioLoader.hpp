@@ -1,5 +1,5 @@
 /**
- * @file AudioLoader.h
+ * @file AudioLoader.hpp
  * @brief Helpers for loading audio rows from the 10.1117-style MAT dataset into `nn::Tensor`.
  *
  * Contract (current dataset convention):

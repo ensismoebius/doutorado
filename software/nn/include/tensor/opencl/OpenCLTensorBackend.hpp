@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/OpenCLTensorBackend.hpp
+ * @file include/tensor/opencl/OpenCLTensorBackend.hpp
  * @brief OpenCL-only implementation of the tensor backend.
  *
  * **API contract:**

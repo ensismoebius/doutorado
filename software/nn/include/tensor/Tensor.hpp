@@ -1,5 +1,5 @@
 #/**
- * @file include/nn/tensor/Tensor.hpp
+ * @file include/tensor/Tensor.hpp
  * @brief Backend-driven tensor wrapper used throughout the project.
  *
  * **PHASE:** Core stable API — central value-type tensor wrapper parameterized by

@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.cpp
+ * @file src/core/data_loaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.cpp
  * @brief Implementation for Mockimaginedspeechdatasetgenerator.
  *
 

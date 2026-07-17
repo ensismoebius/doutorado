@@ -1,5 +1,5 @@
 /**
- * @file include/nn/logging/Logger.hpp
+ * @file include/logging/Logger.hpp
  * @brief Logger.
  *
  *

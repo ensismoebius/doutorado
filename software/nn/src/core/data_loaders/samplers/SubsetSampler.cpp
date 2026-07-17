@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/SubsetSampler.cpp
+ * @file src/core/data_loaders/samplers/SubsetSampler.cpp
  * @brief Implementation of SubsetSampler.
  */
 

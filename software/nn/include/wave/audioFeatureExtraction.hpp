@@ -10,7 +10,7 @@ namespace nn::core::wave
 {
 
 /**
- * @file audioFeatureExtraction.h
+ * @file audioFeatureExtraction.hpp
  * @brief Audio feature extraction helpers (MFCC-style pipeline).
  *
  * These declarations support the experiment code that converts raw audio samples

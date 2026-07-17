@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/options/ShardIndex.hpp
+ * @file include/data_loaders/options/ShardIndex.hpp
  * @brief Shardindex.
  *
  *

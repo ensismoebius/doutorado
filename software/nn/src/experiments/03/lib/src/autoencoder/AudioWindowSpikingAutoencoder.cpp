@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/AudioWindowSpikingAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for audio-window inputs.
  */
 
@@ -15,20 +15,17 @@ AudioWindowSpikingAutoencoder::AudioWindowSpikingAutoencoder(const AutoencoderCo
 {
 }
 
-auto AudioWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_grad)
-    -> Tensor
+auto AudioWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     return encoder_.forward(input, requires_grad);
 }
 
-auto AudioWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad)
-    -> Tensor
+auto AudioWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     return decoder_.forward(latent, requires_grad);
 }
 
-auto AudioWindowSpikingAutoencoder::forward(const Tensor& input, bool requires_grad)
-    -> Tensor
+auto AudioWindowSpikingAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }

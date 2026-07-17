@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/tests/sampler_option_resolution_gtest.cpp
+ * @file src/core/data_loaders/tests/sampler_option_resolution_gtest.cpp
  * @brief Implementation for Sampler option resolution gtest.
  *
 

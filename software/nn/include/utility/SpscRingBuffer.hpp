@@ -1,5 +1,5 @@
 /**
- * @file include/nn/utility/SpscRingBuffer.hpp
+ * @file include/utility/SpscRingBuffer.hpp
  * @brief Spscringbuffer.
  *
  *

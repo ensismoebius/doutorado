@@ -2,7 +2,7 @@
 #define NN_LAYERS_LSTM_LSTMLAYER_HPP
 
 /**
- * @file include/nn/layers/lstm/LSTMLayer.hpp
+ * @file include/layers/lstm/LSTMLayer.hpp
  * @brief Single-layer LSTM cell with full BPTT and batch gradient accumulation.
  *
  * Gate equations per time step t — verified against [1, 2]:

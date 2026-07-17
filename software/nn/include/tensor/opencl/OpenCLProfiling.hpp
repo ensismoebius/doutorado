@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/OpenCLProfiling.hpp
+ * @file include/tensor/opencl/OpenCLProfiling.hpp
  * @brief Simple OpenCL event profiling helpers.
  */
 

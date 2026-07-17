@@ -1,5 +1,5 @@
 /**
- * @file MatTestUtils.h
+ * @file MatTestUtils.hpp
  * @brief Small MAT-file creation helpers used by loader unit tests.
  */
 

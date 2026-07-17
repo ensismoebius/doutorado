@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/WeightedRandomSampler.cpp
+ * @file src/core/data_loaders/samplers/WeightedRandomSampler.cpp
  * @brief Implementation for Weightedrandomsampler.
  *
 

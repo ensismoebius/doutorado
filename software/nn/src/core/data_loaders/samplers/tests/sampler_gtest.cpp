@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/tests/sampler_gtest.cpp
+ * @file src/core/data_loaders/samplers/tests/sampler_gtest.cpp
  * @brief Implementation for Sampler gtest.
  *
 
@@ -9,12 +9,12 @@
 #include <numeric>
 #include <vector>
 
-#include "gtest/gtest.h"
 #include "data_loaders/samplers/DistributedSampler.hpp"
 #include "data_loaders/samplers/FoldSampler.hpp"
 #include "data_loaders/samplers/RandomSampler.hpp"
 #include "data_loaders/samplers/SequentialSampler.hpp"
 #include "data_loaders/samplers/WeightedRandomSampler.hpp"
+#include "gtest/gtest.h"
 
 TEST(SamplerTest, SequentialSamplerProducesOrderedIndices)
 {

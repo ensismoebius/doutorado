@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp
+ * @file include/data_loaders/10.1117/schema/SubjectDiscovery.hpp
  * @brief Subjectdiscovery.
  *
  *

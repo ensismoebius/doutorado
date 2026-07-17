@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/EegWindowSpikingAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for EEG window inputs.
  */
 

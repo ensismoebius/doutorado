@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp
+ * @file include/data_loaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp
  * @brief SynchronizedBatchAssembler (migrated into datasets/raw layout).
  */
 

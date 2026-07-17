@@ -1,5 +1,5 @@
 /**
- * @file include/nn/testing/SqliteTestHelpers.hpp
+ * @file include/test_utils/SqliteTestHelpers.hpp
  * @brief Sqlitetesthelpers.
  *
  *
@@ -259,11 +259,9 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
     // Trial A -> audio_row 10
     ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[0]), "bind audio A trial_id");
     ensure_ok(sqlite3_bind_int(ins, 2, 10), "bind audio A row");
-    ensure_ok(sqlite3_bind_blob(ins,
-                  3,
-                  audio_buf.data(),
-                  static_cast<int>(audio_n * sizeof(double)),
-                  SQLITE_TRANSIENT),
+    ensure_ok(
+        sqlite3_bind_blob(
+            ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT),
         "bind audio A samples");
     ensure_done(sqlite3_step(ins), "step audio A");
     sqlite3_reset(ins);
@@ -271,11 +269,9 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
     // Trial C -> audio_row 11
     ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[2]), "bind audio C trial_id");
     ensure_ok(sqlite3_bind_int(ins, 2, 11), "bind audio C row");
-    ensure_ok(sqlite3_bind_blob(ins,
-                  3,
-                  audio_buf.data(),
-                  static_cast<int>(audio_n * sizeof(double)),
-                  SQLITE_TRANSIENT),
+    ensure_ok(
+        sqlite3_bind_blob(
+            ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT),
         "bind audio C samples");
     ensure_done(sqlite3_step(ins), "step audio C");
     sqlite3_finalize(ins);

@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/fuzz/audio_loader_property_tests.cpp
+ * @file src/core/data_loaders/10.1117/tests/fuzz/audio_loader_property_tests.cpp
  * @brief Implementation for Audio loader property tests.
  *
 

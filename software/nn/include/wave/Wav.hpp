@@ -11,7 +11,7 @@
  */
 
 /**
- * @file Wav.h
+ * @file Wav.hpp
  * @brief Minimal WAV (PCM) reader/writer used by audio experiments.
  *
  * This is a self-contained utility for loading and saving WAV files and exposing

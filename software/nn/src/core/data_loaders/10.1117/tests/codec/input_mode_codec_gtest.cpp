@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/codec/input_mode_codec_gtest.cpp
+ * @file src/core/data_loaders/10.1117/tests/codec/input_mode_codec_gtest.cpp
  * @brief Implementation for Input mode codec gtest.
  *
 

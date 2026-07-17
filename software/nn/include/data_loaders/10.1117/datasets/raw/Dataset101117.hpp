@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp
+ * @file include/data_loaders/10.1117/datasets/raw/Dataset101117.hpp
  * @brief Protocol101117dataset (migrated into datasets/raw layout).
  */
 

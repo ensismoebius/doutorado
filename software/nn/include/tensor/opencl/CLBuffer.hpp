@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/CLBuffer.hpp
+ * @file include/tensor/opencl/CLBuffer.hpp
  * @brief GPU buffer management with explicit host/device synchronization.
  *
  * Manages OpenCL buffer allocation, device transfer, and memory tracking.

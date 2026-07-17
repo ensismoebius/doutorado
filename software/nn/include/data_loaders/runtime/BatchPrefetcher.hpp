@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/runtime/BatchPrefetcher.hpp
+ * @file include/data_loaders/runtime/BatchPrefetcher.hpp
  * @brief Batchprefetcher.
  *
  *

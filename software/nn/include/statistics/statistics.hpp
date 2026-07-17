@@ -15,7 +15,7 @@
 namespace statistics
 {
 /**
- * @file statistics.h
+ * @file statistics.hpp
  * @brief Small numeric helpers (variance, standard deviation).
  *
  * These are generic utilities used by experiments/analysis code.

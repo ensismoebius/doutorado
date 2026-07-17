@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/schema/SubjectDiscovery.cpp
+ * @file src/core/data_loaders/10.1117/schema/SubjectDiscovery.cpp
  * @brief Implementation for Subjectdiscovery.
  *
 

@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/interfaces/IDatasetPrinter.hpp
+ * @file include/data_loaders/interfaces/IDatasetPrinter.hpp
  * @brief Common interface for dataset printing strategies.
  *
  * Supports polymorphic printing of different dataset types through

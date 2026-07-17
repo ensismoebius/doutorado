@@ -1,5 +1,5 @@
 /**
- * @file include/nn/utility/HighPerfSpscQueue.hpp
+ * @file include/utility/HighPerfSpscQueue.hpp
  * @brief Highperfspscqueue.
  *
  *

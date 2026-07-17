@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/ProtocolAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/ProtocolAutoencoder.cpp
  * @brief Deterministic (ANN) autoencoder implementation for protocol inputs.
  */
 

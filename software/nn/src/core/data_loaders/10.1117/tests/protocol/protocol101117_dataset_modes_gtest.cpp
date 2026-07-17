@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp
+ * @file src/core/data_loaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp
  * @brief Implementation for Protocol101117 dataset modes gtest.
  *
 

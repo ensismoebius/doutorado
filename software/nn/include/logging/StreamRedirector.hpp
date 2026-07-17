@@ -1,5 +1,5 @@
 /**
- * @file include/nn/logging/StreamRedirector.hpp
+ * @file include/logging/StreamRedirector.hpp
  * @brief Streamredirector.
  *
  *

@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/fuzz/fuzz_eeg_loader.cpp
+ * @file src/core/data_loaders/10.1117/tests/fuzz/fuzz_eeg_loader.cpp
  * @brief Implementation for Fuzz eeg loader.
  *
 

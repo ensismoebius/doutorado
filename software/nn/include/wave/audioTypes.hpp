@@ -10,7 +10,7 @@
 // Centralized audio pipeline configuration structs.
 
 /**
- * @file audioTypes.h
+ * @file audioTypes.hpp
  * @brief Configuration structs for audio preprocessing/feature extraction.
  *
  * These small POD-like structs hold parameters and scratch buffers shared across

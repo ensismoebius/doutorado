@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/tests/dataset_collate_gtest.cpp
+ * @file src/core/data_loaders/tests/dataset_collate_gtest.cpp
  * @brief Implementation for Dataset collate gtest.
  *
 

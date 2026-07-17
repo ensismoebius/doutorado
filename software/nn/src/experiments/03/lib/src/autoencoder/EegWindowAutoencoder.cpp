@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/EegWindowAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp
  * @brief ANN implementation of the EEG window autoencoder.
  */
 

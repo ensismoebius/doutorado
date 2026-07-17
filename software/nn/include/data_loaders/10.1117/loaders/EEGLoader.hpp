@@ -1,5 +1,5 @@
 /**
- * @file EEGLoader.h
+ * @file EEGLoader.hpp
  * @brief MAT-file loader for EEG rows in the 10.1117-style dataset.
  *
  * The public API here is split into:

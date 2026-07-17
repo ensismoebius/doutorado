@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/codec/InputModeCodec.cpp
+ * @file src/core/data_loaders/10.1117/codec/InputModeCodec.cpp
  * @brief Implementation for Inputmodecodec.
  *
 

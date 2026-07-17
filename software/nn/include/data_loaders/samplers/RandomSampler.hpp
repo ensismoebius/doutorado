@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/RandomSampler.hpp
+ * @file include/data_loaders/samplers/RandomSampler.hpp
  * @brief Randomsampler.
  *
  *

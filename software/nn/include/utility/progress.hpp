@@ -1,5 +1,5 @@
 /**
- * @file include/nn/utility/progress.hpp
+ * @file include/utility/progress.hpp
  * @brief Progress.
  *
  *

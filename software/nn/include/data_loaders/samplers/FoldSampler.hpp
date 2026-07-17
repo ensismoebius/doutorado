@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/samplers/FoldSampler.hpp
+ * @file include/data_loaders/samplers/FoldSampler.hpp
  * @brief Fold-aware sampler that emits train or validation indices for one fold.
  */
 

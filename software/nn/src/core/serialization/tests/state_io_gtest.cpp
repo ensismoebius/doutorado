@@ -1,5 +1,5 @@
 /**
- * @file src/core/saver/tests/state_io_gtest.cpp
+ * @file src/core/serialization/tests/state_io_gtest.cpp
  * @brief Unit tests for nn::io::StateIO round-trip serialization.
  *
  */

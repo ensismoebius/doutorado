@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp
+ * @file include/data_loaders/10.1117/datasets/raw/SamplePacking.hpp
  * @brief Samplepacking (migrated into datasets/raw layout).
  */
 

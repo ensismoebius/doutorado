@@ -1,5 +1,5 @@
 /**
- * @file include/nn/tensor/KernelManager.hpp
+ * @file include/tensor/opencl/KernelManager.hpp
  * @brief OpenCL kernel compilation, caching, and execution.
  *
  * Manages kernel compilation with caching to avoid recompilation.

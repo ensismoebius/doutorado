@@ -89,8 +89,7 @@ struct LifBPTTImpl : public Module<Backend>
     // Added to avoid backward-time reconstruction drift: gradients for beta (and thus R/C)
     // must use the exact previous post-reset state seen in forward.
     Tensor v_post_history; ///< Cached post-reset membrane values for exact recurrence derivatives.
-    Tensor spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
-    Tensor adapt_a_bptt_; ///< Adaptation variable state (shape: B x F), persists across calls.
+    Tensor adapt_a_bptt_;  ///< Adaptation variable state (shape: B x F), persists across calls.
 
     // Configuration
     int time_steps; ///< Number of time steps in the input sequence

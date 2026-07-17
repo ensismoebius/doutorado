@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/SamplerOptionResolution.cpp
+ * @file src/core/data_loaders/options/SamplerOptionResolution.cpp
  * @brief Implementation for Sampleroptionresolution.
  *
 

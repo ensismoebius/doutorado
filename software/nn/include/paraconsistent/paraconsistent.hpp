@@ -13,7 +13,7 @@
 #include <vector>
 
 /**
- * @file paraconsistent.h
+ * @file paraconsistent.hpp
  * @brief Paraconsistent logic utilities used by legacy experiments.
  *
  * These functions implement simple calculations around certainty/contradiction

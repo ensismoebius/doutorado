@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/DistributedSampler.cpp
+ * @file src/core/data_loaders/samplers/DistributedSampler.cpp
  * @brief Implementation for Distributedsampler.
  *
 

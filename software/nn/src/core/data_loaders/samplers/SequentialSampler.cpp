@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/SequentialSampler.cpp
+ * @file src/core/data_loaders/samplers/SequentialSampler.cpp
  * @brief Implementation for Sequentialsampler.
  *
 

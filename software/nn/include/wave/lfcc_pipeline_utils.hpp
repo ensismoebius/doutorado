@@ -1,5 +1,5 @@
 /**
- * @file lfcc_pipeline_utils.h
+ * @file lfcc_pipeline_utils.hpp
  * @brief LFCC pipeline helpers exposed from core wave utilities.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @file include/nn/utility/BufferPool.hpp
+ * @file include/utility/BufferPool.hpp
  * @brief Bufferpool.
  *
  *

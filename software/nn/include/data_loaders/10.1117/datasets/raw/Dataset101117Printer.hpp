@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp
+ * @file include/data_loaders/10.1117/datasets/raw/Dataset101117Printer.hpp
  * @brief Declaration of `Dataset101117Printer` moved into datasets/raw layout.
  */
 

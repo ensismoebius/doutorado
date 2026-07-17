@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/FoldSampler.cpp
+ * @file src/core/data_loaders/samplers/FoldSampler.cpp
  * @brief Implementation of FoldSampler.
  */
 

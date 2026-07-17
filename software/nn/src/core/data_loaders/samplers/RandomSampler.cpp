@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/samplers/RandomSampler.cpp
+ * @file src/core/data_loaders/samplers/RandomSampler.cpp
  * @brief Implementation for Randomsampler.
  *
 

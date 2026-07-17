@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp
+ * @file src/core/data_loaders/10.1117/tests/loaders/sqlite_session_gtest.cpp
  * @brief Implementation for Sqlite session gtest.
  *
 

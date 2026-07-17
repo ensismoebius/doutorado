@@ -5,7 +5,7 @@
 | # | Assunto | Gravidade | Bloqueia |
 |---|---|---|---|
 | ~~D1~~ | ~~Critério da Fase 00 premia AE morto~~ → **RESOLVIDO** (métrica `d_penalized`) | ✅ | --- |
-| D2 | Conclusão do §08 confundida por D1 | 🔴 crítico | fechar §08 |
+| ~~D2~~ | ~~Conclusão do §08 confundida por D1~~ → **RESOLVIDO** (afirmação retirada; mecanismo quantificado) | ✅ | --- |
 | D3 | ~~`snn_lr_scale` quebrado~~ → **CORRIGIDO no código**, também afeta o artigo E04 (Guaiaquil, rascunho) | 🟡 re-execução pendente | D4, reprodutibilidade, artigo E04 |
 | ~~D4~~ | ~~Seção da tese sobre lr por grupo~~ → **ESCRITA** (§2.1.10.10) | ✅ | --- |
 | D5 | ~~Item 51: otimizadores~~ → **framework FEITO** (otimizador polimórfico + escalas por grupo na base); ablação pendente | 🟡 ablação pendente | item 51 |
@@ -51,33 +51,22 @@ Novos campos, com o mesmo default "desligado" (`0.0`) do classificador, para nã
 
 ---
 
-### D2 --- A conclusão do §08 está confundida por D1 🔴
+### D2 --- A conclusão do §08 sobre codificação temporal ✅ RESOLVIDO (2026-07-16)
 
-O item 59 corrigiu a ordem das codificações (`direct` > `latency` > `poisson`), e essa ordem descreve fielmente os dados armazenados.
+**Decisão do autor:** adiar todas as reexecuções → resta a opção (a): reescrever o §08 reconhecendo o viés, sem testar $T$ maior. Feito.
 
-**Reavaliação à luz de D1 (2026-07-16):** recomputei `d_penalized` sobre os mesmos três encodings, a partir dos CSVs já armazenados (nenhuma reexecução necessária):
+**Reavaliação (registro):** D1 e D2 são **defeitos independentes do mesmo critério geométrico**, não duas faces do mesmo. D1: o critério **recompensa** indevidamente variância nula (saída constante → vértice Ambiguidade → pontua bem). D2: o critério pode **punir** indevidamente variância *real* que não decorre de pior aprendizado. Recomputei `d_penalized` sobre os três encodings a partir dos CSVs armazenados: a ordem **não muda** (`direct` 1,8764 < `latency` 1,9352 < `poisson` 1,9988) --- esperado, já que a penalidade em |G₂| é quase nula longe dos vértices degenerados. **Corrigir D1 não corrige D2.**
 
-| encoding | D_truth (média 3 reps) | D_penalized (média 3 reps) |
-|---|---|---|
-| `direct`  | 1,4926 | 1,8764 |
-| `latency` | 1,8748 | 1,9352 |
-| `poisson` | 1,9972 | 1,9988 |
+**O mecanismo (teoria, não medição --- é o que sobrevive à remoção dos dados):** cada codificação injeta, **antes de qualquer aprendizado**, uma quantidade de ruído calculável em fechado.
+- `poisson`: sorteio de Bernoulli **novo e independente a cada passo** → a média sobre $T$ quadros tem variância $v(1-v)/T$. Com $T=16$, $v=0{,}5$: $\sigma = \sqrt{0{,}25/16} = \mathbf{0{,}125}$, ou seja **12,5% da faixa total [0,1]** da característica, por amostra, presente ainda que o codificador fosse perfeito.
+- `latency`: **determinística** --- o mesmo $v$ sempre dá o mesmo instante de disparo; erro só de quantização, $\le \tfrac{1}{2}\cdot\tfrac{1}{T-1} \approx 0{,}033$ (≈4× menor) e idêntico entre amostras de mesmo valor.
+- `direct`: ruído zero.
 
-A ordem **não muda**: `direct` continua o melhor e `poisson` continua o pior, com ou sem a correção de D1. Isso é o esperado, e é importante entender por quê: **D1 e D2 são dois defeitos diferentes do mesmo critério geométrico, não o mesmo defeito com duas faces.** D1 mostrou que o critério **recompensa indevidamente variância zero** (uma saída constante cai no vértice Ambiguidade e pontua bem). D2 é sobre o oposto: o critério pode estar **punindo indevidamente uma variância real**, que existe de fato nos vetores de característica mas não significa que a rede aprendeu pior. A correção de D1 (que só adiciona uma penalidade em `|G_2|`, quase nula para os três encodings acima, já que nenhum deles está perto dos vértices degenerados) não tinha por que alterar essa comparação --- e, de fato, não altera. **D1 resolvido não resolve D2**: eram problemas independentes que só pareciam entrelaçados porque o ramo AE, antes da correção, tinha configurações mortas contaminando a mesma tabela.
+Como α é definido pela **amplitude** (mín--máx) intraclasse, ele é maximamente sensível a extremos: esse piso de ruído mapeia-se monotonicamente em α e **prevê a ordem observada** como artefato conjunto da métrica e do piso do codificador --- não como evidência de que códigos temporais carreguem menos informação de locutor.
 
-**Por que a `poisson` pode nunca ter tido um teste justo --- explicação refeita, mais direta:**
+**Conclusão:** a frase "resultado negativo para codificação temporal" **não está estabelecida**, e não por incerteza: α é *estruturalmente incapaz* de distinguir "o codificador não aprendeu" de "esta codificação tem piso estatístico irredutível em T=16". Como o piso cai com $1/T$, é testável (T=64 → variância ÷4 → σ=0,0625). **Esse teste não foi executado** (reexecuções adiadas).
 
-O ponto central é: a codificação `poisson` introduz um **ruído aleatório novo a cada apresentação da amostra**, e esse ruído tem uma magnitude que dá para calcular exatamente --- ele não depende de quão bem a rede foi treinada.
-
-1. **O mecanismo.** Para cada dimensão normalizada $v \in [0,1]$ da amostra, a codificação `poisson` sorteia, em cada um dos $T=16$ passos de tempo, um disparo com probabilidade $v$ (`E05FeatureExtraction.cpp::spike_frame`, ramo `poisson`: `(dist(rng) < norm[d]) ? 1 : 0`, um sorteio de Bernoulli **novo e independente a cada passo**). A `latency`, em contraste, calcula um único instante de disparo determinístico $t_{\text{disparo}} = \text{arred}((1-v)(T-1))$ --- não há sorteio algum, o mesmo $v$ sempre produz o mesmo padrão de disparo. A `direct` nem sequer discretiza: o valor analógico passa direto.
-
-2. **A consequência estatística.** Uma média de $T$ sorteios de Bernoulli$(v)$ tem variância $v(1-v)/T$. Com $T=16$ e $v=0{,}5$ (o pior caso, no meio da faixa), essa variância vale $0{,}25/16 = 0{,}015625$, ou seja, um desvio-padrão de $\approx 0{,}125$ --- **12,5% da faixa total $[0,1]$ da característica**, adicionado a cada amostra, de forma independente e aleatória, só porque a amostra passou pela codificação `poisson`. A `latency`, para o mesmo $v$, tem um erro de quantização de no máximo meio degrau, $\tfrac{1}{2}\cdot\tfrac{1}{T-1} \approx 0{,}033$ --- quase quatro vezes menor --- e, principalmente, **determinístico**: a mesma entrada $v$ sempre cai no mesmo degrau, então esse erro não varia de amostra para amostra da mesma classe (só a variação biológica real do sinal entre tentativas contribui). A `direct` tem ruído de codificação zero.
-
-3. **Por que isso ataca exatamente o que α mede.** $\alpha$ é a compactância intraclasse --- $1$ menos a maior amplitude (máximo menos mínimo) de cada dimensão dentro de uma classe (`calculate_alpha`, `paraconsistent.cpp`). O ruído de Bernoulli da `poisson` soma-se, amostra a amostra, diretamente a essa amplitude --- é uma fonte de dispersão *que existiria mesmo se a rede codificadora fosse perfeita*, pois ela nasce na entrada, antes de qualquer aprendizado. Isso explica tanto a direção quanto a **magnitude relativa** do resultado observado: `direct` (ruído zero) $\to \alpha=0{,}667$; `latency` (quantização pequena e determinística) $\to \alpha=0{,}116$; `poisson` (ruído aleatório grande) $\to \alpha=0{,}000$ --- a mesma ordem, e a mesma escala de degradação, que a magnitude do ruído injetado prevê.
-
-4. **A consequência prática.** Um piso de ruído que não depende da qualidade do aprendizado não pode ser removido treinando melhor a rede --- só aumentando $T$ (a variância cai como $1/T$) ou usando uma métrica de seleção que descarte essa dispersão conhecida em vez de puni-la como se fosse falta de separabilidade. Além disso, um classificador treinado sobre muitas amostras poderia aprender a ser robusto a esse ruído de entrada (marginalizando sobre ele), algo que o critério geométrico de α, aplicado a um único vetor médio por amostra, não tem como enxergar. Por isso a frase "resultado negativo para codificação temporal" **continua não estabelecida**: o que os dados mostram com certeza é que, **neste $T=16$ e sob este critério geométrico**, `poisson` carrega um piso de dispersão estatístico que os outros dois encodings não têm --- não que a informação discriminativa codificada por `poisson` seja pior.
-
-**Situação:** D2 permanece aberto. O §08 precisa ser revisto para substituir a explicação vaga ("penaliza variância") por esta --- mecanística, quantitativa e testável --- e para deixar explícito que D1 e D2 são independentes. Decisão ainda pendente do autor: (a) apenas reescrever o texto reconhecendo o viés sem testar `T` maior; ou (b) rodar `poisson` com $T$ maior (ex. 64 ou 128, o que reduziria a variância projetada por um fator de 4--8) para verificar empiricamente se α sobe como a fórmula prevê --- essa segunda opção é um experimento real (mesma ressalva de custo de D1: `poisson`/`latency` a T=16 já levam horas; T maior custa proporcionalmente mais) e exigiria confirmação explícita antes de ser disparada.
+**§08 reescrito:** as medições foram **retiradas, não corrigidas** --- vinham das execuções sob o bug de D3 (lr efetivo 1e-4 nos pesos) e os dados-fonte foram apagados, logo não há número a reportar; reapresentá-los com ressalva preservaria 3 casas decimais sobre execução inexistente (foi assim que uma tabela preliminar de 20 épocas/2 folds chegou ao documento com a ordem invertida). O texto agora traz: a retirada e seus dois motivos, o mecanismo quantificado (nova `eq:ruidoPoisson`), a incapacidade estrutural de α, a testabilidade via $T$, e a **independência explícita** entre D1 e D2. Também corrigido "150 configurações" (o EEG tem 58 após D6). Tese compila limpo (121 pág.).
 
 ---
 
@@ -232,8 +221,8 @@ Varredura pedida pelo autor ("scan the code looking for untrustworthy comments")
 
 **Encontrados, não corrigidos (baixa severidade, registro para decisão):**
 
-- [ ] **C-6. 41 comentários `@file` apontam para caminhos inexistentes.** Reivindicam um prefixo `include/nn/...` (ex.: `include/nn/models/lstm/LSTMAutoencoder.hpp`) de um layout antigo; o real é `include/models/lstm/...`. Também `nn/dataLoaders/` vs `data_loaders/`. Puramente documental (Doxygen), mas é ruído que ensina o leitor a não confiar no cabeçalho. Correção é mecânica (sed) --- não fiz para não misturar 41 arquivos não relacionados no diff dos otimizadores.
-- [ ] **C-7. `LifBPTT.hpp:92`: `Tensor spike_history` --- "Placeholder for spike cache (currently unused in this implementation)".** O comentário é **honesto** (verifiquei: o membro é declarado e nunca referenciado). Mas é estado morto num layer serializável: decidir se remove ou se algum dia terá uso.
+- [x] **C-6.** ✅ Comentários `@file` apontando para caminhos inexistentes. **Eram 106, não 41** --- minha contagem anterior só pegou o padrão `include/nn/`; havia também `src/core/dataLoaders/` (real: `data_loaders`) e 15 basenames errados (ex.: `paraconsistent.h` para um `.hpp`). Dos 350 arquivos com `@file`: 206 usam só o basename (convenção dominante), 53 usam caminho completo. Corrigi os 106 obsoletos **cada um no estilo que ele mesmo pretendia** (quem reivindicava caminho → caminho real; quem reivindicava basename → basename real), em vez de uniformizar 350 arquivos e inflar o diff. Verificado: **0 obsoletos** em 350.
+- [x] **C-7.** ✅ `LifBPTT::spike_history` removido. Verificado antes: **uma única referência em todo o repo --- a própria declaração**; não aparece em `state_dict`/`load_state_dict` (logo não quebra checkpoints), nem em `reset_state()`, e nunca era lido nem escrito. Compila sem ele.
 
 ---
 
@@ -241,8 +230,8 @@ Varredura pedida pelo autor ("scan the code looking for untrustworthy comments")
 
 - [x] **F1.** O comentário em `TrainerConfig.hpp:10` afirma que `snn_lr_scale` "is ignored for pure ANN models". Era falso antes da correção de D3 (escalava todos os pesos por 0,1 mesmo em ANN puro --- o efeito medido no ANN-AE foi de +4,6σ). **Resolvido pela própria correção de D3**: com a escala agora restrita a parâmetros 1×1, e nenhum modelo ANN puro (ex. `ProtocolAutoencoder`) tendo parâmetro 1×1 algum (pesos e vieses são sempre >1 elemento), `snn_lr_scale` de fato não afeta mais modelos ANN --- o comentário voltou a ser verdadeiro sem precisar editá-lo.
 - [x] **F2.** Nenhum teste cobria o caminho em que `snn_lr_scale` é diferente de 1.0. Adicionado `TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams` (`trainer_genericity_gtest.cpp`): modelo com um parâmetro 1×1 e um 2×2, mesmo gradiente fixo nos dois, confirma que só o 1×1 recebe a escala reduzida. Verde.
-- [ ] **F3.** O diretório `results/phase00/` não é reproduzível a partir dos perfis: quem rodá-los como estão (agora com a correção de D3 já no código) obtém resultados **diferentes** dos publicados (que rodaram sob o bug, taxa efetiva 1e-4 nos pesos). D3 já foi decidido/corrigido no código --- falta só a re-execução dos 24 perfis AE para que `results/phase00/` volte a bater com os perfis atuais (ver decisão de re-execução em D3).
-- [ ] **F4.** A tabela de `.wiki/Experiments/Experiment05.md` já foi corrigida no item 59. A seção de SNN-AE agora também menciona D1 (via link para `D_penalized`) e traz a regularização de taxa de disparo, mas **ainda não** menciona explicitamente que os números da tabela "Measured separability" (linha ~107) vêm de execuções feitas sob o bug de D3 (taxa efetiva 1e-4 nos pesos, não 1e-3). Atualizar quando os 24 perfis forem re-executados sob D3 corrigido --- caso contrário a tabela ficaria com um aviso sobre dados que estão prestes a mudar.
+- [x] **F3.** ~~`results/phase00/` não era reproduzível a partir dos perfis~~ --- **superado**: os resultados foram apagados (ver D3), então a inconsistência deixou de existir. A reexecução dos 208 perfis, quando acontecer, produzirá um conjunto coerente com os perfis atuais e com summaries que gravam o lr efetivo.
+- [x] **F4.** ✅ A tabela "Measured separability" de `.wiki/Experiments/Experiment05.md` foi **retirada, não corrigida** --- não havia número a corrigir: saíam de execuções sob o bug de D3, o "rank (of 150, eeg)" ficou aritmeticamente impossível após D6 (o EEG tem 58), e os dados-fonte foram apagados. Substituída por um bloco que explica os três motivos e **preserva o mecanismo** (que é teoria e sobrevive), apontando para D2.
 - [x] **F5.** A contagem "138 variantes handcrafted por sinal" era enganosa para o EEG. Corrigida na tese (§08: 138 voz + 46 EEG; grade 300 → 208) e na wiki junto com **D6**. A seção "Referência" abaixo foi atualizada.
 
 ---

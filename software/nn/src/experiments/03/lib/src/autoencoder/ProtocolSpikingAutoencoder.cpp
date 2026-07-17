@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/ProtocolSpikingAutoencoder.cpp
+ * @file src/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for protocol-formatted inputs.
  *
  * Builds SNN encoder and decoder stacks using `Lif` and

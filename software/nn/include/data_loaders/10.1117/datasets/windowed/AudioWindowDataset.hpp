@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp
+ * @file include/data_loaders/10.1117/datasets/windowed/AudioWindowDataset.hpp
  * @brief Dataset that slices audio recordings into overlapping windows.
  */
 

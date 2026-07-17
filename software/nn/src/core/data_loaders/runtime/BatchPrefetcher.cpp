@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/BatchPrefetcher.cpp
+ * @file src/core/data_loaders/runtime/BatchPrefetcher.cpp
  * @brief Implementation for Batchprefetcher.
  *
 

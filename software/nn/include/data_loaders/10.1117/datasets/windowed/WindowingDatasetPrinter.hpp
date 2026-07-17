@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp
+ * @file include/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp
  * @brief Declaration of `WindowingDatasetPrinter` moved into datasets/windowed layout.
  */
 

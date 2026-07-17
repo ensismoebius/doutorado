@@ -1,5 +1,5 @@
 /**
- * @file include/nn/dataLoaders/sources/SqliteBatchSource.hpp
+ * @file include/data_loaders/sources/SqliteBatchSource.hpp
  * @brief Sqlitebatchsource.
  *
  *

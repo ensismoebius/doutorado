@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/SqliteBatchSource.cpp
+ * @file src/core/data_loaders/sources/SqliteBatchSource.cpp
  * @brief Implementation for Sqlitebatchsource.
  *
 

@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.cpp
+ * @file src/core/data_loaders/10.1117/datasets/raw/SynchronizedBatchAssembler.cpp
  * @brief Implementation for Synchronizedbatchassembler.
  *
 

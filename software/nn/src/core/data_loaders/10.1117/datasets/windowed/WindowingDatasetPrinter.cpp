@@ -1,5 +1,5 @@
 /**
- * @file src/core/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.cpp
+ * @file src/core/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.cpp
  * @brief Implementation of WindowingDatasetPrinter.
  */
 
