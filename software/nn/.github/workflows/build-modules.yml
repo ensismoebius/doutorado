@@ -1,0 +1,102 @@
+name: Build with C++20 Modules (Clang/GCC)
+
+on:
+  push:
+    branches: [main, develop, Phase-00]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  build-modules:
+    strategy:
+      matrix:
+        include:
+          - compiler: clang
+            version: "16"
+            cc: clang-16
+            cxx: clang++-16
+            os: ubuntu-latest
+          - compiler: gcc
+            version: "14"
+            cc: gcc-14
+            cxx: g++-14
+            os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Clang)
+        if: matrix.compiler == 'clang'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-16 \
+            clang++-16 \
+            cmake \
+            ninja-build \
+            libeigen3-dev \
+            libblas-dev \
+            liblapack-dev \
+            libhdf5-dev \
+            libfftw3-dev \
+            ccache
+
+      - name: Install dependencies (GCC)
+        if: matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-14 \
+            g++-14 \
+            cmake \
+            ninja-build \
+            libeigen3-dev \
+            libblas-dev \
+            liblapack-dev \
+            libhdf5-dev \
+            libfftw3-dev \
+            ccache
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ matrix.compiler }}-${{ matrix.version }}-modules
+          variant: ccache
+
+      - name: Configure CMake with C++20 modules
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DMODULES_CACHE_DIR="${{ github.workspace }}/build/modules-cache" \
+            -G Ninja
+
+      - name: Build with modules
+        run: |
+          cd build
+          ninja -j$(nproc)
+
+      - name: Run unit tests
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc)
+
+      - name: Cache modules for future builds
+        uses: actions/cache@v3
+        if: always()
+        with:
+          path: build/modules-cache
+          key: modules-cache-${{ matrix.compiler }}-${{ matrix.version }}-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            modules-cache-${{ matrix.compiler }}-${{ matrix.version }}-${{ github.ref }}
+            modules-cache-${{ matrix.compiler }}-${{ matrix.version }}
