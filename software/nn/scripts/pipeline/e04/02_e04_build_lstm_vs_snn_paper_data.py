@@ -79,6 +79,31 @@ def mean(values: List[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def fmt_pgf(value: float, precision: int, thousands: bool = False) -> str:
+    """Format a number exactly as pgfplotstable's default `fixed` style does (paper.tex
+    uses no `zerofill`, so trailing zeros — and a bare trailing "." — are stripped)."""
+    spec = f",.{precision}f" if thousands else f".{precision}f"
+    s = format(value, spec)
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s
+
+
+def bold_best(
+    values: List[float], precision: int, mode: str, thousands: bool = False
+) -> List[str]:
+    """Format a column the same way pgfplotstable would, wrapping the best value(s) in
+    \\textbf. `mode` is "min" or "max"; ties for best are all bolded. Column must be
+    switched to `string type` in paper.tex wherever this is used — see tab:perf,
+    tab:recon, tab:eff, tab:backend."""
+    best = min(values) if mode == "min" else max(values)
+    out = []
+    for v in values:
+        s = fmt_pgf(v, precision, thousands=thousands)
+        out.append(f"\\textbf{{{s}}}" if v == best else s)
+    return out
+
+
 def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None:
     by_model: Dict[str, List[Dict[str, object]]] = defaultdict(list)
     by_model_encoding: Dict[Tuple[str, str], List[Dict[str, object]]] = defaultdict(list)
@@ -95,53 +120,85 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
         if row["model"] == "snn-ae" and encoding == "direct" and abs(float(row["v_th"]) - 1.0) < 1e-6:
             by_alpha_arch[(float(row["alpha"]), str(row["architecture"]))].append(row)
 
+    # Best-value bolding (tab:perf, tab:recon, tab:eff in paper.tex): columns below are
+    # pre-formatted to match pgfplotstable's default `fixed` rendering exactly (see
+    # fmt_pgf) and the best row(s) wrapped in \textbf. spike_rate, param_count, and macs
+    # are left as plain numbers — param_count/macs are near-total ties within a table
+    # (all three SNN modes share one network, see software/nn/CLAUDE.md SNN invariant #7)
+    # so bolding them would highlight a tie rather than a real result, and spike rate has
+    # no obvious "better" direction. The corresponding columns must be `string type` in
+    # paper.tex.
+    summary_models = sorted(by_model)
+    summary_mse = [mean([float(r["mse"]) for r in by_model[m]]) for m in summary_models]
+    summary_mae = [mean([float(r["mae"]) for r in by_model[m]]) for m in summary_models]
+    summary_r2 = [mean([float(r["r2"]) for r in by_model[m]]) for m in summary_models]
+    summary_spike = [mean([float(r["spike_rate"]) for r in by_model[m]]) for m in summary_models]
+    summary_energy = [mean([float(r["energy"]) for r in by_model[m]]) for m in summary_models]
+    summary_infer = [mean([float(r["infer_ms"]) for r in by_model[m]]) for m in summary_models]
+    summary_train = [mean([float(r["train_ms"]) for r in by_model[m]]) for m in summary_models]
+    summary_params = [mean([float(r["param_count"]) for r in by_model[m]]) for m in summary_models]
+    summary_macs = [mean([float(r["macs"]) for r in by_model[m]]) for m in summary_models]
+
+    # Semicolon delimiter (not comma): bold_best's thousands-grouped strings (e.g.
+    # "11,842,560") contain literal commas, and pgfplotstable's `col sep=comma` reader
+    # does not respect CSV quoting — it silently mis-splits quoted cells. paper.tex uses
+    # `col sep=semicolon` for this file accordingly.
     summary_path = data_dir / "paper_summary_by_model.csv"
     with summary_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, delimiter=";")
         w.writerow(["model", "mse", "mae", "r2", "spike_rate", "energy", "infer_ms", "train_ms", "param_count", "macs"])
-        for model in sorted(by_model):
-            group = by_model[model]
+        for i, model in enumerate(summary_models):
             w.writerow([
                 model,
-                mean([float(r["mse"]) for r in group]),
-                mean([float(r["mae"]) for r in group]),
-                mean([float(r["r2"]) for r in group]),
-                mean([float(r["spike_rate"]) for r in group]),
-                mean([float(r["energy"]) for r in group]),
-                mean([float(r["infer_ms"]) for r in group]),
-                mean([float(r["train_ms"]) for r in group]),
-                mean([float(r["param_count"]) for r in group]),
-                mean([float(r["macs"]) for r in group]),
+                bold_best(summary_mse, 4, "min")[i],
+                bold_best(summary_mae, 4, "min")[i],
+                bold_best(summary_r2, 4, "max")[i],
+                summary_spike[i],
+                bold_best(summary_energy, 2, "min", thousands=True)[i],
+                bold_best(summary_infer, 2, "min")[i],
+                summary_train[i],
+                summary_params[i],
+                summary_macs[i],
             ])
 
+    recon_keys = sorted(by_model_encoding)
+    recon_mse = [mean([float(r["mse"]) for r in by_model_encoding[k]]) for k in recon_keys]
+    recon_mae = [mean([float(r["mae"]) for r in by_model_encoding[k]]) for k in recon_keys]
+    recon_r2 = [mean([float(r["r2"]) for r in by_model_encoding[k]]) for k in recon_keys]
+
+    # Semicolon delimiter — see comment on paper_summary_by_model.csv above.
     recon_path = data_dir / "paper_recon_by_encoding.csv"
     with recon_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, delimiter=";")
         w.writerow(["model", "encoding", "mse", "mae", "r2", "f1"])
-        for key in sorted(by_model_encoding):
+        for i, key in enumerate(recon_keys):
             group = by_model_encoding[key]
             model, encoding = key
             w.writerow([
                 model,
                 encoding,
-                mean([float(r["mse"]) for r in group]),
-                mean([float(r["mae"]) for r in group]),
-                mean([float(r["r2"]) for r in group]),
+                bold_best(recon_mse, 4, "min")[i],
+                bold_best(recon_mae, 4, "min")[i],
+                bold_best(recon_r2, 4, "max")[i],
                 mean([float(r["f1"]) for r in group]),
             ])
 
+    eff_keys = sorted(by_model_encoding)
+    eff_energy = [mean([float(r["energy"]) for r in by_model_encoding[k]]) for k in eff_keys]
+
+    # Semicolon delimiter — see comment on paper_summary_by_model.csv above.
     eff_path = data_dir / "paper_eff_by_encoding.csv"
     with eff_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, delimiter=";")
         w.writerow(["model", "encoding", "spike_rate", "energy", "param_count", "macs"])
-        for key in sorted(by_model_encoding):
+        for i, key in enumerate(eff_keys):
             group = by_model_encoding[key]
             model, encoding = key
             w.writerow([
                 model,
                 encoding,
                 mean([float(r["spike_rate"]) for r in group]),
-                mean([float(r["energy"]) for r in group]),
+                bold_best(eff_energy, 2, "min", thousands=True)[i],
                 mean([float(r["param_count"]) for r in group]),
                 mean([float(r["macs"]) for r in group]),
             ])
@@ -224,14 +281,26 @@ def build_model_timing_table(rows: List[Dict[str, object]], data_dir: pathlib.Pa
     train_by_model = {m: mean([float(r["train_ms"]) for r in g]) for m, g in by_model.items()}
     baseline = infer_by_model.get("LSTM-AE")
 
+    models = sorted(by_model)
+    infer_vals = [infer_by_model[m] for m in models]
+    train_vals = [train_by_model[m] for m in models]
+    speedup_vals = [
+        (baseline / infer_by_model[m]) if baseline and infer_by_model[m] else 0.0 for m in models
+    ]
+
+    # Best-value bolding (tab:backend): matches pgfplotstable's default `fixed` rendering
+    # (see fmt_pgf); infer_ms/train_ms/infer_speedup are `string type` in paper.tex.
+    infer_fmt = bold_best(infer_vals, 2, "min")
+    train_fmt = bold_best(train_vals, 0, "min", thousands=True)
+    speedup_fmt = bold_best(speedup_vals, 2, "max")
+
+    # Semicolon delimiter — see comment on paper_summary_by_model.csv in aggregate_all().
     out_path = data_dir / "paper_backend_comparison.csv"
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, delimiter=";")
         w.writerow(["model", "infer_ms", "train_ms", "infer_speedup"])
-        for model in sorted(by_model):
-            infer_ms = infer_by_model[model]
-            speedup = (baseline / infer_ms) if baseline and infer_ms else 0.0
-            w.writerow([model, infer_ms, train_by_model[model], speedup])
+        for i, model in enumerate(models):
+            w.writerow([model, infer_fmt[i], train_fmt[i], speedup_fmt[i]])
 
 
 def build_xtensor_opencl_table(results_dir: pathlib.Path, data_dir: pathlib.Path) -> None:

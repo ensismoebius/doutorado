@@ -530,16 +530,19 @@ $\text{train\_ms}$ values.
 \caption{Summary performance by model type (3-seed mean, all encodings averaged).}
 \centering\small
 \resizebox{\columnwidth}{!}{%
+% mse/mae/r2/energy/infer_ms are pre-formatted \textbf{}-wrapped strings (best value per
+% column) from bold_best() in the aggregator script — hence `string type` + explicit
+% right alignment instead of pgfplotstable's own `fixed`/`precision` number formatting.
 \pgfplotstabletypeset[
-  col sep=comma,
+  col sep=semicolon,
   columns={model,mse,mae,r2,spike_rate,energy,infer_ms},
   columns/model/.style={string type,column name=Model},
-  columns/mse/.style={column name=MSE,fixed,precision=4},
-  columns/mae/.style={column name=MAE,fixed,precision=4},
-  columns/r2/.style={column name=$R^2$,fixed,precision=4},
+  columns/mse/.style={string type,column type={r},column name=MSE},
+  columns/mae/.style={string type,column type={r},column name=MAE},
+  columns/r2/.style={string type,column type={r},column name=$R^2$},
   columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
-  columns/energy/.style={column name=Energy,fixed,precision=2},
-  columns/infer_ms/.style={column name=Infer\,(ms),fixed,precision=2},
+  columns/energy/.style={string type,column type={r},column name=Energy},
+  columns/infer_ms/.style={string type,column type={r},column name=Infer\,(ms)},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
 ]{data/paper_summary_by_model.csv}%
@@ -552,14 +555,16 @@ $\text{train\_ms}$ values.
 \begin{table}[!t]
 \caption{Reconstruction metrics per encoding (3-seed mean).}
 \centering\small
+% mse/mae/r2 are pre-formatted \textbf{}-wrapped strings (best of all 12 rows) from
+% bold_best() in the aggregator script — see comment on tab:perf above.
 \pgfplotstabletypeset[
-  col sep=comma,
+  col sep=semicolon,
   columns={model,encoding,mse,mae,r2},
   columns/model/.style={string type,column name=Model},
   columns/encoding/.style={string type,column name=Encoding},
-  columns/mse/.style={column name=MSE,fixed,precision=4},
-  columns/mae/.style={column name=MAE,fixed,precision=4},
-  columns/r2/.style={column name=$R^2$,fixed,precision=4},
+  columns/mse/.style={string type,column type={r},column name=MSE},
+  columns/mae/.style={string type,column type={r},column name=MAE},
+  columns/r2/.style={string type,column type={r},column name=$R^2$},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
 ]{data/paper_recon_by_encoding.csv}
@@ -572,13 +577,16 @@ $\text{train\_ms}$ values.
 \caption{Efficiency metrics per encoding (3-seed mean).}
 \centering\small
 \resizebox{\columnwidth}{!}{%
+% energy is a pre-formatted \textbf{}-wrapped string (best of 12 rows). param_count/macs
+% are left as plain numbers, not bolded — see the aggregate_all() comment for why
+% (near-total ties across SNN modes, not a meaningful per-row comparison).
 \pgfplotstabletypeset[
-  col sep=comma,
+  col sep=semicolon,
   columns={model,encoding,spike_rate,energy,param_count,macs},
   columns/model/.style={string type,column name=Model},
   columns/encoding/.style={string type,column name=Encoding},
   columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
-  columns/energy/.style={column name=Energy,fixed,precision=2},
+  columns/energy/.style={string type,column type={r},column name=Energy},
   columns/param_count/.style={column name=Params,fixed,precision=0},
   columns/macs/.style={column name=MACs,fixed,precision=0},
   every head row/.style={before row=\toprule,after row=\midrule},
@@ -593,13 +601,15 @@ $\text{train\_ms}$ values.
 \begin{table}[!t]
 \caption{Inference and training timing (XTensor backend, mean over 3 seeds).}
 \centering\small
+% infer_ms/train_ms/infer_speedup are pre-formatted \textbf{}-wrapped strings (best of 4
+% rows) from bold_best() — see comment on tab:perf above.
 \pgfplotstabletypeset[
-  col sep=comma,
+  col sep=semicolon,
   columns={model,infer_ms,train_ms,infer_speedup},
   columns/model/.style={string type,column name=Model},
-  columns/infer_ms/.style={column name=Infer (ms),fixed,precision=2},
-  columns/train_ms/.style={column name=Train (ms),fixed,precision=0},
-  columns/infer_speedup/.style={column name=$\times$LSTM-infer,fixed,precision=2},
+  columns/infer_ms/.style={string type,column type={r},column name=Infer (ms)},
+  columns/train_ms/.style={string type,column type={r},column name=Train (ms)},
+  columns/infer_speedup/.style={string type,column type={r},column name=$\times$LSTM-infer},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
 ]{data/paper_backend_comparison.csv}
