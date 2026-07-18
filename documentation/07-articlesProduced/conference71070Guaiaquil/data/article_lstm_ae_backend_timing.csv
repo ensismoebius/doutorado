@@ -1,2 +1,2 @@
 backend,model,train_ms,infer_ms
-xtensor,LSTM-AE,485357.270833,1881.223877
+xtensor,LSTM-AE,69774.574653,195.176548

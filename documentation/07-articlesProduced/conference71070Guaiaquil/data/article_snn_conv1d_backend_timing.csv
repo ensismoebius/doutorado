@@ -1,3 +1,3 @@
 backend,model,train_ms,infer_ms
-xtensor,LSTM-AE,444951.951389,1521.334663
-xtensor,SNN-conv1d,2376.450550,2.509527
+xtensor,LSTM-AE,94801.640191,219.864439
+xtensor,SNN-conv1d,3755.274676,3.105870

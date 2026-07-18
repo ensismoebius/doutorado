@@ -1,110 +1,185 @@
 # Optimizers
 
-The nn library provides optimization algorithms for training neural networks, including Adam and SGD.
+Training a neural network means repeatedly nudging its weights in the
+direction that reduces the loss (the number that measures how wrong its
+predictions are). An **optimizer** is the algorithm that decides exactly how
+big and in what direction each nudge should be, given the gradient (the
+direction of steepest increase of the loss) that backpropagation computes.
+This page covers the optimizers implemented in `nn`: Adam, SGD, Lion, and
+Schedule-Free AdamW.
+
+If the terms "gradient" and "loss function" are new to you,
+[Autoencoders](../Concepts/Autoencoders.md) walks through a concrete training
+loop from scratch.
 
 ## Theoretical Background
 
-Neural network training minimizes a loss function $L(\theta)$ where $\theta$ represents the model parameters. Optimizers update parameters using gradients:
+Training minimizes a loss function $L(\theta)$, where $\theta$ stands for
+*all* of the model's weights collectively. The simplest possible update rule —
+"take a small step in the direction that reduces the loss the fastest" — is:
 
 $$\theta_{t+1} = \theta_t - \eta \cdot \nabla L(\theta_t)$$
 
+Here $\nabla L(\theta_t)$ is the gradient (computed by `backward()`) and $\eta$
+(eta) is the **learning rate**: how large a step to take. Every optimizer
+below is a refinement of this basic idea — most of them keep some extra
+memory ("state") about past gradients to decide the step size more cleverly
+than a single fixed $\eta$ could.
+
 ### Adam (Adaptive Moment Estimation)
 
-Adam maintains per-parameter momentum and adaptive learning rates [2]:
+Plain gradient descent uses the *same* step size for every weight, all the
+time. Adam instead tracks, per weight, a running average of recent gradients
+(their "first moment", $m_t$ — essentially momentum) and a running average of
+recent *squared* gradients (their "second moment", $v_t$ — a measure of how
+noisy or large that weight's gradient has recently been) [2]:
 
 $$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t$$
 $$v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2$$
 
-With bias correction:
+Early in training these running averages are biased toward zero (they start at
+zero and haven't accumulated much yet), so Adam corrects for that:
+
 $$\hat{m}_t = \frac{m_t}{1 - \beta_1^t}$$
 $$\hat{v}_t = \frac{v_t}{1 - \beta_2^t}$$
 
-Update rule:
+The update then divides the (corrected) average gradient by the square root of
+the (corrected) average *squared* gradient — which automatically shrinks the
+step for weights whose gradient has been large/noisy, and keeps a normal-sized
+step for weights whose gradient has been small/stable:
+
 $$\theta_{t+1} = \theta_t - \eta \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}$$
 
-Default values: $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$
+$\epsilon$ (epsilon) is a tiny constant added only to avoid dividing by zero.
+Default values used here: $\beta_1 = 0.9$, $\beta_2 = 0.999$,
+$\epsilon = 10^{-8}$.
 
-### SGD (Stochastic Gradient Descent)
+### SGD (Stochastic Gradient Descent) with momentum
 
-Simple gradient descent with momentum:
+A simpler alternative to Adam. Instead of the two running averages above, it
+keeps one "velocity" term $v_t$ that behaves like physical momentum — it keeps
+moving in whatever direction it's been moving, only gradually redirected by
+the current gradient:
+
 $$v_t = \gamma v_{t-1} + \eta \nabla L(\theta_t)$$
 $$\theta_{t+1} = \theta_t - v_t$$
 
 ## Available Optimizers
 
-| Token (`optimizer_type`) | Class | Reference default lr | State/param | Notes |
+| Token (`optimizer_type`) | Class | Reference default lr | State per parameter | Notes |
 |---|---|---|---|---|
-| `adam` (default) | `Adam` | 1e-3 | 2 (m, v) | AdamW when `weight_decay > 0` |
-| `sgd` | `SGD` | — (0.01) | 1 (velocity) | Polyak momentum; SGDW when `weight_decay > 0` |
-| `lion` | `Lion` | 1e-4 | **1** (momentum) | Sign-based update; half Adam's optimizer memory |
-| `schedule-free-adamw` | `ScheduleFreeAdamW` | 2.5e-3 | 3 (x, z, v) | No lr schedule needed; train/eval iterates differ |
+| `adam` (default) | `Adam` | 1e-3 | 2 numbers (m, v) | Becomes AdamW when `weight_decay > 0` |
+| `sgd` | `SGD` | 0.01 | 1 number (velocity) | Classic (Polyak) momentum; becomes SGDW when `weight_decay > 0` |
+| `lion` | `Lion` | 1e-4 | **1** number (momentum) | Updates by the *sign* of the gradient only, ignoring its magnitude — half the memory of Adam |
+| `schedule-free-adamw` | `ScheduleFreeAdamW` | 2.5e-3 | 3 numbers (x, z, v) | Designed so you don't need to decay the learning rate over training; the values used for training and for evaluation differ on purpose (see the paper) |
 
-Built by `OptimizerFactory` from `TrainerConfig::optimizer_type`; in Experiment05 this is set
-per profile via `training.optimizer_type`. An unknown token throws rather than falling back.
+An optimizer is selected by name (its "token") and built by `OptimizerFactory`
+from `TrainerConfig::optimizer_type`; in Experiment05 this is set per profile
+via `training.optimizer_type`. Passing an unrecognised name throws an error
+immediately rather than silently falling back to a default — a wrong optimizer
+name is a configuration mistake worth stopping the run for, not something to
+paper over.
 
-> **⚠️ A single lr is not comparable across these.** Their reference defaults span 1e-3 (Adam)
-> to 1e-4 (Lion). Lion's update is `±lr` for *every* coordinate regardless of gradient
-> magnitude, which is why its usable lr is much smaller. Any optimizer ablation must tune lr
-> **per optimizer** or it measures the lr choice, not the optimizer.
+> **A single learning rate is not comparable across optimizers.** Their
+> published reference defaults span from 1e-3 (Adam) down to 1e-4 (Lion) — a
+> 10× difference. That's because Lion's update moves every weight by exactly
+> `±lr`, regardless of how large or small that weight's actual gradient is,
+> so it needs a much smaller step to stay stable. If you want to compare two
+> optimizers fairly, you must tune the learning rate **separately for each
+> one** — otherwise your experiment measures which learning rate you happened
+> to pick, not which optimizer is better.
 
-### Per-optimizer learning rate
+### Per-optimizer default learning rate
 
-`reference_learning_rate(token)` (OptimizerFactory.hpp) is the single source of truth for each
-optimizer's published default. Experiment05's `training.learning_rate` is **optional**: omit it
-and `E05Config::Training::effective_learning_rate()` resolves it from the chosen optimizer, so
-naming an optimizer without naming a rate still trains at a rate that suits *that* optimizer
-rather than silently inheriting Adam's. An explicit value still wins, so sweeping lr works.
+Because the right learning rate is specific to the optimizer, this project
+lets you name an optimizer *without* naming a learning rate: leave
+`training.learning_rate` out of an Experiment05 profile, and
+`E05Config::Training::effective_learning_rate()` looks up
+`reference_learning_rate(token)` (defined once, in `OptimizerFactory.hpp`) and
+uses the rate published for that specific optimizer. Naming a rate explicitly
+still overrides this, so sweeping the learning rate as an experiment variable
+still works normally.
 
-The run summary records the resolved `learning_rate` **and** a `learning_rate_source`
-(`"profile"` or `"optimizer_default"`), so a result file says what it actually trained with —
-the gap that made fixme.md D3 possible, where published numbers came from an effective lr 10×
-below what the profiles declared, with nothing on disk recording it. Guarded by
-`E05OptimizerLearningRate.*` and by a per-profile assertion in `e05_profile_audit_gtest`.
+The run's output summary always records both the learning rate actually used
+and a `learning_rate_source` field (`"profile"` or `"optimizer_default"`), so
+looking at a result file later tells you exactly what it was trained with —
+closing a gap that once let a paper's published numbers come from a
+learning rate ten times smaller than the profile files claimed, with nothing
+recorded anywhere that would have revealed it. This is checked automatically
+by `E05OptimizerLearningRate.*` and a per-profile assertion in
+`e05_profile_audit_gtest`.
 
-**Not implemented, deliberately** (fixme.md D5 records the full reasoning):
-- **Sophia** — its diagonal-Hessian estimate needs a *second backward pass with resampled
-  labels* (Gauss-Newton-Bartlett), which `Optimizer::step(span<Tensor*>)` cannot trigger: it
-  receives only parameters and their gradients. Implementing it without that pass would make
-  the "Hessian" equal to squared real-loss gradients — effectively Adam's second moment under
-  a different name.
-- **SOAP** — needs `eigh` of the Shampoo preconditioner, which does not exist in the
-  backend-agnostic `Tensor` interface; adding it means extending `TensorBackendParityContract`
-  across all four backends (XTensor, OpenCL, SYCL, Device).
-- **Muon** — was implemented and ground-truthed against `muon-optimizer`, then removed on the
-  author's instruction. It orthogonalizes 2-D matrices only and falls back to Adam for
-  everything else, so it could never touch this project's 1×1 biophysical params (R, C, V_th);
-  combined with its LLM-pretraining design target, it had no plausible role in the thesis
-  ablation. Recoverable from git history if ever needed.
+### Optimizers considered but deliberately not implemented
 
-### Ground truth vs the reference implementations
+- **Sophia** — estimating its diagonal Hessian (a measure of loss curvature)
+  requires running a *second* backward pass with resampled labels partway
+  through training. The training loop's `Optimizer::step(span<Tensor*>)`
+  interface only ever receives the parameters and their gradients — it has no
+  way to trigger an extra backward pass. Implementing Sophia without that
+  extra pass would just reduce to Adam's existing second-moment tracking under
+  a new name, so it was left out rather than faked.
+- **SOAP** — needs an eigenvalue decomposition (`eigh`) of an internal
+  matrix, an operation the `Tensor` interface does not currently expose on
+  every backend. Adding it would mean extending the shared tensor-backend test
+  contract across all four backends (XTensor, OpenCL, SYCL, Device) first.
+- **Muon** — was implemented and checked against the reference `muon-optimizer`
+  library, then removed at the author's request. It only orthogonalises 2-D
+  weight matrices and silently falls back to plain Adam for everything else —
+  so it would never have touched this project's 1×1 spiking-neuron parameters
+  (R, C, V_th) — and its design target (very large language-model
+  pretraining) had no clear connection to this thesis's ablation study. Still
+  recoverable from git history if a future need arises.
 
-Every optimizer is checked element-by-element against its **authors' own implementation**:
-`scripts/testing/gen_optimizer_refs.py` drives the reference over a fixed parameter/gradient
-sequence and records the parameter after each step into the committed
-`src/core/optimizers/tests/fixtures/optimizer_refs.npz`; `optimizer_parity_gtest` replays the
-identical data through ours. CI needs no Python (same pattern as the
-[PyTorch layer parity](../Guides/Ground-Truth-and-Smoke-Testing.md) fixtures).
+### Checked against the original authors' code
 
-| Ours | Reference |
+Every optimizer here is verified, step by step, against the exact numbers its
+original authors' own implementation produces — not just "does it look
+reasonable", but bit-for-bit reproduction of a fixed sequence of updates.
+`scripts/testing/gen_optimizer_refs.py` runs the reference implementation
+(PyTorch's, or the original paper's own code) over a fixed sequence of
+parameters and gradients and records the parameter value after each step into
+a committed file, `src/core/optimizers/tests/fixtures/optimizer_refs.npz`.
+`optimizer_parity_gtest` then replays the *identical* sequence through this
+project's implementation and checks the numbers match. This means CI doesn't
+need Python installed to verify correctness — the reference numbers were
+already computed once, ahead of time, and just get compared against (the same
+pattern used for [layer parity testing](../Guides/Ground-Truth-and-Smoke-Testing.md)).
+
+| This project's class | Checked against |
 |---|---|
 | `Adam`, `Adam` + `weight_decay`, `SGD` | `torch.optim.Adam` / `torch.optim.AdamW` / `torch.optim.SGD` |
 | `Lion` | `lion-pytorch` |
 | `ScheduleFreeAdamW` | `schedulefree` (`AdamWScheduleFreeReference`) |
 
-This is not ceremony — it found two real bugs in code that had passed unit tests for months:
-Adam applied its decoupled weight decay *after* the gradient step (AdamW defines it against
-θ_{t-1}; torch agrees — decay-before reproduces torch with 0.0 error), and moving it earlier
-exposed that assigning to a parameter **drops its gradient buffer** (`nn::Tensor` is a value
-type). Both are fixed and pinned.
+This comparison is not a formality — it caught two real, months-old bugs:
 
-One deviation from upstream is deliberate and encoded in the fixture generator:
-- **weight_decay scope** — upstream Lion/Schedule-Free decay every parameter; this project
-  decays only 2-D weight matrices so SNN scalars keep τ=R·C intact. Every decay fixture uses a
-  2-D parameter, where the two agree exactly.
+1. **Weight decay was applied at the wrong point in the update.** AdamW's
+   definition applies the decay term against the *previous* step's
+   parameters, and comparing against PyTorch confirmed this (applying decay
+   before the main update reproduces PyTorch with zero error).
+2. **Moving the decay step exposed a second bug**: re-assigning a value into
+   a parameter tensor silently threw away that tensor's accumulated gradient,
+   because `nn::Tensor` is a plain value type (copying it copies its data, not
+   a shared reference) — so code that assigned a *new* tensor into a parameter
+   slot lost that parameter's gradient without any error or warning.
+
+Both are now fixed, and the reference-comparison tests permanently guard
+against them recurring.
+
+One difference from the original papers is intentional, and is baked into how
+the reference fixtures themselves are generated:
+
+- **Which parameters get weight decay.** The original Lion and Schedule-Free
+  papers decay every parameter. This project decays only 2-D weight matrices,
+  so that the SNN's 1×1 biophysical scalars (R, C, V_th — see
+  [Membrane Dynamics](../Concepts/Membrane-Dynamics.md)) are never shrunk
+  toward zero, which would silently corrupt the neuron's time constant
+  $\tau = R \cdot C$. Every weight-decay fixture uses a 2-D parameter, where
+  this project's behaviour and the original paper's agree exactly.
 
 ## How It Is Implemented Here
 
-### Adam — Standard Usage
+### Adam — standard usage
 
 ```cpp
 // File: include/optimizers/Adam.hpp
@@ -126,16 +201,19 @@ struct Adam : public Optimizer
 };
 ```
 
-### Per-Parameter-Group Learning Rates
+### Per-parameter-group learning rates
 
-SNN biophysical parameters (R, C, V_th) require a much smaller learning rate than
-weight matrices, since large updates can push them into the `1e-6` clamp region
-(see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)) and destabilize $\tau=R\cdot C$
-or the spike threshold. This project's own empirical default is a 10× reduction:
-lr_SNN ≈ 1e-4 when global lr = 1e-3 (`TrainerConfig::snn_lr_scale = 0.1`) — an internal
-engineering heuristic, not a literature-sourced figure (audit m-3: the citation
-previously attached to this claim could not be verified and was removed).
-Use `attach_with_scales()` to set per-parameter lr multipliers:
+Some parameters need a much gentler learning rate than others. In particular,
+the SNN's biophysical parameters (R, C, V_th) can be pushed into an invalid,
+clamped region by an update that would be perfectly reasonable for an ordinary
+weight matrix (see [Membrane Dynamics](../Concepts/Membrane-Dynamics.md)), so
+this project uses a learning rate ten times smaller for them by default:
+`lr_SNN ≈ 1e-4` when the global rate is `1e-3`
+(`TrainerConfig::snn_lr_scale = 0.1`). This factor of 10 is this project's own
+empirically-chosen setting, not a value taken from a published paper.
+
+To set different learning-rate multipliers for different parameters, use
+`attach_with_scales()`:
 
 ```cpp
 // File: include/optimizers/Optimizer.hpp — base class, virtual
@@ -143,26 +221,36 @@ virtual auto attach_with_scales(std::span<nn::Tensor*> params,
                                 std::span<const float> lr_scales) -> void;
 ```
 
-`attach_with_scales()`, the `lr_scales_` storage it fills, and `weight_decay` all live on
-the **`Optimizer` base** (fixme.md D5), so a caller holding an `Optimizer&`/`unique_ptr<Optimizer>`
-— e.g. [`Trainer`](./Training.md), which builds its optimizer via `OptimizerFactory` — can
-configure per-group learning rates without knowing the concrete type. Every optimizer in the
-project (`Adam`, `SGD`, `SGDMinimal`) reads `lr_scales_` in its `step()`, computing
-$\eta_i = \eta_\text{global} \times \texttt{lr\_scales\_}[i]$ (defaulting to 1.0 past the
-vector's end). The base `attach_with_scales()` calls the virtual `attach()` (so concrete
-per-parameter state — Adam's moments, SGD's velocity — is still allocated) and then stores the
-scales; concrete optimizers do not override it.
+This method — along with the `lr_scales_` array it fills in, and the
+`weight_decay` setting described below — lives on the shared `Optimizer` base
+class, not on any one specific optimizer. That means code holding a generic
+`Optimizer&` or `unique_ptr<Optimizer>` (for instance
+[`Trainer`](./Training.md), which builds whichever concrete optimizer the
+config asks for) can set up per-group learning rates without needing to know
+which concrete optimizer type it's actually holding. Every optimizer in this
+project (`Adam`, `SGD`, `SGDMinimal`) reads from `lr_scales_` inside its
+`step()`, computing each parameter's *effective* learning rate as
 
-> **Base `attach()` stores its params.** `Optimizer::attach()` records `attached_params_`
-> (backing the no-arg `step()`/`zero_grad()`) and clears `lr_scales_`. Overrides must call
-> `Optimizer::attach(params)` first. It used to be a literal no-op while its own comment
-> claimed otherwise — so `SGD`, which relied on it, left `attached_params_` empty and its
-> no-arg `step()` always threw.
-
-The effective learning rate for parameter $i$ is:
 $$\eta_i = \eta_\text{global} \times \text{lr\_scales}[i]$$
 
-Example — separate lr for SNN layers vs weight matrices:
+(defaulting the multiplier to 1.0 for any parameter beyond the end of the
+scales list). `attach_with_scales()` still calls the ordinary, per-optimizer
+`attach()` internally first — so Adam's moment buffers, SGD's velocity, and so
+on are still allocated exactly as they would be normally — and only then
+records the scales on top.
+
+> **A subtlety worth knowing if you're modifying an optimizer:** the base
+> class's `attach()` is what records which parameters are currently attached
+> (this is what lets the no-argument forms of `step()`/`zero_grad()` work, and
+> is also where `lr_scales_` gets cleared out). Any optimizer that overrides
+> `attach()` must call `Optimizer::attach(params)` itself first, or that
+> bookkeeping never happens. This was previously a documented no-op that
+> didn't actually do anything the comment claimed — so `SGD`, which depended
+> on it, ended up with an empty parameter list and its no-argument `step()`
+> always threw an exception. Now fixed.
+
+Example — separate learning rates for ordinary weights vs. SNN biophysical
+parameters:
 ```cpp
 Adam optimizer(/*lr=*/0.001F);
 
@@ -177,30 +265,46 @@ optimizer.attach_with_scales(all_params, scales);
 optimizer.step(all_params);
 ```
 
-`TrainerConfig::snn_lr_scale` (default 0.1) sets the scale; the caller populates the
-`scales` vector. [`Trainer`](./Training.md) does this for you, assigning the scale **only to
-parameters with `size() == 1`** — R, C and V_th are always 1×1 tensors, while no weight or
-bias ever is. Filling the vector uniformly instead (the pre-fix behavior) silently turned
-`snn_lr_scale` into a *global* lr multiplier that throttled the whole network 10× — see
-fixme.md D3.
+`TrainerConfig::snn_lr_scale` (default 0.1) holds this factor; it's the
+caller's job to build the actual `scales` vector.
+[`Trainer`](./Training.md) does this automatically, applying the scale
+**only to parameters whose `size()` is exactly 1** — R, C, and V_th are always
+1×1 tensors, and no ordinary weight or bias ever is, so this rule reliably
+picks out exactly the biophysical parameters. An earlier version of this code
+filled the whole scales vector uniformly instead, which had the unintended
+effect of throttling the *entire* network's learning rate by 10× rather than
+just the biophysical parameters — a bug that went unnoticed for a while
+because training still "worked", just ten times slower than intended.
 
-### Decoupled Weight Decay (AdamW / SGDW)
+### Decoupled weight decay (AdamW / SGDW)
 
-`Optimizer::weight_decay` (default `0.0F`, disabled — on the base, so it is settable through
-an `Optimizer&`) applies L2 regularization in the **decoupled** form of Loshchilov & Hutter
-(ICLR 2019), which defines both the AdamW and SGDW variants. All three optimizers implement
-it. After the standard update, each parameter is shrunk multiplicatively:
+**Weight decay** is a regularisation technique: after the normal gradient
+update, every weight is also shrunk slightly toward zero, which discourages
+the network from relying on any single very large weight and tends to improve
+how well it generalises to new data. `Optimizer::weight_decay` (default
+`0.0F`, i.e. off; settable through the shared base class on any optimizer)
+implements the **decoupled** form of this idea, following Loshchilov & Hutter
+(ICLR 2019) — the paper that defines both "AdamW" and "SGDW" as the decoupled
+versions of Adam and SGD. All three optimizers here implement it identically:
+after the normal update, each eligible parameter is shrunk multiplicatively:
 
 $$\theta_i \leftarrow \theta_i - \eta_i \cdot \lambda_\text{wd} \cdot \theta_i$$
 
-Decoupling matters because folding the penalty into the gradient (classic L2)
-makes Adam's per-coordinate $1/\sqrt{\hat v}$ scaling distort the effective decay
-per weight; decoupled decay keeps a uniform shrink.
+Why "decoupled" specifically matters: an older, simpler approach folds the
+decay penalty directly into the gradient before Adam processes it. But Adam
+already divides every gradient by an estimate of its own recent magnitude
+(the $1/\sqrt{\hat v}$ term above) — so folding decay into the gradient means
+Adam's per-weight scaling distorts how much each weight actually gets
+decayed, in a way that depends on that weight's gradient history rather than
+just its current value. Applying decay as a separate step *after* Adam's
+update, as done here, avoids that distortion and shrinks every eligible
+weight by the same proportion.
 
-**Shape guard** — decay is applied **only to 2-D weight matrices**
-(`rows > 1 && cols > 1`). Biases (`N×1`) and SNN biophysical scalars
-(`1×1`: R, C, V_th) are skipped, so the membrane time constant $\tau = R\cdot C$
-and the spike threshold are never pulled toward zero.
+**Which parameters get decayed:** only ordinary 2-D weight matrices
+(`rows > 1 && cols > 1`). Bias vectors (`N×1`) and the SNN's 1×1 biophysical
+scalars (R, C, V_th) are exempt, so the membrane time constant
+$\tau = R \cdot C$ and the firing threshold are never pulled toward zero by a
+mechanism meant for weight matrices.
 
 ```cpp
 // File: include/optimizers/Adam.hpp — inside step()
@@ -208,28 +312,40 @@ if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
     param = param.add(param.multiply_scalar(-lr_i * weight_decay));
 ```
 
-Wired from `TrainerConfig::weight_decay` in the `Trainer` constructor
-(`optimizer_.weight_decay = cfg_.weight_decay;`). For Experiment05 it is set from
-`training.weight_decay` in the profile JSON.
+This is wired up from `TrainerConfig::weight_decay` in the `Trainer`
+constructor (`optimizer_.weight_decay = cfg_.weight_decay;`); in Experiment05
+it comes from the profile JSON's `training.weight_decay` field.
 
-### Fused Backend Step (2026-07-15)
+### Fused GPU update (2026-07-15)
 
-`Adam::step()` dispatches to a backend-fused kernel when the backend provides
-one, via the concept-guarded template helper `try_fused_step()` (a template
-because `if constexpr` only discards branches during template instantiation).
-`OpenCLTensorBackend::adam_step_inplace()` runs the whole per-parameter update
-(moment EMAs, bias correction, parameter step) as **one** `adam_step_kernel`
-launch on device-resident buffers — the kernel had existed in
-`KernelManager.cpp` but was never wired. The generic ~15-tensor-op path
-remains for XTensor/Device/SYCL and as runtime fallback; decoupled weight
-decay is layered identically on both paths. Gradients enter through
-`grad_ref()` (no copy) instead of `param.grad()` (which copies and, on
-OpenCL, forced a device→host→device round-trip per parameter per batch).
+When training runs on the OpenCL (GPU) backend, `Adam::step()` can run the
+*entire* per-parameter update — both moment averages, the bias correction, and
+the parameter step — as a single GPU kernel launch
+(`OpenCLTensorBackend::adam_step_inplace()`), instead of roughly fifteen
+separate tensor operations chained together. This kernel already existed in
+`KernelManager.cpp` but nothing was calling it until this change; the dispatch
+happens through a small helper, `try_fused_step()`, which checks at compile
+time whether the active backend actually provides the fused kernel and only
+uses it if so. Backends that don't provide a fused kernel (XTensor, Device,
+SYCL) keep using the original, generic sequence of operations, and even on
+OpenCL, the fused path falls back to the generic one automatically if
+anything about it fails at runtime. Weight decay is applied identically on
+both paths.
 
-The `Trainer` batch loop's OpenCL `BatchScope` now also covers `zero_grad`,
-gradient clipping, and `optimizer_.step()` — previously the optimizer ran
-outside it, so each of its per-parameter kernels paid a full `clFinish`
-(~250 per batch on the SNN-AE).
+A second change in the same pass: gradients now flow through `grad_ref()`
+(which hands out a direct reference, no copy) instead of the older
+`param.grad()` accessor, which copied the gradient tensor — and on the OpenCL
+backend, that copy meant every parameter's gradient made a round trip from
+GPU memory to host memory and back, once per parameter per training batch.
+
+Also, the `Trainer`'s per-batch OpenCL "batch scope" (a mechanism that lets
+many GPU operations run back-to-back before waiting for the GPU to actually
+finish, instead of waiting after every single operation) now covers
+`zero_grad()`, gradient clipping, and `optimizer_.step()` as well. Previously
+the optimizer ran *outside* that scope, so every one of its per-parameter GPU
+operations had to wait for the GPU individually — on the SNN autoencoder this
+meant roughly 250 separate GPU waits per training batch just from the
+optimizer step.
 
 ## Data Flow
 
@@ -286,24 +402,37 @@ for (int epoch = 0; epoch < epochs; ++epoch)
 
 ## Common Pitfalls
 
-1. **Learning Rate**: Too high causes divergence, too low causes slow convergence
+1. **Learning rate too high or too low.** Too high, and the loss oscillates or
+   diverges (grows instead of shrinking); too low, and training makes almost
+   no visible progress even after many epochs.
 
-2. **Gradient Clipping**: Use `grad_clip_norm` to prevent exploding gradients in deep networks
+2. **Exploding gradients.** In deep or recurrent networks, gradients can grow
+   very large as they propagate backward. Use `grad_clip_norm` to cap the
+   overall gradient size before it reaches the optimizer.
 
-3. **Momentum**: High momentum can cause oscillations; start with defaults (0.9)
+3. **Momentum set too high.** A momentum value close to 1 makes the optimizer
+   keep "coasting" in its previous direction even after the gradient has
+   changed, which can cause the loss to oscillate. Start from the defaults
+   (0.9) and only change it deliberately.
 
-4. **Adam epsilon**: Default (1e-8) prevents division by zero; too large slows learning
+4. **Adam's epsilon.** The default (1e-8) exists purely to prevent a
+   division by zero; making it much larger than that will measurably slow
+   down learning, because it starts competing with the actual gradient
+   magnitude in the denominator.
 
 ## See Also
 
-- [Tensor](./Tensor.md) — Gradient computation
-- [Layers](./Layers.md) — Forward/backward passes
-- [Adam Optimiser](../Concepts/Adam-Optimiser.md) — Detailed Adam explanation
-- [Training](./Training.md) — `TrainerConfig.snn_lr_scale` field
-- [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) — SNN parameter landscape
+- [Tensor](./Tensor.md) — how gradients are computed and stored
+- [Layers](./Layers.md) — the forward/backward passes that produce gradients
+- [Adam Optimiser — Plain](../Concepts/Plain/Adam-Optimiser.md) — Adam explained without the equations first
+- [Adam Optimiser](../Concepts/Adam-Optimiser.md) — detailed Adam walkthrough
+- [Training](./Training.md) — where `TrainerConfig.snn_lr_scale` is consumed
+- [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) — why SNN parameters need special treatment
 
 ## References
 
 [1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
 [2] S. Ruder, "An overview of gradient descent optimization algorithms," arXiv preprint arXiv:1609.04747, 2016. [Online]. Available: https://arxiv.org/abs/1609.04747
+
+[3] I. Loshchilov and F. Hutter, "Decoupled weight decay regularization," in *Proc. 7th Int. Conf. on Learning Representations (ICLR)*, 2019. [Online]. Available: https://arxiv.org/abs/1711.05101

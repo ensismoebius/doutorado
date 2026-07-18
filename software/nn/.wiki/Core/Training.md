@@ -1,35 +1,72 @@
 # Training
 
-Training loop implementation with optimizer integration, gradient management, and real-time progress tracking.
+The `Trainer` class is what actually runs a training run: it takes a model, a
+dataset, and a configuration, and repeatedly runs forward passes, computes the
+loss, runs backward passes, and updates the weights — while reporting progress
+and (optionally) stopping early if the model stops improving. This page covers
+the training loop itself, its configuration options, and the progress-bar and
+callback system that reports on it.
 
 ## Theoretical Background
 
-### Training Loop
+### The training loop
 
-Neural network training minimizes a loss function through iterative gradient descent:
+Training a neural network means repeating this cycle, over and over, once per
+batch of data:
 
-1. **Forward pass**: Compute predictions $\hat{y} = f(x; \theta)$
-2. **Loss**: Compute $L(y, \hat{y})$
-3. **Backward pass**: Compute gradients $\nabla_\theta L$
-4. **Update**: $\theta \leftarrow \theta - \eta \nabla_\theta L$
+1. **Forward pass**: run the current inputs through the model to get its
+   current predictions, $\hat{y} = f(x; \theta)$ (read: "the model $f$, with
+   its current weights $\theta$, applied to input $x$").
+2. **Loss**: compute a single number, $L(y, \hat{y})$, that measures how wrong
+   those predictions were compared to the true answer $y$.
+3. **Backward pass**: compute the gradient $\nabla_\theta L$ — for every
+   weight in the model, how much (and in which direction) changing that
+   weight slightly would change the loss.
+4. **Update**: nudge every weight a little in the direction that reduces the
+   loss: $\theta \leftarrow \theta - \eta \nabla_\theta L$, where $\eta$ is the
+   learning rate (see [Optimizers](./Optimizers.md) for what happens here in
+   more sophisticated optimizers than plain gradient descent).
 
-### Gradient Clipping
+### Gradient clipping
 
-Prevents exploding gradients by scaling:
+Sometimes, especially in recurrent networks like LSTMs, the gradient computed
+in step 3 above can become extremely large — large enough that the update in
+step 4 overshoots wildly and destabilises training instead of improving it.
+**Gradient clipping** guards against this by shrinking the gradient (without
+changing its direction) whenever its overall size exceeds a chosen limit
+`max_norm`:
 
 $$\nabla_\theta L \leftarrow \min\left(1, \frac{\text{max\_norm}}{|\nabla_\theta L\|}\right) \nabla_\theta L$$
 
-### Mini-batch SGD
+In plain terms: if the gradient's size is already under the limit, leave it
+alone; if it's over, scale it down until it exactly reaches the limit.
 
-Instead of full dataset, use batches:
-- Reduces computation per iteration
-- Provides noise that helps escape local minima
+### Mini-batch training
+
+Rather than computing the loss and gradient over the *entire* training set
+before every single update (which would be extremely slow, and requires
+holding the whole dataset's activations in memory at once), training
+typically processes a small random subset — a **mini-batch** — at a time.
+This has two benefits: it's much cheaper per step, and the randomness of
+which samples end up in each batch acts as a mild source of noise that
+actually *helps* the optimizer avoid getting permanently stuck in a poor
+local solution.
 
 ## Progress Tracking
 
-The codebase includes a non-blocking, thread-safe progress bar system for real-time training feedback:
+Long training runs need visible, live feedback — but printing progress
+information from inside a tight inner loop can itself slow that loop down if
+done carelessly. This project's progress-bar system is built to avoid that: it
+runs the actual screen-drawing on a background thread, so calling `update()`
+from the training loop is cheap and never blocks waiting for the terminal to
+redraw.
 
-### ProgressBar (RAII Handle)
+### ProgressBar (a self-contained handle)
+
+Creating a `ProgressBar` registers a new bar to be drawn; destroying it
+(falling out of scope) automatically removes it — this "resource acquisition
+is initialisation" (RAII) pattern means you never have to remember to
+explicitly clean one up:
 
 ```cpp
 // File: include/progress/ProgressBar.hpp
@@ -49,7 +86,11 @@ public:
 }
 ```
 
-### ProgressManager (Singleton Renderer)
+### ProgressManager (the shared renderer behind the scenes)
+
+A single, shared `ProgressManager` actually owns the background rendering
+thread and knows about every currently-active bar — `ProgressBar` itself is
+just a lightweight handle into it:
 
 ```cpp
 // File: include/progress/ProgressManager.hpp
@@ -71,15 +112,20 @@ private:
 }
 ```
 
-### Features
+### Design properties
 
-- **Non-blocking**: Background rendering thread (does not stall training)
-- **Multi-track**: Supports multiple concurrent progress bars
-- **Linear**: Strictly 0% → 100% progress
-- **Callbacks**: Updates via `update()` rather than polling
-- **No external deps**: Uses ANSI escape codes directly
+- **Non-blocking**: rendering happens on a background thread, so it never
+  stalls the actual training loop waiting for the terminal.
+- **Multi-track**: several bars can be active and updating at once (e.g. one
+  per model being trained in a comparative experiment).
+- **Strictly linear**: progress only ever goes from 0% up to 100%, never
+  backward.
+- **Push-based**: bars update when `update()` is called, not by polling on a
+  timer.
+- **No external dependencies**: implemented directly with ANSI terminal escape
+  codes, rather than a third-party terminal UI library.
 
-### ANSI Progress Output
+### Example output
 
 ```cpp
 // Example output:
@@ -89,7 +135,7 @@ private:
 
 ## How It Is Implemented Here
 
-### Trainer Configuration
+### Trainer configuration
 
 ```cpp
 // File: src/core/training/TrainerConfig.hpp
@@ -123,8 +169,8 @@ struct TrainerConfig
 
     // SNN-specific: per-group learning rate for biophysical parameters (R, C, V_th).
     // Effective SNN lr = learning_rate * snn_lr_scale.
-    // 0.1 (10× smaller than weight lr) is this project's own empirical default,
-    // not a literature-sourced figure (audit m-3).
+    // 0.1 (10x smaller than the weight lr) is this project's own empirical
+    // default, not a figure taken from a published paper.
     float snn_lr_scale = 0.1F;
 
     // Nested k-fold cross-validation (0 = disabled, plain k-fold).
@@ -135,19 +181,57 @@ struct TrainerConfig
 }
 ```
 
-**Optimizer selection**: `optimizer_type` picks the implementation, which the `Trainer`
-constructor builds through `OptimizerFactory` and holds as a `std::unique_ptr<Optimizer>`
-(fixme.md D5) — the loop is no longer hard-wired to `Adam`. Default `"adam"` preserves the
-previous behavior for every existing caller; an unknown token throws rather than silently
-falling back. See [Optimizers](Optimizers.md).
+**Choosing an optimizer.** `optimizer_type` names which optimizer
+implementation to use; the `Trainer` constructor builds the actual object
+through `OptimizerFactory` and stores it as a generic `Optimizer` pointer, so
+the training loop's code doesn't need to know or care which concrete
+optimizer is behind it — this makes it straightforward to add a new optimizer
+without touching the training loop itself. The default, `"adam"`, matches
+what every existing caller was already getting before this flexibility was
+added; naming an unrecognised optimizer throws an error immediately, rather
+than silently falling back to something else. See [Optimizers](Optimizers.md).
 
-**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics — large updates can push them into the `1e-6` clamp guard (see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)), destabilizing $\tau=R\cdot C$. Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3 — this is this project's own empirical default, not a value drawn from a specific literature source. The `Trainer` constructor passes it to `Optimizer::attach_with_scales()`, assigning the reduced scale **only to parameters with `size() == 1`** (R, C and V_th are always 1×1; no weight or bias is). A uniform fill would make `snn_lr_scale` a *global* 10× lr throttle on the whole network instead — the D3 bug; guarded by `TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams`.
+**Why SNN parameters get their own, smaller learning rate.** The spiking
+network's biophysical parameters (R, C, V_th) control the neuron's firing
+threshold and its membrane dynamics directly — a large update to one of them
+can push it into an invalid region that the code has to clamp
+(see [Membrane Dynamics](../Concepts/Membrane-Dynamics.md)), which destabilises
+the derived time constant $\tau = R \cdot C$. Setting `snn_lr_scale = 0.1`
+gives these parameters roughly one-tenth the learning rate of ordinary
+weights (≈1e-4 when the global rate is 1e-3) — again, this ratio is this
+project's own empirically-chosen default, not a number taken from a specific
+paper. The `Trainer` constructor passes this scale to
+`Optimizer::attach_with_scales()`, which applies the reduced rate **only to
+parameters whose `size()` is exactly 1** — R, C, and V_th are always 1×1
+tensors, and no ordinary weight or bias tensor ever is, so this rule reliably
+targets just the biophysical parameters. (An earlier version of this code
+filled the scale uniformly across *every* parameter, which had the
+unintended side effect of making `snn_lr_scale` throttle the learning rate of
+the *entire* network by 10×, not just the SNN parameters — a bug that's now
+covered by a dedicated regression test,
+`TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams`.)
 
-**Weight decay rationale**: `weight_decay > 0` enables decoupled L2 regularization (AdamW / SGDW). The `Trainer` constructor forwards it to `Optimizer::weight_decay`, which shrinks only 2-D weight matrices by `lr·weight_decay·θ` after each step — biases and SNN scalars are skipped so `τ = R·C` and the threshold stay intact. See [Optimizers](Optimizers.md#decoupled-weight-decay-adamw--sgdw).
+**Weight decay.** Setting `weight_decay > 0` turns on decoupled L2
+regularisation (see [Optimizers](Optimizers.md#decoupled-weight-decay-adamw--sgdw)
+for what "decoupled" means and why it matters). The `Trainer` constructor
+simply forwards this value to `Optimizer::weight_decay`, which shrinks only
+ordinary 2-D weight matrices by `lr·weight_decay·θ` after every step — biases
+and the SNN's biophysical scalars are exempt, so their values aren't pulled
+toward zero by a mechanism meant for weight matrices.
 
-**Nested CV rationale**: Single-level k-fold cross-validation with hyperparameter tuning leads to optimistic performance estimates.  Nested k-fold [41] uses an outer loop for unbiased test estimation and an inner loop for hyperparameter selection.
+**Nested cross-validation.** If you tune hyperparameters using the same
+validation split you report your final accuracy on, your reported accuracy
+will tend to be optimistic — the model has, in effect, been allowed to "peek"
+at the validation data through the hyperparameter search. Nested k-fold
+cross-validation [41] avoids this by using two loops: an outer loop that holds
+out data purely for the final, unbiased performance estimate, and an inner
+loop (run only on the remaining data) that does the actual hyperparameter
+search.
 
-### Epoch Result
+### Epoch result
+
+At the end of each epoch (one full pass over the training data), the trainer
+reports a summary of what happened:
 
 ```cpp
 // File: src/core/training/EpochResult.hpp
@@ -173,9 +257,22 @@ struct EpochResult
 }
 ```
 
-**SOPs formula**: $\text{SOPs} = \sum_l \left(\sum_{i,f} s_{i,f}^{(l)}\right) \times \text{fan\_out}^{(l)}$
+`mean_spike_rate` and `sops` only make sense for spiking networks — they stay
+`NaN`/`0` for ordinary (non-spiking) models, since there's no meaningful value
+to report. **SOPs** ("Synaptic Operations") is the spiking-network equivalent
+of a FLOP count: instead of counting floating-point multiply-adds, it counts
+how many spikes actually fired, weighted by how many downstream connections
+("fan-out") each firing neuron has — comparing this number to an equivalent
+ANN's FLOP count is one way to quantify the energy-efficiency argument for
+spiking networks (see
+[SNN and Surrogate Gradients — Plain](../Concepts/Plain/SNN-and-Surrogate-Gradients.md)
+for why fewer/sparser spikes correspond to less energy used):
 
-where $l$ indexes layers, the inner sum counts spikes in one batch, and fan_out is the number of post-synaptic connections per neuron.
+$$\text{SOPs} = \sum_l \left(\sum_{i,f} s_{i,f}^{(l)}\right) \times \text{fan\_out}^{(l)}$$
+
+where $l$ indexes the layers, the inner sum counts how many spikes occurred in
+one batch, and fan_out is how many downstream connections each neuron in that
+layer has.
 
 ### Trainer
 
@@ -217,23 +314,44 @@ public:
 };
 ```
 
-**LossType template** (default `MSELossImpl<XtensorTensorBackend>`) — must implement:
-- `set_target(const Tensor&)`
-- `forward(const Tensor& pred, bool requires_grad) -> Tensor` (returns 1×1 scalar)
-- `backward(const Tensor& pred) -> Tensor` (gradient w.r.t. pred)
+`Trainer` is generic over the loss function type (default
+`MSELossImpl<XtensorTensorBackend>`, i.e. mean-squared error) — any loss type
+used in its place must provide three things: a way to tell it what the target
+value is (`set_target`), a `forward()` that computes the loss as a single
+1×1-tensor number, and a `backward()` that computes the gradient of that loss
+with respect to the model's predictions.
 
-**Bugs fixed** vs prior implementation:
-1. `zero_grad` called **before** forward (was after)
-2. Single forward+loss+backward per batch (was double-forward)
-3. Loss type pluggable via template (was hardcoded MSE)
-4. `snn_lr_scale` wired via `attach_with_scales()` (was silently ignored)
-5. Supervised batch: true `(B, D)` matrix forward+backward (was per-sample `(1, D)` loop; caused trivially small GPU kernels and low utilisation on small feature sets)
-6. `EpochResult.mean_spike_rate` populated when `LossType::last_mean_rate()` exists
-7. No `cout` inside Trainer — output goes through `ITrainingCallback`
+**Fixed relative to an earlier version of this training loop:**
+1. Gradients are now zeroed **before** the forward pass rather than after —
+   zeroing after left a stale gradient sitting around between the backward
+   pass and the next batch's zeroing, which is harmless in the common case but
+   fragile.
+2. Each batch now runs exactly one forward pass, one loss computation, and one
+   backward pass (an earlier version computed the forward pass twice per
+   batch, wasting half its compute).
+3. The loss function is now a template parameter instead of being hard-wired
+   to mean-squared error, so callers can plug in e.g. `SpikeCountLoss` for
+   spiking-network training.
+4. `snn_lr_scale` is now actually wired through to the optimizer via
+   `attach_with_scales()` — an earlier version accepted this config value but
+   silently never used it.
+5. Supervised training's batches are now genuinely batched: all $B$ samples in
+   a batch are stacked into one $(B, D)$ matrix and run through a single
+   forward/backward pass, rather than looping over $B$ separate $(1, D)$
+   single-sample passes. The single-sample-loop version worked correctly, but
+   made the GPU do $B$ tiny, inefficient operations instead of one
+   appropriately-sized one — a significant slowdown on small feature sets.
+6. `EpochResult.mean_spike_rate` is now populated whenever the loss type
+   exposes a `last_mean_rate()` method.
+7. `Trainer` itself never writes to the console directly anymore — all
+   reporting goes through the callback system described below, so callers can
+   redirect, filter, or silence it without touching `Trainer`'s code.
 
 ### True-batch supervised training (`fit_loop_supervised`)
 
-For each mini-batch the trainer stacks all B samples into a single `(B, D)` input tensor and a `(B, C)` target tensor, then does one forward+backward:
+Concretely, for each mini-batch the trainer stacks all $B$ samples into one
+$(B, D)$ input tensor and one $(B, C)$ target tensor, and runs a single
+forward+backward pass over the whole batch at once:
 
 ```cpp
 // Stack batch
@@ -252,23 +370,37 @@ Tensor d_out   = loss_.backward(output);
 model_.backward(d_out);
 ```
 
-This is mathematically equivalent to averaging B individual gradients (CrossEntropyLoss uses `mean` reduction over `x.rows()`). The gain is purely computational: one large kernel instead of B tiny ones.
+This produces mathematically the same result as averaging $B$ individually-
+computed gradients (`CrossEntropyLoss` uses a `mean` reduction over
+`x.rows()`, i.e. it averages over the batch dimension) — nothing about *what*
+is computed changes. The benefit is purely computational: one appropriately-
+sized operation per layer instead of $B$ tiny ones, which matters a great deal
+on backends (like OpenCL) where each individual operation carries fixed
+overhead regardless of how much data it processes (see
+[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md)
+for measurements of exactly how much that overhead is).
 
-Validation is similarly batched: all val samples are stacked into `(Nv, D)` and forwarded once per epoch.
+Validation batches are handled the same way: every validation sample is
+stacked into one $(N_v, D)$ tensor and forwarded once per epoch, rather than
+sample-by-sample.
 
-### OpenCL batch scope (2026-07-15)
+### OpenCL batching (2026-07-15)
 
-Under `NN_BACKEND=OpenCL`, both training loops wrap the whole per-batch
-critical section — `zero_grad` → forward → loss → backward → gradient clip →
-`optimizer_.step()` — in a single `OpenCLContext::BatchScope`, which suppresses
-the per-op `clFinish` so the batch flushes to the GPU once. Previously the
-optimizer step ran *outside* the scope, so Adam's ~15 elementwise ops per
-parameter each forced a full `clFinish` (~250 device round-trips per batch on
-the SNN-AE). Together with the fused
-[`adam_step_inplace`](./Optimizers.md#fused-backend-step-2026-07-15) kernel and
-the [device-resident tensor fast path](./Tensor.md#opencl-device-resident-fast-path-2026-07-15),
-this removed the transfer-bound overhead that made the OpenCL preset slower
-than the CPU backend for small networks.
+When running on the OpenCL (GPU) backend, both training loops wrap the entire
+per-batch sequence — zero gradients → forward → loss → backward → clip
+gradients → optimizer step — inside a single `OpenCLContext::BatchScope`. This
+lets many GPU operations be issued back-to-back without waiting for the GPU to
+actually finish after each one; the wait happens only once, when the whole
+batch's worth of work has been issued. Before this change the optimizer step
+ran *outside* that scope, so Adam's roughly 15 small operations per parameter
+each individually waited for the GPU to catch up — on the SNN autoencoder,
+about 250 of these waits per training batch, all avoidable. Combined with the
+fused [`adam_step_inplace`](./Optimizers.md#fused-gpu-update-2026-07-15) GPU
+kernel and other transfer-reduction work described in
+[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md),
+this addresses one specific source of the OpenCL backend being slower than
+the CPU backend for small networks — though, as that guide explains in
+detail, it is not the whole story on this project's hardware.
 
 ## Data Flow
 
@@ -335,9 +467,13 @@ for (const auto& r : history)
 }
 ```
 
-### Callback Interface
+### Callback interface
 
-Callbacks observe training at well-defined hook points. All output, early stopping, and metric logging go through callbacks — Trainer has no `cout`.
+A **callback** is a small object that gets notified at fixed points during
+training (start/end of training, start/end of each epoch, start/end of each
+batch) — this is how progress reporting, early stopping, and metric logging
+all hook into the training loop without `Trainer` itself needing to know
+anything about progress bars, stopping criteria, or logging formats:
 
 ```cpp
 // File: include/training/ITrainingCallback.hpp
@@ -363,9 +499,10 @@ struct ITrainingCallback {
 } // namespace nn::training
 ```
 
-### Concrete Callbacks
+### Built-in callbacks
 
-**`ProgressCallback`** — wraps `nn::progress::ProgressManager` (thread-safe singleton):
+**`ProgressCallback`** — wraps the `ProgressManager` described above to draw
+a live progress bar:
 
 ```cpp
 // File: include/training/ProgressCallback.hpp
@@ -373,7 +510,10 @@ trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("LSTM run 
 // Output: LSTM run 1/5  [=====               ] 25% | train_loss: 0.42 | val_loss: 0.38
 ```
 
-**`EarlyStoppingCallback`** — stops training when validation loss stops improving:
+**`EarlyStoppingCallback`** — monitors the validation loss and signals the
+trainer to stop once it hasn't improved for a given number of epochs (the
+"patience"), which prevents wasting time training a model well past the point
+where it's still getting better (or, worse, starting to overfit):
 
 ```cpp
 // File: include/training/EarlyStoppingCallback.hpp
@@ -384,11 +524,16 @@ trainer.add_callback(stopper);
 float best = stopper->best_val_loss(); // for RunMetrics reporting
 ```
 
-The Trainer checks `should_stop()` after every `on_epoch_end` fires. When any callback returns `true`, the loop breaks and `on_train_end` is called.
+`Trainer` checks every callback's `should_stop()` after each epoch ends; if
+any callback returns `true`, the training loop exits early and
+`on_train_end` still fires normally.
 
-### Sample Transform
+### Sample transform
 
-For models that need per-sample preprocessing (LSTM state reset, SNN encoding):
+Some models need a small transformation applied to each sample right before
+it's fed into the model — for example, resetting an LSTM's or SNN's internal
+state before a new, independent sequence begins, or converting a raw signal
+into a spike encoding:
 
 ```cpp
 // Reset LSTM state and encode each sample before forward pass
@@ -399,26 +544,38 @@ trainer.set_sample_transform(
     });
 ```
 
-Transform is applied in **both** training and validation loops, immediately before `model.forward()`.
+This transform runs in **both** the training and validation loops, immediately
+before `model.forward()` is called.
 
 ## Common Pitfalls
 
-1. **Learning Rate**: Too high causes divergence; too low is slow
+1. **Learning rate too high or too low.** Too high causes the loss to
+   oscillate or diverge; too low makes training take an impractically long
+   time to make visible progress.
 
-2. **Gradient Clipping**: Essential for RNNs/LSTMs; can hurt CNNs
+2. **Gradient clipping.** Usually essential for RNNs/LSTMs, where gradients
+   can spike in size unpredictably; can sometimes hurt convolutional networks
+   if set too aggressively, since it can suppress genuinely large (and
+   useful) gradients.
 
-3. **Batch Size**: Large = stable but may hurt generalization
+3. **Batch size.** A larger batch size gives a more stable, less noisy
+   gradient estimate, but can also make the model generalise slightly worse
+   to new data — there's a real trade-off here, not a universally "correct"
+   value.
 
-4. **Validation**: Always validate to detect overfitting
+4. **Skipping validation.** Always evaluate on held-out validation data during
+   training — training loss alone cannot tell you whether the model is
+   starting to overfit (memorising the training set rather than learning
+   generalisable patterns).
 
 ## See Also
 
-- [Optimizers](./Optimizers.md) — polymorphic `Optimizer` base with per-group lr (`attach_with_scales`)
-- [Layers](./Layers.md) — Model layers
-- [Tensor](./Tensor.md) — Data structure
-- [Autoencoders](../Concepts/Autoencoders.md) — Model being trained
-- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — Nested CV theory
-- [Spike Rate Regularization](../Concepts/Spike-Rate-Regularization.md) — `mean_spike_rate` and SOPs context
+- [Optimizers](./Optimizers.md) — the pluggable `Optimizer` base class and per-group learning rates (`attach_with_scales`)
+- [Layers](./Layers.md) — the model layers being trained
+- [Tensor](./Tensor.md) — the underlying data structure
+- [Autoencoders](../Concepts/Autoencoders.md) — the model type most commonly trained here
+- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — the nested cross-validation theory in full
+- [Spike Rate Regularization](../Concepts/Spike-Rate-Regularization.md) — what `mean_spike_rate` and SOPs are used for
 
 ## References
 

@@ -1,19 +1,41 @@
 # DataLoaders
 
-The nn library provides a flexible data loading system for batching, shuffling, and preprocessing datasets.
+Training data rarely lives in the format a network needs — it typically starts
+as files on disk (WAV audio, `.mat` files, SQLite databases) and has to be
+read, grouped into batches, and shuffled before it can be fed to the network.
+This page covers the pieces of `nn` that handle that: `Dataset` (how to read
+one sample), `ISampler` (which samples to use, and in what order), and
+`DataLoader` (the object you actually iterate over during training).
 
 ## Theoretical Background
 
-Data loaders enable efficient training by:
+A data loader's job has four parts:
 
-1. **Batching**: Grouping samples into mini-batches for stochastic gradient descent
-2. **Shuffling**: Randomizing order to prevent overfitting to sequence patterns
-3. **Prefetching**: Loading next batch while GPU computes current batch
-4. **Sampling Strategies**: Controlling which samples are included in each epoch
+1. **Batching** — grouping many individual samples into one "batch" tensor,
+   because training on one sample at a time is both slow (poor use of
+   hardware parallelism) and noisy (a single sample's gradient is a bad
+   estimate of the true direction to move the weights). This is why training
+   is usually called **stochastic** gradient descent: each step uses a random
+   subset (the batch), not the whole dataset.
+2. **Shuffling** — presenting samples in a different random order every
+   epoch, so the network can't accidentally learn to exploit whatever order
+   the samples happen to be stored in (for example, if the file listing
+   happens to group all of one class together).
+3. **Prefetching** — reading and preparing the *next* batch while the
+   network is still busy computing on the *current* one, so time spent
+   loading data from disk overlaps with compute time instead of adding to it.
+4. **Sampling strategy** — deciding not just the order but *which* samples
+   go into training vs. validation in a given run (see k-fold below).
 
 ### K-Fold Cross-Validation
 
-K-fold splits data into $k$ folds for robust model evaluation [6]:
+A single train/validation split can be misleading — a model might just get
+lucky (or unlucky) with which samples ended up in which split. **K-fold
+cross-validation** guards against this by splitting the dataset into $k$
+equal-sized chunks ("folds") and running $k$ separate train/evaluate rounds,
+each time holding out a *different* fold as validation and training on the
+rest [6]. The final result is usually the average performance across all $k$
+rounds, which is far less sensitive to any one lucky/unlucky split:
 
 ```
 Fold 1: [val] [train train train]
@@ -21,6 +43,10 @@ Fold 2: [train] [val train train]
 Fold 3: [train train] [val train]
 Fold 4: [train train train] [val]
 ```
+
+See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) for the
+full explanation, including the "nested" variant used when you also need to
+tune hyperparameters without leaking information from the test set.
 
 ## How It Is Implemented Here
 
@@ -42,6 +68,10 @@ public:
 
 ### Samplers
 
+A **sampler**'s only job is to decide, for a given epoch, the list of sample
+indices to use and in what order — it never touches the actual data, only the
+list of "which rows to read next":
+
 ```cpp
 // File: include/data_loaders/samplers/ISampler.hpp
 class ISampler
@@ -52,12 +82,21 @@ public:
 ```
 
 Available samplers:
-- `SequentialSampler` - No shuffling
-- `RandomSampler` - Random shuffling with seed
-- `FoldSampler` - K-fold cross-validation splits
-- `DistributedSampler` - Multi-GPU training
+- `SequentialSampler` — always the same order, no shuffling. Useful mainly
+  for debugging, where you want a reproducible, inspectable sequence.
+- `RandomSampler` — shuffles using a seeded random number generator, so the
+  shuffle is different every epoch but the whole run is still reproducible
+  given the same seed.
+- `FoldSampler` — implements the k-fold train/validation split described
+  above.
+- `DistributedSampler` — splits the dataset across multiple GPUs/processes so
+  each one trains on a different slice.
 
-### Dataset Interface
+### Dataset interface
+
+A **dataset** knows how many samples it has and how to fetch one of them by
+index; `collate()` is what turns several individually-fetched samples into a
+single batch tensor:
 
 ```cpp
 // File: include/data_loaders/datasets/Dataset.hpp
@@ -123,7 +162,7 @@ for (const auto& batch : loader)
 }
 ```
 
-### K-Fold Example
+### K-Fold example
 
 ```cpp
 // File: include/data_loaders/samplers/FoldSampler.hpp
@@ -142,11 +181,14 @@ DataLoader train_loader(dataset, batch_size, fold_sampler.get_train_indices());
 DataLoader val_loader(dataset, batch_size, fold_sampler.get_val_indices());
 ```
 
-## Domain-specific Loaders
+## Domain-Specific Loaders
 
-### 10.1117/12.2255697 — EEG Imagined Speech (thesis dataset)
+### 10.1117/12.2255697 — EEG imagined-speech dataset (thesis dataset)
 
-Public dataset used for validation in the thesis. 15 Spanish-speaking subjects; vowels and directional commands; three modalities (phonated, imagined, mixed).
+This is the public dataset the thesis validates against: 15 Spanish-speaking
+subjects, recorded saying vowels and directional commands under three
+conditions ("modalities") — spoken aloud, imagined silently, or a mix of the
+two.
 
 ```
 include/data_loaders/10.1117/
@@ -168,11 +210,20 @@ auto audio = nn::dataLoaders::AudioLoader::load(root, speaker, command);
 auto eeg   = nn::dataLoaders::EEGLoader::load(root, speaker, command);
 ```
 
-Relevant channels for imagined speech: F7, T5 (near Wernicke); Fp1, F3, F7 (near Broca).
+The EEG channels most relevant to imagined speech are F7 and T5 (near
+Wernicke's area, associated with language comprehension) and Fp1, F3, F7 (near
+Broca's area, associated with speech production). See
+[Imagined Speech and EEG](../Concepts/Imagined-Speech-and-EEG.md) for the
+neuroscience background on why these regions matter.
 
 #### Float32 blob detection (AudioLoader + EEGLoader)
 
-The SQLite database stores audio blobs as `float32` (4 bytes/sample), not `float64`. Both loaders detect the actual encoding by comparing the blob byte count against both expected sizes and branch accordingly:
+A practical gotcha worth knowing about if you touch this loader: the source
+SQLite database stores each audio recording as 4-byte-per-sample (`float32`)
+binary blobs, not the 8-byte-per-sample (`float64`) you might assume from a
+quick glance at typical scientific data. Both loaders check the *actual* byte
+count of each blob against both possible sizes and read it accordingly,
+rather than assuming one or the other:
 
 ```cpp
 const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
@@ -193,30 +244,43 @@ else
     throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
 ```
 
-The same pattern applies in `EEGLoader.cpp`. Without this check the loader throws
-`"unexpected audio blob size"` when loaded from the original DB (705600 bytes = 176400 × 4, not × 8).
+`EEGLoader.cpp` follows the same pattern. Without this check, loading the
+original database throws `"unexpected audio blob size"`, because a real blob
+is 705,600 bytes — which is $176{,}400 \times 4$ (float32), not
+$176{,}400 \times 8$ (float64) as you might otherwise expect.
 
-See [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) for the neuroscience context and [Research-Context](../Research-Context.md) for how this dataset fits the thesis.
+See [Imagined Speech and EEG](../Concepts/Imagined-Speech-and-EEG.md) for the
+neuroscience context and [Research-Context](../Research-Context.md) for how
+this dataset fits into the thesis as a whole.
 
 ---
 
 ## Common Pitfalls
 
-1. **Batch Size**: Too large causes poor generalization; too small causes slow training
+1. **Batch size too large or too small.** Too large, and the model tends to
+   generalise worse (it sees fewer, "smoother" gradient estimates over
+   training); too small, and training becomes slow and the gradient estimates
+   become noisy.
 
-2. **Seed**: Always set seed for reproducibility in experiments
+2. **Forgetting to set a seed.** Without a fixed random seed, shuffling and
+   sampling are different every run, which makes results impossible to
+   reproduce — always set one explicitly for experiments you intend to report.
 
-3. **Prefetching**: Use `BatchPrefetcher` for GPU training to overlap I/O and compute
+3. **Not prefetching on GPU training.** Without `BatchPrefetcher`, the GPU
+   sits idle while the next batch is being read from disk and assembled; with
+   it, that reading happens in parallel with the current batch's computation.
 
-4. **Shuffle Between Epochs**: Always reshuffle between epochs to prevent overfitting
+4. **Not reshuffling between epochs.** If the same order is used every epoch,
+   the network can start to memorise the sequence of batches rather than
+   learning general patterns from the data itself.
 
 ## See Also
 
-- [Tensor](./Tensor.md) - Output tensor type
-- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) - Cross-validation details
-- [Data Normalisation](../Concepts/Data-Normalisation.md) - Input preprocessing
-- [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) - EEG dataset context
-- [Research-Context](../Research-Context.md) - Thesis overview and dataset roles
+- [Tensor](./Tensor.md) — the data structure batches are packaged into
+- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — the full cross-validation story
+- [Data Normalisation](../Concepts/Data-Normalisation.md) — preprocessing inputs before they reach the network
+- [Imagined Speech and EEG](../Concepts/Imagined-Speech-and-EEG.md) — the EEG dataset's scientific context
+- [Research-Context](../Research-Context.md) — how this data fits into the thesis overall
 
 ## References
 
