@@ -127,7 +127,7 @@ nn::logging::Logger::set_level(nn::logging::Level::DEBUG);
 
 ## See Also
 
-- [Architecture](./Architecture.md) - System overview
+- [Architecture](../Architecture.md) - System overview
 - [Training](./Training.md) - Training logs
 
 ## References

@@ -101,7 +101,7 @@ flowchart LR
 ## See Also
 
 - [DataLoaders](../Core/DataLoaders.md) - Integration with data pipeline
-- [Layers](./Layers.md) - Normalization affects training
+- [Layers](../Core/Layers.md) - Normalization affects training
 - [Threshold-Dependent Batch Normalization](Threshold-Dependent-Batch-Normalization.md) — the complementary, *internal* normalization used inside the SNN itself
 - [LFCC](LFCC.md) — the audio features normalized per-feature
 

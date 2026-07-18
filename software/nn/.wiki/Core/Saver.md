@@ -152,7 +152,7 @@ state_io.load("experiment01/checkpoint.yaml",
 
 - [Optimizers](./Optimizers.md) - Saving optimizer state
 - [Training](./Training.md) - Checkpoint integration
-- [Architecture](./Architecture.md) - Save/load in training loop
+- [Architecture](../Architecture.md) - Save/load in training loop
 
 ## References
 

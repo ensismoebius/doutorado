@@ -206,8 +206,8 @@ Measured evidence (20-iteration samples on rusticl + AMD Radeon Graphics):
     10.653 and 10.290 ms/iter
 - Observed speedup for grad-weight path: about $1.76\times$ to $1.88\times$
 
-Detailed benchmark log:
-- [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../../results/opencl_lhs_transposed_benchmark_2026-05-02.md)
+(Detailed benchmark log referenced here previously pointed at a file that
+doesn't exist in the repo; the numbers above are the complete record.)
 
 ## Recent OpenCL Stability and SNN Integration Update (2026-05-10)
 
@@ -358,6 +358,92 @@ Net effect: `ctest -j$(nproc)` under `NN_BACKEND=OpenCL` runs the full suite
 at full parallelism again. Only `NN_BACKEND=SYCL` (and the two
 SYCL-instantiating targets, under any preset) still serialize.
 
+## OpenCL Queue Profiling Is a Safety Requirement (2026-07-18)
+
+`OpenCLContext` creates its command queue with `CL_QUEUE_PROFILING_ENABLE`.
+Removing that flag is the single largest speed-up available to the backend —
+~95 µs per enqueue on rusticl/radeonsi (~100 µs with, ~4 µs without) — and it
+**corrupts the heap**.
+
+The flag's cost also masks a latent bug in rusticl's host-side event
+bookkeeping. Without it: `free(): double free detected in tcache 2`, SIGSEGV
+and SIGABRT inside `libRusticlOpenCL.so.1`. On the GPU device the corruption
+takes the display with it, because the compute device is also the display
+adapter — two forced reboots during this work cycle.
+
+Isolated on the **llvmpipe CPU device**, so it is a driver bug reproducible with
+no GPU involved (`e05_classifiers_gtest`,
+`E05RunClassifier.DsnnWithRegularizationRuns`):
+
+| Configuration | Result |
+|---|---|
+| Unmodified baseline (profiling on) | 6/6 pass |
+| Profiling **off** | **0/6 pass** |
+| Profiling **on** | 6/6 pass |
+| Profiling off + `RUSTICL_DEBUG=sync` | 0/6 pass |
+
+`RUSTICL_DEBUG=sync` not helping rules out a GPU-completion race; the problem is
+host-side. Under valgrind the test passes with **0 errors** — valgrind's
+allocator and thread serialisation hide it, so a clean memcheck run is not
+evidence of correctness here.
+
+This is a **separate hazard from the 2026-07-15 concurrency incident above** and
+is unrelated to `ctest` parallelism: it reproduces under a single serial test
+process.
+
+Handling:
+
+- Queue profiling defaults **on**. `initialize_runtime_or_throw` can only ever
+  turn it *on*, never off, so no caller can silently re-arm the hazard.
+- `NN_OPENCL_UNSAFE_FAST_QUEUE=1` opts into the fast path and logs a warning.
+- Debug OpenCL with `RUSTICL_ENABLE=llvmpipe`, never by looping GPU suites.
+
+Full method, measurements and the profiling shim used to find this:
+[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md).
+
+## OpenCL Lazy Host Access and Device-Side View Ops (2026-07-18)
+
+Three related changes to `OpenCLTensorBackend`, all aimed at host↔device traffic
+(measured at 85% of OpenCL API time, against 2.4% in actual kernels):
+
+**Sync-on-read host access.** Ops used to call `sync_gpu()` at the top, forcing a
+blocking `clEnqueueReadBuffer` (~231 µs for 1 KiB) even when the op then went on
+to use the device buffer and never touched host bytes. Private `host_data()` /
+`mutable_host_data()` now pull the device copy down only at the moment host bytes
+are actually needed, so the host-staged fallback paths still work while the
+device-resident fast path costs nothing.
+
+**Asynchronous uploads inside `BatchScope`.** A blocking write is a full pipeline
+flush and defeats batching (~43 µs blocking vs ~2.5 µs non-blocking, 1 KiB).
+OpenCL requires the host source to stay valid until an async transfer completes,
+so the event is owned by the tensor (`m_upload_event`) and anything that would
+free or overwrite that storage waits on it first. This is why the destructor and
+move operations are hand-written rather than defaulted — a defaulted move would
+leave two objects releasing the same `cl_event`.
+
+**Device-side view ops, opt-in.** `slice_time`, `set_time_slice`, `setBlock`,
+`block`, `row`, `col`, `topRows`, `leftCols` can run as a single
+`strided_copy_2d_kernel` instead of a host element loop. Every one of them is a
+rectangular copy between two strided views, so one kernel covers all of them:
+element $(i,j)$ maps to `base + i*stride_i + j*stride_j` on each side.
+
+Which path wins depends entirely on the per-enqueue cost:
+
+- Profiling **off** (~4 µs/enqueue): the device path wins.
+- Profiling **on** (~95 µs/enqueue, the safe default): the device path *loses*.
+  It replaces a cheap host memcpy of a small slice with a kernel launch, raising
+  enqueue count from 678k to 817k (≈ +13 s on the E04 benchmark).
+
+The default therefore matches the default queue mode: **off**. Enable with
+`NN_OPENCL_DEVICE_VIEW_OPS=1` on any stack where enqueues are cheap. Both paths
+are covered by `OpenCLViewOpsTest` in `opencl_tensor_backend_gtest` — 10 tests
+added where these ops previously had **zero** coverage.
+
+Net effect with the safe queue default: these optimisations are
+performance-neutral on rusticl. They are retained because they are
+architecturally correct (fewer readbacks) and will pay off on a stack where the
+driver race is fixed or enqueues are cheap.
+
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$
@@ -366,12 +452,24 @@ SYCL-instantiating targets, under any preset) still serialize.
 
 3. **GPU Data Not Synced**: Use `sync_gpu_if_needed()` before accessing GPU tensor data on CPU, or use non-const `at()` accessor
 
+4. **Disabling OpenCL queue profiling**: it looks like free performance and it
+   corrupts memory on rusticl. Never turn it off for a real run — see the
+   2026-07-18 section above.
+
+5. **Reshape is not reframing**: storage is column-major, so reshaping
+   `(N, 1)` to `(T, D)` yields the strided/polyphase split
+   $\{t, t+T, t+2T, \dots\}$ per row, not $D$ consecutive elements. To group
+   consecutive elements, reshape to `(D, T)` and transpose (see
+   `to_lstm_frames` in [Experiment04](../Experiments/Experiment04.md)).
+
 ## See Also
 
 - [Layers](./Layers.md) - Uses Tensor for all operations
 - [Optimizers](./Optimizers.md) - Operates on Tensor gradients
 - [DataLoaders](./DataLoaders.md) - Produces Tensors from datasets
-- [Architecture](./Architecture.md) - System interaction diagram
+- [Architecture](../Architecture.md) - System interaction diagram
+- [Device](./Device.md) - CPU/OpenCL device abstraction
+- [OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md) - Safe llvmpipe debugging, per-call cost tables, the queue-profiling hazard
 
 ## References
 

@@ -130,7 +130,7 @@ model->to(device);
 ## See Also
 
 - [Tensor](./Tensor.md) - Backend selection
-- [Architecture](./Architecture.md) - System overview
+- [Architecture](../Architecture.md) - System overview
 
 ## References
 

@@ -57,6 +57,6 @@ values without updating the thesis baseline numbers.
 
 ## See also
 
-- [Paraconsistent Logic](../Concepts/Paraconsistent-Logic.md) — theory behind the classifier
+- [Paraconsistent Logic](../Core/Paraconsistent.md) — theory behind the classifier
 - [Experiment02](Experiment02.md) — next step: replace paraconsistent classifier with autoencoder
 - [Home](../Home.md)

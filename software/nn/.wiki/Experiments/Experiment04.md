@@ -48,6 +48,7 @@ Config is loaded from a JSON profile. Top-level sections:
                   "samples_per_batch", "batches_per_epoch",
                   "beta1", "beta2", "epsilon", "max_reconstruct_mean_deviation" },
   "model":      { "loss_function", "latent_dim", "lstm_hidden_size",
+                  "lstm_frame_size",
                   "encoder_layer_spec", "decoder_layer_spec" },
   "evaluation": { "datasets", "encodings", "snn_architectures",
                   "v_th_values", "alpha_values" }
@@ -57,6 +58,40 @@ Config is loaded from a JSON profile. Top-level sections:
 Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
 
 Parsed by: `src/experiments/04/lib/include/E04Config.hpp` (`from_nested_json`).
+
+#### `model.lstm_frame_size` (default 8)
+
+Samples fed to the LSTM per timestep. The sequence length becomes
+`window_size / lstm_frame_size`, so with the article profiles' `window_size=256`
+the default gives $T = 32$, $D = 8$.
+
+Before 2026-07-18 this was hard-coded to `input_size = 1`, i.e. the window was
+consumed one scalar per timestep ($T = 256$, $D = 1$). Because the dominant cost
+per step is the recurrent term $h \cdot U^\top$ — independent of $D$ — that made
+the LSTM roughly 7× more expensive than necessary:
+
+| | frame=1 | frame=8 |
+|---|---|---|
+| sequential steps | 256 | 32 |
+| MACs | 8 523 840 | 1 184 256 |
+| CPU LSTM train (6 samples, 2 epochs) | 3 711 ms | 478 ms |
+| OpenCL LSTM train (same) | 144 848 ms | 18 335 ms |
+
+Constraints and caveats:
+
+- Must divide `window_size`, enforced by `E04Config::validate()`.
+- Encoding is applied to the flat `(window_size, 1)` window **first**, then
+  framing — the `direct`/`poisson`/`latency` transforms expect the flat layout.
+- Evaluation compares reconstruction in framed space. MSE/MAE/$R^2$ are
+  elementwise, so framing both sides leaves them unchanged.
+- **This changes the LSTM-AE architecture and therefore the paper's LSTM
+  results.** Set `lstm_frame_size: 1` to reproduce pre-2026-07-18 numbers. It is
+  arguably a fairer baseline, since the SNN-AE sees the whole window at once via
+  `linear:64` while the old LSTM saw one scalar per step.
+
+Implemented by `to_lstm_frames()` in `src/experiments/04/lib/src/E04Encoding.cpp`;
+see [LSTM Performance](../Guides/LSTM-Performance.md) for why a plain reshape
+would produce a polyphase split rather than consecutive frames.
 
 ### Data Loading Limits
 
@@ -274,6 +309,10 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 
 6. **F1/precision/recall are always 0 for FSDD.** FSDD has no anomaly labels. These fields exist in the output CSV but should not be cited.
 
+7. **Benchmark runs resume from `results/checkpoints/`.** Results are cached by config hash, so re-running after a code change reuses the old numbers — a "run" that finishes in seconds with metrics identical to the previous one is the tell. Delete the results directory before any timing comparison.
+
+8. **`lstm_frame_size` changes LSTM-AE results, not just its speed.** Do not mix runs with different values in one comparison table.
+
 ## Results
 
 All results from 3 independent runs, FSDD dataset, window size 256, Adam(lr=1e-3, β₁=0.9, β₂=0.999), up to 30 epochs with early stopping (patience=10). SNN: 2 linear layers (64→32 latent). LSTM: 1-layer hidden=64, latent=32.
@@ -417,7 +456,7 @@ Latency encoding is the only configuration where models learn meaningful varianc
 - [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md)
 - [Autoencoders](../Concepts/Autoencoders.md)
 - [Wave Processing](../Core/Wave.md)
-- [Training](./Core/Training.md) - Progress bars
+- [Training](../Core/Training.md) - Progress bars
 - [Experiment03](../Experiments/Experiment03.md) - Feedforward autoencoder
 
 ## References

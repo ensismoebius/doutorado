@@ -145,7 +145,7 @@ for (int epoch = 0; epoch < epochs; ++epoch)
 
 ## See Also
 
-- [Optimizers](./Optimizers.md) - Other optimizers
+- [Optimizers](../Core/Optimizers.md) - Other optimizers
 - [Weight-Initialisation](../Concepts/Weight-Initialisation.md) - Combined with initialization
 
 ## References

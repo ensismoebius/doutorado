@@ -320,6 +320,6 @@ See [GRID_TESTS_COMPREHENSIVE_RUNBOOK](./Grid-Runbook.md) for the full coverage 
 
 ## See Also
 
-- [Architecture](./Architecture.md) - System design  
-- [Static Analysis](./Guides/Static-Analysis.md) - Code quality  
-- [PGO](./Guides/PGO.md) - Optimization workflow
+- [Architecture](../Architecture.md) - System design  
+- [Static Analysis](./Static-Analysis.md) - Code quality  
+- [PGO](./PGO.md) - Optimization workflow

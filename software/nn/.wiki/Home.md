@@ -155,8 +155,7 @@ Accessible explanations without heavy math — good starting point before readin
 
 - OpenCL tensor backend gained a tuned lhs-transposed matmul path used by
     Linear backward `dL/dW` on GPU.
-- See details in [Core/Tensor](./Core/Tensor.md) and benchmark evidence in
-    [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../results/opencl_lhs_transposed_benchmark_2026-05-02.md).
+- See details and benchmark numbers in [Core/Tensor](./Core/Tensor.md#recent-opencl-optimization-2026-05-02).
 - OpenCL SNN integration now includes Lif layer forward/backward tests running
     against `OpenCLTensorBackend`, plus a stability fix for default-constructed
     OpenCL tensor host storage.

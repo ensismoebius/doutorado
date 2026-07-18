@@ -116,6 +116,57 @@ Run:
 
 Wall time with fused-block optimizations: **~29s** (1 run, 3 epochs, 32 samples, T=256, 12 threads).
 
+## Input Framing: The Largest Win (2026-07-18)
+
+Every optimisation above shaves the cost of *one* timestep. Framing removes
+timesteps outright, and it dwarfs all of them.
+
+E04 previously built the LSTM autoencoder with `input_size = 1` and
+`seq_len = window_size`, so a 256-sample window was consumed **one scalar per
+timestep**. The dominant cost per step is not the input term but the recurrent
+one, $h \cdot U^\top$ with $U$ of shape $(4H, H)$ — 16 384 MACs for $H = 64$ —
+and it was paid 256 times.
+
+`model.lstm_frame_size` (default **8**) groups that many consecutive samples into
+each timestep. No information is discarded; the window is merely re-blocked.
+
+| | frame=1 (old) | frame=8 |
+|---|---|---|
+| sequential steps $T$ | 256 | 32 |
+| input dim $D$ | 1 | 8 |
+| total MACs | 8 523 840 | 1 184 256 |
+| CPU LSTM train | 3 711 ms | **478 ms** |
+| OpenCL LSTM train | 144 848 ms | **18 335 ms** |
+
+~7× fewer MACs and ~8× less sequential depth, on **both** backends. On the
+OpenCL backend it matters even more, because each timestep costs several kernel
+enqueues at ~95 µs apiece.
+
+`lstm_frame_size` must divide `dataset.window_size` (validated in
+`E04Config::validate`). Set it to `1` to reproduce the original behaviour.
+
+### Framing is not a plain reshape
+
+Storage is column-major, so reshaping `(256, 1)` to `(32, 8)` would place samples
+$\{t, t+32, t+64, \dots\}$ in frame $t$ — a polyphase split, not framing.
+`to_lstm_frames()` reshapes to `(frame, T)` and transposes, giving
+`element(t,d) = sample[t*frame + d]`:
+
+```cpp
+// src/experiments/04/lib/src/E04Encoding.cpp
+Tensor d_major = sample;
+d_major.reshape({frame, steps});   // element (d,t) = sample[t*frame + d]
+return d_major.transpose();        // -> (steps, frame)
+```
+
+### Scientific note
+
+This changes the LSTM architecture and therefore the paper's LSTM-AE results. It
+is arguably a *fairer* baseline: the SNN-AE sees all 256 samples at once through
+`linear:64`, while the old LSTM saw one scalar at a time across 256 steps — a
+regime where LSTMs are known to struggle with long-range dependencies
+[Bengio, 1994].
+
 ## Rule: Never Use `block()` in Hot Loops
 
 > `block()` on `XTensorBackend` always allocates and copies. Use fused alternatives from `FastActivations.hpp` when reading a column range and applying an element-wise function in the same step.
@@ -125,3 +176,11 @@ Wall time with fused-block optimizations: **~29s** (1 run, 3 epochs, 32 samples,
 - [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md) — equations, BPTT derivation, pitfalls
 - [Layers](../Core/Layers.md) — FastActivations API reference
 - [PGO](PGO.md) — profile-guided optimization workflow
+- [Experiment04](../Experiments/Experiment04.md) — where `lstm_frame_size` is configured
+- [OpenCL Debugging and Performance](./OpenCL-Debugging-And-Performance.md) — why per-timestep enqueues cost so much on the GPU backend
+
+## References
+
+[1] Y. Bengio, P. Simard, and P. Frasconi, "Learning long-term dependencies with gradient descent is difficult," *IEEE Trans. Neural Netw.*, vol. 5, no. 2, pp. 157–166, Mar. 1994. [Online]. Available: https://doi.org/10.1109/72.279181
+
+[2] S. Hochreiter and J. Schmidhuber, "Long short-term memory," *Neural Comput.*, vol. 9, no. 8, pp. 1735–1780, Nov. 1997. [Online]. Available: https://doi.org/10.1162/neco.1997.9.8.1735

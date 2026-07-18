@@ -67,5 +67,5 @@ GPU tensors live in GPU memory. To read a value, you must first synchronise (cop
 ## See also
 
 - [Tensor (technical)](../Tensor.md) — API reference, backend details, OpenCL benchmarks
-- [Layers (plain)](./Layers.md) — how tensors flow through layers
-- [Training (plain)](./Training.md) — what happens to tensors during training
+- [Layers (plain)](../Layers.md) — how tensors flow through layers
+- [Training (plain)](../Training.md) — what happens to tensors during training

@@ -416,7 +416,7 @@ Transform is applied in **both** training and validation loops, immediately befo
 - [Optimizers](./Optimizers.md) — polymorphic `Optimizer` base with per-group lr (`attach_with_scales`)
 - [Layers](./Layers.md) — Model layers
 - [Tensor](./Tensor.md) — Data structure
-- [Autoencoders](./Autoencoders.md) — Model being trained
+- [Autoencoders](../Concepts/Autoencoders.md) — Model being trained
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — Nested CV theory
 - [Spike Rate Regularization](../Concepts/Spike-Rate-Regularization.md) — `mean_spike_rate` and SOPs context
 
