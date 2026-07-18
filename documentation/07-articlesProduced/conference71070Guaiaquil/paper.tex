@@ -327,6 +327,7 @@ Both models use batch size 1 to accommodate stateful sequence processing.
 
 % ── Energy estimation ─────────────────────────────────────────
 \subsection{Energy estimation}
+\label{sec:energy}
 
 \par Computational energy is estimated from operation counts in relative units
 (no absolute hardware assumption). Let $M$ be the model's estimated MAC
@@ -541,7 +542,9 @@ $\text{train\_ms}$ values.
 % scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py:aggregate_all(), aggregated
 % from results/guayaquil/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv.
 \begin{table}[!t]
-\caption{Summary performance by model type (3-seed mean, all encodings averaged).}
+\caption{Summary performance by model type (3-seed mean, all encodings averaged).
+Energy is a relative operation-count proxy, not measured power — see
+Sec.~\ref{sec:energy}.}
 \centering\small
 \resizebox{\columnwidth}{!}{%
 % mse/mae/r2/energy/infer_ms are pre-formatted \textbf{}-wrapped strings (best value per
@@ -554,7 +557,7 @@ $\text{train\_ms}$ values.
   columns/mse/.style={string type,column type={r},column name=MSE},
   columns/mae/.style={string type,column type={r},column name=MAE},
   columns/r2/.style={string type,column type={r},column name=$R^2$},
-  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
+  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4,zerofill},
   columns/energy/.style={string type,column type={r},column name=Energy},
   columns/infer_ms/.style={string type,column type={r},column name=Infer\,(ms)},
   every head row/.style={before row=\toprule,after row=\midrule},
@@ -588,7 +591,8 @@ $\text{train\_ms}$ values.
 % Source: data/paper_eff_by_encoding.csv, from
 % scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py:aggregate_all().
 \begin{table}[!t]
-\caption{Efficiency metrics per encoding (3-seed mean).}
+\caption{Efficiency metrics per encoding (3-seed mean). Energy is a relative
+operation-count proxy, not measured power — see Sec.~\ref{sec:energy}.}
 \centering\small
 \resizebox{\columnwidth}{!}{%
 % energy is a pre-formatted \textbf{}-wrapped string (best of 12 rows). param_count/macs
@@ -599,7 +603,7 @@ $\text{train\_ms}$ values.
   columns={model,encoding,spike_rate,energy,param_count,macs},
   columns/model/.style={string type,column name=Model},
   columns/encoding/.style={string type,column name=Encoding},
-  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
+  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4,zerofill},
   columns/energy/.style={string type,column type={r},column name=Energy},
   columns/param_count/.style={column name=Params,fixed,precision=0},
   columns/macs/.style={column name=MACs,fixed,precision=0},

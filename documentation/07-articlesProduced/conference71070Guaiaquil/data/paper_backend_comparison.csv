@@ -1,5 +1,5 @@
 model;infer_ms;train_ms;infer_speedup
-LSTM-AE;195.18;69,775;1
+LSTM-AE;195.18;69,775;1.00
 SNN-conv1d;\textbf{3.11};\textbf{3,755};\textbf{62.84}
 SNN-dense;3.99;3,986;48.91
-SNN-recurrent;102.67;12,662;1.9
+SNN-recurrent;102.67;12,662;1.90

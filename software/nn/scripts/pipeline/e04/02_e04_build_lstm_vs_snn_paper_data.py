@@ -80,13 +80,12 @@ def mean(values: List[float]) -> float:
 
 
 def fmt_pgf(value: float, precision: int, thousands: bool = False) -> str:
-    """Format a number exactly as pgfplotstable's default `fixed` style does (paper.tex
-    uses no `zerofill`, so trailing zeros — and a bare trailing "." — are stripped)."""
+    """Format a number at a fixed decimal precision, always zero-filled (e.g. 1.0 with
+    precision=2 -> "1.00", not "1"). Column magnitudes are much easier to compare at a
+    glance in the paper's tables when every row has the same number of decimal digits —
+    see paper.tex's zerofill on the matching numeric columns (spike_rate/param_count/macs)."""
     spec = f",.{precision}f" if thousands else f".{precision}f"
-    s = format(value, spec)
-    if "." in s:
-        s = s.rstrip("0").rstrip(".")
-    return s
+    return format(value, spec)
 
 
 def bold_best(
