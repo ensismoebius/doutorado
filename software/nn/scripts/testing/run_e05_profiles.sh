@@ -187,8 +187,10 @@ fi
 
 start=$(date +%s)
 tty_out=0; [ -t 1 ] && tty_out=1
-: > "$TMP/tally"      # one PASS/FAIL line per completed profile (parallel-safe)
+: > "$TMP/tally"        # one PASS/FAIL line per completed profile (parallel-safe)
+: > "$TMP/completions"  # status/name/duration per completed profile (monitor "recent" panel)
 mkdir -p "$TMP/active"
+mkdir -p "$TMP/meta"    # cached per-profile metadata parsed from each log's head
 
 # Stable, human-reachable per-profile logs (overwritten each run) so you can
 # `tail -f results/thesis/run_logs/<profile>.log` to watch any single worker in full.
@@ -196,19 +198,122 @@ LOGDIR="results/thesis/run_logs"
 mkdir -p "$LOGDIR"
 
 # Live dashboard: with JOBS>1 the workers' own progress bars are hidden in their
-# logs (concurrent bars can't share one terminal), so a monitor renders, in
-# place, the latest progress line of each running worker plus a pass/fail tally.
-# On a TTY it is on by default; E05_MONITOR=0 falls back to plain event lines.
+# logs (concurrent bars can't share one terminal), so a monitor renders them in
+# place. Each frame shows:
+#
+#   header   work-weighted % bar, done/total, pass/fail/skip, running count,
+#            elapsed, ETA, projected finish CLOCK time, profiles/hour, and host
+#            pressure (jobs/cpus, RAM, swap, load, which build is running)
+#   workers  one 4-row panel per running profile: name + worker runtime; then
+#            modality · strategy · model/loss · repeat i/n seed=s · dataset shape;
+#            then the two live bars (outer epochs/folds, inner batches) with
+#            pct, counts, loss and per-bar ETA
+#   recent   the last 3 finished profiles with PASS/FAIL and wall time
+#
+# Tunables: E05_MONITOR=0 falls back to plain event lines; E05_MONITOR_INTERVAL
+# sets the redraw period; E05_MONITOR_{TAIL,HEAD}_BYTES bound how much of each
+# (multi-MB) worker log is re-read per frame.
 MON=0
 if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${E05_MONITOR:-1}" != 0 ]; then MON=1; fi
 
-# The binary renders TWO stacked progress bars at once — a label line ("Autoencoder
-# training" / "Batches done") followed by a data line
-# "  <ascii bar> │ pct%  count │ status/loss │ ETA: ..." (│ = U+2502). Grab the
-# last two label+data PAIRS (4 lines) from the most recent refresh.
-mon_extract() {
-    tr '\r' '\n' < "$1" 2>/dev/null | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' \
-        | grep -aE '[^[:space:]]' | tail -4
+# ── Log scanning ────────────────────────────────────────────────────────────
+# Worker logs grow to multiple MB (the binary rewrites its bars thousands of
+# times). Reading a whole log per worker per frame would make the redraw cost
+# scale with run length, so live state is parsed from a bounded TAIL and the
+# static per-profile metadata is parsed once from the HEAD and cached.
+MON_TAIL_BYTES="${E05_MONITOR_TAIL_BYTES:-65536}"
+MON_HEAD_BYTES="${E05_MONITOR_HEAD_BYTES:-262144}"
+
+# Strip CR-overwrites and ANSI colour so downstream matching sees plain text.
+mon_clean() { tr '\r' '\n' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g'; }
+
+# Static metadata, parsed once per profile and cached: the binary prints
+#   [E05] run_tag=<tag> modality=<m> strategy=<s> repeats=<n>
+#   [E05] Loaded <n> samples from <n> subjects, <n> stimuli.
+# near the start of the run. Emits KEY=VALUE lines. Only caches once the dataset
+# line has appeared, so a worker scanned during startup is re-read next frame
+# instead of caching a half-empty record forever.
+mon_meta() {
+    local name="$1" log="$2" out cache
+    cache="$TMP/meta/$name"   # separate statement: on the same `local` line as name=,
+                              # this would expand $name BEFORE the builtin assigns it
+                              # (all args are expanded first) and resolve to "$TMP/meta/"
+    if [ -s "$cache" ]; then cat "$cache"; return; fi
+    out=$(head -c "$MON_HEAD_BYTES" "$log" 2>/dev/null | mon_clean | awk '
+        /^\[E05\] run_tag=/ {
+            for (i = 1; i <= NF; i++) {
+                split($i, kv, "=")
+                if (kv[1] == "modality") mod = kv[2]
+                if (kv[1] == "strategy") strat = kv[2]
+                if (kv[1] == "repeats")  reps = kv[2]
+            }
+        }
+        /^\[E05\] Loaded/ {
+            # "[E05] Loaded 1974 samples from 15 subjects, 11 stimuli."
+            for (i = 1; i <= NF; i++) {
+                if ($i == "samples")  smp  = $(i-1)
+                if ($i ~ /^subjects/) subj = $(i-1)
+                if ($i ~ /^stimuli/)  stim = $(i-1)
+            }
+        }
+        END {
+            printf "MOD=%s\nSTRAT=%s\nREPS=%s\nSMP=%s\nSUBJ=%s\nSTIM=%s\n",
+                   mod, strat, reps, smp, subj, stim
+        }')
+    printf '%s\n' "$out"
+    # Cache only a complete record (dataset line present ⇒ startup finished).
+    printf '%s\n' "$out" | grep -q '^SMP=[0-9]' && printf '%s\n' "$out" > "$cache"
+}
+
+# Live state from the log tail, in ONE awk pass (one pipeline per worker per
+# frame, not one per field). Emits:
+#   REPEAT=<i>/<n> SEED=<s>          current repeat, from "=== Repeat i/n (seed=s) ==="
+#   L<k>=<label> / D<k>=<data>       up to 2 most recent progress-bar pairs
+# The binary renders each bar as a label line ("Autoencoder training │ ANN-AE
+# (direct) │ MSE") followed by a data line ("<ascii bar> │ pct% n/m │ loss=… │
+# ETA: …"). Pairing is done by looking back from each data line to the nearest
+# preceding line that is not itself data/blank/log-chatter, which survives the
+# metadata lines the binary interleaves between refreshes.
+mon_scan() {
+    tail -c "$MON_TAIL_BYTES" "$1" 2>/dev/null | mon_clean | awk '
+        { line[NR] = $0 }
+        $0 ~ /│/ && $0 ~ /[0-9]+(\.[0-9]+)?%/ { nd++; dl[nd] = NR }
+        /^\[E05\] === Repeat/ {
+            r = $0
+            sub(/.*Repeat[ ]*/, "", r); sub(/[ ]*\(.*/, "", r); rep = r
+            s = $0
+            if (s ~ /seed=/) { sub(/.*seed=/, "", s); sub(/[^0-9].*/, "", s); seed = s }
+        }
+        function is_noise(t) {
+            return (t ~ /^[[:space:]]*$/) || (t ~ /^\[E05\]/) || (t ~ /^Overall[ ]+\[/) \
+                || (t ~ /│/ && t ~ /[0-9]+(\.[0-9]+)?%/) || (t ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2} /)
+        }
+        END {
+            if (rep != "") printf "REPEAT=%s\n", rep
+            if (seed != "") printf "SEED=%s\n", seed
+            k = 0
+            for (i = (nd > 1 ? nd - 1 : 1); i <= nd; i++) {
+                if (dl[i] == "") continue
+                k++
+                lbl = ""
+                for (j = dl[i] - 1; j >= 1 && j >= dl[i] - 6; j--) {
+                    if (!is_noise(line[j])) { lbl = line[j]; break }
+                }
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", lbl)
+                printf "L%d=%s\nD%d=%s\n", k, lbl, k, line[dl[i]]
+            }
+        }'
+}
+
+# Split a bar LABEL ("Autoencoder training │ ANN-AE (direct) │ MSE") into its
+# stage name and the model/loss annotations the binary appends after │.
+mon_label_head() { local s="${1%%│*}"; s="${s#"${s%%[![:space:]]*}"}"; printf '%s' "${s%"${s##*[![:space:]]}"}"; }
+mon_label_tail() {
+    local s="$1"
+    [[ "$s" != *"│"* ]] && { printf ''; return; }
+    s="${s#*│}"; s="${s//│/ · }"
+    s=$(printf '%s' "$s" | sed -E 's/[[:space:]]{2,}/ /g')
+    s="${s#"${s%%[![:space:]]*}"}"; printf '%s' "${s%"${s##*[![:space:]]}"}"
 }
 
 # Fixed-width (10-char) mini bar redrawn from a parsed percentage — NOT the
@@ -265,6 +370,49 @@ fmt_mmss() {
     local s="$1"; printf '%02d:%02d' $((s / 60)) $((s % 60))
 }
 
+# Wall-clock time a run is projected to end — for overnight runs this is the
+# number you actually want ("done by 06:12"), which a bare "ETA 7:43:10" makes
+# you compute yourself. Shows the weekday too once it lands past midnight.
+fmt_finish() {
+    local secs="$1" now_d tgt_d
+    [ -z "$secs" ] && { printf '??:??'; return; }
+    now_d=$(date +%j); tgt_d=$(date -d "+${secs} seconds" +%j 2>/dev/null) || { printf '??:??'; return; }
+    if [ "$now_d" = "$tgt_d" ]; then date -d "+${secs} seconds" +%H:%M
+    else date -d "+${secs} seconds" '+%a %H:%M'; fi
+}
+
+# Host pressure. These runs are memory-gated (see the JOBS heuristic above) and
+# swap thrash is the usual reason a long run crawls, so the dashboard surfaces
+# used/total RAM, swap-in-use and load average rather than hiding them in top.
+sys_stats() {
+    awk '
+        /^MemTotal:/     { tot = $2 }
+        /^MemAvailable:/ { avail = $2 }
+        /^SwapTotal:/    { stot = $2 }
+        /^SwapFree:/     { sfree = $2 }
+        END {
+            used = (tot - avail) / 1048576; totg = tot / 1048576
+            swu = (stot - sfree) / 1048576
+            printf "MEMUSED=%.1f\nMEMTOT=%.1f\nSWAPUSED=%.1f\n", used, totg, swu
+        }' /proc/meminfo 2>/dev/null
+    awk '{ printf "LOAD=%s\n", $1 }' /proc/loadavg 2>/dev/null
+}
+
+# Terminal geometry as "<rows> <cols>".
+#
+# Reads `stty size < /dev/tty` rather than `tput lines/cols`: the monitor runs in a
+# BACKGROUND subshell, and there tput's size ioctl fails (its stdin is /dev/null) so it
+# silently falls back to terminfo's static defaults — 80x24 — instead of the real size.
+# That made every frame clamp to 80 columns no matter how wide the terminal actually was,
+# and left the height clamp comparing against a fictitious 24 rows. stty reading /dev/tty
+# directly reports the true size from both foreground and background.
+term_size() {
+    local sz
+    sz=$(stty size < /dev/tty 2>/dev/null)
+    if [ -n "$sz" ]; then printf '%s\n' "$sz"; return; fi
+    printf '%s %s\n' "${LINES:-24}" "${COLUMNS:-80}"   # headless/CI fallback
+}
+
 # Truncate to N *visible* columns, passing ANSI escape sequences through intact
 # (never cutting mid-escape — that would leak a color state into everything
 # printed after it) and always closing with a reset. Use this instead of
@@ -292,13 +440,36 @@ vis_trunc() {
     printf '%s\033[0m' "$out"
 }
 
+# Wide progress bar for the run-level (not per-worker) line, drawn from a
+# percentage. Separate from mon_mini_bar because the header has the whole
+# terminal to work with and benefits from the extra resolution.
+mon_wide_bar() {
+    local pct="$1" width="${2:-24}" filled ii bar=""
+    filled=$(printf '%.0f' "$pct" 2>/dev/null); : "${filled:=0}"
+    [ "$filled" -lt 0 ] 2>/dev/null && filled=0
+    [ "$filled" -gt 100 ] 2>/dev/null && filled=100
+    filled=$((filled * width / 100))
+    bar='\033[32m'
+    for ((ii = 0; ii < width; ii++)); do
+        [ "$ii" -eq "$filled" ] && bar+='\033[90m'
+        if [ "$ii" -lt "$filled" ]; then bar+="#"; else bar+="-"; fi
+    done
+    bar+='\033[0m'
+    printf '%b' "$bar"
+}
+
 monitor_loop() {
-    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm st now_e p f d n k ln cols
-    local overall_eta worker_eta first_row k2 lbl dat row
-    local -a lines pls
+    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm st now_e p f d n k ln cols rows
+    local overall_eta eta_secs done_w pct thr log hidden sw dur
+    local w_mod w_strat w_reps w_smp w_subj w_stim w_rep w_seed
+    local w_l1 w_d1 w_l2 w_d2 kk vv sub head tail_ann lbl_var dat_var
+    local memused memtot swapused load
+    local -a lines rec
     printf '\033[?25l'   # hide cursor
     while [ -e "$TMP/mon.on" ]; do
-        cols=$(tput cols 2>/dev/null); [ -z "$cols" ] && cols=80
+        read -r rows cols < <(term_size)
+        [ -z "$cols" ] && cols=80
+        [ -z "$rows" ] && rows=24
         now_e=$(date +%s)
         p=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); p=${p:-0}
         f=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); f=${f:-0}
@@ -312,54 +483,132 @@ monitor_loop() {
         # measured rate is enough here (the serial path EMA-smooths; a live redraw doesn't need
         # to). done_w is read from the file the workers append to under flock.
         done_w=$(awk '{s+=$1} END{print s+0}' "$TMP/weights_done" 2>/dev/null); done_w=${done_w:-0}
-        if [ "$done_w" -gt 0 ]; then
-            overall_eta="$(fmt_hms $(( (now_e - start) * (total_weight - done_w) / done_w )))"
+        if [ "$done_w" -gt 0 ] && [ "$total_weight" -gt 0 ]; then
+            eta_secs=$(( (now_e - start) * (total_weight - done_w) / done_w ))
+            overall_eta="$(fmt_hms "$eta_secs")"
         else
-            overall_eta="calculating"
+            eta_secs=""; overall_eta="calculating"
         fi
+        # Percent of WORK (not of profile count) — with a 20:1 cost ratio between
+        # AE and handcrafted profiles, a count-based bar sits near zero for hours
+        # and then races, which is exactly the "lame" progress this replaces.
+        # The ternaries MUST stay parenthesised: in awk, an unparenthesised `>` in a
+        # printf argument list parses as output redirection ("print to file 0"), not
+        # comparison — awk then dies with a syntax error and the field renders empty.
+        pct=$(awk -v dw="$done_w" -v tw="$total_weight" 'BEGIN{ printf "%.1f", (tw>0 ? dw*100.0/tw : 0) }')
+        thr=$(awk -v dn="$d" -v el="$((now_e - start))" 'BEGIN{ printf "%.1f", (el>0 ? dn*3600.0/el : 0) }')
 
-        # Two short header lines instead of one long one: a single wide line
-        # risks the terminal-width clamp below cutting it off before the ETA
-        # (the most useful field) — each line here is short enough on its own
-        # to never need truncating.
-        lines=("$(printf '\033[1;36m── e05 monitor ──\033[0m %s ── running %d · done \033[32m%d\033[0m/%d · pass \033[32m%d\033[0m · fail \033[31m%d\033[0m ──' \
-            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
-        lines+=("$(printf '    elapsed %s   overall ETA ~ \033[35m%s\033[0m' \
-            "$(fmt_hms $((now_e - start)))" "$overall_eta")")
-        lines[0]="$(vis_trunc "${lines[0]}" "$cols")"; lines[1]="$(vis_trunc "${lines[1]}" "$cols")"
+        eval "$(sys_stats)"
+        memused="${MEMUSED:-?}"; memtot="${MEMTOT:-?}"; swapused="${SWAPUSED:-0}"; load="${LOAD:-?}"
 
+        # ── header ───────────────────────────────────────────────────────────
+        lines=("$(printf '\033[1;36m── e05 monitor ──\033[0m \033[1m%s\033[0m ── %s ─────' \
+            "$SCOPE" "$(date +%T)")")
+        lines+=("$(printf '  [%s] \033[1m%s%%\033[0m work · %d/%d profiles · \033[32m✓%d\033[0m \033[31m✗%d\033[0m \033[90m⊘%d\033[0m · %d running' \
+            "$(mon_wide_bar "$pct" 24)" "$pct" "$d" "$npending" "$p" "$f" "$skip" \
+            "$(ls "$TMP/active" 2>/dev/null | wc -l)")")
+        lines+=("$(printf '  elapsed \033[1m%s\033[0m · ETA ~\033[35m%s\033[0m · finish ~\033[35m%s\033[0m · %s prof/h' \
+            "$(fmt_hms $((now_e - start)))" "$overall_eta" "$(fmt_finish "$eta_secs")" "$thr")")
+        lines+=("$(printf '  \033[90mjobs %d/%dcpu · mem %s/%sGB · swap %sGB · load %s · %s\033[0m' \
+            "$JOBS" "$cpus" "$memused" "$memtot" "$swapused" "$load" "$(basename "$(dirname "$(dirname "$(dirname "$(dirname "$BIN")")")")")")")
+
+        # ── per-worker panels ────────────────────────────────────────────────
+        lines+=("$(printf '\033[90m── workers ────────────────────────────────────────────\033[0m')")
         for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
             nm=$(sed -n '1p' "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
             st=$(sed -n '2p' "$TMP/active/$id" 2>/dev/null); [ -z "$st" ] && st=$now_e
-            worker_eta="run $(fmt_mmss $((now_e - st)))"
-            mapfile -t pls < <(mon_extract "$LOGDIR/$nm.log")
-            # pls holds up to 4 raw lines: [outer-label, outer-data, inner-label,
-            # inner-data]. Pair them (label: compacted-data) and render one row
-            # per pair — up to 2 rows/worker (epoch bar, batch bar).
-            first_row=1
-            for ((k2 = 0; k2 < ${#pls[@]}; k2 += 2)); do
-                lbl="${pls[k2]}"
-                lbl="${lbl#"${lbl%%[![:space:]]*}"}"; lbl="${lbl%"${lbl##*[![:space:]]}"}"
-                dat="${pls[k2 + 1]:-}"
-                if [ -n "$dat" ]; then
-                    row="$lbl: $(mon_compact_bar "$dat")"
+            log="$LOGDIR/$nm.log"
+            w_mod=""; w_strat=""; w_reps=""; w_smp=""; w_subj=""; w_stim=""
+            w_rep=""; w_seed=""; w_l1=""; w_d1=""; w_l2=""; w_d2=""
+            while IFS='=' read -r kk vv; do
+                case "$kk" in
+                    MOD) w_mod="$vv" ;; STRAT) w_strat="$vv" ;; REPS) w_reps="$vv" ;;
+                    SMP) w_smp="$vv" ;; SUBJ) w_subj="$vv" ;; STIM) w_stim="$vv" ;;
+                esac
+            done < <(mon_meta "$nm" "$log")
+            while IFS='=' read -r kk vv; do
+                case "$kk" in
+                    REPEAT) w_rep="$vv" ;; SEED) w_seed="$vv" ;;
+                    L1) w_l1="$vv" ;; D1) w_d1="$vv" ;; L2) w_l2="$vv" ;; D2) w_d2="$vv" ;;
+                esac
+            done < <(mon_scan "$log")
+
+            # line 1: profile name + how long this worker has been running
+            lines+=("$(vis_trunc "$(printf '  \033[1;36m%s\033[0m  \033[35mrun %s\033[0m' \
+                "$nm" "$(fmt_mmss $((now_e - st)))")" "$cols")")
+
+            # line 2: what this profile IS (modality/strategy/dataset shape) and
+            # where it is in the repeat loop — the context the old monitor
+            # dropped entirely, so every worker row looked interchangeable.
+            # The model/loss annotation ("ANN-AE (direct) · MSE") the binary appends
+            # after │ on the outer label is per-profile, not per-bar, so it belongs on
+            # this metadata line rather than on a row of its own under the bar — that
+            # keeps every worker to a predictable 4 rows, which matters because the
+            # frame has to fit the terminal height (see the clamp below).
+            # Field order is by volatility, not by category: this line is clamped to the
+            # terminal width, so whatever sits last is what gets cut on a narrow window.
+            # The repeat counter changes during the run and is what you actually watch;
+            # the dataset shape is static and safe to lose, so it goes last.
+            tail_ann="$(mon_label_tail "$w_l1")"
+            sub=""
+            [ -n "$w_mod" ]   && sub="$w_mod"
+            [ -n "$w_strat" ] && sub="${sub:+$sub · }$w_strat"
+            [ -n "$tail_ann" ] && sub="${sub:+$sub · }$tail_ann"
+            if [ -n "$w_rep" ]; then
+                sub="${sub:+$sub · }\033[0;33mrepeat ${w_rep}\033[90m${w_seed:+ seed=$w_seed}"
+            elif [ -n "$w_reps" ]; then
+                sub="${sub:+$sub · }${w_reps} repeats"
+            fi
+            [ -n "$w_smp" ]   && sub="${sub:+$sub · }${w_smp} smp/${w_subj} subj/${w_stim} stim"
+            [ -n "$sub" ] && lines+=("$(vis_trunc "$(printf '     \033[90m%b\033[0m' "$sub")" "$cols")")
+
+            # lines 3-4: the two live bars (outer = epochs/folds, inner = batches),
+            # each as "<stage name> [mini bar] pct n/m | loss | ETA".
+            for kk in 1 2; do
+                lbl_var="w_l$kk"; dat_var="w_d$kk"
+                head="$(mon_label_head "${!lbl_var}")"
+                [ -z "$head" ] && [ -z "${!dat_var}" ] && continue
+                if [ -n "${!dat_var}" ]; then
+                    lines+=("$(vis_trunc "$(printf '     \033[1m%-20.20s\033[0m %s' \
+                        "$head" "$(mon_compact_bar "${!dat_var}")")" "$cols")")
                 else
-                    row="$lbl"
+                    lines+=("$(vis_trunc "$(printf '     \033[1m%s\033[0m' "$head")" "$cols")")
                 fi
-                # Pad plain (uncolored) fields to fixed width first, then wrap in
-                # color — printf's %-Ns width counts raw bytes, so coloring before
-                # padding would count escape bytes against the column budget.
-                if [ "$first_row" -eq 1 ]; then
-                    ln=$(printf '  \033[1;36m%-30.30s\033[0m \033[35m%-9s\033[0m %s' \
-                        "$nm" "$worker_eta" "$row")
-                    first_row=0
-                else
-                    ln=$(printf '  %-30.30s %-9s %s' "" "" "$row")
-                fi
-                lines+=("$(vis_trunc "$ln" "$cols")")
             done
-            [ "${#pls[@]}" -eq 0 ] && lines+=("$(printf '  \033[1;36m%-30.30s\033[0m \033[35m%-9s\033[0m starting…' "$nm" "$worker_eta")")
+            [ -z "$w_d1" ] && [ -z "$w_d2" ] && \
+                lines+=("$(vis_trunc "$(printf '     \033[90mstarting…\033[0m')" "$cols")")
         done
+
+        # ── recently finished ────────────────────────────────────────────────
+        # Only rendered if the terminal has spare rows: the redraw math below
+        # assumes one physical row per logical line, so overflowing the screen
+        # would break the in-place update (see the height clamp).
+        if [ -s "$TMP/completions" ]; then
+            mapfile -t rec < <(tail -3 "$TMP/completions" 2>/dev/null)
+            if [ "$((${#lines[@]} + ${#rec[@]} + 1))" -lt "$((rows - 1))" ]; then
+                lines+=("$(printf '\033[90m── recent ─────────────────────────────────────────────\033[0m')")
+                for ln in "${rec[@]}"; do
+                    IFS=$'\t' read -r sw nm dur <<< "$ln"
+                    if [ "$sw" = PASS ]; then
+                        lines+=("$(vis_trunc "$(printf '  \033[32m✓\033[0m %-34.34s \033[90m%s\033[0m' "$nm" "$dur")" "$cols")")
+                    else
+                        lines+=("$(vis_trunc "$(printf '  \033[31m✗\033[0m %-34.34s \033[90m%s\033[0m' "$nm" "$dur")" "$cols")")
+                    fi
+                done
+            fi
+        fi
+
+        # Clamp the frame to the terminal height. The cursor-up redraw assumes
+        # one physical row per logical line; a frame taller than the screen
+        # scrolls, so the next redraw lands in the wrong place and the display
+        # smears. Richer per-worker panels made this reachable (4 workers × 4
+        # rows + headers), so it is enforced rather than assumed.
+        if [ "${#lines[@]}" -gt "$((rows - 1))" ]; then
+            hidden=$(( ${#lines[@]} - (rows - 2) ))   # count BEFORE truncating
+            lines=("${lines[@]:0:$((rows - 2))}")
+            lines+=("$(printf '\033[90m  … %d more line(s) hidden — enlarge the terminal\033[0m' "$hidden")")
+        fi
+
         [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
         for ln in "${lines[@]}"; do printf '\033[2K%s\n' "$ln"; done
         n=${#lines[@]}
@@ -378,14 +627,20 @@ monitor_loop() {
 # interleave. Output goes to the stable per-profile log. The trailing status
 # line is suppressed under the monitor (the dashboard shows it instead).
 run_profile() {
-    local slot="$1" f="$2" name log ec sw err
+    local slot="$1" f="$2" name log ec sw err t0 dur
     name=$(basename "$f" .json); log="$LOGDIR/$name.log"
+    t0=$(date +%s)
     "$BIN" --config "$f" > "$log" 2>&1; ec=$?
+    dur=$(fmt_mmss $(( $(date +%s) - t0 )))
     if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
     (
         flock 9
         printf '%s %s\n' "$sw" "$f" >> "$STATE"   # resume checkpoint
         echo "$sw" >> "$TMP/tally"
+        # Feeds the monitor's "recent" panel: status, profile, wall time. Tab-separated
+        # because profile names never contain tabs but the duration column should stay
+        # trivially splittable.
+        printf '%s\t%s\t%s\n' "$sw" "$name" "$dur" >> "$TMP/completions"
         profile_weight "$f" >> "$TMP/weights_done" # work-weighted ETA (monitor sums this)
         if [ "$sw" = FAIL ]; then
             err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$log" \
