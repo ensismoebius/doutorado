@@ -6,6 +6,7 @@
 #include "tensor/opencl/OpenCLContext.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <stdexcept>
 
 #include "logging/Logger.hpp"
@@ -145,20 +146,29 @@ void OpenCLContext::initialize_device()
     m_context = clCreateContext(props, 1, &m_device, nullptr, nullptr, &err);
     check_cl_error(err, "clCreateContext");
 
-    // Create command queue with profiling enabled.
+    // Create the command queue. Profiling is opt-in: CL_QUEUE_PROFILING_ENABLE
+    // costs ~95 us per enqueue on rusticl/radeonsi, which dwarfs the kernel work
+    // for the small tensors this project uses. See request_queue_profiling().
+    const bool want_profiling = queue_profiling_requested();
+    const cl_command_queue_properties profiling_bit =
+        want_profiling ? CL_QUEUE_PROFILING_ENABLE : 0;
+
     // Prefer OpenCL 2.0+ API and keep a compile-time fallback for older headers.
 #if defined(CL_VERSION_2_0)
     const cl_queue_properties queue_props[] = {
         CL_QUEUE_PROPERTIES,
-        static_cast<cl_queue_properties>(CL_QUEUE_PROFILING_ENABLE),
+        static_cast<cl_queue_properties>(profiling_bit),
         0,
     };
     m_queue = clCreateCommandQueueWithProperties(m_context, m_device, queue_props, &err);
     check_cl_error(err, "clCreateCommandQueueWithProperties");
 #else
-    m_queue = clCreateCommandQueue(m_context, m_device, CL_QUEUE_PROFILING_ENABLE, &err);
+    m_queue = clCreateCommandQueue(m_context, m_device, profiling_bit, &err);
     check_cl_error(err, "clCreateCommandQueue");
 #endif
+
+    NN_LOG_DEBUG(std::string("OpenCL command queue profiling: ") +
+                 (want_profiling ? "ENABLED (adds per-enqueue overhead)" : "disabled"));
 
     m_is_available = true;
 }
@@ -219,6 +229,32 @@ void OpenCLContext::end_batch()
 bool OpenCLContext::is_batching()
 {
     return s_batch_depth > 0;
+}
+
+// Queue profiling. Read once, during queue creation in initialize_device().
+// Defaults ON: the per-enqueue cost also paces rusticl and masks a driver race
+// that otherwise corrupts the heap. See the header for the measurements.
+bool OpenCLContext::s_queue_profiling_requested = true;
+
+void OpenCLContext::request_queue_profiling(bool enabled)
+{
+    s_queue_profiling_requested = enabled;
+}
+
+bool OpenCLContext::queue_profiling_requested()
+{
+    // Explicit opt-in to the fast-but-unstable path wins over everything else.
+    const char* unsafe = std::getenv("NN_OPENCL_UNSAFE_FAST_QUEUE");
+    if (unsafe != nullptr && unsafe[0] != '\0' && unsafe[0] != '0')
+    {
+        NN_LOG_WARN(
+            "NN_OPENCL_UNSAFE_FAST_QUEUE set: creating the command queue without "
+            "CL_QUEUE_PROFILING_ENABLE. This is ~95 us/enqueue faster but exposes a rusticl "
+            "race that corrupts the heap and can hang the display. Do not use for real runs.");
+        return false;
+    }
+
+    return s_queue_profiling_requested;
 }
 
 } // namespace nn::opencl

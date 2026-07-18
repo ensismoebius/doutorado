@@ -85,16 +85,19 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
 auto make_lstm_cfg(const E04Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
-    const int derived_hidden = sizes.empty()
-        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
-        : sizes.front();
+    const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                                   cfg.model.decoder_layer_spec)
+                                             : sizes.front();
     const int derived_latent =
         extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
     nn::models::lstm::LSTMAutoencoderConfig arch;
-    arch.input_size = 1;
-    arch.seq_len = cfg.dataset.window_size;
-    arch.hidden_size = (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    // The window is consumed lstm_frame_size samples per timestep, so the
+    // sequence is that many times shorter. See to_lstm_frames().
+    arch.input_size = cfg.model.lstm_frame_size;
+    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
+    arch.hidden_size =
+        (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
     arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
@@ -104,9 +107,9 @@ auto make_snn_cfg(const E04Config& cfg, float alpha, float v_th) -> AutoencoderC
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
-    const int derived_hidden = sizes.empty()
-        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
-        : sizes.front();
+    const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                                   cfg.model.decoder_layer_spec)
+                                             : sizes.front();
     const int derived_latent =
         extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
@@ -114,7 +117,8 @@ auto make_snn_cfg(const E04Config& cfg, float alpha, float v_th) -> AutoencoderC
     model_cfg.loss_type = cfg.model.loss_type.empty() ? "mse" : cfg.model.loss_type;
     // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
     model_cfg.input_features = cfg.dataset.window_size;
-    model_cfg.hidden_size = (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    model_cfg.hidden_size =
+        (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
     model_cfg.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     model_cfg.depth = effective_l;
     model_cfg.layer_sizes = sizes;
@@ -157,8 +161,8 @@ static auto make_trainer_config(const E04Config& cfg, float snn_lr_scale = 1.0F)
     tcfg.adam_epsilon = cfg.training.epsilon;
     // If explicit biophysical lr set in profile, derive scale from it.
     tcfg.snn_lr_scale = (cfg.training.learning_rate_biophysical > 0.0f)
-        ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
-        : snn_lr_scale;
+                            ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
+                            : snn_lr_scale;
     return tcfg;
 }
 
@@ -185,10 +189,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     const std::string label = "LSTM-AE: encoding=" + encoding;
     auto lstm_cb = std::make_shared<nn::training::ProgressCallback>(label);
-    lstm_cb->set_metadata("LSTM Autoencoder",
-        static_cast<int>(run_id + 1),
-        static_cast<int>(total_runs),
-        "MSE");
+    lstm_cb->set_metadata(
+        "LSTM Autoencoder", static_cast<int>(run_id + 1), static_cast<int>(total_runs), "MSE");
     trainer.add_callback(lstm_cb);
 
     auto stopper =
@@ -207,12 +209,16 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
 
     // Reset LSTM state and encode each sample before forward.
+    const int lstm_frame = cfg.model.lstm_frame_size;
     trainer.set_sample_transform(
-        [&model, &encoding, seed](const LstmTensor& s, std::size_t idx) -> LstmTensor
+        [&model, &encoding, seed, lstm_frame](const LstmTensor& s, std::size_t idx) -> LstmTensor
         {
             model.reset_state();
-            return LstmTensor(
-                encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx)));
+            // Encode on the flat window, then frame — the encodings operate on
+            // the (window_size, 1) layout.
+            return LstmTensor(to_lstm_frames(
+                encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx)),
+                lstm_frame));
         });
 
     const auto t0 = std::chrono::steady_clock::now();
@@ -224,8 +230,9 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const auto infer_start = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        const Tensor encoded =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        const Tensor encoded = to_lstm_frames(
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            lstm_frame);
         model.reset_state();
         (void) model.forward(LstmTensor(encoded), false);
     }
@@ -240,7 +247,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         parameter_count(model.params()),
         encoding,
         seed,
-        infer_ms);
+        infer_ms,
+        lstm_frame);
 
     EpochHistory history;
     for (const auto& er : epoch_results)
@@ -250,7 +258,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         history.val_losses.push_back(er.val_loss);
     }
 
-    const int batches_per_epoch = train_samples.size() / std::max(1, cfg.training.samples_per_batch);
+    const int batches_per_epoch =
+        train_samples.size() / std::max(1, cfg.training.samples_per_batch);
     int batch_idx = 0;
     for (const auto& batch_loss : batch_collector->batch_losses)
     {
@@ -368,7 +377,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         history.val_losses.push_back(er.val_loss);
     }
 
-    const int batches_per_epoch = train_samples.size() / std::max(1, cfg.training.samples_per_batch);
+    const int batches_per_epoch =
+        train_samples.size() / std::max(1, cfg.training.samples_per_batch);
     int batch_idx = 0;
     for (const auto& batch_loss : batch_collector->batch_losses)
     {

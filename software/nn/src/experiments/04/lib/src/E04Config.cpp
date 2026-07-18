@@ -38,6 +38,18 @@ void E04Config::validate() const
         has_error = true;
     }
 
+    if (model.lstm_frame_size <= 0)
+    {
+        errors << "  - model.lstm_frame_size must be > 0 (got " << model.lstm_frame_size << ")\n";
+        has_error = true;
+    }
+    else if (dataset.window_size > 0 && (dataset.window_size % model.lstm_frame_size) != 0)
+    {
+        errors << "  - model.lstm_frame_size (" << model.lstm_frame_size
+               << ") must divide dataset.window_size (" << dataset.window_size << ")\n";
+        has_error = true;
+    }
+
     if (dataset.max_loaded_train_samples <= 0)
     {
         errors << "  - dataset.max_loaded_train_samples must be > 0 (got "

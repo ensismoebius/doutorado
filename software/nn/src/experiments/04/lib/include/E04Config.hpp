@@ -50,6 +50,11 @@ struct E04Config
     {
         int latent_dim = 0;       // optional (0 = derive from encoder_layer_spec)
         int lstm_hidden_size = 0; // optional (0 = derive from encoder_layer_spec)
+        // Samples per LSTM timestep. window_size/lstm_frame_size becomes the
+        // sequence length. 1 = the old scalar-per-timestep behaviour, which makes
+        // the recurrent term cost window_size times more than it needs to.
+        // Must divide dataset.window_size.
+        int lstm_frame_size = 8;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
         std::string loss_type = "mse";               // optional (from model.loss_function)
@@ -121,6 +126,7 @@ struct E04Config
         // Model
         get("latent_dim", cfg.model.latent_dim);
         get("lstm_hidden_size", cfg.model.lstm_hidden_size);
+        get("lstm_frame_size", cfg.model.lstm_frame_size);
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
@@ -211,6 +217,7 @@ struct E04Config
         require(mdl, "model", "decoder_layer_spec", cfg.model.decoder_layer_spec);
         get(mdl, "latent_dim", cfg.model.latent_dim);
         get(mdl, "lstm_hidden_size", cfg.model.lstm_hidden_size);
+        get(mdl, "lstm_frame_size", cfg.model.lstm_frame_size);
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);

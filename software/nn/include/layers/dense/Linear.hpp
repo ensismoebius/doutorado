@@ -105,8 +105,8 @@ struct LinearImpl : public Module<Backend>
         const nn::Index in_dim = shape.back();
         if (static_cast<int>(in_dim) != in_features)
         {
-            throw std::invalid_argument( // 
-                "Linear layer forward: input features (" + std::to_string(in_dim) + // 
+            throw std::invalid_argument(                                            //
+                "Linear layer forward: input features (" + std::to_string(in_dim) + //
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
@@ -141,16 +141,19 @@ struct LinearImpl : public Module<Backend>
                           in.matmul_transposed_add_col_bias(w, b);
                       })
         {
-            Tensor weight_t(weight);
-            Tensor bias_t(bias);
+            // Use the parameter members directly. Copying them here used to cost a
+            // full device→host sync, a host copy, a fresh clCreateBuffer and a
+            // host→device upload — per layer, per forward — while the originals
+            // were already device-resident. forward() is non-const, so residency
+            // can be set on the members themselves.
             if constexpr (requires(Backend& be) { be.set_gpu_resident(true); })
             {
                 input_flat.get_backend().set_gpu_resident(true);
-                weight_t.get_backend().set_gpu_resident(true);
-                bias_t.get_backend().set_gpu_resident(true);
+                weight.get_backend().set_gpu_resident(true);
+                bias.get_backend().set_gpu_resident(true);
             }
             result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
-                weight_t.get_backend(), bias_t.get_backend()));
+                weight.get_backend(), bias.get_backend()));
         }
         else if constexpr (requires(const Backend& in,
                                const Backend& w,
@@ -165,10 +168,8 @@ struct LinearImpl : public Module<Backend>
         }
         else
         {
-            Tensor weight_t(weight);
-            Tensor bias_t(bias);
-            result_flat = input_flat.matmul_transposed(weight_t);
-            result_flat.add_col_vector_to_rows_inplace(bias_t);
+            result_flat = input_flat.matmul_transposed(weight);
+            result_flat.add_col_vector_to_rows_inplace(bias);
         }
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)
@@ -176,7 +177,7 @@ struct LinearImpl : public Module<Backend>
         out_shape.back() = (nn::Index) out_features;
 
         // If input was 1D, result should be 2D (1, out_features) to maintain batch consistency //
-        // 
+        //
         if (shape.size() == 1)
         {
             return result_flat;
@@ -207,9 +208,9 @@ struct LinearImpl : public Module<Backend>
 
         const nn::Index out_dim = shape.back();
         if (static_cast<int>(out_dim) != out_features)
-        {                                // 
-            throw std::invalid_argument( // 
-                "Linear layer backward: gradient features (" + std::to_string(out_dim) + // 
+        {                                                                                //
+            throw std::invalid_argument(                                                 //
+                "Linear layer backward: gradient features (" + std::to_string(out_dim) + //
                 ") do not match expected out_features (" + std::to_string(out_features) + ")");
         }
 
@@ -220,7 +221,7 @@ struct LinearImpl : public Module<Backend>
             nn::Index effective_batch = 1;
             for (size_t i = 0; i < shape.size() - 1; ++i) effective_batch *= shape[i];
             flat_grad_shape[0] = effective_batch;
-        } // 
+        } //
         else
         {
             flat_grad_shape[0] = 1;
@@ -235,7 +236,7 @@ struct LinearImpl : public Module<Backend>
             nn::Index effective_batch = 1;
             for (size_t i = 0; i < input_shape.size() - 1; ++i) effective_batch *= input_shape[i];
             flat_input_shape[0] = effective_batch;
-        } // 
+        } //
         else
         {
             flat_input_shape[0] = 1;
@@ -295,8 +296,8 @@ struct LinearImpl : public Module<Backend>
 
         // Restore original leading dimensions for the input gradient
         std::vector<nn::Index> input_out_shape = input_shape;
-        // No change to last dim because it's already in_features // 
-        if (input_shape.size() == 1) // 
+        // No change to last dim because it's already in_features //
+        if (input_shape.size() == 1) //
         {
             return grad_input_flat;
         }
@@ -317,7 +318,7 @@ struct LinearImpl : public Module<Backend>
         d["weight"] = weight;
         d["bias"] = bias;
         return d;
-    } // 
+    } //
 
     void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
@@ -328,10 +329,10 @@ struct LinearImpl : public Module<Backend>
         }
         auto itb = sd.find("bias");
         if (itb != sd.end())
-        {                       // 
-            bias = itb->second; // 
-        } // 
-    } // 
-}; // 
+        {                       //
+            bias = itb->second; //
+        } //
+    } //
+}; //
 
 #endif // NN_LAYERS_LINEAR_HPP

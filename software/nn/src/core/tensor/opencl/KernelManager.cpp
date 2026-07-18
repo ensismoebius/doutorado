@@ -144,6 +144,37 @@ __kernel void matmul_rhs_transposed_bias_kernel(
     C[row + col * M] = sum + bias[col];
 }
 
+// Generic 2-D strided copy over column-major storage.
+//
+// Every view/slice op in OpenCLTensorBackend (block, setBlock, row, col,
+// topRows, leftCols, slice_time, set_time_slice, slice_batch, set_batch_slice)
+// is a rectangular copy between two strided views of the same layout, so they
+// all dispatch here instead of doing a host round-trip.
+//
+// Element (i, j) of the region maps to base + i*stride_i + j*stride_j on each
+// side. Column-major 2-D is (stride_i, stride_j) = (1, rows); the third
+// dimension of a rank-3 tensor just contributes a larger stride.
+__kernel void strided_copy_2d_kernel(
+    __global const float* src,
+    __global float* dst,
+    const uint src_base,
+    const uint src_stride_i,
+    const uint src_stride_j,
+    const uint dst_base,
+    const uint dst_stride_i,
+    const uint dst_stride_j,
+    const uint ni,
+    const uint nj
+) {
+    const uint i = get_global_id(0);
+    const uint j = get_global_id(1);
+
+    if (i >= ni || j >= nj) return;
+
+    dst[dst_base + i * dst_stride_i + j * dst_stride_j] =
+        src[src_base + i * src_stride_i + j * src_stride_j];
+}
+
 __kernel void transpose_kernel(
     __global const float* input,
     __global float* output,
@@ -1012,8 +1043,9 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
     {
         program_name = "fused";
     }
-    else if (kernel_name.find("matmul") != std::string::npos ||
-        kernel_name.find("transpose") != std::string::npos)
+    else if (kernel_name == "strided_copy_2d_kernel" ||
+             kernel_name.find("matmul") != std::string::npos ||
+             kernel_name.find("transpose") != std::string::npos)
     {
         program_name = "linear_algebra";
     }

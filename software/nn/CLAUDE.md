@@ -61,6 +61,25 @@ Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read �
 
 ---
 
+## OpenCL: safety rules (READ FIRST)
+
+Full detail: `.wiki/Guides/OpenCL-Debugging-And-Performance.md`.
+
+1. **Never disable `CL_QUEUE_PROFILING_ENABLE`.** Biggest single speed-up
+   (~95 µs/enqueue) and it corrupts memory on rusticl — measured 0/6 pass vs 6/6
+   with it on. Default is ON; `NN_OPENCL_UNSAFE_FAST_QUEUE=1` is the escape hatch.
+2. **Debug on the CPU device: `RUSTICL_ENABLE=llvmpipe <binary>`.** The iGPU is
+   also the display adapter; a driver fault forces a reboot. Never loop OpenCL
+   suites on the GPU. `e05_classifiers_gtest` on the GPU is a known machine-killer.
+3. **Run real experiments on `max-performance` (CPU).** ~35× faster than OpenCL
+   for this project's workloads on this hardware.
+4. Profile with the LD_PRELOAD shim in the guide, not by guessing — kernels were
+   2.4% of OpenCL time; transfers were 85%.
+5. Delete the results dir between benchmark runs — E04/E05 resume from
+   `results/checkpoints/` and will silently reuse old numbers.
+
+---
+
 ## Build & test
 
 **Always use presets** — never invent raw cmake flags:

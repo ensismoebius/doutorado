@@ -156,4 +156,32 @@ auto apply_snn_architecture_transform(
     return encoded;
 }
 
+auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor
+{
+    if (frame_size <= 0)
+    {
+        throw std::invalid_argument("to_lstm_frames: frame_size must be positive");
+    }
+
+    const auto total = sample.size();
+    const auto frame = static_cast<nn::Index>(frame_size);
+    if (total % frame != 0)
+    {
+        throw std::invalid_argument("to_lstm_frames: sample length (" + std::to_string(total) +
+                                    ") is not divisible by frame_size (" +
+                                    std::to_string(frame_size) + ")");
+    }
+
+    if (frame == 1) return sample; // already one scalar per timestep
+
+    const nn::Index steps = total / frame;
+
+    // Column-major storage: reshaping to (frame, steps) makes element (d, t)
+    // land on flat index d + t*frame, i.e. sample[t*frame + d] — the consecutive
+    // framing we want, laid out D-major. Transposing gives (steps, frame).
+    Tensor d_major = sample;
+    d_major.reshape({frame, steps});
+    return d_major.transpose();
+}
+
 } // namespace e04

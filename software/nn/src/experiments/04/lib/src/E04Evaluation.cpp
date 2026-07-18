@@ -20,7 +20,8 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     std::size_t param_count,
     const std::string& encoding,
     std::uint32_t seed,
-    float infer_ms) -> RunMetrics
+    float infer_ms,
+    int lstm_frame_size) -> RunMetrics
 {
     RunMetrics m;
     m.macs = macs;
@@ -37,8 +38,11 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        const Tensor encoded =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        // Compare in framed space: the model consumes and reconstructs frames, and
+        // MSE/MAE/R2 are elementwise so framing both sides leaves them unchanged.
+        const Tensor encoded = to_lstm_frames(
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            lstm_frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
 
@@ -64,8 +68,11 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const float y_mean = (n_values > 0) ? y_mean_acc / static_cast<float>(n_values) : 0.0f;
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        const Tensor encoded =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        // Compare in framed space: the model consumes and reconstructs frames, and
+        // MSE/MAE/R2 are elementwise so framing both sides leaves them unchanged.
+        const Tensor encoded = to_lstm_frames(
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            lstm_frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
         for (nn::Index k = 0; k < encoded.size(); ++k)

@@ -139,6 +139,7 @@ Accessible explanations without heavy math — good starting point before readin
 - [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) - PyTorch/snnTorch parity tests + Experiment05 per-profile smoke runs
 - [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) - Full pipeline: phase00 ranking → apply winner → phase01 authentication
 - [Memory Diagnostics](./Guides/Memory-Diagnostics.md) - Telling an active leak apart from a bounded high-water-mark; VmRSS/VmSwap sampling method
+- [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) - **Read before touching the OpenCL backend.** Safe llvmpipe debugging, the LD_PRELOAD profiling shim, measured per-call costs, and the `CL_QUEUE_PROFILING_ENABLE` memory-corruption hazard
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
 - [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md) - Claude Code + OpenCode dual-agent workflow
 

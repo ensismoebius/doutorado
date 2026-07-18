@@ -465,6 +465,52 @@ class OpenCLTensorBackend
     static bool launch_inplace_scalar_resident(
         const char* kernel_name, OpenCLTensorBackend& a, float scalar, const char* what);
 
+    // ── Lazy host access ─────────────────────────────────────────────────────
+    // Sync-on-read: pull the device copy down only at the moment host bytes are
+    // actually needed, instead of eagerly at the top of every op. The eager form
+    // cost a blocking clEnqueueReadBuffer (~200 us for 1 KiB on rusticl) on every
+    // op whose operands were device-resident — including ops that then went on to
+    // use the device buffer and never touched the host bytes at all.
+    //
+    // Both are no-ops unless the tensor is device-resident with a stale host
+    // mirror, so the fallback (host-staged) paths keep working unchanged.
+    //
+    // NOT for use inside sync_gpu(), ensure_device_current(), or the copy
+    // ctor/assignment — those manage the sync flags themselves and would recurse.
+    //
+    // Defined in the .cpp: OpenCLHostStorage is incomplete here.
+    const float* host_data() const;
+    float* mutable_host_data();
+
+    // ── Device-side view/slice ───────────────────────────────────────────────
+    // Rectangular copy between two strided views, run on the device via
+    // strided_copy_2d_kernel. Backs block/setBlock/row/col/topRows/leftCols and
+    // the rank-3 time/batch slice ops.
+    //
+    // These were the single largest cost in the backend: each was a full
+    // blocking readback plus a host element loop plus a forced full re-upload,
+    // and LSTMLayer calls them once per timestep (T=256). Measured on a real
+    // E04 run before this change: 517k blocking writes + 227k blocking reads,
+    // 85% of all OpenCL time, against 2.4% in actual kernels.
+    //
+    // Element (i,j) maps to base + i*stride_i + j*stride_j on each side.
+    // Returns false when the device path can't run; callers fall back to the
+    // host loop.
+    struct StridedRegion
+    {
+        Index base = 0;
+        Index stride_i = 0;
+        Index stride_j = 0;
+    };
+
+    static bool launch_strided_copy(const OpenCLTensorBackend& src,
+        const StridedRegion& src_region,
+        OpenCLTensorBackend& dst,
+        const StridedRegion& dst_region,
+        Index ni,
+        Index nj,
+        const char* what);
+
     // Marks the result of a device kernel: device copy is authoritative,
     // host mirror stale until lazily synced.
     void mark_device_result()
@@ -473,6 +519,17 @@ class OpenCLTensorBackend
         m_needs_sync_to_host = true;
         m_needs_sync_to_device = false;
     }
+
+    // ── In-flight asynchronous upload ────────────────────────────────────────
+    // Inside a BatchScope, ensure_device_current() issues the host→device copy
+    // non-blocking (~2.5 us vs ~43 us blocking, 1 KiB on rusticl) because a
+    // blocking transfer is a full pipeline flush and would defeat the batching.
+    //
+    // OpenCL requires the host source to stay valid and unmodified until an
+    // async transfer completes, and the source here is this tensor's own host
+    // storage. So the event is owned by the tensor: anything that would free or
+    // overwrite that storage must wait on it first.
+    void wait_for_upload() const;
 
     std::unique_ptr<OpenCLHostStorage> m_backend;
     std::unique_ptr<OpenCLTensorBackend> m_grad_backend;
@@ -484,6 +541,8 @@ class OpenCLTensorBackend
     mutable bool m_needs_sync_to_device = true;
     mutable cl_event m_pending_events[max_pending_events];
     mutable size_t m_pending_events_count = 0;
+    // Outstanding async upload reading from m_backend, or nullptr. Owned.
+    mutable cl_event m_upload_event = nullptr;
 };
 
 } // namespace nn

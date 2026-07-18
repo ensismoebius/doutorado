@@ -181,6 +181,38 @@ class OpenCLContext
      */
     static bool is_batching();
 
+    /**
+     * @brief Control whether the command queue gets CL_QUEUE_PROFILING_ENABLE.
+     *
+     * **Must be called before the first instance() call** — the queue is created
+     * during singleton construction and never recreated.
+     *
+     * **Defaults to ON, and turning it off is unsafe on this hardware.**
+     *
+     * CL_QUEUE_PROFILING_ENABLE costs roughly 95 us per enqueue on rusticl/radeonsi
+     * (measured ~100 us with vs ~4 us without, Renoir iGPU), so disabling it is by
+     * far the largest single speed-up available to this backend. It is nonetheless
+     * ON by default because that overhead also *paces the driver*, and removing it
+     * exposes a latent race inside rusticl that corrupts the heap.
+     *
+     * Measured 2026-07-18, e05_classifiers_gtest DsnnWithRegularizationRuns on the
+     * llvmpipe (CPU) device, so this is not GPU-specific:
+     *
+     *     profiling ON  ... 6/6 pass        (matches unmodified baseline, 6/6)
+     *     profiling OFF ... 0/6 pass        (double free / SIGSEGV / SIGABRT)
+     *
+     * On the GPU device the same corruption takes the display down with it, since
+     * the compute device is also the display adapter — two forced reboots.
+     *
+     * Set NN_OPENCL_UNSAFE_FAST_QUEUE=1 to opt into the fast, unstable path.
+     */
+    static void request_queue_profiling(bool enabled);
+
+    /**
+     * @brief Whether the queue will be created with profiling enabled.
+     */
+    static bool queue_profiling_requested();
+
    private:
     OpenCLContext();
     ~OpenCLContext();
@@ -203,6 +235,9 @@ class OpenCLContext
     // Reference-counted batch mode: depth > 0 → no per-kernel clFinish.
     // Nesting allows a full-network forward scope to absorb all per-layer scopes.
     static int s_batch_depth;
+
+    // Opt-in CL_QUEUE_PROFILING_ENABLE. Read once during queue creation.
+    static bool s_queue_profiling_requested;
 };
 
 } // namespace nn::opencl

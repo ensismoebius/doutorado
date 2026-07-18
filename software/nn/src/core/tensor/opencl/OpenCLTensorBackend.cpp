@@ -725,7 +725,7 @@ OpenCLTensorBackend::OpenCLTensorBackend(const OpenCLTensorBackend& other)
             const std::size_t bytes = size() * sizeof(float);
             copy_host_to_device(ctx.get_queue(),
                 m_gpu_buffer->buffer,
-                m_backend->data_ptr(),
+                host_data(),
                 bytes,
                 "OpenCLTensorBackend copy ctor");
             m_needs_sync_to_device = false;
@@ -738,6 +738,8 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
     if (this != &other)
     {
         other.sync_gpu_if_needed();
+        // m_backend is replaced below; an in-flight upload is still reading it.
+        wait_for_upload();
         m_backend =
             other.m_backend ? std::make_unique<OpenCLHostStorage>(*other.m_backend) : nullptr;
         m_grad_backend = other.m_grad_backend
@@ -760,7 +762,7 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
                 const std::size_t bytes = size() * sizeof(float);
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     bytes,
                     "OpenCLTensorBackend copy assign");
                 m_needs_sync_to_device = false;
@@ -770,11 +772,75 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
     return *this;
 }
 
-OpenCLTensorBackend::OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept = default;
+// Move/destroy cannot be defaulted: m_upload_event is a raw owning handle, and a
+// defaulted move would leave both objects releasing the same cl_event.
+OpenCLTensorBackend::OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept
+    : m_backend(std::move(other.m_backend)),
+      m_grad_backend(std::move(other.m_grad_backend)),
+      m_gpu_buffer(std::move(other.m_gpu_buffer)),
+      m_has_gpu_memory(other.m_has_gpu_memory),
+      m_gpu_resident(other.m_gpu_resident),
+      m_pipeline_mode(other.m_pipeline_mode),
+      m_needs_sync_to_host(other.m_needs_sync_to_host),
+      m_needs_sync_to_device(other.m_needs_sync_to_device),
+      m_pending_events_count(other.m_pending_events_count),
+      m_upload_event(other.m_upload_event)
+{
+    for (std::size_t i = 0; i < other.m_pending_events_count; ++i)
+    {
+        m_pending_events[i] = other.m_pending_events[i];
+    }
+    other.m_pending_events_count = 0;
+    other.m_upload_event = nullptr;
+    other.m_has_gpu_memory = false;
+}
 
-OpenCLTensorBackend& OpenCLTensorBackend::operator=(OpenCLTensorBackend&& other) noexcept = default;
+OpenCLTensorBackend& OpenCLTensorBackend::operator=(OpenCLTensorBackend&& other) noexcept
+{
+    if (this != &other)
+    {
+        // Our host storage is about to be replaced; any DMA still reading it
+        // must finish first.
+        wait_for_upload();
 
-OpenCLTensorBackend::~OpenCLTensorBackend() = default;
+        m_backend = std::move(other.m_backend);
+        m_grad_backend = std::move(other.m_grad_backend);
+        m_gpu_buffer = std::move(other.m_gpu_buffer);
+        m_has_gpu_memory = other.m_has_gpu_memory;
+        m_gpu_resident = other.m_gpu_resident;
+        m_pipeline_mode = other.m_pipeline_mode;
+        m_needs_sync_to_host = other.m_needs_sync_to_host;
+        m_needs_sync_to_device = other.m_needs_sync_to_device;
+        m_pending_events_count = other.m_pending_events_count;
+        for (std::size_t i = 0; i < other.m_pending_events_count; ++i)
+        {
+            m_pending_events[i] = other.m_pending_events[i];
+        }
+        m_upload_event = other.m_upload_event;
+
+        other.m_pending_events_count = 0;
+        other.m_upload_event = nullptr;
+        other.m_has_gpu_memory = false;
+    }
+    return *this;
+}
+
+OpenCLTensorBackend::~OpenCLTensorBackend()
+{
+    // Host storage is freed right after this; an in-flight async upload is still
+    // reading from it.
+    wait_for_upload();
+}
+
+void OpenCLTensorBackend::wait_for_upload() const
+{
+    if (m_upload_event == nullptr) return;
+
+    cl_event evt = m_upload_event;
+    m_upload_event = nullptr; // clear first: clWaitForEvents may throw-free paths
+    clWaitForEvents(1, &evt);
+    clReleaseEvent(evt);
+}
 
 OpenCLTensorBackend::RuntimeScope::~RuntimeScope()
 {
@@ -876,6 +942,7 @@ void OpenCLTensorBackend::reshape(const std::vector<Index>& new_shape)
     // The permutation below reads/writes host data: pull any pending device
     // result first, and mark the device copy stale afterwards.
     sync_gpu_if_needed();
+    wait_for_upload();
     m_backend->reshape(new_shape);
     m_needs_sync_to_host = false;
     m_needs_sync_to_device = true;
@@ -900,6 +967,7 @@ Index OpenCLTensorBackend::size() const
 float& OpenCLTensorBackend::at(Index i)
 {
     sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->at(i);
 }
@@ -913,6 +981,7 @@ const float& OpenCLTensorBackend::at(Index i) const
 float& OpenCLTensorBackend::at(Index row, Index col)
 {
     sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->at(row, col);
 }
@@ -926,6 +995,7 @@ const float& OpenCLTensorBackend::at(Index row, Index col) const
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3)
 {
     sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->at(d1, d2, d3);
 }
@@ -939,6 +1009,7 @@ const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3) const
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
 {
     sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->at(d1, d2, d3, d4);
 }
@@ -952,6 +1023,7 @@ const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4) con
 float& OpenCLTensorBackend::at(const std::vector<Index>& indices)
 {
     sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->at(indices);
 }
@@ -965,6 +1037,7 @@ const float& OpenCLTensorBackend::at(const std::vector<Index>& indices) const
 float* OpenCLTensorBackend::mutable_data_ptr()
 {
     sync_gpu();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
     m_needs_sync_to_device = true;
     return m_backend->mutable_data_ptr();
 }
@@ -975,13 +1048,35 @@ const float* OpenCLTensorBackend::data_ptr() const
     return m_backend->data_ptr();
 }
 
+// Sync-on-read host access used by the host-staged fallback paths. See the
+// declaration in OpenCLTensorBackend.hpp for why these exist.
+const float* OpenCLTensorBackend::host_data() const
+{
+    sync_gpu_if_needed();
+    return m_backend->data_ptr();
+}
+
+float* OpenCLTensorBackend::mutable_host_data()
+{
+    sync_gpu_if_needed();
+    wait_for_upload(); // caller gets a writable pointer into m_backend
+    m_needs_sync_to_device = true;
+    return m_backend->mutable_data_ptr();
+}
+
 OpenCLTensorBackend OpenCLTensorBackend::row(Index i) const
 {
-    sync_gpu();
     if (shape().size() != 2) throw std::invalid_argument("row requires rank-2 tensor");
     if (i >= rows()) throw std::out_of_range("row index out of range");
 
     OpenCLTensorBackend out(1, cols());
+    // src is row i of a column-major (R,C): element (0,c) at i + c*R.
+    if (launch_strided_copy(*this, {i, 0, rows()}, out, {0, 0, 1}, 1, cols(), "row"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index c = 0; c < cols(); ++c)
     {
         out.m_backend->at(0, c) = m_backend->at(i, c);
@@ -993,11 +1088,17 @@ OpenCLTensorBackend OpenCLTensorBackend::row(Index i) const
 
 OpenCLTensorBackend OpenCLTensorBackend::col(Index j) const
 {
-    sync_gpu();
     if (shape().size() != 2) throw std::invalid_argument("col requires rank-2 tensor");
     if (j >= cols()) throw std::out_of_range("col index out of range");
 
     OpenCLTensorBackend out(rows(), 1);
+    // src column j is contiguous at j*R; dst (R,1) is contiguous at 0.
+    if (launch_strided_copy(*this, {j * rows(), 1, 0}, out, {0, 1, 0}, rows(), 1, "col"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index r = 0; r < rows(); ++r)
     {
         out.m_backend->at(r, 0) = m_backend->at(r, j);
@@ -1009,11 +1110,17 @@ OpenCLTensorBackend OpenCLTensorBackend::col(Index j) const
 
 OpenCLTensorBackend OpenCLTensorBackend::leftCols(Index n) const
 {
-    sync_gpu();
     if (shape().size() != 2) throw std::invalid_argument("leftCols requires rank-2 tensor");
     if (n > cols()) throw std::out_of_range("leftCols exceeds tensor width");
 
     OpenCLTensorBackend out(rows(), n);
+    // Leading columns are contiguous in column-major order.
+    if (launch_strided_copy(*this, {0, 1, rows()}, out, {0, 1, rows()}, rows(), n, "leftCols"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index r = 0; r < rows(); ++r)
     {
         for (Index c = 0; c < n; ++c)
@@ -1028,11 +1135,16 @@ OpenCLTensorBackend OpenCLTensorBackend::leftCols(Index n) const
 
 OpenCLTensorBackend OpenCLTensorBackend::topRows(Index n) const
 {
-    sync_gpu();
     if (shape().size() != 2) throw std::invalid_argument("topRows requires rank-2 tensor");
     if (n > rows()) throw std::out_of_range("topRows exceeds tensor height");
 
     OpenCLTensorBackend out(n, cols());
+    if (launch_strided_copy(*this, {0, 1, rows()}, out, {0, 1, n}, n, cols(), "topRows"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index r = 0; r < n; ++r)
     {
         for (Index c = 0; c < cols(); ++c)
@@ -1047,8 +1159,6 @@ OpenCLTensorBackend OpenCLTensorBackend::topRows(Index n) const
 
 void OpenCLTensorBackend::setBlock(Index row, Index col, const OpenCLTensorBackend& block)
 {
-    sync_gpu();
-    block.sync_gpu();
     if (shape().size() != 2 || block.shape().size() != 2)
     {
         throw std::invalid_argument("setBlock requires rank-2 tensors");
@@ -1058,6 +1168,21 @@ void OpenCLTensorBackend::setBlock(Index row, Index col, const OpenCLTensorBacke
         throw std::invalid_argument("setBlock: block exceeds tensor bounds");
     }
 
+    // Partial write: launch_strided_copy uploads our current contents first, so
+    // the elements outside the block are preserved.
+    if (launch_strided_copy(block,
+            {0, 1, block.rows()},
+            *this,
+            {row + col * rows(), 1, rows()},
+            block.rows(),
+            block.cols(),
+            "setBlock"))
+    {
+        return;
+    }
+
+    sync_gpu();
+    block.sync_gpu();
     for (Index r = 0; r < block.rows(); ++r)
     {
         for (Index c = 0; c < block.cols(); ++c)
@@ -1091,12 +1216,19 @@ OpenCLTensorBackend OpenCLTensorBackend::slice(std::span<const int> indices) con
 
 OpenCLTensorBackend OpenCLTensorBackend::slice_batch(Index b) const
 {
-    sync_gpu();
     const auto& s = shape();
     if (s.size() != 3) throw std::invalid_argument("slice_batch requires rank-3 tensor");
     if (b >= s[0]) throw std::out_of_range("slice_batch index out of range");
 
     OpenCLTensorBackend out(s[1], s[2]);
+    // src(b,t,d) = b + (t + d*T)*B, b fixed -> base b, stride_t B, stride_d T*B.
+    if (launch_strided_copy(
+            *this, {b, s[0], s[1] * s[0]}, out, {0, 1, s[1]}, s[1], s[2], "slice_batch"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index t = 0; t < s[1]; ++t)
     {
         for (Index d = 0; d < s[2]; ++d)
@@ -1111,14 +1243,20 @@ OpenCLTensorBackend OpenCLTensorBackend::slice_batch(Index b) const
 
 void OpenCLTensorBackend::set_batch_slice(Index b, const OpenCLTensorBackend& val)
 {
-    sync_gpu();
-    val.sync_gpu();
     const auto& s = shape();
     if (s.size() != 3) throw std::invalid_argument("set_batch_slice requires rank-3 tensor");
     if (b >= s[0]) throw std::out_of_range("set_batch_slice index out of range");
     if (val.rows() != s[1] || val.cols() != s[2])
         throw std::invalid_argument("set_batch_slice value shape mismatch");
 
+    if (launch_strided_copy(
+            val, {0, 1, s[1]}, *this, {b, s[0], s[1] * s[0]}, s[1], s[2], "set_batch_slice"))
+    {
+        return;
+    }
+
+    sync_gpu();
+    val.sync_gpu();
     for (Index t = 0; t < s[1]; ++t)
     {
         for (Index d = 0; d < s[2]; ++d)
@@ -1132,12 +1270,19 @@ void OpenCLTensorBackend::set_batch_slice(Index b, const OpenCLTensorBackend& va
 
 OpenCLTensorBackend OpenCLTensorBackend::slice_time(Index t) const
 {
-    sync_gpu();
     const auto& s = shape();
     if (s.size() != 3) throw std::invalid_argument("slice_time requires rank-3 tensor");
     if (t >= s[1]) throw std::out_of_range("slice_time index out of range");
 
     OpenCLTensorBackend out(s[0], s[2]);
+    // src(b,t,d) = b + (t + d*T)*B, t fixed -> base t*B, stride_b 1, stride_d T*B.
+    if (launch_strided_copy(
+            *this, {t * s[0], 1, s[1] * s[0]}, out, {0, 1, s[0]}, s[0], s[2], "slice_time"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index b = 0; b < s[0]; ++b)
     {
         for (Index d = 0; d < s[2]; ++d)
@@ -1152,14 +1297,20 @@ OpenCLTensorBackend OpenCLTensorBackend::slice_time(Index t) const
 
 void OpenCLTensorBackend::set_time_slice(Index t, const OpenCLTensorBackend& val)
 {
-    sync_gpu();
-    val.sync_gpu();
     const auto& s = shape();
     if (s.size() != 3) throw std::invalid_argument("set_time_slice requires rank-3 tensor");
     if (t >= s[1]) throw std::out_of_range("set_time_slice index out of range");
     if (val.rows() != s[0] || val.cols() != s[2])
         throw std::invalid_argument("set_time_slice value shape mismatch");
 
+    if (launch_strided_copy(
+            val, {0, 1, s[0]}, *this, {t * s[0], 1, s[1] * s[0]}, s[0], s[2], "set_time_slice"))
+    {
+        return;
+    }
+
+    sync_gpu();
+    val.sync_gpu();
     for (Index b = 0; b < s[0]; ++b)
     {
         for (Index d = 0; d < s[2]; ++d)
@@ -1202,7 +1353,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_inplace resident lhs");
                     m_needs_sync_to_device = false;
@@ -1211,7 +1362,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "add_inplace resident rhs");
                     other.m_needs_sync_to_device = false;
@@ -1249,15 +1400,11 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                 {
                     cl_event a_evt = nullptr;
                     cl_event b_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        a_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "add_inplace",
-                        &a_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), a_buf->buffer, host_data(), bytes, "add_inplace", &a_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "add_inplace",
                         &b_evt);
@@ -1339,7 +1486,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "add_inplace",
                         &d2h_evt);
@@ -1353,8 +1500,8 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
 
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_inplace_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -1373,7 +1520,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                 "add_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "add_inplace");
 
-            a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            a_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -1416,7 +1563,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "subtract_inplace resident lhs");
                     m_needs_sync_to_device = false;
@@ -1425,7 +1572,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "subtract_inplace resident rhs");
                     other.m_needs_sync_to_device = false;
@@ -1468,13 +1615,13 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                     cl_event b_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "subtract_inplace",
                         &a_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "subtract_inplace",
                         &b_evt);
@@ -1556,7 +1703,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "subtract_inplace",
                         &d2h_evt);
@@ -1570,8 +1717,8 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
 
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("subtract_inplace_kernel");
@@ -1591,7 +1738,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                 "subtract_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "subtract_inplace");
 
-            a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            a_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -1635,7 +1782,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "multiply_inplace resident lhs");
                     m_needs_sync_to_device = false;
@@ -1644,7 +1791,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "multiply_inplace resident rhs");
                     other.m_needs_sync_to_device = false;
@@ -1687,13 +1834,13 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                     cl_event b_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "multiply_inplace",
                         &a_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "multiply_inplace",
                         &b_evt);
@@ -1775,7 +1922,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "multiply_inplace",
                         &d2h_evt);
@@ -1789,8 +1936,8 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
 
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("multiply_inplace_kernel");
@@ -1810,7 +1957,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                 "multiply_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "multiply_inplace");
 
-            a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            a_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -1854,7 +2001,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "divide_inplace resident lhs");
                     m_needs_sync_to_device = false;
@@ -1863,7 +2010,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "divide_inplace resident rhs");
                     other.m_needs_sync_to_device = false;
@@ -1904,13 +2051,13 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                     cl_event b_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "divide_inplace",
                         &a_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "divide_inplace",
                         &b_evt);
@@ -1992,7 +2139,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "divide_inplace",
                         &d2h_evt);
@@ -2006,8 +2153,8 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("divide_inplace_kernel");
@@ -2027,7 +2174,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                 "divide_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "divide_inplace");
 
-            a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            a_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2094,7 +2241,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_scalar_inplace",
                         &h2d_evt);
@@ -2147,7 +2294,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "add_scalar_inplace",
                         &d2h_evt);
@@ -2160,7 +2307,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("add_scalar_inplace_kernel");
@@ -2181,7 +2328,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                 "add_scalar_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "add_scalar_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2247,7 +2394,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "multiply_scalar_inplace",
                         &h2d_evt);
@@ -2300,7 +2447,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "multiply_scalar_inplace",
                         &d2h_evt);
@@ -2313,7 +2460,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("multiply_scalar_inplace_kernel");
@@ -2335,7 +2482,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                 "multiply_scalar_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "multiply_scalar_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2401,7 +2548,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "divide_scalar_inplace",
                         &h2d_evt);
@@ -2454,7 +2601,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "divide_scalar_inplace",
                         &d2h_evt);
@@ -2467,7 +2614,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("divide_scalar_inplace_kernel");
@@ -2488,7 +2635,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                 "divide_scalar_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "divide_scalar_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2502,7 +2649,6 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
 
 void OpenCLTensorBackend::sqrt_inplace()
 {
-    sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sqrt_inplace"))
     {
@@ -2546,7 +2692,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "sqrt_inplace",
                         &h2d_evt);
@@ -2597,7 +2743,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "sqrt_inplace",
                         &d2h_evt);
@@ -2610,7 +2756,7 @@ void OpenCLTensorBackend::sqrt_inplace()
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sqrt_inplace_kernel");
             const cl_mem data_mem = data_dev.get_device_buffer();
@@ -2627,7 +2773,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                 "sqrt_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "sqrt_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2641,7 +2787,6 @@ void OpenCLTensorBackend::sqrt_inplace()
 
 void OpenCLTensorBackend::fill(float value)
 {
-    sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("fill"))
     {
@@ -2682,12 +2827,8 @@ void OpenCLTensorBackend::fill(float value)
                 if (data_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        data_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "fill",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), data_buf->buffer, host_data(), bytes, "fill", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
                     const cl_mem data_mem = data_buf->buffer;
@@ -2733,7 +2874,7 @@ void OpenCLTensorBackend::fill(float value)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "fill",
                         &d2h_evt);
@@ -2746,7 +2887,7 @@ void OpenCLTensorBackend::fill(float value)
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
             const cl_mem data_mem = data_dev.get_device_buffer();
@@ -2764,7 +2905,7 @@ void OpenCLTensorBackend::fill(float value)
                 "fill");
             finish_queue_if_not_batching(ctx.get_queue(), "fill");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -2788,8 +2929,6 @@ void OpenCLTensorBackend::set_ones()
 
 void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& row)
 {
-    sync_gpu();
-    row.sync_gpu();
     if (shape().size() != 2 || row.shape().size() != 2 || row.rows() != 1 || row.cols() != cols())
     {
         throw std::invalid_argument("add_row_broadcast_inplace requires lhs=(N,M) and row=(1,M)");
@@ -2815,7 +2954,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_row_broadcast_inplace resident data");
                     m_needs_sync_to_device = false;
@@ -2824,7 +2963,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                 {
                     copy_host_to_device(ctx.get_queue(),
                         row.m_gpu_buffer->buffer,
-                        row.m_backend->data_ptr(),
+                        row.host_data(),
                         row_bytes,
                         "add_row_broadcast_inplace resident row");
                     row.m_needs_sync_to_device = false;
@@ -2868,13 +3007,13 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                     cl_event row_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_row_broadcast_inplace",
                         &data_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         row_buf->buffer,
-                        row.m_backend->data_ptr(),
+                        row.host_data(),
                         row_bytes,
                         "add_row_broadcast_inplace",
                         &row_evt);
@@ -2959,7 +3098,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "add_row_broadcast_inplace",
                         &d2h_evt);
@@ -2973,8 +3112,8 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
 
             opencl::DeviceMemory data_dev(bytes);
             opencl::DeviceMemory row_dev(row_bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
-            row_dev.copy_to_device(row.m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
+            row_dev.copy_to_device(row.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
@@ -3000,7 +3139,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                 "add_row_broadcast_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "add_row_broadcast_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -3032,7 +3171,6 @@ OpenCLTensorBackend OpenCLTensorBackend::add_row_broadcast(const OpenCLTensorBac
 
 void OpenCLTensorBackend::square_inplace()
 {
-    sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("square_inplace"))
     {
@@ -3077,7 +3215,7 @@ void OpenCLTensorBackend::square_inplace()
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "square_inplace",
                         &h2d_evt);
@@ -3128,7 +3266,7 @@ void OpenCLTensorBackend::square_inplace()
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "square_inplace",
                         &d2h_evt);
@@ -3141,7 +3279,7 @@ void OpenCLTensorBackend::square_inplace()
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("square_inplace_kernel");
@@ -3159,7 +3297,7 @@ void OpenCLTensorBackend::square_inplace()
                 "square_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "square_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -3173,10 +3311,6 @@ void OpenCLTensorBackend::square_inplace()
 
 void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector)
 {
-    if (!m_gpu_resident)
-    {
-        sync_gpu();
-    }
     if (!col_vector.m_gpu_resident)
     {
         col_vector.sync_gpu();
@@ -3211,7 +3345,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_col_vector_to_rows_inplace resident data");
                     m_needs_sync_to_device = false;
@@ -3220,7 +3354,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                 {
                     copy_host_to_device(ctx.get_queue(),
                         col_vector.m_gpu_buffer->buffer,
-                        col_vector.m_backend->data_ptr(),
+                        col_vector.host_data(),
                         col_bytes,
                         "add_col_vector_to_rows_inplace resident col");
                     col_vector.m_needs_sync_to_device = false;
@@ -3264,13 +3398,13 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                     cl_event col_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "add_col_vector_to_rows_inplace",
                         &data_evt);
                     copy_host_to_device_async(ctx.get_queue(),
                         col_buf->buffer,
-                        col_vector.m_backend->data_ptr(),
+                        col_vector.host_data(),
                         col_bytes,
                         "add_col_vector_to_rows_inplace",
                         &col_evt);
@@ -3355,7 +3489,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "add_col_vector_to_rows_inplace",
                         &d2h_evt);
@@ -3369,8 +3503,8 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
 
             opencl::DeviceMemory data_dev(bytes);
             opencl::DeviceMemory col_dev(col_bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
-            col_dev.copy_to_device(col_vector.m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
+            col_dev.copy_to_device(col_vector.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
@@ -3396,7 +3530,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                 "add_col_vector_to_rows_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "add_col_vector_to_rows_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -3487,12 +3621,8 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "exp",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "exp", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("exp_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -3555,7 +3685,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("exp_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -3669,12 +3799,8 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "sqrt",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "sqrt", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sqrt_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -3737,7 +3863,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sqrt_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -3807,12 +3933,8 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "square",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "square", &h2d_evt);
 
                     cl_kernel kernel =
                         opencl::KernelManager::instance().get_kernel("square_kernel");
@@ -3876,7 +3998,7 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("square_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -3953,12 +4075,12 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(add, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(add, b)");
 
@@ -4022,8 +4144,8 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -4104,12 +4226,12 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(subtract, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(subtract, b)");
 
@@ -4174,8 +4296,8 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("subtract_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -4256,12 +4378,12 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(multiply, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(multiply, b)");
 
@@ -4326,8 +4448,8 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("multiply_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -4408,12 +4530,12 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(divide, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(divide, b)");
 
@@ -4478,8 +4600,8 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("divide_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -4551,7 +4673,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(add_scalar, in)");
 
@@ -4598,7 +4720,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_scalar_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -4670,7 +4792,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(multiply_scalar, in)");
 
@@ -4717,7 +4839,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("multiply_scalar_kernel");
@@ -4790,7 +4912,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(divide_scalar, in)");
 
@@ -4837,7 +4959,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("divide_scalar_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -4879,10 +5001,6 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 // Reduction
 OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
 {
-    if (!m_gpu_resident)
-    {
-        sync_gpu_if_needed();
-    }
     if (shape().size() != 2)
     {
         warn_opencl_cpu_fallback_once("rowwise_sum", "OpenCL path requires rank-2 tensors");
@@ -4906,7 +5024,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         input_bytes,
                         "clEnqueueWriteBuffer(rowwise_sum, input resident)");
                     m_needs_sync_to_device = false;
@@ -4950,7 +5068,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         input_bytes,
                         "clEnqueueWriteBuffer(rowwise_sum, input)");
 
@@ -4998,7 +5116,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
             opencl::DeviceMemory input_dev(input_bytes);
             opencl::DeviceMemory out_dev(output_bytes);
 
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("rowwise_sum_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -5069,8 +5187,6 @@ OpenCLTensorBackend OpenCLTensorBackend::sum_cols() const
 
 float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target) const
 {
-    sync_gpu_if_needed();
-    target.sync_gpu_if_needed();
     if (shape() != target.shape())
     {
         throw std::invalid_argument("mean_squared_error requires equal shapes");
@@ -5147,13 +5263,13 @@ float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target)
                     cl_event h2d_evt[2] = {nullptr, nullptr};
                     copy_host_to_device_async(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "mse_input",
                         &h2d_evt[0]);
                     copy_host_to_device_async(ctx.get_queue(),
                         target_buf->buffer,
-                        target.m_backend->data_ptr(),
+                        target.host_data(),
                         bytes,
                         "mse_target",
                         &h2d_evt[1]);
@@ -5205,8 +5321,8 @@ float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target)
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory target_dev(bytes);
             opencl::DeviceMemory partial_dev(partial_bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
-            target_dev.copy_to_device(target.m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
+            target_dev.copy_to_device(target.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("mse_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -5269,7 +5385,6 @@ float OpenCLTensorBackend::norm() const
 
 float OpenCLTensorBackend::sum() const
 {
-    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sum"))
     {
@@ -5335,12 +5450,8 @@ float OpenCLTensorBackend::sum() const
                 if (input_buf && partial_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "sum",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "sum", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sum_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -5406,7 +5517,7 @@ float OpenCLTensorBackend::sum() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory partial_dev(partial_bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sum_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -5532,12 +5643,8 @@ OpenCLTensorBackend OpenCLTensorBackend::abs() const
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "abs",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "abs", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("abs_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -5600,7 +5707,7 @@ OpenCLTensorBackend OpenCLTensorBackend::abs() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("abs_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -5639,7 +5746,6 @@ OpenCLTensorBackend OpenCLTensorBackend::abs() const
 
 OpenCLTensorBackend OpenCLTensorBackend::relu() const
 {
-    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("relu"))
     {
@@ -5708,12 +5814,8 @@ OpenCLTensorBackend OpenCLTensorBackend::relu() const
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "relu",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "relu", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("relu_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -5776,7 +5878,7 @@ OpenCLTensorBackend OpenCLTensorBackend::relu() const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("relu_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -5815,7 +5917,6 @@ OpenCLTensorBackend OpenCLTensorBackend::relu() const
 
 OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
 {
-    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("leaky_relu"))
     {
@@ -5891,7 +5992,7 @@ OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "leaky_relu",
                         &h2d_evt);
@@ -5962,7 +6063,7 @@ OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("leaky_relu_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -6053,12 +6154,12 @@ void OpenCLTensorBackend::lif_step_inplace(const OpenCLTensorBackend& input,
             opencl::DeviceMemory output_dev(bytes);
             std::unique_ptr<opencl::DeviceMemory> adapt_dev;
 
-            v_mem_dev.copy_to_device(m_backend->data_ptr());
-            input_dev.copy_to_device(input.m_backend->data_ptr());
+            v_mem_dev.copy_to_device(host_data());
+            input_dev.copy_to_device(input.host_data());
             if (use_adaptation)
             {
                 adapt_dev = std::make_unique<opencl::DeviceMemory>(bytes);
-                adapt_dev->copy_to_device(adapt_a->m_backend->data_ptr());
+                adapt_dev->copy_to_device(adapt_a->host_data());
             }
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("lif_step_kernel");
@@ -6103,13 +6204,13 @@ void OpenCLTensorBackend::lif_step_inplace(const OpenCLTensorBackend& input,
                 "lif_step_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "lif_step_inplace");
 
-            v_mem_dev.copy_from_device(m_backend->mutable_data_ptr());
+            v_mem_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
-            output_dev.copy_from_device(output.m_backend->mutable_data_ptr());
+            output_dev.copy_from_device(output.mutable_host_data());
             output.mark_host_dirty();
             if (use_adaptation)
             {
-                adapt_dev->copy_from_device(adapt_a->m_backend->mutable_data_ptr());
+                adapt_dev->copy_from_device(adapt_a->mutable_host_data());
                 adapt_a->mark_host_dirty();
             }
             return;
@@ -6146,7 +6247,7 @@ OpenCLTensorBackend OpenCLTensorBackend::lif_grad(float threshold, float sharpne
 
             opencl::DeviceMemory v_pre_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            v_pre_dev.copy_to_device(m_backend->data_ptr());
+            v_pre_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("lif_grad_kernel");
             const cl_mem in_mem = v_pre_dev.get_device_buffer();
@@ -6184,7 +6285,6 @@ OpenCLTensorBackend OpenCLTensorBackend::lif_grad(float threshold, float sharpne
 
 OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) const
 {
-    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("clamp"))
     {
@@ -6255,12 +6355,8 @@ OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) con
                 if (input_buf && out_buf)
                 {
                     cl_event h2d_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        input_buf->buffer,
-                        m_backend->data_ptr(),
-                        bytes,
-                        "clamp",
-                        &h2d_evt);
+                    copy_host_to_device_async(
+                        ctx.get_queue(), input_buf->buffer, host_data(), bytes, "clamp", &h2d_evt);
 
                     cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_kernel");
                     const cl_mem in_mem = input_buf->buffer;
@@ -6325,7 +6421,7 @@ OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) con
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -6368,7 +6464,6 @@ OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) con
 
 void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
 {
-    sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("clamp"))
     {
@@ -6414,7 +6509,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
                     cl_event h2d_evt = nullptr;
                     copy_host_to_device_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clamp_inplace",
                         &h2d_evt);
@@ -6469,7 +6564,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
                     cl_event d2h_evt = nullptr;
                     copy_device_to_host_async(ctx.get_queue(),
                         data_buf->buffer,
-                        m_backend->mutable_data_ptr(),
+                        mutable_host_data(),
                         bytes,
                         "clamp_inplace",
                         &d2h_evt);
@@ -6482,7 +6577,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
             }
 
             opencl::DeviceMemory data_dev(bytes);
-            data_dev.copy_to_device(m_backend->data_ptr());
+            data_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_inplace_kernel");
             const cl_mem data_mem = data_dev.get_device_buffer();
@@ -6501,7 +6596,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
                 "clamp_inplace");
             finish_queue_if_not_batching(ctx.get_queue(), "clamp_inplace");
 
-            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            data_dev.copy_from_device(mutable_host_data());
             mark_host_dirty();
             return;
         }
@@ -6516,11 +6611,6 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
 // Linear algebra
 OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other) const
 {
-    // Lazy-sync guard: a GPU-resident operand may hold stale host data
-    // (m_needs_sync_to_host). This op reads host pointers, so pull the
-    // device result down first (no-op when already in sync).
-    sync_gpu_if_needed();
-    other.sync_gpu_if_needed();
     if (shape().size() != 2 || other.shape().size() != 2)
     {
         throw std::invalid_argument("matmul: both tensors must be rank-2");
@@ -6551,7 +6641,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul, a resident)");
                     m_needs_sync_to_device = false;
@@ -6560,7 +6650,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul, b resident)");
                     other.m_needs_sync_to_device = false;
@@ -6611,12 +6701,12 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul, b)");
 
@@ -6670,8 +6760,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
             opencl::DeviceMemory a_dev(a_bytes);
             opencl::DeviceMemory b_dev(b_bytes);
             opencl::DeviceMemory out_dev(c_bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("matmul_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -6719,10 +6809,6 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBackend& other) const
 {
-    if (!m_gpu_resident)
-    {
-        sync_gpu_if_needed();
-    }
     if (!other.m_gpu_resident)
     {
         other.sync_gpu_if_needed();
@@ -6753,7 +6839,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul_transposed, a resident)");
                     m_needs_sync_to_device = false;
@@ -6762,7 +6848,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul_transposed, b resident)");
                     other.m_needs_sync_to_device = false;
@@ -6813,12 +6899,12 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul_transposed, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul_transposed, b)");
 
@@ -6872,8 +6958,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
             opencl::DeviceMemory a_dev(a_bytes);
             opencl::DeviceMemory b_dev(b_bytes);
             opencl::DeviceMemory out_dev(c_bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_kernel");
@@ -6957,7 +7043,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_lhs_transposed(
                 {
                     copy_host_to_device(ctx.get_queue(),
                         m_gpu_buffer->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul_lhs_transposed, a resident)");
                     m_needs_sync_to_device = false;
@@ -6966,7 +7052,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_lhs_transposed(
                 {
                     copy_host_to_device(ctx.get_queue(),
                         other.m_gpu_buffer->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul_lhs_transposed, b resident)");
                     other.m_needs_sync_to_device = false;
@@ -7018,12 +7104,12 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_lhs_transposed(
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         a_bytes,
                         "clEnqueueWriteBuffer(matmul_lhs_transposed, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul_lhs_transposed, b)");
 
@@ -7079,8 +7165,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_lhs_transposed(
             opencl::DeviceMemory a_dev(a_bytes);
             opencl::DeviceMemory b_dev(b_bytes);
             opencl::DeviceMemory out_dev(c_bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("matmul_lhs_transposed_kernel");
@@ -7181,7 +7267,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
             {
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, a resident)");
                 m_needs_sync_to_device = false;
@@ -7190,7 +7276,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
             {
                 copy_host_to_device(ctx.get_queue(),
                     other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, b resident)");
                 other.m_needs_sync_to_device = false;
@@ -7199,7 +7285,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
             {
                 copy_host_to_device(ctx.get_queue(),
                     bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, bias resident)");
                 bias.m_needs_sync_to_device = false;
@@ -7254,17 +7340,17 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
             {
                 copy_host_to_device(ctx.get_queue(),
                     a_buf->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, a)");
                 copy_host_to_device(ctx.get_queue(),
                     b_buf->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, b)");
                 copy_host_to_device(ctx.get_queue(),
                     bias_buf->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, bias)");
 
@@ -7317,9 +7403,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
         opencl::DeviceMemory b_dev(b_bytes);
         opencl::DeviceMemory bias_dev(bias_bytes);
         opencl::DeviceMemory out_dev(c_bytes);
-        a_dev.copy_to_device(m_backend->data_ptr());
-        b_dev.copy_to_device(other.m_backend->data_ptr());
-        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+        a_dev.copy_to_device(host_data());
+        b_dev.copy_to_device(other.host_data());
+        bias_dev.copy_to_device(bias.host_data());
 
         cl_kernel kernel =
             opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_kernel");
@@ -7398,7 +7484,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             {
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "matmul_bias_sigmoid a");
                 m_needs_sync_to_device = false;
@@ -7407,7 +7493,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             {
                 copy_host_to_device(ctx.get_queue(),
                     other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "matmul_bias_sigmoid b");
                 other.m_needs_sync_to_device = false;
@@ -7416,7 +7502,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             {
                 copy_host_to_device(ctx.get_queue(),
                     bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "matmul_bias_sigmoid bias");
                 bias.m_needs_sync_to_device = false;
@@ -7458,19 +7544,16 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             auto bias_buf = pool->acquire(bias_bytes), c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(),
-                    a_buf->buffer,
-                    m_backend->data_ptr(),
-                    a_bytes,
-                    "matmul_bias_sigmoid a");
+                copy_host_to_device(
+                    ctx.get_queue(), a_buf->buffer, host_data(), a_bytes, "matmul_bias_sigmoid a");
                 copy_host_to_device(ctx.get_queue(),
                     b_buf->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "matmul_bias_sigmoid b");
                 copy_host_to_device(ctx.get_queue(),
                     bias_buf->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "matmul_bias_sigmoid bias");
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
@@ -7509,9 +7592,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             }
         }
         opencl::DeviceMemory a_dev(a_bytes), b_dev(b_bytes), bias_dev(bias_bytes), out_dev(c_bytes);
-        a_dev.copy_to_device(m_backend->data_ptr());
-        b_dev.copy_to_device(other.m_backend->data_ptr());
-        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+        a_dev.copy_to_device(host_data());
+        b_dev.copy_to_device(other.host_data());
+        bias_dev.copy_to_device(bias.host_data());
         cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
         const cl_mem a_mem = a_dev.get_device_buffer(), b_mem = b_dev.get_device_buffer();
         const cl_mem bias_mem = bias_dev.get_device_buffer(), c_mem = out_dev.get_device_buffer();
@@ -7575,7 +7658,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             {
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "matmul_bias_tanh a");
                 m_needs_sync_to_device = false;
@@ -7584,7 +7667,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             {
                 copy_host_to_device(ctx.get_queue(),
                     other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "matmul_bias_tanh b");
                 other.m_needs_sync_to_device = false;
@@ -7593,7 +7676,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             {
                 copy_host_to_device(ctx.get_queue(),
                     bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "matmul_bias_tanh bias");
                 bias.m_needs_sync_to_device = false;
@@ -7632,19 +7715,16 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             auto bias_buf = pool->acquire(bias_bytes), c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(),
-                    a_buf->buffer,
-                    m_backend->data_ptr(),
-                    a_bytes,
-                    "matmul_bias_tanh a");
+                copy_host_to_device(
+                    ctx.get_queue(), a_buf->buffer, host_data(), a_bytes, "matmul_bias_tanh a");
                 copy_host_to_device(ctx.get_queue(),
                     b_buf->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "matmul_bias_tanh b");
                 copy_host_to_device(ctx.get_queue(),
                     bias_buf->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "matmul_bias_tanh bias");
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
@@ -7683,9 +7763,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             }
         }
         opencl::DeviceMemory a_dev(a_bytes), b_dev(b_bytes), bias_dev(bias_bytes), out_dev(c_bytes);
-        a_dev.copy_to_device(m_backend->data_ptr());
-        b_dev.copy_to_device(other.m_backend->data_ptr());
-        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+        a_dev.copy_to_device(host_data());
+        b_dev.copy_to_device(other.host_data());
+        bias_dev.copy_to_device(bias.host_data());
         cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
         const cl_mem a_mem = a_dev.get_device_buffer(), b_mem = b_dev.get_device_buffer();
         const cl_mem bias_mem = bias_dev.get_device_buffer(), c_mem = out_dev.get_device_buffer();
@@ -7752,7 +7832,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
             {
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, a)");
                 m_needs_sync_to_device = false;
@@ -7761,7 +7841,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
             {
                 copy_host_to_device(ctx.get_queue(),
                     other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, b)");
                 other.m_needs_sync_to_device = false;
@@ -7770,7 +7850,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
             {
                 copy_host_to_device(ctx.get_queue(),
                     bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
                 bias.m_needs_sync_to_device = false;
@@ -7823,17 +7903,17 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
             {
                 copy_host_to_device(ctx.get_queue(),
                     a_buf->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, a)");
                 copy_host_to_device(ctx.get_queue(),
                     b_buf->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, b)");
                 copy_host_to_device(ctx.get_queue(),
                     bias_buf->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
 
@@ -7882,9 +7962,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
         opencl::DeviceMemory b_dev(b_bytes);
         opencl::DeviceMemory bias_dev(bias_bytes);
         opencl::DeviceMemory out_dev(c_bytes);
-        a_dev.copy_to_device(m_backend->data_ptr());
-        b_dev.copy_to_device(other.m_backend->data_ptr());
-        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+        a_dev.copy_to_device(host_data());
+        b_dev.copy_to_device(other.host_data());
+        bias_dev.copy_to_device(bias.host_data());
 
         cl_kernel kernel =
             opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_relu_kernel");
@@ -7958,7 +8038,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
             {
                 copy_host_to_device(ctx.get_queue(),
                     m_gpu_buffer->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
                 m_needs_sync_to_device = false;
@@ -7967,7 +8047,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
             {
                 copy_host_to_device(ctx.get_queue(),
                     other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
                 other.m_needs_sync_to_device = false;
@@ -7976,7 +8056,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
             {
                 copy_host_to_device(ctx.get_queue(),
                     bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
                 bias.m_needs_sync_to_device = false;
@@ -8031,17 +8111,17 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
             {
                 copy_host_to_device(ctx.get_queue(),
                     a_buf->buffer,
-                    m_backend->data_ptr(),
+                    host_data(),
                     a_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
                 copy_host_to_device(ctx.get_queue(),
                     b_buf->buffer,
-                    other.m_backend->data_ptr(),
+                    other.host_data(),
                     b_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
                 copy_host_to_device(ctx.get_queue(),
                     bias_buf->buffer,
-                    bias.m_backend->data_ptr(),
+                    bias.host_data(),
                     bias_bytes,
                     "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
 
@@ -8092,9 +8172,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
         opencl::DeviceMemory b_dev(b_bytes);
         opencl::DeviceMemory bias_dev(bias_bytes);
         opencl::DeviceMemory out_dev(c_bytes);
-        a_dev.copy_to_device(m_backend->data_ptr());
-        b_dev.copy_to_device(other.m_backend->data_ptr());
-        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+        a_dev.copy_to_device(host_data());
+        b_dev.copy_to_device(other.host_data());
+        bias_dev.copy_to_device(bias.host_data());
 
         cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
             "matmul_rhs_transposed_bias_leaky_relu_kernel");
@@ -8137,10 +8217,6 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
 
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 {
-    // Lazy-sync guard: a GPU-resident operand may hold stale host data
-    // (m_needs_sync_to_host). This op reads host pointers, so pull the
-    // device result down first (no-op when already in sync).
-    sync_gpu_if_needed();
     if (shape().size() != 2)
     {
         throw std::invalid_argument("transpose: tensor must be rank-2");
@@ -8165,7 +8241,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         in_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(transpose, in)");
 
@@ -8230,7 +8306,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
             opencl::DeviceMemory in_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
 
-            in_dev.copy_to_device(m_backend->data_ptr());
+            in_dev.copy_to_device(host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("transpose_kernel");
             const cl_mem in_mem = in_dev.get_device_buffer();
@@ -8272,7 +8348,6 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 OpenCLTensorBackend OpenCLTensorBackend::block(
     Index row, Index col, Index rows_n, Index cols_n) const
 {
-    sync_gpu();
     if (shape().size() != 2)
     {
         throw std::invalid_argument("block is only valid for rank-2 tensors");
@@ -8283,6 +8358,13 @@ OpenCLTensorBackend OpenCLTensorBackend::block(
     }
 
     OpenCLTensorBackend out(rows_n, cols_n);
+    if (launch_strided_copy(
+            *this, {row + col * rows(), 1, rows()}, out, {0, 1, rows_n}, rows_n, cols_n, "block"))
+    {
+        return out;
+    }
+
+    sync_gpu();
     for (Index i = 0; i < rows_n; ++i)
     {
         for (Index j = 0; j < cols_n; ++j)
@@ -8354,12 +8436,12 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_lt, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_lt, b)");
 
@@ -8408,8 +8490,8 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("compare_lt_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -8480,12 +8562,12 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_gt, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_gt, b)");
 
@@ -8534,8 +8616,8 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("compare_gt_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -8606,12 +8688,12 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_le, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_le, b)");
 
@@ -8660,8 +8742,8 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("compare_le_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -8732,12 +8814,12 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_ge, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_ge, b)");
 
@@ -8786,8 +8868,8 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("compare_ge_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -8858,12 +8940,12 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
                 {
                     copy_host_to_device(ctx.get_queue(),
                         a_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_eq, a)");
                     copy_host_to_device(ctx.get_queue(),
                         b_buf->buffer,
-                        other.m_backend->data_ptr(),
+                        other.host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_eq, b)");
 
@@ -8912,8 +8994,8 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
             opencl::DeviceMemory a_dev(bytes);
             opencl::DeviceMemory b_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            a_dev.copy_to_device(m_backend->data_ptr());
-            b_dev.copy_to_device(other.m_backend->data_ptr());
+            a_dev.copy_to_device(host_data());
+            b_dev.copy_to_device(other.host_data());
 
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("compare_eq_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
@@ -8978,7 +9060,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_lt_scalar, in)");
 
@@ -9025,7 +9107,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("compare_lt_scalar_kernel");
@@ -9090,7 +9172,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_gt_scalar, in)");
 
@@ -9137,7 +9219,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("compare_gt_scalar_kernel");
@@ -9202,7 +9284,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_le_scalar, in)");
 
@@ -9249,7 +9331,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("compare_le_scalar_kernel");
@@ -9314,7 +9396,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_ge_scalar, in)");
 
@@ -9361,7 +9443,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("compare_ge_scalar_kernel");
@@ -9426,7 +9508,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
                 {
                     copy_host_to_device(ctx.get_queue(),
                         input_buf->buffer,
-                        m_backend->data_ptr(),
+                        host_data(),
                         bytes,
                         "clEnqueueWriteBuffer(compare_eq_scalar, in)");
 
@@ -9473,7 +9555,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
 
             opencl::DeviceMemory input_dev(bytes);
             opencl::DeviceMemory out_dev(bytes);
-            input_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(host_data());
 
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("compare_eq_scalar_kernel");
@@ -9586,6 +9668,17 @@ std::string OpenCLTensorBackend::initialize_runtime_or_throw(bool opencl_profili
         "OpenCL backend initialization failed: AddressSanitizer-enabled build disables OpenCL "
         "execution");
 #endif
+
+    // Deliberately does NOT call request_queue_profiling(false) when event
+    // profiling is off. Queue profiling must stay on regardless: it paces
+    // rusticl and masks a driver race that otherwise corrupts the heap
+    // (see OpenCLContext::request_queue_profiling). Event-level profiling
+    // needs a profiling queue, so enabling it here is safe; disabling it
+    // would silently re-arm the hazard for every caller.
+    if (opencl_profiling_enabled)
+    {
+        opencl::OpenCLContext::request_queue_profiling(true);
+    }
 
     const auto& opencl_context = opencl::OpenCLContext::instance();
     if (!opencl_context.is_available())
@@ -9749,11 +9842,28 @@ bool OpenCLTensorBackend::ensure_device_current(const char* what) const
     if (m_needs_sync_to_device)
     {
         const auto& ctx = opencl::OpenCLContext::instance();
-        copy_host_to_device(ctx.get_queue(),
-            m_gpu_buffer->buffer,
-            m_backend->data_ptr(),
-            size() * sizeof(float),
-            what);
+        const std::size_t bytes = size() * sizeof(float);
+
+        // A previous async upload may still be reading m_backend.
+        wait_for_upload();
+
+        if (opencl::OpenCLContext::is_batching())
+        {
+            // Non-blocking: a blocking write flushes the queue and would undo
+            // the batching the caller set up. The event keeps m_backend pinned
+            // until the DMA completes (see wait_for_upload).
+            copy_host_to_device_async(ctx.get_queue(),
+                m_gpu_buffer->buffer,
+                m_backend->data_ptr(),
+                bytes,
+                what,
+                &m_upload_event);
+        }
+        else
+        {
+            copy_host_to_device(
+                ctx.get_queue(), m_gpu_buffer->buffer, m_backend->data_ptr(), bytes, what);
+        }
         m_needs_sync_to_device = false;
     }
     // The device copy is now current: opt this tensor into the resident
@@ -9763,6 +9873,90 @@ bool OpenCLTensorBackend::ensure_device_current(const char* what) const
     // would leave host reads (at(), data_ptr()) permanently stale.
     const_cast<OpenCLTensorBackend*>(this)->m_gpu_resident = true;
     return true;
+}
+
+// Whether view/slice ops run as device kernels instead of host element loops.
+//
+// Which one wins depends entirely on the per-enqueue cost. With queue profiling
+// enabled — the safe default on rusticl, see OpenCLContext — every enqueue costs
+// ~95 us, and the device path *adds* enqueues (678k -> 817k on an E04 run,
+// ~+13 s) because it replaces a cheap host memcpy of a small slice with a kernel
+// launch. With profiling off the device path wins, but that configuration
+// corrupts memory on this driver.
+//
+// So: off by default, matching the default queue mode. NN_OPENCL_DEVICE_VIEW_OPS=1
+// enables it — worth doing on any stack where enqueues are cheap.
+bool device_view_ops_enabled()
+{
+    static const bool enabled = []
+    {
+        const char* env = std::getenv("NN_OPENCL_DEVICE_VIEW_OPS");
+        return env != nullptr && env[0] != '\0' && env[0] != '0';
+    }();
+    return enabled;
+}
+
+bool OpenCLTensorBackend::launch_strided_copy(const OpenCLTensorBackend& src,
+    const StridedRegion& src_region,
+    OpenCLTensorBackend& dst,
+    const StridedRegion& dst_region,
+    Index ni,
+    Index nj,
+    const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    if (!device_view_ops_enabled()) return false;
+    if (ni == 0 || nj == 0) return true; // nothing to copy
+
+    try
+    {
+        if (!src.ensure_device_current(what)) return false;
+
+        // The destination is written, not read, but it must still hold a valid
+        // device buffer — and for a partial write (setBlock and friends) the
+        // untouched elements have to be the current ones, so the existing
+        // contents are uploaded first.
+        if (!dst.ensure_device_current(what)) return false;
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel("strided_copy_2d_kernel");
+
+        const cl_mem src_mem = src.m_gpu_buffer->buffer;
+        const cl_mem dst_mem = dst.m_gpu_buffer->buffer;
+        const cl_uint args[] = {
+            static_cast<cl_uint>(src_region.base),
+            static_cast<cl_uint>(src_region.stride_i),
+            static_cast<cl_uint>(src_region.stride_j),
+            static_cast<cl_uint>(dst_region.base),
+            static_cast<cl_uint>(dst_region.stride_i),
+            static_cast<cl_uint>(dst_region.stride_j),
+            static_cast<cl_uint>(ni),
+            static_cast<cl_uint>(nj),
+        };
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &src_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &dst_mem), what);
+        for (cl_uint i = 0; i < 8; ++i)
+        {
+            check_cl_error(clSetKernelArg(kernel, 2 + i, sizeof(cl_uint), &args[i]), what);
+        }
+
+        const std::size_t global[2] = {ni, nj};
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        dst.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("strided copy fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
 }
 
 bool OpenCLTensorBackend::launch_binary_resident(const char* kernel_name,
@@ -9989,6 +10183,9 @@ void OpenCLTensorBackend::sync_gpu() const
     {
         const auto& ctx = opencl::OpenCLContext::instance();
         const std::size_t bytes = size() * sizeof(float);
+        // The readback overwrites m_backend, which an in-flight upload may still
+        // be reading from.
+        wait_for_upload();
         copy_device_to_host(ctx.get_queue(),
             m_gpu_buffer->buffer,
             m_backend->mutable_data_ptr(),

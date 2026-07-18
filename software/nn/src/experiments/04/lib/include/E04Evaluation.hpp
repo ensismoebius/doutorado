@@ -23,7 +23,8 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     std::size_t param_count,
     const std::string& encoding,
     std::uint32_t seed,
-    float infer_ms) -> RunMetrics;
+    float infer_ms,
+    int lstm_frame_size) -> RunMetrics;
 
 auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
