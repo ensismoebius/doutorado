@@ -232,7 +232,17 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
 
 
 def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> None:
-    profile_files = sorted(profiles_dir.glob("article-*.json"))
+    # article-backend-bench.json is excluded: it is a single-seed, timing-only profile
+    # for build_xtensor_opencl_table() above (CPU-vs-OpenCL wall clock), run separately by
+    # e04_run_backend_comparison.sh, not by 01_e04_run_article_profiles.sh. Its repeats=1
+    # (vs. 3 for every other profile) reads as an inconsistency, and its data feeds no
+    # number or table anywhere in paper.tex — listing it in tab:profiles only confuses
+    # readers about what was actually used for the reported results.
+    profile_files = [
+        p
+        for p in sorted(profiles_dir.glob("article-*.json"))
+        if "backend-bench" not in p.name
+    ]
     out_path = data_dir / "paper_profiles.csv"
     with out_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)

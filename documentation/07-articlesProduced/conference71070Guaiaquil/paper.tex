@@ -33,21 +33,23 @@ A Comparison with LSTM-based Models}
 % (Sec. Spike activity and energy for the full derivation).
 \begin{abstract}
 
-\par Spiking Neural Networks (SNNs) emerge as a promising approach to reduce 
-energy consumption through event-driven, sparse computation on embedded 
-and neuromorphic hardware. While SNNs already has been proven effective 
-in classification tasks, their use as autoencoders for temporal signals 
-lacks systematic evaluation. We present a systematic empirical comparison of Spiking Neural Networks 
-- autoencoders (SNN-AE) and Long Short-Term Memory - autoencoders (LSTM-AE) 
-on the Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd}, evaluating 
-three spike encoding strategies (direct, Poisson, latency) and three SNN 
-pre-processing modes (dense, conv1d, recurrent) across a full factorial 
-hyperparameter sweep for Leak Integrate and Fire neuron: Threshold - 
-($V_{th} \in \{0.5, 1.0, 1.5\}$ ; Membrane time constant - ($\alpha \in \{0.8, 0.9, 0.99\}$; 
-3 random seeds). Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing,
+\par Spiking Neural Networks (SNNs) emerge as a promising approach to reduce
+energy consumption through event-driven, sparse computation on embedded
+and neuromorphic hardware. \chg{While SNNs have already been proven effective}
+in classification tasks, their use as autoencoders for temporal signals
+lacks systematic evaluation. We present a systematic empirical comparison of
+\chg{Spiking Neural Network autoencoders (SNN-AE) and Long Short-Term Memory
+autoencoders (LSTM-AE)}
+on the Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd}, evaluating
+three spike encoding strategies (direct, Poisson, latency) and three SNN
+pre-processing modes (dense, conv1d, recurrent) across a full factorial
+hyperparameter sweep \chg{over the Leaky Integrate-and-Fire neuron parameters
+(threshold $V_{th} \in \{0.5, 1.0, 1.5\}$; membrane decay
+$\alpha \in \{0.8, 0.9, 0.99\}$; 3 random seeds)}.
+Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing,
 parameter count, and estimated MACs. SNN-recurrent mode surpasses LSTM-AE
 in reconstruction quality while consuming over \chg{$96.8$}\% less estimated energy;
-encoding scheme and membrane decay are the dominant performance factors. A reproducible C++ evaluation harness \cite{furlan2026doi}  enables principled design choices for 3 energy-aware spiking representation learning.
+encoding scheme and membrane decay are the dominant performance factors. A reproducible C++ evaluation harness \cite{furlan2026doi} enables principled design choices for \chg{energy-aware} spiking representation learning.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -58,9 +60,9 @@ surrogate gradients, audio signal processing
 % ─────────────────────────────────────────────────────────────
 \section{Introduction}
 
-\par One-dimensional temporal signals such as audio waveforms, biosignals, sensor
-streams in some cases, need to be processed an interpreted in low-power 
-embedded systems where energy budget is a primary constraint.
+\par One-dimensional temporal signals such as audio waveforms, biosignals, and
+sensor streams \chg{often need to be processed and interpreted} in low-power
+embedded systems where \chg{the} energy budget is a primary constraint.
 
 \par Autoencoders for such signals must learn compact latent representations
 efficiently and accurately reconstruct the original sequence.
@@ -80,7 +82,7 @@ gradient-based training and have produced competitive SNN classification perform
 for temporal signal reconstruction — with controlled comparison against LSTM baselines across
 spike encoding schemes and architectural modes — is lacking.
 
-\par This paper addresses this gap with three contributions:
+\par This paper addresses this gap with \chg{four} contributions:
 \begin{enumerate}
   \item A systematic empirical comparison of SNN-AE and LSTM-AE on FSDD
         \cite{jackson2018fsdd} covering 81 SNN configurations.
@@ -255,14 +257,20 @@ inversely proportional to signal strength \cite{thorpe1998rank}:
 \subsection{SNN pre-processing modes}
 \label{sec:modes}
 
-\par After spike encoding, a pre-processing transform $\phi$ is applied beforeDense. $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
+% "applied beforeDense." was corrupted text — the \textbf{Dense.} heading had been
+% merged into the preceding sentence, losing "before the autoencoder input".
+\par After spike encoding, a pre-processing transform $\phi$ is applied
+\chg{before the autoencoder input.}
+
+\textbf{Dense.} $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
 
 \textbf{Conv1d.} A fixed 3-tap temporal smoothing filter:
 \begin{equation}
   \phi(\tilde{x})_t = 0.25\,\tilde{x}_{t-1} + 0.5\,\tilde{x}_t
                     + 0.25\,\tilde{x}_{t+1},
 \end{equation}
-\par with boundary clamping.  Reduces high-frequency spike jitter beforeautoencoder input.
+\par with boundary clamping.  Reduces high-frequency spike jitter before
+autoencoder input.
 
 \textbf{Recurrent.}  A recurrent LIF cell integrates the encoded signal:
 \begin{align}
@@ -375,7 +383,9 @@ SNN variants are evaluated over threshold $V_{th} \in \{0.5, 1.0, 1.5\}$,
 membrane decay $\alpha \in \{0.8, 0.9, 0.99\}$, encodings
 $\in\{\text{direct, Poisson, latency}\}$, and modes
 $\in\{\text{dense, conv1d, recurrent}\}$, totalling 81 SNN configurations.
-Each configuration is repeated 3 times with a fixed seed.
+% "with a fixed seed" contradicted the abstract ("3 random seeds"), the table captions
+% ("3-seed mean"), and the profiles (seed_deterministic=false) — corrected.
+Each configuration is repeated 3 times \chg{with different random seeds}.
 LSTM-AE is evaluated with the same three encodings and 3 repeats.
 
 \textbf{Evaluation harness.}
@@ -453,8 +463,8 @@ the harness.  Table~\ref{tab:profiles} lists the article profiles.
 
 \par Table~\ref{tab:perf} summarizes per-model-type performance aggregated over
 encodings and hyperparameter sweep (3-seed mean).
-Table~\ref{tab:recon} and Table~\ref{tab:eff} provide per-encoding breakdowns
-for representative configurations.
+Table~\ref{tab:recon} and Table~\ref{tab:eff} provide per-encoding
+breakdowns\chg{, averaged over the $V_{th}$ and $\alpha$ sweep}.
 
 % Source: data/paper_sweep_alpha.csv, read by figs/fig_sweep.tex, generated by
 % scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py:aggregate_all()
@@ -465,8 +475,9 @@ for representative configurations.
   \input{figs/fig_sweep.tex}
   \caption{MSE vs.\ membrane decay $\alpha$ for SNN modes
   (direct encoding, $V_{th}=1.0$).
-  Higher $\alpha$ reduces MSE for the recurrent mode; dense and conv1d
-  \chg{modes instead get moderately worse}.}
+  \chg{For the recurrent mode, $\alpha=0.99$ more than halves MSE
+  ($0.137 \to 0.058$) while $\alpha=0.8$ and $0.9$ are indistinguishable;
+  dense and conv1d modes instead get moderately worse with higher $\alpha$.}}
   \label{fig:sweep}
 \end{figure}
 
@@ -483,14 +494,17 @@ SNN-conv1d (\chg{$0.290$}) also surpasses LSTM-AE; SNN-dense (\chg{$0.409$}) is
 comparable.
 
 \par Table~\ref{tab:recon} shows the per-encoding breakdown: for SNN-dense and
-SNN-conv1d, latency encoding achieves substantially lower MSE than direct
-encoding (e.g., SNN-conv1d/latency MSE \chg{$= 0.084$}, \chg{$R^2=0.614$}; direct
+SNN-conv1d, \chg{latency and Poisson encodings achieve} substantially lower MSE
+than direct encoding (e.g., SNN-conv1d: latency MSE \chg{$= 0.084$} with the
+best \chg{$R^2=0.614$}, \chg{Poisson MSE $= 0.065$ the lowest overall}; direct
 \chg{$= 0.722$}); for SNN-recurrent, all three encodings yield comparable MSE
 (\chg{$0.111$--$0.115$}), with \chg{poisson ($0.111$) marginally better than direct ($0.115$)}.
 Direct encoding is most challenging for dense and conv1d modes.
-Higher membrane decay $\alpha$ benefits the recurrent mode specifically:
-MSE falls from \chg{$0.137$} at $\alpha{=}0.8$ to \chg{$0.058$} at $\alpha{=}0.99$
-(Fig.~\ref{fig:sweep}), \chg{more than halving it}; dense and conv1d modes
+Higher membrane decay $\alpha$ benefits the recurrent mode specifically\chg{,
+with the gain concentrated at the top of the range: MSE is flat between
+$\alpha{=}0.8$ and $0.9$ ($0.137$--$0.138$) and drops to $0.058$ at
+$\alpha{=}0.99$} (Fig.~\ref{fig:sweep}), \chg{more than halving it}; dense and
+conv1d modes
 \chg{instead get moderately worse (dense: $+20\%$; conv1d: $+22\%$) with higher $\alpha$}.
 
 \subsection{Spike activity and energy}

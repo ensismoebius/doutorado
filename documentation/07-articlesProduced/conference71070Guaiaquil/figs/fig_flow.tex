@@ -16,8 +16,10 @@
   {SNN-AE\\dense / conv1d / recur.};
 \node[side, below right = 5mm and 5mm of enc] (lstm) {LSTM-AE};
 
+% F1 removed: Metrics paragraph declares classification metrics out of scope
+% (FSDD has no anomaly labels); listing F1 here contradicted that.
 \node[main, below = 14mm of enc] (met)
-  {MSE, MAE, $R^2$, F1\\spike rate, energy, params};
+  {MSE, MAE, $R^2$, spike rate\\energy, timing, params, MACs};
 \node[main, below=of met] (out) {CSV + pgfplots \texttt{.dat}};
 
 \draw[->] (fsdd) -- (win);
