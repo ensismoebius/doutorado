@@ -157,6 +157,17 @@ auto main(int argc, char* argv[]) -> int
         auto cfg = e05::E05Config::from_file(config_path);
         cfg.validate();
 
+        // Overall multi-profile banner. Each profile is a separate process and cannot know the
+        // whole-run progress on its own, so the runner (run_e05_profiles.sh) computes it and
+        // hands the ready-made line in via E05_OVERALL. Logged first, it renders as a persistent
+        // top line above the per-profile bars, mirroring the Guayaquil (E04) TUI. Empty/unset
+        // when run standalone, so the TUI is unchanged.
+        if (const char* overall = std::getenv("E05_OVERALL");
+            overall != nullptr && overall[0] != '\0')
+        {
+            nn::progress::ProgressManager::instance().log(std::string(overall));
+        }
+
         std::cout << "[E05] run_tag=" << cfg.experiment.run_tag
                   << " modality=" << cfg.dataset.modality
                   << " strategy=" << cfg.feature_extraction.strategy

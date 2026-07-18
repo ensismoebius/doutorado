@@ -101,10 +101,12 @@ cd software/nn
 ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
 
-While it runs, an **`Overall [i/4] … ETA`** line sits at the top of each profile's TUI —
-the same mean-time-per-completed-profile estimate `run_e05_profiles.sh` uses, refined at each
-profile boundary. It is optimistic right after the fast LSTM and corrects upward once the
-first SNN lands; treat it as a guide, not a promise.
+While it runs, an **`Overall [i/4] … ETA`** line sits at the top of each profile's TUI — the
+same **work-weighted, EMA-smoothed** estimate `run_e05_profiles.sh` uses (`scripts/lib/run_eta.sh`):
+it weights each profile by rough cost (LSTM light, SNN ~4-5× heavier) and tracks
+seconds-per-unit-work, so it does not lurch at the LSTM→SNN boundary the way a naive
+per-profile mean would. It is optimistic before the first SNN lands (the weights are a prior)
+and tightens once real timings arrive; treat it as a guide, not a promise.
 
 The prompt lists every preset, marks which already have an `experiment04` binary `[built]`,
 flags the reference, and defaults to it — so pressing Enter is the reference choice.
@@ -154,8 +156,13 @@ Background it if you prefer:
 nohup ./scripts/testing/run_e05_profiles.sh phase00 > phase00_run.log 2>&1 &
 ```
 
-See `.wiki/Guides/Running-Experiment05-Profiles.md` for binary selection (`E05_BUILD`,
-`E05_BIN`), live progress bars, and failure triage.
+Each profile's TUI shows the same rich bars as the Guayaquil paper (model + loss on the
+autoencoder bar, `run fold/total` + live loss on the classifier bar) plus a persistent
+**`Overall [i/N] … ETA`** top line. That overall ETA is **work-weighted + EMA-smoothed**
+(`scripts/lib/run_eta.sh`, shared with E04): handcrafted profiles are cheap, autoencoders/DSNN
+are ~20× heavier, so it tracks work done rather than profile count and does not lurch when the
+fast/slow mix shifts. See `.wiki/Guides/Running-Experiment05-Profiles.md` for binary selection
+(`E05_BUILD`, `E05_BIN`), live progress bars, and failure triage.
 
 ### 2a. Rank → winner → tables
 

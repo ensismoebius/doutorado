@@ -544,6 +544,7 @@ std::vector<std::vector<double>> run_protocol_ae(
     const E05Config::AutoencoderConfig& spec,
     const E05Config::Training& training,
     const std::string& label_suffix,
+    const std::string& ae_kind, // "SNN-AE" / "ANN-AE" — drives the TUI description
     int batch_size,
     const std::string& encoding,
     int time_steps,
@@ -595,8 +596,14 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.batch_size = std::max(1, batch_size);
 
     nn::training::Trainer<AEType> trainer(model, trainer_cfg);
-    trainer.add_callback(
-        std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix));
+    // Match the Guayaquil (E04) TUI: give the training bar a description + loss type so the
+    // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
+    // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
+    // the "run X/Y" column), so col3 shows just the loss, exactly like the E04 bars.
+    auto ae_cb =
+        std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix);
+    ae_cb->set_metadata(ae_kind + " (" + encoding + ")", 0, 1, "MSE");
+    trainer.add_callback(ae_cb);
     (void) trainer.fit_autoencoder(train_samples);
 
     // Feature per sample = mean latent over its T spike frames. The membrane
@@ -713,6 +720,7 @@ auto extract_features_core(const E05DatasetView& view,
                 cfg.autoencoder,
                 training,
                 label_suffix,
+                "SNN-AE",
                 training.samples_per_batch,
                 cfg.autoencoder.encoding,
                 cfg.autoencoder.time_steps,
@@ -727,6 +735,7 @@ auto extract_features_core(const E05DatasetView& view,
                 cfg.autoencoder,
                 training,
                 label_suffix,
+                "ANN-AE",
                 training.samples_per_batch,
                 "direct",
                 1,
@@ -767,8 +776,12 @@ auto extract_features_core(const E05DatasetView& view,
             trainer_cfg.batch_size = training.samples_per_batch;
 
             nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
-            trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
-                "Autoencoder training" + label_suffix));
+            // Same enrichment as the SNN/ANN AE path: label the bar with the model + loss so
+            // the metadata line matches the Guayaquil TUI look.
+            auto ae_cb = std::make_shared<nn::training::ProgressCallback>(
+                "Autoencoder training" + label_suffix);
+            ae_cb->set_metadata("LSTM-AE", 0, 1, "MSE");
+            trainer.add_callback(ae_cb);
             (void) trainer.fit_autoencoder(train_samples);
 
             fs.label = "autoencoder-lstm" + label_suffix;

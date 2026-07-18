@@ -31,12 +31,33 @@ Two runners share one live-progress UI, failure capture, and binary auto-detecti
 - `E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_e05_profiles.sh`.
 
 **Progress**: before each profile the runner prints
-`[i/N] pass=… fail=… mm:ss eta~mm:ss running: <profile>`. On a terminal the
+`[i/N] elapsed h:mm:ss eta~h:mm:ss running: <profile>`. On a terminal the
 binary's own live progress bars then render underneath — **dataset loading,
 feature extraction, training epochs, and CV folds** (driven by `ProgressManager`
 / `ProgressCallback`) — while output is still captured for failure diagnosis. In
 a pipe/CI the ANSI bars are redirected to keep logs clean. Failures print
 immediately and are listed in the final summary.
+
+**Rich per-bar metadata (Guayaquil/E04 look)**: each training bar carries a
+metadata line — `label │ description │ run X/Y  LOSS │ phases`. The autoencoder
+feature-extraction bars name the model + loss (`SNN-AE (poisson)`, `ANN-AE
+(direct)`, `LSTM-AE` │ `MSE`); the DSNN classifier bars show `run fold/total`
+and `CrossEntropy` with live train/val loss. This is the same
+`ProgressCallback::set_metadata` path E04 uses, so both experiments read alike.
+
+**Overall run banner + work-weighted ETA**: each profile is a *separate process*
+and cannot know the whole-run progress, so the runner computes an overall status
+and passes it to the binary via `E05_OVERALL` — rendered as a persistent top
+line (`Overall [i/N] elapsed … ETA …`) above the profile's own bars, mirroring
+E04's `E04_OVERALL`. The overall ETA is **work-weighted + EMA-smoothed**
+(`scripts/lib/run_eta.sh`): each profile is weighted by rough cost
+(`p00_hc_*` = 1, autoencoders / DSNN = 20) and the runner tracks
+seconds-per-unit-work rather than counting profiles equally. This matters because
+the mix is wildly heterogeneous — a naive per-profile mean reads ~7× too high
+through the heavy-AE phase and only corrects near the end; the weighted estimate
+stays stable from the first completed AE. In the parallel monitor the same
+weighting drives the dashboard's `overall ETA` (workers append their weight to
+`$TMP/weights_done`; the monitor sums it each frame).
 
 ## Parallelism (memory-gated)
 

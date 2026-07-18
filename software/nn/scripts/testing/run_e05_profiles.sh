@@ -304,11 +304,16 @@ monitor_loop() {
         f=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); f=${f:-0}
         d=$((p + f))
 
-        # Overall ETA: mean wall-clock time per COMPLETED profile already
-        # reflects the JOBS-way concurrency (elapsed grows slower than serial
-        # while d grows the same), so no separate /JOBS factor is needed.
-        if [ "$d" -gt 0 ]; then
-            overall_eta="$(fmt_mmss $(( (now_e - start) * (npending - d) / d )))"
+        # Overall ETA: work-weighted (weights_done accumulates each finished profile's cost),
+        # so a fast/slow mix doesn't lurch the estimate the way a plain profile count would.
+        # Wall-clock per unit of DONE work already reflects the JOBS-way concurrency (elapsed
+        # grows slower than serial while done_w grows the same), so no separate /JOBS factor is
+        # needed. The monitor refreshes each frame, so a running linear extrapolation over the
+        # measured rate is enough here (the serial path EMA-smooths; a live redraw doesn't need
+        # to). done_w is read from the file the workers append to under flock.
+        done_w=$(awk '{s+=$1} END{print s+0}' "$TMP/weights_done" 2>/dev/null); done_w=${done_w:-0}
+        if [ "$done_w" -gt 0 ]; then
+            overall_eta="$(fmt_hms $(( (now_e - start) * (total_weight - done_w) / done_w )))"
         else
             overall_eta="calculating"
         fi
@@ -320,7 +325,7 @@ monitor_loop() {
         lines=("$(printf '\033[1;36m── e05 monitor ──\033[0m %s ── running %d · done \033[32m%d\033[0m/%d · pass \033[32m%d\033[0m · fail \033[31m%d\033[0m ──' \
             "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
         lines+=("$(printf '    elapsed %s   overall ETA ~ \033[35m%s\033[0m' \
-            "$(fmt_mmss $((now_e - start)))" "$overall_eta")")
+            "$(fmt_hms $((now_e - start)))" "$overall_eta")")
         lines[0]="$(vis_trunc "${lines[0]}" "$cols")"; lines[1]="$(vis_trunc "${lines[1]}" "$cols")"
 
         for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
@@ -381,6 +386,7 @@ run_profile() {
         flock 9
         printf '%s %s\n' "$sw" "$f" >> "$STATE"   # resume checkpoint
         echo "$sw" >> "$TMP/tally"
+        profile_weight "$f" >> "$TMP/weights_done" # work-weighted ETA (monitor sums this)
         if [ "$sw" = FAIL ]; then
             err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$log" \
                   | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | tail -1)
@@ -409,25 +415,42 @@ echo "profiles: $total  (pending $npending, skipped $skip)  from $ROOT"
 echo "logs: $LOGDIR/<profile>.log   (tail -f to watch one worker in full)"
 echo "state: $STATE"
 
+# Work-weighted overall ETA (scripts/lib/run_eta.sh, shared with the Guayaquil runner).
+# E05 mixes fast handcrafted extraction (trains nothing) with slow autoencoders / DSNN
+# training. Counting profiles equally makes the ETA lurch every time the mix shifts; instead
+# we weight each profile by rough cost and track seconds-per-unit-work. p00_ae_* sort before
+# p00_hc_*, so the heavy kind is measured early and the rate is trustworthy for the long
+# handcrafted tail. Phase01 is all DSNN (heavy) — the catch-all covers it.
+source scripts/lib/run_eta.sh
+profile_weight() { case "$(basename "$1")" in p00_hc_*) echo 1 ;; *) echo 20 ;; esac; }
+total_weight=0; for _p in "${PENDING[@]}"; do total_weight=$((total_weight + $(profile_weight "$_p"))); done
+: > "$TMP/weights_done"   # workers append each completed profile's weight; monitor sums it
+eta_reset
+
 if [ "$JOBS" -le 1 ]; then
     # Serial: the binary's live progress bars render directly; tee also captures
     # to the stable log. Pipe/CI → redirect (keeps the log free of ANSI noise).
+    done_w=0
     for f in "${PENDING[@]}"; do
         i=$((i + 1)); name=$(basename "$f" .json)
-        now=$(date +%s); elapsed=$((now - start))
-        done_so_far=$((i - 1))
-        if [ "$done_so_far" -gt 0 ]; then
-            eta="eta~$(fmt_mmss $(( elapsed * (npending - done_so_far) / done_so_far )))"
-        else
-            eta="eta~calculating"
-        fi
+        elapsed=$(( $(date +%s) - start ))
+        rem_s=$(eta_remaining $(( total_weight - done_w )))
+        eta=$([ -n "$rem_s" ] && printf 'eta~%s' "$(fmt_hms "$rem_s")" || echo "eta~calculating")
         printf '[%d/%d]  elapsed %s  %s  running: %s\n' \
-            "$i" "$npending" "$(fmt_mmss "$elapsed")" "$eta" "$name"
+            "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name"
+        # Persistent top banner inside the profile's own TUI (see experiment05 / E05_OVERALL),
+        # mirroring the Guayaquil runner: the per-process bars can't know the whole-run status,
+        # so the runner computes it here and hands it to the binary the same way E04 does.
+        export E05_OVERALL="$(printf 'Overall  [%d/%d]  elapsed %s  ETA %s   (%s)' \
+            "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name")"
+        p_start=$(date +%s)
         if [ "$tty_out" -eq 1 ]; then
             "$BIN" --config "$f" 2>&1 | tee "$LOGDIR/$name.log"; ec=${PIPESTATUS[0]}
         else
             "$BIN" --config "$f" > "$LOGDIR/$name.log" 2>&1; ec=$?
         fi
+        eta_update "$(profile_weight "$f")" "$(( $(date +%s) - p_start ))"
+        done_w=$((done_w + $(profile_weight "$f")))
         if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
         printf '%s %s\n' "$sw" "$f" >> "$STATE"
         echo "$sw" >> "$TMP/tally"
@@ -438,6 +461,7 @@ if [ "$JOBS" -le 1 ]; then
             echo "FAIL [$i/$npending] $name -> ${err:-<non-zero exit>}"
         fi
     done
+    unset E05_OVERALL
 else
     # Parallel pool: at most JOBS workers in flight. Slot occupancy is tracked by
     # marker files in $TMP/active (the monitor is a background job too, so we

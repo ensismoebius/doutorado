@@ -185,9 +185,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
         // (01_e04_run_article_profiles.sh) computes it the same way run_e05_profiles.sh does
-        // (mean wall-clock per completed profile, refined at each boundary) and passes the
-        // ready-made line in via E04_OVERALL. Logging it renders it as a persistent top line
-        // above the per-profile bars; empty/unset when run standalone, so the TUI is unchanged.
+        // (work-weighted, EMA-smoothed seconds-per-unit-work — see scripts/lib/run_eta.sh) and
+        // passes the ready-made line in via E04_OVERALL. Logging it renders it as a persistent
+        // top line above the per-profile bars; empty/unset when run standalone, so unchanged.
         if (const char* overall = std::getenv("E04_OVERALL");
             overall != nullptr && overall[0] != '\0')
         {
