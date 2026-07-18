@@ -104,10 +104,10 @@ if [[ "$E04_BUILD" != "$REFERENCE_BUILD" ]]; then
 fi
 
 PROFILES=(
-  "src/experiments/04/profiles/article-lstm-ae.json"
   "src/experiments/04/profiles/article-snn-dense.json"
   "src/experiments/04/profiles/article-snn-conv1d.json"
   "src/experiments/04/profiles/article-snn-recurrent.json"
+  "src/experiments/04/profiles/article-lstm-ae.json"
 )
 
 # SKIP_BUILD=1 reuses the existing binary instead of configuring/building. Only do this when
