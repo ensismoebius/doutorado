@@ -36,7 +36,7 @@ def smoke_overrides(prof):
     runs_classifier = prof.get("classifier", {}).get("enabled", True)
     ds = prof.setdefault("dataset", {})
     ds["max_samples"] = 120 if runs_classifier else 60
-    ds["results_dir"] = "results/smoke"
+    ds["results_dir"] = "results/thesis/smoke"
 
     tr = prof.setdefault("training", {})
     tr["epochs"] = 2

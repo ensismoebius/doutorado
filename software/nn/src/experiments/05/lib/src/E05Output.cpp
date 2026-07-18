@@ -1,5 +1,6 @@
 #include "E05Output.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -25,7 +26,7 @@ void write_metrics_csv(const std::string& results_dir,
     if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
 
     f << "feature_set,classifier,text_mode,fold,"
-      << "accuracy,f1,precision,recall,specificity,eer,auc,model_path\n";
+      << "accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path\n";
     for (const auto& r : results)
     {
         for (const auto& fold : r.outer_folds)
@@ -33,7 +34,8 @@ void write_metrics_csv(const std::string& results_dir,
             f << r.feature_set_label << "," << r.classifier_type << "," << r.text_mode << ","
               << fold.fold << "," << std::fixed << std::setprecision(6) << fold.accuracy << ","
               << fold.f1 << "," << fold.precision << "," << fold.recall << "," << fold.specificity
-              << "," << fold.eer << "," << fold.auc << "," << fold.model_path << "\n";
+              << "," << fold.eer << "," << fold.auc << "," << std::setprecision(3) << fold.train_ms
+              << "," << fold.infer_ms << "," << fold.model_path << "\n";
         }
     }
 }
@@ -62,7 +64,8 @@ void write_summary_json(const std::string& results_dir,
     const std::vector<ParaconsistentScore>& scores,
     int n_subjects,
     int n_stimuli,
-    size_t n_samples)
+    size_t n_samples,
+    std::size_t config_hash)
 {
     ensure_dir(results_dir);
     std::string path = results_dir + "/e05_" + run_tag + "_summary.json";
@@ -70,6 +73,7 @@ void write_summary_json(const std::string& results_dir,
     nlohmann::json j;
     j["run_tag"] = cfg.experiment.run_tag;
     j["seed"] = cfg.experiment.seed;
+    j["config_hash"] = config_hash; // provenance/determinism (E04 parity)
     j["modality"] = cfg.dataset.modality;
     j["strategy"] = cfg.feature_extraction.strategy;
     j["classifier"] = cfg.classifier.type;
@@ -158,12 +162,31 @@ void write_summary_json(const std::string& results_dir,
         rj["mean_auc"] = r.mean_auc;
         rj["std_auc"] = r.std_auc;
 
+        // Run cost / complexity (E04-style): model size + mean per-fold wall-clock.
+        rj["param_count"] = r.param_count;
+        rj["mean_train_ms"] = r.mean_train_ms;
+        rj["mean_infer_ms"] = r.mean_infer_ms;
+        if (!std::isnan(r.mean_spike_rate)) // SNN classifiers only
+        {
+            rj["mean_spike_rate"] = r.mean_spike_rate;
+            rj["final_sops"] = r.final_sops;
+        }
+
         nlohmann::json folds_arr = nlohmann::json::array();
         for (const auto& fold : r.outer_folds)
         {
             nlohmann::json fj;
             fj["fold"] = fold.fold;
             fj["model_path"] = fold.model_path;
+            fj["train_ms"] = fold.train_ms;
+            fj["infer_ms"] = fold.infer_ms;
+            fj["epochs_run"] = fold.history.size();
+            if (!fold.history.empty())
+            {
+                const auto& last = fold.history.back();
+                fj["final_train_loss"] = last.train_loss;
+                if (!std::isnan(last.val_loss)) fj["final_val_loss"] = last.val_loss;
+            }
             folds_arr.push_back(fj);
         }
         rj["fold_models"] = folds_arr;
@@ -179,6 +202,11 @@ void write_summary_json(const std::string& results_dir,
         j["best_alpha"] = scores[0].alpha;
         j["best_beta"] = scores[0].beta;
     }
+
+    // NOTE: no in-run significance test (E04 records SNN-vs-LSTM t-test/Wilcoxon/Cohen's d
+    // because it trains both families in one process). An E05 run scores exactly one feature
+    // set, so the analogous comparison is cross-PROFILE and belongs in a post-hoc aggregation
+    // step over these summary files, not here.
 
     std::ofstream f(path);
     if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
@@ -205,6 +233,40 @@ void write_comparison_dat(const std::string& results_dir,
           << " " << r.std_f1 << " " << r.mean_precision << " " << r.mean_recall << " "
           << r.mean_specificity << " " << r.std_specificity << " " << r.mean_eer << " " << r.std_eer
           << " " << r.ci95_eer << " " << r.mean_auc << " " << r.std_auc << "\n";
+    }
+}
+
+void write_learning_curves_dat(const std::string& results_dir,
+    const std::string& run_tag,
+    const std::vector<ClassificationResult>& results)
+{
+    // Nothing trained (e.g. all cache hits, or a phase00 ranking-only run) → no file.
+    bool any = false;
+    for (const auto& r : results)
+        for (const auto& fold : r.outer_folds)
+            if (!fold.history.empty()) any = true;
+    if (!any) return;
+
+    ensure_dir(results_dir);
+    const std::string path = results_dir + "/e05_" + run_tag + "_learning_curves.dat";
+    std::ofstream f(path);
+    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+
+    // spike_rate/sops are NaN/0 for non-spiking classifiers; the columns are kept
+    // so every run has the same schema (pgfplots-friendly).
+    f << "feature_set fold epoch train_loss val_loss epoch_ms spike_rate sops\n";
+    for (const auto& r : results)
+    {
+        for (const auto& fold : r.outer_folds)
+        {
+            for (const auto& e : fold.history)
+            {
+                f << r.feature_set_label << " " << fold.fold << " " << e.epoch << " " << std::fixed
+                  << std::setprecision(6) << e.train_loss << " " << e.val_loss << " "
+                  << std::setprecision(3) << e.epoch_ms << " " << e.mean_spike_rate << " " << e.sops
+                  << "\n";
+            }
+        }
     }
 }
 

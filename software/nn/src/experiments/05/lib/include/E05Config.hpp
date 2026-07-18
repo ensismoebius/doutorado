@@ -24,9 +24,9 @@ struct E05Config
     struct Dataset
     {
         std::string root;
-        std::string results_dir = "results";
-        std::string modality = "fused"; // "voice" | "eeg" | "fused"
-        int max_samples = 0;            // 0 = unlimited (for debug: set to small number)
+        std::string results_dir = "results/thesis"; // E05 = thesis experiment
+        std::string modality = "fused";             // "voice" | "eeg" | "fused"
+        int max_samples = 0; // 0 = unlimited (for debug: set to small number)
 
         /// Only meaningful when modality == "fused". Ignored otherwise.
         ///   "early" → concatenate the raw voice+EEG signals into one signal

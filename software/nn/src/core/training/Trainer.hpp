@@ -80,6 +80,28 @@ template <typename T>
 struct has_reset_state<T, std::void_t<decltype(std::declval<T>().reset_state())>> : std::true_type
 {
 };
+
+// Detect model-side firing-rate / synaptic-op probes at compile time. A spiking
+// model whose loss is not spike-based (e.g. the DSNN classifier under
+// cross-entropy) exposes these so the Trainer can still record SNN diagnostics.
+template <typename T, typename = void>
+struct has_mean_spike_rate : std::false_type
+{
+};
+template <typename T>
+struct has_mean_spike_rate<T, std::void_t<decltype(std::declval<T>().mean_spike_rate())>>
+    : std::true_type
+{
+};
+
+template <typename T, typename = void>
+struct has_sops : std::false_type
+{
+};
+template <typename T>
+struct has_sops<T, std::void_t<decltype(std::declval<T>().sops())>> : std::true_type
+{
+};
 } // namespace detail
 
 template <typename ModelType, typename LossType = MSELossImpl<nn::Backend>>
@@ -281,8 +303,14 @@ class Trainer
 
     void maybe_populate_snn_fields(EpochResult& result)
     {
+        // Prefer the loss's rate (spike-loss training); otherwise fall back to a
+        // model-side probe (spiking model trained under a non-spike loss).
         if constexpr (detail::has_last_mean_rate<LossType>::value)
             result.mean_spike_rate = loss_.last_mean_rate();
+        else if constexpr (detail::has_mean_spike_rate<ModelType>::value)
+            result.mean_spike_rate = model_.mean_spike_rate();
+
+        if constexpr (detail::has_sops<ModelType>::value) result.sops = model_.sops();
     }
 
     // --- main autoencoder loop ---

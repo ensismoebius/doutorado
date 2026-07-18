@@ -2,7 +2,7 @@
 """Rank Experiment05 Phase 00 feature extractors by paraconsistent D_truth.
 
 Phase 00 runs one profile per (wavelet x scale x signal) plus the autoencoder,
-each writing results/phase00/e05_<run_tag>[_repK]_paraconsistent.csv with a
+each writing results/thesis/phase00/e05_<run_tag>[_repK]_paraconsistent.csv with a
 single D_truth. This script collates all of them, averages D_truth across the
 repeat runs, ranks per signal (voice, eeg), and reports the winning extractor.
 
@@ -13,8 +13,8 @@ classifier is trained).
 Usage:
     python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
         --profiles-dir src/experiments/05/profiles/phase00 \
-        --results-dir  results/phase00 \
-        --out          results/phase00/winners.json
+        --results-dir  results/thesis/phase00 \
+        --out          results/thesis/phase00/winners.json
 
 The --out JSON feeds 02_e05_apply_winner.py, which injects each winner into the
 Phase 01 profiles.
@@ -100,7 +100,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--profiles-dir", default="src/experiments/05/profiles/phase00")
-    ap.add_argument("--results-dir", default="results/phase00")
+    ap.add_argument("--results-dir", default="results/thesis/phase00")
     ap.add_argument("--out", default=None, help="Write winners JSON here.")
     ap.add_argument("--top", type=int, default=5, help="Rows to print per signal.")
     args = ap.parse_args()

@@ -1,10 +1,12 @@
 #include "E05Classifiers.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <exception>
 #include <filesystem>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -115,6 +117,8 @@ class E05DsnnClassifier : public Module<nn::Backend>
         : fc_in_(std::make_shared<LinearImpl<nn::Backend>>(input_dim, hidden_dim)),
           lif_in_(std::make_shared<LifBPTTImpl<nn::Backend>>(kSnnTimeSteps)),
           fc_out_(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, output_dim)),
+          hidden_dim_(hidden_dim),
+          out_dim_(output_dim),
           fr_lambda_(fr_lambda),
           fr_min_(fr_min),
           fr_max_(fr_max),
@@ -169,7 +173,12 @@ class E05DsnnClassifier : public Module<nn::Backend>
                     x_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(d)) =
                         input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d));
 
-        const bool cache_spikes = requires_grad && fr_lambda_ > 0.0f;
+        // Cache spike trains on every training forward. Needed by the firing-rate
+        // regularizer (fr_lambda_ > 0) AND by mean_spike_rate()/sops() so the run
+        // diagnostics are populated even when regularization is off. Eval passes
+        // (requires_grad == false) don't cache — the last cached train stays the
+        // last training batch, matching a spike-loss's last_mean_rate() semantics.
+        const bool cache_spikes = requires_grad;
 
         Tensor h = fc_in_->forward(x_t, requires_grad);
         if (use_tdbn_) h = tdbn_in_->forward(h, requires_grad); // normalize pre-spike current
@@ -341,6 +350,48 @@ class E05DsnnClassifier : public Module<nn::Backend>
         for (auto& l : hidden_lif_) l->reset_state();
     }
 
+    // ── Run diagnostics (the Trainer queries these to fill EpochResult) ──────────
+    // Overall mean firing rate across all spiking layers from the last training
+    // forward = (total spikes) / (total spike slots). NaN until a training forward
+    // has cached spikes. Matches E04's "mean firing rate across all SNN neurons".
+    [[nodiscard]] auto mean_spike_rate() const -> float
+    {
+        double spikes = 0.0;
+        double slots = 0.0;
+        auto acc = [&](const Tensor& s)
+        {
+            if (s.size() > 0)
+            {
+                spikes += static_cast<double>(s.sum());
+                slots += static_cast<double>(s.size());
+            }
+        };
+        acc(spikes_in_);
+        for (const auto& s : spikes_hidden_) acc(s);
+        if (slots == 0.0) return std::numeric_limits<float>::quiet_NaN();
+        return static_cast<float>(spikes / slots);
+    }
+
+    // Synaptic operations per sample for the last training forward: for each
+    // spiking layer, (spikes it emitted over all T steps) × (fan-out = width of the
+    // next Linear it drives), summed, then divided by the batch size. 0 when no
+    // spikes are cached. This is the spike-driven analog of a dense net's MACs.
+    [[nodiscard]] auto sops() const -> long long
+    {
+        if (spikes_in_.size() == 0) return 0;
+        const long long batch = static_cast<long long>(spikes_in_.rows()) / kSnnTimeSteps;
+        if (batch <= 0) return 0;
+        // lif_in drives hidden_fc_[0] (fan-out = hidden) or fc_out_ (fan-out = output).
+        double total = static_cast<double>(spikes_in_.sum()) *
+                       static_cast<double>(hidden_lif_.empty() ? out_dim_ : hidden_dim_);
+        for (size_t i = 0; i < spikes_hidden_.size(); ++i)
+        {
+            const long long fanout = (i + 1 < spikes_hidden_.size()) ? hidden_dim_ : out_dim_;
+            total += static_cast<double>(spikes_hidden_[i].sum()) * static_cast<double>(fanout);
+        }
+        return static_cast<long long>(total / static_cast<double>(batch));
+    }
+
    private:
     // Add the firing-rate band-penalty gradient of one spiking layer to the
     // incoming gradient g (same shape as the cached spike train). No-op when
@@ -363,6 +414,9 @@ class E05DsnnClassifier : public Module<nn::Backend>
     std::vector<std::shared_ptr<LifBPTTImpl<nn::Backend>>> hidden_lif_;
     std::shared_ptr<LinearImpl<nn::Backend>> fc_out_;
     std::vector<Tensor*> param_ptrs_;
+
+    int hidden_dim_ = 0; // widths, used to weight SOPs by each layer's fan-out
+    int out_dim_ = 0;
 
     // Firing-rate regularization (band [fr_min_, fr_max_], weight fr_lambda_).
     float fr_lambda_ = 0.0f;
@@ -644,17 +698,19 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
     return fn(model);
 }
 
-// Build a Trainer for `model`, attach the standard callbacks, and fit.
+// Build a Trainer for `model`, attach the standard callbacks, and fit. Returns
+// the per-epoch learning-curve history (train/val loss, epoch time, SNN spike
+// rate + SOPs) so the caller can persist it — the E04-style run diagnostics.
 // val_pairs may be empty (flat CV trains without validation); patience <= 0
 // disables early stopping (flat CV does not early-stop).
 template <typename ModelT>
-void train_model(ModelT& model,
+auto train_model(ModelT& model,
     const FoldContext& ctx,
     const std::vector<std::pair<nn::Tensor, nn::Tensor>>& train_pairs,
     const std::vector<std::pair<nn::Tensor, nn::Tensor>>& val_pairs,
     size_t fold_idx,
     int total_folds,
-    int patience)
+    int patience) -> std::vector<nn::training::EpochResult>
 {
     using Loss = CrossEntropyLossImpl<nn::Backend>;
     nn::training::Trainer<ModelT, Loss> trainer(model, ctx.trainer_cfg, Loss{});
@@ -673,7 +729,18 @@ void train_model(ModelT& model,
     if (patience > 0)
         trainer.add_callback(std::make_shared<nn::training::EarlyStoppingCallback>(patience));
 
-    trainer.fit_supervised(train_pairs, val_pairs);
+    return trainer.fit_supervised(train_pairs, val_pairs);
+}
+
+// Trainable-parameter count of a model = sum of element counts over params().
+// Mirrors the param_count the E04 pipeline records per run.
+template <typename ModelT>
+auto count_trainable_params(ModelT& model) -> std::size_t
+{
+    std::size_t n = 0;
+    for (const nn::Tensor* p : model.params())
+        if (p != nullptr) n += static_cast<std::size_t>(p->size());
+    return n;
 }
 
 // Copy the seven evaluation metrics into a fold record.
@@ -688,8 +755,9 @@ void set_fold_metrics(FoldResult& fr, const EvalMetrics& em)
     fr.auc = em.auc;
 }
 
-// Persist a trained model to results/models/<run_tag>/<feature>/fold_<i>.bin and
-// record its path in fr (fr.fold must already be set).
+// Persist a trained model to <results_dir>/models/<run_tag>/<feature>/fold_<i>.bin
+// (results_dir defaults to results/thesis) and record its path in fr (fr.fold must
+// already be set).
 void save_fold_model(
     const std::map<std::string, nn::Tensor>& state, const FoldContext& ctx, FoldResult& fr)
 {
@@ -845,10 +913,12 @@ void run_nested_cv(const FoldContext& ctx,
         // are collected per fold index, then reduced serially in fold order —
         // this keeps the selected model bit-identical to the old serial loop
         // (same first-wins tie-break) regardless of thread scheduling.
+        const auto train_t0 = std::chrono::steady_clock::now();
         struct InnerCandidate
         {
             double score = -std::numeric_limits<double>::infinity();
             std::map<std::string, nn::Tensor> state;
+            std::vector<nn::training::EpochResult> history;
             bool valid = false;
         };
         std::vector<InnerCandidate> candidates(outer.inner_splits.size());
@@ -875,7 +945,7 @@ void run_nested_cv(const FoldContext& ctx,
                 with_classifier(ctx,
                     [&](auto& model)
                     {
-                        train_model(model,
+                        auto hist = train_model(model,
                             ctx,
                             train_pairs,
                             val_pairs,
@@ -887,6 +957,7 @@ void run_nested_cv(const FoldContext& ctx,
                         auto& cand = candidates[static_cast<size_t>(ii)];
                         cand.score = selection_score(m);
                         cand.state = model.state_dict();
+                        cand.history = std::move(hist);
                         cand.valid = true;
                     });
             }
@@ -899,31 +970,42 @@ void run_nested_cv(const FoldContext& ctx,
         if (inner_error) std::rethrow_exception(inner_error);
 
         double best_val_score = -std::numeric_limits<double>::infinity();
-        std::map<std::string, nn::Tensor> best_state;
+        const InnerCandidate* best_cand = nullptr;
         for (const auto& cand : candidates)
         {
             if (!cand.valid) continue;
-            if (best_state.empty() || cand.score > best_val_score)
+            if (best_cand == nullptr || cand.score > best_val_score)
             {
                 best_val_score = cand.score;
-                best_state = cand.state;
+                best_cand = &cand;
             }
         }
 
-        if (best_state.empty()) continue;
+        if (best_cand == nullptr) continue;
 
-        // ── Outer eval: reload the selected model and score the test fold once ──
         FoldResult fr;
         fr.fold = static_cast<int>(outer_idx);
+        // train_ms covers the whole inner-CV region that produced the selected model
+        // (parallel wall-clock); the winner's learning curve is its inner-training history.
+        fr.train_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - train_t0)
+                .count();
+        fr.history = best_cand->history;
+
+        // ── Outer eval: reload the selected model and score the test fold once ──
+        const auto infer_t0 = std::chrono::steady_clock::now();
         const EvalMetrics em = with_classifier(ctx,
             [&](auto& model)
             {
-                model.load_state_dict(best_state);
+                model.load_state_dict(best_cand->state);
                 const EvalMetrics m =
                     evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
                 save_fold_model(model.state_dict(), ctx, fr);
                 return m;
             });
+        fr.infer_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - infer_t0)
+                .count();
         set_fold_metrics(fr, em);
         result.outer_folds.push_back(fr);
         advance_global_bar(ctx);
@@ -964,9 +1046,18 @@ void run_flat_cv(const FoldContext& ctx,
         const EvalMetrics em = with_classifier(ctx,
             [&](auto& model)
             {
-                train_model(model, ctx, train_pairs, {}, outer_idx, total_outer, /*patience=*/0);
+                const auto train_t0 = std::chrono::steady_clock::now();
+                fr.history = train_model(
+                    model, ctx, train_pairs, {}, outer_idx, total_outer, /*patience=*/0);
+                fr.train_ms = std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - train_t0)
+                                  .count();
+                const auto infer_t0 = std::chrono::steady_clock::now();
                 const EvalMetrics m =
                     evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
+                fr.infer_ms = std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - infer_t0)
+                                  .count();
                 save_fold_model(model.state_dict(), ctx, fr);
                 return m;
             });
@@ -1085,6 +1176,10 @@ auto run_classifier(const E05DatasetView& view,
         global_bar_id,
         global_completed};
 
+    // Count trainable parameters once on a fresh model (identical across folds) —
+    // the E04-style model-complexity stat.
+    with_classifier(ctx, [&](auto& model) { result.param_count = count_trainable_params(model); });
+
     if (cfg.training.nested_cv)
         run_nested_cv(ctx, result, text_test_indices, k);
     else
@@ -1142,6 +1237,32 @@ void compute_aggregate_stats(ClassificationResult& result)
     result.ci95_eer = a_eer.ci95;
     result.mean_auc = a_auc.mean;
     result.std_auc = a_auc.std;
+
+    // Run-cost stats: mean per-fold train/infer wall-clock, and (SNN) the last-epoch
+    // firing rate + synaptic-op count of each fold's final model. SOPs are ~constant
+    // across folds (same architecture), so the last fold's value is representative.
+    double sum_train = 0.0, sum_infer = 0.0, sum_rate = 0.0;
+    int n_rate = 0;
+    for (const auto& f : result.outer_folds)
+    {
+        sum_train += f.train_ms;
+        sum_infer += f.infer_ms;
+        if (!f.history.empty())
+        {
+            const auto& last = f.history.back();
+            if (!std::isnan(last.mean_spike_rate))
+            {
+                sum_rate += static_cast<double>(last.mean_spike_rate);
+                ++n_rate;
+            }
+            result.final_sops = last.sops;
+        }
+    }
+    const auto n_folds = static_cast<double>(result.outer_folds.size());
+    result.mean_train_ms = sum_train / n_folds;
+    result.mean_infer_ms = sum_infer / n_folds;
+    result.mean_spike_rate =
+        n_rate > 0 ? sum_rate / n_rate : std::numeric_limits<double>::quiet_NaN();
 }
 
 } // namespace e05

@@ -6,7 +6,7 @@
     "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score per window. Encoding then 3-tap smoothing (mode='conv1d').",
     "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats.",
     "_dataset_config": "100 train, 30 val from FSDD (shuffled split). 30 epochs max, early stop patience 5, lr 0.001 (weights), 0.0001 (R,C,V_th), batch size 1.",
-    "_expected_outputs": "results/article_snn_conv1d_*.csv; .../data/article_snn_conv1d_summary.dat, _sweep.dat.",
+    "_expected_outputs": "results/guayaquil/article_snn_conv1d_*.csv; .../data/article_snn_conv1d_summary.dat, _sweep.dat.",
     "_comment": "SNN-AE with 3-tap temporal smoothing pre-filter. 81 runs. ~45 min.",
     "experiment": {
         "run_tag": "article_snn_conv1d",
@@ -17,7 +17,7 @@
     },
     "dataset": {
         "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
-        "results_dir": "results",
+        "results_dir": "results/guayaquil",
         "window_size": 256,
         "max_loaded_train_samples": 100,
         "max_validation_samples": 30,

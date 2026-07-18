@@ -17,7 +17,7 @@ the eeg winner (the audio-dominant voice winner is the default).
 
 Usage:
     python3 scripts/pipeline/e05/02_e05_apply_winner.py \
-        --winners       results/phase00/winners.json \
+        --winners       results/thesis/phase00/winners.json \
         --profiles-dir  src/experiments/05/profiles/phase01 \
         --fused         voice
 

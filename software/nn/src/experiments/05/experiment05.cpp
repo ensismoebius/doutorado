@@ -38,6 +38,28 @@ std::string parse_config_path(int argc, char* argv[])
     return {};
 }
 
+// Provenance/determinism fingerprint of the run — the reproducibility-defining
+// fields hashed to one value (the E04 config_hash analog). Two runs with the same
+// hash trained the same model on the same data pipeline with the same seed.
+std::size_t config_fingerprint(const e05::E05Config& cfg)
+{
+    std::ostringstream s;
+    s << cfg.experiment.run_tag << '|' << cfg.experiment.seed << '|' << cfg.experiment.repeats
+      << '|' << cfg.dataset.modality << '|' << cfg.dataset.fusion_mode << '|'
+      << cfg.feature_extraction.strategy << '|' << cfg.classifier.enabled << '|'
+      << cfg.classifier.type << '|' << cfg.classifier.text_mode << "|layers:";
+    for (const auto& l : cfg.classifier.layer_spec) s << l << ',';
+    s << '|' << cfg.training.optimizer_type << '|' << cfg.training.effective_learning_rate() << '|'
+      << cfg.training.epochs << '|' << cfg.training.samples_per_batch << '|'
+      << cfg.training.weight_decay << '|' << cfg.training.k_folds << '|' << cfg.training.nested_cv;
+    const auto& hc = cfg.feature_extraction.handcrafted;
+    s << "|hc:" << hc.wavelet << ',' << hc.scale << ',' << hc.cepstral << ',' << hc.dtwpt_level;
+    const auto& ae = cfg.feature_extraction.autoencoder;
+    s << "|ae:" << ae.model << ',' << ae.encoding << ',' << ae.time_steps << ','
+      << ae.voltage_threshold;
+    return std::hash<std::string>{}(s.str());
+}
+
 // Run one full pipeline iteration with the given config (seed + run_tag already set).
 // `view` is loaded once by the caller — dataset loading is seed-independent, so
 // repeats share it. `cached_features` is non-null when feature extraction is also
@@ -124,11 +146,13 @@ void run_once(const e05::E05Config& cfg,
         scores,
         view.n_subjects,
         view.n_stimuli,
-        view.samples.size());
+        view.samples.size(),
+        config_fingerprint(cfg));
     if (cfg.classifier.enabled)
     {
         e05::write_metrics_csv(results_dir, tag, results);
         e05::write_comparison_dat(results_dir, tag, results);
+        e05::write_learning_curves_dat(results_dir, tag, results); // E04 epoch-history analog
     }
 
     for (const auto& r : results)

@@ -1,7 +1,7 @@
 {
     "_comment": "Minimal profile for debugging",
     "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
-    "results_dir": "results",
+    "results_dir": "results/guayaquil",
     "run_tag": "debug",
     "seed": 42,
     "repeats": 1,

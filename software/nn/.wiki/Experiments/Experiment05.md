@@ -124,7 +124,7 @@ Each profile is identical except `feature_extraction.autoencoder.{encoding, time
 >    lr of 1e-4 while the profiles declared 1e-3. The numbers describe a run nobody configured.
 > 2. **Its ranks are arithmetically impossible now.** It said "rank (of 150, eeg)"; after D6
 >    retired the degenerate EEG bark/mel axis, EEG has **58** combinations (46 handcrafted + 12 AE).
-> 3. **The source data is gone.** All Phase 00 results were deleted (see `results/phase00/README.md`);
+> 3. **The source data is gone.** All Phase 00 results were deleted (see `results/thesis/phase00/README.md`);
 >    the re-run is postponed, so the table cannot be regenerated.
 >
 > Correcting the figures was not an option — there are no figures to correct. Restating them with a
@@ -472,14 +472,14 @@ The experiment is split into two profile sets, gated by `classifier.enabled`:
 ```bash
 # Rank Phase 00 results, pick the min-D_truth winner per signal:
 python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
-  --results-dir results/phase00 --out results/phase00/winners.json
+  --results-dir results/thesis/phase00 --out results/thesis/phase00/winners.json
 
 # Inject the winners into the 16 Phase 01 profiles (fused uses the voice winner by default):
 python3 scripts/pipeline/e05/02_e05_apply_winner.py \
-  --winners results/phase00/winners.json --fused voice
+  --winners results/thesis/phase00/winners.json --fused voice
 ```
 
-`01_e05_phase00_rank.py` collates every `results/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
+`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
 
 ---
 
@@ -491,7 +491,7 @@ python3 scripts/pipeline/e05/02_e05_apply_winner.py \
 | `results/e05_*_paraconsistent.csv` | α, β, G₁, G₂, D_truth per (strategy × modality × scale) |
 | `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for all metrics + per-fold model paths |
 | `results/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
-| `results/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
+| `results/guayaquil/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
 
 ### Data fed to each profile family, and its metadata
 
@@ -527,7 +527,7 @@ After each outer fold, `run_classifier()` serializes the trained classifier stat
 #include "layers/residual/SimpleResNet.hpp"
 
 SimpleResNetImpl<nn::Backend> model(feat_dim, 128, n_speakers, 2);
-auto sd = nn::io::load_state_dict("results/models/run/feat/fold_0.bin");
+auto sd = nn::io::load_state_dict("results/guayaquil/models/run/feat/fold_0.bin");
 model.load_state_dict(sd);
 ```
 

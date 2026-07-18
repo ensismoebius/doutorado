@@ -412,7 +412,7 @@ Base pública 10.1117/12.2255697
 | `results/e05_<tag>_paraconsistent.csv` | Por conjunto: `label, alpha, beta, g1, g2, d_truth` |
 | `results/e05_<tag>_summary.json` | Configuração + média/dp/IC95 de todas as métricas + caminhos dos modelos por dobra |
 | `results/e05_<tag>_comparison.dat` | DAT pgfplots: `x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall eer std_eer ci95_eer auc std_auc` |
-| `results/models/<tag>/<feature_label>/fold_<N>.bin` | State dict binário do modelo por dobra externa |
+| `results/guayaquil/models/<tag>/<feature_label>/fold_<N>.bin` | State dict binário do modelo por dobra externa |
 
 ---
 
@@ -482,17 +482,17 @@ Base pública 10.1117/12.2255697
 **Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
 
 ```bash
-# 1. Rode todos os perfis phase00/ (grava results/phase00/*_paraconsistent.csv)
+# 1. Rode todos os perfis phase00/ (grava results/thesis/phase00/*_paraconsistent.csv)
 
 # 2. Ranqueie e escolha o vencedor por sinal (menor D_truth):
 python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
     --profiles-dir src/experiments/05/profiles/phase00 \
-    --results-dir  results/phase00 \
-    --out          results/phase00/winners.json
+    --results-dir  results/thesis/phase00 \
+    --out          results/thesis/phase00/winners.json
 
 # 3. Injete o vencedor nos 16 perfis phase01/ (fused usa o vencedor da voz por padrão):
 python3 scripts/pipeline/e05/02_e05_apply_winner.py \
-    --winners      results/phase00/winners.json \
+    --winners      results/thesis/phase00/winners.json \
     --profiles-dir src/experiments/05/profiles/phase01 \
     --fused        voice      # ou: eeg
 
@@ -530,7 +530,7 @@ ctest --test-dir out/build/max-performance -R e05 --output-on-failure
 #include "layers/residual/SimpleResNet.hpp"
 
 SimpleResNetImpl<nn::Backend> model(feat_dim, /*hidden=*/128, n_locutores, /*depth=*/2);
-auto sd = nn::io::load_state_dict("results/models/<run_tag>/<feature_label>/fold_0.bin");
+auto sd = nn::io::load_state_dict("results/guayaquil/models/<run_tag>/<feature_label>/fold_0.bin");
 model.load_state_dict(sd);
 ```
 

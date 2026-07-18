@@ -39,7 +39,7 @@ Research workspace for the PhD project. This repository mixes manuscript sources
 - `notebooks/` — exploratory analysis notebooks.
 - `notebooks/outputs/` — notebook-generated outputs.
 - `results/checkpoints/` — saved checkpoints.
-- `results/models/` — exported or trained models.
+- `results/guayaquil/models/` — exported or trained models.
 
 ### Hardware
 

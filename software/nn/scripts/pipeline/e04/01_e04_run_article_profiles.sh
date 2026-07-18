@@ -172,11 +172,11 @@ unset E04_OVERALL
 printf '[article-run] all %d profiles done in %s\n' "$_total" "$(fmt_hms $(( $(date +%s) - _start )))"
 
 echo "[article-run] converting NPZ artifacts to PT"
-python3 scripts/data/npz_to_pytorch.py --models-dir results/models || true
+python3 scripts/data/npz_to_pytorch.py --models-dir results/guayaquil/models || true
 
 echo "[article-run] building paper aggregate CSV files"
 python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
-  --results-dir results \
+  --results-dir results/guayaquil \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles
 

@@ -7,7 +7,7 @@
   },
   "dataset": {
     "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
-    "results_dir": "results/smoke",
+    "results_dir": "results/thesis/smoke",
     "modality": "fused",
     "fusion_mode": "late",
     "max_samples": 120

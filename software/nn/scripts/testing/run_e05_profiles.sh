@@ -4,10 +4,10 @@
 # experiment, not the smoke mirror). Shows live progress and captures failures.
 #
 # Pipeline order:
-#   1) run_e05_profiles.sh phase00              → paraconsistent ranking CSVs in results/phase00
+#   1) run_e05_profiles.sh phase00              → paraconsistent ranking CSVs in results/thesis/phase00
 #   2) pipeline/e05/01_e05_phase00_rank.py      → winners.json
 #   3) pipeline/e05/02_e05_apply_winner.py      → injects the winner into the phase01 profiles
-#   4) run_e05_profiles.sh phase01              → DSNN authentication, EER/AUC in results/phase01
+#   4) run_e05_profiles.sh phase01              → DSNN authentication, EER/AUC in results/thesis/phase01
 #
 # Requires: experiment05 built, and the dataset (dataset.root) present.
 # HEAVY: phase00 = 208 profiles, phase01 = 32, each with experiment.repeats runs.
@@ -16,7 +16,7 @@
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
 #
 # Crash/power-loss safe: each completed profile is checkpointed to
-# results/run_profiles_<scope>.state. On restart an existing state prompts
+# results/thesis/run_profiles_<scope>.state. On restart an existing state prompts
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
@@ -164,8 +164,8 @@ fi
 # this is just the skip-list). A profile interrupted mid-run is NOT recorded and
 # re-runs. On start, an existing state prompts resume vs. start-over.
 #   RESUME=1  → force resume (skip prompt)   FRESH=1 → force start-over
-mkdir -p results
-STATE="results/run_profiles_${SCOPE}.state"
+mkdir -p results/thesis
+STATE="results/thesis/run_profiles_${SCOPE}.state"
 declare -A DONE
 if [ -s "$STATE" ]; then
     done_n=$(wc -l < "$STATE")
@@ -191,8 +191,8 @@ tty_out=0; [ -t 1 ] && tty_out=1
 mkdir -p "$TMP/active"
 
 # Stable, human-reachable per-profile logs (overwritten each run) so you can
-# `tail -f results/run_logs/<profile>.log` to watch any single worker in full.
-LOGDIR="results/run_logs"
+# `tail -f results/thesis/run_logs/<profile>.log` to watch any single worker in full.
+LOGDIR="results/thesis/run_logs"
 mkdir -p "$LOGDIR"
 
 # Live dashboard: with JOBS>1 the workers' own progress bars are hidden in their

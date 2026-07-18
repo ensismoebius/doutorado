@@ -167,7 +167,7 @@ parameters so those surface quickly.
 selector (strategy, wavelet, scale, cepstral, modality, fusion_mode,
 classifier.type, nested_cv, standardize_features) but shrinking run parameters:
 `repeats=1`, `epochs=2`, `k_folds=2`, `samples_per_batch=4`, `max_samples=60`
-(phase00) / `120` (phase01), `results_dir=results/smoke`.
+(phase00) / `120` (phase01), `results_dir=results/thesis/smoke`.
 
 ### Automated mirroring (CMake)
 

@@ -156,7 +156,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                             ? source_results_dir()
                                             : std::filesystem::path(config.dataset.results_dir);
 
-        if (!std::filesystem::exists(out_dir))
+        // Only the *implicit* (empty results_dir) path may fall back: source_results_dir()
+        // points into the source tree and may not exist in this checkout. An explicit
+        // results_dir (e.g. "results/guayaquil") is always honored and created below —
+        // otherwise a fresh checkout without that subdir would silently divert output to
+        // plain "results/".
+        if (config.dataset.results_dir.empty() && !std::filesystem::exists(out_dir))
         {
             out_dir = std::filesystem::path("results");
         }

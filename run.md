@@ -16,7 +16,7 @@ landed on 2026-07-16. They are not being re-run because they were noisy — they
 | **Adam weight decay** | Applied *after* the gradient step instead of against θ_{t-1} (AdamW's definition; torch agrees). |
 | **LSTM activations** | Now exact sigmoid/tanh by default (matching `torch.nn.LSTM`) instead of softsign approximations; the fast path's backward was also the derivative of a function the forward never computed. |
 
-See `fixme.md` for the full write-ups, and `software/nn/results/phase00/README.md`.
+See `fixme.md` for the full write-ups, and `software/nn/results/thesis/phase00/README.md`.
 
 ---
 
@@ -43,7 +43,7 @@ The dataset must exist at the `dataset.root` in the profiles
 Every profile has a `smoke/` mirror with the same code-path selectors but tiny parameters
 (60-sample cap, 2 epochs, 2 folds). It exercises the whole chain in minutes instead of hours,
 so a plumbing bug surfaces before you commit a night to it. Smoke profiles write to
-`results/smoke` — **never** to `results/phase00`.
+`results/thesis/smoke` — **never** to `results/thesis/phase00`.
 
 ```bash
 cd software/nn
@@ -59,7 +59,7 @@ destructive arguments** (see the warnings in §2a):
 ```bash
 python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
   --profiles-dir src/experiments/05/profiles/smoke/phase00 \
-  --results-dir  results/smoke \
+  --results-dir  results/thesis/smoke \
   --out          /tmp/smoke_winners.json
 
 cp -r src/experiments/05/profiles/phase01 /tmp/phase01_copy    # apply_winner rewrites IN PLACE
@@ -68,7 +68,7 @@ python3 scripts/pipeline/e05/02_e05_apply_winner.py \
 ```
 
 Smoke *numbers* are meaningless (2 epochs on 60 samples) — only the plumbing is being tested.
-Clean up with `rm -rf results/smoke` afterwards.
+Clean up with `rm -rf results/thesis/smoke` afterwards.
 
 > **The tables script cannot be smoke-tested.** Smoke run tags are prefixed `smoke_` and carry
 > no `_repN`, so they never match its `^e05_e05_(p00_.+)_rep(\d+)_summary\.json$` glob — it is
@@ -123,7 +123,7 @@ SKIP_BUILD=1 E04_BUILD=max-performance ./scripts/pipeline/e04/01_e04_run_article
 The first run of a preset also **configures** it (a few minutes on top of the runtime); later
 runs are incremental no-ops.
 
-> Your earlier article results (`results/article_*_comparative_metrics.csv`) predate this
+> Your earlier article results (`results/guayaquil/article_*_comparative_metrics.csv`) predate this
 > default and may have been produced on OpenCL — the summaries don't record the backend, so
 > it can't be told from disk. For a clean paper, run all four fresh on `max-performance`.
 
@@ -146,7 +146,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 ./scripts/testing/run_e05_profiles.sh phase00
 ```
 
-Resumable: every completed profile is checkpointed to `results/run_profiles_phase00.state`.
+Resumable: every completed profile is checkpointed to `results/thesis/run_profiles_phase00.state`.
 On restart it offers resume vs. start-over (non-interactive default = resume);
 `RESUME=1` forces resume, `FRESH=1` forces start-over.
 
@@ -173,24 +173,24 @@ fast/slow mix shifts. See `.wiki/Guides/Running-Experiment05-Profiles.md` for bi
 >   tables directory**. Run it with anything other than complete phase00 results and it
 >   overwrites the committed tables the thesis compiles from.
 >
-> Both are fine with the arguments below; just do not run them against `results/smoke`.
+> Both are fine with the arguments below; just do not run them against `results/thesis/smoke`.
 
 ```bash
 # winners.json — selects on d_penalized (NOT raw d_truth, which a collapsed latent games)
 # and now reports exact ties explicitly.
 python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
   --profiles-dir src/experiments/05/profiles/phase00 \
-  --results-dir  results/phase00 \
-  --out          results/phase00/winners.json
+  --results-dir  results/thesis/phase00 \
+  --out          results/thesis/phase00/winners.json
 
 # Inject the real winner into the 32 phase01 profiles, replacing the daub4/lfcc placeholder.
 python3 scripts/pipeline/e05/02_e05_apply_winner.py \
-  --winners      results/phase00/winners.json \
+  --winners      results/thesis/phase00/winners.json \
   --profiles-dir src/experiments/05/profiles/phase01
 
 # Regenerate the thesis tables (currently frozen from the pre-deletion data).
 python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
-  --results-dir results/phase00 \
+  --results-dir results/thesis/phase00 \
   --tables-dir  ../../documentation/00-thesis/monography/tables
 ```
 
@@ -203,8 +203,24 @@ Phase 00 winner. Phase 01 has never produced a single result: full code + profil
 no data.
 
 ```bash
-./scripts/testing/run_e05_profiles.sh phase01     # 32 DSNN profiles → EER/AUC in results/phase01
+./scripts/testing/run_e05_profiles.sh phase01     # 32 DSNN profiles → EER/AUC in results/thesis/phase01
 ```
+
+### 3a. Cross-profile significance (the E04 SNN-vs-LSTM analog)
+
+Once ≥2 phase01 profiles have run, compare them the way the Guayaquil paper compares its two
+models — except across profiles, since each E05 run scores one feature set. It reads every
+profile's per-fold `*_metrics.csv`, ranks by the chosen metric, and tests each condition
+against the best (Cohen's d + Wilcoxon/Mann-Whitney):
+
+```bash
+python3 scripts/pipeline/e05/e05_cross_profile_significance.py \
+  --results-dir results/thesis/phase01 --metric eer \
+  --out results/thesis/phase01/cross_profile_significance.csv
+```
+
+Paired tests assume the compared runs share CV seed/splits (they do, by default). Use
+`--metric accuracy|auc|f1`, `--reference <run_tag>`, or `--pairing paired|independent` to vary it.
 
 ---
 
@@ -232,6 +248,16 @@ with `optimizer_type`, the **resolved** `learning_rate`, and a `learning_rate_so
 (`profile` vs `optimizer_default`). The old summaries recorded no training parameters at
 all — the provenance gap that let D3 go unnoticed.
 
+**E05 now records the same run diagnostics as the Guayaquil paper.** Each `*_summary.json`
+also carries a `config_hash` (provenance fingerprint), per-run `param_count` and
+`mean_train_ms`/`mean_infer_ms`, and per-fold `train_ms`/`infer_ms` + `final_train_loss`.
+A new `*_learning_curves.dat` holds per-epoch train/val loss curves plus, for the **DSNN**,
+per-epoch `spike_rate` and `sops` (the E04 epoch-history + SNN-efficiency analog); `*_metrics.csv`
+gains `train_ms`/`infer_ms` columns, and the summary carries run-level `mean_spike_rate`/`final_sops`.
+(E04's in-run SNN-vs-LSTM significance test has no per-run analog here — an E05 run scores one
+feature set — so that comparison is a post-hoc step: `scripts/pipeline/e05/e05_cross_profile_significance.py`
+over these summary files.)
+
 ---
 
 ## After the re-runs
@@ -239,4 +265,4 @@ all — the provenance gap that let D3 go unnoticed.
 - `fixme.md` — D3 and D5 are blocked on this; item 51's optimizer ablation needs a **per-optimizer**
   lr grid (a single lr is not comparable: reference defaults span adam 1e-3 → lion 1e-4).
 - The Phase 00 §09 thesis tables' autoencoder rows are provisional until step 2a is re-run.
-- `results/phase00/README.md` explains the empty directory; it can go once results exist.
+- `results/thesis/phase00/README.md` explains the empty directory; it can go once results exist.

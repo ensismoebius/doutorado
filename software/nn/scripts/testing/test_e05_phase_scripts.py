@@ -23,7 +23,7 @@ APPLY = os.path.join(PIPELINE_E05_DIR, "02_e05_apply_winner.py")
 def hc_profile(tag, signal, wavelet, scale):
     return {
         "experiment": {"run_tag": tag, "seed": 42, "repeats": 3},
-        "dataset": {"root": "/x", "results_dir": "results/phase00", "modality": signal},
+        "dataset": {"root": "/x", "results_dir": "results/thesis/phase00", "modality": signal},
         "feature_extraction": {"strategy": "handcrafted",
             "handcrafted": {"transform": "dtwpt", "scale": scale, "wavelet": wavelet,
                             "descriptors": ["energy"], "dtwpt_level": 4}},
@@ -35,7 +35,7 @@ def hc_profile(tag, signal, wavelet, scale):
 
 
 def p01_profile(tag, modality, fusion_mode=None):
-    ds = {"root": "/x", "results_dir": "results/phase01", "modality": modality}
+    ds = {"root": "/x", "results_dir": "results/thesis/phase01", "modality": modality}
     if fusion_mode:
         ds["fusion_mode"] = fusion_mode
     return {

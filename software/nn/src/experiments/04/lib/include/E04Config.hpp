@@ -14,45 +14,45 @@ struct E04Config
 {
     struct Experiment
     {
-        std::string run_tag;            // REQUIRED
-        std::uint32_t seed = 0u;        // REQUIRED (validated non-zero)
-        int repeats = 0;                // REQUIRED (validated > 0)
+        std::string run_tag;             // REQUIRED
+        std::uint32_t seed = 0u;         // REQUIRED (validated non-zero)
+        int repeats = 0;                 // REQUIRED (validated > 0)
         bool seed_deterministic = false; // optional: false = seeds 42,43,44,...
         bool check_determinism = false;  // optional
     };
 
     struct Dataset
     {
-        std::string dataset_root;            // REQUIRED
-        std::string results_dir = "results"; // optional
-        int window_size = 0;                 // REQUIRED (validated > 0)
-        int max_loaded_train_samples = 0;    // REQUIRED (validated > 0)
-        int max_validation_samples = 0;      // REQUIRED (validated > 0)
-        std::string latex_data_dir = "";     // optional
-        bool save_models = false;            // optional
+        std::string dataset_root;                      // REQUIRED
+        std::string results_dir = "results/guayaquil"; // optional (E04 = Guayaquil paper)
+        int window_size = 0;                           // REQUIRED (validated > 0)
+        int max_loaded_train_samples = 0;              // REQUIRED (validated > 0)
+        int max_validation_samples = 0;                // REQUIRED (validated > 0)
+        std::string latex_data_dir = "";               // optional
+        bool save_models = false;                      // optional
     };
 
     struct Training
     {
-        int samples_per_batch = 0;                // REQUIRED (validated > 0)
-        int batches_per_epoch = 0;                // optional (0 = use all samples)
-        int epochs = 0;                           // REQUIRED (validated > 0)
-        int early_stop_patience = -1;             // REQUIRED (validated >= 0)
-        float learning_rate = 0.0f;               // REQUIRED (validated > 0)
-        float learning_rate_biophysical = 0.0f;   // optional (0 = use 0.1 × lr)
-        float beta1 = 0.9f;                       // optional (Adam default)
-        float beta2 = 0.999f;                     // optional (Adam default)
-        float epsilon = 1e-8f;                    // optional (Adam default)
+        int samples_per_batch = 0;                    // REQUIRED (validated > 0)
+        int batches_per_epoch = 0;                    // optional (0 = use all samples)
+        int epochs = 0;                               // REQUIRED (validated > 0)
+        int early_stop_patience = -1;                 // REQUIRED (validated >= 0)
+        float learning_rate = 0.0f;                   // REQUIRED (validated > 0)
+        float learning_rate_biophysical = 0.0f;       // optional (0 = use 0.1 × lr)
+        float beta1 = 0.9f;                           // optional (Adam default)
+        float beta2 = 0.999f;                         // optional (Adam default)
+        float epsilon = 1e-8f;                        // optional (Adam default)
         float max_reconstruct_mean_deviation = 0.25f; // optional
     };
 
     struct Model
     {
-        int latent_dim = 0;        // optional (0 = derive from encoder_layer_spec)
-        int lstm_hidden_size = 0;  // optional (0 = derive from encoder_layer_spec)
+        int latent_dim = 0;       // optional (0 = derive from encoder_layer_spec)
+        int lstm_hidden_size = 0; // optional (0 = derive from encoder_layer_spec)
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
-        std::string loss_type = "mse"; // optional (from model.loss_function)
+        std::string loss_type = "mse";               // optional (from model.loss_function)
         std::vector<std::string> encoder_layer_spec; // REQUIRED
         std::vector<std::string> decoder_layer_spec; // REQUIRED
         std::vector<std::string> branch_encoder_layer_spec;
@@ -176,42 +176,42 @@ struct E04Config
         };
 
         // --- experiment (all required except optional flags) ---
-        require(exp, "experiment", "run_tag",  cfg.experiment.run_tag);
-        require(exp, "experiment", "seed",     cfg.experiment.seed);
-        require(exp, "experiment", "repeats",  cfg.experiment.repeats);
+        require(exp, "experiment", "run_tag", cfg.experiment.run_tag);
+        require(exp, "experiment", "seed", cfg.experiment.seed);
+        require(exp, "experiment", "repeats", cfg.experiment.repeats);
         get(exp, "seed_deterministic", cfg.experiment.seed_deterministic);
-        get(exp, "check_determinism",  cfg.experiment.check_determinism);
+        get(exp, "check_determinism", cfg.experiment.check_determinism);
 
         // --- dataset ---
-        require(dat, "dataset", "dataset_root",             cfg.dataset.dataset_root);
-        require(dat, "dataset", "window_size",              cfg.dataset.window_size);
+        require(dat, "dataset", "dataset_root", cfg.dataset.dataset_root);
+        require(dat, "dataset", "window_size", cfg.dataset.window_size);
         require(dat, "dataset", "max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
-        require(dat, "dataset", "max_validation_samples",   cfg.dataset.max_validation_samples);
-        get(dat, "results_dir",   cfg.dataset.results_dir);
+        require(dat, "dataset", "max_validation_samples", cfg.dataset.max_validation_samples);
+        get(dat, "results_dir", cfg.dataset.results_dir);
         get(dat, "latex_data_dir", cfg.dataset.latex_data_dir);
-        get(dat, "save_models",   cfg.dataset.save_models);
+        get(dat, "save_models", cfg.dataset.save_models);
 
         // --- training ---
-        require(trn, "training", "samples_per_batch",  cfg.training.samples_per_batch);
-        require(trn, "training", "epochs",             cfg.training.epochs);
+        require(trn, "training", "samples_per_batch", cfg.training.samples_per_batch);
+        require(trn, "training", "epochs", cfg.training.epochs);
         require(trn, "training", "early_stop_patience", cfg.training.early_stop_patience);
-        require(trn, "training", "learning_rate",      cfg.training.learning_rate);
-        get(trn, "batches_per_epoch",            cfg.training.batches_per_epoch);
-        get(trn, "learning_rate_biophysical",    cfg.training.learning_rate_biophysical);
-        get(trn, "beta1",     cfg.training.beta1);
+        require(trn, "training", "learning_rate", cfg.training.learning_rate);
+        get(trn, "batches_per_epoch", cfg.training.batches_per_epoch);
+        get(trn, "learning_rate_biophysical", cfg.training.learning_rate_biophysical);
+        get(trn, "beta1", cfg.training.beta1);
         get(trn, "adam_beta1", cfg.training.beta1);
-        get(trn, "beta2",     cfg.training.beta2);
+        get(trn, "beta2", cfg.training.beta2);
         get(trn, "adam_beta2", cfg.training.beta2);
-        get(trn, "epsilon",   cfg.training.epsilon);
+        get(trn, "epsilon", cfg.training.epsilon);
         get(trn, "adam_epsilon", cfg.training.epsilon);
         get(trn, "max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
 
         // --- model ---
         require(mdl, "model", "encoder_layer_spec", cfg.model.encoder_layer_spec);
         require(mdl, "model", "decoder_layer_spec", cfg.model.decoder_layer_spec);
-        get(mdl, "latent_dim",      cfg.model.latent_dim);
+        get(mdl, "latent_dim", cfg.model.latent_dim);
         get(mdl, "lstm_hidden_size", cfg.model.lstm_hidden_size);
-        get(mdl, "loss_function",   cfg.model.loss_type);
+        get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);
         get(mdl, "branch_encoder_layer_spec", cfg.model.branch_encoder_layer_spec);
@@ -220,10 +220,10 @@ struct E04Config
         get(mdl, "fusion_decoder_layer_spec", cfg.model.fusion_decoder_layer_spec);
 
         // --- evaluation ---
-        require(evl, "evaluation", "datasets",          cfg.evaluation.datasets);
-        require(evl, "evaluation", "encodings",         cfg.evaluation.encodings);
+        require(evl, "evaluation", "datasets", cfg.evaluation.datasets);
+        require(evl, "evaluation", "encodings", cfg.evaluation.encodings);
         require(evl, "evaluation", "snn_architectures", cfg.evaluation.snn_architectures);
-        get(evl, "v_th_values",  cfg.evaluation.v_th_values);
+        get(evl, "v_th_values", cfg.evaluation.v_th_values);
         get(evl, "alpha_values", cfg.evaluation.alpha_values);
 
         return cfg;

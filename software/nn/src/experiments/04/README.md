@@ -7,7 +7,7 @@ the same EEG/audio dataset, producing CSV metrics and pgfplots DAT files for the
 
 1. Loads a JSON profile specifying model paradigm (`lstm` or `snn`), architecture, and training config
 2. Runs k-fold cross-validation with the specified model
-3. Writes per-fold metrics to `results/article_*_comparative_metrics.csv`
+3. Writes per-fold metrics to `results/guayaquil/article_*_comparative_metrics.csv`
 4. Optionally writes DAT files for LaTeX pgfplots
 
 ## Build

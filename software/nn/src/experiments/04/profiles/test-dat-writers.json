@@ -8,7 +8,7 @@
     },
     "dataset": {
         "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
-        "results_dir": "results",
+        "results_dir": "results/guayaquil",
         "window_size": 64,
         "max_loaded_train_samples": 20,
         "max_validation_samples": 10,
