@@ -37,6 +37,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
+# Prefer the project venv (bootstrapped by cmake/VendorPythonEnv.cmake — has numpy/torch/
+# etc.) over bare `python3`, whose identity depends on whatever's on the caller's PATH.
+PY="python3"
+if [[ -x "$ROOT_DIR/.venv/bin/python3" ]]; then
+  PY="$ROOT_DIR/.venv/bin/python3"
+fi
+
 # The backend all four profiles should share (and that the thesis also uses). Not a claim
 # about what any historical run used — result summaries do not record the backend — but the
 # single reference chosen going forward. Overriding it warns, so a mismatch is never silent.
@@ -47,7 +54,7 @@ REFERENCE_BUILD="max-performance"
 if [[ -z "${E04_BUILD:-}" ]]; then
   if [[ -t 0 ]]; then
     mapfile -t _presets < <(
-      python3 - <<'PY'
+      "$PY" - <<'PY'
 import json
 with open("CMakePresets.json") as f:
     print("\n".join(p["name"] for p in json.load(f).get("configurePresets", [])
@@ -172,10 +179,10 @@ unset E04_OVERALL
 printf '[article-run] all %d profiles done in %s\n' "$_total" "$(fmt_hms $(( $(date +%s) - _start )))"
 
 echo "[article-run] converting NPZ artifacts to PT"
-python3 scripts/data/npz_to_pytorch.py --models-dir results/guayaquil/models || true
+"$PY" scripts/data/npz_to_pytorch.py --models-dir results/guayaquil/models || true
 
 echo "[article-run] building paper aggregate CSV files"
-python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
+"$PY" scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results/guayaquil \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

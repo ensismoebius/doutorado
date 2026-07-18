@@ -19,6 +19,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
+PY="python3"
+if [[ -x "$ROOT_DIR/.venv/bin/python3" ]]; then
+  PY="$ROOT_DIR/.venv/bin/python3"
+fi
+
 PROFILE="src/experiments/04/profiles/article-backend-bench.json"
 XT_BIN="out/build/max-performance/src/experiments/04/experiment04"
 OC_BIN="out/build/max-performance-opencl/src/experiments/04/experiment04"
@@ -41,7 +46,7 @@ echo "[backend-run] running opencl benchmark"
 cp "$BASE_OUT" "results/guayaquil/article_backend_bench_opencl_comparative_metrics.csv"
 
 echo "[backend-run] updating backend table"
-python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
+"$PY" scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

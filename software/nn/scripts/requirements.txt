@@ -1,3 +1,14 @@
 numpy>=1.25
 scipy>=1.11
 tqdm
+
+# CPU-only PyTorch wheels — this project trains on CPU/OpenCL, not CUDA (see
+# software/nn/CLAUDE.md OpenCL rules), and the CUDA build pulls several GB of
+# unused nvidia-* packages. Needed by scripts/data/npz_to_pytorch.py and the
+# scripts/testing/gen_*_refs.py reference generators.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+snntorch
+lion-pytorch
+schedulefree
+muon-optimizer

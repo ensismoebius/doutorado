@@ -46,6 +46,9 @@ include(cmake/VendorMatioCppShim.cmake)
 # Matplotlib-cpp integration
 include(cmake/VendorMatplotlibCpp.cmake)
 
+# Project-level Python venv (numpy/scipy/torch/... for pipeline + testing scripts)
+include(cmake/VendorPythonEnv.cmake)
+
 # YAML-cpp integration
 include(cmake/VendorYaml.cmake)
 
