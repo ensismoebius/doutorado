@@ -584,6 +584,17 @@ std::vector<std::vector<double>> run_protocol_ae(
     ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
     ae_cfg.firing_rate_min = spec.firing_rate_min;
     ae_cfg.firing_rate_max = spec.firing_rate_max;
+    // Seed weight initialisation from the experiment seed. Without this the initializers
+    // fall back to std::random_device (see include/initializers/{xavier,kaiming_snn}.hpp),
+    // so the SAME profile with the SAME seed produced DIFFERENT features on every run:
+    // only the spike frames were seeded, never the weights. Two consequences this fixes:
+    //   1. Autoencoder feature extraction is now reproducible, like the handcrafted path.
+    //   2. It removes a real source of flakiness -- E05SnnAe.PoissonLatentIsNonDegenerate
+    //      failed ~24% of runs (6/25 measured) because an unlucky draw left every encoder
+    //      neuron below V_th, yielding an all-zero latent.
+    // E04 already did this (E04Experiment.cpp: snn_config.initializer_seed = run_seed);
+    // E05 was the odd one out.
+    ae_cfg.initializer_seed = seed;
 
     AEType model(ae_cfg);
 

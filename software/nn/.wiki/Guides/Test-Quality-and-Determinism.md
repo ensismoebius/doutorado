@@ -158,20 +158,38 @@ UI/printer code. Reaching a genuine 100% would require either a GPU-enabled cove
 an explicit, documented exclusion list for device-only and presentation code — a policy
 decision, not just more tests.
 
-### One test blocks the full gate run
+### A flaky test blocked the full gate run — root cause: unseeded weight init (fixed)
 
-`E05SnnAe.PoissonLatentIsNonDegenerate` **fails in the Debug/coverage build** (latent is all
-zeros: `max_abs = 0`, `max_var = 0`) while **passing in `max-performance`** in 0.12 s — the
-Debug run takes 202 s before failing. Same backend (XTensor) in both; only `Release` vs
-`Debug` + coverage instrumentation differ. Because the gate script runs `ctest` with
-`check=True`, this failure aborts the gate before any coverage is computed (use
-`--skip-tests` to compute from existing `.gcda` data).
+`E05SnnAe.PoissonLatentIsNonDegenerate` failed intermittently with an all-zero latent
+(`max_abs = 0`, `max_var = 0`). It first showed up as "fails in Debug/coverage, passes in
+`max-performance`", which looked like an optimisation-level problem. **It was not.** Running
+the same Release binary 25 times gave **19 passes / 6 failures** — the test was simply flaky
+at roughly a 24% rate, and the Debug/Release split was two unlucky draws.
 
-A ~1700× runtime difference alongside an all-zeros latent suggests the two builds are not
-executing the same work, and the all-zeros result is exactly the dead-latent / No-Spike
-Problem documented as D1 in the [Engineering Fixes Log](./Engineering-Fixes-Log.md). Worth
-noting the Release "pass" may be the misleading one. **Unresolved — needs investigation
-before the gate can run end-to-end.**
+**Root cause.** `extract_features()` seeded the *spike frames* from the experiment seed but
+never the *model weights*. `AutoencoderConfig::initializer_seed` was left `nullopt`, so
+`xavierInitializer`/`kaimingSNNInitializer` fell back to `std::random_device` (both document
+this in their headers). Every run drew different initial weights. When a draw left all
+encoder neurons below `V_th = 0.2`, nothing ever spiked and the latent came out exactly zero
+— the dead-latent / No-Spike Problem of
+[D1](./Engineering-Fixes-Log.md). Experiment 04 already set `initializer_seed = run_seed`;
+E05 was the only path that did not.
+
+**Fix.** `ae_cfg.initializer_seed = seed;` in `E05FeatureExtraction.cpp`. After it: 25/25
+passes, and repeated runs produce byte-identical output.
+
+**This was never only a test problem.** Autoencoder feature extraction was
+**non-reproducible**: the same profile with the same seed produced different features each
+run. The fingerprint is visible in the committed Phase 00 tables — across the 3 repeats,
+`std_d_truth` is **exactly 0.0000 for all 184 handcrafted rows** (they train nothing) but
+**nonzero for all 24 autoencoder rows** (up to 0.185). Part of that reported spread is
+uncontrolled initialisation randomness rather than genuine experimental variance, so the
+autoencoder rows should be regenerated before the σ column is quoted as a stability measure.
+
+> **Re-run implication.** Phase 00's 24 autoencoder profiles should be re-run under the fix
+> for their numbers to be reproducible. The 184 handcrafted profiles are unaffected — they
+> train nothing, so they already reproduce bit-for-bit. See the
+> [Re-run Runbook](./Re-run-Runbook.md).
 
 ## Backend numerical parity (XTensor vs OpenCL)
 

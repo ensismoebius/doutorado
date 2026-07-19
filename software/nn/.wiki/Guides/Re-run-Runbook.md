@@ -19,6 +19,7 @@ Commands run from `software/nn/` unless a `cd` is shown.
 | **MSELoss/MAELoss** | Silently clipped their own gradient at norm 1.0 — unconditionally, non-configurably, and overriding `grad_clip_norm=0`. `MSELossImpl` is Trainer's default loss, so this touched **every** trained autoencoder. |
 | **Adam weight decay** | Applied *after* the gradient step instead of against θ_{t-1} (AdamW's definition; torch agrees). |
 | **LSTM activations** | Now exact sigmoid/tanh by default (matching `torch.nn.LSTM`) instead of softsign approximations; the fast path's backward was also the derivative of a function the forward never computed. |
+| **Unseeded AE weight init** (2026-07-19) | `extract_features()` seeded the spike frames but never the model weights, so `initializer_seed` stayed `nullopt` and the initializers fell back to `std::random_device`. The **same profile with the same seed produced different features every run.** Affects the **24 Phase 00 autoencoder profiles only** — the 184 handcrafted profiles train nothing and already reproduce bit-for-bit. See [Test Quality and Determinism](./Test-Quality-and-Determinism.md). |
 
 ---
 
