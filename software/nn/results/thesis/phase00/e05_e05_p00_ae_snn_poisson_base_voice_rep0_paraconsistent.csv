@@ -1,0 +1,2 @@
+label,alpha,beta,g1,g2,d_truth,d_penalized
+autoencoder-snn,0.00390625,0.98428571,-0.98037946,-0.01180804,1.98041467,1.98733165

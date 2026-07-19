@@ -13,9 +13,16 @@
 	\listoftables*
 	\cleardoublepage
 	
-	%\include{chapters/00-siglas}
+	% Lista de abreviaturas e siglas — NBR 14724 posiciona este elemento depois das
+	% listas de ilustrações/tabelas e antes do sumário, que é exatamente aqui.
+	% \input e não \include: \include não pode ser aninhado (este arquivo já é
+	% \include-ído por monografia.tex) e falharia com "\include cannot be nested".
+	\input{chapters/05-abreviations}
 
-	%\include{chapters/00-simbols}
+	% Lista de símbolos: chapters/00-simbols.tex ainda contém apenas os exemplos do
+	% modelo do abnTeX2 (Gama, Lambda, zeta, ∈). Segundo a NBR 14724 é opcional;
+	% habilitar aqui quando tiver os símbolos reais da tese.
+	%\input{chapters/00-simbols}
 
 	% inserir o sumario
 	\pdfbookmark[0]{\contentsname}{toc}
