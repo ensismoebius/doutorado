@@ -112,3 +112,19 @@
 % images/{mel,linear}BandEnergies.tex): single accent color for box/ellipse
 % outlines. Okabe-Ito blue, darkened for outline contrast against white fill.
 \colorlet{diagramOutlineColor}{cbBlue!80!black}
+
+% ── Marcação temporária de revisão (REMOVER antes da versão final) ────────
+% Destaca um trecho que ainda depende de trabalho pendente, para que não
+% passe despercebido em uma releitura. Usa cbYellow da paleta Okabe-Ito (e
+% não o "yellow" bruto do xcolor, que não é CVD-safe); o tom é rebaixado
+% para !40 porque o texto impresso por cima é preto e precisa manter
+% contraste AA.
+%
+% \pendenteMarca{...} destaca um trecho CURTO e sem matemática: usa
+% \colorbox, que não quebra linha nem sobrevive a $...$ — por isso não deve
+% envolver parágrafos inteiros nem fórmulas. Para blocos, use \pendenteNota,
+% que colore apenas o rótulo e deixa o corpo do texto em itálico comum.
+\colorlet{pendenteColor}{cbYellow!40}
+\newcommand{\pendenteMarca}[1]{\colorbox{pendenteColor}{#1}}
+\newcommand{\pendenteNota}[1]{%
+	\par\noindent\colorbox{pendenteColor}{\textbf{[PENDENTE]}}\hspace{0.4em}\textit{#1}\par}
