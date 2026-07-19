@@ -23,13 +23,13 @@
 	\section{Estrutura da estratégia proposta}
 		\label{sec:estruturaDaEstrategiaProposta}
 		
-		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos em três esquemas de particionamento espectral --- bandas lineares,  Mel e Bark --- gerando, na Categoria~1, os vetores de \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies}, respectivamente. Para a Categoria~2, aplica-se adicionalmente o logaritmo e a DCT sobre cada um desses vetores, produzindo os coeficientes LFCC, MFCC e BFCC. Por fim, será conduzida a análise paraconsistente de características a fim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
-		
-		\par Em segundo lugar, tanto os dados de voz quanto os de EEG serão submetidos a autoencoders para extração de características.
-		
-		\par As características extraídas, tanto automatizadas quanto as manualmente obtidas, servirão de entrada para uma rede neural residual profunda de pulsos, que determinará as classes de cada um dos sinais.
+		\par Primeiramente, os sinais são decompostos pela \ac{DTWPT}; em seguida, realizam-se os agrupamentos energéticos em três esquemas de particionamento espectral --- bandas lineares, Mel e Bark --- gerando, na Categoria~1, os vetores de \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies}, respectivamente. Para a Categoria~2, aplica-se adicionalmente o logaritmo e a \ac{DCT} sobre cada um desses vetores, produzindo os coeficientes \ac{LFCC}, \ac{MFCC} e \ac{BFCC}. Por fim, conduz-se a análise paraconsistente de características a fim de selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
 
-		\par Como o tema central deste trabalho é a autenticação biométrica combinando fala fonada e fala imaginada, cada configuração será avaliada em três modos, para medir a contribuição individual e conjunta das duas fontes:
+		\par Em segundo lugar, tanto os dados de voz quanto os de EEG são submetidos a \textit{autoencoders} para extração de características --- a Categoria~3 da taxonomia introduzida na \autoref{sec:conceitos}. As três categorias são, portanto, as três famílias de extratores comparadas nesta tese.
+
+		\par As características extraídas, tanto automatizadas quanto as manualmente obtidas, servem de entrada para uma rede neural residual profunda de pulsos (\ac{DSNN}), que determina as classes de cada um dos sinais. A arquitetura dessa rede e o protocolo de avaliação são detalhados na \autoref{sec:fase01}.
+
+		\par Como o tema central deste trabalho é a autenticação biométrica combinando fala fonada e fala imaginada, cada configuração é avaliada em três modos, para medir a contribuição individual e conjunta das duas fontes:
 		\begin{itemize}
 			\item \textbf{apenas fala fonada}: somente o sinal de voz (áudio) alimenta o classificador;
 			\item \textbf{apenas fala imaginada}: somente o sinal de EEG alimenta o classificador;
@@ -38,12 +38,14 @@
 
 		\par No modo fundido, o \emph{instante} em que as duas fontes se combinam é, ele próprio, um eixo experimental, pois desloca a fronteira entre o que é modelado separadamente e o que é modelado em conjunto:
 		\begin{itemize}
-			\item \textbf{fusão precoce} (\textit{early fusion}): os sinais brutos de voz e EEG são concatenados \emph{antes} da extração de características, de modo que um único extrator opera sobre o sinal conjunto e pode capturar interações entre as modalidades. Em contrapartida, impõe uma taxa de amostragem comum às duas metades (adota-se a taxa da voz, dominante em número de amostras);
+			\item \textbf{fusão precoce} (\textit{early fusion}): os sinais brutos de voz e EEG são concatenados \emph{antes} da extração de características, de modo que um único extrator opera sobre o sinal conjunto e pode capturar interações entre as modalidades. Em contrapartida, impõe uma taxa de amostragem comum às duas metades: adota-se a taxa da voz (44100\,Hz), dominante em número de amostras, o que exige reamostrar o EEG de 1024\,Hz para 44100\,Hz --- um fator de aproximadamente $43\times$. Essa reamostragem não cria informação: ela apenas interpola o sinal de EEG para que as duas metades possam ocupar um mesmo vetor, e o custo é que a metade de EEG do sinal concatenado passa a ser majoritariamente composta por amostras interpoladas;
 			\item \textbf{fusão tardia} (\textit{late fusion}): cada sinal é submetido \emph{independentemente} à extração de características, e apenas os vetores resultantes são concatenados. Preserva a taxa nativa e o extrator próprio de cada fonte, ao custo de nunca observar as duas conjuntamente.
 		\end{itemize}
-		\par Ambas as estratégias serão comparadas, uma vez que não há garantia a priori de qual delas produz características mais separáveis segundo a engenharia paraconsistente.
+		\par Ambas as estratégias são comparadas, uma vez que não há garantia a priori de qual delas produz características mais separáveis segundo a engenharia paraconsistente.
 
-		\par Quanto à extração automatizada, serão comparados dois tipos de \textit{autoencoder} --- um de pulsos (\ac{SNN}-AE) e um convencional (\ac{ANN}-AE) --- e ambos serão confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
+		\par Como o modo fundido se desdobra nessas duas variantes, os \emph{três} modos acima correspondem, no eixo experimental da Fase~01 (\autoref{sec:fase01}), a \emph{quatro} fontes distintas: apenas voz, apenas EEG, fundida-precoce e fundida-tardia.
+
+		\par Quanto à extração automatizada, comparam-se dois tipos de \textit{autoencoder} --- um de pulsos (\ac{SNN}-AE) e um convencional (\ac{ANN}-AE) --- e ambos são confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
 
 		\par Uma visão geral do processo é mostrada na \autoref{fig:estruturaDaEstrategiaProposta}.
 		
@@ -80,30 +82,22 @@
 	\item \texttt{latency} --- componentes de maior valor disparam mais cedo ($t_{\text{disparo}} = \text{round}((1-v)(T-1))$, mesmo esquema do Experimento 04);
 	\item \texttt{direct} --- passagem analógica direta, sem pulsos (linha de base não-temporal; $T=1$).
 \end{itemize}
-A \autoref{fig:encodingExamples} ilustra as três codificações aplicadas a uma imagem de teste.
 O estado de membrana é \emph{reiniciado uma única vez por amostra} e depois \emph{integra ao longo dos $T$ quadros} (sem reset entre quadros) --- é essa integração temporal que permite a uma corrente sub-limiar por passo acumular até disparar. A característica de cada amostra é a \emph{taxa de disparo média do latente sobre os $T$ quadros}. O limiar de disparo do codificador (\texttt{voltage\_threshold}) é reduzido para $0{,}2$ (padrão LIF $=1{,}0$) nas variantes \texttt{poisson}/\texttt{latency}, já que quadros de pulso normalizados têm amplitude baixa; \texttt{direct} mantém o limiar padrão $1{,}0$, reproduzindo intencionalmente o regime não-temporal, que serve de linha de base para as duas codificações temporais.
 
 \paragraph{Codificação temporal e função de perda do treinamento.} Embora as três codificações produzam padrões de pulso distintos na entrada do codificador, o SNN-AE é treinado com a \textbf{mesma} função de perda de reconstrução --- Erro Médio Quadrático (EQM) --- nas três variantes (\texttt{poisson}, \texttt{latency}, \texttt{direct}), pois o alvo da reconstrução é sempre o sinal analógico original de entrada, e não um trem de pulsos: a codificação temporal afeta apenas como a informação flui pelo codificador, não o que o decodificador precisa reproduzir. É importante notar que o \textit{framework} desenvolvido para esta tese também implementa duas funções de perda casadas a codificações de pulso --- \texttt{SpikeCountLoss} (EQM sobre a contagem total de disparos, adequada quando o próprio alvo supervisionado é uma taxa de disparo) e \texttt{SpikeTimeLoss} (EQM sobre o instante do primeiro disparo, adequada quando o alvo é um único evento temporal) --- seguindo a convenção da codificação temporal usada por \cite{comsa2021spiking} e a discussão de funções de perda sob medida para predição de pulsos de \cite{manna2024time}. Usar a função casada errada quebra o treino: \texttt{SpikeTimeLoss} sobre um alvo de taxa enxerga apenas o primeiro disparo e ignora a contagem; \texttt{SpikeCountLoss} sobre um alvo de latência trata a ausência de disparo como contagem zero, gerando gradiente incorreto para disparos tardios. Essa correspondência codificação--perda é, no entanto, uma capacidade geral do \textit{framework} (\texttt{include/layers/losses/SpikeCountLoss.hpp}, \texttt{SpikeTimeLoss.hpp}), exercitada apenas nos testes unitários da biblioteca --- o SNN-AE da Fase~00 não a utiliza, precisamente porque seu alvo de treino nunca é um trem de pulsos, e sim o sinal contínuo original.
 
-% TODO: figura ilustrativa das 3 codificações temporais (poisson/latency/direct)
-% aplicadas a uma imagem de teste (ex.: Bob Esponja), 3 sub-figuras lado a lado,
-% cada uma mostrando os T quadros de pulso empilhados/animados. Gerar com script
-% Python (matplotlib) reaproveitando spike_frame() de E05FeatureExtraction.cpp
-% como referência de lógica; salvar em images/encodingExamples{Poisson,Latency,Direct}.png
-\begin{figure}[h]
-	\centering
-	\caption[Exemplos de codificação temporal]{Comparação visual das codificações \texttt{poisson}, \texttt{latency} e \texttt{direct} sobre uma imagem de teste}
-	% TODO: substituir por \includegraphics[width=\linewidth]{images/encodingExamples.png}
-	% quando a figura estiver pronta.
-	\legend{Fonte: Elaborado pelo autor, 2026.}
-	\label{fig:encodingExamples}
-\end{figure}
+% TODO (figura pendente): ilustrar as 3 codificações temporais
+% (poisson/latency/direct) aplicadas a uma imagem de teste, 3 sub-figuras lado a
+% lado, cada uma mostrando os T quadros de pulso empilhados. Gerar com script
+% Python (matplotlib) reaproveitando spike_frame() de E05FeatureExtraction.cpp.
+% O float foi REMOVIDO (e não deixado vazio) porque uma figura sem imagem é
+% impressa como um quadro em branco numerado e referenciado no texto.
 
-\paragraph{Comparação entre as codificações temporais: medições retiradas, aguardando reexecução.} As três codificações foram efetivamente executadas sobre a grade da Fase~00 (18 perfis SNN-AE --- 3 codificações $\times$ 3 tamanhos $\times$ 2 sinais, 3 repetições cada), e uma versão anterior deste texto reportava os valores medidos de $\alpha$ e $D_{\text{verdade}}$ para cada uma, concluindo por um \textbf{resultado negativo} contra a codificação temporal. Essas medições foram \textbf{retiradas}, e não corrigidas, por duas razões independentes.
+\paragraph{Comparação entre as codificações temporais.} As três codificações foram executadas sobre a grade da Fase~00 (18 perfis SNN-AE --- 3 codificações $\times$ 3 tamanhos $\times$ 2 sinais, 3 repetições cada). Uma versão anterior deste texto reportava valores de $\alpha$ e $D_{\text{verdade}}$ medidos sob o defeito de escala da taxa de aprendizado descrito em \autoref{sec:snnLrScale} --- a redução destinada apenas aos parâmetros biofísicos era aplicada a \emph{todos} os parâmetros, de modo que cada peso treinou a uma taxa efetiva dez vezes menor que a declarada no perfil. Aqueles números foram \textbf{retirados}, e não corrigidos: descreviam um experimento diferente do que os perfis declaravam. Corrigido o defeito, os resultados armazenados foram descartados e a Fase~00 foi integralmente reexecutada; os valores atuais estão nas Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice}.
 
-A primeira é que os números não descrevem o experimento que os perfis declaravam. Todas as execuções de \textit{autoencoder} da Fase~00 foram produzidas sob o defeito de escala da taxa de aprendizado descrito em \autoref{sec:snnLrScale}: a redução destinada apenas aos parâmetros biofísicos era aplicada a \emph{todos} os parâmetros, de modo que cada peso treinou a uma taxa efetiva dez vezes menor que a declarada no perfil. A segunda é que, corrigido o defeito, os resultados armazenados foram descartados e a reexecução ainda não foi realizada --- logo, não há valor a reportar. Reapresentá-los com uma ressalva preservaria três casas decimais sobre números sem execução que os sustente; foi exatamente assim que uma tabela preliminar (20 épocas, 2 folds) sobreviveu tempo suficiente para chegar a uma versão anterior deste documento, com a ordem invertida.
+A reexecução confirma a ordem \texttt{direct} $\succ$ \texttt{latency} $\succ$ \texttt{poisson} em ambos os sinais, e de forma limpa: as três codificações formam blocos contíguos no ranking, com a \texttt{poisson} ocupando as três últimas posições e exibindo $\alpha$ praticamente nulo ($\alpha \le 0{,}003$ nos seis perfis). \textbf{Isso não estabelece um resultado negativo contra a codificação temporal}, e a razão é o argumento desenvolvido a seguir: essa é exatamente a ordem que o piso de ruído de cada codificação prevê, \emph{antes de qualquer aprendizado}. O que a medição confirma é a previsão do mecanismo, não uma propriedade informacional dos códigos temporais.
 
-O que permanece válido é o \emph{mecanismo}, que é teórico e não medido, e que prevê a ordem esperada independentemente de qualquer execução. Cada codificação injeta, \textbf{antes de qualquer aprendizado}, uma quantidade de ruído que se calcula em fechado. A \texttt{poisson} sorteia um Bernoulli independente a cada passo de tempo, de modo que a média sobre $T$ quadros tem variância $v(1-v)/T$; para $v = 0{,}5$ (pior caso) e $T = 16$, isso dá desvio-padrão
+O \emph{mecanismo} que sustenta essa leitura é teórico, e prevê a ordem observada independentemente de qualquer execução --- é por isso que a concordância entre previsão e medição, por si só, não decide a questão. Cada codificação injeta, \textbf{antes de qualquer aprendizado}, uma quantidade de ruído que se calcula em fechado. A \texttt{poisson} sorteia um Bernoulli independente a cada passo de tempo, de modo que a média sobre $T$ quadros tem variância $v(1-v)/T$; para $v = 0{,}5$ (pior caso) e $T = 16$, isso dá desvio-padrão
 
 \begin{equation}
 	\label{eq:ruidoPoisson}
@@ -116,7 +110,7 @@ Esse escalonamento --- ruído nulo, pequeno-determinístico, grande-aleatório -
 
 Daí a retificação metodológica: a afirmação de que a codificação temporal constitui um resultado negativo \textbf{não está estabelecida}, e não por mera incerteza --- $\alpha$ é \emph{estruturalmente incapaz} de distinguir ``o codificador não aprendeu'' de ``esta codificação tem um piso estatístico irredutível em $T=16$''. Como esse piso decresce com $1/T$ (\autoref{eq:ruidoPoisson}), a questão é empiricamente testável: em $T=64$ a variância cai por um fator de quatro, e $\sigma_{\text{poisson}}$ vai a $0{,}0625$. Esse teste ainda não foi executado. Registre-se também que este problema é \textbf{independente} da vulnerabilidade de $D_{1,0}$ tratada em \autoref{sec:dPenalizado}: aquela mostra que o critério \emph{recompensa} indevidamente variância nula; esta, que ele pode \emph{punir} indevidamente uma variância real que não decorre de pior aprendizado. Corrigir a primeira não corrige a segunda.
 
-Cada combinação gera um vetor de características, avaliado pela distância $D_{\text{verdade}}$ --- a distância ao vértice \textit{Verdade} no plano paraconsistente (\autoref{sec:conceitos}); quanto menor, mais separáveis são as classes antes de qualquer classificador. O vencedor do sinal é a combinação de menor $D_{\text{verdade}}$. Nenhum classificador é treinado nesta fase. O \autoref{lst:e05Phase00} descreve o procedimento e a \autoref{fig:e05Phase00Flow} o resume.
+Cada combinação gera um vetor de características, avaliado pela distância $D_{\text{verdade}}$ --- a distância ao vértice \textit{Verdade} no plano paraconsistente (\autoref{sec:conceitos}); quanto menor, mais separáveis são as classes antes de qualquer classificador. O vencedor do sinal, porém, \textbf{não} é a combinação de menor $D_{\text{verdade}}$, e sim a de menor $D_{\text{penalizado}} = D_{\text{verdade}} + \lambda|G_2|$, com $\lambda = 2-\sqrt{2}$ (\autoref{sec:dPenalizado}): $D_{\text{verdade}}$ isolado é vulnerável a extratores degenerados, que produzem uma saída praticamente constante e assim obtêm uma pontuação artificialmente boa sem carregar qualquer informação de classe. O termo $\lambda|G_2|$ penaliza exatamente essa degenerescência. A escolha altera o resultado na prática, e não apenas em princípio --- as consequências sobre o vencedor de cada sinal são discutidas no \autoref{chap:testsResults}. O vencedor é escolhido entre \emph{todas} as combinações do sinal, manuais e \textit{autoencoders} conjuntamente. Nenhum classificador é treinado nesta fase. O \autoref{lst:e05Phase00} descreve o procedimento e a \autoref{fig:e05Phase00Flow} o resume.
 
 				\input{listings/e05Phase00Sweep.c.tex}
 
@@ -131,8 +125,36 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				\par Considerando os dois sinais, a Fase 00 tem $(138 + 12)$ execuções para a voz e $(46 + 12)$ para o EEG, isto é, $150 + 58 = 208$ execuções de ranking. O vetor fundido não é varrido aqui: ele é montado na Fase 01, a partir dos vencedores de cada sinal.
 
 			\subsubsection{Fase 01 --- autenticação com o vetor vencedor}
+				\label{sec:fase01}
 
-				\par A Fase 01 usa \emph{apenas} a combinação vencedora da Fase 00 --- o eixo do extrator não é mais variado, pois a engenharia paraconsistente já o fixou. Variam-se quatro eixos: a \textbf{fonte} do sinal (apenas voz, apenas EEG, fundida-precoce, fundida-tardia), o \textbf{modo de texto} (dependente ou independente), o \textbf{esquema de validação cruzada} (aninhada ou plana) e a \textbf{padronização das características} (z-score por característica ligado ou desligado, ajustado apenas no treino de cada \textit{fold}, como ablação do efeito da normalização). São $4 \times 2 \times 2 \times 2 = 32$ execuções, todas com o classificador \ac{DSNN}. O \autoref{lst:e05Phase01} mostra a montagem da fonte e o laço de autenticação; a \autoref{fig:e05Phase01Flow} resume o fluxo.
+				\par A Fase 01 usa \emph{apenas} a combinação vencedora da Fase 00 --- o eixo do extrator não é mais variado, pois a engenharia paraconsistente já o fixou. Variam-se quatro eixos, detalhados adiante: a \textbf{fonte} do sinal, o \textbf{modo de texto}, o \textbf{esquema de validação cruzada} e a \textbf{padronização das características}. São $4 \times 2 \times 2 \times 2 = 32$ execuções, todas com o classificador \ac{DSNN}. O \autoref{lst:e05Phase01} mostra a montagem da fonte e o laço de autenticação; a \autoref{fig:e05Phase01Flow} resume o fluxo.
+
+				\paragraph{Arquitetura do classificador DSNN.} O classificador é uma rede de pulsos residual profunda, construída a partir da especificação declarativa \texttt{["linear:128:relu", "residual:2", "linear:N:identity"]} do perfil, onde $N$ é o número de locutores. Concretamente, ela é composta por:
+				\begin{itemize}
+					\item um \textbf{estágio de entrada} \texttt{Linear}($d \to 128$) seguido de um neurônio \ac{LIF}, onde $d$ é a dimensão do vetor de características vindo da Fase 00;
+					\item \textbf{dois blocos residuais} idênticos, cada um \texttt{Linear}($128 \to 128$) seguido de \ac{LIF}, envoltos por uma conexão de atalho identidade, $h_{\text{saída}} = \text{bloco}(h) + h$. Os atalhos não têm parâmetros e existem para que o gradiente alcance as camadas iniciais sem se dissipar através da não-linearidade de disparo --- é o mesmo desenho de \ac{SNN} residual profunda de \cite{zheng2021goingdeeper}, para o qual a \ac{TDBN} foi originalmente proposta. Os estágios de entrada e de saída não recebem atalho porque suas larguras diferem de 128, o que impediria a soma elemento a elemento;
+					\item um \textbf{estágio de saída} \texttt{Linear}($128 \to N$), cuja saída é a média dos logits sobre os $T$ passos de tempo.
+				\end{itemize}
+				O treino usa retropropagação através do tempo (\ac{BPTT}) com gradiente substituto, e a regularização da taxa de disparo descrita adiante mantém cada camada pulsante fora dos regimes de neurônio morto e saturado.
+
+				\paragraph{Protocolo de verificação: como EER e AUC são calculados.} Esta é a parte do protocolo que a definição textual de \ac{EER} não revela, e sem a qual os números da \autoref{chap:testsResults} não são interpretáveis. A camada de saída tem uma unidade por locutor de \emph{treino}, mas ela \textbf{não} é usada como decisão de classe --- sob o protocolo de verificação os locutores de teste nunca aparecem no treino, de modo que nenhuma dessas unidades corresponde ao indivíduo sendo verificado. O vetor de logits é usado, em vez disso, como um \textbf{vetor de representação} (\textit{embedding}) do sinal. A partir dele:
+				\begin{enumerate}
+					\item cada par de amostras de teste forma uma \textbf{tentativa} (\textit{trial}), rotulada \textit{genuína} quando as duas amostras pertencem ao mesmo locutor e \textit{impostora} caso contrário;
+					\item a pontuação de cada tentativa é a \textbf{similaridade de cosseno} entre os dois vetores de representação;
+					\item varre-se um limiar sobre essas pontuações; o \ac{EER} é o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição;
+					\item a \ac{AUC} é estimada pela estatística de Wilcoxon--Mann--Whitney, $\text{AUC} = P(\text{pontuação genuína} > \text{pontuação impostora})$, que equivale à área sob a curva \ac{ROC} das duas distribuições de pontuação.
+				\end{enumerate}
+				É por isso que as métricas de conjunto fechado são \texttt{NaN} nos resultados: elas exigiriam que a identidade de teste estivesse entre as classes treinadas, o que este protocolo deliberadamente proíbe.
+
+				\paragraph{Os quatro eixos experimentais.} Cada eixo é binário ou quaternário, e o experimento é o produto cartesiano completo:
+				\begin{itemize}
+					\item \textbf{Fonte} (4 níveis): apenas voz, apenas EEG, fundida-precoce e fundida-tardia --- os três modos da \autoref{sec:estruturaDaEstrategiaProposta}, com o modo fundido desdobrado nas duas variantes de instante de fusão;
+					\item \textbf{Modo de texto} (2 níveis): \textit{dependente}, em que o mesmo enunciado aparece no treino e no teste, e \textit{independente}, em que os enunciados de teste podem ser quaisquer outros. É o eixo da Questão~4 (\autoref{chap:intro}), e mede o quanto do desempenho vem da identidade do locutor e não do conteúdo falado;
+					\item \textbf{Esquema de validação cruzada} (2 níveis). Em ambos os esquemas as partições são \emph{disjuntas por locutor} (\textit{group $k$-fold}, $k=5$), o que é o que torna o protocolo de verificação válido. Na \textbf{plana}, cada partição é treinada e pontuada uma vez, sem conjunto de validação e sem parada antecipada. Na \textbf{aninhada}, um laço interno --- também $k=5$, com semente distinta --- separa um conjunto de validação usado para selecionar o melhor modelo por parada antecipada, e só então o modelo escolhido é pontuado uma única vez na partição externa. A aninhada é o estimador não enviesado quando há seleção de modelo; a plana é mais barata e não descarta dados para validação. Os dois são comparados justamente porque a diferença entre eles mede o custo dessa seleção;
+					\item \textbf{Padronização das características} (2 níveis): \textit{z-score} por característica ligado ou desligado. Quando ligado, média e desvio padrão são estimados \emph{apenas} sobre a partição de treino de cada \textit{fold} e então aplicados à de teste, evitando vazamento de informação. É uma ablação do efeito da normalização.
+				\end{itemize}
+
+				\paragraph{Protocolo de treino e de repetição.} Todas as 32 execuções compartilham os mesmos hiperparâmetros: otimizador Adam com taxa de aprendizado $10^{-3}$, 50 épocas, lotes de 32 amostras, e paciência de 10 épocas para a parada antecipada (ativa apenas na validação cruzada aninhada, já que a plana não reserva conjunto de validação). Cada configuração é executada \textbf{três vezes}, com sementes distintas derivadas da semente base $42$; os valores reportados no \autoref{chap:testsResults} são as médias sobre essas três repetições, e o desvio padrão ali tabelado é calculado entre elas. Como cada repetição percorre $k=5$ partições, cada configuração contribui com 15 medidas de \ac{EER}.
 
 				\input{listings/e05Phase01Auth.c.tex}
 
@@ -150,29 +172,13 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 				\par Dois \textit{scripts} automatizam a transição, evitando edição manual (\autoref{fig:e05PipelineTwoPhase}):
 				\begin{itemize}
-					\item \texttt{e05\_phase00\_rank.py}: lê os resultados paraconsistentes das 208 execuções, calcula a média de $D_{\text{verdade}}$ sobre as repetições e escreve o vencedor de cada sinal em \texttt{winners.json};
+					\item \texttt{e05\_phase00\_rank.py}: lê os resultados paraconsistentes das 208 execuções, calcula a média de $D_{\text{penalizado}}$ sobre as três repetições, escreve o vencedor de cada sinal em \texttt{winners.json} e sinaliza explicitamente eventuais empates exatos, para que uma escolha feita por desempate de ordenação não seja confundida com um resultado de mérito;
 					\item \texttt{e05\_apply\_winner.py}: injeta cada vencedor nos 32 perfis da Fase 01 --- voz recebe o vencedor da voz, EEG o do EEG, e as fontes fundidas recebem, por padrão, o vencedor da voz (sinal dominante em número de amostras).
 				\end{itemize}
 
-		\subsection{Coleta dos dados}
-			\par A coleta dos dados será realizada com software próprio desenvolvido para esse fim e com equipamentos de captação de voz e eletroencefalograma (EEG), montados a partir de componentes eletrônicos pré-fabricados, como placas de circuito integrado, eletrodos e microfones.
-	
-		\subsection{Extração de Características}
-		
-			\par A extração de características será realizada de duas maneiras:
-			
-			\begin{enumerate}
-				\item \textbf{Método Manual (Handcrafting):} Características serão extraídas e formatadas por meio de métodos manuais de avaliação usando DTWT e a engenharia paraconsistente de características.
-				\item \textbf{Método Automatizado:} Características serão extraídas utilizando redes neurais profundas, mais especificamente autoencoders.
-			\end{enumerate}
-			
-			\par Dessa forma, além de avaliar quais características contribuem mais para a acurácia na autenticação biométrica, será possível comparar a abordagem manual com a automatizada.
-			
-			\par A confecção dos vetores de características, tanto no método manual quanto no automatizado, utilizará transformadas \textit{wavelet}, cálculos de energia nas frequências alvo e avaliação dos vetores por meio da engenharia paraconsistente de características.
-			
 		\subsection{Métricas}
 		
-			\par A autenticação segue o protocolo de \textbf{verificação} (\textit{verification}), no qual os locutores de teste não aparecem no treino: os grupos de validação cruzada são disjuntos por locutor. Nesse protocolo, as métricas primárias são a \textbf{\ac{EER}} (o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição) e a \textbf{área sob a curva \ac{ROC}} (\ac{AUC}). As métricas de classificação de conjunto fechado (acurácia, F1, precisão, recall, especificidade) só se aplicam quando as classes de teste também estão no treino; sob o protocolo de verificação elas não são reportadas. As seguintes métricas serão adotadas, garantindo a comparação com outros estudos:
+			\par A autenticação segue o protocolo de \textbf{verificação} (\textit{verification}), no qual os locutores de teste não aparecem no treino: os grupos de validação cruzada são disjuntos por locutor. Nesse protocolo, as métricas primárias são a \textbf{\ac{EER}} (o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição) e a \textbf{área sob a curva \ac{ROC}} (\ac{AUC}). As métricas de classificação de conjunto fechado (acurácia, F1, precisão, recall, especificidade) só se aplicam quando as classes de teste também estão no treino; sob o protocolo de verificação elas não são reportadas --- nos arquivos de resultado da Fase~01 elas aparecem literalmente como \texttt{NaN}, e não como zero, justamente para que a ausência de valor não seja confundida com um desempenho nulo. As seguintes métricas são adotadas, garantindo a comparação com outros estudos:
 
 			\begin{itemize}
 				\item \textbf{Taxa de Erro Igual (EER)} --- primária, protocolo de verificação;
@@ -183,9 +189,9 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 			
 		\subsection{Desenvolvimento e Validação de Algoritmos}
 		
-			\par Quanto aos algoritmos de classificação, serão utilizadas redes neurais de pulso (SNN) em uma arquitetura de rede neural residual. Serão construídos modelos com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética. Esses classificadores serão testados por meio de experimentos controlados (como exposto no início dessa seção) e comparados posteriormente com trabalhos do estado-da-arte.
+			\par Quanto aos algoritmos de classificação, empregam-se redes neurais de pulso em uma arquitetura residual (a \ac{DSNN} detalhada na \autoref{sec:fase01}), com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética.
 
-			\par No entanto há, um obstáculo prático: O número de locutores e de amostras por locutor é pequeno. Com poucos dados, a rede tende a ``decorar'' os exemplos de treino em vez de aprender padrões gerais --- o chamado \textit{overfitting}. Para combatê-lo, usam-se duas técnicas de regularização complementares, descritas em detalhe no \autoref{chap:regularizacao}.
+			\par Há, no entanto, um obstáculo prático: o número de locutores e de amostras por locutor é pequeno. Com poucos dados, a rede tende a ``decorar'' os exemplos de treino em vez de aprender padrões gerais --- o chamado \textit{overfitting}. Para combatê-lo, usam-se duas técnicas de regularização complementares, descritas em detalhe no \autoref{chap:regularizacao}.
 
 			\par A primeira é o \textbf{decaimento de peso L2}, que penaliza pesos muito grandes e, com isso, favorece soluções mais simples e que generalizam melhor. Nas redes de pulso, atua apenas sobre as matrizes de peso; os parâmetros biofísicos dos neurônios de pulso ($R$, $C$ e $V_{th}$) são preservados, pois reduzi-los descaracterizaria o neurônio.
 
@@ -201,7 +207,6 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 			\begin{tabular}{@{}Y{10cm}cc@{}}
 				\tableHeaderRow \textbf{Etapa} & \textbf{Início} & \textbf{Fim} \\
 				Programação do sistema de coleta de dados & 01/09/2024 & 01/12/2024 \\
-				Criação da base de dados & 01/01/2025 & 01/12/2025 \\
 				Extração e seleção de características & 01/02/2025 & 01/12/2025 \\
 				Desenvolvimento de classificadores & 01/12/2025 & 01/12/2026 \\
 				Validação experimental e comparação & 01/03/2026 & 01/02/2027 \\
@@ -244,9 +249,6 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				bar label node/.append style={xshift=6pt} % Ajusta o texto da barra para começar no início da barra
 				]{Programação do sistema de coleta de dados}{2024-09-01}{2024-12-01} \\
 				\ganttbar[
-				bar label node/.append style={xshift=57pt} % Ajusta o texto da barra para começar no início da barra
-				]{Criação da base de dados}{2025-01-01}{2025-12-01} \\
-				\ganttbar[
 				bar label node/.append style={xshift=70pt} % Ajusta o texto da barra para começar no início da barra
 				]{Extração e seleção de características}{2025-02-01}{2025-12-01} \\
 				\ganttbar[
@@ -268,7 +270,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 \section{Resultados Esperados}
 
-	\par Espera-se desenvolver algoritmos de extração de características e classificação para voz e eletroencefalograma (EEG) que aprimorem a acurácia na identificação de indivíduos. Além disso, será avaliado se as alegações sobre o consumo energético e a eficácia das redes neurais de pulso (SNN) na classificação de informações temporais são confirmadas para o problema estudado. Será constituída uma base de dados contendo sinais de voz, EEG e sinais mistos que deve ser disponibilizada ao público. Por fim, pretende-se comparar o desempenho das técnicas de extração de características manuais com as automatizadas.
+	\par Esperava-se desenvolver algoritmos de extração de características e classificação para voz e eletroencefalograma (EEG) que aprimorassem a acurácia na identificação de indivíduos; avaliar se as alegações sobre o consumo energético e a eficácia das redes neurais de pulso na classificação de informações temporais se confirmam para o problema estudado; e comparar o desempenho das técnicas de extração de características manuais com as automatizadas. O \autoref{chap:testsResults} confronta cada uma dessas expectativas com o que foi de fato medido, e o \autoref{chap:conclusions} discute em que medida elas se sustentaram.
 
 
 %\section{Procedimentos}

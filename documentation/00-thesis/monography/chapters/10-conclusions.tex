@@ -1,1 +1,132 @@
 \chapter{Conclusões e Trabalhos Futuros} \label{chap:conclusions}
+
+	\section{Síntese dos resultados}
+
+		\par Esta tese investigou a autenticação biométrica combinando fala fonada
+		e fala imaginada, comparando extração manual de características
+		(\ac{DTWPT} com agrupamento energético) e extração automatizada
+		(\textit{autoencoders}), com seleção conduzida pela engenharia
+		paraconsistente de características e classificação por uma rede neural de
+		pulso residual profunda (\ac{DSNN}). O experimento foi organizado em duas
+		fases: 208 execuções de \textit{ranking} na Fase~00 e 32 execuções de
+		autenticação na Fase~01, cada uma repetida três vezes.
+
+		\par \textbf{A extração manual venceu a seleção paraconsistente para os
+		dois sinais}, com a mesma configuração --- \textit{wavelet} Haar, escala
+		linear (\ac{LFCC}), Categoria~1 --- em voz e EEG. Nenhuma das 24 variantes
+		de \textit{autoencoder} se aproximou do melhor extrator manual
+		(\autoref{sec:respostasQuestoes}). A convergência dos dois sinais sobre a
+		mesma configuração é, em si, um resultado: a \textit{wavelet} mais simples
+		do conjunto avaliado, com o particionamento espectral mais simples,
+		superou 22 famílias \textit{Daubechies} e dois esquemas cocleares.
+
+		\par \textbf{O desempenho de autenticação, porém, permaneceu próximo do
+		acaso.} A melhor das 32 configurações da Fase~01 --- fusão precoce,
+		dependente de texto, $k$-fold plano, características brutas --- atingiu
+		$\text{EER} = 0{,}4534$ e $\text{AUC} = 0{,}5452$, contra $0{,}5$ e $0{,}5$
+		de um classificador aleatório. Nenhuma configuração ficou
+		substancialmente abaixo desse patamar. Trata-se, portanto, de um
+		\textbf{resultado negativo}: nas condições avaliadas, o sistema proposto
+		não sustenta autenticação prática, e as conclusões desta tese devem ser
+		lidas sob essa limitação central.
+
+		\par Registre-se, ainda assim, o que o experimento indicou dentro desse
+		regime: o EEG e as fusões superaram a voz isolada entre as configurações
+		mais bem colocadas, o que é consistente com a motivação original de
+		complementar a fala degradada com sinal cerebral; e a padronização das
+		características piorou sistematicamente o \ac{EER} enquanto elevava o
+		\ac{AUC}, divergência que sugere um problema de calibração de limiar e
+		não de poder discriminativo.
+
+	\section{Contribuições}
+
+		\par Além dos resultados experimentais, três contribuições de natureza
+		metodológica emergiram do trabalho, todas motivadas por defeitos
+		detectados durante a própria execução:
+
+		\begin{enumerate}
+			\item \textbf{A métrica $D_{\text{penalizado}}$}
+			(\autoref{sec:dPenalizado}). O grau de verdade $D_{1,0}$, usado
+			isoladamente, premia extratores degenerados: uma rede que emite o mesmo
+			vetor para toda entrada atinge $\alpha=\beta=1$ e pontua melhor que
+			extratores genuinamente separáveis. A correção proposta soma um termo
+			$\lambda|G_2|$ proporcional ao grau de contradição, com
+			$\lambda = 2-\sqrt{2}$ escolhido de modo que os três vértices
+			degenerados sejam penalizados igualmente. A métrica é função apenas de
+			$\alpha$ e $\beta$, e pôde ser aplicada retroativamente sem reexecutar
+			experimento algum.
+
+			\item \textbf{O diagnóstico do piso de ruído das codificações
+			temporais} (\autoref{sec:protocoloDuasFases}). A ordem observada entre
+			as codificações --- \texttt{direct} $\succ$ \texttt{latency} $\succ$
+			\texttt{poisson} --- coincide exatamente com a ordem prevista pelo
+			ruído que cada codificação injeta \emph{antes} de qualquer aprendizado,
+			calculável em fechado ($\sigma_{\text{poisson}} = 0{,}125$ para
+			$T=16$). Como $\alpha$ é definido a partir da amplitude intraclasse, ele
+			é estruturalmente incapaz de separar ``o codificador não aprendeu'' de
+			``esta codificação tem piso estatístico irredutível''. A conclusão
+			metodológica é que a comparação entre codificações temporais sob este
+			critério exige controlar $T$, e não apenas medir.
+
+			\item \textbf{A aplicação da engenharia paraconsistente à seleção de
+			extratores}, com um protocolo em duas fases que separa a escolha da
+			representação da medição de desempenho, evitando que a seleção do
+			extrator seja contaminada pela capacidade do classificador.
+		\end{enumerate}
+
+	\section{Limitações}
+
+		\par A limitação dominante é o \textbf{tamanho da base}: 15 locutores e
+		1974 amostras. Sob protocolo de verificação, com partições disjuntas por
+		locutor, cada dobra treina com um número de identidades muito aquém do
+		usual em biometria de voz, e o risco de o classificador não dispor de sinal
+		suficiente para generalizar é alto --- hipótese compatível com o
+		desempenho próximo do acaso observado.
+
+		\par Três limitações de desenho devem acompanhar qualquer leitura dos
+		resultados:
+
+		\begin{itemize}
+			\item as três categorias de representação \textbf{não} foram
+			comparadas através de um classificador comum, apenas pelo critério
+			paraconsistente, de modo que a Questão~3 não foi respondida na forma em
+			que fora originalmente formulada (\autoref{sec:respostasQuestoes});
+			\item os \textit{autoencoders} apresentaram $\bar\beta$ acima de
+			$0{,}97$ em todas as configurações, indicando latentes próximos do
+			colapso; não se pode distinguir, com os dados disponíveis, ``pior
+			extrator'' de ``treino insuficiente'';
+			\item a Questão~4 (dependência de texto) foi avaliada sobre um sistema
+			que opera no nível do acaso, o que torna a ausência de diferença entre
+			os modos pouco informativa.
+		\end{itemize}
+
+	\section{Trabalhos futuros}
+
+		\par O encaminhamento mais direto decorre das limitações acima:
+
+		\begin{enumerate}
+			\item \textbf{Ampliar a base}, em número de locutores antes que em
+			amostras por locutor: sob protocolo de verificação, é a contagem de
+			identidades que limita o que o classificador pode aprender a
+			discriminar.
+
+			\item \textbf{Testar o piso de ruído em $T=64$.} Como o piso decresce
+			com $1/T$, quadruplicar o número de passos reduz
+			$\sigma_{\text{poisson}}$ a $0{,}0625$. Se a desvantagem da codificação
+			\texttt{poisson} encolher proporcionalmente, ela era artefato de
+			medição; se persistir, é propriedade da codificação. O teste decide uma
+			questão que a Fase~00 deixou explicitamente em aberto.
+
+			\item \textbf{Comparar as três categorias através do classificador},
+			estendendo a Fase~01 para além da combinação vencedora, de modo a
+			responder à Questão~3 na forma originalmente pretendida.
+
+			\item \textbf{Investigar a divergência EER--AUC sob padronização},
+			verificando a hipótese de calibração de limiar --- se confirmada, a
+			padronização passaria de prejudicial a benéfica mediante ajuste do
+			limiar de decisão.
+
+			\item \textbf{Variar orçamento de treino e capacidade dos
+			\textit{autoencoders}}, para separar ``pior extrator'' de ``treino
+			insuficiente'' e permitir uma comparação justa com a extração manual.
+		\end{enumerate}

@@ -1,64 +1,102 @@
 \chapter{Testes e Resultados} \label{chap:testsResults}
-	\section{Procedimento 01}
-	\label{chap:testsResults:sec:Experimento01}
+
+	\par Este capítulo apresenta os resultados das duas fases do Experimento~05,
+	na ordem em que foram executadas: a Fase~00, que constrói e ordena os vetores
+	de características segundo o critério paraconsistente
+	(\autoref{chap:testsResults:sec:Fase00}), e a Fase~01, que treina o
+	classificador de autenticação sobre a combinação vencedora e mede \ac{EER} e
+	\ac{AUC} (\autoref{chap:testsResults:sec:Fase01}). A
+	\autoref{sec:respostasQuestoes} retoma, à luz desses resultados, as quatro
+	questões de pesquisa formuladas no \autoref{chap:intro}. O protocolo
+	experimental --- eixos, arquitetura do classificador e forma de cálculo das
+	métricas --- está descrito no \autoref{chap:propApproach}.
 
 	\section{Fase 00 --- Ranking por grau de verdade paraconsistente}
 	\label{chap:testsResults:sec:Fase00}
 
 	As tabelas a seguir apresentam todas as configurações avaliadas na fase 00
-	do Experimento 05, ordenadas de forma decrescente pelo grau de verdade
-	paraconsistente médio ($\bar{d}$, Seção~\ref{chap:propApproach}). Aqui, $d$
-	denota o grau de verdade paraconsistente de uma única repetição --- a mesma
-	grandeza chamada $D_{\text{verdade}}$ no Capítulo~\ref{chap:propApproach} e
-	$D_{1,0}$ na Seção~\ref{sec:conceitos} (a distância ao vértice \textit{Verdade}
-	do plano paraconsistente) --- calculado a partir dos três valores de
-	$\alpha$ (grau de crença) e $\beta$ (grau de descrença) obtidos nas
-	repetições de cada configuração; $\bar\alpha$ e $\bar\beta$ são as médias de
-	$\alpha$ e $\beta$ nessas mesmas repetições, e $\sigma_d$ é o desvio padrão
-	populacional de $d$ entre as três repetições, indicando a estabilidade do
-	grau de verdade da configuração. As
-	Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} comparam as
+	do Experimento 05, ordenadas de forma \textbf{crescente} pelo grau de
+	verdade paraconsistente penalizado médio ($\bar{d}_{\text{pen}}$). Ambas as
+	grandezas tabeladas são \emph{distâncias} ao vértice \textit{Verdade} do
+	plano paraconsistente, de modo que \textbf{quanto menor, melhor}: a
+	posição~\#1 de cada tabela é a melhor configuração daquela família, e não a
+	pior.
+
+	Aqui, $d$ denota o grau de verdade paraconsistente de uma única repetição ---
+	a mesma grandeza chamada $D_{\text{verdade}}$ no
+	Capítulo~\ref{chap:propApproach} e $D_{1,0}$ na Seção~\ref{sec:conceitos} ---
+	calculado a partir dos valores de $\alpha$ (grau de crença) e $\beta$ (grau
+	de descrença) obtidos nas repetições de cada configuração;
+	$d_{\text{pen}} = d + \lambda|G_2|$ é a versão penalizada por contradição
+	definida na Seção~\ref{sec:dPenalizado} (com $\lambda = 2-\sqrt{2}$).
+	$\bar\alpha$ e $\bar\beta$ são as médias de $\alpha$ e $\beta$ nessas mesmas
+	repetições, e $\sigma_d$ é o desvio padrão populacional de $d$ entre as três
+	repetições, indicando a estabilidade da configuração.
+
+	\par \textbf{O critério de ordenação é $\bar{d}_{\text{pen}}$, e não $\bar{d}$.}
+	Essa escolha é a discutida na Seção~\ref{sec:dPenalizado} e não é uma
+	formalidade: as duas ordens de fato divergem. Para a voz, a configuração de
+	menor $\bar{d}$ é a \textit{Daubechies}~22 + LFCC (c1), mas o vencedor é a
+	Haar + LFCC (c1), porque o termo $\lambda|G_2|$ penaliza a primeira por
+	contradição. A divergência é ainda mais consequente entre famílias: pelo
+	$\bar{d}$ isolado, o melhor \textit{autoencoder} do EEG ($1{,}5046$)
+	\emph{superaria} o extrator manual vencedor ($1{,}5143$), e apenas a
+	penalização por contradição --- que reconhece o latente quase colapsado
+	desses \textit{autoencoders}, com $\bar\beta$ acima de $0{,}98$ --- inverte a
+	comparação. Por isso as duas colunas são exibidas lado a lado.
+
+	\par O vencedor de cada sinal, marcado com $\dagger$, é escolhido
+	\emph{entre as duas famílias} (manual e \textit{autoencoder}), e não dentro
+	de cada tabela: para ambos os sinais venceu a extração manual com Haar +
+	LFCC (c1), de modo que a marca aparece apenas nas
+	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice}. A posição~\#1
+	das Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} é, portanto,
+	o melhor \textit{autoencoder}, não o vencedor da fase.
+
+	As Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} comparam as
 	variantes de \textit{autoencoder} (ANN-AE e SNN-AE nas codificações direta,
 	de latência e de Poisson) para EEG e voz, respectivamente. As
 	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice} comparam as
 	configurações de características manuais (família \textit{wavelet}
 	$\times$ característica espectral $\times$ categoria) para EEG e voz.
 	Os dados das tabelas são gerados automaticamente pelo script
-	\texttt{software/nn/scripts/pipeline/\allowbreak e05\_build\_phase00\_paraconsistent\_tables.py}
-	a partir dos arquivos \texttt{results/phase00/*\_summary.json}, e devem ser
-	regenerados sempre que a fase 00 for reexecutada; o script escreve apenas
+	\texttt{software/nn/scripts/pipeline/e05/\allowbreak e05\_build\_phase00\_paraconsistent\_tables.py}
+	a partir dos arquivos \texttt{results/thesis/phase00/*\_summary.json}, e devem
+	ser regenerados sempre que a fase 00 for reexecutada; o script escreve apenas
 	os arquivos \texttt{.csv} em \texttt{tables/}.
 
 	% Cria um longtable a partir de um CSV com colunas:
-	% rank,configuration,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+	% rank,configuration,mean_d_penalized,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+	% Ordenacao crescente por mean_d_penalized (menor = melhor); a linha vencedora
+	% do sinal traz \textsuperscript{$\dagger$} ja embutido na coluna rank pelo script.
 	% Cabeçalho e zebra striping vêm de chapters/data/visualStyle.tex (SSOT).
 	\newcommand{\Phasezerotable}[3]{%
 		\tableZebraStripe
-		\begin{longtable}{@{}rlrrrr@{}}
+		\begin{longtable}{@{}rlrrrrr@{}}
 			\caption{#2} \label{#3} \\
-			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\endfirsthead
-			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\endhead
 			\endfoot
 			\bottomrule
 			\endlastfoot
 			\csvreader{#1}{}%
-				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
+				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
 		\end{longtable}%
 	}
 
 	\Phasezerotable{tables/phase00_ae_eeg.csv}%
-		{Configurações de autoencoder (EEG) ordenadas por grau de verdade $d$}%
+		{Configurações de autoencoder (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
 		{tab:phase00ae_eeg}
 	\Phasezerotable{tables/phase00_ae_voice.csv}%
-		{Configurações de autoencoder (voz) ordenadas por grau de verdade $d$}%
+		{Configurações de autoencoder (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
 		{tab:phase00ae_voice}
 	\Phasezerotable{tables/phase00_hc_eeg.csv}%
-		{Configurações de características manuais (EEG) ordenadas por grau de verdade $d$}%
+		{Configurações de características manuais (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
 		{tab:phase00hc_eeg}
 	\Phasezerotable{tables/phase00_hc_voice.csv}%
-		{Configurações de características manuais (voz) ordenadas por grau de verdade $d$}%
+		{Configurações de características manuais (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
 		{tab:phase00hc_voice}
 
 	\section{Fase 01 --- Autenticação DSNN}
@@ -75,7 +113,7 @@
 	padronizado) --- ordenadas de forma crescente por \ac{EER} médio (menor é
 	melhor) sobre as três repetições de cada configuração. Os dados são gerados
 	automaticamente pelo script
-	\texttt{software/nn/scripts/pipeline/\allowbreak e05\_build\_phase01\_auth\_tables.py}
+	\texttt{software/nn/scripts/pipeline/e05/\allowbreak e05\_build\_phase01\_auth\_tables.py}
 	a partir dos arquivos \texttt{results/thesis/phase01/*\_summary.json}, e
 	devem ser regenerados sempre que a fase 01 for reexecutada.
 
@@ -112,3 +150,100 @@
 	\Phaseonetable{tables/phase01_auth.csv}%
 		{Configurações da Fase 01 (autenticação DSNN) ordenadas por EER médio}%
 		{tab:phase01auth}
+
+	\section{Retomada das questões de pesquisa}
+	\label{sec:respostasQuestoes}
+
+	Esta seção confronta as quatro questões formuladas na
+	\autoref{chap:intro} com o que foi efetivamente medido. Duas delas são
+	respondidas pela Fase~00, uma pela Fase~01, e uma --- a Questão~3 --- só pode
+	ser respondida em parte, por uma limitação de desenho que se explicita adiante.
+
+	\subsection*{Questão 1 --- O agrupamento espectral influencia a representação?}
+
+	\par \textbf{Sim, mas fracamente, e apenas para a voz.} Restringindo a
+	comparação às representações de Categoria~1 do sinal de voz --- as únicas em
+	que o eixo é aplicável, pois no EEG as escalas Mel e Bark degeneram na linear
+	(\autoref{sec:escalaEeg}) --- a melhor configuração de cada escala é
+	$1{,}4835$ (LFCC, linear), $1{,}4972$ (Mel) e $1{,}5099$ (Bark) em
+	$\bar{d}_{\text{pen}}$. A ordem favorece consistentemente o particionamento
+	linear, mas a amplitude total entre as três escalas ($0{,}026$) é pequena
+	diante da diferença que separa as categorias (Questão~2) ou as famílias de
+	extrator (Questão~3). A leitura honesta é que a escala importa, e importa
+	menos do que se poderia supor: nenhuma das escalas cocleares compensou, na
+	voz, o custo de agrupar bandas de forma não uniforme.
+
+	\subsection*{Questão 2 --- A transformação cepstral melhora a representação?}
+
+	\par \textbf{Não para a voz, onde ela degrada a representação de forma
+	inequívoca; para o EEG, o efeito é ambíguo.} Na voz, as 69 configurações de
+	Categoria~1 têm $\bar{d}_{\text{pen}}$ médio de $1{,}5247$ (melhor:
+	$1{,}4835$), contra $1{,}6285$ (melhor: $1{,}6068$) nas 69 configurações de
+	Categoria~2. A separação é \emph{total}, e não apenas de médias: a pior
+	configuração não cepstral ($1{,}5638$) ainda supera a melhor cepstral
+	($1{,}6068$), de modo que as duas categorias não se sobrepõem em nenhum ponto
+	do ranking. Como a única diferença entre cada par é a etapa de logaritmo mais
+	\ac{DCT}, o resultado é atribuível a ela.
+
+	\par No EEG o quadro é distinto e não deve ser reportado como o mesmo achado:
+	a melhor configuração continua sendo de Categoria~1 ($1{,}5883$ contra
+	$1{,}6345$), mas na \emph{média} das 23 configurações de cada categoria as
+	duas praticamente empatam, com leve vantagem cepstral ($1{,}7921$ contra
+	$1{,}7980$). Ou seja, no EEG a etapa cepstral não custa desempenho de forma
+	sistemática --- ela apenas não produz o melhor extrator. A conclusão forte da
+	Questão~2 vale, portanto, para a voz, e não para ambos os sinais.
+
+	\par Uma explicação plausível é que a \ac{DCT} concentra energia nos primeiros
+	coeficientes e descarta estrutura de banda fina que o critério paraconsistente
+	--- sensível à amplitude intraclasse --- justamente aproveita. Vale notar que
+	isso não contradiz a utilidade consagrada dos coeficientes cepstrais em
+	reconhecimento de fala: ali o objetivo é representar o \emph{conteúdo}
+	falado de forma robusta ao locutor, ao passo que aqui se busca exatamente o
+	oposto --- preservar o que distingue locutores. Uma etapa que normaliza
+	diferenças de trato vocal é benéfica no primeiro caso e prejudicial no segundo.
+
+	\subsection*{Questão 3 --- Autoencoders superam as técnicas manuais?}
+
+	\par \textbf{Não, segundo o critério paraconsistente --- mas a questão, como
+	originalmente formulada, não pôde ser respondida.} Pelo critério da Fase~00 a
+	resposta é inequívoca: a melhor configuração manual supera o melhor
+	\textit{autoencoder} com folga em ambos os sinais ($1{,}5883$ contra
+	$1{,}8491$ no EEG; $1{,}4835$ contra $1{,}8370$ na voz), e a extração manual
+	venceu a seleção para os dois. Nenhuma variante de \textit{autoencoder}, em
+	nenhum dos três tamanhos ou três codificações, chegou perto.
+
+	\par A ressalva é de desenho experimental, e é importante o bastante para ser
+	registrada como limitação. A Questão~3 fora formulada supondo que as três
+	categorias seriam comparadas \emph{através de um mesmo classificador}. Não foi
+	o que ocorreu: a Fase~00 compara extratores sem treinar classificador algum, e
+	a Fase~01 treina apenas a combinação vencedora. As Categorias~1, 2 e 3 nunca
+	foram, portanto, confrontadas pelo desempenho de autenticação --- apenas pela
+	separabilidade paraconsistente. A conclusão acima é válida no escopo desse
+	critério e não deve ser lida como ``\textit{autoencoders} produzem pior
+	autenticação'', afirmação que este experimento não testou.
+
+	\par Há ainda um agravante interpretativo. Os valores de $\bar\beta$ dos
+	\textit{autoencoders} são altíssimos --- acima de $0{,}97$ nas 24
+	configurações, e acima de $0{,}99$ em metade delas --- o que indica
+	sobreposição quase total entre classes, isto é, latentes próximos do colapso
+	discutido na \autoref{sec:dPenalizado}. O que a Fase~00 mediu pode ser menos
+	``\textit{autoencoders} são piores extratores'' e mais ``estes
+	\textit{autoencoders}, neste regime de treino, não aprenderam representações
+	discriminativas''. Distinguir as duas hipóteses exigiria variar orçamento de
+	treino e capacidade, o que não foi feito.
+
+	\subsection*{Questão 4 --- O desempenho é afetado pela dependência de texto?}
+
+	\par \textbf{Não de forma perceptível.} Sobre as 16 configurações de cada
+	nível, o \ac{EER} médio é $0{,}5923$ no modo dependente de texto e $0{,}5913$
+	no independente --- uma diferença de $0{,}001$, muito menor que o desvio
+	padrão entre repetições de uma única configuração. As melhores configurações
+	de cada modo também praticamente empatam ($0{,}4534$ contra $0{,}4651$).
+
+	\par Esse resultado precisa ser lido com cautela, e a cautela é a mesma que
+	atravessa toda a Fase~01: com o desempenho global tão próximo do acaso
+	(\autoref{chap:testsResults}), a ausência de diferença entre os dois modos é
+	pouco informativa. Dois classificadores que não discriminam não se distinguem
+	entre si. A questão permanece, na prática, em aberto: só faria sentido
+	reavaliá-la sobre um sistema que primeiro demonstrasse desempenho de
+	autenticação acima do acaso.

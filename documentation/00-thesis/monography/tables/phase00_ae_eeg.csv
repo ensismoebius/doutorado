@@ -1,13 +1,13 @@
-rank,configuration,mean_d_truth,std_d_truth,mean_alpha,mean_beta
-1,SNN-AE poisson (tiny),1.9984,0.0012,0.0000,0.9984
-2,SNN-AE poisson (small),1.9960,0.0010,0.0007,0.9967
-3,SNN-AE poisson (base),1.9944,0.0003,0.0020,0.9964
-4,SNN-AE latency (base),1.9161,0.0029,0.0752,0.9902
-5,SNN-AE latency (small),1.9127,0.0058,0.0781,0.9896
-6,SNN-AE latency (tiny),1.8709,0.0081,0.1211,0.9887
-7,SNN-AE direct (small),1.8249,0.0805,0.1875,0.9999
-8,SNN-AE direct (base),1.8133,0.0344,0.1979,0.9999
-9,SNN-AE direct (tiny),1.6569,0.1851,0.4583,0.9996
-10,ANN-AE (tiny),1.5767,0.0581,0.4817,0.9833
-11,ANN-AE (base),1.5046,0.0130,0.6119,0.9902
-12,ANN-AE (small),1.4944,0.0418,0.6438,0.9915
+rank,configuration,mean_d_penalized,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+1,ANN-AE (tiny),1.8491,1.5767,0.0581,0.4817,0.9833
+2,ANN-AE (base),1.8573,1.5046,0.0130,0.6119,0.9902
+3,ANN-AE (small),1.8666,1.4944,0.0418,0.6438,0.9915
+4,SNN-AE direct (tiny),1.9251,1.6569,0.1851,0.4583,0.9996
+5,SNN-AE direct (base),1.9292,1.8133,0.0344,0.1979,0.9999
+6,SNN-AE direct (small),1.9347,1.8249,0.0805,0.1875,0.9999
+7,SNN-AE latency (tiny),1.9352,1.8709,0.0081,0.1211,0.9887
+8,SNN-AE latency (small),1.9524,1.9127,0.0058,0.0781,0.9896
+9,SNN-AE latency (base),1.9544,1.9161,0.0029,0.0752,0.9902
+10,SNN-AE poisson (base),1.9954,1.9944,0.0003,0.0020,0.9964
+11,SNN-AE poisson (small),1.9976,1.9960,0.0010,0.0007,0.9967
+12,SNN-AE poisson (tiny),1.9993,1.9984,0.0012,0.0000,0.9984
