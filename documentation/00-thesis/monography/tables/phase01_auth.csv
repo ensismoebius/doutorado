@@ -1,0 +1,33 @@
+rank,configuration,mean_eer,std_eer,mean_auc,std_auc
+1,Fusão precoce · dependente de texto · $k$-fold plano · bruto,0.4534,0.0214,0.5452,0.0377
+2,EEG · independente de texto · $k$-fold plano · bruto,0.4651,0.0365,0.5609,0.0198
+3,Fusão tardia · dependente de texto · $k$-fold plano · bruto,0.4731,0.0472,0.5716,0.0276
+4,EEG · dependente de texto · $k$-fold plano · bruto,0.4768,0.0746,0.5534,0.0357
+5,EEG · dependente de texto · $k$-fold aninhado · bruto,0.4826,0.0411,0.5595,0.0406
+6,EEG · independente de texto · $k$-fold aninhado · bruto,0.5027,0.0824,0.5698,0.0431
+7,Fusão precoce · independente de texto · $k$-fold plano · bruto,0.5039,0.0655,0.5619,0.0459
+8,Fusão precoce · dependente de texto · $k$-fold aninhado · bruto,0.5105,0.0577,0.5629,0.0414
+9,Fusão tardia · independente de texto · $k$-fold plano · bruto,0.5138,0.0742,0.5652,0.0297
+10,Fusão precoce · independente de texto · $k$-fold aninhado · bruto,0.5235,0.0428,0.5819,0.0262
+11,Fusão tardia · independente de texto · $k$-fold aninhado · bruto,0.5300,0.0186,0.5638,0.0065
+12,Fusão tardia · dependente de texto · $k$-fold aninhado · bruto,0.5614,0.0192,0.5733,0.0275
+13,Voz · independente de texto · $k$-fold plano · padronizado,0.5905,0.0126,0.6358,0.0191
+14,Voz · dependente de texto · $k$-fold plano · bruto,0.5935,0.0641,0.6410,0.0639
+15,Voz · independente de texto · $k$-fold plano · bruto,0.6049,0.0318,0.6559,0.0483
+16,Voz · independente de texto · $k$-fold aninhado · padronizado,0.6134,0.0355,0.6640,0.0419
+17,Voz · dependente de texto · $k$-fold aninhado · bruto,0.6139,0.0126,0.6590,0.0278
+18,Voz · dependente de texto · $k$-fold plano · padronizado,0.6263,0.0336,0.6819,0.0375
+19,Voz · independente de texto · $k$-fold aninhado · bruto,0.6263,0.0216,0.6673,0.0289
+20,Voz · dependente de texto · $k$-fold aninhado · padronizado,0.6270,0.0105,0.6860,0.0192
+21,Fusão tardia · independente de texto · $k$-fold plano · padronizado,0.6344,0.0256,0.6867,0.0283
+22,EEG · dependente de texto · $k$-fold plano · padronizado,0.6536,0.0223,0.7275,0.0291
+23,Fusão tardia · independente de texto · $k$-fold aninhado · padronizado,0.6606,0.0241,0.7062,0.0207
+24,Fusão tardia · dependente de texto · $k$-fold aninhado · padronizado,0.6630,0.0630,0.7293,0.0694
+25,Fusão precoce · independente de texto · $k$-fold plano · padronizado,0.6660,0.0274,0.7230,0.0312
+26,EEG · independente de texto · $k$-fold aninhado · padronizado,0.6670,0.0276,0.7236,0.0375
+27,EEG · independente de texto · $k$-fold plano · padronizado,0.6725,0.0200,0.7268,0.0268
+28,EEG · dependente de texto · $k$-fold aninhado · padronizado,0.6772,0.0531,0.7376,0.0677
+29,Fusão tardia · dependente de texto · $k$-fold plano · padronizado,0.6820,0.0247,0.7494,0.0331
+30,Fusão precoce · independente de texto · $k$-fold aninhado · padronizado,0.6855,0.0356,0.7503,0.0343
+31,Fusão precoce · dependente de texto · $k$-fold aninhado · padronizado,0.6896,0.0338,0.7622,0.0387
+32,Fusão precoce · dependente de texto · $k$-fold plano · padronizado,0.6934,0.0243,0.7662,0.0257

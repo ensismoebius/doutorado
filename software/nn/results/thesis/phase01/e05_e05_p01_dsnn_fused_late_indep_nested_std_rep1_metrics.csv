@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,independent,0,nan,nan,nan,nan,nan,0.568720,0.588958,2542.187,22.834,results/thesis/phase01/models/e05_p01_dsnn_fused_late_indep_nested_std_rep1/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,independent,1,nan,nan,nan,nan,nan,0.649770,0.681900,2155.803,23.761,results/thesis/phase01/models/e05_p01_dsnn_fused_late_indep_nested_std_rep1/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,independent,2,nan,nan,nan,nan,nan,0.879630,0.936771,2211.537,27.561,results/thesis/phase01/models/e05_p01_dsnn_fused_late_indep_nested_std_rep1/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,independent,3,nan,nan,nan,nan,nan,0.534884,0.551347,2274.919,23.411,results/thesis/phase01/models/e05_p01_dsnn_fused_late_indep_nested_std_rep1/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,independent,4,nan,nan,nan,nan,nan,0.840000,0.913975,2211.385,46.700,results/thesis/phase01/models/e05_p01_dsnn_fused_late_indep_nested_std_rep1/handcrafted-lfcc-fused-late/fold_4.bin

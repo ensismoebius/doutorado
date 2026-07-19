@@ -467,19 +467,31 @@ The experiment is split into two profile sets, gated by `classifier.enabled`:
 - **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, for **208** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
-**Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:
+**Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
+(since 2026-07-18) `run_e05_profiles.sh phase00`/`all` chains all three itself once every
+phase00 profile passes (fails closed on any failure; `E05_FORCE_POST`/`E05_SKIP_POST`
+override — see [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md)
+for the full gating rules and the `scope=all` ordering caveat). Shown here for manual re-runs:
 
 ```bash
 # Rank Phase 00 results, pick the min-D_truth winner per signal:
 python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
-  --results-dir results/thesis/phase00 --out results/thesis/phase00/winners.json
+  --profiles-dir src/experiments/05/profiles/phase00 \
+  --results-dir  results/thesis/phase00 \
+  --out          results/thesis/phase00/winners.json
 
-# Inject the winners into the 16 Phase 01 profiles (fused uses the voice winner by default):
+# Inject the winners into the 32 Phase 01 profiles (fused uses the voice winner by default):
 python3 scripts/pipeline/e05/02_e05_apply_winner.py \
-  --winners results/thesis/phase00/winners.json --fused voice
+  --winners      results/thesis/phase00/winners.json \
+  --profiles-dir src/experiments/05/profiles/phase01
+
+# Regenerate the thesis tables from the ranked results:
+python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
+  --results-dir results/thesis/phase00 \
+  --tables-dir  ../../documentation/00-thesis/monography/tables
 ```
 
-`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
+`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `e05_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from.
 
 ---
 

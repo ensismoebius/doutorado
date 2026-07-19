@@ -1,4 +1,4 @@
-# run.md — re-run runbook (2026-07-16)
+# run.md — re-run runbook (2026-07-18)
 
 Commands to regenerate every experimental result, in dependency order. Everything here is
 **expensive** (hours) — the `expensive-experiment-guard` hook in `.claude/hooks/` blocks an
@@ -146,6 +146,12 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 ./scripts/testing/run_e05_profiles.sh phase00
 ```
 
+**As of 2026-07-18, this now automatically chains §2a (rank → winner → tables) once all 208
+profiles finish with zero failures** — see §2a for the gating and override flags
+(`E05_FORCE_POST`, `E05_SKIP_POST`). You no longer need to run the three commands in §2a by
+hand for a normal phase00 pass; they remain there for manual re-runs (e.g. after fixing a
+partial failure without re-running the whole phase, or against `results/thesis/smoke`).
+
 Resumable: every completed profile is checkpointed to `results/thesis/run_profiles_phase00.state`.
 On restart it offers resume vs. start-over (non-interactive default = resume);
 `RESUME=1` forces resume, `FRESH=1` forces start-over.
@@ -164,7 +170,26 @@ are ~20× heavier, so it tracks work done rather than profile count and does not
 fast/slow mix shifts. See `.wiki/Guides/Running-Experiment05-Profiles.md` for binary selection
 (`E05_BUILD`, `E05_BIN`), live progress bars, and failure triage.
 
-### 2a. Rank → winner → tables
+### 2a. Rank → winner → tables (now automatic after §2)
+
+**`run_e05_profiles.sh phase00` (and `all`) now runs these three steps itself** once every
+profile in the run passes — no manual invocation needed for the normal path. The commands
+below are for manual re-runs only: after fixing a partial failure without re-running the whole
+phase, or against a non-default results directory (e.g. `results/thesis/smoke`).
+
+Gating on the automatic path:
+- **Fails closed.** Any profile failure skips post-processing (ranking over an incomplete
+  result set can pick the wrong winner, which step 2 would then bake into the 32 tracked
+  phase01 profiles). Fix the failures and re-run (resume skips what already passed), or set
+  `E05_FORCE_POST=1` to run it anyway.
+- `E05_SKIP_POST=1` disables the automatic post-processing entirely.
+- With `scope=all`, phase01 runs in the *same* pass as phase00 and therefore trains on the
+  placeholder extractor, not the winner post-processing just injected — the script prints this
+  warning and you need a separate `./scripts/testing/run_e05_profiles.sh phase01` afterward for
+  the injected winner to take effect.
+- Step 2 below still **rewrites the phase01 profiles in place** — review
+  `git diff src/experiments/05/profiles/phase01` before committing, whether it ran
+  automatically or by hand.
 
 > ⚠️ **Two of these commands are destructive if pointed at the wrong path.**
 > - `02_e05_apply_winner.py` **rewrites the phase01 profiles in place**. Pointing it at a
@@ -198,9 +223,14 @@ python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
 
 ## 3. E05 Phase 01 — the thesis's actual experiment
 
-**Only after step 2a**, or the DSNN trains on the placeholder extractor rather than the
-Phase 00 winner. Phase 01 has never produced a single result: full code + profile coverage,
-no data.
+**Only after step 2** (which now runs 2a automatically on a clean phase00 pass), or the DSNN
+trains on the placeholder extractor rather than the Phase 00 winner. If you ran `scope=all`,
+step 2's post-processing came too late for that same pass's phase01 — re-run phase01 alone
+after it, per the warning in §2a.
+
+> Phase 00 and Phase 01 both completed a full run on 2026-07-19 (208/208 and 32/32 profiles,
+> 0 failures). Results live in `results/thesis/{phase00,phase01}`; the thesis's §Fase 01 table
+> (`documentation/00-thesis/monography/chapters/09-testsAndResults.tex`) reflects that run — see §3b.
 
 ```bash
 ./scripts/testing/run_e05_profiles.sh phase01     # 32 DSNN profiles → EER/AUC in results/thesis/phase01
@@ -221,6 +251,18 @@ python3 scripts/pipeline/e05/e05_cross_profile_significance.py \
 
 Paired tests assume the compared runs share CV seed/splits (they do, by default). Use
 `--metric accuracy|auc|f1`, `--reference <run_tag>`, or `--pairing paired|independent` to vary it.
+
+### 3b. Thesis authentication table
+
+Regenerates the §Fase 01 table (`tables/phase01_auth.csv`) the thesis compiles from: ranks
+all 32 configurations by mean EER (ascending — lower is better) across their 3 repeats. Not
+yet chained into `run_e05_profiles.sh` (unlike §2a) — run by hand after a phase01 pass:
+
+```bash
+python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \
+  --results-dir results/thesis/phase01 \
+  --tables-dir  ../../documentation/00-thesis/monography/tables
+```
 
 ---
 
@@ -264,5 +306,6 @@ over these summary files.)
 
 - `fixme.md` — D3 and D5 are blocked on this; item 51's optimizer ablation needs a **per-optimizer**
   lr grid (a single lr is not comparable: reference defaults span adam 1e-3 → lion 1e-4).
-- The Phase 00 §09 thesis tables' autoencoder rows are provisional until step 2a is re-run.
-- `results/thesis/phase00/README.md` explains the empty directory; it can go once results exist.
+- Phase 00 and Phase 01 both completed 2026-07-19 (208/208, 32/32, 0 failures) — the §09 phase00
+  and phase01 tables now reflect that run (§2a, §3b). Re-run both scripts after any future re-run.
+- `results/thesis/phase00/README.md` explains the empty directory; it can go now that results exist.

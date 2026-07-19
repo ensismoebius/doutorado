@@ -60,3 +60,55 @@
 	\Phasezerotable{tables/phase00_hc_voice.csv}%
 		{Configurações de características manuais (voz) ordenadas por grau de verdade $d$}%
 		{tab:phase00hc_voice}
+
+	\section{Fase 01 --- Autenticação DSNN}
+	\label{chap:testsResults:sec:Fase01}
+
+	A Fase 01 treina a \ac{DSNN} de autenticação sobre a extração de
+	características vencedora da Fase 00 (Seção~\ref{chap:testsResults:sec:Fase00}:
+	\textit{handcrafted}, \textit{wavelet} Haar, LFCC, categoria c1, para EEG e
+	voz) e mede \ac{EER} e \ac{AUC} por dobra de validação cruzada. A Tabela~\ref{tab:phase01auth}
+	cobre as 32 configurações do experimento --- produto cartesiano de fonte
+	(EEG, voz, fusão precoce, fusão tardia) $\times$ modo de texto (dependente,
+	independente) $\times$ esquema de validação cruzada ($k$-fold plano,
+	$k$-fold aninhado) $\times$ padronização de características (bruto,
+	padronizado) --- ordenadas de forma crescente por \ac{EER} médio (menor é
+	melhor) sobre as três repetições de cada configuração. Os dados são gerados
+	automaticamente pelo script
+	\texttt{software/nn/scripts/pipeline/\allowbreak e05\_build\_phase01\_auth\_tables.py}
+	a partir dos arquivos \texttt{results/thesis/phase01/*\_summary.json}, e
+	devem ser regenerados sempre que a fase 01 for reexecutada.
+
+	A melhor configuração (fusão precoce, dependente de texto, $k$-fold plano,
+	características brutas) atinge $\text{EER} = 0{,}4534$ e
+	$\text{AUC} = 0{,}5452$ --- próximo do nível de acaso
+	($\text{EER} = 0{,}5$, $\text{AUC} = 0{,}5$ correspondem a um classificador
+	aleatório) e, portanto, ainda distante do desempenho necessário para uma
+	autenticação prática. Três padrões emergem da tabela completa: (i) EEG e as
+	fusões superam voz isoladamente nas configurações mais bem ranqueadas; (ii)
+	a validação cruzada em $k$-fold plano supera a aninhada dentro de cada
+	combinação de fonte/modo de texto; e (iii) a padronização de características
+	piora sistematicamente o \ac{EER} nesta fase, apesar de elevar o \ac{AUC} ---
+	uma divergência entre as duas métricas que sugere um limiar de decisão
+	inadequado sob padronização, e não necessariamente uma perda real de poder
+	discriminativo, ficando como investigação futura.
+
+	\newcommand{\Phaseonetable}[3]{%
+		\tableZebraStripe
+		\begin{longtable}{@{}rlrrrr@{}}
+			\caption{#2} \label{#3} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{EER} & \textbf{$\sigma_{\text{EER}}$} & \textbf{AUC} & \textbf{$\sigma_{\text{AUC}}$} \\
+			\endfirsthead
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{EER} & \textbf{$\sigma_{\text{EER}}$} & \textbf{AUC} & \textbf{$\sigma_{\text{AUC}}$} \\
+			\endhead
+			\endfoot
+			\bottomrule
+			\endlastfoot
+			\csvreader{#1}{}%
+				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
+		\end{longtable}%
+	}
+
+	\Phaseonetable{tables/phase01_auth.csv}%
+		{Configurações da Fase 01 (autenticação DSNN) ordenadas por EER médio}%
+		{tab:phase01auth}

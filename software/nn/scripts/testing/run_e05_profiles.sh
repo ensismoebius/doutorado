@@ -4,10 +4,19 @@
 # experiment, not the smoke mirror). Shows live progress and captures failures.
 #
 # Pipeline order:
-#   1) run_e05_profiles.sh phase00              → paraconsistent ranking CSVs in results/thesis/phase00
-#   2) pipeline/e05/01_e05_phase00_rank.py      → winners.json
-#   3) pipeline/e05/02_e05_apply_winner.py      → injects the winner into the phase01 profiles
-#   4) run_e05_profiles.sh phase01              → DSNN authentication, EER/AUC in results/thesis/phase01
+#   1) run_e05_profiles.sh phase00   → paraconsistent ranking CSVs in results/thesis/phase00,
+#                                      then AUTOMATICALLY (see "Phase 00 post-processing"):
+#                                        01_e05_phase00_rank.py  → winners.json
+#                                        02_e05_apply_winner.py  → injects the winner into
+#                                                                  the 32 phase01 profiles
+#                                        e05_build_phase00_paraconsistent_tables.py
+#                                                                → regenerates the thesis tables
+#   2) run_e05_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
+#
+# Step 1's post-processing REWRITES tracked files under
+# src/experiments/05/profiles/phase01/ — review that diff before committing.
+# It is skipped when any profile failed (the ranking would be computed over an
+# incomplete set); E05_FORCE_POST=1 overrides, E05_SKIP_POST=1 disables it entirely.
 #
 # Requires: experiment05 built, and the dataset (dataset.root) present.
 # HEAVY: phase00 = 208 profiles, phase01 = 32, each with experiment.repeats runs.
@@ -767,4 +776,76 @@ if [ "$fail" -gt 0 ]; then
     echo "--- failures ---"
     cat "$TMP/failures"
 fi
+
+# ── Phase 00 post-processing ────────────────────────────────────────────────
+# Phase 00 only produces raw per-profile CSV/JSON; three steps turn that into the
+# artefacts everything downstream consumes. They used to be copy-pasted by hand after
+# every run, which is how the thesis tables ended up frozen on stale (pre-deletion)
+# data — so they now run automatically here.
+#
+#   1. 01_e05_phase00_rank.py   → winners.json. Selects on d_penalized, NOT raw
+#      d_truth (a collapsed latent can game d_truth), and reports exact ties.
+#   2. 02_e05_apply_winner.py   → injects the real winner into the 32 phase01
+#      profiles, replacing the daub4/lfcc placeholder they ship with.
+#   3. e05_build_phase00_paraconsistent_tables.py → regenerates the thesis tables.
+#
+# NOTE: step 2 REWRITES 32 git-tracked files under
+# src/experiments/05/profiles/phase01/. Expect a git diff there after a phase00 run;
+# that diff is the point (it is what phase01 then trains on), but review it before
+# committing. E05_SKIP_POST=1 skips this whole block.
+post_process_phase00() {
+    local py rc=0
+    # These three scripts are stdlib-only, so python3 suffices; still prefer the
+    # project venv when present so every pipeline entry point uses one interpreter.
+    py="python3"
+    [ -x ".venv/bin/python3" ] && py=".venv/bin/python3"
+
+    echo
+    echo "=== phase00 post-processing ==="
+
+    echo "[post] ranking phase00 → winners.json"
+    "$py" scripts/pipeline/e05/01_e05_phase00_rank.py \
+        --profiles-dir src/experiments/05/profiles/phase00 \
+        --results-dir  results/thesis/phase00 \
+        --out          results/thesis/phase00/winners.json || { rc=$?; return $rc; }
+
+    echo "[post] injecting winner into the phase01 profiles"
+    "$py" scripts/pipeline/e05/02_e05_apply_winner.py \
+        --winners      results/thesis/phase00/winners.json \
+        --profiles-dir src/experiments/05/profiles/phase01 || { rc=$?; return $rc; }
+
+    echo "[post] regenerating the thesis phase00 tables"
+    "$py" scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
+        --results-dir results/thesis/phase00 \
+        --tables-dir  ../../documentation/00-thesis/monography/tables || { rc=$?; return $rc; }
+
+    echo "[post] done — review 'git diff src/experiments/05/profiles/phase01' before committing"
+    return 0
+}
+
+# Gated on scope AND on a clean run: ranking over a partial result set can pick the
+# wrong winner, and step 2 would then bake that wrong winner into 32 tracked profiles.
+# Failing closed keeps that mistake out of the tree — fix the failures and re-run
+# (resume skips everything that already passed). E05_FORCE_POST=1 overrides.
+if [ -n "${E05_SKIP_POST:-}" ]; then
+    [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ] && echo "(E05_SKIP_POST set — skipping phase00 post-processing)"
+elif [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ]; then
+    if [ "$fail" -gt 0 ] && [ -z "${E05_FORCE_POST:-}" ]; then
+        echo
+        echo "!! skipping phase00 post-processing: $fail profile(s) failed, so the ranking"
+        echo "!! would be computed over an incomplete result set and could select the wrong"
+        echo "!! winner — which step 2 would then write into 32 tracked phase01 profiles."
+        echo "!! Fix the failures and re-run (completed profiles are skipped), or set"
+        echo "!! E05_FORCE_POST=1 to run it anyway."
+    else
+        if [ "$SCOPE" = all ]; then
+            echo
+            echo "!! scope 'all' ran phase01 in the SAME pass as phase00, so phase01 used the"
+            echo "!! placeholder extractor, not the winner injected below. Re-run phase01"
+            echo "!! (./scripts/testing/run_e05_profiles.sh phase01) for it to take effect."
+        fi
+        post_process_phase00 || echo "!! phase00 post-processing FAILED (exit $?) — artefacts may be stale"
+    fi
+fi
+
 [ "$fail" -eq 0 ]
