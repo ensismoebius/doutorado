@@ -250,7 +250,12 @@ smoke/partial-run JSON silently overwrites the real profiles' extractor.
 
 Defaults `--tables-dir` to the committed thesis tables directory — run it
 with anything other than complete phase00 results and it overwrites the
-tables the thesis compiles from.
+tables the thesis compiles from. Ranks **ascending** by `d_penalized` (rank 1
+is the best configuration) and marks each signal's winner with a dagger —
+an earlier version of this script sorted descending, which put the actual
+winner last instead of first; see
+[Experiment05 pitfall 12](../Experiments/Experiment05.md#common-pitfalls)
+before trusting a "rank 1" row in any table this pipeline produces.
 
 ### 5. Phase 01 — DSNN authentication
 
@@ -262,6 +267,25 @@ the placeholder extractor rather than the phase00 winner.
 ```bash
 ./scripts/testing/run_e05_profiles.sh phase01
 ```
+
+### 6. Regenerate the thesis authentication table
+
+Not chained automatically (unlike step 4) — run by hand once phase01 has
+results:
+
+```bash
+.venv/bin/python scripts/pipeline/e05/e05_build_phase01_auth_tables.py \
+  --results-dir results/thesis/phase01 \
+  --tables-dir  ../../documentation/00-thesis/monography/tables
+```
+
+Averages `mean_eer`/`mean_auc` over each configuration's 3 repeats and
+writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better).
+
+> **Status (2026-07-19):** both phases have completed a full run — 208/208
+> phase00 and 32/32 phase01 profiles, 0 failures. See
+> [Experiment05](../Experiments/Experiment05.md#overview) for the headline
+> numbers and the thesis chapter 09 for full tables and discussion.
 
 ## Decoded-dataset cache
 

@@ -15,6 +15,18 @@ The experiment consists of two stages:
 - **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE)
 - **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested or flat 5-fold cross-validation
 
+> **Status (2026-07-19): both phases have completed a full run** — 208/208 Phase 00
+> profiles and 32/32 Phase 01 profiles, 0 failures. The Phase-00 winner is the
+> **same handcrafted extractor for both signals** — Haar wavelet, linear scale
+> (LFCC), Category 1 — beating every one of the 24 autoencoder variants by a wide
+> margin on `D_penalized` in both modalities. Phase 01's best configuration
+> (early fusion, text-dependent, flat CV, unstandardized features) reaches
+> **EER = 0.4534, AUC = 0.5452** — close to the chance level of a random
+> classifier (EER=AUC=0.5), so authentication performance under the evaluated
+> conditions does not yet support practical use. Full tables and discussion are
+> in the thesis (`documentation/00-thesis/monography/chapters/09-testsAndResults.tex`,
+> §Fase 00/§Fase 01/§Retomada das questões de pesquisa) and its Conclusões chapter.
+
 ---
 
 ## Theoretical Background
@@ -485,13 +497,24 @@ python3 scripts/pipeline/e05/02_e05_apply_winner.py \
   --winners      results/thesis/phase00/winners.json \
   --profiles-dir src/experiments/05/profiles/phase01
 
-# Regenerate the thesis tables from the ranked results:
+# Regenerate the thesis Phase 00 tables from the ranked results:
 python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
   --results-dir results/thesis/phase00 \
   --tables-dir  ../../documentation/00-thesis/monography/tables
 ```
 
-`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `e05_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from.
+`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `e05_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from. It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across both the handcrafted and autoencoder families) with a dagger — see pitfall 12 below for why this matters.
+
+A fourth script, not yet chained into `run_e05_profiles.sh`, ranks the Phase 01 results once that phase has run:
+
+```bash
+# Regenerate the thesis Phase 01 authentication table (32 configs, ranked by mean EER):
+python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \
+  --results-dir results/thesis/phase01 \
+  --tables-dir  ../../documentation/00-thesis/monography/tables
+```
+
+`e05_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above.
 
 ---
 
@@ -598,6 +621,8 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 8. **EER is NaN with grouped CV + degenerate fold.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or only one speaker in fold. This is correct behaviour.
 
 9. **`max_samples` truncation round-robins across subjects.** Samples are stored subject-contiguous (~130 trials/speaker), so a first-N truncation would keep only 2–3 speakers and break speaker-disjoint (GroupKFold) folds — especially nested CV, whose inner fold would then have fewer groups than splits (`GroupKFoldPolicy: number of unique groups is less than n_splits`). `load_dataset()` therefore selects the capped subset round-robin across subjects so every speaker is represented. Found by the smoke suite — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
+
+12. **A ranking table's sort direction is not self-evident from the data — verify it against the actual winner.** `e05_build_phase00_paraconsistent_tables.py` sorted `reverse=True` (descending by mean `d_truth`) for a long time before this was caught, on the reasoning that a ranked table "starts at the top". But `d_truth`/`d_penalized` are *distances* to the paraconsistent Truth vertex — lower is better — so descending order silently put each signal's actual winner **last**: the real EEG winner sat at rank 46 of 46. It also ranked on `d_truth`, not `d_penalized`, the metric `01_e05_phase00_rank.py` actually selects on — the two orders genuinely diverge (see [Core/Paraconsistent.md](../Core/Paraconsistent.md#selection-metric-contradiction-penalized-truth-distance)). The fix: sort ascending by `d_penalized`, emit both `d_penalized` and `d_truth` columns, and mark the true winner (cross-checked against `winners.json`) with a dagger rather than trusting rank 1. When any script writes a "ranked" table, check its sort direction and key against an independent source of truth — do not assume rank 1 is the winner just because the column is populated.
 
 ## Testing
 
