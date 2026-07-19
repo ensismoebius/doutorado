@@ -36,9 +36,9 @@
  *       snnTorch : mem[t] = beta*mem[t-1] + I[t] - V_th*spk[t-1]
  *   Measured disagreement: ~2-3% of spikes. Ours is the textbook soft-reset LIF; snnTorch's
  *   is snnTorch's convention — neither is wrong, but they are NOT the same neuron. This
- *   divergence is deliberately left in place (fixme.md) rather than "fixed", because no
- *   production path selects subtract; aligning it would mean inverting the stored state from
- *   post-reset to un-reset through both forward and the BPTT backward. It is pinned by
+ *   divergence is deliberately left in place (.wiki/Guides/Engineering-Fixes-Log.md) rather than
+ * "fixed", because no production path selects subtract; aligning it would mean inverting the stored
+ * state from post-reset to un-reset through both forward and the BPTT backward. It is pinned by
  *   MicroNetworkParity.LifSubtractResetDivergesFromSnntorchAsDocumented, which asserts the
  *   gap stays inside its measured band, so it cannot drift unnoticed while it waits.
  *   If you ever set reset_zero=false, do NOT assume snn.Leaky parity.
@@ -127,9 +127,9 @@ struct LifImpl : public Module<Backend>
     // 2025. Both resolve in .wiki/References.md.
     // (An earlier revision of this comment read "[34-35] MPD-ATP (IEEE Xplore 2025);
     // AR-LIF (arXiv 2025)" -- it mislabeled [34], which is Lv et al. in PMC, not an
-    // arXiv paper called AR-LIF. Corrected against References.md; cf. fixme.md item 57,
-    // where an outright fabricated citation was found the same way.)
-    // Set adapt_coupling = 0.0 (default) to disable adaptation.
+    // arXiv paper called AR-LIF. Corrected against References.md; cf.
+    // .wiki/Guides/Engineering-Fixes-Log.md item 57, where an outright fabricated citation was
+    // found the same way.) Set adapt_coupling = 0.0 (default) to disable adaptation.
 
     /// @brief Per-call decay of the adaptation variable (0 < adapt_decay < 1).
     float adapt_decay = 0.9F;

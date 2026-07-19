@@ -76,8 +76,8 @@ struct E05Config
         /// Firing-rate regularization for the snn-ae encoder. 0 = disabled.
         /// Pushes each encoder Lif layer's mean firing rate into
         /// [firing_rate_min, firing_rate_max], preventing dead-latent collapse
-        /// (rate->0) as documented in fixme.md D1. Mirrors the dsnn classifier's
-        /// Training::firing_rate_reg_lambda mechanism. Ignored by ann-ae/lstm-ae.
+        /// (rate->0) as documented in .wiki/Guides/Engineering-Fixes-Log.md D1. Mirrors the dsnn
+        /// classifier's Training::firing_rate_reg_lambda mechanism. Ignored by ann-ae/lstm-ae.
         float firing_rate_reg_lambda = 0.0f;
         float firing_rate_min = 0.05f;
         float firing_rate_max = 0.80f;

@@ -652,9 +652,9 @@ TEST(AdamTest, AttachWithScalesValidationAndSuccess)
     EXPECT_EQ(adam.moment2.size(), 2U);
 }
 
-// fixme.md D5: per-parameter-group lr scales live on the Optimizer base, so they work
-// through an `Optimizer&` without knowing the concrete type, and every optimizer honors
-// them. Previously attach_with_scales() existed only on Adam and was non-virtual.
+// .wiki/Guides/Engineering-Fixes-Log.md D5: per-parameter-group lr scales live on the Optimizer
+// base, so they work through an `Optimizer&` without knowing the concrete type, and every optimizer
+// honors them. Previously attach_with_scales() existed only on Adam and was non-virtual.
 TEST(OptimizerBaseTest, AttachWithScalesIsPolymorphic)
 {
     // Two params, identical fixed gradient of 1.0, scales 1.0 vs 0.1. After one step the

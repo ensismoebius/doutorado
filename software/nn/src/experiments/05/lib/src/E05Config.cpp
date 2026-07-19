@@ -55,7 +55,8 @@ void E05Config::validate() const
 
         // Bark and Mel are cochlear scales: they model the frequency resolution of human
         // HEARING. There is no physiological basis for applying them to EEG, which is not
-        // sound. They are rejected for modality=eeg on that principle (fixme.md D6).
+        // sound. They are rejected for modality=eeg on that principle
+        // (.wiki/Guides/Engineering-Fixes-Log.md D6).
         //
         // Empirically they were also inert here, which is what exposed the problem: for EEG
         // all three scales produced bit-identical d_truth in 46/46 wavelet x category groups
@@ -79,7 +80,7 @@ void E05Config::validate() const
             throw std::invalid_argument(
                 "E05Config: handcrafted.scale must be lfcc for modality=eeg — bark/mel are "
                 "cochlear (hearing) scales with no physiological basis for EEG, and are "
-                "provably degenerate to lfcc there (see fixme.md D6)");
+                "provably degenerate to lfcc there (see .wiki/Guides/Engineering-Fixes-Log.md D6)");
 
         // Mother wavelets with coefficient traits in include/wavelet/Types.hpp.
         static const std::vector<std::string> valid_wavelets = {"haar",

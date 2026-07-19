@@ -145,7 +145,7 @@ def main():
     # Two combinations whose d_penalized agree to within this are treated as tied.
     # They are not "almost equal" -- in practice they came out bit-identical because the
     # extractors are literally the same function of the same data (see TIE_EPS rationale in
-    # the module docstring / fixme.md D6). The tolerance only absorbs float noise, e.g. the
+    # the module docstring / .wiki/Guides/Engineering-Fixes-Log.md D6). The tolerance only absorbs float noise, e.g. the
     # ~1e-6 drift seen on daub32 profiles that were re-run individually.
     TIE_EPS = 1e-5
 
@@ -158,7 +158,7 @@ def main():
         # Anything tied with rank 1. Reporting only ranked[0] would silently promote an
         # arbitrary sort tie-break into a scientific claim: for EEG, haar/bark, haar/mel and
         # haar/lfcc scored bit-identically, and "bark won" was purely an artifact of ordering
-        # (fixme.md D6). Callers must know when the winner is not uniquely determined.
+        # (.wiki/Guides/Engineering-Fixes-Log.md D6). Callers must know when the winner is not uniquely determined.
         best = ranked[0]["d_penalized"]
         tied = [e for e in ranked if abs(e["d_penalized"] - best) <= TIE_EPS]
 

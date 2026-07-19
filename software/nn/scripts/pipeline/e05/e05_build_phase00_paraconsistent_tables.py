@@ -92,7 +92,7 @@ def parse_profile(name: str, modality: str) -> Dict[str, str]:
 # EEG results for the bark/mel scales, produced before those profiles were retired.
 # The tables are built from whatever is in results/, not from the current profile set, so
 # without this filter the retired runs would still emit bark/mel rows for EEG -- and they
-# are bit-identical duplicates of the lfcc rows (fixme.md D6: on EEG the Nyquist
+# are bit-identical duplicates of the lfcc rows (.wiki/Guides/Engineering-Fixes-Log.md D6: on EEG the Nyquist
 # normalization stretches the curve ~5x, the mapping becomes injective and the grouping
 # degenerates to exactly lfcc's). Printing them as if they were distinct results is exactly
 # the misreading D6 exists to prevent. The result files themselves are deliberately left on
@@ -122,7 +122,7 @@ def collect(results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
         by_profile[profile].append(data)
     if skipped:
         print(f"[info] skipped {skipped} retired EEG bark/mel run(s) — duplicates of lfcc "
-              f"(fixme.md D6); result files left on disk", file=sys.stderr)
+              f"(.wiki/Guides/Engineering-Fixes-Log.md D6); result files left on disk", file=sys.stderr)
 
     tables: Dict[str, List[dict]] = defaultdict(list)
     for profile, runs in by_profile.items():

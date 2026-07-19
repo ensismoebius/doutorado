@@ -653,6 +653,8 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 - [Data Loaders](../Core/DataLoaders.md) — 10.1117 loader API
 - [Research Context](../Research-Context.md) — thesis goals and full pipeline
 - [Experiment04](./Experiment04.md) — prior congress paper experiment
+- [Re-run Runbook](../Guides/Re-run-Runbook.md) — commands to regenerate every result
+- [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the current `d_penalized` metric, 208-profile grid, and re-run
 
 ---
 

@@ -93,9 +93,9 @@ void write_summary_json(const std::string& results_dir,
     // (Training::effective_learning_rate()): profiles may omit the field and inherit the
     // optimizer's reference default, which differs ~10x between optimizers, so the declared
     // profile is not always enough to know what ran. `learning_rate_source` says which it
-    // was. This exists because of fixme.md D3, where the published numbers had been produced
-    // at an effective lr 10x below the one the profiles declared, with nothing on disk
-    // recording the discrepancy.
+    // was. This exists because of .wiki/Guides/Engineering-Fixes-Log.md D3, where the published
+    // numbers had been produced at an effective lr 10x below the one the profiles declared, with
+    // nothing on disk recording the discrepancy.
     j["training"] = {
         {"optimizer_type", cfg.training.optimizer_type},
         {"learning_rate", cfg.training.effective_learning_rate()},

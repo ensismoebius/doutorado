@@ -138,6 +138,8 @@ Accessible explanations without heavy math — good starting point before readin
 - [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
 - [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) - PyTorch/snnTorch parity tests + Experiment05 per-profile smoke runs
 - [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) - Full pipeline: phase00 ranking → apply winner → phase01 authentication
+- [Re-run Runbook](./Guides/Re-run-Runbook.md) - Commands to regenerate every experimental result (E04 Guayaquil paper + E05 phases 00/01), in dependency order
+- [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) - Why the code and thesis look the way they do: the D1-D6 decision log, PyTorch/snnTorch parity bugs found, optimizer SOTA work, and open items
 - [Memory Diagnostics](./Guides/Memory-Diagnostics.md) - Telling an active leak apart from a bounded high-water-mark; VmRSS/VmSwap sampling method
 - [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) - **Read before touching the OpenCL backend.** Safe llvmpipe debugging, the LD_PRELOAD profiling shim, measured per-call costs, and the `CL_QUEUE_PROFILING_ENABLE` memory-corruption hazard
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines

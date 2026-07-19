@@ -69,7 +69,7 @@ struct TinyModel
 // 2x2 "weight" matrix. backward() ignores the incoming loss gradient and injects
 // a fixed gradient of 1.0 onto both params directly, so the only thing that can
 // make the two params move by different amounts is Trainer's own per-parameter
-// lr scaling (fixme.md D3: snn_lr_scale must hit only size==1 params).
+// lr scaling (.wiki/Guides/Engineering-Fixes-Log.md D3: snn_lr_scale must hit only size==1 params).
 struct MixedParamModel
 {
     using Tensor = nn::Tensor;
@@ -336,7 +336,8 @@ TEST(TrainerGenericity, NoForwardDoubling)
     SUCCEED();
 }
 
-// fixme.md D3 regression guard: snn_lr_scale must only reduce the lr of size==1
+// .wiki/Guides/Engineering-Fixes-Log.md D3 regression guard: snn_lr_scale must only reduce the lr
+// of size==1
 // ("biophysical") parameters, not every parameter in the model. Both params here
 // receive an identical, fixed gradient of 1.0 (MixedParamModel::backward), so with
 // zero-initialized Adam moments the first optimizer step moves each parameter by
@@ -372,7 +373,7 @@ TEST(TrainerGenericity, SnnLrScaleOnlyAppliesToSizeOneParams)
     EXPECT_GT(matrix_delta, scalar_delta * 5.0F);
 }
 
-// fixme.md D5: Trainer builds its optimizer via OptimizerFactory from
+// .wiki/Guides/Engineering-Fixes-Log.md D5: Trainer builds its optimizer via OptimizerFactory from
 // cfg.optimizer_type instead of hard-coding Adam, so a profile can select one.
 TEST(TrainerGenericity, OptimizerTypeSelectsImplementation)
 {

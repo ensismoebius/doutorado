@@ -357,6 +357,8 @@ independent Mann-Whitney U. Needs `python3` (system scipy). Example:
 ## Related
 
 - [Experiment05](../Experiments/Experiment05.md)
+- [Re-run Runbook](./Re-run-Runbook.md) — the full re-run sequence this runner is one step of
+- [Engineering Fixes Log](./Engineering-Fixes-Log.md) — why the automatic post-processing and the `d_penalized` ranking exist
 - [Ground-Truth and Smoke Testing](./Ground-Truth-and-Smoke-Testing.md)
 - [Grid Runbook](./Grid-Runbook.md)
 - [Memory Diagnostics](./Memory-Diagnostics.md)

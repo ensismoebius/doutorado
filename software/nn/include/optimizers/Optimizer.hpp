@@ -142,11 +142,11 @@ struct Optimizer
      *
      * Enables per-parameter-group learning rates — critical for SNN training
      * where biophysical parameters (R, C, V_th) require a much smaller lr than
-     * weight matrices (see fixme.md D3/D5, and TrainerConfig's snn_lr_scale).
-     * Default implementation calls attach(params) then stores `lr_scales_`;
-     * concrete step() implementations read `lr_scales_[i]` (default 1.0 past
-     * its size) to compute each parameter's effective lr. Any Optimizer gets
-     * per-group scales for free unless it needs custom behavior.
+     * weight matrices (see .wiki/Guides/Engineering-Fixes-Log.md D3/D5, and TrainerConfig's
+     * snn_lr_scale). Default implementation calls attach(params) then stores `lr_scales_`; concrete
+     * step() implementations read `lr_scales_[i]` (default 1.0 past its size) to compute each
+     * parameter's effective lr. Any Optimizer gets per-group scales for free unless it needs custom
+     * behavior.
      *
      * @param params     Parameter tensors to optimise.
      * @param lr_scales  Per-parameter lr multiplier (same size as params).

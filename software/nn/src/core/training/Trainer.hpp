@@ -18,14 +18,15 @@
  *   4. snn_lr_scale is applied ONLY to size()==1 params (R, C, V_th), via
  *      Optimizer::attach_with_scales. It was previously filled uniformly across every
  *      parameter, which silently turned it into a global 10x lr throttle on the whole
- *      network rather than a per-group rate (fixme.md D3). NOTE: an earlier revision of
- *      this list claimed this line merely "wired snn_lr_scale (was silently ignored)" --
- *      that was itself misleading, since the wiring existed but was wrong.
+ *      network rather than a per-group rate (.wiki/Guides/Engineering-Fixes-Log.md D3). NOTE: an
+ * earlier revision of this list claimed this line merely "wired snn_lr_scale (was silently
+ * ignored)" -- that was itself misleading, since the wiring existed but was wrong.
  *   5. fit_supervised_generic batch loss: output re-run per sample (shape mismatch fixed).
  *   6. EpochResult.mean_spike_rate / sops populated when LossType exposes last_mean_rate().
  *   7. No cout inside Trainer — output is callback responsibility.
  *   8. The optimizer is built by OptimizerFactory from cfg.optimizer_type and held as
- *      unique_ptr<Optimizer>, rather than being hard-coded to Adam (fixme.md D5).
+ *      unique_ptr<Optimizer>, rather than being hard-coded to Adam
+ * (.wiki/Guides/Engineering-Fixes-Log.md D5).
  */
 #ifndef NN_TRAINING_TRAINER_HPP
 #define NN_TRAINING_TRAINER_HPP
@@ -134,7 +135,7 @@ class Trainer
             // snn_lr_scale must only reduce the lr of SNN biophysical scalars
             // (R, C, V_th — always constructed as 1x1 tensors, see LifImpl/LifBPTTImpl),
             // not every parameter. A uniform fill here silently turned this into a
-            // global lr multiplier for the whole model (fixme.md D3).
+            // global lr multiplier for the whole model (.wiki/Guides/Engineering-Fixes-Log.md D3).
             auto params = model_.params();
             std::vector<float> scales(params.size(), 1.0F);
             for (std::size_t i = 0; i < params.size(); ++i)

@@ -385,10 +385,10 @@ TEST(E05Fidelity, DefaultsMatchTheReferenceAndAreOverridable)
     EXPECT_THROW(c.validate(), std::invalid_argument);
 }
 
-// fixme.md D6: bark/mel are cochlear (hearing) scales with no physiological basis for EEG,
-// and group_by_scale()'s Nyquist normalization made them provably degenerate to lfcc there
-// (16 sub-bands -> 16 distinct bins -> one group each == lfcc). They are rejected for
-// modality=eeg so the redundant axis cannot be reintroduced.
+// .wiki/Guides/Engineering-Fixes-Log.md D6: bark/mel are cochlear (hearing) scales with no
+// physiological basis for EEG, and group_by_scale()'s Nyquist normalization made them provably
+// degenerate to lfcc there (16 sub-bands -> 16 distinct bins -> one group each == lfcc). They are
+// rejected for modality=eeg so the redundant axis cannot be reintroduced.
 TEST(E05EegScaleAxis, BarkAndMelAreRejectedForEeg)
 {
     auto make = [](const std::string& modality, const std::string& scale)
