@@ -103,7 +103,9 @@ cmake --preset=max-performance
 cmake --build --preset=max-performance -j$(nproc)
 
 # Run all tests
-ctest --preset=max-performance --output-on-failure -j4
+# NOTE: use --test-dir, NOT --preset. CMakePresets.json defines configurePresets and
+# buildPresets but NO testPresets, so `ctest --preset=...` fails with "No such test preset".
+ctest --test-dir out/build/max-performance --output-on-failure -j4
 ```
 
 For a plain out-of-tree Debug build without presets:
@@ -127,8 +129,14 @@ vim src/core/tensor/Tensor.cpp
 # Incremental build (Ninja, fast)
 cmake --build --preset=max-performance -j$(nproc)
 
-# Run a targeted test
-ctest --test-dir out/build/max-performance -R tensor_gtest
+# Run a targeted test.
+# IMPORTANT: -R filters on the GoogleTest name (SuiteName.TestName), NOT the CMake target
+# name. nn_gtest_discover_tests() registers each test individually with no prefix, so
+# `-R tensor_gtest` matches nothing ("No tests were found!!!"). Use the suite name:
+ctest --test-dir out/build/max-performance -R TensorOpsTest
+
+# To find the right name, list what is registered:
+ctest --test-dir out/build/max-performance -N | grep -i tensor
 ```
 
 ### Full Rebuild
@@ -239,20 +247,36 @@ Each experiment may contain a `lib/` subdirectory for reusable components and a 
 
 ## Running Tests
 
+Two rules make every command on this page work, and both were silently wrong here before:
+
+1. **Use `--test-dir`, not `--preset`.** `CMakePresets.json` has no `testPresets` section, so
+   `ctest --preset=<name>` fails outright with *"No such test preset"*.
+2. **`-R` matches the GoogleTest name (`SuiteName.TestName`), not the CMake target name.**
+   `nn_gtest_discover_tests()` registers each test individually with no prefix, so filters
+   like `-R tensor_gtest` or `-R optimizers_gtest` match **nothing** and ctest reports
+   *"No tests were found!!!"* — which looks like a pass if you are not reading closely.
+
 ```bash
 # All tests
-ctest --preset=max-performance --output-on-failure -j4
+ctest --test-dir out/build/max-performance --output-on-failure -j4
 
-# Specific test suite by name pattern
-ctest --preset=max-performance -R data_loaders_gtest
-ctest --preset=max-performance -R tensor_gtest
-ctest --preset=max-performance -R optimizers_gtest
+# Discover the right filter first — this is the reliable way to find a suite name
+ctest --test-dir out/build/max-performance -N | grep -i tensor
+#   Test #1015: TensorOpsTest.Creation   <- "TensorOpsTest" is what -R needs
 
-# Single test with verbose output
-ctest --preset=max-performance -R tensor_gtest --output-on-failure -j1
+# Specific suite (GoogleTest suite name)
+ctest --test-dir out/build/max-performance -R TensorOpsTest
+
+# Single test, verbose
+ctest --test-dir out/build/max-performance -R 'TensorOpsTest\.Creation' --output-on-failure -j1
+
+# Or bypass ctest entirely and run the binary with a gtest filter (fastest iteration)
+./out/build/max-performance/src/core/tensor/tests/tensor_gtest --gtest_filter='TensorOpsTest.*'
 ```
 
 Test binaries land next to their `CMakeLists.txt` source in `out/build/<preset>/src/...`.
+That binary name (`tensor_gtest`) is the **CMake target**, usable with `--gtest_filter` and
+`cmake --build --target`, but never with `ctest -R`.
 
 ---
 

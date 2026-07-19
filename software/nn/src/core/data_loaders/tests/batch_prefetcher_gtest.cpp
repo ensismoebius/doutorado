@@ -10,10 +10,10 @@
 #include <functional>
 #include <thread>
 
-#include "gtest/gtest.h"
 #include "data_loaders/datasets/TensorDataset.hpp"
 #include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "data_loaders/sources/SqliteBatchSource.hpp"
+#include "gtest/gtest.h"
 #include "test_utils/SqliteTestHelpers.hpp"
 
 static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Tensor
@@ -45,7 +45,7 @@ static auto wait_until(const std::function<bool()>& predicate, std::chrono::mill
     return predicate();
 }
 
-// Use shared helpers from include/nn/testing/SqliteTestHelpers.hpp
+// Use shared helpers from include/test_utils/SqliteTestHelpers.hpp
 
 namespace
 {

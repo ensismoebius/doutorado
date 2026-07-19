@@ -19,7 +19,7 @@
  * - `ReLUImpl<Backend>` works with any backend tensor type that implements `relu()`,
  *   `operator>`, and `multiply()`.
  * - The convenience alias `nn::ReLU = ReLUImpl<Backend>` is declared in
- *   `nn/layers/Layers.hpp`.
+ *   `include/layers/Layers.hpp`.
  */
 template <typename Backend>
 struct ReLUImpl : public Module<Backend>

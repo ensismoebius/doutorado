@@ -1,65 +1,68 @@
 # Voice and EEG identification project
 
-Research workspace for the PhD project. This repository mixes manuscript sources, experiment outputs, hardware references, notebooks, and the main C++ neural-network codebase.
+Research workspace for the PhD project: biometric authentication of severely dysphonic
+speakers, combining phonated voice with EEG-captured imagined speech. The repository holds
+the thesis manuscript, the produced articles, exploratory notebooks, and the main C++20
+neural-network framework (`nn`) that runs the experiments.
 
-## Repository Map
+## Start here
 
-- `documentation/` — manuscripts, notes, reading material, and produced articles.
-- `hardware/` — circuit references and KiCad parts.
-- `notebooks/` — exploratory notebooks and intermediate analysis outputs.
-- `results/` — trained models and checkpoint artifacts.
-- `software/` — implementation projects, including the main `nn` framework.
+| If you want to… | Go to |
+|---|---|
+| Understand or build the C++ framework | **[`software/nn/.wiki/Home.md`](software/nn/.wiki/Home.md)** — the full wiki |
+| Build and run your first test | [Getting Started tutorial](software/nn/.wiki/Tutorials/Getting-Started.md) |
+| Re-run the experiments | [Re-run Runbook](software/nn/.wiki/Guides/Re-run-Runbook.md) |
+| Read the thesis | `documentation/00-thesis/monography/monografia.tex` |
+| Read the conference paper | `documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex` |
+| Know why the code looks like it does | [Engineering Fixes Log](software/nn/.wiki/Guides/Engineering-Fixes-Log.md) |
 
-## Where To Find Things
+## Repository map
+
+- `documentation/` — thesis, produced articles, reading backlog, research notes.
+- `notebooks/` — exploratory EEG/signal-processing notebooks.
+- `results/` — top-level experiment outputs.
+- `scripts/` — repository-level helper scripts.
+- `software/` — implementation projects.
 
 ### Documentation
 
-- `documentation/00-dissertation/monography/` — main dissertation LaTeX sources.
-- `documentation/00-dissertation/presentation/` — presentation slides.
-- `documentation/00-dissertation/stateOfTheArtReview/` — literature review material.
+- `documentation/00-thesis/monography/` — main thesis LaTeX sources (`monografia.tex`).
+- `documentation/00-thesis/presentation/` — presentation slides.
+- `documentation/00-thesis/stateOfTheArtReview/` — literature review material.
 - `documentation/01-researchNotesAndFiles/` — research notes and supporting files.
 - `documentation/03-articlesToRead/` — papers and reading backlog.
 - `documentation/06-BooksToRead/` — books backlog.
-- `documentation/07-articlesProduced/article/` — article manuscript assets.
-- `documentation/07-articlesProduced/conference71070Guaiaquil/` — conference paper package, including `paper.tex`, paper figures, and submission data.
-- `documentation/07-articlesProduced/spm-featurearticle-latex/` — SPM feature article material.
+- `documentation/07-articlesProduced/conference71070Guaiaquil/` — conference paper package
+  (`paper.tex`, figures, generated data).
+- `documentation/07-articlesProduced/article/`, `.../spm-featurearticle-latex/` — other
+  article assets.
 
 ### Software
 
-- `software/nn/` — primary C++20 neural-network framework.
-- `software/nn/include/` — public headers.
-- `software/nn/src/` — core implementation, demos, experiments, and tests.
-- `software/nn/scripts/` — automation and helper scripts.
-- `software/nn/tools/` — support utilities.
-- `software/sampleRateMeasurer/` — standalone Python tool.
+- `software/nn/` — primary C++20 neural-network framework (SNN, LSTM, autoencoders).
+  - `include/` — backend-agnostic public headers. Include as `"tensor/Tensor.hpp"`,
+    `"layers/dense/Linear.hpp"`, … (there is **no** `include/nn/` directory).
+  - `src/core/` — core implementation. Included as `"core/training/Trainer.hpp"`, ….
+  - `src/experiments/` — experiments 00–05; Experiment 05 is the thesis's primary one.
+  - `src/demos/` — standalone demos, including Python ones under `pyDemos/`.
+  - `scripts/` — pipeline, testing, and analysis scripts.
+  - `.wiki/` — **the project's real documentation.** Start at `.wiki/Home.md`.
 - `software/signalAquirer/` — signal acquisition project.
 
-### Data, Results, and Exploration
+### Data, results, and exploration
 
 - `notebooks/` — exploratory analysis notebooks.
-- `notebooks/outputs/` — notebook-generated outputs.
-- `results/checkpoints/` — saved checkpoints.
-- `results/guayaquil/models/` — exported or trained models.
+- `results/` — top-level experiment outputs. The thesis experiment writes to
+  `software/nn/results/thesis/{phase00,phase01}/` instead.
 
-### Hardware
+## Release notes
 
-- `hardware/INA128/` — instrumentation amplifier references.
-- `hardware/kicadParts/` — reusable KiCad symbols and footprints.
+Before packaging a release, verify the repository ships source material rather than editor or
+build residue. Generated artifacts that may appear locally but are gitignored:
 
-## Quick Navigation
-
-- Conference paper: `documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex`
-- Dissertation manuscript: `documentation/00-dissertation/monography/monografia.tex`
-- Main C++ project: `software/nn/README.md`
-- Main build entrypoint: `software/nn/CMakeLists.txt`
-- Main results directory: `results/`
-
-## Release Notes
-
-Before packaging a release, review generated artifacts and local-only files so the repository ships source material rather than editor or build residue.
-
-- LaTeX build products commonly appear beside manuscripts as `*.aux`, `*.bbl`, `*.blg`, `*.brf`, `*.fdb_latexmk`, `*.fls`, `*.idx`, `*.lof`, `*.lot`, and `*.toc`.
-- Notebook checkpoint files may appear under `.ipynb_checkpoints/`.
-- Local development directories inside `software/nn/` such as `.venv/`, `build-debug/`, `out/`, `__pycache__/`, and `.qtcreator/` should not be part of a release bundle.
+- LaTeX build products beside manuscripts: `*.aux`, `*.bbl`, `*.blg`, `*.fdb_latexmk`, `*.fls`,
+  `*.idx`, `*.lof`, `*.lot`, `*.toc`.
+- Notebook checkpoints under `.ipynb_checkpoints/`.
+- Local development directories inside `software/nn/`: `.venv/`, `out/`, `__pycache__/`.
 
 Use `git ls-files` to verify what is actually tracked before tagging a release.

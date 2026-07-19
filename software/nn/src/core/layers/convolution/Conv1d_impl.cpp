@@ -266,7 +266,7 @@ auto Conv1dImpl<Backend>::compute_output_length(int input_length) const -> int
 // Explicitly instantiated for every concrete backend (not just the one
 // currently selected as nn::Backend) so ground-truth parity tests can
 // instantiate Conv1dImpl<XT>/<CL>/<Device>/<SY> side-by-side in one binary —
-// see src/core/layers/tests/pytorch_parity_gtest.cpp. The forward/backward
+// see src/core/tensor/tests/pytorch_parity_gtest.cpp. The forward/backward
 // math above uses only the structured at(i,j,...) accessor, so it is already
 // backend-generic; this just makes the other backends' object code available
 // to link against.

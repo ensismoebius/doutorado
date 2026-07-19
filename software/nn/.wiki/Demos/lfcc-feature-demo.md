@@ -83,8 +83,8 @@ The binary expects `BaseDeDatosHablaImaginada/` relative to the working director
 ## Test Suite
 
 ```bash
-cmake --build out/build/max-performance --target lfcc_pipeline_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R lfcc_pipeline --output-on-failure
+cmake --build out/build/max-performance --target lfcc_pipeline_utils_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R LfccPipelineUtilsTest --output-on-failure
 ```
 
 Tests in `src/demos/cppDemos/lfcc_feature_demo/tests/lfcc_pipeline_utils_gtest.cpp` cover each stage independently: `PreEmphasisInplace`, `FramingAndWindow`, `RFFTPower`, `BuildLinearFilterbank`, `DotPowerFilterbank`, `DCT2`, `ComputeDeltas`.

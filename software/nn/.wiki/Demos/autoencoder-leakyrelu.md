@@ -73,7 +73,7 @@ The LifBPTT BPTT correctness is tested by `core_gtest`:
 
 ```bash
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R lif_bptt --output-on-failure
+ctest --test-dir out/build/max-performance -R LifBPTT --output-on-failure
 ```
 
 ---

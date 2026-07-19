@@ -29,7 +29,7 @@
  * - Parameters (`weight`, `bias`) are stored as the active backend Tensor type.
  * - This keeps optimizer parameter pointers and module contracts backend-consistent.
  * - Concrete aliases (e.g. `Linear = LinearImpl<Backend>`) live in
- *   `nn/layers/Layers.hpp`.
+ *   `include/layers/Layers.hpp`.
  */
 template <typename Backend>
 struct LinearImpl : public Module<Backend>

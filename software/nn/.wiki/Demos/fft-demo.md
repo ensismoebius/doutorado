@@ -70,8 +70,8 @@ No arguments. Two matplotlib windows appear sequentially; closing the second ter
 No dedicated unit tests for this demo (it is a visual sanity check). The FFTW integration is implicitly tested by the `waveCoreLib` tests that use RFFT internally, and by the `lfcc_pipeline_gtest` tests:
 
 ```bash
-cmake --build out/build/max-performance --target lfcc_pipeline_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R lfcc_pipeline --output-on-failure
+cmake --build out/build/max-performance --target lfcc_pipeline_utils_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R LfccPipelineUtilsTest --output-on-failure
 ```
 
 ---

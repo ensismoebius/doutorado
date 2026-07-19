@@ -214,14 +214,29 @@ def main() -> int:
         "inconsistent,negative,gcov,range",
     ])
 
+    # Anchor both patterns to the project source root.
+    #
+    # This used to be "*/include/nn/*", which matched ZERO files: there is no include/nn/
+    # directory in this project -- the public headers live directly under include/
+    # (include/tensor/, include/layers/, ...). Two consequences: the gate silently measured
+    # only src/core/ while claiming to also cover the public headers, and on lcov 2.x an
+    # --extract pattern that matches nothing is a hard error (exit 25), so the gate could
+    # not run at all.
+    #
+    # The replacement must stay anchored to source_root: a bare "*/include/*" also matches
+    # /usr/include/c++/... and _deps/*/include/..., pulling ~450 dependency/system files
+    # into the "core" measurement and drowning the real number.
+    source_root = Path(__file__).resolve().parents[2]
     run([
         "lcov",
         "--extract",
         str(raw_info),
-        "*/src/core/*",
-        "*/include/nn/*",
+        f"{source_root}/src/core/*",
+        f"{source_root}/include/*",
         "--output-file",
         str(filtered_info),
+        "--ignore-errors",
+        "unused",
     ])
 
     run([

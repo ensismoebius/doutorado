@@ -2,7 +2,7 @@
  * @file WindowSpec.hpp
  * @brief Core structs for signal windowing configuration.
  *
- * Lives in `nn/windowing/`, independent of any dataset or backend.
+ * Lives in `include/windowing/`, independent of any dataset or backend.
  * Consumer code (datasets, preprocessors) depends on this; nothing here
  * depends on datasets or tensor types.
  */

@@ -337,3 +337,9 @@ flowchart TB
 [35] J.-C. Zhao et al., "MPD-ATP: Multi-phase dynamics adaptive threshold plasticity for spiking neural networks," *IEEE Trans. Neural Netw. Learn. Syst.*, 2025. [Online]. Available: https://ieeexplore.ieee.org/document/11264550/
 
 [36] T. Limbacher et al., "AdaLi: Adaptive surrogate gradient for spiking neural networks," *Frontiers in Neuroscience*, 2026. [Online]. Available: https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2026.1795946/full
+
+> In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
+
+[49] Y. Kim and P. Panda, "Revisiting batch normalization for training low-latency deep spiking neural networks from scratch," Frontiers in Neuroscience, vol. 15, 2021. (Batch Normalization Through Time, BNTT)
+[50] C. Duan, J. Ding, S. Chen, Z. Yu, and T. Huang, "Temporal effective batch normalization in spiking neural networks," in Advances in Neural Information Processing Systems (NeurIPS), 2022. (Temporal Effective Batch Normalization, TEBN)
+[51] Y. Guo et al., "Membrane potential batch normalization for spiking neural networks," in Proc. IEEE/CVF International Conference on Computer Vision (ICCV), 2023. [Online]. Available: https://arxiv.org/abs/2308.08359 (MPBN)

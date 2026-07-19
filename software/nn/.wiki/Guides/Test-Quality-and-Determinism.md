@@ -118,6 +118,61 @@ Behavior:
 - Filters to core library implementation/header files and excludes test sources.
 - Fails if any file is below 100% line or 100% function coverage.
 
+### Measured status (2026-07-19) — the gate does **not** currently pass
+
+The gate had never actually run. Two defects prevented it, both now fixed:
+
+1. **The target pointed at a nonexistent script.** `DevAndAnalysisTargets.cmake` invoked
+   `${CMAKE_SOURCE_DIR}/tools/check_core_coverage.py`, but there is no `tools/` directory —
+   the script lives at `scripts/dev/check_core_coverage.py`. Invoking the target failed
+   immediately with "can't open file". A configure-time `FATAL_ERROR` guard now catches a
+   future move.
+2. **The file filter matched nothing.** The lcov `--extract` used `*/include/nn/*`, but there
+   is no `include/nn/` directory — public headers live directly under `include/`. So the gate
+   measured only `src/core/` while claiming to cover the public headers too, and on lcov 2.x an
+   `--extract` pattern matching zero files is a hard error (exit 25). The pattern is now
+   anchored to the source root (`<root>/src/core/*`, `<root>/include/*`) — it must stay
+   anchored, since a bare `*/include/*` also swallows `/usr/include` and `_deps/`.
+
+With both fixed, the first real measurement over 148 core files is:
+
+| Metric | Coverage |
+|---|---|
+| **Lines** | **67.6%** (10,094 / 14,922) |
+| **Functions** | **84.8%** (1,565 / 1,845) |
+| Files below the 100% gate | **87 of 148** |
+
+So the answer to "is the codebase at 100% coverage?" is **no**, and the "strict 100% gate"
+was aspirational rather than enforced. The largest gaps are concentrated, not diffuse:
+
+| File | Lines | Why |
+|---|---|---|
+| `src/core/tensor/opencl/OpenCLTensorBackend.cpp` | 34.7% (1819/5236) | GPU paths need a device; largest single gap by far |
+| `src/core/utility/progress.cpp` | 0.0% (0/208) | Progress bars are UI, never exercised by tests |
+| `src/core/statistics/confusion_matrix.cpp` | 0.0% (0/59) | Untested module |
+| `*Printer.cpp` (2 files) | 0.0% | Debug printers |
+| `src/core/tensor/opencl/DeviceMemory.cpp` | 29.6% | GPU-only |
+
+A large share is OpenCL/GPU code that cannot run in a CPU-only coverage build, plus
+UI/printer code. Reaching a genuine 100% would require either a GPU-enabled coverage run or
+an explicit, documented exclusion list for device-only and presentation code — a policy
+decision, not just more tests.
+
+### One test blocks the full gate run
+
+`E05SnnAe.PoissonLatentIsNonDegenerate` **fails in the Debug/coverage build** (latent is all
+zeros: `max_abs = 0`, `max_var = 0`) while **passing in `max-performance`** in 0.12 s — the
+Debug run takes 202 s before failing. Same backend (XTensor) in both; only `Release` vs
+`Debug` + coverage instrumentation differ. Because the gate script runs `ctest` with
+`check=True`, this failure aborts the gate before any coverage is computed (use
+`--skip-tests` to compute from existing `.gcda` data).
+
+A ~1700× runtime difference alongside an all-zeros latent suggests the two builds are not
+executing the same work, and the all-zeros result is exactly the dead-latent / No-Spike
+Problem documented as D1 in the [Engineering Fixes Log](./Engineering-Fixes-Log.md). Worth
+noting the Release "pass" may be the misleading one. **Unresolved — needs investigation
+before the gate can run end-to-end.**
+
 ## Backend numerical parity (XTensor vs OpenCL)
 
 `backend_parity_gtest` (`src/core/tensor/tests/backend_parity_gtest.cpp`) guards

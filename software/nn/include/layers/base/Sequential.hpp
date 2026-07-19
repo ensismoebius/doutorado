@@ -23,7 +23,7 @@
  * Backend polymorphism:
  * - `SequentialImpl<Backend>` works with any backend tensor type.
  * - The convenience alias `nn::Sequential = SequentialImpl<Backend>` is declared
- *   in `nn/layers/Layers.hpp`.
+ *   in `include/layers/Layers.hpp`.
  */
 
 /// Backend-parameterized Sequential container. All layers in the container must share

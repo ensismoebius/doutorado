@@ -193,3 +193,7 @@ nn::Tensor reconstructed = model->decode(latent);
 [1] P. Vincent et al., "Extracting and composing robust features with denoising autoencoders," in *Proc. 25th Int. Conf. Machine Learning (ICML)*, 2008, pp. 1096–1103. [Online]. Available: https://doi.org/10.1145/1390156.1390294
 
 [2] G. E. Hinton and R. R. Salakhutdinov, "Reducing the dimensionality of data with neural networks," *Science*, vol. 313, no. 5786, pp. 504–507, Jul. 2006. [Online]. Available: https://doi.org/10.1126/science.1127647
+
+> In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
+
+[8] P. Vincent, H. Larochelle, Y. Bengio, and P.-A. Manzagol, "Extracting and composing robust features with denoising autoencoders," in Proc. 25th Int. Conf. Machine Learning (ICML), 2008, pp. 1096–1103. [Online]. Available: https://doi.org/10.1145/1390156.1390294

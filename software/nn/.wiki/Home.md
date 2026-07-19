@@ -35,116 +35,132 @@ The `nn` library is organized into several key components:
 - **Data Loaders** (`include/data_loaders/`) - EEG, audio, and multimodal datasets
 - **Experiments** (`src/experiments/`) - Research experiments with trained models
 
+## New here? Start with the tutorials
+
+These are step-by-step and every command in them has been run as written:
+
+1. **[Getting Started](./Tutorials/Getting-Started.md)** — build the library, run a test, run a
+   real experiment. ~20 minutes, mostly waiting on the compiler.
+2. **[Adding a Layer](./Tutorials/Adding-a-Layer.md)** — the layer contract, a worked example
+   with a gradient check, and the mistakes that catch everyone.
+
+Then follow one of these reading paths depending on what you came for:
+
+| I want to… | Read, in order |
+|---|---|
+| **Understand the research** | [Research Context](./Research-Context.md) → [Imagined Speech and EEG](./Concepts/Plain/Imagined-Speech-and-EEG.md) → [Experiment05](./Experiments/Experiment05.md) |
+| **Understand spiking networks** | [SNN and Surrogate Gradients (plain)](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) → [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) → [Time-Major Layout](./Concepts/Time-Major-Layout.md) |
+| **Work on the framework** | [Getting Started](./Tutorials/Getting-Started.md) → [Architecture](./Architecture.md) → [Tensor](./Core/Tensor.md) → [Layers](./Core/Layers.md) |
+| **Re-run the experiments** | [Re-run Runbook](./Guides/Re-run-Runbook.md) → [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) |
+| **Know why the code is like this** | [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) |
+
+> **"Plain" pages exist for most topics.** They explain the same idea without heavy maths and
+> are the better starting point. They are linked in the *Plain* column below — you do not have
+> to hunt for them.
+
+---
+
 ## Table of Contents
 
-### Core Modules
-- [Tensor](./Core/Tensor.md) - Core tensor data structure
-- [Layers](./Core/Layers.md) - Neural network layers (dense, convolutional, spiking)
-- [Optimizers](./Core/Optimizers.md) - Optimization algorithms (Adam, SGD)
-- [DataLoaders](./Core/DataLoaders.md) - Data loading and batching
-- [Initializers](./Core/Initializers.md) - Weight initialization strategies
-- [LinearAlgebra](./Core/LinearAlgebra.md) - Linear algebra utilities
-- [Statistics](./Core/Statistics.md) - Metrics and statistical functions
-- [Wave](./Core/Wave.md) - Audio signal processing and WAV loading
-- [Wavelet](./Core/Wavelet.md) - Wavelet transforms
-- [Paraconsistent](./Core/Paraconsistent.md) - Paraconsistent logic features
-- [Saver](./Core/Saver.md) - Model serialization
-- [Models](./Core/Models.md) - Autoencoder model implementations
-- [Training](./Core/Training.md) - Training loop with progress bars
-- [Device](./Core/Device.md) - CPU/OpenCL device abstraction
-- [Logging](./Core/Logging.md) - Centralized logging system
-- [Windowing](./Core/Windowing.md) - Signal windowing utilities
+### Concepts — the ideas behind the code
 
-### Concepts
-- [LSTM and BPTT](./Concepts/LSTM-and-BPTT.md) - Long Short-Term Memory and Backpropagation Through Time
-- [SNN and Surrogate Gradients](./Concepts/SNN-and-Surrogate-Gradients.md) - Spiking neural networks with surrogate gradient learning
-- [Autoencoders](./Concepts/Autoencoders.md) - Autoencoder architectures and training
-- [Residual Blocks](./Concepts/Residual-Blocks.md) - Skip connections and ResNet blocks
-- [Weight Initialisation](./Concepts/Weight-Initialisation.md) - Xavier, Kaiming initialization
-- [Adam Optimiser](./Concepts/Adam-Optimiser.md) - Adaptive moment estimation
-- [Data Normalisation](./Concepts/Data-Normalisation.md) - Input normalization techniques
-- [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) - Cross-validation and nested k-fold for unbiased evaluation
-- [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) - Preventing dead/bursting neurons in SNN autoencoders
-- [Spike Encoding](./Concepts/Spike-Encoding.md) - Rate coding vs latency coding and matching loss functions
-- [Threshold-Dependent Batch Normalization](./Concepts/Threshold-Dependent-Batch-Normalization.md) - tdBN for deep SNNs: batch+time normalization scaled to V_th
-- [LFCC](./Concepts/LFCC.md) - Linear Frequency Cepstral Coefficients for speaker verification
-- [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) - Neuroscience of covert speech and EEG biometrics
-- [Time-Major Layout](./Concepts/Time-Major-Layout.md) - `(T*B, F)` tensor convention for SNN layers
-- [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) - LIF RC circuit, β = exp(−Δt/(RC)), β clamping
+| Topic | Technical | Plain language |
+|---|---|---|
+| Spiking networks & surrogate gradients | [SNN and Surrogate Gradients](./Concepts/SNN-and-Surrogate-Gradients.md) | [plain](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) |
+| LIF membrane dynamics | [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) | [plain](./Concepts/Plain/Membrane-Dynamics.md) |
+| Spike encoding (rate vs latency) | [Spike Encoding](./Concepts/Spike-Encoding.md) | [plain](./Concepts/Plain/Spike-Encoding.md) |
+| Spike-rate regularization | [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) | [plain](./Concepts/Plain/Spike-Rate-Regularization.md) |
+| tdBN for deep SNNs | [Threshold-Dependent Batch Norm](./Concepts/Threshold-Dependent-Batch-Normalization.md) | — |
+| `(T*B, F)` tensor convention | [Time-Major Layout](./Concepts/Time-Major-Layout.md) | [plain](./Concepts/Plain/Time-Major-Layout.md) |
+| LSTM and BPTT | [LSTM and BPTT](./Concepts/LSTM-and-BPTT.md) | [plain](./Concepts/Plain/LSTM-and-BPTT.md) |
+| Autoencoders | [Autoencoders](./Concepts/Autoencoders.md) | [plain](./Concepts/Plain/Autoencoders.md) |
+| Residual blocks / skip connections | [Residual Blocks](./Concepts/Residual-Blocks.md) | [plain](./Concepts/Plain/Residual-Blocks.md) |
+| Weight initialisation | [Weight Initialisation](./Concepts/Weight-Initialisation.md) | [plain](./Concepts/Plain/Weight-Initialisation.md) |
+| Adam optimiser | [Adam Optimiser](./Concepts/Adam-Optimiser.md) | [plain](./Concepts/Plain/Adam-Optimiser.md) |
+| Input normalisation | [Data Normalisation](./Concepts/Data-Normalisation.md) | [plain](./Concepts/Plain/Data-Normalisation.md) |
+| Cross-validation (incl. nested) | [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) | [plain](./Concepts/Plain/K-Fold-Cross-Validation.md) |
+| LFCC speaker features | [LFCC](./Concepts/LFCC.md) | [plain](./Concepts/Plain/LFCC.md) |
+| Imagined speech & EEG biometrics | [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) | [plain](./Concepts/Plain/Imagined-Speech-and-EEG.md) |
+
+### Core modules — the code itself
+
+| Module | Technical | Plain language |
+|---|---|---|
+| Tensor (start here) | [Tensor](./Core/Tensor.md) | [plain](./Core/Plain/Tensor.md) |
+| Layers | [Layers](./Core/Layers.md) | — |
+| Optimizers | [Optimizers](./Core/Optimizers.md) | — |
+| Training loop | [Training](./Core/Training.md) | — |
+| Models (autoencoders) | [Models](./Core/Models.md) | — |
+| Data loaders | [DataLoaders](./Core/DataLoaders.md) | — |
+| Initializers | [Initializers](./Core/Initializers.md) | — |
+| Paraconsistent features | [Paraconsistent](./Core/Paraconsistent.md) | [plain](./Core/Plain/Paraconsistent.md) |
+| Wavelet transforms | [Wavelet](./Core/Wavelet.md) | [plain](./Core/Plain/Wavelet.md) |
+| Audio / WAV | [Wave](./Core/Wave.md) | [plain](./Core/Plain/Wave.md) |
+| Signal windowing | [Windowing](./Core/Windowing.md) | [plain](./Core/Plain/Windowing.md) |
+| Statistics & metrics | [Statistics](./Core/Statistics.md) | [plain](./Core/Plain/Statistics.md) |
+| Linear algebra | [LinearAlgebra](./Core/LinearAlgebra.md) | — |
+| Serialization | [Saver](./Core/Saver.md) | — |
+| Device (CPU/OpenCL) | [Device](./Core/Device.md) | — |
+| Logging | [Logging](./Core/Logging.md) | — |
 
 ### Experiments
-- [Experiment00](./Experiments/Experiment00.md) - Wavelet + paraconsistent baseline (Phase 0)
-- [Experiment02](./Experiments/Experiment02.md) - Wavelet autoencoder pipeline
-- [Experiment03](./Experiments/Experiment03.md) - Autoencoder experiments (audio, EEG, fused)
-- [Experiment04](./Experiments/Experiment04.md) - SNN vs LSTM comparative with FSDD
-- [Experiment05](./Experiments/Experiment05.md) - Biometric authentication of dysphonic speakers via imagined speech (thesis primary)
 
-### Research Context
-- [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
-- [Notebooks](./Notebooks.md) - Python/Jupyter prototyping notebooks (LFCC, MGDF, ML math)
+Run in order; Experiment05 is the thesis's primary experiment.
+
+- [Experiment00](./Experiments/Experiment00.md) — wavelet + paraconsistent baseline
+- [Experiment02](./Experiments/Experiment02.md) — wavelet autoencoder pipeline
+- [Experiment03](./Experiments/Experiment03.md) — autoencoders (audio, EEG, fused)
+- [Experiment04](./Experiments/Experiment04.md) — SNN vs LSTM comparative (conference paper)
+- [Experiment05](./Experiments/Experiment05.md) — **thesis primary**: biometric authentication
+  of dysphonic speakers via imagined speech
+
+### Research context
+
+- [Research Context](./Research-Context.md) — thesis overview, goals, datasets, pipeline
+- [Notebooks](./Notebooks.md) — Python/Jupyter prototyping
+
+### Guides
+
+**Building and testing**
+- [Build System](./Guides/Build-System.md) — CMake presets, and the two `ctest` gotchas that
+  silently make test commands match nothing
+- [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) — PyTorch/snnTorch parity
+- [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md)
+- [Static Analysis](./Guides/Static-Analysis.md)
+
+**Running experiments**
+- [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order
+- [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) — the E05 runner
+- [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
+
+**Performance and debugging**
+- [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) — **read
+  before touching the OpenCL backend** (contains a memory-corruption hazard warning)
+- [Memory Diagnostics](./Guides/Memory-Diagnostics.md) — leak vs. bounded high-water-mark
+- [PGO](./Guides/PGO.md) — profile-guided optimization
+
+**Project history and conventions**
+- [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) — the D1–D6 decision log
+- [Naming Conventions](./Development/Naming-Conventions.md)
+- [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md)
 
 ### Demos
-Runnable examples covering each major subsystem. See [Demos/Overview](./Demos/Overview.md) for the full listing with one-line descriptions.
 
-**C++ Demos:**
-- [FFT Demo](./Demos/fft-demo.md) - FFTW3 forward/inverse FFT correctness check
-- [Wavelet Demo](./Demos/wavelet-demo.md) - DWT and WPT decomposition visualisation
-- [LFCC Feature Demo](./Demos/lfcc-feature-demo.md) - Batch LFCC feature extraction pipeline
-- [ResNet Classifier Demo](./Demos/resnet-classifier-demo.md) - Residual MLP classifier on synthetic data
-- [SNN Speaker Demo](./Demos/snn-speaker-demo.md) - End-to-end SNN speaker identification CLI
-- [SNN Spike Plotter](./Demos/snn-spike-plotter.md) - Real-time ImGui/ImPlot LIF membrane visualiser
-- [WPT Voice Biometrics](./Demos/wpt-voice-biometrics.md) - WPT → Poisson → residual SNN biometrics
-- [Autoencoder LeakyReLU](./Demos/autoencoder-leakyrelu.md) - Spiking autoencoder BPTT validation
+Runnable examples per subsystem — see [Demos/Overview](./Demos/Overview.md) for the full list.
 
-**Python Demos:**
-- [Multimodal EEG + Audio](./Demos/multimodal-eeg-audio.md) - EEG/audio fusion with paraconsistent analysis
-- [SNN Hyperparameter Search](./Demos/snn-hyperparam-search.md) - 4-stage HyperBand-style search for SNN autoencoder
-- [Voice Biometrics SNN (Python)](./Demos/voice-biometrics-snn-py.md) - Python WPT → SNN speaker biometrics CLI
+**C++:** [FFT](./Demos/fft-demo.md) · [Wavelet](./Demos/wavelet-demo.md) ·
+[LFCC](./Demos/lfcc-feature-demo.md) · [ResNet classifier](./Demos/resnet-classifier-demo.md) ·
+[SNN speaker](./Demos/snn-speaker-demo.md) · [Spike plotter](./Demos/snn-spike-plotter.md) ·
+[WPT biometrics](./Demos/wpt-voice-biometrics.md) ·
+[Autoencoder LeakyReLU](./Demos/autoencoder-leakyrelu.md)
 
-### Plain Language Guides
-Accessible explanations without heavy math — good starting point before reading the technical pages.
+**Python:** [Multimodal EEG+Audio](./Demos/multimodal-eeg-audio.md) ·
+[SNN hyperparameter search](./Demos/snn-hyperparam-search.md) ·
+[Voice biometrics](./Demos/voice-biometrics-snn-py.md)
 
-**Concepts:**
-- [Adam Optimiser — Plain](./Concepts/Plain/Adam-Optimiser.md)
-- [Autoencoders — Plain](./Concepts/Plain/Autoencoders.md)
-- [Data Normalisation — Plain](./Concepts/Plain/Data-Normalisation.md)
-- [Imagined Speech and EEG — Plain](./Concepts/Plain/Imagined-Speech-and-EEG.md)
-- [K-Fold Cross-Validation — Plain](./Concepts/Plain/K-Fold-Cross-Validation.md)
-- [LFCC — Plain](./Concepts/Plain/LFCC.md)
-- [LSTM and BPTT — Plain](./Concepts/Plain/LSTM-and-BPTT.md)
-- [Residual Blocks — Plain](./Concepts/Plain/Residual-Blocks.md)
-- [SNN and Surrogate Gradients — Plain](./Concepts/Plain/SNN-and-Surrogate-Gradients.md)
-- [Spike Encoding — Plain](./Concepts/Plain/Spike-Encoding.md)
-- [Spike Rate Regularization — Plain](./Concepts/Plain/Spike-Rate-Regularization.md)
-- [Weight Initialisation — Plain](./Concepts/Plain/Weight-Initialisation.md)
-- [Time-Major Layout — Plain](./Concepts/Plain/Time-Major-Layout.md)
-- [Membrane Dynamics — Plain](./Concepts/Plain/Membrane-Dynamics.md)
+### System architecture
 
-**Core Modules:**
-- [Tensor — Plain](./Core/Plain/Tensor.md)
-- [Wave (Audio Processing) — Plain](./Core/Plain/Wave.md)
-- [Wavelet Transform — Plain](./Core/Plain/Wavelet.md)
-- [Signal Windowing — Plain](./Core/Plain/Windowing.md)
-- [Paraconsistent Feature Engineering — Plain](./Core/Plain/Paraconsistent.md)
-- [Statistics and Metrics — Plain](./Core/Plain/Statistics.md)
-
-### System Architecture
-- [Architecture](./Architecture.md) - High-level system design and module interactions
-
-### Development Guides
-- [Build System](./Guides/Build-System.md) - CMake configuration and workflows
-- [Grid Runbook](./Guides/Grid-Runbook.md) - Running and analyzing SNN grid tests
-- [PGO](./Guides/PGO.md) - Profile-guided optimization workflow
-- [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools and policies
-- [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
-- [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) - PyTorch/snnTorch parity tests + Experiment05 per-profile smoke runs
-- [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) - Full pipeline: phase00 ranking → apply winner → phase01 authentication
-- [Re-run Runbook](./Guides/Re-run-Runbook.md) - Commands to regenerate every experimental result (E04 Guayaquil paper + E05 phases 00/01), in dependency order
-- [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) - Why the code and thesis look the way they do: the D1-D6 decision log, PyTorch/snnTorch parity bugs found, optimizer SOTA work, and open items
-- [Memory Diagnostics](./Guides/Memory-Diagnostics.md) - Telling an active leak apart from a bounded high-water-mark; VmRSS/VmSwap sampling method
-- [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) - **Read before touching the OpenCL backend.** Safe llvmpipe debugging, the LD_PRELOAD profiling shim, measured per-call costs, and the `CL_QUEUE_PROFILING_ENABLE` memory-corruption hazard
-- [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
-- [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md) - Claude Code + OpenCode dual-agent workflow
+- [Architecture](./Architecture.md) — high-level design and module interactions
 
 ## Key Features
 

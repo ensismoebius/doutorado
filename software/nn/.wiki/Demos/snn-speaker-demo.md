@@ -78,7 +78,7 @@ The shared library is tested via `core_gtest` (spiking layer tests). The demo it
 
 ```bash
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R lif --output-on-failure
+ctest --test-dir out/build/max-performance -R Lif --output-on-failure
 ```
 
 ---

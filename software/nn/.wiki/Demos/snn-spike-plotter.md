@@ -76,7 +76,7 @@ LIF single-step forward/backward is covered by `core_gtest`:
 
 ```bash
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R lif --output-on-failure
+ctest --test-dir out/build/max-performance -R Lif --output-on-failure
 ```
 
 ---

@@ -49,7 +49,7 @@ bash scripts/dev/dual_agent_consensus.sh \
   --task-id TASK_001 \
   --proposer docs/consensus/TASK_001.proposer.md \
   --antagonist docs/consensus/TASK_001.antagonist.md \
-  --checks "cmake --build --preset=max-performance -j4;;ctest --test-dir out/build/max-performance --output-on-failure -R e05"
+  --checks "cmake --build --preset=max-performance -j4;;ctest --test-dir out/build/max-performance --output-on-failure -R "E05.*""
 ```
 
 If command fails, no merge.

@@ -65,7 +65,7 @@ cmake --build out/build/max-performance --target experiment_02 -j$(nproc)
 ## Tests
 
 ```bash
-ctest --test-dir out/build/max-performance -R experiment_02 --output-on-failure
+ctest --test-dir out/build/max-performance -R "Experiment02.*" --output-on-failure
 ```
 
 ## See also

@@ -78,3 +78,7 @@ flowchart LR
 [1] K. He, X. Zhang, S. Ren, and J. Sun, "Deep residual learning for image recognition," in *Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)*, 2016, pp. 770–778. [Online]. Available: https://arxiv.org/abs/1512.03385
 
 [2] K. He, X. Zhang, S. Ren, and J. Sun, "Identity mappings in deep residual networks," in *Proc. 14th European Conf. Computer Vision (ECCV)*, 2016, pp. 630–645. [Online]. Available: https://arxiv.org/abs/1603.05027
+
+> In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
+
+[5] K. He, X. Zhang, S. Ren, and J. Sun, "Deep residual learning for image recognition," in Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR), 2016, pp. 770–778. [Online]. Available: https://arxiv.org/abs/1512.03385

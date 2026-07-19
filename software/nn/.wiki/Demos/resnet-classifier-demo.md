@@ -69,7 +69,7 @@ The `ResidualBlock` layer is covered by `core_gtest`:
 
 ```bash
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R resnet --output-on-failure
+ctest --test-dir out/build/max-performance -R "ResNet|Residual" --output-on-failure
 ```
 
 ---
