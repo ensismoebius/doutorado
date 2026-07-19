@@ -16,7 +16,7 @@
     "handcrafted": {
       "transform": "dtwpt",
       "scale": "lfcc",
-      "wavelet": "daub4",
+      "wavelet": "haar",
       "cepstral": false,
       "descriptors": [
         "energy",
