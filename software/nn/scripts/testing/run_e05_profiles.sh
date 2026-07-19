@@ -29,9 +29,17 @@
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
-# Usage:  ./scripts/testing/run_e05_profiles.sh [phase00|phase01|all]
+# Usage:  ./scripts/testing/run_e05_profiles.sh [phase00|phase01|all|start-over-all]
 #         No argument on a terminal → interactive menu. No argument in a
 #         pipe/CI → defaults to `all`.
+#
+#   all            phase00 + phase01 + debug in ONE pass. phase01 therefore runs
+#                  BEFORE the winner is injected and uses the placeholder extractor —
+#                  good for a plumbing check, wrong for real results.
+#   start-over-all phase00 → winner injection → phase01, run SEQUENTIALLY and both
+#                  from scratch (each leg forces FRESH=1, discarding saved progress).
+#                  Stops before phase01 if phase00 did not finish cleanly. This is the
+#                  option you want for a real end-to-end regeneration.
 # Binary selection (any CMake profile):
 #   auto: most recently built out/build/*/…/experiment05
 #   E05_BUILD=max-performance ./scripts/testing/run_e05_profiles.sh phase00
@@ -107,16 +115,21 @@ parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per jo
 What do you want to do?
   1) phase00 — feature construction + paraconsistent ranking  (208 profiles)
   2) phase01 — DSNN authentication                            (32 profiles)
-  3) all     — phase00 + phase01 + debug
+  3) all     — phase00 + phase01 + debug, in ONE pass
+               (phase01 uses the placeholder extractor — see 4)
+  4) start over all — phase00 + phase01, from scratch, in order
+               discards saved progress, runs phase00, injects the winner,
+               THEN runs phase01 on it. This is the correct full pipeline.
   j) set parallel job count (currently $JOBS; auto-detected default $auto_jobs)
   b) (re)build the experiment05 binary first
   q) quit
 MENU
-            read -r -p "choice [1/2/3/j/b/q]: " ans
+            read -r -p "choice [1/2/3/4/j/b/q]: " ans
             case "$ans" in
                 1) SCOPE=phase00; break ;;
                 2) SCOPE=phase01; break ;;
                 3) SCOPE=all;     break ;;
+                4) SCOPE=start-over-all; break ;;
                 j|J)
                     read -r -p "parallel jobs [Enter = auto ($auto_jobs)]: " njobs
                     if [ -z "$njobs" ]; then
@@ -135,7 +148,7 @@ MENU
                         echo "build FAILED — fix errors, then choose again"
                     fi ;;
                 q|Q) echo "aborted"; exit 0 ;;
-                *)   echo "pick 1, 2, 3, j, b, or q" ;;
+                *)   echo "pick 1, 2, 3, 4, j, b, or q" ;;
             esac
         done
     else
@@ -143,11 +156,66 @@ MENU
     fi
 fi
 
+# ── start-over-all: the full pipeline, from scratch, in dependency order ─────
+# `all` runs phase00 and phase01 in ONE pass over a combined profile list, so phase01
+# trains before the winner exists and silently uses the placeholder extractor. That is
+# fine for a smoke/plumbing check and wrong for real results.
+#
+# This scope instead drives the two phases SEQUENTIALLY by re-invoking this same script:
+#
+#     phase00 (fresh) → post-processing injects the winner → phase01 (fresh)
+#
+# Re-invoking rather than restructuring the run loop means both passes get the identical
+# monitor, checkpointing, failure capture and post-processing logic — there is no second
+# code path to keep in sync.
+#
+# FRESH=1 on both legs is what makes this "start over": each phase clears its own
+# .state file instead of resuming, so a previous partial run cannot leak in.
+if [ "$SCOPE" = start-over-all ]; then
+    SELF="scripts/testing/run_e05_profiles.sh"  # cwd is software/nn (cd at the top of this file)
+
+    # Carry the interactively-chosen job count into both legs; without this the children
+    # re-derive it from free RAM and would silently ignore the menu's "j" setting.
+    export E05_JOBS="$JOBS"
+
+    echo
+    echo "=== start over all: phase00 → (winner injection) → phase01 ==="
+    echo "    both phases start from scratch (FRESH=1); saved progress is discarded."
+    echo
+
+    echo "--- leg 1/2: phase00 ---"
+    if ! FRESH=1 "$SELF" phase00; then
+        echo
+        echo "!! phase00 did not finish cleanly — STOPPING before phase01."
+        echo "!! Running phase01 now would train on the placeholder extractor rather than"
+        echo "!! the Phase 00 winner, producing results that look valid but are not."
+        echo "!! Fix the failures, then re-run (or use option 2 once phase00 is green)."
+        exit 1
+    fi
+
+    echo
+    echo "--- leg 2/2: phase01 (on the winner just injected) ---"
+    FRESH=1 "$SELF" phase01
+    rc=$?
+    echo
+    if [ "$rc" -eq 0 ]; then
+        echo "=== start over all: COMPLETE — both phases finished cleanly ==="
+        echo "    Review 'git diff src/experiments/05/profiles/phase01' (the winner injection)"
+        echo "    and regenerate the thesis phase01 table:"
+        echo "      python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \\"
+        echo "        --results-dir results/thesis/phase01 \\"
+        echo "        --tables-dir  ../../documentation/00-thesis/monography/tables"
+    else
+        echo "=== start over all: phase00 succeeded, phase01 FAILED (exit $rc) ==="
+    fi
+    exit "$rc"
+fi
+
 case "$SCOPE" in
     phase00) ROOT="src/experiments/05/profiles/phase00" ;;
     phase01) ROOT="src/experiments/05/profiles/phase01" ;;
     all)     ROOT="src/experiments/05/profiles" ;;   # phase00 + phase01 + debug.json
-    *) echo "usage: $0 [phase00|phase01|all]"; exit 1 ;;
+    *) echo "usage: $0 [phase00|phase01|all|start-over-all]"; exit 1 ;;
 esac
 
 TMP=$(mktemp -d)
