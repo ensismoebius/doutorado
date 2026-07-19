@@ -432,8 +432,8 @@ flowchart TB
 
 ```cpp
 // File: include/layers/Layers.hpp
-#include "nn/layers/dense/Linear.hpp"
-#include "nn/layers/activations/ReLU.hpp"
+#include "layers/dense/Linear.hpp"
+#include "layers/activations/ReLU.hpp"
 
 // Create a simple MLP: 128 -> 64 -> 32
 nn::Linear fc1(128, 64);

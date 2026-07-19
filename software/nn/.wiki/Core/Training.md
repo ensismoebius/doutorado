@@ -433,8 +433,8 @@ sequenceDiagram
 ```cpp
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "nn/training/ProgressCallback.hpp"
-#include "nn/training/EarlyStoppingCallback.hpp"
+#include "training/ProgressCallback.hpp"
+#include "training/EarlyStoppingCallback.hpp"
 
 // Configure training
 nn::training::TrainerConfig config{

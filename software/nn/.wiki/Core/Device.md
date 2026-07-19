@@ -101,8 +101,8 @@ flowchart TB
 
 ```cpp
 // File: src/core/tensor/opencl/DeviceRuntime.cpp
-#include "nn/device/Device.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "device/Device.hpp"
+#include "tensor/Tensor.hpp"
 
 // Create device from string
 nn::Device device = nn::Device::from_string("opencl");

@@ -48,7 +48,7 @@ cmake --build out/build/max-performance --target Phase00 -j$(nproc)
 | `src/experiments/00/phase00_features.cpp` | Wavelet feature extraction |
 | `src/experiments/00/phase00_training.cpp` | Classifier training and artifact writing |
 | `include/paraconsistent/` | Da Costa paraconsistent logic |
-| `include/wavelet/waveletOperations.h` | Wavelet packet decomposition |
+| `include/wavelet/waveletOperations.hpp` | Wavelet packet decomposition |
 
 ## Important note
 

@@ -144,8 +144,8 @@ flowchart TB
 
 ```cpp
 // File: include/data_loaders/runtime/DataLoader.hpp
-#include "nn/data_loaders/runtime/DataLoader.hpp"
-#include "nn/data_loaders/datasets/MatFileDataset.hpp"
+#include "data_loaders/runtime/DataLoader.hpp"
+#include "data_loaders/datasets/MatFileDataset.hpp"
 
 // Create dataset from MAT file
 auto dataset = std::make_shared<nn::data_loaders::MatFileDataset>("data.mat");
@@ -166,7 +166,7 @@ for (const auto& batch : loader)
 
 ```cpp
 // File: include/data_loaders/samplers/FoldSampler.hpp
-#include "nn/data_loaders/samplers/FoldSampler.hpp"
+#include "data_loaders/samplers/FoldSampler.hpp"
 
 // Create k-fold sampler
 nn::data_loaders::FoldSampler fold_sampler(

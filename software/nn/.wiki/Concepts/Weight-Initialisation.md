@@ -125,7 +125,7 @@ flowchart TB
 
 ```cpp
 // File: include/layers/dense/Linear.hpp
-#include "nn/initializers/xavier.hpp"
+#include "initializers/xavier.hpp"
 
 template <typename Backend>
 class Linear : public Module<Backend>

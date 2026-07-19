@@ -103,8 +103,8 @@ flowchart LR
 
 ```cpp
 // File: src/core/serialization/tests/NetworkSerializer_gtest.cpp
-#include "nn/saver/NetworkSerializer.hpp"
-#include "nn/optimizers/Adam.hpp"
+#include "serialization/NetworkSerializer.hpp"
+#include "optimizers/Adam.hpp"
 
 // Save model
 nn::saver::NetworkSerializer serializer;
@@ -124,7 +124,7 @@ serializer.load_optimizer("optimizer.pt", optimizer);
 ### YAML Save/Load
 
 ```cpp
-#include "nn/io/StateIO.hpp"
+#include "io/StateIO.hpp"
 
 // Save complete training state
 nn::io::StateIO state_io;

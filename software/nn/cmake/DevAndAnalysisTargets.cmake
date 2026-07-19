@@ -142,9 +142,18 @@ elseif(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
 endif()
 
 if(NN_ENABLE_COVERAGE AND Python3_Interpreter_FOUND AND LCOV_EXECUTABLE)
+    # Script path is scripts/dev/, NOT tools/ -- this pointed at a nonexistent
+    # ${CMAKE_SOURCE_DIR}/tools/check_core_coverage.py, so the target existed but could
+    # never run (it failed with "can't open file" the moment anyone invoked it). Guarded
+    # below so a future move breaks at configure time instead of at invocation time.
+    set(_nn_coverage_script ${CMAKE_SOURCE_DIR}/scripts/dev/check_core_coverage.py)
+    if(NOT EXISTS ${_nn_coverage_script})
+        message(FATAL_ERROR
+            "NN_ENABLE_COVERAGE=ON but the coverage gate script is missing: ${_nn_coverage_script}")
+    endif()
     add_custom_target(coverage-core-100
         COMMAND ${Python3_EXECUTABLE}
-            ${CMAKE_SOURCE_DIR}/tools/check_core_coverage.py
+            ${_nn_coverage_script}
             --build-dir ${CMAKE_BINARY_DIR}
             --line-threshold 100
             --function-threshold 100

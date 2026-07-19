@@ -139,7 +139,7 @@ tanh_c — tanh(C_t)     ← used for dL/do and dL/dC
 ### Usage
 
 ```cpp
-#include "nn/layers/lstm/LSTMLayer.hpp"
+#include "layers/lstm/LSTMLayer.hpp"
 
 nn::models::lstm::LSTMLayer layer(/*input_size=*/64, /*hidden_size=*/128);
 

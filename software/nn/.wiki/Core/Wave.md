@@ -70,7 +70,7 @@ public:
 
 ```cpp
 // File: src/experiments/04/lib/src/ComparativeDataset.cpp
-#include "nn/wave/Wav.h"
+#include "wave/Wav.hpp"
 
 Wav wav_file;
 wav_file.read(file.string());
@@ -159,8 +159,8 @@ flowchart LR
 
 ```cpp
 // File: src/demos/lfcc_pipeline/lfcc_pipeline.cpp
-#include "nn/wave/signal_operations.hpp"
-#include "nn/wave/filter_operations.hpp"
+#include "wave/signal_operations.hpp"
+#include "wave/filter_operations.hpp"
 
 // Extract MFCC from audio signal
 nn::Tensor extract_mfcc(const nn::Tensor& audio, 

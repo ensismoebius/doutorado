@@ -138,7 +138,7 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 
 ```cpp
 // File: src/experiments/04/lib/src/E04Dataset.cpp
-#include "nn/wave/Wav.h"
+#include "wave/Wav.hpp"
 
 // Load FSDD audio files
 Wav wav_file;

@@ -102,7 +102,7 @@ flowchart LR
 
 ```cpp
 // File: src/core/tensor/XtensorTensorBackend.cpp
-#include "nn/linear_algebra/linear_algebra.hpp"
+#include "linear_algebra/linear_algebra.hpp"
 
 // Matrix multiplication
 nn::Tensor A(3, 4);

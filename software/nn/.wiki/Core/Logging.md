@@ -88,7 +88,7 @@ flowchart LR
 
 ```cpp
 // File: src/core/training/Trainer.hpp
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 NN_LOG_INFO("Training started with {} epochs", config.epochs);
 

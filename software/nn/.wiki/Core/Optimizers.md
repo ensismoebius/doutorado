@@ -378,7 +378,7 @@ flowchart LR
 
 ```cpp
 // File: include/optimizers/Optimizer.hpp
-#include "nn/optimizers/Adam.hpp"
+#include "optimizers/Adam.hpp"
 
 // Create optimizer with learning rate
 nn::optimizers::Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);

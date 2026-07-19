@@ -96,7 +96,7 @@ flowchart LR
 
 ```cpp
 // File: src/core/windowing/tests/windowing_gtest.cpp
-#include "nn/windowing/WindowingEngine.hpp"
+#include "windowing/WindowingEngine.hpp"
 
 // Configure windowing
 nn::windowing::WindowSpec spec{

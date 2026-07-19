@@ -268,8 +268,8 @@ flowchart LR
 
 ```cpp
 // File: src/core/statistics/tests/metrics_gtest.cpp
-#include "nn/statistics/multi_class_metrics.hpp"
-#include "nn/statistics/inference_tests.hpp"
+#include "statistics/multi_class_metrics.hpp"
+#include "statistics/inference_tests.hpp"
 
 // Classification
 nn::Tensor pred = /* model predictions */;

@@ -111,7 +111,7 @@ flowchart LR
 
 ```cpp
 // File: include/optimizers/Adam.hpp
-#include "nn/optimizers/Adam.hpp"
+#include "optimizers/Adam.hpp"
 
 // Create optimizer
 nn::optimizers::Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);

@@ -157,7 +157,7 @@ flowchart TB
 ### Standard K-Fold
 
 ```cpp
-#include "nn/statistics/kfold.hpp"
+#include "statistics/kfold.hpp"
 
 statistics::KFold kf(5, /*shuffle=*/true, /*seed=*/42U);
 auto splits = kf.split(dataset.size());
@@ -175,7 +175,7 @@ float mean = std::accumulate(fold_scores.begin(), fold_scores.end(), 0.0f) / fol
 ### Nested K-Fold
 
 ```cpp
-#include "nn/statistics/kfold.hpp"
+#include "statistics/kfold.hpp"
 
 statistics::NestedKFold nkf(5, 5, /*shuffle=*/true, /*seed=*/42U);
 auto outer_folds = nkf.split(dataset.size());

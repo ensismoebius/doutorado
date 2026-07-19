@@ -132,7 +132,7 @@ Although the [Experiment04](../Experiments/Experiment04.md) page frames it as an
 From code:
 
 - Entry point `src/experiments/04/experiment04.cpp` is intentionally thin and forwards control to `LstmAutoencoderExperiment::run(...)`.
-- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/04/lib/src/comparative_experiment.cpp`.
+- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/04/lib/src/E04Experiment.cpp`.
 - Default profile stem is `lstm-compare`, resolved from `src/experiments/04/profiles/`.
 - Comparative sweep includes datasets (e.g., `fsdd`, `physionet`), encoding strategies (`direct`, `poisson`, `latency`), SNN architecture variants (`dense`, `conv1d`, `recurrent`), and hyperparameter grids (`layers`, `v_th`, `alpha`).
 - Training uses Adam + MSE with early stopping; evaluation reports MSE, MAE, $R^2$, precision/recall/F1, spike rate, latency, parameter count, and MAC estimates.

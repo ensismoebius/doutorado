@@ -165,7 +165,7 @@ flowchart LR
 
 ```cpp
 // File: src/core/tensor/tests/tensor_gtest.cpp (simplified)
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 // Create a 3x4 tensor
 nn::Tensor input(3, 4);

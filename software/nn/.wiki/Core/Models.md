@@ -145,8 +145,8 @@ flowchart LR
 
 ```cpp
 // File: src/experiments/03/lib/src/experiment03.cpp
-#include "nn/models/autoencoder/AutoencoderBuilders.hpp"
-#include "nn/models/autoencoder/Config.hpp"
+#include "core/models/autoencoder/AutoencoderBuilders.hpp"
+#include "core/models/autoencoder/Config.hpp"
 
 // Create audio autoencoder
 nn::models::autoencoder::AutoencoderConfig config{

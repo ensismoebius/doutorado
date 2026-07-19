@@ -134,7 +134,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-#include "nn/layers/losses/SpikeCountLoss.hpp"
+#include "layers/losses/SpikeCountLoss.hpp"
 
 SpikeCountLossImpl<Backend> loss;
 loss.min_rate        = 0.05f;

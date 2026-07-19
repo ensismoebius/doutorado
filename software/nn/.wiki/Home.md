@@ -5,9 +5,10 @@ This is a comprehensive C++20 neural network library designed for research and e
 ## Quick Start
 
 ```cpp
-// Minimal example: Create and train a simple autoencoder
-#include "nn/models/autoencoder/AutoencoderBuilders.hpp"
-#include "nn/training/Trainer.hpp"
+// Minimal example: Create and train a simple autoencoder.
+// Include prefix is "core/...", not "nn/..." -- there is no include/nn/ directory.
+#include "core/models/autoencoder/AutoencoderBuilders.hpp"
+#include "core/training/Trainer.hpp"
 
 nn::models::autoencoder::AutoencoderConfig config{
     .input_features = 128,
