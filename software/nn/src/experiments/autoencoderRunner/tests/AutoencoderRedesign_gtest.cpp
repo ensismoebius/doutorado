@@ -78,7 +78,7 @@ auto membrane_state_is_zeroed(const std::vector<Sequential*>& blocks) -> bool
 
 } // namespace
 
-TEST(Experiment03RedesignTest, FusedAnnRequiresSplitHints)
+TEST(AutoencoderRunnerRedesignTest, FusedAnnRequiresSplitHints)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;
@@ -89,7 +89,7 @@ TEST(Experiment03RedesignTest, FusedAnnRequiresSplitHints)
     EXPECT_THROW({ FusedWindowAutoencoder model(cfg); }, std::invalid_argument);
 }
 
-TEST(Experiment03RedesignTest, FusedAnnForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, FusedAnnForwardBackwardAndParams)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     FusedWindowAutoencoder model(cfg);
@@ -107,7 +107,7 @@ TEST(Experiment03RedesignTest, FusedAnnForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, FusedSnnForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, FusedSnnForwardBackwardAndParams)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     FusedWindowSpikingAutoencoder model(cfg);
@@ -125,7 +125,7 @@ TEST(Experiment03RedesignTest, FusedSnnForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, FusedSnnResetStateClearsMembranes)
+TEST(AutoencoderRunnerRedesignTest, FusedSnnResetStateClearsMembranes)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     FusedWindowSpikingAutoencoder model(cfg);
@@ -147,7 +147,7 @@ TEST(Experiment03RedesignTest, FusedSnnResetStateClearsMembranes)
     EXPECT_TRUE(membrane_state_is_zeroed(blocks));
 }
 
-TEST(Experiment03RedesignTest, ProtocolAnnDualBranchForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, ProtocolAnnDualBranchForwardBackwardAndParams)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -167,7 +167,7 @@ TEST(Experiment03RedesignTest, ProtocolAnnDualBranchForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, ProtocolSnnDualBranchForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDualBranchForwardBackwardAndParams)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -187,7 +187,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnDualBranchForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, ProtocolSnnDualBranchResetStateClearsMembranes)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDualBranchResetStateClearsMembranes)
 {
     AutoencoderConfig cfg = make_fused_cfg();
     cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -211,7 +211,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnDualBranchResetStateClearsMembranes)
     EXPECT_TRUE(membrane_state_is_zeroed(blocks));
 }
 
-TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, ProtocolAnnDenseFallbackForwardBackwardAndParams)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;
@@ -240,7 +240,7 @@ TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;
@@ -272,7 +272,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
     EXPECT_FALSE(model.params().empty());
 }
 
-TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackSupportsBroaderLayerGrammar)
+TEST(AutoencoderRunnerRedesignTest, ProtocolAnnDenseFallbackSupportsBroaderLayerGrammar)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;
@@ -308,7 +308,7 @@ TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackSupportsBroaderLayerGramm
     EXPECT_EQ(grad_input.cols(), input.cols());
 }
 
-TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayerGrammar)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayerGrammar)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;
@@ -352,7 +352,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayerGramm
 // from an identical seed produce identical forward passes, so any gradient
 // difference under an otherwise-identical backward pass is attributable to
 // the regularization term alone.
-TEST(Experiment03RedesignTest, ProtocolSnnFiringRateRegularizationInjectsGradientWhenEnabled)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInjectsGradientWhenEnabled)
 {
     auto make_cfg = [](float lambda)
     {
@@ -405,7 +405,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnFiringRateRegularizationInjectsGradien
 
 // lambda == 0 (the default for every existing profile) must remain exactly
 // inert: backward_with_firing_rate_reg degenerates to plain Sequential::backward.
-TEST(Experiment03RedesignTest, ProtocolSnnFiringRateRegularizationInertWhenLambdaZero)
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInertWhenLambdaZero)
 {
     AutoencoderConfig cfg;
     cfg.input_features = 14;

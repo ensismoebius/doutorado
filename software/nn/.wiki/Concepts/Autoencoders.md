@@ -231,7 +231,7 @@ flowchart LR
 - [SNN and Surrogate Gradients](./SNN-and-Surrogate-Gradients.md) — LIF neuron and BPTT
 - [Spike Rate Regularization](./Spike-Rate-Regularization.md) — Preventing dead/bursting neurons
 - [Spike Encoding](./Spike-Encoding.md) — Rate vs latency coding
-- [Experiment03](../Experiments/AutoencoderRunner.md) — Autoencoder experiments
+- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) — Autoencoder experiments
 - [Experiment04](../Experiments/Guayaquil.md) — LSTM autoencoder
 - [Weight Initialisation](./Weight-Initialisation.md) — Important for training
 

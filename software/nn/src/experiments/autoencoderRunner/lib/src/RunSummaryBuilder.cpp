@@ -7,7 +7,7 @@
 
 #include "RunSummaryBuilder.hpp"
 
-#include "Experiment03Config.hpp"
+#include "AutoencoderRunnerConfig.hpp"
 
 namespace autoencoderRunner
 {

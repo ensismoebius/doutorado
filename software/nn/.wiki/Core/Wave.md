@@ -206,7 +206,7 @@ nn::Tensor extract_mfcc(const nn::Tensor& audio,
 
 - [DataLoaders](./DataLoaders.md) - Audio dataset loading
 - [Windowing](./Windowing.md) - Window functions
-- [Experiment03](../Experiments/AutoencoderRunner.md) - Audio autoencoder
+- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Audio autoencoder
 
 ## References
 

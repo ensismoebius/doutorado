@@ -78,7 +78,17 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
 
         for (int epoch = 0; epoch < kTrainingEpochs; ++epoch)
         {
-            auto batches = create_batches(train_inputs, train_targets, kBatchSize);
+            // Seed the shuffle from the run seed, varied per epoch.
+            //
+            // Unseeded, create_batches() falls back to std::random_device, so batch order --
+            // and therefore the order SGD sees -- differed on every run and the trained weights
+            // with it. Offsetting by `epoch` keeps each epoch's order distinct (a fixed seed
+            // would replay the same order every epoch, which defeats shuffling) while making
+            // the whole schedule a pure function of `random_seed`.
+            auto batches = create_batches(train_inputs,
+                train_targets,
+                kBatchSize,
+                static_cast<unsigned int>(random_seed) + static_cast<unsigned int>(epoch));
             for (const auto& batch : batches)
             {
                 loss.set_target(batch.targets);

@@ -115,10 +115,27 @@ auto rank_feature_sets(const std::vector<ThesisSample>& samples,
 
     nn::progress::ProgressManager::instance().complete_bar(rank_bar);
 
+    // Total order: d_penalized first, then label as a deterministic tie-break.
+    //
+    // std::sort is NOT stable, so with a d_penalized-only comparator two feature sets that
+    // score EXACTLY the same are left in an unspecified relative order — introsort may place
+    // either first depending on input order and range size. scores[0] is what gets reported as
+    // the run's best (best_alpha/best_d_truth/... in the summary), so an exact tie could flip
+    // the reported winner between runs. Comparing the label when d_penalized ties makes the
+    // outcome a pure function of the data.
+    //
+    // Exact ties are not hypothetical here: on EEG the bark/mel/lfcc scales produced
+    // bit-identical scores (the Nyquist normalisation makes the mapping injective, so the
+    // grouping degenerates to lfcc's), and "bark won for EEG" turned out to be nothing but a
+    // sort tie-break — see D6 in .wiki/Guides/Engineering-Fixes-Log.md. That axis has since
+    // been removed for EEG, but the ordering must not be left to chance regardless.
     std::sort(scores.begin(),
         scores.end(),
         [](const ParaconsistentScore& a, const ParaconsistentScore& b)
-        { return a.d_penalized < b.d_penalized; });
+        {
+            if (a.d_penalized != b.d_penalized) return a.d_penalized < b.d_penalized;
+            return a.label < b.label;
+        });
 
     return scores;
 }

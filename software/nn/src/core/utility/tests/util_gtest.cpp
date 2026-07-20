@@ -119,6 +119,100 @@ TEST(UtilTest, Batching)
     ASSERT_EQ(batches[0].inputs.rows(), 2);
 }
 
+// Batch order is the order SGD sees, so an unseeded shuffle makes trained weights differ
+// between runs on identical inputs. create_batches() takes an optional seed for exactly that;
+// these pin the contract down in both directions.
+TEST(UtilTest, BatchingWithSeedIsDeterministic)
+{
+    std::vector<nn::Tensor> input_samples;
+    std::vector<nn::Tensor> target_samples;
+    for (int i = 0; i < 8; ++i)
+    {
+        nn::Tensor in(1, 1);
+        in.at(0, 0) = static_cast<float>(i); // distinct value per sample => order is observable
+        nn::Tensor tgt(1, 1);
+        tgt.at(0, 0) = static_cast<float>(i);
+        input_samples.push_back(in);
+        target_samples.push_back(tgt);
+    }
+
+    const auto a = create_batches(input_samples, target_samples, 2, /*seed=*/123U);
+    const auto b = create_batches(input_samples, target_samples, 2, /*seed=*/123U);
+
+    ASSERT_EQ(a.size(), b.size());
+    for (size_t i = 0; i < a.size(); ++i)
+    {
+        ASSERT_EQ(a[i].inputs.rows(), b[i].inputs.rows());
+        for (nn::Index r = 0; r < a[i].inputs.rows(); ++r)
+        {
+            EXPECT_FLOAT_EQ(a[i].inputs.at(r, 0), b[i].inputs.at(r, 0))
+                << "same seed produced a different batch order at batch " << i << " row " << r;
+            EXPECT_FLOAT_EQ(a[i].targets.at(r, 0), b[i].targets.at(r, 0))
+                << "inputs and targets fell out of correspondence";
+        }
+    }
+}
+
+// Guards against the seed being accepted but ignored -- which would make the test above pass
+// vacuously while the shuffle stayed random.
+TEST(UtilTest, BatchingDifferentSeedsGiveDifferentOrder)
+{
+    std::vector<nn::Tensor> input_samples;
+    std::vector<nn::Tensor> target_samples;
+    for (int i = 0; i < 32; ++i) // enough that two orders colliding by chance is negligible
+    {
+        nn::Tensor in(1, 1);
+        in.at(0, 0) = static_cast<float>(i);
+        nn::Tensor tgt(1, 1);
+        tgt.at(0, 0) = static_cast<float>(i);
+        input_samples.push_back(in);
+        target_samples.push_back(tgt);
+    }
+
+    const auto a = create_batches(input_samples, target_samples, 4, /*seed=*/1U);
+    const auto b = create_batches(input_samples, target_samples, 4, /*seed=*/2U);
+
+    bool any_diff = false;
+    for (size_t i = 0; i < a.size() && !any_diff; ++i)
+        for (nn::Index r = 0; r < a[i].inputs.rows(); ++r)
+            if (a[i].inputs.at(r, 0) != b[i].inputs.at(r, 0))
+            {
+                any_diff = true;
+                break;
+            }
+
+    EXPECT_TRUE(any_diff) << "seeds 1 and 2 produced the same batch order -- the seed is being "
+                             "ignored, so BatchingWithSeedIsDeterministic passes vacuously";
+}
+
+// Each sample must appear exactly once regardless of seeding -- shuffling must permute, not
+// duplicate or drop.
+TEST(UtilTest, BatchingSeededShufflePreservesEverySampleExactlyOnce)
+{
+    std::vector<nn::Tensor> input_samples;
+    std::vector<nn::Tensor> target_samples;
+    for (int i = 0; i < 10; ++i)
+    {
+        nn::Tensor in(1, 1);
+        in.at(0, 0) = static_cast<float>(i);
+        nn::Tensor tgt(1, 1);
+        tgt.at(0, 0) = static_cast<float>(i);
+        input_samples.push_back(in);
+        target_samples.push_back(tgt);
+    }
+
+    const auto batches = create_batches(input_samples, target_samples, 3, /*seed=*/77U);
+
+    std::vector<int> seen;
+    for (const auto& b : batches)
+        for (nn::Index r = 0; r < b.inputs.rows(); ++r)
+            seen.push_back(static_cast<int>(b.inputs.at(r, 0)));
+
+    std::sort(seen.begin(), seen.end());
+    ASSERT_EQ(seen.size(), 10U);
+    for (int i = 0; i < 10; ++i) EXPECT_EQ(seen[static_cast<size_t>(i)], i);
+}
+
 TEST(UtilSignalPreprocessingTest, ReadCsvSignalReturnsColumnTensorAndSkipsInvalidTokens)
 {
     const auto tmp =

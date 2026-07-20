@@ -94,7 +94,7 @@ Search for and collect canonical citation for each:
 3. .wiki/Architecture.md — system-wide diagram
 4. Core articles (Tensor, Layers, Optimizers, DataLoaders, Statistics, Initializers, LinearAlgebra, Wave, Wavelet, Paraconsistent, Saver)
 5. Concept articles (Autoencoders, LSTM-and-BPTT, SNN-and-Surrogate-Gradients, Residual-Blocks, Weight-Initialisation, Adam-Optimiser, Data-Normalisation, K-Fold-Cross-Validation)
-6. Experiment articles (Experiment03, Experiment04)
+6. Experiment articles (AutoencoderRunner, Experiment04)
 7. .wiki/Home.md — final pass to add links
 
 ### STEP 4 — CROSS-LINK

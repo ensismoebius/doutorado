@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/include/DatasetBuilder.hpp
- * @brief DatasetBuilder helper for Experiment03.
+ * @brief DatasetBuilder helper for AutoencoderRunner.
  */
 
 #pragma once

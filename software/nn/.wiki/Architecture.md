@@ -21,7 +21,7 @@ flowchart TB
     end
 
     subgraph "Experiments"
-        Exp03[Experiment03]
+        Exp03[AutoencoderRunner]
         Exp04[Experiment04]
     end
 
@@ -221,7 +221,7 @@ out/
 │       ├── src/
 │       │   ├── core/      # Core library
 │       │   ├── experiments/
-│       │   │   └── 03/   # Experiment03 binary
+│       │   │   └── 03/   # AutoencoderRunner binary
 │       │   └── demos/
 │       └── compile_commands.json
 └── install/

@@ -186,7 +186,7 @@ nn::Tensor reconstructed = model->decode(latent);
 - [Autoencoders](../Concepts/Autoencoders.md) - Theory
 - [Tensor](./Tensor.md) - Data structure
 - [Layers](./Layers.md) - Building blocks
-- [Experiment03](../Experiments/AutoencoderRunner.md) - Usage
+- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Usage
 
 ## References
 

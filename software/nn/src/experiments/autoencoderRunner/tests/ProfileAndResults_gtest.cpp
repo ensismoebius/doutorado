@@ -18,7 +18,7 @@
 
 using autoencoderRunner::Summary;
 
-TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
+TEST(AutoencoderRunnerProfilesTest, LoadsDefaultProfile)
 {
     Config config{};
     std::string error;
@@ -34,7 +34,7 @@ TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
         "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada");
 }
 
-TEST(Experiment03ProfilesTest, LoadsProfileFromAbsolutePath)
+TEST(AutoencoderRunnerProfilesTest, LoadsProfileFromAbsolutePath)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_abs_test.json";
@@ -55,14 +55,14 @@ TEST(Experiment03ProfilesTest, LoadsProfileFromAbsolutePath)
     const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
-    EXPECT_EQ(config.dataset_type, Experiment03DatasetType::AudioWindow);
-    EXPECT_EQ(config.autoencoder_type, Experiment03AutoencoderType::AudioWindowAnn);
+    EXPECT_EQ(config.dataset_type, AutoencoderRunnerDatasetType::AudioWindow);
+    EXPECT_EQ(config.autoencoder_type, AutoencoderRunnerAutoencoderType::AudioWindowAnn);
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
+TEST(AutoencoderRunnerProfilesTest, LoadsInputAndLayerOverrides)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_inputs_layers_test.json";
@@ -93,7 +93,7 @@ TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
+TEST(AutoencoderRunnerProfilesTest, LoadsDeviceOverride)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_device_test.json";
@@ -118,7 +118,7 @@ TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
+TEST(AutoencoderRunnerProfilesTest, RejectsUnknownTopLevelKey)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_unknown_key_test.json";
@@ -145,7 +145,7 @@ TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsLegacyProfileKeys)
+TEST(AutoencoderRunnerProfilesTest, RejectsLegacyProfileKeys)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_legacy_key_test.json";
@@ -171,7 +171,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyProfileKeys)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
+TEST(AutoencoderRunnerCliTest, LoadsDeviceFromSelectedProfile)
 {
     const auto dataset_root = std::filesystem::temp_directory_path();
     const std::filesystem::path profile_path =
@@ -202,8 +202,8 @@ TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
     defaults.sampler_distributed_shuffle = true;
     defaults.sampler_distributed_drop_last = false;
     defaults.dataset_input_mode = Protocol101117InputMode::Concatenated;
-    defaults.dataset_type = Experiment03DatasetType::FusedWindow;
-    defaults.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+    defaults.dataset_type = AutoencoderRunnerDatasetType::FusedWindow;
+    defaults.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowAnn;
     defaults.autoencoder_hidden_size = 64;
     defaults.autoencoder_latent_size = 32;
     defaults.autoencoder_depth = 2;
@@ -243,7 +243,7 @@ TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, LoadsOptimizerOverrides)
+TEST(AutoencoderRunnerProfilesTest, LoadsOptimizerOverrides)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_optimizer_test.json";
@@ -272,7 +272,7 @@ TEST(Experiment03ProfilesTest, LoadsOptimizerOverrides)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
+TEST(AutoencoderRunnerProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_declarative_test.json";
@@ -326,7 +326,7 @@ TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsSplitLayerSpecKeys)
+TEST(AutoencoderRunnerProfilesTest, RejectsSplitLayerSpecKeys)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_split_layer_keys_test.json";
@@ -351,7 +351,7 @@ TEST(Experiment03ProfilesTest, RejectsSplitLayerSpecKeys)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
+TEST(AutoencoderRunnerProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_family_alias_test.json";
@@ -377,7 +377,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsShortNeuralNetworkTypeAlias)
+TEST(AutoencoderRunnerProfilesTest, RejectsShortNeuralNetworkTypeAlias)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_type_alias_test.json";
@@ -403,7 +403,7 @@ TEST(Experiment03ProfilesTest, RejectsShortNeuralNetworkTypeAlias)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ProfilesTest, RejectsUnsupportedAutoencoderType)
+TEST(AutoencoderRunnerProfilesTest, RejectsUnsupportedAutoencoderType)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_profile_bad_type_test.json";
@@ -429,7 +429,7 @@ TEST(Experiment03ProfilesTest, RejectsUnsupportedAutoencoderType)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03CliTest, LoadsOptimizerFromSelectedProfile)
+TEST(AutoencoderRunnerCliTest, LoadsOptimizerFromSelectedProfile)
 {
     const auto dataset_root = std::filesystem::temp_directory_path();
     const std::filesystem::path profile_path =
@@ -461,8 +461,8 @@ TEST(Experiment03CliTest, LoadsOptimizerFromSelectedProfile)
     defaults.sampler_distributed_shuffle = true;
     defaults.sampler_distributed_drop_last = false;
     defaults.dataset_input_mode = Protocol101117InputMode::Concatenated;
-    defaults.dataset_type = Experiment03DatasetType::FusedWindow;
-    defaults.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+    defaults.dataset_type = AutoencoderRunnerDatasetType::FusedWindow;
+    defaults.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowAnn;
     defaults.autoencoder_hidden_size = 64;
     defaults.autoencoder_latent_size = 32;
     defaults.autoencoder_depth = 2;
@@ -503,7 +503,7 @@ TEST(Experiment03CliTest, LoadsOptimizerFromSelectedProfile)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
+TEST(AutoencoderRunnerCliTest, PreservesProfileSeededValuesWhenNotOverridden)
 {
     const auto dataset_root = std::filesystem::temp_directory_path();
     const std::filesystem::path profile_path =
@@ -551,8 +551,8 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
     defaults.kfold_shuffle = true;
     defaults.kfold_seed = 42U;
     defaults.dataset_input_mode = Protocol101117InputMode::Concatenated;
-    defaults.dataset_type = Experiment03DatasetType::FusedWindow;
-    defaults.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+    defaults.dataset_type = AutoencoderRunnerDatasetType::FusedWindow;
+    defaults.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowAnn;
     defaults.autoencoder_hidden_size = 64;
     defaults.autoencoder_latent_size = 32;
     defaults.autoencoder_depth = 2;
@@ -593,8 +593,8 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
     const Config parsed = parseCliParams(3, argv, defaults);
 
     EXPECT_EQ(parsed.dataset_input_mode, Protocol101117InputMode::EegOnly);
-    EXPECT_EQ(parsed.dataset_type, Experiment03DatasetType::AudioWindow);
-    EXPECT_EQ(parsed.autoencoder_type, Experiment03AutoencoderType::FusedWindowSnn);
+    EXPECT_EQ(parsed.dataset_type, AutoencoderRunnerDatasetType::AudioWindow);
+    EXPECT_EQ(parsed.autoencoder_type, AutoencoderRunnerAutoencoderType::FusedWindowSnn);
     EXPECT_EQ(parsed.training_optimizer_type, "sgd");
     EXPECT_EQ(parsed.training_loss_type, "mae");
     EXPECT_FLOAT_EQ(parsed.training_learning_rate, 0.005F);
@@ -611,7 +611,7 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03CliTest, RejectsMissingSamplerSeed)
+TEST(AutoencoderRunnerCliTest, RejectsMissingSamplerSeed)
 {
     const std::filesystem::path profile_path =
         std::filesystem::temp_directory_path() / "experiment03_cli_missing_seed_profile_test.json";
@@ -647,8 +647,8 @@ TEST(Experiment03CliTest, RejectsMissingSamplerSeed)
     defaults.kfold_shuffle = true;
     defaults.kfold_seed = 42U;
     defaults.dataset_input_mode = Protocol101117InputMode::Concatenated;
-    defaults.dataset_type = Experiment03DatasetType::FusedWindow;
-    defaults.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+    defaults.dataset_type = AutoencoderRunnerDatasetType::FusedWindow;
+    defaults.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowAnn;
     defaults.autoencoder_hidden_size = 64;
     defaults.autoencoder_latent_size = 32;
     defaults.autoencoder_depth = 2;
@@ -692,7 +692,7 @@ TEST(Experiment03CliTest, RejectsMissingSamplerSeed)
     std::filesystem::remove(profile_path, ec);
 }
 
-TEST(Experiment03ResultsWriterTest, WritesSummaryJson)
+TEST(AutoencoderRunnerResultsWriterTest, WritesSummaryJson)
 {
     Summary summary{};
     summary.profile_name = "test-profile";

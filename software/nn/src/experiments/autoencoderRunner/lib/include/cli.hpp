@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/include/cli.hpp
- * @brief Command-line interface definitions and configuration for Experiment03.
+ * @brief Command-line interface definitions and configuration for AutoencoderRunner.
  *
  * Contains `Config` structure and parsing helper `parseCliParams` used to
  * configure datasets, autoencoders and training hyperparameters for the
@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Experiment03Config.hpp"
+#include "AutoencoderRunnerConfig.hpp"
 
 /**
  * Parses command-line arguments and returns a fully populated configuration.

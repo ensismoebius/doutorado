@@ -158,6 +158,105 @@ UI/printer code. Reaching a genuine 100% would require either a GPU-enabled cove
 an explicit, documented exclusion list for device-only and presentation code — a policy
 decision, not just more tests.
 
+### Reproducibility contract: results must not change independently of a run
+
+**The rule.** The same profile with the same seed must produce byte-identical results. A
+re-run may not move the numbers.
+
+**Enforced by** `ThesisReproducibility.*` in
+`src/experiments/thesis/tests/thesis_feature_extraction_gtest.cpp`:
+
+| Test | Asserts |
+|---|---|
+| `AutoencoderFeaturesAreIdenticalAcrossRuns` | SNN-AE × {direct, latency, poisson}: same seed → identical features |
+| `AnnAutoencoderFeaturesAreIdenticalAcrossRuns` | ANN-AE: same seed → identical features |
+| `DifferentSeedChangesAutoencoderFeatures` | different seed → *different* features |
+
+The third test is not redundant. Without it the first two could pass **vacuously** — if the
+seed never reached the model, every run would be identical for the wrong reason and the suite
+would still look green.
+
+> **A trap worth knowing.** That control test must use **`ann-ae`, not `snn-ae`**. A spiking
+> latent can sit entirely below (or above) `V_th` in a small config, making it degenerate — no
+> initialisation changes it, so the control fails for a reason that has nothing to do with seed
+> propagation. It did exactly that when first written with `snn-ae`+`direct`+T=1 on 6 samples.
+> The dense autoencoder has no threshold, so its output must move when the weights move.
+
+**Verified empirically** on the committed results (2026-07-19): re-running
+`p00_hc_haar_lfcc_c1_eeg` produced files byte-identical to the committed ones for all three
+repeats, and two consecutive SNN-AE runs produced identical `d_truth`/`d_penalized`.
+
+**If this contract breaks**, the first suspect is a `std::random_device` fallback in an
+initializer — see the section below for how that happened once already. `src/core/utility/batching.cpp`
+also shuffles with an unseeded RNG, but it is **not** reachable from the thesis path; if it
+ever becomes reachable it must take a seed first.
+
+### Nondeterminism audit (2026-07-19)
+
+A systematic sweep for anything that could make results move without the inputs moving.
+Two real defects were found and fixed; the rest are clean by construction.
+
+| # | Category | Finding |
+|---|---|---|
+| 1 | `std::random_device` seeding | Thesis path clean — every RNG is seeded. `create_batches()` in `src/core/utility/batching.cpp` shuffled unseeded; 🔴 **fixed** — see below. |
+| 2 | Time-based seeding (`time()`, `chrono::now()`) | None. |
+| 3 | Iterating `unordered_map`/`unordered_set` into output | None. |
+| 4 | `std::filesystem::directory_iterator` | 🔴 **Fixed** — see below. |
+| 5 | OpenMP float `reduction` (summation order) | None. |
+| 6 | Non-stable `std::sort` with possible ties | 🔴 **Fixed** — see below. |
+| 7 | Parallel loops accumulating into shared state | None. `waveletOperations.cpp` uses loop-local sums; `ThesisClassifiers.cpp` writes disjoint `candidates[ii]` slots. Both deterministic by construction. |
+| 8 | Pointer/address-based ordering or hashing | None. |
+| 9 | Uninitialised reads | None flagged by the compiler. |
+
+**Fix 1 — unsorted directory enumeration** (`paraconsistentBaseline/phase00_data.cpp`).
+`directory_iterator` yields entries in an order the standard leaves *unspecified*; in practice
+it follows the filesystem's layout, so it can differ between machines and after files are
+rewritten. That made the row order of the feature/label vectors machine-dependent. It does
+**not** affect the paraconsistent scores (α/β are per-class min/max/overlap, so order-invariant)
+nor the label mapping (`build_label_index` sorts), but it **does** affect training — sample
+order is the order SGD sees. Now collected into a vector and `std::sort`ed first.
+
+The other three `directory_iterator` sites were already safe: `SubjectDiscovery.cpp` sorts by
+`subject_id` (and its sqlite branch uses `ORDER BY id ASC`), `GuayaquilDataset.cpp` and
+`FsddLoader.cpp` both sort.
+
+**Fix 2 — arbitrary tie-break in the winner sort** (`ThesisParaconsistent.cpp`).
+`rank_feature_sets` sorted on `d_penalized` alone. `std::sort` is **not stable**, so two feature
+sets scoring exactly the same were left in an unspecified relative order — and `scores[0]` is
+what gets written to the summary as the run's best. An exact tie could therefore flip the
+reported winner between runs. The comparator now falls back to the label, making the result a
+pure function of the data.
+
+This is not hypothetical: on EEG the bark/mel/lfcc scales scored bit-identically, and
+"bark won for EEG" was nothing but a tie-break artefact ([D6](./Engineering-Fixes-Log.md)).
+That axis has since been removed for EEG, but the ordering should not be left to chance.
+
+Both fixes were verified behaviour-preserving: re-running `p00_hc_haar_lfcc_c1_eeg` after them
+still reproduces the committed results byte-identically for all three repeats.
+
+**Fix 3 — unseeded batch shuffle** (`utility/batching.cpp`, `create_batches`).
+Initially assessed as unreachable from any experiment; that was wrong — `WaveletAETraining.cpp`
+(the waveletAE experiment) calls it every epoch. Batch order is the order SGD sees, so an
+unseeded shuffle changed the trained weights between runs on identical inputs.
+
+`create_batches()` now takes an optional trailing seed, matching the initializers' convention:
+
+```cpp
+create_batches(inputs, targets, batch_size);              // unseeded (unchanged default)
+create_batches(inputs, targets, batch_size, /*seed=*/42); // reproducible
+```
+
+The default stays unseeded so all 16 existing call sites keep compiling and behaving as before;
+**any path whose results must be reproducible has to pass a seed.** `WaveletAETraining` now
+passes `random_seed + epoch` — the epoch offset keeps each epoch's order distinct (a fixed seed
+would replay the same order every epoch and defeat shuffling) while making the whole schedule a
+pure function of the run seed.
+
+Guarded by `UtilTest.Batching{WithSeedIsDeterministic, DifferentSeedsGiveDifferentOrder,
+SeededShufflePreservesEverySampleExactlyOnce}`. The middle test is the anti-vacuity check: it
+fails if the seed is accepted but ignored. The two remaining unseeded callers are demos
+(`resnet_classifier_demo`, `autoencoder_leakyrelu`), which produce no tracked results.
+
 ### A flaky test blocked the full gate run — root cause: unseeded weight init (fixed)
 
 `ThesisSnnAe.PoissonLatentIsNonDegenerate` failed intermittently with an all-zero latent

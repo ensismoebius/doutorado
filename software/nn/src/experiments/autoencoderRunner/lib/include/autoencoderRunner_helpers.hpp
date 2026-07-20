@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/include/autoencoderRunner_helpers.hpp
- * @brief Helper utilities for Experiment03 (conversion, device runtime, model factory).
+ * @brief Helper utilities for AutoencoderRunner (conversion, device runtime, model factory).
  *
  * These helpers were previously defined in the experiment driver translation unit.
  * Moving them into the autoencoderRunner library allows reuse and keeps the driver
@@ -13,8 +13,8 @@
 #include <utility>
 #include <vector>
 
-#include "Experiment03Config.hpp"
-#include "Experiment03DatasetType.hpp"
+#include "AutoencoderRunnerConfig.hpp"
+#include "AutoencoderRunnerDatasetType.hpp"
 #include "data_loaders/sources/SqliteBatchSource.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
@@ -27,7 +27,7 @@ using nn::MSELoss;
 using Tensor = nn::TensorImpl<nn::Backend>;
 
 // Convert the experiment-level dataset enum to the SqliteBatchSource enum.
-auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
+auto to_sqlite_dataset_type(AutoencoderRunnerDatasetType dataset_type)
     -> nn::dataLoaders::SqliteDatasetType;
 
 // Build an autoencoder `Module` instance according to experiment `Config`.

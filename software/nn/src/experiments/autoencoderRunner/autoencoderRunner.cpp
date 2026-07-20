@@ -1,9 +1,9 @@
 /**
  * @file src/experiments/autoencoderRunner/autoencoderRunner.cpp
- * @brief Lightweight launcher for Experiment03 CLI.
+ * @brief Lightweight launcher for AutoencoderRunner CLI.
  *
  * This translation unit implements the small main() wrapper used to parse CLI
- * parameters and invoke the `Experiment03` driver. It is intentionally thin;
+ * parameters and invoke the `AutoencoderRunner` driver. It is intentionally thin;
  * the experiment implementation lives under `lib/src/` and the runtime
  * configuration is declared in `lib/include/autoencoderRunner.hpp`.
  */
@@ -81,6 +81,6 @@ auto main(int argc, char* argv[]) -> int
         redirect = std::make_unique<StreamRedirector>(true, true);
     }
 
-    Experiment03 experiment(config);
+    AutoencoderRunner experiment(config);
     return experiment.run();
 }

@@ -1,4 +1,4 @@
-# Experiment03 shared library and integrated LSTM sources
+# AutoencoderRunner shared library and integrated LSTM sources
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/cli.cpp

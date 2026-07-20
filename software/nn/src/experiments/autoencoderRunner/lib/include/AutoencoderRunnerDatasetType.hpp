@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/include/Experiment03DatasetType.hpp
- * @brief Dataset type enum for Experiment03.
+ * @file src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerDatasetType.hpp
+ * @brief Dataset type enum for AutoencoderRunner.
  */
 
 #pragma once
 
-enum class Experiment03DatasetType
+enum class AutoencoderRunnerDatasetType
 {
     Protocol,
     EegWindow,
@@ -13,17 +13,17 @@ enum class Experiment03DatasetType
     FusedWindow
 };
 
-inline auto dataset_type_to_string(Experiment03DatasetType dataset_type) -> const char*
+inline auto dataset_type_to_string(AutoencoderRunnerDatasetType dataset_type) -> const char*
 {
     switch (dataset_type)
     {
-        case Experiment03DatasetType::Protocol:
+        case AutoencoderRunnerDatasetType::Protocol:
             return "protocol";
-        case Experiment03DatasetType::EegWindow:
+        case AutoencoderRunnerDatasetType::EegWindow:
             return "eeg-window";
-        case Experiment03DatasetType::AudioWindow:
+        case AutoencoderRunnerDatasetType::AudioWindow:
             return "audio-window";
-        case Experiment03DatasetType::FusedWindow:
+        case AutoencoderRunnerDatasetType::FusedWindow:
             return "fused-window";
     }
 

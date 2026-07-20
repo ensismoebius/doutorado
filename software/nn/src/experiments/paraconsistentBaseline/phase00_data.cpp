@@ -10,6 +10,7 @@
 
 #include "phase00_data.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -20,8 +21,8 @@
 #include "data_loaders/10.1117/loaders/EEGLoader.hpp"
 #include "data_loaders/mat_io/mat_file_utils.hpp"
 #include "logging/Logger.hpp"
-#include "tensor/Tensor.hpp"
 #include "phase00_features.hpp"
+#include "tensor/Tensor.hpp"
 
 using matioCpp::utils::get_variable_dimensions;
 using nn::dataLoaders::loadAudioFromMat;
@@ -40,14 +41,27 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
 {
     std::vector<TrialData> trials;
 
+    // Enumerate subject directories in a FIXED order.
+    //
+    // std::filesystem::directory_iterator yields entries in an order the standard leaves
+    // unspecified -- in practice it follows the filesystem's internal layout, so it can differ
+    // between machines, between filesystems, and after files are rewritten. Iterating it
+    // directly made the row order of `trials` (and therefore of the feature/label vectors
+    // built from it) machine-dependent.
+    //
+    // That does NOT affect the paraconsistent scores -- alpha/beta are per-class min/max/overlap
+    // and so are order-invariant -- nor the label mapping, which build_label_index() sorts. It
+    // DOES affect training: the sample order is the order SGD sees, so a different enumeration
+    // produces different weights, i.e. results that change independently of a run.
+    std::vector<std::filesystem::path> subject_dirs;
     for (const auto& entry : std::filesystem::directory_iterator(cfg.dataset_base_path))
     {
-        if (!entry.is_directory())
-        {
-            continue;
-        }
+        if (entry.is_directory()) subject_dirs.push_back(entry.path());
+    }
+    std::sort(subject_dirs.begin(), subject_dirs.end());
 
-        const auto subject_path = entry.path();
+    for (const auto& subject_path : subject_dirs)
+    {
         const std::string subject_name = subject_path.filename().string();
         const auto audio_file = subject_path / (subject_name + "_Audio.mat");
         const auto eeg_file = subject_path / (subject_name + "_EEG.mat");

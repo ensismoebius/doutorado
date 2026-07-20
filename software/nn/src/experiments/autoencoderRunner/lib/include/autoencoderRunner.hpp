@@ -1,25 +1,25 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/include/autoencoderRunner.hpp
- * @brief Public experiment driver API for Experiment03.
+ * @brief Public experiment driver API for AutoencoderRunner.
  *
- * Declares the `Experiment03` class which orchestrates dataset discovery,
+ * Declares the `AutoencoderRunner` class which orchestrates dataset discovery,
  * data loading, model construction and training loop. Consumers should
  * configure the experiment via the `Config` structure in `cli.hpp`.
  */
 
 #pragma once
 
+#include "AutoencoderRunnerConfig.hpp"
 #include "Backend.hpp"
-#include "Experiment03Config.hpp"
 #include "data_loaders/datasets/Dataset.hpp"
 #include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"
 #include "layers/base/Module.hpp"
 
-class Experiment03
+class AutoencoderRunner
 {
    public:
-    explicit Experiment03(const Config& config);
+    explicit AutoencoderRunner(const Config& config);
     // Run the experiment; returns 0 on success, non-zero on failure.
     int run();
 

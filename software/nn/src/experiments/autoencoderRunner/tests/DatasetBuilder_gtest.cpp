@@ -1,6 +1,6 @@
 /**
  * @file DatasetBuilder_gtest.cpp
- * @brief Unit tests for the Experiment03 DatasetBuilder.
+ * @brief Unit tests for the AutoencoderRunner DatasetBuilder.
  */
 
 #include <gtest/gtest.h>
@@ -10,7 +10,7 @@
 TEST(DatasetBuilder, BuildsEegWindowDatasetWithEmptyDiscovery)
 {
     Config cfg;
-    cfg.dataset_type = Experiment03DatasetType::EegWindow;
+    cfg.dataset_type = AutoencoderRunnerDatasetType::EegWindow;
     cfg.window_eeg_config.window_size = 256;
     cfg.window_eeg_config.overlap = 0.5F;
     cfg.window_eeg_config.sample_rate = 1024;

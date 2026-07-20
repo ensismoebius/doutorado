@@ -32,7 +32,7 @@ cmake --preset pgo-generate
 cmake --build --preset pgo-generate -j$(nproc)
 ```
 
-Then run a **representative workload** — one that actually exercises the hot paths you care about (data loading, batching, forward/backward passes), not just a trivial smoke test. For example, Experiment03's training-flow profile exercises the fused-window data loader, prefetcher, and a small ANN's forward/backward pass end-to-end:
+Then run a **representative workload** — one that actually exercises the hot paths you care about (data loading, batching, forward/backward passes), not just a trivial smoke test. For example, AutoencoderRunner's training-flow profile exercises the fused-window data loader, prefetcher, and a small ANN's forward/backward pass end-to-end:
 
 ```bash
 ./out/build/pgo-generate/src/experiments/autoencoderRunner/autoencoderRunner \
@@ -41,7 +41,7 @@ Then run a **representative workload** — one that actually exercises the hot p
 
 `--profile` takes a **profile-name stem** (the `.json` file's basename under `src/experiments/autoencoderRunner/profiles/`), not a path — `ProfileLoader::load` resolves the stem against several candidate directories and appends `.json` itself. Passing a full path with extension only works if that exact file exists.
 
-> **Caveat:** `sample-training-flow.json` (and the other Experiment03 profiles) set `dataset_root_path` to a private, unpublished dataset path. Running it as-is requires that dataset; without it, substitute any profile/dataset combination that touches the same code paths (data loader → prefetcher → network forward/backward), since what matters for PGO is *which code executes*, not the specific dataset.
+> **Caveat:** `sample-training-flow.json` (and the other AutoencoderRunner profiles) set `dataset_root_path` to a private, unpublished dataset path. Running it as-is requires that dataset; without it, substitute any profile/dataset combination that touches the same code paths (data loader → prefetcher → network forward/backward), since what matters for PGO is *which code executes*, not the specific dataset.
 
 The compiler writes profiling counters (`.gcda` files, GCC format) into the build directory as the instrumented binary runs.
 

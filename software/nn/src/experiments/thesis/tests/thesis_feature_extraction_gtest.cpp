@@ -539,6 +539,91 @@ TEST(ThesisSnnAe, PoissonLatentIsNonDegenerate)
     EXPECT_GT(max_var, 0.0) << "SNN-AE latent identical across samples — no discriminative info";
 }
 
+// ─── reproducibility ─────────────────────────────────────────────────────────
+// Contract: the SAME profile with the SAME seed must produce BYTE-IDENTICAL features.
+// Results must not change independently of a run.
+//
+// This is a regression guard, not a hypothetical. extract_features() used to seed only the
+// spike frames and leave AutoencoderConfig::initializer_seed unset, so the initializers fell
+// back to std::random_device (see include/initializers/{xavier,kaiming_snn}.hpp) and every
+// run drew different weights. Two things followed: autoencoder feature extraction was not
+// reproducible at all, and ThesisSnnAe.PoissonLatentIsNonDegenerate failed ~24% of runs
+// (measured 6/25) whenever an unlucky draw left every encoder neuron below V_th.
+//
+// The handcrafted branch trains nothing and was always reproducible; it is included so a
+// future regression is attributed to the branch that actually broke.
+TEST(ThesisReproducibility, AutoencoderFeaturesAreIdenticalAcrossRuns)
+{
+    auto view = make_multi_view(6);
+    auto tr = make_ae_training();
+
+    for (const char* encoding : {"direct", "latency", "poisson"})
+    {
+        auto fe = make_ae_fe("snn-ae", encoding, 8);
+        const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
+        const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
+
+        ASSERT_EQ(a.size(), b.size()) << "encoding=" << encoding;
+        ASSERT_EQ(a[0].vectors.size(), b[0].vectors.size()) << "encoding=" << encoding;
+        for (size_t i = 0; i < a[0].vectors.size(); ++i)
+        {
+            ASSERT_EQ(a[0].vectors[i].size(), b[0].vectors[i].size());
+            for (size_t k = 0; k < a[0].vectors[i].size(); ++k)
+            {
+                EXPECT_DOUBLE_EQ(a[0].vectors[i][k], b[0].vectors[i][k])
+                    << "encoding=" << encoding << " sample=" << i << " dim=" << k
+                    << " -- same seed produced different features; weight init is probably "
+                       "unseeded again (AutoencoderConfig::initializer_seed)";
+            }
+        }
+    }
+}
+
+TEST(ThesisReproducibility, AnnAutoencoderFeaturesAreIdenticalAcrossRuns)
+{
+    auto view = make_multi_view(6);
+    auto tr = make_ae_training();
+    auto fe = make_ae_fe("ann-ae", "direct", 1);
+
+    const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/11u);
+    const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/11u);
+
+    ASSERT_EQ(a[0].vectors.size(), b[0].vectors.size());
+    for (size_t i = 0; i < a[0].vectors.size(); ++i)
+        for (size_t k = 0; k < a[0].vectors[i].size(); ++k)
+            EXPECT_DOUBLE_EQ(a[0].vectors[i][k], b[0].vectors[i][k])
+                << "sample=" << i << " dim=" << k;
+}
+
+// A different seed SHOULD give different features -- otherwise the seed is being ignored
+// entirely, which would make the above test pass vacuously.
+TEST(ThesisReproducibility, DifferentSeedChangesAutoencoderFeatures)
+{
+    auto view = make_multi_view(6);
+    auto tr = make_ae_training();
+    // ann-ae, not snn-ae: a spiking latent can sit fully below (or above) V_th in this tiny
+    // 6-sample config, in which case it is degenerate and NO initialisation changes it --
+    // the control would then fail for a reason unrelated to seed propagation. The dense
+    // autoencoder has no threshold, so its output must move when the weights move.
+    auto fe = make_ae_fe("ann-ae", "direct", 1);
+
+    const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
+    const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/8u);
+
+    bool any_diff = false;
+    for (size_t i = 0; i < a[0].vectors.size() && !any_diff; ++i)
+        for (size_t k = 0; k < a[0].vectors[i].size(); ++k)
+            if (a[0].vectors[i][k] != b[0].vectors[i][k])
+            {
+                any_diff = true;
+                break;
+            }
+
+    EXPECT_TRUE(any_diff)
+        << "seeds 7 and 8 gave identical features -- the seed is not reaching the model, so "
+           "the reproducibility tests above would pass vacuously";
+}
+
 TEST(ThesisSnnAe, EncodingChangesTheFeature)
 {
     auto view = make_multi_view(4);

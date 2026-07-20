@@ -1,10 +1,10 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/src/cli.cpp
- * @brief CLI parsing and option handling for Experiment03.
+ * @brief CLI parsing and option handling for AutoencoderRunner.
  *
  * Uses CLI11 to declare and parse command-line options for the experiment
  * binary. This file adapts values into the `Config` structure used by
- * `Experiment03`.
+ * `AutoencoderRunner`.
  */
 
 #include "../include/cli.hpp"
@@ -84,7 +84,8 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     config.profile_name = profile;
 
-    App app("Experiment03 profile-only launcher. All configuration must come from profile files.");
+    App app(
+        "AutoencoderRunner profile-only launcher. All configuration must come from profile files.");
 
     app.add_option("--profile", profile, "Configuration profile name (JSON file stem)")
         ->default_val(config.profile_name);

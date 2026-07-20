@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "Experiment03Config.hpp"
+#include "AutoencoderRunnerConfig.hpp"
 #include "ResultsWriter.hpp"
 
 namespace autoencoderRunner

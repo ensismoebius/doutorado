@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/src/autoencoderRunner_helpers.cpp
- * @brief Implementation of small helper utilities for Experiment03.
+ * @brief Implementation of small helper utilities for AutoencoderRunner.
  */
 
 #include "autoencoderRunner_helpers.hpp"
@@ -24,18 +24,18 @@
 namespace autoencoderRunner
 {
 
-auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
+auto to_sqlite_dataset_type(AutoencoderRunnerDatasetType dataset_type)
     -> nn::dataLoaders::SqliteDatasetType
 {
     switch (dataset_type)
     {
-        case Experiment03DatasetType::Protocol:
+        case AutoencoderRunnerDatasetType::Protocol:
             return nn::dataLoaders::SqliteDatasetType::Protocol;
-        case Experiment03DatasetType::EegWindow:
+        case AutoencoderRunnerDatasetType::EegWindow:
             return nn::dataLoaders::SqliteDatasetType::EegWindow;
-        case Experiment03DatasetType::AudioWindow:
+        case AutoencoderRunnerDatasetType::AudioWindow:
             return nn::dataLoaders::SqliteDatasetType::AudioWindow;
-        case Experiment03DatasetType::FusedWindow:
+        case AutoencoderRunnerDatasetType::FusedWindow:
             return nn::dataLoaders::SqliteDatasetType::FusedWindow;
     }
 
@@ -73,21 +73,21 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
 
     switch (config.autoencoder_type)
     {
-        case Experiment03AutoencoderType::ProtocolAnn:
+        case AutoencoderRunnerAutoencoderType::ProtocolAnn:
             return std::make_unique<ProtocolAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::EegWindowAnn:
+        case AutoencoderRunnerAutoencoderType::EegWindowAnn:
             return std::make_unique<EegWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::AudioWindowAnn:
+        case AutoencoderRunnerAutoencoderType::AudioWindowAnn:
             return std::make_unique<AudioWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::FusedWindowAnn:
+        case AutoencoderRunnerAutoencoderType::FusedWindowAnn:
             return std::make_unique<FusedWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::ProtocolSnn:
+        case AutoencoderRunnerAutoencoderType::ProtocolSnn:
             return std::make_unique<ProtocolSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::EegWindowSnn:
+        case AutoencoderRunnerAutoencoderType::EegWindowSnn:
             return std::make_unique<EegWindowSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::AudioWindowSnn:
+        case AutoencoderRunnerAutoencoderType::AudioWindowSnn:
             return std::make_unique<AudioWindowSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::FusedWindowSnn:
+        case AutoencoderRunnerAutoencoderType::FusedWindowSnn:
             return std::make_unique<FusedWindowSpikingAutoencoder>(model_cfg);
     }
 

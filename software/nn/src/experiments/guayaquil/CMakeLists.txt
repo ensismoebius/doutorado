@@ -1,5 +1,5 @@
 # Standalone guayaquil executable.
-# The guayaquil implementation lives in guayaquil_lib (defined in Experiment03 CMake).
+# The guayaquil implementation lives in guayaquil_lib (defined in AutoencoderRunner CMake).
 
 add_executable(guayaquil
     ${SRC_DIR}/experiments/guayaquil/guayaquil.cpp

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <span>
 #include <sstream>
@@ -17,7 +18,8 @@
 
 auto create_batches(std::span<const nn::Tensor> inputSamples,
     std::span<const nn::Tensor> targets,
-    const int batch_size) -> std::vector<Batch>
+    const int batch_size,
+    std::optional<unsigned int> seed) -> std::vector<Batch>
 {
     if (batch_size <= 0)
     {
@@ -38,9 +40,26 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
     std::vector<int> indices(n_samples);
     std::iota(indices.begin(), indices.end(), 0);
 
-    // Shuffle indices
-    std::random_device rdn;
-    std::mt19937 gen(rdn());
+    // Shuffle indices.
+    //
+    // Seed policy matches the initializers (include/initializers/{xavier,kaiming_snn}.hpp):
+    // an explicit seed makes the shuffle -- and therefore the whole batch division -- a pure
+    // function of (data, batch_size, seed); omitting it falls back to std::random_device and
+    // the order differs on every run.
+    //
+    // The default stays unseeded so existing callers keep their current behaviour, but any
+    // path whose results must be reproducible has to pass a seed: batch order is the order SGD
+    // sees, so an unseeded shuffle changes the trained weights between runs on identical
+    // inputs. See .wiki/Guides/Test-Quality-and-Determinism.md.
+    std::mt19937 gen;
+    if (seed.has_value())
+    {
+        gen.seed(*seed);
+    }
+    else
+    {
+        gen.seed(static_cast<unsigned int>(std::random_device{}()));
+    }
     std::ranges::shuffle(indices, gen);
 
     std::vector<Batch> batches;

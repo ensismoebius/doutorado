@@ -1,6 +1,6 @@
 /**
  * @file src/core/utility/progress.cpp
- * @brief Console progress helper used by Experiment03.
+ * @brief Console progress helper used by AutoencoderRunner.
  *
  * Renders a compact progress bar and counters used by the experiment runtime to
  * provide feedback while iterating over dataset batches. This implementation

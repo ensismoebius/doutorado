@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp
- * @brief Core implementation of the Experiment03 driver.
+ * @brief Core implementation of the AutoencoderRunner driver.
  *
  * Contains experiment lifecycle management: dataset discovery, data loader and
  * prefetcher setup, model construction and the training loop. Public-facing
@@ -167,13 +167,13 @@ auto apply_reduce_lr_on_plateau(
 
 // internal helpers moved to autoencoderRunner_helpers.hpp / .cpp
 
-Experiment03::Experiment03(const Config& config) : config_(config)
+AutoencoderRunner::AutoencoderRunner(const Config& config) : config_(config)
 {
     // Dataset, DataLoader and BatchPrefetcher will be initialized in `run()`
     // after parsing CLI params and discovering subjects.
 }
 
-int Experiment03::run()
+int AutoencoderRunner::run()
 {
     /// Mean losses for each epoch, used for final reporting in the run summary.
     vector<float> epoch_mean_losses;
@@ -237,7 +237,7 @@ int Experiment03::run()
 
         // Create a printer for the dataset type to log dataset summary information.
         unique_ptr<IDatasetPrinter> printer;
-        if (config_.dataset_type == Experiment03DatasetType::Protocol)
+        if (config_.dataset_type == AutoencoderRunnerDatasetType::Protocol)
         {
             printer = make_unique<Dataset101117Printer>( //
                 config_.dataset_root_path                //

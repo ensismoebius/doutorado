@@ -116,7 +116,7 @@ Collect canonical citations for: LSTM, BPTT, SNNs + surrogate gradients, Autoenc
 3. `.wiki/Architecture.md` — system-wide diagram
 4. Core articles (Tensor, Layers, Optimizers, DataLoaders, ...)
 5. Concept articles (Autoencoders, LSTM-and-BPTT, SNN-and-Surrogate-Gradients, ...)
-6. Experiment articles (Experiment03, Experiment04, ...)
+6. Experiment articles (AutoencoderRunner, Experiment04, ...)
 7. `.wiki/Home.md` — final pass to add all links
 
 ### STEP 4 — CROSS-LINK

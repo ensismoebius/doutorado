@@ -1,6 +1,6 @@
 /**
  * @file src/experiments/autoencoderRunner/lib/src/DatasetBuilder.cpp
- * @brief Implementation of DatasetBuilder for Experiment03.
+ * @brief Implementation of DatasetBuilder for AutoencoderRunner.
  */
 
 #include "DatasetBuilder.hpp"
@@ -19,17 +19,17 @@ auto DatasetBuilder::build() -> std::shared_ptr<Dataset>
 
     switch (cfg_->dataset_type)
     {
-        case Experiment03DatasetType::Protocol:
+        case AutoencoderRunnerDatasetType::Protocol:
         {
             auto ds = std::make_shared<Dataset101117>(discovered_);
             ds->set_input_mode(cfg_->dataset_input_mode);
             return ds;
         }
-        case Experiment03DatasetType::EegWindow:
+        case AutoencoderRunnerDatasetType::EegWindow:
             return std::make_shared<EEGWindowDataset>(discovered_, cfg_->window_eeg_config);
-        case Experiment03DatasetType::AudioWindow:
+        case AutoencoderRunnerDatasetType::AudioWindow:
             return std::make_shared<AudioWindowDataset>(discovered_, cfg_->window_audio_config);
-        case Experiment03DatasetType::FusedWindow:
+        case AutoencoderRunnerDatasetType::FusedWindow:
             return std::make_shared<FusedWindowDataset>(
                 discovered_, cfg_->window_eeg_config, cfg_->window_audio_config);
     }

@@ -106,7 +106,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Added integrated Experiment04 LSTM assets under the Experiment03 module:
+- Added integrated Experiment04 LSTM assets under the AutoencoderRunner module:
   `src/experiments/autoencoderRunner/lib/include/guayaquil`,
   `src/experiments/autoencoderRunner/lib/src/guayaquil`, `src/experiments/autoencoderRunner/tests`, and
   `src/experiments/autoencoderRunner/profiles/lstm-*.json`.

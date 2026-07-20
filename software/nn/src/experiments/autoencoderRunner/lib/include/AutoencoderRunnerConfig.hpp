@@ -1,6 +1,6 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/include/Experiment03Config.hpp
- * @brief Runtime configuration structure for Experiment03.
+ * @file src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerConfig.hpp
+ * @brief Runtime configuration structure for AutoencoderRunner.
  */
 
 #pragma once
@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "Experiment03AutoencoderType.hpp"
+#include "AutoencoderRunnerAutoencoderType.hpp"
 #include "data_loaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "data_loaders/10.1117/schema/Metadata.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"
@@ -54,10 +54,10 @@ struct Config
     Protocol101117InputMode dataset_input_mode;
 
     // Dataset variant used by autoencoderRunner.
-    Experiment03DatasetType dataset_type;
+    AutoencoderRunnerDatasetType dataset_type;
 
     // Autoencoder variant used by autoencoderRunner.
-    Experiment03AutoencoderType autoencoder_type;
+    AutoencoderRunnerAutoencoderType autoencoder_type;
 
     // Autoencoder architecture hyperparameters.
     int autoencoder_hidden_size;
@@ -140,15 +140,15 @@ struct Config
             return autoencoder_eeg_features;
         }
 
-        if (autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
-            autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
+        if (autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowAnn ||
+            autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowSnn)
         {
             return static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels) *
                    window_eeg_config.window_size;
         }
 
-        if ((autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
-                autoencoder_type == Experiment03AutoencoderType::ProtocolSnn) &&
+        if ((autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolAnn ||
+                autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolSnn) &&
             dataset_input_mode == Protocol101117InputMode::Concatenated)
         {
             return static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels) *
@@ -166,14 +166,14 @@ struct Config
             return autoencoder_audio_features;
         }
 
-        if (autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
-            autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
+        if (autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowAnn ||
+            autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowSnn)
         {
             return window_audio_config.window_size;
         }
 
-        if ((autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
-                autoencoder_type == Experiment03AutoencoderType::ProtocolSnn) &&
+        if ((autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolAnn ||
+                autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolSnn) &&
             dataset_input_mode == Protocol101117InputMode::Concatenated)
         {
             return static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples());
@@ -190,11 +190,12 @@ struct Config
             return autoencoder_architecture;
         }
 
-        const bool is_fused = autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
-                              autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn;
+        const bool is_fused =
+            autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowAnn ||
+            autoencoder_type == AutoencoderRunnerAutoencoderType::FusedWindowSnn;
         const bool is_protocol_concat =
-            (autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
-                autoencoder_type == Experiment03AutoencoderType::ProtocolSnn) &&
+            (autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolAnn ||
+                autoencoder_type == AutoencoderRunnerAutoencoderType::ProtocolSnn) &&
             dataset_input_mode == Protocol101117InputMode::Concatenated;
 
         if (is_fused || is_protocol_concat)

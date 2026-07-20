@@ -19,7 +19,7 @@ All runtime behavior must be defined by profile fields. CLI accepts only `--prof
 
 Integrated LSTM mode
 --------------------
-The standalone `guayaquil` implementation now lives under `src/experiments/04` and is
+The standalone `guayaquil` implementation now lives under `src/experiments/guayaquil` and is
 invoked through the `autoencoderRunner` binary with comparative flags:
 
 ```bash
@@ -38,11 +38,11 @@ Use `--help` to inspect the full option list without starting the experiment or 
 
 Integrated LSTM architecture
 ----------------------------
-The integrated LSTM path is now hosted under `src/experiments/04` and dispatched by `autoencoderRunner`:
+The integrated LSTM path is now hosted under `src/experiments/guayaquil` and dispatched by `autoencoderRunner`:
 
-- `src/experiments/autoencoderRunner/autoencoderRunner.cpp`: top-level launcher and dispatch to standard Experiment03 or LSTM mode.
+- `src/experiments/autoencoderRunner/autoencoderRunner.cpp`: top-level launcher and dispatch to standard AutoencoderRunner or LSTM mode.
 - `src/experiments/guayaquil/guayaquil.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
-- `src/experiments/guayaquil/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the Experiment03 LSTM tests.
+- `src/experiments/guayaquil/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the AutoencoderRunner LSTM tests.
 - `src/experiments/guayaquil/lib/include/guayaquil/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
 - `src/experiments/guayaquil/lib/include/guayaquil/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
 - `src/experiments/guayaquil/lib/include/guayaquil/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
@@ -51,7 +51,7 @@ The integrated LSTM path is now hosted under `src/experiments/04` and dispatched
 Current integrated runner behavior:
 
 - Uses comparative-only selector flags: `--comparative` and `--comparative-config`.
-- Loads only LSTM-specific JSON keys; there are no mixed per-parameter overrides from the regular Experiment03 profile system.
+- Loads only LSTM-specific JSON keys; there are no mixed per-parameter overrides from the regular AutoencoderRunner profile system.
 - Trains on a synthetic temporal dataset generated from the chosen architecture sizes.
 - Writes a JSON run summary with config, architecture, epoch history, and exit status.
 

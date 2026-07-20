@@ -219,6 +219,14 @@ chained into `run_thesis_profiles.sh` (unlike §2a) — run by hand after a phas
 
 ## What to expect
 
+> **Results must not change independently of a run.** Since the 2026-07-19 re-run, the same
+> profile with the same seed produces **byte-identical** output. If you re-run and the numbers
+> move, that is a bug, not noise — start at the
+> [reproducibility contract](./Test-Quality-and-Determinism.md#reproducibility-contract-results-must-not-change-independently-of-a-run)
+> and check whether an initializer has fallen back to `std::random_device` again. The
+> `ThesisReproducibility.*` tests exist to catch exactly that before it reaches a run.
+
+
 **Numbers will move — that is the point.** Every fix above changed what actually executes.
 A shift from previously published figures is the correction landing, not a regression.
 

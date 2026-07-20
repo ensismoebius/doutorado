@@ -284,9 +284,9 @@ cd documentation/07-articlesProduced/conference71070Guaiaquil
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-## Key Differences from Experiment03
+## Key Differences from AutoencoderRunner
 
-| Feature | Experiment03 | Experiment04 |
+| Feature | AutoencoderRunner | Experiment04 |
 |---------|-------------|--------------|
 | Model | Feedforward AE | LSTM + SNN comparative |
 | Input | Fixed-dim vectors | Variable-length sequences |
@@ -457,7 +457,7 @@ Latency encoding is the only configuration where models learn meaningful varianc
 - [Autoencoders](../Concepts/Autoencoders.md)
 - [Wave Processing](../Core/Wave.md)
 - [Training](../Core/Training.md) - Progress bars
-- [Experiment03](../Experiments/AutoencoderRunner.md) - Feedforward autoencoder
+- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Feedforward autoencoder
 
 ## References
 

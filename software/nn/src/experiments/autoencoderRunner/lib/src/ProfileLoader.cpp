@@ -38,22 +38,22 @@ static bool map_dataset_type(const std::string& s, Config& cfg)
     auto n = normalize(s);
     if (n.find("protocol") != std::string::npos)
     {
-        cfg.dataset_type = Experiment03DatasetType::Protocol;
+        cfg.dataset_type = AutoencoderRunnerDatasetType::Protocol;
         return true;
     }
     if (n.find("eeg") != std::string::npos)
     {
-        cfg.dataset_type = Experiment03DatasetType::EegWindow;
+        cfg.dataset_type = AutoencoderRunnerDatasetType::EegWindow;
         return true;
     }
     if (n.find("audio") != std::string::npos)
     {
-        cfg.dataset_type = Experiment03DatasetType::AudioWindow;
+        cfg.dataset_type = AutoencoderRunnerDatasetType::AudioWindow;
         return true;
     }
     if (n.find("fused") != std::string::npos)
     {
-        cfg.dataset_type = Experiment03DatasetType::FusedWindow;
+        cfg.dataset_type = AutoencoderRunnerDatasetType::FusedWindow;
         return true;
     }
     return false;
@@ -64,42 +64,42 @@ static bool map_autoencoder_type(const std::string& s, Config& cfg)
     auto n = normalize(s);
     if (n == "protocolann")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::ProtocolAnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::ProtocolAnn;
         return true;
     }
     if (n == "protocolsnn")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::ProtocolSnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::ProtocolSnn;
         return true;
     }
     if (n == "eegwindowann")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::EegWindowAnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::EegWindowAnn;
         return true;
     }
     if (n == "eegwindowsnn")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::EegWindowSnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::EegWindowSnn;
         return true;
     }
     if (n == "audiowindowann")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::AudioWindowAnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::AudioWindowAnn;
         return true;
     }
     if (n == "audiowindowsnn")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::AudioWindowSnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::AudioWindowSnn;
         return true;
     }
     if (n == "fusedwindowann")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowAnn;
         return true;
     }
     if (n == "fusedwindowsnn")
     {
-        cfg.autoencoder_type = Experiment03AutoencoderType::FusedWindowSnn;
+        cfg.autoencoder_type = AutoencoderRunnerAutoencoderType::FusedWindowSnn;
         return true;
     }
     return false;

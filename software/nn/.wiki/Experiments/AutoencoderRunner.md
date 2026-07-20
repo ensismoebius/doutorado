@@ -1,6 +1,6 @@
-# Experiment03: Autoencoder Experiments
+# AutoencoderRunner: Autoencoder Experiments
 
-Experiment03 implements and evaluates autoencoder architectures for multimodal (EEG + audio) feature learning on the 10.1117 imagined speech dataset.
+AutoencoderRunner implements and evaluates autoencoder architectures for multimodal (EEG + audio) feature learning on the 10.1117 imagined speech dataset.
 
 ## Theoretical Background
 
@@ -12,7 +12,7 @@ Combining EEG and audio signals leverages complementary information:
 
 ### Autoencoder Variants
 
-Experiment03 implements three autoencoder architectures:
+AutoencoderRunner implements three autoencoder architectures:
 1. **Audio-Only**: Compresses audio features
 2. **EEG-Only**: Compresses EEG features  
 3. **Fused**: Jointly encodes both modalities before bottleneck
@@ -37,8 +37,8 @@ public:
 ### Configuration
 
 ```cpp
-// File: src/experiments/autoencoderRunner/lib/include/Experiment03Config.hpp
-struct Experiment03Config
+// File: src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerConfig.hpp
+struct AutoencoderRunnerConfig
 {
     // Model
     std::string model_type;  // "audio", "eeg", "fused"
@@ -92,7 +92,7 @@ flowchart TB
 ```json
 // File: src/experiments/autoencoderRunner/lib/include/ResultsWriter.hpp
 {
-    "experiment": "Experiment03",
+    "experiment": "AutoencoderRunner",
     "timestamp": "2024-01-15T10:30:00Z",
     "config": {
         "model_type": "fused",
@@ -141,7 +141,7 @@ From code:
     - `<run_tag>_publication_table.csv`
     - `<run_tag>_summary.json`
 
-This distinction matters when comparing Experiment03 and Experiment04 outputs: Experiment03 is a multimodal autoencoder pipeline, while Experiment04 currently serves as a deterministic SNN-vs-LSTM comparative harness.
+This distinction matters when comparing AutoencoderRunner and Experiment04 outputs: AutoencoderRunner is a multimodal autoencoder pipeline, while Experiment04 currently serves as a deterministic SNN-vs-LSTM comparative harness.
 
 ## Common Pitfalls
 

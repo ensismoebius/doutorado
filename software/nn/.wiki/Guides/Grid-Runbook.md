@@ -77,5 +77,5 @@ Output:
 
 ## See Also
 
-- [Experiment03](../Experiments/AutoencoderRunner.md)
+- [AutoencoderRunner](../Experiments/AutoencoderRunner.md)
 - [Architecture](../Architecture.md)

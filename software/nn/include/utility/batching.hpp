@@ -1,6 +1,7 @@
 #ifndef BATCHING_HPP
 #define BATCHING_HPP
 
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -30,12 +31,23 @@ struct Batch
  * @param inputSamples Span contendo as amostras de entrada (shape: N × D).
  * @param targets Span contendo os alvos correspondentes (shape: N × C).
  * @param batch_size Tamanho de cada batch.
+ * @param seed Semente opcional do embaralhamento. Quando fornecida, a ordem dos
+ *        batches é totalmente determinística: a mesma semente produz sempre a
+ *        mesma divisão. Quando omitida (padrão), semeia-se com
+ *        `std::random_device` e a ordem muda a cada execução.
  * @return std::vector<Batch> Vetor de Batch, cada um contendo um par {x_batch, y_batch}.
+ *
+ * @note Passe uma semente em qualquer caminho cujo resultado deva ser reproduzível.
+ *       A ordem dos batches é a ordem que o SGD enxerga, então um embaralhamento
+ *       não semeado faz os pesos treinados mudarem de execução para execução mesmo
+ *       com dados e hiperparâmetros idênticos. Ver
+ *       `.wiki/Guides/Test-Quality-and-Determinism.md` (contrato de reprodutibilidade).
  */
-auto create_batches(                          //
-    std::span<const nn::Tensor> inputSamples, //
-    std::span<const nn::Tensor> targets,      //
-    int batch_size                            //
+auto create_batches(                                //
+    std::span<const nn::Tensor> inputSamples,       //
+    std::span<const nn::Tensor> targets,            //
+    int batch_size,                                 //
+    std::optional<unsigned int> seed = std::nullopt //
     ) -> std::vector<Batch>;
 
 auto batch_to_string(const Batch& batch) -> std::string;

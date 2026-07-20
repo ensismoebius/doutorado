@@ -71,6 +71,6 @@ ctest --test-dir out/build/max-performance -R "WaveletAE.*" --output-on-failure
 ## See also
 
 - [Experiment00](ParaconsistentBaseline.md) — paraconsistent baseline this replaces
-- [Experiment03](AutoencoderRunner.md) — multimodal autoencoder with fused EEG+audio
+- [AutoencoderRunner](AutoencoderRunner.md) — multimodal autoencoder with fused EEG+audio
 - [Experiment04](Guayaquil.md) — LSTM vs SNN comparative study
 - [Home](../Home.md)
