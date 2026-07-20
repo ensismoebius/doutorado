@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.753769,0.835194,2090.827,22.496,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_0.bin
-handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.752475,0.848238,2157.848,23.557,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_1.bin
-handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.641026,0.721519,2080.294,24.287,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_2.bin
-handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.607656,0.633010,2107.373,23.667,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_3.bin
-handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.699074,0.783404,2082.803,21.471,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_4.bin
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.753769,0.835194,3375.905,38.775,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.752475,0.848238,3473.280,36.467,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.641026,0.721519,3283.496,63.081,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.607656,0.633010,3534.886,62.099,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.699074,0.783404,4001.820,111.747,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_std_rep0/handcrafted-lfcc/fold_4.bin

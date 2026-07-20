@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.691943,0.770153,3280.310,15.344,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_0.bin
-handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.516129,0.605481,2853.341,17.883,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_1.bin
-handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.527778,0.569900,2772.262,14.783,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_2.bin
-handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.716279,0.769410,2740.707,16.352,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_3.bin
-handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.795000,0.905663,2841.519,14.428,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_4.bin
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.691943,0.770153,9203.872,35.998,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.516129,0.605481,13936.365,54.959,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.527778,0.569900,9196.058,30.987,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.716279,0.769410,8710.234,32.380,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.795000,0.905663,14042.594,29.580,results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_4.bin

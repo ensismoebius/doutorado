@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.572041,0.687456,2404.439,17.478,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_0.bin
-handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.549142,0.520249,1734.936,17.747,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_1.bin
-handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.444136,0.474548,1892.294,50.135,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_2.bin
-handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.613553,0.658578,1577.507,21.311,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_3.bin
-handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.315000,0.502350,1653.415,33.464,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_4.bin
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.572041,0.687456,3142.844,33.478,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.549142,0.520249,2607.084,26.799,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.444136,0.474548,2636.212,28.287,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.613553,0.658578,2550.421,46.367,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.315000,0.502350,2625.776,21.612,results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_nested_raw_rep1/handcrafted-lfcc/fold_4.bin

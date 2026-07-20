@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc-fused-early,dsnn,independent,0,nan,nan,nan,nan,nan,0.648644,0.733687,1888.644,83.220,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_0.bin
-handcrafted-lfcc-fused-early,dsnn,independent,1,nan,nan,nan,nan,nan,0.574352,0.487004,1962.045,29.813,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_1.bin
-handcrafted-lfcc-fused-early,dsnn,independent,2,nan,nan,nan,nan,nan,0.593596,0.639367,2115.276,48.381,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_2.bin
-handcrafted-lfcc-fused-early,dsnn,independent,3,nan,nan,nan,nan,nan,0.249205,0.550455,1885.144,17.950,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_3.bin
-handcrafted-lfcc-fused-early,dsnn,independent,4,nan,nan,nan,nan,nan,0.849998,0.680631,1640.825,42.487,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_4.bin
+handcrafted-lfcc-fused-early,dsnn,independent,0,nan,nan,nan,nan,nan,0.648644,0.733687,2633.197,27.190,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,independent,1,nan,nan,nan,nan,nan,0.574352,0.487004,2840.782,48.418,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,independent,2,nan,nan,nan,nan,nan,0.593596,0.639367,2719.173,27.076,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,independent,3,nan,nan,nan,nan,nan,0.249205,0.550455,2774.461,72.506,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,independent,4,nan,nan,nan,nan,nan,0.849998,0.680631,2459.160,39.482,results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_4.bin

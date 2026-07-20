@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.800000,0.874796,9703.744,10.384,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_0.bin
-handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.725000,0.819297,6705.233,5.886,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_1.bin
-handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.666667,0.736979,5625.178,5.338,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_2.bin
-handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.369048,0.365859,8315.970,6.112,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_3.bin
-handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.770270,0.806428,7392.232,6.552,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_4.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.800000,0.874796,18082.451,10.572,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.725000,0.819297,17025.767,9.588,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.666667,0.736979,18233.522,17.523,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.369048,0.365859,18912.644,13.446,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.770270,0.806428,16781.608,13.727,results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_std_rep2/handcrafted-lfcc-fused-late/fold_4.bin
