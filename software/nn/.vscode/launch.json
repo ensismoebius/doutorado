@@ -24,10 +24,10 @@
         // Experiment 03
         // ─────────────────────────────────────────────────────────────────
         {
-            "name": "experiment03 (lldb-dap)",
+            "name": "autoencoderRunner (lldb-dap)",
             "type": "lldb-dap",
             "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/03/experiment03",
+            "program": "${command:cmake.buildDirectory}/src/experiments/autoencoderRunner/autoencoderRunner",
             "args": [],
             "cwd": "${workspaceFolder}",
             "initCommands": [
@@ -41,10 +41,10 @@
         // Experiment 02
         // ─────────────────────────────────────────────────────────────────
         {
-            "name": "experiment_02 (lldb-dap)",
+            "name": "waveletAE (lldb-dap)",
             "type": "lldb-dap",
             "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/02/experiment_02",
+            "program": "${command:cmake.buildDirectory}/src/experiments/waveletAE/waveletAE",
             "args": [],
             "cwd": "${workspaceFolder}",
             "initCommands": [
@@ -52,13 +52,13 @@
             ]
         },
         // ─────────────────────────────────────────────────────────────────
-        // Experiment 00 (Phase00)
+        // Experiment 00 (paraconsistentBaseline)
         // ─────────────────────────────────────────────────────────────────
         {
-            "name": "Phase00 (lldb-dap)",
+            "name": "paraconsistentBaseline (lldb-dap)",
             "type": "lldb-dap",
             "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/00/Phase00",
+            "program": "${command:cmake.buildDirectory}/src/experiments/paraconsistentBaseline/paraconsistentBaseline",
             "args": [],
             "cwd": "${workspaceFolder}",
             "initCommands": [

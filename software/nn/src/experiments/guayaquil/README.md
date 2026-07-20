@@ -14,18 +14,18 @@ the same EEG/audio dataset, producing CSV metrics and pgfplots DAT files for the
 
 ```bash
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target experiment04 -j$(nproc)
+cmake --build out/build/max-performance --target guayaquil -j$(nproc)
 ```
 
 ## Run
 
 ```bash
 # Single profile
-./out/build/max-performance/src/experiments/04/experiment04 \
-  --comparative-config src/experiments/04/profiles/article-lstm-ae.json
+./out/build/max-performance/src/experiments/guayaquil/guayaquil \
+  --comparative-config src/experiments/guayaquil/profiles/article-lstm-ae.json
 
 # Full article pipeline (all 4 models, ~2.5 h)
-./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
 ```
 
 ## Profiles (`profiles/`)
@@ -53,7 +53,7 @@ ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 
 | File | Role |
 |---|---|
-| `experiment04.cpp` | Thin CLI entry point |
+| `guayaquil.cpp` | Thin CLI entry point |
 | `lib/include/ComparativeConfig.hpp` | Profile JSON parser |
 | `lib/include/AutoencoderBuilders.hpp` | LSTM/SNN network builder |
 | `lib/src/ComparativeDataset.cpp` | Dataset loading + z-score normalization |
@@ -72,13 +72,13 @@ layer specs are valid in `encoder_layer_spec` / `decoder_layer_spec`.
 
 ```bash
 # 1. Run all profiles
-./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
 
 # 2. Aggregate CSVs → paper DAT files (called automatically by step 1)
-python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /path/to/conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/04/profiles
+  --profiles-dir src/experiments/guayaquil/profiles
 
 # 3. Compile paper
 cd documentation/07-articlesProduced/conference71070Guaiaquil

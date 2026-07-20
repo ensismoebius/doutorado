@@ -32,12 +32,12 @@ All notable changes to this project will be documented in this file.
 ## Unreleased (2026-03-17)
 
 - Refactor: Move experiment pipeline into `LstmAutoencoderExperiment` class
-  - Integrated the LSTM autoencoder runner into `experiment03`; new API in
-    `src/experiments/03/lib/include/experiment04.hpp` and
-    `src/experiments/03/lib/src/experiment04.cpp`.
+  - Integrated the LSTM autoencoder runner into `autoencoderRunner`; new API in
+    `src/experiments/autoencoderRunner/lib/include/guayaquil.hpp` and
+    `src/experiments/autoencoderRunner/lib/src/guayaquil.cpp`.
   - Folded former `src/experiments/04` library, tests, and profiles into
-    `src/experiments/03/lib`, `src/experiments/03/tests`, and
-    `src/experiments/03/profiles`.
+    `src/experiments/autoencoderRunner/lib`, `src/experiments/autoencoderRunner/tests`, and
+    `src/experiments/autoencoderRunner/profiles`.
 
 - Prefetcher: `BatchPrefetcher` redesigned to single-producer thread with
   a bounded deque to serialize MAT I/O and avoid concurrent `matio` reads.
@@ -65,11 +65,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed (2026-04-21)
 
-- Experiment04 runner behavior unified: `src/experiments/04/lib/src/experiment04.cpp`
+- Experiment04 runner behavior unified: `src/experiments/guayaquil/lib/src/guayaquil.cpp`
   now defaults to the comparative SNN-vs-LSTM pipeline.
 - Legacy standalone LSTM execution path was removed from Experiment04 runner;
   execution now always delegates to the comparative SNN-vs-LSTM pipeline.
-- Legacy CLI aliases (`--experiment04`, `--lstm-autoencoder`,
+- Legacy CLI aliases (`--guayaquil`, `--lstm-autoencoder`,
   `--lstm-profile`, `--config`) were removed. The runner now accepts only
   comparative CLI flags (for example, `--comparative` and
   `--comparative-config`).
@@ -99,7 +99,7 @@ All notable changes to this project will be documented in this file.
 - OpenCL runtime activity verification (GPU busy probe + reconstruction-MSE
   workload) is now backend-owned via
   `OpenCLTensorBackend::verify_runtime_activity_or_throw(...)`, reducing
-  OpenCL-specific code in `experiment03`.
+  OpenCL-specific code in `autoencoderRunner`.
 - OpenCL runtime init/shutdown lifecycle is now backend-owned through
   `OpenCLTensorBackend::RuntimeScope` and
   `OpenCLTensorBackend::start_runtime_scope_or_throw(...)`.
@@ -107,13 +107,13 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Added integrated Experiment04 LSTM assets under the Experiment03 module:
-  `src/experiments/03/lib/include/experiment04`,
-  `src/experiments/03/lib/src/experiment04`, `src/experiments/03/tests`, and
-  `src/experiments/03/profiles/lstm-*.json`.
+  `src/experiments/autoencoderRunner/lib/include/guayaquil`,
+  `src/experiments/autoencoderRunner/lib/src/guayaquil`, `src/experiments/autoencoderRunner/tests`, and
+  `src/experiments/autoencoderRunner/profiles/lstm-*.json`.
 
-- Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches
+- Dual-branch multimodal autoencoders for `autoencoderRunner`: separate EEG and audio encoder branches
   with latent-space fusion and modality-specific decoders. Implementations live under
-  `src/experiments/03/lib/` (Fused & Protocol autoencoders).
+  `src/experiments/autoencoderRunner/lib/` (Fused & Protocol autoencoders).
   - Trainable SNN membrane parameters: membrane resistance `R` and capacitance `C` are now
   learnable scalar parameters exposed via profile fields (`ae.resistance`, `ae.capacitance`) and
   persisted with model weights.
@@ -123,13 +123,13 @@ All notable changes to this project will be documented in this file.
   helpers used across ANN and SNN autoencoders.
 - `reset_state()` support and proper membrane state clearing added to SNN modules (Leaky layers
   and Sequential wrappers).
-- Redesign test suite: added `src/experiments/03/tests/AutoencoderRedesign_gtest.cpp` with tests
+- Redesign test suite: added `src/experiments/autoencoderRunner/tests/AutoencoderRedesign_gtest.cpp` with tests
   covering dual-branch and dense fallback modes for ANN and SNN.
 
 ### Changed
 
-- `experiment03` model construction now infers protocol/eeg/audio splits and auto-selects
-  `DualBranchFusion` when applicable. See `src/experiments/03/lib/src/experiment03.cpp`.
+- `autoencoderRunner` model construction now infers protocol/eeg/audio splits and auto-selects
+  `DualBranchFusion` when applicable. See `src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp`.
 - Refactored `ProtocolAutoencoder` and `ProtocolSpikingAutoencoder` to support both
   dual-branch and dense fallback execution paths.
 
@@ -150,6 +150,6 @@ All notable changes to this project will be documented in this file.
 - Validation: focused regression and redesign suites passing locally (redesign tests + Leaky
   and serializer regression slice). Static analysis (cppcheck, flawfinder) reported no new
   issues related to these changes; existing findings are in unrelated data-loader tests.
-- Recommended reviewer focus: `src/experiments/03/lib/*`, `include/nn/layers/Leaky.hpp`, and
-  `src/experiments/03/tests/AutoencoderRedesign_gtest.cpp` for behavioral review.
+- Recommended reviewer focus: `src/experiments/autoencoderRunner/lib/*`, `include/nn/layers/Leaky.hpp`, and
+  `src/experiments/autoencoderRunner/tests/AutoencoderRedesign_gtest.cpp` for behavioral review.
 

@@ -203,7 +203,7 @@ These exact numbers are asserted in `TdBNTest.PoolsStatisticsOverBatchAndTime` a
 }
 ```
 
-When enabled, the E05 deep spiking classifier inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). The flag is ignored by the non-spiking `rnn` classifier. See [Experiment05](../Experiments/Experiment05.md).
+When enabled, the Thesis deep spiking classifier inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). The flag is ignored by the non-spiking `rnn` classifier. See [Experiment05](../Experiments/Thesis.md).
 
 ---
 

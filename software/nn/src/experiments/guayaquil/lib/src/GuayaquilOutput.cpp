@@ -1,4 +1,4 @@
-#include "../include/E04Output.hpp"
+#include "../include/GuayaquilOutput.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,11 +9,11 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "nlohmann/json.hpp"
 #include "io/ReportIO.hpp"
+#include "nlohmann/json.hpp"
 #include "statistics/inference_tests.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 namespace
@@ -105,7 +105,7 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
 }
 
 void write_summary_json(const std::filesystem::path& path,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& rows)
 {
@@ -188,7 +188,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
 
 void write_latex_exports(const std::filesystem::path& dir,
     const std::string& run_tag,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     const std::vector<ResultRow>& rows)
 {
     namespace fs = std::filesystem;
@@ -474,7 +474,7 @@ void write_batch_convergence_dat(const std::filesystem::path& path,
     }
 }
 
-void validate_repeat_determinism(const E04Config& cfg, const std::vector<ResultRow>& rows)
+void validate_repeat_determinism(const GuayaquilConfig& cfg, const std::vector<ResultRow>& rows)
 {
     if (cfg.experiment.repeats <= 1) return;
 
@@ -552,4 +552,4 @@ void validate_repeat_determinism(const E04Config& cfg, const std::vector<ResultR
     }
 }
 
-} // namespace e04
+} // namespace guayaquil

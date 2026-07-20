@@ -422,22 +422,22 @@ Base pública 10.1117/12.2255697
 05/
 ├── README.md                             ← este arquivo
 ├── CMakeLists.txt
-├── experiment05.cpp                      ← ponto de entrada CLI (pipeline de 6 etapas)
+├── thesis.cpp                      ← ponto de entrada CLI (pipeline de 6 etapas)
 ├── lib/
 │   ├── include/
-│   │   ├── E05Config.hpp                 ← parser JSON + validate()
-│   │   ├── E05Dataset.hpp                ← E05Sample, E05DatasetView, load_dataset()
-│   │   ├── E05FeatureExtraction.hpp      ← extract_features(), extract_handcrafted()
-│   │   ├── E05Paraconsistent.hpp         ← score_feature_set(), rank_feature_sets()
-│   │   ├── E05Classifiers.hpp            ← FoldResult, ClassificationResult, run_classifier()
-│   │   └── E05Output.hpp                 ← escritores CSV, JSON, DAT
+│   │   ├── ThesisConfig.hpp                 ← parser JSON + validate()
+│   │   ├── ThesisDataset.hpp                ← ThesisSample, ThesisDatasetView, load_dataset()
+│   │   ├── ThesisFeatureExtraction.hpp      ← extract_features(), extract_handcrafted()
+│   │   ├── ThesisParaconsistent.hpp         ← score_feature_set(), rank_feature_sets()
+│   │   ├── ThesisClassifiers.hpp            ← FoldResult, ClassificationResult, run_classifier()
+│   │   └── ThesisOutput.hpp                 ← escritores CSV, JSON, DAT
 │   └── src/
-│       ├── E05Config.cpp
-│       ├── E05Dataset.cpp                ← carregamento pareado via eeg_index
-│       ├── E05FeatureExtraction.cpp      ← DTWPT + loop OpenMP paralelo
-│       ├── E05Paraconsistent.cpp         ← cálculo α/β/D_verdade
-│       ├── E05Classifiers.cpp            ← SimpleResNet + GroupKFold + EER/AUC
-│       └── E05Output.cpp
+│       ├── ThesisConfig.cpp
+│       ├── ThesisDataset.cpp                ← carregamento pareado via eeg_index
+│       ├── ThesisFeatureExtraction.cpp      ← DTWPT + loop OpenMP paralelo
+│       ├── ThesisParaconsistent.cpp         ← cálculo α/β/D_verdade
+│       ├── ThesisClassifiers.cpp            ← SimpleResNet + GroupKFold + EER/AUC
+│       └── ThesisOutput.cpp
 ├── profiles/
 │   ├── debug.json                        ← teste rápido (RNN, 3 épocas, poucas amostras)
 │   ├── phase00/                          ← FASE 00: construção do vetor + ranking paraconsistente
@@ -460,9 +460,9 @@ Base pública 10.1117/12.2255697
 │           4 × 2 × 2 × 2 = 32 perfis
 │           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 2335 testes: 333 perfis (300 fase00 + 32 fase01 + debug) parseiam e validam
-    ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
-    └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
+    ├── thesis_profile_audit_gtest.cpp       ← 2335 testes: 333 perfis (300 fase00 + 32 fase01 + debug) parseiam e validam
+    ├── thesis_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
+    └── thesis_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```
 
 **Duas fases** (`classifier.enabled` controla o gate):
@@ -476,7 +476,7 @@ Base pública 10.1117/12.2255697
   | `small` | 32 | 16 |
   | `base`  | 64 | 32 |
 
-  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. A escolha do modelo é limitada pelo código (apenas `lstm-ae`); variantes esparsas/quantizadas exigiriam extensão do `E05FeatureExtraction`.
+  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. A escolha do modelo é limitada pelo código (apenas `lstm-ae`); variantes esparsas/quantizadas exigiriam extensão do `ThesisFeatureExtraction`.
 - **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é um placeholder — substitua pela wavelet/escala (ou `strategy=autoencoder`) vencedora antes de rodar. Cruza fonte × modo de texto × esquema de CV.
 
 **Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
@@ -485,15 +485,15 @@ Base pública 10.1117/12.2255697
 # 1. Rode todos os perfis phase00/ (grava results/thesis/phase00/*_paraconsistent.csv)
 
 # 2. Ranqueie e escolha o vencedor por sinal (menor D_truth):
-python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
-    --profiles-dir src/experiments/05/profiles/phase00 \
+python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
+    --profiles-dir src/experiments/thesis/profiles/phase00 \
     --results-dir  results/thesis/phase00 \
     --out          results/thesis/phase00/winners.json
 
 # 3. Injete o vencedor nos 16 perfis phase01/ (fused usa o vencedor da voz por padrão):
-python3 scripts/pipeline/e05/02_e05_apply_winner.py \
+python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
     --winners      results/thesis/phase00/winners.json \
-    --profiles-dir src/experiments/05/profiles/phase01 \
+    --profiles-dir src/experiments/thesis/profiles/phase01 \
     --fused        voice      # ou: eeg
 
 # 4. Rode os perfis phase01/ (já com o extrator vencedor).
@@ -510,14 +510,14 @@ O `rank` agrega os CSV por (wavelet × escala × sinal), faz média das repetiç
 cmake --preset=max-performance
 
 # Compilar
-cmake --build out/build/max-performance --target experiment05 -j$(nproc)
+cmake --build out/build/max-performance --target thesis -j$(nproc)
 
 # Rodar perfil único
-./out/build/max-performance/src/experiments/05/experiment05 \
-  --config src/experiments/05/profiles/handcrafted-voice.json
+./out/build/max-performance/src/experiments/thesis/thesis \
+  --config src/experiments/thesis/profiles/handcrafted-voice.json
 
 # Rodar todos os testes
-cmake --build out/build/max-performance --target e05_profile_audit_gtest -j$(nproc)
+cmake --build out/build/max-performance --target thesis_profile_audit_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R e05 --output-on-failure
 ```
 
@@ -554,7 +554,7 @@ model.load_state_dict(sd);
 
 ## Veja também
 
-- [Wiki Experimento 05](./../../../.wiki/Experiments/Experiment05.md) — teoria completa, fórmulas, armadilhas
+- [Wiki Experimento 05](./../../../.wiki/Experiments/Thesis.md) — teoria completa, fórmulas, armadilhas
 - [Contexto de Pesquisa](./../../../.wiki/Research-Context.md) — objetivos da tese e pipeline
 - [Core/Paraconsistente](./../../../.wiki/Core/Paraconsistent.md) — derivação de α/β/D_verdade
 - [Conceitos/Imagined-Speech-and-EEG](./../../../.wiki/Concepts/Imagined-Speech-and-EEG.md)

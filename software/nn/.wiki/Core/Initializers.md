@@ -111,7 +111,7 @@ void kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
 Pass an explicit `seed` when you need the exact same initial weights on every
 run (any experiment whose results get reported); omit it to fall back to
 non-reproducible randomness from the OS, which is only appropriate for
-throwaway/exploratory runs. `SimpleResNetImpl` and `E05DsnnClassifier` both
+throwaway/exploratory runs. `SimpleResNetImpl` and `ThesisDsnnClassifier` both
 thread the experiment's seed through to this function so that Experiment05
 runs are fully reproducible end-to-end.
 

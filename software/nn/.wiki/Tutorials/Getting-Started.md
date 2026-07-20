@@ -83,21 +83,21 @@ Start with a **smoke** profile: same code paths as the real thing, tiny paramete
 samples, 2 epochs), so it finishes in seconds instead of hours:
 
 ```bash
-cmake --build --preset=max-performance --target experiment05 -j$(nproc)
+cmake --build --preset=max-performance --target thesis -j$(nproc)
 
-./out/build/max-performance/src/experiments/05/experiment05 \
-  --config src/experiments/05/profiles/smoke/phase00/p00_ae_ann_base_eeg.json
+./out/build/max-performance/src/experiments/thesis/thesis \
+  --config src/experiments/thesis/profiles/smoke/phase00/p00_ae_ann_base_eeg.json
 ```
 
 You should see something like:
 
 ```
-[E05] Loaded 60 samples from 15 subjects, 11 stimuli.
-[E05] Extracted 1 feature set(s).
-[E05] Paraconsistent ranking:
+[Thesis] Loaded 60 samples from 15 subjects, 11 stimuli.
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
   autoencoder-ann alpha=0.812447 beta=0.871317 D_truth=1.26045
-[E05] classifier.enabled=false — Phase 00 run, stopping after ranking.
-[E05] Done. Results written to results/thesis/smoke
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/smoke
 ```
 
 Read that output as follows:
@@ -133,7 +133,7 @@ The switch between phases is one field in the profile: `classifier.enabled`.
 |---|---|
 | Understand the tensor type everything is built on | [Tensor](../Core/Tensor.md) · [plain-language version](../Core/Plain/Tensor.md) |
 | Add your own layer to the framework | [Tutorial 2 — Adding a Layer](./Adding-a-Layer.md) |
-| Run the full experiment (hours, not seconds) | [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md) |
+| Run the full experiment (hours, not seconds) | [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md) |
 | Understand the α/β/D_truth scoring you just saw | [Paraconsistent](../Core/Plain/Paraconsistent.md) |
 | Understand spiking neurons | [SNN and Surrogate Gradients](../Concepts/Plain/SNN-and-Surrogate-Gradients.md) |
 | Build options, sanitisers, other presets | [Build System](../Guides/Build-System.md) |

@@ -176,9 +176,9 @@ cmake --preset=pgo-generate
 cmake --build --preset=pgo-generate -j$(nproc)
 
 # 2. Run a representative workload to collect profiles
-# --profile takes a profile-name stem (resolved under src/experiments/03/profiles/),
+# --profile takes a profile-name stem (resolved under src/experiments/autoencoderRunner/profiles/),
 # not a path — this file doesn't need to exist as "sample.json"
-./out/build/pgo-generate/src/experiments/03/experiment03 \
+./out/build/pgo-generate/src/experiments/autoencoderRunner/autoencoderRunner \
     --profile sample-training-flow
 
 # 3. Final optimized build using collected profiles
@@ -224,10 +224,10 @@ Shared config library `experiments_config` (JSON-backed) is built at the `src/ex
 
 | Experiment | Directory |
 |-----------|-----------|
-| 00 | `src/experiments/00/` |
-| 02 | `src/experiments/02/` |
-| 03 | `src/experiments/03/` (Autoencoder / SNN) |
-| 04 | `src/experiments/04/` (LSTM comparative) |
+| 00 | `src/experiments/paraconsistentBaseline/` |
+| 02 | `src/experiments/waveletAE/` |
+| 03 | `src/experiments/autoencoderRunner/` (Autoencoder / SNN) |
+| 04 | `src/experiments/guayaquil/` (LSTM comparative) |
 
 Each experiment may contain a `lib/` subdirectory for reusable components and a `tests/` subdirectory with GTest targets.
 

@@ -162,7 +162,7 @@ parameters so those surface quickly.
 
 ### Layout
 
-`src/experiments/05/profiles/smoke/` mirrors every real profile
+`src/experiments/thesis/profiles/smoke/` mirrors every real profile
 (`debug.json`, `phase00/*`, `phase01/*` → 315 total) keeping every code-path
 selector (strategy, wavelet, scale, cepstral, modality, fusion_mode,
 classifier.type, nested_cv, standardize_features) but shrinking run parameters:
@@ -171,16 +171,16 @@ classifier.type, nested_cv, standardize_features) but shrinking run parameters:
 
 ### Automated mirroring (CMake)
 
-The `e05_smoke_profiles` target (in `ALL`) regenerates the mirror whenever any
-source profile or `e05_make_smoke_profiles.py` changes — a normal `cmake --build`
+The `thesis_smoke_profiles` target (in `ALL`) regenerates the mirror whenever any
+source profile or `thesis_make_smoke_profiles.py` changes — a normal `cmake --build`
 keeps `profiles/smoke/` in sync. `GLOB_RECURSE ... CONFIGURE_DEPENDS` picks up
 added/removed profiles; the generator is stdlib-only (any `python3`, no torch).
 
 ### Running
 
 ```bash
-cmake --build out/build/max-performance --target experiment05 -j$(nproc)
-./scripts/testing/run_e05_smoke.sh [phase00|phase01|all]   # needs the dataset present
+cmake --build out/build/max-performance --target thesis -j$(nproc)
+./scripts/testing/run_thesis_smoke.sh [phase00|phase01|all]   # needs the dataset present
 ```
 
 The runner reports `PASS`/`FAIL` per profile with the captured error line and a
@@ -193,7 +193,7 @@ Smoke testing the (previously never-run) DSNN phase01 profiles surfaced
 `max_samples` truncation was `resize(first N)`, but samples are stored
 **subject-contiguous** (~130 trials/speaker), so a capped run loaded only 2–3
 speakers and nested CV's inner GroupKFold got fewer groups than folds. Fixed in
-`E05Dataset.cpp`: truncation now **round-robins across subjects**, so a capped set
+`ThesisDataset.cpp`: truncation now **round-robins across subjects**, so a capped set
 spans every speaker (also fixes `debug.json` and any capped run).
 
 ---
@@ -201,6 +201,6 @@ spans every speaker (also fixes `debug.json` and any capped run).
 ## Related
 
 - [Test Quality and Determinism](./Test-Quality-and-Determinism.md)
-- [Experiment05](../Experiments/Experiment05.md)
+- [Experiment05](../Experiments/Thesis.md)
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md)
 - [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md)

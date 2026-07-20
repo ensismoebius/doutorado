@@ -138,9 +138,9 @@ See [Concepts/Imagined-Speech-and-EEG](./Concepts/Imagined-Speech-and-EEG.md).
 | EEG loader | `include/data_loaders/10.1117/` | Public dataset I/O |
 | SNN (LifBPTT) | `include/layers/spiking/` | Spiking neural network classifier |
 | LSTM-AE / SNN-AE | `src/core/models/autoencoder/` | Learned feature extraction |
-| Experiment 00 | `src/experiments/00/` | DTWPT + paraconsistent baseline |
-| Experiment 02 | `src/experiments/02/` | Wavelet autoencoder pipeline |
-| Experiment 03 | `src/experiments/03/` | Full audio/EEG autoencoder experiments |
+| Experiment 00 | `src/experiments/paraconsistentBaseline/` | DTWPT + paraconsistent baseline |
+| Experiment 02 | `src/experiments/waveletAE/` | Wavelet autoencoder pipeline |
+| Experiment 03 | `src/experiments/autoencoderRunner/` | Full audio/EEG autoencoder experiments |
 
 ---
 

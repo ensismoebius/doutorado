@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""e05_build_phase00_paraconsistent_tables.py — Rank Experiment 05 phase00
+"""thesis_build_phase00_paraconsistent_tables.py — Rank Experiment 05 phase00
 configs by d_penalized.
 
 Reads every e05_e05_p00_*_rep{0,1,2}_summary.json under results/thesis/phase00,
@@ -15,7 +15,7 @@ is ascending. This file previously sorted descending, which silently made every
 "#1" row the *worst* configuration of its table and buried each signal's actual
 winner at the bottom (the EEG winner sat at rank 46 of 46).
 
-The ranking key is d_penalized, NOT d_truth — matching 01_e05_phase00_rank.py,
+The ranking key is d_penalized, NOT d_truth — matching 01_thesis_phase00_rank.py,
 which is what actually picks the winner written into winners.json. The two orders
 genuinely differ: for voice the lowest-d_truth config (daub22/lfcc/c1) is not the
 winner, because the |g2| contradiction penalty demotes it below haar/lfcc/c1. Both
@@ -30,7 +30,7 @@ autoencoder (1.4944) would appear to beat the handcrafted winner (1.5143), and i
 is only the contradiction penalty that reverses them.
 
 Usage:
-    python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \\
+    python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \\
         --results-dir results/thesis/phase00 \\
         --tables-dir ../../documentation/00-thesis/monography/tables
 """
@@ -134,7 +134,7 @@ def collect(results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
         # Average the per-repetition d_penalized rather than recomputing it from the
         # mean alpha/beta: d_penalized is non-linear in |g2|, so the two agree only
         # when the repeats are identical (true for handcrafted, where std=0, but not
-        # for the autoencoders). 01_e05_phase00_rank.py averages per repetition, and
+        # for the autoencoders). 01_thesis_phase00_rank.py averages per repetition, and
         # the winner marked below has to match the winner it wrote to winners.json.
         d_pens = [float(r["best_d_penalized"]) for r in runs]
         row = {
@@ -154,7 +154,7 @@ def collect(results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
         tables[key].sort(key=lambda r: r["mean_d_penalized"])
 
     # Mark each signal's winner, chosen across BOTH groups (the selection in
-    # 01_e05_phase00_rank.py is per signal, not per family), so exactly one row per
+    # 01_thesis_phase00_rank.py is per signal, not per family), so exactly one row per
     # modality carries the mark and the other table's rank 1 is not mistaken for it.
     for modality in {r["modality"] for rows in tables.values() for r in rows}:
         candidates = [r for rows in tables.values() for r in rows if r["modality"] == modality]

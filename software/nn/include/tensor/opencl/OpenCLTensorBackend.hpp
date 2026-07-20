@@ -490,7 +490,7 @@ class OpenCLTensorBackend
     // These were the single largest cost in the backend: each was a full
     // blocking readback plus a host element loop plus a forced full re-upload,
     // and LSTMLayer calls them once per timestep (T=256). Measured on a real
-    // E04 run before this change: 517k blocking writes + 227k blocking reads,
+    // Guayaquil run before this change: 517k blocking writes + 227k blocking reads,
     // 85% of all OpenCL time, against 2.4% in actual kernels.
     //
     // Element (i,j) maps to base + i*stride_i + j*stride_j on each side.

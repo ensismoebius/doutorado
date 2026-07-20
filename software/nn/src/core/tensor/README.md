@@ -33,7 +33,7 @@ Recent updates
 - Added GPU-resident execution path for `OpenCLTensorBackend::rowwise_sum`, allowing reduction outputs to remain on device through chained gradient computations before lazy host synchronization.
 - Reduced resident-path synchronization by removing explicit queue finishes in selected OpenCL affine/reduction resident fast paths (`matmul_transposed`, `add_col_vector_to_rows_inplace`, `rowwise_sum`) so same-queue kernel chains can progress without forced host-side barriers.
 - Added standalone benchmark executable [src/core/tensor/tests/tensor_perf_bench.cpp](src/core/tensor/tests/tensor_perf_bench.cpp) to emit CSV timing for xtensor and OpenCL tensor workloads without making performance checks part of CTest.
-- Rebuilt affected targets (`experiment03_lib`, `core_gtest`) and re-ran full CTest: 680/680 passed after these changes.
+- Rebuilt affected targets (`autoencoderRunner_lib`, `core_gtest`) and re-ran full CTest: 680/680 passed after these changes.
 - Added backend primitive for rowwise addition of a `(cols, 1)` bias vector across all rows (`add_col_vector_to_rows_inplace`), exposed through `nn::Tensor`.
 - Added OpenCL execution path in `OpenCLTensorBackend` for hot operations (`matmul`, `transpose`, `add`, `multiply`, `exp`, scalar add/multiply), with explicit runtime CPU fallback on kernel/context errors.
 - Added ASan-safe runtime guard: OpenCL execution is disabled under AddressSanitizer builds to avoid third-party OpenCL runtime leak noise while preserving functional CPU fallback.

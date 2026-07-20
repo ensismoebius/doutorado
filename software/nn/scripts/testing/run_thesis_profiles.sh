@@ -4,21 +4,21 @@
 # experiment, not the smoke mirror). Shows live progress and captures failures.
 #
 # Pipeline order:
-#   1) run_e05_profiles.sh phase00   → paraconsistent ranking CSVs in results/thesis/phase00,
+#   1) run_thesis_profiles.sh phase00   → paraconsistent ranking CSVs in results/thesis/phase00,
 #                                      then AUTOMATICALLY (see "Phase 00 post-processing"):
-#                                        01_e05_phase00_rank.py  → winners.json
-#                                        02_e05_apply_winner.py  → injects the winner into
+#                                        01_thesis_phase00_rank.py  → winners.json
+#                                        02_thesis_apply_winner.py  → injects the winner into
 #                                                                  the 32 phase01 profiles
-#                                        e05_build_phase00_paraconsistent_tables.py
+#                                        thesis_build_phase00_paraconsistent_tables.py
 #                                                                → regenerates the thesis tables
-#   2) run_e05_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
+#   2) run_thesis_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
 #
 # Step 1's post-processing REWRITES tracked files under
-# src/experiments/05/profiles/phase01/ — review that diff before committing.
+# src/experiments/thesis/profiles/phase01/ — review that diff before committing.
 # It is skipped when any profile failed (the ranking would be computed over an
-# incomplete set); E05_FORCE_POST=1 overrides, E05_SKIP_POST=1 disables it entirely.
+# incomplete set); THESIS_FORCE_POST=1 overrides, THESIS_SKIP_POST=1 disables it entirely.
 #
-# Requires: experiment05 built, and the dataset (dataset.root) present.
+# Requires: thesis built, and the dataset (dataset.root) present.
 # HEAVY: phase00 = 208 profiles, phase01 = 32, each with experiment.repeats runs.
 # Run in the background / overnight.
 #
@@ -29,7 +29,7 @@
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
-# Usage:  ./scripts/testing/run_e05_profiles.sh [phase00|phase01|all|start-over-all]
+# Usage:  ./scripts/testing/run_thesis_profiles.sh [phase00|phase01|all|start-over-all]
 #         No argument on a terminal → interactive menu. No argument in a
 #         pipe/CI → defaults to `all`.
 #
@@ -41,35 +41,35 @@
 #                  Stops before phase01 if phase00 did not finish cleanly. This is the
 #                  option you want for a real end-to-end regeneration.
 # Binary selection (any CMake profile):
-#   auto: most recently built out/build/*/…/experiment05
-#   E05_BUILD=max-performance ./scripts/testing/run_e05_profiles.sh phase00
-#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_e05_profiles.sh
+#   auto: most recently built out/build/*/…/thesis
+#   THESIS_BUILD=max-performance ./scripts/testing/run_thesis_profiles.sh phase00
+#   THESIS_BIN=/abs/path/to/thesis ./scripts/testing/run_thesis_profiles.sh
 set -u
 
 cd "$(dirname "$0")/../.." # -> software/nn
 
-# Locate the experiment05 binary under any CMake build profile.
+# Locate the thesis binary under any CMake build profile.
 # Auto-pick prefers the CPU (max-performance) build when it exists. This is the reference
 # backend for the thesis — the same one the Guayaquil paper pipeline defaults to
-# (01_e04_run_article_profiles.sh), so both experiments report from one backend. It is also
+# (01_guayaquil_run_article_profiles.sh), so both experiments report from one backend. It is also
 # the right default on the merits: these profiles' networks are tiny (kernel-launch-bound on
 # GPU), and "most recently built" used to silently switch runs to whatever was rebuilt last.
-# Override with E05_BUILD/E05_BIN to target another backend.
-if [ -n "${E05_BIN:-}" ]; then
-    BIN="$E05_BIN"
-elif [ -n "${E05_BUILD:-}" ]; then
-    BIN="out/build/${E05_BUILD}/src/experiments/05/experiment05"
-elif [ -x "out/build/max-performance/src/experiments/05/experiment05" ]; then
-    BIN="out/build/max-performance/src/experiments/05/experiment05"
+# Override with THESIS_BUILD/THESIS_BIN to target another backend.
+if [ -n "${THESIS_BIN:-}" ]; then
+    BIN="$THESIS_BIN"
+elif [ -n "${THESIS_BUILD:-}" ]; then
+    BIN="out/build/${THESIS_BUILD}/src/experiments/thesis/thesis"
+elif [ -x "out/build/max-performance/src/experiments/thesis/thesis" ]; then
+    BIN="out/build/max-performance/src/experiments/thesis/thesis"
 else
-    BIN=$(find out/build -maxdepth 5 -type f -name experiment05 \
-              -path '*/experiments/05/experiment05' -printf '%T@ %p\n' 2>/dev/null \
+    BIN=$(find out/build -maxdepth 5 -type f -name thesis \
+              -path '*/experiments/thesis/thesis' -printf '%T@ %p\n' 2>/dev/null \
           | sort -rn | head -1 | cut -d' ' -f2-)
 fi
 if [ -z "${BIN:-}" ] || [ ! -x "$BIN" ]; then
-    echo "experiment05 binary not found. Build it, e.g.:"
-    echo "  cmake --build out/build/max-performance --target experiment05 -j\$(nproc)"
-    echo "or point at one:  E05_BIN=/path/to/experiment05 $0 $*"
+    echo "thesis binary not found. Build it, e.g.:"
+    echo "  cmake --build out/build/max-performance --target thesis -j\$(nproc)"
+    echo "or point at one:  THESIS_BIN=/path/to/thesis $0 $*"
     exit 1
 fi
 echo "using binary: $BIN"
@@ -78,18 +78,18 @@ echo "using binary: $BIN"
 # Run several profiles at once when RAM allows. Each profile is an independent
 # run (own result file by run_tag), so phase00/phase01 parallelise safely.
 # Job count = min(free_RAM / per-job, nproc), capped at 4 to avoid GPU
-# oversubscription. Override with E05_JOBS; tune per-job budget with
-# E05_JOB_MEM_MB (default 5120 — measured snn-ae/poisson voice profiles peak
+# oversubscription. Override with THESIS_JOBS; tune per-job budget with
+# THESIS_JOB_MEM_MB (default 5120 — measured snn-ae/poisson voice profiles peak
 # ~4.4GB RSS+swap each, EEG profiles ~2.1GB; the old 2048 default let 4 voice
 # jobs oversubscribe a 17GB box into heavy swap). JOBS=1 keeps the live
 # progress-bar UX.
 avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
 [ -z "${avail_mb:-}" ] && avail_mb=2048
-per_mb=${E05_JOB_MEM_MB:-5120}
+per_mb=${THESIS_JOB_MEM_MB:-5120}
 jobs_mem=$(( avail_mb / per_mb )); [ "$jobs_mem" -lt 1 ] && jobs_mem=1
 cpus=$(nproc)
-if [ -n "${E05_JOBS:-}" ]; then
-    JOBS=$E05_JOBS
+if [ -n "${THESIS_JOBS:-}" ]; then
+    JOBS=$THESIS_JOBS
 else
     JOBS=$(( jobs_mem < cpus ? jobs_mem : cpus ))
     [ "$JOBS" -gt 4 ] && JOBS=4
@@ -121,7 +121,7 @@ What do you want to do?
                discards saved progress, runs phase00, injects the winner,
                THEN runs phase01 on it. This is the correct full pipeline.
   j) set parallel job count (currently $JOBS; auto-detected default $auto_jobs)
-  b) (re)build the experiment05 binary first
+  b) (re)build the thesis binary first
   q) quit
 MENU
             read -r -p "choice [1/2/3/4/j/b/q]: " ans
@@ -141,8 +141,8 @@ MENU
                     fi
                     echo "parallelism now: JOBS=$JOBS" ;;
                 b|B)
-                    echo "building experiment05 …"
-                    if cmake --build out/build/max-performance --target experiment05 -j"$(nproc)"; then
+                    echo "building thesis …"
+                    if cmake --build out/build/max-performance --target thesis -j"$(nproc)"; then
                         echo "build ok"
                     else
                         echo "build FAILED — fix errors, then choose again"
@@ -172,11 +172,11 @@ fi
 # FRESH=1 on both legs is what makes this "start over": each phase clears its own
 # .state file instead of resuming, so a previous partial run cannot leak in.
 if [ "$SCOPE" = start-over-all ]; then
-    SELF="scripts/testing/run_e05_profiles.sh"  # cwd is software/nn (cd at the top of this file)
+    SELF="scripts/testing/run_thesis_profiles.sh"  # cwd is software/nn (cd at the top of this file)
 
     # Carry the interactively-chosen job count into both legs; without this the children
     # re-derive it from free RAM and would silently ignore the menu's "j" setting.
-    export E05_JOBS="$JOBS"
+    export THESIS_JOBS="$JOBS"
 
     echo
     echo "=== start over all: phase00 → (winner injection) → phase01 ==="
@@ -200,9 +200,9 @@ if [ "$SCOPE" = start-over-all ]; then
     echo
     if [ "$rc" -eq 0 ]; then
         echo "=== start over all: COMPLETE — both phases finished cleanly ==="
-        echo "    Review 'git diff src/experiments/05/profiles/phase01' (the winner injection)"
+        echo "    Review 'git diff src/experiments/thesis/profiles/phase01' (the winner injection)"
         echo "    and regenerate the thesis phase01 table:"
-        echo "      python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \\"
+        echo "      python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \\"
         echo "        --results-dir results/thesis/phase01 \\"
         echo "        --tables-dir  ../../documentation/00-thesis/monography/tables"
     else
@@ -212,9 +212,9 @@ if [ "$SCOPE" = start-over-all ]; then
 fi
 
 case "$SCOPE" in
-    phase00) ROOT="src/experiments/05/profiles/phase00" ;;
-    phase01) ROOT="src/experiments/05/profiles/phase01" ;;
-    all)     ROOT="src/experiments/05/profiles" ;;   # phase00 + phase01 + debug.json
+    phase00) ROOT="src/experiments/thesis/profiles/phase00" ;;
+    phase01) ROOT="src/experiments/thesis/profiles/phase01" ;;
+    all)     ROOT="src/experiments/thesis/profiles" ;;   # phase00 + phase01 + debug.json
     *) echo "usage: $0 [phase00|phase01|all|start-over-all]"; exit 1 ;;
 esac
 
@@ -287,26 +287,26 @@ mkdir -p "$LOGDIR"
 #            pct, counts, loss and per-bar ETA
 #   recent   the last 3 finished profiles with PASS/FAIL and wall time
 #
-# Tunables: E05_MONITOR=0 falls back to plain event lines; E05_MONITOR_INTERVAL
-# sets the redraw period; E05_MONITOR_{TAIL,HEAD}_BYTES bound how much of each
+# Tunables: THESIS_MONITOR=0 falls back to plain event lines; THESIS_MONITOR_INTERVAL
+# sets the redraw period; THESIS_MONITOR_{TAIL,HEAD}_BYTES bound how much of each
 # (multi-MB) worker log is re-read per frame.
 MON=0
-if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${E05_MONITOR:-1}" != 0 ]; then MON=1; fi
+if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${THESIS_MONITOR:-1}" != 0 ]; then MON=1; fi
 
 # ── Log scanning ────────────────────────────────────────────────────────────
 # Worker logs grow to multiple MB (the binary rewrites its bars thousands of
 # times). Reading a whole log per worker per frame would make the redraw cost
 # scale with run length, so live state is parsed from a bounded TAIL and the
 # static per-profile metadata is parsed once from the HEAD and cached.
-MON_TAIL_BYTES="${E05_MONITOR_TAIL_BYTES:-65536}"
-MON_HEAD_BYTES="${E05_MONITOR_HEAD_BYTES:-262144}"
+MON_TAIL_BYTES="${THESIS_MONITOR_TAIL_BYTES:-65536}"
+MON_HEAD_BYTES="${THESIS_MONITOR_HEAD_BYTES:-262144}"
 
 # Strip CR-overwrites and ANSI colour so downstream matching sees plain text.
 mon_clean() { tr '\r' '\n' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g'; }
 
 # Static metadata, parsed once per profile and cached: the binary prints
-#   [E05] run_tag=<tag> modality=<m> strategy=<s> repeats=<n>
-#   [E05] Loaded <n> samples from <n> subjects, <n> stimuli.
+#   [Thesis] run_tag=<tag> modality=<m> strategy=<s> repeats=<n>
+#   [Thesis] Loaded <n> samples from <n> subjects, <n> stimuli.
 # near the start of the run. Emits KEY=VALUE lines. Only caches once the dataset
 # line has appeared, so a worker scanned during startup is re-read next frame
 # instead of caching a half-empty record forever.
@@ -317,7 +317,7 @@ mon_meta() {
                               # (all args are expanded first) and resolve to "$TMP/meta/"
     if [ -s "$cache" ]; then cat "$cache"; return; fi
     out=$(head -c "$MON_HEAD_BYTES" "$log" 2>/dev/null | mon_clean | awk '
-        /^\[E05\] run_tag=/ {
+        /^\[Thesis\] run_tag=/ {
             for (i = 1; i <= NF; i++) {
                 split($i, kv, "=")
                 if (kv[1] == "modality") mod = kv[2]
@@ -325,8 +325,8 @@ mon_meta() {
                 if (kv[1] == "repeats")  reps = kv[2]
             }
         }
-        /^\[E05\] Loaded/ {
-            # "[E05] Loaded 1974 samples from 15 subjects, 11 stimuli."
+        /^\[Thesis\] Loaded/ {
+            # "[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli."
             for (i = 1; i <= NF; i++) {
                 if ($i == "samples")  smp  = $(i-1)
                 if ($i ~ /^subjects/) subj = $(i-1)
@@ -355,14 +355,14 @@ mon_scan() {
     tail -c "$MON_TAIL_BYTES" "$1" 2>/dev/null | mon_clean | awk '
         { line[NR] = $0 }
         $0 ~ /│/ && $0 ~ /[0-9]+(\.[0-9]+)?%/ { nd++; dl[nd] = NR }
-        /^\[E05\] === Repeat/ {
+        /^\[Thesis\] === Repeat/ {
             r = $0
             sub(/.*Repeat[ ]*/, "", r); sub(/[ ]*\(.*/, "", r); rep = r
             s = $0
             if (s ~ /seed=/) { sub(/.*seed=/, "", s); sub(/[^0-9].*/, "", s); seed = s }
         }
         function is_noise(t) {
-            return (t ~ /^[[:space:]]*$/) || (t ~ /^\[E05\]/) || (t ~ /^Overall[ ]+\[/) \
+            return (t ~ /^[[:space:]]*$/) || (t ~ /^\[Thesis\]/) || (t ~ /^Overall[ ]+\[/) \
                 || (t ~ /│/ && t ~ /[0-9]+(\.[0-9]+)?%/) || (t ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2} /)
         }
         END {
@@ -434,7 +434,7 @@ mon_compact_bar() {
     fi
 }
 
-# Background dashboard. Redraws in place (cursor-up) every E05_MONITOR_INTERVAL
+# Background dashboard. Redraws in place (cursor-up) every THESIS_MONITOR_INTERVAL
 # seconds while $TMP/mon.on exists. It is the only thing printing to the TTY in
 # monitor mode (worker event lines are suppressed), so the redraw stays aligned.
 #
@@ -536,7 +536,7 @@ mon_wide_bar() {
 }
 
 monitor_loop() {
-    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm st now_e p f d n k ln cols rows
+    local prev=0 interval="${THESIS_MONITOR_INTERVAL:-2}" id nm st now_e p f d n k ln cols rows
     local overall_eta eta_secs done_w pct thr log hidden sw dur
     local w_mod w_strat w_reps w_smp w_subj w_stim w_rep w_seed
     local w_l1 w_d1 w_l2 w_d2 kk vv sub head tail_ann lbl_var dat_var
@@ -748,7 +748,7 @@ echo "logs: $LOGDIR/<profile>.log   (tail -f to watch one worker in full)"
 echo "state: $STATE"
 
 # Work-weighted overall ETA (scripts/lib/run_eta.sh, shared with the Guayaquil runner).
-# E05 mixes fast handcrafted extraction (trains nothing) with slow autoencoders / DSNN
+# Thesis mixes fast handcrafted extraction (trains nothing) with slow autoencoders / DSNN
 # training. Counting profiles equally makes the ETA lurch every time the mix shifts; instead
 # we weight each profile by rough cost and track seconds-per-unit-work. p00_ae_* sort before
 # p00_hc_*, so the heavy kind is measured early and the rate is trustworthy for the long
@@ -770,10 +770,10 @@ if [ "$JOBS" -le 1 ]; then
         eta=$([ -n "$rem_s" ] && printf 'eta~%s' "$(fmt_hms "$rem_s")" || echo "eta~calculating")
         printf '[%d/%d]  elapsed %s  %s  running: %s\n' \
             "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name"
-        # Persistent top banner inside the profile's own TUI (see experiment05 / E05_OVERALL),
+        # Persistent top banner inside the profile's own TUI (see thesis / THESIS_OVERALL),
         # mirroring the Guayaquil runner: the per-process bars can't know the whole-run status,
-        # so the runner computes it here and hands it to the binary the same way E04 does.
-        export E05_OVERALL="$(printf 'Overall  [%d/%d]  elapsed %s  ETA %s   (%s)' \
+        # so the runner computes it here and hands it to the binary the same way Guayaquil does.
+        export THESIS_OVERALL="$(printf 'Overall  [%d/%d]  elapsed %s  ETA %s   (%s)' \
             "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name")"
         p_start=$(date +%s)
         if [ "$tty_out" -eq 1 ]; then
@@ -793,7 +793,7 @@ if [ "$JOBS" -le 1 ]; then
             echo "FAIL [$i/$npending] $name -> ${err:-<non-zero exit>}"
         fi
     done
-    unset E05_OVERALL
+    unset THESIS_OVERALL
 else
     # Parallel pool: at most JOBS workers in flight. Slot occupancy is tracked by
     # marker files in $TMP/active (the monitor is a background job too, so we
@@ -805,7 +805,7 @@ else
     # the TTY) never removes its marker, and a signal-interrupted `wait -n`
     # returns without reaping — the marker-count loop then spun straight
     # through and launched EVERY pending profile at once (observed twice: ~30
-    # concurrent experiment05 processes, OOM-killing unrelated work).
+    # concurrent thesis processes, OOM-killing unrelated work).
     prune_workers() {
         local alive=() p
         for p in "${worker_pids[@]}"; do
@@ -851,16 +851,16 @@ fi
 # every run, which is how the thesis tables ended up frozen on stale (pre-deletion)
 # data — so they now run automatically here.
 #
-#   1. 01_e05_phase00_rank.py   → winners.json. Selects on d_penalized, NOT raw
+#   1. 01_thesis_phase00_rank.py   → winners.json. Selects on d_penalized, NOT raw
 #      d_truth (a collapsed latent can game d_truth), and reports exact ties.
-#   2. 02_e05_apply_winner.py   → injects the real winner into the 32 phase01
+#   2. 02_thesis_apply_winner.py   → injects the real winner into the 32 phase01
 #      profiles, replacing the daub4/lfcc placeholder they ship with.
-#   3. e05_build_phase00_paraconsistent_tables.py → regenerates the thesis tables.
+#   3. thesis_build_phase00_paraconsistent_tables.py → regenerates the thesis tables.
 #
 # NOTE: step 2 REWRITES 32 git-tracked files under
-# src/experiments/05/profiles/phase01/. Expect a git diff there after a phase00 run;
+# src/experiments/thesis/profiles/phase01/. Expect a git diff there after a phase00 run;
 # that diff is the point (it is what phase01 then trains on), but review it before
-# committing. E05_SKIP_POST=1 skips this whole block.
+# committing. THESIS_SKIP_POST=1 skips this whole block.
 post_process_phase00() {
     local py rc=0
     # These three scripts are stdlib-only, so python3 suffices; still prefer the
@@ -872,45 +872,45 @@ post_process_phase00() {
     echo "=== phase00 post-processing ==="
 
     echo "[post] ranking phase00 → winners.json"
-    "$py" scripts/pipeline/e05/01_e05_phase00_rank.py \
-        --profiles-dir src/experiments/05/profiles/phase00 \
+    "$py" scripts/pipeline/thesis/01_thesis_phase00_rank.py \
+        --profiles-dir src/experiments/thesis/profiles/phase00 \
         --results-dir  results/thesis/phase00 \
         --out          results/thesis/phase00/winners.json || { rc=$?; return $rc; }
 
     echo "[post] injecting winner into the phase01 profiles"
-    "$py" scripts/pipeline/e05/02_e05_apply_winner.py \
+    "$py" scripts/pipeline/thesis/02_thesis_apply_winner.py \
         --winners      results/thesis/phase00/winners.json \
-        --profiles-dir src/experiments/05/profiles/phase01 || { rc=$?; return $rc; }
+        --profiles-dir src/experiments/thesis/profiles/phase01 || { rc=$?; return $rc; }
 
     echo "[post] regenerating the thesis phase00 tables"
-    "$py" scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
+    "$py" scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
         --results-dir results/thesis/phase00 \
         --tables-dir  ../../documentation/00-thesis/monography/tables || { rc=$?; return $rc; }
 
-    echo "[post] done — review 'git diff src/experiments/05/profiles/phase01' before committing"
+    echo "[post] done — review 'git diff src/experiments/thesis/profiles/phase01' before committing"
     return 0
 }
 
 # Gated on scope AND on a clean run: ranking over a partial result set can pick the
 # wrong winner, and step 2 would then bake that wrong winner into 32 tracked profiles.
 # Failing closed keeps that mistake out of the tree — fix the failures and re-run
-# (resume skips everything that already passed). E05_FORCE_POST=1 overrides.
-if [ -n "${E05_SKIP_POST:-}" ]; then
-    [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ] && echo "(E05_SKIP_POST set — skipping phase00 post-processing)"
+# (resume skips everything that already passed). THESIS_FORCE_POST=1 overrides.
+if [ -n "${THESIS_SKIP_POST:-}" ]; then
+    [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ] && echo "(THESIS_SKIP_POST set — skipping phase00 post-processing)"
 elif [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ]; then
-    if [ "$fail" -gt 0 ] && [ -z "${E05_FORCE_POST:-}" ]; then
+    if [ "$fail" -gt 0 ] && [ -z "${THESIS_FORCE_POST:-}" ]; then
         echo
         echo "!! skipping phase00 post-processing: $fail profile(s) failed, so the ranking"
         echo "!! would be computed over an incomplete result set and could select the wrong"
         echo "!! winner — which step 2 would then write into 32 tracked phase01 profiles."
         echo "!! Fix the failures and re-run (completed profiles are skipped), or set"
-        echo "!! E05_FORCE_POST=1 to run it anyway."
+        echo "!! THESIS_FORCE_POST=1 to run it anyway."
     else
         if [ "$SCOPE" = all ]; then
             echo
             echo "!! scope 'all' ran phase01 in the SAME pass as phase00, so phase01 used the"
             echo "!! placeholder extractor, not the winner injected below. Re-run phase01"
-            echo "!! (./scripts/testing/run_e05_profiles.sh phase01) for it to take effect."
+            echo "!! (./scripts/testing/run_thesis_profiles.sh phase01) for it to take effect."
         fi
         post_process_phase00 || echo "!! phase00 post-processing FAILED (exit $?) — artefacts may be stale"
     fi

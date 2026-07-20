@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowAutoencoder.cpp
  * @brief ANN implementation of the EEG window autoencoder.
  */
 
@@ -8,10 +8,10 @@
 #include "AutoencoderBuilders.hpp"
 
 EegWindowAutoencoder::EegWindowAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(
-          experiment03::autoencoders::build_ann_encoder(cfg, cfg.input_features, cfg.hidden_size)),
-      decoder_(
-          experiment03::autoencoders::build_ann_decoder(cfg, cfg.input_features, cfg.hidden_size))
+    : encoder_(autoencoderRunner::autoencoders::build_ann_encoder(
+          cfg, cfg.input_features, cfg.hidden_size)),
+      decoder_(autoencoderRunner::autoencoders::build_ann_decoder(
+          cfg, cfg.input_features, cfg.hidden_size))
 {
 }
 

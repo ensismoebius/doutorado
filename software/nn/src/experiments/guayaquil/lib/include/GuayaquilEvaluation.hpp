@@ -5,12 +5,12 @@
 #include <string>
 #include <vector>
 
-#include "E04RunMetrics.hpp"
+#include "GuayaquilRunMetrics.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using Tensor = nn::Tensor;
@@ -39,4 +39,4 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     std::uint32_t seed,
     float infer_ms) -> RunMetrics;
 
-} // namespace e04
+} // namespace guayaquil

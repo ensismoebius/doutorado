@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace e04
+namespace guayaquil
 {
 
 struct EpochHistory
@@ -15,7 +15,7 @@ struct EpochHistory
 
     // Batch-level raw data for convergence plots
     std::vector<float> batch_losses;
-    std::vector<float> batch_epochs;  // which epoch each batch belongs to
+    std::vector<float> batch_epochs; // which epoch each batch belongs to
 };
 
-} // namespace e04
+} // namespace guayaquil

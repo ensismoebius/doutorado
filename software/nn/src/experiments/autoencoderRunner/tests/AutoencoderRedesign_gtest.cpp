@@ -1,6 +1,6 @@
 /**
  * @file AutoencoderRedesign_gtest.cpp
- * @brief Tests for experiment03 redesigned multimodal autoencoders.
+ * @brief Tests for autoencoderRunner redesigned multimodal autoencoders.
  */
 
 #include <gtest/gtest.h>

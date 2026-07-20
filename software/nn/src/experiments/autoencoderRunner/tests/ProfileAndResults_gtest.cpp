@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/tests/ProfileAndResults_gtest.cpp
+ * @file src/experiments/autoencoderRunner/tests/ProfileAndResults_gtest.cpp
  * @brief Implementation for Profileandresults gtest.
  *
 
@@ -16,14 +16,14 @@
 #include "ResultsWriter.hpp"
 #include "cli.hpp"
 
-using experiment03::Summary;
+using autoencoderRunner::Summary;
 
 TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
 {
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config("default", config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config("default", config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.autoencoder_hidden_size, 64);
@@ -52,7 +52,7 @@ TEST(Experiment03ProfilesTest, LoadsProfileFromAbsolutePath)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.dataset_type, Experiment03DatasetType::AudioWindow);
@@ -81,7 +81,7 @@ TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.autoencoder_input_features, 777);
@@ -109,7 +109,7 @@ TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.device, "cpu");
@@ -136,7 +136,7 @@ TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unknown profile key(s): batch_size");
@@ -162,7 +162,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyProfileKeys)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unknown profile key(s): autoencoder_type");
@@ -230,7 +230,7 @@ TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
     defaults.prefetch_lookahead = 1;
     defaults.prefetch_ram_cap_mb = 64;
 
-    std::string arg0 = "experiment03";
+    std::string arg0 = "autoencoderRunner";
     std::string arg1 = "--profile";
     std::string arg2 = profile_path.string();
     char* argv[] = {arg0.data(), arg1.data(), arg2.data()};
@@ -261,7 +261,7 @@ TEST(Experiment03ProfilesTest, LoadsOptimizerOverrides)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.training_optimizer_type, "sgd");
@@ -302,7 +302,7 @@ TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.autoencoder_encoder_layer_spec.size(), 2U);
@@ -342,7 +342,7 @@ TEST(Experiment03ProfilesTest, RejectsSplitLayerSpecKeys)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unknown profile key(s): neural_network_decoder_layer_spec");
@@ -368,7 +368,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unknown profile key(s): neural_network_family");
@@ -394,7 +394,7 @@ TEST(Experiment03ProfilesTest, RejectsShortNeuralNetworkTypeAlias)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unsupported neural_network_type: ann");
@@ -420,7 +420,7 @@ TEST(Experiment03ProfilesTest, RejectsUnsupportedAutoencoderType)
     Config config{};
     std::string error;
 
-    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+    const bool ok = autoencoderRunner::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
     EXPECT_EQ(error, "unsupported neural_network_type: transformer-snn");
@@ -489,7 +489,7 @@ TEST(Experiment03CliTest, LoadsOptimizerFromSelectedProfile)
     defaults.prefetch_lookahead = 1;
     defaults.prefetch_ram_cap_mb = 64;
 
-    std::string arg0 = "experiment03";
+    std::string arg0 = "autoencoderRunner";
     std::string arg1 = "--profile";
     std::string arg2 = profile_path.string();
     char* argv[] = {arg0.data(), arg1.data(), arg2.data()};
@@ -585,7 +585,7 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
     defaults.prefetch_lookahead = 1;
     defaults.prefetch_ram_cap_mb = 64;
 
-    std::string arg0 = "experiment03";
+    std::string arg0 = "autoencoderRunner";
     std::string arg1 = "--profile";
     std::string arg2 = profile_path.string();
     char* argv[] = {arg0.data(), arg1.data(), arg2.data()};
@@ -681,7 +681,7 @@ TEST(Experiment03CliTest, RejectsMissingSamplerSeed)
     defaults.prefetch_lookahead = 1;
     defaults.prefetch_ram_cap_mb = 64;
 
-    std::string arg0 = "experiment03";
+    std::string arg0 = "autoencoderRunner";
     std::string arg1 = "--profile";
     std::string arg2 = profile_path.string();
     char* argv[] = {arg0.data(), arg1.data(), arg2.data()};
@@ -718,7 +718,7 @@ TEST(Experiment03ResultsWriterTest, WritesSummaryJson)
     std::string out_path;
     std::string out_error;
 
-    const bool ok = experiment03::write_run_summary_json(summary, out_path, out_error);
+    const bool ok = autoencoderRunner::write_run_summary_json(summary, out_path, out_error);
 
     ASSERT_TRUE(ok) << out_error;
     ASSERT_FALSE(out_path.empty());

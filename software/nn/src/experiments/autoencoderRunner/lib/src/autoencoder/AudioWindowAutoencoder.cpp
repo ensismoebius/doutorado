@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowAutoencoder.cpp
  * @brief ANN implementation of the audio-window autoencoder.
  */
 
@@ -8,9 +8,9 @@
 #include "AutoencoderBuilders.hpp"
 
 AudioWindowAutoencoder::AudioWindowAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(experiment03::autoencoders::build_ann_encoder(
+    : encoder_(autoencoderRunner::autoencoders::build_ann_encoder(
           cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4))),
-      decoder_(experiment03::autoencoders::build_ann_decoder(
+      decoder_(autoencoderRunner::autoencoders::build_ann_decoder(
           cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4)))
 {
 }

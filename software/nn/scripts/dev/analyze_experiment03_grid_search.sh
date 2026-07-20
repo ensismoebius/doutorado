@@ -1,7 +1,7 @@
 #!/bin/bash
 # analyze_experiment03_grid_search.sh — Analyze Experiment 03 grid search results.
 #
-# Reads completed run CSVs from src/experiments/03/results/ and generates
+# Reads completed run CSVs from src/experiments/autoencoderRunner/results/ and generates
 # comprehensive comparison tables under analysis/.  Runs the Python analysis
 # pipeline (scripts/data/ helpers) and prints a summary to stdout.
 #
@@ -17,7 +17,7 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-RESULTS_DIR="$PROJECT_ROOT/src/experiments/03/results"
+RESULTS_DIR="$PROJECT_ROOT/src/experiments/autoencoderRunner/results"
 ANALYSIS_DIR="$PROJECT_ROOT/analysis"
 
 echo "════════════════════════════════════════════════════════════"

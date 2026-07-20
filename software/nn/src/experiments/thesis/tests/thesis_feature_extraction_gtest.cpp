@@ -1,4 +1,4 @@
-// Unit tests for E05FeatureExtraction: scalar descriptors and extract_handcrafted.
+// Unit tests for ThesisFeatureExtraction: scalar descriptors and extract_handcrafted.
 // No SQLite or ProgressManager dependency — all inputs are synthetic.
 
 #include <gtest/gtest.h>
@@ -6,25 +6,25 @@
 #include <cmath>
 #include <vector>
 
-#include "../lib/include/E05Config.hpp"
-#include "../lib/include/E05FeatureExtraction.hpp"
+#include "../lib/include/ThesisConfig.hpp"
+#include "../lib/include/ThesisFeatureExtraction.hpp"
 
-using namespace e05;
+using namespace thesis;
 
 // ─── compute_energy ──────────────────────────────────────────────────────────
 
-TEST(E05Energy, EmptyReturnsZero)
+TEST(ThesisEnergy, EmptyReturnsZero)
 {
     EXPECT_DOUBLE_EQ(compute_energy({}), 0.0);
 }
 
-TEST(E05Energy, ConstantSignal)
+TEST(ThesisEnergy, ConstantSignal)
 {
     std::vector<double> sig(8, 3.0);
     EXPECT_DOUBLE_EQ(compute_energy(sig), 8.0 * 9.0);
 }
 
-TEST(E05Energy, UnitImpulse)
+TEST(ThesisEnergy, UnitImpulse)
 {
     std::vector<double> sig(16, 0.0);
     sig[0] = 1.0;
@@ -33,13 +33,13 @@ TEST(E05Energy, UnitImpulse)
 
 // ─── compute_zcr ─────────────────────────────────────────────────────────────
 
-TEST(E05ZCR, EmptyOrSingleReturnsZero)
+TEST(ThesisZCR, EmptyOrSingleReturnsZero)
 {
     EXPECT_DOUBLE_EQ(compute_zcr({}), 0.0);
     EXPECT_DOUBLE_EQ(compute_zcr({1.0}), 0.0);
 }
 
-TEST(E05ZCR, AlternatingSignal)
+TEST(ThesisZCR, AlternatingSignal)
 {
     // +-+-+- … → every consecutive pair crosses zero
     std::vector<double> sig = {1.0, -1.0, 1.0, -1.0, 1.0};
@@ -47,13 +47,13 @@ TEST(E05ZCR, AlternatingSignal)
     EXPECT_DOUBLE_EQ(compute_zcr(sig), 1.0);
 }
 
-TEST(E05ZCR, ConstantPositiveNoCrossings)
+TEST(ThesisZCR, ConstantPositiveNoCrossings)
 {
     std::vector<double> sig(10, 1.0);
     EXPECT_DOUBLE_EQ(compute_zcr(sig), 0.0);
 }
 
-TEST(E05ZCR, RateInRange)
+TEST(ThesisZCR, RateInRange)
 {
     std::vector<double> sig(100);
     for (size_t i = 0; i < sig.size(); ++i) sig[i] = (i % 5 == 0) ? -1.0 : 1.0;
@@ -64,17 +64,17 @@ TEST(E05ZCR, RateInRange)
 
 // ─── compute_entropy ─────────────────────────────────────────────────────────
 
-TEST(E05Entropy, EmptyReturnsZero)
+TEST(ThesisEntropy, EmptyReturnsZero)
 {
     EXPECT_DOUBLE_EQ(compute_entropy({}), 0.0);
 }
 
-TEST(E05Entropy, AllZeroesReturnsZero)
+TEST(ThesisEntropy, AllZeroesReturnsZero)
 {
     EXPECT_DOUBLE_EQ(compute_entropy({0.0, 0.0, 0.0}), 0.0);
 }
 
-TEST(E05Entropy, UniformSignalMaxEntropy)
+TEST(ThesisEntropy, UniformSignalMaxEntropy)
 {
     // |v|/total uniform → each p = 1/n → entropy = log2(n)
     std::vector<double> sig(8, 1.0);
@@ -82,7 +82,7 @@ TEST(E05Entropy, UniformSignalMaxEntropy)
     EXPECT_NEAR(ent, std::log2(8.0), 1e-10);
 }
 
-TEST(E05Entropy, ImpulseLowEntropy)
+TEST(ThesisEntropy, ImpulseLowEntropy)
 {
     // All energy in one sample → entropy ≈ 0
     std::vector<double> sig(16, 0.0);
@@ -92,19 +92,19 @@ TEST(E05Entropy, ImpulseLowEntropy)
 
 // ─── compute_teager ──────────────────────────────────────────────────────────
 
-TEST(E05Teager, TooShortReturnsZero)
+TEST(ThesisTeager, TooShortReturnsZero)
 {
     EXPECT_DOUBLE_EQ(compute_teager({1.0, 2.0}), 0.0);
 }
 
-TEST(E05Teager, ConstantSignalZero)
+TEST(ThesisTeager, ConstantSignalZero)
 {
     // Teager of constant c: c^2 - c*c = 0
     std::vector<double> sig(10, 2.0);
     EXPECT_NEAR(compute_teager(sig), 0.0, 1e-12);
 }
 
-TEST(E05Teager, PureSinePositive)
+TEST(ThesisTeager, PureSinePositive)
 {
     // Pure sine has positive mean Teager energy
     const int N = 64;
@@ -115,14 +115,14 @@ TEST(E05Teager, PureSinePositive)
 
 // ─── compute_jitter ──────────────────────────────────────────────────────────
 
-TEST(E05Jitter, TooFewPeaksReturnsNaN)
+TEST(ThesisJitter, TooFewPeaksReturnsNaN)
 {
     // Flat signal → no peaks
     std::vector<double> sig(32, 0.5);
     EXPECT_TRUE(std::isnan(compute_jitter(sig, 44100.0)));
 }
 
-TEST(E05Jitter, RegularSineNearZeroJitter)
+TEST(ThesisJitter, RegularSineNearZeroJitter)
 {
     // Regular 100 Hz sine at 44100 Hz → very consistent periods → low jitter
     const int N = 4096;
@@ -140,13 +140,13 @@ TEST(E05Jitter, RegularSineNearZeroJitter)
 
 // ─── compute_shimmer ─────────────────────────────────────────────────────────
 
-TEST(E05Shimmer, TooFewPeaksReturnsNaN)
+TEST(ThesisShimmer, TooFewPeaksReturnsNaN)
 {
     std::vector<double> sig(32, 0.5);
     EXPECT_TRUE(std::isnan(compute_shimmer(sig, 44100.0)));
 }
 
-TEST(E05Shimmer, RegularSineNearZeroShimmer)
+TEST(ThesisShimmer, RegularSineNearZeroShimmer)
 {
     const int N = 4096;
     const double freq = 100.0;
@@ -165,9 +165,10 @@ TEST(E05Shimmer, RegularSineNearZeroShimmer)
 
 namespace
 {
-E05Config::HandcraftedConfig make_hc_cfg(const std::vector<std::string>& descs, int dtwpt_level = 2)
+ThesisConfig::HandcraftedConfig make_hc_cfg(
+    const std::vector<std::string>& descs, int dtwpt_level = 2)
 {
-    E05Config::HandcraftedConfig cfg;
+    ThesisConfig::HandcraftedConfig cfg;
     cfg.descriptors = descs;
     cfg.dtwpt_level = dtwpt_level;
     cfg.scale = "mel";
@@ -183,7 +184,7 @@ std::vector<double> make_sine(int N = 256, double freq = 10.0, double sr = 44100
 }
 } // namespace
 
-TEST(E05HandcrafteExtract, EnergyOnly_DimMatchesBands)
+TEST(ThesisHandcrafteExtract, EnergyOnly_DimMatchesBands)
 {
     auto cfg = make_hc_cfg({"energy"}, 2);
     auto sig = make_sine();
@@ -192,7 +193,7 @@ TEST(E05HandcrafteExtract, EnergyOnly_DimMatchesBands)
     EXPECT_EQ(fv.size(), 4u);
 }
 
-TEST(E05HandcrafteExtract, MultipleDescriptorsDimAdditive)
+TEST(ThesisHandcrafteExtract, MultipleDescriptorsDimAdditive)
 {
     auto cfg = make_hc_cfg({"energy", "zcr", "entropy"}, 2);
     auto sig = make_sine();
@@ -201,7 +202,7 @@ TEST(E05HandcrafteExtract, MultipleDescriptorsDimAdditive)
     EXPECT_EQ(fv.size(), 12u);
 }
 
-TEST(E05HandcrafteExtract, AllDescriptors_NonEmpty)
+TEST(ThesisHandcrafteExtract, AllDescriptors_NonEmpty)
 {
     auto cfg = make_hc_cfg({"energy", "zcr", "entropy", "teager", "jitter", "shimmer"}, 2);
     auto sig = make_sine(256, 100.0, 44100.0);
@@ -211,7 +212,7 @@ TEST(E05HandcrafteExtract, AllDescriptors_NonEmpty)
     for (size_t i = 0; i < fv.size(); ++i) EXPECT_FALSE(std::isnan(fv[i])) << "NaN at index " << i;
 }
 
-TEST(E05HandcrafteExtract, Level3GivesMoreBands)
+TEST(ThesisHandcrafteExtract, Level3GivesMoreBands)
 {
     auto cfg2 = make_hc_cfg({"energy"}, 2);
     auto cfg3 = make_hc_cfg({"energy"}, 3);
@@ -220,7 +221,7 @@ TEST(E05HandcrafteExtract, Level3GivesMoreBands)
         extract_handcrafted(sig, cfg3, 44100.0).size());
 }
 
-TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
+TEST(ThesisHandcrafteExtract, EnergyValuesNonNegative)
 {
     auto cfg = make_hc_cfg({"energy"}, 2);
     auto sig = make_sine();
@@ -229,7 +230,7 @@ TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
 
 // ─── Category 2 cepstral (log + DCT) ─────────────────────────────────────────
 
-TEST(E05Cepstral, CepstralDiffersFromRawEnergy)
+TEST(ThesisCepstral, CepstralDiffersFromRawEnergy)
 {
     // Category 1 (energy) vs Category 2 (cepstral): same dimension (one value per
     // band), different values.
@@ -244,7 +245,7 @@ TEST(E05Cepstral, CepstralDiffersFromRawEnergy)
     for (double v : f2) EXPECT_TRUE(std::isfinite(v));
 }
 
-TEST(E05Cepstral, EnergyReplacedOtherDescriptorsAppended)
+TEST(ThesisCepstral, EnergyReplacedOtherDescriptorsAppended)
 {
     // scale=mel, level 2 → 4 bands. cepstral (4 coeffs, energy subsumed) + zcr(4).
     auto sig = make_sine(256, 100.0, 44100.0);
@@ -256,7 +257,7 @@ TEST(E05Cepstral, EnergyReplacedOtherDescriptorsAppended)
 
 // ─── pre-emphasis ────────────────────────────────────────────────────────────
 
-TEST(E05PreEmphasis, MatchesThesisWorkedExample)
+TEST(ThesisPreEmphasis, MatchesThesisWorkedExample)
 {
     // Thesis §Pré-ênfase: x=[1.0,0.9,0.6], alpha=0.97 → [1.0,-0.07,-0.273].
     std::vector<double> sig = {1.0, 0.9, 0.6};
@@ -267,7 +268,7 @@ TEST(E05PreEmphasis, MatchesThesisWorkedExample)
     EXPECT_NEAR(sig[2], -0.273, 1e-12); // 0.6 - 0.97*0.9
 }
 
-TEST(E05PreEmphasis, UsesOriginalNotFilteredPredecessor)
+TEST(ThesisPreEmphasis, UsesOriginalNotFilteredPredecessor)
 {
     // Back-to-front order: y[2] must use the ORIGINAL x[1], not the filtered one.
     std::vector<double> sig = {2.0, 2.0, 2.0};
@@ -277,7 +278,7 @@ TEST(E05PreEmphasis, UsesOriginalNotFilteredPredecessor)
     EXPECT_NEAR(sig[2], 2.0 - 0.5 * 2.0, 1e-12); // 1.0 (uses original x[1]=2.0)
 }
 
-TEST(E05PreEmphasis, AlphaZeroIsIdentity)
+TEST(ThesisPreEmphasis, AlphaZeroIsIdentity)
 {
     std::vector<double> sig = {0.3, -0.5, 0.8, 1.0};
     const std::vector<double> orig = sig;
@@ -285,7 +286,7 @@ TEST(E05PreEmphasis, AlphaZeroIsIdentity)
     EXPECT_EQ(sig, orig);
 }
 
-TEST(E05PreEmphasis, ShortSignalsUnchanged)
+TEST(ThesisPreEmphasis, ShortSignalsUnchanged)
 {
     std::vector<double> empty;
     apply_preemphasis(empty, 0.97);
@@ -299,7 +300,7 @@ TEST(E05PreEmphasis, ShortSignalsUnchanged)
 
 // ─── wavelet axis ────────────────────────────────────────────────────────────
 
-TEST(E05Wavelet, AllTraitWaveletsExtractFinite)
+TEST(ThesisWavelet, AllTraitWaveletsExtractFinite)
 {
     // Every wavelet with coefficient traits in Types.hpp must run end-to-end and
     // produce finite features. Longer filters need a longer signal than their
@@ -339,7 +340,7 @@ TEST(E05Wavelet, AllTraitWaveletsExtractFinite)
     }
 }
 
-TEST(E05Wavelet, UnknownWaveletThrows)
+TEST(ThesisWavelet, UnknownWaveletThrows)
 {
     auto cfg = make_hc_cfg({"energy"}, 2);
     cfg.wavelet = "not-a-wavelet";
@@ -347,7 +348,7 @@ TEST(E05Wavelet, UnknownWaveletThrows)
     EXPECT_THROW(extract_handcrafted(sig, cfg, 44100.0), std::invalid_argument);
 }
 
-TEST(E05Wavelet, DifferentWaveletsDifferentFeatures)
+TEST(ThesisWavelet, DifferentWaveletsDifferentFeatures)
 {
     // Haar (2-tap) and Daub20 (20-tap) must not yield identical decompositions.
     auto sig = make_sine(512, 100.0, 44100.0);
@@ -372,12 +373,12 @@ nn::Tensor make_column_tensor(int n, double freq, double sr)
 }
 
 // A minimal two-sample view whose samples each carry distinct audio + EEG.
-E05DatasetView make_paired_view()
+ThesisDatasetView make_paired_view()
 {
-    E05DatasetView view;
+    ThesisDatasetView view;
     for (int s = 0; s < 2; ++s)
     {
-        E05Sample sample;
+        ThesisSample sample;
         sample.audio = make_column_tensor(256, 100.0 + s, 44100.0);
         sample.eeg = make_column_tensor(256, 10.0 + s, 1024.0);
         sample.subject_id = s;
@@ -390,20 +391,20 @@ E05DatasetView make_paired_view()
     return view;
 }
 
-E05Config::FeatureExtraction make_hc_fe(const std::vector<std::string>& descs, int level = 2)
+ThesisConfig::FeatureExtraction make_hc_fe(const std::vector<std::string>& descs, int level = 2)
 {
-    E05Config::FeatureExtraction fe;
+    ThesisConfig::FeatureExtraction fe;
     fe.strategy = "handcrafted";
     fe.handcrafted = make_hc_cfg(descs, level);
     return fe;
 }
 } // namespace
 
-TEST(E05Fusion, LateFusionDimIsVoicePlusEeg)
+TEST(ThesisFusion, LateFusionDimIsVoicePlusEeg)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    E05Config::Training tr; // defaults unused by handcrafted path
+    ThesisConfig::Training tr; // defaults unused by handcrafted path
 
     auto voice = extract_features(view, fe, tr, "voice");
     auto eeg = extract_features(view, fe, tr, "eeg");
@@ -421,11 +422,11 @@ TEST(E05Fusion, LateFusionDimIsVoicePlusEeg)
         EXPECT_DOUBLE_EQ(late[0].vectors[0][i], voice[0].vectors[0][i]);
 }
 
-TEST(E05Fusion, EarlyFusionSingleExtractionDiffersFromLate)
+TEST(ThesisFusion, EarlyFusionSingleExtractionDiffersFromLate)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    E05Config::Training tr;
+    ThesisConfig::Training tr;
 
     auto early = extract_features(view, fe, tr, "fused", "early");
     auto late = extract_features(view, fe, tr, "fused", "late");
@@ -440,11 +441,11 @@ TEST(E05Fusion, EarlyFusionSingleExtractionDiffersFromLate)
     EXPECT_NE(late[0].label.find("fused-late"), std::string::npos);
 }
 
-TEST(E05Fusion, UnknownFusionModeThrows)
+TEST(ThesisFusion, UnknownFusionModeThrows)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    E05Config::Training tr;
+    ThesisConfig::Training tr;
     EXPECT_THROW(extract_features(view, fe, tr, "fused", "bogus"), std::invalid_argument);
 }
 
@@ -459,12 +460,12 @@ namespace
 // Several samples with distinct audio frequencies so their latents should
 // differ. Distinct per-sample content is what makes a non-degenerate latent
 // observable.
-E05DatasetView make_multi_view(int n_samples)
+ThesisDatasetView make_multi_view(int n_samples)
 {
-    E05DatasetView view;
+    ThesisDatasetView view;
     for (int s = 0; s < n_samples; ++s)
     {
-        E05Sample sample;
+        ThesisSample sample;
         sample.audio = make_column_tensor(1024, 80.0 + 25.0 * s, 44100.0);
         sample.eeg = make_column_tensor(1024, 8.0 + 3.0 * s, 1024.0);
         sample.subject_id = s % 2;
@@ -477,10 +478,10 @@ E05DatasetView make_multi_view(int n_samples)
     return view;
 }
 
-E05Config::FeatureExtraction make_ae_fe(
+ThesisConfig::FeatureExtraction make_ae_fe(
     const std::string& model, const std::string& encoding, int time_steps)
 {
-    E05Config::FeatureExtraction fe;
+    ThesisConfig::FeatureExtraction fe;
     fe.strategy = "autoencoder";
     fe.autoencoder.model = model;
     fe.autoencoder.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
@@ -490,9 +491,9 @@ E05Config::FeatureExtraction make_ae_fe(
     return fe;
 }
 
-E05Config::Training make_ae_training()
+ThesisConfig::Training make_ae_training()
 {
-    E05Config::Training tr;
+    ThesisConfig::Training tr;
     tr.epochs = 5; // fast; enough to move off the zero init
     tr.samples_per_batch = 8;
     return tr;
@@ -520,7 +521,7 @@ void latent_stats(const std::vector<std::vector<double>>& v, double& max_abs, do
 }
 } // namespace
 
-TEST(E05SnnAe, PoissonLatentIsNonDegenerate)
+TEST(ThesisSnnAe, PoissonLatentIsNonDegenerate)
 {
     auto view = make_multi_view(6);
     auto fe = make_ae_fe("snn-ae", "poisson", 8);
@@ -538,7 +539,7 @@ TEST(E05SnnAe, PoissonLatentIsNonDegenerate)
     EXPECT_GT(max_var, 0.0) << "SNN-AE latent identical across samples — no discriminative info";
 }
 
-TEST(E05SnnAe, EncodingChangesTheFeature)
+TEST(ThesisSnnAe, EncodingChangesTheFeature)
 {
     auto view = make_multi_view(4);
     auto tr = make_ae_training();

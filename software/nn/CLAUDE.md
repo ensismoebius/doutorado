@@ -70,12 +70,12 @@ Full detail: `.wiki/Guides/OpenCL-Debugging-And-Performance.md`.
    with it on. Default is ON; `NN_OPENCL_UNSAFE_FAST_QUEUE=1` is the escape hatch.
 2. **Debug on the CPU device: `RUSTICL_ENABLE=llvmpipe <binary>`.** The iGPU is
    also the display adapter; a driver fault forces a reboot. Never loop OpenCL
-   suites on the GPU. `e05_classifiers_gtest` on the GPU is a known machine-killer.
+   suites on the GPU. `thesis_classifiers_gtest` on the GPU is a known machine-killer.
 3. **Run real experiments on `max-performance` (CPU).** ~35× faster than OpenCL
    for this project's workloads on this hardware.
 4. Profile with the LD_PRELOAD shim in the guide, not by guessing — kernels were
    2.4% of OpenCL time; transfers were 85%.
-5. Delete the results dir between benchmark runs — E04/E05 resume from
+5. Delete the results dir between benchmark runs — Guayaquil/Thesis resume from
    `results/checkpoints/` and will silently reuse old numbers.
 
 ---
@@ -103,16 +103,17 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | Target | What |
 |---|---|
 | `core_gtest` | All core unit tests |
-| `experiment03` | Experiment 03 binary |
-| `experiment03_lib` | Experiment 03 library only |
-| `experiment04` | Experiment 04 binary |
-| `experiment04_lib` | Experiment 04 library only |
-| `experiment05` | Experiment 05 binary (thesis primary) |
-| `experiment05_lib` | Experiment 05 library only |
-| `e05_profile_audit_gtest` | 2335 tests verifying all 333 E05 profiles (276 handcrafted [wavelet×scale×category] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] phase00 + 32 phase01 + debug) parse + validate |
-| `experiment_02` | Experiment 02 binary |
+| `autoencoderRunner` | Autoencoder training runner binary (was experiment03) |
+| `autoencoderRunner_lib` | Autoencoder runner library only |
+| `guayaquil` | SNN-vs-LSTM comparative binary — conference paper (was experiment04) |
+| `guayaquil_lib` | Guayaquil library only |
+| `thesis` | **Thesis primary** experiment binary (was experiment05) |
+| `thesis_lib` | Thesis library only |
+| `thesis_profile_audit_gtest` | 2335 tests verifying all 333 Thesis profiles (276 handcrafted [wavelet×scale×category] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] phase00 + 32 phase01 + debug) parse + validate |
+| `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
+| `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
-| `profile_audit_gtest` | 25 tests verifying all 5 article profiles parse + validate |
+| `profile_audit_gtest` | 25 tests verifying all 5 Guayaquil article profiles parse + validate |
 | `nn_progress` | Progress bar library |
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
@@ -311,22 +312,22 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Wiki | `.wiki/` |
 | Graphify output | `.wiki/graphify-out/` |
 | CMake presets | `CMakePresets.json` |
-| Exp04 dataset loading | `src/experiments/04/lib/src/E04Dataset.cpp` |
-| Exp04 encoding transforms | `src/experiments/04/lib/src/E04Encoding.cpp` |
-| Exp04 training loop | `src/experiments/04/lib/src/E04Training.cpp` |
-| Exp04 output / CSV / DAT writers | `src/experiments/04/lib/src/E04Output.cpp` |
-| Exp04 profile parser | `src/experiments/04/lib/include/E04Config.hpp` |
-| Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/E04Training.hpp` |
-| Exp04 profile audit tests | `src/experiments/04/tests/profile_audit_gtest.cpp` |
-| Exp05 config parser | `src/experiments/05/lib/include/E05Config.hpp` |
-| Exp05 dataset loader | `src/experiments/05/lib/src/E05Dataset.cpp` |
-| Exp05 feature extraction | `src/experiments/05/lib/src/E05FeatureExtraction.cpp` |
-| Exp05 paraconsistent ranking | `src/experiments/05/lib/src/E05Paraconsistent.cpp` |
-| Exp05 classifiers | `src/experiments/05/lib/src/E05Classifiers.cpp` |
-| Exp05 output writers | `src/experiments/05/lib/src/E05Output.cpp` |
-| Exp05 profile audit tests | `src/experiments/05/tests/e05_profile_audit_gtest.cpp` |
-| Paper CSV aggregator | `scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py` |
-| Article run script | `scripts/pipeline/e04/01_e04_run_article_profiles.sh` |
+| Exp04 dataset loading | `src/experiments/guayaquil/lib/src/GuayaquilDataset.cpp` |
+| Exp04 encoding transforms | `src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp` |
+| Exp04 training loop | `src/experiments/guayaquil/lib/src/GuayaquilTraining.cpp` |
+| Exp04 output / CSV / DAT writers | `src/experiments/guayaquil/lib/src/GuayaquilOutput.cpp` |
+| Exp04 profile parser | `src/experiments/guayaquil/lib/include/GuayaquilConfig.hpp` |
+| Exp04 SNN/LSTM builder | `src/experiments/guayaquil/lib/include/GuayaquilTraining.hpp` |
+| Exp04 profile audit tests | `src/experiments/guayaquil/tests/profile_audit_gtest.cpp` |
+| Exp05 config parser | `src/experiments/thesis/lib/include/ThesisConfig.hpp` |
+| Exp05 dataset loader | `src/experiments/thesis/lib/src/ThesisDataset.cpp` |
+| Exp05 feature extraction | `src/experiments/thesis/lib/src/ThesisFeatureExtraction.cpp` |
+| Exp05 paraconsistent ranking | `src/experiments/thesis/lib/src/ThesisParaconsistent.cpp` |
+| Exp05 classifiers | `src/experiments/thesis/lib/src/ThesisClassifiers.cpp` |
+| Exp05 output writers | `src/experiments/thesis/lib/src/ThesisOutput.cpp` |
+| Exp05 profile audit tests | `src/experiments/thesis/tests/thesis_profile_audit_gtest.cpp` |
+| Paper CSV aggregator | `scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py` |
+| Article run script | `scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh` |
 
 ---
 
@@ -337,22 +338,22 @@ Full chain from profiles to compiled PDF:
 ```bash
 # 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
 cd software/nn
-./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
 # writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
 # writes .../conference71070Guaiaquil/data/article_*_*.dat  (pgfplots DAT files)
 
 # 2. Aggregate into paper_*.csv (called automatically by e04_run_article_profiles.sh)
-python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir .../conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/04/profiles
+  --profiles-dir src/experiments/guayaquil/profiles
 
 # 3. Compile paper
 cd documentation/07-articlesProduced/conference71070Guaiaquil
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Column mapping** (`02_e04_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
+**Column mapping** (`02_guayaquil_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
 - `model == "lstm-ae"` → label `LSTM-AE`
 - `model == "snn-ae"` + `architecture == "dense/conv1d/recurrent"` → label `SNN-{arch}`
 

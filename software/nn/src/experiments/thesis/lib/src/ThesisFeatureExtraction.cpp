@@ -1,4 +1,4 @@
-#include "E05FeatureExtraction.hpp"
+#include "ThesisFeatureExtraction.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,7 @@
 #include "wavelet/WaveletTransformResults.hpp"
 #include "wavelet/waveletOperations.hpp"
 
-namespace e05
+namespace thesis
 {
 
 // ─── scalar descriptors ────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ double hz_to_mel(double f)
 // Runtime name → mother-wavelet decomposition filter. Coefficient arrays have
 // static storage (constexpr in Types.hpp), so returning spans over them is safe.
 // Only the tags listed here (all with WaveletTraits specializations) are valid;
-// E05Config::validate() rejects any other name before extraction runs.
+// ThesisConfig::validate() rejects any other name before extraction runs.
 std::span<const double> wavelet_filter(const std::string& name)
 {
     using namespace wavelets;
@@ -176,7 +176,7 @@ std::span<const double> wavelet_filter(const std::string& name)
     };
     const auto it = table.find(name);
     if (it == table.end())
-        throw std::invalid_argument("E05FeatureExtraction: unknown wavelet \"" + name + "\"");
+        throw std::invalid_argument("ThesisFeatureExtraction: unknown wavelet \"" + name + "\"");
     return it->second;
 }
 
@@ -261,9 +261,9 @@ std::vector<std::vector<double>> group_by_scale(wavelets::WaveletTransformResult
 
 // ─── handcrafted extraction ─────────────────────────────────────────────────
 
-auto extract_handcrafted(
-    const std::vector<double>& signal, const E05Config::HandcraftedConfig& cfg, double sample_rate)
-    -> std::vector<double>
+auto extract_handcrafted(const std::vector<double>& signal,
+    const ThesisConfig::HandcraftedConfig& cfg,
+    double sample_rate) -> std::vector<double>
 {
     using wavelets::PACKET_WAVELET;
 
@@ -342,9 +342,9 @@ constexpr double kPreEmphasisAlpha = 0.97;
 // Raw-signal accessors, one per recorded modality. Each returns 256 zeros when
 // the requested tensor is absent, so downstream transforms always receive a
 // non-empty signal. Pre-emphasis is audio-only (see kPreEmphasisAlpha above).
-using SignalGetter = std::function<std::vector<double>(const E05Sample&)>;
+using SignalGetter = std::function<std::vector<double>(const ThesisSample&)>;
 
-std::vector<double> voice_signal(const E05Sample& sample)
+std::vector<double> voice_signal(const ThesisSample& sample)
 {
     auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
     std::vector<double> sig;
@@ -357,7 +357,7 @@ std::vector<double> voice_signal(const E05Sample& sample)
     return sig;
 }
 
-std::vector<double> eeg_signal(const E05Sample& sample)
+std::vector<double> eeg_signal(const ThesisSample& sample)
 {
     auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
     std::vector<double> sig;
@@ -373,7 +373,7 @@ std::vector<double> eeg_signal(const E05Sample& sample)
 // since voice dominates the sample count (176400 vs 24576 per trial). This is
 // an approximation, not a resampling — documented here so it isn't mistaken for
 // a physically exact rate.
-std::vector<double> fused_early_signal(const E05Sample& sample)
+std::vector<double> fused_early_signal(const ThesisSample& sample)
 {
     std::vector<double> sig = voice_signal(sample);
     const std::vector<double> eeg = eeg_signal(sample);
@@ -541,8 +541,8 @@ nn::Tensor spike_frame(const std::vector<float>& norm,
 template <typename AEType>
 std::vector<std::vector<double>> run_protocol_ae(
     const std::vector<std::vector<double>>& raw_signals,
-    const E05Config::AutoencoderConfig& spec,
-    const E05Config::Training& training,
+    const ThesisConfig::AutoencoderConfig& spec,
+    const ThesisConfig::Training& training,
     const std::string& label_suffix,
     const std::string& ae_kind, // "SNN-AE" / "ANN-AE" — drives the TUI description
     int batch_size,
@@ -589,11 +589,11 @@ std::vector<std::vector<double>> run_protocol_ae(
     // so the SAME profile with the SAME seed produced DIFFERENT features on every run:
     // only the spike frames were seeded, never the weights. Two consequences this fixes:
     //   1. Autoencoder feature extraction is now reproducible, like the handcrafted path.
-    //   2. It removes a real source of flakiness -- E05SnnAe.PoissonLatentIsNonDegenerate
+    //   2. It removes a real source of flakiness -- ThesisSnnAe.PoissonLatentIsNonDegenerate
     //      failed ~24% of runs (6/25 measured) because an unlucky draw left every encoder
     //      neuron below V_th, yielding an all-zero latent.
-    // E04 already did this (E04Experiment.cpp: snn_config.initializer_seed = run_seed);
-    // E05 was the odd one out.
+    // Guayaquil already did this (GuayaquilExperiment.cpp: snn_config.initializer_seed = run_seed);
+    // Thesis was the odd one out.
     ae_cfg.initializer_seed = seed;
 
     AEType model(ae_cfg);
@@ -607,10 +607,10 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.batch_size = std::max(1, batch_size);
 
     nn::training::Trainer<AEType> trainer(model, trainer_cfg);
-    // Match the Guayaquil (E04) TUI: give the training bar a description + loss type so the
+    // Match the Guayaquil (Guayaquil) TUI: give the training bar a description + loss type so the
     // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
     // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
-    // the "run X/Y" column), so col3 shows just the loss, exactly like the E04 bars.
+    // the "run X/Y" column), so col3 shows just the loss, exactly like the Guayaquil bars.
     auto ae_cb =
         std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix);
     ae_cb->set_metadata(ae_kind + " (" + encoding + ")", 0, 1, "MSE");
@@ -654,9 +654,9 @@ namespace
 // once by early fusion (on the pre-concatenated signal). label_suffix tags
 // the resulting FeatureSet so voice-part/EEG-part/fused variants stay
 // distinguishable in results output.
-auto extract_features_core(const E05DatasetView& view,
-    const E05Config::FeatureExtraction& cfg,
-    const E05Config::Training& training,
+auto extract_features_core(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& cfg,
+    const ThesisConfig::Training& training,
     const SignalGetter& get_signal,
     double sample_rate,
     const std::string& label_suffix,
@@ -717,7 +717,8 @@ auto extract_features_core(const E05DatasetView& view,
             raw_signals.push_back(std::move(sig));
         }
         if (max_len == 0)
-            throw std::runtime_error("E05FeatureExtraction: no valid raw signals for autoencoder");
+            throw std::runtime_error(
+                "ThesisFeatureExtraction: no valid raw signals for autoencoder");
 
         FeatureSet fs;
 
@@ -806,7 +807,7 @@ auto extract_features_core(const E05DatasetView& view,
     else
     {
         throw std::invalid_argument(
-            "E05FeatureExtraction: unknown strategy \"" + cfg.strategy + "\"");
+            "ThesisFeatureExtraction: unknown strategy \"" + cfg.strategy + "\"");
     }
 
     return result;
@@ -814,9 +815,9 @@ auto extract_features_core(const E05DatasetView& view,
 
 } // namespace
 
-auto extract_features(const E05DatasetView& view,
-    const E05Config::FeatureExtraction& cfg,
-    const E05Config::Training& training,
+auto extract_features(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& cfg,
+    const ThesisConfig::Training& training,
     const std::string& modality,
     const std::string& fusion_mode,
     std::uint32_t seed) -> std::vector<FeatureSet>
@@ -828,7 +829,8 @@ auto extract_features(const E05DatasetView& view,
         return extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "", seed);
 
     if (modality != "fused")
-        throw std::invalid_argument("E05FeatureExtraction: unknown modality \"" + modality + "\"");
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: unknown modality \"" + modality + "\"");
 
     if (fusion_mode == "early")
     {
@@ -838,7 +840,7 @@ auto extract_features(const E05DatasetView& view,
 
     if (fusion_mode != "late")
         throw std::invalid_argument(
-            "E05FeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
+            "ThesisFeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
 
     // Late fusion: extract independently per signal, then concatenate the
     // resulting feature vectors sample-by-sample (audit C12).
@@ -849,7 +851,7 @@ auto extract_features(const E05DatasetView& view,
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(
-            "E05FeatureExtraction: late fusion produced mismatched FeatureSet counts");
+            "ThesisFeatureExtraction: late fusion produced mismatched FeatureSet counts");
 
     std::vector<FeatureSet> result;
     result.reserve(voice_sets.size());
@@ -859,7 +861,7 @@ auto extract_features(const E05DatasetView& view,
         auto& efs = eeg_sets[k];
         if (vfs.vectors.size() != efs.vectors.size())
             throw std::runtime_error(
-                "E05FeatureExtraction: late fusion sample-count mismatch between voice and EEG");
+                "ThesisFeatureExtraction: late fusion sample-count mismatch between voice and EEG");
 
         FeatureSet fused;
         fused.label = vfs.label + "-fused-late";
@@ -875,4 +877,4 @@ auto extract_features(const E05DatasetView& view,
     return result;
 }
 
-} // namespace e05
+} // namespace thesis

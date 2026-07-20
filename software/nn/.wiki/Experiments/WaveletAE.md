@@ -1,4 +1,4 @@
-# Experiment02: Wavelet Autoencoder Pipeline
+# WaveletAE: Wavelet Autoencoder Pipeline
 
 Config-driven pipeline replacing the Phase 0 paraconsistent classifier with a learned
 autoencoder. Applies wavelet decomposition to EEG and audio signals, then trains a
@@ -19,15 +19,15 @@ is generated automatically when real dataset paths are not configured.
 
 ```
 EEG + audio .mat files
-  → Wavelet packet decomposition (Experiment02Wavelets.cpp)
-  → Autoencoder training (Experiment02Training.cpp)
-  → Reconstruction quality evaluation (Experiment02Evaluation.cpp)
-  → Artifact writing (Experiment02Reporting.cpp)
+  → Wavelet packet decomposition (WaveletAEWavelets.cpp)
+  → Autoencoder training (WaveletAETraining.cpp)
+  → Reconstruction quality evaluation (WaveletAEEvaluation.cpp)
+  → Artifact writing (WaveletAEReporting.cpp)
 ```
 
 ## Config
 
-`src/experiments/02/spec.json` (or `spec.yaml`). Key fields:
+`src/experiments/waveletAE/spec.json` (or `spec.yaml`). Key fields:
 
 - `eeg_path`, `audio_path` — input `.mat` files
 - Wavelet parameters (level, mother wavelet)
@@ -40,37 +40,37 @@ Pass a custom spec as the first CLI argument.
 
 ```bash
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target experiment_02 -j$(nproc)
+cmake --build out/build/max-performance --target waveletAE -j$(nproc)
 
 # Default spec path
-./out/build/max-performance/src/experiments/02/experiment_02
+./out/build/max-performance/src/experiments/waveletAE/waveletAE
 
 # Custom spec
-./out/build/max-performance/src/experiments/02/experiment_02 path/to/spec.json
+./out/build/max-performance/src/experiments/waveletAE/waveletAE path/to/spec.json
 ```
 
 ## Key code paths
 
 | File | Role |
 |---|---|
-| `src/experiments/02/experiment_02.cpp` | Thin entry point |
-| `src/experiments/02/Experiment02Config.cpp` | JSON/YAML spec loading |
-| `src/experiments/02/Experiment02Data.cpp` | EEG/audio loading |
-| `src/experiments/02/Experiment02Wavelets.cpp` | Wavelet decomposition |
-| `src/experiments/02/Experiment02Pipeline.cpp` | Top-level orchestration |
-| `src/experiments/02/Experiment02Training.cpp` | Autoencoder training loop |
-| `src/experiments/02/Experiment02Evaluation.cpp` | Reconstruction metrics |
-| `src/experiments/02/Experiment02Reporting.cpp` | Artifact writing |
+| `src/experiments/waveletAE/waveletAE.cpp` | Thin entry point |
+| `src/experiments/waveletAE/WaveletAEConfig.cpp` | JSON/YAML spec loading |
+| `src/experiments/waveletAE/WaveletAEData.cpp` | EEG/audio loading |
+| `src/experiments/waveletAE/WaveletAEWavelets.cpp` | Wavelet decomposition |
+| `src/experiments/waveletAE/WaveletAEPipeline.cpp` | Top-level orchestration |
+| `src/experiments/waveletAE/WaveletAETraining.cpp` | Autoencoder training loop |
+| `src/experiments/waveletAE/WaveletAEEvaluation.cpp` | Reconstruction metrics |
+| `src/experiments/waveletAE/WaveletAEReporting.cpp` | Artifact writing |
 
 ## Tests
 
 ```bash
-ctest --test-dir out/build/max-performance -R "Experiment02.*" --output-on-failure
+ctest --test-dir out/build/max-performance -R "WaveletAE.*" --output-on-failure
 ```
 
 ## See also
 
-- [Experiment00](Experiment00.md) — paraconsistent baseline this replaces
-- [Experiment03](Experiment03.md) — multimodal autoencoder with fused EEG+audio
-- [Experiment04](Experiment04.md) — LSTM vs SNN comparative study
+- [Experiment00](ParaconsistentBaseline.md) — paraconsistent baseline this replaces
+- [Experiment03](AutoencoderRunner.md) — multimodal autoencoder with fused EEG+audio
+- [Experiment04](Guayaquil.md) — LSTM vs SNN comparative study
 - [Home](../Home.md)

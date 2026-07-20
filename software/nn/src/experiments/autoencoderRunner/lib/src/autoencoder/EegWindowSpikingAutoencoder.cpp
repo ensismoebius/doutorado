@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for EEG window inputs.
  */
 
@@ -8,10 +8,10 @@
 #include "AutoencoderBuilders.hpp"
 
 EegWindowSpikingAutoencoder::EegWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(
-          experiment03::autoencoders::build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size)),
-      decoder_(
-          experiment03::autoencoders::build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size))
+    : encoder_(autoencoderRunner::autoencoders::build_snn_encoder(
+          cfg, cfg.input_features, cfg.hidden_size)),
+      decoder_(autoencoderRunner::autoencoders::build_snn_decoder(
+          cfg, cfg.input_features, cfg.hidden_size))
 {
 }
 
@@ -48,6 +48,6 @@ auto EegWindowSpikingAutoencoder::params() -> std::span<Tensor*>
 
 void EegWindowSpikingAutoencoder::reset_state()
 {
-    experiment03::autoencoders::reset_sequential_state(encoder_);
-    experiment03::autoencoders::reset_sequential_state(decoder_);
+    autoencoderRunner::autoencoders::reset_sequential_state(encoder_);
+    autoencoderRunner::autoencoders::reset_sequential_state(decoder_);
 }

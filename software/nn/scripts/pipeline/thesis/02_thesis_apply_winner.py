@@ -2,7 +2,7 @@
 """Inject Phase 00 winning extractors into the Experiment05 Phase 01 profiles.
 
 Phase 01 profiles ship with a placeholder feature_extraction block. After
-Phase 00 has been ranked (01_e05_phase00_rank.py -> winners.json), this script
+Phase 00 has been ranked (01_thesis_phase00_rank.py -> winners.json), this script
 rewrites each Phase 01 profile's feature_extraction to the winner for that
 profile's signal source:
 
@@ -16,9 +16,9 @@ winner is applied to both halves; --fused chooses whether that is the voice or
 the eeg winner (the audio-dominant voice winner is the default).
 
 Usage:
-    python3 scripts/pipeline/e05/02_e05_apply_winner.py \
+    python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
         --winners       results/thesis/phase00/winners.json \
-        --profiles-dir  src/experiments/05/profiles/phase01 \
+        --profiles-dir  src/experiments/thesis/profiles/phase01 \
         --fused         voice
 
 Re-run any time Phase 00 is re-ranked; it overwrites the feature_extraction
@@ -42,8 +42,8 @@ def source_of(profile):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--winners", required=True, help="winners.json from 01_e05_phase00_rank.py")
-    ap.add_argument("--profiles-dir", default="src/experiments/05/profiles/phase01")
+    ap.add_argument("--winners", required=True, help="winners.json from 01_thesis_phase00_rank.py")
+    ap.add_argument("--profiles-dir", default="src/experiments/thesis/profiles/phase01")
     ap.add_argument("--fused", choices=["voice", "eeg"], default="voice",
                     help="Which signal's winner to use for fused sources (default voice).")
     ap.add_argument("--dry-run", action="store_true", help="Report changes without writing.")
@@ -53,7 +53,7 @@ def main():
         winners = json.load(f)
     for sig in ("voice", "eeg"):
         if sig not in winners:
-            sys.exit(f"winners.json is missing '{sig}'. Re-run 01_e05_phase00_rank.py "
+            sys.exit(f"winners.json is missing '{sig}'. Re-run 01_thesis_phase00_rank.py "
                      f"after all Phase 00 {sig} profiles have results.")
 
     profiles = sorted(glob.glob(os.path.join(args.profiles_dir, "*.json")))

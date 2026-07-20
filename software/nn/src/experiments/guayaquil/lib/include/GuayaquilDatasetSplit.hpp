@@ -4,7 +4,7 @@
 
 #include "tensor/Tensor.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using Tensor = nn::Tensor;
@@ -16,4 +16,4 @@ struct DatasetSplit
     std::vector<int> val_labels;
 };
 
-} // namespace e04
+} // namespace guayaquil

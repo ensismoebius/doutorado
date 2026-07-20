@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
-#include "E04EpochHistory.hpp"
-#include "E04ResultRow.hpp"
+#include "GuayaquilEpochHistory.hpp"
+#include "GuayaquilResultRow.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 struct CheckpointKey
@@ -31,8 +31,8 @@ auto checkpoint_is_valid(const std::filesystem::path& path, std::size_t expected
 auto checkpoint_load(const std::filesystem::path& path) -> ResultRow;
 
 void checkpoint_save(const std::filesystem::path& path,
-                     const ResultRow& row,
-                     const EpochHistory& history,
-                     std::size_t config_hash);
+    const ResultRow& row,
+    const EpochHistory& history,
+    std::size_t config_hash);
 
-} // namespace e04
+} // namespace guayaquil

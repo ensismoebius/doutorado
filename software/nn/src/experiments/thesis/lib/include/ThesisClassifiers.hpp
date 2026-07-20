@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "E05Config.hpp"
-#include "E05Dataset.hpp"
+#include "ThesisConfig.hpp"
+#include "ThesisDataset.hpp"
 #include "core/training/EpochResult.hpp"
 #include "statistics/eer_scorer.hpp"
 
-namespace e05
+namespace thesis
 {
 
 // Per-fold classification result.
@@ -26,7 +26,7 @@ struct FoldResult
     double auc = 0.0;
     std::string model_path;
 
-    // Per-run stats (mirrors what the Guayaquil/E04 pipeline records per run).
+    // Per-run stats (mirrors what the Guayaquil/Guayaquil pipeline records per run).
     double train_ms = 0.0; // wall-clock to produce this fold's model
     double infer_ms = 0.0; // wall-clock to score the held-out test fold
     // Learning curve of the fold's final model: per-epoch train/val loss, epoch
@@ -57,7 +57,7 @@ struct ClassificationResult
     double mean_auc = 0.0;
     double std_auc = 0.0;
 
-    // Run-level cost / complexity stats (the E04-style "info about the run").
+    // Run-level cost / complexity stats (the Guayaquil-style "info about the run").
     std::size_t param_count = 0;  // trainable parameters in the classifier
     double mean_train_ms = 0.0;   // mean per-fold training wall-clock
     double mean_infer_ms = 0.0;   // mean per-fold inference wall-clock
@@ -69,10 +69,10 @@ struct ClassificationResult
 // feature_vectors: one vector per sample (aligned with view.samples).
 // eer_scorer:      pluggable EER strategy; nullptr → GenuineImpostorEERScorer (SOTA default).
 // global_bar_id / global_completed: optional ProgressManager bar updated after each outer fold.
-auto run_classifier(const E05DatasetView& view,
+auto run_classifier(const ThesisDatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
-    const E05Config& cfg,
+    const ThesisConfig& cfg,
     const statistics::IEERScorer* eer_scorer = nullptr,
     uint32_t global_bar_id = 0,
     int* global_completed = nullptr) -> ClassificationResult;
@@ -80,4 +80,4 @@ auto run_classifier(const E05DatasetView& view,
 // Compute mean and std over fold accuracies.
 void compute_aggregate_stats(ClassificationResult& result);
 
-} // namespace e05
+} // namespace thesis

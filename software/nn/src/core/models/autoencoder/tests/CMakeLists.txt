@@ -4,7 +4,7 @@
 ## Builds:
 ## - `autoencoder_config_gtest`: tests for AutoencoderConfig
 ##
-## Note: AutoencoderBuilders tests are in experiments/03 since the create()
+## Note: AutoencoderBuilders tests are in experiments/autoencoderRunner since the create()
 ## factory function is implemented there, not in core.
 ##
 

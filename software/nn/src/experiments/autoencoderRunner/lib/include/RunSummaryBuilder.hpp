@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/RunSummaryBuilder.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/RunSummaryBuilder.hpp
  * @brief Runsummarybuilder.
  *
  *
@@ -17,7 +17,7 @@
 #include "Experiment03Config.hpp"
 #include "ResultsWriter.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 auto build_run_summary(const Config& config,
     int exit_code,
@@ -35,4 +35,4 @@ auto build_run_summary(const Config& config,
     size_t test_samples = 0,
     const std::string& error_message = "") -> Summary;
 
-} // namespace experiment03
+} // namespace autoencoderRunner

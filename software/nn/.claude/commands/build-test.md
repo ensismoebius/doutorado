@@ -18,8 +18,8 @@ Verify changes quickly with deterministic CMake/Ninja workflows.
 | Target | What |
 |---|---|
 | `core_gtest` | All core unit tests |
-| `experiment04` | Experiment 04 binary |
-| `experiment04_lib` | Experiment 04 library only |
+| `guayaquil` | Experiment 04 binary |
+| `guayaquil_lib` | Experiment 04 library only |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
 | `profile_audit_gtest` | 25 profile-parsing validation tests |
 | `nn_progress` | Progress bar library |
@@ -33,9 +33,9 @@ cmake --preset=max-performance
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R core --output-on-failure
 
-# GPU build + experiment04
+# GPU build + guayaquil
 cmake --preset=max-performance-opencl
-cmake --build out/build/max-performance-opencl --target experiment04 -j$(nproc)
+cmake --build out/build/max-performance-opencl --target guayaquil -j$(nproc)
 
 # Profile audit (after any profile JSON edit)
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)

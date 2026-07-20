@@ -1038,7 +1038,7 @@ TEST(OpenCLFusedKernelTest, MatmulBiasLeakyReluMatchesTwoKernels)
 
 // ---------------------------------------------------------------------------
 // Benchmark: wall-clock timing of unfused vs fused for a layer-realistic size.
-// Sizes: batch=32, in=256, out=64 (typical dense layer in experiment04 SNN).
+// Sizes: batch=32, in=256, out=64 (typical dense layer in guayaquil SNN).
 // 10 warmup + 100 timed iterations; reports mean µs via test output.
 // This is an informational test — it never fails.
 // ---------------------------------------------------------------------------

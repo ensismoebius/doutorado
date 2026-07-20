@@ -40,7 +40,7 @@ struct OptimizerFactoryConfig
  *   lion                1e-4    (Chen et al., NeurIPS 2023; lion-pytorch)
  *   schedule-free-adamw 2.5e-3  (Defazio et al., NeurIPS 2024; schedulefree)
  *
- * Single source of truth: E05Config resolves an unspecified `training.learning_rate` from
+ * Single source of truth: ThesisConfig resolves an unspecified `training.learning_rate` from
  * here, and the run summary records the value actually used.
  *
  * @throws std::runtime_error on an unknown token (same set as create()).

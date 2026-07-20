@@ -13,7 +13,7 @@ Ensure every hyperparameter search is reproducible: the search space, every samp
 - **POINT_LOGGED**: Every evaluated hyperparameter combination must be logged to a results file with: config snapshot, final metric (e.g., val_loss, val_acc), and training duration. No lost trial data.
 - **WINNER_LINKED**: The best-performing config must be explicitly copied or linked as `best_config.json` in the search output directory. No identifying the winner only from logs.
 - **SEARCH_SEED_RECORDED**: Random search must record its seed. Grid search must record the grid coordinates. No non-reproducible search runs.
-- **PROFILE_SCHEMA**: Each profile JSON in `src/experiments/04/profiles/` must conform to a shared schema. No ad-hoc key additions without schema update.
+- **PROFILE_SCHEMA**: Each profile JSON in `src/experiments/guayaquil/profiles/` must conform to a shared schema. No ad-hoc key additions without schema update.
 - **PYTHON_C_BRIDGE**: When Python scripts drive search over C++ executables (as in `pydemos/`), the Python script must serialize the full config to JSON and pass it as a file path to the binary — not as CLI flags. No hidden parameter passing.
 
 ## Required Search Output Structure
@@ -31,7 +31,7 @@ search/<experiment_id>/<timestamp>/
 
 ## Key Files
 
-- [src/experiments/04/profiles/](src/experiments/04/profiles/) — add `search_space.json` and schema
+- [src/experiments/guayaquil/profiles/](src/experiments/guayaquil/profiles/) — add `search_space.json` and schema
 - [src/demos/pydemos/experiments/run_hyper_search.py](src/demos/pydemos/experiments/run_hyper_search.py) — add trial logging
 - [src/demos/pydemos/experiments/run_targeted_search.py](src/demos/pydemos/experiments/run_targeted_search.py) — same
 - [src/demos/pydemos/experiments/run_extensive_search.py](src/demos/pydemos/experiments/run_extensive_search.py) — same

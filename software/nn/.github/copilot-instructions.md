@@ -39,7 +39,7 @@ Highlights from `docs/` (authoritative):
 
 Recent notable refactors (keep in mind)
 
-* `Experiment04` — pipeline moved into `src/experiments/03/lib/include/experiment04.hpp` and `src/experiments/03/lib/src/experiment04.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
+* `Experiment04` — pipeline moved into `src/experiments/autoencoderRunner/lib/include/guayaquil.hpp` and `src/experiments/autoencoderRunner/lib/src/guayaquil.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
 * `BatchPrefetcher` — reworked to a single-producer, bounded-queue design to serialize `matio` reads. Always construct with a `DataLoader&` and ensure the `DataLoader` outlives the prefetcher.
 * `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate;
   add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).
@@ -115,7 +115,7 @@ Naming conventions (summary from `docs/naming-conventions.md`)
 
 Experiment04-specific editing guidance
 
-* Extend `Experiment04` rather than copying its pipeline into new mains; if you need new runtime options add them to `src/experiments/03/lib/include/cli.hpp` and read them through the `Config` object.
+* Extend `Experiment04` rather than copying its pipeline into new mains; if you need new runtime options add them to `src/experiments/autoencoderRunner/lib/include/cli.hpp` and read them through the `Config` object.
 * Keep `dataset_info`'s default fast estimate behavior; implement an explicit `--exact-summary` switch if exact row counts are required.
 
 ## Additional coding directives

@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/RunSummaryBuilder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/RunSummaryBuilder.cpp
  * @brief Implementation for Runsummarybuilder.
  *
 
@@ -9,7 +9,7 @@
 
 #include "Experiment03Config.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 auto build_run_summary(const Config& config,
     int exit_code,
@@ -56,4 +56,4 @@ auto build_run_summary(const Config& config,
     return s;
 }
 
-} // namespace experiment03
+} // namespace autoencoderRunner

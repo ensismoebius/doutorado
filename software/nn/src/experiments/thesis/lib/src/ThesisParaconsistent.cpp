@@ -1,4 +1,4 @@
-#include "E05Paraconsistent.hpp"
+#include "ThesisParaconsistent.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 #include "paraconsistent/paraconsistent.hpp"
 #include "progress/ProgressManager.hpp"
 
-namespace e05
+namespace thesis
 {
 
 namespace
@@ -47,11 +47,11 @@ std::vector<std::vector<double>> min_max_per_dim(const std::vector<std::vector<d
 }
 } // namespace
 
-auto score_feature_set(const std::vector<E05Sample>& samples, const FeatureSet& fs)
+auto score_feature_set(const std::vector<ThesisSample>& samples, const FeatureSet& fs)
     -> ParaconsistentScore
 {
     if (fs.vectors.empty() || samples.size() != fs.vectors.size())
-        throw std::invalid_argument("E05Paraconsistent: empty or mismatched feature set");
+        throw std::invalid_argument("ThesisParaconsistent: empty or mismatched feature set");
 
     // Scale features per-dimension to [0,1] before building class groups.
     const auto scaled_vectors = min_max_per_dim(fs.vectors);
@@ -69,7 +69,7 @@ auto score_feature_set(const std::vector<E05Sample>& samples, const FeatureSet& 
     for (auto& [k, v] : class_map) min_count = std::min(min_count, v.size());
     for (auto& [k, v] : class_map) v.resize(min_count);
 
-    if (min_count == 0) throw std::runtime_error("E05Paraconsistent: no samples after trimming");
+    if (min_count == 0) throw std::runtime_error("ThesisParaconsistent: no samples after trimming");
 
     unsigned int n_classes = static_cast<unsigned int>(class_map.size());
     unsigned int n_per_class = static_cast<unsigned int>(min_count);
@@ -94,7 +94,7 @@ auto score_feature_set(const std::vector<E05Sample>& samples, const FeatureSet& 
     return {fs.label, alpha, beta, g1, g2, d_truth, d_penalized};
 }
 
-auto rank_feature_sets(const std::vector<E05Sample>& samples,
+auto rank_feature_sets(const std::vector<ThesisSample>& samples,
     const std::vector<FeatureSet>& feature_sets) -> std::vector<ParaconsistentScore>
 {
     std::vector<ParaconsistentScore> scores;
@@ -123,4 +123,4 @@ auto rank_feature_sets(const std::vector<E05Sample>& samples,
     return scores;
 }
 
-} // namespace e05
+} // namespace thesis

@@ -31,10 +31,10 @@ jq '.random_seed, .classifier_paradigm, .normalization_method' spec.json
 
 ## Key Files
 
-- [src/experiments/02/spec.yaml](src/experiments/02/spec.yaml) — reference config to derive schema from
-- [src/experiments/02/spec.json](src/experiments/02/spec.json) — JSON variant (check equivalence)
-- [src/experiments/02/Experiment02Config.cpp](src/experiments/02/Experiment02Config.cpp) — add schema validation call at load time
-- [src/experiments/04/profiles/](src/experiments/04/profiles/) — each profile needs schema validation
+- [src/experiments/waveletAE/spec.yaml](src/experiments/waveletAE/spec.yaml) — reference config to derive schema from
+- [src/experiments/waveletAE/spec.json](src/experiments/waveletAE/spec.json) — JSON variant (check equivalence)
+- [src/experiments/waveletAE/WaveletAEConfig.cpp](src/experiments/waveletAE/WaveletAEConfig.cpp) — add schema validation call at load time
+- [src/experiments/guayaquil/profiles/](src/experiments/guayaquil/profiles/) — each profile needs schema validation
 
 ## Validation
 

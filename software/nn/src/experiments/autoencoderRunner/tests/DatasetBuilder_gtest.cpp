@@ -17,7 +17,8 @@ TEST(DatasetBuilder, BuildsEegWindowDatasetWithEmptyDiscovery)
 
     std::vector<SubjectFiles> discovered; // empty discovery
 
-    auto ds = experiment03::DatasetBuilder().with_discovered(discovered).with_config(cfg).build();
+    auto ds =
+        autoencoderRunner::DatasetBuilder().with_discovered(discovered).with_config(cfg).build();
 
     ASSERT_NE(ds, nullptr);
     EXPECT_EQ(ds->size(), 0u);

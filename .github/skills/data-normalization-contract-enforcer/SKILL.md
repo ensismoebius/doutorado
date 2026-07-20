@@ -37,8 +37,8 @@ Validation
 Project Context (nn framework)
 
 **Normalization sites in Exp04:**
-- **z-score per window:** `src/experiments/04/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
-- **per-encoding min/max re-normalization:** `src/experiments/04/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
+- **z-score per window:** `src/experiments/guayaquil/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
+- **per-encoding min/max re-normalization:** `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
 
 **Leakage risk:** The encoding step in `ComparativeEncoding.cpp` must refit normalization stats on the training fold only. If the encoding transform changes the data distribution, verify that the re-normalization step uses only train-fold statistics.
 
@@ -63,7 +63,7 @@ Key Files to Audit
 - [include/nn/utility/Normalization.hpp](include/nn/utility/Normalization.hpp) — `normalize_0_1()`: check it accepts pre-computed stats
 - [include/nn/utility/EEGWindowZScore.hpp](include/nn/utility/EEGWindowZScore.hpp) — z-score contract: fit separately per fold?
 - [include/nn/utility/AudioMeanStdNormalize.hpp](include/nn/utility/AudioMeanStdNormalize.hpp) — mean-std contract
-- [src/experiments/02/spec.yaml](src/experiments/02/spec.yaml) — `normalization: {method, scope, fit_on}` spec
+- [src/experiments/waveletAE/spec.yaml](src/experiments/waveletAE/spec.yaml) — `normalization: {method, scope, fit_on}` spec
 
 Correct Pattern
 

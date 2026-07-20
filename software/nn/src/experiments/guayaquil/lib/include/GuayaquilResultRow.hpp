@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <string>
 
-#include "E04RunMetrics.hpp"
+#include "GuayaquilRunMetrics.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 struct ResultRow
@@ -28,4 +28,4 @@ struct ResultRow
     RunMetrics metrics;
 };
 
-} // namespace e04
+} // namespace guayaquil

@@ -5,13 +5,13 @@
 #include <sstream>
 #include <vector>
 
-#include "../lib/include/E04Output.hpp"
-#include "../lib/include/E04EpochHistory.hpp"
-#include "../lib/include/E04ResultRow.hpp"
-#include "../lib/include/E04RunMetrics.hpp"
+#include "../lib/include/GuayaquilEpochHistory.hpp"
+#include "../lib/include/GuayaquilOutput.hpp"
+#include "../lib/include/GuayaquilResultRow.hpp"
+#include "../lib/include/GuayaquilRunMetrics.hpp"
 
 namespace fs = std::filesystem;
-using namespace e04;
+using namespace guayaquil;
 
 class DATWriterTest : public ::testing::Test
 {
@@ -208,7 +208,8 @@ TEST_F(DATWriterTest, PgfplotsSummaryDatFormat)
 TEST_F(DATWriterTest, PgfplotsSweepDatFormat)
 {
     std::vector<ResultRow> rows;
-    // Create results with varying alpha values (sweep only uses SNN-AE with direct encoding, v_th~1.0)
+    // Create results with varying alpha values (sweep only uses SNN-AE with direct encoding,
+    // v_th~1.0)
     float alpha_vals[] = {0.8f, 0.9f, 0.99f};
     std::string archs[] = {"dense", "conv1d", "recurrent"};
 
@@ -217,11 +218,11 @@ TEST_F(DATWriterTest, PgfplotsSweepDatFormat)
         for (const auto& arch : archs)
         {
             ResultRow row = create_sample_result_row();
-            row.model = "snn-ae";          // Only SNN-AE considered
+            row.model = "snn-ae"; // Only SNN-AE considered
             row.alpha = alpha;
             row.architecture = arch;
-            row.encoding = "direct";       // Only direct encoding
-            row.v_th = 1.0f;               // Only v_th ~= 1.0
+            row.encoding = "direct"; // Only direct encoding
+            row.v_th = 1.0f;         // Only v_th ~= 1.0
             rows.push_back(row);
         }
     }
@@ -244,9 +245,10 @@ TEST_F(DATWriterTest, PgfplotsSweepDatFormat)
     for (size_t i = 1; i < lines.size(); ++i)
     {
         std::istringstream iss(lines[i]);
-        float alpha, mse_dense, mse_conv1d, mse_recurrent, energy_dense, energy_conv1d, energy_recurrent;
+        float alpha, mse_dense, mse_conv1d, mse_recurrent, energy_dense, energy_conv1d,
+            energy_recurrent;
         EXPECT_TRUE(iss >> alpha >> mse_dense >> mse_conv1d >> mse_recurrent >> energy_dense >>
-                        energy_conv1d >> energy_recurrent)
+                    energy_conv1d >> energy_recurrent)
             << "Line " << i << " not parseable";
     }
 }

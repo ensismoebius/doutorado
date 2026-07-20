@@ -6,14 +6,14 @@ add_executable(autoencoder_scaffold_test
 )
 target_link_libraries(autoencoder_scaffold_test
     PRIVATE
-        experiment03_lib
+        autoencoderRunner_lib
         xtensor xtensor-blas
 )
 target_include_directories(autoencoder_scaffold_test
     PRIVATE
         ${SRC_DIR}
-        ${SRC_DIR}/experiments/03/lib/include
-        ${SRC_DIR}/experiments/03/lib/include/autoencoder
+        ${SRC_DIR}/experiments/autoencoderRunner/lib/include
+        ${SRC_DIR}/experiments/autoencoderRunner/lib/include/autoencoder
         ${PROJECT_SOURCE_DIR}/include
         ${LIB_DIR}/util
         ${OpenMP_INCLUDE_DIRS}

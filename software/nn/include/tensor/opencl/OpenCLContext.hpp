@@ -195,7 +195,7 @@ class OpenCLContext
      * ON by default because that overhead also *paces the driver*, and removing it
      * exposes a latent race inside rusticl that corrupts the heap.
      *
-     * Measured 2026-07-18, e05_classifiers_gtest DsnnWithRegularizationRuns on the
+     * Measured 2026-07-18, thesis_classifiers_gtest DsnnWithRegularizationRuns on the
      * llvmpipe (CPU) device, so this is not GPU-specific:
      *
      *     profiling ON  ... 6/6 pass        (matches unmodified baseline, 6/6)

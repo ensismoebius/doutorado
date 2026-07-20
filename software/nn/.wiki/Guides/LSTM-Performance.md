@@ -4,13 +4,13 @@ Profiling results and optimization history for `LSTMLayerImpl<Backend>`.
 
 ## Microbenchmark Setup
 
-File: `src/experiments/04/tests/lstm_ops_microbench.cpp`
+File: `src/experiments/guayaquil/tests/lstm_ops_microbench.cpp`
 Config: B=1, D=128 (audio features), H=32 (hidden), T=256 (time steps), 100 reps.
 
 Build and run:
 ```bash
 cmake --build out/build/max-performance --target lstm_ops_microbench -j$(nproc)
-./out/build/max-performance/src/experiments/04/tests/lstm_ops_microbench
+./out/build/max-performance/src/experiments/guayaquil/tests/lstm_ops_microbench
 ```
 
 ## Profiling Results
@@ -97,7 +97,7 @@ Saves one BLAS dispatch overhead per timestep. Tradeoff: extra memory for `WU` (
 
 ## Experiment Benchmark
 
-Profile `src/experiments/04/profiles/lstm-bench.json`:
+Profile `src/experiments/guayaquil/profiles/lstm-bench.json`:
 
 | Setting | Value |
 |---|---|
@@ -110,8 +110,8 @@ Profile `src/experiments/04/profiles/lstm-bench.json`:
 
 Run:
 ```bash
-./out/build/max-performance/src/experiments/04/experiment04 \
-  --profile src/experiments/04/profiles/lstm-bench.json
+./out/build/max-performance/src/experiments/guayaquil/guayaquil \
+  --profile src/experiments/guayaquil/profiles/lstm-bench.json
 ```
 
 Wall time with fused-block optimizations: **~29s** (1 run, 3 epochs, 32 samples, T=256, 12 threads).
@@ -121,7 +121,7 @@ Wall time with fused-block optimizations: **~29s** (1 run, 3 epochs, 32 samples,
 Every optimisation above shaves the cost of *one* timestep. Framing removes
 timesteps outright, and it dwarfs all of them.
 
-E04 previously built the LSTM autoencoder with `input_size = 1` and
+Guayaquil previously built the LSTM autoencoder with `input_size = 1` and
 `seq_len = window_size`, so a 256-sample window was consumed **one scalar per
 timestep**. The dominant cost per step is not the input term but the recurrent
 one, $h \cdot U^\top$ with $U$ of shape $(4H, H)$ — 16 384 MACs for $H = 64$ —
@@ -143,7 +143,7 @@ OpenCL backend it matters even more, because each timestep costs several kernel
 enqueues at ~95 µs apiece.
 
 `lstm_frame_size` must divide `dataset.window_size` (validated in
-`E04Config::validate`). Set it to `1` to reproduce the original behaviour.
+`GuayaquilConfig::validate`). Set it to `1` to reproduce the original behaviour.
 
 ### Framing is not a plain reshape
 
@@ -153,7 +153,7 @@ $\{t, t+32, t+64, \dots\}$ in frame $t$ — a polyphase split, not framing.
 `element(t,d) = sample[t*frame + d]`:
 
 ```cpp
-// src/experiments/04/lib/src/E04Encoding.cpp
+// src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp
 Tensor d_major = sample;
 d_major.reshape({frame, steps});   // element (d,t) = sample[t*frame + d]
 return d_major.transpose();        // -> (steps, frame)
@@ -176,7 +176,7 @@ regime where LSTMs are known to struggle with long-range dependencies
 - [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md) — equations, BPTT derivation, pitfalls
 - [Layers](../Core/Layers.md) — FastActivations API reference
 - [PGO](PGO.md) — profile-guided optimization workflow
-- [Experiment04](../Experiments/Experiment04.md) — where `lstm_frame_size` is configured
+- [Experiment04](../Experiments/Guayaquil.md) — where `lstm_frame_size` is configured
 - [OpenCL Debugging and Performance](./OpenCL-Debugging-And-Performance.md) — why per-timestep enqueues cost so much on the GPU backend
 
 ## References

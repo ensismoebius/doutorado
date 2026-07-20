@@ -29,10 +29,10 @@ Validation
 Project Context (nn framework)
 
 **Main CLI entry points:**
-- `experiment04 --comparative-config <profile.json>` — primary paper pipeline entry point
-- `experiment04 --help` — must list all flags, exit 0, no side effects
-- `experiment03 --help` — same requirement
-- `Phase00 [config.json]` — optional positional arg for config path
+- `guayaquil --comparative-config <profile.json>` — primary paper pipeline entry point
+- `guayaquil --help` — must list all flags, exit 0, no side effects
+- `autoencoderRunner --help` — same requirement
+- `paraconsistentBaseline [config.json]` — optional positional arg for config path
 
 **Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
 

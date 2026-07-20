@@ -23,7 +23,7 @@ Rules
   DO: Random search must record its seed. Grid search must record the grid coordinates
   AVOID: No non-reproducible search runs
 - RULE: PROFILE_SCHEMA
-  DO: Each profile JSON in `src/experiments/04/profiles/` must conform to a shared schema
+  DO: Each profile JSON in `src/experiments/guayaquil/profiles/` must conform to a shared schema
   AVOID: No ad-hoc key additions without schema update
 - RULE: PYTHON_C_BRIDGE
   DO: When Python scripts drive search over C++ executables (as in `pydemos/`), the Python script must serialize the full config to JSON and pass it as a file path to the binary — not as CLI flags
@@ -43,7 +43,7 @@ Project Context (nn framework)
 - `article-snn-dense.json`: v_th sweep (spike threshold)
 - Sweep range declared as a JSON array in the profile field
 
-**Sweep output:** `scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py` produces `results/paper_sweep_alpha.csv` and `results/paper_sweep_vth.csv` from the comparative metrics CSVs.
+**Sweep output:** `scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py` produces `results/paper_sweep_alpha.csv` and `results/paper_sweep_vth.csv` from the comparative metrics CSVs.
 
 **Profile sweep fields:**
 ```json
@@ -85,7 +85,7 @@ search/<experiment_id>/<timestamp>/
 
 Key Files
 
-- [src/experiments/04/profiles/](src/experiments/04/profiles/) — add `search_space.json` and schema
+- [src/experiments/guayaquil/profiles/](src/experiments/guayaquil/profiles/) — add `search_space.json` and schema
 - [src/demos/pydemos/experiments/run_hyper_search.py](src/demos/pydemos/experiments/run_hyper_search.py) — add trial logging
 - [src/demos/pydemos/experiments/run_targeted_search.py](src/demos/pydemos/experiments/run_targeted_search.py) — same
 - [src/demos/pydemos/experiments/run_extensive_search.py](src/demos/pydemos/experiments/run_extensive_search.py) — same

@@ -9,12 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/E05Config.hpp"
+#include "../lib/include/ThesisConfig.hpp"
 #include "nlohmann/json.hpp"
 #include "optimizers/OptimizerFactory.hpp"
 
 namespace fs = std::filesystem;
-using e05::E05Config;
+using thesis::ThesisConfig;
 
 namespace
 {
@@ -273,23 +273,23 @@ fs::path profiles_dir()
     return here.parent_path() / "profiles";
 }
 
-E05Config load(const std::string& name)
+ThesisConfig load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
     std::ifstream f(path);
     EXPECT_TRUE(f.is_open()) << "missing profile: " << path;
     nlohmann::json j;
     f >> j;
-    return E05Config::from_json(j);
+    return ThesisConfig::from_json(j);
 }
 
 } // namespace
 
-class E05ProfileAuditTest : public ::testing::TestWithParam<std::string>
+class ThesisProfileAuditTest : public ::testing::TestWithParam<std::string>
 {
 };
 
-TEST_P(E05ProfileAuditTest, ParsesCleanly)
+TEST_P(ThesisProfileAuditTest, ParsesCleanly)
 {
     auto cfg = load(GetParam());
     cfg.validate();
@@ -299,7 +299,7 @@ TEST_P(E05ProfileAuditTest, ParsesCleanly)
     EXPECT_FALSE(cfg.dataset.root.empty());
 }
 
-TEST_P(E05ProfileAuditTest, DatasetModalityValid)
+TEST_P(ThesisProfileAuditTest, DatasetModalityValid)
 {
     auto cfg = load(GetParam());
     EXPECT_TRUE(cfg.dataset.modality == "voice" || cfg.dataset.modality == "eeg" ||
@@ -307,7 +307,7 @@ TEST_P(E05ProfileAuditTest, DatasetModalityValid)
         << "unexpected modality: " << cfg.dataset.modality;
 }
 
-TEST_P(E05ProfileAuditTest, StrategyValid)
+TEST_P(ThesisProfileAuditTest, StrategyValid)
 {
     auto cfg = load(GetParam());
     EXPECT_TRUE(cfg.feature_extraction.strategy == "handcrafted" ||
@@ -315,7 +315,7 @@ TEST_P(E05ProfileAuditTest, StrategyValid)
         << "unexpected strategy: " << cfg.feature_extraction.strategy;
 }
 
-TEST_P(E05ProfileAuditTest, ClassifierValid)
+TEST_P(ThesisProfileAuditTest, ClassifierValid)
 {
     auto cfg = load(GetParam());
     EXPECT_TRUE(cfg.classifier.type == "rnn" || cfg.classifier.type == "dsnn")
@@ -330,7 +330,7 @@ TEST_P(E05ProfileAuditTest, ClassifierValid)
         << "unexpected text_mode: " << cfg.classifier.text_mode;
 }
 
-TEST_P(E05ProfileAuditTest, TrainingParamsPositive)
+TEST_P(ThesisProfileAuditTest, TrainingParamsPositive)
 {
     auto cfg = load(GetParam());
     EXPECT_GT(cfg.training.epochs, 0);
@@ -359,9 +359,9 @@ TEST_P(E05ProfileAuditTest, TrainingParamsPositive)
 // PyTorch/snnTorch is this project's correctness reference, so the defaults must BE the
 // reference: exact activations on, gradient clipping off. A profile can trade either away,
 // but only explicitly.
-TEST(E05Fidelity, DefaultsMatchTheReferenceAndAreOverridable)
+TEST(ThesisFidelity, DefaultsMatchTheReferenceAndAreOverridable)
 {
-    E05Config c;
+    ThesisConfig c;
     c.experiment.run_tag = "t";
     c.dataset.root = "/tmp/x";
     c.classifier.enabled = false;
@@ -389,11 +389,11 @@ TEST(E05Fidelity, DefaultsMatchTheReferenceAndAreOverridable)
 // physiological basis for EEG, and group_by_scale()'s Nyquist normalization made them provably
 // degenerate to lfcc there (16 sub-bands -> 16 distinct bins -> one group each == lfcc). They are
 // rejected for modality=eeg so the redundant axis cannot be reintroduced.
-TEST(E05EegScaleAxis, BarkAndMelAreRejectedForEeg)
+TEST(ThesisEegScaleAxis, BarkAndMelAreRejectedForEeg)
 {
     auto make = [](const std::string& modality, const std::string& scale)
     {
-        E05Config c;
+        ThesisConfig c;
         c.experiment.run_tag = "t";
         c.dataset.root = "/tmp/x";
         c.dataset.modality = modality;
@@ -419,9 +419,9 @@ TEST(E05EegScaleAxis, BarkAndMelAreRejectedForEeg)
 // Each optimizer must resolve to ITS OWN reference lr, not another's. Their usable rates
 // differ by ~10x (Lion steps +/-lr on every coordinate), so a profile that names an
 // optimizer but inherits a foreign lr would measure the learning rate, not the optimizer.
-TEST(E05OptimizerLearningRate, EachOptimizerResolvesToItsOwnReferenceLr)
+TEST(ThesisOptimizerLearningRate, EachOptimizerResolvesToItsOwnReferenceLr)
 {
-    E05Config cfg;
+    ThesisConfig cfg;
     const std::vector<std::pair<std::string, float>> expected = {
         {"adam", 1e-3f},
         {"sgd", 1e-2f},
@@ -442,9 +442,9 @@ TEST(E05OptimizerLearningRate, EachOptimizerResolvesToItsOwnReferenceLr)
 }
 
 // An explicit profile lr still wins: sweeping lr per optimizer must remain possible.
-TEST(E05OptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
+TEST(ThesisOptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
 {
-    E05Config cfg;
+    ThesisConfig cfg;
     cfg.training.optimizer_type = "lion";
     EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), 1e-4f); // inherited
     cfg.training.learning_rate = 5e-5f;
@@ -453,7 +453,7 @@ TEST(E05OptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
 
 // Every profile must name an optimizer the OptimizerFactory can actually build; a typo
 // here would otherwise only surface as a runtime throw part-way into a long experiment.
-TEST_P(E05ProfileAuditTest, OptimizerTypeIsSupported)
+TEST_P(ThesisProfileAuditTest, OptimizerTypeIsSupported)
 {
     auto cfg = load(GetParam());
     const auto& t = cfg.training.optimizer_type;
@@ -463,7 +463,7 @@ TEST_P(E05ProfileAuditTest, OptimizerTypeIsSupported)
     EXPECT_LT(cfg.training.optimizer_momentum, 1.0f);
 }
 
-TEST_P(E05ProfileAuditTest, RegularizationParamsValid)
+TEST_P(ThesisProfileAuditTest, RegularizationParamsValid)
 {
     auto cfg = load(GetParam());
     EXPECT_GE(cfg.training.weight_decay, 0.0f);
@@ -473,7 +473,7 @@ TEST_P(E05ProfileAuditTest, RegularizationParamsValid)
     EXPECT_LE(cfg.training.firing_rate_min, cfg.training.firing_rate_max);
 }
 
-TEST_P(E05ProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
+TEST_P(ThesisProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
 {
     const std::string name = GetParam();
     if (name == "debug.json") return; // debug profile uses deterministic mode
@@ -483,7 +483,7 @@ TEST_P(E05ProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
 }
 
 // ─── classifier.enabled phase gate + handcrafted axis validation ─────────────
-// These are non-parametric: they exercise E05Config::from_json/validate on
+// These are non-parametric: they exercise ThesisConfig::from_json/validate on
 // synthetic configs rather than the shipped profiles.
 
 namespace
@@ -507,48 +507,48 @@ nlohmann::json base_config()
 }
 } // namespace
 
-TEST(E05ConfigGate, Phase00OmitsLayerSpec)
+TEST(ThesisConfigGate, Phase00OmitsLayerSpec)
 {
     // classifier.enabled=false (Phase 00): layer_spec not required.
     auto j = base_config();
     j["classifier"] = nlohmann::json{{"enabled", false}};
-    auto cfg = E05Config::from_json(j);
+    auto cfg = ThesisConfig::from_json(j);
     EXPECT_FALSE(cfg.classifier.enabled);
     EXPECT_NO_THROW(cfg.validate());
 }
 
-TEST(E05ConfigGate, Phase01RequiresLayerSpec)
+TEST(ThesisConfigGate, Phase01RequiresLayerSpec)
 {
     // classifier.enabled defaults true (Phase 01): missing layer_spec must throw.
     auto j = base_config();
     j["classifier"] = nlohmann::json{{"type", "dsnn"}, {"text_mode", "independent"}};
-    auto cfg = E05Config::from_json(j);
+    auto cfg = ThesisConfig::from_json(j);
     EXPECT_TRUE(cfg.classifier.enabled); // default
     EXPECT_THROW(cfg.validate(), std::invalid_argument);
 }
 
-TEST(E05ConfigGate, FusionModeValidated)
+TEST(ThesisConfigGate, FusionModeValidated)
 {
     auto j = base_config();
     j["dataset"] = {{"root", "/x"}, {"modality", "fused"}, {"fusion_mode", "early"}};
-    EXPECT_NO_THROW(E05Config::from_json(j).validate());
+    EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
     j["dataset"]["fusion_mode"] = "bogus";
-    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+    EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
 }
 
-TEST(E05ConfigGate, WaveletValidated)
+TEST(ThesisConfigGate, WaveletValidated)
 {
     auto j = base_config();
     j["feature_extraction"]["handcrafted"]["wavelet"] = "daub46";
-    EXPECT_NO_THROW(E05Config::from_json(j).validate());
+    EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
     j["feature_extraction"]["handcrafted"]["wavelet"] = "daub48"; // no traits
-    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+    EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
     j["feature_extraction"]["handcrafted"]["wavelet"] = "not-a-wavelet";
-    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+    EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
 }
 
 INSTANTIATE_TEST_SUITE_P(AllProfiles,
-    E05ProfileAuditTest,
+    ThesisProfileAuditTest,
     ::testing::ValuesIn(all_profiles()),
     [](const ::testing::TestParamInfo<std::string>& param_info)
     {

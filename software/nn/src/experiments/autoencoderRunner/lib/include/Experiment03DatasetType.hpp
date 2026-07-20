@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/Experiment03DatasetType.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/Experiment03DatasetType.hpp
  * @brief Dataset type enum for Experiment03.
  */
 

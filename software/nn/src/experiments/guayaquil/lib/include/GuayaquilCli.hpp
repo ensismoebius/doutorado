@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
-#include "E04CliOptions.hpp"
-#include "E04Config.hpp"
+#include "GuayaquilCliOptions.hpp"
+#include "GuayaquilConfig.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 auto has_compare_marker(const std::string& arg) -> bool;
@@ -19,10 +19,9 @@ void print_usage(const char* prog);
 
 auto parse_cli(int argc, char* argv[]) -> CliOptions;
 auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path;
-auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts)
-    -> E04Config;
-auto config_hash(const E04Config& cfg) -> std::size_t;
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> GuayaquilConfig;
+auto config_hash(const GuayaquilConfig& cfg) -> std::size_t;
 
 auto should_run_comparative_cli(int argc, char* argv[]) -> bool;
 
-} // namespace e04
+} // namespace guayaquil

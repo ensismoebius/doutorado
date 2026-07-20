@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/02/Experiment02Config.cpp
- * @brief Implementation for Experiment02config.
+ * @file src/experiments/waveletAE/WaveletAEConfig.cpp
+ * @brief Implementation for WaveletAEconfig.
  *
 
  */
 
-#include "Experiment02Config.hpp"
+#include "WaveletAEConfig.hpp"
 
 #include <cmath>
 #include <fstream>

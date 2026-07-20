@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Usage:
-#   bash src/experiments/03/scripts/run_full_grid_and_analyze.sh \
+#   bash src/experiments/autoencoderRunner/scripts/run_full_grid_and_analyze.sh \
 #     --project-root <path> \
 #     --bin <path> \
 #     --profiles-output-dir <path> \
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #
 # Required CLI parameters:
 #   --project-root        Project root directory.
-#   --bin                 Path to experiment03 executable.
+#   --bin                 Path to autoencoderRunner executable.
 #   --profiles-output-dir Output directory for create_test_profiles.py.
 #   --results-dir         Directory where experiment results JSON files are written/read.
 #   --analysis-output-dir Directory where analysis CSVs are written.
@@ -33,7 +33,7 @@ Usage:
     [--timeout <seconds>]
 Required CLI parameters:
     --project-root        Project root directory.
-  --bin                 Path to experiment03 executable.
+  --bin                 Path to autoencoderRunner executable.
     --profiles-output-dir Output directory for create_test_profiles.py.
     --results-dir         Directory where experiment results JSON files are written/read.
     --analysis-output-dir Directory where analysis CSVs are written.
@@ -43,7 +43,7 @@ Required CLI parameters:
 Example:
     bash run_full_grid_and_analyze.sh \
     --project-root /home/ensismoebius/Repos/doutorado/software/nn \
-    --bin /home/ensismoebius/Repos/doutorado/software/nn/out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 \
+    --bin /home/ensismoebius/Repos/doutorado/software/nn/out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/autoencoderRunner/autoencoderRunner \
     --profiles-output-dir /home/ensismoebius/Repos/doutorado/software/nn/profiles \
     --results-dir /home/ensismoebius/Repos/doutorado/software/nn/results \
     --analysis-output-dir /home/ensismoebius/Repos/doutorado/software/nn/analysis \
@@ -118,7 +118,7 @@ cd "${PROJECT_ROOT}"
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
-export NN_EXPERIMENT03_LOG_LEVEL=warn
+export NN_AUTOENCODERRUNNER_LOG_LEVEL=warn
 
 run_id="$(date +%Y%m%d_%H%M%S)"
 mkdir -p logs/grid_runs

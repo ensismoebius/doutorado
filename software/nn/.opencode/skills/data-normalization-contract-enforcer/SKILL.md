@@ -21,7 +21,7 @@ Ensure that normalization is applied exactly as declared in experiment config �
 - [include/utility/Normalization.hpp](include/utility/Normalization.hpp) — `normalize_0_1()`: check it accepts pre-computed stats
 - [include/utility/EEGWindowZScore.hpp](include/utility/EEGWindowZScore.hpp) — z-score contract: fit separately per fold?
 - [include/utility/AudioMeanStdNormalize.hpp](include/utility/AudioMeanStdNormalize.hpp) — mean-std contract
-- [src/experiments/02/spec.yaml](src/experiments/02/spec.yaml) — `normalization: {method, scope, fit_on}` spec
+- [src/experiments/waveletAE/spec.yaml](src/experiments/waveletAE/spec.yaml) — `normalization: {method, scope, fit_on}` spec
 
 ## Correct Pattern
 

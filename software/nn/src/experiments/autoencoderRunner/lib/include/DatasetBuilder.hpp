@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/DatasetBuilder.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/DatasetBuilder.hpp
  * @brief DatasetBuilder helper for Experiment03.
  */
 
@@ -11,7 +11,7 @@
 #include "cli.hpp"
 #include "data_loaders/datasets/Dataset.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 class DatasetBuilder
 {
@@ -37,4 +37,4 @@ class DatasetBuilder
     const Config* cfg_ = nullptr;
 };
 
-} // namespace experiment03
+} // namespace autoencoderRunner

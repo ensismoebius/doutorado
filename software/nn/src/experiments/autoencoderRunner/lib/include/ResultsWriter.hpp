@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/ResultsWriter.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/ResultsWriter.hpp
  * @brief Resultswriter.
  *
  *
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace experiment03
+namespace autoencoderRunner
 {
 struct Summary
 {
@@ -54,8 +54,8 @@ struct Summary
     std::string error_message;
 };
 
-// Write run summary to src/experiments/03/results or ./results when available.
+// Write run summary to src/experiments/autoencoderRunner/results or ./results when available.
 // Returns true on success and fills out_path; otherwise returns false and sets out_error.
 auto write_run_summary_json(const Summary& summary, std::string& out_path, std::string& out_error)
     -> bool;
-} // namespace experiment03
+} // namespace autoencoderRunner

@@ -3,10 +3,10 @@
 Why the code and the thesis look the way they do today — a decision/fix log for the batch of
 work that landed 2026-07-16 through 2026-07-19, covering the Phase 00 selection metric, the
 `snn_lr_scale`/optimizer machinery, network-level parity testing against PyTorch/snnTorch, and
-the resulting E05/E04 re-run. This is the permanent home of the former repo-root `fixme.md`;
+the resulting Thesis/Guayaquil re-run. This is the permanent home of the former repo-root `fixme.md`;
 source comments citing **"D1"–"D6"** refer to the decisions below. See the
 [Re-run Runbook](./Re-run-Runbook.md) for the commands these fixes made necessary, and
-[Experiment05](../Experiments/Experiment05.md) for current results.
+[Experiment05](../Experiments/Thesis.md) for current results.
 
 ## Status
 
@@ -14,7 +14,7 @@ source comments citing **"D1"–"D6"** refer to the decisions below. See the
 |---|---|---|
 | D1 | Phase 00 criterion rewarded a dead autoencoder | ✅ Resolved — `d_penalized` metric |
 | D2 | §08 conclusion about temporal encoding was confounded by D1 | ✅ Resolved — claim withdrawn, mechanism quantified instead |
-| D3 | `snn_lr_scale` was a global multiplier, not per-parameter-group | ✅ Fixed in code; E04+E05 re-run completed 2026-07-19 |
+| D3 | `snn_lr_scale` was a global multiplier, not per-parameter-group | ✅ Fixed in code; Guayaquil+Thesis re-run completed 2026-07-19 |
 | D4 | Thesis section on per-group learning rate | ✅ Written (§2.1.10.10) |
 | D5 | Item 51 (optimizer ablation) | 🟡 Framework done (polymorphic optimizers, Lion, Schedule-Free AdamW, ground truth); **ablation itself not yet run** |
 | D6 | EEG `scale` axis is inert (Bark/Mel degenerate to linear) | ✅ Resolved — axis removed for EEG, grid 300→208 |
@@ -46,11 +46,11 @@ penalizes Falsity.
 `d_penalized` is a pure function of $(\alpha,\beta)$, both already recorded per run, so
 re-ranking existing results needs no re-execution. See
 [Core/Paraconsistent.md](../Core/Paraconsistent.md#selection-metric-contradiction-penalized-truth-distance)
-for the implementation and [Experiment05 pitfall 12](../Experiments/Experiment05.md#common-pitfalls)
+for the implementation and [Experiment05 pitfall 12](../Experiments/Thesis.md#common-pitfalls)
 for a related bug this surfaced (a thesis table generator that sorted the wrong direction).
 
-**Files:** `E05Paraconsistent.{hpp,cpp}`, `E05Output.cpp` (CSV `d_penalized` column, JSON
-`best_d_penalized`), `01_e05_phase00_rank.py`, `02_e05_apply_winner.py`.
+**Files:** `ThesisParaconsistent.{hpp,cpp}`, `ThesisOutput.cpp` (CSV `d_penalized` column, JSON
+`best_d_penalized`), `01_thesis_phase00_rank.py`, `02_thesis_apply_winner.py`.
 
 **Dead-latent root cause.** The SNN-AE encoder (`linear:16:leaky, linear:8:identity`) has no
 nonlinearity after the second Linear (`identity` is a literal no-op), so with `direct` encoding
@@ -61,13 +61,13 @@ two defenses (`firing_rate_reg_lambda`, tdBN), but neither was wired to the auto
 the DSNN classifier.
 
 **Fix: firing-rate regularization ported to the AE encoder.** Same math as
-`E05DsnnClassifier::add_firing_rate_grad` (band penalty
+`ThesisDsnnClassifier::add_firing_rate_grad` (band penalty
 $\lambda(\max(0,r_\text{min}-r)^2+\max(0,r-r_\text{max})^2)$), but the AE's encoder is a
 generically-built `Sequential` (not named members), so its LIF layers are located once at
 construction via `dynamic_cast`, and gradient injection uses a manual reversed-order backward
 loop (`ProtocolSpikingAutoencoder::backward_with_firing_rate_reg`) rather than touching the
 shared `Sequential` class. New fields default to `0.0` (inert) — `AutoencoderConfig` (exp03) and
-`E05Config::AutoencoderConfig` — so no existing profile changed behavior.
+`ThesisConfig::AutoencoderConfig` — so no existing profile changed behavior.
 
 **Validated values, applied to all 18 real `snn-ae` Phase 00 profiles (+ 18 smoke mirrors):**
 `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80`. `0.80` matches the
@@ -131,20 +131,20 @@ in practice was a global multiplier:
 std::vector<float> scales(params.size(), cfg_.snn_lr_scale);
 ```
 
-**Scope — larger than first thought.** Not just the 24 E05 autoencoder profiles: `E04Training.cpp`'s
+**Scope — larger than first thought.** Not just the 24 Thesis autoencoder profiles: `GuayaquilTraining.cpp`'s
 SNN branch calls `make_trainer_config` with `snn_lr_scale=0.1F`, and this gets **overwritten**
 whenever a profile sets `learning_rate_biophysical`. The three Guayaquil paper profiles
 (`article-snn-{dense,conv1d,recurrent}.json`) declare `learning_rate_biophysical=0.0001` against
-`learning_rate=0.001` — the exact same 0.1 ratio as the E05 bug. The paper's SNN-vs-LSTM table
+`learning_rate=0.001` — the exact same 0.1 ratio as the Thesis bug. The paper's SNN-vs-LSTM table
 therefore compared an LSTM baseline trained at 1e-3 against SNN variants training **every
 weight** at 1e-4 — a structurally unfair comparison against the paper's own contribution, and a
-more serious instance than the E05 bug: that one affects 24 profiles of an in-progress thesis;
+more serious instance than the Thesis bug: that one affects 24 profiles of an in-progress thesis;
 this affected a table in an already-drafted paper.
 
-Full scope: 24 E05 AE profiles (6 ANN + 18 SNN — ANN too, since it shares the same `Trainer`
-default; only handcrafted extraction, which trains nothing, escapes), the 3 E04 `article-snn-*`
+Full scope: 24 Thesis AE profiles (6 ANN + 18 SNN — ANN too, since it shares the same `Trainer`
+default; only handcrafted extraction, which trains nothing, escapes), the 3 Guayaquil `article-snn-*`
 profiles, and (behaviorally, though with no profile ever having produced results before the fix)
-the E05 DSNN classifier.
+the Thesis DSNN classifier.
 
 **Fix.** Rather than tagging biophysical parameters in the `Module` contract (which would change
 `params()`'s signature everywhere), the fix exploits an already-true fact: R, C, V_th are always
@@ -161,9 +161,9 @@ No interface change. Regression test: `trainer_genericity_gtest.cpp`,
 `SnnLrScaleOnlyAppliesToSizeOneParams` — a model with one 1×1 and one 2×2 parameter, same fixed
 gradient, confirms only the 1×1 moves by `lr·snn_lr_scale` after one Adam step.
 
-**Re-run status: completed 2026-07-19.** Both the E04 SNN profiles and the E05 Phase 00/01 grids
+**Re-run status: completed 2026-07-19.** Both the Guayaquil SNN profiles and the Thesis Phase 00/01 grids
 have been re-executed under the fix — see [Re-run Runbook](./Re-run-Runbook.md) and
-[Experiment05](../Experiments/Experiment05.md#overview) for results.
+[Experiment05](../Experiments/Thesis.md#overview) for results.
 
 ---
 
@@ -182,7 +182,7 @@ the regression test; and the open re-run status at the time.
 
 ## D5 — Item 51: optimizer ablation infrastructure
 
-**Original blocker.** No optimizer selection existed anywhere in E05 — `Trainer` held a concrete
+**Original blocker.** No optimizer selection existed anywhere in Thesis — `Trainer` held a concrete
 `Adam optimizer_` member, no config field selected an optimizer, and `attach_with_scales` was
 Adam-only (non-virtual, absent from SGD).
 
@@ -269,7 +269,7 @@ experiment under the same guard as D1–D3.
 
 **Files:** `Optimizer.hpp`, `Adam.hpp`, `SGD.hpp`, `SGDMinimal.hpp`, `Lion.hpp`,
 `ScheduleFreeAdamW.hpp`, `OptimizerFactory.hpp`, `Trainer.hpp`, `TrainerConfig.hpp`,
-`E05Config.{hpp,cpp}`, `E05Classifiers.cpp`, `E05FeatureExtraction.cpp`,
+`ThesisConfig.{hpp,cpp}`, `ThesisClassifiers.cpp`, `ThesisFeatureExtraction.cpp`,
 `scripts/testing/gen_optimizer_refs.py`, `optimizer_parity_gtest.cpp`. Docs:
 [Core/Optimizers.md](../Core/Optimizers.md), [Core/Training.md](../Core/Training.md).
 
@@ -306,17 +306,17 @@ not merely because it's redundant):**
 - 92 `p00_hc_*_{bark,mel}_*_eeg.json` profiles removed (+ 92 smoke mirrors, 184 files, all
   git-tracked). Grid: **300 → 208** (46 handcrafted EEG + 138 handcrafted voice + 24 AE). No
   re-run needed — the existing `lfcc` results already are the answer.
-- `E05Config::validate()` now rejects `handcrafted.scale != "lfcc"` when `modality=eeg`. `fused`
+- `ThesisConfig::validate()` now rejects `handcrafted.scale != "lfcc"` when `modality=eeg`. `fused`
   is deliberately unrestricted (voice's half legitimately uses bark/mel). Test:
-  `E05EegScaleAxis.BarkAndMelAreRejectedForEeg`.
-- `01_e05_phase00_rank.py` now detects exact ties (1e-5 tolerance, absorbing daub32 float noise)
+  `ThesisEegScaleAxis.BarkAndMelAreRejectedForEeg`.
+- `01_thesis_phase00_rank.py` now detects exact ties (1e-5 tolerance, absorbing daub32 float noise)
   and records `tie_count`/`tied_with` in `winners.json`, printing an explicit `[TIE]` warning.
 - `extractor_label()` now includes the cepstral category (`c1`/`c2`) and, for autoencoders, the
   encoding and latent size — it previously omitted these, making `haar/lfcc/c1` and
   `haar/lfcc/c2` print identically as duplicate-looking rows.
 - Thesis: 4 stale counts fixed (138/signal → 138 voice + 46 EEG; 300 → 208), new subsection on
   Bark/Mel applicability to EEG (§2.1.3.9, `sec:escalaEeg`).
-- `e05_build_phase00_paraconsistent_tables.py`: explicit filter (`[info] skipped N retired EEG
+- `thesis_build_phase00_paraconsistent_tables.py`: explicit filter (`[info] skipped N retired EEG
   bark/mel run(s)`) so the 276 orphaned result files from the retired profiles don't still
   produce duplicate rows.
 
@@ -342,7 +342,7 @@ torch) + `micro_network_parity_gtest` (8/8 green).
 
 1. 🔴 **`MSELoss`/`MAELoss` silently clipped their own gradient at norm 1.0**, unconditionally and
    non-configurably (`kMaxGradientNorm = 1.0F`, fixed). `MSELossImpl` is `Trainer`'s **default**
-   loss, so this hit every autoencoder ever trained in the project, including all 24 E05 AE
+   loss, so this hit every autoencoder ever trained in the project, including all 24 Thesis AE
    profiles and the Guayaquil models. It also directly contradicted the caller's own
    configuration: `TrainerConfig::grad_clip_norm` defaults to `0.0` ("no clipping"), and the
    clip fired underneath it regardless. Since it only triggers above norm 1, the effective
@@ -390,7 +390,7 @@ divergence); (4) since PyTorch/snnTorch behavior is the reference, defaults shou
 wherever there was a choice.
 
 - **`training.gradient_clip_norm`** (default `0.0` = OFF), plumbed to `TrainerConfig::grad_clip_norm`
-  in all three places E05 builds a `Trainer`. Combined with the MSELoss/MAELoss fix above, there
+  in all three places Thesis builds a `Trainer`. Combined with the MSELoss/MAELoss fix above, there
   is now **one** clipping knob, visible in the profile, instead of a hidden one silently
   overriding it.
 - **`numerics.exact_activations`** (default `true`). Exact sigmoid/tanh became the default;
@@ -409,7 +409,7 @@ wherever there was a choice.
   against analytical derivatives to ~1e-16 error.
 
 **Files:** `FastActivations.hpp`, `LSTMLayer.hpp`, `MSELoss.hpp`, `MAELoss.hpp`, `Lif.hpp`,
-`LifBPTT.hpp`, `E05Config.{hpp,cpp}`, `E05Classifiers.cpp`, `E05FeatureExtraction.cpp`,
+`LifBPTT.hpp`, `ThesisConfig.{hpp,cpp}`, `ThesisClassifiers.cpp`, `ThesisFeatureExtraction.cpp`,
 `pytorch_parity_gtest.cpp`, `micro_network_parity_gtest.cpp`, `gen_pytorch_refs.py`,
 `gen_micro_network_refs.py`.
 
@@ -468,7 +468,7 @@ twice: a comment asserting a contract the code doesn't honor (D3, D5), and vague
   signal, no fusion at all (neither early nor late). Fixed: real late fusion (independent
   per-signal extraction, vectors concatenated) and early fusion (raw signals concatenated before
   a single extraction pass, `fusion_mode` config field) both implemented; discussed as an
-  experimental axis in the thesis and wiki. 3 new tests (`E05Fusion.*`).
+  experimental axis in the thesis and wiki. 3 new tests (`ThesisFusion.*`).
 - **4 daub32 profiles failing in a batch run** — transient resource contention from parallel
   workers, not a code defect; passed cleanly on individual re-run.
 - **`tempStrategy.tex` accidentally compiled into the thesis** — a scratch file (its own header
@@ -479,7 +479,7 @@ twice: a comment asserting a contract the code doesn't honor (D3, D5), and vague
 ## Related
 
 - [Re-run Runbook](./Re-run-Runbook.md) — the commands these fixes made necessary
-- [Experiment05](../Experiments/Experiment05.md) — current design and results
+- [Experiment05](../Experiments/Thesis.md) — current design and results
 - [Core/Paraconsistent.md](../Core/Paraconsistent.md) — `d_penalized` implementation (D1)
 - [Core/Optimizers.md](../Core/Optimizers.md) — polymorphic optimizers, Lion, Schedule-Free AdamW (D5)
-- [Running Experiment05 Profiles](./Running-Experiment05-Profiles.md) — day-to-day operation
+- [Running Experiment05 Profiles](./Running-Thesis-Profiles.md) — day-to-day operation

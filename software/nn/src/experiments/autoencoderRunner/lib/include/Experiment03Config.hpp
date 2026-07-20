@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/Experiment03Config.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/Experiment03Config.hpp
  * @brief Runtime configuration structure for Experiment03.
  */
 
@@ -53,10 +53,10 @@ struct Config
     // Input modality used by Dataset101117.
     Protocol101117InputMode dataset_input_mode;
 
-    // Dataset variant used by experiment03.
+    // Dataset variant used by autoencoderRunner.
     Experiment03DatasetType dataset_type;
 
-    // Autoencoder variant used by experiment03.
+    // Autoencoder variant used by autoencoderRunner.
     Experiment03AutoencoderType autoencoder_type;
 
     // Autoencoder architecture hyperparameters.

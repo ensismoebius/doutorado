@@ -106,7 +106,7 @@ Check `summary.json` for non-NaN accuracy values.
 - [Core/Paraconsistent](../Core/Paraconsistent.md) — Da Costa framework implementation
 - [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) — EEG imagined speech background
 - [Concepts/Autoencoders](../Concepts/Autoencoders.md) — autoencoder theory
-- [Experiments/Experiment05](../Experiments/Experiment05.md) — thesis primary experiment using paraconsistent ranking
+- [Experiments/Experiment05](../Experiments/Thesis.md) — thesis primary experiment using paraconsistent ranking
 
 ---
 

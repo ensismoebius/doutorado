@@ -743,16 +743,15 @@ TEST(TdBNTest, PoolsStatisticsOverBatchAndTime)
 
     Tensor x(4, F); // rows: t0b0, t0b1, t1b0, t1b1
     x.at(0, 0) = 0.f;
-    x.at(1, 0) = 2.f;  // t0 mean = 1
+    x.at(1, 0) = 2.f; // t0 mean = 1
     x.at(2, 0) = 4.f;
-    x.at(3, 0) = 6.f;  // t1 mean = 5  (per-step means differ: 1 vs 5)
+    x.at(3, 0) = 6.f; // t1 mean = 5  (per-step means differ: 1 vs 5)
     Tensor out = tdbn.forward(x, false);
 
     // Pooled stats over all 4 rows: mean = 3, var = (9+1+1+9)/4 = 5.
     const float mean = 3.0f, var = 5.0f;
     const float inv_std = 1.0f / std::sqrt(var + 1e-5f);
-    for (size_t r = 0; r < 4; ++r)
-        EXPECT_NEAR(out.at(r, 0), (x.at(r, 0) - mean) * inv_std, 1e-4f);
+    for (size_t r = 0; r < 4; ++r) EXPECT_NEAR(out.at(r, 0), (x.at(r, 0) - mean) * inv_std, 1e-4f);
 }
 
 TEST(TdBNTest, InferenceUsesRunningStats)
@@ -811,7 +810,7 @@ TEST(TdBNTest, InputGradientMatchesFiniteDifference)
     // Validate the batch-norm input gradient (with batch+time coupling) against a
     // central finite difference of the scalar loss L = Σ go·out.
     const int F = 2;
-    const size_t N = 4; // pooled samples per feature
+    const size_t N = 4;                                              // pooled samples per feature
     ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.5f, 1, 1.0f); // scale α·V_th = 1.5
 
     Tensor x(N, F);
@@ -1871,7 +1870,7 @@ TEST(SimpleResNetTest, TrainModeToggle)
 }
 
 // Seeded init is reproducible: same seed → identical weights; different seed →
-// different weights (guards the E05 rnn-path determinism fix).
+// different weights (guards the Thesis rnn-path determinism fix).
 TEST(SimpleResNetTest, SeededInitIsDeterministic)
 {
     const int D = 4, H = 5, O = 3, depth = 2;

@@ -1,14 +1,14 @@
 /**
- * @file src/experiments/02/tests/Experiment02Reporting_gtest.cpp
- * @brief Implementation for Experiment02reporting gtest.
+ * @file src/experiments/waveletAE/tests/WaveletAEReporting_gtest.cpp
+ * @brief Implementation for WaveletAEreporting gtest.
  *
 
  */
 
-#include "../Experiment02Reporting.hpp"
+#include "../WaveletAEReporting.hpp"
 #include "gtest/gtest.h"
 
-TEST(Experiment02ReportingTest, AggregateFoldResultsHandlesEmptyInput)
+TEST(WaveletAEReportingTest, AggregateFoldResultsHandlesEmptyInput)
 {
     const std::vector<FoldResult> empty_results;
     const auto aggregated = aggregate_fold_results(empty_results);
@@ -25,7 +25,7 @@ TEST(Experiment02ReportingTest, AggregateFoldResultsHandlesEmptyInput)
     EXPECT_DOUBLE_EQ(aggregated.total_time_sec, 0.0);
 }
 
-TEST(Experiment02ReportingTest, AggregateFoldResultsComputesAverages)
+TEST(WaveletAEReportingTest, AggregateFoldResultsComputesAverages)
 {
     FoldResult fold_a;
     fold_a.metrics.accuracy = 0.6;

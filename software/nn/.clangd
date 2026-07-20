@@ -16,9 +16,9 @@ CompileFlags:
     - -std=gnu++20
     - -Iinclude
     - -Isrc
-    - -Isrc/experiments/03/lib/include
-    - -Isrc/experiments/03/lib/include/autoencoder
-    - -Isrc/experiments/04/lib/include
+    - -Isrc/experiments/autoencoderRunner/lib/include
+    - -Isrc/experiments/autoencoderRunner/lib/include/autoencoder
+    - -Isrc/experiments/guayaquil/lib/include
     - -isystem
     - /usr/include/eigen3
     - --gcc-toolchain=/usr

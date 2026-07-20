@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/02/Experiment02Training.cpp
- * @brief Implementation for Experiment02training.
+ * @file src/experiments/waveletAE/WaveletAETraining.cpp
+ * @brief Implementation for WaveletAEtraining.
  *
 
  */
 
-#include "Experiment02Training.hpp"
+#include "WaveletAETraining.hpp"
 
 #include <algorithm>
 #include <chrono>

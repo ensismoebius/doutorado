@@ -3,7 +3,7 @@
  * @brief Implementation of LSTMAutoencoder in namespace nn::models::lstm.
  *
  * All logic was migrated from the former experiment-local copy
- * (src/experiments/04/lib/src/LSTMAutoencoder.cpp) and placed here so it is
+ * (src/experiments/guayaquil/lib/src/LSTMAutoencoder.cpp) and placed here so it is
  * reusable across all experiments rather than duplicated per-experiment.
  */
 
@@ -101,9 +101,8 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
     enc_output_cache_ = h;
 
     // Last hidden state: (B,H) for a batch, (1,H) for a single sequence.
-    Tensor h_last = last_batched_
-        ? h.slice_time(static_cast<nn::Index>(last_T_ - 1))
-        : h.row(static_cast<nn::Index>(last_T_ - 1));
+    Tensor h_last = last_batched_ ? h.slice_time(static_cast<nn::Index>(last_T_ - 1))
+                                  : h.row(static_cast<nn::Index>(last_T_ - 1));
 
     // Project to the latent space via tanh.
     Tensor z_pre = enc_proj_->forward(h_last, requires_grad);
@@ -128,7 +127,8 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
     {
         // (B,T,H): every time step is the same expanded latent.
         dec_in = Tensor::zeros(static_cast<nn::Index>(last_B_),
-            static_cast<nn::Index>(seq_len), static_cast<nn::Index>(H));
+            static_cast<nn::Index>(seq_len),
+            static_cast<nn::Index>(H));
         for (int t = 0; t < seq_len; ++t)
             dec_in.set_time_slice(static_cast<nn::Index>(t), h_expand);
     }
@@ -155,7 +155,8 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
             {static_cast<nn::Index>(last_B_ * seq_len), static_cast<nn::Index>(H)});
         Tensor recon_2d = out_proj_->forward(dec_h_2d, requires_grad);
         Tensor recon = std::as_const(recon_2d).reshape({static_cast<nn::Index>(last_B_),
-            static_cast<nn::Index>(seq_len), static_cast<nn::Index>(D)});
+            static_cast<nn::Index>(seq_len),
+            static_cast<nn::Index>(D)});
         recon_cache_ = recon;
         return recon;
     }
@@ -183,11 +184,11 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     Tensor d_dec_h;
     if (last_batched_)
     {
-        Tensor g_2d = grad_output.reshape(
-            {static_cast<nn::Index>(B * T), static_cast<nn::Index>(D)});
+        Tensor g_2d =
+            grad_output.reshape({static_cast<nn::Index>(B * T), static_cast<nn::Index>(D)});
         Tensor d_2d = out_proj_->backward(g_2d);
-        d_dec_h = std::as_const(d_2d).reshape({static_cast<nn::Index>(B),
-            static_cast<nn::Index>(T), static_cast<nn::Index>(H)});
+        d_dec_h = std::as_const(d_2d).reshape(
+            {static_cast<nn::Index>(B), static_cast<nn::Index>(T), static_cast<nn::Index>(H)});
     }
     else
     {
@@ -224,8 +225,8 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     Tensor d_enc_h;
     if (last_batched_)
     {
-        d_enc_h = Tensor::zeros(static_cast<nn::Index>(B),
-            static_cast<nn::Index>(T), static_cast<nn::Index>(H));
+        d_enc_h = Tensor::zeros(
+            static_cast<nn::Index>(B), static_cast<nn::Index>(T), static_cast<nn::Index>(H));
         d_enc_h.set_time_slice(static_cast<nn::Index>(T - 1), d_h_last);
     }
     else

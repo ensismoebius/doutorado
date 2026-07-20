@@ -9879,7 +9879,7 @@ bool OpenCLTensorBackend::ensure_device_current(const char* what) const
 //
 // Which one wins depends entirely on the per-enqueue cost. With queue profiling
 // enabled — the safe default on rusticl, see OpenCLContext — every enqueue costs
-// ~95 us, and the device path *adds* enqueues (678k -> 817k on an E04 run,
+// ~95 us, and the device path *adds* enqueues (678k -> 817k on an Guayaquil run,
 // ~+13 s) because it replaces a cheap host memcpy of a small slice with a kernel
 // launch. With profiling off the device path wins, but that configuration
 // corrupts memory on this driver.

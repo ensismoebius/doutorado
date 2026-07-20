@@ -22,9 +22,9 @@
 \node[proc, below=of start] (p00)
     {\textbf{Fase 00} --- varrer $23$ wavelets $\times$ $3$ escalas $\times$ $2$ categorias $\times$ $2$ sinais\\ ($+$ 24 autoencoders compactos --- SNN-AE $\times$3 codificações e ANN-AE): $300$ execuções, \texttt{classifier.enabled=false}};
 \node[script, below=of p00] (rank)
-    {\texttt{e05\_phase00\_rank.py}\\ menor $D_{\text{verdade}}$ por sinal $\rightarrow$ \texttt{winners.json}};
+    {\texttt{thesis\_phase00\_rank.py}\\ menor $D_{\text{verdade}}$ por sinal $\rightarrow$ \texttt{winners.json}};
 \node[script, below=of rank] (apply)
-    {\texttt{e05\_apply\_winner.py}\\ injeta o vencedor nos $32$ perfis da Fase 01};
+    {\texttt{thesis\_apply\_winner.py}\\ injeta o vencedor nos $32$ perfis da Fase 01};
 \node[proc, below=of apply] (p01)
     {\textbf{Fase 01} --- DSNN sobre $4$ fontes $\times$ $2$ textos $\times$ $2$ CV\\ $\times$ $2$ padronização: $32$ execuções, \texttt{classifier.enabled=true}};
 \node[startstop, below=of p01] (stop) {Métricas de verificação (EER, AUC)};

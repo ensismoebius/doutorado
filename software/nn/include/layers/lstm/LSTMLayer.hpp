@@ -70,7 +70,7 @@ class LSTMLayerImpl : public Module<Backend>
     /// NOT close: |tanh - tanh_fast| reaches 0.306 on [-4,4], so the layer stops being
     /// comparable to the reference implementation. PyTorch is this project's correctness
     /// reference, hence exact by default; set false only as a deliberate speed/fidelity
-    /// trade (E05Config::Numerics::exact_activations).
+    /// trade (ThesisConfig::Numerics::exact_activations).
     bool exact_activations = true;
 
     Tensor W_;

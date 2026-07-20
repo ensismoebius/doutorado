@@ -1,4 +1,4 @@
-// Unit tests for E05Classifiers: compute_aggregate_stats, run_classifier with
+// Unit tests for ThesisClassifiers: compute_aggregate_stats, run_classifier with
 // synthetic data (2 classes, small feature dim, 2-fold CV).
 // No SQLite, no real audio — everything synthetic.
 
@@ -9,16 +9,16 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/E05Classifiers.hpp"
-#include "../lib/include/E05Config.hpp"
-#include "../lib/include/E05Dataset.hpp"
+#include "../lib/include/ThesisClassifiers.hpp"
+#include "../lib/include/ThesisConfig.hpp"
+#include "../lib/include/ThesisDataset.hpp"
 #include "statistics/eer_scorer.hpp"
 
-using namespace e05;
+using namespace thesis;
 
 // ─── compute_aggregate_stats ─────────────────────────────────────────────────
 
-TEST(E05AggregateStats, EmptyFoldsNoOp)
+TEST(ThesisAggregateStats, EmptyFoldsNoOp)
 {
     ClassificationResult r;
     compute_aggregate_stats(r);
@@ -27,7 +27,7 @@ TEST(E05AggregateStats, EmptyFoldsNoOp)
     EXPECT_DOUBLE_EQ(r.std_accuracy, 0.0);
 }
 
-TEST(E05AggregateStats, SingleFold)
+TEST(ThesisAggregateStats, SingleFold)
 {
     ClassificationResult r;
     r.outer_folds.push_back({0, 0.8, 0.2, 0.0});
@@ -37,7 +37,7 @@ TEST(E05AggregateStats, SingleFold)
     EXPECT_NEAR(r.std_accuracy, 0.0, 1e-12);
 }
 
-TEST(E05AggregateStats, TwoFoldsMean)
+TEST(ThesisAggregateStats, TwoFoldsMean)
 {
     ClassificationResult r;
     r.outer_folds.push_back({0, 0.6, 0.1, 0.0});
@@ -47,7 +47,7 @@ TEST(E05AggregateStats, TwoFoldsMean)
     EXPECT_NEAR(r.mean_eer, 0.2, 1e-12);
 }
 
-TEST(E05AggregateStats, TwoFoldsStd)
+TEST(ThesisAggregateStats, TwoFoldsStd)
 {
     ClassificationResult r;
     r.outer_folds.push_back({0, 0.6, 0.0, 0.0});
@@ -58,7 +58,7 @@ TEST(E05AggregateStats, TwoFoldsStd)
     EXPECT_NEAR(r.std_accuracy, 0.14142135623730953, 1e-12);
 }
 
-TEST(E05AggregateStats, AllSameMeanAndZeroStd)
+TEST(ThesisAggregateStats, AllSameMeanAndZeroStd)
 {
     ClassificationResult r;
     for (int i = 0; i < 5; ++i) r.outer_folds.push_back({i, 0.9, 0.05, 0.0});
@@ -71,10 +71,10 @@ TEST(E05AggregateStats, AllSameMeanAndZeroStd)
 
 namespace
 {
-// Build a minimal E05Config for a quick run: 2-fold CV, 5 epochs, batch=4.
-E05Config make_fast_cfg()
+// Build a minimal ThesisConfig for a quick run: 2-fold CV, 5 epochs, batch=4.
+ThesisConfig make_fast_cfg()
 {
-    E05Config cfg;
+    ThesisConfig cfg;
     cfg.experiment.run_tag = "test";
     cfg.experiment.seed = 42;
 
@@ -97,13 +97,13 @@ E05Config make_fast_cfg()
     return cfg;
 }
 
-// Build a synthetic E05DatasetView: n_subjects classes, samples_per_subject
+// Build a synthetic ThesisDatasetView: n_subjects classes, samples_per_subject
 // samples each.  Audio tensor is a 1×D row of zeros (non-empty so feature
-// extraction doesn't fall back to the 256-zero placeholder in E05Dataset, but
+// extraction doesn't fall back to the 256-zero placeholder in ThesisDataset, but
 // here we bypass extraction entirely and supply feature_vectors directly).
-E05DatasetView make_view(int n_subjects, int samples_per_subject)
+ThesisDatasetView make_view(int n_subjects, int samples_per_subject)
 {
-    E05DatasetView view;
+    ThesisDatasetView view;
     view.n_subjects = n_subjects;
     view.n_stimuli = 1;
 
@@ -112,7 +112,7 @@ E05DatasetView make_view(int n_subjects, int samples_per_subject)
     {
         for (int k = 0; k < samples_per_subject; ++k)
         {
-            E05Sample sam;
+            ThesisSample sam;
             sam.subject_id = id;
             sam.stimulus = k % 5; // vowel index 0-4
             sam.text_phrase = "a";
@@ -124,7 +124,7 @@ E05DatasetView make_view(int n_subjects, int samples_per_subject)
 }
 
 // Build linearly separable feature vectors: class c gets feature vector [c, 0, …].
-std::vector<std::vector<double>> make_features(const E05DatasetView& view, int feat_dim = 8)
+std::vector<std::vector<double>> make_features(const ThesisDatasetView& view, int feat_dim = 8)
 {
     int id_idx = 0;
     int prev = -1;
@@ -145,17 +145,17 @@ std::vector<std::vector<double>> make_features(const E05DatasetView& view, int f
 }
 } // namespace
 
-TEST(E05RunClassifier, ThrowsOnEmptyFeatures)
+TEST(ThesisRunClassifier, ThrowsOnEmptyFeatures)
 {
     auto view = make_view(2, 4);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     EXPECT_THROW(run_classifier(view, {}, "test", cfg), std::invalid_argument);
 }
 
-TEST(E05RunClassifier, ThrowsOnSizeMismatch)
+TEST(ThesisRunClassifier, ThrowsOnSizeMismatch)
 {
     auto view = make_view(2, 4);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     std::vector<std::vector<double>> fvs(3, std::vector<double>(8, 0.0));
     EXPECT_THROW(run_classifier(view, fvs, "test", cfg), std::invalid_argument);
 }
@@ -168,13 +168,13 @@ TEST(E05RunClassifier, ThrowsOnSizeMismatch)
 // each test speaker to have been seen during training for non-NaN EER, which
 // grouped CV deliberately prevents (that is the correct real-world behaviour,
 // but makes unit-test assertions fragile).
-TEST(E05RunClassifier, ReturnsFoldCountMatchingKFolds)
+TEST(ThesisRunClassifier, ReturnsFoldCountMatchingKFolds)
 {
     const int n_subjects = 4;
     const int sps = 6;
     auto view = make_view(n_subjects, sps);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
@@ -182,14 +182,14 @@ TEST(E05RunClassifier, ReturnsFoldCountMatchingKFolds)
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 
-TEST(E05RunClassifier, VerificationOnlyAccuracyIsNaN)
+TEST(ThesisRunClassifier, VerificationOnlyAccuracyIsNaN)
 {
     // Verification-only protocol (audit C-1): closed-set accuracy is not reported
     // (speaker-disjoint folds), so mean_accuracy aggregates to NaN. The run must
     // still produce one result per outer fold.
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
@@ -198,22 +198,22 @@ TEST(E05RunClassifier, VerificationOnlyAccuracyIsNaN)
     EXPECT_TRUE(std::isnan(result.mean_accuracy));
 }
 
-TEST(E05RunClassifier, FeatureLabelPropagated)
+TEST(ThesisRunClassifier, FeatureLabelPropagated)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "my-label", cfg, &scorer);
     EXPECT_EQ(result.feature_set_label, "my-label");
 }
 
-TEST(E05RunClassifier, FoldIndicesAreSequential)
+TEST(ThesisRunClassifier, FoldIndicesAreSequential)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
@@ -221,11 +221,11 @@ TEST(E05RunClassifier, FoldIndicesAreSequential)
         EXPECT_EQ(result.outer_folds[static_cast<size_t>(i)].fold, i);
 }
 
-TEST(E05RunClassifier, DsnnPathRuns)
+TEST(ThesisRunClassifier, DsnnPathRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     cfg.classifier.type = "dsnn";
     statistics::ClassificationEERScorer scorer;
 
@@ -238,12 +238,12 @@ TEST(E05RunClassifier, DsnnPathRuns)
 
 // Regularization enabled (decoupled L2 weight decay + firing-rate band penalty)
 // on the dsnn path must train and produce one result per outer fold without
-// throwing — exercises Adam::weight_decay and E05DsnnClassifier::add_firing_rate_grad.
-TEST(E05RunClassifier, DsnnWithRegularizationRuns)
+// throwing — exercises Adam::weight_decay and ThesisDsnnClassifier::add_firing_rate_grad.
+TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     cfg.classifier.type = "dsnn";
     cfg.training.weight_decay = 1e-3f;
     cfg.training.firing_rate_reg_lambda = 0.05f;
@@ -257,11 +257,11 @@ TEST(E05RunClassifier, DsnnWithRegularizationRuns)
 
 // Weight decay on the rnn path must also train cleanly (firing-rate reg is inert
 // for the non-spiking ResNet classifier).
-TEST(E05RunClassifier, RnnWithWeightDecayRuns)
+TEST(ThesisRunClassifier, RnnWithWeightDecayRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     cfg.training.weight_decay = 1e-3f;
     statistics::ClassificationEERScorer scorer;
 
@@ -271,11 +271,11 @@ TEST(E05RunClassifier, RnnWithWeightDecayRuns)
 
 // tdBN enabled on the dsnn path must train and produce one result per outer fold
 // without throwing — exercises the tdBN forward/backward wired into the DSNN.
-TEST(E05RunClassifier, DsnnWithTdbnRuns)
+TEST(ThesisRunClassifier, DsnnWithTdbnRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    E05Config cfg = make_fast_cfg();
+    ThesisConfig cfg = make_fast_cfg();
     cfg.classifier.type = "dsnn";
     cfg.training.batch_normalization = "threshold-dependent";
     cfg.training.tdbn_alpha = 1.0f;
@@ -286,13 +286,13 @@ TEST(E05RunClassifier, DsnnWithTdbnRuns)
     EXPECT_FALSE(std::isnan(result.mean_eer)); // EER is the verification-protocol metric
 }
 
-// Comparative benchmark (Part 4): train the synthetic E05 DSNN three ways —
+// Comparative benchmark (Part 4): train the synthetic Thesis DSNN three ways —
 // (a) no normalization, (b) tdBN with α·V_th = 1 (equivalent to conventional BN
 // at V_th=1, since the project has no standalone BatchNorm layer), and
 // (c) tdBN with α=2 (threshold-scaled). Records EER/AUC and asserts every variant
 // trains stably (finite metrics, full fold count). Closed-set accuracy/F1/etc. are
 // NaN by design under the verification-only protocol, so EER/AUC are reported.
-TEST(E05RunClassifier, TdbnComparativeBenchmark)
+TEST(ThesisRunClassifier, TdbnComparativeBenchmark)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
@@ -313,7 +313,7 @@ TEST(E05RunClassifier, TdbnComparativeBenchmark)
     std::cout << "\n[tdBN benchmark] variant     folds  mean_EER  mean_AUC\n";
     for (const auto& v : variants)
     {
-        E05Config cfg = make_fast_cfg();
+        ThesisConfig cfg = make_fast_cfg();
         cfg.classifier.type = "dsnn";
         cfg.training.batch_normalization = v.bn;
         cfg.training.tdbn_alpha = v.alpha;

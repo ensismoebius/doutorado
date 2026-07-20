@@ -1,6 +1,6 @@
 /**
- * @file src/experiments/02/Experiment02Config.hpp
- * @brief Experiment02config.
+ * @file src/experiments/waveletAE/WaveletAEConfig.hpp
+ * @brief WaveletAEconfig.
  *
  *
  *

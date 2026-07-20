@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/ProfileLoader.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/ProfileLoader.cpp
  * @brief Implementation for Profileloader.
  *
 
@@ -19,7 +19,7 @@
 #include <string_view>
 #include <unordered_set>
 
-namespace experiment03
+namespace autoencoderRunner
 {
 static std::string normalize(const std::string& s)
 {
@@ -601,7 +601,7 @@ auto load_profile_to_config(
 
     std::vector<fs::path> candidates = {raw_profile_path,
         source_profiles_dir / (profile_name + ".json"),
-        fs::path("src/experiments/03/profiles") / (profile_name + ".json"),
+        fs::path("src/experiments/autoencoderRunner/profiles") / (profile_name + ".json"),
         fs::current_path() / (profile_name + ".json"),
         fs::path("profiles") / (profile_name + ".json")};
 
@@ -765,4 +765,4 @@ auto load_profile_to_config(
     return true;
 }
 
-} // namespace experiment03
+} // namespace autoencoderRunner

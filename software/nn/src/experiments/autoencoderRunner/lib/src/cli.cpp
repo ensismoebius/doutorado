@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/cli.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/cli.cpp
  * @brief CLI parsing and option handling for Experiment03.
  *
  * Uses CLI11 to declare and parse command-line options for the experiment
@@ -101,7 +101,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     if (!has_help)
     {
         std::string profile_error;
-        if (!experiment03::load_profile_to_config(profile, config, profile_error))
+        if (!autoencoderRunner::load_profile_to_config(profile, config, profile_error))
         {
             throw std::runtime_error("Failed to load profile '" + profile + "': " + profile_error);
         }

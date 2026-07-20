@@ -111,7 +111,7 @@ inline auto tanh_fast_block(
 // |tanh - tanh_fast| reaches 0.306 on [-4,4] (at x=2: tanh=0.964 vs tanh_fast=0.667), which
 // makes any LSTM built on them a *softsign-gated* LSTM that cannot match torch.nn.LSTM. Since
 // PyTorch/snnTorch is this project's correctness reference, exact is the default and the fast
-// forms are an explicit speed/fidelity trade (E05Config::Numerics::exact_activations).
+// forms are an explicit speed/fidelity trade (ThesisConfig::Numerics::exact_activations).
 
 template <typename Backend>
 inline auto sigmoid_exact_block(

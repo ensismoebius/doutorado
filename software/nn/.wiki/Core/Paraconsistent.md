@@ -103,7 +103,7 @@ retained $D_{\text{truth}}$ term is what keeps Falsity penalized — dropping it
 (penalizing only Ambiguity and Indefinition) would let a degenerate solution flee
 to the Falsity vertex instead, so the full $D_{\text{truth}}$ must stay.
 
-`kContradictionPenalty` in `E05Paraconsistent.hpp` holds $\lambda$;
+`kContradictionPenalty` in `ThesisParaconsistent.hpp` holds $\lambda$;
 `ParaconsistentScore::d_penalized` holds the value; `rank_feature_sets` sorts by
 it. Because it is a pure function of $(\alpha,\beta)$, existing results can be
 re-ranked without re-running any experiment.

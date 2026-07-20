@@ -37,7 +37,7 @@ public:
 ### Configuration
 
 ```cpp
-// File: src/experiments/03/lib/include/Experiment03Config.hpp
+// File: src/experiments/autoencoderRunner/lib/include/Experiment03Config.hpp
 struct Experiment03Config
 {
     // Model
@@ -90,7 +90,7 @@ flowchart TB
 ## Results Format
 
 ```json
-// File: src/experiments/03/lib/include/ResultsWriter.hpp
+// File: src/experiments/autoencoderRunner/lib/include/ResultsWriter.hpp
 {
     "experiment": "Experiment03",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -116,10 +116,10 @@ flowchart TB
 
 ```bash
 # Run experiment
-./experiment03 --config configs/experiment03.yaml
+./autoencoderRunner --config configs/autoencoderRunner.yaml
 
 # Results written to:
-# results/experiment03/<timestamp>/
+# results/autoencoderRunner/<timestamp>/
 #   - results.json
 #   - models/
 #   - profiles/
@@ -127,13 +127,13 @@ flowchart TB
 
 ## How Experiment04 Differs in Practice
 
-Although the [Experiment04](../Experiments/Experiment04.md) page frames it as an LSTM autoencoder experiment, the current implementation is a comparative benchmark runner that orchestrates both LSTM and SNN autoencoder families.
+Although the [Experiment04](../Experiments/Guayaquil.md) page frames it as an LSTM autoencoder experiment, the current implementation is a comparative benchmark runner that orchestrates both LSTM and SNN autoencoder families.
 
 From code:
 
-- Entry point `src/experiments/04/experiment04.cpp` is intentionally thin and forwards control to `LstmAutoencoderExperiment::run(...)`.
-- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/04/lib/src/E04Experiment.cpp`.
-- Default profile stem is `lstm-compare`, resolved from `src/experiments/04/profiles/`.
+- Entry point `src/experiments/guayaquil/guayaquil.cpp` is intentionally thin and forwards control to `LstmAutoencoderExperiment::run(...)`.
+- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/guayaquil/lib/src/GuayaquilExperiment.cpp`.
+- Default profile stem is `lstm-compare`, resolved from `src/experiments/guayaquil/profiles/`.
 - Comparative sweep includes datasets (e.g., `fsdd`, `physionet`), encoding strategies (`direct`, `poisson`, `latency`), SNN architecture variants (`dense`, `conv1d`, `recurrent`), and hyperparameter grids (`layers`, `v_th`, `alpha`).
 - Training uses Adam + MSE with early stopping; evaluation reports MSE, MAE, $R^2$, precision/recall/F1, spike rate, latency, parameter count, and MAC estimates.
 - Output artifacts are written as:
@@ -154,7 +154,7 @@ This distinction matters when comparing Experiment03 and Experiment04 outputs: E
 ## See Also
 
 - [Autoencoders](../Concepts/Autoencoders.md) - Theory
-- [Experiment04](../Experiments/Experiment04.md) - LSTM autoencoder variant
+- [Experiment04](../Experiments/Guayaquil.md) - LSTM autoencoder variant
 - [DataLoaders](../Core/DataLoaders.md) - Dataset loading
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) - Validation strategy
 

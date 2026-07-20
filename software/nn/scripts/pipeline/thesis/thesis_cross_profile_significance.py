@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Cross-profile significance tests for Experiment 05 — the E04 SNN-vs-LSTM analog.
+"""Cross-profile significance tests for Experiment 05 — the Guayaquil SNN-vs-LSTM analog.
 
-The Guayaquil (E04) pipeline reports Cohen's d / t-test / Wilcoxon *within* one run
-because it trains two model families (SNN, LSTM) in the same process. An E05 run
+The Guayaquil (Guayaquil) pipeline reports Cohen's d / t-test / Wilcoxon *within* one run
+because it trains two model families (SNN, LSTM) in the same process. An Thesis run
 scores exactly one feature set, so the equivalent comparison is *across profiles*:
 this script collates every profile's per-fold metrics and tests each condition
 against the best one.
@@ -23,7 +23,7 @@ Comparison:
 NaN folds (closed-set metrics under the verification protocol) are dropped per metric.
 
 Usage:
-    python3 scripts/pipeline/e05/e05_cross_profile_significance.py \
+    python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py \
         --results-dir results/thesis/phase01 \
         --metric eer \
         --out results/thesis/phase01/cross_profile_significance.csv
@@ -152,7 +152,7 @@ def main() -> int:
         ref = ranked[0]
 
     arrow = "lower=better" if lower else "higher=better"
-    print(f"\n=== E05 cross-profile significance on '{args.metric}' ({arrow}) ===")
+    print(f"\n=== Thesis cross-profile significance on '{args.metric}' ({arrow}) ===")
     print(f"conditions: {len(conds)}   reference: {ref}\n")
     print(f"{'rank':>4}  {'condition':<44} {'folds':>5} {'mean':>9} {'std':>9}")
     for i, c in enumerate(ranked, 1):

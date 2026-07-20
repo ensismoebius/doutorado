@@ -1,4 +1,4 @@
-#include "E05Output.hpp"
+#include "ThesisOutput.hpp"
 
 #include <cmath>
 #include <filesystem>
@@ -8,7 +8,7 @@
 
 #include "nlohmann/json.hpp"
 
-namespace e05
+namespace thesis
 {
 
 void ensure_dir(const std::string& path)
@@ -23,7 +23,7 @@ void write_metrics_csv(const std::string& results_dir,
     ensure_dir(results_dir);
     std::string path = results_dir + "/e05_" + run_tag + "_metrics.csv";
     std::ofstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisOutput: cannot write " + path);
 
     f << "feature_set,classifier,text_mode,fold,"
       << "accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path\n";
@@ -47,7 +47,7 @@ void write_paraconsistent_csv(const std::string& results_dir,
     ensure_dir(results_dir);
     std::string path = results_dir + "/e05_" + run_tag + "_paraconsistent.csv";
     std::ofstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisOutput: cannot write " + path);
 
     f << "label,alpha,beta,g1,g2,d_truth,d_penalized\n";
     for (const auto& s : scores)
@@ -59,7 +59,7 @@ void write_paraconsistent_csv(const std::string& results_dir,
 
 void write_summary_json(const std::string& results_dir,
     const std::string& run_tag,
-    const E05Config& cfg,
+    const ThesisConfig& cfg,
     const std::vector<ClassificationResult>& results,
     const std::vector<ParaconsistentScore>& scores,
     int n_subjects,
@@ -73,7 +73,7 @@ void write_summary_json(const std::string& results_dir,
     nlohmann::json j;
     j["run_tag"] = cfg.experiment.run_tag;
     j["seed"] = cfg.experiment.seed;
-    j["config_hash"] = config_hash; // provenance/determinism (E04 parity)
+    j["config_hash"] = config_hash; // provenance/determinism (Guayaquil parity)
     j["modality"] = cfg.dataset.modality;
     j["strategy"] = cfg.feature_extraction.strategy;
     j["classifier"] = cfg.classifier.type;
@@ -162,7 +162,7 @@ void write_summary_json(const std::string& results_dir,
         rj["mean_auc"] = r.mean_auc;
         rj["std_auc"] = r.std_auc;
 
-        // Run cost / complexity (E04-style): model size + mean per-fold wall-clock.
+        // Run cost / complexity (Guayaquil-style): model size + mean per-fold wall-clock.
         rj["param_count"] = r.param_count;
         rj["mean_train_ms"] = r.mean_train_ms;
         rj["mean_infer_ms"] = r.mean_infer_ms;
@@ -203,13 +203,13 @@ void write_summary_json(const std::string& results_dir,
         j["best_beta"] = scores[0].beta;
     }
 
-    // NOTE: no in-run significance test (E04 records SNN-vs-LSTM t-test/Wilcoxon/Cohen's d
-    // because it trains both families in one process). An E05 run scores exactly one feature
+    // NOTE: no in-run significance test (Guayaquil records SNN-vs-LSTM t-test/Wilcoxon/Cohen's d
+    // because it trains both families in one process). An Thesis run scores exactly one feature
     // set, so the analogous comparison is cross-PROFILE and belongs in a post-hoc aggregation
     // step over these summary files, not here.
 
     std::ofstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisOutput: cannot write " + path);
     f << j.dump(2) << "\n";
 }
 
@@ -220,7 +220,7 @@ void write_comparison_dat(const std::string& results_dir,
     ensure_dir(results_dir);
     std::string path = results_dir + "/e05_" + run_tag + "_comparison.dat";
     std::ofstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisOutput: cannot write " + path);
 
     f << "x label accuracy std_accuracy ci95_accuracy"
       << " f1 std_f1 precision recall specificity std_specificity"
@@ -250,7 +250,7 @@ void write_learning_curves_dat(const std::string& results_dir,
     ensure_dir(results_dir);
     const std::string path = results_dir + "/e05_" + run_tag + "_learning_curves.dat";
     std::ofstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisOutput: cannot write " + path);
 
     // spike_rate/sops are NaN/0 for non-spiking classifiers; the columns are kept
     // so every run has the same schema (pgfplots-friendly).
@@ -270,4 +270,4 @@ void write_learning_curves_dat(const std::string& results_dir,
     }
 }
 
-} // namespace e05
+} // namespace thesis

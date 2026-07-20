@@ -1,13 +1,13 @@
-#include "../include/E04Config.hpp"
+#include "../include/GuayaquilConfig.hpp"
 
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
-namespace e04
+namespace guayaquil
 {
 
-void E04Config::validate() const
+void GuayaquilConfig::validate() const
 {
     std::ostringstream errors;
     bool has_error = false;
@@ -201,8 +201,8 @@ void E04Config::validate() const
 
     if (has_error)
     {
-        throw std::invalid_argument("E04Config validation failed:\n" + errors.str());
+        throw std::invalid_argument("GuayaquilConfig validation failed:\n" + errors.str());
     }
 }
 
-} // namespace e04
+} // namespace guayaquil

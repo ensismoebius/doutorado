@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""e05_build_phase01_auth_tables.py — Rank Experiment 05 phase01 (DSNN
+"""thesis_build_phase01_auth_tables.py — Rank Experiment 05 phase01 (DSNN
 authentication) configs by EER.
 
 Reads every e05_e05_p01_*_rep{0,1,2}_summary.json under results/thesis/phase01,
@@ -9,7 +9,7 @@ The thesis LaTeX typesets this directly via csvsimple — this script only
 produces data, never hand-edited .tex.
 
 Usage:
-    python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \\
+    python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \\
         --results-dir results/thesis/phase01 \\
         --tables-dir ../../documentation/00-thesis/monography/tables
 """

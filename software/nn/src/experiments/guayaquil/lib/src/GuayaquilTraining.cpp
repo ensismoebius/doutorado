@@ -1,20 +1,20 @@
-#include "../include/E04Training.hpp"
+#include "../include/GuayaquilTraining.hpp"
 
 #include <chrono>
 #include <cmath>
 #include <memory>
 #include <string>
 
-#include "../include/E04BatchLossCollector.hpp"
-#include "../include/E04Encoding.hpp"
-#include "../include/E04Evaluation.hpp"
-#include "../include/E04Metrics.hpp"
+#include "../include/GuayaquilBatchLossCollector.hpp"
+#include "../include/GuayaquilEncoding.hpp"
+#include "../include/GuayaquilEvaluation.hpp"
+#include "../include/GuayaquilMetrics.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
@@ -82,7 +82,7 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
     return 16;
 }
 
-auto make_lstm_cfg(const E04Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
+auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
@@ -103,7 +103,7 @@ auto make_lstm_cfg(const E04Config& cfg) -> nn::models::lstm::LSTMAutoencoderCon
     return arch;
 }
 
-auto make_snn_cfg(const E04Config& cfg, float alpha, float v_th) -> AutoencoderConfig
+auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> AutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
@@ -146,10 +146,10 @@ auto make_snn_cfg(const E04Config& cfg, float alpha, float v_th) -> AutoencoderC
 }
 
 // ---------------------------------------------------------------------------
-// Build a TrainerConfig from E04Config
+// Build a TrainerConfig from GuayaquilConfig
 // ---------------------------------------------------------------------------
 
-static auto make_trainer_config(const E04Config& cfg, float snn_lr_scale = 1.0F)
+static auto make_trainer_config(const GuayaquilConfig& cfg, float snn_lr_scale = 1.0F)
     -> nn::training::TrainerConfig
 {
     nn::training::TrainerConfig tcfg;
@@ -171,7 +171,7 @@ static auto make_trainer_config(const E04Config& cfg, float snn_lr_scale = 1.0F)
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -277,7 +277,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
@@ -391,4 +391,4 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     return TrainResult{metrics, history};
 }
 
-} // namespace e04
+} // namespace guayaquil

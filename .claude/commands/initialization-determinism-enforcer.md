@@ -62,7 +62,7 @@ Key Files to Fix
 
 - [include/nn/initializers/xavier.hpp](include/nn/initializers/xavier.hpp) — two branches: with/without seed
 - [include/nn/initializers/kaiming_snn.hpp](include/nn/initializers/kaiming_snn.hpp) — `std::random_device` default
-- [src/experiments/02/Experiment02Config.hpp](src/experiments/02/Experiment02Config.hpp) — `random_seed` declared but unused in init
+- [src/experiments/waveletAE/WaveletAEConfig.hpp](src/experiments/waveletAE/WaveletAEConfig.hpp) — `random_seed` declared but unused in init
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — seed must be threaded into layer init
 
 Propagation Pattern

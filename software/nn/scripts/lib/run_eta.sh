@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # run_eta.sh — work-weighted, EMA-smoothed ETA for multi-profile runs.
 #
-# Shared by the thesis (run_e05_profiles.sh) and the Guayaquil paper
-# (01_e04_run_article_profiles.sh). `source` it, then per profile:
+# Shared by the thesis (run_thesis_profiles.sh) and the Guayaquil paper
+# (01_guayaquil_run_article_profiles.sh). `source` it, then per profile:
 #
 #   eta_reset                       # once, at the start of a run
 #   w=$(profile_weight "$path")     # caller-provided cost estimate (see below)
@@ -11,8 +11,8 @@
 #   remaining_s=$(eta_remaining "$remaining_weight")   # before the next one
 #
 # WHY WORK-WEIGHTED. The obvious `elapsed * (remaining/done)` assumes every profile
-# costs the same. These runs violate that badly — E04 mixes one fast LSTM with three
-# slow SNNs (~4-5x), E05 mixes fast handcrafted extraction (no training) with slow
+# costs the same. These runs violate that badly — Guayaquil mixes one fast LSTM with three
+# slow SNNs (~4-5x), Thesis mixes fast handcrafted extraction (no training) with slow
 # autoencoders. Counting profiles equally makes the ETA lurch at each boundary. Instead
 # we track seconds *per unit of estimated work*: rate = sum(seconds)/sum(weight), and the
 # remaining time is rate * remaining_weight. Even rough weights (2 vs 9) turn a wildly

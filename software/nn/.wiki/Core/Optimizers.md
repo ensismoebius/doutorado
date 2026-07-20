@@ -94,7 +94,7 @@ paper over.
 Because the right learning rate is specific to the optimizer, this project
 lets you name an optimizer *without* naming a learning rate: leave
 `training.learning_rate` out of an Experiment05 profile, and
-`E05Config::Training::effective_learning_rate()` looks up
+`ThesisConfig::Training::effective_learning_rate()` looks up
 `reference_learning_rate(token)` (defined once, in `OptimizerFactory.hpp`) and
 uses the rate published for that specific optimizer. Naming a rate explicitly
 still overrides this, so sweeping the learning rate as an experiment variable
@@ -106,8 +106,8 @@ looking at a result file later tells you exactly what it was trained with —
 closing a gap that once let a paper's published numbers come from a
 learning rate ten times smaller than the profile files claimed, with nothing
 recorded anywhere that would have revealed it. This is checked automatically
-by `E05OptimizerLearningRate.*` and a per-profile assertion in
-`e05_profile_audit_gtest`.
+by `ThesisOptimizerLearningRate.*` and a per-profile assertion in
+`thesis_profile_audit_gtest`.
 
 ### Optimizers considered but deliberately not implemented
 

@@ -1,9 +1,9 @@
 /**
- * @file src/experiments/03/lib/src/experiment03_helpers.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoderRunner_helpers.cpp
  * @brief Implementation of small helper utilities for Experiment03.
  */
 
-#include "experiment03_helpers.hpp"
+#include "autoencoderRunner_helpers.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -11,17 +11,17 @@
 
 #include "AudioWindowAutoencoder.hpp"
 #include "AudioWindowSpikingAutoencoder.hpp"
+#include "Backend.hpp"
 #include "EegWindowAutoencoder.hpp"
 #include "EegWindowSpikingAutoencoder.hpp"
 #include "FusedWindowAutoencoder.hpp"
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "Backend.hpp"
 #include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "logging/Logger.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 
 auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
@@ -286,4 +286,4 @@ auto ReconstructionLoss::backward(const Tensor& grad_output) -> Tensor
     return mae_->backward(grad_output);
 }
 
-} // namespace experiment03
+} // namespace autoencoderRunner

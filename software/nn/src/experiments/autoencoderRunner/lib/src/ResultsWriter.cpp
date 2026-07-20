@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/ResultsWriter.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/ResultsWriter.cpp
  * @brief Implementation for Resultswriter.
  *
 
@@ -9,10 +9,10 @@
 
 #include <filesystem>
 
-#include "nlohmann/json.hpp"
 #include "io/ReportIO.hpp"
+#include "nlohmann/json.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 namespace
 {
@@ -92,4 +92,4 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     return true;
 }
 
-} // namespace experiment03
+} // namespace autoencoderRunner

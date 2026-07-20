@@ -1,6 +1,6 @@
 /**
- * @file src/experiments/02/Experiment02Training.hpp
- * @brief Experiment02training.
+ * @file src/experiments/waveletAE/WaveletAETraining.hpp
+ * @brief WaveletAEtraining.
  *
  *
  *
@@ -14,7 +14,7 @@
 
 #include <vector>
 
-#include "Experiment02Evaluation.hpp"
+#include "WaveletAEEvaluation.hpp"
 
 auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
     const std::vector<int>& labels,

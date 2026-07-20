@@ -1,7 +1,7 @@
 # Bash completion for run_full_grid_and_analyze.sh
 #
 # Load with:
-#   source src/experiments/03/scripts/run_full_grid_and_analyze.bash-completion
+#   source src/experiments/autoencoderRunner/scripts/run_full_grid_and_analyze.bash-completion
 
 _run_full_grid_and_analyze_completions() {
   local cur prev

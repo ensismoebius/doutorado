@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Tests for pipeline/e05/01_e05_phase00_rank.py and 02_e05_apply_winner.py.
+"""Tests for pipeline/thesis/01_thesis_phase00_rank.py and 02_thesis_apply_winner.py.
 
 Stdlib unittest (no pytest needed). Drives both scripts end-to-end on synthetic
 Phase 00 profiles + paraconsistent CSVs, then checks winner selection and the
 injection into Phase 01 profiles.
 
-Run:  python3 scripts/testing/test_e05_phase_scripts.py
+Run:  python3 scripts/testing/test_thesis_phase_scripts.py
 """
 import json
 import os
@@ -16,8 +16,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PIPELINE_E05_DIR = os.path.join(os.path.dirname(HERE), "pipeline", "e05")
-RANK = os.path.join(PIPELINE_E05_DIR, "01_e05_phase00_rank.py")
-APPLY = os.path.join(PIPELINE_E05_DIR, "02_e05_apply_winner.py")
+RANK = os.path.join(PIPELINE_E05_DIR, "01_thesis_phase00_rank.py")
+APPLY = os.path.join(PIPELINE_E05_DIR, "02_thesis_apply_winner.py")
 
 
 def hc_profile(tag, signal, wavelet, scale):

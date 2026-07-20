@@ -1,6 +1,6 @@
 /**
- * @file src/experiments/02/Experiment02Reporting.hpp
- * @brief Experiment02reporting.
+ * @file src/experiments/waveletAE/WaveletAEReporting.hpp
+ * @brief WaveletAEreporting.
  *
  *
  *
@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-#include "Experiment02Config.hpp"
-#include "Experiment02Evaluation.hpp"
+#include "WaveletAEConfig.hpp"
+#include "WaveletAEEvaluation.hpp"
 
 struct AggregatedFoldResults
 {

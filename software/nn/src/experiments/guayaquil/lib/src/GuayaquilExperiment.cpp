@@ -5,12 +5,12 @@
 #include <span>
 #include <string>
 
-#include "../include/E04Checkpoint.hpp"
-#include "../include/E04Cli.hpp"
-#include "../include/E04Dataset.hpp"
-#include "../include/E04Output.hpp"
-#include "../include/E04Runner.hpp"
-#include "../include/E04Training.hpp"
+#include "../include/GuayaquilCheckpoint.hpp"
+#include "../include/GuayaquilCli.hpp"
+#include "../include/GuayaquilDataset.hpp"
+#include "../include/GuayaquilOutput.hpp"
+#include "../include/GuayaquilRunner.hpp"
+#include "../include/GuayaquilTraining.hpp"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "progress/ProgressManager.hpp"
 #include "utility/progress.hpp"
@@ -131,12 +131,12 @@ auto save_parameter_list_text(
     return out.good();
 }
 
-namespace e04
+namespace guayaquil
 {
 
 auto run_comparative_experiment(int argc, char* argv[]) -> int
 {
-    using namespace e04;
+    using namespace guayaquil;
 
     try
     {
@@ -147,7 +147,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             return 0;
         }
 
-        const E04Config config = load_config(resolve_profile_path(cli), cli);
+        const GuayaquilConfig config = load_config(resolve_profile_path(cli), cli);
         config.validate();
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
@@ -189,11 +189,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
-        // (01_e04_run_article_profiles.sh) computes it the same way run_e05_profiles.sh does
-        // (work-weighted, EMA-smoothed seconds-per-unit-work — see scripts/lib/run_eta.sh) and
-        // passes the ready-made line in via E04_OVERALL. Logging it renders it as a persistent
-        // top line above the per-profile bars; empty/unset when run standalone, so unchanged.
-        if (const char* overall = std::getenv("E04_OVERALL");
+        // (01_guayaquil_run_article_profiles.sh) computes it the same way run_thesis_profiles.sh
+        // does (work-weighted, EMA-smoothed seconds-per-unit-work — see scripts/lib/run_eta.sh) and
+        // passes the ready-made line in via GUAYAQUIL_OVERALL. Logging it renders it as a
+        // persistent top line above the per-profile bars; empty/unset when run standalone, so
+        // unchanged.
+        if (const char* overall = std::getenv("GUAYAQUIL_OVERALL");
             overall != nullptr && overall[0] != '\0')
         {
             nn::progress::ProgressManager::instance().log(std::string(overall));
@@ -533,4 +534,4 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
     }
 }
 
-} // namespace e04
+} // namespace guayaquil

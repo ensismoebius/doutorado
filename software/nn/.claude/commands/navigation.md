@@ -16,8 +16,8 @@ Find the right file/symbol fast, with reproducible search steps.
 | LIF single-step | `include/layers/spiking/Lif.hpp` |
 | LIF BPTT | `include/layers/spiking/LifBPTT.hpp` |
 | Trainer | `src/core/training/Trainer.hpp` |
-| Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
-| Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
+| Exp04 profile parser | `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp` |
+| Exp04 encoding transforms | `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` |
 | KFold / NestedKFold | `include/statistics/kfold.hpp` |
 | OpenCL context | `include/tensor/opencl/OpenCLContext.hpp` |
 
@@ -27,13 +27,13 @@ Find the right file/symbol fast, with reproducible search steps.
 - `R_min`, `C_min` — biophysical parameter clamp sites
 
 **Experiment paths:**
-- `src/experiments/00/` — wavelet + paraconsistent baseline
-- `src/experiments/02/` — wavelet autoencoder
-- `src/experiments/03/` — multimodal autoencoder
-- `src/experiments/04/` — LSTM vs SNN comparative
+- `src/experiments/paraconsistentBaseline/` — wavelet + paraconsistent baseline
+- `src/experiments/waveletAE/` — wavelet autoencoder
+- `src/experiments/autoencoderRunner/` — multimodal autoencoder
+- `src/experiments/guayaquil/` — LSTM vs SNN comparative
 
 **Article pipeline chain:**
-`scripts/pipeline/e04/01_e04_run_article_profiles.sh` → CSVs → `scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py` → DAT → `pdflatex paper.tex`
+`scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh` → CSVs → `scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py` → DAT → `pdflatex paper.tex`
 
 **Wiki & knowledge graph:**
 - Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions

@@ -163,7 +163,7 @@ layer.reset_state();
 
 ### Microbenchmark Results (B=1, D=128, H=32, T=256)
 
-Profiled via `src/experiments/04/tests/lstm_ops_microbench.cpp`:
+Profiled via `src/experiments/guayaquil/tests/lstm_ops_microbench.cpp`:
 
 | Operation | Time | % of Full Step (before) | % of Full Step (after) |
 |---|---|---|---|

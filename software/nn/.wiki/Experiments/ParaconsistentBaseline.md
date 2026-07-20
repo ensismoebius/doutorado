@@ -30,23 +30,23 @@ Raw EEG/audio trials
 
 ```bash
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target Phase00 -j$(nproc)
+cmake --build out/build/max-performance --target paraconsistentBaseline -j$(nproc)
 
 # Default config (hardcoded path)
-./out/build/max-performance/src/experiments/00/Phase00
+./out/build/max-performance/src/experiments/paraconsistentBaseline/paraconsistentBaseline
 
 # Custom config
-./out/build/max-performance/src/experiments/00/Phase00 path/to/config.json
+./out/build/max-performance/src/experiments/paraconsistentBaseline/paraconsistentBaseline path/to/config.json
 ```
 
 ## Key code paths
 
 | File | Role |
 |---|---|
-| `src/experiments/00/phase00.cpp` | Entry point, orchestration |
-| `src/experiments/00/phase00_data.cpp` | Trial extraction |
-| `src/experiments/00/phase00_features.cpp` | Wavelet feature extraction |
-| `src/experiments/00/phase00_training.cpp` | Classifier training and artifact writing |
+| `src/experiments/paraconsistentBaseline/phase00.cpp` | Entry point, orchestration |
+| `src/experiments/paraconsistentBaseline/phase00_data.cpp` | Trial extraction |
+| `src/experiments/paraconsistentBaseline/phase00_features.cpp` | Wavelet feature extraction |
+| `src/experiments/paraconsistentBaseline/phase00_training.cpp` | Classifier training and artifact writing |
 | `include/paraconsistent/` | Da Costa paraconsistent logic |
 | `include/wavelet/waveletOperations.hpp` | Wavelet packet decomposition |
 
@@ -58,5 +58,5 @@ values without updating the thesis baseline numbers.
 ## See also
 
 - [Paraconsistent Logic](../Core/Paraconsistent.md) — theory behind the classifier
-- [Experiment02](Experiment02.md) — next step: replace paraconsistent classifier with autoencoder
+- [WaveletAE](WaveletAE.md) — next step: replace paraconsistent classifier with autoencoder
 - [Home](../Home.md)

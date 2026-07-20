@@ -6,10 +6,10 @@ This document is the canonical guide for running, monitoring, analyzing, and arc
 
 ```bash
 cd <path_to_nn_project_root>
-export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NN_EXPERIMENT03_LOG_LEVEL=warn
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NN_AUTOENCODERRUNNER_LOG_LEVEL=warn
 run_id="$(date +%Y%m%d_%H%M%S)" && mkdir -p logs/grid_runs
-parallel -j 12 --timeout 600 --joblog "logs/grid_runs/${run_id}_joblog.tsv" "./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile {}" ::: src/experiments/03/profiles/snnAutoEncodersProfiles/*.json && touch "logs/grid_runs/${run_id}_DONE"
-python3 src/experiments/03/scripts/analyze_grid_results.py
+parallel -j 12 --timeout 600 --joblog "logs/grid_runs/${run_id}_joblog.tsv" "./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/autoencoderRunner/autoencoderRunner --profile {}" ::: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/*.json && touch "logs/grid_runs/${run_id}_DONE"
+python3 src/experiments/autoencoderRunner/scripts/analyze_grid_results.py
 ```
 
 ## 1. Scope and Goal
@@ -36,7 +36,7 @@ Total profiles: 402
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
-export NN_EXPERIMENT03_LOG_LEVEL=warn
+export NN_AUTOENCODERRUNNER_LOG_LEVEL=warn
 ```
 
 ## 4. Run Commands
@@ -44,7 +44,7 @@ export NN_EXPERIMENT03_LOG_LEVEL=warn
 ### Parallel (Recommended)
 ```bash
 cd <path_to_nn_project_root>
-bin="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03"
+bin="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/autoencoderRunner/autoencoderRunner"
 mkdir -p logs/grid_runs
 run_id="$(date +%Y%m%d_%H%M%S)"
 
@@ -52,13 +52,13 @@ parallel -j 12 \
   --timeout 600 \
   --joblog "logs/grid_runs/${run_id}_joblog.tsv" \
   "$bin --profile {}" \
-  ::: src/experiments/03/profiles/snnAutoEncodersProfiles/*.json
+  ::: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/*.json
 ```
 
 ## 5. Analysis
 
 ```bash
-python3 src/experiments/03/scripts/analyze_grid_results.py
+python3 src/experiments/autoencoderRunner/scripts/analyze_grid_results.py
 ```
 
 Output:
@@ -71,11 +71,11 @@ Output:
 
 | Issue | Solution |
 |-------|----------|
-| No results | Check JSON outputs in `src/experiments/03/results/` |
+| No results | Check JSON outputs in `src/experiments/autoencoderRunner/results/` |
 | Stalled batch | Check process count and joblog |
 | Script failure | Verify Python 3.8+, validate JSON with `python3 -m json.tool` |
 
 ## See Also
 
-- [Experiment03](../Experiments/Experiment03.md)
+- [Experiment03](../Experiments/AutoencoderRunner.md)
 - [Architecture](../Architecture.md)

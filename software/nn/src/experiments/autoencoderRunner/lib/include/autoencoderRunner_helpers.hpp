@@ -1,9 +1,9 @@
 /**
- * @file src/experiments/03/lib/include/experiment03_helpers.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/autoencoderRunner_helpers.hpp
  * @brief Helper utilities for Experiment03 (conversion, device runtime, model factory).
  *
  * These helpers were previously defined in the experiment driver translation unit.
- * Moving them into the experiment03 library allows reuse and keeps the driver
+ * Moving them into the autoencoderRunner library allows reuse and keeps the driver
  * implementation focused on orchestration.
  */
 
@@ -20,7 +20,7 @@
 #include "layers/base/Module.hpp"
 #include "utility/Transforms.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 using nn::MAELoss;
 using nn::MSELoss;
@@ -59,4 +59,4 @@ class ReconstructionLoss
     std::unique_ptr<MAELoss> mae_;
 };
 
-} // namespace experiment03
+} // namespace autoencoderRunner

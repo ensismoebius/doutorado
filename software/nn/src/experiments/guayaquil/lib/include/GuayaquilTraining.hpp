@@ -5,21 +5,21 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "E04Config.hpp"
-#include "E04EpochHistory.hpp"
-#include "E04RunMetrics.hpp"
+#include "GuayaquilConfig.hpp"
+#include "GuayaquilEpochHistory.hpp"
+#include "GuayaquilRunMetrics.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using Tensor = nn::Tensor;
 
-auto make_lstm_cfg(const E04Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
-auto make_snn_cfg(const E04Config& cfg, float alpha, float v_th) -> AutoencoderConfig;
+auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
+auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> AutoencoderConfig;
 
 struct TrainResult
 {
@@ -28,7 +28,7 @@ struct TrainResult
 };
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -39,7 +39,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float& infer_ms) -> TrainResult;
 
 auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
-    const E04Config& cfg,
+    const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
@@ -53,4 +53,4 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     float& train_ms,
     float& infer_ms) -> TrainResult;
 
-} // namespace e04
+} // namespace guayaquil

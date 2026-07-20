@@ -9,11 +9,11 @@
 #include <fstream>
 #include <sstream>
 
-#include "../lib/include/E05Config.hpp"
-#include "../lib/include/E05Output.hpp"
+#include "../lib/include/ThesisConfig.hpp"
+#include "../lib/include/ThesisOutput.hpp"
 #include "nlohmann/json.hpp"
 
-using e05::E05Config;
+using thesis::ThesisConfig;
 
 namespace
 {
@@ -25,9 +25,9 @@ nlohmann::json read_summary(const std::string& dir, const std::string& tag)
     return j;
 }
 
-E05Config base_cfg(const std::string& tag)
+ThesisConfig base_cfg(const std::string& tag)
 {
-    E05Config cfg;
+    ThesisConfig cfg;
     cfg.experiment.run_tag = tag;
     cfg.experiment.seed = 7;
     cfg.dataset.modality = "eeg";
@@ -35,7 +35,7 @@ E05Config base_cfg(const std::string& tag)
 }
 } // namespace
 
-TEST(E05Output, HandcraftedSummaryRecordsExtractionConfig)
+TEST(ThesisOutput, HandcraftedSummaryRecordsExtractionConfig)
 {
     auto cfg = base_cfg("t_hc");
     cfg.feature_extraction.strategy = "handcrafted";
@@ -43,7 +43,7 @@ TEST(E05Output, HandcraftedSummaryRecordsExtractionConfig)
     cfg.feature_extraction.handcrafted.scale = "bark";
     cfg.feature_extraction.handcrafted.cepstral = true;
 
-    e05::write_summary_json("./e05_output_test", "t_hc", cfg, {}, {}, 15, 11, 1974);
+    thesis::write_summary_json("./e05_output_test", "t_hc", cfg, {}, {}, 15, 11, 1974);
     auto j = read_summary("./e05_output_test", "t_hc");
 
     EXPECT_EQ(j["handcrafted"]["wavelet"], "daub12");
@@ -52,7 +52,7 @@ TEST(E05Output, HandcraftedSummaryRecordsExtractionConfig)
     EXPECT_FALSE(j.contains("autoencoder"));
 }
 
-TEST(E05Output, SnnAeSummaryRecordsEncodingAndThreshold)
+TEST(ThesisOutput, SnnAeSummaryRecordsEncodingAndThreshold)
 {
     auto cfg = base_cfg("t_snn");
     cfg.feature_extraction.strategy = "autoencoder";
@@ -61,7 +61,7 @@ TEST(E05Output, SnnAeSummaryRecordsEncodingAndThreshold)
     cfg.feature_extraction.autoencoder.time_steps = 16;
     cfg.feature_extraction.autoencoder.voltage_threshold = 0.2f;
 
-    e05::write_summary_json("./e05_output_test", "t_snn", cfg, {}, {}, 15, 11, 1974);
+    thesis::write_summary_json("./e05_output_test", "t_snn", cfg, {}, {}, 15, 11, 1974);
     auto j = read_summary("./e05_output_test", "t_snn");
 
     EXPECT_EQ(j["autoencoder"]["model"], "snn-ae");
@@ -70,7 +70,7 @@ TEST(E05Output, SnnAeSummaryRecordsEncodingAndThreshold)
     EXPECT_FLOAT_EQ(j["autoencoder"]["voltage_threshold"].get<float>(), 0.2f);
 }
 
-TEST(E05Output, SnnAeDirectEncodingForcesTimeStepsToOne)
+TEST(ThesisOutput, SnnAeDirectEncodingForcesTimeStepsToOne)
 {
     // "direct" is a single analog frame regardless of the profile's time_steps
     // value — the summary must record what actually ran (1), not the config
@@ -81,20 +81,20 @@ TEST(E05Output, SnnAeDirectEncodingForcesTimeStepsToOne)
     cfg.feature_extraction.autoencoder.encoding = "direct";
     cfg.feature_extraction.autoencoder.time_steps = 16; // ignored for direct
 
-    e05::write_summary_json("./e05_output_test", "t_direct", cfg, {}, {}, 15, 11, 1974);
+    thesis::write_summary_json("./e05_output_test", "t_direct", cfg, {}, {}, 15, 11, 1974);
     auto j = read_summary("./e05_output_test", "t_direct");
 
     EXPECT_EQ(j["autoencoder"]["encoding"], "direct");
     EXPECT_EQ(j["autoencoder"]["time_steps"], 1);
 }
 
-TEST(E05Output, AnnAeSummaryOmitsSnnOnlyFields)
+TEST(ThesisOutput, AnnAeSummaryOmitsSnnOnlyFields)
 {
     auto cfg = base_cfg("t_ann");
     cfg.feature_extraction.strategy = "autoencoder";
     cfg.feature_extraction.autoencoder.model = "ann-ae";
 
-    e05::write_summary_json("./e05_output_test", "t_ann", cfg, {}, {}, 15, 11, 1974);
+    thesis::write_summary_json("./e05_output_test", "t_ann", cfg, {}, {}, 15, 11, 1974);
     auto j = read_summary("./e05_output_test", "t_ann");
 
     EXPECT_EQ(j["autoencoder"]["model"], "ann-ae");
@@ -102,12 +102,12 @@ TEST(E05Output, AnnAeSummaryOmitsSnnOnlyFields)
     EXPECT_FALSE(j["autoencoder"].contains("voltage_threshold"));
 }
 
-TEST(E05Output, SummaryRecordsDatasetComposition)
+TEST(ThesisOutput, SummaryRecordsDatasetComposition)
 {
     auto cfg = base_cfg("t_ds");
     cfg.feature_extraction.strategy = "handcrafted";
 
-    e05::write_summary_json("./e05_output_test", "t_ds", cfg, {}, {}, 15, 11, 1974);
+    thesis::write_summary_json("./e05_output_test", "t_ds", cfg, {}, {}, 15, 11, 1974);
     auto j = read_summary("./e05_output_test", "t_ds");
 
     EXPECT_EQ(j["dataset"]["n_subjects"], 15);

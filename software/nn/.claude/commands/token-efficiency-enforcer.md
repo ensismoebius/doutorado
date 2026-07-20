@@ -22,7 +22,7 @@ rg 'LifBPTT' include/ src/ --type cpp -l
 ctest --test-dir out/build/max-performance -R core_gtest --output-on-failure
 
 # Check specific profile field without reading entire file
-jq '.model.paradigm' src/experiments/04/profiles/article-lstm-ae.json
+jq '.model.paradigm' src/experiments/guayaquil/profiles/article-lstm-ae.json
 ```
 
 **Avoid reading** entire files when a grep or `jq` query suffices.

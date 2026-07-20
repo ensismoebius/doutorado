@@ -1,17 +1,17 @@
 include(../../../cmake/SanitizerFlags.cmake)
 
-add_executable(experiment_02
-    Experiment02Config.cpp
-    Experiment02Data.cpp
-    Experiment02Evaluation.cpp
-    Experiment02Pipeline.cpp
-    Experiment02Reporting.cpp
-    Experiment02Training.cpp
-    Experiment02Wavelets.cpp
-    experiment_02.cpp
+add_executable(waveletAE
+    WaveletAEConfig.cpp
+    WaveletAEData.cpp
+    WaveletAEEvaluation.cpp
+    WaveletAEPipeline.cpp
+    WaveletAEReporting.cpp
+    WaveletAETraining.cpp
+    WaveletAEWavelets.cpp
+    waveletAE.cpp
 )
 
-target_link_libraries(experiment_02
+target_link_libraries(waveletAE
     PRIVATE
         experiments_config
         wavelet
@@ -32,6 +32,6 @@ target_link_libraries(experiment_02
 
 # Add Callgrind profiling target for performance analysis
 include(../../../cmake/Tooling.cmake)
-add_callgrind_target(profile_experiment_02 experiment_02)
+add_callgrind_target(profile_experiment_02 waveletAE)
 
 add_subdirectory(tests)

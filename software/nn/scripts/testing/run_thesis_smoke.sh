@@ -4,49 +4,49 @@
 # errors that compilation cannot catch. Each profile uses tiny run parameters
 # (small sample cap, 2 epochs, 2 folds) but keeps its real code-path selectors.
 #
-# Requires: the experiment05 binary built, and the dataset (dataset.root) present.
+# Requires: the thesis binary built, and the dataset (dataset.root) present.
 # Long-running (~315 runs). Regenerate the smoke profiles with
-#   .venv/bin/python scripts/testing/e05_make_smoke_profiles.py
+#   .venv/bin/python scripts/testing/thesis_make_smoke_profiles.py
 # after editing any real profile.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
-# Usage:  ./scripts/testing/run_e05_smoke.sh [phase00|phase01|all]   # default: all
+# Usage:  ./scripts/testing/run_thesis_smoke.sh [phase00|phase01|all]   # default: all
 # Binary selection (works with any CMake profile):
-#   auto: most recently built out/build/*/…/experiment05
-#   E05_BUILD=max-performance-opencl ./scripts/testing/run_e05_smoke.sh
-#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_e05_smoke.sh
+#   auto: most recently built out/build/*/…/thesis
+#   THESIS_BUILD=max-performance-opencl ./scripts/testing/run_thesis_smoke.sh
+#   THESIS_BIN=/abs/path/to/thesis ./scripts/testing/run_thesis_smoke.sh
 set -u
 
 cd "$(dirname "$0")/../.." # -> software/nn
 
-# Locate the experiment05 binary under any CMake build profile.
-#   E05_BIN=/path/to/experiment05   → explicit override
-#   E05_BUILD=<name>                → out/build/<name>/…  (e.g. max-performance-opencl)
-#   otherwise: auto-pick the most recently built experiment05 across out/build/*
-if [ -n "${E05_BIN:-}" ]; then
-    BIN="$E05_BIN"
-elif [ -n "${E05_BUILD:-}" ]; then
-    BIN="out/build/${E05_BUILD}/src/experiments/05/experiment05"
+# Locate the thesis binary under any CMake build profile.
+#   THESIS_BIN=/path/to/thesis   → explicit override
+#   THESIS_BUILD=<name>                → out/build/<name>/…  (e.g. max-performance-opencl)
+#   otherwise: auto-pick the most recently built thesis across out/build/*
+if [ -n "${THESIS_BIN:-}" ]; then
+    BIN="$THESIS_BIN"
+elif [ -n "${THESIS_BUILD:-}" ]; then
+    BIN="out/build/${THESIS_BUILD}/src/experiments/thesis/thesis"
 else
-    BIN=$(find out/build -maxdepth 5 -type f -name experiment05 \
-              -path '*/experiments/05/experiment05' -printf '%T@ %p\n' 2>/dev/null \
+    BIN=$(find out/build -maxdepth 5 -type f -name thesis \
+              -path '*/experiments/thesis/thesis' -printf '%T@ %p\n' 2>/dev/null \
           | sort -rn | head -1 | cut -d' ' -f2-)
 fi
 
 if [ -z "${BIN:-}" ] || [ ! -x "$BIN" ]; then
-    echo "experiment05 binary not found."
+    echo "thesis binary not found."
     echo "build it in any profile, e.g.:"
-    echo "  cmake --build out/build/max-performance --target experiment05 -j\$(nproc)"
-    echo "or point at one:  E05_BIN=/path/to/experiment05 $0 $*"
+    echo "  cmake --build out/build/max-performance --target thesis -j\$(nproc)"
+    echo "or point at one:  THESIS_BIN=/path/to/thesis $0 $*"
     exit 1
 fi
 echo "using binary: $BIN"
 
 SCOPE="${1:-all}"
 case "$SCOPE" in
-    phase00) ROOT="src/experiments/05/profiles/smoke/phase00" ;;
-    phase01) ROOT="src/experiments/05/profiles/smoke/phase01" ;;
-    all)     ROOT="src/experiments/05/profiles/smoke" ;;
+    phase00) ROOT="src/experiments/thesis/profiles/smoke/phase00" ;;
+    phase01) ROOT="src/experiments/thesis/profiles/smoke/phase01" ;;
+    all)     ROOT="src/experiments/thesis/profiles/smoke" ;;
     *) echo "usage: $0 [phase00|phase01|all]"; exit 1 ;;
 esac
 
@@ -60,7 +60,7 @@ i=0
 mapfile -t PROFILES < <(find "$ROOT" -name '*.json' | sort)
 total=${#PROFILES[@]}
 if [ "$total" -eq 0 ]; then
-    echo "no smoke profiles under $ROOT — build (regenerates mirror) or run e05_make_smoke_profiles.py"
+    echo "no smoke profiles under $ROOT — build (regenerates mirror) or run thesis_make_smoke_profiles.py"
     exit 1
 fi
 

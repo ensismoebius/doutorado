@@ -1,13 +1,13 @@
 /**
- * @file src/experiments/03/experiment03.cpp
+ * @file src/experiments/autoencoderRunner/autoencoderRunner.cpp
  * @brief Lightweight launcher for Experiment03 CLI.
  *
  * This translation unit implements the small main() wrapper used to parse CLI
  * parameters and invoke the `Experiment03` driver. It is intentionally thin;
  * the experiment implementation lives under `lib/src/` and the runtime
- * configuration is declared in `lib/include/experiment03.hpp`.
+ * configuration is declared in `lib/include/autoencoderRunner.hpp`.
  */
-#include "lib/include/experiment03.hpp"
+#include "lib/include/autoencoderRunner.hpp"
 
 #include <cstddef>
 #include <cstdlib>
@@ -33,7 +33,7 @@ namespace
 {
 auto parse_log_level_from_env() -> Level
 {
-    const char* value = std::getenv("NN_EXPERIMENT03_LOG_LEVEL");
+    const char* value = std::getenv("NN_AUTOENCODERRUNNER_LOG_LEVEL");
     if (value == nullptr) return Level::Info;
 
     const std::string_view level{value};
@@ -69,7 +69,7 @@ auto main(int argc, char* argv[]) -> int
     Config profile_defaults{};
     Config config = parseCliParams(argc, argv, profile_defaults);
 
-    if (!experiment03::load_profile_to_config("default", profile_defaults, profile_error))
+    if (!autoencoderRunner::load_profile_to_config("default", profile_defaults, profile_error))
     {
         cerr << "Failed to load default profile: " << profile_error << '\n';
         return 1;

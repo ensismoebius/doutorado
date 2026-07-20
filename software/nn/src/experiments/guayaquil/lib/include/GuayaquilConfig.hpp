@@ -7,10 +7,10 @@
 
 #include "nlohmann/json.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
-struct E04Config
+struct GuayaquilConfig
 {
     struct Experiment
     {
@@ -24,7 +24,7 @@ struct E04Config
     struct Dataset
     {
         std::string dataset_root;                      // REQUIRED
-        std::string results_dir = "results/guayaquil"; // optional (E04 = Guayaquil paper)
+        std::string results_dir = "results/guayaquil"; // optional (Guayaquil = Guayaquil paper)
         int window_size = 0;                           // REQUIRED (validated > 0)
         int max_loaded_train_samples = 0;              // REQUIRED (validated > 0)
         int max_validation_samples = 0;                // REQUIRED (validated > 0)
@@ -83,9 +83,9 @@ struct E04Config
 
     void validate() const;
 
-    static E04Config from_flat_json(const nlohmann::json& j)
+    static GuayaquilConfig from_flat_json(const nlohmann::json& j)
     {
-        E04Config cfg;
+        GuayaquilConfig cfg;
 
         auto get = [&](const std::string& key, auto& field)
         {
@@ -147,15 +147,15 @@ struct E04Config
         return cfg;
     }
 
-    static E04Config from_nested_json(const nlohmann::json& j)
+    static GuayaquilConfig from_nested_json(const nlohmann::json& j)
     {
-        E04Config cfg;
+        GuayaquilConfig cfg;
 
         for (const auto* section : {"experiment", "dataset", "training", "model", "evaluation"})
         {
             if (!j.contains(section))
                 throw std::invalid_argument(
-                    std::string("E04Config: required section missing: ") + section);
+                    std::string("GuayaquilConfig: required section missing: ") + section);
         }
 
         const auto& exp = j["experiment"];
@@ -177,7 +177,7 @@ struct E04Config
         {
             if (!sec.contains(key))
                 throw std::invalid_argument(
-                    "E04Config: required field missing: " + section_name + "." + key);
+                    "GuayaquilConfig: required field missing: " + section_name + "." + key);
             field = sec[key].get<std::decay_t<decltype(field)>>();
         };
 
@@ -237,4 +237,4 @@ struct E04Config
     }
 };
 
-} // namespace e04
+} // namespace guayaquil

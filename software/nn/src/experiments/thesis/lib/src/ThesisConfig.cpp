@@ -1,4 +1,4 @@
-#include "E05Config.hpp"
+#include "ThesisConfig.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -6,10 +6,10 @@
 
 #include "optimizers/OptimizerFactory.hpp"
 
-namespace e05
+namespace thesis
 {
 
-auto E05Config::Training::effective_learning_rate() const -> float
+auto ThesisConfig::Training::effective_learning_rate() const -> float
 {
     // Explicit profile value wins; otherwise fall back to the chosen optimizer's own
     // reference default, so a profile that names an optimizer without naming an lr still
@@ -17,41 +17,41 @@ auto E05Config::Training::effective_learning_rate() const -> float
     return learning_rate.value_or(nn::optimizers::reference_learning_rate(optimizer_type));
 }
 
-void E05Config::validate() const
+void ThesisConfig::validate() const
 {
     if (experiment.run_tag.empty())
-        throw std::invalid_argument("E05Config: experiment.run_tag is required");
+        throw std::invalid_argument("ThesisConfig: experiment.run_tag is required");
     if (experiment.seed == 0u)
-        throw std::invalid_argument("E05Config: experiment.seed must be non-zero");
+        throw std::invalid_argument("ThesisConfig: experiment.seed must be non-zero");
     if (experiment.repeats <= 0)
-        throw std::invalid_argument("E05Config: experiment.repeats must be > 0");
-    if (dataset.root.empty()) throw std::invalid_argument("E05Config: dataset.root is required");
+        throw std::invalid_argument("ThesisConfig: experiment.repeats must be > 0");
+    if (dataset.root.empty()) throw std::invalid_argument("ThesisConfig: dataset.root is required");
 
     auto valid_modality =
         dataset.modality == "voice" || dataset.modality == "eeg" || dataset.modality == "fused";
     if (!valid_modality)
-        throw std::invalid_argument("E05Config: dataset.modality must be voice/eeg/fused");
+        throw std::invalid_argument("ThesisConfig: dataset.modality must be voice/eeg/fused");
 
     auto valid_fusion_mode = dataset.fusion_mode == "early" || dataset.fusion_mode == "late";
     if (!valid_fusion_mode)
-        throw std::invalid_argument("E05Config: dataset.fusion_mode must be early/late");
+        throw std::invalid_argument("ThesisConfig: dataset.fusion_mode must be early/late");
 
     const bool valid_strategy = feature_extraction.strategy == "handcrafted" ||
                                 feature_extraction.strategy == "autoencoder";
     if (!valid_strategy)
         throw std::invalid_argument(
-            "E05Config: feature_extraction.strategy must be handcrafted or autoencoder");
+            "ThesisConfig: feature_extraction.strategy must be handcrafted or autoencoder");
 
     if (feature_extraction.strategy == "handcrafted")
     {
         if (feature_extraction.handcrafted.transform != "dtwpt")
-            throw std::invalid_argument("E05Config: handcrafted.transform must be dtwpt");
+            throw std::invalid_argument("ThesisConfig: handcrafted.transform must be dtwpt");
 
         const auto valid_scale = feature_extraction.handcrafted.scale == "bark" ||
                                  feature_extraction.handcrafted.scale == "mel" ||
                                  feature_extraction.handcrafted.scale == "lfcc";
         if (!valid_scale)
-            throw std::invalid_argument("E05Config: handcrafted.scale must be bark/mel/lfcc");
+            throw std::invalid_argument("ThesisConfig: handcrafted.scale must be bark/mel/lfcc");
 
         // Bark and Mel are cochlear scales: they model the frequency resolution of human
         // HEARING. There is no physiological basis for applying them to EEG, which is not
@@ -78,7 +78,7 @@ void E05Config::validate() const
         // mislabeled); in early fusion the concatenated signal runs at the voice rate.
         if (dataset.modality == "eeg" && feature_extraction.handcrafted.scale != "lfcc")
             throw std::invalid_argument(
-                "E05Config: handcrafted.scale must be lfcc for modality=eeg — bark/mel are "
+                "ThesisConfig: handcrafted.scale must be lfcc for modality=eeg — bark/mel are "
                 "cochlear (hearing) scales with no physiological basis for EEG, and are "
                 "provably degenerate to lfcc there (see .wiki/Guides/Engineering-Fixes-Log.md D6)");
 
@@ -110,50 +110,50 @@ void E05Config::validate() const
                 valid_wavelets.end(),
                 feature_extraction.handcrafted.wavelet) == valid_wavelets.end())
             throw std::invalid_argument(
-                "E05Config: handcrafted.wavelet must be haar or daubN (even N in [4,46])");
+                "ThesisConfig: handcrafted.wavelet must be haar or daubN (even N in [4,46])");
 
         if (feature_extraction.handcrafted.descriptors.empty())
-            throw std::invalid_argument("E05Config: handcrafted.descriptors must not be empty");
+            throw std::invalid_argument("ThesisConfig: handcrafted.descriptors must not be empty");
 
         if (feature_extraction.handcrafted.dtwpt_level < 1)
-            throw std::invalid_argument("E05Config: handcrafted.dtwpt_level must be >= 1");
+            throw std::invalid_argument("ThesisConfig: handcrafted.dtwpt_level must be >= 1");
     }
     else
     {
         const auto& ae_model = feature_extraction.autoencoder.model;
         if (ae_model != "snn-ae" && ae_model != "ann-ae" && ae_model != "lstm-ae")
             throw std::invalid_argument(
-                "E05Config: autoencoder.model must be snn-ae, ann-ae, or lstm-ae");
+                "ThesisConfig: autoencoder.model must be snn-ae, ann-ae, or lstm-ae");
         if (feature_extraction.autoencoder.encoder_layer_spec.empty())
-            throw std::invalid_argument("E05Config: autoencoder.encoder_layer_spec is required");
+            throw std::invalid_argument("ThesisConfig: autoencoder.encoder_layer_spec is required");
         if (feature_extraction.autoencoder.decoder_layer_spec.empty())
-            throw std::invalid_argument("E05Config: autoencoder.decoder_layer_spec is required");
+            throw std::invalid_argument("ThesisConfig: autoencoder.decoder_layer_spec is required");
         const auto& ae_enc = feature_extraction.autoencoder.encoding;
         if (ae_enc != "poisson" && ae_enc != "latency" && ae_enc != "direct")
             throw std::invalid_argument(
-                "E05Config: autoencoder.encoding must be poisson, latency, or direct");
+                "ThesisConfig: autoencoder.encoding must be poisson, latency, or direct");
         if (feature_extraction.autoencoder.time_steps < 1)
-            throw std::invalid_argument("E05Config: autoencoder.time_steps must be >= 1");
+            throw std::invalid_argument("ThesisConfig: autoencoder.time_steps must be >= 1");
         if (feature_extraction.autoencoder.firing_rate_reg_lambda < 0.0f)
             throw std::invalid_argument(
-                "E05Config: autoencoder.firing_rate_reg_lambda must be >= 0");
+                "ThesisConfig: autoencoder.firing_rate_reg_lambda must be >= 0");
         if (feature_extraction.autoencoder.firing_rate_min < 0.0f ||
             feature_extraction.autoencoder.firing_rate_max > 1.0f ||
             feature_extraction.autoencoder.firing_rate_min >
                 feature_extraction.autoencoder.firing_rate_max)
             throw std::invalid_argument(
-                "E05Config: require 0 <= autoencoder.firing_rate_min <= "
+                "ThesisConfig: require 0 <= autoencoder.firing_rate_min <= "
                 "autoencoder.firing_rate_max <= 1");
     }
 
     if (classifier.type != "rnn" && classifier.type != "dsnn")
-        throw std::invalid_argument("E05Config: classifier.type must be rnn or dsnn");
+        throw std::invalid_argument("ThesisConfig: classifier.type must be rnn or dsnn");
 
     auto valid_text_mode =
         classifier.text_mode == "dependent" || classifier.text_mode == "independent";
     if (!valid_text_mode)
         throw std::invalid_argument(
-            "E05Config: classifier.text_mode must be dependent/independent");
+            "ThesisConfig: classifier.text_mode must be dependent/independent");
 
     // layer_spec is only meaningful when the classifier actually runs (Phase 01).
     // Phase 00 profiles (classifier.enabled=false) stop after paraconsistent
@@ -162,7 +162,7 @@ void E05Config::validate() const
     {
         if (classifier.layer_spec.size() < 3)
             throw std::invalid_argument(
-                "E05Config: classifier.layer_spec must have at least 3 items: "
+                "ThesisConfig: classifier.layer_spec must have at least 3 items: "
                 "linear:H:act, residual:D, linear:N_speakers:identity");
 
         const auto starts_with = [](const std::string& s, const std::string& p)
@@ -170,59 +170,60 @@ void E05Config::validate() const
 
         if (!starts_with(classifier.layer_spec.front(), "linear:"))
             throw std::invalid_argument(
-                "E05Config: first classifier.layer_spec item must start with linear:");
+                "ThesisConfig: first classifier.layer_spec item must start with linear:");
 
         const bool has_residual = std::any_of(classifier.layer_spec.begin(),
             classifier.layer_spec.end(),
             [&](const std::string& s) { return starts_with(s, "residual:"); });
         if (!has_residual)
             throw std::invalid_argument(
-                "E05Config: classifier.layer_spec must include residual:D item");
+                "ThesisConfig: classifier.layer_spec must include residual:D item");
 
         if (!starts_with(classifier.layer_spec.back(), "linear:N_speakers:"))
             throw std::invalid_argument(
-                "E05Config: last classifier.layer_spec item must start with linear:N_speakers:");
+                "ThesisConfig: last classifier.layer_spec item must start with linear:N_speakers:");
     }
 
-    if (training.epochs <= 0) throw std::invalid_argument("E05Config: training.epochs must be > 0");
+    if (training.epochs <= 0)
+        throw std::invalid_argument("ThesisConfig: training.epochs must be > 0");
     if (training.learning_rate.has_value() && *training.learning_rate <= 0.0f)
-        throw std::invalid_argument("E05Config: training.learning_rate must be > 0");
+        throw std::invalid_argument("ThesisConfig: training.learning_rate must be > 0");
     if (training.samples_per_batch <= 0)
-        throw std::invalid_argument("E05Config: training.samples_per_batch must be > 0");
+        throw std::invalid_argument("ThesisConfig: training.samples_per_batch must be > 0");
     if (training.early_stop_patience < 0)
-        throw std::invalid_argument("E05Config: training.early_stop_patience must be >= 0");
+        throw std::invalid_argument("ThesisConfig: training.early_stop_patience must be >= 0");
     if (training.k_folds < 2)
-        throw std::invalid_argument("E05Config: training.k_folds must be >= 2");
+        throw std::invalid_argument("ThesisConfig: training.k_folds must be >= 2");
     if (training.optimizer_type != "adam" && training.optimizer_type != "sgd" &&
         training.optimizer_type != "lion" && training.optimizer_type != "schedule-free-adamw")
         throw std::invalid_argument(
-            "E05Config: training.optimizer_type must be one of "
+            "ThesisConfig: training.optimizer_type must be one of "
             "adam, sgd, lion, schedule-free-adamw");
     if (training.optimizer_momentum < 0.0f || training.optimizer_momentum >= 1.0f)
-        throw std::invalid_argument("E05Config: require 0 <= training.optimizer_momentum < 1");
+        throw std::invalid_argument("ThesisConfig: require 0 <= training.optimizer_momentum < 1");
     if (training.gradient_clip_norm < 0.0f)
         throw std::invalid_argument(
-            "E05Config: training.gradient_clip_norm must be >= 0 "
+            "ThesisConfig: training.gradient_clip_norm must be >= 0 "
             "(0 = off, the default)");
     if (training.weight_decay < 0.0f)
-        throw std::invalid_argument("E05Config: training.weight_decay must be >= 0");
+        throw std::invalid_argument("ThesisConfig: training.weight_decay must be >= 0");
     if (training.firing_rate_reg_lambda < 0.0f)
-        throw std::invalid_argument("E05Config: training.firing_rate_reg_lambda must be >= 0");
+        throw std::invalid_argument("ThesisConfig: training.firing_rate_reg_lambda must be >= 0");
     if (training.firing_rate_min < 0.0f || training.firing_rate_max > 1.0f ||
         training.firing_rate_min > training.firing_rate_max)
         throw std::invalid_argument(
-            "E05Config: require 0 <= firing_rate_min <= firing_rate_max <= 1");
+            "ThesisConfig: require 0 <= firing_rate_min <= firing_rate_max <= 1");
     if (training.batch_normalization != "none" &&
         training.batch_normalization != "threshold-dependent")
         throw std::invalid_argument(
-            "E05Config: training.batch_normalization must be none or threshold-dependent");
+            "ThesisConfig: training.batch_normalization must be none or threshold-dependent");
     if (training.tdbn_alpha <= 0.0f)
-        throw std::invalid_argument("E05Config: training.tdbn_alpha must be > 0");
+        throw std::invalid_argument("ThesisConfig: training.tdbn_alpha must be > 0");
 }
 
-E05Config E05Config::from_json(const nlohmann::json& j)
+ThesisConfig ThesisConfig::from_json(const nlohmann::json& j)
 {
-    E05Config cfg;
+    ThesisConfig cfg;
 
     // Experiment
     if (j.contains("experiment"))
@@ -357,13 +358,13 @@ E05Config E05Config::from_json(const nlohmann::json& j)
     return cfg;
 }
 
-E05Config E05Config::from_file(const std::string& path)
+ThesisConfig ThesisConfig::from_file(const std::string& path)
 {
     std::ifstream f(path);
-    if (!f.is_open()) throw std::runtime_error("E05Config: cannot open " + path);
+    if (!f.is_open()) throw std::runtime_error("ThesisConfig: cannot open " + path);
     nlohmann::json j;
     f >> j;
     return from_json(j);
 }
 
-} // namespace e05
+} // namespace thesis

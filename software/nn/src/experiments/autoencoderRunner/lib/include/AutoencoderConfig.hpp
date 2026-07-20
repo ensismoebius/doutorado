@@ -7,9 +7,9 @@
 
 /**
  * @file AutoencoderConfig.hpp
- * @brief Shared configuration struct for experiment03 autoencoders.
+ * @brief Shared configuration struct for autoencoderRunner autoencoders.
  *
- * The initial experiment03 models were scaffold-like symmetric MLP stacks.
+ * The initial autoencoderRunner models were scaffold-like symmetric MLP stacks.
  * This config now carries enough information for modality-aware redesigns,
  * including multimodal branch hints and architecture-family selection.
  */

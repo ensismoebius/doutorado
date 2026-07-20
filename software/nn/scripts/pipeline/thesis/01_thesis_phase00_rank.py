@@ -11,12 +11,12 @@ to the paraconsistent "Truth" corner -> best speaker separability before any
 classifier is trained).
 
 Usage:
-    python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
-        --profiles-dir src/experiments/05/profiles/phase00 \
+    python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
+        --profiles-dir src/experiments/thesis/profiles/phase00 \
         --results-dir  results/thesis/phase00 \
         --out          results/thesis/phase00/winners.json
 
-The --out JSON feeds 02_e05_apply_winner.py, which injects each winner into the
+The --out JSON feeds 02_thesis_apply_winner.py, which injects each winner into the
 Phase 01 profiles.
 """
 import argparse
@@ -30,7 +30,7 @@ import sys
 
 
 # Contradiction penalty weight (must match kContradictionPenalty in
-# E05Paraconsistent.hpp): 2 - sqrt(2), so the three non-Truth vertices are
+# ThesisParaconsistent.hpp): 2 - sqrt(2), so the three non-Truth vertices are
 # penalized equally.
 CONTRADICTION_PENALTY = 2.0 - math.sqrt(2.0)
 
@@ -99,7 +99,7 @@ def extractor_label(fe):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--profiles-dir", default="src/experiments/05/profiles/phase00")
+    ap.add_argument("--profiles-dir", default="src/experiments/thesis/profiles/phase00")
     ap.add_argument("--results-dir", default="results/thesis/phase00")
     ap.add_argument("--out", default=None, help="Write winners JSON here.")
     ap.add_argument("--top", type=int, default=5, help="Rows to print per signal.")
@@ -201,7 +201,7 @@ def main():
             json.dump(winners, f, indent=2)
             f.write("\n")
         print(f"\nWinners written to {args.out}")
-        print("Next: python3 scripts/pipeline/e05/02_e05_apply_winner.py "
+        print("Next: python3 scripts/pipeline/thesis/02_thesis_apply_winner.py "
               f"--winners {args.out}")
 
 

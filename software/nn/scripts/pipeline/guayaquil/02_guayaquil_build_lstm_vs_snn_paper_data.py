@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""02_e04_build_lstm_vs_snn_paper_data.py — Aggregate Experiment 04 LSTM-AE vs
+"""02_guayaquil_build_lstm_vs_snn_paper_data.py — Aggregate Experiment 04 LSTM-AE vs
 SNN-AE comparative CSVs into paper-ready tables for the Guaiaquil conference
 article.
 
-Reads per-run comparative_metrics.csv files produced by experiment04 and
+Reads per-run comparative_metrics.csv files produced by guayaquil and
 aggregates them into summary CSVs suitable for LaTeX (pgfplots / tabular).
 Also writes .dat files to the paper's data/ directory for pgfplots input.
 
@@ -12,12 +12,12 @@ Column mapping:
   model == "snn-ae" + architecture      → label SNN-{dense|conv1d|recurrent}
 
 Usage:
-    python scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \\
+    python scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \\
         --results-dir results/guayaquil \\
         --data-dir <paper-data-dir> \\
-        --profiles-dir src/experiments/04/profiles
+        --profiles-dir src/experiments/guayaquil/profiles
 
-Called automatically at the end of 01_e04_run_article_profiles.sh.
+Called automatically at the end of 01_guayaquil_run_article_profiles.sh.
 """
 
 from __future__ import annotations
@@ -233,7 +233,7 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
 def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> None:
     # article-backend-bench.json is excluded: it is a single-seed, timing-only profile
     # for build_xtensor_opencl_table() above (CPU-vs-OpenCL wall clock), run separately by
-    # e04_run_backend_comparison.sh, not by 01_e04_run_article_profiles.sh. Its repeats=1
+    # guayaquil_run_backend_comparison.sh, not by 01_guayaquil_run_article_profiles.sh. Its repeats=1
     # (vs. 3 for every other profile) reads as an inconsistency, and its data feeds no
     # number or table anywhere in paper.tex — listing it in tab:profiles only confuses
     # readers about what was actually used for the reported results.
@@ -315,7 +315,7 @@ def build_model_timing_table(rows: List[Dict[str, object]], data_dir: pathlib.Pa
 def build_xtensor_opencl_table(results_dir: pathlib.Path, data_dir: pathlib.Path) -> None:
     """XTensor/CPU vs OpenCL/GPU timing for the SAME model (article-backend-bench profile).
 
-    Populated only by scripts/pipeline/e04/e04_run_backend_comparison.sh, which builds and
+    Populated only by scripts/pipeline/guayaquil/guayaquil_run_backend_comparison.sh, which builds and
     runs both the max-performance and max-performance-opencl presets. Not currently
     referenced from paper.tex — kept separate from paper_backend_comparison.csv (the
     LSTM-vs-SNN model timing table) so the two comparisons never collide on one filename.
@@ -350,7 +350,7 @@ def main() -> int:
         "--data-dir",
         default="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
     )
-    parser.add_argument("--profiles-dir", default="src/experiments/04/profiles")
+    parser.add_argument("--profiles-dir", default="src/experiments/guayaquil/profiles")
     args = parser.parse_args()
 
     results_dir = pathlib.Path(args.results_dir)

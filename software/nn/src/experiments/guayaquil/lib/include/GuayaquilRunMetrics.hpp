@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace e04
+namespace guayaquil
 {
 
 struct RunMetrics
@@ -25,4 +25,4 @@ struct RunMetrics
     std::size_t macs = 0;
 };
 
-} // namespace e04
+} // namespace guayaquil

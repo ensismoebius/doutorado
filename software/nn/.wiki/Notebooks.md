@@ -113,7 +113,7 @@ feats = np.load("lfcc_feats.npy")  # shape: (n_frames, 57) = 19 + 19Δ + 19ΔΔ
 - [Core/Wave](./Core/Wave.md) — WAV I/O and filterbank in C++
 - [Concepts/Imagined-Speech-and-EEG](./Concepts/Imagined-Speech-and-EEG.md) — EEG context for the electrode diagram
 - [Research-Context](./Research-Context.md) — Where MGDF/LFCC fit in the thesis pipeline
-- [Experiments/Experiment05](./Experiments/Experiment05.md) — Primary thesis experiment using these features
+- [Experiments/Experiment05](./Experiments/Thesis.md) — Primary thesis experiment using these features
 
 ## References
 

@@ -28,10 +28,10 @@ This guide records the recent test-suite hardening work and defines quality crit
 
 Top hotspot files from the latest scan:
 
-1. `src/experiments/03/tests/ProfileAndResults_gtest.cpp` (54)
+1. `src/experiments/autoencoderRunner/tests/ProfileAndResults_gtest.cpp` (54)
 2. `src/core/layers/tests/layers_gtest.cpp` (30)
 3. `src/core/statistics/tests/statistics_gtest.cpp` (29)
-4. `src/experiments/04/tests/ComparativeExperiment_gtest.cpp` (23)
+4. `src/experiments/guayaquil/tests/ComparativeExperiment_gtest.cpp` (23)
 5. `src/core/optimizers/tests/optimizers_gtest.cpp` (22)
 
 ### OpenCL Lif Integration Coverage Snapshot (2026-05-10)
@@ -160,7 +160,7 @@ decision, not just more tests.
 
 ### A flaky test blocked the full gate run — root cause: unseeded weight init (fixed)
 
-`E05SnnAe.PoissonLatentIsNonDegenerate` failed intermittently with an all-zero latent
+`ThesisSnnAe.PoissonLatentIsNonDegenerate` failed intermittently with an all-zero latent
 (`max_abs = 0`, `max_var = 0`). It first showed up as "fails in Debug/coverage, passes in
 `max-performance`", which looked like an optimisation-level problem. **It was not.** Running
 the same Release binary 25 times gave **19 passes / 6 failures** — the test was simply flaky
@@ -173,9 +173,9 @@ this in their headers). Every run drew different initial weights. When a draw le
 encoder neurons below `V_th = 0.2`, nothing ever spiked and the latent came out exactly zero
 — the dead-latent / No-Spike Problem of
 [D1](./Engineering-Fixes-Log.md). Experiment 04 already set `initializer_seed = run_seed`;
-E05 was the only path that did not.
+Thesis was the only path that did not.
 
-**Fix.** `ae_cfg.initializer_seed = seed;` in `E05FeatureExtraction.cpp`. After it: 25/25
+**Fix.** `ae_cfg.initializer_seed = seed;` in `ThesisFeatureExtraction.cpp`. After it: 25/25
 passes, and repeated runs produce byte-identical output.
 
 **This was never only a test problem.** Autoencoder feature extraction was

@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "E05Classifiers.hpp"
-#include "E05Config.hpp"
-#include "E05Paraconsistent.hpp"
+#include "ThesisClassifiers.hpp"
+#include "ThesisConfig.hpp"
+#include "ThesisParaconsistent.hpp"
 
-namespace e05
+namespace thesis
 {
 
 // Write per-fold accuracy/EER results to CSV.
@@ -26,12 +26,12 @@ void write_paraconsistent_csv(const std::string& results_dir,
 // Write summary JSON with config, seed, aggregated stats, and the dataset
 // composition actually used (n_subjects/n_stimuli/n_samples — after the
 // paired audio+EEG drop, see load_dataset), so the run is self-describing.
-// Also records the E04-style run diagnostics: per-run timing (train_ms/infer_ms),
+// Also records the Guayaquil-style run diagnostics: per-run timing (train_ms/infer_ms),
 // model complexity (param_count), and the config_hash for provenance/determinism.
 // Path: results_dir/e05_{run_tag}_summary.json
 void write_summary_json(const std::string& results_dir,
     const std::string& run_tag,
-    const E05Config& cfg,
+    const ThesisConfig& cfg,
     const std::vector<ClassificationResult>& results,
     const std::vector<ParaconsistentScore>& scores,
     int n_subjects,
@@ -45,7 +45,7 @@ void write_comparison_dat(const std::string& results_dir,
     const std::string& run_tag,
     const std::vector<ClassificationResult>& results);
 
-// Write per-epoch learning curves for every fold (the E04 epoch-history analog).
+// Write per-epoch learning curves for every fold (the Guayaquil epoch-history analog).
 // One row per (feature_set, fold, epoch): train/val loss, epoch time, and — for
 // spiking classifiers — mean firing rate + synaptic-op count. Skipped (no file)
 // when no result carries any epoch history.
@@ -57,4 +57,4 @@ void write_learning_curves_dat(const std::string& results_dir,
 // Ensure directory exists (creates recursively).
 void ensure_dir(const std::string& path);
 
-} // namespace e05
+} // namespace thesis

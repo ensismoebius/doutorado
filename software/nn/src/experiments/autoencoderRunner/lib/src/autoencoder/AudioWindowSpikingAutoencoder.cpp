@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for audio-window inputs.
  */
 
@@ -8,9 +8,9 @@
 #include "AutoencoderBuilders.hpp"
 
 AudioWindowSpikingAutoencoder::AudioWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(experiment03::autoencoders::build_snn_encoder(
+    : encoder_(autoencoderRunner::autoencoders::build_snn_encoder(
           cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4))),
-      decoder_(experiment03::autoencoders::build_snn_decoder(
+      decoder_(autoencoderRunner::autoencoders::build_snn_decoder(
           cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4)))
 {
 }
@@ -48,6 +48,6 @@ auto AudioWindowSpikingAutoencoder::params() -> std::span<Tensor*>
 
 void AudioWindowSpikingAutoencoder::reset_state()
 {
-    experiment03::autoencoders::reset_sequential_state(encoder_);
-    experiment03::autoencoders::reset_sequential_state(decoder_);
+    autoencoderRunner::autoencoders::reset_sequential_state(encoder_);
+    autoencoderRunner::autoencoders::reset_sequential_state(decoder_);
 }

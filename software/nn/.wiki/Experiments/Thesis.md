@@ -83,11 +83,11 @@ At each leaf node (sub-band), the following descriptors are computed:
 
 Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/LFCC.md)).
 
-> **The `scale` axis is voice-only (fixme.md D6).** Bark and Mel are **cochlear** scales — they model the frequency resolution of human *hearing*. There is no physiological basis for applying them to EEG, which is not sound, so `E05Config::validate()` rejects `scale != lfcc` when `modality=eeg`.
+> **The `scale` axis is voice-only (fixme.md D6).** Bark and Mel are **cochlear** scales — they model the frequency resolution of human *hearing*. There is no physiological basis for applying them to EEG, which is not sound, so `ThesisConfig::validate()` rejects `scale != lfcc` when `modality=eeg`.
 >
 > They were also provably inert there, which is what exposed the problem. `group_by_scale()` normalizes the perceptual curve by the signal's **own Nyquist**. Bark spans ~24 Barks over the audible range and `n_bands=24`, so for voice the factor is ~0.97 — a no-op, the bin *is* the Bark number, and the curve's compression at high frequency genuinely merges sub-bands (bark→9 groups, mel→11, vs lfcc's 16). For EEG (Nyquist 512 Hz) the factor is ~4.96: the curve is stretched 5× to fill 24 bins. Bark/Mel are ~linear over that range, so the mapping becomes injective — each sub-band lands in its own bin and the grouping degenerates to *exactly* lfcc's one-group-per-sub-band. "Bark" for EEG was never Bark; it was a linearly rescaled pseudo-scale identical to linear. Verified on the stored results: all three scales gave bit-identical `D_truth` in **46/46** EEG wavelet×category groups (the only apparent exceptions, `daub32`, differed by ~1e-6 — float noise from that profile's individual re-run).
 >
-> Consequence worth knowing: because the three tied exactly, the EEG Phase-00 winner was decided by the ranking's **sort tie-break** and came out labelled `bark`. Reporting "the Bark scale won for EEG" would have been false — Bark did nothing, and the winning vector is literally the linear one. `01_e05_phase00_rank.py` now detects and reports exact ties so an arbitrary tie-break can't be mistaken for a result. Guarded by `E05EegScaleAxis.BarkAndMelAreRejectedForEeg`.
+> Consequence worth knowing: because the three tied exactly, the EEG Phase-00 winner was decided by the ranking's **sort tie-break** and came out labelled `bark`. Reporting "the Bark scale won for EEG" would have been false — Bark did nothing, and the winning vector is literally the linear one. `01_thesis_phase00_rank.py` now detects and reports exact ties so an arbitrary tie-break can't be mistaken for a result. Guarded by `ThesisEegScaleAxis.BarkAndMelAreRejectedForEeg`.
 
 **Category 1 vs Category 2** (`handcrafted.cepstral`). With `cepstral=false` the per-band energies are the features (Category 1: linear/Mel/Bark-band energies). With `cepstral=true` a **log + DCT-II** is applied over the band energies, yielding cepstral coefficients — **LFCC / MFCC / BFCC** for `scale = lfcc / mel / bark` (Category 2). The cepstral coefficients replace the raw energy descriptor; other descriptors (ZCR, entropy, …) are still appended per band.
 
@@ -108,7 +108,7 @@ Two knobs make this work and both are profile-configurable:
 - `autoencoder.time_steps` (default 16) — integration window.
 - `autoencoder.voltage_threshold` (default **0.2**, vs the LIF default 1.0) — the encoder LIF threshold. Normalized spike frames are low-amplitude, so at `V_th=1` no encoder neuron fires and the latent collapses to all-zeros. That collapse (plus the old single-analog-vector, one-forward presentation) is why the raw-vector SNN-AE ranked poorly. (Audit m-2: this note previously glossed `α≈0.5` as "coin-flip separability" — that reading came from the inverted convention. Under the correct one, `α≈0.5` is mid-range, and the best-ranked configs of the whole grid sit at `α≈0.64–0.67`; see the corrected table below.)
 
-Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `E05SnnAe.*` tests (latent non-degenerate + varies across samples; encoding changes the feature).
+Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `ThesisSnnAe.*` tests (latent non-degenerate + varies across samples; encoding changes the feature).
 
 > **Dead-latent guard: encoder firing-rate regularization (2026-07-16).** A collapsed encoder (constant output regardless of input) lands exactly on the paraconsistent *Ambiguity* vertex (`α=β=1`) and used to score deceptively well under `D_truth` alone — see [Core/Paraconsistent.md](../Core/Paraconsistent.md) for the `D_penalized` metric that closed that ranking exploit, and [Spike-Rate-Regularization](../Concepts/Spike-Rate-Regularization.md) for why a starved LIF encoder collapses in the first place (root cause: at He/Kaiming init the single spiking stage of `linear:16:leaky, linear:8:identity` fires at only ~8.3%, and the `identity` second stage adds no further nonlinearity, so a starved first stage starves the whole latent). `feature_extraction.autoencoder.{firing_rate_reg_lambda, firing_rate_min, firing_rate_max}` push each encoder `Lif` layer's mean firing rate into `[firing_rate_min, firing_rate_max]`, mirroring the DSNN classifier's mechanism (same math, see below) but implemented separately in `ProtocolSpikingAutoencoder::backward` — the AE's encoder is a generically-built `Sequential` (from `encoder_layer_spec`), not the classifier's named layers, so the Lif layers are located once at construction via `dynamic_cast`, and the regularization gradient is injected by a manual reversed-order backward loop rather than `Sequential::backward`. All 18 real `snn-ae` Phase 00 profiles (and their 18 `smoke` mirrors) now set `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80` — `0.10` sits above the measured native init rate (8.3%) so the penalty actually engages; `0.5` was validated on `direct` at the profile's real learning rate (baseline `α=0.5` → `α=0.375` with regularization on). Default is `0.0` (inert) when unset. Guarded by `Experiment03RedesignTest.ProtocolSnnFiringRateRegularization*` (inject-when-enabled / inert-when-zero).
 >
@@ -201,10 +201,10 @@ where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speak
 Three techniques guard generalisation / trainability on the small dysphonic-speaker dataset, all off by default and enabled per profile:
 
 - **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw--sgdw).
-- **Firing-rate regularization** (`training.firing_rate_reg_lambda` for the DSNN classifier; `feature_extraction.autoencoder.firing_rate_reg_lambda` for the SNN-AE encoder): pushes each spiking layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same math as `SpikeCountLossImpl`, but two independent gradient-injection implementations: `E05DsnnClassifier::add_firing_rate_grad` (classifier, named layers) and `ProtocolSpikingAutoencoder`'s `backward_with_firing_rate_reg` (AE encoder, `Sequential`-based, Lif layers located via `dynamic_cast`; see the SNN-AE section above). Inert when `λ = 0` (the RNN classifier and the ANN-AE have no spiking layers to regularize either way).
+- **Firing-rate regularization** (`training.firing_rate_reg_lambda` for the DSNN classifier; `feature_extraction.autoencoder.firing_rate_reg_lambda` for the SNN-AE encoder): pushes each spiking layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same math as `SpikeCountLossImpl`, but two independent gradient-injection implementations: `ThesisDsnnClassifier::add_firing_rate_grad` (classifier, named layers) and `ProtocolSpikingAutoencoder`'s `backward_with_firing_rate_reg` (AE encoder, `Sequential`-based, Lif layers located via `dynamic_cast`; see the SNN-AE section above). Inert when `λ = 0` (the RNN classifier and the ANN-AE have no spiking layers to regularize either way).
 - **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, default 1), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
 
-**Input feature standardization** (`training.standardize_features`, default **on**): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `E05Classifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
+**Input feature standardization** (`training.standardize_features`, default **on**): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `ThesisClassifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -244,9 +244,9 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 > | `early` | Raw voice+EEG samples concatenated **before** extraction | one pass over the joined signal | features of the joined signal |
 > | `late` (default) | Voice and EEG extracted **independently**, feature vectors concatenated **after** | two passes (one per signal) | `[voice-features ‖ eeg-features]` |
 >
-> Early fusion lets the extractor model cross-modal interactions but forces one sample rate onto both halves (the voice rate, since audio dominates the sample count); late fusion keeps each signal at its native rate and its own extractor, at the cost of never seeing the two jointly. Both are worth comparing as an experimental axis. Implemented in `E05FeatureExtraction.cpp::extract_features` (audit C12).
+> Early fusion lets the extractor model cross-modal interactions but forces one sample rate onto both halves (the voice rate, since audio dominates the sample count); late fusion keeps each signal at its native rate and its own extractor, at the cost of never seeing the two jointly. Both are worth comparing as an experimental axis. Implemented in `ThesisFeatureExtraction.cpp::extract_features` (audit C12).
 
-See [Data Loaders](../Core/DataLoaders.md) for the `E05Dataset` loader API and file layout.
+See [Data Loaders](../Core/DataLoaders.md) for the `ThesisDataset` loader API and file layout.
 
 ---
 
@@ -255,23 +255,23 @@ See [Data Loaders](../Core/DataLoaders.md) for the `E05Dataset` loader API and f
 ### Module plan
 
 ```
-src/experiments/05/
-├── experiment05.cpp              CLI entry point
+src/experiments/thesis/
+├── thesis.cpp              CLI entry point
 ├── lib/
 │   ├── include/
-│   │   ├── E05Config.hpp         profile JSON parser
-│   │   ├── E05Dataset.hpp        EEG + voice loader (wraps 10.1117 loaders)
-│   │   ├── E05FeatureExtraction.hpp  handcrafted + autoencoder pipeline
-│   │   ├── E05Paraconsistent.hpp paraconsistent ranking step
-│   │   ├── E05Classifiers.hpp    RNN / DSNN authentication
-│   │   └── E05Output.hpp         CSV, JSON, DAT writers
+│   │   ├── ThesisConfig.hpp         profile JSON parser
+│   │   ├── ThesisDataset.hpp        EEG + voice loader (wraps 10.1117 loaders)
+│   │   ├── ThesisFeatureExtraction.hpp  handcrafted + autoencoder pipeline
+│   │   ├── ThesisParaconsistent.hpp paraconsistent ranking step
+│   │   ├── ThesisClassifiers.hpp    RNN / DSNN authentication
+│   │   └── ThesisOutput.hpp         CSV, JSON, DAT writers
 │   └── src/
-│       ├── E05Config.cpp
-│       ├── E05Dataset.cpp
-│       ├── E05FeatureExtraction.cpp
-│       ├── E05Paraconsistent.cpp
-│       ├── E05Classifiers.cpp
-│       └── E05Output.cpp
+│       ├── ThesisConfig.cpp
+│       ├── ThesisDataset.cpp
+│       ├── ThesisFeatureExtraction.cpp
+│       ├── ThesisParaconsistent.cpp
+│       ├── ThesisClassifiers.cpp
+│       └── ThesisOutput.cpp
 ├── profiles/
 │   ├── debug.json                              (RNN quick smoke)
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
@@ -289,9 +289,9 @@ src/experiments/05/
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
 │           (feature_extraction = placeholder; set the Phase-00 winner before running)
   └── tests/
-  ├── e05_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
-  ├── e05_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
-  └── e05_classifiers_gtest.cpp          batch evaluate() + aggregate stats + DSNN smoke path
+  ├── thesis_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
+  ├── thesis_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
+  └── thesis_classifiers_gtest.cpp          batch evaluate() + aggregate stats + DSNN smoke path
 ```
 
 ### Profile schema
@@ -377,7 +377,7 @@ The experiment shows three concurrent progress bars during a run:
 |---|---|---|
 | `Feature extraction` | `extract_features()` | samples processed (OpenMP parallel) |
 | `Fold N/K \| <label>` | `ProgressCallback` (per outer fold) | epoch + batch within that fold |
-| `E05 \| <run_tag>` | `experiment05.cpp` main | outer folds completed across all feature sets |
+| `Thesis \| <run_tag>` | `thesis.cpp` main | outer folds completed across all feature sets |
 
 All bars are rendered by `nn::progress::ProgressManager` (background thread, ANSI escape codes). The global bar is completed and `ProgressManager::shutdown()` called before any output is written.
 
@@ -417,11 +417,11 @@ EER computation is pluggable via `statistics::IEERScorer`:
 ```cpp
 // Pass to run_classifier(); nullptr → GenuineImpostorEERScorer (default)
 statistics::GenuineImpostorEERScorer sota_scorer(/*n_enroll=*/1);
-auto result = e05::run_classifier(view, fvs, label, cfg, &sota_scorer);
+auto result = thesis::run_classifier(view, fvs, label, cfg, &sota_scorer);
 
 // Back-compat alias — now delegates to the genuine/impostor method (audit m-4)
 statistics::ClassificationEERScorer alias_scorer;
-auto result2 = e05::run_classifier(view, fvs, label, cfg, &alias_scorer);
+auto result2 = thesis::run_classifier(view, fvs, label, cfg, &alias_scorer);
 ```
 
 | Scorer | Protocol | EER source | SOTA? |
@@ -456,15 +456,15 @@ See `include/statistics/eer_scorer.hpp` for the `ISplitPolicy`-style interface; 
 cmake --preset=max-performance
 
 # Build experiment binary
-cmake --build out/build/max-performance --target experiment05 -j$(nproc)
+cmake --build out/build/max-performance --target thesis -j$(nproc)
 
 # Phase 00 — rank feature extractors per signal (stops after paraconsistent ranking)
-./out/build/max-performance/src/experiments/05/experiment05 \
-  --config src/experiments/05/profiles/phase00/p00_hc_daub4_lfcc_voice.json
+./out/build/max-performance/src/experiments/thesis/thesis \
+  --config src/experiments/thesis/profiles/phase00/p00_hc_daub4_lfcc_voice.json
 
 # Phase 01 — DSNN authentication with the chosen extractor
-./out/build/max-performance/src/experiments/05/experiment05 \
-  --config src/experiments/05/profiles/phase01/p01_dsnn_eeg_indep_nested.json
+./out/build/max-performance/src/experiments/thesis/thesis \
+  --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested.json
 
 # Full article run
 ./scripts/pipeline/run_experiment05.sh
@@ -472,7 +472,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 ### Two-phase protocol
 
-> **Running it:** step-by-step commands (build → phase00 → rank → apply → phase01, with the `run_e05_profiles.sh` runner and live progress) are in [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md).
+> **Running it:** step-by-step commands (build → phase00 → rank → apply → phase01, with the `run_thesis_profiles.sh` runner and live progress) are in [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md).
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
@@ -480,41 +480,41 @@ The experiment is split into two profile sets, gated by `classifier.enabled`:
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
 **Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
-(since 2026-07-18) `run_e05_profiles.sh phase00`/`all` chains all three itself once every
-phase00 profile passes (fails closed on any failure; `E05_FORCE_POST`/`E05_SKIP_POST`
-override — see [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md)
+(since 2026-07-18) `run_thesis_profiles.sh phase00`/`all` chains all three itself once every
+phase00 profile passes (fails closed on any failure; `THESIS_FORCE_POST`/`THESIS_SKIP_POST`
+override — see [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md)
 for the full gating rules and the `scope=all` ordering caveat). Shown here for manual re-runs:
 
 ```bash
 # Rank Phase 00 results, pick the min-D_truth winner per signal:
-python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
-  --profiles-dir src/experiments/05/profiles/phase00 \
+python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
+  --profiles-dir src/experiments/thesis/profiles/phase00 \
   --results-dir  results/thesis/phase00 \
   --out          results/thesis/phase00/winners.json
 
 # Inject the winners into the 32 Phase 01 profiles (fused uses the voice winner by default):
-python3 scripts/pipeline/e05/02_e05_apply_winner.py \
+python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
   --winners      results/thesis/phase00/winners.json \
-  --profiles-dir src/experiments/05/profiles/phase01
+  --profiles-dir src/experiments/thesis/profiles/phase01
 
 # Regenerate the thesis Phase 00 tables from the ranked results:
-python3 scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
   --results-dir results/thesis/phase00 \
   --tables-dir  ../../documentation/00-thesis/monography/tables
 ```
 
-`01_e05_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `e05_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from. It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across both the handcrafted and autoencoder families) with a dagger — see pitfall 12 below for why this matters.
+`01_thesis_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from. It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across both the handcrafted and autoencoder families) with a dagger — see pitfall 12 below for why this matters.
 
-A fourth script, not yet chained into `run_e05_profiles.sh`, ranks the Phase 01 results once that phase has run:
+A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 01 results once that phase has run:
 
 ```bash
 # Regenerate the thesis Phase 01 authentication table (32 configs, ranked by mean EER):
-python3 scripts/pipeline/e05/e05_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
   --results-dir results/thesis/phase01 \
   --tables-dir  ../../documentation/00-thesis/monography/tables
 ```
 
-`e05_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above.
+`thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above.
 
 ---
 
@@ -541,9 +541,9 @@ Every profile pulls from the **same** paired audio+EEG trial set (`load_dataset`
 | Fused-late (`*-fused-late`) | both signals, extracted independently | Each signal's own preprocessing above | Two independent extractions, vectors concatenated **after** | each signal's own rate |
 | Phase 01 (`p01_dsnn_*`) | the Phase-00 winner's vectors (already extracted) | z-score standardization (`training.standardize_features`), fit on train folds only | `(N_samples, feature_dim)` | n/a — operates on feature vectors, not raw signal |
 
-**EEG flattening order matters**: `E05Sample::eeg` is `(N_channels=6, N_samples=4096)`; `tensor_to_vec` iterates rows-then-cols, so the flattened signal is channel-major (channel 0's full 4096-sample run, then channel 1's, …), **not** time-interleaved across channels. Anything reading a raw EEG feature vector must account for this layout.
+**EEG flattening order matters**: `ThesisSample::eeg` is `(N_channels=6, N_samples=4096)`; `tensor_to_vec` iterates rows-then-cols, so the flattened signal is channel-major (channel 0's full 4096-sample run, then channel 1's, …), **not** time-interleaved across channels. Anything reading a raw EEG feature vector must account for this layout.
 
-**Per-sample dataset metadata** (`E05Sample`, from `load_dataset`): `subject_id` (int, groups outer folds — GroupKFold, never split across train/test), `stimulus` (int, 1–10; mapped to `text_phrase` via `stimulus_to_phrase`: vowels `a/e/i/o/u` for 1–5, directional words `arriba/abajo/izquierda/derecha/adelante` for 6–10), `text_phrase` (string, drives `classifier.text_mode` dependent/independent splitting). These are **not** written per-row into the paraconsistent/metrics CSVs (which are aggregate-only); they are consumed internally by the fold-splitting and text-mode logic.
+**Per-sample dataset metadata** (`ThesisSample`, from `load_dataset`): `subject_id` (int, groups outer folds — GroupKFold, never split across train/test), `stimulus` (int, 1–10; mapped to `text_phrase` via `stimulus_to_phrase`: vowels `a/e/i/o/u` for 1–5, directional words `arriba/abajo/izquierda/derecha/adelante` for 6–10), `text_phrase` (string, drives `classifier.text_mode` dependent/independent splitting). These are **not** written per-row into the paraconsistent/metrics CSVs (which are aggregate-only); they are consumed internally by the fold-splitting and text-mode logic.
 
 **Run-level metadata written to `summary.json`** (self-describing result files — added so a run's config doesn't have to be cross-referenced against its source profile):
 - Always: `run_tag`, `seed`, `modality`, `strategy`, `classifier`, `text_mode`.
@@ -551,7 +551,7 @@ Every profile pulls from the **same** paired audio+EEG trial set (`load_dataset`
 - `strategy=="handcrafted"` → `handcrafted.{wavelet, scale, cepstral, dtwpt_level, descriptors}`.
 - `strategy=="autoencoder"` → `autoencoder.{model, encoder_layer_spec, decoder_layer_spec}`, plus for `model=="snn-ae"`: `encoding`, `time_steps` (forced to `1` when `encoding=="direct"`, regardless of the profile's configured value — the summary records what actually ran, not the raw field), `voltage_threshold`.
 
-This closes the gap where all 18 SNN-AE profiles previously shared the identical FeatureSet label `"autoencoder-snn"` in the paraconsistent CSV — indistinguishable except by output *filename*. The label still doesn't carry encoding/size (labels are shared across the sweep by design, since paraconsistent ranking compares FeatureSets by label), but `summary.json` now does. Guarded by `E05Output.*` gtests (handcrafted vs. autoencoder field presence, snn-ae `direct` forcing `time_steps=1`, ann-ae omitting snn-only fields, dataset composition roundtrip).
+This closes the gap where all 18 SNN-AE profiles previously shared the identical FeatureSet label `"autoencoder-snn"` in the paraconsistent CSV — indistinguishable except by output *filename*. The label still doesn't carry encoding/size (labels are shared across the sweep by design, since paraconsistent ranking compares FeatureSets by label), but `summary.json` now does. Guarded by `ThesisOutput.*` gtests (handcrafted vs. autoencoder field presence, snn-ae `direct` forcing `time_steps=1`, ann-ae omitting snn-only fields, dataset composition roundtrip).
 
 ### Model checkpoints
 
@@ -622,13 +622,13 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 9. **`max_samples` truncation round-robins across subjects.** Samples are stored subject-contiguous (~130 trials/speaker), so a first-N truncation would keep only 2–3 speakers and break speaker-disjoint (GroupKFold) folds — especially nested CV, whose inner fold would then have fewer groups than splits (`GroupKFoldPolicy: number of unique groups is less than n_splits`). `load_dataset()` therefore selects the capped subset round-robin across subjects so every speaker is represented. Found by the smoke suite — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
-12. **A ranking table's sort direction is not self-evident from the data — verify it against the actual winner.** `e05_build_phase00_paraconsistent_tables.py` sorted `reverse=True` (descending by mean `d_truth`) for a long time before this was caught, on the reasoning that a ranked table "starts at the top". But `d_truth`/`d_penalized` are *distances* to the paraconsistent Truth vertex — lower is better — so descending order silently put each signal's actual winner **last**: the real EEG winner sat at rank 46 of 46. It also ranked on `d_truth`, not `d_penalized`, the metric `01_e05_phase00_rank.py` actually selects on — the two orders genuinely diverge (see [Core/Paraconsistent.md](../Core/Paraconsistent.md#selection-metric-contradiction-penalized-truth-distance)). The fix: sort ascending by `d_penalized`, emit both `d_penalized` and `d_truth` columns, and mark the true winner (cross-checked against `winners.json`) with a dagger rather than trusting rank 1. When any script writes a "ranked" table, check its sort direction and key against an independent source of truth — do not assume rank 1 is the winner just because the column is populated.
+12. **A ranking table's sort direction is not self-evident from the data — verify it against the actual winner.** `thesis_build_phase00_paraconsistent_tables.py` sorted `reverse=True` (descending by mean `d_truth`) for a long time before this was caught, on the reasoning that a ranked table "starts at the top". But `d_truth`/`d_penalized` are *distances* to the paraconsistent Truth vertex — lower is better — so descending order silently put each signal's actual winner **last**: the real EEG winner sat at rank 46 of 46. It also ranked on `d_truth`, not `d_penalized`, the metric `01_thesis_phase00_rank.py` actually selects on — the two orders genuinely diverge (see [Core/Paraconsistent.md](../Core/Paraconsistent.md#selection-metric-contradiction-penalized-truth-distance)). The fix: sort ascending by `d_penalized`, emit both `d_penalized` and `d_truth` columns, and mark the true winner (cross-checked against `winners.json`) with a dagger rather than trusting rank 1. When any script writes a "ranked" table, check its sort direction and key against an independent source of truth — do not assume rank 1 is the winner just because the column is populated.
 
 ## Testing
 
 Beyond the unit tests (`e05_*_gtest`), two extra layers guard this experiment:
 
-- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_e05_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `e05_smoke_profiles` target when any source profile changes.
+- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_thesis_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `thesis_smoke_profiles` target when any source profile changes.
 - **PyTorch / snnTorch parity** — layer-level numerical ground truth (Linear, activations, MSE/CE losses, LSTM, LifBPTT, Conv1d/2d, MaxPool).
 
 Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
@@ -652,7 +652,7 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — nested CV
 - [Data Loaders](../Core/DataLoaders.md) — 10.1117 loader API
 - [Research Context](../Research-Context.md) — thesis goals and full pipeline
-- [Experiment04](./Experiment04.md) — prior congress paper experiment
+- [Experiment04](./Guayaquil.md) — prior congress paper experiment
 - [Re-run Runbook](../Guides/Re-run-Runbook.md) — commands to regenerate every result
 - [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the current `d_penalized` metric, 208-profile grid, and re-run
 

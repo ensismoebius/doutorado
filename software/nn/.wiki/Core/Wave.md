@@ -69,7 +69,7 @@ public:
 ### Usage for FSDD
 
 ```cpp
-// File: src/experiments/04/lib/src/ComparativeDataset.cpp
+// File: src/experiments/guayaquil/lib/src/ComparativeDataset.cpp
 #include "wave/Wav.hpp"
 
 Wav wav_file;
@@ -206,7 +206,7 @@ nn::Tensor extract_mfcc(const nn::Tensor& audio,
 
 - [DataLoaders](./DataLoaders.md) - Audio dataset loading
 - [Windowing](./Windowing.md) - Window functions
-- [Experiment03](../Experiments/Experiment03.md) - Audio autoencoder
+- [Experiment03](../Experiments/AutoencoderRunner.md) - Audio autoencoder
 
 ## References
 

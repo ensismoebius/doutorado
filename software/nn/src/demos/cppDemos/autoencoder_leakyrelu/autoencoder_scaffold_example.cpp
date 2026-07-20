@@ -1,13 +1,13 @@
 /**
  * @file src/demos/cppDemos/autoencoder_leakyrelu/autoencoder_scaffold_example.cpp
- * @brief Minimal usage example for the experiment03 autoencoder scaffold models.
+ * @brief Minimal usage example for the autoencoderRunner autoencoder scaffold models.
  *
  * This file shows how to construct each of the 8 autoencoder variants, run a
  * forward pass on synthetic data, and (for SNN models) reset state between
  * independent sequences.  No real dataset loading is performed here.
  *
  * Build target: add this file to EXPERIMENT03_LIB_SOURCES _or_ compile it as a
- * standalone executable that links experiment03_lib.
+ * standalone executable that links autoencoderRunner_lib.
  */
 
 #include <iostream>

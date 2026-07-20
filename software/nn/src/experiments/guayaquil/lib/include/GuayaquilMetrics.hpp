@@ -8,7 +8,7 @@
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using Tensor = nn::Tensor;
@@ -37,4 +37,4 @@ auto parameter_count(std::span<T*> params) -> std::size_t
     return count;
 }
 
-} // namespace e04
+} // namespace guayaquil

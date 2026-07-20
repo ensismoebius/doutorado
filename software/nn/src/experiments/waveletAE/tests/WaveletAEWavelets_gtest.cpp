@@ -1,22 +1,22 @@
 /**
- * @file src/experiments/02/tests/Experiment02Wavelets_gtest.cpp
- * @brief Implementation for Experiment02wavelets gtest.
+ * @file src/experiments/waveletAE/tests/WaveletAEWavelets_gtest.cpp
+ * @brief Implementation for WaveletAEwavelets gtest.
  *
 
  */
 
 #include <vector>
 
-#include "../Experiment02Wavelets.hpp"
+#include "../WaveletAEWavelets.hpp"
 #include "gtest/gtest.h"
 
-TEST(Experiment02WaveletsTest, RejectsEmptySignal)
+TEST(WaveletAEWaveletsTest, RejectsEmptySignal)
 {
     std::vector<double> empty_signal;
     EXPECT_THROW((void) get_wavelet_coeffs("Haar", empty_signal, 3), std::invalid_argument);
 }
 
-TEST(Experiment02WaveletsTest, AcceptsNonPowerOfTwoSignalViaPadding)
+TEST(WaveletAEWaveletsTest, AcceptsNonPowerOfTwoSignalViaPadding)
 {
     std::vector<double> signal = {0.2, 0.4, -0.1, 0.7, 0.9, -0.3, 0.6}; // size = 7
 
@@ -27,7 +27,7 @@ TEST(Experiment02WaveletsTest, AcceptsNonPowerOfTwoSignalViaPadding)
     EXPECT_FALSE(result.transformedSignal.empty());
 }
 
-TEST(Experiment02WaveletsTest, FallsBackToHaarForUnknownWavelet)
+TEST(WaveletAEWaveletsTest, FallsBackToHaarForUnknownWavelet)
 {
     std::vector<double> signal = {0.2, 0.4, -0.1, 0.7, 0.9, -0.3, 0.6};
 

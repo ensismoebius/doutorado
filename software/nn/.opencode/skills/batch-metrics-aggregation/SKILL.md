@@ -35,7 +35,7 @@ EpochResult result = acc.finalize();
 
 - [src/core/training/EpochResult.hpp](src/core/training/EpochResult.hpp) — add `train_acc`, `val_acc`, `epoch_duration_ms`
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — replace ad-hoc accumulators with `MetricAccumulator`
-- [src/experiments/02/Experiment02Training.cpp](src/experiments/02/Experiment02Training.cpp) — uses different accumulation logic than Exp04
+- [src/experiments/waveletAE/WaveletAETraining.cpp](src/experiments/waveletAE/WaveletAETraining.cpp) — uses different accumulation logic than Exp04
 
 ## Validation
 

@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-#include "E05Dataset.hpp"
-#include "E05FeatureExtraction.hpp"
+#include "ThesisDataset.hpp"
+#include "ThesisFeatureExtraction.hpp"
 
-namespace e05
+namespace thesis
 {
 
 // Contradiction penalty weight for d_penalized (see below).
@@ -37,11 +37,11 @@ struct ParaconsistentScore
 // Rank all feature sets by d_penalized using the paraconsistent EPC/α/β metric.
 // samples must be aligned with each FeatureSet::vectors.
 // Returns scores sorted ascending by d_penalized (best first).
-auto rank_feature_sets(const std::vector<E05Sample>& samples,
+auto rank_feature_sets(const std::vector<ThesisSample>& samples,
     const std::vector<FeatureSet>& feature_sets) -> std::vector<ParaconsistentScore>;
 
 // Compute the paraconsistent score for a single feature set.
-auto score_feature_set(const std::vector<E05Sample>& samples, const FeatureSet& fs)
+auto score_feature_set(const std::vector<ThesisSample>& samples, const FeatureSet& fs)
     -> ParaconsistentScore;
 
-} // namespace e05
+} // namespace thesis

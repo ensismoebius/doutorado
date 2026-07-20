@@ -27,8 +27,8 @@ target_link_libraries(experiments_config
 
 
 # Add subdirectories for all experiments
-add_subdirectory(00)
-add_subdirectory(02)
-add_subdirectory(03)
-add_subdirectory(04)
-add_subdirectory(05)
+add_subdirectory(paraconsistentBaseline)
+add_subdirectory(waveletAE)
+add_subdirectory(autoencoderRunner)
+add_subdirectory(guayaquil)
+add_subdirectory(thesis)

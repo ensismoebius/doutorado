@@ -237,16 +237,16 @@ per-timestep SNN state) kept a growing set of buckets alive for the whole
 process lifetime and never shrank.
 
 This was found while investigating a memory report: four parallel
-`experiment05` phase00 runs each plateaued at 2.1–4.4GB RSS+swap for a tiny
+`thesis` phase00 runs each plateaued at 2.1–4.4GB RSS+swap for a tiny
 256→64→32 autoencoder — disproportionate for the actual weight/activation
 sizes involved. Buffers use `CL_MEM_ALLOC_HOST_PTR` (pinned) by default, so on
 this (integrated-GPU / unified-memory) hardware the pool's memory is real host
 RAM, not separate VRAM — it shows up directly in `ps`/`free`.
 
 It wasn't an active leak (memory was confirmed flat over repeated sampling
-once a run plateaued) — the real trigger was `scripts/testing/run_e05_profiles.sh`
+once a run plateaued) — the real trigger was `scripts/testing/run_thesis_profiles.sh`
 under-budgeting per-job RAM and oversubscribing concurrency (see
-[Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md)).
+[Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md)).
 This pool fix is a bound on the secondary inefficiency, not the root cause.
 
 Implementation points:
@@ -372,8 +372,8 @@ takes the display with it, because the compute device is also the display
 adapter — two forced reboots during this work cycle.
 
 Isolated on the **llvmpipe CPU device**, so it is a driver bug reproducible with
-no GPU involved (`e05_classifiers_gtest`,
-`E05RunClassifier.DsnnWithRegularizationRuns`):
+no GPU involved (`thesis_classifiers_gtest`,
+`ThesisRunClassifier.DsnnWithRegularizationRuns`):
 
 | Configuration | Result |
 |---|---|
@@ -432,7 +432,7 @@ Which path wins depends entirely on the per-enqueue cost:
 - Profiling **off** (~4 µs/enqueue): the device path wins.
 - Profiling **on** (~95 µs/enqueue, the safe default): the device path *loses*.
   It replaces a cheap host memcpy of a small slice with a kernel launch, raising
-  enqueue count from 678k to 817k (≈ +13 s on the E04 benchmark).
+  enqueue count from 678k to 817k (≈ +13 s on the Guayaquil benchmark).
 
 The default therefore matches the default queue mode: **off**. Enable with
 `NN_OPENCL_DEVICE_VIEW_OPS=1` on any stack where enqueues are cheap. Both paths
@@ -460,7 +460,7 @@ driver race is fixed or enqueues are cheap.
    `(N, 1)` to `(T, D)` yields the strided/polyphase split
    $\{t, t+T, t+2T, \dots\}$ per row, not $D$ consecutive elements. To group
    consecutive elements, reshape to `(D, T)` and transpose (see
-   `to_lstm_frames` in [Experiment04](../Experiments/Experiment04.md)).
+   `to_lstm_frames` in [Experiment04](../Experiments/Guayaquil.md)).
 
 ## See Also
 

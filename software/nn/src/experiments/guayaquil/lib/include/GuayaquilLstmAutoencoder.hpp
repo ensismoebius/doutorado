@@ -1,6 +1,6 @@
 #pragma once
 
-// Public Experiment04 runner used by experiment03/experiment04 mains.
+// Public Experiment04 runner used by autoencoderRunner/guayaquil mains.
 
 class LstmAutoencoderExperiment
 {

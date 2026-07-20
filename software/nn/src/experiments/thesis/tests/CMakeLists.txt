@@ -1,89 +1,89 @@
-add_executable(e05_profile_audit_gtest
-    e05_profile_audit_gtest.cpp
+add_executable(thesis_profile_audit_gtest
+    thesis_profile_audit_gtest.cpp
 )
 
-target_include_directories(e05_profile_audit_gtest
+target_include_directories(thesis_profile_audit_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(e05_profile_audit_gtest
+target_link_libraries(thesis_profile_audit_gtest
     PRIVATE
         google_test
-        experiment05_lib
+        thesis_lib
         xtensor xtensor-blas
         cnpy-static
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(e05_profile_audit_gtest)
-configure_xtensor_parallel_target(e05_profile_audit_gtest)
+nn_gtest_discover_tests(thesis_profile_audit_gtest)
+configure_xtensor_parallel_target(thesis_profile_audit_gtest)
 
 # ── Feature extraction unit tests ────────────────────────────────────────────
-add_executable(e05_feature_extraction_gtest
-    e05_feature_extraction_gtest.cpp
+add_executable(thesis_feature_extraction_gtest
+    thesis_feature_extraction_gtest.cpp
 )
 
-target_include_directories(e05_feature_extraction_gtest
+target_include_directories(thesis_feature_extraction_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(e05_feature_extraction_gtest
+target_link_libraries(thesis_feature_extraction_gtest
     PRIVATE
         google_test
-        experiment05_lib
+        thesis_lib
         xtensor xtensor-blas
         cnpy-static
 )
 
-nn_gtest_discover_tests(e05_feature_extraction_gtest)
-configure_xtensor_parallel_target(e05_feature_extraction_gtest)
+nn_gtest_discover_tests(thesis_feature_extraction_gtest)
+configure_xtensor_parallel_target(thesis_feature_extraction_gtest)
 
 # ── Classifier unit tests ────────────────────────────────────────────────────
-add_executable(e05_classifiers_gtest
-    e05_classifiers_gtest.cpp
+add_executable(thesis_classifiers_gtest
+    thesis_classifiers_gtest.cpp
 )
 
-target_include_directories(e05_classifiers_gtest
+target_include_directories(thesis_classifiers_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(e05_classifiers_gtest
+target_link_libraries(thesis_classifiers_gtest
     PRIVATE
         google_test
-        experiment05_lib
+        thesis_lib
         xtensor xtensor-blas
         cnpy-static
         OpenMP::OpenMP_CXX
 )
 
-nn_gtest_discover_tests(e05_classifiers_gtest)
-configure_xtensor_parallel_target(e05_classifiers_gtest)
+nn_gtest_discover_tests(thesis_classifiers_gtest)
+configure_xtensor_parallel_target(thesis_classifiers_gtest)
 
 # ── Output-artifact contract tests ──────────────────────────────────────────
-add_executable(e05_output_gtest
-    e05_output_gtest.cpp
+add_executable(thesis_output_gtest
+    thesis_output_gtest.cpp
 )
 
-target_include_directories(e05_output_gtest
+target_include_directories(thesis_output_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(e05_output_gtest
+target_link_libraries(thesis_output_gtest
     PRIVATE
         google_test
-        experiment05_lib
+        thesis_lib
         xtensor xtensor-blas
         cnpy-static
         OpenMP::OpenMP_CXX
 )
 
-nn_gtest_discover_tests(e05_output_gtest)
-configure_xtensor_parallel_target(e05_output_gtest)
+nn_gtest_discover_tests(thesis_output_gtest)
+configure_xtensor_parallel_target(thesis_output_gtest)

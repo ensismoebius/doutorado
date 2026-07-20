@@ -19,7 +19,7 @@ Do NOT treat these as active goals or mention as deliverables:
 
 ## Expensive experiment guard
 
-Long-running commands (full pipeline ~2.5h, `timeout 600+`, `01_e04_run_article_profiles.sh`) require explicit confirmation. Add `# CONFIRMED` to the command or set `EXPERIMENT_CONFIRMED=1`. The `expensive-experiment-guard` hook blocks unlabeled runs.
+Long-running commands (full pipeline ~2.5h, `timeout 600+`, `01_guayaquil_run_article_profiles.sh`) require explicit confirmation. Add `# CONFIRMED` to the command or set `EXPERIMENT_CONFIRMED=1`. The `expensive-experiment-guard` hook blocks unlabeled runs.
 
 ## Repo structure
 

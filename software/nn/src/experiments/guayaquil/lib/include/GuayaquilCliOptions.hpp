@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace e04
+namespace guayaquil
 {
 
 struct CliOptions
@@ -12,4 +12,4 @@ struct CliOptions
     bool help = false;
 };
 
-} // namespace e04
+} // namespace guayaquil

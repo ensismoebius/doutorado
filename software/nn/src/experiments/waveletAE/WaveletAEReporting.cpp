@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/02/Experiment02Reporting.cpp
- * @brief Implementation for Experiment02reporting.
+ * @file src/experiments/waveletAE/WaveletAEReporting.cpp
+ * @brief Implementation for WaveletAEreporting.
  *
 
  */
 
-#include "Experiment02Reporting.hpp"
+#include "WaveletAEReporting.hpp"
 
 #include <fstream>
 #include <stdexcept>

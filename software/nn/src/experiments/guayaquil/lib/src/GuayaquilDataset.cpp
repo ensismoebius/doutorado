@@ -1,4 +1,4 @@
-#include "../include/E04Dataset.hpp"
+#include "../include/GuayaquilDataset.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -9,7 +9,7 @@
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<nn::Tensor>
@@ -43,7 +43,7 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
     return windows;
 }
 
-auto collect_signal_files(const E04Config& cfg, const std::string& dataset)
+auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>
 {
     namespace fs = std::filesystem;
@@ -56,11 +56,11 @@ auto collect_signal_files(const E04Config& cfg, const std::string& dataset)
     {
         if (!entry.is_regular_file()) continue;
         const std::string path_str = entry.path().string();
-        const std::string ext      = entry.path().extension().string();
+        const std::string ext = entry.path().extension().string();
 
         if ((ext == ".csv" || ext == ".txt") &&
             (path_str.find("physionet") != std::string::npos ||
-             path_str.find("PhysioNet") != std::string::npos))
+                path_str.find("PhysioNet") != std::string::npos))
         {
             files.push_back(entry.path());
         }
@@ -70,28 +70,27 @@ auto collect_signal_files(const E04Config& cfg, const std::string& dataset)
     return files;
 }
 
-auto build_split(const E04Config& cfg, const std::string& dataset) -> DatasetSplit
+auto build_split(const GuayaquilConfig& cfg, const std::string& dataset) -> DatasetSplit
 {
-    DatasetSplit       split;
+    DatasetSplit split;
     std::vector<Tensor> all_samples;
-    std::vector<int>    all_labels;
+    std::vector<int> all_labels;
 
     if (dataset == "fsdd")
     {
-        nn::dataLoaders::fsdd::FsddWindowDataset ds(cfg.dataset.dataset_root,
-                                                     cfg.dataset.window_size);
+        nn::dataLoaders::fsdd::FsddWindowDataset ds(
+            cfg.dataset.dataset_root, cfg.dataset.window_size);
         all_samples = ds.windows();
-        all_labels  = ds.labels();
+        all_labels = ds.labels();
     }
     else
     {
         const auto files = collect_signal_files(cfg, dataset);
-        if (files.empty())
-            throw std::runtime_error("No files found for dataset token: " + dataset);
+        if (files.empty()) throw std::runtime_error("No files found for dataset token: " + dataset);
 
         for (const auto& file : files)
         {
-            const auto signal  = nn::utility::read_csv_signal(file);
+            const auto signal = nn::utility::read_csv_signal(file);
             const auto windows = to_window_tensor(signal, cfg.dataset.window_size);
             all_samples.insert(all_samples.end(), windows.begin(), windows.end());
         }
@@ -108,19 +107,18 @@ auto build_split(const E04Config& cfg, const std::string& dataset) -> DatasetSpl
         std::shuffle(idx.begin(), idx.end(), rng);
 
         std::vector<Tensor> s(all_samples.size());
-        std::vector<int>    l(all_labels.size());
+        std::vector<int> l(all_labels.size());
         for (std::size_t i = 0; i < idx.size(); ++i)
         {
             s[i] = std::move(all_samples[idx[i]]);
             l[i] = all_labels[idx[i]];
         }
         all_samples = std::move(s);
-        all_labels  = std::move(l);
+        all_labels = std::move(l);
     }
 
-    const std::size_t max_total =
-        static_cast<std::size_t>(cfg.dataset.max_loaded_train_samples +
-                                 cfg.dataset.max_validation_samples);
+    const std::size_t max_total = static_cast<std::size_t>(
+        cfg.dataset.max_loaded_train_samples + cfg.dataset.max_validation_samples);
     if (all_samples.size() > max_total)
     {
         all_samples.resize(max_total);
@@ -131,14 +129,13 @@ auto build_split(const E04Config& cfg, const std::string& dataset) -> DatasetSpl
         std::min<std::size_t>(cfg.dataset.max_validation_samples, all_samples.size());
     const std::size_t train_count = all_samples.size() - val_count;
 
-    split.train_samples.assign(all_samples.begin(),
-                               all_samples.begin() + static_cast<long>(train_count));
-    split.val_samples.assign(all_samples.begin() + static_cast<long>(train_count),
-                             all_samples.end());
-    split.val_labels.assign(all_labels.begin() + static_cast<long>(train_count),
-                            all_labels.end());
+    split.train_samples.assign(
+        all_samples.begin(), all_samples.begin() + static_cast<long>(train_count));
+    split.val_samples.assign(
+        all_samples.begin() + static_cast<long>(train_count), all_samples.end());
+    split.val_labels.assign(all_labels.begin() + static_cast<long>(train_count), all_labels.end());
 
     return split;
 }
 
-} // namespace e04
+} // namespace guayaquil

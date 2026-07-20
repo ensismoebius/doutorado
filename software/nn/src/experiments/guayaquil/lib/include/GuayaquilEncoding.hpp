@@ -5,7 +5,7 @@
 
 #include "tensor/Tensor.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using Tensor = nn::Tensor;
@@ -36,4 +36,4 @@ auto apply_snn_architecture_transform(
  */
 auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor;
 
-} // namespace e04
+} // namespace guayaquil

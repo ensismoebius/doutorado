@@ -1,4 +1,4 @@
-#include "E05Dataset.hpp"
+#include "ThesisDataset.hpp"
 
 #include <unistd.h>
 
@@ -17,7 +17,7 @@
 #include "logging/Logger.hpp"
 #include "progress/ProgressManager.hpp"
 
-namespace e05
+namespace thesis
 {
 
 namespace
@@ -33,13 +33,13 @@ namespace
 //
 // The cache stores the FULL set (before max_samples truncation), so one file
 // serves every max_samples value; truncation is always applied after loading.
-// Set E05_NO_DATASET_CACHE=1 to bypass entirely. Any mismatch/read error falls
+// Set THESIS_NO_DATASET_CACHE=1 to bypass entirely. Any mismatch/read error falls
 // back to a normal decode, so a stale or truncated cache is never fatal.
 constexpr char kCacheMagic[8] = {'E', '0', '5', 'D', 'S', 'C', '\0', '\1'}; // last byte = version
 
 bool cache_disabled()
 {
-    const char* v = std::getenv("E05_NO_DATASET_CACHE");
+    const char* v = std::getenv("THESIS_NO_DATASET_CACHE");
     return v != nullptr && v[0] != '\0' && v[0] != '0';
 }
 
@@ -134,7 +134,7 @@ bool read_string(std::istream& is, std::string& s)
 }
 
 // Returns true and fills `view` on a valid, signature-matching cache hit.
-bool try_load_cache(const std::string& path, std::uint64_t signature, E05DatasetView& view)
+bool try_load_cache(const std::string& path, std::uint64_t signature, ThesisDatasetView& view)
 {
     std::ifstream is(path, std::ios::binary);
     if (!is) return false;
@@ -151,13 +151,13 @@ bool try_load_cache(const std::string& path, std::uint64_t signature, E05Dataset
     if (!read_pod(is, n_subjects) || !read_pod(is, n_stimuli) || !read_pod(is, n_samples))
         return false;
 
-    E05DatasetView loaded;
+    ThesisDatasetView loaded;
     loaded.n_subjects = n_subjects;
     loaded.n_stimuli = n_stimuli;
     loaded.samples.reserve(n_samples);
     for (std::uint64_t i = 0; i < n_samples; ++i)
     {
-        E05Sample s;
+        ThesisSample s;
         if (!read_pod(is, s.stimulus) || !read_pod(is, s.subject_id) ||
             !read_string(is, s.text_phrase) || !read_tensor(is, s.audio) || !read_tensor(is, s.eeg))
             return false;
@@ -187,7 +187,7 @@ bool try_load_cache(const std::string& path, std::uint64_t signature, E05Dataset
 
 // Atomic write (temp + rename) so a crash mid-write never leaves a torn cache
 // that would fail the signature/read checks anyway but waste a decode proving it.
-void write_cache(const std::string& path, std::uint64_t signature, const E05DatasetView& view)
+void write_cache(const std::string& path, std::uint64_t signature, const ThesisDatasetView& view)
 {
     // Per-process temp name: the runner cold-starts several profiles in
     // parallel, so a shared "<path>.tmp" would be written by multiple workers
@@ -251,9 +251,9 @@ std::string stimulus_to_phrase(int stim)
 
 // Full decode from source .mat files, ignoring max_samples (applied by the
 // caller). Returns the complete decoded set — the unit the cache stores.
-auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> E05DatasetView
+auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> ThesisDatasetView
 {
-    E05DatasetView view;
+    ThesisDatasetView view;
     view.subject_files = subjects;
 
     std::unordered_set<int> stimuli_seen;
@@ -296,7 +296,7 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> E05Datase
 
             auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
 
-            E05Sample sample;
+            ThesisSample sample;
             sample.audio = std::move(audio_tensor);
             sample.eeg = std::move(eeg_tensor);
             sample.stimulus = stimulus;
@@ -317,7 +317,7 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> E05Datase
 
     if (view.samples.empty())
         throw std::runtime_error(
-            "E05Dataset: no paired audio+EEG samples found. "
+            "ThesisDataset: no paired audio+EEG samples found. "
             "Check that each subject has both audio and EEG .mat files.");
 
     view.n_subjects = subjects_with_both;
@@ -329,7 +329,7 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> E05Datase
 // subject-contiguous, so a plain resize() to the first N would keep only the
 // first 2-3 speakers — which breaks speaker-disjoint (GroupKFold) folds,
 // especially nested CV. Round-robin so the truncated set spans every speaker.
-void apply_max_samples(E05DatasetView& view, int max_samples)
+void apply_max_samples(ThesisDatasetView& view, int max_samples)
 {
     if (max_samples <= 0 || static_cast<int>(view.samples.size()) <= max_samples) return;
 
@@ -357,20 +357,20 @@ void apply_max_samples(E05DatasetView& view, int max_samples)
     }
     std::sort(keep.begin(), keep.end());
 
-    std::vector<E05Sample> trimmed;
+    std::vector<ThesisSample> trimmed;
     trimmed.reserve(keep.size());
     for (size_t i : keep) trimmed.push_back(std::move(view.samples[i]));
     view.samples = std::move(trimmed);
 }
 } // namespace
 
-auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
+auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
 {
     auto subjects = discoverSubjects(dataset_cfg.root, "^S(\\d+)$");
     if (subjects.empty())
-        throw std::runtime_error("E05Dataset: no subjects found in " + dataset_cfg.root);
+        throw std::runtime_error("ThesisDataset: no subjects found in " + dataset_cfg.root);
 
-    E05DatasetView view;
+    ThesisDatasetView view;
     bool from_cache = false;
 
     // Try the decoded-dataset cache: signature is derived from the (cheap)
@@ -381,7 +381,7 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
     if (!cache_disabled() && try_load_cache(cache_file, signature, view))
     {
         from_cache = true;
-        NN_LOG_INFO("E05Dataset: loaded " + std::to_string(view.samples.size()) +
+        NN_LOG_INFO("ThesisDataset: loaded " + std::to_string(view.samples.size()) +
                     " samples from decoded cache (" + cache_file + ")");
     }
     else
@@ -389,12 +389,12 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
         view = decode_full_dataset(subjects);
         if (view.samples.empty())
             throw std::runtime_error(
-                "E05Dataset: no paired audio+EEG samples found. "
+                "ThesisDataset: no paired audio+EEG samples found. "
                 "Check that each subject has both audio and EEG .mat files.");
         if (!cache_disabled())
         {
             write_cache(cache_file, signature, view);
-            NN_LOG_INFO("E05Dataset: wrote decoded cache with " +
+            NN_LOG_INFO("ThesisDataset: wrote decoded cache with " +
                         std::to_string(view.samples.size()) + " samples (" + cache_file + ")");
         }
     }
@@ -405,7 +405,8 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
 }
 
 auto make_text_split(
-    const std::vector<E05Sample>& samples, const std::string& text_mode, uint32_t seed) -> TextSplit
+    const std::vector<ThesisSample>& samples, const std::string& text_mode, uint32_t seed)
+    -> TextSplit
 {
     if (text_mode == "dependent")
     {
@@ -447,14 +448,14 @@ auto make_text_split(
         return ts;
     }
 
-    throw std::invalid_argument("E05Dataset: unknown text_mode " + text_mode);
+    throw std::invalid_argument("ThesisDataset: unknown text_mode " + text_mode);
 }
 
-auto build_speaker_map(const std::vector<E05Sample>& samples,
+auto build_speaker_map(const std::vector<ThesisSample>& samples,
     const std::vector<std::vector<double>>& feature_vectors) -> SpeakerFeatureMap
 {
     if (samples.size() != feature_vectors.size())
-        throw std::invalid_argument("E05Dataset: samples/feature_vectors size mismatch");
+        throw std::invalid_argument("ThesisDataset: samples/feature_vectors size mismatch");
 
     SpeakerFeatureMap map;
     for (size_t i = 0; i < samples.size(); ++i)
@@ -465,4 +466,4 @@ auto build_speaker_map(const std::vector<E05Sample>& samples,
     return map;
 }
 
-} // namespace e05
+} // namespace thesis

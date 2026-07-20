@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/02/Experiment02Evaluation.cpp
- * @brief Implementation for Experiment02evaluation.
+ * @file src/experiments/waveletAE/WaveletAEEvaluation.cpp
+ * @brief Implementation for WaveletAEevaluation.
  *
 
  */
 
-#include "Experiment02Evaluation.hpp"
+#include "WaveletAEEvaluation.hpp"
 
 #include <algorithm>
 #include <map>

@@ -1,17 +1,17 @@
-add_executable(experiment_04_comparative_gtest
+add_executable(guayaquil_comparative_gtest
     ComparativeExperiment_gtest.cpp
 )
 
-target_include_directories(experiment_04_comparative_gtest
+target_include_directories(guayaquil_comparative_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(experiment_04_comparative_gtest
+target_link_libraries(guayaquil_comparative_gtest
     PRIVATE
         google_test
-        experiment03_lib
+        autoencoderRunner_lib
         tensor
         layers
         data_loaders
@@ -25,8 +25,8 @@ target_link_libraries(experiment_04_comparative_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(experiment_04_comparative_gtest)
-configure_xtensor_parallel_target(experiment_04_comparative_gtest)
+nn_gtest_discover_tests(guayaquil_comparative_gtest)
+configure_xtensor_parallel_target(guayaquil_comparative_gtest)
 
 # DAT writer tests
 add_executable(dat_writer_gtest
@@ -42,8 +42,8 @@ target_include_directories(dat_writer_gtest
 target_link_libraries(dat_writer_gtest
     PRIVATE
         google_test
-        experiment04_lib
-        experiment03_lib
+        guayaquil_lib
+        autoencoderRunner_lib
         tensor
         layers
         xtensor xtensor-blas
@@ -67,8 +67,8 @@ target_include_directories(checkpoint_gtest
 target_link_libraries(checkpoint_gtest
     PRIVATE
         google_test
-        experiment04_lib
-        experiment03_lib
+        guayaquil_lib
+        autoencoderRunner_lib
         xtensor xtensor-blas
         cnpy-static
 )
@@ -91,8 +91,8 @@ target_include_directories(profile_audit_gtest
 target_link_libraries(profile_audit_gtest
     PRIVATE
         google_test
-        experiment04_lib
-        experiment03_lib
+        guayaquil_lib
+        autoencoderRunner_lib
         xtensor xtensor-blas
         cnpy-static
 )

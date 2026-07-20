@@ -76,5 +76,5 @@ results/<experiment_id>/<timestamp>/
 Key Files to Fix
 
 - [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — `FoldSplit` struct needs `fold_id` and `split_seed` fields
-- [src/experiments/02/Experiment02Training.cpp](src/experiments/02/Experiment02Training.cpp) — save per-fold metrics before averaging
+- [src/experiments/waveletAE/WaveletAETraining.cpp](src/experiments/waveletAE/WaveletAETraining.cpp) — save per-fold metrics before averaging
 - [src/core/training/EpochResult.hpp](src/core/training/EpochResult.hpp) — add `fold_id` field

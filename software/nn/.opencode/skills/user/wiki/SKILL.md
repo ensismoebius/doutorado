@@ -24,8 +24,8 @@ Create this structure under `.wiki/`:
 │   ├── DataLoaders.md
 │   └── ...one file per src/core module
 ├── Experiments/
-│   ├── Experiment03.md
-│   ├── Experiment04.md
+│   ├── AutoencoderRunner.md
+│   ├── Guayaquil.md
 │   └── ...one file per experiment
 ├── Concepts/
 │   ├── LSTM-and-BPTT.md

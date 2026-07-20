@@ -1,14 +1,14 @@
 // TODO Profiles must contain the specification of two nn: LSTM and SNN
 
 /**
- * @file src/experiments/04/experiment04.cpp
+ * @file src/experiments/guayaquil/guayaquil.cpp
  * @brief Standalone Experiment04 entrypoint (thin main wrapper).
  */
 
 #include <cstdlib>
 #include <string_view>
 
-#include "../include/E04Runner.hpp"
+#include "../include/GuayaquilRunner.hpp"
 #include "logging/Logger.hpp"
 
 using nn::logging::Level;
@@ -24,8 +24,8 @@ namespace
  */
 auto parse_log_level_from_env() -> Level
 {
-    // Check the environment variable "NN_EXPERIMENT04_LOG_LEVEL" for log level configuration
-    const char* value = std::getenv("NN_EXPERIMENT04_LOG_LEVEL");
+    // Check the environment variable "NN_GUAYAQUIL_LOG_LEVEL" for log level configuration
+    const char* value = std::getenv("NN_GUAYAQUIL_LOG_LEVEL");
 
     // Default to Info if the environment variable is not set or is empty
     if (value == nullptr) return Level::Info;
@@ -57,7 +57,7 @@ auto main(int argc, char* argv[]) -> int
     {
         Logger::instance().set_level(parse_log_level_from_env());
 
-        return e04::run_comparative_experiment(argc, argv);
+        return guayaquil::run_comparative_experiment(argc, argv);
     }
     catch (const std::exception& e)
     {

@@ -1,5 +1,5 @@
 {
-    "_comment": "Deeper LSTM for FSDD (borrowed from experiment03 protocol-ann-default)",
+    "_comment": "Deeper LSTM for FSDD (borrowed from autoencoderRunner protocol-ann-default)",
     "experiment": {
         "run_tag": "lstm_deep",
         "seed": 42,

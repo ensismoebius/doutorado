@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/DatasetBuilder.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/DatasetBuilder.cpp
  * @brief Implementation of DatasetBuilder for Experiment03.
  */
 
@@ -11,7 +11,7 @@
 #include "data_loaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
 #include "data_loaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 auto DatasetBuilder::build() -> std::shared_ptr<Dataset>
 {
@@ -37,4 +37,4 @@ auto DatasetBuilder::build() -> std::shared_ptr<Dataset>
     throw std::runtime_error("Unsupported dataset type");
 }
 
-} // namespace experiment03
+} // namespace autoencoderRunner

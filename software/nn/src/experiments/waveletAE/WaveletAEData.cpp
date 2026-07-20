@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/02/Experiment02Data.cpp
- * @brief Implementation for Experiment02data.
+ * @file src/experiments/waveletAE/WaveletAEData.cpp
+ * @brief Implementation for WaveletAEdata.
  *
 
  */
 
-#include "Experiment02Data.hpp"
+#include "WaveletAEData.hpp"
 
 #include <algorithm>
 #include <cstddef>

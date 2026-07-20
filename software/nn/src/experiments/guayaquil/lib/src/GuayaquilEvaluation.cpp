@@ -1,12 +1,12 @@
-#include "../include/E04Evaluation.hpp"
+#include "../include/GuayaquilEvaluation.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "../include/E04Encoding.hpp"
-#include "../include/E04Metrics.hpp"
+#include "../include/GuayaquilEncoding.hpp"
+#include "../include/GuayaquilMetrics.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
@@ -179,4 +179,4 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     return m;
 }
 
-} // namespace e04
+} // namespace guayaquil

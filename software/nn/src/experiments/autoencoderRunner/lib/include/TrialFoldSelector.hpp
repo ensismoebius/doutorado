@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/TrialFoldSelector.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/TrialFoldSelector.hpp
  * @brief Trial-id fold selector adapter for SQLite-backed k-fold training.
  */
 
@@ -12,7 +12,7 @@
 
 #include "statistics/kfold.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 struct TrialFoldSelection
 {
@@ -45,11 +45,12 @@ class TrialFoldSelector
     [[nodiscard]] auto test_trial_ids() const noexcept -> const std::vector<int>&;
 
    private:
-    TrialFoldSelector(
-        std::vector<int> trial_ids, std::vector<statistics::FoldSplit> folds, std::vector<int> test_trial_ids);
+    TrialFoldSelector(std::vector<int> trial_ids,
+        std::vector<statistics::FoldSplit> folds,
+        std::vector<int> test_trial_ids);
 
     std::vector<int> trial_ids_;
     std::vector<statistics::FoldSplit> folds_;
     std::vector<int> test_trial_ids_;
 };
-} // namespace experiment03
+} // namespace autoencoderRunner

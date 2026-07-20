@@ -1,13 +1,13 @@
 /**
- * @file src/experiments/02/tests/Experiment02Data_gtest.cpp
- * @brief Implementation for Experiment02data gtest.
+ * @file src/experiments/waveletAE/tests/WaveletAEData_gtest.cpp
+ * @brief Implementation for WaveletAEdata gtest.
  *
 
  */
 
 #include <vector>
 
-#include "../Experiment02Data.hpp"
+#include "../WaveletAEData.hpp"
 #include "gtest/gtest.h"
 
 namespace
@@ -32,7 +32,7 @@ auto make_audio_sample(int eeg_index = 0, int stimulus = 1, std::size_t size = 4
 }
 } // namespace
 
-TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidOverlap)
+TEST(WaveletAEDataTest, ExtractWindowsRejectsInvalidOverlap)
 {
     std::vector<EEGSample> eeg_samples{make_eeg_sample()};
     std::vector<AudioSample> audio_samples{make_audio_sample()};
@@ -43,7 +43,7 @@ TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidOverlap)
         std::invalid_argument);
 }
 
-TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidRatesOrWindow)
+TEST(WaveletAEDataTest, ExtractWindowsRejectsInvalidRatesOrWindow)
 {
     std::vector<EEGSample> eeg_samples{make_eeg_sample()};
     std::vector<AudioSample> audio_samples{make_audio_sample()};
@@ -54,7 +54,7 @@ TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidRatesOrWindow)
         std::invalid_argument);
 }
 
-TEST(Experiment02DataTest, ExtractWindowsProducesOutputForValidInput)
+TEST(WaveletAEDataTest, ExtractWindowsProducesOutputForValidInput)
 {
     std::vector<EEGSample> eeg_samples{make_eeg_sample(3, 1)};
     std::vector<AudioSample> audio_samples{make_audio_sample(0, 3)};

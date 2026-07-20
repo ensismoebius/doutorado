@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "E05Config.hpp"
-#include "E05Dataset.hpp"
+#include "ThesisConfig.hpp"
+#include "ThesisDataset.hpp"
 
-namespace e05
+namespace thesis
 {
 
 // A named feature set: the strategy+scale label and the extracted vectors.
@@ -15,7 +15,7 @@ struct FeatureSet
 {
     std::string label; // e.g. "handcrafted-lfcc-energy_zcr"
     std::vector<std::vector<double>>
-        vectors; // one per sample, aligned with E05DatasetView::samples
+        vectors; // one per sample, aligned with ThesisDatasetView::samples
 };
 
 // Extract handcrafted features (DTWPT + descriptors) from a single signal.
@@ -24,9 +24,9 @@ struct FeatureSet
 // sample_rate: Hz of the signal (44100 for voice, 1024 for EEG).
 //              Used to map DTWPT sub-bands to Bark/MEL/LFCC frequency groups.
 // Returns a flat feature vector.
-auto extract_handcrafted(
-    const std::vector<double>& signal, const E05Config::HandcraftedConfig& cfg, double sample_rate)
-    -> std::vector<double>;
+auto extract_handcrafted(const std::vector<double>& signal,
+    const ThesisConfig::HandcraftedConfig& cfg,
+    double sample_rate) -> std::vector<double>;
 
 // Extract features from all samples using the configured strategy.
 // modality:     "voice" | "eeg" | "fused" — determines which signal(s) feed extraction.
@@ -36,9 +36,9 @@ auto extract_handcrafted(
 //                           vectors concatenated afterward.
 //               Ignored for modality != "fused".
 // Returns one FeatureSet per strategy evaluated.
-auto extract_features(const E05DatasetView& view,
-    const E05Config::FeatureExtraction& cfg,
-    const E05Config::Training& training,
+auto extract_features(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& cfg,
+    const ThesisConfig::Training& training,
     const std::string& modality,
     const std::string& fusion_mode = "late",
     std::uint32_t seed = 42u) -> std::vector<FeatureSet>;
@@ -64,4 +64,4 @@ auto compute_shimmer(const std::vector<double>& signal, double sample_rate) -> d
 // so each x[n-1] is the still-unmodified original sample.
 void apply_preemphasis(std::vector<double>& signal, double alpha);
 
-} // namespace e05
+} // namespace thesis

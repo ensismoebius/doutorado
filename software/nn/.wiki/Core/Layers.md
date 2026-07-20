@@ -223,13 +223,13 @@ Full detail: [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradien
 > $\tau = R \cdot C$. Two different (R, C) pairs with the same product behave
 > identically. See [Membrane Dynamics](../Concepts/Membrane-Dynamics.md).
 
-**Temporal classifier example (Experiment05).** `E05DsnnClassifier` stacks
+**Temporal classifier example (Experiment05).** `ThesisDsnnClassifier` stacks
 `Linear → LifBPTT → … → Linear` and feeds a single static feature vector
 repeatedly over `kSnnTimeSteps` (default 16) time steps — turning a
 non-temporal input into a spike train by constant-current encoding — then reads
 out the average spike rate over time as the class score. This is a genuine use
 of the *temporal* dynamics of spiking neurons, not just a one-shot classifier
-wearing an SNN costume. See [Experiment05](../Experiments/Experiment05.md).
+wearing an SNN costume. See [Experiment05](../Experiments/Thesis.md).
 
 **OpenCL backend note.** When running on the OpenCL (GPU) backend, `LifImpl`
 uses two fused GPU kernels instead of the generic tensor operations: one that

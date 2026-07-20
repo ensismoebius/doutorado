@@ -1,52 +1,52 @@
-# experiment03 - Neural Network training runner
+# autoencoderRunner - Neural Network training runner
 
 Overview
 --------
-`experiment03` trains ANN or SNN neural networks against the 10.1117 imagined-speech EEG+Audio dataset.
+`autoencoderRunner` trains ANN or SNN neural networks against the 10.1117 imagined-speech EEG+Audio dataset.
 It is profile-driven and supports two layers of profile configuration:
 
-- A base profile JSON loaded from `src/experiments/03/profiles/default.json`.
-- A selected profile JSON loaded from `src/experiments/03/profiles/*.json`.
+- A base profile JSON loaded from `src/experiments/autoencoderRunner/profiles/default.json`.
+- A selected profile JSON loaded from `src/experiments/autoencoderRunner/profiles/*.json`.
 
 Configuration precedence
 ------------------------
 Runtime configuration is resolved in this order:
 
-1. `default` profile in `src/experiments/03/profiles/default.json`
+1. `default` profile in `src/experiments/autoencoderRunner/profiles/default.json`
 2. `--profile <name>` or `--profile <path/to/file.json>`
 
 All runtime behavior must be defined by profile fields. CLI accepts only `--profile` (plus help flags).
 
 Integrated LSTM mode
 --------------------
-The standalone `experiment04` implementation now lives under `src/experiments/04` and is
-invoked through the `experiment03` binary with comparative flags:
+The standalone `guayaquil` implementation now lives under `src/experiments/04` and is
+invoked through the `autoencoderRunner` binary with comparative flags:
 
 ```bash
-./src/experiments/03/experiment03 --comparative --comparative-config lstm-default
+./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config lstm-default
 ```
 
 You can also pass an explicit JSON file:
 
 ```bash
-./src/experiments/03/experiment03 --comparative --comparative-config src/experiments/04/profiles/lstm-lightweight.json
+./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config src/experiments/guayaquil/profiles/lstm-lightweight.json
 ```
 
-LSTM profiles now live under `src/experiments/04/profiles` and remain prefixed with `lstm-`.
+LSTM profiles now live under `src/experiments/guayaquil/profiles` and remain prefixed with `lstm-`.
 
 Use `--help` to inspect the full option list without starting the experiment or touching the logger pipeline.
 
 Integrated LSTM architecture
 ----------------------------
-The integrated LSTM path is now hosted under `src/experiments/04` and dispatched by `experiment03`:
+The integrated LSTM path is now hosted under `src/experiments/04` and dispatched by `autoencoderRunner`:
 
-- `src/experiments/03/experiment03.cpp`: top-level launcher and dispatch to standard Experiment03 or LSTM mode.
-- `src/experiments/04/experiment04.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
-- `src/experiments/04/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the Experiment03 LSTM tests.
-- `src/experiments/04/lib/include/experiment04/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
-- `src/experiments/04/lib/include/experiment04/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
-- `src/experiments/04/lib/include/experiment04/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
-- `src/experiments/03/tests/LSTMAutoencoder_gtest.cpp`: regression coverage for the integrated LSTM components.
+- `src/experiments/autoencoderRunner/autoencoderRunner.cpp`: top-level launcher and dispatch to standard Experiment03 or LSTM mode.
+- `src/experiments/guayaquil/guayaquil.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
+- `src/experiments/guayaquil/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the Experiment03 LSTM tests.
+- `src/experiments/guayaquil/lib/include/guayaquil/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
+- `src/experiments/guayaquil/lib/include/guayaquil/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
+- `src/experiments/guayaquil/lib/include/guayaquil/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
+- `src/experiments/autoencoderRunner/tests/LSTMAutoencoder_gtest.cpp`: regression coverage for the integrated LSTM components.
 
 Current integrated runner behavior:
 
@@ -76,14 +76,14 @@ Determinism policy
 
 How to run
 ----------
-Run with a profile name (from `src/experiments/03/profiles`) or an explicit JSON path:
+Run with a profile name (from `src/experiments/autoencoderRunner/profiles`) or an explicit JSON path:
 
 ```bash
-./src/experiments/03/experiment03 --profile default
+./src/experiments/autoencoderRunner/autoencoderRunner --profile default
 ```
 
 ```bash
-./src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
+./src/experiments/autoencoderRunner/autoencoderRunner --profile src/experiments/autoencoderRunner/profiles/sample-training-flow.json
 ```
 
 How to think about batches and epochs
@@ -98,22 +98,22 @@ Typical patterns:
 
 Smoke test profile example:
 ```bash
-./src/experiments/03/experiment03 --profile lightweight
+./src/experiments/autoencoderRunner/autoencoderRunner --profile lightweight
 ```
 
 Full training epoch over the dataset:
 ```bash
-./src/experiments/03/experiment03 --profile sample-training-flow
+./src/experiments/autoencoderRunner/autoencoderRunner --profile sample-training-flow
 ```
 
 Longer SNN training run:
 ```bash
-./src/experiments/03/experiment03 --profile fused-window-snn-default
+./src/experiments/autoencoderRunner/autoencoderRunner --profile fused-window-snn-default
 ```
 
 Profiles
 --------
-Profiles live in `src/experiments/03/profiles/` and act as reusable starting points.
+Profiles live in `src/experiments/autoencoderRunner/profiles/` and act as reusable starting points.
 
 The profile loader accepts ordinary JSON plus `_comment_*` metadata fields. Any other unknown key is rejected at load time. This repo includes a loadable example of inline documentation in `sample-training-flow.json`.
 
@@ -121,9 +121,9 @@ Useful built-in examples:
 - `default.json`: generic baseline defaults.
 - `lightweight.json`: smaller/faster smoke-test baseline.
 - `fused-window-snn-default.json`: fused SNN baseline.
-- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/04/profiles`).
-- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/04/profiles`).
-- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/04/profiles`).
+- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/guayaquil/profiles`).
+- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/guayaquil/profiles`).
+- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/guayaquil/profiles`).
 - `protocol-ann-default.json`: protocol ANN baseline.
 - `protocol-snn-default.json`: protocol SNN baseline.
 - `sample-training-flow.json`: commented, loadable example that shows how to move from smoke tests to full training.
@@ -216,13 +216,13 @@ Recommended progression:
 
 Example:
 ```bash
-./src/experiments/03/experiment03 --profile sample-training-flow
+./src/experiments/autoencoderRunner/autoencoderRunner --profile sample-training-flow
 ```
 
 Default profile baseline
 ------------------------
 When `--profile` is omitted, the launcher resolves to the `default` profile.
-Baseline behavior should be edited in `src/experiments/03/profiles/default.json`.
+Baseline behavior should be edited in `src/experiments/autoencoderRunner/profiles/default.json`.
 
 - For reproducibility, create a dedicated profile file for each sweep or study.
 
@@ -257,11 +257,11 @@ Troubleshooting
 
 Code pointers
 -------------
-- Launcher defaults: `src/experiments/03/experiment03.cpp`
-- CLI contract and `Config` fields: `src/experiments/03/lib/include/cli.hpp`
-- CLI parsing and overrides: `src/experiments/03/lib/src/cli.cpp`
-- Training loop: `src/experiments/03/lib/src/experiment03.cpp`
-- Profile loading: `src/experiments/03/lib/src/ProfileLoader.cpp`
+- Launcher defaults: `src/experiments/autoencoderRunner/autoencoderRunner.cpp`
+- CLI contract and `Config` fields: `src/experiments/autoencoderRunner/lib/include/cli.hpp`
+- CLI parsing and overrides: `src/experiments/autoencoderRunner/lib/src/cli.cpp`
+- Training loop: `src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp`
+- Profile loading: `src/experiments/autoencoderRunner/lib/src/ProfileLoader.cpp`
 
 References
 ----------
@@ -313,7 +313,7 @@ When tuning autoencoders on multimodal EEG+Audio data:
 
 ### Input Normalization
 
-`experiment03` applies a modality-aware input normalization pipeline before every forward pass, modelled after `torchvision.transforms.Compose`.
+`autoencoderRunner` applies a modality-aware input normalization pipeline before every forward pass, modelled after `torchvision.transforms.Compose`.
 
 | Modality | Method | Statistics | Profile key |
 |----------|--------------------------------------|------------|------------------------------|

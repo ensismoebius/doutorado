@@ -1,5 +1,5 @@
 // Profile audit: every shipping article profile must parse cleanly via
-// E04Config::from_nested_json AND must populate the live config
+// GuayaquilConfig::from_nested_json AND must populate the live config
 // fields with non-default values that the experiment harness will actually
 // consume. Catches silent profile-key drift (e.g. a future rename moving a
 // field outside the parser's lookup keys).
@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/E04Config.hpp"
+#include "../lib/include/GuayaquilConfig.hpp"
 #include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
-using e04::E04Config;
+using guayaquil::GuayaquilConfig;
 
 namespace
 {
@@ -34,19 +34,20 @@ const std::vector<std::string>& article_profiles()
 
 fs::path profiles_dir()
 {
-    // Tests run from the build dir; profiles live at <repo>/software/nn/src/experiments/04/profiles.
+    // Tests run from the build dir; profiles live at
+    // <repo>/software/nn/src/experiments/guayaquil/profiles.
     fs::path here = fs::path(__FILE__).parent_path();
     return here.parent_path() / "profiles";
 }
 
-E04Config load(const std::string& name)
+GuayaquilConfig load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
     std::ifstream f(path);
     EXPECT_TRUE(f.is_open()) << "missing profile: " << path;
     nlohmann::json j;
     f >> j;
-    auto cfg = E04Config::from_nested_json(j);
+    auto cfg = GuayaquilConfig::from_nested_json(j);
     cfg.validate();
     return cfg;
 }
@@ -124,8 +125,7 @@ TEST_P(ProfileAuditTest, EvaluationCountsAreConsistent)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ArticleProfiles,
+INSTANTIATE_TEST_SUITE_P(ArticleProfiles,
     ProfileAuditTest,
     ::testing::ValuesIn(article_profiles()),
     [](const ::testing::TestParamInfo<std::string>& info)

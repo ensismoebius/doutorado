@@ -1,20 +1,20 @@
 /**
- * @file src/experiments/03/lib/src/TrialFoldSelector.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/TrialFoldSelector.cpp
  * @brief Implementation of TrialFoldSelector.
  */
 
 #include "TrialFoldSelector.hpp"
 
-#include <algorithm>
-#include <random>
 #include <sqlite3.h>
 
+#include <algorithm>
 #include <filesystem>
+#include <random>
 #include <stdexcept>
 
 #include "data_loaders/samplers/FoldSampler.hpp"
 
-namespace experiment03
+namespace autoencoderRunner
 {
 namespace
 {
@@ -91,7 +91,8 @@ auto map_indices_to_trial_ids(
 auto split_train_val_test(std::vector<int> trial_ids,
     float test_split_ratio,
     bool shuffle,
-    std::optional<unsigned int> seed) -> std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>
+    std::optional<unsigned int> seed)
+    -> std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>
 {
     if (test_split_ratio <= 0.0f || test_split_ratio >= 1.0f)
     {
@@ -133,9 +134,12 @@ auto split_train_val_test(std::vector<int> trial_ids,
 
 } // namespace
 
-TrialFoldSelector::TrialFoldSelector(
-    std::vector<int> trial_ids, std::vector<statistics::FoldSplit> folds, std::vector<int> test_trial_ids)
-    : trial_ids_(std::move(trial_ids)), folds_(std::move(folds)), test_trial_ids_(std::move(test_trial_ids))
+TrialFoldSelector::TrialFoldSelector(std::vector<int> trial_ids,
+    std::vector<statistics::FoldSplit> folds,
+    std::vector<int> test_trial_ids)
+    : trial_ids_(std::move(trial_ids)),
+      folds_(std::move(folds)),
+      test_trial_ids_(std::move(test_trial_ids))
 {
 }
 
@@ -162,10 +166,12 @@ auto TrialFoldSelector::from_sqlite(const std::string& dataset_root_path,
     std::vector<statistics::FoldSplit> folds;
     if (n_splits > 1 && !train_val_trial_ids.empty())
     {
-        folds = statistics::KFold(n_splits, shuffle, seed.value_or(0U)).split(train_val_trial_ids.size());
+        folds = statistics::KFold(n_splits, shuffle, seed.value_or(0U))
+                    .split(train_val_trial_ids.size());
     }
 
-    return TrialFoldSelector(std::move(train_val_trial_ids), std::move(folds), std::move(test_trial_ids));
+    return TrialFoldSelector(
+        std::move(train_val_trial_ids), std::move(folds), std::move(test_trial_ids));
 }
 
 auto TrialFoldSelector::fold_count() const noexcept -> std::size_t
@@ -196,4 +202,4 @@ auto TrialFoldSelector::test_trial_ids() const noexcept -> const std::vector<int
 {
     return test_trial_ids_;
 }
-} // namespace experiment03
+} // namespace autoencoderRunner

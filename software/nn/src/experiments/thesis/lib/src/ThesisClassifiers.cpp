@@ -1,4 +1,4 @@
-#include "E05Classifiers.hpp"
+#include "ThesisClassifiers.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -29,7 +29,7 @@
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 
-namespace e05
+namespace thesis
 {
 
 namespace
@@ -75,7 +75,7 @@ constexpr int kSnnTimeSteps = 16;
 // pre-spike current to N(0,(α·V_th)²), so it must use the same V_th.
 constexpr float kSnnVth = 1.0f;
 
-// Temporal Deep Residual Spiking Neural Network for E05.
+// Temporal Deep Residual Spiking Neural Network for Thesis.
 //
 // Unlike a single-step thresholding net, this unrolls genuine LIF dynamics over
 // kSnnTimeSteps. The static feature vector is rate-encoded by constant-current
@@ -99,12 +99,12 @@ constexpr float kSnnVth = 1.0f;
 // is differentiated as d_reg/d_spike = 2λ(r - clamp(r, fr_min, fr_max)) / n and
 // injected into the incoming gradient at each LIF spike output during backward,
 // mirroring SpikeCountLossImpl. Inert when fr_lambda == 0.
-class E05DsnnClassifier : public Module<nn::Backend>
+class ThesisDsnnClassifier : public Module<nn::Backend>
 {
    public:
     using Tensor = nn::Tensor;
 
-    E05DsnnClassifier(int input_dim,
+    ThesisDsnnClassifier(int input_dim,
         int hidden_dim,
         int output_dim,
         int depth,
@@ -353,7 +353,7 @@ class E05DsnnClassifier : public Module<nn::Backend>
     // ── Run diagnostics (the Trainer queries these to fill EpochResult) ──────────
     // Overall mean firing rate across all spiking layers from the last training
     // forward = (total spikes) / (total spike slots). NaN until a training forward
-    // has cached spikes. Matches E04's "mean firing rate across all SNN neurons".
+    // has cached spikes. Matches Guayaquil's "mean firing rate across all SNN neurons".
     [[nodiscard]] auto mean_spike_rate() const -> float
     {
         double spikes = 0.0;
@@ -654,13 +654,13 @@ class GlobalBarFractionalCallback : public nn::training::ITrainingCallback
 // references/values valid for the duration of run_classifier.
 struct FoldContext
 {
-    const E05DatasetView& view;
+    const ThesisDatasetView& view;
     const std::vector<std::vector<double>>& feature_vectors;
     const std::vector<int>& labels;
     const std::vector<int>& groups; // subject_id per sample (for GroupKFold)
     const nn::Tensor& all_inputs;   // (N, feat_dim) feature matrix
     const nn::Tensor& all_targets;  // (N, n_speakers) one-hot labels
-    const E05Config& cfg;
+    const ThesisConfig& cfg;
     const nn::training::TrainerConfig& trainer_cfg;
     const statistics::IEERScorer& scorer;
     const std::string& feature_label;
@@ -685,7 +685,7 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
             ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth, ctx.cfg.experiment.seed);
         return fn(model);
     }
-    E05DsnnClassifier model(ctx.feat_dim,
+    ThesisDsnnClassifier model(ctx.feat_dim,
         ctx.hidden_dim,
         ctx.n_speakers,
         ctx.depth,
@@ -700,7 +700,7 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
 
 // Build a Trainer for `model`, attach the standard callbacks, and fit. Returns
 // the per-epoch learning-curve history (train/val loss, epoch time, SNN spike
-// rate + SOPs) so the caller can persist it — the E04-style run diagnostics.
+// rate + SOPs) so the caller can persist it — the Guayaquil-style run diagnostics.
 // val_pairs may be empty (flat CV trains without validation); patience <= 0
 // disables early stopping (flat CV does not early-stop).
 template <typename ModelT>
@@ -733,7 +733,7 @@ auto train_model(ModelT& model,
 }
 
 // Trainable-parameter count of a model = sum of element counts over params().
-// Mirrors the param_count the E04 pipeline records per run.
+// Mirrors the param_count the Guayaquil pipeline records per run.
 template <typename ModelT>
 auto count_trainable_params(ModelT& model) -> std::size_t
 {
@@ -1069,21 +1069,21 @@ void run_flat_cv(const FoldContext& ctx,
 
 } // namespace
 
-auto run_classifier(const E05DatasetView& view,
+auto run_classifier(const ThesisDatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
-    const E05Config& cfg,
+    const ThesisConfig& cfg,
     const statistics::IEERScorer* eer_scorer,
     uint32_t global_bar_id,
     int* global_completed) -> ClassificationResult
 {
     if (feature_vectors.empty())
-        throw std::invalid_argument("E05Classifiers: empty feature vectors");
+        throw std::invalid_argument("ThesisClassifiers: empty feature vectors");
     if (feature_vectors.size() != view.samples.size())
-        throw std::invalid_argument("E05Classifiers: features/samples size mismatch");
+        throw std::invalid_argument("ThesisClassifiers: features/samples size mismatch");
 
     if (cfg.classifier.type != "rnn" && cfg.classifier.type != "dsnn")
-        throw std::invalid_argument("E05Classifiers: classifier type \"" + cfg.classifier.type +
+        throw std::invalid_argument("ThesisClassifiers: classifier type \"" + cfg.classifier.type +
                                     "\" is not implemented. Supported: \"rnn\", \"dsnn\".");
 
     const int n_speakers = view.n_subjects;
@@ -1177,7 +1177,7 @@ auto run_classifier(const E05DatasetView& view,
         global_completed};
 
     // Count trainable parameters once on a fresh model (identical across folds) —
-    // the E04-style model-complexity stat.
+    // the Guayaquil-style model-complexity stat.
     with_classifier(ctx, [&](auto& model) { result.param_count = count_trainable_params(model); });
 
     if (cfg.training.nested_cv)
@@ -1265,4 +1265,4 @@ void compute_aggregate_stats(ClassificationResult& result)
         n_rate > 0 ? sum_rate / n_rate : std::numeric_limits<double>::quiet_NaN();
 }
 
-} // namespace e05
+} // namespace thesis

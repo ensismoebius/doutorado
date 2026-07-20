@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/Experiment03AutoencoderType.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/Experiment03AutoencoderType.hpp
  * @brief Autoencoder type enum and helpers for Experiment03.
  */
 

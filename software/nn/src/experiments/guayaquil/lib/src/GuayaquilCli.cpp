@@ -1,4 +1,4 @@
-#include "../include/E04Cli.hpp"
+#include "../include/GuayaquilCli.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -7,16 +7,16 @@
 
 #include "nlohmann/json.hpp"
 
-namespace e04
+namespace guayaquil
 {
 
 constexpr const char* kDefaultComparativeProfileStem = "lstm-compare";
 
 static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
-void infer_dimensions_from_layer_specs(E04Config& cfg)
+void infer_dimensions_from_layer_specs(GuayaquilConfig& cfg)
 {
-    // This function is now deprecated as layer_sizes is removed from E04Config.
+    // This function is now deprecated as layer_sizes is removed from GuayaquilConfig.
     // Dimensions are inferred on-the-fly in Training.
 }
 
@@ -118,9 +118,9 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     throw std::runtime_error("Cannot resolve comparative profile: " + profile_name);
 }
 
-auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> E04Config
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> GuayaquilConfig
 {
-    E04Config cfg;
+    GuayaquilConfig cfg;
 
     std::ifstream f(path);
     if (!f.is_open())
@@ -139,11 +139,11 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     if (has_nested_keys(j))
     {
-        cfg = E04Config::from_nested_json(j);
+        cfg = GuayaquilConfig::from_nested_json(j);
     }
     else
     {
-        cfg = E04Config::from_flat_json(j);
+        cfg = GuayaquilConfig::from_flat_json(j);
     }
 
     if (!cli_opts.dataset_root.empty())
@@ -154,7 +154,7 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     return cfg;
 }
 
-auto config_hash(const E04Config& cfg) -> std::size_t
+auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
 {
     nlohmann::json j;
     j["experiment"]["run_tag"] = cfg.experiment.run_tag;
@@ -197,4 +197,4 @@ auto should_run_comparative_cli(int argc, char* argv[]) -> bool
     return false;
 }
 
-} // namespace e04
+} // namespace guayaquil

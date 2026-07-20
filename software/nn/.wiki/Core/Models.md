@@ -144,7 +144,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: src/experiments/03/lib/src/experiment03.cpp
+// File: src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp
 #include "core/models/autoencoder/AutoencoderBuilders.hpp"
 #include "core/models/autoencoder/Config.hpp"
 
@@ -186,7 +186,7 @@ nn::Tensor reconstructed = model->decode(latent);
 - [Autoencoders](../Concepts/Autoencoders.md) - Theory
 - [Tensor](./Tensor.md) - Data structure
 - [Layers](./Layers.md) - Building blocks
-- [Experiment03](../Experiments/Experiment03.md) - Usage
+- [Experiment03](../Experiments/AutoencoderRunner.md) - Usage
 
 ## References
 

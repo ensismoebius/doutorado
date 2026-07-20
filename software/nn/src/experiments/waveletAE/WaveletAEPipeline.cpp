@@ -1,21 +1,21 @@
 /**
- * @file src/experiments/02/Experiment02Pipeline.cpp
- * @brief Implementation for Experiment02pipeline.
+ * @file src/experiments/waveletAE/WaveletAEPipeline.cpp
+ * @brief Implementation for WaveletAEpipeline.
  *
 
  */
 
-#include "Experiment02Pipeline.hpp"
+#include "WaveletAEPipeline.hpp"
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-#include "Experiment02Data.hpp"
-#include "Experiment02Evaluation.hpp"
-#include "Experiment02Reporting.hpp"
-#include "Experiment02Training.hpp"
-#include "Experiment02Wavelets.hpp"
+#include "WaveletAEData.hpp"
+#include "WaveletAEEvaluation.hpp"
+#include "WaveletAEReporting.hpp"
+#include "WaveletAETraining.hpp"
+#include "WaveletAEWavelets.hpp"
 #include "linear_algebra/linear_algebra.hpp"
 #include "logging/Logger.hpp"
 #include "wavelet/waveletOperations.hpp"

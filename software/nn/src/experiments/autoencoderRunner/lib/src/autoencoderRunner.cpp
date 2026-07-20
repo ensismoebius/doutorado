@@ -1,10 +1,10 @@
 /**
- * @file src/experiments/03/lib/src/experiment03.cpp
+ * @file src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp
  * @brief Core implementation of the Experiment03 driver.
  *
  * Contains experiment lifecycle management: dataset discovery, data loader and
  * prefetcher setup, model construction and the training loop. Public-facing
- * configuration lives in `lib/include/experiment03.hpp`.
+ * configuration lives in `lib/include/autoencoderRunner.hpp`.
  */
 
 #include <algorithm>
@@ -21,8 +21,8 @@
 #include "ResultsWriter.hpp"
 #include "RunSummaryBuilder.hpp"
 #include "TrialFoldSelector.hpp"
-#include "experiment03.hpp"
-#include "experiment03_helpers.hpp"
+#include "autoencoderRunner.hpp"
+#include "autoencoderRunner_helpers.hpp"
 
 // Core libraries
 #include "Backend.hpp"
@@ -43,15 +43,15 @@
 #include "utility/progress.hpp"
 
 // Local using declarations for experiment components.
-using experiment03::build_autoencoder_model;
-using experiment03::build_run_summary;
-using experiment03::DatasetBuilder;
-using experiment03::fit_input_transform;
-using experiment03::modality_val_losses_from_batch;
-using experiment03::ReconstructionLoss;
-using experiment03::Summary;
-using experiment03::to_sqlite_dataset_type;
-using experiment03::write_run_summary_json;
+using autoencoderRunner::build_autoencoder_model;
+using autoencoderRunner::build_run_summary;
+using autoencoderRunner::DatasetBuilder;
+using autoencoderRunner::fit_input_transform;
+using autoencoderRunner::modality_val_losses_from_batch;
+using autoencoderRunner::ReconstructionLoss;
+using autoencoderRunner::Summary;
+using autoencoderRunner::to_sqlite_dataset_type;
+using autoencoderRunner::write_run_summary_json;
 
 // Core nn namespaces
 using nn::Device;
@@ -165,7 +165,7 @@ auto apply_reduce_lr_on_plateau(
  */
 } // namespace
 
-// internal helpers moved to experiment03_helpers.hpp / .cpp
+// internal helpers moved to autoencoderRunner_helpers.hpp / .cpp
 
 Experiment03::Experiment03(const Config& config) : config_(config)
 {
@@ -302,14 +302,15 @@ int Experiment03::run()
         processed_samples_ = 0;
 
         // Create fold selector for test split (works even when kfold is disabled)
-        experiment03::TrialFoldSelector fold_selector{};
+        autoencoderRunner::TrialFoldSelector fold_selector{};
         try
         {
-            fold_selector = experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
-                config_.kfold_n_splits,
-                config_.kfold_shuffle,
-                config_.kfold_seed,
-                config_.test_split);
+            fold_selector =
+                autoencoderRunner::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
+                    config_.kfold_n_splits,
+                    config_.kfold_shuffle,
+                    config_.kfold_seed,
+                    config_.test_split);
             test_trial_ids = fold_selector.test_trial_ids();
         }
         catch (...)
@@ -329,7 +330,7 @@ int Experiment03::run()
 
             struct FoldRuntimePlan
             {
-                experiment03::TrialFoldSelection selection;
+                autoencoderRunner::TrialFoldSelection selection;
                 size_t train_epoch_max_batches = 0;
                 size_t val_max_batches = 0;
             };

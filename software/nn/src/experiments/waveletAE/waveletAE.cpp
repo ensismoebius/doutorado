@@ -2,13 +2,13 @@
 #include <iostream>
 #include <string>
 
-#include "Experiment02Config.hpp"
+#include "WaveletAEConfig.hpp"
 /**
- * @file experiment_02.cpp
+ * @file waveletAE.cpp
  * @brief Thin entry point for Experiment 02.
  */
 
-#include "Experiment02Pipeline.hpp"
+#include "WaveletAEPipeline.hpp"
 #include "logging/StreamRedirector.hpp"
 
 auto main(int argc, char const* const* argv) -> int
@@ -16,10 +16,10 @@ auto main(int argc, char const* const* argv) -> int
     nn::logging::StreamRedirector redirect(true, true);
     try
     {
-        std::string spec_path = "../src/experiments/02/spec.json";
+        std::string spec_path = "../src/experiments/waveletAE/spec.json";
         if (!std::filesystem::exists(spec_path))
         {
-            spec_path = "src/experiments/02/spec.json";
+            spec_path = "src/experiments/waveletAE/spec.json";
         }
         if (argc > 1)
         {

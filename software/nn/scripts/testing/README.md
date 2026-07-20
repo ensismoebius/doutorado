@@ -8,9 +8,9 @@ top-level `scripts/README.md` for the full file table; summary:
 |---|---|
 | `gen_pytorch_refs.py` | PyTorch parity fixtures (documented below) |
 | `gen_pywt_refs.py` | PyWavelets ground-truth fixtures for the C++ wavelet ops (needs `pywt`); see header comment for the periodization/DaubN conventions mapped from `waveletOperations.cpp` |
-| `e05_make_smoke_profiles.py` + `run_e05_smoke.sh` | Fast smoke pass over every Experiment05 profile (tiny params, same code paths) |
-| `run_e05_profiles.sh` | The real (heavy) Experiment05 phase00/phase01 runner — resumable, checkpointed |
-| `test_e05_phase_scripts.py` | Unit tests for `../pipeline/e05/01_e05_phase00_rank.py` + `../pipeline/e05/02_e05_apply_winner.py` |
+| `thesis_make_smoke_profiles.py` + `run_thesis_smoke.sh` | Fast smoke pass over every Experiment05 profile (tiny params, same code paths) |
+| `run_thesis_profiles.sh` | The real (heavy) Experiment05 phase00/phase01 runner — resumable, checkpointed |
+| `test_thesis_phase_scripts.py` | Unit tests for `../pipeline/thesis/01_thesis_phase00_rank.py` + `../pipeline/thesis/02_thesis_apply_winner.py` |
 
 ---
 

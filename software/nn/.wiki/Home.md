@@ -48,10 +48,10 @@ Then follow one of these reading paths depending on what you came for:
 
 | I want to… | Read, in order |
 |---|---|
-| **Understand the research** | [Research Context](./Research-Context.md) → [Imagined Speech and EEG](./Concepts/Plain/Imagined-Speech-and-EEG.md) → [Experiment05](./Experiments/Experiment05.md) |
+| **Understand the research** | [Research Context](./Research-Context.md) → [Imagined Speech and EEG](./Concepts/Plain/Imagined-Speech-and-EEG.md) → [Experiment05](./Experiments/Thesis.md) |
 | **Understand spiking networks** | [SNN and Surrogate Gradients (plain)](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) → [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) → [Time-Major Layout](./Concepts/Time-Major-Layout.md) |
 | **Work on the framework** | [Getting Started](./Tutorials/Getting-Started.md) → [Architecture](./Architecture.md) → [Tensor](./Core/Tensor.md) → [Layers](./Core/Layers.md) |
-| **Re-run the experiments** | [Re-run Runbook](./Guides/Re-run-Runbook.md) → [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) |
+| **Re-run the experiments** | [Re-run Runbook](./Guides/Re-run-Runbook.md) → [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) |
 | **Know why the code is like this** | [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) |
 
 > **"Plain" pages exist for most topics.** They explain the same idea without heavy maths and
@@ -105,13 +105,25 @@ Then follow one of these reading paths depending on what you came for:
 
 ### Experiments
 
-Run in order; Experiment05 is the thesis's primary experiment.
+Directories, build targets and classes are named after **what each experiment is**, not a
+number. The old numeric names still appear inside stored result files (run tags like
+`e05_p00_...`), so this is the mapping:
 
-- [Experiment00](./Experiments/Experiment00.md) — wavelet + paraconsistent baseline
-- [Experiment02](./Experiments/Experiment02.md) — wavelet autoencoder pipeline
-- [Experiment03](./Experiments/Experiment03.md) — autoencoders (audio, EEG, fused)
-- [Experiment04](./Experiments/Experiment04.md) — SNN vs LSTM comparative (conference paper)
-- [Experiment05](./Experiments/Experiment05.md) — **thesis primary**: biometric authentication
+| Name | Was | What it is |
+|---|---|---|
+| `paraconsistentBaseline` | 00 | Frozen wavelet + paraconsistent baseline |
+| `waveletAE` | 02 | Wavelet autoencoder pipeline |
+| `autoencoderRunner` | 03 | Autoencoder training runner |
+| `guayaquil` | 04 | SNN vs LSTM comparative — the conference paper |
+| `thesis` | 05 | **Thesis primary** — biometric authentication via imagined speech |
+
+Run in order; `thesis` is the primary experiment.
+
+- [ParaconsistentBaseline](./Experiments/ParaconsistentBaseline.md) — wavelet + paraconsistent baseline
+- [WaveletAE](./Experiments/WaveletAE.md) — wavelet autoencoder pipeline
+- [AutoencoderRunner](./Experiments/AutoencoderRunner.md) — autoencoders (audio, EEG, fused)
+- [Guayaquil](./Experiments/Guayaquil.md) — SNN vs LSTM comparative (conference paper)
+- [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
 
 ### Research context
@@ -130,7 +142,7 @@ Run in order; Experiment05 is the thesis's primary experiment.
 
 **Running experiments**
 - [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order
-- [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) — the E05 runner
+- [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) — the Thesis runner
 - [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
 
 **Performance and debugging**
@@ -181,12 +193,12 @@ Runnable examples per subsystem — see [Demos/Overview](./Demos/Overview.md) fo
 - See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
 - `GPUBufferPool` gained a 1 GiB global cache ceiling (previously only
     capped per-bucket, letting cached pinned buffers accumulate unbounded over
-    a long run). `run_e05_profiles.sh`'s per-job memory budget was also bumped
-    2048MB → 5120MB after measuring real `experiment05` phase00 peaks
+    a long run). `run_thesis_profiles.sh`'s per-job memory budget was also bumped
+    2048MB → 5120MB after measuring real `thesis` phase00 peaks
     (~4.4GB for voice, ~2.1GB for EEG) — the old default let 4 heavy jobs
     oversubscribe a 17GB box into swap thrashing.
 - See [Core/Tensor](./Core/Tensor.md) and
-    [Guides/Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md).
+    [Guides/Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md).
 
 ## Requirements
 

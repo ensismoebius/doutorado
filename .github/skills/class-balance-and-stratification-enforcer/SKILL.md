@@ -57,7 +57,7 @@ for n in g['nodes']:
 
 Key Files to Fix
 
-- [src/experiments/02/Experiment02Config.hpp](src/experiments/02/Experiment02Config.hpp) — `stratified = true` field that needs enforcement
+- [src/experiments/waveletAE/WaveletAEConfig.hpp](src/experiments/waveletAE/WaveletAEConfig.hpp) — `stratified = true` field that needs enforcement
 - [include/nn/dataLoaders/samplers/](include/nn/dataLoaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
 - [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — stratified split implementation needed
 - [include/nn/statistics/multi_class_metrics.hpp](include/nn/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants

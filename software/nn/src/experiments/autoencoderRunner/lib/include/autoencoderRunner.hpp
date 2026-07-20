@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/experiment03.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/autoencoderRunner.hpp
  * @brief Public experiment driver API for Experiment03.
  *
  * Declares the `Experiment03` class which orchestrates dataset discovery,
@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "Experiment03Config.hpp"
 #include "Backend.hpp"
+#include "Experiment03Config.hpp"
 #include "data_loaders/datasets/Dataset.hpp"
 #include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"

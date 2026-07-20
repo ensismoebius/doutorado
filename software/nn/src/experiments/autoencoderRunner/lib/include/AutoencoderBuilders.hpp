@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/AutoencoderBuilders.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/AutoencoderBuilders.hpp
  * @brief Autoencoderbuilders.
  *
  *
@@ -27,7 +27,7 @@
 #include "layers/convolution/MaxPool2d.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace experiment03::autoencoders
+namespace autoencoderRunner::autoencoders
 {
 
 using nn::LeakyReLU;
@@ -853,6 +853,6 @@ inline void reset_sequential_state(Sequential& seq)
     }
 }
 
-} // namespace experiment03::autoencoders
+} // namespace autoencoderRunner::autoencoders
 
 #endif // EXPERIMENT03_AUTOENCODER_BUILDERS_HPP

@@ -57,7 +57,7 @@ Config is loaded from a JSON profile. Top-level sections:
 
 Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
 
-Parsed by: `src/experiments/04/lib/include/E04Config.hpp` (`from_nested_json`).
+Parsed by: `src/experiments/guayaquil/lib/include/GuayaquilConfig.hpp` (`from_nested_json`).
 
 #### `model.lstm_frame_size` (default 8)
 
@@ -79,7 +79,7 @@ the LSTM roughly 7× more expensive than necessary:
 
 Constraints and caveats:
 
-- Must divide `window_size`, enforced by `E04Config::validate()`.
+- Must divide `window_size`, enforced by `GuayaquilConfig::validate()`.
 - Encoding is applied to the flat `(window_size, 1)` window **first**, then
   framing — the `direct`/`poisson`/`latency` transforms expect the flat layout.
 - Evaluation compares reconstruction in framed space. MSE/MAE/$R^2$ are
@@ -89,7 +89,7 @@ Constraints and caveats:
   arguably a fairer baseline, since the SNN-AE sees the whole window at once via
   `linear:64` while the old LSTM saw one scalar per step.
 
-Implemented by `to_lstm_frames()` in `src/experiments/04/lib/src/E04Encoding.cpp`;
+Implemented by `to_lstm_frames()` in `src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp`;
 see [LSTM Performance](../Guides/LSTM-Performance.md) for why a plain reshape
 would produce a polyphase split rather than consecutive frames.
 
@@ -112,7 +112,7 @@ Because neural network performance can vary based on random weight initializatio
 
 ### Profile Configurations
 
-Article profiles live in `src/experiments/04/profiles/`:
+Article profiles live in `src/experiments/guayaquil/profiles/`:
 
 | Profile | Purpose | Runs | ETA |
 |---------|---------|------|-----|
@@ -137,7 +137,7 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 ### WAV Loading
 
 ```cpp
-// File: src/experiments/04/lib/src/E04Dataset.cpp
+// File: src/experiments/guayaquil/lib/src/GuayaquilDataset.cpp
 #include "wave/Wav.hpp"
 
 // Load FSDD audio files
@@ -158,7 +158,7 @@ for (std::size_t i = 0; i < raw_data.size(); ++i)
 Real-time progress bars during training using `nn::utility::printProgress`:
 
 ```cpp
-// Inside E04Training.cpp
+// Inside GuayaquilTraining.cpp
 printProgress(train_samples.size(),
     1,
     train_samples.size() * cfg.epochs,
@@ -234,7 +234,7 @@ The most common layer used in Experiment04.
 | `conv1d` | 3-tap smoothing filter: kernel `{0.25, 0.5, 0.25}` |
 | `recurrent` | Stand-alone LIF transform (stateless, fixed V_th/alpha) |
 
-These are **not** different network architectures — they are signal conditioning steps applied at `E04Encoding.cpp:apply_snn_architecture_transform`.
+These are **not** different network architectures — they are signal conditioning steps applied at `GuayaquilEncoding.cpp:apply_snn_architecture_transform`.
 
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 
@@ -247,11 +247,11 @@ The total network is built by concatenating these specs.
 
 ```bash
 # Run a specific profile (from software/nn/)
-./out/build/max-performance/src/experiments/04/experiment04 \
-  --comparative-config src/experiments/04/profiles/article-lstm-ae.json
+./out/build/max-performance/src/experiments/guayaquil/guayaquil \
+  --comparative-config src/experiments/guayaquil/profiles/article-lstm-ae.json
 
 # Run all article profiles + build paper CSVs (~2.5 h)
-./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
 ```
 
 Both `--comparative-config` and `--profile` are accepted as the flag name.
@@ -266,7 +266,7 @@ Results written to `results/` (or `dataset.results_dir` from profile):
 | `{run_tag}_publication_table.csv` | Aggregated, formatted for paper tables |
 | `{run_tag}_summary.json` | Config hash, per-model stats |
 | `data/{run_tag}_*.dat` | pgfplots DAT files for paper figures |
-| `data/paper_*.csv` | Aggregated across all runs (written by `02_e04_build_lstm_vs_snn_paper_data.py`) |
+| `data/paper_*.csv` | Aggregated across all runs (written by `02_guayaquil_build_lstm_vs_snn_paper_data.py`) |
 
 Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
@@ -274,10 +274,10 @@ Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
 ```bash
 # After all article runs complete:
-python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /path/to/conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/04/profiles
+  --profiles-dir src/experiments/guayaquil/profiles
 
 # Compile paper:
 cd documentation/07-articlesProduced/conference71070Guaiaquil
@@ -457,7 +457,7 @@ Latency encoding is the only configuration where models learn meaningful varianc
 - [Autoencoders](../Concepts/Autoencoders.md)
 - [Wave Processing](../Core/Wave.md)
 - [Training](../Core/Training.md) - Progress bars
-- [Experiment03](../Experiments/Experiment03.md) - Feedforward autoencoder
+- [Experiment03](../Experiments/AutoencoderRunner.md) - Feedforward autoencoder
 
 ## References
 

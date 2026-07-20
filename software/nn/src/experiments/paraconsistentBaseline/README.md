@@ -14,17 +14,17 @@ classical wavelet feature extraction followed by a paraconsistent classifier.
 
 ```bash
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target Phase00 -j$(nproc)
+cmake --build out/build/max-performance --target paraconsistentBaseline -j$(nproc)
 ```
 
 ## Run
 
 ```bash
 # Default config (hardcoded path, no CLI required)
-./out/build/max-performance/src/experiments/00/Phase00
+./out/build/max-performance/src/experiments/paraconsistentBaseline/paraconsistentBaseline
 
 # Custom config
-./out/build/max-performance/src/experiments/00/Phase00 path/to/config.json
+./out/build/max-performance/src/experiments/paraconsistentBaseline/paraconsistentBaseline path/to/config.json
 ```
 
 ## Key source files

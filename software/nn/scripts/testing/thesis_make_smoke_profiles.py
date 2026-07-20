@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""e05_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
+"""thesis_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
 
-Mirrors src/experiments/05/profiles/{debug.json,phase00/*,phase01/*} into
-src/experiments/05/profiles/smoke/ with the SAME code-path-selecting fields
+Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*} into
+src/experiments/thesis/profiles/smoke/ with the SAME code-path-selecting fields
 (strategy, wavelet, scale, cepstral, modality, fusion_mode, classifier.type,
 nested_cv, standardize_features, …) but tiny run parameters, so a run exercises
 every profile's code path quickly and surfaces runtime errors that compilation
 cannot catch.
 
 Run:
-    software/nn/.venv/bin/python software/nn/scripts/testing/e05_make_smoke_profiles.py
-Then drive them with scripts/testing/run_e05_smoke.sh.
+    software/nn/.venv/bin/python software/nn/scripts/testing/thesis_make_smoke_profiles.py
+Then drive them with scripts/testing/run_thesis_smoke.sh.
 """
 import glob
 import json
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PROFILES = os.path.normpath(os.path.join(HERE, "..", "..", "src", "experiments", "05", "profiles"))
+PROFILES = os.path.normpath(os.path.join(HERE, "..", "..", "src", "experiments", "thesis", "profiles"))
 SMOKE = os.path.join(PROFILES, "smoke")
 
 
@@ -31,7 +31,7 @@ def smoke_overrides(prof):
     # Phase 01 trains a classifier with speaker-disjoint (GroupKFold) folds and a
     # text split, so its subsets need enough distinct speakers to form 2 folds;
     # Phase 00 only ranks features and can use a tiny cap.
-    # Truncation is round-robin across subjects (see E05Dataset), so a small cap
+    # Truncation is round-robin across subjects (see ThesisDataset), so a small cap
     # still spans every speaker — enough for speaker-disjoint nested folds.
     runs_classifier = prof.get("classifier", {}).get("enabled", True)
     ds = prof.setdefault("dataset", {})

@@ -172,8 +172,8 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 				\par Dois \textit{scripts} automatizam a transição, evitando edição manual (\autoref{fig:e05PipelineTwoPhase}):
 				\begin{itemize}
-					\item \texttt{e05\_phase00\_rank.py}: lê os resultados paraconsistentes das 208 execuções, calcula a média de $D_{\text{penalizado}}$ sobre as três repetições, escreve o vencedor de cada sinal em \texttt{winners.json} e sinaliza explicitamente eventuais empates exatos, para que uma escolha feita por desempate de ordenação não seja confundida com um resultado de mérito;
-					\item \texttt{e05\_apply\_winner.py}: injeta cada vencedor nos 32 perfis da Fase 01 --- voz recebe o vencedor da voz, EEG o do EEG, e as fontes fundidas recebem, por padrão, o vencedor da voz (sinal dominante em número de amostras).
+					\item \texttt{thesis\_phase00\_rank.py}: lê os resultados paraconsistentes das 208 execuções, calcula a média de $D_{\text{penalizado}}$ sobre as três repetições, escreve o vencedor de cada sinal em \texttt{winners.json} e sinaliza explicitamente eventuais empates exatos, para que uma escolha feita por desempate de ordenação não seja confundida com um resultado de mérito;
+					\item \texttt{thesis\_apply\_winner.py}: injeta cada vencedor nos 32 perfis da Fase 01 --- voz recebe o vencedor da voz, EEG o do EEG, e as fontes fundidas recebem, por padrão, o vencedor da voz (sinal dominante em número de amostras).
 				\end{itemize}
 
 		\subsection{Métricas}

@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/include/cli.hpp
+ * @file src/experiments/autoencoderRunner/lib/include/cli.hpp
  * @brief Command-line interface definitions and configuration for Experiment03.
  *
  * Contains `Config` structure and parsing helper `parseCliParams` used to

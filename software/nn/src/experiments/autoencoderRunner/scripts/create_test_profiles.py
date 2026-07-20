@@ -9,7 +9,7 @@ import os
 import argparse
 
 
-DEFAULT_OUTPUT_DIR = "src/experiments/03/profiles/snnAutoEncodersProfiles"
+DEFAULT_OUTPUT_DIR = "src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles"
 
 # Base template - audio-window-snn (most stable variant)
 BASE_PROFILE = {

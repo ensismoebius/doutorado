@@ -8,10 +8,10 @@
 
 #include "nlohmann/json.hpp"
 
-namespace e05
+namespace thesis
 {
 
-struct E05Config
+struct ThesisConfig
 {
     struct Experiment
     {
@@ -24,7 +24,7 @@ struct E05Config
     struct Dataset
     {
         std::string root;
-        std::string results_dir = "results/thesis"; // E05 = thesis experiment
+        std::string results_dir = "results/thesis"; // Thesis = thesis experiment
         std::string modality = "fused";             // "voice" | "eeg" | "fused"
         int max_samples = 0; // 0 = unlimited (for debug: set to small number)
 
@@ -213,8 +213,8 @@ struct E05Config
 
     void validate() const;
 
-    static E05Config from_json(const nlohmann::json& j);
-    static E05Config from_file(const std::string& path);
+    static ThesisConfig from_json(const nlohmann::json& j);
+    static ThesisConfig from_file(const std::string& path);
 };
 
-} // namespace e05
+} // namespace thesis

@@ -90,8 +90,8 @@ experiments. The `sampler_default_type` string is mixed into the seed so that la
 sharing one base seed still get distinct-but-deterministic weights.
 
 **Experiment 05 usage.** Both classifiers thread the experiment seed into init:
-- **DSNN** (`E05DsnnClassifier`): each `Linear` seeded with `seed+1`, `seed+2`, `seed+100+i`.
-- **RNN** (`SimpleResNetImpl`): its constructor takes an optional `seed`; E05 passes
+- **DSNN** (`ThesisDsnnClassifier`): each `Linear` seeded with `seed+1`, `seed+2`, `seed+100+i`.
+- **RNN** (`SimpleResNetImpl`): its constructor takes an optional `seed`; Thesis passes
   `cfg.experiment.seed`, so each Linear (input, output, residual `fc1`/`fc2`) is seeded
   with a distinct offset. Without a seed the ResNet falls back to `random_device`
   (the historical, non-reproducible behavior).

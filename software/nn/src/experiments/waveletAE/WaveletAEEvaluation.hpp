@@ -1,6 +1,6 @@
 /**
- * @file src/experiments/02/Experiment02Evaluation.hpp
- * @brief Experiment02evaluation.
+ * @file src/experiments/waveletAE/WaveletAEEvaluation.hpp
+ * @brief WaveletAEevaluation.
  *
  *
  *
