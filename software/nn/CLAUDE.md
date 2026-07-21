@@ -109,6 +109,9 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `guayaquil_lib` | Guayaquil library only |
 | `thesis` | **Thesis primary** experiment binary (was experiment05) |
 | `thesis_lib` | Thesis library only |
+| `paraconsistentGA` | NSGA-II AE architecture search ranked by paraconsistent `d_penalized` under a latency constraint (reuses `thesis_lib`) |
+| `paraconsistentGA_lib` | paraconsistentGA library only |
+| `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
 | `thesis_profile_audit_gtest` | 2335 tests verifying all 333 Thesis profiles (276 handcrafted [wavelet×scale×category] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] phase00 + 32 phase01 + debug) parse + validate |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |

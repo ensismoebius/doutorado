@@ -171,7 +171,7 @@ Following the existing `thesis` phase00/phase01 convention (`software/nn/results
 ## 7. Acceptance criteria
 
 - No already-existing component in the codebase was reimplemented.
-- `D_penalized` correctly reproduces the thesis reference cases: `(α,β) = (1,1)` → `≈ 2.4142`; `(α,β) = (0.92, 0.075)` → `≈ 0.1580`.
+- `D_penalized` correctly reproduces the thesis reference cases: `(α,β) = (1,1)` → `= 2.0000` (the Ambiguity vertex; `λ = 2−√2` is chosen precisely so every non-Truth vertex scores exactly 2, consistent with §3.1 — an earlier draft's `2.4142` was wrong); `(α,β) = (0.92, 0.075)` → `≈ 0.1580`.
 - An individual with constant output is ranked **worst** in the population, not best.
 - No individual on the final Pareto front violates the end-to-end latency ceiling.
 - Re-running from the same configuration and seeds reproduces identical results.

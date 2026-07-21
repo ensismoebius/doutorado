@@ -27,6 +27,11 @@ The experiment consists of two stages:
 > in the thesis (`documentation/00-thesis/monography/chapters/09-testsAndResults.tex`,
 > §Fase 00/§Fase 01/§Retomada das questões de pesquisa) and its Conclusões chapter.
 
+> **Follow-up search:** because the 24 hand-picked autoencoder profiles lost to
+> handcrafted features on `D_penalized`, the [paraconsistentGA](ParaconsistentGA.md)
+> experiment searches the same architecture axes automatically with NSGA-II, to test
+> whether a better autoencoder exists than those fixed phase00 tiers.
+
 ---
 
 ## Theoretical Background

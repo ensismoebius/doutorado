@@ -81,6 +81,7 @@ Then follow one of these reading paths depending on what you came for:
 | Cross-validation (incl. nested) | [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) | [plain](./Concepts/Plain/K-Fold-Cross-Validation.md) |
 | LFCC speaker features | [LFCC](./Concepts/LFCC.md) | [plain](./Concepts/Plain/LFCC.md) |
 | Imagined speech & EEG biometrics | [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) | [plain](./Concepts/Plain/Imagined-Speech-and-EEG.md) |
+| Multi-objective search (NSGA-II) | [Multi-Objective Optimisation](./Concepts/Multi-Objective-Optimisation.md) | — |
 
 ### Core modules — the code itself
 
@@ -116,6 +117,7 @@ number. The old numeric names still appear inside stored result files (run tags 
 | `autoencoderRunner` | 03 | Autoencoder training runner |
 | `guayaquil` | 04 | SNN vs LSTM comparative — the conference paper |
 | `thesis` | 05 | **Thesis primary** — biometric authentication via imagined speech |
+| `paraconsistentGA` | — | NSGA-II autoencoder architecture search ranked by `d_penalized` (extends thesis phase00) |
 
 Run in order; `thesis` is the primary experiment.
 
@@ -125,6 +127,8 @@ Run in order; `thesis` is the primary experiment.
 - [Guayaquil](./Experiments/Guayaquil.md) — SNN vs LSTM comparative (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
+- [paraconsistentGA](./Experiments/ParaconsistentGA.md) — NSGA-II search over autoencoder
+  architectures, ranked by paraconsistent `d_penalized` under a latency constraint
 
 ### Research context
 
