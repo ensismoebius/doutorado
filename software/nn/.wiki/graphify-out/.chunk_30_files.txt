@@ -1,0 +1,1 @@
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/pyDemos/snn_hyperparam_search/long_train_curve.png
