@@ -42,6 +42,18 @@ results/             Top-level experiment results
                      PostToolUse: wiki-sync-reminder, completion-gate-reminder
 ```
 
+## Explanations must be didactic (PERMANENT)
+
+Any answer to "what does X mean / why is this like this", any wiki page, and any rationale
+comment follows `/didactic-explanation`: problem before definition, one concrete example
+with real numbers, the structure drawn rather than described, confusable pairs contrasted
+side by side, and the failure mode named as loud or silent. If the user asks twice, the
+first answer failed — rebuild it from first principles instead of rephrasing.
+
+Reference page: `software/nn/.wiki/Concepts/Time-Steps.md`.
+
+---
+
 ## Key skills available
 
 | Skill | Use when |
@@ -56,6 +68,7 @@ results/             Top-level experiment results
 | `/bibliography-verifier` | .bib entry correctness |
 | `/state-of-the-art-code-reference-search` | Paper/method lookup |
 | `/wiki` | Generate/update wiki |
+| `/didactic-explanation` | **Always on** for any explanation, wiki page, or "why" comment |
 | `/agent-performance-enforcer` | End-of-task gates |
 | `/validation-sequencing-enforcer` | Fastest-first validation |
 

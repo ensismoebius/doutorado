@@ -81,6 +81,7 @@ Then follow one of these reading paths depending on what you came for:
 | Cross-validation (incl. nested) | [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) | [plain](./Concepts/Plain/K-Fold-Cross-Validation.md) |
 | LFCC speaker features | [LFCC](./Concepts/LFCC.md) | [plain](./Concepts/Plain/LFCC.md) |
 | Imagined speech & EEG biometrics | [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) | [plain](./Concepts/Plain/Imagined-Speech-and-EEG.md) |
+| `time_steps` vs `delta_t` | [What time_steps Really Means](./Concepts/Time-Steps.md) | — |
 | Multi-objective search (NSGA-II) | [Multi-Objective Optimisation](./Concepts/Multi-Objective-Optimisation.md) | — |
 
 ### Core modules — the code itself

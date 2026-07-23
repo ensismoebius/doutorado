@@ -48,6 +48,14 @@ h) **"References"** — IEEE format citations
 
 ## Phase 3: Citation Rules
 
+- RULE: DIDACTIC
+  DO: Every page follows `/didactic-explanation` — open with the problem the thing solves,
+      one concrete example with real project numbers carried throughout, the structure
+      DRAWN (ASCII/mermaid), confusable pairs contrasted in a table, and the failure mode
+      named as loud or silent. `.wiki/Concepts/Time-Steps.md` is the reference.
+  AVOID: Never open a page with a definition or a signature; never describe a data layout
+      in prose alone.
+
 - Use web search to find canonical paper for every major algorithm.
 - Every claim about algorithm behavior MUST cite its source.
 - Prefer: arXiv, IEEE, ACM, NeurIPS, ICML, ICLR.

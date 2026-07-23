@@ -132,6 +132,18 @@ cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu --target <target> -j$(n
 
 ---
 
+## `time_steps` vs `delta_t` (PERMANENT)
+
+- `time_steps` (int) = HOW MANY steps one sample spans. Splits a `(T*B, F)` tensor:
+  `batch_size = rows / time_steps`. **Default 0 = unset and RAISES** — never assume 1,
+  that silently builds a single-step network with no temporal credit assignment.
+- `delta_t` (float) = HOW LONG one step lasts. Feeds `beta = exp(-delta_t/(R*C))`.
+  Renamed from `time_step` (one letter from `time_steps`) — do not reintroduce that name.
+
+Full explanation: `.wiki/Concepts/Time-Steps.md`.
+
+---
+
 ## No fallbacks (PERMANENT)
 
 **If something does not work, raise an exception. Never fall back.**

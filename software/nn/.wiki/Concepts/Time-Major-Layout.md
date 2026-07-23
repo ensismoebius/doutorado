@@ -135,3 +135,5 @@ nn::Tensor spikes = lif.forward(input, /*requires_grad=*/true);
 [2] I. Goodfellow, Y. Bengio, and A. Courville, *Deep Learning*. Cambridge, MA: MIT Press, 2016, ch. 10.
 
 [3] W. Fang et al., "Incorporating Learnable Membrane Time Constants to Enhance Learning of Spiking Neural Networks," in *Proc. IEEE/CVF ICCV*, 2021, pp. 2661–2671.
+
+- [What `time_steps` Really Means](Time-Steps.md) — the count that splits a `(T*B, F)` tensor into samples

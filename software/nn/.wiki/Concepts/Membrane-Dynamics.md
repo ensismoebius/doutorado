@@ -148,3 +148,5 @@ lif.reset_state();
 [2] M. Mahowald and R. Douglas, "A silicon neuron," *Nature*, vol. 354, pp. 515–518, Dec. 1991.
 
 [3] W. Fang, Z. Yu, Y. Chen, T. Masquelier, T. Huang, and Y. Tian, "Incorporating Learnable Membrane Time Constants to Enhance Learning of Spiking Neural Networks," in *Proc. IEEE/CVF ICCV*, 2021, pp. 2661–2671.
+
+- [What `time_steps` Really Means](Time-Steps.md) — `delta_t` (step size, used in β) vs `time_steps` (step count)
