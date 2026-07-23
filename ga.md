@@ -125,6 +125,76 @@ Everything phase00 keeps constant across AE profiles (encoder/decoder depth fixe
 
 **Decision to record explicitly:** is the loss function part of the genome, or fixed per population? Recommendation — **fix it per population** in the first study, so that architecture effects are not confounded with loss effects. If it is evolved, treat it as a declared axis and report that analysis separately.
 
+#### 5.1.1 Size of the search space (measured from the codebase)
+
+Counted from the enforced value lists in the source, **excluding layer counts and layer widths**. These are the numbers the GA budget must be sized against.
+
+**GA genome, as configured today** (`profiles/pga_*.json`, bounds `hidden ∈ {16,32,64,128}`, `latent ∈ {8,16,32,64}`, constraint `latent < hidden` → 10 valid width pairs):
+
+| Population | Distinct genomes | × `n_seeds` | Max AE trainings |
+|---|---|---|---|
+| SNN (10 pairs × 3 encodings) | **30** | 3 | 90 |
+| ANN (10 pairs, encoding forced `direct`) | **10** | 3 | 30 |
+| Excluding widths entirely | 3 (SNN encodings) + 1 (ANN) = **4** | — | — |
+
+> **Budget warning — act on this.** Both profiles run `population_size=16 × (1+12 generations) = 208` evaluations against only **30** (SNN) / **10** (ANN) reachable genomes. The evaluation cache makes the ~180 redundant evaluations free, but NSGA-II then degenerates into an **exhaustive sweep**: selection, crossover and mutation cannot find anything enumeration would miss. Either widen the bounds (more widths, `evolve_temporal: true`, learning rate as a gene) or cut `generations` to ~3–4. Do not report a "genetic search" result that is really a full enumeration.
+
+**AE-only scope** (handcrafted extraction, wavelets, scales, categories, descriptors and `lstm-ae` all excluded; backend fixed to xtensor; only AE-compatible optimizers and losses):
+
+| Level | Count |
+|---|---|
+| Per modality-slot: `ann-ae` (1, encoding forced `direct`) + `snn-ae` × 3 encodings | 4 |
+| Modality slots: eeg + voice + fused(early, late) | 4 |
+| **AE extractor configs** | **16** |
+| × 4 optimizers (adam, sgd, lion, schedule-free-adamw — all AE-compatible) | 64 |
+| × 2 reconstruction losses (`mse`, `mae`) | **128** |
+| + phase01 classifier stage (× 16) | 2 048 |
+
+**128** is the AE-only configuration space. Compatibility was verified against the code, not assumed:
+
+- **Optimizers — all 4 are compatible.** `run_protocol_ae` forwards `optimizer_type` straight into `TrainerConfig`, `OptimizerFactory` supports all four, and every optimizer honors `attach_with_scales()` for the SNN biophysical parameters (R, C, V_th). No AE-specific exclusion exists.
+- **Losses — exactly 2 are compatible.** The AE reconstruction path can instantiate only `MSELossImpl` and `MAELossImpl`. `CrossEntropyLoss` is classification. `SpikeCountLoss`/`SpikeTimeLoss` are **not** wired into autoencoder reconstruction, even though the SNN invariant (`.wiki/Concepts/Spike-Encoding.md`) says rate coding properly wants `SpikeCountLoss` and latency coding wants `SpikeTimeLoss`. **Consequence to state in the write-up:** every SNN-AE currently trains under a continuous reconstruction loss regardless of its spike encoding. That is a known limitation of the AE path, not a modelling choice.
+
+> **Implementation note (resolved).** The Trainer's loss is a *compile-time* template parameter (`Trainer<ModelType, LossType>`, defaulting to `MSELossImpl`), and the old `AutoencoderConfig::loss_type` string was never read — so MAE was unreachable and the real space was 64, not 128. `ThesisConfig::AutoencoderConfig::ae_loss_type` (`"mse" | "mae"`, validated) now dispatches to a concrete `Trainer` instantiation in `ThesisFeatureExtraction`, making both losses reachable from a profile. Set it explicitly per run; **keep it fixed per population** (§5.1) rather than evolving it.
+
+**Framework-wide categorical axes** (the space the GA could in principle be extended into, i.e. *before* the AE-only exclusions above):
+
+| Axis | Values | Count |
+|---|---|---|
+| Modality | voice, eeg, fused | 3 |
+| Fusion mode (fused only) | early, late | 2 |
+| Wavelet | haar + daub4…daub46 (even) | 23 |
+| Scale | bark, mel, lfcc (**EEG: lfcc only**) | 3 |
+| Category | cepstral true/false | 2 |
+| Descriptors | energy, zcr, entropy, teager, jitter, shimmer | 6 (subset) |
+| AE model | ann-ae, snn-ae, lstm-ae | 3 |
+| Spike encoding (snn only) | direct, latency, poisson | 3 |
+| Classifier | rnn, dsnn | 2 |
+| Text mode | dependent, independent | 2 |
+| Optimizer | adam, sgd, lion, schedule-free-adamw | 4 |
+| Batch norm (dsnn only) | none, threshold-dependent | 2 |
+| Standardize / nested CV | bool × bool | 4 |
+| Surrogate gradient | Exponential, Boxcar | 2 |
+| Losses | MSE, MAE, CrossEntropy, SpikeCount, SpikeTime | 5 |
+| Initializer | xavier, kaiming_snn | 2 |
+
+Resulting pipeline sizes:
+
+- **Handcrafted extractors:** eeg 23×1×2 = 46 · voice 23×3×2 = 138 · fused 23×3×2×2 = 276 → **460**
+- **Autoencoder extractors:** (ann + lstm + snn×3) = 5 per modality → eeg 5 + voice 5 + fused 10 = **20**
+- **Classifier stage:** rnn/dsnn × dep/indep × standardize × nested_cv = **16** (×4 optimizers = 64; ×2 batch-norm, dsnn only → up to 128)
+- **Full thesis pipeline:** (460 + 20) × 16 = **7 680**; ×4 optimizers = **30 720**
+- **Guayaquil:** 1 lstm-ae + 3 architectures × 3 encodings = **10**
+- **autoencoderRunner:** 4 dataset types × 2 families = **8** concrete AE classes
+
+**Three caveats that keep these honest:**
+
+1. **Not all products are reachable.** The code enforces real exclusions: EEG rejects bark/mel (cochlear scales, provably degenerate to lfcc there), `fusion_mode` applies only when modality is `fused`, spike `encoding` is ignored by `ann-ae`/`lstm-ae`, and batch-norm / firing-rate regularization are `dsnn`-only. The totals above already apply the modality/scale and encoding gates; treat the rest as an upper bound.
+2. **Loss is not a free axis in the thesis pipeline.** `ae_cfg.loss_type = "mse"` is hard-coded in `ThesisFeatureExtraction.cpp`, not profile-driven — so the 5 losses are available in the framework but pinned in practice. This is consistent with §5.2's "fix loss per population" recommendation.
+3. **Descriptors are the hidden multiplier.** Counted above as one fixed set. `descriptors` is a `vector<string>` with no validation beyond non-empty, so swept as subsets it is 2⁶−1 = **63**, which would take handcrafted from 460 to **28 980**. Every profile in the repo uses one fixed list — the axis is declared but never swept. Do not open it without an explicit scope decision.
+
+The 460 handcrafted figure is a **superset** of the executed phase00 grid (276 handcrafted + 24 AE): fused handcrafted was never swept and AE sizes were fixed tiers.
+
 ### 5.2 Loss functions per population
 
 **ANN population** — primary loss: **MSE**. Alternatives recorded as experimental variants: MAE, Huber.
@@ -162,7 +232,7 @@ Following the existing `thesis` phase00/phase01 convention (`software/nn/results
 2. NSGA-II implementation integrated with the existing components, following the patterns observed in the already-implemented networks.
 3. Fitness evaluation module: `D_penalized`, inference cost, reconstruction sanity filter.
 4. Calibration utility for `fixed_pipeline_cost`.
-5. Versioned configuration containing all hyperparameters, including `λ`, `τ` (Van Rossum), `q` (Victor–Purpura), `τ_rec`, `n_seeds`, epoch budget, and latency ceiling.
+5. Versioned configuration containing all hyperparameters, including `λ`, `τ` (Van Rossum), `q` (Victor–Purpura), `τ_rec`, `n_seeds`, epoch budget, latency ceiling, **optimizer**, and **`ae_loss_type` (`mse` | `mae`)** — the last two are the axes that make the AE space 128 rather than 16.
 6. Per-individual logs containing at minimum: genome, `α`, `β`, `G₁`, `G₂`, `D₁,₀`, `D_penalized`, reconstruction error, measured latency, seed, feasibility.
 7. Final Pareto fronts for both populations, exported in a queryable format.
 
@@ -175,4 +245,5 @@ Following the existing `thesis` phase00/phase01 convention (`software/nn/results
 - An individual with constant output is ranked **worst** in the population, not best.
 - No individual on the final Pareto front violates the end-to-end latency ceiling.
 - Re-running from the same configuration and seeds reproduces identical results.
+- **The GA budget is smaller than the reachable search space** (§5.1.1). If `population_size × (1 + generations)` exceeds the number of distinct genomes the bounds allow, the run is an exhaustive enumeration wearing a GA's clothes — either widen the bounds or shrink the budget before reporting it as an evolutionary search.
 

@@ -646,3 +646,75 @@ TEST(ThesisSnnAe, EncodingChangesTheFeature)
                 std::max(max_delta, std::abs(poisson[0].vectors[s][d] - direct[0].vectors[s][d]));
     EXPECT_GT(max_delta, 1e-6) << "poisson and direct encodings yield identical features";
 }
+
+// ─── autoencoder reconstruction loss selection (mse | mae) ───────────────────
+//
+// The Trainer's loss is a compile-time template parameter, so ae_loss_type must be
+// dispatched to a concrete instantiation. These guard that the profile field is
+// parsed, validated, and defaulted — i.e. that "mae" is actually reachable.
+
+namespace
+{
+ThesisConfig make_min_ae_config()
+{
+    ThesisConfig cfg;
+    cfg.experiment.run_tag = "t";
+    cfg.dataset.root = "/x";
+    cfg.dataset.modality = "eeg";
+    cfg.feature_extraction.strategy = "autoencoder";
+    cfg.feature_extraction.autoencoder.model = "ann-ae";
+    cfg.feature_extraction.autoencoder.encoder_layer_spec = {
+        "linear:64:leaky", "linear:32:identity"};
+    cfg.feature_extraction.autoencoder.decoder_layer_spec = {
+        "linear:64:leaky", "linear:output:identity"};
+    cfg.classifier.enabled = false;
+    return cfg;
+}
+} // namespace
+
+TEST(ThesisAeLoss, DefaultsToMse)
+{
+    ThesisConfig cfg;
+    EXPECT_EQ(cfg.feature_extraction.autoencoder.ae_loss_type, "mse");
+}
+
+TEST(ThesisAeLoss, AcceptsMseAndMae)
+{
+    auto cfg = make_min_ae_config();
+    cfg.feature_extraction.autoencoder.ae_loss_type = "mse";
+    EXPECT_NO_THROW(cfg.validate());
+    cfg.feature_extraction.autoencoder.ae_loss_type = "mae";
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(ThesisAeLoss, RejectsUnsupportedLoss)
+{
+    auto cfg = make_min_ae_config();
+    // Classification / spike losses are not wired into the AE reconstruction path.
+    for (const char* bad : {"crossentropy", "spikecount", "spiketime", "l1", ""})
+    {
+        cfg.feature_extraction.autoencoder.ae_loss_type = bad;
+        EXPECT_THROW(cfg.validate(), std::invalid_argument) << "should reject: " << bad;
+    }
+}
+
+TEST(ThesisAeLoss, ParsedFromProfileJson)
+{
+    const auto j = nlohmann::json::parse(R"({
+        "experiment": {"run_tag": "t"},
+        "dataset": {"root": "/x", "modality": "eeg"},
+        "feature_extraction": {
+            "strategy": "autoencoder",
+            "autoencoder": {
+                "model": "ann-ae",
+                "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
+                "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"],
+                "ae_loss_type": "mae"
+            }
+        },
+        "classifier": {"enabled": false}
+    })");
+    const auto cfg = ThesisConfig::from_json(j);
+    EXPECT_EQ(cfg.feature_extraction.autoencoder.ae_loss_type, "mae");
+    EXPECT_NO_THROW(cfg.validate());
+}

@@ -73,6 +73,21 @@ struct ThesisConfig
         /// encoder neurons actually fire; otherwise the latent collapses to zero.
         float voltage_threshold = 0.2f;
 
+        /// Reconstruction loss used to TRAIN the autoencoder: "mse" | "mae".
+        ///
+        /// This selects the Trainer's LossType, which is a compile-time template
+        /// parameter (Trainer<ModelType, LossType>), so the string is dispatched to a
+        /// concrete instantiation in ThesisFeatureExtraction. Before this field existed
+        /// the AE path was hard-wired to MSE and the old AutoencoderConfig::loss_type
+        /// string was never read, making MAE unreachable from a thesis/GA profile.
+        ///
+        /// Note the SNN encoding<->loss invariant (.wiki/Concepts/Spike-Encoding.md):
+        /// mse/mae are correct for `direct`; rate/latency coding would properly want
+        /// SpikeCountLoss/SpikeTimeLoss, which the AE reconstruction path does not yet
+        /// support. Keep loss fixed per population rather than confounding it with
+        /// architecture (ga.md 5.1).
+        std::string ae_loss_type = "mse"; // "mse" | "mae"
+
         /// Firing-rate regularization for the snn-ae encoder. 0 = disabled.
         /// Pushes each encoder Lif layer's mean firing rate into
         /// [firing_rate_min, firing_rate_max], preventing dead-latent collapse

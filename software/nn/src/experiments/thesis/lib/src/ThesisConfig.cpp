@@ -132,6 +132,14 @@ void ThesisConfig::validate() const
         if (ae_enc != "poisson" && ae_enc != "latency" && ae_enc != "direct")
             throw std::invalid_argument(
                 "ThesisConfig: autoencoder.encoding must be poisson, latency, or direct");
+
+        // Only the two reconstruction losses the AE training path can actually
+        // instantiate. CrossEntropy is classification; SpikeCount/SpikeTime are not
+        // wired into the autoencoder reconstruction path (see ae_loss_type docs).
+        const auto& ae_loss = feature_extraction.autoencoder.ae_loss_type;
+        if (ae_loss != "mse" && ae_loss != "mae")
+            throw std::invalid_argument(
+                "ThesisConfig: autoencoder.ae_loss_type must be mse or mae");
         if (feature_extraction.autoencoder.time_steps < 1)
             throw std::invalid_argument("ThesisConfig: autoencoder.time_steps must be >= 1");
         if (feature_extraction.autoencoder.firing_rate_reg_lambda < 0.0f)
@@ -288,6 +296,8 @@ ThesisConfig ThesisConfig::from_json(const nlohmann::json& j)
                     ae["decoder_layer_spec"].get<std::vector<std::string>>();
             if (ae.contains("encoding"))
                 cfg.feature_extraction.autoencoder.encoding = ae["encoding"];
+            if (ae.contains("ae_loss_type"))
+                cfg.feature_extraction.autoencoder.ae_loss_type = ae["ae_loss_type"];
             if (ae.contains("time_steps"))
                 cfg.feature_extraction.autoencoder.time_steps = ae["time_steps"];
             if (ae.contains("voltage_threshold"))

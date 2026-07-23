@@ -16,6 +16,7 @@
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "layers/losses/MAELoss.hpp" // MAE reconstruction loss (Trainer.hpp only pulls MSE)
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "training/ProgressCallback.hpp"
@@ -549,7 +550,8 @@ std::vector<std::vector<double>> run_protocol_ae(
     const std::string& encoding,
     int time_steps,
     std::uint32_t seed,
-    float voltage_threshold)
+    float voltage_threshold,
+    const std::string& ae_loss_type)
 {
     const bool temporal = (encoding != "direct");
     const int T = temporal ? std::max(1, time_steps) : 1;
@@ -578,7 +580,7 @@ std::vector<std::vector<double>> run_protocol_ae(
     ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec, 64);
     ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, 16);
     ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
-    ae_cfg.loss_type = "mse";
+    ae_cfg.loss_type = ae_loss_type.empty() ? "mse" : ae_loss_type;
     ae_cfg.time_step = 1.0f;
     ae_cfg.voltage_threshold = voltage_threshold;
     ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
@@ -606,16 +608,35 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
     trainer_cfg.batch_size = std::max(1, batch_size);
 
-    nn::training::Trainer<AEType> trainer(model, trainer_cfg);
+    // The Trainer's loss is a COMPILE-TIME template parameter
+    // (Trainer<ModelType, LossType>), so the profile's ae_loss_type string has to be
+    // dispatched to a concrete instantiation here. Before this, the AE path was hard-wired
+    // to the default MSELossImpl and `mae` was unreachable from a thesis/GA profile.
     // Match the Guayaquil (Guayaquil) TUI: give the training bar a description + loss type so the
     // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
     // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
     // the "run X/Y" column), so col3 shows just the loss, exactly like the Guayaquil bars.
-    auto ae_cb =
-        std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix);
-    ae_cb->set_metadata(ae_kind + " (" + encoding + ")", 0, 1, "MSE");
-    trainer.add_callback(ae_cb);
-    (void) trainer.fit_autoencoder(train_samples);
+    const std::string loss_token = ae_loss_type.empty() ? "mse" : ae_loss_type;
+    auto make_cb = [&](const char* tag)
+    {
+        auto cb =
+            std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix);
+        cb->set_metadata(ae_kind + " (" + encoding + ")", 0, 1, tag);
+        return cb;
+    };
+
+    if (loss_token == "mae")
+    {
+        nn::training::Trainer<AEType, MAELossImpl<nn::Backend>> trainer(model, trainer_cfg);
+        trainer.add_callback(make_cb("MAE"));
+        (void) trainer.fit_autoencoder(train_samples);
+    }
+    else // "mse" — validated upstream, so this is the only remaining case
+    {
+        nn::training::Trainer<AEType, MSELossImpl<nn::Backend>> trainer(model, trainer_cfg);
+        trainer.add_callback(make_cb("MSE"));
+        (void) trainer.fit_autoencoder(train_samples);
+    }
 
     // Feature per sample = mean latent over its T spike frames. The membrane
     // state is reset ONCE per sample and then integrates across the T frames
@@ -737,7 +758,8 @@ auto extract_features_core(const ThesisDatasetView& view,
                 cfg.autoencoder.encoding,
                 cfg.autoencoder.time_steps,
                 seed,
-                cfg.autoencoder.voltage_threshold);
+                cfg.autoencoder.voltage_threshold,
+                cfg.autoencoder.ae_loss_type);
         }
         else if (ae_model == "ann-ae")
         {
@@ -752,7 +774,8 @@ auto extract_features_core(const ThesisDatasetView& view,
                 "direct",
                 1,
                 seed,
-                1.0f);
+                1.0f,
+                cfg.autoencoder.ae_loss_type);
         }
         else // "lstm-ae" — sequence AE on windowed frames (Guayaquil-paper extractor)
         {
