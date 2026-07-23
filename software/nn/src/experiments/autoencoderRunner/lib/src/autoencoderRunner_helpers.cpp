@@ -67,7 +67,7 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     // spiking stack unrolls exactly one step. Declared explicitly — leaving time_steps
     // unset raises, which is what stops a silent single-step network elsewhere.
     model_cfg.time_steps = 1;
-    model_cfg.time_step = config.autoencoder_time_step;
+    model_cfg.delta_t = config.autoencoder_time_step;
     model_cfg.resistance = config.autoencoder_resistance;
     model_cfg.capacitance = config.autoencoder_capacitance;
     model_cfg.eeg_features = config.effective_autoencoder_eeg_features();

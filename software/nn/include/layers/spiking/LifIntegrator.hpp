@@ -75,7 +75,7 @@ struct LifIntegratorImpl : public LifImpl<Backend>
         float const R = std::max(kMinPositiveParam, this->resistance.at(0, 0));
         float const C = std::max(kMinPositiveParam, this->capacitance.at(0, 0));
         float const tau = R * C;
-        float const beta = std::exp(-this->time_step / tau);
+        float const beta = std::exp(-this->delta_t / tau);
 
         // Note: if tau is extremely small, beta can underflow; callers should
         // keep (R,C,dt) in a numerically sensible range.
@@ -121,10 +121,10 @@ struct LifIntegratorImpl : public LifImpl<Backend>
 
         if (tau > 1e-12F) [[likely]]
         {
-            const float beta = std::exp(-this->time_step / tau);
+            const float beta = std::exp(-this->delta_t / tau);
             // Match clamp behavior in backward: block d(beta)/dR once raw_R is clamped.
             const float d_beta_dR =
-                (raw_R > kMinPositiveParam) ? (beta * this->time_step) / (C * R * R) : 0.0F;
+                (raw_R > kMinPositiveParam) ? (beta * this->delta_t) / (C * R * R) : 0.0F;
 
             // dL/dbeta = sum( dL/dV * V[t-1] )
             float dL_dbeta = grad_input.multiply(this->v_mem_t_minus_1).sum();
@@ -138,7 +138,7 @@ struct LifIntegratorImpl : public LifImpl<Backend>
             // dBeta/dC = beta * dt / (R * C^2)
             // Symmetric clamp-boundary handling for capacitance gradient.
             const float d_beta_dC = //
-                (raw_C > kMinPositiveParam) ? (beta * this->time_step) / (R * C * C) : 0.0F;
+                (raw_C > kMinPositiveParam) ? (beta * this->delta_t) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             this->capacitance.set_grad(c_grad);

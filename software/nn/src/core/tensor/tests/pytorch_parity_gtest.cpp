@@ -411,8 +411,8 @@ TYPED_TEST(PyTorchParityTyped, LSTMLayerForward)
 
 // ── LifBPTT spiking neuron vs snnTorch Leaky ──────────────────────────────────
 // Our recurrence v[t]=beta*v[t-1]+input[t], spike on v>V_th, subtract/zero reset
-// matches snn.Leaky(beta, threshold, reset_mechanism). R=C=1, time_step=-ln(beta)
-// so beta = exp(-time_step/(R*C)) reproduces snnTorch's beta.
+// matches snn.Leaky(beta, threshold, reset_mechanism). R=C=1, delta_t=-ln(beta)
+// so beta = exp(-delta_t/(R*C)) reproduces snnTorch's beta.
 TYPED_TEST(PyTorchParityTyped, LifBPTTvsSnnTorch)
 {
     using B = typename TestFixture::Backend;
@@ -428,14 +428,14 @@ TYPED_TEST(PyTorchParityTyped, LifBPTTvsSnnTorch)
         const int B_ = static_cast<int>(dims[1]);
         const int F = static_cast<int>(dims[2]);
         const float* prm = arr(p + "params").data<float>();
-        const float time_step = prm[0];
+        const float delta_t = prm[0];
         const float R = prm[1];
         const float C = prm[2];
         const float vth = prm[3];
         const bool reset_zero = prm[4] > 0.5F;
         const bool readout = prm[5] > 0.5F;
 
-        LifBPTTImpl<B> lif(T, time_step, R, C, vth, reset_zero, 0.0F, readout);
+        LifBPTTImpl<B> lif(T, delta_t, R, C, vth, reset_zero, 0.0F, readout);
 
         // Fixture input is (T,B,F) C-order == time-major (T*B, F) rows (t0 batch,
         // then t1 batch, …) — exactly what LifBPTT expects.

@@ -39,7 +39,7 @@ using std::vector;
 
 constexpr int n_steps = 200;
 constexpr float max_rate = 0.5F;
-constexpr float time_step = 1.0F;
+constexpr float delta_t = 1.0F;
 constexpr float resistence = 3.0F;
 constexpr float capacitance = 2.0F;
 constexpr float v_threshold = 1.0F;
@@ -49,11 +49,10 @@ auto main() -> int
     try
     {
         // Generate single input spike train (Poisson)
-        auto [spike_inputs, _] =
-            generate_autoencoder_spike_data(1, 1, n_steps, max_rate, time_step);
+        auto [spike_inputs, _] = generate_autoencoder_spike_data(1, 1, n_steps, max_rate, delta_t);
 
         // Setup 1 hidden LIF neuron and 1 output neuron (LIF)
-        Lif hidden_neuron(time_step,                   // dt
+        Lif hidden_neuron(delta_t,                       // dt
             resistence,                                  // R
             capacitance,                                 // C
             v_threshold,                                 // reset to zero or subtract threshold
@@ -61,7 +60,7 @@ auto main() -> int
             0.0F,                                        // reset potential value
             std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
         );
-        Lif output_neuron(time_step,                   // dt
+        Lif output_neuron(delta_t,                       // dt
             resistence,                                  // R
             capacitance,                                 // C
             v_threshold,                                 // reset to zero or subtract threshold

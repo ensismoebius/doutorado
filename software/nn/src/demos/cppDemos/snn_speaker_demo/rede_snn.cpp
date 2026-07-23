@@ -36,7 +36,7 @@ struct ModelConfig
     int hidden_size = 100;
     float input_scale = 1.0f;
     int num_steps = 100;
-    float time_step = 0.001f;
+    float delta_t = 0.001f;
     float resistance = 5.0f;
     float capacitance = 1.0f;
     float voltage_threshold = 0.01f;
@@ -65,7 +65,7 @@ auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<Modu
     // (useful for continuous reconstruction at the final layer).
     return make_shared<LifBPTT>( //
         cfg.num_steps,
-        cfg.time_step,
+        cfg.delta_t,
         cfg.resistance,
         cfg.capacitance,
         cfg.voltage_threshold,

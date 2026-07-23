@@ -377,7 +377,7 @@ TEST(LifIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 TEST(LifBPTTLayerTest, ParamsExposeTrainableCapacitance)
 {
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
         /*voltage_threshold=*/1.0F);
@@ -392,7 +392,7 @@ TEST(LifBPTTLayerTest, ParamsExposeTrainableCapacitance)
 TEST(LifBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
 {
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
         /*voltage_threshold=*/100.0F,
@@ -432,7 +432,7 @@ TEST(LifBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
 {
     // Large boxcar window keeps surrogate derivative at 1 over this test's voltage range.
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
         /*voltage_threshold=*/100.0F,
@@ -470,7 +470,7 @@ TEST(LifBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
 TEST(LifBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
 {
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
         /*voltage_threshold=*/0.1F,
@@ -495,7 +495,7 @@ TEST(LifBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
 TEST(LifBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/-2.0F,
         /*capacitance=*/-3.0F,
         /*voltage_threshold=*/0.5F,
@@ -544,7 +544,7 @@ TEST(LifBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
     //   dL_dR = 1.5 * (beta/12)   [d_beta_dR = beta/(R^2*C) = beta/12]
     //   dL_dC = 1.5 * (beta/18)   [d_beta_dC = beta/(R*C^2) = beta/18]
     LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
-        /*time_step=*/1.0F,
+        /*delta_t=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
         /*voltage_threshold=*/0.5F,

@@ -40,7 +40,7 @@ struct Adam : public Optimizer
     float decay_rate_moment1; // Hiperparâmetro de decaimento do primeiro momento (tipicamente 0.9)
     float decay_rate_moment2; // Hiperparâmetro de decaimento do segundo momento (tipicamente 0.999)
     float epsilon;            // Termo pequeno para evitar divisão por zero
-    int time_step;            // Contador de iterações
+    int delta_t;              // Contador de iterações
 
     // `weight_decay` (decoupled L2 → AdamW) and `lr_scales_` (per-parameter lr
     // multipliers) are inherited from Optimizer — see Optimizer.hpp. Both are read
@@ -60,7 +60,7 @@ struct Adam : public Optimizer
           decay_rate_moment1(decay_rate_moment1_),
           decay_rate_moment2(decay_rate_moment2_),
           epsilon(epsilon_),
-          time_step(0)
+          delta_t(0)
     {
         if (learning_rate_ <= 0.0F)
         {
@@ -75,10 +75,10 @@ struct Adam : public Optimizer
     auto state_dict() const -> std::map<std::string, Tensor> override
     {
         std::map<std::string, Tensor> out;
-        // Save time_step as a 1x1 tensor
+        // Save delta_t as a 1x1 tensor
         Tensor t_time(1, 1);
-        t_time.at(0, 0) = static_cast<float>(time_step);
-        out["time_step"] = t_time;
+        t_time.at(0, 0) = static_cast<float>(delta_t);
+        out["delta_t"] = t_time;
         // Save moment1 and moment2 as indexed entries
         for (size_t i = 0; i < moment1.size(); ++i)
         {
@@ -93,14 +93,14 @@ struct Adam : public Optimizer
 
     void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
-        // time_step
-        auto it = sd.find("time_step");
+        // delta_t
+        auto it = sd.find("delta_t");
         if (it != sd.end())
         {
             const Tensor& tt = it->second;
             if (tt.rows() > 0 && tt.cols() > 0)
             {
-                time_step = static_cast<int>(tt.at(0, 0));
+                delta_t = static_cast<int>(tt.at(0, 0));
             }
         }
         // moments: look for keys moment1.N and moment2.N
@@ -181,10 +181,10 @@ struct Adam : public Optimizer
         {
             const float bc1 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment1),
-                                             static_cast<double>(time_step)));
+                                             static_cast<double>(delta_t)));
             const float bc2 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment2),
-                                             static_cast<double>(time_step)));
+                                             static_cast<double>(delta_t)));
             return param.get_backend().adam_step_inplace(m1.get_backend(),
                 m2.get_backend(),
                 param.get_backend().grad_ref(),
@@ -204,7 +204,7 @@ struct Adam : public Optimizer
     auto step(std::span<Tensor*> paramsList) -> void override
     {
         // Numerical note: bias correction uses pow(beta, t). For large t, beta^t → 0.
-        time_step += 1;
+        delta_t += 1;
         for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
             if (paramsList[i] == nullptr)
@@ -261,10 +261,10 @@ struct Adam : public Optimizer
             // Corrige o viés das médias móveis
             float bias_correction1 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment1),
-                                             static_cast<double>(time_step)));
+                                             static_cast<double>(delta_t)));
             float bias_correction2 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment2),
-                                             static_cast<double>(time_step)));
+                                             static_cast<double>(delta_t)));
             auto m_hat = moment1[i] / bias_correction1;
             auto v_hat = moment2[i] / bias_correction2;
 

@@ -64,8 +64,8 @@ Exact-math layers match PyTorch to `1e-4`. Two layers need care:
   using the *same* approximation (proves gate order / recurrence / weight
   orientation), and within a documented bound (`< 0.25`) vs torch's exact LSTM.
 - **LifBPTT** maps to snnTorch's `snn.Leaky`: `v[t]=β·v[t-1]+input`, spike on
-  `v>V_th`, subtract/zero reset. We set `R=C=1`, `time_step=-ln(β)` so
-  `β=exp(-time_step/(R·C))` reproduces snnTorch's `β`. Spike trains match exactly;
+  `v>V_th`, subtract/zero reset. We set `R=C=1`, `delta_t=-ln(β)` so
+  `β=exp(-delta_t/(R·C))` reproduces snnTorch's `β`. Spike trains match exactly;
   the readout case checks the leaky-integrator membrane. The **readout backward**
   test checks `dL/dinput` (BPTT through the recurrence) against snnTorch autograd —
   exact, since readout mode has no spike/reset/surrogate. Spiking-mode backward is

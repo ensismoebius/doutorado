@@ -111,8 +111,8 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
         // Parameters for synthetic spike train
         constexpr int n_samples = 5; // Number of samples for synthetic data the higher the better
         constexpr int n_steps = 10;  // Number of time steps in the spike train
-        constexpr float max_rate = 1.0F;  // Maximum firing rate
-        constexpr float time_step = 1.0F; // Time step duration
+        constexpr float max_rate = 1.0F; // Maximum firing rate
+        constexpr float delta_t = 1.0F;  // Time step duration
 
         // Create input and target tensors
         vector<nn::Tensor> inputs;
@@ -120,7 +120,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
         // Generate synthetic spike data
         tie(inputs, targets) =
-            generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
+            generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, delta_t);
 
         // ==== Model Definition ====
 

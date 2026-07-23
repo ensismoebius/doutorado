@@ -118,7 +118,7 @@ It is used in single-step pipelines where the caller advances the simulation man
 template <typename Backend>
 struct LifImpl : public Module<Backend>
 {
-    float time_step = 1.0F;
+    float delta_t = 1.0F;
     Tensor resistance;       // trainable: 1×1
     Tensor capacitance;      // trainable: 1×1
     Tensor voltage_threshold; // trainable: 1×1
@@ -130,7 +130,7 @@ struct LifImpl : public Module<Backend>
     Tensor adapt_a;               // adaptation variable (B×F)
 
     // Construction: all parameters have defaults; adaptation is off by default.
-    explicit LifImpl(float time_step_ = 1.0F,
+    explicit LifImpl(float delta_t_ = 1.0F,
         float resistance_ = 1.0F, float capacitance_ = 1.0F,
         float voltage_threshold_ = 1.0F,
         bool reset_zero_ = true, float reset_potential_ = 0.0F,
@@ -161,7 +161,7 @@ template <typename Backend>
 struct LifBPTTImpl : public Module<Backend>
 {
     int time_steps;          // T
-    float time_step = 1.0F;  // Δt
+    float delta_t = 1.0F;  // Δt
     Tensor resistance, capacitance, voltage_threshold;  // trainable 1×1
     Tensor v_mem;            // persistent state across forward() calls (B×F)
     Tensor v_mem_history;    // pre-spike V cache for BPTT (T*B × F)
@@ -174,7 +174,7 @@ struct LifBPTTImpl : public Module<Backend>
     Tensor adapt_a_bptt_;  // persistent across forward() calls (B×F)
 
     explicit LifBPTTImpl(int time_steps_,
-        float time_step_ = 1.0F,
+        float delta_t_ = 1.0F,
         float resistance_ = 1.0F, float capacitance_ = 1.0F,
         float voltage_threshold_ = 1.0F,
         bool reset_zero_ = true, float reset_potential_ = 0.0F,

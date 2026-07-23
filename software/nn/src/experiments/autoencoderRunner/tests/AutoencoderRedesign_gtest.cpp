@@ -38,7 +38,7 @@ auto make_fused_cfg() -> AutoencoderConfig
     // Single frame per sample in these unit tests, so the BPTT unroll is one step.
     // Declared explicitly: leaving time_steps unset now raises by design.
     cfg.time_steps = 1;
-    cfg.time_step = 1.0F;
+    cfg.delta_t = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
     return cfg;
@@ -255,7 +255,7 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndPa
     // Single frame per sample in these unit tests, so the BPTT unroll is one step.
     // Declared explicitly: leaving time_steps unset now raises by design.
     cfg.time_steps = 1;
-    cfg.time_step = 1.0F;
+    cfg.delta_t = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
 
@@ -326,7 +326,7 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayer
     // Single frame per sample in these unit tests, so the BPTT unroll is one step.
     // Declared explicitly: leaving time_steps unset now raises by design.
     cfg.time_steps = 1;
-    cfg.time_step = 1.0F;
+    cfg.delta_t = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
     cfg.encoder_layer_spec = {
@@ -374,7 +374,7 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInjectsGr
         // Single frame per sample in these unit tests, so the BPTT unroll is one step.
         // Declared explicitly: leaving time_steps unset now raises by design.
         cfg.time_steps = 1;
-        cfg.time_step = 1.0F;
+        cfg.delta_t = 1.0F;
         cfg.resistance = 1.0F;
         cfg.capacitance = 1.0F;
         cfg.initializer_seed = 42u;
@@ -428,7 +428,7 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInertWhen
     // Single frame per sample in these unit tests, so the BPTT unroll is one step.
     // Declared explicitly: leaving time_steps unset now raises by design.
     cfg.time_steps = 1;
-    cfg.time_step = 1.0F;
+    cfg.delta_t = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
     cfg.initializer_seed = 7u;

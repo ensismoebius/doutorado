@@ -86,8 +86,8 @@ struct LifImpl : public Module<Backend>
 
     // --- Parameters for LIF neuron dynamics ---
 
-    /// @brief The simulation time step (time_step).
-    float time_step = 1.0F;
+    /// @brief The simulation time step (delta_t).
+    float delta_t = 1.0F;
 
     // IDENTIFIABILITY NOTE (audit m-2): the dynamics depend only on the membrane
     // time constant tau = R * C (beta = exp(-dt/tau)). R and C are NOT separately
@@ -203,24 +203,24 @@ struct LifImpl : public Module<Backend>
     /**
      * @brief Construct a new Lif object
      *
-     * @param time_step_ Time step
+     * @param delta_t_ Time step
      * @param resistance_ Resistance
      * @param capacitance_ Capacitance
      * @param voltage_threshold_ Voltage threshold
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    explicit LifImpl(float time_step_ = 1.0F, // time step
-        float resistance_ = 1.0F,             // resistance
-        float capacitance_ = 1.0F,            // capacitance
-        float voltage_threshold_ = 1.0F,      // voltage threshold
-        bool reset_zero_ = true,              // reset to zero or subtract threshold
-        float reset_potential_ = 0.0F,        // reset potential value
+    explicit LifImpl(float delta_t_ = 1.0F, // time step
+        float resistance_ = 1.0F,           // resistance
+        float capacitance_ = 1.0F,          // capacitance
+        float voltage_threshold_ = 1.0F,    // voltage threshold
+        bool reset_zero_ = true,            // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F,      // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>(),
         float adapt_decay_ = 0.9F,    // adaptation decay rate (0,1)
         float adapt_coupling_ = 0.0F) // adaptation coupling (0 = disabled)
-        : time_step(time_step_),
+        : delta_t(delta_t_),
           resistance(Tensor::constant(1, 1, resistance_)),
           capacitance(Tensor::constant(1, 1, capacitance_)),
           voltage_threshold(Tensor::constant(1, 1, voltage_threshold_)),
@@ -268,7 +268,7 @@ struct LifImpl : public Module<Backend>
         float const R = std::max(kMinPositiveParam, resistance.at(0, 0));
         float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
         float const tau = R * C;
-        float const beta = std::exp(-time_step / tau);
+        float const beta = std::exp(-delta_t / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
         // NOTE: This check is redundant with the initialization above, but is
@@ -502,11 +502,11 @@ struct LifImpl : public Module<Backend>
         const float tau = R * C;
         if (tau > 1e-12F) [[likely]]
         { // Avoid division by zero if R or C are zero
-            const float beta = std::exp(-time_step / tau);
+            const float beta = std::exp(-delta_t / tau);
             // Keep gradient consistent with clamp-at-use semantics: once raw_R is in the
             // clamped region, do not backprop through the clamped surrogate expression. //
             const float d_beta_dR = //
-                (raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0F;
+                (raw_R > kMinPositiveParam) ? (beta * delta_t) / (C * R * R) : 0.0F;
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
             float dL_dbeta = grad_v_pre_mat.multiply(v_mem_t_minus_1).sum();
@@ -522,7 +522,7 @@ struct LifImpl : public Module<Backend>
             // Same clamp-boundary rule for C: avoid artificial gradient amplification when
             // the raw value is below the positive-stability floor. //
             const float d_beta_dC = //
-                (raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0F;
+                (raw_C > kMinPositiveParam) ? (beta * delta_t) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             capacitance.set_grad(c_grad);

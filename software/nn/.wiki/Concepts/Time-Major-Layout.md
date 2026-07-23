@@ -95,7 +95,7 @@ input.setZero();
 
 LifBPTTImpl<XTensorBackend> lif(
     /*time_steps=*/T,
-    /*time_step=*/1.0F,
+    /*delta_t=*/1.0F,
     /*resistance=*/1.0F,
     /*capacitance=*/1.0F,
     /*voltage_threshold=*/1.0F);

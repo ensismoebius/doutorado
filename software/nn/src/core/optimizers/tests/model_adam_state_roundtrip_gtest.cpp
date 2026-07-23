@@ -58,7 +58,7 @@ TEST(AdamModelState, SaveLoadModelAndOptimizerRoundtrip)
     // Check a few keys exist
     ASSERT_TRUE(loaded.count("model.0.weight") || loaded.count("model.0.bias") ||
                 loaded.count("model.1.weight"));
-    ASSERT_TRUE(loaded.count("optim.time_step"));
+    ASSERT_TRUE(loaded.count("optim.delta_t"));
 
     std::remove(tmp.c_str());
 }

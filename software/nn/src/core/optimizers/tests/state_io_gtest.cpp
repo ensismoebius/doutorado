@@ -71,8 +71,8 @@ TEST(StateIOTest, AdamStateDictRoundtrip)
     std::map<std::string, Tensor> loaded;
     ASSERT_TRUE(nn::io::load_state_dict(loaded, tmp));
 
-    // Ensure keys match and time_step present
-    ASSERT_NE(loaded.find("time_step"), loaded.end());
+    // Ensure keys match and delta_t present
+    ASSERT_NE(loaded.find("delta_t"), loaded.end());
     for (const auto& kv : sd)
     {
         auto it = loaded.find(kv.first);

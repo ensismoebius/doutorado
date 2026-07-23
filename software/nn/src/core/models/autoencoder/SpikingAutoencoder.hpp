@@ -19,7 +19,7 @@
  *     4. Reset after spike
  *
  * @note SNN variants ignore ANN parameters (depth, hidden_size) and use
- *       time_step, resistance, capacitance from config instead.
+ *       delta_t, resistance, capacitance from config instead.
  */
 #ifndef NN_MODELS_AUTOENCODER_SPIKING_AUTOENCODER_HPP
 #define NN_MODELS_AUTOENCODER_SPIENCODER_HPP
@@ -41,7 +41,7 @@ namespace nn::models::autoencoder
  *     else: spike = 0
  *
  *   Leak rate determined by: tau = RC (time constant)
- *   time_step (dt) controls simulation resolution.
+ *   delta_t (dt) controls simulation resolution.
  */
 template <typename Backend>
 class SpikingAutoencoder : public BaseAutoencoder<Backend>
@@ -51,13 +51,13 @@ class SpikingAutoencoder : public BaseAutoencoder<Backend>
      * @brief Construct SNN autoencoder
      *
      * @param cfg Configuration with SNN hyperparameters
-     *   - time_step: Simulation time step (e.g., 0.1 ms)
+     *   - delta_t: Simulation time step (e.g., 0.1 ms)
      *   - resistance, capacitance: Membrane constants
      */
     explicit SpikingAutoencoder(
         const AutoencoderConfig& cfg, const std::string& name = "SpikingAutoencoder")
         : BaseAutoencoder<Backend>(name),
-          time_step_(cfg.time_step),
+          delta_t_(cfg.delta_t),
           resistance_(cfg.resistance),
           capacitance_(cfg.capacitance)
     {
@@ -73,7 +73,7 @@ class SpikingAutoencoder : public BaseAutoencoder<Backend>
 
    protected:
     /** @brief Simulation time step (seconds) */
-    float time_step_;
+    float delta_t_;
 
     /** @brief Membrane resistance (Ohms) */
     float resistance_;

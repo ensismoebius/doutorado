@@ -194,7 +194,7 @@ each spike, so a neuron doesn't fire on every single input:
 template <typename Backend>
 struct LifImpl : public Module<Backend>
 {
-    float time_step = 1.0F;
+    float delta_t = 1.0F;
     Tensor resistance, capacitance, voltage_threshold;  // trainable 1×1
     Tensor v_mem;           // persistent membrane state (B×F)
     float adapt_decay    = 0.9F;  // threshold decay factor

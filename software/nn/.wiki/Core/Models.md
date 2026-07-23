@@ -74,7 +74,7 @@ struct AutoencoderConfig
     int branch_hidden_size = 0;
 
     // SNN parameters
-    float time_step = 1.0f;
+    float delta_t = 1.0f;
     float resistance = 1.0f;
     float capacitance = 1.0f;
 };

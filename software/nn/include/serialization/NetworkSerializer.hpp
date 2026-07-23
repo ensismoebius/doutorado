@@ -45,8 +45,8 @@ using cnpy::NpyArray;
 using cnpy::npz_load;
 using cnpy::npz_save;
 using cnpy::npz_t;
-using nn::Lif;
 using nn::LeakyReLU;
+using nn::Lif;
 using nn::Linear;
 using nn::ReLU;
 using nn::Sequential;
@@ -201,9 +201,8 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Lif>& layer,
     string& arch_str,
     map<string, pair<vector<size_t>, const float*>>& params)
 {
-    arch_str += "Lif:" + to_string(layer->time_step) + ":" +
-                to_string(layer->resistance.at(0, 0)) + ":" +
-                to_string(layer->capacitance.at(0, 0)) + ":" +
+    arch_str += "Lif:" + to_string(layer->delta_t) + ":" + to_string(layer->resistance.at(0, 0)) +
+                ":" + to_string(layer->capacitance.at(0, 0)) + ":" +
                 to_string(layer->voltage_threshold.at(0, 0)) + ":" +
                 (layer->reset_zero ? "1" : "0") + ":" + to_string(layer->reset_potential) + "\n";
     params[to_string(index) + ".resistance"] = {
@@ -269,13 +268,13 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
             {
                 auto parts = _split(line, ':');
                 if (parts.size() < 7) throw runtime_error("Malformed Lif metadata");
-                float time_step = stof(parts[1]);
+                float delta_t = stof(parts[1]);
                 float resistance = stof(parts[2]);
                 float capacitance = stof(parts[3]);
                 float voltage_threshold = stof(parts[4]);
                 bool reset_zero = (parts[5] == "1");
                 float reset_potential = stof(parts[6]);
-                auto layer = make_shared<Lif>(time_step,
+                auto layer = make_shared<Lif>(delta_t,
                     resistance,
                     capacitance,
                     voltage_threshold,

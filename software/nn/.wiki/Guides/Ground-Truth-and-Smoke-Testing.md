@@ -101,7 +101,7 @@ Exact-math layers match to `1e-4`. Two need care:
   *same* approximation (proves gate order i,f,o,g vs torch's i,f,g,o / recurrence /
   weight orientation), and within a documented bound (`< 0.25`) vs torch's exact LSTM.
 - **LifBPTT** maps to `snn.Leaky`: `v[t]=β·v[t-1]+input`, spike on `v>V_th`,
-  subtract/zero reset. We set `R=C=1`, `time_step=-ln(β)` so `β=exp(-time_step/(R·C))`
+  subtract/zero reset. We set `R=C=1`, `delta_t=-ln(β)` so `β=exp(-delta_t/(R·C))`
   reproduces snnTorch's β. Spike trains match exactly. The **readout backward** test
   checks `dL/dinput` against snnTorch autograd — exact, since readout mode has no
   spike/reset/surrogate. Spiking-mode backward is *not* parity-tested (surrogate

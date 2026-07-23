@@ -311,7 +311,7 @@ inline void append_snn_activation(
     {
         require_time_steps(cfg.time_steps);
         seq.add_module(std::make_shared<LifBPTT>(
-            cfg.time_steps, cfg.time_step, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
+            cfg.time_steps, cfg.delta_t, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
         return;
     }
     if (activation_type == "leaky_integrator")
@@ -320,7 +320,7 @@ inline void append_snn_activation(
         // unroll as the encoder so the whole stack shares one time axis.
         require_time_steps(cfg.time_steps);
         seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
-            cfg.time_step,
+            cfg.delta_t,
             cfg.resistance,
             cfg.capacitance,
             /*voltage_threshold=*/1.0F,
@@ -695,7 +695,7 @@ inline void append_snn_stage(Sequential& seq,
     int input_size,
     int output_size,
     int time_steps,
-    float time_step,
+    float delta_t,
     float resistance,
     float capacitance,
     bool readout)
@@ -707,7 +707,7 @@ inline void append_snn_stage(Sequential& seq,
     if (readout)
     {
         seq.add_module(std::make_shared<LifBPTT>(time_steps,
-            time_step,
+            delta_t,
             resistance,
             capacitance,
             /*voltage_threshold=*/1.0F,
@@ -717,7 +717,7 @@ inline void append_snn_stage(Sequential& seq,
     }
     else
     {
-        seq.add_module(std::make_shared<LifBPTT>(time_steps, time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(time_steps, delta_t, resistance, capacitance));
     }
 }
 
@@ -725,7 +725,7 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
     Sequential& seq,
     int input_size,
     int output_size,
-    float time_step,
+    float delta_t,
     float resistance,
     float capacitance,
     bool readout)
@@ -737,7 +737,7 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
     if (readout)
     {
         seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
-            time_step,
+            delta_t,
             resistance,
             capacitance,
             /*voltage_threshold=*/1.0F,
@@ -747,8 +747,7 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
     }
     else
     {
-        seq.add_module(
-            std::make_shared<LifBPTT>(cfg.time_steps, time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps, delta_t, resistance, capacitance));
     }
 }
 
@@ -794,7 +793,7 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
     for (int width : widths)
     {
         append_snn_stage(
-            cfg, encoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, false);
+            cfg, encoder, current, width, cfg.delta_t, cfg.resistance, cfg.capacitance, false);
         current = width;
     }
 
@@ -802,7 +801,7 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
         encoder,
         current,
         cfg.latent_size,
-        cfg.time_step,
+        cfg.delta_t,
         cfg.resistance,
         cfg.capacitance,
         false);
@@ -852,7 +851,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     for (int width : widths)
     {
         append_snn_stage(
-            cfg, decoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, true);
+            cfg, decoder, current, width, cfg.delta_t, cfg.resistance, cfg.capacitance, true);
         current = width;
     }
 
@@ -861,7 +860,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     decoder.add_module(output_linear);
     require_time_steps(cfg.time_steps);
     decoder.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
-        cfg.time_step,
+        cfg.delta_t,
         cfg.resistance,
         cfg.capacitance,
         /*voltage_threshold=*/1.0F,

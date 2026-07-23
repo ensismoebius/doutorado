@@ -126,12 +126,12 @@ struct AutoencoderConfig
      * by SNN variants (LifIntegrator activation).
      *
      * SNN Theory:
-     *   - time_step: simulation discretisation (smaller = finer temporal resolution)
+     *   - delta_t: simulation discretisation (smaller = finer temporal resolution)
      *   - resistance, capacitance: membrane constants (affects leak rate)
      *   @{
      */
     /** @brief Simulation time step (seconds) */
-    float time_step = 1.0F;
+    float delta_t = 1.0F;
 
     /** @brief Membrane resistance (Ohms) */
     float resistance = 1.0F;

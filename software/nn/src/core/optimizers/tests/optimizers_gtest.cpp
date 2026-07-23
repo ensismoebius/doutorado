@@ -747,15 +747,15 @@ TEST(AdamTest, StateDictRoundTripAndNullParamGuards)
     Adam adam_dst(0.01F);
     adam_dst.attach(params);
     EXPECT_NO_THROW(adam_dst.load_state_dict(saved));
-    EXPECT_EQ(adam_dst.time_step, adam_src.time_step);
+    EXPECT_EQ(adam_dst.delta_t, adam_src.delta_t);
     ASSERT_EQ(adam_dst.moment1.size(), adam_src.moment1.size());
     ASSERT_EQ(adam_dst.moment2.size(), adam_src.moment2.size());
     EXPECT_NEAR(adam_dst.moment1[0].at(0, 0), adam_src.moment1[0].at(0, 0), 1e-6F);
     EXPECT_NEAR(adam_dst.moment2[1].at(0, 0), adam_src.moment2[1].at(0, 0), 1e-6F);
 
-    // Also exercise the path where time_step exists but tensor has zero shape.
+    // Also exercise the path where delta_t exists but tensor has zero shape.
     std::map<std::string, nn::Tensor> malformed = saved;
-    malformed["time_step"] = nn::Tensor(0, 0);
+    malformed["delta_t"] = nn::Tensor(0, 0);
     EXPECT_NO_THROW(adam_dst.load_state_dict(malformed));
 
     nn::Tensor* null_ptr = nullptr;

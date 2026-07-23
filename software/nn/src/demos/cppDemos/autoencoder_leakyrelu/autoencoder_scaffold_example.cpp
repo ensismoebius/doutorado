@@ -39,7 +39,7 @@ int main()
     cfg.hidden_size = 64;
     cfg.latent_size = 32;
     cfg.depth = 2;
-    cfg.time_step = 1.0F;
+    cfg.delta_t = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
 

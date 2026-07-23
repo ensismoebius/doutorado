@@ -72,8 +72,9 @@ struct LifBPTTImpl : public Module<Backend>
     /// Tensor type for the active compute backend.
     using Tensor = typename Module<Backend>::Tensor;
 
-    /// @brief The simulation time step (time_step).
-    float time_step = 1.0F;
+    /// @brief Simulation step SIZE (delta-t): how long one step lasts.
+    ///        Not to be confused with `time_steps` (how MANY steps).
+    float delta_t = 1.0F;
 
     // IDENTIFIABILITY NOTE (audit m-2): dynamics depend only on the membrane time
     // constant tau = R * C (beta = exp(-dt/tau)). R and C are not separately
@@ -99,7 +100,8 @@ struct LifBPTTImpl : public Module<Backend>
     Tensor adapt_a_bptt_;  ///< Adaptation variable state (shape: B x F), persists across calls.
 
     // Configuration
-    int time_steps; ///< Number of time steps in the input sequence
+    int time_steps; ///< HOW MANY steps one sample spans. Splits a (T*B, F) tensor:
+                    ///< batch_size = rows / time_steps. See .wiki/Concepts/Time-Steps.md
     bool reset_zero = true;
     bool readout_mode =
         false; ///< If true, outputs membrane potential instead of spikes (Regression)
@@ -140,7 +142,7 @@ struct LifBPTTImpl : public Module<Backend>
     }
 
     explicit LifBPTTImpl(int time_steps_,
-        float time_step_ = 1.0F,
+        float delta_t_ = 1.0F,
         float resistance_ = 1.0F,
         float capacitance_ = 1.0F,
         float voltage_threshold_ = 1.0F,
@@ -151,7 +153,7 @@ struct LifBPTTImpl : public Module<Backend>
             std::make_shared<ExponentialSurrogate>(),
         float adapt_decay_ = 0.9F,
         float adapt_coupling_ = 0.0F)
-        : time_step(time_step_), time_steps(time_steps_), readout_mode(readout_mode_)
+        : delta_t(delta_t_), time_steps(time_steps_), readout_mode(readout_mode_)
     {
         resistance.at(0, 0) = resistance_;
         capacitance.at(0, 0) = capacitance_;
@@ -203,7 +205,7 @@ struct LifBPTTImpl : public Module<Backend>
         float const R = std::max(kMinPositiveParam, resistance.at(0, 0));
         float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
         float const tau = R * C;
-        float const beta = std::exp(-time_step / tau);
+        float const beta = std::exp(-delta_t / tau);
         float const base_threshold = voltage_threshold.at(0, 0);
 
         // Spike-frequency adaptation state: shape (B, F), lazy-init like v_mem
@@ -296,7 +298,7 @@ struct LifBPTTImpl : public Module<Backend>
         float const R = std::max(kMinPositiveParam, raw_R);
         float const C = std::max(kMinPositiveParam, raw_C);
         float const tau = R * C;
-        float const beta = std::exp(-time_step / tau);
+        float const beta = std::exp(-delta_t / tau);
         float threshold_val = voltage_threshold.at(0, 0);
 
         // Accumulators for params
@@ -304,10 +306,10 @@ struct LifBPTTImpl : public Module<Backend>
         float dL_dR_sum = 0.0f;
         float dL_dC_sum = 0.0f;
         float d_beta_dR =
-            (tau > 1e-12F && raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0f;
+            (tau > 1e-12F && raw_R > kMinPositiveParam) ? (beta * delta_t) / (C * R * R) : 0.0f;
         float d_beta_dC =
-            (tau > 1e-12F && raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0f;
-        // Note: d_beta_dR is derived from beta = exp(-time_step/(R*C)).
+            (tau > 1e-12F && raw_C > kMinPositiveParam) ? (beta * delta_t) / (R * C * C) : 0.0f;
+        // Note: d_beta_dR is derived from beta = exp(-delta_t/(R*C)).
         // This implementation uses a scalar R and C shared across all neurons.
 
         // BPTT Loop (Reverse Time)

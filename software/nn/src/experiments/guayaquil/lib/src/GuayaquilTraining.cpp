@@ -134,7 +134,7 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
     // explicitly: LifBPTT unrolls exactly one step here, matching the single-step Lif
     // this experiment used before. Left unset it would raise, which is the point.
     model_cfg.time_steps = 1;
-    model_cfg.time_step = 1.0f;
+    model_cfg.delta_t = 1.0f;
     model_cfg.resistance = 1.0f / std::max(v_th, 1e-3f);
     model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));
 

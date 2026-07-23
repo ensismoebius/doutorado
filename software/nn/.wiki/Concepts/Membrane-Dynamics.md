@@ -48,7 +48,7 @@ constexpr float kMinPositiveParam = 1e-6F;
 float const R    = std::max(kMinPositiveParam, resistance.at(0, 0));
 float const C    = std::max(kMinPositiveParam, capacitance.at(0, 0));
 float const tau  = R * C;
-float const beta = std::exp(-time_step / tau);   // decay factor
+float const beta = std::exp(-delta_t / tau);   // decay factor
 
 // 1. Leak
 v_mem = v_mem.multiply_scalar(beta);
@@ -101,7 +101,7 @@ flowchart TD
 
 // Construct: Δt=1ms, R=1, C=1, V_th=1, hard reset
 LifImpl<XTensorBackend> lif(
-    /*time_step=*/1.0F,
+    /*delta_t=*/1.0F,
     /*resistance=*/1.0F,
     /*capacitance=*/1.0F,
     /*voltage_threshold=*/1.0F,

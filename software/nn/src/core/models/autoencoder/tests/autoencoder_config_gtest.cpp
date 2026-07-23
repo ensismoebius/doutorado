@@ -26,7 +26,7 @@ TEST(AutoencoderConfigTest, DefaultValues)
     EXPECT_EQ(cfg.residual_blocks, 1);
     EXPECT_EQ(cfg.eeg_features, 0);
     EXPECT_EQ(cfg.audio_features, 0);
-    EXPECT_FLOAT_EQ(cfg.time_step, 1.0F);
+    EXPECT_FLOAT_EQ(cfg.delta_t, 1.0F);
     EXPECT_FLOAT_EQ(cfg.resistance, 1.0F);
     EXPECT_FLOAT_EQ(cfg.capacitance, 1.0F);
     EXPECT_FALSE(cfg.initializer_seed.has_value());
@@ -70,11 +70,11 @@ TEST(AutoencoderConfigTest, SetMultimodalFeatures)
 TEST(AutoencoderConfigTest, SetSnnParameters)
 {
     nn::models::autoencoder::AutoencoderConfig cfg;
-    cfg.time_step = 0.001F;
+    cfg.delta_t = 0.001F;
     cfg.resistance = 10.0F;
     cfg.capacitance = 0.1F;
 
-    EXPECT_FLOAT_EQ(cfg.time_step, 0.001F);
+    EXPECT_FLOAT_EQ(cfg.delta_t, 0.001F);
     EXPECT_FLOAT_EQ(cfg.resistance, 10.0F);
     EXPECT_FLOAT_EQ(cfg.capacitance, 0.1F);
 }

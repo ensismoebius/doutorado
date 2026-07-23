@@ -738,7 +738,7 @@ std::vector<std::vector<double>> run_protocol_ae(
             "reconstruction loss. Set autoencoder.ae_loss_type explicitly "
             "(mse|mae|spikecount|spiketime).");
     ae_cfg.loss_type = ae_loss_type;
-    ae_cfg.time_step = 1.0f;
+    ae_cfg.delta_t = 1.0f;
     ae_cfg.voltage_threshold = voltage_threshold;
     // Sequence length for the BPTT unroll. Leaving this at its default of 1 would make
     // LifBPTT behave like a single-step Lif — a silent downgrade, not an error.

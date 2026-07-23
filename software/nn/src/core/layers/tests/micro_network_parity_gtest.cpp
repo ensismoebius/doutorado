@@ -141,12 +141,12 @@ TEST(MicroNetworkParity, AnnMatchesTorchForwardAndBackward)
 // ══ micro SNN: Linear -> LIF -> Linear, time-major ═══════════════════════════
 namespace
 {
-/// Build the LIF from the fixture's params row: [time_step, R, C, V_th, reset_zero, readout].
+/// Build the LIF from the fixture's params row: [delta_t, R, C, V_th, reset_zero, readout].
 auto make_lif(const std::string& p, int T) -> std::unique_ptr<nn::LifBPTT>
 {
     const float* q = arr(p + "params").data<float>();
     return std::make_unique<nn::LifBPTT>(T,
-        /*time_step=*/q[0],
+        /*delta_t=*/q[0],
         /*resistance=*/q[1],
         /*capacitance=*/q[2],
         /*voltage_threshold=*/q[3],

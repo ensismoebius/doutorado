@@ -54,8 +54,8 @@ struct AutoencoderConfig
     /// and unrolls the membrane simulation internally over `time_steps`, giving true
     /// temporal credit assignment. It REQUIRES `input.rows() % time_steps == 0` and
     /// throws otherwise — callers must supply time-major batches, there is no
-    /// single-frame fallback. Distinct from `time_step` below, which is the simulation
-    /// dt (a float), not a count.
+    /// single-frame fallback. Distinct from `delta_t` below, which is the simulation
+    /// step SIZE (`delta_t`, a float), not a count.
     ///
     /// **0 means UNSET and is not a usable value.** The SNN builders raise rather than
     /// assume 1, because `time_steps = 1` is a silent downgrade: LifBPTT would unroll a
@@ -65,7 +65,11 @@ struct AutoencoderConfig
     /// which never construct a LifBPTT.
     int time_steps = 0;
 
-    float time_step = 1.0F;         ///< Simulation time step dt passed to LifBPTT.
+    /// Simulation step SIZE (delta-t), i.e. how long ONE time step lasts. Feeds the
+    /// membrane decay `beta = exp(-delta_t / (R*C))`. Distinct from `time_steps`, which
+    /// is HOW MANY steps there are. Renamed from `time_step` because one letter of
+    /// difference from `time_steps` was a standing source of confusion.
+    float delta_t = 1.0F;
     float resistance = 1.0F;        ///< Membrane resistance.
     float capacitance = 1.0F;       ///< Membrane capacitance.
     float voltage_threshold = 1.0F; ///< Spiking Lif firing threshold (encoder). Lower it when
