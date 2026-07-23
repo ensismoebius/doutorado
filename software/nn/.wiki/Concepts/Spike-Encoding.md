@@ -87,6 +87,32 @@ This captures rate-of-change events and is well-suited for EEG and audio signals
 | Latency (first-spike) | `SpikeTimeLoss` (MSE on first-spike times) | `SpikeCountLoss` treats absent spikes as zero count, incorrect gradient for late spikes |
 | Direct / continuous | MSE | Either spike loss treats ANN outputs as binary events |
 
+**The no-spike deadlock is a runtime hazard, and it is now fatal rather than silent.**
+`SpikeTimeLossImpl::backward` writes a gradient only at the predicted first-spike row
+(`if (t < T) grad.at(t*B + b, f) = g;`). A unit that never crosses the 0.5 threshold has
+`pt == T`, so **no gradient is written for it at all**. If that holds for every unit in
+every batch, training completes, reports a loss, and changes nothing — features from an
+untrained model, with no error.
+
+Whether a run lands there is **configuration-dependent, not fixed**: it emerges from the
+interaction of learning rate, batch size, `time_steps`, `voltage_threshold` and weight
+init. Measured on a 6-sample synthetic set, `lr=0.01` was live across 20 consecutive
+seeds and all batch sizes, while `lr=0.001` reached the deadlock at the same threshold
+and `firing_rate_reg_lambda = 0.5`. **Encoder firing-rate regularization does not
+reliably rescue it** — that regularizer acts on the encoder Lif layers, whereas the dead
+gradient originates at the decoder output, so with an all-zero `d_out` there may be
+nothing to propagate.
+
+Because no single knob guarantees liveness, `ThesisFeatureExtraction` wraps the spike
+losses in a gradient-liveness guard and calls `assert_gradients_were_live()` after
+training: if **every** batch produced an all-zero gradient the run throws, naming the
+cause and the remedies, instead of returning meaningless features. Some zero-gradient
+batches are legitimate near convergence, so only the all-zero case is fatal. Practical
+mitigations, in order: raise the learning rate, lower `voltage_threshold`, increase
+`time_steps`, enable tdBN upstream. A structural fix — emitting a fallback gradient at
+the last timestep when a unit never spikes — would change the loss's documented
+straight-through semantics (including its sign convention) and has not been made here.
+
 **Where this is enforced.** The invariant is no longer advisory: `ThesisConfig::validate()`
 rejects a mismatched `autoencoder.encoding` / `autoencoder.ae_loss_type` pair outright
 (`spiketime` requires `latency`, `spikecount` requires `poisson`), rejects spike losses for

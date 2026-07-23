@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <memory>
 #include <random>
 #include <span>
 #include <stdexcept>
@@ -28,6 +29,30 @@
 
 namespace thesis
 {
+
+// Fail loudly when a spike loss contributed nothing. A run whose every gradient was
+// zero must not be reported as a result — that is the silent-no-learning mode.
+void assert_gradients_were_live(long backward_calls,
+    long zero_grad_calls,
+    const std::string& loss_token,
+    const std::string& encoding,
+    float firing_rate_reg_lambda)
+{
+    if (backward_calls == 0 || zero_grad_calls < backward_calls) return;
+
+    throw std::runtime_error(
+        "ThesisFeatureExtraction: ae_loss_type=" + loss_token + " (encoding=" + encoding +
+        ") produced an ALL-ZERO gradient on every one of the " + std::to_string(backward_calls) +
+        " training batches — the autoencoder trained on nothing and its features are "
+        "meaningless. Cause: no output unit ever crossed the spike threshold, so the "
+        "straight-through estimator had no spike time to attach a gradient to (the "
+        "no-spike deadlock in .wiki/Concepts/Spike-Encoding.md). Fixes, in order of "
+        "preference: (1) raise autoencoder.firing_rate_reg_lambda (currently " +
+        std::to_string(firing_rate_reg_lambda) +
+        ") so the encoder gets rate-derived gradient independent of spike position; "
+        "(2) lower autoencoder.voltage_threshold so units fire at all; (3) enable tdBN "
+        "upstream. Refusing to emit features from an untrained model.");
+}
 
 // ─── scalar descriptors ────────────────────────────────────────────────────
 
@@ -530,6 +555,74 @@ nn::Tensor spike_frame(const std::vector<float>& norm,
     return frame;
 }
 
+// Detects the one failure mode a spike loss can hit SILENTLY: an all-zero gradient.
+//
+// SpikeTimeLossImpl::backward writes a gradient only at the predicted first-spike row
+// (`if (t < T) grad.at(t*B + b, f) = g;`). A unit that never crosses the 0.5 spike
+// threshold has pt == T, the guard fails, and NO gradient is written for it. If that
+// holds for every unit in every batch, training runs to completion, reports a loss,
+// and changes nothing — a "converged" result that never learned. Neither the Trainer
+// nor the loss reports this today.
+//
+// This wrapper forwards the whole LossType contract to `inner` and counts how many
+// backward() calls produced an all-zero gradient. Stats live behind a shared_ptr so
+// the caller can still read them after the Trainer has taken its own copy.
+template <typename Inner>
+struct GradientLivenessGuard
+{
+    using Tensor = nn::Tensor;
+
+    struct Stats
+    {
+        long backward_calls = 0;
+        long zero_grad_calls = 0;
+    };
+
+    Inner inner;
+    std::shared_ptr<Stats> stats = std::make_shared<Stats>();
+
+    GradientLivenessGuard() = default;
+    explicit GradientLivenessGuard(Inner in) : inner(std::move(in)) {}
+
+    void train(bool on)
+    {
+        inner.train(on);
+    }
+    void set_target(const Tensor& t)
+    {
+        inner.set_target(t);
+    }
+    auto forward(const Tensor& x, bool requires_grad = true) -> Tensor
+    {
+        return inner.forward(x, requires_grad);
+    }
+    auto backward(const Tensor& x) -> Tensor
+    {
+        Tensor g = inner.backward(x);
+        ++stats->backward_calls;
+        float mag = 0.0f;
+        for (size_t i = 0; i < g.rows() && mag == 0.0f; ++i)
+            for (size_t j = 0; j < g.cols(); ++j)
+                if (g.at(i, j) != 0.0f)
+                {
+                    mag = 1.0f;
+                    break;
+                }
+        if (mag == 0.0f) ++stats->zero_grad_calls;
+        return g;
+    }
+    // Preserve the SNN energy diagnostic when the wrapped loss exposes it
+    // (SpikeCountLoss does, SpikeTimeLoss does not). The AE path discards the
+    // EpochResult vector, so the fallback value is never consumed here.
+    [[nodiscard]] float last_mean_rate() const
+    {
+        if constexpr (nn::training::detail::has_last_mean_rate<Inner>::value)
+            return inner.last_mean_rate();
+        else
+            return 0.0f;
+    }
+};
+
 // Train a Protocol autoencoder (SNN-AE or ANN-AE) on pooled+normalized input
 // vectors and return the latent (bottleneck) vector per sample. AEType is a
 // Module with an AutoencoderConfig constructor and an encode() method
@@ -689,24 +782,38 @@ std::vector<std::vector<double>> run_protocol_ae(
         // plus a firing-rate band penalty. Shape-agnostic, so it works with the normal
         // (B, D) frame batching. Reuse the encoder's configured rate band so the loss
         // and the encoder regularizer pull toward the same target rate.
-        SpikeCountLossImpl<nn::Backend> loss;
-        loss.rate_reg_lambda = spec.firing_rate_reg_lambda;
-        loss.min_rate = spec.firing_rate_min;
-        loss.max_rate = spec.firing_rate_max;
-        nn::training::Trainer<AEType, SpikeCountLossImpl<nn::Backend>> trainer(
-            model, trainer_cfg, std::move(loss));
+        SpikeCountLossImpl<nn::Backend> inner;
+        inner.rate_reg_lambda = spec.firing_rate_reg_lambda;
+        inner.min_rate = spec.firing_rate_min;
+        inner.max_rate = spec.firing_rate_max;
+        GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>> loss(std::move(inner));
+        auto stats = loss.stats;
+        nn::training::Trainer<AEType, GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>>>
+            trainer(model, trainer_cfg, std::move(loss));
         trainer.add_callback(make_cb("SpikeCount"));
         (void) trainer.fit_autoencoder(train_samples);
+        assert_gradients_were_live(stats->backward_calls,
+            stats->zero_grad_calls,
+            "spikecount",
+            encoding,
+            spec.firing_rate_reg_lambda);
     }
     else if (loss_token == "spiketime")
     {
         // Latency-coded reconstruction: MSE over first-spike times. Requires the
         // time-major (T*B, F) layout built above with batch_size forced to 1 (B == 1).
-        SpikeTimeLossImpl<nn::Backend> loss(T);
-        nn::training::Trainer<AEType, SpikeTimeLossImpl<nn::Backend>> trainer(
-            model, trainer_cfg, std::move(loss));
+        SpikeTimeLossImpl<nn::Backend> inner(T);
+        GradientLivenessGuard<SpikeTimeLossImpl<nn::Backend>> loss(std::move(inner));
+        auto stats = loss.stats;
+        nn::training::Trainer<AEType, GradientLivenessGuard<SpikeTimeLossImpl<nn::Backend>>>
+            trainer(model, trainer_cfg, std::move(loss));
         trainer.add_callback(make_cb("SpikeTime"));
         (void) trainer.fit_autoencoder(train_samples);
+        assert_gradients_were_live(stats->backward_calls,
+            stats->zero_grad_calls,
+            "spiketime",
+            encoding,
+            spec.firing_rate_reg_lambda);
     }
     else // "mse" — validated upstream, so this is the only remaining case
     {

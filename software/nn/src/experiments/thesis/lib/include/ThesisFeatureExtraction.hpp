@@ -43,6 +43,17 @@ auto extract_features(const ThesisDatasetView& view,
     const std::string& fusion_mode = "late",
     std::uint32_t seed = 42u) -> std::vector<FeatureSet>;
 
+// Fatal check for the one failure mode a spike loss can hit SILENTLY: if EVERY
+// training batch produced an all-zero gradient, the autoencoder trained on nothing and
+// its features are meaningless. Throws std::runtime_error naming the cause and the
+// fixes; returns normally otherwise (including when only some batches were zero, which
+// is legitimate near convergence). Exposed for testing the policy directly.
+void assert_gradients_were_live(long backward_calls,
+    long zero_grad_calls,
+    const std::string& loss_token,
+    const std::string& encoding,
+    float firing_rate_reg_lambda);
+
 // Helper: compute ZCR for a signal.
 auto compute_zcr(const std::vector<double>& signal) -> double;
 

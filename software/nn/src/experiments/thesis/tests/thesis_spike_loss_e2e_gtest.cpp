@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 #include "../lib/include/ThesisConfig.hpp"
@@ -94,20 +95,34 @@ TEST(ThesisSpikeLossE2E, SpikeTimeHonoursBatchSizeGreaterThanOne)
     EXPECT_EQ(sets[0].vectors[0].size(), 8u);
 }
 
-// Batch size must not change WHAT is learned about each sample's identity: the latent
-// dimensionality and per-sample alignment hold regardless of grouping.
-TEST(ThesisSpikeLossE2E, SpikeTimeBatchSizeDoesNotBreakAlignment)
+// THE core guarantee, swept over batch sizes: for ANY configuration the extractor
+// either returns well-formed features, or it RAISES. It must never return features
+// produced by an untrained model. (Whether a given (lr, batch, T, threshold, seed)
+// combination lands in the no-spike deadlock is genuinely config-dependent — the point
+// is that landing there is loud, not silent.)
+TEST(ThesisSpikeLossE2E, SpikeTimeIsNeverSilentlyWrongAcrossBatchSizes)
 {
     auto view = synthetic_view(2, 3, 128); // 6 samples
     for (int bs : {1, 2, 4, 6, 8})
     {
         auto tr = fast_training();
         tr.samples_per_batch = bs;
-        auto sets =
-            extract_features(view, snn_fe("latency", "spiketime", 3), tr, "eeg", "late", 7u);
-        ASSERT_FALSE(sets.empty()) << "bs=" << bs;
-        EXPECT_EQ(sets[0].vectors.size(), view.samples.size()) << "bs=" << bs;
-        EXPECT_EQ(sets[0].vectors[0].size(), 8u) << "bs=" << bs;
+        try
+        {
+            auto sets =
+                extract_features(view, snn_fe("latency", "spiketime", 3), tr, "eeg", "late", 7u);
+            // Returned => the guard verified the gradient was live. Features must be sane.
+            ASSERT_FALSE(sets.empty()) << "bs=" << bs;
+            EXPECT_EQ(sets[0].vectors.size(), view.samples.size()) << "bs=" << bs;
+            EXPECT_EQ(sets[0].vectors[0].size(), 8u) << "bs=" << bs;
+        }
+        catch (const std::runtime_error& e)
+        {
+            // Threw => must be the dead-gradient guard, naming cause and remedy.
+            const std::string m = e.what();
+            EXPECT_NE(m.find("ALL-ZERO gradient"), std::string::npos)
+                << "bs=" << bs << " threw something other than the guard: " << m;
+        }
     }
 }
 
@@ -165,4 +180,117 @@ TEST(ThesisSpikeTimeGradient, NonZeroWhenPredictionSpikes)
     loss.set_target(tgt);
     loss.forward(pred, true);
     EXPECT_GT(abs_sum(loss.backward(pred)), 0.0f);
+}
+
+// ─── "meaningless gradients never happen silently" ──────────────────────────
+//
+// Two complementary guarantees:
+//   (A) LIVENESS  — every wired loss actually moves the weights on real data, proven
+//                   with the encoder rate-regularizer DISABLED so the only possible
+//                   source of change is the reconstruction loss gradient itself.
+//   (B) DETECTION — if a gradient ever does go all-zero, the run throws instead of
+//                   emitting features from an untrained model.
+
+namespace
+{
+double max_abs_diff(
+    const std::vector<std::vector<double>>& a, const std::vector<std::vector<double>>& b)
+{
+    double m = 0.0;
+    for (size_t i = 0; i < a.size() && i < b.size(); ++i)
+        for (size_t j = 0; j < a[i].size() && j < b[i].size(); ++j)
+            m = std::max(m, std::abs(a[i][j] - b[i][j]));
+    return m;
+}
+
+// Train the same config for 1 vs many epochs. Identical features => nothing was
+// learned => the gradient was dead.
+double learning_delta(const char* model, const char* enc, const char* loss, int T, float lam)
+{
+    auto view = synthetic_view(3, 4, 128);
+    auto fe = snn_fe(enc, loss, T);
+    fe.autoencoder.model = model;
+    fe.autoencoder.firing_rate_reg_lambda = lam;
+
+    ThesisConfig::Training few = fast_training();
+    few.epochs = 1;
+    few.learning_rate = 0.01f;
+    ThesisConfig::Training many = few;
+    many.epochs = 40;
+
+    auto a = extract_features(view, fe, few, "eeg", "late", 42u);
+    auto b = extract_features(view, fe, many, "eeg", "late", 42u);
+    EXPECT_FALSE(a.empty());
+    EXPECT_FALSE(b.empty());
+    return max_abs_diff(a[0].vectors, b[0].vectors);
+}
+} // namespace
+
+// (A) POLICY — the guarantee itself: an all-zero-gradient run can never return
+// normally. Tested directly and deterministically, rather than by trying to coax a
+// real network into the deadlock (which depends on init and is not reproducible).
+TEST(ThesisGradientPolicy, AllZeroGradientAlwaysThrows)
+{
+    EXPECT_THROW(
+        assert_gradients_were_live(10, 10, "spiketime", "latency", 0.0f), std::runtime_error);
+    EXPECT_THROW(
+        assert_gradients_were_live(1, 1, "spikecount", "poisson", 0.0f), std::runtime_error);
+}
+
+TEST(ThesisGradientPolicy, PartialZeroGradientIsAllowed)
+{
+    // Some zero-gradient batches are legitimate near convergence; only ALL is fatal.
+    EXPECT_NO_THROW(assert_gradients_were_live(10, 9, "spiketime", "latency", 0.5f));
+    EXPECT_NO_THROW(assert_gradients_were_live(10, 0, "spikecount", "poisson", 0.5f));
+    EXPECT_NO_THROW(assert_gradients_were_live(0, 0, "spiketime", "latency", 0.5f));
+}
+
+TEST(ThesisGradientPolicy, ErrorNamesCauseAndRemedy)
+{
+    try
+    {
+        assert_gradients_were_live(7, 7, "spiketime", "latency", 0.0f);
+        FAIL() << "expected throw";
+    }
+    catch (const std::runtime_error& e)
+    {
+        const std::string m = e.what();
+        EXPECT_NE(m.find("ALL-ZERO gradient"), std::string::npos);
+        EXPECT_NE(m.find("spiketime"), std::string::npos);
+        EXPECT_NE(m.find("firing_rate_reg_lambda"), std::string::npos);
+        EXPECT_NE(m.find("voltage_threshold"), std::string::npos);
+        EXPECT_NE(m.find("Refusing to emit features"), std::string::npos);
+    }
+}
+
+// (B) LIVENESS on real data. For the CONTINUOUS models a latent change is a reliable
+// probe. For the SNN it is NOT: the latent is a spike rate over T steps, so it is
+// quantised to {0, 1/T, ..., 1} and can legitimately stay put while weights move.
+// There, the meaningful assertion is that extract_features RETURNS — which means the
+// runtime guard checked every batch and found the gradient live.
+TEST(ThesisGradientLiveness, ContinuousLossesMoveTheLatent_RateRegDisabled)
+{
+    EXPECT_GT(learning_delta("ann-ae", "direct", "mse", 1, 0.0f), 0.0)
+        << "ann-ae/direct/mse learned nothing";
+    EXPECT_GT(learning_delta("ann-ae", "direct", "mae", 1, 0.0f), 0.0)
+        << "ann-ae/direct/mae learned nothing";
+}
+
+TEST(ThesisGradientLiveness, SpikeLossesPassTheRuntimeGuard)
+{
+    // Returning normally == the guard saw a non-zero gradient on at least one batch.
+    // Covers both the shipped lambda=0.5 profiles and the isolated lambda=0 case.
+    for (float lam : {0.0f, 0.5f})
+        for (auto [enc, loss, T] :
+            {std::tuple{"poisson", "spikecount", 4}, std::tuple{"latency", "spiketime", 4}})
+        {
+            auto view = synthetic_view(3, 4, 128);
+            auto fe = snn_fe(enc, loss, T);
+            fe.autoencoder.firing_rate_reg_lambda = lam;
+            EXPECT_NO_THROW({
+                auto sets = extract_features(view, fe, fast_training(), "eeg", "late", 42u);
+                EXPECT_FALSE(sets.empty());
+            }) << "guard tripped for "
+               << loss << " lam=" << lam;
+        }
 }

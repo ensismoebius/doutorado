@@ -157,6 +157,18 @@ Counted from the enforced value lists in the source, **excluding layer counts an
 
 > **Implementation note (resolved).** The Trainer's loss is a *compile-time* template parameter (`Trainer<ModelType, LossType>`, defaulting to `MSELossImpl`), and the old `AutoencoderConfig::loss_type` string was never read — so only MSE was ever trained. `ThesisConfig::AutoencoderConfig::ae_loss_type` (`mse | mae | spikecount | spiketime`, validated) now dispatches to a concrete `Trainer` instantiation in `ThesisFeatureExtraction`. Set it explicitly per run; **keep it fixed per population** (§5.1) rather than evolving it.
 >
+> **Silent-failure guard (`spikecount` / `spiketime`).** A spike loss can produce an
+> all-zero gradient and still run to completion: `SpikeTimeLoss` attaches its gradient
+> only at the predicted first-spike row, so a unit that never crosses threshold receives
+> nothing. If that holds for every batch the autoencoder trains on nothing and emits
+> features from an untrained model. This is **configuration-dependent** — measured on a
+> synthetic set, `lr=0.01` was live across 20 seeds and every batch size while `lr=0.001`
+> deadlocked at the same threshold, and encoder firing-rate regularization did *not*
+> rescue it. The AE path therefore wraps spike losses in a liveness guard and **throws**
+> when every batch was zero, naming cause and remedy. Treat a thrown run as a
+> configuration bug to fix (raise lr, lower `voltage_threshold`, raise `time_steps`), not
+> as a failed individual to score.
+>
 > `spiketime` carries a **layout requirement**: `SpikeTimeLossImpl` indexes rows as `t*B + b`, i.e. a time-major `(T*B, F)` tensor, whereas the default AE sample is a single `(1, D)` frame that the Trainer stacks into `(B, D)` — batch rows with no time axis. Feeding that would silently reinterpret unrelated samples as timesteps. The Trainer cannot build the right layout itself (`create_batch` makes a 3-D `(B, T, C)` tensor for multi-row samples, and it reshuffles indices every epoch). The AE trainer therefore **pre-interleaves the batch**: each training sample is a whole group of `samples_per_batch` inputs laid out as `(T*g, D)` with `row = t*g + b`, and the Trainer runs one group per step. **`batch_size` is fully honoured** — it lives in the sample layout rather than in `create_batch` — and a trailing partial group is fine because the loss derives `B = rows / T`.
 
 **Framework-wide categorical axes** (the space the GA could in principle be extended into, i.e. *before* the AE-only exclusions above):
