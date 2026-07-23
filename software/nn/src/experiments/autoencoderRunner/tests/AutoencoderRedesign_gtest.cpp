@@ -22,6 +22,7 @@ namespace
 {
 
 using nn::Lif;
+using nn::LifBPTT;
 using nn::Sequential;
 
 auto make_fused_cfg() -> AutoencoderConfig
@@ -34,6 +35,9 @@ auto make_fused_cfg() -> AutoencoderConfig
     cfg.latent_size = 4;
     cfg.depth = 2;
     cfg.residual_blocks = 1;
+    // Single frame per sample in these unit tests, so the BPTT unroll is one step.
+    // Declared explicitly: leaving time_steps unset now raises by design.
+    cfg.time_steps = 1;
     cfg.time_step = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
@@ -46,7 +50,7 @@ auto has_initialized_membrane_state(const std::vector<Sequential*>& blocks) -> b
     {
         for (const auto& layer : seq->layers)
         {
-            if (auto leaky = std::dynamic_pointer_cast<Lif>(layer))
+            if (auto leaky = std::dynamic_pointer_cast<LifBPTT>(layer))
             {
                 if (leaky->v_mem.size() > 0)
                 {
@@ -64,7 +68,7 @@ auto membrane_state_is_zeroed(const std::vector<Sequential*>& blocks) -> bool
     {
         for (const auto& layer : seq->layers)
         {
-            if (auto leaky = std::dynamic_pointer_cast<Lif>(layer))
+            if (auto leaky = std::dynamic_pointer_cast<LifBPTT>(layer))
             {
                 if (leaky->v_mem.size() > 0 && leaky->v_mem.sum() != 0.0F)
                 {
@@ -248,6 +252,9 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndPa
     cfg.latent_size = 4;
     cfg.depth = 2;
     cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    // Single frame per sample in these unit tests, so the BPTT unroll is one step.
+    // Declared explicitly: leaving time_steps unset now raises by design.
+    cfg.time_steps = 1;
     cfg.time_step = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
@@ -316,6 +323,9 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayer
     cfg.latent_size = 4;
     cfg.depth = 2;
     cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    // Single frame per sample in these unit tests, so the BPTT unroll is one step.
+    // Declared explicitly: leaving time_steps unset now raises by design.
+    cfg.time_steps = 1;
     cfg.time_step = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;
@@ -361,6 +371,9 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInjectsGr
         cfg.hidden_size = 16;
         cfg.latent_size = 4;
         cfg.depth = 1;
+        // Single frame per sample in these unit tests, so the BPTT unroll is one step.
+        // Declared explicitly: leaving time_steps unset now raises by design.
+        cfg.time_steps = 1;
         cfg.time_step = 1.0F;
         cfg.resistance = 1.0F;
         cfg.capacitance = 1.0F;
@@ -412,6 +425,9 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnFiringRateRegularizationInertWhen
     cfg.hidden_size = 16;
     cfg.latent_size = 4;
     cfg.depth = 1;
+    // Single frame per sample in these unit tests, so the BPTT unroll is one step.
+    // Declared explicitly: leaving time_steps unset now raises by design.
+    cfg.time_steps = 1;
     cfg.time_step = 1.0F;
     cfg.resistance = 1.0F;
     cfg.capacitance = 1.0F;

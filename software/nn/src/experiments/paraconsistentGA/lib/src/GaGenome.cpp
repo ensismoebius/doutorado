@@ -1,6 +1,8 @@
 #include "GaGenome.hpp"
 
 #include <algorithm>
+#include <stdexcept>
+#include <string>
 
 namespace pga
 {
@@ -15,15 +17,21 @@ T pick(std::mt19937& rng, const std::vector<T>& choices)
     return choices[d(rng)];
 }
 
-// Enforce a real bottleneck: latent strictly below hidden. If violated, drop latent
-// to the largest legal power-of-two-ish value we have, else half of hidden.
+// Enforce a real bottleneck: latent strictly below hidden. If violated, drop latent to
+// the largest legal choice below hidden. Raises when the bounds admit none — a silently
+// invented width would hide a misconfigured search space.
 void repair_bottleneck(Genome& g, const GenomeBounds& bounds)
 {
     if (g.latent < g.hidden) return;
     int best = 0;
     for (int c : bounds.latent_choices)
         if (c < g.hidden && c > best) best = c;
-    g.latent = (best > 0) ? best : std::max(1, g.hidden / 2);
+    if (best <= 0)
+        throw std::invalid_argument(
+            "GaGenome: no latent_choices value is smaller than hidden=" + std::to_string(g.hidden) +
+            " — cannot form a bottleneck. Fix ga.bounds rather than silently halving "
+            "the width.");
+    g.latent = best;
 }
 } // namespace
 

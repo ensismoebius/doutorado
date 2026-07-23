@@ -47,7 +47,25 @@ struct AutoencoderConfig
     int audio_features = 0;
 
     // SNN-specific parameters (ignored by ANN models).
-    float time_step = 1.0F;         ///< Simulation time step passed to Lif/LifIntegrator.
+
+    /// Number of time steps the spiking stack unrolls over (BPTT sequence length).
+    ///
+    /// The SNN autoencoders use `LifBPTT`, which consumes a TIME-MAJOR `(T*B, F)` tensor
+    /// and unrolls the membrane simulation internally over `time_steps`, giving true
+    /// temporal credit assignment. It REQUIRES `input.rows() % time_steps == 0` and
+    /// throws otherwise — callers must supply time-major batches, there is no
+    /// single-frame fallback. Distinct from `time_step` below, which is the simulation
+    /// dt (a float), not a count.
+    ///
+    /// **0 means UNSET and is not a usable value.** The SNN builders raise rather than
+    /// assume 1, because `time_steps = 1` is a silent downgrade: LifBPTT would unroll a
+    /// single step and behave exactly like the old single-step `Lif`, producing a model
+    /// with no temporal credit assignment that still trains and reports a loss. Any
+    /// spiking model must state its sequence length explicitly. Ignored by ANN models,
+    /// which never construct a LifBPTT.
+    int time_steps = 0;
+
+    float time_step = 1.0F;         ///< Simulation time step dt passed to LifBPTT.
     float resistance = 1.0F;        ///< Membrane resistance.
     float capacitance = 1.0F;       ///< Membrane capacitance.
     float voltage_threshold = 1.0F; ///< Spiking Lif firing threshold (encoder). Lower it when

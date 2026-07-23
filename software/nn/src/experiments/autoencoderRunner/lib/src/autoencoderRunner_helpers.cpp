@@ -63,6 +63,10 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
     model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;
     model_cfg.residual_blocks = config.autoencoder_residual_blocks;
+    // autoencoderRunner feeds one flat feature vector per sample (no time axis), so the
+    // spiking stack unrolls exactly one step. Declared explicitly — leaving time_steps
+    // unset raises, which is what stops a silent single-step network elsewhere.
+    model_cfg.time_steps = 1;
     model_cfg.time_step = config.autoencoder_time_step;
     model_cfg.resistance = config.autoencoder_resistance;
     model_cfg.capacitance = config.autoencoder_capacitance;
@@ -242,7 +246,11 @@ auto modality_val_losses_from_batch(const Tensor& val_inputs,
 
 ReconstructionLoss::ReconstructionLoss(const std::string& loss_type)
 {
-    const std::string normalized = loss_type.empty() ? "mse" : loss_type;
+    if (loss_type.empty())
+        throw std::invalid_argument(
+            "ReconstructionLoss: training_loss_type is empty — refusing to guess a loss. "
+            "Set it explicitly (mse|mae).");
+    const std::string& normalized = loss_type;
     if (normalized == "mse")
     {
         mse_ = std::make_unique<MSELoss>();

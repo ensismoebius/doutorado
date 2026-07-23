@@ -23,7 +23,7 @@ auto find_lif_layer_indices(const nn::Sequential& seq) -> std::vector<size_t>
 {
     std::vector<size_t> indices;
     for (size_t i = 0; i < seq.layers.size(); ++i)
-        if (dynamic_cast<nn::Lif*>(seq.layers[i].get()) != nullptr) indices.push_back(i);
+        if (dynamic_cast<nn::LifBPTT*>(seq.layers[i].get()) != nullptr) indices.push_back(i);
     return indices;
 }
 

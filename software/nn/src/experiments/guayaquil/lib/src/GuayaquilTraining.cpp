@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "../include/GuayaquilBatchLossCollector.hpp"
@@ -114,7 +115,11 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
         extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
     AutoencoderConfig model_cfg;
-    model_cfg.loss_type = cfg.model.loss_type.empty() ? "mse" : cfg.model.loss_type;
+    if (cfg.model.loss_type.empty())
+        throw std::invalid_argument(
+            "GuayaquilTraining: model.loss_function is empty — refusing to guess a "
+            "reconstruction loss. Set it explicitly in the profile.");
+    model_cfg.loss_type = cfg.model.loss_type;
     // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
     model_cfg.input_features = cfg.dataset.window_size;
     model_cfg.hidden_size =
@@ -124,6 +129,11 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
     model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
     model_cfg.fusion_hidden_size = cfg.model.fusion_hidden_size;
+    // Guayaquil's SNN input is flattened by flatten_time_series into a single
+    // {1, window_size} frame, so this stack genuinely has ONE time step. Declared
+    // explicitly: LifBPTT unrolls exactly one step here, matching the single-step Lif
+    // this experiment used before. Left unset it would raise, which is the point.
+    model_cfg.time_steps = 1;
     model_cfg.time_step = 1.0f;
     model_cfg.resistance = 1.0f / std::max(v_th, 1e-3f);
     model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));

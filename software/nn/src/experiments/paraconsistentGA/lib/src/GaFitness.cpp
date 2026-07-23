@@ -127,16 +127,12 @@ void evaluate_individual(
     }
 
     if (d_pen_per_seed.empty())
-    {
-        // No usable feature set produced across any seed — treat as worst/infeasible.
-        ind.d_penalized_mean = 2.0;
-        ind.d_penalized_std = 0.0;
-        ind.feasible = false;
-        ind.constraint_violation = 1.0;
-        ind.objectives = {ind.d_penalized_mean, static_cast<double>(ind.inference_cost)};
-        ind.evaluated = true;
-        return;
-    }
+        throw std::runtime_error(
+            "GaFitness: no usable feature set was produced for this genome across any of "
+            "the " +
+            std::to_string(cfg.ga.n_seeds) +
+            " seeds. Scoring it as merely 'infeasible' would hide a broken extraction "
+            "behind a normal-looking GA result.");
 
     // Mean + std of d_penalized across seeds.
     double mean = 0.0;

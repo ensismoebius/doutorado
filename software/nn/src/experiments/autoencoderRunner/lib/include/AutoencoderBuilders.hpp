@@ -32,6 +32,7 @@ namespace autoencoderRunner::autoencoders
 
 using nn::LeakyReLU;
 using nn::Lif;
+using nn::LifBPTT;
 using nn::LifIntegrator;
 using nn::Linear;
 using nn::ReLU;
@@ -288,19 +289,44 @@ inline void append_ann_activation(Sequential& seq, const std::string& activation
     throw std::invalid_argument("Unsupported ANN activation type: " + activation_type);
 }
 
+// Reject an unset/invalid BPTT sequence length instead of assuming 1. Assuming 1 would
+// silently turn LifBPTT into a single-step Lif — a model that trains, reports a loss,
+// and has no temporal credit assignment whatsoever.
+inline void require_time_steps(int time_steps)
+{
+    if (time_steps < 1)
+        throw std::invalid_argument(
+            "AutoencoderBuilders: AutoencoderConfig::time_steps is unset (" +
+            std::to_string(time_steps) +
+            "). A spiking autoencoder must declare its BPTT sequence length explicitly; "
+            "defaulting it to 1 would silently build a single-step network with no "
+            "temporal credit assignment. Set cfg.time_steps to the number of frames per "
+            "sample.");
+}
+
 inline void append_snn_activation(
     const AutoencoderConfig& cfg, Sequential& seq, const std::string& activation_type)
 {
     if (activation_type == "leaky")
     {
-        seq.add_module(std::make_shared<Lif>(
-            cfg.time_step, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
+        require_time_steps(cfg.time_steps);
+        seq.add_module(std::make_shared<LifBPTT>(
+            cfg.time_steps, cfg.time_step, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
         return;
     }
     if (activation_type == "leaky_integrator")
     {
-        seq.add_module(
-            std::make_shared<LifIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        // Readout (decoder) neuron: emits v_mem directly, no spike/reset. Same BPTT
+        // unroll as the encoder so the whole stack shares one time axis.
+        require_time_steps(cfg.time_steps);
+        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
+            cfg.time_step,
+            cfg.resistance,
+            cfg.capacitance,
+            /*voltage_threshold=*/1.0F,
+            /*reset_zero=*/true,
+            /*reset_potential=*/0.0F,
+            /*readout_mode=*/true));
         return;
     }
     if (activation_type == "identity")
@@ -668,21 +694,30 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
 inline void append_snn_stage(Sequential& seq,
     int input_size,
     int output_size,
+    int time_steps,
     float time_step,
     float resistance,
     float capacitance,
     bool readout)
 {
+    require_time_steps(time_steps);
     auto linear = std::make_shared<Linear>(input_size, output_size);
     kaimingSNNInitializer(linear, std::nullopt, "");
     seq.add_module(linear);
     if (readout)
     {
-        seq.add_module(std::make_shared<LifIntegrator>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(time_steps,
+            time_step,
+            resistance,
+            capacitance,
+            /*voltage_threshold=*/1.0F,
+            /*reset_zero=*/true,
+            /*reset_potential=*/0.0F,
+            /*readout_mode=*/true));
     }
     else
     {
-        seq.add_module(std::make_shared<Lif>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(time_steps, time_step, resistance, capacitance));
     }
 }
 
@@ -695,16 +730,25 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
     float capacitance,
     bool readout)
 {
+    require_time_steps(cfg.time_steps);
     auto linear = std::make_shared<Linear>(input_size, output_size);
     kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
     seq.add_module(linear);
     if (readout)
     {
-        seq.add_module(std::make_shared<LifIntegrator>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
+            time_step,
+            resistance,
+            capacitance,
+            /*voltage_threshold=*/1.0F,
+            /*reset_zero=*/true,
+            /*reset_potential=*/0.0F,
+            /*readout_mode=*/true));
     }
     else
     {
-        seq.add_module(std::make_shared<Lif>(time_step, resistance, capacitance));
+        seq.add_module(
+            std::make_shared<LifBPTT>(cfg.time_steps, time_step, resistance, capacitance));
     }
 }
 
@@ -815,8 +859,15 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     auto output_linear = std::make_shared<Linear>(current, output_size);
     kaimingSNNInitializer(output_linear, cfg.initializer_seed, cfg.initializer_sampler_type);
     decoder.add_module(output_linear);
-    decoder.add_module(
-        std::make_shared<LifIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
+    require_time_steps(cfg.time_steps);
+    decoder.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
+        cfg.time_step,
+        cfg.resistance,
+        cfg.capacitance,
+        /*voltage_threshold=*/1.0F,
+        /*reset_zero=*/true,
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/true));
     return decoder;
 }
 

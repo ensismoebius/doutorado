@@ -132,6 +132,32 @@ cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu --target <target> -j$(n
 
 ---
 
+## No fallbacks (PERMANENT)
+
+**If something does not work, raise an exception. Never fall back.**
+
+A fallback turns a broken run into a plausible-looking result, which in this project
+means a published number that nobody can trace. Concretely, do not:
+
+- substitute a default when a required config value is missing or empty
+  (`token.empty() ? "mse" : token` — throw instead);
+- treat an unrecognised enum/token as the common case (a trailing
+  `else { /* assume mse */ }` — throw on unknown);
+- invent a dimension/width when a spec fails to parse (`first_encoder_dim(spec, 64)`);
+- return a neutral value (`0.0f`, `{}`, `NaN`) from an accessor that has no real answer
+  — constrain the member out of existence instead (`requires requires(...)`);
+- downgrade a hard failure into a soft status (scoring a broken extraction as merely
+  "infeasible" so a GA run completes normally);
+- silently clamp/repair a value the caller explicitly asked for.
+
+Exceptions must name the cause AND the remedy — see
+`assert_gradients_were_live()` in `ThesisFeatureExtraction.cpp` for the expected shape.
+
+Genuine *defaults* in a config struct are fine (a documented initial value). What is
+banned is recovering from an error by guessing.
+
+---
+
 ## Language & compiler rules
 
 - **C++20** required. `std::span`, `std::ranges`, concepts, designated initialisers all available.

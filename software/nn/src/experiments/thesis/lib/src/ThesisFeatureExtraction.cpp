@@ -611,15 +611,14 @@ struct GradientLivenessGuard
         if (mag == 0.0f) ++stats->zero_grad_calls;
         return g;
     }
-    // Preserve the SNN energy diagnostic when the wrapped loss exposes it
-    // (SpikeCountLoss does, SpikeTimeLoss does not). The AE path discards the
-    // EpochResult vector, so the fallback value is never consumed here.
+    // Expose the SNN energy diagnostic ONLY when the wrapped loss actually has one.
+    // Defining it unconditionally would make Trainer's has_last_mean_rate<> detector
+    // true for losses that have no rate, forcing a fabricated value — a fallback.
+    // Constrained so the member does not exist when Inner lacks it.
     [[nodiscard]] float last_mean_rate() const
+        requires requires(const Inner& i) { i.last_mean_rate(); }
     {
-        if constexpr (nn::training::detail::has_last_mean_rate<Inner>::value)
-            return inner.last_mean_rate();
-        else
-            return 0.0f;
+        return inner.last_mean_rate();
     }
 };
 
@@ -646,7 +645,8 @@ std::vector<std::vector<double>> run_protocol_ae(
     int time_steps,
     std::uint32_t seed,
     float voltage_threshold,
-    const std::string& ae_loss_type)
+    const std::string& ae_loss_type,
+    bool spiking)
 {
     const bool temporal = (encoding != "direct");
     const int T = temporal ? std::max(1, time_steps) : 1;
@@ -671,7 +671,11 @@ std::vector<std::vector<double>> run_protocol_ae(
     // row = t*g + b, and the Trainer runs one group per step. This keeps real batching
     // (g inputs per gradient step) while guaranteeing the exact layout the loss reads.
     // A trailing partial group is fine — the loss derives B = rows / T.
-    const bool time_major = (ae_loss_type == "spiketime");
+    // LifBPTT consumes a TIME-MAJOR (T*B, F) tensor and unrolls the membrane over
+    // `time_steps` internally, so every spiking run must be laid out time-major — not
+    // only `spiketime`. At T == 1 the grouping degenerates to ordinary (B, D) batching,
+    // so this is uniform rather than special-cased.
+    const bool time_major = spiking;
 
     // Build the training set: T spike frames per sample (temporal), or one
     // analog vector per sample (direct). Seed is derived per (sample, step) so
@@ -718,12 +722,27 @@ std::vector<std::vector<double>> run_protocol_ae(
 
     AutoencoderConfig ae_cfg;
     ae_cfg.input_features = kAeInputFeatures;
-    ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec, 64);
-    ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, 16);
+    // No silent architecture defaults: an unparseable spec must fail, not quietly
+    // build a 64/16 network the profile never asked for.
+    constexpr int kNoDim = -1;
+    ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec, kNoDim);
+    ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, kNoDim);
+    if (ae_cfg.hidden_size == kNoDim || ae_cfg.latent_size == kNoDim)
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: could not read hidden/latent widths from "
+            "autoencoder.encoder_layer_spec — every entry must be linear:<width>[:act]");
     ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
-    ae_cfg.loss_type = ae_loss_type.empty() ? "mse" : ae_loss_type;
+    if (ae_loss_type.empty())
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: ae_loss_type is empty — refusing to guess a "
+            "reconstruction loss. Set autoencoder.ae_loss_type explicitly "
+            "(mse|mae|spikecount|spiketime).");
+    ae_cfg.loss_type = ae_loss_type;
     ae_cfg.time_step = 1.0f;
     ae_cfg.voltage_threshold = voltage_threshold;
+    // Sequence length for the BPTT unroll. Leaving this at its default of 1 would make
+    // LifBPTT behave like a single-step Lif — a silent downgrade, not an error.
+    ae_cfg.time_steps = spiking ? T : 1;
     ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
     ae_cfg.firing_rate_min = spec.firing_rate_min;
     ae_cfg.firing_rate_max = spec.firing_rate_max;
@@ -761,7 +780,7 @@ std::vector<std::vector<double>> run_protocol_ae(
     // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
     // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
     // the "run X/Y" column), so col3 shows just the loss, exactly like the Guayaquil bars.
-    const std::string loss_token = ae_loss_type.empty() ? "mse" : ae_loss_type;
+    const std::string& loss_token = ae_loss_type;
     auto make_cb = [&](const char* tag)
     {
         auto cb =
@@ -815,11 +834,18 @@ std::vector<std::vector<double>> run_protocol_ae(
             encoding,
             spec.firing_rate_reg_lambda);
     }
-    else // "mse" — validated upstream, so this is the only remaining case
+    else if (loss_token == "mse")
     {
         nn::training::Trainer<AEType, MSELossImpl<nn::Backend>> trainer(model, trainer_cfg);
         trainer.add_callback(make_cb("MSE"));
         (void) trainer.fit_autoencoder(train_samples);
+    }
+    else
+    {
+        // Unreachable via ThesisConfig::validate(), but an unknown token must never be
+        // silently treated as MSE — that would train a different objective than asked.
+        throw std::invalid_argument("ThesisFeatureExtraction: unsupported ae_loss_type \"" +
+                                    loss_token + "\" (expected mse|mae|spikecount|spiketime)");
     }
 
     // Feature per sample = mean latent over its T spike frames. The membrane
@@ -835,13 +861,36 @@ std::vector<std::vector<double>> run_protocol_ae(
     {
         std::vector<double> acc(latent_dim, 0.0);
         model.reset_state();
-        for (int t = 0; t < T; ++t)
+
+        if (time_major)
         {
-            std::mt19937 rng(
-                seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
-            const nn::Tensor frame = spike_frame(normed[s], encoding, t, T, rng);
-            const auto lat = tensor_to_vec(model.encode(frame, false));
-            for (size_t k = 0; k < latent_dim && k < lat.size(); ++k) acc[k] += lat[k];
+            // One sample => B == 1, so the (T, D) sequence IS the (T*1, F) tensor
+            // LifBPTT expects; it unrolls all T steps in a single encode() call.
+            // Feeding frames one at a time would violate rows % time_steps == 0.
+            const auto D = static_cast<nn::Index>(normed[s].size());
+            nn::Tensor seq(static_cast<nn::Index>(T), D);
+            for (int t = 0; t < T; ++t)
+            {
+                std::mt19937 rng(
+                    seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
+                const nn::Tensor f = spike_frame(normed[s], encoding, t, T, rng);
+                for (nn::Index d = 0; d < D; ++d) seq.at(static_cast<nn::Index>(t), d) = f.at(0, d);
+            }
+            const nn::Tensor latent = model.encode(seq, false); // (T, latent_dim)
+            for (nn::Index t = 0; t < static_cast<nn::Index>(T); ++t)
+                for (size_t k = 0; k < latent_dim && k < static_cast<size_t>(latent.cols()); ++k)
+                    acc[k] += latent.at(t, static_cast<nn::Index>(k));
+        }
+        else
+        {
+            for (int t = 0; t < T; ++t)
+            {
+                std::mt19937 rng(
+                    seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
+                const nn::Tensor frame = spike_frame(normed[s], encoding, t, T, rng);
+                const auto lat = tensor_to_vec(model.encode(frame, false));
+                for (size_t k = 0; k < latent_dim && k < lat.size(); ++k) acc[k] += lat[k];
+            }
         }
         for (double& a : acc) a /= static_cast<double>(T);
         vectors.push_back(std::move(acc));
@@ -943,7 +992,8 @@ auto extract_features_core(const ThesisDatasetView& view,
                 cfg.autoencoder.time_steps,
                 seed,
                 cfg.autoencoder.voltage_threshold,
-                cfg.autoencoder.ae_loss_type);
+                cfg.autoencoder.ae_loss_type,
+                /*spiking=*/true);
         }
         else if (ae_model == "ann-ae")
         {
@@ -959,7 +1009,8 @@ auto extract_features_core(const ThesisDatasetView& view,
                 1,
                 seed,
                 1.0f,
-                cfg.autoencoder.ae_loss_type);
+                cfg.autoencoder.ae_loss_type,
+                /*spiking=*/false);
         }
         else // "lstm-ae" — sequence AE on windowed frames (Guayaquil-paper extractor)
         {
