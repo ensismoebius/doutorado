@@ -112,6 +112,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `paraconsistentGA` | NSGA-II AE architecture search ranked by paraconsistent `d_penalized` under a latency constraint (reuses `thesis_lib`) |
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
+| `thesis_spike_loss_e2e_gtest` | SpikeCount/SpikeTime AE training smoke (encoding<->loss invariant, time-major layout) |
 | `thesis_profile_audit_gtest` | 2335 tests verifying all 333 Thesis profiles (276 handcrafted [wavelet×scale×category] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] phase00 + 32 phase01 + debug) parse + validate |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
@@ -191,9 +192,16 @@ Gradient shape always matches forward input shape.
 
 1. **Time-major layout**: input to `LifBPTTImpl` and `SpikeTimeLossImpl` is `(T*B, F)`, not `(B, T, F)`.
 2. **Loss ↔ encoding must match**:
-   - Rate-coded → `SpikeCountLoss`
-   - Latency-coded → `SpikeTimeLoss`
-   - Mixing these reverses gradient direction.
+   - Rate-coded (`poisson`) → `SpikeCountLoss`
+   - Latency-coded (`latency`) → `SpikeTimeLoss`
+   - Analog (`direct`) → `MSELoss`/`MAELoss`
+   - Mixing these reverses gradient direction. **Now enforced** for the AE path by
+     `ThesisConfig::validate()` via `autoencoder.ae_loss_type`; it also rejects spike
+     losses for `ann-ae`/`lstm-ae` and for `direct`.
+   - `SpikeTimeLoss` needs time-major `(T*B, F)` (`row = t*B + b`). `Trainer::create_batch`
+     cannot build it (3-D `(B,T,C)` for multi-row samples + per-epoch reshuffle), so the
+     thesis AE path pre-interleaves each batch into one `(T*g, D)` sample with
+     `row = t*g + b`. `samples_per_batch` is honoured; a partial last group is fine.
 3. **Surrogate arg order**: `LifImpl` and `LifBPTTImpl` constructors take `surrogate_grad` **before** `adapt_decay`/`adapt_coupling`. Wrong type passed → compile error.
 4. **SNN lr**: biophysical params (R, C, V_th) need ~10× smaller lr than weights. Use `Optimizer::attach_with_scales()` (base-class, virtual — every optimizer honors it). `TrainerConfig::snn_lr_scale = 0.1` sets it; `Trainer` applies it **only to `size()==1` params** (R/C/V_th are always 1×1) — a uniform fill would make it a global lr multiplier instead (`.wiki/Guides/Engineering-Fixes-Log.md` D3).
 5. **β = exp(−Δt/(R·C))** clamped: R and C are clamped to `1e-6` in forward and grad is zeroed in clamped region. Never let optimizer drive them negative.

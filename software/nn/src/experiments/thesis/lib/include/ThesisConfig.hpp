@@ -73,7 +73,24 @@ struct ThesisConfig
         /// encoder neurons actually fire; otherwise the latent collapses to zero.
         float voltage_threshold = 0.2f;
 
-        /// Reconstruction loss used to TRAIN the autoencoder: "mse" | "mae".
+        /// Reconstruction loss used to TRAIN the autoencoder:
+        ///   "mse" | "mae"        — continuous reconstruction (any model)
+        ///   "spikecount"         — rate-coded SNN (elementwise MSE + firing-rate reg)
+        ///   "spiketime"          — latency-coded SNN (first-spike-time MSE)
+        ///
+        /// The encoding<->loss pairing is an INVARIANT, not a preference
+        /// (.wiki/Concepts/Spike-Encoding.md): using the wrong loss for the encoding
+        /// reverses/blanks the gradient. validate() enforces it:
+        ///   direct  -> mse | mae         (continuous; spike losses see analog values)
+        ///   poisson -> spikecount        (rate information lives in the counts)
+        ///   latency -> spiketime         (information lives in first-spike timing)
+        /// mse/mae remain selectable for poisson/latency as an explicit opt-out
+        /// baseline, but the matched loss is the correct default.
+        ///
+        /// `spiketime` additionally requires a TIME-MAJOR (T*B, F) batch, because
+        /// SpikeTimeLossImpl indexes rows as `t*B + b`. The AE trainer therefore
+        /// switches to one (T, D) sequence per sample with batch_size forced to 1
+        /// (so B == 1 and the layout is exactly (T, F)). See ThesisFeatureExtraction.
         ///
         /// This selects the Trainer's LossType, which is a compile-time template
         /// parameter (Trainer<ModelType, LossType>), so the string is dispatched to a

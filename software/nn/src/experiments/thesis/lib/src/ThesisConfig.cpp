@@ -133,13 +133,43 @@ void ThesisConfig::validate() const
             throw std::invalid_argument(
                 "ThesisConfig: autoencoder.encoding must be poisson, latency, or direct");
 
-        // Only the two reconstruction losses the AE training path can actually
-        // instantiate. CrossEntropy is classification; SpikeCount/SpikeTime are not
-        // wired into the autoencoder reconstruction path (see ae_loss_type docs).
+        // Reconstruction losses the AE training path can instantiate. CrossEntropy is
+        // classification and is deliberately absent.
         const auto& ae_loss = feature_extraction.autoencoder.ae_loss_type;
-        if (ae_loss != "mse" && ae_loss != "mae")
+        const bool known_loss = ae_loss == "mse" || ae_loss == "mae" || ae_loss == "spikecount" ||
+                                ae_loss == "spiketime";
+        if (!known_loss)
             throw std::invalid_argument(
-                "ThesisConfig: autoencoder.ae_loss_type must be mse or mae");
+                "ThesisConfig: autoencoder.ae_loss_type must be mse, mae, spikecount, or "
+                "spiketime");
+
+        const bool spike_loss = (ae_loss == "spikecount" || ae_loss == "spiketime");
+
+        // Spike losses need spikes: only the spiking model produces them, and only a
+        // spiking encoding puts information in them.
+        if (spike_loss && ae_model != "snn-ae")
+            throw std::invalid_argument(
+                "ThesisConfig: autoencoder.ae_loss_type=" + ae_loss +
+                " requires model=snn-ae (ann-ae/lstm-ae emit continuous values, not spikes)");
+        if (spike_loss && ae_enc == "direct")
+            throw std::invalid_argument(
+                "ThesisConfig: autoencoder.ae_loss_type=" + ae_loss +
+                " is invalid for encoding=direct — direct is analog (no spikes); use mse or mae");
+
+        // Encoding<->loss invariant (.wiki/Concepts/Spike-Encoding.md): the wrong spike
+        // loss does not merely underperform, it destroys the gradient signal.
+        //   SpikeTimeLoss sees only the FIRST spike -> blind to rate/count information.
+        //   SpikeCountLoss treats absent spikes as count 0 -> wrong gradient for late spikes.
+        if (ae_loss == "spiketime" && ae_enc != "latency")
+            throw std::invalid_argument(
+                "ThesisConfig: ae_loss_type=spiketime requires encoding=latency "
+                "(first-spike timing carries the information); got encoding=" +
+                ae_enc);
+        if (ae_loss == "spikecount" && ae_enc != "poisson")
+            throw std::invalid_argument(
+                "ThesisConfig: ae_loss_type=spikecount requires encoding=poisson "
+                "(rate/count carries the information); got encoding=" +
+                ae_enc);
         if (feature_extraction.autoencoder.time_steps < 1)
             throw std::invalid_argument("ThesisConfig: autoencoder.time_steps must be >= 1");
         if (feature_extraction.autoencoder.firing_rate_reg_lambda < 0.0f)

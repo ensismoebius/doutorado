@@ -87,3 +87,27 @@ target_link_libraries(thesis_output_gtest
 
 nn_gtest_discover_tests(thesis_output_gtest)
 configure_xtensor_parallel_target(thesis_output_gtest)
+
+# ── Spike-loss end-to-end smoke (SpikeCount / SpikeTime actually train) ──────
+add_executable(thesis_spike_loss_e2e_gtest
+    thesis_spike_loss_e2e_gtest.cpp
+)
+
+target_include_directories(thesis_spike_loss_e2e_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(thesis_spike_loss_e2e_gtest
+    PRIVATE
+        google_test
+        thesis_lib
+        xtensor xtensor-blas
+        cnpy-static
+        OpenMP::OpenMP_CXX
+)
+
+nn_gtest_discover_tests(thesis_spike_loss_e2e_gtest)
+configure_xtensor_parallel_target(thesis_spike_loss_e2e_gtest)

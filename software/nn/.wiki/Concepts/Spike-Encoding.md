@@ -87,6 +87,24 @@ This captures rate-of-change events and is well-suited for EEG and audio signals
 | Latency (first-spike) | `SpikeTimeLoss` (MSE on first-spike times) | `SpikeCountLoss` treats absent spikes as zero count, incorrect gradient for late spikes |
 | Direct / continuous | MSE | Either spike loss treats ANN outputs as binary events |
 
+**Where this is enforced.** The invariant is no longer advisory: `ThesisConfig::validate()`
+rejects a mismatched `autoencoder.encoding` / `autoencoder.ae_loss_type` pair outright
+(`spiketime` requires `latency`, `spikecount` requires `poisson`), rejects spike losses for
+`ann-ae`/`lstm-ae` (which emit continuous values, never spikes), and rejects them for
+`direct` (analog — there are no spikes to read). `mse`/`mae` remain selectable under a
+spiking encoding as an explicit opt-out baseline.
+
+`SpikeTimeLoss` additionally imposes a **layout** requirement that the trainer must satisfy:
+it indexes rows as `t*B + b`, i.e. time-major `(T*B, F)`. The autoencoder path normally
+trains on single `(1, D)` frames that stack into `(B, D)` — batch rows, no time axis. The
+Trainer cannot produce the needed layout either: `create_batch()` turns multi-row samples
+into a 3-D `(B, T, C)` tensor and reshuffles sample indices every epoch. So when
+`ae_loss_type = spiketime`, `ThesisFeatureExtraction` **pre-interleaves the batch itself** —
+each training sample is a group of `samples_per_batch` inputs laid out as `(T*g, D)` with
+`row = t*g + b`, fed one group per step. Batch size is therefore fully supported; it simply
+lives in the sample layout instead of in `create_batch()`. A trailing partial group is
+harmless because the loss derives `B = rows / T`.
+
 **Why the mismatched rows actually break training** (grounded directly in the loss
 implementations under "How It Is Implemented Here" below, not just in general
 principle): `SpikeCountLossImpl::forward` computes MSE against $\sum_t s[t]$ — the

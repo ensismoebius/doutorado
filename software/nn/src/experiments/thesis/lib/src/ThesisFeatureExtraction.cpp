@@ -16,7 +16,9 @@
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "layers/losses/MAELoss.hpp" // MAE reconstruction loss (Trainer.hpp only pulls MSE)
+#include "layers/losses/MAELoss.hpp"        // MAE reconstruction loss (Trainer.hpp only pulls MSE)
+#include "layers/losses/SpikeCountLoss.hpp" // rate-coded (poisson) reconstruction
+#include "layers/losses/SpikeTimeLoss.hpp"  // latency-coded reconstruction
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "training/ProgressCallback.hpp"
@@ -562,18 +564,64 @@ std::vector<std::vector<double>> run_protocol_ae(
     for (const auto& sig : raw_signals)
         normed.push_back(normalize01(pool_signal(sig, kAeInputFeatures)));
 
+    // `spiketime` is the one loss with a hard LAYOUT requirement: SpikeTimeLossImpl
+    // indexes rows as `t*B + b`, i.e. a time-major (T*B, F) tensor. The default sample
+    // shape here is a single (1, D) frame, which the Trainer stacks into (B, D) — batch
+    // rows, no time axis — so feeding that to SpikeTimeLoss would silently reinterpret
+    // unrelated samples as timesteps.
+    //
+    // The Trainer cannot build the required layout itself: create_batch() stacks
+    // multi-row samples into a 3-D (B, T, C) tensor (wrong rank AND wrong row order),
+    // and it reshuffles sample indices every epoch, so consecutive samples are not a
+    // stable group. We therefore PRE-INTERLEAVE the batch ourselves: each training
+    // "sample" is a whole group of `batch_size` inputs laid out as (T*g, D) with
+    // row = t*g + b, and the Trainer runs one group per step. This keeps real batching
+    // (g inputs per gradient step) while guaranteeing the exact layout the loss reads.
+    // A trailing partial group is fine — the loss derives B = rows / T.
+    const bool time_major = (ae_loss_type == "spiketime");
+
     // Build the training set: T spike frames per sample (temporal), or one
     // analog vector per sample (direct). Seed is derived per (sample, step) so
     // the frames are reproducible for a given experiment seed.
     std::vector<nn::Tensor> train_samples;
     train_samples.reserve(normed.size() * static_cast<size_t>(T));
     for (size_t s = 0; s < normed.size(); ++s)
+    {
         for (int t = 0; t < T; ++t)
         {
             std::mt19937 rng(
                 seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
             train_samples.push_back(spike_frame(normed[s], encoding, t, T, rng));
         }
+    }
+
+    if (time_major)
+    {
+        // Re-lay the per-(sample, t) frames above into time-major groups:
+        // group k holds inputs [k*G, k*G+g) as a (T*g, D) tensor with row = t*g + b.
+        const int G = std::max(1, batch_size);
+        const auto D = static_cast<nn::Index>(kAeInputFeatures);
+        std::vector<nn::Tensor> grouped;
+        grouped.reserve((normed.size() + static_cast<size_t>(G) - 1) / static_cast<size_t>(G));
+
+        for (size_t base = 0; base < normed.size(); base += static_cast<size_t>(G))
+        {
+            const size_t g = std::min<size_t>(static_cast<size_t>(G), normed.size() - base);
+            nn::Tensor group(static_cast<nn::Index>(static_cast<size_t>(T) * g), D);
+            for (size_t b = 0; b < g; ++b)
+                for (int t = 0; t < T; ++t)
+                {
+                    // frames were emitted contiguously per sample: index = s*T + t
+                    const nn::Tensor& f =
+                        train_samples[(base + b) * static_cast<size_t>(T) + static_cast<size_t>(t)];
+                    const auto row =
+                        static_cast<nn::Index>(static_cast<size_t>(t) * g + b); // t*g + b
+                    for (nn::Index d = 0; d < D; ++d) group.at(row, d) = f.at(0, d);
+                }
+            grouped.push_back(std::move(group));
+        }
+        train_samples = std::move(grouped);
+    }
 
     AutoencoderConfig ae_cfg;
     ae_cfg.input_features = kAeInputFeatures;
@@ -606,7 +654,11 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.optimizer_type = training.optimizer_type;
     trainer_cfg.optimizer_momentum = training.optimizer_momentum;
     trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
-    trainer_cfg.batch_size = std::max(1, batch_size);
+    // For spiketime each training "sample" is ALREADY an interleaved (T*g, D) batch of
+    // g inputs (see the grouping above), so the Trainer feeds exactly one group per
+    // step. Real batch size is still `batch_size` — it just lives in the sample layout
+    // instead of in create_batch(), which cannot produce the required time-major order.
+    trainer_cfg.batch_size = time_major ? 1 : std::max(1, batch_size);
 
     // The Trainer's loss is a COMPILE-TIME template parameter
     // (Trainer<ModelType, LossType>), so the profile's ae_loss_type string has to be
@@ -629,6 +681,31 @@ std::vector<std::vector<double>> run_protocol_ae(
     {
         nn::training::Trainer<AEType, MAELossImpl<nn::Backend>> trainer(model, trainer_cfg);
         trainer.add_callback(make_cb("MAE"));
+        (void) trainer.fit_autoencoder(train_samples);
+    }
+    else if (loss_token == "spikecount")
+    {
+        // Rate-coded (poisson) reconstruction: elementwise MSE over the spike tensor
+        // plus a firing-rate band penalty. Shape-agnostic, so it works with the normal
+        // (B, D) frame batching. Reuse the encoder's configured rate band so the loss
+        // and the encoder regularizer pull toward the same target rate.
+        SpikeCountLossImpl<nn::Backend> loss;
+        loss.rate_reg_lambda = spec.firing_rate_reg_lambda;
+        loss.min_rate = spec.firing_rate_min;
+        loss.max_rate = spec.firing_rate_max;
+        nn::training::Trainer<AEType, SpikeCountLossImpl<nn::Backend>> trainer(
+            model, trainer_cfg, std::move(loss));
+        trainer.add_callback(make_cb("SpikeCount"));
+        (void) trainer.fit_autoencoder(train_samples);
+    }
+    else if (loss_token == "spiketime")
+    {
+        // Latency-coded reconstruction: MSE over first-spike times. Requires the
+        // time-major (T*B, F) layout built above with batch_size forced to 1 (B == 1).
+        SpikeTimeLossImpl<nn::Backend> loss(T);
+        nn::training::Trainer<AEType, SpikeTimeLossImpl<nn::Backend>> trainer(
+            model, trainer_cfg, std::move(loss));
+        trainer.add_callback(make_cb("SpikeTime"));
         (void) trainer.fit_autoencoder(train_samples);
     }
     else // "mse" — validated upstream, so this is the only remaining case

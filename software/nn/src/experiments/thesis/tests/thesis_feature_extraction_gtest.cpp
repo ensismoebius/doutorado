@@ -690,12 +690,72 @@ TEST(ThesisAeLoss, AcceptsMseAndMae)
 TEST(ThesisAeLoss, RejectsUnsupportedLoss)
 {
     auto cfg = make_min_ae_config();
-    // Classification / spike losses are not wired into the AE reconstruction path.
-    for (const char* bad : {"crossentropy", "spikecount", "spiketime", "l1", ""})
+    // CrossEntropy is classification; l1/"" are not loss tokens this path knows.
+    for (const char* bad : {"crossentropy", "l1", ""})
     {
         cfg.feature_extraction.autoencoder.ae_loss_type = bad;
         EXPECT_THROW(cfg.validate(), std::invalid_argument) << "should reject: " << bad;
     }
+}
+
+// ─── encoding <-> loss invariant (.wiki/Concepts/Spike-Encoding.md) ──────────
+
+namespace
+{
+ThesisConfig make_snn_ae_config(const char* encoding, const char* loss)
+{
+    ThesisConfig cfg;
+    cfg.experiment.run_tag = "t";
+    cfg.dataset.root = "/x";
+    cfg.dataset.modality = "eeg";
+    cfg.feature_extraction.strategy = "autoencoder";
+    cfg.feature_extraction.autoencoder.model = "snn-ae";
+    cfg.feature_extraction.autoencoder.encoder_layer_spec = {
+        "linear:64:leaky", "linear:32:identity"};
+    cfg.feature_extraction.autoencoder.decoder_layer_spec = {
+        "linear:64:leaky", "linear:output:identity"};
+    cfg.feature_extraction.autoencoder.encoding = encoding;
+    cfg.feature_extraction.autoencoder.ae_loss_type = loss;
+    cfg.classifier.enabled = false;
+    return cfg;
+}
+} // namespace
+
+TEST(ThesisSpikeLoss, MatchedPairingsAccepted)
+{
+    EXPECT_NO_THROW(make_snn_ae_config("poisson", "spikecount").validate());
+    EXPECT_NO_THROW(make_snn_ae_config("latency", "spiketime").validate());
+}
+
+TEST(ThesisSpikeLoss, MismatchedPairingsRejected)
+{
+    // SpikeTimeLoss sees only the first spike -> blind to rate information.
+    EXPECT_THROW(make_snn_ae_config("poisson", "spiketime").validate(), std::invalid_argument);
+    // SpikeCountLoss treats absent spikes as count 0 -> wrong gradient for late spikes.
+    EXPECT_THROW(make_snn_ae_config("latency", "spikecount").validate(), std::invalid_argument);
+}
+
+TEST(ThesisSpikeLoss, RejectedForDirectEncoding)
+{
+    // direct is analog: there are no spikes for a spike loss to read.
+    EXPECT_THROW(make_snn_ae_config("direct", "spikecount").validate(), std::invalid_argument);
+    EXPECT_THROW(make_snn_ae_config("direct", "spiketime").validate(), std::invalid_argument);
+    EXPECT_NO_THROW(make_snn_ae_config("direct", "mse").validate());
+}
+
+TEST(ThesisSpikeLoss, RejectedForNonSpikingModel)
+{
+    // ann-ae emits continuous values, never spikes.
+    auto cfg = make_snn_ae_config("poisson", "spikecount");
+    cfg.feature_extraction.autoencoder.model = "ann-ae";
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+}
+
+TEST(ThesisSpikeLoss, ContinuousLossesRemainAvailableAsBaseline)
+{
+    // mse/mae stay selectable for spiking encodings as an explicit opt-out baseline.
+    EXPECT_NO_THROW(make_snn_ae_config("poisson", "mse").validate());
+    EXPECT_NO_THROW(make_snn_ae_config("latency", "mae").validate());
 }
 
 TEST(ThesisAeLoss, ParsedFromProfileJson)
