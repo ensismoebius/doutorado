@@ -52,6 +52,19 @@ auto main(int argc, char* argv[]) -> int
         cfg.validate();
 
         auto& pm = nn::progress::ProgressManager::instance();
+
+        // Cross-profile progress banner. Each profile is a separate process and cannot
+        // know the whole-sweep progress on its own, so the runner
+        // (01_paraconsistentGA_run_all_profiles.sh) computes it and passes the finished
+        // line in via PGA_OVERALL. Logged first, it renders as a persistent top line
+        // above the per-generation bars (the Guayaquil/Thesis convention). Empty/unset
+        // when run standalone, so the single-profile TUI is unchanged.
+        if (const char* overall = std::getenv("PGA_OVERALL");
+            overall != nullptr && overall[0] != '\0')
+        {
+            pm.log(std::string(overall));
+        }
+
         pm.log("[PGA] run_tag=" + cfg.run_tag +
                " model=" + cfg.base.feature_extraction.autoencoder.model + " modality=" +
                cfg.base.dataset.modality + " pop=" + std::to_string(cfg.ga.population_size) +

@@ -1,3 +1,0 @@
-born_generation,depth,latent,encoder_widths,encoding,time_steps,voltage_threshold,alpha,beta,g1,g2,d_truth,d_penalized_mean,d_penalized_std,latent_activity,param_count,inference_cost,est_latency_ms,feasible,constraint_violation
-0,2,64,65-64,latency,16,0.2,0.281916,0.911933,-0.630017,0.19385,1.6415,1.75506,0,0.25379,42050,332800,0.6656,1,0
-0,1,64,64,latency,16,0.2,0.286705,0.908227,-0.621522,0.194933,1.6332,1.74739,0,0.196359,33088,262144,0.524288,1,0

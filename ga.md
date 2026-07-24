@@ -274,9 +274,9 @@ A full run of one population is `population_size × (1 + generations) × n_seeds
 |---|---|---|
 | 200 | 13 | ~8.7 h |
 | 300 | 20 | ~13 h |
-| **400 (shipped)** | **26** | **~17 h** |
+| 400 | 26 | ~17 h |
 | 500 | 33 | ~22 h |
-| 550 | 36 | ~24 h |
+| **550 (shipped)** | **36** | **~24 h** |
 | 1974 (full) | 131 | ~86 h |
 
 The estimate is an **upper bound**: objective 2 (inference cost) applies selection pressure toward cheaper genomes, so later generations run faster than the random initial population these numbers are measured on.
@@ -285,7 +285,7 @@ Two facts that make this safe:
 - **`max_samples` is stratified.** `apply_max_samples` (ThesisDataset.cpp) is round-robin across subjects, so `max_samples=400` keeps ~26 balanced samples from *every* subject — no class is dropped, and the paraconsistent α/β (which need all classes) stay well-formed. Do not go below ~15/subject (~225 total) or the metric gets noisy.
 - **Cost is dominated by the free-architecture SNN tail** (6-layer × wide × `time_steps=16` genomes), not by any single knob. If a run overruns, the cheap additional levers are `n_seeds` (3→1 is a free 3×, losing only the stability std) and `generations`, before cutting samples further.
 
-Shipped default: **`max_samples=400`** on all 12 profiles → ~17 h for the full sweep, comfortably inside a 24 h window. Raise toward 500–550 to use more of the budget (better metric, ~22–24 h); lower toward 300 for faster iteration.
+Shipped default: **`max_samples=550`** on all 12 profiles → ~24 h nominal for the full sweep (~36 balanced samples/subject — the most data that fits the window). Because the estimate is an upper bound, the real wall-clock should land at or under 24 h. Lower toward 300–400 for faster iteration; the paraconsistent floor is ~15/subject (~225 total).
 
 ### 5.5 Training budget and reproducibility
 
