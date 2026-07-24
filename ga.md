@@ -30,7 +30,7 @@ Signatures, module names, and API contracts are **not provided in this prompt** 
 
 **Known gaps — confirmed absent as of this writing, budget real implementation time for them:**
 - No NSGA-II, genetic algorithm, or evolutionary-search code exists anywhere in the repo. This is genuinely new work.
-- Spike-train reconstruction losses named in §5.2 (Van Rossum Distance, Victor–Purpura Distance, Spike Count Loss) do not exist. Only `software/nn/include/layers/losses/SpikeTimeLoss.hpp` exists as a related building block — extend it or add new loss modules, following its conventions.
+- Spike-reconstruction losses: `SpikeCountLoss` and `SpikeTimeLoss` **now exist and are wired** into the AE path (rate→`spikecount`, latency→`spiketime`, enforced; see §5.1.1). `Van Rossum Distance` and `Victor–Purpura Distance` (§5.2) still do **not** exist — add them as new loss modules following `SpikeTimeLoss.hpp` conventions if the Pareto-front evaluation needs them.
 - No dedicated hardware-latency-calibration utility exists yet, though the `thesis` phase00 profiles already model latency tiers (`profiles/phase00/p00_ae_snn_latency_{base,small,tiny}_{voice,eeg}.json`) — extend that pattern rather than inventing a new config shape.
 
 **Phase 0 deliverable (before coding):** a short report listing, for every piece you intend to use — paraconsistent analysis, neurons, layers, training loop, data loading, timing instrumentation — the module, symbol name, signature, and the source where you confirmed it (Wiki, example code, or comment). For the three known gaps above, confirm they are still absent and propose where to create them, respecting the codebase conventions. **Do not invent APIs.** Where the Wiki and the code disagree, the code wins — but report the divergence.
@@ -139,21 +139,29 @@ Counted from the enforced value lists in the source, **excluding layer counts an
 
 > **Budget warning — act on this.** Both profiles run `population_size=16 × (1+12 generations) = 208` evaluations against only **30** (SNN) / **10** (ANN) reachable genomes. The evaluation cache makes the ~180 redundant evaluations free, but NSGA-II then degenerates into an **exhaustive sweep**: selection, crossover and mutation cannot find anything enumeration would miss. Either widen the bounds (more widths, `evolve_temporal: true`, learning rate as a gene) or cut `generations` to ~3–4. Do not report a "genetic search" result that is really a full enumeration.
 
-**AE-only scope** (handcrafted extraction, wavelets, scales, categories, descriptors and `lstm-ae` all excluded; backend fixed to xtensor; only AE-compatible optimizers and losses):
+**AE-only scope** (handcrafted extraction, wavelets, scales, categories, descriptors and `lstm-ae` all excluded; backend fixed to xtensor; only AE-compatible optimizers and losses). Because the encoding↔loss pairing is now an **enforced invariant** (`validate()` throws on a mismatch), `loss` is not a free ×2 axis — it is bound to the `(model, encoding)` pair. The unit of counting is therefore the **valid `(model, encoding, loss)` triple**:
+
+| model | encoding | legal `ae_loss_type` | triples |
+|---|---|---|---|
+| `ann-ae` | `direct` (forced) | `mse`, `mae` | 2 |
+| `snn-ae` | `direct` | `mse`, `mae` | 2 |
+| `snn-ae` | `latency` | `mse`, `mae`, `spiketime` | 3 |
+| `snn-ae` | `poisson` | `mse`, `mae`, `spikecount` | 3 |
+| | | **total** | **10** |
 
 | Level | Count |
 |---|---|
-| Per modality-slot: `ann-ae` (1, encoding forced `direct`) + `snn-ae` × 3 encodings | 4 |
-| Modality slots: eeg + voice + fused(early, late) | 4 |
-| **AE extractor configs** | **16** |
-| × 4 optimizers (adam, sgd, lion, schedule-free-adamw — all AE-compatible) | 64 |
-| × reconstruction loss (encoding-determined: 2 for `direct`, 1 each for `poisson`/`latency` + opt-out baselines) | **128** |
-| + phase01 classifier stage (× 16) | 2 048 |
+| Valid `(model, encoding, loss)` triples per modality-slot | **10** |
+| × 4 modality slots (eeg, voice, fused-early, fused-late) | 40 |
+| × 4 optimizers (adam, sgd, lion, schedule-free-adamw — all AE-compatible) | **160** |
+| × 10 width pairs (`latent < hidden`) | **1 600** |
+| (+ phase01 classifier stage, × 16) | 25 600 |
 
-**128** is the AE-only configuration space. Compatibility was verified against the code, not assumed:
+**160** is the AE-only configuration space at the granularity the earlier draft called "128" (model × encoding × modality × optimizer × loss, widths excluded). The rise from 128 → 160 is the two spike-loss combos (`latency+spiketime`, `poisson+spikecount`) that are now **wired and reachable**, × 4 slots × 4 optimizers = +32. Everything was verified against the code, not assumed:
 
 - **Optimizers — all 4 are compatible.** `run_protocol_ae` forwards `optimizer_type` straight into `TrainerConfig`, `OptimizerFactory` supports all four, and every optimizer honors `attach_with_scales()` for the SNN biophysical parameters (R, C, V_th). No AE-specific exclusion exists.
-- **Losses — 4 are wired, but the encoding fixes the choice.** The AE reconstruction path can instantiate `MSELossImpl`, `MAELossImpl`, `SpikeCountLossImpl` and `SpikeTimeLossImpl`. `CrossEntropyLoss` is classification and is excluded. The encoding↔loss pairing is an **enforced invariant**, not a free axis (`.wiki/Concepts/Spike-Encoding.md`): `direct → mse|mae`, `poisson → spikecount`, `latency → spiketime`. `validate()` rejects a mismatched pair, rejects spike losses for `ann-ae`/`lstm-ae` (they emit continuous values, never spikes), and rejects them for `direct` (analog, no spikes). `mse`/`mae` stay selectable under `poisson`/`latency` as an explicit opt-out baseline.
+- **Losses — 4 are wired, and the encoding fixes the choice.** The AE reconstruction path can instantiate `MSELossImpl`, `MAELossImpl`, `SpikeCountLossImpl` and `SpikeTimeLossImpl`. `CrossEntropyLoss` is classification and is excluded. The invariant (`.wiki/Concepts/Spike-Encoding.md`): `direct → mse|mae`, `poisson → spikecount`, `latency → spiketime`. `validate()` **rejects** a mismatched pair (`poisson+spiketime`, `latency+spikecount`), rejects spike losses for `ann-ae`/`lstm-ae` (they emit continuous values, never spikes), rejects them for `direct` (analog, no spikes), and rejects an empty loss (no silent fallback to `mse`). `mse`/`mae` stay selectable under `poisson`/`latency` as an explicit opt-out baseline — the two rows with 3 legal losses.
+- **GA consequence:** because a run fixes one `ae_loss_type`, and mutation may flip the SNN genome's `encoding`, a spike-loss run must pin `encoding_choices` to the single compatible encoding (`spiketime`→`latency`, `spikecount`→`poisson`) or `validate()` will throw mid-run. The shipped `pga_snn_eeg_spike{count,time}.json` profiles do exactly this.
 
 > **Implementation note (resolved).** The Trainer's loss is a *compile-time* template parameter (`Trainer<ModelType, LossType>`, defaulting to `MSELossImpl`), and the old `AutoencoderConfig::loss_type` string was never read — so only MSE was ever trained. `ThesisConfig::AutoencoderConfig::ae_loss_type` (`mse | mae | spikecount | spiketime`, validated) now dispatches to a concrete `Trainer` instantiation in `ThesisFeatureExtraction`. Set it explicitly per run; **keep it fixed per population** (§5.1) rather than evolving it.
 >
@@ -204,7 +212,7 @@ Resulting pipeline sizes:
 **Three caveats that keep these honest:**
 
 1. **Not all products are reachable.** The code enforces real exclusions: EEG rejects bark/mel (cochlear scales, provably degenerate to lfcc there), `fusion_mode` applies only when modality is `fused`, spike `encoding` is ignored by `ann-ae`/`lstm-ae`, and batch-norm / firing-rate regularization are `dsnn`-only. The totals above already apply the modality/scale and encoding gates; treat the rest as an upper bound.
-2. **Loss is not a free axis in the thesis pipeline.** `ae_cfg.loss_type = "mse"` is hard-coded in `ThesisFeatureExtraction.cpp`, not profile-driven — so the 5 losses are available in the framework but pinned in practice. This is consistent with §5.2's "fix loss per population" recommendation.
+2. **Loss is profile-driven but encoding-bound.** `ThesisConfig::AutoencoderConfig::ae_loss_type` (`mse|mae|spikecount|spiketime`) now selects the AE reconstruction loss — the earlier hard-coded `ae_cfg.loss_type = "mse"` is gone. It is not a *free* ×5 axis, though: `CrossEntropy` is excluded, and the encoding↔loss invariant collapses the choice to the 10 valid triples above. Still consistent with §5.2's "fix loss per population" recommendation — pin one per run.
 3. **Descriptors are the hidden multiplier.** Counted above as one fixed set. `descriptors` is a `vector<string>` with no validation beyond non-empty, so swept as subsets it is 2⁶−1 = **63**, which would take handcrafted from 460 to **28 980**. Every profile in the repo uses one fixed list — the axis is declared but never swept. Do not open it without an explicit scope decision.
 
 The 460 handcrafted figure is a **superset** of the executed phase00 grid (276 handcrafted + 24 AE): fused handcrafted was never swept and AE sizes were fixed tiers.
@@ -213,7 +221,9 @@ The 460 handcrafted figure is a **superset** of the executed phase00 grid (276 h
 
 **ANN population** — primary loss: **MSE**. Alternatives recorded as experimental variants: MAE, Huber.
 
-**SNN population** — training via **surrogate gradient**, using the existing `software/nn/include/layers/spiking/SurrogateGradient.hpp`/`ISurrogateGradient.hpp` (confirm in Phase 0 which surrogate shapes it currently supports, e.g. SuperSpike or exponential surrogate, before assuming both are available). Spike-reconstruction evaluation metrics: Spike Count Loss, Van Rossum Distance, Victor–Purpura Distance — **none of these exist in the codebase yet**; only `software/nn/include/layers/losses/SpikeTimeLoss.hpp` exists as a related building block. Implement the missing ones as new loss modules following that file's conventions, and say so explicitly in the Phase 0 report rather than assuming they can be reused.
+**SNN population** — training via **surrogate gradient** (Exponential or Boxcar; confirm in Phase 0 which shapes are available). Spike-reconstruction losses: **`SpikeCountLoss` (rate/`poisson`) and `SpikeTimeLoss` (latency) now exist and are wired** into the AE reconstruction path, bound to the encoding by the invariant in §5.1.1. `Van Rossum Distance` and `Victor–Purpura Distance` do **not** exist yet — implement them as new loss modules following `SpikeTimeLoss.hpp` conventions if the final Pareto-front evaluation needs them, and say so in the Phase 0 report.
+
+> **`SpikeTimeLoss` no-spike deadlock (must handle).** Its gradient is written only at the predicted first-spike row, so a unit that never crosses threshold gets **no gradient at all**. If that holds for every batch, the AE trains on nothing and emits features from an untrained model — silently. The wired path guards this with a liveness check that **throws** when every batch's gradient was all-zero (see §5.1.1). Do not remove that guard; treat a thrown run as a config to fix (raise lr, lower `voltage_threshold`, raise `time_steps`), not a failed individual to score.
 
 > **Mandatory hyperparameters, currently undefined:** Van Rossum requires the exponential filter time constant `τ`; Victor–Purpura requires the temporal cost `q`. Both metrics change behavior qualitatively with these values. **Fix them in configuration, document the chosen value and its rationale, and do not leave them implicit in the code.** If they are to be evolved, that must be a declared decision, not a side effect.
 >
@@ -246,7 +256,7 @@ Following the existing `thesis` phase00/phase01 convention (`software/nn/results
 2. NSGA-II implementation integrated with the existing components, following the patterns observed in the already-implemented networks.
 3. Fitness evaluation module: `D_penalized`, inference cost, reconstruction sanity filter.
 4. Calibration utility for `fixed_pipeline_cost`.
-5. Versioned configuration containing all hyperparameters, including `λ`, `τ` (Van Rossum), `q` (Victor–Purpura), `τ_rec`, `n_seeds`, epoch budget, latency ceiling, **optimizer**, and **`ae_loss_type` (`mse` | `mae`)** — the last two are the axes that make the AE space 128 rather than 16.
+5. Versioned configuration containing all hyperparameters, including `λ`, `τ` (Van Rossum), `q` (Victor–Purpura), `τ_rec`, `n_seeds`, epoch budget, latency ceiling, **optimizer**, and **`ae_loss_type` (`mse` | `mae` | `spikecount` | `spiketime`, encoding-bound per §5.1.1)** — optimizer and loss are the axes that expand the AE space from 16 (model×encoding×modality) to 160.
 6. Per-individual logs containing at minimum: genome, `α`, `β`, `G₁`, `G₂`, `D₁,₀`, `D_penalized`, reconstruction error, measured latency, seed, feasibility.
 7. Final Pareto fronts for both populations, exported in a queryable format.
 
