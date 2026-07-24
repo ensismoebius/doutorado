@@ -264,6 +264,29 @@ Evolve the two populations **separately** (no crossover between them) and compar
 
 Following the existing `thesis` phase00/phase01 convention (`software/nn/results/thesis/phase01/*.json` filenames), run and report the GA separately per signal track: `eeg`, `voice`, and `fused` (early/late fusion, if both are in scope — confirm with the existing `AutoencoderRunnerDatasetType` enum in Phase 0). Do not collapse these into a single undifferentiated "speaker audio" population — EEG is a first-class track in this thesis, not an auxiliary signal.
 
+### 5.4.1 Compute budget — sample cap (`dataset.max_samples`)
+
+A full run of one population is `population_size × (1 + generations) × n_seeds ≈ 16 × 13 × 3 = 624` autoencoder trainings, and cost is **linear in the sample count** (measured). At the full 1974 samples the whole 12-profile sweep is ≈ **86 h**; that is why the shipped profiles cap `dataset.max_samples`.
+
+**Measured per-training cost** (100 epochs, this hardware, `max-performance` CPU preset): SNN ≈ 5.6 s/training at 200 samples (averaged over a real 16-genome population, tail included); ANN ≈ 2.2 s. Linear scaling gives, for the whole sweep (5 ANN + 7 SNN profiles):
+
+| `max_samples` | samples/subject (15 subj) | est. total, all 12 (upper bound) |
+|---|---|---|
+| 200 | 13 | ~8.7 h |
+| 300 | 20 | ~13 h |
+| **400 (shipped)** | **26** | **~17 h** |
+| 500 | 33 | ~22 h |
+| 550 | 36 | ~24 h |
+| 1974 (full) | 131 | ~86 h |
+
+The estimate is an **upper bound**: objective 2 (inference cost) applies selection pressure toward cheaper genomes, so later generations run faster than the random initial population these numbers are measured on.
+
+Two facts that make this safe:
+- **`max_samples` is stratified.** `apply_max_samples` (ThesisDataset.cpp) is round-robin across subjects, so `max_samples=400` keeps ~26 balanced samples from *every* subject — no class is dropped, and the paraconsistent α/β (which need all classes) stay well-formed. Do not go below ~15/subject (~225 total) or the metric gets noisy.
+- **Cost is dominated by the free-architecture SNN tail** (6-layer × wide × `time_steps=16` genomes), not by any single knob. If a run overruns, the cheap additional levers are `n_seeds` (3→1 is a free 3×, losing only the stability std) and `generations`, before cutting samples further.
+
+Shipped default: **`max_samples=400`** on all 12 profiles → ~17 h for the full sweep, comfortably inside a 24 h window. Raise toward 500–550 to use more of the budget (better metric, ~22–24 h); lower toward 300 for faster iteration.
+
 ### 5.5 Training budget and reproducibility
 
 - **Fixed budget per individual**: identical maximum epoch count for all, with a declared early-stopping criterion. Without this, "training cost" and "convergence time" are not fairly measurable.
