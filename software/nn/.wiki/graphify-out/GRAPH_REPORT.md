@@ -1,37 +1,37 @@
-# Graph Report - ..  (2026-07-22)
+# Graph Report - ..  (2026-07-23)
 
 ## Corpus Check
-- 1197 files · ~900,000 words
+- 1199 files · ~900,000 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4333 nodes · 10587 edges · 367 communities detected
-- Extraction: 61% EXTRACTED · 38% INFERRED · 0% AMBIGUOUS · INFERRED: 4040 edges (avg confidence: 0.79)
+- 4353 nodes · 10667 edges · 358 communities detected
+- Extraction: 61% EXTRACTED · 38% INFERRED · 0% AMBIGUOUS · INFERRED: 4083 edges (avg confidence: 0.79)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Autoencoder Model & Tests|Autoencoder Model & Tests]]
-- [[_COMMUNITY_Audio Loading & AE Training|Audio Loading & AE Training]]
-- [[_COMMUNITY_Paraconsistent Score Aggregation|Paraconsistent Score Aggregation]]
+- [[_COMMUNITY_Trainer & Batching|Trainer & Batching]]
+- [[_COMMUNITY_Autoencoder Model Tests|Autoencoder Model Tests]]
+- [[_COMMUNITY_Paraconsistent Scoring & CLI|Paraconsistent Scoring & CLI]]
+- [[_COMMUNITY_Config Hash & History|Config Hash & History]]
 - [[_COMMUNITY_Audio MAT Session IO|Audio MAT Session I/O]]
-- [[_COMMUNITY_Audio-EEG Cross-Modal Linkage|Audio-EEG Cross-Modal Linkage]]
-- [[_COMMUNITY_GPU Memory & Initializers|GPU Memory & Initializers]]
-- [[_COMMUNITY_Confusion Matrix & EER Metrics|Confusion Matrix & EER Metrics]]
-- [[_COMMUNITY_Backend Numerical Parity|Backend Numerical Parity]]
-- [[_COMMUNITY_GA Output & Early Stopping|GA Output & Early Stopping]]
-- [[_COMMUNITY_Multimodal Prototype Config|Multimodal Prototype Config]]
-- [[_COMMUNITY_Experiment Config & History|Experiment Config & History]]
-- [[_COMMUNITY_OpenCL Buffer Coherence|OpenCL Buffer Coherence]]
-- [[_COMMUNITY_Surrogate Gradients & Losses|Surrogate Gradients & Losses]]
-- [[_COMMUNITY_DataLoader Prefetch & Targets|DataLoader Prefetch & Targets]]
-- [[_COMMUNITY_Header Style & Windowing|Header Style & Windowing]]
-- [[_COMMUNITY_Poisson Spike Encoding|Poisson Spike Encoding]]
-- [[_COMMUNITY_Samplers & Micro-Net Parity|Samplers & Micro-Net Parity]]
-- [[_COMMUNITY_Coverage & CLI Tooling|Coverage & CLI Tooling]]
-- [[_COMMUNITY_Batch Prefetcher|Batch Prefetcher]]
-- [[_COMMUNITY_Adam Optimizer & Fused Step|Adam Optimizer & Fused Step]]
-- [[_COMMUNITY_AudioSession Contracts|AudioSession Contracts]]
-- [[_COMMUNITY_Coverage Gate & Header Policy|Coverage Gate & Header Policy]]
+- [[_COMMUNITY_ConvForward-Backward Ops|Conv/Forward-Backward Ops]]
+- [[_COMMUNITY_Backend Parity & Weight Decay|Backend Parity & Weight Decay]]
+- [[_COMMUNITY_Audio-EEG Cross-Modal|Audio-EEG Cross-Modal]]
+- [[_COMMUNITY_Protocol101117 Batch Targets|Protocol101117 Batch Targets]]
+- [[_COMMUNITY_WaveCepstral DSP|Wave/Cepstral DSP]]
+- [[_COMMUNITY_Autoencoder Builders & Architectures|Autoencoder Builders & Architectures]]
+- [[_COMMUNITY_Adam & Prototype Config|Adam & Prototype Config]]
+- [[_COMMUNITY_Header Style Tooling|Header Style Tooling]]
+- [[_COMMUNITY_DataLoader Prefetch|DataLoader Prefetch]]
+- [[_COMMUNITY_Community 14|Community 14]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 23|Community 23]]
 - [[_COMMUNITY_Community 24|Community 24]]
@@ -368,23 +368,14 @@
 - [[_COMMUNITY_Community 355|Community 355]]
 - [[_COMMUNITY_Community 356|Community 356]]
 - [[_COMMUNITY_Community 357|Community 357]]
-- [[_COMMUNITY_Community 358|Community 358]]
-- [[_COMMUNITY_Community 359|Community 359]]
-- [[_COMMUNITY_Community 360|Community 360]]
-- [[_COMMUNITY_Community 361|Community 361]]
-- [[_COMMUNITY_Community 362|Community 362]]
-- [[_COMMUNITY_Community 363|Community 363]]
-- [[_COMMUNITY_Community 364|Community 364]]
-- [[_COMMUNITY_Community 365|Community 365]]
-- [[_COMMUNITY_Community 366|Community 366]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `size()` - 332 edges
+1. `size()` - 340 edges
 2. `size()` - 316 edges
-3. `rows()` - 190 edges
-4. `cols()` - 186 edges
-5. `end()` - 147 edges
-6. `begin()` - 137 edges
+3. `rows()` - 192 edges
+4. `cols()` - 189 edges
+5. `end()` - 148 edges
+6. `begin()` - 139 edges
 7. `TEST()` - 104 edges
 8. `data_ptr()` - 73 edges
 9. `mutable_data_ptr()` - 70 edges
@@ -399,573 +390,534 @@
   src/core/tensor/opencl/OpenCLProfiling.cpp → ../src/core/tensor/opencl/OpenCLTensorBackend.cpp
 - `printTensor (debug 2D tensor dump)` --semantically_similar_to--> `batch_to_string()`  [INFERRED] [semantically similar]
   include/utility/printTensor.hpp → ../src/core/utility/batching.cpp
-- `build_param_ptrs()` --semantically_similar_to--> `Sequential encoder_/decoder_ + cached param_ptrs_ pattern`  [INFERRED] [semantically similar]
-  ../src/core/models/lstm/LSTMAutoencoder.cpp → src/core/models/autoencoder/EegWindowAutoencoder.hpp
+- `Windowed datasets (EegWindow / AudioWindow / FusedWindow + WindowingDatasetPrinter)` --conceptually_related_to--> `02_guayaquil_build_lstm_vs_snn_paper_data.py (paper CSV aggregator)`  [INFERRED]
+  src/core/data_loaders/README.md → scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py
 
 ## Hyperedges (group relationships)
-- **Single-Point Backend Binding Enforcement Chain** — cmakelists_nn_backend_option, backend_nn_backend_alias, cmakelists_backend_implementation_guard_module, changelog_tensor_frontend_decoupling, claudemd_no_naked_xtensor_rule [EXTRACTED 0.95]
-- **10.1117 Batch Assembly Flow (subjects to collated Batch)** — dataset101117_class, audioloader_audio_session, eegloader_eeg_session, synchronizedbatchassembler_assemble_grouped, samplepacking_build_input_tensor, samplepacking_build_target_tensor, batchtargetformatter_format_batch_targets [EXTRACTED 0.90]
-- **SNN Numerical Stability and Trainability Cluster** — changelog_snn_membrane_clamping, changelog_surrogate_hyperparam_validation, changelog_leakybptt_readout_backward, changelog_trainable_membrane_params, claudemd_snn_lr_scale, claudemd_snn_invariants [INFERRED 0.85]
-- **Index-to-Batch Data Loading Pipeline** — isampler_interface, dataloader_class, dataloaderiterator_class, dataset_collate_into, batching_batch_struct [EXTRACTED 0.95]
-- **FSDD Audio Ingestion Pipeline (metadata -> filename parse -> WAV -> windows)** — fsdd_metadata_constants, fsdd_filename_pattern, fsddloader_parse_filename, fsddsample_fsddfileinfo, fsddloader_load_signal, fsddwindowdataset_class [INFERRED 0.85]
-- **MATLAB .mat I/O Stack (interface -> RAII handle -> tensor utils -> dataset)** — imatloader_interface, matfile_raii_wrapper, mat_file_utils_load_named_variable, matfiledataset_class, matfileflags_audioflag [INFERRED 0.88]
-- **ISampler family: four index-stream strategies behind one epoch-aware interface** — isampler_interface_contract, randomsampler_random_sampler, sequentialsampler_sequential_sampler, subsetsampler_subset_sampler, weightedrandomsampler_weighted_random_sampler, dataloader_injected_sampler_ctor [EXTRACTED 0.95]
-- **Cache-on-forward / replay-on-backward pattern shared across activations, pooling and convolution** — relu_relu_impl, leakyrelu_leaky_relu_impl, sigmoid_sigmoid_impl, tanh_tanh_impl, maxpool1d_argmax_routing, maxpool2d_argmax_routing, relu_cached_mask_contract, module_module_base [INFERRED 0.85]
-- **State-dict persistence flow: Module contract → Sequential indexed keys → StateIO binary format on disk** — module_state_dict_interface, sequential_indexed_state_dict_keys, stateio_state_dict_alias, stateio_binary_format_spec, stateio_save_state_dict, stateio_load_state_dict [INFERRED 0.88]
-- **Module<Backend> layer contract: forward/backward/params/state_dict/reset_state** — linear_linear_impl, lstmlayer_impl, lif_impl, lifbptt_impl, tdbn_impl, poissonlatentlayer_impl [EXTRACTED 1.00]
-- **SNN BPTT training stack: normalization → spiking dynamics → surrogate derivative → encoding-matched loss** — tdbn_impl, lifbptt_impl, isurrogategradient_interface, spikecountloss_impl, spiketimeloss_impl [INFERRED 0.88]
-- **PyTorch/snnTorch parity audit: silent gradient-fidelity defects found and pinned by tests** — mseloss_grad_clip_defect_rationale, maeloss_grad_clip_rationale, lstmlayer_fast_derivative_fix_rationale, lif_snntorch_parity_rationale, shared_micro_network_parity_gtest [EXTRACTED 0.95]
 - **Project-wide 2-D-only decoupled weight decay protecting SNN biophysical scalars** — optimizer_weight_decay, adam_optimizer, sgd_optimizer, sgdminimal_optimizer, lion_optimizer, schedulefreeadamw_optimizer, ref_loshchilov_hutter_decoupled_wd_2019 [EXTRACTED 0.95]
 - **Grouped nested cross-validation → fold splits → per-fold metrics/EER evaluation flow** — kfold_isplitpolicy, kfold_group_kfold_policy, kfold_nested_kfold, kfold_fold_split, multi_class_metrics_k_fold_cross_validation, eer_scorer_genuine_impostor_eer_scorer [INFERRED 0.80]
 - **Host-mirror + explicit sync pattern behind the backend-agnostic Tensor facade** — tensor_tensor_impl, tensor_backend_parity_contract, devicetensorbackend_backend, devicetensorbackend_host_mirror, clbuffer_cl_buffer, adam_try_fused_step [INFERRED 0.80]
-- **OpenCL backend runtime stack (context, kernels, pool, profiling, tensor ops)** — openclcontext_opencl_context, kernelmanager_kernel_manager, gpubufferpool_gpu_buffer_pool, openclprofiling_profiling_namespace, opencltensorbackend_backend [EXTRACTED 0.95]
-- **Transfer-amortization pattern: batch scope, deferred sync, async upload, device-side strided copy** — openclcontext_batch_mode, openclcontext_batch_scope, opencltensorbackend_async_upload_rationale, opencltensorbackend_lazy_host_access_rationale, opencltensorbackend_strided_copy_rationale, openclprofiling_enqueue_and_profile_batched [INFERRED 0.90]
-- **EEG/audio normalization pipeline built from ITransform pieces** — itransform_i_transform, compose_compose, eegwindowzscore_transform, audiomeanstdnormalize_transform, fusedmodalitytransform_transform, transforms_umbrella_header [EXTRACTED 0.90]
-- **LFCC/MFCC feature extraction flow (signal -> cepstral features + deltas)** — audio_feature_extraction_pre_emphasis, audio_feature_extraction_framing_and_window, audio_feature_extraction_rfft_power, audio_feature_extraction_build_linear_filterbank, audio_feature_extraction_dot_power_filterbank, audio_feature_extraction_dct2, audio_feature_extraction_compute_deltas, audio_types_loading_and_processing_parameters, lfcc_pipeline_load_and_process_audio [EXTRACTED 1.00]
-- **Wavelet decomposition stack (tags -> coefficients -> Mallat -> subband slicing/energies)** — wavelet_types_tag_structs, wavelet_types_traits, wavelet_types_get_wavelet, wavelet_operations_malat, wavelet_operations_transform_mode, wavelet_transform_results_class, wavelet_results_get_packet_transforms, wavelet_operations_subband_energies [EXTRACTED 1.00]
-- **Parallel sliding-window implementations across modules (tensor copy vs descriptor vs framing)** — windowing_sliding_window, window_spec_struct, windowing_engine_compute_windows, audio_feature_extraction_framing_and_window, audio_types_framing_config [INFERRED 0.80]
-- **Thesis Phase 00 → Phase 01 winner-selection flow** — thesis_phase00_profiles, thesis_phase00_rank_script, thesis_phase00_winners_json, thesis_apply_winner_script, thesis_phase01_profiles, thesis_build_phase00_tables_script, thesis_monography_tables_dir [EXTRACTED 1.00]
-- **Generate-in-Python / assert-in-C++ ground-truth fixture pattern** — gen_pytorch_refs_script, gen_micro_network_refs_script, gen_optimizer_refs_script, gen_pywt_refs_script, gen_pytorch_refs_npz, gen_micro_network_refs_npz, gen_optimizer_refs_npz, testing_readme_pytorch_parity_gtest, gen_optimizer_refs_optimizer_parity_gtest, testing_readme_committed_npz_rationale [EXTRACTED 1.00]
-- **MAT → SQLite ingest, read-back and verification chain** — import_mat_dataset_to_sqlite_script, import_mat_dataset_to_sqlite_schema, sqlite_reader_module, verify_sqlite_full_script, verify_sqlite_roundtrip_script, verify_sqlite_original_row_provenance, data_loaders_sqlite_batch_source [EXTRACTED 0.95]
-- **Synchronized multimodal batch assembly flow (grouped run-batched EEG+audio collate)** — dataset101117_collate, synchronizedbatchassembler_assemble_grouped, synchronizedbatchassembler_build_tasks, synchronizedbatchassembler_process_eeg_blocks, audioloader_read_rows_flat, eegloader_read_rows_flat, samplepacking_merge_audio_and_eeg [EXTRACTED 1.00]
-- **Lazy MAT/SQLite session initialization pattern shared by all 10.1117 datasets** — dataset101117_ensure_sessions, audiowindowdataset_dataset, eegwindowdataset_dataset, fusedwindowdataset_dataset, audioloader_audio_session, eegloader_eeg_session [INFERRED 0.90]
-- **10.1117 loader robustness stack: mock generation, property tests, libFuzzer targets** — mock_imagined_speech_dataset_generator, mock_dataset_generator_corruption_options, audio_loader_property_tests_suite, eeg_loader_property_tests_suite, fuzz_audio_loader_entry, fuzz_eeg_loader_entry, fuzz_readme_seed_corpus_guidance, fuzz_cmakelists_add_fuzz_target_fn [EXTRACTED 1.00]
-- **ImaginedSpeechSchema_10_1117 as Shared Dimensional Contract Across Loaders, Fixtures and Datasets** — dataset_schema_imagined_speech_schema, audio_loader_article_spec_gtest_suite, eeg_loader_article_spec_gtest_suite, mock_imagined_speech_dataset_generator_class, protocol101117_sample_packing, windowing_gtest_window_spec [EXTRACTED 1.00]
-- **Sampler → DataLoader → Iterator → Prefetcher Batch Pipeline** — sampler_option_resolution_resolver, data_loader_make_default_sampler, data_loader_class, data_loader_iterator_class, batch_prefetcher_class, samplers_cmakelists_dataloaders_samplers [INFERRED 0.90]
-- **FSDD (zenodo.1342401) WAV Discovery → Windowing → Test Harness** — fsdd_loader_class, fsdd_window_dataset_class, zenodo1342401_cmakelists_data_loaders_fsdd, zenodo1342401_tests_cmakelists_fsdd_gtest, fsdd_loader_gtest_suite [EXTRACTED 1.00]
-- **Sampler Strategy Family (index_count / set_epoch / sample_into contract)** — sequentialsampler_sequential_sampler, randomsampler_random_sampler, weightedrandomsampler_weighted_random_sampler, distributedsampler_distributed_sampler, foldsampler_fold_sampler, subsetsampler_subset_sampler, samplers_sample_into_span_size_contract, samplers_epoch_seeded_rng_contract [EXTRACTED 0.95]
-- **SQLite → Windowed → Prefetched Batch Pipeline** — sqlitebatchsource_sqlite_batch_source, sqlitebatchsource_deterministic_trial_id_sequence, sqlitebatchsource_dataset_type_window_mode_switch, sqlitebatchsource_repeat_last_sample_padding, sqlitebatchsource_pending_window_sample_buffer, batch_prefetcher_gtest_suite, sqlitebatchsource_windowing_gtest_window_hop_expectation [EXTRACTED 0.90]
-- **MAT-File Fixture Write → Load → Assert Test Chain** — mattestutils_write_mat_double, cmakelists_mattestutilslib_target, count_mat_rows_gtest_suite, matfile_utils_load_named_variable_as_matrix, matfile_row_vector_gtest_suite, matfile_vector_gtest_suite, mat_file_dataset_gtest_suite, matio_column_major_layout_convention [INFERRED 0.88]
-- **im2col/GEMM/col2im convolution pipeline shared by Conv1d and Conv2d** — conv1d_impl_forward_im2col, conv1d_impl_backward_col2im, conv2d_impl_forward, conv2d_impl_backward, conv2d_utils_im2col_optimized, conv2d_utils_col2im_optimized, conv2d_utils_index_cache, conv2d_impl_preallocated_buffers [EXTRACTED 0.95]
-- **Layer correctness validation ladder: analytic oracles -> spiking mechanisms -> whole-network ground-truth parity** — fundamental_mechanisms_finite_diff_checker, spiking_mechanisms_lifbptt_suite, micro_network_parity_rationale, micro_network_parity_fixtures_npz, layers_gtest_suite, layers_tests_cmake_micro_network_parity [EXTRACTED 0.90]
-- **Type-string-driven autoencoder construction flow (profile string -> enum -> factory -> concrete model)** — autoencoder_type_from_string, autoencoder_type_enum, autoencoder_type_predicates, autoencoder_builders_factory, audio_window_autoencoder_class, autoencoder_architecture_enum [EXTRACTED 0.92]
-- **Core autoencoder model family (base + config + modality-specific + spiking)** — baseautoencoder_base_autoencoder, config_autoencoder_config, eegwindowautoencoder_model, fusedwindowautoencoder_model, spikingautoencoder_base [EXTRACTED 1.00]
-- **Optimizer ground-truth parity pipeline: generator script -> committed npz fixture -> replay harness -> reference packages** — optimizer_parity_gen_refs_script, optimizer_parity_fixture_npz, optimizer_parity_replay_harness, optimizer_parity_ref_pytorch, optimizer_parity_ref_lion_pytorch, optimizer_parity_ref_schedulefree, optimizers_tests_committed_fixture_rationale [EXTRACTED 1.00]
-- **Paraconsistent degree flow: normalize -> range vectors -> alpha/beta -> G1/G2 -> distance to (1,0)** — paraconsistent_normalize_class_feature_vectors, paraconsistent_range_vectors, paraconsistent_calculate_alpha, paraconsistent_calculate_beta, paraconsistent_certainty_degree_g1, paraconsistent_contradiction_degree_g2, paraconsistent_gtest_distance_to_1_0 [EXTRACTED 1.00]
-- **Genuine/impostor speaker-verification scoring pipeline** — eer_scorer_build_gi_trials, eer_scorer_cosine_similarity, eer_scorer_eer_from_trials, eer_scorer_mann_whitney_auc, eer_scorer_genuine_impostor_eer_scorer, eer_scorer_classification_eer_scorer [EXTRACTED 1.00]
-- **Policy-driven grouped nested cross-validation (speaker-disjoint folds)** — kfold_kfold, kfold_sample_kfold_policy, kfold_group_kfold_policy, kfold_nested_kfold, kfold_index_remapping, kfold_gtest_speaker_leakage_guard [EXTRACTED 0.95]
-- **state_dict round-trip persistence verified across NPZ and StateIO backends** — serialization_readme_saver_module, serialization_tests_cmake_core_gtest_target, networkserializer_gtest_roundtrip, stateio_gtest_roundtrip_savefile, state_io_gtest_roundtrip_map [EXTRACTED 0.95]
-- **OpenCL host/device coherence stack** — clbuffer_dirty_flag_coherence, opencltensorbackend_lazy_sync_flags, opencltensorbackend_asynctransfermanager, opencltensorbackend_eventtracker, backend_parity_no_host_reads_guard [INFERRED 0.85]
-- **Cross-backend numerical verification pipeline** — backend_parity_gtest_suite, sycl_backend_parity_gtest_suite, pytorch_parity_gtest_suite, tensor_all_backends_gtest_suite, tensor_backend_parity_contract_concept, pytorch_refs_fixture [EXTRACTED 0.90]
-- **No-silent-GPU-fallback policy (configure-time, init-time, runtime, test-time)** — sycltensorbackend_no_cpu_fallback_policy, opencltensorbackend_initialize_runtime_or_throw, opencltensorbackend_verify_runtime_activity, sycl_gpu_capability_check_cmake, opencl_gpu_capability_check_cmake, pytorch_parity_skip_if_unavailable [EXTRACTED 0.90]
+- **Index-to-Batch Data Loading Pipeline** — isampler_interface, dataloader_class, dataloaderiterator_class, dataset_collate_into, batching_batch_struct [EXTRACTED 0.95]
+- **MATLAB .mat I/O Stack (interface -> RAII handle -> tensor utils -> dataset)** — imatloader_interface, matfile_raii_wrapper, mat_file_utils_load_named_variable, matfiledataset_class, matfileflags_audioflag [INFERRED 0.88]
+- **FSDD Audio Ingestion Pipeline (metadata -> filename parse -> WAV -> windows)** — fsdd_metadata_constants, fsdd_filename_pattern, fsddloader_parse_filename, fsddsample_fsddfileinfo, fsddloader_load_signal, fsddwindowdataset_class [INFERRED 0.85]
 
 ## Communities
 
-### Community 0 - "Autoencoder Model & Tests"
+### Community 0 - "Trainer & Batching"
 Cohesion: 0.01
-Nodes (277): params(), params(), TEST(), DenseAutoencoderTest, make_random_input(), SpikeAutoencoderTest, TEST_F(), AudioWindowAutoencoder (+269 more)
+Nodes (329): params(), params(), TEST(), create_batches(), Rationale: seed the batch shuffle for reproducibility, validate(), write_summary_json(), Binary confusion-matrix metrics (FPR, FNR, TPR, accuracy, precision, recall) (+321 more)
 
-### Community 1 - "Audio Loading & AE Training"
+### Community 1 - "Autoencoder Model Tests"
 Cohesion: 0.01
-Nodes (241): AudioLoaderArticleSpecTest, TEST_F(), AudioLoaderPropertyTest, TEST_F(), build_autoencoder_model(), fit_input_transform(), modality_val_losses_from_batch(), ReconstructionLoss() (+233 more)
+Nodes (259): AudioLoaderArticleSpecTest, TEST_F(), DenseAutoencoderTest, make_random_input(), SpikeAutoencoderTest, TEST_F(), main(), AudioWindowAutoencoder (+251 more)
 
-### Community 2 - "Paraconsistent Score Aggregation"
+### Community 2 - "Paraconsistent Scoring & CLI"
 Cohesion: 0.02
-Nodes (170): extractor_label(), load_scores(), main(), Return (d_truth, d_penalized) of the first data row, or None.      d_penalized i, Human-readable extractor tag from a feature_extraction block.      Must identify, aggregate_all(), bold_best(), build_model_timing_table() (+162 more)
+Nodes (192): extractor_label(), load_scores(), main(), Return (d_truth, d_penalized) of the first data row, or None.      d_penalized i, Human-readable extractor tag from a feature_extraction block.      Must identify, aggregate_all(), bold_best(), build_model_timing_table() (+184 more)
 
-### Community 3 - "Audio MAT Session I/O"
+### Community 3 - "Config Hash & History"
 Cohesion: 0.02
-Nodes (104): AudioLoaderTest, TEST(), TEST_F(), AudioMatSession(), AudioSession, filePath(), loadAudioFromMat(), readRow() (+96 more)
+Nodes (188): make_history(), make_key(), make_row(), TEST(), config_hash(), has_compare_marker(), load_config(), parse_cli() (+180 more)
 
-### Community 4 - "Audio-EEG Cross-Modal Linkage"
+### Community 4 - "Audio MAT Session I/O"
 Cohesion: 0.02
-Nodes (155): Cross-modal invariant: audio_stimulus == eeg_labels[1], AudioLoaderPropertyTest suite (shape, cross-modal index, determinism), AudioData POD Record, AudioSession (MAT/SQLite row reader, PIMPL), columnMajorIndex use for MatIO block reads, loadAudioFromMat (176400 samples @ 44.1 kHz), MAT audio backend (Mx176402 double matrix), MatFileCloser / MatVarFreer RAII deleters (+147 more)
+Nodes (114): AudioLoaderTest, TEST(), TEST_F(), AudioMatSession(), AudioSession, filePath(), loadAudioFromMat(), readRow() (+106 more)
 
-### Community 5 - "GPU Memory & Initializers"
-Cohesion: 0.12
-Nodes (138): No-host-read chain tests (GPU/host coherence regression guard), TEST(), copy_from_device(), copy_to_device(), acquire(), TEST(), get_kernel(), load_and_process_audio() (+130 more)
+### Community 5 - "Conv/Forward-Backward Ops"
+Cohesion: 0.1
+Nodes (152): No-host-read chain tests (GPU/host coherence regression guard), backward(), compute_output_length(), forward(), backward(), TEST(), copy_from_device(), copy_to_device() (+144 more)
 
-### Community 6 - "Confusion Matrix & EER Metrics"
+### Community 6 - "Backend Parity & Weight Decay"
+Cohesion: 0.01
+Nodes (160): BackendParityTest (XTensor vs OpenCL numerical parity), Rationale: parity suite guards column-major/row-major divergence and fast-path drift, SNN-autoencoder chain parity (Linear→Lif→Linear→LifIntegrator), Loshchilov & Hutter, Decoupled Weight Decay Regularization, ICLR 2019, SpikingJelly, Science Advances 2023 [26], nn_gtest_discover_tests FORCE_GPU_LOCK (GPU test serialization), nn::training::EpochResult (per-epoch metrics), SOPs energy metric (Σ spikes × fan_out) for SNN-vs-ANN comparison (+152 more)
+
+### Community 7 - "Audio-EEG Cross-Modal"
+Cohesion: 0.02
+Nodes (152): Cross-modal invariant: audio_stimulus == eeg_labels[1], AudioLoaderPropertyTest suite (shape, cross-modal index, determinism), AudioData POD Record, AudioSession (MAT/SQLite row reader, PIMPL), columnMajorIndex use for MatIO block reads, loadAudioFromMat (176400 samples @ 44.1 kHz), MAT audio backend (Mx176402 double matrix), MatFileCloser / MatVarFreer RAII deleters (+144 more)
+
+### Community 8 - "Protocol101117 Batch Targets"
 Cohesion: 0.03
-Nodes (123): write_summary_json(), inRange(), Binary confusion-matrix metrics (FPR, FNR, TPR, accuracy, precision, recall), calculateEER from FPR/FNR curves (legacy closed-set protocol), ConfusionMatrix (TP/FP/FN/TN) and binary rate helpers, Audit M-2 regression guard: TPR(matrix) must use (tp, fn), ConfusionMatrixTest suite (rate formulas, audit M-2 TPR fix, EER vectors), Rationale (audit m-4): replace closed-set confusion-matrix EER with genuine/impostor cosine method (+115 more)
+Nodes (92): AudioLoaderPropertyTest, TEST_F(), formatProtocol101117BatchTargets(), labelOrUnknown(), Blocking read / non-blocking write asymmetry, check_cl_error(), CLBuffer, Dirty-flag host/device coherence protocol (+84 more)
 
-### Community 7 - "Backend Numerical Parity"
+### Community 9 - "Wave/Cepstral DSP"
 Cohesion: 0.02
-Nodes (133): BackendParityTest (XTensor vs OpenCL numerical parity), Rationale: parity suite guards column-major/row-major divergence and fast-path drift, SNN-autoencoder chain parity (Linear→Lif→Linear→LifIntegrator), Loshchilov & Hutter, Decoupled Weight Decay Regularization, ICLR 2019, SpikingJelly, Science Advances 2023 [26], nn_gtest_discover_tests FORCE_GPU_LOCK (GPU test serialization), Conv1dImpl<Backend>, Cache thread-safety split: mutex lives on the Conv2d side, not in Conv2dUtils (+125 more)
+Nodes (126): nn::core::wave::apply_window, build_linear_filterbank, compute_deltas, dct2 (cepstral transform), dot_power_filterbank, framing_and_window, hanning_window, MFCC/LFCC feature extraction pipeline (6 documented stages) (+118 more)
 
-### Community 8 - "GA Output & Early Stopping"
-Cohesion: 0.03
-Nodes (92): EarlyStoppingCallback (patience + min_delta), Val-loss NaN falls back to train loss for stopping criterion, genome_to_json(), individual_to_json(), write_individuals_csv(), write_pareto_front_json(), put(), rat_sig() (+84 more)
+### Community 10 - "Autoencoder Builders & Architectures"
+Cohesion: 0.02
+Nodes (126): AudioWindowAutoencoder (symmetric MLP AE over audio window features), Symmetric depth scheme: each depth level adds Linear(h→h/2) encoder / Linear(h/2→h) decoder, AutoencoderArchitecture enum (Auto, ResidualDense, DualBranchFusion), AutoencoderBuilders::create (GoF Factory over AutoencoderType), Rationale: factory centralizes creation, enables runtime type selection from config strings and consistent error handling, Core header declares interface; concrete AE implementations still live in experiments, AutoencoderType enum (Audio/Eeg/Fused/Protocol × ANN|Spiking), from_string profile-string parser (audio/eeg/fused/protocol + _snn aliases) (+118 more)
 
-### Community 9 - "Multimodal Prototype Config"
+### Community 11 - "Adam & Prototype Config"
 Cohesion: 0.05
 Nodes (75): Adam(), AEConfig, DataConfig, OutputConfig, PreprocessConfig, PrototypeConfig, Configuração central do protótipo multimodal.  Mantém os parâmetros definidos em, TrainConfig (+67 more)
 
-### Community 10 - "Experiment Config & History"
-Cohesion: 0.03
-Nodes (92): make_history(), make_key(), make_row(), TEST(), config_hash(), has_compare_marker(), load_config(), parse_cli() (+84 more)
-
-### Community 11 - "OpenCL Buffer Coherence"
-Cohesion: 0.04
-Nodes (69): formatProtocol101117BatchTargets(), labelOrUnknown(), Blocking read / non-blocking write asymmetry, check_cl_error(), CLBuffer, Dirty-flag host/device coherence protocol, read_from_device(), release() (+61 more)
-
-### Community 12 - "Surrogate Gradients & Losses"
-Cohesion: 0.03
-Nodes (83): BoxcarSurrogate — rectangular window surrogate gradient, BoxcarSurrogate, CrossEntropyLossImpl — softmax + cross-entropy, Row-wise max-subtraction stable softmax, ExponentialSurrogate — exponential-decay surrogate gradient (default), ExponentialSurrogate, IRegularization — penalty interface over parameter list, ISurrogateGradient — surrogate spike-derivative strategy interface (+75 more)
-
-### Community 13 - "DataLoader Prefetch & Targets"
-Cohesion: 0.03
-Nodes (93): RAM-Cap Progress Invariant (oversized batch must still make progress), BatchPrefetcher RAM-Cap and Fast-Path Test Suite, wait_until Polling Helper (deflakes producer-thread timing), Rationale: Consolidate DataLoader + MAT tests into one binary; drop slow BatchPrefetcher cases, Build Target: dataLoaders_gtest (consolidated DataLoader + MAT I/O tests), Build Target: dataLoaders_samplers_gtest, Library Dependency: dataLoaders_samplers, Build Target: MatTestUtilsLib (static MAT v5 fixture-writer helper) (+85 more)
-
-### Community 14 - "Header Style & Windowing"
+### Community 12 - "Header Style Tooling"
 Cohesion: 0.05
 Nodes (74): has_prologue(), should_skip(), build_split(), collect_signal_files(), to_window_tensor(), main(), applyWindow(), bandStopFilter() (+66 more)
 
-### Community 15 - "Poisson Spike Encoding"
+### Community 13 - "DataLoader Prefetch"
 Cohesion: 0.04
-Nodes (59): calcular_taxa_max_adaptativa(), Codificação de sinais contínuos em spikes via Poisson (rate coding)., Calcula uma frequência máxima (probabilidade) para o codificador Poisson.      I, load(), accuracyRate(), calculateEER(), falseNegativeRate(), falsePositiveRate() (+51 more)
+Nodes (86): RAM-Cap Progress Invariant (oversized batch must still make progress), BatchPrefetcher RAM-Cap and Fast-Path Test Suite, wait_until Polling Helper (deflakes producer-thread timing), Rationale: Consolidate DataLoader + MAT tests into one binary; drop slow BatchPrefetcher cases, Build Target: dataLoaders_gtest (consolidated DataLoader + MAT I/O tests), Build Target: dataLoaders_samplers_gtest, Library Dependency: dataLoaders_samplers, Build Target: MatTestUtilsLib (static MAT v5 fixture-writer helper) (+78 more)
 
-### Community 16 - "Samplers & Micro-Net Parity"
-Cohesion: 0.03
-Nodes (81): FoldSampler (exposes statistics::FoldSplit train/val indices through ISampler), ISampler contract (index_count / set_epoch / sample_into(span)) — samplers produce indices, not data, Rationale: sample_into(std::span) avoids hidden allocations inside samplers and keeps the data path explicit, Rationale: per-layer parity is necessary but not sufficient — chaining, state reset and composition bugs only show in a network, Deep-copy rule: torch tensors alias numpy views; in-place mutation once made every step equal the last, micro_ann: Linear(4→3)→ReLU→Linear(3→2), MSE — exact torch parity, micro_lstm: LSTM(3→4)→Linear(4→2) pinned against real torch.nn.LSTM plus a softsign-gate NumPy model, micro_snn: Linear→LIF→Linear time-major (T*B,F); backward pinned in readout mode only (+73 more)
+### Community 14 - "Community 14"
+Cohesion: 0.05
+Nodes (55): BackendParityTest, fill_pair(), sync_linear(), TEST_F(), load(), lstm_forward_approx(), rat_sig(), rat_tanh() (+47 more)
 
-### Community 17 - "Coverage & CLI Tooling"
+### Community 15 - "Community 15"
+Cohesion: 0.04
+Nodes (74): BoxcarSurrogate — rectangular window surrogate gradient, CrossEntropyLossImpl — softmax + cross-entropy, Row-wise max-subtraction stable softmax, ExponentialSurrogate — exponential-decay surrogate gradient (default), IRegularization — penalty interface over parameter list, ISurrogateGradient — surrogate spike-derivative strategy interface, L1Regularization — sign-based penalty on parameters, L2Regularization — squared-magnitude penalty on parameters (+66 more)
+
+### Community 16 - "Community 16"
 Cohesion: 0.06
 Nodes (54): has_help_flag(), main(), parse_log_level_from_env(), apply_source_exclusions(), FileCoverage, fn_rate(), _get_excluded_lines(), line_rate() (+46 more)
 
-### Community 18 - "Batch Prefetcher"
-Cohesion: 0.05
-Nodes (47): make_sequential_tensor(), make_small_windowed_source(), TEST(), wait_until(), BatchPrefetcher, diagnostics(), estimate_batch_bytes(), hasNext() (+39 more)
+### Community 17 - "Community 17"
+Cohesion: 0.04
+Nodes (70): Audio→EEG Cross-Modal Index Linkage Check, AudioLoaderArticleSpecTest Suite, AudioSession Row/Flat/Cache Contract, AudioSession LRU Cache Eviction Path, AudioSession Constructor Rejects Bad Variable/Dims/Type, AudioLoaderTest Suite, TEST(), Rationale: Schema Constants Pinned to Published Article Dimensions (+62 more)
 
-### Community 19 - "Adam Optimizer & Fused Step"
+### Community 18 - "Community 18"
+Cohesion: 0.03
+Nodes (73): Autoencoder core: header-only, no build target, AutoencoderConfigTest.DefaultValues (pins every default), Rationale: builder tests live in experiments/autoencoderRunner because create() factory is implemented there, Build target: autoencoder_config_gtest, BaseAutoencoder<Backend>, encode/decode/forward Contract (PyTorch-style), Rationale: mirror PyTorch/SNNTorch nn.Module subclassing pattern, XTensorAutoencoder / XTensorSpikingAutoencoder alias to same type (+65 more)
+
+### Community 19 - "Community 19"
+Cohesion: 0.04
+Nodes (64): Header prologue Contract block (document behavior/inputs/outputs/exceptions, prefer RAII), apply_header_style.py (Doxygen prologue + Public API divider injector), Rationale: lcov --extract patterns must be anchored to source_root, Policy: enforce 100% function coverage, line coverage opt-in, Rationale: delete stale .gcda before ctest to avoid checksum mismatch/stale counts, LCOV_EXCL_LINE source annotation handling (LF/LH recomputation), check_core_coverage.py (core-library coverage gate), src/core/CMakeLists.txt (core module aggregation) (+56 more)
+
+### Community 20 - "Community 20"
 Cohesion: 0.04
 Nodes (67): Rationale: decoupled decay applied to θ_{t-1} before the gradient step, Rationale: fused step must be a template so `if constexpr` discards it for backends lacking adam_step_inplace, Rationale: Tensor assignment drops the grad buffer, so save/restore grad across decay, Adam optimizer (AdamW-capable), try_fused_step(), CLBuffer (GPU buffer + host mirror, dirty flags), Rationale: on AMD Renoir (non-UMA, coarse-grained SVM only) mapping is inefficient; explicit Write/ReadBuffer is clearer, read_from_device is blocking and expensive — avoid outside validation/output (+59 more)
 
-### Community 20 - "AudioSession Contracts"
-Cohesion: 0.04
-Nodes (67): Audio→EEG Cross-Modal Index Linkage Check, AudioLoaderArticleSpecTest Suite, AudioSession Row/Flat/Cache Contract, AudioSession LRU Cache Eviction Path, AudioSession Constructor Rejects Bad Variable/Dims/Type, AudioLoaderTest Suite, TEST(), Rationale: Schema Constants Pinned to Published Article Dimensions (+59 more)
-
-### Community 21 - "Coverage Gate & Header Policy"
+### Community 21 - "Community 21"
 Cohesion: 0.05
-Nodes (60): Header prologue Contract block (document behavior/inputs/outputs/exceptions, prefer RAII), apply_header_style.py (Doxygen prologue + Public API divider injector), Rationale: lcov --extract patterns must be anchored to source_root, Policy: enforce 100% function coverage, line coverage opt-in, Rationale: delete stale .gcda before ctest to avoid checksum mismatch/stale counts, LCOV_EXCL_LINE source annotation handling (LF/LH recomputation), check_core_coverage.py (core-library coverage gate), src/core/CMakeLists.txt (core module aggregation) (+52 more)
+Nodes (44): make_sequential_tensor(), make_small_windowed_source(), TEST(), wait_until(), BatchPrefetcher, diagnostics(), estimate_batch_bytes(), next() (+36 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.04
-Nodes (63): Batch (inputs/targets Tensor Pair), BatchPrefetcher (Background Producer Thread), Producer exception_ptr Propagation to Consumer, Inflight Prefetch RAM Budget (max_prefetch_ram_bytes), HighPerfSpscQueue + BufferPool Prefetch Ring, DataLoader, make_sequential_tensor(), TEST() (+55 more)
+Cohesion: 0.05
+Nodes (46): BufferPool<T> (mutex-guarded host object pool), DeviceBackendTest (host-mirroring device backend contract), nn::Device descriptor parsing (cpu / opencl:0 / profiling flag), nn::Device, Device::from_string (cpu / opencl* prefix parsing, CPU default), Device::profiling_enabled / with_profiling, DeviceMemory (RAII cl_mem buffer), Rationale: no implicit transfers, device is source of truth (+38 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.04
-Nodes (64): Autoencoder core: header-only, no build target, AutoencoderConfigTest.DefaultValues (pins every default), Rationale: builder tests live in experiments/autoencoderRunner because create() factory is implemented there, Build target: autoencoder_config_gtest, BaseAutoencoder<Backend>, encode/decode/forward Contract (PyTorch-style), Rationale: mirror PyTorch/SNNTorch nn.Module subclassing pattern, XTensorAutoencoder / XTensorSpikingAutoencoder alias to same type (+56 more)
-
-### Community 24 - "Community 24"
-Cohesion: 0.04
-Nodes (63): nn::core::wave::apply_window, build_linear_filterbank, compute_deltas, dct2 (cepstral transform), dot_power_filterbank, framing_and_window, hanning_window, MFCC/LFCC feature extraction pipeline (6 documented stages) (+55 more)
-
-### Community 25 - "Community 25"
 Cohesion: 0.07
 Nodes (21): object, build_printers_dictionary(), cast_eigen_block_to_matrix(), EigenMatrixPrinter, EigenQuaternionPrinter, EigenSparseMatrixPrinter, _Iterator, lookup_function() (+13 more)
 
-### Community 26 - "Community 26"
-Cohesion: 0.08
-Nodes (29): main(), has_initialized_membrane_state(), make_fused_cfg(), membrane_state_is_zeroed(), TEST(), batch_cfg(), make_batch(), TEST() (+21 more)
-
-### Community 27 - "Community 27"
+### Community 24 - "Community 24"
 Cohesion: 0.07
 Nodes (38): DeviceTensorBackend Placeholder Branch, nn::Backend Single Authoritative Alias, OpenCLTensorBackend Selection Branch, SYCLTensorBackend Selection Branch, XTensorBackend (Default CPU Backend), Transparent DualBranchFusion to ResidualDense Fallback, CMake Backend-Reference Enforcement Guard, Experiment04 Comparative SNN-vs-LSTM Pipeline Unification (+30 more)
 
-### Community 28 - "Community 28"
-Cohesion: 0.07
-Nodes (37): BufferPool<T> (mutex-guarded host object pool), DeviceMemory (RAII cl_mem buffer), Rationale: no implicit transfers, device is source of truth, StagingBuffer (pinned host DMA buffer), Rationale: 1 GiB cache ceiling caps unbounded pinned-memory growth, GPUBuffer (move-only cl_mem wrapper), GPUBufferPool (size-bucketed device buffer pool), GPUBufferPoolHandle (RAII checkout) (+29 more)
+### Community 25 - "Community 25"
+Cohesion: 0.27
+Nodes (22): append_activation_by_mode(), append_ann_activation(), append_ann_stage(), append_residual_blocks(), append_snn_activation(), append_snn_stage(), build_ann_decoder(), build_ann_encoder() (+14 more)
 
-### Community 29 - "Community 29"
-Cohesion: 0.18
-Nodes (23): append_activation_by_mode(), append_ann_activation(), append_ann_stage(), append_residual_blocks(), append_snn_activation(), append_snn_stage(), build_ann_decoder(), build_ann_encoder() (+15 more)
+### Community 26 - "Community 26"
+Cohesion: 0.17
+Nodes (17): accumulate/finalize streaming statistics protocol, AudioMeanStdNormalize (fit-then-apply per-feature standardization), Compose, EEGWindowZScore (per-row window z-score), FusedModalityTransform (column-split EEG|audio normalization), ITransform (tensor transform interface), Normalization::normalize_0_1 (global min-max), read_csv_signal (CSV/TXT to (N,1) tensor) (+9 more)
 
-### Community 30 - "Community 30"
-Cohesion: 0.12
-Nodes (10): Unit tests for multimodal_eeg_audio/wavelet_features.py., TestDwtStats, TestExtractMultimodalWaveletFeatures, TestInternalMetrics, dwt_stats(), _energy(), _entropy(), extract_multimodal_wavelet_features() (+2 more)
-
-### Community 31 - "Community 31"
-Cohesion: 0.11
-Nodes (21): AudioWindowAutoencoder (symmetric MLP AE over audio window features), Symmetric depth scheme: each depth level adds Linear(h→h/2) encoder / Linear(h/2→h) decoder, AutoencoderArchitecture enum (Auto, ResidualDense, DualBranchFusion), AutoencoderBuilders::create (GoF Factory over AutoencoderType), Rationale: factory centralizes creation, enables runtime type selection from config strings and consistent error handling, Core header declares interface; concrete AE implementations still live in experiments, AutoencoderType enum (Audio/Eeg/Fused/Protocol × ANN|Spiking), from_string profile-string parser (audio/eeg/fused/protocol + _snn aliases) (+13 more)
-
-### Community 32 - "Community 32"
+### Community 27 - "Community 27"
 Cohesion: 0.19
 Nodes (5): eigen_matrix_summary_provider(), EigenMatrixChildProvider, EigenMatrixProvider, EigenSparseMatrixChildProvider, __lldb_init_module()
 
-### Community 33 - "Community 33"
+### Community 28 - "Community 28"
 Cohesion: 0.13
 Nodes (19): BatchPrefetcher (single-producer background batch pipeline), Rationale: hasNext() 10 ms Wait Closes Producer/Consumer Race, IBatchSource Abstraction (source owns storage persistence), BatchPrefetcher::producerLoop (exception capture + rethrow on consumer), Rationale: max_prefetch_ram_bytes Backpressure with Deadlock Escape, HighPerfSpscQueue Ring + BufferPool<Batch> Allocation Reuse, Rationale: Reject batch_size > 1e9 as Wrapped Negative size_t, DataLoader (batching + epoch iteration) (+11 more)
 
-### Community 34 - "Community 34"
+### Community 29 - "Community 29"
 Cohesion: 0.19
 Nodes (7): build_grid_combinations(), Unit tests for snn_hyperparam_search grid and CSV writing logic.  We test the gr, Produce all combinations from a hyperparameter grid dict., Write rows to a CSV file-like object.  Returns number of rows written., TestCsvWriting, TestGridConstruction, write_results_csv()
 
-### Community 35 - "Community 35"
+### Community 30 - "Community 30"
 Cohesion: 0.26
 Nodes (12): apply_window(), build_linear_filterbank(), compute_deltas(), dct2(), dot_power_filterbank(), framing_and_window(), hanning_window(), pre_emphasis_inplace() (+4 more)
 
-### Community 36 - "Community 36"
+### Community 31 - "Community 31"
 Cohesion: 0.17
 Nodes (16): nn::Tensor used as the float confusion-matrix accumulator, Lif capacitance persisted in NPZ payload (key '2.capacitance'), NetworkSerializerTest.SaveLoadRoundTripMatchesPyTorchStandard, serialization INTERFACE library target, saver module (checkpoint save/restore helpers), core_gtest target (NPZ + StateIO round-trip tests), StateIO.RoundtripMap (map<string,Tensor> round-trip via temp file), nn::testing::make_temp_file test utility (+8 more)
 
-### Community 37 - "Community 37"
+### Community 32 - "Community 32"
 Cohesion: 0.2
 Nodes (5): aplicar_limiar_desconhecido(), Regras de domínio para decisão/validação de identidade., Se a confiança for baixa, devolve o rótulo de desconhecido., Unit tests for voice_biometrics_snn_py/domain/regras.py., TestAplicarLimiarDesconhecido
 
-### Community 38 - "Community 38"
+### Community 33 - "Community 33"
 Cohesion: 0.29
 Nodes (10): glfw_error_callback(), ImGuiApp, initialize(), initialize_glfw(), initialize_imgui(), prepare_frame(), render_frame(), run() (+2 more)
 
-### Community 39 - "Community 39"
-Cohesion: 0.22
-Nodes (10): accumulate/finalize streaming statistics protocol, AudioMeanStdNormalize (fit-then-apply per-feature standardization), Compose, EEGWindowZScore (per-row window z-score), FusedModalityTransform (column-split EEG|audio normalization), ITransform (tensor transform interface), Normalization::normalize_0_1 (global min-max), read_csv_signal (CSV/TXT to (N,1) tensor) (+2 more)
+### Community 34 - "Community 34"
+Cohesion: 0.38
+Nodes (8): accuracyRate(), calculateEER(), falseNegativeRate(), falsePositiveRate(), precision(), recall(), truePositiveRate(), TEST()
 
-### Community 40 - "Community 40"
+### Community 35 - "Community 35"
 Cohesion: 0.33
 Nodes (6): CommaInitializer, operator<<(), TensorImpl, TensorImpl<Backend>::CommaInitializer, to_backend(), toVector()
 
-### Community 41 - "Community 41"
+### Community 36 - "Community 36"
 Cohesion: 0.22
 Nodes (10): LeakyBPTT Readout-Mode Backward Consistency, SNN Membrane Parameter Clamping (R, C), Surrogate Gradient Hyperparameter Validation, Trainable SNN Membrane Resistance and Capacitance, Rationale: Loss Must Match Spike Encoding, Module/Layer Contract, SNN-Specific Invariants, Rationale: 10x Smaller LR for Biophysical Parameters (+2 more)
 
-### Community 42 - "Community 42"
-Cohesion: 0.22
-Nodes (10): Conv1dImpl::initialize_weights_he (fixed mt19937 seed 42), Conv2dImpl::initialize_weights_he (random_device seed, bias=0.01), initializers (INTERFACE CMake target), Xavier bias dimension mismatch is a silent no-op, InitializerTest.KaimingSNN, Seeded sampler-name mixing determinism contract, InitializerTest.Xavier / XavierZeroDimensions, Weight/parameter initialization helpers (Xavier, He, constant) (+2 more)
-
-### Community 43 - "Community 43"
-Cohesion: 0.24
-Nodes (10): Zheng et al., AAAI 2021 (threshold-dependent BatchNorm), Canonical tdBN: output = γ·(α·V_th·x_norm) + β, stats pooled over batch AND time, no √T, tdBN inference path uses running mean/var, not eval-batch statistics, linearAlgebra::convolution (in-place naive 1-D convolution), linearAlgebra::discrete_cosine_transform (naive O(N²) DCT-II with orthonormal α), derivative (recursive finite differences) + calc_orthogonal_vector (QMF alternating-sign reversal), scale_matrix + solve_matrix (Gaussian elimination with pivot search, back substitution), LinearAlgebraTest suite (normalization, dot product, convolution, DCT, solve, derivative recursion) (+2 more)
-
-### Community 44 - "Community 44"
+### Community 37 - "Community 37"
 Cohesion: 0.39
 Nodes (5): TEST(), parseProtocol101117InputModeToken(), protocol101117InputModeToToken(), supportedProtocol101117InputModeTokens(), toLowerAsciiInPlace()
 
-### Community 45 - "Community 45"
+### Community 38 - "Community 38"
 Cohesion: 0.39
 Nodes (5): AudioWindowAutoencoder(), backward(), decode(), encode(), forward()
 
-### Community 46 - "Community 46"
+### Community 39 - "Community 39"
 Cohesion: 0.39
 Nodes (5): backward(), decode(), EegWindowAutoencoder(), encode(), forward()
 
-### Community 47 - "Community 47"
+### Community 40 - "Community 40"
 Cohesion: 0.39
 Nodes (5): backward(), decode(), encode(), forward(), FusedWindowAutoencoder()
 
-### Community 48 - "Community 48"
+### Community 41 - "Community 41"
 Cohesion: 0.33
 Nodes (7): calcular_nivel_wpt(), calcular_wpt_level(), extrair_features_wavelet(), Cálculo auxiliar de nível WPT e função de compatibilidade legada., Escolhe dinamicamente o nível de WPT usando PyWavelets.      Regra:     - Consid, Wrapper (compatibilidade): mantém a API antiga em inglês., (Legado) Extração baseada em DWT + LFCC.      Este demo atual usa WPT via `carac
 
-### Community 49 - "Community 49"
+### Community 42 - "Community 42"
 Cohesion: 0.22
 Nodes (9): LifBPTT, Module::reset_state (virtual), Optimizer::zero_grad, Rationale: reset clears state only, never params or gradients, nn::utility::reset (snnTorch-style utils.reset), Caveat: Poisson generator uses a process-global RNG, generate_autoencoder_spike_data_of_ones, generate_autoencoder_spike_data (Poisson-encoded) (+1 more)
 
-### Community 50 - "Community 50"
+### Community 43 - "Community 43"
 Cohesion: 0.5
 Nodes (6): AudioWindowSpikingAutoencoder(), backward(), decode(), encode(), forward(), reset_state()
 
-### Community 51 - "Community 51"
+### Community 44 - "Community 44"
 Cohesion: 0.5
 Nodes (6): backward(), decode(), EegWindowSpikingAutoencoder(), encode(), forward(), reset_state()
 
-### Community 52 - "Community 52"
+### Community 45 - "Community 45"
 Cohesion: 0.5
 Nodes (6): backward(), decode(), encode(), forward(), FusedWindowSpikingAutoencoder(), reset_state()
 
-### Community 53 - "Community 53"
+### Community 46 - "Community 46"
 Cohesion: 0.57
 Nodes (5): backward(), decode(), encode(), forward(), ProtocolAutoencoder()
 
-### Community 54 - "Community 54"
+### Community 47 - "Community 47"
 Cohesion: 0.38
 Nodes (3): index_count(), RandomSampler, set_epoch()
 
-### Community 55 - "Community 55"
+### Community 48 - "Community 48"
 Cohesion: 0.38
 Nodes (3): index_count(), SequentialSampler, set_epoch()
 
-### Community 56 - "Community 56"
+### Community 49 - "Community 49"
 Cohesion: 0.33
 Nodes (7): run_thesis_profiles.sh (real phase00/phase01 runs), run_thesis_smoke.sh, 01_thesis_phase00_rank.py (paraconsistent winner selection), 02_thesis_apply_winner.py, thesis_make_smoke_profiles.py, thesis_build_phase00_paraconsistent_tables.py, winners.json (phase00 -> phase01 handoff artifact)
 
-### Community 57 - "Community 57"
+### Community 50 - "Community 50"
 Cohesion: 0.67
 Nodes (4): sanitize_stem(), timestamp_now_compact_local(), write_json_file(), write_text_file()
 
-### Community 58 - "Community 58"
+### Community 51 - "Community 51"
 Cohesion: 0.4
 Nodes (2): StreamRedirector, StreamToLoggerBuf
 
-### Community 59 - "Community 59"
-Cohesion: 0.67
-Nodes (4): env_to_int(), main(), measure(), print_results_csv()
-
-### Community 60 - "Community 60"
+### Community 52 - "Community 52"
 Cohesion: 0.33
 Nodes (6): check_core_coverage_gate.sh (100% core line coverage gate), Rationale: ci/ scripts are referenced by ci.yml and must not be moved or renamed, clang-format-changed.sh pre-commit hook, scripts/ five-directory organization by purpose, Rationale: numeric prefixes encode chain execution order; unnumbered scripts are standalone, validate_static_analysis.py (CI static-analysis gate)
 
-### Community 61 - "Community 61"
+### Community 53 - "Community 53"
 Cohesion: 0.5
 Nodes (3): get_available_wavelet_families(), load_experiment_config(), main()
 
-### Community 62 - "Community 62"
+### Community 54 - "Community 54"
 Cohesion: 0.5
 Nodes (2): Dataset, IDatasetPrinter
 
-### Community 63 - "Community 63"
+### Community 55 - "Community 55"
 Cohesion: 0.4
 Nodes (2): Optimizer(), OptimizerEvalScope
 
-### Community 64 - "Community 64"
+### Community 56 - "Community 56"
 Cohesion: 0.5
 Nodes (3): main(), get_available_wavelet_families(), load_experiment_config()
 
-### Community 65 - "Community 65"
-Cohesion: 0.5
-Nodes (3): put(), Drive `make_opt` over `steps` fixed gradients; record params after each step., run_case()
-
-### Community 66 - "Community 66"
+### Community 57 - "Community 57"
 Cohesion: 0.4
 Nodes (5): Caveat: nested omp parallel regions may oversubscribe threads, printVectorizationSupport, Rationale: xtensor speed depends on SIMD flags, so demos print capabilities at startup, util::initializeXtensorParallel, Rationale: disable OpenMP nested parallelism (max_active_levels=1)
 
-### Community 67 - "Community 67"
+### Community 58 - "Community 58"
 Cohesion: 0.4
 Nodes (5): Null-parameter guards across step/zero_grad/attach, OptimizerThreadSafetyTest runs sequentially — no real concurrency, Citation: Stroustrup & Sutter, C++ Core Guidelines, Citation: Meyers, Effective Modern C++ (2014), Rationale: RAII unique_ptr ownership in tests, non-owning raw pointers to optimizer API
 
-### Community 68 - "Community 68"
+### Community 59 - "Community 59"
 Cohesion: 0.4
 Nodes (5): Rationale: fuse broadcast-add into the backend kernel to avoid per-element scalar loops, Golub & Van Loan, Matrix Computations (4th ed.), 2013, Intel 64 and IA-32 Architectures Optimization Reference Manual, GPU-resident OpenCL execution + lazy host synchronization, matmul_rhs_transposed / matmul_lhs_transposed direct kernels (avoid transpose materialization)
 
-### Community 69 - "Community 69"
+### Community 60 - "Community 60"
 Cohesion: 0.5
 Nodes (1): SpikingAutoencoder
 
-### Community 70 - "Community 70"
+### Community 61 - "Community 61"
 Cohesion: 0.5
 Nodes (1): BaseAutoencoder
 
-### Community 71 - "Community 71"
+### Community 62 - "Community 62"
 Cohesion: 0.83
 Nodes (3): make_audio_sample(), make_eeg_sample(), TEST()
 
-### Community 72 - "Community 72"
+### Community 63 - "Community 63"
 Cohesion: 0.67
 Nodes (2): construir_cli(), CLI de alto nível do demo de biometria por voz. Este arquivo mantém apenas a int
 
-### Community 73 - "Community 73"
+### Community 64 - "Community 64"
 Cohesion: 0.5
 Nodes (1): ISampler
 
-### Community 74 - "Community 74"
+### Community 65 - "Community 65"
 Cohesion: 0.5
 Nodes (1): Dataset
 
-### Community 75 - "Community 75"
+### Community 66 - "Community 66"
 Cohesion: 0.5
 Nodes (1): IBatchSource
 
-### Community 76 - "Community 76"
+### Community 67 - "Community 67"
 Cohesion: 0.5
 Nodes (1): IMatLoader
 
-### Community 77 - "Community 77"
+### Community 68 - "Community 68"
 Cohesion: 0.5
 Nodes (1): MaxPool1dImpl
 
-### Community 78 - "Community 78"
+### Community 69 - "Community 69"
 Cohesion: 0.5
 Nodes (1): MaxPool2dImpl
 
-### Community 79 - "Community 79"
+### Community 70 - "Community 70"
 Cohesion: 0.5
 Nodes (1): MAELossImpl
 
-### Community 80 - "Community 80"
+### Community 71 - "Community 71"
 Cohesion: 0.5
 Nodes (1): MSELossImpl
 
-### Community 81 - "Community 81"
+### Community 72 - "Community 72"
 Cohesion: 0.5
 Nodes (1): SpikeCountLossImpl
 
-### Community 82 - "Community 82"
+### Community 73 - "Community 73"
 Cohesion: 0.5
 Nodes (1): SpikeTimeLossImpl
 
-### Community 83 - "Community 83"
+### Community 74 - "Community 74"
 Cohesion: 0.5
 Nodes (1): IRegularization
 
-### Community 84 - "Community 84"
+### Community 75 - "Community 75"
 Cohesion: 0.5
 Nodes (1): L1Regularization
 
-### Community 85 - "Community 85"
+### Community 76 - "Community 76"
 Cohesion: 0.5
 Nodes (1): L2Regularization
 
-### Community 86 - "Community 86"
+### Community 77 - "Community 77"
+Cohesion: 0.5
+Nodes (1): SimpleResNetImpl
+
+### Community 78 - "Community 78"
 Cohesion: 0.5
 Nodes (1): ResNetBlockImpl
 
-### Community 87 - "Community 87"
+### Community 79 - "Community 79"
 Cohesion: 0.5
 Nodes (1): ISurrogateGradient
 
-### Community 88 - "Community 88"
+### Community 80 - "Community 80"
 Cohesion: 0.5
 Nodes (1): PoissonLatentLayerImpl
 
-### Community 89 - "Community 89"
+### Community 81 - "Community 81"
 Cohesion: 0.5
 Nodes (1): ThresholdDependentBatchNormImpl
 
-### Community 90 - "Community 90"
+### Community 82 - "Community 82"
 Cohesion: 0.5
 Nodes (1): IStatistic
 
-### Community 91 - "Community 91"
+### Community 83 - "Community 83"
 Cohesion: 0.5
 Nodes (1): RunningMean
 
-### Community 92 - "Community 92"
+### Community 84 - "Community 84"
 Cohesion: 0.5
 Nodes (1): DeviceTensorBackend
 
-### Community 93 - "Community 93"
+### Community 85 - "Community 85"
 Cohesion: 0.5
 Nodes (1): BufferPool
 
-### Community 94 - "Community 94"
+### Community 86 - "Community 86"
 Cohesion: 0.5
 Nodes (1): SpscRingBuffer
 
-### Community 95 - "Community 95"
+### Community 87 - "Community 87"
 Cohesion: 0.5
 Nodes (1): ITransform
 
-### Community 96 - "Community 96"
+### Community 88 - "Community 88"
 Cohesion: 0.5
 Nodes (1): EEGWindowZScore
 
-### Community 97 - "Community 97"
+### Community 89 - "Community 89"
 Cohesion: 0.5
 Nodes (1): AudioMeanStdNormalize
 
-### Community 98 - "Community 98"
+### Community 90 - "Community 90"
 Cohesion: 0.5
 Nodes (1): FusedModalityTransform
 
-### Community 99 - "Community 99"
+### Community 91 - "Community 91"
 Cohesion: 0.5
 Nodes (1): EarlyStoppingCallback
 
-### Community 100 - "Community 100"
+### Community 92 - "Community 92"
 Cohesion: 0.5
 Nodes (1): ProgressCallback
 
-### Community 101 - "Community 101"
+### Community 93 - "Community 93"
 Cohesion: 0.83
 Nodes (3): make_audio_sample(), make_eeg_sample(), TEST()
 
-### Community 102 - "Community 102"
-Cohesion: 0.67
-Nodes (2): from_file(), from_json()
-
-### Community 103 - "Community 103"
+### Community 94 - "Community 94"
 Cohesion: 0.5
 Nodes (4): createAlpha, createHighPassFilter, createLowPassFilter, createStopBandFilter / bandStopFilter
 
-### Community 104 - "Community 104"
+### Community 95 - "Community 95"
 Cohesion: 0.5
 Nodes (4): analysis/master_comparison.csv (Experiment 03 grid-search table), Profile Signature (timestamp-stripped profile key), e03_dedup_master_table.py (Experiment 03 grid-search deduplicator), Rationale: prefer Success rows, then lowest Mean Val Loss
 
-### Community 105 - "Community 105"
+### Community 96 - "Community 96"
 Cohesion: 0.67
 Nodes (1): MockImaginedSpeechDatasetGenerator
 
-### Community 106 - "Community 106"
+### Community 97 - "Community 97"
 Cohesion: 0.67
 Nodes (1): TEST()
 
-### Community 107 - "Community 107"
+### Community 98 - "Community 98"
 Cohesion: 0.67
 Nodes (1): TEST()
 
-### Community 108 - "Community 108"
+### Community 99 - "Community 99"
 Cohesion: 0.67
 Nodes (1): Protótipo multimodal EEG+Áudio (PyTorch + snnTorch).
 
-### Community 109 - "Community 109"
+### Community 100 - "Community 100"
 Cohesion: 0.67
 Nodes (1): SynchronizedBatchAssembler
 
-### Community 110 - "Community 110"
+### Community 101 - "Community 101"
 Cohesion: 0.67
 Nodes (1): LeakyReLUImpl()
 
-### Community 111 - "Community 111"
+### Community 102 - "Community 102"
 Cohesion: 0.67
 Nodes (1): Module()
 
-### Community 112 - "Community 112"
+### Community 103 - "Community 103"
 Cohesion: 0.67
 Nodes (1): SequentialImpl()
 
-### Community 113 - "Community 113"
+### Community 104 - "Community 104"
 Cohesion: 0.67
 Nodes (1): Conv2dImpl
 
-### Community 114 - "Community 114"
+### Community 105 - "Community 105"
 Cohesion: 0.67
 Nodes (1): Conv2dImpl
 
-### Community 115 - "Community 115"
+### Community 106 - "Community 106"
 Cohesion: 0.67
 Nodes (1): Conv1dImpl
 
-### Community 116 - "Community 116"
+### Community 107 - "Community 107"
 Cohesion: 0.67
 Nodes (1): LinearImpl()
 
-### Community 117 - "Community 117"
+### Community 108 - "Community 108"
 Cohesion: 0.67
 Nodes (1): CrossEntropyLossImpl
 
-### Community 118 - "Community 118"
+### Community 109 - "Community 109"
 Cohesion: 0.67
 Nodes (1): ResidualBlockImpl()
 
-### Community 119 - "Community 119"
+### Community 110 - "Community 110"
 Cohesion: 0.67
 Nodes (1): SGD()
 
-### Community 120 - "Community 120"
+### Community 111 - "Community 111"
 Cohesion: 0.67
 Nodes (1): SGDMinimal()
 
-### Community 121 - "Community 121"
+### Community 112 - "Community 112"
 Cohesion: 0.67
 Nodes (1): Normalization
 
-### Community 122 - "Community 122"
+### Community 113 - "Community 113"
 Cohesion: 0.67
 Nodes (1): Windowing
 
-### Community 123 - "Community 123"
+### Community 114 - "Community 114"
 Cohesion: 0.67
 Nodes (1): ITrainingCallback()
 
-### Community 124 - "Community 124"
+### Community 115 - "Community 115"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 125 - "Community 125"
+### Community 116 - "Community 116"
 Cohesion: 0.67
 Nodes (3): 01_guayaquil_run_article_profiles.sh, 02_guayaquil_build_lstm_vs_snn_paper_data.py, guayaquil_run_backend_comparison.sh (CPU vs OpenCL)
 
-### Community 126 - "Community 126"
+### Community 117 - "Community 117"
 Cohesion: 0.67
 Nodes (3): find_alignment_shift(): search the circular shift instead of hardcoding it; failure flags a broken filter table, Convention map: circular↔periodization, packet swap↔order='freq', DaubN taps↔db{N//2}, src/core/wavelet/waveletOperations.cpp (malat / extract_subband_energies)
 
-### Community 127 - "Community 127"
+### Community 118 - "Community 118"
 Cohesion: 0.67
 Nodes (3): KL(Poisson(λ)||Poisson(λ₀)) = λ₀ − λ + λ·log(λ/λ₀), λ = softplus(z), Chen et al., arXiv:2310.14839 (ESVAE), Kamata et al., AAAI 2022 (FSVAE)
 
-### Community 128 - "Community 128"
+### Community 119 - "Community 119"
 Cohesion: 0.67
 Nodes (3): linear_algebra (STATIC, position-independent CMake target), linear_algebra: bridges tensor abstractions to low-level numerical routines, linearAlgebra_gtest target
+
+### Community 120 - "Community 120"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 121 - "Community 121"
+Cohesion: 1.0
+Nodes (1): LstmAutoencoderExperiment
+
+### Community 122 - "Community 122"
+Cohesion: 1.0
+Nodes (1): BatchLossCollector
+
+### Community 123 - "Community 123"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 124 - "Community 124"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 125 - "Community 125"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 126 - "Community 126"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 127 - "Community 127"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 128 - "Community 128"
+Cohesion: 1.0
+Nodes (0): 
 
 ### Community 129 - "Community 129"
 Cohesion: 1.0
@@ -973,11 +925,11 @@ Nodes (0):
 
 ### Community 130 - "Community 130"
 Cohesion: 1.0
-Nodes (1): LstmAutoencoderExperiment
+Nodes (1): ParaconsistentFeatureExtractor
 
 ### Community 131 - "Community 131"
 Cohesion: 1.0
-Nodes (1): BatchLossCollector
+Nodes (0): 
 
 ### Community 132 - "Community 132"
 Cohesion: 1.0
@@ -997,11 +949,11 @@ Nodes (0):
 
 ### Community 136 - "Community 136"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): BatchLossCollector
 
 ### Community 137 - "Community 137"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): LstmAutoencoderExperiment
 
 ### Community 138 - "Community 138"
 Cohesion: 1.0
@@ -1009,7 +961,7 @@ Nodes (0):
 
 ### Community 139 - "Community 139"
 Cohesion: 1.0
-Nodes (1): ParaconsistentFeatureExtractor
+Nodes (0): 
 
 ### Community 140 - "Community 140"
 Cohesion: 1.0
@@ -1021,35 +973,35 @@ Nodes (0):
 
 ### Community 142 - "Community 142"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): FsddLoader
 
 ### Community 143 - "Community 143"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): Forget-gate bias initialised to 1.0, [3] Jozefowicz et al., ICML 2015 — forget-gate bias initialisation
 
 ### Community 144 - "Community 144"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): Rationale: model-timing table kept separate from XTensor-vs-OpenCL backend table, guayaquil_run_backend_comparison.sh (max-performance vs max-performance-opencl runner)
 
 ### Community 145 - "Community 145"
 Cohesion: 1.0
-Nodes (1): BatchLossCollector
+Nodes (2): EEGLoader (lower-level MAT variable browser), EEGLoader::open symlink/regular-file security check
 
 ### Community 146 - "Community 146"
 Cohesion: 1.0
-Nodes (1): LstmAutoencoderExperiment
+Nodes (2): OptimizerTest fixture (2x2 weights + 2x1 bias, unit grads), Learning-rate validation (negative/zero/1e10 all throw invalid_argument)
 
 ### Community 147 - "Community 147"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): Analysis: lr=1e-10 update rounds to exactly zero under float32 epsilon, NaN/Inf/tiny/huge gradients must not throw (EXPECT_NO_THROW only, no value assertion)
 
 ### Community 148 - "Community 148"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): Rationale: no cout in Trainer — all output via ITrainingCallback, Fractional intra-batch progress callbacks (on_batch_progress)
 
 ### Community 149 - "Community 149"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): PMC nested cross-validation guide 2023 [41], Nested cross-validation configuration fields
 
 ### Community 150 - "Community 150"
 Cohesion: 1.0
@@ -1057,35 +1009,35 @@ Nodes (0):
 
 ### Community 151 - "Community 151"
 Cohesion: 1.0
-Nodes (1): FsddLoader
+Nodes (0): 
 
 ### Community 152 - "Community 152"
 Cohesion: 1.0
-Nodes (2): Forget-gate bias initialised to 1.0, [3] Jozefowicz et al., ICML 2015 — forget-gate bias initialisation
+Nodes (0): 
 
 ### Community 153 - "Community 153"
 Cohesion: 1.0
-Nodes (2): Rationale: model-timing table kept separate from XTensor-vs-OpenCL backend table, guayaquil_run_backend_comparison.sh (max-performance vs max-performance-opencl runner)
+Nodes (0): 
 
 ### Community 154 - "Community 154"
 Cohesion: 1.0
-Nodes (2): EEGLoader (lower-level MAT variable browser), EEGLoader::open symlink/regular-file security check
+Nodes (0): 
 
 ### Community 155 - "Community 155"
 Cohesion: 1.0
-Nodes (2): OptimizerTest fixture (2x2 weights + 2x1 bias, unit grads), Learning-rate validation (negative/zero/1e10 all throw invalid_argument)
+Nodes (0): 
 
 ### Community 156 - "Community 156"
 Cohesion: 1.0
-Nodes (2): Analysis: lr=1e-10 update rounds to exactly zero under float32 epsilon, NaN/Inf/tiny/huge gradients must not throw (EXPECT_NO_THROW only, no value assertion)
+Nodes (0): 
 
 ### Community 157 - "Community 157"
 Cohesion: 1.0
-Nodes (2): Rationale: no cout in Trainer — all output via ITrainingCallback, Fractional intra-batch progress callbacks (on_batch_progress)
+Nodes (0): 
 
 ### Community 158 - "Community 158"
 Cohesion: 1.0
-Nodes (2): PMC nested cross-validation guide 2023 [41], Nested cross-validation configuration fields
+Nodes (0): 
 
 ### Community 159 - "Community 159"
 Cohesion: 1.0
@@ -1237,7 +1189,7 @@ Nodes (0):
 
 ### Community 196 - "Community 196"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): Load result from JSON file.
 
 ### Community 197 - "Community 197"
 Cohesion: 1.0
@@ -1273,7 +1225,7 @@ Nodes (0):
 
 ### Community 205 - "Community 205"
 Cohesion: 1.0
-Nodes (1): Load result from JSON file.
+Nodes (0): 
 
 ### Community 206 - "Community 206"
 Cohesion: 1.0
@@ -1873,49 +1825,13 @@ Nodes (0):
 
 ### Community 355 - "Community 355"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): OpenCode Duo Directive (Planner/Executor Split)
 
 ### Community 356 - "Community 356"
 Cohesion: 1.0
-Nodes (0): 
-
-### Community 357 - "Community 357"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 358 - "Community 358"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 359 - "Community 359"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 360 - "Community 360"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 361 - "Community 361"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 362 - "Community 362"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 363 - "Community 363"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 364 - "Community 364"
-Cohesion: 1.0
-Nodes (1): OpenCode Duo Directive (Planner/Executor Split)
-
-### Community 365 - "Community 365"
-Cohesion: 1.0
 Nodes (1): sync_cross_project_skills.sh
 
-### Community 366 - "Community 366"
+### Community 357 - "Community 357"
 Cohesion: 1.0
 Nodes (1): export_wiki_for_anytype.sh
 
@@ -1998,481 +1914,481 @@ Nodes (1): export_wiki_for_anytype.sh
 ## Knowledge Gaps
 - **487 isolated node(s):** `Print Eigen Matrix or Array of some kind`, `Extract all the necessary information`, `Print an Eigen SparseMatrix`, `Extract all the necessary information`, `Print an Eigen Quaternion` (+482 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 129`** (2 nodes): `MatTestUtils.h`, `test()`
+- **Thin community `Community 120`** (2 nodes): `MatTestUtils.h`, `test()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 130`** (2 nodes): `LstmAutoencoderExperiment.hpp`, `LstmAutoencoderExperiment`
+- **Thin community `Community 121`** (2 nodes): `LstmAutoencoderExperiment.hpp`, `LstmAutoencoderExperiment`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 131`** (2 nodes): `BatchLossCollector`, `BatchLossCollector.hpp`
+- **Thin community `Community 122`** (2 nodes): `BatchLossCollector`, `BatchLossCollector.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 132`** (2 nodes): `dataLoaders()`, `AudioData.h`
+- **Thin community `Community 123`** (2 nodes): `dataLoaders()`, `AudioData.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 133`** (2 nodes): `dataLoaders()`, `EEGData.h`
+- **Thin community `Community 124`** (2 nodes): `dataLoaders()`, `EEGData.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 134`** (2 nodes): `dataLoaders()`, `AudioLoader.h`
+- **Thin community `Community 125`** (2 nodes): `dataLoaders()`, `AudioLoader.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 135`** (2 nodes): `dataLoaders()`, `EEGLoader.h`
+- **Thin community `Community 126`** (2 nodes): `dataLoaders()`, `EEGLoader.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 136`** (2 nodes): `Leaky.hpp`, `LeakyImpl()`
+- **Thin community `Community 127`** (2 nodes): `Leaky.hpp`, `LeakyImpl()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 137`** (2 nodes): `LeakyBPTT.hpp`, `LeakyBPTTImpl()`
+- **Thin community `Community 128`** (2 nodes): `LeakyBPTT.hpp`, `LeakyBPTTImpl()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 138`** (2 nodes): `LeakyIntegrator.hpp`, `LeakyIntegratorImpl()`
+- **Thin community `Community 129`** (2 nodes): `LeakyIntegrator.hpp`, `LeakyIntegratorImpl()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 139`** (2 nodes): `ParaconsistentFeatureExtractor.hpp`, `ParaconsistentFeatureExtractor`
+- **Thin community `Community 130`** (2 nodes): `ParaconsistentFeatureExtractor.hpp`, `ParaconsistentFeatureExtractor`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 140`** (2 nodes): `statistics.h`, `statistics()`
+- **Thin community `Community 131`** (2 nodes): `statistics.h`, `statistics()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 141`** (2 nodes): `wave()`, `audioFeatureExtraction.h`
+- **Thin community `Community 132`** (2 nodes): `wave()`, `audioFeatureExtraction.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 142`** (2 nodes): `Types.h`, `wavelets()`
+- **Thin community `Community 133`** (2 nodes): `Types.h`, `wavelets()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 143`** (2 nodes): `WaveletTransformResults.h`, `wavelets()`
+- **Thin community `Community 134`** (2 nodes): `WaveletTransformResults.h`, `wavelets()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 144`** (2 nodes): `waveletOperations.h`, `wavelets()`
+- **Thin community `Community 135`** (2 nodes): `waveletOperations.h`, `wavelets()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 145`** (2 nodes): `BatchLossCollector`, `GuayaquilBatchLossCollector.hpp`
+- **Thin community `Community 136`** (2 nodes): `BatchLossCollector`, `GuayaquilBatchLossCollector.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 146`** (2 nodes): `LstmAutoencoderExperiment`, `GuayaquilLstmAutoencoder.hpp`
+- **Thin community `Community 137`** (2 nodes): `LstmAutoencoderExperiment`, `GuayaquilLstmAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 147`** (2 nodes): `LifIntegrator.hpp`, `LifIntegratorImpl()`
+- **Thin community `Community 138`** (2 nodes): `LifIntegrator.hpp`, `LifIntegratorImpl()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 148`** (2 nodes): `Lion.hpp`, `Lion()`
+- **Thin community `Community 139`** (2 nodes): `Lion.hpp`, `Lion()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 149`** (2 nodes): `ScheduleFreeAdamW.hpp`, `ScheduleFreeAdamW()`
+- **Thin community `Community 140`** (2 nodes): `ScheduleFreeAdamW.hpp`, `ScheduleFreeAdamW()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 150`** (2 nodes): `Types.hpp`, `get_wavelet()`
+- **Thin community `Community 141`** (2 nodes): `Types.hpp`, `get_wavelet()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 151`** (2 nodes): `FsddLoader`, `FsddLoader.hpp`
+- **Thin community `Community 142`** (2 nodes): `FsddLoader`, `FsddLoader.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 152`** (2 nodes): `Forget-gate bias initialised to 1.0`, `[3] Jozefowicz et al., ICML 2015 — forget-gate bias initialisation`
+- **Thin community `Community 143`** (2 nodes): `Forget-gate bias initialised to 1.0`, `[3] Jozefowicz et al., ICML 2015 — forget-gate bias initialisation`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 153`** (2 nodes): `Rationale: model-timing table kept separate from XTensor-vs-OpenCL backend table`, `guayaquil_run_backend_comparison.sh (max-performance vs max-performance-opencl runner)`
+- **Thin community `Community 144`** (2 nodes): `Rationale: model-timing table kept separate from XTensor-vs-OpenCL backend table`, `guayaquil_run_backend_comparison.sh (max-performance vs max-performance-opencl runner)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 154`** (2 nodes): `EEGLoader (lower-level MAT variable browser)`, `EEGLoader::open symlink/regular-file security check`
+- **Thin community `Community 145`** (2 nodes): `EEGLoader (lower-level MAT variable browser)`, `EEGLoader::open symlink/regular-file security check`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 155`** (2 nodes): `OptimizerTest fixture (2x2 weights + 2x1 bias, unit grads)`, `Learning-rate validation (negative/zero/1e10 all throw invalid_argument)`
+- **Thin community `Community 146`** (2 nodes): `OptimizerTest fixture (2x2 weights + 2x1 bias, unit grads)`, `Learning-rate validation (negative/zero/1e10 all throw invalid_argument)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 156`** (2 nodes): `Analysis: lr=1e-10 update rounds to exactly zero under float32 epsilon`, `NaN/Inf/tiny/huge gradients must not throw (EXPECT_NO_THROW only, no value assertion)`
+- **Thin community `Community 147`** (2 nodes): `Analysis: lr=1e-10 update rounds to exactly zero under float32 epsilon`, `NaN/Inf/tiny/huge gradients must not throw (EXPECT_NO_THROW only, no value assertion)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 157`** (2 nodes): `Rationale: no cout in Trainer — all output via ITrainingCallback`, `Fractional intra-batch progress callbacks (on_batch_progress)`
+- **Thin community `Community 148`** (2 nodes): `Rationale: no cout in Trainer — all output via ITrainingCallback`, `Fractional intra-batch progress callbacks (on_batch_progress)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 158`** (2 nodes): `PMC nested cross-validation guide 2023 [41]`, `Nested cross-validation configuration fields`
+- **Thin community `Community 149`** (2 nodes): `PMC nested cross-validation guide 2023 [41]`, `Nested cross-validation configuration fields`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 159`** (1 nodes): `mat_file_gtest.cpp`
+- **Thin community `Community 150`** (1 nodes): `mat_file_gtest.cpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 160`** (1 nodes): `dummy.cpp`
+- **Thin community `Community 151`** (1 nodes): `dummy.cpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 161`** (1 nodes): `Config.hpp`
+- **Thin community `Community 152`** (1 nodes): `Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 162`** (1 nodes): `AutoencoderArchitecture.hpp`
+- **Thin community `Community 153`** (1 nodes): `AutoencoderArchitecture.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 163`** (1 nodes): `EpochResult.hpp`
+- **Thin community `Community 154`** (1 nodes): `EpochResult.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 164`** (1 nodes): `TrainerConfig.hpp`
+- **Thin community `Community 155`** (1 nodes): `TrainerConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 165`** (1 nodes): `Config.hpp`
+- **Thin community `Community 156`** (1 nodes): `Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 166`** (1 nodes): `Experiment02Config.hpp`
+- **Thin community `Community 157`** (1 nodes): `Experiment02Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 167`** (1 nodes): `Experiment02Data.hpp`
+- **Thin community `Community 158`** (1 nodes): `Experiment02Data.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 168`** (1 nodes): `Experiment02Evaluation.hpp`
+- **Thin community `Community 159`** (1 nodes): `Experiment02Evaluation.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 169`** (1 nodes): `Experiment02Pipeline.hpp`
+- **Thin community `Community 160`** (1 nodes): `Experiment02Pipeline.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 170`** (1 nodes): `Experiment02Reporting.hpp`
+- **Thin community `Community 161`** (1 nodes): `Experiment02Reporting.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 171`** (1 nodes): `Experiment02Training.hpp`
+- **Thin community `Community 162`** (1 nodes): `Experiment02Training.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 172`** (1 nodes): `Experiment02Wavelets.hpp`
+- **Thin community `Community 163`** (1 nodes): `Experiment02Wavelets.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 173`** (1 nodes): `phase00_data.hpp`
+- **Thin community `Community 164`** (1 nodes): `phase00_data.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 174`** (1 nodes): `phase00_features.hpp`
+- **Thin community `Community 165`** (1 nodes): `phase00_features.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 175`** (1 nodes): `phase00_training.hpp`
+- **Thin community `Community 166`** (1 nodes): `phase00_training.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 176`** (1 nodes): `Experiment04Cli.hpp`
+- **Thin community `Community 167`** (1 nodes): `Experiment04Cli.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 177`** (1 nodes): `RunMetrics.hpp`
+- **Thin community `Community 168`** (1 nodes): `RunMetrics.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 178`** (1 nodes): `DatasetSplit.hpp`
+- **Thin community `Community 169`** (1 nodes): `DatasetSplit.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 179`** (1 nodes): `CliOptions.hpp`
+- **Thin community `Community 170`** (1 nodes): `CliOptions.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 180`** (1 nodes): `ComparativeDataset.hpp`
+- **Thin community `Community 171`** (1 nodes): `ComparativeDataset.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 181`** (1 nodes): `ComparativeEncoding.hpp`
+- **Thin community `Community 172`** (1 nodes): `ComparativeEncoding.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 182`** (1 nodes): `ComparativeEvaluation.hpp`
+- **Thin community `Community 173`** (1 nodes): `ComparativeEvaluation.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 183`** (1 nodes): `ComparativeCli.hpp`
+- **Thin community `Community 174`** (1 nodes): `ComparativeCli.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 184`** (1 nodes): `ResultRow.hpp`
+- **Thin community `Community 175`** (1 nodes): `ResultRow.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 185`** (1 nodes): `EpochHistory.hpp`
+- **Thin community `Community 176`** (1 nodes): `EpochHistory.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 186`** (1 nodes): `ComparativeOutput.hpp`
+- **Thin community `Community 177`** (1 nodes): `ComparativeOutput.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 187`** (1 nodes): `RunCheckpoint.hpp`
+- **Thin community `Community 178`** (1 nodes): `RunCheckpoint.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 188`** (1 nodes): `ComparativeConfig.hpp`
+- **Thin community `Community 179`** (1 nodes): `ComparativeConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 189`** (1 nodes): `ComparativeTraining.hpp`
+- **Thin community `Community 180`** (1 nodes): `ComparativeTraining.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 190`** (1 nodes): `LstmAutoencoderExperiment.cpp`
+- **Thin community `Community 181`** (1 nodes): `LstmAutoencoderExperiment.cpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 191`** (1 nodes): `AutoencoderConfig.hpp`
+- **Thin community `Community 182`** (1 nodes): `AutoencoderConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 192`** (1 nodes): `Experiment03Config.hpp`
+- **Thin community `Community 183`** (1 nodes): `Experiment03Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 193`** (1 nodes): `ProfileLoader.hpp`
+- **Thin community `Community 184`** (1 nodes): `ProfileLoader.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 194`** (1 nodes): `ResultsWriter.hpp`
+- **Thin community `Community 185`** (1 nodes): `ResultsWriter.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 195`** (1 nodes): `RunSummaryBuilder.hpp`
+- **Thin community `Community 186`** (1 nodes): `RunSummaryBuilder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 196`** (1 nodes): `cli.hpp`
+- **Thin community `Community 187`** (1 nodes): `cli.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 197`** (1 nodes): `AudioWindowAutoencoder.hpp`
+- **Thin community `Community 188`** (1 nodes): `AudioWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 198`** (1 nodes): `AudioWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 189`** (1 nodes): `AudioWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 199`** (1 nodes): `EegWindowAutoencoder.hpp`
+- **Thin community `Community 190`** (1 nodes): `EegWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 200`** (1 nodes): `EegWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 191`** (1 nodes): `EegWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 201`** (1 nodes): `FusedWindowAutoencoder.hpp`
+- **Thin community `Community 192`** (1 nodes): `FusedWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 202`** (1 nodes): `FusedWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 193`** (1 nodes): `FusedWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 203`** (1 nodes): `ProtocolAutoencoder.hpp`
+- **Thin community `Community 194`** (1 nodes): `ProtocolAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 204`** (1 nodes): `ProtocolSpikingAutoencoder.hpp`
+- **Thin community `Community 195`** (1 nodes): `ProtocolSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 205`** (1 nodes): `Load result from JSON file.`
+- **Thin community `Community 196`** (1 nodes): `Load result from JSON file.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 206`** (1 nodes): `__init__.py`
+- **Thin community `Community 197`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 207`** (1 nodes): `__init__.py`
+- **Thin community `Community 198`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 208`** (1 nodes): `__init__.py`
+- **Thin community `Community 199`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 209`** (1 nodes): `__init__.py`
+- **Thin community `Community 200`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 210`** (1 nodes): `__init__.py`
+- **Thin community `Community 201`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 211`** (1 nodes): `__init__.py`
+- **Thin community `Community 202`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 212`** (1 nodes): `__init__.py`
+- **Thin community `Community 203`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 213`** (1 nodes): `__init__.py`
+- **Thin community `Community 204`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 214`** (1 nodes): `testing.hpp`
+- **Thin community `Community 205`** (1 nodes): `testing.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 215`** (1 nodes): `Backend.hpp`
+- **Thin community `Community 206`** (1 nodes): `Backend.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 216`** (1 nodes): `BatchTargetFormatter.hpp`
+- **Thin community `Community 207`** (1 nodes): `BatchTargetFormatter.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 217`** (1 nodes): `InputModeCodec.hpp`
+- **Thin community `Community 208`** (1 nodes): `InputModeCodec.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 218`** (1 nodes): `SamplePacking.hpp`
+- **Thin community `Community 209`** (1 nodes): `SamplePacking.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 219`** (1 nodes): `NAMES.hpp`
+- **Thin community `Community 210`** (1 nodes): `NAMES.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 220`** (1 nodes): `METADATA.hpp`
+- **Thin community `Community 211`** (1 nodes): `METADATA.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 221`** (1 nodes): `SubjectDiscovery.hpp`
+- **Thin community `Community 212`** (1 nodes): `SubjectDiscovery.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 222`** (1 nodes): `mat_file_utils.hpp`
+- **Thin community `Community 213`** (1 nodes): `mat_file_utils.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 223`** (1 nodes): `SamplerOptionResolution.hpp`
+- **Thin community `Community 214`** (1 nodes): `SamplerOptionResolution.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 224`** (1 nodes): `ShardIndex.hpp`
+- **Thin community `Community 215`** (1 nodes): `ShardIndex.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 225`** (1 nodes): `DefaultSamplerType.hpp`
+- **Thin community `Community 216`** (1 nodes): `DefaultSamplerType.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 226`** (1 nodes): `Layers.hpp`
+- **Thin community `Community 217`** (1 nodes): `Layers.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 227`** (1 nodes): `ReLU.hpp`
+- **Thin community `Community 218`** (1 nodes): `ReLU.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 228`** (1 nodes): `Regularization.hpp`
+- **Thin community `Community 219`** (1 nodes): `Regularization.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 229`** (1 nodes): `SurrogateGradient.hpp`
+- **Thin community `Community 220`** (1 nodes): `SurrogateGradient.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 230`** (1 nodes): `linear_algebra.hpp`
+- **Thin community `Community 221`** (1 nodes): `linear_algebra.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 231`** (1 nodes): `paraconsistent.h`
+- **Thin community `Community 222`** (1 nodes): `paraconsistent.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 232`** (1 nodes): `NnSaver.hpp`
+- **Thin community `Community 223`** (1 nodes): `NnSaver.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 233`** (1 nodes): `inference_tests.hpp`
+- **Thin community `Community 224`** (1 nodes): `inference_tests.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 234`** (1 nodes): `confusion_matrix.hpp`
+- **Thin community `Community 225`** (1 nodes): `confusion_matrix.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 235`** (1 nodes): `OpenCLProfiling.hpp`
+- **Thin community `Community 226`** (1 nodes): `OpenCLProfiling.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 236`** (1 nodes): `comparison.h`
+- **Thin community `Community 227`** (1 nodes): `comparison.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 237`** (1 nodes): `batching.hpp`
+- **Thin community `Community 228`** (1 nodes): `batching.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 238`** (1 nodes): `synthetic_spike_data.hpp`
+- **Thin community `Community 229`** (1 nodes): `synthetic_spike_data.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 239`** (1 nodes): `progress.hpp`
+- **Thin community `Community 230`** (1 nodes): `progress.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 240`** (1 nodes): `Transforms.hpp`
+- **Thin community `Community 231`** (1 nodes): `Transforms.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 241`** (1 nodes): `SignalPreprocessing.hpp`
+- **Thin community `Community 232`** (1 nodes): `SignalPreprocessing.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 242`** (1 nodes): `vectorizationCheck.hpp`
+- **Thin community `Community 233`** (1 nodes): `vectorizationCheck.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 243`** (1 nodes): `audioTypes.h`
+- **Thin community `Community 234`** (1 nodes): `audioTypes.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 244`** (1 nodes): `lfcc_pipeline_utils.h`
+- **Thin community `Community 235`** (1 nodes): `lfcc_pipeline_utils.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 245`** (1 nodes): `filter_operations.hpp`
+- **Thin community `Community 236`** (1 nodes): `filter_operations.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 246`** (1 nodes): `signal_operations.hpp`
+- **Thin community `Community 237`** (1 nodes): `signal_operations.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 247`** (1 nodes): `WindowSpec.hpp`
+- **Thin community `Community 238`** (1 nodes): `WindowSpec.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 248`** (1 nodes): `Device.hpp`
+- **Thin community `Community 239`** (1 nodes): `Device.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 249`** (1 nodes): `DeviceType.hpp`
+- **Thin community `Community 240`** (1 nodes): `DeviceType.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 250`** (1 nodes): `DeviceRuntime.hpp`
+- **Thin community `Community 241`** (1 nodes): `DeviceRuntime.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 251`** (1 nodes): `dedup_master_table.py`
+- **Thin community `Community 242`** (1 nodes): `dedup_master_table.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 252`** (1 nodes): `AutoencoderArchitecture.hpp`
+- **Thin community `Community 243`** (1 nodes): `AutoencoderArchitecture.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 253`** (1 nodes): `Config.hpp`
+- **Thin community `Community 244`** (1 nodes): `Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 254`** (1 nodes): `EpochResult.hpp`
+- **Thin community `Community 245`** (1 nodes): `EpochResult.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 255`** (1 nodes): `TrainerConfig.hpp`
+- **Thin community `Community 246`** (1 nodes): `TrainerConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 256`** (1 nodes): `mat_file_gtest.cpp`
+- **Thin community `Community 247`** (1 nodes): `mat_file_gtest.cpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 257`** (1 nodes): `MatTestUtils.hpp`
+- **Thin community `Community 248`** (1 nodes): `MatTestUtils.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 258`** (1 nodes): `Config.hpp`
+- **Thin community `Community 249`** (1 nodes): `Config.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 259`** (1 nodes): `phase00_data.hpp`
+- **Thin community `Community 250`** (1 nodes): `phase00_data.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 260`** (1 nodes): `phase00_features.hpp`
+- **Thin community `Community 251`** (1 nodes): `phase00_features.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 261`** (1 nodes): `phase00_training.hpp`
+- **Thin community `Community 252`** (1 nodes): `phase00_training.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 262`** (1 nodes): `WaveletAEConfig.hpp`
+- **Thin community `Community 253`** (1 nodes): `WaveletAEConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 263`** (1 nodes): `WaveletAEData.hpp`
+- **Thin community `Community 254`** (1 nodes): `WaveletAEData.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 264`** (1 nodes): `WaveletAEEvaluation.hpp`
+- **Thin community `Community 255`** (1 nodes): `WaveletAEEvaluation.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 265`** (1 nodes): `WaveletAEPipeline.hpp`
+- **Thin community `Community 256`** (1 nodes): `WaveletAEPipeline.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 266`** (1 nodes): `WaveletAEReporting.hpp`
+- **Thin community `Community 257`** (1 nodes): `WaveletAEReporting.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 267`** (1 nodes): `WaveletAETraining.hpp`
+- **Thin community `Community 258`** (1 nodes): `WaveletAETraining.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 268`** (1 nodes): `WaveletAEWavelets.hpp`
+- **Thin community `Community 259`** (1 nodes): `WaveletAEWavelets.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 269`** (1 nodes): `ProfileLoader.hpp`
+- **Thin community `Community 260`** (1 nodes): `ProfileLoader.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 270`** (1 nodes): `ResultsWriter.hpp`
+- **Thin community `Community 261`** (1 nodes): `ResultsWriter.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 271`** (1 nodes): `RunSummaryBuilder.hpp`
+- **Thin community `Community 262`** (1 nodes): `RunSummaryBuilder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 272`** (1 nodes): `cli.hpp`
+- **Thin community `Community 263`** (1 nodes): `cli.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 273`** (1 nodes): `AutoencoderConfig.hpp`
+- **Thin community `Community 264`** (1 nodes): `AutoencoderConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 274`** (1 nodes): `AutoencoderRunnerConfig.hpp`
+- **Thin community `Community 265`** (1 nodes): `AutoencoderRunnerConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 275`** (1 nodes): `AudioWindowAutoencoder.hpp`
+- **Thin community `Community 266`** (1 nodes): `AudioWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 276`** (1 nodes): `AudioWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 267`** (1 nodes): `AudioWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 277`** (1 nodes): `EegWindowAutoencoder.hpp`
+- **Thin community `Community 268`** (1 nodes): `EegWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 278`** (1 nodes): `EegWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 269`** (1 nodes): `EegWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 279`** (1 nodes): `FusedWindowAutoencoder.hpp`
+- **Thin community `Community 270`** (1 nodes): `FusedWindowAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 280`** (1 nodes): `FusedWindowSpikingAutoencoder.hpp`
+- **Thin community `Community 271`** (1 nodes): `FusedWindowSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 281`** (1 nodes): `ProtocolAutoencoder.hpp`
+- **Thin community `Community 272`** (1 nodes): `ProtocolAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 282`** (1 nodes): `ProtocolSpikingAutoencoder.hpp`
+- **Thin community `Community 273`** (1 nodes): `ProtocolSpikingAutoencoder.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 283`** (1 nodes): `GuayaquilCliOptions.hpp`
+- **Thin community `Community 274`** (1 nodes): `GuayaquilCliOptions.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 284`** (1 nodes): `GuayaquilDataset.hpp`
+- **Thin community `Community 275`** (1 nodes): `GuayaquilDataset.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 285`** (1 nodes): `GuayaquilDatasetSplit.hpp`
+- **Thin community `Community 276`** (1 nodes): `GuayaquilDatasetSplit.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 286`** (1 nodes): `GuayaquilResultRow.hpp`
+- **Thin community `Community 277`** (1 nodes): `GuayaquilResultRow.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 287`** (1 nodes): `GuayaquilRunMetrics.hpp`
+- **Thin community `Community 278`** (1 nodes): `GuayaquilRunMetrics.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 288`** (1 nodes): `GuayaquilRunner.hpp`
+- **Thin community `Community 279`** (1 nodes): `GuayaquilRunner.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 289`** (1 nodes): `GuayaquilTraining.hpp`
+- **Thin community `Community 280`** (1 nodes): `GuayaquilTraining.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 290`** (1 nodes): `GuayaquilConfig.hpp`
+- **Thin community `Community 281`** (1 nodes): `GuayaquilConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 291`** (1 nodes): `GuayaquilEncoding.hpp`
+- **Thin community `Community 282`** (1 nodes): `GuayaquilEncoding.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 292`** (1 nodes): `GuayaquilEvaluation.hpp`
+- **Thin community `Community 283`** (1 nodes): `GuayaquilEvaluation.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 293`** (1 nodes): `GuayaquilCheckpoint.hpp`
+- **Thin community `Community 284`** (1 nodes): `GuayaquilCheckpoint.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 294`** (1 nodes): `GuayaquilCli.hpp`
+- **Thin community `Community 285`** (1 nodes): `GuayaquilCli.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 295`** (1 nodes): `GuayaquilEpochHistory.hpp`
+- **Thin community `Community 286`** (1 nodes): `GuayaquilEpochHistory.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 296`** (1 nodes): `GuayaquilOutput.hpp`
+- **Thin community `Community 287`** (1 nodes): `GuayaquilOutput.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 297`** (1 nodes): `GuayaquilLstmAutoencoder.cpp`
+- **Thin community `Community 288`** (1 nodes): `GuayaquilLstmAutoencoder.cpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 298`** (1 nodes): `ThesisParaconsistent.hpp`
+- **Thin community `Community 289`** (1 nodes): `ThesisParaconsistent.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 299`** (1 nodes): `ThesisOutput.hpp`
+- **Thin community `Community 290`** (1 nodes): `ThesisOutput.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 300`** (1 nodes): `ThesisClassifiers.hpp`
+- **Thin community `Community 291`** (1 nodes): `ThesisClassifiers.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 301`** (1 nodes): `ThesisConfig.hpp`
+- **Thin community `Community 292`** (1 nodes): `ThesisConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 302`** (1 nodes): `ThesisDataset.hpp`
+- **Thin community `Community 293`** (1 nodes): `ThesisDataset.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 303`** (1 nodes): `ThesisFeatureExtraction.hpp`
+- **Thin community `Community 294`** (1 nodes): `ThesisFeatureExtraction.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 304`** (1 nodes): `GaGenome.hpp`
+- **Thin community `Community 295`** (1 nodes): `GaGenome.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 305`** (1 nodes): `GaConfig.hpp`
+- **Thin community `Community 296`** (1 nodes): `GaConfig.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 306`** (1 nodes): `GaFitness.hpp`
+- **Thin community `Community 297`** (1 nodes): `GaFitness.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 307`** (1 nodes): `GaNsga2.hpp`
+- **Thin community `Community 298`** (1 nodes): `GaNsga2.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 308`** (1 nodes): `GaOutput.hpp`
+- **Thin community `Community 299`** (1 nodes): `GaOutput.hpp`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 300`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 301`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 302`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 303`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 304`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 305`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 306`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 307`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 308`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 309`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 310`** (1 nodes): `__init__.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 311`** (1 nodes): `__init__.py`
+- **Thin community `Community 311`** (1 nodes): `testing.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 312`** (1 nodes): `__init__.py`
+- **Thin community `Community 312`** (1 nodes): `Backend.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 313`** (1 nodes): `__init__.py`
+- **Thin community `Community 313`** (1 nodes): `Device.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 314`** (1 nodes): `__init__.py`
+- **Thin community `Community 314`** (1 nodes): `DeviceRuntime.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 315`** (1 nodes): `__init__.py`
+- **Thin community `Community 315`** (1 nodes): `DeviceType.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 316`** (1 nodes): `__init__.py`
+- **Thin community `Community 316`** (1 nodes): `Layers.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 317`** (1 nodes): `__init__.py`
+- **Thin community `Community 317`** (1 nodes): `ReLU.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 318`** (1 nodes): `__init__.py`
+- **Thin community `Community 318`** (1 nodes): `paraconsistent.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 319`** (1 nodes): `__init__.py`
+- **Thin community `Community 319`** (1 nodes): `statistics.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 320`** (1 nodes): `testing.hpp`
+- **Thin community `Community 320`** (1 nodes): `confusion_matrix.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 321`** (1 nodes): `Backend.hpp`
+- **Thin community `Community 321`** (1 nodes): `inference_tests.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 322`** (1 nodes): `Device.hpp`
+- **Thin community `Community 322`** (1 nodes): `OpenCLProfiling.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 323`** (1 nodes): `DeviceRuntime.hpp`
+- **Thin community `Community 323`** (1 nodes): `comparison.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 324`** (1 nodes): `DeviceType.hpp`
+- **Thin community `Community 324`** (1 nodes): `SignalPreprocessing.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 325`** (1 nodes): `Layers.hpp`
+- **Thin community `Community 325`** (1 nodes): `Transforms.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 326`** (1 nodes): `ReLU.hpp`
+- **Thin community `Community 326`** (1 nodes): `progress.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 327`** (1 nodes): `paraconsistent.hpp`
+- **Thin community `Community 327`** (1 nodes): `synthetic_spike_data.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 328`** (1 nodes): `statistics.hpp`
+- **Thin community `Community 328`** (1 nodes): `vectorizationCheck.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 329`** (1 nodes): `confusion_matrix.hpp`
+- **Thin community `Community 329`** (1 nodes): `batching.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 330`** (1 nodes): `inference_tests.hpp`
+- **Thin community `Community 330`** (1 nodes): `audioTypes.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 331`** (1 nodes): `OpenCLProfiling.hpp`
+- **Thin community `Community 331`** (1 nodes): `audioFeatureExtraction.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 332`** (1 nodes): `comparison.hpp`
+- **Thin community `Community 332`** (1 nodes): `filter_operations.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 333`** (1 nodes): `SignalPreprocessing.hpp`
+- **Thin community `Community 333`** (1 nodes): `lfcc_pipeline_utils.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 334`** (1 nodes): `Transforms.hpp`
+- **Thin community `Community 334`** (1 nodes): `signal_operations.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 335`** (1 nodes): `progress.hpp`
+- **Thin community `Community 335`** (1 nodes): `waveletOperations.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 336`** (1 nodes): `synthetic_spike_data.hpp`
+- **Thin community `Community 336`** (1 nodes): `WindowSpec.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 337`** (1 nodes): `vectorizationCheck.hpp`
+- **Thin community `Community 337`** (1 nodes): `BatchTargetFormatter.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 338`** (1 nodes): `batching.hpp`
+- **Thin community `Community 338`** (1 nodes): `InputModeCodec.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 339`** (1 nodes): `audioTypes.hpp`
+- **Thin community `Community 339`** (1 nodes): `AudioData.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 340`** (1 nodes): `audioFeatureExtraction.hpp`
+- **Thin community `Community 340`** (1 nodes): `EEGData.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 341`** (1 nodes): `filter_operations.hpp`
+- **Thin community `Community 341`** (1 nodes): `Metadata.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 342`** (1 nodes): `lfcc_pipeline_utils.hpp`
+- **Thin community `Community 342`** (1 nodes): `Names.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 343`** (1 nodes): `signal_operations.hpp`
+- **Thin community `Community 343`** (1 nodes): `SubjectDiscovery.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 344`** (1 nodes): `waveletOperations.hpp`
+- **Thin community `Community 344`** (1 nodes): `SamplePacking.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 345`** (1 nodes): `WindowSpec.hpp`
+- **Thin community `Community 345`** (1 nodes): `SamplerOptionResolution.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 346`** (1 nodes): `BatchTargetFormatter.hpp`
+- **Thin community `Community 346`** (1 nodes): `ShardIndex.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 347`** (1 nodes): `InputModeCodec.hpp`
+- **Thin community `Community 347`** (1 nodes): `DefaultSamplerType.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 348`** (1 nodes): `AudioData.hpp`
+- **Thin community `Community 348`** (1 nodes): `mat_file_utils.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 349`** (1 nodes): `EEGData.hpp`
+- **Thin community `Community 349`** (1 nodes): `Metadata.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 350`** (1 nodes): `Metadata.hpp`
+- **Thin community `Community 350`** (1 nodes): `Names.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 351`** (1 nodes): `Names.hpp`
+- **Thin community `Community 351`** (1 nodes): `FsddSample.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 352`** (1 nodes): `SubjectDiscovery.hpp`
+- **Thin community `Community 352`** (1 nodes): `linear_algebra.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 353`** (1 nodes): `SamplePacking.hpp`
+- **Thin community `Community 353`** (1 nodes): `NnSaver.hpp`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 354`** (1 nodes): `SamplerOptionResolution.hpp`
+- **Thin community `Community 354`** (1 nodes): `e03_dedup_master_table.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 355`** (1 nodes): `ShardIndex.hpp`
+- **Thin community `Community 355`** (1 nodes): `OpenCode Duo Directive (Planner/Executor Split)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 356`** (1 nodes): `DefaultSamplerType.hpp`
+- **Thin community `Community 356`** (1 nodes): `sync_cross_project_skills.sh`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 357`** (1 nodes): `mat_file_utils.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 358`** (1 nodes): `Metadata.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 359`** (1 nodes): `Names.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 360`** (1 nodes): `FsddSample.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 361`** (1 nodes): `linear_algebra.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 362`** (1 nodes): `NnSaver.hpp`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 363`** (1 nodes): `e03_dedup_master_table.py`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 364`** (1 nodes): `OpenCode Duo Directive (Planner/Executor Split)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 365`** (1 nodes): `sync_cross_project_skills.sh`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 366`** (1 nodes): `export_wiki_for_anytype.sh`
+- **Thin community `Community 357`** (1 nodes): `export_wiki_for_anytype.sh`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
