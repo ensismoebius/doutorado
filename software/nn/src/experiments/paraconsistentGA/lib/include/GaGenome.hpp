@@ -121,12 +121,20 @@ Genome crossover(
 // temporal coupling re-applied unless evolve_temporal.
 void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double prob, bool is_snn);
 
-// Build the thesis AutoencoderConfig this genome represents. `model` is the
-// population's model tag ("snn-ae" | "ann-ae"). The encoder spec lists every width as
-// a leaky Linear except the latent (identity); the decoder mirrors the hidden widths
-// and ends in linear:output:identity. For snn-ae the phase00-fixed firing-rate
-// regularization (0.5 / 0.1 / 0.8) is applied.
-thesis::ThesisConfig::AutoencoderConfig to_ae_config(const Genome& g, const std::string& model);
+// Build the thesis AutoencoderConfig this genome represents.
+//
+// Starts from `base` — the PROFILE's autoencoder config — and overrides ONLY the fields
+// the genome owns (layer specs, and for snn-ae the encoding/temporal genes). Everything
+// else the profile set (`model`, `ae_loss_type`, firing-rate band, ...) is carried
+// through untouched.
+//
+// This direction matters: an earlier version built a fresh config from scratch and so
+// silently dropped `ae_loss_type`, making every run train under the default MSE no
+// matter what the profile asked for — an mse and an mae run produced bit-identical
+// results. Overriding a copy of the profile makes that class of silent drop impossible
+// for any field added later.
+thesis::ThesisConfig::AutoencoderConfig to_ae_config(
+    const Genome& g, const thesis::ThesisConfig::AutoencoderConfig& base);
 
 // ── Structural proxies (no training, no allocation) ──────────────────────────
 

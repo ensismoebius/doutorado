@@ -162,6 +162,21 @@ TEST(PgaNsga2, CrowdingBoundariesInfinite)
     EXPECT_GT(pop[1].crowding, 0.0);
 }
 
+namespace
+{
+// A profile-shaped base config, as ThesisConfig::from_json would produce.
+thesis::ThesisConfig::AutoencoderConfig base_ae(const char* model, const char* loss)
+{
+    thesis::ThesisConfig::AutoencoderConfig ae;
+    ae.model = model;
+    ae.ae_loss_type = loss;
+    ae.firing_rate_reg_lambda = 0.5f;
+    ae.firing_rate_min = 0.1f;
+    ae.firing_rate_max = 0.8f;
+    return ae;
+}
+} // namespace
+
 // ── Genome → AE config mapping (.wiki/Experiments/ParaconsistentGA-Design.md §5.1)
 // ──────────────────────────────────
 TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
@@ -175,7 +190,7 @@ TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
     EXPECT_EQ(g.latent(), 2);
     EXPECT_EQ(g.depth(), 4);
 
-    auto ae = pga::to_ae_config(g, "snn-ae");
+    auto ae = pga::to_ae_config(g, base_ae("snn-ae", "mse"));
     EXPECT_EQ(ae.model, "snn-ae");
     // encoder: every width leaky except the latent (identity)
     ASSERT_EQ(ae.encoder_layer_spec.size(), 4u);
@@ -198,7 +213,7 @@ TEST(PgaGenome, AnnMappingForcesDirect)
     Genome g;
     g.encoder_widths = {32, 16};
     g.encoding = "poisson"; // must be ignored for ann-ae
-    auto ae = pga::to_ae_config(g, "ann-ae");
+    auto ae = pga::to_ae_config(g, base_ae("ann-ae", "mse"));
     EXPECT_EQ(ae.encoding, "direct");
     EXPECT_EQ(ae.time_steps, 1);
     EXPECT_FLOAT_EQ(ae.voltage_threshold, 1.0f);
@@ -233,6 +248,43 @@ TEST(PgaGenome, RandomGenomeKeepsBottleneck)
             EXPECT_LE(w, bounds.max_width);
         }
     }
+}
+
+// REGRESSION: the genome→config mapping must never discard a profile field.
+// It previously rebuilt the config from scratch, silently resetting `ae_loss_type`
+// to its "mse" default — so an mse run and an mae run produced bit-identical
+// results, and spikecount/spiketime profiles secretly trained under MSE.
+TEST(PgaGenome, ToAeConfigPreservesProfileFields)
+{
+    Genome g;
+    g.encoder_widths = {32, 16};
+    g.encoding = "latency";
+    pga::apply_phase00_temporal_coupling(g);
+
+    for (const char* loss : {"mse", "mae", "spiketime"})
+    {
+        auto base = base_ae("snn-ae", loss);
+        auto ae = pga::to_ae_config(g, base);
+        EXPECT_EQ(ae.ae_loss_type, loss) << "profile ae_loss_type was dropped by to_ae_config";
+        EXPECT_EQ(ae.model, "snn-ae");
+        // firing-rate band belongs to the profile, not the genome
+        EXPECT_FLOAT_EQ(ae.firing_rate_reg_lambda, 0.5f);
+        EXPECT_FLOAT_EQ(ae.firing_rate_min, 0.1f);
+        EXPECT_FLOAT_EQ(ae.firing_rate_max, 0.8f);
+        // genome-owned fields still applied
+        EXPECT_EQ(ae.encoding, "latency");
+        EXPECT_EQ(ae.encoder_layer_spec.front(), "linear:32:leaky");
+        EXPECT_EQ(ae.encoder_layer_spec.back(), "linear:16:identity");
+    }
+}
+
+TEST(PgaGenome, ToAeConfigPreservesLossForAnnToo)
+{
+    Genome g;
+    g.encoder_widths = {8, 4};
+    auto ae = pga::to_ae_config(g, base_ae("ann-ae", "mae"));
+    EXPECT_EQ(ae.ae_loss_type, "mae");
+    EXPECT_EQ(ae.encoding, "direct"); // model-implied override still wins
 }
 
 // ── Free architecture: depth + width both vary, repaired to a legal shape ────

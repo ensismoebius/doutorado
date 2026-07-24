@@ -1,0 +1,6 @@
+- Population size: Increase to 32.
+- Generations:  Increase to 64.
+- Sexual reproduction: no self-mating.
+- Implement Losers copied forward (keeping N losers).
+- No self-mating.
+- Gamete generation and merging: Implement true diploid genetics.

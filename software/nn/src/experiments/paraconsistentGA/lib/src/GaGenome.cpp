@@ -193,10 +193,13 @@ void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double pro
     }
 }
 
-thesis::ThesisConfig::AutoencoderConfig to_ae_config(const Genome& g, const std::string& model)
+thesis::ThesisConfig::AutoencoderConfig to_ae_config(
+    const Genome& g, const thesis::ThesisConfig::AutoencoderConfig& base)
 {
-    thesis::ThesisConfig::AutoencoderConfig ae;
-    ae.model = model;
+    // Copy the profile's config, then override only what the genome owns. Never build
+    // from scratch: anything not re-set here would silently revert to a struct default
+    // (this is how `ae_loss_type` was previously lost — see the header comment).
+    thesis::ThesisConfig::AutoencoderConfig ae = base;
 
     // Encoder: every width is a leaky Linear except the latent (last), which is
     // identity. Decoder mirrors the hidden widths in reverse, then projects to output.
@@ -207,20 +210,16 @@ thesis::ThesisConfig::AutoencoderConfig to_ae_config(const Genome& g, const std:
     ae.encoder_layer_spec.push_back("linear:" + std::to_string(w.back()) + ":identity");
 
     ae.decoder_layer_spec.clear();
-    // hidden widths back up: w[L-2], w[L-3], ..., w[0]
     for (size_t i = w.size() - 1; i-- > 0;)
         ae.decoder_layer_spec.push_back("linear:" + std::to_string(w[i]) + ":leaky");
     ae.decoder_layer_spec.push_back("linear:output:identity");
 
-    if (model == "snn-ae")
+    if (ae.model == "snn-ae")
     {
         ae.encoding = g.encoding;
         ae.time_steps = g.time_steps;
         ae.voltage_threshold = g.voltage_threshold;
-        // phase00-fixed firing-rate regularization for the SNN-AE encoder.
-        ae.firing_rate_reg_lambda = 0.5f;
-        ae.firing_rate_min = 0.1f;
-        ae.firing_rate_max = 0.8f;
+        // firing_rate_* deliberately NOT overridden — the profile owns them.
     }
     else // ann-ae: non-spiking, always analog/direct single frame.
     {

@@ -50,7 +50,7 @@ thesis::ThesisConfig::FeatureExtraction make_feature_extraction(
 {
     thesis::ThesisConfig::FeatureExtraction fe = cfg.base.feature_extraction;
     fe.strategy = "autoencoder";
-    fe.autoencoder = to_ae_config(g, cfg.base.feature_extraction.autoencoder.model);
+    fe.autoencoder = to_ae_config(g, cfg.base.feature_extraction.autoencoder);
     return fe;
 }
 } // namespace
