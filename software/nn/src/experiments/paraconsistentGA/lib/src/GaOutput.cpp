@@ -13,8 +13,9 @@ namespace
 {
 nlohmann::json genome_to_json(const Genome& g)
 {
-    return {{"hidden", g.hidden},
-        {"latent", g.latent},
+    return {{"encoder_widths", g.encoder_widths},
+        {"depth", g.depth()},
+        {"latent", g.latent()},
         {"encoding", g.encoding},
         {"time_steps", g.time_steps},
         {"voltage_threshold", g.voltage_threshold}};
@@ -50,18 +51,21 @@ void write_individuals_csv(const std::string& results_dir,
     std::ofstream f(path);
     if (!f.is_open()) throw std::runtime_error("GaOutput: cannot write " + path);
 
-    f << "born_generation,hidden,latent,encoding,time_steps,voltage_threshold,"
+    f << "born_generation,depth,latent,encoder_widths,encoding,time_steps,voltage_threshold,"
          "alpha,beta,g1,g2,d_truth,d_penalized_mean,d_penalized_std,latent_activity,"
          "param_count,inference_cost,est_latency_ms,feasible,constraint_violation\n";
     for (const auto& ind : history)
     {
         const auto& g = ind.genome;
-        f << ind.born_generation << ',' << g.hidden << ',' << g.latent << ',' << g.encoding << ','
-          << g.time_steps << ',' << g.voltage_threshold << ',' << ind.alpha << ',' << ind.beta
-          << ',' << ind.g1 << ',' << ind.g2 << ',' << ind.d_truth << ',' << ind.d_penalized_mean
-          << ',' << ind.d_penalized_std << ',' << ind.latent_activity << ',' << ind.param_count
-          << ',' << ind.inference_cost << ',' << ind.est_latency_ms << ',' << (ind.feasible ? 1 : 0)
-          << ',' << ind.constraint_violation << '\n';
+        std::string widths;
+        for (size_t k = 0; k < g.encoder_widths.size(); ++k)
+            widths += (k ? "-" : "") + std::to_string(g.encoder_widths[k]);
+        f << ind.born_generation << ',' << g.depth() << ',' << g.latent() << ',' << widths << ','
+          << g.encoding << ',' << g.time_steps << ',' << g.voltage_threshold << ',' << ind.alpha
+          << ',' << ind.beta << ',' << ind.g1 << ',' << ind.g2 << ',' << ind.d_truth << ','
+          << ind.d_penalized_mean << ',' << ind.d_penalized_std << ',' << ind.latent_activity << ','
+          << ind.param_count << ',' << ind.inference_cost << ',' << ind.est_latency_ms << ','
+          << (ind.feasible ? 1 : 0) << ',' << ind.constraint_violation << '\n';
     }
 }
 

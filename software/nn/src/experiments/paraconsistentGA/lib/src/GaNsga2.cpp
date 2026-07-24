@@ -120,8 +120,8 @@ bool crowded_less(const Individual& a, const Individual& b)
 std::string genome_key(const Genome& g)
 {
     std::ostringstream s;
-    s << g.hidden << ':' << g.latent << ':' << g.encoding << ':' << g.time_steps << ':'
-      << g.voltage_threshold;
+    for (int w : g.encoder_widths) s << w << ',';
+    s << '|' << g.encoding << ':' << g.time_steps << ':' << g.voltage_threshold;
     return s.str();
 }
 
@@ -199,9 +199,10 @@ GaResult run_nsga2(
         {
             const int a = tournament(parents, rng, cfg.ga.tournament_k);
             const int b = tournament(parents, rng, cfg.ga.tournament_k);
-            Genome child = do_crossover(rng)
-                               ? crossover(parents[a].genome, parents[b].genome, rng, is_snn)
-                               : parents[a].genome;
+            Genome child =
+                do_crossover(rng)
+                    ? crossover(parents[a].genome, parents[b].genome, rng, cfg.ga.bounds, is_snn)
+                    : parents[a].genome;
             mutate(child, rng, cfg.ga.bounds, cfg.ga.mutation_prob, is_snn);
             offspring.push_back(cache.get(std::move(child), gen, view, cfg, on_eval));
         }

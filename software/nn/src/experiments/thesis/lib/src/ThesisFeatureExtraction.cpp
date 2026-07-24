@@ -732,6 +732,12 @@ std::vector<std::vector<double>> run_protocol_ae(
             "ThesisFeatureExtraction: could not read hidden/latent widths from "
             "autoencoder.encoder_layer_spec — every entry must be linear:<width>[:act]");
     ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
+    // Forward the FULL per-layer specs so the builder honours the exact widths of every
+    // layer (build_{snn,ann}_encoder take the spec branch when these are non-empty).
+    // Without this the builder falls back to a uniform-width taper derived from
+    // hidden_size/depth, silently discarding the genome's per-layer neuron counts.
+    ae_cfg.encoder_layer_spec = spec.encoder_layer_spec;
+    ae_cfg.decoder_layer_spec = spec.decoder_layer_spec;
     if (ae_loss_type.empty())
         throw std::invalid_argument(
             "ThesisFeatureExtraction: ae_loss_type is empty — refusing to guess a "

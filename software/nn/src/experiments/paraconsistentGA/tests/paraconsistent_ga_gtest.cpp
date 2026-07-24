@@ -163,19 +163,28 @@ TEST(PgaNsga2, CrowdingBoundariesInfinite)
 TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
 {
     Genome g;
-    g.hidden = 64;
-    g.latent = 32;
+    g.encoder_widths = {10, 5, 4, 2}; // free depth + per-layer widths from the DNA
     g.encoding = "latency";
     pga::apply_phase00_temporal_coupling(g);
     EXPECT_EQ(g.time_steps, 16);
     EXPECT_FLOAT_EQ(g.voltage_threshold, 0.2f);
+    EXPECT_EQ(g.latent(), 2);
+    EXPECT_EQ(g.depth(), 4);
 
     auto ae = pga::to_ae_config(g, "snn-ae");
     EXPECT_EQ(ae.model, "snn-ae");
-    ASSERT_EQ(ae.encoder_layer_spec.size(), 2u);
-    EXPECT_EQ(ae.encoder_layer_spec[0], "linear:64:leaky");
-    EXPECT_EQ(ae.encoder_layer_spec[1], "linear:32:identity");
-    EXPECT_EQ(ae.decoder_layer_spec.back(), "linear:output:identity");
+    // encoder: every width leaky except the latent (identity)
+    ASSERT_EQ(ae.encoder_layer_spec.size(), 4u);
+    EXPECT_EQ(ae.encoder_layer_spec[0], "linear:10:leaky");
+    EXPECT_EQ(ae.encoder_layer_spec[1], "linear:5:leaky");
+    EXPECT_EQ(ae.encoder_layer_spec[2], "linear:4:leaky");
+    EXPECT_EQ(ae.encoder_layer_spec[3], "linear:2:identity");
+    // decoder mirrors the hidden widths back up, then projects to output
+    ASSERT_EQ(ae.decoder_layer_spec.size(), 4u);
+    EXPECT_EQ(ae.decoder_layer_spec[0], "linear:4:leaky");
+    EXPECT_EQ(ae.decoder_layer_spec[1], "linear:5:leaky");
+    EXPECT_EQ(ae.decoder_layer_spec[2], "linear:10:leaky");
+    EXPECT_EQ(ae.decoder_layer_spec[3], "linear:output:identity");
     EXPECT_EQ(ae.encoding, "latency");
     EXPECT_FLOAT_EQ(ae.firing_rate_reg_lambda, 0.5f);
 }
@@ -183,8 +192,7 @@ TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
 TEST(PgaGenome, AnnMappingForcesDirect)
 {
     Genome g;
-    g.hidden = 32;
-    g.latent = 16;
+    g.encoder_widths = {32, 16};
     g.encoding = "poisson"; // must be ignored for ann-ae
     auto ae = pga::to_ae_config(g, "ann-ae");
     EXPECT_EQ(ae.encoding, "direct");
@@ -195,11 +203,9 @@ TEST(PgaGenome, AnnMappingForcesDirect)
 TEST(PgaGenome, ProxiesMonotonic)
 {
     Genome small;
-    small.hidden = 16;
-    small.latent = 8;
+    small.encoder_widths = {16, 8};
     Genome big;
-    big.hidden = 128;
-    big.latent = 64;
+    big.encoder_widths = {128, 64};
     EXPECT_LT(pga::estimated_params(small), pga::estimated_params(big));
     EXPECT_LT(pga::inference_cost_proxy(small), pga::inference_cost_proxy(big));
 }
@@ -208,10 +214,78 @@ TEST(PgaGenome, RandomGenomeKeepsBottleneck)
 {
     std::mt19937 rng(123);
     pga::GenomeBounds bounds;
-    for (int i = 0; i < 200; ++i)
+    for (int i = 0; i < 500; ++i)
     {
         Genome g = pga::random_genome(rng, bounds, /*is_snn=*/true);
-        EXPECT_LT(g.latent, g.hidden) << "latent must stay below hidden (bottleneck)";
+        ASSERT_GE(g.depth(), bounds.min_layers);
+        ASSERT_LE(g.depth(), bounds.max_layers);
+        // strictly decreasing across EVERY layer (each compresses toward the bottleneck)
+        for (size_t k = 0; k + 1 < g.encoder_widths.size(); ++k)
+            EXPECT_GT(g.encoder_widths[k], g.encoder_widths[k + 1])
+                << "widths must strictly decrease; layer " << k;
+        for (int w : g.encoder_widths)
+        {
+            EXPECT_GE(w, bounds.min_width);
+            EXPECT_LE(w, bounds.max_width);
+        }
+    }
+}
+
+// ── Free architecture: depth + width both vary, repaired to a legal shape ────
+TEST(PgaGenome, RepairForcesStrictlyDecreasing)
+{
+    pga::GenomeBounds bounds; // min_width=1, max_width=128
+    Genome g;
+    g.encoder_widths = {3, 3, 5, 1, 5}; // unsorted, duplicates, rising
+    pga::repair_widths(g, bounds);
+    ASSERT_GE(g.depth(), 1);
+    for (size_t k = 0; k + 1 < g.encoder_widths.size(); ++k)
+        EXPECT_GT(g.encoder_widths[k], g.encoder_widths[k + 1]);
+    for (int w : g.encoder_widths)
+    {
+        EXPECT_GE(w, bounds.min_width);
+        EXPECT_LE(w, bounds.max_width);
+    }
+}
+
+TEST(PgaGenome, MutationCanChangeDepthAndStaysLegal)
+{
+    std::mt19937 rng(7);
+    pga::GenomeBounds bounds;
+    bounds.min_layers = 1;
+    bounds.max_layers = 6;
+    Genome g = pga::random_genome(rng, bounds, /*is_snn=*/true);
+    bool saw_grow = false, saw_shrink = false;
+    int prev = g.depth();
+    for (int i = 0; i < 300; ++i)
+    {
+        pga::mutate(g, rng, bounds, /*prob=*/0.6, /*is_snn=*/true);
+        ASSERT_GE(g.depth(), bounds.min_layers);
+        ASSERT_LE(g.depth(), bounds.max_layers);
+        for (size_t k = 0; k + 1 < g.encoder_widths.size(); ++k)
+            ASSERT_GT(g.encoder_widths[k], g.encoder_widths[k + 1]);
+        if (g.depth() > prev) saw_grow = true;
+        if (g.depth() < prev) saw_shrink = true;
+        prev = g.depth();
+    }
+    EXPECT_TRUE(saw_grow) << "add-layer mutation never fired";
+    EXPECT_TRUE(saw_shrink) << "remove-layer mutation never fired";
+}
+
+TEST(PgaGenome, CrossoverOfDifferentDepthsIsLegal)
+{
+    std::mt19937 rng(11);
+    pga::GenomeBounds bounds;
+    Genome a;
+    a.encoder_widths = {3, 2, 1};
+    Genome b;
+    b.encoder_widths = {10, 5, 4, 2};
+    for (int i = 0; i < 200; ++i)
+    {
+        Genome c = pga::crossover(a, b, rng, bounds, /*is_snn=*/false);
+        ASSERT_GE(c.depth(), 1);
+        for (size_t k = 0; k + 1 < c.encoder_widths.size(); ++k)
+            ASSERT_GT(c.encoder_widths[k], c.encoder_widths[k + 1]);
     }
 }
 
@@ -223,8 +297,7 @@ TEST(PgaFitness, LatencyPreScreenRejectsOverBudget)
     cfg.constraints.fixed_pipeline_cost_ms = 0.0;
     cfg.constraints.ns_per_mac = 2.0;
     Genome g;
-    g.hidden = 128;
-    g.latent = 64;
+    g.encoder_widths = {128, 64};
     g.time_steps = 16;
     EXPECT_TRUE(pga::exceeds_latency_budget(g, cfg));
 

@@ -54,10 +54,22 @@ for (int s = 0; s < cfg.ga.n_seeds; ++s) {
 }
 ```
 
-The genome carries only the phase00 axes: `hidden` width, `latent` dim, and (SNN population
-only) `encoding` ∈ {direct, latency, poisson}; `time_steps`/`voltage_threshold` are coupled
-to `encoding` exactly as phase00 does. `model` and `modality` are fixed per run
-(population-defining), so one `--config` evolves one population.
+The genome carries a **free architecture** — there are no pre-defined layer tiers. Its
+`encoder_widths` is an arbitrary-length list of strictly-decreasing neuron counts: layer
+count and per-layer width both come from the DNA, the last element is the latent
+bottleneck, and the decoder mirrors it (`{10,5,4,2}` → 256→10→5→4→2, decoder 2→4→5→10→256).
+The only structural invariant is strict decrease (each layer compresses — the definition of
+an autoencoder), enforced by `repair_widths`. The remaining genes (SNN only) are `encoding`
+∈ {direct, latency, poisson} with `time_steps`/`voltage_threshold` coupled to it. `model`
+and `modality` are fixed per run (population-defining), so one `--config` evolves one
+population. Bounds (`min_layers`, `max_layers`, `min_width`, `max_width`) keep the search
+finite; with the shipped 1–6 layers over widths 1–128 the space is ~5.7×10⁹ architectures,
+so the GA is a genuine search rather than a disguised enumeration.
+
+For the free per-layer widths to reach the network, `ThesisFeatureExtraction` forwards the
+full `encoder_layer_spec`/`decoder_layer_spec` to the AE config so the builder honours each
+width exactly; without that forwarding the builder falls back to a uniform-width taper and
+the genome's per-layer counts are silently lost (guarded by `thesis_freearch_gtest`).
 
 **Objectives (both minimised)** are `d_penalized_mean` (over `n_seeds`, with std recorded)
 and a structural `inference_cost` proxy (encoder MACs × `time_steps`). **Constraints** are an

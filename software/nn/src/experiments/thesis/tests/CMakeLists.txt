@@ -111,3 +111,9 @@ target_link_libraries(thesis_spike_loss_e2e_gtest
 
 nn_gtest_discover_tests(thesis_spike_loss_e2e_gtest)
 configure_xtensor_parallel_target(thesis_spike_loss_e2e_gtest)
+
+add_executable(thesis_freearch_gtest freearch_gtest.cpp)
+target_include_directories(thesis_freearch_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(thesis_freearch_gtest PRIVATE google_test thesis_lib xtensor xtensor-blas cnpy-static OpenMP::OpenMP_CXX)
+nn_gtest_discover_tests(thesis_freearch_gtest)
+configure_xtensor_parallel_target(thesis_freearch_gtest)

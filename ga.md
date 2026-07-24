@@ -116,7 +116,7 @@ Phase00's actual AE search axes, to carry into the genome:
 
 - `model`: population-defining, not a gene — `ann-ae` for the ANN population, `snn-ae` for the SNN population (§1).
 - `modality`: `eeg` | `voice` (and `fused`, if in scope per §5.4) — run as separate GA studies per §5.4, not as a gene within one run, mirroring how phase00 splits profiles by modality.
-- **width/size tier** — phase00 sweeps `encoder_layer_spec`/`decoder_layer_spec` as coupled pairs (`tiny`: 16→8, `small`: 32→16, `base`: 64→32). Treat this as the genome's primary architecture gene, either as the ordinal tier or, preferably, as the two integer widths directly (hidden width, **latent space dimension** — the axis with the largest impact on both objectives).
+- **architecture (free depth + free per-layer width)** — this is the primary architecture gene and it is **fully open**: there are **no pre-defined layer tiers**. The genome carries an arbitrary-length list of encoder widths, `encoder_widths`; both the number of layers AND each layer's neuron count come from the DNA. The last element is the latent (bottleneck); the decoder is the mirror image. Example genomes across generations: `{3,2,1}` (256→3→2→1, decoder 1→2→3→256) then `{10,5,4,2}` (256→10→5→4→2, decoder mirrored). The **one** structural invariant is that widths strictly decrease (each layer compresses toward the bottleneck — the defining property of an autoencoder); `repair_widths` enforces it. This supersedes phase00's fixed `tiny/small/base` tiers — those become just three points the free search can reach, not the search space.
 - `encoding` (SNN population only): `direct` | `latency` | `poisson`, matching `AutoencoderConfig::encoding`.
 - `time_steps` and `voltage_threshold` (SNN population only): in phase00 these are **coupled to `encoding`**, not independently varied (`direct` → `time_steps=1, threshold=1.0`; `latency`/`poisson` → `time_steps=16, threshold=0.2`). **Decision to record explicitly:** keep them coupled to `encoding` as phase00 does, or promote them to independent genes. If promoted, that is a declared expansion of the phase00 search space, not a rediscovery of it — say so in the Phase 0 report.
 - training hyperparameters (learning rate, etc.) — phase00 holds these **fixed** (`epochs=100`, `learning_rate=0.001`, `samples_per_batch=32`, ...) across all AE profiles. Per the loss-function decision below, default to keeping these fixed too unless there is a specific reason to evolve them; if evolved, declare it as an axis beyond phase00's original scope.
@@ -129,15 +129,38 @@ Everything phase00 keeps constant across AE profiles (encoder/decoder depth fixe
 
 Counted from the enforced value lists in the source, **excluding layer counts and layer widths**. These are the numbers the GA budget must be sized against.
 
-**GA genome, as configured today** (`profiles/pga_*.json`, bounds `hidden ∈ {16,32,64,128}`, `latent ∈ {8,16,32,64}`, constraint `latent < hidden` → 10 valid width pairs):
+**GA genome architecture space — free depth + free per-layer width.** The genome is an
+arbitrary-length list of strictly-decreasing encoder widths (§5.1). With bounds
+`min_layers..max_layers` layers and widths drawn from `[min_width, max_width]`, the number
+of distinct architectures is the count of strictly-decreasing integer sequences:
 
-| Population | Distinct genomes | × `n_seeds` | Max AE trainings |
-|---|---|---|---|
-| SNN (10 pairs × 3 encodings) | **30** | 3 | 90 |
-| ANN (10 pairs, encoding forced `direct`) | **10** | 3 | 30 |
-| Excluding widths entirely | 3 (SNN encodings) + 1 (ANN) = **4** | — | — |
+```
+architectures = Σ_{d=min_layers}^{max_layers}  C(width_room, d),   width_room = max_width − min_width + 1
+```
 
-> **Budget warning — act on this.** Both profiles run `population_size=16 × (1+12 generations) = 208` evaluations against only **30** (SNN) / **10** (ANN) reachable genomes. The evaluation cache makes the ~180 redundant evaluations free, but NSGA-II then degenerates into an **exhaustive sweep**: selection, crossover and mutation cannot find anything enumeration would miss. Either widen the bounds (more widths, `evolve_temporal: true`, learning rate as a gene) or cut `generations` to ~3–4. Do not report a "genetic search" result that is really a full enumeration.
+For the shipped bounds (`min_layers=1, max_layers=6, min_width=1, max_width=128` → `width_room=128`):
+
+| d (layers) | C(128, d) |
+|---|---|
+| 1 | 128 |
+| 2 | 8 128 |
+| 3 | 341 376 |
+| 4 | ≈ 1.06 × 10⁷ |
+| 5 | ≈ 2.64 × 10⁸ |
+| 6 | ≈ 5.42 × 10⁹ |
+| **Σ (1–6)** | **≈ 5.7 × 10⁹ architectures** |
+
+× SNN encodings (×3) and × `n_seeds` on top of that. **The architecture space is now
+effectively unbounded relative to any feasible GA budget** — the opposite of the
+fixed-tier design it replaces.
+
+> **This inverts the earlier budget warning.** Previously the genome had only 30 (SNN) / 10
+> (ANN) reachable shapes, so `population_size × (1 + generations) = 208` evaluations made
+> NSGA-II a disguised exhaustive sweep. With a free architecture the space is ~10⁹, so the
+> GA is now a **genuine search** — crossover and mutation matter, and the evaluation cache
+> saves real recomputation rather than papering over enumeration. Size `population_size`
+> and `generations` for *coverage of a huge space*, not to avoid re-enumeration. The
+> §7 acceptance criterion on budget-vs-space is now satisfied by construction.
 
 **AE-only scope** (handcrafted extraction, wavelets, scales, categories, descriptors and `lstm-ae` all excluded; backend fixed to xtensor; only AE-compatible optimizers and losses). Because the encoding↔loss pairing is now an **enforced invariant** (`validate()` throws on a mismatch), `loss` is not a free ×2 axis — it is bound to the `(model, encoding)` pair. The unit of counting is therefore the **valid `(model, encoding, loss)` triple**:
 
@@ -154,7 +177,7 @@ Counted from the enforced value lists in the source, **excluding layer counts an
 | Valid `(model, encoding, loss)` triples per modality-slot | **10** |
 | × 4 modality slots (eeg, voice, fused-early, fused-late) | 40 |
 | × 4 optimizers (adam, sgd, lion, schedule-free-adamw — all AE-compatible) | **160** |
-| × 10 width pairs (`latent < hidden`) | **1 600** |
+| × architecture (free depth+width, ~5.7×10⁹ shapes — §5.1.1) | **effectively unbounded** |
 | (+ phase01 classifier stage, × 16) | 25 600 |
 
 **160** is the AE-only configuration space at the granularity the earlier draft called "128" (model × encoding × modality × optimizer × loss, widths excluded). The rise from 128 → 160 is the two spike-loss combos (`latency+spiketime`, `poisson+spikecount`) that are now **wired and reachable**, × 4 slots × 4 optimizers = +32. Everything was verified against the code, not assumed:
@@ -269,5 +292,5 @@ Following the existing `thesis` phase00/phase01 convention (`software/nn/results
 - An individual with constant output is ranked **worst** in the population, not best.
 - No individual on the final Pareto front violates the end-to-end latency ceiling.
 - Re-running from the same configuration and seeds reproduces identical results.
-- **The GA budget is smaller than the reachable search space** (§5.1.1). If `population_size × (1 + generations)` exceeds the number of distinct genomes the bounds allow, the run is an exhaustive enumeration wearing a GA's clothes — either widen the bounds or shrink the budget before reporting it as an evolutionary search.
+- **The GA budget is smaller than the reachable search space** (§5.1.1) — satisfied by construction now that architecture is free (depth + per-layer width), giving ~5.7×10⁹ shapes against a budget of a few hundred evaluations. There are **no pre-defined layer configurations**: layer count and per-layer neuron count both come from the DNA, and a genome like `{3,2,1}` in one generation and `{10,5,4,2}` in the next are both reachable and legal.
 

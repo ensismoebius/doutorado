@@ -39,18 +39,27 @@ void GaConfig::validate() const
         throw std::invalid_argument("GaConfig: ga.mutation_prob must be in [0,1]");
     if (ga.tournament_k < 2) throw std::invalid_argument("GaConfig: ga.tournament_k must be >= 2");
 
-    if (ga.bounds.hidden_choices.empty() || ga.bounds.latent_choices.empty())
-        throw std::invalid_argument("GaConfig: hidden/latent choice lists must be non-empty");
+    // Free-architecture bounds: depth range and per-layer width range.
+    if (ga.bounds.min_width < 1)
+        throw std::invalid_argument("GaConfig: ga.bounds.min_width must be >= 1");
+    if (ga.bounds.max_width < ga.bounds.min_width)
+        throw std::invalid_argument("GaConfig: ga.bounds.max_width must be >= min_width");
+    if (ga.bounds.min_layers < 1)
+        throw std::invalid_argument("GaConfig: ga.bounds.min_layers must be >= 1");
+    if (ga.bounds.max_layers < ga.bounds.min_layers)
+        throw std::invalid_argument("GaConfig: ga.bounds.max_layers must be >= min_layers");
+    // Strictly decreasing widths need one distinct integer per layer, so the deepest
+    // requested genome must fit in the width range. Reject rather than silently
+    // truncate every deep genome to a shallower one.
+    const int width_room = ga.bounds.max_width - ga.bounds.min_width + 1;
+    if (ga.bounds.max_layers > width_room)
+        throw std::invalid_argument(
+            "GaConfig: ga.bounds.max_layers (" + std::to_string(ga.bounds.max_layers) +
+            ") exceeds the number of distinct widths available (" + std::to_string(width_room) +
+            " = max_width - min_width + 1). Strictly decreasing layers cannot be formed; "
+            "widen the width range or reduce max_layers.");
     if (is_snn_population() && ga.bounds.encoding_choices.empty())
         throw std::invalid_argument("GaConfig: encoding_choices must be non-empty for snn-ae");
-    // A bottleneck must be reachable: at least one latent strictly below some hidden.
-    const int max_hidden =
-        *std::max_element(ga.bounds.hidden_choices.begin(), ga.bounds.hidden_choices.end());
-    const int min_latent =
-        *std::min_element(ga.bounds.latent_choices.begin(), ga.bounds.latent_choices.end());
-    if (min_latent >= max_hidden)
-        throw std::invalid_argument(
-            "GaConfig: no valid bottleneck — min(latent_choices) >= max(hidden_choices)");
 
     if (constraints.latency_ceiling_ms <= 0.0)
         throw std::invalid_argument("GaConfig: constraints.latency_ceiling_ms must be > 0");
@@ -106,10 +115,10 @@ GaConfig GaConfig::from_json(const nlohmann::json& j)
         if (g.contains("bounds"))
         {
             const auto& b = g["bounds"];
-            cfg.ga.bounds.hidden_choices =
-                get_vec_or<int>(b, "hidden_choices", cfg.ga.bounds.hidden_choices);
-            cfg.ga.bounds.latent_choices =
-                get_vec_or<int>(b, "latent_choices", cfg.ga.bounds.latent_choices);
+            if (b.contains("min_layers")) cfg.ga.bounds.min_layers = b["min_layers"];
+            if (b.contains("max_layers")) cfg.ga.bounds.max_layers = b["max_layers"];
+            if (b.contains("min_width")) cfg.ga.bounds.min_width = b["min_width"];
+            if (b.contains("max_width")) cfg.ga.bounds.max_width = b["max_width"];
             cfg.ga.bounds.encoding_choices =
                 get_vec_or<std::string>(b, "encoding_choices", cfg.ga.bounds.encoding_choices);
             if (b.contains("evolve_temporal"))
