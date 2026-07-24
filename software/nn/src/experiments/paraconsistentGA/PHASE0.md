@@ -1,6 +1,6 @@
 # paraconsistentGA — Phase 0 discovery report
 
-Deliverable #1 of `ga.md` (§2). Confirms every reused component against the current
+Deliverable #1 of `.wiki/Experiments/ParaconsistentGA-Design.md` (§2). Confirms every reused component against the current
 tree and records the scope decisions. **Reuse rule honored: no existing component is
 reimplemented — the GA only assembles and orchestrates.**
 
@@ -35,14 +35,14 @@ Fitness is therefore a thin wrapper: genome → `AutoencoderConfig` → `extract
 3. **Van Rossum / Victor–Purpura losses — absent.** Out of scope for v1. The SNN-AE
    already trains under MSE on spike frames (`ae_cfg.loss_type="mse"`); the exotic
    spike-distance metrics are not required for the paraconsistent objective. Recorded
-   as future work per `ga.md` §5.2. (`SpikeCountLoss`/`SpikeTimeLoss` do exist.)
-4. **Latency on target hardware — no target confirmed** (`ga.md` §4). Secondary
+   as future work per `.wiki/Experiments/ParaconsistentGA-Design.md` §5.2. (`SpikeCountLoss`/`SpikeTimeLoss` do exist.)
+4. **Latency on target hardware — no target confirmed** (`.wiki/Experiments/ParaconsistentGA-Design.md` §4). Secondary
    objective uses a **deterministic structural proxy** (encoder MAC count × time_steps),
    which is what §4 itself recommends for the cheap pre-training screen. The proxy→ms
    conversion (`ns_per_mac`) is uncalibrated and logged as such; real on-hardware
    calibration is future work.
 
-## Scope decisions recorded (per ga.md)
+## Scope decisions recorded (per .wiki/Experiments/ParaconsistentGA-Design.md)
 
 - **Genome = phase00 AE axes only** (§5.1): `hidden` width, `latent` dim, and for the
   SNN population `encoding` ∈ {direct,latency,poisson}. `model` and `modality` are
@@ -55,10 +55,10 @@ Fitness is therefore a thin wrapper: genome → `AutoencoderConfig` → `extract
 - **Populations evolved separately** (§5.3), one `--config` run per (model, modality).
 - **n_seeds** averaging with mean/std of `d_penalized` (§5.5).
 
-## Note fed back to ga.md
+## Note fed back to .wiki/Experiments/ParaconsistentGA-Design.md
 
-`ga.md` §7 acceptance said `(α,β)=(1,1) → ≈ 2.4142`. That contradicts §3.1 ("the three
+`.wiki/Experiments/ParaconsistentGA-Design.md` §7 acceptance said `(α,β)=(1,1) → ≈ 2.4142`. That contradicts §3.1 ("the three
 degenerate vertices … evaluate to exactly 2") and the implementation
 (`kContradictionPenalty = 2-√2` is chosen precisely so those vertices score 2.0):
-g1=0, g2=1, d_truth=√2≈1.4142, d_penalized=√2+(2-√2)·1 = **2.0000**. ga.md §7 corrected
+g1=0, g2=1, d_truth=√2≈1.4142, d_penalized=√2+(2-√2)·1 = **2.0000**. .wiki/Experiments/ParaconsistentGA-Design.md §7 corrected
 to 2.0000; the `(0.92,0.075) → 0.1580` case is correct and kept.

@@ -15,7 +15,8 @@ namespace
 {
 // Mean per-dimension standard deviation of a set of latent vectors. Near-zero means
 // the latent has collapsed (every sample maps to the same point) — the α=β=1
-// degeneracy the reconstruction sanity filter defends against (ga.md §3.3).
+// degeneracy the reconstruction sanity filter defends against
+// (.wiki/Experiments/ParaconsistentGA-Design.md §3.3).
 double mean_latent_std(const std::vector<std::vector<double>>& vectors)
 {
     if (vectors.empty() || vectors[0].empty()) return 0.0;
@@ -71,9 +72,9 @@ void evaluate_individual(
     ind.est_latency_ms = cfg.constraints.fixed_pipeline_cost_ms +
                          static_cast<double>(ind.inference_cost) * cfg.constraints.ns_per_mac / 1e6;
 
-    // ── Cheap pre-training screen (ga.md §4) ─────────────────────────────────
-    // Over-budget genomes are discarded without training: mark infeasible, give a
-    // worst-case sentinel objective, skip the expensive extract/score entirely.
+    // ── Cheap pre-training screen (.wiki/Experiments/ParaconsistentGA-Design.md §4)
+    // ───────────────────────────────── Over-budget genomes are discarded without training: mark
+    // infeasible, give a worst-case sentinel objective, skip the expensive extract/score entirely.
     if (exceeds_latency_budget(g, cfg))
     {
         ind.d_penalized_mean = 2.0; // worst-vertex sentinel; unused under constrained dominance
@@ -86,7 +87,8 @@ void evaluate_individual(
         return;
     }
 
-    // ── Train + score across n_seeds (ga.md §5.5) ────────────────────────────
+    // ── Train + score across n_seeds (.wiki/Experiments/ParaconsistentGA-Design.md §5.5)
+    // ────────────────────────────
     const thesis::ThesisConfig::FeatureExtraction fe = make_feature_extraction(g, cfg);
     const std::string& modality = cfg.base.dataset.modality;
     const std::string& fusion_mode = cfg.base.dataset.fusion_mode;

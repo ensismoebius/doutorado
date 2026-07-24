@@ -5,8 +5,7 @@ algorithm, ranking each candidate by **paraconsistent feature quality** (`d_pena
 **inference cost** under a hard **latency constraint**. It searches the same architecture
 axes the [Thesis](Thesis.md) phase00 grid varied, but with [NSGA-II](../Concepts/Multi-Objective-Optimisation.md)
 instead of a fixed sweep — so its Pareto front is directly comparable to the phase00
-baseline. Build target `paraconsistentGA`. Design spec: `ga.md` (repo root) +
-`src/experiments/paraconsistentGA/PHASE0.md`.
+baseline. Build target `paraconsistentGA`. Full design spec: [ParaconsistentGA-Design.md](ParaconsistentGA-Design.md); reuse map: `src/experiments/paraconsistentGA/PHASE0.md`.
 
 ## Theoretical Background
 
@@ -73,7 +72,7 @@ the genome's per-layer counts are silently lost (guarded by `thesis_freearch_gte
 
 **Objectives (both minimised)** are `d_penalized_mean` (over `n_seeds`, with std recorded)
 and a structural `inference_cost` proxy (encoder MACs × `time_steps`). **Constraints** are an
-estimated end-to-end latency ≤ ceiling and a latent-activity ≥ `tau_rec` guard (the §3.3
+estimated end-to-end latency ≤ ceiling and a latent-activity ≥ `tau_rec` guard (the [Design §3.3](ParaconsistentGA-Design.md)
 reconstruction sanity filter, realised as a latent-collapse detector — see `PHASE0.md`).
 
 ## Data Flow
@@ -104,7 +103,7 @@ cmake --build out/build/max-performance --target paraconsistentGA -j$(nproc)
 
 Outputs (`results/paraconsistentGA/`): `pga_{tag}_individuals.csv` — per-genome log with
 α, β, G1, G2, d_truth, d_penalized mean/std, latent_activity, param_count, inference_cost,
-est_latency_ms and feasibility (ga.md §6) — and `pga_{tag}_pareto.json`, the final feasible
+est_latency_ms and feasibility ([Design §6](ParaconsistentGA-Design.md)) — and `pga_{tag}_pareto.json`, the final feasible
 front plus run metadata. The JSON carries an explicit UNCALIBRATED-latency warning until the
 latency proxy is calibrated on real target hardware.
 
@@ -115,20 +114,21 @@ mapping, config validation).
 ## Common Pitfalls
 
 1. **Treating the latency numbers as real.** No target hardware is confirmed for the thesis
-   (ga.md §4); `ns_per_mac` and `fixed_pipeline_cost_ms` are estimates. Every Pareto JSON is
+   ([Design §4](ParaconsistentGA-Design.md)); `ns_per_mac` and `fixed_pipeline_cost_ms` are estimates. Every Pareto JSON is
    flagged UNCALIBRATED — calibrate before quoting milliseconds.
 2. **Reading `latent_activity` as reconstruction error.** It is a latent-collapse proxy, not
    decoder MSE (the reused `extract_features` returns latents only). It faithfully detects the
    α=β=1 degeneracy but is not a reconstruction metric.
 3. **Expecting Van Rossum / Victor–Purpura spike metrics.** Not implemented; the SNN-AE trains
-   under MSE. Listed as future work (ga.md §5.2).
+   under MSE. Listed as future work ([Design §5.2](ParaconsistentGA-Design.md)).
 4. **Comparing ANN and SNN reconstruction/latent values across populations.** `d_penalized` is
    comparable across technologies; `tau_rec` and latent activity are not — keep per-population.
 5. **Mixing modalities in one run.** `model` and `modality` are fixed per profile; run separate
-   configs for eeg / voice / fused (ga.md §5.3/§5.4).
+   configs for eeg / voice / fused ([Design §5.3/§5.4](ParaconsistentGA-Design.md)).
 
 ## See Also
 
+- [ParaconsistentGA-Design](ParaconsistentGA-Design.md) — the full design spec (fitness, search-space sizing, compute budget)
 - [Multi-Objective Optimisation (NSGA-II)](../Concepts/Multi-Objective-Optimisation.md) — the search algorithm
 - [Paraconsistent Logic](../Core/Paraconsistent.md) — the `d_penalized` objective
 - [Autoencoders](../Concepts/Autoencoders.md) — what each genome builds

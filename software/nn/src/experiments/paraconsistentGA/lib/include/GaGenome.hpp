@@ -45,7 +45,8 @@ struct GenomeBounds
 
     // When false (default, phase00 behavior) time_steps and voltage_threshold are
     // DERIVED from encoding, not searched. When true they become free genes drawn
-    // from the ranges below — a declared expansion of the phase00 space (ga.md §5.1).
+    // from the ranges below — a declared expansion of the phase00 space
+    // (.wiki/Experiments/ParaconsistentGA-Design.md §5.1).
     bool evolve_temporal = false;
     std::vector<int> time_steps_choices = {1, 8, 16, 32};
     float voltage_threshold_min = 0.1f;
@@ -138,7 +139,7 @@ long encoder_macs_per_frame(const Genome& g);
 
 // Total encoder inference cost proxy = encoder_macs_per_frame · time_steps. This is
 // the deterministic secondary objective (minimize) and the pre-training screen input
-// (ga.md §4). Monotonic in width, depth and temporal length.
+// (.wiki/Experiments/ParaconsistentGA-Design.md §4). Monotonic in width, depth and temporal length.
 long inference_cost_proxy(const Genome& g);
 
 } // namespace pga

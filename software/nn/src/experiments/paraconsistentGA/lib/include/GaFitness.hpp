@@ -11,14 +11,16 @@ namespace pga
 {
 
 // A fully-evaluated GA individual: genotype + all logged phenotype quantities
-// (ga.md §6, per-individual log). Objectives/rank/crowding are filled by NSGA-II.
+// (.wiki/Experiments/ParaconsistentGA-Design.md §6, per-individual log). Objectives/rank/crowding
+// are filled by NSGA-II.
 struct Individual
 {
     Genome genome;
 
-    // Paraconsistent quality, averaged over n_seeds (ga.md §5.5). alpha/beta/g1/g2/
-    // d_truth are from the best (lowest-d_penalized) seed so degenerate cases stay
-    // diagnosable per individual (ga.md §5.2 caution).
+    // Paraconsistent quality, averaged over n_seeds (.wiki/Experiments/ParaconsistentGA-Design.md
+    // §5.5). alpha/beta/g1/g2/ d_truth are from the best (lowest-d_penalized) seed so degenerate
+    // cases stay diagnosable per individual (.wiki/Experiments/ParaconsistentGA-Design.md §5.2
+    // caution).
     double d_penalized_mean = 0.0;
     double d_penalized_std = 0.0;
     double alpha = 0.0;
@@ -48,8 +50,9 @@ struct Individual
     int born_generation = -1; // generation the genome first appeared (for logging)
 };
 
-// Cheap pre-training screen (ga.md §4/§89): true if the genome's structural cost
-// estimate already blows the latency budget, so it can be discarded WITHOUT training.
+// Cheap pre-training screen (.wiki/Experiments/ParaconsistentGA-Design.md §4/§89): true if the
+// genome's structural cost estimate already blows the latency budget, so it can be discarded
+// WITHOUT training.
 bool exceeds_latency_budget(const Genome& g, const GaConfig& cfg);
 
 // Evaluate one individual: for each of n_seeds, build the AE config from the genome,

@@ -1,8 +1,8 @@
 /**
  * Unit tests for the paraconsistentGA experiment. Covers the dataset-independent
- * acceptance criteria from ga.md §7: d_penalized reference reproduction, constant
- * output ranked worst, NSGA-II constrained dominance / crowding correctness, plus
- * genome mapping and config validation.
+ * acceptance criteria from .wiki/Experiments/ParaconsistentGA-Design.md §7: d_penalized reference
+ * reproduction, constant output ranked worst, NSGA-II constrained dominance / crowding correctness,
+ * plus genome mapping and config validation.
  */
 #include <cmath>
 #include <limits>
@@ -42,7 +42,8 @@ double d_penalized_from(double alpha, double beta)
 }
 } // namespace
 
-// ── ga.md §7: d_penalized reference cases ────────────────────────────────────
+// ── .wiki/Experiments/ParaconsistentGA-Design.md §7: d_penalized reference cases
+// ────────────────────────────────────
 TEST(PgaParaconsistent, ReferenceCaseAmbiguityVertex)
 {
     // (alpha,beta) = (1,1): the Ambiguity vertex. kContradictionPenalty = 2-sqrt(2)
@@ -52,11 +53,12 @@ TEST(PgaParaconsistent, ReferenceCaseAmbiguityVertex)
 
 TEST(PgaParaconsistent, ReferenceCaseGoodFeatures)
 {
-    // (alpha,beta) = (0.92, 0.075) → ~0.1580 (ga.md §7).
+    // (alpha,beta) = (0.92, 0.075) → ~0.1580 (.wiki/Experiments/ParaconsistentGA-Design.md §7).
     EXPECT_NEAR(d_penalized_from(0.92, 0.075), 0.1580, 1e-3);
 }
 
-// ── ga.md §7: constant output must rank worst, not best ──────────────────────
+// ── .wiki/Experiments/ParaconsistentGA-Design.md §7: constant output must rank worst, not best
+// ──────────────────────
 TEST(PgaParaconsistent, ConstantLatentRanksWorst)
 {
     const int n_subjects = 4;
@@ -94,7 +96,8 @@ TEST(PgaParaconsistent, ConstantLatentRanksWorst)
     EXPECT_LT(s_info.d_penalized, s_const.d_penalized); // informative strictly better
 }
 
-// ── NSGA-II constrained dominance (ga.md §3.4) ───────────────────────────────
+// ── NSGA-II constrained dominance (.wiki/Experiments/ParaconsistentGA-Design.md §3.4)
+// ───────────────────────────────
 TEST(PgaNsga2, FeasibleDominatesInfeasible)
 {
     // Infeasible individual has better objectives but must NOT dominate the feasible one.
@@ -159,7 +162,8 @@ TEST(PgaNsga2, CrowdingBoundariesInfinite)
     EXPECT_GT(pop[1].crowding, 0.0);
 }
 
-// ── Genome → AE config mapping (ga.md §5.1) ──────────────────────────────────
+// ── Genome → AE config mapping (.wiki/Experiments/ParaconsistentGA-Design.md §5.1)
+// ──────────────────────────────────
 TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
 {
     Genome g;
@@ -289,7 +293,8 @@ TEST(PgaGenome, CrossoverOfDifferentDepthsIsLegal)
     }
 }
 
-// ── Latency pre-screen (ga.md §4) ────────────────────────────────────────────
+// ── Latency pre-screen (.wiki/Experiments/ParaconsistentGA-Design.md §4)
+// ────────────────────────────────────────────
 TEST(PgaFitness, LatencyPreScreenRejectsOverBudget)
 {
     pga::GaConfig cfg;

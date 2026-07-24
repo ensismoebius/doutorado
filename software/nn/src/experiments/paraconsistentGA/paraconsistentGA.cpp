@@ -4,7 +4,8 @@
  *        paraconsistent feature quality (d_penalized) under a latency constraint.
  *
  * One run evolves ONE population, defined by the profile's autoencoder.model
- * (snn-ae | ann-ae) and dataset.modality (eeg | voice | fused). See ga.md / PHASE0.md.
+ * (snn-ae | ann-ae) and dataset.modality (eeg | voice | fused). See
+ * .wiki/Experiments/ParaconsistentGA-Design.md / PHASE0.md.
  *
  * Usage:
  *   paraconsistentGA --config <profile.json>
@@ -73,7 +74,8 @@ auto main(int argc, char* argv[]) -> int
         if (!cfg.constraints.latency_calibrated)
             pm.log(
                 "[PGA] WARNING: latency proxy is UNCALIBRATED — fixed_pipeline_cost_ms and "
-                "ns_per_mac are estimates, not measured on target hardware (ga.md §4).");
+                "ns_per_mac are estimates, not measured on target hardware "
+                "(.wiki/Experiments/ParaconsistentGA-Design.md §4).");
 
         // Dataset loaded once; seed-independent (reused thesis loader).
         auto view = thesis::load_dataset(cfg.base.dataset);

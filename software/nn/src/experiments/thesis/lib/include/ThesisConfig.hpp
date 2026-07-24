@@ -102,7 +102,7 @@ struct ThesisConfig
         /// mse/mae are correct for `direct`; rate/latency coding would properly want
         /// SpikeCountLoss/SpikeTimeLoss, which the AE reconstruction path does not yet
         /// support. Keep loss fixed per population rather than confounding it with
-        /// architecture (ga.md 5.1).
+        /// architecture (.wiki/Experiments/ParaconsistentGA-Design.md 5.1).
         std::string ae_loss_type = "mse"; // "mse" | "mae"
 
         /// Firing-rate regularization for the snn-ae encoder. 0 = disabled.

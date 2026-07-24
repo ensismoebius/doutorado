@@ -130,6 +130,7 @@ Run in order; `thesis` is the primary experiment.
   of dysphonic speakers via imagined speech
 - [paraconsistentGA](./Experiments/ParaconsistentGA.md) — NSGA-II search over autoencoder
   architectures, ranked by paraconsistent `d_penalized` under a latency constraint
+  ([design spec](./Experiments/ParaconsistentGA-Design.md))
 
 ### Research context
 

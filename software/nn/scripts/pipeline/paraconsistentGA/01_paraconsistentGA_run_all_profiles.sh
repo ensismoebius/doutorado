@@ -3,7 +3,7 @@
 # build → run every population profile → summarise the Pareto fronts.
 #
 # Runs all 12 shipped profiles (ann/snn × eeg/voice/fused-{early,late} + snn loss variants),
-# each one a separate population evolved independently (ga.md §5.3). Structure and the
+# each one a separate population evolved independently (.wiki/Experiments/ParaconsistentGA-Design.md §5.3). Structure and the
 # work-weighted overall-ETA banner are copied from the Guayaquil article runner.
 #
 # Output files (results/paraconsistentGA/):
@@ -24,7 +24,7 @@
 # should share one backend to stay comparable. `max-performance` (CPU/XTensor) is the
 # reference and default, matching the thesis and Guayaquil runners; any other build warns.
 #
-# Runtime: ~24 h for all 12 at the shipped max_samples=550 (SNN ≈ 2.5× ANN; see ga.md §5.4.1).
+# Runtime: ~24 h for all 12 at the shipped max_samples=550 (SNN ≈ 2.5× ANN; see .wiki/Experiments/ParaconsistentGA-Design.md §5.4.1).
 #   Lower dataset.max_samples in the profiles for faster iteration.
 #
 # Requires: cmake, ninja. CPU preset — no GPU/OpenCL runtime needed.
@@ -128,7 +128,7 @@ fi
 
 # ── overall progress + ETA ────────────────────────────────────────────────────
 # Work-weighted, EMA-smoothed ETA (run_eta.sh), not a per-profile mean: SNN profiles are
-# ~2.5x the ANN wall-clock (measured, ga.md §5.4.1), so counting profiles equally would
+# ~2.5x the ANN wall-clock (measured, .wiki/Experiments/ParaconsistentGA-Design.md §5.4.1), so counting profiles equally would
 # lurch at every ann/snn boundary. 5 vs 2 encodes that ratio; the EMA corrects it from real
 # timings after the first of each kind finishes.
 source scripts/lib/run_eta.sh
