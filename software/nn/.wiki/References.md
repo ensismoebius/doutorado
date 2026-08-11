@@ -170,3 +170,5 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [64] K. Deb, "An efficient constraint handling method for genetic algorithms," *Computer Methods in Applied Mechanics and Engineering*, vol. 186, no. 2–4, pp. 311–338, 2000. [Online]. Available: https://doi.org/10.1016/S0045-7825(99)00389-8 (Constrained-domination / constraint-tournament used for the latency + latent-collapse constraints.)
 
 [65] N. Srinivas and K. Deb, "Muiltiobjective optimization using nondominated sorting in genetic algorithms," *Evolutionary Computation*, vol. 2, no. 3, pp. 221–248, 1994. [Online]. Available: https://doi.org/10.1162/evco.1994.2.3.221 (Original NSGA; Pareto-front ranking foundation.)
+
+[66] D. E. Goldberg and R. E. Smith, "Nonstationary function optimization using genetic algorithms with dominance and diploidy," in *Proc. 2nd Int. Conf. on Genetic Algorithms (ICGA)*, 1987, pp. 59–68. (Diploid genotype + dominance as a recessive-allele reservoir against premature convergence; basis for paraconsistentGA's diploid reproduction.)

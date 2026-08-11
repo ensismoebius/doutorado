@@ -193,6 +193,56 @@ void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double pro
     }
 }
 
+DiploidGenome random_diploid(std::mt19937& rng, const GenomeBounds& bounds, bool is_snn)
+{
+    std::uniform_real_distribution<float> dom(0.0f, 1.0f);
+    DiploidGenome d;
+    d.hap_a = random_genome(rng, bounds, is_snn);
+    d.hap_b = random_genome(rng, bounds, is_snn);
+    d.dom_a = dom(rng);
+    d.dom_b = dom(rng);
+    return d;
+}
+
+Gamete meiosis(const DiploidGenome& parent,
+    std::mt19937& rng,
+    const GenomeBounds& bounds,
+    double recomb_prob,
+    double mutation_prob,
+    bool is_snn)
+{
+    std::bernoulli_distribution recombine(recomb_prob);
+    std::bernoulli_distribution hit(mutation_prob);
+    std::bernoulli_distribution coin(0.5);
+
+    Gamete g;
+    // Recombine the parent's own two haplotypes, or (no crossover this meiosis) carry
+    // one haplotype through unchanged.
+    g.haplotype = recombine(rng) ? crossover(parent.hap_a, parent.hap_b, rng, bounds, is_snn)
+                                 : (coin(rng) ? parent.hap_a : parent.hap_b);
+    mutate(g.haplotype, rng, bounds, mutation_prob, is_snn);
+
+    // The gamete carries one parent-haplotype's dominance value; a mutation can redraw
+    // it, which is how a formerly recessive haplotype can become dominant in a child.
+    g.dominance = coin(rng) ? parent.dom_a : parent.dom_b;
+    if (hit(rng))
+    {
+        std::uniform_real_distribution<float> dom(0.0f, 1.0f);
+        g.dominance = dom(rng);
+    }
+    return g;
+}
+
+DiploidGenome fuse(const Gamete& g1, const Gamete& g2)
+{
+    DiploidGenome d;
+    d.hap_a = g1.haplotype;
+    d.dom_a = g1.dominance;
+    d.hap_b = g2.haplotype;
+    d.dom_b = g2.dominance;
+    return d;
+}
+
 thesis::ThesisConfig::AutoencoderConfig to_ae_config(
     const Genome& g, const thesis::ThesisConfig::AutoencoderConfig& base)
 {

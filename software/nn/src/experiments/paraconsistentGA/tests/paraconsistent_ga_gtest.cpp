@@ -345,6 +345,106 @@ TEST(PgaGenome, CrossoverOfDifferentDepthsIsLegal)
     }
 }
 
+// ── True diploid genetics ────────────────────────────────────────────────────
+TEST(PgaDiploid, RandomDiploidBothHaplotypesLegal)
+{
+    std::mt19937 rng(321);
+    pga::GenomeBounds bounds;
+    for (int i = 0; i < 300; ++i)
+    {
+        pga::DiploidGenome d = pga::random_diploid(rng, bounds, /*is_snn=*/true);
+        for (const pga::Genome* h : {&d.hap_a, &d.hap_b})
+        {
+            ASSERT_GE(h->depth(), bounds.min_layers);
+            ASSERT_LE(h->depth(), bounds.max_layers);
+            for (size_t k = 0; k + 1 < h->encoder_widths.size(); ++k)
+                EXPECT_GT(h->encoder_widths[k], h->encoder_widths[k + 1]);
+        }
+        EXPECT_GE(d.dom_a, 0.0f);
+        EXPECT_LE(d.dom_a, 1.0f);
+        EXPECT_GE(d.dom_b, 0.0f);
+        EXPECT_LE(d.dom_b, 1.0f);
+    }
+}
+
+TEST(PgaDiploid, ExpressedIsHigherDominanceHaplotype)
+{
+    pga::DiploidGenome d;
+    d.hap_a.encoder_widths = {64, 32};
+    d.hap_b.encoder_widths = {10, 5, 2};
+    d.dom_a = 0.7f;
+    d.dom_b = 0.3f;
+    EXPECT_EQ(d.expressed().encoder_widths, d.hap_a.encoder_widths);
+    d.dom_a = 0.2f;
+    d.dom_b = 0.9f;
+    EXPECT_EQ(d.expressed().encoder_widths, d.hap_b.encoder_widths);
+    // Tie resolves to A, deterministically.
+    d.dom_a = d.dom_b = 0.5f;
+    EXPECT_EQ(d.expressed().encoder_widths, d.hap_a.encoder_widths);
+}
+
+TEST(PgaDiploid, MeiosisProducesLegalGameteAndBoundedDominance)
+{
+    std::mt19937 rng(99);
+    pga::GenomeBounds bounds;
+    pga::DiploidGenome d = pga::random_diploid(rng, bounds, /*is_snn=*/true);
+    for (int i = 0; i < 300; ++i)
+    {
+        pga::Gamete g = pga::meiosis(
+            d, rng, bounds, /*recomb_prob=*/0.9, /*mutation_prob=*/0.3, /*is_snn=*/true);
+        ASSERT_GE(g.haplotype.depth(), bounds.min_layers);
+        ASSERT_LE(g.haplotype.depth(), bounds.max_layers);
+        for (size_t k = 0; k + 1 < g.haplotype.encoder_widths.size(); ++k)
+            ASSERT_GT(g.haplotype.encoder_widths[k], g.haplotype.encoder_widths[k + 1]);
+        EXPECT_GE(g.dominance, 0.0f);
+        EXPECT_LE(g.dominance, 1.0f);
+    }
+}
+
+TEST(PgaDiploid, FuseMapsGametesToHaplotypes)
+{
+    pga::Gamete g1;
+    g1.haplotype.encoder_widths = {8, 4};
+    g1.dominance = 0.6f;
+    pga::Gamete g2;
+    g2.haplotype.encoder_widths = {30, 20, 10};
+    g2.dominance = 0.1f;
+    pga::DiploidGenome child = pga::fuse(g1, g2);
+    EXPECT_EQ(child.hap_a.encoder_widths, g1.haplotype.encoder_widths);
+    EXPECT_FLOAT_EQ(child.dom_a, 0.6f);
+    EXPECT_EQ(child.hap_b.encoder_widths, g2.haplotype.encoder_widths);
+    EXPECT_FLOAT_EQ(child.dom_b, 0.1f);
+    // The dominant gamete (g1) is the one expressed.
+    EXPECT_EQ(child.expressed().encoder_widths, g1.haplotype.encoder_widths);
+}
+
+// A recessive haplotype (never expressed) must still be able to reach a child's
+// expressed slot via meiosis+fusion — the whole point of the diploid reservoir.
+TEST(PgaDiploid, RecessiveAlleleCanResurface)
+{
+    std::mt19937 rng(2024);
+    pga::GenomeBounds bounds;
+    pga::DiploidGenome parent;
+    parent.hap_a.encoder_widths = {120};     // dominant, expressed
+    parent.hap_b.encoder_widths = {3, 2, 1}; // recessive, hidden
+    parent.dom_a = 0.99f;
+    parent.dom_b = 0.01f;
+
+    bool recessive_expressed = false;
+    for (int i = 0; i < 2000 && !recessive_expressed; ++i)
+    {
+        // No mutation/recombination so haplotypes pass through intact; only the dominance
+        // coin flips decide which gamete allele + dominance the child expresses.
+        pga::Gamete g1 = pga::meiosis(parent, rng, bounds, 0.0, 0.0, /*is_snn=*/false);
+        pga::Gamete g2 = pga::meiosis(parent, rng, bounds, 0.0, 0.0, /*is_snn=*/false);
+        pga::DiploidGenome child = pga::fuse(g1, g2);
+        if (child.expressed().encoder_widths == std::vector<int>{3, 2, 1})
+            recessive_expressed = true;
+    }
+    EXPECT_TRUE(recessive_expressed)
+        << "the hidden (recessive) haplotype never reached expression across 2000 crosses";
+}
+
 // ── Latency pre-screen (.wiki/Experiments/ParaconsistentGA-Design.md §4)
 // ────────────────────────────────────────────
 TEST(PgaFitness, LatencyPreScreenRejectsOverBudget)

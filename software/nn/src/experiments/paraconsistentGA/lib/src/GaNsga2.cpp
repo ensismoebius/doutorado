@@ -165,6 +165,28 @@ int tournament(const std::vector<Individual>& pop, std::mt19937& rng, int k)
     }
     return best;
 }
+
+// Binary tournament that never returns `exclude` — used to pick the SECOND parent so an
+// individual can never mate with itself (no self-mating). Requires pop.size() >= 2. Each
+// draw is redrawn until it differs from `exclude`, so the winner is guaranteed distinct;
+// this is an invariant, not a fallback (no data is guessed).
+int tournament_excluding(const std::vector<Individual>& pop, std::mt19937& rng, int k, int exclude)
+{
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(pop.size()) - 1);
+    auto draw_other = [&]
+    {
+        int c = pick(rng);
+        while (c == exclude) c = pick(rng);
+        return c;
+    };
+    int best = draw_other();
+    for (int i = 1; i < k; ++i)
+    {
+        int c = draw_other();
+        if (crowded_less(pop[c], pop[best])) best = c;
+    }
+    return best;
+}
 } // namespace
 
 GaResult run_nsga2(
@@ -177,51 +199,88 @@ GaResult run_nsga2(
 
     EvalCache cache;
 
+    // Build a population member from a diploid genotype: train/score its EXPRESSED
+    // phenotype (deduped by the cache), then attach this member's own genotype so it can
+    // reproduce. The cache stores phenotype-level results; two genotypes that express the
+    // same architecture share one training.
+    auto eval_member = [&](DiploidGenome geno, int gen) -> Individual
+    {
+        const Individual& evaluated = cache.get(geno.expressed(), gen, view, cfg, on_eval);
+        Individual m = evaluated;     // copy phenotype metrics + objectives + feasibility
+        m.genotype = std::move(geno); // this member's diploid genotype (for meiosis)
+        return m;
+    };
+
+    const int n_losers = cfg.ga.n_losers; // diversity reserve (worst-ranked survivors)
+    const int n_winners = N - n_losers;   // μ+λ elite slots (validate: n_winners >= 1)
+
     // ── Initial population ───────────────────────────────────────────────────
-    pm.log("[PGA] Generation 0: initializing + evaluating " + std::to_string(N) + " individuals (" +
-           cfg.base.feature_extraction.autoencoder.model + " / " + cfg.base.dataset.modality + ")");
+    pm.log("[PGA] Generation 0: initializing + evaluating " + std::to_string(N) +
+           " diploid individuals (" + cfg.base.feature_extraction.autoencoder.model + " / " +
+           cfg.base.dataset.modality + ")");
     std::vector<Individual> parents;
     parents.reserve(static_cast<size_t>(N));
     for (int i = 0; i < N; ++i)
-        parents.push_back(
-            cache.get(random_genome(rng, cfg.ga.bounds, is_snn), 0, view, cfg, on_eval));
+        parents.push_back(eval_member(random_diploid(rng, cfg.ga.bounds, is_snn), 0));
 
     auto fronts = fast_non_dominated_sort(parents);
     for (const auto& f : fronts) assign_crowding_distance(parents, f);
 
     // ── Generational loop ────────────────────────────────────────────────────
-    std::bernoulli_distribution do_crossover(cfg.ga.crossover_prob);
     for (int gen = 1; gen <= cfg.ga.generations; ++gen)
     {
         std::vector<Individual> offspring;
         offspring.reserve(static_cast<size_t>(N));
         while (static_cast<int>(offspring.size()) < N)
         {
+            // Two DISTINCT parents (no self-mating): the second tournament excludes the
+            // first winner's index.
             const int a = tournament(parents, rng, cfg.ga.tournament_k);
-            const int b = tournament(parents, rng, cfg.ga.tournament_k);
-            Genome child =
-                do_crossover(rng)
-                    ? crossover(parents[a].genome, parents[b].genome, rng, cfg.ga.bounds, is_snn)
-                    : parents[a].genome;
-            mutate(child, rng, cfg.ga.bounds, cfg.ga.mutation_prob, is_snn);
-            offspring.push_back(cache.get(std::move(child), gen, view, cfg, on_eval));
+            const int b = tournament_excluding(parents, rng, cfg.ga.tournament_k, a);
+
+            // Sexual reproduction: each parent forms a gamete by meiosis; the gametes
+            // fuse into the diploid child. There is no clone path — reproduction is
+            // always the fusion of two gametes.
+            const Gamete g1 = meiosis(parents[a].genotype,
+                rng,
+                cfg.ga.bounds,
+                cfg.ga.crossover_prob,
+                cfg.ga.mutation_prob,
+                is_snn);
+            const Gamete g2 = meiosis(parents[b].genotype,
+                rng,
+                cfg.ga.bounds,
+                cfg.ga.crossover_prob,
+                cfg.ga.mutation_prob,
+                is_snn);
+            offspring.push_back(eval_member(fuse(g1, g2), gen));
         }
 
-        // μ+λ selection: combine parents and offspring, sort, take the best N.
+        // μ+λ selection over parents+offspring, split into an elite quota and a loser
+        // reserve.
         std::vector<Individual> combined;
         combined.reserve(parents.size() + offspring.size());
         combined.insert(combined.end(), parents.begin(), parents.end());
         combined.insert(combined.end(), offspring.begin(), offspring.end());
 
         auto cfronts = fast_non_dominated_sort(combined);
+        for (const auto& front : cfronts) assign_crowding_distance(combined, front);
+
+        std::vector<char> taken(combined.size(), 0);
         std::vector<Individual> next;
         next.reserve(static_cast<size_t>(N));
+
+        // (1) Winners: the best n_winners by (rank, then crowding) — standard elitism.
         for (const auto& front : cfronts)
         {
-            assign_crowding_distance(combined, front);
-            if (static_cast<int>(next.size() + front.size()) <= N)
+            if (static_cast<int>(next.size()) >= n_winners) break;
+            if (static_cast<int>(next.size() + front.size()) <= n_winners)
             {
-                for (int idx : front) next.push_back(combined[idx]);
+                for (int idx : front)
+                {
+                    next.push_back(combined[idx]);
+                    taken[idx] = 1;
+                }
             }
             else
             {
@@ -231,12 +290,36 @@ GaResult run_nsga2(
                     [&](int x, int y) { return combined[x].crowding > combined[y].crowding; });
                 for (int idx : ordered)
                 {
-                    if (static_cast<int>(next.size()) >= N) break;
+                    if (static_cast<int>(next.size()) >= n_winners) break;
                     next.push_back(combined[idx]);
+                    taken[idx] = 1;
                 }
                 break;
             }
-            if (static_cast<int>(next.size()) >= N) break;
+        }
+
+        // (2) Losers: fill the remaining n_losers slots from the NON-winners, worst
+        // (highest) rank first, ties broken by larger crowding so the kept losers are the
+        // most distinct available. Deliberately preserving losing material is the
+        // anti-local-optimum hedge (n_losers=0 → textbook NSGA-II).
+        if (static_cast<int>(next.size()) < N)
+        {
+            std::vector<int> remainder;
+            for (int i = 0; i < static_cast<int>(combined.size()); ++i)
+                if (!taken[i]) remainder.push_back(i);
+            std::sort(remainder.begin(),
+                remainder.end(),
+                [&](int x, int y)
+                {
+                    if (combined[x].rank != combined[y].rank)
+                        return combined[x].rank > combined[y].rank;     // worst rank first
+                    return combined[x].crowding > combined[y].crowding; // most distinct first
+                });
+            for (int idx : remainder)
+            {
+                if (static_cast<int>(next.size()) >= N) break;
+                next.push_back(combined[idx]);
+            }
         }
         parents = std::move(next);
         // Refresh rank/crowding for the surviving population (used by next tournament).

@@ -32,6 +32,12 @@ void GaConfig::validate() const
         throw std::invalid_argument("GaConfig: ga.population_size must be >= 4");
     if (ga.generations < 1) throw std::invalid_argument("GaConfig: ga.generations must be >= 1");
     if (ga.n_seeds < 1) throw std::invalid_argument("GaConfig: ga.n_seeds must be >= 1");
+    if (ga.n_losers < 0) throw std::invalid_argument("GaConfig: ga.n_losers must be >= 0");
+    if (ga.n_losers >= ga.population_size)
+        throw std::invalid_argument(
+            "GaConfig: ga.n_losers (" + std::to_string(ga.n_losers) +
+            ") must be < population_size (" + std::to_string(ga.population_size) +
+            "); at least one elite slot must remain, otherwise selection keeps no winners.");
     if (ga.seed == 0u) throw std::invalid_argument("GaConfig: ga.seed must be non-zero");
     if (ga.crossover_prob < 0.0 || ga.crossover_prob > 1.0)
         throw std::invalid_argument("GaConfig: ga.crossover_prob must be in [0,1]");
@@ -107,6 +113,7 @@ GaConfig GaConfig::from_json(const nlohmann::json& j)
         if (g.contains("population_size")) cfg.ga.population_size = g["population_size"];
         if (g.contains("generations")) cfg.ga.generations = g["generations"];
         if (g.contains("n_seeds")) cfg.ga.n_seeds = g["n_seeds"];
+        if (g.contains("n_losers")) cfg.ga.n_losers = g["n_losers"];
         if (g.contains("crossover_prob")) cfg.ga.crossover_prob = g["crossover_prob"].get<double>();
         if (g.contains("mutation_prob")) cfg.ga.mutation_prob = g["mutation_prob"].get<double>();
         if (g.contains("seed")) cfg.ga.seed = g["seed"].get<std::uint32_t>();

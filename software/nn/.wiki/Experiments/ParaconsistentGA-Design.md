@@ -249,10 +249,19 @@ The 12 shipped profiles cover all three tracks for both populations plus the SNN
 
 ### 5.4.1 Compute budget — sample cap (`dataset.max_samples`)
 
-A full run of one population is `population_size × (1 + generations) × n_seeds ≈ 16 × 13 × 3
-= 624` autoencoder trainings, and cost is **linear in sample count** (measured). At the full
-1974 samples the whole 12-profile sweep is ≈ **86 h**, which is why the shipped profiles cap
-`dataset.max_samples`.
+A full run of one population is at most `population_size × (1 + generations) × n_seeds =
+32 × 65 × 3 = 6 240` autoencoder trainings — but the **evaluation cache trains each distinct
+expressed phenotype once**, so the real count is far lower (a genome that survives, or that a
+different genotype re-expresses, is not retrained). Cost is **linear in sample count**
+(measured).
+
+> **Budget note (pop=32, gens=64).** These counts are ≈10× the earlier 16×12 setting. The
+> `max_samples` table below was calibrated at 16×12 (~24 h nominal); at 32×64 the *upper bound*
+> scales up proportionally, but the cache makes the realized cost strongly sublinear in
+> `(1+generations)` once the front stabilises and phenotypes start repeating. Treat the row
+> values as per-`(1+generations)×population` and re-measure after the first few generations
+> rather than trusting the naive product. If wall-clock matters, the cheapest levers remain
+> `n_seeds` (3→1 is a free 3×) then `generations`, before cutting samples.
 
 **Measured per-training cost** (100 epochs, `max-performance` CPU preset): SNN ≈ 5.6 s at 200
 samples (averaged over a real 16-genome population, tail included); ANN ≈ 2.2 s. Linear
@@ -287,7 +296,43 @@ most data that fits the window). Lower toward 300–400 for faster iteration.
 - Each individual trains under `n_seeds` distinct seeds; its `D_penalized` is the mean, with
   the std recorded as run-to-run stability. This multiplies cost by `n_seeds`.
 - Every run is reproducible from a versioned config file (`ga.seed` drives the single RNG that
-  seeds init, selection, crossover, and mutation — the first population is fully random).
+  seeds init, selection, meiosis, and mutation — the first population is fully random).
+
+### 5.6 Reproduction: true diploid genetics + selection policy
+
+The GA is **diploid**, not haploid. Each individual carries **two** haplotypes (two full
+`Genome` copies) plus a dominance value per haplotype; only the haplotype with the larger
+dominance is *expressed* — built into an AE and scored. The other rides along silently.
+
+Why bother, when only one haplotype is ever evaluated? Because the silent haplotype is a
+**reservoir of alleles that pay no current fitness cost but can resurface later** (Goldberg &
+Smith 1987 [66]). A haploid GA forgets every gene the population stops expressing; a diploid GA
+keeps a hidden second copy that recombination can promote generations later — cheap protection
+against premature convergence, and a natural fit for a search whose fitness landscape (objective
+1) is currently weak.
+
+**One generation, end to end** (`GaNsga2.cpp::run_nsga2`, bounds/probs from the `ga` block):
+
+| Step | Policy |
+|---|---|
+| **Population size** | `population_size = 32` individuals, constant every generation. |
+| **Parent selection** | Binary tournament (`tournament_k = 2`) under the crowded-comparison operator (lower rank wins; ties by larger crowding). |
+| **No self-mating** | The two parents are always distinct — the second tournament excludes the first winner's index (`tournament_excluding`). |
+| **Meiosis** | Each parent recombines its own two haplotypes into one haploid **gamete** — `crossover(hap_a, hap_b)` with probability `crossover_prob = 0.9`, otherwise a straight copy of one haplotype. The gamete then mutates (`mutation_prob = 0.2`, three structural operators: width jitter / add layer / remove layer, plus encoding for SNN). It carries one parent-haplotype's dominance value, itself mutable. |
+| **Fusion** | The two gametes fuse into the diploid child (gamete 1 → haplotype A, 2 → B). Reproduction is **always** the fusion of two gametes — there is no clone path. |
+| **Elitism (winners)** | μ+λ: parents+offspring (64) are non-dominated-sorted together; the best `population_size − n_losers = 30` fill the next generation by (rank, then crowding). A good solution can never be lost. |
+| **Loser reserve** | The remaining `n_losers = 2` slots are filled from the **non-winners**, worst (highest) rank first, ties by larger crowding — deliberately carrying losing genetic material forward as an anti-local-optimum hedge. `n_losers = 0` recovers textbook NSGA-II. |
+| **Best-fitted output** | The final feasible rank-0 front, deterministically ordered by (inference cost, then `d_penalized`). |
+
+**Expression / dominance.** `expressed() = dom_a ≥ dom_b ? hap_a : hap_b` (ties → A,
+deterministically). The evaluation cache keys on the *expressed* phenotype, so two genotypes
+that express the same architecture share one training — the diploid layer adds reproduction
+memory without multiplying training cost.
+
+**Failure mode (silent).** If dominance never mutated and gametes never mixed dominance across
+haplotypes, the recessive reservoir would be frozen and diploidy would buy nothing — it would
+look like it was working while behaving haploid. Guarded by `PgaDiploid.RecessiveAlleleCanResurface`,
+which asserts a hidden haplotype can reach expression through meiosis+fusion alone.
 
 ---
 
@@ -300,8 +345,13 @@ Written to `results/paraconsistentGA/` per run (`run_tag`):
   `G₂`, `d_truth`, `d_penalized` mean+std, `latent_activity`, `param_count`, `inference_cost`,
   `est_latency_ms`, feasibility, constraint violation.
 - `pga_<tag>_pareto.json` — the final feasible Pareto front plus run metadata (population,
-  GA params, constraints) and an explicit UNCALIBRATED-latency warning until the proxy is
-  calibrated.
+  GA params incl. `n_losers` and `ploidy: diploid`, constraints) and an explicit
+  UNCALIBRATED-latency warning until the proxy is calibrated. Each front member records both
+  its expressed `genome` **and** its diploid `genotype` (`hap_a`, `hap_b`, `dom_a`, `dom_b`,
+  `expressed`), so the recessive reservoir behind each winner is traceable.
+
+The per-individual CSV logs the **expressed phenotype** (one row per distinct expressed
+genome); the recessive haplotype is genotype-level and appears only in the Pareto JSON.
 
 The versioned config carries all hyperparameters, including `λ`, `τ_rec`, `n_seeds`, epoch
 budget, latency ceiling, **optimizer**, and **`ae_loss_type`** (`mse | mae | spikecount |

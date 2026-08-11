@@ -15,6 +15,15 @@ namespace pga
 // are filled by NSGA-II.
 struct Individual
 {
+    // The DIPLOID genotype this individual carries (two haplotypes + dominance). Used
+    // only for reproduction (meiosis). Default-constructed on cache entries, which are
+    // phenotype-level; the population members set it to their own genotype.
+    DiploidGenome genotype;
+
+    // The EXPRESSED phenotype — genotype.expressed() — the haplotype actually built
+    // into an AE, trained and scored. Everything below describes this genome. Two
+    // different genotypes expressing the same phenotype share one evaluation (the cache
+    // keys on this).
     Genome genome;
 
     // Paraconsistent quality, averaged over n_seeds (.wiki/Experiments/ParaconsistentGA-Design.md

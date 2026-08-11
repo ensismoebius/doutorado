@@ -121,6 +121,77 @@ Genome crossover(
 // temporal coupling re-applied unless evolve_temporal.
 void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double prob, bool is_snn);
 
+// ── True diploid genetics ────────────────────────────────────────────────────
+//
+// An individual is DIPLOID: it carries TWO haplotypes (`Genome` copies) plus a
+// dominance value for each. Only ONE haplotype is *expressed* — built into an AE and
+// scored — the one with the larger dominance value; the other rides along silently.
+// That silent copy is the point: it is a reservoir of alleles that are not currently
+// paying a fitness cost but can resurface later (Goldberg & Smith 1987). Haploid GAs
+// have no such memory — every gene the population stops expressing is gone for good.
+//
+// Reproduction is sexual and true-to-biology:
+//   1. MEIOSIS — each parent recombines its own two haplotypes into ONE haploid gamete
+//      (with probability `recomb_prob`; otherwise the gamete is a straight copy of one
+//      haplotype), then the gamete mutates. The gamete also carries one of the parent's
+//      two dominance values.
+//   2. FUSION  — two gametes (one per parent) fuse into the diploid child: gamete 1
+//      becomes haplotype A, gamete 2 becomes haplotype B.
+//
+// A single haploid `Genome` is exactly one haplotype / one gamete, so meiosis reuses
+// the existing `crossover`/`mutate` operators unchanged.
+
+// One haploid gamete produced by meiosis: a recombined+mutated haplotype and the
+// dominance value it will carry into the child.
+struct Gamete
+{
+    Genome haplotype;
+    float dominance = 0.5f;
+};
+
+// A diploid genotype: two haplotypes, each with its own dominance value. `expressed()`
+// is the phenotype actually trained/scored — the haplotype whose dominance is not
+// smaller (ties resolve to A, deterministically). The other haplotype is the recessive
+// reservoir.
+struct DiploidGenome
+{
+    Genome hap_a;
+    Genome hap_b;
+    float dom_a = 0.5f;
+    float dom_b = 0.5f;
+
+    [[nodiscard]] const Genome& expressed() const
+    {
+        return dom_a >= dom_b ? hap_a : hap_b;
+    }
+
+    bool operator==(const DiploidGenome& o) const noexcept
+    {
+        return hap_a == o.hap_a && hap_b == o.hap_b && dom_a == o.dom_a && dom_b == o.dom_b;
+    }
+};
+
+// Draw a random diploid individual: two independent random haplotypes and two random
+// dominance values in [0,1). The two haplotypes are unrelated, so the initial
+// population starts with a full reservoir of hidden alleles.
+DiploidGenome random_diploid(std::mt19937& rng, const GenomeBounds& bounds, bool is_snn);
+
+// Meiosis: recombine an individual's own two haplotypes into one gamete. With
+// probability `recomb_prob` the gamete's haplotype is `crossover(hap_a, hap_b)`;
+// otherwise it is a straight copy of one haplotype (coin flip). The gamete then mutates
+// with `mutation_prob`, and inherits one parent-haplotype's dominance value (coin flip),
+// itself mutated with `mutation_prob` to a fresh draw in [0,1).
+Gamete meiosis(const DiploidGenome& parent,
+    std::mt19937& rng,
+    const GenomeBounds& bounds,
+    double recomb_prob,
+    double mutation_prob,
+    bool is_snn);
+
+// Fusion: two gametes become a diploid child (gamete 1 → haplotype A, 2 → B). This is
+// the ONLY way children are formed — reproduction is always sexual, never a clone.
+DiploidGenome fuse(const Gamete& g1, const Gamete& g2);
+
 // Build the thesis AutoencoderConfig this genome represents.
 //
 // Starts from `base` — the PROFILE's autoencoder config — and overrides ONLY the fields

@@ -75,17 +75,32 @@ from the [Paraconsistent Logic](../Core/Paraconsistent.md) metric and a structur
 `crowding`; `run_nsga2` runs the $\mu+\lambda$ generational loop with binary-tournament
 selection under the crowded-comparison operator.
 
+**Two project-specific deviations from textbook NSGA-II** (see
+[ParaconsistentGA-Design](../Experiments/ParaconsistentGA.md) §5.6):
+
+1. **Loser reserve.** The next generation is not filled entirely by the $\mu+\lambda$ elite.
+   `ga.n_losers` slots are reserved for the *worst-ranked non-survivors*, deliberately carrying
+   losing genetic material forward as an anti-local-optimum hedge. `n_losers = 0` is exactly
+   textbook NSGA-II.
+2. **Diploid reproduction.** Individuals are diploid (two haplotypes + dominance); children come
+   from meiosis (each parent recombines its own two haplotypes into a gamete) and fusion (two
+   gametes → one child), with no self-mating. NSGA-II ranks the *expressed* phenotype; the
+   recessive haplotype is a hidden reservoir. This changes only how offspring are *generated* —
+   the sorting, crowding, and constrained-dominance machinery above is untouched.
+
 ## Data Flow
 
 ```mermaid
 flowchart TD
-    P["Parents (N)"] -->|binary tournament<br/>crowded-comparison| S[Selected pairs]
-    S -->|crossover + mutation| O["Offspring (N)"]
-    O -->|evaluate: d_penalized + cost| OE[Offspring evaluated]
+    P["Parents (N, diploid)"] -->|binary tournament<br/>crowded-comparison<br/>no self-mating| S[Two distinct parents]
+    S -->|meiosis: each parent's<br/>two haplotypes → gamete<br/>+ mutation| G[Two gametes]
+    G -->|fusion → diploid child| O["Offspring (N)"]
+    O -->|evaluate EXPRESSED phenotype:<br/>d_penalized + cost| OE[Offspring evaluated]
     P --> C["Combine μ+λ (2N)"]
     OE --> C
     C -->|fast non-dominated sort| FR["Fronts F0, F1, ..."]
-    FR -->|fill by rank,<br/>last front by crowding| NX["Next generation (N)"]
+    FR -->|winners: best N−n_losers<br/>by rank, then crowding| NX["Next generation (N)"]
+    FR -->|losers: n_losers worst-ranked<br/>non-survivors kept| NX
     NX -->|repeat for G generations| P
     NX -->|final| PF["Pareto front = feasible rank-0"]
 ```

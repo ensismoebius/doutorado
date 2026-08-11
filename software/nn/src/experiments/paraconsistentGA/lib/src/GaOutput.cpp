@@ -23,7 +23,16 @@ nlohmann::json genome_to_json(const Genome& g)
 
 nlohmann::json individual_to_json(const Individual& ind)
 {
+    // The diploid genotype behind the expressed phenotype: both haplotypes and their
+    // dominance values. The expressed one is genome (above); the recessive one is the
+    // silent reservoir carried into the next generation's gametes.
+    const nlohmann::json genotype = {{"hap_a", genome_to_json(ind.genotype.hap_a)},
+        {"hap_b", genome_to_json(ind.genotype.hap_b)},
+        {"dom_a", ind.genotype.dom_a},
+        {"dom_b", ind.genotype.dom_b},
+        {"expressed", ind.genotype.dom_a >= ind.genotype.dom_b ? "hap_a" : "hap_b"}};
     return {{"genome", genome_to_json(ind.genome)},
+        {"genotype", genotype},
         {"born_generation", ind.born_generation},
         {"alpha", ind.alpha},
         {"beta", ind.beta},
@@ -86,7 +95,9 @@ void write_pareto_front_json(const std::string& results_dir,
         {"generations", cfg.ga.generations},
         {"generations_run", result.generations_run},
         {"n_seeds", cfg.ga.n_seeds},
+        {"n_losers", cfg.ga.n_losers},
         {"seed", cfg.ga.seed},
+        {"ploidy", "diploid"},
         {"crossover_prob", cfg.ga.crossover_prob},
         {"mutation_prob", cfg.ga.mutation_prob}};
     j["constraints"] = {{"latency_ceiling_ms", cfg.constraints.latency_ceiling_ms},

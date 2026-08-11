@@ -23,14 +23,25 @@ struct GaConfig
 
     struct Ga
     {
-        int population_size = 16;
-        int generations = 12;
+        int population_size = 32;
+        int generations = 64;
 
         // Each individual is trained under n_seeds distinct seeds; its d_penalized is
         // the mean, and the std is recorded as the stability measure
         // (.wiki/Experiments/ParaconsistentGA-Design.md §5.5).
         int n_seeds = 3;
 
+        // Survivor selection reserves this many slots for deliberately-kept LOSERS —
+        // the worst-ranked, most distinct non-survivors — instead of filling the whole
+        // next generation with the μ+λ elite. Losing genetic material is a hedge against
+        // premature convergence to a local optimum: it can recombine into something good
+        // generations later. 0 recovers textbook NSGA-II. Must be < population_size so
+        // at least one elite slot remains.
+        int n_losers = 2;
+
+        // Meiotic recombination probability. Reused as the per-meiosis chance that a
+        // gamete is a crossover of the parent's two haplotypes rather than a straight
+        // copy of one (see GaGenome meiosis()).
         double crossover_prob = 0.9;
         double mutation_prob = 0.2;
         std::uint32_t seed = 42u; // GA-level RNG seed (init/selection/variation).

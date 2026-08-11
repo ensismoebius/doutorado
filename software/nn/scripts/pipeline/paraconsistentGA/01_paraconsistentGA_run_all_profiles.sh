@@ -24,8 +24,12 @@
 # should share one backend to stay comparable. `max-performance` (CPU/XTensor) is the
 # reference and default, matching the thesis and Guayaquil runners; any other build warns.
 #
-# Runtime: ~24 h for all 12 at the shipped max_samples=550 (SNN ≈ 2.5× ANN; see .wiki/Experiments/ParaconsistentGA-Design.md §5.4.1).
-#   Lower dataset.max_samples in the profiles for faster iteration.
+# Runtime: the shipped profiles now use population_size=32, generations=64 (≈10x the offspring
+#   count of the earlier 16x12 setting on which the ~24 h/max_samples=550 figure was measured).
+#   The eval cache trains each distinct expressed phenotype once, so realized cost is far below
+#   the naive 10x, but the sweep WILL exceed 24 h at max_samples=550 — re-measure after the first
+#   few generations, and lower dataset.max_samples / n_seeds / generations for faster iteration
+#   (SNN ≈ 2.5x ANN; see .wiki/Experiments/ParaconsistentGA-Design.md §5.4.1 / §5.6).
 #
 # Requires: cmake, ninja. CPU preset — no GPU/OpenCL runtime needed.
 set -euo pipefail
