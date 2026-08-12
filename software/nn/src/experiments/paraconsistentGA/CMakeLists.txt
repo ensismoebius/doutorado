@@ -4,6 +4,7 @@ set(PGA_LIB_SOURCES
     lib/src/GaFitness.cpp
     lib/src/GaNsga2.cpp
     lib/src/GaOutput.cpp
+    lib/src/GaCheckpoint.cpp
 )
 
 add_library(paraconsistentGA_lib STATIC ${PGA_LIB_SOURCES})

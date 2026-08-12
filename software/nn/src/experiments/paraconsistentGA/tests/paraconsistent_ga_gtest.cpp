@@ -4,14 +4,20 @@
  * reproduction, constant output ranked worst, NSGA-II constrained dominance / crowding correctness,
  * plus genome mapping and config validation.
  */
+#include <unistd.h>
+
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <random>
 #include <vector>
 
 #include "ThesisDataset.hpp"
 #include "ThesisFeatureExtraction.hpp"
 #include "ThesisParaconsistent.hpp"
 #include "gtest/gtest.h"
+#include "lib/include/GaCheckpoint.hpp"
 #include "lib/include/GaConfig.hpp"
 #include "lib/include/GaFitness.hpp"
 #include "lib/include/GaGenome.hpp"
@@ -443,6 +449,156 @@ TEST(PgaDiploid, RecessiveAlleleCanResurface)
     }
     EXPECT_TRUE(recessive_expressed)
         << "the hidden (recessive) haplotype never reached expression across 2000 crosses";
+}
+
+// ── Checkpoint / resume serialization ────────────────────────────────────────
+namespace
+{
+Individual make_evaluated_individual()
+{
+    Individual ind;
+    ind.genotype.hap_a.encoder_widths = {64, 32, 8};
+    ind.genotype.hap_a.encoding = "latency";
+    ind.genotype.hap_a.time_steps = 16;
+    ind.genotype.hap_a.voltage_threshold = 0.2f;
+    ind.genotype.hap_b.encoder_widths = {50, 3};
+    ind.genotype.hap_b.encoding = "direct";
+    ind.genotype.dom_a = 0.8f;
+    ind.genotype.dom_b = 0.2f;
+    ind.genome = ind.genotype.expressed(); // hap_a
+    ind.d_penalized_mean = 0.37;
+    ind.d_penalized_std = 0.02;
+    ind.alpha = 0.44;
+    ind.beta = 0.61;
+    ind.g1 = -0.17;
+    ind.g2 = 0.05;
+    ind.d_truth = 0.31;
+    ind.latent_activity = 0.5;
+    ind.param_count = 12345;
+    ind.inference_cost = 6789;
+    ind.est_latency_ms = 13.5;
+    ind.evaluated = true;
+    ind.feasible = true;
+    ind.constraint_violation = 0.0;
+    ind.objectives = {0.37, 6789.0};
+    ind.born_generation = 3;
+    return ind;
+}
+
+std::string unique_tmp_dir(const char* tag)
+{
+    auto dir = std::filesystem::temp_directory_path() /
+               ("pga_ckpt_" + std::string(tag) + "_" + std::to_string(::getpid()));
+    std::filesystem::create_directories(dir);
+    return dir.string();
+}
+} // namespace
+
+TEST(PgaCheckpoint, IndividualJsonRoundTripPreservesEveryField)
+{
+    const Individual a = make_evaluated_individual();
+    const Individual b =
+        pga::individual_from_checkpoint_json(pga::individual_to_checkpoint_json(a));
+
+    // Diploid genotype (needed for reproduction on resume).
+    EXPECT_EQ(b.genotype.hap_a.encoder_widths, a.genotype.hap_a.encoder_widths);
+    EXPECT_EQ(b.genotype.hap_a.encoding, a.genotype.hap_a.encoding);
+    EXPECT_EQ(b.genotype.hap_a.time_steps, a.genotype.hap_a.time_steps);
+    EXPECT_FLOAT_EQ(b.genotype.hap_a.voltage_threshold, a.genotype.hap_a.voltage_threshold);
+    EXPECT_EQ(b.genotype.hap_b.encoder_widths, a.genotype.hap_b.encoder_widths);
+    EXPECT_FLOAT_EQ(b.genotype.dom_a, a.genotype.dom_a);
+    EXPECT_FLOAT_EQ(b.genotype.dom_b, a.genotype.dom_b);
+    EXPECT_EQ(b.genotype.expressed().encoder_widths, a.genotype.expressed().encoder_widths);
+    // Phenotype + metrics.
+    EXPECT_EQ(b.genome.encoder_widths, a.genome.encoder_widths);
+    EXPECT_DOUBLE_EQ(b.d_penalized_mean, a.d_penalized_mean);
+    EXPECT_DOUBLE_EQ(b.beta, a.beta);
+    EXPECT_EQ(b.param_count, a.param_count);
+    EXPECT_EQ(b.inference_cost, a.inference_cost);
+    EXPECT_EQ(b.feasible, a.feasible);
+    EXPECT_EQ(b.objectives, a.objectives);
+    EXPECT_EQ(b.born_generation, a.born_generation);
+}
+
+TEST(PgaCheckpoint, RngStateRoundTripReproducesDraws)
+{
+    std::mt19937 rng(12345);
+    for (int i = 0; i < 100; ++i) rng(); // advance to a nontrivial state
+    const std::string state = pga::rng_to_string(rng);
+
+    std::mt19937 restored(999);
+    pga::rng_from_string(restored, state);
+
+    // The restored engine must produce the identical subsequent sequence.
+    for (int i = 0; i < 50; ++i) EXPECT_EQ(rng(), restored());
+}
+
+TEST(PgaCheckpoint, CacheAppendAndReloadRoundTrips)
+{
+    const std::string dir = unique_tmp_dir("cache");
+    const std::string path = dir + "/cache.jsonl";
+
+    Individual a = make_evaluated_individual();
+    Individual b = make_evaluated_individual();
+    b.genome.encoder_widths = {16, 4};
+    b.d_penalized_mean = 0.9;
+
+    pga::append_cache_entry(path, a);
+    pga::append_cache_entry(path, b);
+
+    auto loaded = pga::load_cache_entries(path);
+    ASSERT_EQ(loaded.size(), 2u);
+    EXPECT_EQ(loaded[0].genome.encoder_widths, a.genome.encoder_widths);
+    EXPECT_EQ(loaded[1].genome.encoder_widths, b.genome.encoder_widths);
+    EXPECT_DOUBLE_EQ(loaded[1].d_penalized_mean, 0.9);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(PgaCheckpoint, TornTrailingCacheLineIsDroppedNotFatal)
+{
+    const std::string dir = unique_tmp_dir("torn");
+    const std::string path = dir + "/cache.jsonl";
+
+    pga::append_cache_entry(path, make_evaluated_individual());
+    // Simulate a crash mid-append: a partial, unparseable trailing line.
+    {
+        std::ofstream f(path, std::ios::app);
+        f << "{\"genotype\": {\"hap_a\": {\"enc"; // truncated JSON, no newline terminator
+    }
+    auto loaded = pga::load_cache_entries(path); // must not throw
+    EXPECT_EQ(loaded.size(), 1u);                // the one complete record survives
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(PgaCheckpoint, GenerationCheckpointRoundTrips)
+{
+    const std::string dir = unique_tmp_dir("gen");
+    const std::string tag = "unit";
+
+    std::mt19937 rng(42);
+    for (int i = 0; i < 20; ++i) rng();
+    std::vector<Individual> parents = {make_evaluated_individual(), make_evaluated_individual()};
+    parents[1].genome.encoder_widths = {7, 2};
+
+    EXPECT_FALSE(pga::state_checkpoint_exists(dir, tag));
+    pga::save_generation_checkpoint(dir, tag, 5, rng, parents);
+    EXPECT_TRUE(pga::state_checkpoint_exists(dir, tag));
+
+    auto ck = pga::load_generation_checkpoint(dir, tag);
+    EXPECT_EQ(ck.generation, 5);
+    ASSERT_EQ(ck.parents.size(), 2u);
+    EXPECT_EQ(ck.parents[1].genome.encoder_widths, (std::vector<int>{7, 2}));
+
+    // RNG restored from the checkpoint reproduces the engine's next draws.
+    std::mt19937 restored(1);
+    pga::rng_from_string(restored, ck.rng_state);
+    for (int i = 0; i < 30; ++i) EXPECT_EQ(rng(), restored());
+
+    pga::remove_checkpoint_artifacts(dir, tag);
+    EXPECT_FALSE(pga::state_checkpoint_exists(dir, tag));
+    std::filesystem::remove_all(dir);
 }
 
 // ── Latency pre-screen (.wiki/Experiments/ParaconsistentGA-Design.md §4)

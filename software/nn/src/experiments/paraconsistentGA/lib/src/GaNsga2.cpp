@@ -7,6 +7,8 @@
 #include <sstream>
 #include <string>
 
+#include "GaCheckpoint.hpp"
+#include "ThesisOutput.hpp" // thesis::ensure_dir
 #include "progress/ProgressManager.hpp"
 
 namespace pga
@@ -131,6 +133,18 @@ struct EvalCache
 {
     std::map<std::string, Individual> table;
     std::vector<Individual> history; // one entry per distinct genome, in discovery order
+    std::string persist_path;        // non-empty ⇒ append each new eval as a JSONL line
+
+    // Replay a persisted cache (layer 1): every previously-trained genome becomes a hit, so
+    // a resumed run retrains nothing. Discovery order is preserved for the final CSV.
+    void preload(const std::vector<Individual>& entries)
+    {
+        for (const auto& ind : entries)
+        {
+            const std::string key = genome_key(ind.genome);
+            if (table.emplace(key, ind).second) history.push_back(ind);
+        }
+    }
 
     Individual& get(Genome g,
         int generation,
@@ -147,6 +161,10 @@ struct EvalCache
         ind.born_generation = generation;
         evaluate_individual(ind, view, cfg);
         if (on_eval) on_eval(ind);
+
+        // Persist BEFORE inserting so a genome recorded in memory is always on disk too
+        // (layer 1: at most the single in-flight training is ever lost to a crash).
+        if (!persist_path.empty()) append_cache_entry(persist_path, ind);
 
         auto [ins, _] = table.emplace(key, ind);
         history.push_back(ind);
@@ -214,20 +232,53 @@ GaResult run_nsga2(
     const int n_losers = cfg.ga.n_losers; // diversity reserve (worst-ranked survivors)
     const int n_winners = N - n_losers;   // μ+λ elite slots (validate: n_winners >= 1)
 
-    // ── Initial population ───────────────────────────────────────────────────
-    pm.log("[PGA] Generation 0: initializing + evaluating " + std::to_string(N) +
-           " diploid individuals (" + cfg.base.feature_extraction.autoencoder.model + " / " +
-           cfg.base.dataset.modality + ")");
+    // ── Checkpointing (layer 1: live cache; layer 2: per-generation state) ─────
+    const bool ckpt = cfg.checkpoint.enabled;
+    if (ckpt)
+    {
+        thesis::ensure_dir(cfg.results_dir); // must exist before the first cache append
+        cache.persist_path = checkpoint_cache_path(cfg.results_dir, cfg.run_tag);
+        cache.preload(load_cache_entries(cache.persist_path)); // warm cache — no retraining
+    }
+
     std::vector<Individual> parents;
     parents.reserve(static_cast<size_t>(N));
-    for (int i = 0; i < N; ++i)
-        parents.push_back(eval_member(random_diploid(rng, cfg.ga.bounds, is_snn), 0));
+    int start_gen = 1; // first generation to (re)compute
 
-    auto fronts = fast_non_dominated_sort(parents);
-    for (const auto& f : fronts) assign_crowding_distance(parents, f);
+    auto rerank = [](std::vector<Individual>& pop)
+    {
+        auto fronts = fast_non_dominated_sort(pop);
+        for (const auto& f : fronts) assign_crowding_distance(pop, f);
+    };
+
+    if (ckpt && state_checkpoint_exists(cfg.results_dir, cfg.run_tag))
+    {
+        // ── Resume ──────────────────────────────────────────────────────────
+        GenerationCheckpoint ck = load_generation_checkpoint(cfg.results_dir, cfg.run_tag);
+        rng_from_string(rng, ck.rng_state); // exact engine state at end of ck.generation
+        parents = std::move(ck.parents);
+        rerank(parents); // rank/crowding were not serialized; recompute for tournaments
+        start_gen = ck.generation + 1;
+        pm.log("[PGA] Resuming " + cfg.run_tag + " from checkpoint: generation " +
+               std::to_string(ck.generation) + "/" + std::to_string(cfg.ga.generations) +
+               " complete, " + std::to_string(cache.history.size()) +
+               " genomes already in cache. Continuing at generation " + std::to_string(start_gen) +
+               ".");
+    }
+    else
+    {
+        // ── Fresh start: initial population ─────────────────────────────────
+        pm.log("[PGA] Generation 0: initializing + evaluating " + std::to_string(N) +
+               " diploid individuals (" + cfg.base.feature_extraction.autoencoder.model + " / " +
+               cfg.base.dataset.modality + ")");
+        for (int i = 0; i < N; ++i)
+            parents.push_back(eval_member(random_diploid(rng, cfg.ga.bounds, is_snn), 0));
+        rerank(parents);
+        if (ckpt) save_generation_checkpoint(cfg.results_dir, cfg.run_tag, 0, rng, parents);
+    }
 
     // ── Generational loop ────────────────────────────────────────────────────
-    for (int gen = 1; gen <= cfg.ga.generations; ++gen)
+    for (int gen = start_gen; gen <= cfg.ga.generations; ++gen)
     {
         std::vector<Individual> offspring;
         offspring.reserve(static_cast<size_t>(N));
@@ -340,6 +391,12 @@ GaResult run_nsga2(
             << (n_feasible ? best_dpen : std::numeric_limits<double>::quiet_NaN()) << ", "
             << cache.table.size() << " distinct genomes evaluated";
         pm.log(oss.str());
+
+        // Layer 2: persist the surviving population + RNG at the end of this generation.
+        // The cache (layer 1) is already on disk per-individual; together they bound a
+        // crash's cost to one in-flight training.
+        if (ckpt && (gen % cfg.checkpoint.every_generations == 0 || gen == cfg.ga.generations))
+            save_generation_checkpoint(cfg.results_dir, cfg.run_tag, gen, rng, parents);
     }
 
     // ── Assemble result ──────────────────────────────────────────────────────
@@ -363,6 +420,10 @@ GaResult run_nsga2(
             if (a.inference_cost != b.inference_cost) return a.inference_cost < b.inference_cost;
             return a.d_penalized_mean < b.d_penalized_mean;
         });
+
+    // Success: the run is complete, so the resume artifacts are no longer needed. The
+    // results (CSV + Pareto JSON) written by the caller are what persist.
+    if (ckpt) remove_checkpoint_artifacts(cfg.results_dir, cfg.run_tag);
 
     return result;
 }

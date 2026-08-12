@@ -359,6 +359,40 @@ spiketime`, encoding-bound per §5.1.1) — optimizer and loss are the axes that
 template space from 16 to 160. (`τ` for Van Rossum and `q` for Victor–Purpura belong here too
 once those losses exist.)
 
+### 6.1 Crash resilience — checkpoint & resume
+
+A full sweep runs for days, so a power loss must not throw away hours of training. The problem
+is entirely about the **expensive** step: training an autoencoder is seconds each, ×thousands;
+everything else is microseconds. So checkpointing protects *trainings*, at two granularities
+(`GaCheckpoint.cpp`, controlled by the `checkpoint` config block):
+
+| Layer | File | Written | Guarantees |
+|---|---|---|---|
+| **1 — per-individual cache** | `pga_<tag>_cache.jsonl` | one line appended + flushed the instant each genome is scored | no genome is **ever** retrained across restarts |
+| **2 — per-generation state** | `pga_<tag>_checkpoint.json` | population + exact RNG state + generation index, written atomically (temp-file + rename) after each generation | the loop resumes from the next generation |
+
+**Worst-case loss on a crash = one in-flight training** (seconds). Resume is deterministic
+regardless of whether AE training is bit-reproducible, because layer 2 restores the exact
+population and RNG engine state rather than replaying past generations; layer 1 then makes every
+already-trained genome in the interrupted generation an instant cache hit.
+
+**Concretely:** power dies at generation 50/64. On restart the binary finds the checkpoint,
+restores the generation-49 population + RNG, warms the cache from the JSONL (every genome trained
+through gen 50 is a hit), and continues at generation 50 — retraining only the handful of gen-50
+genomes that had not yet been scored when the power went.
+
+Two scopes cooperate:
+
+- **Within a profile** — the binary auto-resumes from `checkpoint.json` if present.
+- **Across the 12 profiles** — the runner skips any profile whose final `pga_<tag>_pareto.json`
+  already exists (a completed profile deletes its checkpoint+cache on success, leaving only the
+  CSV + Pareto JSON). So a restarted sweep continues at the profile it died on.
+
+`CLEAN_RESULTS=1` wipes everything for a deliberate fresh start; `checkpoint.enabled=false` opts
+out (a crash then loses the whole profile). The **silent** failure this defends against: without
+it, a mid-sweep power loss looks *identical* to a normal restart — the run just quietly redoes
+days of work.
+
 ---
 
 ## 7. Correctness guarantees

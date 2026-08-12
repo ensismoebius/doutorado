@@ -79,6 +79,20 @@ struct GaConfig
         double tau_rec = 1e-4;
     } constraints;
 
+    // Crash-resilient checkpointing (results/paraconsistentGA/pga_<tag>_{checkpoint.json,
+    // cache.jsonl}). Two layers: the per-individual cache (every trained genome appended
+    // the instant it is scored, so no genome is ever retrained across restarts) and the
+    // per-generation state (population + RNG + generation index, so the loop resumes
+    // exactly). On a crash the loss is at most one in-flight training. Both artifacts are
+    // deleted on successful completion — the results (CSV + Pareto JSON) are what remain.
+    struct Checkpoint
+    {
+        bool enabled = true;
+        // Write the generation-state file every N generations. The per-individual cache
+        // is always appended live regardless of this. 1 = safest (default).
+        int every_generations = 1;
+    } checkpoint;
+
     // Where per-individual logs and the Pareto front are written.
     std::string results_dir = "results/paraconsistentGA";
     std::string run_tag = "pga_run";

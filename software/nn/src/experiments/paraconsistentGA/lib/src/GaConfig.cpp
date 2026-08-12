@@ -80,6 +80,9 @@ void GaConfig::validate() const
             "GaConfig: fixed_pipeline_cost_ms >= latency_ceiling_ms leaves the autoencoder no "
             "budget");
 
+    if (checkpoint.every_generations < 1)
+        throw std::invalid_argument("GaConfig: checkpoint.every_generations must be >= 1");
+
     if (run_tag.empty()) throw std::invalid_argument("GaConfig: run_tag is required");
     if (results_dir.empty()) throw std::invalid_argument("GaConfig: results_dir is required");
 }
@@ -150,6 +153,14 @@ GaConfig GaConfig::from_json(const nlohmann::json& j)
             cfg.constraints.latency_calibrated = c["latency_calibrated"].get<bool>();
         if (c.contains("ns_per_mac")) cfg.constraints.ns_per_mac = c["ns_per_mac"].get<double>();
         if (c.contains("tau_rec")) cfg.constraints.tau_rec = c["tau_rec"].get<double>();
+    }
+
+    if (j.contains("checkpoint"))
+    {
+        const auto& c = j["checkpoint"];
+        if (c.contains("enabled")) cfg.checkpoint.enabled = c["enabled"].get<bool>();
+        if (c.contains("every_generations"))
+            cfg.checkpoint.every_generations = c["every_generations"].get<int>();
     }
 
     // Feature extraction must run without a classifier (Phase-00-like): the GA

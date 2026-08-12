@@ -123,8 +123,9 @@ if (( ${#PROFILES[@]} == 0 )); then
   exit 1
 fi
 
-# The GA resumes nothing, but stale per-tag files from an earlier run linger. Wipe on request
-# so a fresh sweep never mixes with old numbers (the CLAUDE.md benchmark gotcha).
+# The GA now resumes from checkpoints (per-profile and per-generation), so a plain restart
+# CONTINUES an interrupted sweep. CLEAN_RESULTS=1 is the deliberate override: wipe every result
+# AND checkpoint so a fresh sweep never mixes with old numbers (the CLAUDE.md benchmark gotcha).
 if [[ "${CLEAN_RESULTS:-0}" == "1" ]]; then
   echo "[pga-run] CLEAN_RESULTS=1 — removing results/paraconsistentGA"
   rm -rf results/paraconsistentGA
@@ -155,6 +156,20 @@ for profile in "${PROFILES[@]}"; do
       "$_i" "$_total" "$(fmt_hms "$_elapsed")" "$_eta" "$(basename "$profile" .json)")"
   echo "[pga-run] profile $_i/$_total: $profile"
   echo "[pga-run] $PGA_OVERALL"
+
+  # Profile-level resume: a profile whose final Pareto JSON already exists is complete
+  # (its checkpoint artifacts were removed on success), so skip it. This makes a restarted
+  # sweep continue where it stopped instead of redoing finished profiles. CLEAN_RESULTS=1
+  # wiped everything above, so it never triggers there. In-progress profiles have no
+  # pareto.json yet but keep a checkpoint the binary resumes from automatically.
+  _run_tag="$("$PY" -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('run_tag') or d.get('experiment',{}).get('run_tag',''))" "$profile")"
+  _pareto="results/paraconsistentGA/pga_${_run_tag}_pareto.json"
+  if [[ -n "$_run_tag" && -f "$_pareto" ]]; then
+    echo "[pga-run] ✓ already complete ($_pareto) — skipping"
+    eta_update "$(profile_weight "$profile")" 0
+    _done_w=$((_done_w + $(profile_weight "$profile")))
+    continue
+  fi
 
   _p_start=$(date +%s)
   "$BIN" --config "$profile"
