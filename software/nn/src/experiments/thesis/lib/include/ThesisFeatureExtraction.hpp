@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "ThesisConfig.hpp"
 #include "ThesisDataset.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace thesis
 {
@@ -17,6 +20,17 @@ struct FeatureSet
     std::vector<std::vector<double>>
         vectors; // one per sample, aligned with ThesisDatasetView::samples
 };
+
+// Fired once per trained autoencoder INSIDE extract_features (autoencoder strategy
+// only), right after training finishes, with that model's full parameter map
+// (Module::state_dict()) before it goes out of scope. `part_tag` distinguishes which
+// signal the model was trained on: "" for a single model (voice-only, eeg-only,
+// early-fused), "voice"/"eeg" for late fusion's two independently-trained models.
+// Exists so a caller can capture weights the AE path would otherwise discard —
+// extract_features itself never persists anything (.wiki/Experiments/ParaconsistentGA-Design.md
+// §6.2 "why weights aren't saved by default").
+using ModelSnapshotFn =
+    std::function<void(const std::string& part_tag, const std::map<std::string, nn::Tensor>&)>;
 
 // Extract handcrafted features (DTWPT + descriptors) from a single signal.
 // signal:      raw samples as doubles.
@@ -36,12 +50,15 @@ auto extract_handcrafted(const std::vector<double>& signal,
 //                           vectors concatenated afterward.
 //               Ignored for modality != "fused".
 // Returns one FeatureSet per strategy evaluated.
+// on_model_trained: optional, fired once per trained model (see ModelSnapshotFn above).
+// nullptr (default) — every existing caller is unaffected.
 auto extract_features(const ThesisDatasetView& view,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& modality,
     const std::string& fusion_mode = "late",
-    std::uint32_t seed = 42u) -> std::vector<FeatureSet>;
+    std::uint32_t seed = 42u,
+    const ModelSnapshotFn& on_model_trained = nullptr) -> std::vector<FeatureSet>;
 
 // Fatal check for the one failure mode a spike loss can hit SILENTLY: if EVERY
 // training batch produced an all-zero gradient, the autoencoder trained on nothing and

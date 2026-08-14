@@ -1,6 +1,8 @@
 #ifndef EXPERIMENT03_PROTOCOL_SPIKING_AUTOENCODER_HPP
 #define EXPERIMENT03_PROTOCOL_SPIKING_AUTOENCODER_HPP
 
+#include <map>
+#include <string>
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
@@ -65,6 +67,13 @@ struct ProtocolSpikingAutoencoder : Module<nn::Backend>
 
     /// Reset all stateful (membrane potential) layers between sequences.
     void reset_state() override;
+
+    /// Merge every sub-Sequential's state_dict, prefixed by its member name
+    /// ("encoder.", "decoder.", "eeg_encoder.", ...). Whichever sub-Sequentials this
+    /// profile did not build (e.g. eeg_encoder_ when use_dual_branch_ is false) are
+    /// empty and contribute nothing — no modality-specific branching needed here.
+    auto state_dict() const -> std::map<std::string, Tensor> override;
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 };
 
 #endif // EXPERIMENT03_PROTOCOL_SPIKING_AUTOENCODER_HPP

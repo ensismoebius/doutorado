@@ -138,3 +138,54 @@ auto ProtocolAutoencoder::params() -> std::span<Tensor*>
     }
     return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }
+
+namespace
+{
+void merge_prefixed(std::map<std::string, ProtocolAutoencoder::Tensor>& out,
+    const char* prefix,
+    const nn::Sequential& seq)
+{
+    for (const auto& [k, v] : seq.state_dict()) out[std::string(prefix) + "." + k] = v;
+}
+
+void split_prefixed(const std::map<std::string, ProtocolAutoencoder::Tensor>& sd,
+    const char* prefix,
+    nn::Sequential& seq)
+{
+    const std::string p = std::string(prefix) + ".";
+    std::map<std::string, ProtocolAutoencoder::Tensor> child;
+    for (const auto& [k, v] : sd)
+        if (k.rfind(p, 0) == 0) child[k.substr(p.size())] = v;
+    if (!child.empty()) seq.load_state_dict(child);
+}
+} // namespace
+
+// Merge every sub-Sequential's own state_dict, prefixed by member name. Whichever
+// sub-Sequentials this instance did not build (dual-branch vs single encoder/decoder,
+// see the constructor) are default-constructed/empty and contribute nothing — no
+// use_dual_branch_ branching needed here.
+auto ProtocolAutoencoder::state_dict() const -> std::map<std::string, Tensor>
+{
+    std::map<std::string, Tensor> out;
+    merge_prefixed(out, "encoder", encoder_);
+    merge_prefixed(out, "decoder", decoder_);
+    merge_prefixed(out, "eeg_encoder", eeg_encoder_);
+    merge_prefixed(out, "audio_encoder", audio_encoder_);
+    merge_prefixed(out, "fusion_encoder", fusion_encoder_);
+    merge_prefixed(out, "fusion_decoder", fusion_decoder_);
+    merge_prefixed(out, "eeg_decoder", eeg_decoder_);
+    merge_prefixed(out, "audio_decoder", audio_decoder_);
+    return out;
+}
+
+void ProtocolAutoencoder::load_state_dict(const std::map<std::string, Tensor>& sd)
+{
+    split_prefixed(sd, "encoder", encoder_);
+    split_prefixed(sd, "decoder", decoder_);
+    split_prefixed(sd, "eeg_encoder", eeg_encoder_);
+    split_prefixed(sd, "audio_encoder", audio_encoder_);
+    split_prefixed(sd, "fusion_encoder", fusion_encoder_);
+    split_prefixed(sd, "fusion_decoder", fusion_decoder_);
+    split_prefixed(sd, "eeg_decoder", eeg_decoder_);
+    split_prefixed(sd, "audio_decoder", audio_decoder_);
+}

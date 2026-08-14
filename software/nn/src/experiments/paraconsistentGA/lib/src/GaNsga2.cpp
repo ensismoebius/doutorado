@@ -8,6 +8,7 @@
 #include <string>
 
 #include "GaCheckpoint.hpp"
+#include "GaModelSnapshot.hpp"
 #include "ThesisOutput.hpp" // thesis::ensure_dir
 #include "progress/ProgressManager.hpp"
 
@@ -135,14 +136,24 @@ struct EvalCache
     std::vector<Individual> history; // one entry per distinct genome, in discovery order
     std::string persist_path;        // non-empty ⇒ append each new eval as a JSONL line
 
+    // Best-of-run weight snapshot: non-empty ⇒ persist a running best-so-far to disk.
+    // Updated live so the file is guaranteed to exist by the time the run ends, without
+    // ever retraining anything (see GaModelSnapshot.hpp).
+    std::string weights_path;
+    double best_d_penalized = std::numeric_limits<double>::max();
+
     // Replay a persisted cache (layer 1): every previously-trained genome becomes a hit, so
-    // a resumed run retrains nothing. Discovery order is preserved for the final CSV.
+    // a resumed run retrains nothing. Discovery order is preserved for the final CSV. Also
+    // recovers the weight-snapshot threshold: the .npz on disk from before the crash
+    // already holds SOME best-so-far model, so only the numeric bar needs restoring —
+    // never the tensors themselves (those were always transient, see Individual header).
     void preload(const std::vector<Individual>& entries)
     {
         for (const auto& ind : entries)
         {
             const std::string key = genome_key(ind.genome);
             if (table.emplace(key, ind).second) history.push_back(ind);
+            if (ind.feasible) best_d_penalized = std::min(best_d_penalized, ind.d_penalized_mean);
         }
     }
 
@@ -161,6 +172,18 @@ struct EvalCache
         ind.born_generation = generation;
         evaluate_individual(ind, view, cfg);
         if (on_eval) on_eval(ind);
+
+        // Best-of-run weight snapshot: persist iff this genome's seed-winning weights beat
+        // every feasible individual evaluated so far in this run. Checked/cleared BEFORE
+        // caching so the weight tensors never linger in table/history for genomes that
+        // were not (or are no longer) the best — only the current winner's file survives.
+        if (!weights_path.empty() && ind.weights_snapshot && ind.feasible &&
+            ind.d_penalized_mean < best_d_penalized)
+        {
+            save_state_dict_npz(*ind.weights_snapshot, weights_path);
+            best_d_penalized = ind.d_penalized_mean;
+        }
+        ind.weights_snapshot.reset();
 
         // Persist BEFORE inserting so a genome recorded in memory is always on disk too
         // (layer 1: at most the single in-flight training is ever lost to a crash).
@@ -234,6 +257,9 @@ GaResult run_nsga2(
 
     // ── Checkpointing (layer 1: live cache; layer 2: per-generation state) ─────
     const bool ckpt = cfg.checkpoint.enabled;
+    // Best-of-run weight snapshot: unconditional (not gated by checkpoint.enabled — it is
+    // a result artifact, not a resume artifact, and is never deleted on completion).
+    cache.weights_path = cfg.results_dir + "/models/pga_" + cfg.run_tag + "_best.npz";
     if (ckpt)
     {
         thesis::ensure_dir(cfg.results_dir); // must exist before the first cache append

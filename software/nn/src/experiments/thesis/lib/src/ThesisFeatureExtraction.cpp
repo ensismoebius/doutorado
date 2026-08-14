@@ -646,7 +646,8 @@ std::vector<std::vector<double>> run_protocol_ae(
     std::uint32_t seed,
     float voltage_threshold,
     const std::string& ae_loss_type,
-    bool spiking)
+    bool spiking,
+    const std::function<void(const std::map<std::string, nn::Tensor>&)>& on_trained = nullptr)
 {
     const bool temporal = (encoding != "direct");
     const int T = temporal ? std::max(1, time_steps) : 1;
@@ -854,6 +855,11 @@ std::vector<std::vector<double>> run_protocol_ae(
                                     loss_token + "\" (expected mse|mae|spikecount|spiketime)");
     }
 
+    // Weights are final the moment training returns — capture them here, before the
+    // model goes out of scope at function exit (extract_features itself never keeps
+    // them; see ModelSnapshotFn in ThesisFeatureExtraction.hpp).
+    if (on_trained) on_trained(model.state_dict());
+
     // Feature per sample = mean latent over its T spike frames. The membrane
     // state is reset ONCE per sample and then integrates across the T frames
     // (no reset between frames): this is the temporal integration that lets a
@@ -920,7 +926,9 @@ auto extract_features_core(const ThesisDatasetView& view,
     const SignalGetter& get_signal,
     double sample_rate,
     const std::string& label_suffix,
-    std::uint32_t seed) -> std::vector<FeatureSet>
+    std::uint32_t seed,
+    const std::string& part_tag = "",
+    const ModelSnapshotFn& on_model_trained = nullptr) -> std::vector<FeatureSet>
 {
     std::vector<FeatureSet> result;
 
@@ -999,7 +1007,11 @@ auto extract_features_core(const ThesisDatasetView& view,
                 seed,
                 cfg.autoencoder.voltage_threshold,
                 cfg.autoencoder.ae_loss_type,
-                /*spiking=*/true);
+                /*spiking=*/true,
+                on_model_trained ? std::function<void(const std::map<std::string, nn::Tensor>&)>(
+                                       [&](const std::map<std::string, nn::Tensor>& sd)
+                                       { on_model_trained(part_tag, sd); })
+                                 : nullptr);
         }
         else if (ae_model == "ann-ae")
         {
@@ -1016,7 +1028,11 @@ auto extract_features_core(const ThesisDatasetView& view,
                 seed,
                 1.0f,
                 cfg.autoencoder.ae_loss_type,
-                /*spiking=*/false);
+                /*spiking=*/false,
+                on_model_trained ? std::function<void(const std::map<std::string, nn::Tensor>&)>(
+                                       [&](const std::map<std::string, nn::Tensor>& sd)
+                                       { on_model_trained(part_tag, sd); })
+                                 : nullptr);
         }
         else // "lstm-ae" — sequence AE on windowed frames (Guayaquil-paper extractor)
         {
@@ -1084,13 +1100,16 @@ auto extract_features(const ThesisDatasetView& view,
     const ThesisConfig::Training& training,
     const std::string& modality,
     const std::string& fusion_mode,
-    std::uint32_t seed) -> std::vector<FeatureSet>
+    std::uint32_t seed,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
 {
     if (modality == "voice")
-        return extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "", seed);
+        return extract_features_core(
+            view, cfg, training, voice_signal, kVoiceSampleRate, "", seed, "", on_model_trained);
 
     if (modality == "eeg")
-        return extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "", seed);
+        return extract_features_core(
+            view, cfg, training, eeg_signal, kEegSampleRate, "", seed, "", on_model_trained);
 
     if (modality != "fused")
         throw std::invalid_argument(
@@ -1098,8 +1117,15 @@ auto extract_features(const ThesisDatasetView& view,
 
     if (fusion_mode == "early")
     {
-        return extract_features_core(
-            view, cfg, training, fused_early_signal, kVoiceSampleRate, "-fused-early", seed);
+        return extract_features_core(view,
+            cfg,
+            training,
+            fused_early_signal,
+            kVoiceSampleRate,
+            "-fused-early",
+            seed,
+            "",
+            on_model_trained);
     }
 
     if (fusion_mode != "late")
@@ -1107,11 +1133,13 @@ auto extract_features(const ThesisDatasetView& view,
             "ThesisFeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
 
     // Late fusion: extract independently per signal, then concatenate the
-    // resulting feature vectors sample-by-sample (audit C12).
-    auto voice_sets =
-        extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "", seed);
-    auto eeg_sets =
-        extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "", seed);
+    // resulting feature vectors sample-by-sample (audit C12). Two INDEPENDENT models
+    // train here (voice AE + EEG AE) — tag each snapshot so a caller merging them
+    // (e.g. paraconsistentGA's weight-snapshot capture) can tell them apart.
+    auto voice_sets = extract_features_core(
+        view, cfg, training, voice_signal, kVoiceSampleRate, "", seed, "voice", on_model_trained);
+    auto eeg_sets = extract_features_core(
+        view, cfg, training, eeg_signal, kEegSampleRate, "", seed, "eeg", on_model_trained);
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(

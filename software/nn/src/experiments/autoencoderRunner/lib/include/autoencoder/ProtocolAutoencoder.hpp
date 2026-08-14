@@ -1,6 +1,8 @@
 #ifndef EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP
 #define EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP
 
+#include <map>
+#include <string>
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
@@ -51,6 +53,13 @@ struct ProtocolAutoencoder : Module<nn::Backend>
 
     std::vector<Tensor*> param_ptrs_;
     auto params() -> std::span<Tensor*> override;
+
+    /// Merge every sub-Sequential's state_dict, prefixed by its member name
+    /// ("encoder.", "decoder.", "eeg_encoder.", ...). Whichever sub-Sequentials this
+    /// profile did not build (e.g. eeg_encoder_ when use_dual_branch_ is false) are
+    /// empty and contribute nothing — no modality-specific branching needed here.
+    auto state_dict() const -> std::map<std::string, Tensor> override;
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 };
 
 #endif // EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP

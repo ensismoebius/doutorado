@@ -99,12 +99,26 @@ void evaluate_individual(
     thesis::ParaconsistentScore best_score;
     double best_latent_activity = 0.0;
     double best_d_pen = std::numeric_limits<double>::max();
+    int best_seed_offset = -1;
+    std::map<std::string, nn::Tensor> best_weights;
 
     for (int s = 0; s < cfg.ga.n_seeds; ++s)
     {
         const std::uint32_t seed = cfg.base.experiment.seed + static_cast<std::uint32_t>(s);
-        auto feature_sets =
-            thesis::extract_features(view, fe, cfg.base.training, modality, fusion_mode, seed);
+
+        // Captures every model this seed trains (one, or two for late fusion — see
+        // ModelSnapshotFn), prefixed by part_tag so late fusion's voice+eeg models don't
+        // collide. Only kept in `best_weights` if this seed turns out to be the winner.
+        std::map<std::string, nn::Tensor> captured_this_seed;
+        auto on_model_trained =
+            [&](const std::string& part_tag, const std::map<std::string, nn::Tensor>& sd)
+        {
+            const std::string prefix = part_tag.empty() ? "" : part_tag + ".";
+            for (const auto& [k, v] : sd) captured_this_seed[prefix + k] = v;
+        };
+
+        auto feature_sets = thesis::extract_features(
+            view, fe, cfg.base.training, modality, fusion_mode, seed, on_model_trained);
 
         // Score every non-empty feature set this genome produced; the individual's
         // value for the seed is the best (lowest d_penalized) representation.
@@ -121,6 +135,8 @@ void evaluate_individual(
                     best_d_pen = score.d_penalized;
                     best_score = score;
                     best_latent_activity = mean_latent_std(fs.vectors);
+                    best_seed_offset = s;
+                    best_weights = captured_this_seed;
                 }
             }
         }
@@ -152,6 +168,8 @@ void evaluate_individual(
     ind.g2 = best_score.g2;
     ind.d_truth = best_score.d_truth;
     ind.latent_activity = best_latent_activity;
+    ind.winning_seed_offset = best_seed_offset;
+    if (!best_weights.empty()) ind.weights_snapshot = std::move(best_weights);
 
     // ── Feasibility (constrained dominance) ──────────────────────────────────
     ind.feasible = true;

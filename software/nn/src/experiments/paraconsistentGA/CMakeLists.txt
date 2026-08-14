@@ -5,6 +5,7 @@ set(PGA_LIB_SOURCES
     lib/src/GaNsga2.cpp
     lib/src/GaOutput.cpp
     lib/src/GaCheckpoint.cpp
+    lib/src/GaModelSnapshot.cpp
 )
 
 add_library(paraconsistentGA_lib STATIC ${PGA_LIB_SOURCES})
@@ -15,6 +16,8 @@ target_include_directories(paraconsistentGA_lib
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/experiments/thesis/lib/include  # ThesisConfig / extract_features / score_feature_set
+    PRIVATE
+        ${cnpy_SOURCE_DIR}  # GaModelSnapshot.cpp: <cnpy.h> for the weight-snapshot .npz writer
 )
 
 target_link_libraries(paraconsistentGA_lib

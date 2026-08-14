@@ -90,6 +90,7 @@ nlohmann::json individual_to_checkpoint_json(const Individual& ind)
         {"g1", ind.g1},
         {"g2", ind.g2},
         {"d_truth", ind.d_truth},
+        {"winning_seed_offset", ind.winning_seed_offset},
         {"latent_activity", ind.latent_activity},
         {"param_count", ind.param_count},
         {"inference_cost", ind.inference_cost},
@@ -113,6 +114,7 @@ Individual individual_from_checkpoint_json(const nlohmann::json& j)
     ind.g1 = j.at("g1").get<double>();
     ind.g2 = j.at("g2").get<double>();
     ind.d_truth = j.at("d_truth").get<double>();
+    ind.winning_seed_offset = j.at("winning_seed_offset").get<int>();
     ind.latent_activity = j.at("latent_activity").get<double>();
     ind.param_count = j.at("param_count").get<long>();
     ind.inference_cost = j.at("inference_cost").get<long>();

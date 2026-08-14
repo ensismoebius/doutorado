@@ -279,6 +279,115 @@ TEST(AutoencoderRunnerRedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndPa
     EXPECT_FALSE(model.params().empty());
 }
 
+// REGRESSION: neither Protocol autoencoder overrode state_dict()/load_state_dict()
+// before this — Module's default returns an empty map, so any caller relying on
+// state_dict() (e.g. paraconsistentGA's best-of-run weight snapshot) would silently
+// capture nothing, with no error anywhere. Guards that the merge now actually works and
+// that loading it back reproduces the same forward output.
+TEST(AutoencoderRunnerRedesignTest, ProtocolAnnStateDictRoundTripsWeights)
+{
+    AutoencoderConfig cfg;
+    cfg.input_features = 14;
+    cfg.hidden_size = 16;
+    cfg.latent_size = 4;
+    cfg.depth = 2;
+    cfg.architecture = AutoencoderArchitecture::ResidualDense;
+
+    ProtocolAutoencoder model(cfg);
+    auto sd = model.state_dict();
+    ASSERT_FALSE(sd.empty()) << "state_dict() must not be the Module default empty map";
+    bool saw_encoder_key = false, saw_decoder_key = false;
+    for (const auto& [key, tensor] : sd)
+    {
+        (void) tensor;
+        if (key.rfind("encoder.", 0) == 0) saw_encoder_key = true;
+        if (key.rfind("decoder.", 0) == 0) saw_decoder_key = true;
+        EXPECT_TRUE(key.rfind("encoder.", 0) == 0 || key.rfind("decoder.", 0) == 0)
+            << "unexpected key not under encoder./decoder.: " << key;
+    }
+    EXPECT_TRUE(saw_encoder_key);
+    EXPECT_TRUE(saw_decoder_key);
+
+    nn::Tensor input = nn::Tensor::rand(3, cfg.input_features);
+    nn::Tensor before = model.forward(input, false);
+
+    ProtocolAutoencoder reloaded(cfg); // fresh random init — different weights
+    reloaded.load_state_dict(sd);
+    nn::Tensor after = reloaded.forward(input, false);
+
+    ASSERT_EQ(before.rows(), after.rows());
+    ASSERT_EQ(before.cols(), after.cols());
+    for (nn::Index i = 0; i < before.rows(); ++i)
+        for (nn::Index j = 0; j < before.cols(); ++j)
+            EXPECT_NEAR(before.at(i, j), after.at(i, j), 1e-5F);
+}
+
+TEST(AutoencoderRunnerRedesignTest, ProtocolSnnStateDictRoundTripsWeights)
+{
+    AutoencoderConfig cfg;
+    cfg.input_features = 14;
+    cfg.hidden_size = 16;
+    cfg.latent_size = 4;
+    cfg.depth = 2;
+    cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    cfg.time_steps = 1;
+    cfg.delta_t = 1.0F;
+    cfg.resistance = 1.0F;
+    cfg.capacitance = 1.0F;
+
+    ProtocolSpikingAutoencoder model(cfg);
+    auto sd = model.state_dict();
+    ASSERT_FALSE(sd.empty()) << "state_dict() must not be the Module default empty map";
+
+    nn::Tensor input = nn::Tensor::rand(2, cfg.input_features);
+    model.reset_state();
+    nn::Tensor before = model.forward(input, false);
+
+    ProtocolSpikingAutoencoder reloaded(cfg);
+    reloaded.load_state_dict(sd);
+    reloaded.reset_state();
+    nn::Tensor after = reloaded.forward(input, false);
+
+    ASSERT_EQ(before.rows(), after.rows());
+    ASSERT_EQ(before.cols(), after.cols());
+    for (nn::Index i = 0; i < before.rows(); ++i)
+        for (nn::Index j = 0; j < before.cols(); ++j)
+            EXPECT_NEAR(before.at(i, j), after.at(i, j), 1e-5F);
+}
+
+TEST(AutoencoderRunnerRedesignTest, ProtocolAnnDualBranchStateDictCoversAllSixSequentials)
+{
+    AutoencoderConfig cfg;
+    cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
+    cfg.eeg_features = 8;
+    cfg.audio_features = 6;
+    cfg.input_features = cfg.eeg_features + cfg.audio_features;
+    cfg.hidden_size = 12;
+    cfg.latent_size = 4;
+    cfg.depth = 1;
+
+    ProtocolAutoencoder model(cfg);
+    ASSERT_TRUE(model.use_dual_branch_);
+    auto sd = model.state_dict();
+
+    // encoder_/decoder_ are unused in dual-branch mode — must contribute nothing.
+    for (const auto& [key, tensor] : sd)
+    {
+        (void) tensor;
+        EXPECT_NE(key.rfind("encoder.", 0), 0u) << "dual-branch leaked an encoder. key: " << key;
+        EXPECT_NE(key.rfind("decoder.", 0), 0u) << "dual-branch leaked a decoder. key: " << key;
+    }
+    bool saw_eeg_encoder = false, saw_fusion_encoder = false;
+    for (const auto& [key, tensor] : sd)
+    {
+        (void) tensor;
+        if (key.rfind("eeg_encoder.", 0) == 0) saw_eeg_encoder = true;
+        if (key.rfind("fusion_encoder.", 0) == 0) saw_fusion_encoder = true;
+    }
+    EXPECT_TRUE(saw_eeg_encoder);
+    EXPECT_TRUE(saw_fusion_encoder);
+}
+
 TEST(AutoencoderRunnerRedesignTest, ProtocolAnnDenseFallbackSupportsBroaderLayerGrammar)
 {
     AutoencoderConfig cfg;

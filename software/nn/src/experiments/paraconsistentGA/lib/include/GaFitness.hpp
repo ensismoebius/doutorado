@@ -1,11 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "GaConfig.hpp"
 #include "GaGenome.hpp"
 #include "ThesisDataset.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace pga
 {
@@ -38,6 +42,14 @@ struct Individual
     double g2 = 0.0;
     double d_truth = 0.0;
 
+    // Which of the ga.n_seeds candidates produced the recorded metrics above
+    // (base.experiment.seed + winning_seed_offset). -1 if never evaluated. Without
+    // this, "reproduce the winning model from its seed" is unanswerable: n_seeds
+    // candidates are tried per genome and only the best-scoring one's metrics survive
+    // — retraining "the seed" without knowing WHICH of the n_seeds offsets won would
+    // retrain the wrong candidate two times out of three.
+    int winning_seed_offset = -1;
+
     // Latent-collapse guard input: mean per-dimension std of the latent vectors
     // (best seed). Small ⇒ collapsed/dead latent ⇒ infeasible (§3.3 proxy).
     double latent_activity = 0.0;
@@ -57,6 +69,15 @@ struct Individual
     double crowding = 0.0;
 
     int born_generation = -1; // generation the genome first appeared (for logging)
+
+    // TRANSIENT — populated only inside evaluate_individual, holding the winning
+    // seed's trained weights (Module::state_dict(), part-tag-prefixed for late fusion's
+    // two independent models). NEVER serialized to CSV/checkpoint/Pareto JSON and never
+    // meant to outlive the caller: GaNsga2's EvalCache::get consumes it immediately
+    // (persists to disk iff this is a new run-wide best) and clears it before the
+    // Individual is cached, so it never bloats the population/history with retained
+    // weight tensors for genomes that were not the winner.
+    std::optional<std::map<std::string, nn::Tensor>> weights_snapshot;
 };
 
 // Cheap pre-training screen (.wiki/Experiments/ParaconsistentGA-Design.md §4/§89): true if the

@@ -4,6 +4,7 @@
  * reproduction, constant output ranked worst, NSGA-II constrained dominance / crowding correctness,
  * plus genome mapping and config validation.
  */
+#include <cnpy.h>
 #include <unistd.h>
 
 #include <cmath>
@@ -21,6 +22,7 @@
 #include "lib/include/GaConfig.hpp"
 #include "lib/include/GaFitness.hpp"
 #include "lib/include/GaGenome.hpp"
+#include "lib/include/GaModelSnapshot.hpp"
 #include "lib/include/GaNsga2.hpp"
 
 namespace
@@ -482,6 +484,7 @@ Individual make_evaluated_individual()
     ind.constraint_violation = 0.0;
     ind.objectives = {0.37, 6789.0};
     ind.born_generation = 3;
+    ind.winning_seed_offset = 2;
     return ind;
 }
 
@@ -518,6 +521,7 @@ TEST(PgaCheckpoint, IndividualJsonRoundTripPreservesEveryField)
     EXPECT_EQ(b.feasible, a.feasible);
     EXPECT_EQ(b.objectives, a.objectives);
     EXPECT_EQ(b.born_generation, a.born_generation);
+    EXPECT_EQ(b.winning_seed_offset, a.winning_seed_offset);
 }
 
 TEST(PgaCheckpoint, RngStateRoundTripReproducesDraws)
@@ -598,6 +602,72 @@ TEST(PgaCheckpoint, GenerationCheckpointRoundTrips)
 
     pga::remove_checkpoint_artifacts(dir, tag);
     EXPECT_FALSE(pga::state_checkpoint_exists(dir, tag));
+    std::filesystem::remove_all(dir);
+}
+
+// ── Weight snapshot (.wiki/Experiments/ParaconsistentGA-Design.md §6.2) ─────────
+TEST(PgaModelSnapshot, SavesAndIsReadableAsGenericNpz)
+{
+    const std::string dir = unique_tmp_dir("snap");
+    const std::string path = dir + "/best.npz";
+
+    std::map<std::string, nn::Tensor> sd;
+    nn::Tensor w(2, 3);
+    for (nn::Index i = 0; i < 2; ++i)
+        for (nn::Index j = 0; j < 3; ++j) w.at(i, j) = static_cast<float>(i * 3 + j);
+    sd["encoder.0.weight"] = w;
+    nn::Tensor b(1, 3);
+    b.at(0, 0) = 1.0f;
+    b.at(0, 1) = 2.0f;
+    b.at(0, 2) = 3.0f;
+    sd["encoder.0.bias"] = b;
+
+    pga::save_state_dict_npz(sd, path);
+    ASSERT_TRUE(std::filesystem::exists(path));
+
+    // Read back with cnpy directly — the same generic path scripts/data/npz_to_pytorch.py
+    // uses — to confirm the file is a well-formed, key-addressable .npz, not just bytes.
+    auto data = cnpy::npz_load(path);
+    ASSERT_EQ(data.count("encoder.0.weight"), 1u);
+    ASSERT_EQ(data.count("encoder.0.bias"), 1u);
+    const auto& arr = data["encoder.0.weight"];
+    ASSERT_EQ(arr.shape.size(), 2u);
+    EXPECT_EQ(arr.shape[0], 2u);
+    EXPECT_EQ(arr.shape[1], 3u);
+    const float* vals = arr.data<float>();
+    EXPECT_FLOAT_EQ(vals[0], 0.0f);
+    EXPECT_FLOAT_EQ(vals[5], 5.0f);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(PgaModelSnapshot, RefusesToSaveEmptyStateDict)
+{
+    const std::string dir = unique_tmp_dir("snap_empty");
+    EXPECT_THROW(pga::save_state_dict_npz({}, dir + "/best.npz"), std::invalid_argument);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(PgaModelSnapshot, OverwriteReplacesPreviousBest)
+{
+    const std::string dir = unique_tmp_dir("snap_overwrite");
+    const std::string path = dir + "/best.npz";
+
+    std::map<std::string, nn::Tensor> first;
+    nn::Tensor a(1, 1);
+    a.at(0, 0) = 1.0f;
+    first["w"] = a;
+    pga::save_state_dict_npz(first, path);
+
+    std::map<std::string, nn::Tensor> second;
+    nn::Tensor c(1, 1);
+    c.at(0, 0) = 42.0f;
+    second["w"] = c;
+    pga::save_state_dict_npz(second, path);
+
+    auto data = cnpy::npz_load(path);
+    EXPECT_FLOAT_EQ(data["w"].data<float>()[0], 42.0f);
+
     std::filesystem::remove_all(dir);
 }
 
