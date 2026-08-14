@@ -1,0 +1,12 @@
+\begin{frame}
+	\frametitle{Hardware neuromórfico}
+	\begin{itemize}
+		\item \textbf{TrueNorth} (IBM, 2014): 1 milhão de neurônios, chip totalmente assíncrono e orientado a evento \cite{merolla2014truenorth}.
+		\item \textbf{Loihi} (Intel, 2018): aprendizado \textit{on-chip}, arquitetura \textit{manycore} orientada a evento \cite{davies2018loihi}.
+		\item \textbf{SpiNNaker} (Manchester, 2014): milhões de núcleos ARM emulando pulsos em tempo real biológico \cite{furber2014spinnaker}.
+	\end{itemize}
+	\vspace{8pt}
+	\begin{alertblock}{O modo de falha silencioso}
+		O ganho energético de uma RNP só se realiza \textbf{nesse hardware especializado}. Rodada em GPU/TPU convencional --- otimizada para multiplicação densa, não para pular zeros --- simular $T$ passos de tempo por amostra pode deixar a RNP \textbf{mais lenta} que a RNA equivalente. Esparsidade sem hardware que saiba explorá-la é só um número bonito no papel.
+	\end{alertblock}
+\end{frame}

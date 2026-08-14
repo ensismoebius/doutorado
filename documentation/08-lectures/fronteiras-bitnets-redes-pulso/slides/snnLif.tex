@@ -1,0 +1,36 @@
+\begin{frame}
+	\frametitle{O neurônio \textit{Leaky Integrate-and-Fire} (LIF)}
+	\only<1>{
+		\framesubtitle{O modelo RC}
+		\begin{columns}
+			\column{.48\linewidth}
+			\begin{itemize}
+				\item O LIF se comporta como um circuito Resistor-Capacitor (RC).
+				\item $R$: resistência de vazamento; $C$: capacitância; $V_{mem}$: potencial acumulado; $\vartheta$: interruptor que descarrega o capacitor (dispara um pulso) ao atingir o limiar.
+				\item Governado por $\tau\frac{dV_{mem}}{dt} = R\,I_{in}(t) - V_{mem}(t)$, com $\tau = R\cdot C$ \cite{eshraghian2023training}.
+			\end{itemize}
+			\column{.48\linewidth}
+			\begin{center}
+				\includegraphics[width=.85\linewidth]{../../00-thesis/monography/images/rcmodel}\par
+				{\tiny Fonte: \cite{eshraghian2023training}}
+			\end{center}
+		\end{columns}
+	}
+	\only<2>{
+		\framesubtitle{Exemplo numérico: decaimento sem entrada}
+		\par Com $R=5\,\Omega$, $C=1\,F$ (logo $\tau = R\cdot C = 5$) e potencial inicial $V_{mem}(0)=1$, sem corrente de entrada:
+		\begin{equation*}
+			V_{mem}(t) = V_{mem}(0)\cdot e^{-t/\tau}
+			\quad\Longrightarrow\quad
+			V_{mem}(1) = e^{-1/5} \approx 0{,}8187
+		\end{equation*}
+		\par O potencial \textbf{vaza} exponencialmente na ausência de estímulo --- daí o nome \textit{leaky}. Quando um estímulo chega, o potencial sobe (mesma matemática, sinal oposto) até cruzar um limiar $V_{th}$, disparando um pulso e reiniciando.
+	}
+	\only<3>{
+		\framesubtitle{Comportamento completo simulado}
+		\begin{center}
+			\includegraphics[width=.62\linewidth]{../../00-thesis/monography/images/membranePotentialFull}\par
+			{\tiny Corrente de 0,5 mA injetada entre os passos 51 e 70. Fonte: elaborado pelo autor.}
+		\end{center}
+	}
+\end{frame}

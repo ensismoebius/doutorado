@@ -1,0 +1,27 @@
+\begin{frame}
+	\frametitle{Desafios abertos}
+	\begin{columns}
+		\column{.48\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			\textcolor{bitnetColor}{\textbf{BitNets}}
+		\end{beamercolorbox}
+		\begin{itemize}
+			\item Ecossistema de \textit{kernels}/hardware ainda imaturo.
+			\item Exige treinar do zero --- não reaproveita checkpoints existentes.
+			\item Paridade com FP16 só a partir de $\sim$3B parâmetros.
+		\end{itemize}
+		\column{.48\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			\textcolor{snnColor}{\textbf{Redes de pulso}}
+		\end{beamercolorbox}
+		\begin{itemize}
+			\item \textit{Gap} de acurácia em tarefas complexas frente a RNAs grandes.
+			\item Sobrecarga de simular $T$ passos em hardware convencional.
+			\item Fragmentação entre \textit{frameworks} (snnTorch, SpikingJelly, Lava).
+		\end{itemize}
+	\end{columns}
+	\vspace{10pt}
+	\begin{alertblock}{Convergência}
+		Co-projeto algoritmo-hardware ainda é incipiente para as duas frentes \textbf{separadamente} --- combiná-las (RNP quantizada) multiplica essa dificuldade em vez de somá-la.
+	\end{alertblock}
+\end{frame}

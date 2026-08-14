@@ -1,0 +1,36 @@
+\begin{frame}
+	\frametitle{Linha do tempo: da quantização discreta às LLMs de 1 bit}
+	\centering
+	\resizebox{.98\linewidth}{!}{%
+	\begin{tikzpicture}[
+		yr/.style={draw=bitnetColor, fill=bitnetColor!15, rounded corners=2pt, minimum height=0.9cm, minimum width=1.6cm, font=\tiny\sffamily, align=center},
+		lb/.style={font=\tiny\sffamily, align=center, text width=1.7cm}
+		]
+		\draw[-{Latex[length=2mm]}, line width=0.6mm, draw=neutralColor] (-0.3,0) -- (12.3,0);
+
+		\node[yr] (n1) at (0,0) {2015};
+		\node[lb, below=2pt of n1] {BinaryConnect \cite{courbariaux2016binarized}};
+
+		\node[yr] (n2) at (2.4,0) {2016};
+		\node[lb, above=2pt of n2] {BNN \\ XNOR-Net \cite{rastegari2016xnor} \\ TWN \cite{li2016ternary}};
+
+		\node[yr] (n3) at (4.8,0) {2017};
+		\node[lb, below=2pt of n3] {TTQ \cite{zhu2017trained}};
+
+		\node[yr] (n4) at (7.2,0) {2022};
+		\node[lb, above=2pt of n4] {LLM.int8() \cite{dettmers2022llm}};
+
+		\node[yr] (n5) at (9.6,0) {2023};
+		\node[lb, below=2pt of n5] {GPTQ \cite{frantar2023gptq} \\ SmoothQuant \cite{xiao2023smoothquant} \\ BitNet \cite{wang2023bitnet}};
+
+		\node[yr, fill=bitnetColor!45] (n6) at (12,0) {2024};
+		\node[lb, above=2pt of n6] {\textbf{BitNet b1.58} \cite{ma2024era}};
+	\end{tikzpicture}%
+	}
+	\vspace{2pt}
+	\begin{itemize}\small
+		\item 2015--2017: quantização extrema nasce em \textbf{visão computacional} (redes pequenas, treinadas do zero).
+		\item 2022--2023: quantização \textbf{pós-treino} (PTQ) vira estratégia dominante para LLMs já treinados.
+		\item 2023--2024: BitNet retoma a ideia de \textbf{treinar do zero} em baixa precisão --- agora em escala de bilhões de parâmetros.
+	\end{itemize}
+\end{frame}

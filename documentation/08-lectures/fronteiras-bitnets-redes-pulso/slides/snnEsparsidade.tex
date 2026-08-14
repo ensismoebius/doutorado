@@ -1,0 +1,26 @@
+\begin{frame}
+	\frametitle{Esparsidade: onde mora a eficiência}
+	\only<1>{
+		\begin{columns}
+			\column{.55\linewidth}
+			\begin{center}
+				\includegraphics[height=3.3cm]{../../00-thesis/monography/images/sparsity}\par
+				{\tiny Eixo horizontal: tempo. Eixo vertical: índice do neurônio. Fonte: elaborado pelo autor.}
+			\end{center}
+			\column{.42\linewidth}
+			\small
+			\begin{itemize}
+				\item Na maior parte do tempo, a \textbf{grande maioria} dos neurônios está silenciosa.
+				\item Pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros} \cite{eshraghian2023training}.
+				\item Um neurônio LIF bem parametrizado tolera ruído: age como um \textbf{filtro passa-baixa}, só disparando quando o sinal se acumula de forma sustentada.
+			\end{itemize}
+		\end{columns}
+	}
+	\only<2>{
+		\begin{alertblock}{A promessa, com precisão}
+			Esparsidade só vira economia de energia real em hardware que sabe \textbf{pular} o zero. Em GPU/TPU convencional, a esparsidade é invisível ao hardware --- ele computa a multiplicação por zero do mesmo jeito.
+		\end{alertblock}
+		\vspace{4pt}
+		\par Volta-se a este ponto na próxima seção, sobre hardware neuromórfico.
+	}
+\end{frame}

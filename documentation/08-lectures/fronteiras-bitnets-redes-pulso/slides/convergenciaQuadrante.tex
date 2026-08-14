@@ -1,0 +1,27 @@
+\begin{frame}
+	\frametitle{Onde as duas fronteiras se encontram}
+	\centering
+	\resizebox{!}{4.3cm}{%
+	\begin{tikzpicture}[
+		quad/.style={draw=neutralColor, minimum width=4.6cm, minimum height=3cm, align=center, font=\small},
+		axislbl/.style={font=\small\sffamily, align=center}
+		]
+		% Quadrant fills
+		\node[quad, fill=neutralColor!12] (bl) at (0,0) {\textbf{RNA padrão}\\[2pt]\footnotesize FP32/FP16, densa,\\ síncrona};
+		\node[quad, fill=bitnetColor!18] (br) at (4.8,0) {\textbf{BitNet / BNN / TWN}\\[2pt]\footnotesize binário/ternário, mas\\ ainda densa e síncrona};
+		\node[quad, fill=snnColor!18] (tl) at (0,3.2) {\textbf{RNP de precisão plena}\\[2pt]\footnotesize pesos FP32,\\ esparsa e orientada a evento};
+		\node[quad, fill=convergeColor!25] (tr) at (4.8,3.2) {\textbf{RNP quantizada}\\[2pt]\footnotesize binário/ternário \emph{e}\\ esparsa/orientada a evento};
+
+		% Axes
+		\draw[-{Latex[length=2mm]}, draw=neutralColor!70] (-2.7,-1.6) -- (7.5,-1.6);
+		\node[axislbl] at (2.4,-2.05) {precisão dos pesos: alta $\longrightarrow$ ternária/binária};
+		\draw[-{Latex[length=2mm]}, draw=neutralColor!70] (-2.7,-1.6) -- (-2.7,4.8);
+		\node[axislbl, rotate=90] at (-3.15,1.6) {denso/síncrono $\longrightarrow$ esparso/evento};
+	\end{tikzpicture}%
+	}
+	\vspace{2pt}
+	\begin{itemize}\small
+		\item Um pulso já \textbf{é}, por definição, um valor binário no tempo (disparou ou não) --- a RNP é quantização extrema no eixo \textbf{temporal}, assim como o BitNet é quantização extrema no eixo dos \textbf{pesos}.
+		\item O quadrante superior direito --- RNPs com pesos binários/ternários --- é direção de pesquisa \textbf{emergente}, ainda sem método canônico consolidado.
+	\end{itemize}
+\end{frame}

@@ -1,0 +1,22 @@
+\begin{frame}
+	\frametitle{Como treinar uma função que não tem gradiente?}
+	\only<1>{
+		\framesubtitle{O mesmo problema estrutural do BitNet}
+		\par A função de disparo do LIF se aproxima de uma \textbf{função em degrau} (Heaviside): dispara ou não dispara, sem meio-termo. Sua derivada é zero em quase todo ponto --- a descida de gradiente padrão não tem o que propagar \cite{kasabov2019time}.
+		\par Quatro famílias de resposta, historicamente:
+		\begin{itemize}
+			\item \textbf{STDP}: regra local --- se o neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, a conexão se fortalece; se depois, se enfraquece. Biologicamente plausível, não supervisionada.
+			\item \textbf{Gradiente substituto + BPTT}: usa a função em degrau real no \textit{forward}, e uma aproximação suave e diferenciável só no \textit{backward} --- a mesma lógica do STE do BitNet.
+			\item \textbf{Algoritmos evolutivos}: seleção dos hiperparâmetros mais aptos ao longo de gerações.
+			\item \textbf{Reservatório / computação dinâmica}: treina só a camada de saída, mantendo pesos recorrentes fixos (\textit{echo state networks}, \textit{liquid state machines}).
+		\end{itemize}
+	}
+	\only<2>{
+		\framesubtitle{Alternativa: converter em vez de treinar}
+		\begin{itemize}
+			\item Treina uma \textbf{RNA convencional}, com técnicas padrão de otimização.
+			\item \textbf{Converte} os pesos treinados para uma RNP, balanceando pesos e limiares de disparo \cite{diehl2015fast, rueckauer2017conversion}.
+			\item Evita o problema do gradiente por completo --- mas herda limitações: geralmente precisa de \textbf{mais passos de tempo} para aproximar a acurácia da RNA original, e nem toda arquitetura converte bem.
+		\end{itemize}
+	}
+\end{frame}

@@ -1,0 +1,57 @@
+\input{preamble.tex}
+
+\title{As fronteiras da arquitetura de redes neurais}
+\subtitle{BitNets e redes de pulso}
+
+\institute{Universidade Estadual Paulista Júlio de Mesquita Filho}
+
+\author{André Furlan - ensismoebius@gmail.com}
+
+\logo{\includegraphics[height=1cm]{unesp.png}}
+\date{\the\year}
+
+\begin{document}
+
+	\frame{\titlepage}
+
+	\section{Estrutura da apresentação}
+		\input{slides/estrutura.tex}
+
+	\section{Motivação}
+		\input{slides/motivacao.tex}
+		\input{slides/taxonomia.tex}
+
+	\section{Parte I --- BitNets}
+		\input{slides/bitnetLinha.tex}
+		\input{slides/bitnetProblema.tex}
+		\input{slides/bitnetCamada.tex}
+		\input{slides/bitnetTreinamento.tex}
+		\input{slides/bitnetResultados.tex}
+		\input{slides/bitnetHardwareLimitacoes.tex}
+
+	\section{Parte II --- Redes de pulso}
+		\input{slides/snnMotivacao.tex}
+		\input{slides/snnConfusable.tex}
+		\input{slides/snnLif.tex}
+		\input{slides/snnEsparsidade.tex}
+		\input{slides/snnTreinamento.tex}
+		\input{slides/snnBptt.tex}
+		\label{sec:snnHardware}
+		\input{slides/snnHardware.tex}
+		\input{slides/snnAplicacoes.tex}
+
+	\section{Convergência}
+		\label{sec:convergencia}
+		\input{slides/convergenciaQuadrante.tex}
+		\input{slides/convergenciaTema.tex}
+
+	\section{Desafios e síntese}
+		\input{slides/desafios.tex}
+		\input{slides/conclusao.tex}
+
+	\begin{frame}[allowframebreaks]
+		\frametitle{Referências}
+		\bibliography{referencias.bib}
+	\end{frame}
+
+\end{document}

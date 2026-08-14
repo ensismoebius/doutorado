@@ -1,0 +1,40 @@
+\begin{frame}
+	\frametitle{Quantizar depois, ou quantizar desde o início?}
+	\only<1>{
+		\framesubtitle{Dois caminhos, confundidos com frequência}
+		\begin{columns}
+			\column{.48\linewidth}
+			\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+				\textbf{PTQ}: Quantização pós-treino
+			\end{beamercolorbox}
+			\begin{itemize}
+				\item Treina em FP32/FP16 normalmente.
+				\item Converte os pesos \textbf{depois}, sem retreinar (ou com pouco ajuste).
+				\item Rápido e barato: LLM.int8(), GPTQ, SmoothQuant.
+				\item A rede nunca ``viu'' o erro de quantização durante o treino.
+			\end{itemize}
+			\column{.48\linewidth}
+			\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+				\textbf{QAT}: Quantização durante o treino
+			\end{beamercolorbox}
+			\begin{itemize}
+				\item A quantização já ocorre no \textit{forward pass} do treino.
+				\item BinaryConnect, BNN, TWN, TTQ, BitNet, BitNet b1.58.
+				\item Caro: em geral exige treinar do zero.
+				\item A rede se \textbf{adapta} ao erro de quantização.
+			\end{itemize}
+		\end{columns}
+	}
+	\only<2>{
+		\framesubtitle{O modo de falha da PTQ agressiva}
+		\begin{itemize}
+			\item Abaixo de $\sim$4 bits, a acurácia de modelos quantizados por PTQ pode cair \textbf{abruptamente} --- não gradualmente.
+			\item Mecanismo concreto \cite{xiao2023smoothquant}: algumas ativações de LLMs têm \textbf{outliers} --- valores até $100\times$ maiores que o resto do tensor, concentrados em poucos canais.
+			\item Um único fator de escala por tensor precisa cobrir o outlier \textbf{e} os valores normais $\rightarrow$ os valores normais perdem toda a resolução.
+			\item Esse é o motivo de existir uma cadeia inteira de métodos de PTQ (LLM.int8(), GPTQ, SmoothQuant) --- cada um mitigando esse efeito de um jeito diferente, em vez de resolvê-lo evitando quantização baixa.
+		\end{itemize}
+		\begin{alertblock}{Onde o BitNet muda de estratégia}
+			Se a rede é treinada \textbf{desde o início} em baixa precisão, ela nunca desenvolve ativações que dependam dessa resolução --- o problema é evitado, não corrigido depois.
+		\end{alertblock}
+	}
+\end{frame}

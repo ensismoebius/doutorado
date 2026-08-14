@@ -1,0 +1,16 @@
+\begin{frame}
+	\frametitle{Redes neurais de pulso (RNP)}
+	\only<1>{
+		\framesubtitle{Por que pulsos?}
+		\begin{itemize}
+			\item Uma RNA convencional ativa \textbf{todos} os neurônios em \textbf{toda} passada --- o custo energético não depende do conteúdo do dado, só do tamanho da rede.
+			\item O neurônio biológico só dispara quando o potencial acumulado ultrapassa um limiar; fica quieto o resto do tempo.
+			\item Maass (1997) chamou as RNPs de \textbf{terceira geração} de modelos de redes neurais \cite{maass1997networks} --- depois do perceptron (1ª geração) e das redes com ativação contínua/sigmoide (2ª geração).
+		\end{itemize}
+	}
+	\only<2>{
+		\framesubtitle{Uma ressalva importante}
+		\par Uma RNP \textbf{não} é uma simulação um-para-um de neurônios biológicos. Ela aproxima certas capacidades computacionais de propriedades biológicas específicas --- não o neurônio inteiro.
+		\par Modelos mais fiéis à biologia existem (Hodgkin--Huxley \cite{gerstner2014neuronal}, dendritos não-lineares), mas são caros demais para treinar em escala. As RNPs usadas em aprendizado de máquina adotam modelos simplificados, como o \textbf{LIF} (próximo slide).
+	}
+\end{frame}

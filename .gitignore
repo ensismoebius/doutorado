@@ -47,3 +47,5 @@ software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
 *.sqlite
 documentation/06-BooksToRead/*.pdf
 .opencode/node_modules
+documentation/07-articlesProduced/conference71070Guaiaquil/paper.pdf
+documentation/08-lectures/fronteiras-bitnets-redes-pulso/apresentacao.pdf

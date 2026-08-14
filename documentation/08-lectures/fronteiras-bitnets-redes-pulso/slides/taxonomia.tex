@@ -1,0 +1,32 @@
+\begin{frame}
+	\frametitle{Duas fronteiras, dois eixos ortogonais}
+	\small
+	\begin{columns}
+		\column{.48\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			\textcolor{bitnetColor}{\textbf{Fronteira 1 --- BitNets}}
+		\end{beamercolorbox}
+		\vspace{4pt}
+		\par Eixo da \textbf{representação}: quantos bits descrevem cada peso/ativação.
+		\begin{itemize}
+			\item FP32 $\rightarrow$ FP16 $\rightarrow$ INT8 $\rightarrow$ ternário $\{-1,0,1\}$ $\rightarrow$ binário $\{-1,1\}$.
+			\item A rede continua densa e síncrona: \textbf{todo} neurônio ainda computa em \textbf{toda} passada.
+			\item O que muda é o \textbf{custo} de cada computação individual.
+		\end{itemize}
+		\column{.48\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			\textcolor{snnColor}{\textbf{Fronteira 2 --- Redes de pulso}}
+		\end{beamercolorbox}
+		\vspace{4pt}
+		\par Eixo do \textbf{tempo/atividade}: quando e quanto se computa.
+		\begin{itemize}
+			\item Ativação contínua e síncrona $\rightarrow$ pulso esparso, assíncrono, orientado a evento.
+			\item Os pesos podem continuar em precisão plena.
+			\item O que muda é \textbf{se} um neurônio computa, a cada instante.
+		\end{itemize}
+	\end{columns}
+	\vspace{2pt}
+	\begin{block}{O alvo é o mesmo}
+		Ambas atacam o custo (energia, memória, latência) da multiplicação densa em ponto flutuante --- mas por caminhos ortogonais. A \autoref{sec:convergencia} volta a este quadro para mostrar onde as duas se encontram.
+	\end{block}
+\end{frame}

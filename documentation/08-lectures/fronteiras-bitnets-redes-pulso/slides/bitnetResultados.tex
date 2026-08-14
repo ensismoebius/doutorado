@@ -1,0 +1,22 @@
+\begin{frame}
+	\frametitle{BitNet b1.58: o que 1,58 bit compra}
+	\framesubtitle{Comparado a LLaMA em FP16, mesmo tamanho de modelo \cite{ma2024era}}
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			& \textbf{3B parâmetros} & \textbf{70B parâmetros} \\
+			\midrule
+			Memória de GPU & $3{,}55\times$ menor & $7{,}2\times$ menor \\
+			Velocidade de decodificação & $2{,}71\times$ mais rápido & $4{,}1\times$ mais rápido \\
+			\textit{Throughput} & --- & $8{,}9\times$ maior \\
+			Perplexidade / tarefas finais & \multicolumn{2}{c}{equivalente ao FP16} \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\vspace{8pt}
+	\begin{itemize}
+		\item ``Equivalente'' aqui não é aproximação --- os autores reportam paridade estatística com a linha de base FP16 a partir de $\sim$3B parâmetros.
+		\item \alert{Abaixo dessa escala, a paridade some}: em modelos pequenos, a capacidade perdida pela quantização ternária pesa mais do que o modelo consegue compensar.
+		\item De onde vem o nome ``1,58 bit'': $\log_2(3) \approx 1{,}58$ --- o número de bits necessário para representar 3 estados ($-1,0,1$) por peso.
+	\end{itemize}
+\end{frame}

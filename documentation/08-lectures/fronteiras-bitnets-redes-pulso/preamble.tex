@@ -1,0 +1,91 @@
+\documentclass[aspectratio=169,dvipsnames,table]{beamer}
+
+% Basic packages
+\usepackage{hyperref}
+
+% Absolute position for text and elements
+\usepackage[absolute,overlay]{textpos}
+
+% Use latim special characters
+\usepackage[utf8]{inputenc}
+
+% Use colors
+\usepackage{color}
+
+% Enables graphics
+\usepackage{graphicx}
+
+% Better text justification
+\usepackage{microtype}
+
+% Enables multicolumn text
+\usepackage{multicol}
+
+% Enables \toprule/\midrule/\bottomrule in tables
+\usepackage{booktabs}
+
+% Fine-grained control over list spacing (dense two-column slides)
+\usepackage{enumitem}
+\setlist{itemsep=2pt, topsep=2pt, parsep=0pt}
+
+% Enables math
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% Adds some symbols (like slash on a non mathematical context)
+\usepackage{textcomp}
+
+% Quote packages, ABNT standard
+\usepackage[alf]{abntex2cite}
+
+% Portuguese-specific commands
+\usepackage[brazilian]{babel}
+
+% Bibliography
+\usepackage[brazilian,hyperpageref]{backref}
+
+% Drawing and plot packages
+\usepackage{relsize}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usetikzlibrary{positioning}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{shapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
+\usetikzlibrary{fit}
+\usetikzlibrary{arrows.meta}
+
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=newest}
+
+% Packages configuration
+
+\setbeamercolor{background canvas}{bg=}
+\setbeamercolor{normal text}{bg=black!20}
+\setbeamercolor{title}{parent=structure,bg=cyan}
+\setbeamercolor{frametitle}{parent=structure,bg=cyan}
+
+% Enables section slides
+\AtBeginSection[]{
+	\begin{frame}
+		\vfill
+		\centering
+		\begin{beamercolorbox}[sep=18pt,center,shadow=true,rounded=true]{title}
+			\usebeamerfont{title}\insertsectionhead\par
+		\end{beamercolorbox}
+		\vfill
+	\end{frame}
+}
+
+% Reuse the thesis' CVD-safe Okabe-Ito palette and diagram semantic roles
+% (colors + \tableHeaderRow/\tableZebraStripe) instead of redefining our own.
+\input{../../00-thesis/monography/chapters/data/visualStyle.tex}
+
+% Semantic roles for this talk's two "frontiers"
+\colorlet{bitnetColor}{cbBlue}
+\colorlet{snnColor}{cbVermillion}
+\colorlet{convergeColor}{cbGreen}
+\colorlet{neutralColor}{cbGrey}

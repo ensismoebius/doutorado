@@ -1,0 +1,22 @@
+\begin{frame}
+	\frametitle{Hardware e limitações}
+	\begin{columns}
+		\column{.5\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			A promessa de hardware
+		\end{beamercolorbox}
+		\begin{itemize}
+			\item Sem pesos em ponto flutuante, não há necessidade de multiplicadores de ponto flutuante --- só somadores de inteiros.
+			\item Abre espaço para ASICs dedicados, mais simples e mais eficientes por operação.
+		\end{itemize}
+		\column{.5\linewidth}
+		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+			Os limites atuais
+		\end{beamercolorbox}
+		\begin{itemize}
+			\item Kernels/\textit{runtimes} para pesos ternários ainda são imaturos em GPUs convencionais, otimizadas para INT8/FP16 denso.
+			\item Exige treinar do zero: não há como converter um checkpoint FP16 já treinado com a mesma qualidade.
+			\item Ganho de paridade só aparece a partir de $\sim$3B parâmetros.
+		\end{itemize}
+	\end{columns}
+\end{frame}

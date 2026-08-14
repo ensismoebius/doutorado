@@ -1,0 +1,8 @@
+\begin{frame}
+	\frametitle{O tema comum}
+	\begin{itemize}
+		\item Ambas as fronteiras abandonam a \textbf{multiplicação densa em ponto flutuante} como operação fundamental --- uma pela via da \textbf{representação} (menos bits por peso), outra pela via do \textbf{tempo} (menos ativações por passo).
+		\item As duas nasceram de comunidades diferentes (compressão de modelos vs. neurociência computacional) e, de forma independente, chegaram à mesma solução estrutural para treinar através de uma função não-diferenciável: o STE do BitNet e o gradiente substituto da RNP são o mesmo truque.
+		\item O mesmo gargalo de fundo motiva as duas: energia dominada por \textbf{movimento de dado}, não por operações aritméticas em si --- a tabela de energia vista na abertura desta palestra.
+	\end{itemize}
+\end{frame}
