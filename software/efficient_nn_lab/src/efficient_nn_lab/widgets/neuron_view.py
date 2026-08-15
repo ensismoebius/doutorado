@@ -53,7 +53,7 @@ class NeuronView(QWidget):
         )
         self._ax.add_patch(patch)
 
-    def _box(self, x: float, y: float, text: str, color: str, alpha: float = 1.0, w: float = 1.7, h: float = 0.85, glow: float = 0.0) -> None:
+    def _box(self, x: float, y: float, text: str, color: str, alpha: float = 1.0, w: float = 1.7, h: float = 0.85, glow: float = 0.0, fontsize: float = 10) -> None:
         if alpha <= 0.02:
             return
         if glow > 0.02:
@@ -67,7 +67,7 @@ class NeuronView(QWidget):
         )
         self._ax.add_patch(patch)
         patch.set_alpha(0.20 * alpha)
-        self._ax.text(x, y, text, ha="center", va="center", fontsize=10, alpha=alpha, color="black")
+        self._ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, alpha=alpha, color="black")
 
     def _skeleton_arrow(self, p_from: tuple[float, float], p_to: tuple[float, float]) -> None:
         arrow = FancyArrowPatch(
@@ -162,7 +162,7 @@ class NeuronView(QWidget):
             self._inset_ax.remove()
             self._inset_ax = None
         kind = values.get("kind")
-        if kind == "backprop_pipeline":
+        if kind in ("backprop_pipeline", "mlp_network"):
             # shrink the diagram to the left half so the sigmoid inset
             # (drawn at figure-fraction rect (0.56, ...)) has clean room
             # on the right instead of floating over the block diagram.
@@ -170,6 +170,7 @@ class NeuronView(QWidget):
         else:
             self._ax.set_position(self._default_ax_pos)
         handler = {
+            "mlp_network": self._render_mlp_network,
             "backprop_pipeline": self._render_backprop_pipeline,
             "forward_pipeline": self._render_forward_pipeline,
             "ste_pipeline": self._render_ste_pipeline,
@@ -182,6 +183,107 @@ class NeuronView(QWidget):
         else:
             handler(values)
         self._canvas.draw_idle()
+
+    # ================================================================
+    # backprop/demos/multilayer_network.py — 3 -> 2 -> 2 -> 1, sigmoid
+    # everywhere. Walked one neuron at a time (forward left-to-right, then
+    # backward right-to-left); the "active" neuron gets a glow, its
+    # incoming edges get weight labels, and the sigmoid inset + detail
+    # panel both focus on it -- so the per-neuron equations and curves the
+    # user asked for happen progressively, not five-at-once.
+    # ================================================================
+    _MLP_X = [(0.6, 5.6), (0.6, 3.5), (0.6, 1.4)]
+    _MLP_L1 = [(3.0, 4.7), (3.0, 2.3)]
+    _MLP_L2 = [(5.4, 4.7), (5.4, 2.3)]
+    _MLP_O = (7.8, 3.5)
+    _MLP_TARGET = (7.8, 5.6)
+    _MLP_LOSS = (7.8, 1.4)
+    _MLP_NAMES = ["L1-A", "L1-B", "L2-C", "L2-D", "Saída"]
+    _MLP_POS = {"L1-A": _MLP_L1[0], "L1-B": _MLP_L1[1], "L2-C": _MLP_L2[0], "L2-D": _MLP_L2[1], "Saída": _MLP_O}
+    _MLP_INPUT_POS = {
+        "L1-A": _MLP_X, "L1-B": _MLP_X,
+        "L2-C": _MLP_L1, "L2-D": _MLP_L1,
+        "Saída": _MLP_L2,
+    }
+
+    def _render_mlp_network(self, values: dict[str, object]) -> None:
+        self._reset_axes(xlim=(-0.1, 8.6), ylim=(-3.0, 6.6))
+        x, target = values["x"], float(values["target"])
+        w1, w2, w3 = values["w1"], values["w2"], values["w3"]
+        z1, y1, z2, y2, zO, yO = values["z1"], values["y1"], values["z2"], values["y2"], float(values["zO"]), float(values["yO"])
+        gz1, gz2, gzO = values["grad_z1"], values["grad_z2"], float(values["grad_zO"])
+        fwd = {
+            "L1-A": float(values["fwd_l1a"]), "L1-B": float(values["fwd_l1b"]),
+            "L2-C": float(values["fwd_l2c"]), "L2-D": float(values["fwd_l2d"]), "Saída": float(values["fwd_o"]),
+        }
+        bwd = {
+            "L1-A": float(values["bwd_l1a"]), "L1-B": float(values["bwd_l1b"]),
+            "L2-C": float(values["bwd_l2c"]), "L2-D": float(values["bwd_l2d"]), "Saída": float(values["bwd_o"]),
+        }
+        y_val = {"L1-A": float(y1[0]), "L1-B": float(y1[1]), "L2-C": float(y2[0]), "L2-D": float(y2[1]), "Saída": yO}
+        gz_val = {"L1-A": float(gz1[0]), "L1-B": float(gz1[1]), "L2-C": float(gz2[0]), "L2-D": float(gz2[1]), "Saída": gzO}
+        w_row = {"L1-A": w1[0], "L1-B": w1[1], "L2-C": w2[0], "L2-D": w2[1], "Saída": w3[0]}
+        loss_reveal = float(values["loss_reveal"])
+        update_reveal = float(values["update_reveal"])
+        active = values.get("active", "")
+
+        # full skeleton: every box and every weighted edge, from frame one.
+        for p in self._MLP_X + self._MLP_L1 + self._MLP_L2 + [self._MLP_O, self._MLP_TARGET, self._MLP_LOSS]:
+            self._skeleton_box(*p, w=1.4, h=0.75)
+        for name in self._MLP_NAMES:
+            for p_in in self._MLP_INPUT_POS[name]:
+                self._skeleton_arrow(p_in, self._MLP_POS[name])
+        self._skeleton_arrow(self._MLP_O, self._MLP_TARGET)
+        self._skeleton_arrow(self._MLP_O, self._MLP_LOSS)
+
+        for i, p in enumerate(self._MLP_X):
+            self._box(*p, f"x{i+1} = {x[i]:g}", NEUTRAL_COLOR, w=1.4, h=0.75, fontsize=9)
+
+        for name in self._MLP_NAMES:
+            r = fwd[name]
+            if r <= 0.02:
+                continue
+            pos = self._MLP_POS[name]
+            glow = 1.0 if active == name else 0.0
+            for p_in in self._MLP_INPUT_POS[name]:
+                self._flow_arrow(p_in, pos, r, ACCENT_COLOR if glow else BITNET_COLOR)
+            text = f"{name}\ny = {y_val[name]:.2f}"
+            if bwd[name] > 0.02:
+                text += f"\ndL/dz={gz_val[name]:.3f}"
+            self._box(*pos, text, CONVERGE_COLOR if bwd[name] > 0.02 else BITNET_COLOR, alpha=r, w=1.4, h=0.75, glow=glow, fontsize=8)
+            if glow:
+                self._equation_near(*pos, "z = Σ w·entrada;  y = σ(z)", r, dy=-0.55)
+
+        self._flow_arrow(self._MLP_O, self._MLP_TARGET, loss_reveal, NEUTRAL_COLOR)
+        self._box(*self._MLP_TARGET, f"alvo = {target:g}", NEUTRAL_COLOR, alpha=loss_reveal, w=1.4, h=0.75, fontsize=9)
+        self._flow_arrow(self._MLP_O, self._MLP_LOSS, loss_reveal, SNN_COLOR)
+        self._box(*self._MLP_LOSS, f"loss = {float(values['loss']):.3f}", SNN_COLOR, alpha=loss_reveal, w=1.4, h=0.75, fontsize=9)
+
+        # backward: a thin orange return-edge drawn *behind* each active
+        # neuron's incoming connections, showing gradient flowing the
+        # opposite way along the same wires.
+        for name in self._MLP_NAMES:
+            if bwd[name] <= 0.02:
+                continue
+            for p_in in self._MLP_INPUT_POS[name]:
+                self._flow_arrow(self._MLP_POS[name], p_in, bwd[name] * 0.6, SNN_COLOR)
+
+        detail = str(values.get("active_detail", ""))
+        if detail:
+            self._ax.text(
+                0.1, -1.1, detail, ha="left", va="top", fontsize=7.5, color="black",
+                family="monospace", linespacing=1.6,
+            )
+
+        if update_reveal > 0.02:
+            self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=8)
+
+        self._draw_sigmoid_inset(
+            rect=(0.56, 0.1, 0.42, 0.85),
+            z=float(values["active_z"]), y=float(values["active_y"]), slope=float(values["active_slope"]),
+            grad_z=float(values["active_grad_z"]), point_reveal=1.0, tangent_reveal=1.0,
+            arrow_reveal=1.0 if float(values["active_grad_z"]) != 0.0 else 0.0,
+        )
 
     # ================================================================
     # backprop/demos/traditional_gd.py — one weight, sigmoid activation: the

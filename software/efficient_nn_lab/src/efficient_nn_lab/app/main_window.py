@@ -32,6 +32,7 @@ from efficient_nn_lab.widgets.neuron_view import NeuronView
 from efficient_nn_lab.widgets.signal_view import SignalView
 from efficient_nn_lab.widgets.weight_view import WeightView
 
+from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
 from efficient_nn_lab.bitnet.demos.backward import BackwardSTEDemo
 from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
@@ -46,7 +47,7 @@ from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
 #: — every frame in a demo carries the same "kind" tag throughout).
 _SIGNAL_KINDS = {"signal_spikes", "lif_trace", "backprop_convergence"}
 _WEIGHT_KINDS = {"scalar_quantization", "staircase", "quant_derivative", "surrogate_curve"}
-_NEURON_KINDS = {"backprop_pipeline", "forward_pipeline", "ste_pipeline", "guided_pipeline", "comparison_pipeline"}
+_NEURON_KINDS = {"backprop_pipeline", "mlp_network", "forward_pipeline", "ste_pipeline", "guided_pipeline", "comparison_pipeline"}
 
 _REFERENCES_TEXT = """\
 Referências
@@ -79,6 +80,7 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
     return {
         "Backpropagation": [
             TraditionalBackpropDemo(),
+            MultilayerNetworkDemo(),
         ],
         "BitNet": [
             ScalarQuantizationDemo(),
