@@ -23,8 +23,9 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, CONVERGE_COLOR, NEUTRAL_COLOR, SNN_COLOR
 
-_BOX_STYLE = dict(boxstyle="round,pad=0.25", linewidth=1.6)
-_SKELETON_ALPHA = 0.28
+_BOX_STYLE = dict(boxstyle="round,pad=0.25", linewidth=2.0)
+_SKELETON_ALPHA = 0.35
+_FILL_ALPHA = 0.38
 
 
 class NeuronView(QWidget):
@@ -59,14 +60,14 @@ class NeuronView(QWidget):
         if glow > 0.02:
             glow_patch = FancyBboxPatch(
                 (x - w / 2 - 0.12, y - h / 2 - 0.12), w + 0.24, h + 0.24,
-                facecolor=ACCENT_COLOR, edgecolor="none", alpha=0.35 * glow, boxstyle="round,pad=0.25",
+                facecolor=ACCENT_COLOR, edgecolor="none", alpha=0.5 * glow, boxstyle="round,pad=0.25",
             )
             self._ax.add_patch(glow_patch)
         patch = FancyBboxPatch(
-            (x - w / 2, y - h / 2), w, h, facecolor=color, alpha=0.20 * alpha, edgecolor=color, **_BOX_STYLE,
+            (x - w / 2, y - h / 2), w, h, facecolor=color, alpha=_FILL_ALPHA * alpha, edgecolor=color, **_BOX_STYLE,
         )
         self._ax.add_patch(patch)
-        patch.set_alpha(0.20 * alpha)
+        patch.set_alpha(_FILL_ALPHA * alpha)
         self._ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, alpha=alpha, color="black")
 
     def _skeleton_arrow(self, p_from: tuple[float, float], p_to: tuple[float, float]) -> None:

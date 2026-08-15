@@ -153,7 +153,9 @@ def test_mlp_walks_one_neuron_at_a_time_in_topological_order():
     demo = MultilayerNetworkDemo()
     checkpoints = [f for f in demo.checkpoint_frames() if f.values["active"]]
     order = [f.values["active"] for f in checkpoints]
-    assert order == ["L1-A", "L1-B", "L2-C", "L2-D", "Saída", "Saída", "L2-D", "L2-C", "L1-B", "L1-A"]
+    # forward left-to-right, then (after the loss checkpoint, still
+    # spotlighting the output neuron) backward right-to-left.
+    assert order == ["L1-A", "L1-B", "L2-C", "L2-D", "Saída", "Saída", "Saída", "L2-D", "L2-C", "L1-B", "L1-A"]
 
 
 def test_mlp_sigmoid_inset_fields_match_the_active_neuron():
