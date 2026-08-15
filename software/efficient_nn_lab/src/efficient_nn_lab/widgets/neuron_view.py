@@ -87,6 +87,19 @@ class NeuronView(QWidget):
             return
         self._ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, color=color, alpha=alpha, fontweight=weight)
 
+    def _equation_near(self, x: float, y: float, text: str, alpha: float, dy: float = -0.62) -> None:
+        """A small formula placed right under the box whose value it explains.
+
+        Kept visually distinct (italic, grey, smaller) from the box's own
+        label so it always reads as "this is the rule", not another value.
+        """
+        if alpha <= 0.02:
+            return
+        self._ax.text(
+            x, y + dy, text, ha="center", va="center", fontsize=7.5, color=NEUTRAL_COLOR,
+            alpha=alpha, style="italic",
+        )
+
     # -- dispatch -------------------------------------------------------
     def render(self, values: dict[str, object]) -> None:
         kind = values.get("kind")
@@ -144,6 +157,7 @@ class NeuronView(QWidget):
         self._flow_arrow(self._BP_X, self._BP_Y, y_reveal, NEUTRAL_COLOR)
         self._flow_arrow(self._BP_W, self._BP_Y, y_reveal, BITNET_COLOR)
         self._box(*self._BP_Y, f"y = {values['y']:g}", CONVERGE_COLOR, alpha=y_reveal)
+        self._equation_near(*self._BP_Y, "y = w · x", y_reveal)
 
         self._flow_arrow(self._BP_Y, self._BP_TARGET, target_reveal, NEUTRAL_COLOR)
         self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal)
@@ -154,16 +168,19 @@ class NeuronView(QWidget):
 
         self._flow_arrow(self._BP_Y, self._BP_LOSS, loss_reveal, SNN_COLOR)
         self._box(*self._BP_LOSS, f"loss = {values['loss']:g}", SNN_COLOR, alpha=loss_reveal)
+        self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal)
 
         self._flow_arrow(self._BP_LOSS, self._BP_GRAD_Y, grady_reveal, SNN_COLOR)
         self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:g}", SNN_COLOR, alpha=grady_reveal)
+        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal)
 
         self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
         self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:g}", SNN_COLOR, alpha=gradw_reveal)
-        self._fading_text(4.6, 2.2, "regra da cadeia: x × dL/dy", ACCENT_COLOR, gradw_reveal, fontsize=8)
+        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dy · x  (regra da cadeia)", gradw_reveal)
 
         self._flow_arrow(self._BP_GRAD_W, self._BP_W, update_reveal, ACCENT_COLOR)
         self._fading_text(1.2, 4.1, f"atualizado -> {values['w_updated']:g}", ACCENT_COLOR, update_reveal, fontsize=9)
+        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal)
 
     # ================================================================
     # forward.py — inputs -> quantized weights -> sum -> y -> target -> loss
@@ -209,6 +226,7 @@ class NeuronView(QWidget):
         w_color = BITNET_COLOR if quant_reveal > 0.5 else NEUTRAL_COLOR
         self._box(*self._W1, w_label1, w_color, glow=h1)
         self._box(*self._W2, w_label2, w_color, glow=h2)
+        self._equation_near(*self._W1, "Q(w) = +1 se w>τ; -1 se w<-τ; 0 c.c.", quant_reveal)
 
         self._flow_arrow(self._W1, self._SUM, arrow1_fill, ACCENT_COLOR if h1 > 0.3 else BITNET_COLOR)
         self._flow_arrow(self._W2, self._SUM, arrow2_fill, ACCENT_COLOR if h2 > 0.3 else BITNET_COLOR)
@@ -217,6 +235,7 @@ class NeuronView(QWidget):
 
         self._box(*self._SUM, "soma", CONVERGE_COLOR, alpha=max(sum_reveal, 0.35 if sum_reveal else 0.0) or 0.01)
         self._fading_text(*self._SUM, "Σ", CONVERGE_COLOR, 1.0 if sum_reveal < 0.02 else 0.0, fontsize=14, weight="bold")
+        self._equation_near(*self._SUM, "y = Σ xᵢ·Q(wᵢ)", sum_reveal)
 
         self._flow_arrow(self._SUM, self._Y, y_reveal, CONVERGE_COLOR)
         self._box(*self._Y, f"y = {values['y']:g}", CONVERGE_COLOR, alpha=y_reveal)
@@ -234,6 +253,7 @@ class NeuronView(QWidget):
 
         self._flow_arrow(self._Y, self._LOSS, loss_reveal, SNN_COLOR)
         self._box(*self._LOSS, f"loss = {values['loss']:g}", SNN_COLOR, alpha=loss_reveal)
+        self._equation_near(*self._LOSS, "L = ½ (y - target)²", loss_reveal)
 
     # ================================================================
     # backward.py — forward path (always) + backward/STE path (reveals)
@@ -261,12 +281,14 @@ class NeuronView(QWidget):
         for a, b in zip(self._FWD_POSITIONS, self._FWD_POSITIONS[1:]):
             self._flow_arrow((a[0] + 1.0, a[1]), (b[0] - 1.0, b[1]), fwd, BITNET_COLOR)
         self._fading_text(5.1, 5.35, "FORWARD", BITNET_COLOR, fwd, fontsize=12, weight="bold")
+        self._fading_text(5.1, 5.02, "y usa Q(w) = +1/0/-1", BITNET_COLOR, fwd, fontsize=8)
 
         for pos, label in zip(self._BWD_POSITIONS, self._BWD_LABELS):
             self._box(*pos, label, SNN_COLOR, alpha=bwd, w=2.0)
         for a, b in zip(self._BWD_POSITIONS, self._BWD_POSITIONS[1:]):
             self._flow_arrow((a[0] - 1.0, a[1]), (b[0] + 1.0, b[1]), bwd, SNN_COLOR)
         self._fading_text(5.1, 0.65, "BACKWARD (STE)", SNN_COLOR, bwd, fontsize=12, weight="bold")
+        self._fading_text(5.1, 0.98, "dL/dw_real ≈ dL/dy  (dQ/dw trocada por 1)", SNN_COLOR, bwd, fontsize=8)
 
         # the two paths meet at "peso real": a highlighted ring makes the
         # loop visible once both are on screen.
@@ -309,24 +331,29 @@ class NeuronView(QWidget):
         self._box(*self._W_POS, f"w = {values['w_value']:.2f}", BITNET_COLOR)
         self._flow_arrow(self._W_POS, self._Q_POS, q_reveal, BITNET_COLOR)
         self._box(*self._Q_POS, f"Q(w) = {round(values['q_value']):+d}", BITNET_COLOR, alpha=q_reveal, glow=q_pulse)
+        self._equation_near(*self._Q_POS, "Q(w) = ±1/0 (limiar τ)", q_reveal, dy=-0.95)
 
         self._box(*self._X_POS, f"x = {2.0:g}", NEUTRAL_COLOR, alpha=x_reveal)
         self._flow_arrow(self._Q_POS, self._Y_POS_G, y_reveal, CONVERGE_COLOR)
         self._flow_arrow(self._X_POS, self._Y_POS_G, y_reveal, NEUTRAL_COLOR)
         self._box(*self._Y_POS_G, f"y = {values['y_value']:g}", CONVERGE_COLOR, alpha=y_reveal)
+        self._equation_near(*self._Y_POS_G, "y = x · Q(w)", y_reveal)
 
         self._flow_arrow(self._Y_POS_G, self._TARGET_POS_G, target_reveal, NEUTRAL_COLOR)
         self._box(*self._TARGET_POS_G, f"target = {values['target_value']:g}", NEUTRAL_COLOR, alpha=target_reveal)
 
         self._flow_arrow(self._Y_POS_G, self._LOSS_POS_G, loss_reveal, SNN_COLOR)
         self._box(*self._LOSS_POS_G, f"loss = {values['loss_value']:g}", SNN_COLOR, alpha=loss_reveal)
+        self._equation_near(*self._LOSS_POS_G, "L = ½ (y - target)²", loss_reveal)
 
         self._flow_arrow(self._LOSS_POS_G, self._GRAD_POS, grad_reveal, SNN_COLOR)
         self._box(*self._GRAD_POS, f"dL/dw ~= {values['grad_value']:g}", SNN_COLOR, alpha=grad_reveal)
+        self._equation_near(*self._GRAD_POS, "dL/dw ≈ dL/dy  (STE)", grad_reveal, dy=0.62)
 
         self._flow_arrow(self._GRAD_POS, self._W_POS, update_reveal, ACCENT_COLOR, )
-        self._fading_text(3.5, 0.5, "STE: gradiente atravessa Q(w) como identidade", ACCENT_COLOR, ste_reveal, fontsize=9)
+        self._fading_text(3.5, 0.15, "STE: gradiente atravessa Q(w) como identidade", ACCENT_COLOR, ste_reveal, fontsize=8)
         self._fading_text(1.2, 4.1, "atualizado", ACCENT_COLOR, update_reveal, fontsize=9)
+        self._equation_near(*self._W_POS, "w ← w - taxa · dL/dw", update_reveal)
 
     # ================================================================
     # comparison — a persistent, growing 3-column table + outputs panel

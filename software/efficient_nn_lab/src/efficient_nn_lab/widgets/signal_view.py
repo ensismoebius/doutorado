@@ -50,13 +50,18 @@ class SignalView(QWidget):
         self._ax_top.plot(t, signal, color=SNN_COLOR, linewidth=2)
         if len(t):
             self._ax_top.plot([t[-1]], [signal[-1]], marker="o", markersize=7, color=SNN_COLOR, zorder=4)
-        self._ax_top.axhline(level, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label="nível de disparo")
+            self._ax_top.text(
+                t[-1], signal[-1] + 0.12, f"{signal[-1]:.2f}", ha="center", fontsize=8, color=SNN_COLOR,
+            )
+        self._ax_top.axhline(level, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label=f"nível de disparo = {level:.2f}")
         self._ax_top.set_xlim(0, n_total)
         self._ax_top.set_ylim(-1.1, 1.1)
         self._ax_top.set_ylabel("amplitude")
         self._ax_top.legend(loc="upper right", fontsize=8)
 
         spike_times = t[spikes > 0]
+        for st in spike_times:
+            self._ax_bottom.text(st, 1.05, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
         self._ax_bottom.vlines(spike_times, 0, 1, color=SNN_COLOR, linewidth=2)
         self._ax_bottom.set_xlim(0, n_total)
         self._ax_bottom.set_ylim(0, 1.2)
@@ -74,16 +79,20 @@ class SignalView(QWidget):
         self._ax_top.plot(t, current, color=ACCENT_COLOR, linewidth=2)
         if len(t):
             self._ax_top.plot([t[-1]], [current[-1]], marker="o", markersize=6, color=ACCENT_COLOR, zorder=4)
+            self._ax_top.text(t[-1], current[-1] + 0.03, f"{current[-1]:.2f}", ha="center", fontsize=8, color=ACCENT_COLOR)
         self._ax_top.set_ylabel("I(t)")
         self._ax_top.set_ylim(-0.05, max(0.5, current.max() * 1.3 if len(current) else 0.5))
 
         self._ax_bottom.plot(t, membrane, color=SNN_COLOR, linewidth=2)
         if len(t):
             self._ax_bottom.plot([t[-1]], [membrane[-1]], marker="o", markersize=7, color=SNN_COLOR, zorder=4)
-        self._ax_bottom.axhline(v_th, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label="V_th")
+            self._ax_bottom.text(t[-1], membrane[-1] + 0.05, f"{membrane[-1]:.2f}", ha="center", fontsize=8, color=SNN_COLOR)
+        self._ax_bottom.axhline(v_th, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label=f"V_th = {v_th:.2f}")
         spike_times = t[spikes > 0]
         if len(spike_times):
             self._ax_bottom.vlines(spike_times, v_th, v_th * 1.25, color=SNN_COLOR, linewidth=2)
+            for st in spike_times:
+                self._ax_bottom.text(st, v_th * 1.3, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
         self._ax_bottom.set_ylim(-0.1, v_th * 1.4)
         self._ax_bottom.set_xlabel("tempo (passos)")
         self._ax_bottom.set_ylabel("V(t)")
@@ -96,16 +105,26 @@ class SignalView(QWidget):
         target = float(values["target"])
         n_total = int(values["n_total"])
 
+        y_min, y_max = float(values["y_min"]), float(values["y_max"])
         self._ax_top.plot(iterations, y, color=CONVERGE_COLOR, linewidth=2, marker="o", markersize=4)
         self._ax_top.plot([iterations[-1]], [y[-1]], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
-        self._ax_top.axhline(target, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label="alvo")
+        self._ax_top.axhline(target, color=NEUTRAL_COLOR, linestyle="--", linewidth=1, label=f"alvo = {target:g}")
+        # every point gets its value labelled -- only a handful of iterations
+        # exist, so this stays readable, unlike the 60-sample traces above.
+        label_dy = (y_max - y_min) * 0.05
+        for i, (xi, yi) in enumerate(zip(iterations, y)):
+            va = "bottom" if i % 2 == 0 else "top"
+            dy = label_dy if va == "bottom" else -label_dy
+            self._ax_top.text(xi, yi + dy, f"{yi:.2f}", ha="center", va=va, fontsize=7, color=CONVERGE_COLOR)
         self._ax_top.set_xlim(0, n_total)
-        self._ax_top.set_ylim(float(values["y_min"]), float(values["y_max"]))
+        self._ax_top.set_ylim(y_min, y_max)
         self._ax_top.set_ylabel("y (saída)")
         self._ax_top.legend(loc="lower right", fontsize=8)
 
         self._ax_bottom.plot(iterations, loss, color=SNN_COLOR, linewidth=2, marker="o", markersize=4)
         self._ax_bottom.plot([iterations[-1]], [loss[-1]], marker="o", markersize=8, color=SNN_COLOR, zorder=4)
+        for xi, li in zip(iterations, loss):
+            self._ax_bottom.text(xi, li * 1.3, f"{li:.3f}", ha="center", fontsize=7, color=SNN_COLOR)
         self._ax_bottom.set_yscale("log")
         self._ax_bottom.set_xlim(0, n_total)
         self._ax_bottom.set_ylim(float(values["loss_min"]), float(values["loss_max"]))

@@ -61,6 +61,7 @@ class WeightView(QWidget):
         marker_color = ACCENT_COLOR if w_quant is not None else BITNET_COLOR
         ax.plot([w_display], [0], marker="o", markersize=16, color=marker_color, zorder=3)
         ax.text(w_display, 0.22, f"{w_display:.2f}", ha="center", fontsize=11, color=marker_color)
+        ax.text(threshold, -0.5, f"τ = {threshold:.2f}", ha="left", fontsize=8, color=NEUTRAL_COLOR, style="italic")
 
         ax.set_xlim(-1.5, 1.5)
         ax.set_ylim(-0.6, 0.6)
@@ -80,9 +81,14 @@ class WeightView(QWidget):
         ax.axvspan(-threshold, threshold, color=NEUTRAL_COLOR, alpha=0.18)
         ax.axvline(threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
         ax.axvline(-threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
+        ax.text(threshold, -1.35, f"τ = {threshold:.2f}", ha="left", fontsize=8, color=NEUTRAL_COLOR, style="italic")
+        ax.text(-threshold, -1.35, f"-τ = {-threshold:.2f}", ha="right", fontsize=8, color=NEUTRAL_COLOR, style="italic")
+        for level in (-1, 0, 1):
+            ax.text(w.min() + 0.05, level, f"Q(w) = {level:+d}", ha="left", va="bottom", fontsize=8, color=BITNET_COLOR)
         ax.set_xlabel("w (peso real)")
         ax.set_ylabel("Q(w)")
         ax.set_yticks([-1, 0, 1])
+        ax.set_ylim(-1.5, 1.2)
         ax.set_title("Regiões planas: derivada zero. Saltos: derivada indefinida.")
 
         if annotate > 0.01:
@@ -119,6 +125,8 @@ class WeightView(QWidget):
         ax.axvline(threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
         ax.axvline(-threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
         ax.axvspan(-threshold, threshold, color=NEUTRAL_COLOR, alpha=0.12, zorder=0)
+        current_level = float(curve[len(curve) // 2])
+        ax.text(w.min() + 0.1, current_level + 0.12, f"dQ/dw = {current_level:.2f}", ha="left", fontsize=9, color=SNN_COLOR)
 
         if overlay_reveal <= 0.02:
             ax.annotate(
@@ -163,12 +171,25 @@ class WeightView(QWidget):
         ax.axvline(0, color=NEUTRAL_COLOR, linewidth=1, linestyle=":")
 
         if bottom_reveal < 0.02:
-            ax.plot(x, values["spike"], color=SNN_COLOR, linewidth=2.5)
+            spike = values["spike"]
+            ax.plot(x, spike, color=SNN_COLOR, linewidth=2.5)
+            ax.text(0.05, 1.05, "S(0) = 1", ha="left", fontsize=8, color=SNN_COLOR)
+            ax.text(-0.35, -0.1, "S(v<0) = 0", ha="right", fontsize=8, color=SNN_COLOR)
             ax.set_ylabel("S(v) — spike (forward)")
             ax.set_title("Função de disparo real, usada no forward")
             ax.set_ylim(-0.2, 1.2)
         else:
-            ax.plot(x, values["curve"], color=SNN_COLOR, linewidth=2.5, alpha=bottom_reveal, label="gradiente (backward)")
+            curve = values["curve"]
+            ax.plot(x, curve, color=SNN_COLOR, linewidth=2.5, alpha=bottom_reveal, label="gradiente (backward)")
+            peak_idx = int(np.argmax(curve))
+            if curve[peak_idx] > 0.05:
+                ax.annotate(
+                    f"pico = {curve[peak_idx]:.2f}",
+                    xy=(x[peak_idx], curve[peak_idx]),
+                    xytext=(x[peak_idx] + 0.3, curve[peak_idx] + 0.15),
+                    fontsize=8, color=SNN_COLOR, alpha=bottom_reveal,
+                    arrowprops=dict(arrowstyle="->", color=SNN_COLOR, alpha=bottom_reveal),
+                )
             if overlay_reveal > 0.02:
                 ax.plot(
                     x,
