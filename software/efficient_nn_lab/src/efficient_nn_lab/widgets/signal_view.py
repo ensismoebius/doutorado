@@ -8,12 +8,15 @@ obvious, especially mid-animation.
 
 from __future__ import annotations
 
+from math import atan2, degrees
+
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.app.theme import ACCENT_COLOR, CONVERGE_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
 
 class SignalView(QWidget):
@@ -24,17 +27,17 @@ class SignalView(QWidget):
         self._ax_top, self._ax_bottom = self._figure.subplots(2, 1, sharex=True, height_ratios=[2, 1])
         self._default_top_pos = self._ax_top.get_position()
         self._default_bottom_pos = self._ax_bottom.get_position()
+        # cached, not recreated every frame -- see widgets/_mpl_perf.py.
         self._inset_ax = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
 
     def render(self, values: dict[str, object]) -> None:
-        self._ax_top.clear()
-        self._ax_bottom.clear()
+        fast_clear(self._ax_top)
+        fast_clear(self._ax_bottom)
         if self._inset_ax is not None:
-            self._inset_ax.remove()
-            self._inset_ax = None
+            self._inset_ax.set_visible(False)
         kind = values.get("kind")
         if kind == "backprop_convergence":
             # make room on the right for the sigmoid inset; every other
@@ -77,6 +80,7 @@ class SignalView(QWidget):
         for st in spike_times:
             self._ax_bottom.text(st, 1.05, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
         self._ax_bottom.vlines(spike_times, 0, 1, color=SNN_COLOR, linewidth=2)
+        self._ax_bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
         self._ax_bottom.set_xlim(0, n_total)
         self._ax_bottom.set_ylim(0, 1.2)
         self._ax_bottom.set_yticks([])
@@ -107,6 +111,7 @@ class SignalView(QWidget):
             self._ax_bottom.vlines(spike_times, v_th, v_th * 1.25, color=SNN_COLOR, linewidth=2)
             for st in spike_times:
                 self._ax_bottom.text(st, v_th * 1.3, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
+        self._ax_bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
         self._ax_bottom.set_ylim(-0.1, v_th * 1.4)
         self._ax_bottom.set_xlabel("tempo (passos)")
         self._ax_bottom.set_ylabel("V(t)")
@@ -148,18 +153,36 @@ class SignalView(QWidget):
         self._draw_sigmoid_inset(
             rect=(0.68, 0.13, 0.29, 0.78),
             z=float(values["z"]), y=float(y[-1]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
+            z_trail=np.asarray(values["z_trail"]),
         )
 
-    def _draw_sigmoid_inset(self, rect: tuple[float, float, float, float], z: float, y: float, slope: float, grad_z: float) -> None:
+    def _draw_sigmoid_inset(
+        self, rect: tuple[float, float, float, float], z: float, y: float, slope: float, grad_z: float,
+        z_trail: np.ndarray | None = None,
+    ) -> None:
         # same construction as neuron_view's inset -- kept local (not
         # shared) since the two widgets have no other coupling and this is
-        # the only spot signal_view needs it.
-        ax = self._figure.add_axes(rect)
-        self._inset_ax = ax
+        # the only spot signal_view needs it. Cached rather than recreated
+        # every frame -- see widgets/_mpl_perf.py.
+        if self._inset_ax is None:
+            self._inset_ax = self._figure.add_axes(rect)
+        else:
+            self._inset_ax.set_position(rect)
+            fast_clear(self._inset_ax)
+            self._inset_ax.set_visible(True)
+        ax = self._inset_ax
 
         z_grid = np.linspace(-6.0, 6.0, 200)
         ax.plot(z_grid, 1.0 / (1.0 + np.exp(-z_grid)), color=CONVERGE_COLOR, linewidth=2)
         ax.axvline(0, color=NEUTRAL_COLOR, linewidth=0.8, linestyle=":")
+
+        # every past iteration's point stays marked on the curve -- a new
+        # dot is added each iteration, exactly like the y-vs-iteration
+        # chart to its left, instead of one dot relocating and erasing
+        # where it has already been.
+        if z_trail is not None and len(z_trail) > 1:
+            y_trail = 1.0 / (1.0 + np.exp(-z_trail[:-1]))
+            ax.plot(z_trail[:-1], y_trail, marker="o", markersize=5, color=CONVERGE_COLOR, alpha=0.4, linestyle="None", zorder=3)
 
         ax.plot([z], [y], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
         ax.text(z, y + 0.08, f"y = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR)
@@ -173,10 +196,11 @@ class SignalView(QWidget):
         direction = -1.0 if grad_z >= 0 else 1.0
         dz = direction * 0.9
         dy = slope * dz
-        ax.annotate(
-            "", xy=(z + dz, y + dy), xytext=(z, y),
-            arrowprops=dict(arrowstyle="-|>", color=SNN_COLOR, linewidth=2),
-        )
+        # cheap shaft + rotated-triangle arrowhead, not ax.annotate's
+        # FancyArrowPatch -- see neuron_view._flow_arrow for why.
+        ax.plot([z, z + dz], [y, y + dy], color=SNN_COLOR, linewidth=2)
+        angle = degrees(atan2(dy, dz)) - 90.0
+        ax.plot([z + dz], [y + dy], marker=(3, 0, angle), markersize=10, color=SNN_COLOR, linestyle="None")
         ax.text(
             z + dz, y + dy + (0.1 if direction > 0 else -0.15),
             "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR,

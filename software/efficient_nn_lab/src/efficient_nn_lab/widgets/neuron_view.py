@@ -15,13 +15,17 @@ already there.
 
 from __future__ import annotations
 
+from math import atan2, degrees
+
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, CONVERGE_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.backprop.activation import sigmoid_derivative
+from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
 _BOX_STYLE = dict(boxstyle="round,pad=0.25", linewidth=2.0)
 _SKELETON_ALPHA = 0.35
@@ -35,14 +39,19 @@ class NeuronView(QWidget):
         self._canvas = FigureCanvasQTAgg(self._figure)
         self._ax = self._figure.add_subplot(111)
         self._default_ax_pos = self._ax.get_position()
-        self._inset_ax: object | None = None
+        # small sigmoid-curve panels (backprop demos) are expensive to
+        # create/destroy every animation frame (matplotlib Axes creation is
+        # not cheap, and StepPlayer redraws at ~25fps) -- so they are built
+        # once, cached by key, and merely cleared + repositioned + shown/
+        # hidden on later frames instead of being recreated each time.
+        self._inset_axes: dict[str, object] = {}
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
 
     # -- drawing primitives -----------------------------------------------
     def _reset_axes(self, xlim=(0, 10.5), ylim=(0, 6.2)) -> None:
-        self._ax.clear()
+        fast_clear(self._ax)
         self._ax.set_xlim(*xlim)
         self._ax.set_ylim(*ylim)
         self._ax.axis("off")
@@ -71,20 +80,33 @@ class NeuronView(QWidget):
         self._ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, alpha=alpha, color="black")
 
     def _skeleton_arrow(self, p_from: tuple[float, float], p_to: tuple[float, float]) -> None:
-        arrow = FancyArrowPatch(
-            p_from, p_to, arrowstyle="-|>", mutation_scale=12, color=NEUTRAL_COLOR,
-            linewidth=1.0, alpha=_SKELETON_ALPHA, linestyle="--",
+        # a plain dashed line, not a FancyArrowPatch: skeleton arrows are
+        # faint background hints (never the focus), drawn in bulk every
+        # single frame, and FancyArrowPatch's arrowhead-clipping math
+        # (Bezier intersection against the mutation path) turned out to be
+        # the single biggest cost in the multilayer-network diagram's
+        # frame time -- a plain Line2D is a fraction of the cost and reads
+        # just as clearly at this alpha/linewidth.
+        self._ax.plot(
+            [p_from[0], p_to[0]], [p_from[1], p_to[1]], color=NEUTRAL_COLOR,
+            linewidth=1.0, alpha=_SKELETON_ALPHA, linestyle="--", solid_capstyle="butt",
         )
-        self._ax.add_patch(arrow)
 
     def _flow_arrow(self, p_from: tuple[float, float], p_to: tuple[float, float], fill: float, color: str = NEUTRAL_COLOR) -> None:
         if fill <= 0.02:
             return
+        # shaft (plain line) + a rotated triangle marker for the arrowhead,
+        # instead of FancyArrowPatch: same reasoning as _skeleton_arrow --
+        # FancyArrowPatch's Bezier-based arrowhead clipping was the
+        # dominant per-frame cost in diagrams with many arrows (the
+        # multilayer-network demo draws a dozen+ every frame).
         x0, y0 = p_from
         x1 = x0 + (p_to[0] - x0) * fill
         y1 = y0 + (p_to[1] - y0) * fill
-        arrow = FancyArrowPatch((x0, y0), (x1, y1), arrowstyle="-|>", mutation_scale=16, color=color, linewidth=2.0, alpha=min(1.0, fill * 1.6))
-        self._ax.add_patch(arrow)
+        alpha = min(1.0, fill * 1.6)
+        self._ax.plot([x0, x1], [y0, y1], color=color, linewidth=2.0, alpha=alpha, solid_capstyle="butt")
+        angle = degrees(atan2(y1 - y0, x1 - x0)) - 90.0
+        self._ax.plot([x1], [y1], marker=(3, 0, angle), markersize=11, color=color, alpha=alpha, linestyle="None")
 
     def _fading_text(self, x: float, y: float, text: str, color: str, alpha: float, fontsize: float = 10, weight: str = "normal") -> None:
         if alpha <= 0.02:
@@ -104,38 +126,51 @@ class NeuronView(QWidget):
             alpha=alpha, style="italic",
         )
 
-    # -- a small sigmoid-curve panel, shared by both phases of the classic
-    # backprop demo (block diagram *and* the later convergence chart), so
-    # "where on the curve am I, and which way does the gradient point" is
-    # always answerable, not just described in prose.
-    def _draw_sigmoid_inset(
-        self, rect: tuple[float, float, float, float], z: float, y: float, slope: float,
-        grad_z: float, point_reveal: float, tangent_reveal: float, arrow_reveal: float,
+    # -- cached inset-axes pool (see __init__ note on why this is cached
+    # instead of created fresh every frame) ---------------------------------
+    def _get_inset(self, key: str, rect: tuple[float, float, float, float]):
+        ax = self._inset_axes.get(key)
+        if ax is None:
+            ax = self._figure.add_axes(rect)
+            self._inset_axes[key] = ax
+        else:
+            ax.set_position(rect)
+            fast_clear(ax)
+            ax.set_visible(True)
+        return ax
+
+    def _hide_insets(self, keep: frozenset[str] = frozenset()) -> None:
+        for key, ax in self._inset_axes.items():
+            if key not in keep:
+                ax.set_visible(False)
+
+    # -- a small sigmoid-curve panel: point on the curve, tangent line
+    # (slope = the local derivative), and an arrow showing which way
+    # gradient descent pushes z. Used both by the single-neuron backprop
+    # demo and, one per neuron, by the 4-layer network demo below.
+    def _paint_sigmoid(
+        self, ax, z: float, y: float, slope: float, grad_z: float, point_reveal: float,
+        tangent_reveal: float, arrow_reveal: float, title: str, compact: bool = False,
     ) -> None:
-        if self._inset_ax is not None:
-            self._inset_ax.remove()
-            self._inset_ax = None
-        if point_reveal <= 0.02:
-            return
-        ax = self._figure.add_axes(rect)
-        self._inset_ax = ax
+        z_grid = np.linspace(-6.0, 6.0, 80 if compact else 200)
+        ax.plot(z_grid, 1.0 / (1.0 + np.exp(-z_grid)), color=CONVERGE_COLOR, linewidth=2 if compact else 2.2)
+        ax.axvline(0, color=NEUTRAL_COLOR, linewidth=0.7, linestyle=":")
 
-        z_grid = np.linspace(-6.0, 6.0, 200)
-        ax.plot(z_grid, 1.0 / (1.0 + np.exp(-z_grid)), color=CONVERGE_COLOR, linewidth=2)
-        ax.axvline(0, color=NEUTRAL_COLOR, linewidth=0.8, linestyle=":")
-
-        ax.plot([z], [y], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
-        ax.text(z, y + 0.08, f"y = σ({z:.2f}) = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR)
+        if point_reveal > 0.02:
+            ax.plot([z], [y], marker="o", markersize=7 if compact else 9, color=CONVERGE_COLOR, alpha=point_reveal, zorder=4)
+            if not compact:
+                ax.text(z, y + 0.08, f"y = σ({z:.2f}) = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR, alpha=point_reveal)
 
         if tangent_reveal > 0.02:
             half = 2.0
             z_tan = np.array([z - half, z + half])
             y_tan = y + slope * (z_tan - z)
-            ax.plot(z_tan, y_tan, color=ACCENT_COLOR, linewidth=1.5, linestyle="--", alpha=tangent_reveal)
-            ax.text(
-                z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top",
-                fontsize=7, color=ACCENT_COLOR, alpha=tangent_reveal,
-            )
+            ax.plot(z_tan, y_tan, color=ACCENT_COLOR, linewidth=1.3 if compact else 1.5, linestyle="--", alpha=tangent_reveal)
+            if not compact:
+                ax.text(
+                    z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top",
+                    fontsize=7, color=ACCENT_COLOR, alpha=tangent_reveal,
+                )
 
         if arrow_reveal > 0.02:
             direction = -1.0 if grad_z >= 0 else 1.0
@@ -143,33 +178,37 @@ class NeuronView(QWidget):
             dy = slope * dz
             ax.annotate(
                 "", xy=(z + dz, y + dy), xytext=(z, y),
-                arrowprops=dict(arrowstyle="-|>", color=SNN_COLOR, linewidth=2, alpha=arrow_reveal),
+                arrowprops=dict(arrowstyle="-|>", color=SNN_COLOR, linewidth=1.6 if compact else 2, alpha=arrow_reveal),
             )
-            ax.text(
-                z + dz, y + dy + (0.1 if direction > 0 else -0.15),
-                "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR, alpha=arrow_reveal,
-            )
+            if not compact:
+                ax.text(
+                    z + dz, y + dy + (0.1 if direction > 0 else -0.15),
+                    "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR, alpha=arrow_reveal,
+                )
 
         ax.set_xlim(-6.0, 6.0)
         ax.set_ylim(-0.15, 1.15)
-        ax.set_xlabel("z", fontsize=8)
-        ax.set_ylabel("σ(z)", fontsize=8)
-        ax.set_title("Ativação: onde estamos na curva", fontsize=8.5)
-        ax.tick_params(labelsize=7)
+        if compact:
+            ax.set_title(title, fontsize=7.5)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            ax.set_xlabel("z", fontsize=8)
+            ax.set_ylabel("σ(z)", fontsize=8)
+            ax.set_title(title, fontsize=8.5)
+            ax.tick_params(labelsize=7)
 
     # -- dispatch -------------------------------------------------------
     def render(self, values: dict[str, object]) -> None:
-        if self._inset_ax is not None:
-            self._inset_ax.remove()
-            self._inset_ax = None
         kind = values.get("kind")
         if kind in ("backprop_pipeline", "mlp_network"):
-            # shrink the diagram to the left half so the sigmoid inset
-            # (drawn at figure-fraction rect (0.56, ...)) has clean room
-            # on the right instead of floating over the block diagram.
+            # shrink the diagram to the left half so the sigmoid inset(s)
+            # have clean room on the right instead of floating over the
+            # block diagram.
             self._ax.set_position([0.03, 0.06, 0.5, 0.88])
         else:
             self._ax.set_position(self._default_ax_pos)
+        self._hide_insets(keep=frozenset(["main"] if kind == "backprop_pipeline" else self._MLP_NAMES if kind == "mlp_network" else []))
         handler = {
             "mlp_network": self._render_mlp_network,
             "backprop_pipeline": self._render_backprop_pipeline,
@@ -189,9 +228,11 @@ class NeuronView(QWidget):
     # backprop/demos/multilayer_network.py — 3 -> 2 -> 2 -> 1, sigmoid
     # everywhere. Walked one neuron at a time (forward left-to-right, then
     # backward right-to-left); the "active" neuron gets a glow, its
-    # incoming edges get weight labels, and the sigmoid inset + detail
-    # panel both focus on it -- so the per-neuron equations and curves the
-    # user asked for happen progressively, not five-at-once.
+    # incoming edges get weight labels, and the detail panel focuses on it.
+    # Unlike the single-neuron demo, every neuron keeps its *own* small
+    # sigmoid panel, all visible at once (not one shared/switching inset)
+    # so students can watch each neuron's point/tangent/gradient evolve
+    # independently as the walkthrough proceeds.
     # ================================================================
     _MLP_X = [(0.6, 5.6), (0.6, 3.5), (0.6, 1.4)]
     _MLP_L1 = [(3.0, 4.7), (3.0, 2.3)]
@@ -205,6 +246,17 @@ class NeuronView(QWidget):
         "L1-A": _MLP_X, "L1-B": _MLP_X,
         "L2-C": _MLP_L1, "L2-D": _MLP_L1,
         "Saída": _MLP_L2,
+    }
+    # figure-fraction rects for the 5 per-neuron sigmoid panels, arranged
+    # in the same left-to-right layer order as the diagram itself (L1
+    # column, L2 column, output column) so "which graph is which neuron"
+    # is obvious without reading labels.
+    _MLP_INSET_RECTS = {
+        "L1-A": (0.55, 0.56, 0.13, 0.38),
+        "L1-B": (0.55, 0.08, 0.13, 0.38),
+        "L2-C": (0.705, 0.56, 0.13, 0.38),
+        "L2-D": (0.705, 0.08, 0.13, 0.38),
+        "Saída": (0.86, 0.32, 0.13, 0.38),
     }
 
     def _render_mlp_network(self, values: dict[str, object]) -> None:
@@ -279,19 +331,22 @@ class NeuronView(QWidget):
         if update_reveal > 0.02:
             self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=8)
 
-        self._draw_sigmoid_inset(
-            rect=(0.56, 0.1, 0.42, 0.85),
-            z=float(values["active_z"]), y=float(values["active_y"]), slope=float(values["active_slope"]),
-            grad_z=float(values["active_grad_z"]), point_reveal=1.0, tangent_reveal=1.0,
-            arrow_reveal=1.0 if float(values["active_grad_z"]) != 0.0 else 0.0,
-        )
+        z_val = {"L1-A": float(z1[0]), "L1-B": float(z1[1]), "L2-C": float(z2[0]), "L2-D": float(z2[1]), "Saída": zO}
+        slope_val = {name: float(sigmoid_derivative(z_val[name])) for name in self._MLP_NAMES}
+        for name in self._MLP_NAMES:
+            ax = self._get_inset(name, self._MLP_INSET_RECTS[name])
+            self._paint_sigmoid(
+                ax, z=z_val[name], y=y_val[name], slope=slope_val[name], grad_z=gz_val[name],
+                point_reveal=fwd[name], tangent_reveal=fwd[name], arrow_reveal=bwd[name],
+                title=name, compact=True,
+            )
 
     # ================================================================
     # backprop/demos/traditional_gd.py — one weight, sigmoid activation: the
     # forward (z = w*x, y = sigma(z)) and backward (three-link chain rule)
     # that BitNet's STE and the SNN's surrogate gradient are variations on.
     # A sigmoid-curve inset (point + tangent + descent direction) shares
-    # the figure with the block diagram — see _draw_sigmoid_inset.
+    # the figure with the block diagram — see _paint_sigmoid.
     # ================================================================
     _BP_X = (0.7, 5.3)
     _BP_W = (0.7, 3.0)
@@ -371,10 +426,11 @@ class NeuronView(QWidget):
         self._fading_text(0.7, 2.0, f"atualizado -> {values['w_updated']:.3f}", ACCENT_COLOR, update_reveal, fontsize=8)
         self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal, dy=-0.55)
 
-        self._draw_sigmoid_inset(
-            rect=(0.56, 0.1, 0.42, 0.85),
-            z=float(values["z"]), y=float(values["y"]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
+        ax = self._get_inset("main", (0.56, 0.1, 0.42, 0.85))
+        self._paint_sigmoid(
+            ax, z=float(values["z"]), y=float(values["y"]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
             point_reveal=y_reveal, tangent_reveal=y_reveal, arrow_reveal=gradz_reveal,
+            title="Ativação: onde estamos na curva",
         )
 
     # ================================================================

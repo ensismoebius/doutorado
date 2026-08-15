@@ -164,7 +164,7 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | Módulo | Pergunta única respondida | Fixo/configurável |
 |---|---|---|
 | Backprop → Forward e backward clássicos | Como o forward/backward funcionam sem quantização, e o exemplo converge de fato? | `target`, taxa de aprendizado |
-| Backprop → Rede de 4 camadas | Como o forward/backward funcionam numa rede de verdade (3→2→2→1)? Um neurônio de cada vez, com a curva sigmoide/derivada, entradas, saída, pesos e equação de cada um. | `target`, taxa de aprendizado |
+| Backprop → Rede de 4 camadas | Como o forward/backward funcionam numa rede de verdade (3→2→2→1)? Um neurônio de cada vez, com entradas, saída, pesos e equação de cada um — e **cada neurônio com seu próprio gráfico** de sigmoide/derivada (5 gráficos, sempre visíveis, atualizando independentemente conforme o forward/backward avança). | `target`, taxa de aprendizado |
 | BitNet → Quantização | O que significa quantizar um peso? | `w`, `tau` |
 | BitNet → Forward | O que acontece no forward, e quão longe do alvo? | `x1,x2,w1,w2,target` |
 | BitNet → Backward → STE | Por que o backward é problemático (com o gráfico da derivada real vs. a do STE), e como o STE resolve? | `tau` |

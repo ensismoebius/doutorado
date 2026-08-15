@@ -206,6 +206,10 @@ class TraditionalBackpropDemo(DemoModule):
                 "n_total": n,
                 "y_min": y_min, "y_max": y_max,
                 "loss_min": loss_min, "loss_max": loss_max,
+                # grows by one point per iteration, same as w/y/loss above --
+                # the sigmoid-curve panel must leave a trail of where the
+                # point has already been, not just relocate a single dot.
+                "z_trail": np.array(z_hist[:k_exact] + [z_val]),
                 "z": act["z"], "slope": act["slope"], "grad_y": act["grad_y"], "grad_z": act["grad_z"],
             }
 

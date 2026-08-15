@@ -17,6 +17,7 @@ from matplotlib.figure import Figure
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
 
 class WeightView(QWidget):
@@ -30,7 +31,7 @@ class WeightView(QWidget):
         layout.addWidget(self._canvas)
 
     def render(self, values: dict[str, object]) -> None:
-        self._ax.clear()
+        fast_clear(self._ax)
         kind = values.get("kind")
         if kind == "scalar_quantization":
             self._render_number_line(values)
