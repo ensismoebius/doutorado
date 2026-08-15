@@ -22,6 +22,9 @@ class SignalView(QWidget):
         self._figure = Figure(figsize=(6, 3.6))
         self._canvas = FigureCanvasQTAgg(self._figure)
         self._ax_top, self._ax_bottom = self._figure.subplots(2, 1, sharex=True, height_ratios=[2, 1])
+        self._default_top_pos = self._ax_top.get_position()
+        self._default_bottom_pos = self._ax_bottom.get_position()
+        self._inset_ax = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
@@ -29,7 +32,18 @@ class SignalView(QWidget):
     def render(self, values: dict[str, object]) -> None:
         self._ax_top.clear()
         self._ax_bottom.clear()
+        if self._inset_ax is not None:
+            self._inset_ax.remove()
+            self._inset_ax = None
         kind = values.get("kind")
+        if kind == "backprop_convergence":
+            # make room on the right for the sigmoid inset; every other
+            # kind keeps the original full-width two-panel layout.
+            self._ax_top.set_position([0.11, 0.56, 0.53, 0.38])
+            self._ax_bottom.set_position([0.11, 0.13, 0.53, 0.33])
+        else:
+            self._ax_top.set_position(self._default_top_pos)
+            self._ax_bottom.set_position(self._default_bottom_pos)
         if kind == "lif_trace":
             self._render_lif(values)
         elif kind == "signal_spikes":
@@ -130,3 +144,47 @@ class SignalView(QWidget):
         self._ax_bottom.set_ylim(float(values["loss_min"]), float(values["loss_max"]))
         self._ax_bottom.set_xlabel("iteração")
         self._ax_bottom.set_ylabel("loss (log)")
+
+        self._draw_sigmoid_inset(
+            rect=(0.68, 0.13, 0.29, 0.78),
+            z=float(values["z"]), y=float(y[-1]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
+        )
+
+    def _draw_sigmoid_inset(self, rect: tuple[float, float, float, float], z: float, y: float, slope: float, grad_z: float) -> None:
+        # same construction as neuron_view's inset -- kept local (not
+        # shared) since the two widgets have no other coupling and this is
+        # the only spot signal_view needs it.
+        ax = self._figure.add_axes(rect)
+        self._inset_ax = ax
+
+        z_grid = np.linspace(-6.0, 6.0, 200)
+        ax.plot(z_grid, 1.0 / (1.0 + np.exp(-z_grid)), color=CONVERGE_COLOR, linewidth=2)
+        ax.axvline(0, color=NEUTRAL_COLOR, linewidth=0.8, linestyle=":")
+
+        ax.plot([z], [y], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
+        ax.text(z, y + 0.08, f"y = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR)
+
+        half = 2.0
+        z_tan = np.array([z - half, z + half])
+        y_tan = y + slope * (z_tan - z)
+        ax.plot(z_tan, y_tan, color=ACCENT_COLOR, linewidth=1.5, linestyle="--")
+        ax.text(z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top", fontsize=7, color=ACCENT_COLOR)
+
+        direction = -1.0 if grad_z >= 0 else 1.0
+        dz = direction * 0.9
+        dy = slope * dz
+        ax.annotate(
+            "", xy=(z + dz, y + dy), xytext=(z, y),
+            arrowprops=dict(arrowstyle="-|>", color=SNN_COLOR, linewidth=2),
+        )
+        ax.text(
+            z + dz, y + dy + (0.1 if direction > 0 else -0.15),
+            "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR,
+        )
+
+        ax.set_xlim(-6.0, 6.0)
+        ax.set_ylim(-0.15, 1.15)
+        ax.set_xlabel("z", fontsize=8)
+        ax.set_ylabel("σ(z)", fontsize=8)
+        ax.set_title("Ativação: onde estamos na curva", fontsize=8.5)
+        ax.tick_params(labelsize=7)

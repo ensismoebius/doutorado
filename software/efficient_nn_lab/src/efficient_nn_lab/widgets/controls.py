@@ -41,24 +41,26 @@ class ControlsWidget(QWidget):
         self._param_sliders: dict[str, QSlider] = {}
         self._param_labels: dict[str, QLabel] = {}
         self._param_scale: dict[str, float] = {}
+        self._is_playing = False
 
         root = QVBoxLayout(self)
 
         transport_row = QHBoxLayout()
         self._reset_btn = QPushButton("Reset")
         self._back_btn = QPushButton("<- Anterior")
+        # a single toggling button, not separate Play/Pause buttons: it
+        # reads "Play" while paused and "Pause" while playing, and clicking
+        # it always does the opposite of whatever is currently happening.
         self._play_btn = QPushButton("Play")
-        self._pause_btn = QPushButton("Pause")
         self._fwd_btn = QPushButton("Proximo ->")
-        for btn in (self._reset_btn, self._back_btn, self._play_btn, self._pause_btn, self._fwd_btn):
+        for btn in (self._reset_btn, self._back_btn, self._play_btn, self._fwd_btn):
             transport_row.addWidget(btn)
         root.addLayout(transport_row)
 
         self._reset_btn.clicked.connect(self.reset_clicked)
         self._back_btn.clicked.connect(self.step_backward_clicked)
         self._fwd_btn.clicked.connect(self.step_forward_clicked)
-        self._play_btn.clicked.connect(self.play_clicked)
-        self._pause_btn.clicked.connect(self.pause_clicked)
+        self._play_btn.clicked.connect(self._on_play_pause_clicked)
 
         speed_row = QHBoxLayout()
         speed_row.addWidget(QLabel("Velocidade:"))
@@ -85,8 +87,14 @@ class ControlsWidget(QWidget):
         root.addLayout(self._params_layout)
 
     def set_playing(self, playing: bool) -> None:
-        self._play_btn.setEnabled(not playing)
-        self._pause_btn.setEnabled(playing)
+        self._is_playing = playing
+        self._play_btn.setText("Pause" if playing else "Play")
+
+    def _on_play_pause_clicked(self) -> None:
+        if self._is_playing:
+            self.pause_clicked.emit()
+        else:
+            self.play_clicked.emit()
 
     def rebuild_parameters(self, spec: dict[str, dict[str, object]]) -> None:
         """Rebuild the parameter sliders for the active demo.

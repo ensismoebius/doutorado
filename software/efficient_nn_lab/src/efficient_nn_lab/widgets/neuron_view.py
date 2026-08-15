@@ -15,6 +15,7 @@ already there.
 
 from __future__ import annotations
 
+import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
@@ -32,6 +33,8 @@ class NeuronView(QWidget):
         self._figure = Figure(figsize=(6.4, 3.9))
         self._canvas = FigureCanvasQTAgg(self._figure)
         self._ax = self._figure.add_subplot(111)
+        self._default_ax_pos = self._ax.get_position()
+        self._inset_ax: object | None = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
@@ -100,9 +103,72 @@ class NeuronView(QWidget):
             alpha=alpha, style="italic",
         )
 
+    # -- a small sigmoid-curve panel, shared by both phases of the classic
+    # backprop demo (block diagram *and* the later convergence chart), so
+    # "where on the curve am I, and which way does the gradient point" is
+    # always answerable, not just described in prose.
+    def _draw_sigmoid_inset(
+        self, rect: tuple[float, float, float, float], z: float, y: float, slope: float,
+        grad_z: float, point_reveal: float, tangent_reveal: float, arrow_reveal: float,
+    ) -> None:
+        if self._inset_ax is not None:
+            self._inset_ax.remove()
+            self._inset_ax = None
+        if point_reveal <= 0.02:
+            return
+        ax = self._figure.add_axes(rect)
+        self._inset_ax = ax
+
+        z_grid = np.linspace(-6.0, 6.0, 200)
+        ax.plot(z_grid, 1.0 / (1.0 + np.exp(-z_grid)), color=CONVERGE_COLOR, linewidth=2)
+        ax.axvline(0, color=NEUTRAL_COLOR, linewidth=0.8, linestyle=":")
+
+        ax.plot([z], [y], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
+        ax.text(z, y + 0.08, f"y = σ({z:.2f}) = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR)
+
+        if tangent_reveal > 0.02:
+            half = 2.0
+            z_tan = np.array([z - half, z + half])
+            y_tan = y + slope * (z_tan - z)
+            ax.plot(z_tan, y_tan, color=ACCENT_COLOR, linewidth=1.5, linestyle="--", alpha=tangent_reveal)
+            ax.text(
+                z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top",
+                fontsize=7, color=ACCENT_COLOR, alpha=tangent_reveal,
+            )
+
+        if arrow_reveal > 0.02:
+            direction = -1.0 if grad_z >= 0 else 1.0
+            dz = direction * 0.9
+            dy = slope * dz
+            ax.annotate(
+                "", xy=(z + dz, y + dy), xytext=(z, y),
+                arrowprops=dict(arrowstyle="-|>", color=SNN_COLOR, linewidth=2, alpha=arrow_reveal),
+            )
+            ax.text(
+                z + dz, y + dy + (0.1 if direction > 0 else -0.15),
+                "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR, alpha=arrow_reveal,
+            )
+
+        ax.set_xlim(-6.0, 6.0)
+        ax.set_ylim(-0.15, 1.15)
+        ax.set_xlabel("z", fontsize=8)
+        ax.set_ylabel("σ(z)", fontsize=8)
+        ax.set_title("Ativação: onde estamos na curva", fontsize=8.5)
+        ax.tick_params(labelsize=7)
+
     # -- dispatch -------------------------------------------------------
     def render(self, values: dict[str, object]) -> None:
+        if self._inset_ax is not None:
+            self._inset_ax.remove()
+            self._inset_ax = None
         kind = values.get("kind")
+        if kind == "backprop_pipeline":
+            # shrink the diagram to the left half so the sigmoid inset
+            # (drawn at figure-fraction rect (0.56, ...)) has clean room
+            # on the right instead of floating over the block diagram.
+            self._ax.set_position([0.03, 0.06, 0.5, 0.88])
+        else:
+            self._ax.set_position(self._default_ax_pos)
         handler = {
             "backprop_pipeline": self._render_backprop_pipeline,
             "forward_pipeline": self._render_forward_pipeline,
@@ -118,69 +184,95 @@ class NeuronView(QWidget):
         self._canvas.draw_idle()
 
     # ================================================================
-    # backprop/demos/traditional_gd.py — one weight, no quantization: the
-    # plain forward (y = w*x) and backward (chain rule) that BitNet's STE
-    # and the SNN's surrogate gradient are variations on top of.
+    # backprop/demos/traditional_gd.py — one weight, sigmoid activation: the
+    # forward (z = w*x, y = sigma(z)) and backward (three-link chain rule)
+    # that BitNet's STE and the SNN's surrogate gradient are variations on.
+    # A sigmoid-curve inset (point + tangent + descent direction) shares
+    # the figure with the block diagram — see _draw_sigmoid_inset.
     # ================================================================
-    _BP_X = (1.2, 5.2)
-    _BP_W = (1.2, 3.1)
-    _BP_Y = (4.6, 4.15)
-    _BP_TARGET = (7.8, 5.2)
-    _BP_LOSS = (7.8, 3.1)
-    _BP_GRAD_Y = (7.8, 1.1)
-    _BP_GRAD_W = (4.6, 1.1)
+    _BP_X = (0.7, 5.3)
+    _BP_W = (0.7, 3.0)
+    _BP_Z = (3.0, 4.15)
+    _BP_Y = (5.6, 4.15)
+    _BP_TARGET = (5.6, 6.15)
+    _BP_LOSS = (5.6, 2.15)
+    _BP_GRAD_Y = (3.0, 1.1)
+    _BP_GRAD_Z = (5.6, 0.15)
+    _BP_GRAD_W = (0.7, 1.1)
 
     def _render_backprop_pipeline(self, values: dict[str, object]) -> None:
-        self._reset_axes(xlim=(0, 9.4), ylim=(0, 6.2))
+        self._reset_axes(xlim=(-0.2, 6.6), ylim=(-0.3, 6.7))
+        z_reveal = float(values["z_reveal"])
         y_reveal = float(values["y_reveal"])
         target_reveal = float(values["target_reveal"])
         diff_reveal = float(values["diff_reveal"])
         loss_reveal = float(values["loss_reveal"])
         grady_reveal = float(values["grady_reveal"])
+        gradz_reveal = float(values["gradz_reveal"])
         gradw_reveal = float(values["gradw_reveal"])
         update_reveal = float(values["update_reveal"])
         w_pulse = float(values["w_pulse"])
 
-        for p in (self._BP_X, self._BP_W, self._BP_Y, self._BP_TARGET, self._BP_LOSS, self._BP_GRAD_Y, self._BP_GRAD_W):
-            self._skeleton_box(*p)
-        self._skeleton_arrow(self._BP_X, self._BP_Y)
-        self._skeleton_arrow(self._BP_W, self._BP_Y)
+        boxes = (
+            self._BP_X, self._BP_W, self._BP_Z, self._BP_Y, self._BP_TARGET, self._BP_LOSS,
+            self._BP_GRAD_Y, self._BP_GRAD_Z, self._BP_GRAD_W,
+        )
+        for p in boxes:
+            self._skeleton_box(*p, w=1.5)
+        self._skeleton_arrow(self._BP_X, self._BP_Z)
+        self._skeleton_arrow(self._BP_W, self._BP_Z)
+        self._skeleton_arrow(self._BP_Z, self._BP_Y)
         self._skeleton_arrow(self._BP_Y, self._BP_TARGET)
         self._skeleton_arrow(self._BP_Y, self._BP_LOSS)
         self._skeleton_arrow(self._BP_LOSS, self._BP_GRAD_Y)
-        self._skeleton_arrow(self._BP_GRAD_Y, self._BP_GRAD_W)
+        self._skeleton_arrow(self._BP_GRAD_Y, self._BP_GRAD_Z)
+        self._skeleton_arrow(self._BP_GRAD_Z, self._BP_GRAD_W)
         self._skeleton_arrow(self._BP_GRAD_W, self._BP_W)
 
-        self._box(*self._BP_X, f"x = {values['x']:g}", NEUTRAL_COLOR)
-        self._box(*self._BP_W, f"w = {values['w']:g}", BITNET_COLOR, glow=w_pulse)
+        self._box(*self._BP_X, f"x = {values['x']:g}", NEUTRAL_COLOR, w=1.5)
+        self._box(*self._BP_W, f"w = {values['w']:g}", BITNET_COLOR, w=1.5, glow=w_pulse)
 
-        self._flow_arrow(self._BP_X, self._BP_Y, y_reveal, NEUTRAL_COLOR)
-        self._flow_arrow(self._BP_W, self._BP_Y, y_reveal, BITNET_COLOR)
-        self._box(*self._BP_Y, f"y = {values['y']:g}", CONVERGE_COLOR, alpha=y_reveal)
-        self._equation_near(*self._BP_Y, "y = w · x", y_reveal)
+        self._flow_arrow(self._BP_X, self._BP_Z, z_reveal, NEUTRAL_COLOR)
+        self._flow_arrow(self._BP_W, self._BP_Z, z_reveal, BITNET_COLOR)
+        self._box(*self._BP_Z, f"z = {values['z']:g}", BITNET_COLOR, alpha=z_reveal, w=1.5)
+        self._equation_near(*self._BP_Z, "z = w · x", z_reveal, dy=-0.55)
+
+        self._flow_arrow(self._BP_Z, self._BP_Y, y_reveal, CONVERGE_COLOR)
+        self._box(*self._BP_Y, f"y = σ(z)\n= {values['y']:.3f}", CONVERGE_COLOR, alpha=y_reveal, w=1.9)
+        self._equation_near(*self._BP_Y, "y = σ(z) = 1/(1+e⁻ᶻ)", y_reveal, dy=0.6)
 
         self._flow_arrow(self._BP_Y, self._BP_TARGET, target_reveal, NEUTRAL_COLOR)
-        self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal)
+        self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal, w=1.5)
         self._fading_text(
-            (self._BP_Y[0] + self._BP_TARGET[0]) / 2 + 0.7, (self._BP_Y[1] + self._BP_TARGET[1]) / 2,
-            f"diferença = {values['diff']:g}", ACCENT_COLOR, diff_reveal, fontsize=9,
+            (self._BP_Y[0] + self._BP_TARGET[0]) / 2 - 1.05, (self._BP_Y[1] + self._BP_TARGET[1]) / 2,
+            f"diferença = {values['diff']:.3f}", ACCENT_COLOR, diff_reveal, fontsize=8,
         )
 
         self._flow_arrow(self._BP_Y, self._BP_LOSS, loss_reveal, SNN_COLOR)
-        self._box(*self._BP_LOSS, f"loss = {values['loss']:g}", SNN_COLOR, alpha=loss_reveal)
-        self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal)
+        self._box(*self._BP_LOSS, f"loss = {values['loss']:.3f}", SNN_COLOR, alpha=loss_reveal, w=1.5)
+        self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_LOSS, self._BP_GRAD_Y, grady_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:g}", SNN_COLOR, alpha=grady_reveal)
-        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal)
+        self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5)
+        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal, dy=-0.55)
 
-        self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:g}", SNN_COLOR, alpha=gradw_reveal)
-        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dy · x  (regra da cadeia)", gradw_reveal)
+        self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_Z, gradz_reveal, SNN_COLOR)
+        self._box(*self._BP_GRAD_Z, f"dL/dz = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6)
+        self._equation_near(*self._BP_GRAD_Z, "dL/dz = dL/dy · σ'(z)", gradz_reveal, dy=-0.5)
+
+        self._flow_arrow(self._BP_GRAD_Z, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
+        self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5)
+        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dz · x", gradw_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_GRAD_W, self._BP_W, update_reveal, ACCENT_COLOR)
-        self._fading_text(1.2, 4.1, f"atualizado -> {values['w_updated']:g}", ACCENT_COLOR, update_reveal, fontsize=9)
-        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal)
+        self._fading_text(0.7, 2.0, f"atualizado -> {values['w_updated']:.3f}", ACCENT_COLOR, update_reveal, fontsize=8)
+        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal, dy=-0.55)
+
+        self._draw_sigmoid_inset(
+            rect=(0.56, 0.1, 0.42, 0.85),
+            z=float(values["z"]), y=float(values["y"]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
+            point_reveal=y_reveal, tangent_reveal=y_reveal, arrow_reveal=gradz_reveal,
+        )
 
     # ================================================================
     # forward.py — inputs -> quantized weights -> sum -> y -> target -> loss
