@@ -94,7 +94,11 @@ if(Python3_EXECUTABLE)
     file(GLOB_RECURSE THESIS_SOURCE_PROFILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/profiles/phase00/*.json"
         "${CMAKE_CURRENT_SOURCE_DIR}/profiles/phase01/*.json")
-    list(APPEND THESIS_SOURCE_PROFILES "${CMAKE_CURRENT_SOURCE_DIR}/profiles/debug.json")
+    # profiles/debug.json is a gitignored, user-local profile: only use it when
+    # present so a fresh checkout still configures/builds cleanly.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/profiles/debug.json")
+        list(APPEND THESIS_SOURCE_PROFILES "${CMAKE_CURRENT_SOURCE_DIR}/profiles/debug.json")
+    endif()
 
     set(THESIS_SMOKE_GEN "${CMAKE_SOURCE_DIR}/scripts/testing/thesis_make_smoke_profiles.py")
     set(THESIS_SMOKE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/thesis_smoke_profiles.stamp")

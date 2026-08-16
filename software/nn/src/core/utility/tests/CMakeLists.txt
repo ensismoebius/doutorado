@@ -17,7 +17,7 @@ target_link_libraries(util_gtest
         z
         ${BLAS_LIBRARIES}
         ${LAPACK_LIBRARIES}
-        ${OPENBLAS_LIBRARIES}
+        ${OPENBLAS_LINK_LIBRARIES}
         util
         tensor
 )

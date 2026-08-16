@@ -32,7 +32,7 @@ target_link_libraries(exec_lfcc_pipeline
 		${ZLIB_LIBRARIES}
         ${OpenMP_CXX_LIBRARIES}
         matioCpp
-        fftw3f
+        FFTW::FFTWF
         util
         tensor
         dataLoaders_10_1117

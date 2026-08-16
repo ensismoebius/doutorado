@@ -50,8 +50,9 @@ FetchContent_Declare(
 # This is fragile but necessary to bridge the modern and legacy CMake scripts.
 if(TARGET matio)
     # Manually construct the path to the library. Based on the build output,
-    # matio produces a shared library `libmatio.so` directly in its binary directory.
-    set(MATIO_LIB_PATH "${matio_BINARY_DIR}/libmatio.so")
+    # matio produces a shared library `libmatio.<ext>` directly in its binary
+    # directory (.so on Linux, .dylib on macOS).
+    set(MATIO_LIB_PATH "${matio_BINARY_DIR}/libmatio${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
     set(MATIO_INCLUDE_DIR "${matio_SOURCE_DIR}/src" CACHE INTERNAL "Path to matio headers")
     set(MATIO_LIBRARY "${MATIO_LIB_PATH}" CACHE INTERNAL "Path to matio library")

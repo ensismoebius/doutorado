@@ -27,7 +27,7 @@ target_link_libraries(plotSpikingNetwork
         xtensor xtensor-blas
         ${OpenMP_CXX_LIBRARIES}
         OpenGL::GL
-        ${GLFW_LIBRARIES}
+        ${GLFW_LINK_LIBRARIES}
         imgui
         implot
         util

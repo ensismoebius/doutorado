@@ -33,11 +33,67 @@ set(FFTW_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-install")
 # Set install directory and check if NFFT3 is already built
 set(NFFT3_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/nfft3-install")
 
+# Library file name is platform-dependent (.so on Linux, .dylib on macOS)
+set(NFFT3_LIBRARY_FILE "libnfft3${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
 # Define configure flags based on build type for autotools
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(NFFT3_ENV_FLAGS "CFLAGS=-g -O0" "CXXFLAGS=-g -O0")
 else() # Release or other types, default to Release
   set(NFFT3_ENV_FLAGS "CFLAGS=-O3 -DNDEBUG" "CXXFLAGS=-O3 -DNDEBUG")
+endif()
+
+# NFFT3's bundled AX_OPENMP only probes GCC/ICC-style flags (-fopenmp, ...) and
+# its libtool rules propagate a raw `-fopenmp` into the final dylib link.
+# AppleClang has no OpenMP support at all, so on macOS we drive the configure
+# and build through a small CC/CXX wrapper that translates `-fopenmp` into the
+# Homebrew libomp recipe (`-Xpreprocessor -fopenmp` + `-lomp`).
+#
+# Homebrew GCC is NOT an alternative: gcc-15/gcc-16 hit an internal compiler
+# error (`make_ssa_name_fn` in ompexp) compiling nfft.c's OpenMP loops with
+# VLAs on aarch64-darwin, while AppleClang handles the same pragmas fine.
+set(NFFT3_OPENMP_FLAG "--enable-openmp")
+set(NFFT3_CONFIGURE_CMD ${CMAKE_COMMAND} -E env ${NFFT3_ENV_FLAGS})
+if(APPLE)
+    if(NOT NN_BREW_LIBOMP_INCLUDE OR NOT NN_BREW_LIBOMP_PREFIX)
+        message(FATAL_ERROR
+            "libomp not configured: cmake/MacOSXDependencies.cmake must run "
+            "before VendorNFFT3.cmake.")
+    endif()
+
+    set(_nn_nfft3_cc_wrapper "${CMAKE_BINARY_DIR}/nfft3_cc.sh")
+    file(WRITE "${_nn_nfft3_cc_wrapper}"
+        "#!/bin/sh\n"
+        "args=\"\"\n"
+        "for a in \"$@\"; do\n"
+        "  if [ \"$a\" = \"-fopenmp\" ]; then\n"
+        "    args=\"$args -Xpreprocessor -fopenmp\"\n"
+        "  else\n"
+        "    args=\"$args $a\"\n"
+        "  fi\n"
+        "done\n"
+        "exec /usr/bin/clang $args -L${NN_BREW_LIBOMP_PREFIX}/lib -lomp\n")
+    file(CHMOD "${_nn_nfft3_cc_wrapper}"
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+
+    # Reuse the build-type base CFLAGS/CXXFLAGS computed above, plus the libomp
+    # include dir so <omp.h> is found (the `-Xpreprocessor -fopenmp` itself is
+    # injected by the wrapper for every `-fopenmp` it sees).
+    set(_nn_nfft3_base_cflags "")
+    set(_nn_nfft3_base_cxxflags "")
+    foreach(_nn_flag IN LISTS NFFT3_ENV_FLAGS)
+        if(_nn_flag MATCHES "^CFLAGS=(.*)")
+            set(_nn_nfft3_base_cflags "${CMAKE_MATCH_1}")
+        elseif(_nn_flag MATCHES "^CXXFLAGS=(.*)")
+            set(_nn_nfft3_base_cxxflags "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+
+    set(NFFT3_CONFIGURE_CMD ${CMAKE_COMMAND} -E env
+        "CC=${_nn_nfft3_cc_wrapper}"
+        "CXX=${_nn_nfft3_cc_wrapper}"
+        "CFLAGS=${_nn_nfft3_base_cflags} -I${NN_BREW_LIBOMP_INCLUDE}"
+        "CXXFLAGS=${_nn_nfft3_base_cxxflags} -I${NN_BREW_LIBOMP_INCLUDE}")
 endif()
 
 find_library(NFFT3_LIBRARY nfft3 HINTS "${NFFT3_INSTALL_DIR}/lib")
@@ -70,15 +126,15 @@ if(NOT NFFT3_LIBRARY OR NOT NFFT3_INCLUDE_DIR)
         UPDATE_DISCONNECTED 1
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 
-        BUILD_BYPRODUCTS "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
+        BUILD_BYPRODUCTS "${NFFT3_INSTALL_DIR}/lib/${NFFT3_LIBRARY_FILE}"
         DEPENDS ${NFFT3_DEPENDS}
 
-        CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env ${NFFT3_ENV_FLAGS}
+        CONFIGURE_COMMAND ${NFFT3_CONFIGURE_CMD}
             <SOURCE_DIR>/configure
             --prefix=<INSTALL_DIR>
             --disable-examples
             --disable-applications
-            --enable-openmp
+            ${NFFT3_OPENMP_FLAG}
             --enable-shared
             --with-fftw3=${NFFT3_FFTW_CONFIG_PATH}
 
@@ -93,7 +149,7 @@ if(NOT NFFT3_LIBRARY OR NOT NFFT3_INCLUDE_DIR)
 
     add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
     set_target_properties(NFFT::NFFT PROPERTIES
-        IMPORTED_LOCATION             "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
+        IMPORTED_LOCATION             "${NFFT3_INSTALL_DIR}/lib/${NFFT3_LIBRARY_FILE}"
         INTERFACE_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include"
         INTERFACE_LINK_LIBRARIES      "FFTW::FFTW;OpenMP::OpenMP_C"
     )

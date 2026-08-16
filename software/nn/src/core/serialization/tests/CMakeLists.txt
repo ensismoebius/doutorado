@@ -22,7 +22,7 @@ target_link_libraries(core_gtest
         z
         ${BLAS_LIBRARIES}
         ${LAPACK_LIBRARIES}
-        ${OPENBLAS_LIBRARIES}
+        ${OPENBLAS_LINK_LIBRARIES}
         tensor
 )
 

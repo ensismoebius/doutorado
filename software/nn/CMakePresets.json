@@ -40,6 +40,35 @@
             }
         },
         {
+            "name": "max-performance-macos",
+            "displayName": "Max Performance (macOS, AppleClang)",
+            "description": "Configure for maximal runtime performance on macOS (O3 + LTO, no -march=native, which AppleClang rejects on Intel).",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -flto -DNDEBUG -pipe",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -flto -DNDEBUG -pipe",
+                "NN_ENABLE_FAST_LINKER": "OFF",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+            }
+        },
+        {
+            "name": "debug-macos",
+            "displayName": "Debug (macOS, AppleClang)",
+            "description": "Debug build for macOS (no -march=native, which AppleClang rejects on Intel).",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "NN_ENABLE_FAST_LINKER": "OFF",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+            }
+        },
+        {
             "name": "max-performance-device",
             "displayName": "Max Performance (Device backend)",
             "description": "Configure max-performance build with DeviceTensorBackend as nn::Backend.",
@@ -105,6 +134,16 @@
             "name": "max-performance-opencl",
             "displayName": "Build (max-performance-opencl)",
             "configurePreset": "max-performance-opencl"
+        },
+        {
+            "name": "max-performance-macos",
+            "displayName": "Build (max-performance-macos)",
+            "configurePreset": "max-performance-macos"
+        },
+        {
+            "name": "debug-macos",
+            "displayName": "Build (debug-macos)",
+            "configurePreset": "debug-macos"
         },
         {
             "name": "max-performance-device",

@@ -20,6 +20,17 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     return()
 endif()
 
+# The macOS Command Line Tools do not ship the libFuzzer runtime
+# (libclang_rt.fuzzer_osx.a is only provided by full Xcode or Homebrew's
+# `llvm`), so `-fsanitize=fuzzer` cannot link. Skip on Apple; Arch/CI Clang
+# keeps building the fuzz targets.
+if(APPLE)
+    message(STATUS
+        "NN_ENABLE_FUZZING=ON ignored: libFuzzer runtime is not available in "
+        "the macOS Command Line Tools (full Xcode or Homebrew `llvm` required).")
+    return()
+endif()
+
 set(FUZZ_SANITIZER_COMPILE_FLAGS
     -fsanitize=fuzzer,address,undefined
     -fno-omit-frame-pointer

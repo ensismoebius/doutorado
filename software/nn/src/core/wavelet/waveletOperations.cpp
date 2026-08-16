@@ -86,7 +86,7 @@ auto malat(const std::vector<double>& signal,
 
     // Initial task for the first level of decomposition
     // Optimization: The initial padding is handled segment-wise within the loop
-    tasks.emplace_back(0, current_signal_size, false);
+    tasks.push_back(Task{0, current_signal_size, false});
 
     // Iterative level-by-level decomposition to replace recursion
     // Optimization: Eliminates function call overhead, stack usage for deep decompositions,
@@ -129,8 +129,8 @@ auto malat(const std::vector<double>& signal,
             { // -1 because filter_len-1 is the minimum useful size
                 // This segment cannot be transformed, but it still contributes to the overall
                 // signal. We just pass it through to the next level's tasks if it's relevant.
-                tasks_for_next_level.emplace_back(
-                    current_start, current_sz, current_is_high_pass); //
+                tasks_for_next_level.push_back(
+                    Task{current_start, current_sz, current_is_high_pass}); //
                 continue;                                             //
             }
 
@@ -181,15 +181,15 @@ auto malat(const std::vector<double>& signal,
             if (mode == PACKET_WAVELET) [[likely]]
             {
                 // Both low-pass and high-pass branches become new tasks for the next level
-                tasks_for_next_level.emplace_back(current_start, half_sz, false); // Low-pass child
-                tasks_for_next_level.emplace_back(
-                    current_start + half_sz, half_sz, true); // High-pass child
+                tasks_for_next_level.push_back(Task{current_start, half_sz, false}); // Low-pass child
+                tasks_for_next_level.push_back(
+                    Task{current_start + half_sz, half_sz, true}); // High-pass child
             }
             else [[unlikely]]
             {
                 // For regular DWT, only the low-pass branch is decomposed further
-                tasks_for_next_level.emplace_back(
-                    current_start, half_sz, false); // Only low-pass child
+                tasks_for_next_level.push_back(
+                    Task{current_start, half_sz, false}); // Only low-pass child
             }
         }
         // After all segments of the current level are processed, swap `results.transformedSignal`
