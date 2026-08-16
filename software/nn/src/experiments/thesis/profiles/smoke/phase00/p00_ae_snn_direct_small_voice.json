@@ -1,0 +1,48 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p00_ae_snn_direct_small_voice",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "voice",
+    "max_samples": 60
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "snn-ae",
+      "encoder_layer_spec": [
+        "linear:32:leaky",
+        "linear:16:identity"
+      ],
+      "decoder_layer_spec": [
+        "linear:32:leaky",
+        "linear:output:identity"
+      ],
+      "encoding": "direct",
+      "time_steps": 1,
+      "voltage_threshold": 1.0,
+      "firing_rate_reg_lambda": 0.5,
+      "firing_rate_min": 0.1,
+      "firing_rate_max": 0.8
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "samples_per_batch": 4,
+    "early_stop_patience": 1,
+    "k_folds": 2,
+    "nested_cv": true
+  }
+}

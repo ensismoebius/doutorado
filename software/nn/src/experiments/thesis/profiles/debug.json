@@ -1,0 +1,43 @@
+{
+  "experiment": {
+    "run_tag": "e05_debug",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/thesis/debug",
+    "modality": "eeg",
+    "max_samples": 60
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "descriptors": ["energy", "zcr"],
+      "dtwpt_level": 3
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "type": "rnn",
+    "layer_spec": ["linear:64:relu", "residual:1", "linear:N_speakers:identity"],
+    "text_mode": "dependent"
+  },
+  "training": {
+    "epochs": 3,
+    "learning_rate": 1e-3,
+    "samples_per_batch": 8,
+    "early_stop_patience": 2,
+    "k_folds": 2,
+    "nested_cv": true,
+    "weight_decay": 1e-4,
+    "firing_rate_reg_lambda": 0.01,
+    "firing_rate_min": 0.05,
+    "firing_rate_max": 0.80
+  }
+}

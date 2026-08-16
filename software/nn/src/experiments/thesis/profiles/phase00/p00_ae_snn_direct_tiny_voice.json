@@ -1,0 +1,47 @@
+{
+  "experiment": {
+    "run_tag": "e05_p00_ae_snn_direct_tiny_voice",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/thesis/phase00",
+    "modality": "voice"
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "snn-ae",
+      "encoder_layer_spec": [
+        "linear:16:leaky",
+        "linear:8:identity"
+      ],
+      "decoder_layer_spec": [
+        "linear:16:leaky",
+        "linear:output:identity"
+      ],
+      "encoding": "direct",
+      "time_steps": 1,
+      "voltage_threshold": 1.0,
+      "firing_rate_reg_lambda": 0.5,
+      "firing_rate_min": 0.1,
+      "firing_rate_max": 0.8
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "early_stop_patience": 15,
+    "k_folds": 5,
+    "nested_cv": true
+  }
+}

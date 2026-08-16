@@ -273,6 +273,27 @@ fs::path profiles_dir()
     return here.parent_path() / "profiles";
 }
 
+// Anti-drift guard: every profile shipped on disk (outside the generated smoke/
+// mirror) must be in the hardcoded list above. If a new profile is added without
+// being registered in all_profiles(), it silently escapes the audit — and because
+// the .gitignore only whitelists this directory, an unregistered profile would also
+// be the first thing to fall out of git tracking. Failing here keeps the test, the
+// directory, and git in lock-step.
+std::vector<std::string> profiles_on_disk()
+{
+    std::vector<std::string> out;
+    for (const auto& entry : fs::recursive_directory_iterator(profiles_dir()))
+    {
+        if (entry.is_directory()) continue;
+        const fs::path rel = fs::relative(entry.path(), profiles_dir());
+        if (rel.string().find("smoke/") == 0) continue; // generated mirror, not source of truth
+        if (rel.extension() != ".json") continue;
+        out.push_back(rel.generic_string());
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
 ThesisConfig load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
@@ -284,6 +305,31 @@ ThesisConfig load(const std::string& name)
 }
 
 } // namespace
+
+// Every profile listed in all_profiles() must exist on disk (the parametrized
+// tests above already fail on a missing file via load()). This test closes the
+// other drift direction: profiles present on disk but absent from the list.
+TEST(ThesisProfileAudit, EveryProfileOnDiskIsAudited)
+{
+    std::vector<std::string> listed = all_profiles();
+    std::sort(listed.begin(), listed.end());
+
+    const std::vector<std::string> on_disk = profiles_on_disk();
+    std::vector<std::string> missing_from_list;
+    std::set_difference(on_disk.begin(),
+        on_disk.end(),
+        listed.begin(),
+        listed.end(),
+        std::back_inserter(missing_from_list));
+
+    EXPECT_TRUE(missing_from_list.empty())
+        << "profiles on disk but not in all_profiles(): " << [&]()
+    {
+        std::string s;
+        for (const auto& p : missing_from_list) s += p + " ";
+        return s;
+    }();
+}
 
 class ThesisProfileAuditTest : public ::testing::TestWithParam<std::string>
 {
