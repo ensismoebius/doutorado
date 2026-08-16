@@ -100,6 +100,12 @@ if(UNIX AND NOT APPLE)
     include(cmake/ArchLinuxDependencies.cmake)
 endif()
 
+# Ubuntu-family bootstrap: installs required packages via apt-get (incl. Ubuntu
+# flavours, Mint, Pop!_OS). No-op on all other platforms (macOS / Arch / CI).
+if(UNIX AND NOT APPLE)
+    include(cmake/UbuntuDependencies.cmake)
+endif()
+
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 
