@@ -33,17 +33,16 @@ jobs:
         if: matrix.compiler == 'clang'
         run: |
           sudo apt-get update
+          # Build dependencies are installed by cmake/UbuntuDependencies.cmake
+          # at Configure time. Here we only install the specific compiler version
+          # (clang-16, which the module does not provide), ccache (needed before
+          # configure for the ccache-action step), and the OpenCL CPU runtime so
+          # OpenCL tests have an ICD to run against.
           sudo apt-get install -y \
             clang-16 \
             clang++-16 \
-            cmake \
-            ninja-build \
-            libeigen3-dev \
-            libblas-dev \
-            liblapack-dev \
-            libhdf5-dev \
-            libfftw3-dev \
-            ccache
+            ccache \
+            pocl-opencl-icd
 
       - name: Install dependencies (GCC)
         if: matrix.compiler == 'gcc'
@@ -51,17 +50,14 @@ jobs:
           sudo apt-get update
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
+          # Build dependencies are installed by cmake/UbuntuDependencies.cmake
+          # at Configure time. Here we only install the specific compiler version
+          # (gcc-14 from the PPA), ccache, and the OpenCL CPU runtime.
           sudo apt-get install -y \
             gcc-14 \
             g++-14 \
-            cmake \
-            ninja-build \
-            libeigen3-dev \
-            libblas-dev \
-            liblapack-dev \
-            libhdf5-dev \
-            libfftw3-dev \
-            ccache
+            ccache \
+            pocl-opencl-icd
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1

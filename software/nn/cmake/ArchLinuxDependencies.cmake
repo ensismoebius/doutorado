@@ -84,6 +84,8 @@ set(NN_PACMAN_DEPENDENCIES
     base-devel          # toolchain + autotools (also required to build yay)
     opencl-headers      # Khronos OpenCL headers (CL/cl.h)
     ocl-icd             # OpenCL ICD loader
+    sqlite              # SQLite3 (required by the data loaders, SQLite3::SQLite3)
+    zlib                # ZLIB (find_package(ZLIB REQUIRED) in the data loaders)
 )
 
 # Query installed packages once and install only what is missing. `pacman -S`

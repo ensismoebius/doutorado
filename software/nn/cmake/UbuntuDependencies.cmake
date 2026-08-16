@@ -91,6 +91,8 @@ set(NN_APT_DEPENDENCIES
     build-essential     # toolchain + autotools
     opencl-headers      # Khronos OpenCL headers (CL/cl.h)
     ocl-icd-opencl-dev  # OpenCL ICD loader + OpenCL.pc pkg-config module
+    libsqlite3-dev      # SQLite3 (required by the data loaders, SQLite3::SQLite3)
+    zlib1g-dev          # ZLIB (find_package(ZLIB REQUIRED) in the data loaders)
 )
 
 # Query installed packages once and install only what is missing. `dpkg -s`
