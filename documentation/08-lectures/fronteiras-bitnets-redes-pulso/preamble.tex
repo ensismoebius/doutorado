@@ -148,6 +148,47 @@
 	}%
 }
 
+% A full, reserved slide for "now switch to the live software" -- one per
+% program section that must be shown (presentation.md phase 3/4, "one
+% slide per program section"). Distinct from \abrirNoSoftware, which is
+% just a small footer link on a content slide: this is its own frame, so
+% during the talk it is an unmissable full-screen cue to alt-tab, not a
+% line easy to skip past while still explaining the concept. Reuses the
+% "title" beamercolor box (same style as \AtBeginSection's divider), so
+% it automatically picks up whichever hue the enclosing \section set --
+% no separate color plumbing needed. #1 = demo title (as in the
+% software's sidebar), #2 = DemoModule.slug, #3 = one-line presenter cue
+% (what to click/say once the software is on screen).
+%
+% The "run:" link (below) is silently ignored by most PDF viewers
+% (presentation.md 4.2), so it cannot be the only way to trigger the demo
+% during a talk. Below it, a plain relative shell command is printed in
+% monospace so it can be read off and typed, or selected and pasted into
+% a terminal already sitting in this .tex file's directory. \path{} (from
+% url.sty) was tried first but its verbatim scanner eats the space before
+% #2 and wraps the result in "<...>" -- \detokenize{} instead converts
+% the already-tokenized argument (slugs use "." and "_", e.g.
+% snn.poisson_image) back into plain catcode-12 characters, which
+% \texttt{} then typesets like any normal string, space included.
+\newcommand{\DemoSlide}[3]{%
+	\begin{frame}
+		\vfill
+		\centering
+		\begin{beamercolorbox}[sep=16pt,center,shadow=true,rounded=true]{title}
+			{\large\textbf{Demonstração ao vivo}}\\[4pt]
+			{\Large #1}
+		\end{beamercolorbox}
+		\vspace{18pt}
+		\href{run:./abrir-demo.sh #2}{\Large $\blacktriangleright$~\textbf{Abrir no software}}
+		\vspace{10pt}
+		\par{\footnotesize\color{neutralColor} ou, no terminal (a partir desta pasta):}\\[2pt]
+		\texttt{\small\detokenize{./abrir-demo.sh }\detokenize{#2}}
+		\vspace{18pt}
+		\par{\small\color{neutralColor} #3}
+		\vfill
+	\end{frame}
+}
+
 % Enables section slides
 \AtBeginSection[]{
 	\begin{frame}

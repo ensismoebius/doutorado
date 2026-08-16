@@ -188,15 +188,28 @@ class NeuronView(QWidget):
 
         ax.set_xlim(-6.0, 6.0)
         ax.set_ylim(-0.15, 1.15)
+        # set_xlabel/set_ylabel/set_title/tick_params each force matplotlib
+        # to recompute tick/label layout (Axis._update_label_position) on
+        # the *next* draw regardless of whether the text actually changed —
+        # measured as a meaningful chunk of this inset's per-frame redraw
+        # cost. fast_clear() never touches these (only lines/patches/texts/
+        # collections/images), so they stay correct across frames without
+        # being re-set; only re-set when the value genuinely changed (e.g.
+        # switching which neuron's panel this cached Axes now shows).
         if compact:
-            ax.set_title(title, fontsize=7.5)
-            ax.set_xticks([])
-            ax.set_yticks([])
+            if ax.get_title() != title:
+                ax.set_title(title, fontsize=7.5)
+            if ax.get_xticks().size or ax.get_yticks().size:
+                ax.set_xticks([])
+                ax.set_yticks([])
         else:
-            ax.set_xlabel("z", fontsize=8)
-            ax.set_ylabel("σ(z)", fontsize=8)
-            ax.set_title(title, fontsize=8.5)
-            ax.tick_params(labelsize=7)
+            if ax.get_xlabel() != "z":
+                ax.set_xlabel("z", fontsize=8)
+            if ax.get_ylabel() != "σ(z)":
+                ax.set_ylabel("σ(z)", fontsize=8)
+            if ax.get_title() != title:
+                ax.set_title(title, fontsize=8.5)
+                ax.tick_params(labelsize=7)
 
     # -- forward.py's companion panel: *why* Q(w1) and Q(w2) come out the
     # way they do, geometrically -- where each real weight actually sits
@@ -430,34 +443,34 @@ class NeuronView(QWidget):
 
         self._flow_arrow(self._BP_X, self._BP_Z, z_reveal, NEUTRAL_COLOR)
         self._flow_arrow(self._BP_W, self._BP_Z, z_reveal, BITNET_COLOR)
-        self._box(*self._BP_Z, f"z = {values['z']:g}", BITNET_COLOR, alpha=z_reveal, w=1.5)
+        self._box(*self._BP_Z, f"z = {values['z']:g}", BITNET_COLOR, alpha=z_reveal, w=1.5, glow=float(values.get("z_glow", 0.0)))
         self._equation_near(*self._BP_Z, "z = w · x", z_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_Z, self._BP_Y, y_reveal, CONVERGE_COLOR)
-        self._box(*self._BP_Y, f"y = σ(z)\n= {values['y']:.3f}", CONVERGE_COLOR, alpha=y_reveal, w=1.9)
+        self._box(*self._BP_Y, f"y = σ(z)\n= {values['y']:.3f}", CONVERGE_COLOR, alpha=y_reveal, w=1.9, glow=float(values.get("y_glow", 0.0)))
         self._equation_near(*self._BP_Y, "y = σ(z) = 1/(1+e⁻ᶻ)", y_reveal, dy=0.6)
 
         self._flow_arrow(self._BP_Y, self._BP_TARGET, target_reveal, NEUTRAL_COLOR)
-        self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal, w=1.5)
+        self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal, w=1.5, glow=float(values.get("target_glow", 0.0)))
         self._fading_text(
             (self._BP_Y[0] + self._BP_TARGET[0]) / 2 - 1.05, (self._BP_Y[1] + self._BP_TARGET[1]) / 2,
             f"diferença = {values['diff']:.3f}", ACCENT_COLOR, diff_reveal, fontsize=8,
         )
 
         self._flow_arrow(self._BP_Y, self._BP_LOSS, loss_reveal, SNN_COLOR)
-        self._box(*self._BP_LOSS, f"loss = {values['loss']:.3f}", SNN_COLOR, alpha=loss_reveal, w=1.5)
+        self._box(*self._BP_LOSS, f"loss = {values['loss']:.3f}", SNN_COLOR, alpha=loss_reveal, w=1.5, glow=float(values.get("loss_glow", 0.0)))
         self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_LOSS, self._BP_GRAD_Y, grady_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5)
+        self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5, glow=float(values.get("grady_glow", 0.0)))
         self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_Z, gradz_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_Z, f"dL/dz = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6)
+        self._box(*self._BP_GRAD_Z, f"dL/dz = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6, glow=float(values.get("gradz_glow", 0.0)))
         self._equation_near(*self._BP_GRAD_Z, "dL/dz = dL/dy · σ'(z)", gradz_reveal, dy=-0.5)
 
         self._flow_arrow(self._BP_GRAD_Z, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5)
+        self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5, glow=float(values.get("gradw_glow", 0.0)))
         self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dz · x", gradw_reveal, dy=-0.55)
 
         self._flow_arrow(self._BP_GRAD_W, self._BP_W, update_reveal, ACCENT_COLOR)

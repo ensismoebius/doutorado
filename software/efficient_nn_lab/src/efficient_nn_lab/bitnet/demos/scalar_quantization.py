@@ -12,7 +12,7 @@ from __future__ import annotations
 from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
 from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, ternary_quantize
 
-_SLIDE_TWEEN_STEPS = 22
+_SLIDE_TWEEN_STEPS = 12
 
 
 class ScalarQuantizationDemo(DemoModule):

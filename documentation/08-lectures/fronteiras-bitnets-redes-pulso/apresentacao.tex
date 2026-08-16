@@ -25,8 +25,10 @@
 	\setbeamercolor{frametitle}{fg=chromeText,bg=neutralColor!55!white}
 	\section{Fundamentos}
 		\input{slides/fundamentosArquitetura.tex}
+		\DemoSlide{Backprop \textrightarrow{} Rede de 4 camadas}{backprop.mlp}{Percorra o forward neurônio a neurônio, na mesma topologia 3-2-2-1 do diagrama.}
 		\input{slides/fundamentosPesos.tex}
 		\input{slides/fundamentosTreinamento.tex}
+		\DemoSlide{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}{Percorra os 9 estágios da iteração 1 --- os números batem exatamente com os do slide anterior.}
 
 	\section{Estrutura da apresentação}
 		\input{slides/estrutura.tex}
@@ -43,7 +45,10 @@
 		\input{slides/bitnetLinha.tex}
 		\input{slides/bitnetProblema.tex}
 		\input{slides/bitnetCamada.tex}
+		\DemoSlide{BitNet \textrightarrow{} Quantizacao}{bitnet.quant}{Ajuste o slider w para perto de 0 e reproduza a zona morta; depois experimente 0,6 e -0,3, os dois pesos do exemplo.}
+		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{Siga os checkpoints "Quantizar w1"/"w2" até "Multiplicação 1"/"2" --- Q(w2)=0 anula x2.}
 		\input{slides/bitnetTreinamento.tex}
+		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{Avance até o checkpoint final: derivada real vs. constante 1 do STE.}
 		\input{slides/bitnetResultados.tex}
 		\input{slides/bitnetHardwareLimitacoes.tex}
 
@@ -52,9 +57,14 @@
 	\section{Parte II --- Redes de pulso}
 		\input{slides/snnMotivacao.tex}
 		\input{slides/snnConfusable.tex}
+		\DemoSlide{SNN \textrightarrow{} Sinal e spikes}{snn.spikes}{Aperte Play uma vez: o cruzamento de nível vira um pulso discreto.}
+		\DemoSlide{SNN \textrightarrow{} Codificação Poisson}{snn.poisson}{Mesmo sinal da demo anterior, agora com pulsos probabilísticos --- compare.}
 		\input{slides/snnLif.tex}
+		\DemoSlide{SNN \textrightarrow{} LIF}{snn.lif}{Os parâmetros padrão (tau=5, R=5, V\_th=1) já reproduzem o exemplo numérico anterior; aperte Play para o comportamento completo.}
 		\input{slides/snnEsparsidade.tex}
+		\DemoSlide{SNN \textrightarrow{} Codificação Poisson (imagem)}{snn.poisson_image}{Avance até t~15/29 e aponte: cada pixel é um neurônio sorteando disparo.}
 		\input{slides/snnTreinamento.tex}
+		\DemoSlide{SNN \textrightarrow{} Surrogate gradient}{snn.surrogate}{Percorra os checkpoints "A derivada real" até "O gradiente substituto".}
 		\input{slides/snnBptt.tex}
 		\label{sec:snnHardware}
 		\input{slides/snnHardware.tex}
@@ -65,6 +75,7 @@
 	\section{Convergência}
 		\label{sec:convergencia}
 		\input{slides/convergenciaQuadrante.tex}
+		\DemoSlide{Comparação \textrightarrow{} ANN x BitNet x SNN}{comparison}{Avance até o último checkpoint: a tabela completa ANN x BitNet x SNN.}
 		\input{slides/convergenciaTema.tex}
 
 	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}

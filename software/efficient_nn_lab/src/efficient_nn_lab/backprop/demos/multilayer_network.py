@@ -234,4 +234,4 @@ class MultilayerNetworkDemo(DemoModule):
                 active="", active_z=float(z1[0]), active_y=float(y1[0]), active_slope=float(s1[0]),
             ),
         ]
-        return build_sequence(checkpoints, steps=12)
+        return build_sequence(checkpoints, steps=7)

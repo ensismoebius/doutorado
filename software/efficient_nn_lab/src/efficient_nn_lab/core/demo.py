@@ -27,9 +27,14 @@ from dataclasses import dataclass, field
 from efficient_nn_lab.core.math_utils import tween_values
 
 #: Default number of interior tween frames generated between two
-#: checkpoints by :func:`transition`. ~14 frames at StepPlayer's default
-#: tick interval reads as a clear, unhurried half-second-ish motion.
-DEFAULT_TWEEN_STEPS = 14
+#: checkpoints by :func:`transition`. Each tween frame costs a full
+#: matplotlib redraw (~100ms+ measured on modest hardware, dominated by
+#: glyph shaping for the many live-updating numeric labels -- see
+#: widgets/_mpl_perf.py), so this count trades total transition wall-clock
+#: time directly against motion granularity. 8 is still enough points for
+#: the smoothstep easing (core/math_utils.ease_in_out) to read as a clear,
+#: settled motion, at ~a third less real time than the previous 14.
+DEFAULT_TWEEN_STEPS = 8
 
 
 @dataclass

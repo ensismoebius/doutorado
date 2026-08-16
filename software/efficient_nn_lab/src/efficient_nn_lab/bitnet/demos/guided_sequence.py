@@ -29,7 +29,7 @@ _W0 = 0.80
 _X = 2.0
 _TARGET = 4.0
 _LEARNING_RATE = 0.01
-_TWEEN_STEPS = 16
+_TWEEN_STEPS = 9
 
 
 class GuidedBitNetDemo(DemoModule):

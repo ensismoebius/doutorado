@@ -30,8 +30,12 @@ from efficient_nn_lab.core.math_utils import ease_in_out, lerp
 
 #: Interior sliding frames generated per gradient-descent iteration in the
 #: convergence chart — enough for the point's motion toward its new value
-#: to read as a clear slide, not a jump.
-_SUBSTEPS_PER_ITERATION = 10
+#: to read as a clear slide, not a jump. Kept low because each frame is a
+#: full matplotlib redraw (~100ms+ on modest hardware — see
+#: core/demo.py's DEFAULT_TWEEN_STEPS comment); with up to 25 iterations
+#: this loop alone can generate hundreds of frames, so this constant
+#: dominates how laggy Play feels for this demo.
+_SUBSTEPS_PER_ITERATION = 6
 
 #: Fixed z-window the sigmoid curve is drawn over in both phases — wide
 #: enough to show both flat/saturated ends, so "where on the curve am I"
@@ -98,13 +102,35 @@ class TraditionalBackpropDemo(DemoModule):
         w_updated = sgd_update(w, grad_w, self.learning_rate)
         converged = abs(diff) < _CONVERGENCE_EPS
 
+        # Iteration 1 reveals each quantity progressively, step by step, as
+        # it is first explained. From iteration 2 on, every quantity was
+        # already revealed by the previous cycle's last frame -- defaulting
+        # back to 0.0 here would tween everything to invisible and back on
+        # every single cycle, reading as the whole pipeline "resetting"
+        # instead of visibly converging toward the target.
+        #
+        # But with every quantity already at full reveal, the 9 steps of a
+        # repeat cycle would otherwise render as 9 *identical* pictures --
+        # nothing left to animate, which reads as playback having stalled.
+        # The "*_glow" fields are a second, independent channel (a halo
+        # behind the box, see widgets/neuron_view.py's `glow` param) that
+        # doesn't gate visibility the way reveal does: each step pulses the
+        # glow on the one box it is currently narrating, 0 everywhere else,
+        # so the highlight visibly walks box-to-box across all 9 steps of
+        # every cycle -- including the first, where it rides along with the
+        # reveal build-up as a bonus cue rather than replacing it.
+        reveal_default = 1.0 if iteration > 1 else 0.0
         base = {
             "kind": "backprop_pipeline",
             "x": x, "w": w, "z": z, "y": y, "target": self.target, "diff": diff, "loss": loss,
             "slope": slope, "grad_y": grad_y, "grad_z": grad_z, "grad_w": grad_w,
             "w_updated": w_updated, "lr": self.learning_rate, "iteration": iteration,
-            "z_reveal": 0.0, "y_reveal": 0.0, "target_reveal": 0.0, "diff_reveal": 0.0, "loss_reveal": 0.0,
-            "grady_reveal": 0.0, "gradz_reveal": 0.0, "gradw_reveal": 0.0, "update_reveal": 0.0, "w_pulse": 0.0,
+            "z_reveal": reveal_default, "y_reveal": reveal_default, "target_reveal": reveal_default,
+            "diff_reveal": reveal_default, "loss_reveal": reveal_default, "grady_reveal": reveal_default,
+            "gradz_reveal": reveal_default, "gradw_reveal": reveal_default, "update_reveal": reveal_default,
+            "w_pulse": 0.0,
+            "z_glow": 0.0, "y_glow": 0.0, "target_glow": 0.0, "loss_glow": 0.0,
+            "grady_glow": 0.0, "gradz_glow": 0.0, "gradw_glow": 0.0,
         }
         prefix = f"Iteração {iteration} — "
 
@@ -152,27 +178,27 @@ class TraditionalBackpropDemo(DemoModule):
                 "Forward, parte 1: combinação linear",
                 f"Antes da ativação, w e x só se multiplicam: z = w * x = {w:g} * {x:g} = {z:g}.",
                 equation="z = w * x",
-                z_reveal=1.0,
+                z_reveal=1.0, z_glow=1.0,
             ),
             frame(
                 "Forward, parte 2: ativação sigmoide",
                 f"z passa pela sigmoide, que o espreme para dentro de (0, 1): "
                 f"y = sigma({z:g}) = {y:g}. É este o ponto marcado na curva ao lado.",
                 equation="y = sigma(z) = 1 / (1 + e^-z)",
-                z_reveal=1.0, y_reveal=1.0,
+                z_reveal=1.0, y_reveal=1.0, y_glow=1.0,
             ),
             frame(
                 "Comparar com o alvo",
                 f"O alvo é {self.target:g}; a saída atual é {y:g} — {'ainda longe' if not converged else 'já perto'}. "
                 "Essa diferença é o que o treino tenta reduzir a cada passo.",
-                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0,
+                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, target_glow=1.0,
             ),
             frame(
                 "A perda (loss)",
                 "A perda resume a diferença em um único número, sempre positivo, que cresce "
                 "quanto mais longe do alvo a saída estiver.",
                 equation="L = 1/2 (y - target)^2",
-                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
+                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, loss_glow=1.0,
             ),
             frame(
                 "Backward, primeiro elo: dL/dy",
@@ -180,6 +206,7 @@ class TraditionalBackpropDemo(DemoModule):
                 f"pouco. dL/dy = y - target = {grad_y:g}.",
                 equation="dL/dy = y - target",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, grady_reveal=1.0,
+                grady_glow=1.0,
             ),
             frame(
                 "Backward, segundo elo: atravessando a sigmoide",
@@ -188,7 +215,7 @@ class TraditionalBackpropDemo(DemoModule):
                 "tangente ao lado mostra, e o sinal dela diz para que lado mover z.",
                 equation="dL/dz = dL/dy * sigma'(z)",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
-                grady_reveal=1.0, gradz_reveal=1.0,
+                grady_reveal=1.0, gradz_reveal=1.0, gradz_glow=1.0,
             ),
             frame(
                 "Backward, terceiro elo: dL/dw",
@@ -196,7 +223,7 @@ class TraditionalBackpropDemo(DemoModule):
                 f"dL/dw = dL/dz * x = {grad_w:g}.",
                 equation="dL/dw = dL/dz * dz/dw = dL/dz * x",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
-                grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0,
+                grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, gradw_glow=1.0,
             ),
             frame(
                 "Atualizar o peso",
@@ -339,7 +366,7 @@ class TraditionalBackpropDemo(DemoModule):
         return frames
 
     def _build_frames(self) -> list[Frame]:
-        pipeline = build_sequence(self._build_pipeline_checkpoints(), steps=14)
+        pipeline = build_sequence(self._build_pipeline_checkpoints(), steps=8)
         convergence = self._build_convergence_frames()
         # deliberate cut: block diagram -> line chart is a genuine change
         # of visualization kind, not a blend of unrelated pictures.

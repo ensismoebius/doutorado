@@ -158,4 +158,4 @@ class BackwardSTEDemo(DemoModule):
         # graph -> block diagram) are deliberate cuts, not blends of
         # unrelated pictures. The derivative graph's own gap (real -> STE)
         # tweens: watching zero morph into a flat 1 is the whole point.
-        return build_sequence(checkpoints, steps=[14, 0, 20, 0, 16, 12])
+        return build_sequence(checkpoints, steps=[7, 0, 10, 0, 8, 6])

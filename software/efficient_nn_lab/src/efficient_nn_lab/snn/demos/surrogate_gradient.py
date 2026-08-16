@@ -103,4 +103,4 @@ class SurrogateGradientDemo(DemoModule):
                 draw_reveal=1.0,
             ),
         ]
-        return build_sequence(checkpoints, steps=[15, 0, 40, 10])
+        return build_sequence(checkpoints, steps=[8, 0, 20, 5])
