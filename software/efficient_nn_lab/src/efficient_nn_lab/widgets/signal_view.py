@@ -131,12 +131,19 @@ class SignalView(QWidget):
         n_total = int(values["n_total"])
         max_rate = float(values["max_rate"])
 
-        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        # aspect="auto" (not "equal") -- with an "equal" aspect, imshow's
+        # default adjustable="box" shrinks the *axes rectangle itself* to
+        # match the (roughly square) image's pixel aspect ratio inside
+        # this wide, short panel, leaving the image a thin sliver with
+        # blank space around it. "auto" stretches the image to fill the
+        # whole panel instead, which is what "the image is fully visible"
+        # actually requires here.
+        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto", interpolation="nearest")
         self._ax_top.set_xticks([])
         self._ax_top.set_yticks([])
         self._ax_top.set_title("Imagem original (brilho = probabilidade de disparo)")
 
-        self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto", interpolation="nearest")
         self._ax_bottom.set_xticks([])
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_title(f"Spikes sorteados no passo t={t}/{n_total - 1} (taxa máxima = {max_rate:.2f})")

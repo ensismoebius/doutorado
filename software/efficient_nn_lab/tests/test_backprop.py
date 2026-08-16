@@ -7,9 +7,12 @@ from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDe
 
 
 def test_pipeline_checkpoints_match_hand_worked_numbers():
+    # only the first cycle uses w_init -- later cycles repeat the same 9
+    # steps starting from whatever w the previous cycle's update produced
+    # (see test_pipeline_cycle_repeats_until_close_enough_to_target).
     demo = TraditionalBackpropDemo()
     checkpoints = [f for f in demo.checkpoint_frames() if f.values["kind"] == "backprop_pipeline"]
-    last = checkpoints[-1].values
+    last = checkpoints[8].values
     x, w, target, lr = demo.x, demo.w_init, demo.target, demo.learning_rate
     z = w * x
     y = sigmoid(z)
@@ -91,6 +94,36 @@ def test_convergence_animation_slides_between_iterations_not_instant():
     y_mid = mid.values["y"][-1]
     lo, hi = sorted((float(y_start), float(y_end)))
     assert lo < float(y_mid) < hi
+
+
+def test_pipeline_cycle_repeats_until_close_enough_to_target():
+    # phase 1 (the detailed 9-step walkthrough) must not stop after a
+    # single, possibly-still-far-from-target pass -- it repeats the whole
+    # cycle, each time starting from the previous cycle's updated w, until
+    # the output is close enough to the target (mirrors phase 2's own
+    # repeat-until-close-enough loop, see test_gradient_descent_actually_converges_to_target).
+    demo = TraditionalBackpropDemo()
+    checkpoints = [f for f in demo.checkpoint_frames() if f.values["kind"] == "backprop_pipeline"]
+    assert len(checkpoints) % 9 == 0
+    n_cycles = len(checkpoints) // 9
+    assert n_cycles > 1  # the whole point: more than one repetition happens
+
+    iterations = [f.values["iteration"] for f in checkpoints]
+    assert iterations == sorted(iterations)
+    assert iterations[0] == 1
+    assert iterations[-1] == n_cycles
+
+    # each cycle's starting w is exactly the previous cycle's w_updated --
+    # the repetition is a genuine continuation, not independent restarts.
+    cycle_start_ws = [checkpoints[i * 9].values["w"] for i in range(n_cycles)]
+    cycle_end_w_updates = [checkpoints[i * 9 + 8].values["w_updated"] for i in range(n_cycles)]
+    for k in range(n_cycles - 1):
+        assert cycle_start_ws[k + 1] == pytest.approx(cycle_end_w_updates[k])
+
+    # the last cycle's final output is within the demo's convergence
+    # tolerance of the target -- that is *why* the repetition stopped.
+    last_y = checkpoints[-1].values["y"]
+    assert abs(last_y - demo.target) < 0.05
 
 
 def test_pipeline_to_convergence_is_a_deliberate_cut():

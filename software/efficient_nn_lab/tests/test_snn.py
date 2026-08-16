@@ -142,7 +142,7 @@ def test_poisson_image_coding_demo_has_30_steps_from_the_real_image():
     assert checkpoints[0].values["t"] == 0
     assert checkpoints[-1].values["t"] == 29
     image = checkpoints[0].values["image"]
-    assert image.shape == (32, 32)
+    assert image.shape == (108, 192)
     for cp in checkpoints:
         frame = cp.values["frame"]
         assert frame.shape == image.shape

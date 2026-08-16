@@ -38,6 +38,16 @@ _SUBSTEPS_PER_ITERATION = 10
 #: is always legible, not just the steep middle.
 _Z_RANGE = (-6.0, 6.0)
 
+#: |y - target| below this counts as "close enough" -- both phases repeat
+#: their cycle until the output crosses this line, instead of stopping
+#: after a fixed, possibly-too-early or wastefully-late iteration count.
+_CONVERGENCE_EPS = 0.05
+
+#: Safety cap on repetitions regardless of convergence, so a slow learning
+#: rate combined with a hard-to-reach target (both slider-adjustable)
+#: cannot generate an unbounded number of steps.
+_MAX_ITERATIONS = 25
+
 
 def _activation_fields(z: float, target: float) -> dict[str, float]:
     """Everything the sigmoid inset (point + tangent + descent arrow) needs."""
@@ -61,7 +71,6 @@ class TraditionalBackpropDemo(DemoModule):
         self.target = 0.9
         self.w_init = -1.0
         self.learning_rate = 3.0
-        self.n_iterations = 10
         super().__init__()
 
     def parameters(self) -> dict[str, dict[str, object]]:
@@ -70,9 +79,15 @@ class TraditionalBackpropDemo(DemoModule):
             "learning_rate": {"label": "Taxa de aprendizado", "min": 0.5, "max": 5.0, "step": 0.5, "value": self.learning_rate},
         }
 
-    # -- part 1: the mechanism, once, explained ----------------------------
-    def _build_pipeline_checkpoints(self) -> list[Frame]:
-        x, w = self.x, self.w_init
+    # -- part 1: the mechanism, repeated until the output is close enough --
+    def _build_one_pipeline_cycle(self, iteration: int, w: float, is_last_cycle: bool) -> list[Frame]:
+        """The same 9-step forward/backward walkthrough, for one iteration.
+
+        Labels are prefixed with the iteration number so re-running this
+        cycle for iteration 2, 3, ... reads as "the same steps again, from
+        an updated w" rather than a confusing repeat of identical labels.
+        """
+        x = self.x
         z = w * x
         act = _activation_fields(z, self.target)
         y, slope, grad_y, grad_z = act["y"], act["slope"], act["grad_y"], act["grad_z"]
@@ -80,29 +95,58 @@ class TraditionalBackpropDemo(DemoModule):
         loss = squared_error_loss(y, self.target)
         grad_w = grad_z * x
         w_updated = sgd_update(w, grad_w, self.learning_rate)
+        converged = abs(diff) < _CONVERGENCE_EPS
 
         base = {
             "kind": "backprop_pipeline",
             "x": x, "w": w, "z": z, "y": y, "target": self.target, "diff": diff, "loss": loss,
             "slope": slope, "grad_y": grad_y, "grad_z": grad_z, "grad_w": grad_w,
-            "w_updated": w_updated, "lr": self.learning_rate,
+            "w_updated": w_updated, "lr": self.learning_rate, "iteration": iteration,
             "z_reveal": 0.0, "y_reveal": 0.0, "target_reveal": 0.0, "diff_reveal": 0.0, "loss_reveal": 0.0,
             "grady_reveal": 0.0, "gradz_reveal": 0.0, "gradw_reveal": 0.0, "update_reveal": 0.0, "w_pulse": 0.0,
         }
+        prefix = f"Iteração {iteration} — "
 
         def frame(label: str, explanation: str, equation: str = "", **overrides) -> Frame:
             values = dict(base)
             values.update(overrides)
-            return Frame(label, values, explanation, equation)
+            return Frame(prefix + label, values, explanation, equation)
 
-        return [
-            frame(
-                "O neurônio",
+        if iteration == 1:
+            intro = (
                 "Um neurônio com ativação sigmoide: primeiro combina w e x linearmente, "
                 "depois espreme o resultado em (0, 1) com sigma. Primeiro o forward "
-                "calcula y; depois o backward calcula o quanto mudar w.",
-                equation="y = sigma(w * x)",
-            ),
+                "calcula y; depois o backward calcula o quanto mudar w."
+            )
+        else:
+            intro = (
+                f"O mesmo neurônio, o mesmo ciclo de 9 passos — mas agora começando do "
+                f"w = {w:g} que a iteração anterior deixou. É exatamente essa repetição, "
+                "iteração após iteração, que faz y se aproximar do alvo."
+            )
+
+        if is_last_cycle and converged:
+            update_explanation = (
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}. "
+                f"Agora a saída ({y:g}) já está perto o suficiente do alvo ({self.target:g}, diferença "
+                f"de {abs(diff):.3f}) — o ciclo para de se repetir aqui."
+            )
+        elif is_last_cycle:
+            update_explanation = (
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}. "
+                f"A diferença ainda é {abs(diff):.3f}, mas chegamos ao limite de iterações mostradas "
+                "neste passo a passo detalhado — a próxima parte continua daqui, de forma resumida."
+            )
+        else:
+            update_explanation = (
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}, um "
+                f"pouco mais perto do valor que aproximaria y do alvo. A saída ainda está a {abs(diff):.3f} "
+                f"do alvo — longe o bastante para o ciclo se repetir: a iteração {iteration + 1} refaz "
+                "exatamente os mesmos 9 passos, agora partindo desse w atualizado."
+            )
+
+        return [
+            frame("O neurônio", intro, equation="y = sigma(w * x)"),
             frame(
                 "Forward, parte 1: combinação linear",
                 f"Antes da ativação, w e x só se multiplicam: z = w * x = {w:g} * {x:g} = {z:g}.",
@@ -118,8 +162,8 @@ class TraditionalBackpropDemo(DemoModule):
             ),
             frame(
                 "Comparar com o alvo",
-                f"O alvo é {self.target:g}; a saída atual é {y:g} — ainda longe. Essa "
-                "diferença é o que o treino tenta reduzir a cada passo.",
+                f"O alvo é {self.target:g}; a saída atual é {y:g} — {'ainda longe' if not converged else 'já perto'}. "
+                "Essa diferença é o que o treino tenta reduzir a cada passo.",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0,
             ),
             frame(
@@ -155,20 +199,41 @@ class TraditionalBackpropDemo(DemoModule):
             ),
             frame(
                 "Atualizar o peso",
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
-                f"w vira {w_updated:g}, um pouco mais perto do valor que aproximaria y do "
-                "alvo. Repetir este passo várias vezes é exatamente a próxima parte.",
+                update_explanation,
                 equation="w <- w - taxa * dL/dw",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, update_reveal=1.0, w_pulse=1.0,
             ),
         ]
 
-    # -- part 2: the same step, repeated, to convergence --------------------
+    def _build_pipeline_checkpoints(self) -> list[Frame]:
+        frames: list[Frame] = []
+        w = self.w_init
+        iteration = 1
+        while True:
+            z = w * self.x
+            y = float(sigmoid(z))
+            converged = abs(y - self.target) < _CONVERGENCE_EPS
+            is_last_cycle = converged or iteration >= _MAX_ITERATIONS
+            cycle = self._build_one_pipeline_cycle(iteration, w, is_last_cycle)
+            frames.extend(cycle)
+            if is_last_cycle:
+                break
+            w = float(cycle[-1].values["w_updated"])
+            iteration += 1
+        return frames
+
+    # -- part 2: the same step, repeated until close enough (or capped) -----
     def _run_gradient_descent(self) -> dict[str, list[float]]:
+        """Repeats forward+backward+update until |y - target| < eps.
+
+        Stops as soon as convergence is reached (fewer wasted iterations
+        for an easy target/learning-rate combo) or after `_MAX_ITERATIONS`
+        (so a slow one can't run forever) — never a fixed count.
+        """
         w = self.w_init
         hist: dict[str, list[float]] = {"w": [], "z": [], "y": [], "loss": []}
-        for _ in range(self.n_iterations + 1):
+        for _ in range(_MAX_ITERATIONS + 1):
             z = w * self.x
             act = _activation_fields(z, self.target)
             y = act["y"]
@@ -177,6 +242,8 @@ class TraditionalBackpropDemo(DemoModule):
             hist["z"].append(z)
             hist["y"].append(y)
             hist["loss"].append(loss)
+            if abs(y - self.target) < _CONVERGENCE_EPS:
+                break
             grad_w = act["grad_z"] * self.x
             w = sgd_update(w, grad_w, self.learning_rate)
         return hist
@@ -184,7 +251,7 @@ class TraditionalBackpropDemo(DemoModule):
     def _build_convergence_frames(self) -> list[Frame]:
         h = self._run_gradient_descent()
         w_hist, z_hist, y_hist, loss_hist = h["w"], h["z"], h["y"], h["loss"]
-        n = self.n_iterations
+        n = len(w_hist) - 1
         y_min = min(0.0, min(y_hist), self.target) - 0.1
         y_max = max(max(y_hist), self.target) + 0.1
         loss_min = max(1e-5, min(loss_hist) * 0.5)
@@ -213,13 +280,24 @@ class TraditionalBackpropDemo(DemoModule):
                 "z": act["z"], "slope": act["slope"], "grad_y": act["grad_y"], "grad_z": act["grad_z"],
             }
 
+        initial_diff = abs(y_hist[0] - self.target)
+        if n == 0:
+            initial_explanation = (
+                f"Peso inicial w = {w_hist[0]:g} já produz y = {y_hist[0]:.3f}, perto o suficiente do "
+                f"alvo {self.target:g} (diferença de {initial_diff:.3f}) — nenhuma iteração de treino "
+                "é necessária desta vez."
+            )
+        else:
+            initial_explanation = (
+                f"Peso inicial w = {w_hist[0]:g}, a {initial_diff:.3f} do que faria y bater com o "
+                f"alvo {self.target:g}. Cada iteração daqui pra frente repete exatamente o "
+                "forward + backward + atualização da parte anterior, até chegar perto o suficiente."
+            )
         frames: list[Frame] = [
             Frame(
                 "Antes de treinar (iteração 0)",
                 chart_values(0, w_hist[0], z_hist[0], loss_hist[0]),
-                f"Peso inicial w = {w_hist[0]:g}, bem longe do que faria y bater com o "
-                f"alvo {self.target:g}. Cada iteração daqui pra frente repete exatamente o "
-                "forward + backward + atualização da parte anterior.",
+                initial_explanation,
                 is_checkpoint=True,
             )
         ]
@@ -245,7 +323,10 @@ class TraditionalBackpropDemo(DemoModule):
                 f"a {diff:.3f} de distância do alvo."
             )
             if k == n:
-                explanation += " A saída já está bem perto do alvo — é isso que 'convergir' significa aqui."
+                if diff < _CONVERGENCE_EPS:
+                    explanation += " A saída já está perto o suficiente do alvo — é isso que 'convergir' significa aqui."
+                else:
+                    explanation += " Chegamos ao limite de iterações mostradas, mesmo sem convergência total."
             frames.append(
                 Frame(
                     f"Iteração {k}",

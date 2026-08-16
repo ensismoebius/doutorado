@@ -25,7 +25,11 @@ from efficient_nn_lab.core.demo import DemoModule, Frame
 from efficient_nn_lab.snn.encoding import load_grayscale_image, poisson_spike_frames
 
 _IMAGE_PATH = Path(__file__).resolve().parents[2] / "resources" / "images" / "patrick.jpg"
-_IMAGE_SIZE = (32, 32)
+#: (rows, cols) -- kept close to the source photo's 16:9 aspect ratio, and
+#: high enough resolution that Patrick is still recognizable at a glance
+#: (part of the point, per the lecturer: this is a fun, memorable example),
+#: not just a correct-but-abstract gray blob.
+_IMAGE_SIZE = (108, 192)
 _N_STEPS = 30
 
 
