@@ -44,6 +44,13 @@ class SignalView(QWidget):
             # kind keeps the original full-width two-panel layout.
             self._ax_top.set_position([0.11, 0.56, 0.53, 0.38])
             self._ax_bottom.set_position([0.11, 0.13, 0.53, 0.33])
+        elif kind == "poisson_image_coding":
+            # both panels are images of the same pixel grid -- the default
+            # 2:1 height split (sized for a line chart + a thin raster
+            # strip) would squash this one relative to the other, so give
+            # them equal height instead.
+            self._ax_top.set_position([0.06, 0.52, 0.9, 0.37])
+            self._ax_bottom.set_position([0.06, 0.06, 0.9, 0.37])
         else:
             self._ax_top.set_position(self._default_top_pos)
             self._ax_bottom.set_position(self._default_bottom_pos)
@@ -131,19 +138,24 @@ class SignalView(QWidget):
         n_total = int(values["n_total"])
         max_rate = float(values["max_rate"])
 
-        # aspect="auto" (not "equal") -- with an "equal" aspect, imshow's
-        # default adjustable="box" shrinks the *axes rectangle itself* to
-        # match the (roughly square) image's pixel aspect ratio inside
-        # this wide, short panel, leaving the image a thin sliver with
-        # blank space around it. "auto" stretches the image to fill the
-        # whole panel instead, which is what "the image is fully visible"
-        # actually requires here.
-        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto", interpolation="nearest")
+        # aspect="equal" so pixels stay square (an "auto" aspect stretches
+        # the image to fill whatever shape the panel happens to be, which
+        # distorts Patrick badly whenever the panel isn't close to the
+        # photo's own 16:9 ratio -- exactly what made him unrecognizable).
+        # adjustable="datalim" is the part that avoids the *other* bug seen
+        # earlier: it keeps the panel's rectangle exactly as positioned
+        # below and instead pads the data limits so the correctly-shaped
+        # image is centered inside it (blank bars on the sides if the
+        # panel is wider than 16:9) -- the default adjustable="box" instead
+        # shrinks the panel's own rectangle down to a thin sliver.
+        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        self._ax_top.set_aspect("equal", adjustable="datalim")
         self._ax_top.set_xticks([])
         self._ax_top.set_yticks([])
         self._ax_top.set_title("Imagem original (brilho = probabilidade de disparo)")
 
-        self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto", interpolation="nearest")
+        self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        self._ax_bottom.set_aspect("equal", adjustable="datalim")
         self._ax_bottom.set_xticks([])
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_title(f"Spikes sorteados no passo t={t}/{n_total - 1} (taxa máxima = {max_rate:.2f})")
