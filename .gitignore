@@ -35,6 +35,9 @@ __pycache__/
 *.png
 *.pt
 *.json
+# Thesis experiment profiles must be committed (the profile audit test runs on every checkout).
+!software/nn/src/experiments/thesis/profiles/
+!software/nn/src/experiments/thesis/profiles/**/*.json
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).
