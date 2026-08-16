@@ -131,13 +131,33 @@ TEST_F(ResNetDemoTest, LossDecreasesOverFiveEpochs)
     EXPECT_LT(last_loss, first_loss) << "Loss did not decrease over 5 epochs";
 }
 
+// Whether fc_in weights moved after the optimizer step. The seed-99 RNG stream
+// differs between libstdc++ (Linux) and libc++ (macOS): on Linux the (0,0)
+// weight has a non-zero gradient, while on macOS it is exactly zero. Each
+// platform keeps its own probe; the test's assertion intent (weights must move
+// after a step) is the same on both.
+static bool fc_in_weights_changed(const nn::Tensor& before, const nn::Tensor& after)
+{
+#if defined(__APPLE__)
+    for (size_t i = 0; i < after.rows(); ++i)
+        for (size_t j = 0; j < after.cols(); ++j)
+            if (after.at(i, j) != before.at(i, j)) return true;
+    return false;
+#else
+    return after.at(0, 0) != before.at(0, 0);
+#endif
+}
+
 TEST_F(ResNetDemoTest, GradientFlows_ParamsChangeAfterStep)
 {
     nn::Tensor x = make_random_input(kBatch, kFeatures, 99);
     nn::Tensor target = make_one_hot_targets(kBatch, kClasses, 1);
 
-    // Record fc_in weight before update
-    float w_before = fc_in->weight.at(0, 0);
+    // Record fc_in weights before update.
+    nn::Tensor w_before(fc_in->weight.rows(), fc_in->weight.cols());
+    for (size_t i = 0; i < fc_in->weight.rows(); ++i)
+        for (size_t j = 0; j < fc_in->weight.cols(); ++j)
+            w_before.at(i, j) = fc_in->weight.at(i, j);
 
     CrossEntropyLoss loss_fn;
     auto params = model.params();
@@ -151,8 +171,8 @@ TEST_F(ResNetDemoTest, GradientFlows_ParamsChangeAfterStep)
     model.backward(grad);
     optimizer.step(params);
 
-    float w_after = fc_in->weight.at(0, 0);
-    EXPECT_NE(w_before, w_after) << "Weight did not change after optimizer step";
+    EXPECT_TRUE(fc_in_weights_changed(w_before, fc_in->weight))
+        << "Weight did not change after optimizer step";
 }
 
 TEST_F(ResNetDemoTest, CrossEntropyLoss_IsPositive)
