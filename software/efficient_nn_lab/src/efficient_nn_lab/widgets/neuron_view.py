@@ -478,9 +478,17 @@ class NeuronView(QWidget):
         self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal, dy=-0.55)
 
         ax = self._get_inset("main", (0.56, 0.1, 0.42, 0.85))
+        # point_reveal/arrow_reveal are their own fields, deliberately
+        # decoupled from y_reveal/gradz_reveal: those block-diagram reveals
+        # reset every repeat cycle (see traditional_gd.py), but the point
+        # sliding along this curve must stay continuous across cycles, or
+        # the one thing meant to visibly show convergence would itself
+        # blink out and back every time.
+        inset_point_reveal = float(values.get("point_reveal", y_reveal))
+        inset_arrow_reveal = float(values.get("arrow_reveal", gradz_reveal))
         self._paint_sigmoid(
             ax, z=float(values["z"]), y=float(values["y"]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
-            point_reveal=y_reveal, tangent_reveal=y_reveal, arrow_reveal=gradz_reveal,
+            point_reveal=inset_point_reveal, tangent_reveal=inset_point_reveal, arrow_reveal=inset_arrow_reveal,
             title="Ativação: onde estamos na curva",
         )
 

@@ -102,24 +102,31 @@ class TraditionalBackpropDemo(DemoModule):
         w_updated = sgd_update(w, grad_w, self.learning_rate)
         converged = abs(diff) < _CONVERGENCE_EPS
 
-        # Iteration 1 reveals each quantity progressively, step by step, as
-        # it is first explained. From iteration 2 on, every quantity was
-        # already revealed by the previous cycle's last frame -- defaulting
-        # back to 0.0 here would tween everything to invisible and back on
-        # every single cycle, reading as the whole pipeline "resetting"
-        # instead of visibly converging toward the target.
+        # Every cycle -- including repeats -- reveals each quantity and
+        # draws each arrow progressively, step by step, exactly like the
+        # first: the arrows reset to undrawn and the boxes fade out at the
+        # start of a new cycle, then rebuild across the same 9 named steps.
+        # This is deliberate repetition, not a stall or a restart of the
+        # underlying computation -- w still carries over from the previous
+        # cycle's update (see test_pipeline_cycle_repeats_until_close_enough
+        # _to_target), only the *display* replays from empty each time.
+        # The "*_glow" fields (a halo behind the box, independent of
+        # reveal -- see widgets/neuron_view.py's `glow` param) ride along
+        # on top of the reveal build-up as a bonus highlight pulse on
+        # whichever box is currently being narrated.
         #
-        # But with every quantity already at full reveal, the 9 steps of a
-        # repeat cycle would otherwise render as 9 *identical* pictures --
-        # nothing left to animate, which reads as playback having stalled.
-        # The "*_glow" fields are a second, independent channel (a halo
-        # behind the box, see widgets/neuron_view.py's `glow` param) that
-        # doesn't gate visibility the way reveal does: each step pulses the
-        # glow on the one box it is currently narrating, 0 everywhere else,
-        # so the highlight visibly walks box-to-box across all 9 steps of
-        # every cycle -- including the first, where it rides along with the
-        # reveal build-up as a bonus cue rather than replacing it.
-        reveal_default = 1.0 if iteration > 1 else 0.0
+        # The sigmoid-curve inset (point + tangent + gradient arrow) is a
+        # deliberate exception to that reset: it is the one element that
+        # must read as *continuous* across cycles -- the whole story of
+        # convergence is "watch this point slide along the curve, cycle
+        # after cycle." Blanking and re-revealing it every cycle like the
+        # block-diagram boxes would break exactly the continuity it exists
+        # to show. So from iteration 2 on it stays revealed throughout the
+        # cycle and only slides (via the normal z/y/grad_z tweening) to its
+        # new position; only iteration 1 still reveals it the first time,
+        # in step with the walkthrough that introduces it.
+        reveal_default = 0.0
+        inset_reveal_default = 1.0 if iteration > 1 else 0.0
         base = {
             "kind": "backprop_pipeline",
             "x": x, "w": w, "z": z, "y": y, "target": self.target, "diff": diff, "loss": loss,
@@ -131,6 +138,7 @@ class TraditionalBackpropDemo(DemoModule):
             "w_pulse": 0.0,
             "z_glow": 0.0, "y_glow": 0.0, "target_glow": 0.0, "loss_glow": 0.0,
             "grady_glow": 0.0, "gradz_glow": 0.0, "gradw_glow": 0.0,
+            "point_reveal": inset_reveal_default, "arrow_reveal": inset_reveal_default,
         }
         prefix = f"Iteração {iteration} — "
 
@@ -185,13 +193,13 @@ class TraditionalBackpropDemo(DemoModule):
                 f"z passa pela sigmoide, que o espreme para dentro de (0, 1): "
                 f"y = sigma({z:g}) = {y:g}. É este o ponto marcado na curva ao lado.",
                 equation="y = sigma(z) = 1 / (1 + e^-z)",
-                z_reveal=1.0, y_reveal=1.0, y_glow=1.0,
+                z_reveal=1.0, y_reveal=1.0, y_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "Comparar com o alvo",
                 f"O alvo é {self.target:g}; a saída atual é {y:g} — {'ainda longe' if not converged else 'já perto'}. "
                 "Essa diferença é o que o treino tenta reduzir a cada passo.",
-                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, target_glow=1.0,
+                z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, target_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "A perda (loss)",
@@ -199,6 +207,7 @@ class TraditionalBackpropDemo(DemoModule):
                 "quanto mais longe do alvo a saída estiver.",
                 equation="L = 1/2 (y - target)^2",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, loss_glow=1.0,
+                point_reveal=1.0,
             ),
             frame(
                 "Backward, primeiro elo: dL/dy",
@@ -206,7 +215,7 @@ class TraditionalBackpropDemo(DemoModule):
                 f"pouco. dL/dy = y - target = {grad_y:g}.",
                 equation="dL/dy = y - target",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, grady_reveal=1.0,
-                grady_glow=1.0,
+                grady_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "Backward, segundo elo: atravessando a sigmoide",
@@ -215,7 +224,7 @@ class TraditionalBackpropDemo(DemoModule):
                 "tangente ao lado mostra, e o sinal dela diz para que lado mover z.",
                 equation="dL/dz = dL/dy * sigma'(z)",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
-                grady_reveal=1.0, gradz_reveal=1.0, gradz_glow=1.0,
+                grady_reveal=1.0, gradz_reveal=1.0, gradz_glow=1.0, point_reveal=1.0, arrow_reveal=1.0,
             ),
             frame(
                 "Backward, terceiro elo: dL/dw",
@@ -224,6 +233,7 @@ class TraditionalBackpropDemo(DemoModule):
                 equation="dL/dw = dL/dz * dz/dw = dL/dz * x",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, gradw_glow=1.0,
+                point_reveal=1.0, arrow_reveal=1.0,
             ),
             frame(
                 "Atualizar o peso",
@@ -231,6 +241,7 @@ class TraditionalBackpropDemo(DemoModule):
                 equation="w <- w - taxa * dL/dw",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, update_reveal=1.0, w_pulse=1.0,
+                point_reveal=1.0, arrow_reveal=1.0,
             ),
         ]
 
