@@ -17,6 +17,7 @@
 #include "utility/SignalPreprocessing.hpp"
 #include "utility/batching.hpp"
 #include "utility/comparison.hpp"
+#include "utility/path_expand.hpp"
 #include "utility/synthetic_spike_data.hpp"
 #include "utility/vectorizationCheck.hpp"
 
@@ -183,6 +184,30 @@ TEST(UtilTest, BatchingDifferentSeedsGiveDifferentOrder)
 
     EXPECT_TRUE(any_diff) << "seeds 1 and 2 produced the same batch order -- the seed is being "
                              "ignored, so BatchingWithSeedIsDeterministic passes vacuously";
+}
+
+TEST(UtilTest, ExpandHomeReplacesLeadingTilde)
+{
+    const char* home = std::getenv("HOME");
+    ASSERT_NE(home, nullptr);
+    ASSERT_NE(home[0], '\0');
+
+    EXPECT_EQ(
+        nn::utility::expand_home("~/database.sqlite"), std::string(home) + "/database.sqlite");
+    EXPECT_EQ(nn::utility::expand_home("~/databases/base/database.sqlite"),
+        std::string(home) + "/databases/base/database.sqlite");
+}
+
+TEST(UtilTest, ExpandHomeLeavesNonTildePathsUntouched)
+{
+    EXPECT_EQ(nn::utility::expand_home("/abs/path/db.sqlite"), "/abs/path/db.sqlite");
+    EXPECT_EQ(nn::utility::expand_home("relative/db.sqlite"), "relative/db.sqlite");
+    EXPECT_EQ(nn::utility::expand_home(""), "");
+}
+
+TEST(UtilTest, ExpandHomeDoesNotTouchEmbeddedTilde)
+{
+    EXPECT_EQ(nn::utility::expand_home("foo/~/db.sqlite"), "foo/~/db.sqlite");
 }
 
 // Each sample must appear exactly once regardless of seeding -- shuffling must permute, not

@@ -7,11 +7,14 @@
 #include <cnpy.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <limits>
 #include <random>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "ThesisDataset.hpp"
@@ -713,4 +716,47 @@ TEST(PgaConfig, AcceptsValidAutoencoderConfig)
     cfg.base.classifier.enabled = false; // as GaConfig::from_json forces (Phase-00-like run)
     cfg.run_tag = "t";
     EXPECT_NO_THROW(cfg.validate());
+}
+
+// ── Profile audit ────────────────────────────────────────────────────────────
+// Every profile shipped on disk (outside the generated smoke/ mirror) must parse
+// cleanly and validate. Mirrors the thesis profile audit so that a profile added
+// without being tracked in git is caught here too.
+namespace
+{
+
+std::filesystem::path pga_profiles_dir()
+{
+    const std::filesystem::path here = std::filesystem::path(__FILE__).parent_path();
+    return here.parent_path() / "profiles";
+}
+
+std::vector<std::string> pga_profiles_on_disk()
+{
+    std::vector<std::string> out;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(pga_profiles_dir()))
+    {
+        if (entry.is_directory()) continue;
+        const std::filesystem::path rel =
+            std::filesystem::relative(entry.path(), pga_profiles_dir());
+        if (rel.string().find("smoke/") == 0) continue; // generated mirror, not source of truth
+        if (rel.extension() != ".json") continue;
+        out.push_back(rel.generic_string());
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+} // namespace
+
+TEST(PgaProfileAudit, EveryProfileOnDiskParsesAndValidates)
+{
+    const auto on_disk = pga_profiles_on_disk();
+    ASSERT_FALSE(on_disk.empty()) << "no GA profiles found under " << pga_profiles_dir();
+    for (const auto& name : on_disk)
+    {
+        const auto cfg = pga::GaConfig::from_file((pga_profiles_dir() / name).string());
+        EXPECT_NO_THROW(cfg.validate()) << "profile failed validation: " << name;
+        EXPECT_EQ(cfg.base.dataset.root, "~/database.sqlite") << "stale DB path in " << name;
+    }
 }

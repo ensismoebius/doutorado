@@ -45,7 +45,7 @@
   "_comment_training_mode": "Suggested escalation: update this profile (e.g. set `training_epochs = 10`, `training_max_batches_per_epoch = 0`, `training_batch_size = 128`) once the smoke run is stable.",
   "_comment_snn_mode": "To adapt this to SNN, change `neural_network_type` to `fused-window-snn` and start by tuning time-step, resistance, and capacitance conservatively.",
   "dataset_subject_filter_regex": "^S(\\d+)$",
-  "dataset_root_path": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada",
+  "dataset_root_path": "~/database.sqlite",
   "training_optimizer_type": "adam",
   "training_loss_type": "mse",
   "training_lr_plateau_enabled": true,

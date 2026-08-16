@@ -20,6 +20,7 @@
 
 #include "data_loaders/10.1117/schema/Names.hpp"
 #include "data_loaders/mat_io/mat_file_utils.hpp"
+#include "utility/path_expand.hpp"
 
 using std::regex;
 using std::vector;
@@ -40,7 +41,7 @@ auto discoverSubjects(                       //
     vector<SubjectFiles> subjects;
 
     namespace fs = std::filesystem;
-    fs::path root_path(root_dir);
+    fs::path root_path(nn::utility::expand_home(root_dir));
 
     if (!fs::exists(root_path))
     {

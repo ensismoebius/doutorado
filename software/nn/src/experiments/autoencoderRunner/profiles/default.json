@@ -42,7 +42,7 @@
   "program_prefetch_lookahead": 20,
   "program_prefetch_ram_cap_mb": 1000,
   "dataset_subject_filter_regex": "^S(\\d+)$",
-  "dataset_root_path": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada",
+  "dataset_root_path": "~/database.sqlite",
   "training_optimizer_type": "adam",
   "training_optimizer_momentum": 0.0,
   "training_adam_beta1": 0.9,

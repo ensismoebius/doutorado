@@ -18,6 +18,7 @@
 #include "data_loaders/10.1117/schema/Metadata.hpp"
 #include "logging/Logger.hpp"
 #include "utility/batching.hpp"
+#include "utility/path_expand.hpp"
 #include "windowing/WindowSpec.hpp"
 
 using std::string;
@@ -25,6 +26,18 @@ using std::string;
 namespace
 {
 // Minimal internal diagnostics removed in non-debug builds to avoid noisy logs.
+
+// Resolve a dataset root (a directory containing database.sqlite, or a direct
+// .sqlite file path) to the actual sqlite file, expanding a leading `~/`.
+std::string resolve_db_path(const std::string& root)
+{
+    const std::filesystem::path expanded(nn::utility::expand_home(root));
+    if (expanded.extension() == ".sqlite")
+    {
+        return expanded.string();
+    }
+    return (expanded / "database.sqlite").string();
+}
 } // namespace
 
 SqliteBatchSource::SqliteBatchSource(const string& db_root,
@@ -34,7 +47,7 @@ SqliteBatchSource::SqliteBatchSource(const string& db_root,
     const nn::windowing::WindowSpec& audio_window,
     Protocol101117InputMode input_mode,
     std::vector<int> selected_trial_ids)
-    : db_path_((std::filesystem::path(db_root) / "database.sqlite").string()),
+    : db_path_(resolve_db_path(db_root)),
       batch_size_(batch_size),
       dataset_type_(dataset_type),
       eeg_window_(eeg_window),

@@ -16,6 +16,7 @@
 #include "data_loaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "logging/Logger.hpp"
 #include "progress/ProgressManager.hpp"
+#include "utility/path_expand.hpp"
 
 namespace thesis
 {
@@ -366,9 +367,9 @@ void apply_max_samples(ThesisDatasetView& view, int max_samples)
 
 auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
 {
-    auto subjects = discoverSubjects(dataset_cfg.root, "^S(\\d+)$");
-    if (subjects.empty())
-        throw std::runtime_error("ThesisDataset: no subjects found in " + dataset_cfg.root);
+    const std::string root = nn::utility::expand_home(dataset_cfg.root);
+    auto subjects = discoverSubjects(root, "^S(\\d+)$");
+    if (subjects.empty()) throw std::runtime_error("ThesisDataset: no subjects found in " + root);
 
     ThesisDatasetView view;
     bool from_cache = false;
@@ -376,7 +377,7 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     // Try the decoded-dataset cache: signature is derived from the (cheap)
     // subject discovery above, so a changed source invalidates it without a
     // content re-read.
-    const std::string cache_file = cache_path_for(dataset_cfg.root);
+    const std::string cache_file = cache_path_for(root);
     const std::uint64_t signature = source_signature(subjects);
     if (!cache_disabled() && try_load_cache(cache_file, signature, view))
     {
