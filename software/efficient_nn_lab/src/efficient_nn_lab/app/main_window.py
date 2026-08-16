@@ -8,6 +8,8 @@ does.
 
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
@@ -121,7 +123,7 @@ def _choose_view(values: dict[str, object]) -> str:
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, initial_demo_slug: str | None = None) -> None:
         super().__init__()
         self.setWindowTitle("Efficient Neural Networks Lab")
         self.resize(1180, 720)
@@ -133,6 +135,31 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._build_shortcuts()
+
+        if initial_demo_slug is not None:
+            self._select_demo_by_slug(initial_demo_slug)
+
+    # -- deep-linking (documentation/08-lectures/.../presentation.md #4) --
+    def _select_demo_by_slug(self, slug: str) -> None:
+        """Jump straight to a demo by its stable `DemoModule.slug`.
+
+        Used by main.py's `--demo` flag, itself invoked from the lecture
+        slides' "open in software" links. A slug that doesn't match any
+        demo (typo, renamed/removed demo) is reported to stderr and
+        otherwise ignored -- the app must still open normally rather than
+        crash or silently do nothing, since this can be triggered live
+        during a talk.
+        """
+        for i in range(self.tree.topLevelItemCount()):
+            parent_item = self.tree.topLevelItem(i)
+            for j in range(parent_item.childCount()):
+                child = parent_item.child(j)
+                demo = child.data(0, Qt.ItemDataRole.UserRole)
+                if isinstance(demo, DemoModule) and demo.slug == slug:
+                    self.tree.setCurrentItem(child)
+                    self._select_demo(demo)
+                    return
+        print(f"efficient-nn-lab: unknown --demo slug {slug!r}, ignoring", file=sys.stderr)
 
     # -- UI construction --------------------------------------------------
     def _build_ui(self) -> None:

@@ -1,4 +1,4 @@
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{RNA vs. RNP: o par que se confunde}
 	\small
 	\begin{columns}
@@ -27,4 +27,10 @@
 	\begin{alertblock}{Consequência prática}
 		Uma RNP processa naturalmente \textbf{fluxos} de dados (áudio, EEG, eventos de câmera) --- mas processar um único dado estático exige ``esticá-lo'' ao longo de vários passos de tempo, um custo que a RNA não tem.
 	\end{alertblock}
+	% [SOFTWARE] SNN -> Sinal e spikes | Play uma vez (cruzamento de
+	% nivel vira spike discreto)
+	\abrirNoSoftware{SNN -> Sinal e spikes}{snn.spikes}
+	% [SOFTWARE] SNN -> Codificacao Poisson | mesmo sinal, spikes
+	% probabilisticos (contraste com a demo acima)
+	\abrirNoSoftware{SNN -> Codificação Poisson}{snn.poisson}
 \end{frame}

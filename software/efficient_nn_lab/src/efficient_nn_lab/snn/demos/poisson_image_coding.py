@@ -35,6 +35,7 @@ _N_STEPS = 30
 
 class PoissonImageCodingDemo(DemoModule):
     title = "SNN -> Codificação Poisson (imagem)"
+    slug = "snn.poisson_image"
     description = (
         "Cada pixel de uma imagem real vira um neurônio: dispara, passo a passo, com probabilidade "
         "proporcional ao seu brilho. Só a soma de vários passos faz a imagem reaparecer."

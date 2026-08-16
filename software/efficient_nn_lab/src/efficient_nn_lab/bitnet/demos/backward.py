@@ -26,6 +26,7 @@ _CURVE_W = np.linspace(-1.5, 1.5, 400)
 
 class BackwardSTEDemo(DemoModule):
     title = "BitNet -> Backward -> STE"
+    slug = "bitnet.ste"
     description = (
         "A funcao de quantizacao e uma escada: constante em quase toda "
         "parte, descontinua em dois pontos. O STE contorna o problema "

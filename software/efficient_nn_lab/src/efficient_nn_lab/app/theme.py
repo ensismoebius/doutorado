@@ -9,6 +9,12 @@ palette, just pushed brighter/more saturated than the original muted set,
 and paired with a darker neutral + higher fill opacity in the drawing
 primitives (neuron_view/weight_view/signal_view) so shapes read as
 confidently colored instead of washed out.
+
+The stylesheet below pins Qt's font to "DejaVu Sans" explicitly, matching
+matplotlib's own default font (used by every widgets/*.py chart without
+any rcParams override) and the slide deck's \\setmainfont (see
+documentation/08-lectures/fronteiras-bitnets-redes-pulso/preamble.tex) --
+one font across Qt chrome, matplotlib panels, and the LaTeX slides.
 """
 
 from __future__ import annotations
@@ -29,6 +35,7 @@ QMainWindow {{
 }}
 QWidget {{
     color: {TEXT_COLOR};
+    font-family: "DejaVu Sans";
     font-size: 11pt;
 }}
 QListWidget, QTreeWidget {{

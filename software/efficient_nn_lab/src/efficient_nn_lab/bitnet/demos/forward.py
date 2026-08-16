@@ -66,6 +66,7 @@ def _base_values(result, target: float, diff: float, loss: float, grad: float, t
 
 class ForwardLossDemo(DemoModule):
     title = "BitNet -> Forward"
+    slug = "bitnet.forward"
     description = (
         "Um neuronio linear com dois pesos quantizados: entradas fluem "
         "pelos pesos ternarios ate a saida, que e comparada a um alvo."

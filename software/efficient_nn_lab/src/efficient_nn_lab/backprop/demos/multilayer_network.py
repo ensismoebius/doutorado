@@ -37,6 +37,7 @@ _W3 = np.array([[0.5, -0.6]])  # output (O): 1x2
 
 class MultilayerNetworkDemo(DemoModule):
     title = "Backprop -> Rede de 4 camadas"
+    slug = "backprop.mlp"
     description = (
         "O mesmo forward/backward do neurônio único, agora numa rede de verdade: "
         "entrada (3) -> camada 1 (2) -> camada 2 (2) -> saída (1), toda sigmoide. "

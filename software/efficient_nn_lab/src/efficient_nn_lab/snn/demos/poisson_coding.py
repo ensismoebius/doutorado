@@ -23,6 +23,7 @@ _N_STEPS = 60
 
 class PoissonCodingDemo(DemoModule):
     title = "SNN -> Codificação Poisson"
+    slug = "snn.poisson"
     description = (
         "O mesmo sinal contínuo, mas cada passo de tempo só dispara com uma probabilidade "
         "proporcional à intensidade — não mais um cruzamento de nível garantido."

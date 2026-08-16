@@ -119,6 +119,13 @@ class DemoModule(ABC):
     title: str = ""
     #: One-paragraph description shown above the animation area.
     description: str = ""
+    #: Stable identifier for deep-linking from outside the app (the
+    #: lecture slides' "open this demo" links, see main.py's --demo flag
+    #: and documentation/08-lectures/fronteiras-bitnets-redes-pulso/
+    #: presentation.md). Unlike `title`, this never changes even if the
+    #: displayed title's wording does, so a link baked into a slide stays
+    #: valid across later renames.
+    slug: str = ""
 
     def __init__(self) -> None:
         self._frames: list[Frame] = []

@@ -22,6 +22,7 @@ _ONSET = 5
 
 class LIFDynamicsDemo(DemoModule):
     title = "SNN -> LIF"
+    slug = "snn.lif"
     description = "O potencial de membrana integra a corrente de entrada, vaza com o tempo, e dispara ao cruzar o limiar."
 
     def __init__(self) -> None:

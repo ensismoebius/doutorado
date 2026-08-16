@@ -21,6 +21,7 @@ _N_STEPS = 60
 
 class SpikeGenerationDemo(DemoModule):
     title = "SNN -> Sinal e spikes"
+    slug = "snn.spikes"
     description = "Um sinal contínuo cruza um nível; cada cruzamento de subida produz um spike."
 
     def __init__(self) -> None:

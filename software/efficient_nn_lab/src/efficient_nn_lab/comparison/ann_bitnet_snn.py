@@ -31,6 +31,7 @@ _REVEAL_KEYS = {
 
 class AnnBitnetSnnComparisonDemo(DemoModule):
     title = "Comparação -> ANN x BitNet x SNN"
+    slug = "comparison"
     description = "Mesma entrada conceitual, três formas de representar e operar sobre ela — uma tabela que cresce, não uma sequência de telas soltas."
 
     def _build_frames(self) -> list[Frame]:

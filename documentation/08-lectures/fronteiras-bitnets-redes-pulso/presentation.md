@@ -6,7 +6,15 @@ Software: `software/efficient_nn_lab/`. Objetivo deste documento: um plano
 executável, com diffs concretos, para (1) unificar a identidade visual dos
 slides com a do software, (2) mapear cada seção dos slides ao trecho exato
 do software que demonstra a mesma ideia, e (3) tornar essa transição
-clicável a partir do PDF. Nada aqui foi implementado ainda — é o plano.
+clicável a partir do PDF.
+
+**Status**: Fases 1, 3 e 4 estão implementadas (cores/fonte unificadas,
+CLI `--demo`/slugs, `abrir-demo.sh`, links nos 8 pontos da seção 3, todos
+recompilados e verificados — ver checklists marcados abaixo). O que resta
+é exclusivamente o **ensaio ao vivo** (seção 6): testar os links `run:` no
+notebook/visualizador reais do dia, e decidir o modo de operação da seção
+4.2. Fase 2 (o mapeamento em si) sempre foi só a tabela da seção 3, já
+completa desde a primeira versão deste documento.
 
 ---
 
@@ -187,16 +195,21 @@ essa dependência implícita, para não ser "corrigida" por engano no futuro.
 
 ### 2.3 Checklist da Fase 1
 
-- [ ] Editar `preamble.tex`: `\definecolor` vívido (2.1) + `accentColor`.
-- [ ] Editar `preamble.tex`: `title`/`frametitle` bg de `cyan` para
+- [x] Editar `preamble.tex`: `\definecolor` vívido (2.1) + `accentColor`.
+- [x] Editar `preamble.tex`: `title`/`frametitle` bg de `cyan` para
       `bitnetColor`.
-- [ ] Adicionar `fontspec` + `\setmainfont{DejaVu Sans}`; remover
+- [x] Adicionar `fontspec` + `\setmainfont{DejaVu Sans}`; remover
       `inputenc`.
-- [ ] Recompilar com `lualatex` (2 passadas + `bibtex`/`biber` conforme o
-      fluxo atual do `.bbl`) e comparar visualmente com o PDF atual.
-- [ ] Editar `app/theme.py`: adicionar `font-family: "DejaVu Sans"`.
-- [ ] Rodar a suíte de testes do software (`QT_QPA_PLATFORM=offscreen
-      pytest -q`) — mudança de CSS não deve quebrar nada, mas confirmar.
+- [x] Recompilar com `lualatex` (2 passadas + `bibtex`/`biber` conforme o
+      fluxo atual do `.bbl`) e comparar visualmente com o PDF atual. Sem
+      erros; a deck ganhou +1 página (44 -> antes já 44, referências
+      quebram em uma página a mais por causa da fonte mais larga) — sem
+      perda de conteúdo. Duas páginas pré-existentes com "Overfull vbox"
+      (já presentes antes desta mudança) ficaram marginalmente mais
+      apertadas com a fonte mais larga; não chegam a cortar texto.
+- [x] Editar `app/theme.py`: adicionar `font-family: "DejaVu Sans"`.
+- [x] Rodar a suíte de testes do software (`QT_QPA_PLATFORM=offscreen
+      pytest -q`) — 143 passed, sem regressão.
 
 ---
 
@@ -334,6 +347,15 @@ ao **diretório do PDF**. Plano:
    - Slug desconhecido/inválido: log de aviso em `stderr`, aplicação abre
      normalmente na tela de boas-vindas (nunca travar a abertura por causa
      de um argumento malformado — crítico durante a palestra).
+   - **Implementado**: exatamente a segunda forma acima. `DemoModule.slug`
+     (core/demo.py) + `MainWindow(initial_demo_slug=...)` /
+     `_select_demo_by_slug` (app/main_window.py) buscam por igualdade de
+     slug percorrendo a árvore de demos; `main.py` usa
+     `argparse.parse_known_args` (sem `choices=`, para não abortar com
+     `SystemExit` num slug desconhecido) e repassa qualquer flag restante
+     ao `QApplication`. Verificado manualmente: `--demo snn.lif` seleciona
+     e destaca o item certo na árvore lateral; um slug inexistente imprime
+     o aviso em stderr e abre a tela de boas-vindas normalmente.
 
 2. **Script wrapper**, `documentation/08-lectures/fronteiras-bitnets-redes-pulso/abrir-demo.sh`:
 
@@ -363,6 +385,23 @@ ao **diretório do PDF**. Plano:
    (Sem `\faIcon` se `fontawesome5` não estiver instalado — usar apenas o
    texto "▶ Abrir no software: ...", em `neutralColor`, canto inferior do
    frame, via `textpos` já carregado no preamble.)
+
+### 4.1.1 Nota de implementação — conteúdo pode desaparecer silenciosamente
+
+Descoberto ao implementar: em 3 dos 8 frames (`bitnetTreinamento.tex`,
+`snnConfusable.tex`, `snnBptt.tex`) o conteúdo já ocupava a altura inteira
+do frame — beamer **não adiciona página nem quebra linha automaticamente
+quando um frame transborda**, ele simplesmente corta (silenciosamente,
+sem aviso) o que não coube. A linha `\abrirNoSoftware{...}` inserida no
+final desses 3 frames desaparecia completamente do PDF (confirmado via
+`pdftotext`, não só "visualmente apertado"). Corrigido com a opção nativa
+do beamer `\begin{frame}[shrink]` nesses 3 arquivos — encolhe o conteúdo
+inteiro do frame automaticamente até caber, sem precisar recalcular
+espaçamento manualmente. **Ao adicionar novos links/conteúdo a qualquer
+slide no futuro, sempre conferir com `pdftotext -layout` que o texto
+esperado realmente aparece na página** — um frame "parece" ter cabido
+mesmo quando um trecho final foi descartado, porque não há nenhum sinal
+visual de corte.
 
 ### 4.2 Limitações reais — testar antes, ter plano B
 

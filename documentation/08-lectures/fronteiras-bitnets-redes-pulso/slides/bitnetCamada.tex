@@ -23,6 +23,9 @@
 		\end{equation*}
 		\par O peso original $0{,}05$ (o menor em módulo) \textbf{vira zero} --- é descartado, não aproximado. Os outros dois viram $\pm 1$.
 		\par As ativações $X$ recebem seu próprio tratamento, quantização \textbf{absmax} para INT8: $\widetilde{X} = \text{round}(X \cdot 127/\max(|X|))$, com \textit{clip} em $[-128,127]$.
+		% [SOFTWARE] BitNet -> Quantizacao | slider w ~ 0 para reproduzir a
+		% zona morta, depois 0,6 / -0,3 para os dois outros pesos do exemplo
+		\abrirNoSoftware{BitNet -> Quantizacao}{bitnet.quant}
 	}
 	\only<3>{
 		\framesubtitle{O que essa troca compra}
@@ -31,5 +34,8 @@
 			\item Nenhuma multiplicação real acontece no lado dos pesos --- só somas/subtrações de inteiros, mais um único rescalonamento por $\gamma$ ao final.
 			\item É exatamente a operação mais cara da tabela de energia vista na motivação ($\sim$3,7 pJ por multiplicação FP32) que desaparece --- trocada por somas de $\sim$0,03 pJ, repetidas em bilhões de operações por inferência.
 		\end{itemize}
+			% [SOFTWARE] BitNet -> Forward | checkpoints "Quantizar w1"/"w2" ->
+			% "Multiplicacao 1"/"2" (mostra Q(w2)=0 anulando x2)
+			\abrirNoSoftware{BitNet -> Forward}{bitnet.forward}
 	}
 \end{frame}

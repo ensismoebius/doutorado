@@ -60,6 +60,7 @@ def _activation_fields(z: float, target: float) -> dict[str, float]:
 
 class TraditionalBackpropDemo(DemoModule):
     title = "Backprop -> Forward e backward classicos"
+    slug = "backprop.classic"
     description = (
         "Como o forward (combinação linear + ativação sigmoide) e o backward (regra da "
         "cadeia com três elos) funcionam — e o que acontece quando se repete esse passo "

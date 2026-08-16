@@ -1,4 +1,4 @@
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{Treinar através de uma função que não tem gradiente}
 	\small
 	\begin{itemize}
@@ -16,4 +16,7 @@
 	\begin{alertblock}{Ponte com a Parte II}
 		Essa é \textbf{exatamente} a mesma ideia por trás do \textit{gradiente substituto} usado para treinar neurônios de pulso \cite{eshraghian2023training}: forward com a função em degrau real, backward com uma aproximação suave, diferenciável. Duas subáreas, de forma independente, convergiram para a mesma solução do mesmo problema estrutural.
 	\end{alertblock}
+	% [SOFTWARE] BitNet -> Backward -> STE | checkpoint final (derivada
+	% real vs. constante 1 do STE)
+	\abrirNoSoftware{BitNet -> Backward -> STE}{bitnet.ste}
 \end{frame}

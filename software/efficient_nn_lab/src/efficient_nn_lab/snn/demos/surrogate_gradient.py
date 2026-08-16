@@ -28,6 +28,7 @@ _X = np.linspace(-2.0, 2.0, 400)
 
 class SurrogateGradientDemo(DemoModule):
     title = "SNN -> Surrogate gradient"
+    slug = "snn.surrogate"
     description = "O spike no forward continua discreto; apenas o backward usa uma aproximação suave."
 
     def __init__(self) -> None:

@@ -34,6 +34,7 @@ _TWEEN_STEPS = 16
 
 class GuidedBitNetDemo(DemoModule):
     title = "BitNet -> Exemplo guiado"
+    slug = "bitnet.guided"
     description = 'Sequência fixa "Do peso real ao BitNet": um ciclo completo de forward, loss, STE e atualização.'
 
     def _build_frames(self) -> list[Frame]:
