@@ -1,0 +1,80 @@
+{
+  "run_tag": "pga_snn_voice",
+  "results_dir": "results/paraconsistentGA",
+  "experiment": {
+    "run_tag": "pga_snn_voice",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/paraconsistentGA",
+    "modality": "voice",
+    "max_samples": 550
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "snn-ae",
+      "encoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:32:identity"
+      ],
+      "decoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:output:identity"
+      ],
+      "encoding": "direct",
+      "time_steps": 1,
+      "voltage_threshold": 1.0,
+      "firing_rate_reg_lambda": 0.5,
+      "firing_rate_min": 0.1,
+      "firing_rate_max": 0.8,
+      "ae_loss_type": "mse"
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "early_stop_patience": 15,
+    "k_folds": 5,
+    "nested_cv": true
+  },
+  "ga": {
+    "population_size": 32,
+    "generations": 64,
+    "n_seeds": 3,
+    "n_losers": 2,
+    "crossover_prob": 0.9,
+    "mutation_prob": 0.2,
+    "seed": 42,
+    "tournament_k": 2,
+    "bounds": {
+      "encoding_choices": [
+        "direct",
+        "latency",
+        "poisson"
+      ],
+      "evolve_temporal": false,
+      "min_layers": 1,
+      "max_layers": 6,
+      "min_width": 1,
+      "max_width": 128
+    }
+  },
+  "constraints": {
+    "latency_ceiling_ms": 1000.0,
+    "fixed_pipeline_cost_ms": 0.0,
+    "latency_calibrated": false,
+    "ns_per_mac": 2.0,
+    "tau_rec": 0.0001
+  }
+}

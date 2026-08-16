@@ -1,0 +1,54 @@
+{
+  "run_tag": "pga_debug",
+  "results_dir": "results/paraconsistentGA/smoke",
+  "experiment": {
+    "run_tag": "pga_debug",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/paraconsistentGA/smoke",
+    "modality": "eeg",
+    "max_samples": 40
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "ann-ae",
+      "encoder_layer_spec": ["linear:32:leaky", "linear:16:identity"],
+      "decoder_layer_spec": ["linear:32:leaky", "linear:output:identity"]
+    }
+  },
+  "paraconsistent": { "enabled": true },
+  "classifier": { "enabled": false },
+  "training": {
+    "epochs": 3,
+    "learning_rate": 0.001,
+    "samples_per_batch": 16,
+    "early_stop_patience": 2,
+    "k_folds": 2,
+    "nested_cv": false
+  },
+  "ga": {
+    "population_size": 6,
+    "generations": 2,
+    "n_seeds": 1,
+    "crossover_prob": 0.9,
+    "mutation_prob": 0.3,
+    "seed": 42,
+    "tournament_k": 2,
+    "bounds": {
+      "hidden_choices": [16, 32],
+      "latent_choices": [8, 16]
+    }
+  },
+  "constraints": {
+    "latency_ceiling_ms": 1000.0,
+    "fixed_pipeline_cost_ms": 0.0,
+    "latency_calibrated": false,
+    "ns_per_mac": 2.0,
+    "tau_rec": 1e-4
+  }
+}

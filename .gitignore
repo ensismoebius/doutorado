@@ -38,6 +38,9 @@ __pycache__/
 # Thesis experiment profiles must be committed (the profile audit test runs on every checkout).
 !software/nn/src/experiments/thesis/profiles/
 !software/nn/src/experiments/thesis/profiles/**/*.json
+# Paraconsistent GA experiment profiles must be committed (same rationale).
+!software/nn/src/experiments/paraconsistentGA/profiles/
+!software/nn/src/experiments/paraconsistentGA/profiles/**/*.json
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).
