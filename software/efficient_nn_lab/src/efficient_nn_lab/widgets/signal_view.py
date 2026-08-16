@@ -51,6 +51,8 @@ class SignalView(QWidget):
             self._render_lif(values)
         elif kind == "signal_spikes":
             self._render_signal_spikes(values)
+        elif kind == "poisson_spikes":
+            self._render_poisson_spikes(values)
         elif kind == "backprop_convergence":
             self._render_backprop_convergence(values)
         else:
@@ -86,6 +88,39 @@ class SignalView(QWidget):
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_xlabel("tempo (passos)")
         self._ax_bottom.set_ylabel("spikes")
+
+    def _render_poisson_spikes(self, values: dict[str, object]) -> None:
+        signal = np.asarray(values["signal"])
+        prob = np.asarray(values["prob"])
+        spikes = np.asarray(values["spikes"])
+        n_total = int(values["n_total"])
+        max_rate = float(values["max_rate"])
+        t = np.arange(len(signal))
+
+        self._ax_top.plot(t, signal, color=SNN_COLOR, linewidth=2, label="sinal (intensidade)")
+        self._ax_top.plot(t, prob, color=ACCENT_COLOR, linewidth=1.5, linestyle="--", label="P(spike) por passo")
+        if len(t):
+            self._ax_top.plot([t[-1]], [signal[-1]], marker="o", markersize=7, color=SNN_COLOR, zorder=4)
+            self._ax_top.plot([t[-1]], [prob[-1]], marker="o", markersize=6, color=ACCENT_COLOR, zorder=4)
+            self._ax_top.text(
+                t[-1], prob[-1] + 0.1, f"P={prob[-1]:.2f}", ha="center", fontsize=8, color=ACCENT_COLOR,
+            )
+        self._ax_top.axhline(max_rate, color=NEUTRAL_COLOR, linestyle=":", linewidth=1, label=f"taxa máxima = {max_rate:.2f}")
+        self._ax_top.set_xlim(0, n_total)
+        self._ax_top.set_ylim(-1.1, 1.1)
+        self._ax_top.set_ylabel("amplitude / probabilidade")
+        self._ax_top.legend(loc="upper right", fontsize=7.5)
+
+        spike_times = t[spikes > 0]
+        for st in spike_times:
+            self._ax_bottom.text(st, 1.05, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
+        self._ax_bottom.vlines(spike_times, 0, 1, color=SNN_COLOR, linewidth=2)
+        self._ax_bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
+        self._ax_bottom.set_xlim(0, n_total)
+        self._ax_bottom.set_ylim(0, 1.2)
+        self._ax_bottom.set_yticks([])
+        self._ax_bottom.set_xlabel("tempo (passos)")
+        self._ax_bottom.set_ylabel("spikes sorteados")
 
     def _render_lif(self, values: dict[str, object]) -> None:
         current = np.asarray(values["current"])

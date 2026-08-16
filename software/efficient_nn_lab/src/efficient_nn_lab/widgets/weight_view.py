@@ -168,28 +168,67 @@ class WeightView(QWidget):
         x = values["x"]
         bottom_reveal = float(values.get("bottom_reveal", 0.0))
         overlay_reveal = float(values.get("overlay_reveal", 0.0))
+        sigmoid_reveal = float(values.get("sigmoid_reveal", 0.0))
+        draw_reveal = float(values.get("draw_reveal", 0.0))
 
         ax.axvline(0, color=NEUTRAL_COLOR, linewidth=1, linestyle=":")
 
         if bottom_reveal < 0.02:
             spike = values["spike"]
-            ax.plot(x, spike, color=SNN_COLOR, linewidth=2.5)
+            ax.plot(x, spike, color=SNN_COLOR, linewidth=2.5, label="S(v) — degrau (forward)")
             ax.text(0.05, 1.05, "S(0) = 1", ha="left", fontsize=8, color=SNN_COLOR)
             ax.text(-0.35, -0.1, "S(v<0) = 0", ha="right", fontsize=8, color=SNN_COLOR)
+            if sigmoid_reveal > 0.02:
+                sigmoid = values["sigmoid"]
+                ax.plot(
+                    x, sigmoid, color=ACCENT_COLOR, linewidth=2, linestyle="--", alpha=sigmoid_reveal,
+                    label="sigmoide suave (antiderivada do gradiente substituto)",
+                )
+                mid = len(x) // 2
+                ax.text(
+                    x[mid], float(sigmoid[mid]) + 0.06, f"sigmoide({x[mid]:.1f}) = {float(sigmoid[mid]):.2f}",
+                    ha="center", fontsize=7.5, color=ACCENT_COLOR, alpha=sigmoid_reveal,
+                )
+                ax.legend(loc="lower right", fontsize=7)
             ax.set_ylabel("S(v) — spike (forward)")
             ax.set_title("Função de disparo real, usada no forward")
             ax.set_ylim(-0.2, 1.2)
+        elif draw_reveal < 0.02:
+            true_derivative = values["true_derivative"]
+            ax.plot(x, true_derivative, color=SNN_COLOR, linewidth=2.5, label="gradiente (backward)")
+            ax.set_ylabel("gradiente usado no backward")
+            ax.set_title("A derivada real: zero em quase todo ponto — inútil para o backward")
         else:
-            curve = values["curve"]
-            ax.plot(x, curve, color=SNN_COLOR, linewidth=2.5, alpha=bottom_reveal, label="gradiente (backward)")
-            peak_idx = int(np.argmax(curve))
-            if curve[peak_idx] > 0.05:
+            # the gradient and the sigmoid it comes from are traced together,
+            # left to right, up to the same x -- not faded in all at once --
+            # so the height of one at the sweep's leading edge is visibly
+            # the slope of the other at that same point.
+            surrogate = values["surrogate"]
+            sigmoid = values["sigmoid"]
+            cut = min(len(x), max(2, int(round(draw_reveal * len(x)))))
+            xs = x[:cut]
+            ax.plot(xs, sigmoid[:cut], color=ACCENT_COLOR, linewidth=2, linestyle="--", label="sigmoide suave")
+            ax.plot(xs, surrogate[:cut], color=SNN_COLOR, linewidth=2.5, label="gradiente (backward)")
+
+            tip = cut - 1
+            ax.plot([x[tip], x[tip]], [sigmoid[tip], surrogate[tip]], color=NEUTRAL_COLOR, linewidth=1, linestyle=":")
+            ax.plot([x[tip]], [sigmoid[tip]], marker="o", markersize=6, color=ACCENT_COLOR, zorder=5)
+            ax.plot([x[tip]], [surrogate[tip]], marker="o", markersize=7, color=SNN_COLOR, zorder=5)
+            tip_ha = "right" if x[tip] > x[-1] - 0.5 else "center"
+            ax.text(
+                x[tip], min(1.1, surrogate[tip] + 0.1),
+                f"inclinação da sigmoide aqui = altura do gradiente = {surrogate[tip]:.2f}",
+                ha=tip_ha, fontsize=7, color=SNN_COLOR,
+            )
+
+            peak_idx = int(np.argmax(surrogate))
+            if cut > peak_idx and surrogate[peak_idx] > 0.05:
                 ax.annotate(
-                    f"pico = {curve[peak_idx]:.2f}",
-                    xy=(x[peak_idx], curve[peak_idx]),
-                    xytext=(x[peak_idx] + 0.3, curve[peak_idx] + 0.15),
-                    fontsize=8, color=SNN_COLOR, alpha=bottom_reveal,
-                    arrowprops=dict(arrowstyle="->", color=SNN_COLOR, alpha=bottom_reveal),
+                    f"pico = {surrogate[peak_idx]:.2f}",
+                    xy=(x[peak_idx], surrogate[peak_idx]),
+                    xytext=(x[peak_idx] + 0.35, surrogate[peak_idx] + 0.15),
+                    fontsize=8, color=SNN_COLOR,
+                    arrowprops=dict(arrowstyle="->", color=SNN_COLOR),
                 )
             if overlay_reveal > 0.02:
                 ax.plot(
@@ -201,8 +240,9 @@ class WeightView(QWidget):
                     alpha=overlay_reveal,
                     label="spike (forward, para comparação)",
                 )
-                ax.legend(loc="upper left", fontsize=8)
+            ax.legend(loc="upper left", fontsize=7)
             ax.set_ylabel("gradiente usado no backward")
-            ax.set_title("A derivada real (zero) se torna uma curva suave, só no backward")
+            ax.set_title("O gradiente nasce da inclinação da sigmoide, ponto a ponto")
+        if bottom_reveal >= 0.02:
             ax.set_ylim(-0.2, 1.2)
         ax.set_xlabel("v - v_th")

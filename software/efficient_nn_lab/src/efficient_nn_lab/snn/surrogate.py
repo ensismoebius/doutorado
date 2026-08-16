@@ -35,3 +35,17 @@ def fast_sigmoid_surrogate(v_minus_th: np.ndarray, k: float = 5.0) -> np.ndarray
     """
     x = np.asarray(v_minus_th, dtype=float)
     return 1.0 / (1.0 + k * np.abs(x)) ** 2
+
+
+def fast_sigmoid(v_minus_th: np.ndarray, k: float = 5.0) -> np.ndarray:
+    """The smooth S-curve that `fast_sigmoid_surrogate` is the slope of.
+
+    x / (1 + k|x|), shifted to sit at 0.5 at the threshold, is the exact
+    antiderivative of `fast_sigmoid_surrogate` above (not just a
+    similarly-shaped sigmoid picked separately) — differentiate it and the
+    k-dependent factors cancel exactly, so the curve drawn here and the
+    surrogate-gradient curve are honestly a function/derivative pair, not
+    two independently-chosen formulas that merely look alike.
+    """
+    x = np.asarray(v_minus_th, dtype=float)
+    return 0.5 + x / (1.0 + k * np.abs(x))

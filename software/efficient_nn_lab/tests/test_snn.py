@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
 
-from efficient_nn_lab.snn.encoding import direct_threshold_spikes
+from efficient_nn_lab.snn.encoding import direct_threshold_spikes, poisson_spikes, spike_probability
 from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 from efficient_nn_lab.snn.surrogate import (
+    fast_sigmoid,
     fast_sigmoid_surrogate,
     heaviside,
     heaviside_derivative,
@@ -57,11 +58,53 @@ def test_surrogate_peaks_at_threshold_and_decays_away():
     assert peak == pytest.approx(1.0)
 
 
+def test_fast_sigmoid_is_the_true_antiderivative_of_the_surrogate():
+    # fast_sigmoid must not just *look* like an S-curve near the surrogate
+    # gradient -- its numerical slope has to match fast_sigmoid_surrogate
+    # at every point, or the two plotted curves would be lying about being
+    # a function/derivative pair.
+    x = np.linspace(-2.0, 2.0, 400)
+    sigmoid = fast_sigmoid(x, k=5.0)
+    surrogate = fast_sigmoid_surrogate(x, k=5.0)
+    numeric_slope = np.gradient(sigmoid, x)
+    np.testing.assert_allclose(numeric_slope, surrogate, atol=1.5e-2)
+    zero_idx = int(np.abs(x).argmin())
+    assert sigmoid[0] < sigmoid[zero_idx] < sigmoid[-1]
+    assert sigmoid[zero_idx] == pytest.approx(0.5, abs=1e-2)
+
+
 # -- direct threshold spike encoding --------------------------------------
 def test_direct_threshold_spikes_only_on_rising_edge():
     signal = np.array([0.0, 0.5, 0.5, 0.0, 0.5])
     spikes = direct_threshold_spikes(signal, level=0.4)
     np.testing.assert_array_equal(spikes, [0.0, 1.0, 0.0, 0.0, 1.0])
+
+
+# -- Poisson / rate coding --------------------------------------------------
+def test_spike_probability_scales_with_intensity_and_clips_negatives():
+    signal = np.array([-1.0, 0.0, 0.5, 1.0])
+    prob = spike_probability(signal, max_rate=0.8)
+    np.testing.assert_allclose(prob, [0.0, 0.0, 0.4, 0.8])
+
+
+def test_poisson_spikes_is_deterministic_given_the_same_seed():
+    signal = np.linspace(0.0, 1.0, 50)
+    first = poisson_spikes(signal, max_rate=0.9, seed=42)
+    second = poisson_spikes(signal, max_rate=0.9, seed=42)
+    np.testing.assert_array_equal(first, second)
+
+
+def test_poisson_spikes_fires_more_often_where_intensity_is_higher():
+    # not a per-sample guarantee (it's a draw), but over many repeated
+    # signals at a fixed intensity the empirical rate should track the
+    # requested probability -- the defining property of rate coding.
+    n = 4000
+    low_signal = np.full(n, 0.1)
+    high_signal = np.full(n, 0.9)
+    low_rate = poisson_spikes(low_signal, max_rate=0.9, seed=7).mean()
+    high_rate = poisson_spikes(high_signal, max_rate=0.9, seed=7).mean()
+    assert low_rate < high_rate
+    assert high_rate == pytest.approx(0.9 * 0.9, abs=0.03)
 
 
 # -- demo modules -----------------------------------------------------------
@@ -88,21 +131,31 @@ def test_lif_dynamics_only_marks_meaningful_moments_as_checkpoints():
     assert demo.total_steps >= 3  # start, at least one spike, end
 
 
-def test_surrogate_gradient_demo_morphs_true_derivative_into_surrogate():
+def test_surrogate_gradient_demo_sweeps_gradient_and_sigmoid_together():
     demo = SurrogateGradientDemo()
     checkpoints = demo.checkpoint_frames()
     labels = [f.label for f in checkpoints]
     assert labels == [
         "A função de disparo (forward)",
+        "A sigmoide suave por trás do gradiente substituto",
         "A derivada real",
         "O gradiente substituto",
         "Os dois juntos",
     ]
-    true_deriv_curve = checkpoints[1].values["curve"]
-    surrogate_curve = checkpoints[2].values["curve"]
-    assert np.all(true_deriv_curve == 0.0)
-    assert surrogate_curve.max() > 0.5
-    # the animated transition between them actually interpolates the
-    # array, peak growing from 0 toward the surrogate's peak.
-    mid_tween = demo._frames[demo._checkpoint_frame_indices[1] + 3]
-    assert 0.0 < mid_tween.values["curve"].max() < surrogate_curve.max()
+    true_derivative = checkpoints[2].values["true_derivative"]
+    surrogate = checkpoints[3].values["surrogate"]
+    assert np.all(true_derivative == 0.0)
+    assert surrogate.max() > 0.5
+    assert checkpoints[2].values["draw_reveal"] == pytest.approx(0.0)
+    assert checkpoints[3].values["draw_reveal"] == pytest.approx(1.0)
+    # the sweep genuinely progresses across many interior frames -- a
+    # partially-drawn state exists between "A derivada real" (nothing
+    # drawn) and "O gradiente substituto" (fully drawn), not an instant
+    # jump from one to the other.
+    mid_tween = demo._frames[demo._checkpoint_frame_indices[2] + 20]
+    assert 0.0 < mid_tween.values["draw_reveal"] < 1.0
+    # the underlying curves themselves are constant across the sweep --
+    # only how much of them is drawn changes -- so their values never
+    # morph, unlike the old height-tweening design this replaces.
+    np.testing.assert_array_equal(mid_tween.values["sigmoid"], checkpoints[3].values["sigmoid"])
+    np.testing.assert_array_equal(mid_tween.values["surrogate"], checkpoints[3].values["surrogate"])

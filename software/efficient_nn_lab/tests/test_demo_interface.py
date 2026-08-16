@@ -10,6 +10,7 @@ from efficient_nn_lab.bitnet.demos.guided_sequence import GuidedBitNetDemo
 from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantizationDemo
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
+from efficient_nn_lab.snn.demos.poisson_coding import PoissonCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
 from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
 
@@ -19,6 +20,7 @@ ALL_DEMO_CLASSES = [
     BackwardSTEDemo,
     GuidedBitNetDemo,
     SpikeGenerationDemo,
+    PoissonCodingDemo,
     LIFDynamicsDemo,
     SurrogateGradientDemo,
     AnnBitnetSnnComparisonDemo,

@@ -198,17 +198,55 @@ class NeuronView(QWidget):
             ax.set_title(title, fontsize=8.5)
             ax.tick_params(labelsize=7)
 
+    # -- forward.py's companion panel: *why* Q(w1) and Q(w2) come out the
+    # way they do, geometrically -- where each real weight actually sits
+    # relative to the +-tau dead zone, sliding to its quantized level once
+    # revealed (mirrors bitnet/demos/scalar_quantization.py's own slide).
+    def _paint_weight_numberline(
+        self, ax, w1: float, w2: float, w1q: int, w2q: int, threshold: float, reveal1: float, reveal2: float,
+    ) -> None:
+        ax.axhline(0, color=NEUTRAL_COLOR, linewidth=1.3, zorder=1)
+        ax.axvspan(-threshold, threshold, color=NEUTRAL_COLOR, alpha=0.18, zorder=0)
+        for level in (-1, 0, 1):
+            ax.plot([level], [0], marker="|", markersize=20, color=NEUTRAL_COLOR, zorder=2)
+            ax.text(level, -0.22, f"{level:+d}", ha="center", fontsize=9)
+        ax.text(threshold, -0.42, f"τ = {threshold:.2f}", ha="left", fontsize=7.5, color=NEUTRAL_COLOR, style="italic")
+        ax.text(-threshold, -0.42, f"-τ = {-threshold:.2f}", ha="right", fontsize=7.5, color=NEUTRAL_COLOR, style="italic")
+
+        def draw(w: float, wq: int, reveal: float, row_y: float, label: str) -> None:
+            reveal = max(0.0, min(1.0, reveal))
+            display = w + (wq - w) * reveal
+            color = ACCENT_COLOR if reveal >= 0.999 else BITNET_COLOR
+            ax.plot([display], [row_y], marker="o", markersize=12, color=color, zorder=4)
+            text = f"Q({label}) = {round(wq):+d}" if reveal >= 0.999 else f"{label} = {w:.2f}"
+            ax.text(display, row_y + 0.14, text, ha="center", fontsize=8, color=color)
+
+        draw(w1, w1q, reveal1, 0.28, "w1")
+        draw(w2, w2q, reveal2, 0.58, "w2")
+
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(-0.55, 0.85)
+        ax.set_yticks([])
+        ax.set_xlabel("valor do peso", fontsize=8)
+        ax.set_title("Onde w1 e w2 caem em relação a ±τ", fontsize=8.5)
+        ax.tick_params(labelsize=7)
+
     # -- dispatch -------------------------------------------------------
     def render(self, values: dict[str, object]) -> None:
         kind = values.get("kind")
-        if kind in ("backprop_pipeline", "mlp_network"):
-            # shrink the diagram to the left half so the sigmoid inset(s)
+        if kind in ("backprop_pipeline", "mlp_network", "forward_pipeline"):
+            # shrink the diagram to the left half so the inset panel(s)
             # have clean room on the right instead of floating over the
             # block diagram.
             self._ax.set_position([0.03, 0.06, 0.5, 0.88])
         else:
             self._ax.set_position(self._default_ax_pos)
-        self._hide_insets(keep=frozenset(["main"] if kind == "backprop_pipeline" else self._MLP_NAMES if kind == "mlp_network" else []))
+        inset_keep = {
+            "backprop_pipeline": frozenset(["main"]),
+            "mlp_network": frozenset(self._MLP_NAMES),
+            "forward_pipeline": frozenset(["forward_numberline"]),
+        }.get(kind, frozenset())
+        self._hide_insets(keep=inset_keep)
         handler = {
             "mlp_network": self._render_mlp_network,
             "backprop_pipeline": self._render_backprop_pipeline,
@@ -446,8 +484,11 @@ class NeuronView(QWidget):
     def _render_forward_pipeline(self, values: dict[str, object]) -> None:
         self._reset_axes()
         x1, x2 = values["x"]
-        w1, w2 = values["w_shown"]
-        quant_reveal = float(values["quant_reveal"])
+        w1_real, w2_real = values["w_real"]
+        w1q, w2q = values["w_quant"]
+        threshold = float(values["threshold"])
+        quant1_reveal = float(values["quant1_reveal"])
+        quant2_reveal = float(values["quant2_reveal"])
         arrow1_fill = float(values["arrow1_fill"])
         arrow2_fill = float(values["arrow2_fill"])
         p1_reveal = float(values["product1_reveal"])
@@ -472,12 +513,11 @@ class NeuronView(QWidget):
         self._box(*self._X1, f"x1 = {x1:g}", NEUTRAL_COLOR)
         self._box(*self._X2, f"x2 = {x2:g}", NEUTRAL_COLOR)
 
-        w_label1 = f"Q(w1) = {w1:+.0f}" if quant_reveal >= 0.999 else f"w1 = {w1:.2f}"
-        w_label2 = f"Q(w2) = {w2:+.0f}" if quant_reveal >= 0.999 else f"w2 = {w2:.2f}"
-        w_color = BITNET_COLOR if quant_reveal > 0.5 else NEUTRAL_COLOR
-        self._box(*self._W1, w_label1, w_color, glow=h1)
-        self._box(*self._W2, w_label2, w_color, glow=h2)
-        self._equation_near(*self._W1, "Q(w) = +1 se w>τ; -1 se w<-τ; 0 c.c.", quant_reveal)
+        w_label1 = f"Q(w1) = {round(w1q):+d}" if quant1_reveal >= 0.999 else f"w1 = {w1_real:.2f}"
+        w_label2 = f"Q(w2) = {round(w2q):+d}" if quant2_reveal >= 0.999 else f"w2 = {w2_real:.2f}"
+        self._box(*self._W1, w_label1, BITNET_COLOR if quant1_reveal > 0.5 else NEUTRAL_COLOR, glow=h1)
+        self._box(*self._W2, w_label2, BITNET_COLOR if quant2_reveal > 0.5 else NEUTRAL_COLOR, glow=h2)
+        self._equation_near(*self._W1, "Q(w)=+1 se w>τ; -1 se w<-τ; 0 c.c.", max(quant1_reveal, quant2_reveal))
 
         self._flow_arrow(self._W1, self._SUM, arrow1_fill, ACCENT_COLOR if h1 > 0.3 else BITNET_COLOR)
         self._flow_arrow(self._W2, self._SUM, arrow2_fill, ACCENT_COLOR if h2 > 0.3 else BITNET_COLOR)
@@ -505,6 +545,9 @@ class NeuronView(QWidget):
         self._flow_arrow(self._Y, self._LOSS, loss_reveal, SNN_COLOR)
         self._box(*self._LOSS, f"loss = {values['loss']:g}", SNN_COLOR, alpha=loss_reveal)
         self._equation_near(*self._LOSS, "L = ½ (y - target)²", loss_reveal)
+
+        ax = self._get_inset("forward_numberline", (0.56, 0.12, 0.42, 0.8))
+        self._paint_weight_numberline(ax, w1_real, w2_real, w1q, w2q, threshold, quant1_reveal, quant2_reveal)
 
     # ================================================================
     # backward.py — forward path (always) + backward/STE path (reveals)
