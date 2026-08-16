@@ -127,6 +127,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Efficient Neural Networks Lab")
         self.resize(1180, 720)
+        # Matplotlib's Qt canvas rescales its own dpi to the widget's pixel
+        # size on resize, so content never literally clips off-canvas (see
+        # tests/test_widgets_no_clipping.py) -- but below this floor the
+        # tree/explanation/controls chrome itself gets too cramped to use,
+        # and every diagram becomes too small to read regardless of not
+        # being "clipped". This is a usability floor, not a clipping fix.
+        self.setMinimumSize(900, 600)
         self.setStyleSheet(STYLESHEET)
 
         self.state = AppState()

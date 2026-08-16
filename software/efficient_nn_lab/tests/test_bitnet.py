@@ -121,6 +121,50 @@ def test_backward_demo_exposes_both_ste_paths():
     assert reveals[2] == (1.0, 1.0, 1.0)  # both paths, joined
 
 
+def test_backward_demo_worked_example_is_hand_computable():
+    # default w = 0.65, tau = 0.5: Q(w) = +1, y = x*Q(w) = 2*1 = 2,
+    # L = 1/2 (2 - 4)^2 = 2, dL/dQ(w) = 2 - 4 = -2. The STE substitute for
+    # dQ/dw is 1, so dL/dw_ste = -2 while dL/dw_real = 0.
+    demo = BackwardSTEDemo()
+    ste = [f for f in demo.checkpoint_frames() if f.values["kind"] == "ste_pipeline"]
+    assert ste
+    v = ste[0].values
+    assert v["w"] == pytest.approx(0.65)
+    assert v["w_quant"] == 1
+    assert v["y"] == pytest.approx(2.0)
+    assert v["loss"] == pytest.approx(2.0)
+    assert v["upstream_grad"] == pytest.approx(-2.0)  # dL/dQ(w)
+    assert v["dq_dw_real"] == pytest.approx(0.0)
+    assert v["dq_dw_ste"] == pytest.approx(1.0)
+    assert v["dl_dw_real"] == pytest.approx(0.0)
+    assert v["dl_dw_ste"] == pytest.approx(-2.0)
+    assert v["threshold"] == pytest.approx(0.5)
+
+
+def test_backward_demo_all_scenes_share_the_same_example_weight():
+    # every checkpoint of every kind carries the same concrete example w,
+    # so the staircase, the derivative graph and the block diagram all
+    # talk about the same worked example.
+    demo = BackwardSTEDemo()
+    example_ws = {
+        float(f.values["example_w"]) for f in demo.checkpoint_frames() if "example_w" in f.values
+    }
+    assert example_ws == {0.65}
+
+
+def test_backward_demo_parameter_change_recomputes_the_example():
+    demo = BackwardSTEDemo()
+    demo.set_parameter("w", -0.3)
+    ste = [f for f in demo.checkpoint_frames() if f.values["kind"] == "ste_pipeline"]
+    assert ste
+    v = ste[0].values
+    assert v["w"] == pytest.approx(-0.3)
+    assert v["w_quant"] == 0  # inside the dead zone -> Q(w) = 0
+    assert v["y"] == pytest.approx(0.0)
+    assert v["dl_dw_real"] == pytest.approx(0.0)
+    assert v["dl_dw_ste"] == v["upstream_grad"]  # STE passes it through
+
+
 def test_backward_demo_derivative_graph_morphs_zero_into_ste_constant():
     # the real derivative (zero everywhere) actually tweens into the
     # constant-1 curve the STE substitutes -- not just two static pictures.

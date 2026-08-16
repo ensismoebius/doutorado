@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from efficient_nn_lab.core.demo import DemoModule, Frame
 from efficient_nn_lab.snn.encoding import load_grayscale_image, poisson_spike_frames
 
@@ -31,6 +33,34 @@ _IMAGE_PATH = Path(__file__).resolve().parents[2] / "resources" / "images" / "pa
 #: not just a correct-but-abstract gray blob.
 _IMAGE_SIZE = (108, 192)
 _N_STEPS = 30
+
+
+def _failure_frame(max_rate: float, exc: Exception) -> Frame:
+    """A single frame that names the image-loading failure out loud.
+
+    Never lets DemoModule.initialize() raise an uncaught exception mid-talk:
+    the panel stays usable (a black placeholder), and the explanation text
+    says exactly what failed and where instead of the panel going blank or
+    the app crashing (CLAUDE.md /didactic-explanation: failure modes must
+    be loud and readable, not silent).
+    """
+    return Frame(
+        label="Falha ao carregar a imagem",
+        values={
+            "kind": "poisson_image_coding",
+            "image": np.zeros(_IMAGE_SIZE),
+            "frame": np.zeros(_IMAGE_SIZE),
+            "t": 0,
+            "n_total": 1,
+            "max_rate": max_rate,
+        },
+        explanation=(
+            f"Nao foi possivel carregar a imagem de Patrick ({_IMAGE_PATH}): "
+            f"{type(exc).__name__}: {exc}. Verifique se o arquivo existe e se "
+            "a biblioteca Pillow esta instalada neste ambiente (matplotlib a "
+            "usa para ler JPEGs)."
+        ),
+    )
 
 
 class PoissonImageCodingDemo(DemoModule):
@@ -57,7 +87,10 @@ class PoissonImageCodingDemo(DemoModule):
         }
 
     def _build_frames(self) -> list[Frame]:
-        image = load_grayscale_image(_IMAGE_PATH, _IMAGE_SIZE)
+        try:
+            image = load_grayscale_image(_IMAGE_PATH, _IMAGE_SIZE)
+        except Exception as exc:
+            return [_failure_frame(self.max_rate, exc)]
         spike_frames = poisson_spike_frames(image, _N_STEPS, self.max_rate)
 
         frames: list[Frame] = []

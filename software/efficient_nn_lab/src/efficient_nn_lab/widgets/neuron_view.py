@@ -410,7 +410,13 @@ class NeuronView(QWidget):
     _BP_GRAD_W = (0.7, 1.1)
 
     def _render_backprop_pipeline(self, values: dict[str, object]) -> None:
-        self._reset_axes(xlim=(-0.2, 6.6), ylim=(-0.3, 6.7))
+        # Widened defensively past the box/equation-text extents below
+        # (tests/test_widgets_no_clipping.py found no actual overflow, but
+        # _BP_Y's box came within 0.05 units of xlim and _BP_GRAD_Z's
+        # equation text already sits past the old ylim, only absorbed by
+        # this axes' own figure-position padding) -- extra headroom here
+        # costs nothing and removes the fragility.
+        self._reset_axes(xlim=(-0.5, 6.9), ylim=(-0.7, 7.0))
         z_reveal = float(values["z_reveal"])
         y_reveal = float(values["y_reveal"])
         target_reveal = float(values["target_reveal"])
@@ -583,6 +589,33 @@ class NeuronView(QWidget):
         fwd = float(values["fwd_reveal"])
         bwd = float(values["bwd_reveal"])
         joined = float(values["joined_reveal"])
+        # The one worked example every box references (see backward.py) --
+        # carried through every frame so the diagram shows the same numbers
+        # as the explanation text. Defaults keep old checkpoints renderable.
+        w = float(values.get("w", 0.65))
+        wq = int(values.get("w_quant", 1))
+        x = float(values.get("x", 2.0))
+        y = float(values.get("y", 2.0))
+        loss = float(values.get("loss", 2.0))
+        upstream = float(values.get("upstream_grad", -2.0))
+        dq_real = float(values.get("dq_dw_real", 0.0))
+        dq_ste = float(values.get("dq_dw_ste", 1.0))
+        dl_real = float(values.get("dl_dw_real", 0.0))
+        dl_ste = float(values.get("dl_dw_ste", upstream))
+        tau = float(values.get("threshold", 0.5))
+
+        fwd_labels = [
+            f"peso real\nw = {w:.2f}",
+            "quantização\nQ(w)",
+            f"peso ternário\nQ(w) = {wq:+d}",
+            f"operação\ny = {x:g}·Q(w) = {y:g}",
+        ]
+        bwd_labels = [
+            f"loss\nL = {loss:g}",
+            f"gradiente\ndL/dQ(w) = {upstream:g}",
+            f"STE\ndQ/dw := {dq_ste:g}",
+            f"peso real\ndL/dw = {dl_ste:g}",
+        ]
 
         for p in self._FWD_POSITIONS + self._BWD_POSITIONS:
             self._skeleton_box(*p, w=2.0)
@@ -591,23 +624,31 @@ class NeuronView(QWidget):
         for a, b in zip(self._BWD_POSITIONS, self._BWD_POSITIONS[1:]):
             self._skeleton_arrow((a[0] - 1.0, a[1]), (b[0] + 1.0, b[1]))
 
-        for pos, label in zip(self._FWD_POSITIONS, self._FWD_LABELS):
-            self._box(*pos, label, BITNET_COLOR, alpha=fwd, w=2.0)
+        for pos, label in zip(self._FWD_POSITIONS, fwd_labels):
+            self._box(*pos, label, BITNET_COLOR, alpha=fwd, w=2.0, fontsize=9)
         for a, b in zip(self._FWD_POSITIONS, self._FWD_POSITIONS[1:]):
             self._flow_arrow((a[0] + 1.0, a[1]), (b[0] - 1.0, b[1]), fwd, BITNET_COLOR)
         self._fading_text(5.1, 5.35, "FORWARD", BITNET_COLOR, fwd, fontsize=12, weight="bold")
-        self._fading_text(5.1, 5.02, "y usa Q(w) = +1/0/-1", BITNET_COLOR, fwd, fontsize=8)
+        self._fading_text(
+            5.1, 5.02, f"y = {x:g}·Q(w), com Q({w:.2f}) = {wq:+d} (τ = {tau:g})",
+            BITNET_COLOR, fwd, fontsize=8,
+        )
 
-        for pos, label in zip(self._BWD_POSITIONS, self._BWD_LABELS):
-            self._box(*pos, label, SNN_COLOR, alpha=bwd, w=2.0)
+        for pos, label in zip(self._BWD_POSITIONS, bwd_labels):
+            self._box(*pos, label, SNN_COLOR, alpha=bwd, w=2.0, fontsize=9)
         for a, b in zip(self._BWD_POSITIONS, self._BWD_POSITIONS[1:]):
             self._flow_arrow((a[0] - 1.0, a[1]), (b[0] + 1.0, b[1]), bwd, SNN_COLOR)
         self._fading_text(5.1, 0.65, "BACKWARD (STE)", SNN_COLOR, bwd, fontsize=12, weight="bold")
-        self._fading_text(5.1, 0.98, "dL/dw_real ≈ dL/dy  (dQ/dw trocada por 1)", SNN_COLOR, bwd, fontsize=8)
+        self._fading_text(
+            5.1, 0.98, f"dL/dw = {dl_ste:g}  (dQ/dw: {dq_real:g} -> {dq_ste:g})",
+            SNN_COLOR, bwd, fontsize=8,
+        )
 
         # the two paths meet at "peso real": a highlighted ring makes the
-        # loop visible once both are on screen.
-        self._box(*self._FWD_POSITIONS[0], self._FWD_LABELS[0], BITNET_COLOR, alpha=fwd, w=2.0, glow=joined)
+        # loop visible once both are on screen. The box re-drawn on top
+        # uses the forward label (its real value) since that is the one
+        # the reader last saw there.
+        self._box(*self._FWD_POSITIONS[0], fwd_labels[0], BITNET_COLOR, alpha=fwd, w=2.0, glow=joined, fontsize=9)
         self._fading_text(5.1, 3.0, "mesma quantização,\ncaminhos diferentes", ACCENT_COLOR, joined, fontsize=9)
 
     # ================================================================

@@ -92,6 +92,18 @@ class WeightView(QWidget):
         ax.set_ylim(-1.5, 1.2)
         ax.set_title("Regiões planas: derivada zero. Saltos: derivada indefinida.")
 
+        # mark the demo's concrete worked example on the same staircase,
+        # so every scene of this demo points at the same w (see backward.py).
+        example_w = float(values.get("example_w", np.nan))
+        if np.isfinite(example_w):
+            q_at = float(q[int(np.argmin(np.abs(w - example_w)))])
+            ax.axvline(example_w, color=ACCENT_COLOR, linestyle=":", linewidth=1.2, zorder=4)
+            ax.plot([example_w], [q_at], marker="o", markersize=7, color=ACCENT_COLOR, zorder=5)
+            ax.text(
+                example_w, 1.05, f"w = {example_w:.2f} -> Q(w) = {q_at:+.0f}",
+                ha="center", fontsize=8, color=ACCENT_COLOR,
+            )
+
         if annotate > 0.01:
             ax.annotate(
                 "derivada = 0",
@@ -126,8 +138,19 @@ class WeightView(QWidget):
         ax.axvline(threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
         ax.axvline(-threshold, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
         ax.axvspan(-threshold, threshold, color=NEUTRAL_COLOR, alpha=0.12, zorder=0)
-        current_level = float(curve[len(curve) // 2])
-        ax.text(w.min() + 0.1, current_level + 0.12, f"dQ/dw = {current_level:.2f}", ha="left", fontsize=9, color=SNN_COLOR)
+        # the "current point" is the demo's concrete example weight (see
+        # backward.py), not an arbitrary midpoint of the sampled curve, so
+        # this scene references the same w as the staircase and the block
+        # diagram.
+        example_w = float(values.get("example_w", w[len(w) // 2]))
+        idx = int(np.argmin(np.abs(np.asarray(w) - example_w)))
+        current_level = float(np.asarray(curve)[idx])
+        ax.axvline(example_w, color=ACCENT_COLOR, linestyle=":", linewidth=1.2, zorder=4)
+        ax.plot([example_w], [current_level], marker="o", markersize=7, color=ACCENT_COLOR, zorder=5)
+        ax.text(
+            w.min() + 0.1, current_level + 0.12,
+            f"dQ/dw({example_w:.2f}) = {current_level:.2f}", ha="left", fontsize=9, color=SNN_COLOR,
+        )
 
         if overlay_reveal <= 0.02:
             ax.annotate(
@@ -171,6 +194,12 @@ class WeightView(QWidget):
         sigmoid_reveal = float(values.get("sigmoid_reveal", 0.0))
         draw_reveal = float(values.get("draw_reveal", 0.0))
 
+        example_vmt = float(values.get("example_vmt", 0.2))
+        example_v = float(values.get("example_v", 0.0))
+        example_spike = float(values.get("example_spike", 1.0))
+        example_sigmoid = float(values.get("example_sigmoid", 0.0))
+        example_surrogate = float(values.get("example_surrogate", 0.0))
+
         ax.axvline(0, color=NEUTRAL_COLOR, linewidth=1, linestyle=":")
 
         if bottom_reveal < 0.02:
@@ -178,12 +207,15 @@ class WeightView(QWidget):
             ax.plot(x, spike, color=SNN_COLOR, linewidth=2.5, label="S(v) — degrau (forward)")
             ax.text(0.05, 1.05, "S(0) = 1", ha="left", fontsize=8, color=SNN_COLOR)
             ax.text(-0.35, -0.1, "S(v<0) = 0", ha="right", fontsize=8, color=SNN_COLOR)
+            ax.axvline(example_vmt, color=BITNET_COLOR, linewidth=1, linestyle=":")
+            ax.plot([example_vmt], [example_spike], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
             if sigmoid_reveal > 0.02:
                 sigmoid = values["sigmoid"]
                 ax.plot(
                     x, sigmoid, color=ACCENT_COLOR, linewidth=2, linestyle="--", alpha=sigmoid_reveal,
                     label="sigmoide suave (antiderivada do gradiente substituto)",
                 )
+                ax.plot([example_vmt], [example_sigmoid], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
                 mid = len(x) // 2
                 ax.text(
                     x[mid], float(sigmoid[mid]) + 0.06, f"sigmoide({x[mid]:.1f}) = {float(sigmoid[mid]):.2f}",
@@ -196,6 +228,12 @@ class WeightView(QWidget):
         elif draw_reveal < 0.02:
             true_derivative = values["true_derivative"]
             ax.plot(x, true_derivative, color=SNN_COLOR, linewidth=2.5, label="gradiente (backward)")
+            ax.axvline(example_vmt, color=BITNET_COLOR, linewidth=1, linestyle=":")
+            ax.plot([example_vmt], [0.0], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
+            ax.text(
+                example_vmt, 0.14, f"v = {example_v:g}: dS/dv = 0",
+                ha="left", fontsize=7.5, color=BITNET_COLOR,
+            )
             ax.set_ylabel("gradiente usado no backward")
             ax.set_title("A derivada real: zero em quase todo ponto — inútil para o backward")
         else:
@@ -220,6 +258,18 @@ class WeightView(QWidget):
                 f"inclinação da sigmoide aqui = altura do gradiente = {surrogate[tip]:.2f}",
                 ha=tip_ha, fontsize=7, color=SNN_COLOR,
             )
+
+            example_idx = int(np.searchsorted(x, example_vmt))
+            if cut > example_idx:
+                ax.axvline(example_vmt, color=BITNET_COLOR, linewidth=1, linestyle=":")
+                ax.plot([example_vmt], [example_surrogate], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
+                ex_ha = "right" if example_vmt > x[-1] - 0.5 else "left"
+                ax.text(
+                    example_vmt + (0.06 if ex_ha == "left" else -0.06),
+                    example_surrogate + 0.08,
+                    f"v = {example_v:g}: grad = {example_surrogate:.2f}",
+                    ha=ex_ha, fontsize=7.5, color=BITNET_COLOR,
+                )
 
             peak_idx = int(np.argmax(surrogate))
             if cut > peak_idx and surrogate[peak_idx] > 0.05:

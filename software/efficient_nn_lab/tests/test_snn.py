@@ -122,6 +122,16 @@ def test_load_grayscale_image_is_normalized_and_resized():
     assert image.max() <= 1.0
 
 
+def test_load_grayscale_image_has_real_variance():
+    # guards against the image loading "successfully" but as a flat/
+    # degenerate array (wrong channel math, corrupted asset) -- a correct
+    # photo must contain real contrast, not just the right shape/range.
+    image = load_grayscale_image(_IMAGE_PATH, size=(108, 192))
+    assert image.shape == (108, 192)
+    assert image.std() > 0.05
+    assert image.max() - image.min() > 0.5
+
+
 def test_poisson_spike_frames_shape_and_determinism():
     intensity = np.array([[0.0, 1.0], [0.5, 0.2]])
     frames = poisson_spike_frames(intensity, n_steps=30, max_rate=0.9, seed=42)

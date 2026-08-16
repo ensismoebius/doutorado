@@ -54,6 +54,12 @@ QListWidget, QTreeWidget {{
     background: {PANEL_BACKGROUND};
     border: 1px solid #B6C0D6;
 }}
+QTextEdit {{
+    background: {BACKGROUND};
+    color: {TEXT_COLOR};
+    border: 1px solid #B6C0D6;
+    padding: 8px;
+}}
 QTreeWidget::item {{
     padding: 3px 2px;
 }}
