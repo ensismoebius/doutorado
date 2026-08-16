@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 #include "data_loaders/samplers/FoldSampler.hpp"
+#include "utility/path_expand.hpp"
 
 namespace autoencoderRunner
 {
@@ -20,7 +21,9 @@ namespace
 {
 auto load_trial_ids_from_sqlite(const std::string& dataset_root_path) -> std::vector<int>
 {
-    const auto db_path = std::filesystem::path(dataset_root_path) / "database.sqlite";
+    const std::filesystem::path root(nn::utility::expand_home(dataset_root_path));
+    const std::filesystem::path db_path =
+        root.extension() == ".sqlite" ? root : root / "database.sqlite";
 
     sqlite3* db = nullptr;
     if (sqlite3_open(db_path.string().c_str(), &db) != SQLITE_OK)

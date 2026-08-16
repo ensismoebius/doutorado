@@ -6,7 +6,7 @@
     "seed_deterministic": false
   },
   "dataset": {
-    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "root": "~/database.sqlite",
     "results_dir": "results/thesis/phase01",
     "modality": "fused",
     "fusion_mode": "late"

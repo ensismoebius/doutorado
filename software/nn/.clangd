@@ -4,7 +4,7 @@
 
 CompileFlags:
   # Use compile_commands.json from your custom build dir
-  CompilationDatabase: out/build/max-performance-macos
+  CompilationDatabase: out/build/max-performance
 
   # Drop PCH flags for editor parsing; they can trigger false include errors.
   Remove:

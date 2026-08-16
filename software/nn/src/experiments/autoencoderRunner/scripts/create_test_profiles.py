@@ -34,7 +34,7 @@ BASE_PROFILE = {
     "dataset_type": "audio-window",
     "program_prefetch_lookahead": 5,
     "dataset_subject_filter_regex": "^S(\\d+)$",
-    "dataset_root_path": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada",
+    "dataset_root_path": "~/database.sqlite",
     "training_optimizer_type": "adam",
     "training_normalize_inputs": True,
     "validation_modality_diagnostics_enabled": False,

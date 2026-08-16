@@ -6,7 +6,7 @@
     "seed_deterministic": true
   },
   "dataset": {
-    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "root": "~/database.sqlite",
     "results_dir": "results/thesis/debug",
     "modality": "eeg",
     "max_samples": 60
