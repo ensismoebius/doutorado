@@ -27,9 +27,9 @@ from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, CONVERGE_COLO
 from efficient_nn_lab.backprop.activation import sigmoid_derivative
 from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
-_BOX_STYLE = dict(boxstyle="round,pad=0.25", linewidth=2.0)
+_BOX_STYLE = dict(boxstyle="round,pad=0.25", linewidth=2.4)
 _SKELETON_ALPHA = 0.35
-_FILL_ALPHA = 0.38
+_FILL_ALPHA = 0.55
 
 
 class NeuronView(QWidget):

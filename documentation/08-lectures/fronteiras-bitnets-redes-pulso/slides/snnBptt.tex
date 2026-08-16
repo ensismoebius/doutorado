@@ -13,6 +13,7 @@
 		\begin{equation*}
 			\frac{\partial \mathcal{L}}{\partial W} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial W}
 		\end{equation*}
+		\par\tiny Exemplo, $T=3$: $\frac{\partial \mathcal{L}_1}{\partial W}=0{,}10$, $\frac{\partial \mathcal{L}_2}{\partial W}=-0{,}05$, $\frac{\partial \mathcal{L}_3}{\partial W}=0{,}20$ $\Rightarrow$ soma $=0{,}25$.
 	\end{columns}
 	\vspace{2pt}
 	\par\sloppy É neste \textit{backward}, a cada passo $t$, que o gradiente substituto entra: ele troca a derivada (nula) da função de disparo real por uma aproximação suave, deixando o gradiente fluir de volta pelos $T$ passos \cite{wu2018spatio, eshraghian2023training}.

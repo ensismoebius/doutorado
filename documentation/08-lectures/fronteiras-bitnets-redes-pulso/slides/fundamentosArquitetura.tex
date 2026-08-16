@@ -1,0 +1,36 @@
+\begin{frame}[shrink]
+	\frametitle{Como uma rede neural é construída}
+	\begin{itemize}
+		\item Uma rede neural é organizada em \textbf{camadas}: entrada $\rightarrow$ uma ou mais camadas ocultas $\rightarrow$ saída.
+		\item Cada neurônio de uma camada recebe \textbf{todas} as saídas da camada anterior, cada uma multiplicada pelo seu próprio \textbf{peso}, soma tudo, e passa o resultado por uma \textbf{função de ativação} não linear.
+		\item Sem a não linearidade, empilhar camadas equivaleria a uma única camada linear --- é a ativação que dá à rede o poder de aproximar funções complexas.
+	\end{itemize}
+	\vspace{4pt}
+	\begin{center}
+		\begin{tikzpicture}[
+			node distance=1.1cm,
+			neuron/.style={circle, draw=bitnetColor, thick, minimum size=0.7cm},
+			lyr/.style={font=\scriptsize\bfseries, text=neutralColor},
+			]
+			\node[neuron] (x1) at (0,1.2) {};
+			\node[neuron] (x2) at (0,0) {};
+			\node[neuron] (x3) at (0,-1.2) {};
+			\node[neuron] (a) at (2.7,0.8) {};
+			\node[neuron] (b) at (2.7,-0.8) {};
+			\node[neuron] (c) at (5.4,0.8) {};
+			\node[neuron] (d) at (5.4,-0.8) {};
+			\node[neuron] (o) at (8.1,0) {};
+			\foreach \i in {x1,x2,x3} \foreach \j in {a,b} \draw[-{Latex[length=1.5mm]}, draw=neutralColor!70] (\i) -- (\j);
+			\foreach \i in {a,b} \foreach \j in {c,d} \draw[-{Latex[length=1.5mm]}, draw=neutralColor!70] (\i) -- (\j);
+			\foreach \i in {c,d} \draw[-{Latex[length=1.5mm]}, draw=neutralColor!70] (\i) -- (o);
+			\node[lyr, above=0.3cm of x1] {Entrada (3)};
+			\node[lyr, above=0.3cm of a] {Camada 1 (2)};
+			\node[lyr, above=0.3cm of c] {Camada 2 (2)};
+			\node[lyr, above=0.3cm of o] {Saída (1)};
+		\end{tikzpicture}
+	\end{center}
+	\par\small Esta é exatamente a rede usada nas demonstrações desta seção: 3 entradas, duas camadas ocultas de 2 neurônios, 1 saída, todas com ativação sigmoide.
+	% [SOFTWARE] Backprop -> Rede de 4 camadas | mostra o forward neuronio a
+	% neuronio na mesma topologia 3-2-2-1 deste diagrama
+	\abrirNoSoftware{Backprop \textrightarrow{} Rede de 4 camadas}{backprop.mlp}
+\end{frame}

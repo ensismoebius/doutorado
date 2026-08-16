@@ -14,13 +14,31 @@
 
 	\frame{\titlepage}
 
+	% Frametitle/title bar color changes per section, so the chrome itself
+	% signals which frontier is on screen instead of staying blue
+	% throughout (see preamble.tex's \setbeamercolor{structure} comment).
+	% Must be set BEFORE each \section command: \AtBeginSection's divider
+	% frame is emitted during \section's own expansion, so setting the
+	% color only after \section would leave the divider frame one step
+	% behind.
+	\setbeamercolor{title}{fg=chromeText,bg=neutralColor!55!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=neutralColor!55!white}
+	\section{Fundamentos}
+		\input{slides/fundamentosArquitetura.tex}
+		\input{slides/fundamentosPesos.tex}
+		\input{slides/fundamentosTreinamento.tex}
+
 	\section{Estrutura da apresentação}
 		\input{slides/estrutura.tex}
 
+	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}
 	\section{Motivação}
 		\input{slides/motivacao.tex}
 		\input{slides/taxonomia.tex}
 
+	\setbeamercolor{title}{fg=chromeText,bg=bitnetColor!92!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=bitnetColor!92!white}
 	\section{Parte I --- BitNets}
 		\input{slides/bitnetLinha.tex}
 		\input{slides/bitnetProblema.tex}
@@ -29,6 +47,8 @@
 		\input{slides/bitnetResultados.tex}
 		\input{slides/bitnetHardwareLimitacoes.tex}
 
+	\setbeamercolor{title}{fg=chromeText,bg=snnColor!85!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=snnColor!85!white}
 	\section{Parte II --- Redes de pulso}
 		\input{slides/snnMotivacao.tex}
 		\input{slides/snnConfusable.tex}
@@ -40,11 +60,15 @@
 		\input{slides/snnHardware.tex}
 		\input{slides/snnAplicacoes.tex}
 
+	\setbeamercolor{title}{fg=chromeText,bg=convergeColor!80!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=convergeColor!80!white}
 	\section{Convergência}
 		\label{sec:convergencia}
 		\input{slides/convergenciaQuadrante.tex}
 		\input{slides/convergenciaTema.tex}
 
+	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}
 	\section{Desafios e síntese}
 		\input{slides/desafios.tex}
 		\input{slides/conclusao.tex}

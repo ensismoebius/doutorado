@@ -80,18 +80,57 @@
 % calibrated for AA/AAA contrast in printed text; this talk is projected,
 % not printed, and needs to match the live software instead). Do not
 % propagate these values back into visualStyle.tex or the thesis chapters.
-\definecolor{bitnetColor}{HTML}{0090FF}
-\definecolor{snnColor}{HTML}{FF5A36}
-\definecolor{convergeColor}{HTML}{00C389}
-\definecolor{neutralColor}{HTML}{6B7280}
-\definecolor{accentColor}{HTML}{FFB000}
+% bitnetColor/snnColor are darkened just enough (WCAG contrast >=4.5:1 on
+% white) to stay legible where motivacao.tex/conclusao.tex use them as
+% raw inline \textcolor{...}{} text on the plain white slide background --
+% see theme.py's matching comment for the contrast math (same values,
+% mirrored). convergeColor/accentColor are never used as raw inline text
+% in this deck (only as light !NN!white box-background tints, always
+% paired with dark chromeText), so they keep the fully vivid values.
+\definecolor{bitnetColor}{HTML}{0073E5}
+\definecolor{snnColor}{HTML}{E61F00}
+\definecolor{convergeColor}{HTML}{00E38A}
+\definecolor{neutralColor}{HTML}{5B6472}
+\definecolor{accentColor}{HTML}{FFC300}
+
+% Matches TEXT_COLOR in software/efficient_nn_lab/.../app/theme.py. Used
+% as the fixed text color on every colored chrome bar/box below instead
+% of white or a hue-matched color: measured contrast ratios (WCAG
+% relative-luminance formula) against all five tinted title backgrounds
+% range 6.1:1-14.5:1 with near-black text, comfortably clearing the 4.5:1
+% AA threshold everywhere. White text only clears >=3:1 (AA-large) on the
+% two darkest tints (bitnet/snn) and fails outright on converge/accent/
+% neutral; a hue-matched color (e.g. bitnetColor text on a
+% bitnetColor!92!white box) is even worse, since text and background
+% converge toward the same color -- that was the previous, broken
+% behavior in taxonomia.tex/desafios.tex's comparison boxes.
+\definecolor{chromeText}{HTML}{111318}
 
 % Packages configuration
 
 \setbeamercolor{background canvas}{bg=}
 \setbeamercolor{normal text}{bg=black!20}
-\setbeamercolor{title}{parent=structure,bg=bitnetColor!85!white}
-\setbeamercolor{frametitle}{parent=structure,bg=bitnetColor!85!white}
+
+% beamer's default "structure" color (a fixed blue) otherwise tints every
+% itemize bullet, block title and section number in the deck blue,
+% regardless of which of the two frontiers (BitNet=blue, SNN=red,
+% convergência=green) is on screen. Pin it neutral so only the frametitle
+% bar (set per-section below, in apresentacao.tex, right before each
+% \section) and explicit \textcolor{...Color}{} calls carry a hue --
+% that is what actually varies the palette across the deck instead of
+% bathing everything in blue.
+\setbeamercolor{structure}{fg=neutralColor}
+\setbeamercolor{title}{fg=chromeText,bg=bitnetColor!92!white}
+\setbeamercolor{frametitle}{fg=chromeText,bg=bitnetColor!92!white}
+
+% Dedicated (non-dynamic) title-box styles for frames that show two
+% frontiers side by side (taxonomia.tex, desafios.tex) -- these must NOT
+% follow the per-section frametitle color below, since both colors need
+% to be on screen at once.
+\setbeamercolor{titleBitnet}{fg=chromeText,bg=bitnetColor!92!white}
+\setbeamercolor{titleSnn}{fg=chromeText,bg=snnColor!85!white}
+\setbeamercolor{titleConverge}{fg=chromeText,bg=convergeColor!80!white}
+\setbeamercolor{titleAccent}{fg=chromeText,bg=accentColor!75!white}
 
 % Clickable "open this demo in the software" cue -- presentation.md phase
 % 3/4. #1 = link text (demo name as it appears in the software's sidebar),

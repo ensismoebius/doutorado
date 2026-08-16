@@ -19,14 +19,26 @@ one font across Qt chrome, matplotlib panels, and the LaTeX slides.
 
 from __future__ import annotations
 
-BITNET_COLOR = "#0090FF"  # bright, saturated blue
-SNN_COLOR = "#FF5A36"  # vivid vermillion-red
-CONVERGE_COLOR = "#00C389"  # bright bluish green
-NEUTRAL_COLOR = "#6B7280"  # darker grey -- was too light to contrast against white
-ACCENT_COLOR = "#FFB000"  # vivid amber, used for highlights/glows
+
+# Each hue is darkened just enough (WCAG relative-luminance formula) to
+# clear 4.5:1 contrast against a *white* background -- these colors are
+# used dually as fills/backgrounds (paired with their own dark or white
+# text, not contrast-critical there) AND directly as small chart text/
+# thin lines drawn on white matplotlib panels (contrast-critical, and the
+# majority use case by call-site count). Since contrast is symmetric,
+# a color that is dark enough for white text on top of it also reads
+# clearly as text on white -- one value serves both roles. Amber/yellow
+# pays for this the most: any yellow crossing 4.5:1 stops looking
+# lemon-bright and reads as a deep gold/olive instead -- unavoidable,
+# since pure yellow is inherently near-white in luminance.
+BITNET_COLOR = "#0073E5"  # saturated blue, contrast 4.6:1 on white
+SNN_COLOR = "#E61F00"  # vermillion-red, contrast 4.6:1 on white
+CONVERGE_COLOR = "#008752"  # bluish green, contrast 4.6:1 on white
+NEUTRAL_COLOR = "#5B6472"  # darker grey -- was too light to contrast against white
+ACCENT_COLOR = "#966E00"  # deep amber/gold, contrast 4.6:1 on white
 
 BACKGROUND = "#FFFFFF"
-PANEL_BACKGROUND = "#F4F6F9"
+PANEL_BACKGROUND = "#EDF1F8"  # cooler, slightly more saturated than pure grey
 TEXT_COLOR = "#111318"
 
 STYLESHEET = f"""
@@ -40,14 +52,18 @@ QWidget {{
 }}
 QListWidget, QTreeWidget {{
     background: {PANEL_BACKGROUND};
-    border: 1px solid #C7CDD6;
+    border: 1px solid #B6C0D6;
 }}
 QTreeWidget::item {{
     padding: 3px 2px;
 }}
+QTreeWidget::item:hover {{
+    background: #DCE6FA;
+}}
 QListWidget::item:selected, QTreeWidget::item:selected {{
     background: {BITNET_COLOR};
     color: white;
+    font-weight: 700;
 }}
 QLabel#FrameTitle {{
     font-size: 14pt;
@@ -65,20 +81,22 @@ QLabel#Explanation {{
 QPushButton {{
     padding: 6px 14px;
     background: {PANEL_BACKGROUND};
-    border: 1px solid #B7BFCB;
+    border: 1px solid #A6B2C9;
     border-radius: 4px;
     font-weight: 600;
 }}
 QPushButton:hover {{
-    background: #E4E9F0;
+    background: #D6E2F7;
+    border-color: {BITNET_COLOR};
 }}
 QPushButton:pressed {{
     background: {BITNET_COLOR};
     color: white;
+    border-color: {BITNET_COLOR};
 }}
 QPushButton:checked {{
     background: {ACCENT_COLOR};
-    color: #1A1200;
+    color: white;
     border-color: {ACCENT_COLOR};
 }}
 QPushButton:disabled {{
