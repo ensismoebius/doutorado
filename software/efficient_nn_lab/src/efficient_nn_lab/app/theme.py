@@ -48,7 +48,7 @@ QMainWindow {{
 QWidget {{
     color: {TEXT_COLOR};
     font-family: "DejaVu Sans";
-    font-size: 11pt;
+    font-size: 18pt;
 }}
 QListWidget, QTreeWidget {{
     background: {PANEL_BACKGROUND};
@@ -72,12 +72,12 @@ QListWidget::item:selected, QTreeWidget::item:selected {{
     font-weight: 700;
 }}
 QLabel#FrameTitle {{
-    font-size: 14pt;
+    font-size: 22pt;
     font-weight: 700;
     color: {TEXT_COLOR};
 }}
 QLabel#DemoTitle {{
-    font-size: 16pt;
+    font-size: 24pt;
     font-weight: 800;
     color: {BITNET_COLOR};
 }}
@@ -90,7 +90,7 @@ QLabel#Equation {{
 }}
 QLabel#Detail {{
     font-family: monospace;
-    font-size: 9pt;
+    font-size: 15pt;
     color: #555555;
 }}
 QPushButton {{
