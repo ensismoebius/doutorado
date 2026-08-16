@@ -119,6 +119,23 @@ _WELCOME_TEXT = (
     "R = reset, Esc = voltar ao menu."
 )
 
+# The frame-title and explanation labels under the canvas are kept at a
+# fixed height per demo so their changing text never reflows the layout
+# (and resizes the animation canvas) mid-playback. These control how much
+# space is reserved: a deliberately conservative characters-per-line
+# estimate and a ceiling in lines. See _reserve_text_heights.
+_CHARS_PER_LINE = 80
+_EXPL_MAX_LINES = 4
+_FRAME_MAX_LINES = 2
+
+
+def _lines_for(text: str, max_lines: int) -> int:
+    """Number of wrapped lines ``text`` needs, clamped to ``max_lines``."""
+    if not text:
+        return 1
+    needed = (len(text) + _CHARS_PER_LINE - 1) // _CHARS_PER_LINE
+    return max(1, min(max_lines, needed))
+
 
 def _build_demo_tree() -> dict[str, list[DemoModule]]:
     return {
@@ -277,14 +294,14 @@ class MainWindow(QMainWindow):
         self.frame_label.setObjectName("FrameTitle")
         self.frame_label.setWordWrap(True)
         self.frame_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.frame_label.setFixedHeight(QFontMetrics(self.frame_label.font()).lineSpacing() * 2 + 6)
+        self.frame_label.setFixedHeight(QFontMetrics(self.frame_label.font()).lineSpacing() * _FRAME_MAX_LINES + 6)
         right.addWidget(self.frame_label)
 
         self.explanation_label = QLabel("")
         self.explanation_label.setObjectName("Explanation")
         self.explanation_label.setWordWrap(True)
         self.explanation_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.explanation_label.setFixedHeight(QFontMetrics(self.explanation_label.font()).lineSpacing() * 4 + 8)
+        self.explanation_label.setFixedHeight(QFontMetrics(self.explanation_label.font()).lineSpacing() * _EXPL_MAX_LINES + 8)
         right.addWidget(self.explanation_label)
 
         self.equation_label = QLabel("")
@@ -340,7 +357,28 @@ class MainWindow(QMainWindow):
         self.demo_description_label.setText(demo.description)
         self.controls.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
+        self._reserve_text_heights(demo)
         self._refresh_frame()
+
+    def _reserve_text_heights(self, demo: DemoModule) -> None:
+        """Size the fixed-height labels to *this* demo's actual text.
+
+        The frame-title and explanation labels are fixed-height so their
+        changing text never reflows the layout and resizes the animation
+        canvas mid-playback. But a single global reservation sized for the
+        wordiest demo (4 explanation lines) wastes vertical space on every
+        shorter one: SNN->LIF's explanations are all one line, yet it paid
+        the full 4-line reservation which — together with its 4 parameter
+        sliders — left its canvas ~80px shorter than the original layout.
+        Reserving per demo keeps the no-reflow guarantee while giving each
+        demo the tallest canvas its own text allows.
+        """
+        fm = QFontMetrics(self.explanation_label.font())
+        spacing = fm.lineSpacing()
+        expl_lines = max(_lines_for(f.explanation or "", _EXPL_MAX_LINES) for f in demo._frames)
+        frame_lines = max(_lines_for(f.label or "", _FRAME_MAX_LINES) for f in demo._frames)
+        self.explanation_label.setFixedHeight(spacing * expl_lines + 8)
+        self.frame_label.setFixedHeight(spacing * frame_lines + 6)
 
     def _show_welcome(self) -> None:
         if self.player is not None:

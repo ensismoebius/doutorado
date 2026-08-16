@@ -11,6 +11,7 @@ import pytest
 from unittest.mock import Mock
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -80,8 +81,8 @@ def test_stepping_updates_frame_and_explanation_labels(qapp, slug, steps):
 
 @pytest.mark.parametrize(
     "slug",
-    ["comparison", "bitnet.ste", "snn.poisson_image"],
-    ids=["comparison", "bitnet.ste", "snn.poisson_image"],
+    ["comparison", "bitnet.ste", "snn.poisson_image", "snn.lif"],
+    ids=["comparison", "bitnet.ste", "snn.poisson_image", "snn.lif"],
 )
 def test_explanation_label_height_constant_across_checkpoints(qapp, slug):
     window = _window(qapp)
@@ -96,6 +97,25 @@ def test_explanation_label_height_constant_across_checkpoints(qapp, slug):
         window._refresh_frame()
         assert window.explanation_label.height() == height
         assert window.frame_label.height() == frame_height
+
+
+def test_lif_canvas_not_shrunk_by_short_explanations(qapp):
+    """Regression for "the SNN->LIF graphs are too small".
+
+    LIF's explanations all fit on one line, but a global 4-line
+    explanation reservation made it pay for the wordiest demo anyway;
+    together with its 4 parameter sliders that shrank the canvas to
+    ~280px. The reservation is now per-demo, so LIF keeps a 1-line
+    explanation and a canvas as tall as a no-parameter demo's.
+    """
+    window = _window(qapp)
+    demo = next(d for d in _all_demos() if d.slug == "snn.lif")
+    window._select_demo(demo)
+
+    fm = QFontMetrics(window.explanation_label.font())
+    assert window.explanation_label.height() <= fm.lineSpacing() + 8
+    assert window.frame_label.height() <= fm.lineSpacing() + 6
+    assert window.signal_view._canvas.height() >= 330
 
 
 # -- keyboard shortcuts ------------------------------------------------
