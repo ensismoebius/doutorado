@@ -276,6 +276,219 @@ because it wasn't given app colors to verify against in the first place.
 
 ---
 
+## 5. Other software improvements found this session
+
+Not reported by the user — found while investigating items 1-4. Listed in
+descending order of how much they'd actually help a student/audience
+member, not file order.
+
+### 5.1 `surrogate_gradient.py` has the exact same "no numbers" gap as item 1
+
+**File:** `src/efficient_nn_lab/snn/demos/surrogate_gradient.py`
+
+Checked because it's explicitly documented (module docstring, L4-6) as "the
+STE story, mirrored" — and it mirrors the bug too. `self.k` (the slope
+parameter, L35) never appears in any `explanation=` string; there's no
+concrete `(v, gradient)` pair ever stated as a number (e.g. "at v=0.3, the
+surrogate gradient = 0.45"); `v_th` is never given a numeric value either.
+Zero `f"...{var}..."` numeric interpolation in the whole file (confirmed:
+`grep -c '{.*:g}\|{.*\.[0-9]f}'` returns 0), same as `backward.py` before
+the item-1 fix. Since item 1's plan establishes the "concrete worked
+example, wired through every scene" pattern for the BitNet/STE demo, apply
+the identical treatment here for consistency: pick a concrete `v` near
+`v_th`, thread `k`, `v`, the real derivative (≈0), and the surrogate
+derivative (a real, computed number) through `_render_...`'s two panels
+and the explanation text.
+
+### 5.2 Comparison demo's per-row narration is filler text
+
+**File:** `src/efficient_nn_lab/comparison/ann_bitnet_snn.py` L78-82
+
+Every one of the first five checkpoints (one per table row) uses the exact
+same templated, content-free sentence:
+`f"{row_name}: veja como ANN, BitNet e SNN se comparam nesta linha."`
+("...see how they compare in this row") — it names the row but never says
+*what* the comparison actually shows. The later checkpoints (outputs,
+gradients, caveat, L86-116) are properly specific. Plan: write one real
+sentence per row referencing the actual table cell values already sitting
+in `table` (L43-49) — e.g. for "Representação":
+`"ANN usa ponto flutuante contínuo; BitNet reduz cada peso a {-1,0,+1}; SNN "
+"nem guarda um valor contínuo — representa por spikes ao longo do tempo."`
+
+### 5.3 Zero test coverage above the widget-render layer
+
+**Files:** `tests/` (no file references `MainWindow`)
+
+`test_widgets_render.py` confirms every frame renders without raising, but
+nothing exercises `MainWindow` itself: view routing when a tree item is
+clicked, `_refresh_frame`'s label/equation/detail text updates, the fixed
+explanation-label height added this session, lecture-mode/professor-mode
+toggling, or the keyboard shortcuts (`_build_shortcuts`, L253-258 area).
+This is the layer where this session's own fixes landed (fixed-height
+labels, `--demo` deep-linking) with no regression test protecting any of
+it. Plan: add `tests/test_main_window.py` using the same
+`qapp`/offscreen-platform fixture pattern already used elsewhere, covering
+at minimum: selecting a demo routes to the right stack widget, stepping
+updates `frame_label`/`explanation_label` text, `explanation_label`'s
+height stays constant across frames of different text length (regression
+test for this session's fix), and each keyboard shortcut calls the
+expected slot.
+
+### 5.4 Keyboard shortcuts are invisible to the user
+
+**File:** `src/efficient_nn_lab/app/main_window.py` `_build_shortcuts`
+(L253-258)
+
+Space/←/→/R/Esc are wired up but never surfaced anywhere in the UI — no
+tooltip on the corresponding buttons, no visible hint, no help menu.
+`grep -n "setToolTip"` across the whole `src/` tree returns nothing. A
+first-time user (or an audience member watching over the speaker's
+shoulder) has no way to discover these exist. Plan: add
+`setToolTip("Space")`-style hints to `ControlsWidget`'s Play/Pause/
+Anterior/Próximo/Reset buttons (`widgets/controls.py`) naming their
+shortcut, matching how the button text already names the action.
+
+### 5.5 Two labels bypass the app's central theme/contrast system
+
+**File:** `src/efficient_nn_lab/app/main_window.py` L229-230 (`equation_label`,
+inline `"font-family: monospace; color: #444;"`) and L234-235
+(`detail_label`, inline `"font-family: monospace; font-size: 9pt; color:
+#555;"`)
+
+Both colors were checked this session and are contrast-safe on white
+(`#444444` → 9.7:1, `#555555` → 7.5:1 against `#FFFFFF`, both well past
+4.5:1) — **not a bug**, but these two are the only text colors in the
+whole app set via inline `setStyleSheet()` calls instead of
+`theme.py`'s centralized `STYLESHEET`, so they're invisible to any future
+palette change (e.g. a dark-mode theme) and weren't part of the WCAG audit
+done on the rest of the app earlier this session — that audit only found
+them because they happened to already pass. Plan: move both into
+`theme.py` as `QLabel#Equation` / `QLabel#Detail` rules (same pattern as
+the existing `QLabel#Explanation` rule, theme.py L78-80), referencing
+named constants instead of ad-hoc hex literals.
+
+### 5.6 "Professor mode" detail panel just dumps `repr(dict)`
+
+**File:** `src/efficient_nn_lab/app/main_window.py` L391
+
+```python
+self.detail_label.setText("estado completo: " + repr(frame.values))
+```
+
+For demos whose frames carry numpy arrays (e.g. `traditional_gd.py`'s
+convergence chart, which stores whole `iterations`/`w`/`y`/`loss`/`z_trail`
+arrays per frame, `traditional_gd.py` L267-282) this prints an
+unformatted, unreadable wall of `array([...])` text — the opposite of what
+"professor mode" (aimed at someone who wants to inspect internals) should
+give them. Plan: format `frame.values` field-by-field instead of one
+`repr()` call — one line per key, arrays summarized (shape + first/last
+few values) rather than fully dumped, matching the didactic, numbers-not-
+noise style used everywhere else in the app.
+
+---
+
+## 6. Presentation (LaTeX deck) improvements found this session
+
+**Dir:** `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`
+
+### 6.1 Default beamer navigation symbols were never disabled
+
+**File:** `preamble.tex`
+
+`grep -n "navigation symbols"` finds nothing — `\setbeamertemplate{navigation
+symbols}{}` is never called, so beamer's default tiny navigation icon
+cluster (the outdated arrow/dot strip) renders in the bottom-right corner
+of all 59 pages. Virtually every modern beamer deck disables this; it adds
+visual clutter and isn't how anyone actually navigates a PDF during a talk.
+Plan: add `\setbeamertemplate{navigation symbols}{}` to `preamble.tex` near
+the other `\setbeamertemplate`/`\setbeamercolor` calls (around L178-188),
+recompile, confirm visually the icons are gone from a sampled page.
+
+### 6.2 No slide/page counter anywhere in the deck
+
+**File:** `preamble.tex`
+
+No `footline` template is set (`grep -n "footline"` → nothing), so neither
+speaker nor audience can see "34/59" on screen. For a 59-page talk with 11
+live-software cutovers, this matters twice over: for the speaker's own
+pacing, and for audience Q&A ("can we go back to the slide about STE" is
+much easier to answer/ask with a visible number). Plan: add a minimal
+footline showing `\insertframenumber{} / \inserttotalframenumber`, styled
+to stay legible against every one of the five per-section background
+tints already in use (verify contrast the same WCAG way used for
+`chromeText` earlier this session — a fixed dark/light footline color needs
+to clear 4.5:1 against all five, not just white).
+
+### 6.3 One bibliography entry is defined but never cited
+
+**File:** `referencias.bib`
+
+`dan_goodman_2022_7044500` exists in the `.bib` file but no `\cite{...}` in
+any `slides/*.tex` references it (checked via key-set comparison against
+every `\cite`/`\citep`/etc. call across all 24 slide files — all 23 *other*
+entries resolve correctly both ways, only this one is one-directional).
+Not a compile error (unused `.bib` entries are silently allowed), just a
+dead reference. Plan: either cite it somewhere relevant (Goodman's
+`Brian2` framework fits naturally into `snnHardware.tex` or
+`snnAplicacoes.tex` if it's SNN-simulator-related) or remove it from
+`referencias.bib` if it was leftover from an earlier draft — check what
+the entry actually is before deciding which.
+
+### 6.4 No `\hypersetup` — link appearance unverified
+
+**File:** `preamble.tex`
+
+`grep -n "hypersetup\|colorlinks\|urlcolor\|linkcolor"` finds nothing.
+`hyperref`'s un-configured default sometimes draws a visible colored
+border box around clickable elements in some PDF viewers (though many,
+including beamer's own link handling, suppress this by default — **not
+confirmed broken**, just never explicitly configured, unlike everything
+else color-related in this deck which was deliberately set this session).
+Plan: render a page containing one of the `\href{run:...}` "Abrir no
+software" links and one `\cite{}` cross-reference at high zoom in at least
+two PDF viewers (the one used for the actual talk, plus one other) and
+confirm no stray border appears; if one does, add
+`\hypersetup{hidelinks}` (or `colorlinks=true` with explicit link colors
+matching the rest of the deck's palette) to `preamble.tex`.
+
+### 6.5 PDF metadata Subject/Keywords are empty
+
+**File:** `apresentacao.tex` (`\title`/`\author`/`\date`, L3-11) plus
+whatever hyperref config controls `\hypersetup{pdfsubject=...}`
+(currently none, ties into 6.4)
+
+`pdfinfo apresentacao.pdf` shows `Title` and `Author` populated (beamer
+derives these from `\title`/`\author` automatically) but `Subject:` and
+`Keywords:` are blank. Minor, but costs nothing to fix and helps anyone
+who finds the PDF later via search/library metadata. Plan: add
+`\hypersetup{pdfsubject={BitNets e redes neurais de pulso}, pdfkeywords=
+{BitNet, spiking neural networks, quantização, STE, surrogate gradient}}`
+to `preamble.tex` (same place as 6.4's fix, if both are done together).
+
+### 6.6 One font subset embedded as Type 3 instead of Type 1
+
+**File:** built PDF, root cause not yet located in the `.tex` sources
+
+`pdffonts apresentacao.pdf` shows every font embedded as Type 1 *except*
+one: `BMQQDV+DejaVuSans` is `Type 3`. Type 3 fonts in a pdflatex output
+usually mean some specific glyph/shape got rasterized as vector paths by a
+package (commonly a TikZ `\node` with certain text-rendering options, or a
+symbol pulled from a font pdflatex couldn't subset normally) rather than
+using the installed Type 1 DejaVuSans directly — Type 3 glyphs can look
+visibly blurrier than Type 1 ones when a PDF viewer scales them, which
+would show up as a some specific piece of text looking subtly worse than
+the rest of a slide when projected large. **Not root-caused this
+session** — `pdffonts` doesn't map object IDs to source locations. Plan:
+bisect by commenting out slide `\input`s in `apresentacao.tex` (binary
+search) and re-running `pdffonts` after each partial compile until the
+Type 3 entry disappears, to identify which slide/macro introduces it;
+likely candidate given the deck's structure is one of the TikZ diagrams
+(`fundamentosArquitetura.tex`'s network diagram, or one of the
+`\DemoSlide`/`\AtBeginSection` beamercolorbox templates, since those are
+the main non-standard-text-rendering paths in the deck).
+
+---
+
 ## Suggested execution order
 
 1. **Item 4** (references contrast) — smallest, most isolated, no design
@@ -290,3 +503,11 @@ because it wasn't given app colors to verify against in the first place.
    provide; do the defensive try/except + regression test (plan steps 2-3)
    any time, but the actual root-cause fix waits on their diagnostic
    report.
+5. **Item 5.1** (surrogate-gradient numbers) — do right after item 1, same
+   pattern, same reviewer context still warm.
+6. **Items 6.1/6.2** (nav symbols off, page counter) — trivial, do
+   whenever touching `preamble.tex` next (item 6.4/6.5 touch the same
+   file, bundle them).
+7. Everything else in sections 5 and 6 (5.2, 5.3, 5.4, 5.5, 5.6, 6.3, 6.4,
+   6.5, 6.6) — genuine improvements but lower value-per-effort than 1-4;
+   pick up opportunistically, no dependency ordering between them.
