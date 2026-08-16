@@ -84,6 +84,15 @@ QLabel#DemoTitle {{
 QLabel#Explanation {{
     color: #262B33;
 }}
+QLabel#Equation {{
+    font-family: monospace;
+    color: #444444;
+}}
+QLabel#Detail {{
+    font-family: monospace;
+    font-size: 9pt;
+    color: #555555;
+}}
 QPushButton {{
     padding: 6px 14px;
     background: {PANEL_BACKGROUND};

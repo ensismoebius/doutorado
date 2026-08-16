@@ -70,6 +70,35 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
             values.update(overrides)
             return Frame(label, values, explanation)
 
+        # one real sentence per row, naming the actual cell values (from
+        # `table` above) instead of a templated "see how they compare".
+        row_narration = {
+            "Representação": (
+                "ANN guarda o valor em ponto flutuante contínuo (FP32/BF16); BitNet reduz cada peso "
+                "a {-1,0,+1}; SNN nem guarda um valor contínuo — representa por spikes (0/1) ao "
+                "longo do tempo."
+            ),
+            "Ativação": (
+                "A ativação acompanha a representação: contínua na ANN, quantizada conforme a "
+                "arquitetura na BitNet, e binária na SNN — o neurônio dispara (1) ou não (0)."
+            ),
+            "Domínio temporal": (
+                "Tempo é normalmente implícito na ANN e na BitNet (uma passada síncrona); na SNN ele "
+                "é explícito — cada entrada vira uma série de spikes e a informação mora na "
+                "distribuição deles no tempo."
+            ),
+            "Treinamento": (
+                "Os três treinam com backprop; o que muda é como a derivada da função descontínua "
+                "atravessa: direta na ANN, via Straight-Through Estimator na BitNet, via gradiente "
+                "substituto na SNN."
+            ),
+            "Operação principal": (
+                "A operação dominante é o MAC de ponto flutuante na ANN; na BitNet vira "
+                "soma/subtração de baixa precisão (sem multiplicação); na SNN é só acumulação de "
+                "eventos/spikes."
+            ),
+        }
+
         # each checkpoint keeps every previous reveal at 1.0 and turns the
         # next one on — the table only ever grows.
         revealed: dict[str, float] = {}
@@ -77,9 +106,7 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
 
         for row_name in _ROW_ORDER:
             revealed[_REVEAL_KEYS[row_name]] = 1.0
-            checkpoints.append(
-                frame(row_name, f"{row_name}: veja como ANN, BitNet e SNN se comparam nesta linha.", **revealed)
-            )
+            checkpoints.append(frame(row_name, row_narration[row_name], **revealed))
 
         revealed["reveal_outputs"] = 1.0
         checkpoints.append(

@@ -5,18 +5,19 @@
 		\item $\text{round}(\cdot)$ e $\text{clip}(\cdot)$ são \textbf{funções em degrau}: a derivada é zero em quase todo ponto, e indefinida nos degraus.
 		\item Retropropagação padrão não tem o que propagar através delas --- o gradiente morre.
 	\end{itemize}
-	\vspace{4pt}
+	\vspace{1pt}
 	\begin{block}{A solução: \textit{Straight-Through Estimator} (STE)}
 		\begin{itemize}
 			\item \textbf{Forward}: usa os pesos quantizados $\widetilde{W}$ normalmente.
 			\item \textbf{Backward}: finge que a quantização foi a função identidade --- deixa o gradiente passar direto para uma cópia dos pesos em precisão plena, mantida ``nos bastidores'' e só quantizada de novo a cada passada.
 		\end{itemize}
 	\end{block}
-	\vspace{4pt}
+	\vspace{0pt}
 	\begin{alertblock}{Ponte com a Parte II}
-		Essa é \textbf{exatamente} a mesma ideia por trás do \textit{gradiente substituto} usado para treinar neurônios de pulso \cite{eshraghian2023training}: forward com a função em degrau real, backward com uma aproximação suave, diferenciável. Duas subáreas, de forma independente, convergiram para a mesma solução do mesmo problema estrutural.
+		É a \textbf{mesma} ideia por trás do \textit{gradiente substituto} em redes de pulso \cite{eshraghian2023training}: forward com a função em degrau real, backward com uma aproximação suave, diferenciável. Duas subáreas, independentemente, chegaram à mesma solução para o mesmo problema estrutural.
 	\end{alertblock}
 	% [SOFTWARE] BitNet -> Backward -> STE | checkpoint final (derivada
 	% real vs. constante 1 do STE)
 	\abrirNoSoftware{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}
+	\vspace{-3pt}
 \end{frame}

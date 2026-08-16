@@ -1,22 +1,25 @@
 \begin{frame}[shrink]
 	\frametitle{Retropropagação através do tempo (BPTT)}
 	\small
+	\setlength{\abovedisplayskip}{1pt}
+	\setlength{\belowdisplayskip}{1pt}
 	\begin{columns}[T]
 		\column{.55\linewidth}
-		\resizebox{!}{3.3cm}{\input{../../00-thesis/monography/images/bptt.tex}}
+		\resizebox{!}{2.5cm}{\input{../../00-thesis/monography/images/bptt.tex}}
 		\column{.4\linewidth}
 		\begin{itemize}
-			\item A rede é \textbf{desenrolada} em $T$ cópias no tempo, compartilhando os mesmos pesos $W$.
+			\item A rede é \textbf{desenrolada} em $T$ cópias no tempo, com os mesmos pesos $W$.
 			\item \textit{Forward}: o estado $h_t$ avança da esquerda para a direita.
-			\item \textit{Backward}: o gradiente percorre o caminho inverso, acumulando a contribuição de cada passo:
+			\item \textit{Backward}: o gradiente percorre o caminho inverso, acumulando cada passo:
 		\end{itemize}
 		\begin{equation*}
 			\frac{\partial \mathcal{L}}{\partial W} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial W}
 		\end{equation*}
-		\par\tiny Exemplo, $T=3$: $\frac{\partial \mathcal{L}_1}{\partial W}=0{,}10$, $\frac{\partial \mathcal{L}_2}{\partial W}=-0{,}05$, $\frac{\partial \mathcal{L}_3}{\partial W}=0{,}20$ $\Rightarrow$ soma $=0{,}25$.
+		\par\tiny Exemplo, $T=3$: $0{,}10 + (-0{,}05) + 0{,}20 = 0{,}25$.
 	\end{columns}
-	\vspace{2pt}
-	\par\sloppy É neste \textit{backward}, a cada passo $t$, que o gradiente substituto entra: ele troca a derivada (nula) da função de disparo real por uma aproximação suave, deixando o gradiente fluir de volta pelos $T$ passos \cite{wu2018spatio, eshraghian2023training}.
+	\vspace{1pt}
+	\par\sloppy É aqui que o gradiente substituto entra: ele troca a derivada (nula) da função de disparo real por uma aproximação suave, deixando o gradiente fluir de volta pelos $T$ passos \cite{wu2018spatio, eshraghian2023training}.
 	% [SOFTWARE] SNN -> Surrogate gradient | mesma demo de snnTreinamento.tex
 	\abrirNoSoftware{SNN \textrightarrow{} Surrogate gradient}{snn.surrogate}
+	\vspace{-10pt}
 \end{frame}

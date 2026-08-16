@@ -2,6 +2,18 @@
 
 % Basic packages
 \usepackage{hyperref}
+% hyperref's un-configured default can draw a visible border box around
+% clickable text in some PDF viewers -- hide those borders entirely
+% (hidelinks): this deck's link text is already styled deliberately
+% (\abrirNoSoftware, \DemoSlide) and a colored border would just add
+% noise. Also fills in the PDF's Subject/Keywords, which \title/\author
+% derive but the metadata block otherwise leaves blank (checked with
+% pdfinfo -- Title/Author were populated, Subject/Keywords empty).
+\hypersetup{
+	hidelinks,
+	pdfsubject={As fronteiras da arquitetura de redes neurais: BitNets e redes de pulso},
+	pdfkeywords={BitNet, spiking neural networks, quantização, STE, surrogate gradient}
+}
 
 % Absolute position for text and elements
 \usepackage[absolute,overlay]{textpos}
@@ -122,6 +134,22 @@
 \setbeamercolor{structure}{fg=neutralColor}
 \setbeamercolor{title}{fg=chromeText,bg=bitnetColor!92!white}
 \setbeamercolor{frametitle}{fg=chromeText,bg=bitnetColor!92!white}
+
+% beamer's default bottom-right navigation icon strip (the little
+% arrows/dots cluster) is dead weight for a projected talk -- nobody
+% navigates a PDF that way during a presentation, and it adds visual
+% noise to all 59 pages. Kill it outright.
+\setbeamertemplate{navigation symbols}{}
+
+% Minimal right-aligned page counter so speaker and audience can always
+% see "n / total" -- matters for pacing and for Q&A ("volta pro slide do
+% STE"). Text is neutralColor on the deck's uniform white frame
+% background (sampled from the built PDF: edges are pure white), which
+% clears ~6.3:1 WCAG -- same contrast family as chromeText above.
+\setbeamertemplate{footline}{%
+	\hfill{\scriptsize\color{neutralColor}\insertframenumber{} / \inserttotalframenumber}\hspace{4pt}%
+	\vspace{3pt}%
+}
 
 % Dedicated (non-dynamic) title-box styles for frames that show two
 % frontiers side by side (taxonomia.tex, desafios.tex) -- these must NOT

@@ -2,30 +2,33 @@
 	\frametitle{RNA vs. RNP: o par que se confunde}
 	\small
 	\begin{columns}
+		\footnotesize
 		\column{.48\linewidth}
-		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+		\begin{beamercolorbox}[sep=4pt,rounded=true,shadow=true]{title}
 			Rede Neural Artificial (RNA)
 		\end{beamercolorbox}
 		\begin{itemize}
+			\setlength{\itemsep}{0pt}
 			\item Ativação: valor \textbf{contínuo} por neurônio, por camada.
 			\item Processamento \textbf{síncrono}: uma passada completa por amostra.
-			\item Sem dimensão temporal intrínseca (a menos que seja recorrente).
+			\item Sem dimensão temporal intrínseca (salvo recorrente).
 			\item Custo computacional fixo, independente da atividade.
 		\end{itemize}
 		\column{.48\linewidth}
-		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
+		\begin{beamercolorbox}[sep=4pt,rounded=true,shadow=true]{title}
 			Rede Neural de Pulso (RNP)
 		\end{beamercolorbox}
 		\begin{itemize}
+			\setlength{\itemsep}{0pt}
 			\item Ativação: \textbf{pulso} (0 ou 1), esparso no tempo.
 			\item Processamento \textbf{orientado a evento}: só computa quando há pulso.
-			\item Dinâmica temporal \textbf{intrínseca}: potencial de membrana acumula ao longo do tempo.
-			\item Informação codificada em \textbf{taxa} e/ou \textbf{tempo} de disparo \cite{kasabov2019time}.
+			\item Dinâmica temporal \textbf{intrínseca}: potencial de membrana acumula.
+			\item Informação em \textbf{taxa} e/ou \textbf{tempo} de disparo \cite{kasabov2019time}.
 		\end{itemize}
 	\end{columns}
-	\vspace{2pt}
+	\vspace{1pt}
 	\begin{alertblock}{Consequência prática}
-		Uma RNP processa naturalmente \textbf{fluxos} de dados (áudio, EEG, eventos de câmera) --- mas processar um único dado estático exige ``esticá-lo'' ao longo de vários passos de tempo, um custo que a RNA não tem.
+		Uma RNP processa naturalmente \textbf{fluxos} (áudio, EEG, câmera de eventos) --- um dado estático exige ``esticá-lo'' por vários passos de tempo, custo que a RNA não tem.
 	\end{alertblock}
 	% [SOFTWARE] SNN -> Sinal e spikes | Play uma vez (cruzamento de
 	% nivel vira spike discreto)

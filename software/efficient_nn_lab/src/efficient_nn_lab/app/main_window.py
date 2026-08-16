@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import sys
 
+import numpy as np
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
@@ -41,6 +43,42 @@ from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
 from efficient_nn_lab.bitnet.demos.guided_sequence import GuidedBitNetDemo
 from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantizationDemo
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
+
+
+def _summarize_value(value: object) -> str:
+    """One-line, numbers-not-noise rendering of a frame value.
+
+    Scalars keep their float formatting; long numeric sequences (numpy
+    arrays, or plain lists/tuples of numbers) are shown as
+    "first3, ..., last3" with their shape/count instead of being dumped
+    verbatim -- which is what makes repr() unreadable for demos whose
+    frames carry whole trace arrays.
+    """
+    if isinstance(value, np.ndarray):
+        flat = value.reshape(-1)
+        shape = value.shape
+        n = flat.size
+        if n == 0:
+            return f"array({shape}, vazio)"
+        if n <= 8:
+            body = ", ".join(f"{x:.4g}" for x in flat)
+        else:
+            body = ", ".join(f"{x:.4g}" for x in flat[:3]) + ", ..., " + ", ".join(f"{x:.4g}" for x in flat[-3:])
+        return f"[{body}] — shape {shape}, {n} valores"
+    if isinstance(value, (list, tuple)) and value and all(isinstance(x, (int, float)) for x in value):
+        n = len(value)
+        if n <= 8:
+            body = ", ".join(f"{x:.4g}" for x in value)
+        else:
+            body = ", ".join(f"{x:.4g}" for x in value[:3]) + ", ..., " + ", ".join(f"{x:.4g}" for x in value[-3:])
+        return f"[{body}] — {n} valores"
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return repr(value)
+
+
+def _format_professor_detail(values: dict[str, object]) -> str:
+    return "\n".join(f"{key}: {_summarize_value(val)}" for key, val in values.items())
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
 from efficient_nn_lab.snn.demos.poisson_coding import PoissonCodingDemo
 from efficient_nn_lab.snn.demos.poisson_image_coding import PoissonImageCodingDemo
@@ -250,12 +288,12 @@ class MainWindow(QMainWindow):
         right.addWidget(self.explanation_label)
 
         self.equation_label = QLabel("")
-        self.equation_label.setStyleSheet("font-family: monospace; color: #444;")
+        self.equation_label.setObjectName("Equation")
         self.equation_label.setVisible(False)
         right.addWidget(self.equation_label)
 
         self.detail_label = QLabel("")
-        self.detail_label.setStyleSheet("font-family: monospace; font-size: 9pt; color: #555;")
+        self.detail_label.setObjectName("Detail")
         self.detail_label.setWordWrap(True)
         self.detail_label.setVisible(False)
         right.addWidget(self.detail_label)
@@ -395,5 +433,5 @@ class MainWindow(QMainWindow):
         self.explanation_label.setText(frame.explanation)
         self.equation_label.setText(frame.equation or "(sem equação para este passo)")
         if self.state.professor_mode:
-            self.detail_label.setText("estado completo: " + repr(frame.values))
+            self.detail_label.setText(_format_professor_detail(frame.values))
         self.controls.set_playing(demo.is_playing)

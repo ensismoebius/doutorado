@@ -47,12 +47,16 @@ class ControlsWidget(QWidget):
 
         transport_row = QHBoxLayout()
         self._reset_btn = QPushButton("Reset")
+        self._reset_btn.setToolTip("Voltar ao início da demonstração (R)")
         self._back_btn = QPushButton("<- Anterior")
+        self._back_btn.setToolTip("Passo anterior (←)")
         # a single toggling button, not separate Play/Pause buttons: it
         # reads "Play" while paused and "Pause" while playing, and clicking
         # it always does the opposite of whatever is currently happening.
         self._play_btn = QPushButton("Play")
+        self._play_btn.setToolTip("Reproduzir / pausar a animação (Espaço)")
         self._fwd_btn = QPushButton("Proximo ->")
+        self._fwd_btn.setToolTip("Próximo passo (→)")
         for btn in (self._reset_btn, self._back_btn, self._play_btn, self._fwd_btn):
             transport_row.addWidget(btn)
         root.addLayout(transport_row)
