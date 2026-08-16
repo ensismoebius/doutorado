@@ -94,6 +94,12 @@ if(APPLE)
     include(cmake/MacOSXDependencies.cmake)
 endif()
 
+# Arch Linux bootstrap: installs required packages via pacman (+ yay for any
+# AUR-only dependencies). No-op on all other platforms (macOS / Ubuntu / CI).
+if(UNIX AND NOT APPLE)
+    include(cmake/ArchLinuxDependencies.cmake)
+endif()
+
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 
