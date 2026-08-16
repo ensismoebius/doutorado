@@ -6,13 +6,16 @@
 % Absolute position for text and elements
 \usepackage[absolute,overlay]{textpos}
 
-% Compiled with lualatex/xelatex (not pdflatex) so fontspec can select a
-% real system font -- DejaVu Sans, the same font the companion software
+% Use latim special characters
+\usepackage[utf8]{inputenc}
+
+% DejaVu Sans (Type 1-converted, works under plain pdflatex -- no need for
+% xelatex/lualatex) -- the same font the companion software
 % (software/efficient_nn_lab) already renders in its matplotlib panels and
-% Qt UI, so slides and live software read as one visual system.
-\usepackage{fontspec}
-\setmainfont{DejaVu Sans}
-\setsansfont{DejaVu Sans}
+% Qt UI, so slides and live software read as one visual system. Sets
+% \sfdefault; beamer already routes body text through \sfdefault by
+% default, so no \familydefault override is needed.
+\usepackage{DejaVuSans}
 
 % Use colors
 \usepackage{color}

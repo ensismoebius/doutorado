@@ -67,8 +67,10 @@ barato de corrigir (edição de 6 linhas em um único arquivo).
   `widgets/*.py`) usam a fonte padrão do matplotlib, **DejaVu Sans**
   (empacotada com a própria biblioteca, portanto sempre presente no venv).
 - **DejaVu Sans já está instalada no sistema** (`fc-list` confirma
-  `/usr/share/fonts/TTF/DejaVuSans*.ttf`), e `xelatex`/`lualatex` também já
-  estão disponíveis — não é preciso instalar nada para alinhar os três.
+  `/usr/share/fonts/TTF/DejaVuSans*.ttf`), e o pacote LaTeX `dejavu`
+  (Type 1-convertido, compatível com `pdflatex` puro — não precisa de
+  xelatex/lualatex) também já está instalado (`tlmgr info dejavu`) — não é
+  preciso instalar nada para alinhar os três.
 
 ### 1.3 Estilo geral
 
@@ -152,29 +154,38 @@ DejaVu Sans já é a fonte real dos gráficos matplotlib do software (padrão
 da biblioteca) e já está instalada no sistema. Alinhar as outras duas
 superfícies a ela em vez de escolher uma fonte nova:
 
-**a) Slides — trocar o motor de compilação para LuaLaTeX + fontspec**
+**a) Slides — pacote `dejavu`, sem trocar de motor de compilação**
+
+`fontspec` (a via "óbvia" para trocar de fonte em LaTeX) **exige**
+xelatex/lualatex — quebra sob `pdflatex` com um erro fatal
+(`fontspec requires XeTeX or LuaTeX`). Como o fluxo de trabalho já
+estabelecido usa `pdflatex`, a via correta é o pacote `dejavu` (fontes
+DejaVu convertidas para Type 1, compatíveis com `pdflatex` puro — já
+instalado, `tlmgr info dejavu` confirma):
 
 ```tex
-% preamble.tex, no topo, substituindo \usepackage[utf8]{inputenc}
-\usepackage{fontspec}
-\setmainfont{DejaVu Sans}
-\setsansfont{DejaVu Sans}
+% preamble.tex, mantendo \usepackage[utf8]{inputenc} como estava
+\usepackage{DejaVuSans}
 ```
 
-- Compilar com `lualatex apresentacao.tex` (ou `xelatex`) em vez de
-  `pdflatex`. Ambos já estão instalados (`which lualatex xelatex`
-  confirmado).
-- `\usepackage[utf8]{inputenc}` pode ser removido (UTF-8 é nativo em
-  lualatex/xelatex); manter `babel[brazilian]` — compatível com ambos os
-  motores.
-- **Risco a testar cedo**: `abntex2cite`/`backref` e os pacotes
-  `tikz`/`pgfplots` geralmente funcionam sem alteração sob lualatex, mas
-  isso deve ser a **primeira coisa verificada** (compilar o `.tex` inteiro
-  uma vez, de ponta a ponta, logo após a troca) — não deixar para a
-  véspera da palestra. Se algo quebrar de forma difícil de resolver a
-  tempo, o *fallback* é manter `pdflatex` e aceitar a fonte Computer
-  Modern nos slides (perde-se o alinhamento de fonte, mas cores e conteúdo
-  continuam unificados).
+- Continua compilando com `pdflatex apresentacao.tex`, exatamente como
+  antes — nenhuma mudança de motor, nenhum risco de compatibilidade com
+  `abntex2cite`/`backref`/`babel`.
+- `\usepackage{DejaVuSans}` só redefine `\sfdefault`; como o Beamer já
+  roteia o texto do corpo por `\sfdefault` por padrão, isso já é
+  suficiente — não precisa de `\renewcommand{\familydefault}{\sfdefault}`.
+- **Armadilha real encontrada e corrigida**: combinar Beamer + esse
+  pacote de fonte faz o caractere `>` (ASCII simples, fora de modo
+  matemático) renderizar como um glifo errado (`¿`) — comprovado com
+  `pdftotext`, não é só cosmético. Nenhum `->` ASCII pré-existia no deck
+  (todo `\rightarrow` já usava modo matemático); os únicos ASCII `->`
+  eram os novos links da seção 4. Corrigido trocando por
+  `\textrightarrow{}` no texto visível de cada
+  `\abrirNoSoftware{...}`. **Nunca usar `->`/`<-` ASCII cru em texto
+  (fora de `$...$`) neste deck** — usar `\textrightarrow{}` /
+  `\textleftarrow{}`, ou `$\rightarrow$` dentro de matemática.
+- Verificar sempre com `pdftotext -layout apresentacao.pdf - | grep '¿'`
+  depois de qualquer edição que adicione texto novo.
 
 **b) Software — fixar `font-family` explicitamente**
 
@@ -198,15 +209,17 @@ essa dependência implícita, para não ser "corrigida" por engano no futuro.
 - [x] Editar `preamble.tex`: `\definecolor` vívido (2.1) + `accentColor`.
 - [x] Editar `preamble.tex`: `title`/`frametitle` bg de `cyan` para
       `bitnetColor`.
-- [x] Adicionar `fontspec` + `\setmainfont{DejaVu Sans}`; remover
-      `inputenc`.
-- [x] Recompilar com `lualatex` (2 passadas + `bibtex`/`biber` conforme o
-      fluxo atual do `.bbl`) e comparar visualmente com o PDF atual. Sem
-      erros; a deck ganhou +1 página (44 -> antes já 44, referências
-      quebram em uma página a mais por causa da fonte mais larga) — sem
-      perda de conteúdo. Duas páginas pré-existentes com "Overfull vbox"
-      (já presentes antes desta mudança) ficaram marginalmente mais
-      apertadas com a fonte mais larga; não chegam a cortar texto.
+- [x] Adicionar `\usepackage{DejaVuSans}` (pacote `dejavu`, compatível com
+      `pdflatex`); `inputenc` mantido como estava (não usa fontspec).
+- [x] Recompilar com `pdflatex` (2 passadas, `.bbl` já existente reusado)
+      e comparar visualmente com o PDF anterior. Sem erros; a deck ganhou
+      +1 página (43 -> 44, referências quebram em uma página a mais por
+      causa da fonte mais larga) — sem perda de conteúdo. Duas páginas
+      pré-existentes com "Overfull vbox" (já presentes antes desta
+      mudança) ficaram marginalmente mais apertadas com a fonte mais
+      larga; não chegam a cortar texto. Um bug real de renderização foi
+      encontrado e corrigido nesse processo — ver a "armadilha real" na
+      seção 2.2.
 - [x] Editar `app/theme.py`: adicionar `font-family: "DejaVu Sans"`.
 - [x] Rodar a suíte de testes do software (`QT_QPA_PLATFORM=offscreen
       pytest -q`) — 143 passed, sem regressão.
@@ -506,7 +519,7 @@ sobrevive independente do resultado da Fase 3.
 
 | Arquivo | Mudança |
 |---|---|
-| `documentation/08-lectures/fronteiras-bitnets-redes-pulso/preamble.tex` | Fase 1: cores vívidas, `accentColor`, fonte `fontspec`/DejaVu Sans, `title`/`frametitle` bg |
+| `documentation/08-lectures/fronteiras-bitnets-redes-pulso/preamble.tex` | Fase 1: cores vívidas, `accentColor`, fonte `DejaVuSans` (pacote `dejavu`, `pdflatex`), `title`/`frametitle` bg |
 | `documentation/08-lectures/fronteiras-bitnets-redes-pulso/slides/*.tex` | Fase 4 (comentários) obrigatório; Fase 3 (`\href{run:...}`) se viável |
 | `documentation/08-lectures/fronteiras-bitnets-redes-pulso/abrir-demo.sh` | Novo — wrapper de lançamento (Fase 3) |
 | `software/efficient_nn_lab/src/efficient_nn_lab/main.py` | Fase 3: parsing de `--demo` |

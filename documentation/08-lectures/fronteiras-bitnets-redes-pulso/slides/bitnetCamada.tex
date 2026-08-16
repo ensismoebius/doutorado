@@ -25,7 +25,7 @@
 		\par As ativações $X$ recebem seu próprio tratamento, quantização \textbf{absmax} para INT8: $\widetilde{X} = \text{round}(X \cdot 127/\max(|X|))$, com \textit{clip} em $[-128,127]$.
 		% [SOFTWARE] BitNet -> Quantizacao | slider w ~ 0 para reproduzir a
 		% zona morta, depois 0,6 / -0,3 para os dois outros pesos do exemplo
-		\abrirNoSoftware{BitNet -> Quantizacao}{bitnet.quant}
+		\abrirNoSoftware{BitNet \textrightarrow{} Quantizacao}{bitnet.quant}
 	}
 	\only<3>{
 		\framesubtitle{O que essa troca compra}
@@ -36,6 +36,6 @@
 		\end{itemize}
 			% [SOFTWARE] BitNet -> Forward | checkpoints "Quantizar w1"/"w2" ->
 			% "Multiplicacao 1"/"2" (mostra Q(w2)=0 anulando x2)
-			\abrirNoSoftware{BitNet -> Forward}{bitnet.forward}
+			\abrirNoSoftware{BitNet \textrightarrow{} Forward}{bitnet.forward}
 	}
 \end{frame}
