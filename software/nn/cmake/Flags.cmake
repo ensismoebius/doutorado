@@ -124,18 +124,20 @@ add_compile_options(
 
 # --- Debug-specific flags ---
 # Note: -g3 implies -g (level 3 is a superset); -fno-inline is a no-op at -O0.
+# `-march=native` is not supported by AppleClang on Intel Macs, so skip it on
+# Darwin (on Apple Silicon it is accepted, but staying portable is safer).
 add_compile_options(
     $<$<CONFIG:Debug>:-gdwarf-5>
     $<$<CONFIG:Debug>:-g3>
     $<$<CONFIG:Debug>:-ggdb>
     $<$<CONFIG:Debug>:-O0>
-    $<$<CONFIG:Debug>:-march=native>
+    $<$<AND:$<CONFIG:Debug>,$<NOT:$<PLATFORM_ID:Darwin>>>:-march=native>
 )
 
 # --- Release-specific flags ---
 add_compile_options(
     $<$<CONFIG:Release>:-O3>
-    $<$<CONFIG:Release>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<PLATFORM_ID:Darwin>>>:-march=native>
 )
 
 # Sets opengl provider to a more

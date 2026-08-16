@@ -52,7 +52,12 @@ def main():
     import shutil
     shutil.rmtree(SMOKE, ignore_errors=True)
 
-    sources = [os.path.join(PROFILES, "debug.json")]
+    # debug.json is a gitignored, user-local profile: only mirror it when
+    # present so a fresh checkout still generates smoke profiles.
+    sources = []
+    debug_profile = os.path.join(PROFILES, "debug.json")
+    if os.path.exists(debug_profile):
+        sources.append(debug_profile)
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase00", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase01", "*.json")))
 

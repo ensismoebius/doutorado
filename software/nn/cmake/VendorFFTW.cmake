@@ -29,11 +29,12 @@ find_package(OpenMP REQUIRED)
 set(FFTW_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-install")
 set(FFTW_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-src")
 
-if(USE_FFTWF)
-    set(FFTW_IMPORTED_LIBRARY_PATH "${FFTW_INSTALL_DIR}/lib/libfftw3f.so")
-else()
-    set(FFTW_IMPORTED_LIBRARY_PATH "${FFTW_INSTALL_DIR}/lib/libfftw3.so")
+# Library file name is platform-dependent (.so on Linux, .dylib on macOS)
+set(FFTW_LIBRARY_FILE_NAME "fftw3f")
+if(NOT USE_FFTWF)
+    set(FFTW_LIBRARY_FILE_NAME "fftw3")
 endif()
+set(FFTW_IMPORTED_LIBRARY_PATH "${FFTW_INSTALL_DIR}/lib/lib${FFTW_LIBRARY_FILE_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 # Try to find pre-built FFTW
 find_library(FFTW_LIBRARY fftw3 HINTS "${FFTW_INSTALL_DIR}/lib" "${FFTW_INSTALL_DIR}/lib64")
@@ -107,4 +108,23 @@ else()
     set_property(TARGET FFTW::FFTW PROPERTY
         INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}")
     add_custom_target(fftw_build)
+endif()
+
+# Single-precision FFTW (fftw3f): consumed by the wave feature pipeline as a
+# separate library. A bare `fftw3f` link name only resolves on Linux via
+# /usr/lib; resolve the full path for portability (macOS: /opt/homebrew/lib).
+find_library(FFTW_F_LIBRARY fftw3f HINTS "${FFTW_INSTALL_DIR}/lib" "${FFTW_INSTALL_DIR}/lib64")
+if(FFTW_F_LIBRARY)
+    add_library(FFTW::FFTWF SHARED IMPORTED GLOBAL)
+    set_target_properties(FFTW::FFTWF PROPERTIES
+        IMPORTED_LOCATION "${FFTW_F_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}")
+    set_property(TARGET FFTW::FFTWF PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}")
+    if(TARGET fftw_build)
+        add_dependencies(FFTW::FFTWF fftw_build)
+    endif()
+else()
+    message(WARNING
+        "libfftw3f not found; targets linking FFTW::FFTWF (e.g. waveCoreLib) will fail to link")
 endif()

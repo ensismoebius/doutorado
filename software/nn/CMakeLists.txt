@@ -88,6 +88,12 @@ include(cmake/EnableCoverage.cmake)
 # Optional helpers for precompiled headers on selected targets
 include(cmake/PrecompiledHeaders.cmake)
 
+# macOS-only bootstrap: installs Homebrew + required formulae and configures
+# OpenMP for AppleClang. No-op on all other platforms (Arch Linux / CI).
+if(APPLE)
+    include(cmake/MacOSXDependencies.cmake)
+endif()
+
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 

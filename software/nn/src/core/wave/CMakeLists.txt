@@ -15,7 +15,7 @@ target_include_directories(waveCoreLib
 )
 
 target_link_libraries(waveCoreLib
-    PUBLIC xtensor xtensor-blas FFTW::FFTW fftw3f tensor dataLoaders_10_1117
+    PUBLIC xtensor xtensor-blas FFTW::FFTW FFTW::FFTWF tensor dataLoaders_10_1117
 )
 
 nn_enable_target_pch(waveCoreLib)

@@ -129,9 +129,12 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
                            ? to_tensor_from_multi<int64_t>(variable)
                            : to_tensor_from_vector<int64_t>(variable);
             case ValueType::UINT64:
+                // matioCpp exposes UINT64 data through its `size_t_type`
+                // alias (uint64_t on Linux, unsigned long on macOS) rather
+                // than raw uint64_t, so use it for portability.
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_tensor_from_multi<uint64_t>(variable)
-                           : to_tensor_from_vector<uint64_t>(variable);
+                           ? to_tensor_from_multi<matioCpp::size_t_type>(variable)
+                           : to_tensor_from_vector<matioCpp::size_t_type>(variable);
             default:
                 return std::nullopt;
         }

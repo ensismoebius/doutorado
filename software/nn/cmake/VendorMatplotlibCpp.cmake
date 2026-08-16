@@ -41,14 +41,17 @@ set(MATPLOTLIB_CPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # Use a minimal CMakeLists.txt to replace the upstream one
 # This avoids building examples and fixes include paths
-set(MATPLOTLIBCPP_PATCH_FILE "${CMAKE_SOURCE_DIR}/cmake/patches/matplotlib_cpp/CMakeLists.txt")
+set(MATPLOTLIBCPP_PATCH_SCRIPT
+    "${CMAKE_SOURCE_DIR}/cmake/patches/matplotlib_cpp/apply_patches.cmake")
 
 FetchContent_Declare(
     matplotlib_cpp
     GIT_REPOSITORY https://github.com/lava/matplotlib-cpp.git
     GIT_TAG        ef0383f1315d32e0156335e10b82e90b334f6d9f
     SOURCE_DIR     "${MATPLOTLIBCPP_SRC_DIR}"
-    PATCH_COMMAND  "${CMAKE_COMMAND}" -E copy "${MATPLOTLIBCPP_PATCH_FILE}" CMakeLists.txt
+    PATCH_COMMAND  "${CMAKE_COMMAND}"
+        -DMATPLOTLIBCPP_SOURCE_DIR=${MATPLOTLIBCPP_SRC_DIR}
+        -P "${MATPLOTLIBCPP_PATCH_SCRIPT}"
 )
 
 FetchContent_MakeAvailable(matplotlib_cpp)
