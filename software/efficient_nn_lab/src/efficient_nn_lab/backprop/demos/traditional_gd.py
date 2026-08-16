@@ -296,12 +296,25 @@ class TraditionalBackpropDemo(DemoModule):
         loss_min = max(1e-5, min(loss_hist) * 0.5)
         loss_max = max(loss_hist) * 1.5
 
-        def chart_values(k_exact: int, w_val: float, z_val: float, loss_val: float) -> dict[str, object]:
+        def chart_values(
+            k_exact: int, w_val: float, z_val: float, loss_val: float, inset_z: float | None = None,
+        ) -> dict[str, object]:
             # y is derived from z (not interpolated independently) so the
-            # point sliding along the sigmoid inset and the point sliding
-            # along the top line chart are always the same physical value.
+            # point on the top line chart always shows the activation
+            # function's value for the z being charted.
             act = _activation_fields(z_val, self.target)
             y_val = act["y"]
+            # The sigmoid inset, though, is step-locked: during the
+            # per-iteration substeps its activation point and derivative
+            # (tangent) keep the *previous* iteration's values (inset_z is
+            # the departure z) and only move when the iteration checkpoint
+            # itself appears — that point is the "state at a completed
+            # step", not a quantity that glides between steps. point_y is
+            # the inset dot's own y (sigma(inset_z)), decoupled from the
+            # chart's sliding tip so the dot always sits on the curve.
+            if inset_z is None:
+                inset_z = z_val
+            inset = _activation_fields(inset_z, self.target)
             return {
                 "kind": "backprop_convergence",
                 "iterations": np.arange(k_exact + 1),
@@ -315,8 +328,11 @@ class TraditionalBackpropDemo(DemoModule):
                 # grows by one point per iteration, same as w/y/loss above --
                 # the sigmoid-curve panel must leave a trail of where the
                 # point has already been, not just relocate a single dot.
-                "z_trail": np.array(z_hist[:k_exact] + [z_val]),
-                "z": act["z"], "slope": act["slope"], "grad_y": act["grad_y"], "grad_z": act["grad_z"],
+                # The trail tail is inset_z, so substeps don't add a bogus
+                # interpolated point mid-step.
+                "z_trail": np.array(z_hist[:k_exact] + [inset_z]),
+                "z": inset["z"], "slope": inset["slope"], "grad_y": inset["grad_y"], "grad_z": inset["grad_z"],
+                "point_y": inset["y"],
             }
 
         initial_diff = abs(y_hist[0] - self.target)
@@ -351,6 +367,9 @@ class TraditionalBackpropDemo(DemoModule):
                             lerp(w_hist[k - 1], w_hist[k], t),
                             lerp(z_hist[k - 1], z_hist[k], t),
                             lerp(loss_hist[k - 1], loss_hist[k], t),
+                            # the sigmoid inset stays at the previous
+                            # iteration until this iteration's step lands.
+                            inset_z=z_hist[k - 1],
                         ),
                         "",
                         is_checkpoint=False,
@@ -377,7 +396,15 @@ class TraditionalBackpropDemo(DemoModule):
         return frames
 
     def _build_frames(self) -> list[Frame]:
-        pipeline = build_sequence(self._build_pipeline_checkpoints(), steps=8)
+        # The sigmoid inset (activation point + derivative tangent) is held
+        # across tween frames: it must only move when the step that updates
+        # it actually appears (a checkpoint), never glide toward the next
+        # iteration while that step is still animating in.
+        pipeline = build_sequence(
+            self._build_pipeline_checkpoints(),
+            steps=8,
+            hold=("z", "y", "slope", "grad_y", "grad_z"),
+        )
         convergence = self._build_convergence_frames()
         # deliberate cut: block diagram -> line chart is a genuine change
         # of visualization kind, not a blend of unrelated pictures.

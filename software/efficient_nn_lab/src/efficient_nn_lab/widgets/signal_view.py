@@ -148,14 +148,28 @@ class SignalView(QWidget):
         # image is centered inside it (blank bars on the sides if the
         # panel is wider than 16:9) -- the default adjustable="box" instead
         # shrinks the panel's own rectangle down to a thin sliver.
+        # Pin the view to the whole pixel grid on every render. imshow() does
+        # not reset the axes' view, and this widget is one long-lived instance
+        # re-rendered as the user switches demos, so the limits left behind by
+        # the previous demo (or by the last step) would otherwise stick and
+        # show only a zoomed-in corner of Patrick on return (fast_clear only
+        # drops artists, not limits). ylim is flipped because imshow's default
+        # origin is "upper" (row 0 at the top). adjustable="datalim" then pads
+        # these base limits to the panel's shape, keeping pixels square and
+        # the whole photo visible every time.
+        rows, cols = image.shape
         self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
         self._ax_top.set_aspect("equal", adjustable="datalim")
+        self._ax_top.set_xlim(-0.5, cols - 0.5)
+        self._ax_top.set_ylim(rows - 0.5, -0.5)
         self._ax_top.set_xticks([])
         self._ax_top.set_yticks([])
         self._ax_top.set_title("Imagem original (brilho = probabilidade de disparo)")
 
         self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
         self._ax_bottom.set_aspect("equal", adjustable="datalim")
+        self._ax_bottom.set_xlim(-0.5, cols - 0.5)
+        self._ax_bottom.set_ylim(rows - 0.5, -0.5)
         self._ax_bottom.set_xticks([])
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_title(f"Spikes sorteados no passo t={t}/{n_total - 1} (taxa máxima = {max_rate:.2f})")
@@ -223,9 +237,14 @@ class SignalView(QWidget):
         self._ax_bottom.set_xlabel("iteração")
         self._ax_bottom.set_ylabel("loss (log)")
 
+        # point_y is the activation value at the *step-locked* inset z, which
+        # during the per-iteration substeps is the previous iteration's z —
+        # not the sliding chart tip (y[-1]) — so the dot stays on the curve
+        # at a completed step instead of gliding toward the next one.
         self._draw_sigmoid_inset(
             rect=(0.68, 0.13, 0.29, 0.78),
-            z=float(values["z"]), y=float(y[-1]), slope=float(values["slope"]), grad_z=float(values["grad_z"]),
+            z=float(values["z"]), y=float(values.get("point_y", y[-1])),
+            slope=float(values["slope"]), grad_z=float(values["grad_z"]),
             z_trail=np.asarray(values["z_trail"]),
         )
 

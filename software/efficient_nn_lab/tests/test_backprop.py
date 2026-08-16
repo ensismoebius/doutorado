@@ -133,6 +133,64 @@ def test_pipeline_to_convergence_is_a_deliberate_cut():
     assert changes == 1
 
 
+def test_pipeline_inset_is_held_during_tweens_and_snaps_at_checkpoints():
+    # The sigmoid inset's activation point and derivative (tangent) must
+    # only move when the step that updates them appears -- not glide toward
+    # the next iteration during the interpolated transition between cycles.
+    demo = TraditionalBackpropDemo()
+    frames = demo._frames
+    pipeline = [i for i, f in enumerate(frames) if f.values["kind"] == "backprop_pipeline"]
+
+    # pick the boundary tween between cycle 1's last checkpoint and cycle
+    # 2's first checkpoint.
+    first2 = next(
+        i for i in pipeline
+        if frames[i].is_checkpoint and frames[i].label == "Iteração 2 — O neurônio"
+    )
+    prev_idx = next(
+        i for i in reversed(pipeline)
+        if i < first2 and frames[i].is_checkpoint
+    )
+    prev = frames[prev_idx].values
+    tweens = [frames[i].values for i in range(prev_idx + 1, first2)]
+    assert tweens and all(not frames[i].is_checkpoint for i in range(prev_idx + 1, first2))
+
+    for key in ("z", "y", "slope", "grad_y", "grad_z"):
+        assert all(f[key] == pytest.approx(prev[key]) for f in tweens), key
+
+    # the destination checkpoint does carry the new iteration's values --
+    # that is the step at which the inset is finally allowed to move.
+    arrived = frames[first2].values
+    assert arrived["z"] != pytest.approx(prev["z"])
+
+
+def test_convergence_inset_is_frozen_during_substeps_and_moves_at_iterations():
+    # In the convergence phase each iteration interpolates _SUBSTEPS_PER_
+    # ITERATION frames between the previous and next w/z/loss, but the
+    # sigmoid inset (activation point + derivative) must stay at the last
+    # completed iteration the whole time and only jump when the iteration
+    # checkpoint itself lands.
+    demo = TraditionalBackpropDemo()
+    last_checkpoint_z = None
+    substeps = 0
+    for f in demo._frames:
+        if f.values.get("kind") != "backprop_convergence":
+            continue
+        z, slope, point_y = f.values["z"], f.values["slope"], f.values["point_y"]
+        trail = np.asarray(f.values["z_trail"])
+        if f.is_checkpoint:
+            last_checkpoint_z = z
+            assert point_y == pytest.approx(sigmoid(z))
+        else:
+            assert last_checkpoint_z is not None
+            assert z == pytest.approx(last_checkpoint_z)
+            assert slope == pytest.approx(sigmoid_derivative(last_checkpoint_z))
+            assert point_y == pytest.approx(sigmoid(last_checkpoint_z))
+            assert trail[-1] == pytest.approx(last_checkpoint_z)
+            substeps += 1
+    assert substeps > 0
+
+
 # -- MultilayerNetworkDemo (3 -> 2 -> 2 -> 1, all sigmoid) -------------------
 
 def _manual_mlp_forward_backward(demo: MultilayerNetworkDemo):

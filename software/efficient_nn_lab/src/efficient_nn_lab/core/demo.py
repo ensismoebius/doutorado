@@ -61,6 +61,7 @@ def transition(
     checkpoint_a: Frame,
     checkpoint_b: Frame,
     steps: int = DEFAULT_TWEEN_STEPS,
+    hold: tuple[str, ...] = (),
 ) -> list[Frame]:
     """Interior tween frames animating from ``checkpoint_a`` to ``checkpoint_b``.
 
@@ -68,14 +69,25 @@ def transition(
     already has both checkpoints in its frame list). Each tween frame
     carries checkpoint_b's label/explanation/equation, so the didactic
     text is already the "arriving" one while the motion plays.
+
+    ``hold`` names value keys that must *not* be interpolated during the
+    tween: those fields keep checkpoint_a's value on every tween frame and
+    only become checkpoint_b's once the destination checkpoint itself
+    appears. This is the "only update when the step shows up" pattern —
+    used by backprop/demos/traditional_gd.py to keep the sigmoid inset's
+    activation point and derivative (tangent) pinned to the last completed
+    step instead of gliding toward the next one before that step is shown.
     """
     frames = []
     for i in range(1, steps + 1):
         t = i / (steps + 1)
+        values = tween_values(checkpoint_a.values, checkpoint_b.values, t)
+        for key in hold:
+            values[key] = checkpoint_a.values[key]
         frames.append(
             Frame(
                 label=checkpoint_b.label,
-                values=tween_values(checkpoint_a.values, checkpoint_b.values, t),
+                values=values,
                 explanation=checkpoint_b.explanation,
                 equation=checkpoint_b.equation,
                 is_checkpoint=False,
@@ -84,7 +96,11 @@ def transition(
     return frames
 
 
-def build_sequence(checkpoints: list[Frame], steps: int | list[int] = DEFAULT_TWEEN_STEPS) -> list[Frame]:
+def build_sequence(
+    checkpoints: list[Frame],
+    steps: int | list[int] = DEFAULT_TWEEN_STEPS,
+    hold: tuple[str, ...] = (),
+) -> list[Frame]:
     """Interleave tween frames between consecutive checkpoints.
 
     The common case for a demo's ``_build_frames``: build the list of
@@ -94,6 +110,10 @@ def build_sequence(checkpoints: list[Frame], steps: int | list[int] = DEFAULT_TW
     values) — pass ``0`` for a gap that deliberately jumps to a different
     kind of scene (e.g. from a function-curve view to a block-diagram
     view) rather than trying to blend two structurally unrelated pictures.
+
+    ``hold`` is forwarded to :func:`transition` for every gap: named value
+    keys stay pinned to the departure checkpoint through the tween and
+    only update when the destination checkpoint appears.
     """
     if not checkpoints:
         raise ValueError("build_sequence requires at least one checkpoint")
@@ -105,7 +125,7 @@ def build_sequence(checkpoints: list[Frame], steps: int | list[int] = DEFAULT_TW
             raise ValueError("steps list must have len(checkpoints) - 1 entries")
     sequence = [checkpoints[0]]
     for a, b, n in zip(checkpoints, checkpoints[1:], steps_per_gap):
-        sequence.extend(transition(a, b, n))
+        sequence.extend(transition(a, b, n, hold=hold))
         sequence.append(b)
     return sequence
 
