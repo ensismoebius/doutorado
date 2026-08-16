@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -217,13 +217,29 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.references_view)
         right.addWidget(self.stack, stretch=1)
 
+        # frame_label (the step name) and explanation_label (its didactic
+        # text) change on every single animation frame -- their length
+        # varies a lot between e.g. "Iteração 2 -- A perda (loss)" and a
+        # full three-sentence explanation. Left to size-to-content, a
+        # longer/shorter text reflows this QVBoxLayout and resizes
+        # self.stack (stretch=1), which visibly resizes/shifts the
+        # animation canvas above them on every frame change. Fixing their
+        # height up front (sized from font metrics for a generous number
+        # of lines, not the current text) reserves constant space so
+        # content changes never touch the layout above. Top-aligned so
+        # short text doesn't recentre within the reserved box either.
         self.frame_label = QLabel("")
         self.frame_label.setObjectName("FrameTitle")
+        self.frame_label.setWordWrap(True)
+        self.frame_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.frame_label.setFixedHeight(QFontMetrics(self.frame_label.font()).lineSpacing() * 2 + 6)
         right.addWidget(self.frame_label)
 
         self.explanation_label = QLabel("")
         self.explanation_label.setObjectName("Explanation")
         self.explanation_label.setWordWrap(True)
+        self.explanation_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.explanation_label.setFixedHeight(QFontMetrics(self.explanation_label.font()).lineSpacing() * 4 + 8)
         right.addWidget(self.explanation_label)
 
         self.equation_label = QLabel("")
