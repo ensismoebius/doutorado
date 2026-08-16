@@ -4,6 +4,9 @@
  * @brief Unit tests for basic statistics and multi-class metric helpers.
  */
 
+#include <array>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "statistics/inference_tests.hpp"
@@ -108,6 +111,18 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
         statistics::compute_classification_metrics(empty_true, empty_pred), std::runtime_error);
 }
 
+// Expected per-fold accuracies for this platform's std::shuffle permutation.
+// The fold membership order for a given seed differs between libstdc++ (Linux)
+// and libc++ (macOS); each platform keeps its own expected order.
+static std::array<double, 3> expected_fold_accuracies()
+{
+#if defined(__APPLE__)
+    return {0.5, 0.5, 0.0};
+#else
+    return {0.5, 0.0, 0.5};
+#endif
+}
+
 TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
 {
     std::vector<std::vector<double>> features = {
@@ -138,9 +153,10 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
 
     EXPECT_EQ(results.size(), static_cast<size_t>(k));
     ASSERT_EQ(results.size(), 3U);
-    EXPECT_NEAR(results[0], 0.5, 1e-12);
-    EXPECT_NEAR(results[1], 0.0, 1e-12);
-    EXPECT_NEAR(results[2], 0.5, 1e-12);
+    const auto expected = expected_fold_accuracies();
+    EXPECT_NEAR(results[0], expected[0], 1e-12);
+    EXPECT_NEAR(results[1], expected[1], 1e-12);
+    EXPECT_NEAR(results[2], expected[2], 1e-12);
 
     const double mean_acc = (results[0] + results[1] + results[2]) / 3.0;
     // Equal fold sizes imply mean fold accuracy equals global sample accuracy.
