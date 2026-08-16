@@ -53,6 +53,8 @@ class SignalView(QWidget):
             self._render_signal_spikes(values)
         elif kind == "poisson_spikes":
             self._render_poisson_spikes(values)
+        elif kind == "poisson_image_coding":
+            self._render_poisson_image(values)
         elif kind == "backprop_convergence":
             self._render_backprop_convergence(values)
         else:
@@ -121,6 +123,23 @@ class SignalView(QWidget):
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_xlabel("tempo (passos)")
         self._ax_bottom.set_ylabel("spikes sorteados")
+
+    def _render_poisson_image(self, values: dict[str, object]) -> None:
+        image = np.asarray(values["image"])
+        frame = np.asarray(values["frame"])
+        t = int(values["t"])
+        n_total = int(values["n_total"])
+        max_rate = float(values["max_rate"])
+
+        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        self._ax_top.set_xticks([])
+        self._ax_top.set_yticks([])
+        self._ax_top.set_title("Imagem original (brilho = probabilidade de disparo)")
+
+        self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        self._ax_bottom.set_xticks([])
+        self._ax_bottom.set_yticks([])
+        self._ax_bottom.set_title(f"Spikes sorteados no passo t={t}/{n_total - 1} (taxa máxima = {max_rate:.2f})")
 
     def _render_lif(self, values: dict[str, object]) -> None:
         current = np.asarray(values["current"])

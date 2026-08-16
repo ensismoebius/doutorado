@@ -8,6 +8,8 @@ from direct level-crossing on a synthetic waveform, not from integration.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from efficient_nn_lab.core.math_utils import SEED
@@ -57,3 +59,37 @@ def poisson_spikes(signal: np.ndarray, max_rate: float = 0.9, seed: int = SEED) 
     rng = np.random.RandomState(seed)
     draws = rng.random_sample(prob.shape)
     return (draws < prob).astype(float)
+
+
+def load_grayscale_image(path: str | Path, size: tuple[int, int] = (32, 32)) -> np.ndarray:
+    """Load an image file as a small grayscale intensity grid in [0, 1].
+
+    Nearest-neighbor downsampling (index picking, not averaging) keeps
+    this to plain numpy — no new dependency beyond matplotlib's own image
+    reader, which every install already has (it needs Pillow for JPEG).
+    """
+    import matplotlib.image as mpimg
+
+    img = mpimg.imread(str(path)).astype(float)
+    gray = img @ np.array([0.299, 0.587, 0.114]) if img.ndim == 3 else img
+    if gray.max() > 1.0:
+        gray = gray / 255.0
+    rows = np.linspace(0, gray.shape[0] - 1, size[0]).astype(int)
+    cols = np.linspace(0, gray.shape[1] - 1, size[1]).astype(int)
+    return gray[np.ix_(rows, cols)]
+
+
+def poisson_spike_frames(
+    intensity: np.ndarray, n_steps: int, max_rate: float = 0.9, seed: int = SEED
+) -> np.ndarray:
+    """`poisson_spikes`, generalized to an N-D intensity grid over time.
+
+    Every element of `intensity` (e.g. every pixel of an image) becomes
+    its own independent Poisson-coded neuron: same probability rule, one
+    fresh coin flip per element per time-step. Returns an array shaped
+    ``(n_steps, *intensity.shape)``.
+    """
+    prob = spike_probability(intensity, max_rate)
+    rng = np.random.RandomState(seed)
+    draws = rng.random_sample((n_steps,) + prob.shape)
+    return (draws < prob[None, ...]).astype(float)

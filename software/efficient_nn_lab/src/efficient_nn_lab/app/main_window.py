@@ -41,12 +41,15 @@ from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantization
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
 from efficient_nn_lab.snn.demos.poisson_coding import PoissonCodingDemo
+from efficient_nn_lab.snn.demos.poisson_image_coding import PoissonImageCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
 from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
 
 #: Which widget renders which frame "kind" (see core/demo.py's Frame.values
 #: — every frame in a demo carries the same "kind" tag throughout).
-_SIGNAL_KINDS = {"signal_spikes", "poisson_spikes", "lif_trace", "backprop_convergence"}
+_SIGNAL_KINDS = {
+    "signal_spikes", "poisson_spikes", "poisson_image_coding", "lif_trace", "backprop_convergence",
+}
 _WEIGHT_KINDS = {"scalar_quantization", "staircase", "quant_derivative", "surrogate_curve"}
 _NEURON_KINDS = {"backprop_pipeline", "mlp_network", "forward_pipeline", "ste_pipeline", "guided_pipeline", "comparison_pipeline"}
 
@@ -92,6 +95,7 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
         "SNN": [
             SpikeGenerationDemo(),
             PoissonCodingDemo(),
+            PoissonImageCodingDemo(),
             LIFDynamicsDemo(),
             SurrogateGradientDemo(),
         ],

@@ -33,6 +33,8 @@ def fast_clear(ax) -> None:
         artist.remove()
     for artist in list(ax.artists):
         artist.remove()
+    for artist in list(ax.images):
+        artist.remove()
     legend = ax.get_legend()
     if legend is not None:
         legend.remove()

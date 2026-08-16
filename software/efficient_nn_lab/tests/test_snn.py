@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 
-from efficient_nn_lab.snn.encoding import direct_threshold_spikes, poisson_spikes, spike_probability
+from efficient_nn_lab.snn.encoding import (
+    direct_threshold_spikes,
+    load_grayscale_image,
+    poisson_spike_frames,
+    poisson_spikes,
+    spike_probability,
+)
 from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 from efficient_nn_lab.snn.surrogate import (
     fast_sigmoid,
@@ -10,6 +16,7 @@ from efficient_nn_lab.snn.surrogate import (
     heaviside_derivative,
 )
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
+from efficient_nn_lab.snn.demos.poisson_image_coding import _IMAGE_PATH, PoissonImageCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
 from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
 
@@ -105,6 +112,41 @@ def test_poisson_spikes_fires_more_often_where_intensity_is_higher():
     high_rate = poisson_spikes(high_signal, max_rate=0.9, seed=7).mean()
     assert low_rate < high_rate
     assert high_rate == pytest.approx(0.9 * 0.9, abs=0.03)
+
+
+# -- Poisson coding on an image ----------------------------------------------
+def test_load_grayscale_image_is_normalized_and_resized():
+    image = load_grayscale_image(_IMAGE_PATH, size=(16, 20))
+    assert image.shape == (16, 20)
+    assert image.min() >= 0.0
+    assert image.max() <= 1.0
+
+
+def test_poisson_spike_frames_shape_and_determinism():
+    intensity = np.array([[0.0, 1.0], [0.5, 0.2]])
+    frames = poisson_spike_frames(intensity, n_steps=30, max_rate=0.9, seed=42)
+    assert frames.shape == (30, 2, 2)
+    assert np.all((frames == 0.0) | (frames == 1.0))
+    # a fully dark pixel never spikes; a fully bright one spikes often but
+    # not on literally every single step, at a moderate max_rate.
+    assert frames[:, 0, 0].sum() == 0
+    assert 0 < frames[:, 0, 1].sum() < 30
+    again = poisson_spike_frames(intensity, n_steps=30, max_rate=0.9, seed=42)
+    np.testing.assert_array_equal(frames, again)
+
+
+def test_poisson_image_coding_demo_has_30_steps_from_the_real_image():
+    demo = PoissonImageCodingDemo()
+    checkpoints = demo.checkpoint_frames()
+    assert len(checkpoints) == 30
+    assert checkpoints[0].values["t"] == 0
+    assert checkpoints[-1].values["t"] == 29
+    image = checkpoints[0].values["image"]
+    assert image.shape == (32, 32)
+    for cp in checkpoints:
+        frame = cp.values["frame"]
+        assert frame.shape == image.shape
+        assert np.all((frame == 0.0) | (frame == 1.0))
 
 
 # -- demo modules -----------------------------------------------------------
