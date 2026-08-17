@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
+from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
 
@@ -286,3 +287,203 @@ def test_mlp_reveals_never_go_backward():
     for key in reveal_keys:
         values = [float(f.values[key]) for f in checkpoints]
         assert all(a <= b + 1e-9 for a, b in zip(values, values[1:])), key
+
+
+# -- MatrixAlgebraDemo (2 -> 2 -> 1, the same network as linear algebra) -----
+
+def _manual_matrix_forward_backward(demo: MatrixAlgebraDemo):
+    """The whole network recomputed by hand, independently of the demo."""
+    x = np.array([0.9, 0.4])
+    w1 = np.array([[0.8, -0.4], [-0.5, 0.9]])
+    w2 = np.array([[1.2, -0.9]])
+
+    z1 = w1 @ x
+    y1 = sigmoid(z1)
+    z2 = float((w2 @ y1)[0])
+    y2 = float(sigmoid(z2))
+
+    gy2 = y2 - demo.target
+    gz2 = gy2 * sigmoid_derivative(z2)
+    gy1 = w2.T @ np.array([gz2])
+    gz1 = gy1 * sigmoid_derivative(z1)
+    return {
+        "x": x, "w1": w1, "w2": w2, "z1": z1, "y1": y1, "z2": z2, "y2": y2,
+        "gy2": gy2, "gz2": gz2, "gy1": gy1, "gz1": gz1,
+        "gw2": np.outer(np.array([gz2]), y1), "gw1": np.outer(gz1, x),
+    }
+
+
+def test_matrix_demo_forward_matches_manual_computation():
+    demo = MatrixAlgebraDemo()
+    m = _manual_matrix_forward_backward(demo)
+    v = demo.checkpoint_frames()[-1].values
+    np.testing.assert_allclose(v["z1"], m["z1"])
+    np.testing.assert_allclose(v["y1"], m["y1"])
+    assert v["z2"] == pytest.approx(m["z2"])
+    assert v["y2"] == pytest.approx(m["y2"])
+    assert v["loss"] == pytest.approx(0.5 * (m["y2"] - demo.target) ** 2)
+
+
+def test_matrix_demo_backward_matches_manual_computation():
+    demo = MatrixAlgebraDemo()
+    m = _manual_matrix_forward_backward(demo)
+    v = demo.checkpoint_frames()[-1].values
+    assert v["gy2"] == pytest.approx(m["gy2"])
+    assert v["gz2"] == pytest.approx(m["gz2"])
+    np.testing.assert_allclose(v["gy1"], m["gy1"])
+    np.testing.assert_allclose(v["gz1"], m["gz1"])
+    np.testing.assert_allclose(v["gw2"], m["gw2"])
+    np.testing.assert_allclose(v["gw1"], m["gw1"])
+
+
+def test_matrix_demo_weight_gradients_have_the_shape_of_their_weights():
+    # the claim the demo makes out loud ("forma do gradiente = forma da
+    # matriz"), which is also what makes w <- w - lr*grad even typecheck.
+    demo = MatrixAlgebraDemo()
+    v = demo.checkpoint_frames()[-1].values
+    assert np.asarray(v["gw1"]).shape == np.asarray(v["w1"]).shape
+    assert np.asarray(v["gw2"]).shape == np.asarray(v["w2"]).shape
+
+
+def test_matrix_demo_chain_rule_product_equals_the_matrix_gradient():
+    # the closing claim of the demo: multiplying the five per-edge local
+    # derivatives by hand lands on exactly the number the matrix backward
+    # already produced for that weight.
+    demo = MatrixAlgebraDemo()
+    v = demo.checkpoint_frames()[-1].values
+    product = float(np.prod(v["chain_values"]))
+    assert product == pytest.approx(float(np.asarray(v["gw1"])[0, 0]), rel=1e-9)
+    assert float(v["chain_product"]) == pytest.approx(product)
+
+
+def test_matrix_demo_no_chain_factor_equals_one():
+    # a factor of exactly 1 would leave the running product unchanged, so
+    # that step of the animation would look like it did nothing. The input
+    # vector is chosen to avoid it -- keep it that way.
+    demo = MatrixAlgebraDemo()
+    for name, value in zip(
+        demo.checkpoint_frames()[-1].values["chain_names"],
+        demo.checkpoint_frames()[-1].values["chain_values"],
+    ):
+        assert abs(abs(float(value)) - 1.0) > 1e-6, name
+
+
+def test_matrix_demo_chain_product_moves_at_every_factor():
+    demo = MatrixAlgebraDemo()
+    products = [
+        float(f.values["chain_product"])
+        for f in demo.checkpoint_frames()
+        if f.label.startswith("Fator ")
+    ]
+    assert len(products) == 5
+    for before, after in zip(products, products[1:]):
+        assert before != pytest.approx(after)
+
+
+def test_matrix_demo_reveals_never_go_backward():
+    # per-cell reveal arrays: once a number is on screen it stays on screen.
+    demo = MatrixAlgebraDemo()
+    keys = [
+        "rv_graph", "rv_x", "rv_w1", "rv_w2", "rv_z1", "rv_y1", "rv_z2", "rv_y2",
+        "rv_target", "rv_loss", "rv_gy2", "rv_gz2", "rv_gw2", "rv_gy1", "rv_gz1",
+        "rv_gw1", "rv_chain",
+    ]
+    checkpoints = demo.checkpoint_frames()
+    for key in keys:
+        series = [np.asarray(f.values[key], dtype=float) for f in checkpoints]
+        for before, after in zip(series, series[1:]):
+            assert np.all(after >= before - 1e-9), key
+
+
+def test_matrix_demo_actually_animates_between_every_checkpoint():
+    # THE point of this demo being an animation and not a slide deck: every
+    # gap between consecutive checkpoints must contain interpolated frames,
+    # and at least one field must take a value strictly between the two
+    # endpoints (i.e. it really eases across, rather than snapping).
+    demo = MatrixAlgebraDemo()
+    indices = demo._checkpoint_frame_indices
+    assert len(indices) >= 20
+    for start, end in zip(indices, indices[1:]):
+        tweens = demo._frames[start + 1 : end]
+        assert tweens, f"no tween frames between checkpoints at {start} and {end}"
+        assert all(not f.is_checkpoint for f in tweens)
+
+        before, after = demo._frames[start].values, demo._frames[end].values
+        moved = []
+        for key, val_a in before.items():
+            val_b = after[key]
+            # floats count too: the running partial sum is a plain float and
+            # is one of the things the viewer literally watches move.
+            numeric = (np.ndarray, float)
+            if not isinstance(val_a, numeric) or not isinstance(val_b, numeric):
+                continue
+            arr_a, arr_b = np.atleast_1d(np.asarray(val_a, dtype=float)), np.atleast_1d(np.asarray(val_b, dtype=float))
+            if arr_a.shape != arr_b.shape or np.allclose(arr_a, arr_b):
+                continue
+            mid = np.atleast_1d(np.asarray(tweens[len(tweens) // 2].values[key], dtype=float))
+            lo, hi = np.minimum(arr_a, arr_b), np.maximum(arr_a, arr_b)
+            changing = ~np.isclose(arr_a, arr_b)
+            if np.any((mid[changing] > lo[changing]) & (mid[changing] < hi[changing])):
+                moved.append(key)
+        assert moved, (
+            f"nothing interpolates between {demo._frames[start].label!r} and "
+            f"{demo._frames[end].label!r} -- that transition is a cut, not an animation"
+        )
+
+
+def test_matrix_demo_highlights_one_matrix_cell_per_term_of_the_dot_product():
+    # the term-by-term steps are what teach the mechanic: exactly one weight
+    # cell and exactly one input cell lit, and they must be the pair whose
+    # product the step is showing (row 0 of W1 against x, column by column).
+    demo = MatrixAlgebraDemo()
+    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("Forward, ")]
+    assert len(steps) == 2
+    for column, frame in enumerate(steps):
+        hl_w1 = np.asarray(frame.values["hl_w1"], dtype=float)
+        hl_x = np.asarray(frame.values["hl_x"], dtype=float)
+        assert hl_w1[0, column] == pytest.approx(1.0)
+        assert hl_w1.sum() == pytest.approx(1.0)
+        assert hl_x[column] == pytest.approx(1.0)
+        assert hl_x.sum() == pytest.approx(1.0)
+
+
+def test_matrix_demo_partial_sum_matches_the_terms_revealed_so_far():
+    demo = MatrixAlgebraDemo()
+    m = _manual_matrix_forward_backward(demo)
+    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("Forward, ")]
+    first_term = m["w1"][0, 0] * m["x"][0]
+    assert float(steps[0].values["accum"]) == pytest.approx(first_term)
+    assert float(steps[1].values["accum"]) == pytest.approx(m["z1"][0])
+
+
+def test_matrix_demo_every_focus_is_one_the_renderer_handles():
+    # focus routes the right-hand board; an unknown value raises in the
+    # renderer (no silent fallback), so it must never be produced.
+    handled = {"l1", "l2", "loss", "gw2", "w2t", "gz1", "gw1", "chain"}
+    demo = MatrixAlgebraDemo()
+    for frame in demo._frames:
+        assert frame.values["focus"] in handled, frame.label
+
+
+def test_matrix_demo_every_frame_renders(qapp):
+    # includes the tween frames, which the no-clipping test does not cover.
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    demo = MatrixAlgebraDemo()
+    view = NeuronView()
+    view.resize(1000, 600)
+    for frame in demo._frames:
+        view.render(frame.values)
+    view._canvas.draw()
+
+
+def test_matrix_demo_equations_all_typeset():
+    # every equation string must survive latexize -> mathtext; a silent
+    # fallback to raw text would show LaTeX source to the student.
+    from efficient_nn_lab.app.math_render import latexize
+    from matplotlib import mathtext
+
+    demo = MatrixAlgebraDemo()
+    parser = mathtext.MathTextParser("agg")
+    for equation in {f.equation for f in demo.checkpoint_frames() if f.equation}:
+        parser.parse(f"${latexize(equation)}$")

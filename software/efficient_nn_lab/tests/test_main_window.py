@@ -26,9 +26,28 @@ def _all_demos():
 
 
 def _window(qapp):
+    """A shown, *activated* MainWindow ready to receive key events.
+
+    The keyboard tests below depend on activation, not just visibility:
+    MainWindow's shortcuts are plain QShortcuts, whose default context is
+    ``Qt.WindowShortcut`` -- Qt only matches those when the shortcut's
+    window is the *active* window. ``show()`` alone does not guarantee
+    that; activation arrives as a later platform event, so whether it had
+    landed by the time a test pressed a key came down to timing (these
+    tests passed or failed run to run, and every earlier test in the
+    session leaves its own window around to compete for activation).
+
+    ``qWaitForWindowActive`` is the API for exactly this: it spins the
+    event loop until the window really is active. It is asserted rather
+    than best-effort, so a genuine activation failure surfaces here
+    instead of resurfacing as a baffling "the shortcut did nothing"
+    assertion further down the test.
+    """
     window = MainWindow()
     window.show()
-    QTest.qWait(30)
+    window.activateWindow()
+    assert QTest.qWaitForWindowActive(window), "window never became active"
+    QTest.qWait(30)  # let the layout settle for the geometry assertions
     return window
 
 
