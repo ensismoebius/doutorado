@@ -66,6 +66,11 @@ def _failure_frame(max_rate: float, exc: Exception) -> Frame:
 class PoissonImageCodingDemo(DemoModule):
     title = "SNN -> Codificação Poisson (imagem)"
     slug = "snn.poisson_image"
+    #: The one demo where the cadence *is* the content: a single time-step
+    #: is indistinguishable from noise, and the picture only emerges once
+    #: the frames go by fast enough for the eye to integrate them. Stepping
+    #: through 30 checkpoints with a 1,1s dwell each never shows that.
+    supports_fast_loop = True
     description = (
         "Cada pixel de uma imagem real vira um neurônio: dispara, passo a passo, com probabilidade "
         "proporcional ao seu brilho. Só a soma de vários passos faz a imagem reaparecer."

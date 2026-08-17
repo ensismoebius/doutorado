@@ -31,6 +31,7 @@ class ControlsWidget(QWidget):
     step_forward_clicked = Signal()
     play_clicked = Signal()
     pause_clicked = Signal()
+    fast_loop_clicked = Signal()
     speed_changed = Signal(float)
     parameter_changed = Signal(str, float)
     show_equation_toggled = Signal(bool)
@@ -57,9 +58,23 @@ class ControlsWidget(QWidget):
         self._play_btn.setToolTip("Reproduzir / pausar a animação (Espaço)")
         self._fwd_btn = QPushButton("Proximo ->")
         self._fwd_btn.setToolTip("Próximo passo (→)")
-        for btn in (self._reset_btn, self._back_btn, self._play_btn, self._fwd_btn):
+        # Opt-in per demo (DemoModule.supports_fast_loop): hidden unless the
+        # active demo is one whose cadence is itself the point. Checkable so
+        # the control shows *that a continuous mode is on*, which a momentary
+        # button could not; its checked state is mirrored from the player by
+        # set_fast_loop_active(), never tracked here.
+        self._loop_btn = QPushButton("Loop rápido")
+        self._loop_btn.setCheckable(True)
+        self._loop_btn.setToolTip(
+            "Roda todos os passos em sequência, sem pausa e em ciclo contínuo — "
+            "a cadência em que o olho integra os disparos e a imagem aparece"
+        )
+        self._loop_btn.setVisible(False)
+        for btn in (self._reset_btn, self._back_btn, self._play_btn, self._fwd_btn, self._loop_btn):
             transport_row.addWidget(btn)
         root.addLayout(transport_row)
+
+        self._loop_btn.clicked.connect(self._on_loop_clicked)
 
         self._reset_btn.clicked.connect(self.reset_clicked)
         self._back_btn.clicked.connect(self.step_backward_clicked)
@@ -93,6 +108,33 @@ class ControlsWidget(QWidget):
     def set_playing(self, playing: bool) -> None:
         self._is_playing = playing
         self._play_btn.setText("Pause" if playing else "Play")
+
+    def set_fast_loop_available(self, available: bool) -> None:
+        """Show the loop control only for demos that offer it."""
+        self._loop_btn.setVisible(available)
+        if not available:
+            self.set_fast_loop_active(False)
+
+    def set_fast_loop_active(self, active: bool) -> None:
+        """Mirror the player's loop state onto the button.
+
+        Signals are blocked while doing it: this is called from the
+        per-frame refresh, and letting setChecked() re-emit would feed the
+        state straight back into the handler that caused it.
+        """
+        if self._loop_btn.isChecked() == active:
+            return
+        self._loop_btn.blockSignals(True)
+        self._loop_btn.setChecked(active)
+        self._loop_btn.blockSignals(False)
+
+    def _on_loop_clicked(self) -> None:
+        # A second click on an active loop means "stop", which is exactly
+        # Pause -- no separate stop path to keep in sync.
+        if self._loop_btn.isChecked():
+            self.fast_loop_clicked.emit()
+        else:
+            self.pause_clicked.emit()
 
     def _on_play_pause_clicked(self) -> None:
         if self._is_playing:

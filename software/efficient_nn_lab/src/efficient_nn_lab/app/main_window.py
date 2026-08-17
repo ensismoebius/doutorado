@@ -343,6 +343,7 @@ class MainWindow(QMainWindow):
         self.controls.step_forward_clicked.connect(self._on_step_forward)
         self.controls.play_clicked.connect(self._on_play)
         self.controls.pause_clicked.connect(self._on_pause)
+        self.controls.fast_loop_clicked.connect(self._on_fast_loop)
         self.controls.speed_changed.connect(self._on_speed_changed)
         self.controls.parameter_changed.connect(self._on_parameter_changed)
         self.controls.show_equation_toggled.connect(self._on_equation_toggled)
@@ -379,6 +380,7 @@ class MainWindow(QMainWindow):
         self.demo_description_label.setText(demo.description)
         self.controls.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
+        self.controls.set_fast_loop_available(demo.supports_fast_loop)
         self._reserve_text_heights(demo)
         self._refresh_frame()
 
@@ -444,6 +446,10 @@ class MainWindow(QMainWindow):
         if self.player:
             self.player.pause()
 
+    def _on_fast_loop(self) -> None:
+        if self.player:
+            self.player.play_fast_loop()
+
     def _toggle_play_pause(self) -> None:
         if not self.player:
             return
@@ -497,6 +503,7 @@ class MainWindow(QMainWindow):
         if self.state.professor_mode:
             self.detail_label.setText(_format_professor_detail(frame.values))
         self.controls.set_playing(demo.is_playing)
+        self.controls.set_fast_loop_active(self.player.is_looping)
 
         app = QApplication.instance()
         if app is not None:

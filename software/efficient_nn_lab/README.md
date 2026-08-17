@@ -72,6 +72,25 @@ para que os imports absolutos (`efficient_nn_lab....`) resolvam.
 | `R` | reset |
 | `Esc` | voltar ao menu |
 
+### Loop rápido (só em `SNN → Codificação Poisson (imagem)`)
+
+Botão extra na fileira de transporte, visível apenas nas demos que o
+declaram (`DemoModule.supports_fast_loop`). Roda todos os passos em
+sequência, **sem a espera de 1,1s por passo** e voltando ao início ao
+terminar: ~1,2s por volta a ~25 quadros/s, contra ~33s de uma passagem do
+`Play` normal. Pausa com um segundo clique, com `Pause` ou com `Reset`.
+
+Existe porque nessa demo **a cadência é o conteúdo**: um único passo de
+tempo Poisson é indistinguível de ruído, e o rosto só emerge quando os
+quadros passam rápido o bastante para o olho integrar os disparos.
+Percorrer 30 checkpoints com 1,1s de espera cada nunca mostra isso. Nas
+outras demos o botão não aparece — cada passo ali tem texto para ler, e
+passar voando por eles seria ruído.
+
+O intervalo do loop é igual ao do tick normal (40ms) de propósito: o
+redesenho dessa demo custa ~39ms (p90 medido), então um intervalo menor só
+enfileiraria redesenhos que o widget não consegue atender.
+
 O botão **Modo palestra** simplifica a barra lateral; o botão **Modo
 professor** revela equações e o estado numérico completo de cada passo.
 

@@ -181,3 +181,42 @@ def test_every_demo_is_reachable_from_the_lecture_deck():
 
     dangling = linked - shipped
     assert not dangling, f"slides link slugs that no demo provides: {sorted(dangling)}"
+
+
+# -- opt-in continuous playback ----------------------------------------
+
+@pytest.mark.parametrize("demo_cls", ALL_DEMO_CLASSES)
+def test_supports_fast_loop_is_declared_and_boolean(demo_cls):
+    assert isinstance(demo_cls().supports_fast_loop, bool)
+
+
+def test_fast_loop_is_opt_in_and_off_by_default():
+    """Default off: flying past steps whose text must be read is noise.
+
+    Only snn.poisson_image opts in today -- it is the one demo where the
+    cadence itself carries the lesson (a single Poisson time-step is
+    indistinguishable from noise; the picture only appears once frames go
+    by fast enough for the eye to integrate them).
+    """
+    from efficient_nn_lab.core.demo import DemoModule
+
+    assert DemoModule.supports_fast_loop is False
+    opted_in = {c().slug for c in ALL_DEMO_CLASSES if c().supports_fast_loop}
+    assert opted_in == {"snn.poisson_image"}, opted_in
+
+
+def test_rewind_to_start_keeps_playing_and_does_not_rebuild():
+    """rewind_to_start is what makes the loop seamless; reset() cannot do it.
+
+    reset() rebuilds every frame and clears is_playing, so a loop built on
+    it would stall after one lap and redo the work each time round.
+    """
+    demo = PoissonImageCodingDemo()
+    frames_before = demo._frames
+    demo.play()
+    demo.current_frame_index = len(demo._frames) - 1
+
+    demo.rewind_to_start()
+    assert demo.current_frame_index == 0
+    assert demo.is_playing, "rewind must not stop playback"
+    assert demo._frames is frames_before, "rewind must not rebuild the frames"

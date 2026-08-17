@@ -193,3 +193,140 @@ def test_select_demo_by_slug_unknown_is_ignored(qapp, capsys):
     assert window.demo_title_label.text() == "Efficient Neural Networks Lab"
     err = capsys.readouterr().err
     assert "no.such.demo" in err
+
+
+# -- "Loop rápido": continuous, dwell-free playback --------------------
+
+def _loop_demo(window):
+    demo = next(d for d in _all_demos() if d.slug == "snn.poisson_image")
+    window._select_demo(demo)
+    return demo
+
+
+def test_fast_loop_button_shown_only_for_demos_that_offer_it(qapp):
+    window = _window(qapp)
+    _loop_demo(window)
+    assert window.controls._loop_btn.isVisible()
+
+    plain = next(d for d in _all_demos() if d.slug == "snn.lif")
+    window._select_demo(plain)
+    assert not window.controls._loop_btn.isVisible()
+    assert not window.controls._loop_btn.isChecked()
+
+
+def test_fast_loop_wraps_around_instead_of_stopping(qapp):
+    """The behaviour that makes it a *loop*, driven deterministically.
+
+    The tick is called directly instead of waiting on the QTimer: the point
+    under test is the wrap decision, and a timing-based test of it would
+    only add flakiness (see _window's docstring for what that costs).
+    """
+    window = _window(qapp)
+    demo = _loop_demo(window)
+    player = window.player
+    n = len(demo._frames)
+
+    player.play_fast_loop()
+    assert player.is_looping
+    assert demo.is_playing
+
+    # Drive the tick by hand with the timer stopped: leaving it running
+    # would race these calls (a redraw re-enters the event loop, so the
+    # timer can fire between them) and the test would be measuring
+    # scheduling, not the wrap decision it is about.
+    player._timer.stop()
+    seen = set()
+    for _ in range(2 * n):
+        seen.add(demo.current_frame_index)
+        player._tick()
+
+    assert seen == set(range(n)), "o loop não passou por todos os quadros"
+    # crossed the end at least twice and never stopped
+    assert player.is_looping
+    assert demo.is_playing
+
+
+def test_normal_play_still_stops_at_the_end(qapp):
+    # the loop mode must not have turned ordinary Play into a loop.
+    window = _window(qapp)
+    demo = _loop_demo(window)
+    player = window.player
+    player.play()
+    assert not player.is_looping
+    player._timer.stop()
+    for _ in range(len(demo._frames) + 5):
+        player._tick()
+    assert demo.is_at_last_frame()
+    assert not demo.is_playing
+
+
+def test_fast_loop_button_reflects_player_and_second_click_stops(qapp):
+    window = _window(qapp)
+    _loop_demo(window)
+    btn = window.controls._loop_btn
+
+    btn.click()
+    assert window.player.is_looping
+    assert btn.isChecked()
+    assert window.controls._play_btn.text() == "Pause"
+
+    btn.click()
+    assert not window.player.is_looping
+    assert not window.player.demo.is_playing
+    assert not btn.isChecked()
+
+
+def test_pause_and_reset_also_stop_the_fast_loop(qapp):
+    for stop in ("_on_pause", "_on_reset"):
+        window = _window(qapp)
+        _loop_demo(window)
+        window.controls._loop_btn.click()
+        assert window.player.is_looping
+        getattr(window, stop)()
+        window._refresh_frame()
+        assert not window.player.is_looping, stop
+        assert not window.controls._loop_btn.isChecked(), stop
+
+
+def test_refresh_frame_does_not_feed_the_loop_button_back_on_itself(qapp):
+    # set_fast_loop_active runs on every frame refresh; if setChecked
+    # re-emitted, the refresh would re-trigger the handler that caused it.
+    window = _window(qapp)
+    _loop_demo(window)
+    window.controls._loop_btn.click()
+    calls = []
+    window.controls.fast_loop_clicked.connect(lambda: calls.append(1))
+    for _ in range(5):
+        window._refresh_frame()
+    assert calls == []
+    assert window.player.is_looping
+
+
+def test_tick_is_not_re_entrant(qapp):
+    """A redraw re-enters the Qt event loop, so the timer can fire mid-tick.
+
+    Without the guard the demo advances twice per interval under a slow
+    renderer -- playback silently runs at double speed, and nests deeper as
+    rendering gets slower. Measured on snn.poisson_image: 8 hand-driven
+    ticks executed 16 times before the guard.
+    """
+    window = _window(qapp)
+    demo = _loop_demo(window)
+    player = window.player
+    player.play_fast_loop()
+
+    executed = []
+    inner = player._tick_once
+
+    def counting():
+        executed.append(1)
+        inner()
+
+    player._tick_once = counting
+    indices = []
+    for _ in range(8):
+        indices.append(demo.current_frame_index)
+        player._tick()
+
+    assert len(executed) == 8, f"tick re-entrou: {len(executed)} execuções para 8 chamadas"
+    assert indices == list(range(8)), indices

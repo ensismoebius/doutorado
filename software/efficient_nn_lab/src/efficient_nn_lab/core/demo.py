@@ -144,6 +144,14 @@ class DemoModule(ABC):
     title: str = ""
     #: One-paragraph description shown above the animation area.
     description: str = ""
+    #: Whether this demo offers the "Loop rápido" control (continuous,
+    #: dwell-free playback that wraps around at the end). Off by default:
+    #: for a demo whose steps each carry their own explanation to read,
+    #: flying through them without pausing would be noise. It earns its
+    #: place when the *cadence itself* is the lesson -- rate coding only
+    #: becomes visible when the frames go by fast enough for the eye to
+    #: integrate them (see snn/demos/poisson_image_coding.py).
+    supports_fast_loop: bool = False
     #: Stable identifier for deep-linking from outside the app (the
     #: lecture slides' "open this demo" links, see main.py's --demo flag
     #: and documentation/08-lectures/fronteiras-bitnets-redes-pulso/
@@ -250,6 +258,16 @@ class DemoModule(ABC):
         if self.is_at_last_frame():
             self.current_frame_index = 0
         self.is_playing = True
+
+    def rewind_to_start(self) -> None:
+        """Jump back to frame 0 without rebuilding or stopping playback.
+
+        This is what makes continuous looping *continuous*. ``reset()``
+        cannot be used for it: reset calls ``initialize()``, which rebuilds
+        every frame from scratch -- wasted work on each lap, and it also
+        clears ``is_playing``, so the loop would stop after one pass.
+        """
+        self.current_frame_index = 0
 
     def pause(self) -> None:
         self.is_playing = False
