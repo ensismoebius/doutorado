@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
-from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
+from efficient_nn_lab.backprop.demos.matrix_algebra import VALUE_REVEAL_FIELDS, MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
 
@@ -436,7 +436,7 @@ def test_matrix_demo_highlights_one_matrix_cell_per_term_of_the_dot_product():
     # cell and exactly one input cell lit, and they must be the pair whose
     # product the step is showing (row 0 of W1 against x, column by column).
     demo = MatrixAlgebraDemo()
-    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("Forward, ")]
+    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("H1: ") and "termo" in f.label]
     assert len(steps) == 2
     for column, frame in enumerate(steps):
         hl_w1 = np.asarray(frame.values["hl_w1"], dtype=float)
@@ -450,7 +450,7 @@ def test_matrix_demo_highlights_one_matrix_cell_per_term_of_the_dot_product():
 def test_matrix_demo_partial_sum_matches_the_terms_revealed_so_far():
     demo = MatrixAlgebraDemo()
     m = _manual_matrix_forward_backward(demo)
-    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("Forward, ")]
+    steps = [f for f in demo.checkpoint_frames() if f.label.startswith("H1: ") and "termo" in f.label]
     first_term = m["w1"][0, 0] * m["x"][0]
     assert float(steps[0].values["accum"]) == pytest.approx(first_term)
     assert float(steps[1].values["accum"]) == pytest.approx(m["z1"][0])
@@ -459,7 +459,7 @@ def test_matrix_demo_partial_sum_matches_the_terms_revealed_so_far():
 def test_matrix_demo_every_focus_is_one_the_renderer_handles():
     # focus routes the right-hand board; an unknown value raises in the
     # renderer (no silent fallback), so it must never be produced.
-    handled = {"l1", "l2", "loss", "gw2", "w2t", "gz1", "gw1", "chain"}
+    handled = {"l1", "l2", "loss", "gz2", "gw2", "w2t", "gz1", "gw1", "chain"}
     demo = MatrixAlgebraDemo()
     for frame in demo._frames:
         assert frame.values["focus"] in handled, frame.label
@@ -487,3 +487,87 @@ def test_matrix_demo_equations_all_typeset():
     parser = mathtext.MathTextParser("agg")
     for equation in {f.equation for f in demo.checkpoint_frames() if f.equation}:
         parser.parse(f"${latexize(equation)}$")
+
+
+def _newly_revealed(before, after):
+    """Count scalar values that crossed from hidden to shown between frames."""
+    total = 0
+    for field in VALUE_REVEAL_FIELDS:
+        a = np.atleast_1d(np.asarray(before[field], dtype=float)).ravel()
+        b = np.atleast_1d(np.asarray(after[field], dtype=float)).ravel()
+        total += int(np.count_nonzero((a < 0.5) & (b >= 0.5)))
+    return total
+
+
+def test_matrix_demo_reveals_at_most_one_new_value_per_step():
+    """The "do not skip any step" rule, enforced.
+
+    Grouping "both neurons of the layer" or "the whole gradient matrix" into
+    one step is the tempting shortcut, and it is exactly what makes a viewer
+    lose the thread: two numbers appear and only one of them was explained.
+    Every checkpoint here may light up at most ONE new scalar.
+    """
+    demo = MatrixAlgebraDemo()
+    checkpoints = demo.checkpoint_frames()
+    for before, after in zip(checkpoints, checkpoints[1:]):
+        count = _newly_revealed(before.values, after.values)
+        assert count <= 1, f"{after.label!r} reveals {count} new values at once"
+
+
+def test_matrix_demo_reveals_every_value_exactly_once():
+    # the flip side: nothing may be left unexplained either -- every scalar
+    # the demo shows must have had its own step somewhere.
+    demo = MatrixAlgebraDemo()
+    checkpoints = demo.checkpoint_frames()
+    revealed = sum(
+        _newly_revealed(a.values, b.values) for a, b in zip(checkpoints, checkpoints[1:])
+    )
+    expected = sum(
+        np.atleast_1d(np.asarray(checkpoints[-1].values[f], dtype=float)).size
+        for f in VALUE_REVEAL_FIELDS
+    )
+    assert revealed == expected, f"{expected - revealed} value(s) never got a step of their own"
+    for field in VALUE_REVEAL_FIELDS:
+        final = np.atleast_1d(np.asarray(checkpoints[-1].values[field], dtype=float))
+        assert np.all(final >= 0.5), f"{field} is never fully revealed"
+
+
+def test_matrix_demo_every_neuron_has_its_own_activation_step():
+    # the missing-step complaint that prompted this granularity: H1, H2 and O
+    # each need a step where that neuron's y = sigma(z) is what appears.
+    demo = MatrixAlgebraDemo()
+    checkpoints = demo.checkpoint_frames()
+    activation_steps = {}
+    for before, after in zip(checkpoints, checkpoints[1:]):
+        for field, index, neuron in (("rv_y1", 0, "H1"), ("rv_y1", 1, "H2"), ("rv_y2", None, "O")):
+            a = np.atleast_1d(np.asarray(before.values[field], dtype=float))
+            b = np.atleast_1d(np.asarray(after.values[field], dtype=float))
+            k = 0 if index is None else index
+            if a[k] < 0.5 <= b[k]:
+                activation_steps[neuron] = after.label
+    assert set(activation_steps) == {"H1", "H2", "O"}, activation_steps
+    for neuron, label in activation_steps.items():
+        assert "sigmoide" in label.lower(), f"{neuron}'s activation step is labelled {label!r}"
+
+
+def test_matrix_demo_z_is_revealed_before_its_activation():
+    # y = sigma(z) cannot be shown before z exists, or the activation step
+    # would be explaining a number the viewer has not seen yet.
+    demo = MatrixAlgebraDemo()
+    for frame in demo.checkpoint_frames():
+        rv_z1 = np.asarray(frame.values["rv_z1"], dtype=float)
+        rv_y1 = np.asarray(frame.values["rv_y1"], dtype=float)
+        assert np.all(rv_y1 <= rv_z1 + 1e-9), frame.label
+        assert float(frame.values["rv_y2"]) <= float(frame.values["rv_z2"]) + 1e-9, frame.label
+
+
+def test_matrix_demo_local_derivative_is_revealed_before_it_is_used():
+    # sigma'(z) gets its own step, ahead of the dL/dz step that multiplies by
+    # it -- it is a quantity in its own right, not something that appears
+    # already folded into a product.
+    demo = MatrixAlgebraDemo()
+    for frame in demo.checkpoint_frames():
+        assert float(frame.values["rv_gz2"]) <= float(frame.values["rv_sp2"]) + 1e-9, frame.label
+        rv_sp1 = np.asarray(frame.values["rv_sp1"], dtype=float)
+        rv_gz1 = np.asarray(frame.values["rv_gz1"], dtype=float)
+        assert np.all(rv_gz1 <= rv_sp1 + 1e-9), frame.label

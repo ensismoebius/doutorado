@@ -11,7 +11,8 @@ linear do outro.
 Esta demo põe os dois lados na mesma tela e os liga elemento por elemento:
 
 * o **grafo** fica à esquerda (2 entradas -> 2 neurônios ocultos -> 1
-  saída, tudo sigmoide, sem viés);
+  saída, tudo sigmoide, sem viés), com o valor de cada neurônio dentro do
+  próprio nó;
 * o **quadro de álgebra** fica à direita, com as mesmas quantidades como
   vetores e matrizes de verdade, com números dentro;
 * destacar uma **célula** da matriz destaca, no mesmo instante, a **seta**
@@ -19,11 +20,15 @@ Esta demo põe os dois lados na mesma tela e os liga elemento por elemento:
   `j` para o neurônio `i`. Esse é o mapeamento que a demo existe para
   tornar óbvio (linha = neurônio de destino, coluna = de onde vem).
 
-A caminhada é passo a passo, no nível do termo individual: o primeiro
-produto escalar é montado um termo por vez (0,80·0,90, depois
--0,40·0,40), com a soma parcial contando na tela, antes de a célula de
-`z` finalmente aparecer. Só depois de a mecânica estar visível é que os
-passos seguintes tratam uma linha inteira de uma vez.
+**Um passo = uma operação escalar, sem exceção.** Nenhum passo revela dois
+números de uma vez: cada termo de cada produto escalar, cada soma, cada
+sigmoide, cada derivada local e cada célula de cada gradiente têm o seu
+próprio passo. Em particular a **ativação de cada neurônio é um passo
+próprio** (H1, H2 e O têm cada um o seu σ), e no backward a derivada local
+σ'(z) é revelada antes de ser usada, em vez de aparecer já multiplicada.
+Isso é verificado por teste (`test_matrix_demo_reveals_at_most_one_new_value_per_step`),
+porque a tentação de agrupar "os dois neurônios da camada" num passo só é
+exatamente o que faz o aluno perder a conta.
 
 Fecha com a regra da cadeia aplicada a *esta* rede: o gradiente de um peso
 concreto (`w11`, a seta x1 -> H1) montado fator por fator, com o produto
@@ -31,9 +36,9 @@ parcial atualizando a cada passo, terminando na conferência contra o valor
 que o backward matricial já havia calculado -- os dois caminhos dão o mesmo
 número, o que é exatamente a afirmação que a regra da cadeia faz.
 
-Rede pequena de propósito: com 2x2 e 1x2 cabe cada número na tela, e cada
-produto escalar tem só dois termos, então o passo a passo é curto o
-bastante para ser assistido inteiro.
+Rede pequena de propósito: com 2x2 e 1x2 cabe cada número na tela em corpo
+grande, e cada produto escalar tem só dois termos, então o passo a passo
+completo é curto o bastante para ser assistido inteiro.
 
 Pesos fixos e determinísticos (ESPECIFICACAO_DLVL.md #35): nada de
 inicialização aleatória.
@@ -62,12 +67,22 @@ _ZERO_22 = np.zeros((2, 2))
 _ZERO_12 = np.zeros((1, 2))
 _N_CHAIN_FACTORS = 5
 
+#: Every field that reveals ONE number on screen. The "one operation per
+#: step" rule is stated in terms of this list, and enforced over it by
+#: tests/test_backprop.py -- keep the two in sync when adding a quantity.
+VALUE_REVEAL_FIELDS = (
+    "rv_x", "rv_w1", "rv_w2", "rv_z1", "rv_y1", "rv_z2", "rv_y2",
+    "rv_target", "rv_diff", "rv_loss",
+    "rv_gy2", "rv_sp2", "rv_gz2", "rv_gw2", "rv_gy1", "rv_sp1", "rv_gz1", "rv_gw1",
+    "rv_chain",
+)
+
 
 def _copy_state(state: dict[str, object]) -> dict[str, object]:
     """Snapshot of a frame's state, with arrays copied.
 
     The builder below mutates one running ``state`` dict instead of
-    respelling forty fields per checkpoint. Every Frame therefore needs its
+    respelling fifty fields per checkpoint. Every Frame therefore needs its
     *own* copy of the mutable arrays, or all frames would end up sharing
     (and showing) the final reveal state.
     """
@@ -80,10 +95,10 @@ class MatrixAlgebraDemo(DemoModule):
     description = (
         "A mesma rede, dos dois jeitos ao mesmo tempo: grafo à esquerda, vetores e "
         "matrizes à direita. Destacar uma célula de W acende a seta correspondente do "
-        "grafo -- W[i,j] é a seta da entrada j para o neurônio i. O forward é W · entrada "
-        "(montado termo por termo, com a soma parcial contando na tela), o backward é a "
-        "mesma matriz transposta, e a regra da cadeia fecha conferindo o gradiente de um "
-        "peso concreto contra o que o backward matricial já calculou."
+        "grafo -- W[i,j] é a seta da entrada j para o neurônio i. Um passo por operação "
+        "escalar, sem agrupar nada: cada termo, cada soma, cada sigmoide, cada derivada "
+        "local e cada célula de gradiente aparecem no seu próprio passo. Fecha com a "
+        "regra da cadeia conferindo o gradiente de um peso contra o backward matricial."
     )
 
     def __init__(self) -> None:
@@ -131,6 +146,7 @@ class MatrixAlgebraDemo(DemoModule):
         gy2, gz2, gw2 = c["gy2"], c["gz2"], c["gw2"]
         gy1, gz1, gw1 = c["gy1"], c["gz1"], c["gw1"]
         target, loss = c["target"], c["loss"]
+        diff = y2 - target
 
         # The five factors of dL/dw11 walked one at a time in the closing
         # phase. H1 feeds only O (single output neuron), so this weight has
@@ -145,20 +161,24 @@ class MatrixAlgebraDemo(DemoModule):
             "kind": "matrix_algebra",
             # -- the numbers themselves (constant across every frame) -----
             "x": x, "w1": w1, "w2": w2,
-            "z1": z1, "y1": y1, "z2": z2, "y2": y2, "target": target, "loss": loss,
+            "z1": z1, "y1": y1, "z2": z2, "y2": y2,
+            "target": target, "diff": diff, "loss": loss,
             "sp1": sp1, "sp2": sp2,
             "gy2": gy2, "gz2": gz2, "gw2": gw2, "gy1": gy1, "gz1": gz1, "gw1": gw1,
             "chain_names": chain_names, "chain_values": chain_values,
             # -- reveals: 0 = not computed yet, 1 = on screen. Per-cell, so
-            # a matrix can fill in one entry at a time (numpy arrays are
+            # a matrix fills in one entry at a time (numpy arrays are
             # interpolated element-wise by core/math_utils.tween_values).
             "rv_graph": 0.0,
             "rv_x": _ZERO_2.copy(), "rv_w1": _ZERO_22.copy(), "rv_w2": _ZERO_12.copy(),
             "rv_z1": _ZERO_2.copy(), "rv_y1": _ZERO_2.copy(),
-            "rv_z2": 0.0, "rv_y2": 0.0, "rv_target": 0.0, "rv_loss": 0.0,
-            "rv_gy2": 0.0, "rv_gz2": 0.0, "rv_gw2": _ZERO_12.copy(),
-            "rv_gy1": _ZERO_2.copy(), "rv_gz1": _ZERO_2.copy(), "rv_gw1": _ZERO_22.copy(),
+            "rv_z2": 0.0, "rv_y2": 0.0,
+            "rv_target": 0.0, "rv_diff": 0.0, "rv_loss": 0.0,
+            "rv_gy2": 0.0, "rv_sp2": 0.0, "rv_gz2": 0.0, "rv_gw2": _ZERO_12.copy(),
+            "rv_gy1": _ZERO_2.copy(), "rv_sp1": _ZERO_2.copy(), "rv_gz1": _ZERO_2.copy(),
+            "rv_gw1": _ZERO_22.copy(),
             "rv_chain": np.zeros(_N_CHAIN_FACTORS),
+            "rv_check": 0.0,
             # -- highlights: the mapping made mechanical. hl_w1[i, j] drives
             # BOTH the glow on that matrix cell AND the glow on the graph
             # edge x_j -> H_i, because they are the same weight.
@@ -171,7 +191,7 @@ class MatrixAlgebraDemo(DemoModule):
             # partial sum (a real number, so it visibly counts as it moves)
             "work_text": "",
             "accum": 0.0, "rv_accum": 0.0,
-            "chain_product": 0.0, "rv_chain_product": 0.0, "rv_check": 0.0,
+            "chain_product": 0.0, "rv_chain_product": 0.0,
         }
 
         frames: list[Frame] = []
@@ -186,242 +206,295 @@ class MatrixAlgebraDemo(DemoModule):
                 state[key] = value
             frames.append(Frame(label, _copy_state(state), explanation, equation))
 
-        def num(value: float, decimals: int = 2) -> str:
-            return f"{value:+.{decimals}f}"
+        def n2(value: float) -> str:
+            return f"{float(value):+.2f}"
 
-        # ============ fase 1: o mapeamento grafo <-> álgebra ==============
+        def n4(value: float) -> str:
+            return f"{float(value):+.4f}"
+
+        cell = lambda *pairs: np.array(pairs, dtype=float)  # noqa: E731 - tiny local alias
+
+        # ================ fase 1: o mapeamento grafo <-> álgebra ==========
         snap(
             "A rede",
             "Duas entradas, dois neurônios ocultos (H1, H2), uma saída (O), tudo sigmoide e "
-            "sem viés. À direita, o mesmo desenho esperando em forma de matriz: a caixa de W1 "
-            "tem uma linha por neurônio de destino e uma coluna por entrada. Ainda vazia -- "
-            "vamos preenchê-la ligando cada célula à sua seta.",
+            "sem viés. À direita, o mesmo desenho esperando em forma de matriz: W1 tem uma "
+            "linha por neurônio de destino e uma coluna por entrada. Ainda vazia -- cada "
+            "célula vai entrar ligada à sua seta.",
             equation="y = σ(W · entrada)",
             rv_graph=1.0,
-            work_text="A rede tem 6 pesos: 4 da entrada para a camada oculta, 2 da oculta para a saída.\nCada peso é uma seta no grafo E uma célula numa matriz. São a mesma coisa.",
+            work_text="6 pesos: 4 da entrada para a camada oculta, 2 da oculta para a saída.\nCada peso é uma seta no grafo E uma célula numa matriz. São a mesma coisa.",
         )
         snap(
-            "As entradas viram um vetor",
-            f"x1 = {x[0]:.2f} e x2 = {x[1]:.2f} deixam de ser dois nós soltos e passam a ser um "
-            "vetor coluna: um valor por linha, na mesma ordem dos nós de entrada. É só uma "
-            "mudança de notação -- os números são idênticos.",
+            "x1 vira a primeira célula",
+            f"O nó de entrada x1 = {x[0]:.2f} passa a ser a primeira linha de um vetor coluna. "
+            "Só notação: o número é o mesmo, o lugar é que virou uma posição fixa.",
             equation="x = [x_1, x_2]",
-            rv_x=np.ones(2), hl_x=np.ones(2),
-            work_text=f"x = coluna [{x[0]:+.2f}; {x[1]:+.2f}]  <->  os dois nós de entrada do grafo,\nna mesma ordem de cima para baixo.",
+            rv_x=cell(1.0, 0.0), hl_x=cell(1.0, 0.0),
+            work_text=f"x1 = {n2(x[0])}  ->  célula 1 do vetor x",
         )
         snap(
-            "Linha 1 de W1 = as setas que chegam em H1",
-            "As duas setas que entram em H1 acabaram de acender no grafo, e com elas a linha 1 "
-            f"da matriz: w11 = {w1[0, 0]:.2f} (de x1) e w12 = {w1[0, 1]:.2f} (de x2). Uma linha "
-            "da matriz é o conjunto de pesos que chegam em UM neurônio.",
-            equation="\\text{linha 1 de W1} = [w_11, w_12]",
-            rv_w1=np.array([[1.0, 1.0], [0.0, 0.0]]),
-            hl_w1=np.array([[1.0, 1.0], [0.0, 0.0]]), hl_x=_ZERO_2.copy(),
-            work_text=f"w11 = {num(w1[0, 0])}  = seta x1 -> H1\nw12 = {num(w1[0, 1])}  = seta x2 -> H1\nlinha 1 da matriz = tudo que chega em H1.",
+            "x2 vira a segunda célula",
+            f"E x2 = {x[1]:.2f} é a segunda. O vetor de entrada está completo: uma coluna com "
+            "um valor por nó de entrada, de cima para baixo na mesma ordem do grafo.",
+            equation="x = [x_1, x_2]",
+            rv_x=np.ones(2), hl_x=cell(0.0, 1.0),
+            work_text=f"x2 = {n2(x[1])}  ->  célula 2 do vetor x\nx = coluna [{n2(x[0])}; {n2(x[1])}]",
         )
-        snap(
-            "Linha 2 = as setas que chegam em H2",
-            "Mesma regra para o segundo neurônio: as setas que entram em H2 são a linha 2. "
-            "Agora W1 está completa e é uma matriz 2x2 -- 2 neurônios de destino (linhas) por 2 "
-            "entradas (colunas).",
-            equation="W1 = [[w_11, w_12], [w_21, w_22]]",
-            rv_w1=np.ones((2, 2)),
-            hl_w1=np.array([[0.0, 0.0], [1.0, 1.0]]),
-            work_text=f"w21 = {num(w1[1, 0])}  = seta x1 -> H2\nw22 = {num(w1[1, 1])}  = seta x2 -> H2\nW1 é 2x2: linha = neurônio de destino, coluna = de onde vem.",
+        for (i, j), name, src, dest in (
+            ((0, 0), "w11", "x1", "H1"), ((0, 1), "w12", "x2", "H1"),
+            ((1, 0), "w21", "x1", "H2"), ((1, 1), "w22", "x2", "H2"),
+        ):
+            reveal = np.asarray(state["rv_w1"]).copy()
+            reveal[i, j] = 1.0
+            spot = _ZERO_22.copy()
+            spot[i, j] = 1.0
+            snap(
+                f"{name}: a seta {src} → {dest}",
+                f"A seta {src} → {dest} acendeu no grafo, e com ela a célula da linha {i + 1} "
+                f"(o neurônio de destino, {dest}) e coluna {j + 1} (de onde vem, {src}). "
+                f"Vale {w1[i, j]:.2f}. Linha = destino, coluna = origem -- essa é a regra "
+                "inteira.",
+                equation=f"W1[{dest}, {src}] = {name}",
+                rv_w1=reveal, hl_w1=spot, hl_x=_ZERO_2.copy(),
+                work_text=f"{name} = {n2(w1[i, j])}   =   seta {src} -> {dest}\nlinha {i + 1} = {dest} (destino)   coluna {j + 1} = {src} (origem)",
+            )
+        for j, (name, src) in enumerate((("w_H1O", "H1"), ("w_H2O", "H2"))):
+            reveal = np.asarray(state["rv_w2"]).copy()
+            reveal[0, j] = 1.0
+            spot = _ZERO_12.copy()
+            spot[0, j] = 1.0
+            snap(
+                f"{name}: a seta {src} → O",
+                f"A camada 2 tem um único neurônio de destino, então W2 tem uma linha só. "
+                f"Esta célula é a seta {src} → O e vale {w2[0, j]:.2f}. Uma matriz 1x2 parece "
+                "exagero para dois números, mas a forma é ditada pela forma da rede.",
+                equation="W2 = [[w_H1O, w_H2O]]",
+                rv_w2=reveal, hl_w2=spot, hl_w1=_ZERO_22.copy(),
+                work_text=f"{name} = {n2(w2[0, j])}   =   seta {src} -> O\nW2 é 1x2: 1 linha (a saída) por 2 colunas (os ocultos).",
+            )
+
+        # ================ fase 2: forward, uma operação por passo =========
+        def forward_neuron_steps(
+            neuron: str, row: int, weights, inputs, input_names: tuple[str, str],
+            z_value: float, y_value: float, focus: str, reveal_z, reveal_y,
+            hl_input_field: str,
+        ) -> None:
+            """Four steps for one neuron: term, term, sum, activation."""
+            running = 0.0
+            term_lines = []
+            for k in range(2):
+                term = float(weights[k] * inputs[k])
+                running += term
+                spot_w = _ZERO_22.copy() if focus == "l1" else _ZERO_12.copy()
+                spot_w[row if focus == "l1" else 0, k] = 1.0
+                spot_in = _ZERO_2.copy()
+                spot_in[k] = 1.0
+                term_lines.append(
+                    f"     {'=' if k == 0 else '+'} ({n2(weights[k])})·({n2(inputs[k])}) = {n2(term)}"
+                )
+                ordinal = "primeiro" if k == 0 else "segundo"
+                snap(
+                    f"{neuron}: {ordinal} termo",
+                    f"{'Começa' if k == 0 else 'Fecha'} o produto escalar da linha de "
+                    f"{neuron} com o vetor de entrada: {weights[k]:.2f}·{inputs[k]:.2f} = "
+                    f"{term:+.2f}. A soma parcial embaixo "
+                    f"{'aparece' if k == 0 else f'anda para {running:+.2f}'}; a célula de z "
+                    "ainda não, porque o produto escalar não acabou.",
+                    equation=f"z_{neuron} = w·{input_names[0]} + w·{input_names[1]}",
+                    focus=focus,
+                    **{
+                        "hl_w1" if focus == "l1" else "hl_w2": spot_w,
+                        hl_input_field: spot_in,
+                    },
+                    **({"hl_w2": _ZERO_12.copy()} if focus == "l1" else {"hl_w1": _ZERO_22.copy()}),
+                    accum=running, rv_accum=1.0,
+                    work_text=f"z_{neuron} = w·{input_names[0]} + w·{input_names[1]}\n" + "\n".join(term_lines),
+                )
+            snap(
+                f"{neuron}: z pronto",
+                f"O produto escalar fechou: z_{neuron} = {z_value:+.3f}. Só agora a célula de z "
+                f"existe. Uma linha da matriz produziu exatamente uma célula do resultado -- é "
+                "por isso que as formas batem.",
+                equation="z = W · entrada",
+                **{("rv_z1" if focus == "l1" else "rv_z2"): reveal_z},
+                accum=z_value,
+                work_text=f"z_{neuron} = {n4(z_value)}\n(linha de {neuron} vezes o vetor de entrada)",
+            )
+            snap(
+                f"{neuron}: a sigmoide",
+                f"Agora a ativação, que é um passo à parte: z_{neuron} = {z_value:+.3f} entra na "
+                f"sigmoide e sai y_{neuron} = {y_value:.4f}. Diferente da multiplicação, σ não "
+                "mistura células nenhuma -- age em cada posição do vetor separadamente.",
+                equation="y = σ(z)",
+                **{("rv_y1" if focus == "l1" else "rv_y2"): reveal_y},
+                hl_w1=_ZERO_22.copy(), hl_w2=_ZERO_12.copy(), hl_x=_ZERO_2.copy(),
+                hl_y1=(cell(1.0, 0.0) if (focus == "l1" and row == 0) else
+                       cell(0.0, 1.0) if focus == "l1" else _ZERO_2.copy()),
+                hl_out=1.0 if focus == "l2" else 0.0,
+                rv_accum=0.0,
+                work_text=f"y_{neuron} = σ({n4(z_value)}) = {y_value:.4f}\nσ age célula por célula -- não é multiplicação de matriz.",
+            )
+
+        forward_neuron_steps(
+            "H1", 0, w1[0], x, ("x1", "x2"), float(z1[0]), float(y1[0]),
+            "l1", cell(1.0, 0.0), cell(1.0, 0.0), "hl_x",
         )
-        snap(
-            "A camada 2 é uma matriz de uma linha",
-            "Só existe um neurônio de saída, então W2 tem uma linha só -- e duas colunas, uma "
-            "por neurônio oculto. Uma \"matriz 1x2\" parece exagero para dois números, mas é a "
-            "mesma regra: a forma da matriz é ditada pela forma da rede.",
-            equation="W2 = [[w_H1O, w_H2O]]",
-            rv_w2=np.ones((1, 2)),
-            hl_w1=_ZERO_22.copy(), hl_w2=np.ones((1, 2)),
-            work_text=f"W2 = [w_H1O  w_H2O] = [{num(w2[0, 0])}  {num(w2[0, 1])}]   (1 linha = 1 saída,\n2 colunas = os dois neurônios ocultos que o alimentam)",
+        forward_neuron_steps(
+            "H2", 1, w1[1], x, ("x1", "x2"), float(z1[1]), float(y1[1]),
+            "l1", np.ones(2), np.ones(2), "hl_x",
+        )
+        state["board_title"] = "Camada 2:  z = W2 · y"
+        forward_neuron_steps(
+            "O", 0, w2[0], y1, ("y_H1", "y_H2"), z2, y2,
+            "l2", 1.0, 1.0, "hl_y1",
         )
 
-        # ============ fase 2: forward, termo por termo ====================
-        term1 = float(w1[0, 0] * x[0])
-        term2 = float(w1[0, 1] * x[1])
+        # ================ fase 3: o erro ==================================
         snap(
-            "Forward, primeiro termo",
-            "Começa o produto escalar da linha 1 com o vetor de entrada. Primeiro termo: a "
-            f"célula w11 vezes a entrada x1 -- {w1[0, 0]:.2f}·{x[0]:.2f} = {term1:+.2f}. A soma "
-            "parcial aparece embaixo; a célula de z ainda não, porque o produto escalar não "
-            "terminou.",
-            equation="z_H1 = w_11·x_1 + w_12·x_2",
-            focus="l1", board_title="Camada 1:  z = W1 · x",
-            hl_w1=np.array([[1.0, 0.0], [0.0, 0.0]]), hl_w2=_ZERO_12.copy(),
-            hl_x=np.array([1.0, 0.0]),
-            accum=term1, rv_accum=1.0,
-            work_text=(
-                "z_H1 = w11·x1 + w12·x2\n"
-                f"     = ({num(w1[0, 0])})·({num(x[0])})  = {num(term1)}"
-            ),
-        )
-        snap(
-            "Forward, segundo termo",
-            f"Segundo (e último) termo da linha: {w1[0, 1]:.2f}·{x[1]:.2f} = {term2:+.2f}. A soma "
-            f"parcial anda de {term1:+.2f} para {z1[0]:+.2f} -- é ela que está terminando de virar "
-            "o z de H1. Repare que a linha da matriz e o vetor de entrada acendem em par: linha "
-            "vezes coluna.",
-            equation="z_H1 = w_11·x_1 + w_12·x_2",
-            hl_w1=np.array([[0.0, 1.0], [0.0, 0.0]]), hl_x=np.array([0.0, 1.0]),
-            accum=float(z1[0]),
-            work_text=(
-                "z_H1 = w11·x1 + w12·x2\n"
-                f"     = ({num(w1[0, 0])})·({num(x[0])})  = {num(term1)}\n"
-                f"     + ({num(w1[0, 1])})·({num(x[1])})  = {num(term2)}\n"
-                "       ----------------------\n"
-                f"     = {num(float(z1[0]))}"
-            ),
-        )
-        snap(
-            "z de H1 pronto",
-            f"O produto escalar fechou: z_H1 = {z1[0]:+.2f}. Só agora a primeira célula do vetor "
-            "z existe. Uma linha da matriz produziu exatamente uma célula do resultado -- é essa "
-            "a correspondência que faz o formato bater (2 linhas entram, 2 valores saem).",
-            equation="z = W1 · x",
-            rv_z1=np.array([1.0, 0.0]),
-            hl_w1=np.array([[1.0, 1.0], [0.0, 0.0]]), hl_x=np.ones(2),
-            work_text=f"z_H1 = {num(float(z1[0]))}   <- linha 1 de W1 vezes o vetor x\n\nAinda falta z_H2: mesma conta, linha 2.",
-        )
-        snap(
-            "A sigmoide age célula por célula",
-            f"z_H1 = {z1[0]:+.2f} atravessa a sigmoide e vira y_H1 = {y1[0]:.2f}. Diferente da "
-            "multiplicação, a ativação não mistura células nenhuma: ela é aplicada em cada "
-            "posição do vetor separadamente (elemento a elemento).",
-            equation="y = σ(z)",
-            rv_y1=np.array([1.0, 0.0]),
-            hl_w1=_ZERO_22.copy(), hl_x=_ZERO_2.copy(), hl_y1=np.array([1.0, 0.0]),
-            rv_accum=0.0,
-            work_text=f"y_H1 = σ({num(float(z1[0]))}) = {y1[0]:.4f}\n\nσ é aplicada célula por célula -- não é multiplicação de matriz.",
-        )
-        snap(
-            "H2: mesma conta, outra linha",
-            "Agora a linha 2, de uma vez -- a mecânica termo a termo já está vista. Os pesos "
-            f"mudam ({w1[1, 0]:.2f} e {w1[1, 1]:.2f}), o vetor de entrada é o mesmo, e o "
-            f"resultado cai na segunda célula: z_H2 = {z1[1]:+.2f}, y_H2 = {y1[1]:.2f}.",
-            equation="z_H2 = w_21·x_1 + w_22·x_2",
-            rv_z1=np.ones(2), rv_y1=np.ones(2),
-            hl_w1=np.array([[0.0, 0.0], [1.0, 1.0]]), hl_x=np.ones(2),
-            hl_y1=np.array([0.0, 1.0]),
-            accum=float(z1[1]), rv_accum=1.0,
-            work_text=f"z_H2 = {num(w1[1, 0])} · {num(x[0])} + {num(w1[1, 1])} · {num(x[1])} = {num(float(z1[1]))}\ny_H2 = σ({num(float(z1[1]))}) = {y1[1]:.4f}\n\nA camada 1 inteira: z = W1 · x  (uma multiplicação, dois neurônios).",
-        )
-        snap(
-            "Camada 2: a mesma operação, entrada diferente",
-            "A camada de saída não vê x nenhum -- vê o vetor y que a camada 1 produziu. Fora "
-            "isso é a mesma multiplicação: uma linha de pesos vezes um vetor de entrada, "
-            f"resultando em um escalar z_O = {z2:+.4f}. Empilhar camadas é encadear matrizes.",
-            equation="z_O = w_H1O·y_H1 + w_H2O·y_H2",
-            focus="l2", board_title="Camada 2:  z = W2 · y",
-            hl_w1=_ZERO_22.copy(), hl_x=_ZERO_2.copy(),
-            hl_w2=np.ones((1, 2)), hl_y1=np.ones(2),
-            rv_z2=1.0,
-            accum=z2,
-            work_text=f"z_O = {num(w2[0, 0])} · {y1[0]:.4f} + {num(w2[0, 1])} · {y1[1]:.4f}\n    = {num(z2, 4)}\n\nA saída da camada 1 é a entrada da camada 2.",
-        )
-        snap(
-            "A saída da rede",
-            f"Última sigmoide: y_O = σ({z2:+.4f}) = {y2:.4f}. A rede inteira, do começo ao fim, "
-            "foram duas multiplicações matriz-vetor e duas ativações elemento a elemento. Nada "
-            "além disso.",
-            equation="y_O = σ(z_O)",
-            rv_y2=1.0, hl_out=1.0, hl_w2=_ZERO_12.copy(), hl_y1=_ZERO_2.copy(),
-            rv_accum=0.0,
-            work_text=f"y_O = σ({num(z2, 4)}) = {y2:.4f}\n\nRede inteira = W1 · x -> σ -> W2 · y -> σ.  Duas matrizes, duas sigmoides.",
-        )
-        snap(
-            "O erro também é só uma conta",
-            f"O alvo é {target:.2f} e a rede respondeu {y2:.4f}. A função de erro comprime essa "
-            f"diferença num único número: L = ½(y_O - alvo)² = {loss:.4f}. É esse escalar que o "
-            "backward vai derivar -- e derivar um escalar em relação a matrizes é o que gera os "
-            "gradientes.",
-            equation="L = 1/2 (y_O - alvo)^2",
+            "O alvo",
+            f"A rede respondeu {y2:.4f}. O alvo é {target:.2f} -- um número que vem dos dados, "
+            "não da rede. Sozinho ele ainda não é erro nenhum; é só a referência.",
+            equation="alvo",
             focus="loss", board_title="Erro:  L = ½(y_O - alvo)²",
-            rv_target=1.0, rv_loss=1.0,
-            work_text=f"L = ½ · ({y2:.4f} - {target:.2f})²\n  = ½ · ({y2 - target:+.4f})²\n  = {loss:.4f}",
+            rv_target=1.0, hl_out=0.0, hl_y1=_ZERO_2.copy(),
+            work_text=f"y_O  = {y2:.4f}   (o que a rede deu)\nalvo = {target:.2f}     (o que se queria)",
+        )
+        snap(
+            "A diferença",
+            f"A diferença y_O - alvo = {diff:+.4f} é negativa: a rede está ABAIXO do alvo. O "
+            "sinal importa, porque é ele que vai dizer para que lado os pesos devem andar.",
+            equation="y_O - alvo",
+            rv_diff=1.0,
+            work_text=f"y_O - alvo = {y2:.4f} - {target:.2f} = {diff:+.4f}\nnegativo => a saída precisa CRESCER",
+        )
+        snap(
+            "A perda",
+            f"Elevar ao quadrado e dividir por dois transforma a diferença num único número "
+            f"positivo: L = {loss:.4f}. É esse escalar que o backward vai derivar em relação a "
+            "cada peso -- e derivar um escalar em relação a matrizes é o que produz gradientes "
+            "com a forma das matrizes.",
+            equation="L = 1/2 (y_O - alvo)^2",
+            rv_loss=1.0,
+            work_text=f"L = ½ · ({diff:+.4f})²\n  = {loss:.4f}",
         )
 
-        # ============ fase 3: backward, matriz por matriz =================
+        # ================ fase 4: backward, uma operação por passo ========
         snap(
-            "Backward começa no erro",
+            "dL/dy_O",
             "O backward pergunta: se y_O subisse um pouquinho, L subiria ou desceria? Para o "
-            f"erro quadrático a resposta é direta: dL/dy_O = y_O - alvo = {gy2:+.4f}. Negativo "
-            "porque a rede está ABAIXO do alvo -- aumentar y_O reduziria o erro.",
+            f"erro quadrático a derivada é a própria diferença: dL/dy_O = {gy2:+.4f}.",
             equation="dL/dy = y_O - alvo",
+            focus="gz2", board_title="Saída:  dL/dz_O = dL/dy_O · σ'(z_O)",
             rv_gy2=1.0,
-            work_text=f"dL/dy_O = {y2:.4f} - {target:.2f} = {gy2:+.4f}\n\nSinal negativo = a saída precisa CRESCER para o erro cair.",
+            work_text=f"dL/dy_O = y_O - alvo = {gy2:+.4f}",
         )
         snap(
-            "Atravessar a sigmoide da saída",
-            "Antes de chegar aos pesos, o gradiente precisa passar pela ativação. Isso é uma "
-            f"multiplicação pela derivada local: σ'(z_O) = {sp2:.4f}, então "
-            f"dL/dz_O = {gy2:+.4f}·{sp2:.4f} = {gz2:+.4f}. Elemento a elemento, igual no forward.",
+            "σ'(z_O): a derivada da ativação",
+            "Antes de tocar em peso nenhum, o gradiente tem de atravessar a sigmoide da saída "
+            f"-- e para isso precisa da derivada local dela: σ'(z_O) = y_O·(1-y_O) = {sp2:.4f}. "
+            "Este passo só calcula essa derivada; ainda não multiplicou nada.",
+            equation="σ'(z) = y·(1 - y)",
+            rv_sp2=1.0, hl_out=1.0,
+            work_text=f"σ'(z_O) = y_O·(1 - y_O)\n        = {y2:.4f} · {1 - y2:.4f}\n        = {sp2:.4f}",
+        )
+        snap(
+            "dL/dz_O",
+            f"Agora sim a travessia: {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}. Este é o gradiente do "
+            "lado de dentro da ativação, o ponto de partida para todos os pesos da camada 2.",
             equation="dL/dz = dL/dy · σ'(z_O)",
-            rv_gz2=1.0, hl_out=1.0,
-            work_text=f"σ'(z_O) = y_O·(1-y_O) = {y2:.4f}·{1 - y2:.4f} = {sp2:.4f}\ndL/dz_O = {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}",
+            rv_gz2=1.0, hl_out=0.0,
+            work_text=f"dL/dz_O = {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}",
         )
-        snap(
-            "Gradiente dos pesos da camada 2",
-            "Cada peso de W2 tem um gradiente próprio, e a regra é a mesma para todos: o "
-            "gradiente que chegou no neurônio de destino vezes o valor que entrou por aquele "
-            "peso. Isso é um produto externo -- e sai com exatamente a forma de W2 (1x2), como "
-            "tem de ser para poder atualizar os pesos.",
-            equation="grad_W2 = dL/dz_O \\otimes y",
-            focus="gw2", board_title="Gradiente de W2:  dL/dz_O ⊗ y",
-            rv_gw2=np.ones((1, 2)), hl_y1=np.ones(2), hl_out=0.0,
-            work_text=f"grad_W2[O,H1] = {gz2:+.4f} · y_H1({y1[0]:.4f}) = {gw2[0, 0]:+.5f}\ngrad_W2[O,H2] = {gz2:+.4f} · y_H2({y1[1]:.4f}) = {gw2[0, 1]:+.5f}\n\nForma do gradiente = forma da matriz. Sempre.",
-        )
-        snap(
-            "Voltar pela matriz transposta",
-            "Para continuar descendo, o gradiente tem de atravessar W2 na direção contrária. No "
-            "forward, W2 levava 2 valores (ocultos) para 1 (saída); agora precisamos levar 1 "
-            "gradiente de volta para 2. A matriz que faz isso é a MESMA, transposta: o que era "
-            "linha vira coluna.",
-            equation="dL/dy = W2^T · dL/dz_O",
-            focus="w2t", board_title="Voltando:  dL/dy = W2ᵀ · dL/dz_O",
-            rv_gy1=np.ones(2), hl_w2=np.ones((1, 2)), hl_y1=_ZERO_2.copy(),
-            work_text=f"W2 é 1x2  ->  W2ᵀ é 2x1\ndL/dy_H1 = {num(w2[0, 0])} · {gz2:+.4f} = {gy1[0]:+.5f}\ndL/dy_H2 = {num(w2[0, 1])} · {gz2:+.4f} = {gy1[1]:+.5f}\n\nMesmos pesos do forward, direção oposta.",
-        )
-        snap(
-            "Atravessar as sigmoides da camada 1",
-            "Cada neurônio oculto tem a sua própria derivada local, então essa etapa é outra "
-            f"multiplicação elemento a elemento: σ'(z_H1) = {sp1[0]:.4f} e "
-            f"σ'(z_H2) = {sp1[1]:.4f}. Nenhuma mistura entre células -- H1 só multiplica pelo "
-            "seu, H2 pelo dele.",
-            equation="dL/dz = dL/dy \\odot σ'(z)",
-            focus="gz1", board_title="Camada 1:  dL/dz = dL/dy ⊙ σ'(z)",
-            rv_gz1=np.ones(2), hl_w2=_ZERO_12.copy(), hl_y1=np.ones(2),
-            work_text=f"dL/dz_H1 = {gy1[0]:+.5f} · {sp1[0]:.4f} = {gz1[0]:+.5f}\ndL/dz_H2 = {gy1[1]:+.5f} · {sp1[1]:.4f} = {gz1[1]:+.5f}",
-        )
-        snap(
-            "Gradiente dos pesos da camada 1",
-            "Mesma regra do outro produto externo, agora contra o vetor de entrada x -- e o "
-            "resultado tem a forma 2x2 de W1. Fim do backward: todos os 6 pesos da rede têm "
-            "gradiente, e cada um foi obtido com multiplicação de matrizes, não com uma fórmula "
-            "especial por peso.",
-            equation="grad_W1 = dL/dz \\otimes x",
-            focus="gw1", board_title="Gradiente de W1:  dL/dz ⊗ x",
-            rv_gw1=np.ones((2, 2)), hl_y1=_ZERO_2.copy(), hl_x=np.ones(2),
-            work_text=f"grad_W1[H1,x1] = {gz1[0]:+.5f} · {num(x[0])} = {gw1[0, 0]:+.5f}\ngrad_W1[H1,x2] = {gz1[0]:+.5f} · {num(x[1])} = {gw1[0, 1]:+.5f}\ngrad_W1[H2,x1] = {gz1[1]:+.5f} · {num(x[0])} = {gw1[1, 0]:+.5f}\ngrad_W1[H2,x2] = {gz1[1]:+.5f} · {num(x[1])} = {gw1[1, 1]:+.5f}",
-        )
+        for j, src in enumerate(("H1", "H2")):
+            reveal = np.asarray(state["rv_gw2"]).copy()
+            reveal[0, j] = 1.0
+            spot = _ZERO_2.copy()
+            spot[j] = 1.0
+            snap(
+                f"grad_W2[O,{src}]",
+                f"O gradiente de um peso é sempre o mesmo produto: o gradiente que chegou no "
+                f"neurônio de destino vezes o valor que entrou por aquele peso. Aqui, "
+                f"{gz2:+.4f} · y_{src}({y1[j]:.4f}) = {gw2[0, j]:+.5f}.",
+                equation="grad_W2 = dL/dz_O \\otimes y",
+                focus="gw2", board_title="Gradiente de W2:  dL/dz_O ⊗ y",
+                rv_gw2=reveal, hl_y1=spot,
+                work_text=f"grad_W2[O,{src}] = dL/dz_O · y_{src}\n              = {gz2:+.4f} · {y1[j]:.4f}\n              = {gw2[0, j]:+.5f}",
+            )
+        for j, dest in enumerate(("H1", "H2")):
+            reveal = np.asarray(state["rv_gy1"]).copy()
+            reveal[j] = 1.0
+            spot = _ZERO_12.copy()
+            spot[0, j] = 1.0
+            snap(
+                f"dL/dy_{dest}: voltando pela transposta",
+                "Para continuar descendo, o gradiente atravessa W2 na direção contrária. No "
+                "forward W2 levava 2 valores para 1; agora 1 gradiente volta para 2. A matriz "
+                f"que faz isso é a MESMA, transposta: {w2[0, j]:.2f} · {gz2:+.4f} = "
+                f"{gy1[j]:+.5f}.",
+                equation="dL/dy = W2^T · dL/dz_O",
+                focus="w2t", board_title="Voltando:  dL/dy = W2ᵀ · dL/dz_O",
+                rv_gy1=reveal, hl_w2=spot, hl_y1=_ZERO_2.copy(),
+                work_text=f"dL/dy_{dest} = w_{dest}O · dL/dz_O\n         = {n2(w2[0, j])} · {gz2:+.4f}\n         = {gy1[j]:+.5f}",
+            )
+        for j, dest in enumerate(("H1", "H2")):
+            reveal_sp = np.asarray(state["rv_sp1"]).copy()
+            reveal_sp[j] = 1.0
+            spot = _ZERO_2.copy()
+            spot[j] = 1.0
+            snap(
+                f"σ'(z_{dest})",
+                f"Cada neurônio oculto tem a SUA derivada local, calculada do próprio y: "
+                f"σ'(z_{dest}) = {y1[j]:.4f}·{1 - y1[j]:.4f} = {sp1[j]:.4f}. Passo separado, de "
+                "novo, para deixar claro que essa derivada é uma quantidade por conta própria.",
+                equation="σ'(z) = y·(1 - y)",
+                focus="gz1", board_title="Camada 1:  dL/dz = dL/dy ⊙ σ'(z)",
+                rv_sp1=reveal_sp, hl_y1=spot, hl_w2=_ZERO_12.copy(),
+                work_text=f"σ'(z_{dest}) = {y1[j]:.4f} · {1 - y1[j]:.4f} = {sp1[j]:.4f}",
+            )
+            reveal_gz = np.asarray(state["rv_gz1"]).copy()
+            reveal_gz[j] = 1.0
+            snap(
+                f"dL/dz_{dest}",
+                f"E a travessia da ativação de {dest}: {gy1[j]:+.5f} · {sp1[j]:.4f} = "
+                f"{gz1[j]:+.5f}. Multiplicação elemento a elemento -- {dest} só usa o seu "
+                "próprio σ', não o do vizinho.",
+                equation="dL/dz = dL/dy \\odot σ'(z)",
+                rv_gz1=reveal_gz,
+                work_text=f"dL/dz_{dest} = {gy1[j]:+.5f} · {sp1[j]:.4f} = {gz1[j]:+.5f}",
+            )
+        for (i, j), dest, src in (
+            ((0, 0), "H1", "x1"), ((0, 1), "H1", "x2"),
+            ((1, 0), "H2", "x1"), ((1, 1), "H2", "x2"),
+        ):
+            reveal = np.asarray(state["rv_gw1"]).copy()
+            reveal[i, j] = 1.0
+            spot = _ZERO_2.copy()
+            spot[j] = 1.0
+            spot_z = _ZERO_2.copy()
+            spot_z[i] = 1.0
+            snap(
+                f"grad_W1[{dest},{src}]",
+                f"Mesma regra, agora contra o vetor de entrada: {gz1[i]:+.5f} · {src}"
+                f"({x[j]:.2f}) = {gw1[i, j]:+.5f}. Uma célula por passo; quando as quatro "
+                "estiverem lá, o gradiente terá exatamente a forma 2x2 de W1.",
+                equation="grad_W1 = dL/dz \\otimes x",
+                focus="gw1", board_title="Gradiente de W1:  dL/dz ⊗ x",
+                rv_gw1=reveal, hl_x=spot, hl_y1=spot_z, hl_w2=_ZERO_12.copy(),
+                work_text=f"grad_W1[{dest},{src}] = dL/dz_{dest} · {src}\n                 = {gz1[i]:+.5f} · {n2(x[j])}\n                 = {gw1[i, j]:+.5f}",
+            )
 
-        # ============ fase 4: a regra da cadeia, fator por fator ==========
-        chain_intro = (
-            "Onde estava a regra da cadeia nessa conta toda? Estava diluída nas matrizes. "
-            "Vamos desenrolá-la para UM peso concreto: w11, a seta x1 -> H1 (acesa no grafo). "
-            "Ela pergunta quanto L muda quando w11 muda, e a resposta é o produto das "
-            "derivadas locais de cada elo do caminho."
-        )
+        # ================ fase 5: a regra da cadeia, fator por fator ======
         snap(
             "A regra da cadeia, elo por elo",
-            chain_intro,
+            "Onde estava a regra da cadeia nessa conta toda? Diluída nas matrizes. Vamos "
+            "desenrolá-la para UM peso concreto: w11, a seta x1 → H1, acesa no grafo. Ela "
+            "pergunta quanto L muda quando w11 muda, e a resposta é o produto das derivadas "
+            "locais de cada elo do caminho.",
             equation="dL/dw_11 = dL/dy_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
             focus="chain", board_title="Regra da cadeia para w11 (x1 → H1)",
-            hl_x=np.array([1.0, 0.0]), hl_w1=np.array([[1.0, 0.0], [0.0, 0.0]]),
-            hl_w2=np.array([[1.0, 0.0]]), hl_y1=np.array([1.0, 0.0]), hl_out=1.0,
+            hl_x=cell(1.0, 0.0), hl_w1=cell((1.0, 0.0), (0.0, 0.0)),
+            hl_w2=np.array([[1.0, 0.0]]), hl_y1=cell(1.0, 0.0), hl_out=1.0,
             work_text="Caminho de w11 até L:  x1 -> H1 -> O -> L\nH1 alimenta só um neurônio de saída, então existe UM caminho -- a regra\nda cadeia é um produto puro, sem soma de caminhos.",
         )
         for i, (name, value) in enumerate(zip(chain_names, chain_values)):
@@ -434,9 +507,9 @@ class MatrixAlgebraDemo(DemoModule):
             snap(
                 f"Fator {i + 1}/{_N_CHAIN_FACTORS}: {name}",
                 f"Entra o fator {name} = {value:+.4f}. O produto parcial vai de "
-                f"{(chain_partials[i - 1] if i else 1.0):+.5f} para {chain_partials[i]:+.5f}. Cada "
-                "fator é a derivada de um único elo do caminho -- é o encadeamento deles que "
-                "atravessa a rede inteira.",
+                f"{(chain_partials[i - 1] if i else 1.0):+.5f} para {chain_partials[i]:+.5f}. "
+                "Cada fator é a derivada de um único elo do caminho -- é o encadeamento deles "
+                "que atravessa a rede inteira.",
                 equation="dL/dw_11 = dL/dy_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
                 rv_chain=reveal,
                 chain_product=chain_partials[i], rv_chain_product=1.0,
@@ -445,16 +518,15 @@ class MatrixAlgebraDemo(DemoModule):
         snap(
             "O mesmo número, pelos dois caminhos",
             f"O produto da cadeia deu {chain_partials[-1]:+.5f}. O backward matricial, que nunca "
-            f"escreveu essa cadeia, já havia calculado grad_W1[H1,x1] = {gw1[0, 0]:+.5f}. São o "
-            "mesmo número porque são a mesma conta: a multiplicação de matrizes é a regra da "
-            "cadeia feita por atacado, todos os pesos de uma vez.",
+            f"escreveu essa cadeia, já havia posto grad_W1[H1,x1] = {gw1[0, 0]:+.5f}. São o "
+            "mesmo número porque são a mesma conta: multiplicar matrizes é a regra da cadeia "
+            "feita por atacado, todos os pesos de uma vez.",
             equation="dL/dw_11 = grad_W1[H1, x_1]",
             rv_check=1.0,
             work_text=(
                 f"regra da cadeia, fator por fator : {chain_partials[-1]:+.8f}\n"
-                f"backward matricial (grad_W1)     : {gw1[0, 0]:+.8f}\n"
-                f"diferença                        : {abs(chain_partials[-1] - float(gw1[0, 0])):.1e}\n\n"
-                "Não é coincidência: multiplicar matrizes É aplicar a regra da cadeia em lote."
+                f"backward matricial (grad_W1)     : {float(gw1[0, 0]):+.8f}\n"
+                f"diferença                        : {abs(chain_partials[-1] - float(gw1[0, 0])):.1e}"
             ),
         )
 
