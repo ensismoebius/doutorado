@@ -142,7 +142,7 @@ class MultilayerNetworkDemo(DemoModule):
                 "Quatro camadas: 3 entradas, 2 neurônios na camada 1, 2 na camada 2, 1 na "
                 "saída -- todas com ativação sigmoide, sem viés. Vamos calcular o forward "
                 "neurônio por neurônio, na ordem em que cada valor fica disponível.",
-                equation="y = σ(W · entrada)  em cada camada",
+                equation="y = σ(W · entrada); Em\_cada\_camada"
             ),
             frame(
                 "Forward: L1-A", "Primeiro neurônio da camada 1: combina as três entradas.",
@@ -177,8 +177,7 @@ class MultilayerNetworkDemo(DemoModule):
                 active_detail=fwd_detail("Saída", zO, yO, c["w3"][0], y2, ["y_C", "y_D"]),
             ),
             frame(
-                "A perda", f"A saída da rede é {yO:.3f}; o alvo é {self.target:g}. A perda resume essa "
-                "distância num único número.",
+                "A perda", f"A saída da rede é $y = {yO:.3f}$; o alvo é $target = {self.target:g}$. A perda  resume essa distância num único número.",
                 equation="L = 1/2 (y - target)^2",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 active="Saída", active_z=float(zO), active_y=float(yO), active_slope=float(sO),

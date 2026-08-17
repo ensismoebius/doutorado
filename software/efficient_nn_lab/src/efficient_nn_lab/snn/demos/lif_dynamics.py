@@ -50,10 +50,10 @@ class LIFDynamicsDemo(DemoModule):
             is_checkpoint = t in (0, _N_STEPS - 1)
             if t < _ONSET:
                 phase = "repouso"
-                explanation = "Sem corrente de entrada: o potencial permanece em V_rest."
+                explanation = "Sem corrente de entrada: o potencial permanece em $V_rest$."
             elif trace.spikes[t] == 1.0:
                 phase = "spike + reset"
-                explanation = f"V atingiu o limiar V_th={self.v_th:.2f} -> dispara um spike e reinicia em V_reset."
+                explanation = f"V atingiu o limiar $V_th = {self.v_th:.2f}$ -> dispara um spike e reinicia em $V_reset$."
                 is_checkpoint = True
             elif t == _ONSET:
                 phase = "integração"

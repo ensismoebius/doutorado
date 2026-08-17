@@ -55,7 +55,7 @@ class PoissonCodingDemo(DemoModule):
             n_spikes_so_far = int(spikes[: t + 1].sum())
             p_now = float(prob[t])
             explanation = (
-                f"P(spike) agora = {p_now:.2f} (intensidade x taxa máxima {self.max_rate:.2f}). "
+                f"$P(spike) = {p_now:.2f}$ (intensidade x taxa máxima $r_max = {self.max_rate:.2f}$). "
                 f"{n_spikes_so_far} spike(s) sorteado(s) até agora — mesma intensidade não "
                 "garante o mesmo resultado a cada repetição, só a mesma tendência."
             )

@@ -13,8 +13,10 @@ import sys
 import numpy as np
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
+from PySide6.QtGui import QFontMetrics, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,7 +29,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from efficient_nn_lab.app.theme import STYLESHEET
+from efficient_nn_lab.app.math_render import MathTextLabel, render_math_image
+from efficient_nn_lab.app.theme import STYLESHEET, TEXT_COLOR
 from efficient_nn_lab.core.animation import StepPlayer
 from efficient_nn_lab.core.demo import DemoModule
 from efficient_nn_lab.core.state import AppState
@@ -127,6 +130,12 @@ _WELCOME_TEXT = (
 _CHARS_PER_LINE = 80
 _EXPL_MAX_LINES = 4
 _FRAME_MAX_LINES = 2
+
+# The equation panel is a fixed-height framed box so toggling it never
+# reflows the right column mid-playback; the rendered equation is scaled
+# to fit inside it. Rendered at a high DPI so the downscale stays crisp.
+_EQUATION_FRAME_HEIGHT = 108
+_EQUATION_DPI = 320
 
 
 def _lines_for(text: str, max_lines: int) -> int:
@@ -297,17 +306,25 @@ class MainWindow(QMainWindow):
         self.frame_label.setFixedHeight(QFontMetrics(self.frame_label.font()).lineSpacing() * _FRAME_MAX_LINES + 6)
         right.addWidget(self.frame_label)
 
-        self.explanation_label = QLabel("")
+        self.explanation_label = MathTextLabel("")
         self.explanation_label.setObjectName("Explanation")
         self.explanation_label.setWordWrap(True)
         self.explanation_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.explanation_label.setFixedHeight(QFontMetrics(self.explanation_label.font()).lineSpacing() * _EXPL_MAX_LINES + 8)
         right.addWidget(self.explanation_label)
 
+        self.equation_frame = QFrame()
+        self.equation_frame.setObjectName("EquationFrame")
+        self.equation_frame.setVisible(False)
+        eq_layout = QVBoxLayout(self.equation_frame)
+        eq_layout.setContentsMargins(10, 8, 10, 8)
         self.equation_label = QLabel("")
         self.equation_label.setObjectName("Equation")
-        self.equation_label.setVisible(False)
-        right.addWidget(self.equation_label)
+        self.equation_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        eq_layout.addWidget(self.equation_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.equation_frame.setFixedHeight(_EQUATION_FRAME_HEIGHT)
+        self._equation_pixmap: QPixmap | None = None
+        right.addWidget(self.equation_frame)
 
         self.detail_label = QLabel("")
         self.detail_label.setObjectName("Detail")
@@ -323,7 +340,7 @@ class MainWindow(QMainWindow):
         self.controls.pause_clicked.connect(self._on_pause)
         self.controls.speed_changed.connect(self._on_speed_changed)
         self.controls.parameter_changed.connect(self._on_parameter_changed)
-        self.controls.show_equation_toggled.connect(self.equation_label.setVisible)
+        self.controls.show_equation_toggled.connect(self._on_equation_toggled)
         self.controls.show_explanation_toggled.connect(self.explanation_label.setVisible)
         right.addWidget(self.controls)
         self.controls.setEnabled(False)
@@ -386,7 +403,8 @@ class MainWindow(QMainWindow):
         self.demo_title_label.setText("Efficient Neural Networks Lab")
         self.demo_description_label.setText(_WELCOME_TEXT)
         self.frame_label.setText("")
-        self.explanation_label.setText("")
+        self.explanation_label.set_math_text("")
+        self._set_equation("")
         self.controls.setEnabled(False)
 
     def _show_references(self) -> None:
@@ -396,7 +414,8 @@ class MainWindow(QMainWindow):
         self.demo_description_label.setText("")
         self.stack.setCurrentWidget(self.references_view)
         self.frame_label.setText("")
-        self.explanation_label.setText("")
+        self.explanation_label.set_math_text("")
+        self._set_equation("")
         self.controls.setEnabled(False)
 
     # -- control callbacks --------------------------------------------
@@ -468,8 +487,47 @@ class MainWindow(QMainWindow):
         view.render(frame.values)
 
         self.frame_label.setText(f"{frame.label}    (passo {demo.current_step + 1}/{demo.total_steps})")
-        self.explanation_label.setText(frame.explanation)
-        self.equation_label.setText(frame.equation or "(sem equação para este passo)")
+        self.explanation_label.set_math_text(frame.explanation)
+        self._set_equation(frame.equation)
         if self.state.professor_mode:
             self.detail_label.setText(_format_professor_detail(frame.values))
         self.controls.set_playing(demo.is_playing)
+
+        app = QApplication.instance()
+        if app is not None:
+            app.processEvents()
+
+    def _on_equation_toggled(self, visible: bool) -> None:
+        self.equation_frame.setVisible(visible)
+        if visible:
+            self._rescale_equation()
+
+    def _set_equation(self, equation: str) -> None:
+        """Render ``frame.equation`` as a big typeset equation in its frame."""
+        self._equation_pixmap = None
+        self.equation_label.clear()
+        if not equation:
+            self.equation_label.setText("(sem equação para este passo)")
+            return
+        img = render_math_image(equation, dpi=_EQUATION_DPI, color=TEXT_COLOR)
+        if img is None or img.isNull():
+            self.equation_label.setText(equation)
+            return
+        self._equation_pixmap = QPixmap.fromImage(img)
+        self._rescale_equation()
+
+    def _rescale_equation(self) -> None:
+        """Fit the stored equation pixmap inside the fixed frame (no cropping)."""
+        if self._equation_pixmap is None:
+            return
+        box_w = max(140, self.equation_frame.width() - 24)
+        box_h = _EQUATION_FRAME_HEIGHT - 24
+        pix = self._equation_pixmap
+        if pix.width() > box_w or pix.height() > box_h:
+            pix = pix.scaled(
+                box_w,
+                box_h,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        self.equation_label.setPixmap(pix)

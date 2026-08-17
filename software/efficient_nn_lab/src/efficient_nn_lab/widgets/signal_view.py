@@ -277,13 +277,13 @@ class SignalView(QWidget):
             ax.plot(z_trail[:-1], y_trail, marker="o", markersize=5, color=CONVERGE_COLOR, alpha=0.4, linestyle="None", zorder=3)
 
         ax.plot([z], [y], marker="o", markersize=9, color=CONVERGE_COLOR, zorder=4)
-        ax.text(z, y + 0.08, f"y = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR)
+        ax.text(z, y + 0.08, f"y = {y:.2f}", ha="center", fontsize=9, color=CONVERGE_COLOR)
 
         half = 2.0
         z_tan = np.array([z - half, z + half])
         y_tan = y + slope * (z_tan - z)
         ax.plot(z_tan, y_tan, color=ACCENT_COLOR, linewidth=1.5, linestyle="--")
-        ax.text(z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top", fontsize=7, color=ACCENT_COLOR)
+        ax.text(z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top", fontsize=8.5, color=ACCENT_COLOR)
 
         direction = -1.0 if grad_z >= 0 else 1.0
         dz = direction * 0.9
@@ -295,7 +295,7 @@ class SignalView(QWidget):
         ax.plot([z + dz], [y + dy], marker=(3, 0, angle), markersize=10, color=SNN_COLOR, linestyle="None")
         ax.text(
             z + dz, y + dy + (0.1 if direction > 0 else -0.15),
-            "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR,
+            "descida do gradiente", ha="center", fontsize=8.5, color=SNN_COLOR,
         )
 
         ax.set_xlim(-6.0, 6.0)

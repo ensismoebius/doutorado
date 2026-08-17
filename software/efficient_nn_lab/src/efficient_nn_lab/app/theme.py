@@ -84,9 +84,15 @@ QLabel#DemoTitle {{
 QLabel#Explanation {{
     color: #262B33;
 }}
+QFrame#EquationFrame {{
+    background: #F4F7FC;
+    border: 1px solid #B6C0D6;
+    border-radius: 6px;
+}}
 QLabel#Equation {{
-    font-family: monospace;
-    color: #444444;
+    color: #666666;
+    font-size: 14pt;
+    font-style: italic;
 }}
 QLabel#Detail {{
     font-family: monospace;

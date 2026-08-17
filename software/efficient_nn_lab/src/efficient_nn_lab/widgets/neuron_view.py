@@ -113,17 +113,34 @@ class NeuronView(QWidget):
             return
         self._ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, color=color, alpha=alpha, fontweight=weight)
 
-    def _equation_near(self, x: float, y: float, text: str, alpha: float, dy: float = -0.62) -> None:
-        """A small formula placed right under the box whose value it explains.
+    def _equation_near(
+        self, x: float, y: float, text: str, alpha: float,
+        box_h: float = 0.85, side: str = "below", fontsize: float = 10,
+    ) -> None:
+        """A formula placed against the box whose value it explains.
 
-        Kept visually distinct (italic, grey, smaller) from the box's own
-        label so it always reads as "this is the rule", not another value.
+        Offset is computed from the box height plus the text's own rendered
+        height (derived from the axes' data span and the figure's physical
+        size), so a larger font never lands on top of the box it annotates --
+        the old hard-coded dy values were only correct for 7.5pt text and
+        slid the formula onto the box edge the moment the font grew. A white
+        chip is drawn behind the text (text zorder sits above the arrows' 2)
+        so a formula reads cleanly even where a diagram arrow passes under
+        it. Kept visually distinct (italic, grey) from the box's own label so
+        it always reads as "this is the rule", not another value.
         """
         if alpha <= 0.02:
             return
+        pos = self._ax.get_position()
+        ax_h_in = pos.height * self._figure.get_figheight()
+        ymin, ymax = self._ax.get_ylim()
+        text_half = fontsize * 1.6 / 72.0 * (ymax - ymin) / ax_h_in / 2.0
+        offset = box_h / 2.0 + text_half + 0.16
+        dy = -offset if side == "below" else offset
         self._ax.text(
-            x, y + dy, text, ha="center", va="center", fontsize=7.5, color=NEUTRAL_COLOR,
+            x, y + dy, text, ha="center", va="center", fontsize=fontsize, color=NEUTRAL_COLOR,
             alpha=alpha, style="italic",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="none", alpha=0.95 * alpha),
         )
 
     # -- cached inset-axes pool (see __init__ note on why this is cached
@@ -159,7 +176,7 @@ class NeuronView(QWidget):
         if point_reveal > 0.02:
             ax.plot([z], [y], marker="o", markersize=7 if compact else 9, color=CONVERGE_COLOR, alpha=point_reveal, zorder=4)
             if not compact:
-                ax.text(z, y + 0.08, f"y = σ({z:.2f}) = {y:.2f}", ha="center", fontsize=7.5, color=CONVERGE_COLOR, alpha=point_reveal)
+                ax.text(z, y + 0.08, f"y = σ({z:.2f}) = {y:.2f}", ha="center", fontsize=9, color=CONVERGE_COLOR, alpha=point_reveal)
 
         if tangent_reveal > 0.02:
             half = 2.0
@@ -169,7 +186,7 @@ class NeuronView(QWidget):
             if not compact:
                 ax.text(
                     z_tan[0], y_tan[0], f"σ'(z) = {slope:.2f}", ha="right", va="top",
-                    fontsize=7, color=ACCENT_COLOR, alpha=tangent_reveal,
+                    fontsize=8.5, color=ACCENT_COLOR, alpha=tangent_reveal,
                 )
 
         if arrow_reveal > 0.02:
@@ -183,7 +200,7 @@ class NeuronView(QWidget):
             if not compact:
                 ax.text(
                     z + dz, y + dy + (0.1 if direction > 0 else -0.15),
-                    "descida do gradiente", ha="center", fontsize=7, color=SNN_COLOR, alpha=arrow_reveal,
+                    "descida do gradiente", ha="center", fontsize=8.5, color=SNN_COLOR, alpha=arrow_reveal,
                 )
 
         ax.set_xlim(-6.0, 6.0)
@@ -198,7 +215,7 @@ class NeuronView(QWidget):
         # switching which neuron's panel this cached Axes now shows).
         if compact:
             if ax.get_title() != title:
-                ax.set_title(title, fontsize=7.5)
+                ax.set_title(title, fontsize=8.5)
             if ax.get_xticks().size or ax.get_yticks().size:
                 ax.set_xticks([])
                 ax.set_yticks([])
@@ -223,8 +240,8 @@ class NeuronView(QWidget):
         for level in (-1, 0, 1):
             ax.plot([level], [0], marker="|", markersize=20, color=NEUTRAL_COLOR, zorder=2)
             ax.text(level, -0.22, f"{level:+d}", ha="center", fontsize=9)
-        ax.text(threshold, -0.42, f"τ = {threshold:.2f}", ha="left", fontsize=7.5, color=NEUTRAL_COLOR, style="italic")
-        ax.text(-threshold, -0.42, f"-τ = {-threshold:.2f}", ha="right", fontsize=7.5, color=NEUTRAL_COLOR, style="italic")
+        ax.text(threshold, -0.42, f"τ = {threshold:.2f}", ha="left", fontsize=9, color=NEUTRAL_COLOR, style="italic")
+        ax.text(-threshold, -0.42, f"-τ = {-threshold:.2f}", ha="right", fontsize=9, color=NEUTRAL_COLOR, style="italic")
 
         def draw(w: float, wq: int, reveal: float, row_y: float, label: str) -> None:
             reveal = max(0.0, min(1.0, reveal))
@@ -232,7 +249,7 @@ class NeuronView(QWidget):
             color = ACCENT_COLOR if reveal >= 0.999 else BITNET_COLOR
             ax.plot([display], [row_y], marker="o", markersize=12, color=color, zorder=4)
             text = f"Q({label}) = {round(wq):+d}" if reveal >= 0.999 else f"{label} = {w:.2f}"
-            ax.text(display, row_y + 0.14, text, ha="center", fontsize=8, color=color)
+            ax.text(display, row_y + 0.14, text, ha="center", fontsize=9, color=color)
 
         draw(w1, w1q, reveal1, 0.28, "w1")
         draw(w2, w2q, reveal2, 0.58, "w2")
@@ -356,7 +373,7 @@ class NeuronView(QWidget):
                 text += f"\ndL/dz={gz_val[name]:.3f}"
             self._box(*pos, text, CONVERGE_COLOR if bwd[name] > 0.02 else BITNET_COLOR, alpha=r, w=1.4, h=0.75, glow=glow, fontsize=8)
             if glow:
-                self._equation_near(*pos, "z = Σ w·entrada;  y = σ(z)", r, dy=-0.55)
+                self._equation_near(*pos, "y = σ(Σ w·x)", r, box_h=0.75)
 
         self._flow_arrow(self._MLP_O, self._MLP_TARGET, loss_reveal, NEUTRAL_COLOR)
         self._box(*self._MLP_TARGET, f"alvo = {target:g}", NEUTRAL_COLOR, alpha=loss_reveal, w=1.4, h=0.75, fontsize=9)
@@ -375,12 +392,12 @@ class NeuronView(QWidget):
         detail = str(values.get("active_detail", ""))
         if detail:
             self._ax.text(
-                0.1, -1.1, detail, ha="left", va="top", fontsize=7.5, color="black",
+                0.1, -1.1, detail, ha="left", va="top", fontsize=8.5, color="black",
                 family="monospace", linespacing=1.6,
             )
 
         if update_reveal > 0.02:
-            self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=8)
+            self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=9)
 
         z_val = {"L1-A": float(z1[0]), "L1-B": float(z1[1]), "L2-C": float(z2[0]), "L2-D": float(z2[1]), "Saída": zO}
         slope_val = {name: float(sigmoid_derivative(z_val[name])) for name in self._MLP_NAMES}
@@ -450,11 +467,11 @@ class NeuronView(QWidget):
         self._flow_arrow(self._BP_X, self._BP_Z, z_reveal, NEUTRAL_COLOR)
         self._flow_arrow(self._BP_W, self._BP_Z, z_reveal, BITNET_COLOR)
         self._box(*self._BP_Z, f"z = {values['z']:g}", BITNET_COLOR, alpha=z_reveal, w=1.5, glow=float(values.get("z_glow", 0.0)))
-        self._equation_near(*self._BP_Z, "z = w · x", z_reveal, dy=-0.55)
+        self._equation_near(*self._BP_Z, "z = w · x", z_reveal)
 
         self._flow_arrow(self._BP_Z, self._BP_Y, y_reveal, CONVERGE_COLOR)
         self._box(*self._BP_Y, f"y = σ(z)\n= {values['y']:.3f}", CONVERGE_COLOR, alpha=y_reveal, w=1.9, glow=float(values.get("y_glow", 0.0)))
-        self._equation_near(*self._BP_Y, "y = σ(z) = 1/(1+e⁻ᶻ)", y_reveal, dy=0.6)
+        self._equation_near(*self._BP_Y, "y = σ(z) = 1/(1+e⁻ᶻ)", y_reveal)
 
         self._flow_arrow(self._BP_Y, self._BP_TARGET, target_reveal, NEUTRAL_COLOR)
         self._box(*self._BP_TARGET, f"target = {values['target']:g}", NEUTRAL_COLOR, alpha=target_reveal, w=1.5, glow=float(values.get("target_glow", 0.0)))
@@ -465,23 +482,23 @@ class NeuronView(QWidget):
 
         self._flow_arrow(self._BP_Y, self._BP_LOSS, loss_reveal, SNN_COLOR)
         self._box(*self._BP_LOSS, f"loss = {values['loss']:.3f}", SNN_COLOR, alpha=loss_reveal, w=1.5, glow=float(values.get("loss_glow", 0.0)))
-        self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal, dy=-0.55)
+        self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal)
 
         self._flow_arrow(self._BP_LOSS, self._BP_GRAD_Y, grady_reveal, SNN_COLOR)
         self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5, glow=float(values.get("grady_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal, dy=-0.55)
+        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal)
 
         self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_Z, gradz_reveal, SNN_COLOR)
         self._box(*self._BP_GRAD_Z, f"dL/dz = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6, glow=float(values.get("gradz_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_Z, "dL/dz = dL/dy · σ'(z)", gradz_reveal, dy=-0.5)
+        self._equation_near(*self._BP_GRAD_Z, "dL/dz = dL/dy · σ'(z)", gradz_reveal)
 
         self._flow_arrow(self._BP_GRAD_Z, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
         self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5, glow=float(values.get("gradw_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dz · x", gradw_reveal, dy=-0.55)
+        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dz · x", gradw_reveal)
 
         self._flow_arrow(self._BP_GRAD_W, self._BP_W, update_reveal, ACCENT_COLOR)
         self._fading_text(0.7, 2.0, f"atualizado -> {values['w_updated']:.3f}", ACCENT_COLOR, update_reveal, fontsize=8)
-        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal, dy=-0.55)
+        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal)
 
         ax = self._get_inset("main", (0.56, 0.1, 0.42, 0.85))
         # point_reveal/arrow_reveal are their own fields, deliberately
@@ -544,7 +561,7 @@ class NeuronView(QWidget):
         w_label2 = f"Q(w2) = {round(w2q):+d}" if quant2_reveal >= 0.999 else f"w2 = {w2_real:.2f}"
         self._box(*self._W1, w_label1, BITNET_COLOR if quant1_reveal > 0.5 else NEUTRAL_COLOR, glow=h1)
         self._box(*self._W2, w_label2, BITNET_COLOR if quant2_reveal > 0.5 else NEUTRAL_COLOR, glow=h2)
-        self._equation_near(*self._W1, "Q(w)=+1 se w>τ; -1 se w<-τ; 0 c.c.", max(quant1_reveal, quant2_reveal))
+        self._equation_near(*self._W1, "Q(w) ∈ {+1, 0, -1}", max(quant1_reveal, quant2_reveal))
 
         self._flow_arrow(self._W1, self._SUM, arrow1_fill, ACCENT_COLOR if h1 > 0.3 else BITNET_COLOR)
         self._flow_arrow(self._W2, self._SUM, arrow2_fill, ACCENT_COLOR if h2 > 0.3 else BITNET_COLOR)
@@ -687,7 +704,7 @@ class NeuronView(QWidget):
         self._box(*self._W_POS, f"w = {values['w_value']:.2f}", BITNET_COLOR)
         self._flow_arrow(self._W_POS, self._Q_POS, q_reveal, BITNET_COLOR)
         self._box(*self._Q_POS, f"Q(w) = {round(values['q_value']):+d}", BITNET_COLOR, alpha=q_reveal, glow=q_pulse)
-        self._equation_near(*self._Q_POS, "Q(w) = ±1/0 (limiar τ)", q_reveal, dy=-0.95)
+        self._equation_near(*self._Q_POS, "Q(w) = ±1/0 (limiar τ)", q_reveal)
 
         self._box(*self._X_POS, f"x = {2.0:g}", NEUTRAL_COLOR, alpha=x_reveal)
         self._flow_arrow(self._Q_POS, self._Y_POS_G, y_reveal, CONVERGE_COLOR)
@@ -704,7 +721,7 @@ class NeuronView(QWidget):
 
         self._flow_arrow(self._LOSS_POS_G, self._GRAD_POS, grad_reveal, SNN_COLOR)
         self._box(*self._GRAD_POS, f"dL/dw ~= {values['grad_value']:g}", SNN_COLOR, alpha=grad_reveal)
-        self._equation_near(*self._GRAD_POS, "dL/dw ≈ dL/dy  (STE)", grad_reveal, dy=0.62)
+        self._equation_near(*self._GRAD_POS, "dL/dw ≈ dL/dy  (STE)", grad_reveal, side="above")
 
         self._flow_arrow(self._GRAD_POS, self._W_POS, update_reveal, ACCENT_COLOR, )
         self._fading_text(3.5, 0.15, "STE: gradiente atravessa Q(w) como identidade", ACCENT_COLOR, ste_reveal, fontsize=8)

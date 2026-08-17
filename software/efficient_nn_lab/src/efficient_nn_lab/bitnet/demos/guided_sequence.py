@@ -74,18 +74,18 @@ class GuidedBitNetDemo(DemoModule):
             return Frame(label, values, explanation, equation)
 
         checkpoints = [
-            frame("Passo 1 — peso real", f"w = {w:.2f}.", step_number=1),
+            frame("Passo 1 — peso real", f"$w = {w:.2f}$.", step_number=1),
             frame(
                 "Passo 2 — quantização",
-                f"Q(w) = Q({w:.2f}) = {q:+d}.",
+                f"$Q(w) = Q({w:.2f}) = {q:+d}$.",
                 equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
                 q_reveal=1.0,
                 step_number=2,
             ),
-            frame("Passo 3 — entrada", f"x = {_X:g}.", q_reveal=1.0, x_reveal=1.0, step_number=3),
+            frame("Passo 3 — entrada", f"$x = {_X:g}$.", q_reveal=1.0, x_reveal=1.0, step_number=3),
             frame(
                 "Passo 4 — saída",
-                f"y = x . Q(w) = {_X:g} . {q:+d} = {y:g}.",
+                f"$y = x . Q(w) = {_X:g} . {q:+d} = {y:g}$.",
                 equation="y = x . Q(w)",
                 q_reveal=1.0,
                 x_reveal=1.0,
@@ -94,7 +94,7 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 5 — alvo",
-                f"target = {_TARGET:g}.",
+                f"$target = {_TARGET:g}$.",
                 q_reveal=1.0,
                 x_reveal=1.0,
                 y_reveal=1.0,
@@ -103,7 +103,7 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 6 — perda",
-                f"loss = 1/2 (y - target)^2 = 1/2 ({y:g} - {_TARGET:g})^2 = {loss:g}.",
+                f"$loss = 1/2 (y - target)^2 = 1/2 ({y:g} - {_TARGET:g})^2 = {loss:g}$.",
                 equation="L = 1/2 (y - target)^2",
                 q_reveal=1.0,
                 x_reveal=1.0,
@@ -114,7 +114,7 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 7 — gradiente",
-                f"dL/dy = y - target = {grad_y:g}. Via STE, dL/dw ~= dL/dy . x = {grad_w:g}.",
+                f"$dL/dy = y - target = {grad_y:g}$. Via STE, $dL/dw ~= dL/dy . x = {grad_w:g}$.",
                 equation="dL/dw ~= (y - target) . x  [STE]",
                 q_reveal=1.0,
                 x_reveal=1.0,
@@ -139,7 +139,7 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 9 — atualização",
-                f"w <- w - lr . dL/dw = {w:.2f} - {_LEARNING_RATE:g} . ({grad_w:g}) = {w_new:.2f}.",
+                f"$w <- w - lr . dL/dw = {w:.2f} - {_LEARNING_RATE:g} . ({grad_w:g}) = {w_new:.2f}$.",
                 equation="w <- w - eta . dL/dw",
                 w_value=w_new,
                 q_reveal=1.0,
@@ -155,7 +155,7 @@ class GuidedBitNetDemo(DemoModule):
             frame(
                 "Passo 10 — nova quantização",
                 (
-                    f"Q({w_new:.2f}) = {q_new:+d}. "
+                    f"$Q({w_new:.2f}) = {q_new:+d}$. "
                     + (
                         "A representação usada no forward não mudou, mesmo com o parâmetro real atualizado."
                         if q_new == q

@@ -47,15 +47,15 @@ class ScalarQuantizationDemo(DemoModule):
         real = Frame(
             label="Peso real",
             values={"kind": "scalar_quantization", "w_display": self.w, "w_real": self.w, "w_quant": None, "threshold": self.threshold, "revealed": False},
-            explanation=f"w = {self.w:.2f}. Este é o parâmetro em precisão plena, antes de qualquer quantização.",
+            explanation=f"$w = {self.w:.2f}$. Este é o parâmetro em precisão plena, antes de qualquer quantização.",
         )
         result = Frame(
             label="Resultado quantizado",
             values={"kind": "scalar_quantization", "w_display": float(q), "w_real": self.w, "w_quant": q, "threshold": self.threshold, "revealed": True},
             explanation=(
-                f"Q({self.w:.2f}) = {q:+d}. "
+                f"$Q({self.w:.2f}) = {q:+d}$. "
                 f"{'Dentro' if in_dead_zone else 'Fora'} da zona morta "
-                f"[-{self.threshold:.2f}, {self.threshold:.2f}]."
+                f"$[-{self.threshold:.2f}, {self.threshold:.2f}]$."
             ),
             equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
         )

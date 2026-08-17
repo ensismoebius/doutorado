@@ -156,48 +156,51 @@ class TraditionalBackpropDemo(DemoModule):
         else:
             intro = (
                 f"O mesmo neurônio, o mesmo ciclo de 9 passos — mas agora começando do "
-                f"w = {w:g} que a iteração anterior deixou. É exatamente essa repetição, "
+                f"$w = {w:g}$ que a iteração anterior deixou. É exatamente essa repetição, "
                 "iteração após iteração, que faz y se aproximar do alvo."
             )
 
         if is_last_cycle and converged:
             update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}. "
-                f"Agora a saída ({y:g}) já está perto o suficiente do alvo ({self.target:g}, diferença "
-                f"de {abs(diff):.3f}) — o ciclo para de se repetir aqui."
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+                f"$w = {w_updated:g}$. Agora a saída ($y = {y:g}$) já está perto o suficiente do "
+                f"alvo ($target = {self.target:g}$, diferença de $|y - target| = {abs(diff):.3f}$) — "
+                f"o ciclo para de se repetir aqui."
             )
         elif is_last_cycle:
             update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}. "
-                f"A diferença ainda é {abs(diff):.3f}, mas chegamos ao limite de iterações mostradas "
-                "neste passo a passo detalhado — a próxima parte continua daqui, de forma resumida."
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+                f"$w = {w_updated:g}$. A diferença ainda é $|y - target| = {abs(diff):.3f}$, mas "
+                f"chegamos ao limite de iterações mostradas neste passo a passo detalhado — a "
+                f"próxima parte continua daqui, de forma resumida."
             )
         else:
             update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: w vira {w_updated:g}, um "
-                f"pouco mais perto do valor que aproximaria y do alvo. A saída ainda está a {abs(diff):.3f} "
-                f"do alvo — longe o bastante para o ciclo se repetir: a iteração {iteration + 1} refaz "
-                "exatamente os mesmos 9 passos, agora partindo desse w atualizado."
+                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+                f"$w = {w_updated:g}$, um pouco mais perto do valor que aproximaria y do alvo. "
+                f"A saída ainda está a $|y - target| = {abs(diff):.3f}$ do alvo — longe o bastante "
+                f"para o ciclo se repetir: a iteração {iteration + 1} refaz exatamente os mesmos "
+                f"9 passos, agora partindo desse w atualizado."
             )
 
         return [
             frame("O neurônio", intro, equation="y = sigma(w * x)"),
             frame(
                 "Forward, parte 1: combinação linear",
-                f"Antes da ativação, w e x só se multiplicam: z = w * x = {w:g} * {x:g} = {z:g}.",
+                f"Antes da ativação, w e x só se multiplicam: $z = w * x = {w:g} * {x:g} = {z:g}$.",
                 equation="z = w * x",
                 z_reveal=1.0, z_glow=1.0,
             ),
             frame(
                 "Forward, parte 2: ativação sigmoide",
                 f"z passa pela sigmoide, que o espreme para dentro de (0, 1): "
-                f"y = sigma({z:g}) = {y:g}. É este o ponto marcado na curva ao lado.",
+                f"$y = sigma({z:g}) = {y:g}$. É este o ponto marcado na curva ao lado.",
                 equation="y = sigma(z) = 1 / (1 + e^-z)",
                 z_reveal=1.0, y_reveal=1.0, y_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "Comparar com o alvo",
-                f"O alvo é {self.target:g}; a saída atual é {y:g} — {'ainda longe' if not converged else 'já perto'}. "
+                f"O alvo é $target = {self.target:g}$; a saída atual é $y = {y:g}$ — {'ainda longe' if not converged else 'já perto'}. "
                 "Essa diferença é o que o treino tenta reduzir a cada passo.",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, target_glow=1.0, point_reveal=1.0,
             ),
@@ -212,15 +215,15 @@ class TraditionalBackpropDemo(DemoModule):
             frame(
                 "Backward, primeiro elo: dL/dy",
                 f"O backward começa no fim: o quanto a perda muda se y mudasse um "
-                f"pouco. dL/dy = y - target = {grad_y:g}.",
+                f"pouco. $dL/dy = y - target = {grad_y:g}$.",
                 equation="dL/dy = y - target",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, grady_reveal=1.0,
                 grady_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "Backward, segundo elo: atravessando a sigmoide",
-                f"A sigmoide também tem derivada: sigma'(z) = y*(1-y) = {slope:g}. "
-                f"dL/dz = dL/dy * sigma'(z) = {grad_z:g} — é essa inclinação que a reta "
+                f"A sigmoide também tem derivada: $sigma'(z) = y*(1-y) = {slope:g}$. "
+                f"$dL/dz = dL/dy * sigma'(z) = {grad_z:g}$ — é essa inclinação que a reta "
                 "tangente ao lado mostra, e o sinal dela diz para que lado mover z.",
                 equation="dL/dz = dL/dy * sigma'(z)",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
@@ -228,8 +231,8 @@ class TraditionalBackpropDemo(DemoModule):
             ),
             frame(
                 "Backward, terceiro elo: dL/dw",
-                f"Como z = w * x, o último elo da cadeia é multiplicar por x: "
-                f"dL/dw = dL/dz * x = {grad_w:g}.",
+                f"Como $z = w * x$, o último elo da cadeia é multiplicar por x: "
+                f"$dL/dw = dL/dz * x = {grad_w:g}$.",
                 equation="dL/dw = dL/dz * dz/dw = dL/dz * x",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, gradw_glow=1.0,

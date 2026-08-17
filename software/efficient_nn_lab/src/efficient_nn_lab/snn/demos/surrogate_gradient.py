@@ -91,9 +91,9 @@ class SurrogateGradientDemo(DemoModule):
             frame(
                 "A função de disparo (forward)",
                 f"No forward, o neurônio sempre usa esta função em degrau: dispara ou não dispara. "
-                f"Com v_th = {self.v_th:g}, ele dispara (S = 1) quando v >= {self.v_th:g} e fica "
-                f"em silêncio (S = 0) abaixo disso. No nosso exemplo, v = {v_example:g} >= {self.v_th:g}: "
-                f"dispara, S = {example_spike:g}.",
+                f"Com $v_th = {self.v_th:g}$, ele dispara ($S = 1$) quando $v >= {self.v_th:g}$ e fica "
+                f"em silêncio ($S = 0$) abaixo disso. No nosso exemplo, "
+                f"$v = {v_example:g} >= {self.v_th:g}$: dispara, $S = {example_spike:g}$.",
                 equation="S(v) = 1 se v >= v_th; 0 caso contrario",
             ),
             frame(
@@ -101,7 +101,7 @@ class SurrogateGradientDemo(DemoModule):
                 f"O degrau em si não muda. Mas a curva em S mostrada aqui é a antiderivada exata do "
                 f"gradiente substituto que será usado no backward — ou seja, a inclinação dessa "
                 f"sigmoide em cada ponto é, por construção, exatamente a curva de gradiente que vem "
-                f"a seguir. No nosso exemplo, v = {v_example:g} (v - v_th = {vmt_example:g}): a "
+                f"a seguir. No nosso exemplo, $v = {v_example:g}$ ($v - v_th = {vmt_example:g}$): a "
                 f"sigmoide vale {example_sigmoid:.2f} e a sua inclinação ali é {example_surrogate:.2f}.",
                 equation="sigmoide(v) = 0,5 + (v - v_th) / (1 + k|v - v_th|)",
                 sigmoid_reveal=1.0,
@@ -109,7 +109,7 @@ class SurrogateGradientDemo(DemoModule):
             frame(
                 "A derivada real",
                 f"A derivada real do degrau é zero em quase todo ponto — inútil para descida de "
-                f"gradiente. Em v = {v_example:g} (v - v_th = {vmt_example:g}), dS/dv = 0, "
+                f"gradiente. Em $v = {v_example:g}$ ($v - v_th = {vmt_example:g}$), $dS/dv = 0$, "
                 f"exatamente como no STE do BitNet: o gradiente não tem por onde passar.",
                 equation="dS/dv = 0 (quase todo ponto)",
                 bottom_reveal=1.0,
@@ -120,8 +120,8 @@ class SurrogateGradientDemo(DemoModule):
                 f"Observe o traço se formando da esquerda para a direita: a sigmoide e o gradiente são "
                 f"desenhados juntos, no mesmo ritmo, e a altura do gradiente em cada ponto é exatamente "
                 f"a inclinação da sigmoide naquele mesmo ponto — é literalmente de onde o gradiente vem. "
-                f"Em v = {v_example:g}, com k = {self.k:g}, o gradiente substituto vale "
-                f"{example_surrogate:.2f} (em vez do {0.0:.0f} real).",
+                f"Em $v = {v_example:g}$, com $k = {self.k:g}$, o gradiente substituto vale "
+                f"{example_surrogate:.2f} (em vez do $0$ real).",
                 equation="dS/dv ~= 1 / (1 + k|v - v_th|)^2",
                 bottom_reveal=1.0,
                 sigmoid_reveal=1.0,
@@ -129,8 +129,8 @@ class SurrogateGradientDemo(DemoModule):
             ),
             frame(
                 "Os dois juntos",
-                f"Forward continua discreto (spike/não-spike: em v = {v_example:g}, S = "
-                f"{example_spike:g}); só o backward usa a curva suave (gradiente substituto = "
+                f"Forward continua discreto (spike/não-spike: em $v = {v_example:g}$, $S = "
+                f"{example_spike:g}$); só o backward usa a curva suave (gradiente substituto = "
                 f"{example_surrogate:.2f} no mesmo ponto). "
                 f"Análogo ao STE do BitNet, mas com uma função diferente — não é a mesma técnica.",
                 bottom_reveal=1.0,

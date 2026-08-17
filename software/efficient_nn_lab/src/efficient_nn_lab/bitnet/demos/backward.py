@@ -162,24 +162,24 @@ class BackwardSTEDemo(DemoModule):
             staircase_frame(
                 "A função em degrau",
                 f"Q(w) tem três regiões planas (derivada zero) separadas por dois saltos "
-                f"(derivada indefinida). No nosso exemplo, w = {self.w:g} cai acima de "
-                f"τ = {tau:g}, então Q(w) = {w_quant:+d} — e nessa região a derivada local é zero.",
+                f"(derivada indefinida). No nosso exemplo, $w = {self.w:g}$ cai acima de "
+                f"$τ = {tau:g}$, então $Q(w) = {w_quant:+d}$ — e nessa região a derivada local é zero.",
                 annotate=0.0,
                 equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
             ),
             staircase_frame(
                 "Por que isso quebra a retropropagação",
-                f"Para w = {self.w:g} a derivada local de Q é dQ/dw = {dq_dw_real:g}. A "
-                f"retropropagação padrão multiplica o gradiente por ela: dL/dw = dL/dQ(w) · "
-                f"dQ/dw = {upstream_grad:g} · {dq_dw_real:g} = {dl_dw_real:g}. O gradiente "
-                f"morre aqui.",
+                f"Para $w = {self.w:g}$ a derivada local de Q é $dQ/dw = {dq_dw_real:g}$. A "
+                f"retropropagação padrão multiplica o gradiente por ela: "
+                f"$dL/dw = dL/dQ(w) · dQ/dw = {upstream_grad:g} · {dq_dw_real:g} = {dl_dw_real:g}$. "
+                f"O gradiente morre aqui.",
                 annotate=1.0,
             ),
             derivative_frame(
                 "A derivada real, em gráfico",
-                f"Plotando dQ/dw diretamente: uma reta achatada em zero, do início ao fim. "
-                f"Para w = {self.w:g}, dQ/dw = {dq_dw_real:g} — não há inclinação nenhuma para "
-                f"seguir. Nos dois pontos de salto (w = ±τ = ±{tau:g}) a derivada nem sequer existe.",
+                f"Plotando $dQ/dw$ diretamente: uma reta achatada em zero, do início ao fim. "
+                f"Para $w = {self.w:g}$, $dQ/dw = {dq_dw_real:g}$ — não há inclinação nenhuma para "
+                f"seguir. Nos dois pontos de salto ($w = ±τ = ±{tau:g}$) a derivada nem sequer existe.",
                 curve=real_derivative,
                 reveal=1.0,
                 overlay=0.0,
@@ -188,9 +188,10 @@ class BackwardSTEDemo(DemoModule):
             derivative_frame(
                 "O gradiente que o STE usa de verdade",
                 f"O STE substitui essa reta zerada por outra: a derivada da função identidade, "
-                f"que vale 1 em todo lugar. Em w = {self.w:g}, o STE usa dQ/dw = {dq_dw_ste:g} "
-                f"no lugar de {dq_dw_real:g}. É uma troca deliberada, não uma aproximação da "
-                f"derivada real — repare que a curva não fica parecida com Q(w) em nenhum ponto.",
+                f"que vale 1 em todo lugar. Em $w = {self.w:g}$, o STE usa "
+                f"$dQ/dw = {dq_dw_ste:g}$ no lugar de $dQ/dw = {dq_dw_real:g}$. É uma troca "
+                f"deliberada, não uma aproximação da derivada real — repare que a curva não "
+                f"fica parecida com Q(w) em nenhum ponto.",
                 curve=ste_derivative,
                 reveal=1.0,
                 overlay=1.0,
@@ -198,18 +199,19 @@ class BackwardSTEDemo(DemoModule):
             ),
             path_frame(
                 "Caminho do forward",
-                f"Peso real w = {self.w:g} passa pela quantização: como {self.w:g} > τ = {tau:g}, "
-                f"Q(w) = {w_quant:+d}. Esse valor ternário é o que participa da operação: "
-                f"y = x · Q(w) = {self.x:g} · {w_quant:+d} = {y:g}.",
+                f"Peso real $w = {self.w:g}$ passa pela quantização: como "
+                f"${self.w:g} > τ = {tau:g}$, $Q(w) = {w_quant:+d}$. Esse valor ternário é o que "
+                f"participa da operação: $y = x · Q(w) = {self.x:g} · {w_quant:+d} = {y:g}$.",
                 fwd=1.0,
                 bwd=0.0,
                 joined=0.0,
             ),
             path_frame(
                 "Caminho do backward (STE)",
-                f"Da perda chega o gradiente dL/dQ(w) = {upstream_grad:g}. O STE ignora a derivada "
-                f"real (dQ/dw = {dq_dw_real:g}) e usa a da identidade: dL/dw ≈ dL/dQ(w) · 1 = "
-                f"{dl_dw_ste:g}. Sem o STE, esse gradiente seria {dl_dw_real:g}.",
+                f"Da perda chega o gradiente $dL/dQ(w) = {upstream_grad:g}$. O STE ignora a "
+                f"derivada real ($dQ/dw = {dq_dw_real:g}$) e usa a da identidade: "
+                f"$dL/dw ≈ dL/dQ(w) · 1 = {dl_dw_ste:g}$. Sem o STE, esse gradiente seria "
+                f"$dL/dw = {dl_dw_real:g}$.",
                 fwd=1.0,
                 bwd=1.0,
                 joined=0.0,
@@ -217,9 +219,9 @@ class BackwardSTEDemo(DemoModule):
             ),
             path_frame(
                 "Os dois caminhos juntos",
-                f"Forward usa Q(w) = {w_quant:+d} (o valor real era w = {self.w:g}); backward finge "
-                f"que Q(w) = w e entrega dL/dw = {dl_dw_ste:g} ao peso real. É essa assimetria "
-                f"deliberada que faz o STE funcionar.",
+                f"Forward usa $Q(w) = {w_quant:+d}$ (o valor real era $w = {self.w:g}$); backward "
+                f"finge que $Q(w) = w$ e entrega $dL/dw = {dl_dw_ste:g}$ ao peso real. É essa "
+                f"assimetria deliberada que faz o STE funcionar.",
                 fwd=1.0,
                 bwd=1.0,
                 joined=1.0,

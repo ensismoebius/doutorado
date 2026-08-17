@@ -205,8 +205,8 @@ class WeightView(QWidget):
         if bottom_reveal < 0.02:
             spike = values["spike"]
             ax.plot(x, spike, color=SNN_COLOR, linewidth=2.5, label="S(v) — degrau (forward)")
-            ax.text(0.05, 1.05, "S(0) = 1", ha="left", fontsize=8, color=SNN_COLOR)
-            ax.text(-0.35, -0.1, "S(v<0) = 0", ha="right", fontsize=8, color=SNN_COLOR)
+            ax.text(0.05, 1.05, "S(0) = 1", ha="left", fontsize=9, color=SNN_COLOR)
+            ax.text(-0.35, -0.1, "S(v<0) = 0", ha="right", fontsize=9, color=SNN_COLOR)
             ax.axvline(example_vmt, color=BITNET_COLOR, linewidth=1, linestyle=":")
             ax.plot([example_vmt], [example_spike], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
             if sigmoid_reveal > 0.02:
@@ -219,7 +219,7 @@ class WeightView(QWidget):
                 mid = len(x) // 2
                 ax.text(
                     x[mid], float(sigmoid[mid]) + 0.06, f"sigmoide({x[mid]:.1f}) = {float(sigmoid[mid]):.2f}",
-                    ha="center", fontsize=7.5, color=ACCENT_COLOR, alpha=sigmoid_reveal,
+                    ha="center", fontsize=8.5, color=ACCENT_COLOR, alpha=sigmoid_reveal,
                 )
                 ax.legend(loc="lower right", fontsize=7)
             ax.set_ylabel("S(v) — spike (forward)")
@@ -232,7 +232,7 @@ class WeightView(QWidget):
             ax.plot([example_vmt], [0.0], marker="o", markersize=7, color=BITNET_COLOR, zorder=6)
             ax.text(
                 example_vmt, 0.14, f"v = {example_v:g}: dS/dv = 0",
-                ha="left", fontsize=7.5, color=BITNET_COLOR,
+                ha="left", fontsize=8.5, color=BITNET_COLOR,
             )
             ax.set_ylabel("gradiente usado no backward")
             ax.set_title("A derivada real: zero em quase todo ponto — inútil para o backward")
@@ -256,7 +256,7 @@ class WeightView(QWidget):
             ax.text(
                 x[tip], min(1.1, surrogate[tip] + 0.1),
                 f"inclinação da sigmoide aqui = altura do gradiente = {surrogate[tip]:.2f}",
-                ha=tip_ha, fontsize=7, color=SNN_COLOR,
+                ha=tip_ha, fontsize=8, color=SNN_COLOR,
             )
 
             example_idx = int(np.searchsorted(x, example_vmt))
@@ -268,7 +268,7 @@ class WeightView(QWidget):
                     example_vmt + (0.06 if ex_ha == "left" else -0.06),
                     example_surrogate + 0.08,
                     f"v = {example_v:g}: grad = {example_surrogate:.2f}",
-                    ha=ex_ha, fontsize=7.5, color=BITNET_COLOR,
+                    ha=ex_ha, fontsize=8.5, color=BITNET_COLOR,
                 )
 
             peak_idx = int(np.argmax(surrogate))

@@ -101,10 +101,10 @@ class ForwardLossDemo(DemoModule):
 
         def reason(w: float, wq: int) -> str:
             if wq > 0:
-                return f"{w:g} > tau ({tau:g}), então Q(w) = +1"
+                return f"${w:g} > tau ({tau:g})$, então $Q(w) = +1$"
             if wq < 0:
-                return f"{w:g} < -tau (-{tau:g}), então Q(w) = -1"
-            return f"-tau <= {w:g} <= tau, então Q(w) = 0"
+                return f"${w:g} < -tau (-{tau:g})$, então $Q(w) = -1$"
+            return f"$-tau <= {w:g} <= tau$, então $Q(w) = 0$"
 
         def frame(label: str, explanation: str, equation: str = "", **overrides) -> Frame:
             values = _base_values(result, self.target, diff, loss, grad, tau)
@@ -114,19 +114,19 @@ class ForwardLossDemo(DemoModule):
         checkpoints = [
             frame(
                 "Entradas e pesos reais",
-                f"x1={self.x1:g}, x2={self.x2:g}; pesos reais w1={self.w1:g}, w2={self.w2:g}. "
+                f"$x1={self.x1:g}$, $x2={self.x2:g}$; pesos reais $w1={self.w1:g}$, $w2={self.w2:g}$. "
                 "Nenhum peso ainda foi quantizado -- é a próxima etapa, uma de cada vez.",
             ),
             frame(
                 "Quantizar w1",
-                f"w1 = {self.w1:g}: {reason(self.w1, w1q)}. No número-linha ao lado, w1 cai "
+                f"$w1 = {self.w1:g}$: {reason(self.w1, w1q)}. No número-linha ao lado, w1 cai "
                 "fora da faixa cinza (a 'zona morta' entre -tau e tau) — por isso não vira zero.",
                 equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
                 quant1_reveal=1.0,
             ),
             frame(
                 "Quantizar w2",
-                f"w2 = {self.w2:g}: {reason(self.w2, w2q)}. Desta vez w2 cai dentro da faixa "
+                f"$w2 = {self.w2:g}$: {reason(self.w2, w2q)}. Desta vez w2 cai dentro da faixa "
                 "cinza — a zona morta existe exatamente para isso: pesos pequenos colapsam a zero.",
                 equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
                 quant1_reveal=1.0,
@@ -134,7 +134,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Multiplicação 1",
-                f"x1 . Q(w1) = {self.x1:g} . {w1q:+d} = {p1:g}.",
+                f"$x1 . Q(w1) = {self.x1:g} . {w1q:+d} = {p1:g}$.",
                 equation="produto_1 = x1 . Q(w1)",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
@@ -144,7 +144,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Multiplicação 2",
-                f"x2 . Q(w2) = {self.x2:g} . {w2q:+d} = {p2:g}. Como Q(w2) = 0, este produto "
+                f"$x2 . Q(w2) = {self.x2:g} . {w2q:+d} = {p2:g}$. Como $Q(w2) = 0$, este produto "
                 "é sempre zero, não importa quanto valha x2 -- o segundo peso não contribui em nada para y.",
                 equation="produto_2 = x2 . Q(w2)",
                 quant1_reveal=1.0,
@@ -157,7 +157,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Soma (saída y)",
-                f"y = {p1:g} + {p2:g} = {result.y:g}.",
+                f"$y = {p1:g} + {p2:g} = {result.y:g}$.",
                 equation="y = sum_i x_i . Q(w_i)",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
@@ -170,7 +170,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Alvo",
-                f"O alvo desta amostra é target = {self.target:g}.",
+                f"O alvo desta amostra é $target = {self.target:g}$.",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
                 arrow1_fill=1.0,
@@ -183,7 +183,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Diferença",
-                f"diferença = y - target = {result.y:g} - {self.target:g} = {diff:g}.",
+                f"$diferença = y - target = {result.y:g} - {self.target:g} = {diff:g}$.",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
                 arrow1_fill=1.0,
@@ -197,7 +197,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Loss",
-                f"L = 1/2 (y - target)^2 = 1/2 * ({diff:g})^2 = {loss:g}.",
+                f"$L = 1/2 (y - target)^2 = 1/2 * ({diff:g})^2 = {loss:g}$.",
                 equation="L = 1/2 (y - target)^2",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
