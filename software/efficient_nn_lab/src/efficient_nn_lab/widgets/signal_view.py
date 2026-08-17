@@ -186,7 +186,7 @@ class SignalView(QWidget):
             self._ax_top.plot([t[-1]], [current[-1]], marker="o", markersize=6, color=ACCENT_COLOR, zorder=4)
             self._ax_top.text(t[-1], current[-1] + 0.03, f"{current[-1]:.2f}", ha="center", fontsize=8, color=ACCENT_COLOR)
         self._ax_top.set_ylabel("I(t)")
-        self._ax_top.set_ylim(-0.05, max(0.5, current.max() * 1.3 if len(current) else 0.5))
+        self._ax_top.set_ylim(-0.05, max(0.5, current.max()  if len(current) else 0.5))
 
         self._ax_bottom.plot(t, membrane, color=SNN_COLOR, linewidth=2)
         if len(t):
@@ -197,7 +197,7 @@ class SignalView(QWidget):
         if len(spike_times):
             self._ax_bottom.vlines(spike_times, v_th, v_th * 1.25, color=SNN_COLOR, linewidth=2)
             for st in spike_times:
-                self._ax_bottom.text(st, v_th * 1.3, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
+                self._ax_bottom.text(st, v_th, f"t={st}", ha="center", fontsize=7, color=SNN_COLOR)
         self._ax_bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
         self._ax_bottom.set_ylim(-0.1, v_th * 1.4)
         self._ax_bottom.set_xlabel("tempo (passos)")
