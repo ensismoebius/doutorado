@@ -165,12 +165,12 @@ class BackwardSTEDemo(DemoModule):
                 f"(derivada indefinida). No nosso exemplo, $w = {self.w:g}$ cai acima de "
                 f"$τ = {tau:g}$, então $Q(w) = {w_quant:+d}$ — e nessa região a derivada local é zero.",
                 annotate=0.0,
-                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
             ),
             staircase_frame(
                 "Por que isso quebra a retropropagação",
                 f"Para $w = {self.w:g}$ a derivada local de Q é $dQ/dw = {dq_dw_real:g}$. A "
-                f"retropropagação padrão multiplica o gradiente por ela: "
+                f"backprop mult. o grad por ela: "
                 f"$dL/dw = dL/dQ(w) · dQ/dw = {upstream_grad:g} · {dq_dw_real:g} = {dl_dw_real:g}$. "
                 f"O gradiente morre aqui.",
                 annotate=1.0,
@@ -208,8 +208,8 @@ class BackwardSTEDemo(DemoModule):
             ),
             path_frame(
                 "Caminho do backward (STE)",
-                f"Da perda chega o gradiente $dL/dQ(w) = {upstream_grad:g}$. O STE ignora a "
-                f"derivada real ($dQ/dw = {dq_dw_real:g}$) e usa a da identidade: "
+                f"Da perda chega o grad $dL/dQ(w) = {upstream_grad:g}$. STE ignora a "
+                f"derivada real ($dQ/dw = {dq_dw_real:g}$) usa a da identidade: "
                 f"$dL/dw ≈ dL/dQ(w) · 1 = {dl_dw_ste:g}$. Sem o STE, esse gradiente seria "
                 f"$dL/dw = {dl_dw_real:g}$.",
                 fwd=1.0,

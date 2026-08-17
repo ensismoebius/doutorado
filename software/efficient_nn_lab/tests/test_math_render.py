@@ -52,14 +52,14 @@ def test_latexize_translations(raw, expected):
 @pytest.mark.parametrize(
     "raw",
     [
-        "Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario",
+        "Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}",
         "y = sigma(z) = 1 / (1 + e^-z)",
         "dL/dw ~= (y - target) . x  [STE]",
         "sigmoide(v) = 0,5 + (v - v_th) / (1 + k|v - v_th|)",
         "L = 1/2 (y - target)^2",
         "w <- w - eta . dL/dw",
         "z = w1·y_C + w2·y_D;  y = σ(z)",
-        "S(v) = 1 se v >= v_th; 0 caso contrario",
+        "S(v) = 1 \\text{ se: } v >= v_th; 0 \\text{ caso contrario}",
     ],
 )
 def test_latexize_accepts_real_equations(raw):

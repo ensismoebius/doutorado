@@ -57,6 +57,6 @@ class ScalarQuantizationDemo(DemoModule):
                 f"{'Dentro' if in_dead_zone else 'Fora'} da zona morta "
                 f"$[-{self.threshold:.2f}, {self.threshold:.2f}]$."
             ),
-            equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
+            equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
         )
         return build_sequence([real, result], steps=_SLIDE_TWEEN_STEPS)

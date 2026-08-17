@@ -94,7 +94,7 @@ class SurrogateGradientDemo(DemoModule):
                 f"Com $v_th = {self.v_th:g}$, ele dispara ($S = 1$) quando $v >= {self.v_th:g}$ e fica "
                 f"em silêncio ($S = 0$) abaixo disso. No nosso exemplo, "
                 f"$v = {v_example:g} >= {self.v_th:g}$: dispara, $S = {example_spike:g}$.",
-                equation="S(v) = 1 se v >= v_th; 0 caso contrario",
+                equation="S(v) = 1 \\text{ se: } v >= v_th; 0 \\text{ caso contrario}",
             ),
             frame(
                 "A sigmoide suave por trás do gradiente substituto",

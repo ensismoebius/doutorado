@@ -121,14 +121,14 @@ class ForwardLossDemo(DemoModule):
                 "Quantizar w1",
                 f"$w1 = {self.w1:g}$: {reason(self.w1, w1q)}. No número-linha ao lado, w1 cai "
                 "fora da faixa cinza (a 'zona morta' entre -tau e tau) — por isso não vira zero.",
-                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
                 quant1_reveal=1.0,
             ),
             frame(
                 "Quantizar w2",
                 f"$w2 = {self.w2:g}$: {reason(self.w2, w2q)}. Desta vez w2 cai dentro da faixa "
                 "cinza — a zona morta existe exatamente para isso: pesos pequenos colapsam a zero.",
-                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
             ),

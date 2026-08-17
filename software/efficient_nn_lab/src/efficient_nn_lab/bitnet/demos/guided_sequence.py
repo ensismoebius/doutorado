@@ -78,7 +78,7 @@ class GuidedBitNetDemo(DemoModule):
             frame(
                 "Passo 2 — quantização",
                 f"$Q(w) = Q({w:.2f}) = {q:+d}$.",
-                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 caso contrario.",
+                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 \\text{ caso contrario}.",
                 q_reveal=1.0,
                 step_number=2,
             ),
