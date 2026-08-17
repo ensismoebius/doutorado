@@ -85,7 +85,7 @@ _CHAR_MAP = {
     "ω": "\\omega",
     "θ": "\\theta",
     "Δ": "\\Delta",
-    "·": "\\cdot",
+    "·": "\\cdot ",
     "×": "\\times",
     "→": "\\to",
     "←": "\\leftarrow",
@@ -119,6 +119,11 @@ _FRACTION_RE = re.compile(
     r"((?:\([^()]*\)|[^\s()/]+))\s*/\s*((?:\([^()]*\)|[^\s()/]+(?:\([^()]*\))?))"
 )
 
+# Derivative notations like ``dL/dy``, ``dL/dz_O``, ``dw/dw`` must NOT be
+# turned into \frac{…}{…}.  We protect them with placeholders before the
+# fraction regex and restore afterwards.
+_DERIVATIVE_RE = re.compile(r"\bd([A-Z])/d([a-zA-Z](?:_\{[^}]*\})?)")
+
 
 def latexize(equation: str) -> str:
     """Translate a demo equation string into matplotlib mathtext.
@@ -137,7 +142,19 @@ def latexize(equation: str) -> str:
         s = pattern.sub(repl, s)
     for ch, latex in _CHAR_MAP.items():
         s = s.replace(ch, latex)
+
+    # Protect derivative notations (dL/dy, dL/dz_O, ...) from fraction conversion.
+    _deriv: list[str] = []
+    def _deriv_protect(m):
+        _deriv.append(m.group(0))
+        return f"\x00DERIV{len(_deriv) - 1}\x00"
+    s = _DERIVATIVE_RE.sub(_deriv_protect, s)
+
     s = _FRACTION_RE.sub(lambda m: f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}", s)
+
+    for i, orig in enumerate(_deriv):
+        s = s.replace(f"\x00DERIV{i}\x00", orig)
+
     return s
 
 

@@ -177,7 +177,10 @@ class MultilayerNetworkDemo(DemoModule):
                 active_detail=fwd_detail("Saída", zO, yO, c["w3"][0], y2, ["y_C", "y_D"]),
             ),
             frame(
-                "A perda", f"A saída da rede é $y = {yO:.3f}$; o alvo é $target = {self.target:g}$. A perda  resume essa distância num único número.",
+                "A perda",
+                f"A saída da rede é $y = {yO:.3f}$ e o alvo é $target = {self.target:g}$. "
+                f"A perda mede o erro quadrático: $L = 1/2 (y - target)^2 = {c['loss']:.4f}$. "
+                "Quanto menor L, mais perto do alvo.",
                 equation="L = 1/2 (y - target)^2",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 active="Saída", active_z=float(zO), active_y=float(yO), active_slope=float(sO),
