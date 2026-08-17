@@ -308,12 +308,12 @@ class NeuronView(QWidget):
     _MLP_O = (7.8, 3.5)
     _MLP_TARGET = (7.8, 5.6)
     _MLP_LOSS = (7.8, 1.4)
-    _MLP_NAMES = ["L1-A", "L1-B", "L2-C", "L2-D", "Saída"]
-    _MLP_POS = {"L1-A": _MLP_L1[0], "L1-B": _MLP_L1[1], "L2-C": _MLP_L2[0], "L2-D": _MLP_L2[1], "Saída": _MLP_O}
+    _MLP_NAMES = ["L1-A", "L1-B", "L2-C", "L2-D", "O"]
+    _MLP_POS = {"L1-A": _MLP_L1[0], "L1-B": _MLP_L1[1], "L2-C": _MLP_L2[0], "L2-D": _MLP_L2[1], "O": _MLP_O}
     _MLP_INPUT_POS = {
         "L1-A": _MLP_X, "L1-B": _MLP_X,
         "L2-C": _MLP_L1, "L2-D": _MLP_L1,
-        "Saída": _MLP_L2,
+        "O": _MLP_L2,
     }
     # figure-fraction rects for the 5 per-neuron sigmoid panels, arranged
     # in the same left-to-right layer order as the diagram itself (L1
@@ -324,7 +324,7 @@ class NeuronView(QWidget):
         "L1-B": (0.55, 0.08, 0.13, 0.38),
         "L2-C": (0.705, 0.56, 0.13, 0.38),
         "L2-D": (0.705, 0.08, 0.13, 0.38),
-        "Saída": (0.86, 0.32, 0.13, 0.38),
+        "O": (0.86, 0.32, 0.13, 0.38),
     }
 
     def _render_mlp_network(self, values: dict[str, object]) -> None:
@@ -335,15 +335,15 @@ class NeuronView(QWidget):
         gz1, gz2, gzO = values["grad_z1"], values["grad_z2"], float(values["grad_zO"])
         fwd = {
             "L1-A": float(values["fwd_l1a"]), "L1-B": float(values["fwd_l1b"]),
-            "L2-C": float(values["fwd_l2c"]), "L2-D": float(values["fwd_l2d"]), "Saída": float(values["fwd_o"]),
+            "L2-C": float(values["fwd_l2c"]), "L2-D": float(values["fwd_l2d"]), "O": float(values["fwd_o"]),
         }
         bwd = {
             "L1-A": float(values["bwd_l1a"]), "L1-B": float(values["bwd_l1b"]),
-            "L2-C": float(values["bwd_l2c"]), "L2-D": float(values["bwd_l2d"]), "Saída": float(values["bwd_o"]),
+            "L2-C": float(values["bwd_l2c"]), "L2-D": float(values["bwd_l2d"]), "O": float(values["bwd_o"]),
         }
-        y_val = {"L1-A": float(y1[0]), "L1-B": float(y1[1]), "L2-C": float(y2[0]), "L2-D": float(y2[1]), "Saída": yO}
-        gz_val = {"L1-A": float(gz1[0]), "L1-B": float(gz1[1]), "L2-C": float(gz2[0]), "L2-D": float(gz2[1]), "Saída": gzO}
-        w_row = {"L1-A": w1[0], "L1-B": w1[1], "L2-C": w2[0], "L2-D": w2[1], "Saída": w3[0]}
+        y_val = {"L1-A": float(y1[0]), "L1-B": float(y1[1]), "L2-C": float(y2[0]), "L2-D": float(y2[1]), "O": yO}
+        gz_val = {"L1-A": float(gz1[0]), "L1-B": float(gz1[1]), "L2-C": float(gz2[0]), "L2-D": float(gz2[1]), "O": gzO}
+        w_row = {"L1-A": w1[0], "L1-B": w1[1], "L2-C": w2[0], "L2-D": w2[1], "O": w3[0]}
         loss_reveal = float(values["loss_reveal"])
         update_reveal = float(values["update_reveal"])
         active = values.get("active", "")
@@ -399,7 +399,7 @@ class NeuronView(QWidget):
         if update_reveal > 0.02:
             self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=9)
 
-        z_val = {"L1-A": float(z1[0]), "L1-B": float(z1[1]), "L2-C": float(z2[0]), "L2-D": float(z2[1]), "Saída": zO}
+        z_val = {"L1-A": float(z1[0]), "L1-B": float(z1[1]), "L2-C": float(z2[0]), "L2-D": float(z2[1]), "O": zO}
         slope_val = {name: float(sigmoid_derivative(z_val[name])) for name in self._MLP_NAMES}
         for name in self._MLP_NAMES:
             ax = self._get_inset(name, self._MLP_INSET_RECTS[name])
@@ -764,7 +764,7 @@ class NeuronView(QWidget):
         reveal_outputs = float(values["reveal_outputs"])
         if reveal_outputs > 0.02:
             y = 1.1
-            self._fading_text(0.15, y, "Saída", "black", reveal_outputs, fontsize=9, weight="bold")
+            self._fading_text(0.15, y, "O", "black", reveal_outputs, fontsize=9, weight="bold")
             self._fading_text(self._COLS_X["ANN"], y, f"y = {values['y_ann']:g}", self._COL_COLORS["ANN"], reveal_outputs, fontsize=9)
             self._fading_text(self._COLS_X["BitNet"], y, f"y = {values['y_bitnet']:g}", self._COL_COLORS["BitNet"], reveal_outputs, fontsize=9)
             self._fading_text(self._COLS_X["SNN"], y, f"{values['snn_spike_count']} spikes", self._COL_COLORS["SNN"], reveal_outputs, fontsize=9)

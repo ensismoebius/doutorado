@@ -37,7 +37,7 @@ def _all_demos():
         ("x^2", r"x^{2}"),
         ("w_D→O", r"w_{D\toO}"),
         ("sum_i x_i . Q(w_i)", r"\sum_{i} x_{i} \cdot Q(w_{i})"),
-        ("1 / (1 + e^-z)", r"\frac{1}{(1 + e^{-z})}"),
+        ("1 / (1 + e^-z)", r"\dfrac{1}{(1 + e^{-z})}"),
         ("sigma(z)", r"\sigma(z)"),
         ("tau", r"\tau"),
         ("V_th = 0.50", r"V_{th} = 0.50"),

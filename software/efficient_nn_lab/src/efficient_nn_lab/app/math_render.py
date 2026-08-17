@@ -122,7 +122,12 @@ _FRACTION_RE = re.compile(
 # Derivative notations like ``dL/dy``, ``dL/dz_O``, ``dw/dw`` must NOT be
 # turned into \frac{…}{…}.  We protect them with placeholders before the
 # fraction regex and restore afterwards.
-_DERIVATIVE_RE = re.compile(r"\bd([A-Z])/d([a-zA-Z](?:_\{[^}]*\})?)")
+_DERIVATIVE_RE = re.compile(r"\b(d[A-Z])/(d[a-zA-Z](?:_\{[^}]*\})?)")
+
+# ``\text{…}`` carries normal text with spaces inside math mode.
+# Must be extracted before every other regex so the braces, spaces and
+# letters are never consumed by subscripts, fractions, etc.
+_TEXT_RE = re.compile(r"\\text\{([^}]*)\}")
 
 
 def latexize(equation: str) -> str:
@@ -133,6 +138,15 @@ def latexize(equation: str) -> str:
     The output is a ``$``-free mathtext expression (callers wrap it).
     """
     s = equation
+
+    # Protect \text{...} blocks first — they contain spaces and letters
+    # that every later regex would mangle.
+    _txt: list[str] = []
+    def _txt_protect(m):
+        _txt.append(m.group(0))
+        return f"\x00§{len(_txt) - 1}§\x00"
+    s = _TEXT_RE.sub(_txt_protect, s)
+
     s = _WORD_GREEK_RE.sub(lambda m: _WORD_GREEK[m.group(1)], s)
     s = re.sub(r"sum_", "\\\\sum_", s)
     s = re.sub(rf"([{_UNICODE_LETTER}])_([{_UNICODE_LETTER}0-9→←]+)", r"\1_{\2}", s)
@@ -143,17 +157,20 @@ def latexize(equation: str) -> str:
     for ch, latex in _CHAR_MAP.items():
         s = s.replace(ch, latex)
 
-    # Protect derivative notations (dL/dy, dL/dz_O, ...) from fraction conversion.
-    _deriv: list[str] = []
+    # Protect derivative notations (dL/dy, dL/dz_O, ...) and convert to \dfrac.
+    _deriv: list[tuple[str, str]] = []
     def _deriv_protect(m):
-        _deriv.append(m.group(0))
+        _deriv.append((m.group(1), m.group(2)))
         return f"\x00DERIV{len(_deriv) - 1}\x00"
     s = _DERIVATIVE_RE.sub(_deriv_protect, s)
 
-    s = _FRACTION_RE.sub(lambda m: f"\\frac{{{m.group(1)}}}{{{m.group(2)}}}", s)
+    s = _FRACTION_RE.sub(lambda m: f"\\dfrac{{{m.group(1)}}}{{{m.group(2)}}}", s)
 
-    for i, orig in enumerate(_deriv):
-        s = s.replace(f"\x00DERIV{i}\x00", orig)
+    for i, (num, den) in enumerate(_deriv):
+        s = s.replace(f"\x00DERIV{i}\x00", f"\\dfrac{{{num}}}{{{den}}}")
+
+    for i, orig in enumerate(_txt):
+        s = s.replace(f"\x00§{i}§\x00", orig)
 
     return s
 

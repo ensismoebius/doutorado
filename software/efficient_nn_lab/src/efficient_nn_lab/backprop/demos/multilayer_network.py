@@ -40,8 +40,10 @@ class MultilayerNetworkDemo(DemoModule):
     slug = "backprop.mlp"
     description = (
         "O mesmo forward/backward do neurônio único, agora numa rede de verdade: "
-        "entrada (3) -> camada 1 (2) -> camada 2 (2) -> saída (1), toda sigmoide. "
-        "Um neurônio de cada vez, na ordem em que os valores realmente ficam prontos."
+        "entrada (3) -> camada 1 (A, B) -> camada 2 (C, D) -> saída (O), "
+        "toda sigmoide. Cada neurônio tem um nome (A, B, C, D, O) usado nas "
+        "equações. Um neurônio de cada vez, na ordem em que os valores realmente "
+        "ficam prontos."
     )
 
     def __init__(self) -> None:
@@ -142,7 +144,7 @@ class MultilayerNetworkDemo(DemoModule):
                 "Quatro camadas: 3 entradas, 2 neurônios na camada 1, 2 na camada 2, 1 na "
                 "saída -- todas com ativação sigmoide, sem viés. Vamos calcular o forward "
                 "neurônio por neurônio, na ordem em que cada valor fica disponível.",
-                equation="y = σ(W · entrada); Em\_cada\_camada"
+                equation="y = σ(W · entrada); \text{Em cada camada}"
             ),
             frame(
                 "Forward: L1-A", "Primeiro neurônio da camada 1: combina as três entradas.",
@@ -170,11 +172,11 @@ class MultilayerNetworkDemo(DemoModule):
                 active_detail=fwd_detail("L2-D", z2[1], y2[1], c["w2"][1], y1, ["y_A", "y_B"]),
             ),
             frame(
-                "Forward: Saída", "O neurônio de saída combina as duas saídas da camada 2.",
+                "Forward: O", "O neurônio de saída (O) combina as duas saídas da camada 2.",
                 equation="z = w1·y_C + w2·y_D;  y = σ(z)",
-                fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, active="Saída",
+                fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, active="O",
                 active_z=float(zO), active_y=float(yO), active_slope=float(sO),
-                active_detail=fwd_detail("Saída", zO, yO, c["w3"][0], y2, ["y_C", "y_D"]),
+                active_detail=fwd_detail("O", zO, yO, c["w3"][0], y2, ["y_C", "y_D"]),
             ),
             frame(
                 "A perda",
@@ -183,18 +185,21 @@ class MultilayerNetworkDemo(DemoModule):
                 "Quanto menor L, mais perto do alvo.",
                 equation="L = 1/2 (y - target)^2",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
-                active="Saída", active_z=float(zO), active_y=float(yO), active_slope=float(sO),
+                active="O", active_z=float(zO), active_y=float(yO), active_slope=float(sO),
             ),
             frame(
-                "Backward: Saída", "O backward começa onde o forward terminou: dL/dy na saída, depois "
+                "Backward: O", "O backward começa onde o forward terminou: dL/dy no neurônio O, depois "
                 "dL/dz atravessando a sigmoide daquele neurônio.",
                 equation="dL/dy = y - target;  dL/dz = dL/dy · σ'(z)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0, bwd_o=1.0,
-                active="Saída", active_z=float(zO), active_y=float(yO), active_slope=float(sO), active_grad_z=float(c["grad_zO"]),
-                active_detail=bwd_detail("Saída", c["grad_yO"], c["grad_zO"], sO),
+                active="O", active_z=float(zO), active_y=float(yO), active_slope=float(sO), active_grad_z=float(c["grad_zO"]),
+                active_detail=bwd_detail("O", c["grad_yO"], c["grad_zO"], sO),
             ),
             frame(
-                "Backward: L2-D", "O gradiente volta para L2-D através do peso que liga L2-D à saída.",
+                "Backward: L2-D", "Regra da cadeia em duas etapas: o gradiente que chega em D "
+                "é o peso w_D→O multiplicado pelo gradiente que saiu de O (dL/dz_O) -- "
+                "o erro se propaga para trás pelo peso. Em seguida, o gradiente local "
+                "dL/dz_D multiplica dL/dy_D pela derivada da sigmoide em D.",
                 equation="dL/dy_D = w_D→O · dL/dz_O;  dL/dz_D = dL/dy_D · σ'(z_D)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, active="L2-D", active_z=float(z2[1]), active_y=float(y2[1]),
@@ -202,7 +207,9 @@ class MultilayerNetworkDemo(DemoModule):
                 active_detail=bwd_detail("L2-D", gy2[1], gz2[1], s2[1]),
             ),
             frame(
-                "Backward: L2-C", "Mesma ideia para L2-C, pelo peso que liga L2-C à saída.",
+                "Backward: L2-C", "Mesma regra da cadeia para C: o gradiente de C é o "
+                "peso w_C→O vezes o gradiente que saiu de O -- depois localizado "
+                "pela derivada da sigmoide em C.",
                 equation="dL/dy_C = w_C→O · dL/dz_O;  dL/dz_C = dL/dy_C · σ'(z_C)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, bwd_l2c=1.0, active="L2-C", active_z=float(z2[0]), active_y=float(y2[0]),
