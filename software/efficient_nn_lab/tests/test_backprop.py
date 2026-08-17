@@ -562,7 +562,7 @@ def test_matrix_demo_z_is_revealed_before_its_activation():
 
 
 def test_matrix_demo_local_derivative_is_revealed_before_it_is_used():
-    # sigma'(z) gets its own step, ahead of the dL/dz step that multiplies by
+    # sigma'(z) gets its own step, ahead of the ∂L/∂z step that multiplies by
     # it -- it is a quantity in its own right, not something that appears
     # already folded into a product.
     demo = MatrixAlgebraDemo()

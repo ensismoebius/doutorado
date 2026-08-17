@@ -16,16 +16,20 @@
 		\begin{equation*}
 			\gamma = \frac{0{,}6+0{,}3+0{,}05}{3} = 0{,}3056
 		\end{equation*}
+		% quebrado em duas linhas: os tres estagios numa linha so estouravam a
+		% largura do slide (Overfull \hbox de 14,5pt)
 		\begin{equation*}
-			w/\gamma = [1{,}963,\ -0{,}982,\ 0{,}164]
-			\xrightarrow{\text{clip}(-1,1)} [1{,}0,\ -0{,}982,\ 0{,}164]
-			\xrightarrow{\text{round}} \boxed{[1,\ -1,\ 0]}
+			\begin{aligned}
+				w/\gamma &= [1{,}963,\ -0{,}982,\ 0{,}164]
+				\xrightarrow{\text{clip}(-1,1)} [1{,}0,\ -0{,}982,\ 0{,}164] \\
+				&\xrightarrow{\text{round}} \boxed{[1,\ -1,\ 0]}
+			\end{aligned}
 		\end{equation*}
 		\par O peso original $0{,}05$ (o menor em módulo) \textbf{vira zero} --- é descartado, não aproximado. Os outros dois viram $\pm 1$.
 		\par As ativações $X$ recebem seu próprio tratamento, quantização \textbf{absmax} para INT8: $\widetilde{X} = \text{round}(X \cdot 127/\max(|X|))$, com \textit{clip} em $[-128,127]$.
-		% [SOFTWARE] BitNet -> Quantizacao | slider w ~ 0 para reproduzir a
+		% [SOFTWARE] BitNet -> Quantização | slider w ~ 0 para reproduzir a
 		% zona morta, depois 0,6 / -0,3 para os dois outros pesos do exemplo
-		\abrirNoSoftware{BitNet \textrightarrow{} Quantizacao}{bitnet.quant}
+		\abrirNoSoftware{BitNet \textrightarrow{} Quantização}{bitnet.quant}
 	}
 	\only<3>{
 		\framesubtitle{O que essa troca compra}

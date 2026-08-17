@@ -123,8 +123,8 @@ def test_backward_demo_exposes_both_ste_paths():
 
 def test_backward_demo_worked_example_is_hand_computable():
     # default w = 0.65, tau = 0.5: Q(w) = +1, y = x*Q(w) = 2*1 = 2,
-    # L = 1/2 (2 - 4)^2 = 2, dL/dQ(w) = 2 - 4 = -2. The STE substitute for
-    # dQ/dw is 1, so dL/dw_ste = -2 while dL/dw_real = 0.
+    # L = 1/2 (2 - 4)^2 = 2, ∂L/∂Q(w) = 2 - 4 = -2. The STE substitute for
+    # dQ/dw is 1, so ∂L/∂w_ste = -2 while ∂L/∂w_real = 0.
     demo = BackwardSTEDemo()
     ste = [f for f in demo.checkpoint_frames() if f.values["kind"] == "ste_pipeline"]
     assert ste
@@ -133,7 +133,7 @@ def test_backward_demo_worked_example_is_hand_computable():
     assert v["w_quant"] == 1
     assert v["y"] == pytest.approx(2.0)
     assert v["loss"] == pytest.approx(2.0)
-    assert v["upstream_grad"] == pytest.approx(-2.0)  # dL/dQ(w)
+    assert v["upstream_grad"] == pytest.approx(-2.0)  # ∂L/∂Q(w)
     assert v["dq_dw_real"] == pytest.approx(0.0)
     assert v["dq_dw_ste"] == pytest.approx(1.0)
     assert v["dl_dw_real"] == pytest.approx(0.0)

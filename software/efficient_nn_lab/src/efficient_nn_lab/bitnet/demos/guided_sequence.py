@@ -114,8 +114,8 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 7 — gradiente",
-                f"$dL/dy = y - target = {grad_y:g}$. Via STE, $dL/dw ~= dL/dy . x = {grad_w:g}$.",
-                equation="dL/dw ~= (y - target) . x  [STE]",
+                f"$∂L/∂y = y - target = {grad_y:g}$. Via STE, $∂L/∂w ~= ∂L/∂y . x = {grad_w:g}$.",
+                equation="∂L/∂w ~= (y - target) . x  [STE]",
                 q_reveal=1.0,
                 x_reveal=1.0,
                 y_reveal=1.0,
@@ -139,8 +139,8 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 9 — atualização",
-                f"$w <- w - lr . dL/dw = {w:.2f} - {_LEARNING_RATE:g} . ({grad_w:g}) = {w_new:.2f}$.",
-                equation="w <- w - eta . dL/dw",
+                f"$w <- w - lr . ∂L/∂w = {w:.2f} - {_LEARNING_RATE:g} . ({grad_w:g}) = {w_new:.2f}$.",
+                equation="w <- w - eta . ∂L/∂w",
                 w_value=w_new,
                 q_reveal=1.0,
                 x_reveal=1.0,

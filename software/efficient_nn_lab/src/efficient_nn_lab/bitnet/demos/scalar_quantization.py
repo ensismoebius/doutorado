@@ -16,7 +16,7 @@ _SLIDE_TWEEN_STEPS = 12
 
 
 class ScalarQuantizationDemo(DemoModule):
-    title = "BitNet -> Quantizacao"
+    title = "BitNet -> Quantização"
     slug = "bitnet.quant"
     description = (
         "Um unico peso real w e quantizado para um dos tres niveis "

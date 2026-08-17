@@ -1,7 +1,7 @@
 """Render the demos' plain-text equations as real mathematics.
 
 The demo layers store every formula as a short ASCII/unicode string, e.g.
-``"L = 1/2 (y - target)^2"`` or ``"dL/dz = dL/dy · σ'(z)"``. That is fine
+``"L = 1/2 (y - target)^2"`` or ``"∂L/∂z = ∂L/∂y · σ'(z)"``. That is fine
 for data, but the UI needs them typeset *mathematically* (fractions, real
 sub/superscripts, sigma/sum glyphs) instead of shown as a code line.
 
@@ -26,6 +26,7 @@ import base64
 import html
 import io
 import re
+import sys
 from functools import lru_cache
 
 from matplotlib import mathtext
@@ -76,28 +77,37 @@ _WORD_GREEK = {
 _WORD_GREEK_RE = re.compile(r"\b(" + "|".join(re.escape(k) for k in _WORD_GREEK) + r")\b")
 
 # Unicode math symbols the demos write directly (σ, Σ, τ, ·, →, ...).
+#
+# Every value that is a control word (``\sigma``, ``\to``, ...) ends with a
+# space. Without it, a symbol immediately followed by a letter glues into a
+# command that does not exist: the demos write weight names like ``w_A→C``,
+# whose subscript becomes ``A\toC`` -- mathtext then raises "Unknown symbol:
+# \toC" and render_math_image silently falls back to showing the raw
+# pseudo-LaTeX to the audience. Only ``\tfrac{1}{2}`` needs no space, because
+# it already ends in a brace.
 _CHAR_MAP = {
-    "σ": "\\sigma",
-    "Σ": "\\Sigma",
-    "τ": "\\tau",
-    "η": "\\eta",
-    "λ": "\\lambda",
-    "ω": "\\omega",
-    "θ": "\\theta",
-    "Δ": "\\Delta",
+    "σ": "\\sigma ",
+    "Σ": "\\Sigma ",
+    "τ": "\\tau ",
+    "η": "\\eta ",
+    "λ": "\\lambda ",
+    "ω": "\\omega ",
+    "θ": "\\theta ",
+    "Δ": "\\Delta ",
     "·": "\\cdot ",
-    "×": "\\times",
-    "→": "\\to",
-    "←": "\\leftarrow",
-    "↔": "\\leftrightarrow",
-    "≈": "\\approx",
-    "±": "\\pm",
-    "∈": "\\in",
-    "≠": "\\neq",
-    "≤": "\\leq",
-    "≥": "\\geq",
-    "∞": "\\infty",
+    "×": "\\times ",
+    "→": "\\to ",
+    "←": "\\leftarrow ",
+    "↔": "\\leftrightarrow ",
+    "≈": "\\approx ",
+    "±": "\\pm ",
+    "∈": "\\in ",
+    "≠": "\\neq ",
+    "≤": "\\leq ",
+    "≥": "\\geq ",
+    "∞": "\\infty ",
     "½": "\\tfrac{1}{2}",
+    "∂": "\\partial ",
 }
 
 _ASCII_SUBS = [
@@ -119,10 +129,28 @@ _FRACTION_RE = re.compile(
     r"((?:\([^()]*\)|[^\s()/]+))\s*/\s*((?:\([^()]*\)|[^\s()/]+(?:\([^()]*\))?))"
 )
 
-# Derivative notations like ``dL/dy``, ``dL/dz_O``, ``dw/dw`` must NOT be
-# turned into \frac{…}{…}.  We protect them with placeholders before the
-# fraction regex and restore afterwards.
-_DERIVATIVE_RE = re.compile(r"\b(d[A-Z])/(d[a-zA-Z](?:_\{[^}]*\})?)")
+# Derivative notations must NOT be turned into a plain \frac{…}{…}: the
+# operator (``d`` or ``∂``) belongs *inside* the fraction, on both levels.
+# They are protected with placeholders before the fraction regex and
+# restored afterwards.
+#
+# Both notations are accepted, and the demos use them to mean different
+# things -- the same distinction the lecture slides make:
+#
+#   ``∂L/∂w``   partial: L depends on many variables (every weight and
+#               activation in the network), so the gradient of the loss is
+#               always written with ∂ -- matches the slides' ∂L/∂w.
+#   ``dV/dt``   total: a single-variable function of its only argument (the
+#               LIF membrane ODE, dQ/dw, dS/dv) -- matches snnLif.tex.
+#
+# Written as one alternation so ``∂L/∂w``, ``dV/dt`` and even a mixed
+# ``∂L/dw`` all parse; the operator actually used is carried through to the
+# output instead of being normalised, because choosing between them is the
+# author's decision, not this function's.
+_DERIVATIVE_OPS = {"d": "d", "∂": "\\partial "}
+_DERIVATIVE_RE = re.compile(
+    r"(?<![A-Za-z])([d∂])([A-Za-z](?:_\{[^}]*\})?)\s*/\s*([d∂])([A-Za-z](?:_\{[^}]*\})?)"
+)
 
 # ``\text{…}`` carries normal text with spaces inside math mode.
 # Must be extracted before every other regex so the braces, spaces and
@@ -134,7 +162,7 @@ def latexize(equation: str) -> str:
     """Translate a demo equation string into matplotlib mathtext.
 
     Inputs are the plain pseudo-LaTeX the demos use: ``"L = 1/2 (y -
-    target)^2"``, ``"w <- w - eta . dL/dw"``, ``"z = w1·x1 + w2·x2"``.
+    target)^2"``, ``"w <- w - eta . ∂L/∂w"``, ``"z = w1·x1 + w2·x2"``.
     The output is a ``$``-free mathtext expression (callers wrap it).
     """
     s = equation
@@ -152,17 +180,19 @@ def latexize(equation: str) -> str:
     s = re.sub(rf"([{_UNICODE_LETTER}])_([{_UNICODE_LETTER}0-9→←]+)", r"\1_{\2}", s)
     s = re.sub(rf"([{_UNICODE_LETTER}])([0-9]+)", r"\1_{\2}", s)
     s = re.sub(rf"\^(-?[{_UNICODE_LETTER}0-9])", r"^{\1}", s)
+    # Protect derivative notations (∂L/∂y, ∂L/∂z_O, dV/dt, ...) and convert
+    # to \dfrac. Runs before the ASCII/char maps so a bare ∂ is still ∂ here.
+    _deriv: list[tuple[str, str]] = []
+    def _deriv_protect(m):
+        op_num, num, op_den, den = m.groups()
+        _deriv.append((_DERIVATIVE_OPS[op_num] + num, _DERIVATIVE_OPS[op_den] + den))
+        return f"\x00DERIV{len(_deriv) - 1}\x00"
+    s = _DERIVATIVE_RE.sub(_deriv_protect, s)
+
     for pattern, repl in _ASCII_SUBS:
         s = pattern.sub(repl, s)
     for ch, latex in _CHAR_MAP.items():
         s = s.replace(ch, latex)
-
-    # Protect derivative notations (dL/dy, dL/dz_O, ...) and convert to \dfrac.
-    _deriv: list[tuple[str, str]] = []
-    def _deriv_protect(m):
-        _deriv.append((m.group(1), m.group(2)))
-        return f"\x00DERIV{len(_deriv) - 1}\x00"
-    s = _DERIVATIVE_RE.sub(_deriv_protect, s)
 
     s = _FRACTION_RE.sub(lambda m: f"\\dfrac{{{m.group(1)}}}{{{m.group(2)}}}", s)
 
@@ -198,7 +228,19 @@ def render_math_image(expr: str, dpi: int = _INLINE_DPI, color: str = TEXT_COLOR
     for attempt in (latex, expr):
         try:
             data = _render_png(attempt, dpi, color)
-        except Exception:
+        except Exception as exc:
+            if attempt is latex:
+                # The fallback below keeps a live lecture running (raw text
+                # beats a crash mid-talk), but it must never be silent: it
+                # renders pseudo-LaTeX source to the audience, which is a
+                # bug, not a degraded-but-fine mode. Four equations shipped
+                # in exactly that state because the only test asserted "an
+                # image came back". Complained about here, and asserted
+                # against in tests/test_math_render.py.
+                print(
+                    f"math_render: mathtext rejected {latex!r} (from {expr!r}): {exc}",
+                    file=sys.stderr,
+                )
             continue
         if data:
             return QImage.fromData(data)

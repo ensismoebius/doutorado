@@ -13,8 +13,9 @@
 			\bottomrule
 		\end{tabular}
 	\end{center}
-	\vspace{8pt}
+	\vspace{2pt}
 	\begin{itemize}
+		\setlength{\itemsep}{0pt}
 		\item ``Equivalente'' aqui não é aproximação --- os autores reportam paridade estatística com a linha de base FP16 a partir de $\sim$3B parâmetros.
 		\item \alert{Abaixo dessa escala, a paridade some}: em modelos pequenos, a capacidade perdida pela quantização ternária pesa mais do que o modelo consegue compensar.
 		\item De onde vem o nome ``1,58 bit'': $\log_2(3) \approx 1{,}58$ --- o número de bits necessário para representar 3 estados ($-1,0,1$) por peso.

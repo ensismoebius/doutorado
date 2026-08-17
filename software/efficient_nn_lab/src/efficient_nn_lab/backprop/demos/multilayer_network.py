@@ -127,8 +127,8 @@ class MultilayerNetworkDemo(DemoModule):
 
         def bwd_detail(name: str, grad_y: float, grad_z: float, slope: float) -> str:
             return (
-                f"{name}: dL/dy = {grad_y:.3f}\n"
-                f"dL/dz = dL/dy·σ'(z)\n"
+                f"{name}: ∂L/∂y = {grad_y:.3f}\n"
+                f"∂L/∂z = ∂L/∂y·σ'(z)\n"
                 f"     = {grad_y:.3f}·{slope:.2f} = {grad_z:.3f}"
             )
 
@@ -188,19 +188,19 @@ class MultilayerNetworkDemo(DemoModule):
                 active="O", active_z=float(zO), active_y=float(yO), active_slope=float(sO),
             ),
             frame(
-                "Backward: O", "O backward começa onde o forward terminou: dL/dy no neurônio O, depois "
-                "dL/dz atravessando a sigmoide daquele neurônio.",
-                equation="dL/dy = y - target;  dL/dz = dL/dy · σ'(z)",
+                "Backward: O", "O backward começa onde o forward terminou: ∂L/∂y no neurônio O, depois "
+                "∂L/∂z atravessando a sigmoide daquele neurônio.",
+                equation="∂L/∂y = y - target;  ∂L/∂z = ∂L/∂y · σ'(z)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0, bwd_o=1.0,
                 active="O", active_z=float(zO), active_y=float(yO), active_slope=float(sO), active_grad_z=float(c["grad_zO"]),
                 active_detail=bwd_detail("O", c["grad_yO"], c["grad_zO"], sO),
             ),
             frame(
                 "Backward: L2-D", "Regra da cadeia em duas etapas: o gradiente que chega em D "
-                "é o peso w_D→O multiplicado pelo gradiente que saiu de O (dL/dz_O) -- "
+                "é o peso w_D→O multiplicado pelo gradiente que saiu de O (∂L/∂z_O) -- "
                 "o erro se propaga para trás pelo peso. Em seguida, o gradiente local "
-                "dL/dz_D multiplica dL/dy_D pela derivada da sigmoide em D.",
-                equation="dL/dy_D = w_D→O · dL/dz_O;  dL/dz_D = dL/dy_D · σ'(z_D)",
+                "∂L/∂z_D multiplica ∂L/∂y_D pela derivada da sigmoide em D.",
+                equation="∂L/∂y_D = w_D→O · ∂L/∂z_O;  ∂L/∂z_D = ∂L/∂y_D · σ'(z_D)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, active="L2-D", active_z=float(z2[1]), active_y=float(y2[1]),
                 active_slope=float(s2[1]), active_grad_z=float(gz2[1]),
@@ -210,7 +210,7 @@ class MultilayerNetworkDemo(DemoModule):
                 "Backward: L2-C", "Mesma regra da cadeia para C: o gradiente de C é o "
                 "peso w_C→O vezes o gradiente que saiu de O -- depois localizado "
                 "pela derivada da sigmoide em C.",
-                equation="dL/dy_C = w_C→O · dL/dz_O;  dL/dz_C = dL/dy_C · σ'(z_C)",
+                equation="∂L/∂y_C = w_C→O · ∂L/∂z_O;  ∂L/∂z_C = ∂L/∂y_C · σ'(z_C)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, bwd_l2c=1.0, active="L2-C", active_z=float(z2[0]), active_y=float(y2[0]),
                 active_slope=float(s2[0]), active_grad_z=float(gz2[0]),
@@ -219,7 +219,7 @@ class MultilayerNetworkDemo(DemoModule):
             frame(
                 "Backward: L1-B", "L1-B alimenta os dois neurônios da camada 2, então recebe gradiente "
                 "de ambos -- soma das duas contribuições.",
-                equation="dL/dy_B = w_B→C·dL/dz_C + w_B→D·dL/dz_D;  dL/dz_B = dL/dy_B · σ'(z_B)",
+                equation="∂L/∂y_B = w_B→C·∂L/∂z_C + w_B→D·∂L/∂z_D;  ∂L/∂z_B = ∂L/∂y_B · σ'(z_B)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, bwd_l2c=1.0, bwd_l1b=1.0, active="L1-B",
                 active_z=float(z1[1]), active_y=float(y1[1]), active_slope=float(s1[1]), active_grad_z=float(gz1[1]),
@@ -228,7 +228,7 @@ class MultilayerNetworkDemo(DemoModule):
             frame(
                 "Backward: L1-A", "E o mesmo para L1-A -- último neurônio, gradiente também somado das "
                 "duas saídas da camada 2 que ele alimenta.",
-                equation="dL/dy_A = w_A→C·dL/dz_C + w_A→D·dL/dz_D;  dL/dz_A = dL/dy_A · σ'(z_A)",
+                equation="∂L/∂y_A = w_A→C·∂L/∂z_C + w_A→D·∂L/∂z_D;  ∂L/∂z_A = ∂L/∂y_A · σ'(z_A)",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, bwd_l2c=1.0, bwd_l1b=1.0, bwd_l1a=1.0, active="L1-A",
                 active_z=float(z1[0]), active_y=float(y1[0]), active_slope=float(s1[0]), active_grad_z=float(gz1[0]),
@@ -236,8 +236,8 @@ class MultilayerNetworkDemo(DemoModule):
             ),
             frame(
                 "Atualizar todos os pesos", "Cada peso da rede anda um passo contra o próprio gradiente -- "
-                "dL/dw = dL/dz do neurônio de destino vezes o valor que entrou por aquele peso.",
-                equation="w <- w - taxa · dL/dw",
+                "∂L/∂w = ∂L/∂z do neurônio de destino vezes o valor que entrou por aquele peso.",
+                equation="w <- w - taxa · ∂L/∂w",
                 fwd_l1a=1.0, fwd_l1b=1.0, fwd_l2c=1.0, fwd_l2d=1.0, fwd_o=1.0, loss_reveal=1.0,
                 bwd_o=1.0, bwd_l2d=1.0, bwd_l2c=1.0, bwd_l1b=1.0, bwd_l1a=1.0, update_reveal=1.0,
                 active="", active_z=float(z1[0]), active_y=float(y1[0]), active_slope=float(s1[0]),

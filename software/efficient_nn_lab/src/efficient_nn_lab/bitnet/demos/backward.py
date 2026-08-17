@@ -8,7 +8,7 @@ Estimator route a gradient through it anyway?
 
 One concrete worked example runs through all three scenes so every number
 shown is the *same* number: w = 0.65, tau = 0.5 -> Q(w) = +1, y = x*Q(w) =
-2, L = 2, dL/dQ(w) = -2, dL/dw = 0 (real derivative) vs -2 (STE). The
+2, L = 2, ∂L/∂Q(w) = -2, ∂L/∂w = 0 (real derivative) vs -2 (STE). The
 values come out of the real quantization/STE/linear code (bitnet/linear.py,
 bitnet/ste.py), never hand-typed into the f-strings.
 
@@ -85,7 +85,7 @@ class BackwardSTEDemo(DemoModule):
         w_quant = result.w_quant[0]
         y = result.y
         loss = squared_error_loss(y, self.target)
-        upstream_grad = loss_gradient_wrt_y(y, self.target)  # dL/dQ(w)
+        upstream_grad = loss_gradient_wrt_y(y, self.target)  # ∂L/∂Q(w)
         dq_dw_real = 0.0  # true local derivative of Q on a flat region
         dq_dw_ste = 1.0  # what STE substitutes: derivative of the identity
         dl_dw_real = upstream_grad * dq_dw_real
@@ -171,7 +171,7 @@ class BackwardSTEDemo(DemoModule):
                 "Por que isso quebra a retropropagação",
                 f"Para $w = {self.w:g}$ a derivada local de Q é $dQ/dw = {dq_dw_real:g}$. A "
                 f"backprop mult. o grad por ela: "
-                f"$dL/dw = dL/dQ(w) · dQ/dw = {upstream_grad:g} · {dq_dw_real:g} = {dl_dw_real:g}$. "
+                f"$∂L/∂w = ∂L/∂Q(w) · dQ/dw = {upstream_grad:g} · {dq_dw_real:g} = {dl_dw_real:g}$. "
                 f"O gradiente morre aqui.",
                 annotate=1.0,
             ),
@@ -208,19 +208,19 @@ class BackwardSTEDemo(DemoModule):
             ),
             path_frame(
                 "Caminho do backward (STE)",
-                f"Da perda chega o grad $dL/dQ(w) = {upstream_grad:g}$. STE ignora a "
+                f"Da perda chega o grad $∂L/∂Q(w) = {upstream_grad:g}$. STE ignora a "
                 f"derivada real ($dQ/dw = {dq_dw_real:g}$) usa a da identidade: "
-                f"$dL/dw ≈ dL/dQ(w) · 1 = {dl_dw_ste:g}$. Sem o STE, esse gradiente seria "
-                f"$dL/dw = {dl_dw_real:g}$.",
+                f"$∂L/∂w ≈ ∂L/∂Q(w) · 1 = {dl_dw_ste:g}$. Sem o STE, esse gradiente seria "
+                f"$∂L/∂w = {dl_dw_real:g}$.",
                 fwd=1.0,
                 bwd=1.0,
                 joined=0.0,
-                equation="dL/dw ~= dL/dQ(w)  (dQ/dw substituido por 1)",
+                equation="∂L/∂w ~= ∂L/∂Q(w)  (dQ/dw substituído por 1)",
             ),
             path_frame(
                 "Os dois caminhos juntos",
                 f"Forward usa $Q(w) = {w_quant:+d}$ (o valor real era $w = {self.w:g}$); backward "
-                f"finge que $Q(w) = w$ e entrega $dL/dw = {dl_dw_ste:g}$ ao peso real. É essa "
+                f"finge que $Q(w) = w$ e entrega $∂L/∂w = {dl_dw_ste:g}$ ao peso real. É essa "
                 f"assimetria deliberada que faz o STE funcionar.",
                 fwd=1.0,
                 bwd=1.0,

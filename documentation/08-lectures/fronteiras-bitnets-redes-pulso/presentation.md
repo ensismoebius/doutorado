@@ -235,11 +235,39 @@ navegue à vontade" — cada entrada é o quadro exato que ilustra aquele
 slide, para o apresentador não perder tempo ao vivo procurando o passo
 certo).
 
+### Fundamentos
+
+Seção de abertura, criada depois da primeira versão deste plano: estabelece
+arquitetura, peso, ciclo de treino e a leitura matricial antes de qualquer
+menção a BitNet ou pulso. Todos os números dos slides são os mesmos das
+demos correspondentes.
+
+| Slide (arquivo) | Ideia-chave | Demo do software | Passo/checkpoint | Slug |
+|---|---|---|---|---|
+| `fundamentosArquitetura.tex` (diagrama 3-2-2-1) | Camadas, pesos, ativação não linear | **Backprop -> Rede de 4 camadas** | Percorrer o forward neurônio a neurônio, na mesma topologia do diagrama | `backprop.mlp` |
+| `fundamentosPesos.tex` (`z = Σ wᵢxᵢ`, exemplo `z=-0,05 → y=0,4875`) | O peso é o parâmetro que se aprende; entra na combinação linear | **Backprop -> Rede de 4 camadas** | Passo "Forward: L1-A" — mostra este mesmo `z=-0,05 → y=0,4875` | `backprop.mlp` |
+| `fundamentosTreinamento.tex` (ciclo forward/perda/backward/update) | A regra da cadeia dá `∂L/∂w`; o peso anda contra o gradiente | **Backprop -> Forward e backward clássicos** | Os 9 estágios da iteração 1 reproduzem exatamente os números do slide | `backprop.classic` |
+| `fundamentosMatrizes.tex` (`z = Wx`, exemplo `2→2→1`) | A camada inteira é uma multiplicação matriz-vetor; `W[i,j]` **é** a seta do grafo | **Backprop -> A rede como matrizes** | Fase do mapeamento (passos "w11: a seta x1 → H1" …) e o forward termo a termo | `backprop.matrix` |
+| `fundamentosCadeia.tex` (`∂L/∂y = Wᵀ ∂L/∂z`, cadeia de 5 fatores) | Backward = mesma matriz transposta; multiplicar matrizes é a cadeia em lote | **Backprop -> A rede como matrizes** | Fase backward e os 5 fatores da cadeia; terminar na conferência contra `grad_W1[H1,x1]` | `backprop.matrix` |
+
+Nota de coerência — notação de derivada: slides e software usam **a mesma**
+convenção, e `app/math_render.py` foi estendido para sustentá-la:
+
+- **`∂`** para todo gradiente da perda (`∂L/∂w`, `∂L/∂y`, `∂L/∂z`), porque
+  `L` depende de muitas variáveis — é a notação de `fundamentosTreinamento.tex`
+  e `fundamentosCadeia.tex`;
+- **`d`** para derivada de função de uma variável em relação ao seu único
+  argumento: `dV/dt` (EDO da membrana, como em `snnLif.tex`), `dQ/dw`, `dS/dv`.
+
+`_DERIVATIVE_RE` aceita os dois operadores e preserva o que o autor escreveu,
+em vez de normalizar — a escolha entre `∂` e `d` é uma afirmação matemática,
+não um detalhe de formatação.
+
 ### Parte I — BitNets
 
 | Slide (arquivo) | Ideia-chave | Demo do software | Passo/checkpoint | Slug |
 |---|---|---|---|---|
-| `bitnetCamada.tex`, quadro 2 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantizacao** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
+| `bitnetCamada.tex`, quadro 2 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantização** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
 | `bitnetCamada.tex`, quadro 3 (multiplicação vira soma/subtração) | `W̃·X̃` não faz multiplicação real | **BitNet -> Forward** | Checkpoints "Quantizar w1"/"Quantizar w2" → "Multiplicação 1"/"Multiplicação 2" (mostra Q(w2)=0 anulando x2) | `bitnet.forward` |
 | `bitnetTreinamento.tex` (STE) | Backward "finge" que a quantização foi identidade | **BitNet -> Backward -> STE** | Checkpoint final (derivada real vs. constante 1 do STE) | `bitnet.ste` |
 | — (transição, sem slide dedicado) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — usar como *demo bônus* se sobrar tempo após `bitnetTreinamento.tex` | `bitnet.guided` |
@@ -278,15 +306,14 @@ negativo" do `README.md` do software.
 - **`bitnetProblema.tex`** (PTQ vs. QAT) não tem demo correspondente —
   fora de escopo para esta palestra (adicionar uma demo nova não é
   prioridade dado o prazo de uma semana).
-- **`Backprop -> Forward e backward clássicos`** e
-  **`Backprop -> Rede de 4 camadas`** (grupo "Backpropagation" do
-  software) não têm slide dedicado — são pré-requisito implícito
-  (mencionado em `snnMotivacao.tex`: "2ª geração... ativação
-  sigmoide"). **Recomendação**: usar `Backprop -> Forward e backward
-  clássicos` como demo de abertura da Parte II, logo depois de
-  `snnMotivacao.tex`, quadro 1 — reforça "isto é o que já sabíamos (2ª
-  geração), agora o pulso substitui a ativação contínua por um evento
-  discreto." Ver 3.1.
+- ~~**`Backprop -> Forward e backward clássicos`** e
+  **`Backprop -> Rede de 4 camadas`** não têm slide dedicado~~ —
+  **resolvido**: a seção "Fundamentos" foi criada (ver a tabela acima) e
+  hoje os três demos do grupo "Backpropagation" têm slide de conteúdo e
+  `\DemoSlide` próprios em `apresentacao.tex`. A recomendação original
+  (abrir `backprop.classic` na Parte II, depois de `snnMotivacao.tex`)
+  continua válida como *reforço* opcional — ver 3.1 —, mas já não é a
+  única entrada desses demos na palestra.
 
 ### 3.1 Duas inserções de conteúdo recomendadas (não obrigatórias)
 
@@ -497,7 +524,7 @@ sobrevive independente do resultado da Fase 3.
       é rápida o suficiente).
 - [ ] Testar os links `run:` (Fase 3) no notebook e visualizador de PDF
       reais do dia da palestra — **não deixar para a véspera**.
-- [ ] Verificar que o slider `w` de `BitNet -> Quantizacao` alcança os
+- [ ] Verificar que o slider `w` de `BitNet -> Quantização` alcança os
       valores exatos do exemplo do slide (`0,6`, `-0,3`, `0,05`) dentro do
       passo do slider (`step=0.05` — confirmar que bate).
 - [ ] Decidir e ensaiar o modo de operação da seção 4.2 (deixar aberto +

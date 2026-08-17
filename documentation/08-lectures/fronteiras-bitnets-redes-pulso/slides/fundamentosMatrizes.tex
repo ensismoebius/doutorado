@@ -1,0 +1,27 @@
+\begin{frame}[shrink]
+	\frametitle{A camada inteira é uma multiplicação de matrizes}
+	\small
+	\begin{itemize}
+		\setlength{\itemsep}{0pt}
+		\item Os slides anteriores calcularam \textbf{um neurônio de cada vez}. Mas a camada toda é \textbf{uma única operação}: empilhe os pesos de cada neurônio como \textbf{linhas} de uma matriz $W$, e o produto escalar de cada neurônio passa a ser uma linha do produto $Wx$.
+		\item A regra do mapeamento é toda esta: \textbf{linha} = neurônio de \emph{destino}; \textbf{coluna} = de onde o valor \emph{vem}. Isto é, $W[i,j]$ \emph{é} a seta que liga a entrada $j$ ao neurônio $i$ --- a seta do grafo e a célula da matriz são o mesmo número, não duas representações parecidas.
+	\end{itemize}
+	\begin{equation*}
+		z = W x \qquad y = \sigma(z)
+	\end{equation*}
+	\par Exemplo numérico real, com a rede da demonstração ($2 \rightarrow 2 \rightarrow 1$):
+	\begin{equation*}
+		\underbrace{\begin{bmatrix} 0{,}8 & -0{,}4 \\ -0{,}5 & 0{,}9 \end{bmatrix}}_{W_1}
+		\underbrace{\begin{bmatrix} 0{,}9 \\ 0{,}4 \end{bmatrix}}_{x}
+		=
+		\underbrace{\begin{bmatrix} 0{,}56 \\ -0{,}09 \end{bmatrix}}_{z}
+		\quad\xrightarrow{\ \sigma\ }\quad
+		\underbrace{\begin{bmatrix} 0{,}6365 \\ 0{,}4775 \end{bmatrix}}_{y}
+	\end{equation*}
+	\par A primeira linha do resultado é $0{,}8 \!\cdot\! 0{,}9 + (-0{,}4) \!\cdot\! 0{,}4 = 0{,}56$: o mesmo $\sum_i w_i x_i$ do slide anterior, agora lido como ``linha vezes vetor''. Já a ativação é um passo \textbf{separado}: $\sigma$ age em cada célula isoladamente, sem misturar linhas --- ao contrário da multiplicação, que existe justamente para combiná-las.
+	\vspace{2pt}
+	\par\scriptsize\color{neutralColor} Rede menor que a de 4 camadas do começo da seção, de propósito: com matrizes $2\times2$ cada número cabe na tela em corpo legível e cada produto escalar tem só dois termos, então dá para acompanhar \emph{termo a termo} em vez de aceitar o resultado já somado.
+	% [SOFTWARE] Backprop -> A rede como matrizes | os mesmos numeros deste
+	% slide; um passo por operacao escalar (cada termo, cada soma, cada sigmoide)
+	\abrirNoSoftware{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}
+\end{frame}

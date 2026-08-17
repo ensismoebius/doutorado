@@ -40,5 +40,5 @@ def squared_error_loss(y: float, target: float) -> float:
 
 
 def loss_gradient_wrt_y(y: float, target: float) -> float:
-    """dL/dy = (y - target), the input to the STE backward step."""
+    """∂L/∂y = (y - target), the input to the STE backward step."""
     return y - target

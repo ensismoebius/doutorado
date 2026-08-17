@@ -148,11 +148,11 @@ class MatrixAlgebraDemo(DemoModule):
         target, loss = c["target"], c["loss"]
         diff = y2 - target
 
-        # The five factors of dL/dw11 walked one at a time in the closing
+        # The five factors of ∂L/∂w11 walked one at a time in the closing
         # phase. H1 feeds only O (single output neuron), so this weight has
         # exactly ONE path to the loss and the chain rule is a plain product
         # -- no sum over paths. (The 4-layer demo covers the multi-path case.)
-        chain_names = ("dL/dy_O", "σ'(z_O)", "w_H1O", "σ'(z_H1)", "x1")
+        chain_names = ("∂L/∂y_O", "σ'(z_O)", "w_H1O", "σ'(z_H1)", "x1")
         chain_values = (float(gy2), float(sp2), float(w2[0, 0]), float(sp1[0]), float(x[0]))
         chain_partials = tuple(float(np.prod(chain_values[: i + 1])) for i in range(len(chain_values)))
         assert len(chain_values) == _N_CHAIN_FACTORS
@@ -381,13 +381,13 @@ class MatrixAlgebraDemo(DemoModule):
 
         # ================ fase 4: backward, uma operação por passo ========
         snap(
-            "dL/dy_O",
+            "∂L/∂y_O",
             "O backward pergunta: se y_O subisse um pouquinho, L subiria ou desceria? Para o "
-            f"erro quadrático a derivada é a própria diferença: dL/dy_O = {gy2:+.4f}.",
-            equation="dL/dy = y_O - alvo",
-            focus="gz2", board_title="Saída:  dL/dz_O = dL/dy_O · σ'(z_O)",
+            f"erro quadrático a derivada é a própria diferença: ∂L/∂y_O = {gy2:+.4f}.",
+            equation="∂L/∂y = y_O - alvo",
+            focus="gz2", board_title="Saída:  ∂L/∂z_O = ∂L/∂y_O · σ'(z_O)",
             rv_gy2=1.0,
-            work_text=f"dL/dy_O = y_O - alvo = {gy2:+.4f}",
+            work_text=f"∂L/∂y_O = y_O - alvo = {gy2:+.4f}",
         )
         snap(
             "σ'(z_O): a derivada da ativação",
@@ -399,12 +399,12 @@ class MatrixAlgebraDemo(DemoModule):
             work_text=f"σ'(z_O) = y_O·(1 - y_O)\n        = {y2:.4f} · {1 - y2:.4f}\n        = {sp2:.4f}",
         )
         snap(
-            "dL/dz_O",
+            "∂L/∂z_O",
             f"Agora sim a travessia: {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}. Este é o gradiente do "
             "lado de dentro da ativação, o ponto de partida para todos os pesos da camada 2.",
-            equation="dL/dz = dL/dy · σ'(z_O)",
+            equation="∂L/∂z = ∂L/∂y · σ'(z_O)",
             rv_gz2=1.0, hl_out=0.0,
-            work_text=f"dL/dz_O = {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}",
+            work_text=f"∂L/∂z_O = {gy2:+.4f} · {sp2:.4f} = {gz2:+.4f}",
         )
         for j, src in enumerate(("H1", "H2")):
             reveal = np.asarray(state["rv_gw2"]).copy()
@@ -416,10 +416,10 @@ class MatrixAlgebraDemo(DemoModule):
                 f"O gradiente de um peso é sempre o mesmo produto: o gradiente que chegou no "
                 f"neurônio de destino vezes o valor que entrou por aquele peso. Aqui, "
                 f"{gz2:+.4f} · y_{src}({y1[j]:.4f}) = {gw2[0, j]:+.5f}.",
-                equation="grad_W2 = dL/dz_O \\otimes y",
-                focus="gw2", board_title="Gradiente de W2:  dL/dz_O ⊗ y",
+                equation="grad_W2 = ∂L/∂z_O \\otimes y",
+                focus="gw2", board_title="Gradiente de W2:  ∂L/∂z_O ⊗ y",
                 rv_gw2=reveal, hl_y1=spot,
-                work_text=f"grad_W2[O,{src}] = dL/dz_O · y_{src}\n              = {gz2:+.4f} · {y1[j]:.4f}\n              = {gw2[0, j]:+.5f}",
+                work_text=f"grad_W2[O,{src}] = ∂L/∂z_O · y_{src}\n              = {gz2:+.4f} · {y1[j]:.4f}\n              = {gw2[0, j]:+.5f}",
             )
         for j, dest in enumerate(("H1", "H2")):
             reveal = np.asarray(state["rv_gy1"]).copy()
@@ -427,15 +427,15 @@ class MatrixAlgebraDemo(DemoModule):
             spot = _ZERO_12.copy()
             spot[0, j] = 1.0
             snap(
-                f"dL/dy_{dest}: voltando pela transposta",
+                f"∂L/∂y_{dest}: voltando pela transposta",
                 "Para continuar descendo, o gradiente atravessa W2 na direção contrária. No "
                 "forward W2 levava 2 valores para 1; agora 1 gradiente volta para 2. A matriz "
                 f"que faz isso é a MESMA, transposta: {w2[0, j]:.2f} · {gz2:+.4f} = "
                 f"{gy1[j]:+.5f}.",
-                equation="dL/dy = W2^T · dL/dz_O",
-                focus="w2t", board_title="Voltando:  dL/dy = W2ᵀ · dL/dz_O",
+                equation="∂L/∂y = W2^T · ∂L/∂z_O",
+                focus="w2t", board_title="Voltando:  ∂L/∂y = W2ᵀ · ∂L/∂z_O",
                 rv_gy1=reveal, hl_w2=spot, hl_y1=_ZERO_2.copy(),
-                work_text=f"dL/dy_{dest} = w_{dest}O · dL/dz_O\n         = {n2(w2[0, j])} · {gz2:+.4f}\n         = {gy1[j]:+.5f}",
+                work_text=f"∂L/∂y_{dest} = w_{dest}O · ∂L/∂z_O\n         = {n2(w2[0, j])} · {gz2:+.4f}\n         = {gy1[j]:+.5f}",
             )
         for j, dest in enumerate(("H1", "H2")):
             reveal_sp = np.asarray(state["rv_sp1"]).copy()
@@ -448,20 +448,20 @@ class MatrixAlgebraDemo(DemoModule):
                 f"σ'(z_{dest}) = {y1[j]:.4f}·{1 - y1[j]:.4f} = {sp1[j]:.4f}. Passo separado, de "
                 "novo, para deixar claro que essa derivada é uma quantidade por conta própria.",
                 equation="σ'(z) = y·(1 - y)",
-                focus="gz1", board_title="Camada 1:  dL/dz = dL/dy ⊙ σ'(z)",
+                focus="gz1", board_title="Camada 1:  ∂L/∂z = ∂L/∂y ⊙ σ'(z)",
                 rv_sp1=reveal_sp, hl_y1=spot, hl_w2=_ZERO_12.copy(),
                 work_text=f"σ'(z_{dest}) = {y1[j]:.4f} · {1 - y1[j]:.4f} = {sp1[j]:.4f}",
             )
             reveal_gz = np.asarray(state["rv_gz1"]).copy()
             reveal_gz[j] = 1.0
             snap(
-                f"dL/dz_{dest}",
+                f"∂L/∂z_{dest}",
                 f"E a travessia da ativação de {dest}: {gy1[j]:+.5f} · {sp1[j]:.4f} = "
                 f"{gz1[j]:+.5f}. Multiplicação elemento a elemento -- {dest} só usa o seu "
                 "próprio σ', não o do vizinho.",
-                equation="dL/dz = dL/dy \\odot σ'(z)",
+                equation="∂L/∂z = ∂L/∂y \\odot σ'(z)",
                 rv_gz1=reveal_gz,
-                work_text=f"dL/dz_{dest} = {gy1[j]:+.5f} · {sp1[j]:.4f} = {gz1[j]:+.5f}",
+                work_text=f"∂L/∂z_{dest} = {gy1[j]:+.5f} · {sp1[j]:.4f} = {gz1[j]:+.5f}",
             )
         for (i, j), dest, src in (
             ((0, 0), "H1", "x1"), ((0, 1), "H1", "x2"),
@@ -478,10 +478,10 @@ class MatrixAlgebraDemo(DemoModule):
                 f"Mesma regra, agora contra o vetor de entrada: {gz1[i]:+.5f} · {src}"
                 f"({x[j]:.2f}) = {gw1[i, j]:+.5f}. Uma célula por passo; quando as quatro "
                 "estiverem lá, o gradiente terá exatamente a forma 2x2 de W1.",
-                equation="grad_W1 = dL/dz \\otimes x",
-                focus="gw1", board_title="Gradiente de W1:  dL/dz ⊗ x",
+                equation="grad_W1 = ∂L/∂z \\otimes x",
+                focus="gw1", board_title="Gradiente de W1:  ∂L/∂z ⊗ x",
                 rv_gw1=reveal, hl_x=spot, hl_y1=spot_z, hl_w2=_ZERO_12.copy(),
-                work_text=f"grad_W1[{dest},{src}] = dL/dz_{dest} · {src}\n                 = {gz1[i]:+.5f} · {n2(x[j])}\n                 = {gw1[i, j]:+.5f}",
+                work_text=f"grad_W1[{dest},{src}] = ∂L/∂z_{dest} · {src}\n                 = {gz1[i]:+.5f} · {n2(x[j])}\n                 = {gw1[i, j]:+.5f}",
             )
 
         # ================ fase 5: a regra da cadeia, fator por fator ======
@@ -491,7 +491,7 @@ class MatrixAlgebraDemo(DemoModule):
             "desenrolá-la para UM peso concreto: w11, a seta x1 → H1, acesa no grafo. Ela "
             "pergunta quanto L muda quando w11 muda, e a resposta é o produto das derivadas "
             "locais de cada elo do caminho.",
-            equation="dL/dw_11 = dL/dy_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
+            equation="∂L/∂w_11 = ∂L/∂y_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
             focus="chain", board_title="Regra da cadeia para w11 (x1 → H1)",
             hl_x=cell(1.0, 0.0), hl_w1=cell((1.0, 0.0), (0.0, 0.0)),
             hl_w2=np.array([[1.0, 0.0]]), hl_y1=cell(1.0, 0.0), hl_out=1.0,
@@ -510,7 +510,7 @@ class MatrixAlgebraDemo(DemoModule):
                 f"{(chain_partials[i - 1] if i else 1.0):+.5f} para {chain_partials[i]:+.5f}. "
                 "Cada fator é a derivada de um único elo do caminho -- é o encadeamento deles "
                 "que atravessa a rede inteira.",
-                equation="dL/dw_11 = dL/dy_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
+                equation="∂L/∂w_11 = ∂L/∂y_O · σ'(z_O) · w_H1O · σ'(z_H1) · x_1",
                 rv_chain=reveal,
                 chain_product=chain_partials[i], rv_chain_product=1.0,
                 work_text=f"{factor_lines}\n\nproduto parcial = {chain_partials[i]:+.5f}",
@@ -521,7 +521,7 @@ class MatrixAlgebraDemo(DemoModule):
             f"escreveu essa cadeia, já havia posto grad_W1[H1,x1] = {gw1[0, 0]:+.5f}. São o "
             "mesmo número porque são a mesma conta: multiplicar matrizes é a regra da cadeia "
             "feita por atacado, todos os pesos de uma vez.",
-            equation="dL/dw_11 = grad_W1[H1, x_1]",
+            equation="∂L/∂w_11 = grad_W1[H1, x_1]",
             rv_check=1.0,
             work_text=(
                 f"regra da cadeia, fator por fator : {chain_partials[-1]:+.8f}\n"

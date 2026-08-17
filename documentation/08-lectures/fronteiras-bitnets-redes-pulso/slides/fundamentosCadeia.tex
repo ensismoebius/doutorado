@@ -1,0 +1,32 @@
+\begin{frame}[shrink]
+	\frametitle{O backward é a mesma matriz, transposta}
+	\small
+	\setlength{\abovedisplayskip}{2pt}
+	\setlength{\belowdisplayskip}{2pt}
+	\begin{itemize}
+		\setlength{\itemsep}{0pt}
+		\item No forward, $W_2$ levou 2 valores (os ocultos) para 1 (a saída). O gradiente precisa fazer o caminho \textbf{inverso}: 1 volta para 2. A matriz que faz isso é a \textbf{mesma}, transposta --- o que era linha vira coluna. O erro volta pelos próprios pesos do forward, não por pesos novos.
+		\item O gradiente de cada peso é sempre o mesmo produto: o gradiente que \emph{chegou} no neurônio de destino vezes o valor que \emph{entrou} por aquele peso. Isso é um produto externo, e sai com \textbf{exatamente a forma de $W$} --- é por isso que $W \leftarrow W - \eta \, \partial L/\partial W$ faz sentido dimensional.
+	\end{itemize}
+	\begin{equation*}
+		\frac{\partial L}{\partial y} = W^{\top} \frac{\partial L}{\partial z}
+		\qquad\qquad
+		\frac{\partial L}{\partial W} = \frac{\partial L}{\partial z} \otimes \text{entrada}
+	\end{equation*}
+	\par E a regra da cadeia, onde ficou? Diluída nessas matrizes. Desenrolada para \emph{um} peso concreto ($w_{11}$, a seta $x_1 \rightarrow H_1$), ela é o produto das derivadas locais de cada elo do caminho $x_1 \rightarrow H_1 \rightarrow O \rightarrow L$:
+	\begin{equation*}
+		\frac{\partial L}{\partial w_{11}} =
+		\underbrace{(-0{,}3173)}_{\partial L/\partial y_O} \!\cdot\!
+		\underbrace{0{,}2432}_{\sigma'(z_O)} \!\cdot\!
+		\underbrace{1{,}2}_{w_{H_1 O}} \!\cdot\!
+		\underbrace{0{,}2314}_{\sigma'(z_{H_1})} \!\cdot\!
+		\underbrace{0{,}9}_{x_1}
+		= -0{,}01928
+	\end{equation*}
+	\par \dots\ que é exatamente o número que o backward matricial já havia posto em $\partial L/\partial W_1[H_1,x_1]$, sem nunca escrever essa cadeia. Não é coincidência: \textbf{multiplicar matrizes é aplicar a regra da cadeia em lote}, todos os pesos de uma vez.
+	\vspace{2pt}
+	\par\scriptsize\color{neutralColor} Aqui $H_1$ alimenta só um neurônio de saída, então há \emph{um} caminho e a cadeia é um produto puro. Quando um neurônio alimenta vários, cada caminho dá um produto e a derivada é a \textbf{soma} deles --- é o caso que a demo de 4 camadas percorre. O software usa a mesma convenção destes slides: $\partial$ para gradientes da perda, e $d$ só para derivada de função de uma variável (a EDO do LIF, $dQ/dw$, $dS/dv$).
+	% [SOFTWARE] Backprop -> A rede como matrizes | fase backward: Wᵀ, produto
+	% externo e a conferencia da cadeia contra grad_W1[H1,x1]
+	\abrirNoSoftware{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}
+\end{frame}

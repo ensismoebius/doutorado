@@ -27,7 +27,9 @@
 	}
 	\only<2>{
 		\framesubtitle{O modo de falha da PTQ agressiva}
+		\small
 		\begin{itemize}
+			\setlength{\itemsep}{0pt}
 			\item Abaixo de $\sim$4 bits, a acurácia de modelos quantizados por PTQ pode cair \textbf{abruptamente} --- não gradualmente.
 			\item Mecanismo concreto \cite{xiao2023smoothquant}: algumas ativações de LLMs têm \textbf{outliers} --- valores até $100\times$ maiores que o resto do tensor, concentrados em poucos canais.
 			\item Um único fator de escala por tensor precisa cobrir o outlier \textbf{e} os valores normais $\rightarrow$ os valores normais perdem toda a resolução.

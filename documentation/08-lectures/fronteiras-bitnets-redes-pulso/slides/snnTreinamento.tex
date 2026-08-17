@@ -2,9 +2,11 @@
 	\frametitle{Como treinar uma função que não tem gradiente?}
 	\only<1>{
 		\framesubtitle{O mesmo problema estrutural do BitNet}
+		\footnotesize
 		\par A função de disparo do LIF se aproxima de uma \textbf{função em degrau} (Heaviside): dispara ou não dispara, sem meio-termo. Sua derivada é zero em quase todo ponto --- a descida de gradiente padrão não tem o que propagar \cite{kasabov2019time}.
 		\par Quatro famílias de resposta, historicamente:
 		\begin{itemize}
+			\setlength{\itemsep}{0pt}
 			\item \textbf{STDP}: regra local --- se o neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, a conexão se fortalece; se depois, se enfraquece. Biologicamente plausível, não supervisionada.
 			\item \textbf{Gradiente substituto + BPTT}: usa a função em degrau real no \textit{forward}, e uma aproximação suave e diferenciável só no \textit{backward} --- a mesma lógica do STE do BitNet.
 			\item \textbf{Algoritmos evolutivos}: seleção dos hiperparâmetros mais aptos ao longo de gerações.

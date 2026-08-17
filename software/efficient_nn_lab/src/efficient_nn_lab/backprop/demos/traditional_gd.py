@@ -63,7 +63,7 @@ def _activation_fields(z: float, target: float) -> dict[str, float]:
 
 
 class TraditionalBackpropDemo(DemoModule):
-    title = "Backprop -> Forward e backward classicos"
+    title = "Backprop -> Forward e backward clássicos"
     slug = "backprop.classic"
     description = (
         "Como o forward (combinação linear + ativação sigmoide) e o backward (regra da "
@@ -213,27 +213,27 @@ class TraditionalBackpropDemo(DemoModule):
                 point_reveal=1.0,
             ),
             frame(
-                "Backward, primeiro elo: dL/dy",
+                "Backward, primeiro elo: ∂L/∂y",
                 f"O backward começa no fim: o quanto a perda muda se y mudasse um "
-                f"pouco. $dL/dy = y - target = {grad_y:g}$.",
-                equation="dL/dy = y - target",
+                f"pouco. $∂L/∂y = y - target = {grad_y:g}$.",
+                equation="∂L/∂y = y - target",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, grady_reveal=1.0,
                 grady_glow=1.0, point_reveal=1.0,
             ),
             frame(
                 "Backward, segundo elo: atravessando a sigmoide",
                 f"A sigmoide também tem derivada: $sigma'(z) = y*(1-y) = {slope:g}$. "
-                f"$dL/dz = dL/dy * sigma'(z) = {grad_z:g}$ — é essa inclinação que a reta "
+                f"$∂L/∂z = ∂L/∂y * sigma'(z) = {grad_z:g}$ — é essa inclinação que a reta "
                 "tangente ao lado mostra, e o sinal dela diz para que lado mover z.",
-                equation="dL/dz = dL/dy * sigma'(z)",
+                equation="∂L/∂z = ∂L/∂y * sigma'(z)",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradz_glow=1.0, point_reveal=1.0, arrow_reveal=1.0,
             ),
             frame(
-                "Backward, terceiro elo: dL/dw",
+                "Backward, terceiro elo: ∂L/∂w",
                 f"Como $z = w * x$, o último elo da cadeia é multiplicar por x: "
-                f"$dL/dw = dL/dz * x = {grad_w:g}$.",
-                equation="dL/dw = dL/dz * dz/dw = dL/dz * x",
+                f"$∂L/∂w = ∂L/∂z * x = {grad_w:g}$.",
+                equation="∂L/∂w = ∂L/∂z * dz/dw = ∂L/∂z * x",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, gradw_glow=1.0,
                 point_reveal=1.0, arrow_reveal=1.0,
@@ -241,7 +241,7 @@ class TraditionalBackpropDemo(DemoModule):
             frame(
                 "Atualizar o peso",
                 update_explanation,
-                equation="w <- w - taxa * dL/dw",
+                equation="w <- w - taxa * ∂L/∂w",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
                 grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, update_reveal=1.0, w_pulse=1.0,
                 point_reveal=1.0, arrow_reveal=1.0,

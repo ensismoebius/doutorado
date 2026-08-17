@@ -1,4 +1,4 @@
-"""MainWindow integration tests (FIXME.md 5.3).
+"""MainWindow integration tests (ESPECIFICACAO_DLVL.md #24 Interface, #25 Controles).
 
 Everything the render tests below the widget layer never exercise: view
 routing when a demo is selected, frame/explanation label updates on

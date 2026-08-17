@@ -5,7 +5,7 @@ for the *optional* reference module, bitnet/ste_torch_reference.py). Here
 the STE is expressed directly as what it *means*, not as an autograd trick:
 
 * forward: y = Q(w)               -- the quantized weight is actually used.
-* backward: dL/dw_real ~= dL/dy   -- the gradient is passed through the
+* backward: ∂L/∂w_real ~= ∂L/∂y   -- the gradient is passed through the
   quantization step unchanged, as if it had been the identity function.
 
 This module exposes exactly those two pieces so a demo can show them

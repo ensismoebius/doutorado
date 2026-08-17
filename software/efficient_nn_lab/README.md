@@ -102,36 +102,42 @@ pior do que um corte limpo.
 
 ```text
 src/efficient_nn_lab/
-├── main.py, __main__.py      ponto de entrada
+├── main.py, __main__.py      ponto de entrada (CLI --demo <slug>)
 ├── app/
 │   ├── main_window.py        janela principal, roteamento demo -> widget
-│   └── theme.py               cores e stylesheet (mesma paleta dos slides)
+│   ├── math_render.py        pseudo-LaTeX das demos -> mathtext (equações)
+│   └── theme.py              cores e stylesheet (mesma paleta dos slides)
 ├── core/
-│   ├── demo.py                 contrato DemoModule + Frame (ver abaixo)
-│   ├── animation.py            StepPlayer (QTimer, play/pause/step)
-│   ├── state.py                 modo palestra / modo professor
-│   └── math_utils.py           seed determinística, interpolação
+│   ├── demo.py               contrato DemoModule + Frame (ver abaixo)
+│   ├── animation.py          StepPlayer (QTimer, play/pause/step)
+│   ├── state.py              modo palestra / modo professor
+│   └── math_utils.py         seed determinística, interpolação (tweens)
 ├── backprop/
-│   └── demos/
-│       └── traditional_gd.py   forward/backward clássicos + convergência
+│   ├── activation.py         sigmoide + derivada
+│   └── demos/                3 demonstrações (ver tabela abaixo)
+│       ├── traditional_gd.py     forward/backward clássicos + convergência
+│       ├── multilayer_network.py rede 3-2-2-1, um neurônio de cada vez
+│       └── matrix_algebra.py     a mesma rede como vetores/matrizes
 ├── bitnet/
-│   ├── quantization.py         Q(w) ternário didático
-│   ├── ste.py                    Straight-Through Estimator (numpy)
-│   ├── ste_torch_reference.py  versão PyTorch de referência (opcional)
-│   ├── linear.py                 neurônio linear mínimo + perda
-│   └── demos/                    4 demonstrações (ver tabela abaixo)
+│   ├── quantization.py       Q(w) ternário didático
+│   ├── ste.py                Straight-Through Estimator (numpy)
+│   ├── ste_torch_reference.py versão PyTorch de referência (opcional)
+│   ├── linear.py             neurônio linear mínimo + perda
+│   └── demos/                4 demonstrações (ver tabela abaixo)
 ├── snn/
-│   ├── lif.py                    neurônio LIF (integração de Euler)
-│   ├── surrogate.py             função de disparo + gradiente substituto
-│   ├── encoding.py               sinal sintético + spike por limiar direto
-│   └── demos/                    3 demonstrações
+│   ├── lif.py                neurônio LIF (integração de Euler)
+│   ├── surrogate.py          função de disparo + gradiente substituto
+│   ├── encoding.py           sinal sintético + spike por limiar direto
+│   └── demos/                5 demonstrações (ver tabela abaixo)
 ├── comparison/
-│   └── ann_bitnet_snn.py        comparação lado a lado
+│   └── ann_bitnet_snn.py     comparação lado a lado
+├── resources/                imagem usada pela codificação Poisson
 └── widgets/
-    ├── signal_view.py           sinal/corrente + potencial + raster de spikes
-    ├── weight_view.py            reta numérica, escada de quantização, curvas
-    ├── neuron_view.py            diagramas de blocos e tabelas
-    └── controls.py                 Reset/Step/Play/Pause/velocidade/sliders
+    ├── signal_view.py        sinal/corrente + potencial + raster de spikes
+    ├── weight_view.py        reta numérica, escada de quantização, curvas
+    ├── neuron_view.py        diagramas de blocos, matrizes e tabelas
+    ├── controls.py           Reset/Step/Play/Pause/velocidade/sliders
+    └── _mpl_perf.py          limpeza rápida de eixos (custo por quadro)
 ```
 
 ### O contrato `DemoModule` (`core/demo.py`)
@@ -165,14 +171,17 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 |---|---|---|
 | Backprop → Forward e backward clássicos | Como o forward/backward funcionam sem quantização, e o exemplo converge de fato? | `target`, taxa de aprendizado |
 | Backprop → Rede de 4 camadas | Como o forward/backward funcionam numa rede de verdade (3→2→2→1)? Um neurônio de cada vez, com entradas, saída, pesos e equação de cada um — e **cada neurônio com seu próprio gráfico** de sigmoide/derivada (5 gráficos, sempre visíveis, atualizando independentemente conforme o forward/backward avança). | `target`, taxa de aprendizado |
+| Backprop → A rede como matrizes | Em que sentido a rede inteira é **só** multiplicação de matrizes — inclusive o backward? Liga cada célula de `W` à seta correspondente do grafo (`W[i,j]` *é* aquela seta), faz o forward `z = Wx` termo a termo, o backward pelos mesmos pesos transpostos (`Wᵀ`), e fecha conferindo a regra da cadeia de um peso contra `grad_W1[H1,x1]`. Um passo por operação escalar, sem agrupar nada. | `target` |
 | BitNet → Quantização | O que significa quantizar um peso? | `w`, `tau` |
 | BitNet → Forward | O que acontece no forward, e quão longe do alvo? | `x1,x2,w1,w2,target` |
 | BitNet → Backward → STE | Por que o backward é problemático (com o gráfico da derivada real vs. a do STE), e como o STE resolve? | `tau` |
 | BitNet → Exemplo guiado | Sequência fixa "Do peso real ao BitNet" (10 passos) | fixo |
 | SNN → Sinal e spikes | O que é um spike? | nível de disparo |
+| SNN → Codificação Poisson | A informação pode estar na *probabilidade* de disparo, não só no instante exato? | `max_rate` |
+| SNN → Codificação Poisson (imagem) | Como fica a esparsidade num caso real, pixel a pixel — e por que só a soma de vários passos reconstrói a imagem? | `max_rate` |
 | SNN → LIF | Como um neurônio LIF integra, dispara e reseta? | `tau, R, V_th`, amplitude |
 | SNN → Surrogate gradient | Como se treina através de uma função em degrau? | `k` |
-| Comparação | Em que ANN, BitNet e SNN diferem? | fixo |
+| Comparação → ANN x BitNet x SNN | Em que ANN, BitNet e SNN diferem? | fixo |
 
 ## Precisão científica (ESPECIFICACAO_DLVL.md #32)
 

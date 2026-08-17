@@ -29,6 +29,9 @@
 		\input{slides/fundamentosPesos.tex}
 		\input{slides/fundamentosTreinamento.tex}
 		\DemoSlide{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}{Percorra os 9 estágios da iteração 1 --- os números batem exatamente com os do slide anterior.}
+		\input{slides/fundamentosMatrizes.tex}
+		\input{slides/fundamentosCadeia.tex}
+		\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{Um passo por operação escalar: destacar uma célula de $W$ acende a seta correspondente do grafo. Termine nos fatores da cadeia --- o produto confere com \texttt{grad\_W1[H1,x1]}.}
 
 	\section{Estrutura da apresentação}
 		\input{slides/estrutura.tex}
@@ -45,7 +48,7 @@
 		\input{slides/bitnetLinha.tex}
 		\input{slides/bitnetProblema.tex}
 		\input{slides/bitnetCamada.tex}
-		\DemoSlide{BitNet \textrightarrow{} Quantizacao}{bitnet.quant}{Ajuste o slider w para perto de 0 e reproduza a zona morta; depois experimente 0,6 e -0,3, os dois pesos do exemplo.}
+		\DemoSlide{BitNet \textrightarrow{} Quantização}{bitnet.quant}{Ajuste o slider w para perto de 0 e reproduza a zona morta; depois experimente 0,6 e -0,3, os dois pesos do exemplo.}
 		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{Siga os checkpoints "Quantizar w1"/"w2" até "Multiplicação 1"/"2" --- Q(w2)=0 anula x2.}
 		\input{slides/bitnetTreinamento.tex}
 		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{Avance até o checkpoint final: derivada real vs. constante 1 do STE.}

@@ -371,7 +371,7 @@ class NeuronView(QWidget):
                 self._flow_arrow(p_in, pos, r, ACCENT_COLOR if glow else BITNET_COLOR)
             text = f"{name}\ny = {y_val[name]:.2f}"
             if bwd[name] > 0.02:
-                text += f"\ndL/dz={gz_val[name]:.3f}"
+                text += f"\n∂L/∂z={gz_val[name]:.3f}"
             self._box(*pos, text, CONVERGE_COLOR if bwd[name] > 0.02 else BITNET_COLOR, alpha=r, w=1.4, h=0.75, glow=glow, fontsize=8)
             if glow:
                 self._equation_near(*pos, "y = σ(Σ w·x)", r, box_h=0.75)
@@ -398,7 +398,7 @@ class NeuronView(QWidget):
             )
 
         if update_reveal > 0.02:
-            self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · dL/dw", ACCENT_COLOR, update_reveal, fontsize=9)
+            self._fading_text(4.2, -2.3, "todos os pesos atualizados: w ← w - taxa · ∂L/∂w", ACCENT_COLOR, update_reveal, fontsize=9)
 
         z_val = {"L1-A": float(z1[0]), "L1-B": float(z1[1]), "L2-C": float(z2[0]), "L2-D": float(z2[1]), "O": zO}
         slope_val = {name: float(sigmoid_derivative(z_val[name])) for name in self._MLP_NAMES}
@@ -777,15 +777,15 @@ class NeuronView(QWidget):
             ], row2)
         elif focus == "gz2":
             self._board_row([
-                scalar(gy2, float(values["rv_gy2"]), SNN_COLOR, cap="dL/dy_O"),
+                scalar(gy2, float(values["rv_gy2"]), SNN_COLOR, cap="∂L/∂y_O"),
                 {"t": "op", "glyph": "·"},
                 scalar(sp2, rv_sp2, ACCENT_COLOR, hl=hl_out, cap="σ'(z_O)"),
                 {"t": "op", "glyph": "="},
-                scalar(gz2, float(values["rv_gz2"]), SNN_COLOR, cap="dL/dz_O"),
+                scalar(gz2, float(values["rv_gz2"]), SNN_COLOR, cap="∂L/∂z_O"),
             ], row1)
         elif focus == "gw2":
             self._board_row([
-                scalar(gz2, 1.0, SNN_COLOR, cap="dL/dz_O"),
+                scalar(gz2, 1.0, SNN_COLOR, cap="∂L/∂z_O"),
                 {"t": "op", "glyph": "⊗"},
                 grid(y1.reshape(1, -1), np.ones((1, 2)), np.asarray(hl_y1).reshape(1, -1), CONVERGE_COLOR, dec=3, cap="y (linha)"),
                 {"t": "op", "glyph": "="},
@@ -795,26 +795,26 @@ class NeuronView(QWidget):
             self._board_row([
                 grid(w2.T, np.asarray(rv_w2).T, np.asarray(hl_w2).T, BITNET_COLOR, rows=("H1", "H2"), cols=("O",), cap="W2ᵀ (2×1)"),
                 {"t": "op", "glyph": "·"},
-                scalar(gz2, 1.0, SNN_COLOR, cap="dL/dz_O"),
+                scalar(gz2, 1.0, SNN_COLOR, cap="∂L/∂z_O"),
                 {"t": "op", "glyph": "="},
-                grid(gy1.reshape(-1, 1), np.asarray(values["rv_gy1"]).reshape(-1, 1), np.zeros((2, 1)), SNN_COLOR, dec=4, cap="dL/dy"),
+                grid(gy1.reshape(-1, 1), np.asarray(values["rv_gy1"]).reshape(-1, 1), np.zeros((2, 1)), SNN_COLOR, dec=4, cap="∂L/∂y"),
             ], row1)
         elif focus == "gz1":
             self._board_row([
-                grid(gy1.reshape(-1, 1), np.ones((2, 1)), np.zeros((2, 1)), SNN_COLOR, rows=("H1", "H2"), dec=4, cap="dL/dy"),
+                grid(gy1.reshape(-1, 1), np.ones((2, 1)), np.zeros((2, 1)), SNN_COLOR, rows=("H1", "H2"), dec=4, cap="∂L/∂y"),
                 {"t": "op", "glyph": "⊙"},
                 grid(
                     np.asarray(sp1).reshape(-1, 1), np.asarray(rv_sp1).reshape(-1, 1),
                     np.asarray(hl_y1).reshape(-1, 1), ACCENT_COLOR, dec=4, cap="σ'(z)",
                 ),
                 {"t": "op", "glyph": "="},
-                grid(gz1.reshape(-1, 1), np.asarray(values["rv_gz1"]).reshape(-1, 1), np.zeros((2, 1)), SNN_COLOR, dec=4, cap="dL/dz"),
+                grid(gz1.reshape(-1, 1), np.asarray(values["rv_gz1"]).reshape(-1, 1), np.zeros((2, 1)), SNN_COLOR, dec=4, cap="∂L/∂z"),
             ], row1)
         elif focus == "gw1":
             self._board_row([
                 grid(
                     gz1.reshape(-1, 1), np.ones((2, 1)), np.asarray(hl_y1).reshape(-1, 1),
-                    SNN_COLOR, rows=("H1", "H2"), dec=4, cap="dL/dz (coluna)",
+                    SNN_COLOR, rows=("H1", "H2"), dec=4, cap="∂L/∂z (coluna)",
                 ),
                 {"t": "op", "glyph": "⊗"},
                 grid(x.reshape(1, -1), np.ones((1, 2)), np.asarray(hl_x).reshape(1, -1), NEUTRAL_COLOR, cap="x (linha)"),
@@ -917,20 +917,20 @@ class NeuronView(QWidget):
         self._equation_near(*self._BP_LOSS, "L = ½ (y - target)²", loss_reveal)
 
         self._flow_arrow(self._BP_LOSS, self._BP_GRAD_Y, grady_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_Y, f"dL/dy = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5, glow=float(values.get("grady_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_Y, "dL/dy = y - target", grady_reveal)
+        self._box(*self._BP_GRAD_Y, f"∂L/∂y = {values['grad_y']:.2f}", SNN_COLOR, alpha=grady_reveal, w=1.5, glow=float(values.get("grady_glow", 0.0)))
+        self._equation_near(*self._BP_GRAD_Y, "∂L/∂y = y - target", grady_reveal)
 
         self._flow_arrow(self._BP_GRAD_Y, self._BP_GRAD_Z, gradz_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_Z, f"dL/dz = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6, glow=float(values.get("gradz_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_Z, "dL/dz = dL/dy · σ'(z)", gradz_reveal)
+        self._box(*self._BP_GRAD_Z, f"∂L/∂z = {values['grad_z']:.3f}", SNN_COLOR, alpha=gradz_reveal, w=1.6, glow=float(values.get("gradz_glow", 0.0)))
+        self._equation_near(*self._BP_GRAD_Z, "∂L/∂z = ∂L/∂y · σ'(z)", gradz_reveal)
 
         self._flow_arrow(self._BP_GRAD_Z, self._BP_GRAD_W, gradw_reveal, SNN_COLOR)
-        self._box(*self._BP_GRAD_W, f"dL/dw = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5, glow=float(values.get("gradw_glow", 0.0)))
-        self._equation_near(*self._BP_GRAD_W, "dL/dw = dL/dz · x", gradw_reveal)
+        self._box(*self._BP_GRAD_W, f"∂L/∂w = {values['grad_w']:.2f}", SNN_COLOR, alpha=gradw_reveal, w=1.5, glow=float(values.get("gradw_glow", 0.0)))
+        self._equation_near(*self._BP_GRAD_W, "∂L/∂w = ∂L/∂z · x", gradw_reveal)
 
         self._flow_arrow(self._BP_GRAD_W, self._BP_W, update_reveal, ACCENT_COLOR)
         self._fading_text(0.7, 2.0, f"atualizado -> {values['w_updated']:.3f}", ACCENT_COLOR, update_reveal, fontsize=8)
-        self._equation_near(*self._BP_W, "w ← w - taxa · dL/dw", update_reveal)
+        self._equation_near(*self._BP_W, "w ← w - taxa · ∂L/∂w", update_reveal)
 
         ax = self._get_inset("main", (0.56, 0.1, 0.42, 0.85))
         # point_reveal/arrow_reveal are their own fields, deliberately
@@ -1061,9 +1061,9 @@ class NeuronView(QWidget):
         ]
         bwd_labels = [
             f"loss\nL = {loss:g}",
-            f"gradiente\ndL/dQ(w) = {upstream:g}",
+            f"gradiente\n∂L/∂Q(w) = {upstream:g}",
             f"STE\ndQ/dw := {dq_ste:g}",
-            f"peso real\ndL/dw = {dl_ste:g}",
+            f"peso real\n∂L/∂w = {dl_ste:g}",
         ]
 
         for p in self._FWD_POSITIONS + self._BWD_POSITIONS:
@@ -1089,7 +1089,7 @@ class NeuronView(QWidget):
             self._flow_arrow((a[0] - 1.0, a[1]), (b[0] + 1.0, b[1]), bwd, SNN_COLOR)
         self._fading_text(5.1, 0.65, "BACKWARD (STE)", SNN_COLOR, bwd, fontsize=12, weight="bold")
         self._fading_text(
-            5.1, 0.98, f"dL/dw = {dl_ste:g}  (dQ/dw: {dq_real:g} -> {dq_ste:g})",
+            5.1, 0.98, f"∂L/∂w = {dl_ste:g}  (dQ/dw: {dq_real:g} -> {dq_ste:g})",
             SNN_COLOR, bwd, fontsize=8,
         )
 
@@ -1152,13 +1152,13 @@ class NeuronView(QWidget):
         self._equation_near(*self._LOSS_POS_G, "L = ½ (y - target)²", loss_reveal)
 
         self._flow_arrow(self._LOSS_POS_G, self._GRAD_POS, grad_reveal, SNN_COLOR)
-        self._box(*self._GRAD_POS, f"dL/dw ~= {values['grad_value']:g}", SNN_COLOR, alpha=grad_reveal)
-        self._equation_near(*self._GRAD_POS, "dL/dw ≈ dL/dy  (STE)", grad_reveal, side="above")
+        self._box(*self._GRAD_POS, f"∂L/∂w ~= {values['grad_value']:g}", SNN_COLOR, alpha=grad_reveal)
+        self._equation_near(*self._GRAD_POS, "∂L/∂w ≈ ∂L/∂y  (STE)", grad_reveal, side="above")
 
         self._flow_arrow(self._GRAD_POS, self._W_POS, update_reveal, ACCENT_COLOR, )
         self._fading_text(3.5, 0.15, "STE: gradiente atravessa Q(w) como identidade", ACCENT_COLOR, ste_reveal, fontsize=8)
         self._fading_text(1.2, 4.1, "atualizado", ACCENT_COLOR, update_reveal, fontsize=9)
-        self._equation_near(*self._W_POS, "w ← w - taxa · dL/dw", update_reveal)
+        self._equation_near(*self._W_POS, "w ← w - taxa · ∂L/∂w", update_reveal)
 
     # ================================================================
     # comparison — a persistent, growing 3-column table + outputs panel

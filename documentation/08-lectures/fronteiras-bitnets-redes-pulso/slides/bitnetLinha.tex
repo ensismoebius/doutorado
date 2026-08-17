@@ -1,7 +1,7 @@
 \begin{frame}
 	\frametitle{Linha do tempo: da quantização discreta às LLMs de 1 bit}
 	\centering
-	\resizebox{.98\linewidth}{!}{%
+	\resizebox{.94\linewidth}{!}{%
 	\begin{tikzpicture}[
 		yr/.style={draw=bitnetColor, fill=bitnetColor!15, rounded corners=2pt, minimum height=0.9cm, minimum width=1.6cm, font=\tiny\sffamily, align=center},
 		lb/.style={font=\tiny\sffamily, align=center, text width=1.7cm}
@@ -27,8 +27,8 @@
 		\node[lb, above=2pt of n6] {\textbf{BitNet b1.58} \cite{ma2024era}};
 	\end{tikzpicture}%
 	}
-	\vspace{2pt}
 	\begin{itemize}\small
+		\setlength{\itemsep}{0pt}
 		\item 2015--2017: quantização extrema nasce em \textbf{visão computacional} (redes pequenas, treinadas do zero).
 		\item 2022--2023: quantização \textbf{pós-treino} (PTQ) vira estratégia dominante para LLMs já treinados.
 		\item 2023--2024: BitNet retoma a ideia de \textbf{treinar do zero} em baixa precisão --- agora em escala de bilhões de parâmetros.
