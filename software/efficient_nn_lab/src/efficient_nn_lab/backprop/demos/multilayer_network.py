@@ -144,7 +144,7 @@ class MultilayerNetworkDemo(DemoModule):
                 "Quatro camadas: 3 entradas, 2 neurônios na camada 1, 2 na camada 2, 1 na "
                 "saída -- todas com ativação sigmoide, sem viés. Vamos calcular o forward "
                 "neurônio por neurônio, na ordem em que cada valor fica disponível.",
-                equation="y = σ(W · entrada); \text{Em cada camada}"
+                equation="y = σ(W · entrada); \\text{Em cada camada}"
             ),
             frame(
                 "Forward: L1-A", "Primeiro neurônio da camada 1: combina as três entradas.",
