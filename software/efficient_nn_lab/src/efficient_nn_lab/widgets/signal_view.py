@@ -126,7 +126,7 @@ class SignalView(QWidget):
         self._ax_bottom.vlines(spike_times, 0, 1, color=SNN_COLOR, linewidth=2)
         self._ax_bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
         self._ax_bottom.set_xlim(0, n_total)
-        self._ax_bottom.set_ylim(0, 1.2)
+        self._ax_bottom.set_ylim(0, 1)
         self._ax_bottom.set_yticks([])
         self._ax_bottom.set_xlabel("tempo (passos)")
         self._ax_bottom.set_ylabel("spikes sorteados")
