@@ -931,10 +931,12 @@ class NeuronView(QWidget):
     _CL_GRAD_W, _CL_GRAD_H = 1.35, 0.72
     _CL_GRAD_DX = 0.98
     _CL_STRIP_Y = 1.55
-    _CL_STRIP_X = (2.70, 4.80, 6.90, 9.00, 11.10)
-    _CL_STRIP_W, _CL_STRIP_H = 1.45, 0.70
-    _CL_PRODUCT_X, _CL_PRODUCT_W = 14.28, 3.95
-    _CL_WORK_Y = 0.90
+    #: shifted right of the row's caption ("cadeia de ∂L/∂w1:"), whose
+    #: drawn width grew with the type: the first chip used to sit on it.
+    _CL_STRIP_X = (2.85, 4.90, 6.95, 9.00, 11.05)
+    _CL_STRIP_W, _CL_STRIP_H = 1.35, 0.70
+    _CL_PRODUCT_X, _CL_PRODUCT_W = 14.35, 3.70
+    _CL_WORK_Y = 0.93
     #: The backward columns are shaded from the divider down to the bottom
     #: of the gradient row, in the colour of the block they belong to. A
     #: dotted connector alone was too faint to answer "which card belongs
@@ -944,20 +946,24 @@ class NeuronView(QWidget):
     _CL_COLUMN_BOTTOM = 1.98
     _CL_COLUMN_ALPHA = 0.10
 
-    #: Type sizes, at the reference canvas (see _cl_type_scale). Labels are
+    #: Type sizes, at the reference canvas (see _cl_type_scale). Sized
+    #: against the drawn box, which is 0.5 data units WIDER and taller
+    #: than its nominal w/h (boxstyle pad), and verified by rendering:
+    #: the binding element is the card label "∂a2/∂z2 = σ'(z2)", the
+    #: longest string that has to fit one column. Labels are
     #: deliberately a size below their values: the number is what gets read
     #: from a distance, the symbol is what gets read once.
-    _CL_FS_BAND = 13.0
-    _CL_FS_CAPTION = 11.5
-    _CL_FS_NODE_LABEL, _CL_FS_NODE_VALUE = 14.0, 16.5
-    _CL_FS_PARAM_LABEL, _CL_FS_PARAM_VALUE = 11.0, 13.0
-    _CL_FS_CARD_LABEL, _CL_FS_CARD_VALUE = 11.5, 14.5
-    _CL_FS_DELTA_LABEL, _CL_FS_DELTA_VALUE = 12.5, 15.5
-    _CL_FS_GRAD_LABEL, _CL_FS_GRAD_VALUE = 12.0, 14.0
-    _CL_FS_STRIP_LABEL, _CL_FS_STRIP_VALUE = 11.0, 13.5
-    _CL_FS_DIVIDER = 12.0
-    _CL_FS_NOTE = 10.0
-    _CL_FS_WORK = 10.0
+    _CL_FS_BAND = 14.0
+    _CL_FS_CAPTION = 12.5
+    _CL_FS_NODE_LABEL, _CL_FS_NODE_VALUE = 15.0, 19.0
+    _CL_FS_PARAM_LABEL, _CL_FS_PARAM_VALUE = 11.5, 14.5
+    _CL_FS_CARD_LABEL, _CL_FS_CARD_VALUE = 13.0, 17.0
+    _CL_FS_DELTA_LABEL, _CL_FS_DELTA_VALUE = 14.0, 17.5
+    _CL_FS_GRAD_LABEL, _CL_FS_GRAD_VALUE = 12.5, 15.0
+    _CL_FS_STRIP_LABEL, _CL_FS_STRIP_VALUE = 11.5, 14.5
+    _CL_FS_DIVIDER = 12.5
+    _CL_FS_NOTE = 11.5
+    _CL_FS_WORK = 11.5
 
     #: (first block, last block, label) for the shaded bands that group the
     #: blocks into layers. This is the "correspondence with the layers" made
