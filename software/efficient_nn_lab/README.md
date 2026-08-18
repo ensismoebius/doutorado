@@ -70,7 +70,27 @@ para que os imports absolutos (`efficient_nn_lab....`) resolvam.
 | `->` | próximo passo |
 | `<-` | passo anterior |
 | `R` | reset |
+| `N` | próxima demo (ver abaixo) |
 | `Esc` | voltar ao menu |
+
+### Navegação entre demos: **Próxima demo ▸**
+
+Botão no alto da janela, ao lado dos botões de modo. Vai para o **próximo
+item da seção atual**; se o item atual for o último da seção, vai para o
+**primeiro item da seção seguinte**; e do último item de todos volta ao
+primeiro (a volta é intencional — um botão morto no fim do roteiro só
+apareceria ao vivo, no meio da palestra). Atalho: `N`.
+
+Existe por causa do **Modo palestra**: esse modo esconde a árvore lateral,
+que era o único jeito de trocar de demonstração — ou seja, o modo feito
+para apresentar era o único em que não se conseguia avançar sem sair dele.
+A ordem seguida é exatamente a da árvore (`_demo_order` deriva da mesma
+estrutura que constrói a árvore, para as duas não divergirem), e a seleção
+da árvore acompanha o botão, de modo que sair do modo palestra não revela
+uma barra lateral apontando para outra demo.
+
+`N`, e não `->`/`PageDown`: `->` já é "próximo passo *dentro* da demo", e
+apresentadores remotos mandam `PageDown` para passar slide.
 
 ### Loop rápido (só em `SNN → Codificação Poisson (imagem)`)
 
@@ -201,6 +221,25 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | SNN → LIF | Como um neurônio LIF integra, dispara e reseta? | `tau, R, V_th`, amplitude |
 | SNN → Surrogate gradient | Como se treina através de uma função em degrau? | `k` |
 | Comparação → ANN x BitNet x SNN | Em que ANN, BitNet e SNN diferem? | fixo |
+
+### A tabela da comparação se dimensiona sozinha
+
+Essa é a única demo feita **só de texto**, e por isso é a única em que o
+corpo da letra não é um número fixo no código. O canvas do matplotlib
+dentro do Qt mantém o dpi e **cresce em polegadas** junto com a janela —
+então um `fontsize=8` calibrado num canvas de 900x400 vira 8pt dentro de
+uma figura de ~1000pt de altura quando o app está no projetor: encolhe,
+relativamente, exatamente quando precisa ser legível (era a queixa
+registrada em `FIXME.md`).
+
+O tamanho agora vem da geometria (`NeuronView._cmp_geometry`): o menor
+entre o que a **altura** permite (todas as linhas de texto mais os
+espaços) e o que a **largura de uma coluna** permite (a célula já quebrada
+em no máximo duas linhas). A altura que a letra não conseguiu usar vira
+espaço entre as linhas, para a tabela preencher a caixa em vez de se
+amontoar em cima. Medido no tamanho real da janela: ~22pt por célula, ~3x
+o anterior. Os invariantes estão em `tests/test_comparison_table_layout.py`
+(cresce com o canvas, nada se sobrepõe, preenche a caixa).
 
 ## Precisão científica (ESPECIFICACAO_DLVL.md #32)
 

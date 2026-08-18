@@ -330,3 +330,130 @@ def test_tick_is_not_re_entrant(qapp):
 
     assert len(executed) == 8, f"tick re-entrou: {len(executed)} execuções para 8 chamadas"
     assert indices == list(range(8)), indices
+
+
+# -- lecture-mode navigation (FIXME.md) --------------------------------
+#
+# Lecture mode hides the demo tree, and the tree was the only way to move
+# from one demo to the next -- so the mode built for presenting was the one
+# mode you could not present in without leaving it. These tests pin the
+# button that fixes that, plus the section-crossing order it has to follow.
+
+def _slug_order(window):
+    from efficient_nn_lab.app.main_window import _demo_order
+    return [d.slug for d in _demo_order(window._demo_groups)]
+
+
+def test_demo_order_is_exactly_the_tree_order(qapp):
+    """The running order must be the sidebar's order, not a second list."""
+    window = _window(qapp)
+    from_tree = []
+    for i in range(window.tree.topLevelItemCount()):
+        parent = window.tree.topLevelItem(i)
+        for j in range(parent.childCount()):
+            payload = parent.child(j).data(0, Qt.ItemDataRole.UserRole)
+            if not isinstance(payload, str):
+                from_tree.append(payload.slug)
+    assert _slug_order(window) == from_tree
+
+
+def test_next_demo_advances_inside_the_current_section(qapp):
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[0])
+    window.next_demo_btn.click()
+    assert window.player.demo.slug == order[1]
+
+
+def test_next_demo_crosses_into_the_first_item_of_the_next_section(qapp):
+    """The explicit requirement: last of a section -> first of the next."""
+    window = _window(qapp)
+    groups = list(window._demo_groups.values())
+    last_of_first_section = groups[0][-1]
+    first_of_next_section = groups[1][0]
+    window._select_demo_by_slug(last_of_first_section.slug)
+    window.next_demo_btn.click()
+    assert window.player.demo.slug == first_of_next_section.slug
+
+
+def test_next_demo_wraps_around_at_the_very_end(qapp):
+    """A dead button at the end of the deck would only be found mid-talk."""
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[-1])
+    window.next_demo_btn.click()
+    assert window.player.demo.slug == order[0]
+
+
+def test_next_demo_walks_every_demo_exactly_once_per_lap(qapp):
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[0])
+    visited = [window.player.demo.slug]
+    for _ in range(len(order) - 1):
+        window.next_demo_btn.click()
+        visited.append(window.player.demo.slug)
+    assert visited == order
+
+
+def test_next_demo_button_survives_lecture_mode(qapp):
+    """The whole point: it must still be there once the tree is gone."""
+    window = _window(qapp)
+    window._select_demo_by_slug(_slug_order(window)[0])
+    window.lecture_mode_btn.setChecked(True)
+    QTest.qWait(20)
+    assert not window.tree.isVisible(), "lecture mode should hide the tree"
+    assert window.next_demo_btn.isVisible()
+    assert window.next_demo_btn.isEnabled()
+    window.next_demo_btn.click()
+    assert window.player.demo.slug == _slug_order(window)[1]
+
+
+def test_next_demo_moves_the_tree_highlight_too(qapp):
+    """Leaving lecture mode must not reveal a sidebar pointing elsewhere."""
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[0])
+    window.next_demo_btn.click()
+    current = window.tree.currentItem()
+    assert current is not None
+    assert current.data(0, Qt.ItemDataRole.UserRole).slug == order[1]
+
+
+def test_next_demo_from_the_welcome_screen_opens_the_first_demo(qapp):
+    window = _window(qapp)
+    assert window.player is None
+    window._on_next_demo()
+    assert window.player is not None
+    assert window.player.demo.slug == _slug_order(window)[0]
+
+
+def test_next_demo_button_is_disabled_until_something_is_selected(qapp):
+    window = _window(qapp)
+    assert not window.next_demo_btn.isEnabled()
+    window._select_demo_by_slug(_slug_order(window)[0])
+    assert window.next_demo_btn.isEnabled()
+
+
+def test_n_key_advances_to_the_next_demo(qapp):
+    """N, not Right/PageDown: Right steps *inside* a demo and presenter
+    remotes send PageDown for the slides."""
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[0])
+    QTest.keyClick(window, Qt.Key.Key_N)
+    assert window.player.demo.slug == order[1]
+
+
+def test_right_arrow_still_steps_inside_the_demo(qapp):
+    """Guard against the shortcut for "next demo" stealing "next step"."""
+    window = _window(qapp)
+    order = _slug_order(window)
+    window._select_demo_by_slug(order[0])
+    before = window.player.demo.current_frame_index
+    QTest.keyClick(window, Qt.Key.Key_Right)
+    # StepPlayer animates the leg to the next checkpoint on its timer, so
+    # the index moves over the following ticks rather than immediately.
+    QTest.qWait(600)
+    assert window.player.demo.slug == order[0]
+    assert window.player.demo.current_frame_index > before

@@ -176,6 +176,18 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
     }
 
 
+def _demo_order(groups: dict[str, list[DemoModule]]) -> list[DemoModule]:
+    """Every demo, in the order the sidebar tree shows them.
+
+    This flat list *is* the lecture running order: walking it forwards
+    means "next item in this section, or the first item of the next
+    section once this one runs out" (FIXME.md), because the tree is built
+    section by section. Keeping it derived from the same dict the tree is
+    built from is what stops the two from drifting apart.
+    """
+    return [demo for demos in groups.values() for demo in demos]
+
+
 def _choose_view(values: dict[str, object]) -> str:
     kind = values.get("kind")
     if kind in _SIGNAL_KINDS:
@@ -267,6 +279,19 @@ class MainWindow(QMainWindow):
         self.demo_title_label = QLabel("Efficient Neural Networks Lab")
         self.demo_title_label.setObjectName("DemoTitle")
         top_bar.addWidget(self.demo_title_label, stretch=1)
+        # Lecture-mode navigation (FIXME.md): lecture mode hides the demo
+        # tree, which is the only way to change demo -- so in the mode
+        # meant for presenting there was no way to move on without
+        # leaving it. This button is that way. It is visible in both
+        # modes (it is a convenience with the tree, a necessity without
+        # it) and is enabled only once some demo is on screen.
+        self.next_demo_btn = QPushButton("Próxima demo \u25b8")
+        self.next_demo_btn.setToolTip(
+            "Vai para o próximo item desta seção — ou para o primeiro da "
+            "seção seguinte, se este for o último (tecla N)"
+        )
+        self.next_demo_btn.clicked.connect(self._on_next_demo)
+        top_bar.addWidget(self.next_demo_btn)
         self.lecture_mode_btn = QPushButton("Modo palestra")
         self.lecture_mode_btn.setCheckable(True)
         self.lecture_mode_btn.toggled.connect(self._on_lecture_mode_toggled)
@@ -337,6 +362,8 @@ class MainWindow(QMainWindow):
         self.detail_label.setVisible(False)
         right.addWidget(self.detail_label)
 
+        self.next_demo_btn.setEnabled(False)
+
         self.controls = ControlsWidget()
         self.controls.reset_clicked.connect(self._on_reset)
         self.controls.step_backward_clicked.connect(self._on_step_backward)
@@ -357,6 +384,10 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence(Qt.Key.Key_Left), self, activated=self._on_step_backward)
         QShortcut(QKeySequence(Qt.Key.Key_R), self, activated=self._on_reset)
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, activated=self._show_welcome)
+        # N for "next demo" -- deliberately not PageDown/Right: Right is
+        # already "next step inside this demo", and presenter remotes send
+        # PageDown for "next slide", which must not jump demos.
+        QShortcut(QKeySequence(Qt.Key.Key_N), self, activated=self._on_next_demo)
 
     # -- demo selection -----------------------------------------------
     def _on_tree_item_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
@@ -379,10 +410,51 @@ class MainWindow(QMainWindow):
         self.demo_title_label.setText(demo.title)
         self.demo_description_label.setText(demo.description)
         self.controls.setEnabled(True)
+        self.next_demo_btn.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
         self.controls.set_fast_loop_available(demo.supports_fast_loop)
         self._reserve_text_heights(demo)
         self._refresh_frame()
+
+    # -- lecture-mode navigation (FIXME.md) -------------------------------
+    def _on_next_demo(self) -> None:
+        """Advance to the next demo in the sidebar's running order.
+
+        From the last demo of a section this lands on the first demo of the
+        next section (the flat order in _demo_order already encodes that),
+        and from the very last demo it wraps around to the first. Wrapping
+        is deliberate: a dead button at the end of the deck is a failure
+        the presenter only discovers live, mid-talk, with no tree visible
+        to fall back on.
+        """
+        order = _demo_order(self._demo_groups)
+        if not order:
+            return
+        current = self.player.demo if self.player is not None else None
+        if current is None:
+            index = -1
+        else:
+            index = next((i for i, demo in enumerate(order) if demo is current), -1)
+        self._go_to_demo(order[(index + 1) % len(order)])
+
+    def _go_to_demo(self, demo: DemoModule) -> None:
+        """Select ``demo`` and move the tree's highlight with it.
+
+        The tree is hidden in lecture mode, but its current item still has
+        to follow along: leaving lecture mode must not reveal a sidebar
+        pointing at some demo other than the one on screen.
+        """
+        self._highlight_in_tree(demo)
+        self._select_demo(demo)
+
+    def _highlight_in_tree(self, demo: DemoModule) -> None:
+        for i in range(self.tree.topLevelItemCount()):
+            parent_item = self.tree.topLevelItem(i)
+            for j in range(parent_item.childCount()):
+                child = parent_item.child(j)
+                if child.data(0, Qt.ItemDataRole.UserRole) is demo:
+                    self.tree.setCurrentItem(child)
+                    return
 
     def _reserve_text_heights(self, demo: DemoModule) -> None:
         """Size the fixed-height labels to *this* demo's actual text.
@@ -477,6 +549,8 @@ class MainWindow(QMainWindow):
         self.state.lecture_mode = enabled
         self.tree.setVisible(not enabled)
         self.professor_mode_btn.setVisible(not enabled)
+        # next_demo_btn stays visible on purpose: with the tree gone it is
+        # the only demo-to-demo navigation left.
 
     def _on_professor_mode_toggled(self, enabled: bool) -> None:
         self.state.professor_mode = enabled

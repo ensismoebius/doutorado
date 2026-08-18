@@ -1,4 +1,4 @@
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{Hardware e limitações}
 	\begin{columns}
 		\column{.5\linewidth}
@@ -7,7 +7,7 @@
 		\end{beamercolorbox}
 		\begin{itemize}
 			\item Sem pesos em ponto flutuante, não há necessidade de multiplicadores de ponto flutuante --- só somadores de inteiros.
-			\item Abre espaço para ASICs dedicados, mais simples e mais eficientes por operação.
+			\item Abre espaço para \textbf{ASICs} dedicados, mais simples e mais eficientes por operação.
 		\end{itemize}
 		\column{.5\linewidth}
 		\begin{beamercolorbox}[sep=5pt,rounded=true,shadow=true]{title}
@@ -19,4 +19,12 @@
 			\item Ganho de paridade só aparece a partir de $\sim$3B parâmetros.
 		\end{itemize}
 	\end{columns}
+	% [FIXME] pedido explicito: definir ASIC. Fica no pe do slide, como
+	% nota de rodape, para nao competir com o contraste promessa/limite
+	% que e o conteudo principal -- mas na MESMA tela onde a sigla aparece.
+	\vspace{2pt}
+	\begin{beamercolorbox}[sep=3pt,rounded=true]{titleAccent}
+		\scriptsize
+		\textbf{ASIC} (\textit{Application-Specific Integrated Circuit}): chip fabricado para executar \textbf{uma} função, com o circuito gravado no silício. A \textbf{GPU} é o oposto: programável, faz qualquer coisa razoavelmente bem. O ASIC troca flexibilidade por eficiência --- e o preço é que \textbf{a função não muda depois de fabricada}: se o formato dos pesos mudar, o chip vira sucata.
+	\end{beamercolorbox}
 \end{frame}

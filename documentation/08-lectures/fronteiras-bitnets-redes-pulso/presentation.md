@@ -96,7 +96,18 @@ seção 3.
 ### 1.5 Lacuna de precisão a verbalizar (não corrigir)
 
 `bitnetCamada.tex` ensina a quantização **absmean real** do BitNet b1.58
-(escala γ = média(|W|) por tensor). O software's `BitNet -> Quantização` /
+(escala γ = média(|W|) por tensor). O slide tinha o rótulo errado
+(*absmax*) sobre a fórmula certa (`mean(|W|)`) até 2026-08-18; agora diz
+**absmean** para os pesos e reserva *absmax* para as ativações, que é onde
+esse nome de fato se aplica — e o quadro 4 contrasta as duas réguas
+lado a lado, já que confundi-las é o erro previsível aqui.
+
+Os cinco quadros desse slide, na ordem: (1) Linear densa → ternária, com a
+equação; (2) a equação lida **termo a termo** ($W$, $|W|$, mean, $\gamma$,
+$W/\gamma$, clip, round, $\widetilde{W}$); (3) o exemplo numérico dos
+pesos; (4) as ativações em INT8 por *absmax*, com exemplo numérico e a
+tabela de contraste; (5) o que a troca compra (soma/subtração em vez de
+multiplicação). O software's `BitNet -> Quantização` /
 `BitNet -> Forward` usam, deliberadamente, um **limiar fixo e simétrico**
 — uma simplificação didática documentada no próprio
 `software/efficient_nn_lab/README.md` ("Precisão científica"). Isso é
@@ -267,10 +278,10 @@ não um detalhe de formatação.
 
 | Slide (arquivo) | Ideia-chave | Demo do software | Passo/checkpoint | Slug |
 |---|---|---|---|---|
-| `bitnetCamada.tex`, quadro 2 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantização** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
-| `bitnetCamada.tex`, quadro 3 (multiplicação vira soma/subtração) | `W̃·X̃` não faz multiplicação real | **BitNet -> Forward** | Checkpoints "Quantizar w1"/"Quantizar w2" → "Multiplicação 1"/"Multiplicação 2" (mostra Q(w2)=0 anulando x2) | `bitnet.forward` |
+| `bitnetCamada.tex`, quadro 3 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantização** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
+| `bitnetCamada.tex`, quadro 5 (multiplicação vira soma/subtração) | `W̃·X̃` não faz multiplicação real | **BitNet -> Forward** | Checkpoints "Quantizar w1"/"Quantizar w2" → "Multiplicação 1"/"Multiplicação 2" (mostra Q(w2)=0 anulando x2) | `bitnet.forward` |
 | `bitnetTreinamento.tex` (STE) | Backward "finge" que a quantização foi identidade | **BitNet -> Backward -> STE** | Checkpoint final (derivada real vs. constante 1 do STE) | `bitnet.ste` |
-| `bitnetTreinamento.tex` (rodapé, link de bônus) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — *demo bônus* se sobrar tempo; hoje já tem `\abrirNoSoftware` no rodapé daquele slide, então todas as 13 demos são alcançáveis pelo PDF | `bitnet.guided` |
+| `bitnetTreinamento.tex` (quadro de demo seguinte, bônus) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — *demo bônus* se sobrar tempo; tem quadro `\DemoSlide` próprio logo depois do quadro do STE (os links de rodapé daquele slide foram removidos em 2026-08-18, e um quadro próprio não disputa espaço com o conteúdo), então todas as 13 demos seguem alcançáveis pelo PDF | `bitnet.guided` |
 
 ### Parte II — Redes de pulso
 

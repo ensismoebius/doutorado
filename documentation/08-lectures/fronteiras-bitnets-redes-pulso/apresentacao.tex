@@ -48,6 +48,12 @@
 		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{}
 		\input{slides/bitnetTreinamento.tex}
 		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{}
+		% Demo de reserva. Estava como \abrirNoSoftware no rodape de
+		% bitnetTreinamento.tex; aquele quadro ja usa [shrink] e os links
+		% foram removidos de la, o que deixou esta demo sem nenhuma porta
+		% de entrada no PDF (test_every_demo_is_reachable_from_the_lecture_deck).
+		% Como quadro proprio nao disputa espaco com nada.
+		\DemoSlide{BitNet \textrightarrow{} Exemplo guiado (bônus)}{bitnet.guided}{Ciclo completo forward \textrightarrow{} perda \textrightarrow{} STE \textrightarrow{} update num peso só: peso latente 0,80 \textrightarrow{} 0,84. Demo de reserva, se sobrar tempo.}
 		\input{slides/bitnetResultados.tex}
 		\input{slides/bitnetHardwareLimitacoes.tex}
 

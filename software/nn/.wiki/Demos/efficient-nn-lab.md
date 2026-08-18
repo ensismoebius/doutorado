@@ -184,6 +184,28 @@ the exception because there the *cadence is the content*: one Poisson time-step 
 indistinguishable from noise, and the picture only emerges once frames go by fast enough for
 the eye to integrate them.
 
+### Moving between demos on stage
+
+`Modo palestra` hides the sidebar tree to strip the window down for projection — and the tree
+was the only way to change demo, so the mode built for presenting was the one mode you could
+not advance in without leaving it. **Próxima demo ▸** (shortcut `N`) is that navigation: next
+item in the current section, first item of the next section once a section runs out, wrapping
+around at the end of the deck. The order is derived from the same dict that builds the tree
+(`_demo_order`), and the tree's highlight follows along, so leaving lecture mode never reveals
+a sidebar pointing somewhere else. `N` rather than `→`/`PageDown`: `→` already means "next step
+*inside* this demo", and presenter remotes send `PageDown` to advance the slides.
+
+### Why the comparison table sizes itself
+
+`comparison` is the only all-text demo, and the only one whose type size is computed rather
+than written down. The Qt matplotlib canvas keeps its dpi fixed and grows the figure's
+*inches*, so a hard-coded `fontsize=8` that looked fine on a 900×400 canvas becomes 8 pt inside
+a ~1000 pt-tall figure once the app is projected — it shrinks relatively, exactly when
+legibility matters most. `NeuronView._cmp_geometry` takes the smaller of what the height allows
+(every line of text plus its gaps) and what one column's width allows (a cell wrapped to at
+most two lines), then spends the leftover height on the gaps so the table fills its box.
+Measured at the app's real canvas: ~22 pt per cell, about 3× the old fixed size.
+
 ## Common Pitfalls
 
 - **Assuming the quantization matches BitNet b1.58.** It does not, deliberately. The lab uses a

@@ -3,16 +3,32 @@
 	\only<1>{
 		\framesubtitle{Da camada Linear densa à ternária}
 		\par Uma camada Linear comum calcula $Y = W X$, com $W$ em FP16/FP32: cada saída soma \textbf{multiplicações reais} entre pesos e ativações contínuos.\newline
-		
-		\par O BitNet b1.58 \cite{ma2024era} substitui $W$ por uma versão ternária $\widetilde{W} \in \{-1,0,1\}$, obtida pela \textbf{quantização \textit{absmax}}:
-		
+
+		\par O BitNet b1.58 \cite{ma2024era} substitui $W$ por uma versão ternária $\widetilde{W} \in \{-1,0,1\}$, obtida pela \textbf{quantização \textit{absmean}}:
+
 		\begin{equation}
 			\gamma = \text{mean}(|W|), \qquad
 			\widetilde{W} = \text{round}\big(\text{clip}(W/\gamma,\,-1,\,1)\big)
 		\end{equation}
-		\par $\gamma$ é um único número por tensor --- guardado à parte para reescalar a saída no fim, não para cada peso individualmente.
 	}
 	\only<2>{
+		\framesubtitle{Lendo a equação termo a termo}
+		% [FIXME] pedido explicito: dizer o que cada item da equacao e.
+		% Ordem = ordem em que o dado passa por eles, nao ordem de leitura
+		% da formula, para o aluno seguir o caminho de um peso.
+		\footnotesize
+		\begin{itemize}
+			\item $W$ --- a matriz de pesos \textbf{original}, em ponto flutuante. Continua existindo: é ela que o otimizador atualiza (peso \textit{latente}).
+			\item $|W|$ --- o \textbf{módulo} de cada peso, um por um: só o tamanho importa, não o sinal.
+			\item $\text{mean}(|W|)$ --- a \textbf{média} desses módulos: a ``magnitude típica'' do tensor inteiro.
+			\item $\gamma$ (\textit{gama}) --- essa média, guardada como \textbf{um número por tensor}. É a \textbf{régua}: mede cada peso em unidades de ``peso médio''.
+			\item $W/\gamma$ --- cada peso \textbf{medido pela régua}. Acima da média passa de 1; abaixo fica entre $-1$ e $1$.
+			\item $\text{clip}(\cdot,-1,1)$ --- \textbf{corta} o excesso: $>1$ vira $1$, $<-1$ vira $-1$. Impede que um peso grande domine o arredondamento.
+			\item $\text{round}(\cdot)$ --- \textbf{arredonda}. Sobrando só $[-1,1]$, os únicos resultados possíveis são $-1$, $0$ e $+1$.
+			\item $\widetilde{W}$ --- o ternário, o que de fato multiplica no \textit{forward}. $\gamma$ fica à parte e reescala a saída \textbf{no fim} --- não peso por peso.
+		\end{itemize}
+	}
+	\only<3>{
 		\framesubtitle{Exemplo numérico}
 		\par Tome três pesos de uma linha de $W$: $w = [0{,}6,\ -0{,}3,\ 0{,}05]$.
 		\begin{equation*}
@@ -28,19 +44,47 @@
 			\end{aligned}
 		\end{equation*}
 		\par O peso original $0{,}05$ (o menor em módulo) \textbf{vira zero} --- é descartado, não aproximado. Os outros dois viram $\pm 1$.
-		\par As ativações $X$ recebem seu próprio tratamento, quantização \textbf{absmax} para INT8: $\widetilde{X} = \text{round}(X \cdot 127/\max(|X|))$, com \textit{clip} em $[-128,127]$.
 		% [SOFTWARE] BitNet -> Quantização | slider w ~ 0 para reproduzir a
 		% zona morta, depois 0,6 / -0,3 para os dois outros pesos do exemplo
 		\abrirNoSoftware{BitNet \textrightarrow{} Quantização}{bitnet.quant}
 	}
-	\only<3>{
+	\only<4>{
+		\framesubtitle{E as ativações? Outra quantização, outra régua}
+		% [FIXME] a frase anterior ("As ativacoes X recebem seu proprio
+		% tratamento, quantizacao absmax para INT8: ...") comprimia tres
+		% ideias numa linha: que ha DUAS quantizacoes diferentes, o que
+		% absmax faz, e por que 127. Aqui cada uma tem seu lugar.
+		\footnotesize
+		\par $\widetilde{W}$ resolve os \textbf{pesos}. Mas a camada multiplica pesos por \textbf{ativações} $X$ --- os números que chegam da camada anterior --- e essas não podem virar $\{-1,0,1\}$: são o sinal, não o filtro. Elas viram \textbf{inteiros de 8 bits} (INT8):
+		\begin{equation*}
+			\widetilde{X} = \text{round}\!\left(X \cdot \frac{127}{\max(|X|)}\right), \quad \text{com \textit{clip} em } [-128,\,127]
+		\end{equation*}
+		\begin{itemize}
+			\item $\max(|X|)$ --- o \textbf{maior} valor absoluto do vetor. Aqui a régua é o \textbf{pico}, não a média: por isso \textbf{absmax}.
+			\item $127$ --- o maior inteiro positivo que cabe em 8 bits com sinal. A fração $127/\max(|X|)$ \textbf{estica} a ativação até encher exatamente a faixa INT8.
+			\item Exemplo: $X = [0{,}5,\ -2{,}0,\ 1{,}0] \Rightarrow \max(|X|) = 2{,}0$, fator $= 63{,}5$, logo $\widetilde{X} = [32,\ -127,\ 64]$: o maior em módulo encosta no limite, ninguém estoura.
+		\end{itemize}
+		\begin{center}
+			\scriptsize
+			\begin{tabular}{lll}
+				\toprule
+				& \textbf{Pesos} $W$ & \textbf{Ativações} $X$ \\
+				\midrule
+				Régua       & \textit{absmean}: $\gamma = \text{mean}(|W|)$ & \textit{absmax}: $\max(|X|)$ \\
+				Destino     & ternário $\{-1,0,1\}$ ($\approx$1,58 bit)     & INT8, $[-128,127]$ \\
+				Muda quando & o peso é treinado                             & a cada entrada nova \\
+				\bottomrule
+			\end{tabular}
+		\end{center}
+	}
+	\only<5>{
 		\framesubtitle{O que essa troca faz}
 		\begin{itemize}
-			\item Com $\widetilde{W} \in \{-1,0,1\}$, a multiplicação $\widetilde{W}\cdot\widetilde{X}$ vira: \newline 
+			\item Com $\widetilde{W} \in \{-1,0,1\}$, a multiplicação $\widetilde{W}\cdot\widetilde{X}$ vira: \newline
 			\textbf{some} $\widetilde{X}$ (peso $+1$), \newline
 			\textbf{subtraia} $\widetilde{X}$ (peso $-1$), ou \newline
 			\textbf{ignore} (peso $0$).\newline
-			
+
 			\item Nenhuma multiplicação real acontece no lado dos pesos --- só somas/subtrações de inteiros, mais um único rescalonamento por $\gamma$ ao final.
 		\end{itemize}
 	}
