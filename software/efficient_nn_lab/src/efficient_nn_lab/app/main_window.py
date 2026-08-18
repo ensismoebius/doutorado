@@ -9,10 +9,11 @@ does.
 from __future__ import annotations
 
 import sys
+from math import ceil
 
 import numpy as np
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QFontMetrics, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -129,12 +130,18 @@ _WELCOME_TEXT = (
 
 # The frame-title and explanation labels under the canvas are kept at a
 # fixed height per demo so their changing text never reflows the layout
-# (and resizes the animation canvas) mid-playback. These control how much
-# space is reserved: a deliberately conservative characters-per-line
-# estimate and a ceiling in lines. See _reserve_text_heights.
-_CHARS_PER_LINE = 80
-_EXPL_MAX_LINES = 4
+# (and resizes the animation canvas) mid-playback. How much space that
+# reservation needs used to be *estimated* from a characters-per-line
+# guess -- which was wrong in three separate ways at once (see
+# _reserve_text_heights), the visible symptom being clipped descenders on
+# every step title. It is now measured. These are only the ceilings, so a
+# pathological text cannot eat the whole canvas.
+_EXPL_MAX_LINES = 6
 _FRAME_MAX_LINES = 2
+#: Fallback width for the measurement when the label has not been laid out
+#: yet (a --demo deep link measures during __init__, before the first
+#: layout pass). The resize hook re-measures with the real width later.
+_MIN_MEASURE_WIDTH = 400
 
 # The equation panel is a fixed-height framed box so toggling it never
 # reflows the right column mid-playback; the rendered equation is scaled
@@ -143,12 +150,11 @@ _EQUATION_FRAME_HEIGHT = 108
 _EQUATION_DPI = 320
 
 
-def _lines_for(text: str, max_lines: int) -> int:
-    """Number of wrapped lines ``text`` needs, clamped to ``max_lines``."""
-    if not text:
-        return 1
-    needed = (len(text) + _CHARS_PER_LINE - 1) // _CHARS_PER_LINE
-    return max(1, min(max_lines, needed))
+def _height_for_lines(fm: QFontMetrics, height_px: float, max_lines: int, padding: int) -> int:
+    """Round a measured pixel height up to whole lines, capped and padded."""
+    spacing = fm.lineSpacing()
+    lines = max(1, min(max_lines, ceil(height_px / spacing)))
+    return spacing * lines + padding
 
 
 def _build_demo_tree() -> dict[str, list[DemoModule]]:
@@ -335,14 +341,23 @@ class MainWindow(QMainWindow):
         self.frame_label.setObjectName("FrameTitle")
         self.frame_label.setWordWrap(True)
         self.frame_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.frame_label.setFixedHeight(QFontMetrics(self.frame_label.font()).lineSpacing() * _FRAME_MAX_LINES + 6)
+        # one line until a demo is selected (the welcome screen shows no
+        # step title); _reserve_text_heights measures the real need then.
+        self._set_reserved_height(self.frame_label, 0.0, 1, padding=6)
         right.addWidget(self.frame_label)
+
+        # Off-screen twin used only to measure how tall an explanation
+        # really renders (inline formula images included) -- see
+        # _measure_rich_height. Never parented into the layout, so it is
+        # never painted.
+        self._measure_label = MathTextLabel("")
+        self._measure_label.setWordWrap(True)
 
         self.explanation_label = MathTextLabel("")
         self.explanation_label.setObjectName("Explanation")
         self.explanation_label.setWordWrap(True)
         self.explanation_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.explanation_label.setFixedHeight(QFontMetrics(self.explanation_label.font()).lineSpacing() * _EXPL_MAX_LINES + 8)
+        self._set_reserved_height(self.explanation_label, 0.0, 1, padding=8)
         right.addWidget(self.explanation_label)
 
         self.equation_frame = QFrame()
@@ -464,19 +479,117 @@ class MainWindow(QMainWindow):
         The frame-title and explanation labels are fixed-height so their
         changing text never reflows the layout and resizes the animation
         canvas mid-playback. But a single global reservation sized for the
-        wordiest demo (4 explanation lines) wastes vertical space on every
-        shorter one: SNN->LIF's explanations are all one line, yet it paid
-        the full 4-line reservation which — together with its 4 parameter
-        sliders — left its canvas ~80px shorter than the original layout.
-        Reserving per demo keeps the no-reflow guarantee while giving each
-        demo the tallest canvas its own text allows.
+        wordiest demo wastes vertical space on every shorter one:
+        SNN->LIF's explanations are all one line, yet it paid the full
+        reservation which — together with its 4 parameter sliders — left
+        its canvas ~80px shorter than the original layout. Reserving per
+        demo keeps the no-reflow guarantee while giving each demo the
+        tallest canvas its own text allows.
+
+        The reservation is **measured**, not estimated. The previous
+        estimate (``len(text) / 80`` characters per line, times the
+        *explanation* label's line spacing, for both labels) was wrong
+        three separate ways, and the three cancelled out just enough to
+        look plausible:
+
+        1. it sized the frame-title label with the explanation label's
+           font. The title is 22pt bold (34px line) against the
+           explanation's 18pt (28px), so a one-line title got 6px less
+           room than one line of it needs -- the clipped descenders that
+           are visible on every single step title;
+        2. a ``--demo`` deep link runs this from ``__init__``, before Qt
+           has applied the stylesheet, so both fonts measured as the 9pt
+           default: a 24px reservation for a 34px line;
+        3. the explanation label is a MathTextLabel that lays out *rich
+           text* with inline formula images. Those are taller than a text
+           line, so a character count cannot predict its height at all
+           (measured: one bitnet.ste explanation needs 134px where the
+           character estimate says 56).
+
+        So each label is now asked how tall it really needs to be, at its
+        own font and its own current width, for the wordiest text this
+        demo will show. Only checkpoint frames are measured: tween frames
+        reuse the text of the checkpoint they animate towards, so the set
+        of distinct strings is the same and measuring 240 frames instead
+        of 35 would only cost time.
         """
-        fm = QFontMetrics(self.explanation_label.font())
-        spacing = fm.lineSpacing()
-        expl_lines = max(_lines_for(f.explanation or "", _EXPL_MAX_LINES) for f in demo._frames)
-        frame_lines = max(_lines_for(f.label or "", _FRAME_MAX_LINES) for f in demo._frames)
-        self.explanation_label.setFixedHeight(spacing * expl_lines + 8)
-        self.frame_label.setFixedHeight(spacing * frame_lines + 6)
+        expl_texts = {f.explanation or "" for f in demo.checkpoint_frames()}
+        frame_texts = {
+            self._frame_title_text(f.label or "", demo.total_steps, demo.total_steps)
+            for f in demo.checkpoint_frames()
+        }
+        self._set_reserved_height(
+            self.explanation_label, self._measure_rich_height(expl_texts),
+            _EXPL_MAX_LINES, padding=8,
+        )
+        self._set_reserved_height(
+            self.frame_label, self._measure_plain_height(self.frame_label, frame_texts),
+            _FRAME_MAX_LINES, padding=6,
+        )
+
+    def _label_measure_width(self, label: QLabel) -> int:
+        return max(_MIN_MEASURE_WIDTH, label.width() - 6)
+
+    def _measure_plain_height(self, label: QLabel, texts: set[str]) -> float:
+        """Tallest wrapped height any of ``texts`` needs in ``label``'s font."""
+        label.ensurePolished()
+        fm = QFontMetrics(label.font())
+        width = self._label_measure_width(label)
+        rect = QRect(0, 0, width, 0)
+        return max(
+            [float(fm.lineSpacing())]
+            + [float(fm.boundingRect(rect, Qt.TextFlag.TextWordWrap, t).height()) for t in texts if t]
+        )
+
+    def _measure_rich_height(self, texts: set[str]) -> float:
+        """Tallest height the explanation label needs, formulas included.
+
+        Measured on an off-screen twin rather than on the label itself:
+        setting text on the visible label to measure it would flash every
+        explanation of the demo on screen before settling on the right
+        one. The twin is a MathTextLabel too, so it lays the inline
+        formula images out exactly the way the real one will.
+        """
+        self.explanation_label.ensurePolished()
+        twin = self._measure_label
+        twin.setFont(self.explanation_label.font())
+        width = self._label_measure_width(self.explanation_label)
+        tallest = float(QFontMetrics(self.explanation_label.font()).lineSpacing())
+        for text in texts:
+            if not text:
+                continue
+            twin.set_math_text(text)
+            tallest = max(tallest, float(twin.heightForWidth(width)))
+        return tallest
+
+    def _set_reserved_height(self, label: QLabel, needed_px: float, max_lines: int, padding: int) -> None:
+        """Apply a measured reservation, but only when it actually changed.
+
+        This is called from resizeEvent as well, and setting a fixed
+        height triggers another layout pass -- assigning the same value
+        every time would make the two chase each other.
+        """
+        label.ensurePolished()
+        height = _height_for_lines(QFontMetrics(label.font()), needed_px, max_lines, padding)
+        if label.height() != height or label.minimumHeight() != height:
+            label.setFixedHeight(height)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        """Re-measure the reservations for the new width.
+
+        Wrapping depends on the label's width, so the number of lines a
+        given explanation needs changes when the window does. Without
+        this, a window resized narrower keeps the reservation computed for
+        the wider one and clips the text that now wraps to more lines.
+        """
+        super().resizeEvent(event)
+        if self.player is not None:
+            self._reserve_text_heights(self.player.demo)
+
+    @staticmethod
+    def _frame_title_text(label: str, step: int, total: int) -> str:
+        """The step-title line, in one place: shown *and* measured with it."""
+        return f"{label}    (passo {step}/{total})"
 
     def _show_welcome(self) -> None:
         if self.player is not None:
@@ -573,7 +686,9 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(view)
         view.render(frame.values)
 
-        self.frame_label.setText(f"{frame.label}    (passo {demo.current_step + 1}/{demo.total_steps})")
+        self.frame_label.setText(
+            self._frame_title_text(frame.label, demo.current_step + 1, demo.total_steps)
+        )
         self.explanation_label.set_math_text(frame.explanation)
         self._set_equation(frame.equation)
         if self.state.professor_mode:

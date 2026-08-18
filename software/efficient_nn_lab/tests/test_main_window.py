@@ -10,7 +10,7 @@ shortcuts -- the wiring that lives entirely in app/main_window.py.
 import pytest
 from unittest.mock import Mock
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -121,20 +121,105 @@ def test_explanation_label_height_constant_across_checkpoints(qapp, slug):
 def test_lif_canvas_not_shrunk_by_short_explanations(qapp):
     """Regression for "the SNN->LIF graphs are too small".
 
-    LIF's explanations all fit on one line, but a global 4-line
-    explanation reservation made it pay for the wordiest demo anyway;
-    together with its 4 parameter sliders that shrank the canvas to
-    ~280px. The reservation is now per-demo, so LIF keeps a 1-line
-    explanation and a canvas as tall as a no-parameter demo's.
+    LIF's explanations are short, but a global reservation sized for the
+    wordiest demo made it pay for them anyway; together with its 4
+    parameter sliders that shrank the canvas to ~280px. The reservation is
+    per demo, so LIF only pays for its own text.
+
+    Compared against a wordy demo measured in the same window rather than
+    against a pixel count: the point is that the two differ, and hardcoded
+    pixels would just re-break whenever the fonts or the text change.
     """
     window = _window(qapp)
+    wordy = next(d for d in _all_demos() if d.slug == "snn.surrogate")
+    window._select_demo(wordy)
+    wordy_height = window.explanation_label.height()
+
     demo = next(d for d in _all_demos() if d.slug == "snn.lif")
     window._select_demo(demo)
 
-    fm = QFontMetrics(window.explanation_label.font())
-    assert window.explanation_label.height() <= fm.lineSpacing() + 8
-    assert window.frame_label.height() <= fm.lineSpacing() + 6
+    assert window.explanation_label.height() < wordy_height
     assert window.signal_view._canvas.height() >= 330
+
+
+def test_step_title_is_tall_enough_for_its_own_font(qapp):
+    """The step title is 22pt bold; it used to be measured at 18pt.
+
+    Sizing the frame-title label with the *explanation* label's metrics
+    reserved 28px for a 34px line, so every step title on every demo lost
+    its descenders. Silent failure: nothing errors, the text is just
+    visibly cut off. This asserts each label clears one line of its OWN
+    font -- the property that was violated.
+    """
+    window = _window(qapp)
+    for demo in _all_demos():
+        window._select_demo(demo)
+        for label in (window.frame_label, window.explanation_label):
+            spacing = QFontMetrics(label.font()).lineSpacing()
+            assert label.height() >= spacing, (
+                f"{demo.slug}: {label.objectName() or 'label'} reserves "
+                f"{label.height()}px for a {spacing}px line"
+            )
+
+
+def test_step_title_never_clips_the_text_it_shows(qapp):
+    """Every step title of every demo must fit the reserved height."""
+    window = _window(qapp)
+    for demo in _all_demos():
+        window._select_demo(demo)
+        reserved = window.frame_label.height()
+        fm = QFontMetrics(window.frame_label.font())
+        width = max(400, window.frame_label.width() - 6)
+        for frame in demo.checkpoint_frames():
+            text = window._frame_title_text(frame.label, 1, demo.total_steps)
+            needed = fm.boundingRect(
+                QRect(0, 0, width, 0), Qt.TextFlag.TextWordWrap, text
+            ).height()
+            assert needed <= reserved, (
+                f"{demo.slug}: {text!r} needs {needed}px, only {reserved}px reserved"
+            )
+
+
+def test_deep_linked_demo_reserves_the_right_heights(qapp):
+    """The --demo path measures before Qt has applied the stylesheet.
+
+    MainWindow(slug) selects the demo from __init__, so the labels are
+    measured while their fonts are still the 9pt default rather than the
+    stylesheet's 18/22pt -- which reserved 24px for a 34px line on every
+    demo opened from a slide link. ensurePolished() is what makes the
+    measurement see the real font.
+    """
+    from efficient_nn_lab.app.main_window import MainWindow as _MainWindow
+
+    window = _MainWindow("snn.lif")
+    window.show()
+    assert QTest.qWaitForWindowActive(window)
+    QTest.qWait(30)
+    for label in (window.frame_label, window.explanation_label):
+        spacing = QFontMetrics(label.font()).lineSpacing()
+        assert label.height() >= spacing, (
+            f"deep link reserved {label.height()}px for a {spacing}px line"
+        )
+
+
+def test_reservations_survive_a_window_resize(qapp):
+    """Wrapping depends on width, so the reservation has to follow it.
+
+    Without the resize hook a window made narrower keeps the reservation
+    computed for the wider one, and the text that now wraps to more lines
+    is clipped.
+    """
+    window = _window(qapp)
+    demo = next(d for d in _all_demos() if d.slug == "backprop.chain")
+    window._select_demo(demo)
+    wide = window.explanation_label.height()
+
+    window.resize(920, 620)
+    QTest.qWait(60)
+    narrow = window.explanation_label.height()
+    assert narrow >= wide, (
+        f"narrower window reserved less room ({narrow}px) than the wide one ({wide}px)"
+    )
 
 
 # -- keyboard shortcuts ------------------------------------------------

@@ -888,41 +888,76 @@ class NeuronView(QWidget):
     # ================================================================
     _CL_AX_RECT = (0.025, 0.02, 0.95, 0.95)
     _CL_XLIM = (-0.35, 16.6)
-    #: Vertical span is deliberately generous (15 units for ~12 rows):
     #: FancyBboxPatch's ``boxstyle=round,pad=0.25`` inflates every box by
-    #: 0.25 DATA UNITS on each side, so a chip declared 0.7 high actually
-    #: occupies 1.2. Row pitches below all budget for that -- the first
-    #: version of this layout did not, and every row overlapped the next.
+    #: 0.25 DATA UNITS on each side, so a chip declared 0.95 high actually
+    #: occupies 1.45. Every pitch below budgets for that.
+    #:
+    #: The vertical span is the real constraint of this drawing: the canvas
+    #: gives ~685pt of height for twelve rows, and the type has to fit
+    #: inside boxes that are measured in units. The row heights below are
+    #: what is left after paying for legible type (see _CL_FS_*), not the
+    #: other way round -- the first version had it backwards and the text
+    #: came out too small to read.
     _CL_YLIM = (0.0, 15.0)
     #: One x per forward block, in the demo's NODE_* order
     #: (x, z1, a1, z2, a2, L). Blocks, parameter chips, derivative cards, δ
     #: chips and gradient chips all read their x from here, so a column
     #: cannot drift out of alignment with the block it belongs to.
-    _CL_NODE_X = (1.35, 4.05, 6.75, 9.45, 12.15, 14.85)
-    _CL_NODE_Y = 12.45
-    _CL_NODE_W, _CL_NODE_H = 1.95, 1.0
-    _CL_CAPTION_Y = 13.85
-    _CL_BAND_Y0, _CL_BAND_Y1 = 9.90, 14.85
-    _CL_BAND_LABEL_Y = 14.62
-    _CL_PARAM_Y = 10.62
-    #: chips sit side by side under one block, so their width plus the pad
-    #: inflation has to stay under twice the offset (0.95 + 0.5 < 2 x 0.80).
-    _CL_PARAM_W, _CL_PARAM_H = 0.95, 0.55
-    _CL_PARAM_DX = 0.80
-    _CL_DIVIDER_Y = 9.40
-    _CL_DIVIDER_LABEL_Y = 9.62
-    _CL_CARD_ROW_Y = (8.20, 6.90, 5.60)
-    _CL_CARD_W, _CL_CARD_H = 1.80, 0.70
-    _CL_DELTA_Y = 4.30
-    _CL_DELTA_W, _CL_DELTA_H = 3.3, 0.65
-    _CL_GRAD_Y = 3.02
-    _CL_GRAD_W, _CL_GRAD_H = 1.30, 0.65
-    _CL_GRAD_DX = 0.95
-    _CL_STRIP_Y = 1.74
-    _CL_STRIP_X = (2.45, 4.50, 6.55, 8.60, 10.65)
-    _CL_STRIP_W, _CL_STRIP_H = 1.35, 0.65
-    _CL_PRODUCT_X, _CL_PRODUCT_W = 14.30, 3.90
-    _CL_WORK_Y = 0.95
+    _CL_NODE_X = (1.10, 3.85, 6.60, 9.35, 12.10, 14.85)
+    _CL_COL_PITCH = 2.75
+    _CL_NODE_Y = 12.55
+    _CL_NODE_W, _CL_NODE_H = 1.95, 1.05
+    _CL_CAPTION_Y = 13.92
+    _CL_BAND_Y0, _CL_BAND_Y1 = 10.10, 14.95
+    _CL_BAND_LABEL_Y = 14.68
+    _CL_PARAM_Y = 10.95
+    _CL_PARAM_W, _CL_PARAM_H = 0.95, 0.62
+    _CL_PARAM_DX = 0.78
+    _CL_DIVIDER_Y = 9.72
+    _CL_DIVIDER_LABEL_Y = 9.93
+    _CL_CARD_ROW_Y = (8.45, 6.95, 5.45)
+    _CL_CARD_W, _CL_CARD_H = 1.95, 0.95
+    _CL_DELTA_Y = 4.05
+    # δ and the gradient chips stay INSIDE their block's column
+    # (_CL_COL_PITCH): a chip wider than the column it belongs to
+    # spills over the neighbouring shading and undoes the grouping the
+    # column is there to make.
+    _CL_DELTA_W, _CL_DELTA_H = 2.60, 0.75
+    _CL_GRAD_Y = 2.78
+    # The two gradient chips of a block are the one row that has to run
+    # slightly wider than its column: keeping them inside would force the
+    # value down to ~10pt. Harmless -- at this height the neighbouring
+    # columns (the activations) are empty, so nothing is overprinted.
+    _CL_GRAD_W, _CL_GRAD_H = 1.35, 0.72
+    _CL_GRAD_DX = 0.98
+    _CL_STRIP_Y = 1.55
+    _CL_STRIP_X = (2.70, 4.80, 6.90, 9.00, 11.10)
+    _CL_STRIP_W, _CL_STRIP_H = 1.45, 0.70
+    _CL_PRODUCT_X, _CL_PRODUCT_W = 14.28, 3.95
+    _CL_WORK_Y = 0.90
+    #: The backward columns are shaded from the divider down to the bottom
+    #: of the gradient row, in the colour of the block they belong to. A
+    #: dotted connector alone was too faint to answer "which card belongs
+    #: to which block?" from the back of a room -- a filled column with a
+    #: dashed outline answers it without being read.
+    _CL_COLUMN_TOP = 9.55
+    _CL_COLUMN_BOTTOM = 1.98
+    _CL_COLUMN_ALPHA = 0.10
+
+    #: Type sizes, at the reference canvas (see _cl_type_scale). Labels are
+    #: deliberately a size below their values: the number is what gets read
+    #: from a distance, the symbol is what gets read once.
+    _CL_FS_BAND = 13.0
+    _CL_FS_CAPTION = 11.5
+    _CL_FS_NODE_LABEL, _CL_FS_NODE_VALUE = 14.0, 16.5
+    _CL_FS_PARAM_LABEL, _CL_FS_PARAM_VALUE = 11.0, 13.0
+    _CL_FS_CARD_LABEL, _CL_FS_CARD_VALUE = 11.5, 14.5
+    _CL_FS_DELTA_LABEL, _CL_FS_DELTA_VALUE = 12.5, 15.5
+    _CL_FS_GRAD_LABEL, _CL_FS_GRAD_VALUE = 12.0, 14.0
+    _CL_FS_STRIP_LABEL, _CL_FS_STRIP_VALUE = 11.0, 13.5
+    _CL_FS_DIVIDER = 12.0
+    _CL_FS_NOTE = 10.0
+    _CL_FS_WORK = 10.0
 
     #: (first block, last block, label) for the shaded bands that group the
     #: blocks into layers. This is the "correspondence with the layers" made
@@ -997,20 +1032,37 @@ class NeuronView(QWidget):
 
     def _cl_chip(
         self, x: float, y: float, w: float, h: float, color: str,
-        label: str, value: str, reveal: float, glow: float = 0.0, fontsize: float = 9.2,
+        label: str, value: str, reveal: float, glow: float = 0.0,
+        label_fs: float = 11.0, value_fs: float = 14.0,
     ) -> None:
-        """A two-line chip (name over value) that fades in as one unit.
+        """A named quantity and its number, as one chip that fades in.
 
-        Used for parameters, derivative cards, δ and gradients alike: they
-        are all "a named quantity and its number", and drawing them with one
-        helper is what keeps the five rows visually consistent.
+        Used for parameters, derivative cards, δ and gradients alike --
+        drawing them all here is what keeps the rows visually consistent.
+        The two lines get independent sizes on purpose: the *number* is
+        what has to be readable from the back of the room, the symbol only
+        has to be readable once, up close.
         """
         self._skeleton_box(x, y, w=w, h=h)
         if reveal <= 0.02:
             return
-        self._node_box(
-            (x, y), w, h, color, ((label, reveal), (value, reveal)), reveal,
-            glow=glow, fontsize=fontsize,
+        if glow > 0.02:
+            self._ax.add_patch(FancyBboxPatch(
+                (x - w / 2 - 0.13, y - h / 2 - 0.13), w + 0.26, h + 0.26,
+                facecolor=ACCENT_COLOR, edgecolor="none", alpha=0.55 * glow,
+                boxstyle="round,pad=0.25",
+            ))
+        self._ax.add_patch(FancyBboxPatch(
+            (x - w / 2, y - h / 2), w, h, facecolor=color, alpha=_FILL_ALPHA * reveal,
+            edgecolor=color, **_BOX_STYLE,
+        ))
+        self._ax.text(
+            x, y + h * 0.23, label, ha="center", va="center", fontsize=label_fs,
+            color="black", alpha=reveal, fontweight="bold", zorder=4,
+        )
+        self._ax.text(
+            x, y - h * 0.26, value, ha="center", va="center", fontsize=value_fs,
+            color="black", alpha=reveal, zorder=4,
         )
 
     def _render_chain_layers(self, values: dict[str, object]) -> None:  # noqa: PLR0915 - one flat drawing
@@ -1034,7 +1086,7 @@ class NeuronView(QWidget):
             ))
             self._fading_text(
                 (x0 + x1) / 2, self._CL_BAND_LABEL_Y, label, NEUTRAL_COLOR,
-                max(rv_graph, 0.3), fontsize=9.5 * ts, weight="bold",
+                max(rv_graph, 0.3), fontsize=self._CL_FS_BAND * ts, weight="bold",
             )
 
         # -- forward row: blocks, captions, and the arrows between them
@@ -1054,14 +1106,15 @@ class NeuronView(QWidget):
         for i, x in enumerate(node_x):
             self._fading_text(
                 x, self._CL_CAPTION_Y, self._CL_CAPTIONS[i], NEUTRAL_COLOR,
-                max(rv_graph, 0.25), fontsize=8.6 * ts,
+                max(rv_graph, 0.25), fontsize=self._CL_FS_CAPTION * ts,
             )
             self._skeleton_box(x, self._CL_NODE_Y, w=self._CL_NODE_W, h=self._CL_NODE_H)
             if rv_graph > 0.02:
-                self._node_box(
-                    (x, self._CL_NODE_Y), self._CL_NODE_W, self._CL_NODE_H, node_color[i],
-                    ((node_name[i], rv_graph), (node_value[i], node_reveal[i])),
-                    rv_graph, glow=float(hl_nodes[i]), fontsize=11.0 * ts,
+                self._cl_chip(
+                    x, self._CL_NODE_Y, self._CL_NODE_W, self._CL_NODE_H, node_color[i],
+                    node_name[i], node_value[i] if node_reveal[i] > 0.02 else "",
+                    rv_graph, glow=float(hl_nodes[i]),
+                    label_fs=self._CL_FS_NODE_LABEL * ts, value_fs=self._CL_FS_NODE_VALUE * ts,
                 )
 
         # -- parameters, hanging under the block that uses them
@@ -1072,7 +1125,8 @@ class NeuronView(QWidget):
                 node_x[block] + slot * self._CL_PARAM_DX, self._CL_PARAM_Y,
                 self._CL_PARAM_W, self._CL_PARAM_H, NEUTRAL_COLOR,
                 label, f"{float(values[value_key]):+.2f}", float(values[reveal_key]),
-                glow=float(hl_params[slot_index]), fontsize=9.0 * ts,
+                glow=float(hl_params[slot_index]),
+                label_fs=self._CL_FS_PARAM_LABEL * ts, value_fs=self._CL_FS_PARAM_VALUE * ts,
             )
 
         # -- the backward half, below the divider
@@ -1080,23 +1134,42 @@ class NeuronView(QWidget):
             [self._CL_XLIM[0] + 0.2, self._CL_XLIM[1] - 0.2], [self._CL_DIVIDER_Y] * 2,
             color=NEUTRAL_COLOR, linewidth=1.2, alpha=_SKELETON_ALPHA, linestyle="--",
         )
+        # The divider caption and the closing "general rule" banner want the
+        # same full-width strip, and only one of them is ever the point of
+        # the step -- so the caption fades out exactly as the banner fades
+        # in, instead of the two overprinting each other.
+        rv_summary = float(values["rv_summary"])
         self._fading_text(
             self._CL_XLIM[0] + 0.25, self._CL_DIVIDER_LABEL_Y,
             "backward: a derivada local de cada bloco, na coluna do bloco  ←",
-            NEUTRAL_COLOR, max(rv_graph, 0.3), fontsize=9.0 * ts, weight="bold", ha="left",
+            NEUTRAL_COLOR, max(rv_graph, 0.3) * (1.0 - rv_summary),
+            fontsize=self._CL_FS_DIVIDER * ts, weight="bold", ha="left",
         )
 
-        # dotted connector per column: what makes "this card belongs to that
-        # block" a line on screen instead of a claim in the narration.
-        lowest_row = {}
-        for block, row, *_ in self._CL_CARDS:
-            lowest_row[block] = max(lowest_row.get(block, 0), row)
-        for block, row in lowest_row.items():
+        # Each backward column is SHADED in its block's colour, from the
+        # divider down past the gradients, and joined to the block above it
+        # by a line in the same colour. The first version used a faint
+        # dotted line alone and it did not answer "which card belongs to
+        # which block?" at a glance -- a filled column answers it without
+        # being read, which is the whole claim of this demo.
+        columns = {block for block, *_ in self._CL_CARDS}
+        half = self._CL_COL_PITCH / 2 - 0.06
+        for block in sorted(columns):
+            x = node_x[block]
+            colour = node_color[block]
+            alpha = self._CL_COLUMN_ALPHA * max(rv_graph, 0.35)
+            self._ax.add_patch(FancyBboxPatch(
+                (x - half, self._CL_COLUMN_BOTTOM), 2 * half,
+                self._CL_COLUMN_TOP - self._CL_COLUMN_BOTTOM,
+                facecolor=colour, edgecolor=colour, linewidth=1.2, linestyle="--",
+                alpha=alpha, boxstyle="round,pad=0.02", zorder=0,
+            ))
+            # the neck joining the block to its own column
             self._ax.plot(
-                [node_x[block]] * 2,
-                [self._CL_NODE_Y - self._CL_NODE_H / 2 - 0.1, self._CL_CARD_ROW_Y[row] - self._CL_CARD_H / 2],
-                color=NEUTRAL_COLOR, linewidth=1.0, alpha=_SKELETON_ALPHA * max(rv_graph, 0.3),
-                linestyle=":", zorder=0,
+                [x, x],
+                [self._CL_NODE_Y - self._CL_NODE_H / 2 - 0.3, self._CL_COLUMN_TOP],
+                color=colour, linewidth=2.0, alpha=0.45 * max(rv_graph, 0.35),
+                linestyle=(0, (2, 2)), zorder=0,
             )
 
         for block, to_block, reveal_key in self._CL_HIGHWAY:
@@ -1111,7 +1184,8 @@ class NeuronView(QWidget):
             self._cl_chip(
                 node_x[block], self._CL_CARD_ROW_Y[row], self._CL_CARD_W, self._CL_CARD_H,
                 ACCENT_COLOR, label, f"{value:+.{decimals}f}", float(values[reveal_key]),
-                glow=float(hl_cards[block, row]), fontsize=9.0 * ts,
+                glow=float(hl_cards[block, row]),
+                label_fs=self._CL_FS_CARD_LABEL * ts, value_fs=self._CL_FS_CARD_VALUE * ts,
             )
         # The highway's last arrow points into this empty slot on purpose:
         # the derivative ∂z1/∂x exists, but x is data, so the backward pass
@@ -1121,20 +1195,22 @@ class NeuronView(QWidget):
         self._fading_text(
             node_x[1], self._CL_CARD_ROW_Y[0],
             "∂z1/∂x = w1 existe,\nmas x é dado —\naqui o backward para",
-            NEUTRAL_COLOR, 0.5 * max(rv_graph, 0.2), fontsize=8.0 * ts,
+            NEUTRAL_COLOR, 0.6 * max(rv_graph, 0.2), fontsize=self._CL_FS_NOTE * ts,
         )
 
         for block, label, value_key, reveal_key in self._CL_DELTAS:
             reveal = float(values[reveal_key])
             self._cl_chip(
                 node_x[block], self._CL_DELTA_Y, self._CL_DELTA_W, self._CL_DELTA_H,
-                SNN_COLOR, label, f"{float(values[value_key]):+.5f}", reveal, fontsize=10.0 * ts,
+                SNN_COLOR, label, f"{float(values[value_key]):+.5f}", reveal,
+                label_fs=self._CL_FS_DELTA_LABEL * ts, value_fs=self._CL_FS_DELTA_VALUE * ts,
             )
         for block, slot, label, value_key, reveal_key in self._CL_GRADS:
             self._cl_chip(
                 node_x[block] + slot * self._CL_GRAD_DX, self._CL_GRAD_Y,
                 self._CL_GRAD_W, self._CL_GRAD_H, SNN_COLOR,
-                label, f"{float(values[value_key]):+.6f}", float(values[reveal_key]), fontsize=9.2 * ts,
+                label, f"{float(values[value_key]):+.6f}", float(values[reveal_key]),
+                label_fs=self._CL_FS_GRAD_LABEL * ts, value_fs=self._CL_FS_GRAD_VALUE * ts,
             )
 
         # -- the strip: the same five factors, now in multiplication order
@@ -1143,22 +1219,23 @@ class NeuronView(QWidget):
         rv_chain = np.asarray(values["rv_chain"], dtype=float)
         self._fading_text(
             self._CL_XLIM[0] + 0.25, self._CL_STRIP_Y, "cadeia de ∂L/∂w1:", NEUTRAL_COLOR,
-            max(rv_graph, 0.3), fontsize=9.2 * ts, weight="bold", ha="left",
+            max(rv_graph, 0.3), fontsize=self._CL_FS_STRIP_LABEL * ts, weight="bold", ha="left",
         )
         for k, x in enumerate(self._CL_STRIP_X):
             self._cl_chip(
                 x, self._CL_STRIP_Y, self._CL_STRIP_W, self._CL_STRIP_H, ACCENT_COLOR,
-                str(names[k]), f"{float(factors[k]):+.4f}", float(rv_chain[k]), fontsize=8.8 * ts,
+                str(names[k]), f"{float(factors[k]):+.4f}", float(rv_chain[k]),
+                label_fs=self._CL_FS_STRIP_LABEL * ts, value_fs=self._CL_FS_STRIP_VALUE * ts,
             )
             if k:
                 self._fading_text(
                     (x + self._CL_STRIP_X[k - 1]) / 2, self._CL_STRIP_Y, "·", NEUTRAL_COLOR,
-                    float(rv_chain[k]), fontsize=22 * ts, weight="bold",
+                    float(rv_chain[k]), fontsize=24 * ts, weight="bold",
                 )
         rv_product = float(values["rv_chain_product"])
         self._fading_text(
             self._CL_STRIP_X[-1] + self._CL_STRIP_W / 2 + 0.35, self._CL_STRIP_Y, "=",
-            NEUTRAL_COLOR, rv_product, fontsize=18 * ts, weight="bold",
+            NEUTRAL_COLOR, rv_product, fontsize=20 * ts, weight="bold",
         )
         rv_check = float(values["rv_check"])
         self._skeleton_box(self._CL_PRODUCT_X, self._CL_STRIP_Y, w=self._CL_PRODUCT_W, h=self._CL_STRIP_H)
@@ -1170,26 +1247,25 @@ class NeuronView(QWidget):
                     (f"produto = {float(values['chain_product']):+.6f}", rv_product),
                     (f"= δ1 · x = ∂L/∂w1 = {float(values['g_w1']):+.6f}  ✓", rv_check),
                 ),
-                rv_product, fontsize=9.5 * ts,
+                rv_product, fontsize=self._CL_FS_STRIP_VALUE * ts,
             )
 
         # -- the general rule, revealed last: two factors per layer
         # The general rule goes on the divider row, in the width the
         # left-hand caption leaves free -- the only band of the drawing that
         # is empty at every step, so revealing it collides with nothing.
-        rv_summary = float(values["rv_summary"])
         if rv_summary > 0.02:
             self._fading_text(
-                11.5, self._CL_DIVIDER_LABEL_Y,
+                (self._CL_XLIM[0] + self._CL_XLIM[1]) / 2, self._CL_DIVIDER_LABEL_Y,
                 "por camada, para trás:  δ → δ · w · σ'(z)    |    por parâmetro:  ∂L/∂w = δ · entrada,   ∂L/∂b = δ · 1",
-                ACCENT_COLOR, rv_summary, fontsize=9.5 * ts, weight="bold",
+                ACCENT_COLOR, rv_summary, fontsize=self._CL_FS_DIVIDER * ts, weight="bold",
             )
 
         work = str(values["work_text"])
         if work:
             self._ax.text(
                 self._CL_XLIM[0] + 0.25, self._CL_WORK_Y, work, ha="left", va="top",
-                fontsize=9.2 * ts, color="black", family="monospace", linespacing=1.5,
+                fontsize=self._CL_FS_WORK * ts, color="black", family="monospace", linespacing=1.3,
             )
 
     # ================================================================
