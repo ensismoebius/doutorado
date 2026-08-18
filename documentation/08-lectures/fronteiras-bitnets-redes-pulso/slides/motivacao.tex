@@ -1,34 +1,16 @@
 \begin{frame}
-	\frametitle{O gargalo que motiva as duas fronteiras}
+	\frametitle{O gargalo}
 	\only<1>{
-		\framesubtitle{O problema, antes da solução}
+		\framesubtitle{Pouca memória muitos dados}
 		\begin{itemize}
-			\item Redes convencionais (RNAs dedicadas a tarefas de larga escala) crescem em parâmetros muito mais rápido que a energia disponível por chip.
+			\item Redes convencionais (RNAs dedicadas a tarefas de larga escala) crescem em parâmetros muito mais rápido que o poder de processamento dos chips necessitando uma grande quantidade de hardware.\newline
+			
 			\item Um LLM de 7 bilhões de parâmetros em FP16 ocupa $7\times10^{9}\times 2\text{ bytes} \approx 14\text{ GB}$ \textbf{só para os pesos} --- antes do cache de atenção e das ativações.
-			\item Uma GPU de consumo comum tem 8--24 GB. O modelo não cabe.
-			\item A pergunta que gerou as duas fronteiras desta palestra: \alert{o que exatamente está custando essa energia --- multiplicar, ou mover dado?}
+			\item Considerando que uma GPU de consumo comum tem 8--24 GB. O modelo não cabe.
 		\end{itemize}
 	}
 	\only<2>{
-		\framesubtitle{Um número concreto: o custo por operação}
-		\par Segundo \cite{horowitz2014computing}, em processo de 45 nm, o custo energético \textbf{aproximado} de operações elementares é:
-		\begin{center}
-			\begin{tabular}{lc}
-				\toprule
-				\textbf{Operação} & \textbf{Energia (pJ)} \\
-				\midrule
-				Soma inteira de 8 bits & $\sim 0{,}03$ \\
-				Multiplicação em ponto flutuante de 32 bits & $\sim 3{,}7$ \\
-				Leitura de 32 bits em SRAM (8 KB) & $\sim 5$ \\
-				Leitura de 32 bits em \textbf{DRAM} & $\sim 640$ \\
-				\bottomrule
-			\end{tabular}
-		\end{center}
-		\par \textbf{Mover} um dado da DRAM custa cerca de \textbf{200 vezes mais} energia que multiplicar dois números em FP32, e \textbf{mais de 20\,000 vezes} mais que somar dois inteiros de 8 bits.
-	}
-	\only<3>{
 		\framesubtitle{A implicação}
-		\par O gargalo de energia (e portanto de custo, de bateria, de calor) \textbf{não} está principalmente nas multiplicações --- está em \textbf{mover} pesos e ativações de/para a memória, repetidamente, a cada passada.
 		\begin{block}{Duas respostas independentes, dois eixos diferentes}
 			\begin{itemize}
 				\item \textbf{Reduzir quantos bits} descrevem cada peso/ativação $\rightarrow$ \textcolor{bitnetColor}{\textbf{BitNets}}.

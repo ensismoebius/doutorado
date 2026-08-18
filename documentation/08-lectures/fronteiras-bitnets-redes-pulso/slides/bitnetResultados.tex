@@ -1,5 +1,5 @@
 \begin{frame}
-	\frametitle{BitNet b1.58: o que 1,58 bit compra}
+	\frametitle{BitNet b1.58}
 	\framesubtitle{Comparado a LLaMA em FP16, mesmo tamanho de modelo \cite{ma2024era}}
 	\begin{center}
 		\begin{tabular}{lcc}
@@ -15,9 +15,8 @@
 	\end{center}
 	\vspace{2pt}
 	\begin{itemize}
-		\setlength{\itemsep}{0pt}
-		\item ``Equivalente'' aqui não é aproximação --- os autores reportam paridade estatística com a linha de base FP16 a partir de $\sim$3B parâmetros.
-		\item \alert{Abaixo dessa escala, a paridade some}: em modelos pequenos, a capacidade perdida pela quantização ternária pesa mais do que o modelo consegue compensar.
+		\item Os autores reportam paridade estatística com a linha de base FP16 a partir de $\sim$3B parâmetros.\newline
+		\item \alert{Abaixo dessa escala, a paridade some}: em modelos pequenos, a capacidade perdida pela quantização ternária pesa mais do que o modelo consegue compensar.\newline
 		\item De onde vem o nome ``1,58 bit'': $\log_2(3) \approx 1{,}58$ --- o número de bits necessário para representar 3 estados ($-1,0,1$) por peso.
 	\end{itemize}
 \end{frame}

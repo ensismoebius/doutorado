@@ -2,8 +2,10 @@
 	\frametitle{A camada BitLinear}
 	\only<1>{
 		\framesubtitle{Da camada Linear densa à ternária}
-		\par Uma camada Linear comum calcula $Y = W X$, com $W$ em FP16/FP32: cada saída soma \textbf{multiplicações reais} entre pesos e ativações contínuos.
-		\par O BitNet b1.58 \cite{ma2024era} substitui $W$ por uma versão ternária $\widetilde{W} \in \{-1,0,1\}$, obtida por \textbf{quantização absmean}:
+		\par Uma camada Linear comum calcula $Y = W X$, com $W$ em FP16/FP32: cada saída soma \textbf{multiplicações reais} entre pesos e ativações contínuos.\newline
+		
+		\par O BitNet b1.58 \cite{ma2024era} substitui $W$ por uma versão ternária $\widetilde{W} \in \{-1,0,1\}$, obtida pela \textbf{quantização \textit{absmax}}:
+		
 		\begin{equation}
 			\gamma = \text{mean}(|W|), \qquad
 			\widetilde{W} = \text{round}\big(\text{clip}(W/\gamma,\,-1,\,1)\big)
@@ -14,14 +16,14 @@
 		\framesubtitle{Exemplo numérico}
 		\par Tome três pesos de uma linha de $W$: $w = [0{,}6,\ -0{,}3,\ 0{,}05]$.
 		\begin{equation*}
-			\gamma = \frac{0{,}6+0{,}3+0{,}05}{3} = 0{,}3056
+			\gamma = \frac{0{,}6+0{,}3+0{,}05}{3} = \frac{0{,}95}{3} = 0{,}3167
 		\end{equation*}
 		% quebrado em duas linhas: os tres estagios numa linha so estouravam a
 		% largura do slide (Overfull \hbox de 14,5pt)
 		\begin{equation*}
 			\begin{aligned}
-				w/\gamma &= [1{,}963,\ -0{,}982,\ 0{,}164]
-				\xrightarrow{\text{clip}(-1,1)} [1{,}0,\ -0{,}982,\ 0{,}164] \\
+				w/\gamma &= [1{,}895,\ -0{,}947,\ 0{,}158]
+				\xrightarrow{\text{clip}(-1,1)} [1{,}0,\ -0{,}947,\ 0{,}158] \\
 				&\xrightarrow{\text{round}} \boxed{[1,\ -1,\ 0]}
 			\end{aligned}
 		\end{equation*}
@@ -32,14 +34,14 @@
 		\abrirNoSoftware{BitNet \textrightarrow{} Quantização}{bitnet.quant}
 	}
 	\only<3>{
-		\framesubtitle{O que essa troca compra}
+		\framesubtitle{O que essa troca faz}
 		\begin{itemize}
-			\item Com $\widetilde{W} \in \{-1,0,1\}$, a multiplicação $\widetilde{W}\cdot\widetilde{X}$ vira: \textbf{some} $\widetilde{X}$ (peso $+1$), \textbf{subtraia} $\widetilde{X}$ (peso $-1$), ou \textbf{ignore} (peso $0$).
+			\item Com $\widetilde{W} \in \{-1,0,1\}$, a multiplicação $\widetilde{W}\cdot\widetilde{X}$ vira: \newline 
+			\textbf{some} $\widetilde{X}$ (peso $+1$), \newline
+			\textbf{subtraia} $\widetilde{X}$ (peso $-1$), ou \newline
+			\textbf{ignore} (peso $0$).\newline
+			
 			\item Nenhuma multiplicação real acontece no lado dos pesos --- só somas/subtrações de inteiros, mais um único rescalonamento por $\gamma$ ao final.
-			\item É exatamente a operação mais cara da tabela de energia vista na motivação ($\sim$3,7 pJ por multiplicação FP32) que desaparece --- trocada por somas de $\sim$0,03 pJ, repetidas em bilhões de operações por inferência.
 		\end{itemize}
-			% [SOFTWARE] BitNet -> Forward | checkpoints "Quantizar w1"/"w2" ->
-			% "Multiplicacao 1"/"2" (mostra Q(w2)=0 anulando x2)
-			\abrirNoSoftware{BitNet \textrightarrow{} Forward}{bitnet.forward}
 	}
 \end{frame}

@@ -5,7 +5,7 @@
 	\setlength{\belowdisplayskip}{1pt}
 	\begin{columns}[T]
 		\column{.55\linewidth}
-		\resizebox{!}{2.5cm}{\input{../../00-thesis/monography/images/bptt.tex}}
+		\resizebox{!}{3.5cm}{\input{../../00-thesis/monography/images/bptt.tex}}
 		\column{.4\linewidth}
 		\begin{itemize}
 			\item A rede é \textbf{desenrolada} em $T$ cópias no tempo, com os mesmos pesos $W$.
@@ -19,7 +19,4 @@
 	\end{columns}
 	\vspace{1pt}
 	\par\sloppy É aqui que o gradiente substituto entra: ele troca a derivada (nula) da função de disparo real por uma aproximação suave, deixando o gradiente fluir de volta pelos $T$ passos \cite{wu2018spatio, eshraghian2023training}.
-	% [SOFTWARE] SNN -> Surrogate gradient | mesma demo de snnTreinamento.tex
-	\abrirNoSoftware{SNN \textrightarrow{} Surrogate gradient}{snn.surrogate}
-	\vspace{-10pt}
 \end{frame}

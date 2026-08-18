@@ -4,26 +4,26 @@
 	\setlength{\abovedisplayskip}{1pt}
 	\setlength{\belowdisplayskip}{1pt}
 	\begin{itemize}
-		\item \textbf{1. Forward}: calcula a saída $y$ a partir da entrada e dos pesos atuais.
-		\item \textbf{2. Perda}: compara $y$ com o alvo, num único número que cresce com o erro.
-		\item \textbf{3. Backward}: a regra da cadeia calcula $\partial L/\partial w$ --- quanto a perda mudaria se cada peso mudasse um pouco.
+		\item \textbf{1. Avanço (Forward)}: calcula a saída $y$ a partir da entrada e dos pesos atuais.
+		\item \textbf{2. Perda (loss)}: compara $y$ com o alvo, num único número que cresce com o erro.
+		\item \textbf{3. Retropropaçação (Backward)}: a regra da cadeia calcula $\partial L/\partial w$ --- quanto a perda mudaria se cada peso mudasse um pouco.
 		\item \textbf{4. Atualização}: cada peso anda um passo no sentido \textbf{contrário} ao gradiente.
 	\end{itemize}
 	\begin{equation*}
 		w \leftarrow w - \eta \cdot \frac{\partial L}{\partial w}
 	\end{equation*}
-	\par Exemplo numérico real (neurônio único, $x=2{,}0$, alvo $=0{,}9$, $w_0=-1{,}0$, $\eta=3{,}0$):
+	\par Exemplo numérico real (neurônio com entrada: $x=2{,}0$, alvo: $=0{,}9$, $w_0=-1{,}0$, $\eta=3{,}0$):
 	\begin{equation*}
-		z = w_0 x = -2{,}0 \ \Rightarrow\ y = \sigma(z) \approx 0{,}1192 \ \Rightarrow\ L = \tfrac12(y-\text{alvo})^2 \approx 0{,}3048
+		\begin{aligned}
+			& z = w_0 x = -2{,}0 \Rightarrow \\
+			& y = \sigma(z) \approx 0{,}1192 \Rightarrow \\
+			& L = \tfrac12(y-\text{alvo})^2 \approx 0{,}3048
+		\end{aligned}
 	\end{equation*}
 	\begin{equation*}
 		\frac{\partial L}{\partial w} \approx -0{,}1640
 		\quad\Longrightarrow\quad
 		w_1 = -1{,}0 - 3{,}0 \cdot(-0{,}1640) \approx -0{,}508
 	\end{equation*}
-	\par Repetindo os quatro passos, $y$ converge para o alvo. É exatamente esse ciclo que o resto da palestra questiona: e se os pesos só valerem $\{-1,0,1\}$, ou se a ativação virar um pulso discreto?
-	\vspace{-2pt}
-	% [SOFTWARE] Backprop -> Forward e backward clássicos | passo a passo dos
-	% 9 estagios da iteracao 1 reproduz exatamente estes numeros
-	\abrirNoSoftware{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}
+	\par Repetindo os quatro passos, $y$ converge para o alvo. É exatamente esse ciclo que se questiona: E se os pesos só valerem $\{-1,0,1\}$, ou se a ativação virar um pulso discreto?
 \end{frame}

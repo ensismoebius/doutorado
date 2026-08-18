@@ -2,20 +2,24 @@
 	\frametitle{O que é um peso, e como ele é calculado}
 	\small
 	\begin{itemize}
-		\item Um \textbf{peso} é um número real associado a uma conexão entre dois neurônios --- é o parâmetro que a rede efetivamente \textbf{aprende}. Os dados de entrada não mudam; os pesos, sim.
+		\item Um \textbf{peso} é um número real associado a uma conexão entre dois neurônios --- é o parâmetro que a rede efetivamente \textbf{aprende}. Os dados de entrada não mudam; os pesos, sim.\newline
+		
 		\item Dentro de um neurônio, os pesos entram na \textbf{combinação linear}: cada entrada é multiplicada pelo seu peso, e os produtos são somados.
 	\end{itemize}
+	
 	\begin{equation*}
 		z = \sum_i w_i \, x_i \qquad y = \sigma(z)
 	\end{equation*}
-	\par Exemplo numérico real, primeiro neurônio da rede do slide anterior: entrada $x = [1{,}0,\ 0{,}5,\ -0{,}5]$, pesos $w = [0{,}4,\ -0{,}3,\ 0{,}6]$.
+	
+	\par Exemplo numérico real com o primeiro neurônio da rede do slide anterior:\newline
+	\par Entrada $x = [1{,}0,\ 0{,}5,\ -0{,}5]$
+	\par Pesos $w = [0{,}4,\ -0{,}3,\ 0{,}6]$.
+	
 	\begin{equation*}
 		z = 0{,}4 \!\cdot\! 1{,}0 + (-0{,}3) \!\cdot\! 0{,}5 + 0{,}6 \!\cdot\! (-0{,}5) = -0{,}05
 		\quad\Longrightarrow\quad
 		y = \sigma(-0{,}05) \approx 0{,}4875
 	\end{equation*}
-	\par Cada um dos outros neurônios repete exatamente esse cálculo, com sua própria linha de pesos. Antes do treino, os pesos partem de algum valor inicial (aqui, fixos); o que o treino faz --- próximo slide --- é ajustá-los, um pouco a cada passo, para que a saída da rede se aproxime do que se quer.
-	% [SOFTWARE] Backprop -> Rede de 4 camadas | passo do neuronio A mostra
-	% este mesmo z=-0,05 -> y=0,4875
-	\abrirNoSoftware{Backprop \textrightarrow{} Rede de 4 camadas}{backprop.mlp}
+	
+	\par Cada um dos outros neurônios repete exatamente esse cálculo, com sua própria linha de pesos. Antes do treino, os pesos partem de algum valor inicial (aqui, fixos); o que o treino faz é ajustá-los, um pouco a cada passo, para que a saída da rede se aproxime do que se quer.
 \end{frame}

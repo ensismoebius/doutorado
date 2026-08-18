@@ -3,11 +3,10 @@
 \title{As fronteiras da arquitetura de redes neurais}
 \subtitle{BitNets e redes de pulso}
 
-\institute{Universidade Estadual Paulista Júlio de Mesquita Filho}
+\institute{https://github.com/ensismoebius}
 
 \author{André Furlan - ensismoebius@gmail.com}
 
-\logo{\includegraphics[height=1cm]{unesp.png}}
 \date{\the\year}
 
 \begin{document}
@@ -23,18 +22,15 @@
 	% behind.
 	\setbeamercolor{title}{fg=chromeText,bg=neutralColor!55!white}
 	\setbeamercolor{frametitle}{fg=chromeText,bg=neutralColor!55!white}
-	\section{Fundamentos}
+	\section{Fundamentos de redes neurais}
 		\input{slides/fundamentosArquitetura.tex}
-		\DemoSlide{Backprop \textrightarrow{} Rede de 4 camadas}{backprop.mlp}{Percorra o forward neurônio a neurônio, na mesma topologia 3-2-2-1 do diagrama.}
+		\DemoSlide{Backpropagation, Rede de 4 camadas}{backprop.mlp}{}
 		\input{slides/fundamentosPesos.tex}
 		\input{slides/fundamentosTreinamento.tex}
-		\DemoSlide{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}{Percorra os 9 estágios da iteração 1 --- os números batem exatamente com os do slide anterior.}
+		\DemoSlide{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}{}
 		\input{slides/fundamentosMatrizes.tex}
 		\input{slides/fundamentosCadeia.tex}
-		\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{Um passo por operação escalar: destacar uma célula de $W$ acende a seta correspondente do grafo. Termine nos fatores da cadeia --- o produto confere com \texttt{grad\_W1[H1,x1]}.}
-
-	\section{Estrutura da apresentação}
-		\input{slides/estrutura.tex}
+		\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{}
 
 	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
 	\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}
@@ -48,10 +44,10 @@
 		\input{slides/bitnetLinha.tex}
 		\input{slides/bitnetProblema.tex}
 		\input{slides/bitnetCamada.tex}
-		\DemoSlide{BitNet \textrightarrow{} Quantização}{bitnet.quant}{Ajuste o slider w para perto de 0 e reproduza a zona morta; depois experimente 0,6 e -0,3, os dois pesos do exemplo.}
-		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{Siga os checkpoints "Quantizar w1"/"w2" até "Multiplicação 1"/"2" --- Q(w2)=0 anula x2.}
+		\DemoSlide{BitNet \textrightarrow{} Quantização}{bitnet.quant}{}
+		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{}
 		\input{slides/bitnetTreinamento.tex}
-		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{Avance até o checkpoint final: derivada real vs. constante 1 do STE.}
+		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{}
 		\input{slides/bitnetResultados.tex}
 		\input{slides/bitnetHardwareLimitacoes.tex}
 
@@ -60,12 +56,12 @@
 	\section{Parte II --- Redes de pulso}
 		\input{slides/snnMotivacao.tex}
 		\input{slides/snnConfusable.tex}
-		\DemoSlide{SNN \textrightarrow{} Sinal e spikes}{snn.spikes}{Aperte Play uma vez: o cruzamento de nível vira um pulso discreto.}
-		\DemoSlide{SNN \textrightarrow{} Codificação Poisson}{snn.poisson}{Mesmo sinal da demo anterior, agora com pulsos probabilísticos --- compare.}
+		\DemoSlide{SNN \textrightarrow{} Sinal e spikes}{snn.spikes}{}
+		\DemoSlide{SNN \textrightarrow{} Codificação Poisson}{snn.poisson}{}
 		\input{slides/snnLif.tex}
 		\DemoSlide{SNN \textrightarrow{} LIF}{snn.lif}{Os parâmetros padrão (tau=5, R=5, V\_th=1) já reproduzem o exemplo numérico anterior; aperte Play para o comportamento completo.}
 		\input{slides/snnEsparsidade.tex}
-		\DemoSlide{SNN \textrightarrow{} Codificação Poisson (imagem)}{snn.poisson_image}{Avance até t~15/29 e aponte: cada pixel é um neurônio sorteando disparo.}
+		\DemoSlide{SNN \textrightarrow{} Codificação Poisson (imagem)}{snn.poisson_image}{}
 		\input{slides/snnTreinamento.tex}
 		\DemoSlide{SNN \textrightarrow{} Surrogate gradient}{snn.surrogate}{Percorra os checkpoints "A derivada real" até "O gradiente substituto".}
 		\input{slides/snnBptt.tex}

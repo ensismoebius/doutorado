@@ -1,5 +1,4 @@
-\begin{frame}
-	\frametitle{O neurônio \textit{Leaky Integrate-and-Fire} (LIF)}
+\frametitle{O neurônio \textit{Leaky Integrate-and-Fire} (LIF)}
 	\only<1>{
 		\framesubtitle{O modelo RC}
 		\begin{columns}
@@ -9,8 +8,10 @@
 				\item $R$: resistência de vazamento; $C$: capacitância; $V_{mem}$: potencial acumulado; $\vartheta$: interruptor que descarrega o capacitor (dispara um pulso) ao atingir o limiar.
 				\item Governado por \cite{eshraghian2023training}:
 				
+				\begin{equation}
+				$\tau\frac{dV_{mem}}{dt} = R\,I_{in}(t) - V_{mem}(t)$, com $\tau = R\cdot C$ .	
+				\end{equation}
 				
-				 $\tau\frac{dV_{mem}}{dt} = R\,I_{in}(t) - V_{mem}(t)$, com $\tau = R\cdot C$ .
 			\end{itemize}
 			\column{.40\linewidth}
 			\begin{center}
@@ -32,8 +33,7 @@
 	\only<3>{
 		\framesubtitle{Comportamento completo simulado}
 		\begin{center}
-			\includegraphics[width=1\linewidth]{../../00-thesis/monography/images/membranePotentialFull}\par
+			\includegraphics[width=.62\linewidth]{../../00-thesis/monography/images/membranePotentialFull}\par
 			{\tiny Corrente de 0,5 mA injetada entre os passos 51 e 70. Fonte: elaborado pelo autor.}
 		\end{center}
 	}
-\end{frame}

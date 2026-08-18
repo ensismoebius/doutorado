@@ -221,3 +221,53 @@ def test_rewind_to_start_keeps_playing_and_does_not_rebuild():
     assert demo.current_frame_index == 0
     assert demo.is_playing, "rewind must not stop playback"
     assert demo._frames is frames_before, "rewind must not rebuild the frames"
+
+
+# -- the deck prints these numbers; the demos must still produce them -------
+
+def test_slide_numbers_still_match_the_demos():
+    """The lecture slides print worked examples and claim the demos reproduce them.
+
+    `fundamentosPesos.tex` prints z = -0,05 -> y = 0,4875 and says it is the
+    first neuron of `backprop.mlp`; `fundamentosTreinamento.tex` prints a
+    whole SGD step and its DemoSlide says "os números batem exatamente";
+    `fundamentosMatrizes.tex` / `fundamentosCadeia.tex` do the same for
+    `backprop.matrix`. Change a demo's constants and those slides go stale
+    silently -- the PDF keeps printing the old numbers and only a reader
+    checking by hand would notice. The values below are transcribed from the
+    slides; this test recomputes them from the demo code.
+    """
+    from efficient_nn_lab.backprop.demos import matrix_algebra as ma
+    from efficient_nn_lab.backprop.demos import multilayer_network as mlp
+    from efficient_nn_lab.backprop.demos import traditional_gd as tg
+
+    # fundamentosPesos.tex
+    assert list(mlp._X) == [1.0, 0.5, -0.5]
+    assert list(mlp._W1[0]) == [0.4, -0.3, 0.6]
+    c = mlp.MultilayerNetworkDemo()._forward_backward()
+    assert c["z1"][0] == pytest.approx(-0.05, abs=5e-4)
+    assert c["y1"][0] == pytest.approx(0.4875, abs=5e-4)
+
+    # fundamentosTreinamento.tex
+    demo = tg.TraditionalBackpropDemo()
+    assert (demo.x, demo.target, demo.w_init, demo.learning_rate) == (2.0, 0.9, -1.0, 3.0)
+    step = [f for f in demo.checkpoint_frames() if f.values.get("kind") == "backprop_pipeline"][8].values
+    assert step["z"] == pytest.approx(-2.0, abs=5e-4)
+    assert step["y"] == pytest.approx(0.1192, abs=5e-4)
+    assert step["loss"] == pytest.approx(0.3048, abs=5e-4)
+    assert step["grad_w"] == pytest.approx(-0.1640, abs=5e-4)
+    assert step["w_updated"] == pytest.approx(-0.508, abs=5e-4)
+
+    # fundamentosMatrizes.tex + fundamentosCadeia.tex
+    assert list(ma._X) == [0.9, 0.4]
+    assert ma._W1.tolist() == [[0.8, -0.4], [-0.5, 0.9]]
+    assert ma._W2.tolist() == [[1.2, -0.9]]
+    m = ma.MatrixAlgebraDemo()._forward_backward()
+    assert m["z1"][0] == pytest.approx(0.56, abs=5e-4)
+    assert m["z1"][1] == pytest.approx(-0.09, abs=5e-4)
+    assert m["y1"][0] == pytest.approx(0.6365, abs=5e-4)
+    assert m["y1"][1] == pytest.approx(0.4775, abs=5e-4)
+    assert m["gy2"] == pytest.approx(-0.3173, abs=5e-4)
+    assert m["sp2"] == pytest.approx(0.2432, abs=5e-4)
+    assert m["sp1"][0] == pytest.approx(0.2314, abs=5e-4)
+    assert m["gw1"][0, 0] == pytest.approx(-0.01928, abs=5e-6)

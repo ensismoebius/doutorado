@@ -1,6 +1,5 @@
 \begin{frame}[shrink]
 	\frametitle{Treinar através de uma função que não tem gradiente}
-	\small
 	\begin{itemize}
 		\item $\text{round}(\cdot)$ e $\text{clip}(\cdot)$ são \textbf{funções em degrau}: a derivada é zero em quase todo ponto, e indefinida nos degraus.
 		\item Retropropagação padrão não tem o que propagar através delas --- o gradiente morre.
@@ -16,11 +15,4 @@
 	\begin{alertblock}{Ponte com a Parte II}
 		É a \textbf{mesma} ideia por trás do \textit{gradiente substituto} em redes de pulso \cite{eshraghian2023training}: forward com a função em degrau real, backward com uma aproximação suave, diferenciável. Duas subáreas, independentemente, chegaram à mesma solução para o mesmo problema estrutural.
 	\end{alertblock}
-	% [SOFTWARE] BitNet -> Backward -> STE | checkpoint final (derivada
-	% real vs. constante 1 do STE)
-	\abrirNoSoftware{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}
-	% [SOFTWARE] BitNet -> Exemplo guiado | demo bonus, se sobrar tempo: o ciclo
-	% completo forward->perda->STE->update num peso so (presentation.md, secao 3)
-	\abrirNoSoftware{BitNet \textrightarrow{} Exemplo guiado (bônus)}{bitnet.guided}
-	\vspace{-3pt}
 \end{frame}
