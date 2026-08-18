@@ -93,6 +93,7 @@ _CHAR_MAP = {
     "λ": "\\lambda ",
     "ω": "\\omega ",
     "θ": "\\theta ",
+    "δ": "\\delta ",
     "Δ": "\\Delta ",
     "·": "\\cdot ",
     "×": "\\times ",
@@ -106,7 +107,11 @@ _CHAR_MAP = {
     "≤": "\\leq ",
     "≥": "\\geq ",
     "∞": "\\infty ",
-    "½": "\\tfrac{1}{2}",
+    # \frac, not \tfrac: mathtext has no \tfrac (only \frac/\dfrac), so the
+    # previous spelling made every equation containing ½ fail to parse and
+    # fall back to showing raw pseudo-LaTeX to the audience. Needs no
+    # trailing space -- it already ends in a brace.
+    "½": "\\frac{1}{2}",
     "∂": "\\partial ",
 }
 

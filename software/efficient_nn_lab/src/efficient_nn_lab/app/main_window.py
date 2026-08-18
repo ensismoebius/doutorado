@@ -39,6 +39,7 @@ from efficient_nn_lab.widgets.neuron_view import NeuronView
 from efficient_nn_lab.widgets.signal_view import SignalView
 from efficient_nn_lab.widgets.weight_view import WeightView
 
+from efficient_nn_lab.backprop.demos.chain_rule_layers import ChainRuleLayersDemo
 from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
@@ -96,7 +97,7 @@ _SIGNAL_KINDS = {
 }
 _WEIGHT_KINDS = {"scalar_quantization", "staircase", "quant_derivative", "surrogate_curve"}
 _NEURON_KINDS = {
-    "backprop_pipeline", "mlp_network", "matrix_algebra", "forward_pipeline", "ste_pipeline",
+    "backprop_pipeline", "mlp_network", "matrix_algebra", "chain_layers", "forward_pipeline", "ste_pipeline",
     "guided_pipeline", "comparison_pipeline",
 }
 
@@ -123,7 +124,7 @@ _WELCOME_TEXT = (
     "Efficient Neural Networks Lab\n\n"
     "Selecione uma demonstração à esquerda para começar.\n"
     "Atalhos: Espaço = play/pause, -> = próximo passo, <- = passo anterior, "
-    "R = reset, Esc = voltar ao menu."
+    "R = reset, N = próxima demo, Esc = voltar ao menu."
 )
 
 # The frame-title and explanation labels under the canvas are kept at a
@@ -156,6 +157,7 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
             TraditionalBackpropDemo(),
             MultilayerNetworkDemo(),
             MatrixAlgebraDemo(),
+            ChainRuleLayersDemo(),
         ],
         "BitNet": [
             ScalarQuantizationDemo(),

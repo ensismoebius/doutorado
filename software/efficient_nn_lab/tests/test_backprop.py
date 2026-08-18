@@ -571,3 +571,264 @@ def test_matrix_demo_local_derivative_is_revealed_before_it_is_used():
         rv_sp1 = np.asarray(frame.values["rv_sp1"], dtype=float)
         rv_gz1 = np.asarray(frame.values["rv_gz1"], dtype=float)
         assert np.all(rv_gz1 <= rv_sp1 + 1e-9), frame.label
+
+
+# ======================================================================
+# backprop.chain — "Camadas e a regra da cadeia"
+#
+# This demo's claim is a correspondence: one block of the network, one
+# factor of the chain rule. The tests below pin the three ways that claim
+# can silently stop being true -- the arithmetic drifting from the chain
+# product, a parameter losing its own step, and a local derivative showing
+# up already multiplied into something.
+# ======================================================================
+
+def _chain_demo():
+    from efficient_nn_lab.backprop.demos.chain_rule_layers import ChainRuleLayersDemo
+
+    return ChainRuleLayersDemo()
+
+
+def _chain_reveal_fields():
+    from efficient_nn_lab.backprop.demos import chain_rule_layers
+
+    return chain_rule_layers.VALUE_REVEAL_FIELDS
+
+
+def test_chain_demo_forward_matches_manual_computation():
+    from efficient_nn_lab.backprop.demos import chain_rule_layers as cl
+
+    demo = _chain_demo()
+    c = demo._forward_backward()
+    z1 = cl._W1 * cl._X + cl._B1
+    a1 = sigmoid(z1)
+    z2 = cl._W2 * a1 + cl._B2
+    a2 = sigmoid(z2)
+    assert c["z1"] == pytest.approx(z1)
+    assert c["a1"] == pytest.approx(a1)
+    assert c["z2"] == pytest.approx(z2)
+    assert c["a2"] == pytest.approx(a2)
+    assert c["loss"] == pytest.approx(0.5 * (a2 - demo.target) ** 2)
+
+
+def test_chain_demo_every_parameter_gradient_is_delta_times_its_local_derivative():
+    """The rule the whole demo is teaching, checked as arithmetic.
+
+    ∂L/∂w = δ · (what entered through that weight) and ∂L/∂b = δ · 1. If
+    these two ever stop holding, the screen is showing numbers that
+    contradict the narration.
+    """
+    c = _chain_demo()._forward_backward()
+    assert c["g_w2"] == pytest.approx(c["delta2"] * c["a1"])
+    assert c["g_b2"] == pytest.approx(c["delta2"])
+    assert c["g_w1"] == pytest.approx(c["delta1"] * c["x"])
+    assert c["g_b1"] == pytest.approx(c["delta1"])
+
+
+def test_chain_demo_five_factor_product_equals_the_delta_path():
+    # the closing verification the demo performs on screen: multiplying the
+    # five local derivatives must give exactly what accumulating δ gave.
+    demo = _chain_demo()
+    c = demo._forward_backward()
+    factors = (c["dL_da2"], c["sp2"], c["dz2_da1"], c["sp1"], c["dz1_dw1"])
+    assert float(np.prod(factors)) == pytest.approx(c["g_w1"], abs=1e-12)
+    last = demo.checkpoint_frames()[-1].values
+    assert tuple(last["chain_values"]) == pytest.approx(factors)
+    assert float(last["chain_product"]) == pytest.approx(c["g_w1"], abs=1e-12)
+
+
+def test_chain_demo_only_the_bias_derivatives_equal_one():
+    """A factor of exactly 1 makes a step look like it did nothing.
+
+    Here two of them are deliberate -- ∂z/∂b = 1 is the point of those two
+    steps, and where ∂L/∂b = δ comes from. Any OTHER factor landing on 1
+    would be an accident that makes its step invisible, which is what this
+    guards (it is how the matrix demo's x1 = 1.00 was caught).
+    """
+    c = _chain_demo()._forward_backward()
+    assert c["dz2_db2"] == 1.0
+    assert c["dz1_db1"] == 1.0
+    for name in ("dL_da2", "sp2", "dz2_da1", "sp1", "dz1_dw1", "dz2_dw2"):
+        assert abs(abs(c[name]) - 1.0) > 0.05, f"{name} is ~±1: its step would look like a no-op"
+
+
+def test_chain_demo_sign_flips_at_the_negative_weight():
+    # w2 < 0, so the gradient arriving at layer 1 must have the opposite sign
+    # of δ2. This is a teaching point of the demo, not an incidental value.
+    c = _chain_demo()._forward_backward()
+    assert c["w2"] < 0
+    assert c["delta2"] * c["dL_da1"] < 0, "the sign did not flip at w2"
+
+
+def test_chain_demo_reveals_at_most_one_new_value_per_step():
+    """"Do not skip any step", enforced: one new number per checkpoint."""
+    demo = _chain_demo()
+    fields = _chain_reveal_fields()
+    checkpoints = demo.checkpoint_frames()
+    for before, after in zip(checkpoints, checkpoints[1:]):
+        count = 0
+        for field in fields:
+            a = np.atleast_1d(np.asarray(before.values[field], dtype=float)).ravel()
+            b = np.atleast_1d(np.asarray(after.values[field], dtype=float)).ravel()
+            count += int(np.count_nonzero((a < 0.5) & (b >= 0.5)))
+        assert count <= 1, f"{after.label!r} reveals {count} new values at once"
+
+
+def test_chain_demo_reveals_every_value_exactly_once():
+    # the other direction: nothing is ever shown without a step of its own.
+    demo = _chain_demo()
+    fields = _chain_reveal_fields()
+    checkpoints = demo.checkpoint_frames()
+    revealed = 0
+    for before, after in zip(checkpoints, checkpoints[1:]):
+        for field in fields:
+            a = np.atleast_1d(np.asarray(before.values[field], dtype=float)).ravel()
+            b = np.atleast_1d(np.asarray(after.values[field], dtype=float)).ravel()
+            revealed += int(np.count_nonzero((a < 0.5) & (b >= 0.5)))
+    expected = sum(
+        np.atleast_1d(np.asarray(checkpoints[-1].values[f], dtype=float)).size for f in fields
+    )
+    assert revealed == expected, f"{expected - revealed} value(s) never got a step of their own"
+    for field in fields:
+        final = np.atleast_1d(np.asarray(checkpoints[-1].values[field], dtype=float))
+        assert np.all(final >= 0.5), f"{field} is never fully revealed"
+
+
+def test_chain_demo_every_parameter_has_its_own_gradient_step():
+    """No parameter left implicit -- w1, b1, w2 and b2 each get a step.
+
+    Written against the labels a viewer actually reads, so deleting a step
+    fails here even if the value is still computed somewhere.
+    """
+    demo = _chain_demo()
+    labels = [f.label for f in demo.checkpoint_frames()]
+    for name in ("∂L/∂w1", "∂L/∂b1", "∂L/∂w2", "∂L/∂b2"):
+        assert any(label.startswith(name) for label in labels), f"no step reveals {name}"
+    # and each bias' LOCAL derivative gets its own step too: skipping it
+    # ("it is just 1") is precisely what leaves ∂L/∂b unexplained.
+    for name in ("∂z1/∂b1", "∂z2/∂b2"):
+        assert any(label.startswith(name) for label in labels), f"no step reveals {name}"
+
+
+def test_chain_demo_local_derivatives_come_before_the_products_that_use_them():
+    # a local derivative must be a quantity in its own right on screen
+    # before anything multiplies by it -- otherwise the "concatenation" is
+    # a claim, not something the viewer watched happen.
+    demo = _chain_demo()
+    for frame in demo.checkpoint_frames():
+        v = frame.values
+        assert v["rv_delta2"] <= v["rv_sp2"] + 1e-9, frame.label
+        assert v["rv_delta2"] <= v["rv_dL_da2"] + 1e-9, frame.label
+        assert v["rv_g_w2"] <= v["rv_dz2_dw2"] + 1e-9, frame.label
+        assert v["rv_g_b2"] <= v["rv_dz2_db2"] + 1e-9, frame.label
+        assert v["rv_dL_da1"] <= v["rv_dz2_da1"] + 1e-9, frame.label
+        assert v["rv_delta1"] <= v["rv_sp1"] + 1e-9, frame.label
+        assert v["rv_g_w1"] <= v["rv_dz1_dw1"] + 1e-9, frame.label
+        assert v["rv_g_b1"] <= v["rv_dz1_db1"] + 1e-9, frame.label
+        # and no forward value may appear before the one it is computed from
+        assert v["rv_a1"] <= v["rv_z1"] + 1e-9, frame.label
+        assert v["rv_a2"] <= v["rv_z2"] + 1e-9, frame.label
+        assert v["rv_z2"] <= v["rv_a1"] + 1e-9, frame.label
+
+
+def test_chain_demo_reveals_never_go_backward():
+    demo = _chain_demo()
+    fields = _chain_reveal_fields() + ("rv_graph", "rv_check", "rv_summary")
+    checkpoints = demo.checkpoint_frames()
+    for field in fields:
+        series = [np.asarray(f.values[field], dtype=float) for f in checkpoints]
+        for before, after in zip(series, series[1:]):
+            assert np.all(after >= before - 1e-9), field
+
+
+def test_chain_demo_partial_product_moves_at_every_factor():
+    # the closing phase multiplies one factor at a time; the running product
+    # must change at each of those steps, or a step shows nothing new.
+    demo = _chain_demo()
+    factor_steps = [f for f in demo.checkpoint_frames() if f.label.startswith("Fator ")]
+    assert len(factor_steps) == 5
+    products = [float(f.values["chain_product"]) for f in factor_steps]
+    for a, b in zip(products, products[1:]):
+        assert abs(b - a) > 1e-9, f"partial product did not move: {a} -> {b}"
+
+
+def test_chain_demo_actually_animates_between_every_checkpoint():
+    # same anti-slide-deck check the matrix demo carries: every gap must
+    # contain tweens, and something must take a value strictly between the
+    # two endpoints rather than snapping.
+    demo = _chain_demo()
+    indices = demo._checkpoint_frame_indices
+    assert len(indices) >= 30
+    for start, end in zip(indices, indices[1:]):
+        tweens = demo._frames[start + 1 : end]
+        assert tweens, f"no tween frames between checkpoints at {start} and {end}"
+        before, after = demo._frames[start].values, demo._frames[end].values
+        moved = []
+        for key, val_a in before.items():
+            val_b = after[key]
+            if not isinstance(val_a, (np.ndarray, float)) or not isinstance(val_b, (np.ndarray, float)):
+                continue
+            arr_a = np.atleast_1d(np.asarray(val_a, dtype=float))
+            arr_b = np.atleast_1d(np.asarray(val_b, dtype=float))
+            if arr_a.shape != arr_b.shape or np.allclose(arr_a, arr_b):
+                continue
+            mid = np.atleast_1d(np.asarray(tweens[len(tweens) // 2].values[key], dtype=float))
+            lo, hi = np.minimum(arr_a, arr_b), np.maximum(arr_a, arr_b)
+            changing = ~np.isclose(arr_a, arr_b)
+            if np.any((mid[changing] > lo[changing]) & (mid[changing] < hi[changing])):
+                moved.append(key)
+        assert moved, (
+            f"nothing interpolates between {demo._frames[start].label!r} and "
+            f"{demo._frames[end].label!r} -- that transition is a cut, not an animation"
+        )
+
+
+def test_chain_demo_highlights_the_block_a_card_belongs_to():
+    """The correspondence, mechanically: the card's step lights its block.
+
+    Every local-derivative step highlights exactly one card, and the block
+    highlighted in the row above is the block that card hangs under -- that
+    vertical pairing is the demo's whole claim.
+    """
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    demo = _chain_demo()
+    seen = 0
+    for frame in demo.checkpoint_frames():
+        cards = np.asarray(frame.values["hl_cards"], dtype=float)
+        if not np.any(cards > 0.5):
+            continue
+        lit = np.argwhere(cards > 0.5)
+        assert len(lit) == 1, f"{frame.label!r} lights {len(lit)} cards"
+        block, _row = lit[0]
+        nodes = np.asarray(frame.values["hl_nodes"], dtype=float)
+        assert float(nodes[block]) > 0.5, (
+            f"{frame.label!r} lights a card under block {block} but not the block itself"
+        )
+        seen += 1
+    # every card the renderer draws must have had a step that lit it: the
+    # demo module and the renderer's card table are one contract.
+    assert seen == len(NeuronView._CL_CARDS), (
+        f"{len(NeuronView._CL_CARDS)} cards are drawn but only {seen} got a step of their own"
+    )
+
+
+def test_chain_demo_every_frame_renders(qapp):
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    view = NeuronView()
+    view.show()
+    view.resize(1200, 800)
+    for frame in _chain_demo()._frames:
+        view.render(frame.values)
+    view._canvas.draw()
+
+
+def test_chain_demo_equations_all_typeset():
+    from matplotlib import mathtext
+
+    from efficient_nn_lab.app.math_render import latexize
+
+    parser = mathtext.MathTextParser("agg")
+    for equation in {f.equation for f in _chain_demo().checkpoint_frames() if f.equation}:
+        parser.parse(f"${latexize(equation)}$")

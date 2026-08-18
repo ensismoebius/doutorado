@@ -46,6 +46,12 @@ def _all_demos():
         ("V_th = 0.50", r"V_{th} = 0.50"),
         ("P(spike) = 0.80", r"P(spike) = 0.80"),
         ("diferença = y - target", r"diferença = y - target"),
+        # ½ must become \frac, not \tfrac: mathtext has no \tfrac, so the
+        # old spelling parsed nowhere and every equation using ½ fell back
+        # to raw pseudo-LaTeX on screen (found by backprop.chain's loss
+        # equation, the first one to use the glyph).
+        ("L = ½ (a_2 - alvo)^2", r"L = \frac{1}{2} (a_{2} - alvo)^{2}"),
+        ("δ_2 = ∂L/∂z2", r"\delta _2 = \dfrac{\partial L}{\partial z_{2}}"),
     ],
 )
 def test_latexize_translations(raw, expected):

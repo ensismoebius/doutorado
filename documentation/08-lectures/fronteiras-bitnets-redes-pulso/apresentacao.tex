@@ -31,6 +31,10 @@
 		\input{slides/fundamentosMatrizes.tex}
 		\input{slides/fundamentosCadeia.tex}
 		\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{}
+		% Vem depois de fundamentosCadeia.tex de proposito: o slide enuncia a
+		% regra da cadeia, e esta demo mostra de qual bloco da rede sai cada
+		% fator dela (uma camada = operacao linear + ativacao = dois fatores).
+		\DemoSlide{Backprop \textrightarrow{} Camadas e a regra da cadeia}{backprop.chain}{Percorra os passos de $\partial L/\partial a_2$ até $\partial L/\partial b_1$: cada carta é a derivada local de um bloco, na coluna do bloco. Feche com os cinco fatores em fila.}
 
 	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
 	\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}

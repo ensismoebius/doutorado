@@ -5,7 +5,7 @@ animates BitNet quantization and spiking-neural-network mechanics, one step at a
 one-hour undergraduate lecture. It is **not** part of the C++ `nn` library and shares no code
 with it — it is the live companion to the LaTeX deck in
 `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`, opened on stage at the moment the
-matching slide is on screen. 13 demos, 1571 precomputed frames, zero randomness at playback
+matching slide is on screen. 14 demos, 1810 precomputed frames, zero randomness at playback
 time.
 
 ## The problem it solves
@@ -99,7 +99,7 @@ how a demo maps onto a widget, routed by the `kind` tag every frame carries.
 ### Structure
 
 ```
-MainWindow ── tree (13 demos) ── ControlsWidget ── signals only, no demo access
+MainWindow ── tree (14 demos) ── ControlsWidget ── signals only, no demo access
      │
      ├── StepPlayer  (the only QTimer: 40 ms tick, 1100 ms dwell at checkpoints)
      │        └── DemoModule ── [Frame, Frame, ...]   precomputed, deterministic
@@ -117,7 +117,7 @@ flowchart TD
     P["Demo parameters<br/>(sliders: w, tau, target...)"] --> B["_build_frames()<br/>deterministic, no RNG"]
     B --> C["checkpoints<br/>named steps"]
     C --> T["build_sequence()<br/>+ tween frames"]
-    T --> L["Frame list<br/>1571 frames across 13 demos"]
+    T --> L["Frame list<br/>1810 frames across 14 demos"]
     L --> S["StepPlayer<br/>40 ms tick / 1100 ms dwell"]
     S --> M["MainWindow._refresh_frame()<br/>routes on values['kind']"]
     M --> V["SignalView / WeightView / NeuronView<br/>render(values)"]
@@ -158,7 +158,7 @@ class MyDemo(DemoModule):
         ])
 ```
 
-## The 13 demos
+## The 14 demos
 
 Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoints, not frames.
 
@@ -167,6 +167,7 @@ Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoi
 | `backprop.classic` | Forward e backward clássicos | Como forward/backward funcionam sem quantização, e o exemplo converge? | 70 |
 | `backprop.mlp` | Rede de 4 camadas | Como isso escala para uma rede real (3→2→2→1), um neurônio de cada vez? | 13 |
 | `backprop.matrix` | A rede como matrizes | Em que sentido a rede é *só* multiplicação de matrizes — inclusive o backward? | 46 |
+| `backprop.chain` | Camadas e a regra da cadeia | De onde sai cada fator da regra da cadeia? | 35 |
 | `bitnet.quant` | Quantização | O que significa quantizar um peso? | 2 |
 | `bitnet.forward` | Forward | O que acontece no forward, e quão longe do alvo? | 9 |
 | `bitnet.ste` | Backward → STE | Por que o backward é problemático, e como o STE resolve? | 7 |
@@ -183,6 +184,28 @@ playback that wraps at the end (~1,2 s per lap versus ~33 s for a normal `Play` 
 the exception because there the *cadence is the content*: one Poisson time-step is
 indistinguishable from noise, and the picture only emerges once frames go by fast enough for
 the eye to integrate them.
+
+### One block, one factor
+
+`backprop.chain` is the answer to the question the other three backprop demos provoke: *where
+does each factor of the chain rule come from?* It draws a 1→1→1 network as **six** blocks
+rather than two neurons — `x`, `z1`, `a1`, `z2`, `a2`, `L` — because a layer is a linear op
+*and* an activation, and the chain rule treats each as its own link. Under each block, in the
+same column, sits that block's local derivative; a block with parameters gets one card per
+parameter. So the correspondence is literally vertical: one block, one factor.
+
+Two details it refuses to skip, because skipping them is what leaves students unable to derive
+$\partial L/\partial b$ themselves:
+
+- the biases' local derivatives get their own steps and read `= 1`. That is where
+  $\partial L/\partial b = \delta$ comes from — not a separate rule to memorise, the chain rule
+  with a factor of one;
+- `w2` is negative, so the gradient **changes sign** crossing layer 2. Backprop is not just
+  attenuation; the weight's sign decides which way the earlier layer is corrected.
+
+It closes by laying the five factors of $\partial L/\partial w_1$ in a strip and multiplying
+them one at a time, then checking the product against the $\delta$ path — the same number by
+two routes, which is what the chain rule asserts.
 
 ### Moving between demos on stage
 

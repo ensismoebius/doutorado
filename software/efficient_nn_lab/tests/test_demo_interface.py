@@ -4,6 +4,7 @@ regardless of what it demonstrates (ESPECIFICACAO_DLVL.md #4).
 
 import pytest
 
+from efficient_nn_lab.backprop.demos.chain_rule_layers import ChainRuleLayersDemo
 from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
@@ -26,6 +27,7 @@ ALL_DEMO_CLASSES = [
     TraditionalBackpropDemo,
     MultilayerNetworkDemo,
     MatrixAlgebraDemo,
+    ChainRuleLayersDemo,
     ScalarQuantizationDemo,
     ForwardLossDemo,
     BackwardSTEDemo,

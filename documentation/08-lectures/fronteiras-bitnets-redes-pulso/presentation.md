@@ -260,6 +260,7 @@ demos correspondentes.
 | `fundamentosTreinamento.tex` (ciclo forward/perda/backward/update) | A regra da cadeia dá `∂L/∂w`; o peso anda contra o gradiente | **Backprop -> Forward e backward clássicos** | Os 9 estágios da iteração 1 reproduzem exatamente os números do slide | `backprop.classic` |
 | `fundamentosMatrizes.tex` (`z = Wx`, exemplo `2→2→1`) | A camada inteira é uma multiplicação matriz-vetor; `W[i,j]` **é** a seta do grafo | **Backprop -> A rede como matrizes** | Fase do mapeamento (passos "w11: a seta x1 → H1" …) e o forward termo a termo | `backprop.matrix` |
 | `fundamentosCadeia.tex` (`∂L/∂y = Wᵀ ∂L/∂z`, cadeia de 5 fatores) | Backward = mesma matriz transposta; multiplicar matrizes é a cadeia em lote | **Backprop -> A rede como matrizes** | Fase backward e os 5 fatores da cadeia; terminar na conferência contra `grad_W1[H1,x1]` | `backprop.matrix` |
+| `fundamentosCadeia.tex` (a cadeia aplicada a esta rede) | Cada bloco da rede contribui com UM fator; camada = operação linear + ativação = dois fatores | **Backprop -> Camadas e a regra da cadeia** | Passos `∂L/∂a2` → `∂L/∂b1` (cada carta é a derivada local de um bloco, na coluna dele), depois `Fator 1/5`…`Fator 5/5` | `backprop.chain` |
 
 Nota de coerência — notação de derivada: slides e software usam **a mesma**
 convenção, e `app/math_render.py` foi estendido para sustentá-la:
@@ -281,7 +282,7 @@ não um detalhe de formatação.
 | `bitnetCamada.tex`, quadro 3 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantização** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
 | `bitnetCamada.tex`, quadro 5 (multiplicação vira soma/subtração) | `W̃·X̃` não faz multiplicação real | **BitNet -> Forward** | Checkpoints "Quantizar w1"/"Quantizar w2" → "Multiplicação 1"/"Multiplicação 2" (mostra Q(w2)=0 anulando x2) | `bitnet.forward` |
 | `bitnetTreinamento.tex` (STE) | Backward "finge" que a quantização foi identidade | **BitNet -> Backward -> STE** | Checkpoint final (derivada real vs. constante 1 do STE) | `bitnet.ste` |
-| `bitnetTreinamento.tex` (quadro de demo seguinte, bônus) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — *demo bônus* se sobrar tempo; tem quadro `\DemoSlide` próprio logo depois do quadro do STE (os links de rodapé daquele slide foram removidos em 2026-08-18, e um quadro próprio não disputa espaço com o conteúdo), então todas as 13 demos seguem alcançáveis pelo PDF | `bitnet.guided` |
+| `bitnetTreinamento.tex` (quadro de demo seguinte, bônus) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — *demo bônus* se sobrar tempo; tem quadro `\DemoSlide` próprio logo depois do quadro do STE (os links de rodapé daquele slide foram removidos em 2026-08-18, e um quadro próprio não disputa espaço com o conteúdo), então todas as 14 demos seguem alcançáveis pelo PDF | `bitnet.guided` |
 
 ### Parte II — Redes de pulso
 
