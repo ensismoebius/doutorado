@@ -270,7 +270,7 @@ não um detalhe de formatação.
 | `bitnetCamada.tex`, quadro 2 (exemplo numérico, `w=[0.6,-0.3,0.05]`) | Um peso some (vira 0) se cair na zona morta; os outros viram ±1 | **BitNet -> Quantização** | Mova o slider `w` até perto de `0` para reproduzir a zona morta ao vivo, depois até `0.6`/`-0.3` | `bitnet.quant` |
 | `bitnetCamada.tex`, quadro 3 (multiplicação vira soma/subtração) | `W̃·X̃` não faz multiplicação real | **BitNet -> Forward** | Checkpoints "Quantizar w1"/"Quantizar w2" → "Multiplicação 1"/"Multiplicação 2" (mostra Q(w2)=0 anulando x2) | `bitnet.forward` |
 | `bitnetTreinamento.tex` (STE) | Backward "finge" que a quantização foi identidade | **BitNet -> Backward -> STE** | Checkpoint final (derivada real vs. constante 1 do STE) | `bitnet.ste` |
-| — (transição, sem slide dedicado) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — usar como *demo bônus* se sobrar tempo após `bitnetTreinamento.tex` | `bitnet.guided` |
+| `bitnetTreinamento.tex` (rodapé, link de bônus) | Ciclo completo forward→loss→STE→update, peso oculto 0,80→0,84 | **BitNet -> Exemplo guiado** | Sequência fixa completa (10 passos) — *demo bônus* se sobrar tempo; hoje já tem `\abrirNoSoftware` no rodapé daquele slide, então todas as 13 demos são alcançáveis pelo PDF | `bitnet.guided` |
 
 ### Parte II — Redes de pulso
 

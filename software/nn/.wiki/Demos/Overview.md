@@ -23,6 +23,16 @@ The `src/demos/` directory contains self-contained runnable examples covering si
 | `snn_hyperparam_search` | Four-stage hyperparameter search for a PyTorch/snnTorch SNN autoencoder | [snn-hyperparam-search](./snn-hyperparam-search.md) |
 | `voice_biometrics_snn_py` | Python WPT → spike → SNN voice biometrics with full enrol/train/identify/verify CLI | [voice-biometrics-snn-py](./voice-biometrics-snn-py.md) |
 
+## Lecture companion (separate application)
+
+Not under `src/demos/` and not part of the `nn` library — a standalone PySide6 application in
+`software/efficient_nn_lab/`, written for a one-hour undergraduate lecture and driven live from
+the LaTeX deck's PDF links.
+
+| Application | Description | Wiki Page |
+|------|-------------|-----------|
+| `efficient_nn_lab` | 13 interactive demos animating BitNet ternary quantization, the STE, and SNN spiking/surrogate mechanics, one step at a time | [efficient-nn-lab](./efficient-nn-lab.md) |
+
 ## Building All C++ Demos
 
 ```bash

@@ -67,6 +67,7 @@ Then follow one of these reading paths depending on what you came for:
 | Topic | Technical | Plain language |
 |---|---|---|
 | Spiking networks & surrogate gradients | [SNN and Surrogate Gradients](./Concepts/SNN-and-Surrogate-Gradients.md) | [plain](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) |
+| Straight-Through Estimator (quantization) | [Straight-Through Estimator](./Concepts/Straight-Through-Estimator.md) | — |
 | LIF membrane dynamics | [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) | [plain](./Concepts/Plain/Membrane-Dynamics.md) |
 | Spike encoding (rate vs latency) | [Spike Encoding](./Concepts/Spike-Encoding.md) | [plain](./Concepts/Plain/Spike-Encoding.md) |
 | Spike-rate regularization | [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) | [plain](./Concepts/Plain/Spike-Rate-Regularization.md) |
@@ -175,6 +176,10 @@ Runnable examples per subsystem — see [Demos/Overview](./Demos/Overview.md) fo
 **Python:** [Multimodal EEG+Audio](./Demos/multimodal-eeg-audio.md) ·
 [SNN hyperparameter search](./Demos/snn-hyperparam-search.md) ·
 [Voice biometrics](./Demos/voice-biometrics-snn-py.md)
+
+**Lecture companion (standalone app):**
+[Efficient Neural Networks Lab](./Demos/efficient-nn-lab.md) — 13 interactive demos of BitNet
+quantization and SNN mechanics, opened live from the lecture slides
 
 ### System architecture
 

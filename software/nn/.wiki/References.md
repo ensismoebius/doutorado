@@ -172,3 +172,17 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [65] N. Srinivas and K. Deb, "Muiltiobjective optimization using nondominated sorting in genetic algorithms," *Evolutionary Computation*, vol. 2, no. 3, pp. 221–248, 1994. [Online]. Available: https://doi.org/10.1162/evco.1994.2.3.221 (Original NSGA; Pareto-front ranking foundation.)
 
 [66] D. E. Goldberg and R. E. Smith, "Nonstationary function optimization using genetic algorithms with dominance and diploidy," in *Proc. 2nd Int. Conf. on Genetic Algorithms (ICGA)*, 1987, pp. 59–68. (Diploid genotype + dominance as a recessive-allele reservoir against premature convergence; basis for paraconsistentGA's diploid reproduction.)
+
+## Quantization and the Straight-Through Estimator
+
+[67] H. Wang, S. Ma, L. Dong, S. Huang, H. Wang, L. Ma, F. Yang, R. Wang, Y. Wu, and F. Wei, "BitNet: Scaling 1-bit transformers for large language models," *arXiv:2310.11453*, 2023. [Online]. Available: https://arxiv.org/abs/2310.11453
+
+[68] S. Ma, H. Wang, L. Ma, L. Wang, W. Wang, S. Huang, L. Dong, R. Wang, J. Xue, and F. Wei, "The era of 1-bit LLMs: All large language models are in 1.58 bits," *arXiv:2402.17764*, 2024. [Online]. Available: https://arxiv.org/abs/2402.17764
+
+[69] Y. Bengio, N. Léonard, and A. Courville, "Estimating or propagating gradients through stochastic neurons for conditional computation," *arXiv:1308.3432*, 2013. [Online]. Available: https://arxiv.org/abs/1308.3432
+
+[71] M. Courbariaux, I. Hubara, D. Soudry, R. El-Yaniv, and Y. Bengio, "Binarized neural networks: Training deep neural networks with weights and activations constrained to +1 or −1," *arXiv:1602.02830*, 2016. [Online]. Available: https://arxiv.org/abs/1602.02830
+
+## Teaching and Visualisation
+
+[70] B. Tversky, J. B. Morrison, and M. Bétrancourt, "Animation: can it facilitate?," *Int. J. Human-Computer Studies*, vol. 57, no. 4, pp. 247–262, Oct. 2002. [Online]. Available: https://doi.org/10.1006/ijhc.2002.1017

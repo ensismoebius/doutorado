@@ -171,12 +171,13 @@ def test_every_demo_is_reachable_from_the_lecture_deck():
         for p in [*deck.glob("*.tex"), *(deck / "slides").glob("*.tex")]
     )
     linked = set(re.findall(r"\\(?:DemoSlide|abrirNoSoftware)\{.*?\}\{([^}]*)\}", tex))
-    # bitnet.guided is deliberately slide-less -- presentation.md documents it
-    # as a spare "bonus" demo for leftover time, not as a gap.
-    deliberate = {"bitnet.guided"}
 
+    # No exemptions: every demo the app ships is reachable from the deck.
+    # bitnet.guided used to be exempt (documented as a spare "bonus" demo);
+    # it now carries an \abrirNoSoftware link on bitnetTreinamento.tex, so
+    # the rule is unconditional and stays that way.
     shipped = {d.slug for group in _build_demo_tree().values() for d in group}
-    unreachable = shipped - linked - deliberate
+    unreachable = shipped - linked
     assert not unreachable, f"demos no slide can open: {sorted(unreachable)}"
 
     dangling = linked - shipped

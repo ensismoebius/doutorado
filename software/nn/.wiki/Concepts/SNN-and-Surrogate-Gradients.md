@@ -312,6 +312,11 @@ flowchart TB
 
 ## See Also
 
+- [Straight-Through Estimator](./Straight-Through-Estimator.md) — the same forward-real/backward-smooth
+  substitution applied to *weight quantization* instead of spikes, with a table of where the
+  analogy stops
+- [Efficient Neural Networks Lab](../Demos/efficient-nn-lab.md) — animates both, side by side
+
 - [LSTM and BPTT](./LSTM-and-BPTT.md) — Related recurrent implementations
 - [Layers](../Core/Layers.md) — Full layer catalogue
 - [Weight Initialisation](./Weight-Initialisation.md) — Initialization for SNN
