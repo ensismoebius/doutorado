@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-from efficient_nn_lab.core.demo import DemoModule, Frame
+from efficient_nn_lab.core.demo import DemoModule, Frame, slider
 from efficient_nn_lab.snn.encoding import load_grayscale_image, poisson_spike_frames
 
 _IMAGE_PATH = Path(__file__).resolve().parents[2] / "resources" / "images" / "patrick.jpg"
@@ -82,13 +82,7 @@ class PoissonImageCodingDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "max_rate": {
-                "label": "Taxa máxima de disparo",
-                "min": 0.1,
-                "max": 1.0,
-                "step": 0.05,
-                "value": self.max_rate,
-            }
+            "max_rate": slider("Taxa máxima de disparo", 0.1, 1.0, 0.05, self.max_rate)
         }
 
     def _build_frames(self) -> list[Frame]:

@@ -55,3 +55,6 @@ documentation/06-BooksToRead/*.pdf
 .opencode/node_modules
 documentation/07-articlesProduced/conference71070Guaiaquil/paper.pdf
 documentation/08-lectures/fronteiras-bitnets-redes-pulso/apresentacao.pdf
+
+# code_intelligence index (SQLite cache, rebuilt on demand)
+.code-intelligence/

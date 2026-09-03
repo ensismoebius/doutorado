@@ -13,7 +13,7 @@ sample in between.
 
 from __future__ import annotations
 
-from efficient_nn_lab.core.demo import DemoModule, Frame
+from efficient_nn_lab.core.demo import DemoModule, Frame, slider
 from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 
 _N_STEPS = 60
@@ -34,10 +34,10 @@ class LIFDynamicsDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "tau": {"label": "tau (constante de tempo)", "min": 1.0, "max": 15.0, "step": 0.5, "value": self.tau},
-            "r": {"label": "R (resistência)", "min": 1.0, "max": 10.0, "step": 0.5, "value": self.r},
-            "v_th": {"label": "V_th (limiar)", "min": 0.3, "max": 3.0, "step": 0.1, "value": self.v_th},
-            "amplitude": {"label": "Amplitude de I(t)", "min": 0.05, "max": 1.0, "step": 0.05, "value": self.amplitude},
+            "tau": slider("tau (constante de tempo)", 1.0, 15.0, 0.5, self.tau),
+            "r": slider("R (resistência)", 1.0, 10.0, 0.5, self.r),
+            "v_th": slider("V_th (limiar)", 0.3, 3.0, 0.1, self.v_th),
+            "amplitude": slider("Amplitude de I(t)", 0.05, 1.0, 0.05, self.amplitude),
         }
 
     def _build_frames(self) -> list[Frame]:

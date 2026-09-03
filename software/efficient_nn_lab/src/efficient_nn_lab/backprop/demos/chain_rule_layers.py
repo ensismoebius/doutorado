@@ -46,7 +46,7 @@ import numpy as np
 
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
 from efficient_nn_lab.bitnet.linear import loss_gradient_wrt_y, squared_error_loss
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, copy_frame_state, slider
 
 #: Rede 1 -> 1 -> 1, sigmoide nas duas camadas, viés em ambas.
 #:
@@ -113,16 +113,6 @@ _FACTOR_SOURCE = (
 _FACTOR_NODE = (NODE_L, NODE_A2, NODE_Z2, NODE_A1, NODE_Z1)
 
 
-def _copy_state(state: dict[str, object]) -> dict[str, object]:
-    """Snapshot do estado de um frame, com os arrays copiados.
-
-    O construtor abaixo muta um único dicionário ``state`` em vez de
-    reescrever cinquenta campos por checkpoint. Cada Frame precisa, então,
-    da SUA cópia dos arrays mutáveis -- sem isso todos os frames
-    compartilhariam (e mostrariam) o estado final de revelação.
-    """
-    return {k: (v.copy() if isinstance(v, np.ndarray) else v) for k, v in state.items()}
-
 
 class ChainRuleLayersDemo(DemoModule):
     title = "Backprop -> Camadas e a regra da cadeia"
@@ -142,7 +132,7 @@ class ChainRuleLayersDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "target": {"label": "Alvo (0-1)", "min": 0.05, "max": 0.95, "step": 0.05, "value": self.target},
+            "target": slider("Alvo (0-1)", 0.05, 0.95, 0.05, self.target),
         }
 
     # -- a conta: um forward e um backward completos -----------------------
@@ -257,7 +247,7 @@ class ChainRuleLayersDemo(DemoModule):
                     # renderer lê, e o passo simplesmente não animaria.
                     raise KeyError(f"campo de frame desconhecido: {key!r}")
                 state[key] = value
-            frames.append(Frame(label, _copy_state(state), explanation, equation))
+            frames.append(Frame(label, copy_frame_state(state), explanation, equation))
 
         def node(index: int) -> np.ndarray:
             spot = np.zeros(_N_NODES)

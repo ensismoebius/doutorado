@@ -25,7 +25,7 @@ import numpy as np
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
 from efficient_nn_lab.bitnet.linear import loss_gradient_wrt_y, squared_error_loss
 from efficient_nn_lab.bitnet.ste import sgd_update
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 from efficient_nn_lab.core.math_utils import ease_in_out, lerp
 
 #: Interior sliding frames generated per gradient-descent iteration in the
@@ -80,8 +80,8 @@ class TraditionalBackpropDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "target": {"label": "Alvo (0-1)", "min": 0.1, "max": 0.95, "step": 0.05, "value": self.target},
-            "learning_rate": {"label": "Taxa de aprendizado", "min": 0.5, "max": 5.0, "step": 0.5, "value": self.learning_rate},
+            "target": slider("Alvo (0-1)", 0.1, 0.95, 0.05, self.target),
+            "learning_rate": slider("Taxa de aprendizado", 0.5, 5.0, 0.5, self.learning_rate),
         }
 
     # -- part 1: the mechanism, repeated until the output is close enough --

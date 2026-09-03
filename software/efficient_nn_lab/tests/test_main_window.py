@@ -130,6 +130,8 @@ def test_lif_canvas_not_shrunk_by_short_explanations(qapp):
     against a pixel count: the point is that the two differ, and hardcoded
     pixels would just re-break whenever the fonts or the text change.
     """
+    from efficient_nn_lab.app.main_window import _MIN_CANVAS_HEIGHT
+
     window = _window(qapp)
     wordy = next(d for d in _all_demos() if d.slug == "snn.surrogate")
     window._select_demo(wordy)
@@ -137,9 +139,14 @@ def test_lif_canvas_not_shrunk_by_short_explanations(qapp):
 
     demo = next(d for d in _all_demos() if d.slug == "snn.lif")
     window._select_demo(demo)
+    # a real window, not the 900x600 floor: at the minimum size the column
+    # simply has less than 330px to give (see
+    # test_animation_canvas_gets_everything_the_column_can_spare).
+    window.resize(1400, 900)
+    QTest.qWait(60)
 
     assert window.explanation_label.height() < wordy_height
-    assert window.signal_view._canvas.height() >= 330
+    assert window.signal_view._canvas.height() >= _MIN_CANVAS_HEIGHT
 
 
 def test_step_title_is_tall_enough_for_its_own_font(qapp):
@@ -202,24 +209,85 @@ def test_deep_linked_demo_reserves_the_right_heights(qapp):
         )
 
 
-def test_reservations_survive_a_window_resize(qapp):
-    """Wrapping depends on width, so the reservation has to follow it.
+def test_reservations_are_remeasured_on_resize(qapp):
+    """The reservation belongs to the window it was measured in.
 
-    Without the resize hook a window made narrower keeps the reservation
-    computed for the wider one, and the text that now wraps to more lines
-    is clipped.
+    Both inputs change with the window: how many lines the text wraps to
+    (width) and how many pixels the caption may claim (height, via
+    _MAX_TEXT_SHARE). A reservation computed for a big window and left
+    alone would, in a small one, exceed the budget and eat the canvas --
+    which is exactly what the resize hook exists to prevent.
+    """
+    from efficient_nn_lab.app.main_window import _MAX_TEXT_SHARE
+
+    window = _window(qapp)
+    demo = next(d for d in _all_demos() if d.slug == "backprop.chain")
+    window._select_demo(demo)
+
+    for width, height in ((1180, 720), (920, 520), (1400, 900)):
+        window.resize(width, height)
+        QTest.qWait(60)
+        reserved = window.frame_label.height() + window.explanation_label.height()
+        budget = window.height() * _MAX_TEXT_SHARE
+        assert reserved <= budget + 1, (
+            f"at {window.width()}x{window.height()} the captions reserve {reserved}px, "
+            f"over the {budget:.0f}px budget"
+        )
+
+
+def test_right_column_widgets_never_overlap(qapp):
+    """Qt lays widgets ON TOP of each other when their minimums do not fit.
+
+    This is how a well-meant floor breaks a window: ask for more than the
+    column can give and nothing errors -- the step title simply paints over
+    the animation. Nothing in the app notices, and no other test looks.
     """
     window = _window(qapp)
     demo = next(d for d in _all_demos() if d.slug == "backprop.chain")
     window._select_demo(demo)
-    wide = window.explanation_label.height()
 
-    window.resize(920, 620)
+    for width, height in ((900, 600), (900, 710), (1180, 720), (1400, 900)):
+        window.resize(width, height)
+        QTest.qWait(60)
+        column = [
+            window.demo_title_label, window.demo_description_label, window.stack,
+            window.frame_label, window.explanation_label, window.controls,
+        ]
+        for upper, lower in zip(column, column[1:]):
+            if not lower.isVisible():
+                continue
+            assert upper.y() + upper.height() <= lower.y(), (
+                f"at {window.width()}x{window.height()}, {upper.objectName() or type(upper).__name__} "
+                f"(ends {upper.y() + upper.height()}) overlaps "
+                f"{lower.objectName() or type(lower).__name__} (starts {lower.y()})"
+            )
+
+
+def test_animation_canvas_gets_everything_the_column_can_spare(qapp):
+    """Regression for "the graphs are too small", second round.
+
+    Making the caption reservations *correct* made them bigger, and they
+    took the pixels straight out of the animation: 59px of canvas at the
+    minimum window size. The floor claims what is left after the chrome,
+    so the canvas grows with the window until it reaches _MIN_CANVAS_HEIGHT
+    and never drops under _ABS_MIN_CANVAS_HEIGHT.
+    """
+    from efficient_nn_lab.app.main_window import _ABS_MIN_CANVAS_HEIGHT, _MIN_CANVAS_HEIGHT
+
+    window = _window(qapp)
+    demo = next(d for d in _all_demos() if d.slug == "snn.lif")
+    window._select_demo(demo)
+
+    window.resize(900, 600)
     QTest.qWait(60)
-    narrow = window.explanation_label.height()
-    assert narrow >= wide, (
-        f"narrower window reserved less room ({narrow}px) than the wide one ({wide}px)"
-    )
+    smallest = window.stack.height()
+    assert smallest >= _ABS_MIN_CANVAS_HEIGHT, f"canvas is {smallest}px at the minimum window"
+
+    window.resize(1400, 900)
+    QTest.qWait(60)
+    roomy = window.stack.height()
+    assert roomy >= _MIN_CANVAS_HEIGHT, f"canvas is only {roomy}px in a 1400x900 window"
+    assert roomy > smallest, "the canvas must take the room a bigger window gives it"
 
 
 # -- keyboard shortcuts ------------------------------------------------

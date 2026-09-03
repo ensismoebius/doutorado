@@ -9,7 +9,7 @@ row of separate slideshow frames the user has to click through one by one.
 
 from __future__ import annotations
 
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, ternary_quantize
 
 _SLIDE_TWEEN_STEPS = 12
@@ -30,7 +30,7 @@ class ScalarQuantizationDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "w": {"label": "Peso real (w)", "min": -1.2, "max": 1.2, "step": 0.05, "value": self.w},
+            "w": slider("Peso real (w)", -1.2, 1.2, 0.05, self.w),
             "threshold": {
                 "label": "Limiar (tau)",
                 "min": 0.05,

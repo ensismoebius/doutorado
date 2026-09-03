@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 from efficient_nn_lab.bitnet.linear import (
     loss_gradient_wrt_y,
     quantized_forward,
@@ -53,27 +53,9 @@ class BackwardSTEDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "w": {
-                "label": "Peso real (w)",
-                "min": -1.2,
-                "max": 1.2,
-                "step": 0.05,
-                "value": self.w,
-            },
-            "target": {
-                "label": "Alvo (target)",
-                "min": -10.0,
-                "max": 10.0,
-                "step": 0.5,
-                "value": self.target,
-            },
-            "threshold": {
-                "label": "Limiar (tau)",
-                "min": 0.05,
-                "max": 1.0,
-                "step": 0.05,
-                "value": self.threshold,
-            },
+            "w": slider("Peso real (w)", -1.2, 1.2, 0.05, self.w),
+            "target": slider("Alvo (target)", -10.0, 10.0, 0.5, self.target),
+            "threshold": slider("Limiar (tau)", 0.05, 1.0, 0.05, self.threshold),
         }
 
     def _build_frames(self) -> list[Frame]:

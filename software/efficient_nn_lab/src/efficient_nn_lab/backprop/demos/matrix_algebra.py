@@ -50,7 +50,7 @@ import numpy as np
 
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
 from efficient_nn_lab.bitnet.linear import loss_gradient_wrt_y, squared_error_loss
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, copy_frame_state, slider
 
 #: 2 entradas -> 2 ocultos (H1, H2) -> 1 saída (O). Escolhidos para que todos
 #: os números intermediários saiam distintos e legíveis com duas casas: nenhum
@@ -78,16 +78,6 @@ VALUE_REVEAL_FIELDS = (
 )
 
 
-def _copy_state(state: dict[str, object]) -> dict[str, object]:
-    """Snapshot of a frame's state, with arrays copied.
-
-    The builder below mutates one running ``state`` dict instead of
-    respelling fifty fields per checkpoint. Every Frame therefore needs its
-    *own* copy of the mutable arrays, or all frames would end up sharing
-    (and showing) the final reveal state.
-    """
-    return {k: (v.copy() if isinstance(v, np.ndarray) else v) for k, v in state.items()}
-
 
 class MatrixAlgebraDemo(DemoModule):
     title = "Backprop -> A rede como matrizes"
@@ -107,7 +97,7 @@ class MatrixAlgebraDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "target": {"label": "Alvo (0-1)", "min": 0.1, "max": 0.95, "step": 0.05, "value": self.target},
+            "target": slider("Alvo (0-1)", 0.1, 0.95, 0.05, self.target),
         }
 
     # -- the actual math: one forward pass, one full backward pass ---------
@@ -204,7 +194,7 @@ class MatrixAlgebraDemo(DemoModule):
                     # and the step would just not animate.
                     raise KeyError(f"unknown frame field {key!r}")
                 state[key] = value
-            frames.append(Frame(label, _copy_state(state), explanation, equation))
+            frames.append(Frame(label, copy_frame_state(state), explanation, equation))
 
         def n2(value: float) -> str:
             return f"{float(value):+.2f}"

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 from efficient_nn_lab.snn.surrogate import fast_sigmoid, fast_sigmoid_surrogate, heaviside, heaviside_derivative
 
 _X = np.linspace(-2.0, 2.0, 400)
@@ -44,8 +44,8 @@ class SurrogateGradientDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "k": {"label": "Inclinação (k)", "min": 1.0, "max": 15.0, "step": 0.5, "value": self.k},
-            "v_th": {"label": "Limiar (v_th)", "min": 0.0, "max": 2.0, "step": 0.1, "value": self.v_th},
+            "k": slider("Inclinação (k)", 1.0, 15.0, 0.5, self.k),
+            "v_th": slider("Limiar (v_th)", 0.0, 2.0, 0.1, self.v_th),
         }
 
     def _build_frames(self) -> list[Frame]:

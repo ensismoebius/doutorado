@@ -142,6 +142,27 @@ _FRAME_MAX_LINES = 2
 #: yet (a --demo deep link measures during __init__, before the first
 #: layout pass). The resize hook re-measures with the real width later.
 _MIN_MEASURE_WIDTH = 400
+#: The animation canvas never shrinks below this, whatever the text under
+#: it needs. Demos are watched, not read: a correct-but-huge caption that
+#: squeezes the drawing to a strip defeats the purpose of both.
+_MIN_CANVAS_HEIGHT = 330
+#: ...but the floor is a floor, not a promise. Everything else in the right
+#: column (title, description, the two captions, the equation frame, the
+#: controls) has a minimum of its own, and if their sum plus the canvas
+#: floor exceeds the window, Qt satisfies nobody and lays the widgets ON
+#: TOP of each other -- which is what a fixed 330 did at the 900x600
+#: minimum window: the step title and the explanation painted over the
+#: drawing. So the floor is whatever is left after the chrome, capped at
+#: _MIN_CANVAS_HEIGHT and never below _ABS_MIN_CANVAS_HEIGHT.
+_ABS_MIN_CANVAS_HEIGHT = 140
+#: ...and the two labels together may never reserve more than this share of
+#: the window height. Without the cap, a narrow window wraps the
+#: explanation onto more lines, the reservation grows, and it grows at the
+#: canvas's expense -- exactly when the canvas is already smallest.
+_MAX_TEXT_SHARE = 0.28
+#: The demo's description paragraph is a subtitle, not the demo. Capped so
+#: a wordy one cannot claim a third of a short window.
+_DESCRIPTION_MAX_LINES = 4
 
 # The equation panel is a fixed-height framed box so toggling it never
 # reflows the right column mid-playback; the rendered equation is scaled
@@ -281,6 +302,9 @@ class MainWindow(QMainWindow):
         root.addWidget(self.tree)
 
         right = QVBoxLayout()
+        # kept for _apply_canvas_floor, which measures this column's own
+        # spacing/margins instead of assuming them.
+        self._right_column = right
         root.addLayout(right, stretch=1)
 
         top_bar = QHBoxLayout()
@@ -312,6 +336,16 @@ class MainWindow(QMainWindow):
 
         self.demo_description_label = QLabel(_WELCOME_TEXT)
         self.demo_description_label.setWordWrap(True)
+        self.demo_description_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        # Read once, at the start of a demo -- unlike the animation, which
+        # is looked at the whole time. At the minimum window size the full
+        # paragraph took 150px straight out of the canvas, so it is capped;
+        # the complete text stays available as the label's tooltip.
+        self.demo_description_label.setMaximumHeight(_DESCRIPTION_MAX_LINES * QFontMetrics(
+            self.demo_description_label.font()
+        ).lineSpacing() + 6)
         right.addWidget(self.demo_description_label)
 
         self.stack = QStackedWidget()
@@ -324,6 +358,14 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.weight_view)
         self.stack.addWidget(self.neuron_view)
         self.stack.addWidget(self.references_view)
+        # The animation is the demo; the text under it is the caption. When
+        # the window is short, Qt has to take the missing pixels from
+        # somewhere, and with only the labels pinned to a fixed height it
+        # took them all from here -- at the 900x600 minimum the LIF canvas
+        # came out 179px tall, which is the "the graphs are too small"
+        # complaint all over again. _apply_canvas_floor makes the squeeze
+        # land on the chrome instead, and _reserve_text_heights caps the
+        # captions so the two cannot fight over the same pixels.
         right.addWidget(self.stack, stretch=1)
 
         # frame_label (the step name) and explanation_label (its didactic
@@ -395,6 +437,9 @@ class MainWindow(QMainWindow):
         right.addWidget(self.controls)
         self.controls.setEnabled(False)
 
+        # every sibling now exists, so the floor can be measured
+        self._apply_canvas_floor()
+
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence(Qt.Key.Key_Space), self, activated=self._toggle_play_pause)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self, activated=self._on_step_forward)
@@ -426,6 +471,7 @@ class MainWindow(QMainWindow):
 
         self.demo_title_label.setText(demo.title)
         self.demo_description_label.setText(demo.description)
+        self.demo_description_label.setToolTip(demo.description)
         self.controls.setEnabled(True)
         self.next_demo_btn.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
@@ -518,13 +564,18 @@ class MainWindow(QMainWindow):
             self._frame_title_text(f.label or "", demo.total_steps, demo.total_steps)
             for f in demo.checkpoint_frames()
         }
-        self._set_reserved_height(
-            self.explanation_label, self._measure_rich_height(expl_texts),
-            _EXPL_MAX_LINES, padding=8,
+        # The two labels share one budget: whatever the title takes, the
+        # explanation cannot also take. Measuring alone is not enough --
+        # a correct measurement of a wordy demo in a short window would
+        # still eat the canvas (see _MAX_TEXT_SHARE / _MIN_CANVAS_HEIGHT).
+        budget = max(1, int(self.height() * _MAX_TEXT_SHARE))
+        title_height = self._set_reserved_height(
+            self.frame_label, self._measure_plain_height(self.frame_label, frame_texts),
+            _FRAME_MAX_LINES, padding=6, ceiling=budget,
         )
         self._set_reserved_height(
-            self.frame_label, self._measure_plain_height(self.frame_label, frame_texts),
-            _FRAME_MAX_LINES, padding=6,
+            self.explanation_label, self._measure_rich_height(expl_texts),
+            _EXPL_MAX_LINES, padding=8, ceiling=budget - title_height,
         )
 
     def _label_measure_width(self, label: QLabel) -> int:
@@ -562,17 +613,59 @@ class MainWindow(QMainWindow):
             tallest = max(tallest, float(twin.heightForWidth(width)))
         return tallest
 
-    def _set_reserved_height(self, label: QLabel, needed_px: float, max_lines: int, padding: int) -> None:
+    def _set_reserved_height(
+        self, label: QLabel, needed_px: float, max_lines: int, padding: int, ceiling: int | None = None
+    ) -> int:
         """Apply a measured reservation, but only when it actually changed.
 
         This is called from resizeEvent as well, and setting a fixed
         height triggers another layout pass -- assigning the same value
         every time would make the two chase each other.
+
+        ``ceiling`` caps the reservation in pixels. Reaching it means the
+        text will clip: that is the deliberate trade, because the
+        alternative (an honest reservation for a wordy demo in a short
+        window) squeezes the animation to a strip, and the animation is
+        what the demo is for. One whole line is always granted, whatever
+        the ceiling says. Returns the height applied.
         """
         label.ensurePolished()
-        height = _height_for_lines(QFontMetrics(label.font()), needed_px, max_lines, padding)
+        metrics = QFontMetrics(label.font())
+        height = _height_for_lines(metrics, needed_px, max_lines, padding)
+        if ceiling is not None:
+            height = max(metrics.lineSpacing() + padding, min(height, ceiling))
         if label.height() != height or label.minimumHeight() != height:
             label.setFixedHeight(height)
+        return height
+
+    def _apply_canvas_floor(self) -> None:
+        """Reserve as much height for the animation as the window can spare.
+
+        A fixed floor is wrong in both directions: too low and the drawing
+        is a strip (59px at the minimum window size, before this existed),
+        too high and the column's minimums no longer fit the window, at
+        which point Qt stops honouring them and lays the widgets ON TOP of
+        each other -- the captions painted over the canvas.
+
+        So the floor is measured, not guessed: whatever the window has left
+        after every sibling's own minimum, capped at _MIN_CANVAS_HEIGHT.
+        Measured rather than a constant because the chrome is not fixed --
+        a demo with five sliders has a taller controls panel than one with
+        none, and the captions' reservation changes per demo.
+        """
+        siblings = (
+            self.demo_title_label, self.demo_description_label, self.frame_label,
+            self.explanation_label, self.equation_frame, self.controls,
+        )
+        chrome = sum(
+            max(widget.minimumSizeHint().height(), widget.minimumHeight()) for widget in siblings
+        )
+        spacing = self._right_column.spacing() * len(siblings)
+        margins = self._right_column.contentsMargins()
+        spare = self.height() - chrome - spacing - margins.top() - margins.bottom()
+        floor = max(_ABS_MIN_CANVAS_HEIGHT, min(_MIN_CANVAS_HEIGHT, spare))
+        if self.stack.minimumHeight() != floor:
+            self.stack.setMinimumHeight(floor)
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
         """Re-measure the reservations for the new width.
@@ -583,6 +676,7 @@ class MainWindow(QMainWindow):
         the wider one and clips the text that now wraps to more lines.
         """
         super().resizeEvent(event)
+        self._apply_canvas_floor()
         if self.player is not None:
             self._reserve_text_heights(self.player.demo)
 

@@ -21,3 +21,6 @@ __pycache__/
 .qtcreator/
 *.swp
 *.swo
+
+# code_intelligence index (44MB SQLite cache, rebuilt on demand)
+.code-intelligence/

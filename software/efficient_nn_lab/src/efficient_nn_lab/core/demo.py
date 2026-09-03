@@ -24,6 +24,8 @@ from abc import ABC, abstractmethod
 from bisect import bisect_right
 from dataclasses import dataclass, field
 
+import numpy as np
+
 from efficient_nn_lab.core.math_utils import tween_values
 
 #: Default number of interior tween frames generated between two
@@ -55,6 +57,35 @@ class Frame:
     explanation: str = ""
     equation: str = ""
     is_checkpoint: bool = True
+
+
+def copy_frame_state(state: dict[str, object]) -> dict[str, object]:
+    """Snapshot of a frame's state, with numpy arrays copied.
+
+    The demos that animate per-cell reveal arrays (matrix_algebra,
+    chain_rule_layers) mutate ONE running ``state`` dict instead of
+    respelling fifty fields per checkpoint, then snapshot it here. Every
+    Frame therefore needs its own copy of the mutable arrays: without it
+    all frames share the same array objects and every one of them shows
+    the FINAL reveal state -- the demo renders its last frame from the
+    start and the animation silently does nothing.
+
+    Lives here rather than in either demo because both need exactly this,
+    byte for byte -- and a "copy the state" helper that two demos disagree
+    about would be worse than the duplication.
+    """
+    return {k: (v.copy() if isinstance(v, np.ndarray) else v) for k, v in state.items()}
+
+
+def slider(label: str, minimum: float, maximum: float, step: float, value: float) -> dict[str, object]:
+    """One entry of a demo's :meth:`DemoModule.parameters` mapping.
+
+    The controls widget builds a slider from ``{"label", "min", "max",
+    "step", "value"}``; spelling that dict out in every demo made the
+    *shape* the thing being repeated (the same five keys in the same order,
+    nine times), which buries the part that actually differs -- the range.
+    """
+    return {"label": label, "min": minimum, "max": maximum, "step": step, "value": value}
 
 
 def transition(

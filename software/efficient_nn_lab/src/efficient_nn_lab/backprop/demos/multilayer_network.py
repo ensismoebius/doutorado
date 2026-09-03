@@ -27,7 +27,7 @@ import numpy as np
 from efficient_nn_lab.backprop.activation import sigmoid, sigmoid_derivative
 from efficient_nn_lab.bitnet.linear import loss_gradient_wrt_y, squared_error_loss
 from efficient_nn_lab.bitnet.ste import sgd_update
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 
 _X = np.array([1.0, 0.5, -0.5])
 _W1 = np.array([[0.4, -0.3, 0.6], [-0.2, 0.5, 0.1]])  # layer 1 (A, B): 2x3
@@ -53,8 +53,8 @@ class MultilayerNetworkDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "target": {"label": "Alvo (0-1)", "min": 0.1, "max": 0.95, "step": 0.05, "value": self.target},
-            "learning_rate": {"label": "Taxa de aprendizado", "min": 1.0, "max": 10.0, "step": 1.0, "value": self.learning_rate},
+            "target": slider("Alvo (0-1)", 0.1, 0.95, 0.05, self.target),
+            "learning_rate": slider("Taxa de aprendizado", 1.0, 10.0, 1.0, self.learning_rate),
         }
 
     # -- the actual math: one forward pass, one full backward pass ---------

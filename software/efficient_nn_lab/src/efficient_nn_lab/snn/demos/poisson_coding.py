@@ -15,7 +15,7 @@ probabilistic, the *demo* is fully deterministic to replay.
 
 from __future__ import annotations
 
-from efficient_nn_lab.core.demo import DemoModule, Frame
+from efficient_nn_lab.core.demo import DemoModule, Frame, slider
 from efficient_nn_lab.snn.encoding import poisson_spikes, spike_probability, synthetic_signal
 
 _N_STEPS = 60
@@ -35,13 +35,7 @@ class PoissonCodingDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "max_rate": {
-                "label": "Taxa máxima de disparo",
-                "min": 0.1,
-                "max": 1.0,
-                "step": 0.05,
-                "value": self.max_rate,
-            }
+            "max_rate": slider("Taxa máxima de disparo", 0.1, 1.0, 0.05, self.max_rate)
         }
 
     def _build_frames(self) -> list[Frame]:

@@ -24,7 +24,7 @@ final number.
 
 from __future__ import annotations
 
-from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence
+from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
 from efficient_nn_lab.bitnet.linear import (
     loss_gradient_wrt_y,
     quantized_forward,
@@ -83,11 +83,11 @@ class ForwardLossDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "x1": {"label": "Entrada x1", "min": -5.0, "max": 5.0, "step": 0.5, "value": self.x1},
-            "x2": {"label": "Entrada x2", "min": -5.0, "max": 5.0, "step": 0.5, "value": self.x2},
-            "w1": {"label": "Peso real w1", "min": -1.2, "max": 1.2, "step": 0.05, "value": self.w1},
-            "w2": {"label": "Peso real w2", "min": -1.2, "max": 1.2, "step": 0.05, "value": self.w2},
-            "target": {"label": "Alvo (target)", "min": -10.0, "max": 10.0, "step": 0.5, "value": self.target},
+            "x1": slider("Entrada x1", -5.0, 5.0, 0.5, self.x1),
+            "x2": slider("Entrada x2", -5.0, 5.0, 0.5, self.x2),
+            "w1": slider("Peso real w1", -1.2, 1.2, 0.05, self.w1),
+            "w2": slider("Peso real w2", -1.2, 1.2, 0.05, self.w2),
+            "target": slider("Alvo (target)", -10.0, 10.0, 0.5, self.target),
         }
 
     def _build_frames(self) -> list[Frame]:
