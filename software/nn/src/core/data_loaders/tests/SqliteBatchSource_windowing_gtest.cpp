@@ -116,3 +116,100 @@ TEST(SqliteBatchSourceWindowing, EmitsAllWindowsAcrossSuccessiveBatches)
     std::filesystem::remove_all(tmpdir, ec);
     EXPECT_FALSE(std::filesystem::exists(tmpdir));
 }
+
+// The two tests above cover FusedWindow only. `next()` also has an EEG-only
+// and an audio-only path, each with its own padding branch, and both were
+// unexercised. These pin their current output so a refactor of that 362-line
+// function is checked by behaviour and not only by reading.
+//
+// The fixture writes channel[i] = i into all 7 EEG columns and the audio
+// blob, so every value below is predictable by hand: an EEG window starting
+// at w*hop is [w*hop, w*hop+1, ...], repeated for the 6 stored channels.
+
+TEST(SqliteBatchSourceWindowing, EegWindowOnlyEmitsSixChannelsPerWindow)
+{
+    const std::string tmpdir = nn::testing::make_temp_db_path_unique("sqlite_eeg_only_test");
+    nn::testing::create_simple_protocol_db(tmpdir, 8, 8);
+
+    nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 44100};
+
+    SqliteBatchSource src(tmpdir,
+        2,
+        nn::dataLoaders::SqliteDatasetType::EegWindow,
+        eeg_win,
+        audio_win,
+        Protocol101117InputMode::Concatenated);
+
+    Batch batch;
+    ASSERT_TRUE(src.next(batch));
+    EXPECT_EQ(batch.inputs.rows(), 2);
+    // 6 channels x 4 samples: audio contributes nothing on this path.
+    EXPECT_EQ(batch.inputs.cols(), 24);
+
+    // window 0 starts at 0, window 1 at hop=2; each channel repeats the ramp.
+    EXPECT_NEAR(batch.inputs.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(0, 3), 3.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(0, 4), 0.0f, 1e-6f); // second channel restarts
+    EXPECT_NEAR(batch.inputs.at(1, 0), 2.0f, 1e-6f);
+
+    std::error_code ec;
+    std::filesystem::remove_all(tmpdir, ec);
+}
+
+TEST(SqliteBatchSourceWindowing, AudioWindowOnlyEmitsOneChannelPerWindow)
+{
+    const std::string tmpdir = nn::testing::make_temp_db_path_unique("sqlite_audio_only_test");
+    nn::testing::create_simple_protocol_db(tmpdir, 8, 8);
+
+    nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 44100};
+
+    SqliteBatchSource src(tmpdir,
+        2,
+        nn::dataLoaders::SqliteDatasetType::AudioWindow,
+        eeg_win,
+        audio_win,
+        Protocol101117InputMode::Concatenated);
+
+    Batch batch;
+    ASSERT_TRUE(src.next(batch));
+    EXPECT_EQ(batch.inputs.rows(), 2);
+    EXPECT_EQ(batch.inputs.cols(), 4);
+    EXPECT_NEAR(batch.inputs.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(1, 0), 2.0f, 1e-6f);
+
+    std::error_code ec;
+    std::filesystem::remove_all(tmpdir, ec);
+}
+
+TEST(SqliteBatchSourceWindowing, PadsAShortSignalByRepeatingTheLastSample)
+{
+    // 3 samples with window 4: no complete window fits, so `next()` forces a
+    // single padded one -- the branch that repeats the last available value.
+    const std::string tmpdir = nn::testing::make_temp_db_path_unique("sqlite_pad_short_test");
+    nn::testing::create_simple_protocol_db(tmpdir, 3, 3);
+
+    nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 44100};
+
+    SqliteBatchSource src(tmpdir,
+        1,
+        nn::dataLoaders::SqliteDatasetType::AudioWindow,
+        eeg_win,
+        audio_win,
+        Protocol101117InputMode::Concatenated);
+
+    Batch batch;
+    ASSERT_TRUE(src.next(batch));
+    ASSERT_EQ(batch.inputs.rows(), 1u);
+    ASSERT_EQ(batch.inputs.cols(), 4u);
+    // [0, 1, 2] present, then the last value repeated to fill the window
+    EXPECT_NEAR(batch.inputs.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(0, 1), 1.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(0, 2), 2.0f, 1e-6f);
+    EXPECT_NEAR(batch.inputs.at(0, 3), 2.0f, 1e-6f);
+
+    std::error_code ec;
+    std::filesystem::remove_all(tmpdir, ec);
+}

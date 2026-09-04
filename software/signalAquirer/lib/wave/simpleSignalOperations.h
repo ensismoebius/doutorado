@@ -38,4 +38,4 @@ void halfVolume(double *signal, int signalLength);
 
 void addEchoes(double *signal, int signalLength);
 
-#endif SRC_LIB_SIMPLESIGNALOPERATIONS_H_
+#endif // SRC_LIB_SIMPLESIGNALOPERATIONS_H_
