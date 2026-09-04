@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "GuayaquilRunMetrics.hpp"
-#include "autoencoder/ProtocolSpikingAutoencoder.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 

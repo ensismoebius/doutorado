@@ -4,8 +4,8 @@
 ## Builds:
 ## - `autoencoder_config_gtest`: tests for AutoencoderConfig
 ##
-## Note: AutoencoderBuilders tests are in experiments/autoencoderRunner since the create()
-## factory function is implemented there, not in core.
+## Note: AutoencoderBuilders tests are in experiments/autoencoderRunner: the create()
+## factory stays experiment-specific, while the models it builds are core.
 ##
 
 add_executable(autoencoder_config_gtest
@@ -22,9 +22,7 @@ target_link_libraries(autoencoder_config_gtest
 target_include_directories(
     autoencoder_config_gtest 
     PRIVATE 
-        ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/src/core/models
 )
 
 nn_gtest_discover_tests(autoencoder_config_gtest)

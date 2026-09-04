@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp
+ * @file src/core/models/autoencoder/EegWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for EEG window inputs.
  */
 
-#include "EegWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/EegWindowSpikingAutoencoder.hpp"
 
-#include "AutoencoderBuilders.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
 
 EegWindowSpikingAutoencoder::EegWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
     : EncoderDecoderAutoencoder(autoencoderRunner::autoencoders::build_snn_encoder(

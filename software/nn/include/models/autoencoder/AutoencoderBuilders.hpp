@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/include/AutoencoderBuilders.hpp
+ * @file include/models/autoencoder/AutoencoderBuilders.hpp
  * @brief Autoencoderbuilders.
  *
  *
@@ -9,8 +9,8 @@
  * - Prefer RAII for resource lifecycle when applicable.
  */
 
-#ifndef EXPERIMENT03_AUTOENCODER_BUILDERS_HPP
-#define EXPERIMENT03_AUTOENCODER_BUILDERS_HPP
+#ifndef NN_MODELS_AUTOENCODER_AUTOENCODER_BUILDERS_HPP
+#define NN_MODELS_AUTOENCODER_AUTOENCODER_BUILDERS_HPP
 
 #include <algorithm>
 #include <initializer_list>
@@ -19,12 +19,12 @@
 #include <stdexcept>
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
 #include "initializers/kaiming_snn.hpp"
 #include "initializers/xavier.hpp"
 #include "layers/Layers.hpp"
 #include "layers/convolution/Conv2d.hpp"
 #include "layers/convolution/MaxPool2d.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
 namespace autoencoderRunner::autoencoders
@@ -905,4 +905,4 @@ inline void reset_sequential_state(Sequential& seq)
 
 } // namespace autoencoderRunner::autoencoders
 
-#endif // EXPERIMENT03_AUTOENCODER_BUILDERS_HPP
+#endif // NN_MODELS_AUTOENCODER_AUTOENCODER_BUILDERS_HPP

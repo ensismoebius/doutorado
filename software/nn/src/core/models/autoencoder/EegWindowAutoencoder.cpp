@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowAutoencoder.cpp
+ * @file src/core/models/autoencoder/EegWindowAutoencoder.cpp
  * @brief ANN implementation of the EEG window autoencoder.
  */
 
-#include "EegWindowAutoencoder.hpp"
+#include "models/autoencoder/EegWindowAutoencoder.hpp"
 
-#include "AutoencoderBuilders.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
 
 EegWindowAutoencoder::EegWindowAutoencoder(const AutoencoderConfig& cfg)
     : EncoderDecoderAutoencoder(autoencoderRunner::autoencoders::build_ann_encoder(

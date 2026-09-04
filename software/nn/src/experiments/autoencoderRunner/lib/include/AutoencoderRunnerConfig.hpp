@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
 #include "AutoencoderRunnerAutoencoderType.hpp"
 #include "data_loaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "data_loaders/10.1117/schema/Metadata.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
 #include "windowing/WindowSpec.hpp"
 
 using std::optional;

@@ -8,14 +8,14 @@
 #include <memory>
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
-#include "FusedWindowAutoencoder.hpp"
-#include "FusedWindowSpikingAutoencoder.hpp"
-#include "ProtocolAutoencoder.hpp"
-#include "ProtocolSpikingAutoencoder.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Sequential.hpp"
 #include "layers/spiking/Lif.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
+#include "models/autoencoder/FusedWindowAutoencoder.hpp"
+#include "models/autoencoder/FusedWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/ProtocolAutoencoder.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
 namespace

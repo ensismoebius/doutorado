@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
 #include "GuayaquilConfig.hpp"
 #include "GuayaquilEpochHistory.hpp"
 #include "GuayaquilRunMetrics.hpp"
-#include "autoencoder/ProtocolSpikingAutoencoder.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"

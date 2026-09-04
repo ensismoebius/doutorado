@@ -1,12 +1,12 @@
-#ifndef EXPERIMENT03_EEG_WINDOW_SPIKING_AUTOENCODER_HPP
-#define EXPERIMENT03_EEG_WINDOW_SPIKING_AUTOENCODER_HPP
+#ifndef NN_MODELS_AUTOENCODER_EEG_WINDOW_SPIKING_AUTOENCODER_HPP
+#define NN_MODELS_AUTOENCODER_EEG_WINDOW_SPIKING_AUTOENCODER_HPP
 
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
-#include "EncoderDecoderAutoencoder.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
 /**
@@ -26,4 +26,4 @@ struct EegWindowSpikingAutoencoder : EncoderDecoderAutoencoder
     explicit EegWindowSpikingAutoencoder(const AutoencoderConfig& cfg);
 };
 
-#endif // EXPERIMENT03_EEG_WINDOW_SPIKING_AUTOENCODER_HPP
+#endif // NN_MODELS_AUTOENCODER_EEG_WINDOW_SPIKING_AUTOENCODER_HPP

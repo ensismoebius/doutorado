@@ -1,5 +1,5 @@
-#ifndef EXPERIMENT03_AUTOENCODER_CONFIG_HPP
-#define EXPERIMENT03_AUTOENCODER_CONFIG_HPP
+#ifndef NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP
+#define NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP
 
 #include <optional>
 #include <string>
@@ -91,4 +91,4 @@ struct AutoencoderConfig
     std::string initializer_sampler_type;
 };
 
-#endif // EXPERIMENT03_AUTOENCODER_CONFIG_HPP
+#endif // NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP

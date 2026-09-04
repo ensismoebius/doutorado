@@ -1,12 +1,12 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/ProtocolAutoencoder.cpp
+ * @file src/core/models/autoencoder/ProtocolAutoencoder.cpp
  * @brief Deterministic (ANN) autoencoder implementation for protocol inputs.
  */
 
-#include "ProtocolAutoencoder.hpp"
+#include "models/autoencoder/ProtocolAutoencoder.hpp"
 
-#include "AutoencoderBuilders.hpp"
-#include "EncoderDecoderAutoencoder.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
 ProtocolAutoencoder::ProtocolAutoencoder(const AutoencoderConfig& cfg)
 {

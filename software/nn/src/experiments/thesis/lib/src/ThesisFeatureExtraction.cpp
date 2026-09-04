@@ -13,13 +13,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include "autoencoder/ProtocolAutoencoder.hpp"        // ANN-AE (non-spiking)
-#include "autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "layers/losses/MAELoss.hpp"        // MAE reconstruction loss (Trainer.hpp only pulls MSE)
 #include "layers/losses/SpikeCountLoss.hpp" // rate-coded (poisson) reconstruction
 #include "layers/losses/SpikeTimeLoss.hpp"  // latency-coded reconstruction
+#include "models/autoencoder/ProtocolAutoencoder.hpp"        // ANN-AE (non-spiking)
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "training/ProgressCallback.hpp"

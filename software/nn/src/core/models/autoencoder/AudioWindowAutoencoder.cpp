@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowAutoencoder.cpp
+ * @file src/core/models/autoencoder/AudioWindowAutoencoder.cpp
  * @brief ANN implementation of the audio-window autoencoder.
  */
 
-#include "AudioWindowAutoencoder.hpp"
+#include "models/autoencoder/AudioWindowAutoencoder.hpp"
 
-#include "AutoencoderBuilders.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
 
 AudioWindowAutoencoder::AudioWindowAutoencoder(const AutoencoderConfig& cfg)
     : EncoderDecoderAutoencoder(

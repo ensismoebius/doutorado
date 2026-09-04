@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp
+ * @file src/core/models/autoencoder/ProtocolSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for protocol-formatted inputs.
  *
  * Builds SNN encoder and decoder stacks using `Lif` and
@@ -7,14 +7,14 @@
  * wrapper that conforms to the project's `Module` interface.
  */
 
-#include "ProtocolSpikingAutoencoder.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "AutoencoderBuilders.hpp"
-#include "EncoderDecoderAutoencoder.hpp"
 #include "layers/Layers.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
 namespace
 {

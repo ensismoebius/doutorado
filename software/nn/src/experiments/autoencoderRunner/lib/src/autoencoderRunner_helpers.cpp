@@ -9,17 +9,17 @@
 #include <memory>
 #include <stdexcept>
 
-#include "AudioWindowAutoencoder.hpp"
-#include "AudioWindowSpikingAutoencoder.hpp"
 #include "Backend.hpp"
-#include "EegWindowAutoencoder.hpp"
-#include "EegWindowSpikingAutoencoder.hpp"
-#include "FusedWindowAutoencoder.hpp"
-#include "FusedWindowSpikingAutoencoder.hpp"
-#include "ProtocolAutoencoder.hpp"
-#include "ProtocolSpikingAutoencoder.hpp"
 #include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "logging/Logger.hpp"
+#include "models/autoencoder/AudioWindowAutoencoder.hpp"
+#include "models/autoencoder/AudioWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/EegWindowAutoencoder.hpp"
+#include "models/autoencoder/EegWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/FusedWindowAutoencoder.hpp"
+#include "models/autoencoder/FusedWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/ProtocolAutoencoder.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 
 namespace autoencoderRunner
 {

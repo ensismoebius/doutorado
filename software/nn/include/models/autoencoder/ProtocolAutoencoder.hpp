@@ -1,13 +1,13 @@
-#ifndef EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP
-#define EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP
+#ifndef NN_MODELS_AUTOENCODER_PROTOCOL_AUTOENCODER_HPP
+#define NN_MODELS_AUTOENCODER_PROTOCOL_AUTOENCODER_HPP
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
 /**
@@ -62,4 +62,4 @@ struct ProtocolAutoencoder : Module<nn::Backend>
     void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 };
 
-#endif // EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP
+#endif // NN_MODELS_AUTOENCODER_PROTOCOL_AUTOENCODER_HPP

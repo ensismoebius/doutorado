@@ -1,11 +1,11 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
+ * @file src/core/models/autoencoder/AudioWindowSpikingAutoencoder.cpp
  * @brief Spiking autoencoder implementation for audio-window inputs.
  */
 
-#include "AudioWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/AudioWindowSpikingAutoencoder.hpp"
 
-#include "AutoencoderBuilders.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
 
 AudioWindowSpikingAutoencoder::AudioWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
     : EncoderDecoderAutoencoder(

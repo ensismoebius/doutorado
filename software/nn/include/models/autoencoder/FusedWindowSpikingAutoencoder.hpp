@@ -1,11 +1,11 @@
-#ifndef EXPERIMENT03_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP
-#define EXPERIMENT03_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP
+#ifndef NN_MODELS_AUTOENCODER_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP
+#define NN_MODELS_AUTOENCODER_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP
 
 #include <vector>
 
-#include "AutoencoderConfig.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
 /**
@@ -47,4 +47,4 @@ struct FusedWindowSpikingAutoencoder : Module<nn::Backend>
     void reset_state() override;
 };
 
-#endif // EXPERIMENT03_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP
+#endif // NN_MODELS_AUTOENCODER_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP

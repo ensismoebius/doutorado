@@ -2,15 +2,6 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/cli.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/EncoderDecoderAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/FusedWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/ProtocolAutoencoder.cpp
-    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/ProfileLoader.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/ResultsWriter.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/RunSummaryBuilder.cpp
@@ -29,7 +20,6 @@ endif()
 target_include_directories(autoencoderRunner_lib
     PUBLIC
         ${SRC_DIR}/experiments/autoencoderRunner/lib/include
-        ${SRC_DIR}/experiments/autoencoderRunner/lib/include/autoencoder
     ${PROJECT_SOURCE_DIR}/include
 )
 
@@ -47,6 +37,7 @@ target_link_libraries(autoencoderRunner_lib
         statistics
         layers
         lstm_models
+        autoencoder_models
         nn_progress
         waveCoreLib
     )

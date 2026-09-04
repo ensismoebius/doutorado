@@ -1,14 +1,14 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/FusedWindowAutoencoder.cpp
+ * @file src/core/models/autoencoder/FusedWindowAutoencoder.cpp
  * @brief ANN variant of the fused EEG+audio window autoencoder.
  */
 
-#include "FusedWindowAutoencoder.hpp"
+#include "models/autoencoder/FusedWindowAutoencoder.hpp"
 
 #include <stdexcept>
 
-#include "AutoencoderBuilders.hpp"
-#include "EncoderDecoderAutoencoder.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
 FusedWindowAutoencoder::FusedWindowAutoencoder(const AutoencoderConfig& cfg)
     : eeg_encoder_(

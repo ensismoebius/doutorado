@@ -135,3 +135,134 @@ INSTANTIATE_TEST_SUITE_P(ArticleProfiles,
             if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
         return name;
     });
+
+// The tests above only ever validate profiles that are CORRECT, so the
+// failure path -- the half of `validate()` that decides a config is bad --
+// had no coverage at all. These cover it, and in particular the property
+// that makes the accumulate-then-throw design worth having: one run of
+// validation reports every problem, so a broken profile is fixable in one
+// pass instead of one error at a time.
+
+namespace
+{
+
+/// A config that passes validation, as the starting point for "break one
+/// field and check it is caught".
+GuayaquilConfig valid_config()
+{
+    return load("article-lstm-ae.json");
+}
+
+std::string validation_error(const GuayaquilConfig& cfg)
+{
+    try
+    {
+        cfg.validate();
+    }
+    catch (const std::invalid_argument& e)
+    {
+        return e.what();
+    }
+    return {};
+}
+
+} // namespace
+
+TEST(GuayaquilConfigValidation, AcceptsAShippingProfile)
+{
+    EXPECT_NO_THROW(valid_config().validate());
+}
+
+TEST(GuayaquilConfigValidation, RejectsEachSectionAndNamesTheField)
+{
+    {
+        auto cfg = valid_config();
+        cfg.experiment.repeats = 0;
+        EXPECT_NE(validation_error(cfg).find("experiment.repeats"), std::string::npos);
+    }
+    {
+        auto cfg = valid_config();
+        cfg.dataset.window_size = 0;
+        EXPECT_NE(validation_error(cfg).find("dataset.window_size"), std::string::npos);
+    }
+    {
+        auto cfg = valid_config();
+        cfg.training.epochs = 0;
+        EXPECT_NE(validation_error(cfg).find("training.epochs"), std::string::npos);
+    }
+    {
+        auto cfg = valid_config();
+        cfg.model.encoder_layer_spec.clear();
+        EXPECT_NE(validation_error(cfg).find("model.encoder_layer_spec"), std::string::npos);
+    }
+    {
+        auto cfg = valid_config();
+        cfg.evaluation.encodings = {"telepathy"};
+        EXPECT_NE(validation_error(cfg).find("unknown encoding"), std::string::npos);
+    }
+}
+
+TEST(GuayaquilConfigValidation, ReportsEveryProblemInOneMessage)
+{
+    auto cfg = valid_config();
+    cfg.experiment.repeats = 0;
+    cfg.dataset.window_size = 0;
+    cfg.training.epochs = 0;
+    cfg.model.decoder_layer_spec.clear();
+
+    const std::string message = validation_error(cfg);
+    EXPECT_NE(message.find("experiment.repeats"), std::string::npos);
+    EXPECT_NE(message.find("dataset.window_size"), std::string::npos);
+    EXPECT_NE(message.find("training.epochs"), std::string::npos);
+    EXPECT_NE(message.find("model.decoder_layer_spec"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, LeavesTheSnnKnobsAloneForAnLstmOnlyRun)
+{
+    // Empty `snn_architectures` means this run is LSTM-only, so unset
+    // thresholds are legitimate rather than missing.
+    auto cfg = valid_config();
+    cfg.evaluation.snn_architectures.clear();
+    cfg.evaluation.v_th_values.clear();
+    cfg.evaluation.alpha_values.clear();
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(GuayaquilConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
+{
+    auto cfg = valid_config();
+    cfg.evaluation.snn_architectures = {"dense"};
+    cfg.evaluation.v_th_values.clear();
+    EXPECT_NE(validation_error(cfg).find("v_th_values is empty"), std::string::npos);
+}
+
+// The two rules below span sections. They are the ones a refactor that
+// splits validation per section can silently drop: each checker sees only
+// its own struct, so the relation between two structs has nowhere to live
+// unless someone deliberately keeps it. Both checkers deliberately take the
+// whole config for this reason, and these tests are what proves it stuck.
+
+TEST(GuayaquilConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
+{
+    // dataset.window_size / model.lstm_frame_size is the LSTM's timestep
+    // count. A remainder means the last timestep is short, so the rule is a
+    // relation between the dataset and the model, not a fact about either.
+    auto cfg = valid_config();
+    cfg.dataset.window_size = 100;
+    cfg.model.lstm_frame_size = 8;
+
+    const std::string message = validation_error(cfg);
+    EXPECT_NE(message.find("lstm_frame_size"), std::string::npos);
+    EXPECT_NE(message.find("must divide"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, CatchesABatchLargerThanTheLoadedSampleBudget)
+{
+    // A batch bigger than everything loaded cannot ever be filled; the two
+    // numbers live in different sections.
+    auto cfg = valid_config();
+    cfg.dataset.max_loaded_train_samples = 10;
+    cfg.training.samples_per_batch = 64;
+
+    EXPECT_NE(validation_error(cfg).find("exceeds max_loaded_train_samples"), std::string::npos);
+}

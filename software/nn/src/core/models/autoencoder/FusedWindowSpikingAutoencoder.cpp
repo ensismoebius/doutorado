@@ -1,14 +1,14 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp
+ * @file src/core/models/autoencoder/FusedWindowSpikingAutoencoder.cpp
  * @brief SNN variant of the fused EEG+audio window autoencoder.
  */
 
-#include "FusedWindowSpikingAutoencoder.hpp"
+#include "models/autoencoder/FusedWindowSpikingAutoencoder.hpp"
 
 #include <stdexcept>
 
-#include "AutoencoderBuilders.hpp"
-#include "EncoderDecoderAutoencoder.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
 FusedWindowSpikingAutoencoder::FusedWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
     : eeg_encoder_(

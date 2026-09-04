@@ -1,13 +1,13 @@
 /**
- * @file src/experiments/autoencoderRunner/lib/src/autoencoder/EncoderDecoderAutoencoder.cpp
+ * @file src/core/models/autoencoder/EncoderDecoderAutoencoder.cpp
  * @brief Shared implementation for the "two Sequentials" autoencoders.
  */
 
-#include "EncoderDecoderAutoencoder.hpp"
+#include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
 #include <utility>
 
-#include "AutoencoderBuilders.hpp"
+#include "models/autoencoder/AutoencoderBuilders.hpp"
 
 EncoderDecoderAutoencoder::EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder)
     : encoder_(std::move(encoder)), decoder_(std::move(decoder))
