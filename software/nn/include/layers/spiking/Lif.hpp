@@ -240,46 +240,123 @@ struct LifImpl : public Module<Backend>
      * discrete-time LIF neuron equation.
      * @param input The input current for this time step.
      */
-    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
+    /**
+     * @brief Size the persistent state to match `input`, lazily.
+     *
+     * The membrane potential is state that survives BETWEEN calls -- that is
+     * what makes the neuron leaky rather than memoryless -- so it cannot be
+     * sized at construction, when the batch shape is not yet known. It is
+     * sized on the first call, and re-sized (and re-zeroed) whenever the
+     * shape changes, because a membrane carried over from a differently
+     * shaped batch would be reading another neuron's history.
+     *
+     * `adapt_a` is only allocated when adaptation is on: with
+     * `adapt_coupling == 0` it is never read, and an empty tensor is how the
+     * rest of the code recognizes that.
+     */
+    void ensure_state_sized(const Tensor& input)
     {
-        // Ensure v_mem is correctly sized, initializing if necessary
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
             [[unlikely]]
         {
-            v_mem = Tensor(input.rows(), input.cols()); //
-            v_mem.setZero();                            //
+            v_mem = Tensor(input.rows(), input.cols());
+            v_mem.setZero();
         }
 
-        // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
         if (adapt_coupling > 0.0F && (adapt_a.size() == 0 || adapt_a.rows() != input.rows() ||
                                          adapt_a.cols() != input.cols())) [[unlikely]]
         {
             adapt_a = Tensor(input.rows(), input.cols());
             adapt_a.setZero();
         }
+    }
 
-        // The membrane time constant (tau = R * C) determines how quickly potential leaks.
-        // Beta is the discrete-time decay factor derived from the continuous-time
-        // decay equation, representing the "leaky" nature of the neuron.
-        // Clamp R and C to keep tau strictly positive and beta numerically stable.
-        // Rationale: during training, optimizers can temporarily drive raw R/C <= 0;
-        // this guard prevents invalid tau and unstable exp() behavior in forward pass.
+    /**
+     * @brief The discrete-time leak, beta = exp(-delta_t / (R*C)).
+     *
+     * `tau = R * C` is the membrane time constant: how long the potential
+     * takes to decay. Beta is that continuous decay sampled at one time step,
+     * so beta close to 1 leaks slowly and beta close to 0 forgets almost
+     * everything each step.
+     *
+     * R and C are clamped strictly positive because they are LEARNED. An
+     * optimizer step can drive a raw value to zero or below, and tau <= 0
+     * makes exp(-delta_t / tau) either explode or return NaN -- which then
+     * spreads through v_mem into every later step. The clamp is not defensive
+     * programming, it is the difference between a bad step and a dead run.
+     */
+    auto decay_factor() const -> float
+    {
         constexpr float kMinPositiveParam = 1e-6F;
         float const R = std::max(kMinPositiveParam, resistance.at(0, 0));
         float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
-        float const tau = R * C;
-        float const beta = std::exp(-delta_t / tau);
+        return std::exp(-delta_t / (R * C));
+    }
 
-        // snnTorch-like: persistent v_mem, decay, and reset on spike
-        // NOTE: This check is redundant with the initialization above, but is
-        // kept as-is for safety/clarity. If you refactor, ensure state semantics
-        // remain identical.
-        if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
-            [[unlikely]] //
+    /**
+     * @brief Threshold comparison and reset, for the host (non-fused) path.
+     *
+     * Fires where `v_mem` exceeds the effective threshold, then resets every
+     * neuron that fired. Two reset styles, and the difference is not cosmetic:
+     *
+     * * HARD (`reset_zero`) forces the potential back to `reset_potential`,
+     *   discarding however far above threshold it had climbed;
+     * * SOFT subtracts the threshold, so a neuron driven far past it keeps the
+     *   excess and fires again sooner. Under strong input, hard reset caps the
+     *   firing rate while soft reset does not.
+     *
+     * With adaptation on, the threshold is per-neuron: every spike adds
+     * `adapt_coupling` to that neuron's `adapt_a`, raising its own bar, and
+     * `adapt_a` decays each step. That is the negative feedback that stops a
+     * neuron from bursting continuously.
+     */
+    void fire_and_reset(Tensor& output, float base_threshold, bool use_adaptation)
+    {
+        for (size_t i = 0; i < v_mem.rows(); ++i)
         {
-            v_mem = Tensor(input.rows(), input.cols()); //
-            v_mem.setZero();                            //
+            for (size_t j = 0; j < v_mem.cols(); ++j)
+            {
+                float eff_thresh = base_threshold + (use_adaptation ? adapt_a.at(i, j) : 0.0F);
+                output.at(i, j) = (v_mem.at(i, j) > eff_thresh) ? 1.0f : 0.0f;
+            }
         }
+        if (reset_zero)
+        {
+            for (size_t i = 0; i < v_mem.rows(); ++i)
+            {
+                for (size_t j = 0; j < v_mem.cols(); ++j)
+                {
+                    if (output.at(i, j) == 1.0f)
+                    {
+                        v_mem.at(i, j) = reset_potential;
+                        if (use_adaptation)
+                        {
+                            adapt_a.at(i, j) += adapt_coupling;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        for (size_t i = 0; i < v_mem.rows(); ++i)
+        {
+            for (size_t j = 0; j < v_mem.cols(); ++j)
+            {
+                v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * base_threshold;
+                if (use_adaptation && output.at(i, j) == 1.0f)
+                {
+                    adapt_a.at(i, j) += adapt_coupling;
+                }
+            }
+        }
+    }
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
+    {
+        ensure_state_sized(input);
+
+        float const beta = decay_factor();
 
         // Cache the membrane potential from the previous time step, v(t-1), for the backward
         // pass.
@@ -369,51 +446,7 @@ struct LifImpl : public Module<Backend>
             adapt_a.multiply_scalar_inplace(adapt_decay);
         }
 
-        for (size_t i = 0; i < v_mem.rows(); ++i)
-        {
-            for (size_t j = 0; j < v_mem.cols(); ++j)
-            {
-                float eff_thresh = base_threshold + (use_adaptation ? adapt_a.at(i, j) : 0.0F);
-                output.at(i, j) = (v_mem.at(i, j) > eff_thresh) ? 1.0f : 0.0f;
-            }
-        }
-
-        // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
-        // If adaptation is active, also increment adapt_a by adapt_coupling.
-        if (reset_zero)
-        {
-            for (size_t i = 0; i < v_mem.rows(); ++i)
-            {
-                for (size_t j = 0; j < v_mem.cols(); ++j)
-                {
-                    if (output.at(i, j) == 1.0f)
-                    {
-                        v_mem.at(i, j) = reset_potential;
-                        if (use_adaptation)
-                        {
-                            adapt_a.at(i, j) += adapt_coupling;
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            // Soft Reset: The threshold voltage is subtracted from the membrane
-            // potential. This retains any "excess" potential that was accumulated
-            // above the threshold.
-            for (size_t i = 0; i < v_mem.rows(); ++i)
-            {
-                for (size_t j = 0; j < v_mem.cols(); ++j)
-                {
-                    v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * base_threshold;
-                    if (use_adaptation && output.at(i, j) == 1.0f)
-                    {
-                        adapt_a.at(i, j) += adapt_coupling; //
-                    }
-                }
-            }
-        }
+        fire_and_reset(output, base_threshold, use_adaptation);
 
         return output; //
     } //

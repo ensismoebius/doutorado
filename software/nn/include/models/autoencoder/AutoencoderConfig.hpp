@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file AutoencoderConfig.hpp
  * @brief Shared configuration struct for autoencoderRunner autoencoders.
@@ -90,5 +93,6 @@ struct AutoencoderConfig
     std::optional<unsigned int> initializer_seed = std::nullopt;
     std::string initializer_sampler_type;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP

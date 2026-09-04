@@ -7,11 +7,15 @@
 
 #include "models/autoencoder/AutoencoderBuilders.hpp"
 
+namespace nn::models::autoencoder
+{
+
 AudioWindowAutoencoder::AudioWindowAutoencoder(const AutoencoderConfig& cfg)
     : EncoderDecoderAutoencoder(
-          autoencoderRunner::autoencoders::build_ann_encoder(
+          build_ann_encoder(
               cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4)),
-          autoencoderRunner::autoencoders::build_ann_decoder(
+          build_ann_decoder(
               cfg, cfg.input_features, std::max(cfg.hidden_size, cfg.latent_size * 4)))
 {
 }
+} // namespace nn::models::autoencoder

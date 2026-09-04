@@ -9,6 +9,9 @@
 #include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file AudioWindowAutoencoder.hpp
  * @brief ANN autoencoder for audio-window features.
@@ -25,5 +28,6 @@ struct AudioWindowAutoencoder : EncoderDecoderAutoencoder
     /// params, reset_state -- is EncoderDecoderAutoencoder's.
     explicit AudioWindowAutoencoder(const AutoencoderConfig& cfg);
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_AUDIO_WINDOW_AUTOENCODER_HPP

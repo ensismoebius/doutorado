@@ -9,6 +9,9 @@
 #include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file EegWindowAutoencoder.hpp
  * @brief ANN autoencoder for EEG-window features.
@@ -25,5 +28,6 @@ struct EegWindowAutoencoder : EncoderDecoderAutoencoder
     /// params, reset_state -- is EncoderDecoderAutoencoder's.
     explicit EegWindowAutoencoder(const AutoencoderConfig& cfg);
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_EEG_WINDOW_AUTOENCODER_HPP

@@ -7,10 +7,12 @@
 
 #include "models/autoencoder/AutoencoderBuilders.hpp"
 
+namespace nn::models::autoencoder
+{
+
 EegWindowSpikingAutoencoder::EegWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : EncoderDecoderAutoencoder(autoencoderRunner::autoencoders::build_snn_encoder(
-                                    cfg, cfg.input_features, cfg.hidden_size),
-          autoencoderRunner::autoencoders::build_snn_decoder(
-              cfg, cfg.input_features, cfg.hidden_size))
+    : EncoderDecoderAutoencoder(build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size),
+          build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size))
 {
 }
+} // namespace nn::models::autoencoder

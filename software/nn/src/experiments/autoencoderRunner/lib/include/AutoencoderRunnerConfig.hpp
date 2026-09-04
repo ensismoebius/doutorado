@@ -73,7 +73,7 @@ struct Config
     int autoencoder_input_features; // 0 = infer from dataset batch shape
     int autoencoder_eeg_features;   // 0 = infer from dataset/window config
     int autoencoder_audio_features; // 0 = infer from dataset/window config
-    AutoencoderArchitecture autoencoder_architecture;
+    nn::models::autoencoder::AutoencoderArchitecture autoencoder_architecture;
     int autoencoder_branch_hidden_size;
     int autoencoder_fusion_hidden_size;
     int autoencoder_residual_blocks;
@@ -183,9 +183,10 @@ struct Config
     }
 
     // Resolves auto architecture to an explicit one based on model/data mode when set to Auto.
-    auto effective_autoencoder_architecture() const -> AutoencoderArchitecture
+    auto effective_autoencoder_architecture() const
+        -> nn::models::autoencoder::AutoencoderArchitecture
     {
-        if (autoencoder_architecture != AutoencoderArchitecture::Auto)
+        if (autoencoder_architecture != nn::models::autoencoder::AutoencoderArchitecture::Auto)
         {
             return autoencoder_architecture;
         }
@@ -200,10 +201,10 @@ struct Config
 
         if (is_fused || is_protocol_concat)
         {
-            return AutoencoderArchitecture::DualBranchFusion;
+            return nn::models::autoencoder::AutoencoderArchitecture::DualBranchFusion;
         }
 
-        return AutoencoderArchitecture::ResidualDense;
+        return nn::models::autoencoder::AutoencoderArchitecture::ResidualDense;
     }
 
     // Enable OpenCL profiling instrumentation when running with OpenCL.

@@ -15,6 +15,9 @@
 #include "progress/ProgressManager.hpp"
 #include "utility/progress.hpp"
 
+using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 // Helper to extract sizes from layer specs
 auto extract_layer_sizes(const std::vector<std::string>& specs)
 {

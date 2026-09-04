@@ -11,6 +11,9 @@
 
 #include "models/autoencoder/AutoencoderConfig.hpp"
 
+using nn::models::autoencoder::AutoencoderArchitecture;
+using nn::models::autoencoder::AutoencoderConfig;
+
 namespace
 {
 

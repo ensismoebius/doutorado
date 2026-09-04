@@ -23,6 +23,16 @@
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
+using nn::models::autoencoder::AudioWindowAutoencoder;
+using nn::models::autoencoder::AudioWindowSpikingAutoencoder;
+using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::EegWindowAutoencoder;
+using nn::models::autoencoder::EegWindowSpikingAutoencoder;
+using nn::models::autoencoder::FusedWindowAutoencoder;
+using nn::models::autoencoder::FusedWindowSpikingAutoencoder;
+using nn::models::autoencoder::ProtocolAutoencoder;
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 int main()
 {
     constexpr int kBatch = 4;

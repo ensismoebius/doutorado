@@ -15,6 +15,9 @@
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 
+using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 namespace guayaquil
 {
 

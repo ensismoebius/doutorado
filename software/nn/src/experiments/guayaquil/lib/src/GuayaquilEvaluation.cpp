@@ -6,6 +6,8 @@
 #include "../include/GuayaquilEncoding.hpp"
 #include "../include/GuayaquilMetrics.hpp"
 
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 namespace guayaquil
 {
 

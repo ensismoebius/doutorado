@@ -7,10 +7,12 @@
 
 #include "models/autoencoder/AutoencoderBuilders.hpp"
 
+namespace nn::models::autoencoder
+{
+
 EegWindowAutoencoder::EegWindowAutoencoder(const AutoencoderConfig& cfg)
-    : EncoderDecoderAutoencoder(autoencoderRunner::autoencoders::build_ann_encoder(
-                                    cfg, cfg.input_features, cfg.hidden_size),
-          autoencoderRunner::autoencoders::build_ann_decoder(
-              cfg, cfg.input_features, cfg.hidden_size))
+    : EncoderDecoderAutoencoder(build_ann_encoder(cfg, cfg.input_features, cfg.hidden_size),
+          build_ann_decoder(cfg, cfg.input_features, cfg.hidden_size))
 {
 }
+} // namespace nn::models::autoencoder

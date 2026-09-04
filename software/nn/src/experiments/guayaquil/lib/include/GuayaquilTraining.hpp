@@ -19,7 +19,8 @@ namespace guayaquil
 using Tensor = nn::Tensor;
 
 auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
-auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> AutoencoderConfig;
+auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th)
+    -> nn::models::autoencoder::AutoencoderConfig;
 
 struct TrainResult
 {
@@ -38,7 +39,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float& train_ms,
     float& infer_ms) -> TrainResult;
 
-auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
+auto train_with_early_stopping_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,

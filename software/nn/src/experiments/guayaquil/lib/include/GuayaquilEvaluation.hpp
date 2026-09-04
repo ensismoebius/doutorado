@@ -26,7 +26,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float infer_ms,
     int lstm_frame_size) -> RunMetrics;
 
-auto evaluate_snn(ProtocolSpikingAutoencoder& model,
+auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,

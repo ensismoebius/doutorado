@@ -9,6 +9,9 @@
 
 #include "models/autoencoder/AutoencoderBuilders.hpp"
 
+namespace nn::models::autoencoder
+{
+
 EncoderDecoderAutoencoder::EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder)
     : encoder_(std::move(encoder)), decoder_(std::move(decoder))
 {
@@ -44,6 +47,7 @@ auto EncoderDecoderAutoencoder::params() -> std::span<Tensor*>
 
 void EncoderDecoderAutoencoder::reset_state()
 {
-    autoencoderRunner::autoencoders::reset_sequential_state(encoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(decoder_);
+    reset_sequential_state(encoder_);
+    reset_sequential_state(decoder_);
 }
+} // namespace nn::models::autoencoder

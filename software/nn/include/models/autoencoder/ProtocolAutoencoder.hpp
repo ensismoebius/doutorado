@@ -10,6 +10,9 @@
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file ProtocolAutoencoder.hpp
  * @brief ANN autoencoder for Protocol101117 (full-trial) features.
@@ -61,5 +64,6 @@ struct ProtocolAutoencoder : Module<nn::Backend>
     auto state_dict() const -> std::map<std::string, Tensor> override;
     void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_PROTOCOL_AUTOENCODER_HPP

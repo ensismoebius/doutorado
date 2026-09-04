@@ -8,6 +8,9 @@
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file FusedWindowAutoencoder.hpp
  * @brief ANN autoencoder for fused (EEG + audio) window features.
@@ -44,5 +47,6 @@ struct FusedWindowAutoencoder : Module<nn::Backend>
     std::vector<Tensor*> param_ptrs_;
     auto params() -> std::span<Tensor*> override;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_FUSED_WINDOW_AUTOENCODER_HPP

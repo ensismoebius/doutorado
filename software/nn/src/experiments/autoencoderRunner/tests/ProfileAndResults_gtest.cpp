@@ -16,6 +16,8 @@
 #include "ResultsWriter.hpp"
 #include "cli.hpp"
 
+using nn::models::autoencoder::AutoencoderArchitecture;
+
 using autoencoderRunner::Summary;
 
 TEST(AutoencoderRunnerProfilesTest, LoadsDefaultProfile)

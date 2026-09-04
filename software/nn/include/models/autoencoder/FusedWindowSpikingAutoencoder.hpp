@@ -8,6 +8,9 @@
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file FusedWindowSpikingAutoencoder.hpp
  * @brief SNN autoencoder for fused (EEG + audio) window features.
@@ -46,5 +49,6 @@ struct FusedWindowSpikingAutoencoder : Module<nn::Backend>
 
     void reset_state() override;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_FUSED_WINDOW_SPIKING_AUTOENCODER_HPP

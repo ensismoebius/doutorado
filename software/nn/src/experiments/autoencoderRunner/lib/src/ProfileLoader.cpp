@@ -19,6 +19,8 @@
 #include <string_view>
 #include <unordered_set>
 
+using nn::models::autoencoder::AutoencoderArchitecture;
+
 namespace autoencoderRunner
 {
 static std::string normalize(const std::string& s)
@@ -585,8 +587,15 @@ static auto validate_known_profile_keys(const std::string& text, std::string& ou
     return false;
 }
 
-auto load_profile_to_config(
-    const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
+/// Where a profile might live, in the order the CLI has always searched.
+///
+/// The chain is deliberate: `--profile article-lstm-ae` has to resolve from
+/// the build directory, from the source tree, and from a results directory,
+/// while an absolute path or an explicit `.json` has to win over all of
+/// them. An empty return means nothing matched -- the caller turns that
+/// into the message naming what was asked for, because "not found" has to
+/// say WHICH profile was not found.
+auto locate_profile(const std::string& profile_name) -> std::filesystem::path
 {
     namespace fs = std::filesystem;
 
@@ -627,24 +636,12 @@ auto load_profile_to_config(
         }
     }
 
-    if (selected.empty())
-    {
-        out_error = "profile not found in known locations for '" + profile_name + "'";
-        return false;
-    }
+    return selected;
+}
 
-    std::string text;
-    if (!read_file(selected, text))
-    {
-        out_error = "failed to read profile: " + selected.string();
-        return false;
-    }
-
-    if (!validate_known_profile_keys(text, out_error))
-    {
-        return false;
-    }
-
+/// Dataset location/selection and every sampler knob.
+void apply_dataset_and_sampler(const std::string& text, Config& out_config)
+{
     parse_number(text, "training_batch_size", out_config.training_batch_size);
     parse_number(text, "training_max_batches_per_epoch", out_config.training_max_batches_per_epoch);
     parse_string(text, "program_device", out_config.device);
@@ -685,6 +682,18 @@ auto load_profile_to_config(
 
     std::string str_value;
     if (parse_string(text, "dataset_type", str_value)) map_dataset_type(str_value, out_config);
+}
+
+/// The model: which autoencoder, how wide, how deep, and the SNN membrane
+/// constants.
+///
+/// The only failure here is an unknown `neural_network_type`, and it has to
+/// stay a failure: ignoring an unrecognized name would leave the DEFAULT
+/// model in place, and the run would train the wrong architecture while
+/// reporting a perfectly normal loss.
+auto apply_model(const std::string& text, Config& out_config, std::string& out_error) -> bool
+{
+    std::string str_value;
     if (parse_string(text, "neural_network_type", str_value) &&
         !map_autoencoder_type(str_value, out_config))
     {
@@ -717,6 +726,12 @@ auto load_profile_to_config(
     parse_number(text, "neural_network_resistance", out_config.autoencoder_resistance);
     parse_number(text, "neural_network_capacitance", out_config.autoencoder_capacitance);
 
+    return true;
+}
+
+/// Optimizer, loss, epochs, LR schedule and input normalization.
+void apply_training(const std::string& text, Config& out_config)
+{
     parse_string(text, "training_optimizer_type", out_config.training_optimizer_type);
     parse_number(text, "training_learning_rate", out_config.training_learning_rate);
     parse_number(text, "training_optimizer_momentum", out_config.training_optimizer_momentum);
@@ -733,6 +748,11 @@ auto load_profile_to_config(
     parse_bool(text,
         "validation_modality_diagnostics_enabled",
         out_config.validation_modality_diagnostics_enabled);
+}
+
+/// Prefetch, k-fold, test split, and the OpenCL profiling switch.
+void apply_program_and_kfold(const std::string& text, Config& out_config)
+{
     parse_number(text, "program_prefetch_lookahead", out_config.prefetch_lookahead);
     parse_number(text, "program_prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
     parse_bool(text, "kfold_enabled", out_config.kfold_enabled);
@@ -744,7 +764,11 @@ auto load_profile_to_config(
     }
     parse_number(text, "test_split", out_config.test_split);
     parse_bool(text, "program_opencl_profiling_enabled", out_config.opencl_profiling_enabled);
+}
 
+/// Per-modality windowing, which is nested in the profile rather than flat.
+void apply_windowing(const std::string& text, Config& out_config)
+{
     std::string eeg_object;
     if (parse_object(text, "window_eeg_config", eeg_object))
     {
@@ -760,6 +784,38 @@ auto load_profile_to_config(
         parse_number(audio_object, "overlap", out_config.window_audio_config.overlap);
         parse_number(audio_object, "sample_rate", out_config.window_audio_config.sample_rate);
     }
+}
+
+auto load_profile_to_config(
+    const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
+{
+    const std::filesystem::path selected = locate_profile(profile_name);
+    if (selected.empty())
+    {
+        out_error = "profile not found in known locations for '" + profile_name + "'";
+        return false;
+    }
+
+    std::string text;
+    if (!read_file(selected, text))
+    {
+        out_error = "failed to read profile: " + selected.string();
+        return false;
+    }
+
+    if (!validate_known_profile_keys(text, out_error))
+    {
+        return false;
+    }
+
+    apply_dataset_and_sampler(text, out_config);
+    if (!apply_model(text, out_config, out_error))
+    {
+        return false;
+    }
+    apply_training(text, out_config);
+    apply_program_and_kfold(text, out_config);
+    apply_windowing(text, out_config);
 
     out_error.clear();
     return true;

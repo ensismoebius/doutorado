@@ -27,7 +27,7 @@
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace autoencoderRunner::autoencoders
+namespace nn::models::autoencoder
 {
 
 using nn::LeakyReLU;
@@ -903,6 +903,6 @@ inline void reset_sequential_state(Sequential& seq)
     }
 }
 
-} // namespace autoencoderRunner::autoencoders
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_AUTOENCODER_BUILDERS_HPP

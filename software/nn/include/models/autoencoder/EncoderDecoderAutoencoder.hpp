@@ -7,6 +7,9 @@
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @brief Concatenate several modules' parameter pointers into `storage`.
  *
@@ -90,5 +93,6 @@ struct EncoderDecoderAutoencoder : Module<nn::Backend>
     /// lives here rather than being repeated in each spiking subclass.
     void reset_state() override;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_ENCODER_DECODER_AUTOENCODER_HPP

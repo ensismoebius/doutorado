@@ -225,7 +225,12 @@ void GuayaquilConfig::validate() const
     // replaces had to be set by hand next to each of the twenty appends --
     // one forgotten `has_error = true` would have printed a complaint into
     // a buffer nobody ever looked at, and reported the config as valid.
-    if (errors.tellp() != 0)
+    //
+    // `view()` rather than `tellp()`: tellp() answers pos_type(-1) when the
+    // stream is in a failed state, and -1 != 0, so that path would throw
+    // with an EMPTY message -- a validation failure that names no field.
+    // view() also reads the buffer without copying it into a std::string.
+    if (!errors.view().empty())
     {
         throw std::invalid_argument("GuayaquilConfig validation failed:\n" + errors.str());
     }

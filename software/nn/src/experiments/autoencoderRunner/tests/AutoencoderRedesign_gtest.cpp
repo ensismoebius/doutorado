@@ -18,6 +18,13 @@
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
+using nn::models::autoencoder::AutoencoderArchitecture;
+using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::FusedWindowAutoencoder;
+using nn::models::autoencoder::FusedWindowSpikingAutoencoder;
+using nn::models::autoencoder::ProtocolAutoencoder;
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 namespace
 {
 

@@ -16,6 +16,9 @@
 #include "models/autoencoder/AutoencoderBuilders.hpp"
 #include "models/autoencoder/EncoderDecoderAutoencoder.hpp"
 
+namespace nn::models::autoencoder
+{
+
 namespace
 {
 // Indices of Lif layers within a Sequential, in construction order. Computed once
@@ -77,31 +80,21 @@ ProtocolSpikingAutoencoder::ProtocolSpikingAutoencoder(const AutoencoderConfig& 
         eeg_features_ = cfg.eeg_features;
         audio_features_ = cfg.audio_features;
 
-        eeg_encoder_ = autoencoderRunner::autoencoders::build_snn_encoder(cfg,
-            cfg.eeg_features,
-            autoencoderRunner::autoencoders::resolved_branch_hidden_size(cfg));
-        audio_encoder_ = autoencoderRunner::autoencoders::build_snn_encoder(cfg,
-            cfg.audio_features,
-            autoencoderRunner::autoencoders::resolved_branch_hidden_size(cfg));
-        fusion_encoder_ = autoencoderRunner::autoencoders::build_snn_encoder(cfg,
-            cfg.latent_size * 2,
-            autoencoderRunner::autoencoders::resolved_fusion_hidden_size(cfg));
-        fusion_decoder_ = autoencoderRunner::autoencoders::build_snn_decoder(cfg,
-            cfg.latent_size * 2,
-            autoencoderRunner::autoencoders::resolved_fusion_hidden_size(cfg));
-        eeg_decoder_ = autoencoderRunner::autoencoders::build_snn_decoder(cfg,
-            cfg.eeg_features,
-            autoencoderRunner::autoencoders::resolved_branch_hidden_size(cfg));
-        audio_decoder_ = autoencoderRunner::autoencoders::build_snn_decoder(cfg,
-            cfg.audio_features,
-            autoencoderRunner::autoencoders::resolved_branch_hidden_size(cfg));
+        eeg_encoder_ = build_snn_encoder(cfg, cfg.eeg_features, resolved_branch_hidden_size(cfg));
+        audio_encoder_ =
+            build_snn_encoder(cfg, cfg.audio_features, resolved_branch_hidden_size(cfg));
+        fusion_encoder_ =
+            build_snn_encoder(cfg, cfg.latent_size * 2, resolved_fusion_hidden_size(cfg));
+        fusion_decoder_ =
+            build_snn_decoder(cfg, cfg.latent_size * 2, resolved_fusion_hidden_size(cfg));
+        eeg_decoder_ = build_snn_decoder(cfg, cfg.eeg_features, resolved_branch_hidden_size(cfg));
+        audio_decoder_ =
+            build_snn_decoder(cfg, cfg.audio_features, resolved_branch_hidden_size(cfg));
     }
     else
     {
-        encoder_ = autoencoderRunner::autoencoders::build_snn_encoder(
-            cfg, cfg.input_features, cfg.hidden_size);
-        decoder_ = autoencoderRunner::autoencoders::build_snn_decoder(
-            cfg, cfg.input_features, cfg.hidden_size);
+        encoder_ = build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size);
+        decoder_ = build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size);
     }
 
     if (use_dual_branch_)
@@ -123,12 +116,11 @@ auto ProtocolSpikingAutoencoder::encode(const Tensor& input, bool requires_grad)
         return encoder_.forward(input, requires_grad);
     }
 
-    auto eeg = autoencoderRunner::autoencoders::slice_columns(input, 0, eeg_features_);
-    auto audio =
-        autoencoderRunner::autoencoders::slice_columns(input, eeg_features_, audio_features_);
+    auto eeg = slice_columns(input, 0, eeg_features_);
+    auto audio = slice_columns(input, eeg_features_, audio_features_);
     auto eeg_latent = eeg_encoder_.forward(eeg, requires_grad);
     auto audio_latent = audio_encoder_.forward(audio, requires_grad);
-    auto fused = autoencoderRunner::autoencoders::concat_columns(eeg_latent, audio_latent);
+    auto fused = concat_columns(eeg_latent, audio_latent);
     return fusion_encoder_.forward(fused, requires_grad);
 }
 
@@ -141,13 +133,11 @@ auto ProtocolSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad
 
     auto fused = fusion_decoder_.forward(latent, requires_grad);
     const int branch_cols = fused.cols() / 2;
-    auto eeg_branch = autoencoderRunner::autoencoders::slice_columns(fused, 0, branch_cols);
-    auto audio_branch = autoencoderRunner::autoencoders::slice_columns(
-        fused, branch_cols, fused.cols() - branch_cols);
+    auto eeg_branch = slice_columns(fused, 0, branch_cols);
+    auto audio_branch = slice_columns(fused, branch_cols, fused.cols() - branch_cols);
     auto eeg_reconstruction = eeg_decoder_.forward(eeg_branch, requires_grad);
     auto audio_reconstruction = audio_decoder_.forward(audio_branch, requires_grad);
-    return autoencoderRunner::autoencoders::concat_columns(
-        eeg_reconstruction, audio_reconstruction);
+    return concat_columns(eeg_reconstruction, audio_reconstruction);
 }
 
 auto ProtocolSpikingAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
@@ -164,20 +154,17 @@ auto ProtocolSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
             encoder_, encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, grad);
     }
 
-    auto eeg_grad = autoencoderRunner::autoencoders::slice_columns(grad_output, 0, eeg_features_);
-    auto audio_grad =
-        autoencoderRunner::autoencoders::slice_columns(grad_output, eeg_features_, audio_features_);
+    auto eeg_grad = slice_columns(grad_output, 0, eeg_features_);
+    auto audio_grad = slice_columns(grad_output, eeg_features_, audio_features_);
     auto eeg_branch_grad = eeg_decoder_.backward(eeg_grad);
     auto audio_branch_grad = audio_decoder_.backward(audio_grad);
-    auto fused_branch_grad =
-        autoencoderRunner::autoencoders::concat_columns(eeg_branch_grad, audio_branch_grad);
+    auto fused_branch_grad = concat_columns(eeg_branch_grad, audio_branch_grad);
     auto latent_grad = fusion_decoder_.backward(fused_branch_grad);
     auto fused_encoder_grad = backward_with_firing_rate_reg(
         fusion_encoder_, fusion_encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, latent_grad);
-    auto eeg_encoder_grad = autoencoderRunner::autoencoders::slice_columns(
-        fused_encoder_grad, 0, eeg_branch_grad.cols());
-    auto audio_encoder_grad = autoencoderRunner::autoencoders::slice_columns(
-        fused_encoder_grad, eeg_branch_grad.cols(), audio_branch_grad.cols());
+    auto eeg_encoder_grad = slice_columns(fused_encoder_grad, 0, eeg_branch_grad.cols());
+    auto audio_encoder_grad =
+        slice_columns(fused_encoder_grad, eeg_branch_grad.cols(), audio_branch_grad.cols());
     auto eeg_input_grad = backward_with_firing_rate_reg(
         eeg_encoder_, eeg_encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, eeg_encoder_grad);
     auto audio_input_grad = backward_with_firing_rate_reg(audio_encoder_,
@@ -186,7 +173,7 @@ auto ProtocolSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
         fr_min_,
         fr_max_,
         audio_encoder_grad);
-    return autoencoderRunner::autoencoders::concat_columns(eeg_input_grad, audio_input_grad);
+    return concat_columns(eeg_input_grad, audio_input_grad);
 }
 
 auto ProtocolSpikingAutoencoder::params() -> std::span<Tensor*>
@@ -206,17 +193,17 @@ void ProtocolSpikingAutoencoder::reset_state()
 {
     if (!use_dual_branch_)
     {
-        autoencoderRunner::autoencoders::reset_sequential_state(encoder_);
-        autoencoderRunner::autoencoders::reset_sequential_state(decoder_);
+        reset_sequential_state(encoder_);
+        reset_sequential_state(decoder_);
         return;
     }
 
-    autoencoderRunner::autoencoders::reset_sequential_state(eeg_encoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(audio_encoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(fusion_encoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(fusion_decoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(eeg_decoder_);
-    autoencoderRunner::autoencoders::reset_sequential_state(audio_decoder_);
+    reset_sequential_state(eeg_encoder_);
+    reset_sequential_state(audio_encoder_);
+    reset_sequential_state(fusion_encoder_);
+    reset_sequential_state(fusion_decoder_);
+    reset_sequential_state(eeg_decoder_);
+    reset_sequential_state(audio_decoder_);
 }
 
 namespace
@@ -268,3 +255,4 @@ void ProtocolSpikingAutoencoder::load_state_dict(const std::map<std::string, Ten
     split_prefixed(sd, "eeg_decoder", eeg_decoder_);
     split_prefixed(sd, "audio_decoder", audio_decoder_);
 }
+} // namespace nn::models::autoencoder

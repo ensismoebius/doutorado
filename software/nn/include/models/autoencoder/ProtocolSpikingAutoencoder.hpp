@@ -10,6 +10,9 @@
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
+namespace nn::models::autoencoder
+{
+
 /**
  * @file ProtocolSpikingAutoencoder.hpp
  * @brief Spiking Neural Network (SNN) autoencoder for Protocol101117 features.
@@ -75,5 +78,6 @@ struct ProtocolSpikingAutoencoder : Module<nn::Backend>
     auto state_dict() const -> std::map<std::string, Tensor> override;
     void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 };
+} // namespace nn::models::autoencoder
 
 #endif // NN_MODELS_AUTOENCODER_PROTOCOL_SPIKING_AUTOENCODER_HPP

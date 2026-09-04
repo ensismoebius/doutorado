@@ -27,6 +27,10 @@
 #include "wavelet/WaveletTransformResults.hpp"
 #include "wavelet/waveletOperations.hpp"
 
+using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::ProtocolAutoencoder;
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
 namespace thesis
 {
 
