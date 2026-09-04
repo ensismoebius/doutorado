@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "AutoencoderBuilders.hpp"
+#include "EncoderDecoderAutoencoder.hpp"
 
 FusedWindowSpikingAutoencoder::FusedWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
     : eeg_encoder_(
@@ -143,20 +144,13 @@ auto FusedWindowSpikingAutoencoder::backward(const Tensor& grad_output) -> Tenso
 
 auto FusedWindowSpikingAutoencoder::params() -> std::span<Tensor*>
 {
-    param_ptrs_.clear();
-    auto a = eeg_encoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), a.begin(), a.end());
-    auto b = audio_encoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), b.begin(), b.end());
-    auto c = fusion_encoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), c.begin(), c.end());
-    auto d = fusion_decoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), d.begin(), d.end());
-    auto e = eeg_decoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), e.begin(), e.end());
-    auto f = audio_decoder_.params();
-    param_ptrs_.insert(param_ptrs_.end(), f.begin(), f.end());
-    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return collect_params(param_ptrs_,
+        eeg_encoder_,
+        audio_encoder_,
+        fusion_encoder_,
+        fusion_decoder_,
+        eeg_decoder_,
+        audio_decoder_);
 }
 
 void FusedWindowSpikingAutoencoder::reset_state()

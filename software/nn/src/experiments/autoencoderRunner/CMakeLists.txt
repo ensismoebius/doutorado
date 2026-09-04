@@ -2,6 +2,7 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/cli.cpp
+    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/EncoderDecoderAutoencoder.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowAutoencoder.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/autoencoder/EegWindowAutoencoder.cpp

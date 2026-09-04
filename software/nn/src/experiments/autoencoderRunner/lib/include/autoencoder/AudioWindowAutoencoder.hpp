@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
+#include "EncoderDecoderAutoencoder.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
@@ -16,24 +17,13 @@
  *   Encoder: Linear(input_features → hidden) → ReLU → [×depth] → Linear(hidden → latent) → ReLU
  *   Decoder: Linear(latent → hidden) → ReLU → [×depth] → Linear(hidden → input_features)
  */
-struct AudioWindowAutoencoder : Module<nn::Backend>
+struct AudioWindowAutoencoder : EncoderDecoderAutoencoder
 {
     using Tensor = typename Module<nn::Backend>::Tensor;
 
-    nn::Sequential encoder_;
-    nn::Sequential decoder_;
-
+    /// Builds the two Sequentials; everything else -- forward, backward,
+    /// params, reset_state -- is EncoderDecoderAutoencoder's.
     explicit AudioWindowAutoencoder(const AutoencoderConfig& cfg);
-
-    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
-    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
-
-    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
-    auto backward(const Tensor& grad_output) -> Tensor override;
-
-    // Owned concatenation of encoder + decoder parameter pointers.
-    std::vector<Tensor*> param_ptrs_;
-    auto params() -> std::span<Tensor*> override;
 };
 
 #endif // EXPERIMENT03_AUDIO_WINDOW_AUTOENCODER_HPP

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
+#include "EncoderDecoderAutoencoder.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
@@ -16,25 +17,13 @@
  *   Encoder: Linear(input → hidden) → Lif → [×depth] → Linear(hidden → latent) → Lif
  *   Decoder: Linear(latent → hidden) → LifIntegrator → [×depth] → Linear(hidden → input)
  */
-struct AudioWindowSpikingAutoencoder : Module<nn::Backend>
+struct AudioWindowSpikingAutoencoder : EncoderDecoderAutoencoder
 {
     using Tensor = typename Module<nn::Backend>::Tensor;
 
-    nn::Sequential encoder_;
-    nn::Sequential decoder_;
-
+    /// Builds the two Sequentials; everything else -- forward, backward,
+    /// params, reset_state -- is EncoderDecoderAutoencoder's.
     explicit AudioWindowSpikingAutoencoder(const AutoencoderConfig& cfg);
-
-    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
-    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
-
-    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
-    auto backward(const Tensor& grad_output) -> Tensor override;
-
-    std::vector<Tensor*> param_ptrs_;
-    auto params() -> std::span<Tensor*> override;
-
-    void reset_state() override;
 };
 
 #endif // EXPERIMENT03_AUDIO_WINDOW_SPIKING_AUTOENCODER_HPP
