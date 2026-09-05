@@ -179,8 +179,7 @@ def serialize_array(arr: np.ndarray) -> sqlite3.Binary:
     return sqlite3.Binary(a.tobytes())
 
 
-def process_subject(conn, subject_path, subject_name):
-    # Load EEG and Audio .mat files
+def _find_subject_mat_files(subject_path):
     eeg_file = None
     audio_file = None
     for f in os.listdir(subject_path):
@@ -188,39 +187,50 @@ def process_subject(conn, subject_path, subject_name):
             eeg_file = os.path.join(subject_path, f)
         if f.endswith('_Audio.mat'):
             audio_file = os.path.join(subject_path, f)
-    if not eeg_file:
-        print(f"Skipping {subject_name}: no EEG file")
-        return 0
-    # load
-    eeg_mat = loadmat(eeg_file, squeeze_me=True)
-    eeg_arr = eeg_mat.get('EEG')
-    if eeg_arr is None:
-        raise ValueError(f"EEG variable not found in {eeg_file}")
+    return eeg_file, audio_file
 
-    # Try to extract human-readable modality/stimulus names from the .mat file if present
-    def _make_list(obj):
-        if obj is None:
-            return None
-        try:
-            arr = np.asarray(obj)
-        except Exception:
-            return None
-        # flatten and coerce to str list when possible
-        try:
-            flattened = arr.tolist()
-        except Exception:
-            return None
-        # Ensure list of strings
-        out = []
-        if isinstance(flattened, (list, tuple)):
-            for v in flattened:
-                if v is None:
-                    out.append(None)
-                else:
-                    out.append(str(v))
-            return out
+
+def _make_list(obj):
+    if obj is None:
         return None
+    try:
+        arr = np.asarray(obj)
+    except Exception:
+        return None
+    # flatten and coerce to str list when possible
+    try:
+        flattened = arr.tolist()
+    except Exception:
+        return None
+    # Ensure list of strings
+    out = []
+    if isinstance(flattened, (list, tuple)):
+        for v in flattened:
+            if v is None:
+                out.append(None)
+            else:
+                out.append(str(v))
+        return out
+    return None
 
+
+def map_code(mapping, code, prefix):
+    if mapping is None:
+        return None
+    try:
+        code_i = int(code)
+    except Exception:
+        return None
+    # try zero-based then one-based indexing
+    if 0 <= code_i < len(mapping):
+        return mapping[code_i]
+    if 1 <= code_i <= len(mapping):
+        return mapping[code_i - 1]
+    return None
+
+
+def _resolve_name_maps(eeg_mat):
+    # Try to extract human-readable modality/stimulus names from the .mat file if present.
     modality_map = None
     stimulus_map = None
     # common variable names used in matlab exports / dataset descriptions
@@ -234,66 +244,57 @@ def process_subject(conn, subject_path, subject_name):
         if k in eeg_mat:
             stimulus_map = _make_list(eeg_mat[k])
             break
+    return modality_map, stimulus_map
 
-    def map_code(mapping, code, prefix):
-        if mapping is None:
-            return None
+
+def _resolve_eeg_modality_name(modality_map, mode_code, subject_name, row_idx):
+    # determine modality name (prefer .mat mapping; otherwise accept common codes)
+    mod_name_from_mat = map_code(modality_map, mode_code, 'mode')
+    if mod_name_from_mat:
+        modality_name = mod_name_from_mat
+    else:
+        # support either 0/1 or 1/2 conventions, map to allowed names
+        if mode_code == 0 or mode_code == 1:
+            modality_name = "Imagined" if mode_code == 0 else "Pronounced"
+        elif mode_code == 1 or mode_code == 2:
+            modality_name = "Imagined" if mode_code == 1 else "Pronounced"
+        else:
+            raise ValueError(f"Unrecognized modality code {mode_code} for subject {subject_name} row {row_idx}")
+
+    if modality_name not in ALLOWED_MODALITIES:
+        raise ValueError(f"Modality '{modality_name}' is not allowed (subject {subject_name} row {row_idx})")
+    return modality_name
+
+
+def _resolve_eeg_stimulus_name(stimulus_map, stim_code, subject_name, row_idx):
+    stim_name_from_mat = map_code(stimulus_map, stim_code, 'stimulus')
+    if stim_name_from_mat:
+        stimulus_name = stim_name_from_mat
+    else:
         try:
-            code_i = int(code)
+            stim_int = int(stim_code)
         except Exception:
-            return None
-        # try zero-based then one-based indexing
-        if 0 <= code_i < len(mapping):
-            return mapping[code_i]
-        if 1 <= code_i <= len(mapping):
-            return mapping[code_i - 1]
-        return None
+            raise ValueError(f"Invalid stimulus code {stim_code} (subject {subject_name} row {row_idx})")
+        if stim_int in STIMULUS_CODE_MAP:
+            stimulus_name = STIMULUS_CODE_MAP[stim_int]
+        else:
+            raise ValueError(f"Unrecognized stimulus code {stim_code} for subject {subject_name} row {row_idx}")
 
-    # eeg_arr expected shape (n_rows, eegTotalColumns)
-    n_eeg_rows = eeg_arr.shape[0]
+    if stimulus_name not in ALLOWED_STIMULI:
+        raise ValueError(f"Stimulus '{stimulus_name}' is not allowed (subject {subject_name} row {row_idx})")
+    return stimulus_name
 
-    # mapping from eeg row index -> trial_id
-    eeg_row_to_trial = {}
-    subj_id = get_or_create_subject(conn, subject_name)
 
-    cur = conn.cursor()
+def _insert_trial_rows(conn, cur, eeg_arr, n_eeg_rows, modality_map, stimulus_map, subj_id, subject_name):
     # First pass: insert trial rows only (map row_idx -> trial_id)
+    eeg_row_to_trial = {}
     for row_idx in range(n_eeg_rows):
         row = eeg_arr[row_idx]
         mode_code = int(row[EEG_SIGNAL_COLUMNS])
         stim_code = int(row[EEG_SIGNAL_COLUMNS + 1])
 
-        # determine modality name (prefer .mat mapping; otherwise accept common codes)
-        mod_name_from_mat = map_code(modality_map, mode_code, 'mode')
-        if mod_name_from_mat:
-            modality_name = mod_name_from_mat
-        else:
-            # support either 0/1 or 1/2 conventions, map to allowed names
-            if mode_code == 0 or mode_code == 1:
-                modality_name = "Imagined" if mode_code == 0 else "Pronounced"
-            elif mode_code == 1 or mode_code == 2:
-                modality_name = "Imagined" if mode_code == 1 else "Pronounced"
-            else:
-                raise ValueError(f"Unrecognized modality code {mode_code} for subject {subject_name} row {row_idx}")
-
-        if modality_name not in ALLOWED_MODALITIES:
-            raise ValueError(f"Modality '{modality_name}' is not allowed (subject {subject_name} row {row_idx})")
-
-        stim_name_from_mat = map_code(stimulus_map, stim_code, 'stimulus')
-        if stim_name_from_mat:
-            stimulus_name = stim_name_from_mat
-        else:
-            try:
-                stim_int = int(stim_code)
-            except Exception:
-                raise ValueError(f"Invalid stimulus code {stim_code} (subject {subject_name} row {row_idx})")
-            if stim_int in STIMULUS_CODE_MAP:
-                stimulus_name = STIMULUS_CODE_MAP[stim_int]
-            else:
-                raise ValueError(f"Unrecognized stimulus code {stim_code} for subject {subject_name} row {row_idx}")
-
-        if stimulus_name not in ALLOWED_STIMULI:
-            raise ValueError(f"Stimulus '{stimulus_name}' is not allowed (subject {subject_name} row {row_idx})")
+        modality_name = _resolve_eeg_modality_name(modality_map, mode_code, subject_name, row_idx)
+        stimulus_name = _resolve_eeg_stimulus_name(stimulus_map, stim_code, subject_name, row_idx)
 
         modality_id = get_or_create_modality(conn, modality_name)
         stimulus_id = get_or_create_stimulus(conn, stimulus_name)
@@ -306,7 +307,10 @@ def process_subject(conn, subject_path, subject_name):
         trial_id = cur.lastrowid
         eeg_row_to_trial[row_idx] = trial_id
     conn.commit()
+    return eeg_row_to_trial
 
+
+def _insert_eeg_sample_rows(conn, cur, eeg_arr, n_eeg_rows, eeg_row_to_trial):
     # Second pass: insert eeg_samples rows using existing trial ids
     for row_idx in range(n_eeg_rows):
         row = eeg_arr[row_idx]
@@ -337,58 +341,91 @@ def process_subject(conn, subject_path, subject_name):
         )
     conn.commit()
 
-    # Process Audio if present
-    if audio_file and os.path.exists(audio_file):
-        audio_mat = loadmat(audio_file, squeeze_me=True)
-        audio_arr = audio_mat.get('Audio')
-        if audio_arr is None:
-            print(f"Warning: Audio variable not found in {audio_file}")
-            return n_eeg_rows
-        n_audio_rows = audio_arr.shape[0]
-        for arow_idx in range(n_audio_rows):
-            arow = audio_arr[arow_idx]
-            samples = arow[:AUDIO_SAMPLES]
-            stim_code = int(arow[AUDIO_SAMPLES])
-            eeg_ref = int(arow[AUDIO_SAMPLES + 1])
 
-            # prefer stimulus mapping from EEG .mat if available
-            stim_name_from_mat = map_code(stimulus_map, stim_code, 'stimulus')
-            if stim_name_from_mat:
-                stimulus_name = stim_name_from_mat
-            else:
-                try:
-                    stim_int = int(stim_code)
-                except Exception:
-                    raise ValueError(f"Invalid audio stimulus code {stim_code} (subject {subject_name} audio row {arow_idx})")
-                if stim_int in STIMULUS_CODE_MAP:
-                    stimulus_name = STIMULUS_CODE_MAP[stim_int]
-                else:
-                    raise ValueError(f"Unrecognized audio stimulus code {stim_code} (subject {subject_name} audio row {arow_idx})")
+def _resolve_audio_stimulus_name(stimulus_map, stim_code, subject_name, arow_idx):
+    # prefer stimulus mapping from EEG .mat if available
+    stim_name_from_mat = map_code(stimulus_map, stim_code, 'stimulus')
+    if stim_name_from_mat:
+        stimulus_name = stim_name_from_mat
+    else:
+        try:
+            stim_int = int(stim_code)
+        except Exception:
+            raise ValueError(f"Invalid audio stimulus code {stim_code} (subject {subject_name} audio row {arow_idx})")
+        if stim_int in STIMULUS_CODE_MAP:
+            stimulus_name = STIMULUS_CODE_MAP[stim_int]
+        else:
+            raise ValueError(f"Unrecognized audio stimulus code {stim_code} (subject {subject_name} audio row {arow_idx})")
 
-            if stimulus_name not in ALLOWED_STIMULI:
-                raise ValueError(f"Stimulus '{stimulus_name}' is not allowed (subject {subject_name} audio row {arow_idx})")
+    if stimulus_name not in ALLOWED_STIMULI:
+        raise ValueError(f"Stimulus '{stimulus_name}' is not allowed (subject {subject_name} audio row {arow_idx})")
+    return stimulus_name
 
-            stimulus_id = get_or_create_stimulus(conn, stimulus_name)
 
-            # find corresponding EEG trial if referenced
-            trial_id = eeg_row_to_trial.get(eeg_ref)
-            if trial_id is None:
-                # create a new trial row linked to subject
-                cur.execute(
-                    "INSERT INTO trial(subject_id, modality_id, stimulus_id, eeg_sample_count, audio_sample_count, original_row) VALUES (?, ?, ?, ?, ?, ?)",
-                    (subj_id, None, stimulus_id, None, AUDIO_SAMPLES, None),
-                )
-                trial_id = cur.lastrowid
-            else:
-                # update audio_sample_count on existing trial
-                cur.execute("UPDATE trial SET audio_sample_count=? WHERE id=?", (AUDIO_SAMPLES, trial_id))
+def _process_audio_if_present(conn, cur, audio_file, subject_name, subj_id, stimulus_map, eeg_row_to_trial):
+    if not (audio_file and os.path.exists(audio_file)):
+        return
+    audio_mat = loadmat(audio_file, squeeze_me=True)
+    audio_arr = audio_mat.get('Audio')
+    if audio_arr is None:
+        print(f"Warning: Audio variable not found in {audio_file}")
+        return
+    n_audio_rows = audio_arr.shape[0]
+    for arow_idx in range(n_audio_rows):
+        arow = audio_arr[arow_idx]
+        samples = arow[:AUDIO_SAMPLES]
+        stim_code = int(arow[AUDIO_SAMPLES])
+        eeg_ref = int(arow[AUDIO_SAMPLES + 1])
 
-            # insert audio blob and record audio row index
+        stimulus_name = _resolve_audio_stimulus_name(stimulus_map, stim_code, subject_name, arow_idx)
+        stimulus_id = get_or_create_stimulus(conn, stimulus_name)
+
+        # find corresponding EEG trial if referenced
+        trial_id = eeg_row_to_trial.get(eeg_ref)
+        if trial_id is None:
+            # create a new trial row linked to subject
             cur.execute(
-                "INSERT INTO audio_samples(trial_id, samples, audio_row) VALUES (?, ?, ?)",
-                (trial_id, serialize_array(samples), arow_idx),
+                "INSERT INTO trial(subject_id, modality_id, stimulus_id, eeg_sample_count, audio_sample_count, original_row) VALUES (?, ?, ?, ?, ?, ?)",
+                (subj_id, None, stimulus_id, None, AUDIO_SAMPLES, None),
             )
-        conn.commit()
+            trial_id = cur.lastrowid
+        else:
+            # update audio_sample_count on existing trial
+            cur.execute("UPDATE trial SET audio_sample_count=? WHERE id=?", (AUDIO_SAMPLES, trial_id))
+
+        # insert audio blob and record audio row index
+        cur.execute(
+            "INSERT INTO audio_samples(trial_id, samples, audio_row) VALUES (?, ?, ?)",
+            (trial_id, serialize_array(samples), arow_idx),
+        )
+    conn.commit()
+
+
+def process_subject(conn, subject_path, subject_name):
+    # Load EEG and Audio .mat files
+    eeg_file, audio_file = _find_subject_mat_files(subject_path)
+    if not eeg_file:
+        print(f"Skipping {subject_name}: no EEG file")
+        return 0
+    # load
+    eeg_mat = loadmat(eeg_file, squeeze_me=True)
+    eeg_arr = eeg_mat.get('EEG')
+    if eeg_arr is None:
+        raise ValueError(f"EEG variable not found in {eeg_file}")
+
+    modality_map, stimulus_map = _resolve_name_maps(eeg_mat)
+
+    # eeg_arr expected shape (n_rows, eegTotalColumns)
+    n_eeg_rows = eeg_arr.shape[0]
+
+    subj_id = get_or_create_subject(conn, subject_name)
+    cur = conn.cursor()
+
+    eeg_row_to_trial = _insert_trial_rows(
+        conn, cur, eeg_arr, n_eeg_rows, modality_map, stimulus_map, subj_id, subject_name)
+    _insert_eeg_sample_rows(conn, cur, eeg_arr, n_eeg_rows, eeg_row_to_trial)
+    _process_audio_if_present(
+        conn, cur, audio_file, subject_name, subj_id, stimulus_map, eeg_row_to_trial)
 
     return n_eeg_rows
 

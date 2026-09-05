@@ -77,6 +77,170 @@ auto debug(const Batch& batch, const nn::Tensor& y_pred, const nn::Tensor& loss_
 
 constexpr int OUTPUT_PRECISION = 40; // Precision for floating-point output
 
+namespace
+{
+
+// Builds the encoder MLP (Linear+LeakyReLU stack) and Kaiming-initializes each Linear layer
+// deterministically. Initialization is folded in here (rather than done separately in main(),
+// as it originally was) because kaimingSNNInitializer seeds its own local RNG per call from
+// (seed, sampler type) with no shared mutable state, so doing it immediately after
+// construction instead of after both encoder+decoder exist is bit-for-bit identical.
+auto build_encoder(int input_dim,
+    int hidden_dim1,
+    int hidden_dim2,
+    int hidden_dim3,
+    int hidden_dim4,
+    int hidden_dim5,
+    int bottleneck_dim) -> Sequential
+{
+    auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
+    auto encoder_act1 = make_shared<LeakyReLU>(0.01F);
+    auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
+    auto encoder_act2 = make_shared<LeakyReLU>(0.01F);
+    auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
+    auto encoder_act3 = make_shared<LeakyReLU>(0.01F);
+    auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
+    auto encoder_act4 = make_shared<LeakyReLU>(0.01F);
+    auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
+    auto encoder_act5 = make_shared<LeakyReLU>(0.01F);
+    auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
+    auto encoder_act6 = make_shared<LeakyReLU>(0.01F);
+
+    kaimingSNNInitializer(encoder1, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder2, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder3, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder4, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder5, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder6, nn::testing::kSeed);
+
+    return Sequential({encoder1,
+        encoder_act1,
+        encoder2,
+        encoder_act2,
+        encoder3,
+        encoder_act3,
+        encoder4,
+        encoder_act4,
+        encoder5,
+        encoder_act5,
+        encoder6,
+        encoder_act6});
+}
+
+// Builds the decoder MLP and Kaiming-initializes it. See build_encoder()'s comment for why
+// initialization is folded in here rather than done separately afterward.
+auto build_decoder(int input_dim,
+    int hidden_dim1,
+    int hidden_dim2,
+    int hidden_dim3,
+    int hidden_dim4,
+    int hidden_dim5,
+    int bottleneck_dim) -> Sequential
+{
+    auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
+    auto decoder_act1 = make_shared<LeakyReLU>(0.01F);
+    auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
+    auto decoder_act2 = make_shared<LeakyReLU>(0.01F);
+    auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
+    auto decoder_act3 = make_shared<LeakyReLU>(0.01F);
+    auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
+    auto decoder_act4 = make_shared<LeakyReLU>(0.01F);
+    auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
+    auto decoder_act5 = make_shared<LeakyReLU>(0.01F);
+    auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
+
+    kaimingSNNInitializer(decoder1, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder2, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder3, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder4, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder5, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder6, nn::testing::kSeed);
+
+    return Sequential({decoder1,
+        decoder_act1,
+        decoder2,
+        decoder_act2,
+        decoder3,
+        decoder_act3,
+        decoder4,
+        decoder_act4,
+        decoder5,
+        decoder_act5,
+        decoder6});
+}
+
+// Runs the full training loop (batches -> forward -> loss -> backward -> optimizer step),
+// printing progress every 10 epochs and stopping early once `target_loss` is reached. Returns
+// the best (lowest) per-batch loss value seen.
+auto run_training_loop(Sequential& encoders,
+    Sequential& decoders,
+    const std::shared_ptr<MSELoss>& mse_loss,
+    Adam& optimizer,
+    vector<nn::Tensor*>& params,
+    const vector<nn::Tensor>& inputs,
+    const vector<nn::Tensor>& targets,
+    int batch_size,
+    int epochs,
+    float target_loss) -> float
+{
+    float epoch_loss = std::numeric_limits<float>::max();
+
+    for (size_t epoch = 0; epoch < epochs; ++epoch)
+    {
+        // Create batches
+        auto batches = create_batches(inputs, targets, batch_size);
+
+        // Parallelize batch processing using OpenMP
+        for (const auto& batch : batches)
+        {
+            // For autoencoder, the target is the input itself
+            mse_loss->set_target(batch.inputs);
+
+            // Forward pass through encoder and decoder - backend will handle
+            // internal parallelization
+            nn::Tensor encoded = encoders.forward(batch.inputs);
+            nn::Tensor decoded = decoders.forward(encoded);
+            nn::Tensor loss_tensor = mse_loss->forward(decoded);
+
+            // Compute gradients using the improved MSELoss backward pass
+            nn::Tensor grad_loss = mse_loss->backward(decoded);
+
+            // Backward pass through decoder first, then encoder
+            nn::Tensor decoder_grad = decoders.backward(grad_loss);
+            encoders.backward(decoder_grad);
+
+            // Update parameters
+            optimizer.step(params);
+
+            // Track best loss in epoch
+            float tmp = loss_tensor(0, 0);
+            epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+
+// If DEBUG is defined then show the debug information
+#ifdef DEBUG
+            debug(batch, decoded, loss_tensor);
+#endif
+        }
+
+        // Print progress
+        constexpr int progress_interval = 10; // Print progress every N epochs
+        if (epoch % progress_interval == 0)
+        {
+            cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << flush;
+        }
+
+        // Stop training when target loss is achieved
+        if (epoch_loss < target_loss)
+        {
+            break;
+        }
+    }
+
+    return epoch_loss;
+}
+
+} // namespace
+
 auto main(int /*argc*/, char* /*argv*/[]) -> int
 {
     try
@@ -123,89 +287,33 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
             generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, delta_t);
 
         // ==== Model Definition ====
-
-        // Encoder layers
-
-        auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
-        auto encoder_act1 = make_shared<LeakyReLU>(0.01F);
-        auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-        auto encoder_act2 = make_shared<LeakyReLU>(0.01F);
-        auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-        auto encoder_act3 = make_shared<LeakyReLU>(0.01F);
-        auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-        auto encoder_act4 = make_shared<LeakyReLU>(0.01F);
-        auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-        auto encoder_act5 = make_shared<LeakyReLU>(0.01F);
-        auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-        auto encoder_act6 = make_shared<LeakyReLU>(0.01F);
-
-        // Decoder layers
-
-        auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-        auto decoder_act1 = make_shared<LeakyReLU>(0.01F);
-        auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-        auto decoder_act2 = make_shared<LeakyReLU>(0.01F);
-        auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-        auto decoder_act3 = make_shared<LeakyReLU>(0.01F);
-        auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-        auto decoder_act4 = make_shared<LeakyReLU>(0.01F);
-        auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-        auto decoder_act5 = make_shared<LeakyReLU>(0.01F);
-        auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
+        Sequential encoders = build_encoder(input_dim,
+            hidden_dim1,
+            hidden_dim2,
+            hidden_dim3,
+            hidden_dim4,
+            hidden_dim5,
+            bottleneck_dim);
+        Sequential decoders = build_decoder(input_dim,
+            hidden_dim1,
+            hidden_dim2,
+            hidden_dim3,
+            hidden_dim4,
+            hidden_dim5,
+            bottleneck_dim);
         // ==== Loss Layer ====
         auto mse_loss = std::make_shared<MSELoss>();
-
-        Sequential encoders({encoder1,
-            encoder_act1,
-            encoder2,
-            encoder_act2,
-            encoder3,
-            encoder_act3,
-            encoder4,
-            encoder_act4,
-            encoder5,
-            encoder_act5,
-            encoder6,
-            encoder_act6});
-
-        Sequential decoders({decoder1,
-            decoder_act1,
-            decoder2,
-            decoder_act2,
-            decoder3,
-            decoder_act3,
-            decoder4,
-            decoder_act4,
-            decoder5,
-            decoder_act5,
-            decoder6});
 
         // ==== Initialization ====
 
         // Do not attempt runtime NPZ loading; NetworkSerializer::loadNetwork()
-        // is intentionally disabled and will return false. Initialize weights
-        // deterministically via Kaiming initializer.
+        // is intentionally disabled and will return false. Weights were already
+        // initialized deterministically via Kaiming initializer in build_encoder/build_decoder.
         (void) encoder_weights_file_path;
         (void) decoder_weights_file_path;
 
         std::cerr
             << "Runtime NPZ weight loading is disabled; initializing with Kaiming initialization\n";
-
-        // Initialize encoder weights and biases
-        kaimingSNNInitializer(encoder1, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder2, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder3, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder4, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder5, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder6, nn::testing::kSeed);
-
-        // Initialize decoder weights and biases
-        kaimingSNNInitializer(decoder1, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder2, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder3, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder4, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder5, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder6, nn::testing::kSeed);
 
         // ==== Optimizer ====
         vector<nn::Tensor*> params;
@@ -219,58 +327,16 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
         optimizer.attach(params);
 
         // ==== Training Loop ====
-        float epoch_loss = std::numeric_limits<float>::max();
-
-        for (size_t epoch = 0; epoch < epochs; ++epoch)
-        {
-            // Create batches
-            auto batches = create_batches(inputs, targets, batch_size);
-
-            // Parallelize batch processing using OpenMP
-            for (const auto& batch : batches)
-            {
-                // For autoencoder, the target is the input itself
-                mse_loss->set_target(batch.inputs);
-
-                // Forward pass through encoder and decoder - backend will handle
-                // internal parallelization
-                nn::Tensor encoded = encoders.forward(batch.inputs);
-                nn::Tensor decoded = decoders.forward(encoded);
-                nn::Tensor loss_tensor = mse_loss->forward(decoded);
-
-                // Compute gradients using the improved MSELoss backward pass
-                nn::Tensor grad_loss = mse_loss->backward(decoded);
-
-                // Backward pass through decoder first, then encoder
-                nn::Tensor decoder_grad = decoders.backward(grad_loss);
-                encoders.backward(decoder_grad);
-
-                // Update parameters
-                optimizer.step(params);
-
-                // Track best loss in epoch
-                float tmp = loss_tensor(0, 0);
-                epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
-
-// If DEBUG is defined then show the debug information
-#ifdef DEBUG
-                debug(batch, decoded, loss_tensor);
-#endif
-            }
-
-            // Print progress
-            constexpr int progress_interval = 10; // Print progress every N epochs
-            if (epoch % progress_interval == 0)
-            {
-                cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << flush;
-            }
-
-            // Stop training when target loss is achieved
-            if (epoch_loss < target_loss)
-            {
-                break;
-            }
-        }
+        float epoch_loss = run_training_loop(encoders,
+            decoders,
+            mse_loss,
+            optimizer,
+            params,
+            inputs,
+            targets,
+            batch_size,
+            epochs,
+            target_loss);
 
         // ==== End of Training ====
         cout << "Training complete. Final loss: " << epoch_loss << "\n";

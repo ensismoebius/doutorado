@@ -240,104 +240,100 @@ EEGSession::~EEGSession()
 EEGSession::EEGSession(EEGSession&&) noexcept = default;
 auto EEGSession::operator=(EEGSession&&) noexcept -> EEGSession& = default;
 
-auto EEGSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
+void EEGSession::cacheRow(
+    size_t rowIndex, const std::tuple<nn::Tensor, std::array<int, 3>>& result) const
 {
-    if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
+    if (impl_->rowCache.size() >= kRowCacheCapacity)
     {
-        return it->second;
+        const size_t evict = impl_->rowCacheOrder.front();
+        impl_->rowCacheOrder.pop_front();
+        impl_->rowCache.erase(evict);
+    }
+    impl_->rowCache[rowIndex] = result;
+    impl_->rowCacheOrder.push_back(rowIndex);
+}
+
+auto EEGSession::readRowFromSqlite(size_t rowIndex) const
+    -> std::tuple<nn::Tensor, std::array<int, 3>>
+{
+    if (!impl_->db || impl_->subject_id < 0)
+    {
+        throw std::runtime_error("EEGLoader(SQL): DB not initialized with subject id");
     }
 
-    if (impl_->is_sqlite)
+    const char* sql =
+        "SELECT e.F3, e.F4, e.C3, e.C4, e.P3, e.P4, e.blink, t.modality_id, t.stimulus_id FROM "
+        "eeg_samples e JOIN trial t ON e.trial_id = t.id WHERE t.subject_id = ? AND "
+        "t.original_row = ? LIMIT 1";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     {
-        if (!impl_->db || impl_->subject_id < 0)
-        {
-            throw std::runtime_error("EEGLoader(SQL): DB not initialized with subject id");
-        }
-
-        const char* sql =
-            "SELECT e.F3, e.F4, e.C3, e.C4, e.P3, e.P4, e.blink, t.modality_id, t.stimulus_id FROM "
-            "eeg_samples e JOIN trial t ON e.trial_id = t.id WHERE t.subject_id = ? AND "
-            "t.original_row = ? LIMIT 1";
-        sqlite3_stmt* stmt = nullptr;
-        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
-        {
-            const char* em = sqlite3_errmsg(impl_->db);
-            std::string msg = "EEGLoader(SQL): failed to prepare statement";
-            if (em) msg += std::string(": ") + em;
-            throw std::runtime_error(msg);
-        }
-        if (sqlite3_bind_int(stmt, 1, impl_->subject_id) != SQLITE_OK ||
-            sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK)
-        {
-            sqlite3_finalize(stmt);
-            throw std::runtime_error("EEGLoader(SQL): failed to bind parameters");
-        }
-
-        nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
-
-        int modality = 0;
-        int stimulus = 0;
-        int artifact = 0;
-
-        if (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            // For each channel column (0..5) read blob (float32 in DB).
-            for (int ch = 0; ch < 6; ++ch)
-            {
-                const void* blob = sqlite3_column_blob(stmt, ch);
-                int bytes = sqlite3_column_bytes(stmt, ch);
-                const size_t n_samples =
-                    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-                // DB stores float32; fall back to double32 detection for older DBs.
-                const size_t expected_float = n_samples * sizeof(float);
-                const size_t expected_double = n_samples * sizeof(double);
-                if (static_cast<size_t>(bytes) == expected_float)
-                {
-                    const float* src = reinterpret_cast<const float*>(blob);
-                    for (size_t s = 0; s < n_samples; ++s) eegChannels.at(ch, s) = src[s];
-                }
-                else if (static_cast<size_t>(bytes) == expected_double)
-                {
-                    const double* src = reinterpret_cast<const double*>(blob);
-                    for (size_t s = 0; s < n_samples; ++s)
-                        eegChannels.at(ch, s) = static_cast<float>(src[s]);
-                }
-                else
-                {
-                    sqlite3_finalize(stmt);
-                    throw std::runtime_error("EEGLoader(SQL): unexpected eeg channel blob size");
-                }
-            }
-
-            artifact = sqlite3_column_int(stmt, 6);
-            if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) modality = sqlite3_column_int(stmt, 7);
-            if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) stimulus = sqlite3_column_int(stmt, 8);
-        }
-        else
-        {
-            sqlite3_finalize(stmt);
-            throw std::runtime_error("EEGLoader(SQL): eeg row not found for subject");
-        }
-
+        const char* em = sqlite3_errmsg(impl_->db);
+        std::string msg = "EEGLoader(SQL): failed to prepare statement";
+        if (em) msg += std::string(": ") + em;
+        throw std::runtime_error(msg);
+    }
+    if (sqlite3_bind_int(stmt, 1, impl_->subject_id) != SQLITE_OK ||
+        sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK)
+    {
         sqlite3_finalize(stmt);
-
-        std::tuple<nn::Tensor, std::array<int, 3>> result{
-            std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
-
-        if (impl_->rowCache.size() >= kRowCacheCapacity)
-        {
-            const size_t evict = impl_->rowCacheOrder.front();
-            impl_->rowCacheOrder.pop_front();
-            impl_->rowCache.erase(evict);
-        }
-        impl_->rowCache[rowIndex] = result;
-        impl_->rowCacheOrder.push_back(rowIndex);
-
-        return result;
+        throw std::runtime_error("EEGLoader(SQL): failed to bind parameters");
     }
 
-    // MAT-backed path
+    nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+
+    int modality = 0;
+    int stimulus = 0;
+    int artifact = 0;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        // For each channel column (0..5) read blob (float32 in DB).
+        for (int ch = 0; ch < 6; ++ch)
+        {
+            const void* blob = sqlite3_column_blob(stmt, ch);
+            int bytes = sqlite3_column_bytes(stmt, ch);
+            const size_t n_samples =
+                nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+            // DB stores float32; fall back to double32 detection for older DBs.
+            const size_t expected_float = n_samples * sizeof(float);
+            const size_t expected_double = n_samples * sizeof(double);
+            if (static_cast<size_t>(bytes) == expected_float)
+            {
+                const float* src = reinterpret_cast<const float*>(blob);
+                for (size_t s = 0; s < n_samples; ++s) eegChannels.at(ch, s) = src[s];
+            }
+            else if (static_cast<size_t>(bytes) == expected_double)
+            {
+                const double* src = reinterpret_cast<const double*>(blob);
+                for (size_t s = 0; s < n_samples; ++s)
+                    eegChannels.at(ch, s) = static_cast<float>(src[s]);
+            }
+            else
+            {
+                sqlite3_finalize(stmt);
+                throw std::runtime_error("EEGLoader(SQL): unexpected eeg channel blob size");
+            }
+        }
+
+        artifact = sqlite3_column_int(stmt, 6);
+        if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) modality = sqlite3_column_int(stmt, 7);
+        if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) stimulus = sqlite3_column_int(stmt, 8);
+    }
+    else
+    {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("EEGLoader(SQL): eeg row not found for subject");
+    }
+
+    sqlite3_finalize(stmt);
+
+    return {std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+}
+
+auto EEGSession::readRowFromMat(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
+{
     std::vector<double> row_values;
     row_values = readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
 
@@ -363,18 +359,22 @@ auto EEGSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::a
     int stimulus = static_cast<int>(row_values[stimulus_column]);
     int artifact = static_cast<int>(row_values[artifact_column]);
 
-    std::tuple<nn::Tensor, std::array<int, 3>> result{
-        std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+    return {std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+}
 
-    if (impl_->rowCache.size() >= kRowCacheCapacity)
+auto EEGSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
+{
+    if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
     {
-        const size_t evict = impl_->rowCacheOrder.front();
-        impl_->rowCacheOrder.pop_front();
-        impl_->rowCache.erase(evict);
+        return it->second;
     }
-    impl_->rowCache[rowIndex] = result;
-    impl_->rowCacheOrder.push_back(rowIndex);
 
+    // is_sqlite selects between the two storage backends; the MAT-backed path is the
+    // pre-existing behaviour, unchanged by this split.
+    std::tuple<nn::Tensor, std::array<int, 3>> result =
+        impl_->is_sqlite ? readRowFromSqlite(rowIndex) : readRowFromMat(rowIndex);
+
+    cacheRow(rowIndex, result);
     return result;
 }
 

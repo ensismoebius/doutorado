@@ -86,6 +86,12 @@ class ProgressManager
 
     void render_loop();
 
+    // Renders one entry's two lines (metadata + progress bar) to stdout. Must be called
+    // with `manager_mutex_` already held (as render_loop() does); internally locks
+    // `entry.metrics_mutex` then `entry.metadata_mutex`, same nesting order as before this
+    // was extracted out of render_loop().
+    void render_entry(const ProgressEntry& entry) const;
+
     std::atomic<bool> running_{true};
     std::atomic<bool> screen_cleared_{false};
     std::thread render_thread_;

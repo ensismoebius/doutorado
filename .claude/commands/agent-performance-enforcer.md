@@ -49,7 +49,11 @@ If any are missing, derive from repo docs and existing behavior. If still ambigu
 
 ### 4) Deterministic implementation
 
-- Prefer existing wrappers/scripts over ad-hoc commands
+- Prefer existing wrappers/scripts over ad-hoc commands — for anything
+  about the code itself (symbol lookup, references, build/test/lint,
+  git state), that means the `code_intelligence` MCP tools before a raw
+  `grep`/`cmake`/`git` invocation; see the `navigation`/`build-test`/
+  `patching` skills for which tool covers what
 - Preserve established APIs, paths, and conventions
 - Avoid hidden side effects
 

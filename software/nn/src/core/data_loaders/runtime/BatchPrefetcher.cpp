@@ -62,6 +62,85 @@ BatchPrefetcher::~BatchPrefetcher()
     // Storage cleanup is handled by IBatchSource implementations if needed.
 }
 
+auto BatchPrefetcher::shouldProceedProducing(std::size_t batch_bytes) const -> bool
+{
+    if (stop_requested_)
+    {
+        return true;
+    }
+
+    if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >= max_batches_)
+    {
+        return true;
+    }
+
+    if (prefetched_ring_->size() >= lookahead_)
+    {
+        return false;
+    }
+
+    if (max_prefetch_ram_bytes_ == 0)
+    {
+        return true;
+    }
+
+    const std::size_t inflight = inflight_prefetch_bytes_.load(std::memory_order_relaxed);
+
+    if (inflight + batch_bytes <= max_prefetch_ram_bytes_)
+    {
+        return true;
+    }
+
+    return inflight == 0 && prefetched_ring_->empty();
+}
+
+void BatchPrefetcher::pushPrefetchedOrRelease(PrefetchedBatch prefetched, std::size_t batch_bytes)
+{
+    // Try to push into ring; if full, yield briefly and retry.
+    bool pushed = false;
+    while (!stop_requested_.load(std::memory_order_relaxed))
+    {
+        if (prefetched_ring_->try_push(std::move(prefetched)))
+        {
+            pushed = true;
+            break;
+        }
+        std::this_thread::yield();
+    }
+
+    if (!pushed)
+    {
+        inflight_prefetch_bytes_.fetch_sub(batch_bytes, std::memory_order_relaxed);
+        if (prefetched.batch.inputs.size() > 0 || prefetched.batch.targets.size() > 0)
+        {
+            prefetched_pool_->release(std::move(prefetched.batch));
+        }
+    }
+}
+
+void BatchPrefetcher::handleProducerException()
+{
+    // Log the exception message (if available) to help debugging producer
+    // thread failures (e.g., dataset or source errors). Store the exception
+    // so main thread can rethrow it later.
+    auto ep = std::current_exception();
+    try
+    {
+        std::rethrow_exception(ep);
+    }
+    catch (const std::exception& ex)
+    {
+        NN_LOG_ERROR(std::string("Producer thread exception: ") + ex.what());
+    }
+    catch (...)
+    {
+        NN_LOG_ERROR("Producer thread exception: <non-std>");
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    producer_error_ = ep;
+}
+
 void BatchPrefetcher::producerLoop()
 {
     // legacy shard flag removed; shard detection is automatic elsewhere
@@ -82,41 +161,8 @@ void BatchPrefetcher::producerLoop()
 
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                cv_.wait(lock,
-                    [this, batch_bytes]()
-                    {
-                        if (stop_requested_)
-                        {
-                            return true;
-                        }
-
-                        if (seen_batches_.load(std::memory_order_relaxed) +
-                                prefetched_ring_->size() >=
-                            max_batches_)
-                        {
-                            return true;
-                        }
-
-                        if (prefetched_ring_->size() >= lookahead_)
-                        {
-                            return false;
-                        }
-
-                        if (max_prefetch_ram_bytes_ == 0)
-                        {
-                            return true;
-                        }
-
-                        const std::size_t inflight =
-                            inflight_prefetch_bytes_.load(std::memory_order_relaxed);
-
-                        if (inflight + batch_bytes <= max_prefetch_ram_bytes_)
-                        {
-                            return true;
-                        }
-
-                        return inflight == 0 && prefetched_ring_->empty();
-                    });
+                cv_.wait(
+                    lock, [this, batch_bytes]() { return shouldProceedProducing(batch_bytes); });
 
                 if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >=
                     max_batches_)
@@ -137,52 +183,14 @@ void BatchPrefetcher::producerLoop()
             // Storage persistence (e.g., SQLite) is handled by the source implementation.
 
             PrefetchedBatch prefetched{std::move(batch), batch_bytes};
-
-            // Try to push into ring; if full, yield briefly and retry.
-            bool pushed = false;
-            while (!stop_requested_.load(std::memory_order_relaxed))
-            {
-                if (prefetched_ring_->try_push(std::move(prefetched)))
-                {
-                    pushed = true;
-                    break;
-                }
-                std::this_thread::yield();
-            }
-
-            if (!pushed)
-            {
-                inflight_prefetch_bytes_.fetch_sub(batch_bytes, std::memory_order_relaxed);
-                if (prefetched.batch.inputs.size() > 0 || prefetched.batch.targets.size() > 0)
-                {
-                    prefetched_pool_->release(std::move(prefetched.batch));
-                }
-            }
+            pushPrefetchedOrRelease(std::move(prefetched), batch_bytes);
 
             cv_.notify_all();
         }
     }
     catch (...)
     {
-        // Log the exception message (if available) to help debugging producer
-        // thread failures (e.g., dataset or source errors). Store the exception
-        // so main thread can rethrow it later.
-        auto ep = std::current_exception();
-        try
-        {
-            std::rethrow_exception(ep);
-        }
-        catch (const std::exception& ex)
-        {
-            NN_LOG_ERROR(std::string("Producer thread exception: ") + ex.what());
-        }
-        catch (...)
-        {
-            NN_LOG_ERROR("Producer thread exception: <non-std>");
-        }
-
-        std::lock_guard<std::mutex> lock(mutex_);
-        producer_error_ = ep;
+        handleProducerException();
     }
 
     {

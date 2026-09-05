@@ -68,20 +68,11 @@ auto measure(const std::string& backend,
 }
 
 template <typename Backend>
-auto benchmark_backend(const std::string& backend_name, int iterations) -> std::vector<BenchResult>
+auto bench_random_1024x1024(const std::string& backend_name, int iterations, std::mt19937& rng)
+    -> BenchResult
 {
     using Tensor = Backend;
-    std::vector<BenchResult> results;
-    std::mt19937 rng(1337);
-
-    Tensor lhs = Tensor::random(256, 256, rng);
-    Tensor rhs = Tensor::random(256, 256, rng); // Context line
-    Tensor input = Tensor::random(1024, 256, rng);
-    Tensor weight = Tensor::random(512, 256, rng);
-    Tensor bias = Tensor::ones(512, 1);
-    Tensor grad_output = Tensor::random(1024, 512, rng);
-
-    results.push_back(measure(backend_name,
+    return measure(backend_name,
         "random_1024x1024",
         1024,
         1024,
@@ -92,9 +83,14 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto tensor = Tensor::random(1024, 1024, rng);
             volatile float sink = tensor.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_fill_zero_1024x1024(const std::string& backend_name, int iterations) -> BenchResult
+{
+    using Tensor = Backend;
+    return measure(backend_name,
         "fill_zero_1024x1024",
         1024,
         1024,
@@ -105,9 +101,14 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto tensor = Tensor::zeros(1024, 1024);
             volatile float sink = tensor.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_matmul_256(const std::string& backend_name, int iterations, Backend& lhs, Backend& rhs)
+    -> BenchResult
+{
+    return measure(backend_name,
         "matmul_256",
         256,
         256,
@@ -118,9 +119,15 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto product = lhs.matmul(rhs);
             volatile float sink = product.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_linear_chain(
+    const std::string& backend_name, int iterations, Backend& input, Backend& weight, Backend& bias)
+    -> BenchResult
+{
+    return measure(backend_name,
         "linear_chain_1024x256x512",
         1024,
         512,
@@ -144,9 +151,17 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
                 volatile float sink = output.at(0, 0);
                 (void) sink;
             }
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_linear_backward_chain(const std::string& backend_name,
+    int iterations,
+    Backend& grad_output,
+    Backend& input,
+    Backend& weight) -> BenchResult
+{
+    return measure(backend_name,
         "linear_backward_chain_1024x256x512",
         1024,
         512,
@@ -169,9 +184,14 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto grad_input = grad_output.matmul(weight);
             volatile float sink = grad_weight.at(0, 0) + grad_bias.at(0, 0) + grad_input.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_transpose(const std::string& backend_name, int iterations, Backend& grad_output)
+    -> BenchResult
+{
+    return measure(backend_name,
         "transpose_1024x512",
         1024,
         512,
@@ -182,9 +202,15 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto grad_t = grad_output.transpose();
             volatile float sink = grad_t.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_grad_weight_matmul(
+    const std::string& backend_name, int iterations, Backend& grad_output, Backend& input)
+    -> BenchResult
+{
+    return measure(backend_name,
         "grad_weight_matmul_512x1024x256",
         512,
         1024,
@@ -205,26 +231,34 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             }();
             volatile float sink = grad_weight.at(0, 0);
             (void) sink;
-        }));
+        });
+}
 
-    if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-    {
-        results.push_back(measure(backend_name,
-            "grad_weight_matmul_via_transpose_probe_512x1024x256",
-            1024,
-            512,
-            256,
-            iterations,
-            [&]()
-            {
-                auto grad_t = grad_output.transpose();
-                auto grad_weight = grad_t.matmul(input);
-                volatile float sink = grad_weight.at(0, 0);
-                (void) sink;
-            }));
-    }
+template <typename Backend>
+auto bench_grad_weight_matmul_via_transpose_probe(
+    const std::string& backend_name, int iterations, Backend& grad_output, Backend& input)
+    -> BenchResult
+{
+    return measure(backend_name,
+        "grad_weight_matmul_via_transpose_probe_512x1024x256",
+        1024,
+        512,
+        256,
+        iterations,
+        [&]()
+        {
+            auto grad_t = grad_output.transpose();
+            auto grad_weight = grad_t.matmul(input);
+            volatile float sink = grad_weight.at(0, 0);
+            (void) sink;
+        });
+}
 
-    results.push_back(measure(backend_name,
+template <typename Backend>
+auto bench_rowwise_sum(const std::string& backend_name, int iterations, Backend& grad_output)
+    -> BenchResult
+{
+    return measure(backend_name,
         "rowwise_sum_512x1024",
         512,
         1024,
@@ -236,28 +270,68 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto grad_bias = grad_t.rowwise_sum();
             volatile float sink = grad_bias.at(0, 0);
             (void) sink;
-        }));
+        });
+}
+
+template <typename Backend>
+auto bench_linear_layer_forward(const std::string& backend_name, int iterations, std::mt19937& rng)
+    -> BenchResult
+{
+    using LayerTensor = nn::TensorImpl<Backend>;
+    LinearImpl<Backend> linear(256, 512);
+    linear.weight = nn::Tensor::rand(512, 256, rng);
+    linear.bias = nn::Tensor::ones(512, 1);
+    LayerTensor layer_input = LayerTensor::rand(1024, 256, rng);
+
+    return measure(backend_name,
+        "linear_layer_forward_1024x256x512",
+        1024,
+        512,
+        256,
+        iterations,
+        [&]()
+        {
+            auto output = linear.forward(layer_input, false);
+            volatile float sink = output.at(0, 0);
+            (void) sink;
+        });
+}
+
+template <typename Backend>
+auto benchmark_backend(const std::string& backend_name, int iterations) -> std::vector<BenchResult>
+{
+    using Tensor = Backend;
+    std::vector<BenchResult> results;
+    std::mt19937 rng(1337);
+
+    Tensor lhs = Tensor::random(256, 256, rng);
+    Tensor rhs = Tensor::random(256, 256, rng); // Context line
+    Tensor input = Tensor::random(1024, 256, rng);
+    Tensor weight = Tensor::random(512, 256, rng);
+    Tensor bias = Tensor::ones(512, 1);
+    Tensor grad_output = Tensor::random(1024, 512, rng);
+
+    results.push_back(bench_random_1024x1024<Backend>(backend_name, iterations, rng));
+    results.push_back(bench_fill_zero_1024x1024<Backend>(backend_name, iterations));
+    results.push_back(bench_matmul_256<Backend>(backend_name, iterations, lhs, rhs));
+    results.push_back(bench_linear_chain<Backend>(backend_name, iterations, input, weight, bias));
+    results.push_back(
+        bench_linear_backward_chain<Backend>(backend_name, iterations, grad_output, input, weight));
+    results.push_back(bench_transpose<Backend>(backend_name, iterations, grad_output));
+    results.push_back(
+        bench_grad_weight_matmul<Backend>(backend_name, iterations, grad_output, input));
+
+    if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+    {
+        results.push_back(bench_grad_weight_matmul_via_transpose_probe<Backend>(
+            backend_name, iterations, grad_output, input));
+    }
+
+    results.push_back(bench_rowwise_sum<Backend>(backend_name, iterations, grad_output));
 
     if constexpr (std::is_same_v<Backend, nn::Backend>)
     {
-        using LayerTensor = nn::TensorImpl<Backend>;
-        LinearImpl<Backend> linear(256, 512);
-        linear.weight = nn::Tensor::rand(512, 256, rng);
-        linear.bias = nn::Tensor::ones(512, 1);
-        LayerTensor layer_input = LayerTensor::rand(1024, 256, rng);
-
-        results.push_back(measure(backend_name,
-            "linear_layer_forward_1024x256x512",
-            1024,
-            512,
-            256,
-            iterations,
-            [&]()
-            {
-                auto output = linear.forward(layer_input, false);
-                volatile float sink = output.at(0, 0);
-                (void) sink;
-            }));
+        results.push_back(bench_linear_layer_forward<Backend>(backend_name, iterations, rng));
     }
 
     return results;

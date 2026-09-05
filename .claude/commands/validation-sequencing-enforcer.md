@@ -41,22 +41,33 @@ Before running checks, define:
 ### Stage 1: Fast static checks
 
 - Syntax and parse checks for changed files
-- Linting scoped to changed paths when available
+- Linting scoped to changed paths when available — `run_lint` (MCP, Python
+  via `ruff`) or `get_violations`/`summarize_violations` (MCP, structural,
+  cross-language: naming/docs/LOC/duplication, no build required) before
+  reaching for a raw linter invocation
 - Config validation commands for edited config files
 
 If Stage 1 fails, fix first. Do not escalate yet.
 
 ### Stage 2: Targeted runtime checks
 
-- Run only the script, function, or command path affected by the change
+- Run only the script, function, or command path affected by the change —
+  `run_tests(filter=<pattern>)` (MCP) is the deterministic, non-interactive
+  form of this; falls back to raw `ctest -R`/`pytest -k` when the MCP isn't
+  configured
 - Prefer deterministic, non-interactive invocations
-- Capture concise output that proves behavior
+- Capture concise output that proves behavior — the MCP result's
+  `status`/`counts`/`failed_tests` already is that; no need to re-parse a
+  raw log for it
 
 If Stage 2 fails, fix and re-run Stage 1 and Stage 2.
 
 ### Stage 3: Integration checks
 
-- Validate direct neighbors and call paths impacted by the change
+- Validate direct neighbors and call paths impacted by the change — use
+  `find_references`/`find_dependencies` (MCP) to enumerate them first
+  rather than guessing which modules are "adjacent"; note the
+  `"exact"`/`"heuristic"` tag on each row before trusting it
 - Use focused service-level or module-level checks
 
 Escalate to Stage 4 only if:
@@ -67,7 +78,9 @@ Escalate to Stage 4 only if:
 
 ### Stage 4: Broader checks
 
-- Repo-wide lint, test suites, or full health scripts
+- Repo-wide lint, test suites, or full health scripts — `run_lint`/
+  `run_tests` (MCP, no filter) for a structured pass/fail summary instead
+  of a raw log dump, or the project's own `analysis-all`/`ctest` directly
 - Run only when justified by risk or explicit request
 
 ## Failure handling

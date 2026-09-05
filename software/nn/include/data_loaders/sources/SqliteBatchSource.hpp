@@ -15,6 +15,7 @@
 #include <sqlite3.h>
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,23 @@ class SqliteBatchSource : public IBatchSource
     bool emit_pending_window_batch(Batch& out);
     bool open_db();
     void close_db();
+
+    // open_db() helpers, extracted with no behavior change.
+    bool prepareCoreStatements();
+    void logJoinedTrialCount() const;
+    void loadTrialIds();
+
+    // next() helpers, extracted with no behavior change.
+    //
+    // Both return nullopt to tell the caller to `continue` to the next trial (incomplete
+    // data, no windows produced, or a stacking failure), or a value to `return` immediately
+    // from next() — mirroring the multiple continue/return points in the original inline
+    // per-trial logic.
+    void appendProtocolTrialRows(const nn::Tensor& stacked_resampled);
+    std::optional<bool> processProtocolConcatenatedTrial(
+        const std::vector<float>& eeg_accum, const std::vector<float>& audio_accum, Batch& out);
+    std::optional<bool> processWindowedTrial(
+        const std::vector<float>& eeg_accum, const std::vector<float>& audio_accum, Batch& out);
 
     std::string db_path_;
     sqlite3* db_ = nullptr;

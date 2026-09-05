@@ -308,21 +308,8 @@ SqliteBatchSource::~SqliteBatchSource()
     close_db();
 }
 
-bool SqliteBatchSource::open_db()
+bool SqliteBatchSource::prepareCoreStatements()
 {
-    if (sqlite3_open(db_path_.c_str(), &db_) != SQLITE_OK)
-    {
-        db_ = nullptr;
-        return false;
-    }
-
-    // Performance optimizations for faster I/O
-    sqlite3_exec(db_, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
-    sqlite3_exec(db_, "PRAGMA synchronous=NORMAL;", nullptr, nullptr, nullptr);
-    sqlite3_exec(db_, "PRAGMA cache_size=10000;", nullptr, nullptr, nullptr);
-    sqlite3_exec(db_, "PRAGMA mmap_size=268435456;", nullptr, nullptr, nullptr); // 256MB
-    sqlite3_exec(db_, "PRAGMA temp_store=MEMORY;", nullptr, nullptr, nullptr);
-
     // Prepare statements that operate on the provided schema.
     // Select only trials that have both audio and eeg rows. Use DISTINCT
     // because joining with audio_samples and eeg_samples may produce
@@ -376,71 +363,98 @@ bool SqliteBatchSource::open_db()
         return false;
     }
 
-    // Sanity: query how many joined trials exist and log for diagnostics.
-    {
-        sqlite3_stmt* chk = nullptr;
-        const char* chk_sql =
-            "SELECT COUNT(DISTINCT t.id) FROM trial t INNER JOIN audio_samples a ON a.trial_id = "
-            "t.id INNER JOIN eeg_samples e ON e.trial_id = t.id;";
-        int r2 = sqlite3_prepare_v2(db_, chk_sql, -1, &chk, nullptr);
-        if (r2 == SQLITE_OK && chk)
-        {
-            int s = sqlite3_step(chk);
-            if (s == SQLITE_ROW)
-            {
-                int joined = sqlite3_column_int(chk, 0);
-                std::ostringstream oss;
-                oss << "SqliteBatchSource::open_db: joined_trials=" << joined
-                    << " db_path=" << db_path_;
-                NN_LOG_INFO(oss.str());
-            }
-            sqlite3_finalize(chk);
-        }
-    }
+    return true;
+}
 
+void SqliteBatchSource::logJoinedTrialCount() const
+{
+    // Sanity: query how many joined trials exist and log for diagnostics.
+    sqlite3_stmt* chk = nullptr;
+    const char* chk_sql =
+        "SELECT COUNT(DISTINCT t.id) FROM trial t INNER JOIN audio_samples a ON a.trial_id = "
+        "t.id INNER JOIN eeg_samples e ON e.trial_id = t.id;";
+    int r2 = sqlite3_prepare_v2(db_, chk_sql, -1, &chk, nullptr);
+    if (r2 == SQLITE_OK && chk)
+    {
+        int s = sqlite3_step(chk);
+        if (s == SQLITE_ROW)
+        {
+            int joined = sqlite3_column_int(chk, 0);
+            std::ostringstream oss;
+            oss << "SqliteBatchSource::open_db: joined_trials=" << joined
+                << " db_path=" << db_path_;
+            NN_LOG_INFO(oss.str());
+        }
+        sqlite3_finalize(chk);
+    }
+}
+
+void SqliteBatchSource::loadTrialIds()
+{
     // Build a deterministic trial-id sequence to iterate in next().
     // When a k-fold subset filter is provided, keep only matching ids
     // while preserving DB ordering.
+    trial_ids_.clear();
+    sqlite3_stmt* trials_stmt = nullptr;
+    const char* trials_sql =
+        "SELECT DISTINCT t.id FROM trial t "
+        "INNER JOIN audio_samples a ON a.trial_id = t.id "
+        "INNER JOIN eeg_samples e ON e.trial_id = t.id "
+        "ORDER BY t.id;";
+
+    if (sqlite3_prepare_v2(db_, trials_sql, -1, &trials_stmt, nullptr) == SQLITE_OK && trials_stmt)
     {
-        trial_ids_.clear();
-        sqlite3_stmt* trials_stmt = nullptr;
-        const char* trials_sql =
-            "SELECT DISTINCT t.id FROM trial t "
-            "INNER JOIN audio_samples a ON a.trial_id = t.id "
-            "INNER JOIN eeg_samples e ON e.trial_id = t.id "
-            "ORDER BY t.id;";
-
-        if (sqlite3_prepare_v2(db_, trials_sql, -1, &trials_stmt, nullptr) == SQLITE_OK &&
-            trials_stmt)
+        if (!selected_trial_ids_filter_.empty())
         {
-            if (!selected_trial_ids_filter_.empty())
+            std::unordered_set<int> allowed(
+                selected_trial_ids_filter_.begin(), selected_trial_ids_filter_.end());
+            while (sqlite3_step(trials_stmt) == SQLITE_ROW)
             {
-                std::unordered_set<int> allowed(
-                    selected_trial_ids_filter_.begin(), selected_trial_ids_filter_.end());
-                while (sqlite3_step(trials_stmt) == SQLITE_ROW)
+                const int trial_id = sqlite3_column_int(trials_stmt, 0);
+                if (allowed.contains(trial_id))
                 {
-                    const int trial_id = sqlite3_column_int(trials_stmt, 0);
-                    if (allowed.contains(trial_id))
-                    {
-                        trial_ids_.push_back(trial_id);
-                    }
-                }
-            }
-            else
-            {
-                while (sqlite3_step(trials_stmt) == SQLITE_ROW)
-                {
-                    trial_ids_.push_back(sqlite3_column_int(trials_stmt, 0));
+                    trial_ids_.push_back(trial_id);
                 }
             }
         }
-
-        if (trials_stmt)
+        else
         {
-            sqlite3_finalize(trials_stmt);
+            while (sqlite3_step(trials_stmt) == SQLITE_ROW)
+            {
+                trial_ids_.push_back(sqlite3_column_int(trials_stmt, 0));
+            }
         }
-        next_trial_index_ = 0;
     }
+
+    if (trials_stmt)
+    {
+        sqlite3_finalize(trials_stmt);
+    }
+    next_trial_index_ = 0;
+}
+
+bool SqliteBatchSource::open_db()
+{
+    if (sqlite3_open(db_path_.c_str(), &db_) != SQLITE_OK)
+    {
+        db_ = nullptr;
+        return false;
+    }
+
+    // Performance optimizations for faster I/O
+    sqlite3_exec(db_, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA synchronous=NORMAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA cache_size=10000;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA mmap_size=268435456;", nullptr, nullptr, nullptr); // 256MB
+    sqlite3_exec(db_, "PRAGMA temp_store=MEMORY;", nullptr, nullptr, nullptr);
+
+    if (!prepareCoreStatements())
+    {
+        return false;
+    }
+
+    logJoinedTrialCount();
+    loadTrialIds();
 
     return true;
 }
@@ -519,6 +533,96 @@ bool SqliteBatchSource::emit_pending_window_batch(Batch& out)
     return true;
 }
 
+void SqliteBatchSource::appendProtocolTrialRows(const nn::Tensor& stacked_resampled)
+{
+    // Accumulate row-by-row into pending samples for batching.
+    // Each row of the stacked result becomes a pending sample.
+    if (pending_window_samples_.empty())
+    {
+        pending_window_samples_.resize(stacked_resampled.rows());
+        for (size_t row = 0; row < stacked_resampled.rows(); ++row)
+        {
+            pending_window_samples_[row].resize(stacked_resampled.cols());
+            for (size_t col = 0; col < stacked_resampled.cols(); ++col)
+            {
+                pending_window_samples_[row][col] = stacked_resampled.at(row, col);
+            }
+        }
+    }
+    else
+    {
+        // Append rows from this trial
+        for (size_t row = 0; row < stacked_resampled.rows(); ++row)
+        {
+            std::vector<float> row_data(stacked_resampled.cols());
+            for (size_t col = 0; col < stacked_resampled.cols(); ++col)
+            {
+                row_data[col] = stacked_resampled.at(row, col);
+            }
+            pending_window_samples_.push_back(std::move(row_data));
+        }
+    }
+}
+
+std::optional<bool> SqliteBatchSource::processProtocolConcatenatedTrial(
+    const std::vector<float>& eeg_accum, const std::vector<float>& audio_accum, Batch& out)
+{
+    // Protocol+Concatenated mode: match Dataset101117's stacked format.
+    // Each trial produces (7, 176400) when merged&resampled (audio + 6 EEG).
+    // Multiple trials are stacked vertically to fill batch_size.
+    // Example: batch_size=2 trials → (14, 176400) output.
+    try
+    {
+        if (eeg_accum.empty() || audio_accum.empty())
+        {
+            return std::nullopt; // Skip trials with incomplete data
+        }
+
+        // EEG data is accumulated as [ch0_t0, ch1_t0, ..., ch5_t0, ch0_t1, ...]
+        // i.e., (samples_per_channel * channels) floats interleaved per timestep.
+        // Need to reshape to (channels, samples_per_channel) for
+        // mergeAudioAndEEGSignals.
+
+        nn::Tensor stacked_resampled = stack_protocol_trial(eeg_accum, audio_accum);
+        appendProtocolTrialRows(stacked_resampled);
+
+        // Check if we have enough rows to emit a batch
+        if (pending_window_samples_.size() >= batch_size_)
+        {
+            return emit_pending_window_batch(out);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_WARN(std::string("SqliteBatchSource Protocol: stacking/resampling failed: ") +
+                    e.what() + "; skipping trial");
+        return std::nullopt;
+    }
+
+    return true;
+}
+
+std::optional<bool> SqliteBatchSource::processWindowedTrial(
+    const std::vector<float>& eeg_accum, const std::vector<float>& audio_accum, Batch& out)
+{
+    std::vector<std::vector<float>> samples =
+        build_trial_windows(eeg_accum, audio_accum, dataset_type_, eeg_window_, audio_window_);
+    if (samples.empty())
+    {
+        // Nothing to produce in windowed mode for this trial.
+        return std::nullopt;
+    }
+
+    pending_window_samples_ = std::move(samples);
+    next_pending_sample_index_ = 0;
+    if (emit_pending_window_batch(out))
+    {
+        return true;
+    }
+
+    return std::nullopt;
+}
+
 bool SqliteBatchSource::next(Batch& out)
 {
     // Normal operation: no verbose tracing here (kept concise for production).
@@ -554,94 +658,25 @@ bool SqliteBatchSource::next(Batch& out)
                     continue;
                 }
 
+                std::optional<bool> outcome;
                 if (dataset_type_ == nn::dataLoaders::SqliteDatasetType::Protocol &&
                     input_mode_ == Protocol101117InputMode::Concatenated)
                 {
-                    // Protocol+Concatenated mode: match Dataset101117's stacked format.
-                    // Each trial produces (7, 176400) when merged&resampled (audio + 6 EEG).
-                    // Multiple trials are stacked vertically to fill batch_size.
-                    // Example: batch_size=2 trials → (14, 176400) output.
-
-                    try
-                    {
-                        if (eeg_accum.empty() || audio_accum.empty())
-                        {
-                            continue; // Skip trials with incomplete data
-                        }
-
-                        // EEG data is accumulated as [ch0_t0, ch1_t0, ..., ch5_t0, ch0_t1, ...]
-                        // i.e., (samples_per_channel * channels) floats interleaved per timestep.
-                        // Need to reshape to (channels, samples_per_channel) for
-                        // mergeAudioAndEEGSignals.
-
-                        nn::Tensor stacked_resampled = stack_protocol_trial(eeg_accum, audio_accum);
-
-                        // Accumulate row-by-row into pending samples for batching.
-                        // Each row of the stacked result becomes a pending sample.
-                        if (pending_window_samples_.empty())
-                        {
-                            pending_window_samples_.resize(stacked_resampled.rows());
-                            for (size_t row = 0; row < stacked_resampled.rows(); ++row)
-                            {
-                                pending_window_samples_[row].resize(stacked_resampled.cols());
-                                for (size_t col = 0; col < stacked_resampled.cols(); ++col)
-                                {
-                                    pending_window_samples_[row][col] =
-                                        stacked_resampled.at(row, col);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Append rows from this trial
-                            for (size_t row = 0; row < stacked_resampled.rows(); ++row)
-                            {
-                                std::vector<float> row_data(stacked_resampled.cols());
-                                for (size_t col = 0; col < stacked_resampled.cols(); ++col)
-                                {
-                                    row_data[col] = stacked_resampled.at(row, col);
-                                }
-                                pending_window_samples_.push_back(std::move(row_data));
-                            }
-                        }
-
-                        // Check if we have enough rows to emit a batch
-                        if (pending_window_samples_.size() >= batch_size_)
-                        {
-                            return emit_pending_window_batch(out);
-                        }
-                    }
-                    catch (const std::exception& e)
-                    {
-                        NN_LOG_WARN(std::string("SqliteBatchSource Protocol: stacking/resampling "
-                                                "failed: ") +
-                                    e.what() + "; skipping trial");
-                        continue;
-                    }
+                    outcome = processProtocolConcatenatedTrial(eeg_accum, audio_accum, out);
                 }
                 else
                 {
-                    std::vector<std::vector<float>> samples = build_trial_windows(
-                        eeg_accum, audio_accum, dataset_type_, eeg_window_, audio_window_);
-                    if (samples.empty())
-                    {
-                        // Nothing to produce in windowed mode for this trial.
-                        continue;
-                    }
+                    outcome = processWindowedTrial(eeg_accum, audio_accum, out);
+                }
 
-                    pending_window_samples_ = std::move(samples);
-                    next_pending_sample_index_ = 0;
-                    if (emit_pending_window_batch(out))
-                    {
-                        return true;
-                    }
-
+                if (!outcome.has_value())
+                {
                     continue;
                 }
 
                 // Production: do not emit verbose debug logs here.
 
-                return true;
+                return *outcome;
             }
 
             return false;

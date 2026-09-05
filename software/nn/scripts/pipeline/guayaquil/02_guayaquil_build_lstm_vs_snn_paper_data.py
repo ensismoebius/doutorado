@@ -103,7 +103,15 @@ def bold_best(
     return out
 
 
-def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None:
+def _group_rows(
+    rows: List[Dict[str, object]],
+) -> Tuple[
+    Dict[str, List[Dict[str, object]]],
+    Dict[Tuple[str, str], List[Dict[str, object]]],
+    Dict[Tuple[str, str], List[Dict[str, object]]],
+    Dict[Tuple[float, str], List[Dict[str, object]]],
+]:
+    """Bucket `rows` the four ways the tables/plots below need them."""
     by_model: Dict[str, List[Dict[str, object]]] = defaultdict(list)
     by_model_encoding: Dict[Tuple[str, str], List[Dict[str, object]]] = defaultdict(list)
     by_encoding_model: Dict[Tuple[str, str], List[Dict[str, object]]] = defaultdict(list)
@@ -119,6 +127,10 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
         if row["model"] == "snn-ae" and encoding == "direct" and abs(float(row["v_th"]) - 1.0) < 1e-6:
             by_alpha_arch[(float(row["alpha"]), str(row["architecture"]))].append(row)
 
+    return by_model, by_model_encoding, by_encoding_model, by_alpha_arch
+
+
+def _write_summary_by_model(by_model: Dict[str, List[Dict[str, object]]], data_dir: pathlib.Path) -> None:
     # Best-value bolding (tab:perf, tab:recon, tab:eff in paper.tex): columns below are
     # pre-formatted to match pgfplotstable's default `fixed` rendering exactly (see
     # fmt_pgf) and the best row(s) wrapped in \textbf. spike_rate, param_count, and macs
@@ -160,6 +172,10 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
                 summary_macs[i],
             ])
 
+
+def _write_recon_by_encoding(
+    by_model_encoding: Dict[Tuple[str, str], List[Dict[str, object]]], data_dir: pathlib.Path
+) -> None:
     recon_keys = sorted(by_model_encoding)
     recon_mse = [mean([float(r["mse"]) for r in by_model_encoding[k]]) for k in recon_keys]
     recon_mae = [mean([float(r["mae"]) for r in by_model_encoding[k]]) for k in recon_keys]
@@ -182,6 +198,10 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
                 mean([float(r["f1"]) for r in group]),
             ])
 
+
+def _write_eff_by_encoding(
+    by_model_encoding: Dict[Tuple[str, str], List[Dict[str, object]]], data_dir: pathlib.Path
+) -> None:
     eff_keys = sorted(by_model_encoding)
     eff_energy = [mean([float(r["energy"]) for r in by_model_encoding[k]]) for k in eff_keys]
 
@@ -202,6 +222,10 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
                 mean([float(r["macs"]) for r in group]),
             ])
 
+
+def _write_mse_plot(
+    by_encoding_model: Dict[Tuple[str, str], List[Dict[str, object]]], data_dir: pathlib.Path
+) -> None:
     mse_plot_path = data_dir / "paper_mse_plot.csv"
     with mse_plot_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -218,6 +242,10 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
                 lookup("SNN-recurrent"),
             ])
 
+
+def _write_sweep_alpha(
+    by_alpha_arch: Dict[Tuple[float, str], List[Dict[str, object]]], data_dir: pathlib.Path
+) -> None:
     sweep_path = data_dir / "paper_sweep_alpha.csv"
     alphas = sorted({k[0] for k in by_alpha_arch.keys()})
     with sweep_path.open("w", newline="", encoding="utf-8") as f:
@@ -228,6 +256,15 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
                 return mean([float(r["mse"]) for r in by_alpha_arch.get((alpha, arch), [])])
 
             w.writerow([alpha, lookup("dense"), lookup("conv1d"), lookup("recurrent")])
+
+
+def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None:
+    by_model, by_model_encoding, by_encoding_model, by_alpha_arch = _group_rows(rows)
+    _write_summary_by_model(by_model, data_dir)
+    _write_recon_by_encoding(by_model_encoding, data_dir)
+    _write_eff_by_encoding(by_model_encoding, data_dir)
+    _write_mse_plot(by_encoding_model, data_dir)
+    _write_sweep_alpha(by_alpha_arch, data_dir)
 
 
 def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> None:

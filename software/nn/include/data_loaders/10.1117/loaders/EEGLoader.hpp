@@ -53,6 +53,10 @@ class EEGSession
    private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
+
+    auto readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>;
+    auto readRowFromMat(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>;
+    void cacheRow(size_t rowIndex, const std::tuple<nn::Tensor, std::array<int, 3>>& result) const;
 };
 
 class EEGLoader : public IMatLoader

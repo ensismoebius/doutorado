@@ -381,6 +381,110 @@ void ProgressManager::end_active_work(uint32_t id)
     }
 }
 
+void ProgressManager::render_entry(const ProgressEntry& entry) const
+{
+    const float cv = entry.current_value.load();
+    const float tv = std::max(entry.target_value, 1.0f);
+    const float progress = std::clamp(cv / tv, 0.0f, 1.0f);
+    std::map<std::string, float> metrics;
+    {
+        std::lock_guard<std::mutex> ml(entry.metrics_mutex);
+        metrics = entry.metrics;
+    }
+    std::lock_guard<std::mutex> meta_lock(entry.metadata_mutex);
+
+    // Metadata line — trim trailing empty columns so last col is unpadded.
+    {
+        std::string col2 = entry.description;
+        std::string col3;
+        if (entry.fold_number > 0 || entry.total_folds > 1)
+            col3 = "run " + std::to_string(entry.fold_number) + "/" +
+                   std::to_string(entry.total_folds);
+        if (!entry.loss_type.empty()) col3 += (col3.empty() ? "" : "  ") + entry.loss_type;
+        const std::string col4 = format_phases(entry.phases, entry.current_phase_index);
+
+        const int last_col = !col4.empty() ? 4 : !col3.empty() ? 3 : !col2.empty() ? 2 : 1;
+
+        std::stringstream ss;
+        ss << "\033[2K\r";
+        if (last_col == 1)
+        {
+            append_bold_cell(ss, entry.label, kCol1Width);
+        }
+        else
+        {
+            append_bold_cell(ss, entry.label, kCol1Width);
+            ss << kSep;
+            if (last_col == 2)
+            {
+                ss << col2;
+            }
+            else
+            {
+                append_fitted_cell(ss, col2, kCol2Width);
+            }
+        }
+        if (last_col >= 3)
+        {
+            ss << kSep;
+            if (last_col == 3)
+            {
+                ss << col3;
+            }
+            else
+            {
+                append_fitted_cell(ss, col3, kCol3Width);
+            }
+        }
+        if (last_col >= 4)
+        {
+            ss << kSep << col4;
+        }
+        std::cout << ss.str() << "\n";
+    }
+
+    // Progress line — always all 4 columns.
+    {
+        std::stringstream ss;
+        ss << "\033[2K\r";
+        ss << "  ";
+        const int pos = static_cast<int>(kBarWidth * progress);
+        // Green fill grows into the bar; unfilled track dims to gray so
+        // the completed portion reads clearly at a glance.
+        const char* fill_color = progress >= 1.0f ? "\033[36m" : "\033[32m";
+        ss << fill_color;
+        for (int i = 0; i < pos; ++i) ss << "█";
+        ss << "\033[90m";
+        for (int i = pos; i < kBarWidth; ++i) ss << "░";
+        ss << "\033[0m";
+        ss << kSep;
+        // Pad plain text to width FIRST, then wrap the padded result in
+        // color codes — ANSI bytes must never enter append_fitted_cell's
+        // truncation math, or a mid-escape cut leaves the terminal stuck
+        // in a color state.
+        const std::string info = format_percent(progress) + "  " + format_step(cv, tv);
+        {
+            std::stringstream info_ss;
+            append_fitted_cell(info_ss, info, kCol2Width);
+            ss << "\033[1m" << info_ss.str() << "\033[0m";
+        }
+        ss << kSep;
+        {
+            std::stringstream metrics_ss;
+            append_fitted_cell(metrics_ss, format_metrics(metrics), kCol3Width);
+            ss << "\033[33m" << metrics_ss.str() << "\033[0m";
+        }
+        ss << kSep;
+        const std::string eta = format_eta(entry.start_ns, cv, tv, entry.ema_ns_per_item);
+        {
+            std::stringstream eta_ss;
+            append_fitted_cell(eta_ss, eta.empty() ? "starting..." : "ETA: " + eta, kCol4Width);
+            ss << "\033[35m" << eta_ss.str() << "\033[0m";
+        }
+        std::cout << ss.str() << "\n";
+    }
+}
+
 void ProgressManager::render_loop()
 {
     while (running_)
@@ -410,114 +514,7 @@ void ProgressManager::render_loop()
 
                 for (const auto& entry : entries_)
                 {
-                    const float cv = entry->current_value.load();
-                    const float tv = std::max(entry->target_value, 1.0f);
-                    const float progress = std::clamp(cv / tv, 0.0f, 1.0f);
-                    std::map<std::string, float> metrics;
-                    {
-                        std::lock_guard<std::mutex> ml(entry->metrics_mutex);
-                        metrics = entry->metrics;
-                    }
-                    std::lock_guard<std::mutex> meta_lock(entry->metadata_mutex);
-
-                    // Metadata line — trim trailing empty columns so last col is unpadded.
-                    {
-                        std::string col2 = entry->description;
-                        std::string col3;
-                        if (entry->fold_number > 0 || entry->total_folds > 1)
-                            col3 = "run " + std::to_string(entry->fold_number) + "/" +
-                                   std::to_string(entry->total_folds);
-                        if (!entry->loss_type.empty())
-                            col3 += (col3.empty() ? "" : "  ") + entry->loss_type;
-                        const std::string col4 =
-                            format_phases(entry->phases, entry->current_phase_index);
-
-                        const int last_col = !col4.empty()   ? 4
-                                             : !col3.empty() ? 3
-                                             : !col2.empty() ? 2
-                                                             : 1;
-
-                        std::stringstream ss;
-                        ss << "\033[2K\r";
-                        if (last_col == 1)
-                        {
-                            append_bold_cell(ss, entry->label, kCol1Width);
-                        }
-                        else
-                        {
-                            append_bold_cell(ss, entry->label, kCol1Width);
-                            ss << kSep;
-                            if (last_col == 2)
-                            {
-                                ss << col2;
-                            }
-                            else
-                            {
-                                append_fitted_cell(ss, col2, kCol2Width);
-                            }
-                        }
-                        if (last_col >= 3)
-                        {
-                            ss << kSep;
-                            if (last_col == 3)
-                            {
-                                ss << col3;
-                            }
-                            else
-                            {
-                                append_fitted_cell(ss, col3, kCol3Width);
-                            }
-                        }
-                        if (last_col >= 4)
-                        {
-                            ss << kSep << col4;
-                        }
-                        std::cout << ss.str() << "\n";
-                    }
-
-                    // Progress line — always all 4 columns.
-                    {
-                        std::stringstream ss;
-                        ss << "\033[2K\r";
-                        ss << "  ";
-                        const int pos = static_cast<int>(kBarWidth * progress);
-                        // Green fill grows into the bar; unfilled track dims to gray so
-                        // the completed portion reads clearly at a glance.
-                        const char* fill_color = progress >= 1.0f ? "\033[36m" : "\033[32m";
-                        ss << fill_color;
-                        for (int i = 0; i < pos; ++i) ss << "█";
-                        ss << "\033[90m";
-                        for (int i = pos; i < kBarWidth; ++i) ss << "░";
-                        ss << "\033[0m";
-                        ss << kSep;
-                        // Pad plain text to width FIRST, then wrap the padded result in
-                        // color codes — ANSI bytes must never enter append_fitted_cell's
-                        // truncation math, or a mid-escape cut leaves the terminal stuck
-                        // in a color state.
-                        const std::string info =
-                            format_percent(progress) + "  " + format_step(cv, tv);
-                        {
-                            std::stringstream info_ss;
-                            append_fitted_cell(info_ss, info, kCol2Width);
-                            ss << "\033[1m" << info_ss.str() << "\033[0m";
-                        }
-                        ss << kSep;
-                        {
-                            std::stringstream metrics_ss;
-                            append_fitted_cell(metrics_ss, format_metrics(metrics), kCol3Width);
-                            ss << "\033[33m" << metrics_ss.str() << "\033[0m";
-                        }
-                        ss << kSep;
-                        const std::string eta =
-                            format_eta(entry->start_ns, cv, tv, entry->ema_ns_per_item);
-                        {
-                            std::stringstream eta_ss;
-                            append_fitted_cell(
-                                eta_ss, eta.empty() ? "starting..." : "ETA: " + eta, kCol4Width);
-                            ss << "\033[35m" << eta_ss.str() << "\033[0m";
-                        }
-                        std::cout << ss.str() << "\n";
-                    }
+                    render_entry(*entry);
                 }
 
                 // Erase stale content from previous renders (handles bar removal /

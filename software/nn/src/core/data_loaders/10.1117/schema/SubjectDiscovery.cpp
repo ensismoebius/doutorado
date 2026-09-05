@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <data_loaders/mat_io/mat_file.hpp>
 #include <filesystem>
+#include <optional>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -32,162 +33,180 @@ using nn::dataLoaders::kAudioMatVariableName;
 using nn::dataLoaders::kEegMatFileSuffix;
 using nn::dataLoaders::kEegMatVariableName;
 
-auto discoverSubjects(                       //
-    const std::string& root_dir,             //
-    const std::string& subject_regex_pattern //
-    ) -> std::vector<SubjectFiles>
+namespace
 {
-    regex selection_pattern(subject_regex_pattern);
-    vector<SubjectFiles> subjects;
 
-    namespace fs = std::filesystem;
-    fs::path root_path(nn::utility::expand_home(root_dir));
-
-    if (!fs::exists(root_path))
+// Fills eeg_rows/audio_rows on `info` from the sqlite DB's trial/audio_samples tables.
+// Mirrors the original inline queries exactly: a failed prepare leaves the corresponding
+// count at its default (0), it is not treated as an error.
+void fillSubjectRowCountsFromSqlite(sqlite3* db, SubjectFiles& info)
+{
+    sqlite3_stmt* cstmt = nullptr;
+    const char* ceeg =
+        "SELECT COUNT(*) FROM trial WHERE subject_id = ? AND original_row IS NOT NULL";
+    if (sqlite3_prepare_v2(db, ceeg, -1, &cstmt, nullptr) == SQLITE_OK)
     {
-        throw std::runtime_error("Dataset root does not exist: " + root_dir);
+        sqlite3_bind_int(cstmt, 1, info.subject_id);
+        if (sqlite3_step(cstmt) == SQLITE_ROW)
+        {
+            info.eeg_rows = static_cast<size_t>(sqlite3_column_int64(cstmt, 0));
+        }
+        sqlite3_finalize(cstmt);
+    }
+    const char* caudio =
+        "SELECT COUNT(*) FROM audio_samples a JOIN trial t ON a.trial_id = t.id WHERE "
+        "t.subject_id = ?";
+    cstmt = nullptr;
+    if (sqlite3_prepare_v2(db, caudio, -1, &cstmt, nullptr) == SQLITE_OK)
+    {
+        sqlite3_bind_int(cstmt, 1, info.subject_id);
+        if (sqlite3_step(cstmt) == SQLITE_ROW)
+        {
+            info.audio_rows = static_cast<size_t>(sqlite3_column_int64(cstmt, 0));
+        }
+        sqlite3_finalize(cstmt);
+    }
+}
+
+// Handles the "root_dir is a single sqlite DB file" case: enumerate subjects from the
+// `subject` table and fill in their row counts.
+auto discoverSubjectsFromSqlite(const std::string& root_dir, const std::filesystem::path& root_path)
+    -> vector<SubjectFiles>
+{
+    sqlite3* db = nullptr;
+    if (sqlite3_open_v2(root_path.string().c_str(), &db, SQLITE_OPEN_READONLY, nullptr) !=
+        SQLITE_OK)
+    {
+        if (db) sqlite3_close(db);
+        throw std::runtime_error("Failed to open sqlite DB: " + root_dir);
     }
 
-    // If a single sqlite DB file is provided, enumerate subjects from DB.
-    if (fs::is_regular_file(root_path) && root_path.extension() == ".sqlite")
+    const char* q = "SELECT id, subject_name FROM subject ORDER BY id ASC";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db, q, -1, &stmt, nullptr) != SQLITE_OK)
     {
-        sqlite3* db = nullptr;
-        if (sqlite3_open_v2(root_path.string().c_str(), &db, SQLITE_OPEN_READONLY, nullptr) !=
-            SQLITE_OK)
-        {
-            if (db) sqlite3_close(db);
-            throw std::runtime_error("Failed to open sqlite DB: " + root_dir);
-        }
-
-        const char* q = "SELECT id, subject_name FROM subject ORDER BY id ASC";
-        sqlite3_stmt* stmt = nullptr;
-        if (sqlite3_prepare_v2(db, q, -1, &stmt, nullptr) != SQLITE_OK)
-        {
-            sqlite3_close(db);
-            throw std::runtime_error("Failed to prepare subject query");
-        }
-
-        while (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            SubjectFiles info{};
-            info.subject_id = sqlite3_column_int(stmt, 0);
-            const unsigned char* name = sqlite3_column_text(stmt, 1);
-            info.subject_name =
-                name ? reinterpret_cast<const char*>(name) : std::to_string(info.subject_id);
-            info.eeg_path = root_path.string();
-            info.audio_path = root_path.string();
-
-            // Count eeg rows (trials with original_row not null) and audio rows
-            sqlite3_stmt* cstmt = nullptr;
-            const char* ceeg =
-                "SELECT COUNT(*) FROM trial WHERE subject_id = ? AND original_row IS NOT NULL";
-            if (sqlite3_prepare_v2(db, ceeg, -1, &cstmt, nullptr) == SQLITE_OK)
-            {
-                sqlite3_bind_int(cstmt, 1, info.subject_id);
-                if (sqlite3_step(cstmt) == SQLITE_ROW)
-                {
-                    info.eeg_rows = static_cast<size_t>(sqlite3_column_int64(cstmt, 0));
-                }
-                sqlite3_finalize(cstmt);
-            }
-            const char* caudio =
-                "SELECT COUNT(*) FROM audio_samples a JOIN trial t ON a.trial_id = t.id WHERE "
-                "t.subject_id = ?";
-            cstmt = nullptr;
-            if (sqlite3_prepare_v2(db, caudio, -1, &cstmt, nullptr) == SQLITE_OK)
-            {
-                sqlite3_bind_int(cstmt, 1, info.subject_id);
-                if (sqlite3_step(cstmt) == SQLITE_ROW)
-                {
-                    info.audio_rows = static_cast<size_t>(sqlite3_column_int64(cstmt, 0));
-                }
-                sqlite3_finalize(cstmt);
-            }
-
-            subjects.emplace_back(std::move(info));
-        }
-
-        sqlite3_finalize(stmt);
         sqlite3_close(db);
-
-        if (subjects.empty())
-        {
-            throw std::runtime_error("No subjects found in sqlite DB: " + root_dir);
-        }
-
-        return subjects;
+        throw std::runtime_error("Failed to prepare subject query");
     }
 
-    for (const auto& entry : fs::directory_iterator(root_path))
+    vector<SubjectFiles> subjects;
+    while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        if (!entry.is_directory())
-        {
-            continue;
-        }
-
-        const std::string dir_name = entry.path().filename().string();
-
-        std::smatch regex_groups_matches;
-        if (!std::regex_match(dir_name, regex_groups_matches, selection_pattern))
-        {
-            continue;
-        }
-
-        const int subject_id = std::stoi(regex_groups_matches[1].str());
-
-        const fs::path eeg_mat = entry.path() / (dir_name + kEegMatFileSuffix);
-        const fs::path audio_mat = entry.path() / (dir_name + kAudioMatFileSuffix);
-        const fs::path shard_index = entry.path() / (dir_name + std::string("_shards.json"));
-
-        bool eeg_ok = fs::exists(eeg_mat);
-        bool audio_ok = fs::exists(audio_mat);
-        bool eeg_is_shard = false;
-        bool audio_is_shard = false;
-
-        fs::path eeg_path = eeg_mat;
-        fs::path audio_path = audio_mat;
-
-        if (fs::exists(shard_index))
-        {
-            if (!eeg_ok)
-            {
-                eeg_ok = true;
-                eeg_is_shard = true;
-                eeg_path = shard_index;
-            }
-            if (!audio_ok)
-            {
-                audio_ok = true;
-                audio_is_shard = true;
-                audio_path = shard_index;
-            }
-        }
-
-        if (!eeg_ok || !audio_ok)
-        {
-            continue;
-        }
-
         SubjectFiles info{};
-        info.subject_id = subject_id;
-        info.subject_name = dir_name;
-        info.eeg_path = eeg_path.string();
-        info.audio_path = audio_path.string();
+        info.subject_id = sqlite3_column_int(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        info.subject_name =
+            name ? reinterpret_cast<const char*>(name) : std::to_string(info.subject_id);
+        info.eeg_path = root_path.string();
+        info.audio_path = root_path.string();
 
-        try
-        {
-            info.eeg_rows = eeg_is_shard ? matioCpp::utils::countShardRows(info.eeg_path, "eeg")
-                                         : countMatRows(info.eeg_path, kEegMatVariableName);
-            info.audio_rows = audio_is_shard
-                                  ? matioCpp::utils::countShardRows(info.audio_path, "audio")
-                                  : countMatRows(info.audio_path, kAudioMatVariableName);
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
+        // Count eeg rows (trials with original_row not null) and audio rows
+        fillSubjectRowCountsFromSqlite(db, info);
 
         subjects.emplace_back(std::move(info));
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+
+    if (subjects.empty())
+    {
+        throw std::runtime_error("No subjects found in sqlite DB: " + root_dir);
+    }
+
+    return subjects;
+}
+
+// Matches one directory entry against the subject regex and, if it looks like a valid
+// subject directory (has EEG+Audio mat files or shard indices, and both are readable),
+// returns its SubjectFiles. Returns nullopt for anything to be skipped — a non-directory,
+// a non-matching name, missing files, or a mat/shard file that fails to parse.
+auto discoverSubjectFromDirEntry(const std::filesystem::directory_entry& entry,
+    const regex& selection_pattern) -> std::optional<SubjectFiles>
+{
+    namespace fs = std::filesystem;
+
+    if (!entry.is_directory())
+    {
+        return std::nullopt;
+    }
+
+    const std::string dir_name = entry.path().filename().string();
+
+    std::smatch regex_groups_matches;
+    if (!std::regex_match(dir_name, regex_groups_matches, selection_pattern))
+    {
+        return std::nullopt;
+    }
+
+    const int subject_id = std::stoi(regex_groups_matches[1].str());
+
+    const fs::path eeg_mat = entry.path() / (dir_name + kEegMatFileSuffix);
+    const fs::path audio_mat = entry.path() / (dir_name + kAudioMatFileSuffix);
+    const fs::path shard_index = entry.path() / (dir_name + std::string("_shards.json"));
+
+    bool eeg_ok = fs::exists(eeg_mat);
+    bool audio_ok = fs::exists(audio_mat);
+    bool eeg_is_shard = false;
+    bool audio_is_shard = false;
+
+    fs::path eeg_path = eeg_mat;
+    fs::path audio_path = audio_mat;
+
+    if (fs::exists(shard_index))
+    {
+        if (!eeg_ok)
+        {
+            eeg_ok = true;
+            eeg_is_shard = true;
+            eeg_path = shard_index;
+        }
+        if (!audio_ok)
+        {
+            audio_ok = true;
+            audio_is_shard = true;
+            audio_path = shard_index;
+        }
+    }
+
+    if (!eeg_ok || !audio_ok)
+    {
+        return std::nullopt;
+    }
+
+    SubjectFiles info{};
+    info.subject_id = subject_id;
+    info.subject_name = dir_name;
+    info.eeg_path = eeg_path.string();
+    info.audio_path = audio_path.string();
+
+    try
+    {
+        info.eeg_rows = eeg_is_shard ? matioCpp::utils::countShardRows(info.eeg_path, "eeg")
+                                     : countMatRows(info.eeg_path, kEegMatVariableName);
+        info.audio_rows = audio_is_shard ? matioCpp::utils::countShardRows(info.audio_path, "audio")
+                                         : countMatRows(info.audio_path, kAudioMatVariableName);
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+
+    return info;
+}
+
+// Handles the "root_dir is a directory of per-subject folders" case: scan, filter and
+// sort by subject_id.
+auto discoverSubjectsFromDirectory(
+    const std::filesystem::path& root_path, const regex& selection_pattern) -> vector<SubjectFiles>
+{
+    namespace fs = std::filesystem;
+
+    vector<SubjectFiles> subjects;
+    for (const auto& entry : fs::directory_iterator(root_path))
+    {
+        auto info = discoverSubjectFromDirEntry(entry, selection_pattern);
+        if (info) subjects.emplace_back(std::move(*info));
     }
 
     if (subjects.empty())
@@ -202,4 +221,30 @@ auto discoverSubjects(                       //
         [](const SubjectFiles& a, const SubjectFiles& b) { return a.subject_id < b.subject_id; });
 
     return subjects;
+}
+
+} // namespace
+
+auto discoverSubjects(                       //
+    const std::string& root_dir,             //
+    const std::string& subject_regex_pattern //
+    ) -> std::vector<SubjectFiles>
+{
+    regex selection_pattern(subject_regex_pattern);
+
+    namespace fs = std::filesystem;
+    fs::path root_path(nn::utility::expand_home(root_dir));
+
+    if (!fs::exists(root_path))
+    {
+        throw std::runtime_error("Dataset root does not exist: " + root_dir);
+    }
+
+    // If a single sqlite DB file is provided, enumerate subjects from DB.
+    if (fs::is_regular_file(root_path) && root_path.extension() == ".sqlite")
+    {
+        return discoverSubjectsFromSqlite(root_dir, root_path);
+    }
+
+    return discoverSubjectsFromDirectory(root_path, selection_pattern);
 }

@@ -45,7 +45,15 @@ model.load_state_dict(NetworkSerializer::load("model.npz"));
 ```
 Validate architecture metadata from the checkpoint against the current model before loading.
 
-**Wiki & knowledge graph:**
+**Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` — structural findings, complexity hotspots, and gated multi-site renames
+- `run_build` / `run_tests` / `run_lint` / `run_format` / `detect_toolchain` — structured build/test/lint output, not raw logs (`run_lint`/`run_format` cover Python only; C++ still goes through `analysis-all`/`clang-format-changed.sh`)
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+**Wiki & knowledge graph** (concepts, papers, docs — not code symbols; use the MCP tools above for those):
 - Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
 - Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
 - Find any symbol/concept:

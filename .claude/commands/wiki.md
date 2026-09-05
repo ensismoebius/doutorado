@@ -17,6 +17,8 @@ Project Context (nn framework)
 
 **Knowledge graph:** `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
 
+**Staleness check** — before editing a page that documents a specific source file, compare `git_log(path=<source file>)` against `git_log(path=<wiki page>)` (MCP): if the source's latest commit is newer than the wiki page's, the page's code snippets/behavior claims may already be stale — re-verify against current source rather than trusting what the page says. Cheaper than diffing the whole file by eye.
+
 **Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
 ```bash
 cd .wiki && python3 -c "
@@ -105,11 +107,20 @@ Phase 4: Writing Standards
 Phase 5: Execution Steps
 
 ### STEP 1 — RECONNAISSANCE
+Enumerate with `list_files`/`get_workspace_structure` (MCP) — already
+excludes `build/`/`_deps/` and matches this project's own file inventory,
+no manual `! -path` filtering needed:
 ```bash
 find . -type f \( -name "*.hpp" -o -name "*.cpp" -o -name "*.md" \) \
   ! -path "./build/*" ! -path "./_deps/*" | sort
 ```
-Read every README.md and public header under `include/nn/`. Read full source of every file under `src/experiments/`. Do NOT start writing until the full codebase is read.
+`get_file_structure`/`list_symbols` (MCP) gives every file's symbols
+(kind, location, LOC, has_doc) without opening it — use it to triage which
+files are substantial enough to need a full read first. Read every
+README.md and public header under `include/nn/`. Read full source of
+every file under `src/experiments/`. Do NOT start writing until the full
+codebase is read — the triage above orders the reading, it doesn't
+shorten it.
 
 ### STEP 2 — WEB RESEARCH
 Collect canonical citations for: LSTM, BPTT, SNNs + surrogate gradients, Autoencoders, Adam, Xavier/Glorot init, Kaiming/He init, ResNet skip connections, k-fold cross-validation, ReduceLROnPlateau, EEG/BCI signal processing, imagined-speech EEG decoding.

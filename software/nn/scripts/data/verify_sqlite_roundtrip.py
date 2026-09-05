@@ -33,23 +33,17 @@ def deserialize_blob(blob, dtype, count):
         raise ValueError(f"Blob size {arr.size} does not match expected {count}")
     return arr
 
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: python scripts/verify_sqlite_roundtrip.py <db_path> <dataset_root> [num_checks]")
-        sys.exit(1)
-    db_path = sys.argv[1]
-    dataset_root = sys.argv[2]
-    num_checks = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+def _verify_multiple_trials(conn, dataset_root, ids):
+    """Round-trip check each of `ids` via `fetch_trial()`.
 
-    conn = connect(db_path)
-    c = conn.cursor()
-    ids = random_trial_ids(conn, n=num_checks, require_audio=True)
-    if not ids:
-        print('No trials with audio available for verification')
-        sys.exit(1)
-
+    Returns `(passed, failed, last_trial_id, last_subject_name)` -- the
+    last two are the LOOP's final iteration values, kept because `main()`
+    feeds them into the second, independent verification pass below.
+    """
     passed = 0
     failed = 0
+    subject_name = None
+    trial_id = None
     for trial_id in ids:
         print(f"Verifying trial {trial_id}...")
         info = fetch_trial(conn, trial_id, dataset_root=dataset_root)
@@ -94,8 +88,46 @@ def main():
         else:
             print(f"Trial {trial_id} FAILED")
             failed += 1
+    return passed, failed, trial_id, subject_name
 
-    print(f"Verification complete: passed={passed}, failed={failed}, total={len(ids)}")
+
+def _resolve_original_mat_row_index(c, trial_id, eeg_arr):
+    """`trial_id`'s row index into `eeg_arr` -- the stored `trial.original_row` when present,
+    else a fallback match by stimulus code + blink flag."""
+    # Prefer exact original row index stored in trial.original_row
+    c.execute("SELECT original_row FROM trial WHERE id=?", (trial_id,))
+    res = c.fetchone()
+    if res and res[0] is not None:
+        match_idx = int(res[0])
+        print(f"Using stored original_row index: {match_idx}")
+        return match_idx
+
+    # Fallback: find by stimulus and blink
+    c.execute("SELECT t.stimulus_id, e.blink FROM trial t JOIN eeg_samples e ON e.trial_id = t.id WHERE t.id=?", (trial_id,))
+    db_stimulus_id, db_blink = c.fetchone()
+    c.execute("SELECT name FROM stimulus WHERE id=?", (db_stimulus_id,))
+    db_stimulus_name = c.fetchone()[0]
+    db_stim_code = int(db_stimulus_name.split('_')[-1])
+    for idx, row in enumerate(eeg_arr):
+        stim_code = int(row[EEG_SIGNAL_COLUMNS + 1])
+        blink = int(row[EEG_SIGNAL_COLUMNS + 2])
+        if stim_code == db_stim_code and blink == db_blink:
+            print(f"Fallback matched .mat row index: {idx}")
+            return idx
+    print("No matching .mat row found for this trial's stimulus and blink.")
+    sys.exit(1)
+
+
+def _verify_single_trial_raw_blobs(conn, dataset_root, trial_id, subject_name):
+    """A second, independent round-trip check: re-fetches `trial_id`'s raw blobs directly via
+    SQL (rather than through `fetch_trial()`, like `_verify_multiple_trials` above) and compares
+    them against its resolved `.mat` row.
+
+    `trial_id`/`subject_name` are `_verify_multiple_trials`'s last-loop-iteration values, not a
+    fresh selection -- preserved as-is; this refactor only splits the function, it does not
+    change what gets verified.
+    """
+    c = conn.cursor()
     # Fetch EEG blobs
     c.execute("SELECT F3, F4, C3, C4, P3, P4, blink FROM eeg_samples WHERE trial_id=?", (trial_id,))
     eeg_row = c.fetchone()
@@ -113,30 +145,9 @@ def main():
     audio_mat = loadmat(os.path.join(subj_path, audio_file), squeeze_me=True)
     eeg_arr = eeg_mat['EEG']
     audio_arr = audio_mat['Audio']
-    # Prefer exact original row index stored in trial.original_row
-    c.execute("SELECT original_row FROM trial WHERE id=?", (trial_id,))
-    res = c.fetchone()
-    match_idx = None
-    if res and res[0] is not None:
-        match_idx = int(res[0])
-        print(f"Using stored original_row index: {match_idx}")
-    else:
-        # Fallback: find by stimulus and blink
-        c.execute("SELECT t.stimulus_id, e.blink FROM trial t JOIN eeg_samples e ON e.trial_id = t.id WHERE t.id=?", (trial_id,))
-        db_stimulus_id, db_blink = c.fetchone()
-        c.execute("SELECT name FROM stimulus WHERE id=?", (db_stimulus_id,))
-        db_stimulus_name = c.fetchone()[0]
-        db_stim_code = int(db_stimulus_name.split('_')[-1])
-        for idx, row in enumerate(eeg_arr):
-            stim_code = int(row[EEG_SIGNAL_COLUMNS + 1])
-            blink = int(row[EEG_SIGNAL_COLUMNS + 2])
-            if stim_code == db_stim_code and blink == db_blink:
-                match_idx = idx
-                break
-        if match_idx is None:
-            print("No matching .mat row found for this trial's stimulus and blink.")
-            sys.exit(1)
-        print(f"Fallback matched .mat row index: {match_idx}")
+
+    match_idx = _resolve_original_mat_row_index(c, trial_id, eeg_arr)
+
     # Compare EEG
     all_match = True
     for ch_idx, ch_name in enumerate(CHANNELS):
@@ -166,6 +177,26 @@ def main():
         print("Round-trip verification PASSED.")
     else:
         print("Round-trip verification FAILED.")
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: python scripts/verify_sqlite_roundtrip.py <db_path> <dataset_root> [num_checks]")
+        sys.exit(1)
+    db_path = sys.argv[1]
+    dataset_root = sys.argv[2]
+    num_checks = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+
+    conn = connect(db_path)
+    ids = random_trial_ids(conn, n=num_checks, require_audio=True)
+    if not ids:
+        print('No trials with audio available for verification')
+        sys.exit(1)
+
+    passed, failed, last_trial_id, last_subject_name = _verify_multiple_trials(conn, dataset_root, ids)
+    print(f"Verification complete: passed={passed}, failed={failed}, total={len(ids)}")
+
+    _verify_single_trial_raw_blobs(conn, dataset_root, last_trial_id, last_subject_name)
 
 if __name__ == "__main__":
     main()

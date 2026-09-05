@@ -19,7 +19,25 @@ incremental, symbol-oriented index. Query it instead of opening whole
 files — most questions ("where is X defined", "what does this function's body look like", "what breaks quality rules here") are answered by a small,
 precise query, not a full-file read.
 
-## Prerequisite
+## Prefer the MCP server when it's configured
+
+If tools named `mcp__code_intelligence__*` are available, use them
+directly instead of the CLI below — one structured JSON call, no
+subprocess, and a strictly larger surface (build/test/lint/format
+orchestration, git status/log/blame/diff, gated multi-site rename — none
+of which the CLI has yet):
+
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols; every text hit is tagged with its enclosing symbol.
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source. An oversized request returns `{"truncated": true, "recommended_ranges": [...]}` instead of a silent clip — read what it recommends, never guess a smaller range yourself.
+- `find_references` / `find_dependencies` — L6 callers/callees. Every row is marked `"exact"` (a real compiler resolved it) or `"heuristic"` (name-matching only) — never read a heuristic "0 callers" as dead code.
+- `get_violations` / `summarize_violations` / `rank_symbols` — structural findings (naming, missing docs, LOC/complexity, duplication) and complexity hotspots.
+- `rename_symbol` — rename a definition and every exact-backend call site in one gated operation (`dry_run=True` first; refuses without exact semantic coverage rather than guessing).
+- `workspace_index` — re-index after changing code (incremental; only changed files reparse).
+- `compare_baseline` — diff against `HEAD`, `HEAD~1`, `working-tree`, `staged`, a branch, or a commit without a full re-scan.
+- `run_build` / `run_tests` / `run_lint` / `run_format` / `detect_toolchain` — structured build/test/lint/format results (`status`, `counts`, `failed_tests`, a capped `log_tail`) instead of a raw log to re-parse by hand. `run_lint`/`run_format` currently cover Python (`ruff`) only.
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` — repository state, commit history, per-line blame, and insertion/deletion counts without shelling out to `git` and re-parsing its human-oriented output.
+
+## CLI fallback (no MCP configured)
 
 The tool itself lives outside this workspace, at `/home/ensismoebius/dotfiles/code_intelligence`. Invoke it as:
 
@@ -30,9 +48,11 @@ test -x "$CQ_PY" || echo "code-intelligence not found at /home/ensismoebius/dotf
 ```
 
 Every command below is `$CQ_PY $CQ_SCRIPT <subcommand> ...`, run from this
-workspace's root.
+workspace's root. The CLI covers the query/violations/index/diff workflow
+below only — build/test/lint/format orchestration, git status/log/blame,
+and rename are MCP-only for now.
 
-## Query-before-you-read workflow
+## Query-before-you-read workflow (CLI)
 
 1. **Structure first, content last.** Start at the cheapest level that
    answers your question:
@@ -72,3 +92,4 @@ workspace's root.
 - Every finding and every symbol can carry a `confidence` field
   (`"high"`/`"medium"`/`"low"`) — a heuristic (e.g. cross-file duplication
   similarity) is never presented as certainty.
+

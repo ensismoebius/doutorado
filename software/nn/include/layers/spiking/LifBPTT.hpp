@@ -292,25 +292,12 @@ struct LifBPTTImpl : public Module<Backend>
         Tensor grad_next_state(batch_size, features); // dL / dv[t+1] (recurrence accumulator)
         grad_next_state.setZero();
 
-        constexpr float kMinPositiveParam = 1e-6F;
-        float const raw_R = resistance.at(0, 0);
-        float const raw_C = capacitance.at(0, 0);
-        float const R = std::max(kMinPositiveParam, raw_R);
-        float const C = std::max(kMinPositiveParam, raw_C);
-        float const tau = R * C;
-        float const beta = std::exp(-delta_t / tau);
-        float threshold_val = voltage_threshold.at(0, 0);
+        const BackwardParams bp = compute_backward_params();
 
         // Accumulators for params
         float dL_dVth_sum = 0.0f;
         float dL_dR_sum = 0.0f;
         float dL_dC_sum = 0.0f;
-        float d_beta_dR =
-            (tau > 1e-12F && raw_R > kMinPositiveParam) ? (beta * delta_t) / (C * R * R) : 0.0f;
-        float d_beta_dC =
-            (tau > 1e-12F && raw_C > kMinPositiveParam) ? (beta * delta_t) / (R * C * C) : 0.0f;
-        // Note: d_beta_dR is derived from beta = exp(-delta_t/(R*C)).
-        // This implementation uses a scalar R and C shared across all neurons.
 
         // BPTT Loop (Reverse Time)
         for (int t = time_steps - 1; t >= 0; --t)
@@ -329,48 +316,10 @@ struct LifBPTTImpl : public Module<Backend>
                     float grad_from_next = grad_next_state.at(b, f);
 
                     // dL / dS[t] = grad_output[t]  (Direct loss)
-                    // Term 1: From Output
-                    float grad_v_pre = 0.0f;
-
-                    if (readout_mode)
-                    {
-                        // Readout-mode consistency fix: treat dynamics as purely continuous.
-                        // No spike/reset path is allowed to leak into this branch.
-                        // dL/dV = grad_out, and recurrence Jacobian is beta.
-                        grad_v_pre = grad_out + grad_from_next * beta;
-                    }
-                    else
-                    {
-                        float dvpost_dvpre = 1.0f;
-                        // Surrogate dS/dv
-                        float surr = surrogate_gradient->calculate_scalar(v_pre, threshold_val);
-                        float spike = (v_pre > threshold_val) ? 1.0F : 0.0F;
-                        float dvpost_dVth = 0.0F;
-
-                        // Term 2: From Next State v[t+1] (Recurrent)
-
-                        if (reset_zero)
-                        {
-                            // Exact local derivative for v_post = v_pre + s*(V_reset - v_pre)
-                            dvpost_dvpre = 1.0F - spike;
-                            // ds/dVth = -surr
-                            dvpost_dVth = surr * (v_pre - reset_potential);
-                        }
-                        else
-                        {
-                            // Soft reset: v_post = v_pre - s*Vth
-                            dvpost_dvpre = 1.0f - surr * threshold_val;
-                            // d(v_pre - s*Vth)/dVth = -s - Vth*ds/dVth
-                            dvpost_dVth = -spike + threshold_val * surr;
-                        }
-
-                        grad_v_pre = grad_out * surr + grad_from_next * beta * dvpost_dvpre;
-
-                        // dL/dVth includes both direct spike term and recurrent reset-path term.
-                        // This replaced the previous simplified accumulator that biased Vth
-                        // updates.
-                        dL_dVth_sum += (-grad_out * surr) + (grad_from_next * beta * dvpost_dVth);
-                    }
+                    const GradStep step = compute_grad_step(
+                        v_pre, grad_out, grad_from_next, bp.beta, bp.threshold_val);
+                    float grad_v_pre = step.grad_v_pre;
+                    dL_dVth_sum += step.dVth_contrib;
 
                     // Store dL/dI = grad_v_pre * 1
                     grad_input.at(offset + b, f) = grad_v_pre;
@@ -384,13 +333,105 @@ struct LifBPTTImpl : public Module<Backend>
                     {
                         v_prev_post = v_post_history.at((t - 1) * batch_size + b, f);
                     }
-                    dL_dR_sum += grad_v_pre * v_prev_post * d_beta_dR;
-                    dL_dC_sum += grad_v_pre * v_prev_post * d_beta_dC;
+                    dL_dR_sum += grad_v_pre * v_prev_post * bp.d_beta_dR;
+                    dL_dC_sum += grad_v_pre * v_prev_post * bp.d_beta_dC;
                 }
             }
         }
 
-        // Set Params Grads
+        store_param_grads(dL_dVth_sum, dL_dR_sum, dL_dC_sum);
+
+        return grad_input;
+    }
+
+   private:
+    /// @brief Per-call constants shared by every (t, b, f) cell of the BPTT loop.
+    struct BackwardParams
+    {
+        float beta;
+        float threshold_val;
+        float d_beta_dR;
+        float d_beta_dC;
+    };
+
+    // Computes beta = exp(-dt/tau) and its partial derivatives w.r.t. R and C, applying the
+    // same kMinPositiveParam clamp as forward() so gradients stay consistent with the clamped
+    // forward value (see "Convergence fixes" notes 1/2 in the file header).
+    [[nodiscard]] auto compute_backward_params() const -> BackwardParams
+    {
+        constexpr float kMinPositiveParam = 1e-6F;
+        float const raw_R = resistance.at(0, 0);
+        float const raw_C = capacitance.at(0, 0);
+        float const R = std::max(kMinPositiveParam, raw_R);
+        float const C = std::max(kMinPositiveParam, raw_C);
+        float const tau = R * C;
+        float const beta = std::exp(-delta_t / tau);
+        float const d_beta_dR =
+            (tau > 1e-12F && raw_R > kMinPositiveParam) ? (beta * delta_t) / (C * R * R) : 0.0f;
+        float const d_beta_dC =
+            (tau > 1e-12F && raw_C > kMinPositiveParam) ? (beta * delta_t) / (R * C * C) : 0.0f;
+        // Note: d_beta_dR is derived from beta = exp(-delta_t/(R*C)).
+        // This implementation uses a scalar R and C shared across all neurons.
+        return BackwardParams{beta, voltage_threshold.at(0, 0), d_beta_dR, d_beta_dC};
+    }
+
+    /// @brief Result of one (t, b, f) BPTT cell: the propagated pre-activation gradient plus
+    ///        this cell's contribution to the threshold gradient accumulator.
+    struct GradStep
+    {
+        float grad_v_pre;
+        float dVth_contrib;
+    };
+
+    // Per-element gradient step for one (t, b, f) cell of the reverse-time loop. Isolates the
+    // readout-mode / hard-reset / soft-reset branches (see "Convergence fixes" notes 4/5 in the
+    // file header) so backward() itself stays a plain loop skeleton.
+    [[nodiscard]] auto compute_grad_step(
+        float v_pre, float grad_out, float grad_from_next, float beta, float threshold_val) const
+        -> GradStep
+    {
+        if (readout_mode)
+        {
+            // Readout-mode consistency fix: treat dynamics as purely continuous.
+            // No spike/reset path is allowed to leak into this branch.
+            // dL/dV = grad_out, and recurrence Jacobian is beta.
+            return GradStep{grad_out + grad_from_next * beta, 0.0F};
+        }
+
+        float dvpost_dvpre = 1.0f;
+        // Surrogate dS/dv
+        float surr = surrogate_gradient->calculate_scalar(v_pre, threshold_val);
+        float spike = (v_pre > threshold_val) ? 1.0F : 0.0F;
+        float dvpost_dVth = 0.0F;
+
+        // Term 2: From Next State v[t+1] (Recurrent)
+
+        if (reset_zero)
+        {
+            // Exact local derivative for v_post = v_pre + s*(V_reset - v_pre)
+            dvpost_dvpre = 1.0F - spike;
+            // ds/dVth = -surr
+            dvpost_dVth = surr * (v_pre - reset_potential);
+        }
+        else
+        {
+            // Soft reset: v_post = v_pre - s*Vth
+            dvpost_dvpre = 1.0f - surr * threshold_val;
+            // d(v_pre - s*Vth)/dVth = -s - Vth*ds/dVth
+            dvpost_dVth = -spike + threshold_val * surr;
+        }
+
+        float grad_v_pre = grad_out * surr + grad_from_next * beta * dvpost_dvpre;
+
+        // dL/dVth includes both direct spike term and recurrent reset-path term.
+        // This replaced the previous simplified accumulator that biased Vth updates.
+        float dVth_contrib = (-grad_out * surr) + (grad_from_next * beta * dvpost_dVth);
+        return GradStep{grad_v_pre, dVth_contrib};
+    }
+
+    // Writes the accumulated scalar gradients back onto the (1x1) parameter tensors.
+    void store_param_grads(float dL_dVth_sum, float dL_dR_sum, float dL_dC_sum)
+    {
         Tensor vth_grad(1, 1);
         vth_grad.at(0, 0) = dL_dVth_sum;
         voltage_threshold.set_grad(vth_grad);
@@ -402,8 +443,6 @@ struct LifBPTTImpl : public Module<Backend>
         Tensor c_grad(1, 1);
         c_grad.at(0, 0) = dL_dC_sum;
         capacitance.set_grad(c_grad);
-
-        return grad_input;
     }
 };
 

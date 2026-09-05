@@ -18,6 +18,9 @@ Rules
 - RULE: TEST_NEARBY
   DO: Run related tests/smoke checks
   AVOID: Don't run the full test suite when targeted tests suffice
+- RULE: RENAME_GATED
+  DO: For a symbol rename touching call sites, use `rename_symbol` (MCP) — `dry_run=True` first, apply only when `blocked: false`
+  AVOID: Never hand-roll a multi-file find/replace for a rename; it can't tell a real call site from an unrelated same-named token the way `rename_symbol`'s exact-coverage gate does
 - RULE: PERF_GATE
   DO: For hot-path patches, include allocation/locality impacts in the rationale
   AVOID: No unmeasured optimization diffs
@@ -25,14 +28,22 @@ Rules
 Workflow
 
 1. Gather file + symbol context (use `navigation` skill if needed).
-2. Apply the patch.
-3. Build the affected target: `cmake --build build --target <target> -j4`.
-4. Run targeted tests: `ctest --test-dir build -R <pattern> --output-on-failure`.
-5. Report diff + verification results.
+2. Apply the patch — `replace_symbol`/`insert_lines` (MCP) for a structural
+   edit gated on the target being unchanged, or `rename_symbol` for a
+   rename that must also update call sites.
+3. Build the affected target: `run_build(target=...)` (MCP), or
+   `cmake --build build --target <target> -j4` when a specific preset
+   other than the most-recently-built one is required (see `build-test`).
+4. Run targeted tests: `run_tests(filter=<pattern>)` (MCP), or
+   `ctest --test-dir build -R <pattern> --output-on-failure`.
+5. Before reporting, check `git_diff_stat`/`git_status` (MCP) — confirms
+   the diff only touches what the patch intended, catching an
+   accidentally-modified unrelated file before it reaches review.
+6. Report diff + verification results.
 
 Validation
 
-- Diff is focused on the stated issue only.
+- Diff is focused on the stated issue only — confirmed via `git_diff_stat`, not just memory of what was edited.
 - Build passes for touched targets.
 - Relevant tests executed or explicitly deferred with justification.
 
@@ -61,7 +72,15 @@ cmake --build out/build/max-performance --target trainer_gtest -j$(nproc)
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
 ```
 
-**Wiki & knowledge graph:**
+**Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` — structural findings, complexity hotspots, and gated multi-site renames
+- `run_build` / `run_tests` / `run_lint` / `run_format` / `detect_toolchain` — structured build/test/lint output, not raw logs (`run_lint`/`run_format` cover Python only; C++ still goes through `analysis-all`/`clang-format-changed.sh`)
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+**Wiki & knowledge graph** (concepts, papers, docs — not code symbols; use the MCP tools above for those):
 - Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
 - Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
 - Find any symbol/concept:

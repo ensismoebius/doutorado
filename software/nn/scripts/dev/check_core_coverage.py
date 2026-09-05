@@ -154,7 +154,7 @@ def parse_lcov_info(info_path: Path) -> Dict[Path, FileCoverage]:
     return data
 
 
-def main() -> int:
+def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Enforce core-library coverage (function coverage by default)"
     )
@@ -176,33 +176,42 @@ def main() -> int:
         action="store_true",
         help="Do not run ctest before coverage capture",
     )
-    args = parser.parse_args()
+    return parser
 
-    build_dir = Path(args.build_dir).resolve()
-    if not build_dir.exists():
-        print(f"Build directory does not exist: {build_dir}", file=sys.stderr)
-        return 2
 
-    coverage_dir = build_dir / "coverage-gate"
-    coverage_dir.mkdir(parents=True, exist_ok=True)
-    raw_info = coverage_dir / "core_raw.info"
-    filtered_info = coverage_dir / "core_filtered.info"
+def _run_instrumented_tests(build_dir: Path) -> None:
+    """Reset stale gcov data and run the suite so fresh `.gcda` counters exist to capture."""
+    # Reset stale gcov runtime data to prevent checksum mismatches and stale counts.
+    for gcda in build_dir.rglob("*.gcda"):
+        gcda.unlink(missing_ok=True)
 
-    if not args.skip_tests:
-        # Reset stale gcov runtime data to prevent checksum mismatches and stale counts.
-        for gcda in build_dir.rglob("*.gcda"):
-            gcda.unlink(missing_ok=True)
+    run([
+        "ctest",
+        "--test-dir",
+        str(build_dir),
+        "--output-on-failure",
+        "-E",
+        "(_NOT_BUILT$|SpikeCountLossTest\\.ForwardAndBackward$|BatchPrefetcherRamCapTest\\.OversizedBatchStillMakesProgress$)",
+        "-j4",
+    ])
 
-        run([
-            "ctest",
-            "--test-dir",
-            str(build_dir),
-            "--output-on-failure",
-            "-E",
-            "(_NOT_BUILT$|SpikeCountLossTest\\.ForwardAndBackward$|BatchPrefetcherRamCapTest\\.OversizedBatchStillMakesProgress$)",
-            "-j4",
-        ])
 
+def _capture_core_coverage(build_dir: Path, raw_info: Path, filtered_info: Path) -> None:
+    """Capture lcov data from `build_dir` and filter it down to `src/core/` + `include/`.
+
+    Anchor both patterns to the project source root.
+
+    This used to be "*/include/nn/*", which matched ZERO files: there is no include/nn/
+    directory in this project -- the public headers live directly under include/
+    (include/tensor/, include/layers/, ...). Two consequences: the gate silently measured
+    only src/core/ while claiming to also cover the public headers, and on lcov 2.x an
+    --extract pattern that matches nothing is a hard error (exit 25), so the gate could
+    not run at all.
+
+    The replacement must stay anchored to source_root: a bare "*/include/*" also matches
+    /usr/include/c++/... and _deps/*/include/..., pulling ~450 dependency/system files
+    into the "core" measurement and drowning the real number.
+    """
     run([
         "lcov",
         "--capture",
@@ -214,18 +223,6 @@ def main() -> int:
         "inconsistent,negative,gcov,range",
     ])
 
-    # Anchor both patterns to the project source root.
-    #
-    # This used to be "*/include/nn/*", which matched ZERO files: there is no include/nn/
-    # directory in this project -- the public headers live directly under include/
-    # (include/tensor/, include/layers/, ...). Two consequences: the gate silently measured
-    # only src/core/ while claiming to also cover the public headers, and on lcov 2.x an
-    # --extract pattern that matches nothing is a hard error (exit 25), so the gate could
-    # not run at all.
-    #
-    # The replacement must stay anchored to source_root: a bare "*/include/*" also matches
-    # /usr/include/c++/... and _deps/*/include/..., pulling ~450 dependency/system files
-    # into the "core" measurement and drowning the real number.
     source_root = Path(__file__).resolve().parents[2]
     run([
         "lcov",
@@ -255,40 +252,74 @@ def main() -> int:
 
     apply_source_exclusions(filtered_info)
 
+
+def _find_failing_files(
+    coverage: Dict[Path, FileCoverage], function_threshold: float, line_threshold: float, enforce_line: bool
+) -> list[tuple[Path, FileCoverage]]:
+    """Every file below `function_threshold`, or below `line_threshold` when that's enforced."""
+    failing: list[tuple[Path, FileCoverage]] = []
+    for path, cov in sorted(coverage.items(), key=lambda item: str(item[0])):
+        fn_fail = cov.fn_rate < function_threshold
+        line_fail = enforce_line and (cov.line_rate < line_threshold)
+        if fn_fail or line_fail:
+            failing.append((path, cov))
+    return failing
+
+
+def _print_report(
+    coverage: Dict[Path, FileCoverage],
+    failing: list[tuple[Path, FileCoverage]],
+    line_threshold: float,
+    enforce_line: bool,
+    function_threshold: float,
+) -> None:
+    total = len(coverage)
+    passing = total - len(failing)
+    print("\nCore coverage summary")
+    print(f"- Files evaluated: {total}")
+    print(f"- Files passing thresholds: {passing}")
+    print(f"- Line threshold: {line_threshold:.1f}%")
+    print(f"- Line threshold enforced: {'yes' if enforce_line else 'no'}")
+    print(f"- Function threshold: {function_threshold:.1f}%")
+
+    if not failing:
+        return
+    print("\nFiles below threshold:")
+    for path, cov in failing:
+        print(
+            f"- {path}: lines {cov.line_rate:.1f}% ({cov.line_hit}/{cov.line_total}), "
+            f"functions {cov.fn_rate:.1f}% ({cov.fn_hit}/{cov.fn_total})"
+        )
+
+
+def main() -> int:
+    args = _build_arg_parser().parse_args()
+
+    build_dir = Path(args.build_dir).resolve()
+    if not build_dir.exists():
+        print(f"Build directory does not exist: {build_dir}", file=sys.stderr)
+        return 2
+
+    coverage_dir = build_dir / "coverage-gate"
+    coverage_dir.mkdir(parents=True, exist_ok=True)
+    raw_info = coverage_dir / "core_raw.info"
+    filtered_info = coverage_dir / "core_filtered.info"
+
+    if not args.skip_tests:
+        _run_instrumented_tests(build_dir)
+
+    _capture_core_coverage(build_dir, raw_info, filtered_info)
+
     coverage = parse_lcov_info(filtered_info)
     if not coverage:
         print("No coverage records found for core library files.", file=sys.stderr)
         return 2
 
     enforce_line = args.line_threshold > 0.0
+    failing = _find_failing_files(coverage, args.function_threshold, args.line_threshold, enforce_line)
+    _print_report(coverage, failing, args.line_threshold, enforce_line, args.function_threshold)
 
-    failing: list[tuple[Path, FileCoverage]] = []
-    for path, cov in sorted(coverage.items(), key=lambda item: str(item[0])):
-        fn_fail = cov.fn_rate < args.function_threshold
-        line_fail = enforce_line and (cov.line_rate < args.line_threshold)
-        if fn_fail or line_fail:
-            failing.append((path, cov))
-
-    total = len(coverage)
-    passing = total - len(failing)
-    print("\nCore coverage summary")
-    print(f"- Files evaluated: {total}")
-    print(f"- Files passing thresholds: {passing}")
-    print(f"- Line threshold: {args.line_threshold:.1f}%")
-    print(f"- Line threshold enforced: {'yes' if enforce_line else 'no'}")
-    print(f"- Function threshold: {args.function_threshold:.1f}%")
-
-    if failing:
-        print("\nFiles below threshold:")
-        for path, cov in failing:
-            print(
-                f"- {path}: lines {cov.line_rate:.1f}% ({cov.line_hit}/{cov.line_total}), "
-                f"functions {cov.fn_rate:.1f}% ({cov.fn_hit}/{cov.fn_total})"
-            )
-        return 1
-
-    print("\nPASS: all core library files meet coverage thresholds.")
-    return 0
+    return 1 if failing else 0
 
 
 if __name__ == "__main__":

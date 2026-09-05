@@ -51,6 +51,10 @@ class AudioSession
    private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
+
+    auto readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>;
+    auto readRowFromMat(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>;
+    void cacheRow(size_t rowIndex, const std::tuple<nn::Tensor, int, int>& result) const;
 };
 
 /**

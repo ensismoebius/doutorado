@@ -500,6 +500,65 @@ class OpenCLTensorBackend
         Index m,
         Index n,
         Index k);
+
+    // Shared (a, b, bias, c, m, n, k, [extra scalars...]) arg-binding + launch used by all
+    // three staging strategies (GPU-resident, pool, DeviceMemory fallback) inside
+    // matmul_transposed_bias_activated() -- extracted so that ~90-line, near-identical block
+    // exists once instead of three times.
+    static void enqueue_matmul_bias_activated_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem a_mem,
+        cl_mem b_mem,
+        cl_mem bias_mem,
+        cl_mem c_mem,
+        Index m,
+        Index n,
+        Index k,
+        std::initializer_list<float> extra_scalars);
+
+    // matmul_transposed_bias_activated()'s three staging strategies, tried cheapest-transfer
+    // first: resident (nullopt if any operand isn't device-current), pooled (nullopt if the
+    // pool or an acquire is unavailable), oneshot (always succeeds or throws). `out` is the
+    // single host-side result buffer shared by pooled/oneshot, constructed once by the caller
+    // — matching the pre-extraction code, which allocated it unconditionally even though only
+    // one of the three stages ever consumes it.
+    std::optional<OpenCLTensorBackend> matmul_bias_activated_stage_resident(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        const OpenCLTensorBackend& bias,
+        std::initializer_list<float> extra_scalars,
+        Index m,
+        Index n,
+        Index k,
+        std::size_t a_bytes,
+        std::size_t b_bytes,
+        std::size_t bias_bytes) const;
+    std::optional<OpenCLTensorBackend> matmul_bias_activated_stage_pooled(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        const OpenCLTensorBackend& bias,
+        std::initializer_list<float> extra_scalars,
+        Index m,
+        Index n,
+        Index k,
+        std::size_t a_bytes,
+        std::size_t b_bytes,
+        std::size_t bias_bytes,
+        std::size_t c_bytes,
+        OpenCLHostStorage& out) const;
+    OpenCLTensorBackend matmul_bias_activated_stage_oneshot(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        const OpenCLTensorBackend& bias,
+        std::initializer_list<float> extra_scalars,
+        Index m,
+        Index n,
+        Index k,
+        std::size_t a_bytes,
+        std::size_t b_bytes,
+        std::size_t bias_bytes,
+        std::size_t c_bytes,
+        OpenCLHostStorage& out) const;
     OpenCLTensorBackend matmul_stage_resident(const char* kernel_name,
         const char* what,
         const OpenCLTensorBackend& other,

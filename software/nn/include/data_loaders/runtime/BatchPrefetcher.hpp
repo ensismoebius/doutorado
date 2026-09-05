@@ -58,6 +58,21 @@ class BatchPrefetcher
 
     void producerLoop();
 
+    // Wait predicate for the producer's backpressure wait in producerLoop(). Must be called
+    // with `mutex_` held (as cv_.wait's predicate does). Returns true when the producer may
+    // push `batch_bytes` worth of data (or must wake up to re-check stop/limit conditions),
+    // false to keep waiting.
+    [[nodiscard]] auto shouldProceedProducing(std::size_t batch_bytes) const -> bool;
+
+    // Pushes `prefetched` into prefetched_ring_, retrying (with a yield) until it succeeds or
+    // stop is requested; on failure to push, returns the batch to the pool. Extracted from
+    // producerLoop() with no behavior change.
+    void pushPrefetchedOrRelease(PrefetchedBatch prefetched, std::size_t batch_bytes);
+
+    // Logs and stashes an in-flight producer-thread exception into producer_error_ so the
+    // consumer thread can rethrow it deterministically from next().
+    void handleProducerException();
+
     std::unique_ptr<IBatchSource> source_;
     std::size_t max_batches_;
     std::atomic<std::size_t> seen_batches_;

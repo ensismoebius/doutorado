@@ -450,6 +450,209 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
         "matmul_rhs_transposed_bias_kernel", "matmul_transposed_add_col_bias", other, bias, {});
 }
 
+// Shared (a, b, bias, c, m, n, k, [extra scalars...]) arg-binding + launch for
+// matmul_transposed_bias_activated()'s three staging strategies below -- each path differs
+// only in where a_mem/b_mem/bias_mem/c_mem live (GPU-resident buffer, pool buffer, or a
+// one-off DeviceMemory), not in how the kernel is invoked.
+void OpenCLTensorBackend::enqueue_matmul_bias_activated_kernel(const char* kernel_name,
+    const char* what,
+    cl_mem a_mem,
+    cl_mem b_mem,
+    cl_mem bias_mem,
+    cl_mem c_mem,
+    Index m,
+    Index n,
+    Index k,
+    std::initializer_list<float> extra_scalars)
+{
+    const auto& ctx = opencl::OpenCLContext::instance();
+    cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+    const cl_uint m_u32 = static_cast<cl_uint>(m);
+    const cl_uint n_u32 = static_cast<cl_uint>(n);
+    const cl_uint k_u32 = static_cast<cl_uint>(k);
+    check_cl_error(
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), (std::string(what) + " arg0").c_str());
+    check_cl_error(
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), (std::string(what) + " arg1").c_str());
+    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
+        (std::string(what) + " arg2").c_str());
+    check_cl_error(
+        clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), (std::string(what) + " arg3").c_str());
+    check_cl_error(
+        clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), (std::string(what) + " arg4").c_str());
+    check_cl_error(
+        clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), (std::string(what) + " arg5").c_str());
+    check_cl_error(
+        clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), (std::string(what) + " arg6").c_str());
+    cl_uint extra_index = 7;
+    for (const float scalar : extra_scalars)
+    {
+        check_cl_error(clSetKernelArg(kernel, extra_index, sizeof(float), &scalar), what);
+        ++extra_index;
+    }
+    const std::size_t global[2] = {m, n};
+    check_cl_error(clEnqueueNDRangeKernel(
+                       ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+        (std::string("clEnqueueNDRangeKernel(") + what + ")").c_str());
+}
+
+std::optional<OpenCLTensorBackend> OpenCLTensorBackend::matmul_bias_activated_stage_resident(
+    const char* kernel_name,
+    const char* what,
+    const OpenCLTensorBackend& other,
+    const OpenCLTensorBackend& bias,
+    std::initializer_list<float> extra_scalars,
+    Index m,
+    Index n,
+    Index k,
+    std::size_t a_bytes,
+    std::size_t b_bytes,
+    std::size_t bias_bytes) const
+{
+    if (!(ensure_device_current("resident gate") && other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate")))
+    {
+        return std::nullopt;
+    }
+
+    const auto& ctx = opencl::OpenCLContext::instance();
+    if (m_needs_sync_to_device)
+    {
+        copy_host_to_device(ctx.get_queue(),
+            m_gpu_buffer->buffer,
+            host_data(),
+            a_bytes,
+            (std::string("clEnqueueWriteBuffer(") + what + ", a)").c_str());
+        m_needs_sync_to_device = false;
+    }
+    if (other.m_needs_sync_to_device)
+    {
+        copy_host_to_device(ctx.get_queue(),
+            other.m_gpu_buffer->buffer,
+            other.host_data(),
+            b_bytes,
+            (std::string("clEnqueueWriteBuffer(") + what + ", b)").c_str());
+        other.m_needs_sync_to_device = false;
+    }
+    if (bias.m_needs_sync_to_device)
+    {
+        copy_host_to_device(ctx.get_queue(),
+            bias.m_gpu_buffer->buffer,
+            bias.host_data(),
+            bias_bytes,
+            (std::string("clEnqueueWriteBuffer(") + what + ", bias)").c_str());
+        bias.m_needs_sync_to_device = false;
+    }
+
+    OpenCLTensorBackend t(m, n);
+    t.set_gpu_resident(true);
+    const cl_mem a_mem = m_gpu_buffer->buffer;
+    const cl_mem b_mem = other.m_gpu_buffer->buffer;
+    const cl_mem bias_mem = bias.m_gpu_buffer->buffer;
+    const cl_mem c_mem = t.m_gpu_buffer->buffer;
+    enqueue_matmul_bias_activated_kernel(
+        kernel_name, what, a_mem, b_mem, bias_mem, c_mem, m, n, k, extra_scalars);
+    t.m_needs_sync_to_host = true;
+    t.m_needs_sync_to_device = false;
+    return t;
+}
+
+std::optional<OpenCLTensorBackend> OpenCLTensorBackend::matmul_bias_activated_stage_pooled(
+    const char* kernel_name,
+    const char* what,
+    const OpenCLTensorBackend& other,
+    const OpenCLTensorBackend& bias,
+    std::initializer_list<float> extra_scalars,
+    Index m,
+    Index n,
+    Index k,
+    std::size_t a_bytes,
+    std::size_t b_bytes,
+    std::size_t bias_bytes,
+    std::size_t c_bytes,
+    OpenCLHostStorage& out) const
+{
+    tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+    if (!pool) return std::nullopt;
+
+    auto a_buf = pool->acquire(a_bytes);
+    auto b_buf = pool->acquire(b_bytes);
+    auto bias_buf = pool->acquire(bias_bytes);
+    auto c_buf = pool->acquire(c_bytes);
+    if (!(a_buf && b_buf && bias_buf && c_buf)) return std::nullopt;
+
+    const auto& ctx = opencl::OpenCLContext::instance();
+    copy_host_to_device(ctx.get_queue(),
+        a_buf->buffer,
+        host_data(),
+        a_bytes,
+        (std::string("clEnqueueWriteBuffer(") + what + ", a)").c_str());
+    copy_host_to_device(ctx.get_queue(),
+        b_buf->buffer,
+        other.host_data(),
+        b_bytes,
+        (std::string("clEnqueueWriteBuffer(") + what + ", b)").c_str());
+    copy_host_to_device(ctx.get_queue(),
+        bias_buf->buffer,
+        bias.host_data(),
+        bias_bytes,
+        (std::string("clEnqueueWriteBuffer(") + what + ", bias)").c_str());
+
+    const cl_mem a_mem = a_buf->buffer;
+    const cl_mem b_mem = b_buf->buffer;
+    const cl_mem bias_mem = bias_buf->buffer;
+    const cl_mem c_mem = c_buf->buffer;
+    enqueue_matmul_bias_activated_kernel(
+        kernel_name, what, a_mem, b_mem, bias_mem, c_mem, m, n, k, extra_scalars);
+    finish_queue_if_not_batching(ctx.get_queue(), (std::string("clFinish(") + what + ")").c_str());
+    copy_device_to_host(ctx.get_queue(),
+        c_buf->buffer,
+        out.mutable_data_ptr(),
+        c_bytes,
+        (std::string("clEnqueueReadBuffer(") + what + ", c)").c_str());
+    OpenCLTensorBackend t;
+    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+    return t;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::matmul_bias_activated_stage_oneshot(
+    const char* kernel_name,
+    const char* what,
+    const OpenCLTensorBackend& other,
+    const OpenCLTensorBackend& bias,
+    std::initializer_list<float> extra_scalars,
+    Index m,
+    Index n,
+    Index k,
+    std::size_t a_bytes,
+    std::size_t b_bytes,
+    std::size_t bias_bytes,
+    std::size_t c_bytes,
+    OpenCLHostStorage& out) const
+{
+    const auto& ctx = opencl::OpenCLContext::instance();
+    opencl::DeviceMemory a_dev(a_bytes);
+    opencl::DeviceMemory b_dev(b_bytes);
+    opencl::DeviceMemory bias_dev(bias_bytes);
+    opencl::DeviceMemory out_dev(c_bytes);
+    a_dev.copy_to_device(host_data());
+    b_dev.copy_to_device(other.host_data());
+    bias_dev.copy_to_device(bias.host_data());
+
+    const cl_mem a_mem = a_dev.get_device_buffer();
+    const cl_mem b_mem = b_dev.get_device_buffer();
+    const cl_mem bias_mem = bias_dev.get_device_buffer();
+    const cl_mem c_mem = out_dev.get_device_buffer();
+    enqueue_matmul_bias_activated_kernel(
+        kernel_name, what, a_mem, b_mem, bias_mem, c_mem, m, n, k, extra_scalars);
+    finish_queue_if_not_batching(ctx.get_queue(), (std::string("clFinish(") + what + ")").c_str());
+    out_dev.copy_from_device(out.mutable_data_ptr());
+
+    OpenCLTensorBackend t;
+    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+    return t;
+}
+
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_bias_activated(const char* kernel_name,
     const char* what,
     const OpenCLTensorBackend& other,
@@ -483,7 +686,6 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_bias_activated(const 
 
     try
     {
-        const auto& ctx = opencl::OpenCLContext::instance();
         const Index m = rows();
         const Index k = cols();
         const Index n = other.rows();
@@ -494,201 +696,51 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_bias_activated(const 
         const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
 
-        // GPU-resident fast path
-        if (ensure_device_current("resident gate") &&
-            other.ensure_device_current("resident gate") &&
-            bias.ensure_device_current("resident gate"))
+        if (auto resident = matmul_bias_activated_stage_resident(kernel_name,
+                what,
+                other,
+                bias,
+                extra_scalars,
+                m,
+                n,
+                k,
+                a_bytes,
+                b_bytes,
+                bias_bytes))
         {
-            if (m_needs_sync_to_device)
-            {
-                copy_host_to_device(ctx.get_queue(),
-                    m_gpu_buffer->buffer,
-                    host_data(),
-                    a_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", a)").c_str());
-                m_needs_sync_to_device = false;
-            }
-            if (other.m_needs_sync_to_device)
-            {
-                copy_host_to_device(ctx.get_queue(),
-                    other.m_gpu_buffer->buffer,
-                    other.host_data(),
-                    b_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", b)").c_str());
-                other.m_needs_sync_to_device = false;
-            }
-            if (bias.m_needs_sync_to_device)
-            {
-                copy_host_to_device(ctx.get_queue(),
-                    bias.m_gpu_buffer->buffer,
-                    bias.host_data(),
-                    bias_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", bias)").c_str());
-                bias.m_needs_sync_to_device = false;
-            }
-
-            OpenCLTensorBackend t(m, n);
-            t.set_gpu_resident(true);
-            cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
-            const cl_mem a_mem = m_gpu_buffer->buffer;
-            const cl_mem b_mem = other.m_gpu_buffer->buffer;
-            const cl_mem bias_mem = bias.m_gpu_buffer->buffer;
-            const cl_mem c_mem = t.m_gpu_buffer->buffer;
-            const cl_uint m_u32 = static_cast<cl_uint>(m);
-            const cl_uint n_u32 = static_cast<cl_uint>(n);
-            const cl_uint k_u32 = static_cast<cl_uint>(k);
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
-                (std::string(what) + " arg0").c_str());
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
-                (std::string(what) + " arg1").c_str());
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
-                (std::string(what) + " arg2").c_str());
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
-                (std::string(what) + " arg3").c_str());
-            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
-                (std::string(what) + " arg4").c_str());
-            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
-                (std::string(what) + " arg5").c_str());
-            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
-                (std::string(what) + " arg6").c_str());
-            cl_uint extra_index = 7;
-            for (const float scalar : extra_scalars)
-            {
-                check_cl_error(clSetKernelArg(kernel, extra_index, sizeof(float), &scalar), what);
-                ++extra_index;
-            }
-            const std::size_t global[2] = {m, n};
-            check_cl_error(
-                clEnqueueNDRangeKernel(
-                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
-                (std::string("clEnqueueNDRangeKernel(") + what + ")").c_str());
-            t.m_needs_sync_to_host = true;
-            t.m_needs_sync_to_device = false;
-            return t;
+            return *resident;
         }
 
-        // Pool path
-        tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
-        if (pool)
+        if (auto pooled = matmul_bias_activated_stage_pooled(kernel_name,
+                what,
+                other,
+                bias,
+                extra_scalars,
+                m,
+                n,
+                k,
+                a_bytes,
+                b_bytes,
+                bias_bytes,
+                c_bytes,
+                out))
         {
-            auto a_buf = pool->acquire(a_bytes);
-            auto b_buf = pool->acquire(b_bytes);
-            auto bias_buf = pool->acquire(bias_bytes);
-            auto c_buf = pool->acquire(c_bytes);
-            if (a_buf && b_buf && bias_buf && c_buf)
-            {
-                copy_host_to_device(ctx.get_queue(),
-                    a_buf->buffer,
-                    host_data(),
-                    a_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", a)").c_str());
-                copy_host_to_device(ctx.get_queue(),
-                    b_buf->buffer,
-                    other.host_data(),
-                    b_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", b)").c_str());
-                copy_host_to_device(ctx.get_queue(),
-                    bias_buf->buffer,
-                    bias.host_data(),
-                    bias_bytes,
-                    (std::string("clEnqueueWriteBuffer(") + what + ", bias)").c_str());
-
-                cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
-                const cl_mem a_mem = a_buf->buffer;
-                const cl_mem b_mem = b_buf->buffer;
-                const cl_mem bias_mem = bias_buf->buffer;
-                const cl_mem c_mem = c_buf->buffer;
-                const cl_uint m_u32 = static_cast<cl_uint>(m);
-                const cl_uint n_u32 = static_cast<cl_uint>(n);
-                const cl_uint k_u32 = static_cast<cl_uint>(k);
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
-                    (std::string(what) + " arg0").c_str());
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
-                    (std::string(what) + " arg1").c_str());
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
-                    (std::string(what) + " arg2").c_str());
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
-                    (std::string(what) + " arg3").c_str());
-                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
-                    (std::string(what) + " arg4").c_str());
-                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
-                    (std::string(what) + " arg5").c_str());
-                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
-                    (std::string(what) + " arg6").c_str());
-                cl_uint extra_index = 7;
-                for (const float scalar : extra_scalars)
-                {
-                    check_cl_error(
-                        clSetKernelArg(kernel, extra_index, sizeof(float), &scalar), what);
-                    ++extra_index;
-                }
-                const std::size_t global[2] = {m, n};
-                check_cl_error(
-                    clEnqueueNDRangeKernel(
-                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
-                    (std::string("clEnqueueNDRangeKernel(") + what + ")").c_str());
-                finish_queue_if_not_batching(
-                    ctx.get_queue(), (std::string("clFinish(") + what + ")").c_str());
-                copy_device_to_host(ctx.get_queue(),
-                    c_buf->buffer,
-                    out.mutable_data_ptr(),
-                    c_bytes,
-                    (std::string("clEnqueueReadBuffer(") + what + ", c)").c_str());
-                OpenCLTensorBackend t;
-                t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
-                return t;
-            }
+            return *pooled;
         }
 
-        // DeviceMemory fallback
-        opencl::DeviceMemory a_dev(a_bytes);
-        opencl::DeviceMemory b_dev(b_bytes);
-        opencl::DeviceMemory bias_dev(bias_bytes);
-        opencl::DeviceMemory out_dev(c_bytes);
-        a_dev.copy_to_device(host_data());
-        b_dev.copy_to_device(other.host_data());
-        bias_dev.copy_to_device(bias.host_data());
-
-        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
-        const cl_mem a_mem = a_dev.get_device_buffer();
-        const cl_mem b_mem = b_dev.get_device_buffer();
-        const cl_mem bias_mem = bias_dev.get_device_buffer();
-        const cl_mem c_mem = out_dev.get_device_buffer();
-        const cl_uint m_u32 = static_cast<cl_uint>(m);
-        const cl_uint n_u32 = static_cast<cl_uint>(n);
-        const cl_uint k_u32 = static_cast<cl_uint>(k);
-        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
-            (std::string(what) + " arg0").c_str());
-        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
-            (std::string(what) + " arg1").c_str());
-        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
-            (std::string(what) + " arg2").c_str());
-        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
-            (std::string(what) + " arg3").c_str());
-        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
-            (std::string(what) + " arg4").c_str());
-        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
-            (std::string(what) + " arg5").c_str());
-        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
-            (std::string(what) + " arg6").c_str());
-        cl_uint extra_index = 7;
-        for (const float scalar : extra_scalars)
-        {
-            check_cl_error(clSetKernelArg(kernel, extra_index, sizeof(float), &scalar), what);
-            ++extra_index;
-        }
-        const std::size_t global[2] = {m, n};
-        check_cl_error(
-            clEnqueueNDRangeKernel(
-                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
-            (std::string("clEnqueueNDRangeKernel(") + what + ")").c_str());
-        finish_queue_if_not_batching(
-            ctx.get_queue(), (std::string("clFinish(") + what + ")").c_str());
-        out_dev.copy_from_device(out.mutable_data_ptr());
-
-        OpenCLTensorBackend t;
-        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
-        return t;
+        return matmul_bias_activated_stage_oneshot(kernel_name,
+            what,
+            other,
+            bias,
+            extra_scalars,
+            m,
+            n,
+            k,
+            a_bytes,
+            b_bytes,
+            bias_bytes,
+            c_bytes,
+            out);
     }
     catch (const std::exception& e)
     {

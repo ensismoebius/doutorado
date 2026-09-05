@@ -216,99 +216,95 @@ AudioSession::~AudioSession()
 AudioSession::AudioSession(AudioSession&&) noexcept = default;
 auto AudioSession::operator=(AudioSession&&) noexcept -> AudioSession& = default;
 
-auto AudioSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
+void AudioSession::cacheRow(size_t rowIndex, const std::tuple<nn::Tensor, int, int>& result) const
 {
-    if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
+    if (impl_->rowCache.size() >= kRowCacheCapacity)
     {
-        return it->second;
+        const size_t evict = impl_->rowCacheOrder.front();
+        impl_->rowCacheOrder.pop_front();
+        impl_->rowCache.erase(evict);
+    }
+    impl_->rowCache[rowIndex] = result;
+    impl_->rowCacheOrder.push_back(rowIndex);
+}
+
+auto AudioSession::readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
+{
+    // Query audio_samples joined with trial to get samples, stimulus_id and original_row (eeg
+    // index)
+    if (impl_->db == nullptr || impl_->subject_id < 0)
+    {
+        throw std::runtime_error("AudioLoader(SQL): DB not initialized with subject id");
     }
 
-    if (impl_->is_sqlite)
+    const char* sql =
+        "SELECT a.samples, t.stimulus_id, t.original_row FROM audio_samples a JOIN trial t ON "
+        "a.trial_id = t.id WHERE a.audio_row = ? AND t.subject_id = ? LIMIT 1";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     {
-        // Query audio_samples joined with trial to get samples, stimulus_id and original_row (eeg
-        // index)
-        if (impl_->db == nullptr || impl_->subject_id < 0)
+        throw std::runtime_error("AudioLoader(SQL): failed to prepare statement");
+    }
+
+    if (sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK ||
+        sqlite3_bind_int(stmt, 2, impl_->subject_id) != SQLITE_OK)
+    {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("AudioLoader(SQL): failed to bind parameters");
+    }
+
+    nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
+    int stimulus = 0;
+    int eegIndex = -1;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const void* blob = sqlite3_column_blob(stmt, 0);
+        int bytes = sqlite3_column_bytes(stmt, 0);
+        const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+        const size_t expected_float = n * sizeof(float);
+        const size_t expected_double = n * sizeof(double);
+        float* dst = audioSamples.mutable_data_ptr();
+        if (static_cast<size_t>(bytes) == expected_float)
         {
-            throw std::runtime_error("AudioLoader(SQL): DB not initialized with subject id");
+            const float* src = reinterpret_cast<const float*>(blob);
+            for (size_t i = 0; i < n; ++i) dst[i] = src[i];
         }
-
-        const char* sql =
-            "SELECT a.samples, t.stimulus_id, t.original_row FROM audio_samples a JOIN trial t ON "
-            "a.trial_id = t.id WHERE a.audio_row = ? AND t.subject_id = ? LIMIT 1";
-        sqlite3_stmt* stmt = nullptr;
-        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        else if (static_cast<size_t>(bytes) == expected_double)
         {
-            throw std::runtime_error("AudioLoader(SQL): failed to prepare statement");
-        }
-
-        if (sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK ||
-            sqlite3_bind_int(stmt, 2, impl_->subject_id) != SQLITE_OK)
-        {
-            sqlite3_finalize(stmt);
-            throw std::runtime_error("AudioLoader(SQL): failed to bind parameters");
-        }
-
-        nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
-        int stimulus = 0;
-        int eegIndex = -1;
-
-        if (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            const void* blob = sqlite3_column_blob(stmt, 0);
-            int bytes = sqlite3_column_bytes(stmt, 0);
-            const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
-            const size_t expected_float = n * sizeof(float);
-            const size_t expected_double = n * sizeof(double);
-            float* dst = audioSamples.mutable_data_ptr();
-            if (static_cast<size_t>(bytes) == expected_float)
-            {
-                const float* src = reinterpret_cast<const float*>(blob);
-                for (size_t i = 0; i < n; ++i) dst[i] = src[i];
-            }
-            else if (static_cast<size_t>(bytes) == expected_double)
-            {
-                const double* src = reinterpret_cast<const double*>(blob);
-                for (size_t i = 0; i < n; ++i) dst[i] = static_cast<float>(src[i]);
-            }
-            else
-            {
-                sqlite3_finalize(stmt);
-                throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
-            }
-
-            // stimulus_id may be NULL
-            if (sqlite3_column_type(stmt, 1) != SQLITE_NULL)
-            {
-                stimulus = sqlite3_column_int(stmt, 1);
-            }
-            if (sqlite3_column_type(stmt, 2) != SQLITE_NULL)
-            {
-                eegIndex = static_cast<int>(sqlite3_column_int(stmt, 2));
-            }
+            const double* src = reinterpret_cast<const double*>(blob);
+            for (size_t i = 0; i < n; ++i) dst[i] = static_cast<float>(src[i]);
         }
         else
         {
             sqlite3_finalize(stmt);
-            throw std::runtime_error("AudioLoader(SQL): audio row not found for subject");
+            throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
         }
 
-        sqlite3_finalize(stmt);
-
-        std::tuple<nn::Tensor, int, int> result{std::move(audioSamples), stimulus, eegIndex};
-        if (impl_->rowCache.size() >= kRowCacheCapacity)
+        // stimulus_id may be NULL
+        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL)
         {
-            const size_t evict = impl_->rowCacheOrder.front();
-            impl_->rowCacheOrder.pop_front();
-            impl_->rowCache.erase(evict);
+            stimulus = sqlite3_column_int(stmt, 1);
         }
-        impl_->rowCache[rowIndex] = result;
-        impl_->rowCacheOrder.push_back(rowIndex);
-        return result;
+        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL)
+        {
+            eegIndex = static_cast<int>(sqlite3_column_int(stmt, 2));
+        }
+    }
+    else
+    {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("AudioLoader(SQL): audio row not found for subject");
     }
 
-    // MAT-backed path (existing behaviour)
-    std::vector<double> rowValues;
-    rowValues = readRowAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), rowIndex);
+    sqlite3_finalize(stmt);
+    return {std::move(audioSamples), stimulus, eegIndex};
+}
+
+auto AudioSession::readRowFromMat(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
+{
+    std::vector<double> rowValues =
+        readRowAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), rowIndex);
 
     nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
     float* dst = audioSamples.mutable_data_ptr();
@@ -324,17 +320,22 @@ auto AudioSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int,
     const int eegIndex =
         static_cast<int>(rowValues[ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
 
-    std::tuple<nn::Tensor, int, int> result{std::move(audioSamples), stimulus, eegIndex};
+    return {std::move(audioSamples), stimulus, eegIndex};
+}
 
-    if (impl_->rowCache.size() >= kRowCacheCapacity)
+auto AudioSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
+{
+    if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
     {
-        const size_t evict = impl_->rowCacheOrder.front();
-        impl_->rowCacheOrder.pop_front();
-        impl_->rowCache.erase(evict);
+        return it->second;
     }
-    impl_->rowCache[rowIndex] = result;
-    impl_->rowCacheOrder.push_back(rowIndex);
 
+    // is_sqlite selects between the two storage backends; the MAT-backed path is the
+    // pre-existing behaviour, unchanged by this split.
+    std::tuple<nn::Tensor, int, int> result =
+        impl_->is_sqlite ? readRowFromSqlite(rowIndex) : readRowFromMat(rowIndex);
+
+    cacheRow(rowIndex, result);
     return result;
 }
 
