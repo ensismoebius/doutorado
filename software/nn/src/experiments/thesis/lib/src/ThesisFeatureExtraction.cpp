@@ -626,105 +626,115 @@ struct GradientLivenessGuard
     }
 };
 
-// Train a Protocol autoencoder (SNN-AE or ANN-AE) on pooled+normalized input
-// vectors and return the latent (bottleneck) vector per sample. AEType is a
-// Module with an AutoencoderConfig constructor and an encode() method
-// (ProtocolAutoencoder or ProtocolSpikingAutoencoder).
-//
-// Temporal coding (SNN-AE): a LIF autoencoder only carries information through
-// spikes, so each sample is expanded into `time_steps` spike frames via the
-// `encoding` scheme. The AE is trained to reconstruct those frames, and the
-// per-sample feature is the MEAN latent (spike rate) over the T frames. With
-// `encoding == "direct"` (ANN-AE) the sample stays a single analog vector and
-// T is ignored — the original one-shot behaviour, just min-max normalized.
-template <typename AEType>
-std::vector<std::vector<double>> run_protocol_ae(
-    const std::vector<std::vector<double>>& raw_signals,
-    const ThesisConfig::AutoencoderConfig& spec,
-    const ThesisConfig::Training& training,
-    const std::string& label_suffix,
-    const std::string& ae_kind, // "SNN-AE" / "ANN-AE" — drives the TUI description
-    int batch_size,
-    const std::string& encoding,
-    int time_steps,
-    std::uint32_t seed,
-    float voltage_threshold,
-    const std::string& ae_loss_type,
-    bool spiking,
-    const std::function<void(const std::map<std::string, nn::Tensor>&)>& on_trained = nullptr)
+/// The seed for one spike frame, from (experiment seed, sample, step).
+///
+/// Pure in those three, and -- the part that matters -- THE SAME function in
+/// both places frames are drawn: once to train the autoencoder, once to
+/// encode the features it produces. Draw them differently and the model is
+/// asked to encode input it never saw. That does not fail; it returns worse
+/// features, on a run that still looks reproducible because the weights were
+/// seeded.
+inline auto frame_seed(std::uint32_t seed, size_t sample, int step) -> std::uint32_t
 {
-    const bool temporal = (encoding != "direct");
-    const int T = temporal ? std::max(1, time_steps) : 1;
+    return seed + static_cast<std::uint32_t>(sample) * 1009u + static_cast<std::uint32_t>(step);
+}
 
-    // Normalize every sample once; spike frames are drawn from these.
+/// Pool every raw signal to the AE's input width, then min-max normalize it.
+auto normalize_signals(const std::vector<std::vector<double>>& raw_signals)
+    -> std::vector<std::vector<float>>
+{
     std::vector<std::vector<float>> normed;
     normed.reserve(raw_signals.size());
     for (const auto& sig : raw_signals)
         normed.push_back(normalize01(pool_signal(sig, kAeInputFeatures)));
+    return normed;
+}
 
-    // `spiketime` is the one loss with a hard LAYOUT requirement: SpikeTimeLossImpl
-    // indexes rows as `t*B + b`, i.e. a time-major (T*B, F) tensor. The default sample
-    // shape here is a single (1, D) frame, which the Trainer stacks into (B, D) — batch
-    // rows, no time axis — so feeding that to SpikeTimeLoss would silently reinterpret
-    // unrelated samples as timesteps.
-    //
-    // The Trainer cannot build the required layout itself: create_batch() stacks
-    // multi-row samples into a 3-D (B, T, C) tensor (wrong rank AND wrong row order),
-    // and it reshuffles sample indices every epoch, so consecutive samples are not a
-    // stable group. We therefore PRE-INTERLEAVE the batch ourselves: each training
-    // "sample" is a whole group of `batch_size` inputs laid out as (T*g, D) with
-    // row = t*g + b, and the Trainer runs one group per step. This keeps real batching
-    // (g inputs per gradient step) while guaranteeing the exact layout the loss reads.
-    // A trailing partial group is fine — the loss derives B = rows / T.
-    // LifBPTT consumes a TIME-MAJOR (T*B, F) tensor and unrolls the membrane over
-    // `time_steps` internally, so every spiking run must be laid out time-major — not
-    // only `spiketime`. At T == 1 the grouping degenerates to ordinary (B, D) batching,
-    // so this is uniform rather than special-cased.
-    const bool time_major = spiking;
-
-    // Build the training set: T spike frames per sample (temporal), or one
-    // analog vector per sample (direct). Seed is derived per (sample, step) so
-    // the frames are reproducible for a given experiment seed.
-    std::vector<nn::Tensor> train_samples;
-    train_samples.reserve(normed.size() * static_cast<size_t>(T));
+/// `time_count` spike frames per sample, contiguous, at index = s*T + t.
+auto build_spike_frames(const std::vector<std::vector<float>>& normed,
+    const std::string& encoding,
+    int time_count,
+    std::uint32_t seed) -> std::vector<nn::Tensor>
+{
+    std::vector<nn::Tensor> frames;
+    frames.reserve(normed.size() * static_cast<size_t>(time_count));
     for (size_t s = 0; s < normed.size(); ++s)
-    {
-        for (int t = 0; t < T; ++t)
+        for (int t = 0; t < time_count; ++t)
         {
-            std::mt19937 rng(
-                seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
-            train_samples.push_back(spike_frame(normed[s], encoding, t, T, rng));
+            std::mt19937 rng(frame_seed(seed, s, t));
+            frames.push_back(spike_frame(normed[s], encoding, t, time_count, rng));
         }
-    }
+    return frames;
+}
 
-    if (time_major)
+/// Re-lay per-(sample, t) frames into the time-major groups the loss reads.
+///
+/// `LifBPTT` consumes a TIME-MAJOR `(T*B, F)` tensor and unrolls the membrane
+/// internally; `SpikeTimeLossImpl` indexes rows as `t*B + b`. The Trainer
+/// cannot build that layout: `create_batch()` stacks multi-row samples into a
+/// 3-D `(B, T, C)` tensor -- wrong rank AND wrong row order -- and it
+/// reshuffles indices every epoch, so consecutive samples are not a stable
+/// group.
+///
+/// So each training "sample" is pre-interleaved here: one group of
+/// `batch_size` inputs as `(T*g, D)` with row = `t*g + b`. Real batching
+/// survives (g inputs per gradient step), and a trailing partial group is
+/// fine because the loss derives B from `rows / T`.
+auto to_time_major_groups(
+    const std::vector<nn::Tensor>& frames, size_t sample_count, int time_count, int batch_size)
+    -> std::vector<nn::Tensor>
+{
+    const int T = time_count;
+    // Re-lay the per-(sample, t) frames above into time-major groups:
+    // group k holds inputs [k*G, k*G+g) as a (T*g, D) tensor with row = t*g + b.
+    const int G = std::max(1, batch_size);
+    const auto D = static_cast<nn::Index>(kAeInputFeatures);
+    std::vector<nn::Tensor> grouped;
+    grouped.reserve((sample_count + static_cast<size_t>(G) - 1) / static_cast<size_t>(G));
+
+    for (size_t base = 0; base < sample_count; base += static_cast<size_t>(G))
     {
-        // Re-lay the per-(sample, t) frames above into time-major groups:
-        // group k holds inputs [k*G, k*G+g) as a (T*g, D) tensor with row = t*g + b.
-        const int G = std::max(1, batch_size);
-        const auto D = static_cast<nn::Index>(kAeInputFeatures);
-        std::vector<nn::Tensor> grouped;
-        grouped.reserve((normed.size() + static_cast<size_t>(G) - 1) / static_cast<size_t>(G));
-
-        for (size_t base = 0; base < normed.size(); base += static_cast<size_t>(G))
-        {
-            const size_t g = std::min<size_t>(static_cast<size_t>(G), normed.size() - base);
-            nn::Tensor group(static_cast<nn::Index>(static_cast<size_t>(T) * g), D);
-            for (size_t b = 0; b < g; ++b)
-                for (int t = 0; t < T; ++t)
-                {
-                    // frames were emitted contiguously per sample: index = s*T + t
-                    const nn::Tensor& f =
-                        train_samples[(base + b) * static_cast<size_t>(T) + static_cast<size_t>(t)];
-                    const auto row =
-                        static_cast<nn::Index>(static_cast<size_t>(t) * g + b); // t*g + b
-                    for (nn::Index d = 0; d < D; ++d) group.at(row, d) = f.at(0, d);
-                }
-            grouped.push_back(std::move(group));
-        }
-        train_samples = std::move(grouped);
+        const size_t g = std::min<size_t>(static_cast<size_t>(G), sample_count - base);
+        nn::Tensor group(static_cast<nn::Index>(static_cast<size_t>(T) * g), D);
+        for (size_t b = 0; b < g; ++b)
+            for (int t = 0; t < T; ++t)
+            {
+                // frames were emitted contiguously per sample: index = s*T + t
+                const nn::Tensor& f =
+                    frames[(base + b) * static_cast<size_t>(T) + static_cast<size_t>(t)];
+                const auto row = static_cast<nn::Index>(static_cast<size_t>(t) * g + b); // t*g + b
+                for (nn::Index d = 0; d < D; ++d) group.at(row, d) = f.at(0, d);
+            }
+        grouped.push_back(std::move(group));
     }
+    return grouped;
+}
 
+/// Assemble the autoencoder's configuration from the profile's spec.
+///
+/// Every `throw` below replaces a silent default, and each default hid a
+/// different lie: unreadable layer widths would have built a 64/16 network
+/// the profile never asked for, and an empty loss token would have trained
+/// with MSE while the profile said `mae`.
+///
+/// `time_steps` is the same trap without a throw: left at 1, `LifBPTT`
+/// behaves exactly like a single-step `Lif` -- a model with no temporal
+/// credit assignment that still trains and still reports a loss.
+///
+/// The initializer seed matters as much. Without it the initializers fall
+/// back to `std::random_device`, so the SAME profile with the SAME seed
+/// produced DIFFERENT features every run: only the frames were seeded, never
+/// the weights. It was also a measured flake source --
+/// `ThesisSnnAe.PoissonLatentIsNonDegenerate` failed 6 of 25 runs when an
+/// unlucky draw left every encoder neuron below V_th.
+auto build_ae_config(const ThesisConfig::AutoencoderConfig& spec,
+    int time_count,
+    std::uint32_t seed,
+    float voltage_threshold,
+    const std::string& ae_loss_type,
+    bool spiking) -> AutoencoderConfig
+{
+    const int T = time_count;
     AutoencoderConfig ae_cfg;
     ae_cfg.input_features = kAeInputFeatures;
     // No silent architecture defaults: an unparseable spec must fail, not quietly
@@ -768,9 +778,13 @@ std::vector<std::vector<double>> run_protocol_ae(
     // Guayaquil already did this (GuayaquilExperiment.cpp: snn_config.initializer_seed = run_seed);
     // Thesis was the odd one out.
     ae_cfg.initializer_seed = seed;
+    return ae_cfg;
+}
 
-    AEType model(ae_cfg);
-
+/// Training knobs, straight from the profile.
+auto build_trainer_config(const ThesisConfig::Training& training, int batch_size, bool time_major)
+    -> nn::training::TrainerConfig
+{
     nn::training::TrainerConfig trainer_cfg;
     trainer_cfg.epochs = training.epochs;
     trainer_cfg.learning_rate = training.effective_learning_rate();
@@ -783,6 +797,33 @@ std::vector<std::vector<double>> run_protocol_ae(
     // instead of in create_batch(), which cannot produce the required time-major order.
     trainer_cfg.batch_size = time_major ? 1 : std::max(1, batch_size);
 
+    return trainer_cfg;
+}
+
+/// Train the autoencoder with the loss the profile named.
+///
+/// The Trainer takes its loss as a COMPILE-TIME parameter
+/// (`Trainer<ModelType, LossType>`), so a string from a JSON profile has to
+/// be turned into a concrete instantiation somewhere, and this is that
+/// somewhere. Before this dispatch existed the AE path was hard-wired to
+/// `MSELossImpl`, and `mae` was simply unreachable from a thesis or GA
+/// profile that asked for it -- the run trained, reported a loss, and used
+/// the wrong objective.
+///
+/// An unknown token throws rather than falling back to MSE, for the same
+/// reason.
+template <typename AEType>
+void train_autoencoder(AEType& model,
+    const nn::training::TrainerConfig& trainer_cfg,
+    const std::vector<nn::Tensor>& train_samples,
+    const std::string& loss_token,
+    const ThesisConfig::AutoencoderConfig& spec,
+    int time_count,
+    const std::string& label_suffix,
+    const std::string& ae_kind,
+    const std::string& encoding)
+{
+    const int T = time_count;
     // The Trainer's loss is a COMPILE-TIME template parameter
     // (Trainer<ModelType, LossType>), so the profile's ae_loss_type string has to be
     // dispatched to a concrete instantiation here. Before this, the AE path was hard-wired
@@ -791,7 +832,6 @@ std::vector<std::vector<double>> run_protocol_ae(
     // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
     // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
     // the "run X/Y" column), so col3 shows just the loss, exactly like the Guayaquil bars.
-    const std::string& loss_token = ae_loss_type;
     auto make_cb = [&](const char* tag)
     {
         auto cb =
@@ -858,19 +898,31 @@ std::vector<std::vector<double>> run_protocol_ae(
         throw std::invalid_argument("ThesisFeatureExtraction: unsupported ae_loss_type \"" +
                                     loss_token + "\" (expected mse|mae|spikecount|spiketime)");
     }
+}
 
-    // Weights are final the moment training returns — capture them here, before the
-    // model goes out of scope at function exit (extract_features itself never keeps
-    // them; see ModelSnapshotFn in ThesisFeatureExtraction.hpp).
-    if (on_trained) on_trained(model.state_dict());
-
-    // Feature per sample = mean latent over its T spike frames. The membrane
-    // state is reset ONCE per sample and then integrates across the T frames
-    // (no reset between frames): this is the temporal integration that lets a
-    // weak, sub-threshold per-step current accumulate into spikes — the whole
-    // point of an SNN. Resetting every frame would make each step an isolated
-    // stochastic threshold and collapse the latent. Direct (T==1) is unchanged.
-    const auto latent_dim = static_cast<size_t>(ae_cfg.latent_size);
+/// The feature vector per sample: the MEAN latent over its T spike frames.
+///
+/// The membrane is reset ONCE per sample and then integrates across all T
+/// frames. That is the whole point of a spiking encoder: a weak, individually
+/// sub-threshold current accumulates until it fires. Reset between frames and
+/// each step becomes an isolated stochastic threshold, which collapses the
+/// latent to noise. With `T == 1` (the direct/ANN path) the distinction
+/// disappears.
+///
+/// The frames are redrawn here rather than kept from training, and they are
+/// identical because both sides go through `frame_seed`. That shared function
+/// is load-bearing: encoding different frames than were trained on degrades
+/// the features silently, with nothing in the run to show for it.
+template <typename AEType>
+auto encode_mean_latents(AEType& model,
+    const std::vector<std::vector<float>>& normed,
+    const std::string& encoding,
+    int time_count,
+    std::uint32_t seed,
+    size_t latent_dim,
+    bool time_major) -> std::vector<std::vector<double>>
+{
+    const int T = time_count;
     std::vector<std::vector<double>> vectors;
     vectors.reserve(normed.size());
     for (size_t s = 0; s < normed.size(); ++s)
@@ -912,6 +964,82 @@ std::vector<std::vector<double>> run_protocol_ae(
         vectors.push_back(std::move(acc));
     }
     return vectors;
+}
+
+// Train a Protocol autoencoder (SNN-AE or ANN-AE) on pooled+normalized input
+// vectors and return the latent (bottleneck) vector per sample. AEType is a
+// Module with an AutoencoderConfig constructor and an encode() method
+// (ProtocolAutoencoder or ProtocolSpikingAutoencoder).
+//
+// Temporal coding (SNN-AE): a LIF autoencoder only carries information through
+// spikes, so each sample is expanded into `time_steps` spike frames via the
+// `encoding` scheme. The AE is trained to reconstruct those frames, and the
+// per-sample feature is the MEAN latent (spike rate) over the T frames. With
+// `encoding == "direct"` (ANN-AE) the sample stays a single analog vector and
+// T is ignored — the original one-shot behaviour, just min-max normalized.
+template <typename AEType>
+std::vector<std::vector<double>> run_protocol_ae(
+    const std::vector<std::vector<double>>& raw_signals,
+    const ThesisConfig::AutoencoderConfig& spec,
+    const ThesisConfig::Training& training,
+    const std::string& label_suffix,
+    const std::string& ae_kind, // "SNN-AE" / "ANN-AE" — drives the TUI description
+    int batch_size,
+    const std::string& encoding,
+    int time_steps,
+    std::uint32_t seed,
+    float voltage_threshold,
+    const std::string& ae_loss_type,
+    bool spiking,
+    const std::function<void(const std::map<std::string, nn::Tensor>&)>& on_trained = nullptr)
+{
+    const bool temporal = (encoding != "direct");
+    const int T = temporal ? std::max(1, time_steps) : 1;
+
+    const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
+
+    // `spiketime` is the one loss with a hard LAYOUT requirement: SpikeTimeLossImpl
+    // indexes rows as `t*B + b`, i.e. a time-major (T*B, F) tensor. The default sample
+    // shape here is a single (1, D) frame, which the Trainer stacks into (B, D) — batch
+    // rows, no time axis — so feeding that to SpikeTimeLoss would silently reinterpret
+    // unrelated samples as timesteps.
+    //
+    // The Trainer cannot build the required layout itself: create_batch() stacks
+    // multi-row samples into a 3-D (B, T, C) tensor (wrong rank AND wrong row order),
+    // and it reshuffles sample indices every epoch, so consecutive samples are not a
+    // stable group. We therefore PRE-INTERLEAVE the batch ourselves: each training
+    // "sample" is a whole group of `batch_size` inputs laid out as (T*g, D) with
+    // row = t*g + b, and the Trainer runs one group per step. This keeps real batching
+    // (g inputs per gradient step) while guaranteeing the exact layout the loss reads.
+    // A trailing partial group is fine — the loss derives B = rows / T.
+    // LifBPTT consumes a TIME-MAJOR (T*B, F) tensor and unrolls the membrane over
+    // `time_steps` internally, so every spiking run must be laid out time-major — not
+    // only `spiketime`. At T == 1 the grouping degenerates to ordinary (B, D) batching,
+    // so this is uniform rather than special-cased.
+    const bool time_major = spiking;
+
+    std::vector<nn::Tensor> train_samples = build_spike_frames(normed, encoding, T, seed);
+    if (time_major)
+        train_samples = to_time_major_groups(train_samples, normed.size(), T, batch_size);
+
+    const AutoencoderConfig ae_cfg =
+        build_ae_config(spec, T, seed, voltage_threshold, ae_loss_type, spiking);
+
+    AEType model(ae_cfg);
+
+    const nn::training::TrainerConfig trainer_cfg =
+        build_trainer_config(training, batch_size, time_major);
+
+    train_autoencoder(
+        model, trainer_cfg, train_samples, ae_loss_type, spec, T, label_suffix, ae_kind, encoding);
+
+    // Weights are final the moment training returns — capture them here, before the
+    // model goes out of scope at function exit (extract_features itself never keeps
+    // them; see ModelSnapshotFn in ThesisFeatureExtraction.hpp).
+    if (on_trained) on_trained(model.state_dict());
+
+    const auto latent_dim = static_cast<size_t>(ae_cfg.latent_size);
+    return encode_mean_latents(model, normed, encoding, T, seed, latent_dim, time_major);
 }
 } // namespace
 

@@ -1153,3 +1153,90 @@ TEST(OpenCLFusedKernelTest, BenchmarkFusedVsUnfused)
     // Test never fails — it is informational only
     SUCCEED();
 }
+
+// ─── Shape-mismatch contract ────────────────────────────────────────────────
+// Feeding two differently shaped tensors to an elementwise op is a caller
+// error, not a runtime condition: 2x3 + 3x2 has no meaning to compute. The
+// backend must refuse it. These tests exist because the refusal used to be
+// SPLIT — add/multiply raised std::invalid_argument naming the real cause,
+// while subtract/divide/compare_* raised std::runtime_error saying "OpenCL
+// runtime unavailable or tensor shape mismatch", which forces the reader to
+// guess which of two unrelated causes fired. Nothing pinned either shape, so
+// the split survived unnoticed. One contract now: std::invalid_argument,
+// message naming the operation and the cause.
+//
+// Note these run identically with or without an OpenCL device: the guard
+// fires before any CL call.
+
+TEST(OpenCLTensorBackendShapeMismatch, BinaryOpsRefuseMismatchedShapes)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend b(3, 2); // same element count, different shape
+
+    EXPECT_THROW((void) a.add(b), std::invalid_argument);
+    EXPECT_THROW((void) a.subtract(b), std::invalid_argument);
+    EXPECT_THROW((void) a.multiply(b), std::invalid_argument);
+    EXPECT_THROW((void) a.divide(b), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, MessageNamesTheOperationAndTheCause)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend b(3, 2);
+
+    // The message is the whole point of the contract: a reader must be able to
+    // tell WHICH op refused and WHY without attaching a debugger.
+    try
+    {
+        (void) a.subtract(b);
+        FAIL() << "subtract accepted mismatched shapes";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string message = e.what();
+        EXPECT_NE(message.find("subtract"), std::string::npos) << message;
+        EXPECT_NE(message.find("shape"), std::string::npos) << message;
+    }
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, MatchingShapesAreNotRefused)
+{
+    // Guards the guard: a same-shape pair must reach the kernel, so a future
+    // tightening of the check cannot pass these tests by refusing everything.
+    nn::OpenCLTensorBackend a(2, 3);
+    nn::OpenCLTensorBackend b(2, 3);
+    a.fill(2.0f);
+    b.fill(3.0f);
+
+    EXPECT_NO_THROW({
+        const nn::OpenCLTensorBackend sum = a.add(b);
+        EXPECT_FLOAT_EQ(sum.at(0, 0), 5.0f);
+    });
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, InPlaceOpsRefuseMismatchedShapes)
+{
+    // Same contract as the out-of-place ops. These used to reach
+    // throw_opencl_only_failure with "OpenCL runtime unavailable or tensor
+    // shape mismatch", which is two causes in one message.
+    nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend b(3, 2);
+
+    EXPECT_THROW(a.add_inplace(b), std::invalid_argument);
+    EXPECT_THROW(a.subtract_inplace(b), std::invalid_argument);
+    EXPECT_THROW(a.multiply_inplace(b), std::invalid_argument);
+    EXPECT_THROW(a.divide_inplace(b), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, InPlaceOpsWithMatchingShapesStillCompute)
+{
+    // Guards the guard, as above: refusing everything must not pass.
+    nn::OpenCLTensorBackend a(2, 3);
+    nn::OpenCLTensorBackend b(2, 3);
+    a.fill(10.0f);
+    b.fill(4.0f);
+
+    a.subtract_inplace(b);
+    EXPECT_FLOAT_EQ(a.at(0, 0), 6.0f);
+    EXPECT_FLOAT_EQ(a.at(1, 2), 6.0f);
+}

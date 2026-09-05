@@ -26,6 +26,8 @@ target_link_libraries(experiments_config
 )
 
 
+add_subdirectory(tests)
+
 # Add subdirectories for all experiments
 add_subdirectory(paraconsistentBaseline)
 add_subdirectory(waveletAE)

@@ -12,7 +12,9 @@
 #ifndef OPENCL_TENSOR_BACKEND_HPP
 #define OPENCL_TENSOR_BACKEND_HPP
 
+#include <initializer_list>
 #include <memory>
+#include <optional>
 #include <random>
 #include <span>
 #include <string>
@@ -444,6 +446,101 @@ class OpenCLTensorBackend
     //   binary:        (A, B, out, n)      unary:         (in, out, n)
     //   unary_scalar:  (in, out, scalar, n)
     //   inplace_binary:(A, B, n)           inplace_scalar:(A, scalar, n)
+    // One body for add/subtract/multiply/divide: they differ only in which
+    // kernel runs, so they used to be four ~150-line near-copies. The copies
+    // had silently drifted apart on shape-mismatch handling (two exception
+    // types, one of them naming two unrelated causes); a single body cannot
+    // drift. Arg order matches the binary kernels: (A, B, out, n).
+    // Same story for square/sqrt/abs/exp/relu. Their five copies had drifted
+    // into three different shapes (eager sync_gpu() vs lazy, and a
+    // resident-output path present in three of them). Arg order: (in, out, n).
+    OpenCLTensorBackend unary_elementwise(const char* kernel_name, const char* what) const;
+
+    // matmul_transposed_add_col_bias_{relu,sigmoid,tanh,leaky_relu} were four
+    // ~200-line bodies whose only differences were the kernel name and, for
+    // leaky_relu alone, one extra float at argument 7. The pack carries that
+    // float when there is one, so the size arguments keep their fixed indices
+    // and the extras land after them.
+    OpenCLTensorBackend matmul_transposed_bias_activated(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        const OpenCLTensorBackend& bias,
+        std::initializer_list<float> extra_scalars) const;
+
+    // The three staging strategies behind both unary entry points, tried
+    // cheapest-transfer-first. std::nullopt means "this strategy cannot run
+    // here"; the last one has no successor and so returns a value or throws.
+    static void enqueue_unary_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem in_mem,
+        cl_mem out_mem,
+        std::initializer_list<float> scalars,
+        std::size_t n,
+        const cl_event* wait_event,
+        cl_event* out_event);
+    std::optional<OpenCLTensorBackend> unary_stage_resident(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n) const;
+    std::optional<OpenCLTensorBackend> unary_stage_pooled(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n,
+        OpenCLHostStorage& out) const;
+    OpenCLTensorBackend unary_stage_oneshot(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n,
+        OpenCLHostStorage& out) const;
+    OpenCLTensorBackend run_unary_stages(
+        const char* kernel_name, const char* what, std::initializer_list<float> scalars) const;
+
+    // square_inplace / sqrt_inplace. Arg order: (A, n), written back into A.
+    void unary_inplace(const char* kernel_name, const char* what);
+
+    // leaky_relu(alpha) and clamp(min, max) differ ONLY in how many float
+    // arguments sit between `out` and `n`, so the scalars travel as a pack and
+    // the size argument lands at index 2 + scalars.size(). Adding a third
+    // scalar op now costs one line, not another 180.
+    OpenCLTensorBackend unary_scalars_elementwise(
+        const char* kernel_name, const char* what, std::initializer_list<float> scalars) const;
+
+    // compare_gt/le/ge/eq were four byte-identical bodies (modulo the kernel
+    // name). compare_lt is deliberately NOT here: it alone supports row/column
+    // broadcasting, so folding it in would either lose that or force it on the
+    // other four. Arg order: (A, B, out, n).
+    OpenCLTensorBackend compare_elementwise(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other) const;
+
+    // binary_inplace's three staging strategies, tried cheapest-transfer-first.
+    // Each returns false when it cannot run, so the caller falls to the next;
+    // the last one has no successor and therefore returns void.
+    bool inplace_stage_resident(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other, std::size_t n);
+    bool inplace_stage_pooled(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other, std::size_t n);
+    void inplace_stage_oneshot(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other, std::size_t n);
+    static void enqueue_inplace_binary_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem a_mem,
+        cl_mem b_mem,
+        std::size_t n,
+        const cl_event* wait_events,
+        cl_uint wait_count,
+        cl_event* out_event);
+
+    // add/subtract/multiply/divide_inplace: four more byte-identical bodies,
+    // ~215 lines each. Arg order: (A, B, n), result written back into A.
+    void binary_inplace(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other);
+
+    // add/multiply/divide_scalar_inplace. Arg order: (A, scalar, n).
+    void scalar_inplace(const char* kernel_name, const char* what, float val);
+
+    OpenCLTensorBackend binary_elementwise(
+        const char* kernel_name, const char* what, const OpenCLTensorBackend& other) const;
+
     static bool launch_binary_resident(const char* kernel_name,
         const OpenCLTensorBackend& a,
         const OpenCLTensorBackend& b,
