@@ -2,6 +2,7 @@ set(THESIS_LIB_SOURCES
     lib/src/ThesisConfig.cpp
     lib/src/ThesisDataset.cpp
     lib/src/ThesisFeatureExtraction.cpp
+    lib/src/ThesisHandcraftedFeatures.cpp
     lib/src/ThesisParaconsistent.cpp
     lib/src/ThesisClassifiers.cpp
     lib/src/ThesisOutput.cpp

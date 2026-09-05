@@ -694,6 +694,24 @@ class OpenCLTensorBackend
     void run_inplace_elementwise_stages(
         const char* kernel_name, const char* what, std::initializer_list<float> scalars);
 
+    // add_row_broadcast_inplace() and add_col_vector_to_rows_inplace() share
+    // these: a (1,M) row and an (M,1) col_vector are the same flat M values,
+    // so both launch the identical add_col_vector_to_rows_kernel(data, vec,
+    // rows, cols). The pooled stage chains upload/kernel/download on events
+    // (up to 2 wait events in), unlike the other *_stage_pooled families in
+    // this file, which block between steps -- preserved as found.
+    static void enqueue_broadcast_vector_kernel(cl_mem data_mem,
+        cl_mem vec_mem,
+        Index num_rows,
+        Index num_cols,
+        cl_uint num_wait_events,
+        const cl_event* wait_events,
+        cl_event* out_event);
+    bool broadcast_vector_stage_resident(const OpenCLTensorBackend& vec, const char* what);
+    bool broadcast_vector_stage_pooled(const OpenCLTensorBackend& vec, const char* what);
+    void broadcast_vector_stage_oneshot(const OpenCLTensorBackend& vec, const char* what);
+    void run_broadcast_vector_stages(const OpenCLTensorBackend& vec, const char* what);
+
     // binary_inplace's three staging strategies, tried cheapest-transfer-first.
     // Each returns false when it cannot run, so the caller falls to the next;
     // the last one has no successor and therefore returns void.

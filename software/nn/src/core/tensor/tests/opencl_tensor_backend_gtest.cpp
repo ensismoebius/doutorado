@@ -1464,3 +1464,39 @@ TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyMatchingShapesStillCompute)
     EXPECT_NO_THROW((void) a.matmul_transposed_add_col_bias(other, bias));
     EXPECT_NO_THROW((void) a.matmul_transposed_add_col_bias_relu(other, bias));
 }
+
+// add_row_broadcast_inplace() and add_col_vector_to_rows_inplace() are now
+// unified behind run_broadcast_vector_stages() -- both raise identically on
+// shape mismatch and on device unavailability. add_row_broadcast_inplace
+// previously fell back to a CPU loop instead of raising; that fallback is
+// gone.
+TEST(OpenCLTensorBackendShapeMismatch, BroadcastVectorFamilyRefusesMismatchedShapes)
+{
+    nn::OpenCLTensorBackend a(3, 2);
+    const nn::OpenCLTensorBackend wrong_row(1, 5); // wrong_row.cols() != a.cols()
+    const nn::OpenCLTensorBackend wrong_col(5, 1); // wrong_col.rows() != a.cols()
+
+    EXPECT_THROW(a.add_row_broadcast_inplace(wrong_row), std::invalid_argument);
+    EXPECT_THROW(a.add_col_vector_to_rows_inplace(wrong_col), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch,
+    BroadcastVectorFamilyRefusesUnconditionallyNotJustWithoutOpenCL)
+{
+    nn::OpenCLTensorBackend a(3, 2);
+    const nn::OpenCLTensorBackend wrong_row(1, 5);
+    ASSERT_TRUE(nn::opencl::OpenCLContext::instance().is_available())
+        << "this test assumes the suite runs on a real (possibly software) OpenCL device";
+
+    EXPECT_THROW(a.add_row_broadcast_inplace(wrong_row), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, BroadcastVectorFamilyMatchingShapesStillCompute)
+{
+    nn::OpenCLTensorBackend a(3, 2);
+    const nn::OpenCLTensorBackend row(1, 2);
+    const nn::OpenCLTensorBackend col(2, 1);
+
+    EXPECT_NO_THROW(a.add_row_broadcast_inplace(row));
+    EXPECT_NO_THROW(a.add_col_vector_to_rows_inplace(col));
+}

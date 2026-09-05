@@ -1750,239 +1750,206 @@ void OpenCLTensorBackend::set_ones()
     fill(1.0F);
 }
 
+// add_row_broadcast_inplace()'s (1,M) row and add_col_vector_to_rows_inplace()'s
+// (M,1) col_vector hold the same M values in the same flat layout, and both
+// launch the identical add_col_vector_to_rows_kernel(data, vec, rows, cols)
+// with no shape-dependent branching at all -- confirmed by diffing the two
+// bodies (they differed only in identifier names and which of {row.rows()==1,
+// col_vector.cols()==1} each validates). Shared here; each public entry point
+// still does its own shape check, in its own required orientation, before
+// calling in.
+//
+// add_row_broadcast_inplace previously fell back to a CPU loop when OpenCL
+// was unavailable -- the only such fallback among this pair, and a violation
+// of the project's no-fallback policy once actually looked at side by side
+// with add_col_vector_to_rows_inplace's sibling behaviour (which already
+// raised). Removed: both now raise identically.
+void OpenCLTensorBackend::enqueue_broadcast_vector_kernel(cl_mem data_mem,
+    cl_mem vec_mem,
+    Index num_rows,
+    Index num_cols,
+    cl_uint num_wait_events,
+    const cl_event* wait_events,
+    cl_event* out_event)
+{
+    const auto& ctx = opencl::OpenCLContext::instance();
+    cl_kernel kernel =
+        opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
+    const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+    const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+    check_cl_error(
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "add_col_vector_to_rows_kernel");
+    check_cl_error(
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &vec_mem), "add_col_vector_to_rows_kernel");
+    check_cl_error(
+        clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32), "add_col_vector_to_rows_kernel");
+    check_cl_error(
+        clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32), "add_col_vector_to_rows_kernel");
+
+    const std::size_t local = 256;
+    const std::size_t n = num_rows * num_cols;
+    std::size_t global = round_up(n, local);
+    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                       kernel,
+                       1,
+                       nullptr,
+                       &global,
+                       &local,
+                       num_wait_events,
+                       num_wait_events ? wait_events : nullptr,
+                       out_event),
+        "add_col_vector_to_rows_kernel");
+}
+
+// Stage 1: both operands already resident, mutated in place with no
+// transfer at all.
+bool OpenCLTensorBackend::broadcast_vector_stage_resident(
+    const OpenCLTensorBackend& vec, const char* what)
+{
+    if (!ensure_device_current("resident gate") || !vec.ensure_device_current("resident gate"))
+    {
+        return false;
+    }
+
+    const auto& ctx = opencl::OpenCLContext::instance();
+    const auto num_rows = rows();
+    const auto num_cols = cols();
+    const auto n = size();
+    if (n == 0) return true;
+    const std::size_t bytes = n * sizeof(float);
+    const std::size_t vec_bytes = num_cols * sizeof(float);
+
+    if (m_needs_sync_to_device)
+    {
+        copy_host_to_device(ctx.get_queue(), m_gpu_buffer->buffer, host_data(), bytes, what);
+        m_needs_sync_to_device = false;
+    }
+    if (vec.m_needs_sync_to_device)
+    {
+        copy_host_to_device(
+            ctx.get_queue(), vec.m_gpu_buffer->buffer, vec.host_data(), vec_bytes, what);
+        vec.m_needs_sync_to_device = false;
+    }
+
+    enqueue_broadcast_vector_kernel(
+        m_gpu_buffer->buffer, vec.m_gpu_buffer->buffer, num_rows, num_cols, 0, nullptr, nullptr);
+    m_needs_sync_to_host = true;
+    m_needs_sync_to_device = false;
+    return true;
+}
+
+// Stage 2: staged through pooled buffers, upload/kernel/download chained on
+// events rather than blocking between each step.
+bool OpenCLTensorBackend::broadcast_vector_stage_pooled(
+    const OpenCLTensorBackend& vec, const char* what)
+{
+    tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+    if (pool == nullptr) return false;
+
+    const auto num_rows = rows();
+    const auto num_cols = cols();
+    const auto n = size();
+    if (n == 0) return true;
+    const std::size_t bytes = n * sizeof(float);
+    const std::size_t vec_bytes = num_cols * sizeof(float);
+
+    auto data_buf = pool->acquire(bytes);
+    auto vec_buf = pool->acquire(vec_bytes);
+    if (!data_buf || !vec_buf) return false;
+
+    const auto& ctx = opencl::OpenCLContext::instance();
+    cl_event data_evt = nullptr;
+    cl_event vec_evt = nullptr;
+    copy_host_to_device_async(
+        ctx.get_queue(), data_buf->buffer, host_data(), bytes, what, &data_evt);
+    copy_host_to_device_async(
+        ctx.get_queue(), vec_buf->buffer, vec.host_data(), vec_bytes, what, &vec_evt);
+
+    cl_event wait_events[2];
+    cl_uint num_wait = 0;
+    if (data_evt) wait_events[num_wait++] = data_evt;
+    if (vec_evt) wait_events[num_wait++] = vec_evt;
+
+    cl_event kernel_evt = nullptr;
+    enqueue_broadcast_vector_kernel(
+        data_buf->buffer, vec_buf->buffer, num_rows, num_cols, num_wait, wait_events, &kernel_evt);
+
+    if (data_evt) clReleaseEvent(data_evt);
+    if (vec_evt) clReleaseEvent(vec_evt);
+
+    cl_event d2h_evt = nullptr;
+    copy_device_to_host_async(
+        ctx.get_queue(), data_buf->buffer, mutable_host_data(), bytes, what, &d2h_evt);
+    mark_host_dirty();
+
+    if (kernel_evt) clReleaseEvent(kernel_evt);
+    record_pending_gpu_op(d2h_evt);
+    return true;
+}
+
+// Stage 3: no pool, one-shot device buffers, fully synchronous. No
+// successor, so it either finishes the mutation or throws.
+void OpenCLTensorBackend::broadcast_vector_stage_oneshot(
+    const OpenCLTensorBackend& vec, const char* what)
+{
+    const auto num_rows = rows();
+    const auto num_cols = cols();
+    const auto n = size();
+    if (n == 0) return;
+    const std::size_t bytes = n * sizeof(float);
+    const std::size_t vec_bytes = num_cols * sizeof(float);
+
+    opencl::DeviceMemory data_dev(bytes);
+    opencl::DeviceMemory vec_dev(vec_bytes);
+    data_dev.copy_to_device(host_data());
+    vec_dev.copy_to_device(vec.host_data());
+
+    enqueue_broadcast_vector_kernel(data_dev.get_device_buffer(),
+        vec_dev.get_device_buffer(),
+        num_rows,
+        num_cols,
+        0,
+        nullptr,
+        nullptr);
+    finish_queue_if_not_batching(opencl::OpenCLContext::instance().get_queue(), what);
+
+    data_dev.copy_from_device(mutable_host_data());
+    mark_host_dirty();
+}
+
+// The three stages in cheapest-transfer-first order, shared by
+// add_row_broadcast_inplace() and add_col_vector_to_rows_inplace(). Callers
+// have already validated shape and raise std::invalid_argument themselves;
+// this only ever raises for a genuine device-availability/execution failure.
+void OpenCLTensorBackend::run_broadcast_vector_stages(
+    const OpenCLTensorBackend& vec, const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what))
+    {
+        throw_opencl_only_failure(what, "OpenCL runtime unavailable");
+    }
+
+    try
+    {
+        if (broadcast_vector_stage_resident(vec, what)) return;
+        if (broadcast_vector_stage_pooled(vec, what)) return;
+        broadcast_vector_stage_oneshot(vec, what);
+    }
+    catch (const std::exception& e)
+    {
+        throw_opencl_only_failure(what, e.what());
+    }
+}
+
 void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& row)
 {
     if (shape().size() != 2 || row.shape().size() != 2 || row.rows() != 1 || row.cols() != cols())
     {
         throw std::invalid_argument("add_row_broadcast_inplace requires lhs=(N,M) and row=(1,M)");
     }
-
-    // cppcheck-suppress knownConditionTrueFalse
-    if (can_use_opencl("add_row_broadcast_inplace"))
-    {
-        try
-        {
-            const auto& ctx = opencl::OpenCLContext::instance();
-            const auto num_rows = rows();
-            const auto num_cols = cols();
-            const auto n = size();
-            if (n == 0) return;
-            const std::size_t bytes = n * sizeof(float);
-            const std::size_t row_bytes = num_cols * sizeof(float);
-
-            if (ensure_device_current("resident gate") &&
-                row.ensure_device_current("resident gate"))
-            {
-                if (m_needs_sync_to_device)
-                {
-                    copy_host_to_device(ctx.get_queue(),
-                        m_gpu_buffer->buffer,
-                        host_data(),
-                        bytes,
-                        "add_row_broadcast_inplace resident data");
-                    m_needs_sync_to_device = false;
-                }
-                if (row.m_needs_sync_to_device)
-                {
-                    copy_host_to_device(ctx.get_queue(),
-                        row.m_gpu_buffer->buffer,
-                        row.host_data(),
-                        row_bytes,
-                        "add_row_broadcast_inplace resident row");
-                    row.m_needs_sync_to_device = false;
-                }
-
-                cl_kernel kernel =
-                    opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
-                const cl_mem data_mem = m_gpu_buffer->buffer;
-                const cl_mem row_mem = row.m_gpu_buffer->buffer;
-                const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-                const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
-                    "add_row_broadcast_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem),
-                    "add_row_broadcast_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
-                    "add_row_broadcast_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
-                    "add_row_broadcast_inplace resident");
-
-                const std::size_t local = 256;
-                std::size_t global = round_up(n, local);
-                check_cl_error(
-                    clEnqueueNDRangeKernel(
-                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
-                    "add_row_broadcast_inplace resident");
-                m_needs_sync_to_host = true;
-                m_needs_sync_to_device = false;
-                return;
-            }
-
-            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
-            if (pool)
-            {
-                auto data_buf = pool->acquire(bytes);
-                auto row_buf = pool->acquire(row_bytes);
-                if (data_buf && row_buf)
-                {
-                    cl_event data_evt = nullptr;
-                    cl_event row_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        data_buf->buffer,
-                        host_data(),
-                        bytes,
-                        "add_row_broadcast_inplace",
-                        &data_evt);
-                    copy_host_to_device_async(ctx.get_queue(),
-                        row_buf->buffer,
-                        row.host_data(),
-                        row_bytes,
-                        "add_row_broadcast_inplace",
-                        &row_evt);
-
-                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
-                        "add_col_vector_to_rows_kernel");
-                    const cl_mem data_mem = data_buf->buffer;
-                    const cl_mem row_mem = row_buf->buffer;
-                    const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-                    const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
-                        "add_row_broadcast_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem),
-                        "add_row_broadcast_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
-                        "add_row_broadcast_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
-                        "add_row_broadcast_inplace");
-
-                    const std::size_t local = 256;
-                    std::size_t global = round_up(n, local);
-
-                    cl_event kernel_evt = nullptr;
-                    if (data_evt && row_evt)
-                    {
-                        cl_event wait_events[2] = {data_evt, row_evt};
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           2,
-                                           wait_events,
-                                           &kernel_evt),
-                            "add_row_broadcast_inplace");
-                    }
-                    else if (data_evt)
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           1,
-                                           &data_evt,
-                                           &kernel_evt),
-                            "add_row_broadcast_inplace");
-                    }
-                    else if (row_evt)
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           1,
-                                           &row_evt,
-                                           &kernel_evt),
-                            "add_row_broadcast_inplace");
-                    }
-                    else
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           0,
-                                           nullptr,
-                                           &kernel_evt),
-                            "add_row_broadcast_inplace");
-                    }
-
-                    if (data_evt) clReleaseEvent(data_evt);
-                    if (row_evt) clReleaseEvent(row_evt);
-
-                    cl_event d2h_evt = nullptr;
-                    copy_device_to_host_async(ctx.get_queue(),
-                        data_buf->buffer,
-                        mutable_host_data(),
-                        bytes,
-                        "add_row_broadcast_inplace",
-                        &d2h_evt);
-                    mark_host_dirty();
-
-                    if (kernel_evt) clReleaseEvent(kernel_evt);
-                    record_pending_gpu_op(d2h_evt);
-                    return;
-                }
-            }
-
-            opencl::DeviceMemory data_dev(bytes);
-            opencl::DeviceMemory row_dev(row_bytes);
-            data_dev.copy_to_device(host_data());
-            row_dev.copy_to_device(row.host_data());
-
-            cl_kernel kernel =
-                opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
-            const cl_mem data_mem = data_dev.get_device_buffer();
-            const cl_mem row_mem = row_dev.get_device_buffer();
-            const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-            const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-            check_cl_error(
-                clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "add_row_broadcast_inplace");
-            check_cl_error(
-                clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem), "add_row_broadcast_inplace");
-            check_cl_error(
-                clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32), "add_row_broadcast_inplace");
-            check_cl_error(
-                clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32), "add_row_broadcast_inplace");
-
-            const std::size_t local = 256;
-            std::size_t global = round_up(n, local);
-            check_cl_error(
-                clEnqueueNDRangeKernel(
-                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
-                "add_row_broadcast_inplace");
-            finish_queue_if_not_batching(ctx.get_queue(), "add_row_broadcast_inplace");
-
-            data_dev.copy_from_device(mutable_host_data());
-            mark_host_dirty();
-            return;
-        }
-        catch (const std::exception& e)
-        {
-            warn_opencl_cpu_fallback_once(
-                "add_row_broadcast_inplace", std::string("OpenCL path failed: ") + e.what());
-        }
-    }
-
-    for (Index i = 0; i < rows(); ++i)
-    {
-        for (Index j = 0; j < cols(); ++j)
-        {
-            m_backend->at(i, j) += row.m_backend->at(0, j);
-        }
-    }
-
-    m_needs_sync_to_device = true;
-    m_needs_sync_to_host = false;
+    run_broadcast_vector_stages(row, "add_row_broadcast_inplace");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::add_row_broadcast(const OpenCLTensorBackend& row) const
@@ -1999,236 +1966,20 @@ void OpenCLTensorBackend::square_inplace()
 
 void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector)
 {
+    // Preserved from before the merge: eager sync before validation, unlike
+    // add_row_broadcast_inplace's sibling above, which has no such call.
+    // Genuinely asymmetric, not harmonized away.
     if (!col_vector.m_gpu_resident)
     {
         col_vector.sync_gpu();
     }
-    if (shape().size() != 2 || col_vector.shape().size() != 2)
+    if (shape().size() != 2 || col_vector.shape().size() != 2 || cols() != col_vector.rows() ||
+        col_vector.cols() != 1)
     {
-        warn_opencl_cpu_fallback_once(
-            "add_col_vector_to_rows_inplace", "OpenCL path requires rank-2 tensors");
+        throw std::invalid_argument(
+            "add_col_vector_to_rows_inplace requires lhs=(N,M) and col_vector=(M,1)");
     }
-    else if (cols() != col_vector.rows() || col_vector.cols() != 1)
-    {
-        warn_opencl_cpu_fallback_once(
-            "add_col_vector_to_rows_inplace", "OpenCL path requires col_vector to be (cols x 1)");
-    }
-    // cppcheck-suppress knownConditionTrueFalse
-    else if (can_use_opencl("add_col_vector_to_rows_inplace"))
-    {
-        try
-        {
-            const auto& ctx = opencl::OpenCLContext::instance();
-            const auto num_rows = rows();
-            const auto num_cols = cols();
-            const auto n = size();
-            if (n == 0) return;
-            const std::size_t bytes = n * sizeof(float);
-            const std::size_t col_bytes = num_cols * sizeof(float);
-
-            if (ensure_device_current("resident gate") &&
-                col_vector.ensure_device_current("resident gate"))
-            {
-                if (m_needs_sync_to_device)
-                {
-                    copy_host_to_device(ctx.get_queue(),
-                        m_gpu_buffer->buffer,
-                        host_data(),
-                        bytes,
-                        "add_col_vector_to_rows_inplace resident data");
-                    m_needs_sync_to_device = false;
-                }
-                if (col_vector.m_needs_sync_to_device)
-                {
-                    copy_host_to_device(ctx.get_queue(),
-                        col_vector.m_gpu_buffer->buffer,
-                        col_vector.host_data(),
-                        col_bytes,
-                        "add_col_vector_to_rows_inplace resident col");
-                    col_vector.m_needs_sync_to_device = false;
-                }
-
-                cl_kernel kernel =
-                    opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
-                const cl_mem data_mem = m_gpu_buffer->buffer;
-                const cl_mem col_mem = col_vector.m_gpu_buffer->buffer;
-                const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-                const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
-                    "add_col_vector_to_rows_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &col_mem),
-                    "add_col_vector_to_rows_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
-                    "add_col_vector_to_rows_inplace resident");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
-                    "add_col_vector_to_rows_inplace resident");
-
-                const std::size_t local = 256;
-                std::size_t global = round_up(n, local);
-                check_cl_error(
-                    clEnqueueNDRangeKernel(
-                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
-                    "add_col_vector_to_rows_inplace resident");
-                m_needs_sync_to_host = true;
-                m_needs_sync_to_device = false;
-                return;
-            }
-
-            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
-            if (pool)
-            {
-                auto data_buf = pool->acquire(bytes);
-                auto col_buf = pool->acquire(col_bytes);
-                if (data_buf && col_buf)
-                {
-                    cl_event data_evt = nullptr;
-                    cl_event col_evt = nullptr;
-                    copy_host_to_device_async(ctx.get_queue(),
-                        data_buf->buffer,
-                        host_data(),
-                        bytes,
-                        "add_col_vector_to_rows_inplace",
-                        &data_evt);
-                    copy_host_to_device_async(ctx.get_queue(),
-                        col_buf->buffer,
-                        col_vector.host_data(),
-                        col_bytes,
-                        "add_col_vector_to_rows_inplace",
-                        &col_evt);
-
-                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
-                        "add_col_vector_to_rows_kernel");
-                    const cl_mem data_mem = data_buf->buffer;
-                    const cl_mem col_mem = col_buf->buffer;
-                    const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-                    const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
-                        "add_col_vector_to_rows_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &col_mem),
-                        "add_col_vector_to_rows_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
-                        "add_col_vector_to_rows_inplace");
-                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
-                        "add_col_vector_to_rows_inplace");
-
-                    const std::size_t local = 256;
-                    std::size_t global = round_up(n, local);
-
-                    cl_event kernel_evt = nullptr;
-                    if (data_evt && col_evt)
-                    {
-                        cl_event wait_events[2] = {data_evt, col_evt};
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           2,
-                                           wait_events,
-                                           &kernel_evt),
-                            "add_col_vector_to_rows_inplace");
-                    }
-                    else if (data_evt)
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           1,
-                                           &data_evt,
-                                           &kernel_evt),
-                            "add_col_vector_to_rows_inplace");
-                    }
-                    else if (col_evt)
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           1,
-                                           &col_evt,
-                                           &kernel_evt),
-                            "add_col_vector_to_rows_inplace");
-                    }
-                    else
-                    {
-                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
-                                           kernel,
-                                           1,
-                                           nullptr,
-                                           &global,
-                                           &local,
-                                           0,
-                                           nullptr,
-                                           &kernel_evt),
-                            "add_col_vector_to_rows_inplace");
-                    }
-
-                    if (data_evt) clReleaseEvent(data_evt);
-                    if (col_evt) clReleaseEvent(col_evt);
-
-                    cl_event d2h_evt = nullptr;
-                    copy_device_to_host_async(ctx.get_queue(),
-                        data_buf->buffer,
-                        mutable_host_data(),
-                        bytes,
-                        "add_col_vector_to_rows_inplace",
-                        &d2h_evt);
-                    mark_host_dirty();
-
-                    if (kernel_evt) clReleaseEvent(kernel_evt);
-                    record_pending_gpu_op(d2h_evt);
-                    return;
-                }
-            }
-
-            opencl::DeviceMemory data_dev(bytes);
-            opencl::DeviceMemory col_dev(col_bytes);
-            data_dev.copy_to_device(host_data());
-            col_dev.copy_to_device(col_vector.host_data());
-
-            cl_kernel kernel =
-                opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
-            const cl_mem data_mem = data_dev.get_device_buffer();
-            const cl_mem col_mem = col_dev.get_device_buffer();
-            const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
-            const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
-
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
-                "add_col_vector_to_rows_inplace");
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &col_mem),
-                "add_col_vector_to_rows_inplace");
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
-                "add_col_vector_to_rows_inplace");
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
-                "add_col_vector_to_rows_inplace");
-
-            const std::size_t local = 256;
-            std::size_t global = round_up(n, local);
-            check_cl_error(
-                clEnqueueNDRangeKernel(
-                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
-                "add_col_vector_to_rows_inplace");
-            finish_queue_if_not_batching(ctx.get_queue(), "add_col_vector_to_rows_inplace");
-
-            data_dev.copy_from_device(mutable_host_data());
-            mark_host_dirty();
-            return;
-        }
-        catch (const std::exception& e)
-        {
-            throw_opencl_only_failure("add_col_vector_to_rows_inplace", e.what());
-        }
-    }
-    throw_opencl_only_failure(
-        "add_col_vector_to_rows_inplace", "OpenCL runtime unavailable or tensor shape is invalid");
+    run_broadcast_vector_stages(col_vector, "add_col_vector_to_rows_inplace");
 }
 
 // Element-wise operations
