@@ -33,6 +33,159 @@ using nn::models::autoencoder::FusedWindowSpikingAutoencoder;
 using nn::models::autoencoder::ProtocolAutoencoder;
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
 
+namespace
+{
+
+void demo_protocol_autoencoder(const AutoencoderConfig& cfg, int kBatch, int kProtocolFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kProtocolFeatures;
+    ProtocolAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kProtocolFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+    nn::Tensor recon2 = model.forward(x);
+
+    std::cout << "[ANN] ProtocolAutoencoder  "
+              << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
+              << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
+}
+
+void demo_eeg_window_autoencoder(const AutoencoderConfig& cfg, int kBatch, int kEegFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kEegFeatures;
+    EegWindowAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kEegFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[ANN] EegWindowAutoencoder "
+              << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
+              << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
+}
+
+void demo_audio_window_autoencoder(const AutoencoderConfig& cfg, int kBatch, int kAudioFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kAudioFeatures;
+    AudioWindowAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kAudioFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[ANN] AudioWindowAutoencoder "
+              << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
+              << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
+}
+
+void demo_fused_window_autoencoder(const AutoencoderConfig& cfg,
+    int kBatch,
+    int kEegFeatures,
+    int kAudioFeatures,
+    int kFusedFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kFusedFeatures;
+    c.eeg_features = kEegFeatures;
+    c.audio_features = kAudioFeatures;
+    FusedWindowAutoencoder model(c);
+
+    // Caller concatenates EEG and audio feature tensors before passing in.
+    nn::Tensor x_eeg = nn::Tensor::rand(kBatch, kEegFeatures);
+    nn::Tensor x_audio = nn::Tensor::rand(kBatch, kAudioFeatures);
+    // Simple horizontal concatenation via Eigen block ops:
+    nn::Tensor x(kBatch, kFusedFeatures);
+    for (int r = 0; r < kBatch; ++r)
+    {
+        for (int col = 0; col < kEegFeatures; ++col) x(r, col) = x_eeg(r, col);
+        for (int col = 0; col < kAudioFeatures; ++col) x(r, kEegFeatures + col) = x_audio(r, col);
+    }
+
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[ANN] FusedWindowAutoencoder "
+              << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
+              << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
+}
+
+void demo_protocol_spiking_autoencoder(
+    const AutoencoderConfig& cfg, int kBatch, int kProtocolFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kProtocolFeatures;
+    ProtocolSpikingAutoencoder model(c);
+
+    // Simulate two time steps (e.g. two windows of the same trial).
+    for (int t = 0; t < 2; ++t)
+    {
+        nn::Tensor x = nn::Tensor::rand(kBatch, kProtocolFeatures);
+        nn::Tensor latent = model.encode(x);
+        nn::Tensor recon = model.decode(latent);
+        std::cout << "[SNN] ProtocolSpikingAutoencoder t=" << t << " latent=" << latent.rows()
+                  << "×" << latent.cols() << "\n";
+    }
+    model.reset_state(); // reset between sequences/trials
+}
+
+void demo_eeg_window_spiking_autoencoder(const AutoencoderConfig& cfg, int kBatch, int kEegFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kEegFeatures;
+    EegWindowSpikingAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kEegFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[SNN] EegWindowSpikingAutoencoder "
+              << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
+    model.reset_state();
+}
+
+void demo_audio_window_spiking_autoencoder(
+    const AutoencoderConfig& cfg, int kBatch, int kAudioFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kAudioFeatures;
+    AudioWindowSpikingAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kAudioFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[SNN] AudioWindowSpikingAutoencoder "
+              << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
+    model.reset_state();
+}
+
+void demo_fused_window_spiking_autoencoder(const AutoencoderConfig& cfg,
+    int kBatch,
+    int kEegFeatures,
+    int kAudioFeatures,
+    int kFusedFeatures)
+{
+    AutoencoderConfig c = cfg;
+    c.input_features = kFusedFeatures;
+    c.eeg_features = kEegFeatures;
+    c.audio_features = kAudioFeatures;
+    FusedWindowSpikingAutoencoder model(c);
+
+    nn::Tensor x = nn::Tensor::rand(kBatch, kFusedFeatures);
+    nn::Tensor latent = model.encode(x);
+    nn::Tensor recon = model.decode(latent);
+
+    std::cout << "[SNN] FusedWindowSpikingAutoencoder "
+              << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
+    model.reset_state();
+}
+
+} // namespace
+
 int main()
 {
     constexpr int kBatch = 4;
@@ -56,139 +209,19 @@ int main()
     // -----------------------------------------------------------------------
     // ANN autoencoders
     // -----------------------------------------------------------------------
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kProtocolFeatures;
-        ProtocolAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kProtocolFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-        nn::Tensor recon2 = model.forward(x);
-
-        std::cout << "[ANN] ProtocolAutoencoder  "
-                  << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
-                  << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kEegFeatures;
-        EegWindowAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kEegFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[ANN] EegWindowAutoencoder "
-                  << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
-                  << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kAudioFeatures;
-        AudioWindowAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kAudioFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[ANN] AudioWindowAutoencoder "
-                  << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
-                  << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kFusedFeatures;
-        c.eeg_features = kEegFeatures;
-        c.audio_features = kAudioFeatures;
-        FusedWindowAutoencoder model(c);
-
-        // Caller concatenates EEG and audio feature tensors before passing in.
-        nn::Tensor x_eeg = nn::Tensor::rand(kBatch, kEegFeatures);
-        nn::Tensor x_audio = nn::Tensor::rand(kBatch, kAudioFeatures);
-        // Simple horizontal concatenation via Eigen block ops:
-        nn::Tensor x(kBatch, kFusedFeatures);
-        for (int r = 0; r < kBatch; ++r)
-        {
-            for (int col = 0; col < kEegFeatures; ++col) x(r, col) = x_eeg(r, col);
-            for (int col = 0; col < kAudioFeatures; ++col)
-                x(r, kEegFeatures + col) = x_audio(r, col);
-        }
-
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[ANN] FusedWindowAutoencoder "
-                  << "input=" << x.rows() << "×" << x.cols() << "  latent=" << latent.rows() << "×"
-                  << latent.cols() << "  recon=" << recon.rows() << "×" << recon.cols() << "\n";
-    }
+    demo_protocol_autoencoder(cfg, kBatch, kProtocolFeatures);
+    demo_eeg_window_autoencoder(cfg, kBatch, kEegFeatures);
+    demo_audio_window_autoencoder(cfg, kBatch, kAudioFeatures);
+    demo_fused_window_autoencoder(cfg, kBatch, kEegFeatures, kAudioFeatures, kFusedFeatures);
 
     // -----------------------------------------------------------------------
     // SNN autoencoders
     // -----------------------------------------------------------------------
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kProtocolFeatures;
-        ProtocolSpikingAutoencoder model(c);
-
-        // Simulate two time steps (e.g. two windows of the same trial).
-        for (int t = 0; t < 2; ++t)
-        {
-            nn::Tensor x = nn::Tensor::rand(kBatch, kProtocolFeatures);
-            nn::Tensor latent = model.encode(x);
-            nn::Tensor recon = model.decode(latent);
-            std::cout << "[SNN] ProtocolSpikingAutoencoder t=" << t << " latent=" << latent.rows()
-                      << "×" << latent.cols() << "\n";
-        }
-        model.reset_state(); // reset between sequences/trials
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kEegFeatures;
-        EegWindowSpikingAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kEegFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[SNN] EegWindowSpikingAutoencoder "
-                  << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
-        model.reset_state();
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kAudioFeatures;
-        AudioWindowSpikingAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kAudioFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[SNN] AudioWindowSpikingAutoencoder "
-                  << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
-        model.reset_state();
-    }
-
-    {
-        AutoencoderConfig c = cfg;
-        c.input_features = kFusedFeatures;
-        c.eeg_features = kEegFeatures;
-        c.audio_features = kAudioFeatures;
-        FusedWindowSpikingAutoencoder model(c);
-
-        nn::Tensor x = nn::Tensor::rand(kBatch, kFusedFeatures);
-        nn::Tensor latent = model.encode(x);
-        nn::Tensor recon = model.decode(latent);
-
-        std::cout << "[SNN] FusedWindowSpikingAutoencoder "
-                  << "latent=" << latent.rows() << "×" << latent.cols() << "\n";
-        model.reset_state();
-    }
+    demo_protocol_spiking_autoencoder(cfg, kBatch, kProtocolFeatures);
+    demo_eeg_window_spiking_autoencoder(cfg, kBatch, kEegFeatures);
+    demo_audio_window_spiking_autoencoder(cfg, kBatch, kAudioFeatures);
+    demo_fused_window_spiking_autoencoder(
+        cfg, kBatch, kEegFeatures, kAudioFeatures, kFusedFeatures);
 
     return 0;
 }
