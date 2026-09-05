@@ -7,6 +7,14 @@ add_library(tensor STATIC
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLProfiling.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/GPUBufferPool.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackend.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendInplace.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendElementwise.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendReductions.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendUnaryLif.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendMatmul.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendTransposeBlock.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendCompare.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackendRuntime.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/DeviceRuntime.cpp
 )
 
