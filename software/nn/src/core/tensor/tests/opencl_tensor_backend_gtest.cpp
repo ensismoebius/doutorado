@@ -1240,3 +1240,227 @@ TEST(OpenCLTensorBackendShapeMismatch, InPlaceOpsWithMatchingShapesStillCompute)
     EXPECT_FLOAT_EQ(a.at(0, 0), 6.0f);
     EXPECT_FLOAT_EQ(a.at(1, 2), 6.0f);
 }
+
+// ─── Matmul family shape-mismatch contract ──────────────────────────────────
+// Same story as the elementwise family: matmul() refused a dimension
+// mismatch with std::invalid_argument naming the real cause, while
+// matmul_transposed()/matmul_lhs_transposed() refused the identical class of
+// caller error with std::runtime_error saying "OpenCL runtime unavailable or
+// matrix dimensions are invalid" -- forcing the reader to guess which of two
+// unrelated causes fired. Nothing pinned either shape, so the split survived
+// unnoticed. One contract now: std::invalid_argument, unconditionally (the
+// check runs before any OpenCL availability probe), message naming the
+// operation.
+
+TEST(OpenCLTensorBackendShapeMismatch, MatmulFamilyRefusesIncompatibleDimensions)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend incompatible(4, 5); // no interpretation of a*x makes this work
+
+    EXPECT_THROW((void) a.matmul(incompatible), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_transposed(incompatible), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_lhs_transposed(incompatible), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, MatmulFamilyMessageNamesTheOperation)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend incompatible(4, 5);
+
+    try
+    {
+        (void) a.matmul_transposed(incompatible);
+        FAIL() << "matmul_transposed accepted incompatible dimensions";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string message = e.what();
+        EXPECT_NE(message.find("matmul_transposed"), std::string::npos) << message;
+    }
+
+    try
+    {
+        (void) a.matmul_lhs_transposed(incompatible);
+        FAIL() << "matmul_lhs_transposed accepted incompatible dimensions";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string message = e.what();
+        EXPECT_NE(message.find("matmul_lhs_transposed"), std::string::npos) << message;
+    }
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, MatmulFamilyRefusesUnconditionallyNotJustWithoutOpenCL)
+{
+    // The shape guard must fire before any device-availability check, so a
+    // caller sees the SAME exception whether or not OpenCL happens to be
+    // present. Guards against "fixing" the type by moving the check inside
+    // the can_use_opencl() branch, which would silently reintroduce a
+    // runtime_error path when a device is unavailable.
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend incompatible(4, 5);
+    ASSERT_TRUE(nn::opencl::OpenCLContext::instance().is_available())
+        << "this test assumes the suite runs on a real (possibly software) OpenCL device";
+
+    EXPECT_THROW((void) a.matmul_transposed(incompatible), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_lhs_transposed(incompatible), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, CompareFamilyRefusesMismatchedShapes)
+{
+    // compare_gt/le/ge/eq shared the same split as add/subtract: refused a
+    // shape mismatch with std::runtime_error ("OpenCL runtime unavailable or
+    // tensor shape mismatch") instead of std::invalid_argument, conflating a
+    // caller error with device unavailability. compare_lt is unaffected --
+    // it already threw invalid_argument for its own (broadcast) shape rule.
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend b(3, 2);
+
+    EXPECT_THROW((void) a.compare_gt(b), std::invalid_argument);
+    EXPECT_THROW((void) a.compare_le(b), std::invalid_argument);
+    EXPECT_THROW((void) a.compare_ge(b), std::invalid_argument);
+    EXPECT_THROW((void) a.compare_eq(b), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, CompareFamilyMatchingShapesStillCompute)
+{
+    // Guards the guard: refusing everything must not pass.
+    nn::OpenCLTensorBackend a(2, 2);
+    nn::OpenCLTensorBackend b(2, 2);
+    a.fill(1.0f);
+    b.fill(2.0f);
+
+    auto gt = a.compare_gt(b);
+    EXPECT_FLOAT_EQ(gt.at(0, 0), 0.0f);
+    auto le = a.compare_le(b);
+    EXPECT_FLOAT_EQ(le.at(0, 0), 1.0f);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, RowwiseSumRefusesNonRank2)
+{
+    // rowwise_sum() previously refused a rank != 2 tensor with
+    // warn_opencl_cpu_fallback_once + an unconditional std::runtime_error
+    // ("OpenCL runtime unavailable or tensor rank is invalid") -- the same
+    // ambiguous-cause split fixed for transpose()/matmul_transposed() above.
+    nn::OpenCLTensorBackend rank1(std::vector<nn::Index>{5});
+
+    EXPECT_THROW((void) rank1.rowwise_sum(), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, RowwiseSumRank2StillComputes)
+{
+    nn::OpenCLTensorBackend a(2, 3);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(0, 2) = 3.0f;
+    a.at(1, 0) = 4.0f;
+    a.at(1, 1) = 5.0f;
+    a.at(1, 2) = 6.0f;
+
+    auto sums = a.rowwise_sum();
+    EXPECT_FLOAT_EQ(sums.at(0, 0), 6.0f);
+    EXPECT_FLOAT_EQ(sums.at(1, 0), 15.0f);
+}
+
+TEST(OpenCLTensorBackendTest, CompareLtBroadcastsARowOrColumnOfOne)
+{
+    // Nothing exercised compare_lt's broadcast path before this: every other
+    // TEST(...CompareOps) used same-shape operands. Added when the branch was
+    // pulled out into compare_lt_broadcast(), to confirm the extraction did
+    // not change what it computes.
+    nn::OpenCLTensorBackend a(2, 3);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 5.0f;
+    a.at(0, 2) = 9.0f;
+    a.at(1, 0) = 1.0f;
+    a.at(1, 1) = 5.0f;
+    a.at(1, 2) = 9.0f;
+
+    nn::OpenCLTensorBackend row_threshold(1, 3);
+    row_threshold.at(0, 0) = 2.0f;
+    row_threshold.at(0, 1) = 2.0f;
+    row_threshold.at(0, 2) = 2.0f;
+
+    auto lt = a.compare_lt(row_threshold); // (2,3) < (1,3), row broadcasts down
+    EXPECT_FLOAT_EQ(lt.at(0, 0), 1.0f);    // 1 < 2
+    EXPECT_FLOAT_EQ(lt.at(0, 1), 0.0f);    // 5 < 2 -> false
+    EXPECT_FLOAT_EQ(lt.at(1, 0), 1.0f);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, CompareLtRefusesNonBroadcastableShapes)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend incompatible(2, 5); // neither side is 1, and 3 != 5
+
+    EXPECT_THROW((void) a.compare_lt(incompatible), std::invalid_argument);
+}
+
+// matmul_transposed_add_col_bias{,_relu,_sigmoid,_tanh,_leaky_relu} all
+// funnel through the shared matmul_transposed_bias_activated(); its shape
+// guard used to throw the ambiguous runtime_error under the literal name
+// "matmul_transposed_add_col_bias_leaky_relu" no matter which of the 5
+// callers hit it. Fixed to std::invalid_argument, named for the actual
+// caller.
+TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyRefusesMismatchedShapes)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend other(4, 5); // other.cols() != a.cols()
+    const nn::OpenCLTensorBackend bias(4, 1);
+
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias(other, bias), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias_relu(other, bias), std::invalid_argument);
+    EXPECT_THROW(
+        (void) a.matmul_transposed_add_col_bias_sigmoid(other, bias), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias_tanh(other, bias), std::invalid_argument);
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias_leaky_relu(other, bias, 0.1F),
+        std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyRefusesMismatchedBiasShape)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend other(4, 3);
+    const nn::OpenCLTensorBackend wrong_bias(5, 1); // wrong_bias.rows() != other.rows()
+
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias(other, wrong_bias), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyMessageNamesTheActualCaller)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend other(4, 5);
+    const nn::OpenCLTensorBackend bias(4, 1);
+
+    try
+    {
+        (void) a.matmul_transposed_add_col_bias_sigmoid(other, bias);
+        FAIL() << "matmul_transposed_add_col_bias_sigmoid accepted incompatible dimensions";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string message = e.what();
+        EXPECT_NE(message.find("matmul_bias_sigmoid"), std::string::npos) << message;
+        EXPECT_EQ(message.find("leaky_relu"), std::string::npos) << message;
+    }
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyRefusesUnconditionallyNotJustWithoutOpenCL)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend other(4, 5);
+    const nn::OpenCLTensorBackend bias(4, 1);
+    ASSERT_TRUE(nn::opencl::OpenCLContext::instance().is_available())
+        << "this test assumes the suite runs on a real (possibly software) OpenCL device";
+
+    EXPECT_THROW((void) a.matmul_transposed_add_col_bias(other, bias), std::invalid_argument);
+}
+
+TEST(OpenCLTensorBackendShapeMismatch, BiasFamilyMatchingShapesStillCompute)
+{
+    const nn::OpenCLTensorBackend a(2, 3);
+    const nn::OpenCLTensorBackend other(4, 3);
+    const nn::OpenCLTensorBackend bias(4, 1);
+
+    EXPECT_NO_THROW((void) a.matmul_transposed_add_col_bias(other, bias));
+    EXPECT_NO_THROW((void) a.matmul_transposed_add_col_bias_relu(other, bias));
+}

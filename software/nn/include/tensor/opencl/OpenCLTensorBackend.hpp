@@ -446,6 +446,24 @@ class OpenCLTensorBackend
     //   binary:        (A, B, out, n)      unary:         (in, out, n)
     //   unary_scalar:  (in, out, scalar, n)
     //   inplace_binary:(A, B, n)           inplace_scalar:(A, scalar, n)
+    // binary_elementwise's two staging strategies, cheapest-transfer-first.
+    // std::optional means "this strategy cannot run here"; the oneshot stage
+    // has no successor and so always returns a value or throws.
+    static void enqueue_binary_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem a_mem,
+        cl_mem b_mem,
+        cl_mem out_mem,
+        std::size_t n);
+    std::optional<OpenCLTensorBackend> binary_stage_pooled(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        std::size_t n) const;
+    OpenCLTensorBackend binary_stage_oneshot(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        std::size_t n) const;
+
     // One body for add/subtract/multiply/divide: they differ only in which
     // kernel runs, so they used to be four ~150-line near-copies. The copies
     // had silently drifted apart on shape-mismatch handling (two exception
@@ -466,6 +484,129 @@ class OpenCLTensorBackend
         const OpenCLTensorBackend& other,
         const OpenCLTensorBackend& bias,
         std::initializer_list<float> extra_scalars) const;
+
+    // matmul()/matmul_transposed()'s shared staging strategies. Both launch
+    // with the identical (a, b, c, m, n, k) arg order and a plain 2D NDRange
+    // (no local size) -- they differ only in kernel_name and in how the
+    // caller derives m/n/k from its own transpose semantics.
+    // matmul_lhs_transposed uses a genuinely different, tiled launch
+    // (local[2] = {16, 16}) and is decomposed separately below rather than
+    // forced through this helper.
+    static void enqueue_matmul_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem a_mem,
+        cl_mem b_mem,
+        cl_mem c_mem,
+        Index m,
+        Index n,
+        Index k);
+    OpenCLTensorBackend matmul_stage_resident(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        Index m,
+        Index n,
+        Index k,
+        bool finish_after_launch) const;
+    std::optional<OpenCLTensorBackend> matmul_stage_pooled(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        Index m,
+        Index n,
+        Index k) const;
+    OpenCLTensorBackend matmul_stage_oneshot(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        Index m,
+        Index n,
+        Index k) const;
+    OpenCLTensorBackend matmul_dispatch(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        Index m,
+        Index n,
+        Index k,
+        bool finish_after_launch) const;
+
+    // matmul_lhs_transposed()'s own staging strategies -- tiled launch
+    // (local[2] = {16, 16}), output shape (k, n), kept separate from the
+    // matmul_dispatch family above rather than forced through it.
+    static void enqueue_matmul_lhs_transposed_kernel(
+        cl_mem a_mem, cl_mem b_mem, cl_mem c_mem, Index m, Index n, Index k);
+    OpenCLTensorBackend matmul_lhs_transposed_stage_resident(
+        const OpenCLTensorBackend& other, Index m, Index n, Index k) const;
+    std::optional<OpenCLTensorBackend> matmul_lhs_transposed_stage_pooled(
+        const OpenCLTensorBackend& other, Index m, Index n, Index k) const;
+    OpenCLTensorBackend matmul_lhs_transposed_stage_oneshot(
+        const OpenCLTensorBackend& other, Index m, Index n, Index k) const;
+
+    // lif_step_inplace's own precondition check and kernel launch, split out
+    // so each is short enough to read as a unit. There is no resident/pooled
+    // variant here (see launch_lif_step_kernel's comment for why).
+    void validate_lif_step_shapes(const OpenCLTensorBackend& input,
+        const OpenCLTensorBackend& output,
+        const OpenCLTensorBackend* adapt_a,
+        bool use_adaptation) const;
+    void launch_lif_step_kernel(const OpenCLTensorBackend& input,
+        OpenCLTensorBackend& output,
+        OpenCLTensorBackend* adapt_a,
+        float beta,
+        float threshold,
+        float reset_potential,
+        bool reset_zero,
+        float adapt_decay,
+        float adapt_coupling,
+        bool use_adaptation,
+        std::size_t n);
+
+    // mean_squared_error()'s three staging strategies -- same shape as sum()'s
+    // but over two operands (this, target).
+    std::optional<float> mse_stage_resident(const OpenCLTensorBackend& target,
+        std::size_t n,
+        std::size_t local,
+        std::size_t global,
+        std::size_t num_groups) const;
+    std::optional<float> mse_stage_pooled(const OpenCLTensorBackend& target,
+        std::size_t n,
+        std::size_t local,
+        std::size_t global,
+        std::size_t num_groups) const;
+    float mse_stage_oneshot(const OpenCLTensorBackend& target,
+        std::size_t n,
+        std::size_t local,
+        std::size_t global,
+        std::size_t num_groups) const;
+
+    // sum()'s three staging strategies. Each returns std::nullopt (or, for
+    // the last, never) when it cannot run; reduce_partials() is the one place
+    // sum_kernel's per-work-group partials become the final float, so all
+    // three stages are guaranteed to reduce them the same way.
+    static float reduce_partials(const std::vector<float>& partials);
+    std::optional<float> sum_stage_resident(
+        std::size_t n, std::size_t local, std::size_t global, std::size_t num_groups) const;
+    std::optional<float> sum_stage_pooled(
+        std::size_t n, std::size_t local, std::size_t global, std::size_t num_groups) const;
+    float sum_stage_oneshot(
+        std::size_t n, std::size_t local, std::size_t global, std::size_t num_groups) const;
+
+    // rowwise_sum()'s three staging strategies, tried cheapest-transfer-first.
+    // Arg order: (in, out, rows, cols), 1D NDRange over rows.
+    static void enqueue_rowwise_sum_kernel(
+        cl_mem in_mem, cl_mem out_mem, Index num_rows, Index num_cols);
+    bool rowwise_sum_stage_resident(OpenCLTensorBackend& result) const;
+    std::optional<OpenCLTensorBackend> rowwise_sum_stage_pooled() const;
+    OpenCLTensorBackend rowwise_sum_stage_oneshot() const;
+
+    // transpose()'s own two staging strategies. Kept separate from the
+    // (in,out,scalars,n) unary family above because transpose_kernel's arg
+    // shape is (in,out,rows,cols) with a 2D NDRange, not a 1D one -- sharing
+    // would mean forcing a 4-argument kernel through a helper built for a
+    // 2-4 argument 1D one.
+    static void enqueue_transpose_kernel(
+        cl_mem in_mem, cl_mem out_mem, Index in_rows, Index in_cols);
+    std::optional<OpenCLTensorBackend> transpose_stage_pooled(
+        Index in_rows, Index in_cols, std::size_t bytes) const;
+    OpenCLTensorBackend transpose_stage_oneshot(
+        Index in_rows, Index in_cols, std::size_t bytes) const;
 
     // The three staging strategies behind both unary entry points, tried
     // cheapest-transfer-first. std::nullopt means "this strategy cannot run
@@ -505,12 +646,53 @@ class OpenCLTensorBackend
     OpenCLTensorBackend unary_scalars_elementwise(
         const char* kernel_name, const char* what, std::initializer_list<float> scalars) const;
 
+    // compare_elementwise's two staging strategies -- same shape as
+    // binary_elementwise's, reusing its enqueue_binary_kernel since the arg
+    // order is identical (A, B, out, n).
+    std::optional<OpenCLTensorBackend> compare_stage_pooled(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        std::size_t n) const;
+    OpenCLTensorBackend compare_stage_oneshot(const char* kernel_name,
+        const char* what,
+        const OpenCLTensorBackend& other,
+        std::size_t n) const;
+
+    // compare_lt's own row/column broadcasting path -- see definition for why
+    // this one comparison tolerates a shape mismatch when the others refuse it.
+    OpenCLTensorBackend compare_lt_broadcast(const OpenCLTensorBackend& other) const;
+
     // compare_gt/le/ge/eq were four byte-identical bodies (modulo the kernel
     // name). compare_lt is deliberately NOT here: it alone supports row/column
     // broadcasting, so folding it in would either lose that or force it on the
     // other four. Arg order: (A, B, out, n).
     OpenCLTensorBackend compare_elementwise(
         const char* kernel_name, const char* what, const OpenCLTensorBackend& other) const;
+
+    // scalar_inplace / unary_inplace share this: one buffer, an optional
+    // scalar pack, cheapest-transfer-first staging. Same shape as the
+    // unary_elementwise family above, mirrored for the in-place case.
+    static void enqueue_inplace_kernel(const char* kernel_name,
+        const char* what,
+        cl_mem data_mem,
+        std::initializer_list<float> scalars,
+        std::size_t n,
+        const cl_event* wait_event,
+        cl_event* out_event);
+    bool inplace_elementwise_stage_resident(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n);
+    bool inplace_elementwise_stage_pooled(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n);
+    void inplace_elementwise_stage_oneshot(const char* kernel_name,
+        const char* what,
+        std::initializer_list<float> scalars,
+        std::size_t n);
+    void run_inplace_elementwise_stages(
+        const char* kernel_name, const char* what, std::initializer_list<float> scalars);
 
     // binary_inplace's three staging strategies, tried cheapest-transfer-first.
     // Each returns false when it cannot run, so the caller falls to the next;
