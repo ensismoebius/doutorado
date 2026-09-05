@@ -2,27 +2,34 @@
 ## Core layers unit tests (GoogleTest)
 ##
 ## Builds:
-## - `layers_gtest`: broad coverage across dense layers and SNN components.
+## - `layers_gtest`: layer robustness coverage (exceptions, memory stress,
+##   numerical edge cases, thread safety). The broader per-layer-family
+##   coverage that used to live in this one file was split out below once it
+##   crossed LOC_VERY_CRITICAL -- see layers_gtest.cpp's file doc comment.
+## - `layers_convolution_gtest`: Conv1d/Conv2d.
+## - `layers_spiking_basic_gtest`: Leaky/LifIntegrator/LifBPTT/surrogate-grad/LeakyReLU.
+## - `layers_losses_regularization_gtest`: MSE/MAE/SpikeCount losses, L1/L2 regularization.
+## - `layers_composite_gtest`: Linear, Sequential, SimpleResNet, Module defaults.
 ##
 ## Notes:
-## - clang-tidy is disabled for this binary (test convenience; avoids noisy
+## - clang-tidy is disabled for these binaries (test convenience; avoids noisy
 ##   diagnostics in third-party include stacks).
 ##
 add_executable(layers_gtest
     layers_gtest.cpp
 )
 
-target_link_libraries(layers_gtest 
-    PRIVATE 
-        google_test 
-         xtensor xtensor-blas 
+target_link_libraries(layers_gtest
+    PRIVATE
+        google_test
+         xtensor xtensor-blas
         layers
         tensor
 )
 
 target_include_directories(
-  layers_gtest 
-    PRIVATE 
+  layers_gtest
+    PRIVATE
          ${cnpy_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
 )
@@ -33,31 +40,67 @@ include(GoogleTest)
 nn_gtest_discover_tests(layers_gtest)
 configure_xtensor_parallel_target(layers_gtest)
 
+foreach(_layers_split_test IN ITEMS
+    layers_convolution_gtest
+    layers_spiking_basic_gtest
+    layers_losses_regularization_gtest
+    layers_composite_gtest
+)
+    add_executable(${_layers_split_test} ${_layers_split_test}.cpp)
+
+    target_link_libraries(${_layers_split_test}
+        PRIVATE
+            google_test
+            xtensor xtensor-blas
+            layers
+            tensor
+    )
+
+    target_include_directories(${_layers_split_test}
+        PRIVATE
+            ${cnpy_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/src
+    )
+
+    set_target_properties(${_layers_split_test} PROPERTIES CXX_CLANG_TIDY "")
+
+    nn_gtest_discover_tests(${_layers_split_test})
+    configure_xtensor_parallel_target(${_layers_split_test})
+endforeach()
+
 ##
-## fundamental_mechanisms_gtest: mathematical correctness of every layer mechanism
+## fundamental_mechanisms_gtest: mathematical correctness of every layer mechanism.
+## Split by layer family once the single file crossed LOC_CRITICAL --
+## FundamentalMechanismsHelpers.hpp holds the shared finite-difference checker.
 ##
-add_executable(fundamental_mechanisms_gtest
-    fundamental_mechanisms_gtest.cpp
+foreach(_fundamental_mechanisms_test IN ITEMS
+    fundamental_mechanisms_gtest
+    fundamental_mechanisms_spiking_gtest
+    fundamental_mechanisms_convolution_gtest
+    fundamental_mechanisms_losses_gtest
+    fundamental_mechanisms_composite_gtest
 )
+    add_executable(${_fundamental_mechanisms_test} ${_fundamental_mechanisms_test}.cpp)
 
-target_link_libraries(fundamental_mechanisms_gtest
-    PRIVATE
-        google_test
-        xtensor xtensor-blas
-        layers
-        tensor
-)
+    target_link_libraries(${_fundamental_mechanisms_test}
+        PRIVATE
+            google_test
+            xtensor xtensor-blas
+            layers
+            tensor
+    )
 
-target_include_directories(fundamental_mechanisms_gtest
-    PRIVATE
-        ${cnpy_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/src
-)
+    target_include_directories(${_fundamental_mechanisms_test}
+        PRIVATE
+            ${cnpy_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/src
+    )
 
-set_target_properties(fundamental_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
+    set_target_properties(${_fundamental_mechanisms_test} PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(fundamental_mechanisms_gtest)
-configure_xtensor_parallel_target(fundamental_mechanisms_gtest)
+    nn_gtest_discover_tests(${_fundamental_mechanisms_test})
+    configure_xtensor_parallel_target(${_fundamental_mechanisms_test})
+endforeach()
 
 ##
 ## spiking_mechanisms_gtest: comprehensive spiking-specific behaviour tests

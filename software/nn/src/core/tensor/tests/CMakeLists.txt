@@ -78,6 +78,35 @@ target_include_directories(opencl_tensor_backend_gtest
 nn_gtest_discover_tests(opencl_tensor_backend_gtest)
 configure_xtensor_parallel_target(opencl_tensor_backend_gtest)
 
+## Split out of opencl_tensor_backend_gtest.cpp once it crossed LOC_CRITICAL --
+## same per-operation-family grouping as the split OpenCLTensorBackend*.cpp
+## sources it exercises.
+foreach(_opencl_tensor_backend_split_test IN ITEMS
+    opencl_tensor_backend_matmul_compare_gtest
+    opencl_tensor_backend_elementwise_reductions_gtest
+    opencl_tensor_backend_inplace_gtest
+    opencl_tensor_backend_lif_gtest
+    opencl_tensor_backend_viewops_gtest
+    opencl_tensor_backend_fused_shapemismatch_gtest
+)
+    add_executable(${_opencl_tensor_backend_split_test} ${_opencl_tensor_backend_split_test}.cpp)
+
+    target_link_libraries(${_opencl_tensor_backend_split_test}
+        PRIVATE
+            google_test
+            xtensor xtensor-blas
+            tensor
+    )
+
+    target_include_directories(${_opencl_tensor_backend_split_test}
+        PRIVATE
+             ${CMAKE_SOURCE_DIR}/src
+    )
+
+    nn_gtest_discover_tests(${_opencl_tensor_backend_split_test})
+    configure_xtensor_parallel_target(${_opencl_tensor_backend_split_test})
+endforeach()
+
 add_executable(tensor_backend_switchability_gtest tensor_backend_switchability_gtest.cpp)
 
 target_link_libraries(tensor_backend_switchability_gtest
