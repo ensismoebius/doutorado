@@ -3,6 +3,19 @@ name: build-test
 description: "Deterministic CMake/Ninja build and targeted test execution with release flags and ccache."
 ---
 
+## MANDATORY FIRST STEP — Web search (automatic, no exceptions)
+
+**Do this before anything else. Do NOT ask the user. Do NOT skip.**
+
+1. Search official docs for every tool/API/component you will touch
+2. Search for known bugs, changelogs, breaking changes
+3. Search GitHub issues / forums for the exact error or behavior
+4. Find working real-world examples
+
+Training-data knowledge is outdated. Search first, implement second. Always.
+
+
+
 # build-test
 
 Goal
@@ -57,7 +70,21 @@ Project Context (nn framework)
 | `analysis-all` | All static analysis |
 | `clean-cache` | Clear ccache |
 
-**Quick-start patterns:**
+**MCP `run_build`/`run_tests` — prefer once a preset is configured:**
+`run_build(target=...)` and `run_tests(toolchain="cmake", filter=...)` find the
+most-recently-configured `out/build/*/CMakeCache.txt` automatically (this
+project's own preset layout is what `_find_cmake_build_dir` was written
+for) and return `{status, error_count/counts, failed_tests, log_tail}`
+instead of a raw log to re-read. `filter` is the `-R` regex; `target` is
+the `--target` name from the table above.
+
+Caveat: it always picks the *most recently built* preset. If two presets
+are configured and you need the one that ISN'T the freshest (e.g. confirm
+the CPU build still passes right after a GPU rebuild), run raw `cmake`/
+`ctest` with an explicit `--test-dir out/build/<preset>` instead — the MCP
+tool has no preset parameter to force a choice.
+
+**Raw cmake/ctest — when you need a specific preset, or first configure:**
 ```bash
 # CPU build + core tests
 cmake --preset=max-performance
@@ -72,6 +99,15 @@ cmake --build out/build/max-performance-opencl --target guayaquil -j$(nproc)
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 ```
+
+**Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` — structural findings, complexity hotspots, and gated multi-site renames
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `run_build` / `run_tests` / `run_lint` / `run_format` / `detect_toolchain` — structured build/test/lint output, not raw logs (`run_lint`/`run_format` cover Python only; C++ still goes through `analysis-all`/`clang-format-changed.sh`)
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
 
 Commands
 

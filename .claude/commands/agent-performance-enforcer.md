@@ -5,6 +5,17 @@ Converted from: .claude/commands/agent-performance-enforcer.md
 
 # Agent Performance Enforcer
 
+## MANDATORY FIRST STEP — Web search (automatic, no exceptions)
+
+**Do this before anything else. Do NOT ask the user. Do NOT skip.**
+
+1. Search official docs for every tool/API/component you will touch
+2. Search for known bugs, changelogs, breaking changes
+3. Search GitHub issues / forums for the exact error or behavior
+4. Find working real-world examples
+
+Training-data knowledge is outdated. Search first, implement second. Always.
+
 Enforce high-performance agent execution standards across planning, implementation, validation, and handoff.
 
 Use this skill whenever work quality, speed, reliability, or context efficiency matters.
