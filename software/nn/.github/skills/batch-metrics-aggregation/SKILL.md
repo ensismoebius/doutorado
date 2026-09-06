@@ -7,6 +7,29 @@ description: "Enforce a unified contract for batch-level metric accumulation (lo
 
 Replace per-experiment ad-hoc metric collection with a standard accumulator that works consistently across all training loops and experiment types.
 
+## Code intelligence (MCP `code_intelligence`)
+
+Prefer over grep/manual git/cmake for anything about the code itself:
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` — structural findings, complexity hotspots, and hash-gated multi-site renames/edits
+- `run_build` / `run_tests` / `run_lint` / `run_format` — structured build/test/lint output, not raw logs
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+## Project Context (nn framework)
+
+**Exp04 CSV schema** (`results/article_*_comparative_metrics.csv`):
+- Columns: `model`, `architecture`, `fold`, `epoch`, `train_loss`, `val_loss`, `run_id`
+- One row per (model, architecture, fold, epoch)
+- `model` values: `"lstm-ae"`, `"snn-ae"`
+- `architecture` values: `"dense"`, `"conv1d"`, `"recurrent"`
+
+**`EpochResult` fields** (`src/core/training/EpochResult.hpp`): `train_loss`, `val_loss`, `epoch`, `fold_id`, `run_tag`
+
+**Results output path:** `results/` at repo root (relative to `software/nn/`). CSV files written by `ComparativeOutput.cpp`.
+
 ## Rules
 
 - **ACCUMULATOR_PATTERN**: Use a `MetricAccumulator` object per epoch (not ad-hoc running sums). Reset it at the start of each epoch. No manual `total_loss += batch_loss / n_batches` scatter across loop bodies.
@@ -42,14 +65,3 @@ EpochResult result = acc.finalize();
 - All experiments produce `EpochResult` with the same set of fields.
 - Loss is weighted by batch size (last batch size logged for verification).
 - `NaN` batch loss triggers `WARN`, not silent accumulation.
-
-Project Context (nn framework)
-**Exp04 CSV schema** (`results/article_*_comparative_metrics.csv`):
-- Columns: `model`, `architecture`, `fold`, `epoch`, `train_loss`, `val_loss`, `run_id`
-- One row per (model, architecture, fold, epoch)
-- `model` values: `"lstm-ae"`, `"snn-ae"`
-- `architecture` values: `"dense"`, `"conv1d"`, `"recurrent"`
-
-**`EpochResult` fields** (`src/core/training/EpochResult.hpp`): `train_loss`, `val_loss`, `epoch`, `fold_id`, `run_tag`
-
-**Results output path:** `results/` at repo root (relative to `software/nn/`). CSV files written by `ComparativeOutput.cpp`.

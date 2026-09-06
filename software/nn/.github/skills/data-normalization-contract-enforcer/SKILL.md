@@ -7,6 +7,25 @@ description: "Enforce normalization scope (per-feature vs global), train-only fi
 
 Ensure that normalization is applied exactly as declared in experiment config — especially that statistics are never computed on validation or test data.
 
+## Code intelligence (MCP `code_intelligence`)
+
+Prefer over grep/manual git/cmake for anything about the code itself:
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` — structural findings, complexity hotspots, and hash-gated multi-site renames/edits
+- `run_build` / `run_tests` / `run_lint` / `run_format` — structured build/test/lint output, not raw logs
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+## Project Context (nn framework)
+
+**Normalization sites in Exp04:**
+- **z-score per window:** `src/experiments/guayaquil/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
+- **per-encoding min/max re-normalization:** `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
+
+**Leakage risk:** The encoding step in `ComparativeEncoding.cpp` must refit normalization stats on the training fold only. If the encoding transform changes the data distribution, verify that the re-normalization step uses only train-fold statistics.
+
 ## Rules
 
 - **FIT_TRAIN_ONLY**: Normalization statistics (mean, std, min, max) must be computed exclusively on the training fold. No fitting on validation or test subsets, even partially.
@@ -40,10 +59,3 @@ auto val_norm   = apply_norm(dataset, val_indices,   stats);  // same stats
 - Stats computation function receives only train indices.
 - Validation data normalized with train-fitted stats (not re-fitted).
 - Normalization method matches `spec.yaml` declaration for each modality.
-
-Project Context (nn framework)
-**Normalization sites in Exp04:**
-- **z-score per window:** `src/experiments/guayaquil/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
-- **per-encoding min/max re-normalization:** `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
-
-**Leakage risk:** The encoding step in `ComparativeEncoding.cpp` must refit normalization stats on the training fold only. If the encoding transform changes the data distribution, verify that the re-normalization step uses only train-fold statistics.

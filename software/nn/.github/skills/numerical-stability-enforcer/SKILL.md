@@ -7,6 +7,28 @@ description: "Enforce consistent epsilon guards, NaN/Inf detection, and clamping
 
 Ensure all forward and backward passes use consistent, unified numerical safety patterns rather than ad-hoc per-layer strategies.
 
+## Code intelligence (MCP `code_intelligence`)
+
+Prefer over grep/manual git/cmake for anything about the code itself:
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` — structural findings, complexity hotspots, and hash-gated multi-site renames/edits
+- `run_build` / `run_tests` / `run_lint` / `run_format` — structured build/test/lint output, not raw logs
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+## Project Context (nn framework)
+
+**Unified epsilon** — location: `include/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
+
+**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LifBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
+
+**Loss guards:**
+- `SpikeCountLoss` / `SpikeTimeLoss`: `log(spike_count + kEps)` — guard against zero spikes
+- `SpikeTimeLoss`: latency must be clamped to `[0, T-1]`; out-of-range = undefined behavior
+- `CrossEntropyLoss`: `log(p + kEps)` in forward; already implemented
+
 ## Rules
 
 - **UNIFIED_EPSILON**: Use a single project-wide epsilon constant (e.g., `nn::kEps = 1e-7f`) instead of per-file magic numbers. No inline `1e-6`, `1e-8`, or similar literals scattered across layers.
@@ -20,8 +42,8 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 
 - [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — numeric-stable softmax, epsilon guards
 - [include/layers/losses/MSELoss.hpp](include/layers/losses/MSELoss.hpp) — NaN/Inf clipping
-- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
-- [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — per-step parameter clamping
+- [include/layers/spiking/LifBPTT.hpp](include/layers/spiking/LifBPTT.hpp) — R/C membrane clamping
+- [include/layers/spiking/Lif.hpp](include/layers/spiking/Lif.hpp) — per-step parameter clamping
 - [src/core/linear_algebra/linear_algebra.cpp](src/core/linear_algebra/linear_algebra.cpp) — raw numerical ops
 
 ## Audit Format
@@ -38,13 +60,3 @@ Fix: <unified pattern to apply>
 - No inline epsilon literals outside a shared constants header.
 - Forward pass of each modified layer produces finite output on representative inputs.
 - Loss value is checked for finiteness before every optimizer step.
-
-Project Context (nn framework)
-**Unified epsilon** — location: `include/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
-
-**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LeakyBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
-
-**Loss guards:**
-- `SpikeCountLoss` / `SpikeTimeLoss`: `log(spike_count + kEps)` — guard against zero spikes
-- `SpikeTimeLoss`: latency must be clamped to `[0, T-1]`; out-of-range = undefined behavior
-- `CrossEntropyLoss`: `log(p + kEps)` in forward; already implemented

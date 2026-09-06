@@ -7,6 +7,36 @@ description: "Validate experiment YAML/JSON configs against a JSON Schema: requi
 
 Catch configuration errors at load time rather than at training time. Every experiment config must be validated against a schema before any training begins.
 
+## Code intelligence (MCP `code_intelligence`)
+
+Prefer over grep/manual git/cmake for anything about the code itself:
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` — structural findings, complexity hotspots, and hash-gated multi-site renames/edits
+- `run_build` / `run_tests` / `run_lint` / `run_format` — structured build/test/lint output, not raw logs
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+## Project Context (nn framework)
+
+**Exp04 profile required fields** (validated by `profile_audit_gtest`):
+- `experiment.run_tag` — unique identifier for CSV output
+- `model.paradigm` — `"lstm"` or `"snn"`
+- `training.batch_size`, `training.epochs`, `training.learning_rate`
+- `loss` — must be `"mse"` for all article profiles
+- `seed_deterministic` — must be `false` for article profiles
+
+**Profile audit target:**
+```bash
+cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
+```
+
+**5 article profiles:** `src/experiments/guayaquil/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
+
+**Profile parser:** `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp`
+
 ## Rules
 
 - **SCHEMA_REQUIRED**: Each experiment must have a `schema.json` (JSON Schema draft-07) adjacent to its `spec.yaml`/`spec.json`. No config loading without schema validation.
@@ -41,21 +71,3 @@ jq '.random_seed, .classifier_paradigm, .normalization_method' spec.json
 - Invalid config (missing `random_seed`, bad `paradigm` value) aborts with a clear error before any layer is constructed.
 - `spec.yaml` and `spec.json` parse to equivalent objects (diff their JSON representations).
 - `schema.json` passes `jsonschema` meta-schema validation.
-
-Project Context (nn framework)
-**Exp04 profile required fields** (validated by `profile_audit_gtest`):
-- `experiment.run_tag` — unique identifier for CSV output
-- `model.paradigm` — `"lstm"` or `"snn"`
-- `training.batch_size`, `training.epochs`, `training.learning_rate`
-- `loss` — must be `"mse"` for all article profiles
-- `seed_deterministic` — must be `false` for article profiles
-
-**Profile audit target:**
-```bash
-cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
-```
-
-**5 article profiles:** `src/experiments/guayaquil/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
-
-**Profile parser:** `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp`

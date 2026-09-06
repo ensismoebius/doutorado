@@ -1,4 +1,5 @@
 ---
+name: update-agent-skills
 description: "Synchronize all agent skill/command files across all three locations after code renames or API changes."
 ---
 

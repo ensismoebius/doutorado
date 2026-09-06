@@ -7,6 +7,48 @@ description: "Create a comprehensive codebase wiki under .wiki/ with theory, imp
 
 Create a complete, self-contained wiki documenting the nn project from theory to implementation. A reader with no source access must be able to understand the entire system.
 
+## Code intelligence (MCP `code_intelligence`)
+
+Prefer over grep/manual git/cmake for anything about the code itself:
+- `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
+- `get_source_range` / `symbol_source` / `outline_symbol` — exact, budget-checked source instead of a full-file read (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends, don't guess smaller)
+- `ast_search` / `ast_replace` — AST-pattern structural search and rewrite (`foo($A, $B)` matches a 2-arg call to `foo` regardless of formatting/argument names) — prefer over a regex `search_text`/`rg` for anything shaped like code structure rather than text
+- `find_references` / `find_dependencies` — callers/callees marked `"exact"` (real compiler) or `"heuristic"` (name-matching) — never read a heuristic "0 callers" as dead code
+- `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` — structural findings, complexity hotspots, and hash-gated multi-site renames/edits
+- `run_build` / `run_tests` / `run_lint` / `run_format` — structured build/test/lint output, not raw logs
+- `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
+
+## Project Context (nn framework)
+
+**Required Experiment pages** (`.wiki/Experiments/`): Experiment00 through Experiment04. All must be linked from `Home.md`.
+
+**Required Concepts pages** (`.wiki/Concepts/`):
+- `Paraconsistent-Logic.md` — Da Costa framework (novel thesis contribution)
+- `Time-Major-Layout.md` — `(T*B, F)` tensor convention
+- `Surrogate-Gradients.md` — exponential/boxcar surrogate for SNN backward
+- `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
+- `Wavelet-Decomposition.md` — wavelet packet feature extraction
+
+**Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
+```bash
+cd .wiki && python3 -c "
+import os, re
+pages = []
+for root, dirs, files in os.walk('.'):
+    for f in files:
+        if f.endswith('.md'): pages.append(os.path.join(root,f).lstrip('./'))
+link_pat = re.compile(r'\[.*?\]\(([^)]+\.md[^)]*)\)')
+backlinks = {p: set() for p in pages}
+for src in pages:
+    for m in link_pat.finditer(open(src).read()):
+        href = m.group(1).split('#')[0]
+        tgt = os.path.normpath(os.path.join(os.path.dirname(src), href))
+        if tgt in backlinks: backlinks[tgt].add(src)
+orphans = [p for p in pages if not backlinks[p] and p != 'Home.md']
+print('Orphans:', orphans or 'none')
+"
+```
+
 ## Phase 1: Directory Layout
 
 Create this structure under `.wiki/`:
@@ -47,14 +89,6 @@ g) **"See Also"** — links to related wiki articles and external refs
 h) **"References"** — IEEE format citations
 
 ## Phase 3: Citation Rules
-
-- RULE: DIDACTIC
-  DO: Every page follows `/didactic-explanation` — open with the problem the thing solves,
-      one concrete example with real project numbers carried throughout, the structure
-      DRAWN (ASCII/mermaid), confusable pairs contrasted in a table, and the failure mode
-      named as loud or silent. `.wiki/Concepts/Time-Steps.md` is the reference.
-  AVOID: Never open a page with a definition or a signature; never describe a data layout
-      in prose alone.
 
 - Use web search to find canonical paper for every major algorithm.
 - Every claim about algorithm behavior MUST cite its source.
@@ -109,33 +143,3 @@ Every article must link to at least 2 other wiki articles using relative Markdow
 - [ ] Mermaid diagram has at least 4 nodes
 - [ ] No article references a non-existent file in the repository
 - [ ] References section uses IEEE format
-
-Project Context (nn framework)
-**Required Experiment pages** (`.wiki/Experiments/`): Experiment00 through Experiment04. All must be linked from `Home.md`.
-
-**Required Concepts pages** (`.wiki/Concepts/`):
-- `Paraconsistent-Logic.md` — Da Costa framework (novel thesis contribution)
-- `Time-Major-Layout.md` — `(T*B, F)` tensor convention
-- `Surrogate-Gradients.md` — exponential/boxcar surrogate for SNN backward
-- `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
-- `Wavelet-Decomposition.md` — wavelet packet feature extraction
-
-**Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
-```bash
-cd .wiki && python3 -c "
-import os, re
-pages = []
-for root, dirs, files in os.walk('.'):
-    for f in files:
-        if f.endswith('.md'): pages.append(os.path.join(root,f).lstrip('./'))
-link_pat = re.compile(r'\[.*?\]\(([^)]+\.md[^)]*)\)')
-backlinks = {p: set() for p in pages}
-for src in pages:
-    for m in link_pat.finditer(open(src).read()):
-        href = m.group(1).split('#')[0]
-        tgt = os.path.normpath(os.path.join(os.path.dirname(src), href))
-        if tgt in backlinks: backlinks[tgt].add(src)
-orphans = [p for p in pages if not backlinks[p] and p != 'Home.md']
-print('Orphans:', orphans or 'none')
-"
-```
