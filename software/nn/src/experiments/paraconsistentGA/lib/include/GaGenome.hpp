@@ -17,42 +17,6 @@ namespace pga
 // still owns the real value.
 inline constexpr int kAeInputFeatures = 256;
 
-// Search-space bounds for the genome.
-//
-// Depth and per-layer width are BOTH free genes: there are no pre-defined layer
-// tiers. A genome is an arbitrary-length list of strictly decreasing encoder widths
-// (the last one is the latent bottleneck); the decoder mirrors it. These bounds only
-// keep the search finite and the latency proxy meaningful — they are ranges, not a
-// menu of fixed shapes.
-struct GenomeBounds
-{
-    // Number of encoder Linear stages, INCLUDING the latent stage. min_layers=1 is a
-    // single input->latent projection (no hidden layer); larger values add hidden
-    // layers. Because widths must strictly decrease, an achievable depth also needs
-    // enough integer room: max_layers <= (max_width - min_width + 1), enforced by
-    // GaConfig::validate.
-    int min_layers = 1;
-    int max_layers = 6;
-
-    // Per-layer neuron count range. Every width (hidden and latent) is drawn from
-    // [min_width, max_width]. min_width=1 permits a 1-neuron latent (as in the
-    // "3->2->1" example); it applies to hidden layers too.
-    int min_width = 1;
-    int max_width = 128;
-
-    // SNN-only. Ignored for the ANN population (always "direct").
-    std::vector<std::string> encoding_choices = {"direct", "latency", "poisson"};
-
-    // When false (default, phase00 behavior) time_steps and voltage_threshold are
-    // DERIVED from encoding, not searched. When true they become free genes drawn
-    // from the ranges below — a declared expansion of the phase00 space
-    // (.wiki/Experiments/ParaconsistentGA-Design.md §5.1).
-    bool evolve_temporal = false;
-    std::vector<int> time_steps_choices = {1, 8, 16, 32};
-    float voltage_threshold_min = 0.1f;
-    float voltage_threshold_max = 1.0f;
-};
-
 // One individual's genotype. The architecture is fully free: `encoder_widths` is an
 // arbitrary-length, strictly-decreasing list of neuron counts — layer count AND
 // per-layer width both come from the DNA, with no pre-defined configuration. The last
@@ -90,6 +54,15 @@ struct Genome
                time_steps == o.time_steps && voltage_threshold == o.voltage_threshold;
     }
 };
+
+} // namespace pga
+
+#include "DiploidGenome.hpp"
+#include "Gamete.hpp"
+#include "GenomeBounds.hpp"
+
+namespace pga
+{
 
 // Couple time_steps + voltage_threshold to the encoding exactly as phase00 does:
 //   direct           → (1,  1.0)
@@ -140,36 +113,6 @@ void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double pro
 //
 // A single haploid `Genome` is exactly one haplotype / one gamete, so meiosis reuses
 // the existing `crossover`/`mutate` operators unchanged.
-
-// One haploid gamete produced by meiosis: a recombined+mutated haplotype and the
-// dominance value it will carry into the child.
-struct Gamete
-{
-    Genome haplotype;
-    float dominance = 0.5f;
-};
-
-// A diploid genotype: two haplotypes, each with its own dominance value. `expressed()`
-// is the phenotype actually trained/scored — the haplotype whose dominance is not
-// smaller (ties resolve to A, deterministically). The other haplotype is the recessive
-// reservoir.
-struct DiploidGenome
-{
-    Genome hap_a;
-    Genome hap_b;
-    float dom_a = 0.5f;
-    float dom_b = 0.5f;
-
-    [[nodiscard]] const Genome& expressed() const
-    {
-        return dom_a >= dom_b ? hap_a : hap_b;
-    }
-
-    bool operator==(const DiploidGenome& o) const noexcept
-    {
-        return hap_a == o.hap_a && hap_b == o.hap_b && dom_a == o.dom_a && dom_b == o.dom_b;
-    }
-};
 
 // Draw a random diploid individual: two independent random haplotypes and two random
 // dominance values in [0,1). The two haplotypes are unrelated, so the initial

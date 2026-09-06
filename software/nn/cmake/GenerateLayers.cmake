@@ -17,6 +17,7 @@ set(_exclude_patterns
     ".*/eigen/.*"                    # old alias file (becomes shim)
     ".*/base/Module\\.hpp$"          # abstract base, no alias
     ".*/convolution/Conv2d_utils\\.hpp$"  # utility structs, not a layer
+    ".*/convolution/PatchIndices\\.hpp$"  # utility struct (extracted from Conv2d_utils), not a layer
     ".*/regularization/.*"           # L1/L2/IRegularization: not templated on Backend
     ".*/spiking/ISurrogateGradient\\.hpp$"
     ".*/spiking/BoxcarSurrogate\\.hpp$"

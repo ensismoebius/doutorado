@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "layers/convolution/PatchIndices.hpp"
 
 // Forward declaration
 template <typename Backend>
@@ -23,20 +24,14 @@ class Conv2dImpl;
  *   layer hyperparameters (kernel/stride/padding/dilation).
  * - Precomputing them once and reusing them avoids repeated integer math in
  *   hot loops, at the cost of memory.
+ *
+ * `PatchIndices` itself lives in PatchIndices.hpp (it is used by Conv2d.hpp
+ * directly); this header stays as a thin include for existing includers plus
+ * the local-only `TripleHash` helper and `IndexCache` alias.
  */
 
 namespace Conv2dUtils
 {
-/**
- * @struct PatchIndices
- * @brief Cache structure for precomputed patch indices used in im2col/col2im operations.
- */
-struct PatchIndices
-{
-    std::vector<float> values;                  ///< Values for im2col operation
-    std::vector<std::pair<int, int>> positions; ///< (row, col) positions for col2im
-};
-
 /**
  * @brief Hash function for std::pair<int, int> for use in unordered_map.
  */

@@ -15,20 +15,8 @@
 #include <string>
 #include <vector>
 
-struct EEGSample
-{
-    std::vector<std::vector<double>> channels;
-    int modality;
-    int stimulus;
-    int artifacts;
-};
-
-struct AudioSample
-{
-    std::vector<double> signal;
-    int stimulus;
-    int eeg_index;
-};
+#include "AudioSample.hpp"
+#include "EEGSample.hpp"
 
 struct WindowedSample
 {

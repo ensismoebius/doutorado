@@ -47,6 +47,7 @@
 #include "core/training/TrainerConfig.hpp"
 #include "layers/losses/MSELoss.hpp"
 #include "optimizers/Optimizer.hpp"
+#include "optimizers/OptimizerEvalScope.hpp"
 #include "optimizers/OptimizerFactory.hpp"
 #include "tensor/Tensor.hpp"
 #include "training/ITrainingCallback.hpp"

@@ -14,24 +14,9 @@
 
 #include <vector>
 
+#include "FoldResult.hpp"
+#include "ParaconsistentMetrics.hpp"
 #include "statistics/multi_class_metrics.hpp"
-
-struct ParaconsistentMetrics
-{
-    double alpha = 0.0;
-    double beta = 0.0;
-    double G1 = 0.0;
-    double G2 = 0.0;
-};
-
-using ClassificationMetrics = statistics::ClassificationMetrics;
-
-struct FoldResult
-{
-    ClassificationMetrics metrics;
-    ParaconsistentMetrics para_metrics;
-    double fold_time_sec;
-};
 
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
     const std::vector<int>& labels) -> ParaconsistentMetrics;

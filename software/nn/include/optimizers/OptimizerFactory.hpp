@@ -8,21 +8,12 @@
 #include "optimizers/Adam.hpp"
 #include "optimizers/Lion.hpp"
 #include "optimizers/Optimizer.hpp"
+#include "optimizers/OptimizerFactoryConfig.hpp"
 #include "optimizers/SGD.hpp"
 #include "optimizers/ScheduleFreeAdamW.hpp"
 
 namespace nn::optimizers
 {
-
-struct OptimizerFactoryConfig
-{
-    std::string type = "adam";
-    float learning_rate = 0.001F;
-    float momentum = 0.0F;
-    float adam_beta1 = 0.9F;
-    float adam_beta2 = 0.999F;
-    float adam_epsilon = 1e-8F;
-};
 
 /**
  * @brief The reference/paper default learning rate for an optimizer token.

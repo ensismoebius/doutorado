@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ThesisClassifiersInternal.hpp"
+#include "statistics/GenuineImpostorEERScorer.hpp"
 #include "statistics/eer_scorer.hpp"
 
 namespace thesis

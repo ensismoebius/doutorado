@@ -1,6 +1,12 @@
 /**
  * @file kfold.hpp
  * @brief Deterministic K-fold and stratified K-fold index splitters.
+ *
+ * Core interface (`ISplitPolicy`), entry class (`KFold`) and its one result
+ * struct (`FoldSplit`) live here. The independent strategy implementations
+ * (`SampleKFoldPolicy`, `GroupKFoldPolicy`, `StratifiedKFold`) and the nested
+ * cross-validation pair (`NestedFoldSplit` + `NestedKFold`) each live in their
+ * own file, included below so existing includers of kfold.hpp keep working.
  */
 
 #ifndef NN_STATISTICS_KFOLD_HPP
@@ -8,7 +14,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <vector>
 
 namespace statistics
@@ -41,54 +46,8 @@ struct FoldSplit
 struct ISplitPolicy
 {
     virtual ~ISplitPolicy() = default;
-    [[nodiscard]] virtual auto make_splits(std::size_t n_samples,
-        const std::vector<int>& groups) const -> std::vector<FoldSplit> = 0;
-};
-
-/**
- * @brief Sample-level k-fold policy (wraps KFold, ignores groups).
- *
- * Default policy used by the legacy NestedKFold constructor.  Equivalent to
- * splitting by raw sample index — no group integrity guarantee.
- */
-class SampleKFoldPolicy : public ISplitPolicy
-{
-public:
-    explicit SampleKFoldPolicy(
-        std::size_t n_splits, bool shuffle = false, std::uint32_t seed = 0U);
-
-    [[nodiscard]] auto make_splits(std::size_t n_samples,
-        const std::vector<int>& /*groups*/) const -> std::vector<FoldSplit> override;
-
-private:
-    std::size_t n_splits_;
-    bool shuffle_;
-    std::uint32_t seed_;
-};
-
-/**
- * @brief Group-aware k-fold policy: all samples of the same group stay in
- *        the same fold.
- *
- * Use this for speaker authentication experiments to prevent the same speaker
- * from appearing in both train and test sets (data leakage).  Groups are
- * shuffled and assigned to folds round-robin (sklearn GroupKFold behaviour).
- *
- * Requires groups.size() == n_samples and n_unique_groups >= n_splits.
- */
-class GroupKFoldPolicy : public ISplitPolicy
-{
-public:
-    explicit GroupKFoldPolicy(
-        std::size_t n_splits, bool shuffle = false, std::uint32_t seed = 0U);
-
-    [[nodiscard]] auto make_splits(std::size_t n_samples,
-        const std::vector<int>& groups) const -> std::vector<FoldSplit> override;
-
-private:
-    std::size_t n_splits_;
-    bool shuffle_;
-    std::uint32_t seed_;
+    [[nodiscard]] virtual auto make_splits(
+        std::size_t n_samples, const std::vector<int>& groups) const -> std::vector<FoldSplit> = 0;
 };
 
 /**
@@ -118,139 +77,11 @@ class KFold
     std::uint32_t random_seed_;
 };
 
-/**
- * @brief Stratified K-fold splitter for classification labels.
- */
-class StratifiedKFold
-{
-   public:
-    /**
-     * @brief Build a stratified K-fold splitter.
-     * @param n_splits Number of folds. Must be >= 2.
-     * @param shuffle Whether to shuffle labels inside each class bucket.
-     * @param random_seed Seed used when shuffle is true.
-     */
-    explicit StratifiedKFold(
-        std::size_t n_splits, bool shuffle = false, std::uint32_t random_seed = 0U);
-
-    /**
-     * @brief Create stratified fold splits from class labels.
-     * @param labels Integer class label for each sample.
-     * @return Vector with n_splits fold splits.
-     */
-    [[nodiscard]] auto split(const std::vector<int>& labels) const -> std::vector<FoldSplit>;
-
-   private:
-    std::size_t n_splits_;
-    bool shuffle_;
-    std::uint32_t random_seed_;
-};
-
-/**
- * @brief One outer fold for nested cross-validation.
- *
- * Contains a held-out test set plus all inner train/val splits used for
- * hyperparameter selection within this outer fold.
- */
-struct NestedFoldSplit
-{
-    std::vector<std::size_t> test_indices;  ///< Outer test set — never seen during HPO
-    std::vector<FoldSplit> inner_splits;     ///< Inner k-fold splits for HPO (train/val)
-};
-
-/**
- * @brief Nested K-fold splitter for unbiased hyperparameter evaluation.
- *
- * Implements the two-loop cross-validation protocol recommended for biomedical
- * ML (PMC guide 2023):
- * - **Outer loop** (n_outer_splits folds): provides an unbiased estimate of
- *   generalisation performance on completely held-out test data.
- * - **Inner loop** (n_inner_splits folds per outer fold): used to select
- *   hyperparameters on the remaining data without touching the outer test set.
- *
- * Usage:
- * @code
- * statistics::NestedKFold nkf(5, 5, true, 42);
- * auto folds = nkf.split(n_samples);
- * for (auto& outer : folds) {
- *     // outer.test_indices — held-out test
- *     for (auto& inner : outer.inner_splits) {
- *         // inner.train_indices — HPO training
- *         // inner.test_indices  — HPO validation
- *     }
- * }
- * @endcode
- *
- * Reference: [41] A. Leal et al., "A guide to cross-validation for AI in medical
- * imaging," Radiology: AI, 2023.
- */
-class NestedKFold
-{
-   public:
-    /**
-     * @brief Legacy constructor — sample-level splits, no group integrity.
-     *
-     * Preserved for backward compatibility.  Uses SampleKFoldPolicy internally.
-     * Call split(n_samples) with this constructor.
-     *
-     * @param n_outer_splits Folds for the outer (test) loop. Must be >= 2.
-     * @param n_inner_splits Folds for each inner (HPO) loop. Must be >= 2.
-     * @param shuffle        Shuffle indices before splitting (both loops).
-     * @param random_seed    RNG seed used when shuffle is true.
-     */
-    explicit NestedKFold(std::size_t n_outer_splits,
-        std::size_t n_inner_splits,
-        bool shuffle = false,
-        std::uint32_t random_seed = 0U);
-
-    /**
-     * @brief Policy constructor — pluggable split strategy for outer and inner loops.
-     *
-     * Use this when group integrity is required (e.g. speaker-grouped splits).
-     * Call split(n_samples, groups) with this constructor.
-     *
-     * @param n_outer_splits Folds for the outer (test) loop. Must be >= 2.
-     * @param n_inner_splits Folds for each inner (HPO) loop. Must be >= 2.
-     * @param outer_policy   Strategy used for the outer (test) fold assignment.
-     * @param inner_policy   Strategy used for the inner (val) fold assignment.
-     */
-    NestedKFold(std::size_t n_outer_splits,
-        std::size_t n_inner_splits,
-        std::shared_ptr<ISplitPolicy> outer_policy,
-        std::shared_ptr<ISplitPolicy> inner_policy);
-
-    /**
-     * @brief Generate all nested splits for a dataset of size n_samples.
-     *
-     * Uses the legacy sample-level path (requires legacy constructor).
-     * @return Vector with n_outer_splits nested fold splits.
-     */
-    [[nodiscard]] auto split(std::size_t n_samples) const -> std::vector<NestedFoldSplit>;
-
-    /**
-     * @brief Generate all nested splits with group integrity.
-     *
-     * Each group's samples are kept together in the same fold.
-     * Requires the policy constructor; throws std::logic_error otherwise.
-     *
-     * @param n_samples Total samples. Must equal groups.size().
-     * @param groups    One integer group-ID per sample (e.g. speaker ID).
-     * @return Vector with n_outer_splits nested fold splits.
-     */
-    [[nodiscard]] auto split(std::size_t n_samples,
-        const std::vector<int>& groups) const -> std::vector<NestedFoldSplit>;
-
-   private:
-    std::size_t n_outer_splits_;
-    std::size_t n_inner_splits_;
-    // Legacy path
-    bool shuffle_       = false;
-    std::uint32_t random_seed_ = 0U;
-    // Policy path (null = use legacy path)
-    std::shared_ptr<ISplitPolicy> outer_policy_;
-    std::shared_ptr<ISplitPolicy> inner_policy_;
-};
-
 } // namespace statistics
+
+#include "statistics/GroupKFoldPolicy.hpp"
+#include "statistics/NestedKFold.hpp"
+#include "statistics/SampleKFoldPolicy.hpp"
+#include "statistics/StratifiedKFold.hpp"
 
 #endif // NN_STATISTICS_KFOLD_HPP

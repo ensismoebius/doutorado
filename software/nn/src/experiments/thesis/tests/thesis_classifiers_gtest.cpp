@@ -12,6 +12,7 @@
 #include "../lib/include/ThesisClassifiers.hpp"
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisDataset.hpp"
+#include "statistics/ClassificationEERScorer.hpp"
 #include "statistics/eer_scorer.hpp"
 
 using namespace thesis;

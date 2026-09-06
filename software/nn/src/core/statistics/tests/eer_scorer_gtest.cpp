@@ -6,6 +6,8 @@
 #include <cmath>
 #include <vector>
 
+#include "statistics/ClassificationEERScorer.hpp"
+#include "statistics/GenuineImpostorEERScorer.hpp"
 #include "statistics/eer_scorer.hpp"
 
 using statistics::ClassificationEERScorer;
@@ -18,10 +20,8 @@ namespace
 std::vector<std::vector<float>> perfect_embeddings(int n_per_class)
 {
     std::vector<std::vector<float>> emb;
-    for (int i = 0; i < n_per_class; ++i)
-        emb.push_back({10.0f, 0.0f}); // class 0
-    for (int i = 0; i < n_per_class; ++i)
-        emb.push_back({0.0f, 10.0f}); // class 1
+    for (int i = 0; i < n_per_class; ++i) emb.push_back({10.0f, 0.0f}); // class 0
+    for (int i = 0; i < n_per_class; ++i) emb.push_back({0.0f, 10.0f}); // class 1
     return emb;
 }
 
@@ -37,8 +37,7 @@ std::vector<int> perfect_labels(int n_per_class)
 std::vector<std::vector<float>> uniform_embeddings(int n, int n_classes)
 {
     return std::vector<std::vector<float>>(
-        static_cast<std::size_t>(n),
-        std::vector<float>(static_cast<std::size_t>(n_classes), 1.0f));
+        static_cast<std::size_t>(n), std::vector<float>(static_cast<std::size_t>(n_classes), 1.0f));
 }
 
 } // namespace
@@ -57,8 +56,7 @@ TEST(ClassificationEERScorerTest, PerfectClassifierLowEER)
     const int n = 10;
     const double eer = s.compute_eer(perfect_embeddings(n), perfect_labels(n), 2);
     // Perfect predictions → EER should be 0 or near 0.
-    if (!std::isnan(eer))
-        EXPECT_LT(eer, 0.1);
+    if (!std::isnan(eer)) EXPECT_LT(eer, 0.1);
 }
 
 TEST(ClassificationEERScorerTest, ResultInUnitInterval)
@@ -109,8 +107,7 @@ TEST(GenuineImpostorEERScorerTest, PerfectSeparationZeroEER)
     const auto emb = perfect_embeddings(n);
     const auto lbl = perfect_labels(n);
     const double eer = s.compute_eer(emb, lbl, 2);
-    if (!std::isnan(eer))
-        EXPECT_LT(eer, 0.1);
+    if (!std::isnan(eer)) EXPECT_LT(eer, 0.1);
 }
 
 TEST(GenuineImpostorEERScorerTest, TotalOverlapHighEER)
@@ -120,8 +117,7 @@ TEST(GenuineImpostorEERScorerTest, TotalOverlapHighEER)
     std::vector<std::vector<float>> emb(8, {1.0f, 1.0f});
     std::vector<int> lbl = {0, 0, 0, 0, 1, 1, 1, 1};
     const double eer = s.compute_eer(emb, lbl, 2);
-    if (!std::isnan(eer))
-        EXPECT_GT(eer, 0.3); // near 0.5 for identical distributions
+    if (!std::isnan(eer)) EXPECT_GT(eer, 0.3); // near 0.5 for identical distributions
 }
 
 TEST(GenuineImpostorEERScorerTest, ResultInUnitIntervalOrNaN)
@@ -151,8 +147,7 @@ TEST(GenuineImpostorEERScorerTest, MultipleEnrollSamples)
     const auto emb = perfect_embeddings(3);
     const auto lbl = perfect_labels(3);
     const double eer = s.compute_eer(emb, lbl, 2);
-    if (!std::isnan(eer))
-        EXPECT_LT(eer, 0.1);
+    if (!std::isnan(eer)) EXPECT_LT(eer, 0.1);
 }
 
 // ── GenuineImpostorEERScorer — AUC ───────────────────────────────────────────
@@ -168,8 +163,7 @@ TEST(GenuineImpostorEERScorerTest, AucPerfectSeparationNearOne)
     // Perfect cosine separation → genuine >> impostor → AUC near 1.
     GenuineImpostorEERScorer s(1U);
     const double auc = s.compute_auc(perfect_embeddings(6), perfect_labels(6), 2);
-    if (!std::isnan(auc))
-        EXPECT_GT(auc, 0.9);
+    if (!std::isnan(auc)) EXPECT_GT(auc, 0.9);
 }
 
 TEST(GenuineImpostorEERScorer, AucTotalOverlapNearHalf)
@@ -179,8 +173,7 @@ TEST(GenuineImpostorEERScorer, AucTotalOverlapNearHalf)
     std::vector<std::vector<float>> emb(8, {1.0f, 1.0f});
     std::vector<int> lbl = {0, 0, 0, 0, 1, 1, 1, 1};
     const double auc = s.compute_auc(emb, lbl, 2);
-    if (!std::isnan(auc))
-        EXPECT_NEAR(auc, 0.5, 0.15);
+    if (!std::isnan(auc)) EXPECT_NEAR(auc, 0.5, 0.15);
 }
 
 TEST(GenuineImpostorEERScorerTest, AucInUnitIntervalOrNaN)
@@ -200,8 +193,7 @@ TEST(ClassificationEERScorerTest, AucPerfectSeparationNearOne)
 {
     ClassificationEERScorer s;
     const double auc = s.compute_auc(perfect_embeddings(6), perfect_labels(6), 2);
-    if (!std::isnan(auc))
-        EXPECT_GT(auc, 0.9);
+    if (!std::isnan(auc)) EXPECT_GT(auc, 0.9);
 }
 
 TEST(ClassificationEERScorerTest, AucEmptyReturnsNaN)

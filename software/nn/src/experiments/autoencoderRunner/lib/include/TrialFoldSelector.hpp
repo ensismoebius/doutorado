@@ -10,16 +10,11 @@
 #include <string>
 #include <vector>
 
+#include "TrialFoldSelection.hpp"
 #include "statistics/kfold.hpp"
 
 namespace autoencoderRunner
 {
-struct TrialFoldSelection
-{
-    std::vector<int> train_trial_ids;
-    std::vector<int> val_trial_ids;
-    std::vector<int> test_trial_ids; // Held-out test set (same across all folds)
-};
 
 /// Bridges statistics::KFold (index splits) to SQLite trial ids.
 class TrialFoldSelector

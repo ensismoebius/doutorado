@@ -2,10 +2,11 @@
  * @file eer_scorer.hpp
  * @brief Pluggable EER computation strategies for speaker verification evaluation.
  *
- * Two concrete strategies are provided:
+ * Two concrete strategies are provided (each in its own file):
  *  - ClassificationEERScorer  : legacy — derives EER from closed-set confusion matrices.
+ *    See ClassificationEERScorer.hpp.
  *  - GenuineImpostorEERScorer : SOTA — enrollment/probe scoring with genuine/impostor
- *                               cosine-similarity trials and threshold sweep.
+ *    cosine-similarity trials and threshold sweep. See GenuineImpostorEERScorer.hpp.
  *
  * Pass any IEERScorer to run_classifier() to select the evaluation protocol.
  */
@@ -13,7 +14,6 @@
 #ifndef NN_STATISTICS_EER_SCORER_HPP
 #define NN_STATISTICS_EER_SCORER_HPP
 
-#include <cstddef>
 #include <limits>
 #include <vector>
 
@@ -59,76 +59,11 @@ struct IEERScorer
         const std::vector<int>& labels,
         int n_classes) const -> double
     {
-        (void)embeddings; (void)labels; (void)n_classes;
+        (void) embeddings;
+        (void) labels;
+        (void) n_classes;
         return std::numeric_limits<double>::quiet_NaN();
     }
-};
-
-// ── ClassificationEERScorer ───────────────────────────────────────────────────
-
-/**
- * @brief Speaker-verification EER scorer (audit m-4: upgraded).
- *
- * Historically this derived EER from closed-set confusion matrices (a
- * non-standard, inferior protocol). It now delegates to the genuine/impostor
- * cosine-similarity method (same as GenuineImpostorEERScorer with one
- * enrollment utterance), so EER and AUC are computed from the score
- * distribution. The class name is retained for backward compatibility.
- */
-class ClassificationEERScorer : public IEERScorer
-{
-public:
-    [[nodiscard]] auto compute_eer(const std::vector<std::vector<float>>& embeddings,
-        const std::vector<int>& labels,
-        int n_classes) const -> double override;
-
-    [[nodiscard]] auto compute_auc(const std::vector<std::vector<float>>& embeddings,
-        const std::vector<int>& labels,
-        int n_classes) const -> double override;
-};
-
-// ── GenuineImpostorEERScorer ──────────────────────────────────────────────────
-
-/**
- * @brief SOTA EER via genuine/impostor cosine-similarity trial sweeping.
- *
- * Protocol (matches NIST SRE / ASVspoof convention):
- * 1. For each speaker in the test fold, take the first n_enroll_per_speaker
- *    samples as the enrollment set; the remainder become probes.
- *    Speakers with fewer than n_enroll_per_speaker + 1 samples are skipped.
- * 2. Enrollment template = L2-normalised mean of enrollment embedding vectors.
- * 3. For each probe, compute cosine similarity vs. every speaker template:
- *    - Probe vs. own speaker → genuine trial.
- *    - Probe vs. other speaker → impostor trial.
- * 4. Sort all trials by score; sweep threshold (descending) to build FAR/FRR
- *    curve; linearly interpolate the crossing point → EER.
- *
- * Returns NaN when no valid trials exist (e.g. every speaker has too few samples).
- *
- * @param n_enroll_per_speaker Utterances used per speaker as the enrollment
- *        template (default 1).  Increase for more stable templates.
- */
-class GenuineImpostorEERScorer : public IEERScorer
-{
-public:
-    explicit GenuineImpostorEERScorer(std::size_t n_enroll_per_speaker = 1U);
-
-    [[nodiscard]] auto compute_eer(const std::vector<std::vector<float>>& embeddings,
-        const std::vector<int>& labels,
-        int n_classes) const -> double override;
-
-    /**
-     * @brief AUC via Wilcoxon-Mann-Whitney: P(genuine_score > impostor_score).
-     *
-     * Ties contribute 0.5.  Returns NaN when fewer than 2 speakers have valid
-     * templates (same degeneracy condition as compute_eer).
-     */
-    [[nodiscard]] auto compute_auc(const std::vector<std::vector<float>>& embeddings,
-        const std::vector<int>& labels,
-        int n_classes) const -> double override;
-
-private:
-    std::size_t n_enroll_;
 };
 
 } // namespace statistics

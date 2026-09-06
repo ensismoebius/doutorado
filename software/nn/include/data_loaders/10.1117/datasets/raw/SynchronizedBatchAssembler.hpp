@@ -6,20 +6,14 @@
 #ifndef NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP
 #define NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP
 
-#include <cstddef>
 #include <memory>
 #include <vector>
 
+#include "data_loaders/10.1117/datasets/raw/RowRequest.hpp"
 #include "data_loaders/10.1117/loaders/AudioLoader.hpp"
 #include "data_loaders/10.1117/loaders/EEGLoader.hpp"
 #include "data_loaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "tensor/Tensor.hpp"
-
-struct RowRequest
-{
-    std::size_t batch_row;
-    std::size_t local_audio_row;
-};
 
 class SynchronizedBatchAssembler
 {
