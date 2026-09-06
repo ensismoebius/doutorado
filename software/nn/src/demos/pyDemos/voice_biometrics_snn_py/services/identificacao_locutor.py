@@ -23,6 +23,101 @@ from utils.codificacao import codificar_poisson
 from typing import Optional
 
 
+def _preparar_dataset_treino(diretorio_dados, cfg_extracao, dataset_override, max_samples):
+    # Carrega dataset (janelas) já normalizado em [0,1], a menos que seja
+    # fornecido um `dataset_override` (útil para executar múltiplos experiments
+    # sem recomputar recursos).
+    if dataset_override is None:
+        X, y, rotulos = carregar_dataset_janelas(diretorio_dados, cfg=cfg_extracao)
+    else:
+        X, y, rotulos = dataset_override
+
+    # Opcional: limitar número de amostras para execuções rápidas.
+    if max_samples is not None and max_samples > 0 and X.shape[0] > max_samples:
+        X = X[:max_samples]
+        y = y[:max_samples]
+
+    return X, y, rotulos
+
+
+def _normalizar_saida_rede(res):
+    # Model may return (spk, state) or (spk, state, mem_trace)
+    if isinstance(res, tuple) and len(res) >= 3:
+        s = res[0]
+        m = res[2]
+    elif isinstance(res, tuple) and len(res) == 2:
+        s, m_candidate = res
+        # second return was previously `state` dict; we don't have mem trace
+        if isinstance(m_candidate, dict):
+            m = torch.zeros_like(s)
+        else:
+            m = m_candidate if m_candidate is not None else torch.zeros_like(s)
+    else:
+        # unexpected return: treat as spikes only
+        s = res
+        m = torch.zeros_like(s)
+    return s, m
+
+
+def _forward_multi_pass(rede_neural, pulsos_de_entrada, num_passes):
+    # Multi-pass forward (reduz variância estocástica da codificação)
+    spk_runs = []
+    mem_runs = []
+    for _ in range(max(1, num_passes)):
+        res = rede_neural(pulsos_de_entrada, None)
+        s, m = _normalizar_saida_rede(res)
+        spk_runs.append(s)
+        mem_runs.append(m)
+
+    # spk_runs: list of [T, B, C] -> stack -> [num_passes, T, B, C]
+    spk_out_seq = torch.stack(spk_runs, dim=0).mean(dim=0)
+    mem_trace = torch.stack(mem_runs, dim=0).mean(dim=0)
+    return spk_out_seq, mem_trace
+
+
+def _treinar_um_lote(
+    rede_neural,
+    opcoes,
+    lote_de_entrada_atual,
+    lote_de_alvo_atual,
+    cfg_snn,
+    loss_mode,
+    num_passes,
+    ep,
+    epocas,
+    batch_idx,
+    total_batches,
+):
+    # Codifica características contínuas em trens de spikes.
+    pulsos_de_entrada = codificar_poisson(
+        lote_de_entrada_atual,
+        passos=cfg_snn.passos_por_janela,
+        adaptativo=True,
+        qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
+    )
+
+    spk_out_seq, mem_trace = _forward_multi_pass(rede_neural, pulsos_de_entrada, num_passes)
+
+    # Compute loss according to selected mode
+    loss = compute_loss(loss_mode, spk_out_seq, mem_trace, lote_de_alvo_atual, cfg_snn)
+
+    # Training status log (epoch, batch, mode, passes, batch loss)
+    print(
+        f"[Treino] Ep {ep+1}/{epocas} | Lote {batch_idx}/{total_batches} | modo={loss_mode} | passes={num_passes} | loss={float(loss.detach().cpu()):.4f}"
+    )
+
+    opcoes.zero_grad(set_to_none=True)
+    loss.backward()
+    opcoes.step()
+
+    # Use spike counts as readout for accuracy reporting (fallback for all modes).
+    quantidade_de_pulsos = spk_out_seq.sum(dim=0)
+    pred = torch.argmax(quantidade_de_pulsos, dim=1)
+    acertos = int((pred == lote_de_alvo_atual).sum().detach().cpu())
+
+    return float(loss.detach().cpu()), acertos
+
+
 def treinar_classificador_locutor(
     diretorio_dados: str,
     *,
@@ -45,18 +140,9 @@ def treinar_classificador_locutor(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Carrega dataset (janelas) já normalizado em [0,1], a menos que seja
-    # fornecido um `dataset_override` (útil para executar múltiplos experiments
-    # sem recomputar recursos).
-    if dataset_override is None:
-        X, y, rotulos = carregar_dataset_janelas(diretorio_dados, cfg=cfg_extracao)
-    else:
-        X, y, rotulos = dataset_override
-
-    # Opcional: limitar número de amostras para execuções rápidas.
-    if max_samples is not None and max_samples > 0 and X.shape[0] > max_samples:
-        X = X[:max_samples]
-        y = y[:max_samples]
+    X, y, rotulos = _preparar_dataset_treino(
+        diretorio_dados, cfg_extracao, dataset_override, max_samples
+    )
 
     num_classes = len(rotulos)
     # Modelo SNN simples (snntorch) com saída = número de pessoas.
@@ -90,69 +176,25 @@ def treinar_classificador_locutor(
             lote_de_entrada_atual = entradas[indice_do_lote]
             lote_de_alvo_atual = alvos[indice_do_lote]
 
-            # Codifica características contínuas em trens de spikes.
-            pulsos_de_entrada = codificar_poisson(
-                lote_de_entrada_atual,
-                passos=cfg_snn.passos_por_janela,
-                adaptativo=True,
-                qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
-            )
-
-            # Multi-pass forward (reduz variância estocástica da codificação)
-            spk_runs = []
-            mem_runs = []
-            for _ in range(max(1, num_passes)):
-                res = rede_neural(pulsos_de_entrada, None)
-                # Model may return (spk, state) or (spk, state, mem_trace)
-                if isinstance(res, tuple) and len(res) >= 3:
-                    s = res[0]
-                    m = res[2]
-                elif isinstance(res, tuple) and len(res) == 2:
-                    s, m_candidate = res
-                    # second return was previously `state` dict; we don't have mem trace
-                    if isinstance(m_candidate, dict):
-                        m = torch.zeros_like(s)
-                    else:
-                        m = (
-                            m_candidate
-                            if m_candidate is not None
-                            else torch.zeros_like(s)
-                        )
-                else:
-                    # unexpected return: treat as spikes only
-                    s = res
-                    m = torch.zeros_like(s)
-
-                spk_runs.append(s)
-                mem_runs.append(m)
-
-            # spk_runs: list of [T, B, C] -> stack -> [num_passes, T, B, C]
-            spk_out_seq = torch.stack(spk_runs, dim=0).mean(dim=0)
-            mem_trace = torch.stack(mem_runs, dim=0).mean(dim=0)
-
-            # Compute loss according to selected mode
-            loss = compute_loss(
-                loss_mode, spk_out_seq, mem_trace, lote_de_alvo_atual, cfg_snn
-            )
-
-            # Training status log (epoch, batch, mode, passes, batch loss)
             batch_idx = start_idx // batch_size + 1
             total_batches = (num_samples + batch_size - 1) // batch_size
-            print(
-                f"[Treino] Ep {ep+1}/{epocas} | Lote {batch_idx}/{total_batches} | modo={loss_mode} | passes={num_passes} | loss={float(loss.detach().cpu()):.4f}"
+
+            loss_valor, acertos = _treinar_um_lote(
+                rede_neural,
+                opcoes,
+                lote_de_entrada_atual,
+                lote_de_alvo_atual,
+                cfg_snn,
+                loss_mode,
+                num_passes,
+                ep,
+                epocas,
+                batch_idx,
+                total_batches,
             )
 
-            opcoes.zero_grad(set_to_none=True)
-            loss.backward()
-            opcoes.step()
-
-            total_loss += float(loss.detach().cpu()) * int(
-                lote_de_entrada_atual.shape[0]
-            )
-            # Use spike counts as readout for accuracy reporting (fallback for all modes).
-            quantidade_de_pulsos = spk_out_seq.sum(dim=0)
-            pred = torch.argmax(quantidade_de_pulsos, dim=1)
-            correct += int((pred == lote_de_alvo_atual).sum().detach().cpu())
+            total_loss += loss_valor * int(lote_de_entrada_atual.shape[0])
+            correct += acertos
 
         acc = correct / num_samples
         print(

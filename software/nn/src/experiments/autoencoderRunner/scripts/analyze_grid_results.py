@@ -16,6 +16,99 @@ import statistics
 import re
 
 
+def _extract_core_metrics(data):
+    """Extract modality/loss/lr and the train/val loss summary stats from a result payload."""
+    modality = data.get('dataset_type', 'unknown')
+    loss_type = data.get('loss_type', 'unknown')
+
+    # Get optimizer params
+    optimizer = data.get('optimizer', {})
+    lr = float(optimizer.get('learning_rate', 0.0))
+
+    # Get epoch and batch info from processed data
+    epoch_losses = data.get('epoch_mean_losses', [])
+
+    # Extract K-fold validation losses (actual structure: kfold.fold_epoch_val_losses)
+    kfold_data = data.get('kfold', {})
+    fold_losses = kfold_data.get('fold_epoch_val_losses', [])
+
+    # Extract final losses
+    final_train_loss = epoch_losses[-1] if epoch_losses else 0.0
+    final_val_loss = fold_losses[-1][-1] if fold_losses and fold_losses[-1] else 0.0
+
+    # Calculate mean and best validation loss across folds
+    try:
+        if fold_losses and any(fold_losses):
+            mean_val_loss = statistics.mean([fold[-1] for fold in fold_losses if fold])
+            best_val_loss = min([fold[-1] for fold in fold_losses if fold])
+        else:
+            mean_val_loss = final_val_loss
+            best_val_loss = final_val_loss
+    except (ValueError, IndexError):
+        mean_val_loss = final_val_loss
+        best_val_loss = final_val_loss
+
+    return (
+        modality, loss_type, lr, epoch_losses,
+        final_train_loss, final_val_loss, mean_val_loss, best_val_loss,
+    )
+
+
+def _parse_profile_tokens(profile_text):
+    """Parse tokens embedded in generated profile filenames, e.g.:
+    ..._lr0.0001_bs16_hs32_ls32_mae_mb32_ep10_lp1.json
+    """
+    token_patterns = {
+        'lr': r'_lr([0-9]+(?:\.[0-9]+)?)',
+        'bs': r'_bs(\d+)',
+        'hs': r'_hs(\d+)',
+        'ls': r'_ls(\d+)',
+        'mb': r'_mb(\d+)',
+        'ep': r'_ep(\d+)',
+        'lp': r'_lp([01])',
+    }
+
+    # Defaults, will be overridden if a matching token is found in the filename.
+    parsed = {'lr': None, 'bs': 8, 'hs': 32, 'ls': 16, 'mb': 0, 'ep': 0, 'lp': 0}
+    for key, pattern in token_patterns.items():
+        match = re.search(pattern, profile_text)
+        if not match:
+            continue
+        value = match.group(1)
+        if key == 'lr':
+            parsed['lr'] = float(value)
+        elif key == 'bs':
+            parsed['bs'] = int(value)
+        elif key == 'hs':
+            parsed['hs'] = int(value)
+        elif key == 'ls':
+            parsed['ls'] = int(value)
+        elif key == 'mb':
+            parsed['mb'] = int(value)
+        elif key == 'ep':
+            parsed['ep'] = int(value)
+        elif key == 'lp':
+            parsed['lp'] = int(value)
+
+    return parsed
+
+
+def _fallback_parse_profile_path(profile_path, profile_text, bs, hs, ls):
+    """Fallback parsing for older filename variants that don't use the `_bsN` token style."""
+    if 'bs' in profile_path and not re.search(r'_bs\d+', profile_text):
+        try:
+            for part in profile_path.split('_'):
+                if part.startswith('bs'):
+                    bs = int(part[2:])
+                elif part.startswith('hs'):
+                    hs = int(part[2:])
+                elif part.startswith('ls'):
+                    ls = int(part[2:])
+        except (ValueError, IndexError):
+            pass
+    return bs, hs, ls
+
+
 @dataclass
 class GridResult:
     """Represents a single grid profile result."""
@@ -49,102 +142,32 @@ class GridResult:
         
         # Parse profile name to extract hyperparameters
         profile_data = data.get('profile_name', filename)
-        
+
         # Extract metrics from JSON
         metadata = data.get('metadata', {})
         metrics = data.get('metrics', {})
-        
+
         # Extract hyperparameters and loss type from new result format
-        modality = data.get('dataset_type', 'unknown')
-        loss_type = data.get('loss_type', 'unknown')
-    
-        # Get optimizer params
-        optimizer = data.get('optimizer', {})
-        lr = float(optimizer.get('learning_rate', 0.0))
-    
-        # Get epoch and batch info from processed data
-        epoch_losses = data.get('epoch_mean_losses', [])
-    
-        # Extract K-fold validation losses (actual structure: kfold.fold_epoch_val_losses)
-        kfold_data = data.get('kfold', {})
-        fold_losses = kfold_data.get('fold_epoch_val_losses', [])
-    
-        # Extract final losses
-        final_train_loss = epoch_losses[-1] if epoch_losses else 0.0
-        final_val_loss = fold_losses[-1][-1] if fold_losses and fold_losses[-1] else 0.0
-    
-        # Calculate mean and best validation loss across folds
-        try:
-            if fold_losses and any(fold_losses):
-                mean_val_loss = statistics.mean([fold[-1] for fold in fold_losses if fold])
-                best_val_loss = min([fold[-1] for fold in fold_losses if fold])
-            else:
-                mean_val_loss = final_val_loss
-                best_val_loss = final_val_loss
-        except (ValueError, IndexError):
-            mean_val_loss = final_val_loss
-            best_val_loss = final_val_loss
-    
+        (modality, loss_type, lr, epoch_losses,
+         final_train_loss, final_val_loss, mean_val_loss, best_val_loss) = (
+            _extract_core_metrics(data)
+        )
+
         # Extract BS, HS, LS, MB, EP, LP from profile path / profile name
         profile_path = data.get('profile', '')
         profile_text = profile_path or profile_data or filename
-        bs = 8  # Default, will extract from filename
-        hs = 32  # Default, will extract from filename
-        ls = 16  # Default, will extract from filename
-        mb = 0
-        ep = 0
-        lp = 0
 
-        # Parse tokens embedded in generated profile filenames, e.g.:
-        # ..._lr0.0001_bs16_hs32_ls32_mae_mb32_ep10_lp1.json
-        token_patterns = {
-            'lr': r'_lr([0-9]+(?:\.[0-9]+)?)',
-            'bs': r'_bs(\d+)',
-            'hs': r'_hs(\d+)',
-            'ls': r'_ls(\d+)',
-            'mb': r'_mb(\d+)',
-            'ep': r'_ep(\d+)',
-            'lp': r'_lp([01])',
-        }
-
-        parsed_lr = None
-        for key, pattern in token_patterns.items():
-            match = re.search(pattern, profile_text)
-            if not match:
-                continue
-            value = match.group(1)
-            if key == 'lr':
-                parsed_lr = float(value)
-            elif key == 'bs':
-                bs = int(value)
-            elif key == 'hs':
-                hs = int(value)
-            elif key == 'ls':
-                ls = int(value)
-            elif key == 'mb':
-                mb = int(value)
-            elif key == 'ep':
-                ep = int(value)
-            elif key == 'lp':
-                lp = int(value)
+        parsed = _parse_profile_tokens(profile_text)
+        bs, hs, ls = parsed['bs'], parsed['hs'], parsed['ls']
+        mb, ep, lp = parsed['mb'], parsed['ep'], parsed['lp']
 
         # Prefer profile-encoded LR when available to keep config visible even for failed runs.
-        if parsed_lr is not None:
-            lr = parsed_lr
-    
+        if parsed['lr'] is not None:
+            lr = parsed['lr']
+
         # Fallback parsing for older filename variants.
-        if 'bs' in profile_path and not re.search(r'_bs\d+', profile_text):
-            try:
-                for part in profile_path.split('_'):
-                    if part.startswith('bs'):
-                        bs = int(part[2:])
-                    elif part.startswith('hs'):
-                        hs = int(part[2:])
-                    elif part.startswith('ls'):
-                        ls = int(part[2:])
-            except (ValueError, IndexError):
-                pass
-        
+        bs, hs, ls = _fallback_parse_profile_path(profile_path, profile_text, bs, hs, ls)
+
         return cls(
             filename=filename,
             profile_name=profile_data,

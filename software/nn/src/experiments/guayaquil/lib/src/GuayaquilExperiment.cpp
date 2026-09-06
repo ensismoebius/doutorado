@@ -137,6 +137,397 @@ auto save_parameter_list_text(
 namespace guayaquil
 {
 
+namespace
+{
+
+// Resolved output locations for one experiment run: raw metrics/summary files, saved model
+// dumps, and resume checkpoints.
+struct OutputDirs
+{
+    std::filesystem::path out_dir;
+    std::filesystem::path models_dir;
+    std::filesystem::path chk_dir;
+};
+
+// Resolves `out_dir` (falling back to plain "results" when the implicit source-tree
+// location doesn't exist in this checkout — only the *implicit*, empty results_dir path
+// may fall back; an explicit results_dir is always honored), then creates it and the
+// models/checkpoints subdirectories.
+OutputDirs resolve_output_dirs(const GuayaquilConfig& config)
+{
+    std::filesystem::path out_dir = config.dataset.results_dir.empty()
+                                        ? source_results_dir()
+                                        : std::filesystem::path(config.dataset.results_dir);
+
+    // Only the *implicit* (empty results_dir) path may fall back: source_results_dir()
+    // points into the source tree and may not exist in this checkout. An explicit
+    // results_dir (e.g. "results/guayaquil") is always honored and created below —
+    // otherwise a fresh checkout without that subdir would silently divert output to
+    // plain "results/".
+    if (config.dataset.results_dir.empty() && !std::filesystem::exists(out_dir))
+    {
+        out_dir = std::filesystem::path("results");
+    }
+
+    std::filesystem::create_directories(out_dir);
+    const std::filesystem::path models_dir =
+        out_dir / "models" / sanitize_name(config.experiment.run_tag);
+    if (config.dataset.save_models)
+    {
+        std::filesystem::create_directories(models_dir);
+    }
+
+    const auto chk_dir = out_dir / "checkpoints";
+    std::filesystem::create_directories(chk_dir);
+
+    return {out_dir, models_dir, chk_dir};
+}
+
+// Trains (or loads from checkpoint) the single LSTM-AE run for this (dataset, encoding,
+// run_id) combo, appending its ResultRow to `all_rows` and advancing the progress bar.
+void run_lstm_combo(const GuayaquilConfig& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    const std::string& encoding,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows)
+{
+    const CheckpointKey lstm_key{config.experiment.run_tag,
+        backend_name,
+        dataset_name,
+        "lstm-ae",
+        encoding,
+        "lstm",
+        0.0f,
+        0.0f,
+        run_id + 1};
+    const auto lstm_chk = checkpoint_path(chk_dir, lstm_key);
+
+    if (checkpoint_is_valid(lstm_chk, cfg_hash))
+    {
+        all_rows.push_back(checkpoint_load(lstm_chk));
+        nn::progress::ProgressManager::instance().update_bar(
+            run_bar, static_cast<float>(++completed_runs));
+        return;
+    }
+
+    float train_ms = 0.0f;
+    float infer_ms = 0.0f;
+    auto lstm_cfg = make_lstm_cfg(config);
+
+    nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
+
+    TrainResult train_result = train_with_early_stopping_lstm( //
+        lstm_model,                                            //
+        config,                                                //
+        split.train_samples,                                   //
+        split.val_samples,                                     //
+        encoding,                                              //
+        run_seed,                                              //
+        static_cast<std::size_t>(run_id),                      //
+        static_cast<std::size_t>(config.experiment.repeats),   //
+        train_ms,                                              //
+        infer_ms                                               //
+    );
+    RunMetrics metrics = train_result.metrics;
+    metrics.train_ms = train_ms;
+
+    if (!config.dataset.latex_data_dir.empty())
+    {
+        const std::filesystem::path latex_dir =
+            std::filesystem::path(config.dataset.latex_data_dir);
+        write_epoch_history_dat(
+            latex_dir / (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
+                            std::to_string(run_id + 1) + "_history.dat"),
+            "lstm-ae",
+            encoding,
+            "",
+            0.0f,
+            0.0f,
+            run_id + 1,
+            train_result.history);
+        write_batch_convergence_dat(
+            latex_dir / (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
+                            std::to_string(run_id + 1) + "_convergence.dat"),
+            "lstm-ae",
+            encoding,
+            "",
+            0.0f,
+            0.0f,
+            run_id + 1,
+            train_result.history);
+    }
+
+    if (config.dataset.save_models)
+    {
+        const std::string base_name =
+            sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name + "_" + encoding +
+                          "_run" + std::to_string(run_id + 1));
+        const std::filesystem::path state_txt = models_dir / (base_name + "_state_dict.txt");
+        const bool ok = save_state_dict_text(state_txt, lstm_model.state_dict());
+        if (!ok)
+        {
+            NN_LOG_WARN("[comparative] failed to save LSTM state_dict for " + base_name);
+        }
+    }
+
+    all_rows.push_back( //
+        ResultRow{
+            backend_name,              //
+            config.experiment.run_tag, //
+            dataset_name,              //
+            "lstm-ae",                 //
+            encoding,                  //
+            "lstm",                    //
+            1,                         //
+            0.0f,                      //
+            0.0f,                      //
+            run_id + 1,                //
+            run_seed,                  //
+            cfg_hash,                  //
+            metrics                    //
+        } //
+    );
+    checkpoint_save(lstm_chk, all_rows.back(), train_result.history, cfg_hash);
+    nn::progress::ProgressManager::instance().update_bar(
+        run_bar, static_cast<float>(++completed_runs));
+}
+
+// Trains (or loads from checkpoint) the single SNN-AE run for this (dataset, encoding,
+// architecture, voltage_threshold, alpha, run_id) combo, appending its ResultRow to
+// `all_rows` and advancing the progress bar.
+void run_snn_combo(const GuayaquilConfig& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    const std::string& encoding,
+    const std::string& architecture,
+    float voltage_threshold,
+    float alpha,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows)
+{
+    const CheckpointKey snn_key{config.experiment.run_tag,
+        backend_name,
+        dataset_name,
+        "snn-ae",
+        encoding,
+        architecture,
+        voltage_threshold,
+        alpha,
+        run_id + 1};
+    const auto snn_chk = checkpoint_path(chk_dir, snn_key);
+
+    if (checkpoint_is_valid(snn_chk, cfg_hash))
+    {
+        all_rows.push_back(checkpoint_load(snn_chk));
+        nn::progress::ProgressManager::instance().update_bar(
+            run_bar, static_cast<float>(++completed_runs));
+        return;
+    }
+
+    float train_ms = 0.0f;
+    float infer_ms = 0.0f;
+
+    AutoencoderConfig snn_config = make_snn_cfg( //
+        config,                                  //
+        alpha,                                   //
+        voltage_threshold                        //
+    );
+    snn_config.initializer_seed = run_seed;
+    snn_config.initializer_sampler_type =
+        "comparative|" + dataset_name + "|" + encoding + "|" + architecture + "|" +
+        std::to_string(extract_layer_sizes(config.model.encoder_layer_spec).empty()
+                           ? 0
+                           : extract_layer_sizes(config.model.encoder_layer_spec).front()) +
+        "|" + std::to_string(voltage_threshold) + "|" + std::to_string(alpha);
+
+    ProtocolSpikingAutoencoder snn_model(snn_config);
+
+    TrainResult train_result = train_with_early_stopping_snn( //
+        snn_model,                                            //
+        config,                                               //
+        split.train_samples,                                  //
+        split.val_samples,                                    //
+        split.val_labels,                                     //
+        encoding,                                             //
+        architecture,                                         //
+        alpha,                                                //
+        voltage_threshold,                                    //
+        run_seed,                                             //
+        static_cast<std::size_t>(run_id),                     //
+        static_cast<std::size_t>(config.experiment.repeats),  //
+        train_ms,                                             //
+        infer_ms                                              //
+    );
+
+    RunMetrics metrics = train_result.metrics;
+    metrics.train_ms = train_ms;
+
+    if (!config.dataset.latex_data_dir.empty())
+    {
+        const std::filesystem::path latex_dir =
+            std::filesystem::path(config.dataset.latex_data_dir);
+        write_epoch_history_dat(
+            latex_dir /
+                (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
+                    std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
+                    std::to_string(run_id + 1) + "_history.dat"),
+            "snn-ae",
+            encoding,
+            architecture,
+            voltage_threshold,
+            alpha,
+            run_id + 1,
+            train_result.history);
+        write_batch_convergence_dat(
+            latex_dir /
+                (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
+                    std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
+                    std::to_string(run_id + 1) + "_convergence.dat"),
+            "snn-ae",
+            encoding,
+            architecture,
+            voltage_threshold,
+            alpha,
+            run_id + 1,
+            train_result.history);
+    }
+
+    if (config.dataset.save_models)
+    {
+        const std::string base_name =
+            sanitize_name(config.experiment.run_tag + "_snn_" + dataset_name + "_" + encoding +
+                          "_" + architecture + "_vth" + std::to_string(voltage_threshold) + "_a" +
+                          std::to_string(alpha) + "_run" + std::to_string(run_id + 1));
+        const std::filesystem::path encoder_txt = models_dir / (base_name + "_encoder_params.txt");
+        const std::filesystem::path decoder_txt = models_dir / (base_name + "_decoder_params.txt");
+        const bool enc_ok =
+            save_parameter_list_text(encoder_txt, snn_model.encoder_.params(), "encoder");
+        const bool dec_ok =
+            save_parameter_list_text(decoder_txt, snn_model.decoder_.params(), "decoder");
+        if (!enc_ok || !dec_ok)
+        {
+            NN_LOG_WARN(
+                "[comparative] failed to save SNN model artifacts "
+                "for " +
+                base_name);
+        }
+    }
+
+    all_rows.push_back( //
+        ResultRow{
+            backend_name,                                             //
+            config.experiment.run_tag,                                //
+            dataset_name,                                             //
+            "snn-ae",                                                 //
+            encoding,                                                 //
+            architecture,                                             //
+            static_cast<int>(config.model.encoder_layer_spec.size()), //
+            voltage_threshold,                                        //
+            alpha,                                                    //
+            run_id + 1,                                               //
+            run_seed,                                                 //
+            cfg_hash,                                                 //
+            metrics                                                   //
+        } //
+    );
+    checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+    nn::progress::ProgressManager::instance().update_bar(
+        run_bar, static_cast<float>(++completed_runs));
+}
+
+// Runs the full SNN architecture × voltage_threshold × alpha sweep for one (dataset,
+// encoding, run_id) combo.
+void run_snn_sweep(const GuayaquilConfig& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    const std::string& encoding,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows)
+{
+    for (const auto& architecture : config.evaluation.snn_architectures)
+    {
+        for (float voltage_threshold : config.evaluation.v_th_values)
+        {
+            for (float alpha : config.evaluation.alpha_values)
+            {
+                run_snn_combo(config,
+                    split,
+                    dataset_name,
+                    encoding,
+                    architecture,
+                    voltage_threshold,
+                    alpha,
+                    run_id,
+                    run_seed,
+                    backend_name,
+                    cfg_hash,
+                    chk_dir,
+                    models_dir,
+                    run_bar,
+                    completed_runs,
+                    all_rows);
+            }
+        }
+    }
+}
+
+// Writes every result artifact for the whole experiment: comparative CSV, publication
+// table, JSON summary, and (when configured) the pgfplots/LaTeX exports.
+void write_experiment_outputs(const GuayaquilConfig& config,
+    std::size_t cfg_hash,
+    const std::vector<ResultRow>& all_rows,
+    const std::filesystem::path& out_dir)
+{
+    const std::filesystem::path csv_path =
+        out_dir / (config.experiment.run_tag + "_comparative_metrics.csv");
+    write_rows_csv(csv_path, all_rows);
+
+    const std::filesystem::path table_path =
+        out_dir / (config.experiment.run_tag + "_publication_table.csv");
+    write_publication_table(table_path, all_rows);
+
+    const std::filesystem::path summary_json =
+        out_dir / (config.experiment.run_tag + "_summary.json");
+    write_summary_json(summary_json, config, cfg_hash, all_rows);
+
+    if (!config.dataset.latex_data_dir.empty())
+    {
+        const std::filesystem::path latex_dir =
+            std::filesystem::path(config.dataset.latex_data_dir);
+        write_latex_exports(latex_dir, config.experiment.run_tag, config, all_rows);
+        write_pgfplots_summary_dat(
+            latex_dir / (config.experiment.run_tag + "_summary.dat"), all_rows);
+        write_pgfplots_sweep_dat(latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
+    }
+
+    NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() + ", " +
+                table_path.string() + ", " + summary_json.string());
+}
+
+} // namespace
+
 auto run_comparative_experiment(int argc, char* argv[]) -> int
 {
     using namespace guayaquil;
@@ -155,30 +546,10 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
 
-        std::filesystem::path out_dir = config.dataset.results_dir.empty()
-                                            ? source_results_dir()
-                                            : std::filesystem::path(config.dataset.results_dir);
-
-        // Only the *implicit* (empty results_dir) path may fall back: source_results_dir()
-        // points into the source tree and may not exist in this checkout. An explicit
-        // results_dir (e.g. "results/guayaquil") is always honored and created below —
-        // otherwise a fresh checkout without that subdir would silently divert output to
-        // plain "results/".
-        if (config.dataset.results_dir.empty() && !std::filesystem::exists(out_dir))
-        {
-            out_dir = std::filesystem::path("results");
-        }
-
-        std::filesystem::create_directories(out_dir);
-        const std::filesystem::path models_dir =
-            out_dir / "models" / sanitize_name(config.experiment.run_tag);
-        if (config.dataset.save_models)
-        {
-            std::filesystem::create_directories(models_dir);
-        }
-
-        const auto chk_dir = out_dir / "checkpoints";
-        std::filesystem::create_directories(chk_dir);
+        const OutputDirs dirs = resolve_output_dirs(config);
+        const std::filesystem::path& out_dir = dirs.out_dir;
+        const std::filesystem::path& models_dir = dirs.models_dir;
+        const std::filesystem::path& chk_dir = dirs.chk_dir;
 
         std::vector<ResultRow> all_rows;
 
@@ -218,276 +589,38 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
-                    (void) completed_runs; // updated inside each LSTM/SNN block
                     const std::uint32_t run_seed =
                         config.experiment.seed_deterministic
                             ? config.experiment.seed
                             : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
-                    {
-                        const CheckpointKey lstm_key{config.experiment.run_tag,
-                            backend_name,
-                            dataset_name,
-                            "lstm-ae",
-                            encoding,
-                            "lstm",
-                            0.0f,
-                            0.0f,
-                            run_id + 1};
-                        const auto lstm_chk = checkpoint_path(chk_dir, lstm_key);
+                    run_lstm_combo(config,
+                        split,
+                        dataset_name,
+                        encoding,
+                        run_id,
+                        run_seed,
+                        backend_name,
+                        cfg_hash,
+                        chk_dir,
+                        models_dir,
+                        run_bar,
+                        completed_runs,
+                        all_rows);
 
-                        if (checkpoint_is_valid(lstm_chk, cfg_hash))
-                        {
-                            all_rows.push_back(checkpoint_load(lstm_chk));
-                            nn::progress::ProgressManager::instance().update_bar(
-                                run_bar, static_cast<float>(++completed_runs));
-                        }
-                        else
-                        {
-                            float train_ms = 0.0f;
-                            float infer_ms = 0.0f;
-                            auto lstm_cfg = make_lstm_cfg(config);
-
-                            nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
-
-                            TrainResult train_result = train_with_early_stopping_lstm( //
-                                lstm_model,                                            //
-                                config,                                                //
-                                split.train_samples,                                   //
-                                split.val_samples,                                     //
-                                encoding,                                              //
-                                run_seed,                                              //
-                                static_cast<std::size_t>(run_id),                      //
-                                static_cast<std::size_t>(config.experiment.repeats),   //
-                                train_ms,                                              //
-                                infer_ms                                               //
-                            );
-                            RunMetrics metrics = train_result.metrics;
-                            metrics.train_ms = train_ms;
-
-                            if (!config.dataset.latex_data_dir.empty())
-                            {
-                                const std::filesystem::path latex_dir =
-                                    std::filesystem::path(config.dataset.latex_data_dir);
-                                write_epoch_history_dat(
-                                    latex_dir /
-                                        (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
-                                            std::to_string(run_id + 1) + "_history.dat"),
-                                    "lstm-ae",
-                                    encoding,
-                                    "",
-                                    0.0f,
-                                    0.0f,
-                                    run_id + 1,
-                                    train_result.history);
-                                write_batch_convergence_dat(
-                                    latex_dir /
-                                        (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
-                                            std::to_string(run_id + 1) + "_convergence.dat"),
-                                    "lstm-ae",
-                                    encoding,
-                                    "",
-                                    0.0f,
-                                    0.0f,
-                                    run_id + 1,
-                                    train_result.history);
-                            }
-
-                            if (config.dataset.save_models)
-                            {
-                                const std::string base_name = sanitize_name(
-                                    config.experiment.run_tag + "_lstm_" + dataset_name + "_" +
-                                    encoding + "_run" + std::to_string(run_id + 1));
-                                const std::filesystem::path state_txt =
-                                    models_dir / (base_name + "_state_dict.txt");
-                                const bool ok =
-                                    save_state_dict_text(state_txt, lstm_model.state_dict());
-                                if (!ok)
-                                {
-                                    NN_LOG_WARN(
-                                        "[comparative] failed to save LSTM state_dict for " +
-                                        base_name);
-                                }
-                            }
-
-                            all_rows.push_back( //
-                                ResultRow{
-                                    backend_name,              //
-                                    config.experiment.run_tag, //
-                                    dataset_name,              //
-                                    "lstm-ae",                 //
-                                    encoding,                  //
-                                    "lstm",                    //
-                                    1,                         //
-                                    0.0f,                      //
-                                    0.0f,                      //
-                                    run_id + 1,                //
-                                    run_seed,                  //
-                                    cfg_hash,                  //
-                                    metrics                    //
-                                } //
-                            );
-                            checkpoint_save(
-                                lstm_chk, all_rows.back(), train_result.history, cfg_hash);
-                            nn::progress::ProgressManager::instance().update_bar(
-                                run_bar, static_cast<float>(++completed_runs));
-                        }
-                    }
-
-                    for (const auto& architecture : config.evaluation.snn_architectures)
-                    {
-                        for (float voltage_threshold : config.evaluation.v_th_values)
-                        {
-                            for (float alpha : config.evaluation.alpha_values)
-                            {
-                                const CheckpointKey snn_key{config.experiment.run_tag,
-                                    backend_name,
-                                    dataset_name,
-                                    "snn-ae",
-                                    encoding,
-                                    architecture,
-                                    voltage_threshold,
-                                    alpha,
-                                    run_id + 1};
-                                const auto snn_chk = checkpoint_path(chk_dir, snn_key);
-
-                                if (checkpoint_is_valid(snn_chk, cfg_hash))
-                                {
-                                    all_rows.push_back(checkpoint_load(snn_chk));
-                                    nn::progress::ProgressManager::instance().update_bar(
-                                        run_bar, static_cast<float>(++completed_runs));
-                                }
-                                else
-                                {
-                                    float train_ms = 0.0f;
-                                    float infer_ms = 0.0f;
-
-                                    AutoencoderConfig snn_config = make_snn_cfg( //
-                                        config,                                  //
-                                        alpha,                                   //
-                                        voltage_threshold                        //
-                                    );
-                                    snn_config.initializer_seed = run_seed;
-                                    snn_config.initializer_sampler_type =
-                                        "comparative|" + dataset_name + "|" + encoding + "|" +
-                                        architecture + "|" +
-                                        std::to_string(
-                                            extract_layer_sizes(config.model.encoder_layer_spec)
-                                                    .empty()
-                                                ? 0
-                                                : extract_layer_sizes(
-                                                      config.model.encoder_layer_spec)
-                                                      .front()) +
-                                        "|" + std::to_string(voltage_threshold) + "|" +
-                                        std::to_string(alpha);
-
-                                    ProtocolSpikingAutoencoder snn_model(snn_config);
-
-                                    TrainResult train_result = train_with_early_stopping_snn( //
-                                        snn_model,                                            //
-                                        config,                                               //
-                                        split.train_samples,                                  //
-                                        split.val_samples,                                    //
-                                        split.val_labels,                                     //
-                                        encoding,                                             //
-                                        architecture,                                         //
-                                        alpha,                                                //
-                                        voltage_threshold,                                    //
-                                        run_seed,                                             //
-                                        static_cast<std::size_t>(run_id),                     //
-                                        static_cast<std::size_t>(config.experiment.repeats),  //
-                                        train_ms,                                             //
-                                        infer_ms                                              //
-                                    );
-
-                                    RunMetrics metrics = train_result.metrics;
-                                    metrics.train_ms = train_ms;
-
-                                    if (!config.dataset.latex_data_dir.empty())
-                                    {
-                                        const std::filesystem::path latex_dir =
-                                            std::filesystem::path(config.dataset.latex_data_dir);
-                                        write_epoch_history_dat(
-                                            latex_dir /
-                                                (config.experiment.run_tag + "_snn_" + encoding +
-                                                    "_" + architecture + "_vth" +
-                                                    std::to_string(voltage_threshold) + "_a" +
-                                                    std::to_string(alpha) + "_run" +
-                                                    std::to_string(run_id + 1) + "_history.dat"),
-                                            "snn-ae",
-                                            encoding,
-                                            architecture,
-                                            voltage_threshold,
-                                            alpha,
-                                            run_id + 1,
-                                            train_result.history);
-                                        write_batch_convergence_dat(
-                                            latex_dir / (config.experiment.run_tag + "_snn_" +
-                                                            encoding + "_" + architecture + "_vth" +
-                                                            std::to_string(voltage_threshold) +
-                                                            "_a" + std::to_string(alpha) + "_run" +
-                                                            std::to_string(run_id + 1) +
-                                                            "_convergence.dat"),
-                                            "snn-ae",
-                                            encoding,
-                                            architecture,
-                                            voltage_threshold,
-                                            alpha,
-                                            run_id + 1,
-                                            train_result.history);
-                                    }
-
-                                    if (config.dataset.save_models)
-                                    {
-                                        const std::string base_name = sanitize_name(
-                                            config.experiment.run_tag + "_snn_" + dataset_name +
-                                            "_" + encoding + "_" + architecture + "_vth" +
-                                            std::to_string(voltage_threshold) + "_a" +
-                                            std::to_string(alpha) + "_run" +
-                                            std::to_string(run_id + 1));
-                                        const std::filesystem::path encoder_txt =
-                                            models_dir / (base_name + "_encoder_params.txt");
-                                        const std::filesystem::path decoder_txt =
-                                            models_dir / (base_name + "_decoder_params.txt");
-                                        const bool enc_ok = save_parameter_list_text(
-                                            encoder_txt, snn_model.encoder_.params(), "encoder");
-                                        const bool dec_ok = save_parameter_list_text(
-                                            decoder_txt, snn_model.decoder_.params(), "decoder");
-                                        if (!enc_ok || !dec_ok)
-                                        {
-                                            NN_LOG_WARN(
-                                                "[comparative] failed to save SNN model artifacts "
-                                                "for " +
-                                                base_name);
-                                        }
-                                    }
-
-                                    all_rows.push_back( //
-                                        ResultRow{
-                                            backend_name,              //
-                                            config.experiment.run_tag, //
-                                            dataset_name,              //
-                                            "snn-ae",                  //
-                                            encoding,                  //
-                                            architecture,              //
-                                            static_cast<int>(
-                                                config.model.encoder_layer_spec.size()), //
-                                            voltage_threshold,                           //
-                                            alpha,                                       //
-                                            run_id + 1,                                  //
-                                            run_seed,                                    //
-                                            cfg_hash,                                    //
-                                            metrics                                      //
-                                        } //
-                                    );
-                                    checkpoint_save(
-                                        snn_chk, all_rows.back(), train_result.history, cfg_hash);
-                                    nn::progress::ProgressManager::instance().update_bar(
-                                        run_bar, static_cast<float>(++completed_runs));
-                                }
-                            }
-                        }
-                    }
+                    run_snn_sweep(config,
+                        split,
+                        dataset_name,
+                        encoding,
+                        run_id,
+                        run_seed,
+                        backend_name,
+                        cfg_hash,
+                        chk_dir,
+                        models_dir,
+                        run_bar,
+                        completed_runs,
+                        all_rows);
                 }
             }
         }
@@ -500,32 +633,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             validate_repeat_determinism(config, all_rows);
         }
 
-        const std::filesystem::path csv_path =
-            out_dir / (config.experiment.run_tag + "_comparative_metrics.csv");
-
-        write_rows_csv(csv_path, all_rows);
-
-        const std::filesystem::path table_path =
-            out_dir / (config.experiment.run_tag + "_publication_table.csv");
-        write_publication_table(table_path, all_rows);
-
-        const std::filesystem::path summary_json =
-            out_dir / (config.experiment.run_tag + "_summary.json");
-        write_summary_json(summary_json, config, cfg_hash, all_rows);
-
-        if (!config.dataset.latex_data_dir.empty())
-        {
-            const std::filesystem::path latex_dir =
-                std::filesystem::path(config.dataset.latex_data_dir);
-            write_latex_exports(latex_dir, config.experiment.run_tag, config, all_rows);
-            write_pgfplots_summary_dat(
-                latex_dir / (config.experiment.run_tag + "_summary.dat"), all_rows);
-            write_pgfplots_sweep_dat(
-                latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
-        }
-
-        NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() + ", " +
-                    table_path.string() + ", " + summary_json.string());
+        write_experiment_outputs(config, cfg_hash, all_rows, out_dir);
 
         flushProgressAsync();
         return 0;

@@ -57,36 +57,20 @@ void write_paraconsistent_csv(const std::string& results_dir,
     }
 }
 
-void write_summary_json(const std::string& results_dir,
-    const std::string& run_tag,
-    const ThesisConfig& cfg,
-    const std::vector<ClassificationResult>& results,
-    const std::vector<ParaconsistentScore>& scores,
-    int n_subjects,
-    int n_stimuli,
-    size_t n_samples,
-    std::size_t config_hash)
+namespace
 {
-    ensure_dir(results_dir);
-    std::string path = results_dir + "/e05_" + run_tag + "_summary.json";
 
+// Run identity/config metadata (run tag, seed, modality, resolved training config, and the
+// feature-extraction config actually used) — recorded so a summary file is self-describing.
+auto build_run_metadata_json(const ThesisConfig& cfg) -> nlohmann::json
+{
     nlohmann::json j;
     j["run_tag"] = cfg.experiment.run_tag;
     j["seed"] = cfg.experiment.seed;
-    j["config_hash"] = config_hash; // provenance/determinism (Guayaquil parity)
     j["modality"] = cfg.dataset.modality;
     j["strategy"] = cfg.feature_extraction.strategy;
     j["classifier"] = cfg.classifier.type;
     j["text_mode"] = cfg.classifier.text_mode;
-
-    // Dataset composition actually fed to this run — after load_dataset drops
-    // trials missing either audio or EEG (paired-samples guarantee), so the
-    // count here can be lower than the raw .mat trial count.
-    j["dataset"] = {
-        {"n_subjects", n_subjects},
-        {"n_stimuli", n_stimuli},
-        {"n_samples", n_samples},
-    };
 
     // Training config actually used, recorded so a result file is self-describing and
     // reproducible from itself. `learning_rate` is the RESOLVED value
@@ -142,55 +126,95 @@ void write_summary_json(const std::string& results_dir,
         }
     }
 
+    return j;
+}
+
+auto build_fold_entry_json(const FoldResult& fold) -> nlohmann::json
+{
+    nlohmann::json fj;
+    fj["fold"] = fold.fold;
+    fj["model_path"] = fold.model_path;
+    fj["train_ms"] = fold.train_ms;
+    fj["infer_ms"] = fold.infer_ms;
+    fj["epochs_run"] = fold.history.size();
+    if (!fold.history.empty())
+    {
+        const auto& last = fold.history.back();
+        fj["final_train_loss"] = last.train_loss;
+        if (!std::isnan(last.val_loss)) fj["final_val_loss"] = last.val_loss;
+    }
+    return fj;
+}
+
+auto build_result_entry_json(const ClassificationResult& r) -> nlohmann::json
+{
+    nlohmann::json rj;
+    rj["feature_set"] = r.feature_set_label;
+    rj["mean_accuracy"] = r.mean_accuracy;
+    rj["std_accuracy"] = r.std_accuracy;
+    rj["ci95_accuracy"] = r.ci95_accuracy;
+    rj["mean_f1"] = r.mean_f1;
+    rj["std_f1"] = r.std_f1;
+    rj["mean_precision"] = r.mean_precision;
+    rj["mean_recall"] = r.mean_recall;
+    rj["mean_specificity"] = r.mean_specificity;
+    rj["std_specificity"] = r.std_specificity;
+    rj["mean_eer"] = r.mean_eer;
+    rj["std_eer"] = r.std_eer;
+    rj["ci95_eer"] = r.ci95_eer;
+    rj["mean_auc"] = r.mean_auc;
+    rj["std_auc"] = r.std_auc;
+
+    // Run cost / complexity (Guayaquil-style): model size + mean per-fold wall-clock.
+    rj["param_count"] = r.param_count;
+    rj["mean_train_ms"] = r.mean_train_ms;
+    rj["mean_infer_ms"] = r.mean_infer_ms;
+    if (!std::isnan(r.mean_spike_rate)) // SNN classifiers only
+    {
+        rj["mean_spike_rate"] = r.mean_spike_rate;
+        rj["final_sops"] = r.final_sops;
+    }
+
+    nlohmann::json folds_arr = nlohmann::json::array();
+    for (const auto& fold : r.outer_folds)
+    {
+        folds_arr.push_back(build_fold_entry_json(fold));
+    }
+    rj["fold_models"] = folds_arr;
+    return rj;
+}
+
+} // namespace
+
+void write_summary_json(const std::string& results_dir,
+    const std::string& run_tag,
+    const ThesisConfig& cfg,
+    const std::vector<ClassificationResult>& results,
+    const std::vector<ParaconsistentScore>& scores,
+    int n_subjects,
+    int n_stimuli,
+    size_t n_samples,
+    std::size_t config_hash)
+{
+    ensure_dir(results_dir);
+    std::string path = results_dir + "/e05_" + run_tag + "_summary.json";
+
+    nlohmann::json j = build_run_metadata_json(cfg);
+    j["config_hash"] = config_hash; // provenance/determinism (Guayaquil parity)
+
+    // Dataset composition actually fed to this run — after load_dataset drops
+    // trials missing either audio or EEG (paired-samples guarantee), so the
+    // count here can be lower than the raw .mat trial count.
+    j["dataset"] = {
+        {"n_subjects", n_subjects},
+        {"n_stimuli", n_stimuli},
+        {"n_samples", n_samples},
+    };
+
     nlohmann::json results_arr = nlohmann::json::array();
     for (const auto& r : results)
     {
-        nlohmann::json rj;
-        rj["feature_set"] = r.feature_set_label;
-        rj["mean_accuracy"] = r.mean_accuracy;
-        rj["std_accuracy"] = r.std_accuracy;
-        rj["ci95_accuracy"] = r.ci95_accuracy;
-        rj["mean_f1"] = r.mean_f1;
-        rj["std_f1"] = r.std_f1;
-        rj["mean_precision"] = r.mean_precision;
-        rj["mean_recall"] = r.mean_recall;
-        rj["mean_specificity"] = r.mean_specificity;
-        rj["std_specificity"] = r.std_specificity;
-        rj["mean_eer"] = r.mean_eer;
-        rj["std_eer"] = r.std_eer;
-        rj["ci95_eer"] = r.ci95_eer;
-        rj["mean_auc"] = r.mean_auc;
-        rj["std_auc"] = r.std_auc;
-
-        // Run cost / complexity (Guayaquil-style): model size + mean per-fold wall-clock.
-        rj["param_count"] = r.param_count;
-        rj["mean_train_ms"] = r.mean_train_ms;
-        rj["mean_infer_ms"] = r.mean_infer_ms;
-        if (!std::isnan(r.mean_spike_rate)) // SNN classifiers only
-        {
-            rj["mean_spike_rate"] = r.mean_spike_rate;
-            rj["final_sops"] = r.final_sops;
-        }
-
-        nlohmann::json folds_arr = nlohmann::json::array();
-        for (const auto& fold : r.outer_folds)
-        {
-            nlohmann::json fj;
-            fj["fold"] = fold.fold;
-            fj["model_path"] = fold.model_path;
-            fj["train_ms"] = fold.train_ms;
-            fj["infer_ms"] = fold.infer_ms;
-            fj["epochs_run"] = fold.history.size();
-            if (!fold.history.empty())
-            {
-                const auto& last = fold.history.back();
-                fj["final_train_loss"] = last.train_loss;
-                if (!std::isnan(last.val_loss)) fj["final_val_loss"] = last.val_loss;
-            }
-            folds_arr.push_back(fj);
-        }
-        rj["fold_models"] = folds_arr;
-        results_arr.push_back(rj);
+        results_arr.push_back(build_result_entry_json(r));
     }
     j["results"] = results_arr;
 

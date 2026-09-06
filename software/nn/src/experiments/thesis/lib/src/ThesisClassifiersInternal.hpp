@@ -510,6 +510,166 @@ void gather_subset_std(const nn::Tensor& Xn,
     }
 }
 
+// One candidate model trained on one inner fold, plus whether it trained successfully
+// (an empty inner-train/val intersection leaves an entry with `valid == false`).
+struct InnerCandidate
+{
+    double score = -std::numeric_limits<double>::infinity();
+    std::map<std::string, nn::Tensor> state;
+    std::vector<nn::training::EpochResult> history;
+    bool valid = false;
+};
+
+// Trains one candidate model per inner fold of `outer`, in parallel. Inner folds are
+// independent (each trains its own model on its own subset), so they run in an OpenMP
+// parallel-for; every candidate's score/state is collected per fold index and returned in
+// fold order — this keeps the selected model bit-identical to a serial loop (same
+// first-wins tie-break in the caller's reduction) regardless of thread scheduling. Any
+// exception raised inside a worker is captured and rethrown once all workers have finished.
+std::vector<InnerCandidate> train_inner_candidates(const FoldContext& ctx,
+    const statistics::NestedFoldSplit& outer,
+    const std::vector<size_t>& outer_train_indices,
+    const nn::Tensor& Xn,
+    size_t outer_idx,
+    int total_outer)
+{
+    std::vector<InnerCandidate> candidates(outer.inner_splits.size());
+    std::exception_ptr inner_error;
+
+#pragma omp parallel for schedule(dynamic, 1)
+    for (long ii = 0; ii < static_cast<long>(outer.inner_splits.size()); ++ii)
+    {
+        try
+        {
+            const auto& inner_ref = outer.inner_splits[static_cast<size_t>(ii)];
+            const auto inner_train =
+                intersect_indices(inner_ref.train_indices, outer_train_indices);
+            const auto inner_val = intersect_indices(inner_ref.test_indices, outer_train_indices);
+            if (inner_train.empty() || inner_val.empty()) continue;
+
+            const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_train);
+            const auto val_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_val);
+            std::vector<std::vector<double>> val_feats;
+            std::vector<int> val_labels;
+            gather_subset_std(Xn, ctx.labels, inner_val, val_feats, val_labels);
+
+            with_classifier(ctx,
+                [&](auto& model)
+                {
+                    auto hist = train_model(model,
+                        ctx,
+                        train_pairs,
+                        val_pairs,
+                        outer_idx,
+                        total_outer,
+                        ctx.cfg.training.early_stop_patience);
+                    const EvalMetrics m =
+                        evaluate(model, val_feats, val_labels, ctx.n_speakers, ctx.scorer);
+                    auto& cand = candidates[static_cast<size_t>(ii)];
+                    cand.score = selection_score(m);
+                    cand.state = model.state_dict();
+                    cand.history = std::move(hist);
+                    cand.valid = true;
+                });
+        }
+        catch (...)
+        {
+#pragma omp critical(e05_inner_cv_error)
+            if (!inner_error) inner_error = std::current_exception();
+        }
+    }
+    if (inner_error) std::rethrow_exception(inner_error);
+
+    return candidates;
+}
+
+// Reduces the per-inner-fold candidates to the single best (highest validation score),
+// first-wins on ties, matching the original serial-loop selection order.
+const InnerCandidate* select_best_candidate(const std::vector<InnerCandidate>& candidates)
+{
+    double best_val_score = -std::numeric_limits<double>::infinity();
+    const InnerCandidate* best_cand = nullptr;
+    for (const auto& cand : candidates)
+    {
+        if (!cand.valid) continue;
+        if (best_cand == nullptr || cand.score > best_val_score)
+        {
+            best_val_score = cand.score;
+            best_cand = &cand;
+        }
+    }
+    return best_cand;
+}
+
+// Processes a single outer fold: trains the inner-CV candidates, selects the best by
+// validation score, then scores it once on the held-out outer test fold, appending the
+// resulting FoldResult to `result.outer_folds`. Silently skips this fold (same as the
+// original serial loop) when it has no outer-train/test rows, or no inner candidate
+// trained successfully.
+void run_one_outer_fold(const FoldContext& ctx,
+    ClassificationResult& result,
+    const std::vector<size_t>& text_test_indices,
+    const statistics::NestedFoldSplit& outer,
+    size_t outer_idx,
+    int total_outer)
+{
+    // Outer-train = every sample not held out as outer test.
+    std::vector<size_t> outer_train_indices;
+    outer_train_indices.reserve(ctx.view.samples.size() - outer.test_indices.size());
+    for (size_t i = 0; i < ctx.view.samples.size(); ++i)
+        if (!std::binary_search(outer.test_indices.begin(), outer.test_indices.end(), i))
+            outer_train_indices.push_back(i);
+
+    // Keep only test samples whose phrase belongs to the text-split test set.
+    const auto outer_test_indices = intersect_indices(outer.test_indices, text_test_indices);
+    if (outer_train_indices.empty() || outer_test_indices.empty()) return;
+
+    // Standardize features with statistics fit on the outer-train rows only,
+    // so the outer test fold never leaks into the scaler (audit G1). One
+    // scaler per outer fold keeps the model and its test set on the same scale.
+    const FeatureScaler scaler = make_fold_scaler(ctx, outer_train_indices);
+    const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
+
+    std::vector<std::vector<double>> test_feats;
+    std::vector<int> test_labels;
+    gather_subset_std(Xn, ctx.labels, outer_test_indices, test_feats, test_labels);
+
+    // ── Inner loop: train one candidate per inner fold, keep the best ──
+    const auto train_t0 = std::chrono::steady_clock::now();
+    const std::vector<InnerCandidate> candidates =
+        train_inner_candidates(ctx, outer, outer_train_indices, Xn, outer_idx, total_outer);
+    const InnerCandidate* best_cand = select_best_candidate(candidates);
+
+    if (best_cand == nullptr) return;
+
+    FoldResult fr;
+    fr.fold = static_cast<int>(outer_idx);
+    // train_ms covers the whole inner-CV region that produced the selected model
+    // (parallel wall-clock); the winner's learning curve is its inner-training history.
+    fr.train_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - train_t0)
+            .count();
+    fr.history = best_cand->history;
+
+    // ── Outer eval: reload the selected model and score the test fold once ──
+    const auto infer_t0 = std::chrono::steady_clock::now();
+    const EvalMetrics em = with_classifier(ctx,
+        [&](auto& model)
+        {
+            model.load_state_dict(best_cand->state);
+            const EvalMetrics m =
+                evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
+            save_fold_model(model.state_dict(), ctx, fr);
+            return m;
+        });
+    fr.infer_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - infer_t0)
+            .count();
+    set_fold_metrics(fr, em);
+    result.outer_folds.push_back(fr);
+    advance_global_bar(ctx);
+}
+
 // Nested k-fold CV: an inner loop selects the best model by validation score; the
 // selected model is then scored once on the held-out outer test fold. Gives an
 // unbiased performance estimate when hyperparameters are tuned on the inner folds.
@@ -528,131 +688,8 @@ void run_nested_cv(const FoldContext& ctx,
 
     for (size_t outer_idx = 0; outer_idx < nested_splits.size(); ++outer_idx)
     {
-        const auto& outer = nested_splits[outer_idx];
-
-        // Outer-train = every sample not held out as outer test.
-        std::vector<size_t> outer_train_indices;
-        outer_train_indices.reserve(ctx.view.samples.size() - outer.test_indices.size());
-        for (size_t i = 0; i < ctx.view.samples.size(); ++i)
-            if (!std::binary_search(outer.test_indices.begin(), outer.test_indices.end(), i))
-                outer_train_indices.push_back(i);
-
-        // Keep only test samples whose phrase belongs to the text-split test set.
-        const auto outer_test_indices = intersect_indices(outer.test_indices, text_test_indices);
-        if (outer_train_indices.empty() || outer_test_indices.empty()) continue;
-
-        // Standardize features with statistics fit on the outer-train rows only,
-        // so the outer test fold never leaks into the scaler (audit G1). One
-        // scaler per outer fold keeps the model and its test set on the same scale.
-        const FeatureScaler scaler = make_fold_scaler(ctx, outer_train_indices);
-        const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
-
-        std::vector<std::vector<double>> test_feats;
-        std::vector<int> test_labels;
-        gather_subset_std(Xn, ctx.labels, outer_test_indices, test_feats, test_labels);
-
-        // ── Inner loop: train one candidate per inner fold, keep the best ──
-        // Inner folds are independent (each trains its own model on its own
-        // subset), so they run in parallel. Every candidate's score and state
-        // are collected per fold index, then reduced serially in fold order —
-        // this keeps the selected model bit-identical to the old serial loop
-        // (same first-wins tie-break) regardless of thread scheduling.
-        const auto train_t0 = std::chrono::steady_clock::now();
-        struct InnerCandidate
-        {
-            double score = -std::numeric_limits<double>::infinity();
-            std::map<std::string, nn::Tensor> state;
-            std::vector<nn::training::EpochResult> history;
-            bool valid = false;
-        };
-        std::vector<InnerCandidate> candidates(outer.inner_splits.size());
-        std::exception_ptr inner_error;
-
-#pragma omp parallel for schedule(dynamic, 1)
-        for (long ii = 0; ii < static_cast<long>(outer.inner_splits.size()); ++ii)
-        {
-            try
-            {
-                const auto& inner_ref = outer.inner_splits[static_cast<size_t>(ii)];
-                const auto inner_train =
-                    intersect_indices(inner_ref.train_indices, outer_train_indices);
-                const auto inner_val =
-                    intersect_indices(inner_ref.test_indices, outer_train_indices);
-                if (inner_train.empty() || inner_val.empty()) continue;
-
-                const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_train);
-                const auto val_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_val);
-                std::vector<std::vector<double>> val_feats;
-                std::vector<int> val_labels;
-                gather_subset_std(Xn, ctx.labels, inner_val, val_feats, val_labels);
-
-                with_classifier(ctx,
-                    [&](auto& model)
-                    {
-                        auto hist = train_model(model,
-                            ctx,
-                            train_pairs,
-                            val_pairs,
-                            outer_idx,
-                            total_outer,
-                            ctx.cfg.training.early_stop_patience);
-                        const EvalMetrics m =
-                            evaluate(model, val_feats, val_labels, ctx.n_speakers, ctx.scorer);
-                        auto& cand = candidates[static_cast<size_t>(ii)];
-                        cand.score = selection_score(m);
-                        cand.state = model.state_dict();
-                        cand.history = std::move(hist);
-                        cand.valid = true;
-                    });
-            }
-            catch (...)
-            {
-#pragma omp critical(e05_inner_cv_error)
-                if (!inner_error) inner_error = std::current_exception();
-            }
-        }
-        if (inner_error) std::rethrow_exception(inner_error);
-
-        double best_val_score = -std::numeric_limits<double>::infinity();
-        const InnerCandidate* best_cand = nullptr;
-        for (const auto& cand : candidates)
-        {
-            if (!cand.valid) continue;
-            if (best_cand == nullptr || cand.score > best_val_score)
-            {
-                best_val_score = cand.score;
-                best_cand = &cand;
-            }
-        }
-
-        if (best_cand == nullptr) continue;
-
-        FoldResult fr;
-        fr.fold = static_cast<int>(outer_idx);
-        // train_ms covers the whole inner-CV region that produced the selected model
-        // (parallel wall-clock); the winner's learning curve is its inner-training history.
-        fr.train_ms =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - train_t0)
-                .count();
-        fr.history = best_cand->history;
-
-        // ── Outer eval: reload the selected model and score the test fold once ──
-        const auto infer_t0 = std::chrono::steady_clock::now();
-        const EvalMetrics em = with_classifier(ctx,
-            [&](auto& model)
-            {
-                model.load_state_dict(best_cand->state);
-                const EvalMetrics m =
-                    evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
-                save_fold_model(model.state_dict(), ctx, fr);
-                return m;
-            });
-        fr.infer_ms =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - infer_t0)
-                .count();
-        set_fold_metrics(fr, em);
-        result.outer_folds.push_back(fr);
-        advance_global_bar(ctx);
+        run_one_outer_fold(
+            ctx, result, text_test_indices, nested_splits[outer_idx], outer_idx, total_outer);
     }
 }
 

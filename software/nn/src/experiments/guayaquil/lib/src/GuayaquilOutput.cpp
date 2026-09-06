@@ -81,6 +81,167 @@ auto avg(const Aggregated& a, Getter getter) -> double
     return getter(a) / static_cast<double>(a.count);
 }
 
+void write_summary_by_model_csv(
+    const std::filesystem::path& summary_path, const std::vector<ResultRow>& rows)
+{
+    std::map<std::string, Aggregated> by_model;
+    for (const auto& row : rows)
+    {
+        by_model[model_label(row)].add(row);
+    }
+
+    std::ofstream out(summary_path);
+    out << "model,mse,mae,r2,spike_rate,energy,infer_ms,train_ms,param_count,macs\n";
+    out << std::fixed << std::setprecision(6);
+    for (const auto& [model, agg] : by_model)
+    {
+        out << model << ',' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+    }
+}
+
+void write_recon_and_efficiency_by_encoding_csv(const std::filesystem::path& recon_path,
+    const std::filesystem::path& eff_path,
+    const std::vector<ResultRow>& rows)
+{
+    std::map<std::string, Aggregated> by_model_encoding;
+    for (const auto& row : rows)
+    {
+        const std::string key = model_label(row) + "|" + row.encoding;
+        by_model_encoding[key].add(row);
+    }
+
+    std::ofstream recon(recon_path);
+    std::ofstream eff(eff_path);
+    recon << "model,encoding,mse,mae,r2,f1\n";
+    eff << "model,encoding,spike_rate,energy,param_count,macs\n";
+
+    recon << std::fixed << std::setprecision(6);
+    eff << std::fixed << std::setprecision(6);
+
+    for (const auto& [key, agg] : by_model_encoding)
+    {
+        const std::size_t pos = key.find('|');
+        const std::string model = key.substr(0, pos);
+        const std::string encoding = key.substr(pos + 1);
+        recon << model << ',' << encoding << ','
+              << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
+              << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
+              << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
+              << avg(agg, [](const Aggregated& a) { return a.f1; }) << '\n';
+
+        eff << model << ',' << encoding << ','
+            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+    }
+}
+
+void write_mse_plot_csv(
+    const std::filesystem::path& mse_plot_path, const std::vector<ResultRow>& rows)
+{
+    std::map<std::string, Aggregated> by_encoding;
+    for (const auto& row : rows)
+    {
+        const std::string model = model_label(row);
+        by_encoding[row.encoding + "|" + model].add(row);
+    }
+
+    std::ofstream out(mse_plot_path);
+    out << "encoding,lstm_ae,snn_dense,snn_conv1d,snn_recurrent\n";
+    out << std::fixed << std::setprecision(6);
+    const std::vector<std::string> encodings = {"direct", "poisson", "latency"};
+    for (const auto& encoding : encodings)
+    {
+        auto get_mse = [&](const std::string& model_key)
+        {
+            const auto it = by_encoding.find(encoding + "|" + model_key);
+            if (it == by_encoding.end()) return 0.0;
+            return avg(it->second, [](const Aggregated& a) { return a.mse; });
+        };
+        out << encoding << ',' << get_mse("LSTM-AE") << ',' << get_mse("SNN-dense") << ','
+            << get_mse("SNN-conv1d") << ',' << get_mse("SNN-recurrent") << '\n';
+    }
+}
+
+void write_sweep_alpha_csv(
+    const std::filesystem::path& sweep_path, const std::vector<ResultRow>& rows)
+{
+    std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
+    for (const auto& row : rows)
+    {
+        if (row.model != "snn-ae") continue;
+        if (row.encoding != "direct") continue;
+        if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
+        by_alpha_arch[row.alpha][row.architecture].add(row);
+    }
+
+    std::ofstream out(sweep_path);
+    out << "alpha,dense,conv1d,recurrent\n";
+    out << std::fixed << std::setprecision(6);
+    for (const auto& [alpha, arch_map] : by_alpha_arch)
+    {
+        auto get_mse = [&](const std::string& arch)
+        {
+            const auto it = arch_map.find(arch);
+            if (it == arch_map.end()) return 0.0;
+            return avg(it->second, [](const Aggregated& a) { return a.mse; });
+        };
+        out << alpha << ',' << get_mse("dense") << ',' << get_mse("conv1d") << ','
+            << get_mse("recurrent") << '\n';
+    }
+}
+
+void write_backend_timing_csv(
+    const std::filesystem::path& backend_path, const std::vector<ResultRow>& rows)
+{
+    std::map<std::string, Aggregated> by_backend_model;
+    for (const auto& row : rows)
+    {
+        const std::string key = row.backend + "|" + model_label(row);
+        by_backend_model[key].add(row);
+    }
+
+    std::ofstream out(backend_path);
+    out << "backend,model,train_ms,infer_ms\n";
+    out << std::fixed << std::setprecision(6);
+    for (const auto& [key, agg] : by_backend_model)
+    {
+        const std::size_t pos = key.find('|');
+        const std::string backend = key.substr(0, pos);
+        const std::string model = key.substr(pos + 1);
+        out << backend << ',' << model << ','
+            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << '\n';
+    }
+}
+
+void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_path,
+    const std::string& run_tag,
+    const GuayaquilConfig& cfg,
+    const std::vector<ResultRow>& rows)
+{
+    std::ofstream out(profile_manifest_path);
+    out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,"
+           "window_size,train_samples,val_samples,backend\n";
+    out << run_tag << ',' << cfg.experiment.seed << ',' << cfg.experiment.repeats << ',' << '"'
+        << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
+        << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
+        << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
+        << join_values(cfg.evaluation.v_th_values) << '"' << ',' << '"'
+        << join_values(cfg.evaluation.alpha_values) << '"' << ',' << cfg.dataset.window_size << ','
+        << cfg.dataset.max_loaded_train_samples << ',' << cfg.dataset.max_validation_samples << ','
+        << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
+}
+
 } // namespace
 
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
@@ -202,152 +363,12 @@ void write_latex_exports(const std::filesystem::path& dir,
     const fs::path backend_path = dir / (run_tag + "_backend_timing.csv");
     const fs::path profile_manifest_path = dir / (run_tag + "_profile_manifest.csv");
 
-    {
-        std::map<std::string, Aggregated> by_model;
-        for (const auto& row : rows)
-        {
-            by_model[model_label(row)].add(row);
-        }
-
-        std::ofstream out(summary_path);
-        out << "model,mse,mae,r2,spike_rate,energy,infer_ms,train_ms,param_count,macs\n";
-        out << std::fixed << std::setprecision(6);
-        for (const auto& [model, agg] : by_model)
-        {
-            out << model << ',' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
-        }
-    }
-
-    {
-        std::map<std::string, Aggregated> by_model_encoding;
-        for (const auto& row : rows)
-        {
-            const std::string key = model_label(row) + "|" + row.encoding;
-            by_model_encoding[key].add(row);
-        }
-
-        std::ofstream recon(recon_path);
-        std::ofstream eff(eff_path);
-        recon << "model,encoding,mse,mae,r2,f1\n";
-        eff << "model,encoding,spike_rate,energy,param_count,macs\n";
-
-        recon << std::fixed << std::setprecision(6);
-        eff << std::fixed << std::setprecision(6);
-
-        for (const auto& [key, agg] : by_model_encoding)
-        {
-            const std::size_t pos = key.find('|');
-            const std::string model = key.substr(0, pos);
-            const std::string encoding = key.substr(pos + 1);
-            recon << model << ',' << encoding << ','
-                  << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
-                  << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
-                  << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
-                  << avg(agg, [](const Aggregated& a) { return a.f1; }) << '\n';
-
-            eff << model << ',' << encoding << ','
-                << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
-        }
-    }
-
-    {
-        std::map<std::string, Aggregated> by_encoding;
-        for (const auto& row : rows)
-        {
-            const std::string model = model_label(row);
-            by_encoding[row.encoding + "|" + model].add(row);
-        }
-
-        std::ofstream out(mse_plot_path);
-        out << "encoding,lstm_ae,snn_dense,snn_conv1d,snn_recurrent\n";
-        out << std::fixed << std::setprecision(6);
-        const std::vector<std::string> encodings = {"direct", "poisson", "latency"};
-        for (const auto& encoding : encodings)
-        {
-            auto get_mse = [&](const std::string& model_key)
-            {
-                const auto it = by_encoding.find(encoding + "|" + model_key);
-                if (it == by_encoding.end()) return 0.0;
-                return avg(it->second, [](const Aggregated& a) { return a.mse; });
-            };
-            out << encoding << ',' << get_mse("LSTM-AE") << ',' << get_mse("SNN-dense") << ','
-                << get_mse("SNN-conv1d") << ',' << get_mse("SNN-recurrent") << '\n';
-        }
-    }
-
-    {
-        std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
-        for (const auto& row : rows)
-        {
-            if (row.model != "snn-ae") continue;
-            if (row.encoding != "direct") continue;
-            if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
-            by_alpha_arch[row.alpha][row.architecture].add(row);
-        }
-
-        std::ofstream out(sweep_path);
-        out << "alpha,dense,conv1d,recurrent\n";
-        out << std::fixed << std::setprecision(6);
-        for (const auto& [alpha, arch_map] : by_alpha_arch)
-        {
-            auto get_mse = [&](const std::string& arch)
-            {
-                const auto it = arch_map.find(arch);
-                if (it == arch_map.end()) return 0.0;
-                return avg(it->second, [](const Aggregated& a) { return a.mse; });
-            };
-            out << alpha << ',' << get_mse("dense") << ',' << get_mse("conv1d") << ','
-                << get_mse("recurrent") << '\n';
-        }
-    }
-
-    {
-        std::map<std::string, Aggregated> by_backend_model;
-        for (const auto& row : rows)
-        {
-            const std::string key = row.backend + "|" + model_label(row);
-            by_backend_model[key].add(row);
-        }
-
-        std::ofstream out(backend_path);
-        out << "backend,model,train_ms,infer_ms\n";
-        out << std::fixed << std::setprecision(6);
-        for (const auto& [key, agg] : by_backend_model)
-        {
-            const std::size_t pos = key.find('|');
-            const std::string backend = key.substr(0, pos);
-            const std::string model = key.substr(pos + 1);
-            out << backend << ',' << model << ','
-                << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
-                << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << '\n';
-        }
-    }
-
-    {
-        std::ofstream out(profile_manifest_path);
-        out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,"
-               "window_size,train_samples,val_samples,backend\n";
-        out << run_tag << ',' << cfg.experiment.seed << ',' << cfg.experiment.repeats << ',' << '"'
-            << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
-            << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
-            << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
-            << join_values(cfg.evaluation.v_th_values) << '"' << ',' << '"'
-            << join_values(cfg.evaluation.alpha_values) << '"' << ',' << cfg.dataset.window_size
-            << ',' << cfg.dataset.max_loaded_train_samples << ','
-            << cfg.dataset.max_validation_samples << ','
-            << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
-    }
+    write_summary_by_model_csv(summary_path, rows);
+    write_recon_and_efficiency_by_encoding_csv(recon_path, eff_path, rows);
+    write_mse_plot_csv(mse_plot_path, rows);
+    write_sweep_alpha_csv(sweep_path, rows);
+    write_backend_timing_csv(backend_path, rows);
+    write_profile_manifest_csv(profile_manifest_path, run_tag, cfg, rows);
 }
 
 void write_pgfplots_summary_dat(
