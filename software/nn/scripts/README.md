@@ -121,7 +121,7 @@ Publishes `.claude/commands/*.md` and `.github/skills/*` to global Claude and Op
 bash scripts/dev/export_wiki_for_anytype.sh --clean
 ```
 
-Default output: `out/anytype/wiki/`. Options: `--source`, `--output`, `--include-graphify-out`, `--dry-run`.
+Default output: `out/anytype/wiki/`. Options: `--source`, `--output`, `--dry-run`.
 
 ---
 

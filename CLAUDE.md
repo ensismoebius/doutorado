@@ -40,7 +40,7 @@ Long-running commands (full pipeline ~2.5h, `timeout 600+`, `01_guayaquil_run_ar
 software/nn/         C++20 SNN/ML framework — primary codebase
   CLAUDE.md          Full technical rules (build, layers, SNN, tests, wiki)
   AGENTS.md          OpenCode guidance (build commands, conventions)
-  .wiki/             Documentation wiki + graphify knowledge graph
+  .wiki/             Documentation wiki
   include/           Backend-agnostic public headers
   src/               Implementation + experiments (00–05)
   results/           Experiment outputs (JSON, CSV, .npy)

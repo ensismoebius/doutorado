@@ -42,22 +42,6 @@ Project Context (nn framework)
 
 **Grad zeroing:** Gradient w.r.t. R and C is zeroed when the forward clamp fires. Optimizer cannot pull them back from boundary — log a `WARN` if clamp fires frequently.
 
-**Wiki & knowledge graph:**
-- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
-- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
-- Find any symbol/concept:
-```bash
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for n in g['nodes']:
-    if q in n['id'].lower() or q in n.get('label','').lower():
-        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
-" <QUERY>
-```
-- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
-
 Key Files to Fix
 
 - [include/nn/layers/spiking/LeakyBPTT.hpp](include/nn/layers/spiking/LeakyBPTT.hpp) — forward-time clamping of R/C (move to post-step projection)

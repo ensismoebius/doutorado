@@ -15,8 +15,6 @@ Project Context (nn framework)
 - `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
 - `Wavelet-Decomposition.md` — wavelet packet feature extraction
 
-**Knowledge graph:** `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
-
 **Staleness check** — before editing a page that documents a specific source file, compare `git_log(path=<source file>)` against `git_log(path=<wiki page>)` (MCP): if the source's latest commit is newer than the wiki page's, the page's code snippets/behavior claims may already be stale — re-verify against current source rather than trusting what the page says. Cheaper than diffing the whole file by eye.
 
 **Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
@@ -25,7 +23,6 @@ cd .wiki && python3 -c "
 import os, re
 pages = []
 for root, dirs, files in os.walk('.'):
-    dirs[:] = [d for d in dirs if d != 'graphify-out']
     for f in files:
         if f.endswith('.md'): pages.append(os.path.join(root,f).lstrip('./'))
 link_pat = re.compile(r'\[.*?\]\(([^)]+\.md[^)]*)\)')

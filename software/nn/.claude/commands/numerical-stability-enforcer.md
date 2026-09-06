@@ -17,22 +17,6 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 - `SpikeTimeLoss`: latency must be clamped to `[0, T-1]`; out-of-range = undefined behavior
 - `CrossEntropyLoss`: `log(p + kEps)` in forward; already implemented
 
-**Wiki & knowledge graph:**
-- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
-- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
-- Find any symbol/concept:
-```bash
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for n in g['nodes']:
-    if q in n['id'].lower() or q in n.get('label','').lower():
-        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
-" <QUERY>
-```
-- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
-
 ## Rules
 
 - **UNIFIED_EPSILON**: Use a single project-wide epsilon constant (e.g., `nn::kEps = 1e-7f`) instead of per-file magic numbers. No inline `1e-6`, `1e-8`, or similar literals scattered across layers.

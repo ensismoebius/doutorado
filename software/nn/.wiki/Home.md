@@ -226,27 +226,6 @@ cmake --build --preset=max-performance -j$(nproc)
 ctest --test-dir out/build/max-performance --output-on-failure -j4
 ```
 
-## Knowledge Graph
-
-The wiki includes an integrated knowledge graph powered by graphify:
-
-- **[graphify-out/graph.html](./graphify-out/graph.html)** - Interactive visualization
-- **[graphify-out/GRAPH_REPORT.md](./graphify-out/GRAPH_REPORT.md)** - God nodes, communities, surprising connections
-
-### Query the Graph
-
-Start MCP server for agent access:
-```bash
-python -m graphify.serve .wiki/graphify-out/graph.json
-```
-
-Query from agent:
-```
-/graphify query "tensor operations"
-/graphify path "Tensor" "Optimizer"
-/graphify explain "Lif"
-```
-
 ## License
 
 MIT License

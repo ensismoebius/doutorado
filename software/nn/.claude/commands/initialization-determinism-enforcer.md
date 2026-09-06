@@ -19,22 +19,6 @@ Ensure every layer parameter initialization respects the `random_seed` declared 
 - `false` — article runs (random init, multiple runs averaged)
 - `true` — debugging only (reproducible single run for diff comparison)
 
-**Wiki & knowledge graph:**
-- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
-- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
-- Find any symbol/concept:
-```bash
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for n in g['nodes']:
-    if q in n['id'].lower() or q in n.get('label','').lower():
-        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
-" <QUERY>
-```
-- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
-
 ## Rules
 
 - **SEED_MANDATORY**: Every experiment config must declare `random_seed`. No initialization without an explicit seed in the config.

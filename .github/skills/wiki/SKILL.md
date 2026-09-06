@@ -19,15 +19,12 @@ Project Context (nn framework)
 - `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
 - `Wavelet-Decomposition.md` — wavelet packet feature extraction
 
-**Knowledge graph:** `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
-
 **Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
 ```bash
 cd .wiki && python3 -c "
 import os, re
 pages = []
 for root, dirs, files in os.walk('.'):
-    dirs[:] = [d for d in dirs if d != 'graphify-out']
     for f in files:
         if f.endswith('.md'): pages.append(os.path.join(root,f).lstrip('./'))
 link_pat = re.compile(r'\[.*?\]\(([^)]+\.md[^)]*)\)')

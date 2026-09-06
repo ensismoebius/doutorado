@@ -28,7 +28,6 @@ SKILLS=(
     filesystem-layout-enforcer
     fold-metadata-tracker
     gradient-flow-validator
-    graphify
     hyperparameter-search-logger
     initialization-determinism-enforcer
     logging

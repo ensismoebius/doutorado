@@ -7,10 +7,6 @@ build-debug/
 build-*/
 out/
 
-# Graphify plugin intermediates (finals in .wiki/graphify-out/)
-.graphify_*.json
-graphify_server.log
-
 # Python
 __pycache__/
 *.pyc

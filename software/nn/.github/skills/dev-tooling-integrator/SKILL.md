@@ -31,7 +31,6 @@ Project Context (nn framework)
 - `clang-format` — via `scripts/dev/clang-format-changed.sh`; staged files only
 - `ccache` — wired in CMake presets; clear with `cmake --build ... --target clean-cache`
 - `ctest` — test runner; use `-R <pattern>` to target specific tests
-- `graphify` — knowledge graph generation; see `.opencode/plugins/graphify.js`
 
 **Static analysis:**
 - `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy

@@ -48,22 +48,6 @@ Project Context (nn framework)
 - `run_build` / `run_tests` / `run_lint` / `run_format` / `detect_toolchain` — structured build/test/lint output, not raw logs (`run_lint`/`run_format` cover Python only; C++ still goes through `analysis-all`/`clang-format-changed.sh`)
 - `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — repo state/history/diff without shelling out to `git`
 
-**Wiki & knowledge graph** (concepts, papers, docs — not code symbols; use the MCP tools above for those):
-- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
-- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
-- Find any symbol/concept:
-```bash
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for n in g['nodes']:
-    if q in n['id'].lower() or q in n.get('label','').lower():
-        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
-" <QUERY>
-```
-- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
-
 Required Output Structure
 
 ```

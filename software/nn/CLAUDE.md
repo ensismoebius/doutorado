@@ -49,36 +49,6 @@ Caveman active (full). Terse responses. Drop articles, filler, hedging. Technica
 
 ---
 
-## Graphify knowledge graph
-
-Output: `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities.
-
-```bash
-# Find nodes by label
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for n in g['nodes']:
-    if q in n['id'].lower() or q in n.get('label','').lower():
-        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
-" <QUERY>
-
-# Find edges from/to node
-python3 -c "
-import json,sys
-with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
-q=sys.argv[1].lower()
-for e in g['links']:
-    if q in e['source'].lower() or q in e['target'].lower():
-        print(e['source'],'--['+e.get('type','?')+']-->',e['target'])
-" <NODE_ID>
-```
-
-Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges.
-
----
-
 ## OpenCL: safety rules (READ FIRST)
 
 Full detail: `.wiki/Guides/OpenCL-Debugging-And-Performance.md`.
@@ -329,7 +299,6 @@ src/experiments/
 
 results/             Experiment output (JSON, CSV, .npy)
 .wiki/               Documentation wiki (keep in sync with code changes)
-  graphify-out/      Knowledge graph files
 scripts/             Analysis scripts (Python + bash)
 cmake/               Modular CMake includes
 ```
@@ -352,7 +321,6 @@ When adding/changing any layer, loss, optimizer, or training feature:
 1. Update `.wiki/Core/Layers.md` (or relevant Core/ page)
 2. Update `.wiki/References.md` if new citations added
 3. Update concept page in `.wiki/Concepts/` if theory changed
-4. Run graphify if structure changed significantly: check `.opencode/plugins/graphify.js` for invocation
 
 ---
 
@@ -377,7 +345,6 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Surrogate gradients | `include/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` |
 | Paraconsistent logic | `include/paraconsistent/` |
 | Wiki | `.wiki/` |
-| Graphify output | `.wiki/graphify-out/` |
 | CMake presets | `CMakePresets.json` |
 | Exp04 dataset loading | `src/experiments/guayaquil/lib/src/GuayaquilDataset.cpp` |
 | Exp04 encoding transforms | `src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp` |

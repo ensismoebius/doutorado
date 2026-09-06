@@ -36,7 +36,6 @@ Project Context (nn framework)
 - `clang-format` — via `scripts/dev/clang-format-changed.sh`; staged files only
 - `ccache` — wired in CMake presets; clear with `cmake --build ... --target clean-cache`
 - `ctest` — test runner; use `-R <pattern>` to target specific tests, or `run_tests(filter=...)` (MCP) for a structured result
-- `graphify` — knowledge graph generation; see `.opencode/plugins/graphify.js`
 
 **Static analysis:**
 - `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy (C++-specific; the MCP's own `get_violations`/`summarize_violations` are a separate, cross-language, structural pass — naming/docs/LOC/duplication — run both, they catch different things)

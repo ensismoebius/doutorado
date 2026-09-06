@@ -235,8 +235,8 @@ correctness > clarity > compression
 
 Minimize tokens. Preserve semantics. Never break correctness.
 
-## graphify
+## code_intelligence
 
-Before answering architecture or codebase questions, read `graphify-out/GRAPH_REPORT.md` if it exists.
-If `graphify-out/wiki/index.md` exists, navigate it for deep questions.
-Type `/graphify` in Copilot Chat to build or update the knowledge graph.
+Before answering architecture or codebase questions, prefer the `code_intelligence`
+MCP (`find_symbol`/`search_text`/`get_violations`/`find_references`/`ast_search`)
+over reading whole files — persistent, incremental, symbol-oriented.

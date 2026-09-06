@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # export_wiki_for_anytype.sh — Export .wiki/ Markdown to Anytype-compatible layout.
 #
-# Copies .wiki/ pages (optionally including graphify-out/) to out/anytype/wiki/
-# with filenames and structure compatible with Anytype import.
+# Copies .wiki/ pages to out/anytype/wiki/ with filenames and structure
+# compatible with Anytype import.
 #
 # Usage:
 #   scripts/dev/export_wiki_for_anytype.sh [options]
 #   scripts/dev/export_wiki_for_anytype.sh --help
 #
 # Options:
-#   --include-graphify   Include graphify-out/ directory in export
 #   --clean              Remove output dir before export
 #   --dry-run            Show what would be copied without copying
 set -euo pipefail
@@ -19,7 +18,6 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 SOURCE_DIR="${PROJECT_ROOT}/.wiki"
 OUTPUT_DIR="${PROJECT_ROOT}/out/anytype/wiki"
-INCLUDE_GRAPHIFY_OUT=0
 CLEAN_OUTPUT=0
 DRY_RUN=0
 
@@ -32,7 +30,6 @@ Prepare a Markdown folder that can be imported into Anytype.
 Options:
   --source <dir>            Source wiki directory (default: .wiki)
   --output <dir>            Export directory (default: out/anytype/wiki)
-  --include-graphify-out    Include .wiki/graphify-out content
   --clean                   Remove output directory before export
   --dry-run                 Show what would be copied without writing files
   -h, --help                Show this help message
@@ -48,10 +45,6 @@ while [[ $# -gt 0 ]]; do
         --output)
             OUTPUT_DIR="$2"
             shift 2
-            ;;
-        --include-graphify-out)
-            INCLUDE_GRAPHIFY_OUT=1
-            shift
             ;;
         --clean)
             CLEAN_OUTPUT=1
@@ -88,10 +81,6 @@ RSYNC_ARGS=(
     -a
     --prune-empty-dirs
 )
-
-if [[ ${INCLUDE_GRAPHIFY_OUT} -ne 1 ]]; then
-    RSYNC_ARGS+=(--exclude='graphify-out/***')
-fi
 
 RSYNC_ARGS+=(
     --include='*/'
