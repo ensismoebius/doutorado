@@ -7,8 +7,8 @@ Goal
 Rules
 
 - RULE: SEARCH_TOOLING
-  DO: Use the code-intelligence MCP (`find_symbol`/`search_text`) for anything under `src/`/`include/`; `rg` only for what it doesn't index (configs, scripts, `build/`)
-  AVOID: No slow broad `find` + `grep` combos, and no `rg` for a symbol lookup the MCP already answers structured and cheaper
+  DO: Use the code-intelligence MCP (`find_symbol`/`search_text`) for anything under `src/`/`include/`; `rg` only for what it doesn't index (configs, scripts, `build/`). For a structural question ("every 2-arg call to `foo`", regardless of formatting) use `ast_search`, not a hand-built regex.
+  AVOID: No slow broad `find` + `grep` combos, no `rg` for a symbol lookup the MCP already answers structured and cheaper, and no regex asked to draw a distinction (argument count, nesting) that `ast_search`'s `$VAR`/`$$$VAR` patterns already draw for free
 - RULE: JSON_TOOLING
   DO: Use `jq` to validate/query JSON configs
   AVOID: No manual JSON parsing or string matching
@@ -31,7 +31,7 @@ Validation
 Project Context (nn framework)
 
 **Installed tools and their roles:**
-- **code-intelligence MCP** — persistent, incremental symbol index; primary tool for "where is X", "what calls X", "what's in this file" — supersedes `ctags` and most `rg` symbol searches
+- **code-intelligence MCP** — persistent, incremental symbol index; primary tool for "where is X", "what calls X", "what's in this file" — supersedes `ctags` and most `rg` symbol searches. `ast_search`/`ast_replace` add AST-pattern structural search and hash-gated rewrite (`$VAR`/`$$$VAR` patterns) across cpp/java/php/javascript/python — supersedes a hand-built regex for anything shaped like code structure, not text
 - `rg` (ripgrep) — text search outside the index: config files, scripts, `build/`, anything not source the MCP tracks
 - `clang-format` — via `scripts/dev/clang-format-changed.sh`; staged files only
 - `ccache` — wired in CMake presets; clear with `cmake --build ... --target clean-cache`

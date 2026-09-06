@@ -24,6 +24,24 @@
 
 ---
 
+## Code intelligence MCP (default, not skill-gated)
+
+`code_intelligence` is persistent and incremental (`.code-intelligence/index.sqlite3`)
+— prefer it over `Read`/`grep`/raw `git`/raw `cmake`/`ctest` for anything about the
+code itself, whenever it saves tokens, in ANY task here, C++ or Python:
+- Locate: `find_symbol` / `search_text` / `list_symbols` (each hit tagged with its enclosing symbol — replaces `grep`/`find` for indexed files, excludes `build/`/`out/`/`_deps/` automatically)
+- Read narrow: `get_source_range` / `symbol_source` / `outline_symbol` — never a full-file `Read` when a symbol or range answers it (`{"truncated": true, "recommended_ranges": [...]}` on overflow — read what it recommends)
+- Structural pattern (shape, not text): `ast_search` / `ast_replace` — `$VAR`/`$$$VAR` patterns, e.g. `"foo($A, $B)"` matches a 2-arg call to `foo` regardless of formatting/argument names, across cpp/java/php/javascript/python; prefer over a hand-built regex for anything shaped like code structure
+- Impact: `find_references` / `find_dependencies` — tagged `"exact"` (clangd/jedi/etc.) or `"heuristic"` (name-matching); never read a heuristic "0 callers" as dead code — a `run` method matched 0 callers by name once and was actually called everywhere
+- Quality/edit: `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` / `insert_lines` — hash-gated (`expected_hash`), refuses on a stale target instead of silently overwriting
+- Build/test/repo state: `run_build` / `run_tests` / `run_lint` / `run_format` / `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — structured `{status, counts, failed_tests}` instead of raw log/diff text (`run_lint`/`run_format` cover Python only; C++ still goes through `analysis-all`/`clang-format-changed.sh`)
+
+`compare_baseline(ref="HEAD~1"|"working-tree")` after any refactor: reports
+`{new_violations, resolved_violations, regressions}` — replaces a manual
+git-stash-and-rebuild diff for confirming a pure refactor changed nothing else.
+
+---
+
 ## Caveman mode
 
 Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.

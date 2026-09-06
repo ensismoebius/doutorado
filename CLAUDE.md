@@ -5,6 +5,19 @@
 Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
 `/caveman lite|full|ultra` to change.
 
+## Code intelligence MCP (default, not skill-gated)
+
+`code_intelligence` (auto-loaded skill at `.claude/skills/code-intelligence/`) is
+persistent and incremental — prefer it over `Read`/`grep`/raw `git`/raw
+`cmake`/`ctest` for anything about the code itself, whenever it saves tokens,
+in ANY task, not only when a specific skill below is invoked:
+- Locate: `find_symbol` / `search_text` / `list_symbols` (each hit tagged with its enclosing symbol — replaces `grep`/`find` for indexed files)
+- Read narrow: `get_source_range` / `symbol_source` / `outline_symbol` — never a full-file `Read` when a symbol or range answers it
+- Structural pattern (shape, not text): `ast_search` / `ast_replace` — `foo($A, $B)` matches a 2-arg call regardless of formatting; a regex asked for the same distinction either over- or under-matches
+- Impact: `find_references` / `find_dependencies` — tagged `"exact"`/`"heuristic"`; never read a heuristic "0 callers" as dead code
+- Quality/edit: `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` / `insert_lines` — hash-gated, refuses on a stale target instead of guessing
+- Build/test/repo state: `run_build` / `run_tests` / `run_lint` / `run_format` / `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — structured results instead of raw log/diff text
+
 ## Working directory
 
 Most work happens in `software/nn/`. Detailed CLAUDE.md there covers: build system, module contract, SNN invariants, tensor shapes, serialization, test conventions, wiki maintenance.
