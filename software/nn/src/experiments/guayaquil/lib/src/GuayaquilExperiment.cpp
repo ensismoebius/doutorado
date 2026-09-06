@@ -300,8 +300,8 @@ void run_lstm_combo(const GuayaquilConfig& config,
         run_bar, static_cast<float>(++completed_runs));
 }
 
-// Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
-// when LaTeX data export is configured.
+/** Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
+ *  when LaTeX data export is configured. */
 void write_snn_combo_dats(const GuayaquilConfig& config,
     const std::string& encoding,
     const std::string& architecture,
@@ -340,8 +340,8 @@ void write_snn_combo_dats(const GuayaquilConfig& config,
         train_result.history);
 }
 
-// Writes the encoder/decoder parameter dumps for one SNN combo, when model saving is
-// configured.
+/** Writes the encoder/decoder parameter dumps for one SNN combo, when model saving is
+ *  configured. */
 void save_snn_combo_models(const GuayaquilConfig& config,
     const std::string& dataset_name,
     const std::string& encoding,

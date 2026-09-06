@@ -234,26 +234,26 @@ class ChainLayersRendererMixin:
             color="black", alpha=reveal, zorder=4,
         )
 
-    def _cl_draw_bands(self, rv_graph: float, ts: float) -> None:
+    def _cl_draw_bands(self, rv_graph: float, scale: float) -> None:
         """The layer bands: the "correspondence with the layers".
 
         z1 and a1 sit inside ONE band, which is what says "these two blocks
         are the same layer" without a word of text.
         """
         for first, last, label in self._CL_BANDS:
-            x0, x1 = self._cl_band_x(first, last)
+            band_x0, band_x1 = self._cl_band_x(first, last)
             self._ax.add_patch(FancyBboxPatch(
-                (x0, self._CL_BAND_Y0), x1 - x0, self._CL_BAND_Y1 - self._CL_BAND_Y0,
+                (band_x0, self._CL_BAND_Y0), band_x1 - band_x0, self._CL_BAND_Y1 - self._CL_BAND_Y0,
                 facecolor=NEUTRAL_COLOR, edgecolor=NEUTRAL_COLOR, linewidth=1.0,
                 alpha=0.10 * max(rv_graph, 0.3), boxstyle="round,pad=0.02", zorder=0,
             ))
             self._fading_text(
-                (x0 + x1) / 2, self._CL_BAND_LABEL_Y, label, NEUTRAL_COLOR,
-                max(rv_graph, 0.3), fontsize=self._CL_FS_BAND * ts, weight="bold",
+                (band_x0 + band_x1) / 2, self._CL_BAND_LABEL_Y, label, NEUTRAL_COLOR,
+                max(rv_graph, 0.3), fontsize=self._CL_FS_BAND * scale, weight="bold",
             )
 
     def _cl_draw_forward_row(
-        self, values: dict[str, object], ts: float, rv_graph: float, hl_nodes: np.ndarray
+        self, values: dict[str, object], scale: float, rv_graph: float, hl_nodes: np.ndarray
     ) -> None:
         """Forward row: blocks, captions, and the arrows between them."""
         node_x = self._CL_NODE_X
@@ -271,7 +271,7 @@ class ChainLayersRendererMixin:
         for i, x in enumerate(node_x):
             self._fading_text(
                 x, self._CL_CAPTION_Y, self._CL_CAPTIONS[i], NEUTRAL_COLOR,
-                max(rv_graph, 0.25), fontsize=self._CL_FS_CAPTION * ts,
+                max(rv_graph, 0.25), fontsize=self._CL_FS_CAPTION * scale,
             )
             self._skeleton_box(x, self._CL_NODE_Y, w=self._CL_NODE_W, h=self._CL_NODE_H)
             if rv_graph > 0.02:
@@ -279,10 +279,10 @@ class ChainLayersRendererMixin:
                     x, self._CL_NODE_Y, self._CL_NODE_W, self._CL_NODE_H, self._CL_NODE_COLORS[i],
                     self._CL_NODE_NAMES[i], node_value[i] if node_reveal[i] > 0.02 else "",
                     rv_graph, glow=float(hl_nodes[i]),
-                    label_fs=self._CL_FS_NODE_LABEL * ts, value_fs=self._CL_FS_NODE_VALUE * ts,
+                    label_fs=self._CL_FS_NODE_LABEL * scale, value_fs=self._CL_FS_NODE_VALUE * scale,
                 )
 
-    def _cl_draw_params(self, values: dict[str, object], ts: float, hl_params: np.ndarray) -> None:
+    def _cl_draw_params(self, values: dict[str, object], scale: float, hl_params: np.ndarray) -> None:
         """Parameters, hanging under the block that uses them.
 
         Index into hl_params is the position in _CL_PARAMS, which is the
@@ -295,10 +295,10 @@ class ChainLayersRendererMixin:
                 self._CL_PARAM_W, self._CL_PARAM_H, NEUTRAL_COLOR,
                 label, f"{float(values[value_key]):+.2f}", float(values[reveal_key]),
                 glow=float(hl_params[slot_index]),
-                label_fs=self._CL_FS_PARAM_LABEL * ts, value_fs=self._CL_FS_PARAM_VALUE * ts,
+                label_fs=self._CL_FS_PARAM_LABEL * scale, value_fs=self._CL_FS_PARAM_VALUE * scale,
             )
 
-    def _cl_draw_divider_and_columns(self, rv_graph: float, rv_summary: float, ts: float) -> None:
+    def _cl_draw_divider_and_columns(self, rv_graph: float, rv_summary: float, scale: float) -> None:
         """The divider line, its caption, and the shaded backward columns.
 
         Each backward column is SHADED in its block's colour, from the
@@ -321,7 +321,7 @@ class ChainLayersRendererMixin:
             self._CL_XLIM[0] + 0.25, self._CL_DIVIDER_LABEL_Y,
             "backward: a derivada local de cada bloco, na coluna do bloco  ←",
             NEUTRAL_COLOR, max(rv_graph, 0.3) * (1.0 - rv_summary),
-            fontsize=self._CL_FS_DIVIDER * ts, weight="bold", ha="left",
+            fontsize=self._CL_FS_DIVIDER * scale, weight="bold", ha="left",
         )
 
         columns = {block for block, *_ in self._CL_CARDS}
@@ -345,7 +345,7 @@ class ChainLayersRendererMixin:
             )
 
     def _cl_draw_highway_and_cards(
-        self, values: dict[str, object], ts: float, rv_graph: float, hl_cards: np.ndarray
+        self, values: dict[str, object], scale: float, rv_graph: float, hl_cards: np.ndarray
     ) -> None:
         """The right-to-left highway arrows and the local-derivative cards."""
         node_x = self._CL_NODE_X
@@ -362,7 +362,7 @@ class ChainLayersRendererMixin:
                 node_x[block], self._CL_CARD_ROW_Y[row], self._CL_CARD_W, self._CL_CARD_H,
                 ACCENT_COLOR, label, f"{value:+.{decimals}f}", float(values[reveal_key]),
                 glow=float(hl_cards[block, row]),
-                label_fs=self._CL_FS_CARD_LABEL * ts, value_fs=self._CL_FS_CARD_VALUE * ts,
+                label_fs=self._CL_FS_CARD_LABEL * scale, value_fs=self._CL_FS_CARD_VALUE * scale,
             )
         # The highway's last arrow points into this empty slot on purpose:
         # the derivative ∂z1/∂x exists, but x is data, so the backward pass
@@ -372,50 +372,51 @@ class ChainLayersRendererMixin:
         self._fading_text(
             node_x[1], self._CL_CARD_ROW_Y[0],
             "∂z1/∂x = w1 existe,\nmas x é dado —\naqui o backward para",
-            NEUTRAL_COLOR, 0.6 * max(rv_graph, 0.2), fontsize=self._CL_FS_NOTE * ts,
+            NEUTRAL_COLOR, 0.6 * max(rv_graph, 0.2), fontsize=self._CL_FS_NOTE * scale,
         )
 
-    def _cl_draw_deltas_and_grads(self, values: dict[str, object], ts: float) -> None:
+    def _cl_draw_deltas_and_grads(self, values: dict[str, object], scale: float) -> None:
+        """The δ chips (backward accumulator) and the parameter-gradient chips."""
         node_x = self._CL_NODE_X
         for block, label, value_key, reveal_key in self._CL_DELTAS:
             reveal = float(values[reveal_key])
             self._cl_chip(
                 node_x[block], self._CL_DELTA_Y, self._CL_DELTA_W, self._CL_DELTA_H,
                 SNN_COLOR, label, f"{float(values[value_key]):+.5f}", reveal,
-                label_fs=self._CL_FS_DELTA_LABEL * ts, value_fs=self._CL_FS_DELTA_VALUE * ts,
+                label_fs=self._CL_FS_DELTA_LABEL * scale, value_fs=self._CL_FS_DELTA_VALUE * scale,
             )
         for block, slot, label, value_key, reveal_key in self._CL_GRADS:
             self._cl_chip(
                 node_x[block] + slot * self._CL_GRAD_DX, self._CL_GRAD_Y,
                 self._CL_GRAD_W, self._CL_GRAD_H, SNN_COLOR,
                 label, f"{float(values[value_key]):+.6f}", float(values[reveal_key]),
-                label_fs=self._CL_FS_GRAD_LABEL * ts, value_fs=self._CL_FS_GRAD_VALUE * ts,
+                label_fs=self._CL_FS_GRAD_LABEL * scale, value_fs=self._CL_FS_GRAD_VALUE * scale,
             )
 
-    def _cl_draw_chain_strip(self, values: dict[str, object], ts: float, rv_graph: float) -> None:
+    def _cl_draw_chain_strip(self, values: dict[str, object], scale: float, rv_graph: float) -> None:
         """The same five factors, now in multiplication order, plus the product check."""
         names = values["chain_names"]
         factors = values["chain_values"]
         rv_chain = np.asarray(values["rv_chain"], dtype=float)
         self._fading_text(
             self._CL_XLIM[0] + 0.25, self._CL_STRIP_Y, "cadeia de ∂L/∂w1:", NEUTRAL_COLOR,
-            max(rv_graph, 0.3), fontsize=self._CL_FS_STRIP_LABEL * ts, weight="bold", ha="left",
+            max(rv_graph, 0.3), fontsize=self._CL_FS_STRIP_LABEL * scale, weight="bold", ha="left",
         )
         for k, x in enumerate(self._CL_STRIP_X):
             self._cl_chip(
                 x, self._CL_STRIP_Y, self._CL_STRIP_W, self._CL_STRIP_H, ACCENT_COLOR,
                 str(names[k]), f"{float(factors[k]):+.4f}", float(rv_chain[k]),
-                label_fs=self._CL_FS_STRIP_LABEL * ts, value_fs=self._CL_FS_STRIP_VALUE * ts,
+                label_fs=self._CL_FS_STRIP_LABEL * scale, value_fs=self._CL_FS_STRIP_VALUE * scale,
             )
             if k:
                 self._fading_text(
                     (x + self._CL_STRIP_X[k - 1]) / 2, self._CL_STRIP_Y, "·", NEUTRAL_COLOR,
-                    float(rv_chain[k]), fontsize=24 * ts, weight="bold",
+                    float(rv_chain[k]), fontsize=24 * scale, weight="bold",
                 )
         rv_product = float(values["rv_chain_product"])
         self._fading_text(
             self._CL_STRIP_X[-1] + self._CL_STRIP_W / 2 + 0.35, self._CL_STRIP_Y, "=",
-            NEUTRAL_COLOR, rv_product, fontsize=20 * ts, weight="bold",
+            NEUTRAL_COLOR, rv_product, fontsize=20 * scale, weight="bold",
         )
         rv_check = float(values["rv_check"])
         self._skeleton_box(self._CL_PRODUCT_X, self._CL_STRIP_Y, w=self._CL_PRODUCT_W, h=self._CL_STRIP_H)
@@ -427,10 +428,12 @@ class ChainLayersRendererMixin:
                     (f"produto = {float(values['chain_product']):+.6f}", rv_product),
                     (f"= δ1 · x = ∂L/∂w1 = {float(values['g_w1']):+.6f}  ✓", rv_check),
                 ),
-                rv_product, fontsize=self._CL_FS_STRIP_VALUE * ts,
+                rv_product, fontsize=self._CL_FS_STRIP_VALUE * scale,
             )
 
-    def _cl_draw_summary_and_work(self, values: dict[str, object], ts: float, rv_summary: float) -> None:
+    def _cl_draw_summary_and_work(
+        self, values: dict[str, object], scale: float, rv_summary: float
+    ) -> None:
         """The general rule, revealed last, and the numeric work-shown text.
 
         The general rule goes on the divider row, in the width the
@@ -441,31 +444,31 @@ class ChainLayersRendererMixin:
             self._fading_text(
                 (self._CL_XLIM[0] + self._CL_XLIM[1]) / 2, self._CL_DIVIDER_LABEL_Y,
                 "por camada, para trás:  δ → δ · w · σ'(z)    |    por parâmetro:  ∂L/∂w = δ · entrada,   ∂L/∂b = δ · 1",
-                ACCENT_COLOR, rv_summary, fontsize=self._CL_FS_DIVIDER * ts, weight="bold",
+                ACCENT_COLOR, rv_summary, fontsize=self._CL_FS_DIVIDER * scale, weight="bold",
             )
 
         work = str(values["work_text"])
         if work:
             self._ax.text(
                 self._CL_XLIM[0] + 0.25, self._CL_WORK_Y, work, ha="left", va="top",
-                fontsize=self._CL_FS_WORK * ts, color="black", family="monospace", linespacing=1.3,
+                fontsize=self._CL_FS_WORK * scale, color="black", family="monospace", linespacing=1.3,
             )
 
     def _render_chain_layers(self, values: dict[str, object]) -> None:
         self._reset_axes(xlim=self._CL_XLIM, ylim=self._CL_YLIM)
-        ts = self._cl_type_scale()  # every fontsize below is scaled by this
+        scale = self._cl_type_scale()  # every fontsize below is scaled by this
         rv_graph = float(values["rv_graph"])
         rv_summary = float(values["rv_summary"])
         hl_nodes = np.asarray(values["hl_nodes"], dtype=float)
         hl_params = np.asarray(values["hl_params"], dtype=float)
         hl_cards = np.asarray(values["hl_cards"], dtype=float)
 
-        self._cl_draw_bands(rv_graph, ts)
-        self._cl_draw_forward_row(values, ts, rv_graph, hl_nodes)
-        self._cl_draw_params(values, ts, hl_params)
-        self._cl_draw_divider_and_columns(rv_graph, rv_summary, ts)
-        self._cl_draw_highway_and_cards(values, ts, rv_graph, hl_cards)
-        self._cl_draw_deltas_and_grads(values, ts)
-        self._cl_draw_chain_strip(values, ts, rv_graph)
-        self._cl_draw_summary_and_work(values, ts, rv_summary)
+        self._cl_draw_bands(rv_graph, scale)
+        self._cl_draw_forward_row(values, scale, rv_graph, hl_nodes)
+        self._cl_draw_params(values, scale, hl_params)
+        self._cl_draw_divider_and_columns(rv_graph, rv_summary, scale)
+        self._cl_draw_highway_and_cards(values, scale, rv_graph, hl_cards)
+        self._cl_draw_deltas_and_grads(values, scale)
+        self._cl_draw_chain_strip(values, scale, rv_graph)
+        self._cl_draw_summary_and_work(values, scale, rv_summary)
 
