@@ -62,6 +62,109 @@ def _activation_fields(z: float, target: float) -> dict[str, float]:
     return {"z": z, "y": y, "slope": slope, "grad_y": grad_y, "grad_z": grad_z}
 
 
+# Every cycle -- including repeats -- reveals each quantity and draws each
+# arrow progressively, step by step, exactly like the first: the arrows
+# reset to undrawn and the boxes fade out at the start of a new cycle, then
+# rebuild across the same 9 named steps. This is deliberate repetition, not
+# a stall or a restart of the underlying computation -- w still carries over
+# from the previous cycle's update (see
+# test_pipeline_cycle_repeats_until_close_enough_to_target), only the
+# *display* replays from empty each time. The "*_glow" fields (a halo behind
+# the box, independent of reveal -- see widgets/neuron_view.py's `glow`
+# param) ride along on top of the reveal build-up as a bonus highlight pulse
+# on whichever box is currently being narrated.
+#
+# The sigmoid-curve inset (point + tangent + gradient arrow) is a deliberate
+# exception to that reset: it is the one element that must read as
+# *continuous* across cycles -- the whole story of convergence is "watch
+# this point slide along the curve, cycle after cycle." Blanking and
+# re-revealing it every cycle like the block-diagram boxes would break
+# exactly the continuity it exists to show. So from iteration 2 on it stays
+# revealed throughout the cycle and only slides (via the normal z/y/grad_z
+# tweening) to its new position; only iteration 1 still reveals it the first
+# time, in step with the walkthrough that introduces it.
+def _build_base_frame_values(
+    iteration: int,
+    x: float,
+    w: float,
+    z: float,
+    y: float,
+    target: float,
+    diff: float,
+    loss: float,
+    slope: float,
+    grad_y: float,
+    grad_z: float,
+    grad_w: float,
+    w_updated: float,
+    lr: float,
+) -> dict[str, float | str]:
+    """The shared, unrevealed frame payload one pipeline cycle builds on."""
+    reveal_default = 0.0
+    inset_reveal_default = 1.0 if iteration > 1 else 0.0
+    return {
+        "kind": "backprop_pipeline",
+        "x": x, "w": w, "z": z, "y": y, "target": target, "diff": diff, "loss": loss,
+        "slope": slope, "grad_y": grad_y, "grad_z": grad_z, "grad_w": grad_w,
+        "w_updated": w_updated, "lr": lr, "iteration": iteration,
+        "z_reveal": reveal_default, "y_reveal": reveal_default, "target_reveal": reveal_default,
+        "diff_reveal": reveal_default, "loss_reveal": reveal_default, "grady_reveal": reveal_default,
+        "gradz_reveal": reveal_default, "gradw_reveal": reveal_default, "update_reveal": reveal_default,
+        "w_pulse": 0.0,
+        "z_glow": 0.0, "y_glow": 0.0, "target_glow": 0.0, "loss_glow": 0.0,
+        "grady_glow": 0.0, "gradz_glow": 0.0, "gradw_glow": 0.0,
+        "point_reveal": inset_reveal_default, "arrow_reveal": inset_reveal_default,
+    }
+
+
+def _build_intro_text(iteration: int, w: float) -> str:
+    """The narration for a cycle's first frame -- differs only for iteration 1."""
+    if iteration == 1:
+        return (
+            "Um neurônio com ativação sigmoide: primeiro combina w e x linearmente, "
+            "depois espreme o resultado em (0, 1) com sigma. Primeiro o forward "
+            "calcula y; depois o backward calcula o quanto mudar w."
+        )
+    return (
+        f"O mesmo neurônio, o mesmo ciclo de 9 passos — mas agora começando do "
+        f"$w = {w:g}$ que a iteração anterior deixou. É exatamente essa repetição, "
+        "iteração após iteração, que faz y se aproximar do alvo."
+    )
+
+
+def _build_update_explanation(
+    is_last_cycle: bool,
+    converged: bool,
+    iteration: int,
+    w_updated: float,
+    y: float,
+    target: float,
+    diff: float,
+) -> str:
+    """The narration for a cycle's final ("update the weight") frame."""
+    if is_last_cycle and converged:
+        return (
+            f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+            f"$w = {w_updated:g}$. Agora a saída ($y = {y:g}$) já está perto o suficiente do "
+            f"alvo ($target = {target:g}$, diferença de $|y - target| = {abs(diff):.3f}$) — "
+            f"o ciclo para de se repetir aqui."
+        )
+    if is_last_cycle:
+        return (
+            f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+            f"$w = {w_updated:g}$. A diferença ainda é $|y - target| = {abs(diff):.3f}$, mas "
+            f"chegamos ao limite de iterações mostradas neste passo a passo detalhado — a "
+            f"próxima parte continua daqui, de forma resumida."
+        )
+    return (
+        f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
+        f"$w = {w_updated:g}$, um pouco mais perto do valor que aproximaria y do alvo. "
+        f"A saída ainda está a $|y - target| = {abs(diff):.3f}$ do alvo — longe o bastante "
+        f"para o ciclo se repetir: a iteração {iteration + 1} refaz exatamente os mesmos "
+        f"9 passos, agora partindo desse w atualizado."
+    )
+
+
 class TraditionalBackpropDemo(DemoModule):
     title = "Backprop -> Forward e backward clássicos"
     slug = "backprop.classic"
@@ -102,44 +205,10 @@ class TraditionalBackpropDemo(DemoModule):
         w_updated = sgd_update(w, grad_w, self.learning_rate)
         converged = abs(diff) < _CONVERGENCE_EPS
 
-        # Every cycle -- including repeats -- reveals each quantity and
-        # draws each arrow progressively, step by step, exactly like the
-        # first: the arrows reset to undrawn and the boxes fade out at the
-        # start of a new cycle, then rebuild across the same 9 named steps.
-        # This is deliberate repetition, not a stall or a restart of the
-        # underlying computation -- w still carries over from the previous
-        # cycle's update (see test_pipeline_cycle_repeats_until_close_enough
-        # _to_target), only the *display* replays from empty each time.
-        # The "*_glow" fields (a halo behind the box, independent of
-        # reveal -- see widgets/neuron_view.py's `glow` param) ride along
-        # on top of the reveal build-up as a bonus highlight pulse on
-        # whichever box is currently being narrated.
-        #
-        # The sigmoid-curve inset (point + tangent + gradient arrow) is a
-        # deliberate exception to that reset: it is the one element that
-        # must read as *continuous* across cycles -- the whole story of
-        # convergence is "watch this point slide along the curve, cycle
-        # after cycle." Blanking and re-revealing it every cycle like the
-        # block-diagram boxes would break exactly the continuity it exists
-        # to show. So from iteration 2 on it stays revealed throughout the
-        # cycle and only slides (via the normal z/y/grad_z tweening) to its
-        # new position; only iteration 1 still reveals it the first time,
-        # in step with the walkthrough that introduces it.
-        reveal_default = 0.0
-        inset_reveal_default = 1.0 if iteration > 1 else 0.0
-        base = {
-            "kind": "backprop_pipeline",
-            "x": x, "w": w, "z": z, "y": y, "target": self.target, "diff": diff, "loss": loss,
-            "slope": slope, "grad_y": grad_y, "grad_z": grad_z, "grad_w": grad_w,
-            "w_updated": w_updated, "lr": self.learning_rate, "iteration": iteration,
-            "z_reveal": reveal_default, "y_reveal": reveal_default, "target_reveal": reveal_default,
-            "diff_reveal": reveal_default, "loss_reveal": reveal_default, "grady_reveal": reveal_default,
-            "gradz_reveal": reveal_default, "gradw_reveal": reveal_default, "update_reveal": reveal_default,
-            "w_pulse": 0.0,
-            "z_glow": 0.0, "y_glow": 0.0, "target_glow": 0.0, "loss_glow": 0.0,
-            "grady_glow": 0.0, "gradz_glow": 0.0, "gradw_glow": 0.0,
-            "point_reveal": inset_reveal_default, "arrow_reveal": inset_reveal_default,
-        }
+        base = _build_base_frame_values(
+            iteration, x, w, z, y, self.target, diff, loss, slope, grad_y, grad_z, grad_w,
+            w_updated, self.learning_rate,
+        )
         prefix = f"Iteração {iteration} — "
 
         def frame(label: str, explanation: str, equation: str = "", **overrides) -> Frame:
@@ -147,41 +216,10 @@ class TraditionalBackpropDemo(DemoModule):
             values.update(overrides)
             return Frame(prefix + label, values, explanation, equation)
 
-        if iteration == 1:
-            intro = (
-                "Um neurônio com ativação sigmoide: primeiro combina w e x linearmente, "
-                "depois espreme o resultado em (0, 1) com sigma. Primeiro o forward "
-                "calcula y; depois o backward calcula o quanto mudar w."
-            )
-        else:
-            intro = (
-                f"O mesmo neurônio, o mesmo ciclo de 9 passos — mas agora começando do "
-                f"$w = {w:g}$ que a iteração anterior deixou. É exatamente essa repetição, "
-                "iteração após iteração, que faz y se aproximar do alvo."
-            )
-
-        if is_last_cycle and converged:
-            update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
-                f"$w = {w_updated:g}$. Agora a saída ($y = {y:g}$) já está perto o suficiente do "
-                f"alvo ($target = {self.target:g}$, diferença de $|y - target| = {abs(diff):.3f}$) — "
-                f"o ciclo para de se repetir aqui."
-            )
-        elif is_last_cycle:
-            update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
-                f"$w = {w_updated:g}$. A diferença ainda é $|y - target| = {abs(diff):.3f}$, mas "
-                f"chegamos ao limite de iterações mostradas neste passo a passo detalhado — a "
-                f"próxima parte continua daqui, de forma resumida."
-            )
-        else:
-            update_explanation = (
-                f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
-                f"$w = {w_updated:g}$, um pouco mais perto do valor que aproximaria y do alvo. "
-                f"A saída ainda está a $|y - target| = {abs(diff):.3f}$ do alvo — longe o bastante "
-                f"para o ciclo se repetir: a iteração {iteration + 1} refaz exatamente os mesmos "
-                f"9 passos, agora partindo desse w atualizado."
-            )
+        intro = _build_intro_text(iteration, w)
+        update_explanation = _build_update_explanation(
+            is_last_cycle, converged, iteration, w_updated, y, self.target, diff
+        )
 
         return [
             frame("O neurônio", intro, equation="y = sigma(w * x)"),

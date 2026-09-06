@@ -300,6 +300,79 @@ void run_lstm_combo(const GuayaquilConfig& config,
         run_bar, static_cast<float>(++completed_runs));
 }
 
+// Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
+// when LaTeX data export is configured.
+void write_snn_combo_dats(const GuayaquilConfig& config,
+    const std::string& encoding,
+    const std::string& architecture,
+    float voltage_threshold,
+    float alpha,
+    int run_id,
+    const TrainResult& train_result)
+{
+    if (config.dataset.latex_data_dir.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path latex_dir = std::filesystem::path(config.dataset.latex_data_dir);
+    write_epoch_history_dat(
+        latex_dir / (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
+                        std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
+                        std::to_string(run_id + 1) + "_history.dat"),
+        "snn-ae",
+        encoding,
+        architecture,
+        voltage_threshold,
+        alpha,
+        run_id + 1,
+        train_result.history);
+    write_batch_convergence_dat(
+        latex_dir / (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
+                        std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
+                        std::to_string(run_id + 1) + "_convergence.dat"),
+        "snn-ae",
+        encoding,
+        architecture,
+        voltage_threshold,
+        alpha,
+        run_id + 1,
+        train_result.history);
+}
+
+// Writes the encoder/decoder parameter dumps for one SNN combo, when model saving is
+// configured.
+void save_snn_combo_models(const GuayaquilConfig& config,
+    const std::string& dataset_name,
+    const std::string& encoding,
+    const std::string& architecture,
+    float voltage_threshold,
+    float alpha,
+    int run_id,
+    const std::filesystem::path& models_dir,
+    ProtocolSpikingAutoencoder& snn_model)
+{
+    if (!config.dataset.save_models)
+    {
+        return;
+    }
+
+    const std::string base_name =
+        sanitize_name(config.experiment.run_tag + "_snn_" + dataset_name + "_" + encoding + "_" +
+                      architecture + "_vth" + std::to_string(voltage_threshold) + "_a" +
+                      std::to_string(alpha) + "_run" + std::to_string(run_id + 1));
+    const std::filesystem::path encoder_txt = models_dir / (base_name + "_encoder_params.txt");
+    const std::filesystem::path decoder_txt = models_dir / (base_name + "_decoder_params.txt");
+    const bool enc_ok =
+        save_parameter_list_text(encoder_txt, snn_model.encoder_.params(), "encoder");
+    const bool dec_ok =
+        save_parameter_list_text(decoder_txt, snn_model.decoder_.params(), "decoder");
+    if (!enc_ok || !dec_ok)
+    {
+        NN_LOG_WARN("[comparative] failed to save SNN model artifacts for " + base_name);
+    }
+}
+
 // Trains (or loads from checkpoint) the single SNN-AE run for this (dataset, encoding,
 // architecture, voltage_threshold, alpha, run_id) combo, appending its ResultRow to
 // `all_rows` and advancing the progress bar.
@@ -377,56 +450,17 @@ void run_snn_combo(const GuayaquilConfig& config,
     RunMetrics metrics = train_result.metrics;
     metrics.train_ms = train_ms;
 
-    if (!config.dataset.latex_data_dir.empty())
-    {
-        const std::filesystem::path latex_dir =
-            std::filesystem::path(config.dataset.latex_data_dir);
-        write_epoch_history_dat(
-            latex_dir /
-                (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
-                    std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
-                    std::to_string(run_id + 1) + "_history.dat"),
-            "snn-ae",
-            encoding,
-            architecture,
-            voltage_threshold,
-            alpha,
-            run_id + 1,
-            train_result.history);
-        write_batch_convergence_dat(
-            latex_dir /
-                (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
-                    std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
-                    std::to_string(run_id + 1) + "_convergence.dat"),
-            "snn-ae",
-            encoding,
-            architecture,
-            voltage_threshold,
-            alpha,
-            run_id + 1,
-            train_result.history);
-    }
-
-    if (config.dataset.save_models)
-    {
-        const std::string base_name =
-            sanitize_name(config.experiment.run_tag + "_snn_" + dataset_name + "_" + encoding +
-                          "_" + architecture + "_vth" + std::to_string(voltage_threshold) + "_a" +
-                          std::to_string(alpha) + "_run" + std::to_string(run_id + 1));
-        const std::filesystem::path encoder_txt = models_dir / (base_name + "_encoder_params.txt");
-        const std::filesystem::path decoder_txt = models_dir / (base_name + "_decoder_params.txt");
-        const bool enc_ok =
-            save_parameter_list_text(encoder_txt, snn_model.encoder_.params(), "encoder");
-        const bool dec_ok =
-            save_parameter_list_text(decoder_txt, snn_model.decoder_.params(), "decoder");
-        if (!enc_ok || !dec_ok)
-        {
-            NN_LOG_WARN(
-                "[comparative] failed to save SNN model artifacts "
-                "for " +
-                base_name);
-        }
-    }
+    write_snn_combo_dats(
+        config, encoding, architecture, voltage_threshold, alpha, run_id, train_result);
+    save_snn_combo_models(config,
+        dataset_name,
+        encoding,
+        architecture,
+        voltage_threshold,
+        alpha,
+        run_id,
+        models_dir,
+        snn_model);
 
     all_rows.push_back( //
         ResultRow{
