@@ -310,7 +310,14 @@ mechanism meant for weight matrices.
 ```cpp
 // File: include/optimizers/Adam.hpp — inside step()
 if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
-    param = param.add(param.multiply_scalar(-lr_i * weight_decay));
+{
+    // nn::Tensor is a value type: assigning to `param` replaces its storage
+    // and DROPS the gradient buffer — save it and restore it across the
+    // decay (see the "second bug" above).
+    const Tensor saved_grad = param.grad();
+    param = param.multiply_scalar(1.0F - (lr_i * weight_decay));
+    param.set_grad(saved_grad);
+}
 ```
 
 This is wired up from `TrainerConfig::weight_decay` in the `Trainer`

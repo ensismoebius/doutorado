@@ -24,18 +24,20 @@ The Poisson spike model [Dayan & Abbott, 2001] generates $s[t] \sim \text{Bernou
 
 ```cpp
 // plotSpikingNetwork.cpp (structure)
-// 1. Generate spike input via generate_autoencoder_spike_data(1, 1, n_steps=200, max_rate=0.5)
-// 2. Two Lif neurons (single-step): R=3, C=2, V_th=1.0
-// 3. ImGui frame loop:
-//    for each render frame:
-//      hidden_spikes = hidden_neuron.forward(input[t])
-//      output_spikes = output_neuron.forward(hidden_spikes)
+// 1. Generate spike input via generate_autoencoder_spike_data(1, 1, n_steps=200, max_rate=0.5, dt=1.0)
+// 2. Two Lif neurons (single-step): dt=1.0, R=3, C=2, V_th=1.0, reset_zero=true
+// 3. run_simulation(): ONCE, before the render loop — for t in 0..200:
+//      hidden_out = hidden_neuron.forward(spike_inputs[t])
+//      output_out = output_neuron.forward(hidden_out)
+//      record spikes + v_mem into SimulationResult sim
+// 4. ImGuiApp::run() render loop (every frame, no re-simulation):
 //      ImGui::Begin("Neuron Output")
-//      ImPlot::PlotScatter("Spikes", times, neuron_ids)
-//      ImPlot::PlotLine("V_hidden", times, V_hidden)
+//      draw_spike_raster_plot(sim)   // 3x ImPlot::PlotScatter: Input/Hidden/Output
+//      draw_membrane_potential_plot(sim) // 2x ImPlot::PlotLine: Hidden/Output V_mem
 ```
 
-No training; pure forward simulation of 200 steps replayed each render frame.
+No training; the 200-step forward simulation runs exactly once before the window opens —
+the render loop only re-draws the same precomputed `SimulationResult` every frame.
 
 ---
 
@@ -43,12 +45,14 @@ No training; pure forward simulation of 200 steps replayed each render frame.
 
 ```mermaid
 flowchart TD
-    A["Poisson source\n max_rate=0.5, 200 steps\n s_in[t] ∈ {0,1}"] --> B["Lif hidden_neuron\n R=3, C=2, V_th=1.0"]
+    A["Poisson source\n max_rate=0.5, 200 steps\n s_in[t] ∈ {0,1}"] --> B["Lif hidden_neuron\n dt=1, R=3, C=2, V_th=1.0"]
     B --> C["Spikes S_h[t] + membrane V_h[t]"]
     C --> D["Lif output_neuron\n same params"]
-    D --> E["Spikes S_o[t]"]
-    C --> F["ImPlot::PlotLine\n V_h[t] membrane trace"]
-    E --> G["ImPlot::PlotScatter\n spike raster (hidden + output)"]
+    D --> E["Spikes S_o[t] + membrane V_o[t]"]
+    C --> S["SimulationResult sim\n (computed once, before render loop)"]
+    E --> S
+    S --> F["Every render frame:\n draw_membrane_potential_plot\n PlotLine V_h, V_o"]
+    S --> G["Every render frame:\n draw_spike_raster_plot\n PlotScatter Input/Hidden/Output"]
     F --> H["ImGui window\n 'Neuron Output'"]
     G --> H
 ```
@@ -72,11 +76,12 @@ Requires a display (X11/Wayland) and OpenGL. On headless servers, use a virtual 
 
 ## Test Suite
 
-LIF single-step forward/backward is covered by `core_gtest`:
+The demo has its own gtest target (`LifTest` fixture — forward shape/binariness, threshold
+firing, `reset_state()`, membrane decay, backward gradient shape/finiteness):
 
 ```bash
-cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R Lif --output-on-failure
+cmake --build out/build/max-performance --target snn_spike_plotter_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R LifTest --output-on-failure
 ```
 
 ---
@@ -85,7 +90,7 @@ ctest --test-dir out/build/max-performance -R Lif --output-on-failure
 
 1. **No display available**: ImGui requires an OpenGL context. On CI or SSH servers without `DISPLAY`, the binary will crash at GLFW init. Use `Xvfb :99 &` and `DISPLAY=:99` as a workaround.
 2. **Single-step vs BPTT**: this demo uses `LifImpl` (single-step), not `LifBPTTImpl`. The single-step variant does not accept a `(T*B, F)` input — it processes one time step per call. Do not substitute `LifBPTTImpl` here without restructuring the loop.
-3. **State persistence across frames**: the ImGui frame loop replays all 200 steps from the same initial state each render frame. If you want continuous simulation, call `reset_state()` once at startup and remove the replay; accumulate state across frames instead.
+3. **Simulation runs once, not per frame**: `run_simulation()` executes all 200 steps before `window.run()` starts; the render callback only redraws the precomputed `SimulationResult`. To make the simulation live/continuous instead of a fixed replay, step the neurons and append to `sim` from inside the render callback.
 
 ---
 

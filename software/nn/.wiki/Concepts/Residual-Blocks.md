@@ -78,11 +78,12 @@ class ResNetBlockImpl : public Module<Backend>
 
 ```mermaid
 flowchart LR
-    x[Input] --> main[Main Path<br/>Conv-BN-ReLU]
-    x --> skip[Skip Path<br/>1x1 Conv or Identity]
+    x[Input] --> main[Main Path<br/>Conv1-ReLU1-Conv2]
+    x --> skip[Skip Path<br/>Identity, or crop/pad<br/>align_to_shape if shapes differ]
     main --> add[Add]
     skip --> add
-    add --> out[Output]
+    add --> relu2[ReLU2]
+    relu2 --> out[Output]
 ```
 
 ## See Also

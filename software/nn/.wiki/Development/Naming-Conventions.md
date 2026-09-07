@@ -11,8 +11,8 @@ These conventions apply to C/C++ code under `include/` and `src/`.
 | Types (`class`, `struct`, `enum`, aliases) | `PascalCase` | `Tensor`, `Linear`, `Adam` |
 | Functions and methods | `snake_case` | `forward_pass`, `load_state_dict` |
 | Variables (local/member/parameter) | `snake_case` | `batch_size`, `learning_rate` |
-| Constants (`constexpr`) | `kCamelCase` | `kDefaultBatchSize`, `kMaxEpochs` |
-| Macros and include guards | `UPPER_SNAKE_CASE` | `NN_TENSOR_HPP`, `EIGEN_MATRIX_H` |
+| Constants (`constexpr`) | `kCamelCase` | `kMinPositiveParam`, `kMaxValueFactor` |
+| Macros and include guards | `UPPER_SNAKE_CASE` | `TENSOR_HPP`, `RELU_HPP` |
 
 ## Acronyms
 

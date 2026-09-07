@@ -2,6 +2,13 @@
 
 This document is the canonical guide for running, monitoring, analyzing, and archiving SNN grid tests.
 
+<!-- STALE: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/ does not exist
+     anywhere in the workspace (confirmed absent 2026-09-07). The current grid-sweep mechanism
+     is src/experiments/autoencoderRunner/scripts/run_full_grid_and_analyze.sh, which generates
+     profiles on the fly via create_test_profiles.py into a --profiles-output-dir rather than
+     reading from a committed directory. The commands below (referencing snnAutoEncodersProfiles/*.json)
+     will not work as written; analyze_grid_results.py does exist and still matches its listed path. -->
+
 ## Quickstart (5 Commands)
 
 ```bash

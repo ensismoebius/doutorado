@@ -465,11 +465,11 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 
 # Phase 00 — rank feature extractors per signal (stops after paraconsistent ranking)
 ./out/build/max-performance/src/experiments/thesis/thesis \
-  --config src/experiments/thesis/profiles/phase00/p00_hc_daub4_lfcc_voice.json
+  --config src/experiments/thesis/profiles/phase00/p00_hc_daub4_lfcc_c1_voice.json
 
 # Phase 01 — DSNN authentication with the chosen extractor
 ./out/build/max-performance/src/experiments/thesis/thesis \
-  --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested.json
+  --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested_std.json
 
 # Full article run (all real profiles: phase00 then phase01)
 ./scripts/testing/run_thesis_profiles.sh all

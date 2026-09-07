@@ -249,7 +249,7 @@ parameters so those surface quickly.
 ### Layout
 
 `src/experiments/thesis/profiles/smoke/` mirrors every real profile
-(`debug.json`, `phase00/*`, `phase01/*` → 315 total) keeping every code-path
+(`debug.json`, `phase00/*`, `phase01/*` → 241 total: 208 phase00 + 32 phase01 + debug) keeping every code-path
 selector (strategy, wavelet, scale, cepstral, modality, fusion_mode,
 classifier.type, nested_cv, standardize_features) but shrinking run parameters:
 `repeats=1`, `epochs=2`, `k_folds=2`, `samples_per_batch=4`, `max_samples=60`
@@ -270,7 +270,7 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 ```
 
 The runner reports `PASS`/`FAIL` per profile with the captured error line and a
-summary. ~315 runs — run on the data machine, without a short timeout.
+summary. ~241 runs — run on the data machine, without a short timeout.
 
 ### Bug it caught
 

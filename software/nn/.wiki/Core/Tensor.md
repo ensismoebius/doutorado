@@ -433,8 +433,9 @@ Which path wins depends entirely on the per-enqueue cost:
 
 The default therefore matches the default queue mode: **off**. Enable with
 `NN_OPENCL_DEVICE_VIEW_OPS=1` on any stack where enqueues are cheap. Both paths
-are covered by `OpenCLViewOpsTest` in `opencl_tensor_backend_gtest` — 10 tests
-added where these ops previously had **zero** coverage.
+are covered by `OpenCLViewOpsTest` in the separate `opencl_tensor_backend_viewops_gtest`
+target (split out of `opencl_tensor_backend_gtest.cpp`) — 10 tests added where these ops
+previously had **zero** coverage.
 
 Net effect with the safe queue default: these optimisations are
 performance-neutral on rusticl. They are retained because they are
@@ -445,7 +446,7 @@ driver race is fixed or enqueues are cheap.
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$
 
-2. **Gradient Not Tracked**: Call `set_requires_grad(true)` before forward pass, or pass `requires_grad=true` to operations
+2. **Gradient Not Tracked**: There is no `set_requires_grad()` — pass `requires_grad=true` into the `forward()` call itself (see Usage Example above and the Module contract in [Layers](./Layers.md))
 
 3. **GPU Data Not Synced**: Use `sync_gpu_if_needed()` before accessing GPU tensor data on CPU, or use non-const `at()` accessor
 

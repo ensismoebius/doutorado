@@ -59,24 +59,28 @@ cmake --build out/build/max-performance --target resnet_demo -j$(nproc)
 ./out/build/max-performance/src/demos/cppDemos/resnet_classifier_demo/resnet_demo
 ```
 
-Expects `S02_Audio.mat` at a hard-coded path relative to the working directory. The demo runs 1 epoch (quick smoke test) and prints loss per batch.
+Expects `S02_Audio.mat` at a hard-coded **absolute** path in `main()`
+(`/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/S02_Audio.mat`),
+independent of the working directory. The demo runs 1 epoch (quick smoke test) and prints one mean loss line per epoch (not per batch).
 
 ---
 
 ## Test Suite
 
-The `ResidualBlock` layer is covered by `core_gtest`:
+The demo has its own gtest target (`ResNetDemoTest` fixture — output shape, finiteness, loss decreasing over 5 epochs, gradient flow, CE loss positivity):
 
 ```bash
-cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R "ResNet|Residual" --output-on-failure
+cmake --build out/build/max-performance --target resnet_demo_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R ResNetDemoTest --output-on-failure
 ```
+
+`ResidualBlock`/`ResNetBlock` layer mechanics are additionally covered by `core_gtest` (`ResidualBlockTest`, `ResNetBlockTest` in `fundamental_mechanisms_composite_gtest.cpp`).
 
 ---
 
 ## Common Pitfalls
 
-1. **Missing MAT file**: the demo hard-codes the path to `S02_Audio.mat`. Running from a different directory causes a runtime error from matioCpp.
+1. **Missing MAT file**: the demo hard-codes an absolute path to `S02_Audio.mat` on the original author's machine. Running on another machine without that dataset copy causes `load_and_validate_mat_matrix` to log and return `std::nullopt`, and `main()` exits with code 1.
 2. **Class count mismatch**: `C = max(labels) + 1`. If labels are 1-indexed (e.g., 1..5), `C = 6` but class 0 is empty. Subtract 1 from labels or adjust the label-building logic.
 3. **Single-epoch evaluation**: with `epochs=1`, the demo is a forward-backward smoke test, not a convergence benchmark. Do not interpret the final loss as model quality.
 

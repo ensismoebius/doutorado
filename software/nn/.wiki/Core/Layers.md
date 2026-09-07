@@ -60,19 +60,29 @@ bounded amount of accuracy for speed:
 
 | Function | Formula | Max error | Use case |
 |---|---|---|---|
-| `sigmoid_fast(x)` | $0.5 + x / (2(1+\|x\|))$ | < 0.01 | LSTM gates, anywhere exp() is hot |
-| `tanh_fast(x)` | $x / (1 + \|x\|)$ | < 0.01 | LSTM cell candidate, cell state |
+| `sigmoid_fast(x)` | $0.5 + x / (2(1+\|x\|))$ | large — not a close approximation (see below) | opt-in speed/fidelity trade only |
+| `tanh_fast(x)` | $x / (1 + \|x\|)$ | reaches 0.306 on [-4,4] (x=2: tanh=0.964 vs tanh_fast=0.667) | opt-in speed/fidelity trade only |
 
-The "fused" variants below go one step further: instead of first copying out a
-slice of a larger tensor and *then* applying the activation to the copy (two
-passes over memory, one allocation), they read the slice and apply the
-activation in a single pass:
+**These are not close approximations of the real functions**, and are NOT the
+default. A `sigmoid_exact_block`/`tanh_exact_block`/`tanh_exact_tensor` family
+computes the real (`std::exp`/`std::tanh`-based) values, and dispatcher
+functions `sigmoid_block(..., bool exact)` / `tanh_block(..., bool exact)` /
+`tanh_tensor(x, bool exact)` pick fidelity at runtime from a single flag —
+`LSTMLayerImpl::exact_activations` defaults to `true` (exact), since
+PyTorch/snnTorch is this project's correctness reference. The fast forms are
+an explicit opt-in trade via `ThesisConfig::Numerics::exact_activations`.
+
+Independent of fast-vs-exact, the "block" variants below go one step further
+than the plain `*_tensor` ones: instead of first copying out a slice of a
+larger tensor and *then* applying the activation to the copy (two passes over
+memory, one allocation), they read the slice and apply the activation in a
+single pass:
 
 ```cpp
 // Reads pre[:,col_start:col_start+gate_size] and applies sigmoid in one pass.
 // Avoids one alloc + one read-scan vs. sigmoid_fast_tensor(pre.block(...)).
-nn::activations::sigmoid_fast_block(pre, col_start, gate_size);
-nn::activations::tanh_fast_block(pre, col_start, gate_size);
+nn::activations::sigmoid_exact_block(pre, col_start, gate_size);  // default (exact) fidelity
+nn::activations::sigmoid_fast_block(pre, col_start, gate_size);   // opt-in fast approximation
 ```
 
 **Measured impact** (batch size 1, input 128, hidden 32): before this fusion,
@@ -392,8 +402,10 @@ auto params = layer.params();                    // span<nn::Tensor*>: {W_, U_, 
 **Performance optimisations applied** (see
 [LSTM Performance Guide](../Guides/LSTM-Performance.md) for the measurements
 behind each one):
-- Gate activations use the fused `sigmoid_fast_block` / `tanh_fast_block`
-  helpers described above (no intermediate copy).
+- Gate activations use the fused `sigmoid_block` / `tanh_block` dispatchers
+  described above (no intermediate copy) — exact by default
+  (`exact_activations = true`), with the fast approximations available as an
+  explicit opt-in trade.
 - The bias transpose `b_T = b_.transpose()` is computed once before the time
   loop starts, instead of being recomputed on every step.
 - Reading and writing one time step's slice uses vectorised `slice_time` /

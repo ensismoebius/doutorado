@@ -67,22 +67,26 @@ derivation.
 ```cpp
 // File: include/initializers/xavier.hpp
 // Free function (like kaimingSNNInitializer below), not a class — writes
-// directly into pre-allocated `weights`/`bias` tensors.
+// directly into pre-allocated `weights`/`bias` tensors. Returns early
+// (no-op, no throw) if in/out_features is 0 or weights/bias shape mismatches.
 template <typename TensorT>
-void xavierInitializer(int in_features, int out_features,
+auto xavierInitializer(int in_features, int out_features,
     TensorT& weights, TensorT& bias,
     std::optional<unsigned int> seed = std::nullopt,
-    const std::string& sampler_default_type = "")
+    const std::string& sampler_default_type = "") -> void
 {
-    const float limit = std::sqrt(6.0f / static_cast<float>(in_features + out_features));
+    const float limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
     std::mt19937 gen;
     if (seed.has_value())
-        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    {
+        const unsigned int hash = std::hash<std::string>{}(sampler_default_type);
+        gen.seed(*seed ^ (hash + 0x9e3779b9U + (*seed << 6U) + (*seed >> 2U))); // deterministic
+    }
     else
         gen.seed(std::random_device{}());                    // NON-deterministic
     weights = TensorT::rand(out_features, in_features, gen)
-                  .multiply_scalar(2.0f * limit).add_scalar(-limit); // U(-limit, +limit)
-    bias.fill(0.0f);
+                  .multiply_scalar(2.0F * limit).add_scalar(-limit); // U(-limit, +limit)
+    bias.fill(0.0F);
 }
 ```
 
@@ -91,18 +95,23 @@ void xavierInitializer(int in_features, int out_features,
 // Free function that initializes a Linear layer in place with He-uniform weights
 // (limit ℓ = sqrt(6/fan_in), W ~ U(-ℓ,+ℓ)) and zero bias.
 template <typename Backend>
-void kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
+auto kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
                            std::optional<unsigned int> seed = std::nullopt,
-                           const std::string& sampler_default_type = "")
+                           const std::string& sampler_default_type = "") -> void
 {
-    const float limit = std::sqrt(6.0f / layer->in_features);
+    using Tensor = typename LinearImpl<Backend>::Tensor;
+    const float limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));
     std::mt19937 gen;
     if (seed.has_value())
-        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    {
+        const unsigned int hash = std::hash<std::string>{}(sampler_default_type);
+        gen.seed(*seed ^ (hash + 0x9e3779b9U + (*seed << 6U) + (*seed >> 2U))); // deterministic
+    }
     else
         gen.seed(std::random_device{}());                    // NON-deterministic
-    layer->weight = Tensor::rand(out, in, gen) * (2*limit) - limit;
-    layer->bias.fill(0.0f);
+    layer->weight = Tensor::rand(layer->out_features, layer->in_features, gen)
+                        .multiply_scalar(2.0F * limit).add_scalar(-limit);
+    layer->bias.fill(0.0F);
 }
 ```
 

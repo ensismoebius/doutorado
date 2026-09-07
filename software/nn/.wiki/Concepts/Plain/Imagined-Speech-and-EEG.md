@@ -26,7 +26,7 @@ But the *brain activity* for speech is still there. Even a person who cannot spe
 
 An EEG is a set of electrodes placed on the scalp that measure tiny electrical signals produced by groups of neurons firing in the brain. Think of it as listening to a crowd — you cannot hear individual voices, but you can hear the overall "sound" of the crowd changing.
 
-The signals are measured in microvolts (millionths of a volt) at sampling rates of 800 Hz or higher in this project.
+The signals are measured in microvolts (millionths of a volt). The public dataset used in this project samples EEG at 1024 Hz.
 
 ---
 

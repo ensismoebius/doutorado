@@ -130,7 +130,7 @@ flowchart TD
 # software/efficient_nn_lab/
 ./run.sh                          # opens on the welcome screen
 ./run.sh --demo snn.lif           # deep-link straight to one demo (slug)
-python -m pytest -q               # 297 tests
+python -m pytest -q               # 365 tests
 ```
 
 The deck's PDF links call the same entry point, so a `run:` link on a slide opens the lab on

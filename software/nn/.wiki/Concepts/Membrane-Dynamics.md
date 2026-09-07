@@ -43,7 +43,7 @@ Making $R$, $C$, $V_\text{th}$ learnable parameters was popularised by Fang et a
 The core forward-pass sequence (Leak → Integrate → Fire → Reset):
 
 ```cpp
-// include/layers/spiking/Lif.hpp  (lines 230–384, condensed)
+// include/layers/spiking/Lif.hpp  (lines 288–452, condensed)
 constexpr float kMinPositiveParam = 1e-6F;
 float const R    = std::max(kMinPositiveParam, resistance.at(0, 0));
 float const C    = std::max(kMinPositiveParam, capacitance.at(0, 0));
@@ -108,9 +108,8 @@ LifImpl<XTensorBackend> lif(
     /*reset_zero=*/true);
 
 // Run 10 time steps manually (single-step Lif)
-nn::Tensor input(8, 32);   // batch=8, features=32
 for (int t = 0; t < 10; ++t) {
-    input.setRandom();
+    nn::Tensor input = nn::Tensor::rand(8, 32);  // batch=8, features=32
     nn::Tensor spikes = lif.forward(input, /*requires_grad=*/true);
     // spikes contains 0.0f or 1.0f per element
 }

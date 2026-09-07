@@ -6,24 +6,24 @@ This is a comprehensive C++20 neural network library designed for research and e
 
 ```cpp
 // Minimal example: Create and train a simple autoencoder.
-// Include prefix is "core/...", not "nn/..." -- there is no include/nn/ directory.
-#include "core/models/autoencoder/AutoencoderBuilders.hpp"
+// Headers under include/ have no prefix ("models/..."); headers under src/core/
+// are included with a "core/" prefix ("core/training/...").
+#include "models/autoencoder/AudioWindowAutoencoder.hpp"
 #include "core/training/Trainer.hpp"
 
-nn::models::autoencoder::AutoencoderConfig config{
-    .input_features = 128,
-    .hidden_size = 64,
-    .latent_size = 32,
-    .depth = 2
-};
+nn::models::autoencoder::AutoencoderConfig config;
+config.input_features = 128;
+config.hidden_size = 64;
+config.latent_size = 32;
+config.depth = 2;
 
-auto model = nn::models::autoencoder::builders::create("audio", config);
-nn::training::TrainerConfig trainerCfg{
-    .epochs = 10,
-    .batch_size = 32,
-    .learning_rate = 0.001F
-};
-nn::training::Trainer trainer(*model, trainerCfg);
+nn::models::autoencoder::AudioWindowAutoencoder model(config);
+nn::training::TrainerConfig trainerCfg;
+trainerCfg.epochs = 10;
+trainerCfg.batch_size = 32;
+trainerCfg.learning_rate = 0.001F;
+
+nn::training::Trainer trainer(model, trainerCfg);
 auto history = trainer.fit_autoencoder(training_data, validation_data);
 ```
 

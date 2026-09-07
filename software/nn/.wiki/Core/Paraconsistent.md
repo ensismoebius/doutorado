@@ -121,48 +121,66 @@ re-ranked without re-running any experiment.
 
 ## How It Is Implemented Here
 
+Two files, layered rather than independent:
+
 ```
-include/paraconsistent/paraconsistent.hpp    # Public header
-src/core/paraconsistent/                     # Implementation + tests
+include/paraconsistent/paraconsistent.hpp             # legacy engine: calculate_alpha,
+                                                        # calculate_beta, calculate_certainty_
+                                                        # degree_g1/calculate_contradiction_
+                                                        # degree_g2, over std::map<string,
+                                                        # vector<vector<double>>>; no namespace
+src/experiments/thesis/lib/include/ThesisParaconsistent.hpp  # thin wrapper the thesis
+                                                        # pipeline actually calls — groups
+                                                        # samples by subject_id, calls the
+                                                        # legacy functions, adds d_truth /
+                                                        # d_penalized (see below)
 ```
 
-### Core API
+### Core API (Experiment05 / thesis pipeline)
 
 ```cpp
-#include "paraconsistent/paraconsistent.hpp"
-using namespace nn::paraconsistent;
+// File: src/experiments/thesis/lib/include/ThesisParaconsistent.hpp
+namespace thesis
+{
+// Chosen as 2 - sqrt(2) so the three non-Truth vertices score exactly 2.0.
+inline constexpr double kContradictionPenalty = 0.5857864376269049;
 
-// Evaluate feature set quality across all classes
-ParaconsistentResult evaluate(
-    const std::vector<std::vector<nn::Tensor>>& class_feature_vectors);
-
-struct ParaconsistentResult {
-    float alpha;    // intraclass similarity ∈ [0,1]
-    float beta;     // interclass overlap   ∈ [0,1]
-    float G1;       // degree of certainty  ∈ [-1,1]
-    float G2;       // degree of contradiction ∈ [-1,1]
-    float D_truth;  // distance to (1,0); NOT used alone to select — see
-                    // "Selection metric" above (D_penalized adds a |G2| penalty)
-    float D_false;
-    float D_indef;
-    float D_ambig;
+struct ParaconsistentScore
+{
+    std::string label;
+    double alpha = 0.0;
+    double beta = 0.0;
+    double g1 = 0.0;       // certainty degree  (alpha - beta)
+    double g2 = 0.0;       // contradiction degree (alpha + beta - 1)
+    double d_truth = 0.0;  // distance to Truth corner (1,0)
+    double d_penalized = 0.0; // d_truth + kContradictionPenalty * |g2| — primary metric
 };
+
+// Score every feature set, sorted ascending by d_penalized (best first).
+auto rank_feature_sets(const std::vector<ThesisSample>& samples,
+    const std::vector<FeatureSet>& feature_sets) -> std::vector<ParaconsistentScore>;
+
+auto score_feature_set(const std::vector<ThesisSample>& samples, const FeatureSet& fs)
+    -> ParaconsistentScore;
+}
 ```
 
 ### Usage Example
 
 ```cpp
-// Group feature vectors by class
-std::vector<std::vector<nn::Tensor>> by_class(num_classes);
-for (const auto& sample : dataset)
-    by_class[sample.label].push_back(extract_features(sample.signal));
+// File: src/experiments/thesis/lib/src/ThesisParaconsistent.cpp
+#include "ThesisParaconsistent.hpp"
 
-auto r = nn::paraconsistent::evaluate(by_class);
-std::printf("α=%.3f β=%.3f G1=%.3f G2=%.3f D_truth=%.3f\n",
-            r.alpha, r.beta, r.G1, r.G2, r.D_truth);
+// samples: ThesisSample per recording (carries the class label); feature_sets:
+// one FeatureSet per (wavelet × scale) combination under evaluation.
+auto scores = thesis::rank_feature_sets(samples, feature_sets);
 
-if (r.D_truth < 0.30f)
-    std::puts("Feature set separable — proceed to classifier.");
+// scores[0] is the winner — sorted by d_penalized, tie-broken by label so the
+// result is a pure function of the data (see rank_feature_sets' comment on
+// why std::sort's instability made this necessary).
+const auto& best = scores.front();
+std::printf("%s: alpha=%.3f beta=%.3f d_truth=%.3f d_penalized=%.3f\n",
+    best.label.c_str(), best.alpha, best.beta, best.d_truth, best.d_penalized);
 ```
 
 ### Integration with the DTWPT Pipeline
@@ -172,11 +190,10 @@ Paraconsistent analysis is used to **select the best (wavelet × energy scale)**
 ```
 for each wavelet ∈ {Haar, Daub4, Daub6, ...}:
     for each scale ∈ {BARK, MEL, LFCC}:
-        features = DTWPT(signal, wavelet) → energy_bands(scale)
-        result   = paraconsistent::evaluate(features_by_class)
-        record   (wavelet, scale, result.D_truth)
+        feature_sets += FeatureSet{label: wavelet×scale, vectors: DTWPT(signal, wavelet) → energy_bands(scale)}
 
-best = argmin D_truth over all (wavelet × scale) pairs
+scores = thesis::rank_feature_sets(samples, feature_sets)
+best   = scores.front()   // already sorted ascending by d_penalized
 ```
 
 This avoids expensive classifier sweeps for feature selection.

@@ -66,19 +66,23 @@ The four corners of this plane tell a story:
 
 ---
 
-## The quality score: D_truth
+## The quality score: D_truth (and why it's not used alone)
 
-The single number you care about is the **distance from (G₁, G₂) to the Truth corner (1, 0)**:
+The obvious number to care about is the **distance from (G₁, G₂) to the Truth corner (1, 0)**:
 
 ```
 D_truth = sqrt((G₁ - 1)² + G₂²)
 ```
 
-**Smaller D_truth = better features.**
+**Smaller D_truth = better features** — but D_truth alone can be gamed: a "dead" feature set (identical output regardless of class) lands exactly on the Ambiguity corner and scores D_truth ≈ 1.41, which can beat genuinely informative features despite carrying zero class information.
 
-D_truth = 0 → perfect separation (never happens in practice)  
-D_truth ≈ 0.3 → strong features, simple classifiers will work  
-D_truth > 0.8 → features carry little discriminative information
+So the actual selection metric adds a penalty on the contradiction degree |G₂|:
+
+```
+D_penalized = D_truth + λ × |G₂|,   λ = 2 − √2 ≈ 0.586
+```
+
+**Smaller D_penalized = better features.** This is what `rank_feature_sets` sorts by.
 
 ---
 
@@ -91,7 +95,7 @@ The pipeline tries many combinations of (wavelet type × frequency scale):
 - Daubechies-4 wavelet + BARK scale
 - ... (all combinations)
 
-For each combination, compute the feature vectors for all speakers, then compute D_truth. The combination with the **smallest D_truth** is selected as the best feature extraction strategy — without training a single classifier.
+For each combination, compute the feature vectors for all speakers, then compute D_penalized. The combination with the **smallest D_penalized** is selected as the best feature extraction strategy — without training a single classifier.
 
 This replaces an expensive grid search over classifiers with a fast geometric quality score.
 

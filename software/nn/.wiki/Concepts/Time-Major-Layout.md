@@ -30,7 +30,7 @@ Werbos (1990) introduced BPTT as a way to differentiate through time for recurre
 - `include/layers/spiking/Lif.hpp` — single-step consumer (no explicit unroll)
 
 ```cpp
-// include/layers/spiking/LifBPTT.hpp  (lines 141–149)
+// include/layers/spiking/LifBPTT.hpp  (condensed from forward(), lines 174–282)
 auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
 {
     // Infer Batch Size

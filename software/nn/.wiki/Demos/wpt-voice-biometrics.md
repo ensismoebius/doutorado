@@ -23,15 +23,19 @@ The Haar wavelet is used for its perfect reconstruction, zero phase, and computa
 **Source:** `src/demos/cppDemos/wpt_voice_biometrics/`
 
 ```cpp
-// voice_biometrics_cpp main pipeline
-// 1. Hann window: N=512, hop=256
-// 2. Haar WPT PACKET_WAVELET, level J = max(floor(log2(N)), ceil(log2(n_bands)))
-// 3. Subband energies → interpolate to n_bands=100 → log1p → normalize [0,1]
-// 4. Adaptive Poisson encode: T=10 steps/window → {0,1}^(T×B×100)
-// 5. Residual SNN: Linear(100→hidden) + LifBPTT
-//                  ResidualSnnBlock × depth (depth=-1 → ceil(log2(hidden)))
-//                  Linear(hidden→n_classes) + LifBPTT (readout)
-// 6. Write CSV: frame_idx, band_0, ..., band_99
+// main.cpp pipeline (run_pipeline())
+// 1. Hann window: N=512, hop=256 (compute_wpt_level clamps level, see below)
+// 2. Haar WPT PACKET_WAVELET, level J = max(1, min(floor(log2(window_size)),
+//    ceil(log2(num_bands))))  — capped by BOTH window size and band count
+// 3. Subband energies → interpolate to num_bands=100 → log1p → normalize by max to [0,1]
+// 4. Adaptive Poisson encode: T=steps_per_window=10 → {0,1}^(T×num_bands), one frame
+//    row-by-row through the model (not a single time-major (T*B,F) call)
+// 5. SnnModel (single-step nn::Lif, not LifBPTT):
+//    Linear(num_bands→hidden) → Lif
+//    ResidualSnnBlock × depth (depth=3 default/CLI, NOT auto-computed from hidden)
+//      each block: Linear(hidden→hidden)→Lif→Linear(hidden→hidden)→Lif, + skip(x)
+//    Linear(hidden→num_bands) → Lif  (plain spike output, no BPTT/readout mode)
+// 6. Write CSV: frame, band_0, ..., band_(num_bands-1)  — accumulated spike counts per band
 ```
 
 ---
@@ -43,11 +47,11 @@ flowchart TD
     A["WAV file or synthetic 440 Hz"] --> B["Hann window\n N=512, hop=256"]
     B --> C["Haar WPT PACKET_WAVELET\n level J = auto"]
     C --> D["Subband energies E_b\n → interpolate 100 bands\n → log1p + normalize"]
-    D --> E["Adaptive Poisson encode\n T=10 steps/window\n S ∈ {0,1}^(T·B×100)"]
-    E --> F["Linear(100→hidden) + LifBPTT\n time-major (T·B, 100)"]
-    F --> G["ResidualSnnBlock × depth"]
-    G --> H["Linear(hidden→C) + LifBPTT readout"]
-    H --> I["output.csv\n frame × spike counts per band"]
+    D --> E["Adaptive Poisson encode\n T=10 steps/window\n S ∈ {0,1}^(T×100)"]
+    E --> F["Linear(100→hidden) + Lif\n single-step, one row at a time"]
+    F --> G["ResidualSnnBlock × depth (default 3)"]
+    G --> H["Linear(hidden→100) + Lif\n plain spike output"]
+    H --> I["output.csv\n frame × accumulated spike counts per band"]
 ```
 
 ---
@@ -76,20 +80,23 @@ cmake --build out/build/max-performance --target voice_biometrics_cpp -j$(nproc)
 
 ## Test Suite
 
-WPT correctness is tested via `core_gtest`:
+The demo has its own gtest target (`WptVoiceBioTest` fixture plus free `TEST`s —
+`compute_wpt_level`, Hann window shape, `apply_windowing`, `interpolate_to_size`,
+WPT energy finiteness/non-negativity, `preprocess_energy` normalization, Poisson
+encoding binariness):
 
 ```bash
-cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R Wavelet --output-on-failure
+cmake --build out/build/max-performance --target wpt_voice_biometrics_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R "WptVoiceBioTest|WptLevel|HannWindow|InterpolateToSize|PreprocessEnergy" --output-on-failure
 ```
 
 ---
 
 ## Common Pitfalls
 
-1. **Level selection with small windows**: if `N_window = 512` and `n_bands = 100`, the auto-selected level $J = \lceil \log_2(100) \rceil = 7$ gives $2^7 = 128$ subbands each with $512 / 128 = 4$ samples. Very short subbands give noisy energy estimates. Reduce `n_bands` or increase window size.
-2. **Encoding module dependency**: `codificacao.cpp` is shared with `snn_speaker_demo`. If that file is not compiled into this target's CMakeLists, the Poisson encoder will be missing.
-3. **`depth = -1` vs explicit depth**: auto depth `ceil(log2(hidden_size))` grows quickly. For `hidden=1024`, auto depth = 10 blocks, which may be too deep for small datasets and cause overfitting.
+1. **Level selection is `min`, not `max`, of the two bounds**: `compute_wpt_level()` returns `max(1, min(floor(log2(window_size)), ceil(log2(num_bands))))` — the level is capped by *both* the window size and the requested band count, never exceeding either. With defaults `N_window = 512` and `n_bands = 100`: `floor(log2(512))=9`, `ceil(log2(100))=7`, so `min(9,7)=7`, giving $2^7 = 128$ subbands of $512/128 = 4$ samples each — short subbands give noisy energy estimates. Reduce `--num-bandas` or increase `--tamanho-janela`.
+2. **Encoding module dependency**: `codificacao.cpp` (from `snn_speaker_demo`) is compiled directly into this target's `CMakeLists.txt` (`../snn_speaker_demo/codificacao.cpp`) — if that relative path changes, the Poisson encoder symbols will be missing at link time.
+3. **`--profundidade` (depth) defaults to 3, not auto-computed**: there is no `depth=-1` special case in `main.cpp` — `SnnConfig::depth` defaults to 3 and is passed straight to `SnnModel`'s residual-block loop. Passing a large `--profundidade` builds that many `ResidualSnnBlock`s directly; nothing derives it from `--hidden`.
 
 ---
 

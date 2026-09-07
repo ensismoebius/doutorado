@@ -143,14 +143,12 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
 ## Usage
 
 ```bash
-# Run experiment
-./autoencoderRunner --config configs/autoencoderRunner.yaml
+# Run experiment (profile-only launcher; profile is a JSON file stem
+# resolved from src/experiments/autoencoderRunner/profiles/)
+./autoencoderRunner --profile default
 
 # Results written to:
-# results/autoencoderRunner/<timestamp>/
-#   - results.json
-#   - models/
-#   - profiles/
+# results/<timestamp>_<profile_stem>.json
 ```
 
 ## How Experiment04 Differs in Practice
@@ -159,8 +157,7 @@ Although the [Experiment04](../Experiments/Guayaquil.md) page frames it as an LS
 
 From code:
 
-- Entry point `src/experiments/guayaquil/guayaquil.cpp` is intentionally thin and forwards control to `LstmAutoencoderExperiment::run(...)`.
-- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/guayaquil/lib/src/GuayaquilExperiment.cpp`.
+- Entry point `src/experiments/guayaquil/guayaquil.cpp` is intentionally thin: `main()` calls `guayaquil::run_comparative_experiment(argc, argv)` directly (declared in `GuayaquilRunner.hpp`, defined in `src/experiments/guayaquil/lib/src/GuayaquilExperiment.cpp`). `LstmAutoencoderExperiment` (`GuayaquilLstmAutoencoder.hpp`) declares a `run()` method but has no `.cpp` implementation or caller anywhere in the tree — it is unused, not the entry path.
 - Default profile stem is `lstm-compare`, resolved from `src/experiments/guayaquil/profiles/`.
 - Comparative sweep includes datasets (e.g., `fsdd`, `physionet`), encoding strategies (`direct`, `poisson`, `latency`), SNN architecture variants (`dense`, `conv1d`, `recurrent`), and hyperparameter grids (`layers`, `v_th`, `alpha`).
 - Training uses Adam + MSE with early stopping; evaluation reports MSE, MAE, $R^2$, precision/recall/F1, spike rate, latency, parameter count, and MAC estimates.

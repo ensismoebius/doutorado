@@ -57,7 +57,7 @@ For speech at 8 kHz:
 - **512 samples (64 ms)** → good frequency resolution, can see individual formants
 - **256 samples (32 ms)** → better temporal tracking of fast consonants, but coarser spectrum
 
-For EEG at 800 Hz:
+For EEG at 1024 Hz:
 - **256 samples (320 ms)** → captures slow delta/theta waves, misses fast transitions
 - **64 samples (80 ms)** → captures beta/gamma bands, but frequency resolution is coarser
 

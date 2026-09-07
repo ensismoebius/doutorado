@@ -74,6 +74,7 @@ private:
     std::size_t batch_size_;
     std::unique_ptr<ISampler> sampler_;
     std::size_t num_batches_;
+    mutable std::size_t epoch_ = 0;
 };
 ```
 
@@ -172,8 +173,9 @@ flowchart TB
 #include "data_loaders/runtime/DataLoader.hpp"
 #include "data_loaders/datasets/MatFileDataset.hpp"
 
-// Create dataset from MAT file
-auto dataset = std::make_shared<nn::data_loaders::MatFileDataset>("data.mat");
+// Create dataset from MAT file (global namespace, not nn::data_loaders;
+// eagerly loads both named variables and validates matching row counts)
+auto dataset = std::make_shared<MatFileDataset>("data.mat", "inputs", "targets");
 
 // Create data loader with random shuffling
 DataLoader loader(dataset, /*batch_size=*/32, /*do_shuffle=*/true, /*seed=*/42U);
@@ -181,8 +183,8 @@ DataLoader loader(dataset, /*batch_size=*/32, /*do_shuffle=*/true, /*seed=*/42U)
 // Iterate batches
 for (const auto& batch : loader)
 {
-    // batch is a Tensor of shape (32, features)
-    auto output = model.forward(batch, true);
+    // batch is a Batch{inputs, targets}; batch.inputs has shape (32, features)
+    auto output = model.forward(batch.inputs, true);
     // ... training step
 }
 ```
@@ -195,7 +197,7 @@ for (const auto& batch : loader)
 #include "statistics/kfold.hpp"
 
 // Compute the fold split first (see Concepts/K-Fold-Cross-Validation.md)
-KFold kf(5, /*shuffle=*/true, /*seed=*/42U);
+statistics::KFold kf(5, /*shuffle=*/true, /*random_seed=*/42U);
 statistics::FoldSplit split = kf.split(dataset->size())[fold_index];
 
 // One FoldSampler per partition, wrapped into a DataLoader via the

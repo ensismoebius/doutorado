@@ -71,7 +71,7 @@ For variational spiking autoencoders, the Gaussian VAE reparameterisation is rep
 
 Straight-through gradient: $\partial L / \partial z \approx (\partial L / \partial \text{output}) \cdot (1/T) \cdot \sigma(z)$
 
-**Tests:** `TdBNTest.*` (formula, γ/β grad, V_th/√T scaling), `PoissonLatentTest.*` (rate positivity, KL≥0, straight-through grad) — in `src/core/layers/tests/fundamental_mechanisms_gtest.cpp`.
+**Tests:** `TdBNTest.*` (formula, γ/β grad, V_th/√T scaling), `PoissonLatentTest.*` (rate positivity, KL≥0, straight-through grad) — in `src/core/layers/tests/fundamental_mechanisms_spiking_gtest.cpp`.
 
 ---
 

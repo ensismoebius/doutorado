@@ -209,7 +209,7 @@ Each module under `src/core/` has its own `CMakeLists.txt` and optional `tests/`
 | `wave/` | `waveCoreLib` |
 | `wavelet/` | `wavelet` |
 | `paraconsistent/` | `paraconsistent` |
-| `saver/` | header-only, no CMake target |
+| `serialization/` | `serialization` (INTERFACE; `NnSaver`/`NetworkSerializer` headers live in `include/serialization/`) |
 | `utility/` | `util` |
 | `training/` | header-only, no CMake target |
 

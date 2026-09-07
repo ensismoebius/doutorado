@@ -25,10 +25,16 @@ DWT statistics (energy, variance, entropy) follow Vetterli & Kovacevic (1995) as
 **Source:** `src/demos/pyDemos/multimodal_eeg_audio/`
 
 ```python
-# run_prototype.py pipeline
-# 1. Preprocess: resample_poly audio→16kHz, EEG→200Hz; z-score; 100ms windows
-# 2. DenseAutoencoder or SpikingAutoencoder (snnTorch Leaky, learn_beta=True)
-# 3. Train on MSE; extract z ∈ R^64 per window
+# run_prototype.py pipeline (config.py: PrototypeConfig)
+# 1. Preprocess: resample audio→target_audio_sr=16kHz, EEG→target_eeg_sr=200Hz;
+#    z-score per window; window_sec=0.1 (100ms), overlap=0.5
+# 2. build_autoencoder(): DenseAutoencoder OR SpikingAutoencoder (model_type default
+#    "spiking"). SpikingAutoencoder: beta = exp(-dt/(R*C)) computed ONCE from
+#    snn_resistance/snn_capacitance (fixed, not learnable); the SAME input window is
+#    repeated snn_time_steps=5 times (not a sample-by-sample unroll of the 1600-sample
+#    window) and fed through in_lif -> mid_lif -> out_lif each step; recon/latent are
+#    the temporal MEAN over the 5 steps
+# 3. Train on MSE; extract latent z ∈ R^64 per window
 # 4. pywt.wavedec(signal, 'db4', level=4) → energy/variance/entropy → w ∈ R^D_w
 # 5. Three linear classifiers: z, w, [z,w]
 # 6. Paraconsistent: μ/λ from softmax → G_c, G_ct per sample → aggregate stats
@@ -50,7 +56,7 @@ flowchart TD
     F --> G
     G --> H["Softmax probs p\n μ = p_y, λ = max p_{c≠y}"]
     H --> I["G_c = μ-λ\n G_ct = μ+λ-1"]
-    I --> J["summary.json\n features.npz"]
+    I --> J["summary.json + config_used.json\n features_{ae,wavelet,combined}.npz.offline"]
 ```
 
 ---
@@ -73,30 +79,47 @@ python src/demos/pyDemos/multimodal_eeg_audio/run_prototype.py \
 **Expected output:**
 ```
 results/multimodal_prototype/
-  summary.json       — accuracy + G_c/G_ct per classifier
-  features.npz       — z_latent, w_wavelet, labels, speaker_ids
-  training_curve.csv — epoch vs reconstruction loss
+  summary.json                    — train/val window counts, input_dim,
+                                     ae_loss_history, accuracy + G_c/G_ct per classifier
+                                     (ae / wavelet / combined)
+  config_used.json                — the resolved PrototypeConfig, for reproducibility
+  features_ae.npz.offline         — validation-set latent AE features (x) + speaker ids (y)
+  features_wavelet.npz.offline    — validation-set wavelet features (x) + speaker ids (y)
+  features_combined.npz.offline   — validation-set concat(ae, wavelet) features + ids
 ```
+The `.npz.offline` suffix is deliberate: runtime `.npz` ingestion is disabled in this
+build (project-wide convention), so these are offline-only artifacts, not files this
+demo or any other component reads back in. There is no `training_curve.csv` —
+per-epoch reconstruction loss lives in `summary.json`'s `ae_loss_history` list.
 
 ---
 
 ## Test Suite
 
-This is a Python prototype; no formal test binary. Smoke-test with a small dataset:
+`tests/` has pytest coverage for the pipeline's individual stages — `test_models.py`
+(DenseAutoencoder/SpikingAutoencoder), `test_preprocess.py` (resampling/windowing),
+`test_wavelet_features.py` (DWT energy/variance/entropy), `test_paraconsistent.py`
+(μ/λ/G_c/G_ct):
 
 ```bash
-python src/demos/pyDemos/multimodal_eeg_audio/run_prototype.py \
-    --data-root /path/to/data --epochs 2 --batch-size 8
+cd src/demos/pyDemos/multimodal_eeg_audio
+python -m pytest tests/ -v
 ```
 
-Check `summary.json` for non-NaN accuracy values.
+There is no dataset-driven smoke test in `tests/`; to sanity-check the full CLI
+pipeline against a real corpus, run with a small `--epochs`/`--batch-size` and check
+`summary.json` for non-NaN accuracy values:
+
+```bash
+python run_prototype.py --data-root /path/to/data --epochs 2 --batch-size 8
+```
 
 ---
 
 ## Common Pitfalls
 
-1. **Native sample rate mismatch**: the demo assumes audio is at 44100 Hz and EEG at 256 Hz. If your corpus has different rates, pass `--audio-orig-sr` and `--eeg-orig-sr` or `resample_poly` will produce wrong alignments.
-2. **SpikingAutoencoder and short sequences**: the spiking variant uses `snn_time_steps=5` by default. For 100 ms windows at 16 kHz, each window has 1600 samples; this is much longer than 5 spike steps. The temporal mean compresses T=5 spike outputs into the latent, so the SNN does not actually process all 1600 samples per step — only a downsampled version.
+1. **Native sample rate mismatch**: `--audio-orig-sr` defaults to 44100 Hz and `--eeg-orig-sr` defaults to 1000 Hz. If your corpus has different native rates, pass the correct values explicitly or resampling will produce wrong alignments.
+2. **SpikingAutoencoder's T axis is not the audio window's time axis**: `SpikingAutoencoder.forward()` repeats the *same* already-flattened window vector `snn_time_steps=5` times (`x.unsqueeze(0).repeat(time_steps,1,1)`) and runs each identical copy through one LIF step; it does not chunk the window's 1600 samples into 5 pieces. `beta` is also a fixed constant (`exp(-dt/(R*C))`), not a learned parameter. The 5-step replication exists to give the LIF layers BPTT-style temporal dynamics on a static input, not to subsample the signal.
 3. **CUDA out of memory**: the full dataset with `batch_size=64` may exceed GPU memory for large corpora. Reduce `--batch-size` or use `--device cpu`.
 
 ---

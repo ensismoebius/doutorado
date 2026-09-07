@@ -45,7 +45,7 @@ The cell update contains **no weight matrix on the recurrent path** ($C_t \lefta
 
 Forget gate bias is initialised to 1 to discourage forgetting at the start of training [4].
 
-**Tests:** Gate equations and bias init verified by `LSTMGateTest.*` in `src/core/layers/tests/fundamental_mechanisms_gtest.cpp`. Covers: forget-bias = 1, f≈0 clears cell, i≈0 blocks update, o≈0 silences H, forward/backward shapes.
+**Tests:** Gate equations and bias init verified by `LSTMGateTest.*` in `src/core/layers/tests/fundamental_mechanisms_composite_gtest.cpp`. Covers: forget-bias = 1, f≈0 clears cell, i≈0 blocks update, o≈0 silences H, forward/backward shapes.
 
 ### Backward Pass (BPTT)
 
@@ -214,7 +214,7 @@ it calls the dispatcher `nn::activations::sigmoid_block(pre, col, H, exact_activ
 | `sigmoid_fast(x)` | `0.5 + x / (2*(1+\|x\|))` | avoids `exp()`, ~5× fewer FLOPs |
 | `tanh_fast(x)` | `x / (1 + \|x\|)` | avoids `exp()`, ~5× fewer FLOPs |
 
-Both clip input to [-8, 8] to prevent overflow without branchy range checks.
+Both clip input to [-10, 10] to prevent overflow before applying the rational approximation.
 
 ### Remaining Bottleneck
 

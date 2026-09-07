@@ -22,15 +22,12 @@ notebooks/
 │   ├── mgdf_phase_voice_biometrics.ipynb
 │   ├── lfcc_feats.npy              ← cached LFCC features (output of pipeline nb)
 │   ├── voice01.wav                 ← sample utterance 1
-│   ├── oi_lindo.wav                ← sample utterance 2
-│   └── outputs/                   ← generated PNG + WAV artifacts
-│       ├── gd_mgdf_images.png
-│       ├── magnitude_and_phase_slice.png
-│       ├── mgdf_gd_slices.png
-│       └── voz1_*.wav / voz2_*.wav
-│
-├── eeg/
-│   └── 21_electrodes_of_International_10-20_system_for_EEG.png
+│   └── oi_lindo.wav                ← sample utterance 2
+<!-- STALE: notebooks/audio/outputs/ (gd_mgdf_images.png, magnitude_and_phase_slice.png,
+     mgdf_gd_slices.png, voz1_*.wav / voz2_*.wav) does not exist on disk -- only present
+     after actually running the notebook, or removed. -->
+<!-- STALE: notebooks/eeg/ (with 21_electrodes_of_International_10-20_system_for_EEG.png)
+     does not exist on disk. -->
 │
 └── ml/                             ← neural-network math visualisations
     ├── activation_functions_derivative_interactive.ipynb
@@ -49,11 +46,8 @@ notebooks/
 | `lfcc_mgdf_feature_extraction.ipynb` | Implements LFCC and MGDF from first principles (no librosa). Verifies the linear filterbank shape `(F, n_filters)` and the DCT matrix. Unresolved shape bug in `dct_type2` documented in cell output. |
 | `mgdf_phase_voice_biometrics.ipynb` | Two-part notebook. **Part 1**: compares magnitude, wrapped/unwrapped phase, group delay, and MGDF on two voice signals; saves PNGs and WAVs to `outputs/`. **Part 2**: MGDF + mel-pooling → LogisticRegression speaker biometrics pipeline with ROC/AUC/EER. Validates the MGDF approach before any C++ port. |
 
-### eeg/
-
-| File | Purpose |
-|---|---|
-| `21_electrodes_of_International_10-20_system_for_EEG.png` | Reference diagram for the standard 10–20 EEG electrode placement system. Used for sanity-checking channel ordering in the `10.1117/` dataset loader. |
+<!-- STALE: eeg/ subsection describes notebooks/eeg/21_electrodes_of_International_10-20_system_for_EEG.png,
+     which does not exist on disk. -->
 
 ### ml/
 

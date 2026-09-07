@@ -64,7 +64,8 @@ ctest --test-dir out/build/max-performance -N | grep -i tensor
 
 Two more gotchas worth knowing now:
 
-- **`-R` is case-sensitive.** `-R lif` matches nothing; `-R Lif` matches 37 tests.
+- **`-R` is case-sensitive.** `-R lif` matches nothing; `-R Lif` matches dozens of tests (46 at
+  last count — the exact number drifts as tests are added).
 - **`ctest --preset=...` does not work here.** `CMakePresets.json` defines configure and build
   presets but no *test* presets, so always use `--test-dir out/build/<preset>`.
 

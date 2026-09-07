@@ -22,7 +22,8 @@ flowchart TB
 
     subgraph "Experiments"
         Exp03[AutoencoderRunner]
-        Exp04[Experiment04]
+        Exp04[Guayaquil]
+        Exp05[Thesis]
     end
 
     subgraph "Training"
@@ -64,9 +65,11 @@ flowchart TB
 
     User --> Exp03
     User --> Exp04
+    User --> Exp05
 
     Exp03 --> Trainer
     Exp04 --> Trainer
+    Exp05 --> Trainer
 
     Trainer --> Config
     Trainer --> Models
@@ -219,9 +222,11 @@ out/
 ├── build/
 │   └── max-performance/     # Compiled targets
 │       ├── src/
-│       │   ├── core/      # Core library
+│       │   ├── core/              # Core library
 │       │   ├── experiments/
-│       │   │   └── 03/   # AutoencoderRunner binary
+│       │   │   ├── autoencoderRunner/
+│       │   │   ├── guayaquil/
+│       │   │   └── thesis/
 │       │   └── demos/
 │       └── compile_commands.json
 └── install/
@@ -233,7 +238,7 @@ out/
 | Variable | Description | Default |
 |---------|------------|---------|
 | `NN_ENABLE_PCH` | Precompiled headers | `ON` |
-| `NN_ENABLE_FAST_LINKER` | Use mold linker | `OFF` |
+| `NN_ENABLE_FAST_LINKER` | Use mold/lld fast linker when available | `ON` (the `max-performance` preset overrides it to `OFF`) |
 | `CMAKE_BUILD_TYPE` | Build type | `Debug` |
 | `CMAKE_INTERPROCEDURAL_OPTIMIZATION` | LTO | `OFF` (Debug) |
 

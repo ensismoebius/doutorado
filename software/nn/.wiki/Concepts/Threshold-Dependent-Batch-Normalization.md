@@ -159,7 +159,7 @@ Note the two time steps have different per-step means (1 and 5); tdBN pools them
    - $V_{th}=2 \Rightarrow$ scale $=2$: $Y = [-2.6833,\ -0.8944,\ 0.8944,\ 2.6833]$, i.e. $N(0,4)=N(0,(\alpha V_{th})^2)$.
 6. **Output** (the $V_{th}=2$ case is what a downstream LIF with threshold 2 receives): its standard deviation is exactly $\alpha V_{th}=2$, so ≈16% of values exceed the threshold of 2 — the balanced firing regime.
 
-These exact numbers are asserted in `TdBNTest.PoolsStatisticsOverBatchAndTime` and `TdBNTest.ForwardOutputScaledByTdbnFactor`.
+These exact numbers are asserted in `TdBNTest.PoolsStatisticsOverBatchAndTime` (`src/core/layers/tests/fundamental_mechanisms_spiking_gtest.cpp`) and `ThresholdDependentBatchNormTest.ForwardOutputScaledByTdbnFactor` (`src/core/layers/tests/spiking_mechanisms_gtest.cpp`).
 
 ---
 
