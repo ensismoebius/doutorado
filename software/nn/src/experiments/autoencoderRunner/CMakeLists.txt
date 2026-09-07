@@ -2,6 +2,7 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/cli.cpp
+    ${SRC_DIR}/experiments/autoencoderRunner/lib/src/ProfileJsonParser.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/ProfileLoader.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/ResultsWriter.cpp
     ${SRC_DIR}/experiments/autoencoderRunner/lib/src/RunSummaryBuilder.cpp

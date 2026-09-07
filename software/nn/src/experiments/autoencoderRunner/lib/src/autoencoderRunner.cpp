@@ -18,6 +18,8 @@
 
 // Experiment-specific components
 #include "DatasetBuilder.hpp"
+#include "FoldRuntimePlan.hpp"
+#include "ReduceLrOnPlateau.hpp"
 #include "ResultsWriter.hpp"
 #include "RunSummaryBuilder.hpp"
 #include "TrialFoldSelector.hpp"
@@ -79,123 +81,6 @@ namespace
 constexpr int kExitSuccess = 0;
 /// @brief Exit code indicating the experiment terminated with an error.
 constexpr int kExitFailure = 1;
-
-auto effective_fold_max_batches(size_t configured_max_batches, size_t available_batches) -> size_t
-{
-    if (configured_max_batches == 0)
-    {
-        return std::max<size_t>(1, available_batches);
-    }
-
-    return std::max<size_t>(1, std::min(configured_max_batches, available_batches));
-}
-
-struct ReduceLROnPlateauState
-{
-    float best_val_loss = std::numeric_limits<float>::infinity();
-    size_t bad_epochs = 0;
-};
-
-auto optimizer_learning_rate_ptr(Optimizer& optimizer) -> float*
-{
-    if (auto* adam = dynamic_cast<Adam*>(&optimizer))
-    {
-        return &adam->learning_rate;
-    }
-    if (auto* sgd = dynamic_cast<SGD*>(&optimizer))
-    {
-        return &sgd->learning_rate;
-    }
-    return nullptr;
-}
-
-auto apply_reduce_lr_on_plateau(
-    Optimizer& optimizer, const Config& config, ReduceLROnPlateauState& state, float epoch_val_loss)
-    -> float
-{
-    float* learning_rate = optimizer_learning_rate_ptr(optimizer);
-    if (learning_rate == nullptr || !config.training_lr_plateau_enabled)
-    {
-        return learning_rate != nullptr ? *learning_rate : config.training_learning_rate;
-    }
-
-    const bool improved =
-        epoch_val_loss <
-        (state.best_val_loss - std::max(0.0F, config.training_lr_plateau_min_delta));
-    if (improved)
-    {
-        state.best_val_loss = epoch_val_loss;
-        state.bad_epochs = 0;
-        return *learning_rate;
-    }
-
-    ++state.bad_epochs;
-    if (state.bad_epochs < std::max<size_t>(1, config.training_lr_plateau_patience))
-    {
-        return *learning_rate;
-    }
-
-    const float factor = std::clamp(config.training_lr_plateau_factor, 0.0F, 1.0F);
-    const float new_lr = std::max(1e-8F, (*learning_rate) * factor);
-    if (new_lr < *learning_rate)
-    {
-        ostringstream lr_log;
-        lr_log << "ReduceLROnPlateau: val loss plateau detected, lr " << *learning_rate << " -> "
-               << new_lr;
-        NN_LOG_INFO(lr_log.str());
-        *learning_rate = new_lr;
-    }
-    state.bad_epochs = 0;
-    return *learning_rate;
-}
-
-/**
- * Perform a single scan over training batches to fit AudioMeanStdNormalize
- * and assemble the modality-aware input transform pipeline.
- *
- * Normalization strategy:
- *  - Audio: column-wise mean-std normalization (Simonyan & Zisserman, 2014).
- *  - EEG:   per-window z-score (Lotte et al., 2018); stateless.
- *  - Fused: FusedModalityTransform dispatching each modality independently.
- *
- * @param config       Experiment configuration; consults training_normalize_inputs.
- * @param max_batches  Scan budget (number of batches to consume for fitting).
- * @param trial_ids    Pointer to trial-ID filter; nullptr = use all trials.
- * @return Fitted transform pipeline, or nullptr when disabled or not applicable.
- */
-
-/// Per-fold batch budget, derived once before the k-fold training loop starts.
-struct FoldRuntimePlan
-{
-    autoencoderRunner::TrialFoldSelection selection;
-    size_t train_epoch_max_batches = 0;
-    size_t val_max_batches = 0;
-};
-
-/// Computes each fold's training/validation selection and per-epoch batch budget, plus the
-/// total number of training batches across all folds (used for global progress reporting).
-auto build_fold_runtime_plans(autoencoderRunner::TrialFoldSelector& fold_selector,
-    const Config& config) -> std::pair<vector<FoldRuntimePlan>, size_t>
-{
-    vector<FoldRuntimePlan> fold_plans;
-    fold_plans.reserve(fold_selector.fold_count());
-
-    size_t global_training_total_batches = 0;
-    for (size_t fold_idx = 0; fold_idx < fold_selector.fold_count(); ++fold_idx)
-    {
-        auto selection = fold_selector.selection_for_fold(fold_idx);
-        const size_t train_epoch_max_batches = effective_fold_max_batches(
-            config.training_max_batches_per_epoch, selection.train_trial_ids.size());
-        const size_t val_max_batches = effective_fold_max_batches(
-            config.training_max_batches_per_epoch, selection.val_trial_ids.size());
-
-        global_training_total_batches += train_epoch_max_batches * config.training_epochs;
-        fold_plans.push_back(
-            FoldRuntimePlan{std::move(selection), train_epoch_max_batches, val_max_batches});
-    }
-
-    return {std::move(fold_plans), global_training_total_batches};
-}
 
 } // namespace
 
