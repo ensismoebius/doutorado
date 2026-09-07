@@ -32,44 +32,39 @@ $$w[n] = 0.42 - 0.5 \cos\left(\frac{2\pi n}{N-1}\right) + 0.08 \cos\left(\frac{4
 
 ### Window Specification
 
+This module does **not** implement a window *function* (Hamming/Hann/
+Blackman taper) at all — `WindowSpec`/`compute_windows` only compute
+**segment boundaries** (sliding-window start/end indices and overlap), a
+different, earlier step than applying a taper before an FFT. There is no
+`WindowType` enum and no `apply_window()`/`overlap_add()` anywhere in the
+codebase — the theoretical background above (Hamming/Hann/Blackman weighting)
+is not what this specific module does:
+
 ```cpp
 // File: include/windowing/WindowSpec.hpp
-enum class WindowType
-{
-    Rectangular,
-    Hamming,
-    Hann,
-    Blackman
-};
-
 struct WindowSpec
 {
-    int window_length;   // samples per window
-    int window_step;    // samples between windows
-    WindowType type;    // window function
-    
-    int sample_rate = 16000;
+    int window_size{};   // samples per window (> 0)
+    float overlap{0.5f}; // fractional overlap in [0, 1); default 50%
+    int sample_rate{1};  // Hz; used only for WindowInfo::center_time_s
+
+    // Derived: hop_size = window_size * (1 - overlap), minimum 1
+    [[nodiscard]] constexpr int hop_size() const noexcept;
+    // Number of complete windows fitting a signal of signal_length samples
+    [[nodiscard]] constexpr int num_windows(int signal_length) const noexcept;
+    void validate() const;  // throws std::invalid_argument if malformed
 };
 ```
 
-### Windowing Engine
+### Sliding-Window Enumeration
 
 ```cpp
 // File: include/windowing/WindowingEngine.hpp
-class WindowingEngine
-{
-public:
-    // Create overlapping windows from signal
-    auto create_windows(const Tensor& signal, const WindowSpec& spec) 
-        -> std::vector<Tensor>;
-
-    // Apply window function to frame
-    auto apply_window(Tensor& frame, WindowType type) -> void;
-
-    // Overlap-add for reconstruction
-    auto overlap_add(const std::vector<Tensor>& windows,
-                     const WindowSpec& spec) -> Tensor;
-};
+// Free function, not a class. Only produces WindowInfo{start, end, center_time_s}
+// descriptors — the caller slices the actual signal/Tensor data itself.
+// Stateless, thread-safe. Only *complete* windows are produced (no padding).
+[[nodiscard]] auto compute_windows(int signal_length, const WindowSpec& spec)
+    -> std::vector<WindowInfo>;
 ```
 
 ## Data Flow
@@ -98,23 +93,22 @@ flowchart LR
 // File: src/core/windowing/tests/windowing_gtest.cpp
 #include "windowing/WindowingEngine.hpp"
 
-// Configure windowing
+// Configure windowing: 25ms window at 16kHz = 400 samples, 50% overlap
 nn::windowing::WindowSpec spec{
-    .window_length = 400,   // 25ms at 16kHz
-    .window_step = 160,    // 10ms hop
-    .type = nn::windowing::WindowType::Hamming,
+    .window_size = 400,
+    .overlap = 0.5f,
     .sample_rate = 16000
 };
+spec.validate();
 
-// Create windows
-nn::windowing::WindowingEngine engine;
-nn::Tensor signal = /* load audio */;
-auto windows = engine.create_windows(signal, spec);
+// Enumerate window boundaries (no signal data touched yet)
+auto windows = nn::windowing::compute_windows(/*signal_length=*/16000, spec);
 
-// Each window is now ready for FFT
-for (const auto& frame : windows)
+// Caller slices the actual signal/Tensor per descriptor
+for (const auto& w : windows)
 {
-    auto spectrum = fft(frame);
+    // signal[w.start .. w.end), centered at w.center_time_s seconds
+    auto spectrum = fft(signal.block(w.start, w.end - w.start));
     // ... process
 }
 ```

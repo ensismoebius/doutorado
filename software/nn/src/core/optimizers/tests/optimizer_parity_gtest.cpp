@@ -27,6 +27,7 @@
 #include "optimizers/Adam.hpp"
 #include "optimizers/Lion.hpp"
 #include "optimizers/SGD.hpp"
+#include "optimizers/SGDMinimal.hpp"
 #include "optimizers/ScheduleFreeAdamW.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -131,6 +132,14 @@ TEST(OptimizerParity, SgdMomentumMatchesTorchSgd)
 {
     SGD opt(0.05F, 0.9F);
     replay("sgdm_2x3", opt, kTol);
+}
+
+// SGDMinimal: no momentum/state at all -- param -= lr*grad exactly, same reference as
+// plain torch.optim.SGD(momentum=0) used above for SGD.
+TEST(OptimizerParity, SGDMinimalMatchesTorchSgd)
+{
+    SGDMinimal opt(0.05F);
+    replay("sgdminimal_2x3", opt, kTol);
 }
 
 // ── Lion vs lion-pytorch ─────────────────────────────────────────────────────

@@ -18,6 +18,12 @@ Testing layers added to catch classes of bugs that unit tests and compilation mi
    [Wavelet](../Core/Wavelet.md#ground-truth-vs-pywavelets-2026-07-15)); it
    caught a `malat` DWT buffer-corruption bug and three corrupted Daubechies
    filter tables.
+2b. **Independent re-derivation cross-checks** — for the two layers with no
+   external library implementing the same operation (`SpikeTimeLoss`,
+   `PoissonLatentLayer`), a second, independently-written NumPy implementation
+   of the documented formula, NOT a diff against a real library. See the
+   dedicated section below — this distinction matters, don't read a passing
+   test here as carrying the same weight as a PyTorch-backed one.
 3. **Experiment05 smoke tests** — end-to-end runs of every profile to surface runtime errors.
 
 Each compares against a mature reference library, stores committed `.npz`
@@ -86,6 +92,7 @@ instantiation to be linkable at all.
 | Linear | torch.nn.Linear | forward + grad_input + grad_weight + grad_bias |
 | Tanh / Sigmoid / ReLU / LeakyReLU | torch | forward + backward |
 | MSELoss (mean) | torch | loss + grad_pred |
+| MAELoss (mean) | `torch.nn.functional.l1_loss` | loss + grad_pred |
 | CrossEntropyLoss | torch F.cross_entropy | loss + grad_logits (one-hot targets) |
 | LSTMLayer | torch.nn.LSTM | forward (batched 3-D) |
 | LifBPTT | snnTorch `snn.Leaky` | forward: spike train (subtract + zero reset) + membrane |
@@ -93,6 +100,41 @@ instantiation to be linkable at all.
 | Conv1d | torch.nn.Conv1d | forward (valid, stride 1) |
 | Conv2d | torch.nn.Conv2d | forward (valid, stride 1, square kernel) |
 | MaxPool1d / MaxPool2d | torch | forward |
+| SpikeCountLoss (core term, `rate_reg_lambda=0`) | `torch.nn.functional.mse_loss` | loss + grad_pred (reuses the MSELoss fixture — same math, different C++ wrapper) |
+| ResidualBlock | plain `torch.nn` (Linear→ReLU→Linear→+skip) | forward + grad_input + both Linears' weight/bias grads |
+| ResNetBlock | plain `torch.nn` (Conv2d→ReLU→Conv2d→+skip→ReLU) | forward + grad_input + both Convs' weight/bias grads — including the shape-aligned (cropped) skip connection, reproduced via plain tensor indexing rather than hand-transcribing `align_to_shape()` |
+| ThresholdDependentBatchNorm | `spikingjelly` `ThresholdDependentBatchNorm1d` | forward + backward (γ/β grads) |
+
+**Two library-vs-project naming false friends, ruled out during a 2026-09
+investigation before any test was written against them** (do not "fix" this by
+wiring these up — they check a different operation despite the name match):
+- `SpikeCountLoss` is autoencoder reconstruction MSE between two spike tensors
+  plus a firing-rate regularizer; snnTorch's `mse_count_loss` is a
+  classification loss (per-class correct/incorrect target *rates*). Only the
+  regularizer-free core reduces to plain MSE, which is what's actually tested.
+- `PoissonLatentLayer` is not `spikegen.rate`: `spikegen.rate` Bernoulli-encodes
+  a static image into 0/1 spikes; `PoissonLatentLayer` is a Poisson-VAE
+  reparameterization (ESVAE, arXiv:2310.14839) — sample a spike *count* from
+  `Poisson(softplus(z)·T)`, not a per-step coin flip. See the independent
+  re-derivation section below for what actually validates this one.
+
+**`ResNetBlock`'s `conv1_`/`conv2_` were made public** (2026-09) specifically so
+this test could inject known weights via `Conv2dImpl::set_weights()`/
+`set_bias()` — there was no other way to reach them from outside the class.
+
+**`ThresholdDependentBatchNorm` vs `spikingjelly`, two gotchas worth knowing
+if this test ever needs touching again:**
+- spikingjelly's `ThresholdDependentBatchNorm1d` folds `α·V_th` into a single
+  learnable `weight` rather than keeping a separate `γ`; the generator sets
+  `weight = γ·α·V_th` directly and recovers `dL/dγ` via the chain rule
+  (`dL/dγ = dL/dweight · α·V_th`).
+- **Library bug** (spikingjelly 0.0.0.0.14): `ThresholdDependentBatchNorm1d`
+  subclasses torch's internal *abstract* `_BatchNorm` instead of
+  `torch.nn.BatchNorm1d`, so calling it unconditionally raises
+  `NotImplementedError` (`_check_input_dim` is never overridden). Worked
+  around in the generator by binding `torch.nn.BatchNorm1d._check_input_dim`
+  onto the instance — restores exactly the shape check `BatchNorm1d` itself
+  would run; no spikingjelly code was patched in place.
 
 Exact-math layers match to `1e-4`. Two need care:
 
@@ -126,7 +168,7 @@ test can `set_weights()`:
 
 ```bash
 software/nn/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-software/nn/.venv/bin/python -m pip install snntorch
+software/nn/.venv/bin/python -m pip install snntorch spikingjelly
 software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
 ctest --test-dir out/build/max-performance -R PyTorchParity   # XTensor/OpenCL/Device
 # SYCL needs its own preset + the safety override (see cmake/SyclGpuCapabilityCheck.cmake):
@@ -151,6 +193,50 @@ single selected `nn::Backend`), regenerate.
 > backend; the test helpers enforce this.
 
 See `software/nn/scripts/testing/README.md` for the full contract.
+
+---
+
+## Independent re-derivation cross-checks
+
+**The problem this solves.** `SpikeTimeLoss` and `PoissonLatentLayer` have no
+external ground truth — no library implements the same operation (see the two
+"false friend" write-ups above: the library functions with similar-sounding
+names check something else). Without *some* second implementation, a bug in
+these two layers is invisible to every test category above: unit tests
+written by the same person who wrote the layer tend to encode the same
+misunderstanding twice.
+
+**What this is, and what it explicitly is not.** A second, independently
+written implementation of the layer's own documented formula, in plain NumPy,
+living in `scripts/testing/gen_independent_refs.py` /
+`src/core/layers/tests/independent_refs_gtest.cpp`. It catches transcription
+bugs and formula misreadings the same way a second engineer checking your
+derivation would. It does **not** catch a shared misunderstanding of the
+underlying theory (both implementations could faithfully reproduce the same
+wrong idea) the way an external, independently-designed library would. Both
+files' headers say "independent re-derivation" / "cross-check" explicitly —
+never call this "ground truth" or "parity" in code or docs; that phrasing is
+reserved for the PyTorch/snnTorch/spikingjelly-backed tests above, which carry
+a different, stronger guarantee.
+
+| Confusable pair | What it actually validates |
+|---|---|
+| PyTorch/snnTorch/spikingjelly parity (above) | Matches an independently-designed, independently-implemented reference — catches both transcription errors and theory misunderstandings |
+| Independent re-derivation (this section) | Matches a second implementation of *this project's own* formula — catches transcription errors only |
+
+### Coverage
+
+| Layer | What's pinned | What's deliberately NOT pinned |
+|---|---|---|
+| `SpikeTimeLoss` | Exact — the whole forward/backward (first-spike-time extraction, MSE, straight-through gradient assignment). No RNG in the loss itself, only in generating the test's random spike pattern (seeded). | — |
+| `PoissonLatentLayer` | The deterministic parts only: `rate = softplus(z)`, the KL-divergence term, the inference-mode output (`requires_grad=false` returns `rate` directly), and `backward()`'s gradient formula (straight-through `dL/dz = grad_output·(1/T)·sigmoid(z)`, plus the KL gradient term when `beta_kl>0`). | The stochastic training-mode forward pass, `s ~ Poisson(rate·T)` then `output = s/T`. `std::poisson_distribution` (C++) and `np.random.poisson` (NumPy) are different algorithms with different RNG streams — "the same seed" doesn't mean the same draws across engines, so this path cannot be pinned to an exact value. A statistical check (sample mean converges to `rate`) is possible but was left out here; if added, it must be a clearly separate test so sampling noise can never mask a real regression in the deterministic math above. |
+
+### Regenerate
+
+```bash
+software/nn/.venv/bin/python software/nn/scripts/testing/gen_independent_refs.py
+ctest --test-dir out/build/max-performance -R IndependentCrossCheck
+```
 
 ---
 

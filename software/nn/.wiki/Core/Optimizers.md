@@ -148,6 +148,7 @@ pattern used for [layer parity testing](../Guides/Ground-Truth-and-Smoke-Testing
 | This project's class | Checked against |
 |---|---|
 | `Adam`, `Adam` + `weight_decay`, `SGD` | `torch.optim.Adam` / `torch.optim.AdamW` / `torch.optim.SGD` |
+| `SGDMinimal` | `torch.optim.SGD(momentum=0)` — the plain `param -= lr*grad` case |
 | `Lion` | `lion-pytorch` |
 | `ScheduleFreeAdamW` | `schedulefree` (`AdamWScheduleFreeReference`) |
 
@@ -380,8 +381,8 @@ flowchart LR
 // File: include/optimizers/Optimizer.hpp
 #include "optimizers/Adam.hpp"
 
-// Create optimizer with learning rate
-nn::optimizers::Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);
+// Create optimizer with learning rate (Adam lives in the global namespace)
+Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);
 
 // Attach to model parameters
 optimizer.attach(model.params());

@@ -24,14 +24,15 @@ Full BPTT unrolls the recurrence $V[t] = \beta V[t-1] + I[t]$ through $T$ steps 
 
 ```cpp
 // autoencoder_leakyrelu/autoEncoderLeakyReLUAndSpikeTest.cpp (structure)
-// Architecture (input_dim → latent → input_dim):
-//   Linear(D → hidden) → LifBPTT(T, R=1, C=1, V_th=1)
-//   Linear(hidden → latent) → LifBPTT(T)
-//   Linear(latent → hidden) → LifBPTT(T)
-//   Linear(hidden → D) → LifBPTT(T)
+// Defaults: input_dim=100, hidden_dims={50,40,30,20,10}, bottleneck_dim=10,
+//           steps=100, dt=0.001, R=5.0, C=1.0, thr=0.01
+// Encoder: Linear(100→50)→LifBPTT ... Linear(20→10)→LifBPTT ... Linear(10→10)→LifBPTT
+//          (6 Linear→LifBPTT pairs, one per hidden_dims entry plus the bottleneck)
+// Decoder: mirrors the encoder (6 Linear→LifBPTT pairs), final LifBPTT built with
+//          readout_mode=true (emits v_mem directly, no spike/reset)
 //
-// Loss: MSELoss on spike means vs. input
-// Optimizer: Adam with weight_decay
+// Loss: MSELoss on decoder output vs. input
+// Optimizer: Adam(lr), gradient clipped to max_norm=1.0 via nn::utils::clip_grad_norm
 // Logging: csv "cpp_loss_log.txt" (epoch, loss)
 ```
 
@@ -59,8 +60,8 @@ flowchart TD
 ```bash
 cd /home/ensismoebius/Repos/doutorado/software/nn
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target autoencoder_leakyrelu -j$(nproc)
-./out/build/max-performance/src/demos/cppDemos/autoencoder_leakyrelu/autoencoder_leakyrelu
+cmake --build out/build/max-performance --target autoEncoderLeakyReLUAndSpikeTest -j$(nproc)
+./out/build/max-performance/src/demos/cppDemos/autoencoder_leakyrelu/autoEncoderLeakyReLUAndSpikeTest
 ```
 
 **Expected output:** per-epoch loss printed to console + `cpp_loss_log.txt` in working directory. Loss should decrease monotonically over the first 20–50 epochs.
@@ -69,11 +70,11 @@ cmake --build out/build/max-performance --target autoencoder_leakyrelu -j$(nproc
 
 ## Test Suite
 
-The LifBPTT BPTT correctness is tested by `core_gtest`:
+The demo has its own gtest target (`DenseAutoencoderTest`/`SpikeAutoencoderTest` fixtures — output shape, finiteness, loss decrease, spike binariness):
 
 ```bash
-cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R LifBPTT --output-on-failure
+cmake --build out/build/max-performance --target autoencoder_leakyrelu_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R autoencoder_leakyrelu --output-on-failure
 ```
 
 ---

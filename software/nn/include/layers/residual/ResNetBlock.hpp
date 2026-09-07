@@ -30,8 +30,8 @@ class ResNetBlockImpl : public Module<Backend>
    public:
     ResNetBlockImpl(int in_channels, int out_channels)
         : conv1_(in_channels, out_channels, 3),
-          relu1_(),
           conv2_(out_channels, out_channels, 3),
+          relu1_(),
           relu2_()
     {
     }
@@ -47,7 +47,7 @@ class ResNetBlockImpl : public Module<Backend>
         const auto in_shape = input.get_shape();
         if (out_shape == in_shape) [[likely]]
         {
-            output = output + input; // 
+            output = output + input; //
         }
         else
         {
@@ -82,7 +82,7 @@ class ResNetBlockImpl : public Module<Backend>
         const auto in_shape = grad_x.get_shape();
         if (out_shape == in_shape) [[likely]]
         {
-            grad_x = grad_x + grad_skip; // 
+            grad_x = grad_x + grad_skip; //
         }
         else
         {
@@ -91,6 +91,11 @@ class ResNetBlockImpl : public Module<Backend>
 
         return grad_x;
     }
+
+    // Public so ground-truth parity tests can inject known weights via
+    // Conv2dImpl::set_weights()/set_bias() directly, without a test-only accessor.
+    Conv2dImpl<Backend> conv1_;
+    Conv2dImpl<Backend> conv2_;
 
    private:
     static auto align_to_shape(const Tensor& src, const std::vector<nn::Index>& target_shape)
@@ -101,22 +106,22 @@ class ResNetBlockImpl : public Module<Backend>
 
         const auto src_shape = src.get_shape();
         if (src_shape == target_shape)
-        { // 
-            return src; // 
+        {               //
+            return src; //
         }
 
         if (src_shape.size() == 2 && target_shape.size() == 2)
-        { // 
-            const nn::Index rows_copy = std::min(src_shape[0], target_shape[0]); // 
-            const nn::Index cols_copy = std::min(src_shape[1], target_shape[1]); // 
-            for (nn::Index r = 0; r < rows_copy; ++r)                            // 
-            { // 
-                for (nn::Index c = 0; c < cols_copy; ++c) // 
-                { // 
-                    aligned.at(r, c) = src.at(r, c); // 
+        {                                                                        //
+            const nn::Index rows_copy = std::min(src_shape[0], target_shape[0]); //
+            const nn::Index cols_copy = std::min(src_shape[1], target_shape[1]); //
+            for (nn::Index r = 0; r < rows_copy; ++r)                            //
+            {                                                                    //
+                for (nn::Index c = 0; c < cols_copy; ++c)                        //
+                {                                                                //
+                    aligned.at(r, c) = src.at(r, c);                             //
                 }
-            } // 
-            return aligned; // 
+            } //
+            return aligned; //
         }
 
         if (src_shape.size() == 4 && target_shape.size() == 4)
@@ -141,17 +146,15 @@ class ResNetBlockImpl : public Module<Backend>
             return aligned;
         }
 
-        const nn::Index linear_copy = std::min(src.size(), aligned.size()); // 
-        for (nn::Index i = 0; i < linear_copy; ++i)                         // 
-        { // 
-            aligned.at(i) = src.at(i); // 
-        } // 
-        return aligned; // 
+        const nn::Index linear_copy = std::min(src.size(), aligned.size()); //
+        for (nn::Index i = 0; i < linear_copy; ++i)                         //
+        {                                                                   //
+            aligned.at(i) = src.at(i);                                      //
+        } //
+        return aligned; //
     }
 
-    Conv2dImpl<Backend> conv1_;
     ReLUImpl<Backend> relu1_;
-    Conv2dImpl<Backend> conv2_;
     ReLUImpl<Backend> relu2_;
     Tensor skip_input_; // cached for potential future use
 };

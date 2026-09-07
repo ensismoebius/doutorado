@@ -63,10 +63,11 @@ redraw.
 
 ### ProgressBar (a self-contained handle)
 
-Creating a `ProgressBar` registers a new bar to be drawn; destroying it
-(falling out of scope) automatically removes it — this "resource acquisition
-is initialisation" (RAII) pattern means you never have to remember to
-explicitly clean one up:
+Creating a `ProgressBar` registers a new bar to be drawn. Its destructor is
+deliberately a **no-op** — despite the name, this is *not* an RAII handle that
+auto-removes the bar on scope exit (that would flicker the display for
+short-lived handles); call `ProgressManager::instance().remove_bar(id())`
+explicitly if a bar needs to disappear before the run ends:
 
 ```cpp
 // File: include/progress/ProgressBar.hpp
@@ -75,11 +76,11 @@ namespace nn::progress
 class ProgressBar
 {
 public:
-    explicit ProgressBar(const std::string& label, float total);
-    ~ProgressBar();
+    ProgressBar(const std::string& label, float target);
+    ~ProgressBar();  // intentional no-op — does NOT remove the bar
 
-    void update(float current, const std::map<std::string, float>& metrics = {});
-    void mark_complete();
+    void update(float value, const std::map<std::string, float>& metrics = {});
+    void mark_complete();   // delegates to ProgressManager::complete_bar(id)
 
     auto id() const -> uint32_t;
 };
@@ -99,11 +100,19 @@ namespace nn::progress
 class ProgressManager
 {
 public:
-    static auto instance() -> ProgressManager&;
+    static ProgressManager& instance();
 
-    auto create_bar(const std::string& label, float total) -> uint32_t;
-    void update_bar(uint32_t id, float current, const std::map<std::string, float>& metrics = {});
-    void mark_complete(uint32_t id);
+    uint32_t create_bar(const std::string& label, float target);
+    void update_bar(uint32_t id, float value, const std::map<std::string, float>& metrics = {});
+    void complete_bar(uint32_t id);   // NOT "mark_complete" — that name lives on ProgressBar
+    void remove_bar(uint32_t id);
+    void shutdown();
+
+    // Per-bar metadata shown alongside the bar (fold number, loss type, ...)
+    void set_description(uint32_t id, const std::string& description);
+    void set_fold_info(uint32_t id, int fold_number, int total_folds);
+    void set_loss_type(uint32_t id, const std::string& loss_type);
+    void set_test_loss(uint32_t id, float test_loss);
 
 private:
     ProgressManager();
@@ -279,7 +288,7 @@ layer has.
 ```cpp
 // File: src/core/training/Trainer.hpp
 template <typename ModelType,
-           typename LossType = MSELossImpl<nn::XtensorTensorBackend>>
+           typename LossType = MSELossImpl<nn::Backend>>
 class Trainer
 {
 public:
@@ -315,7 +324,7 @@ public:
 ```
 
 `Trainer` is generic over the loss function type (default
-`MSELossImpl<XtensorTensorBackend>`, i.e. mean-squared error) — any loss type
+`MSELossImpl<nn::Backend>`, i.e. mean-squared error) — any loss type
 used in its place must provide three things: a way to tell it what the target
 value is (`set_target`), a `forward()` that computes the loss as a single
 1×1-tensor number, and a `backward()` that computes the gradient of that loss
@@ -476,15 +485,23 @@ all hook into the training loop without `Trainer` itself needing to know
 anything about progress bars, stopping criteria, or logging formats:
 
 ```cpp
-// File: include/training/ITrainingCallback.hpp
+// File: include/training/TrainingState.hpp
 namespace nn::training {
 
 struct TrainingState {
-    int epoch; int total_epochs;
-    int batch; int total_batches;
-    float batch_loss;
+    int epoch = 0; int total_epochs = 0;
+    int batch = 0; int total_batches = 0;
+    float batch_progress = 0.0F;   // fraction of current batch processed, e.g. for sub-batch reporting
+    float batch_loss = 0.0F;
     const EpochResult* last_epoch_result = nullptr;
 };
+
+} // namespace nn::training
+```
+
+```cpp
+// File: include/training/ITrainingCallback.hpp — #includes TrainingState.hpp
+namespace nn::training {
 
 struct ITrainingCallback {
     virtual void on_train_begin(int total_epochs) {}
@@ -492,6 +509,7 @@ struct ITrainingCallback {
     virtual void on_epoch_begin(const TrainingState&) {}
     virtual void on_epoch_end(const TrainingState&, const EpochResult&) {}
     virtual void on_batch_begin(const TrainingState&) {}
+    virtual void on_batch_progress(const TrainingState&) {}
     virtual void on_batch_end(const TrainingState&) {}
     virtual bool should_stop() const { return false; }
     virtual ~ITrainingCallback() = default;

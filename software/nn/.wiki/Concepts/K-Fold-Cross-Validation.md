@@ -73,6 +73,10 @@ public:
                    std::uint32_t random_seed = 0U);
     auto split(std::size_t n_samples) const -> std::vector<FoldSplit>;
 };
+```
+
+```cpp
+// File: include/statistics/StratifiedKFold.hpp
 
 // Stratified K-fold (for classification)
 class StratifiedKFold {
@@ -86,7 +90,7 @@ public:
 ### Nested K-Fold
 
 ```cpp
-// File: include/statistics/kfold.hpp  (namespace statistics)
+// File: include/statistics/NestedKFold.hpp  (namespace statistics)
 
 struct NestedFoldSplit {
     std::vector<std::size_t> test_indices;  // outer held-out test set
@@ -104,7 +108,7 @@ public:
 };
 ```
 
-Inner seeds are deterministic but distinct per outer fold (Knuth multiplicative hash on the outer test indices), guaranteeing reproducibility while ensuring inner splits differ.
+Inner seeds are deterministic but distinct per outer fold (Knuth multiplicative hash of the outer fold's first test index, XORed into the base seed), guaranteeing reproducibility while ensuring inner splits differ.
 
 ### TrainerConfig Integration
 

@@ -65,7 +65,10 @@ For EEG at 800 Hz:
 
 ## Windowing in this project
 
-The `WindowingEngine` in the library takes a full signal and produces a list of windowed frames, each ready for FFT or wavelet analysis. The LFCC and MFCC pipelines call this internally.
+Two separate things live under "windowing" in the library:
+
+- **Segment boundaries**: `windowing/WindowingEngine.hpp` provides a free function, `compute_windows()`, that only computes sliding-window start/end indices (given a `WindowSpec`) — it does *not* apply a taper. The caller slices the actual signal itself.
+- **Framing + tapering for speech features**: the LFCC/MFCC pipeline has its own framing and window-function code (`framing_and_window`, `hanning_window`, `apply_window` in `include/wave/audioFeatureExtraction.hpp`) — this is where the Hamming/Hann tapering described above actually happens, not in `WindowingEngine`.
 
 ---
 

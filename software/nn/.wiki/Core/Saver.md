@@ -21,48 +21,42 @@ PyTorch-style serialization stores:
 
 ### Network Serializer
 
+`NetworkSerializer` is specific to `Sequential` models (not any `Module<Backend>`)
+and has no optimizer-saving methods at all — it round-trips a network's
+architecture + weights through an `.npz` file:
+
 ```cpp
 // File: include/serialization/NetworkSerializer.hpp
 class NetworkSerializer
 {
 public:
-    // Save model state dictionary
-    auto save_state_dict(const std::string& path, 
-                        const Module<Backend>& model) -> void;
+    static auto saveNetwork(const Sequential& model, const string& safe_filepath) -> bool;
+    static auto loadNetwork(Sequential& model, const string& safe_filepath) -> bool;
 
-    // Load model state dictionary
-    auto load_state_dict(const std::string& path,
-                        Module<Backend>& model) -> void;
-
-    // Save optimizer state
-    auto save_optimizer(const std::string& path,
-                       const Optimizer& optimizer) -> void;
-
-    // Load optimizer state
-    auto load_optimizer(const std::string& path,
-                      Optimizer& optimizer) -> void;
+    // private: per-layer save/load handlers (_saveLinear, _saveLeaky, ...)
+    // dispatch on concrete layer type; architecture is encoded as a string
+    // alongside the per-parameter weight/bias entries in the .npz.
 };
 ```
 
-### YAML Configuration
+### Binary State Dict (not YAML)
+
+There is no `StateIO` class and no YAML support — `include/io/StateIO.hpp`
+is a pair of free functions that (de)serialize a plain `std::map<std::string,
+Tensor>` state dict to/from a project-specific binary format (entry count,
+then per-entry key + rows/cols + raw float data), independent of any
+particular model or optimizer type:
 
 ```cpp
 // File: include/io/StateIO.hpp
-class StateIO
+namespace nn::io
 {
-public:
-    // Save complete state (model + optimizer + config)
-    auto save(const std::string& path,
-             const Module<Backend>& model,
-             const Optimizer& optimizer,
-             const Config& config) -> void;
+using StateDict = std::map<std::string, nn::Tensor>;
 
-    // Load complete state
-    auto load(const std::string& path,
-             Module<Backend>& model,
-             Optimizer& optimizer,
-             Config& config) -> void;
-};
+auto save_state_dict(const StateDict& sd, const std::string& path) -> bool;
+auto load_state_dict(StateDict& out, const std::string& path) -> bool;
+auto load_state_dict(const std::string& path) -> StateDict;  // convenience overload
+}
 ```
 
 ## Data Flow
@@ -104,38 +98,27 @@ flowchart LR
 ```cpp
 // File: src/core/serialization/tests/NetworkSerializer_gtest.cpp
 #include "serialization/NetworkSerializer.hpp"
-#include "optimizers/Adam.hpp"
 
-// Save model
-nn::saver::NetworkSerializer serializer;
-serializer.save_state_dict("model.pt", *model);
+// Save model (Sequential only)
+nn::Sequential model = /* ... */;
+NetworkSerializer::saveNetwork(model, "model.npz");
 
-// Load model
-auto loaded_model = std::make_unique<MyModel>(config);
-serializer.load_state_dict("model.pt", *loaded_model);
-
-// Save optimizer for resume training
-serializer.save_optimizer("optimizer.pt", optimizer);
-
-// Load and resume
-serializer.load_optimizer("optimizer.pt", optimizer);
+// Load model (architecture must already match; layers are filled in place)
+nn::Sequential loaded_model = /* rebuild same architecture */;
+NetworkSerializer::loadNetwork(loaded_model, "model.npz");
 ```
 
-### YAML Save/Load
+### Binary State Dict Save/Load
 
 ```cpp
 #include "io/StateIO.hpp"
 
-// Save complete training state
-nn::io::StateIO state_io;
-state_io.save("experiment01/checkpoint.yaml", *model, optimizer, config);
+// Save any model's state_dict() as a plain binary file
+nn::io::save_state_dict(model.state_dict(), "checkpoint.bin");
 
-// Load complete state
-MyModel restored_model(config);
-nn::optimizers::Adam restored_optimizer(config.learning_rate);
-ExperimentConfig restored_config;
-state_io.load("experiment01/checkpoint.yaml", 
-              restored_model, restored_optimizer, restored_config);
+// Load it back
+auto restored = nn::io::load_state_dict("checkpoint.bin");
+model.load_state_dict(restored);
 ```
 
 ## Common Pitfalls

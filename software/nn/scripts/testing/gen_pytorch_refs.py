@@ -18,6 +18,7 @@ import os
 import numpy as np
 import snntorch as snn
 import torch
+from spikingjelly.activation_based import layer as sj_layer
 
 torch.manual_seed(0)
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -58,6 +59,39 @@ for idx, (B, IN, OUT_F) in enumerate(LINEAR_CASES):
     put(p + "grad_bias", lin.bias.grad.reshape(OUT_F, 1))  # (OUT_F, 1)
 
 
+# ── ResidualBlock: Linear -> ReLU -> Linear -> +skip (forward + backward) ─────
+# Mirrors ResidualBlockImpl<Backend>: y = fc2(relu(fc1(x))) + x (identity skip,
+# requires features_in == features_out).
+RESIDUAL_CASES = [(2, 4), (3, 5)]  # (B, F)
+put("residual_num", np.array([len(RESIDUAL_CASES)], np.int64))
+for idx, (B, F) in enumerate(RESIDUAL_CASES):
+    torch.manual_seed(800 + idx)
+    fc1 = torch.nn.Linear(F, F)
+    fc2 = torch.nn.Linear(F, F)
+    torch.nn.init.normal_(fc1.weight, std=0.5)
+    torch.nn.init.normal_(fc1.bias, std=0.5)
+    torch.nn.init.normal_(fc2.weight, std=0.5)
+    torch.nn.init.normal_(fc2.bias, std=0.5)
+    x = torch.randn(B, F, requires_grad=True)
+    h = torch.relu(fc1(x))
+    y = fc2(h) + x
+    g = torch.randn(B, F)
+    y.backward(g)
+    p = f"residual_{idx}_"
+    put(p + "fc1_weight", fc1.weight)              # (F, F)
+    put(p + "fc1_bias", fc1.bias.reshape(F, 1))     # (F, 1)
+    put(p + "fc2_weight", fc2.weight)               # (F, F)
+    put(p + "fc2_bias", fc2.bias.reshape(F, 1))     # (F, 1)
+    put(p + "input", x)                             # (B, F)
+    put(p + "output", y)                            # (B, F)
+    put(p + "grad_output", g)                       # (B, F)
+    put(p + "grad_input", x.grad)                   # (B, F)
+    put(p + "grad_fc1_weight", fc1.weight.grad)
+    put(p + "grad_fc1_bias", fc1.bias.grad.reshape(F, 1))
+    put(p + "grad_fc2_weight", fc2.weight.grad)
+    put(p + "grad_fc2_bias", fc2.bias.grad.reshape(F, 1))
+
+
 # ── Elementwise activations (forward + backward) ──────────────────────────────
 ACTS = {
     "tanh": (torch.tanh, {}),
@@ -86,6 +120,22 @@ put("mse_pred", pred)
 put("mse_target", tgt)
 put("mse_loss", loss.reshape(1, 1))
 put("mse_grad_pred", pred.grad)
+
+# NOTE: SpikeCountLossImpl at its default rate_reg_lambda=0 is exactly plain MSE
+# (mean reduction) between input and target -- see SpikeCountLoss.hpp. Rather than
+# duplicate this case, the SpikeCountLossCoreMse C++ test below reuses these same
+# mse_* fixture keys directly.
+
+
+# ── MAELoss (mean reduction) vs torch.nn.functional.l1_loss ──────────────────
+mae_pred = torch.randn(3, 4, requires_grad=True)
+mae_tgt = torch.randn(3, 4)
+mae_loss = torch.nn.functional.l1_loss(mae_pred, mae_tgt, reduction="mean")
+mae_loss.backward()
+put("mae_pred", mae_pred)
+put("mae_target", mae_tgt)
+put("mae_loss", mae_loss.reshape(1, 1))
+put("mae_grad_pred", mae_pred.grad)
 
 
 # ── LSTM (forward) — weights stored in OUR gate order i,f,o,g, merged bias ─────
@@ -250,6 +300,63 @@ for idx, (N, Cin, Cout, H, W, K) in enumerate(CONV2D_CASES):
     put(p + "output", y)
 
 
+# ── ResNetBlock: Conv2d -> ReLU -> Conv2d -> +skip -> ReLU (forward + backward) ─
+# Matches ResNetBlockImpl exactly, INCLUDING its shape-alignment skip: two
+# stacked K-kernel convs with no padding shrink H,W by 2*(K-1), so the
+# conv-branch output is smaller than the raw input. ResNetBlockImpl's
+# align_to_shape() then crops the input to the output's top-left corner
+# (per-dim min, starting at index 0) before adding it as the skip connection,
+# and zero-pads the corresponding gradient back up to the input's shape on
+# the way back. Using Cin==Cout here means channels need no alignment (full
+# copy), only the spatial crop/pad — and plain torch indexing (`x[:, :, :oh,
+# :ow]`) reproduces exactly that crop, with autograd handling the matching
+# zero-pad on backward automatically. No manual reimplementation of
+# align_to_shape needed.
+RESNETBLOCK_CASES = [(1, 2, 8, 8, 3), (2, 3, 10, 10, 3)]  # (N, C, H, W, K), Cin=Cout=C
+put("resnetblock_num", np.array([len(RESNETBLOCK_CASES)], np.int64))
+for idx, (N, C, H, W, K) in enumerate(RESNETBLOCK_CASES):
+    torch.manual_seed(800 + idx)
+    conv1 = torch.nn.Conv2d(C, C, K, stride=1, padding=0, bias=True)
+    conv2 = torch.nn.Conv2d(C, C, K, stride=1, padding=0, bias=True)
+    torch.nn.init.normal_(conv1.weight, std=0.5)
+    torch.nn.init.normal_(conv1.bias, std=0.5)
+    torch.nn.init.normal_(conv2.weight, std=0.5)
+    torch.nn.init.normal_(conv2.bias, std=0.5)
+
+    x = torch.randn(N, C, H, W, requires_grad=True)
+    out = conv1(x)
+    out = torch.relu(out)
+    out = conv2(out)
+    oh, ow = out.shape[2], out.shape[3]
+    skip = x[:, :, :oh, :ow]           # align_to_shape's crop, reproduced via indexing
+    out = out + skip
+    out = torch.relu(out)
+
+    grad_output = torch.randn_like(out)
+    out.backward(grad_output)
+
+    def to_ours(conv):
+        w = conv.weight.detach().numpy()  # (Cout, Cin, K, K)
+        return np.transpose(w, (1, 2, 3, 0)).reshape(C * K * K, C)
+
+    p = f"resnetblock_{idx}_"
+    put(p + "dims", np.array([N, C, H, W, K], np.int64))
+    put(p + "conv1_weight", to_ours(conv1))
+    put(p + "conv1_bias", conv1.bias.detach().reshape(1, C))
+    put(p + "conv2_weight", to_ours(conv2))
+    put(p + "conv2_bias", conv2.bias.detach().reshape(1, C))
+    put(p + "input", x)
+    put(p + "output", out)
+    put(p + "grad_output", grad_output)
+    put(p + "grad_input", x.grad)
+    put(p + "grad_conv1_weight", np.transpose(
+        conv1.weight.grad.detach().numpy(), (1, 2, 3, 0)).reshape(C * K * K, C))
+    put(p + "grad_conv1_bias", conv1.bias.grad.detach().reshape(1, C))
+    put(p + "grad_conv2_weight", np.transpose(
+        conv2.weight.grad.detach().numpy(), (1, 2, 3, 0)).reshape(C * K * K, C))
+    put(p + "grad_conv2_bias", conv2.bias.grad.detach().reshape(1, C))
+
+
 # ── LifBPTT backward (readout / leaky integrator) vs snnTorch autograd ─────────
 # Exact BPTT temporal-gradient check: with an unreachable threshold the neuron is
 # a pure leaky integrator v[t]=beta*v[t-1]+input[t] (no spike/reset/surrogate).
@@ -316,6 +423,65 @@ for idx, (N, C, H, W, k, s) in enumerate(MP2_CASES):
     put(p + "params", np.array([k, s], np.int64))
     put(p + "input", x)
     put(p + "output", y)
+
+
+# ── ThresholdDependentBatchNorm (tdBN) vs spikingjelly ────────────────────────
+# ThresholdDependentBatchNormImpl computes, per feature k:
+#   X_hat_k = gamma_k * (alpha*V_th * (X_k - mu_k) / sqrt(var_k + eps)) + beta_k
+# with mu_k/var_k pooled over ALL T*B rows (batch AND time together).
+#
+# spikingjelly.activation_based.layer.ThresholdDependentBatchNorm1d(alpha, v_th, F, ...)
+# implements the same Zheng et al. (AAAI 2021) formula, but folds alpha*V_th into a single
+# learnable "weight" (bias == our beta) rather than keeping alpha*V_th and gamma separate:
+# it inits weight = alpha*v_th (torch.nn.init.constant_) and otherwise IS plain
+# torch.nn.BatchNorm1d, called via seq_to_ann_forward, which flattens (T,B,F) -> (T*B,F)
+# BEFORE calling BatchNorm1d -- i.e. statistics ARE pooled over batch+time, matching our
+# layer exactly. To test our layer's separate gamma parameter (not just the alpha*V_th
+# scale) we set spikingjelly's weight = gamma * alpha * v_th directly (mathematically
+# identical to gamma_k*(alpha*V_th*x_hat) since scalar multiplication is associative), and
+# recover d(loss)/d(gamma) from d(loss)/d(weight) via the chain rule:
+#   weight = gamma * (alpha*v_th)  =>  dL/dgamma = dL/dweight * (alpha*v_th)
+#
+# KNOWN LIBRARY BUG (spikingjelly 0.0.0.0.14, confirmed by reading the installed source):
+# ThresholdDependentBatchNorm1d subclasses torch's *internal* torch.nn.modules.batchnorm.
+# _BatchNorm directly (not torch.nn.BatchNorm1d), which never overrides the abstract
+# `_check_input_dim` stub (`_NormBase._check_input_dim` unconditionally
+# `raise NotImplementedError`) -- so calling the module as shipped ALWAYS raises
+# NotImplementedError, regardless of input shape. Bypassed here by binding
+# torch.nn.BatchNorm1d's own `_check_input_dim` onto the instance; everything downstream
+# (F.batch_norm call, statistics pooling via seq_to_ann_forward) is untouched, unmodified
+# library code -- this only restores the shape check that torch.nn.BatchNorm1d itself
+# would have performed.
+TDBN_CASES = [(4, 3, 5, 1.3, 0.9), (5, 2, 4, 1.0, 1.2)]  # (T, B, F, alpha, v_th)
+put("tdbn_num", np.array([len(TDBN_CASES)], np.int64))
+for idx, (T, B, F, alpha, vth) in enumerate(TDBN_CASES):
+    torch.manual_seed(900 + idx)
+    tdbn = sj_layer.ThresholdDependentBatchNorm1d(alpha, vth, F, eps=1e-5, momentum=0.1)
+    tdbn.train()
+    tdbn._check_input_dim = torch.nn.BatchNorm1d._check_input_dim.__get__(tdbn)
+
+    gamma = torch.randn(F) * 0.5 + 1.0
+    beta = torch.randn(F) * 0.3
+    with torch.no_grad():
+        tdbn.weight.copy_(gamma * alpha * vth)
+        tdbn.bias.copy_(beta)
+
+    x = torch.randn(T, B, F, requires_grad=True)
+    y = tdbn(x)
+    g = torch.randn(T, B, F)
+    y.backward(g)
+
+    p = f"tdbn_{idx}_"
+    put(p + "dims", np.array([T, B, F], np.int64))
+    put(p + "params", np.array([alpha, vth], np.float32))
+    put(p + "gamma", gamma.reshape(1, F))
+    put(p + "beta", beta.reshape(1, F))
+    put(p + "input", x.reshape(T * B, F))          # time-major (T*B, F)
+    put(p + "output", y.reshape(T * B, F))
+    put(p + "grad_output", g.reshape(T * B, F))
+    put(p + "grad_input", x.grad.reshape(T * B, F))
+    put(p + "grad_gamma", (tdbn.weight.grad * (alpha * vth)).reshape(1, F))  # chain rule
+    put(p + "grad_beta", tdbn.bias.grad.reshape(1, F))
 
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

@@ -27,37 +27,45 @@ Structured logging uses severity levels:
 // File: include/logging/Logger.hpp
 namespace nn::logging
 {
+// Note the *reversed* numeric order vs. usual convention: Error=0 is most
+// severe/least verbose, Debug=3 is least severe/most verbose. `log()` only
+// emits when `static_cast<int>(level) <= level_`, so this ordering is what
+// makes `set_level(Info)` include Error/Warn/Info but exclude Debug.
 enum class Level
 {
-    DEBUG,
-    INFO,
-    WARNING,
-    ERROR
+    Error = 0,
+    Warn = 1,
+    Info = 2,
+    Debug = 3,
 };
 
 class Logger
 {
 public:
-    static void log(Level level, const std::string& message);
+    static Logger& instance();       // singleton
 
-    static void debug(const std::string& msg);
-    static void info(const std::string& msg);
-    static void warning(const std::string& msg);
-    static void error(const std::string& msg);
-
-    static void set_level(Level level);
-    static auto get_level() -> Level;
+    void set_level(Level l);
+    Level level() const;
+    void log(Level l, const std::string& msg);   // single string, no formatting
 };
+
+// Free-function wrapper used by the macros below.
+inline void log(Level l, const std::string& msg) { Logger::instance().log(l, msg); }
 }
 ```
 
 ### Convenience Macros
 
+There is no `fmt`-style formatting — each macro takes one already-built
+`std::string` (real call sites build it with `+` concatenation or a
+`std::ostringstream`, not a format string). `NN_LOG_DEBUG` compiles to a no-op
+in every build — Debug-level logging exists in the enum but is not wired up:
+
 ```cpp
-#define NN_LOG_DEBUG(...) nn::logging::Logger::debug(fmt::format(__VA_ARGS__))
-#define NN_LOG_INFO(...) nn::logging::Logger::info(fmt::format(__VA_ARGS__))
-#define NN_LOG_WARNING(...) nn::logging::Logger::warning(fmt::format(__VA_ARGS__))
-#define NN_LOG_ERROR(...) nn::logging::Logger::error(fmt::format(__VA_ARGS__))
+#define NN_LOG_ERROR(msg) ::nn::logging::log(::nn::logging::Level::Error, (msg))
+#define NN_LOG_WARN(msg)  ::nn::logging::log(::nn::logging::Level::Warn, (msg))
+#define NN_LOG_INFO(msg)  ::nn::logging::log(::nn::logging::Level::Info, (msg))
+#define NN_LOG_DEBUG(msg) (void) 0
 ```
 
 ## Data Flow
@@ -90,29 +98,28 @@ flowchart LR
 // File: src/core/training/Trainer.hpp
 #include "logging/Logger.hpp"
 
-NN_LOG_INFO("Training started with {} epochs", config.epochs);
-
-NN_LOG_INFO("Epoch {}/{}", epoch, config.epochs);
-NN_LOG_INFO("Train loss: {:.4f}", train_loss);
+std::ostringstream oss;
+oss << "Epoch " << epoch << "/" << config.epochs << " train loss: " << train_loss;
+NN_LOG_INFO(oss.str());
 
 if (val_loss < best_loss) {
-    NN_LOG_INFO("New best validation loss: {:.4f}", val_loss);
+    NN_LOG_INFO("New best validation loss: " + std::to_string(val_loss));
 }
 
-NN_LOG_WARNING("Gradient norm {} exceeded clip norm {}", 
-               grad_norm, config.grad_clip_norm);
+NN_LOG_WARN(std::string("Gradient norm ") + std::to_string(grad_norm) +
+            " exceeded clip norm " + std::to_string(config.grad_clip_norm));
 
-NN_LOG_ERROR("Failed to load dataset: {}", error.what());
+NN_LOG_ERROR(std::string("Failed to load dataset: ") + error.what());
 ```
 
 ### Configure Level
 
 ```cpp
 // Set minimum log level
-nn::logging::Logger::set_level(nn::logging::Level::INFO);
+nn::logging::Logger::instance().set_level(nn::logging::Level::Info);
 
-// Or for debugging
-nn::logging::Logger::set_level(nn::logging::Level::DEBUG);
+// Or for debugging (note: NN_LOG_DEBUG itself is a compiled-out no-op — see above)
+nn::logging::Logger::instance().set_level(nn::logging::Level::Debug);
 ```
 
 ## Common Pitfalls

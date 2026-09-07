@@ -43,6 +43,10 @@ public:
                    std::uint32_t random_seed = 0U);
     auto split(std::size_t n_samples) const -> std::vector<FoldSplit>;
 };
+```
+
+```cpp
+// File: include/statistics/StratifiedKFold.hpp  (namespace statistics)
 
 // Stratified K-fold for classification
 class StratifiedKFold {
@@ -58,7 +62,7 @@ public:
 For unbiased hyperparameter evaluation in biomedical ML [41]:
 
 ```cpp
-// File: include/statistics/kfold.hpp  (namespace statistics)
+// File: include/statistics/NestedKFold.hpp  (namespace statistics)
 
 struct NestedFoldSplit {
     std::vector<std::size_t> test_indices;  // outer held-out test set
@@ -102,10 +106,10 @@ struct ISplitPolicy {
         -> std::vector<FoldSplit> = 0;
 };
 
-// Sample-level (default, backward compat)
+// Sample-level (default, backward compat) — SampleKFoldPolicy.hpp
 auto p = std::make_shared<statistics::SampleKFoldPolicy>(5, /*shuffle=*/true, seed);
 
-// Speaker-grouped: all samples of same group label stay in same fold
+// Speaker-grouped: all samples of same group label stay in same fold — GroupKFoldPolicy.hpp
 auto p = std::make_shared<statistics::GroupKFoldPolicy>(5, /*shuffle=*/true, seed);
 
 // Policy-based NestedKFold
@@ -138,7 +142,8 @@ struct IEERScorer {
 };
 ```
 
-Two concrete implementations:
+Two concrete implementations (each in its own file — `ClassificationEERScorer.hpp` /
+`GenuineImpostorEERScorer.hpp` — `IEERScorer` alone stays in `eer_scorer.hpp`):
 
 | Class | EER | AUC | When to use |
 |---|---|---|---|
@@ -203,35 +208,40 @@ float epoch_mean = loss_stat.value();
 
 ### Metrics
 
+There are no standalone `accuracy()`/`confusion_matrix()`/`precision()`/
+`recall()`/`f1_score()` functions, and none of these operate on `Tensor` —
+the real API works on plain `std::vector<int>` class labels and returns one
+aggregate struct:
+
 ```cpp
 // File: include/statistics/multi_class_metrics.hpp
+namespace statistics
+{
+struct ClassificationMetrics
+{
+    double accuracy = 0.0;
+    double precision = 0.0; // macro-averaged
+    double recall = 0.0;    // macro-averaged
+    double f1_score = 0.0;  // macro-averaged
+    double balanced_accuracy = 0.0;
+    double mcc = 0.0;       // Matthews correlation coefficient (binary only)
+};
 
-// Classification accuracy
-auto accuracy(const Tensor& predictions, const Tensor& targets) -> float;
-
-// Confusion matrix
-auto confusion_matrix(const Tensor& predictions, const Tensor& targets) -> Tensor;
-
-// Per-class metrics
-auto precision(const Tensor& predictions, const Tensor& targets, int num_classes) -> Tensor;
-auto recall(const Tensor& predictions, const Tensor& targets, int num_classes) -> Tensor;
-auto f1_score(const Tensor& predictions, const Tensor& targets, int num_classes) -> Tensor;
+ClassificationMetrics compute_classification_metrics(
+    const std::vector<int>& true_labels, const std::vector<int>& pred_labels);
+}
 ```
 
 ### Regression Metrics
 
-```cpp
-// File: include/statistics/inference_tests.hpp
-
-// R² score (coefficient of determination)
-auto r2_score(const Tensor& predictions, const Tensor& targets) -> float;
-
-// Mean Absolute Error
-auto mae(const Tensor& predictions, const Tensor& targets) -> float;
-
-// Mean Squared Error
-auto mse(const Tensor& predictions, const Tensor& targets) -> float;
-```
+<!-- STALE: `r2_score`, `mae`, `mse` (as standalone metric functions, on Tensor
+     or otherwise) do not exist anywhere in the codebase — searched the whole
+     tree. `include/statistics/inference_tests.hpp` actually declares
+     cohens_d/t_test_pvalue_approx/wilcoxon_signed_rank_pvalue_approx (see the
+     "Statistical Significance Tests" section above), not regression metrics.
+     Needs a human decision: was this ever implemented and removed, or is it
+     aspirational? MSELossImpl/MAELossImpl (Core/Layers.md) compute similar
+     quantities but as training-loss layers, not evaluation-metric functions. -->
 
 ## Data Flow
 
@@ -271,22 +281,19 @@ flowchart LR
 #include "statistics/multi_class_metrics.hpp"
 #include "statistics/inference_tests.hpp"
 
-// Classification
-nn::Tensor pred = /* model predictions */;
-nn::Tensor true_labels = /* ground truth */;
+// Classification (plain integer label vectors, not Tensor)
+std::vector<int> true_labels = /* ground truth */;
+std::vector<int> pred_labels = /* model predictions, argmax'd */;
 
-float acc = nn::statistics::accuracy(pred, true_labels);
-std::cout << "Accuracy: " << acc << std::endl;
+statistics::ClassificationMetrics m =
+    statistics::compute_classification_metrics(true_labels, pred_labels);
+std::cout << "Accuracy: " << m.accuracy << ", F1: " << m.f1_score << "\n";
 
-// Confusion matrix
-nn::Tensor cm = nn::statistics::confusion_matrix(pred, true_labels);
-
-// Regression
-nn::Tensor y_pred = /* predictions */;
-nn::Tensor y_true = /* targets */;
-
-float r2 = nn::statistics::r2_score(y_pred, y_true);
-float mse = nn::statistics::mse(y_pred, y_true);
+// Comparing two models' per-fold scores
+std::vector<float> fold_scores_a = /* model A's score per fold */;
+std::vector<float> fold_scores_b = /* model B's score per fold */;
+float effect_size = statistics::cohens_d(fold_scores_a, fold_scores_b);
+float p_value = statistics::t_test_pvalue_approx(fold_scores_a, fold_scores_b);
 ```
 
 ## Common Pitfalls

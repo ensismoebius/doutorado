@@ -1,6 +1,6 @@
 # LFCC Feature Demo
 
-Batch LFCC (Linear Frequency Cepstral Coefficient) feature-extraction pipeline that walks the *BaseDeDatosHablaImaginada* corpus, pairs per-subject Audio and EEG MAT files, and produces 57-dimensional LFCC feature matrices stored as NumPy `.npz` archives. This is the upstream feature stage for downstream SNN/ResNet classifiers.
+Batch LFCC (Linear Frequency Cepstral Coefficient) feature-extraction pipeline that walks the *BaseDeDatosHablaImaginada* corpus, pairs per-subject Audio and EEG MAT files, and runs the 57-dimensional LFCC extraction (cepstra + Δ + ΔΔ) over each subject's audio. As currently implemented the demo only logs per-subject window counts — it does not persist `.npz` archives or process the EEG side. This is the upstream feature stage for downstream SNN/ResNet classifiers (which read their own MAT/NPZ inputs directly, not this demo's output).
 
 ---
 
@@ -30,20 +30,26 @@ $$c_n = \sqrt{\frac{2}{M}} \sum_{m=0}^{M-1} E_m \cos\!\left(\pi n (m + 0.5) / M\
 
 ```cpp
 // src/demos/cppDemos/lfcc_feature_demo/lfcc_pipeline.cpp (structure)
-for (auto& entry : std::filesystem::directory_iterator(dataset_dir)) {
-    // Pair _Audio.mat + _EEG.mat files per subject
-    process_subject(audio_path, eeg_path, subject_id);
-    // → cnpy::npz_save("subject_<id>_lfcc.npz", ...)
+for (auto& entry : std::filesystem::directory_iterator(base_path)) {
+    // entry.is_directory(): pair <subject>_Audio.mat + <subject>_EEG.mat
+    // inside that subject's own subdirectory
+    if (audio and eeg files both exist)
+        process_subject(SubjectInfo{path, name, audio_file_path, eeg_file_path});
 }
 
-// lfcc_pipeline_utils.hpp stages:
-// 1. PreEmphasisInplace(signal, alpha=0.97)
-// 2. FramingAndWindow(signal, frame_len=400, shift=160) → Hamming
-// 3. RFFTPower(frame) → P[k]
-// 4. BuildLinearFilterbank(M=24, fft_size, fs)
-// 5. DotPowerFilterbank(P, H) → E_m
-// 6. DCT2(E, n_ceps=19) → c
-// 7. ComputeDeltas(c, delta=2) → [c, Δc, ΔΔc]
+// process_subject() (src/core/wave/lfcc_pipeline_utils.cpp) calls
+// load_and_process_audio(), which runs the nn::core::wave:: pipeline
+// (declared in include/wave/audioFeatureExtraction.hpp):
+// 1. pre_emphasis_inplace(signal, coeff=0.97)
+// 2. framing_and_window(signal, framing_context) → Hamming, 25ms/10ms
+// 3. rfft_power(frames, frame_length) → P[k]
+// 4. build_linear_filterbank(frame_length, filterbank_context) (M=24)
+// 5. dot_power_filterbank(P, filterbank_context) → log energies
+// 6. dct2(log_energies, loading_params) → 19 cepstral coefficients
+// 7. compute_deltas(cepstral_coeff, ...) → Δc, then again on Δc → ΔΔc
+//
+// process_subject() only logs the audio-window count (NN_LOG_INFO) — it does
+// NOT write an .npz file and does NOT process the EEG side of SubjectInfo.
 ```
 
 ---
@@ -52,13 +58,14 @@ for (auto& entry : std::filesystem::directory_iterator(dataset_dir)) {
 
 ```mermaid
 flowchart TD
-    A["BaseDeDatosHablaImaginada/\n S01_Audio.mat + S01_EEG.mat"] --> B["PreEmphasisInplace α=0.97"]
-    B --> C["FramingAndWindow\n 25ms / 10ms shift\n Hamming window"]
-    C --> D["RFFTPower → P[k]"]
-    D --> E["Linear filterbank M=24\n triangular filters"]
-    E --> F["DCT-II → 19 coefficients"]
-    F --> G["ComputeDeltas span=2\n [c, Δc, ΔΔc] ∈ R^57"]
-    G --> H["cnpy::npz_save\n subject_S01_lfcc.npz"]
+    A["BaseDeDatosHablaImaginada/\n S01/S01_Audio.mat (+ S01_EEG.mat, unused)"] --> B["pre_emphasis_inplace coeff=0.97"]
+    B --> C["framing_and_window\n 25ms / 10ms shift\n Hamming window"]
+    C --> D["rfft_power → P[k]"]
+    D --> E["build_linear_filterbank M=24\n triangular filters"]
+    E --> F["dot_power_filterbank → log energies"]
+    F --> G["dct2 → 19 coefficients"]
+    G --> H["compute_deltas ×2\n [c, Δc, ΔΔc] ∈ R^57"]
+    H --> I["NN_LOG_INFO window count\n (no file written)"]
 ```
 
 ---
@@ -72,11 +79,16 @@ cmake --build out/build/max-performance --target exec_lfcc_pipeline -j$(nproc)
 ./out/build/max-performance/src/demos/cppDemos/lfcc_feature_demo/exec_lfcc_pipeline
 ```
 
-The binary expects `BaseDeDatosHablaImaginada/` relative to the working directory. Place the dataset there or adjust the path constant in `lfcc_pipeline.cpp`.
+The binary reads a **hardcoded absolute path** in `main()`:
+`/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/`.
+There is no CLI argument or relative-path fallback — edit the string literal in
+`lfcc_pipeline.cpp` to point at your own dataset copy.
 
-**Expected output:** one `subject_S<id>_lfcc.npz` per subject with keys:
-- `lfcc_features`: shape `(F, 57)` float32
-- `eeg_windows`: shape `(F, C, W)` float32
+**Expected output:** `NN_LOG_INFO` lines reporting the audio-window count per
+subject. As of the current `process_subject()` implementation, **no `.npz` file
+is written** and the EEG side of each subject pair is loaded into `SubjectInfo`
+but never processed — this is a feature-extraction *pipeline demo*, not yet a
+persisted-dataset builder.
 
 ---
 
@@ -87,15 +99,15 @@ cmake --build out/build/max-performance --target lfcc_pipeline_utils_gtest -j$(n
 ctest --test-dir out/build/max-performance -R LfccPipelineUtilsTest --output-on-failure
 ```
 
-Tests in `src/demos/cppDemos/lfcc_feature_demo/tests/lfcc_pipeline_utils_gtest.cpp` cover each stage independently: `PreEmphasisInplace`, `FramingAndWindow`, `RFFTPower`, `BuildLinearFilterbank`, `DotPowerFilterbank`, `DCT2`, `ComputeDeltas`.
+Tests in `src/demos/cppDemos/lfcc_feature_demo/tests/lfcc_pipeline_utils_gtest.cpp` cover each `nn::core::wave::` stage independently: `pre_emphasis_inplace`, `framing_and_window`, `rfft_power`, `build_linear_filterbank`, `dot_power_filterbank`, `dct2`, `compute_deltas` (declared in `include/wave/audioFeatureExtraction.hpp`).
 
 ---
 
 ## Common Pitfalls
 
-1. **Dataset path**: the path to `BaseDeDatosHablaImaginada/` is a compile-time or runtime constant in `lfcc_pipeline.cpp`. Running from a different working directory will cause the binary to exit without processing any subjects.
-2. **Frame count mismatch**: EEG windows and audio frames are saved together for temporal alignment. If the EEG and audio files have different durations, the alignment breaks silently — check that both `.mat` files cover the same utterance.
-3. **Single-precision DCT**: FFTW single-precision (`fftw3f`) is used here. If you link `fftw3` (double) instead, type mismatches will cause link errors.
+1. **Dataset path is hardcoded**: `base_path` in `main()` is a literal absolute path on the original author's machine. Running on another machine (or a different dataset location) silently iterates an empty/nonexistent directory and processes zero subjects — edit the literal, there is no env var or CLI flag.
+2. **EEG is loaded but not processed**: `SubjectInfo` carries `eeg_file_path`, and both `_Audio.mat`/`_EEG.mat` must exist for a subject directory to be picked up, but `process_subject()` only calls `load_and_process_audio()` on the audio side. Do not assume EEG alignment is validated here.
+3. **Single-precision DCT**: FFTW single-precision (`FFTW::FFTWF`) is linked here. If you link `fftw3` (double) instead, type mismatches will cause link errors.
 
 ---
 

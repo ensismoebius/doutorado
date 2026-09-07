@@ -12,3 +12,7 @@ snntorch
 lion-pytorch
 schedulefree
 muon-optimizer
+# Ground truth for ThresholdDependentBatchNorm (tdBN) in gen_pytorch_refs.py --
+# spikingjelly.activation_based.layer.ThresholdDependentBatchNorm1d implements the same
+# Zheng et al. AAAI 2021 formula our ThresholdDependentBatchNorm.hpp does.
+spikingjelly

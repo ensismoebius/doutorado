@@ -64,21 +64,32 @@ where $\sigma(z) = \partial \lambda / \partial z$ is the sigmoid (derivative of 
 
 ### Base Autoencoder
 
+<!-- Real header: no `BaseAutoencoder` class exists. The shared "two Sequentials"
+     plumbing that every window autoencoder (audio/EEG, ANN/spiking) inherits is
+     `EncoderDecoderAutoencoder` — a subclass supplies only the built encoder/decoder
+     Sequentials, e.g. `AudioWindowAutoencoder(cfg) : EncoderDecoderAutoencoder(build_ann_encoder(...), build_ann_decoder(...))`.
+     The fused/protocol autoencoders deliberately do NOT use this base — their
+     encode/decode do real multi-branch work of their own. -->
 ```cpp
-// File: src/core/models/autoencoder/BaseAutoencoder.hpp
-template <typename Backend>
-class BaseAutoencoder : public Module<Backend>
+// File: include/models/autoencoder/EncoderDecoderAutoencoder.hpp
+struct EncoderDecoderAutoencoder : Module<nn::Backend>
 {
-protected:
-    Module<Backend>& encoder_;
-    Module<Backend>& decoder_;
-public:
-    auto encode(const Tensor& input) -> Tensor { return encoder_.forward(input, false); }
-    auto decode(const Tensor& latent) -> Tensor { return decoder_.forward(latent, false); }
-    auto forward(const Tensor& input, bool requires_grad) -> Tensor override
-    {
-        return decode(encode(input));
-    }
+    using Tensor = typename Module<nn::Backend>::Tensor;
+
+    nn::Sequential encoder_;
+    nn::Sequential decoder_;
+
+    EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder);
+
+    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
+    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
+
+    std::vector<Tensor*> param_ptrs_;   // owned concat of encoder+decoder params
+    auto params() -> std::span<Tensor*> override;
+    void reset_state() override;        // no-op for ANN; clears membrane state for SNN
 };
 ```
 
@@ -119,7 +130,8 @@ PoissonLatentLayerImpl<Backend> latent(/*T=*/10, /*prior_rate=*/0.1f, /*beta_kl=
 auto z_enc  = encoder.forward(input, true);
 auto s      = latent.forward(z_enc, true);    // reparameterized spike sample
 auto recon  = decoder.forward(s, true);
-float recon_loss = mse_loss(recon, target);
+mse_loss.set_target(target);
+float recon_loss = mse_loss.forward(recon, true).at(0, 0);
 float total_loss = recon_loss + beta * latent.kl_loss();
 ```
 
@@ -161,7 +173,8 @@ auto grad = stloss.backward(ones);
 For rate-coded or ANN autoencoders, standard MSE is used:
 ```cpp
 // File: include/layers/losses/MSELoss.hpp
-auto loss = mse_loss.forward(reconstruction, target, true);
+mse_loss.set_target(target);
+auto loss = mse_loss.forward(reconstruction, true);
 ```
 
 ---

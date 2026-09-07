@@ -42,7 +42,8 @@ std::array<double, N>`; `get_wavelet<Tag>()` returns a `std::span` over them.
 Only wavelets actually instantiated are emitted into the binary.
 
 ```cpp
-// File: include/wavelet/Types.hpp
+// File: include/wavelet/WaveletTraits.hpp — tag structs (Haar, DaubN, ...) live in
+// WaveletCoefficients.hpp; Types.hpp #includes both so existing includers are unaffected.
 template <typename Wavelet>
 constexpr auto get_wavelet() -> std::span<const double>;   // low-pass filter
 

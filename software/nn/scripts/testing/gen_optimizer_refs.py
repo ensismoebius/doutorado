@@ -85,6 +85,9 @@ run_case("adamw_2x3", lambda ps: torch.optim.AdamW(ps, lr=0.01, betas=(0.9, 0.99
                                                    weight_decay=0.1), (2, 3))
 run_case("sgd_2x3", lambda ps: torch.optim.SGD(ps, lr=0.05, momentum=0.0), (2, 3))
 run_case("sgdm_2x3", lambda ps: torch.optim.SGD(ps, lr=0.05, momentum=0.9), (2, 3))
+# SGDMinimal: no momentum/state at all (see SGDMinimal.hpp) -- same reference as sgd_2x3
+# (plain torch.optim.SGD(momentum=0)), kept as its own fixture prefix/case for clarity.
+run_case("sgdminimal_2x3", lambda ps: torch.optim.SGD(ps, lr=0.05, momentum=0.0), (2, 3))
 
 # ── Lion (authors' lion-pytorch) ──────────────────────────────────────────────
 from lion_pytorch import Lion  # noqa: E402

@@ -23,13 +23,13 @@ $$M[k] = 20 \log_{10}\!\left(\sqrt{\text{Re}(X[k])^2 + \text{Im}(X[k])^2} + \var
 Signal parameters (compile-time constants): $f_s = 1024\,\text{Hz}$, $f_1 = 10\,\text{Hz}$, $f_2 = 40\,\text{Hz}$, $T = 4\,\text{s}$, $N = 4096$ samples.
 
 ```cpp
-// src/demos/cppDemos/fft_demo/fft_demo.cpp (structure)
-// 1. Allocate FFTW-aligned buffer via fftw_malloc
-// 2. Fill with: 0.7*sin(2π*10*n/1024) + 0.3*sin(2π*40*n/1024)
-// 3. Plan and execute FFTW r2c (FFTW_ESTIMATE)
-// 4. Compute M[k] = 20*log10(|X[k]| + eps) → nn::Tensor
-// 5. plotSignal(time_axis, signal) — matplotlib-cpp
-// 6. plotSignal(freq_axis, M)      — matplotlib-cpp (blocking show)
+// src/demos/cppDemos/fft_demo/fftw3_demo.cpp (structure)
+// 1. generateSignal(): fftw_malloc buffer, fill with
+//    0.7*sin(2π*10*n/1024) + 0.3*sin(2π*40*n/1024)
+// 2. executeFFT(): fftw_plan_dft_r2c_1d + fftw_execute (FFTW_ESTIMATE)
+// 3. calculateFFTMagnitude(): M[k] = 20*log10(|X[k]| + eps) → nn::Tensor
+// 4. plotSignal(in_vec, "Input Signal", /*show_blocking=*/false)
+// 5. plotSignal(fft_magnitude, "FFT Magnitude", /*show_blocking=*/true)
 ```
 
 Key component: `FFTWFreeDeleter` — RAII deleter for `fftw_malloc` blocks.
@@ -44,8 +44,8 @@ flowchart TD
     B --> C["fftw_plan_dft_r2c_1d\n FFTW_ESTIMATE"]
     C --> D["executeFFT → complex X[k]"]
     D --> E["calculateFFTMagnitude\n M[k] = 20log10(|X[k]|+ε) → nn::Tensor"]
-    E --> F["plotSignal (time domain)"]
-    E --> G["plotSignal (dB spectrum)\n peaks at 10 Hz and 40 Hz"]
+    E --> F["plotSignal(in_vec, ...) — signal vs. sample index"]
+    E --> G["plotSignal(fft_magnitude, ...) — dB vs. bin index\n bin k ≈ freq_Hz * N/fs = freq_Hz*4"]
 ```
 
 ---

@@ -101,7 +101,7 @@ at $t_1$, and so on. See [Time-Major Layout](Time-Major-Layout.md).
 raise on it:
 
 ```cpp
-// src/experiments/autoencoderRunner/lib/include/AutoencoderBuilders.hpp
+// include/models/autoencoder/AutoencoderStageBuilders.hpp
 inline void require_time_steps(int time_steps)
 {
     if (time_steps < 1)

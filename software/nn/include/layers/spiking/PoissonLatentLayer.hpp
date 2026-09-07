@@ -175,7 +175,7 @@ class PoissonLatentLayerImpl : public Module<Backend>
                     float lam = rate_cache_.at(b, f);
                     float z = input_cache_.at(b, f);
                     float sigmoid_z = nn::activation::sigmoid(z);
-                    float d_kl = (1.0f - prior_rate_ / (lam + 1e-8f)) * sigmoid_z * scale;
+                    float d_kl = (1.0f - prior_rate / (lam + 1e-8f)) * sigmoid_z * scale;
                     grad_input.at(b, f) += d_kl;
                 }
             }
@@ -188,7 +188,6 @@ class PoissonLatentLayerImpl : public Module<Backend>
     Tensor input_cache_;
     Tensor rate_cache_;
     float kl_loss_ = 0.0f;
-    float prior_rate_ = 0.1F; // internal copy to avoid aliasing with public field
     mutable std::mt19937 rng_;
 };
 

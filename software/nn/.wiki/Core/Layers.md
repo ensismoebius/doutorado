@@ -109,14 +109,14 @@ filter moves between applications):
 
 $$L_{out} = \lfloor(L + 2P - K)/S\rfloor + 1$$
 
-**Implementation status:** `Conv1dImpl` (file:
-`include/layers/convolution/Conv1d.hpp`) and `MaxPool1dImpl` / `MaxPool2dImpl`
-(files: `convolution/MaxPool1d.hpp`, `MaxPool2d.hpp`) are **documented
-placeholders** — they check that the input shape is valid and then return the
-input unchanged, rather than performing an actual convolution or pooling
-operation. This is deliberate and tested (`fundamental_mechanisms_gtest`), not
-a bug: nothing in this project currently instantiates a network that needs a
-working `Conv1d`.
+**Implementation status:** `Conv1dImpl` (declared in
+`include/layers/convolution/Conv1d.hpp`, implemented in
+`src/core/layers/convolution/Conv1d_impl.cpp`) is a real im2col/col2im
+convolution with full backward, not a placeholder — weights shape
+`(C_in*K, C_out)`, He-initialised. `MaxPool1dImpl` / `MaxPool2dImpl` (headers
+`convolution/MaxPool1d.hpp`, `MaxPool2d.hpp`) are likewise real, with argmax
+routing in the backward pass. All three are exercised end-to-end (known-value
+and shape tests) by `fundamental_mechanisms_convolution_gtest`.
 
 ## How It Is Implemented Here
 
@@ -129,12 +129,15 @@ able to report which of its internal numbers are trainable weights:
 ```cpp
 // File: include/layers/base/Module.hpp
 template <typename Backend>
-class Module
+struct Module
 {
-public:
-    virtual auto forward(const Tensor& input, bool requires_grad) -> Tensor = 0;
-    virtual void backward(const Tensor& grad_output) = 0;
-    virtual auto params() -> std::vector<Tensor*> = 0;
+    using Tensor = nn::TensorImpl<Backend>;
+
+    virtual auto forward(const Tensor& input, bool requires_grad = true) -> Tensor = 0;
+    virtual auto backward(const Tensor& grad_output) -> Tensor = 0;   // returns grad w.r.t. input
+    virtual auto params() -> std::span<Tensor*> { return {}; }        // trainable-param pointers
+    virtual void train(bool on) {}
+    virtual void reset_state() {}    // clears persistent state (e.g. LIF membrane potential)
 };
 ```
 
@@ -147,14 +150,18 @@ fused in for speed where noted):
 ```cpp
 // File: include/layers/dense/Linear.hpp
 template <typename Backend>
-class Linear : public Module<Backend>
+struct LinearImpl : public Module<Backend>
 {
-    Tensor weights_;   // (input_features, output_features)
-    Tensor bias_;      // (1, output_features)
+    Tensor weight;   // (out_features, in_features) — allocated, NOT initialized here
+    Tensor bias;     // (out_features, 1)
 
-    auto forward(const Tensor& input, bool requires_grad) -> Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        return input.matrixMultiply(weights_) + bias_;
+        // Real forward also validates in_features and flattens any leading
+        // (batch/time) dimensions before this multiply — simplified here.
+        Tensor result = input.matmul_transposed(weight);   // x @ weightᵀ
+        result.add_col_vector_to_rows_inplace(bias);
+        return result;
     }
 };
 ```
@@ -237,8 +244,8 @@ does the membrane update and spike generation together
 (`lif_step_inplace`), and one for the backward-pass surrogate gradient
 (`lif_grad`). Backends that don't provide these fall back to the plain,
 generic implementation automatically — this is purely a speed optimisation,
-never a behaviour change. Verified by `opencl_tensor_backend_gtest`, including
-`LeakyLayerForwardParityOnOpenCLBackend` and
+never a behaviour change. Verified by `opencl_tensor_backend_lif_gtest`,
+including `LeakyLayerForwardParityOnOpenCLBackend` and
 `LeakyLayerBackwardExponentialSurrogateOnOpenCLBackend`.
 
 ### Threshold-Dependent Batch Normalization (tdBN)
@@ -294,16 +301,17 @@ A **residual (skip) connection** adds a layer's input directly to its output
 through very deep networks without vanishing. This project has two related
 classes with different maturity levels:
 
-| Class | File | Status | Backward |
+| Class | File | Shape | Backward |
 |---|---|---|---|
-| `ResidualBlockImpl` | `residual/ResidualBlock.hpp` | Full | ✓ |
-| `ResNetBlockImpl` | `residual/ResNetBlock.hpp` | Abstract | ✗ (not implemented) |
+| `ResidualBlockImpl` | `residual/ResidualBlock.hpp` | Dense (Linear → ReLU → Linear + skip) | ✓ |
+| `ResNetBlockImpl` | `residual/ResNetBlock.hpp` | Convolutional (Conv2d → ReLU → Conv2d + skip, both ReLUs) | ✓ |
 
-`ResNetBlockImpl` does not implement `Module::backward()` and cannot be
-instantiated directly — it exists as a scaffold for a future variant.
-`ResidualBlockImpl` (a small MLP: Linear → ReLU → Linear, plus the skip
-connection) is the complete, tested implementation — see
-`fundamental_mechanisms_gtest` and [Residual Blocks](../Concepts/Residual-Blocks.md).
+Both are complete, instantiable implementations with full backward passes.
+`ResidualBlockImpl` is the dense/MLP variant; `ResNetBlockImpl` is the
+two-layer convolutional variant, using two separate `ReLU` instances (each
+caches its own activation mask independently) and shape-aligning the skip
+path (identity when shapes match, zero-padded otherwise) in both forward and
+backward. See [Residual Blocks](../Concepts/Residual-Blocks.md).
 
 ### Poisson Latent Layer (SNN-VAE)
 
@@ -319,8 +327,8 @@ with what a VAE's latent space is for.
 > which rewarded the network for drifting further away from the target rather
 > than staying close to it — the opposite of the intended effect. The
 > corrected formula, $\text{KL}(\text{Poisson}(\lambda) \| \text{Poisson}(\lambda_0)) = \lambda_0 - \lambda + \lambda \log(\lambda/\lambda_0) \geq 0$,
-> is now enforced by a regression test, `PoissonLatentTest.KLNonNegative`, in
-> `fundamental_mechanisms_gtest`.
+> is now enforced by regression tests `PoissonLatentTest.KLExactKnownValue` and
+> `PoissonLatentTest.KLZeroAtPrior`, in `fundamental_mechanisms_spiking_gtest`.
 
 ```cpp
 // File: include/layers/spiking/PoissonLatentLayer.hpp

@@ -22,15 +22,15 @@ Kaiming (He) initialisation [He et al., 2015] sets $\sigma_w = \sqrt{2 / \text{f
 
 ```cpp
 // src/demos/cppDemos/resnet_classifier_demo/resnet_demo.cpp (structure)
-// 1. Load Audio variable from S02_Audio.mat via matioCpp
-// 2. Build X (N×F) and one-hot Y (N×C)
-// 3. Architecture:
-//    Linear(F→64) + ReLU
-//    ResidualBlock(64) × 2
-//    Linear(64→C)
+// 1. load_and_validate_mat_matrix(): load "Audio" variable from a hardcoded
+//    S02_Audio.mat path via matioCpp; require >= 2 columns (features + label)
+// 2. build_classification_dataset(): last column = integer label, one-hot
+//    encoded to Y (N×C), C = max(label)+1; remaining columns = X (N×F)
+// 3. build_resnet_classifier(): Kaiming-initialised
+//    Linear(F→64) → ReLU → ResidualBlock(64) → ResidualBlock(64) → Linear(64→C)
 // 4. CrossEntropyLoss + Adam(lr=0.001)
-// 5. Train 1 epoch with batch_size=16
-// 6. Print per-batch loss to stdout
+// 5. run_training_loop(): 1 epoch, batch_size=16
+// 6. Print mean per-epoch loss (over all batches) to stdout
 ```
 
 ---
@@ -41,7 +41,7 @@ Kaiming (He) initialisation [He et al., 2015] sets $\sigma_w = \sqrt{2 / \text{f
 flowchart TD
     A["S02_Audio.mat\n matioCpp load"] --> B["Feature matrix X ∈ R^(N×F)\n One-hot labels Y ∈ R^(N×C)"]
     B --> C["Linear(F→64) + ReLU\n Kaiming init"]
-    C --> D["ResidualBlock(64)\n Linear→ReLU→Linear→ReLU + skip"]
+    C --> D["ResidualBlock(64)\n Linear→ReLU→Linear + skip (no 2nd ReLU)"]
     D --> E["ResidualBlock(64)\n same structure"]
     E --> F["Linear(64→C)\n logits"]
     F --> G["CrossEntropyLoss\n softmax + NLLLoss"]

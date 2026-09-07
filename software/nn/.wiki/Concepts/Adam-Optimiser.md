@@ -40,40 +40,43 @@ $$\theta_{t+1} = \theta_t - \eta \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsi
 
 ```cpp
 // File: include/optimizers/Adam.hpp
-class Adam
+struct Adam : public Optimizer
 {
-    float learning_rate_ = 0.001f;
-    float beta1_ = 0.9f;
-    float beta2_ = 0.999f;
-    float epsilon_ = 1e-8f;
+    float learning_rate;
+    float decay_rate_moment1; // beta1, typically 0.9
+    float decay_rate_moment2; // beta2, typically 0.999
+    float epsilon;
+    int delta_t;              // step counter
 
-    std::vector<Tensor> m_;  // first moment
-    std::vector<Tensor> v_;  // second moment
-    size_t t_ = 0;        // time step
+    std::vector<Tensor> moment1; // first moment (m)
+    std::vector<Tensor> moment2; // second moment (v)
 
-public:
-    void step(std::vector<Tensor*> params)
+    auto step(std::span<Tensor*> paramsList) -> void override
     {
-        t_++;
-        for (size_t i = 0; i < params.size(); ++i)
+        delta_t += 1;
+        for (size_t i = 0; i < paramsList.size(); ++i)
         {
-            auto* param = params[i];
-            auto grad = param->grad();
+            auto& param = *paramsList[i];
+            const float lr_i = learning_rate * (i < lr_scales_.size() ? lr_scales_[i] : 1.0f);
+            Tensor grad = param.grad();
 
-            // Update first moment
-            m_[i] = beta1_ * m_[i] + (1 - beta1_) * grad;
+            moment1[i] = moment1[i].multiply_scalar(decay_rate_moment1)
+                             .add(grad.multiply_scalar(1.0f - decay_rate_moment1));
+            moment2[i] = moment2[i].multiply_scalar(decay_rate_moment2)
+                             .add(grad.multiply(grad).multiply_scalar(1.0f - decay_rate_moment2));
 
-            // Update second moment
-            v_[i] = beta2_ * v_[i] + (1 - beta2_) * (grad * grad);
+            float bc1 = 1.0f - std::pow(decay_rate_moment1, delta_t);
+            float bc2 = 1.0f - std::pow(decay_rate_moment2, delta_t);
+            auto m_hat = moment1[i] / bc1;
+            auto v_hat = moment2[i] / bc2;
 
-            // Bias correction
-            auto m_hat = m_[i] / (1 - std::pow(beta1_, t_));
-            auto v_hat = v_[i] / (1 - std::pow(beta2_, t_));
-
-            // Update
-            *param -= learning_rate_ * m_hat / (v_hat.sqrt() + epsilon_);
+            param = param.add((m_hat.multiply_scalar(lr_i)
+                                   / v_hat.sqrt().add_scalar(epsilon)).multiply_scalar(-1.0f));
         }
     }
+    // Real step() also applies decoupled weight decay (AdamW) before the update
+    // and takes a fused single-kernel fast path when the backend provides one —
+    // trimmed here for clarity.
 };
 ```
 
@@ -114,7 +117,7 @@ flowchart LR
 #include "optimizers/Adam.hpp"
 
 // Create optimizer
-nn::optimizers::Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);
+Adam optimizer(0.001f, 0.9f, 0.999f, 1e-8f);
 
 // Attach to model parameters
 optimizer.attach(model.params());

@@ -39,39 +39,34 @@ Matrix Multiply" — a matrix multiply that also supports scaling and
 accumulating into an existing result, which is more general than the plain
 $C = AB$ shown above:
 
-```cpp
-// File: include/linear_algebra/linear_algebra.hpp
-
-// General matrix multiplication
-// C = alpha * A * B + beta * C
-auto gemm(const Tensor& A, const Tensor& B, float alpha = 1.0f, 
-          float beta = 0.0f) -> Tensor;
-```
-
-### Transpose
+`include/linear_algebra/linear_algebra.hpp` does **not** implement a `Tensor`-facing
+GEMM/transpose/inverse API — it is a separate, legacy `namespace linearAlgebra`
+of `std::vector<double>`/`std::span<double>` signal-processing helpers
+(`derivative`, `dot_product`, `convolution`, `discrete_cosine_transform`,
+`solve_matrix`, `min_max_normalize_features`, ...) used by older preprocessing
+code, unrelated to the neural-network `Tensor` type. The matrix multiply and
+transpose every layer actually calls into are methods **on `TensorImpl`
+itself**:
 
 ```cpp
-// Transpose matrix
-auto transpose(const Tensor& A) -> Tensor;
-
-// In-place transpose for square matrices
-auto transpose_inplace(Tensor& A) -> void;
+// File: include/tensor/Tensor.hpp
+auto matmul(const TensorImpl& other) const -> TensorImpl;             // C = A * B
+auto matmul_transposed(const TensorImpl& other) const -> TensorImpl;  // C = A * Bᵀ
+auto transpose() const -> TensorImpl;                                  // (Aᵀ)_ij = A_ji
 ```
+
+`matmul_transposed` exists because `Linear`'s weight is stored as
+`(out_features, in_features)` — computing `input.matmul_transposed(weight)`
+avoids materialising a separate transposed copy of `weight` on every forward call.
 
 ### Inverse
 
-The inverse of a matrix $A$ is the matrix $A^{-1}$ such that
-$A \cdot A^{-1}$ gives the identity matrix — the matrix equivalent of
-"division". It only exists for square matrices that are not "singular" (i.e.
-don't collapse information — a singular matrix has no way back to the
-original inputs once multiplied). Computed here via LU decomposition, a
-standard numerically stable method for solving this:
-
-```cpp
-// Matrix inverse using LU decomposition
-// Only for square, invertible matrices
-auto inverse(const Tensor& A) -> Tensor;
-```
+<!-- STALE: no `inverse()` (or any matrix-inversion function) exists anywhere
+     in the tensor/linear_algebra code as of this audit — searched
+     include/tensor/ and include/linear_algebra/linear_algebra.hpp, neither
+     defines one. This subsection describes functionality that was never
+     implemented. Needs a human decision: drop the subsection, or note it as
+     a known gap. -->
 
 ## Data Flow
 
@@ -101,16 +96,16 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: src/core/tensor/XtensorTensorBackend.cpp
-#include "linear_algebra/linear_algebra.hpp"
+// File: include/tensor/Tensor.hpp
+#include "tensor/Tensor.hpp"
 
 // Matrix multiplication
 nn::Tensor A(3, 4);
 nn::Tensor B(4, 2);
-nn::Tensor C = nn::linear_algebra::gemm(A, B);  // Result: 3x2
+nn::Tensor C = A.matmul(B);  // Result: 3x2
 
 // Transpose
-nn::Tensor At = nn::linear_algebra::transpose(A);  // Result: 4x3
+nn::Tensor At = A.transpose();  // Result: 4x3
 ```
 
 ## Common Pitfalls
@@ -120,8 +115,10 @@ nn::Tensor At = nn::linear_algebra::transpose(A);  // Result: 4x3
    $n \times p$ matrix (same $n$ on both sides), producing an
    $m \times p$ result.
 
-2. **Inverting a non-invertible (singular) matrix.** `inverse()` will fail —
-   there is no matrix that "undoes" a singular matrix's transformation,
+2. **Inverting a non-invertible (singular) matrix.** No matrix inversion
+   exists anywhere in this codebase today (see the STALE note above) — this
+   pitfall is a general linear-algebra fact, not a description of a function
+   here: there is no matrix that "undoes" a singular matrix's transformation,
    because it has already thrown away information that can't be recovered.
 
 3. **Memory usage at scale.** Very large matrix multiplications can exceed

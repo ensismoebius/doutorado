@@ -207,6 +207,19 @@ When enabled, the Thesis deep spiking classifier inserts a tdBN layer after each
 
 ---
 
+## Ground truth
+
+`ThresholdDependentBatchNormImpl` is pinned against `spikingjelly`'s own
+`ThresholdDependentBatchNorm1d` — an independent implementation of the same
+Zheng et al. 2021 paper — not just checked by hand. See
+[Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md#pytorch--snntorch-parity-tests)
+for the coverage table and two gotchas found while wiring this up (spikingjelly
+folding `α·V_th` into a single `weight` rather than a separate `γ`, and a real
+bug in spikingjelly 0.0.0.0.14 that had to be worked around, not silently
+tolerated with a loosened tolerance).
+
+---
+
 ## References
 
 [33] Y. Zheng, H. Wu, G. Li, L. Deng, and Y. Xie, "Going deeper with directly-trained larger spiking neural networks," in *Proc. 35th AAAI Conf. Artificial Intelligence (AAAI)*, 2021, pp. 11062–11070. (tdBN; arXiv:2011.05280)

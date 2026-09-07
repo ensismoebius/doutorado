@@ -31,8 +31,12 @@ auto dwt_result = wavelets::malat(signal, filter, REGULAR_WAVELET, level);
 auto dwpt_result = wavelets::malat(signal, filter, PACKET_WAVELET, level);
 
 // Save PNG for each level
-MatplotlibCpp::savefig("wavelet_demo_dwt_" + std::to_string(level) + ".png");
+plt::save("wavelet_demo_dwt_" + std::to_string(level) + ".png");
 ```
+
+After the save loop, `main()` also runs a second, non-saving pass that calls
+`plt::show(true)` — the process opens interactive plot windows and blocks until
+closed, even though the PNGs were already written.
 
 Signal: $x[n] = 0.7\sin(2\pi \cdot 50 \cdot n/f_s) + 0.3\sin(2\pi \cdot 120 \cdot n/f_s)$, $f_s = 1024\,\text{Hz}$, $T = 1\,\text{s}$.
 
@@ -67,11 +71,11 @@ No arguments. Outputs 9 PNG files in the working directory.
 
 ## Test Suite
 
-Wavelet transform correctness is tested via the `core_gtest` suite. Run:
+The demo has its own gtest target (`WaveletDemoTest` fixture — signal generation, DWT levels 1–4, DWPT packet counts 2/4/8/16, coefficient finiteness):
 
 ```bash
-cmake --build out/build/max-performance --target core_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R Wavelet --output-on-failure
+cmake --build out/build/max-performance --target wavelet_demo_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R WaveletDemoTest --output-on-failure
 ```
 
 ---

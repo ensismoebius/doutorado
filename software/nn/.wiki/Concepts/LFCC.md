@@ -72,21 +72,27 @@ src/core/wave/                         # implementation
 ### Integration Example
 
 ```cpp
+// File: include/wave/lfcc_pipeline_utils.hpp, include/paraconsistent/paraconsistent.hpp
 #include "wave/lfcc_pipeline_utils.hpp"
 #include "paraconsistent/paraconsistent.hpp"
 
-// Extract LFCC feature vectors from a signal
-const int K = 24;   // number of filters
-const int N = 13;   // number of cepstral coefficients
-const int f_min = 0, f_max = 4000;  // Hz
+// Extract LFCC (and other) feature tensors for one subject's recording
+auto features = load_and_process_audio(subject.audio_file_path, loading_params);
 
-auto frames    = nn::wave::frame(signal, /*window=*/512, /*hop=*/256);
-auto lfcc_vecs = nn::wave::lfcc(frames, K, N, f_min, f_max, sample_rate);
+// Or process a whole subject's session set in one call
+process_subject(subject);
 
-// Evaluate quality of these features for speaker classes
-auto result = nn::paraconsistent::evaluate(lfcc_vecs_by_speaker);
-std::printf("LFCC D_truth = %.4f\n", result.D_truth);
+// Evaluate certainty/contradiction degree (g1/g2) of a feature set across classes
+double alpha = calculate_alpha(amount_of_classes, vectors_per_class, feature_size, classes);
+double beta  = calculate_beta(amount_of_classes, vectors_per_class, feature_size, classes);
+double g1 = calculate_certainty_degree_g1(alpha, beta);
+double g2 = calculate_contradiction_degree_g2(alpha, beta);
 ```
+
+`load_and_process_audio`/`process_subject` (declared in `lfcc_pipeline_utils.hpp`, no `nn::wave`
+namespace) drive the LFCC extraction pipeline; the paraconsistent module is a free-function API
+over raw `double`/`std::map` types (`g1`/`g2`, not a `D_truth` field on a result struct) — see
+[Core/Paraconsistent](../Core/Paraconsistent.md) for the full signature reference.
 
 ## Common Pitfalls
 

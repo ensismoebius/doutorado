@@ -31,17 +31,21 @@ The "+1" ensures gradient flow even when $\mathcal{F}$ learns zero.
 
 ```cpp
 // File: include/layers/residual/ResidualBlock.hpp
+// x -> Linear -> ReLU -> Linear + x  (dense/MLP block; alias `nn::ResidualBlock`)
 template <typename Backend>
-class ResidualBlock : public Module<Backend>
+struct ResidualBlockImpl : public Module<Backend>
 {
-    Module<Backend>& main_path_;  // Linear -> Activation -> Linear
-    Module<Backend>& skip_;       // Identity or 1x1 conv
+    std::shared_ptr<LinearImpl<Backend>> fc1;
+    std::shared_ptr<ReLUImpl<Backend>> act1;
+    std::shared_ptr<LinearImpl<Backend>> fc2;
 
-    auto forward(const Tensor& input, bool requires_grad) -> Tensor override
+    explicit ResidualBlockImpl(int features);  // fc1/fc2: features -> features
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        Tensor out = main_path_.forward(input, requires_grad);
-        out = out + skip_.forward(input, false);  // Skip connection
-        return activation_.forward(out);
+        Tensor out = fc2->forward(act1->forward(fc1->forward(input, requires_grad), requires_grad), requires_grad);
+        return out.add(input);  // identity skip only — no projection; caller must
+                                 // ensure input/output feature dims already match
     }
 };
 ```
@@ -50,10 +54,23 @@ class ResidualBlock : public Module<Backend>
 
 ```cpp
 // File: include/layers/residual/ResNetBlock.hpp
-// Pre-activation ResNet block
-class ResNetBlock : public Module<XtensorTensorBackend>
+// y = ReLU2( Conv2(ReLU1(Conv1(x))) + skip(x) )  — no BatchNorm.
+// Two separate ReLU instances so each caches its own activation mask.
+template <typename Backend>
+class ResNetBlockImpl : public Module<Backend>
 {
-    // BatchNorm -> ReLU -> Conv -> BatchNorm -> ReLU -> Conv
+    ResNetBlockImpl(int in_channels, int out_channels);  // conv1_, conv2_: 3x3
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
+    {
+        Tensor output = conv2_.forward(relu1_.forward(conv1_.forward(input, requires_grad), requires_grad), requires_grad);
+        // Skip connection: identity if shapes match; otherwise the overlapping
+        // region of `input` is copied and the rest zero-padded (align_to_shape).
+        output = (output.get_shape() == input.get_shape())
+                     ? output.add(input)
+                     : output.add(align_to_shape(input, output.get_shape()));
+        return relu2_.forward(output, requires_grad);
+    }
 };
 ```
 
@@ -72,6 +89,7 @@ flowchart LR
 
 - [Layers](../Core/Layers.md) - Other layer types
 - [Weight-Initialisation](./Weight-Initialisation.md) - Important for deep networks
+- [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md) - `ResidualBlock`/`ResNetBlock` are both pinned against plain `torch.nn` equivalents, including `ResNetBlock`'s shape-aligned (cropped) skip connection
 
 ## References
 

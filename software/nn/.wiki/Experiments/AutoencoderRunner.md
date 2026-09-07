@@ -25,37 +25,53 @@ AutoencoderRunner implements three autoencoder architectures:
 // File: include/data_loaders/10.1117/datasets/windowed/FusedWindowDataset.hpp
 class FusedWindowDataset : public Dataset
 {
-    EEGWindowDataset eeg_;
-    AudioWindowDataset audio_;
-
 public:
-    // Loads windowed EEG and audio data from MAT files
-    // Aligns by trial and window index
+    explicit FusedWindowDataset(std::vector<SubjectFiles> subjects,
+        nn::windowing::WindowSpec eeg_spec,
+        nn::windowing::WindowSpec audio_spec);
+
+    [[nodiscard]] auto size() const -> std::size_t override;
+    [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override;
+    void collate_into(const std::vector<std::size_t>& indices, Batch& batch) const override;
+
+    [[nodiscard]] auto eeg_spec() const noexcept -> const nn::windowing::WindowSpec&;
+    [[nodiscard]] auto audio_spec() const noexcept -> const nn::windowing::WindowSpec&;
+    [[nodiscard]] auto windows_per_pair() const noexcept -> int;
+    [[nodiscard]] auto input_features() const noexcept -> int;
 };
 ```
 
 ### Configuration
 
+The real struct is named `Config` (not `AutoencoderRunnerConfig`), field
+names are prefixed by area, and the model/dataset "type" selectors are
+enums (`AutoencoderRunnerAutoencoderType`, `AutoencoderRunnerDatasetType`),
+not free-form strings:
+
 ```cpp
 // File: src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerConfig.hpp
-struct AutoencoderRunnerConfig
+struct Config
 {
-    // Model
-    std::string model_type;  // "audio", "eeg", "fused"
-    int input_features;
-    int hidden_size = 64;
-    int latent_size = 32;
-    int depth = 2;
+    std::string profile_name;
+    std::string dataset_root_path;
 
-    // Training
-    int epochs = 100;
-    int batch_size = 32;
-    float learning_rate = 0.001f;
-    int k_folds = 5;
+    AutoencoderRunnerDatasetType dataset_type;
+    AutoencoderRunnerAutoencoderType autoencoder_type;  // not "audio"/"eeg"/"fused" strings
 
-    // Dataset
-    std::string data_path;
-    std::vector<int> subject_ids;
+    int autoencoder_hidden_size;
+    int autoencoder_latent_size;
+    int autoencoder_depth;
+
+    size_t training_batch_size;
+    size_t training_epochs;
+    float training_learning_rate;
+    std::string training_loss_type;  // "mse" | "mae"
+
+    // K-fold cross-validation
+    bool kfold_enabled;
+    size_t kfold_n_splits;
+    bool kfold_shuffle;
+    std::optional<unsigned int> kfold_seed;
 };
 ```
 
@@ -89,26 +105,38 @@ flowchart TB
 
 ## Results Format
 
-```json
+There is no literal JSON template — `ResultsWriter.hpp` defines a C++
+`Summary` struct that `write_run_summary_json()` serializes. Real field
+names (per-fold results are parallel arrays indexed `[fold_idx][epoch_idx]`,
+not a `fold_results` array of per-fold objects):
+
+```cpp
 // File: src/experiments/autoencoderRunner/lib/include/ResultsWriter.hpp
+namespace autoencoderRunner
 {
-    "experiment": "AutoencoderRunner",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "config": {
-        "model_type": "fused",
-        "latent_size": 32,
-        "learning_rate": 0.001
-    },
-    "fold_results": [
-        {
-            "fold": 0,
-            "train_loss": 0.023,
-            "val_loss": 0.031,
-            "epochs": 100
-        }
-    ],
-    "test_loss": 0.028,
-    "test_samples": 500
+struct Summary
+{
+    std::string profile_name;
+    std::string dataset_type;
+    std::string autoencoder_type;
+    std::string optimizer_type;
+    std::string loss_type;
+    float optimizer_learning_rate = 0.0F;
+
+    std::size_t kfold_n_splits = 0;
+    // Per-fold, per-epoch validation mean reconstruction losses: [fold_idx][epoch_idx]
+    std::vector<std::vector<float>> fold_epoch_val_losses;
+    std::vector<float> fold_mean_val_losses;   // mean per fold
+    float mean_val_loss = 0.0F;                // grand mean across folds
+
+    float test_loss = 0.0F;
+    std::size_t test_samples = 0;
+    int exit_code = 0;
+    std::string error_message;
+};
+
+auto write_run_summary_json(const Summary& summary, std::string& out_path, std::string& out_error)
+    -> bool;
 }
 ```
 

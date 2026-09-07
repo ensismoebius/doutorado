@@ -101,12 +101,18 @@ $$\frac{\partial L}{\partial x_t} = \delta\text{pre}_t \, W, \quad
 
 ### Shape Contract
 
+`forward()` and `backward()` are each a single method that branches on `input.get_shape().size()`
+(2 vs 3) — there is no separate `forward_2d`/`forward_3d`/`backward_3d` split in the source.
+
 | Call | Input | Output |
 |------|-------|--------|
 | `forward(T×D)` | single sequence | `T×H` — persists `h0_`, `c0_` |
 | `forward(B×T×D)` | batch | `B×T×H` — each sample starts from zero state |
-| `backward(T×H)` | 2-D grad | `T×D` via `_bptt_apply` |
-| `backward(B×T×H)` | 3-D grad | `B×T×D` via `backward_3d` |
+| `backward(T×H)` | 2-D grad | `T×D` — reshaped from the 3-D result |
+| `backward(B×T×H)` | 3-D grad | `B×T×D` — grads W/U/b accumulated over B |
+
+Both shapes of `backward()` route through the same private `_bptt_pure(cache, grad_output, B)`,
+which returns `(dW, dU, db, dx_3d)`.
 
 ### `LSTMStepCache` — BPTT cache
 
@@ -125,16 +131,17 @@ g      — tanh(pre_g)
 tanh_c — tanh(C_t)     ← used for dL/do and dL/dC
 ```
 
-### Core Private Methods
+### Core Private Method
 
 | Method | Purpose |
 |--------|---------|
-| `_run_sequence(seq, h, c, ...)` | shared gate loop for 2-D and 3-D forward |
-| `_bptt_pure(cache, dL_dh)` | pure BPTT, returns $(dW, dU, db, dx)$ without writing members |
-| `_bptt_apply(cache, dL_dh)` | calls `_bptt_pure`, writes to `dW_/dU_/db_` and sets grads |
-| `forward_2d` | dispatches for `(T,D)` input; persists state |
-| `forward_3d` | dispatches for `(B,T,D)` input; independent states per sample |
-| `backward_3d` | accumulates gradients across batch dimension |
+| `_bptt_pure(step_cache, grad_output, B)` | the only private helper; pure BPTT over the cached per-timestep gate values, returns `(dW, dU, db, dx_3d)` without touching `dW_`/`dU_`/`db_` |
+
+`forward()` and `backward()` are public, non-split methods (see Shape Contract above): each
+normalises its 2-D input to a `(1, T, ·)` 3-D view internally, runs one loop over `t`, and
+converts back to 2-D on the way out when the caller's input was 2-D. `backward()` calls
+`_bptt_pure()` and then assigns its results into `W_.grad()`/`U_.grad()`/`b_.grad()` and
+`dW_`/`dU_`/`db_` itself — there is no separate "apply" method.
 
 ### Usage
 
@@ -183,7 +190,7 @@ Profiled via `src/experiments/guayaquil/tests/lstm_ops_microbench.cpp`:
 Tensor i_g = sigmoid_tensor(pre.block(0, 0, B, hidden_size_));
 ```
 
-**Fix:** `sigmoid_fast_block` / `tanh_fast_block` in `FastActivations.hpp` read the column range directly:
+**Fix:** `sigmoid_fast_block` / `tanh_fast_block` in `FastActivations.hpp` read the column range directly, avoiding the intermediate copy:
 ```cpp
 // NEW — single pass: reads pre[:,col_start:col_start+H] and applies activation
 Tensor i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
@@ -191,9 +198,16 @@ Tensor i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
 
 **Result:** Gate computation 21% → 1.1% of full timestep. **Full timestep 2.85× faster.**
 
+`LSTMLayerImpl::forward()` itself does not call `sigmoid_fast_block`/`tanh_fast_block` directly —
+it calls the dispatcher `nn::activations::sigmoid_block(pre, col, H, exact_activations)` /
+`tanh_block(...)`, which routes to the fused *exact* variant (`sigmoid_exact_block`/
+`tanh_exact_block` — same single-pass fusion, real `exp`/`tanh`) when `exact_activations` is
+`true`, its default (see below), and to the fast variant above only when a caller opts into
+`exact_activations = false`.
+
 ### Fast Activation Approximations
 
-`FastActivations.hpp` replaces `exp()`-based sigmoid/tanh with rational approximations (error < 0.01):
+`FastActivations.hpp` replaces `exp()`-based sigmoid/tanh with rational approximations (error < 0.01). `LSTMLayerImpl::exact_activations` defaults to `true`: the rational forms are close (`|tanh - tanh_fast|` up to 0.306 on `[-4,4]`) but not close enough to match `torch.nn.LSTM`, which is this project's correctness reference, so the fast path is an explicit speed/fidelity opt-in (`ThesisConfig::Numerics::exact_activations`), not the default:
 
 | Function | Formula | vs. standard |
 |---|---|---|

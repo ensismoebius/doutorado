@@ -348,6 +348,124 @@ TYPED_TEST(PyTorchParityTyped, MSELoss)
     expect_close(gp, arr("mse_grad_pred"), "mse_grad_pred", tol);
 }
 
+// ── MAELoss: scalar loss + gradient w.r.t. prediction ─────────────────────────
+TYPED_TEST(PyTorchParityTyped, MAELoss)
+{
+    using B = typename TestFixture::Backend;
+    using Tensor = typename TestFixture::Tensor;
+    const float tol = TestFixture::tol();
+
+    MAELossImpl<B> loss;
+    loss.set_target(make_from<Tensor>(arr("mae_target")));
+    Tensor pred = make_from<Tensor>(arr("mae_pred"));
+    Tensor l = loss.forward(pred, true);
+    EXPECT_NEAR(l.at(0, 0), arr("mae_loss").data<float>()[0], tol);
+
+    Tensor gp = loss.backward(pred);
+    expect_close(gp, arr("mae_grad_pred"), "mae_grad_pred", tol);
+}
+
+// ── SpikeCountLoss core term (rate_reg_lambda=0) vs torch.nn.functional.mse_loss ──
+// At the default rate_reg_lambda=0, SpikeCountLossImpl::forward/backward reduce to
+// exactly plain MSE (mean reduction) -- see SpikeCountLoss.hpp. Reuses the same
+// mse_* fixture keys already generated for MSELoss rather than duplicating them.
+TYPED_TEST(PyTorchParityTyped, SpikeCountLossCoreMse)
+{
+    using B = typename TestFixture::Backend;
+    using Tensor = typename TestFixture::Tensor;
+    const float tol = TestFixture::tol();
+
+    SpikeCountLossImpl<B> loss; // rate_reg_lambda left at its default 0
+    loss.set_target(make_from<Tensor>(arr("mse_target")));
+    Tensor pred = make_from<Tensor>(arr("mse_pred"));
+    Tensor l = loss.forward(pred, true);
+    EXPECT_NEAR(l.at(0, 0), arr("mse_loss").data<float>()[0], tol);
+
+    Tensor gp = loss.backward(pred);
+    expect_close(gp, arr("mse_grad_pred"), "mse_grad_pred (via SpikeCountLoss)", tol);
+}
+
+// ── ResidualBlock: Linear -> ReLU -> Linear -> +skip (forward + backward) ─────
+TYPED_TEST(PyTorchParityTyped, ResidualBlock)
+{
+    using B = typename TestFixture::Backend;
+    using Tensor = typename TestFixture::Tensor;
+    const float tol = TestFixture::tol();
+
+    const int n = static_cast<int>(arr("residual_num").data<int64_t>()[0]);
+    for (int i = 0; i < n; ++i)
+    {
+        const std::string p = "residual_" + std::to_string(i) + "_";
+        const auto& W1 = arr(p + "fc1_weight");
+        const int features = static_cast<int>(W1.shape[0]);
+
+        ResidualBlockImpl<B> block(features);
+        fill_from(block.fc1->weight, arr(p + "fc1_weight"));
+        fill_from(block.fc1->bias, arr(p + "fc1_bias"));
+        fill_from(block.fc2->weight, arr(p + "fc2_weight"));
+        fill_from(block.fc2->bias, arr(p + "fc2_bias"));
+
+        Tensor x = make_from<Tensor>(arr(p + "input"));
+        Tensor y = block.forward(x, true);
+        expect_close(y, arr(p + "output"), p + "output", tol);
+
+        Tensor go = make_from<Tensor>(arr(p + "grad_output"));
+        Tensor gi = block.backward(go);
+        expect_close(gi, arr(p + "grad_input"), p + "grad_input", tol);
+        expect_close(
+            block.fc1->weight.grad(), arr(p + "grad_fc1_weight"), p + "grad_fc1_weight", tol);
+        expect_close(block.fc1->bias.grad(), arr(p + "grad_fc1_bias"), p + "grad_fc1_bias", tol);
+        expect_close(
+            block.fc2->weight.grad(), arr(p + "grad_fc2_weight"), p + "grad_fc2_weight", tol);
+        expect_close(block.fc2->bias.grad(), arr(p + "grad_fc2_bias"), p + "grad_fc2_bias", tol);
+    }
+}
+
+// ── ResNetBlock: Conv2d->ReLU->Conv2d->+skip->ReLU, including the shape-aligned
+// (cropped/zero-padded) skip connection — see gen_pytorch_refs.py's comment for
+// why plain torch indexing reproduces align_to_shape() exactly here.
+TYPED_TEST(PyTorchParityTyped, ResNetBlock)
+{
+    using B = typename TestFixture::Backend;
+    using Tensor = typename TestFixture::Tensor;
+    const float tol = TestFixture::tol();
+
+    const int n = static_cast<int>(arr("resnetblock_num").data<int64_t>()[0]);
+    for (int i = 0; i < n; ++i)
+    {
+        const std::string p = "resnetblock_" + std::to_string(i) + "_";
+        const auto dims = arr(p + "dims").data<int64_t>();
+        const int C =
+            static_cast<int>(dims[1]); // K (dims[4]) is baked into the fixture's weight shape
+
+        ResNetBlockImpl<B> block(C, C);
+        block.conv1_.set_weights(make_from<Tensor>(arr(p + "conv1_weight")));
+        block.conv1_.set_bias(make_from<Tensor>(arr(p + "conv1_bias")));
+        block.conv2_.set_weights(make_from<Tensor>(arr(p + "conv2_weight")));
+        block.conv2_.set_bias(make_from<Tensor>(arr(p + "conv2_bias")));
+
+        Tensor x = make_from<Tensor>(arr(p + "input")); // (N, C, H, W)
+        Tensor y = block.forward(x, true);
+        expect_close(y, arr(p + "output"), p + "output", tol);
+
+        Tensor go = make_from<Tensor>(arr(p + "grad_output"));
+        Tensor gi = block.backward(go);
+        expect_close(gi, arr(p + "grad_input"), p + "grad_input", tol);
+        expect_close(block.conv1_.get_weights().grad(),
+            arr(p + "grad_conv1_weight"),
+            p + "grad_conv1_weight",
+            tol);
+        expect_close(
+            block.conv1_.get_bias().grad(), arr(p + "grad_conv1_bias"), p + "grad_conv1_bias", tol);
+        expect_close(block.conv2_.get_weights().grad(),
+            arr(p + "grad_conv2_weight"),
+            p + "grad_conv2_weight",
+            tol);
+        expect_close(
+            block.conv2_.get_bias().grad(), arr(p + "grad_conv2_bias"), p + "grad_conv2_bias", tol);
+    }
+}
+
 // ── LSTMLayer: forward (all hidden states) for a batched sequence ──────────────
 //
 // Our LSTM uses rational-approximation sigmoid/tanh (FastActivations.hpp) for
@@ -606,5 +724,52 @@ TYPED_TEST(PyTorchParityTyped, MaxPool2d)
         Tensor x = make_from<Tensor>(arr(p + "input")); // (N, C, H, W)
         Tensor y = pool.forward(x, false);
         expect_close(y, arr(p + "output"), p + "output", tol);
+    }
+}
+
+// ── ThresholdDependentBatchNorm (tdBN) vs spikingjelly ─────────────────────────
+// spikingjelly's ThresholdDependentBatchNorm1d folds alpha*V_th into a single learnable
+// "weight" (== our gamma*alpha*V_th) rather than keeping gamma separate; the fixture sets
+// spikingjelly's weight = gamma*alpha*v_th directly (associative, mathematically identical
+// to our gamma_k*(alpha*V_th*x_hat) form) and recovers dL/dgamma from dL/dweight via the
+// chain rule (weight = gamma*(alpha*v_th) => dL/dgamma = dL/dweight*(alpha*v_th)). Batch
+// statistics ARE pooled over batch+time in spikingjelly too (seq_to_ann_forward flattens
+// (T,B,F) -> (T*B,F) before calling plain BatchNorm1d), matching this layer's contract
+// exactly. See gen_pytorch_refs.py's tdbn_ case for the full derivation and a note on a
+// spikingjelly 0.0.0.0.14 packaging bug worked around there (this test is unaffected —
+// the workaround is purely on the Python fixture-generation side).
+TYPED_TEST(PyTorchParityTyped, ThresholdDependentBatchNorm)
+{
+    using B = typename TestFixture::Backend;
+    using Tensor = typename TestFixture::Tensor;
+    const float tol = TestFixture::tol();
+
+    const int n = static_cast<int>(arr("tdbn_num").data<int64_t>()[0]);
+    for (int i = 0; i < n; ++i)
+    {
+        const std::string p = "tdbn_" + std::to_string(i) + "_";
+        const auto dims = arr(p + "dims").data<int64_t>();
+        const int T = static_cast<int>(dims[0]);
+        const int B_ = static_cast<int>(dims[1]);
+        const int F = static_cast<int>(dims[2]);
+        const float* prm = arr(p + "params").data<float>();
+        const float alpha = prm[0];
+        const float vth = prm[1];
+
+        ThresholdDependentBatchNormImpl<B> tdbn(static_cast<size_t>(F), vth, T, alpha);
+        tdbn.train(true);
+        fill_from(tdbn.gamma, arr(p + "gamma"));
+        fill_from(tdbn.beta, arr(p + "beta"));
+
+        Tensor x = make_from<Tensor>(arr(p + "input")); // (T*B, F)
+        ASSERT_EQ(x.rows(), static_cast<nn::Index>(T * B_));
+        Tensor y = tdbn.forward(x, true);
+        expect_close(y, arr(p + "output"), p + "output", tol);
+
+        Tensor go = make_from<Tensor>(arr(p + "grad_output"));
+        Tensor gi = tdbn.backward(go);
+        expect_close(gi, arr(p + "grad_input"), p + "grad_input", tol);
+        expect_close(tdbn.gamma.grad(), arr(p + "grad_gamma"), p + "grad_gamma", tol);
+        expect_close(tdbn.beta.grad(), arr(p + "grad_beta"), p + "grad_beta", tol);
     }
 }

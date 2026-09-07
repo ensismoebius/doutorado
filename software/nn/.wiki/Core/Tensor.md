@@ -29,17 +29,11 @@ The core tensor is defined in `include/tensor/Tensor.hpp`:
 template <typename Backend>
 class TensorImpl
 {
-    // Shape information
-    std::vector<size_t> shape_;    // dimensions: rows, cols, etc.
-    std::vector<size_t> strides_;  // memory layout
-
-    // Data storage
-    std::vector<float> data_;        // host data (xtensor backend)
-    void* gpu_data_;              // GPU data (OpenCL backend)
-
-    // Gradients
-    bool requires_grad_;
-    std::optional<Tensor> grad_;
+    // The ONLY data member. Shape, strides, storage (host or GPU) and
+    // gradient tracking all live inside the Backend object itself, not here —
+    // TensorImpl is a thin, backend-agnostic wrapper that delegates every
+    // operation to `backend_` (see Backend Dispatch below).
+    Backend backend_;
 };
 ```
 
@@ -50,14 +44,17 @@ The tensor uses a backend system to dispatch operations:
 ```cpp
 // File: include/tensor/Tensor.hpp (simplified)
 template <typename Backend>
-class Tensor {
-    // Delegates to backend for actual computation
-    auto add(const Tensor& other) const -> Tensor {
-        return Backend::add(*this, other);
+class TensorImpl {
+    Backend backend_;
+
+    // Delegates to the backend INSTANCE (backend_), not a static call —
+    // each TensorImpl owns its own backend object.
+    auto add(const TensorImpl& other) const -> TensorImpl {
+        return TensorImpl(backend_.add(other.backend_));
     }
 
-    auto matrixMultiply(const Tensor& other) const -> Tensor {
-        return Backend::matrixMultiply(*this, other);
+    auto matmul(const TensorImpl& other) const -> TensorImpl {
+        return TensorImpl(backend_.matmul(other.backend_));
     }
 };
 ```
@@ -173,19 +170,19 @@ input.at(0, 0) = 1.0f;
 
 // Matrix multiplication: 3x4 @ 4x2 = 3x2
 nn::Tensor weights(4, 2);
-nn::Tensor output = input.matrixMultiply(weights);
+nn::Tensor output = input.matmul(weights);
 
-// Enable gradient tracking
+// There is no `set_requires_grad()` — gradient tracking is controlled by the
+// `requires_grad` bool passed into each `forward()` call (see Module contract
+// in Core/Layers.md), not a flag stored on the Tensor itself.
 nn::Tensor model_param(10, 5);
-model_param.set_requires_grad(true);
+nn::Tensor y = model.forward(model_param, /*requires_grad=*/true);
+nn::Tensor d_input = model.backward(grad_output);   // backward() returns a Tensor
 
-// Forward pass with gradient computation
-nn::Tensor loss = forward(model_param, true);  // requires_grad=true
-nn::Tensor d_loss = loss_fn.backward(output);
-
-// Update gradients
+// Read/write the gradient explicitly
 nn::Tensor grad = model_param.grad();
-optimizer.step(model_param.params());
+model_param.set_grad(grad);
+optimizer.step(model.params());
 ```
 
 ## Recent OpenCL Optimization (2026-05-02)

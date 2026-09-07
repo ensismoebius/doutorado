@@ -181,6 +181,7 @@ Both default to `λ=0` (inert). As of 2026-07-16, the DSNN classifier still has 
 - [Spike Encoding](./Spike-Encoding.md) — Rate vs latency coding
 - [Autoencoders](./Autoencoders.md) — SNN autoencoder training context
 - [Training](../Core/Training.md) — `EpochResult.mean_spike_rate` and `sops`
+- [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md) — `SpikeCountLossImpl`'s core MSE term (with `rate_reg_lambda=0`) is pinned against `torch.nn.functional.mse_loss`; the regularizer term above has no external reference (it's this project's own addition) and stays on hand-derived unit tests
 
 ---
 

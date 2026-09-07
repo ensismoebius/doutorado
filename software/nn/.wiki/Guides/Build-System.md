@@ -51,10 +51,9 @@ include/             ← public headers for all core modules
 | `VendorJson.cmake` | nlohmann::json |
 | `VendorXtensor.cmake` | xtensor core integration |
 | `VendorXsimd.cmake` | xsimd (SIMD acceleration) |
-| `VendorXtensor.cmake` | xtensor core integration |
-| `VendorXsimd.cmake` | xsimd (SIMD acceleration) |
 | `VendorXtensorParallel.cmake` | xtensor parallelization settings |
 | `VendorSqlite.cmake` | Optional vendored SQLite amalgamation |
+| `VendorPythonEnv.cmake` | Python venv for pipeline/analysis scripts |
 
 ### System Dependencies (via `cmake/PackageChecking.cmake`)
 
@@ -204,16 +203,17 @@ Each module under `src/core/` has its own `CMakeLists.txt` and optional `tests/`
 | `data_loaders/` | `data_loaders`, samplers, 10.1117 dataset |
 | `initializers/` | `initializers` |
 | `linear_algebra/` | `linear_algebra` |
-| `models/autoencoder/` | autoencoder model |
-| `models/lstm/` | LSTM model |
+| `models/autoencoder/` | `autoencoder_models` |
+| `models/lstm/` | `lstm_models` |
 | `statistics/` | `statistics` |
-| `wave/` | `wave` |
+| `wave/` | `waveCoreLib` |
 | `wavelet/` | `wavelet` |
 | `paraconsistent/` | `paraconsistent` |
-| `saver/` | `saver` |
-| `utility/` | `utility` |
-| `scripts/` | pipeline, data, ci, dev scripts |
-| `training/` | `training` |
+| `saver/` | header-only, no CMake target |
+| `utility/` | `util` |
+| `training/` | header-only, no CMake target |
+
+Top-level `scripts/` (pipeline, data, CI, dev scripts) is a separate directory, not under `src/core/`.
 
 All core modules are included from `src/core/CMakeLists.txt` via `add_subdirectory`.  
 Sanitizer flags (`SanitizerFlags.cmake`) are applied at the `src/core/` level.
@@ -228,6 +228,8 @@ Shared config library `experiments_config` (JSON-backed) is built at the `src/ex
 | 02 | `src/experiments/waveletAE/` |
 | 03 | `src/experiments/autoencoderRunner/` (Autoencoder / SNN) |
 | 04 | `src/experiments/guayaquil/` (LSTM comparative) |
+| 05 | `src/experiments/thesis/` (thesis primary experiment) |
+| — | `src/experiments/paraconsistentGA/` (NSGA-II AE architecture search, reuses `thesis_lib`) |
 
 Each experiment may contain a `lib/` subdirectory for reusable components and a `tests/` subdirectory with GTest targets.
 
@@ -235,13 +237,16 @@ Each experiment may contain a `lib/` subdirectory for reusable components and a 
 
 | Demo | Directory |
 |------|-----------|
-| C++ demos | `src/demos/cppdemos/` |
-| Spiking network plot | `src/demos/exec_plotSpikingNetwork/` |
-| ResNet demo | `src/demos/exec_resnet_demo/` |
-| FFTW3 demo | `src/demos/fftw3_demo/` |
-| LFCC pipeline | `src/demos/lfcc_pipeline/` |
-| Voice biometrics | `src/demos/voice_biometrics_cpp/` |
-| Wavelet demo | `src/demos/wavelet_demo/` |
+| C++ demos root | `src/demos/cppDemos/` |
+| LFCC pipeline | `src/demos/cppDemos/lfcc_feature_demo/` |
+| Wavelet demo | `src/demos/cppDemos/wavelet_demo/` |
+| FFT demo (FFTW3) | `src/demos/cppDemos/fft_demo/` |
+| ResNet classifier demo | `src/demos/cppDemos/resnet_classifier_demo/` |
+| SNN speaker demo | `src/demos/cppDemos/snn_speaker_demo/` |
+| Spiking network plot | `src/demos/cppDemos/snn_spike_plotter/` |
+| Voice biometrics (WPT) | `src/demos/cppDemos/wpt_voice_biometrics/` |
+| Autoencoder LeakyReLU demo | `src/demos/cppDemos/autoencoder_leakyrelu/` |
+| Python demos root | `src/demos/pyDemos/` (voice_biometrics_snn_py, multimodal_eeg_audio, snn_hyperparam_search) |
 
 ---
 

@@ -25,89 +25,101 @@ For EEG + audio fusion:
 
 ### Base Autoencoder
 
+There is no `BaseAutoencoder` class. The shared plumbing every "two
+Sequentials" window autoencoder (audio/EEG, ANN/spiking) inherits is
+`EncoderDecoderAutoencoder` — a subclass supplies only the built encoder/decoder
+`Sequential`s. The fused and protocol autoencoders deliberately do **not**
+use this base (their `encode`/`decode` do real multi-branch work of their own):
+
 ```cpp
-// File: src/core/models/autoencoder/BaseAutoencoder.hpp
-template <typename Backend>
-class BaseAutoencoder : public Module<Backend>
+// File: include/models/autoencoder/EncoderDecoderAutoencoder.hpp
+struct EncoderDecoderAutoencoder : Module<nn::Backend>
 {
-protected:
-    Module<Backend>& encoder_;
-    Module<Backend>& decoder_;
+    using Tensor = typename Module<nn::Backend>::Tensor;
 
-public:
-    auto encode(const Tensor& input) -> Tensor
-    {
-        return encoder_.forward(input, false);
-    }
+    nn::Sequential encoder_;
+    nn::Sequential decoder_;
 
-    auto decode(const Tensor& latent) -> Tensor
-    {
-        return decoder_.forward(latent, false);
-    }
+    EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder);
 
-    auto forward(const Tensor& input, bool requires_grad) -> Tensor override
-    {
-        auto latent = encode(input);
-        return decode(latent);
-    }
+    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
+    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
+    auto params() -> std::span<Tensor*> override;
+    void reset_state() override;   // no-op for ANN; clears membrane state for SNN
 };
 ```
 
 ### Autoencoder Configuration
 
 ```cpp
-// File: src/core/models/autoencoder/Config.hpp
+// File: include/models/autoencoder/AutoencoderConfig.hpp
+namespace nn::models::autoencoder
+{
 struct AutoencoderConfig
 {
-    // Architecture
+    std::string loss_type = "mse";
+
     int input_features = 128;
     int hidden_size = 64;
     int latent_size = 32;
     int depth = 1;
+    // Declarative layer specs (encoder_layer_spec, decoder_layer_spec, ...)
+    // and AutoencoderArchitecture override depth/hidden_size tapering when set.
 
-    // Loss
-    std::string loss_type = "mse";
-
-    // For multimodal
-    int eeg_features = 0;
+    int eeg_features = 0;      // multimodal split hints
     int audio_features = 0;
     int branch_hidden_size = 0;
+    int fusion_hidden_size = 0;
 
-    // SNN parameters
+    // SNN parameters (ignored by ANN models)
+    int time_steps = 0;        // 0 = UNSET; SNN builders raise rather than assume 1
     float delta_t = 1.0f;
     float resistance = 1.0f;
     float capacitance = 1.0f;
+    float voltage_threshold = 1.0f;
+    float firing_rate_reg_lambda = 0.0f;
 };
+}
 ```
 
 ### Autoencoder Builders
 
+There is no `builders` namespace and no `AutoencoderType` enum/`create()`
+factory pair. `include/models/autoencoder/AutoencoderBuilders.hpp` actually
+declares free functions (`build_ann_encoder`, `build_ann_decoder`,
+`build_snn_encoder`, `build_snn_decoder`) that assemble a `Sequential` from an
+`AutoencoderConfig` — used internally by each concrete autoencoder's
+constructor, not exposed as a type-selecting factory. The real per-type
+dispatch lives in the autoencoderRunner experiment, selecting among the
+concrete classes by an actual enum:
+
 ```cpp
-// File: src/core/models/autoencoder/AutoencoderBuilders.hpp
-namespace builders
+// File: src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerAutoencoderType.hpp
+enum class AutoencoderRunnerAutoencoderType
 {
-enum class AutoencoderType
-{
-    AudioWindow,         // Audio only
-    EegWindow,         // EEG only
-    FusedWindow,       // Multimodal
-    AudioWindowSpiking, // Audio SNN
-    EegWindowSpiking,   // EEG SNN
-    FusedWindowSpiking, // Multimodal SNN
-    Protocol,         // Adaptive
-    ProtocolSpiking    // Adaptive SNN
+    ProtocolAnn, EegWindowAnn, AudioWindowAnn, FusedWindowAnn,
+    ProtocolSnn, EegWindowSnn, AudioWindowSnn, FusedWindowSnn,
 };
+```
 
-std::unique_ptr<BaseAutoencoder<Backend>> create(
-    AutoencoderType type, 
-    const AutoencoderConfig& config);
-
-inline std::unique_ptr<BaseAutoencoder<Backend>> create(
-    const std::string& type_str, 
-    const AutoencoderConfig& config)
+```cpp
+// File: src/experiments/autoencoderRunner/lib/src/autoencoderRunner_helpers.cpp
+auto build_autoencoder_model(const Config& config, nn::Index input_features)
+    -> std::unique_ptr<Module<nn::Backend>>
 {
-    return create(from_string(type_str), config);
-}
+    AutoencoderConfig model_cfg{ /* populated from config fields */ };
+    switch (config.autoencoder_type)
+    {
+        case AutoencoderRunnerAutoencoderType::ProtocolAnn:
+            return std::make_unique<ProtocolAutoencoder>(model_cfg);
+        case AutoencoderRunnerAutoencoderType::EegWindowAnn:
+            return std::make_unique<EegWindowAutoencoder>(model_cfg);
+        // ... AudioWindowAnn, FusedWindowAnn, and the four *Snn cases
+    }
+    throw std::runtime_error("Unsupported autoencoder type");
 }
 ```
 
@@ -145,30 +157,23 @@ flowchart LR
 
 ```cpp
 // File: src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp
-#include "core/models/autoencoder/AutoencoderBuilders.hpp"
-#include "core/models/autoencoder/Config.hpp"
+#include "AutoencoderRunnerAutoencoderType.hpp"
+#include "models/autoencoder/AutoencoderConfig.hpp"
 
-// Create audio autoencoder
-nn::models::autoencoder::AutoencoderConfig config{
-    .input_features = 128,
-    .hidden_size = 64,
-    .latent_size = 32,
-    .depth = 2
-};
-
-auto model = nn::models::autoencoder::builders::create(
-    "audio", config);
+// autoencoderRunner's Config (JSON profile) selects the concrete class via
+// config.autoencoder_type; build_autoencoder_model() does the dispatch —
+// see autoencoderRunner_helpers.cpp above.
+auto model = build_autoencoder_model(config, input_features);
 
 // Training
 nn::Tensor output = model->forward(input, true);
-nn::Tensor loss = MSE_loss(output, target);
-model->backward(loss.grad());
+nn::Tensor grad_output = loss.backward(output);
+model->backward(grad_output);
 
-// Encode new data
-nn::Tensor latent = model->encode(new_input);
-
-// Decode
-nn::Tensor reconstructed = model->decode(latent);
+// EncoderDecoderAutoencoder-based subclasses (not Fused/Protocol) expose
+// encode()/decode() directly:
+// nn::Tensor latent = model->encode(new_input);
+// nn::Tensor reconstructed = model->decode(latent);
 ```
 
 ## Common Pitfalls

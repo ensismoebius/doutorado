@@ -37,28 +37,31 @@ threshold). Larger fan-in → narrower interval, preventing large summed current
 
 ### Xavier Initialization
 
+The actual API is a free function (not a class), matching the same shape as
+`kaimingSNNInitializer` below — it writes directly into pre-allocated
+`weights`/`bias` tensors rather than returning a new object:
+
 ```cpp
 // File: include/initializers/xavier.hpp
-class XavierInitializer
+template <typename TensorT>
+auto xavierInitializer(int in_features, int out_features,
+    TensorT& weights, TensorT& bias,
+    std::optional<unsigned int> seed = std::nullopt,
+    const std::string& sampler_default_type = "") -> void
 {
-public:
-    static void initialize(Tensor& weights, unsigned int seed = std::random_device{}())
-    {
-        auto [fan_in, fan_out] = get_fan(weights);
-        float bound = std::sqrt(6.0f / (fan_in + fan_out));
+    // limit = sqrt(6 / (fan_in + fan_out))
+    float const limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
 
-        std::mt19937 gen(seed);
-        std::uniform_real_distribution<float> dist(-bound, bound);
+    std::mt19937 gen;
+    if (seed.has_value())
+        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    else
+        gen.seed(std::random_device{}());                    // NON-deterministic
 
-        for (size_t i = 0; i < weights.rows(); ++i)
-        {
-            for (size_t j = 0; j < weights.cols(); ++j)
-            {
-                weights.at(i, j) = dist(gen);
-            }
-        }
-    }
-};
+    weights = TensorT::rand(out_features, in_features, gen)
+                  .multiply_scalar(2.0F * limit).add_scalar(-limit); // U(-limit, +limit)
+    bias.fill(0.0F);
+}
 ```
 
 ### Kaiming Initialization
@@ -123,32 +126,34 @@ flowchart TB
 
 ## Usage Example
 
+`LinearImpl`'s constructor deliberately does **not** initialize its weights — it
+only allocates storage, leaving initialization to a dedicated initializer
+(xavier/kaiming) that the caller invokes explicitly, so a deterministic seed
+and sampler policy can be threaded through:
+
 ```cpp
 // File: include/layers/dense/Linear.hpp
-#include "initializers/xavier.hpp"
-
 template <typename Backend>
-class Linear : public Module<Backend>
+struct LinearImpl : public Module<Backend>
 {
-    Tensor weights_;
+    Tensor weight; // [out_features x in_features]
+    Tensor bias;   // [out_features x 1]
 
-public:
-    Linear(size_t in_features, size_t out_features)
-    {
-        weights_ = Tensor(in_features, out_features);
-        XavierInitializer::initialize(weights_);
-        bias_ = Tensor(1, out_features);
-        bias_.fill(0.0f);
-    }
+    // Allocates uninitialized storage only.
+    LinearImpl(int in_features, int out_features);
 };
+
+// Caller initializes explicitly:
+#include "initializers/xavier.hpp"
+LinearImpl<Backend> fc(784, 128);
+xavierInitializer(784, 128, fc.weight, fc.bias, /*seed=*/42U);
 ```
 
 ### SNN-Specific Initialization
 
 ```cpp
-// Initialize for Lif spiking neurons
-float leak_rate = 0.99f;
-KaimingSNNInitializer::initialize(weights, leak_rate);
+// Initialize a Linear feeding into Lif spiking neurons
+kaimingSNNInitializer(linear_layer, /*seed=*/42U);
 ```
 
 ## Common Pitfalls

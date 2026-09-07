@@ -54,15 +54,26 @@ tune hyperparameters without leaking information from the test set.
 // File: include/data_loaders/runtime/DataLoader.hpp
 class DataLoader
 {
+public:
+    // Default sampler (shuffled or sequential) built internally:
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+        bool do_shuffle = true, std::optional<unsigned int> seed = std::nullopt);
+    // Default sampler with explicit options:
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+        const DefaultSamplerOptions& options);
+    // Caller-supplied sampler (e.g. FoldSampler, DistributedSampler):
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+        std::unique_ptr<ISampler> sampler);
+
+    using Iterator = DataLoaderIterator;
+    auto begin() -> Iterator;
+    auto end() -> Iterator;
+
+private:
     std::shared_ptr<Dataset> dataset_;
     std::size_t batch_size_;
     std::unique_ptr<ISampler> sampler_;
-
-public:
-    using Iterator = DataLoaderIterator;
-
-    auto begin() -> Iterator;
-    auto end() -> Iterator;
+    std::size_t num_batches_;
 };
 ```
 
@@ -74,10 +85,20 @@ list of "which rows to read next":
 
 ```cpp
 // File: include/data_loaders/samplers/ISampler.hpp
+// Samplers produce dataset indices only (not data).
 class ISampler
 {
 public:
-    virtual auto get_indices(size_t epoch) -> std::vector<size_t> = 0;
+    virtual ~ISampler() = default;
+
+    // Number of indices yielded per epoch.
+    [[nodiscard]] virtual auto index_count() const noexcept -> std::size_t = 0;
+
+    // Optional epoch hook (e.g., reseed deterministic shuffles).
+    virtual void set_epoch(std::size_t epoch) = 0;
+
+    // Fill `out` with sampled indices for the current epoch.
+    virtual void sample_into(std::span<std::size_t> out) = 0;
 };
 ```
 
@@ -95,17 +116,21 @@ Available samplers:
 ### Dataset interface
 
 A **dataset** knows how many samples it has and how to fetch one of them by
-index; `collate()` is what turns several individually-fetched samples into a
-single batch tensor:
+index; `collate_into()` is what turns several individually-fetched samples into a
+single `Batch` (with a legacy `collate()` still present for older call sites):
 
 ```cpp
 // File: include/data_loaders/datasets/Dataset.hpp
 class Dataset
 {
 public:
-    virtual auto size() const -> size_t = 0;
-    virtual auto get(size_t index) -> Tensor = 0;
-    virtual auto collate(const std::vector<size_t>& indices) -> Tensor = 0;
+    [[nodiscard]] virtual auto get_item(std::size_t idx) const -> Batch = 0;
+    [[nodiscard]] virtual auto size() const -> std::size_t = 0;
+
+    // Default impl: fetches each index via get_item() and packs rows into
+    // `batch.inputs`/`batch.targets`, reusing `batch`'s storage when the
+    // shape already matches (avoids a reallocation every call).
+    virtual void collate_into(const std::vector<std::size_t>& indices, Batch& batch) const;
 };
 ```
 
@@ -151,7 +176,7 @@ flowchart TB
 auto dataset = std::make_shared<nn::data_loaders::MatFileDataset>("data.mat");
 
 // Create data loader with random shuffling
-DataLoader loader(dataset, batch_size=32, do_shuffle=true, seed=42);
+DataLoader loader(dataset, /*batch_size=*/32, /*do_shuffle=*/true, /*seed=*/42U);
 
 // Iterate batches
 for (const auto& batch : loader)
@@ -167,18 +192,19 @@ for (const auto& batch : loader)
 ```cpp
 // File: include/data_loaders/samplers/FoldSampler.hpp
 #include "data_loaders/samplers/FoldSampler.hpp"
+#include "statistics/kfold.hpp"
 
-// Create k-fold sampler
-nn::data_loaders::FoldSampler fold_sampler(
-    dataset->size(),  // total samples
-    5,                // number of folds
-    fold_index,       // which fold is validation
-    seed
-);
+// Compute the fold split first (see Concepts/K-Fold-Cross-Validation.md)
+KFold kf(5, /*shuffle=*/true, /*seed=*/42U);
+statistics::FoldSplit split = kf.split(dataset->size())[fold_index];
 
-// Train on fold
-DataLoader train_loader(dataset, batch_size, fold_sampler.get_train_indices());
-DataLoader val_loader(dataset, batch_size, fold_sampler.get_val_indices());
+// One FoldSampler per partition, wrapped into a DataLoader via the
+// unique_ptr<ISampler> constructor overload:
+auto train_sampler = std::make_unique<FoldSampler>(split, FoldPartition::Train);
+auto val_sampler   = std::make_unique<FoldSampler>(split, FoldPartition::Validation);
+
+DataLoader train_loader(dataset, batch_size, std::move(train_sampler));
+DataLoader val_loader(dataset, batch_size, std::move(val_sampler));
 ```
 
 ## Domain-Specific Loaders
@@ -206,8 +232,17 @@ include/data_loaders/10.1117/
 #include "data_loaders/10.1117/loaders/AudioLoader.hpp"
 #include "data_loaders/10.1117/loaders/EEGLoader.hpp"
 
-auto audio = nn::dataLoaders::AudioLoader::load(root, speaker, command);
-auto eeg   = nn::dataLoaders::EEGLoader::load(root, speaker, command);
+// Session objects (filePath may be a .mat file or a .sqlite database;
+// subject_id scopes queries when reading from sqlite, -1 = no scope):
+nn::dataLoaders::AudioSession audio_session(db_path, subject_id);
+nn::dataLoaders::EEGSession eeg_session(db_path, subject_id);
+
+auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row_index);
+auto [eeg_tensor, labels] = eeg_session.readRow(row_index); // labels = {modality, stimulus, artifact}
+
+// Or the stateless MAT-file convenience functions:
+auto [audio, stim, eeg_idx] = nn::dataLoaders::loadAudioFromMat(mat_path, row_index);
+auto [eeg, eeg_labels]      = nn::dataLoaders::loadEEGFromMat(mat_path, row_index);
 ```
 
 The EEG channels most relevant to imagined speech are F7 and T5 (near

@@ -463,6 +463,19 @@ twice: a comment asserting a contract the code doesn't honor (D3, D5), and vague
 
 ## Historical resolved issues
 
+- **`PoissonLatentLayer` prior-rate aliasing bug (2026-09-06).** The constructor set the
+  public `prior_rate` field from its `prior_rate_val` argument, but `backward()`'s
+  KL-gradient term read a *separate* private `prior_rate_` member that stayed hardcoded at
+  its own default `0.1F` — never synced with the public field. `forward()`'s KL-loss term
+  used the correct (public) `prior_rate` throughout, so any caller constructing the layer
+  with a non-default prior got a **silently wrong gradient** feeding the network's actual
+  training step, while the *reported* loss value looked correct. Surfaced while adding an
+  independent-re-derivation cross-check for this layer (see
+  [Ground-Truth and Smoke Testing](./Ground-Truth-and-Smoke-Testing.md#independent-re-derivation-cross-checks))
+  — the check used the default `0.1` prior in both places, so it wouldn't have caught this on
+  its own; found by reading the header, not by a failing assertion. Fixed by deleting the
+  redundant private member entirely and using the public `prior_rate` directly in
+  `backward()`, removing the aliasing pattern rather than just re-syncing two copies.
 - **Voice+EEG fusion bug (2026-07-03).** The wiki described `modality=fused` as concatenating
   voice+EEG feature vectors; the code actually picked audio-if-present-else-EEG — a single
   signal, no fusion at all (neither early nor late). Fixed: real late fusion (independent

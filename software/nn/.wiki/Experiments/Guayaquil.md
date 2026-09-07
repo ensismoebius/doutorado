@@ -136,21 +136,23 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 
 ### WAV Loading
 
+`GuayaquilDataset.cpp` itself only windows and z-score normalizes an
+already-loaded signal (`to_window_tensor`); the actual WAV file reading is
+delegated to the shared FSDD loader:
+
 ```cpp
-// File: src/experiments/guayaquil/lib/src/GuayaquilDataset.cpp
+// File: src/core/data_loaders/10.5281/zenodo.1342401/loaders/FsddLoader.cpp
 #include "wave/Wav.hpp"
 
-// Load FSDD audio files
-Wav wav_file;
-wav_file.read(file.string());
-const auto& raw_data = wav_file.get_data();  // std::vector<double>
+Wav wav;
+wav.read(wav_path.string());
+const auto& raw = wav.get_data();  // std::vector<double>
+if (raw.empty())
+    throw std::runtime_error("Empty WAV file: " + wav_path.string());
 
-// Convert to Tensor
-nn::Tensor signal(static_cast<nn::Index>(raw_data.size()), 1);
-for (std::size_t i = 0; i < raw_data.size(); ++i)
-{
-    signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw_data[i]);
-}
+nn::Tensor signal(static_cast<nn::Index>(raw.size()), 1);
+for (std::size_t i = 0; i < raw.size(); ++i)
+    signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw[i]);
 ```
 
 ### Progress Tracking

@@ -66,26 +66,24 @@ derivation.
 
 ```cpp
 // File: include/initializers/xavier.hpp
-class XavierInitializer
+// Free function (like kaimingSNNInitializer below), not a class — writes
+// directly into pre-allocated `weights`/`bias` tensors.
+template <typename TensorT>
+void xavierInitializer(int in_features, int out_features,
+    TensorT& weights, TensorT& bias,
+    std::optional<unsigned int> seed = std::nullopt,
+    const std::string& sampler_default_type = "")
 {
-public:
-    static void initialize(Tensor& weights, unsigned int seed = std::random_device{}())
-    {
-        auto [fan_in, fan_out] = get_fan(weights);
-        float bound = std::sqrt(6.0f / (fan_in + fan_out));
-
-        std::mt19937 gen(seed);
-        std::uniform_real_distribution<float> dist(-bound, bound);
-
-        for (size_t i = 0; i < weights.rows(); ++i)
-        {
-            for (size_t j = 0; j < weights.cols(); ++j)
-            {
-                weights.at(i, j) = dist(gen);
-            }
-        }
-    }
-};
+    const float limit = std::sqrt(6.0f / static_cast<float>(in_features + out_features));
+    std::mt19937 gen;
+    if (seed.has_value())
+        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    else
+        gen.seed(std::random_device{}());                    // NON-deterministic
+    weights = TensorT::rand(out_features, in_features, gen)
+                  .multiply_scalar(2.0f * limit).add_scalar(-limit); // U(-limit, +limit)
+    bias.fill(0.0f);
+}
 ```
 
 ```cpp
@@ -142,24 +140,25 @@ flowchart TB
 
 ## Usage Example
 
+`LinearImpl`'s constructor only allocates weight/bias storage — it does not
+initialize it. Initialization is a separate, explicit step so callers can
+control seed/sampler policy:
+
 ```cpp
-// File: src/core/layers/dense/Linear.hpp
+// File: include/layers/dense/Linear.hpp
 #include "initializers/xavier.hpp"
 
 template <typename Backend>
-class Linear : public Module<Backend>
+struct LinearImpl : public Module<Backend>
 {
-    Tensor weights_;
+    Tensor weight; // [out_features x in_features], uninitialized after construction
+    Tensor bias;   // [out_features x 1], uninitialized after construction
 
-public:
-    Linear(size_t in_features, size_t out_features)
-    {
-        weights_ = Tensor(in_features, out_features);
-        XavierInitializer::initialize(weights_);
-        bias_ = Tensor(1, out_features);
-        bias_.fill(0.0f);
-    }
+    LinearImpl(int in_features, int out_features);
 };
+
+LinearImpl<Backend> fc(784, 128);
+xavierInitializer(784, 128, fc.weight, fc.bias, /*seed=*/42U);
 ```
 
 ## Common Pitfalls

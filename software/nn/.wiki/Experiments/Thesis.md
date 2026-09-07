@@ -471,8 +471,8 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 ./out/build/max-performance/src/experiments/thesis/thesis \
   --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested.json
 
-# Full article run
-./scripts/pipeline/run_experiment05.sh
+# Full article run (all real profiles: phase00 then phase01)
+./scripts/testing/run_thesis_profiles.sh all
 ```
 
 ### Two-phase protocol
@@ -633,7 +633,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 Beyond the unit tests (`e05_*_gtest`), two extra layers guard this experiment:
 
-- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_thesis_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `thesis_smoke_profiles` target when any source profile changes.
+- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 241 profiles (208 phase00 + 32 phase01 + debug) with tiny run parameters; `scripts/testing/run_thesis_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `thesis_smoke_profiles` target when any source profile changes.
 - **PyTorch / snnTorch parity** — layer-level numerical ground truth (Linear, activations, MSE/CE losses, LSTM, LifBPTT, Conv1d/2d, MaxPool).
 
 Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
