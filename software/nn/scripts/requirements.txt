@@ -2,9 +2,9 @@ numpy>=1.25
 scipy>=1.11
 tqdm
 
-# Live experiment-monitor TUI (scripts/pipeline/guayaquil/monitor.py). Pure-Python,
-# pulls `rich`. The monitor's --plain and --self-test modes need only the stdlib.
-textual>=0.60
+# Live experiment-monitor dashboard (scripts/pipeline/guayaquil/monitor.py).
+# Pure-Python. The monitor's --plain and --self-test modes need only the stdlib.
+rich>=13.0
 
 # CPU-only PyTorch wheels — this project trains on CPU/OpenCL, not CUDA (see
 # software/nn/CLAUDE.md OpenCL rules), and the CUDA build pulls several GB of

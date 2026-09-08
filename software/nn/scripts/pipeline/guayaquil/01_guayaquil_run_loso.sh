@@ -75,9 +75,9 @@ fi
 # Recorded in every session_begin event so the live monitor can show provenance.
 export GUAYAQUIL_GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
-echo "[loso-run] live dashboard (separate terminal):"
-echo "[loso-run]   python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso"
-echo "[loso-run]   (add --plain for a non-interactive terminal / when piped)"
+echo "[loso-run] live dashboard (separate terminal, from software/nn):"
+echo "[loso-run]   ${ROOT_DIR}/.venv/bin/python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso"
+echo "[loso-run]   (add --plain when piped / not a terminal; --rank N for one config's detail)"
 
 DATASETS="${DATASETS:-fsdd audiomnist mitbih}"
 _start=$(date +%s)

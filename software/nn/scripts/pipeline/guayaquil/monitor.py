@@ -1,39 +1,43 @@
 #!/usr/bin/env python3
-"""monitor.py — live research dashboard for the nested-LOSO guayaquil run.
+"""monitor.py — live dashboard for the nested-LOSO guayaquil run.
 
-The run is 18 independent `guayaquil` processes (one per dataset x outer fold), each
-appending structured events to
+The run is up to 18 independent `guayaquil` processes (one per dataset x outer fold),
+each appending structured events to
 
     results/guayaquil/<run_tag>_<dataset>_fold<f>_events.jsonl
 
 (schema v1, written by GuayaquilEvents.cpp / GuayaquilEventCallback.hpp). This script
-tails all of them, folds the events into a session model, and renders a compact
-terminal dashboard: session progress, the currently training config(s), live
-train/val convergence, a cross-configuration ranking, the hyperparameter search
-space with marginal best-val summaries, per-(model, encoding) mean +/- std across
-completed seeds x folds, and a scrolling event log. Pressing Enter on a ranking row
-opens a detail view with every recorded metric and the reproducibility metadata.
+tails all of them, folds the events into one session model, and renders a compact
+terminal dashboard.
 
-OBSERVABILITY ONLY. This script never writes to the run, never signals it, and is
-safe to start, kill, and re-attach at any time.
+What the panels mean
+  SESSION        run identity + how many trainings are done / running / failed and a
+                 rough ETA (done-so-far rate extrapolated over the whole grid).
+  TRAINING NOW   the config(s) with a live epoch: which dataset/fold/model, epoch
+                 N/M, current train & validation loss, the best validation loss seen
+                 so far and at which epoch, the train/validation gap, how many
+                 epochs since the last improvement, and a train/val loss sparkline.
+  COMPLETED      every finished config ranked by loss (held-out *test* loss once the
+                 config has been evaluated on the test speaker, otherwise the best
+                 inner-validation loss). `monitor.py --rank N` prints one row's full
+                 detail (all metrics + reproducibility).
+  SEARCH SPACE   the hyperparameter grid, how far through it we are, and -- once
+                 there is data -- the best inner-validation loss per SNN sweep
+                 dimension (a descriptive summary, not a causal claim).
+  RECENT         the last events, newest at the bottom.
+
+OBSERVABILITY ONLY. Never writes to the run, never signals it; safe to start, kill,
+and re-attach at any time. Ctrl-C to exit.
 
 Modes
-  (default)      interactive textual dashboard (requires `textual`; added to
-                 scripts/requirements.txt -- rerun `cmake --preset=...` to install)
-  --plain        periodic plain-text snapshots; also the automatic mode when stdout
-                 is not a TTY (CI / redirect / `| tee`)
-  --self-test    synthetic known-answer checks of the aggregator; exits non-zero on
-                 failure; needs only the standard library. Safe for CI.
+  (default)      live dashboard (needs `rich`, in scripts/requirements.txt)
+  --plain        periodic plain-text snapshots; also automatic when stdout is not a
+                 TTY (CI / redirect / `| tee`).  --once prints one snapshot.
+  --rank N       print the full detail of completed config #N (as ranked) and exit.
+  --self-test    synthetic known-answer checks of the aggregator; stdlib only; CI-safe.
 
-Descriptive only: this tool reports factual training diagnostics (best val loss, the
-train/validation gap, epochs without improvement, marginal summaries). It makes no
-inferential or causal claim -- no "overfitting", "converged", "significant", or
-"generalizes" language.
-
-Usage:
-  python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso
-  python3 scripts/pipeline/guayaquil/monitor.py --results-dir results/guayaquil --plain
-  python3 scripts/pipeline/guayaquil/monitor.py --self-test
+Descriptive only -- factual training diagnostics, no inferential or causal language
+("overfitting", "converged", "significant", "generalizes").
 """
 from __future__ import annotations
 
@@ -47,7 +51,7 @@ import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 SCHEMA_VERSION = 1
 _DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold(?P<fold>\d+)_events\.jsonl$")
@@ -135,9 +139,9 @@ class ConfigState:
     epochs_run: int = 0
     best_val: Optional[float] = None
     best_epoch: Optional[int] = None
-    # metrics keyed by split ("val" / "test")
-    metrics: dict[str, dict[str, Any]] = field(default_factory=dict)
+    metrics: dict[str, dict[str, Any]] = field(default_factory=dict)  # keyed by split
     last_ts: float = 0.0
+    _epoch_ms: list[float] = field(default_factory=list)
 
     # ---- derived, descriptive only --------------------------------------------------
     @property
@@ -188,18 +192,22 @@ class ConfigState:
 
     @property
     def rank_val(self) -> Optional[float]:
-        """The number the ranking sorts on: test-split val loss if evaluated, else the
-        best inner-validation loss seen during training."""
         for split in ("test", "val"):
             m = self.metrics.get(split)
             if m and m.get("mse") is not None:
                 return m["mse"]
         return self.running_best_val
 
-    def avg_epoch_ms(self) -> Optional[float]:
-        return None if not self._epoch_ms else sum(self._epoch_ms) / len(self._epoch_ms)
+    @property
+    def rank_val_kind(self) -> str:
+        for split in ("test", "val"):
+            m = self.metrics.get(split)
+            if m and m.get("mse") is not None:
+                return "test" if split == "test" else "val"
+        return "best"
 
-    _epoch_ms: list[float] = field(default_factory=list)
+    def avg_epoch_ms(self) -> Optional[float]:
+        return sum(self._epoch_ms) / len(self._epoch_ms) if self._epoch_ms else None
 
 
 @dataclass
@@ -227,7 +235,7 @@ class SessionState:
         self.procs: dict[str, ProcState] = {}
         self.folds_seen: set[tuple[str, int]] = set()
         self.events: deque[dict[str, Any]] = deque(maxlen=400)
-        self.selected: dict[str, dict[str, Any]] = {}  # final_config_id -> selection info
+        self.selected: dict[str, dict[str, Any]] = {}
         self.started_wall: Optional[float] = None
 
     # ---- ingest -------------------------------------------------------------------
@@ -269,8 +277,7 @@ class SessionState:
             c.last_ts = ts
         elif etype == "epoch":
             c = self._config(ev, ds, fold)
-            e = int(ev.get("epoch", 0))
-            c.epochs.append((e, ev.get("train_loss"), ev.get("val_loss")))
+            c.epochs.append((int(ev.get("epoch", 0)), ev.get("train_loss"), ev.get("val_loss")))
             c.max_epochs = int(ev.get("max_epochs", c.max_epochs) or c.max_epochs)
             ems = ev.get("epoch_ms")
             if isinstance(ems, (int, float)) and math.isfinite(ems):
@@ -317,7 +324,6 @@ class SessionState:
             self.configs[cid] = c
         return c
 
-    # ---- mark stalled processes' running configs as failed -----------------------
     def reconcile(self, tailer_mtimes: dict[str, float]) -> None:
         now = time.time()
         for path, proc in self.procs.items():
@@ -329,7 +335,7 @@ class SessionState:
                         c.status = "failed"
 
     # ---- derived views ----------------------------------------------------------
-    def grid_size(self) -> int:
+    def per_fold_trainings(self) -> int:
         s = self.session.get("search_space", {})
         n_snn = (
             len(s.get("snn_architectures", []) or [1])
@@ -337,22 +343,18 @@ class SessionState:
             * len(s.get("alpha_values", []) or [1])
         )
         per_cell = n_snn + len(s.get("baselines", []) or [])
-        n_enc = len(s.get("encodings", []) or [1])
-        n_seed = int(self.session.get("repeats", 1) or 1)
+        return per_cell * len(s.get("encodings", []) or [1]) * int(self.session.get("repeats", 1) or 1)
+
+    def grid_size(self) -> int:
         n_fold = int(self.session.get("cv_num_folds", 1) or 1)
         n_ds = len(self.session.get("all_datasets", []) or [1])
-        # all_datasets in one process only lists that process's dataset; fall back to a
-        # heuristic 3 (fsdd/audiomnist/mitbih) if just one is present but folds imply more.
         if n_ds == 1 and n_fold > 1:
-            n_ds = max(1, len({d for d, _ in self.folds_seen})) or 1
-        return per_cell * n_enc * n_seed * n_fold * n_ds
+            n_ds = max(1, len({d for d, _ in self.folds_seen}))
+        return self.per_fold_trainings() * n_fold * n_ds
 
     def counts(self) -> dict[str, int]:
         running = done = failed = 0
         for c in self.configs.values():
-            if c.role == "snn_sweep":
-                # sweep candidates + their config_end (val) — count the val row once
-                pass
             if c.status == "running":
                 running += 1
             elif c.status == "done":
@@ -361,9 +363,17 @@ class SessionState:
                 failed += 1
         return {"running": running, "done": done, "failed": failed, "total": self.grid_size()}
 
+    def eta_seconds(self) -> Optional[float]:
+        if not self.started_wall:
+            return None
+        c = self.counts()
+        elapsed = time.time() - self.started_wall
+        if c["done"] < 1 or elapsed <= 0 or c["total"] <= 0:
+            return None
+        rate = c["done"] / elapsed
+        return (c["total"] - c["done"]) / rate if rate > 0 else None
+
     def completed_configs(self) -> list[ConfigState]:
-        """Headline ranking: baselines + the retrained SNN winner per cell. The
-        exploratory `snn_sweep` candidates feed the search-space marginals, not this."""
         return sorted(
             (c for c in self.configs.values()
              if c.status == "done" and c.role != "snn_sweep"),
@@ -377,8 +387,7 @@ class SessionState:
         )
 
     def marginals(self) -> dict[str, list[tuple[str, Optional[float], int]]]:
-        """Best inner-val loss grouped by each SNN sweep dimension. Descriptive only."""
-        dims: dict[str, dict[str, list[float]]] = {"v_th": {}, "alpha": {}, "architecture": {}}
+        dims: dict[str, dict[str, list[float]]] = {"architecture": {}, "v_th": {}, "alpha": {}}
         for c in self.configs.values():
             if c.role not in ("snn_sweep", "snn_final") or c.status != "done":
                 continue
@@ -387,23 +396,19 @@ class SessionState:
                 continue
             for key in dims:
                 val = c.hyperparams.get(key)
-                if val is None:
-                    continue
-                dims[key].setdefault(str(val), []).append(score)
-        out: dict[str, list[tuple[str, Optional[float], int]]] = {}
-        for key, buckets in dims.items():
-            rows = [(k, min(v) if v else None, len(v)) for k, v in sorted(buckets.items())]
-            out[key] = rows
-        return out
+                if val is not None:
+                    dims[key].setdefault(str(val), []).append(score)
+        return {
+            key: [(k, min(v) if v else None, len(v)) for k, v in sorted(buckets.items())]
+            for key, buckets in dims.items()
+        }
 
     def aggregation(self) -> list[tuple[str, str, Optional[float], Optional[float], int, int]]:
-        """Per (model, encoding): mean +/- std of best-val over completed (seed x fold),
-        plus n_ok / n_failed. Only meaningful with >= 2 observations."""
         groups: dict[tuple[str, str], list[float]] = {}
         failed: dict[tuple[str, str], int] = {}
         for c in self.configs.values():
             if c.role == "snn_sweep":
-                continue  # the winner (snn_final) represents the SNN family per cell
+                continue
             key = (c.model, c.encoding)
             if c.status == "failed":
                 failed[key] = failed.get(key, 0) + 1
@@ -419,8 +424,7 @@ class SessionState:
             mean = sum(vals) / len(vals) if vals else None
             std = (
                 math.sqrt(sum((x - mean) ** 2 for x in vals) / (len(vals) - 1))
-                if mean is not None and len(vals) >= 2
-                else None
+                if mean is not None and len(vals) >= 2 else None
             )
             rows.append((key[0], key[1], mean, std, len(vals), failed.get(key, 0)))
         return rows
@@ -443,6 +447,12 @@ def _hms(seconds: Optional[float]) -> str:
 
 
 def _hp_str(hp: dict[str, Any]) -> str:
+    """Table-cell form: a dash when there are no hyperparameters (baselines)."""
+    return _hp_inline(hp) or "-"
+
+
+def _hp_inline(hp: dict[str, Any]) -> str:
+    """Prose form: empty string when there are no hyperparameters."""
     if not hp:
         return ""
     bits = []
@@ -455,10 +465,10 @@ def _hp_str(hp: dict[str, Any]) -> str:
     return " ".join(bits)
 
 
-def _sparkline(values: list[float], width: int = 48) -> str:
+def _spark(values: list[Optional[float]], width: int = 40) -> str:
     vals = [v for v in values if v is not None and math.isfinite(v)]
     if len(vals) < 2:
-        return "".join("." for _ in vals)
+        return "·" * len(vals)
     blocks = "▁▂▃▄▅▆▇█"
     if len(vals) > width:
         step = len(vals) / width
@@ -468,10 +478,16 @@ def _sparkline(values: list[float], width: int = 48) -> str:
     return "".join(blocks[min(7, int((v - lo) / rng * 7))] for v in vals)
 
 
-def _ascii_plot(values: list[float], width: int = 48, height: int = 6) -> list[str]:
+def _bar(frac: float, width: int = 22) -> str:
+    frac = max(0.0, min(1.0, frac))
+    full = int(round(frac * width))
+    return "█" * full + "░" * (width - full)
+
+
+def _ascii_plot(values: list[Optional[float]], width: int = 56, height: int = 8) -> list[str]:
     vals = [v for v in values if v is not None and math.isfinite(v)]
     if len(vals) < 2:
-        return ["(not enough points)"]
+        return ["(not enough points yet)"]
     if len(vals) > width:
         step = len(vals) / width
         vals = [vals[min(len(vals) - 1, int(i * step))] for i in range(width)]
@@ -481,12 +497,54 @@ def _ascii_plot(values: list[float], width: int = 48, height: int = 6) -> list[s
     for x, v in enumerate(vals):
         y = height - 1 - int((v - lo) / rng * (height - 1))
         grid[y][x] = "*"
-    rows = ["".join(r) for r in grid]
-    rows[0] = f"{hi:.4f} " + rows[0]
-    for i in range(1, len(rows)):
-        rows[i] = " " * (len(f"{hi:.4f} ")) + rows[i]
-    rows.append(" " * len(f"{hi:.4f} ") + f"{lo:.4f}".ljust(len(vals)))
+    pad = len(f"{hi:.4f} ")
+    rows = [f"{hi:.4f} " + "".join(grid[0])]
+    rows += [" " * pad + "".join(r) for r in grid[1:]]
+    rows.append(f"{lo:.4f} ".rjust(pad) + " " * len(vals))
     return rows
+
+
+def _event_line(ev: dict[str, Any]) -> tuple[str, str, str]:
+    """(HH:MM:SS, TYPE, human summary) for one event."""
+    t = time.strftime("%H:%M:%S", time.localtime(float(ev.get("ts_unix", 0))))
+    et = ev.get("type", "?")
+    if et == "epoch":
+        s = (f"{ev.get('config_id', '')}  ep {ev.get('epoch')}/{ev.get('max_epochs')}  "
+             f"train {_f(ev.get('train_loss'), 5)}  val {_f(ev.get('val_loss'), 5)}")
+    elif et == "config_begin":
+        hp = _hp_inline(ev.get("hyperparams", {}))
+        s = (f"{ev.get('model', '')}/{ev.get('encoding', '')}{('  ' + hp) if hp else ''}  "
+             f"started ({ev.get('role', '')}, <= {ev.get('max_epochs', '?')} ep)")
+    elif et == "train_end":
+        s = (f"{ev.get('config_id', '')}  {ev.get('epochs_run', '?')} ep, "
+             f"{ev.get('stop_reason', '')}, best val {_f(ev.get('best_val_loss'), 5)} "
+             f"@ ep {ev.get('best_val_epoch', '?')}")
+    elif et == "config_end":
+        mm = ev.get("metrics", {}) or {}
+        s = (f"{ev.get('config_id', '')}  [{ev.get('split')}]  "
+             f"mse {_f(mm.get('mse'), 5)}  mae {_f(mm.get('mae'), 5)}")
+    elif et == "config_selected":
+        sel = ev.get("selected", {})
+        s = f"SNN winner: {_hp_str(sel)}  inner-val {_f(sel.get('val_score'), 5)}"
+    elif et == "fold_begin":
+        wc = ev.get("window_counts", {})
+        sp = ev.get("speakers", {})
+        s = (f"{ev.get('dataset')} fold {ev.get('fold')}  "
+             f"train {wc.get('train', '?')} / val {wc.get('val', '?')} / "
+             f"test {wc.get('test', '?')} windows  (test group: {sp.get('test', '?')})")
+    elif et == "fold_end":
+        s = f"{ev.get('dataset')} fold {ev.get('fold')} finished"
+    elif et == "session_begin":
+        s = (f"seed {ev.get('seed')}  backend {ev.get('backend')}  "
+             f"git {ev.get('git_commit')}  grid≈{ev.get('total_outer_runs')}/fold")
+    elif et == "session_end":
+        s = f"process done, {ev.get('n_rows', '?')} result rows"
+    elif et == "session_error":
+        s = f"FAILED: {ev.get('what', '')}"
+    else:
+        s = json.dumps({k: v for k, v in ev.items()
+                        if k not in ("v", "ts_unix", "type", "run_tag", "dataset", "fold")})[:120]
+    return t, et, s
 
 
 # --------------------------------------------------------------------------------------
@@ -497,336 +555,392 @@ def render_plain(state: SessionState) -> str:
     sess = state.session
     c = state.counts()
     elapsed = time.time() - state.started_wall if state.started_wall else None
-    rate = c["done"] / elapsed if elapsed and c["done"] else None
-    remaining = (c["total"] - c["done"]) / rate if rate and c["total"] else None
-    ln.append(
-        f"SESSION {sess.get('run_tag', '?')}  seed={sess.get('seed', '?')}  "
-        f"backend={sess.get('backend', '?')}  git={sess.get('git_commit', '?')}"
-    )
-    ln.append(
-        f"  folds seen {len(state.folds_seen)}  configs done {c['done']}  "
-        f"running {c['running']}  failed {c['failed']}  of ~{c['total']}  "
-        f"elapsed {_hms(elapsed)}  eta {_hms(remaining)}"
-    )
+    ln.append(f"SESSION  {sess.get('run_tag', '?')}  seed {sess.get('seed', '?')}  "
+              f"backend {sess.get('backend', '?')}  git {sess.get('git_commit', '?')}")
+    ln.append(f"  done {c['done']}   running {c['running']}   failed {c['failed']}   "
+              f"of ~{c['total']}   elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough)")
     for proc in state.procs.values():
         if proc.error:
             ln.append(f"  FAILED  {proc.dataset} fold{proc.fold}: {proc.error}")
 
     ln.append("")
-    ln.append("ACTIVE")
-    for a in state.active_configs()[:6]:
-        pct = 100.0 * a.epochs[-1][0] / a.max_epochs if a.max_epochs else 0.0
-        ln.append(
-            f"  {a.dataset} f{a.fold} {a.model:<14} {a.encoding:<8} {_hp_str(a.hyperparams):<20} "
-            f"ep {a.epochs[-1][0]}/{a.max_epochs} {pct:4.0f}%  "
-            f"train={_f(a.last_train)}  val={_f(a.last_val)}  "
-            f"best_val={_f(a.running_best_val)}@{a.running_best_epoch}  "
-            f"gap={_f(a.gap)}  no_improve={a.no_improve}"
-        )
-        ln.append(f"    train {_sparkline([e[1] for e in a.epochs])}")
-        ln.append(f"    val   {_sparkline([e[2] for e in a.epochs])}")
-    if not state.active_configs():
-        ln.append("  (none training right now)")
+    ln.append("TRAINING NOW")
+    act = state.active_configs()
+    if not act:
+        ln.append("  nothing training right now (between folds / aggregating / not started)")
+    for a in act[:6]:
+        ep = a.epochs[-1][0]
+        frac = ep / a.max_epochs if a.max_epochs else 0.0
+        ln.append(f"  {a.dataset} fold {a.fold}  {a.model} {a.encoding} "
+                  f"{_hp_inline(a.hyperparams)}".rstrip())
+        ln.append(f"    epoch {ep}/{a.max_epochs} [{_bar(frac)}] {frac * 100:4.0f}%")
+        ln.append(f"    train {_f(a.last_train)}   val {_f(a.last_val)}   "
+                  f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}   "
+                  f"gap(val-train) {_f(a.gap, 5)}   no improvement {a.no_improve} ep")
+        ln.append(f"    train {_spark([e[1] for e in a.epochs])}")
+        ln.append(f"    val   {_spark([e[2] for e in a.epochs])}")
 
     ln.append("")
-    ln.append("RANKING (by test/inner-val loss; lower is better)")
-    ln.append(
-        f"  {'#':>2} {'model':<14} {'enc':<8} {'hp':<20} {'epochs':>6} "
-        f"{'val/test':>10} {'mae':>10} {'train_ms':>10} {'params':>9} status"
-    )
-    for i, cs in enumerate(state.completed_configs()[:12], 1):
-        m = cs.metrics.get("test") or cs.metrics.get("val") or {}
-        ln.append(
-            f"  {i:>2} {cs.model:<14} {cs.encoding:<8} {_hp_str(cs.hyperparams):<20} "
-            f"{cs.epochs_run or len(cs.epochs):>6} {_f(cs.rank_val, 6):>10} "
-            f"{_f(m.get('mae'), 6):>10} {_f(m.get('train_ms'), 1):>10} "
-            f"{str(cs.param_count or '-'):>9} {cs.status}"
-        )
+    ln.append("COMPLETED  (ranked by held-out test loss, else best inner-validation loss)")
+    comp = state.completed_configs()
+    if not comp:
+        ln.append("  nothing finished yet - the first config takes ~10-20 min after a fold starts")
+    else:
+        ln.append(f"  {'#':>2}  {'model':<14} {'enc':<8} {'hp':<18} {'epochs':>6} "
+                  f"{'loss':>10} {'mae':>10} {'train s':>8} {'params':>9}")
+        for i, cs in enumerate(comp[:14], 1):
+            m = cs.metrics.get("test") or cs.metrics.get("val") or {}
+            tms = m.get("train_ms")
+            ln.append(f"  {i:>2}  {cs.model:<14} {cs.encoding:<8} {_hp_str(cs.hyperparams):<18} "
+                      f"{cs.epochs_run or len(cs.epochs):>6} {_f(cs.rank_val, 6):>10} "
+                      f"{_f(m.get('mae'), 6):>10} "
+                      f"{(f'{tms / 1000:.0f}' if tms else '-'):>8} {str(cs.param_count or '-'):>9}")
 
-    agg = state.aggregation()
-    if any(r[4] >= 2 for r in agg):
+    agg = [r for r in state.aggregation() if r[4] >= 2]
+    if agg:
         ln.append("")
-        ln.append("AGGREGATION  best-val mean +/- std over completed seeds x folds")
+        ln.append("MEAN +/- STD  of loss over completed seeds x folds")
         for model, enc, mean, std, n_ok, n_fail in agg:
-            if n_ok < 2:
-                continue
-            ln.append(
-                f"  {model:<14} {enc:<8}  {_f(mean, 6)} +/- {_f(std, 6)}  "
-                f"(n_ok={n_ok} n_failed={n_fail})"
-            )
+            ln.append(f"  {model:<14} {enc:<8}  {_f(mean, 6)} +/- {_f(std, 6)}  "
+                      f"(n={n_ok}{f', {n_fail} failed' if n_fail else ''})")
 
     ln.append("")
     ln.append("RECENT")
     for ev in list(state.events)[-8:]:
-        t = time.strftime("%H:%M:%S", time.localtime(float(ev.get("ts_unix", 0))))
-        et = ev.get("type", "?")
-        if et == "epoch":
-            summary = (
-                f"{ev.get('config_id', '')} ep {ev.get('epoch')}/{ev.get('max_epochs')} "
-                f"train={_f(ev.get('train_loss'))} val={_f(ev.get('val_loss'))}"
-            )
-        elif et == "config_end":
-            mm = ev.get("metrics", {}) or {}
-            summary = f"{ev.get('config_id', '')} [{ev.get('split')}] mse={_f(mm.get('mse'))}"
-        elif et == "config_selected":
-            sel = ev.get("selected", {})
-            summary = f"{_hp_str(sel)} val={_f(sel.get('val_score'))}"
-        else:
-            summary = json.dumps({k: v for k, v in ev.items()
-                                  if k not in ("v", "ts_unix", "type", "run_tag")})[:110]
-        ln.append(f"  {t}  {et:<15} {summary}")
+        t, et, s = _event_line(ev)
+        ln.append(f"  {t}  {et:<15} {s}")
     return "\n".join(ln)
 
 
 # --------------------------------------------------------------------------------------
-# textual dashboard
+# rich renderers
 # --------------------------------------------------------------------------------------
-def run_textual(results_dir: str, run_tag: str, poll: float) -> int:
-    try:
-        from textual.app import App, ComposeResult
-        from textual.binding import Binding
-        from textual.containers import Horizontal, Vertical, VerticalScroll
-        from textual.screen import ModalScreen
-        from textual.widgets import DataTable, Footer, Header, Static
-    except ModuleNotFoundError:
-        print(
-            "textual is not installed. Add it to software/nn/scripts/requirements.txt and "
-            "rerun `cmake --preset=max-performance`, or use --plain.",
-            file=sys.stderr,
+def _panel_session(state: SessionState):  # noqa: ANN201
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    sess = state.session
+    c = state.counts()
+    elapsed = time.time() - state.started_wall if state.started_wall else None
+    total = max(1, c["total"])
+    frac = c["done"] / total
+
+    g = Table.grid(padding=(0, 1))
+    g.add_column(justify="left")
+    if not sess:
+        g.add_row(Text("waiting for the first event... start the run with:", style="yellow"))
+        g.add_row(Text("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/guayaquil/"
+                       "01_guayaquil_run_loso.sh", style="dim"))
+    else:
+        g.add_row(Text.assemble(
+            (str(sess.get("run_tag", "?")), "bold"),
+            (f"   seed {sess.get('seed', '?')}   backend {sess.get('backend', '?')}"
+             f"   git {sess.get('git_commit', '?')}", "dim"),
+        ))
+        g.add_row(Text.assemble(
+            (f"[{_bar(frac, 26)}] ", "cyan"),
+            (f"{c['done']} done", "green"),
+            ("  /  ", "dim"),
+            (f"{c['running']} running", "cyan"),
+            ("  /  ", "dim"),
+            (f"{c['failed']} failed", "red" if c["failed"] else "dim"),
+            (f"   of ~{c['total']} trainings", "dim"),
+        ))
+        g.add_row(Text(f"elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough, "
+                       f"from completed-so-far rate)", style="dim"))
+        sp = sess.get("search_space", {})
+        n_arch = len(sp.get("snn_architectures", []) or [])
+        n_v = len(sp.get("v_th_values", []) or [])
+        n_a = len(sp.get("alpha_values", []) or [])
+        n_e = len(sp.get("encodings", []) or [])
+        n_b = len(sp.get("baselines", []) or [])
+        g.add_row(Text(
+            f"grid: {n_b} baselines + {n_arch}×{n_v}×{n_a} SNN sweep + retrain, "
+            f"× {n_e} encodings × {sess.get('repeats', '?')} seeds  "
+            f"≈ {state.per_fold_trainings()}/fold", style="dim"))
+        fails = [p for p in state.procs.values() if p.error]
+        if fails:
+            g.add_row(Text("  ".join(f"[FAILED {p.dataset} f{p.fold}] {p.error}" for p in fails),
+                           style="red"))
+    return Panel(g, title="SESSION", title_align="left", border_style="blue", padding=(0, 1))
+
+
+def _panel_now(state: SessionState):  # noqa: ANN201
+    from rich.console import Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    act = state.active_configs()
+    if not act:
+        body = Text("Nothing is training right now.\n"
+                    "The run may be between folds, running the Python aggregation, "
+                    "or not started yet.", style="yellow")
+        return Panel(body, title="TRAINING NOW", title_align="left",
+                     border_style="grey50", padding=(0, 1))
+
+    blocks = []
+    for a in act[:3]:
+        ep = a.epochs[-1][0]
+        frac = ep / a.max_epochs if a.max_epochs else 0.0
+        avg = a.avg_epoch_ms()
+        eta_ep = _hms((a.max_epochs - ep) * avg / 1000.0) if avg and a.max_epochs else "--:--:--"
+        t = Table.grid(padding=(0, 1))
+        t.add_column()
+        hp = _hp_inline(a.hyperparams)
+        t.add_row(Text.assemble(
+            (f"{a.dataset} fold {a.fold}", "bold cyan"),
+            (f"   {a.model}  {a.encoding}{('  ' + hp) if hp else ''}", "bold"),
+        ))
+        t.add_row(Text.assemble(
+            (f"epoch {ep}/{a.max_epochs} ", ""),
+            (f"[{_bar(frac, 24)}] ", "cyan"),
+            (f"{frac * 100:.0f}%", ""),
+            (f"    ~{eta_ep} left in this training" if avg else "", "dim"),
+        ))
+        t.add_row(Text.assemble(
+            (f"train {_f(a.last_train)}    val {_f(a.last_val)}    "),
+            (f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}", "green"),
+        ))
+        t.add_row(Text(f"gap (val - train) {_f(a.gap, 5)}    "
+                       f"no improvement for {a.no_improve} epoch(s)    "
+                       f"val loss rose {a.val_increased_epochs} of the last epochs", style="dim"))
+        hint = "" if len(a.epochs) >= 3 else "   (fills in as epochs complete)"
+        t.add_row(Text.assemble(("train  ", "dim"),
+                                (_spark([e[1] for e in a.epochs]) or "·", "white"),
+                                (hint, "dim")))
+        t.add_row(Text.assemble(("val    ", "dim"),
+                                (_spark([e[2] for e in a.epochs]) or "·", "white")))
+        blocks.append(t)
+    return Panel(Group(*blocks), title="TRAINING NOW", title_align="left",
+                 border_style="cyan", padding=(0, 1))
+
+
+def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
+    from rich import box
+    from rich.console import Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    comp = state.completed_configs()
+    title = "COMPLETED  —  ranked by held-out test loss (else best inner-validation loss)"
+    if not comp:
+        body = Text("No config has finished yet.\n"
+                    "Per fold: 3 baselines + a 27-config SNN v_th×α×arch sweep + "
+                    "1 retrain,  × 3 encodings × 5 seeds.\n"
+                    "The first (LSTM-AE) result lands ~10–20 min after a fold starts.",
+                    style="yellow")
+        return Panel(body, title=title, title_align="left", border_style="grey50", padding=(0, 1))
+
+    tbl = Table(box=box.SIMPLE_HEAD, expand=True, pad_edge=False, header_style="bold")
+    for name, just in (("#", "right"), ("model", "left"), ("enc", "left"), ("hp", "left"),
+                       ("ep", "right"), ("loss", "right"), ("kind", "left"),
+                       ("mae", "right"), ("train s", "right"), ("params", "right")):
+        tbl.add_column(name, justify=just, no_wrap=True)
+    best_loss = comp[0].rank_val
+    for i, cs in enumerate(comp[:max_rows], 1):
+        m = cs.metrics.get("test") or cs.metrics.get("val") or {}
+        tms = m.get("train_ms")
+        style = "green" if cs.rank_val == best_loss else ""
+        tbl.add_row(
+            str(i), cs.model, cs.encoding, _hp_str(cs.hyperparams),
+            str(cs.epochs_run or len(cs.epochs)),
+            _f(cs.rank_val, 6), cs.rank_val_kind,
+            _f(m.get("mae"), 6),
+            f"{tms / 1000:.0f}" if tms else "-",
+            str(cs.param_count or "-"),
+            style=style,
         )
+    extra = "" if len(comp) <= max_rows else f"   (+{len(comp) - max_rows} more — --rank N for detail)"
+    parts = [tbl, Text(f"monitor.py --rank N  for one row's full detail{extra}", style="dim")]
+
+    marg = state.marginals()
+    if any(any(n for _, _, n in rs) for rs in marg.values()):
+        mt = Table.grid(padding=(0, 2))
+        mt.add_column(style="dim")
+        mt.add_column()
+        for dim, rlist in marg.items():
+            cells = "   ".join(f"{label} {_f(best, 5)} (n={n})" for label, best, n in rlist if n)
+            if cells:
+                mt.add_row(dim, cells)
+        parts += [Text(""),
+                  Text("best inner-val loss per SNN dimension "
+                       "(descriptive summary — not a causal claim)", style="italic dim"),
+                  mt]
+
+    agg = [r for r in state.aggregation() if r[4] >= 2]
+    if agg:
+        parts.append(Text(""))
+        parts.append(Text("loss  mean ± std  over completed seeds × folds:", style="italic dim"))
+        for model, enc, mean, std, n_ok, n_fail in agg:
+            parts.append(Text(f"  {model} {enc}: {_f(mean, 5)} ± {_f(std, 5)} "
+                              f"(n={n_ok}{f', {n_fail} failed' if n_fail else ''})", style="dim"))
+
+    return Panel(Group(*parts), title=title, title_align="left", border_style="blue",
+                 padding=(0, 1))
+
+
+def _panel_events(state: SessionState, n: int = 8):  # noqa: ANN201
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    colour = {"session_error": "red", "config_end": "green", "config_selected": "yellow",
+              "fold_begin": "cyan", "fold_end": "cyan", "train_end": "green",
+              "session_begin": "magenta"}
+    t = Table.grid(padding=(0, 1))
+    t.add_column(style="dim", no_wrap=True)
+    t.add_column(no_wrap=True)
+    t.add_column(overflow="ellipsis")
+    for ev in list(state.events)[-n:]:
+        tt, et, s = _event_line(ev)
+        t.add_row(tt, Text(et, style=colour.get(et, "white")), s)
+    if not state.events:
+        t.add_row("", "", Text("(no events yet)", style="dim"))
+    return Panel(t, title="RECENT", title_align="left", border_style="blue", padding=(0, 1))
+
+
+def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
+    """Full-terminal layout: SESSION and TRAINING NOW at fixed heights, COMPLETED
+    takes the slack, RECENT pinned to the bottom. Each region clips its content, so
+    a short terminal just shows fewer ranking / event rows — nothing overflows."""
+    from rich.layout import Layout
+    from rich.panel import Panel
+
+    def _safe(fn, *a):  # noqa: ANN001
+        try:
+            return fn(*a)
+        except Exception as exc:  # noqa: BLE001
+            return Panel(f"[red]panel error:[/red] {exc}", border_style="red")
+
+    ev_rows = max(3, min(9, height - 26))
+    rank_rows = max(3, height - 12 - ev_rows - 12)
+
+    root = Layout()
+    root.split_column(
+        Layout(_safe(_panel_session, state), name="session", size=7),
+        Layout(_safe(_panel_now, state), name="now", size=9),
+        Layout(_safe(_panel_ranking, state, rank_rows), name="done", ratio=1, minimum_size=5),
+        Layout(_safe(_panel_events, state, ev_rows), name="recent", size=ev_rows + 2),
+    )
+    return root
+
+
+def render_detail(cfg: ConfigState, session: dict[str, Any]):  # noqa: ANN201
+    from rich.console import Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    head = Table.grid(padding=(0, 1))
+    head.add_column(style="dim")
+    head.add_column()
+    head.add_row("config", cfg.config_id)
+    head.add_row("model / encoding / role", f"{cfg.model} / {cfg.encoding} / {cfg.role}")
+    head.add_row("hyperparameters", json.dumps(cfg.hyperparams) or "-")
+    head.add_row("status", cfg.status)
+
+    repro = Table.grid(padding=(0, 1))
+    repro.add_column(style="dim")
+    repro.add_column()
+    repro.add_row("seed / fold / run", f"{cfg.seed} / {cfg.fold} / {cfg.run_id}")
+    repro.add_row("dataset", cfg.dataset)
+    repro.add_row("config_hash", str(session.get("config_hash", "-")))
+    repro.add_row("git_commit", str(session.get("git_commit", "-")))
+    repro.add_row("backend", str(session.get("backend", "-")))
+    repro.add_row("learning rate", _f(cfg.lr, 6) if cfg.lr else "-")
+
+    train = Table.grid(padding=(0, 1))
+    train.add_column(style="dim")
+    train.add_column()
+    train.add_row("epochs run / max", f"{cfg.epochs_run or len(cfg.epochs)} / {cfg.max_epochs}")
+    train.add_row("stop reason", cfg.stop_reason or "-")
+    train.add_row("best inner-val loss", f"{_f(cfg.running_best_val)} @ epoch {cfg.running_best_epoch}")
+    train.add_row("final train / val", f"{_f(cfg.last_train)} / {_f(cfg.last_val)}")
+    train.add_row("train/val gap (last epoch)", _f(cfg.gap, 6))
+    train.add_row("val loss rose (recent epochs)", str(cfg.val_increased_epochs))
+    train.add_row("no improvement for", f"{cfg.no_improve} epoch(s)")
+    avg = cfg.avg_epoch_ms()
+    train.add_row("avg epoch", f"{avg / 1000:.2f} s" if avg else "-")
+
+    metric_tbls = []
+    for split, mm in cfg.metrics.items():
+        mt = Table.grid(padding=(0, 1))
+        mt.add_column(style="dim")
+        mt.add_column()
+        for k, v in mm.items():
+            mt.add_row(k, str(v))
+        metric_tbls.append(Panel(mt, title=f"metrics [{split}]", title_align="left",
+                                 border_style="green", padding=(0, 1)))
+
+    plots = [Text("train loss", style="dim")]
+    plots += [Text(r) for r in _ascii_plot([e[1] for e in cfg.epochs])]
+    plots += [Text(""), Text("val loss", style="dim")]
+    plots += [Text(r) for r in _ascii_plot([e[2] for e in cfg.epochs])]
+
+    return Group(
+        Panel(head, title="CONFIG", title_align="left", border_style="cyan", padding=(0, 1)),
+        Panel(repro, title="REPRODUCIBILITY", title_align="left", border_style="blue",
+              padding=(0, 1)),
+        Panel(train, title="TRAINING", title_align="left", border_style="blue", padding=(0, 1)),
+        *metric_tbls,
+        Panel(Group(*plots), title="LOSS CURVES", title_align="left", border_style="blue",
+              padding=(0, 1)),
+    )
+
+
+def _drain(results_dir: str, run_tag: str) -> SessionState:
+    tailer = EventTailer(results_dir, run_tag)
+    state = SessionState()
+    for ev in tailer.poll():
+        state.apply(ev)
+    state.reconcile(tailer.mtimes)
+    return state
+
+
+def run_detail(results_dir: str, run_tag: str, rank: int) -> int:
+    try:
+        from rich.console import Console
+    except ModuleNotFoundError:
+        print("rich is not installed (see scripts/requirements.txt).", file=sys.stderr)
+        return 2
+    state = _drain(results_dir, run_tag)
+    comp = state.completed_configs()
+    if not comp:
+        print("No completed configs yet.")
+        return 1
+    if rank < 1 or rank > len(comp):
+        print(f"--rank must be 1..{len(comp)} (that many configs have finished).")
+        return 1
+    Console().print(render_detail(comp[rank - 1], state.session))
+    return 0
+
+
+def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
+    try:
+        from rich.console import Console
+        from rich.live import Live
+    except ModuleNotFoundError:
+        print("rich is not installed. It is in scripts/requirements.txt — rerun "
+              "`cmake --preset=max-performance`, or use --plain.", file=sys.stderr)
         return 2
 
     tailer = EventTailer(results_dir, run_tag)
     state = SessionState()
-
-    class DetailScreen(ModalScreen):
-        BINDINGS = [Binding("escape,q", "dismiss", "Back")]
-
-        def __init__(self, cfg: ConfigState) -> None:
-            super().__init__()
-            self._cfg = cfg
-
-        def compose(self) -> ComposeResult:
-            c = self._cfg
-            lines = [
-                f"[b]{c.config_id}[/b]",
-                f"model={c.model}  encoding={c.encoding}  role={c.role}",
-                f"hyperparams: {json.dumps(c.hyperparams)}",
-                "",
-                "[b]reproducibility[/b]",
-                f"seed={c.seed}  fold={c.fold}  run={c.run_id}  dataset={c.dataset}",
-                f"config_hash={state.session.get('config_hash')}  "
-                f"git_commit={state.session.get('git_commit')}",
-                "",
-                "[b]training[/b]",
-                f"epochs_run={c.epochs_run or len(c.epochs)} / {c.max_epochs}   "
-                f"stop_reason={c.stop_reason or '-'}",
-                f"best inner-val loss {_f(c.running_best_val)} @ epoch {c.running_best_epoch}",
-                f"final train {_f(c.last_train)}   final val {_f(c.last_val)}   "
-                f"gap {_f(c.gap)}",
-                f"val loss rose for {c.val_increased_epochs} most-recent epoch(s)   "
-                f"no improvement for {c.no_improve} epoch(s)",
-                f"avg epoch {_f((c.avg_epoch_ms() or 0) / 1000.0, 2)} s",
-                "",
-                "[b]train / val curve[/b]",
-            ]
-            lines += _ascii_plot([e[1] for e in c.epochs]) or []
-            lines.append("(val)")
-            lines += _ascii_plot([e[2] for e in c.epochs]) or []
-            lines.append("")
-            lines.append("[b]recorded metrics[/b]")
-            for split, mm in c.metrics.items():
-                lines.append(f"  [{split}]")
-                for k, v in mm.items():
-                    lines.append(f"    {k:<16} {v}")
-            yield VerticalScroll(Static("\n".join(lines)))
-
-    class Monitor(App):
-        CSS = """
-        Screen { layout: vertical; }
-        #session { height: auto; padding: 0 1; background: $panel; }
-        #active { height: auto; max-height: 16; padding: 0 1; }
-        #mid { height: 1fr; }
-        #ranking { width: 2fr; }
-        #side { width: 1fr; }
-        #log { height: 10; border-top: solid $primary; }
-        .hidden { display: none; }
-        """
-        BINDINGS = [
-            Binding("q", "quit", "Quit"),
-            Binding("enter", "detail", "Detail"),
-            Binding("p", "pause", "Pause"),
-            Binding("f", "follow", "Follow"),
-            Binding("s", "focus('ranking')", "Ranking"),
-            Binding("l", "focus('log')", "Log"),
-            Binding("question_mark", "help", "Help"),
-        ]
-
-        def __init__(self) -> None:
-            super().__init__()
-            self.paused = False
-            self.follow = True
-            self._narrow = False
-
-        def compose(self) -> ComposeResult:
-            yield Header(show_clock=True)
-            yield Static(id="session")
-            yield VerticalScroll(Static(id="active_body"), id="active")
-            with Horizontal(id="mid"):
-                yield DataTable(id="ranking")
-                yield VerticalScroll(Static(id="side_body"), id="side")
-            yield Static(id="log")
-            yield Footer()
-
-        def on_mount(self) -> None:
-            t = self.query_one("#ranking", DataTable)
-            t.cursor_type = "row"
-            t.add_columns("#", "model", "enc", "hp", "ep", "val", "mae", "train_ms", "params", "st")
-            self.set_interval(max(0.2, poll), self.refresh_data)
-            self.refresh_data()
-
-        # ---- key actions ---------------------------------------------------------
-        def action_pause(self) -> None:
-            self.paused = not self.paused
-
-        def action_follow(self) -> None:
-            self.follow = not self.follow
-
-        def action_help(self) -> None:
-            self.bell()
-            self.notify(
-                "up/down select - enter detail - p pause - f follow - s ranking - l log - q quit",
-                timeout=6,
-            )
-
-        def action_detail(self) -> None:
-            t = self.query_one("#ranking", DataTable)
-            comp = state.completed_configs()
-            if 0 <= t.cursor_row < len(comp):
-                self.push_screen(DetailScreen(comp[t.cursor_row]))
-
-        # ---- data ---------------------------------------------------------------
-        def refresh_data(self) -> None:
-            try:
-                if not self.paused:
-                    for ev in tailer.poll():
-                        state.apply(ev)
-                    state.reconcile(tailer.mtimes)
-                self._render()
-            except Exception as exc:  # noqa: BLE001  never let a frame kill the app
-                try:
-                    self.query_one("#log", Static).update(f"[red]render error:[/red] {exc}")
-                except Exception:  # noqa: BLE001
-                    pass
-
-        def on_resize(self, event) -> None:  # noqa: ANN001
-            self._narrow = event.size.width < 80
-            for wid in ("#mid", "#side"):
-                try:
-                    self.query_one(wid).set_class(self._narrow, "hidden")
-                except Exception:  # noqa: BLE001  widgets not mounted yet
-                    pass
-
-        def _render(self) -> None:
-            sess, c = state.session, state.counts()
-            elapsed = time.time() - state.started_wall if state.started_wall else None
-            rate = c["done"] / elapsed if elapsed and c["done"] else None
-            eta = (c["total"] - c["done"]) / rate if rate and c["total"] else None
-            fails = [p for p in state.procs.values() if p.error]
-            self.query_one("#session", Static).update(
-                f"[b]{sess.get('run_tag', '?')}[/b]  seed {sess.get('seed', '?')}  "
-                f"backend {sess.get('backend', '?')}  git {sess.get('git_commit', '?')}   "
-                f"folds {len(state.folds_seen)}   done [green]{c['done']}[/green]  "
-                f"running [cyan]{c['running']}[/cyan]  failed [red]{c['failed']}[/red]  "
-                f"of ~{c['total']}   elapsed {_hms(elapsed)}   eta {_hms(eta)}"
-                + (f"\n[red]failed:[/red] "
-                   + "; ".join(f"{p.dataset} f{p.fold}: {p.error}" for p in fails) if fails else "")
-            )
-
-            act = state.active_configs()
-            if self.follow and self._narrow:
-                act = act[:1]
-            body = []
-            for a in act[:6]:
-                ep = a.epochs[-1][0]
-                pct = 100.0 * ep / a.max_epochs if a.max_epochs else 0.0
-                body.append(
-                    f"[b cyan]{a.dataset} f{a.fold}[/b cyan] {a.model} {a.encoding} "
-                    f"{_hp_str(a.hyperparams)}  ep {ep}/{a.max_epochs} {pct:.0f}%"
-                )
-                body.append(
-                    f"  train {_f(a.last_train)}  val {_f(a.last_val)}  "
-                    f"best_val {_f(a.running_best_val)}@{a.running_best_epoch}  "
-                    f"gap {_f(a.gap)}  no_improve {a.no_improve}  "
-                    f"val_rose {a.val_increased_epochs}ep"
-                )
-                body.append(f"  T {_sparkline([e[1] for e in a.epochs])}")
-                body.append(f"  V {_sparkline([e[2] for e in a.epochs])}")
-            self.query_one("#active_body", Static).update("\n".join(body) or "(nothing training)")
-
-            t = self.query_one("#ranking", DataTable)
-            keep = t.cursor_row
-            t.clear()
-            for i, cs in enumerate(state.completed_configs()[:200], 1):
-                m = cs.metrics.get("test") or cs.metrics.get("val") or {}
-                t.add_row(
-                    str(i), cs.model, cs.encoding, _hp_str(cs.hyperparams),
-                    str(cs.epochs_run or len(cs.epochs)), _f(cs.rank_val, 5),
-                    _f(m.get("mae"), 5), _f(m.get("train_ms"), 0),
-                    str(cs.param_count or "-"), cs.status,
-                )
-            if keep is not None:
-                try:
-                    t.move_cursor(row=min(keep, t.row_count - 1))
-                except Exception:  # noqa: BLE001
-                    pass
-
-            side = ["[b]search space[/b]"]
-            s = sess.get("search_space", {})
-            for k in ("snn_architectures", "v_th_values", "alpha_values", "encodings", "baselines"):
-                if s.get(k):
-                    side.append(f"  {k}: {', '.join(str(x) for x in s[k])}")
-            grid = state.grid_size()
-            side.append(f"  grid ~ {grid} configs   done {c['done']}")
-            side.append("")
-            side.append("[b]marginal best inner-val (descriptive, not causal)[/b]")
-            for dim, rows in state.marginals().items():
-                for label, best, n in rows:
-                    side.append(f"  {dim}={label:<12} {_f(best)}  (n={n})")
-            agg = state.aggregation()
-            if any(r[4] >= 2 for r in agg):
-                side.append("")
-                side.append("[b]best-val mean +/- std (completed seeds x folds)[/b]")
-                for model, enc, mean, std, n_ok, n_fail in agg:
-                    if n_ok >= 2:
-                        side.append(
-                            f"  {model} {enc}: {_f(mean, 5)} +/- {_f(std, 5)} "
-                            f"(n_ok={n_ok} n_failed={n_fail})"
-                        )
-            self.query_one("#side_body", Static).update("\n".join(side))
-
-            log = []
-            for ev in list(state.events)[-40:]:
-                tt = time.strftime("%H:%M:%S", time.localtime(float(ev.get("ts_unix", 0))))
-                et = ev.get("type", "?")
-                colour = {
-                    "session_error": "red", "config_end": "green",
-                    "config_selected": "yellow", "fold_begin": "cyan",
-                }.get(et, "white")
-                if et == "epoch":
-                    txt = (f"{ev.get('config_id', '')} ep {ev.get('epoch')} "
-                           f"train={_f(ev.get('train_loss'))} val={_f(ev.get('val_loss'))}")
-                elif et == "config_end":
-                    mm = ev.get("metrics", {}) or {}
-                    txt = f"{ev.get('config_id', '')} [{ev.get('split')}] mse={_f(mm.get('mse'))}"
-                else:
-                    txt = json.dumps({k: v for k, v in ev.items()
-                                      if k not in ("v", "ts_unix", "type", "run_tag", "dataset",
-                                                   "fold")})[:120]
-                log.append(f"[dim]{tt}[/dim] [{colour}]{et:<14}[/{colour}] {txt}")
-            self.query_one("#log", Static).update("\n".join(log[-9:]))
-
-    return Monitor().run() or 0
+    console = Console()
+    try:
+        with Live(render_dashboard(state, console.size.height), console=console, screen=True,
+                  refresh_per_second=4, redirect_stderr=False) as live:
+            while True:
+                for ev in tailer.poll():
+                    state.apply(ev)
+                state.reconcile(tailer.mtimes)
+                live.update(render_dashboard(state, console.size.height))
+                time.sleep(max(0.5, poll))
+    except KeyboardInterrupt:
+        return 0
 
 
 # --------------------------------------------------------------------------------------
@@ -846,7 +960,6 @@ def _self_test() -> int:
                              "alpha_values": [0.9], "encodings": ["direct"],
                              "baselines": ["lstm-ae"]}))
     st.apply(ev(type="fold_begin", dataset="fsdd", fold=0))
-    # a baseline that improves then plateaus
     st.apply(ev(type="config_begin", dataset="fsdd", fold=0, config_id="lstm-ae_direct_seed42_run1",
                model="lstm-ae", encoding="direct", role="baseline", run_id=1, seed=42,
                max_epochs=10))
@@ -877,10 +990,10 @@ def _self_test() -> int:
     check(c.val_increased_epochs == 2, "val rose for last 2 epochs")
     check(abs((c.gap or 0) - (0.39 - 0.1)) < 1e-9, "gap = val - train on last epoch")
     check(abs((c.rank_val or 0) - 0.33) < 1e-9, "rank_val uses test mse when present")
+    check(c.rank_val_kind == "test", "rank_val_kind reports 'test'")
     check(c.param_count == 1234, "param_count carried from config_end metrics")
     check(st.counts()["done"] == 1 and st.counts()["running"] == 0, "counts: 1 done, 0 running")
 
-    # second seed -> aggregation mean/std over 2 obs
     st.apply(ev(type="config_begin", dataset="fsdd", fold=0, config_id="lstm-ae_direct_seed43_run2",
                model="lstm-ae", encoding="direct", role="baseline", run_id=2, seed=43,
                max_epochs=10))
@@ -893,7 +1006,6 @@ def _self_test() -> int:
     check(std is not None and abs(std - math.sqrt(((0.33 - 0.35) ** 2 + (0.37 - 0.35) ** 2))) < 1e-9,
           "aggregation sample std correct")
 
-    # failed process detection
     st.apply(ev(type="config_begin", dataset="fsdd", fold=1, config_id="gru-ae_direct_seed42_run1",
                model="gru-ae", encoding="direct", role="baseline", run_id=1, seed=42,
                max_epochs=10, _path="/tmp/x_fsdd_fold1_events.jsonl"))
@@ -904,19 +1016,20 @@ def _self_test() -> int:
           "running config of an errored process -> failed")
     check(st.counts()["failed"] == 1, "counts: 1 failed")
 
-    # missing/unknown tolerance
     st.apply(ev(type="epoch", dataset="fsdd", fold=0, config_id="lstm-ae_direct_seed42_run1",
                epoch=6, max_epochs=10, train_loss=None, val_loss=None))
     st.apply(ev(type="totally_unknown_event", dataset="fsdd", fold=0))
-    st.apply({"type": "epoch", "v": 999})  # wrong schema version -> ignored
+    st.apply({"type": "epoch", "v": 999})
     check(True, "unknown event type / null metrics / wrong version tolerated (no exception)")
 
-    # renders without raising
     txt = render_plain(st)
     banned = ["overfit", "converged", "convergence achieved", "significant", "generalizes",
               "generalisation is", "the model is better"]
     check(all(b not in txt.lower() for b in banned), "plain render has no inferential language")
-    check("RANKING" in txt and "ACTIVE" in txt, "plain render has the core sections")
+    check("COMPLETED" in txt and "TRAINING NOW" in txt, "plain render has the core sections")
+    for ln in list(st.events):
+        _event_line(ln)
+    check(True, "_event_line handles every event type without raising")
 
     print("\n" + ("ALL PASS" if ok else "FAILURES ABOVE"))
     return 0 if ok else 1
@@ -929,18 +1042,21 @@ def main() -> int:
     ap.add_argument("--results-dir", default="results/guayaquil")
     ap.add_argument("--run-tag", default="article_loso")
     ap.add_argument("--poll", type=float, default=1.0, help="seconds between event polls")
-    ap.add_argument("--plain", action="store_true", help="periodic text snapshots (no textual)")
+    ap.add_argument("--plain", action="store_true", help="periodic text snapshots (no rich)")
     ap.add_argument("--interval", type=float, default=15.0, help="--plain snapshot interval (s)")
     ap.add_argument("--once", action="store_true", help="--plain: print one snapshot and exit")
+    ap.add_argument("--rank", type=int, metavar="N",
+                    help="print completed config #N's full detail and exit")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
     if args.self_test:
         return _self_test()
+    if args.rank is not None:
+        return run_detail(args.results_dir, args.run_tag, args.rank)
 
-    plain = args.plain or not sys.stdout.isatty()
-    if not plain:
-        return run_textual(args.results_dir, args.run_tag, args.poll)
+    if not (args.plain or not sys.stdout.isatty()):
+        return run_dashboard(args.results_dir, args.run_tag, args.poll)
 
     tailer = EventTailer(args.results_dir, args.run_tag)
     state = SessionState()
@@ -950,7 +1066,7 @@ def main() -> int:
                 state.apply(ev)
             state.reconcile(tailer.mtimes)
             if sys.stdout.isatty():
-                sys.stdout.write("\033[2J\033[H")  # only when a real terminal
+                sys.stdout.write("\033[2J\033[H")
             print(render_plain(state), flush=True)
             if args.once:
                 return 0

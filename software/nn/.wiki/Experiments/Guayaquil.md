@@ -83,15 +83,17 @@ python3 scripts/pipeline/guayaquil/monitor.py --plain          # non-interactive
 python3 scripts/pipeline/guayaquil/monitor.py --self-test      # CI known-answer check
 ```
 
-The interactive dashboard (needs `textual`, in `scripts/requirements.txt`) shows
-session progress + ETA, the active config(s) with live train/val + best-val + gap +
-no-improve, convergence sparklines, a cross-configuration ranking (sorted by
-test/inner-val loss; `Enter` → per-config detail with every recorded metric +
-reproducibility), the hyperparameter search space with **descriptive** marginal
-best-val summaries, and per-(model, encoding) `mean ± std` over completed seeds ×
-folds. It is read-only — start, kill, and re-attach freely. `--no-tui` on the
-`guayaquil` binary (and any non-TTY stdout) disables its own `ProgressManager` bars
-so redirected logs stay free of cursor-control sequences.
+The dashboard (needs `rich`, in `scripts/requirements.txt`) has four panels:
+**SESSION** (identity, done/running/failed, rough ETA, the grid summary), **TRAINING
+NOW** (the active config: epoch bar, train/val, best-val @ epoch, train/val gap,
+epochs-since-improvement, train/val sparklines), **COMPLETED** (every finished config
+ranked by held-out test loss — else best inner-validation loss — plus, once SNN
+configs finish, **descriptive** marginal best-val per sweep dimension and
+per-(model, encoding) `mean ± std`), and **RECENT** (event tail). Read-only — start,
+kill, re-attach freely; `Ctrl-C` exits. `monitor.py --rank N` prints one completed
+config's full detail (all metrics + reproducibility). `--no-tui` on the `guayaquil`
+binary (and any non-TTY stdout) disables its own `ProgressManager` bars so redirected
+logs stay free of cursor-control sequences.
 
 ### Statistics & paper data
 
