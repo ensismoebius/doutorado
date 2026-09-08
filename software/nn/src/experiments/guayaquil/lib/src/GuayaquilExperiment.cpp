@@ -21,6 +21,7 @@
 #include "../include/GuayaquilRunner.hpp"
 #include "../include/GuayaquilTraining.hpp"
 #include "GuayaquilAeCommon.hpp"
+#include "cnpy.h"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "nlohmann/json.hpp"
 #include "progress/ProgressManager.hpp"
@@ -1006,6 +1007,66 @@ void assert_split_disjoint_and_manifest(
     if (mf.is_open()) mf << man.dump(2);
 }
 
+// Dumps the framed-encoded train/test window matrices (row = window, col = flattened
+// (T, frame_size)) for one fold+encoding so the Python PCA / mean-frame reference
+// baselines can be fitted on train and scored on test in the exact representation the
+// trained AEs reconstruct. Uses the seed-0 encoding realization (poisson is stochastic;
+// the linear references are reported as one representative realization — direct and
+// latency are deterministic). Once per fold+encoding, not per seed/model.
+void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
+    const DatasetSplit& split,
+    const std::string& encoding,
+    const std::filesystem::path& out_dir)
+{
+    if (config.dataset.cv_fold < 0 || split.test_samples.empty()) return;
+    if (config.dataset.results_dir.empty()) return;
+
+    const int frame = config.model.lstm_frame_size;
+    const std::uint32_t seed = config.experiment.seed;
+
+    auto encode_matrix =
+        [&](const std::vector<Tensor>& samples) -> std::pair<std::vector<float>, std::size_t>
+    {
+        std::vector<float> flat;
+        std::size_t cols = 0;
+        for (std::size_t i = 0; i < samples.size(); ++i)
+        {
+            const Tensor framed = to_lstm_frames(
+                encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i)), frame);
+            const Tensor row = flatten_time_series(framed);
+            cols = static_cast<std::size_t>(row.size());
+            for (nn::Index k = 0; k < row.size(); ++k) flat.push_back(row.at(k));
+        }
+        return {flat, cols};
+    };
+
+    const std::string stem = config.experiment.run_tag + "_fold" +
+                             std::to_string(config.dataset.cv_fold) + "_" + encoding;
+    const std::filesystem::path dir(config.dataset.results_dir);
+
+    const auto [train_flat, train_cols] = encode_matrix(split.train_samples);
+    const auto [test_flat, test_cols] = encode_matrix(split.test_samples);
+    if (train_cols == 0 || test_cols == 0) return;
+
+    cnpy::npy_save((dir / (stem + "_train_windows.npy")).string(),
+        train_flat.data(),
+        {split.train_samples.size(), train_cols},
+        "w");
+    cnpy::npy_save((dir / (stem + "_test_windows.npy")).string(),
+        test_flat.data(),
+        {split.test_samples.size(), test_cols},
+        "w");
+
+    std::ofstream meta(dir / (stem + "_test_windows_meta.csv"));
+    if (meta.is_open())
+    {
+        meta << "speaker_id,recording_id,window_id,source_window_index\n";
+        for (const auto& m : split.test_meta)
+            meta << m.speaker_id << ',' << m.recording_id << ',' << m.window_id << ','
+                 << m.source_window_index << '\n';
+    }
+}
+
 // Writes every result artifact for the whole experiment: comparative CSV, publication
 // table, JSON summary, and (when configured) the pgfplots/LaTeX exports.
 void write_experiment_outputs(const GuayaquilConfig& config,
@@ -1111,6 +1172,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
             for (const auto& encoding : config.evaluation.encodings)
             {
+                dump_analytic_baseline_inputs(config, split, encoding, out_dir);
+
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
                     const std::uint32_t run_seed =
