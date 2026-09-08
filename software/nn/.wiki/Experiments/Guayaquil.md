@@ -72,6 +72,8 @@ Each `guayaquil` process appends structured events to
 `GuayaquilEvents.cpp` + the `GuayaquilEventCallback` training hook). Events:
 `session_begin` (search space, seed, caps, git commit, backend), `fold_begin` /
 `fold_end`, `config_begin` / `epoch` / `train_end` / `config_end` per trained model,
+`epoch_progress` (throttled intra-epoch heartbeat — one line per ~5 s of a slow
+epoch: batch fraction, running batch loss, epoch ETA; a fast epoch emits none),
 `config_selected` (SNN sweep winner), `session_end` / `session_error`. Raw values at
 full precision; NaN → `null`. Emitting never gates training — pure side output.
 
@@ -85,8 +87,9 @@ python3 scripts/pipeline/guayaquil/monitor.py --self-test      # CI known-answer
 
 The dashboard (needs `rich`, in `scripts/requirements.txt`) has four panels:
 **SESSION** (identity, done/running/failed, rough ETA, the grid summary), **TRAINING
-NOW** (the active config: epoch bar, train/val, best-val @ epoch, train/val gap,
-epochs-since-improvement, train/val sparklines), **COMPLETED** (every finished config
+NOW** (the active config: epoch bar, plus — for epochs slower than ~5 s — a live
+batch bar with running loss and epoch ETA; train/val, best-val @ epoch, train/val
+gap, epochs-since-improvement, train/val sparklines), **COMPLETED** (every finished config
 ranked by held-out test loss — else best inner-validation loss — plus, once SNN
 configs finish, **descriptive** marginal best-val per sweep dimension and
 per-(model, encoding) `mean ± std`), and **RECENT** (event tail). Read-only — start,

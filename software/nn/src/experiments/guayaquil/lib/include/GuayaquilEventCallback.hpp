@@ -1,8 +1,12 @@
 #pragma once
 // GuayaquilEventCallback.hpp — training callback that turns Trainer lifecycle
-// hooks into structured JSONL events (config_begin / epoch / train_end) on the
-// process-wide ExperimentEvents sink. Sibling of GuayaquilEpochLogger (which
-// writes the human-readable [loso] stderr lines).
+// hooks into structured JSONL events (config_begin / epoch_progress / epoch /
+// train_end) on the process-wide ExperimentEvents sink. Sibling of
+// GuayaquilEpochLogger (which writes the human-readable [loso] stderr lines).
+//
+// epoch_progress is a *throttled* intra-epoch heartbeat: at most one line every
+// kProgressEverySeconds. A fast epoch (< that) emits none; a slow one emits a
+// batch-fraction update so the monitor can show a within-epoch bar + ETA.
 //
 // Identity + static config come from ExperimentEvents::pending_context(), set by
 // the driver immediately before each training call — so this callback takes no
@@ -11,6 +15,7 @@
 // OBSERVABILITY ONLY: never influences training (no should_stop override, no
 // mutation of state).
 
+#include <chrono>
 #include <limits>
 #include <vector>
 
@@ -44,6 +49,39 @@ class GuayaquilEventCallback : public nn::training::ITrainingCallback
                 {"early_stop_patience", ctx_.early_stop_patience},
                 {"param_count", ctx_.param_count},
                 {"macs", ctx_.macs}});
+    }
+
+    void on_epoch_begin(const nn::training::TrainingState& s) override
+    {
+        cur_epoch_ = s.epoch;
+        epoch_start_ = std::chrono::steady_clock::now();
+        last_progress_ = epoch_start_;
+    }
+
+    // Throttled intra-epoch heartbeat: fires at most once per kProgressEverySeconds,
+    // so a fast epoch produces nothing and a slow one a handful of lines.
+    void on_batch_end(const nn::training::TrainingState& s) override
+    {
+        if (s.total_batches <= 1) return;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - last_progress_ < std::chrono::seconds(kProgressEverySeconds)) return;
+        last_progress_ = now;
+
+        const double elapsed = std::chrono::duration<double>(now - epoch_start_).count();
+        const double frac =
+            s.total_batches > 0 ? static_cast<double>(s.batch) / s.total_batches : 0.0;
+        const double eta = (frac > 1e-6) ? elapsed * (1.0 - frac) / frac : -1.0;
+
+        ExperimentEvents::instance().emit("epoch_progress",
+            {{"config_id", ctx_.config_id},
+                {"epoch", cur_epoch_},
+                {"max_epochs", ctx_.max_epochs},
+                {"batch", s.batch},
+                {"total_batches", s.total_batches},
+                {"frac", frac},
+                {"batch_loss", jnum(s.batch_loss)},
+                {"epoch_elapsed_s", elapsed},
+                {"epoch_eta_s", jnum(eta)}});
     }
 
     void on_epoch_end(
@@ -83,7 +121,12 @@ class GuayaquilEventCallback : public nn::training::ITrainingCallback
     }
 
    private:
+    static constexpr int kProgressEverySeconds = 5;
+
     EventContext ctx_;
+    int cur_epoch_ = 0;
+    std::chrono::steady_clock::time_point epoch_start_{};
+    std::chrono::steady_clock::time_point last_progress_{};
 };
 
 } // namespace guayaquil

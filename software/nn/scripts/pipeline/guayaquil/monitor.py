@@ -142,6 +142,24 @@ class ConfigState:
     metrics: dict[str, dict[str, Any]] = field(default_factory=dict)  # keyed by split
     last_ts: float = 0.0
     _epoch_ms: list[float] = field(default_factory=list)
+    # within-epoch progress, only populated while a slow epoch is running (an
+    # `epoch` event clears it). See GuayaquilEventCallback::on_batch_end.
+    cur_progress_epoch: int = 0
+    cur_batch: int = 0
+    cur_total_batches: int = 0
+    cur_batch_frac: float = 0.0
+    cur_batch_loss: Optional[float] = None
+    cur_epoch_elapsed_s: Optional[float] = None
+    cur_epoch_eta_s: Optional[float] = None
+
+    def _clear_batch_progress(self) -> None:
+        self.cur_progress_epoch = 0
+        self.cur_batch = 0
+        self.cur_total_batches = 0
+        self.cur_batch_frac = 0.0
+        self.cur_batch_loss = None
+        self.cur_epoch_elapsed_s = None
+        self.cur_epoch_eta_s = None
 
     # ---- derived, descriptive only --------------------------------------------------
     @property
@@ -274,6 +292,18 @@ class SessionState:
             c.param_count = ev.get("param_count") or c.param_count
             c.macs = ev.get("macs") or c.macs
             c.status = "running"
+            c._clear_batch_progress()
+            c.last_ts = ts
+        elif etype == "epoch_progress":
+            c = self._config(ev, ds, fold)
+            c.cur_progress_epoch = int(ev.get("epoch", 0))
+            c.cur_batch = int(ev.get("batch", 0))
+            c.cur_total_batches = int(ev.get("total_batches", 0))
+            c.cur_batch_frac = float(ev.get("frac", 0.0) or 0.0)
+            c.cur_batch_loss = ev.get("batch_loss")
+            c.cur_epoch_elapsed_s = ev.get("epoch_elapsed_s")
+            c.cur_epoch_eta_s = ev.get("epoch_eta_s")
+            c.max_epochs = int(ev.get("max_epochs", c.max_epochs) or c.max_epochs)
             c.last_ts = ts
         elif etype == "epoch":
             c = self._config(ev, ds, fold)
@@ -282,6 +312,7 @@ class SessionState:
             ems = ev.get("epoch_ms")
             if isinstance(ems, (int, float)) and math.isfinite(ems):
                 c._epoch_ms.append(float(ems))
+            c._clear_batch_progress()
             c.last_ts = ts
         elif etype == "train_end":
             c = self._config(ev, ds, fold)
@@ -310,6 +341,8 @@ class SessionState:
         elif etype == "config_selected":
             self.selected[ev.get("config_id", "")] = ev.get("selected", {})
 
+        if etype == "epoch_progress":
+            return  # transient heartbeat — folded into ConfigState, never logged
         if etype != "epoch" or not self.events or self.events[-1].get("type") != "epoch" \
                 or self.events[-1].get("config_id") != ev.get("config_id"):
             self.events.append({k: v for k, v in ev.items() if not k.startswith("_")})
@@ -382,7 +415,8 @@ class SessionState:
 
     def active_configs(self) -> list[ConfigState]:
         return sorted(
-            (c for c in self.configs.values() if c.status == "running" and c.epochs),
+            (c for c in self.configs.values()
+             if c.status == "running" and (c.epochs or c.cur_total_batches > 0)),
             key=lambda c: -c.last_ts,
         )
 
@@ -511,6 +545,9 @@ def _event_line(ev: dict[str, Any]) -> tuple[str, str, str]:
     if et == "epoch":
         s = (f"{ev.get('config_id', '')}  ep {ev.get('epoch')}/{ev.get('max_epochs')}  "
              f"train {_f(ev.get('train_loss'), 5)}  val {_f(ev.get('val_loss'), 5)}")
+    elif et == "epoch_progress":
+        s = (f"{ev.get('config_id', '')}  ep {ev.get('epoch')} batch "
+             f"{ev.get('batch')}/{ev.get('total_batches')}")
     elif et == "config_begin":
         hp = _hp_inline(ev.get("hyperparams", {}))
         s = (f"{ev.get('model', '')}/{ev.get('encoding', '')}{('  ' + hp) if hp else ''}  "
@@ -569,11 +606,18 @@ def render_plain(state: SessionState) -> str:
     if not act:
         ln.append("  nothing training right now (between folds / aggregating / not started)")
     for a in act[:6]:
-        ep = a.epochs[-1][0]
-        frac = ep / a.max_epochs if a.max_epochs else 0.0
+        done_ep = len(a.epochs)
+        run_ep = a.cur_progress_epoch or (done_ep + 1)
+        ep_frac = done_ep / a.max_epochs if a.max_epochs else 0.0
         ln.append(f"  {a.dataset} fold {a.fold}  {a.model} {a.encoding} "
                   f"{_hp_inline(a.hyperparams)}".rstrip())
-        ln.append(f"    epoch {ep}/{a.max_epochs} [{_bar(frac)}] {frac * 100:4.0f}%")
+        ln.append(f"    epoch {run_ep}/{a.max_epochs} [{_bar(ep_frac)}] {done_ep} done")
+        if a.cur_total_batches > 1:
+            eta_e = _hms(a.cur_epoch_eta_s) if (a.cur_epoch_eta_s or 0) > 0 else "?"
+            bl = f"   loss {_f(a.cur_batch_loss, 5)}" if a.cur_batch_loss is not None else ""
+            ln.append(f"    batch {a.cur_batch}/{a.cur_total_batches} "
+                      f"[{_bar(a.cur_batch_frac)}] {a.cur_batch_frac * 100:.0f}%{bl}"
+                      f"   ~{eta_e} left this epoch")
         ln.append(f"    train {_f(a.last_train)}   val {_f(a.last_val)}   "
                   f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}   "
                   f"gap(val-train) {_f(a.gap, 5)}   no improvement {a.no_improve} ep")
@@ -682,10 +726,12 @@ def _panel_now(state: SessionState):  # noqa: ANN201
 
     blocks = []
     for a in act[:3]:
-        ep = a.epochs[-1][0]
-        frac = ep / a.max_epochs if a.max_epochs else 0.0
+        done_ep = len(a.epochs)
+        run_ep = a.cur_progress_epoch or (done_ep + 1)
+        ep_frac = done_ep / a.max_epochs if a.max_epochs else 0.0
         avg = a.avg_epoch_ms()
-        eta_ep = _hms((a.max_epochs - ep) * avg / 1000.0) if avg and a.max_epochs else "--:--:--"
+        eta_tr = (_hms((a.max_epochs - done_ep) * avg / 1000.0)
+                  if avg and a.max_epochs else None)
         t = Table.grid(padding=(0, 1))
         t.add_column()
         hp = _hp_inline(a.hyperparams)
@@ -694,11 +740,20 @@ def _panel_now(state: SessionState):  # noqa: ANN201
             (f"   {a.model}  {a.encoding}{('  ' + hp) if hp else ''}", "bold"),
         ))
         t.add_row(Text.assemble(
-            (f"epoch {ep}/{a.max_epochs} ", ""),
-            (f"[{_bar(frac, 24)}] ", "cyan"),
-            (f"{frac * 100:.0f}%", ""),
-            (f"    ~{eta_ep} left in this training" if avg else "", "dim"),
+            (f"epoch {run_ep}/{a.max_epochs}  ", ""),
+            (f"[{_bar(ep_frac, 22)}] ", "cyan"),
+            (f"{done_ep} done", "dim"),
+            (f"    ~{eta_tr} left in this training" if eta_tr else "", "dim"),
         ))
+        if a.cur_total_batches > 1:
+            eta_e = _hms(a.cur_epoch_eta_s) if (a.cur_epoch_eta_s or 0) > 0 else "?"
+            bl = (f"  loss {_f(a.cur_batch_loss, 5)}"
+                  if a.cur_batch_loss is not None else "")
+            t.add_row(Text.assemble(
+                (f"  batch {a.cur_batch}/{a.cur_total_batches} ", ""),
+                (f"[{_bar(a.cur_batch_frac, 22)}] ", "green"),
+                (f"{a.cur_batch_frac * 100:.0f}%{bl}   ~{eta_e} left this epoch", "dim"),
+            ))
         t.add_row(Text.assemble(
             (f"train {_f(a.last_train)}    val {_f(a.last_val)}    "),
             (f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}", "green"),
@@ -821,7 +876,7 @@ def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
     root = Layout()
     root.split_column(
         Layout(_safe(_panel_session, state), name="session", size=7),
-        Layout(_safe(_panel_now, state), name="now", size=9),
+        Layout(_safe(_panel_now, state), name="now", size=11),
         Layout(_safe(_panel_ranking, state, rank_rows), name="done", ratio=1, minimum_size=5),
         Layout(_safe(_panel_events, state, ev_rows), name="recent", size=ev_rows + 2),
     )
@@ -1021,6 +1076,24 @@ def _self_test() -> int:
     st.apply(ev(type="totally_unknown_event", dataset="fsdd", fold=0))
     st.apply({"type": "epoch", "v": 999})
     check(True, "unknown event type / null metrics / wrong version tolerated (no exception)")
+
+    # within-epoch progress: populated by epoch_progress, cleared by the epoch event
+    st2 = SessionState()
+    st2.apply(ev(type="config_begin", dataset="fsdd", fold=0, config_id="cX", model="snn-ae",
+                encoding="direct", role="snn_sweep", run_id=1, seed=42, max_epochs=30))
+    st2.apply(ev(type="epoch_progress", dataset="fsdd", fold=0, config_id="cX", epoch=1,
+                max_epochs=30, batch=60, total_batches=200, frac=0.3, batch_loss=0.4,
+                epoch_elapsed_s=9.0, epoch_eta_s=21.0))
+    cx = st2.configs["cX"]
+    check(cx.cur_batch == 60 and cx.cur_total_batches == 200 and cx.cur_progress_epoch == 1,
+          "epoch_progress populates within-epoch batch fields")
+    check(st2 in (st2,) and cx in st2.active_configs(),
+          "a config with only batch progress (slow first epoch) is 'active'")
+    check(not any(e.get("type") == "epoch_progress" for e in st2.events),
+          "epoch_progress is not written to the event log")
+    st2.apply(ev(type="epoch", dataset="fsdd", fold=0, config_id="cX", epoch=1, max_epochs=30,
+                train_loss=0.3, val_loss=0.35, epoch_ms=30000.0))
+    check(cx.cur_total_batches == 0, "the epoch event clears within-epoch progress")
 
     txt = render_plain(st)
     banned = ["overfit", "converged", "convergence achieved", "significant", "generalizes",
