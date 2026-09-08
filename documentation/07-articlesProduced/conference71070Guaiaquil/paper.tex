@@ -1,4 +1,6 @@
-% IEEE conference paper — SNN-AE vs LSTM-AE on FSDD
+% IEEE conference paper — leakage-controlled nested-LOSO comparison of
+% spiking / recurrent / attention autoencoders on FSDD.
+% Revision of rejected submission 71 (Guayaquil); retargeted to the next congress.
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{microtype}
@@ -13,8 +15,8 @@
 \usepackage{booktabs}
 \usepackage[english]{babel}
 
-\title{Spiking Neural Autoencoders for Temporal Signals:
-A Comparison with LSTM-based Models}
+\title{Spiking, Recurrent, and Attention Autoencoders for
+Temporal Signals: A Leakage-Controlled Nested Cross-Validation Comparison}
 
 \author{André Furlan\\Instituto de Biociências, Letras e Ciências Exatas - UNESP\\ andre.furlan@unesp.br}
 
@@ -23,32 +25,39 @@ A Comparison with LSTM-based Models}
 \sloppy
 \emergencystretch=3em
 
-% Headline energy-reduction figure below: see data/paper_eff_by_encoding.csv
-% (Sec. Spike activity and energy for the full derivation).
 \begin{abstract}
 
-\par Spiking Neural Networks (SNNs) emerge as a promising approach to reduce
-energy consumption through event-driven, sparse computation on embedded
-and neuromorphic hardware. While SNNs have already been proven effective
-in classification tasks, their use as autoencoders for temporal signals
-lacks systematic evaluation. We present a systematic empirical comparison of
-Spiking Neural Network autoencoders (SNN-AE) and Long Short-Term Memory
-autoencoders (LSTM-AE)
-on the Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd}, evaluating
-three spike encoding strategies (direct, Poisson, latency) and three SNN
-pre-processing modes (dense, conv1d, recurrent) across a full factorial
-hyperparameter sweep over the Leaky Integrate-and-Fire neuron parameters
-(threshold $V_{th} \in \{0.5, 1.0, 1.5\}$; membrane decay
-$\alpha \in \{0.8, 0.9, 0.99\}$; 3 random seeds).
-Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing,
-parameter count, and estimated MACs. SNN-recurrent mode surpasses LSTM-AE
-in reconstruction quality while consuming over $96.8$\% less estimated energy;
-encoding scheme and membrane decay are the dominant performance factors. A reproducible C++ evaluation harness \cite{furlan2026doi} enables principled design choices for energy-aware spiking representation learning.
+\par Spiking Neural Networks (SNNs) promise low-power temporal signal
+processing through event-driven, sparse computation, but their use as
+autoencoders for waveform reconstruction lacks a controlled, leakage-free
+empirical comparison against modern non-spiking baselines. We compare four
+trained autoencoder families --- a spiking autoencoder (SNN-AE), an LSTM
+autoencoder (LSTM-AE), a GRU autoencoder (GRU-AE), and a bottlenecked
+Transformer autoencoder (Transformer-AE) without encoder--decoder
+cross-attention --- under three spike-encoding front ends (direct, Poisson,
+latency), together with PCA and mean-frame linear reference points. All models
+share a single C++/CPU harness \cite{furlan2026doi} for matched timing and a
+transparent operation-count cost budget. Evaluation uses \emph{nested six-fold
+leave-one-speaker-out cross-validation} on the Free Spoken Digit Dataset (FSDD)
+\cite{jackson2018fsdd}: no source recording or speaker crosses a split, and SNN
+hyperparameters are selected inside each fold on the held-out validation speaker
+only, then retrained on the combined training and validation data before a
+single evaluation on the untouched test speaker. Model differences are assessed
+with a recording-level paired analysis (bootstrap confidence intervals over
+recordings, Wilcoxon signed-rank, Holm--Bonferroni), with speaker-level
+($n=6$) and seed-level results reported as generalization- and
+optimization-robustness evidence. We report reconstruction quality
+(MSE, MAE, $R^2$) as mean $\pm$ standard deviation over seeds, a raw
+per-class operation count as the primary cost figure (with a weighted proxy
+as a labelled sensitivity analysis), the self-attention $O(T^2 d_{\mathrm{model}})$
+interaction cost, and real parameter counts. The harness and profiles are
+released for reproduction.
 \end{abstract}
 
 \begin{IEEEkeywords}
-spiking neural networks, LSTM, autoencoder, temporal signals,
-surrogate gradients, audio signal processing
+spiking neural networks, LSTM, GRU, Transformer, autoencoder,
+temporal signals, surrogate gradients, nested cross-validation,
+data leakage, audio signal processing
 \end{IEEEkeywords}
 
 % ─────────────────────────────────────────────────────────────
@@ -70,37 +79,64 @@ reduction on general-purpose and neuromorphic hardware
 \cite{maass1997networks,pfeiffer2018deep,gerstner2002spiking}.
 
 \par Training SNNs for reconstruction requires backpropagation through
-non-differentiable spike functions which perform like step functions. 
-Surrogate gradient methods \cite{neftci2019surrogate,zenke2018superspike} enable end-to-end 
-gradient-based training and have produced competitive SNN classification performance \cite{eshraghian2023training,pfeiffer2018deep}. However, a systematic study of SNN autoencoders 
-for temporal signal reconstruction — with controlled comparison against LSTM baselines across
-spike encoding schemes and architectural modes — is lacking.
+non-differentiable spike functions which behave like step functions.
+Surrogate gradient methods \cite{neftci2019surrogate,zenke2018superspike} enable
+end-to-end gradient-based training and have produced competitive SNN
+classification performance \cite{eshraghian2023training,pfeiffer2018deep}.
+However, a controlled study of SNN autoencoders for temporal signal
+reconstruction --- compared against several modern non-spiking baselines, under
+an evaluation protocol that provably prevents information from the test signals
+leaking into training or hyperparameter selection --- is lacking.
 
-\par This paper addresses this gap with four contributions:
+\par Evaluation rigor is the crux. When fixed-length windows from all recordings
+are pooled, shuffled, and split, windows from the same utterance --- and the
+same speaker --- appear in both training and validation, so reported errors
+partly measure memorization of speaker- and recording-specific waveform detail.
+Speaker identity is the natural unit of generalization for a spoken-digit
+benchmark, and FSDD provides only six speakers, which also bounds how strong any
+population-level claim can be.
+
+\par This paper addresses these gaps with four contributions:
 \begin{enumerate}
-  \item A systematic empirical comparison of SNN-AE and LSTM-AE on FSDD
-        \cite{jackson2018fsdd} covering 81 SNN configurations.
-  \item Evaluation of three spike encoding schemes crossed with three SNN
-        pre-processing modes in a full factorial hyperparameter sweep.
-  \item A reproducible C++ harness (XTensor backend \cite{xtensor}) reporting
-        MSE, MAE, $R^2$, spike rate, energy, timing, params, and MACs.
-  \item An emerging C++ framework for energy-aware spiking representation learning 
-        and neural architecture design with flexible backend.
+  \item A leakage-controlled protocol: \emph{nested six-fold
+        leave-one-speaker-out cross-validation} on FSDD \cite{jackson2018fsdd}
+        in which no source recording or speaker crosses a split and SNN
+        hyperparameters are selected on the inner validation speaker only.
+  \item A comparison of four trained autoencoder families under three input
+        encodings --- SNN-AE, LSTM-AE, GRU-AE, and a bottlenecked
+        Transformer-AE without encoder--decoder cross-attention --- plus PCA
+        and mean-frame linear reference points, all on one matched C++/CPU
+        harness \cite{furlan2026doi,xtensor}.
+  \item A hierarchical statistical analysis with the recording-level paired
+        difference as the primary estimand (bootstrap over recordings, Wilcoxon,
+        Holm--Bonferroni), and speaker-level ($n=6$) and seed-level results
+        reported as robustness rather than population inference.
+  \item An analytic computational-cost budget reported as a raw per-class
+        operation count (primary) with a weighted proxy as a labelled
+        sensitivity analysis, alongside the self-attention
+        $O(T^2 d_{\mathrm{model}})$ term and real parameter counts; the
+        reproducible framework is released.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────
 \section{Related Work}
 
-\subsection{LSTM autoencoders}
+\subsection{Recurrent and attention sequence autoencoders}
 \par LSTM autoencoders encode variable-length sequences into fixed-size latent
 vectors and reconstruct the original sequence from the latent code
-\cite{sutskever2014sequence,hochreiter1997long}.
-
-\par The constant-error carousel in the cell recurrence prevents vanishing
-gradients during backpropagation through time (BPTT)
-\cite{werbos1990backpropagation,greff2017lstm}, making LSTMs effective for
-long temporal sequences.
-They serve as the primary comparison target in this work.
+\cite{sutskever2014sequence,hochreiter1997long}. The constant-error carousel in
+the cell recurrence mitigates vanishing gradients during backpropagation through
+time (BPTT) \cite{werbos1990backpropagation,greff2017lstm}. The Gated Recurrent
+Unit (GRU) \cite{cho2014gru} merges the input and forget gates and drops the
+separate cell state, giving a smaller recurrent cell with performance
+comparable to the LSTM on many sequence tasks \cite{chung2014gru}. Self-attention
+encoders \cite{vaswani2017attention} replace recurrence with a content-based
+$O(T^2)$ mixing operation and layer normalization \cite{ba2016layernorm}. We
+use all three as trained non-spiking baselines; the Transformer variant is
+\emph{bottlenecked} --- the decoder is conditioned only on the fixed-dimension
+latent, with no encoder--decoder cross-attention --- so that, like PCA and the
+recurrent autoencoders, all reconstruction information must pass through the
+latent.
 
 \subsection{Spiking neural networks and surrogate gradients}
 \par SNNs model computation via binary spike events governed by membrane
@@ -123,6 +159,17 @@ normalized values represent the three dominant strategies
 Encoding choice affects sparsity, gradient flow, training stability, and
 reconstruction fidelity \cite{neftci2019surrogate}.
 
+\subsection{Evaluation protocol and leakage}
+\par On speaker-labelled audio benchmarks, pooling windows before splitting
+places windows from the same utterance and speaker on both sides of the split,
+so measured error conflates generalization with memorization. Speaker-disjoint
+(leave-one-speaker-out) evaluation is the standard remedy; when model or
+hyperparameter selection is also involved, a \emph{nested} scheme is required so
+that the test speaker never influences selection or early stopping
+\cite{cawley2010overfitting}. With only six FSDD speakers, we treat the
+speaker-level result as a robustness check and make the recording-level paired
+difference the primary estimand.
+
 % ─────────────────────────────────────────────────────────────
 \section{Methodology}
 
@@ -136,7 +183,12 @@ $D:\mathbb{R}^d \to \mathbb{R}^T$ minimizing reconstruction loss:
 \end{equation}
 \par Where $x$ is the input window, $E(x)$ is the latent representation, and $D(E(x))$ is the reconstructed output.
 
-\par Both SNN-AE and LSTM-AE use latent dimension $d=32$ and hidden size $H=64$.
+\par All trained autoencoders use latent dimension $d=32$; the recurrent models
+(SNN-AE, LSTM-AE, GRU-AE) use hidden size $H=64$ and the Transformer-AE uses
+$d_{\mathrm{model}}=64$ (Sec.~\ref{sec:baselines}). The window is reshaped into
+$T/f$ frames of $f$ samples before entering the sequence models. PCA and a
+mean-frame predictor provide linear reference points, fitted per fold on
+training data only.
 
 % ── LIF theory ───────────────────────────────────────────
 \subsection{LIF neuron model}
@@ -208,17 +260,46 @@ V_{\mathrm{pre}}=e^{-\Delta t/(RC)}$ carries the error one step back in time thr
 membrane recurrence. The spatial term $W_{l+1}^{\top}\delta_{l+1}[t]$ and the temporal
 term $\beta\,\delta_l[t+1]$ are the SNN analogue of the standard BPTT split.
 
-% ── EXPANDED: LSTM ────────────────────────────────────────────
-\subsection{LSTM autoencoder}
-\label{sec:lstm}
+% ── EXPANDED: non-spiking baselines ───────────────────────────
+\subsection{Recurrent and attention baselines}
+\label{sec:baselines}
 
-\par LSTM-AE uses standard gate equations: input, forget, output gates computed
-via dense pre-activation, with cell state accumulation $C_t = f_t \odot C_{t-1} + i_t \odot g_t$
-\cite{hochreiter1997long,greff2017lstm}.
+\par \textbf{LSTM-AE.} Standard gate equations --- input, forget, and output
+gates from a dense pre-activation, with cell-state accumulation
+$C_t = f_t \odot C_{t-1} + i_t \odot g_t$ \cite{hochreiter1997long,greff2017lstm}.
+The encoder stacks two LSTM layers ($H=64$); the final hidden state is projected
+to the $d=32$ latent by $\mathrm{Linear}(H\to d)\to\tanh$. The decoder applies
+$\mathrm{Linear}(d\to H)$, replicates the result over time, runs two stacked
+LSTM layers, and projects each step back to the frame. States reset between
+samples.
 
-\par The LSTM-AE encoder stacks two LSTM layers ($H=64$); the final hidden state $H_T$ is projected to the 32-dimensional latent via $\mathrm{Linear}(H \to d) \to \tanh$.
-The decoder mirrors this: $\mathrm{Linear}(d \to H)$ followed by two stacked LSTM layers and an output projection to reconstruct $\mathbb{R}^{256}$.
-States are reset between samples.
+\par \textbf{GRU-AE.} Identical topology with the LSTM cell replaced by a GRU
+cell \cite{cho2014gru,chung2014gru}: reset gate $r_t$, update gate $z_t$, and
+candidate $n_t = \tanh\!\big(x_t W_n^\top + r_t \odot (h_{t-1} U_n^\top) + b_n\big)$,
+$h_t = (1-z_t)\odot n_t + z_t \odot h_{t-1}$. Dropping the cell state removes one
+gate's worth of parameters per layer; the real counts are reported in
+Table~\ref{tab:perf}.
+
+\par \textbf{Transformer-AE (bottlenecked).} The encoder embeds each frame to
+$d_{\mathrm{model}}=64$, adds sinusoidal positional encodings, applies $N$
+post-norm self-attention blocks \cite{vaswani2017attention,ba2016layernorm},
+mean-pools over time, and projects to the latent through a $\tanh$. The decoder
+expands the latent, replicates it over $T/f$ positions, adds positional
+encodings, applies $N$ self-attention blocks, and projects back to frames. There
+is \emph{no encoder--decoder cross-attention}: this is a deliberate
+design choice so that reconstruction must pass through the fixed-dimension
+latent, making the model a strict-compression autoencoder directly comparable to
+PCA and the recurrent autoencoders. Its parameter count is chosen \emph{near}
+the recurrent baselines, not matched; the actual value is reported in the
+results.
+
+\par \textbf{Sequence-length cost.} Per input window, the recurrent baselines
+cost $O(T d H)$ operations while self-attention costs $O(T^2 d_{\mathrm{model}})$
+for the score and context products plus $O(T d_{\mathrm{model}}^2)$ for the
+projections. At $T/f = 32$ frames this quadratic interaction term is modest, but
+it is an architecture-level cost that is independent of the reconstruction-error
+ranking and is reported explicitly in the operation-count budget
+(Sec.~\ref{sec:energy}).
 
 % ── Spike encodings ───────────────────────────────────────────
 \subsection{Spike encodings}
@@ -297,8 +378,14 @@ network:
 \par with $T=256$, $H=64$, $d=32$.
 \par Leaky layers emit binary spikes; LeakyInt operates in readout mode, emitting membrane potential $v$ directly to enable continuous-valued reconstruction. The discrete LIF update follows Eq.~(\ref{eq:lif}) with $R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters. All membrane states are reset between independent samples.
 
-\par The four tested architectures are therefore: (i) LSTM-AE, with a two-layer LSTM encoder, a 32-dimensional latent projection, and a mirrored two-layer LSTM decoder; (ii) SNN-dense, which applies the SNN autoencoder directly to
-the encoded window; (iii) SNN-conv1d, which uses the same SNN autoencoder but precedes it with the fixed 3-tap temporal smoothing filter; and (iv) SNN-recurrent, which uses the same SNN autoencoder preceded by the recurrent LIF input transform defined above. Thus, dense/conv1d/recurrent differ only in the input-side pre-processing block $\phi$, while the encoder/decoder stack and latent size remain fixed.
+\par The four trained families are: SNN-AE (the spiking autoencoder above),
+LSTM-AE, GRU-AE, and Transformer-AE (Sec.~\ref{sec:baselines}). The spiking
+pre-processing choices --- dense ($\phi$ identity), conv1d (fixed 3-tap
+smoothing), recurrent (the LIF input transform above) --- are \emph{input
+transforms} to the one SNN autoencoder, not separate families: the
+encoder/decoder stack and latent size are fixed and only $\phi$ changes. Which
+transform is used for a given fold is chosen by the per-fold selection procedure
+(Sec.~\ref{sec:baselines}), so SNN-AE denotes the selected variant.
 
 \begin{figure}[!t]
   \centering
@@ -313,18 +400,38 @@ the encoded window; (iii) SNN-conv1d, which uses the same SNN autoencoder but pr
 % ── Training ──────────────────────────────────────────────────
 \subsection{Training}
 
-\par Both models minimize MSE reconstruction loss via Adam
+\par All trained models minimize MSE reconstruction loss via Adam
 \cite{kingma2015adam} ($\eta = 10^{-3}$, $\beta_1=0.9$, $\beta_2=0.999$).
 SNN biophysical parameters ($R$, $C$, $V_{th}$) use a scaled learning rate
-$\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane dynamics optimization
+$\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane-dynamics optimization
 \cite{neftci2019surrogate}; $R$ and $C$ are clamped to $10^{-6}$ in the
 forward pass with gradients zeroed in the clamped region.
 BPTT \cite{werbos1990backpropagation} propagates gradients through the full
-time dimension.
+time dimension. Early stopping monitors a held-out monitor MSE with patience
+$P=5$ epochs and minimum delta $10^{-8}$ over a maximum of 30 epochs
+\cite{eshraghian2023training}. Batch size is 1 to accommodate stateful
+sequence processing. Each configuration is trained with five random seeds
+($42$--$46$).
 
-\par Early stopping monitors validation MSE with patience $P=5$ epochs and
-minimum delta $10^{-8}$ over a maximum of 30 epochs \cite{eshraghian2023training}.
-Both models use batch size 1 to accommodate stateful sequence processing.
+\par \textbf{Per-fold hyperparameter selection (SNN).} Within each outer fold,
+the full SNN grid --- pre-processing mode
+$\in\{\text{dense, conv1d, recurrent}\}$, threshold
+$V_{th}\in\{0.5,1.0,1.5\}$, membrane decay $\alpha\in\{0.8,0.9,0.99\}$, three
+encodings --- is trained on that fold's four training speakers and scored on the
+inner validation speaker. The configuration with the lowest validation MSE is
+selected, then \emph{retrained} on the training and validation speakers combined
+and evaluated \emph{once} on the held-out test speaker. Because train and
+validation speakers share no recordings with the test speaker but not with each
+other, the retrain's early-stopping monitor is a recording-disjoint slice carved
+(seeded, whole recordings) from the training speakers, so no test-speaker signal
+ever reaches a fitting or stopping decision. The per-fold selected configuration
+and its inner-validation scores are written to a selection manifest and
+summarized in Table~\ref{tab:snnsel}.
+
+\par \textbf{Fixed-architecture baselines.} LSTM-AE, GRU-AE, and Transformer-AE
+use fixed profile architectures; their only use of the validation speaker is
+early stopping, which never touches the test speaker. PCA and the mean-frame
+predictor are fitted per fold on the training speakers only.
 
 % ── Computational cost ────────────────────────────────────────
 \subsection{Analytic computational cost}
@@ -368,227 +475,204 @@ software and a single CPU backend.
 
 \textbf{Dataset.}
 \par The Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd} contains
-recordings of spoken digits (0 to 9) from multiple speakers at 8\,kHz.
-Signals are segmented into non-overlapping windows of $T=256$ samples.
-Up to 100 windows are used for training and 30 for validation.
+recordings of spoken digits (0--9) from six speakers at 8\,kHz. Each recording
+is partitioned into non-overlapping windows of $T=256$ samples ($32\,$ms) with
+stride $S=T$, so consecutive windows share no samples; the full dataset is used
+(no window-count cap). Adjacent windows of one recording remain temporally
+correlated, which motivates the recording-level statistical unit
+(Sec.~\ref{sec:stats}).
 
 \textbf{Preprocessing.}
 \par Each window is z-score normalised in place (subtract mean, divide by
-standard deviation) before encoding. Encodings that require a $[0,1]$
-range (Poisson, latency) re-normalise the z-scored window to its own
-$(x_{\min}, x_{\max})$ range internally.
+standard deviation) before encoding --- a per-window statistic, so it introduces
+no cross-window leakage. Encodings that require a $[0,1]$ range (Poisson,
+latency) re-normalise the z-scored window to its own $(x_{\min}, x_{\max})$
+range internally. The three encodings are deterministic transforms (Poisson uses
+a per-window seeded draw) and are not fitted.
 
-\textbf{Windowing.}
-Fig.~\ref{fig:windowing} illustrates the segmentation process.
-Each recording is partitioned into non-overlapping windows of $T=256$ samples
-($32\,$ms at $8\,$kHz) using stride $S=T$, so consecutive windows share no
-samples.  All windows from all recordings are pooled, shuffled, and split into
-training (up to 100) and validation (up to 30) sets.
+\textbf{Nested leave-one-speaker-out cross-validation.}
+\par The six speakers are assigned deterministic indices $0$--$5$. For outer
+fold $f \in \{0,\dots,5\}$ the test speaker is $f$, the validation speaker is
+$(f+1)\bmod 6$, and the remaining four speakers are the training set. Every
+window is assigned to a split \emph{by its speaker, before any pooling};
+training windows are shuffled (seeded), validation and test windows kept in
+$(\text{recording},\text{position})$ order. Each speaker is the test speaker
+exactly once and the validation speaker exactly once. At run start the harness
+asserts that no \texttt{recording\_id} and no speaker appears in more than one
+split and writes a per-fold split manifest (speaker sets, per-recording window
+counts, content hashes); a violation aborts the run. Headline numbers come only
+from the test-speaker split, aggregated across the six folds.
 
 \begin{figure}[!t]
 \centering
 \input{figs/fig_windowing.tex}
 \caption{Signal windowing. Each recording is segmented into non-overlapping
 windows of $T=256$ samples (32\,ms at 8\,kHz). Stride $S=T$ yields
-independent windows with no shared samples. Each window is then spike-encoded
-and fed to the autoencoder.}
+windows with no shared samples. Windows are assigned to train / validation /
+test splits by speaker before any pooling.}
 \label{fig:windowing}
 \end{figure}
 
-\textbf{Hyperparameter sweep.}
-SNN variants are evaluated over threshold $V_{th} \in \{0.5, 1.0, 1.5\}$,
-membrane decay $\alpha \in \{0.8, 0.9, 0.99\}$, encodings
-$\in\{\text{direct, Poisson, latency}\}$, and modes
-$\in\{\text{dense, conv1d, recurrent}\}$, totalling 81 SNN configurations.
-% "with a fixed seed" contradicted the abstract ("3 random seeds"), the table captions
-% ("3-seed mean"), and the profiles (seed_deterministic=false) — corrected.
-Each configuration is repeated 3 times with different random seeds.
-LSTM-AE is evaluated with the same three encodings and 3 repeats.
-
 \textbf{Evaluation harness.}
-
-\par The C++ harness \cite{furlan2026doi} runs on the XTensor backend \cite{xtensor} (CPU-only, CBLAS, SIMD via
-xsimd). All article profiles are executed on this backend;
-Table~\ref{tab:backend} reports per-model inference and training times.  
+\par The C++ harness \cite{furlan2026doi} runs on the XTensor backend
+\cite{xtensor} (CPU-only, CBLAS, SIMD via xsimd). All models --- spiking and
+non-spiking --- are trained and timed on this one backend, so the training and
+inference times in Table~\ref{tab:perf} are directly comparable.
 
 \textbf{Metrics.}
-\par Per run we report reconstruction quality (MSE, MAE, $R^2$) and efficiency
-(spike rate, estimated energy, training time in ms, inference time in ms,
-parameter count, and estimated MAC count). FSDD provides no anomaly labels,
-so this study does not report classification metrics; precision, recall,
-and F1 are out of scope. Spike rate is computed only for SNN runs as the mean
-fraction of neurons emitting a spike over the validation set; for LSTM-AE it is
-defined as $0$. The paper CSVs then report arithmetic means over the repeated
-runs of each configuration, and the per-model summary further averages across
-encodings and, for SNNs, across the $V_{th}$ and $\alpha$ sweep.
+\par Per run we report reconstruction quality (MSE, MAE, $R^2$) and, for cost,
+spike rate (SNN only; $0$ for the non-spiking models), the raw per-class
+operation count of Sec.~\ref{sec:energy}, parameter count, training time, and
+inference time in ms. FSDD provides no anomaly labels, so classification metrics
+are out of scope. Reconstruction error in the headline tables is the mean $\pm$
+sample standard deviation over the five seeds (per-seed means first); the
+inferential analysis is in Sec.~\ref{sec:stats}. A per-window error record
+(model, encoding, fold, split, speaker, recording, window, MSE, MAE) is written
+for every model so that paired comparisons can be formed at the window,
+recording, speaker, or seed level.
 
-\textbf{Profiles.}
-\par Each experimental variant is defined by a JSON profile file that configures
-the harness.  Table~\ref{tab:profiles} lists the article profiles.
-
-% Source: data/paper_profiles.csv, generated by
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:build_profile_table()
-% directly from src/experiments/guayaquil/profiles/article-*.json (not experiment output).
-%
-% run_tag values (e.g. article_snn_dense) contain literal underscores; IEEEtran's default
-% text-mode catcode for `_` triggers "Missing $ inserted" math-mode errors otherwise.
-% Pre-existing bug, unrelated to the 2026-07-18 data refresh, fixed here by locally
-% making `_` an ordinary printable character for both the read and the typeset of this
-% table (column *names* like v_th_values must also match catcode between the two calls).
-% The $V\sb{th}$ header below uses the \sb primitive instead of `_` so it still renders
-% as a math subscript under the catcode override.
-\begingroup
-\catcode`\_=12
-\begin{table*}[!t]
-\caption{Article experimental profiles loaded from the executed profile JSON files.}
-\centering\small
-\resizebox{\textwidth}{!}{%
-\pgfplotstabletypeset[
-  col sep=comma,
-  string type,
-  columns={run_tag,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples},
-  columns/run_tag/.style={column name=Run tag},
-  columns/repeats/.style={column name=Repeats},
-  columns/datasets/.style={column name=Datasets},
-  columns/encodings/.style={column name=Encodings},
-  columns/snn_architectures/.style={column name=SNN arch.},
-  columns/v_th_values/.style={column name=$V\sb{th}$},
-  columns/alpha_values/.style={column name=$\alpha$},
-  columns/window_size/.style={column name=$T$},
-  columns/train_samples/.style={column name=Train windows},
-  columns/val_samples/.style={column name=Val windows},
-  every head row/.style={before row=\toprule,after row=\midrule},
-  every last row/.style={after row=\bottomrule}
-]{data/paper_profiles.csv}%
-}%
-\label{tab:profiles}
-\end{table*}
-\endgroup
+\textbf{Profile.}
+\par A single JSON profile (\texttt{article-loso.json}) configures the harness:
+full FSDD, six outer folds, five seeds, the four trained families plus the two
+linear references, three encodings, and the SNN selection grid
+($3\times3\times3$). The run script iterates the outer fold index; a profile
+audit test verifies the profile parses and validates.
 
 \begin{figure}[!t]
   \centering
   \input{figs/fig_flow.tex}
-  \caption{Experiment execution pipeline.  Each FSDD window is encoded three
-  ways and processed by both SNN-AE (three modes) and LSTM-AE.  Metrics are
-  recorded per run and written to CSV and pgfplots data files.}
+  \caption{Experiment execution pipeline. Per outer fold, each FSDD window is
+  encoded three ways and processed by the four trained families (SNN-AE with a
+  per-fold selection sweep; LSTM-AE, GRU-AE, Transformer-AE fixed) plus the PCA
+  and mean-frame references. Per-window errors and manifests are written to CSV
+  and JSON.}
   \label{fig:flow}
 \end{figure}
+
+% ── Statistical methods ───────────────────────────────────────
+\subsection{Statistical methods}
+\label{sec:stats}
+
+\par Comparisons are paired on a shared, model-independent window identifier, so
+every model reconstructs the same windows and differences are formed per window.
+Let $\mathrm{MSE}_{m,i}$ be the error of model $m$ on window $i$.
+
+\par \textbf{Primary --- recording level.} For a recording $r$, let
+$E_{m,r} = \operatorname{mean}_{i \in r}\mathrm{MSE}_{m,i}$. For model $m$ and
+reference $b$ the paired difference is $d_r = E_{m,r} - E_{b,r}$. We report
+$\operatorname{mean}(d_r)$, a $95\%$ confidence interval from a bootstrap that
+resamples recordings, the Wilcoxon signed-rank $p$-value on $\{d_r\}$, and
+Holm--Bonferroni correction across the reference set
+$b \in \{\text{LSTM-AE, GRU-AE, Transformer-AE, PCA, Mean}\}$. Effect size is
+reported both absolute ($\operatorname{mean}(d_r)$) and relative
+($\operatorname{mean}(d_r)/\operatorname{mean}(E_{b,\cdot})$). Recordings are the
+smallest unit across which windows are not, by construction, near-duplicates.
+
+\par \textbf{Robustness --- speaker level.} Per held-out speaker (one per fold,
+$n=6$) we form the mean error and run a paired Wilcoxon / sign test. This checks
+whether the sign and rough magnitude of a difference hold across the six FSDD
+speakers; with $n=6$ it is not strong population-level inference and is reported
+as such.
+
+\par \textbf{Descriptive --- window level.} Paired bootstrap on all windows,
+reported but explicitly labelled pseudoreplicated (adjacent windows of a
+recording are correlated), so it is never the basis of a claim.
+
+\par \textbf{Robustness --- seed level.} Paired Wilcoxon across the five
+per-seed mean errors, characterizing optimization/reproducibility variation
+around the estimate.
+
+\par The per-run CSVs are immutable; aggregation and statistics are separate
+downstream steps that never overwrite them. Synthetic known-answer tests
+(identical predictions $\Rightarrow p\approx1$ and CI spanning $0$; injected
+constant offset $\Rightarrow$ significant with CI excluding $0$ and recovered
+offset; label permutation $\Rightarrow$ approximately uniform $p$) guard the
+analysis code in continuous integration.
 
 % ─────────────────────────────────────────────────────────────
 \section{Results}
 \label{sec:results}
 
-\par Table~\ref{tab:perf} summarizes per-model-type performance aggregated over
-encodings and hyperparameter sweep (3-seed mean).
-Table~\ref{tab:recon} and Table~\ref{tab:eff} provide per-encoding
-breakdowns, averaged over the $V_{th}$ and $\alpha$ sweep.
-
-% Source: data/paper_sweep_alpha.csv, read by figs/fig_sweep.tex, generated by
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all()
-% from results/guayaquil/article_snn_{dense,conv1d,recurrent}_comparative_metrics.csv
-% (direct encoding, V_th=1.0 rows only).
-\begin{figure}[!t]
-  \centering
-  \input{figs/fig_sweep.tex}
-  \caption{MSE vs.\ membrane decay $\alpha$ for SNN modes
-  (direct encoding, $V_{th}=1.0$).
-  For the recurrent mode, $\alpha=0.99$ more than halves MSE
-  ($0.137 \to 0.058$) while $\alpha=0.8$ and $0.9$ are indistinguishable;
-  dense and conv1d modes instead get moderately worse with higher $\alpha$.}
-  \label{fig:sweep}
-\end{figure}
+\par All numbers in this section come from the held-out test speaker only,
+pooled across the six outer folds, and are reported as mean $\pm$ sample
+standard deviation over the five seeds. Reconstruction quality is in
+Table~\ref{tab:perf} (per model) and Table~\ref{tab:recon} (per model $\times$
+encoding); Fig.~\ref{fig:results} plots the per-encoding test MSE with seed
+error bars. Table~\ref{tab:snnsel} records which SNN pre-processing mode won on
+each fold's validation speaker, and Table~\ref{tab:sig} gives the
+recording-level paired analysis.
 
 \subsection{Reconstruction quality}
 
-% Numbers in this subsection: data/paper_summary_by_model.csv (tab:perf) and
-% data/paper_recon_by_encoding.csv (tab:recon), both from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all().
-\par Table~\ref{tab:perf} shows aggregate per-model metrics averaged over all
-encodings and hyperparameter combinations.
-SNN-recurrent achieves the lowest overall MSE ($0.112$), outperforming
-LSTM-AE ($0.387$) by a factor of $3.5\times$.
-SNN-conv1d ($0.290$) also surpasses LSTM-AE; SNN-dense ($0.409$) is
-comparable.
+% Source: data/paper_loso_summary.csv + data/paper_loso_recon_by_encoding.csv,
+% from scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py.
+% Numeric claims below are regenerated from the run; see the table cells.
+\par Table~\ref{tab:perf} reports test-speaker MSE, MAE, and $R^2$ for the four
+trained families and the two linear references, with each model's real
+parameter count and raw operation count $C_{\mathrm{raw}}$
+(Sec.~\ref{sec:energy}). The mean-frame predictor and PCA fix the scale of a
+"no-model" and a "best linear" reference; a trained model is only interesting to
+the extent it beats PCA. Table~\ref{tab:recon} breaks the same quantities down
+by input encoding.
 
-\par Table~\ref{tab:recon} shows the per-encoding breakdown: for SNN-dense and
-SNN-conv1d, latency and Poisson encodings achieve substantially lower MSE
-than direct encoding (e.g., SNN-conv1d: latency MSE $= 0.084$ with the
-best $R^2=0.614$, Poisson MSE $= 0.065$ the lowest overall; direct
-$= 0.722$); for SNN-recurrent, all three encodings yield comparable MSE
-($0.111$--$0.115$), with poisson ($0.111$) marginally better than direct ($0.115$).
-Direct encoding is most challenging for dense and conv1d modes.
-Higher membrane decay $\alpha$ benefits the recurrent mode specifically,
-with the gain concentrated at the top of the range: MSE is flat between
-$\alpha{=}0.8$ and $0.9$ ($0.137$--$0.138$) and drops to $0.058$ at
-$\alpha{=}0.99$ (Fig.~\ref{fig:sweep}), more than halving it; dense and
-conv1d modes
-instead get moderately worse (dense: $+20\%$; conv1d: $+22\%$) with higher $\alpha$.
+\par \emph{Interpretation is deferred to the regenerated tables:} the earlier,
+leakage-affected version of this study over-stated the SNN advantage because
+train and validation windows shared speakers and recordings with the test
+windows. Under speaker-disjoint nested evaluation the reference points (PCA,
+mean-frame) and the recording-level intervals in Table~\ref{tab:sig} determine
+which differences survive.
 
-\subsection{Spike activity and energy}
-% Numbers in this subsection: data/paper_eff_by_encoding.csv (tab:eff), from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all().
-\par All SNN variants consume over $96.8$\% less estimated energy than LSTM-AE:
-approximately $375{,}000$ relative units versus $11{,}842{,}560$ for LSTM-AE,
-a reduction exceeding one order of magnitude ($\approx 31.6\times$) (Table~\ref{tab:eff}).
-Spike rates are uniformly high across SNN modes ($0.786$--$0.908$), consistent
-with the dense waveform input; SNN-dense achieves the lowest average spike
-rate ($0.776$).
-LSTM-AE produces no spikes but its dense MAC operations dominate the energy
-budget.
+\subsection{Per-fold model selection}
+\par Table~\ref{tab:snnsel} lists, for each outer fold and encoding, the SNN
+pre-processing mode, threshold, and decay selected on that fold's validation
+speaker. Because selection is redone inside every fold, the SNN result is the
+performance of a \emph{selection procedure}, not of a single hand-picked
+configuration; disagreement of the selected mode across folds is itself a
+finding about how encoding-dependent the best pre-processing is.
 
-\subsection{Timing}
-% Source: data/paper_backend_comparison.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:build_model_timing_table()
-% (LSTM-AE vs SNN-* model timing on one backend — distinct from
-% data/paper_xtensor_opencl_comparison.csv, which is XTensor-vs-OpenCL for one model).
-\par Table~\ref{tab:backend} reports per-model inference and training time.
-SNN-dense and SNN-conv1d inference is $48.9\times$ and $62.8\times$ faster
-than LSTM-AE, respectively; SNN-recurrent is only $1.9\times$ faster,
-reflecting its recurrent pre-processing stage.
+\subsection{Computational cost and timing}
+% Source: data/paper_loso_summary.csv (params, craw, train_ms, infer_ms columns).
+\par Table~\ref{tab:perf} also carries wall-clock training and inference time,
+measured for every model on the one XTensor/CPU backend, and the raw operation
+count. The recurrent baselines and the SNN cost $O(T d H)$ per window; the
+Transformer additionally pays the $O(T^2 d_{\mathrm{model}})$ self-attention
+interaction term, which is reflected in its $C_{\mathrm{raw}}$ column
+independently of its MSE. The weighted proxy $C_{\mathrm{weighted}}$
+(Eq.~\eqref{eq:cweighted}) is reported in the released JSON as a labelled
+sensitivity analysis and is not used for any claim here.
 
-\par SNN training is $5.5$--$18.6\times$ faster than LSTM-AE, consistent with
-fewer parameters ($37{,}286$ vs $122{,}472$) and the absence of unrolled
-hidden-state computation. All timing values are wall-clock means measured on the
-same XTensor/CPU backend over the same three seeds. Reported inference speedup
-is computed as $\text{infer\_ms}(\mathrm{LSTM\mbox{-}AE})/\text{infer\_ms}(\mathrm{model})$;
-the training-speedup range is computed analogously from the mean
-$\text{train\_ms}$ values.
-
-% Source: data/paper_summary_by_model.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all(), aggregated
-% from results/guayaquil/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv.
-\begin{table}[!t]
-\caption{Summary performance by model type (3-seed mean, all encodings averaged).
-Energy is a relative operation-count proxy, not measured power.}
+% Source: data/paper_loso_summary.csv, from
+% scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py (test-split rows,
+% mean +/- sample std over the 5 seeds; best cell per column in \textbf{}).
+\begin{table*}[!t]
+\caption{Test-speaker reconstruction and cost by model, pooled over the six
+outer folds (mean $\pm$ std over five seeds; best per column in bold). $P$ is the
+real trainable-parameter count; $C_{\mathrm{raw}}$ is the raw per-forward-pass
+operation count of Sec.~\ref{sec:energy}. PCA and Mean are analytic references
+(no training, no parameter count).}
 \centering\small
-\resizebox{\columnwidth}{!}{%
-% mse/mae/r2/energy/infer_ms are pre-formatted \textbf{}-wrapped strings (best value per
-% column) from bold_best() in the aggregator script — hence `string type` + explicit
-% right alignment instead of pgfplotstable's own `fixed`/`precision` number formatting.
 \pgfplotstabletypeset[
   col sep=semicolon,
-  columns={model,mse,mae,r2,spike_rate,energy,infer_ms},
+  columns={model,mse,mae,r2,params,craw,train_ms,infer_ms},
   columns/model/.style={string type,column name=Model},
   columns/mse/.style={string type,column type={r},column name=MSE},
   columns/mae/.style={string type,column type={r},column name=MAE},
   columns/r2/.style={string type,column type={r},column name=$R^2$},
-  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4,zerofill},
-  columns/energy/.style={string type,column type={r},column name=Energy},
+  columns/params/.style={string type,column type={r},column name=$P$},
+  columns/craw/.style={string type,column type={r},column name=$C_{\mathrm{raw}}$},
+  columns/train_ms/.style={string type,column type={r},column name=Train\,(ms)},
   columns/infer_ms/.style={string type,column type={r},column name=Infer\,(ms)},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
-]{data/paper_summary_by_model.csv}%
-}%
+]{data/paper_loso_summary.csv}%
 \label{tab:perf}
-\end{table}
+\end{table*}
 
-% Source: data/paper_recon_by_encoding.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all().
+% Source: data/paper_loso_recon_by_encoding.csv (same provenance as tab:perf).
 \begin{table}[!t]
-\caption{Reconstruction metrics per encoding (3-seed mean).}
+\caption{Test-speaker reconstruction per input encoding
+(mean $\pm$ std over five seeds).}
 \centering\small
-% mse/mae/r2 are pre-formatted \textbf{}-wrapped strings (best of all 12 rows) from
-% bold_best() in the aggregator script — see comment on tab:perf above.
 \pgfplotstabletypeset[
   col sep=semicolon,
   columns={model,encoding,mse,mae,r2},
@@ -599,65 +683,43 @@ Energy is a relative operation-count proxy, not measured power.}
   columns/r2/.style={string type,column type={r},column name=$R^2$},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
-]{data/paper_recon_by_encoding.csv}
+]{data/paper_loso_recon_by_encoding.csv}
 \label{tab:recon}
 \end{table}
 
-% Source: data/paper_eff_by_encoding.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all().
+% Source: data/paper_loso_snn_selection.tex, from
+% scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py (modal winning
+% mode per fold x encoding; median V_th / alpha over seeds).
 \begin{table}[!t]
-\caption{Efficiency metrics per encoding (3-seed mean). Energy is a relative
-operation-count proxy, not measured power.}
+\caption{SNN pre-processing mode, threshold, and decay selected on each outer
+fold's validation speaker. A parenthesised fraction marks folds where the seeds
+did not unanimously select the same mode.}
 \centering\small
-\resizebox{\columnwidth}{!}{%
-% energy is a pre-formatted \textbf{}-wrapped string (best of 12 rows). param_count/macs
-% are left as plain numbers, not bolded — see the aggregate_all() comment for why
-% (near-total ties across SNN modes, not a meaningful per-row comparison).
-\pgfplotstabletypeset[
-  col sep=semicolon,
-  columns={model,encoding,spike_rate,energy,param_count,macs},
-  columns/model/.style={string type,column name=Model},
-  columns/encoding/.style={string type,column name=Encoding},
-  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4,zerofill},
-  columns/energy/.style={string type,column type={r},column name=Energy},
-  columns/param_count/.style={column name=Params,fixed,precision=0},
-  columns/macs/.style={column name=MACs,fixed,precision=0},
-  every head row/.style={before row=\toprule,after row=\midrule},
-  every last row/.style={after row=\bottomrule}
-]{data/paper_eff_by_encoding.csv}%
-}%
-\label{tab:eff}
+\input{data/paper_loso_snn_selection.tex}
+\label{tab:snnsel}
 \end{table}
 
-% Source: data/paper_backend_comparison.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:build_model_timing_table().
+% Source: data/article_loso_significance_recording.tex, from
+% scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py (recording-level
+% paired difference d_r; bootstrap over recordings; Holm across references).
 \begin{table}[!t]
-\caption{Inference and training timing (XTensor backend, mean over 3 seeds).}
+\caption{Recording-level paired analysis on the test speakers. $\overline{d_r}$
+is the mean per-recording MSE difference (model $-$ reference); a negative value
+favours the model. CI is a $95\%$ bootstrap interval over recordings;
+$p_{\text{Holm}}$ is the Holm-corrected Wilcoxon signed-rank $p$-value.}
 \centering\small
-% infer_ms/train_ms/infer_speedup are pre-formatted \textbf{}-wrapped strings (best of 4
-% rows) from bold_best() — see comment on tab:perf above.
-\pgfplotstabletypeset[
-  col sep=semicolon,
-  columns={model,infer_ms,train_ms,infer_speedup},
-  columns/model/.style={string type,column name=Model},
-  columns/infer_ms/.style={string type,column type={r},column name=Infer (ms)},
-  columns/train_ms/.style={string type,column type={r},column name=Train (ms)},
-  columns/infer_speedup/.style={string type,column type={r},column name=$\times$LSTM-infer},
-  every head row/.style={before row=\toprule,after row=\midrule},
-  every last row/.style={after row=\bottomrule}
-]{data/paper_backend_comparison.csv}
-\label{tab:backend}
+\input{data/article_loso_significance_recording.tex}
+\label{tab:sig}
 \end{table}
 
-% Source: data/paper_mse_plot.csv, read by figs/fig_results.tex, generated by
-% scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py:aggregate_all().
+% Source: data/paper_loso_mse_plot.csv (wide: encoding, then one MSE column per
+% model), read by figs/fig_results.tex.
 \begin{figure}[!t]
   \centering
   \input{figs/fig_results.tex}
-  \caption{MSE comparison by model type and encoding.
-  SNN-recurrent achieves the lowest MSE across encodings; SNN-dense is
-  comparable to LSTM-AE; all SNN variants consume over 96.8\% less estimated
-  energy.}
+  \caption{Test-speaker MSE by model and input encoding (mean over seeds and
+  folds; the mean-frame reference is omitted for scale). Error bars, where
+  shown, are $\pm1$ seed standard deviation.}
   \label{fig:results}
 \end{figure}
 
@@ -665,57 +727,70 @@ operation-count proxy, not measured power.}
 \section{Discussion}
 \label{sec:discussion}
 
-% Numbers restated in this section trace back to Sec. Results (same source CSVs:
-% data/paper_summary_by_model.csv, data/paper_recon_by_encoding.csv, data/paper_sweep_alpha.csv).
-\par The dominant finding is that SNN-recurrent surpasses LSTM-AE in
-reconstruction quality ($3.5\times$ lower MSE) while consuming over
-$96.8$\% less estimated energy.
-This reverses the typical accuracy--efficiency trade-off: the recurrent
-pre-processing mode effectively extends temporal integration through
-a time-varying membrane state, enabling better waveform reconstruction
-than the dense-MACs LSTM baseline.
+\par Two things should be read from Table~\ref{tab:sig} rather than from raw MSE
+gaps. First, whether each trained family beats the PCA reference at all: under
+speaker-disjoint evaluation, a family whose recording-level interval against PCA
+includes zero has not demonstrated that its nonlinearity buys anything on this
+benchmark. Second, the ordering among SNN-AE, LSTM-AE, GRU-AE, and Transformer-AE
+--- a difference is only asserted where the Holm-corrected interval excludes
+zero. The seed-level and speaker-level ($n=6$) checks in the released JSON say
+whether an ordering that holds in the pooled recording-level analysis also holds
+run-to-run and speaker-to-speaker.
 
-\par Encoding scheme is the primary factor for reconstruction fidelity in dense
-and conv1d modes: latency encoding yields substantially lower MSE and higher
-$R^2$ than direct encoding for those modes, because the binary
-time-to-first-spike signal retains relative amplitude ordering without the
-high-variance density of raw waveforms.
-For SNN-recurrent, all three encodings yield similar MSE ($0.111$--$0.115$);
-the recurrent temporal integration dominates over encoding choice.
-Poisson encoding is intermediate for SNN-dense but achieves the lowest MSE
-for SNN-conv1d.
-For the recurrent mode, increasing $\alpha$ from $0.8$ to $0.99$ more than
-halves MSE by lengthening the effective integration window; this effect is
-absent in dense and conv1d modes, which instead get moderately worse,
-lacking recurrent temporal accumulation.
+\par The encoding comparison (Table~\ref{tab:recon}) is where an SNN-specific
+effect is most likely to appear, because the encoding only reshapes the SNN's
+input; the non-spiking baselines consume the same framed window regardless. If
+latency or Poisson coding helps the SNN relative to direct coding, that is a
+property of spike-based representation, not of the reconstruction task.
+
+\par The cost picture is separable from the quality picture. The
+operation-count column of Table~\ref{tab:perf} orders the models by arithmetic
+work under matched software; the self-attention $O(T^2 d_{\mathrm{model}})$ term
+makes the Transformer's per-window cost grow faster in sequence length than the
+recurrent models', independent of which model reconstructs best. Wall-clock
+timing on the shared CPU backend is reported alongside, but it reflects this
+implementation and backend, not silicon-level energy.
 
 \emph{Limitations.}
-\par Most $R^2$ values are low to near-zero for direct encoding, indicating that
-all models are at the boundary of meaningful reconstruction on this waveform
-benchmark with small training sets ($\leq100$ windows) and 30 training epochs.
-Energy estimates are relative proxies and do not account for hardware specifics.
-All results are loaded directly from experiment-generated CSV files; no values
-were manually adjusted.
+\begin{itemize}
+  \item \textbf{Six speakers.} FSDD has six speakers, so the speaker-level
+        analysis has $n=6$ and is a robustness check, not population inference;
+        the recording-level analysis is the primary estimand for this reason.
+  \item \textbf{Single dataset.} Only FSDD is used; the ranking may not transfer
+        to other 1-D signal domains.
+  \item \textbf{Cost is not energy.} $C_{\mathrm{raw}}$ and $C_{\mathrm{weighted}}$
+        count operations under matched software; real energy depends on memory
+        movement, sparsity exploitation, and target hardware. On-device
+        measurement is future work.
+  \item \textbf{Correlated windows.} Non-overlapping windows of one recording
+        remain correlated, so window-level statistics are pseudoreplicated and
+        used descriptively only.
+  \item \textbf{Approximate parameter matching.} The Transformer-AE is sized
+        \emph{near}, not equal to, the recurrent baselines; Table~\ref{tab:perf}
+        reports the real counts so cost and quality can be read together.
+\end{itemize}
+
+\par All results are loaded directly from experiment-generated CSV files; the
+per-run CSVs are immutable and aggregation never overwrites them.
 
 \IEEEtriggeratref{13}
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 \label{sec:conclusion}
 
-% Energy figure restated from Sec. Spike activity and energy (data/paper_eff_by_encoding.csv).
-\par We presented a systematic comparison of SNN-AE and LSTM-AE for 1D temporal
-signal reconstruction on FSDD.
-Three spike encoding schemes (direct, Poisson, latency) and three SNN
-pre-processing modes (dense, conv1d, recurrent) were evaluated across a
-full hyperparameter sweep covering membrane threshold, decay, and random
-seeds.
-Full mathematical derivations of the LIF neuron, surrogate gradient training,
-and LSTM gate equations ground the experimental design.
-SNN-AE with recurrent pre-processing surpasses LSTM-AE in reconstruction
-quality while consuming over 96.8\% less estimated energy.
-Encoding scheme and membrane decay are the dominant performance factors.
-The reproducible C++ evaluation framework enables principled design choices
-for energy-aware temporal autoencoders.
+\par We compared four trained autoencoder families --- SNN-AE, LSTM-AE, GRU-AE,
+and a bottlenecked Transformer-AE --- under three spike-encoding front ends,
+against PCA and mean-frame linear references, for 1-D temporal signal
+reconstruction on FSDD. The evaluation is leakage-controlled: nested six-fold
+leave-one-speaker-out cross-validation with no recording or speaker crossing a
+split and SNN hyperparameters selected on the inner validation speaker only.
+Differences are reported at the recording level with bootstrap intervals and
+Holm-corrected tests, with speaker- and seed-level results as robustness
+evidence; cost is an analytic per-class operation count, explicitly not an
+energy measurement. This design directly answers the leakage, missing-baseline,
+missing-significance, and energy-overclaim objections to the earlier version of
+this study. The harness, profiles, and analysis scripts are released so the
+protocol can be reused for other 1-D signal families.
 
 \bibliographystyle{IEEEtran}
 \bibliography{paper}
