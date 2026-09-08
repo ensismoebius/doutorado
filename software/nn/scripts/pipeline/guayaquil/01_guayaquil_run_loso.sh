@@ -75,4 +75,16 @@ done
 unset GUAYAQUIL_OVERALL
 printf '[loso-run] all %d folds done in %ss\n' "$CV_NUM_FOLDS" "$(( $(date +%s) - _start ))"
 
-echo "[loso-run] NOTE: aggregation + significance tests are Phase 3 (02_/03_ scripts) — not run here yet."
+PY="python3"
+[[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
+PAPER_DATA="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data"
+
+echo "[loso-run] fitting PCA / mean-frame reference baselines (per fold, train-only)"
+"$PY" scripts/pipeline/guayaquil/03_guayaquil_pca_mean_baselines.py \
+  --results-dir results/guayaquil --run-tag article_loso --latent 32
+
+echo "[loso-run] hierarchical significance analysis (recording-level primary)"
+"$PY" scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py \
+  --results-dir results/guayaquil --run-tag article_loso --out-dir "$PAPER_DATA"
+
+echo "[loso-run] done — raw per-fold CSVs + per_window_errors.csv + *_significance.json ready"
