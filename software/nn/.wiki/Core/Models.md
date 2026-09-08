@@ -123,6 +123,51 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
 }
 ```
 
+### Sequence autoencoders: LSTM-AE, GRU-AE, Transformer-AE
+
+Three models reconstruct a 1-D signal window through a fixed-dimension latent
+bottleneck. They share an interface (`Module<nn::Backend>`,
+`forward`/`backward`/`params`/`reset_state`/`state_dict`) and the same input
+framing — a window reshaped by `to_lstm_frames()` into `(T, frame_size)` — so
+the Guayaquil experiment drives all three through one templated training path
+and compares them fairly. They are the trained non-spiking baselines in the
+reviewer-driven paper revision.
+
+| Model | Location | Recurrence / mixing | Latent |
+|---|---|---|---|
+| `nn::models::lstm::LSTMAutoencoder` | `include/models/lstm/` | stacked `LSTMLayer`, last hidden → `Linear` → tanh | `latent_size` |
+| `nn::models::gru::GRUAutoencoder` | `include/models/gru/` | stacked `GRULayer` (no cell state), otherwise identical to LSTM-AE | `latent_size` |
+| `nn::models::transformer::TransformerAutoencoder` | `include/models/transformer/` | `N` self-attention encoder blocks, then mean-pool over time | `latent_size` |
+
+**GRUAutoencoder** is a direct port of `LSTMAutoencoder` with the recurrent
+layer swapped and the cell state dropped [72], [73]. Encoder: stacked
+`GRULayer` → last hidden → `Linear` → tanh → latent `z`. Decoder: `Linear`
+expand → replicate `T` → stacked `GRULayer` → `Linear` → reconstruction.
+`state_dict` prefixes: `enc_gru{l}.` / `dec_gru{l}.`. Composed gradient check +
+overfit-one-sequence test (`gru_autoencoder_gtest.cpp`).
+
+**TransformerAutoencoder** is *bottlenecked* and deliberately has **no
+encoder–decoder cross-attention** [74]: the decoder is conditioned only on the
+fixed-dimension latent, so all reconstruction information must pass through the
+bottleneck (a strict-compression autoencoder, directly comparable to PCA and
+the recurrent AEs). This is *not* a conventional encoder–decoder Transformer.
+
+```
+encode:  Linear(D → d_model) + positional  →  N encoder blocks
+         →  mean-pool over time  →  Linear(d_model → Z)  →  tanh  →  z
+decode:  Linear(Z → d_model)  →  replicate T  →  + positional
+         →  N encoder blocks (self-attention only)  →  Linear(d_model → D)
+```
+
+Mean-pool and replicate are implemented as `ones`-matrix matmuls so their
+backward passes are plain matmuls. `state_dict` prefixes: `embed.`, `enc{l}.`,
+`to_latent.`, `from_latent.`, `dec{l}.`, `out_proj.`. Config
+(`TransformerAutoencoderConfig`): `input_size`, `seq_len`, `d_model`,
+`n_heads`, `n_layers`, `d_ff`, `latent_size` — chosen near the recurrent
+baselines' parameter count, with the real count reported (never "matched").
+Composed finite-difference gradient check + overfit test
+(`transformer_autoencoder_gtest.cpp`).
+
 ## Data Flow
 
 ```mermaid
@@ -198,6 +243,12 @@ model->backward(grad_output);
 [1] P. Vincent et al., "Extracting and composing robust features with denoising autoencoders," in *Proc. 25th Int. Conf. Machine Learning (ICML)*, 2008, pp. 1096–1103. [Online]. Available: https://doi.org/10.1145/1390156.1390294
 
 [2] G. E. Hinton and R. R. Salakhutdinov, "Reducing the dimensionality of data with neural networks," *Science*, vol. 313, no. 5786, pp. 504–507, Jul. 2006. [Online]. Available: https://doi.org/10.1126/science.1127647
+
+[72] K. Cho et al., "Learning phrase representations using RNN encoder–decoder for statistical machine translation," in *Proc. EMNLP*, 2014, pp. 1724–1734. arXiv: [1406.1078](https://arxiv.org/abs/1406.1078)
+
+[73] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio, "Empirical evaluation of gated recurrent neural networks on sequence modeling," *NeurIPS Deep Learning Workshop*, 2014. arXiv: [1412.3555](https://arxiv.org/abs/1412.3555)
+
+[74] A. Vaswani et al., "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. arXiv: [1706.03762](https://arxiv.org/abs/1706.03762)
 
 > In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
 

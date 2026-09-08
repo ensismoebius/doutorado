@@ -4,7 +4,9 @@ A neural network is built by stacking small, reusable building blocks called
 **layers**. Each layer takes a batch of numbers in, transforms them in some
 fixed way, and passes numbers out to the next layer. This page catalogues
 every layer type the `nn` library provides — dense (fully-connected), spiking,
-convolutional, residual, and recurrent (LSTM) — and shows how to combine them.
+convolutional, residual, recurrent (LSTM, GRU), and attention (LayerNorm,
+multi-head self-attention, sinusoidal positional encoding, Transformer encoder
+block) — and shows how to combine them.
 
 If you are new to neural networks, read this alongside
 [Autoencoders](../Concepts/Autoencoders.md) for the bigger picture of how
@@ -411,6 +413,116 @@ behind each one):
 - Reading and writing one time step's slice uses vectorised `slice_time` /
   `setBlock` calls instead of a manual element-by-element loop.
 
+### GRU layer
+
+A **GRU** ("Gated Recurrent Unit" [72]) is a lighter alternative to the LSTM:
+it keeps a single hidden state (no separate cell state) and uses two gates
+instead of three. A *reset* gate decides how much of the previous state to
+mix into the candidate update, and an *update* gate interpolates between the
+old state and that candidate. Chung et al. [73] found GRUs match LSTMs on
+sequence modelling with fewer parameters — which is exactly why the Guayaquil
+comparison reports GRU-AE as a first-class baseline next to LSTM-AE.
+
+**Location:** `include/layers/gru/GRULayer.hpp`
+
+Gate equations (cuDNN / PyTorch convention — the reset gate is applied *after*
+the recurrent matrix multiply):
+
+$$r_t = \sigma(x_t W_r^\top + h_{t-1} U_r^\top + b_r)$$
+$$z_t = \sigma(x_t W_z^\top + h_{t-1} U_z^\top + b_z)$$
+$$n_t = \tanh\!\big(x_t W_n^\top + b_n + r_t \odot (h_{t-1} U_n^\top)\big)$$
+$$h_t = (1 - z_t)\odot n_t + z_t \odot h_{t-1}$$
+
+The three gates $[r\,|\,z\,|\,n]$ are stacked into single matrices, so one
+matmul computes all three pre-activations (same trick as the LSTM's four):
+- `W_` : (3H × D) — input-to-hidden
+- `U_` : (3H × H) — hidden-to-hidden (recurrent)
+- `b_` : (3H × 1) — bias
+
+Same 2-D `(T, D)` / 3-D `(B, T, D)` shape contract as `LSTMLayer`, same
+`exact_activations` flag, batch gradient accumulation, and `reset_state()`
+semantics. The backward pass is a full BPTT and is checked against central
+finite differences on `W_`, `U_`, `b_`, and the input gradient
+(`gru_layer_gtest.cpp`).
+
+### LayerNorm
+
+**Layer normalization** [75] standardises each row of the input independently
+— subtract that row's mean, divide by its standard deviation over the feature
+dimension, then apply a learned per-feature gain `gamma` and bias `beta`.
+Unlike batch normalization it has no dependence on other samples in the batch
+and no train/eval mode difference, which is why the Transformer uses it.
+
+**Location:** `include/layers/normalization/LayerNorm.hpp`
+
+$$\hat{x}_{ij} = \frac{x_{ij} - \mu_i}{\sqrt{\sigma_i^2 + \epsilon}}, \qquad
+  y_{ij} = \gamma_j\,\hat{x}_{ij} + \beta_j$$
+
+- `gamma` : (1 × D), initialised to 1
+- `beta`  : (1 × D), initialised to 0
+
+The backward pass uses the standard reduced form
+`dx = (is/D)·(D·dxhat − Σ dxhat − xhat·Σ(dxhat·xhat))` and is finite-difference
+checked on `dx`, `dgamma`, `dbeta` (`layernorm_gtest.cpp`). Calling `backward()`
+before `forward(requires_grad=true)` throws (a `forward_cached_` flag guards it).
+
+### Multi-head self-attention
+
+**Self-attention** lets every position in a sequence look at every other
+position and pull in a weighted combination of their values — the weights are
+computed from the similarity of a *query* and a *key* [74]. "Multi-head" runs
+several such attention operations in parallel on projected subspaces and
+concatenates the results.
+
+**Location:** `include/layers/attention/MultiHeadAttention.hpp`
+
+For each head $h$ (with $d_k = d_\text{model}/n_\text{heads}$):
+
+$$S_h = \frac{Q_h K_h^\top}{\sqrt{d_k}}, \qquad
+  A_h = \operatorname{softmax_{rows}}(S_h), \qquad
+  O_h = A_h V_h$$
+
+then $\operatorname{concat}(O_1,\dots,O_H)$ is projected by $W_O$. Q, K, V, O
+are four `LinearImpl` sub-modules, so their weights and biases (and gradients)
+come for free from the existing dense layer. The softmax backward uses
+`ds[i,j] = a[i,j]·(da[i,j] − ⟨da[i,:], a[i,:]⟩)`. Every projection parameter
+and the input gradient are finite-difference checked
+(`multi_head_attention_gtest.cpp`); attention weights are verified to sum to 1
+per row. A head count that does not divide `d_model` throws (and the member
+initialiser is SIGFPE-safe against it).
+
+### Sinusoidal positional encoding
+
+Self-attention is permutation-invariant, so position has to be injected
+explicitly. `sinusoidal_positional_encoding<Backend>(seq_len, d_model)` [74] is
+a **free function**, not a `Module` — it has no parameters and no backward
+pass, it just returns a fixed `(seq_len, d_model)` tensor of sines and cosines
+at geometrically-spaced frequencies, added to the embeddings. (It is excluded
+from the auto-generated `Layers.hpp` aliases for exactly this reason — it is
+not a `FooImpl<Backend>` class.)
+
+**Location:** `include/layers/attention/PositionalEncoding.hpp`
+
+### Transformer encoder block
+
+One **post-norm** Transformer encoder block [74] composes the pieces above:
+
+```
+a   = MultiHeadAttention(x)
+n1  = LayerNorm1(x + a)
+f   = W2 · ReLU(W1 · n1 + b1) + b2      // position-wise feed-forward
+out = LayerNorm2(n1 + f)
+```
+
+**Location:** `include/layers/attention/TransformerEncoderBlock.hpp`
+
+Sub-modules: `mha_`, `ln1_`, `ff1_`, `relu_`, `ff2_`, `ln2_`. Each is already
+individually gradient-checked; the block adds a *composed* finite-difference
+check that perturbs one representative parameter from every sub-module plus the
+input (`transformer_encoder_block_gtest.cpp`). Self-attention only — sufficient
+for the encoder-only / bottlenecked Transformer autoencoder (see
+[Models](./Models.md)).
+
 ### Spike losses
 
 A loss function measures how wrong the network's output is, and that number
@@ -517,6 +629,14 @@ nn::Tensor y = fc2.forward(h, true);
 [7] R. Jozefowicz, W. Zaremba, and I. Sutskever, "An empirical evaluation of recurrent network architectures," in *Proc. ICML*, 2015, pp. 2342–2350.
 
 [33] Y. Zheng et al., "Going deeper with directly-trained larger spiking neural networks," in *Proc. AAAI Conf. Artificial Intelligence*, 2021. [Online]. Available: https://arxiv.org/abs/2011.05280
+
+[72] K. Cho et al., "Learning phrase representations using RNN encoder–decoder for statistical machine translation," in *Proc. EMNLP*, 2014, pp. 1724–1734. arXiv: [1406.1078](https://arxiv.org/abs/1406.1078)
+
+[73] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio, "Empirical evaluation of gated recurrent neural networks on sequence modeling," *NeurIPS Deep Learning Workshop*, 2014. arXiv: [1412.3555](https://arxiv.org/abs/1412.3555)
+
+[74] A. Vaswani et al., "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. arXiv: [1706.03762](https://arxiv.org/abs/1706.03762)
+
+[75] J. L. Ba, J. R. Kiros, and G. E. Hinton, "Layer normalization," *arXiv:1607.06450*, 2016. [Online]. Available: https://arxiv.org/abs/1607.06450
 
 > In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
 

@@ -186,3 +186,13 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 ## Teaching and Visualisation
 
 [70] B. Tversky, J. B. Morrison, and M. Bétrancourt, "Animation: can it facilitate?," *Int. J. Human-Computer Studies*, vol. 57, no. 4, pp. 247–262, Oct. 2002. [Online]. Available: https://doi.org/10.1006/ijhc.2002.1017
+
+## Recurrent and Attention Architectures
+
+[72] K. Cho, B. van Merriënboer, C. Gulcehre, D. Bahdanau, F. Bougares, H. Schwenk, and Y. Bengio, "Learning phrase representations using RNN encoder–decoder for statistical machine translation," in *Proc. Conf. on Empirical Methods in Natural Language Processing (EMNLP)*, 2014, pp. 1724–1734. [Online]. Available: https://arxiv.org/abs/1406.1078 (Original GRU: reset/update gates, candidate activation.)
+
+[73] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio, "Empirical evaluation of gated recurrent neural networks on sequence modeling," in *NeurIPS 2014 Deep Learning and Representation Learning Workshop*, 2014. [Online]. Available: https://arxiv.org/abs/1412.3555 (GRU vs LSTM comparison; GRU matches LSTM with fewer parameters.)
+
+[74] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin, "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. [Online]. Available: https://arxiv.org/abs/1706.03762 (Scaled dot-product / multi-head self-attention, sinusoidal positional encoding, the encoder block.)
+
+[75] J. L. Ba, J. R. Kiros, and G. E. Hinton, "Layer normalization," *arXiv:1607.06450*, 2016. [Online]. Available: https://arxiv.org/abs/1607.06450 (Per-sample normalization over the feature dimension with learned gain/bias.)
