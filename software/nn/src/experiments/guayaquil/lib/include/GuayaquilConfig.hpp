@@ -81,9 +81,14 @@ struct GuayaquilConfig
 
     struct Evaluation
     {
-        std::vector<std::string> datasets;          // REQUIRED
-        std::vector<std::string> encodings;         // REQUIRED
-        std::vector<std::string> snn_architectures; // REQUIRED (use [] for LSTM-only)
+        std::vector<std::string> datasets;  // REQUIRED
+        std::vector<std::string> encodings; // REQUIRED
+        // Trained non-spiking baseline families to run per fold. Valid entries:
+        // "lstm-ae", "gru-ae", "transformer-ae". Default keeps the legacy
+        // LSTM-only behaviour. PCA / mean-frame references are added downstream
+        // in Python, not here.
+        std::vector<std::string> baselines = {"lstm-ae"};
+        std::vector<std::string> snn_architectures; // REQUIRED (use [] for SNN-free runs)
         std::vector<float> v_th_values;             // REQUIRED if snn_architectures non-empty
         std::vector<float> alpha_values;            // REQUIRED if snn_architectures non-empty
     };
@@ -159,6 +164,7 @@ struct GuayaquilConfig
         // Evaluation
         get("datasets", cfg.evaluation.datasets);
         get("encodings", cfg.evaluation.encodings);
+        get("baselines", cfg.evaluation.baselines);
         get("snn_architectures", cfg.evaluation.snn_architectures);
         get("v_th_values", cfg.evaluation.v_th_values);
         get("alpha_values", cfg.evaluation.alpha_values);
@@ -254,6 +260,7 @@ struct GuayaquilConfig
         // --- evaluation ---
         require(evl, "evaluation", "datasets", cfg.evaluation.datasets);
         require(evl, "evaluation", "encodings", cfg.evaluation.encodings);
+        get(evl, "baselines", cfg.evaluation.baselines);
         require(evl, "evaluation", "snn_architectures", cfg.evaluation.snn_architectures);
         get(evl, "v_th_values", cfg.evaluation.v_th_values);
         get(evl, "alpha_values", cfg.evaluation.alpha_values);

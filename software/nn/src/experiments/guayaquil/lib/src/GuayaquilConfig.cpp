@@ -170,6 +170,19 @@ void check_evaluation(const GuayaquilConfig::Evaluation& evaluation, std::ostrin
         errors << "  - evaluation.encodings is empty\n";
     }
 
+    const std::vector<std::string> valid_baselines = {"lstm-ae", "gru-ae", "transformer-ae"};
+    for (const auto& b : evaluation.baselines)
+    {
+        if (std::find(valid_baselines.begin(), valid_baselines.end(), b) == valid_baselines.end())
+        {
+            errors << "  - evaluation.baselines contains unknown family: '" << b << "'\n";
+        }
+    }
+    if (evaluation.baselines.empty())
+    {
+        errors << "  - evaluation.baselines is empty (need at least one trained baseline family)\n";
+    }
+
     const std::vector<std::string> valid_encodings = {"direct", "poisson", "latency"};
     for (const auto& enc : evaluation.encodings)
     {

@@ -21,6 +21,8 @@ struct CheckpointKey
     float v_th{0.0f};
     float alpha{0.0f};
     int run_id{1};
+    std::string split{"val"}; // "val" | "test"
+    int cv_fold{-1};          // outer LOSO fold, -1 for the legacy pooled split
 };
 
 auto checkpoint_path(const std::filesystem::path& chk_dir, const CheckpointKey& key)

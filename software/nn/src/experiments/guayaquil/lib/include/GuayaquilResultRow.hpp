@@ -26,6 +26,15 @@ struct ResultRow
     std::size_t config_hash = 0u;
 
     RunMetrics metrics;
+
+    // Nested-LOSO provenance. `split` is the partition this row's metrics were
+    // measured on: "val" (inner validation speaker — used for model selection and
+    // early stopping) or "test" (held-out outer speaker — the headline number,
+    // touched exactly once). `cv_fold` is the outer fold index, -1 for the legacy
+    // pooled split. Placed after `metrics` so existing positional aggregate
+    // initialisation (…, config_hash, metrics) keeps compiling.
+    std::string split = "val";
+    int cv_fold = -1;
 };
 
 } // namespace guayaquil

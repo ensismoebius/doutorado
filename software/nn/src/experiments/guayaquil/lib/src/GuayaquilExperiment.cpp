@@ -1,17 +1,27 @@
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <random>
+#include <set>
 #include <span>
 #include <string>
 
 #include "../include/GuayaquilCheckpoint.hpp"
 #include "../include/GuayaquilCli.hpp"
 #include "../include/GuayaquilDataset.hpp"
+#include "../include/GuayaquilEvaluation.hpp"
+#include "../include/GuayaquilMetrics.hpp"
 #include "../include/GuayaquilOutput.hpp"
 #include "../include/GuayaquilRunner.hpp"
 #include "../include/GuayaquilTraining.hpp"
+#include "GuayaquilAeCommon.hpp"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
+#include "nlohmann/json.hpp"
 #include "progress/ProgressManager.hpp"
 #include "utility/progress.hpp"
 
@@ -183,11 +193,65 @@ OutputDirs resolve_output_dirs(const GuayaquilConfig& config)
     return {out_dir, models_dir, chk_dir};
 }
 
-// Trains (or loads from checkpoint) the single LSTM-AE run for this (dataset, encoding,
-// run_id) combo, appending its ResultRow to `all_rows` and advancing the progress bar.
-void run_lstm_combo(const GuayaquilConfig& config,
+// Maps an evaluation.baselines family token to (model config, arch label used in the
+// result row / checkpoint key).
+struct BaselineFamily
+{
+    std::string token; // "lstm-ae" | "gru-ae" | "transformer-ae"
+    std::string arch;  // "lstm"    | "gru"    | "transformer"
+};
+
+// Builds one ResultRow for a baseline family on a given split partition.
+auto make_baseline_row(const GuayaquilConfig& config,
+    const std::string& backend_name,
+    const std::string& dataset_name,
+    const BaselineFamily& fam,
+    const std::string& encoding,
+    int run_id,
+    std::uint32_t run_seed,
+    std::size_t cfg_hash,
+    const std::string& split_name,
+    const RunMetrics& metrics) -> ResultRow
+{
+    ResultRow row{backend_name,
+        config.experiment.run_tag,
+        dataset_name,
+        fam.token,
+        encoding,
+        fam.arch,
+        1,
+        0.0f,
+        0.0f,
+        run_id + 1,
+        run_seed,
+        cfg_hash,
+        metrics};
+    row.split = split_name;
+    row.cv_fold = config.dataset.cv_fold;
+    return row;
+}
+
+// Trains one fixed-architecture baseline family (LSTM-/GRU-/Transformer-AE) for this
+// (dataset, encoding, run_id): fit on train, early-stop on val, then evaluate once on
+// val and once on the held-out test speaker. Emits a "val" row always and a "test" row
+// whenever the fold carries a test partition. Model type and train entry point are the
+// only things that vary, so this is a template over the concrete AE.
+template <typename Model>
+void run_baseline(const GuayaquilConfig& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
+    const BaselineFamily& fam,
+    Model& model,
+    TrainResult (*train_fn)(Model&,
+        const GuayaquilConfig&,
+        const std::vector<Tensor>&,
+        const std::vector<Tensor>&,
+        const std::string&,
+        std::uint32_t,
+        std::size_t,
+        std::size_t,
+        float&,
+        float&),
     const std::string& encoding,
     int run_id,
     std::uint32_t run_seed,
@@ -199,20 +263,31 @@ void run_lstm_combo(const GuayaquilConfig& config,
     int& completed_runs,
     std::vector<ResultRow>& all_rows)
 {
-    const CheckpointKey lstm_key{config.experiment.run_tag,
+    const bool has_test = !split.test_samples.empty();
+
+    CheckpointKey val_key{config.experiment.run_tag,
         backend_name,
         dataset_name,
-        "lstm-ae",
+        fam.token,
         encoding,
-        "lstm",
+        fam.arch,
         0.0f,
         0.0f,
-        run_id + 1};
-    const auto lstm_chk = checkpoint_path(chk_dir, lstm_key);
+        run_id + 1,
+        "val",
+        config.dataset.cv_fold};
+    CheckpointKey test_key = val_key;
+    test_key.split = "test";
 
-    if (checkpoint_is_valid(lstm_chk, cfg_hash))
+    const auto val_chk = checkpoint_path(chk_dir, val_key);
+    const auto test_chk = checkpoint_path(chk_dir, test_key);
+
+    const bool val_cached = checkpoint_is_valid(val_chk, cfg_hash);
+    const bool test_cached = !has_test || checkpoint_is_valid(test_chk, cfg_hash);
+    if (val_cached && test_cached)
     {
-        all_rows.push_back(checkpoint_load(lstm_chk));
+        all_rows.push_back(checkpoint_load(val_chk));
+        if (has_test) all_rows.push_back(checkpoint_load(test_chk));
         nn::progress::ProgressManager::instance().update_bar(
             run_bar, static_cast<float>(++completed_runs));
         return;
@@ -220,84 +295,156 @@ void run_lstm_combo(const GuayaquilConfig& config,
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
-    auto lstm_cfg = make_lstm_cfg(config);
 
-    nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
+    TrainResult train_result = train_fn(model,
+        config,
+        split.train_samples,
+        split.val_samples,
+        encoding,
+        run_seed,
+        static_cast<std::size_t>(run_id),
+        static_cast<std::size_t>(config.experiment.repeats),
+        train_ms,
+        infer_ms);
 
-    TrainResult train_result = train_with_early_stopping_lstm( //
-        lstm_model,                                            //
-        config,                                                //
-        split.train_samples,                                   //
-        split.val_samples,                                     //
-        encoding,                                              //
-        run_seed,                                              //
-        static_cast<std::size_t>(run_id),                      //
-        static_cast<std::size_t>(config.experiment.repeats),   //
-        train_ms,                                              //
-        infer_ms                                               //
-    );
-    RunMetrics metrics = train_result.metrics;
-    metrics.train_ms = train_ms;
-
-    if (!config.dataset.latex_data_dir.empty())
-    {
-        const std::filesystem::path latex_dir =
-            std::filesystem::path(config.dataset.latex_data_dir);
-        write_epoch_history_dat(
-            latex_dir / (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
-                            std::to_string(run_id + 1) + "_history.dat"),
-            "lstm-ae",
-            encoding,
-            "",
-            0.0f,
-            0.0f,
-            run_id + 1,
-            train_result.history);
-        write_batch_convergence_dat(
-            latex_dir / (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
-                            std::to_string(run_id + 1) + "_convergence.dat"),
-            "lstm-ae",
-            encoding,
-            "",
-            0.0f,
-            0.0f,
-            run_id + 1,
-            train_result.history);
-    }
+    RunMetrics val_metrics = train_result.metrics;
+    val_metrics.train_ms = train_ms;
 
     if (config.dataset.save_models)
     {
-        const std::string base_name =
-            sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name + "_" + encoding +
-                          "_run" + std::to_string(run_id + 1));
-        const std::filesystem::path state_txt = models_dir / (base_name + "_state_dict.txt");
-        const bool ok = save_state_dict_text(state_txt, lstm_model.state_dict());
-        if (!ok)
+        const std::string base_name = sanitize_name(
+            config.experiment.run_tag + "_" + fam.arch + "_" + dataset_name + "_" + encoding +
+            "_fold" + std::to_string(config.dataset.cv_fold) + "_run" + std::to_string(run_id + 1));
+        if (!save_state_dict_text(models_dir / (base_name + "_state_dict.txt"), model.state_dict()))
         {
-            NN_LOG_WARN("[comparative] failed to save LSTM state_dict for " + base_name);
+            NN_LOG_WARN(
+                "[comparative] failed to save " + fam.token + " state_dict for " + base_name);
         }
     }
 
-    all_rows.push_back( //
-        ResultRow{
-            backend_name,              //
-            config.experiment.run_tag, //
-            dataset_name,              //
-            "lstm-ae",                 //
-            encoding,                  //
-            "lstm",                    //
-            1,                         //
-            0.0f,                      //
-            0.0f,                      //
-            run_id + 1,                //
-            run_seed,                  //
-            cfg_hash,                  //
-            metrics                    //
-        } //
-    );
-    checkpoint_save(lstm_chk, all_rows.back(), train_result.history, cfg_hash);
+    all_rows.push_back(make_baseline_row(config,
+        backend_name,
+        dataset_name,
+        fam,
+        encoding,
+        run_id,
+        run_seed,
+        cfg_hash,
+        "val",
+        val_metrics));
+    checkpoint_save(val_chk, all_rows.back(), train_result.history, cfg_hash);
+
+    if (has_test)
+    {
+        const RunMetrics test_metrics = evaluate_ae(model,
+            split.test_samples,
+            std::vector<int>(split.test_samples.size(), 0),
+            config.training.max_reconstruct_mean_deviation,
+            val_metrics.macs,
+            val_metrics.parameter_count,
+            encoding,
+            run_seed,
+            0.0f,
+            config.model.lstm_frame_size);
+        all_rows.push_back(make_baseline_row(config,
+            backend_name,
+            dataset_name,
+            fam,
+            encoding,
+            run_id,
+            run_seed,
+            cfg_hash,
+            "test",
+            test_metrics));
+        checkpoint_save(test_chk, all_rows.back(), train_result.history, cfg_hash);
+    }
+
     nn::progress::ProgressManager::instance().update_bar(
         run_bar, static_cast<float>(++completed_runs));
+}
+
+// Dispatches one baseline family token to the right concrete AE + train entry point.
+void run_baseline_family(const GuayaquilConfig& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    const std::string& family_token,
+    const std::string& encoding,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows)
+{
+    if (family_token == "lstm-ae")
+    {
+        nn::models::lstm::LSTMAutoencoder model(make_lstm_cfg(config));
+        run_baseline<nn::models::lstm::LSTMAutoencoder>(config,
+            split,
+            dataset_name,
+            BaselineFamily{"lstm-ae", "lstm"},
+            model,
+            &train_with_early_stopping_lstm,
+            encoding,
+            run_id,
+            run_seed,
+            backend_name,
+            cfg_hash,
+            chk_dir,
+            models_dir,
+            run_bar,
+            completed_runs,
+            all_rows);
+    }
+    else if (family_token == "gru-ae")
+    {
+        nn::models::gru::GRUAutoencoder model(make_gru_cfg(config));
+        run_baseline<nn::models::gru::GRUAutoencoder>(config,
+            split,
+            dataset_name,
+            BaselineFamily{"gru-ae", "gru"},
+            model,
+            &train_with_early_stopping_gru,
+            encoding,
+            run_id,
+            run_seed,
+            backend_name,
+            cfg_hash,
+            chk_dir,
+            models_dir,
+            run_bar,
+            completed_runs,
+            all_rows);
+    }
+    else if (family_token == "transformer-ae")
+    {
+        nn::models::transformer::TransformerAutoencoder model(make_transformer_cfg(config));
+        run_baseline<nn::models::transformer::TransformerAutoencoder>(config,
+            split,
+            dataset_name,
+            BaselineFamily{"transformer-ae", "transformer"},
+            model,
+            &train_with_early_stopping_transformer,
+            encoding,
+            run_id,
+            run_seed,
+            backend_name,
+            cfg_hash,
+            chk_dir,
+            models_dir,
+            run_bar,
+            completed_runs,
+            all_rows);
+    }
+    else
+    {
+        throw std::invalid_argument(
+            "run_baseline_family: unknown baseline '" + family_token +
+            "' — validate() should have rejected this. Valid: lstm-ae, gru-ae, transformer-ae.");
+    }
 }
 
 /** Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
@@ -373,10 +520,12 @@ void save_snn_combo_models(const GuayaquilConfig& config,
     }
 }
 
-// Trains (or loads from checkpoint) the single SNN-AE run for this (dataset, encoding,
-// architecture, voltage_threshold, alpha, run_id) combo, appending its ResultRow to
-// `all_rows` and advancing the progress bar.
-void run_snn_combo(const GuayaquilConfig& config,
+// Trains (or loads from checkpoint) one SNN-AE sweep candidate for this (dataset,
+// encoding, architecture, voltage_threshold, alpha, run_id) combo on `train`, scores it
+// on the inner validation speaker, appends a split="val" ResultRow, and returns that
+// validation MSE so the caller can select the fold's winner. The held-out test speaker
+// is never touched here.
+auto run_snn_combo(const GuayaquilConfig& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -391,7 +540,7 @@ void run_snn_combo(const GuayaquilConfig& config,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
-    std::vector<ResultRow>& all_rows)
+    std::vector<ResultRow>& all_rows) -> float
 {
     const CheckpointKey snn_key{config.experiment.run_tag,
         backend_name,
@@ -401,7 +550,9 @@ void run_snn_combo(const GuayaquilConfig& config,
         architecture,
         voltage_threshold,
         alpha,
-        run_id + 1};
+        run_id + 1,
+        "val",
+        config.dataset.cv_fold};
     const auto snn_chk = checkpoint_path(chk_dir, snn_key);
 
     if (checkpoint_is_valid(snn_chk, cfg_hash))
@@ -409,7 +560,7 @@ void run_snn_combo(const GuayaquilConfig& config,
         all_rows.push_back(checkpoint_load(snn_chk));
         nn::progress::ProgressManager::instance().update_bar(
             run_bar, static_cast<float>(++completed_runs));
-        return;
+        return all_rows.back().metrics.mse;
     }
 
     float train_ms = 0.0f;
@@ -462,26 +613,75 @@ void run_snn_combo(const GuayaquilConfig& config,
         models_dir,
         snn_model);
 
-    all_rows.push_back( //
-        ResultRow{
-            backend_name,                                             //
-            config.experiment.run_tag,                                //
-            dataset_name,                                             //
-            "snn-ae",                                                 //
-            encoding,                                                 //
-            architecture,                                             //
-            static_cast<int>(config.model.encoder_layer_spec.size()), //
-            voltage_threshold,                                        //
-            alpha,                                                    //
-            run_id + 1,                                               //
-            run_seed,                                                 //
-            cfg_hash,                                                 //
-            metrics                                                   //
-        } //
-    );
+    ResultRow snn_row{backend_name,
+        config.experiment.run_tag,
+        dataset_name,
+        "snn-ae",
+        encoding,
+        architecture,
+        static_cast<int>(config.model.encoder_layer_spec.size()),
+        voltage_threshold,
+        alpha,
+        run_id + 1,
+        run_seed,
+        cfg_hash,
+        metrics};
+    snn_row.split = "val";
+    snn_row.cv_fold = config.dataset.cv_fold;
+    all_rows.push_back(snn_row);
     checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
     nn::progress::ProgressManager::instance().update_bar(
         run_bar, static_cast<float>(++completed_runs));
+    return metrics.mse;
+}
+
+// Recording-disjoint early-stopping monitor carved from `train` for the nested-LOSO
+// final fit. The selected config is retrained on (train \ monitor) ∪ val and
+// early-stopped on `monitor`, so the test speaker still never influences any weight or
+// stopping decision. Whole recordings move together (adjacent same-recording windows
+// are correlated); selection is seeded for reproducibility.
+struct MonitorCarve
+{
+    std::vector<Tensor> fit_samples;     // (train \ monitor)
+    std::vector<Tensor> monitor_samples; // carved early-stopping set
+};
+
+auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    std::size_t target_monitor_count,
+    std::uint32_t seed) -> MonitorCarve
+{
+    std::map<int, std::vector<std::size_t>> by_recording;
+    for (std::size_t i = 0; i < train_meta.size(); ++i)
+        by_recording[train_meta[i].recording_id].push_back(i);
+
+    std::vector<int> recordings;
+    recordings.reserve(by_recording.size());
+    for (const auto& [rid, idx] : by_recording) recordings.push_back(rid);
+    std::mt19937 rng(seed != 0u ? seed : 42u);
+    std::shuffle(recordings.begin(), recordings.end(), rng);
+
+    std::vector<char> is_monitor(train_samples.size(), 0);
+    std::size_t taken = 0;
+    for (int rid : recordings)
+    {
+        if (taken >= target_monitor_count) break;
+        for (std::size_t i : by_recording[rid])
+        {
+            is_monitor[i] = 1;
+            ++taken;
+        }
+    }
+
+    MonitorCarve out;
+    for (std::size_t i = 0; i < train_samples.size(); ++i)
+    {
+        if (is_monitor[i] != 0)
+            out.monitor_samples.push_back(train_samples[i]);
+        else
+            out.fit_samples.push_back(train_samples[i]);
+    }
+    return out;
 }
 
 // Runs the full SNN architecture × voltage_threshold × alpha sweep for one (dataset,
@@ -500,13 +700,22 @@ void run_snn_sweep(const GuayaquilConfig& config,
     int& completed_runs,
     std::vector<ResultRow>& all_rows)
 {
+    struct Candidate
+    {
+        std::string architecture;
+        float v_th;
+        float alpha;
+        float val_mse;
+    };
+    std::vector<Candidate> candidates;
+
     for (const auto& architecture : config.evaluation.snn_architectures)
     {
         for (float voltage_threshold : config.evaluation.v_th_values)
         {
             for (float alpha : config.evaluation.alpha_values)
             {
-                run_snn_combo(config,
+                const float val_mse = run_snn_combo(config,
                     split,
                     dataset_name,
                     encoding,
@@ -522,9 +731,209 @@ void run_snn_sweep(const GuayaquilConfig& config,
                     run_bar,
                     completed_runs,
                     all_rows);
+                candidates.push_back({architecture, voltage_threshold, alpha, val_mse});
             }
         }
     }
+
+    // Nested-LOSO final fit: only when the fold carries a held-out test speaker.
+    if (split.test_samples.empty() || candidates.empty()) return;
+
+    const auto best = *std::min_element(candidates.begin(),
+        candidates.end(),
+        [](const Candidate& a, const Candidate& b) { return a.val_mse < b.val_mse; });
+
+    // Test row for the winner may already be checkpointed.
+    CheckpointKey test_key{config.experiment.run_tag,
+        backend_name,
+        dataset_name,
+        "snn-ae",
+        encoding,
+        best.architecture,
+        best.v_th,
+        best.alpha,
+        run_id + 1,
+        "test",
+        config.dataset.cv_fold};
+    const auto test_chk = checkpoint_path(chk_dir, test_key);
+    if (checkpoint_is_valid(test_chk, cfg_hash))
+    {
+        all_rows.push_back(checkpoint_load(test_chk));
+        return;
+    }
+
+    // Retrain the selected config on (train \ monitor) ∪ val, early-stopping on the
+    // carved recording-disjoint monitor. The test speaker never enters any fit.
+    const MonitorCarve carve = carve_recording_disjoint_monitor(
+        split.train_samples, split.train_meta, split.val_samples.size(), run_seed);
+
+    std::vector<Tensor> fit_samples = carve.fit_samples;
+    fit_samples.insert(fit_samples.end(), split.val_samples.begin(), split.val_samples.end());
+
+    AutoencoderConfig snn_config = make_snn_cfg(config, best.alpha, best.v_th);
+    snn_config.initializer_seed = run_seed;
+    snn_config.initializer_sampler_type =
+        "comparative-final|" + dataset_name + "|" + encoding + "|" + best.architecture + "|" +
+        std::to_string(best.v_th) + "|" + std::to_string(best.alpha);
+    ProtocolSpikingAutoencoder snn_model(snn_config);
+
+    float train_ms = 0.0f;
+    float infer_ms = 0.0f;
+    const TrainResult final_train = train_with_early_stopping_snn(snn_model,
+        config,
+        fit_samples,
+        carve.monitor_samples,
+        std::vector<int>(carve.monitor_samples.size(), 0),
+        encoding,
+        best.architecture,
+        best.alpha,
+        best.v_th,
+        run_seed,
+        static_cast<std::size_t>(run_id),
+        static_cast<std::size_t>(config.experiment.repeats),
+        train_ms,
+        infer_ms);
+
+    RunMetrics test_metrics = evaluate_snn(snn_model,
+        split.test_samples,
+        std::vector<int>(split.test_samples.size(), 0),
+        config.training.max_reconstruct_mean_deviation,
+        estimate_snn_macs(static_cast<std::size_t>(config.dataset.window_size),
+            extract_layer_sizes(config.model.encoder_layer_spec).empty()
+                ? 0
+                : extract_layer_sizes(config.model.encoder_layer_spec).front(),
+            static_cast<int>(extract_layer_sizes(config.model.encoder_layer_spec).size())),
+        parameter_count(snn_model.params()),
+        encoding,
+        best.architecture,
+        best.alpha,
+        best.v_th,
+        run_seed,
+        infer_ms);
+    test_metrics.train_ms = train_ms;
+
+    ResultRow test_row{backend_name,
+        config.experiment.run_tag,
+        dataset_name,
+        "snn-ae",
+        encoding,
+        best.architecture,
+        static_cast<int>(config.model.encoder_layer_spec.size()),
+        best.v_th,
+        best.alpha,
+        run_id + 1,
+        run_seed,
+        cfg_hash,
+        test_metrics};
+    test_row.split = "test";
+    test_row.cv_fold = config.dataset.cv_fold;
+    all_rows.push_back(test_row);
+    checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
+
+    // Model-selection provenance manifest: proves the choice used inner-val only.
+    if (!config.dataset.results_dir.empty())
+    {
+        nlohmann::json man;
+        man["cv_fold"] = config.dataset.cv_fold;
+        man["encoding"] = encoding;
+        man["run_id"] = run_id + 1;
+        man["seed"] = run_seed;
+        man["selection_split"] = "val (speaker " + split.val_speaker + ")";
+        man["selection_metric"] = "val_mse";
+        man["test_speaker"] = split.test_speaker;
+        man["selected"] = {{"architecture", best.architecture},
+            {"v_th", best.v_th},
+            {"alpha", best.alpha},
+            {"val_mse", best.val_mse}};
+        for (const auto& c : candidates)
+            man["candidates"].push_back({{"architecture", c.architecture},
+                {"v_th", c.v_th},
+                {"alpha", c.alpha},
+                {"val_mse", c.val_mse}});
+        const std::filesystem::path man_path =
+            std::filesystem::path(config.dataset.results_dir) /
+            (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) + "_" +
+                encoding + "_run" + std::to_string(run_id + 1) + "_model_selection_manifest.json");
+        std::ofstream mf(man_path);
+        if (mf.is_open()) mf << man.dump(2);
+    }
+}
+
+// Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
+// any speaker or any source recording appears in more than one of train/val/test.
+void assert_split_disjoint_and_manifest(
+    const GuayaquilConfig& config, const DatasetSplit& split, const std::string& dataset_name)
+{
+    if (config.dataset.cv_fold < 0) return; // legacy pooled path — not a LOSO fold
+
+    auto speakers = [](const std::vector<WindowMetadata>& m)
+    {
+        std::set<std::string> s;
+        for (const auto& w : m) s.insert(w.speaker);
+        return s;
+    };
+    auto recordings = [](const std::vector<WindowMetadata>& m)
+    {
+        std::set<int> s;
+        for (const auto& w : m) s.insert(w.recording_id);
+        return s;
+    };
+
+    const std::array<std::pair<std::string, const std::vector<WindowMetadata>*>, 3> parts{
+        {{"train", &split.train_meta}, {"val", &split.val_meta}, {"test", &split.test_meta}}};
+
+    for (std::size_t i = 0; i < parts.size(); ++i)
+        for (std::size_t k = i + 1; k < parts.size(); ++k)
+        {
+            const auto si = speakers(*parts[i].second);
+            const auto sk = speakers(*parts[k].second);
+            for (const auto& sp : si)
+                if (sk.count(sp) != 0)
+                    throw std::runtime_error("LEAKAGE: speaker '" + sp + "' in both " +
+                                             parts[i].first + " and " + parts[k].first + " (fold " +
+                                             std::to_string(config.dataset.cv_fold) + ")");
+            const auto ri = recordings(*parts[i].second);
+            const auto rk = recordings(*parts[k].second);
+            for (int rid : ri)
+                if (rk.count(rid) != 0)
+                    throw std::runtime_error("LEAKAGE: recording " + std::to_string(rid) +
+                                             " in both " + parts[i].first + " and " +
+                                             parts[k].first + " (fold " +
+                                             std::to_string(config.dataset.cv_fold) + ")");
+        }
+
+    if (config.dataset.results_dir.empty()) return;
+    nlohmann::json man;
+    man["dataset"] = dataset_name;
+    man["cv_fold"] = config.dataset.cv_fold;
+    man["cv_num_folds"] = config.dataset.cv_num_folds;
+    man["seed"] = config.experiment.seed;
+    man["speakers"]["train"] = std::vector<std::string>(
+        speakers(split.train_meta).begin(), speakers(split.train_meta).end());
+    man["speakers"]["val"] = split.val_speaker;
+    man["speakers"]["test"] = split.test_speaker;
+    man["window_counts"] = {{"train", split.train_samples.size()},
+        {"val", split.val_samples.size()},
+        {"test", split.test_samples.size()}};
+    auto rec_list = [&](const std::vector<WindowMetadata>& m)
+    {
+        std::map<int, int> counts;
+        for (const auto& w : m) ++counts[w.recording_id];
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& [rid, c] : counts)
+            arr.push_back({{"recording_id", rid}, {"window_count", c}});
+        return arr;
+    };
+    man["recordings"]["train"] = rec_list(split.train_meta);
+    man["recordings"]["val"] = rec_list(split.val_meta);
+    man["recordings"]["test"] = rec_list(split.test_meta);
+
+    const std::filesystem::path man_path =
+        std::filesystem::path(config.dataset.results_dir) /
+        (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) +
+            "_split_manifest.json");
+    std::ofstream mf(man_path);
+    if (mf.is_open()) mf << man.dump(2);
 }
 
 // Writes every result artifact for the whole experiment: comparative CSV, publication
@@ -587,13 +996,14 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         std::vector<ResultRow> all_rows;
 
-        // Total individual runs: datasets × encodings × repeats × (1 LSTM + SNN sweep).
+        // Total individual runs: datasets × encodings × repeats × (baselines + SNN sweep).
         const int snn_per_combo = static_cast<int>(config.evaluation.snn_architectures.size()) *
                                   static_cast<int>(config.evaluation.v_th_values.size()) *
                                   static_cast<int>(config.evaluation.alpha_values.size());
-        const int total_outer_runs = static_cast<int>(config.evaluation.datasets.size()) *
-                                     static_cast<int>(config.evaluation.encodings.size()) *
-                                     config.experiment.repeats * (1 + snn_per_combo);
+        const int total_outer_runs =
+            static_cast<int>(config.evaluation.datasets.size()) *
+            static_cast<int>(config.evaluation.encodings.size()) * config.experiment.repeats *
+            (static_cast<int>(config.evaluation.baselines.size()) + snn_per_combo);
 
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
@@ -618,6 +1028,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         for (const auto& dataset_name : config.evaluation.datasets)
         {
             const DatasetSplit split = build_split(config, dataset_name, config.dataset.cv_fold);
+            assert_split_disjoint_and_manifest(config, split, dataset_name);
 
             for (const auto& encoding : config.evaluation.encodings)
             {
@@ -628,19 +1039,23 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             ? config.experiment.seed
                             : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
-                    run_lstm_combo(config,
-                        split,
-                        dataset_name,
-                        encoding,
-                        run_id,
-                        run_seed,
-                        backend_name,
-                        cfg_hash,
-                        chk_dir,
-                        models_dir,
-                        run_bar,
-                        completed_runs,
-                        all_rows);
+                    for (const auto& family : config.evaluation.baselines)
+                    {
+                        run_baseline_family(config,
+                            split,
+                            dataset_name,
+                            family,
+                            encoding,
+                            run_id,
+                            run_seed,
+                            backend_name,
+                            cfg_hash,
+                            chk_dir,
+                            models_dir,
+                            run_bar,
+                            completed_runs,
+                            all_rows);
+                    }
 
                     run_snn_sweep(config,
                         split,

@@ -165,6 +165,8 @@ auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
     j["dataset"]["window_size"] = cfg.dataset.window_size;
     j["dataset"]["max_loaded_train_samples"] = cfg.dataset.max_loaded_train_samples;
     j["dataset"]["max_validation_samples"] = cfg.dataset.max_validation_samples;
+    j["dataset"]["cv_fold"] = cfg.dataset.cv_fold;
+    j["dataset"]["cv_num_folds"] = cfg.dataset.cv_num_folds;
     j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
     j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
     j["training"]["epochs"] = cfg.training.epochs;
@@ -174,6 +176,7 @@ auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
 
     j["evaluation"]["datasets"] = cfg.evaluation.datasets;
     j["evaluation"]["encodings"] = cfg.evaluation.encodings;
+    j["evaluation"]["baselines"] = cfg.evaluation.baselines;
     j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
     j["evaluation"]["v_th_values"] = cfg.evaluation.v_th_values;
     j["evaluation"]["alpha_values"] = cfg.evaluation.alpha_values;

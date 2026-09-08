@@ -31,7 +31,7 @@ auto checkpoint_path(const std::filesystem::path& chk_dir, const CheckpointKey& 
     char buf[512];
     std::snprintf(buf,
         sizeof(buf),
-        "%s_%s_%s_%s_%s_%s_vth%.2f_a%.2f_r%02d.json",
+        "%s_%s_%s_%s_%s_%s_vth%.2f_a%.2f_f%02d_%s_r%02d.json",
         sanitize(key.run_tag).c_str(),
         sanitize(key.backend).c_str(),
         sanitize(key.dataset).c_str(),
@@ -40,6 +40,8 @@ auto checkpoint_path(const std::filesystem::path& chk_dir, const CheckpointKey& 
         sanitize(key.architecture).c_str(),
         static_cast<double>(key.v_th),
         static_cast<double>(key.alpha),
+        key.cv_fold,
+        sanitize(key.split).c_str(),
         key.run_id);
     return chk_dir / buf;
 }
@@ -83,6 +85,8 @@ auto checkpoint_load(const std::filesystem::path& path) -> ResultRow
     row.run_id = j.value("run_id", 1);
     row.seed = j.value("seed", 0u);
     row.config_hash = j.value("config_hash", std::size_t{0});
+    row.split = j.value("split", std::string{"val"});
+    row.cv_fold = j.value("cv_fold", -1);
 
     row.metrics.mse = m.value("mse", 0.0f);
     row.metrics.mae = m.value("mae", 0.0f);
@@ -119,6 +123,8 @@ void checkpoint_save(const std::filesystem::path& path,
     j["alpha"] = row.alpha;
     j["run_id"] = row.run_id;
     j["seed"] = row.seed;
+    j["split"] = row.split;
+    j["cv_fold"] = row.cv_fold;
 
     j["metrics"] = {
         {"mse", row.metrics.mse},

@@ -248,7 +248,7 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
 {
     std::ofstream out(path);
     out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_"
-           "hash,";
+           "hash,split,cv_fold,";
     out << "mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,macs\n";
 
     out << std::fixed << std::setprecision(6);
@@ -257,11 +257,11 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
         out << row.backend << ',' << row.profile << ',' << row.dataset << ',' << row.model << ','
             << row.encoding << ',' << row.architecture << ',' << row.layers << ',' << row.v_th
             << ',' << row.alpha << ',' << row.run_id << ',' << row.seed << ',' << row.config_hash
-            << ',' << row.metrics.mse << ',' << row.metrics.mae << ',' << row.metrics.r2 << ','
-            << row.metrics.precision << ',' << row.metrics.recall << ',' << row.metrics.f1 << ','
-            << row.metrics.spike_rate << ',' << row.metrics.energy << ',' << row.metrics.train_ms
-            << ',' << row.metrics.infer_ms << ',' << row.metrics.parameter_count << ','
-            << row.metrics.macs << '\n';
+            << ',' << row.split << ',' << row.cv_fold << ',' << row.metrics.mse << ','
+            << row.metrics.mae << ',' << row.metrics.r2 << ',' << row.metrics.precision << ','
+            << row.metrics.recall << ',' << row.metrics.f1 << ',' << row.metrics.spike_rate << ','
+            << row.metrics.energy << ',' << row.metrics.train_ms << ',' << row.metrics.infer_ms
+            << ',' << row.metrics.parameter_count << ',' << row.metrics.macs << '\n';
     }
 }
 
