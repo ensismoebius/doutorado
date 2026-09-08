@@ -181,4 +181,40 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     return m;
 }
 
+auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
+    const std::vector<Tensor>& samples,
+    const std::vector<WindowMetadata>& meta,
+    const std::string& encoding,
+    const std::string& architecture,
+    float alpha,
+    float v_th,
+    std::uint32_t seed,
+    PerWindowError proto) -> std::vector<PerWindowError>
+{
+    std::vector<PerWindowError> out;
+    out.reserve(samples.size());
+    for (std::size_t i = 0; i < samples.size(); ++i)
+    {
+        Tensor encoded = encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
+        const Tensor flat = flatten_time_series(encoded);
+        model.reset_state();
+        const Tensor recon = unflatten_time_series(
+            Tensor(model.forward(SnnTensor(flat), false)), encoded.rows(), encoded.cols());
+
+        PerWindowError r = proto;
+        if (i < meta.size())
+        {
+            r.speaker_id = meta[i].speaker_id;
+            r.recording_id = meta[i].recording_id;
+            r.window_id = meta[i].window_id;
+            r.source_window_index = meta[i].source_window_index;
+        }
+        r.mse = mse_between(encoded, recon);
+        r.mae = mae_between(encoded, recon);
+        out.push_back(r);
+    }
+    return out;
+}
+
 } // namespace guayaquil

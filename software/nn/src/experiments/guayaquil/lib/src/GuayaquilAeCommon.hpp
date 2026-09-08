@@ -21,9 +21,11 @@
 #include <vector>
 
 #include "../include/GuayaquilBatchLossCollector.hpp"
+#include "../include/GuayaquilDatasetSplit.hpp"
 #include "../include/GuayaquilEncoding.hpp"
 #include "../include/GuayaquilEpochHistory.hpp"
 #include "../include/GuayaquilMetrics.hpp"
+#include "../include/GuayaquilPerWindow.hpp"
 #include "../include/GuayaquilRunMetrics.hpp"
 #include "../include/GuayaquilTraining.hpp"
 #include "core/training/Trainer.hpp"
@@ -116,6 +118,44 @@ auto evaluate_ae(Model& model,
     m.energy = 10.0f * static_cast<float>(m.macs);
 
     return m;
+}
+
+// Per-window reconstruction error for a frame-consuming AE. `proto` carries the shared
+// identity fields (model, architecture, v_th, alpha, run_id, seed, cv_fold, split); this
+// fills the per-window identity (from `meta`, parallel to `samples`) and mse/mae. A
+// forward pass per window — cheap next to training, and keeps the eval path simple.
+template <typename Model>
+auto per_window_errors_ae(Model& model,
+    const std::vector<Tensor>& samples,
+    const std::vector<WindowMetadata>& meta,
+    const std::string& encoding,
+    std::uint32_t seed,
+    int frame_size,
+    PerWindowError proto) -> std::vector<PerWindowError>
+{
+    using ModelTensor = typename Model::Tensor;
+    std::vector<PerWindowError> out;
+    out.reserve(samples.size());
+    for (std::size_t i = 0; i < samples.size(); ++i)
+    {
+        const Tensor encoded = to_lstm_frames(
+            encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i)), frame_size);
+        model.reset_state();
+        const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
+
+        PerWindowError r = proto;
+        if (i < meta.size())
+        {
+            r.speaker_id = meta[i].speaker_id;
+            r.recording_id = meta[i].recording_id;
+            r.window_id = meta[i].window_id;
+            r.source_window_index = meta[i].source_window_index;
+        }
+        r.mse = mse_between(encoded, recon);
+        r.mae = mae_between(encoded, recon);
+        out.push_back(r);
+    }
+    return out;
 }
 
 // Generic early-stopping training loop for a frame-consuming AE. `macs` is the

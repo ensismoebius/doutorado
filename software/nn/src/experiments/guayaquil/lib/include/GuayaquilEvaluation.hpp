@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "GuayaquilDatasetSplit.hpp"
+#include "GuayaquilPerWindow.hpp"
 #include "GuayaquilRunMetrics.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
@@ -38,5 +40,18 @@ auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     float v_th,
     std::uint32_t seed,
     float infer_ms) -> RunMetrics;
+
+// Per-window reconstruction error for the SNN-AE (arch transform + flatten + forward +
+// unflatten, mse/mae in encoded space). `proto` carries the shared identity fields;
+// `meta` is parallel to `samples`.
+auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
+    const std::vector<Tensor>& samples,
+    const std::vector<WindowMetadata>& meta,
+    const std::string& encoding,
+    const std::string& architecture,
+    float alpha,
+    float v_th,
+    std::uint32_t seed,
+    PerWindowError proto) -> std::vector<PerWindowError>;
 
 } // namespace guayaquil

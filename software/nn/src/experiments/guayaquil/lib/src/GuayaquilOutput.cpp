@@ -9,6 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "../include/GuayaquilPerWindow.hpp"
 #include "io/ReportIO.hpp"
 #include "nlohmann/json.hpp"
 #include "statistics/inference_tests.hpp"
@@ -492,6 +493,30 @@ void write_batch_convergence_dat(const std::filesystem::path& path,
     {
         out << i << ' ' << static_cast<int>(history.batch_epochs[i]) << ' '
             << history.batch_losses[i] << '\n';
+    }
+}
+
+void write_per_window_errors_csv(
+    const std::filesystem::path& path, const std::vector<PerWindowError>& rows)
+{
+    const bool need_header = !std::filesystem::exists(path);
+    std::ofstream out(path, std::ios::app);
+    if (!out.is_open())
+    {
+        throw std::runtime_error("write_per_window_errors_csv: cannot open " + path.string());
+    }
+    if (need_header)
+    {
+        out << "model,encoding,architecture,v_th,alpha,run_id,seed,cv_fold,split,"
+               "speaker_id,recording_id,window_id,source_window_index,mse,mae\n";
+    }
+    out << std::fixed << std::setprecision(8);
+    for (const auto& r : rows)
+    {
+        out << r.model << ',' << r.encoding << ',' << r.architecture << ',' << r.v_th << ','
+            << r.alpha << ',' << r.run_id << ',' << r.seed << ',' << r.cv_fold << ',' << r.split
+            << ',' << r.speaker_id << ',' << r.recording_id << ',' << r.window_id << ','
+            << r.source_window_index << ',' << r.mse << ',' << r.mae << '\n';
     }
 }
 

@@ -17,6 +17,7 @@
 #include "../include/GuayaquilEvaluation.hpp"
 #include "../include/GuayaquilMetrics.hpp"
 #include "../include/GuayaquilOutput.hpp"
+#include "../include/GuayaquilPerWindow.hpp"
 #include "../include/GuayaquilRunner.hpp"
 #include "../include/GuayaquilTraining.hpp"
 #include "GuayaquilAeCommon.hpp"
@@ -261,9 +262,26 @@ void run_baseline(const GuayaquilConfig& config,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
-    std::vector<ResultRow>& all_rows)
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
 {
     const bool has_test = !split.test_samples.empty();
+
+    auto append_pw = [&](const std::vector<Tensor>& samples,
+                         const std::vector<WindowMetadata>& meta,
+                         const std::string& split_name)
+    {
+        PerWindowError proto;
+        proto.model = fam.token;
+        proto.architecture = fam.arch;
+        proto.run_id = run_id + 1;
+        proto.seed = run_seed;
+        proto.cv_fold = config.dataset.cv_fold;
+        proto.split = split_name;
+        auto pw = per_window_errors_ae(
+            model, samples, meta, encoding, run_seed, config.model.lstm_frame_size, proto);
+        pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
+    };
 
     CheckpointKey val_key{config.experiment.run_tag,
         backend_name,
@@ -333,6 +351,7 @@ void run_baseline(const GuayaquilConfig& config,
         "val",
         val_metrics));
     checkpoint_save(val_chk, all_rows.back(), train_result.history, cfg_hash);
+    append_pw(split.val_samples, split.val_meta, "val");
 
     if (has_test)
     {
@@ -357,6 +376,7 @@ void run_baseline(const GuayaquilConfig& config,
             "test",
             test_metrics));
         checkpoint_save(test_chk, all_rows.back(), train_result.history, cfg_hash);
+        append_pw(split.test_samples, split.test_meta, "test");
     }
 
     nn::progress::ProgressManager::instance().update_bar(
@@ -377,7 +397,8 @@ void run_baseline_family(const GuayaquilConfig& config,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
-    std::vector<ResultRow>& all_rows)
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
 {
     if (family_token == "lstm-ae")
     {
@@ -397,7 +418,8 @@ void run_baseline_family(const GuayaquilConfig& config,
             models_dir,
             run_bar,
             completed_runs,
-            all_rows);
+            all_rows,
+            pw_rows);
     }
     else if (family_token == "gru-ae")
     {
@@ -417,7 +439,8 @@ void run_baseline_family(const GuayaquilConfig& config,
             models_dir,
             run_bar,
             completed_runs,
-            all_rows);
+            all_rows,
+            pw_rows);
     }
     else if (family_token == "transformer-ae")
     {
@@ -437,7 +460,8 @@ void run_baseline_family(const GuayaquilConfig& config,
             models_dir,
             run_bar,
             completed_runs,
-            all_rows);
+            all_rows,
+            pw_rows);
     }
     else
     {
@@ -540,7 +564,8 @@ auto run_snn_combo(const GuayaquilConfig& config,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
-    std::vector<ResultRow>& all_rows) -> float
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows) -> float
 {
     const CheckpointKey snn_key{config.experiment.run_tag,
         backend_name,
@@ -630,6 +655,27 @@ auto run_snn_combo(const GuayaquilConfig& config,
     snn_row.cv_fold = config.dataset.cv_fold;
     all_rows.push_back(snn_row);
     checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+
+    PerWindowError proto;
+    proto.model = "snn-ae";
+    proto.architecture = architecture;
+    proto.v_th = voltage_threshold;
+    proto.alpha = alpha;
+    proto.run_id = run_id + 1;
+    proto.seed = run_seed;
+    proto.cv_fold = config.dataset.cv_fold;
+    proto.split = "val";
+    auto pw = per_window_errors_snn(snn_model,
+        split.val_samples,
+        split.val_meta,
+        encoding,
+        architecture,
+        alpha,
+        voltage_threshold,
+        run_seed,
+        proto);
+    pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
+
     nn::progress::ProgressManager::instance().update_bar(
         run_bar, static_cast<float>(++completed_runs));
     return metrics.mse;
@@ -698,7 +744,8 @@ void run_snn_sweep(const GuayaquilConfig& config,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
-    std::vector<ResultRow>& all_rows)
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
 {
     struct Candidate
     {
@@ -730,7 +777,8 @@ void run_snn_sweep(const GuayaquilConfig& config,
                     models_dir,
                     run_bar,
                     completed_runs,
-                    all_rows);
+                    all_rows,
+                    pw_rows);
                 candidates.push_back({architecture, voltage_threshold, alpha, val_mse});
             }
         }
@@ -829,6 +877,28 @@ void run_snn_sweep(const GuayaquilConfig& config,
     test_row.cv_fold = config.dataset.cv_fold;
     all_rows.push_back(test_row);
     checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
+
+    {
+        PerWindowError proto;
+        proto.model = "snn-ae";
+        proto.architecture = best.architecture;
+        proto.v_th = best.v_th;
+        proto.alpha = best.alpha;
+        proto.run_id = run_id + 1;
+        proto.seed = run_seed;
+        proto.cv_fold = config.dataset.cv_fold;
+        proto.split = "test";
+        auto pw = per_window_errors_snn(snn_model,
+            split.test_samples,
+            split.test_meta,
+            encoding,
+            best.architecture,
+            best.alpha,
+            best.v_th,
+            run_seed,
+            proto);
+        pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
+    }
 
     // Model-selection provenance manifest: proves the choice used inner-val only.
     if (!config.dataset.results_dir.empty())
@@ -1030,6 +1100,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             const DatasetSplit split = build_split(config, dataset_name, config.dataset.cv_fold);
             assert_split_disjoint_and_manifest(config, split, dataset_name);
 
+            // Per-window reconstruction errors accumulate across every model / encoding /
+            // seed of this fold, then flush once. Rows coming straight from a resume
+            // checkpoint are not regenerated — clear results/guayaquil/checkpoints/ before
+            // a run that needs the per-window CSV (the article pipeline always does).
+            std::vector<PerWindowError> pw_rows;
+
             for (const auto& encoding : config.evaluation.encodings)
             {
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
@@ -1054,7 +1130,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             models_dir,
                             run_bar,
                             completed_runs,
-                            all_rows);
+                            all_rows,
+                            pw_rows);
                     }
 
                     run_snn_sweep(config,
@@ -1069,8 +1146,18 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         models_dir,
                         run_bar,
                         completed_runs,
-                        all_rows);
+                        all_rows,
+                        pw_rows);
                 }
+            }
+
+            if (!pw_rows.empty() && !config.dataset.results_dir.empty())
+            {
+                const std::filesystem::path pw_path =
+                    std::filesystem::path(config.dataset.results_dir) /
+                    (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) +
+                        "_per_window_errors.csv");
+                write_per_window_errors_csv(pw_path, pw_rows);
             }
         }
 
