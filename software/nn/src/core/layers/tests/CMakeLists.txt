@@ -46,6 +46,7 @@ foreach(_layers_split_test IN ITEMS
     layers_losses_regularization_gtest
     layers_composite_gtest
     gru_layer_gtest
+    layernorm_gtest
 )
     add_executable(${_layers_split_test} ${_layers_split_test}.cpp)
 
