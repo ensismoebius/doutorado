@@ -144,9 +144,9 @@ $D:\mathbb{R}^d \to \mathbb{R}^T$ minimizing reconstruction loss:
 \par The continuous-time Leaky Integrate-and-Fire neuron is described by
 \cite{gerstner2002spiking}:
 \begin{equation}
-  \tau \frac{dV}{dt} = -(V - V_{\mathrm{rest}}) + I(t), \qquad \tau = RC.
+  \tau \frac{dV}{dt} = -(V - V_{\mathrm{rest}}) + R\,I(t), \qquad \tau = RC.
 \end{equation}
-\par Where $V$ is the membrane potential, $V_{\mathrm{rest}}$ is the resting potential,$I(t)$ is the input current, $R$ is the membrane resistance, and $C$ is the membrane capacitance. The time constant $\tau$ governs the rate of potential decay.
+\par Where $V$ is the membrane potential, $V_{\mathrm{rest}}$ is the resting potential, $I(t)$ is the input current, $R$ is the membrane resistance, and $C$ is the membrane capacitance. The time constant $\tau$ governs the rate of potential decay. The $R\,I(t)$ term is consistent with the discrete update in Eq.~\eqref{eq:lif}.
 
 \par Discretising with time step $\Delta t$ and defining
 $\beta = e^{-\Delta t/(RC)}$ gives the iterative update:
@@ -195,11 +195,18 @@ charge for smoother gradients.
 BPTT \cite{werbos1990backpropagation} unrolls both LSTM and SNN through the
 full time dimension $T$; the reverse-time recurrence for layer $l$ is:
 \begin{equation}
-  \delta_l[t] = \hat{\sigma}'(V[t])\,\delta_{l+1}[t]
+  \delta_l[t] = \hat{\sigma}'(V[t]) \odot \big(W_{l+1}^{\top}\,\delta_{l+1}[t]\big)
               + \beta\,\delta_l[t+1],
+  \label{eq:bptt}
 \end{equation}
-\par where $\beta$ equals $\partial V_{\mathrm{post}}/\partial V_{\mathrm{pre}}$
-for the LIF model.
+\par where $\delta_l[t]\in\mathbb{R}^{n_l}$ is the error signal at layer $l$ and time
+$t$, $W_{l+1}\in\mathbb{R}^{n_{l+1}\times n_l}$ is the feed-forward weight matrix mapping
+layer-$l$ activations to layer-$(l+1)$ pre-activations (so the forward pass computes
+$W_{l+1}\,a_l$), $\odot$ is the element-wise product, $\hat{\sigma}'(V[t])$ is the
+surrogate derivative of Sec.~\ref{sec:surr}, and $\beta=\partial V_{\mathrm{post}}/\partial
+V_{\mathrm{pre}}=e^{-\Delta t/(RC)}$ carries the error one step back in time through the
+membrane recurrence. The spatial term $W_{l+1}^{\top}\delta_{l+1}[t]$ and the temporal
+term $\beta\,\delta_l[t+1]$ are the SNN analogue of the standard BPTT split.
 
 % ── EXPANDED: LSTM ────────────────────────────────────────────
 \subsection{LSTM autoencoder}
@@ -319,26 +326,41 @@ time dimension.
 minimum delta $10^{-8}$ over a maximum of 30 epochs \cite{eshraghian2023training}.
 Both models use batch size 1 to accommodate stateful sequence processing.
 
-% ── Energy estimation ─────────────────────────────────────────
-\subsection{Energy estimation}
+% ── Computational cost ────────────────────────────────────────
+\subsection{Analytic computational cost}
 \label{sec:energy}
 
-\par Computational energy is estimated from operation counts in relative units
-(no absolute hardware assumption). Let $M$ be the model's estimated MAC
-count and $N$ the number of output values produced per window:
-\begin{align}
-  E_{\mathrm{LSTM}} &= 10\,M, \\
-  E_{\mathrm{SNN}}  &= r\,N + 10\,M,
-\end{align}
-\par Where $r \in [0,1]$ is the SNN spike rate (fraction of output spikes).
-\par For LSTM-AE $r=0$. The constant $10$ is a fixed
-weighting between MAC operations and spike events; absolute per-operation
-energy is platform-dependent and out of scope.
+\par We report an analytic \emph{computational-cost} figure, not an energy
+measurement. The primary quantity is the raw operation count
+\begin{equation}
+  C_{\mathrm{raw}} = \sum_k N_k,
+  \label{eq:craw}
+\end{equation}
+where $N_k$ is the number of operations of class $k$ executed in one forward pass
+over a window. We count, separately, the following classes: for the ANN models,
+dense multiply--accumulates (MACs), nonlinearity evaluations, attention
+$QK^{\top}$/$\cdot\,V$ products, and normalization operations; for the SNN,
+synaptic accumulations, neuron-state updates, and spike/event operations. The
+event-driven classes are scaled by the measured mean spike fraction
+$r\in[0,1]$ of the evaluated run, so an SNN that never spikes contributes no
+event-operation cost.
 
-\par In the implementation, $r$ is the mean spike fraction reported by the trainer
-for the evaluated run, and $M$ is the estimated forward-pass MAC count for one
-window. The resulting energy values are therefore analytic proxies derived from
-the run logs and model operation counts, not hardware power measurements.
+\par As a secondary, explicitly labelled \emph{sensitivity analysis} we also
+report a weighted proxy
+\begin{equation}
+  C_{\mathrm{weighted}} = \sum_k w_k N_k,
+  \label{eq:cweighted}
+\end{equation}
+under a stated choice of relative per-class weights $w_k$; the ranking of models
+under $C_{\mathrm{weighted}}$ is reported only alongside the weights that produce
+it, never as a standalone claim.
+
+\par Neither $C_{\mathrm{raw}}$ nor $C_{\mathrm{weighted}}$ is energy. Real energy
+on a given device is dominated by memory movement, cache and SIMD behaviour, clock
+frequency, supply voltage, exploited sparsity, and the target silicon
+(CPU, GPU, or neuromorphic). On-device power measurement is future work; the
+figures here are design-time guidance for comparing architectures under matched
+software and a single CPU backend.
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
