@@ -2,6 +2,75 @@
 
 Experiment04 implements a comparative study between Spiking Neural Networks (SNNs) and LSTM autoencoders on time-series data, with support for the Free Spoken Digit Dataset (FSDD).
 
+## Reviewer-driven revision (`article-loso.json`)
+
+> **The problem this fixes.** The original study pooled every window, shuffled,
+> then split — so the same speaker *and the same recording* landed in both train
+> and validation. Reported error then partly measured memorization, not
+> generalization. A reviewer flagged this as a strong-reject defect.
+>
+> **The fix.** Nested six-fold **leave-one-group-out** cross-validation. A
+> *group* is the speaker (FSDD, AudioMNIST) or the ECG record (MIT-BIH). Windows
+> are partitioned by group *before any pooling*; per fold: test block = one
+> group-block, validation block = the next (rotating), the rest train. The SNN
+> `v_th × α × architecture` grid is selected on the **validation block only**,
+> then the winner is retrained on train ∪ validation (early-stopping on a
+> recording-disjoint monitor carved from train) and evaluated **once** on the
+> test block. A startup assert aborts the run if any group or `recording_id`
+> crosses a split; a `*_split_manifest.json` records the partition.
+
+### Three datasets (multi-dataset answer to "one small database")
+
+| key | signal | group | #groups / K | per-recording window cap | root (default) |
+|---|---|---|---|---|---|
+| `fsdd` | spoken digits, 8 kHz | speaker | 6 / 6 | none | `.../databases/fsdDataset` |
+| `audiomnist` | spoken digits, offline-resampled 48→8 kHz | speaker | 60 / 6 | 2 | `.../databases/audioMNIST_8k` |
+| `mitbih` | single-lead ECG (lead 0), 360 Hz | record | 48 / 6 | 40 | `.../databases/mitbih` |
+
+- `dataset.sources[]` in the profile gives each dataset its `root` / `window_size` /
+  `cv_num_folds` / `sample_rate` / `max_windows_per_recording`; unset fields inherit the
+  singular `dataset.*`. `GuayaquilConfig::Dataset::resolve(name)` does the merge.
+- **Grouped folds:** `assign_speaker_fold` partitions the sorted group ids into `K`
+  contiguous blocks (reduces to plain leave-one-speaker-out when `#groups == K`).
+- **Loaders:** `fsdd`/`audiomnist` reuse `FsddWindowDataset` (AudioMNIST filenames
+  `digit_speaker_index.wav` parse identically; convert to 8 kHz mono first, e.g.
+  `sox in.wav -r 8000 -c 1 -b 16 out.wav`). `mitbih` uses `MitBihWindowDataset`
+  (`GuayaquilMitBih.{hpp,cpp}`) — a minimal WFDB format-212 reader (non-recursive
+  `.hea` scan, 12-bit two's-complement decode, physical units via header gain/baseline).
+- Tests: `loaders_gtest` (real-loader checks, skipped when a root is absent),
+  `guayaquil_split_audit_gtest`, `profile_audit_gtest` (`DatasetSourceResolution…`).
+
+### Running it
+
+One process per **(dataset, fold)**:
+
+```bash
+cd software/nn
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/guayaquil/01_guayaquil_run_loso.sh
+# loops --dataset {fsdd,audiomnist,mitbih} --cv-fold 0..5, then 03_ (PCA/mean)
+# → 02_ (paper tables) → 04_ (recording-level significance).
+```
+
+Outputs are tagged `article_loso_<dataset>_fold<f>_*`. Days-to-weeks; run once,
+checkpoints cleared first.
+
+### Statistics & paper data
+
+- **Primary estimand:** recording-level paired difference `d_r` (bootstrap over
+  recordings, Wilcoxon, Holm across references), **per dataset**. Group-level and
+  seed-level are robustness only. `04_guayaquil_significance_tests.py` →
+  `article_loso_<ds>_significance_recording.tex` + `article_loso_significance.json`.
+- `02_guayaquil_build_loso_paper_data.py` → `paper_loso_<ds>_{summary,recon_by_encoding,mse_plot}.csv`
+  + `paper_loso_<ds>_snn_selection.tex` (mean ± std over 5 seeds; best cell bolded).
+- Model inventory: **four trained families** (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE)
+  + PCA and mean-frame references. SNN `dense/conv1d/recurrent` are *input transforms*
+  selected per fold, not families.
+- Paper: `documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex`
+  (`\resultsForDataset` macro, one block per dataset).
+
+---
+
+
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
