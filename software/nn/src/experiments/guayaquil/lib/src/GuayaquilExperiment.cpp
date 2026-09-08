@@ -152,6 +152,21 @@ namespace guayaquil
 namespace
 {
 
+// Per-fold output filename stem: "<run_tag>_<dataset>_fold<f>" under nested LOSO,
+// "<run_tag>" otherwise. The dataset segment keeps folds of FSDD / AudioMNIST /
+// MIT-BIH from clobbering each other when each (dataset, fold) runs as its own
+// process.
+auto fold_output_tag(const GuayaquilConfig& c, const std::string& dataset) -> std::string
+{
+    std::string t = c.experiment.run_tag;
+    if (c.dataset.cv_fold >= 0)
+    {
+        if (!dataset.empty()) t += "_" + dataset;
+        t += "_fold" + std::to_string(c.dataset.cv_fold);
+    }
+    return t;
+}
+
 // Resolved output locations for one experiment run: raw metrics/summary files, saved model
 // dumps, and resume checkpoints.
 struct OutputDirs
@@ -905,6 +920,7 @@ void run_snn_sweep(const GuayaquilConfig& config,
     if (!config.dataset.results_dir.empty())
     {
         nlohmann::json man;
+        man["dataset"] = dataset_name;
         man["cv_fold"] = config.dataset.cv_fold;
         man["encoding"] = encoding;
         man["run_id"] = run_id + 1;
@@ -923,8 +939,8 @@ void run_snn_sweep(const GuayaquilConfig& config,
                 {"val_mse", c.val_mse}});
         const std::filesystem::path man_path =
             std::filesystem::path(config.dataset.results_dir) /
-            (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) + "_" +
-                encoding + "_run" + std::to_string(run_id + 1) + "_model_selection_manifest.json");
+            (fold_output_tag(config, dataset_name) + "_" + encoding + "_run" +
+                std::to_string(run_id + 1) + "_model_selection_manifest.json");
         std::ofstream mf(man_path);
         if (mf.is_open()) mf << man.dump(2);
     }
@@ -1001,8 +1017,7 @@ void assert_split_disjoint_and_manifest(
 
     const std::filesystem::path man_path =
         std::filesystem::path(config.dataset.results_dir) /
-        (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) +
-            "_split_manifest.json");
+        (fold_output_tag(config, dataset_name) + "_split_manifest.json");
     std::ofstream mf(man_path);
     if (mf.is_open()) mf << man.dump(2);
 }
@@ -1015,6 +1030,7 @@ void assert_split_disjoint_and_manifest(
 // latency are deterministic). Once per fold+encoding, not per seed/model.
 void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
     const DatasetSplit& split,
+    const std::string& dataset_name,
     const std::string& encoding,
     const std::filesystem::path& out_dir)
 {
@@ -1040,8 +1056,7 @@ void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
         return {flat, cols};
     };
 
-    const std::string stem = config.experiment.run_tag + "_fold" +
-                             std::to_string(config.dataset.cv_fold) + "_" + encoding;
+    const std::string stem = fold_output_tag(config, dataset_name) + "_" + encoding;
     const std::filesystem::path dir(config.dataset.results_dir);
 
     const auto [train_flat, train_cols] = encode_matrix(split.train_samples);
@@ -1074,12 +1089,12 @@ void write_experiment_outputs(const GuayaquilConfig& config,
     const std::vector<ResultRow>& all_rows,
     const std::filesystem::path& out_dir)
 {
-    // Under nested LOSO each fold runs as its own process (one `--cv-fold`); tag every
-    // output with the fold so the six runs do not clobber each other. The Python
-    // aggregator globs `<run_tag>_fold*_comparative_metrics.csv`.
-    const std::string tag = config.dataset.cv_fold >= 0 ? config.experiment.run_tag + "_fold" +
-                                                              std::to_string(config.dataset.cv_fold)
-                                                        : config.experiment.run_tag;
+    // Under nested LOSO each (dataset, fold) runs as its own process (one
+    // `--dataset` + one `--cv-fold`); tag every output with dataset + fold so the
+    // runs do not clobber each other. The Python aggregator globs
+    // `<run_tag>_<dataset>_fold*_comparative_metrics.csv`.
+    const std::string tag = fold_output_tag(config,
+        config.evaluation.datasets.empty() ? std::string{} : config.evaluation.datasets.front());
 
     const std::filesystem::path csv_path = out_dir / (tag + "_comparative_metrics.csv");
     write_rows_csv(csv_path, all_rows);
@@ -1172,7 +1187,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
             for (const auto& encoding : config.evaluation.encodings)
             {
-                dump_analytic_baseline_inputs(config, split, encoding, out_dir);
+                dump_analytic_baseline_inputs(config, split, dataset_name, encoding, out_dir);
 
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
@@ -1221,8 +1236,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 const std::filesystem::path pw_path =
                     std::filesystem::path(config.dataset.results_dir) /
-                    (config.experiment.run_tag + "_fold" + std::to_string(config.dataset.cv_fold) +
-                        "_per_window_errors.csv");
+                    (fold_output_tag(config, dataset_name) + "_per_window_errors.csv");
                 write_per_window_errors_csv(pw_path, pw_rows);
             }
         }

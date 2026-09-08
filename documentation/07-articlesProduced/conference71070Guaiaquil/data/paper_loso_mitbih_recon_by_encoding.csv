@@ -1,0 +1,5 @@
+model;encoding;mse;mae;r2
+SNN-AE;direct;0.0000$\pm$0.0000;0.0000$\pm$0.0000;0.0000$\pm$0.0000
+LSTM-AE;direct;0.0000$\pm$0.0000;0.0000$\pm$0.0000;0.0000$\pm$0.0000
+GRU-AE;direct;0.0000$\pm$0.0000;0.0000$\pm$0.0000;0.0000$\pm$0.0000
+Transformer-AE;direct;0.0000$\pm$0.0000;0.0000$\pm$0.0000;0.0000$\pm$0.0000

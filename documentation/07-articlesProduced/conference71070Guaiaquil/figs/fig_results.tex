@@ -1,8 +1,8 @@
-% Test-speaker MSE by model and encoding, from the nested-LOSO run.
-% data/paper_loso_mse_plot.csv is wide: encoding, then one MSE column per model
-% (mean, pca, snn_ae, lstm_ae, gru_ae, transformer_ae). The mean-frame column is
-% omitted here for vertical scale.
-\pgfplotstableread[col sep=comma]{data/paper_loso_mse_plot.csv}\msetable
+% Test MSE by model and encoding for one dataset of the nested-LOSO run.
+% The caller sets \loMsePlotData to data/paper_loso_<dataset>_mse_plot.csv
+% (wide: encoding, then one MSE column per model: mean, pca, snn_ae, lstm_ae,
+% gru_ae, transformer_ae). The mean-frame column is omitted here for scale.
+\pgfplotstableread[col sep=comma]{\loMsePlotData}\msetable
 
 \begin{tikzpicture}[font=\scriptsize]
   \begin{axis}[

@@ -15,6 +15,9 @@
 \usepackage{booktabs}
 \usepackage[english]{babel}
 
+% Per-dataset MSE plot data file, set by \resultsForDataset before each \input.
+\newcommand{\loMsePlotData}{data/paper_loso_fsdd_mse_plot.csv}
+
 \title{Spiking, Recurrent, and Attention Autoencoders for
 Temporal Signals: A Leakage-Controlled Nested Cross-Validation Comparison}
 
@@ -38,15 +41,16 @@ cross-attention --- under three spike-encoding front ends (direct, Poisson,
 latency), together with PCA and mean-frame linear reference points. All models
 share a single C++/CPU harness \cite{furlan2026doi} for matched timing and a
 transparent operation-count cost budget. Evaluation uses \emph{nested six-fold
-leave-one-speaker-out cross-validation} on the Free Spoken Digit Dataset (FSDD)
-\cite{jackson2018fsdd}: no source recording or speaker crosses a split, and SNN
-hyperparameters are selected inside each fold on the held-out validation speaker
-only, then retrained on the combined training and validation data before a
-single evaluation on the untouched test speaker. Model differences are assessed
-with a recording-level paired analysis (bootstrap confidence intervals over
-recordings, Wilcoxon signed-rank, Holm--Bonferroni), with speaker-level
-($n=6$) and seed-level results reported as generalization- and
-optimization-robustness evidence. We report reconstruction quality
+leave-one-group-out cross-validation} on three datasets --- spoken digits
+(FSDD \cite{jackson2018fsdd} and AudioMNIST) and single-lead ECG (MIT-BIH
+Arrhythmia) --- where the group is the speaker or the ECG record: no source
+recording or group crosses a split, and SNN hyperparameters are selected inside
+each fold on the held-out validation group only, then retrained on the combined
+training and validation data before a single evaluation on the untouched test
+group. Model differences are assessed per dataset with a recording-level paired
+analysis (bootstrap confidence intervals over recordings, Wilcoxon signed-rank,
+Holm--Bonferroni), with group-level and seed-level results reported as
+generalization- and optimization-robustness evidence. We report reconstruction quality
 (MSE, MAE, $R^2$) as mean $\pm$ standard deviation over seeds, a raw
 per-class operation count as the primary cost figure (with a weighted proxy
 as a labelled sensitivity analysis), the self-attention $O(T^2 d_{\mathrm{model}})$
@@ -92,16 +96,19 @@ leaking into training or hyperparameter selection --- is lacking.
 are pooled, shuffled, and split, windows from the same utterance --- and the
 same speaker --- appear in both training and validation, so reported errors
 partly measure memorization of speaker- and recording-specific waveform detail.
-Speaker identity is the natural unit of generalization for a spoken-digit
-benchmark, and FSDD provides only six speakers, which also bounds how strong any
-population-level claim can be.
+Speaker (or patient) identity is the natural unit of generalization, and the
+publicly available spoken-digit and ECG benchmarks used here have on the order of
+tens of such groups, which also bounds how strong any population-level claim can
+be. We therefore evaluate on three datasets and make the recording-level paired
+difference, not the group-level one, the primary estimand.
 
 \par This paper addresses these gaps with four contributions:
 \begin{enumerate}
   \item A leakage-controlled protocol: \emph{nested six-fold
-        leave-one-speaker-out cross-validation} on FSDD \cite{jackson2018fsdd}
-        in which no source recording or speaker crosses a split and SNN
-        hyperparameters are selected on the inner validation speaker only.
+        leave-one-group-out cross-validation} on three datasets (FSDD
+        \cite{jackson2018fsdd}, AudioMNIST, MIT-BIH Arrhythmia ECG) in which no
+        source recording or group (speaker / record) crosses a split and SNN
+        hyperparameters are selected on the inner validation group only.
   \item A comparison of four trained autoencoder families under three input
         encodings --- SNN-AE, LSTM-AE, GRU-AE, and a bottlenecked
         Transformer-AE without encoder--decoder cross-attention --- plus PCA
@@ -109,8 +116,8 @@ population-level claim can be.
         harness \cite{furlan2026doi,xtensor}.
   \item A hierarchical statistical analysis with the recording-level paired
         difference as the primary estimand (bootstrap over recordings, Wilcoxon,
-        Holm--Bonferroni), and speaker-level ($n=6$) and seed-level results
-        reported as robustness rather than population inference.
+        Holm--Bonferroni), and group-level and seed-level results reported as
+        robustness rather than population inference.
   \item An analytic computational-cost budget reported as a raw per-class
         operation count (primary) with a weighted proxy as a labelled
         sensitivity analysis, alongside the self-attention
@@ -166,9 +173,9 @@ so measured error conflates generalization with memorization. Speaker-disjoint
 (leave-one-speaker-out) evaluation is the standard remedy; when model or
 hyperparameter selection is also involved, a \emph{nested} scheme is required so
 that the test speaker never influences selection or early stopping
-\cite{cawley2010overfitting}. With only six FSDD speakers, we treat the
-speaker-level result as a robustness check and make the recording-level paired
-difference the primary estimand.
+\cite{cawley2010overfitting}. The benchmarks here have tens of groups at most, so
+we treat the group-level result as a robustness check and make the
+recording-level paired difference the primary estimand.
 
 % ─────────────────────────────────────────────────────────────
 \section{Methodology}
@@ -278,7 +285,7 @@ cell \cite{cho2014gru,chung2014gru}: reset gate $r_t$, update gate $z_t$, and
 candidate $n_t = \tanh\!\big(x_t W_n^\top + r_t \odot (h_{t-1} U_n^\top) + b_n\big)$,
 $h_t = (1-z_t)\odot n_t + z_t \odot h_{t-1}$. Dropping the cell state removes one
 gate's worth of parameters per layer; the real counts are reported in
-Table~\ref{tab:perf}.
+the per-dataset summary tables (Table~\ref{tab:perf-fsdd} and following).
 
 \par \textbf{Transformer-AE (bottlenecked).} The encoder embeds each frame to
 $d_{\mathrm{model}}=64$, adds sinusoidal positional encodings, applies $N$
@@ -418,19 +425,19 @@ the full SNN grid --- pre-processing mode
 $\in\{\text{dense, conv1d, recurrent}\}$, threshold
 $V_{th}\in\{0.5,1.0,1.5\}$, membrane decay $\alpha\in\{0.8,0.9,0.99\}$, three
 encodings --- is trained on that fold's four training speakers and scored on the
-inner validation speaker. The configuration with the lowest validation MSE is
-selected, then \emph{retrained} on the training and validation speakers combined
-and evaluated \emph{once} on the held-out test speaker. Because train and
-validation speakers share no recordings with the test speaker but not with each
+inner validation group. The configuration with the lowest validation MSE is
+selected, then \emph{retrained} on the training and validation groups combined
+and evaluated \emph{once} on the held-out test group. Because train and
+validation groups share no recordings with the test group but not with each
 other, the retrain's early-stopping monitor is a recording-disjoint slice carved
 (seeded, whole recordings) from the training speakers, so no test-speaker signal
 ever reaches a fitting or stopping decision. The per-fold selected configuration
 and its inner-validation scores are written to a selection manifest and
-summarized in Table~\ref{tab:snnsel}.
+summarized per dataset in the selection tables (e.g.\ Table~\ref{tab:snnsel-fsdd}).
 
 \par \textbf{Fixed-architecture baselines.} LSTM-AE, GRU-AE, and Transformer-AE
-use fixed profile architectures; their only use of the validation speaker is
-early stopping, which never touches the test speaker. PCA and the mean-frame
+use fixed profile architectures; their only use of the validation group is
+early stopping, which never touches the test group. PCA and the mean-frame
 predictor are fitted per fold on the training speakers only.
 
 % ── Computational cost ────────────────────────────────────────
@@ -473,14 +480,44 @@ software and a single CPU backend.
 \section{Experimental Setup}
 \label{sec:setup}
 
-\textbf{Dataset.}
-\par The Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd} contains
-recordings of spoken digits (0--9) from six speakers at 8\,kHz. Each recording
-is partitioned into non-overlapping windows of $T=256$ samples ($32\,$ms) with
-stride $S=T$, so consecutive windows share no samples; the full dataset is used
-(no window-count cap). Adjacent windows of one recording remain temporally
-correlated, which motivates the recording-level statistical unit
-(Sec.~\ref{sec:stats}).
+\textbf{Datasets.}
+\par We evaluate on three datasets, each a corpus of 1-D signals with a natural
+group unit for leave-one-group-out (Table~\ref{tab:datasets}):
+\begin{itemize}
+  \item \textbf{FSDD} \cite{jackson2018fsdd} --- spoken digits (0--9), six
+        speakers, $8\,$kHz; group $=$ speaker.
+  \item \textbf{AudioMNIST} --- spoken digits, sixty speakers, offline-resampled
+        from $48\,$kHz to $8\,$kHz; group $=$ speaker. The same task as FSDD at
+        ten times the speaker count.
+  \item \textbf{MIT-BIH Arrhythmia} --- single-lead ECG (lead 0), 48 half-hour
+        records at $360\,$Hz, converted to physical units from the WFDB header;
+        group $=$ record. A few records share a subject (noted in
+        Sec.~\ref{sec:discussion}).
+\end{itemize}
+Every recording is partitioned into non-overlapping windows of $T=256$ samples
+with stride $S=T$. For FSDD all windows are used; for the two larger datasets a
+per-recording cap keeps long or silence-padded recordings from dominating the
+pooled window counts (2 windows/recording for AudioMNIST, 40 for MIT-BIH), which
+also keeps the three datasets' training sizes comparable. Adjacent windows of
+one recording remain temporally correlated, which motivates the recording-level
+statistical unit (Sec.~\ref{sec:stats}).
+
+% Source: hand-authored from src/experiments/guayaquil/profiles/article-loso.json.
+\begin{table}[!t]
+\caption{Datasets. $G$ = group unit; $K$ = outer folds; cap = windows kept per
+recording.}
+\centering\small
+\begin{tabular}{lllrr}
+\toprule
+Dataset & Signal & $G$ & \#$G$ / $K$ & cap \\
+\midrule
+FSDD       & digits, 8\,kHz     & speaker & 6 / 6  & --- \\
+AudioMNIST & digits, 8\,kHz     & speaker & 60 / 6 & 2 \\
+MIT-BIH    & ECG, 360\,Hz       & record  & 48 / 6 & 40 \\
+\bottomrule
+\end{tabular}
+\label{tab:datasets}
+\end{table}
 
 \textbf{Preprocessing.}
 \par Each window is z-score normalised in place (subtract mean, divide by
@@ -490,18 +527,23 @@ latency) re-normalise the z-scored window to its own $(x_{\min}, x_{\max})$
 range internally. The three encodings are deterministic transforms (Poisson uses
 a per-window seeded draw) and are not fitted.
 
-\textbf{Nested leave-one-speaker-out cross-validation.}
-\par The six speakers are assigned deterministic indices $0$--$5$. For outer
-fold $f \in \{0,\dots,5\}$ the test speaker is $f$, the validation speaker is
-$(f+1)\bmod 6$, and the remaining four speakers are the training set. Every
-window is assigned to a split \emph{by its speaker, before any pooling};
-training windows are shuffled (seeded), validation and test windows kept in
-$(\text{recording},\text{position})$ order. Each speaker is the test speaker
-exactly once and the validation speaker exactly once. At run start the harness
-asserts that no \texttt{recording\_id} and no speaker appears in more than one
-split and writes a per-fold split manifest (speaker sets, per-recording window
-counts, content hashes); a violation aborts the run. Headline numbers come only
-from the test-speaker split, aggregated across the six folds.
+\textbf{Nested leave-one-group-out cross-validation.}
+\par For each dataset the distinct groups are sorted and partitioned into $K=6$
+contiguous blocks. For outer fold $f \in \{0,\dots,5\}$ the test block is $f$,
+the validation block is $(f+1)\bmod 6$, and the remaining four blocks train.
+When \#groups $=K$ (FSDD) each block is a single speaker and this is ordinary
+leave-one-speaker-out; when \#groups $>K$ (AudioMNIST: 10 speakers per block;
+MIT-BIH: 8 records per block) it is grouped leave-one-block-out. Every window is
+assigned to a split \emph{by its group, before any pooling}; training windows
+are shuffled (seeded), validation and test windows kept in
+$(\text{recording},\text{position})$ order. Each group is in the test block
+exactly once and the validation block exactly once. At run start the harness
+asserts that no \texttt{recording\_id} and no group appears in more than one
+split and writes a per-fold split manifest (group sets, per-recording window
+counts); a violation aborts the run. Headline numbers come only from the
+test split, aggregated across the six folds. SNN hyperparameters are selected on
+the validation block only, then retrained on train $\cup$ validation before a
+single evaluation on the test block (Sec.~\ref{sec:baselines}).
 
 \begin{figure}[!t]
 \centering
@@ -517,7 +559,7 @@ test splits by speaker before any pooling.}
 \par The C++ harness \cite{furlan2026doi} runs on the XTensor backend
 \cite{xtensor} (CPU-only, CBLAS, SIMD via xsimd). All models --- spiking and
 non-spiking --- are trained and timed on this one backend, so the training and
-inference times in Table~\ref{tab:perf} are directly comparable.
+inference times in the per-dataset summary tables are directly comparable.
 
 \textbf{Metrics.}
 \par Per run we report reconstruction quality (MSE, MAE, $R^2$) and, for cost,
@@ -533,10 +575,10 @@ recording, speaker, or seed level.
 
 \textbf{Profile.}
 \par A single JSON profile (\texttt{article-loso.json}) configures the harness:
-full FSDD, six outer folds, five seeds, the four trained families plus the two
-linear references, three encodings, and the SNN selection grid
-($3\times3\times3$). The run script iterates the outer fold index; a profile
-audit test verifies the profile parses and validates.
+the three datasets, six outer folds, five seeds ($42$--$46$), the four trained
+families plus the two linear references, three encodings, and the SNN selection
+grid ($3\times3\times3$). The run script iterates over (dataset, fold); a
+profile audit test verifies the profile parses and validates.
 
 \begin{figure}[!t]
   \centering
@@ -568,11 +610,11 @@ reported both absolute ($\operatorname{mean}(d_r)$) and relative
 ($\operatorname{mean}(d_r)/\operatorname{mean}(E_{b,\cdot})$). Recordings are the
 smallest unit across which windows are not, by construction, near-duplicates.
 
-\par \textbf{Robustness --- speaker level.} Per held-out speaker (one per fold,
-$n=6$) we form the mean error and run a paired Wilcoxon / sign test. This checks
-whether the sign and rough magnitude of a difference hold across the six FSDD
-speakers; with $n=6$ it is not strong population-level inference and is reported
-as such.
+\par \textbf{Robustness --- group level.} Per held-out group (speaker or ECG
+record) we form the mean error and run a paired Wilcoxon / sign test. This checks
+whether the sign and rough magnitude of a difference hold across a dataset's
+groups; with only tens of groups it is not strong population-level inference and
+is reported as such.
 
 \par \textbf{Descriptive --- window level.} Paired bootstrap on all windows,
 reported but explicitly labelled pseudoreplicated (adjacent windows of a
@@ -593,158 +635,123 @@ analysis code in continuous integration.
 \section{Results}
 \label{sec:results}
 
-\par All numbers in this section come from the held-out test speaker only,
-pooled across the six outer folds, and are reported as mean $\pm$ sample
-standard deviation over the five seeds. Reconstruction quality is in
-Table~\ref{tab:perf} (per model) and Table~\ref{tab:recon} (per model $\times$
-encoding); Fig.~\ref{fig:results} plots the per-encoding test MSE with seed
-error bars. Table~\ref{tab:snnsel} records which SNN pre-processing mode won on
-each fold's validation speaker, and Table~\ref{tab:sig} gives the
-recording-level paired analysis.
+\par All numbers come from the held-out test split only, pooled across the six
+outer folds, reported as mean $\pm$ sample standard deviation over the five
+seeds. Each dataset is reported in its own block: a per-model reconstruction and
+cost table, a per-encoding breakdown, the per-fold SNN selection, the
+recording-level paired analysis, and an MSE bar chart. The mean-frame predictor
+and PCA fix the scale of a ``no-model'' and a ``best linear'' reference; a
+trained model is interesting only to the extent it beats PCA, and an ordering
+among the trained families is asserted only where the Holm-corrected
+recording-level interval excludes zero. Because SNN selection is redone inside
+every fold, ``SNN-AE'' denotes a \emph{selection procedure}; disagreement of the
+selected mode across folds is itself a finding about how encoding-dependent the
+best pre-processing is. The cost columns ($P$, $C_{\mathrm{raw}}$, timing) are
+architecture properties and do not change with the dataset; the Transformer's
+$O(T^2 d_{\mathrm{model}})$ self-attention term shows up in its $C_{\mathrm{raw}}$
+independently of its MSE.
 
-\subsection{Reconstruction quality}
+% \resultsForDataset{<key>}{<Title>} — one block per dataset. All files are
+% regenerated by scripts/pipeline/guayaquil/02_ and 04_; placeholders keep the
+% document compiling before the run.
+\newcommand{\resultsForDataset}[2]{%
+  \subsection{#2}%
+  \begin{table}[!t]
+  \caption{#2: test reconstruction and cost by model (mean $\pm$ std over five
+  seeds; best per column in bold). $P$ = trainable parameters; $C_{\mathrm{raw}}$
+  = raw per-forward-pass operation count. PCA / Mean are analytic references.}
+  \centering\footnotesize
+  \pgfplotstabletypeset[
+    col sep=semicolon,
+    columns={model,mse,mae,r2,params,craw,train_ms,infer_ms},
+    columns/model/.style={string type,column name=Model},
+    columns/mse/.style={string type,column type={r},column name=MSE},
+    columns/mae/.style={string type,column type={r},column name=MAE},
+    columns/r2/.style={string type,column type={r},column name=$R^2$},
+    columns/params/.style={string type,column type={r},column name=$P$},
+    columns/craw/.style={string type,column type={r},column name=$C_{\mathrm{raw}}$},
+    columns/train_ms/.style={string type,column type={r},column name=Tr.\,(ms)},
+    columns/infer_ms/.style={string type,column type={r},column name=Inf.\,(ms)},
+    every head row/.style={before row=\toprule,after row=\midrule},
+    every last row/.style={after row=\bottomrule}
+  ]{data/paper_loso_#1_summary.csv}%
+  \label{tab:perf-#1}
+  \end{table}
+  \begin{table}[!t]
+  \caption{#2: reconstruction per input encoding (mean $\pm$ std over five seeds).}
+  \centering\footnotesize
+  \pgfplotstabletypeset[
+    col sep=semicolon,
+    columns={model,encoding,mse,mae,r2},
+    columns/model/.style={string type,column name=Model},
+    columns/encoding/.style={string type,column name=Enc.},
+    columns/mse/.style={string type,column type={r},column name=MSE},
+    columns/mae/.style={string type,column type={r},column name=MAE},
+    columns/r2/.style={string type,column type={r},column name=$R^2$},
+    every head row/.style={before row=\toprule,after row=\midrule},
+    every last row/.style={after row=\bottomrule}
+  ]{data/paper_loso_#1_recon_by_encoding.csv}
+  \label{tab:recon-#1}
+  \end{table}
+  \begin{table}[!t]
+  \caption{#2: SNN pre-processing mode / $V_{th}$ / $\alpha$ selected on each
+  fold's validation block (parenthesised fraction = seeds not unanimous).}
+  \centering\footnotesize
+  \input{data/paper_loso_#1_snn_selection.tex}
+  \label{tab:snnsel-#1}
+  \end{table}
+  \begin{table}[!t]
+  \caption{#2: recording-level paired analysis. $\overline{d_r}$ = mean
+  per-recording MSE difference (model $-$ reference); negative favours the model.
+  CI = $95\%$ bootstrap over recordings; $p_{\text{Holm}}$ = Holm-corrected
+  Wilcoxon signed-rank.}
+  \centering\footnotesize
+  \input{data/article_loso_#1_significance_recording.tex}
+  \label{tab:sig-#1}
+  \end{table}
+  \begin{figure}[!t]
+    \centering
+    \renewcommand{\loMsePlotData}{data/paper_loso_#1_mse_plot.csv}%
+    \input{figs/fig_results.tex}
+    \caption{#2: test MSE by model and input encoding (mean over seeds and folds;
+    mean-frame omitted for scale).}
+    \label{fig:results-#1}
+  \end{figure}%
+}
 
-% Source: data/paper_loso_summary.csv + data/paper_loso_recon_by_encoding.csv,
-% from scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py.
-% Numeric claims below are regenerated from the run; see the table cells.
-\par Table~\ref{tab:perf} reports test-speaker MSE, MAE, and $R^2$ for the four
-trained families and the two linear references, with each model's real
-parameter count and raw operation count $C_{\mathrm{raw}}$
-(Sec.~\ref{sec:energy}). The mean-frame predictor and PCA fix the scale of a
-"no-model" and a "best linear" reference; a trained model is only interesting to
-the extent it beats PCA. Table~\ref{tab:recon} breaks the same quantities down
-by input encoding.
+\resultsForDataset{fsdd}{FSDD (spoken digits, 6 speakers)}
+\resultsForDataset{audiomnist}{AudioMNIST (spoken digits, sixty speakers)}
+\resultsForDataset{mitbih}{MIT-BIH Arrhythmia (single-lead ECG, 48 records)}
 
-\par \emph{Interpretation is deferred to the regenerated tables:} the earlier,
-leakage-affected version of this study over-stated the SNN advantage because
-train and validation windows shared speakers and recordings with the test
-windows. Under speaker-disjoint nested evaluation the reference points (PCA,
-mean-frame) and the recording-level intervals in Table~\ref{tab:sig} determine
-which differences survive.
-
-\subsection{Per-fold model selection}
-\par Table~\ref{tab:snnsel} lists, for each outer fold and encoding, the SNN
-pre-processing mode, threshold, and decay selected on that fold's validation
-speaker. Because selection is redone inside every fold, the SNN result is the
-performance of a \emph{selection procedure}, not of a single hand-picked
-configuration; disagreement of the selected mode across folds is itself a
-finding about how encoding-dependent the best pre-processing is.
-
-\subsection{Computational cost and timing}
-% Source: data/paper_loso_summary.csv (params, craw, train_ms, infer_ms columns).
-\par Table~\ref{tab:perf} also carries wall-clock training and inference time,
-measured for every model on the one XTensor/CPU backend, and the raw operation
-count. The recurrent baselines and the SNN cost $O(T d H)$ per window; the
-Transformer additionally pays the $O(T^2 d_{\mathrm{model}})$ self-attention
-interaction term, which is reflected in its $C_{\mathrm{raw}}$ column
-independently of its MSE. The weighted proxy $C_{\mathrm{weighted}}$
-(Eq.~\eqref{eq:cweighted}) is reported in the released JSON as a labelled
-sensitivity analysis and is not used for any claim here.
-
-% Source: data/paper_loso_summary.csv, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py (test-split rows,
-% mean +/- sample std over the 5 seeds; best cell per column in \textbf{}).
-\begin{table*}[!t]
-\caption{Test-speaker reconstruction and cost by model, pooled over the six
-outer folds (mean $\pm$ std over five seeds; best per column in bold). $P$ is the
-real trainable-parameter count; $C_{\mathrm{raw}}$ is the raw per-forward-pass
-operation count of Sec.~\ref{sec:energy}. PCA and Mean are analytic references
-(no training, no parameter count).}
-\centering\small
-\pgfplotstabletypeset[
-  col sep=semicolon,
-  columns={model,mse,mae,r2,params,craw,train_ms,infer_ms},
-  columns/model/.style={string type,column name=Model},
-  columns/mse/.style={string type,column type={r},column name=MSE},
-  columns/mae/.style={string type,column type={r},column name=MAE},
-  columns/r2/.style={string type,column type={r},column name=$R^2$},
-  columns/params/.style={string type,column type={r},column name=$P$},
-  columns/craw/.style={string type,column type={r},column name=$C_{\mathrm{raw}}$},
-  columns/train_ms/.style={string type,column type={r},column name=Train\,(ms)},
-  columns/infer_ms/.style={string type,column type={r},column name=Infer\,(ms)},
-  every head row/.style={before row=\toprule,after row=\midrule},
-  every last row/.style={after row=\bottomrule}
-]{data/paper_loso_summary.csv}%
-\label{tab:perf}
-\end{table*}
-
-% Source: data/paper_loso_recon_by_encoding.csv (same provenance as tab:perf).
-\begin{table}[!t]
-\caption{Test-speaker reconstruction per input encoding
-(mean $\pm$ std over five seeds).}
-\centering\small
-\pgfplotstabletypeset[
-  col sep=semicolon,
-  columns={model,encoding,mse,mae,r2},
-  columns/model/.style={string type,column name=Model},
-  columns/encoding/.style={string type,column name=Encoding},
-  columns/mse/.style={string type,column type={r},column name=MSE},
-  columns/mae/.style={string type,column type={r},column name=MAE},
-  columns/r2/.style={string type,column type={r},column name=$R^2$},
-  every head row/.style={before row=\toprule,after row=\midrule},
-  every last row/.style={after row=\bottomrule}
-]{data/paper_loso_recon_by_encoding.csv}
-\label{tab:recon}
-\end{table}
-
-% Source: data/paper_loso_snn_selection.tex, from
-% scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py (modal winning
-% mode per fold x encoding; median V_th / alpha over seeds).
-\begin{table}[!t]
-\caption{SNN pre-processing mode, threshold, and decay selected on each outer
-fold's validation speaker. A parenthesised fraction marks folds where the seeds
-did not unanimously select the same mode.}
-\centering\small
-\input{data/paper_loso_snn_selection.tex}
-\label{tab:snnsel}
-\end{table}
-
-% Source: data/article_loso_significance_recording.tex, from
-% scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py (recording-level
-% paired difference d_r; bootstrap over recordings; Holm across references).
-\begin{table}[!t]
-\caption{Recording-level paired analysis on the test speakers. $\overline{d_r}$
-is the mean per-recording MSE difference (model $-$ reference); a negative value
-favours the model. CI is a $95\%$ bootstrap interval over recordings;
-$p_{\text{Holm}}$ is the Holm-corrected Wilcoxon signed-rank $p$-value.}
-\centering\small
-\input{data/article_loso_significance_recording.tex}
-\label{tab:sig}
-\end{table}
-
-% Source: data/paper_loso_mse_plot.csv (wide: encoding, then one MSE column per
-% model), read by figs/fig_results.tex.
-\begin{figure}[!t]
-  \centering
-  \input{figs/fig_results.tex}
-  \caption{Test-speaker MSE by model and input encoding (mean over seeds and
-  folds; the mean-frame reference is omitted for scale). Error bars, where
-  shown, are $\pm1$ seed standard deviation.}
-  \label{fig:results}
-\end{figure}
+\par \emph{Reading across datasets.} A model family's advantage is credible to
+the extent it recurs on all three datasets' recording-level analyses; an effect
+that appears only on FSDD --- the smallest --- or only on one modality is
+reported as such. The spoken-digit datasets (FSDD, AudioMNIST) test the same
+task at two speaker-pool sizes; MIT-BIH tests whether the ranking transfers to a
+different 1-D signal.
 
 % ─────────────────────────────────────────────────────────────
 \section{Discussion}
 \label{sec:discussion}
 
-\par Two things should be read from Table~\ref{tab:sig} rather than from raw MSE
+\par Two things should be read from the recording-level tables (Table~\ref{tab:sig-fsdd} and following) rather than from raw MSE
 gaps. First, whether each trained family beats the PCA reference at all: under
 speaker-disjoint evaluation, a family whose recording-level interval against PCA
 includes zero has not demonstrated that its nonlinearity buys anything on this
 benchmark. Second, the ordering among SNN-AE, LSTM-AE, GRU-AE, and Transformer-AE
 --- a difference is only asserted where the Holm-corrected interval excludes
-zero. The seed-level and speaker-level ($n=6$) checks in the released JSON say
+zero. The seed-level and group-level checks in the released JSON say
 whether an ordering that holds in the pooled recording-level analysis also holds
 run-to-run and speaker-to-speaker.
 
-\par The encoding comparison (Table~\ref{tab:recon}) is where an SNN-specific
+\par The encoding comparison (the per-dataset per-encoding tables) is where an SNN-specific
 effect is most likely to appear, because the encoding only reshapes the SNN's
 input; the non-spiking baselines consume the same framed window regardless. If
 latency or Poisson coding helps the SNN relative to direct coding, that is a
 property of spike-based representation, not of the reconstruction task.
 
 \par The cost picture is separable from the quality picture. The
-operation-count column of Table~\ref{tab:perf} orders the models by arithmetic
+operation-count column of the summary tables orders the models by arithmetic
 work under matched software; the self-attention $O(T^2 d_{\mathrm{model}})$ term
 makes the Transformer's per-window cost grow faster in sequence length than the
 recurrent models', independent of which model reconstructs best. Wall-clock
@@ -753,11 +760,14 @@ implementation and backend, not silicon-level energy.
 
 \emph{Limitations.}
 \begin{itemize}
-  \item \textbf{Six speakers.} FSDD has six speakers, so the speaker-level
-        analysis has $n=6$ and is a robustness check, not population inference;
-        the recording-level analysis is the primary estimand for this reason.
-  \item \textbf{Single dataset.} Only FSDD is used; the ranking may not transfer
-        to other 1-D signal domains.
+  \item \textbf{Few groups.} The three datasets have 6, 60, and 48 groups; the
+        group-level analysis is a robustness check, not population inference,
+        which is why the recording-level analysis is the primary estimand.
+  \item \textbf{Three small datasets.} Two are the same task (spoken digits) and
+        one is ECG; the ranking may not transfer to other 1-D signal domains.
+        AudioMNIST and MIT-BIH are additionally window-capped per recording (2
+        and 40) to bound compute, and a few MIT-BIH records share a subject, so
+        its record-level grouping is a slight over-count of independent subjects.
   \item \textbf{Cost is not energy.} $C_{\mathrm{raw}}$ and $C_{\mathrm{weighted}}$
         count operations under matched software; real energy depends on memory
         movement, sparsity exploitation, and target hardware. On-device
@@ -766,7 +776,7 @@ implementation and backend, not silicon-level energy.
         remain correlated, so window-level statistics are pseudoreplicated and
         used descriptively only.
   \item \textbf{Approximate parameter matching.} The Transformer-AE is sized
-        \emph{near}, not equal to, the recurrent baselines; Table~\ref{tab:perf}
+        \emph{near}, not equal to, the recurrent baselines; the summary tables
         reports the real counts so cost and quality can be read together.
 \end{itemize}
 
@@ -781,9 +791,10 @@ per-run CSVs are immutable and aggregation never overwrites them.
 \par We compared four trained autoencoder families --- SNN-AE, LSTM-AE, GRU-AE,
 and a bottlenecked Transformer-AE --- under three spike-encoding front ends,
 against PCA and mean-frame linear references, for 1-D temporal signal
-reconstruction on FSDD. The evaluation is leakage-controlled: nested six-fold
-leave-one-speaker-out cross-validation with no recording or speaker crossing a
-split and SNN hyperparameters selected on the inner validation speaker only.
+reconstruction on three datasets (FSDD, AudioMNIST, MIT-BIH ECG). The evaluation
+is leakage-controlled: nested six-fold
+leave-one-group-out cross-validation with no recording or group crossing a
+split and SNN hyperparameters selected on the inner validation group only.
 Differences are reported at the recording level with bootstrap intervals and
 Holm-corrected tests, with speaker- and seed-level results as robustness
 evidence; cost is an analytic per-class operation count, explicitly not an

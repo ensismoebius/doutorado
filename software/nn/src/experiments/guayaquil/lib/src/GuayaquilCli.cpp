@@ -1,5 +1,6 @@
 #include "../include/GuayaquilCli.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -45,6 +46,8 @@ void print_usage(const char* prog)
               << "  --dataset-root <path>            Dataset root directory\n"
               << "  --cv-fold <n>                    Override the profile's nested-LOSO fold "
                  "index (0..cv_num_folds-1)\n"
+              << "  --dataset <name>                 Run only this dataset from "
+                 "evaluation.datasets (fsdd|audiomnist|mitbih)\n"
               << "  --help                            Print this message\n";
 }
 
@@ -92,6 +95,11 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
                 (arg == "--cv-fold") ? next() : arg.substr(std::string("--cv-fold=").size());
             opts.cv_fold = std::stoi(value);
             opts.cv_fold_set = true;
+        }
+        else if (arg == "--dataset" || arg.rfind("--dataset=", 0) == 0)
+        {
+            opts.dataset =
+                (arg == "--dataset") ? next() : arg.substr(std::string("--dataset=").size());
         }
     }
 
@@ -165,6 +173,15 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
         cfg.dataset.cv_fold = cli_opts.cv_fold;
     }
 
+    if (!cli_opts.dataset.empty())
+    {
+        const auto& ds = cfg.evaluation.datasets;
+        if (std::find(ds.begin(), ds.end(), cli_opts.dataset) == ds.end())
+            throw std::runtime_error("--dataset '" + cli_opts.dataset +
+                                     "' is not listed in the profile's evaluation.datasets");
+        cfg.evaluation.datasets = {cli_opts.dataset};
+    }
+
     return cfg;
 }
 
@@ -181,6 +198,14 @@ auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
     j["dataset"]["max_validation_samples"] = cfg.dataset.max_validation_samples;
     j["dataset"]["cv_fold"] = cfg.dataset.cv_fold;
     j["dataset"]["cv_num_folds"] = cfg.dataset.cv_num_folds;
+    j["dataset"]["max_windows_per_recording"] = cfg.dataset.max_windows_per_recording;
+    for (const auto& s : cfg.dataset.sources)
+        j["dataset"]["sources"].push_back({{"name", s.name},
+            {"root", s.root},
+            {"window_size", s.window_size},
+            {"cv_num_folds", s.cv_num_folds},
+            {"sample_rate", s.sample_rate},
+            {"max_windows_per_recording", s.max_windows_per_recording}});
     j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
     j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
     j["training"]["epochs"] = cfg.training.epochs;

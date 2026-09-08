@@ -38,11 +38,24 @@ import collections
 import csv
 import json
 import pathlib
+import re
 import statistics as pystat
 import sys
 from collections import defaultdict
 
 import numpy as np
+
+# "article_loso_audiomnist_fold3_comparative_metrics.csv" -> dataset "audiomnist".
+# Legacy files without a dataset segment ("article_loso_fold3_...") fall back to "fsdd".
+_DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold\d+_")
+DATASET_ORDER = ["fsdd", "audiomnist", "mitbih"]
+DATASET_TITLE = {"fsdd": "FSDD", "audiomnist": "AudioMNIST", "mitbih": "MIT-BIH ECG"}
+
+
+def _dataset_of(path: pathlib.Path, run_tag: str) -> str:
+    rest = path.name[len(run_tag):] if path.name.startswith(run_tag) else path.name
+    m = _DATASET_RE.search(rest)
+    return m["ds"] if m else "fsdd"
 
 # label -> stable column key for the wide plot CSV
 PLOT_KEY = {
@@ -90,13 +103,15 @@ def _mean_std(per_seed: list[float]) -> tuple[float, float]:
 def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     """One dict per test-split comparative row (fold x seed x model x encoding)."""
     rows: list[dict] = []
-    paths = sorted(results_dir.glob(f"{run_tag}_fold*_comparative_metrics.csv"))
+    paths = sorted(results_dir.glob(f"{run_tag}*_fold*_comparative_metrics.csv"))
     for path in paths:
+        ds = _dataset_of(path, run_tag)
         with path.open(encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 if r.get("split") != "test":
                     continue
                 rows.append({
+                    "dataset": ds,
                     "label": _model_label(r["model"], r.get("architecture", "")),
                     "encoding": r["encoding"],
                     "seed": int(r["seed"]),
@@ -117,12 +132,14 @@ def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
 def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     """PCA / Mean test rows from the per-window CSVs (appended by 03_)."""
     rows: list[dict] = []
-    for path in sorted(results_dir.glob(f"{run_tag}_fold*_per_window_errors.csv")):
+    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_per_window_errors.csv")):
+        ds = _dataset_of(path, run_tag)
         with path.open(encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 if r.get("split") != "test" or r["model"] not in ("pca", "mean"):
                     continue
                 rows.append({
+                    "dataset": ds,
                     "label": _model_label(r["model"], ""),
                     "encoding": r["encoding"],
                     "seed": int(r["seed"]),
@@ -139,10 +156,11 @@ def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
 
 def load_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     out: list[dict] = []
-    for path in sorted(results_dir.glob(f"{run_tag}_fold*_*_model_selection_manifest.json")):
+    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_*_model_selection_manifest.json")):
         m = json.loads(path.read_text(encoding="utf-8"))
         sel = m["selected"]
         out.append({
+            "dataset": m.get("dataset", _dataset_of(path, run_tag)),
             "fold": int(m["cv_fold"]),
             "encoding": m["encoding"],
             "test_speaker": m.get("test_speaker", "?"),
@@ -181,7 +199,7 @@ def _fmt_cell(mean: float, std: float, prec: int, bold: bool) -> str:
     return f"\\textbf{{{s}}}" if bold else s
 
 
-def write_summary(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
+def write_summary(rows: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
     agg: dict = {}
     for m in ("mse", "mae", "r2", "train_ms", "infer_ms"):
         agg[m] = {k: _mean_std(v) for k, v in
@@ -200,7 +218,7 @@ def write_summary(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
         if vals:
             best[m] = (min if direction == "min" else max)(vals, key=vals.get)
 
-    out = data_dir / "paper_loso_summary.csv"
+    out = data_dir / f"paper_loso_{infix}summary.csv"
     with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(["model", "mse", "mae", "r2", "params", "craw", "train_ms", "infer_ms"])
@@ -218,12 +236,12 @@ def write_summary(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
     return out
 
 
-def write_recon_by_encoding(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
+def write_recon_by_encoding(rows: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
     agg: dict = {}
     for m in ("mse", "mae", "r2"):
         agg[m] = {k: _mean_std(v) for k, v in
                   _per_seed_means(rows, lambda r: (r["label"], r["encoding"]), m).items()}
-    out = data_dir / "paper_loso_recon_by_encoding.csv"
+    out = data_dir / f"paper_loso_{infix}recon_by_encoding.csv"
     with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(["model", "encoding", "mse", "mae", "r2"])
@@ -240,11 +258,11 @@ def write_recon_by_encoding(rows: list[dict], data_dir: pathlib.Path) -> pathlib
     return out
 
 
-def write_mse_plot(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
+def write_mse_plot(rows: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
     per = _per_seed_means(rows, lambda r: (r["label"], r["encoding"]), "mse")
     present = _order({lab for (lab, _e) in per})
     cols = [PLOT_KEY[lab] for lab in present if lab in PLOT_KEY]
-    out = data_dir / "paper_loso_mse_plot.csv"
+    out = data_dir / f"paper_loso_{infix}mse_plot.csv"
     with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["encoding"] + cols)
@@ -259,7 +277,7 @@ def write_mse_plot(rows: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
     return out
 
 
-def write_snn_selection_tex(sel: list[dict], data_dir: pathlib.Path) -> pathlib.Path:
+def write_snn_selection_tex(sel: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
     """One row per (fold, encoding): modal winning mode + median V_th/alpha over seeds."""
     by: dict = defaultdict(list)
     for s in sel:
@@ -284,7 +302,7 @@ def write_snn_selection_tex(sel: list[dict], data_dir: pathlib.Path) -> pathlib.
             f"{mode_cell} & {vth:.2f} & {alpha:.2f} \\\\"
         )
     lines += [r"\bottomrule", r"\end{tabular}", ""]
-    out = data_dir / "paper_loso_snn_selection.tex"
+    out = data_dir / f"paper_loso_{infix}snn_selection.tex"
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
 
@@ -310,16 +328,30 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     sel = load_selection(args.results_dir, args.run_tag)
 
-    written = [
-        write_summary(rows, args.data_dir),
-        write_recon_by_encoding(rows, args.data_dir),
-        write_mse_plot(rows, args.data_dir),
-    ]
-    if sel:
-        written.append(write_snn_selection_tex(sel, args.data_dir))
-    else:
-        print("[loso-data] no model_selection_manifest.json found -- skipping selection table",
-              file=sys.stderr)
+    datasets = sorted({r["dataset"] for r in rows},
+                      key=lambda d: (DATASET_ORDER.index(d) if d in DATASET_ORDER else 99, d))
+    written: list[pathlib.Path] = []
+    for ds in datasets:
+        infix = f"{ds}_"
+        d_rows = [r for r in rows if r["dataset"] == ds]
+        d_sel = [s for s in sel if s.get("dataset") == ds]
+        written += [
+            write_summary(d_rows, args.data_dir, infix),
+            write_recon_by_encoding(d_rows, args.data_dir, infix),
+            write_mse_plot(d_rows, args.data_dir, infix),
+        ]
+        if d_sel:
+            written.append(write_snn_selection_tex(d_sel, args.data_dir, infix))
+
+    # datasets.tex: the \foreach list the paper iterates.
+    dtex = args.data_dir / "paper_loso_datasets.tex"
+    dtex.write_text(
+        "% auto-generated by 02_guayaquil_build_loso_paper_data.py\n"
+        + "".join(f"\\loParseDataset{{{d}}}{{{DATASET_TITLE.get(d, d)}}}\n" for d in datasets),
+        encoding="utf-8",
+    )
+    written.append(dtex)
+    print(f"[loso-data] {len(datasets)} dataset(s): {', '.join(datasets)}")
     print("[loso-data] wrote " + ", ".join(p.name for p in written) + f" to {args.data_dir}")
     return 0
 

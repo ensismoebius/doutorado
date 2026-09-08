@@ -52,6 +52,7 @@ add_library(guayaquil_lib STATIC
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilCli.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilConfig.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilDataset.cpp
+    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilMitBih.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilMetrics.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEvaluation.cpp

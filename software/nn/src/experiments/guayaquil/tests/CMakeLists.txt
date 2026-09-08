@@ -100,6 +100,32 @@ target_link_libraries(profile_audit_gtest
 nn_gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
+# Grouped-window dataset sources (FSDD / AudioMNIST / MIT-BIH): fast real-loader checks.
+add_executable(loaders_gtest
+    loaders_gtest.cpp
+)
+
+target_include_directories(loaders_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${CMAKE_SOURCE_DIR}/src/experiments/guayaquil/lib/src
+)
+
+target_link_libraries(loaders_gtest
+    PRIVATE
+        google_test
+        guayaquil_lib
+        autoencoderRunner_lib
+        data_loaders_fsdd
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+nn_gtest_discover_tests(loaders_gtest)
+configure_xtensor_parallel_target(loaders_gtest)
+
 # Parameter-count audit: documented P for LSTM-/GRU-/Transformer-AE at the article config.
 add_executable(parameter_count_gtest
     parameter_count_gtest.cpp

@@ -21,6 +21,20 @@ struct GuayaquilConfig
         bool check_determinism = false;  // optional
     };
 
+    // Per-dataset override. When evaluation.datasets names something other than
+    // the default "fsdd" root, a matching entry here supplies its root, window
+    // size, fold count, native sample rate, and per-recording window cap. Any
+    // field left 0 / empty inherits the singular Dataset value below.
+    struct DatasetSource
+    {
+        std::string name;                  // REQUIRED ("fsdd" | "audiomnist" | "mitbih")
+        std::string root;                  // REQUIRED
+        int window_size = 0;               // 0 → inherit Dataset::window_size
+        int cv_num_folds = 0;              // 0 → inherit Dataset::cv_num_folds
+        int sample_rate = 0;               // native rate to resample from (0 → loader default)
+        int max_windows_per_recording = 0; // 0 → unlimited (FSDD); >0 caps long recordings
+    };
+
     struct Dataset
     {
         std::string dataset_root;                      // REQUIRED
@@ -28,14 +42,40 @@ struct GuayaquilConfig
         int window_size = 0;                           // REQUIRED (validated > 0)
         int max_loaded_train_samples = 0;              // REQUIRED (validated > 0)
         int max_validation_samples = 0;                // REQUIRED (validated > 0)
-        // Nested leave-one-speaker-out cross-validation (article pipeline).
+        // Nested leave-one-group-out cross-validation (article pipeline).
         // cv_fold < 0  → legacy pooled split (physionet / ad-hoc runs).
-        // cv_fold >= 0 → speaker-disjoint fold; must be < cv_num_folds, which
-        //               must equal the number of distinct FSDD speakers.
-        int cv_fold = -1;                // optional
-        int cv_num_folds = 6;            // optional (FSDD speaker count)
-        std::string latex_data_dir = ""; // optional
-        bool save_models = false;        // optional
+        // cv_fold >= 0 → speaker/group-disjoint fold; must be < cv_num_folds,
+        //               which must not exceed the distinct speaker count.
+        int cv_fold = -1;                   // optional
+        int cv_num_folds = 6;               // optional (FSDD speaker count)
+        int max_windows_per_recording = 0;  // optional (0 = unlimited; default source)
+        std::string latex_data_dir = "";    // optional
+        bool save_models = false;           // optional
+        std::vector<DatasetSource> sources; // optional per-dataset overrides
+
+        // Resolve the effective source for `name`. "fsdd" (or any name with no
+        // explicit entry) falls back to the singular Dataset fields.
+        [[nodiscard]] auto resolve(const std::string& name) const -> DatasetSource
+        {
+            DatasetSource s;
+            s.name = name;
+            s.root = dataset_root;
+            s.window_size = window_size;
+            s.cv_num_folds = cv_num_folds;
+            s.max_windows_per_recording = max_windows_per_recording;
+            for (const auto& e : sources)
+            {
+                if (e.name != name) continue;
+                if (!e.root.empty()) s.root = e.root;
+                if (e.window_size > 0) s.window_size = e.window_size;
+                if (e.cv_num_folds > 0) s.cv_num_folds = e.cv_num_folds;
+                if (e.sample_rate > 0) s.sample_rate = e.sample_rate;
+                if (e.max_windows_per_recording > 0)
+                    s.max_windows_per_recording = e.max_windows_per_recording;
+                break;
+            }
+            return s;
+        }
     };
 
     struct Training
@@ -101,6 +141,21 @@ struct GuayaquilConfig
 
     void validate() const;
 
+    static void parse_sources(const nlohmann::json& arr, std::vector<DatasetSource>& out)
+    {
+        for (const auto& e : arr)
+        {
+            DatasetSource s;
+            s.name = e.at("name").get<std::string>();
+            s.root = e.value("root", std::string{});
+            s.window_size = e.value("window_size", 0);
+            s.cv_num_folds = e.value("cv_num_folds", 0);
+            s.sample_rate = e.value("sample_rate", 0);
+            s.max_windows_per_recording = e.value("max_windows_per_recording", 0);
+            out.push_back(std::move(s));
+        }
+    }
+
     static GuayaquilConfig from_flat_json(const nlohmann::json& j)
     {
         GuayaquilConfig cfg;
@@ -125,8 +180,10 @@ struct GuayaquilConfig
         get("max_validation_samples", cfg.dataset.max_validation_samples);
         get("cv_fold", cfg.dataset.cv_fold);
         get("cv_num_folds", cfg.dataset.cv_num_folds);
+        get("max_windows_per_recording", cfg.dataset.max_windows_per_recording);
         get("latex_data_dir", cfg.dataset.latex_data_dir);
         get("save_models", cfg.dataset.save_models);
+        if (j.contains("dataset_sources")) parse_sources(j["dataset_sources"], cfg.dataset.sources);
 
         // Training
         get("samples_per_batch", cfg.training.samples_per_batch);
@@ -220,9 +277,11 @@ struct GuayaquilConfig
         require(dat, "dataset", "max_validation_samples", cfg.dataset.max_validation_samples);
         get(dat, "cv_fold", cfg.dataset.cv_fold);
         get(dat, "cv_num_folds", cfg.dataset.cv_num_folds);
+        get(dat, "max_windows_per_recording", cfg.dataset.max_windows_per_recording);
         get(dat, "results_dir", cfg.dataset.results_dir);
         get(dat, "latex_data_dir", cfg.dataset.latex_data_dir);
         get(dat, "save_models", cfg.dataset.save_models);
+        if (dat.contains("sources")) parse_sources(dat["sources"], cfg.dataset.sources);
 
         // --- training ---
         require(trn, "training", "samples_per_batch", cfg.training.samples_per_batch);

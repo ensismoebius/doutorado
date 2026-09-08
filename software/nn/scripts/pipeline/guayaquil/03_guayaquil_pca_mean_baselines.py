@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     rdir: pathlib.Path = args.results_dir
-    train_files = sorted(rdir.glob(f"{args.run_tag}_fold*_*_train_windows.npy"))
+    train_files = sorted(rdir.glob(f"{args.run_tag}*_fold*_*_train_windows.npy"))
     if not train_files:
         print(f"[pca-mean] no dump files under {rdir} for tag {args.run_tag}", file=sys.stderr)
         return 1
@@ -122,7 +122,9 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
 
-        pw_csv = rdir / f"{args.run_tag}_fold{fold}_per_window_errors.csv"
+        # tag already carries the dataset segment (e.g. "article_loso_audiomnist"),
+        # so the per-window CSV this appends to is dataset-specific.
+        pw_csv = rdir / f'{m["tag"]}_fold{fold}_per_window_errors.csv'
 
         mu = train.mean(axis=0, keepdims=True)
         mean_mse, mean_mae = _per_window_errors(test, np.repeat(mu, test.shape[0], axis=0))

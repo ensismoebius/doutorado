@@ -36,11 +36,22 @@ import csv
 import json
 import math
 import pathlib
+import re
 import sys
 from collections import defaultdict
 
 import numpy as np
 from scipy import stats
+
+_DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold\d+_")
+DATASET_ORDER = ["fsdd", "audiomnist", "mitbih"]
+
+
+def _dataset_of(path: pathlib.Path, run_tag: str) -> str:
+    rest = path.name[len(run_tag):] if path.name.startswith(run_tag) else path.name
+    m = _DATASET_RE.search(rest)
+    return m["ds"] if m else "fsdd"
+
 
 TRAINED = ["snn-ae", "lstm-ae", "gru-ae", "transformer-ae"]
 REFERENCES = ["pca", "mean"]
@@ -52,13 +63,15 @@ RNG = np.random.default_rng(20260908)
 
 def load_per_window(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     rows: list[dict] = []
-    files = sorted(results_dir.glob(f"{run_tag}_fold*_per_window_errors.csv"))
+    files = sorted(results_dir.glob(f"{run_tag}*_fold*_per_window_errors.csv"))
     for path in files:
+        ds = _dataset_of(path, run_tag)
         with path.open(encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 if r.get("split") != "test":
                     continue
                 rows.append({
+                    "dataset": ds,
                     "model": r["model"],
                     "encoding": r["encoding"],
                     "seed": int(r["seed"]),
@@ -312,12 +325,20 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 1
 
-    analysis = analyse(rows)
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    datasets = sorted({r.get("dataset", "fsdd") for r in rows},
+                      key=lambda d: (DATASET_ORDER.index(d) if d in DATASET_ORDER else 99, d))
+    combined: dict = {}
+    for ds in datasets:
+        d_rows = [r for r in rows if r.get("dataset", "fsdd") == ds]
+        analysis = analyse(d_rows)
+        combined[ds] = analysis
+        write_recording_tex(
+            analysis, args.out_dir / f"{args.run_tag}_{ds}_significance_recording.tex")
     (args.out_dir / f"{args.run_tag}_significance.json").write_text(
-        json.dumps(analysis, indent=2), encoding="utf-8")
-    write_recording_tex(analysis, args.out_dir / f"{args.run_tag}_significance_recording.tex")
-    print(f"[significance] wrote {args.run_tag}_significance.json + _recording.tex to {args.out_dir}")
+        json.dumps(combined, indent=2), encoding="utf-8")
+    print(f"[significance] wrote {args.run_tag}_significance.json + per-dataset "
+          f"_significance_recording.tex ({', '.join(datasets)}) to {args.out_dir}")
     return 0
 
 

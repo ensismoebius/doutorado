@@ -263,6 +263,34 @@ TEST(GuayaquilConfigValidation, AcceptsTheTrainedBaselineTriple)
     EXPECT_NO_THROW(cfg.validate());
 }
 
+TEST(GuayaquilConfigValidation, DatasetSourceResolutionInheritsAndOverrides)
+{
+    auto cfg = valid_config();
+    cfg.dataset.dataset_root = "/data/fsdd";
+    cfg.dataset.window_size = 256;
+    cfg.dataset.cv_num_folds = 6;
+    cfg.dataset.max_windows_per_recording = 0;
+    cfg.dataset.sources = {
+        {"fsdd", "/data/fsdd", 0, 6, 0, 0},
+        {"mitbih", "/data/mitbih", 0, 6, 360, 40},
+    };
+
+    const auto fsdd = cfg.dataset.resolve("fsdd");
+    EXPECT_EQ(fsdd.root, "/data/fsdd");
+    EXPECT_EQ(fsdd.window_size, 256); // inherited
+    EXPECT_EQ(fsdd.max_windows_per_recording, 0);
+
+    const auto mit = cfg.dataset.resolve("mitbih");
+    EXPECT_EQ(mit.root, "/data/mitbih");
+    EXPECT_EQ(mit.window_size, 256); // inherited
+    EXPECT_EQ(mit.sample_rate, 360); // overridden
+    EXPECT_EQ(mit.max_windows_per_recording, 40);
+
+    // A name with no entry falls back entirely to the singular Dataset fields.
+    const auto other = cfg.dataset.resolve("audiomnist");
+    EXPECT_EQ(other.root, "/data/fsdd");
+}
+
 TEST(GuayaquilConfigValidation, RejectsAFoldOutsideTheFoldCount)
 {
     auto cfg = valid_config();

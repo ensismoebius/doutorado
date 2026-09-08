@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <map>
 #include <numeric>
 #include <random>
 #include <set>
 #include <stdexcept>
 #include <string>
 
+#include "GuayaquilMitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
 
@@ -84,30 +86,45 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
 
     std::set<int> distinct;
     for (const auto& m : meta) distinct.insert(m.speaker_id);
-    if (static_cast<int>(distinct.size()) != num_folds)
+    if (static_cast<int>(distinct.size()) < num_folds)
         throw std::runtime_error("assign_speaker_fold: metadata has " +
                                  std::to_string(distinct.size()) +
                                  " distinct speakers but num_folds=" + std::to_string(num_folds) +
-                                 " — set dataset.cv_num_folds to the speaker count.");
+                                 " — cv_num_folds must not exceed the speaker count.");
 
+    // Grouped leave-one-group-out: partition the sorted speaker ids into
+    // `num_folds` contiguous groups. Fold f's test group is group f, its
+    // validation group is group (f+1) mod num_folds, and everything else trains.
+    // When distinct == num_folds each group holds exactly one speaker and this
+    // reduces to the original leave-one-speaker-out behaviour (FSDD).
     const std::vector<int> sorted_ids(distinct.begin(), distinct.end()); // std::set is ordered
-    const int test_sid = sorted_ids[static_cast<std::size_t>(cv_fold)];
-    const int val_sid = sorted_ids[static_cast<std::size_t>((cv_fold + 1) % num_folds)];
+    const int n = static_cast<int>(sorted_ids.size());
+    auto group_of = [&](int rank) { return (rank * num_folds) / n; };
+
+    std::map<int, int> group_by_sid;
+    for (int rank = 0; rank < n; ++rank)
+        group_by_sid.emplace(sorted_ids[static_cast<std::size_t>(rank)], group_of(rank));
+
+    const int test_group = cv_fold;
+    const int val_group = (cv_fold + 1) % num_folds;
 
     SpeakerFoldAssignment out;
     std::set<std::string> train_spk;
+    std::set<std::string> val_spk;
+    std::set<std::string> test_spk;
     for (std::size_t i = 0; i < meta.size(); ++i)
     {
         const WindowMetadata& m = meta[i];
-        if (m.speaker_id == test_sid)
+        const int g = group_by_sid.at(m.speaker_id);
+        if (g == test_group)
         {
             out.test_idx.push_back(i);
-            out.test_speaker = m.speaker;
+            test_spk.insert(m.speaker);
         }
-        else if (m.speaker_id == val_sid)
+        else if (g == val_group)
         {
             out.val_idx.push_back(i);
-            out.val_speaker = m.speaker;
+            val_spk.insert(m.speaker);
         }
         else
         {
@@ -115,7 +132,15 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
             train_spk.insert(m.speaker);
         }
     }
+    auto join = [](const std::set<std::string>& s)
+    {
+        std::string r;
+        for (const auto& x : s) r += (r.empty() ? "" : ",") + x;
+        return r;
+    };
     out.train_speakers.assign(train_spk.begin(), train_spk.end());
+    out.val_speaker = join(val_spk);
+    out.test_speaker = join(test_spk);
 
     if (out.train_idx.empty() || out.val_idx.empty() || out.test_idx.empty())
         throw std::runtime_error(
@@ -201,18 +226,71 @@ auto build_legacy_split(const GuayaquilConfig& cfg, const std::string& dataset) 
     return split;
 }
 
-// Nested leave-one-speaker-out fold for FSDD. Windows are partitioned BY SPEAKER
-// before any pooling, so no speaker and no source recording crosses a boundary.
-// The SNN hyperparameter sweep selects on `val` only; the winning config is
-// retrained on train ∪ val and evaluated once on `test`.
-auto build_loso_split(const GuayaquilConfig& cfg, int cv_fold) -> DatasetSplit
+struct GroupedWindows
 {
-    nn::dataLoaders::fsdd::FsddWindowDataset ds(cfg.dataset.dataset_root, cfg.dataset.window_size);
-    const auto& windows = ds.windows();
-    const auto& meta = ds.metadata();
-    if (windows.empty()) throw std::runtime_error("build_loso_split: no FSDD windows loaded");
+    std::vector<Tensor> windows;
+    std::vector<WindowMetadata> meta;
+};
 
-    const SpeakerFoldAssignment fold = assign_speaker_fold(meta, cv_fold, cfg.dataset.cv_num_folds);
+// Load every window + parallel metadata for one dataset source. FSDD and the
+// (offline-resampled, 8 kHz) AudioMNIST corpus share the FSDD WAV loader; MIT-BIH
+// uses the format-212 WFDB reader. A per-recording window cap keeps long
+// recordings (ECG, silence-padded speech) from dominating the pooled counts;
+// cap 0 = keep all (FSDD).
+auto load_grouped_windows(const std::string& dataset, const GuayaquilConfig::DatasetSource& src)
+    -> GroupedWindows
+{
+    GroupedWindows g;
+    if (dataset == "fsdd" || dataset == "audiomnist")
+    {
+        nn::dataLoaders::fsdd::FsddWindowDataset ds(src.root, src.window_size);
+        g.windows = ds.windows();
+        g.meta = ds.metadata();
+    }
+    else if (dataset == "mitbih")
+    {
+        MitBihWindowDataset ds(src.root, src.window_size);
+        g.windows = ds.windows();
+        g.meta = ds.metadata();
+    }
+    else
+    {
+        throw std::runtime_error("load_grouped_windows: unknown grouped dataset '" + dataset +
+                                 "' (expected fsdd | audiomnist | mitbih)");
+    }
+
+    if (src.max_windows_per_recording > 0)
+    {
+        std::vector<Tensor> w;
+        std::vector<WindowMetadata> m;
+        for (std::size_t i = 0; i < g.meta.size(); ++i)
+        {
+            if (g.meta[i].source_window_index >= src.max_windows_per_recording) continue;
+            w.push_back(std::move(g.windows[i]));
+            m.push_back(g.meta[i]);
+        }
+        g.windows = std::move(w);
+        g.meta = std::move(m);
+    }
+    return g;
+}
+
+// Nested leave-one-group-out fold. Windows are partitioned BY SPEAKER/GROUP
+// before any pooling, so no speaker/record and no source recording crosses a
+// boundary. The SNN hyperparameter sweep selects on `val` only; the winning
+// config is retrained on train ∪ val and evaluated once on `test`.
+auto build_loso_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
+    -> DatasetSplit
+{
+    const GuayaquilConfig::DatasetSource src = cfg.dataset.resolve(dataset);
+    const GroupedWindows loaded = load_grouped_windows(dataset, src);
+    const auto& windows = loaded.windows;
+    const auto& meta = loaded.meta;
+    if (windows.empty())
+        throw std::runtime_error(
+            "build_loso_split: no windows loaded for dataset '" + dataset + "'");
+
+    const SpeakerFoldAssignment fold = assign_speaker_fold(meta, cv_fold, src.cv_num_folds);
 
     DatasetSplit split;
     split.train_speakers = fold.train_speakers;
@@ -269,7 +347,8 @@ auto build_loso_split(const GuayaquilConfig& cfg, int cv_fold) -> DatasetSplit
 auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
-    if (dataset == "fsdd" && cv_fold >= 0) return build_loso_split(cfg, cv_fold);
+    if (cv_fold >= 0 && (dataset == "fsdd" || dataset == "audiomnist" || dataset == "mitbih"))
+        return build_loso_split(cfg, dataset, cv_fold);
     return build_legacy_split(cfg, dataset);
 }
 
