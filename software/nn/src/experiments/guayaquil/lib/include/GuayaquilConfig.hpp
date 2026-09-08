@@ -28,8 +28,14 @@ struct GuayaquilConfig
         int window_size = 0;                           // REQUIRED (validated > 0)
         int max_loaded_train_samples = 0;              // REQUIRED (validated > 0)
         int max_validation_samples = 0;                // REQUIRED (validated > 0)
-        std::string latex_data_dir = "";               // optional
-        bool save_models = false;                      // optional
+        // Nested leave-one-speaker-out cross-validation (article pipeline).
+        // cv_fold < 0  → legacy pooled split (physionet / ad-hoc runs).
+        // cv_fold >= 0 → speaker-disjoint fold; must be < cv_num_folds, which
+        //               must equal the number of distinct FSDD speakers.
+        int cv_fold = -1;                // optional
+        int cv_num_folds = 6;            // optional (FSDD speaker count)
+        std::string latex_data_dir = ""; // optional
+        bool save_models = false;        // optional
     };
 
     struct Training
@@ -105,6 +111,8 @@ struct GuayaquilConfig
         get("window_size", cfg.dataset.window_size);
         get("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
         get("max_validation_samples", cfg.dataset.max_validation_samples);
+        get("cv_fold", cfg.dataset.cv_fold);
+        get("cv_num_folds", cfg.dataset.cv_num_folds);
         get("latex_data_dir", cfg.dataset.latex_data_dir);
         get("save_models", cfg.dataset.save_models);
 
@@ -193,6 +201,8 @@ struct GuayaquilConfig
         require(dat, "dataset", "window_size", cfg.dataset.window_size);
         require(dat, "dataset", "max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
         require(dat, "dataset", "max_validation_samples", cfg.dataset.max_validation_samples);
+        get(dat, "cv_fold", cfg.dataset.cv_fold);
+        get(dat, "cv_num_folds", cfg.dataset.cv_num_folds);
         get(dat, "results_dir", cfg.dataset.results_dir);
         get(dat, "latex_data_dir", cfg.dataset.latex_data_dir);
         get(dat, "save_models", cfg.dataset.save_models);

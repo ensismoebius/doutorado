@@ -66,16 +66,32 @@ void check_dataset(const GuayaquilConfig& config, std::ostringstream& errors)
                << ") must divide dataset.window_size (" << dataset.window_size << ")\n";
     }
 
-    if (dataset.max_loaded_train_samples <= 0)
+    // Under nested LOSO (cv_fold >= 0) the split is speaker-disjoint and uses
+    // every window, so the pooled-split sample caps do not apply. They are still
+    // required for the legacy pooled path.
+    const bool loso = dataset.cv_fold >= 0;
+
+    if (!loso && dataset.max_loaded_train_samples <= 0)
     {
         errors << "  - dataset.max_loaded_train_samples must be > 0 (got "
                << dataset.max_loaded_train_samples << ")\n";
     }
 
-    if (dataset.max_validation_samples <= 0)
+    if (!loso && dataset.max_validation_samples <= 0)
     {
         errors << "  - dataset.max_validation_samples must be > 0 (got "
                << dataset.max_validation_samples << ")\n";
+    }
+
+    if (dataset.cv_fold >= 0 && dataset.cv_fold >= dataset.cv_num_folds)
+    {
+        errors << "  - dataset.cv_fold (" << dataset.cv_fold << ") must be < dataset.cv_num_folds ("
+               << dataset.cv_num_folds << ")\n";
+    }
+
+    if (dataset.cv_num_folds < 2)
+    {
+        errors << "  - dataset.cv_num_folds must be >= 2 (got " << dataset.cv_num_folds << ")\n";
     }
 }
 
@@ -92,7 +108,7 @@ void check_training(const GuayaquilConfig& config, std::ostringstream& errors)
                << ")\n";
     }
 
-    if (training.samples_per_batch > dataset.max_loaded_train_samples)
+    if (dataset.cv_fold < 0 && training.samples_per_batch > dataset.max_loaded_train_samples)
     {
         errors << "  - training.samples_per_batch (" << training.samples_per_batch
                << ") exceeds max_loaded_train_samples (" << dataset.max_loaded_train_samples

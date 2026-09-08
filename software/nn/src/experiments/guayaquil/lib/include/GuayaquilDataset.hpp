@@ -15,6 +15,9 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
 auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>;
 
-auto build_split(const GuayaquilConfig& cfg, const std::string& dataset) -> DatasetSplit;
+// cv_fold < 0 → legacy pooled split; cv_fold >= 0 → nested leave-one-speaker-out
+// fold (FSDD only), speaker- and recording-disjoint across train/val/test.
+auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold = -1)
+    -> DatasetSplit;
 
 } // namespace guayaquil

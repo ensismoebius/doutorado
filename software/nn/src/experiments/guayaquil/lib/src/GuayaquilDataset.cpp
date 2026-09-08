@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <numeric>
 #include <random>
+#include <set>
 #include <stdexcept>
+#include <string>
 
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
@@ -70,7 +72,14 @@ auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset
     return files;
 }
 
-auto build_split(const GuayaquilConfig& cfg, const std::string& dataset) -> DatasetSplit
+namespace
+{
+
+// Legacy pooled split: shuffle every window and slice off the validation tail.
+// This CANNOT protect against speaker/recording leakage and is kept only for the
+// non-FSDD (physionet CSV) experiments and for ad-hoc runs that pass cv_fold < 0.
+// The article pipeline always passes cv_fold >= 0 → build_loso_split below.
+auto build_legacy_split(const GuayaquilConfig& cfg, const std::string& dataset) -> DatasetSplit
 {
     DatasetSplit split;
     std::vector<Tensor> all_samples;
@@ -135,7 +144,105 @@ auto build_split(const GuayaquilConfig& cfg, const std::string& dataset) -> Data
         all_samples.begin() + static_cast<long>(train_count), all_samples.end());
     split.val_labels.assign(all_labels.begin() + static_cast<long>(train_count), all_labels.end());
 
+    // Legacy path has no held-out test speaker; downstream evaluates on val.
     return split;
+}
+
+// Nested leave-one-speaker-out fold for FSDD. Windows are partitioned BY SPEAKER
+// before any pooling, so no speaker and no source recording crosses a boundary.
+//
+//   test  = { sorted_speaker[cv_fold] }
+//   val   = { sorted_speaker[(cv_fold + 1) mod K] }   (rotating validation)
+//   train = the remaining K - 2 speakers
+//
+// The SNN hyperparameter sweep selects on `val` only; the winning config is
+// retrained on train ∪ val and evaluated once on `test`.
+auto build_loso_split(const GuayaquilConfig& cfg, int cv_fold) -> DatasetSplit
+{
+    const int num_folds = cfg.dataset.cv_num_folds;
+    if (cv_fold < 0 || cv_fold >= num_folds)
+        throw std::runtime_error("build_loso_split: cv_fold " + std::to_string(cv_fold) +
+                                 " out of range [0, " + std::to_string(num_folds) + ")");
+
+    nn::dataLoaders::fsdd::FsddWindowDataset ds(cfg.dataset.dataset_root, cfg.dataset.window_size);
+    const auto& windows = ds.windows();
+    const auto& meta = ds.metadata();
+    if (windows.empty()) throw std::runtime_error("build_loso_split: no FSDD windows loaded");
+
+    std::set<int> speaker_ids;
+    for (const auto& m : meta) speaker_ids.insert(m.speaker_id);
+    if (static_cast<int>(speaker_ids.size()) != num_folds)
+        throw std::runtime_error(
+            "build_loso_split: FSDD root has " + std::to_string(speaker_ids.size()) +
+            " distinct speakers but cv_num_folds=" + std::to_string(num_folds) +
+            " — set dataset.cv_num_folds to the speaker count.");
+
+    const std::vector<int> sorted_ids(speaker_ids.begin(), speaker_ids.end());
+    const int test_sid = sorted_ids[static_cast<std::size_t>(cv_fold)];
+    const int val_sid = sorted_ids[static_cast<std::size_t>((cv_fold + 1) % num_folds)];
+
+    DatasetSplit split;
+    std::set<std::string> train_spk;
+    for (std::size_t i = 0; i < windows.size(); ++i)
+    {
+        const auto& m = meta[i];
+        if (m.speaker_id == test_sid)
+        {
+            split.test_samples.push_back(windows[i]);
+            split.test_meta.push_back(m);
+            split.test_labels.push_back(m.digit);
+            split.test_speaker = m.speaker;
+        }
+        else if (m.speaker_id == val_sid)
+        {
+            split.val_samples.push_back(windows[i]);
+            split.val_meta.push_back(m);
+            split.val_labels.push_back(m.digit);
+            split.val_speaker = m.speaker;
+        }
+        else
+        {
+            split.train_samples.push_back(windows[i]);
+            split.train_meta.push_back(m);
+            train_spk.insert(m.speaker);
+        }
+    }
+    split.train_speakers.assign(train_spk.begin(), train_spk.end());
+
+    // Deterministic shuffle of the train windows, carrying the parallel metadata.
+    {
+        std::vector<std::size_t> idx(split.train_samples.size());
+        std::iota(idx.begin(), idx.end(), 0u);
+        std::mt19937 rng(cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u);
+        std::shuffle(idx.begin(), idx.end(), rng);
+
+        std::vector<Tensor> s;
+        std::vector<WindowMetadata> mm;
+        s.reserve(idx.size());
+        mm.reserve(idx.size());
+        for (std::size_t j : idx)
+        {
+            s.push_back(std::move(split.train_samples[j]));
+            mm.push_back(split.train_meta[j]);
+        }
+        split.train_samples = std::move(s);
+        split.train_meta = std::move(mm);
+    }
+
+    if (split.train_samples.empty() || split.val_samples.empty() || split.test_samples.empty())
+        throw std::runtime_error("build_loso_split: fold " + std::to_string(cv_fold) +
+                                 " produced an empty train/val/test partition.");
+
+    return split;
+}
+
+} // namespace
+
+auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
+    -> DatasetSplit
+{
+    if (dataset == "fsdd" && cv_fold >= 0) return build_loso_split(cfg, cv_fold);
+    return build_legacy_split(cfg, dataset);
 }
 
 } // namespace guayaquil

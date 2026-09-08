@@ -617,7 +617,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         for (const auto& dataset_name : config.evaluation.datasets)
         {
-            const DatasetSplit split = build_split(config, dataset_name);
+            const DatasetSplit split = build_split(config, dataset_name, config.dataset.cv_fold);
 
             for (const auto& encoding : config.evaluation.encodings)
             {
