@@ -79,12 +79,17 @@ PY="python3"
 [[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
 PAPER_DATA="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data"
 
+# Order matters: 03_ appends the pca/mean rows that 02_ and 04_ then read.
 echo "[loso-run] fitting PCA / mean-frame reference baselines (per fold, train-only)"
 "$PY" scripts/pipeline/guayaquil/03_guayaquil_pca_mean_baselines.py \
   --results-dir results/guayaquil --run-tag article_loso --latent 32
+
+echo "[loso-run] aggregating per-fold test rows into paper tables (mean +/- std over seeds)"
+"$PY" scripts/pipeline/guayaquil/02_guayaquil_build_loso_paper_data.py \
+  --results-dir results/guayaquil --run-tag article_loso --data-dir "$PAPER_DATA"
 
 echo "[loso-run] hierarchical significance analysis (recording-level primary)"
 "$PY" scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py \
   --results-dir results/guayaquil --run-tag article_loso --out-dir "$PAPER_DATA"
 
-echo "[loso-run] done — raw per-fold CSVs + per_window_errors.csv + *_significance.json ready"
+echo "[loso-run] done — per-fold CSVs, per_window_errors.csv, paper_loso_*.csv, *_significance.json ready"
