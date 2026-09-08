@@ -100,6 +100,32 @@ target_link_libraries(profile_audit_gtest
 nn_gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
+# Split audit: nested LOSO fold assignment is speaker/recording/window disjoint.
+add_executable(guayaquil_split_audit_gtest
+    split_audit_gtest.cpp
+)
+
+target_include_directories(guayaquil_split_audit_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(guayaquil_split_audit_gtest
+    PRIVATE
+        google_test
+        guayaquil_lib
+        autoencoderRunner_lib
+        tensor
+        layers
+        data_loaders
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+nn_gtest_discover_tests(guayaquil_split_audit_gtest)
+configure_xtensor_parallel_target(guayaquil_split_audit_gtest)
+
 # LSTM microbench (ops breakdown)
 add_executable(lstm_ops_microbench
     lstm_ops_microbench.cpp

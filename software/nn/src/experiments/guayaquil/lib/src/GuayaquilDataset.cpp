@@ -72,6 +72,59 @@ auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset
     return files;
 }
 
+auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int num_folds)
+    -> SpeakerFoldAssignment
+{
+    if (num_folds < 2)
+        throw std::runtime_error(
+            "assign_speaker_fold: num_folds must be >= 2 (got " + std::to_string(num_folds) + ")");
+    if (cv_fold < 0 || cv_fold >= num_folds)
+        throw std::runtime_error("assign_speaker_fold: cv_fold " + std::to_string(cv_fold) +
+                                 " out of range [0, " + std::to_string(num_folds) + ")");
+
+    std::set<int> distinct;
+    for (const auto& m : meta) distinct.insert(m.speaker_id);
+    if (static_cast<int>(distinct.size()) != num_folds)
+        throw std::runtime_error("assign_speaker_fold: metadata has " +
+                                 std::to_string(distinct.size()) +
+                                 " distinct speakers but num_folds=" + std::to_string(num_folds) +
+                                 " — set dataset.cv_num_folds to the speaker count.");
+
+    const std::vector<int> sorted_ids(distinct.begin(), distinct.end()); // std::set is ordered
+    const int test_sid = sorted_ids[static_cast<std::size_t>(cv_fold)];
+    const int val_sid = sorted_ids[static_cast<std::size_t>((cv_fold + 1) % num_folds)];
+
+    SpeakerFoldAssignment out;
+    std::set<std::string> train_spk;
+    for (std::size_t i = 0; i < meta.size(); ++i)
+    {
+        const WindowMetadata& m = meta[i];
+        if (m.speaker_id == test_sid)
+        {
+            out.test_idx.push_back(i);
+            out.test_speaker = m.speaker;
+        }
+        else if (m.speaker_id == val_sid)
+        {
+            out.val_idx.push_back(i);
+            out.val_speaker = m.speaker;
+        }
+        else
+        {
+            out.train_idx.push_back(i);
+            train_spk.insert(m.speaker);
+        }
+    }
+    out.train_speakers.assign(train_spk.begin(), train_spk.end());
+
+    if (out.train_idx.empty() || out.val_idx.empty() || out.test_idx.empty())
+        throw std::runtime_error(
+            "assign_speaker_fold: fold " + std::to_string(cv_fold) +
+            " produced an empty train/val/test partition (num_folds too small?).");
+
+    return out;
+}
+
 namespace
 {
 
@@ -150,64 +203,39 @@ auto build_legacy_split(const GuayaquilConfig& cfg, const std::string& dataset) 
 
 // Nested leave-one-speaker-out fold for FSDD. Windows are partitioned BY SPEAKER
 // before any pooling, so no speaker and no source recording crosses a boundary.
-//
-//   test  = { sorted_speaker[cv_fold] }
-//   val   = { sorted_speaker[(cv_fold + 1) mod K] }   (rotating validation)
-//   train = the remaining K - 2 speakers
-//
 // The SNN hyperparameter sweep selects on `val` only; the winning config is
 // retrained on train ∪ val and evaluated once on `test`.
 auto build_loso_split(const GuayaquilConfig& cfg, int cv_fold) -> DatasetSplit
 {
-    const int num_folds = cfg.dataset.cv_num_folds;
-    if (cv_fold < 0 || cv_fold >= num_folds)
-        throw std::runtime_error("build_loso_split: cv_fold " + std::to_string(cv_fold) +
-                                 " out of range [0, " + std::to_string(num_folds) + ")");
-
     nn::dataLoaders::fsdd::FsddWindowDataset ds(cfg.dataset.dataset_root, cfg.dataset.window_size);
     const auto& windows = ds.windows();
     const auto& meta = ds.metadata();
     if (windows.empty()) throw std::runtime_error("build_loso_split: no FSDD windows loaded");
 
-    std::set<int> speaker_ids;
-    for (const auto& m : meta) speaker_ids.insert(m.speaker_id);
-    if (static_cast<int>(speaker_ids.size()) != num_folds)
-        throw std::runtime_error(
-            "build_loso_split: FSDD root has " + std::to_string(speaker_ids.size()) +
-            " distinct speakers but cv_num_folds=" + std::to_string(num_folds) +
-            " — set dataset.cv_num_folds to the speaker count.");
-
-    const std::vector<int> sorted_ids(speaker_ids.begin(), speaker_ids.end());
-    const int test_sid = sorted_ids[static_cast<std::size_t>(cv_fold)];
-    const int val_sid = sorted_ids[static_cast<std::size_t>((cv_fold + 1) % num_folds)];
+    const SpeakerFoldAssignment fold = assign_speaker_fold(meta, cv_fold, cfg.dataset.cv_num_folds);
 
     DatasetSplit split;
-    std::set<std::string> train_spk;
-    for (std::size_t i = 0; i < windows.size(); ++i)
+    split.train_speakers = fold.train_speakers;
+    split.val_speaker = fold.val_speaker;
+    split.test_speaker = fold.test_speaker;
+
+    for (std::size_t i : fold.test_idx)
     {
-        const auto& m = meta[i];
-        if (m.speaker_id == test_sid)
-        {
-            split.test_samples.push_back(windows[i]);
-            split.test_meta.push_back(m);
-            split.test_labels.push_back(m.digit);
-            split.test_speaker = m.speaker;
-        }
-        else if (m.speaker_id == val_sid)
-        {
-            split.val_samples.push_back(windows[i]);
-            split.val_meta.push_back(m);
-            split.val_labels.push_back(m.digit);
-            split.val_speaker = m.speaker;
-        }
-        else
-        {
-            split.train_samples.push_back(windows[i]);
-            split.train_meta.push_back(m);
-            train_spk.insert(m.speaker);
-        }
+        split.test_samples.push_back(windows[i]);
+        split.test_meta.push_back(meta[i]);
+        split.test_labels.push_back(meta[i].digit);
     }
-    split.train_speakers.assign(train_spk.begin(), train_spk.end());
+    for (std::size_t i : fold.val_idx)
+    {
+        split.val_samples.push_back(windows[i]);
+        split.val_meta.push_back(meta[i]);
+        split.val_labels.push_back(meta[i].digit);
+    }
+    for (std::size_t i : fold.train_idx)
+    {
+        split.train_samples.push_back(windows[i]);
+        split.train_meta.push_back(meta[i]);
+    }
 
     // Deterministic shuffle of the train windows, carrying the parallel metadata.
     {
