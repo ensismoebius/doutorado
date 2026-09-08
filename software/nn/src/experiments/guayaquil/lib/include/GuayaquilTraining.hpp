@@ -9,7 +9,11 @@
 #include "GuayaquilRunMetrics.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
+#include "models/gru/GRUAutoencoder.hpp"
+#include "models/gru/GRUAutoencoderConfig.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
+#include "models/transformer/TransformerAutoencoder.hpp"
+#include "models/transformer/TransformerAutoencoderConfig.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -19,6 +23,9 @@ namespace guayaquil
 using Tensor = nn::Tensor;
 
 auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
+auto make_gru_cfg(const GuayaquilConfig& cfg) -> nn::models::gru::GRUAutoencoderConfig;
+auto make_transformer_cfg(const GuayaquilConfig& cfg)
+    -> nn::models::transformer::TransformerAutoencoderConfig;
 auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th)
     -> nn::models::autoencoder::AutoencoderConfig;
 
@@ -29,6 +36,28 @@ struct TrainResult
 };
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
+    const GuayaquilConfig& cfg,
+    const std::vector<Tensor>& train_samples,
+    const std::vector<Tensor>& val_samples,
+    const std::string& encoding,
+    std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
+    float& train_ms,
+    float& infer_ms) -> TrainResult;
+
+auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
+    const GuayaquilConfig& cfg,
+    const std::vector<Tensor>& train_samples,
+    const std::vector<Tensor>& val_samples,
+    const std::string& encoding,
+    std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
+    float& train_ms,
+    float& infer_ms) -> TrainResult;
+
+auto train_with_early_stopping_transformer(nn::models::transformer::TransformerAutoencoder& model,
     const GuayaquilConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,

@@ -63,6 +63,13 @@ struct GuayaquilConfig
         int lstm_frame_size = 8;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
+        // Bottlenecked Transformer-AE baseline dimensions (used only when
+        // "transformer-ae" is in evaluation.baselines). Defaults sit near the
+        // recurrent baselines' parameter count; the real count is reported.
+        int transformer_d_model = 64;
+        int transformer_heads = 4;
+        int transformer_layers = 2;
+        int transformer_d_ff = 128;
         std::string loss_type = "mse";               // optional (from model.loss_function)
         std::vector<std::string> encoder_layer_spec; // REQUIRED
         std::vector<std::string> decoder_layer_spec; // REQUIRED
@@ -138,6 +145,10 @@ struct GuayaquilConfig
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
+        get("transformer_d_model", cfg.model.transformer_d_model);
+        get("transformer_heads", cfg.model.transformer_heads);
+        get("transformer_layers", cfg.model.transformer_layers);
+        get("transformer_d_ff", cfg.model.transformer_d_ff);
         get("encoder_layer_spec", cfg.model.encoder_layer_spec);
         get("decoder_layer_spec", cfg.model.decoder_layer_spec);
         get("branch_encoder_layer_spec", cfg.model.branch_encoder_layer_spec);
@@ -231,6 +242,10 @@ struct GuayaquilConfig
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);
+        get(mdl, "transformer_d_model", cfg.model.transformer_d_model);
+        get(mdl, "transformer_heads", cfg.model.transformer_heads);
+        get(mdl, "transformer_layers", cfg.model.transformer_layers);
+        get(mdl, "transformer_d_ff", cfg.model.transformer_d_ff);
         get(mdl, "branch_encoder_layer_spec", cfg.model.branch_encoder_layer_spec);
         get(mdl, "branch_decoder_layer_spec", cfg.model.branch_decoder_layer_spec);
         get(mdl, "fusion_encoder_layer_spec", cfg.model.fusion_encoder_layer_spec);

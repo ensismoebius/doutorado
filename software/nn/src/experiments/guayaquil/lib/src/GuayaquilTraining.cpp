@@ -10,6 +10,7 @@
 #include "../include/GuayaquilEncoding.hpp"
 #include "../include/GuayaquilEvaluation.hpp"
 #include "../include/GuayaquilMetrics.hpp"
+#include "GuayaquilAeCommon.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "training/EarlyStoppingCallback.hpp"
@@ -194,95 +195,111 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float& train_ms,
     float& infer_ms) -> TrainResult
 {
-    // LSTM processes one sequence at a time (no 3-D batching).
-    nn::training::TrainerConfig tcfg = make_trainer_config(cfg);
-    tcfg.batch_size = 1;
-
-    nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, tcfg);
-
-    const std::string label = "LSTM-AE: encoding=" + encoding;
-    auto lstm_cb = std::make_shared<nn::training::ProgressCallback>(label);
-    lstm_cb->set_metadata(
-        "LSTM Autoencoder", static_cast<int>(run_id + 1), static_cast<int>(total_runs), "MSE");
-    trainer.add_callback(lstm_cb);
-
-    auto stopper =
-        std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
-    trainer.add_callback(stopper);
-
-    auto batch_collector = std::make_shared<BatchLossCollector>();
-    trainer.add_callback(batch_collector);
-
-    std::vector<LstmTensor> train_backend_samples;
-    train_backend_samples.reserve(train_samples.size());
-    for (const auto& sample : train_samples) train_backend_samples.emplace_back(sample);
-
-    std::vector<LstmTensor> val_backend_samples;
-    val_backend_samples.reserve(val_samples.size());
-    for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
-
-    // Reset LSTM state and encode each sample before forward.
-    const int lstm_frame = cfg.model.lstm_frame_size;
-    trainer.set_sample_transform(
-        [&model, &encoding, seed, lstm_frame](const LstmTensor& s, std::size_t idx) -> LstmTensor
-        {
-            model.reset_state();
-            // Encode on the flat window, then frame — the encodings operate on
-            // the (window_size, 1) layout.
-            return LstmTensor(to_lstm_frames(
-                encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx)),
-                lstm_frame));
-        });
-
-    const auto t0 = std::chrono::steady_clock::now();
-    const auto epoch_results = trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
-    const auto t1 = std::chrono::steady_clock::now();
-    train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
-
-    // Inference timing
-    const auto infer_start = std::chrono::steady_clock::now();
-    for (std::size_t i = 0; i < val_samples.size(); ++i)
-    {
-        const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
-            lstm_frame);
-        model.reset_state();
-        (void) model.forward(LstmTensor(encoded), false);
-    }
-    const auto infer_end = std::chrono::steady_clock::now();
-    infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
-
-    RunMetrics metrics = evaluate_lstm(model,
+    return train_ae(model,
+        cfg,
+        train_samples,
         val_samples,
-        std::vector<int>(val_samples.size(), 0),
-        cfg.training.max_reconstruct_mean_deviation,
-        estimate_lstm_macs(make_lstm_cfg(cfg)),
-        parameter_count(model.params()),
         encoding,
         seed,
-        infer_ms,
-        lstm_frame);
+        run_id,
+        total_runs,
+        "LSTM-AE: encoding=" + encoding,
+        "LSTM Autoencoder",
+        estimate_lstm_macs(make_lstm_cfg(cfg)),
+        train_ms,
+        infer_ms);
+}
 
-    EpochHistory history;
-    for (const auto& er : epoch_results)
-    {
-        history.epoch_nums.push_back(static_cast<float>(er.epoch));
-        history.train_losses.push_back(er.train_loss);
-        history.val_losses.push_back(er.val_loss);
-    }
+// ---------------------------------------------------------------------------
+// GRU / Transformer training — same frame-consuming path as the LSTM-AE.
+// ---------------------------------------------------------------------------
 
-    const int batches_per_epoch =
-        train_samples.size() / std::max(1, cfg.training.samples_per_batch);
-    int batch_idx = 0;
-    for (const auto& batch_loss : batch_collector->batch_losses)
-    {
-        const int current_epoch = (batch_idx / std::max(1, batches_per_epoch)) + 1;
-        history.batch_losses.push_back(batch_loss);
-        history.batch_epochs.push_back(static_cast<float>(current_epoch));
-        ++batch_idx;
-    }
+auto make_gru_cfg(const GuayaquilConfig& cfg) -> nn::models::gru::GRUAutoencoderConfig
+{
+    const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
+    const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                                   cfg.model.decoder_layer_spec)
+                                             : sizes.front();
+    const int derived_latent =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
-    return TrainResult{metrics, history};
+    nn::models::gru::GRUAutoencoderConfig arch;
+    arch.input_size = cfg.model.lstm_frame_size;
+    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
+    arch.hidden_size =
+        (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
+    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
+    return arch;
+}
+
+auto make_transformer_cfg(const GuayaquilConfig& cfg)
+    -> nn::models::transformer::TransformerAutoencoderConfig
+{
+    const int derived_latent =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+
+    nn::models::transformer::TransformerAutoencoderConfig arch;
+    arch.input_size = cfg.model.lstm_frame_size;
+    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
+    arch.d_model = cfg.model.transformer_d_model;
+    arch.n_heads = cfg.model.transformer_heads;
+    arch.n_layers = cfg.model.transformer_layers;
+    arch.d_ff = cfg.model.transformer_d_ff;
+    arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
+    return arch;
+}
+
+auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
+    const GuayaquilConfig& cfg,
+    const std::vector<Tensor>& train_samples,
+    const std::vector<Tensor>& val_samples,
+    const std::string& encoding,
+    std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
+    float& train_ms,
+    float& infer_ms) -> TrainResult
+{
+    return train_ae(model,
+        cfg,
+        train_samples,
+        val_samples,
+        encoding,
+        seed,
+        run_id,
+        total_runs,
+        "GRU-AE: encoding=" + encoding,
+        "GRU Autoencoder",
+        estimate_gru_macs(make_gru_cfg(cfg)),
+        train_ms,
+        infer_ms);
+}
+
+auto train_with_early_stopping_transformer(nn::models::transformer::TransformerAutoencoder& model,
+    const GuayaquilConfig& cfg,
+    const std::vector<Tensor>& train_samples,
+    const std::vector<Tensor>& val_samples,
+    const std::string& encoding,
+    std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
+    float& train_ms,
+    float& infer_ms) -> TrainResult
+{
+    return train_ae(model,
+        cfg,
+        train_samples,
+        val_samples,
+        encoding,
+        seed,
+        run_id,
+        total_runs,
+        "Transformer-AE: encoding=" + encoding,
+        "Transformer Autoencoder",
+        estimate_transformer_macs(make_transformer_cfg(cfg)),
+        train_ms,
+        infer_ms);
 }
 
 // ---------------------------------------------------------------------------
