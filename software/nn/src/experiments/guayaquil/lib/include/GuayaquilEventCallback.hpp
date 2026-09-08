@@ -1,0 +1,89 @@
+#pragma once
+// GuayaquilEventCallback.hpp — training callback that turns Trainer lifecycle
+// hooks into structured JSONL events (config_begin / epoch / train_end) on the
+// process-wide ExperimentEvents sink. Sibling of GuayaquilEpochLogger (which
+// writes the human-readable [loso] stderr lines).
+//
+// Identity + static config come from ExperimentEvents::pending_context(), set by
+// the driver immediately before each training call — so this callback takes no
+// constructor arguments and no experiment signature has to grow an event param.
+//
+// OBSERVABILITY ONLY: never influences training (no should_stop override, no
+// mutation of state).
+
+#include <limits>
+#include <vector>
+
+#include "GuayaquilEvents.hpp"
+#include "core/training/EpochResult.hpp"
+#include "training/ITrainingCallback.hpp"
+#include "training/TrainingState.hpp"
+
+namespace guayaquil
+{
+
+class GuayaquilEventCallback : public nn::training::ITrainingCallback
+{
+   public:
+    GuayaquilEventCallback() : ctx_(ExperimentEvents::instance().pending_context()) {}
+
+    void on_train_begin(int total_epochs) override
+    {
+        if (total_epochs > 0) ctx_.max_epochs = total_epochs;
+        ExperimentEvents::instance().emit("config_begin",
+            {{"config_id", ctx_.config_id},
+                {"model", ctx_.model},
+                {"encoding", ctx_.encoding},
+                {"role", ctx_.role},
+                {"hyperparams", ctx_.hyperparams},
+                {"run_id", ctx_.run_id},
+                {"seed", ctx_.seed},
+                {"max_epochs", ctx_.max_epochs},
+                {"lr", jnum(ctx_.lr)},
+                {"lr_biophysical", jnum(ctx_.lr_biophysical)},
+                {"early_stop_patience", ctx_.early_stop_patience},
+                {"param_count", ctx_.param_count},
+                {"macs", ctx_.macs}});
+    }
+
+    void on_epoch_end(
+        const nn::training::TrainingState& /*state*/, const nn::training::EpochResult& r) override
+    {
+        ExperimentEvents::instance().emit("epoch",
+            {{"config_id", ctx_.config_id},
+                {"epoch", r.epoch},
+                {"max_epochs", ctx_.max_epochs},
+                {"train_loss", jnum(r.train_loss)},
+                {"val_loss", jnum(r.val_loss)},
+                {"epoch_ms", jnum(r.epoch_ms)},
+                {"mean_spike_rate", jnum(r.mean_spike_rate)},
+                {"sops", r.sops}});
+    }
+
+    void on_train_end(const std::vector<nn::training::EpochResult>& history) override
+    {
+        int best_epoch = 0;
+        float best = std::numeric_limits<float>::infinity();
+        for (const auto& e : history)
+        {
+            const float v = std::isnan(e.val_loss) ? e.train_loss : e.val_loss;
+            if (v < best)
+            {
+                best = v;
+                best_epoch = e.epoch;
+            }
+        }
+        const bool early = static_cast<int>(history.size()) < ctx_.max_epochs;
+        ExperimentEvents::instance().emit("train_end",
+            {{"config_id", ctx_.config_id},
+                {"epochs_run", static_cast<int>(history.size())},
+                {"stop_reason", early ? "early_stop" : "max_epochs"},
+                {"best_val_loss", jnum(best)},
+                {"best_val_epoch", best_epoch}});
+    }
+
+   private:
+    EventContext ctx_;
+};
+
+} // namespace guayaquil

@@ -1,5 +1,7 @@
 #include "progress/ProgressManager.hpp"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -138,7 +140,17 @@ void append_bold_cell(std::ostream& os, std::string_view text, std::size_t width
 
 ProgressManager::ProgressManager()
 {
+    // No live TUI when stdout is redirected / piped / not a terminal — the absolute-cursor
+    // control sequences would otherwise land verbatim in the log file.
+    enabled_.store(::isatty(STDOUT_FILENO) != 0);
     render_thread_ = std::thread(&ProgressManager::render_loop, this);
+}
+
+void ProgressManager::set_enabled(bool enabled)
+{
+    // Only ever tightens: a non-TTY stdout can never be forced back on.
+    if (enabled && ::isatty(STDOUT_FILENO) == 0) return;
+    enabled_.store(enabled);
 }
 
 ProgressManager::~ProgressManager()
@@ -158,10 +170,12 @@ void ProgressManager::shutdown()
         std::cout << "\033[2J\033[H";
         std::cout.flush();
     }
-    // Flush accumulated log messages to stdout after bars are gone.
+    // Flush any log messages not yet emitted (disabled mode drains them as it goes;
+    // enabled mode buffered them under the bars).
     std::lock_guard<std::mutex> lock(manager_mutex_);
     for (const auto& msg : messages_) std::cout << msg << "\n";
     if (!messages_.empty()) std::cout.flush();
+    messages_.clear();
 }
 
 uint32_t ProgressManager::create_bar(const std::string& label, float target)
@@ -263,6 +277,14 @@ void ProgressManager::complete_bar(uint32_t id)
 
 void ProgressManager::log(const std::string& msg)
 {
+    if (!enabled_.load())
+    {
+        // No bars to render above — emit the line straight away, in order.
+        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::cout << msg << "\n";
+        std::cout.flush();
+        return;
+    }
     std::lock_guard<std::mutex> lock(manager_mutex_);
     messages_.push_back(msg);
 }
@@ -491,7 +513,16 @@ void ProgressManager::render_loop()
     {
         {
             std::lock_guard<std::mutex> lock(manager_mutex_);
-            if (entries_.empty())
+            if (!enabled_.load())
+            {
+                // Non-TTY: no cursor control at all. log() already emitted its lines;
+                // just drop completed bars so state does not accrue unbounded.
+                entries_.erase(std::remove_if(entries_.begin(),
+                                   entries_.end(),
+                                   [](const auto& e) { return e->completed.load(); }),
+                    entries_.end());
+            }
+            else if (entries_.empty())
             {
             }
             else

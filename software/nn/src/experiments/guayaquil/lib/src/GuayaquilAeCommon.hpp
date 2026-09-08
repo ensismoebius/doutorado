@@ -25,6 +25,7 @@
 #include "../include/GuayaquilEncoding.hpp"
 #include "../include/GuayaquilEpochHistory.hpp"
 #include "../include/GuayaquilEpochLogger.hpp"
+#include "../include/GuayaquilEventCallback.hpp"
 #include "../include/GuayaquilMetrics.hpp"
 #include "../include/GuayaquilPerWindow.hpp"
 #include "../include/GuayaquilRunMetrics.hpp"
@@ -197,6 +198,10 @@ auto train_ae(Model& model,
     // Plain per-epoch log lines (survive nohup / pipes, where the live bars collapse).
     trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
         progress_context(cfg, run_id, total_runs, seed), progress_label));
+
+    // Structured JSONL events for the live monitor (identity from the driver's
+    // pending context). No-op when the events sink was never opened.
+    trainer.add_callback(std::make_shared<GuayaquilEventCallback>());
 
     trainer.add_callback(
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience));

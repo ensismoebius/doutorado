@@ -48,6 +48,8 @@ void print_usage(const char* prog)
                  "index (0..cv_num_folds-1)\n"
               << "  --dataset <name>                 Run only this dataset from "
                  "evaluation.datasets (fsdd|audiomnist|mitbih)\n"
+              << "  --no-tui                          Disable the live progress TUI "
+                 "(auto-off when stdout is not a terminal)\n"
               << "  --help                            Print this message\n";
 }
 
@@ -100,6 +102,10 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         {
             opts.dataset =
                 (arg == "--dataset") ? next() : arg.substr(std::string("--dataset=").size());
+        }
+        else if (arg == "--no-tui")
+        {
+            opts.no_tui = true;
         }
     }
 
@@ -199,13 +205,19 @@ auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
     j["dataset"]["cv_fold"] = cfg.dataset.cv_fold;
     j["dataset"]["cv_num_folds"] = cfg.dataset.cv_num_folds;
     j["dataset"]["max_windows_per_recording"] = cfg.dataset.max_windows_per_recording;
+    j["dataset"]["loso_max_train_windows"] = cfg.dataset.loso_max_train_windows;
+    j["dataset"]["loso_max_val_windows"] = cfg.dataset.loso_max_val_windows;
+    j["dataset"]["loso_max_test_windows"] = cfg.dataset.loso_max_test_windows;
     for (const auto& s : cfg.dataset.sources)
         j["dataset"]["sources"].push_back({{"name", s.name},
             {"root", s.root},
             {"window_size", s.window_size},
             {"cv_num_folds", s.cv_num_folds},
             {"sample_rate", s.sample_rate},
-            {"max_windows_per_recording", s.max_windows_per_recording}});
+            {"max_windows_per_recording", s.max_windows_per_recording},
+            {"loso_max_train_windows", s.loso_max_train_windows},
+            {"loso_max_val_windows", s.loso_max_val_windows},
+            {"loso_max_test_windows", s.loso_max_test_windows}});
     j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
     j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
     j["training"]["epochs"] = cfg.training.epochs;

@@ -126,6 +126,31 @@ target_link_libraries(loaders_gtest
 nn_gtest_discover_tests(loaders_gtest)
 configure_xtensor_parallel_target(loaders_gtest)
 
+# Structured JSONL event sink for the live monitor (schema helpers + round-trip).
+add_executable(event_sink_gtest
+    event_sink_gtest.cpp
+)
+
+target_include_directories(event_sink_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${CMAKE_SOURCE_DIR}/src/experiments/guayaquil/lib/src
+)
+
+target_link_libraries(event_sink_gtest
+    PRIVATE
+        google_test
+        guayaquil_lib
+        autoencoderRunner_lib
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+nn_gtest_discover_tests(event_sink_gtest)
+configure_xtensor_parallel_target(event_sink_gtest)
+
 # Parameter-count audit: documented P for LSTM-/GRU-/Transformer-AE at the article config.
 add_executable(parameter_count_gtest
     parameter_count_gtest.cpp

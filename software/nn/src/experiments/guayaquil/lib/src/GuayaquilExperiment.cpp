@@ -18,6 +18,8 @@
 #include "../include/GuayaquilCli.hpp"
 #include "../include/GuayaquilDataset.hpp"
 #include "../include/GuayaquilEvaluation.hpp"
+#include "../include/GuayaquilEventCallback.hpp"
+#include "../include/GuayaquilEvents.hpp"
 #include "../include/GuayaquilMetrics.hpp"
 #include "../include/GuayaquilOutput.hpp"
 #include "../include/GuayaquilPerWindow.hpp"
@@ -170,6 +172,40 @@ auto fold_output_tag(const GuayaquilConfig& c, const std::string& dataset) -> st
     return t;
 }
 
+// Serializes a completed ResultRow as a `config_end` event for the live monitor.
+// `config_id` / `role` identify the training; every RunMetrics field is passed
+// through at full precision (NaN → null). No-op when the events sink is closed.
+void emit_config_end(const ResultRow& row, const std::string& config_id, const std::string& role)
+{
+    ExperimentEvents::instance().emit("config_end",
+        {{"config_id", config_id},
+            {"model", row.model},
+            {"encoding", row.encoding},
+            {"role", role},
+            {"architecture", row.architecture},
+            {"hyperparams",
+                row.model == "snn-ae" ? nlohmann::json{{"v_th", row.v_th},
+                                            {"alpha", row.alpha},
+                                            {"architecture", row.architecture}}
+                                      : nlohmann::json::object()},
+            {"run_id", row.run_id},
+            {"seed", row.seed},
+            {"split", row.split},
+            {"cv_fold", row.cv_fold},
+            {"metrics",
+                {{"mse", jnum(row.metrics.mse)},
+                    {"mae", jnum(row.metrics.mae)},
+                    {"r2", jnum(row.metrics.r2)},
+                    {"precision", jnum(row.metrics.precision)},
+                    {"recall", jnum(row.metrics.recall)},
+                    {"f1", jnum(row.metrics.f1)},
+                    {"spike_rate", jnum(row.metrics.spike_rate)},
+                    {"train_ms", jnum(row.metrics.train_ms)},
+                    {"infer_ms", jnum(row.metrics.infer_ms)},
+                    {"param_count", row.metrics.parameter_count},
+                    {"macs", row.metrics.macs}}}});
+}
+
 // Resolved output locations for one experiment run: raw metrics/summary files, saved model
 // dumps, and resume checkpoints.
 struct OutputDirs
@@ -319,16 +355,37 @@ void run_baseline(const GuayaquilConfig& config,
     const auto val_chk = checkpoint_path(chk_dir, val_key);
     const auto test_chk = checkpoint_path(chk_dir, test_key);
 
+    const std::string config_id =
+        make_config_id(fam.token, encoding, "baseline", 0.0f, 0.0f, run_seed, run_id + 1);
+
     const bool val_cached = checkpoint_is_valid(val_chk, cfg_hash);
     const bool test_cached = !has_test || checkpoint_is_valid(test_chk, cfg_hash);
     if (val_cached && test_cached)
     {
         all_rows.push_back(checkpoint_load(val_chk));
-        if (has_test) all_rows.push_back(checkpoint_load(test_chk));
+        emit_config_end(all_rows.back(), config_id, "baseline");
+        if (has_test)
+        {
+            all_rows.push_back(checkpoint_load(test_chk));
+            emit_config_end(all_rows.back(), config_id, "baseline");
+        }
         nn::progress::ProgressManager::instance().update_bar(
             run_bar, static_cast<float>(++completed_runs));
         return;
     }
+
+    EventContext evctx;
+    evctx.config_id = config_id;
+    evctx.model = fam.token;
+    evctx.encoding = encoding;
+    evctx.role = "baseline";
+    evctx.run_id = run_id + 1;
+    evctx.seed = run_seed;
+    evctx.max_epochs = config.training.epochs;
+    evctx.lr = config.training.learning_rate;
+    evctx.lr_biophysical = config.training.learning_rate_biophysical;
+    evctx.early_stop_patience = config.training.early_stop_patience;
+    ExperimentEvents::instance().set_pending_context(evctx);
 
     nn::progress::ProgressManager::instance().set_description(run_bar,
         dataset_name + " fold" + std::to_string(config.dataset.cv_fold) + " · " + fam.token +
@@ -374,6 +431,7 @@ void run_baseline(const GuayaquilConfig& config,
         "val",
         val_metrics));
     checkpoint_save(val_chk, all_rows.back(), train_result.history, cfg_hash);
+    emit_config_end(all_rows.back(), config_id, "baseline");
     append_pw(split.val_samples, split.val_meta, "val");
 
     if (has_test)
@@ -399,6 +457,7 @@ void run_baseline(const GuayaquilConfig& config,
             "test",
             test_metrics));
         checkpoint_save(test_chk, all_rows.back(), train_result.history, cfg_hash);
+        emit_config_end(all_rows.back(), config_id, "baseline");
         append_pw(split.test_samples, split.test_meta, "test");
     }
 
@@ -603,12 +662,33 @@ auto run_snn_combo(const GuayaquilConfig& config,
         config.dataset.cv_fold};
     const auto snn_chk = checkpoint_path(chk_dir, snn_key);
 
+    const std::string config_id = make_config_id(
+        "snn-ae", encoding, "snn_sweep", voltage_threshold, alpha, run_seed, run_id + 1);
+
     if (checkpoint_is_valid(snn_chk, cfg_hash))
     {
         all_rows.push_back(checkpoint_load(snn_chk));
+        emit_config_end(all_rows.back(), config_id, "snn_sweep");
         nn::progress::ProgressManager::instance().update_bar(
             run_bar, static_cast<float>(++completed_runs));
         return all_rows.back().metrics.mse;
+    }
+
+    {
+        EventContext evctx;
+        evctx.config_id = config_id;
+        evctx.model = "snn-ae";
+        evctx.encoding = encoding;
+        evctx.role = "snn_sweep";
+        evctx.hyperparams = {
+            {"v_th", voltage_threshold}, {"alpha", alpha}, {"architecture", architecture}};
+        evctx.run_id = run_id + 1;
+        evctx.seed = run_seed;
+        evctx.max_epochs = config.training.epochs;
+        evctx.lr = config.training.learning_rate;
+        evctx.lr_biophysical = config.training.learning_rate_biophysical;
+        evctx.early_stop_patience = config.training.early_stop_patience;
+        ExperimentEvents::instance().set_pending_context(evctx);
     }
 
     {
@@ -686,6 +766,7 @@ auto run_snn_combo(const GuayaquilConfig& config,
     snn_row.cv_fold = config.dataset.cv_fold;
     all_rows.push_back(snn_row);
     checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+    emit_config_end(all_rows.back(), config_id, "snn_sweep");
 
     PerWindowError proto;
     proto.model = "snn-ae";
@@ -822,6 +903,20 @@ void run_snn_sweep(const GuayaquilConfig& config,
         candidates.end(),
         [](const Candidate& a, const Candidate& b) { return a.val_mse < b.val_mse; });
 
+    const std::string final_config_id = make_config_id(
+        "snn-ae", encoding, "snn_final", best.v_th, best.alpha, run_seed, run_id + 1);
+    ExperimentEvents::instance().emit("config_selected",
+        {{"config_id", final_config_id},
+            {"encoding", encoding},
+            {"run_id", run_id + 1},
+            {"seed", run_seed},
+            {"selection_metric", "val_mse"},
+            {"selected",
+                {{"architecture", best.architecture},
+                    {"v_th", best.v_th},
+                    {"alpha", best.alpha},
+                    {"val_score", jnum(best.val_mse)}}}});
+
     // Test row for the winner may already be checkpointed.
     CheckpointKey test_key{config.experiment.run_tag,
         backend_name,
@@ -838,7 +933,25 @@ void run_snn_sweep(const GuayaquilConfig& config,
     if (checkpoint_is_valid(test_chk, cfg_hash))
     {
         all_rows.push_back(checkpoint_load(test_chk));
+        emit_config_end(all_rows.back(), final_config_id, "snn_final");
         return;
+    }
+
+    {
+        EventContext evctx;
+        evctx.config_id = final_config_id;
+        evctx.model = "snn-ae";
+        evctx.encoding = encoding;
+        evctx.role = "snn_final";
+        evctx.hyperparams = {
+            {"v_th", best.v_th}, {"alpha", best.alpha}, {"architecture", best.architecture}};
+        evctx.run_id = run_id + 1;
+        evctx.seed = run_seed;
+        evctx.max_epochs = config.training.epochs;
+        evctx.lr = config.training.learning_rate;
+        evctx.lr_biophysical = config.training.learning_rate_biophysical;
+        evctx.early_stop_patience = config.training.early_stop_patience;
+        ExperimentEvents::instance().set_pending_context(evctx);
     }
 
     // Retrain the selected config on (train \ monitor) ∪ val, early-stopping on the
@@ -908,6 +1021,7 @@ void run_snn_sweep(const GuayaquilConfig& config,
     test_row.cv_fold = config.dataset.cv_fold;
     all_rows.push_back(test_row);
     checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
+    emit_config_end(all_rows.back(), final_config_id, "snn_final");
 
     {
         PerWindowError proto;
@@ -1010,8 +1124,9 @@ void assert_split_disjoint_and_manifest(
     man["cv_fold"] = config.dataset.cv_fold;
     man["cv_num_folds"] = config.dataset.cv_num_folds;
     man["seed"] = config.experiment.seed;
-    man["speakers"]["train"] = std::vector<std::string>(
-        speakers(split.train_meta).begin(), speakers(split.train_meta).end());
+    const std::set<std::string> train_speakers = speakers(split.train_meta);
+    man["speakers"]["train"] =
+        std::vector<std::string>(train_speakers.begin(), train_speakers.end());
     man["speakers"]["val"] = split.val_speaker;
     man["speakers"]["test"] = split.test_speaker;
     man["window_counts"] = {{"train", split.train_samples.size()},
@@ -1074,8 +1189,12 @@ void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
     const std::string stem = fold_output_tag(config, dataset_name) + "_" + encoding;
     const std::filesystem::path dir(config.dataset.results_dir);
 
+    NN_LOG_INFO("[loso] analytic-baseline dump: encoding " + encoding + " over " +
+                std::to_string(split.train_samples.size()) + " train + " +
+                std::to_string(split.test_samples.size()) + " test windows…");
     const auto [train_flat, train_cols] = encode_matrix(split.train_samples);
     const auto [test_flat, test_cols] = encode_matrix(split.test_samples);
+    NN_LOG_INFO("[loso] analytic-baseline dump: " + encoding + " encoded");
     if (train_cols == 0 || test_cols == 0) return;
 
     cnpy::npy_save((dir / (stem + "_train_windows.npy")).string(),
@@ -1147,6 +1266,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             print_usage(argv[0]);
             return 0;
         }
+        if (cli.no_tui) nn::progress::ProgressManager::instance().set_enabled(false);
 
         const GuayaquilConfig config = load_config(resolve_profile_path(cli), cli);
         config.validate();
@@ -1189,6 +1309,43 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         int completed_runs = 0;
 
+        // Structured JSONL event sink for the live monitor. One file per (dataset, fold)
+        // process, truncated on open. Disabled for the legacy pooled path or when no
+        // results_dir is set — every emit() then no-ops.
+        if (config.dataset.cv_fold >= 0 && !config.dataset.results_dir.empty() &&
+            !config.evaluation.datasets.empty())
+        {
+            const std::string& ev_ds = config.evaluation.datasets.front();
+            ExperimentEvents::instance().open((std::filesystem::path(config.dataset.results_dir) /
+                                               (fold_output_tag(config, ev_ds) + "_events.jsonl"))
+                    .string());
+            ExperimentEvents::instance().set_common({{"v", 1},
+                {"run_tag", config.experiment.run_tag},
+                {"dataset", ev_ds},
+                {"fold", config.dataset.cv_fold}});
+            const char* git_env = std::getenv("GUAYAQUIL_GIT_COMMIT");
+            ExperimentEvents::instance().emit("session_begin",
+                {{"cv_num_folds", config.dataset.cv_num_folds},
+                    {"all_datasets", config.evaluation.datasets},
+                    {"seed", config.experiment.seed},
+                    {"repeats", config.experiment.repeats},
+                    {"total_outer_runs", total_outer_runs},
+                    {"config_hash", cfg_hash},
+                    {"git_commit",
+                        (git_env != nullptr && git_env[0] != '\0') ? git_env : "unknown"},
+                    {"backend", backend_name},
+                    {"caps",
+                        {{"train", config.dataset.loso_max_train_windows},
+                            {"val", config.dataset.loso_max_val_windows},
+                            {"test", config.dataset.loso_max_test_windows}}},
+                    {"search_space",
+                        {{"snn_architectures", config.evaluation.snn_architectures},
+                            {"v_th_values", config.evaluation.v_th_values},
+                            {"alpha_values", config.evaluation.alpha_values},
+                            {"encodings", config.evaluation.encodings},
+                            {"baselines", config.evaluation.baselines}}}});
+        }
+
         for (const auto& dataset_name : config.evaluation.datasets)
         {
             NN_LOG_INFO("[loso] " + dataset_name + " fold" +
@@ -1204,6 +1361,17 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         " ms)");
             assert_split_disjoint_and_manifest(config, split, dataset_name);
             NN_LOG_INFO("[loso] leakage gate + split manifest OK");
+
+            ExperimentEvents::instance().emit("fold_begin",
+                {{"dataset", dataset_name},
+                    {"window_counts",
+                        {{"train", split.train_samples.size()},
+                            {"val", split.val_samples.size()},
+                            {"test", split.test_samples.size()}}},
+                    {"speakers",
+                        {{"train", split.train_speakers},
+                            {"val", split.val_speaker},
+                            {"test", split.test_speaker}}}});
 
             // Per-window reconstruction errors accumulate across every model / encoding /
             // seed of this fold, then flush once. Rows coming straight from a resume
@@ -1265,7 +1433,14 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                     (fold_output_tag(config, dataset_name) + "_per_window_errors.csv");
                 write_per_window_errors_csv(pw_path, pw_rows);
             }
+
+            ExperimentEvents::instance().emit(
+                "fold_end", {{"dataset", dataset_name}, {"pw_rows", pw_rows.size()}});
         }
+
+        ExperimentEvents::instance().emit(
+            "session_end", {{"status", "ok"}, {"n_rows", all_rows.size()}});
+        ExperimentEvents::instance().close();
 
         nn::progress::ProgressManager::instance().complete_bar(run_bar);
         nn::progress::ProgressManager::instance().shutdown();
@@ -1283,6 +1458,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
     catch (const std::exception& ex)
     {
         NN_LOG_ERROR(std::string("[comparative] Fatal error: ") + ex.what());
+        ExperimentEvents::instance().emit("session_error", {{"what", ex.what()}});
+        ExperimentEvents::instance().close();
         return 1;
     }
 }

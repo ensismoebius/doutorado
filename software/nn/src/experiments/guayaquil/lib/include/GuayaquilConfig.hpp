@@ -33,6 +33,12 @@ struct GuayaquilConfig
         int cv_num_folds = 0;              // 0 → inherit Dataset::cv_num_folds
         int sample_rate = 0;               // native rate to resample from (0 → loader default)
         int max_windows_per_recording = 0; // 0 → unlimited (FSDD); >0 caps long recordings
+        // Per-fold stratified window caps (0 → inherit Dataset value; still 0 → unlimited).
+        // Applied after the LOSO split, round-robin across recordings, so every recording
+        // and speaker stays represented. Bounds per-epoch training cost (batch_size 1).
+        int loso_max_train_windows = 0;
+        int loso_max_val_windows = 0;
+        int loso_max_test_windows = 0;
     };
 
     struct Dataset
@@ -49,6 +55,9 @@ struct GuayaquilConfig
         int cv_fold = -1;                   // optional
         int cv_num_folds = 6;               // optional (FSDD speaker count)
         int max_windows_per_recording = 0;  // optional (0 = unlimited; default source)
+        int loso_max_train_windows = 0;     // optional (0 = unlimited); stratified per-fold cap
+        int loso_max_val_windows = 0;       // optional (0 = unlimited)
+        int loso_max_test_windows = 0;      // optional (0 = unlimited)
         std::string latex_data_dir = "";    // optional
         bool save_models = false;           // optional
         std::vector<DatasetSource> sources; // optional per-dataset overrides
@@ -63,6 +72,9 @@ struct GuayaquilConfig
             s.window_size = window_size;
             s.cv_num_folds = cv_num_folds;
             s.max_windows_per_recording = max_windows_per_recording;
+            s.loso_max_train_windows = loso_max_train_windows;
+            s.loso_max_val_windows = loso_max_val_windows;
+            s.loso_max_test_windows = loso_max_test_windows;
             for (const auto& e : sources)
             {
                 if (e.name != name) continue;
@@ -72,6 +84,10 @@ struct GuayaquilConfig
                 if (e.sample_rate > 0) s.sample_rate = e.sample_rate;
                 if (e.max_windows_per_recording > 0)
                     s.max_windows_per_recording = e.max_windows_per_recording;
+                if (e.loso_max_train_windows > 0)
+                    s.loso_max_train_windows = e.loso_max_train_windows;
+                if (e.loso_max_val_windows > 0) s.loso_max_val_windows = e.loso_max_val_windows;
+                if (e.loso_max_test_windows > 0) s.loso_max_test_windows = e.loso_max_test_windows;
                 break;
             }
             return s;
@@ -152,6 +168,9 @@ struct GuayaquilConfig
             s.cv_num_folds = e.value("cv_num_folds", 0);
             s.sample_rate = e.value("sample_rate", 0);
             s.max_windows_per_recording = e.value("max_windows_per_recording", 0);
+            s.loso_max_train_windows = e.value("loso_max_train_windows", 0);
+            s.loso_max_val_windows = e.value("loso_max_val_windows", 0);
+            s.loso_max_test_windows = e.value("loso_max_test_windows", 0);
             out.push_back(std::move(s));
         }
     }
@@ -181,6 +200,9 @@ struct GuayaquilConfig
         get("cv_fold", cfg.dataset.cv_fold);
         get("cv_num_folds", cfg.dataset.cv_num_folds);
         get("max_windows_per_recording", cfg.dataset.max_windows_per_recording);
+        get("loso_max_train_windows", cfg.dataset.loso_max_train_windows);
+        get("loso_max_val_windows", cfg.dataset.loso_max_val_windows);
+        get("loso_max_test_windows", cfg.dataset.loso_max_test_windows);
         get("latex_data_dir", cfg.dataset.latex_data_dir);
         get("save_models", cfg.dataset.save_models);
         if (j.contains("dataset_sources")) parse_sources(j["dataset_sources"], cfg.dataset.sources);
@@ -278,6 +300,9 @@ struct GuayaquilConfig
         get(dat, "cv_fold", cfg.dataset.cv_fold);
         get(dat, "cv_num_folds", cfg.dataset.cv_num_folds);
         get(dat, "max_windows_per_recording", cfg.dataset.max_windows_per_recording);
+        get(dat, "loso_max_train_windows", cfg.dataset.loso_max_train_windows);
+        get(dat, "loso_max_val_windows", cfg.dataset.loso_max_val_windows);
+        get(dat, "loso_max_test_windows", cfg.dataset.loso_max_test_windows);
         get(dat, "results_dir", cfg.dataset.results_dir);
         get(dat, "latex_data_dir", cfg.dataset.latex_data_dir);
         get(dat, "save_models", cfg.dataset.save_models);

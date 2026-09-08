@@ -15,9 +15,15 @@
 #   results/guayaquil/article_loso_<d>_fold<f>_split_manifest.json       (leakage audit)
 #   results/guayaquil/article_loso_<d>_fold<f>_<enc>_run<r>_model_selection_manifest.json
 #
-# COST: days-to-weeks over all datasets x folds. Run once. This script REFUSES to start
-#   without EXPERIMENT_CONFIRMED=1, and clears results/guayaquil/checkpoints/ first
-#   (resumed rows are not regenerated into the per-window CSV — see GuayaquilExperiment.cpp).
+# COST: weeks over all datasets x folds even with the stratified per-fold window caps
+#   (loso_max_{train,val,test}_windows in the profile: 1200 / 300 / 1500). Full pooled
+#   FSDD is 27k train windows/fold — intractable across the 27-combo SNN grid x 3
+#   encodings x 5 seeds x 18 (dataset,fold) processes. The caps keep every speaker and
+#   recording represented (round-robin subsample); LOSO structure and the recording-level
+#   statistical unit are unchanged. Per-epoch progress is logged as "[loso] ... epoch N/M"
+#   lines (stderr; survives nohup, where the live bars collapse). Run once. This script
+#   REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears results/guayaquil/
+#   checkpoints/ first (resumed rows are not regenerated into the per-window CSV).
 #
 # Usage:
 #   cd software/nn
@@ -61,9 +67,17 @@ fi
 [[ -x "$BIN" ]] || { echo "[loso-run] no binary at $BIN after build" >&2; exit 1; }
 
 if [[ "${KEEP_CHECKPOINTS:-0}" != "1" ]]; then
-  echo "[loso-run] clearing results/guayaquil/checkpoints/"
+  echo "[loso-run] clearing results/guayaquil/checkpoints/ and stale *_events.jsonl"
   rm -rf results/guayaquil/checkpoints/
+  rm -f results/guayaquil/*_events.jsonl
 fi
+
+# Recorded in every session_begin event so the live monitor can show provenance.
+export GUAYAQUIL_GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+echo "[loso-run] live dashboard (separate terminal):"
+echo "[loso-run]   python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso"
+echo "[loso-run]   (add --plain for a non-interactive terminal / when piped)"
 
 DATASETS="${DATASETS:-fsdd audiomnist mitbih}"
 _start=$(date +%s)

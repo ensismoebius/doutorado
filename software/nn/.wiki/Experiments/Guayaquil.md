@@ -28,8 +28,19 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 | `mitbih` | single-lead ECG (lead 0), 360 Hz | record | 48 / 6 | 40 | `.../databases/mitbih` |
 
 - `dataset.sources[]` in the profile gives each dataset its `root` / `window_size` /
-  `cv_num_folds` / `sample_rate` / `max_windows_per_recording`; unset fields inherit the
-  singular `dataset.*`. `GuayaquilConfig::Dataset::resolve(name)` does the merge.
+  `cv_num_folds` / `sample_rate` / `max_windows_per_recording` / `loso_max_{train,val,test}_windows`;
+  unset fields inherit the singular `dataset.*`. `GuayaquilConfig::Dataset::resolve(name)`
+  does the merge.
+- **Stratified per-fold window caps** (`loso_max_train_windows` 1200, `loso_max_val_windows`
+  300, `loso_max_test_windows` 1500 in `article-loso.json`): after the LOSO split,
+  `stratified_window_cap` subsamples each partition round-robin across recordings (ordered
+  by `recording_id`), so every recording and speaker keeps representation and per-recording
+  counts stay as even as the cap allows. Full pooled FSDD is ~27k train windows/fold —
+  intractable at batch-size 1 across the 27-combo SNN grid × 3 encodings × 5 seeds × 18
+  (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
+  or the recording-level statistical unit; they bound per-epoch cost. `cap <= 0` = unlimited.
+  Per-epoch progress prints as `[loso] <ctx> epoch N/M train=… val=…` (`GuayaquilEpochLogger`,
+  to stderr — survives nohup, where the `ProgressManager` bars collapse to one line).
 - **Grouped folds:** `assign_speaker_fold` partitions the sorted group ids into `K`
   contiguous blocks (reduces to plain leave-one-speaker-out when `#groups == K`).
 - **Loaders:** `fsdd`/`audiomnist` reuse `FsddWindowDataset` (AudioMNIST filenames
@@ -51,8 +62,36 @@ EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/guayaquil/01_guayaquil_run_loso.sh
 # → 02_ (paper tables) → 04_ (recording-level significance).
 ```
 
-Outputs are tagged `article_loso_<dataset>_fold<f>_*`. Days-to-weeks; run once,
-checkpoints cleared first.
+Outputs are tagged `article_loso_<dataset>_fold<f>_*`. Weeks-scale even with the
+window caps; run once, checkpoints cleared first.
+
+### Live monitoring
+
+Each `guayaquil` process appends structured events to
+`results/guayaquil/<run_tag>_<dataset>_fold<f>_events.jsonl` (schema v1, written by
+`GuayaquilEvents.cpp` + the `GuayaquilEventCallback` training hook). Events:
+`session_begin` (search space, seed, caps, git commit, backend), `fold_begin` /
+`fold_end`, `config_begin` / `epoch` / `train_end` / `config_end` per trained model,
+`config_selected` (SNN sweep winner), `session_end` / `session_error`. Raw values at
+full precision; NaN → `null`. Emitting never gates training — pure side output.
+
+```bash
+# attach anytime, in a separate terminal (18 processes write 18 files; the monitor
+# tails all of them and folds a single session view)
+python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso
+python3 scripts/pipeline/guayaquil/monitor.py --plain          # non-interactive / piped
+python3 scripts/pipeline/guayaquil/monitor.py --self-test      # CI known-answer check
+```
+
+The interactive dashboard (needs `textual`, in `scripts/requirements.txt`) shows
+session progress + ETA, the active config(s) with live train/val + best-val + gap +
+no-improve, convergence sparklines, a cross-configuration ranking (sorted by
+test/inner-val loss; `Enter` → per-config detail with every recorded metric +
+reproducibility), the hyperparameter search space with **descriptive** marginal
+best-val summaries, and per-(model, encoding) `mean ± std` over completed seeds ×
+folds. It is read-only — start, kill, and re-attach freely. `--no-tui` on the
+`guayaquil` binary (and any non-TTY stdout) disables its own `ProgressManager` bars
+so redirected logs stay free of cursor-control sequences.
 
 ### Statistics & paper data
 

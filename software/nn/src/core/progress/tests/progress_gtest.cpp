@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -96,6 +98,28 @@ TEST(ProgressTest, ShutdownCleansUpRenderer)
     std::this_thread::sleep_for(std::chrono::milliseconds(80));
     manager.shutdown();
     SUCCEED();
+}
+
+TEST(ProgressTest, NoAnsiControlSequencesWhenDisabled)
+{
+    auto& manager = nn::progress::ProgressManager::instance();
+    manager.set_enabled(false); // ctest is non-TTY anyway; make it explicit
+
+    std::ostringstream captured;
+    std::streambuf* const prev = std::cout.rdbuf(captured.rdbuf());
+
+    const uint32_t id = manager.create_bar("Disabled Bar", 3.0f);
+    manager.update_bar(id, 1.0f, {{"loss", 0.5f}});
+    manager.log("plain progress line");
+    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    manager.complete_bar(id);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+
+    std::cout.rdbuf(prev);
+
+    const std::string out = captured.str();
+    EXPECT_EQ(out.find('\033'), std::string::npos) << "escape sequence leaked: [" << out << "]";
+    EXPECT_NE(out.find("plain progress line"), std::string::npos);
 }
 
 TEST(LoggerTest, CoversLevelPrefixes)

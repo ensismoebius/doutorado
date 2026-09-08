@@ -59,6 +59,7 @@ add_library(guayaquil_lib STATIC
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilTraining.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilOutput.cpp
     ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilCheckpoint.cpp
+    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEvents.cpp
 )
 
 target_include_directories(guayaquil_lib

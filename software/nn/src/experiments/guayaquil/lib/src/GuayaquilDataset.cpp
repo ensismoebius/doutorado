@@ -279,6 +279,54 @@ auto load_grouped_windows(const std::string& dataset, const GuayaquilConfig::Dat
 // before any pooling, so no speaker/record and no source recording crosses a
 // boundary. The SNN hyperparameter sweep selects on `val` only; the winning
 // config is retrained on train ∪ val and evaluated once on `test`.
+// Deterministic stratified subsample to <= cap windows, round-robin across recordings
+// (ordered by recording_id), so every recording and every speaker keeps representation and
+// per-recording counts stay as even as the cap allows. cap <= 0 or already under → no-op.
+// Bounds per-epoch training cost (batch_size 1) without collapsing the LOSO structure or
+// the recording-level statistical unit.
+void stratified_window_cap(std::vector<Tensor>& samples,
+    std::vector<WindowMetadata>& meta,
+    std::vector<int>* labels,
+    int cap)
+{
+    if (cap <= 0 || static_cast<int>(samples.size()) <= cap) return;
+
+    std::map<int, std::vector<std::size_t>> by_rec;
+    for (std::size_t i = 0; i < meta.size(); ++i) by_rec[meta[i].recording_id].push_back(i);
+
+    std::vector<std::size_t> keep;
+    keep.reserve(static_cast<std::size_t>(cap));
+    bool progress = true;
+    while (static_cast<int>(keep.size()) < cap && progress)
+    {
+        progress = false;
+        for (auto& [rid, idxs] : by_rec)
+        {
+            if (idxs.empty()) continue;
+            keep.push_back(idxs.front());
+            idxs.erase(idxs.begin());
+            progress = true;
+            if (static_cast<int>(keep.size()) >= cap) break;
+        }
+    }
+    std::sort(keep.begin(), keep.end());
+
+    std::vector<Tensor> s;
+    std::vector<WindowMetadata> m;
+    std::vector<int> l;
+    s.reserve(keep.size());
+    m.reserve(keep.size());
+    for (std::size_t k : keep)
+    {
+        s.push_back(std::move(samples[k]));
+        m.push_back(meta[k]);
+        if (labels != nullptr) l.push_back((*labels)[k]);
+    }
+    samples = std::move(s);
+    meta = std::move(m);
+    if (labels != nullptr) *labels = std::move(l);
+}
+
 auto build_loso_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
@@ -314,6 +362,14 @@ auto build_loso_split(const GuayaquilConfig& cfg, const std::string& dataset, in
         split.train_samples.push_back(windows[i]);
         split.train_meta.push_back(meta[i]);
     }
+
+    // Per-fold stratified window caps (bound training cost; 0 = unlimited).
+    stratified_window_cap(
+        split.test_samples, split.test_meta, &split.test_labels, src.loso_max_test_windows);
+    stratified_window_cap(
+        split.val_samples, split.val_meta, &split.val_labels, src.loso_max_val_windows);
+    stratified_window_cap(
+        split.train_samples, split.train_meta, nullptr, src.loso_max_train_windows);
 
     // Deterministic shuffle of the train windows, carrying the parallel metadata.
     {

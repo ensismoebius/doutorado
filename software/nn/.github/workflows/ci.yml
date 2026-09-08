@@ -52,6 +52,10 @@ jobs:
         run: |
           python scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py --self-test
 
+      - name: Guayaquil live-monitor aggregator self-test (synthetic known-answer)
+        run: |
+          python scripts/pipeline/guayaquil/monitor.py --self-test
+
       - name: Configure CMake with coverage
         run: |
           mkdir -p build

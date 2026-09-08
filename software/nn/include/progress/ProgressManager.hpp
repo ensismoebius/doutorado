@@ -59,6 +59,16 @@ class ProgressManager
     ProgressManager(const ProgressManager&) = delete;
     ProgressManager& operator=(const ProgressManager&) = delete;
 
+    // Live ANSI rendering is auto-disabled when stdout is not a TTY (redirect / pipe /
+    // nohup) so log files stay free of cursor-control sequences; log() messages are
+    // still emitted, as plain newline-terminated lines. `set_enabled(false)` forces it
+    // off even on a TTY (the `--no-tui` CLI flag). Never re-enables a non-TTY stdout.
+    void set_enabled(bool enabled);
+    [[nodiscard]] bool enabled() const
+    {
+        return enabled_.load();
+    }
+
     uint32_t create_bar(const std::string& label, float target);
     void update_bar(uint32_t id, float value, const std::map<std::string, float>& metrics = {});
     void set_target(uint32_t id, float target);
@@ -94,6 +104,7 @@ class ProgressManager
 
     std::atomic<bool> running_{true};
     std::atomic<bool> screen_cleared_{false};
+    std::atomic<bool> enabled_{true}; // set from isatty(stdout) in the ctor
     std::thread render_thread_;
     std::mutex manager_mutex_;
     std::vector<std::unique_ptr<ProgressEntry>> entries_;

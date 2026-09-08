@@ -340,6 +340,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
         progress_context(cfg, run_id, total_runs, seed), lbl.str()));
 
+    // Structured JSONL events for the live monitor (identity from the driver's
+    // pending context). No-op when the events sink was never opened.
+    trainer.add_callback(std::make_shared<GuayaquilEventCallback>());
+
     auto stopper =
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
     trainer.add_callback(stopper);
