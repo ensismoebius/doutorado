@@ -24,6 +24,7 @@
 #include "../include/GuayaquilDatasetSplit.hpp"
 #include "../include/GuayaquilEncoding.hpp"
 #include "../include/GuayaquilEpochHistory.hpp"
+#include "../include/GuayaquilEpochLogger.hpp"
 #include "../include/GuayaquilMetrics.hpp"
 #include "../include/GuayaquilPerWindow.hpp"
 #include "../include/GuayaquilRunMetrics.hpp"
@@ -192,6 +193,10 @@ auto train_ae(Model& model,
     cb->set_metadata(
         progress_title, static_cast<int>(run_id + 1), static_cast<int>(total_runs), "MSE");
     trainer.add_callback(cb);
+
+    // Plain per-epoch log lines (survive nohup / pipes, where the live bars collapse).
+    trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
+        progress_context(cfg, run_id, total_runs, seed), progress_label));
 
     trainer.add_callback(
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience));

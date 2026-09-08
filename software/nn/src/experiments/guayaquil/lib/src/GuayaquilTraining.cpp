@@ -336,6 +336,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         "MSE");
     trainer.add_callback(snn_cb);
 
+    // Plain per-epoch log lines (survive nohup / pipes, where the live bars collapse).
+    trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
+        progress_context(cfg, run_id, total_runs, seed), lbl.str()));
+
     auto stopper =
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
     trainer.add_callback(stopper);

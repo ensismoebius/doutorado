@@ -1,14 +1,17 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <random>
 #include <set>
 #include <span>
+#include <sstream>
 #include <string>
 
 #include "../include/GuayaquilCheckpoint.hpp"
@@ -327,6 +330,10 @@ void run_baseline(const GuayaquilConfig& config,
         return;
     }
 
+    nn::progress::ProgressManager::instance().set_description(run_bar,
+        dataset_name + " fold" + std::to_string(config.dataset.cv_fold) + " · " + fam.token +
+            " · " + encoding + " · seed " + std::to_string(run_seed));
+
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
 
@@ -602,6 +609,14 @@ auto run_snn_combo(const GuayaquilConfig& config,
         nn::progress::ProgressManager::instance().update_bar(
             run_bar, static_cast<float>(++completed_runs));
         return all_rows.back().metrics.mse;
+    }
+
+    {
+        std::ostringstream d;
+        d << dataset_name << " fold" << config.dataset.cv_fold << " · SNN-" << architecture << " · "
+          << encoding << " · seed " << run_seed << " · v=" << std::fixed << std::setprecision(2)
+          << voltage_threshold << " a=" << alpha;
+        nn::progress::ProgressManager::instance().set_description(run_bar, d.str());
     }
 
     float train_ms = 0.0f;
@@ -1176,8 +1191,19 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         for (const auto& dataset_name : config.evaluation.datasets)
         {
+            NN_LOG_INFO("[loso] " + dataset_name + " fold" +
+                        std::to_string(config.dataset.cv_fold) + ": building split…");
+            const auto t_bs0 = std::chrono::steady_clock::now();
             const DatasetSplit split = build_split(config, dataset_name, config.dataset.cv_fold);
+            NN_LOG_INFO("[loso] split built: train=" + std::to_string(split.train_samples.size()) +
+                        " val=" + std::to_string(split.val_samples.size()) +
+                        " test=" + std::to_string(split.test_samples.size()) + "  (" +
+                        std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - t_bs0)
+                                .count()) +
+                        " ms)");
             assert_split_disjoint_and_manifest(config, split, dataset_name);
+            NN_LOG_INFO("[loso] leakage gate + split manifest OK");
 
             // Per-window reconstruction errors accumulate across every model / encoding /
             // seed of this fold, then flush once. Rows coming straight from a resume
