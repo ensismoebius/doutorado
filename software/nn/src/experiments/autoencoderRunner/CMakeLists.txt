@@ -72,6 +72,8 @@ target_link_libraries(guayaquil_lib
     PUBLIC
         autoencoderRunner_lib
         data_loaders_fsdd
+        gru_models
+        transformer_models
 )
 
 nn_enable_target_pch(autoencoderRunner_lib)
