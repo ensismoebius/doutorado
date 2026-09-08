@@ -171,4 +171,20 @@ inline auto tanh_tensor(const nn::TensorImpl<Backend>& x, bool exact) -> nn::Ten
     return exact ? tanh_exact_tensor(x) : tanh_fast_tensor(x);
 }
 
+template <typename Backend>
+inline auto sigmoid_exact_tensor(const nn::TensorImpl<Backend>& x) -> nn::TensorImpl<Backend>
+{
+    nn::TensorImpl<Backend> result(x.rows(), x.cols());
+    for (nn::Index i = 0; i < x.rows(); ++i)
+        for (nn::Index j = 0; j < x.cols(); ++j)
+            result.at(i, j) = 1.0F / (1.0F + std::exp(-x.at(i, j)));
+    return result;
+}
+
+template <typename Backend>
+inline auto sigmoid_tensor(const nn::TensorImpl<Backend>& x, bool exact) -> nn::TensorImpl<Backend>
+{
+    return exact ? sigmoid_exact_tensor(x) : sigmoid_fast_tensor(x);
+}
+
 } // namespace nn::activations
