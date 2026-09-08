@@ -2,3 +2,4 @@
 add_subdirectory(autoencoder)
 add_subdirectory(lstm)
 add_subdirectory(gru)
+add_subdirectory(transformer)

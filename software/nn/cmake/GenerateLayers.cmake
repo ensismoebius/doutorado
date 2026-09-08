@@ -25,6 +25,7 @@ set(_exclude_patterns
     ".*/spiking/SurrogateGradient\\.hpp$"  # umbrella include
     ".*/layers/Layers\\.hpp$"        # the generated file itself — avoid self-include
     ".*/activations/FastActivations\\.hpp$"  # inline functions only, no FooImpl<Backend> class
+    ".*/attention/PositionalEncoding\\.hpp$" # free function sinusoidal_positional_encoding(), no class
 )
 foreach(_pat IN LISTS _exclude_patterns)
     list(FILTER _all_layer_headers EXCLUDE REGEX "${_pat}")

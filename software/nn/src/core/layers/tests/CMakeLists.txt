@@ -47,6 +47,8 @@ foreach(_layers_split_test IN ITEMS
     layers_composite_gtest
     gru_layer_gtest
     layernorm_gtest
+    multi_head_attention_gtest
+    transformer_encoder_block_gtest
 )
     add_executable(${_layers_split_test} ${_layers_split_test}.cpp)
 
