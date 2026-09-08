@@ -92,15 +92,15 @@ auto estimate_gru_macs(const nn::models::gru::GRUAutoencoderConfig& cfg) -> std:
     const std::size_t L = static_cast<std::size_t>(std::max(1, cfg.num_layers));
     const std::size_t Z = static_cast<std::size_t>(cfg.latent_size);
 
-    // GRU has 3 gates (r, z, n); each mixes the input (I) and the previous
-    // hidden state (H) into H units.
+    // Mirrors estimate_lstm_macs() exactly so the two are directly comparable:
+    // one stack of L layers unrolled T steps, plus the projection heads. GRU has
+    // 3 gates (r, z, n) where the LSTM has 4, so at matched dimensions the GRU
+    // estimate is strictly 3/4 of the LSTM's recurrent term.
     const std::size_t per_gate = H * (I + H);
     const std::size_t per_step = 3 * per_gate;
     const std::size_t per_stack = per_step * L;
-    // enc-hidden -> latent, latent -> dec-hidden, dec-hidden -> input frame.
     const std::size_t proj = H * Z + Z * H + H * I;
-    // Encoder stack + decoder stack, both unrolled T steps.
-    return 2 * T * per_stack + proj;
+    return T * per_stack + proj;
 }
 
 auto estimate_transformer_macs(const nn::models::transformer::TransformerAutoencoderConfig& cfg)

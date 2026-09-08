@@ -100,6 +100,34 @@ target_link_libraries(profile_audit_gtest
 nn_gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
+# Parameter-count audit: documented P for LSTM-/GRU-/Transformer-AE at the article config.
+add_executable(parameter_count_gtest
+    parameter_count_gtest.cpp
+)
+
+target_include_directories(parameter_count_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(parameter_count_gtest
+    PRIVATE
+        google_test
+        guayaquil_lib
+        autoencoderRunner_lib
+        gru_models
+        transformer_models
+        tensor
+        layers
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+nn_gtest_discover_tests(parameter_count_gtest)
+configure_xtensor_parallel_target(parameter_count_gtest)
+
 # Split audit: nested LOSO fold assignment is speaker/recording/window disjoint.
 add_executable(guayaquil_split_audit_gtest
     split_audit_gtest.cpp
