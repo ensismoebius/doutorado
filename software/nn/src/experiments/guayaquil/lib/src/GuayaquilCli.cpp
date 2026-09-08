@@ -43,6 +43,8 @@ void print_usage(const char* prog)
               << "  --comparative                     Run SNN-vs-LSTM comparative experiment\n"
               << "  --comparative-config <name|path>  Comparative profile stem or JSON path\n"
               << "  --dataset-root <path>            Dataset root directory\n"
+              << "  --cv-fold <n>                    Override the profile's nested-LOSO fold "
+                 "index (0..cv_num_folds-1)\n"
               << "  --help                            Print this message\n";
 }
 
@@ -83,6 +85,13 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
             opts.dataset_root = (arg == "--dataset-root")
                                     ? next()
                                     : arg.substr(std::string("--dataset-root=").size());
+        }
+        else if (arg == "--cv-fold" || arg.rfind("--cv-fold=", 0) == 0)
+        {
+            const std::string value =
+                (arg == "--cv-fold") ? next() : arg.substr(std::string("--cv-fold=").size());
+            opts.cv_fold = std::stoi(value);
+            opts.cv_fold_set = true;
         }
     }
 
@@ -149,6 +158,11 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     if (!cli_opts.dataset_root.empty())
     {
         cfg.dataset.dataset_root = cli_opts.dataset_root;
+    }
+
+    if (cli_opts.cv_fold_set)
+    {
+        cfg.dataset.cv_fold = cli_opts.cv_fold;
     }
 
     return cfg;

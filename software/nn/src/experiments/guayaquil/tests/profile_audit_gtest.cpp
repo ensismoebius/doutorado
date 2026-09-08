@@ -28,6 +28,7 @@ const std::vector<std::string>& article_profiles()
         "article-snn-conv1d.json",
         "article-snn-recurrent.json",
         "article-backend-bench.json",
+        "article-loso.json",
     };
     return profiles;
 }
@@ -66,8 +67,13 @@ TEST_P(ProfileAuditTest, ParsesAndValidates)
     EXPECT_GT(cfg.experiment.repeats, 0);
     EXPECT_FALSE(cfg.dataset.dataset_root.empty());
     EXPECT_GT(cfg.dataset.window_size, 0);
-    EXPECT_GT(cfg.dataset.max_loaded_train_samples, 0);
-    EXPECT_GT(cfg.dataset.max_validation_samples, 0);
+    if (cfg.dataset.cv_fold < 0)
+    {
+        // Pooled-split budgets only apply to the legacy path; nested LOSO uses every
+        // window of the speaker-disjoint partitions.
+        EXPECT_GT(cfg.dataset.max_loaded_train_samples, 0);
+        EXPECT_GT(cfg.dataset.max_validation_samples, 0);
+    }
     EXPECT_GT(cfg.training.samples_per_batch, 0);
     EXPECT_GT(cfg.training.epochs, 0);
     EXPECT_GE(cfg.training.early_stop_patience, 0);
@@ -234,6 +240,47 @@ TEST(GuayaquilConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
     cfg.evaluation.snn_architectures = {"dense"};
     cfg.evaluation.v_th_values.clear();
     EXPECT_NE(validation_error(cfg).find("v_th_values is empty"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, RejectsUnknownBaselineFamily)
+{
+    auto cfg = valid_config();
+    cfg.evaluation.baselines = {"lstm-ae", "mlp-ae"};
+    EXPECT_NE(validation_error(cfg).find("unknown family"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, RejectsEmptyBaselineList)
+{
+    auto cfg = valid_config();
+    cfg.evaluation.baselines.clear();
+    EXPECT_NE(validation_error(cfg).find("evaluation.baselines is empty"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, AcceptsTheTrainedBaselineTriple)
+{
+    auto cfg = valid_config();
+    cfg.evaluation.baselines = {"lstm-ae", "gru-ae", "transformer-ae"};
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(GuayaquilConfigValidation, RejectsAFoldOutsideTheFoldCount)
+{
+    auto cfg = valid_config();
+    cfg.dataset.cv_fold = 6;
+    cfg.dataset.cv_num_folds = 6;
+    EXPECT_NE(validation_error(cfg).find("cv_fold"), std::string::npos);
+}
+
+TEST(GuayaquilConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
+{
+    // Under nested LOSO (cv_fold >= 0) the split is speaker-disjoint and uses
+    // every window, so max_loaded_train_samples / max_validation_samples = 0 is fine.
+    auto cfg = valid_config();
+    cfg.dataset.cv_fold = 0;
+    cfg.dataset.cv_num_folds = 6;
+    cfg.dataset.max_loaded_train_samples = 0;
+    cfg.dataset.max_validation_samples = 0;
+    EXPECT_NO_THROW(cfg.validate());
 }
 
 // The two rules below span sections. They are the ones a refactor that

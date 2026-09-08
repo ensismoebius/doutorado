@@ -1013,26 +1013,29 @@ void write_experiment_outputs(const GuayaquilConfig& config,
     const std::vector<ResultRow>& all_rows,
     const std::filesystem::path& out_dir)
 {
-    const std::filesystem::path csv_path =
-        out_dir / (config.experiment.run_tag + "_comparative_metrics.csv");
+    // Under nested LOSO each fold runs as its own process (one `--cv-fold`); tag every
+    // output with the fold so the six runs do not clobber each other. The Python
+    // aggregator globs `<run_tag>_fold*_comparative_metrics.csv`.
+    const std::string tag = config.dataset.cv_fold >= 0 ? config.experiment.run_tag + "_fold" +
+                                                              std::to_string(config.dataset.cv_fold)
+                                                        : config.experiment.run_tag;
+
+    const std::filesystem::path csv_path = out_dir / (tag + "_comparative_metrics.csv");
     write_rows_csv(csv_path, all_rows);
 
-    const std::filesystem::path table_path =
-        out_dir / (config.experiment.run_tag + "_publication_table.csv");
+    const std::filesystem::path table_path = out_dir / (tag + "_publication_table.csv");
     write_publication_table(table_path, all_rows);
 
-    const std::filesystem::path summary_json =
-        out_dir / (config.experiment.run_tag + "_summary.json");
+    const std::filesystem::path summary_json = out_dir / (tag + "_summary.json");
     write_summary_json(summary_json, config, cfg_hash, all_rows);
 
     if (!config.dataset.latex_data_dir.empty())
     {
         const std::filesystem::path latex_dir =
             std::filesystem::path(config.dataset.latex_data_dir);
-        write_latex_exports(latex_dir, config.experiment.run_tag, config, all_rows);
-        write_pgfplots_summary_dat(
-            latex_dir / (config.experiment.run_tag + "_summary.dat"), all_rows);
-        write_pgfplots_sweep_dat(latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
+        write_latex_exports(latex_dir, tag, config, all_rows);
+        write_pgfplots_summary_dat(latex_dir / (tag + "_summary.dat"), all_rows);
+        write_pgfplots_sweep_dat(latex_dir / (tag + "_sweep.dat"), all_rows);
     }
 
     NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() + ", " +
