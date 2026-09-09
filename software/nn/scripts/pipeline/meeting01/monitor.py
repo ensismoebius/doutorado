@@ -255,6 +255,7 @@ class SessionState:
         self.events: deque[dict[str, Any]] = deque(maxlen=400)
         self.selected: dict[str, dict[str, Any]] = {}
         self.started_wall: Optional[float] = None
+        self.loop_error: str = ""  # last transient poll/render error, "" when clear
 
     # ---- ingest -------------------------------------------------------------------
     def apply(self, ev: dict[str, Any]) -> None:
@@ -359,6 +360,7 @@ class SessionState:
 
     def reconcile(self, tailer_mtimes: dict[str, float]) -> None:
         now = time.time()
+        self._mtimes = dict(tailer_mtimes)
         for path, proc in self.procs.items():
             mt = tailer_mtimes.get(path, proc.last_ts)
             if proc.is_failed(now, mt):
@@ -366,6 +368,19 @@ class SessionState:
                 for c in self.configs.values():
                     if c.dataset == proc.dataset and c.fold == proc.fold and c.status == "running":
                         c.status = "failed"
+
+    def live_procs(self) -> list["ProcState"]:
+        """Procs whose events file was touched within STALE_SECONDS and that have
+        not ended or errored — i.e. a training process is demonstrably alive even
+        if it is momentarily between two configs (the fast SNN sweep does this)."""
+        now = time.time()
+        out = []
+        for path, proc in self.procs.items():
+            mt = getattr(self, "_mtimes", {}).get(path, proc.last_ts)
+            if proc.started and not proc.ended and not proc.error \
+                    and (now - mt) <= STALE_SECONDS:
+                out.append(proc)
+        return out
 
     # ---- derived views ----------------------------------------------------------
     def per_fold_trainings(self) -> int:
@@ -599,12 +614,20 @@ def render_plain(state: SessionState) -> str:
     for proc in state.procs.values():
         if proc.error:
             ln.append(f"  FAILED  {proc.dataset} fold{proc.fold}: {proc.error}")
+    if state.loop_error:
+        ln.append(f"  poll error (retrying): {state.loop_error}")
 
     ln.append("")
     ln.append("TRAINING NOW")
     act = state.active_configs()
     if not act:
-        ln.append("  nothing training right now (between folds / aggregating / not started)")
+        live = state.live_procs()
+        if live:
+            where = ", ".join(f"{p.dataset} fold {p.fold}" for p in live)
+            ln.append(f"  process alive ({where}) — starting the next config "
+                      "(no epoch reported yet)")
+        else:
+            ln.append("  nothing training right now (between folds / aggregating / not started)")
     for a in act[:6]:
         done_ep = len(a.epochs)
         run_ep = a.cur_progress_epoch or (done_ep + 1)
@@ -718,9 +741,16 @@ def _panel_now(state: SessionState):  # noqa: ANN201
 
     act = state.active_configs()
     if not act:
-        body = Text("Nothing is training right now.\n"
-                    "The run may be between folds, running the Python aggregation, "
-                    "or not started yet.", style="yellow")
+        live = state.live_procs()
+        if live:
+            where = ", ".join(f"{p.dataset} fold {p.fold}" for p in live)
+            body = Text(f"Process alive ({where}) — starting the next config.\n"
+                        "The fast SNN sweep briefly shows this between configs; "
+                        "an epoch will appear within a few seconds.", style="cyan")
+        else:
+            body = Text("Nothing is training right now.\n"
+                        "The run may be between folds, running the Python aggregation, "
+                        "or not started yet.", style="yellow")
         return Panel(body, title="TRAINING NOW", title_align="left",
                      border_style="grey50", padding=(0, 1))
 
@@ -988,11 +1018,22 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
     try:
         with Live(render_dashboard(state, console.size.height), console=console, screen=True,
                   refresh_per_second=4, redirect_stderr=False) as live:
+            consecutive_errors = 0
             while True:
-                for ev in tailer.poll():
-                    state.apply(ev)
-                state.reconcile(tailer.mtimes)
-                live.update(render_dashboard(state, console.size.height))
+                try:
+                    for ev in tailer.poll():
+                        state.apply(ev)
+                    state.reconcile(tailer.mtimes)
+                    live.update(render_dashboard(state, console.size.height))
+                    consecutive_errors = 0
+                except Exception as exc:  # noqa: BLE001
+                    # A transient FS race (a results file swapped/removed by a
+                    # concurrent git op, a half-written line) must not freeze the
+                    # dashboard. Keep polling; surface it, bail only if it never clears.
+                    consecutive_errors += 1
+                    state.loop_error = f"{type(exc).__name__}: {exc}"
+                    if consecutive_errors >= 30:
+                        raise
                 time.sleep(max(0.5, poll))
     except KeyboardInterrupt:
         return 0
@@ -1135,9 +1176,13 @@ def main() -> int:
     state = SessionState()
     try:
         while True:
-            for ev in tailer.poll():
-                state.apply(ev)
-            state.reconcile(tailer.mtimes)
+            try:
+                for ev in tailer.poll():
+                    state.apply(ev)
+                state.reconcile(tailer.mtimes)
+                state.loop_error = ""
+            except Exception as exc:  # noqa: BLE001 - a transient FS race must not stop the loop
+                state.loop_error = f"{type(exc).__name__}: {exc}"
             if sys.stdout.isatty():
                 sys.stdout.write("\033[2J\033[H")
             print(render_plain(state), flush=True)
