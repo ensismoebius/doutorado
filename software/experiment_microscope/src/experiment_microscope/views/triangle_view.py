@@ -29,12 +29,15 @@ class TriangleView(QWidget):
         self.repo = repo
         self._run_node: TreeNode | None = None
         self._adapter_key: str | None = None
+        self._timeline = None
+        self._syncing = False
 
         root = QVBoxLayout(self)
         bar = QHBoxLayout()
         self._sample = QSpinBox()
         self._sample.setRange(0, 0)
         self._sample.valueChanged.connect(self._render)
+        self._sample.valueChanged.connect(self._on_spin)
         bar.addWidget(QLabel("sample"))
         bar.addWidget(self._sample)
         self._status = QLabel("Select a thesis Phase-00 handcrafted run.")
@@ -48,6 +51,28 @@ class TriangleView(QWidget):
             return
         self._layout = pg.GraphicsLayoutWidget()
         root.addWidget(self._layout, 1)
+
+    def set_timeline(self, player) -> None:
+        """Bind the shared transport so Play scrubs the sample index (FIXME §24)."""
+        self._timeline = player
+        player.frame_changed.connect(self._on_frame)
+
+    def _on_frame(self, frame: int) -> None:
+        if self._run_node is None or self._syncing:
+            return
+        self._syncing = True
+        try:
+            self._sample.setValue(max(0, min(self._sample.maximum(), int(frame))))
+        finally:
+            self._syncing = False
+
+    def _on_spin(self, value: int) -> None:
+        if self._timeline is not None and not self._syncing:
+            self._syncing = True
+            try:
+                self._timeline.seek(int(value))
+            finally:
+                self._syncing = False
 
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         if self._layout is None:
@@ -76,6 +101,9 @@ class TriangleView(QWidget):
         self._sample.setRange(0, max(0, n - 1))
         self._sample.setValue(0)
         self._sample.blockSignals(False)
+        if self._timeline is not None:
+            self._timeline.set_total_frames(max(1, n))
+            self._timeline.seek(0)
         self._render()
 
     def _render(self) -> None:

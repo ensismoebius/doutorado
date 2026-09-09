@@ -78,6 +78,21 @@ class TransformationCache(QObject):
         self._inflight: set[CacheKey] = set()
         self._max = max_entries
         self._pool = QThreadPool.globalInstance()
+        self._hits = 0
+        self._misses = 0
+
+    def stats(self) -> dict[str, Any]:
+        """Live counters for the developer panel (FIXME §37)."""
+        total = self._hits + self._misses
+        return {
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": (self._hits / total) if total else 0.0,
+            "entries": len(self._store),
+            "max_entries": self._max,
+            "inflight": len(self._inflight),
+            "pool_active": self._pool.activeThreadCount(),
+        }
 
     def peek(self, key: CacheKey) -> Any | None:
         if key in self._store:
@@ -93,8 +108,10 @@ class TransformationCache(QObject):
 
         hit = self.peek(key)
         if hit is not None:
+            self._hits += 1
             self.ready.emit(key, hit)
             return hit
+        self._misses += 1
         if key in self._inflight:
             return None
         self._inflight.add(key)
@@ -108,7 +125,9 @@ class TransformationCache(QObject):
         """Synchronous fill — for tests and headless use."""
         hit = self.peek(key)
         if hit is not None:
+            self._hits += 1
             return hit
+        self._misses += 1
         value = fn()
         self._insert(key, value)
         return value

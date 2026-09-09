@@ -30,7 +30,10 @@ from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.core.state import AppState
 from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
+import numpy as np
+
 from experiment_microscope.views.bookmarks_dock import BookmarksDock
+from experiment_microscope.views.developer_panel import DeveloperPanel
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.pipeline_dag import PipelineDag
@@ -39,6 +42,7 @@ from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
+from experiment_microscope.views.transport_bar import TransportBar
 from experiment_microscope.views.triangle_view import TriangleView
 from experiment_microscope.views.wavelet_lab import WaveletLab
 
@@ -78,6 +82,7 @@ class Workspace(QMainWindow):
         self.para_plane = ParaconsistentPlane(self.repo)
         self.pipeline_dag = PipelineDag()
         self.triangle = TriangleView(self.repo)
+        self.triangle.set_timeline(self.timeline)
         self.pipeline_dag.node_activated.connect(self._open_tab)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
@@ -89,6 +94,7 @@ class Workspace(QMainWindow):
 
         self.follow_bar = FollowDataBar(self.repo)
         self.follow_bar.stage_activated.connect(self._open_tab)
+        self.transport = TransportBar(self.timeline)
 
         central = QWidget()
         col = QVBoxLayout(central)
@@ -96,6 +102,7 @@ class Workspace(QMainWindow):
         col.setSpacing(0)
         col.addWidget(self.follow_bar)
         col.addWidget(self.tabs, 1)
+        col.addWidget(self.transport)
         self.setCentralWidget(central)
 
     def _open_tab(self, name: str) -> None:
@@ -127,6 +134,10 @@ class Workspace(QMainWindow):
         self.bookmarks.save_requested.connect(self._save_bookmark)
         self.bookmarks.restore_requested.connect(self._restore_bookmark)
         self._dock("Bookmarks", self.bookmarks, Qt.DockWidgetArea.RightDockWidgetArea)
+
+        self.developer = DeveloperPanel(self.repo.cache, self._probe_shapes)
+        dev_dock = self._dock("Developer", self.developer, Qt.DockWidgetArea.RightDockWidgetArea)
+        dev_dock.setVisible(False)  # opt-in (FIXME §37)
 
     def _build_menus(self) -> None:
         view_menu = self.menuBar().addMenu("&View")
@@ -217,6 +228,28 @@ class Workspace(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             text = f"session dashboard unavailable: {exc}"
         self.session_log.setPlainText(text or "No meeting01 run detected under results/meeting01/.")
+
+    # -- developer panel (FIXME §37) ---------------------------
+    def _probe_shapes(self) -> "dict[str, tuple[int, ...] | None]":
+        """Shapes of whatever the pipeline views currently hold. Read-only."""
+        out: dict[str, tuple[int, ...] | None] = {
+            "raw": None, "transformed": None, "latent": None, "reconstruction": None,
+        }
+        sig = getattr(self.signal_view, "_last_signal", None)
+        if sig is not None:
+            out["raw"] = tuple(np.asarray(sig.samples).shape)
+        decomp = getattr(self.wavelet_lab, "_decomp", None)
+        if decomp is not None:
+            out["transformed"] = tuple(np.asarray(decomp.transformed_signal).shape)
+        trace = getattr(self.encoding_lab, "_last_trace", None)
+        if trace is not None:
+            lat = getattr(trace, "latent", None)
+            rec = getattr(trace, "reconstruction", None)
+            if lat is not None:
+                out["latent"] = tuple(np.asarray(lat).shape)
+            if rec is not None:
+                out["reconstruction"] = tuple(np.asarray(rec).shape)
+        return out
 
     # -- publication export (FIXME §30) -------------------------
     def _export_current_view(self) -> None:
