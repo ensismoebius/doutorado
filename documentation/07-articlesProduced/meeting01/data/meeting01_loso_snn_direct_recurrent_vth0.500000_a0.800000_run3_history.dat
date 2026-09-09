@@ -1,0 +1,9 @@
+# model=snn-ae encoding=direct architecture=recurrent v_th=0.5 alpha=0.8 run=3
+epoch train_loss val_loss
+1 0.056774 0.036292
+2 0.008659 0.034456
+3 0.007628 0.047112
+4 0.007316 0.039132
+5 0.007036 0.045338
+6 0.007042 0.045446
+7 0.006991 0.046162
