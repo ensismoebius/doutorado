@@ -20,7 +20,10 @@ def test_meeting01_window_lights_signal_and_wavelet(qapp):
     bar.update_for(node, "meeting01")
     en = _enabled(bar)
     assert {"raw", "window", "normalized", "wavelet", "paraconsistent"} <= en
-    assert "latent" not in en  # no trained model
+    # latent / reconstruction light up iff Step E .npz models exist for this fold
+    has_model = bool(bar.repo.adapter("meeting01")._snn_model_specs())
+    assert ("latent" in en) == has_model
+    assert "classification" not in en  # never (no classifier artifact wired)
 
 
 def test_thesis_run_lights_features(qapp):

@@ -270,24 +270,32 @@ class Meeting01Adapter(ExperimentAdapter):
 
     # -- provenance (from session_begin) -------------------------
     # -- trained SNN-AE models (Step E .npz artifacts) -----------
+    #: e.g. ...snn_combo_fsdd_direct_dense_vth0_500000_a0_800000_fold0_run1_encoder.npz
+    #: — vth / a are floats with the '.' sanitized to '_' in the filename.
     _NPZ_RE = re.compile(
-        r"_snn_[a-z]+_(?P<dataset>[a-z0-9]+)_(?P<encoding>[a-z]+)_(?P<arch>[a-z0-9]+)_"
-        r"vth(?P<vth>[0-9.]+)_a(?P<alpha>[0-9.]+)_fold(?P<fold>\d+)_run(?P<run>\d+)_encoder\.npz$"
+        r"_snn_(?P<role>[a-z]+)_(?P<dataset>[a-z0-9]+)_(?P<encoding>[a-z]+)_(?P<arch>[a-z0-9]+)_"
+        r"vth(?P<vth>\d+_\d+)_a(?P<alpha>\d+_\d+)_fold(?P<fold>\d+)_run(?P<run>\d+)_encoder\.npz$"
     )
+
+    @staticmethod
+    def _sanitized_float(s: str) -> float:
+        return float(s.replace("_", ".", 1))
 
     def _snn_model_specs(self) -> list[dict[str, Any]]:
         specs: list[dict[str, Any]] = []
-        for enc_npz in sorted(self.results_dir.glob("models/**/*_encoder.npz")):
+        for enc_npz in sorted(self.results_dir.glob("models/**/*_snn_*_encoder.npz")):
             m = self._NPZ_RE.search(enc_npz.name)
             dec_npz = enc_npz.with_name(enc_npz.name[: -len("_encoder.npz")] + "_decoder.npz")
             if not m or not dec_npz.is_file():
                 continue
             specs.append({
-                "encoder": str(enc_npz), "decoder": str(dec_npz),
+                "encoder": str(enc_npz), "decoder": str(dec_npz), "role": m["role"],
                 "dataset": m["dataset"], "encoding": m["encoding"], "architecture": m["arch"],
-                "v_th": float(m["vth"]), "alpha": float(m["alpha"]),
+                "v_th": self._sanitized_float(m["vth"]), "alpha": self._sanitized_float(m["alpha"]),
                 "fold": int(m["fold"]), "run": int(m["run"]),
             })
+        # prefer the retrained winner ("final") over the grid ("combo")
+        specs.sort(key=lambda s: (s["role"] != "final", s["architecture"], s["run"]))
         return specs
 
     def load_latent(self, node: TreeNode, **params: Any) -> LatentTrace:
@@ -309,18 +317,32 @@ class Meeting01Adapter(ExperimentAdapter):
             cand = [s for s in cand if s["encoding"] == want_enc] or cand
         if want_arch:
             cand = [s for s in cand if s["architecture"] == want_arch] or cand
-        spec = cand[0]
 
         from experiment_microscope.processing import meeting01 as m01
 
         split = self._split(h["dataset"], h["cv_fold"])
         window = np.asarray(split[f"{h['split']}_samples"][h["row"]], dtype=float)
-        trace = m01.snn_ae_forward(
-            str(self.profile_dir / _LOSO_PROFILE),
-            alpha=spec["alpha"], v_th=spec["v_th"], architecture=spec["architecture"],
-            encoder_npz=spec["encoder"], decoder_npz=spec["decoder"],
-            flat_window=window, encoding=spec["encoding"],
-        )
+        # try candidates in order — a model still being written by a live LOSO
+        # run, or one whose saved shape does not match make_snn_cfg, fails to
+        # load; fall through to the next rather than blanking the view.
+        trace = None
+        last_err: Exception | None = None
+        for spec in cand:
+            try:
+                trace = m01.snn_ae_forward(
+                    str(self.profile_dir / _LOSO_PROFILE),
+                    alpha=spec["alpha"], v_th=spec["v_th"], architecture=spec["architecture"],
+                    encoder_npz=spec["encoder"], decoder_npz=spec["decoder"],
+                    flat_window=window, encoding=spec["encoding"],
+                )
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+        if trace is None:
+            raise RuntimeError(
+                f"found {len(cand)} SNN-AE .npz for this fold but none loaded "
+                f"(a LOSO run may still be writing them): {last_err}"
+            )
         original = np.asarray(trace.encoded_input).reshape(-1)
         recon = np.asarray(trace.reconstruction).reshape(-1)
         return LatentTrace(
