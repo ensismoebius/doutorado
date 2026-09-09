@@ -20,14 +20,22 @@ from experiment_microscope.views._timesync import TimeCursor
 
 
 class SignalView(QWidget):
+    #: above this many samples per channel the plot decimates for display and
+    #: the status bar shows DISPLAY-DOWNSAMPLED (FIXME §26). Exact values are
+    #: still readable via the cursor because the full array is kept in
+    #: ``_last_signal``.
+    DISPLAY_LIMIT = 20_000
+
     def __init__(
         self,
         repo: DataRepository,
         selection: SelectionState | None = None,
+        app_state=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.repo = repo
+        self.app_state = app_state
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._cursor = None
@@ -98,16 +106,24 @@ class SignalView(QWidget):
         if data.ndim == 1:
             data = data[None, :]
         names = signal.channel_names or tuple(f"ch{i}" for i in range(data.shape[0]))
+        n = data.shape[1]
+        stride = max(1, -(-n // self.DISPLAY_LIMIT))  # ceil(n / limit)
+        downsampled = stride > 1
+        x = np.arange(0, n, stride)
         for i, row in enumerate(data):
             self._plot.plot(
-                np.arange(row.shape[0]),
-                row + i * 0.0,
+                x,
+                row[::stride],
                 pen=pg.intColor(i, hues=max(3, data.shape[0])),
                 name=names[i] if i < len(names) else f"ch{i}",
             )
+        if self.app_state is not None:
+            self.app_state.display_downsampled = downsampled
         title = signal.label or ""
         if signal.origin is not None:
             title = f"{title}  [{signal.origin.value}]".strip()
+        if downsampled:
+            title += f"  · DISPLAY-DOWNSAMPLED 1:{stride} ({n:,}→{x.size:,} pts; cursor reads full-res)"
         self._plot.setTitle(title)
         self._plot.setLabel("left", signal.unit or "amplitude")
         if self._cursor is not None:

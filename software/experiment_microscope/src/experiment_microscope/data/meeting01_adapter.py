@@ -298,7 +298,28 @@ class Meeting01Adapter(ExperimentAdapter):
         specs.sort(key=lambda s: (s["role"] != "final", s["architecture"], s["run"]))
         return specs
 
-    def load_latent(self, node: TreeNode, **params: Any) -> LatentTrace:
+    @staticmethod
+    def _npz_has_lif_params(encoder_npz: str) -> bool:
+        """True if the checkpoint carries LIF ``.resistance`` arrays.
+
+        Checkpoints written before the ``NetworkSerializer`` ``LifBPTT`` fix
+        (2026-09-09) store only the ``Linear`` weights; ``snn_ae_forward`` still
+        loads those but the LIF R/C/v_th keep their constructed defaults. Callers
+        surface this as a fidelity caveat rather than silently pretending the
+        membrane parameters are the trained ones.
+        """
+        try:
+            with np.load(encoder_npz) as z:
+                return any(k.endswith(".resistance") for k in z.files)
+        except Exception:  # noqa: BLE001
+            return False
+
+    def load_ae_trace(self, node: TreeNode, **params: Any):
+        """Full ``AeTrace`` (latent + reconstruction + per-layer encoder trace).
+
+        Returns ``(trace, spec, lif_params_present)``. Shared by ``load_latent``
+        and the SNN Lab / SNN-3D views (FIXME §15, §18).
+        """
         h = getattr(node, "handle", {}) or {}
         if h.get("level") != "window":
             raise NotImplementedError("select an individual window")
@@ -307,11 +328,12 @@ class Meeting01Adapter(ExperimentAdapter):
             raise RuntimeError(
                 "no trained SNN-AE .npz under "
                 f"{self.results_dir / 'models'} — run a LOSO fold with "
-                "`dataset.save_models: true` (emits *_encoder.npz / *_decoder.npz via Step E) "
-                "then reselect this window."
+                "`dataset.save_models: true` (emits *_encoder.npz / *_decoder.npz via "
+                "Step E) then reselect this window."
             )
         ds, fold = h.get("dataset"), h.get("cv_fold")
-        want_enc, want_arch = h.get("encoding") or params.get("encoding"), h.get("architecture")
+        want_enc = h.get("encoding") or params.get("encoding")
+        want_arch = h.get("architecture")
         cand = [s for s in specs if s["dataset"] == ds and s["fold"] == fold] or specs
         if want_enc:
             cand = [s for s in cand if s["encoding"] == want_enc] or cand
@@ -322,10 +344,6 @@ class Meeting01Adapter(ExperimentAdapter):
 
         split = self._split(h["dataset"], h["cv_fold"])
         window = np.asarray(split[f"{h['split']}_samples"][h["row"]], dtype=float)
-        # try candidates in order — a model still being written by a live LOSO
-        # run, or one whose saved shape does not match make_snn_cfg, fails to
-        # load; fall through to the next rather than blanking the view.
-        trace = None
         last_err: Exception | None = None
         for spec in cand:
             try:
@@ -335,25 +353,115 @@ class Meeting01Adapter(ExperimentAdapter):
                     encoder_npz=spec["encoder"], decoder_npz=spec["decoder"],
                     flat_window=window, encoding=spec["encoding"],
                 )
-                break
+                return trace, spec, self._npz_has_lif_params(spec["encoder"])
             except Exception as exc:  # noqa: BLE001
                 last_err = exc
-        if trace is None:
-            raise RuntimeError(
-                f"found {len(cand)} SNN-AE .npz for this fold but none loaded "
-                f"(a LOSO run may still be writing them): {last_err}"
-            )
+        raise RuntimeError(
+            f"found {len(cand)} SNN-AE .npz for this fold but none loaded "
+            f"(a LOSO run may still be writing them): {last_err}"
+        )
+
+    def load_latent(self, node: TreeNode, **params: Any) -> LatentTrace:
+        trace, _spec, lif_ok = self.load_ae_trace(node, **params)
         original = np.asarray(trace.encoded_input).reshape(-1)
         recon = np.asarray(trace.reconstruction).reshape(-1)
+        # LIF spike train + membrane snapshot from the middle LifBPTT layer, when
+        # the encoder exposes one (FIXME §15/§16).
+        spikes = v_mem = None
+        for lyr in getattr(trace, "encoder_layers", ()):
+            if lyr.kind == "lif":
+                spikes = None if lyr.output is None else np.asarray(lyr.output).reshape(-1)
+                v_mem = None if lyr.v_mem is None else np.asarray(lyr.v_mem).reshape(-1)
+                break
+        metrics = _recon_metrics(original, recon)
+        if not lif_ok:
+            metrics = dict(metrics)
+            metrics["lif_params"] = Value(
+                "Linear weights only — LIF R/C/v_th are constructed defaults "
+                "(checkpoint predates the 2026-09-09 LifBPTT serializer fix; "
+                "re-run this fold with the rebuilt binary for full fidelity)",
+                Origin.ESTIMATED,
+            )
         return LatentTrace(
             latent=np.asarray(trace.latent).reshape(-1),
             reconstruction=recon,
             original=original,
-            spikes=None,
-            v_mem=None,
+            spikes=spikes,
+            v_mem=v_mem,
             origin=Origin.COMPUTED,
-            metrics=_recon_metrics(original, recon),
+            metrics=metrics,
         )
+
+    def latent_batch(
+        self,
+        dataset: str,
+        cv_fold: int,
+        *,
+        split: str = "test",
+        limit: int = 120,
+        encoding: str | None = None,
+        architecture: str | None = None,
+    ) -> dict[str, Any]:
+        """Latent vectors for many windows of one fold (FIXME §19).
+
+        One SNN-AE spec is chosen for the whole batch (prefers the retrained
+        ``final``); each window is run through ``snn_ae_forward``. Returns
+        ``{latents: (n, latent_dim), digits, speakers, rows, spec, lif_params}``.
+        Blocking and O(n) forward passes — callers cap ``limit`` and/or run it
+        off the GUI thread.
+        """
+        specs = self._snn_model_specs()
+        if not specs:
+            raise RuntimeError(
+                f"no trained SNN-AE .npz under {self.results_dir / 'models'} — run a LOSO "
+                "fold with `dataset.save_models: true` then reopen the latent explorer."
+            )
+        cand = [s for s in specs if s["dataset"] == dataset and s["fold"] == cv_fold] or specs
+        if encoding:
+            cand = [s for s in cand if s["encoding"] == encoding] or cand
+        if architecture:
+            cand = [s for s in cand if s["architecture"] == architecture] or cand
+        spec = cand[0]
+
+        from experiment_microscope.processing import meeting01 as m01
+
+        split_data = self._split(dataset, cv_fold)
+        samples = split_data[f"{split}_samples"]
+        metas = split_data[f"{split}_meta"]
+        n = min(len(samples), max(1, int(limit)))
+        latents: list[np.ndarray] = []
+        digits: list[Any] = []
+        speakers: list[Any] = []
+        rows: list[int] = []
+        last_err: Exception | None = None
+        for i in range(n):
+            try:
+                tr = m01.snn_ae_forward(
+                    str(self.profile_dir / _LOSO_PROFILE),
+                    alpha=spec["alpha"], v_th=spec["v_th"], architecture=spec["architecture"],
+                    encoder_npz=spec["encoder"], decoder_npz=spec["decoder"],
+                    flat_window=np.asarray(samples[i], dtype=float), encoding=spec["encoding"],
+                )
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                continue
+            latents.append(np.asarray(tr.latent).reshape(-1))
+            digits.append(metas[i].get("digit"))
+            speakers.append(metas[i].get("speaker"))
+            rows.append(i)
+        if not latents:
+            raise RuntimeError(
+                f"none of {n} windows produced a latent (model still training?): {last_err}"
+            )
+        return {
+            "latents": np.vstack(latents),
+            "digits": digits,
+            "speakers": speakers,
+            "rows": rows,
+            "split": split,
+            "spec": spec,
+            "lif_params": self._npz_has_lif_params(spec["encoder"]),
+        }
 
     def artifact_files(self, node: TreeNode) -> list[str]:
         h = getattr(node, "handle", {}) or {}

@@ -351,6 +351,15 @@ The most common layer used in Experiment04.
 
 These are **not** different network architectures — they are signal conditioning steps applied at `Meeting01Encoding.cpp:apply_snn_architecture_transform`.
 
+The `recurrent` transform iterates the window samples as time steps:
+$v[t] = \alpha\,v[t-1] + x[t] - s[t-1]\,V_{th}$, $s[t] = \mathbb{1}[v[t] \ge V_{th}]$.
+It normally returns only the spike train $s$; `meeting01::recurrent_lif_trace` (bound as
+`nn_microscope.meeting01.recurrent_lif_trace`) returns the discarded membrane trajectory
+$v[t]$ as well, so the [Experiment Microscope](../Guides/Experiment-Microscope.md) SNN Lab
+can plot a real per-step membrane curve. This is the only place meeting01 has a membrane
+*trajectory* — the SNN-AE itself runs `time_steps == 1` (the window is a feature vector,
+so its LIF layer has a single `v_mem` per neuron, not a curve).
+
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 
 **Example Encoder**: `["linear:128:leaky", "residual:2", "linear:32:identity"]`

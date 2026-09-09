@@ -1,0 +1,9 @@
+# model=snn-ae encoding=latency architecture=conv1d v_th=0.5 alpha=0.99 run=3
+epoch train_loss val_loss
+1 0.035917 0.063189
+2 0.015114 0.040008
+3 0.013127 0.041792
+4 0.015142 0.042486
+5 0.017368 0.043649
+6 0.016301 0.047122
+7 0.016696 0.056083

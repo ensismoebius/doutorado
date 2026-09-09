@@ -54,6 +54,7 @@ class ExperimentTimeline(QWidget):
 
         # training curve for the selected config (FIXME §46)
         self._configs: dict[str, object] = {}
+        self._epoch_ms_vb = None
         if PG_OK:
             self._curve = pg.PlotWidget()
             self._curve.addLegend()
@@ -147,7 +148,40 @@ class ExperimentTimeline(QWidget):
         best = getattr(cfg, "best_epoch", None)
         if best is not None:
             self._curve.addLine(x=best, pen=pg.mkPen((90, 200, 120), style=Qt.PenStyle.DashLine))
-        self._curve.setTitle(f"{config_id}  ·  {getattr(cfg, 'status', '')}")
+
+        # epoch duration on a linked right-hand axis (FIXME §46)
+        self._plot_epoch_ms(cfg, xs)
+        lr = getattr(cfg, "lr", None)
+        title = f"{config_id}  ·  {getattr(cfg, 'status', '')}"
+        if lr is not None:
+            title += f"  ·  lr {lr:g}"
+        avg_ms = getattr(cfg, "avg_epoch_ms", None)
+        if avg_ms:
+            title += f"  ·  ~{avg_ms / 1000:.1f}s/epoch"
+        self._curve.setTitle(title)
+
+    def _plot_epoch_ms(self, cfg, xs: list[int]) -> None:
+        ems = list(getattr(cfg, "_epoch_ms", []) or [])
+        if not ems or self._curve is None:
+            self._epoch_ms_vb = None
+            return
+        pi = self._curve.getPlotItem()
+        if getattr(self, "_epoch_ms_vb", None) is None:
+            self._epoch_ms_vb = pg.ViewBox()
+            pi.scene().addItem(self._epoch_ms_vb)
+            pi.getAxis("right").linkToView(self._epoch_ms_vb)
+            self._epoch_ms_vb.setXLink(pi)
+            pi.showAxis("right")
+            pi.getAxis("right").setLabel("epoch duration (s)", color="#b0b0b0")
+            pi.vb.sigResized.connect(
+                lambda: self._epoch_ms_vb.setGeometry(pi.vb.sceneBoundingRect())
+            )
+        self._epoch_ms_vb.clear()
+        n = min(len(ems), len(xs))
+        curve = pg.PlotDataItem(xs[:n], [v / 1000.0 for v in ems[:n]],
+                                pen=pg.mkPen((160, 120, 200), width=1, style=Qt.PenStyle.DotLine))
+        self._epoch_ms_vb.addItem(curve)
+        self._epoch_ms_vb.setGeometry(pi.vb.sceneBoundingRect())
 
 
 def _fmt(x) -> str:

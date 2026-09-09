@@ -13,11 +13,13 @@
 #include <string>
 #include <vector>
 
+#include "layers/Layers.hpp"
 #include "layers/activations/LeakyReLU.hpp"
 #include "layers/activations/ReLU.hpp"
 #include "layers/base/Sequential.hpp"
 #include "layers/dense/Linear.hpp"
 #include "layers/spiking/Lif.hpp"
+#include "layers/spiking/LifBPTT.hpp"
 #include "logging/Logger.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -31,14 +33,18 @@
  *
  * Supported layers:
  * - `Linear` (weights + bias)
- * - `Lif` (scalar 1x1 tensor params: resistance, voltage_threshold, capacitance)
+ * - `Lif` / `LifIntegrator` (scalar 1x1 params: resistance, voltage_threshold, capacitance)
+ * - `LifBPTT` (same 1x1 params; arch line also carries time_steps / readout_mode /
+ *   adapt_decay / adapt_coupling)
  * - `ReLU`, `LeakyReLU` (no parameters)
  *
  * Limitations / caveats:
  * - This is not a general-purpose checkpoint format; it is intentionally narrow
  *   to support demos.
- * - Layer indices are positional in `model.layers`. If you insert/remove layers,
- *   old checkpoints may not load as intended.
+ * - Param arrays are keyed by position in `model.layers`. `loadNetwork` matches
+ *   arch lines to param groups in order via `_nextParamIndex`, so a positional
+ *   gap left by a layer an older build did not serialize (e.g. `LifBPTT` before
+ *   this handler existed) is skipped rather than fatal.
  */
 
 using cnpy::NpyArray;
@@ -47,6 +53,7 @@ using cnpy::npz_save;
 using cnpy::npz_t;
 using nn::LeakyReLU;
 using nn::Lif;
+using nn::LifBPTT;
 using nn::Linear;
 using nn::ReLU;
 using nn::Sequential;
@@ -76,6 +83,17 @@ class NetworkSerializer
     static auto saveNetwork(const Sequential& model, const string& safe_filepath) -> bool;
     static auto loadNetwork(Sequential& model, const string& safe_filepath) -> bool;
 
+    /// Load ONLY the parameter arrays from `safe_filepath` into the layers
+    /// `model` already has, matching param groups to param-bearing layers in
+    /// order. Use this when the caller has built the correct topology (e.g.
+    /// `ProtocolSpikingAutoencoder`) and just needs the trained weights — it
+    /// does not read the architecture metadata, so it also recovers a
+    /// checkpoint whose metadata predates a layer-type handler (a `LifBPTT`
+    /// encoder saved before `LifBPTT` support: its `Linear` weights still load,
+    /// the LIF params keep their constructed values). Returns false on any
+    /// mismatch (a missing group, or a shape the layer cannot accept).
+    static auto loadParametersInto(Sequential& model, const string& safe_filepath) -> bool;
+
    private:
     // --- Constants ---
     static constexpr const char* kWeightsSuffix = ".weight";
@@ -93,10 +111,33 @@ class NetworkSerializer
         size_t index,
         string& arch_str,
         map<string, pair<vector<size_t>, const float*>>& params);
+    static void _saveLifBPTT(const shared_ptr<LifBPTT>& layer,
+        size_t index,
+        string& arch_str,
+        map<string, pair<vector<size_t>, const float*>>& params);
 
     // --- Load Handlers ---
     static void _loadLinearParams(const shared_ptr<Linear>& layer, size_t index, const npz_t& data);
     static void _loadLeakyParams(const shared_ptr<Lif>& layer, size_t index, const npz_t& data);
+    static void _loadLifBPTTParams(
+        const shared_ptr<LifBPTT>& layer, size_t index, const npz_t& data);
+
+    /// First index >= `from` for which `to_string(index) + probe` is a key in
+    /// `data`. Tolerates gaps in the positional index left by layers that older
+    /// saves did not serialize (e.g. LifBPTT before this handler existed), while
+    /// staying exact for contiguous saves. Bounded scan; throws if none found.
+    static auto _nextParamIndex(size_t from, const npz_t& data, const string& probe) -> size_t
+    {
+        for (size_t k = from; k < from + 256; ++k)
+        {
+            if (data.find(to_string(k) + probe) != data.end())
+            {
+                return k;
+            }
+        }
+        throw runtime_error(
+            "no parameter group '" + probe + "' found at or after index " + to_string(from));
+    }
 
     // --- Helper for splitting strings ---
     static auto _split(const string& s, char delimiter) -> vector<string>
@@ -138,7 +179,12 @@ inline auto NetworkSerializer::saveNetwork(const Sequential& model, const string
             }
             else if (auto leaky = dynamic_pointer_cast<Lif>(layer))
             {
+                // LifIntegrator derives from Lif and is covered here too.
                 _saveLeaky(leaky, layer_index, arch_metadata_str, parameters);
+            }
+            else if (auto lif_bptt = dynamic_pointer_cast<LifBPTT>(layer))
+            {
+                _saveLifBPTT(lif_bptt, layer_index, arch_metadata_str, parameters);
             }
             else if (dynamic_pointer_cast<ReLU>(layer))
             {
@@ -214,6 +260,26 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Lif>& layer,
         {layer->capacitance.rows(), layer->capacitance.cols()}, layer->capacitance.data_ptr()};
 }
 
+inline void NetworkSerializer::_saveLifBPTT(const shared_ptr<LifBPTT>& layer,
+    size_t index,
+    string& arch_str,
+    map<string, pair<vector<size_t>, const float*>>& params)
+{
+    arch_str +=
+        "LifBPTT:" + to_string(layer->time_steps) + ":" + to_string(layer->delta_t) + ":" +
+        to_string(layer->resistance.at(0, 0)) + ":" + to_string(layer->capacitance.at(0, 0)) + ":" +
+        to_string(layer->voltage_threshold.at(0, 0)) + ":" + (layer->reset_zero ? "1" : "0") + ":" +
+        to_string(layer->reset_potential) + ":" + (layer->readout_mode ? "1" : "0") + ":" +
+        to_string(layer->adapt_decay) + ":" + to_string(layer->adapt_coupling) + "\n";
+    params[to_string(index) + ".resistance"] = {
+        {layer->resistance.rows(), layer->resistance.cols()}, layer->resistance.data_ptr()};
+    params[to_string(index) + ".voltage_threshold"] = {
+        {layer->voltage_threshold.rows(), layer->voltage_threshold.cols()},
+        layer->voltage_threshold.data_ptr()};
+    params[to_string(index) + ".capacitance"] = {
+        {layer->capacitance.rows(), layer->capacitance.cols()}, layer->capacitance.data_ptr()};
+}
+
 // --- Load Implementations ---
 
 inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe_filepath) -> bool
@@ -235,7 +301,11 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
         std::string arch_metadata(arch_ptr, arch_ptr + arch_len);
 
         auto lines = _split(arch_metadata, '\n');
-        size_t layer_index = 0;
+        // Positional cursor over persisted parameter groups. Advanced only by
+        // param-bearing layers, and via _nextParamIndex so a gap left by a
+        // historically-unserialized layer (LifBPTT before it was handled) is
+        // skipped rather than fatal.
+        size_t param_cursor = 0;
         for (const auto& line : lines)
         {
             if (line.empty())
@@ -249,7 +319,39 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
                 int in_f = stoi(parts[1]);
                 int out_f = stoi(parts[2]);
                 auto layer = make_shared<Linear>(in_f, out_f);
-                _loadLinearParams(layer, layer_index, data);
+                size_t pi = _nextParamIndex(param_cursor, data, kWeightsSuffix);
+                _loadLinearParams(layer, pi, data);
+                param_cursor = pi + 1;
+                model.layers.push_back(layer);
+            }
+            else if (line.rfind("LifBPTT:", 0) == 0)
+            {
+                auto parts = _split(line, ':');
+                if (parts.size() < 11) throw runtime_error("Malformed LifBPTT metadata");
+                int time_steps = stoi(parts[1]);
+                float delta_t = stof(parts[2]);
+                float resistance = stof(parts[3]);
+                float capacitance = stof(parts[4]);
+                float voltage_threshold = stof(parts[5]);
+                bool reset_zero = (parts[6] == "1");
+                float reset_potential = stof(parts[7]);
+                bool readout_mode = (parts[8] == "1");
+                float adapt_decay = stof(parts[9]);
+                float adapt_coupling = stof(parts[10]);
+                auto layer = make_shared<LifBPTT>(time_steps,
+                    delta_t,
+                    resistance,
+                    capacitance,
+                    voltage_threshold,
+                    reset_zero,
+                    reset_potential,
+                    readout_mode,
+                    std::make_shared<ExponentialSurrogate>(),
+                    adapt_decay,
+                    adapt_coupling);
+                size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                _loadLifBPTTParams(layer, pi, data);
+                param_cursor = pi + 1;
                 model.layers.push_back(layer);
             }
             else if (line.rfind("LeakyReLU:", 0) == 0)
@@ -280,14 +382,15 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
                     voltage_threshold,
                     reset_zero,
                     reset_potential);
-                _loadLeakyParams(layer, layer_index, data);
+                size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                _loadLeakyParams(layer, pi, data);
+                param_cursor = pi + 1;
                 model.layers.push_back(layer);
             }
             else
             {
                 NN_LOG_WARN("NetworkSerializer: unknown layer metadata: '" + line + "'");
             }
-            ++layer_index;
         }
 
         return true;
@@ -410,6 +513,89 @@ inline void NetworkSerializer::_loadLeakyParams(
             }
         }
     }
+}
+
+inline auto NetworkSerializer::loadParametersInto(Sequential& model, const string& safe_filepath)
+    -> bool
+{
+    try
+    {
+        const auto data = npz_load(safe_filepath);
+        size_t param_cursor = 0;
+        for (const auto& layer : model.layers)
+        {
+            if (auto linear = dynamic_pointer_cast<Linear>(layer))
+            {
+                size_t pi = _nextParamIndex(param_cursor, data, kWeightsSuffix);
+                _loadLinearParams(linear, pi, data);
+                param_cursor = pi + 1;
+            }
+            else if (auto leaky = dynamic_pointer_cast<Lif>(layer))
+            {
+                // Lif / LifIntegrator. Params optional — a metadata-poor legacy
+                // checkpoint may not carry them; keep the constructed values.
+                try
+                {
+                    size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                    _loadLeakyParams(leaky, pi, data);
+                    param_cursor = pi + 1;
+                }
+                catch (const exception&)
+                {
+                }
+            }
+            else if (auto lif_bptt = dynamic_pointer_cast<LifBPTT>(layer))
+            {
+                try
+                {
+                    size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                    _loadLifBPTTParams(lif_bptt, pi, data);
+                    param_cursor = pi + 1;
+                }
+                catch (const exception&)
+                {
+                }
+            }
+        }
+        return true;
+    }
+    catch (const exception& e)
+    {
+        NN_LOG_ERROR("NetworkSerializer::loadParametersInto failed: " + std::string(e.what()));
+        return false;
+    }
+}
+
+inline void NetworkSerializer::_loadLifBPTTParams(
+    const std::shared_ptr<LifBPTT>& layer, size_t index, const cnpy::npz_t& data)
+{
+    const auto copy_1x1 = [&](const std::string& suffix, nn::Tensor& dst, bool required)
+    {
+        auto it = data.find(std::to_string(index) + suffix);
+        if (it == data.end())
+        {
+            if (required)
+            {
+                throw std::runtime_error("LifBPTT parameter '" + suffix +
+                                         "' not found for module: " + std::to_string(index));
+            }
+            return;
+        }
+        const cnpy::NpyArray& arr = it->second;
+        const float* src = arr.data<float>();
+        const size_t rows = static_cast<size_t>(arr.shape.size() > 0 ? arr.shape[0] : 1);
+        const size_t cols = static_cast<size_t>(arr.shape.size() > 1 ? arr.shape[1] : 1);
+        for (size_t i = 0; i < rows; ++i)
+        {
+            for (size_t j = 0; j < cols; ++j)
+            {
+                dst.at(i, j) = src[i * cols + j];
+            }
+        }
+    };
+    copy_1x1(".resistance", layer->resistance, true);
+    copy_1x1(".voltage_threshold", layer->voltage_threshold, true);
+    copy_1x1(".capacitance", layer->capacitance, false);
 }
 
 #endif // NN_SAVER_NETWORKSERIALIZER_HPP

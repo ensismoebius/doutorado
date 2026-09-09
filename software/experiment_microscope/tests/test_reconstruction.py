@@ -49,6 +49,24 @@ def test_view_renders_trace(qapp):
     assert "latent dim 8" in v._status.text()
 
 
+def test_real_snn_ae_forward_end_to_end(qapp, first_fsdd_window):
+    """When Step E .npz models exist, load_latent runs snn_ae_forward for real."""
+    from experiment_microscope.processing._binding import is_available
+    if not is_available():
+        pytest.skip("nn_microscope not built")
+    node, adapter = first_fsdd_window()
+    if node is None or not adapter._snn_model_specs():
+        pytest.skip("no FSDD corpus or no trained *_encoder.npz on disk")
+    trace = adapter.load_latent(node)
+    assert trace.latent.ndim == 1 and trace.latent.size > 0
+    assert trace.reconstruction.shape == trace.original.shape
+    assert not trace.metrics["mse"].is_missing
+    v = ReconstructionView(DataRepository())
+    v._trace = trace
+    v._render()
+    assert v.can_export()
+
+
 def test_view_shows_remedy_when_adapter_raises(qapp):
     class _Raiser:
         def load_latent(self, node):

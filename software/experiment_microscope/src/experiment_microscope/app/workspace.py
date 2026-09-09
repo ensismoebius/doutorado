@@ -11,7 +11,8 @@ All panels talk only through ``SelectionState`` (FIXME §42).
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QSettings
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
+from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -28,6 +29,7 @@ from experiment_microscope.core.animation import TimelinePlayer
 from experiment_microscope.core.bookmarks import BookmarkStore, make_bookmark
 from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.core.state import AppState
+from experiment_microscope.core.theme import apply_theme
 from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
 import numpy as np
@@ -45,11 +47,13 @@ from experiment_microscope.views.feature_matrix import FeatureMatrixView
 from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
+from experiment_microscope.views.latent_explorer import LatentExplorer
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.reconstruction_view import ReconstructionView
 from experiment_microscope.views.reproduce_panel import ReproducePanel
 from experiment_microscope.views.search_bar import SearchBar
 from experiment_microscope.views.snn_lab import SnnLab
+from experiment_microscope.views.snn_3d import Snn3D
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
@@ -79,6 +83,8 @@ class Workspace(QMainWindow):
         self._wire()
 
         self._restore_layout()
+        saved_theme = QSettings(_ORG, _APP).value("theme", "system")
+        self._apply_theme(str(saved_theme), persist=False)
         if initial_experiment:
             self.explorer.select_experiment(initial_experiment)
 
@@ -86,12 +92,16 @@ class Workspace(QMainWindow):
     def _build_central(self) -> None:
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.signal_view = SignalView(self.repo, self.selection)
+        self.signal_view = SignalView(self.repo, self.selection, self.app_state)
         self.wavelet_lab = WaveletLab(self.repo, self.selection)
         self.wavelet_3d = Wavelet3D(self.repo, self.app_state)
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo, self.selection)
         self.snn_lab = SnnLab(self.repo, self.selection)
+        self.snn_3d = Snn3D(self.repo, self.app_state)
+        self.snn_3d.set_timeline(self.timeline)
+        self.latent_explorer = LatentExplorer(self.repo, self.app_state)
+        self.latent_explorer.sample_activated.connect(self._on_latent_sample)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.para_landscape = ParaconsistentLandscape(self.repo)
         self.pipeline_dag = PipelineDag()
@@ -111,6 +121,8 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
         self.tabs.addTab(self.snn_lab, "SNN Lab")
+        self.tabs.addTab(self.snn_3d, "SNN 3D")
+        self.tabs.addTab(self.latent_explorer, "Latent Space")
         self.tabs.addTab(self.reconstruction, "Reconstruction")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
         self.tabs.addTab(self.para_landscape, "Paraconsistent landscape")
@@ -195,6 +207,16 @@ class Workspace(QMainWindow):
         refresh.triggered.connect(self.para_landscape.refresh)
         view_menu.addAction(refresh)
 
+        theme_menu = view_menu.addMenu("Theme")
+        self._theme_group = QActionGroup(self)
+        for key, label in (("system", "System"), ("light", "Light"), ("dark", "Dark")):
+            act = QAction(label, self, checkable=True)
+            act.setChecked(self.app_state.theme == key)
+            act.triggered.connect(lambda _=False, k=key: self._apply_theme(k))
+            self._theme_group.addAction(act)
+            theme_menu.addAction(act)
+        view_menu.addSeparator()
+
         self._low_perf_action = QAction("Low-performance mode", self)
         self._low_perf_action.setCheckable(True)
         self._low_perf_action.setChecked(self.app_state.low_performance_mode)
@@ -266,12 +288,30 @@ class Workspace(QMainWindow):
         self.feature_matrix.show_node(node, adapter_key)
         self.encoding_lab.show_node(node, adapter_key)
         self.snn_lab.show_node(node, adapter_key)
+        self.snn_3d.show_node(node, adapter_key)
+        self.latent_explorer.show_node(node, adapter_key)
         self.reconstruction.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
         self.nsga.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
             self.timeline_view.refresh()
+
+    def _apply_theme(self, name: str, *, persist: bool = True) -> None:
+        """FIXME §34 — dark / light / system."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        eff = apply_theme(app, name)
+        self.app_state.theme = name
+        if persist:
+            QSettings(_ORG, _APP).setValue("theme", name)
+        for act in getattr(self, "_theme_group", QActionGroup(self)).actions():
+            act.setChecked(act.text().lower() == name)
+        self._status_selection.setText(f"theme: {name} ({eff})")
+        node = getattr(self, "_current_node", None)
+        if node is not None:  # restyle pyqtgraph plots on the next render
+            self._on_node_selected(node, self._current_adapter)
 
     def _set_low_performance(self, on: bool) -> None:
         """FIXME §38 — disable 3D / animation / live updates on weak hardware."""
@@ -281,12 +321,31 @@ class Workspace(QMainWindow):
         node = getattr(self, "_current_node", None)
         if node is not None:  # re-render so the 3D panel picks up the flag
             self.wavelet_3d.show_node(node, self._current_adapter)
+            self.snn_3d.show_node(node, self._current_adapter)
 
     def _on_timeline_config(self, dataset: str, fold: int, config_id: str) -> None:
         self.selection.update(experiment="meeting01", dataset=dataset)
         self._status_selection.setText(
             f"timeline → meeting01 › {dataset} › fold {fold} › {config_id}"
         )
+
+    def _on_latent_sample(self, dataset: str, fold: int, split: str, row: int) -> None:
+        """A latent-explorer point → select that window everywhere (FIXME §19)."""
+        adapter = self.repo.adapter("meeting01")
+        try:
+            meta = adapter._split(dataset, fold)[f"{split}_meta"][row]
+        except Exception:  # noqa: BLE001
+            meta = {}
+        node = TreeNode(
+            kind="sample",
+            label=f"win {meta.get('window_id', row)}  spk {meta.get('speaker', '?')}  "
+            f"digit {meta.get('digit', '?')}",
+            handle={"level": "window", "dataset": dataset, "cv_fold": fold,
+                    "split": split, "row": row},
+            metadata=dict(meta),
+        )
+        self._on_node_selected(node, "meeting01")
+        self.tabs.setCurrentWidget(self.latent_explorer)
 
     def _on_ranking_run(self, experiment: str, run_tag: str) -> None:
         self.explorer.select_experiment(experiment)
