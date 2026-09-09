@@ -11,18 +11,26 @@ from __future__ import annotations
 import numpy as np
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
+from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+from experiment_microscope.views._timesync import TimeCursor
 
 
 class SignalView(QWidget):
-    def __init__(self, repo: DataRepository, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        repo: DataRepository,
+        selection: SelectionState | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.repo = repo
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        self._cursor = None
         if PG_OK:
             self._plot = pg.PlotWidget()
             self._plot.showGrid(x=True, y=True, alpha=0.3)
@@ -30,6 +38,8 @@ class SignalView(QWidget):
             self._plot.addLegend()
             layout.addWidget(self._plot)
             self._message = pg.LabelItem(justify="left")
+            if selection is not None:
+                self._cursor = TimeCursor(self._plot.getPlotItem(), selection)
         else:
             self._plot = None
             layout.addWidget(missing_widget("Signal view"))
@@ -75,3 +85,5 @@ class SignalView(QWidget):
             title = f"{title}  [{signal.origin.value}]".strip()
         self._plot.setTitle(title)
         self._plot.setLabel("left", signal.unit or "amplitude")
+        if self._cursor is not None:
+            self._cursor.reattach()

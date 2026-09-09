@@ -29,6 +29,7 @@ STAGES: tuple[Stage, ...] = (
     Stage("raw", "RAW", "Signal"),
     Stage("window", "WINDOW", "Signal"),
     Stage("normalized", "NORMALIZED", "Signal"),
+    Stage("encoding", "ENCODING", "Encoding Lab"),
     Stage("wavelet", "WAVELET", "Wavelet Lab"),
     Stage("features", "FEATURES", "Feature Matrix"),
     Stage("paraconsistent", "PARACONSISTENT", "Paraconsistent plane"),
@@ -92,8 +93,10 @@ class FollowDataBar(QWidget):
             out["raw"] = out["normalized"] = ""
             out["window"] = "" if level == "window" else "this sample is not windowed here"
             out["wavelet"] = ""
+            out["encoding"] = "" if (adapter_key == "meeting01" and level == "window") \
+                else "spike encoding is a meeting01 window step"
         else:
-            for k in ("raw", "window", "normalized", "wavelet"):
+            for k in ("raw", "window", "normalized", "wavelet", "encoding"):
                 out[k] = "select an individual window / sample"
 
         if adapter_key == "thesis" and level == "run":

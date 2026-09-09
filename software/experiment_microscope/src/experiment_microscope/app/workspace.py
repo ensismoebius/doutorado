@@ -31,6 +31,7 @@ from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
+from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
@@ -65,13 +66,15 @@ class Workspace(QMainWindow):
     def _build_central(self) -> None:
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.signal_view = SignalView(self.repo)
-        self.wavelet_lab = WaveletLab(self.repo)
+        self.signal_view = SignalView(self.repo, self.selection)
+        self.wavelet_lab = WaveletLab(self.repo, self.selection)
         self.feature_matrix = FeatureMatrixView(self.repo)
+        self.encoding_lab = EncodingLab(self.repo)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
+        self.tabs.addTab(self.encoding_lab, "Encoding Lab")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
 
         self.follow_bar = FollowDataBar(self.repo)
@@ -142,6 +145,20 @@ class Workspace(QMainWindow):
             lambda on: self._status_res.setText("DISPLAY-DOWNSAMPLED" if on else "FULL RESOLUTION")
         )
         self.repo.cache.failed.connect(self._on_cache_failed)
+        self.selection.changed.connect(self._on_selection_changed)
+
+    def _on_selection_changed(self, field: str) -> None:
+        if field == "timestep":
+            ts = self.selection.get("timestep")
+            self._status_res.setText(
+                "FULL RESOLUTION" if ts is None else f"cursor @ sample {ts}"
+            )
+        elif field == "time_range":
+            tr = self.selection.get("time_range")
+            if tr:
+                self._status_selection.setText(
+                    f"{self._status_selection.text().split('  |  ')[0]}  |  range {tr[0]}–{tr[1]}"
+                )
 
     def _on_node_selected(self, node: TreeNode, adapter_key: str) -> None:
         self.selection.set("experiment", adapter_key)
@@ -157,6 +174,7 @@ class Workspace(QMainWindow):
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
         self.feature_matrix.show_node(node, adapter_key)
+        self.encoding_lab.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
 

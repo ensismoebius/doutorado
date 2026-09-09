@@ -24,17 +24,26 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+from experiment_microscope.views._timesync import TimeCursor
 
 _WAVELETS = ["haar", "daub4", "daub6", "daub8", "daub10", "daub12", "daub20"]
 
 
 class WaveletLab(QWidget):
-    def __init__(self, repo: DataRepository, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        repo: DataRepository,
+        selection: SelectionState | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
+        self._selection = selection
+        self._cursor = None
         self.repo = repo
         self._signal: Signal1D | None = None
         self._decomp = None
@@ -76,6 +85,8 @@ class WaveletLab(QWidget):
         self._plot = pg.PlotWidget()
         self._plot.showGrid(x=True, y=True, alpha=0.3)
         split.addWidget(self._plot)
+        if selection is not None:
+            self._cursor = TimeCursor(self._plot.getPlotItem(), selection)
         split.setSizes([200, 500])
         root.addWidget(split, 1)
 
@@ -133,6 +144,8 @@ class WaveletLab(QWidget):
         self._plot.clear()
         self._plot.plot(np.arange(data.size), data, pen=pg.mkPen((120, 170, 255)))
         self._plot.setTitle("input signal")
+        if self._cursor is not None:
+            self._cursor.reattach()
 
     def _on_leaf(self, current: QTreeWidgetItem | None, _prev) -> None:
         if current is None or self._decomp is None:
@@ -148,3 +161,5 @@ class WaveletLab(QWidget):
         self._plot.clear()
         self._plot.plot(np.arange(coeffs.size), coeffs, pen=pg.mkPen((255, 190, 90)))
         self._plot.setTitle(f"leaf {idx} coefficients ({coeffs.size})")
+        if self._cursor is not None:
+            self._cursor.reattach()
