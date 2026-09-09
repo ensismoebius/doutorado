@@ -59,6 +59,21 @@ def test_builds_fold_config_epoch_tree(qapp):
     assert cfg0.child(0).text(1) == "train 0.09   val 0.08"
 
 
+def test_selecting_config_plots_training_curve(qapp):
+    pytest.importorskip("pyqtgraph")
+    state = _FakeState([
+        _cfg(config_id="c1", fold=0, best_epoch=2,
+             epochs=[(1, 0.9, 1.0), (2, 0.5, 0.6), (3, 0.4, 0.7)]),
+    ])
+    v = ExperimentTimeline(_repo(state))
+    v.refresh()
+    cfg_item = v._tree.topLevelItem(0).child(0)
+    v._on_activated(cfg_item, 0)
+    assert v._curve is not None
+    # two data curves (train, val) + the best-epoch marker line
+    assert len(v._curve.getPlotItem().listDataItems()) == 2
+
+
 def test_activating_config_emits_payload(qapp):
     state = _FakeState([_cfg(config_id="k", fold=3, dataset="audiomnist")])
     v = ExperimentTimeline(_repo(state))

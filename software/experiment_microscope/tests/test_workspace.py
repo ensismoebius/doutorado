@@ -14,6 +14,21 @@ def test_workspace_opens(qapp):
         w.close()
 
 
+def test_low_performance_mode_toggle(qapp):
+    w = Workspace()
+    try:
+        assert not w.app_state.low_performance_mode
+        w._low_perf_action.setChecked(True)
+        assert w.app_state.low_performance_mode
+        assert not w.transport.isEnabled()
+        assert w._status_res.text() == "LOW-PERFORMANCE MODE"
+        w._low_perf_action.setChecked(False)
+        assert not w.app_state.low_performance_mode
+        assert w._status_res.text() == "FULL RESOLUTION"
+    finally:
+        w.close()
+
+
 def test_timeline_player_basic(qapp):
     p = TimelinePlayer()
     frames = []

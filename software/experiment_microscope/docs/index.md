@@ -118,5 +118,8 @@ Generated captions are checked against a banned-inferential-word list
   derived representations, cleared on exit, not persisted between sessions.
 - Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
   ranking / model-comparison table (§21/§12) is the "Ranking" tab; the meeting01
-  session→fold→config→epoch timeline (§45) is the "Timeline" tab (empty until a
-  LOSO run writes `results/meeting01/*_events.jsonl`).
+  session→fold→config→epoch timeline (§45) is the "Timeline" tab, with the
+  selected config's train/val loss curve (§46) below it (empty until a LOSO run
+  writes `results/meeting01/*_events.jsonl`).
+- **Low-performance mode** (§38): View → Low-performance mode disables the 3D
+  panel and the animation transport.

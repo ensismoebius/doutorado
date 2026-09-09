@@ -162,6 +162,12 @@ class Workspace(QMainWindow):
         refresh.triggered.connect(self.para_plane.refresh)
         view_menu.addAction(refresh)
 
+        self._low_perf_action = QAction("Low-performance mode", self)
+        self._low_perf_action.setCheckable(True)
+        self._low_perf_action.setChecked(self.app_state.low_performance_mode)
+        self._low_perf_action.toggled.connect(self._set_low_performance)
+        view_menu.addAction(self._low_perf_action)
+
         export_menu = self.menuBar().addMenu("E&xport")
         act = QAction("Export current view…", self)
         act.triggered.connect(self._export_current_view)
@@ -206,6 +212,8 @@ class Workspace(QMainWindow):
                 )
 
     def _on_node_selected(self, node: TreeNode, adapter_key: str) -> None:
+        self._current_node = node
+        self._current_adapter = adapter_key
         self.selection.set("experiment", adapter_key)
         h = getattr(node, "handle", {}) or {}
         self.selection.update(
@@ -226,6 +234,15 @@ class Workspace(QMainWindow):
         if adapter_key == "meeting01":
             self._refresh_session_log()
             self.timeline_view.refresh()
+
+    def _set_low_performance(self, on: bool) -> None:
+        """FIXME §38 — disable 3D / animation / live updates on weak hardware."""
+        self.app_state.low_performance_mode = on
+        self.transport.setEnabled(not on and self.timeline.total_frames > 1)
+        self._status_res.setText("LOW-PERFORMANCE MODE" if on else "FULL RESOLUTION")
+        node = getattr(self, "_current_node", None)
+        if node is not None:  # re-render so the 3D panel picks up the flag
+            self.wavelet_3d.show_node(node, self._current_adapter)
 
     def _on_timeline_config(self, dataset: str, fold: int, config_id: str) -> None:
         self.selection.update(experiment="meeting01", dataset=dataset)
