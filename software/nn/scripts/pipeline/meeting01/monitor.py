@@ -492,6 +492,9 @@ def _hms(seconds: Optional[float]) -> str:
     if seconds is None or seconds < 0 or not math.isfinite(seconds):
         return "--:--:--"
     s = int(seconds)
+    # Past a day, hours-only gets unreadable (163:04:49) — lead with whole days.
+    if s >= 86400:
+        return f"{s // 86400}d {(s % 86400) // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}"
     return f"{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}"
 
 
