@@ -33,11 +33,29 @@ public:
     static auto saveNetwork(const Sequential& model, const string& safe_filepath) -> bool;
     static auto loadNetwork(Sequential& model, const string& safe_filepath) -> bool;
 
-    // private: per-layer save/load handlers (_saveLinear, _saveLeaky, ...)
-    // dispatch on concrete layer type; architecture is encoded as a string
-    // alongside the per-parameter weight/bias entries in the .npz.
+    // Load ONLY the parameter arrays into a model whose topology the caller
+    // already built. Does not read the architecture string, so it recovers a
+    // checkpoint whose metadata predates a layer handler.
+    static auto loadParametersInto(Sequential& model, const string& safe_filepath) -> bool;
+
+    // private: per-layer save/load handlers (_saveLinear, _saveLeaky,
+    // _saveLifBPTT, ...) dispatch on concrete layer type; architecture is
+    // encoded as a string alongside the per-parameter weight/bias entries.
 };
 ```
+
+**Supported layers:** `Linear` (weight+bias), `Lif` / `LifIntegrator` and
+`LifBPTT` (1×1 `resistance` / `voltage_threshold` / `capacitance`; the `LifBPTT`
+arch line also carries `time_steps` / `readout_mode` / `adapt_decay` /
+`adapt_coupling`), `ReLU` / `LeakyReLU` (no params).
+
+**Index gaps:** param arrays are keyed by position in `model.layers`.
+`loadNetwork` / `loadParametersInto` match arch lines to param groups **in
+order** (`_nextParamIndex`), so a positional gap left by a layer an older build
+did not serialize (a `LifBPTT` encoder saved before `LifBPTT` support — its
+`Linear` weights still load, the LIF params keep their constructed values) is
+skipped rather than fatal. `nn_microscope.meeting01.snn_ae_forward` uses
+`loadParametersInto` for exactly this reason.
 
 ### Binary State Dict (not YAML)
 

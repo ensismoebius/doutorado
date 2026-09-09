@@ -102,26 +102,45 @@ Generated captions are checked against a banned-inferential-word list
 
 ## Limitations
 
-- **No per-neuron membrane trace.** The "SNN Lab" tab shows the input encoding
-  spikes vs the experiment's recurrent-LIF output spikes (α / v_th sliders,
-  model-free), but `apply_snn_architecture_transform` returns only the spike
-  train — the binding does not expose `v_mem`, so there is no membrane-potential
-  plot and no standalone latent explorer (§19).
-- **The Reconstruction tab needs a trained SNN autoencoder `.npz`.** The view,
-  `Meeting01Adapter.load_latent` and `nn_microscope.meeting01.snn_ae_forward` are
-  all in place; until a LOSO fold runs with `dataset.save_models: true` (Step E
-  writes `results/meeting01/models/**/…_encoder.npz` / `_decoder.npz`) the tab
-  shows that exact remedy. `meeting01`'s `time_steps=1` means a single-step
-  forward pass, so there is still no spike raster over time, and no standalone
-  latent explorer (§19).
-- **3D is only the wavelet coefficient landscape** (§11) — the "Wavelet 3D" tab
-  (X = coeff index, Y = packet leaf, Z = magnitude, threshold + isolate-leaf
-  controls). The SNN 3D activity view (§18) and latent explorer (§19) are not
-  built.
-- **Triangle feature-bar ↔ wavelet-leaf cross-highlight** is not wired: the C++
-  does not expose which wavelet band each handcrafted feature came from.
-- **`meeting01` animation** is limited to what `build_split` returns; the
-  transport currently drives only the Triangle sample index.
+- **Membrane potentials — two views, two time axes.** meeting01's `recurrent`
+  transform sweeps the 256 window samples as time steps
+  (`v[t] = α·v[t-1] + x[t] - s[t-1]·v_th`); `nn_microscope.meeting01.recurrent_lif_trace`
+  now returns that full `v[t]` trajectory alongside the spike train, and the
+  "SNN Lab" tab's third panel plots it (threshold line + spike markers, x-linked
+  to the input, animatable). Separately, the SNN-**AE** runs with
+  `time_steps == 1` — the window is a feature vector, not a sequence — so
+  `snn_ae_forward`'s `encoder_layers` gives one `v_mem` value per LIF neuron; the
+  SNN Lab shows that as a fourth *snapshot* panel when a trained `.npz` exists.
+  Clicking any spike marker (input raster or membrane panel) prints its exact
+  time / membrane / threshold (§16).
+- **The Reconstruction tab is live once a LOSO fold has written Step E `.npz`
+  models** (`results/meeting01/models/**/…_encoder.npz` / `_decoder.npz`).
+  `Meeting01Adapter.load_latent` picks the matching model (prefers the retrained
+  `final`), runs `nn_microscope.meeting01.snn_ae_forward`, and the view shows
+  original vs reconstruction + residual with MSE / MAE / R² / Pearson r. With no
+  model on disk it shows the exact `01_meeting01_run_loso.sh` command instead.
+  Checkpoints written before the `NetworkSerializer` `LifBPTT` fix (2026-09-09)
+  load their `Linear` weights but not the LIF `R`/`C`/`v_th`; the adapter detects
+  this (`_npz_has_lif_params`) and the trace carries an explicit `lif_params`
+  caveat (`Origin.ESTIMATED`) shown in the metrics table — re-running the fold
+  with the rebuilt binary produces complete checkpoints.
+- **Latent Space Explorer** (§19) — the "Latent Space" tab. Runs every
+  test/val/train window of the selected meeting01 fold through the trained
+  SNN-AE (worker thread, capped), projects the latent vectors with PCA or t-SNE
+  (2-D scatter, or 3-D PCA in the VTK panel), colours by digit or speaker.
+  Every projection is tagged `PROJECTED`. Clicking a point selects that window
+  across the whole app (raw signal, wavelet, reconstruction, …).
+- **3D views**: "Wavelet 3D" (§11) and "SNN 3D" (§18 — encoder neuron columns
+  `input → Linear(64) → LIF(64) → latent(32)`, node size/colour = activity,
+  edges = top-K `|Linear weight|` per target neuron). Pressing ▶ floods the
+  signal layer-by-layer through the net (§17); the shared `TimelinePlayer`
+  drives the flood frames.
+- **Triangle feature-bar ↔ wavelet-leaf cross-highlight** is wired only when the
+  handcrafted layout is 1:1 with the wavelet bands (else disabled, no guess) —
+  the C++ does not expose a per-feature→band map.
+- **`meeting01` animation** covers the recurrent-LIF membrane trajectory (SNN
+  Lab) and the SNN-3D layer flood; the Triangle sample index is driven for
+  thesis runs.
 - **Cache is process-local and unbounded in time** — it is an LRU of 256
   derived representations, cleared on exit, not persisted between sessions.
 - The G1×G2 plane (§12) is the "Paraconsistent plane" tab; the D_truth × D_penalized
@@ -129,10 +148,17 @@ feature landscape with facet filters (§13) is the "Paraconsistent landscape" ta
 Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
   ranking / model-comparison table (§21/§12) is the "Ranking" tab; the meeting01
   session→fold→config→epoch timeline (§45) is the "Timeline" tab, with the
-  selected config's train/val loss curve (§46) below it (empty until a LOSO run
-  writes `results/meeting01/*_events.jsonl`).
+  selected config's train/val loss curve below it — with epoch-duration on a
+  linked right axis and lr / s-per-epoch in the title (§46); empty until a LOSO
+  run writes `results/meeting01/*_events.jsonl`.
+- **Themes** (§34): View → Theme → System / Light / Dark, persisted in
+  `QSettings`. Colour is never the only signal — line style, markers and labels
+  carry the same information.
+- **Display resolution** (§26): signals longer than 20 000 samples/channel are
+  decimated for the plot and the status bar shows `DISPLAY-DOWNSAMPLED 1:N`; the
+  cursor still reads the full-resolution array.
 - **Low-performance mode** (§38): View → Low-performance mode disables the 3D
-  panel and the animation transport.
+  panels and the animation transport.
 - **Global search** (§35): the box above the Data Explorer tree — every
   whitespace token must match a node's path + metadata (e.g. `daub10 lfcc eeg`,
   `fold 0 fsdd`, `pga snn`); activating a hit navigates the tree. The catalog is

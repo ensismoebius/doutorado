@@ -6,13 +6,18 @@ shows, on one time axis:
 
     normalized window        the z-scored input
     input encoding spikes    direct / poisson / latency spike train
-    LIF output spikes        what the recurrent architecture emits
+    recurrent LIF membrane   v[t] = alpha*v[t-1] + x[t] - s[t-1]*v_th, over the
+                             256 window samples (they ARE the time steps here),
+                             with the threshold line and spike markers
 
-so the researcher can see how the leak (alpha) and threshold (v_th) reshape the
-spike pattern. The transform is the C++ implementation — there is no second
-Python model here. Per-neuron membrane traces are *not* exposed by the binding
-(``snn_ae_forward`` docstring: "added in a later milestone"); this view is
-honest about showing spikes only.
+so the researcher can see how the leak (alpha) and threshold (v_th) reshape both
+the membrane trajectory and the spike pattern. The recurrence is the C++
+implementation (``recurrent_lif_trace``) — there is no second Python model here.
+
+When a trained SNN-AE ``.npz`` exists for the window's fold, a fourth panel shows
+the *autoencoder* encoder LIF layer's per-neuron membrane — that network runs
+with ``time_steps == 1`` (the window is fed as a feature vector, not a
+sequence), so it is a single-step snapshot, not a trajectory.
 """
 
 from __future__ import annotations
@@ -86,6 +91,10 @@ class SnnLab(QWidget):
             return
         self._layout_widget = pg.GraphicsLayoutWidget()
         root.addWidget(self._layout_widget, 1)
+        self._spike_readout = QLabel("click a spike marker for its exact time / membrane / threshold")
+        self._spike_readout.setWordWrap(True)
+        root.addWidget(self._spike_readout)
+        self._vmem_cache: np.ndarray | None = None
 
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         if self._layout_widget is None:
@@ -104,6 +113,20 @@ class SnnLab(QWidget):
             return
         self._window = np.asarray(sig.samples, dtype=float).reshape(-1)
         self._label = sig.label
+        self._node = node
+        self._membrane = None
+        try:
+            trace, _spec, _lif_ok = self.repo.adapter(adapter_key).load_ae_trace(node)
+            for lyr in trace.encoder_layers:
+                if lyr.kind == "lif" and lyr.v_mem is not None:
+                    self._membrane = (
+                        np.asarray(lyr.v_mem).reshape(-1),
+                        None if lyr.output is None else np.asarray(lyr.output).reshape(-1),
+                        lyr.voltage_threshold,
+                    )
+                    break
+        except Exception:  # noqa: BLE001 - no trained model / still writing
+            self._membrane = None
         self._render()
 
     def _render(self) -> None:
@@ -115,17 +138,18 @@ class SnnLab(QWidget):
         try:
             col = self._window.reshape(-1, 1)
             encoded = np.asarray(m.encode(col, enc_name, self._seed.value()))
-            lif = np.asarray(m.architecture_transform(
-                encoded, "recurrent", self._alpha.value(), self._vth.value()))
+            lif_spk, v_mem = m.recurrent_lif_trace(
+                encoded, self._alpha.value(), self._vth.value())
         except Exception as exc:  # noqa: BLE001
             self._status.setText(f"transform failed: {exc}")
             return
 
         enc1 = encoded.reshape(-1)
-        lif1 = lif.reshape(-1)
-        t = np.arange(enc1.size)
+        lif1 = np.asarray(lif_spk).reshape(-1)
+        vmem1 = np.asarray(v_mem).reshape(-1)
         in_spikes = np.flatnonzero(enc1 > 0.5)
         out_spikes = np.flatnonzero(lif1 > 0.5)
+        self._vmem_cache = vmem1
         self._layout_widget.clear()
 
         p0 = self._layout_widget.addPlot(row=0, col=0, title="normalized window (z-score)")
@@ -137,29 +161,92 @@ class SnnLab(QWidget):
             else:
                 self._cursor.rebind(p0)
 
-        p1 = self._layout_widget.addPlot(row=1, col=0, title=f"{enc_name} encoding — {in_spikes.size} spike(s)")
+        p1 = self._layout_widget.addPlot(
+            row=1, col=0,
+            title=f"{enc_name} encoding — {in_spikes.size} spike(s) (click one)")
         p1.setXLink(p0)
-        _raster(p1, in_spikes, (255, 190, 90))
+        _raster(p1, in_spikes, (255, 190, 90), on_click=self._on_input_spike)
 
         p2 = self._layout_widget.addPlot(
             row=2, col=0,
-            title=f"recurrent LIF output — {out_spikes.size} spike(s) "
+            title=f"recurrent LIF membrane v[t] — {out_spikes.size} spike(s) "
                   f"(α={self._alpha.value():.2f}, v_th={self._vth.value():.2f})")
         p2.setXLink(p0)
-        _raster(p2, out_spikes, (90, 220, 140))
+        p2.showGrid(x=True, y=True, alpha=0.2)
+        p2.plot(np.arange(vmem1.size), vmem1, pen=pg.mkPen((90, 220, 140), width=1))
+        p2.addLine(y=float(self._vth.value()),
+                   pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
+        if out_spikes.size:
+            sc = pg.ScatterPlotItem(
+                x=out_spikes, y=vmem1[out_spikes], symbol="t", size=11,
+                brush=pg.mkBrush(90, 220, 140), pen=pg.mkPen(None), data=list(out_spikes))
+            sc.sigClicked.connect(self._on_membrane_spike)
+            p2.addItem(sc)
+
+        mem = getattr(self, "_membrane", None)
+        if mem is not None:
+            v_mem, spk, vth = mem
+            neurons = np.arange(v_mem.size)
+            p3 = self._layout_widget.addPlot(
+                row=3, col=0,
+                title=f"trained encoder LIF — per-neuron membrane snapshot (time_steps=1), "
+                      f"{int((spk > 0.5).sum()) if spk is not None else 0} firing")
+            p3.plot(neurons, v_mem, pen=None, symbol="o", symbolSize=6,
+                    symbolBrush=(120, 170, 255))
+            if vth is not None:
+                p3.addLine(y=float(vth), pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
+            if spk is not None and (spk > 0.5).any():
+                fi = np.flatnonzero(spk > 0.5)
+                p3.plot(fi, v_mem[fi], pen=None, symbol="t", symbolSize=10,
+                        symbolBrush=(90, 220, 140))
 
         kept = np.intersect1d(in_spikes, out_spikes).size
+        mem_note = (
+            f"; trained encoder LIF membrane shown ({mem[0].size} neurons)"
+            if getattr(self, "_membrane", None) is not None
+            else "; no trained .npz for this fold — membrane panel hidden"
+        )
         self._status.setText(
             f"{getattr(self, '_label', 'window')}  [computed] — "
             f"in {in_spikes.size} → out {out_spikes.size} spikes "
             f"({kept} coincident, {out_spikes.size - kept} LIF-added, "
-            f"{in_spikes.size - kept} LIF-suppressed); per-neuron v_mem not exposed by the binding"
+            f"{in_spikes.size - kept} LIF-suppressed){mem_note}"
         )
 
 
-def _raster(plot, spike_idx: np.ndarray, color) -> None:
+    def _on_input_spike(self, _scatter, points) -> None:
+        if not points:
+            return
+        t = int(points[0].data())
+        self._spike_readout.setText(
+            f"input encoding spike — t = sample {t}  ·  encoding = "
+            f"{self._encoding.currentText()}  ·  seed {self._seed.value()}  "
+            f"(no membrane at the encoder input; it is a fixed spike train)"
+        )
+        if self._selection is not None:
+            self._selection.set("timestep", t)
+
+    def _on_membrane_spike(self, _scatter, points) -> None:
+        if not points or self._vmem_cache is None:
+            return
+        t = int(points[0].data())
+        v = float(self._vmem_cache[t])
+        vth = float(self._vth.value())
+        self._spike_readout.setText(
+            f"recurrent-LIF spike — t = sample {t}  ·  v[t] = {v:.5f}  ·  "
+            f"v_th = {vth:.3f}  ·  crossed by {v - vth:+.5f}  ·  layer = recurrent transform"
+        )
+        if self._selection is not None:
+            self._selection.set("timestep", t)
+
+
+def _raster(plot, spike_idx: np.ndarray, color, on_click=None) -> None:
     plot.setYRange(0.0, 1.2)
     plot.showGrid(x=True, alpha=0.2)
     if spike_idx.size:
-        plot.plot(spike_idx, np.ones_like(spike_idx, dtype=float), pen=None,
-                  symbol="|", symbolSize=14, symbolPen=pg.mkPen(color, width=2))
+        sc = pg.ScatterPlotItem(
+            x=spike_idx, y=np.ones_like(spike_idx, dtype=float), symbol="|", size=16,
+            pen=pg.mkPen(color, width=2), brush=pg.mkBrush(color), data=list(spike_idx))
+        if on_click is not None:
+            sc.sigClicked.connect(on_click)
+        plot.addItem(sc)

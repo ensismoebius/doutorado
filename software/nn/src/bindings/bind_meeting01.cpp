@@ -19,6 +19,7 @@
 #include "../include/Meeting01Dataset.hpp"
 #include "../include/Meeting01Encoding.hpp"
 #include "../include/Meeting01Training.hpp"
+#include "layers/Layers.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "nlohmann/json.hpp"
 #include "serialization/NetworkSerializer.hpp"
@@ -112,6 +113,22 @@ void bind_meeting01(py::module_& parent)
         "dense (pass-through) | conv1d (3-tap) | recurrent (LIF sweep).");
 
     m.def(
+        "recurrent_lif_trace",
+        [](const py::array& encoded, float alpha, float v_th)
+        {
+            const auto tr = meeting01::recurrent_lif_trace(from_numpy(encoded), alpha, v_th);
+            py::dict d;
+            d["spikes"] = to_numpy(tr.spikes);
+            d["v_mem"] = to_numpy(tr.v_mem);
+            return d;
+        },
+        py::arg("encoded"),
+        py::arg("alpha") = 0.9F,
+        py::arg("v_th") = 1.0F,
+        "recurrent-transform spike train PLUS the per-step membrane trajectory "
+        "v[t] = alpha*v[t-1] + x[t] - s[t-1]*v_th (the window samples are the time steps).");
+
+    m.def(
         "flatten_time_series",
         [](const py::array& sample)
         { return to_numpy(meeting01::flatten_time_series(from_numpy(sample))); },
@@ -167,13 +184,16 @@ void bind_meeting01(py::module_& parent)
             const auto cfg = load_config(config_path);
             auto ae_cfg = meeting01::make_snn_cfg(cfg, alpha, v_th);
             nn::models::autoencoder::ProtocolSpikingAutoencoder model(ae_cfg);
-            if (!NetworkSerializer::loadNetwork(model.encoder_, encoder_npz))
+            // Load trained weights INTO the AE's own (correct) topology — do not
+            // rebuild layers from the checkpoint's architecture metadata, which
+            // for a LifBPTT encoder saved by an older build omits the LIF lines.
+            if (!NetworkSerializer::loadParametersInto(model.encoder_, encoder_npz))
             {
                 throw std::runtime_error("snn_ae_forward: failed to load encoder '" + encoder_npz +
                                          "' (remedy: run the LOSO pipeline with save_models=true "
                                          "to emit *_encoder.npz).");
             }
-            if (!NetworkSerializer::loadNetwork(model.decoder_, decoder_npz))
+            if (!NetworkSerializer::loadParametersInto(model.decoder_, decoder_npz))
             {
                 throw std::runtime_error(
                     "snn_ae_forward: failed to load decoder '" + decoder_npz + "'.");
@@ -189,10 +209,44 @@ void bind_meeting01(py::module_& parent)
             nn::Tensor latent = model.encode(flat, /*requires_grad=*/false);
             nn::Tensor recon = model.decode(latent, /*requires_grad=*/false);
 
+            // Per-layer encoder trace for the SNN Lab / SNN-3D views (FIXME §15, §18).
+            // Sequential caches every layer output; each LifBPTT keeps its post-forward
+            // membrane snapshot (time_steps == 1 here, so it is a single value/neuron,
+            // not a trajectory). Linear weights are the ones just loaded from the .npz.
+            auto encoder_trace = [](const nn::Sequential& seq)
+            {
+                py::list layers;
+                for (size_t i = 0; i < seq.layers.size(); ++i)
+                {
+                    py::dict ld;
+                    auto* raw = seq.layers[i].get();
+                    if (auto* lin = dynamic_cast<nn::Linear*>(raw))
+                    {
+                        ld["type"] = "linear";
+                        ld["weight"] = to_numpy(lin->weight);
+                    }
+                    else if (auto* lif = dynamic_cast<nn::LifBPTT*>(raw))
+                    {
+                        ld["type"] = "lif";
+                        ld["v_mem"] = to_numpy(lif->v_mem);
+                        ld["voltage_threshold"] =
+                            static_cast<double>(lif->voltage_threshold.at(0, 0));
+                    }
+                    else
+                    {
+                        ld["type"] = "other";
+                    }
+                    if (i < seq.outputs.size()) ld["output"] = to_numpy(seq.outputs[i]);
+                    layers.append(ld);
+                }
+                return layers;
+            };
+
             py::dict out;
             out["latent"] = to_numpy(latent);
             out["reconstruction"] = to_numpy(recon);
             out["encoded_input"] = to_numpy(flat);
+            out["encoder_layers"] = encoder_trace(model.encoder_);
             return out;
         },
         py::arg("config_path"),
@@ -204,6 +258,7 @@ void bind_meeting01(py::module_& parent)
         py::arg("flat_window"),
         py::arg("encoding") = "direct",
         py::arg("seed") = 0,
-        "Latent + reconstruction for one window, from the retrained-winner .npz. "
-        "Spike / membrane traces are added in a later milestone.");
+        "Latent + reconstruction for one window, from the retrained-winner .npz, plus "
+        "encoder_layers: per-layer {type, output, weight|v_mem, voltage_threshold}. "
+        "time_steps == 1 so v_mem is a per-neuron snapshot, not a trajectory.");
 }

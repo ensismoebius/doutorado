@@ -18,6 +18,19 @@ auto unflatten_time_series(const Tensor& flat, nn::Index rows, nn::Index cols) -
 auto apply_snn_architecture_transform(
     const Tensor& encoded, const std::string& architecture, float alpha, float v_th) -> Tensor;
 
+/// Spike train + per-step pre-reset membrane value for the `recurrent` transform.
+/// `spikes` and `v_mem` are both (time_steps, features) with the same layout the
+/// transform's output uses; here the window's samples ARE the time steps.
+struct RecurrentLifTrace
+{
+    Tensor spikes;
+    Tensor v_mem;
+};
+
+/// Same computation as `apply_snn_architecture_transform(encoded, "recurrent", ...)`
+/// but also returns the membrane trajectory the transform otherwise discards.
+auto recurrent_lif_trace(const Tensor& encoded, float alpha, float v_th) -> RecurrentLifTrace;
+
 /**
  * @brief Reshape a (window_size, 1) sample into (window_size/frame_size, frame_size) frames.
  *

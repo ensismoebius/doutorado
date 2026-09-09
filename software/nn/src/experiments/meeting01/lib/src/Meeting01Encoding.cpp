@@ -118,10 +118,17 @@ static auto conv1d_temporal_smooth(const Tensor& sample) -> Tensor
     return out;
 }
 
-static auto recurrent_lif_encode(const Tensor& sample, float alpha, float v_th) -> Tensor
+// Core of the `recurrent` architecture transform. Keeps BOTH the spike train and
+// the pre-reset membrane value v[t] at every step, so an inspector can plot the
+// real membrane trajectory (Axis B: the 256 window samples ARE the time steps
+// here — v[t] = alpha*v[t-1] + x[t] - s[t-1]*v_th). `recurrent_lif_encode`
+// discards `v_mem`; `recurrent_lif_trace` (binding) returns it.
+static auto recurrent_lif_run(const Tensor& sample, float alpha, float v_th) -> RecurrentLifTrace
 {
     Tensor spikes(sample.rows(), sample.cols());
     spikes.set_zero();
+    Tensor v_mem(sample.rows(), sample.cols());
+    v_mem.set_zero();
 
     Tensor v_prev(1, sample.cols());
     v_prev.set_zero();
@@ -138,6 +145,7 @@ static auto recurrent_lif_encode(const Tensor& sample, float alpha, float v_th) 
         Tensor s_t(1, sample.cols());
         for (nn::Index d = 0; d < sample.cols(); ++d)
         {
+            v_mem.at(t, d) = v_t.at(0, d);
             s_t.at(0, d) = v_t.at(0, d) >= stable_vth ? 1.0f : 0.0f;
             spikes.at(t, d) = s_t.at(0, d);
         }
@@ -145,7 +153,17 @@ static auto recurrent_lif_encode(const Tensor& sample, float alpha, float v_th) 
         s_prev = s_t;
     }
 
-    return spikes;
+    return {std::move(spikes), std::move(v_mem)};
+}
+
+static auto recurrent_lif_encode(const Tensor& sample, float alpha, float v_th) -> Tensor
+{
+    return recurrent_lif_run(sample, alpha, v_th).spikes;
+}
+
+auto recurrent_lif_trace(const Tensor& encoded, float alpha, float v_th) -> RecurrentLifTrace
+{
+    return recurrent_lif_run(encoded, alpha, v_th);
 }
 
 auto apply_snn_architecture_transform(

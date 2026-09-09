@@ -68,3 +68,21 @@ def test_feature_matrix_cell_readout_sets_selection(qapp):
     view._on_click(_Evt())
     assert sel.get("feature") == 2
     assert "6" in view._status.text()  # values[1, 2] == 6
+
+
+def test_signal_view_downsamples_long_signal(qapp):
+    import numpy as np
+    from experiment_microscope.core.state import AppState
+    from experiment_microscope.core.integrity import Origin
+    from experiment_microscope.data.adapters import Signal1D
+    from experiment_microscope.data.repository import DataRepository
+    from experiment_microscope.views.signal_view import SignalView
+
+    st = AppState()
+    v = SignalView(DataRepository(), None, st)
+    v._render(Signal1D(samples=np.zeros(200_000), sample_rate=1.0, origin=Origin.MEASURED,
+                       unit="x", label="long"))
+    assert st.display_downsampled is True
+    v._render(Signal1D(samples=np.zeros(500), sample_rate=1.0, origin=Origin.MEASURED,
+                       unit="x", label="short"))
+    assert st.display_downsampled is False
