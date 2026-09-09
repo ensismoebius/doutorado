@@ -36,6 +36,7 @@ from experiment_microscope.views.bookmarks_dock import BookmarksDock
 from experiment_microscope.views.comparison_view import ComparisonView
 from experiment_microscope.views.developer_panel import DeveloperPanel
 from experiment_microscope.views.explorer import ExplorerTree
+from experiment_microscope.views.paraconsistent_landscape import ParaconsistentLandscape
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.pipeline_dag import PipelineDag
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
@@ -86,6 +87,7 @@ class Workspace(QMainWindow):
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo, self.selection)
         self.para_plane = ParaconsistentPlane(self.repo)
+        self.para_landscape = ParaconsistentLandscape(self.repo)
         self.pipeline_dag = PipelineDag()
         self.triangle = TriangleView(self.repo)
         self.triangle.set_timeline(self.timeline)
@@ -103,6 +105,8 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
         self.tabs.addTab(self.reconstruction, "Reconstruction")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
+        self.tabs.addTab(self.para_landscape, "Paraconsistent landscape")
+        self.para_landscape.point_clicked.connect(self._on_para_point)
         self.tabs.addTab(self.pipeline_dag, "Pipeline")
         self.tabs.addTab(self.triangle, "Triangle")
         self.tabs.addTab(self.comparison, "Comparison")
@@ -161,8 +165,9 @@ class Workspace(QMainWindow):
         for dock in self.findChildren(QDockWidget):
             view_menu.addAction(dock.toggleViewAction())
         view_menu.addSeparator()
-        refresh = QAction("Refresh paraconsistent plane", self)
+        refresh = QAction("Refresh paraconsistent views", self)
         refresh.triggered.connect(self.para_plane.refresh)
+        refresh.triggered.connect(self.para_landscape.refresh)
         view_menu.addAction(refresh)
 
         self._low_perf_action = QAction("Low-performance mode", self)

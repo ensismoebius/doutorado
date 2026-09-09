@@ -119,7 +119,9 @@ Generated captions are checked against a banned-inferential-word list
   transport currently drives only the Triangle sample index.
 - **Cache is process-local and unbounded in time** — it is an LRU of 256
   derived representations, cleared on exit, not persisted between sessions.
-- Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
+- The G1×G2 plane (§12) is the "Paraconsistent plane" tab; the D_truth × D_penalized
+feature landscape with facet filters (§13) is the "Paraconsistent landscape" tab.
+Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
   ranking / model-comparison table (§21/§12) is the "Ranking" tab; the meeting01
   session→fold→config→epoch timeline (§45) is the "Timeline" tab, with the
   selected config's train/val loss curve (§46) below it (empty until a LOSO run
