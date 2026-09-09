@@ -49,6 +49,7 @@ from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.reconstruction_view import ReconstructionView
 from experiment_microscope.views.reproduce_panel import ReproducePanel
 from experiment_microscope.views.search_bar import SearchBar
+from experiment_microscope.views.snn_lab import SnnLab
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
@@ -90,6 +91,7 @@ class Workspace(QMainWindow):
         self.wavelet_3d = Wavelet3D(self.repo, self.app_state)
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo, self.selection)
+        self.snn_lab = SnnLab(self.repo, self.selection)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.para_landscape = ParaconsistentLandscape(self.repo)
         self.pipeline_dag = PipelineDag()
@@ -108,6 +110,7 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.wavelet_3d, "Wavelet 3D")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
+        self.tabs.addTab(self.snn_lab, "SNN Lab")
         self.tabs.addTab(self.reconstruction, "Reconstruction")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
         self.tabs.addTab(self.para_landscape, "Paraconsistent landscape")
@@ -262,6 +265,7 @@ class Workspace(QMainWindow):
         self.wavelet_3d.show_node(node, adapter_key)
         self.feature_matrix.show_node(node, adapter_key)
         self.encoding_lab.show_node(node, adapter_key)
+        self.snn_lab.show_node(node, adapter_key)
         self.reconstruction.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
         self.nsga.show_node(node, adapter_key)

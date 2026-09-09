@@ -102,6 +102,11 @@ Generated captions are checked against a banned-inferential-word list
 
 ## Limitations
 
+- **No per-neuron membrane trace.** The "SNN Lab" tab shows the input encoding
+  spikes vs the experiment's recurrent-LIF output spikes (α / v_th sliders,
+  model-free), but `apply_snn_architecture_transform` returns only the spike
+  train — the binding does not expose `v_mem`, so there is no membrane-potential
+  plot and no standalone latent explorer (§19).
 - **The Reconstruction tab needs a trained SNN autoencoder `.npz`.** The view,
   `Meeting01Adapter.load_latent` and `nn_microscope.meeting01.snn_ae_forward` are
   all in place; until a LOSO fold runs with `dataset.save_models: true` (Step E
