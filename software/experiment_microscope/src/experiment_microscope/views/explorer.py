@@ -90,3 +90,37 @@ class ExplorerTree(QTreeWidget):
                 self.setCurrentItem(item)
                 item.setExpanded(True)
                 return
+
+    def current_path(self) -> list[str]:
+        """Labels from a top-level item down to the current selection."""
+        item = self.currentItem()
+        path: list[str] = []
+        while item is not None:
+            path.insert(0, item.text(0))
+            item = item.parent()
+        return path
+
+    def select_path(self, labels: list[str]) -> bool:
+        """Expand + select the item at ``labels`` (top-level label first).
+
+        Returns True if the full path was found. Fires ``node_selected`` for
+        the final item, which repopulates every view (FIXME §36 restore)."""
+        if not labels:
+            return False
+        parent = self.invisibleRootItem()
+        item = None
+        for label in labels:
+            item = next(
+                (parent.child(i) for i in range(parent.childCount())
+                 if parent.child(i).text(0) == label),
+                None,
+            )
+            if item is None:
+                return False
+            item.setExpanded(True)  # triggers lazy _on_expanded
+            self._on_expanded(item)
+            parent = item
+        if item is not None:
+            self.setCurrentItem(item)
+            return True
+        return False

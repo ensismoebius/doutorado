@@ -24,10 +24,12 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.core.animation import TimelinePlayer
+from experiment_microscope.core.bookmarks import BookmarkStore, make_bookmark
 from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.core.state import AppState
 from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
+from experiment_microscope.views.bookmarks_dock import BookmarksDock
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.pipeline_dag import PipelineDag
@@ -120,6 +122,11 @@ class Workspace(QMainWindow):
         self.session_log.setPlainText("No meeting01 run detected under results/meeting01/.")
         self._dock("Meeting01 session", self.session_log, Qt.DockWidgetArea.BottomDockWidgetArea)
 
+        self.bookmarks = BookmarksDock()
+        self.bookmarks.save_requested.connect(self._save_bookmark)
+        self.bookmarks.restore_requested.connect(self._restore_bookmark)
+        self._dock("Bookmarks", self.bookmarks, Qt.DockWidgetArea.RightDockWidgetArea)
+
     def _build_menus(self) -> None:
         view_menu = self.menuBar().addMenu("&View")
         for dock in self.findChildren(QDockWidget):
@@ -204,6 +211,31 @@ class Workspace(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             text = f"session dashboard unavailable: {exc}"
         self.session_log.setPlainText(text or "No meeting01 run detected under results/meeting01/.")
+
+    # -- bookmarks (FIXME §36) ----------------------------------
+    def _save_bookmark(self, name: str) -> None:
+        bm = make_bookmark(
+            name,
+            self.selection.snapshot(),
+            self.explorer.current_path(),
+            self.tabs.tabText(self.tabs.currentIndex()),
+            bytes(self.saveState()),
+        )
+        self.bookmarks.store.add(bm)
+        self.bookmarks.refresh()
+        self.statusBar().showMessage(f"bookmarked: {name}", 4000)
+
+    def _restore_bookmark(self, bm) -> None:
+        if bm.window_state():
+            self.restoreState(bm.window_state())
+        found = self.explorer.select_path(bm.nav_path) if bm.nav_path else False
+        if not found:
+            self.selection.restore(bm.selection)
+        self._open_tab(bm.active_tab)
+        self.statusBar().showMessage(
+            f"restored: {bm.name}" + ("" if found else "  (selection path not found — state only)"),
+            5000,
+        )
 
     # -- layout persistence -------------------------------------
     def _restore_layout(self) -> None:
