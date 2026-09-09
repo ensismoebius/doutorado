@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
-#include "GuayaquilCliOptions.hpp"
-#include "GuayaquilConfig.hpp"
+#include "Meeting01CliOptions.hpp"
+#include "Meeting01Config.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto has_compare_marker(const std::string& arg) -> bool;
@@ -19,9 +19,9 @@ void print_usage(const char* prog);
 
 auto parse_cli(int argc, char* argv[]) -> CliOptions;
 auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path;
-auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> GuayaquilConfig;
-auto config_hash(const GuayaquilConfig& cfg) -> std::size_t;
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> Meeting01Config;
+auto config_hash(const Meeting01Config& cfg) -> std::size_t;
 
 auto should_run_comparative_cli(int argc, char* argv[]) -> bool;
 
-} // namespace guayaquil
+} // namespace meeting01

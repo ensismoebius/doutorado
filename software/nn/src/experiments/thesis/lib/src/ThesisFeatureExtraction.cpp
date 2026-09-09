@@ -172,7 +172,7 @@ FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& ra
     return fs;
 }
 
-// Sequence AE on windowed frames (Guayaquil-paper extractor).
+// Sequence AE on windowed frames (Meeting01-paper extractor).
 FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
     size_t max_len,
     const ThesisConfig::FeatureExtraction& cfg,
@@ -212,7 +212,7 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
 
     nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
     // Same enrichment as the SNN/ANN AE path: label the bar with the model + loss so
-    // the metadata line matches the Guayaquil TUI look.
+    // the metadata line matches the Meeting01 TUI look.
     auto ae_cb =
         std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix);
     ae_cb->set_metadata("LSTM-AE", 0, 1, "MSE");

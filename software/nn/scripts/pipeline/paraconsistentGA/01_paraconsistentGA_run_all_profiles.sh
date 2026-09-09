@@ -4,7 +4,7 @@
 #
 # Runs all 12 shipped profiles (ann/snn × eeg/voice/fused-{early,late} + snn loss variants),
 # each one a separate population evolved independently (.wiki/Experiments/ParaconsistentGA-Design.md §5.3). Structure and the
-# work-weighted overall-ETA banner are copied from the Guayaquil article runner.
+# work-weighted overall-ETA banner are copied from the Meeting01 article runner.
 #
 # Output files (results/paraconsistentGA/):
 #   pga_<run_tag>_individuals.csv   one row per distinct genome (depth, widths, α/β/G1/G2,
@@ -22,7 +22,7 @@
 # BUILD SELECTION — the backend is part of the measurement. d_penalized is backend-agnostic,
 # but est_latency_ms / param_count / inference_cost are reported per run, so all profiles
 # should share one backend to stay comparable. `max-performance` (CPU/XTensor) is the
-# reference and default, matching the thesis and Guayaquil runners; any other build warns.
+# reference and default, matching the thesis and Meeting01 runners; any other build warns.
 #
 # Runtime: the shipped profiles now use population_size=32, generations=64 (≈10x the offspring
 #   count of the earlier 16x12 setting on which the ~24 h/max_samples=550 figure was measured).
@@ -62,7 +62,7 @@ PY
       echo
       echo "  d_penalized is backend-agnostic, but est_latency_ms / param_count are reported"
       echo "  per run, so keep one backend across profiles. '${REFERENCE_BUILD}' is the"
-      echo "  reference (thesis/Guayaquil default); anything else measures a different backend."
+      echo "  reference (thesis/Meeting01 default); anything else measures a different backend."
       echo
       _default_idx=1
       for i in "${!_presets[@]}"; do

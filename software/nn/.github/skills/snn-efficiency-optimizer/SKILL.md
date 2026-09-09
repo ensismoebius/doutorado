@@ -27,9 +27,9 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 **Experiment baselines** (AMD Renoir APU, 5-fold CV):
 - LSTM autoencoder: ~10 min per article profile run
 - SNN autoencoder: ~45 min per article profile run (3 SNN profiles = ~2.25 h)
-- Full article pipeline: ~2.5 h via `scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh`
+- Full article pipeline: ~2.5 h via `scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh`
 
-**`time_steps` field** — set per profile in `src/experiments/guayaquil/profiles/*.json`:
+**`time_steps` field** — set per profile in `src/experiments/meeting01/profiles/*.json`:
 ```json
 "model": { "time_steps": 10 }
 ```

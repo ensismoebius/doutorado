@@ -1,10 +1,10 @@
-#include "../include/GuayaquilEvents.hpp"
+#include "../include/Meeting01Events.hpp"
 
 #include <chrono>
 #include <ios>
 #include <utility>
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto ExperimentEvents::instance() -> ExperimentEvents&
@@ -70,4 +70,4 @@ void ExperimentEvents::close()
     if (out_.is_open()) out_.close();
 }
 
-} // namespace guayaquil
+} // namespace meeting01

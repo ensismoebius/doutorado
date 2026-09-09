@@ -18,7 +18,7 @@ CompileFlags:
     - -Isrc
     - -Isrc/experiments/autoencoderRunner/lib/include
     - -Isrc/experiments/autoencoderRunner/lib/include/autoencoder
-    - -Isrc/experiments/guayaquil/lib/include
+    - -Isrc/experiments/meeting01/lib/include
     - -isystem
     - /usr/include/eigen3
     - --gcc-toolchain=/usr

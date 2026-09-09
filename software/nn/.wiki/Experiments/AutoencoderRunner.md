@@ -153,12 +153,12 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
 
 ## How Experiment04 Differs in Practice
 
-Although the [Experiment04](../Experiments/Guayaquil.md) page frames it as an LSTM autoencoder experiment, the current implementation is a comparative benchmark runner that orchestrates both LSTM and SNN autoencoder families.
+Although the [Experiment04](../Experiments/Meeting01.md) page frames it as an LSTM autoencoder experiment, the current implementation is a comparative benchmark runner that orchestrates both LSTM and SNN autoencoder families.
 
 From code:
 
-- Entry point `src/experiments/guayaquil/guayaquil.cpp` is intentionally thin: `main()` calls `guayaquil::run_comparative_experiment(argc, argv)` directly (declared in `GuayaquilRunner.hpp`, defined in `src/experiments/guayaquil/lib/src/GuayaquilExperiment.cpp`). `LstmAutoencoderExperiment` (`GuayaquilLstmAutoencoder.hpp`) declares a `run()` method but has no `.cpp` implementation or caller anywhere in the tree — it is unused, not the entry path.
-- Default profile stem is `lstm-compare`, resolved from `src/experiments/guayaquil/profiles/`.
+- Entry point `src/experiments/meeting01/meeting01.cpp` is intentionally thin: `main()` calls `meeting01::run_comparative_experiment(argc, argv)` directly (declared in `Meeting01Runner.hpp`, defined in `src/experiments/meeting01/lib/src/Meeting01Experiment.cpp`). `LstmAutoencoderExperiment` (`Meeting01LstmAutoencoder.hpp`) declares a `run()` method but has no `.cpp` implementation or caller anywhere in the tree — it is unused, not the entry path.
+- Default profile stem is `lstm-compare`, resolved from `src/experiments/meeting01/profiles/`.
 - Comparative sweep includes datasets (e.g., `fsdd`, `physionet`), encoding strategies (`direct`, `poisson`, `latency`), SNN architecture variants (`dense`, `conv1d`, `recurrent`), and hyperparameter grids (`layers`, `v_th`, `alpha`).
 - Training uses Adam + MSE with early stopping; evaluation reports MSE, MAE, $R^2$, precision/recall/F1, spike rate, latency, parameter count, and MAC estimates.
 - Output artifacts are written as:
@@ -179,7 +179,7 @@ This distinction matters when comparing AutoencoderRunner and Experiment04 outpu
 ## See Also
 
 - [Autoencoders](../Concepts/Autoencoders.md) - Theory
-- [Experiment04](../Experiments/Guayaquil.md) - LSTM autoencoder variant
+- [Experiment04](../Experiments/Meeting01.md) - LSTM autoencoder variant
 - [DataLoaders](../Core/DataLoaders.md) - Dataset loading
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) - Validation strategy
 

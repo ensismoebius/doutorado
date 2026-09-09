@@ -4,7 +4,7 @@
 
 #include "training/ITrainingCallback.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 class BatchLossCollector : public nn::training::ITrainingCallback
@@ -23,4 +23,4 @@ class BatchLossCollector : public nn::training::ITrainingCallback
     }
 };
 
-} // namespace guayaquil
+} // namespace meeting01

@@ -8,11 +8,11 @@
     },
     "dataset": {
         "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
-        "results_dir": "results/guayaquil",
+        "results_dir": "results/meeting01",
         "window_size": 64,
         "max_loaded_train_samples": 20,
         "max_validation_samples": 10,
-        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/meeting01/data",
         "save_models": false
     },
     "training": {

@@ -1,6 +1,6 @@
 // split_audit_gtest.cpp — Leakage-safety audit for the nested LOSO fold assignment.
 //
-// Exercises guayaquil::assign_speaker_fold on synthetic window metadata (no WAV
+// Exercises meeting01::assign_speaker_fold on synthetic window metadata (no WAV
 // corpus needed). The invariant under test: for every fold, the train / val / test
 // window sets are disjoint AND speaker-disjoint AND recording-disjoint, and across
 // all folds each speaker is the test speaker exactly once and the validation
@@ -13,10 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/GuayaquilDataset.hpp"
+#include "../lib/include/Meeting01Dataset.hpp"
 
-using guayaquil::assign_speaker_fold;
-using guayaquil::SpeakerFoldAssignment;
+using meeting01::assign_speaker_fold;
+using meeting01::SpeakerFoldAssignment;
 using nn::dataLoaders::fsdd::WindowMetadata;
 
 namespace

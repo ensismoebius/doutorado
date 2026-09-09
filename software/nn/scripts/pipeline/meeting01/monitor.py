@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""monitor.py — live dashboard for the nested-LOSO guayaquil run.
+"""monitor.py — live dashboard for the nested-LOSO meeting01 run.
 
-The run is up to 18 independent `guayaquil` processes (one per dataset x outer fold),
+The run is up to 18 independent `meeting01` processes (one per dataset x outer fold),
 each appending structured events to
 
-    results/guayaquil/<run_tag>_<dataset>_fold<f>_events.jsonl
+    results/meeting01/<run_tag>_<dataset>_fold<f>_events.jsonl
 
-(schema v1, written by GuayaquilEvents.cpp / GuayaquilEventCallback.hpp). This script
+(schema v1, written by Meeting01Events.cpp / Meeting01EventCallback.hpp). This script
 tails all of them, folds the events into one session model, and renders a compact
 terminal dashboard.
 
@@ -143,7 +143,7 @@ class ConfigState:
     last_ts: float = 0.0
     _epoch_ms: list[float] = field(default_factory=list)
     # within-epoch progress, only populated while a slow epoch is running (an
-    # `epoch` event clears it). See GuayaquilEventCallback::on_batch_end.
+    # `epoch` event clears it). See Meeting01EventCallback::on_batch_end.
     cur_progress_epoch: int = 0
     cur_batch: int = 0
     cur_total_batches: int = 0
@@ -674,8 +674,8 @@ def _panel_session(state: SessionState):  # noqa: ANN201
     g.add_column(justify="left")
     if not sess:
         g.add_row(Text("waiting for the first event... start the run with:", style="yellow"))
-        g.add_row(Text("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/guayaquil/"
-                       "01_guayaquil_run_loso.sh", style="dim"))
+        g.add_row(Text("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/"
+                       "01_meeting01_run_loso.sh", style="dim"))
     else:
         g.add_row(Text.assemble(
             (str(sess.get("run_tag", "?")), "bold"),
@@ -1112,8 +1112,8 @@ def _self_test() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--results-dir", default="results/guayaquil")
-    ap.add_argument("--run-tag", default="article_loso")
+    ap.add_argument("--results-dir", default="results/meeting01")
+    ap.add_argument("--run-tag", default="meeting01_loso")
     ap.add_argument("--poll", type=float, default=1.0, help="seconds between event polls")
     ap.add_argument("--plain", action="store_true", help="periodic text snapshots (no rich)")
     ap.add_argument("--interval", type=float, default=15.0, help="--plain snapshot interval (s)")

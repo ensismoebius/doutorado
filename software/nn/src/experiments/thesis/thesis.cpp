@@ -39,7 +39,7 @@ std::string parse_config_path(int argc, char* argv[])
 }
 
 // Provenance/determinism fingerprint of the run — the reproducibility-defining
-// fields hashed to one value (the Guayaquil config_hash analog). Two runs with the same
+// fields hashed to one value (the Meeting01 config_hash analog). Two runs with the same
 // hash trained the same model on the same data pipeline with the same seed.
 std::size_t config_fingerprint(const thesis::ThesisConfig& cfg)
 {
@@ -153,7 +153,7 @@ void run_once(const thesis::ThesisConfig& cfg,
         thesis::write_metrics_csv(results_dir, tag, results);
         thesis::write_comparison_dat(results_dir, tag, results);
         thesis::write_learning_curves_dat(
-            results_dir, tag, results); // Guayaquil epoch-history analog
+            results_dir, tag, results); // Meeting01 epoch-history analog
     }
 
     for (const auto& r : results)
@@ -185,7 +185,7 @@ auto main(int argc, char* argv[]) -> int
         // Overall multi-profile banner. Each profile is a separate process and cannot know the
         // whole-run progress on its own, so the runner (run_thesis_profiles.sh) computes it and
         // hands the ready-made line in via THESIS_OVERALL. Logged first, it renders as a persistent
-        // top line above the per-profile bars, mirroring the Guayaquil (Guayaquil) TUI. Empty/unset
+        // top line above the per-profile bars, mirroring the Meeting01 (Meeting01) TUI. Empty/unset
         // when run standalone, so the TUI is unchanged.
         if (const char* overall = std::getenv("THESIS_OVERALL");
             overall != nullptr && overall[0] != '\0')

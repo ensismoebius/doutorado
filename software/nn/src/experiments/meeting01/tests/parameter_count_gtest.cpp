@@ -15,29 +15,29 @@
 #include <filesystem>
 #include <fstream>
 
-#include "../lib/include/GuayaquilConfig.hpp"
-#include "../lib/include/GuayaquilMetrics.hpp"
-#include "../lib/include/GuayaquilTraining.hpp"
+#include "../lib/include/Meeting01Config.hpp"
+#include "../lib/include/Meeting01Metrics.hpp"
+#include "../lib/include/Meeting01Training.hpp"
 #include "models/gru/GRUAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "models/transformer/TransformerAutoencoder.hpp"
 #include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
-using guayaquil::GuayaquilConfig;
+using meeting01::Meeting01Config;
 
 namespace
 {
 
-GuayaquilConfig load_loso()
+Meeting01Config load_loso()
 {
     const fs::path path =
-        fs::path(__FILE__).parent_path().parent_path() / "profiles" / "article-loso.json";
+        fs::path(__FILE__).parent_path().parent_path() / "profiles" / "meeting01-loso.json";
     std::ifstream f(path);
     EXPECT_TRUE(f.is_open()) << "missing profile: " << path;
     nlohmann::json j;
     f >> j;
-    auto cfg = GuayaquilConfig::from_nested_json(j);
+    auto cfg = Meeting01Config::from_nested_json(j);
     cfg.validate();
     return cfg;
 }
@@ -45,11 +45,11 @@ GuayaquilConfig load_loso()
 template <typename Model>
 auto count_params(Model& m) -> std::size_t
 {
-    return guayaquil::parameter_count(m.params());
+    return meeting01::parameter_count(m.params());
 }
 
 // Independent recompute of the param count by walking the raw param span. Must equal
-// guayaquil::parameter_count — this catches a params() wiring regression.
+// meeting01::parameter_count — this catches a params() wiring regression.
 template <typename Model>
 auto manual_sum(Model& m) -> std::size_t
 {
@@ -108,7 +108,7 @@ auto transformer_ae_params(int D, int M, int n_layers, int d_ff, int Z) -> std::
 TEST(ParameterCount, LstmAeMatchesClosedForm)
 {
     const auto cfg = load_loso();
-    const auto arch = guayaquil::make_lstm_cfg(cfg);
+    const auto arch = meeting01::make_lstm_cfg(cfg);
     nn::models::lstm::LSTMAutoencoder model(arch);
 
     const std::size_t expected = recurrent_ae_params(
@@ -120,8 +120,8 @@ TEST(ParameterCount, LstmAeMatchesClosedForm)
 TEST(ParameterCount, GruAeMatchesClosedFormAndIsSmallerThanLstm)
 {
     const auto cfg = load_loso();
-    const auto g = guayaquil::make_gru_cfg(cfg);
-    const auto l = guayaquil::make_lstm_cfg(cfg);
+    const auto g = meeting01::make_gru_cfg(cfg);
+    const auto l = meeting01::make_lstm_cfg(cfg);
     nn::models::gru::GRUAutoencoder gru(g);
     nn::models::lstm::LSTMAutoencoder lstm(l);
 
@@ -139,7 +139,7 @@ TEST(ParameterCount, GruAeMatchesClosedFormAndIsSmallerThanLstm)
 TEST(ParameterCount, TransformerAeMatchesClosedFormAndHasNormParams)
 {
     const auto cfg = load_loso();
-    const auto t = guayaquil::make_transformer_cfg(cfg);
+    const auto t = meeting01::make_transformer_cfg(cfg);
     nn::models::transformer::TransformerAutoencoder model(t);
 
     const std::size_t expected =
@@ -159,19 +159,19 @@ TEST(ParameterCount, TransformerAeMatchesClosedFormAndHasNormParams)
 TEST(ParameterCount, GruMacEstimateIsBelowLstmForMatchedDims)
 {
     const auto cfg = load_loso();
-    EXPECT_LT(guayaquil::estimate_gru_macs(guayaquil::make_gru_cfg(cfg)),
-        guayaquil::estimate_lstm_macs(guayaquil::make_lstm_cfg(cfg)));
+    EXPECT_LT(meeting01::estimate_gru_macs(meeting01::make_gru_cfg(cfg)),
+        meeting01::estimate_lstm_macs(meeting01::make_lstm_cfg(cfg)));
 }
 
 TEST(ParameterCount, TransformerMacEstimateIsSuperlinearInSeqLen)
 {
-    auto t = guayaquil::make_transformer_cfg(load_loso());
+    auto t = meeting01::make_transformer_cfg(load_loso());
     t.seq_len = 16;
-    const std::size_t m1 = guayaquil::estimate_transformer_macs(t);
+    const std::size_t m1 = meeting01::estimate_transformer_macs(t);
     t.seq_len = 32;
-    const std::size_t m2 = guayaquil::estimate_transformer_macs(t);
+    const std::size_t m2 = meeting01::estimate_transformer_macs(t);
     t.seq_len = 64;
-    const std::size_t m3 = guayaquil::estimate_transformer_macs(t);
+    const std::size_t m3 = meeting01::estimate_transformer_macs(t);
 
     // A purely linear cost would give m2 - m1 == m3 - m2. The O(T^2) attention term
     // makes each doubling add strictly more than the previous one.

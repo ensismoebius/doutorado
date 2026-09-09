@@ -44,7 +44,7 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 rg "class Tensor" include/ src/
 
 # Query a JSON config field
-jq '.batch_size' results/guayaquil/config.json
+jq '.batch_size' results/meeting01/config.json
 
 # Watch and rebuild on change
 find src/ include/ -name "*.cpp" -o -name "*.hpp" | entr cmake --build build --target nn -j4

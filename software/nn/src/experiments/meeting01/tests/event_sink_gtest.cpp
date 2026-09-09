@@ -1,5 +1,5 @@
 // event_sink_gtest.cpp — the JSONL event sink that feeds
-// scripts/pipeline/guayaquil/monitor.py. Schema helpers + file round-trip. No
+// scripts/pipeline/meeting01/monitor.py. Schema helpers + file round-trip. No
 // training is exercised here; the full lifecycle (session/fold/config/epoch) is
 // covered by a tiny end-to-end run in the plan's verification section.
 
@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilEvents.hpp"
+#include "Meeting01Events.hpp"
 #include "nlohmann/json.hpp"
 
-using guayaquil::ExperimentEvents;
-using guayaquil::jnum;
-using guayaquil::make_config_id;
+using meeting01::ExperimentEvents;
+using meeting01::jnum;
+using meeting01::make_config_id;
 
 TEST(EventSink, JnumMapsNonFiniteToNull)
 {
@@ -44,7 +44,7 @@ TEST(EventSink, ConfigIdIsStableAndRoleAware)
 TEST(EventSink, EmitWritesOneMergedJsonLinePerEvent)
 {
     const auto path = std::filesystem::temp_directory_path() /
-                      ("guayaquil_events_test_" + std::to_string(::getpid()) + ".jsonl");
+                      ("meeting01_events_test_" + std::to_string(::getpid()) + ".jsonl");
     std::filesystem::remove(path);
 
     auto& ev = ExperimentEvents::instance();
@@ -92,7 +92,7 @@ TEST(EventSink, DisabledSinkIsANoOpAndPendingContextRoundTrips)
     EXPECT_FALSE(ev.is_open());
     ev.emit("epoch", {{"epoch", 7}}); // must not throw / must not create a file
 
-    guayaquil::EventContext ctx;
+    meeting01::EventContext ctx;
     ctx.config_id = "cid";
     ctx.model = "gru-ae";
     ctx.seed = 44U;

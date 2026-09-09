@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""03_guayaquil_pca_mean_baselines.py — linear reference baselines for the nested-LOSO
+"""03_meeting01_pca_mean_baselines.py — linear reference baselines for the nested-LOSO
 comparison.
 
-For each fold f and encoding e the guayaquil binary dumps, in the exact framed-encoded
+For each fold f and encoding e the meeting01 binary dumps, in the exact framed-encoded
 representation the trained autoencoders reconstruct:
 
-    results/guayaquil/<tag>_fold<f>_<e>_train_windows.npy      (N_train, F)
-    results/guayaquil/<tag>_fold<f>_<e>_test_windows.npy       (N_test,  F)
-    results/guayaquil/<tag>_fold<f>_<e>_test_windows_meta.csv  (speaker_id,recording_id,window_id,source_window_index)
+    results/meeting01/<tag>_fold<f>_<e>_train_windows.npy      (N_train, F)
+    results/meeting01/<tag>_fold<f>_<e>_test_windows.npy       (N_test,  F)
+    results/meeting01/<tag>_fold<f>_<e>_test_windows_meta.csv  (speaker_id,recording_id,window_id,source_window_index)
 
 This script fits two references on the TRAIN matrix only and scores them on TEST:
 
@@ -23,8 +23,8 @@ is the seed-0 realization (poisson is stochastic); the linear references are rep
 one representative realization. direct and latency are deterministic.
 
 Usage:
-    python scripts/pipeline/guayaquil/03_guayaquil_pca_mean_baselines.py \\
-        --results-dir results/guayaquil --run-tag article_loso --latent 32
+    python scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \\
+        --results-dir results/meeting01 --run-tag meeting01_loso --latent 32
 """
 
 from __future__ import annotations
@@ -86,8 +86,8 @@ def _append_rows(csv_path: pathlib.Path, rows: list[dict]):
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--results-dir", type=pathlib.Path, default=pathlib.Path("results/guayaquil"))
-    ap.add_argument("--run-tag", default="article_loso")
+    ap.add_argument("--results-dir", type=pathlib.Path, default=pathlib.Path("results/meeting01"))
+    ap.add_argument("--run-tag", default="meeting01_loso")
     ap.add_argument("--latent", type=int, default=32, help="PCA components (= AE bottleneck)")
     args = ap.parse_args(argv)
 
@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
 
-        # tag already carries the dataset segment (e.g. "article_loso_audiomnist"),
+        # tag already carries the dataset segment (e.g. "meeting01_loso_audiomnist"),
         # so the per-window CSV this appends to is dataset-specific.
         pw_csv = rdir / f'{m["tag"]}_fold{fold}_per_window_errors.csv'
 

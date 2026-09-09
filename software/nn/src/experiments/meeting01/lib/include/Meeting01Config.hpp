@@ -7,10 +7,10 @@
 
 #include "nlohmann/json.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
-struct GuayaquilConfig
+struct Meeting01Config
 {
     struct Experiment
     {
@@ -44,7 +44,7 @@ struct GuayaquilConfig
     struct Dataset
     {
         std::string dataset_root;                      // REQUIRED
-        std::string results_dir = "results/guayaquil"; // optional (Guayaquil = Guayaquil paper)
+        std::string results_dir = "results/meeting01"; // optional (Meeting01 = Meeting01 paper)
         int window_size = 0;                           // REQUIRED (validated > 0)
         int max_loaded_train_samples = 0;              // REQUIRED (validated > 0)
         int max_validation_samples = 0;                // REQUIRED (validated > 0)
@@ -175,9 +175,9 @@ struct GuayaquilConfig
         }
     }
 
-    static GuayaquilConfig from_flat_json(const nlohmann::json& j)
+    static Meeting01Config from_flat_json(const nlohmann::json& j)
     {
-        GuayaquilConfig cfg;
+        Meeting01Config cfg;
 
         auto get = [&](const std::string& key, auto& field)
         {
@@ -251,15 +251,15 @@ struct GuayaquilConfig
         return cfg;
     }
 
-    static GuayaquilConfig from_nested_json(const nlohmann::json& j)
+    static Meeting01Config from_nested_json(const nlohmann::json& j)
     {
-        GuayaquilConfig cfg;
+        Meeting01Config cfg;
 
         for (const auto* section : {"experiment", "dataset", "training", "model", "evaluation"})
         {
             if (!j.contains(section))
                 throw std::invalid_argument(
-                    std::string("GuayaquilConfig: required section missing: ") + section);
+                    std::string("Meeting01Config: required section missing: ") + section);
         }
 
         const auto& exp = j["experiment"];
@@ -281,7 +281,7 @@ struct GuayaquilConfig
         {
             if (!sec.contains(key))
                 throw std::invalid_argument(
-                    "GuayaquilConfig: required field missing: " + section_name + "." + key);
+                    "Meeting01Config: required field missing: " + section_name + "." + key);
             field = sec[key].get<std::decay_t<decltype(field)>>();
         };
 
@@ -353,4 +353,4 @@ struct GuayaquilConfig
     }
 };
 
-} // namespace guayaquil
+} // namespace meeting01

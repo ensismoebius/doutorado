@@ -33,8 +33,8 @@ All notable changes to this project will be documented in this file.
 
 - Refactor: Move experiment pipeline into `LstmAutoencoderExperiment` class
   - Integrated the LSTM autoencoder runner into `autoencoderRunner`; new API in
-    `src/experiments/autoencoderRunner/lib/include/guayaquil.hpp` and
-    `src/experiments/autoencoderRunner/lib/src/guayaquil.cpp`.
+    `src/experiments/autoencoderRunner/lib/include/meeting01.hpp` and
+    `src/experiments/autoencoderRunner/lib/src/meeting01.cpp`.
   - Folded former `src/experiments/04` library, tests, and profiles into
     `src/experiments/autoencoderRunner/lib`, `src/experiments/autoencoderRunner/tests`, and
     `src/experiments/autoencoderRunner/profiles`.
@@ -65,11 +65,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed (2026-04-21)
 
-- Experiment04 runner behavior unified: `src/experiments/guayaquil/lib/src/guayaquil.cpp`
+- Experiment04 runner behavior unified: `src/experiments/meeting01/lib/src/meeting01.cpp`
   now defaults to the comparative SNN-vs-LSTM pipeline.
 - Legacy standalone LSTM execution path was removed from Experiment04 runner;
   execution now always delegates to the comparative SNN-vs-LSTM pipeline.
-- Legacy CLI aliases (`--guayaquil`, `--lstm-autoencoder`,
+- Legacy CLI aliases (`--meeting01`, `--lstm-autoencoder`,
   `--lstm-profile`, `--config`) were removed. The runner now accepts only
   comparative CLI flags (for example, `--comparative` and
   `--comparative-config`).
@@ -107,8 +107,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Added integrated Experiment04 LSTM assets under the AutoencoderRunner module:
-  `src/experiments/autoencoderRunner/lib/include/guayaquil`,
-  `src/experiments/autoencoderRunner/lib/src/guayaquil`, `src/experiments/autoencoderRunner/tests`, and
+  `src/experiments/autoencoderRunner/lib/include/meeting01`,
+  `src/experiments/autoencoderRunner/lib/src/meeting01`, `src/experiments/autoencoderRunner/tests`, and
   `src/experiments/autoencoderRunner/profiles/lstm-*.json`.
 
 - Dual-branch multimodal autoencoders for `autoencoderRunner`: separate EEG and audio encoder branches

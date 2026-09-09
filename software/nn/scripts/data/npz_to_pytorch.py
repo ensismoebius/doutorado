@@ -59,7 +59,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Convert experiment checkpoints to PT files.")
     parser.add_argument(
         "--models-dir",
-        default="results/guayaquil/models",
+        default="results/meeting01/models",
         help="Directory to scan recursively for model artifacts.",
     )
     args = parser.parse_args()

@@ -15,7 +15,7 @@
  * Decoder: Linear(Z->d_model) -> replicate T -> + positional
  *          -> N encoder blocks (self-attention only) -> Linear(d_model->D) per step
  *
- * 2-D single-sequence contract only (Guayaquil trains at batch size 1):
+ * 2-D single-sequence contract only (Meeting01 trains at batch size 1):
  *   forward(Tensor{T, D}) -> Tensor{T, D}
  *
  * Every constituent layer is finite-difference gradient-checked; the composed

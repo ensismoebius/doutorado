@@ -1,6 +1,6 @@
-// GuayaquilMitBih.cpp — see GuayaquilMitBih.hpp.
+// Meeting01MitBih.cpp — see Meeting01MitBih.hpp.
 
-#include "GuayaquilMitBih.hpp"
+#include "Meeting01MitBih.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -15,7 +15,7 @@
 
 #include "utility/SignalPreprocessing.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 namespace
 {
@@ -191,4 +191,4 @@ MitBihWindowDataset::MitBihWindowDataset(const std::filesystem::path& dataset_ro
                                  std::to_string(window_size) + " larger than every record?)");
 }
 
-} // namespace guayaquil
+} // namespace meeting01

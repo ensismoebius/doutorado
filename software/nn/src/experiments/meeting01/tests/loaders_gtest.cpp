@@ -10,9 +10,9 @@
 #include <set>
 #include <string>
 
-#include "GuayaquilConfig.hpp"
-#include "GuayaquilDataset.hpp"
-#include "GuayaquilMitBih.hpp"
+#include "Meeting01Config.hpp"
+#include "Meeting01Dataset.hpp"
+#include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 
 namespace
@@ -21,9 +21,9 @@ namespace fs = std::filesystem;
 
 const std::string kDbRoot = "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases";
 
-guayaquil::GuayaquilConfig base_config()
+meeting01::Meeting01Config base_config()
 {
-    guayaquil::GuayaquilConfig c;
+    meeting01::Meeting01Config c;
     c.experiment.run_tag = "loaders_test";
     c.experiment.seed = 42;
     c.experiment.repeats = 1;
@@ -33,7 +33,7 @@ guayaquil::GuayaquilConfig base_config()
     return c;
 }
 
-int distinct_speakers(const std::vector<guayaquil::WindowMetadata>& m)
+int distinct_speakers(const std::vector<meeting01::WindowMetadata>& m)
 {
     std::set<int> s;
     for (const auto& w : m) s.insert(w.speaker_id);
@@ -42,7 +42,7 @@ int distinct_speakers(const std::vector<guayaquil::WindowMetadata>& m)
 
 } // namespace
 
-TEST(GuayaquilLoaders, FsddGroupedFoldIsSpeakerDisjoint)
+TEST(Meeting01Loaders, FsddGroupedFoldIsSpeakerDisjoint)
 {
     const std::string root = kDbRoot + "/fsdDataset";
     if (!fs::exists(root)) GTEST_SKIP() << "no FSDD root";
@@ -51,7 +51,7 @@ TEST(GuayaquilLoaders, FsddGroupedFoldIsSpeakerDisjoint)
     cfg.dataset.dataset_root = root;
     cfg.evaluation.datasets = {"fsdd"};
 
-    const auto split = guayaquil::build_split(cfg, "fsdd", 0);
+    const auto split = meeting01::build_split(cfg, "fsdd", 0);
     EXPECT_FALSE(split.train_samples.empty());
     EXPECT_FALSE(split.val_samples.empty());
     EXPECT_FALSE(split.test_samples.empty());
@@ -65,7 +65,7 @@ TEST(GuayaquilLoaders, FsddGroupedFoldIsSpeakerDisjoint)
     for (const auto& s : va) EXPECT_EQ(tr.count(s), 0u) << s;
 }
 
-TEST(GuayaquilLoaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
+TEST(Meeting01Loaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
 {
     const std::string root = kDbRoot + "/audioMNIST_8k";
     if (!fs::exists(root)) GTEST_SKIP() << "no AudioMNIST 8k root";
@@ -79,17 +79,17 @@ TEST(GuayaquilLoaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back(
         {"audiomnist", root, 256, 6, 8000, /*max_windows_per_recording=*/2});
-    const auto split = guayaquil::build_split(cfg, "audiomnist", 0);
+    const auto split = meeting01::build_split(cfg, "audiomnist", 0);
     for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 2);
     EXPECT_FALSE(split.test_samples.empty());
 }
 
-TEST(GuayaquilLoaders, MitBihFormat212DecodesAndWindows)
+TEST(Meeting01Loaders, MitBihFormat212DecodesAndWindows)
 {
     const std::string root = kDbRoot + "/mitbih";
     if (!fs::exists(root)) GTEST_SKIP() << "no MIT-BIH root";
 
-    guayaquil::MitBihWindowDataset ds(root, 256);
+    meeting01::MitBihWindowDataset ds(root, 256);
     ASSERT_FALSE(ds.windows().empty());
     EXPECT_EQ(ds.windows().size(), ds.metadata().size());
     for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
@@ -99,7 +99,7 @@ TEST(GuayaquilLoaders, MitBihFormat212DecodesAndWindows)
     auto cfg = base_config();
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back({"mitbih", root, 256, 6, 360, 40});
-    const auto split = guayaquil::build_split(cfg, "mitbih", 0);
+    const auto split = meeting01::build_split(cfg, "mitbih", 0);
     for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
     EXPECT_FALSE(split.test_samples.empty());
 }

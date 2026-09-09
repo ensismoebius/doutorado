@@ -44,33 +44,33 @@ target_link_libraries(autoencoderRunner_lib
     )
 
 
-# Experiment04 implementation library (used by both autoencoderRunner and guayaquil executables).
-add_library(guayaquil_lib STATIC
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilRunner.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilLstmAutoencoder.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilExperiment.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilCli.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilConfig.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilDataset.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilMitBih.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilMetrics.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEvaluation.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilTraining.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilOutput.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilCheckpoint.cpp
-    ${SRC_DIR}/experiments/guayaquil/lib/src/GuayaquilEvents.cpp
+# Experiment04 implementation library (used by both autoencoderRunner and meeting01 executables).
+add_library(meeting01_lib STATIC
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Runner.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01LstmAutoencoder.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Experiment.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Cli.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Config.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Dataset.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01MitBih.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Encoding.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Metrics.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Evaluation.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Training.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Output.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Checkpoint.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Events.cpp
 )
 
-target_include_directories(guayaquil_lib
+target_include_directories(meeting01_lib
     PUBLIC
-        ${SRC_DIR}/experiments/guayaquil/lib/include
+        ${SRC_DIR}/experiments/meeting01/lib/include
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(guayaquil_lib
+target_link_libraries(meeting01_lib
     PUBLIC
         autoencoderRunner_lib
         data_loaders_fsdd
@@ -102,7 +102,7 @@ target_link_libraries(autoencoderRunner
         dataLoaders_10_1117
         OpenMP::OpenMP_CXX
         autoencoderRunner_lib
-        guayaquil_lib
+        meeting01_lib
         xtensor xtensor-blas
         cnpy-static
         data_loaders
@@ -114,7 +114,7 @@ target_link_libraries(autoencoderRunner
 configure_xtensor_parallel_target(autoencoderRunner)
 
 file(GLOB EXPERIMENT03_PROFILE_JSON "${SRC_DIR}/experiments/autoencoderRunner/profiles/*.json")
-file(GLOB EXPERIMENT04_PROFILE_JSON "${SRC_DIR}/experiments/guayaquil/profiles/*.json")
+file(GLOB EXPERIMENT04_PROFILE_JSON "${SRC_DIR}/experiments/meeting01/profiles/*.json")
 set(EXPERIMENT_PROFILE_JSON ${EXPERIMENT03_PROFILE_JSON} ${EXPERIMENT04_PROFILE_JSON})
 if(EXPERIMENT_PROFILE_JSON)
     add_custom_command(TARGET autoencoderRunner POST_BUILD

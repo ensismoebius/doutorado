@@ -155,7 +155,7 @@ Usage: `LD_PRELOAD=./clshim.so ./your_binary 2> profile.txt`
 199 s). Trust the **call counts** and the **relative** breakdown; do not quote
 its absolute milliseconds as the cost of the unshimmed run.
 
-Example output from an Guayaquil run — the result that redirected the whole
+Example output from an Meeting01 run — the result that redirected the whole
 optimisation effort:
 
 ```
@@ -283,7 +283,7 @@ A reproducible recipe for "OpenCL is crashing and I don't know why":
 
 ### Measuring safely and honestly
 
-- **Delete the results directory between runs.** Guayaquil/Thesis resume from
+- **Delete the results directory between runs.** Meeting01/Thesis resume from
   `results/checkpoints/`, keyed by config hash; a stale checkpoint produces a
   13-second "run" with numbers identical to the previous one. This silently
   invalidated one whole comparison before it was caught.
@@ -294,7 +294,7 @@ A reproducible recipe for "OpenCL is crashing and I don't know why":
 
 ---
 
-## 6. Measured results (Guayaquil, 6 train / 4 val / 2 epochs, window 256)
+## 6. Measured results (Meeting01, 6 train / 4 val / 2 epochs, window 256)
 
 | Configuration | Wall | LSTM train |
 |---|---|---|
@@ -337,7 +337,7 @@ are covered by `OpenCLViewOpsTest` in `opencl_tensor_backend_gtest`.
 
 The largest safe win, and it is a modelling fix rather than a backend one.
 
-Guayaquil previously built the LSTM autoencoder with `input_size = 1` and
+Meeting01 previously built the LSTM autoencoder with `input_size = 1` and
 `seq_len = window_size`, i.e. a 256-sample window was consumed **one scalar per
 timestep**. The dominant cost is the recurrent term `h·Uᵀ` (U is `(4H, H)`,
 16 384 MACs for H=64), and it was paid 256 times.
@@ -354,7 +354,7 @@ each timestep:
 
 ~7× fewer MACs and ~8× less sequential depth, discarding no information.
 `lstm_frame_size` must divide `dataset.window_size` (validated in
-`GuayaquilConfig::validate`).
+`Meeting01Config::validate`).
 
 **Implementation note — framing is not a plain reshape.** Storage is
 column-major, so reshaping `(256,1)` to `(32,8)` would put samples

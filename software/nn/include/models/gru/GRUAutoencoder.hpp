@@ -7,7 +7,7 @@
  *
  * Structurally identical to nn::models::lstm::LSTMAutoencoder with the recurrent
  * layer swapped for GRULayer (no cell state). Kept as a separate model so the
- * Guayaquil comparison can report GRU-AE as a first-class baseline.
+ * Meeting01 comparison can report GRU-AE as a first-class baseline.
  *
  * Encoder: stacked GRULayer -> last hidden -> Linear -> tanh -> latent z
  * Decoder: latent -> Linear expand -> replicate T -> stacked GRULayer -> Linear -> recon

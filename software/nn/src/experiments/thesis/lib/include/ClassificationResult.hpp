@@ -36,7 +36,7 @@ struct ClassificationResult
     double mean_auc = 0.0;
     double std_auc = 0.0;
 
-    // Run-level cost / complexity stats (the Guayaquil-style "info about the run").
+    // Run-level cost / complexity stats (the Meeting01-style "info about the run").
     std::size_t param_count = 0;  // trainable parameters in the classifier
     double mean_train_ms = 0.0;   // mean per-fold training wall-clock
     double mean_infer_ms = 0.0;   // mean per-fold inference wall-clock

@@ -1,15 +1,15 @@
-#include "../include/GuayaquilRunner.hpp"
+#include "../include/Meeting01Runner.hpp"
 
 #include <string>
 
-#include "../include/GuayaquilCli.hpp"
+#include "../include/Meeting01Cli.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto should_run_comparative_from_cli(int argc, char* argv[]) -> bool
 {
-    return guayaquil::should_run_comparative_cli(argc, argv);
+    return meeting01::should_run_comparative_cli(argc, argv);
 }
 
 auto should_run_from_cli(int argc, char* argv[]) -> bool
@@ -17,4 +17,4 @@ auto should_run_from_cli(int argc, char* argv[]) -> bool
     return should_run_comparative_from_cli(argc, argv);
 }
 
-} // namespace guayaquil
+} // namespace meeting01

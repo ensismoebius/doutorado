@@ -1,4 +1,4 @@
-#include "../include/GuayaquilDataset.hpp"
+#include "../include/Meeting01Dataset.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -9,11 +9,11 @@
 #include <stdexcept>
 #include <string>
 
-#include "GuayaquilMitBih.hpp"
+#include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<nn::Tensor>
@@ -47,7 +47,7 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
     return windows;
 }
 
-auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset)
+auto collect_signal_files(const Meeting01Config& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>
 {
     namespace fs = std::filesystem;
@@ -157,7 +157,7 @@ namespace
 // This CANNOT protect against speaker/recording leakage and is kept only for the
 // non-FSDD (physionet CSV) experiments and for ad-hoc runs that pass cv_fold < 0.
 // The article pipeline always passes cv_fold >= 0 → build_loso_split below.
-auto build_legacy_split(const GuayaquilConfig& cfg, const std::string& dataset) -> DatasetSplit
+auto build_legacy_split(const Meeting01Config& cfg, const std::string& dataset) -> DatasetSplit
 {
     DatasetSplit split;
     std::vector<Tensor> all_samples;
@@ -237,7 +237,7 @@ struct GroupedWindows
 // uses the format-212 WFDB reader. A per-recording window cap keeps long
 // recordings (ECG, silence-padded speech) from dominating the pooled counts;
 // cap 0 = keep all (FSDD).
-auto load_grouped_windows(const std::string& dataset, const GuayaquilConfig::DatasetSource& src)
+auto load_grouped_windows(const std::string& dataset, const Meeting01Config::DatasetSource& src)
     -> GroupedWindows
 {
     GroupedWindows g;
@@ -327,10 +327,10 @@ void stratified_window_cap(std::vector<Tensor>& samples,
     if (labels != nullptr) *labels = std::move(l);
 }
 
-auto build_loso_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
+auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
-    const GuayaquilConfig::DatasetSource src = cfg.dataset.resolve(dataset);
+    const Meeting01Config::DatasetSource src = cfg.dataset.resolve(dataset);
     const GroupedWindows loaded = load_grouped_windows(dataset, src);
     const auto& windows = loaded.windows;
     const auto& meta = loaded.meta;
@@ -400,7 +400,7 @@ auto build_loso_split(const GuayaquilConfig& cfg, const std::string& dataset, in
 
 } // namespace
 
-auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold)
+auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
     if (cv_fold >= 0 && (dataset == "fsdd" || dataset == "audiomnist" || dataset == "mitbih"))
@@ -408,4 +408,4 @@ auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_
     return build_legacy_split(cfg, dataset);
 }
 
-} // namespace guayaquil
+} // namespace meeting01

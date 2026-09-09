@@ -14,18 +14,18 @@
 #include <sstream>
 #include <string>
 
-#include "../include/GuayaquilCheckpoint.hpp"
-#include "../include/GuayaquilCli.hpp"
-#include "../include/GuayaquilDataset.hpp"
-#include "../include/GuayaquilEvaluation.hpp"
-#include "../include/GuayaquilEventCallback.hpp"
-#include "../include/GuayaquilEvents.hpp"
-#include "../include/GuayaquilMetrics.hpp"
-#include "../include/GuayaquilOutput.hpp"
-#include "../include/GuayaquilPerWindow.hpp"
-#include "../include/GuayaquilRunner.hpp"
-#include "../include/GuayaquilTraining.hpp"
-#include "GuayaquilAeCommon.hpp"
+#include "../include/Meeting01Checkpoint.hpp"
+#include "../include/Meeting01Cli.hpp"
+#include "../include/Meeting01Dataset.hpp"
+#include "../include/Meeting01Evaluation.hpp"
+#include "../include/Meeting01EventCallback.hpp"
+#include "../include/Meeting01Events.hpp"
+#include "../include/Meeting01Metrics.hpp"
+#include "../include/Meeting01Output.hpp"
+#include "../include/Meeting01PerWindow.hpp"
+#include "../include/Meeting01Runner.hpp"
+#include "../include/Meeting01Training.hpp"
+#include "Meeting01AeCommon.hpp"
 #include "cnpy.h"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "nlohmann/json.hpp"
@@ -151,7 +151,7 @@ auto save_parameter_list_text(
     return out.good();
 }
 
-namespace guayaquil
+namespace meeting01
 {
 
 namespace
@@ -161,7 +161,7 @@ namespace
 // "<run_tag>" otherwise. The dataset segment keeps folds of FSDD / AudioMNIST /
 // MIT-BIH from clobbering each other when each (dataset, fold) runs as its own
 // process.
-auto fold_output_tag(const GuayaquilConfig& c, const std::string& dataset) -> std::string
+auto fold_output_tag(const Meeting01Config& c, const std::string& dataset) -> std::string
 {
     std::string t = c.experiment.run_tag;
     if (c.dataset.cv_fold >= 0)
@@ -219,7 +219,7 @@ struct OutputDirs
 // location doesn't exist in this checkout — only the *implicit*, empty results_dir path
 // may fall back; an explicit results_dir is always honored), then creates it and the
 // models/checkpoints subdirectories.
-OutputDirs resolve_output_dirs(const GuayaquilConfig& config)
+OutputDirs resolve_output_dirs(const Meeting01Config& config)
 {
     std::filesystem::path out_dir = config.dataset.results_dir.empty()
                                         ? source_results_dir()
@@ -227,7 +227,7 @@ OutputDirs resolve_output_dirs(const GuayaquilConfig& config)
 
     // Only the *implicit* (empty results_dir) path may fall back: source_results_dir()
     // points into the source tree and may not exist in this checkout. An explicit
-    // results_dir (e.g. "results/guayaquil") is always honored and created below —
+    // results_dir (e.g. "results/meeting01") is always honored and created below —
     // otherwise a fresh checkout without that subdir would silently divert output to
     // plain "results/".
     if (config.dataset.results_dir.empty() && !std::filesystem::exists(out_dir))
@@ -258,7 +258,7 @@ struct BaselineFamily
 };
 
 // Builds one ResultRow for a baseline family on a given split partition.
-auto make_baseline_row(const GuayaquilConfig& config,
+auto make_baseline_row(const Meeting01Config& config,
     const std::string& backend_name,
     const std::string& dataset_name,
     const BaselineFamily& fam,
@@ -293,13 +293,13 @@ auto make_baseline_row(const GuayaquilConfig& config,
 // whenever the fold carries a test partition. Model type and train entry point are the
 // only things that vary, so this is a template over the concrete AE.
 template <typename Model>
-void run_baseline(const GuayaquilConfig& config,
+void run_baseline(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const BaselineFamily& fam,
     Model& model,
     TrainResult (*train_fn)(Model&,
-        const GuayaquilConfig&,
+        const Meeting01Config&,
         const std::vector<Tensor>&,
         const std::vector<Tensor>&,
         const std::string&,
@@ -466,7 +466,7 @@ void run_baseline(const GuayaquilConfig& config,
 }
 
 // Dispatches one baseline family token to the right concrete AE + train entry point.
-void run_baseline_family(const GuayaquilConfig& config,
+void run_baseline_family(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& family_token,
@@ -555,7 +555,7 @@ void run_baseline_family(const GuayaquilConfig& config,
 
 /** Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
  *  when LaTeX data export is configured. */
-void write_snn_combo_dats(const GuayaquilConfig& config,
+void write_snn_combo_dats(const Meeting01Config& config,
     const std::string& encoding,
     const std::string& architecture,
     float voltage_threshold,
@@ -593,9 +593,11 @@ void write_snn_combo_dats(const GuayaquilConfig& config,
         train_result.history);
 }
 
-/** Writes the encoder/decoder parameter dumps for one SNN combo, when model saving is
- *  configured. */
-void save_snn_combo_models(const GuayaquilConfig& config,
+/** Writes the encoder/decoder parameter dumps for one SNN model, when model saving is
+ *  configured. `role_tag` ("combo" for a sweep candidate, "final" for the retrained
+ *  winner) plus the fold index keep the ~18 nested-LOSO processes from colliding on the
+ *  same filename. */
+void save_snn_combo_models(const Meeting01Config& config,
     const std::string& dataset_name,
     const std::string& encoding,
     const std::string& architecture,
@@ -603,17 +605,18 @@ void save_snn_combo_models(const GuayaquilConfig& config,
     float alpha,
     int run_id,
     const std::filesystem::path& models_dir,
-    ProtocolSpikingAutoencoder& snn_model)
+    ProtocolSpikingAutoencoder& snn_model,
+    const std::string& role_tag = "combo")
 {
     if (!config.dataset.save_models)
     {
         return;
     }
 
-    const std::string base_name =
-        sanitize_name(config.experiment.run_tag + "_snn_" + dataset_name + "_" + encoding + "_" +
-                      architecture + "_vth" + std::to_string(voltage_threshold) + "_a" +
-                      std::to_string(alpha) + "_run" + std::to_string(run_id + 1));
+    const std::string base_name = sanitize_name(
+        config.experiment.run_tag + "_snn_" + role_tag + "_" + dataset_name + "_" + encoding + "_" +
+        architecture + "_vth" + std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) +
+        "_fold" + std::to_string(config.dataset.cv_fold) + "_run" + std::to_string(run_id + 1));
     const std::filesystem::path encoder_txt = models_dir / (base_name + "_encoder_params.txt");
     const std::filesystem::path decoder_txt = models_dir / (base_name + "_decoder_params.txt");
     const bool enc_ok =
@@ -631,7 +634,7 @@ void save_snn_combo_models(const GuayaquilConfig& config,
 // on the inner validation speaker, appends a split="val" ResultRow, and returns that
 // validation MSE so the caller can select the fold's winner. The held-out test speaker
 // is never touched here.
-auto run_snn_combo(const GuayaquilConfig& config,
+auto run_snn_combo(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -844,7 +847,7 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
 
 // Runs the full SNN architecture × voltage_threshold × alpha sweep for one (dataset,
 // encoding, run_id) combo.
-void run_snn_sweep(const GuayaquilConfig& config,
+void run_snn_sweep(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -1023,6 +1026,19 @@ void run_snn_sweep(const GuayaquilConfig& config,
     checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
     emit_config_end(all_rows.back(), final_config_id, "snn_final");
 
+    // Persist the retrained winner: this is the model whose held-out test metrics feed
+    // the paper, and the one the inspection GUI most needs.
+    save_snn_combo_models(config,
+        dataset_name,
+        encoding,
+        best.architecture,
+        best.v_th,
+        best.alpha,
+        run_id,
+        models_dir,
+        snn_model,
+        "final");
+
     {
         PerWindowError proto;
         proto.model = "snn-ae";
@@ -1078,7 +1094,7 @@ void run_snn_sweep(const GuayaquilConfig& config,
 // Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
 // any speaker or any source recording appears in more than one of train/val/test.
 void assert_split_disjoint_and_manifest(
-    const GuayaquilConfig& config, const DatasetSplit& split, const std::string& dataset_name)
+    const Meeting01Config& config, const DatasetSplit& split, const std::string& dataset_name)
 {
     if (config.dataset.cv_fold < 0) return; // legacy pooled path — not a LOSO fold
 
@@ -1158,7 +1174,7 @@ void assert_split_disjoint_and_manifest(
 // trained AEs reconstruct. Uses the seed-0 encoding realization (poisson is stochastic;
 // the linear references are reported as one representative realization — direct and
 // latency are deterministic). Once per fold+encoding, not per seed/model.
-void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
+void dump_analytic_baseline_inputs(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -1218,7 +1234,7 @@ void dump_analytic_baseline_inputs(const GuayaquilConfig& config,
 
 // Writes every result artifact for the whole experiment: comparative CSV, publication
 // table, JSON summary, and (when configured) the pgfplots/LaTeX exports.
-void write_experiment_outputs(const GuayaquilConfig& config,
+void write_experiment_outputs(const Meeting01Config& config,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& all_rows,
     const std::filesystem::path& out_dir)
@@ -1256,7 +1272,7 @@ void write_experiment_outputs(const GuayaquilConfig& config,
 
 auto run_comparative_experiment(int argc, char* argv[]) -> int
 {
-    using namespace guayaquil;
+    using namespace meeting01;
 
     try
     {
@@ -1268,7 +1284,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         }
         if (cli.no_tui) nn::progress::ProgressManager::instance().set_enabled(false);
 
-        const GuayaquilConfig config = load_config(resolve_profile_path(cli), cli);
+        const Meeting01Config config = load_config(resolve_profile_path(cli), cli);
         config.validate();
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
@@ -1291,12 +1307,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
-        // (01_guayaquil_run_article_profiles.sh) computes it the same way run_thesis_profiles.sh
+        // (01_meeting01_run_article_profiles.sh) computes it the same way run_thesis_profiles.sh
         // does (work-weighted, EMA-smoothed seconds-per-unit-work — see scripts/lib/run_eta.sh) and
-        // passes the ready-made line in via GUAYAQUIL_OVERALL. Logging it renders it as a
+        // passes the ready-made line in via MEETING01_OVERALL. Logging it renders it as a
         // persistent top line above the per-profile bars; empty/unset when run standalone, so
         // unchanged.
-        if (const char* overall = std::getenv("GUAYAQUIL_OVERALL");
+        if (const char* overall = std::getenv("MEETING01_OVERALL");
             overall != nullptr && overall[0] != '\0')
         {
             nn::progress::ProgressManager::instance().log(std::string(overall));
@@ -1323,7 +1339,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 {"run_tag", config.experiment.run_tag},
                 {"dataset", ev_ds},
                 {"fold", config.dataset.cv_fold}});
-            const char* git_env = std::getenv("GUAYAQUIL_GIT_COMMIT");
+            const char* git_env = std::getenv("MEETING01_GIT_COMMIT");
             ExperimentEvents::instance().emit("session_begin",
                 {{"cv_num_folds", config.dataset.cv_num_folds},
                     {"all_datasets", config.evaluation.datasets},
@@ -1375,7 +1391,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
             // Per-window reconstruction errors accumulate across every model / encoding /
             // seed of this fold, then flush once. Rows coming straight from a resume
-            // checkpoint are not regenerated — clear results/guayaquil/checkpoints/ before
+            // checkpoint are not regenerated — clear results/meeting01/checkpoints/ before
             // a run that needs the per-window CSV (the article pipeline always does).
             std::vector<PerWindowError> pw_rows;
 
@@ -1464,4 +1480,4 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
     }
 }
 
-} // namespace guayaquil
+} // namespace meeting01

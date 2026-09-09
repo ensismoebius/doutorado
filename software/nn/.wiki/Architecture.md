@@ -22,7 +22,7 @@ flowchart TB
 
     subgraph "Experiments"
         Exp03[AutoencoderRunner]
-        Exp04[Guayaquil]
+        Exp04[Meeting01]
         Exp05[Thesis]
     end
 
@@ -225,7 +225,7 @@ out/
 │       │   ├── core/              # Core library
 │       │   ├── experiments/
 │       │   │   ├── autoencoderRunner/
-│       │   │   ├── guayaquil/
+│       │   │   ├── meeting01/
 │       │   │   └── thesis/
 │       │   └── demos/
 │       └── compile_commands.json

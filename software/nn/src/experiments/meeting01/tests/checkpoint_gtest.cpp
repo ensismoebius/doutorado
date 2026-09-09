@@ -3,10 +3,10 @@
 #include <filesystem>
 #include <fstream>
 
-#include "../lib/include/GuayaquilCheckpoint.hpp"
+#include "../lib/include/Meeting01Checkpoint.hpp"
 
 namespace fs = std::filesystem;
-using namespace guayaquil;
+using namespace meeting01;
 
 namespace
 {

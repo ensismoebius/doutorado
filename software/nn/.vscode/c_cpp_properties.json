@@ -10,7 +10,7 @@
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/src/experiments/autoencoderRunner/lib/include",
                 "${workspaceFolder}/src/experiments/autoencoderRunner/lib/include/autoencoder",
-                "${workspaceFolder}/src/experiments/guayaquil/lib/include",
+                "${workspaceFolder}/src/experiments/meeting01/lib/include",
                 "${workspaceFolder}/src/core/dataLoaders",
                 "${workspaceFolder}/src/core/dataLoaders/10.1117",
                 "${workspaceFolder}/src/core/dataLoaders/10.1117/tests",

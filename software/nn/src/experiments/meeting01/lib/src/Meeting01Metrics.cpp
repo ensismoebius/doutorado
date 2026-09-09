@@ -1,10 +1,10 @@
-#include "../include/GuayaquilMetrics.hpp"
+#include "../include/Meeting01Metrics.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto mse_between(const Tensor& a, const Tensor& b) -> float
@@ -128,4 +128,4 @@ auto estimate_transformer_macs(const nn::models::transformer::TransformerAutoenc
     return blocks + io;
 }
 
-} // namespace guayaquil
+} // namespace meeting01

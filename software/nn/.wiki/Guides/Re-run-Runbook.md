@@ -13,7 +13,7 @@ Commands run from `software/nn/` unless a `cd` is shown.
 
 | Fix | What it silently did to the old results |
 |---|---|
-| **D3** — `snn_lr_scale` | Applied the biophysical lr reduction to **every** parameter, so all 24 AE profiles trained every weight at an effective **1e-4 while declaring 1e-3**. Also hit the Guayaquil paper's 3 SNN profiles. |
+| **D3** — `snn_lr_scale` | Applied the biophysical lr reduction to **every** parameter, so all 24 AE profiles trained every weight at an effective **1e-4 while declaring 1e-3**. Also hit the Meeting01 paper's 3 SNN profiles. |
 | **D1** — dead latent | The 18 `snn-ae` profiles now set `firing_rate_reg_lambda=0.5`; the old runs predate the field. |
 | **D6** — EEG `scale` axis | 92 EEG bark/mel profiles retired (grid **300 → 208**); their results had no profile left to generate them. |
 | **MSELoss/MAELoss** | Silently clipped their own gradient at norm 1.0 — unconditionally, non-configurably, and overriding `grad_clip_norm=0`. `MSELossImpl` is Trainer's default loss, so this touched **every** trained autoencoder. |
@@ -78,7 +78,7 @@ Clean up with `rm -rf results/thesis/smoke` afterwards.
 
 ---
 
-## 1. Guayaquil — Guayaquil paper (do this FIRST)
+## 1. Meeting01 — Meeting01 paper (do this FIRST)
 
 Highest priority: it is the only artifact with an external audience, and its current
 SNN-vs-LSTM table used to be **unfair to the paper's own contribution** — the SNN side trained
@@ -89,7 +89,7 @@ every weight 10× slower than the LSTM baseline it is compared against (D3, now 
 
 It **asks which build to use**, because that choice is part of the measurement rather than a
 convenience: the paper reports **`train_ms` / `infer_ms` / latency**, and
-`02_guayaquil_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables, so all four
+`02_meeting01_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables, so all four
 profiles must run on the **same** backend. **`max-performance` (CPU/XTensor) is the reference
 and the default** — the same backend the thesis uses — so both experiments report from one
 setup. Picking anything else prints a warning and must be reported as a different backend.
@@ -97,7 +97,7 @@ setup. Picking anything else prints a warning and must be reported as a differen
 ```bash
 # ~2.5 h (LSTM ~10 min, each SNN ~45 min). Asks which build, then configures + builds it,
 # runs all 4 article profiles, converts the NPZ artifacts, and aggregates the paper CSV/DAT.
-./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 ```
 
 While it runs, an **`Overall [i/4] … ETA`** line sits at the top of each profile's TUI — the
@@ -107,29 +107,29 @@ seconds-per-unit-work, so it does not lurch at the LSTM→SNN boundary the way a
 per-profile mean would. It is optimistic before the first SNN lands (the weights are a prior)
 and tightens once real timings arrive; treat it as a guide, not a promise.
 
-The prompt lists every preset, marks which already have an `guayaquil` binary `[built]`,
+The prompt lists every preset, marks which already have an `meeting01` binary `[built]`,
 flags the reference, and defaults to it — so pressing Enter is the reference choice.
 Non-interactive runs (pipe/CI) skip the prompt and use the reference.
 
 ```bash
 # Choose non-interactively (required in a pipe/CI):
-GUAYAQUIL_BUILD=max-performance ./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+MEETING01_BUILD=max-performance ./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 
 # Reuse the existing binary instead of rebuilding — only when you know it is current:
-SKIP_BUILD=1 GUAYAQUIL_BUILD=max-performance ./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+SKIP_BUILD=1 MEETING01_BUILD=max-performance ./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 ```
 
 The first run of a preset also **configures** it (a few minutes on top of the runtime); later
 runs are incremental no-ops.
 
-> Article results predating this default (`results/guayaquil/article_*_comparative_metrics.csv`)
+> Article results predating this default (`results/meeting01/article_*_comparative_metrics.csv`)
 > may have been produced on OpenCL — the summaries don't record the backend, so it can't be told
 > from disk. For a clean paper, run all four fresh on `max-performance`.
 
 Then recompile the paper:
 
 ```bash
-cd ../../documentation/07-articlesProduced/conference71070Guaiaquil
+cd ../../documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
@@ -161,9 +161,9 @@ Background it if you prefer:
 nohup ./scripts/testing/run_thesis_profiles.sh phase00 > phase00_run.log 2>&1 &
 ```
 
-Each profile's TUI shows the same rich bars as the Guayaquil paper (model + loss on the
+Each profile's TUI shows the same rich bars as the Meeting01 paper (model + loss on the
 autoencoder bar, `run fold/total` + live loss on the classifier bar) plus a persistent
-**`Overall [i/N] … ETA`** top line, work-weighted + EMA-smoothed the same way as Guayaquil. See
+**`Overall [i/N] … ETA`** top line, work-weighted + EMA-smoothed the same way as Meeting01. See
 [Running Experiment05 Profiles](./Running-Thesis-Profiles.md) for binary selection
 (`THESIS_BUILD`, `THESIS_BIN`), the live dashboard, and failure triage.
 
@@ -193,9 +193,9 @@ after it.
 ./scripts/testing/run_thesis_profiles.sh phase01     # 32 DSNN profiles → EER/AUC in results/thesis/phase01
 ```
 
-### 3a. Cross-profile significance (the Guayaquil SNN-vs-LSTM analog)
+### 3a. Cross-profile significance (the Meeting01 SNN-vs-LSTM analog)
 
-Once ≥2 phase01 profiles have run, compare them the way the Guayaquil paper compares its two
+Once ≥2 phase01 profiles have run, compare them the way the Meeting01 paper compares its two
 models — except across profiles, since each Thesis run scores one feature set. It reads every
 profile's per-fold `*_metrics.csv`, ranks by the chosen metric, and tests each condition
 against the best (Cohen's d + Wilcoxon/Mann-Whitney):
@@ -249,13 +249,13 @@ with `optimizer_type`, the **resolved** `learning_rate`, and a `learning_rate_so
 (`profile` vs `optimizer_default`). The old summaries recorded no training parameters at
 all — the provenance gap that let D3 go unnoticed (see [Engineering Fixes Log](./Engineering-Fixes-Log.md)).
 
-**Thesis now records the same run diagnostics as the Guayaquil paper.** Each `*_summary.json`
+**Thesis now records the same run diagnostics as the Meeting01 paper.** Each `*_summary.json`
 also carries a `config_hash` (provenance fingerprint), per-run `param_count` and
 `mean_train_ms`/`mean_infer_ms`, and per-fold `train_ms`/`infer_ms` + `final_train_loss`.
 A new `*_learning_curves.dat` holds per-epoch train/val loss curves plus, for the **DSNN**,
-per-epoch `spike_rate` and `sops` (the Guayaquil epoch-history + SNN-efficiency analog); `*_metrics.csv`
+per-epoch `spike_rate` and `sops` (the Meeting01 epoch-history + SNN-efficiency analog); `*_metrics.csv`
 gains `train_ms`/`infer_ms` columns, and the summary carries run-level `mean_spike_rate`/`final_sops`.
-(Guayaquil's in-run SNN-vs-LSTM significance test has no per-run analog here — an Thesis run scores one
+(Meeting01's in-run SNN-vs-LSTM significance test has no per-run analog here — an Thesis run scores one
 feature set — so that comparison is a post-hoc step, §3a above.)
 
 ---

@@ -48,7 +48,7 @@ Project Context (nn framework)
 **Efficient search patterns** — MCP first, `rg`/`jq` for what it doesn't cover:
 - Find a symbol across all sources → `find_symbol`/`search_text` (MCP), not `rg 'LeakyBPTT' include/ src/ --type cpp -l`
 - Run only matching tests → `run_tests(filter="core_gtest")` (MCP), or `ctest --test-dir out/build/max-performance -R core_gtest --output-on-failure`
-- Check specific profile field without reading entire file → `jq '.model.paradigm' src/experiments/guayaquil/profiles/article-lstm-ae.json` (the MCP doesn't query arbitrary JSON — `jq` stays the right tool here)
+- Check specific profile field without reading entire file → `jq '.model.paradigm' src/experiments/meeting01/profiles/article-lstm-ae.json` (the MCP doesn't query arbitrary JSON — `jq` stays the right tool here)
 
 **Avoid reading** entire files when `get_source_range`/`symbol_source` (MCP), a grep, or a `jq` query suffices.
 

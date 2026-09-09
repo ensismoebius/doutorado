@@ -1,5 +1,5 @@
 // Profile audit: every shipping article profile must parse cleanly via
-// GuayaquilConfig::from_nested_json AND must populate the live config
+// Meeting01Config::from_nested_json AND must populate the live config
 // fields with non-default values that the experiment harness will actually
 // consume. Catches silent profile-key drift (e.g. a future rename moving a
 // field outside the parser's lookup keys).
@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/GuayaquilConfig.hpp"
+#include "../lib/include/Meeting01Config.hpp"
 #include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
-using guayaquil::GuayaquilConfig;
+using meeting01::Meeting01Config;
 
 namespace
 {
@@ -28,7 +28,7 @@ const std::vector<std::string>& article_profiles()
         "article-snn-conv1d.json",
         "article-snn-recurrent.json",
         "article-backend-bench.json",
-        "article-loso.json",
+        "meeting01-loso.json",
     };
     return profiles;
 }
@@ -36,19 +36,19 @@ const std::vector<std::string>& article_profiles()
 fs::path profiles_dir()
 {
     // Tests run from the build dir; profiles live at
-    // <repo>/software/nn/src/experiments/guayaquil/profiles.
+    // <repo>/software/nn/src/experiments/meeting01/profiles.
     fs::path here = fs::path(__FILE__).parent_path();
     return here.parent_path() / "profiles";
 }
 
-GuayaquilConfig load(const std::string& name)
+Meeting01Config load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
     std::ifstream f(path);
     EXPECT_TRUE(f.is_open()) << "missing profile: " << path;
     nlohmann::json j;
     f >> j;
-    auto cfg = GuayaquilConfig::from_nested_json(j);
+    auto cfg = Meeting01Config::from_nested_json(j);
     cfg.validate();
     return cfg;
 }
@@ -154,12 +154,12 @@ namespace
 
 /// A config that passes validation, as the starting point for "break one
 /// field and check it is caught".
-GuayaquilConfig valid_config()
+Meeting01Config valid_config()
 {
     return load("article-lstm-ae.json");
 }
 
-std::string validation_error(const GuayaquilConfig& cfg)
+std::string validation_error(const Meeting01Config& cfg)
 {
     try
     {
@@ -174,12 +174,12 @@ std::string validation_error(const GuayaquilConfig& cfg)
 
 } // namespace
 
-TEST(GuayaquilConfigValidation, AcceptsAShippingProfile)
+TEST(Meeting01ConfigValidation, AcceptsAShippingProfile)
 {
     EXPECT_NO_THROW(valid_config().validate());
 }
 
-TEST(GuayaquilConfigValidation, RejectsEachSectionAndNamesTheField)
+TEST(Meeting01ConfigValidation, RejectsEachSectionAndNamesTheField)
 {
     {
         auto cfg = valid_config();
@@ -208,7 +208,7 @@ TEST(GuayaquilConfigValidation, RejectsEachSectionAndNamesTheField)
     }
 }
 
-TEST(GuayaquilConfigValidation, ReportsEveryProblemInOneMessage)
+TEST(Meeting01ConfigValidation, ReportsEveryProblemInOneMessage)
 {
     auto cfg = valid_config();
     cfg.experiment.repeats = 0;
@@ -223,7 +223,7 @@ TEST(GuayaquilConfigValidation, ReportsEveryProblemInOneMessage)
     EXPECT_NE(message.find("model.decoder_layer_spec"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, LeavesTheSnnKnobsAloneForAnLstmOnlyRun)
+TEST(Meeting01ConfigValidation, LeavesTheSnnKnobsAloneForAnLstmOnlyRun)
 {
     // Empty `snn_architectures` means this run is LSTM-only, so unset
     // thresholds are legitimate rather than missing.
@@ -234,7 +234,7 @@ TEST(GuayaquilConfigValidation, LeavesTheSnnKnobsAloneForAnLstmOnlyRun)
     EXPECT_NO_THROW(cfg.validate());
 }
 
-TEST(GuayaquilConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
+TEST(Meeting01ConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
 {
     auto cfg = valid_config();
     cfg.evaluation.snn_architectures = {"dense"};
@@ -242,28 +242,28 @@ TEST(GuayaquilConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
     EXPECT_NE(validation_error(cfg).find("v_th_values is empty"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, RejectsUnknownBaselineFamily)
+TEST(Meeting01ConfigValidation, RejectsUnknownBaselineFamily)
 {
     auto cfg = valid_config();
     cfg.evaluation.baselines = {"lstm-ae", "mlp-ae"};
     EXPECT_NE(validation_error(cfg).find("unknown family"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, RejectsEmptyBaselineList)
+TEST(Meeting01ConfigValidation, RejectsEmptyBaselineList)
 {
     auto cfg = valid_config();
     cfg.evaluation.baselines.clear();
     EXPECT_NE(validation_error(cfg).find("evaluation.baselines is empty"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, AcceptsTheTrainedBaselineTriple)
+TEST(Meeting01ConfigValidation, AcceptsTheTrainedBaselineTriple)
 {
     auto cfg = valid_config();
     cfg.evaluation.baselines = {"lstm-ae", "gru-ae", "transformer-ae"};
     EXPECT_NO_THROW(cfg.validate());
 }
 
-TEST(GuayaquilConfigValidation, DatasetSourceResolutionInheritsAndOverrides)
+TEST(Meeting01ConfigValidation, DatasetSourceResolutionInheritsAndOverrides)
 {
     auto cfg = valid_config();
     cfg.dataset.dataset_root = "/data/fsdd";
@@ -291,7 +291,7 @@ TEST(GuayaquilConfigValidation, DatasetSourceResolutionInheritsAndOverrides)
     EXPECT_EQ(other.root, "/data/fsdd");
 }
 
-TEST(GuayaquilConfigValidation, RejectsAFoldOutsideTheFoldCount)
+TEST(Meeting01ConfigValidation, RejectsAFoldOutsideTheFoldCount)
 {
     auto cfg = valid_config();
     cfg.dataset.cv_fold = 6;
@@ -299,7 +299,7 @@ TEST(GuayaquilConfigValidation, RejectsAFoldOutsideTheFoldCount)
     EXPECT_NE(validation_error(cfg).find("cv_fold"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
+TEST(Meeting01ConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
 {
     // Under nested LOSO (cv_fold >= 0) the split is speaker-disjoint and uses
     // every window, so max_loaded_train_samples / max_validation_samples = 0 is fine.
@@ -317,7 +317,7 @@ TEST(GuayaquilConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
 // unless someone deliberately keeps it. Both checkers deliberately take the
 // whole config for this reason, and these tests are what proves it stuck.
 
-TEST(GuayaquilConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
+TEST(Meeting01ConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
 {
     // dataset.window_size / model.lstm_frame_size is the LSTM's timestep
     // count. A remainder means the last timestep is short, so the rule is a
@@ -331,7 +331,7 @@ TEST(GuayaquilConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
     EXPECT_NE(message.find("must divide"), std::string::npos);
 }
 
-TEST(GuayaquilConfigValidation, CatchesABatchLargerThanTheLoadedSampleBudget)
+TEST(Meeting01ConfigValidation, CatchesABatchLargerThanTheLoadedSampleBudget)
 {
     // A batch bigger than everything loaded cannot ever be filled; the two
     // numbers live in different sections.

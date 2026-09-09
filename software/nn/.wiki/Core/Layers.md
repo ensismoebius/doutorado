@@ -420,7 +420,7 @@ it keeps a single hidden state (no separate cell state) and uses two gates
 instead of three. A *reset* gate decides how much of the previous state to
 mix into the candidate update, and an *update* gate interpolates between the
 old state and that candidate. Chung et al. [73] found GRUs match LSTMs on
-sequence modelling with fewer parameters — which is exactly why the Guayaquil
+sequence modelling with fewer parameters — which is exactly why the Meeting01
 comparison reports GRU-AE as a first-class baseline next to LSTM-AE.
 
 **Location:** `include/layers/gru/GRULayer.hpp`

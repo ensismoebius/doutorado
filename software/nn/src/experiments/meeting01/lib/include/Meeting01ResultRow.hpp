@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <string>
 
-#include "GuayaquilRunMetrics.hpp"
+#include "Meeting01RunMetrics.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 struct ResultRow
@@ -37,4 +37,4 @@ struct ResultRow
     int cv_fold = -1;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

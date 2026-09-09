@@ -312,7 +312,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
     // ── Run diagnostics (the Trainer queries these to fill EpochResult) ──────────
     // Overall mean firing rate across all spiking layers from the last training
     // forward = (total spikes) / (total spike slots). NaN until a training forward
-    // has cached spikes. Matches Guayaquil's "mean firing rate across all SNN neurons".
+    // has cached spikes. Matches Meeting01's "mean firing rate across all SNN neurons".
     [[nodiscard]] auto mean_spike_rate() const -> float
     {
         double spikes = 0.0;

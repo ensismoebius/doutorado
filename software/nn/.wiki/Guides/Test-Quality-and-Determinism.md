@@ -31,7 +31,7 @@ Top hotspot files from the latest scan:
 1. `src/experiments/autoencoderRunner/tests/ProfileAndResults_gtest.cpp` (54)
 2. `src/core/layers/tests/layers_gtest.cpp` (30)
 3. `src/core/statistics/tests/statistics_gtest.cpp` (29)
-4. `src/experiments/guayaquil/tests/ComparativeExperiment_gtest.cpp` (23)
+4. `src/experiments/meeting01/tests/ComparativeExperiment_gtest.cpp` (23)
 5. `src/core/optimizers/tests/optimizers_gtest.cpp` (22)
 
 ### OpenCL Lif Integration Coverage Snapshot (2026-05-10)
@@ -217,7 +217,7 @@ nor the label mapping (`build_label_index` sorts), but it **does** affect traini
 order is the order SGD sees. Now collected into a vector and `std::sort`ed first.
 
 The other three `directory_iterator` sites were already safe: `SubjectDiscovery.cpp` sorts by
-`subject_id` (and its sqlite branch uses `ORDER BY id ASC`), `GuayaquilDataset.cpp` and
+`subject_id` (and its sqlite branch uses `ORDER BY id ASC`), `Meeting01Dataset.cpp` and
 `FsddLoader.cpp` both sort.
 
 **Fix 2 — arbitrary tie-break in the winner sort** (`ThesisParaconsistent.cpp`).

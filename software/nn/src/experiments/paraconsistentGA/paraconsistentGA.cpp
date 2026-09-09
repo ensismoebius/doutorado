@@ -58,7 +58,7 @@ auto main(int argc, char* argv[]) -> int
         // know the whole-sweep progress on its own, so the runner
         // (01_paraconsistentGA_run_all_profiles.sh) computes it and passes the finished
         // line in via PGA_OVERALL. Logged first, it renders as a persistent top line
-        // above the per-generation bars (the Guayaquil/Thesis convention). Empty/unset
+        // above the per-generation bars (the Meeting01/Thesis convention). Empty/unset
         // when run standalone, so the single-profile TUI is unchanged.
         if (const char* overall = std::getenv("PGA_OVERALL");
             overall != nullptr && overall[0] != '\0')

@@ -26,7 +26,7 @@ void write_paraconsistent_csv(const std::string& results_dir,
 // Write summary JSON with config, seed, aggregated stats, and the dataset
 // composition actually used (n_subjects/n_stimuli/n_samples — after the
 // paired audio+EEG drop, see load_dataset), so the run is self-describing.
-// Also records the Guayaquil-style run diagnostics: per-run timing (train_ms/infer_ms),
+// Also records the Meeting01-style run diagnostics: per-run timing (train_ms/infer_ms),
 // model complexity (param_count), and the config_hash for provenance/determinism.
 // Path: results_dir/e05_{run_tag}_summary.json
 void write_summary_json(const std::string& results_dir,
@@ -45,7 +45,7 @@ void write_comparison_dat(const std::string& results_dir,
     const std::string& run_tag,
     const std::vector<ClassificationResult>& results);
 
-// Write per-epoch learning curves for every fold (the Guayaquil epoch-history analog).
+// Write per-epoch learning curves for every fold (the Meeting01 epoch-history analog).
 // One row per (feature_set, fold, epoch): train/val loss, epoch time, and — for
 // spiking classifiers — mean firing rate + synaptic-op count. Skipped (no file)
 // when no result carries any epoch history.

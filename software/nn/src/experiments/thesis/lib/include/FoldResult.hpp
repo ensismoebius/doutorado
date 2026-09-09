@@ -27,7 +27,7 @@ struct FoldResult
     double auc = 0.0;
     std::string model_path;
 
-    // Per-run stats (mirrors what the Guayaquil/Guayaquil pipeline records per run).
+    // Per-run stats (mirrors what the Meeting01/Meeting01 pipeline records per run).
     double train_ms = 0.0; // wall-clock to produce this fold's model
     double infer_ms = 0.0; // wall-clock to score the held-out test fold
     // Learning curve of the fold's final model: per-epoch train/val loss, epoch

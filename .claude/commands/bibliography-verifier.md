@@ -58,7 +58,7 @@ Validation
 Project Context (nn framework)
 
 **`.bib` file locations:**
-- `documentation/07-articlesProduced/conference71070Guaiaquil/paper.bib` — conference paper bibliography
+- `documentation/07-articlesProduced/meeting01/paper.bib` — conference paper bibliography
 - `documentation/00-dissertation/monography/monography.bib` — thesis bibliography
 
 **Domain:** neuromorphic computing, SNN, EEG/BCI, wavelet signal processing, paraconsistent logic

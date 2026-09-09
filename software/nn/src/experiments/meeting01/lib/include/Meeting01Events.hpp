@@ -1,7 +1,7 @@
 #pragma once
-// GuayaquilEvents.hpp — process-wide append-only JSONL event sink for one
+// Meeting01Events.hpp — process-wide append-only JSONL event sink for one
 // (dataset, outer fold) run. Consumed live by
-// scripts/pipeline/guayaquil/monitor.py.
+// scripts/pipeline/meeting01/monitor.py.
 //
 // OBSERVABILITY ONLY. Emitting an event never gates, blocks, or alters training,
 // the split, the metrics, the seeds, or any persisted CSV/JSON output — it is
@@ -19,7 +19,7 @@
 
 #include "nlohmann/json.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 // NaN / Inf → JSON null; otherwise the finite value. Keeps unmeasured metrics
@@ -95,7 +95,7 @@ class ExperimentEvents
     // Fields merged into every subsequent line: {v, run_tag, dataset, fold}.
     void set_common(nlohmann::json common);
 
-    // Slot read by GuayaquilEventCallback::on_train_begin. Set by the driver right
+    // Slot read by Meeting01EventCallback::on_train_begin. Set by the driver right
     // before each training call.
     void set_pending_context(EventContext ctx);
     [[nodiscard]] auto pending_context() const -> EventContext;
@@ -115,4 +115,4 @@ class ExperimentEvents
     EventContext pending_;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

@@ -1,14 +1,14 @@
-#include "../include/GuayaquilEvaluation.hpp"
+#include "../include/Meeting01Evaluation.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "../include/GuayaquilEncoding.hpp"
-#include "../include/GuayaquilMetrics.hpp"
+#include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01Metrics.hpp"
 
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
 
-namespace guayaquil
+namespace meeting01
 {
 
 using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
@@ -217,4 +217,4 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
     return out;
 }
 
-} // namespace guayaquil
+} // namespace meeting01

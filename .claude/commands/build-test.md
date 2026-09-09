@@ -58,8 +58,8 @@ Project Context (nn framework)
 | Target | What |
 |---|---|
 | `core_gtest` | All core unit tests |
-| `guayaquil` | Experiment 04 binary |
-| `guayaquil_lib` | Experiment 04 library only |
+| `meeting01` | Experiment 04 binary |
+| `meeting01_lib` | Experiment 04 library only |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
 | `profile_audit_gtest` | 25 profile-parsing validation tests |
 | `nn_progress` | Progress bar library |
@@ -87,9 +87,9 @@ cmake --preset=max-performance
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R core --output-on-failure
 
-# GPU build + guayaquil
+# GPU build + meeting01
 cmake --preset=max-performance-opencl
-cmake --build out/build/max-performance-opencl --target guayaquil -j$(nproc)
+cmake --build out/build/max-performance-opencl --target meeting01 -j$(nproc)
 
 # Profile audit (after any profile JSON edit)
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)

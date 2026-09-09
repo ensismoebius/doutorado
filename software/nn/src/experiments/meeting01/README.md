@@ -7,25 +7,25 @@ the same EEG/audio dataset, producing CSV metrics and pgfplots DAT files for the
 
 1. Loads a JSON profile specifying model paradigm (`lstm` or `snn`), architecture, and training config
 2. Runs k-fold cross-validation with the specified model
-3. Writes per-fold metrics to `results/guayaquil/article_*_comparative_metrics.csv`
+3. Writes per-fold metrics to `results/meeting01/article_*_comparative_metrics.csv`
 4. Optionally writes DAT files for LaTeX pgfplots
 
 ## Build
 
 ```bash
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target guayaquil -j$(nproc)
+cmake --build out/build/max-performance --target meeting01 -j$(nproc)
 ```
 
 ## Run
 
 ```bash
 # Single profile
-./out/build/max-performance/src/experiments/guayaquil/guayaquil \
-  --comparative-config src/experiments/guayaquil/profiles/article-lstm-ae.json
+./out/build/max-performance/src/experiments/meeting01/meeting01 \
+  --comparative-config src/experiments/meeting01/profiles/article-lstm-ae.json
 
 # Full article pipeline (all 4 models, ~2.5 h)
-./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 ```
 
 ## Profiles (`profiles/`)
@@ -53,7 +53,7 @@ ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 
 | File | Role |
 |---|---|
-| `guayaquil.cpp` | Thin CLI entry point |
+| `meeting01.cpp` | Thin CLI entry point |
 | `lib/include/ComparativeConfig.hpp` | Profile JSON parser |
 | `lib/include/AutoencoderBuilders.hpp` | LSTM/SNN network builder |
 | `lib/src/ComparativeDataset.cpp` | Dataset loading + z-score normalization |
@@ -72,15 +72,15 @@ layer specs are valid in `encoder_layer_spec` / `decoder_layer_spec`.
 
 ```bash
 # 1. Run all profiles
-./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 
 # 2. Aggregate CSVs → paper DAT files (called automatically by step 1)
-python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
-  --data-dir /path/to/conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/guayaquil/profiles
+  --data-dir /path/to/meeting01/data \
+  --profiles-dir src/experiments/meeting01/profiles
 
 # 3. Compile paper
-cd documentation/07-articlesProduced/conference71070Guaiaquil
+cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```

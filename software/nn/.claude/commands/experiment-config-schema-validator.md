@@ -32,9 +32,9 @@ cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 ```
 
-**5 article profiles:** `src/experiments/guayaquil/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
+**5 article profiles:** `src/experiments/meeting01/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
 
-**Profile parser:** `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp`
+**Profile parser:** `src/experiments/meeting01/lib/include/ComparativeConfig.hpp`
 
 ## Rules
 
@@ -63,7 +63,7 @@ jq '.random_seed, .classifier_paradigm, .normalization_method' spec.json
 - [src/experiments/waveletAE/spec.yaml](src/experiments/waveletAE/spec.yaml) — reference config to derive schema from
 - [src/experiments/waveletAE/spec.json](src/experiments/waveletAE/spec.json) — JSON variant (check equivalence)
 - [src/experiments/waveletAE/WaveletAEConfig.cpp](src/experiments/waveletAE/WaveletAEConfig.cpp) — add schema validation call at load time
-- [src/experiments/guayaquil/profiles/](src/experiments/guayaquil/profiles/) — each profile needs schema validation
+- [src/experiments/meeting01/profiles/](src/experiments/meeting01/profiles/) — each profile needs schema validation
 
 ## Validation
 

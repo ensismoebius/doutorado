@@ -456,7 +456,7 @@ auto build_ae_config(const ThesisConfig::AutoencoderConfig& spec,
     //   2. It removes a real source of flakiness -- ThesisSnnAe.PoissonLatentIsNonDegenerate
     //      failed ~24% of runs (6/25 measured) because an unlucky draw left every encoder
     //      neuron below V_th, yielding an all-zero latent.
-    // Guayaquil already did this (GuayaquilExperiment.cpp: snn_config.initializer_seed = run_seed);
+    // Meeting01 already did this (Meeting01Experiment.cpp: snn_config.initializer_seed = run_seed);
     // Thesis was the odd one out.
     ae_cfg.initializer_seed = seed;
     return ae_cfg;
@@ -509,10 +509,10 @@ void train_autoencoder(AEType& model,
     // (Trainer<ModelType, LossType>), so the profile's ae_loss_type string has to be
     // dispatched to a concrete instantiation here. Before this, the AE path was hard-wired
     // to the default MSELossImpl and `mae` was unreachable from a thesis/GA profile.
-    // Match the Guayaquil (Guayaquil) TUI: give the training bar a description + loss type so the
+    // Match the Meeting01 (Meeting01) TUI: give the training bar a description + loss type so the
     // metadata line says WHAT is training, not just an anonymous "Autoencoder training".
     // No fold counter here — feature extraction trains one AE over the whole set (0,1 hides
-    // the "run X/Y" column), so col3 shows just the loss, exactly like the Guayaquil bars.
+    // the "run X/Y" column), so col3 shows just the loss, exactly like the Meeting01 bars.
     auto make_cb = [&](const char* tag)
     {
         auto cb =

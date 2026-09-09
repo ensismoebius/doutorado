@@ -6,15 +6,15 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilConfig.hpp"
-#include "GuayaquilDatasetSplit.hpp"
+#include "Meeting01Config.hpp"
+#include "Meeting01DatasetSplit.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<nn::Tensor>;
 
-auto collect_signal_files(const GuayaquilConfig& cfg, const std::string& dataset)
+auto collect_signal_files(const Meeting01Config& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>;
 
 // Pure speaker-disjoint fold assignment — the leakage-safety core, factored out so
@@ -44,7 +44,7 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
 
 // cv_fold < 0 → legacy pooled split; cv_fold >= 0 → nested leave-one-speaker-out
 // fold (FSDD only), speaker- and recording-disjoint across train/val/test.
-auto build_split(const GuayaquilConfig& cfg, const std::string& dataset, int cv_fold = -1)
+auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold = -1)
     -> DatasetSplit;
 
-} // namespace guayaquil
+} // namespace meeting01

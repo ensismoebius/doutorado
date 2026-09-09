@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilConfig.hpp"
-#include "GuayaquilEpochHistory.hpp"
-#include "GuayaquilRunMetrics.hpp"
+#include "Meeting01Config.hpp"
+#include "Meeting01EpochHistory.hpp"
+#include "Meeting01RunMetrics.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/gru/GRUAutoencoder.hpp"
@@ -17,16 +17,16 @@
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 using Tensor = nn::Tensor;
 
-auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
-auto make_gru_cfg(const GuayaquilConfig& cfg) -> nn::models::gru::GRUAutoencoderConfig;
-auto make_transformer_cfg(const GuayaquilConfig& cfg)
+auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
+auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoderConfig;
+auto make_transformer_cfg(const Meeting01Config& cfg)
     -> nn::models::transformer::TransformerAutoencoderConfig;
-auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th)
+auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th)
     -> nn::models::autoencoder::AutoencoderConfig;
 
 struct TrainResult
@@ -36,7 +36,7 @@ struct TrainResult
 };
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -47,7 +47,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float& infer_ms) -> TrainResult;
 
 auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -58,7 +58,7 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
     float& infer_ms) -> TrainResult;
 
 auto train_with_early_stopping_transformer(nn::models::transformer::TransformerAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -69,7 +69,7 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
     float& infer_ms) -> TrainResult;
 
 auto train_with_early_stopping_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
@@ -83,4 +83,4 @@ auto train_with_early_stopping_snn(nn::models::autoencoder::ProtocolSpikingAutoe
     float& train_ms,
     float& infer_ms) -> TrainResult;
 
-} // namespace guayaquil
+} // namespace meeting01

@@ -6,7 +6,7 @@
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 using Tensor = nn::Tensor;
@@ -43,4 +43,4 @@ struct DatasetSplit
     std::string test_speaker;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

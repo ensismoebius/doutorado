@@ -1,4 +1,4 @@
-#include "../include/GuayaquilEncoding.hpp"
+#include "../include/Meeting01Encoding.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <random>
 #include <stdexcept>
 
-namespace guayaquil
+namespace meeting01
 {
 
 auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint32_t seed) -> Tensor
@@ -184,4 +184,4 @@ auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor
     return d_major.transpose();
 }
 
-} // namespace guayaquil
+} // namespace meeting01

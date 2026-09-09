@@ -22,14 +22,14 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 **Article pipeline chain** (full paper reproduction):
 ```
-scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
   → results/article_*_comparative_metrics.csv
-  → scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py
+  → scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py
   → documentation/.../data/article_*_*.dat
   → pdflatex paper.tex
 ```
 
-**Profile locations:** `src/experiments/guayaquil/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json`
+**Profile locations:** `src/experiments/meeting01/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json`
 
 **Profile audit** — run after any profile edit:
 ```bash

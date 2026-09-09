@@ -10,7 +10,7 @@
 #include "models/transformer/TransformerAutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 using Tensor = nn::Tensor;
@@ -50,4 +50,4 @@ auto parameter_count(std::span<T*> params) -> std::size_t
     return count;
 }
 
-} // namespace guayaquil
+} // namespace meeting01

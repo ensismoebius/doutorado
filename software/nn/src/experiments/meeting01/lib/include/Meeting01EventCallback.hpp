@@ -1,8 +1,8 @@
 #pragma once
-// GuayaquilEventCallback.hpp — training callback that turns Trainer lifecycle
+// Meeting01EventCallback.hpp — training callback that turns Trainer lifecycle
 // hooks into structured JSONL events (config_begin / epoch_progress / epoch /
 // train_end) on the process-wide ExperimentEvents sink. Sibling of
-// GuayaquilEpochLogger (which writes the human-readable [loso] stderr lines).
+// Meeting01EpochLogger (which writes the human-readable [loso] stderr lines).
 //
 // epoch_progress is a *throttled* intra-epoch heartbeat: at most one line every
 // kProgressEverySeconds. A fast epoch (< that) emits none; a slow one emits a
@@ -19,18 +19,18 @@
 #include <limits>
 #include <vector>
 
-#include "GuayaquilEvents.hpp"
+#include "Meeting01Events.hpp"
 #include "core/training/EpochResult.hpp"
 #include "training/ITrainingCallback.hpp"
 #include "training/TrainingState.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
-class GuayaquilEventCallback : public nn::training::ITrainingCallback
+class Meeting01EventCallback : public nn::training::ITrainingCallback
 {
    public:
-    GuayaquilEventCallback() : ctx_(ExperimentEvents::instance().pending_context()) {}
+    Meeting01EventCallback() : ctx_(ExperimentEvents::instance().pending_context()) {}
 
     void on_train_begin(int total_epochs) override
     {
@@ -129,4 +129,4 @@ class GuayaquilEventCallback : public nn::training::ITrainingCallback
     std::chrono::steady_clock::time_point last_progress_{};
 };
 
-} // namespace guayaquil
+} // namespace meeting01

@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace guayaquil
+namespace meeting01
 {
 
 struct CliOptions
@@ -16,4 +16,4 @@ struct CliOptions
     bool help = false;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

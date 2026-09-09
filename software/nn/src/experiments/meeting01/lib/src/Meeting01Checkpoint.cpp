@@ -1,4 +1,4 @@
-#include "GuayaquilCheckpoint.hpp"
+#include "Meeting01Checkpoint.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -7,7 +7,7 @@
 
 #include "nlohmann/json.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 namespace
@@ -160,4 +160,4 @@ void checkpoint_save(const std::filesystem::path& path,
     std::filesystem::rename(tmp, path);
 }
 
-} // namespace guayaquil
+} // namespace meeting01

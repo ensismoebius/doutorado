@@ -3,7 +3,7 @@
  * @brief Implementation of LSTMAutoencoder in namespace nn::models::lstm.
  *
  * All logic was migrated from the former experiment-local copy
- * (src/experiments/guayaquil/lib/src/LSTMAutoencoder.cpp) and placed here so it is
+ * (src/experiments/meeting01/lib/src/LSTMAutoencoder.cpp) and placed here so it is
  * reusable across all experiments rather than duplicated per-experiment.
  */
 

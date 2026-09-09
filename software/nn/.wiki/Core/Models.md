@@ -129,7 +129,7 @@ Three models reconstruct a 1-D signal window through a fixed-dimension latent
 bottleneck. They share an interface (`Module<nn::Backend>`,
 `forward`/`backward`/`params`/`reset_state`/`state_dict`) and the same input
 framing — a window reshaped by `to_lstm_frames()` into `(T, frame_size)` — so
-the Guayaquil experiment drives all three through one templated training path
+the Meeting01 experiment drives all three through one templated training path
 and compares them fairly. They are the trained non-spiking baselines in the
 reviewer-driven paper revision.
 

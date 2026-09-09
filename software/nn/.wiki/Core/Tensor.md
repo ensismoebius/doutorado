@@ -429,7 +429,7 @@ Which path wins depends entirely on the per-enqueue cost:
 - Profiling **off** (~4 µs/enqueue): the device path wins.
 - Profiling **on** (~95 µs/enqueue, the safe default): the device path *loses*.
   It replaces a cheap host memcpy of a small slice with a kernel launch, raising
-  enqueue count from 678k to 817k (≈ +13 s on the Guayaquil benchmark).
+  enqueue count from 678k to 817k (≈ +13 s on the Meeting01 benchmark).
 
 The default therefore matches the default queue mode: **off**. Enable with
 `NN_OPENCL_DEVICE_VIEW_OPS=1` on any stack where enqueues are cheap. Both paths
@@ -458,7 +458,7 @@ driver race is fixed or enqueues are cheap.
    `(N, 1)` to `(T, D)` yields the strided/polyphase split
    $\{t, t+T, t+2T, \dots\}$ per row, not $D$ consecutive elements. To group
    consecutive elements, reshape to `(D, T)` and transpose (see
-   `to_lstm_frames` in [Experiment04](../Experiments/Guayaquil.md)).
+   `to_lstm_frames` in [Experiment04](../Experiments/Meeting01.md)).
 
 ## See Also
 

@@ -1,4 +1,4 @@
-#include "../include/GuayaquilCli.hpp"
+#include "../include/Meeting01Cli.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -8,16 +8,16 @@
 
 #include "nlohmann/json.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 constexpr const char* kDefaultComparativeProfileStem = "lstm-compare";
 
 static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
-void infer_dimensions_from_layer_specs(GuayaquilConfig& cfg)
+void infer_dimensions_from_layer_specs(Meeting01Config& cfg)
 {
-    // This function is now deprecated as layer_sizes is removed from GuayaquilConfig.
+    // This function is now deprecated as layer_sizes is removed from Meeting01Config.
     // Dimensions are inferred on-the-fly in Training.
 }
 
@@ -141,9 +141,9 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     throw std::runtime_error("Cannot resolve comparative profile: " + profile_name);
 }
 
-auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> GuayaquilConfig
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> Meeting01Config
 {
-    GuayaquilConfig cfg;
+    Meeting01Config cfg;
 
     std::ifstream f(path);
     if (!f.is_open())
@@ -162,11 +162,11 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     if (has_nested_keys(j))
     {
-        cfg = GuayaquilConfig::from_nested_json(j);
+        cfg = Meeting01Config::from_nested_json(j);
     }
     else
     {
-        cfg = GuayaquilConfig::from_flat_json(j);
+        cfg = Meeting01Config::from_flat_json(j);
     }
 
     if (!cli_opts.dataset_root.empty())
@@ -191,7 +191,7 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     return cfg;
 }
 
-auto config_hash(const GuayaquilConfig& cfg) -> std::size_t
+auto config_hash(const Meeting01Config& cfg) -> std::size_t
 {
     nlohmann::json j;
     j["experiment"]["run_tag"] = cfg.experiment.run_tag;
@@ -251,4 +251,4 @@ auto should_run_comparative_cli(int argc, char* argv[]) -> bool
     return false;
 }
 
-} // namespace guayaquil
+} // namespace meeting01

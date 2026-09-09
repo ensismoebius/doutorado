@@ -1,7 +1,7 @@
 #pragma once
-// GuayaquilMitBih.hpp — minimal WFDB reader for the MIT-BIH Arrhythmia Database
+// Meeting01MitBih.hpp — minimal WFDB reader for the MIT-BIH Arrhythmia Database
 // (PhysioNet mitdb), producing the same windowed representation as the FSDD
-// loader so the Guayaquil nested-LOSO pipeline can treat ECG records exactly like
+// loader so the Meeting01 nested-LOSO pipeline can treat ECG records exactly like
 // spoken-digit recordings.
 //
 // Scope: format-212 records only (every mitdb record is 212). Reads signal 0
@@ -16,10 +16,10 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilDatasetSplit.hpp" // guayaquil::WindowMetadata, guayaquil::Tensor
+#include "Meeting01DatasetSplit.hpp" // meeting01::WindowMetadata, meeting01::Tensor
 #include "tensor/Tensor.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 class MitBihWindowDataset
@@ -56,4 +56,4 @@ class MitBihWindowDataset
     std::vector<WindowMetadata> metadata_;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

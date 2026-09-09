@@ -245,7 +245,7 @@ flowchart LR
 - [Spike Rate Regularization](./Spike-Rate-Regularization.md) — Preventing dead/bursting neurons
 - [Spike Encoding](./Spike-Encoding.md) — Rate vs latency coding
 - [AutoencoderRunner](../Experiments/AutoencoderRunner.md) — Autoencoder experiments
-- [Experiment04](../Experiments/Guayaquil.md) — LSTM autoencoder
+- [Experiment04](../Experiments/Meeting01.md) — LSTM autoencoder
 - [Weight Initialisation](./Weight-Initialisation.md) — Important for training
 
 ---

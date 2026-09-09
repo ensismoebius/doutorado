@@ -165,7 +165,7 @@ auto build_result_entry_json(const ClassificationResult& r) -> nlohmann::json
     rj["mean_auc"] = r.mean_auc;
     rj["std_auc"] = r.std_auc;
 
-    // Run cost / complexity (Guayaquil-style): model size + mean per-fold wall-clock.
+    // Run cost / complexity (Meeting01-style): model size + mean per-fold wall-clock.
     rj["param_count"] = r.param_count;
     rj["mean_train_ms"] = r.mean_train_ms;
     rj["mean_infer_ms"] = r.mean_infer_ms;
@@ -200,7 +200,7 @@ void write_summary_json(const std::string& results_dir,
     std::string path = results_dir + "/e05_" + run_tag + "_summary.json";
 
     nlohmann::json j = build_run_metadata_json(cfg);
-    j["config_hash"] = config_hash; // provenance/determinism (Guayaquil parity)
+    j["config_hash"] = config_hash; // provenance/determinism (Meeting01 parity)
 
     // Dataset composition actually fed to this run — after load_dataset drops
     // trials missing either audio or EEG (paired-samples guarantee), so the
@@ -227,7 +227,7 @@ void write_summary_json(const std::string& results_dir,
         j["best_beta"] = scores[0].beta;
     }
 
-    // NOTE: no in-run significance test (Guayaquil records SNN-vs-LSTM t-test/Wilcoxon/Cohen's d
+    // NOTE: no in-run significance test (Meeting01 records SNN-vs-LSTM t-test/Wilcoxon/Cohen's d
     // because it trains both families in one process). An Thesis run scores exactly one feature
     // set, so the analogous comparison is cross-PROFILE and belongs in a post-hoc aggregation
     // step over these summary files, not here.

@@ -3,7 +3,7 @@
 Why the code and the thesis look the way they do today — a decision/fix log for the batch of
 work that landed 2026-07-16 through 2026-07-19, covering the Phase 00 selection metric, the
 `snn_lr_scale`/optimizer machinery, network-level parity testing against PyTorch/snnTorch, and
-the resulting Thesis/Guayaquil re-run. This is the permanent home of the former repo-root `fixme.md`;
+the resulting Thesis/Meeting01 re-run. This is the permanent home of the former repo-root `fixme.md`;
 source comments citing **"D1"–"D6"** refer to the decisions below. See the
 [Re-run Runbook](./Re-run-Runbook.md) for the commands these fixes made necessary, and
 [Experiment05](../Experiments/Thesis.md) for current results.
@@ -14,7 +14,7 @@ source comments citing **"D1"–"D6"** refer to the decisions below. See the
 |---|---|---|
 | D1 | Phase 00 criterion rewarded a dead autoencoder | ✅ Resolved — `d_penalized` metric |
 | D2 | §08 conclusion about temporal encoding was confounded by D1 | ✅ Resolved — claim withdrawn, mechanism quantified instead |
-| D3 | `snn_lr_scale` was a global multiplier, not per-parameter-group | ✅ Fixed in code; Guayaquil+Thesis re-run completed 2026-07-19 |
+| D3 | `snn_lr_scale` was a global multiplier, not per-parameter-group | ✅ Fixed in code; Meeting01+Thesis re-run completed 2026-07-19 |
 | D4 | Thesis section on per-group learning rate | ✅ Written (§2.1.10.10) |
 | D5 | Item 51 (optimizer ablation) | 🟡 Framework done (polymorphic optimizers, Lion, Schedule-Free AdamW, ground truth); **ablation itself not yet run** |
 | D6 | EEG `scale` axis is inert (Bark/Mel degenerate to linear) | ✅ Resolved — axis removed for EEG, grid 300→208 |
@@ -131,9 +131,9 @@ in practice was a global multiplier:
 std::vector<float> scales(params.size(), cfg_.snn_lr_scale);
 ```
 
-**Scope — larger than first thought.** Not just the 24 Thesis autoencoder profiles: `GuayaquilTraining.cpp`'s
+**Scope — larger than first thought.** Not just the 24 Thesis autoencoder profiles: `Meeting01Training.cpp`'s
 SNN branch calls `make_trainer_config` with `snn_lr_scale=0.1F`, and this gets **overwritten**
-whenever a profile sets `learning_rate_biophysical`. The three Guayaquil paper profiles
+whenever a profile sets `learning_rate_biophysical`. The three Meeting01 paper profiles
 (`article-snn-{dense,conv1d,recurrent}.json`) declare `learning_rate_biophysical=0.0001` against
 `learning_rate=0.001` — the exact same 0.1 ratio as the Thesis bug. The paper's SNN-vs-LSTM table
 therefore compared an LSTM baseline trained at 1e-3 against SNN variants training **every
@@ -142,7 +142,7 @@ more serious instance than the Thesis bug: that one affects 24 profiles of an in
 this affected a table in an already-drafted paper.
 
 Full scope: 24 Thesis AE profiles (6 ANN + 18 SNN — ANN too, since it shares the same `Trainer`
-default; only handcrafted extraction, which trains nothing, escapes), the 3 Guayaquil `article-snn-*`
+default; only handcrafted extraction, which trains nothing, escapes), the 3 Meeting01 `article-snn-*`
 profiles, and (behaviorally, though with no profile ever having produced results before the fix)
 the Thesis DSNN classifier.
 
@@ -161,7 +161,7 @@ No interface change. Regression test: `trainer_genericity_gtest.cpp`,
 `SnnLrScaleOnlyAppliesToSizeOneParams` — a model with one 1×1 and one 2×2 parameter, same fixed
 gradient, confirms only the 1×1 moves by `lr·snn_lr_scale` after one Adam step.
 
-**Re-run status: completed 2026-07-19.** Both the Guayaquil SNN profiles and the Thesis Phase 00/01 grids
+**Re-run status: completed 2026-07-19.** Both the Meeting01 SNN profiles and the Thesis Phase 00/01 grids
 have been re-executed under the fix — see [Re-run Runbook](./Re-run-Runbook.md) and
 [Experiment05](../Experiments/Thesis.md#overview) for results.
 
@@ -175,7 +175,7 @@ intention the code didn't honor. Covers: why R/C/V_th need a smaller lr than wei
 honesty note that the 0.1 factor is a project engineering choice, not a literature value (a prior
 citation for this claim was removed as unverifiable); the real Adam mechanism
 (`attach_with_scales`); the original defect and how it was found (during the dead-latent
-investigation, D1); the actual blast radius including the Guayaquil paper; the size-based fix;
+investigation, D1); the actual blast radius including the Meeting01 paper; the size-based fix;
 the regression test; and the open re-run status at the time.
 
 ---
@@ -343,7 +343,7 @@ torch) + `micro_network_parity_gtest` (8/8 green).
 1. 🔴 **`MSELoss`/`MAELoss` silently clipped their own gradient at norm 1.0**, unconditionally and
    non-configurably (`kMaxGradientNorm = 1.0F`, fixed). `MSELossImpl` is `Trainer`'s **default**
    loss, so this hit every autoencoder ever trained in the project, including all 24 Thesis AE
-   profiles and the Guayaquil models. It also directly contradicted the caller's own
+   profiles and the Meeting01 models. It also directly contradicted the caller's own
    configuration: `TrainerConfig::grad_clip_norm` defaults to `0.0` ("no clipping"), and the
    clip fired underneath it regardless. Since it only triggers above norm 1, the effective
    learning rate became a nonlinear function of gradient magnitude rather than a constant
@@ -373,7 +373,7 @@ torch) + `micro_network_parity_gtest` (8/8 green).
    reaches **0.306** over $[-4,4]$ (at $x=2$: tanh=0.964 vs. ours=0.667), and measured hidden-state
    divergence against `torch.nn.LSTM` is **0.1626**. So this is a genuinely different
    "softsign-gated LSTM," not directly comparable to a standard LSTM without a tolerance loose
-   enough to prove nothing. Relevant to the Guayaquil paper, which compares "LSTM-AE" against SNN.
+   enough to prove nothing. Relevant to the Meeting01 paper, which compares "LSTM-AE" against SNN.
 
 **Deliberate, documented scope limits:** spiking backward isn't compared (our surrogate is
 exponential, snnTorch's is arctan — different functions by design), so backward parity is
@@ -453,7 +453,7 @@ twice: a comment asserting a contract the code doesn't honor (D3, D5), and vague
 - **`training.weight_decay > 0`, `training.firing_rate_reg_lambda > 0`, tdBN** — all implemented
   and validated in isolation, but never exercised end-to-end outside `debug.json`/smoke profiles.
   No real Phase 01 profile enables any of the three.
-- Guayaquil-style rich run diagnostics for the thesis — done, see the "What to expect" section of
+- Meeting01-style rich run diagnostics for the thesis — done, see the "What to expect" section of
   the [Re-run Runbook](./Re-run-Runbook.md).
 
 ## Deferred / rejected

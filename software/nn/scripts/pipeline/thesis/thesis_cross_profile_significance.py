@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Cross-profile significance tests for Experiment 05 — the Guayaquil SNN-vs-LSTM analog.
+"""Cross-profile significance tests for Experiment 05 — the Meeting01 SNN-vs-LSTM analog.
 
-The Guayaquil (Guayaquil) pipeline reports Cohen's d / t-test / Wilcoxon *within* one run
+The Meeting01 (Meeting01) pipeline reports Cohen's d / t-test / Wilcoxon *within* one run
 because it trains two model families (SNN, LSTM) in the same process. An Thesis run
 scores exactly one feature set, so the equivalent comparison is *across profiles*:
 this script collates every profile's per-fold metrics and tests each condition

@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file GuayaquilAeCommon.hpp
+ * @file Meeting01AeCommon.hpp
  * @brief Model-generic train / evaluate helpers for the frame-consuming autoencoders
  *        (LSTM-AE, GRU-AE, bottlenecked Transformer-AE).
  *
@@ -11,7 +11,7 @@
  * (Trainer batch_size = 1). Only the concrete model type and its analytic MAC
  * estimate differ, so the loop below is written once and instantiated per model.
  *
- * Private to GuayaquilTraining.cpp — not part of the public lib interface.
+ * Private to Meeting01Training.cpp — not part of the public lib interface.
  */
 
 #include <chrono>
@@ -20,23 +20,23 @@
 #include <string>
 #include <vector>
 
-#include "../include/GuayaquilBatchLossCollector.hpp"
-#include "../include/GuayaquilDatasetSplit.hpp"
-#include "../include/GuayaquilEncoding.hpp"
-#include "../include/GuayaquilEpochHistory.hpp"
-#include "../include/GuayaquilEpochLogger.hpp"
-#include "../include/GuayaquilEventCallback.hpp"
-#include "../include/GuayaquilMetrics.hpp"
-#include "../include/GuayaquilPerWindow.hpp"
-#include "../include/GuayaquilRunMetrics.hpp"
-#include "../include/GuayaquilTraining.hpp"
+#include "../include/Meeting01BatchLossCollector.hpp"
+#include "../include/Meeting01DatasetSplit.hpp"
+#include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01EpochHistory.hpp"
+#include "../include/Meeting01EpochLogger.hpp"
+#include "../include/Meeting01EventCallback.hpp"
+#include "../include/Meeting01Metrics.hpp"
+#include "../include/Meeting01PerWindow.hpp"
+#include "../include/Meeting01RunMetrics.hpp"
+#include "../include/Meeting01Training.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "tensor/Tensor.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 // Generic reconstruction evaluation in framed space. `Model::forward` consumes and
@@ -165,7 +165,7 @@ auto per_window_errors_ae(Model& model,
 // train_with_early_stopping_lstm() body.
 template <typename Model>
 auto train_ae(Model& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -196,12 +196,12 @@ auto train_ae(Model& model,
     trainer.add_callback(cb);
 
     // Plain per-epoch log lines (survive nohup / pipes, where the live bars collapse).
-    trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
+    trainer.add_callback(std::make_shared<Meeting01EpochLogger>(
         progress_context(cfg, run_id, total_runs, seed), progress_label));
 
     // Structured JSONL events for the live monitor (identity from the driver's
     // pending context). No-op when the events sink was never opened.
-    trainer.add_callback(std::make_shared<GuayaquilEventCallback>());
+    trainer.add_callback(std::make_shared<Meeting01EventCallback>());
 
     trainer.add_callback(
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience));
@@ -275,4 +275,4 @@ auto train_ae(Model& model,
     return TrainResult{metrics, history};
 }
 
-} // namespace guayaquil
+} // namespace meeting01

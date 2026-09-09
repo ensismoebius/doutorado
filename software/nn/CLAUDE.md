@@ -63,7 +63,7 @@ Full detail: `.wiki/Guides/OpenCL-Debugging-And-Performance.md`.
    for this project's workloads on this hardware.
 4. Profile with the LD_PRELOAD shim in the guide, not by guessing — kernels were
    2.4% of OpenCL time; transfers were 85%.
-5. Delete the results dir between benchmark runs — Guayaquil/Thesis resume from
+5. Delete the results dir between benchmark runs — Meeting01/Thesis resume from
    `results/checkpoints/` and will silently reuse old numbers.
 
 ---
@@ -93,8 +93,8 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `core_gtest` | All core unit tests |
 | `autoencoderRunner` | Autoencoder training runner binary (was experiment03) |
 | `autoencoderRunner_lib` | Autoencoder runner library only |
-| `guayaquil` | SNN-vs-LSTM comparative binary — conference paper (was experiment04) |
-| `guayaquil_lib` | Guayaquil library only |
+| `meeting01` | SNN-vs-LSTM comparative binary — conference paper (was experiment04) |
+| `meeting01_lib` | Meeting01 library only |
 | `thesis` | **Thesis primary** experiment binary (was experiment05) |
 | `thesis_lib` | Thesis library only |
 | `paraconsistentGA` | NSGA-II AE architecture search ranked by paraconsistent `d_penalized` under a latency constraint (reuses `thesis_lib`) |
@@ -105,7 +105,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
-| `profile_audit_gtest` | 25 tests verifying all 5 Guayaquil article profiles parse + validate |
+| `profile_audit_gtest` | 25 tests verifying all 5 Meeting01 article profiles parse + validate |
 | `nn_progress` | Progress bar library |
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
@@ -346,13 +346,13 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Paraconsistent logic | `include/paraconsistent/` |
 | Wiki | `.wiki/` |
 | CMake presets | `CMakePresets.json` |
-| Exp04 dataset loading | `src/experiments/guayaquil/lib/src/GuayaquilDataset.cpp` |
-| Exp04 encoding transforms | `src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp` |
-| Exp04 training loop | `src/experiments/guayaquil/lib/src/GuayaquilTraining.cpp` |
-| Exp04 output / CSV / DAT writers | `src/experiments/guayaquil/lib/src/GuayaquilOutput.cpp` |
-| Exp04 profile parser | `src/experiments/guayaquil/lib/include/GuayaquilConfig.hpp` |
-| Exp04 SNN/LSTM builder | `src/experiments/guayaquil/lib/include/GuayaquilTraining.hpp` |
-| Exp04 profile audit tests | `src/experiments/guayaquil/tests/profile_audit_gtest.cpp` |
+| Exp04 dataset loading | `src/experiments/meeting01/lib/src/Meeting01Dataset.cpp` |
+| Exp04 encoding transforms | `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp` |
+| Exp04 training loop | `src/experiments/meeting01/lib/src/Meeting01Training.cpp` |
+| Exp04 output / CSV / DAT writers | `src/experiments/meeting01/lib/src/Meeting01Output.cpp` |
+| Exp04 profile parser | `src/experiments/meeting01/lib/include/Meeting01Config.hpp` |
+| Exp04 SNN/LSTM builder | `src/experiments/meeting01/lib/include/Meeting01Training.hpp` |
+| Exp04 profile audit tests | `src/experiments/meeting01/tests/profile_audit_gtest.cpp` |
 | Exp05 config parser | `src/experiments/thesis/lib/include/ThesisConfig.hpp` |
 | Exp05 dataset loader | `src/experiments/thesis/lib/src/ThesisDataset.cpp` |
 | Exp05 feature extraction | `src/experiments/thesis/lib/src/ThesisFeatureExtraction.cpp` |
@@ -360,8 +360,8 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp05 classifiers | `src/experiments/thesis/lib/src/ThesisClassifiers.cpp` |
 | Exp05 output writers | `src/experiments/thesis/lib/src/ThesisOutput.cpp` |
 | Exp05 profile audit tests | `src/experiments/thesis/tests/thesis_profile_audit_gtest.cpp` |
-| Paper CSV aggregator | `scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py` |
-| Article run script | `scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh` |
+| Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py` |
+| Article run script | `scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh` |
 
 ---
 
@@ -372,22 +372,22 @@ Full chain from profiles to compiled PDF:
 ```bash
 # 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
 cd software/nn
-./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 # writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
-# writes .../conference71070Guaiaquil/data/article_*_*.dat  (pgfplots DAT files)
+# writes .../meeting01/data/article_*_*.dat  (pgfplots DAT files)
 
 # 2. Aggregate into paper_*.csv (called automatically by e04_run_article_profiles.sh)
-python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
-  --data-dir .../conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/guayaquil/profiles
+  --data-dir .../meeting01/data \
+  --profiles-dir src/experiments/meeting01/profiles
 
 # 3. Compile paper
-cd documentation/07-articlesProduced/conference71070Guaiaquil
+cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Column mapping** (`02_guayaquil_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
+**Column mapping** (`02_meeting01_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
 - `model == "lstm-ae"` → label `LSTM-AE`
 - `model == "snn-ae"` + `architecture == "dense/conv1d/recurrent"` → label `SNN-{arch}`
 

@@ -13,7 +13,7 @@ neural-network framework (`nn`) that runs the experiments.
 | Build and run your first test | [Getting Started tutorial](software/nn/.wiki/Tutorials/Getting-Started.md) |
 | Re-run the experiments | [Re-run Runbook](software/nn/.wiki/Guides/Re-run-Runbook.md) |
 | Read the thesis | `documentation/00-thesis/monography/monografia.tex` |
-| Read the conference paper | `documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex` |
+| Read the conference paper | `documentation/07-articlesProduced/meeting01/paper.tex` |
 | Know why the code looks like it does | [Engineering Fixes Log](software/nn/.wiki/Guides/Engineering-Fixes-Log.md) |
 
 ## Repository map
@@ -32,7 +32,7 @@ neural-network framework (`nn`) that runs the experiments.
 - `documentation/01-researchNotesAndFiles/` — research notes and supporting files.
 - `documentation/03-articlesToRead/` — papers and reading backlog.
 - `documentation/06-BooksToRead/` — books backlog.
-- `documentation/07-articlesProduced/conference71070Guaiaquil/` — conference paper package
+- `documentation/07-articlesProduced/meeting01/` — conference paper package
   (`paper.tex`, figures, generated data).
 - `documentation/07-articlesProduced/article/`, `.../spm-featurearticle-latex/` — other
   article assets.

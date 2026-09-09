@@ -1,4 +1,4 @@
-# Build an Interactive Scientific GUI for Deep Inspection of the Guayaquil and Thesis Pipelines
+# Build an Interactive Scientific GUI for Deep Inspection of the Meeting01 and Thesis Pipelines
 
 ## 0. Mission
 
@@ -6,7 +6,7 @@ Build a **research-grade interactive scientific visualization GUI** for this rep
 
 The purpose is NOT merely to make prettier plots.
 
-The application should allow a researcher to **enter the data pipeline at any point, inspect what happened, move backward and forward through transformations, compare Guayaquil and Thesis experiments, animate temporal/spiking/wavelet processes, inspect paraconsistent feature quality, explore latent spaces, and investigate individual samples down to their raw signal representation.**
+The application should allow a researcher to **enter the data pipeline at any point, inspect what happened, move backward and forward through transformations, compare Meeting01 and Thesis experiments, animate temporal/spiking/wavelet processes, inspect paraconsistent feature quality, explore latent spaces, and investigate individual samples down to their raw signal representation.**
 
 Think of the application as a:
 
@@ -66,13 +66,13 @@ Before modifying code, inspect the repository and `.wiki/` documentation thoroug
 
 In particular, understand:
 
-### Guayaquil
+### Meeting01
 
 Study:
 
-* `Experiments/Guayaquil.md`
-* Guayaquil configuration
-* Guayaquil data loading
+* `Experiments/Meeting01.md`
+* Meeting01 configuration
+* Meeting01 data loading
 * FSDD handling
 * windowing
 * train/validation splitting
@@ -107,7 +107,7 @@ Study:
 * `session_begin`
 * `session_end`
 
-The wiki explicitly documents structured Guayaquil events:
+The wiki explicitly documents structured Meeting01 events:
 
 ```text
 session_begin
@@ -330,7 +330,7 @@ The user should be able to select an object and progressively drill into it.
 For example:
 
 ```text
-Guayaquil
+Meeting01
   └── FSDD
       └── speaker 17
           └── recording
@@ -380,7 +380,7 @@ Suggested default layout:
 │ EXPLORER      │                                      │                   │
 │               │                                      │                   │
 │ Experiments   │                                      │ Metadata          │
-│  ├ Guayaquil  │                                      │ Parameters        │
+│  ├ Meeting01  │                                      │ Parameters        │
 │  └ Thesis     │                                      │ Statistics        │
 │               │                                      │ Provenance        │
 │ Datasets      │                                      │                   │
@@ -410,7 +410,7 @@ Possible hierarchy:
 
 ```text
 PROJECT
-├── Guayaquil
+├── Meeting01
 │   ├── datasets
 │   ├── folds
 │   ├── runs
@@ -1050,7 +1050,7 @@ Clicking a row opens the complete experiment inspection view.
 
 ---
 
-# 22. GUAYAQUIL VS THESIS COMPARISON
+# 22. MEETING01 VS THESIS COMPARISON
 
 Create a dedicated comparison mode.
 
@@ -1061,7 +1061,7 @@ Instead, expose structural similarities and differences.
 For example:
 
 ```text
-                         Guayaquil             Thesis
+                         Meeting01             Thesis
 ────────────────────────────────────────────────────────
 Dataset                  FSDD                  EEG / Audio
 Windowing
@@ -1300,7 +1300,7 @@ configuration
 git commit
 ```
 
-The Guayaquil event schema already records reproducibility information such as seed, caps, backend and git commit. Surface this.
+The Meeting01 event schema already records reproducibility information such as seed, caps, backend and git commit. Surface this.
 
 ---
 
@@ -1757,7 +1757,7 @@ Conceptually:
 class ExperimentAdapter:
     ...
 
-class GuayaquilAdapter(ExperimentAdapter):
+class Meeting01Adapter(ExperimentAdapter):
     ...
 
 class ThesisAdapter(ExperimentAdapter):
@@ -1782,7 +1782,7 @@ load_metrics()
 load_provenance()
 ```
 
-The GUI should not care whether the underlying artifact came from Guayaquil or Thesis.
+The GUI should not care whether the underlying artifact came from Meeting01 or Thesis.
 
 ---
 
@@ -1904,10 +1904,10 @@ The application should make this kind of forensic investigation easy.
 
 ---
 
-### Journey D — compare Guayaquil and Thesis
+### Journey D — compare Meeting01 and Thesis
 
 ```text
-Select Guayaquil experiment
+Select Meeting01 experiment
 Select Thesis experiment
 
 Compare:
@@ -1954,7 +1954,7 @@ This should become one of the application's signature views.
 
 For experiments with structured event data, create a timeline.
 
-For Guayaquil, use the existing event stream.
+For Meeting01, use the existing event stream.
 
 Display:
 
@@ -1991,7 +1991,7 @@ For selected training runs show:
 
 If intra-epoch events exist, expose them.
 
-The Guayaquil `epoch_progress` event should be visualized where available.
+The Meeting01 `epoch_progress` event should be visualized where available.
 
 ---
 
@@ -2204,7 +2204,7 @@ Implement in stages.
 
 ## Phase 6 — Cross-experiment analysis
 
-* Guayaquil adapter
+* Meeting01 adapter
 * Thesis adapter
 * comparison view
 * pipeline graph
@@ -2338,7 +2338,7 @@ That is the core concept of the application.
 
 The project is successful when a researcher can:
 
-* browse both Guayaquil and Thesis experiments;
+* browse both Meeting01 and Thesis experiments;
 * select a dataset;
 * select a subject/recording/sample;
 * inspect the raw signal;

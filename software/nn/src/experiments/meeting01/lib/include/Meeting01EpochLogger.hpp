@@ -1,5 +1,5 @@
 #pragma once
-// GuayaquilEpochLogger.hpp — training callback that emits one plain log line per
+// Meeting01EpochLogger.hpp — training callback that emits one plain log line per
 // epoch for the individual model being trained.
 //
 // The ProgressManager's live bars use absolute-cursor ANSI control and collapse
@@ -14,18 +14,18 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilConfig.hpp"
+#include "Meeting01Config.hpp"
 #include "core/training/EpochResult.hpp"
 #include "logging/Logger.hpp"
 #include "training/ITrainingCallback.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 // "<dataset> fold<f>  run <n>/<total>  seed=<s>" — the coordinates of one
 // individual training within a nested-LOSO fold process.
 inline auto progress_context(
-    const GuayaquilConfig& cfg, std::size_t run_id, std::size_t total_runs, std::uint32_t seed)
+    const Meeting01Config& cfg, std::size_t run_id, std::size_t total_runs, std::uint32_t seed)
     -> std::string
 {
     const std::string ds =
@@ -37,13 +37,13 @@ inline auto progress_context(
     return ss.str();
 }
 
-class GuayaquilEpochLogger : public nn::training::ITrainingCallback
+class Meeting01EpochLogger : public nn::training::ITrainingCallback
 {
    public:
     // `label` identifies the individual training (e.g. "SNN-recurrent: encoding=poisson
     // v=1.50 a=0.99"); `context` prefixes it with the run coordinates
     // (e.g. "mitbih fold2 run 137/450").
-    GuayaquilEpochLogger(std::string context, std::string label)
+    Meeting01EpochLogger(std::string context, std::string label)
         : context_(std::move(context)), label_(std::move(label))
     {
     }
@@ -91,4 +91,4 @@ class GuayaquilEpochLogger : public nn::training::ITrainingCallback
     int total_epochs_ = 0;
 };
 
-} // namespace guayaquil
+} // namespace meeting01

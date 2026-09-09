@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace guayaquil
+namespace meeting01
 {
 
 // One reconstruction-error record for a single window under one trained model. The
@@ -39,4 +39,4 @@ struct PerWindowError
 void write_per_window_errors_csv(
     const std::filesystem::path& path, const std::vector<PerWindowError>& rows);
 
-} // namespace guayaquil
+} // namespace meeting01

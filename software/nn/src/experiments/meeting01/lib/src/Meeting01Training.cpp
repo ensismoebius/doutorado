@@ -1,4 +1,4 @@
-#include "../include/GuayaquilTraining.hpp"
+#include "../include/Meeting01Training.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -6,11 +6,11 @@
 #include <stdexcept>
 #include <string>
 
-#include "../include/GuayaquilBatchLossCollector.hpp"
-#include "../include/GuayaquilEncoding.hpp"
-#include "../include/GuayaquilEvaluation.hpp"
-#include "../include/GuayaquilMetrics.hpp"
-#include "GuayaquilAeCommon.hpp"
+#include "../include/Meeting01BatchLossCollector.hpp"
+#include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01Evaluation.hpp"
+#include "../include/Meeting01Metrics.hpp"
+#include "Meeting01AeCommon.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "training/EarlyStoppingCallback.hpp"
@@ -19,7 +19,7 @@
 using nn::models::autoencoder::AutoencoderConfig;
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
 
-namespace guayaquil
+namespace meeting01
 {
 
 using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
@@ -87,7 +87,7 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
     return 16;
 }
 
-auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
+auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
@@ -108,7 +108,7 @@ auto make_lstm_cfg(const GuayaquilConfig& cfg) -> nn::models::lstm::LSTMAutoenco
     return arch;
 }
 
-auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> AutoencoderConfig
+auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th) -> AutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
@@ -121,7 +121,7 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
     AutoencoderConfig model_cfg;
     if (cfg.model.loss_type.empty())
         throw std::invalid_argument(
-            "GuayaquilTraining: model.loss_function is empty — refusing to guess a "
+            "Meeting01Training: model.loss_function is empty — refusing to guess a "
             "reconstruction loss. Set it explicitly in the profile.");
     model_cfg.loss_type = cfg.model.loss_type;
     // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
@@ -133,7 +133,7 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
     model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
     model_cfg.fusion_hidden_size = cfg.model.fusion_hidden_size;
-    // Guayaquil's SNN input is flattened by flatten_time_series into a single
+    // Meeting01's SNN input is flattened by flatten_time_series into a single
     // {1, window_size} frame, so this stack genuinely has ONE time step. Declared
     // explicitly: LifBPTT unrolls exactly one step here, matching the single-step Lif
     // this experiment used before. Left unset it would raise, which is the point.
@@ -160,10 +160,10 @@ auto make_snn_cfg(const GuayaquilConfig& cfg, float alpha, float v_th) -> Autoen
 }
 
 // ---------------------------------------------------------------------------
-// Build a TrainerConfig from GuayaquilConfig
+// Build a TrainerConfig from Meeting01Config
 // ---------------------------------------------------------------------------
 
-static auto make_trainer_config(const GuayaquilConfig& cfg, float snn_lr_scale = 1.0F)
+static auto make_trainer_config(const Meeting01Config& cfg, float snn_lr_scale = 1.0F)
     -> nn::training::TrainerConfig
 {
     nn::training::TrainerConfig tcfg;
@@ -185,7 +185,7 @@ static auto make_trainer_config(const GuayaquilConfig& cfg, float snn_lr_scale =
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -214,7 +214,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 // GRU / Transformer training — same frame-consuming path as the LSTM-AE.
 // ---------------------------------------------------------------------------
 
-auto make_gru_cfg(const GuayaquilConfig& cfg) -> nn::models::gru::GRUAutoencoderConfig
+auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
@@ -233,7 +233,7 @@ auto make_gru_cfg(const GuayaquilConfig& cfg) -> nn::models::gru::GRUAutoencoder
     return arch;
 }
 
-auto make_transformer_cfg(const GuayaquilConfig& cfg)
+auto make_transformer_cfg(const Meeting01Config& cfg)
     -> nn::models::transformer::TransformerAutoencoderConfig
 {
     const int derived_latent =
@@ -251,7 +251,7 @@ auto make_transformer_cfg(const GuayaquilConfig& cfg)
 }
 
 auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -277,7 +277,7 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
 }
 
 auto train_with_early_stopping_transformer(nn::models::transformer::TransformerAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
@@ -307,7 +307,7 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
@@ -337,12 +337,12 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     trainer.add_callback(snn_cb);
 
     // Plain per-epoch log lines (survive nohup / pipes, where the live bars collapse).
-    trainer.add_callback(std::make_shared<GuayaquilEpochLogger>(
+    trainer.add_callback(std::make_shared<Meeting01EpochLogger>(
         progress_context(cfg, run_id, total_runs, seed), lbl.str()));
 
     // Structured JSONL events for the live monitor (identity from the driver's
     // pending context). No-op when the events sink was never opened.
-    trainer.add_callback(std::make_shared<GuayaquilEventCallback>());
+    trainer.add_callback(std::make_shared<Meeting01EventCallback>());
 
     auto stopper =
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
@@ -429,4 +429,4 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     return TrainResult{metrics, history};
 }
 
-} // namespace guayaquil
+} // namespace meeting01

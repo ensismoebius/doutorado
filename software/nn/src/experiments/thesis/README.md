@@ -412,7 +412,7 @@ Base pública 10.1117/12.2255697
 | `results/e05_<tag>_paraconsistent.csv` | Por conjunto: `label, alpha, beta, g1, g2, d_truth` |
 | `results/e05_<tag>_summary.json` | Configuração + média/dp/IC95 de todas as métricas + caminhos dos modelos por dobra |
 | `results/e05_<tag>_comparison.dat` | DAT pgfplots: `x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall eer std_eer ci95_eer auc std_auc` |
-| `results/guayaquil/models/<tag>/<feature_label>/fold_<N>.bin` | State dict binário do modelo por dobra externa |
+| `results/meeting01/models/<tag>/<feature_label>/fold_<N>.bin` | State dict binário do modelo por dobra externa |
 
 ---
 
@@ -530,7 +530,7 @@ ctest --test-dir out/build/max-performance -R e05 --output-on-failure
 #include "layers/residual/SimpleResNet.hpp"
 
 SimpleResNetImpl<nn::Backend> model(feat_dim, /*hidden=*/128, n_locutores, /*depth=*/2);
-auto sd = nn::io::load_state_dict("results/guayaquil/models/<run_tag>/<feature_label>/fold_0.bin");
+auto sd = nn::io::load_state_dict("results/meeting01/models/<run_tag>/<feature_label>/fold_0.bin");
 model.load_state_dict(sd);
 ```
 

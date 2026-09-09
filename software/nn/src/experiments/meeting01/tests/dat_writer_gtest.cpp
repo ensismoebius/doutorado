@@ -5,13 +5,13 @@
 #include <sstream>
 #include <vector>
 
-#include "../lib/include/GuayaquilEpochHistory.hpp"
-#include "../lib/include/GuayaquilOutput.hpp"
-#include "../lib/include/GuayaquilResultRow.hpp"
-#include "../lib/include/GuayaquilRunMetrics.hpp"
+#include "../lib/include/Meeting01EpochHistory.hpp"
+#include "../lib/include/Meeting01Output.hpp"
+#include "../lib/include/Meeting01ResultRow.hpp"
+#include "../lib/include/Meeting01RunMetrics.hpp"
 
 namespace fs = std::filesystem;
-using namespace guayaquil;
+using namespace meeting01;
 
 class DATWriterTest : public ::testing::Test
 {

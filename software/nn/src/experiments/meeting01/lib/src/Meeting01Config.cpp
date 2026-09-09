@@ -1,10 +1,10 @@
-#include "../include/GuayaquilConfig.hpp"
+#include "../include/Meeting01Config.hpp"
 
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
-namespace guayaquil
+namespace meeting01
 {
 
 namespace
@@ -25,7 +25,7 @@ namespace
 // silent failure waiting to happen (append without setting the flag and the
 // config validates "successfully" while the complaint goes nowhere).
 
-void check_experiment(const GuayaquilConfig::Experiment& experiment, std::ostringstream& errors)
+void check_experiment(const Meeting01Config::Experiment& experiment, std::ostringstream& errors)
 {
     if (experiment.repeats <= 0)
     {
@@ -46,7 +46,7 @@ void check_experiment(const GuayaquilConfig::Experiment& experiment, std::ostrin
 /// Takes the whole config: the window/frame-size rule is a relation BETWEEN
 /// the dataset and the model, and splitting it across two checkers would
 /// hide that.
-void check_dataset(const GuayaquilConfig& config, std::ostringstream& errors)
+void check_dataset(const Meeting01Config& config, std::ostringstream& errors)
 {
     const auto& dataset = config.dataset;
     const auto& model = config.model;
@@ -97,7 +97,7 @@ void check_dataset(const GuayaquilConfig& config, std::ostringstream& errors)
 
 /// Also takes the whole config: batch size is checked against the dataset's
 /// sample budget.
-void check_training(const GuayaquilConfig& config, std::ostringstream& errors)
+void check_training(const Meeting01Config& config, std::ostringstream& errors)
 {
     const auto& training = config.training;
     const auto& dataset = config.dataset;
@@ -145,7 +145,7 @@ void check_training(const GuayaquilConfig& config, std::ostringstream& errors)
     }
 }
 
-void check_model(const GuayaquilConfig::Model& model, std::ostringstream& errors)
+void check_model(const Meeting01Config::Model& model, std::ostringstream& errors)
 {
     if (model.encoder_layer_spec.empty())
     {
@@ -158,7 +158,7 @@ void check_model(const GuayaquilConfig::Model& model, std::ostringstream& errors
     }
 }
 
-void check_evaluation(const GuayaquilConfig::Evaluation& evaluation, std::ostringstream& errors)
+void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostringstream& errors)
 {
     if (evaluation.datasets.empty())
     {
@@ -239,7 +239,7 @@ void check_evaluation(const GuayaquilConfig::Evaluation& evaluation, std::ostrin
 
 } // namespace
 
-void GuayaquilConfig::validate() const
+void Meeting01Config::validate() const
 {
     std::ostringstream errors;
 
@@ -261,8 +261,8 @@ void GuayaquilConfig::validate() const
     // view() also reads the buffer without copying it into a std::string.
     if (!errors.view().empty())
     {
-        throw std::invalid_argument("GuayaquilConfig validation failed:\n" + errors.str());
+        throw std::invalid_argument("Meeting01Config validation failed:\n" + errors.str());
     }
 }
 
-} // namespace guayaquil
+} // namespace meeting01

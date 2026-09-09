@@ -117,7 +117,7 @@ number. The old numeric names still appear inside stored result files (run tags 
 | `paraconsistentBaseline` | 00 | Frozen wavelet + paraconsistent baseline |
 | `waveletAE` | 02 | Wavelet autoencoder pipeline |
 | `autoencoderRunner` | 03 | Autoencoder training runner |
-| `guayaquil` | 04 | SNN vs LSTM comparative — the conference paper |
+| `meeting01` | 04 | SNN vs LSTM comparative — the conference paper |
 | `thesis` | 05 | **Thesis primary** — biometric authentication via imagined speech |
 | `paraconsistentGA` | — | NSGA-II autoencoder architecture search ranked by `d_penalized` (extends thesis phase00) |
 
@@ -126,7 +126,7 @@ Run in order; `thesis` is the primary experiment.
 - [ParaconsistentBaseline](./Experiments/ParaconsistentBaseline.md) — wavelet + paraconsistent baseline
 - [WaveletAE](./Experiments/WaveletAE.md) — wavelet autoencoder pipeline
 - [AutoencoderRunner](./Experiments/AutoencoderRunner.md) — autoencoders (audio, EEG, fused)
-- [Guayaquil](./Experiments/Guayaquil.md) — SNN vs LSTM comparative (conference paper)
+- [Meeting01](./Experiments/Meeting01.md) — SNN vs LSTM comparative (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
 - [paraconsistentGA](./Experiments/ParaconsistentGA.md) — NSGA-II search over autoencoder

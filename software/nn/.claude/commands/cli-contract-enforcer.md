@@ -20,8 +20,8 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 ## Project Context (nn framework)
 
 **Main CLI entry points:**
-- `guayaquil --comparative-config <profile.json>` — primary paper pipeline entry point
-- `guayaquil --help` — must list all flags, exit 0, no side effects
+- `meeting01 --comparative-config <profile.json>` — primary paper pipeline entry point
+- `meeting01 --help` — must list all flags, exit 0, no side effects
 - `autoencoderRunner --help` — same requirement
 - `paraconsistentBaseline [config.json]` — optional positional arg for config path
 

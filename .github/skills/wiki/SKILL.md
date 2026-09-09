@@ -79,7 +79,7 @@ Create this structure under `.wiki/`:
 │   └── ...one file per src/core module
 ├── Experiments/
 │   ├── AutoencoderRunner.md
-│   ├── Guayaquil.md
+│   ├── Meeting01.md
 │   └── ...one file per experiment
 ├── Concepts/
 │   ├── LSTM-and-BPTT.md

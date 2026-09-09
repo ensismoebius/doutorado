@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
-#include "GuayaquilEpochHistory.hpp"
-#include "GuayaquilResultRow.hpp"
+#include "Meeting01EpochHistory.hpp"
+#include "Meeting01ResultRow.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 struct CheckpointKey
@@ -37,4 +37,4 @@ void checkpoint_save(const std::filesystem::path& path,
     const EpochHistory& history,
     std::size_t config_hash);
 
-} // namespace guayaquil
+} // namespace meeting01

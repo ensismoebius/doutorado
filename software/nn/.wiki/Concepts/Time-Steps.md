@@ -116,7 +116,7 @@ no temporal credit assignment that still trains and still reports a plausible lo
 the project's no-fallback rule, an unstated sequence length is an error, not a guess.
 
 Note the distinction the guard encodes: **`0` (unset) raises; `1` (explicitly declared) is
-allowed.** Some models genuinely have one step — Guayaquil flattens each sample to a single
+allowed.** Some models genuinely have one step — Meeting01 flattens each sample to a single
 `{1, window_size}` frame, and `autoencoderRunner` feeds one flat vector per sample. Both
 set `time_steps = 1` deliberately, with a comment saying why.
 

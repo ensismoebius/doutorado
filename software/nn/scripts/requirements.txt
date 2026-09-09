@@ -2,7 +2,7 @@ numpy>=1.25
 scipy>=1.11
 tqdm
 
-# Live experiment-monitor dashboard (scripts/pipeline/guayaquil/monitor.py).
+# Live experiment-monitor dashboard (scripts/pipeline/meeting01/monitor.py).
 # Pure-Python. The monitor's --plain and --self-test modes need only the stdlib.
 rich>=13.0
 

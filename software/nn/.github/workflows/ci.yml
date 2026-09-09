@@ -48,13 +48,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install numpy matplotlib scipy
 
-      - name: Guayaquil significance self-test (synthetic known-answer)
+      - name: Meeting01 significance self-test (synthetic known-answer)
         run: |
-          python scripts/pipeline/guayaquil/04_guayaquil_significance_tests.py --self-test
+          python scripts/pipeline/meeting01/04_meeting01_significance_tests.py --self-test
 
-      - name: Guayaquil live-monitor aggregator self-test (synthetic known-answer)
+      - name: Meeting01 live-monitor aggregator self-test (synthetic known-answer)
         run: |
-          python scripts/pipeline/guayaquil/monitor.py --self-test
+          python scripts/pipeline/meeting01/monitor.py --self-test
 
       - name: Configure CMake with coverage
         run: |

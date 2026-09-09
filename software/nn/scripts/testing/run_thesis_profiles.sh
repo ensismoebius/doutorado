@@ -50,8 +50,8 @@ cd "$(dirname "$0")/../.." # -> software/nn
 
 # Locate the thesis binary under any CMake build profile.
 # Auto-pick prefers the CPU (max-performance) build when it exists. This is the reference
-# backend for the thesis — the same one the Guayaquil paper pipeline defaults to
-# (01_guayaquil_run_article_profiles.sh), so both experiments report from one backend. It is also
+# backend for the thesis — the same one the Meeting01 paper pipeline defaults to
+# (01_meeting01_run_article_profiles.sh), so both experiments report from one backend. It is also
 # the right default on the merits: these profiles' networks are tiny (kernel-launch-bound on
 # GPU), and "most recently built" used to silently switch runs to whatever was rebuilt last.
 # Override with THESIS_BUILD/THESIS_BIN to target another backend.
@@ -747,7 +747,7 @@ echo "profiles: $total  (pending $npending, skipped $skip)  from $ROOT"
 echo "logs: $LOGDIR/<profile>.log   (tail -f to watch one worker in full)"
 echo "state: $STATE"
 
-# Work-weighted overall ETA (scripts/lib/run_eta.sh, shared with the Guayaquil runner).
+# Work-weighted overall ETA (scripts/lib/run_eta.sh, shared with the Meeting01 runner).
 # Thesis mixes fast handcrafted extraction (trains nothing) with slow autoencoders / DSNN
 # training. Counting profiles equally makes the ETA lurch every time the mix shifts; instead
 # we weight each profile by rough cost and track seconds-per-unit-work. p00_ae_* sort before
@@ -771,8 +771,8 @@ if [ "$JOBS" -le 1 ]; then
         printf '[%d/%d]  elapsed %s  %s  running: %s\n' \
             "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name"
         # Persistent top banner inside the profile's own TUI (see thesis / THESIS_OVERALL),
-        # mirroring the Guayaquil runner: the per-process bars can't know the whole-run status,
-        # so the runner computes it here and hands it to the binary the same way Guayaquil does.
+        # mirroring the Meeting01 runner: the per-process bars can't know the whole-run status,
+        # so the runner computes it here and hands it to the binary the same way Meeting01 does.
         export THESIS_OVERALL="$(printf 'Overall  [%d/%d]  elapsed %s  ETA %s   (%s)' \
             "$i" "$npending" "$(fmt_hms "$elapsed")" "$eta" "$name")"
         p_start=$(date +%s)

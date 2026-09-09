@@ -227,7 +227,7 @@ Shared config library `experiments_config` (JSON-backed) is built at the `src/ex
 | 00 | `src/experiments/paraconsistentBaseline/` |
 | 02 | `src/experiments/waveletAE/` |
 | 03 | `src/experiments/autoencoderRunner/` (Autoencoder / SNN) |
-| 04 | `src/experiments/guayaquil/` (LSTM comparative) |
+| 04 | `src/experiments/meeting01/` (LSTM comparative) |
 | 05 | `src/experiments/thesis/` (thesis primary experiment) |
 | — | `src/experiments/paraconsistentGA/` (NSGA-II AE architecture search, reuses `thesis_lib`) |
 

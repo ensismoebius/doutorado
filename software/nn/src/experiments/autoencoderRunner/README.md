@@ -19,7 +19,7 @@ All runtime behavior must be defined by profile fields. CLI accepts only `--prof
 
 Integrated LSTM mode
 --------------------
-The standalone `guayaquil` implementation now lives under `src/experiments/guayaquil` and is
+The standalone `meeting01` implementation now lives under `src/experiments/meeting01` and is
 invoked through the `autoencoderRunner` binary with comparative flags:
 
 ```bash
@@ -29,23 +29,23 @@ invoked through the `autoencoderRunner` binary with comparative flags:
 You can also pass an explicit JSON file:
 
 ```bash
-./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config src/experiments/guayaquil/profiles/lstm-lightweight.json
+./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config src/experiments/meeting01/profiles/lstm-lightweight.json
 ```
 
-LSTM profiles now live under `src/experiments/guayaquil/profiles` and remain prefixed with `lstm-`.
+LSTM profiles now live under `src/experiments/meeting01/profiles` and remain prefixed with `lstm-`.
 
 Use `--help` to inspect the full option list without starting the experiment or touching the logger pipeline.
 
 Integrated LSTM architecture
 ----------------------------
-The integrated LSTM path is now hosted under `src/experiments/guayaquil` and dispatched by `autoencoderRunner`:
+The integrated LSTM path is now hosted under `src/experiments/meeting01` and dispatched by `autoencoderRunner`:
 
 - `src/experiments/autoencoderRunner/autoencoderRunner.cpp`: top-level launcher and dispatch to standard AutoencoderRunner or LSTM mode.
-- `src/experiments/guayaquil/guayaquil.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
-- `src/experiments/guayaquil/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the AutoencoderRunner LSTM tests.
-- `src/experiments/guayaquil/lib/include/guayaquil/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
-- `src/experiments/guayaquil/lib/include/guayaquil/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
-- `src/experiments/guayaquil/lib/include/guayaquil/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
+- `src/experiments/meeting01/meeting01.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
+- `src/experiments/meeting01/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the AutoencoderRunner LSTM tests.
+- `src/experiments/meeting01/lib/include/meeting01/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
+- `src/experiments/meeting01/lib/include/meeting01/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
+- `src/experiments/meeting01/lib/include/meeting01/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
 - `src/experiments/autoencoderRunner/tests/LSTMAutoencoder_gtest.cpp`: regression coverage for the integrated LSTM components.
 
 Current integrated runner behavior:
@@ -121,9 +121,9 @@ Useful built-in examples:
 - `default.json`: generic baseline defaults.
 - `lightweight.json`: smaller/faster smoke-test baseline.
 - `fused-window-snn-default.json`: fused SNN baseline.
-- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/guayaquil/profiles`).
-- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/guayaquil/profiles`).
-- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/guayaquil/profiles`).
+- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/meeting01/profiles`).
+- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/meeting01/profiles`).
+- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/meeting01/profiles`).
 - `protocol-ann-default.json`: protocol ANN baseline.
 - `protocol-snn-default.json`: protocol SNN baseline.
 - `sample-training-flow.json`: commented, loadable example that shows how to move from smoke tests to full training.

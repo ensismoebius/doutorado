@@ -2,7 +2,7 @@
 
 Experiment04 implements a comparative study between Spiking Neural Networks (SNNs) and LSTM autoencoders on time-series data, with support for the Free Spoken Digit Dataset (FSDD).
 
-## Reviewer-driven revision (`article-loso.json`)
+## Reviewer-driven revision (`meeting01-loso.json`)
 
 > **The problem this fixes.** The original study pooled every window, shuffled,
 > then split — so the same speaker *and the same recording* landed in both train
@@ -29,27 +29,27 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 
 - `dataset.sources[]` in the profile gives each dataset its `root` / `window_size` /
   `cv_num_folds` / `sample_rate` / `max_windows_per_recording` / `loso_max_{train,val,test}_windows`;
-  unset fields inherit the singular `dataset.*`. `GuayaquilConfig::Dataset::resolve(name)`
+  unset fields inherit the singular `dataset.*`. `Meeting01Config::Dataset::resolve(name)`
   does the merge.
 - **Stratified per-fold window caps** (`loso_max_train_windows` 1200, `loso_max_val_windows`
-  300, `loso_max_test_windows` 1500 in `article-loso.json`): after the LOSO split,
+  300, `loso_max_test_windows` 1500 in `meeting01-loso.json`): after the LOSO split,
   `stratified_window_cap` subsamples each partition round-robin across recordings (ordered
   by `recording_id`), so every recording and speaker keeps representation and per-recording
   counts stay as even as the cap allows. Full pooled FSDD is ~27k train windows/fold —
   intractable at batch-size 1 across the 27-combo SNN grid × 3 encodings × 5 seeds × 18
   (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
   or the recording-level statistical unit; they bound per-epoch cost. `cap <= 0` = unlimited.
-  Per-epoch progress prints as `[loso] <ctx> epoch N/M train=… val=…` (`GuayaquilEpochLogger`,
+  Per-epoch progress prints as `[loso] <ctx> epoch N/M train=… val=…` (`Meeting01EpochLogger`,
   to stderr — survives nohup, where the `ProgressManager` bars collapse to one line).
 - **Grouped folds:** `assign_speaker_fold` partitions the sorted group ids into `K`
   contiguous blocks (reduces to plain leave-one-speaker-out when `#groups == K`).
 - **Loaders:** `fsdd`/`audiomnist` reuse `FsddWindowDataset` (AudioMNIST filenames
   `digit_speaker_index.wav` parse identically; convert to 8 kHz mono first, e.g.
   `sox in.wav -r 8000 -c 1 -b 16 out.wav`). `mitbih` uses `MitBihWindowDataset`
-  (`GuayaquilMitBih.{hpp,cpp}`) — a minimal WFDB format-212 reader (non-recursive
+  (`Meeting01MitBih.{hpp,cpp}`) — a minimal WFDB format-212 reader (non-recursive
   `.hea` scan, 12-bit two's-complement decode, physical units via header gain/baseline).
 - Tests: `loaders_gtest` (real-loader checks, skipped when a root is absent),
-  `guayaquil_split_audit_gtest`, `profile_audit_gtest` (`DatasetSourceResolution…`).
+  `meeting01_split_audit_gtest`, `profile_audit_gtest` (`DatasetSourceResolution…`).
 
 ### Running it
 
@@ -57,19 +57,19 @@ One process per **(dataset, fold)**:
 
 ```bash
 cd software/nn
-EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/guayaquil/01_guayaquil_run_loso.sh
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 # loops --dataset {fsdd,audiomnist,mitbih} --cv-fold 0..5, then 03_ (PCA/mean)
 # → 02_ (paper tables) → 04_ (recording-level significance).
 ```
 
-Outputs are tagged `article_loso_<dataset>_fold<f>_*`. Weeks-scale even with the
+Outputs are tagged `meeting01_loso_<dataset>_fold<f>_*`. Weeks-scale even with the
 window caps; run once, checkpoints cleared first.
 
 ### Live monitoring
 
-Each `guayaquil` process appends structured events to
-`results/guayaquil/<run_tag>_<dataset>_fold<f>_events.jsonl` (schema v1, written by
-`GuayaquilEvents.cpp` + the `GuayaquilEventCallback` training hook). Events:
+Each `meeting01` process appends structured events to
+`results/meeting01/<run_tag>_<dataset>_fold<f>_events.jsonl` (schema v1, written by
+`Meeting01Events.cpp` + the `Meeting01EventCallback` training hook). Events:
 `session_begin` (search space, seed, caps, git commit, backend), `fold_begin` /
 `fold_end`, `config_begin` / `epoch` / `train_end` / `config_end` per trained model,
 `epoch_progress` (throttled intra-epoch heartbeat — one line per ~5 s of a slow
@@ -80,9 +80,9 @@ full precision; NaN → `null`. Emitting never gates training — pure side outp
 ```bash
 # attach anytime, in a separate terminal (18 processes write 18 files; the monitor
 # tails all of them and folds a single session view)
-python3 scripts/pipeline/guayaquil/monitor.py --run-tag article_loso
-python3 scripts/pipeline/guayaquil/monitor.py --plain          # non-interactive / piped
-python3 scripts/pipeline/guayaquil/monitor.py --self-test      # CI known-answer check
+python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso
+python3 scripts/pipeline/meeting01/monitor.py --plain          # non-interactive / piped
+python3 scripts/pipeline/meeting01/monitor.py --self-test      # CI known-answer check
 ```
 
 The dashboard (needs `rich`, in `scripts/requirements.txt`) has four panels:
@@ -94,7 +94,7 @@ ranked by held-out test loss — else best inner-validation loss — plus, once 
 configs finish, **descriptive** marginal best-val per sweep dimension and
 per-(model, encoding) `mean ± std`), and **RECENT** (event tail). Read-only — start,
 kill, re-attach freely; `Ctrl-C` exits. `monitor.py --rank N` prints one completed
-config's full detail (all metrics + reproducibility). `--no-tui` on the `guayaquil`
+config's full detail (all metrics + reproducibility). `--no-tui` on the `meeting01`
 binary (and any non-TTY stdout) disables its own `ProgressManager` bars so redirected
 logs stay free of cursor-control sequences.
 
@@ -102,14 +102,14 @@ logs stay free of cursor-control sequences.
 
 - **Primary estimand:** recording-level paired difference `d_r` (bootstrap over
   recordings, Wilcoxon, Holm across references), **per dataset**. Group-level and
-  seed-level are robustness only. `04_guayaquil_significance_tests.py` →
-  `article_loso_<ds>_significance_recording.tex` + `article_loso_significance.json`.
-- `02_guayaquil_build_loso_paper_data.py` → `paper_loso_<ds>_{summary,recon_by_encoding,mse_plot}.csv`
+  seed-level are robustness only. `04_meeting01_significance_tests.py` →
+  `meeting01_loso_<ds>_significance_recording.tex` + `meeting01_loso_significance.json`.
+- `02_meeting01_build_loso_paper_data.py` → `paper_loso_<ds>_{summary,recon_by_encoding,mse_plot}.csv`
   + `paper_loso_<ds>_snn_selection.tex` (mean ± std over 5 seeds; best cell bolded).
 - Model inventory: **four trained families** (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE)
   + PCA and mean-frame references. SNN `dense/conv1d/recurrent` are *input transforms*
   selected per fold, not families.
-- Paper: `documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex`
+- Paper: `documentation/07-articlesProduced/meeting01/paper.tex`
   (`\resultsForDataset` macro, one block per dataset).
 
 ---
@@ -170,7 +170,7 @@ Config is loaded from a JSON profile. Top-level sections:
 
 Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
 
-Parsed by: `src/experiments/guayaquil/lib/include/GuayaquilConfig.hpp` (`from_nested_json`).
+Parsed by: `src/experiments/meeting01/lib/include/Meeting01Config.hpp` (`from_nested_json`).
 
 #### `model.lstm_frame_size` (default 8)
 
@@ -192,7 +192,7 @@ the LSTM roughly 7× more expensive than necessary:
 
 Constraints and caveats:
 
-- Must divide `window_size`, enforced by `GuayaquilConfig::validate()`.
+- Must divide `window_size`, enforced by `Meeting01Config::validate()`.
 - Encoding is applied to the flat `(window_size, 1)` window **first**, then
   framing — the `direct`/`poisson`/`latency` transforms expect the flat layout.
 - Evaluation compares reconstruction in framed space. MSE/MAE/$R^2$ are
@@ -202,7 +202,7 @@ Constraints and caveats:
   arguably a fairer baseline, since the SNN-AE sees the whole window at once via
   `linear:64` while the old LSTM saw one scalar per step.
 
-Implemented by `to_lstm_frames()` in `src/experiments/guayaquil/lib/src/GuayaquilEncoding.cpp`;
+Implemented by `to_lstm_frames()` in `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp`;
 see [LSTM Performance](../Guides/LSTM-Performance.md) for why a plain reshape
 would produce a polyphase split rather than consecutive frames.
 
@@ -225,7 +225,7 @@ Because neural network performance can vary based on random weight initializatio
 
 ### Profile Configurations
 
-Article profiles live in `src/experiments/guayaquil/profiles/`:
+Article profiles live in `src/experiments/meeting01/profiles/`:
 
 | Profile | Purpose | Runs | ETA |
 |---------|---------|------|-----|
@@ -249,7 +249,7 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 
 ### WAV Loading
 
-`GuayaquilDataset.cpp` itself only windows and z-score normalizes an
+`Meeting01Dataset.cpp` itself only windows and z-score normalizes an
 already-loaded signal (`to_window_tensor`); the actual WAV file reading is
 delegated to the shared FSDD loader:
 
@@ -273,7 +273,7 @@ for (std::size_t i = 0; i < raw.size(); ++i)
 Real-time progress bars during training using `nn::utility::printProgress`:
 
 ```cpp
-// Inside GuayaquilTraining.cpp
+// Inside Meeting01Training.cpp
 printProgress(train_samples.size(),
     1,
     train_samples.size() * cfg.epochs,
@@ -349,7 +349,7 @@ The most common layer used in Experiment04.
 | `conv1d` | 3-tap smoothing filter: kernel `{0.25, 0.5, 0.25}` |
 | `recurrent` | Stand-alone LIF transform (stateless, fixed V_th/alpha) |
 
-These are **not** different network architectures — they are signal conditioning steps applied at `GuayaquilEncoding.cpp:apply_snn_architecture_transform`.
+These are **not** different network architectures — they are signal conditioning steps applied at `Meeting01Encoding.cpp:apply_snn_architecture_transform`.
 
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 
@@ -362,11 +362,11 @@ The total network is built by concatenating these specs.
 
 ```bash
 # Run a specific profile (from software/nn/)
-./out/build/max-performance/src/experiments/guayaquil/guayaquil \
-  --comparative-config src/experiments/guayaquil/profiles/article-lstm-ae.json
+./out/build/max-performance/src/experiments/meeting01/meeting01 \
+  --comparative-config src/experiments/meeting01/profiles/article-lstm-ae.json
 
 # Run all article profiles + build paper CSVs (~2.5 h)
-./scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh
+./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
 ```
 
 Both `--comparative-config` and `--profile` are accepted as the flag name.
@@ -381,7 +381,7 @@ Results written to `results/` (or `dataset.results_dir` from profile):
 | `{run_tag}_publication_table.csv` | Aggregated, formatted for paper tables |
 | `{run_tag}_summary.json` | Config hash, per-model stats |
 | `data/{run_tag}_*.dat` | pgfplots DAT files for paper figures |
-| `data/paper_*.csv` | Aggregated across all runs (written by `02_guayaquil_build_lstm_vs_snn_paper_data.py`) |
+| `data/paper_*.csv` | Aggregated across all runs (written by `02_meeting01_build_lstm_vs_snn_paper_data.py`) |
 
 Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
@@ -389,13 +389,13 @@ Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
 ```bash
 # After all article runs complete:
-python3 scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
-  --data-dir /path/to/conference71070Guaiaquil/data \
-  --profiles-dir src/experiments/guayaquil/profiles
+  --data-dir /path/to/meeting01/data \
+  --profiles-dir src/experiments/meeting01/profiles
 
 # Compile paper:
-cd documentation/07-articlesProduced/conference71070Guaiaquil
+cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 

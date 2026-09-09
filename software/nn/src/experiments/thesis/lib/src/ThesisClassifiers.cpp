@@ -122,7 +122,7 @@ auto run_classifier(const ThesisDatasetView& view,
         global_completed};
 
     // Count trainable parameters once on a fresh model (identical across folds) —
-    // the Guayaquil-style model-complexity stat.
+    // the Meeting01-style model-complexity stat.
     with_classifier(ctx, [&](auto& model) { result.param_count = count_trainable_params(model); });
 
     if (cfg.training.nested_cv)

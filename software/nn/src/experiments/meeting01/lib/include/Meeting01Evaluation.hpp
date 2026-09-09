@@ -5,14 +5,14 @@
 #include <string>
 #include <vector>
 
-#include "GuayaquilDatasetSplit.hpp"
-#include "GuayaquilPerWindow.hpp"
-#include "GuayaquilRunMetrics.hpp"
+#include "Meeting01DatasetSplit.hpp"
+#include "Meeting01PerWindow.hpp"
+#include "Meeting01RunMetrics.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 using Tensor = nn::Tensor;
@@ -54,4 +54,4 @@ auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& 
     std::uint32_t seed,
     PerWindowError proto) -> std::vector<PerWindowError>;
 
-} // namespace guayaquil
+} // namespace meeting01

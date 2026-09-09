@@ -38,18 +38,18 @@ feature extraction, training epochs, and CV folds** (driven by `ProgressManager`
 a pipe/CI the ANSI bars are redirected to keep logs clean. Failures print
 immediately and are listed in the final summary.
 
-**Rich per-bar metadata (Guayaquil/Guayaquil look)**: each training bar carries a
+**Rich per-bar metadata (Meeting01/Meeting01 look)**: each training bar carries a
 metadata line — `label │ description │ run X/Y  LOSS │ phases`. The autoencoder
 feature-extraction bars name the model + loss (`SNN-AE (poisson)`, `ANN-AE
 (direct)`, `LSTM-AE` │ `MSE`); the DSNN classifier bars show `run fold/total`
 and `CrossEntropy` with live train/val loss. This is the same
-`ProgressCallback::set_metadata` path Guayaquil uses, so both experiments read alike.
+`ProgressCallback::set_metadata` path Meeting01 uses, so both experiments read alike.
 
 **Overall run banner + work-weighted ETA**: each profile is a *separate process*
 and cannot know the whole-run progress, so the runner computes an overall status
 and passes it to the binary via `THESIS_OVERALL` — rendered as a persistent top
 line (`Overall [i/N] elapsed … ETA …`) above the profile's own bars, mirroring
-Guayaquil's `GUAYAQUIL_OVERALL`. The overall ETA is **work-weighted + EMA-smoothed**
+Meeting01's `MEETING01_OVERALL`. The overall ETA is **work-weighted + EMA-smoothed**
 (`scripts/lib/run_eta.sh`): each profile is weighted by rough cost
 (`p00_hc_*` = 1, autoencoders / DSNN = 20) and the runner tracks
 seconds-per-unit-work rather than counting profiles equally. This matters because
@@ -314,13 +314,13 @@ page cache keeps the file resident across the runner's parallel workers.
 
 Every run writes into its profile's `results_dir` (`results/thesis/{phase00,phase01}`),
 prefixed `e05_<run_tag>`. Alongside the metrics, each run now records the same
-class of run diagnostics the Guayaquil/Guayaquil pipeline stores:
+class of run diagnostics the Meeting01/Meeting01 pipeline stores:
 
 | File | Contents |
 |---|---|
 | `*_summary.json` | Self-describing run record. Config echo (seed, modality, strategy, resolved training block) **plus** `config_hash` (provenance/determinism fingerprint), and per feature set: `param_count`, `mean_train_ms`, `mean_infer_ms`; per fold: `train_ms`, `infer_ms`, `epochs_run`, `final_train_loss`/`final_val_loss`. |
 | `*_metrics.csv` | Per-fold metrics + `train_ms,infer_ms` columns. |
-| `*_learning_curves.dat` | The Guayaquil epoch-history analog: one row per `(feature_set, fold, epoch)` — `train_loss val_loss epoch_ms spike_rate sops`. For the **DSNN** classifier, `spike_rate` (mean firing rate over all spiking layers) and `sops` (synaptic ops/sample) are populated per epoch; for the non-spiking RNN they are `nan`/`0`. pgfplots-ready. Written only when a classifier trained (phase01). |
+| `*_learning_curves.dat` | The Meeting01 epoch-history analog: one row per `(feature_set, fold, epoch)` — `train_loss val_loss epoch_ms spike_rate sops`. For the **DSNN** classifier, `spike_rate` (mean firing rate over all spiking layers) and `sops` (synaptic ops/sample) are populated per epoch; for the non-spiking RNN they are `nan`/`0`. pgfplots-ready. Written only when a classifier trained (phase01). |
 | `*_paraconsistent.csv`, `*_comparison.dat` | Ranking scores and the pgfplots comparison table (unchanged). |
 
 > **SNN firing rate is measured via a model-side probe.** The DSNN classifier trains
@@ -330,7 +330,7 @@ class of run diagnostics the Guayaquil/Guayaquil pipeline stores:
 > populates `EpochResult` from the model when the loss doesn't. The summary's
 > `mean_spike_rate`/`final_sops` are the last epoch's values, mean-aggregated over folds.
 
-**Cross-profile significance** (the Guayaquil SNN-vs-LSTM analog). An Thesis run scores one feature
+**Cross-profile significance** (the Meeting01 SNN-vs-LSTM analog). An Thesis run scores one feature
 set, so the significance comparison is *across* profiles, not within a run:
 `scripts/pipeline/thesis/thesis_cross_profile_significance.py` collates every profile's per-fold
 `*_metrics.csv`, ranks them by a metric (`--metric eer|accuracy|auc|f1`), and tests each

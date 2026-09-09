@@ -1,4 +1,4 @@
-#include "../include/GuayaquilOutput.hpp"
+#include "../include/Meeting01Output.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,12 +9,12 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "../include/GuayaquilPerWindow.hpp"
+#include "../include/Meeting01PerWindow.hpp"
 #include "io/ReportIO.hpp"
 #include "nlohmann/json.hpp"
 #include "statistics/inference_tests.hpp"
 
-namespace guayaquil
+namespace meeting01
 {
 
 namespace
@@ -227,7 +227,7 @@ void write_backend_timing_csv(
 
 void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_path,
     const std::string& run_tag,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<ResultRow>& rows)
 {
     std::ofstream out(profile_manifest_path);
@@ -267,7 +267,7 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
 }
 
 void write_summary_json(const std::filesystem::path& path,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& rows)
 {
@@ -350,7 +350,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
 
 void write_latex_exports(const std::filesystem::path& dir,
     const std::string& run_tag,
-    const GuayaquilConfig& cfg,
+    const Meeting01Config& cfg,
     const std::vector<ResultRow>& rows)
 {
     namespace fs = std::filesystem;
@@ -520,7 +520,7 @@ void write_per_window_errors_csv(
     }
 }
 
-void validate_repeat_determinism(const GuayaquilConfig& cfg, const std::vector<ResultRow>& rows)
+void validate_repeat_determinism(const Meeting01Config& cfg, const std::vector<ResultRow>& rows)
 {
     if (cfg.experiment.repeats <= 1) return;
 
@@ -598,4 +598,4 @@ void validate_repeat_determinism(const GuayaquilConfig& cfg, const std::vector<R
     }
 }
 
-} // namespace guayaquil
+} // namespace meeting01

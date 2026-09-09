@@ -39,7 +39,7 @@ Highlights from `docs/` (authoritative):
 
 Recent notable refactors (keep in mind)
 
-* `Experiment04` — pipeline moved into `src/experiments/autoencoderRunner/lib/include/guayaquil.hpp` and `src/experiments/autoencoderRunner/lib/src/guayaquil.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
+* `Experiment04` — pipeline moved into `src/experiments/autoencoderRunner/lib/include/meeting01.hpp` and `src/experiments/autoencoderRunner/lib/src/meeting01.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
 * `BatchPrefetcher` — reworked to a single-producer, bounded-queue design to serialize `matio` reads. Always construct with a `DataLoader&` and ensure the `DataLoader` outlives the prefetcher.
 * `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate;
   add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).

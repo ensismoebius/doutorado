@@ -28,8 +28,8 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 | LIF single-step | `include/layers/spiking/Lif.hpp` |
 | LIF BPTT | `include/layers/spiking/LifBPTT.hpp` |
 | Trainer | `src/core/training/Trainer.hpp` |
-| Exp04 profile parser | `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp` |
-| Exp04 encoding transforms | `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` |
+| Exp04 profile parser | `src/experiments/meeting01/lib/include/ComparativeConfig.hpp` |
+| Exp04 encoding transforms | `src/experiments/meeting01/lib/src/ComparativeEncoding.cpp` |
 | KFold / NestedKFold | `include/statistics/kfold.hpp` |
 | OpenCL context | `include/tensor/opencl/OpenCLContext.hpp` |
 
@@ -42,10 +42,10 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 - `src/experiments/paraconsistentBaseline/` — wavelet + paraconsistent baseline
 - `src/experiments/waveletAE/` — wavelet autoencoder
 - `src/experiments/autoencoderRunner/` — multimodal autoencoder
-- `src/experiments/guayaquil/` — LSTM vs SNN comparative
+- `src/experiments/meeting01/` — LSTM vs SNN comparative
 
 **Article pipeline chain:**
-`scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh` → CSVs → `scripts/pipeline/guayaquil/02_guayaquil_build_lstm_vs_snn_paper_data.py` → DAT → `pdflatex paper.tex`
+`scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh` → CSVs → `scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py` → DAT → `pdflatex paper.tex`
 
 ## Rules
 

@@ -98,7 +98,7 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 ### Learned Feature Extraction (Autoencoders)
 
-> **Scope note.** The **thesis** Phase 00 compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder, `ProtocolSpikingAutoencoder`), and **ANN-AE** (non-spiking dense autoencoder, `ProtocolAutoencoder`). Both AE families are wired into the Experiment05 executable and shipped as Phase 00 profiles. The **LSTM-AE** remains in the code (built for the Guayaquil congress paper) but no thesis profile uses it.
+> **Scope note.** The **thesis** Phase 00 compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder, `ProtocolSpikingAutoencoder`), and **ANN-AE** (non-spiking dense autoencoder, `ProtocolAutoencoder`). Both AE families are wired into the Experiment05 executable and shipped as Phase 00 profiles. The **LSTM-AE** remains in the code (built for the Meeting01 congress paper) but no thesis profile uses it.
 
 **SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. The raw signal is average-pooled to 256 bins and **min-max normalized to `[0,1]`**.
 
@@ -172,7 +172,7 @@ Each profile is identical except `feature_extraction.autoencoder.{encoding, time
 
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
-**LSTM-AE (legacy, Guayaquil paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
+**LSTM-AE (legacy, Meeting01 paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
 > **Windowing + batching (AE-on-EEG fix).** The raw signal is *framed* into at most `kAeMaxFrames` (64) windows of `frame_len` samples each → AE input `(T_frames, frame_len)` with `input_size = frame_len`, `seq_len ≤ 64`. This replaced the earlier `input_size=1, seq_len=24576` wiring, which fed the whole flattened multi-channel EEG as one length-24576 sequence — both semantically wrong and far too long to unroll (and it crashed once the `LSTMAutoencoder` met the trainer's batched 3-D tensor). `LSTMAutoencoder` now handles both 2-D `(T,D)` and 3-D `(B,T,D)` inputs (`LSTMLayer` already did the batched BPTT; the projections/last-step/replicate were made batch-aware). Verified against snnTorch/PyTorch — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
@@ -190,7 +190,7 @@ Autoencoder training in Experiment05 is unsupervised (no speaker labels), and la
 
 ### Authentication: Residual Network (RNN) and Deep SNN (DSNN)
 
-> **Scope note.** The non-spiking **RNN** classifier was built for the Guayaquil congress paper. The **thesis** uses only the spiking classifier (**DSNN**). The RNN is documented here because both share the Experiment05 code path.
+> **Scope note.** The non-spiking **RNN** classifier was built for the Meeting01 congress paper. The **thesis** uses only the spiking classifier (**DSNN**). The RNN is documented here because both share the Experiment05 code path.
 
 **RNN** (here: Residual Neural Network, not recurrent):  
 Skip connections prevent vanishing gradients in deep classifiers. Residual block:
@@ -531,7 +531,7 @@ python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
 | `results/e05_*_paraconsistent.csv` | α, β, G₁, G₂, D_truth per (strategy × modality × scale) |
 | `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for all metrics + per-fold model paths |
 | `results/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
-| `results/guayaquil/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
+| `results/meeting01/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
 
 ### Data fed to each profile family, and its metadata
 
@@ -567,7 +567,7 @@ After each outer fold, `run_classifier()` serializes the trained classifier stat
 #include "layers/residual/SimpleResNet.hpp"
 
 SimpleResNetImpl<nn::Backend> model(feat_dim, 128, n_speakers, 2);
-auto sd = nn::io::load_state_dict("results/guayaquil/models/run/feat/fold_0.bin");
+auto sd = nn::io::load_state_dict("results/meeting01/models/run/feat/fold_0.bin");
 model.load_state_dict(sd);
 ```
 
@@ -617,7 +617,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 4. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
 
-5. **Autoencoder path wires `snn-ae` and `ann-ae`.** `feature_extraction.autoencoder.model` accepts `snn-ae`, `ann-ae`, or `lstm-ae`; the thesis Phase 00 profiles use `snn-ae`/`ann-ae` (`lstm-ae` is the legacy Guayaquil extractor, unused by any profile).
+5. **Autoencoder path wires `snn-ae` and `ann-ae`.** `feature_extraction.autoencoder.model` accepts `snn-ae`, `ann-ae`, or `lstm-ae`; the thesis Phase 00 profiles use `snn-ae`/`ann-ae` (`lstm-ae` is the legacy Meeting01 extractor, unused by any profile).
 
 6. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
 
@@ -657,7 +657,7 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — nested CV
 - [Data Loaders](../Core/DataLoaders.md) — 10.1117 loader API
 - [Research Context](../Research-Context.md) — thesis goals and full pipeline
-- [Experiment04](./Guayaquil.md) — prior congress paper experiment
+- [Experiment04](./Meeting01.md) — prior congress paper experiment
 - [Re-run Runbook](../Guides/Re-run-Runbook.md) — commands to regenerate every result
 - [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the current `d_penalized` metric, 208-profile grid, and re-run
 

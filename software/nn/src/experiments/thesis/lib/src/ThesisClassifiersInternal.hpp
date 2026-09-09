@@ -344,7 +344,7 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
 
 // Build a Trainer for `model`, attach the standard callbacks, and fit. Returns
 // the per-epoch learning-curve history (train/val loss, epoch time, SNN spike
-// rate + SOPs) so the caller can persist it — the Guayaquil-style run diagnostics.
+// rate + SOPs) so the caller can persist it — the Meeting01-style run diagnostics.
 // val_pairs may be empty (flat CV trains without validation); patience <= 0
 // disables early stopping (flat CV does not early-stop).
 template <typename ModelT>
@@ -377,7 +377,7 @@ auto train_model(ModelT& model,
 }
 
 // Trainable-parameter count of a model = sum of element counts over params().
-// Mirrors the param_count the Guayaquil pipeline records per run.
+// Mirrors the param_count the Meeting01 pipeline records per run.
 template <typename ModelT>
 auto count_trainable_params(ModelT& model) -> std::size_t
 {
