@@ -40,6 +40,7 @@ from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.pipeline_dag import PipelineDag
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
 from experiment_microscope.views.encoding_lab import EncodingLab
+from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.ranking_view import RankingView
@@ -90,6 +91,8 @@ class Workspace(QMainWindow):
         self.comparison = ComparisonView(self.repo)
         self.ranking = RankingView(self.repo)
         self.ranking.run_activated.connect(self._on_ranking_run)
+        self.timeline_view = ExperimentTimeline(self.repo)
+        self.timeline_view.config_activated.connect(self._on_timeline_config)
         self.pipeline_dag.node_activated.connect(self._open_tab)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
@@ -101,6 +104,7 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.triangle, "Triangle")
         self.tabs.addTab(self.comparison, "Comparison")
         self.tabs.addTab(self.ranking, "Ranking")
+        self.tabs.addTab(self.timeline_view, "Timeline")
 
         self.follow_bar = FollowDataBar(self.repo)
         self.follow_bar.stage_activated.connect(self._open_tab)
@@ -221,6 +225,13 @@ class Workspace(QMainWindow):
         self.triangle.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
+            self.timeline_view.refresh()
+
+    def _on_timeline_config(self, dataset: str, fold: int, config_id: str) -> None:
+        self.selection.update(experiment="meeting01", dataset=dataset)
+        self._status_selection.setText(
+            f"timeline → meeting01 › {dataset} › fold {fold} › {config_id}"
+        )
 
     def _on_ranking_run(self, experiment: str, run_tag: str) -> None:
         self.explorer.select_experiment(experiment)

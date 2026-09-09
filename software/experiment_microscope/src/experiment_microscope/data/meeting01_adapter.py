@@ -55,8 +55,15 @@ def _load_monitor() -> ModuleType:
     spec = importlib.util.spec_from_file_location("meeting01_monitor", mod_path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # Register before exec: monitor.py defines @dataclass classes, and on
+    # Python 3.14 dataclasses resolves ``sys.modules.get(cls.__module__)``
+    # while processing the class body — which is None if we wait.
     sys.modules["meeting01_monitor"] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop("meeting01_monitor", None)
+        raise
     return module
 
 

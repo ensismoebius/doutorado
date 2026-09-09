@@ -116,6 +116,7 @@ Generated captions are checked against a banned-inferential-word list
   transport currently drives only the Triangle sample index.
 - **Cache is process-local and unbounded in time** — it is an LRU of 256
   derived representations, cleared on exit, not persisted between sessions.
-- The experiment timeline (§45) is not built. (Cross-experiment comparison,
-  §22, is the "Comparison" tab; the cross-run ranking / model-comparison table,
-  §21/§12, is the "Ranking" tab.)
+- Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
+  ranking / model-comparison table (§21/§12) is the "Ranking" tab; the meeting01
+  session→fold→config→epoch timeline (§45) is the "Timeline" tab (empty until a
+  LOSO run writes `results/meeting01/*_events.jsonl`).
