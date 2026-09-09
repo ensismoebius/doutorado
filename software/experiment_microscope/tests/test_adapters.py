@@ -20,10 +20,12 @@ def test_meeting01_tree_without_results():
     assert {n.label for n in datasets} >= {"fsdd"}
     folds = a.children(datasets[0])
     assert len(folds) >= 1
-    leaves = a.children(folds[0])
-    assert leaves and leaves[0].kind == "model"
-    # provenance on a leaf must not raise even if no events file exists
-    prov = a.load_provenance(leaves[0])
+    children = a.children(folds[0])
+    combos = [n for n in children if n.kind == "model"]
+    assert combos, "fold should expose snn-ae recompute leaves"
+    assert any(n.handle.get("level") == "windows" for n in children)
+    # provenance on a combo leaf must not raise even if no events file exists
+    prov = a.load_provenance(combos[0])
     assert "run_tag" in prov.artifact
 
 

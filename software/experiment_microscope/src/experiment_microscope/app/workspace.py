@@ -31,6 +31,7 @@ from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
+from experiment_microscope.views.wavelet_lab import WaveletLab
 
 _ORG = "doutorado"
 _APP = "experiment_microscope"
@@ -62,8 +63,10 @@ class Workspace(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         self.signal_view = SignalView(self.repo)
+        self.wavelet_lab = WaveletLab(self.repo)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.tabs.addTab(self.signal_view, "Signal")
+        self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
         self.setCentralWidget(self.tabs)
 
@@ -130,6 +133,7 @@ class Workspace(QMainWindow):
         self._status_selection.setText(f"{adapter_key} › {node.kind} › {node.label}")
         self.provenance.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
+        self.wavelet_lab.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
 

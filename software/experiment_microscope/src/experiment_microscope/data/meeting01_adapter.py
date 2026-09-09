@@ -25,12 +25,16 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+import numpy as np
+
 from experiment_microscope.core.integrity import Origin, Value
 from experiment_microscope.data.adapters import (
     ExperimentAdapter,
     ProvenanceRecord,
+    Signal1D,
     TreeNode,
 )
+from experiment_microscope.processing._binding import BindingUnavailableError, load_binding
 from experiment_microscope.paths import (
     MEETING01_MONITOR_DIR,
     MEETING01_PROFILES,
@@ -64,6 +68,7 @@ class Meeting01Adapter(ExperimentAdapter):
         self.results_dir = Path(results_dir) if results_dir else MEETING01_RESULTS
         self.profile_dir = Path(profile_dir) if profile_dir else MEETING01_PROFILES
         self._profile_cache: dict[str, Any] | None = None
+        self._split_cache: dict[tuple[str, int], dict[str, Any]] = {}
 
     # -- profile --------------------------------------------------
     def _profile(self) -> dict[str, Any]:
@@ -142,29 +147,83 @@ class Meeting01Adapter(ExperimentAdapter):
                 for f in range(n)
             ]
         if level == "fold":
-            # Encodings x architectures are the recompute leaves (FIXME §43-B).
+            ds, fold = h["dataset"], h["cv_fold"]
             evaluation = self._profile().get("evaluation") or {}
             encs = evaluation.get("encodings", ["direct", "poisson", "latency"])
             archs = evaluation.get("snn_architectures", ["dense", "conv1d", "recurrent"])
-            leaves = []
+            out: list[TreeNode] = []
+            for split in ("test", "val", "train"):
+                out.append(
+                    TreeNode(
+                        "dataset",
+                        f"{split} windows (held-out speaker)" if split == "test" else f"{split} windows",
+                        {"level": "windows", "dataset": ds, "cv_fold": fold, "split": split},
+                    )
+                )
+            # SNN-AE recompute leaves (FIXME §43-B).
             for enc in encs:
                 for arch in archs:
-                    leaves.append(
+                    out.append(
                         TreeNode(
                             "model",
                             f"snn-ae / {arch} / {enc}",
-                            {
-                                "level": "combo",
-                                "dataset": h["dataset"],
-                                "cv_fold": h["cv_fold"],
-                                "encoding": enc,
-                                "architecture": arch,
-                            },
+                            {"level": "combo", "dataset": ds, "cv_fold": fold,
+                             "encoding": enc, "architecture": arch},
                             has_children=False,
                         )
                     )
-            return leaves
+            return out
+        if level == "windows":
+            try:
+                split = self._split(h["dataset"], h["cv_fold"])
+            except (BindingUnavailableError, RuntimeError):
+                return []
+            metas = split[f"{h['split']}_meta"]
+            n = min(len(metas), 200)  # lazy cap; FIXME §7 "do not load enormous datasets"
+            return [
+                TreeNode(
+                    "sample",
+                    f"win {m['window_id']}  spk {m['speaker']}  rec {m['recording_id']}  digit {m['digit']}",
+                    {"level": "window", "dataset": h["dataset"], "cv_fold": h["cv_fold"],
+                     "split": h["split"], "row": i},
+                    metadata=dict(m),
+                    has_children=False,
+                )
+                for i, m in enumerate(metas[:n])
+            ]
         return []
+
+    # -- live split cache (build_split ~1s; reused across views) ----------
+    def _split(self, dataset: str, cv_fold: int) -> dict[str, Any]:
+        key = (dataset, cv_fold)
+        cached = self._split_cache.get(key)
+        if cached is None:
+            nm = load_binding()
+            profile = str(self.profile_dir / _LOSO_PROFILE)
+            cached = nm.meeting01.build_split(profile, dataset, cv_fold)
+            self._split_cache[key] = cached
+        return cached
+
+    def load_signal(self, node: TreeNode) -> Signal1D:
+        h = node.handle
+        if h.get("level") != "window":
+            raise NotImplementedError("select an individual window")
+        split = self._split(h["dataset"], h["cv_fold"])
+        samples = split[f"{h['split']}_meta"]
+        window = split[f"{h['split']}_samples"][h["row"]]
+        meta = samples[h["row"]]
+        sr = float((self._datasets_by_name().get(h["dataset"]) or {}).get("sample_rate") or 0.0)
+        return Signal1D(
+            samples=np.asarray(window).reshape(-1),
+            sample_rate=sr,
+            origin=Origin.COMPUTED,  # windowed + z-scored by nn_microscope, matching the experiment
+            unit="z-score",
+            label=f"{h['dataset']} {h['split']} window {meta['window_id']} "
+            f"(spk {meta['speaker']}, digit {meta['digit']})",
+        )
+
+    def _datasets_by_name(self) -> dict[str, dict[str, Any]]:
+        return {d.get("name"): d for d in self._datasets()}
 
     def _fold_metadata(self, dataset: str, fold: int) -> dict[str, Any]:
         events = self.results_dir / f"{_RUN_TAG}_{dataset}_fold{fold}_events.jsonl"
