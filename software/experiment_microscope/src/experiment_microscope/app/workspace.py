@@ -47,6 +47,7 @@ from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.reconstruction_view import ReconstructionView
+from experiment_microscope.views.search_bar import SearchBar
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
@@ -145,7 +146,15 @@ class Workspace(QMainWindow):
 
     def _build_docks(self) -> None:
         self.explorer = ExplorerTree(self.repo)
-        self._dock("Data Explorer", self.explorer, Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.search_bar = SearchBar(self.explorer)
+        self.search_bar.path_activated.connect(self.explorer.select_path)
+        explorer_panel = QWidget()
+        _pl = QVBoxLayout(explorer_panel)
+        _pl.setContentsMargins(0, 0, 0, 0)
+        _pl.setSpacing(2)
+        _pl.addWidget(self.search_bar)
+        _pl.addWidget(self.explorer, 1)
+        self._dock("Data Explorer", explorer_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
 
         self.provenance = ProvenanceInspector(self.repo)
         prov_dock = self._dock("Inspector", self.provenance, Qt.DockWidgetArea.RightDockWidgetArea)

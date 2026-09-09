@@ -128,3 +128,7 @@ Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
   writes `results/meeting01/*_events.jsonl`).
 - **Low-performance mode** (§38): View → Low-performance mode disables the 3D
   panel and the animation transport.
+- **Global search** (§35): the box above the Data Explorer tree — every
+  whitespace token must match a node's path + metadata (e.g. `daub10 lfcc eeg`,
+  `fold 0 fsdd`, `pga snn`); activating a hit navigates the tree. The catalog is
+  built on first use (bounded-depth force-expand).

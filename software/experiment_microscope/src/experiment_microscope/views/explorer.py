@@ -100,6 +100,41 @@ class ExplorerTree(QTreeWidget):
             item = item.parent()
         return path
 
+    def build_catalog(self, max_depth: int = 4, max_children: int = 1500) -> list[dict]:
+        """Force-expand the tree to ``max_depth`` and return searchable entries
+        (FIXME §35). Each entry: ``{path: [labels], text: str, kind: str}``.
+
+        Nodes with more than ``max_children`` children (window / sample lists,
+        capped at 200 by the adapters anyway) are recorded but not descended —
+        searching individual windows is out of scope for a global catalog."""
+        out: list[dict] = []
+        root = self.invisibleRootItem()
+
+        def walk(item: QTreeWidgetItem, path: list[str], depth: int) -> None:
+            node: TreeNode = item.data(0, _NODE_ROLE)
+            if node is None:
+                return
+            md = node.metadata or {}
+            text = " ".join(str(x) for x in (
+                *path, node.label, node.kind, self._info(node),
+                *(f"{k}={v}" for k, v in md.items() if v is not None),
+            )).lower()
+            out.append({"path": list(path), "text": text, "kind": node.kind})
+            if depth >= max_depth or not node.has_children:
+                return
+            item.setExpanded(True)
+            self._on_expanded(item)
+            if item.childCount() > max_children:
+                return
+            for i in range(item.childCount()):
+                child = item.child(i)
+                walk(child, path + [child.text(0)], depth + 1)
+
+        for i in range(root.childCount()):
+            top = root.child(i)
+            walk(top, [top.text(0)], 1)
+        return out
+
     def select_path(self, labels: list[str]) -> bool:
         """Expand + select the item at ``labels`` (top-level label first).
 
