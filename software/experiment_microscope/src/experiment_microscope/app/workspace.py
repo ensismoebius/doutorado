@@ -68,7 +68,7 @@ class Workspace(QMainWindow):
         self.tabs.setDocumentMode(True)
         self.signal_view = SignalView(self.repo, self.selection)
         self.wavelet_lab = WaveletLab(self.repo, self.selection)
-        self.feature_matrix = FeatureMatrixView(self.repo)
+        self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.tabs.addTab(self.signal_view, "Signal")

@@ -27,9 +27,15 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 
 
 class FeatureMatrixView(QWidget):
-    def __init__(self, repo: DataRepository, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        repo: DataRepository,
+        selection=None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.repo = repo
+        self.selection = selection
         self._matrix: FeatureMatrix | None = None
 
         root = QVBoxLayout(self)
@@ -53,6 +59,7 @@ class FeatureMatrixView(QWidget):
         self._plot.addItem(self._img)
         self._plot.setLabel("bottom", "feature")
         self._plot.setLabel("left", "sample")
+        self._plot.scene().sigMouseClicked.connect(self._on_click)
         split.addWidget(self._plot)
         self._stats = QTableWidget(0, 4)
         self._stats.setHorizontalHeaderLabels(["feature", "mean", "std", "min / max"])
@@ -104,3 +111,20 @@ class FeatureMatrixView(QWidget):
                  f"{col.min():.3g} / {col.max():.3g}")
             ):
                 self._stats.setItem(j, c, QTableWidgetItem(text))
+
+    def _on_click(self, event) -> None:
+        """Exact-value readout for the clicked cell (FIXME §29)."""
+        if self._matrix is None or self._img is None:
+            return
+        pos = self._img.mapFromScene(event.scenePos())
+        j, i = int(pos.x()), int(pos.y())  # ImageItem plotted as shown.T → x=feature, y=sample
+        data = np.asarray(self._matrix.values, dtype=float)
+        if not (0 <= i < data.shape[0] and 0 <= j < data.shape[1]):
+            return
+        m = self._matrix
+        self._status.setText(
+            f"{m.feature_names[j]} @ {m.sample_labels[i]}  =  {data[i, j]:.6g}  "
+            f"(class {m.class_labels[i]})  [{m.origin.value}]"
+        )
+        if self.selection is not None:
+            self.selection.set("feature", j, cascade=False)

@@ -59,12 +59,15 @@ class WaveletLab(QWidget):
         self._level.setValue(4)
         self._mode = QComboBox()
         self._mode.addItems(["packet", "regular"])
+        self._channel = QComboBox()  # populated when the input is multichannel (§8)
+        self._channel.currentIndexChanged.connect(self._recompute)
         for w in (self._wavelet, self._level, self._mode):
             w.currentIndexChanged.connect(self._recompute) if isinstance(w, QComboBox) else \
                 w.valueChanged.connect(self._recompute)
         form.addRow("wavelet", self._wavelet)
         form.addRow("level", self._level)
         form.addRow("mode", self._mode)
+        form.addRow("channel", self._channel)
         controls.addLayout(form)
         self._status = QLabel("No signal selected.")
         self._status.setWordWrap(True)
@@ -107,7 +110,19 @@ class WaveletLab(QWidget):
             self._signal = None
             self._status.setText(f"load_signal failed: {exc}")
             return
+        self._sync_channel_selector()
         self._recompute()
+
+    def _sync_channel_selector(self) -> None:
+        raw = None if self._signal is None else np.asarray(self._signal.samples)
+        n = raw.shape[0] if (raw is not None and raw.ndim == 2) else 0
+        self._channel.blockSignals(True)
+        self._channel.clear()
+        if n:
+            names = self._signal.channel_names or tuple(f"ch{c}" for c in range(n))
+            self._channel.addItems(list(names))
+        self._channel.setEnabled(bool(n))
+        self._channel.blockSignals(False)
 
     # -- internals ---------------------------------------------
     def _recompute(self) -> None:
@@ -116,9 +131,11 @@ class WaveletLab(QWidget):
         from experiment_microscope.processing import wavelet as wl
 
         raw = np.asarray(self._signal.samples, dtype=float)
-        # multichannel (EEG): decompose channel 0; a channel selector lands with
-        # the SNN-lab wiring (FIXME §8 channel selection).
-        data = raw[0] if raw.ndim == 2 else raw.ravel()
+        if raw.ndim == 2:  # multichannel (EEG): decompose the selected channel (§8)
+            ch = max(0, self._channel.currentIndex())
+            data = raw[min(ch, raw.shape[0] - 1)]
+        else:
+            data = raw.ravel()
         try:
             self._decomp = wl.decompose(
                 data, self._wavelet.currentText(), self._mode.currentText(), self._level.value()
