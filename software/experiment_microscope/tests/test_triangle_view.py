@@ -50,3 +50,46 @@ def test_triangle_binds_run_and_sets_sample_range(qapp):
     assert v._sample.maximum() == 4  # 5 samples
     v._sample.setValue(3)  # scrubbing must not raise
     assert "sample 3/4" in v._status.text()
+
+
+# -- feature bar <-> wavelet band mapping (FIXME §44) --------------------
+from experiment_microscope.processing.thesis import HandcraftedSpec  # noqa: E402
+
+
+def test_feature_band_map_non_cepstral(qapp):
+    v = TriangleView(_repo())
+    spec = HandcraftedSpec(cepstral=False)  # 6 descriptors
+    v._map_features_to_bands(spec, n_energy_bands=16, n_features=96)
+    assert (v._n_bands, v._per_band, v._cepstral_offset) == (16, 6, 0)
+    assert v._band_for_feature(13) == 2
+    assert v._feature_span_for_band(2) == (12, 18)
+
+
+def test_feature_band_map_cepstral_offset(qapp):
+    v = TriangleView(_repo())
+    spec = HandcraftedSpec(cepstral=True)  # energy dropped -> 5 per band + 16 cepstral
+    v._map_features_to_bands(spec, n_energy_bands=16, n_features=16 + 5 * 16)
+    assert (v._n_bands, v._per_band, v._cepstral_offset) == (16, 5, 16)
+    assert v._band_for_feature(10) is None          # inside the global cepstral coeffs
+    assert v._band_for_feature(16) == 0
+
+
+def test_feature_band_map_disabled_when_layout_not_one_to_one(qapp):
+    v = TriangleView(_repo())
+    v._map_features_to_bands(HandcraftedSpec(), n_energy_bands=16, n_features=50)
+    assert v._n_bands == 0
+
+
+def test_highlight_items_added_and_cleared(qapp):
+    v = TriangleView(_repo())
+    v._pw = v._layout.addPlot()
+    v._pf = v._layout.addPlot()
+    v._matrix = _FakeThesis()._fm
+    v._run_node = TreeNode("run", "r", {"level": "run", "phase": "p", "run_tag": "hc_haar_lfcc_c1_eeg"})
+    v._map_features_to_bands(HandcraftedSpec(), 4, 24)  # 4 bands x 6
+    v._hl_band = 1
+    v._apply_highlight()
+    assert v._hl_line is not None and v._hl_region is not None
+    v._hl_band = None
+    v._apply_highlight()
+    assert v._hl_line is None and v._hl_region is None

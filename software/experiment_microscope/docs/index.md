@@ -106,8 +106,10 @@ Generated captions are checked against a banned-inferential-word list
   autoencoder `.npz`; `meeting01`'s were purged and the reprocess is a
   multi-hour guarded run. `snn_ae_forward` works but `meeting01`'s `time_steps=1`
   gives a single-step forward pass, so there is no spike raster over time.
-- **No 3D.** PyVista/VTK are installed and the panel slot exists (§11/§18/§19)
-  but nothing populates it.
+- **3D is only the wavelet coefficient landscape** (§11) — the "Wavelet 3D" tab
+  (X = coeff index, Y = packet leaf, Z = magnitude, threshold + isolate-leaf
+  controls). The SNN 3D activity view (§18) and latent explorer (§19) are not
+  built.
 - **Triangle feature-bar ↔ wavelet-leaf cross-highlight** is not wired: the C++
   does not expose which wavelet band each handcrafted feature came from.
 - **`meeting01` animation** is limited to what `build_split` returns; the

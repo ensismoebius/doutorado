@@ -44,6 +44,7 @@ from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
 from experiment_microscope.views.triangle_view import TriangleView
+from experiment_microscope.views.wavelet_3d import Wavelet3D
 from experiment_microscope.views.wavelet_lab import WaveletLab
 
 _ORG = "doutorado"
@@ -77,6 +78,7 @@ class Workspace(QMainWindow):
         self.tabs.setDocumentMode(True)
         self.signal_view = SignalView(self.repo, self.selection)
         self.wavelet_lab = WaveletLab(self.repo, self.selection)
+        self.wavelet_3d = Wavelet3D(self.repo, self.app_state)
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo)
         self.para_plane = ParaconsistentPlane(self.repo)
@@ -86,6 +88,7 @@ class Workspace(QMainWindow):
         self.pipeline_dag.node_activated.connect(self._open_tab)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
+        self.tabs.addTab(self.wavelet_3d, "Wavelet 3D")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
@@ -205,6 +208,7 @@ class Workspace(QMainWindow):
         self.provenance.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
+        self.wavelet_3d.show_node(node, adapter_key)
         self.feature_matrix.show_node(node, adapter_key)
         self.encoding_lab.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
