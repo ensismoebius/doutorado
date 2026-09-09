@@ -92,6 +92,16 @@ class ExperimentEvents
     void open(const std::string& path);
     [[nodiscard]] auto is_open() const -> bool;
 
+    // Close and re-open the same path in APPEND mode. Call before the terminal
+    // events (fold_end / session_end / session_error): a long-lived ofstream
+    // keeps writing to its original inode, so if an external process replaced
+    // the file on disk mid-run (a `git checkout` / `git stash` / `git clean` on
+    // a tracked events file — see .gitignore) every later write silently went
+    // to the now-unlinked inode and the on-disk log froze. Re-opening by path
+    // re-attaches to whatever inode currently lives there so at least the run's
+    // terminal state is recorded. No-op when the sink is disabled.
+    void reopen_append();
+
     // Fields merged into every subsequent line: {v, run_tag, dataset, fold}.
     void set_common(nlohmann::json common);
 
@@ -111,6 +121,8 @@ class ExperimentEvents
 
     mutable std::mutex mu_;
     std::ofstream out_;
+    std::string path_;
+    bool warned_closed_ = false;
     nlohmann::json common_ = nlohmann::json::object();
     EventContext pending_;
 };

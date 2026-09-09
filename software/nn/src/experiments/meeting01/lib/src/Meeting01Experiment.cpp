@@ -1464,10 +1464,16 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 write_per_window_errors_csv(pw_path, pw_rows);
             }
 
+            // Re-attach to the on-disk file by path before the terminal event:
+            // an external process (e.g. a `git` working-tree op on a tracked
+            // events file) may have swapped the inode mid-run, leaving our fd
+            // pointed at an unlinked orphan.
+            ExperimentEvents::instance().reopen_append();
             ExperimentEvents::instance().emit(
                 "fold_end", {{"dataset", dataset_name}, {"pw_rows", pw_rows.size()}});
         }
 
+        ExperimentEvents::instance().reopen_append();
         ExperimentEvents::instance().emit(
             "session_end", {{"status", "ok"}, {"n_rows", all_rows.size()}});
         ExperimentEvents::instance().close();
@@ -1488,6 +1494,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
     catch (const std::exception& ex)
     {
         NN_LOG_ERROR(std::string("[comparative] Fatal error: ") + ex.what());
+        ExperimentEvents::instance().reopen_append();
         ExperimentEvents::instance().emit("session_error", {{"what", ex.what()}});
         ExperimentEvents::instance().close();
         return 1;

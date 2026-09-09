@@ -20,3 +20,12 @@ __pycache__/
 
 # code_intelligence index (44MB SQLite cache, rebuilt on demand)
 .code-intelligence/
+
+# Live experiment event logs — a running meeting01 process holds one of these
+# open (single long-lived ofstream) for the whole run. If git ever mutates the
+# working-tree copy (checkout / stash / clean / a background auto-commit that
+# reverts it) the process's fd is orphaned onto the old inode and the on-disk
+# log silently freezes mid-run — the run still finishes but has no session_end,
+# so the monitor reports a false "[FAILED]". Never track these.
+results/meeting01/*_events.jsonl
+results/thesis/**/*_events.jsonl
