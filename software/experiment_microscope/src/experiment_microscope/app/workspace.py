@@ -33,6 +33,7 @@ from experiment_microscope.data.repository import DataRepository
 import numpy as np
 
 from experiment_microscope.views.bookmarks_dock import BookmarksDock
+from experiment_microscope.views.comparison_view import ComparisonView
 from experiment_microscope.views.developer_panel import DeveloperPanel
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
@@ -85,6 +86,7 @@ class Workspace(QMainWindow):
         self.pipeline_dag = PipelineDag()
         self.triangle = TriangleView(self.repo)
         self.triangle.set_timeline(self.timeline)
+        self.comparison = ComparisonView(self.repo)
         self.pipeline_dag.node_activated.connect(self._open_tab)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
@@ -94,6 +96,7 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
         self.tabs.addTab(self.pipeline_dag, "Pipeline")
         self.tabs.addTab(self.triangle, "Triangle")
+        self.tabs.addTab(self.comparison, "Comparison")
 
         self.follow_bar = FollowDataBar(self.repo)
         self.follow_bar.stage_activated.connect(self._open_tab)
