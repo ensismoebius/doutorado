@@ -236,6 +236,15 @@ class ThesisAdapter(ExperimentAdapter):
             label=f"EEG sample #{h['index']} (subj {s['subject_id']}, stim {s['stimulus']})",
         )
 
+    def artifact_files(self, node: TreeNode) -> list[str]:
+        h = getattr(node, "handle", {}) or {}
+        phase, tag = h.get("phase"), h.get("run_tag")
+        if not phase or not tag:
+            return []
+        d = self._phase_dir(phase)
+        cands = [d / f"e05_{tag}{sfx}" for sfx in (_PARA_SUFFIX, _SUMMARY_SUFFIX, "_metrics.csv")]
+        return [str(p) for p in cands if p.is_file()]
+
     # -- helpers ------------------------------------------------
     def _para_rows(self, phase: str, run_tag: str) -> list[dict[str, Any]]:
         path = self._phase_dir(phase) / f"e05_{run_tag}{_PARA_SUFFIX}"

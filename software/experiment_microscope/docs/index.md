@@ -59,7 +59,7 @@ fallback number (loud failure, §33).
 |---|---|---|---|
 | `meeting01` | nested-LOSO SNN vs LSTM/GRU/Transformer autoencoders (FSDD / AudioMNIST / MIT-BIH) | `results/meeting01/*_events.jsonl`, `*_comparative_metrics.csv`; `~/…/free-spoken-digit-dataset` corpus | `nn_microscope.meeting01` (`build_split`, `encode_sample`, `apply_snn_architecture_transform`, `snn_ae_forward`) |
 | `thesis` | handcrafted wavelet + paraconsistent feature selection + DSNN authentication | `results/thesis/phase00,phase01/*_{paraconsistent.csv,summary.json,metrics.csv}`; `~/database.sqlite` | `nn_microscope.thesis` + `nn_microscope.wavelet` (`load_dataset`, `extract_handcrafted_features`, `rank_feature_sets`) |
-| `paraconsistent_ga` | NSGA-II feature-set search | `results/paraconsistentGA/pga_*_{pareto.json,individuals.csv}` | — (reads persisted Pareto fronts only) |
+| `paraconsistent_ga` | NSGA-II architecture search | `results/paraconsistentGA/pga_*_{pareto.json,individuals.csv}` | — (reads persisted Pareto fronts only; "NSGA-II" tab) |
 
 `meeting01` was purged of persisted per-run results and works purely by live
 recompute; `thesis` never persisted anything per-sample, so it always did.

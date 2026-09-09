@@ -93,6 +93,40 @@ class ParaconsistentGaAdapter(ExperimentAdapter):
             ]
         return []
 
+    # -- NSGA-II view data (FIXME §48) --------------------------
+    def ga_runs(self) -> list[str]:
+        return self._run_tags()
+
+    def population(self, run_tag: str) -> dict[str, Any]:
+        """``{front: [ind...], run_meta: {...}, ga: {...}, constraints: {...},
+        warnings: [...], n_evaluated: int}`` for one run.
+
+        The persisted ``*_pareto.json`` stores only the Pareto front individuals
+        (``pareto_front``); ``population`` in that file is run metadata
+        (modality / model / fusion), surfaced here as ``run_meta``. The full
+        evaluated population lives in the sibling ``*_individuals.csv`` and is
+        not loaded.
+        """
+        p = self._pareto(run_tag)
+        raw_pop = p.get("population")
+        return {
+            "front": p.get("pareto_front") or [],
+            "run_meta": raw_pop if isinstance(raw_pop, dict) else {},
+            "ga": p.get("ga") or {},
+            "constraints": p.get("constraints") or {},
+            "warnings": p.get("warnings") or [],
+            "n_evaluated": p.get("n_evaluated"),
+        }
+
+    def artifact_files(self, node: TreeNode) -> list[str]:
+        h = getattr(node, "handle", {}) or {}
+        tag = h.get("run_tag")
+        if not tag:
+            return []
+        cands = [self.results_dir / f"{tag}{_PARETO_SUFFIX}",
+                 self.results_dir / f"{tag}_individuals.csv"]
+        return [str(p) for p in cands if p.is_file()]
+
     def paraconsistent_points(self) -> list[ParaconsistentPoint]:
         points: list[ParaconsistentPoint] = []
         for tag in self._run_tags():

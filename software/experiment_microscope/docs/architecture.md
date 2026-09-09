@@ -63,6 +63,7 @@ from a `thesis` sample.
 | `load_metrics(node)` | `dict[str, Value]` | EER / AUC / … |
 | `load_latent(node, **p)` | `LatentTrace` | latent + reconstruction + optional spikes/v_mem |
 | `paraconsistent_points()` | `list[ParaconsistentPoint]` | feeds the G1×G2 plane |
+| `artifact_files(node)` | `list[str]` | on-disk files behind the node (§28); empty when recomputed |
 
 A payload that needs recompute and no `.so` raises `BindingUnavailableError`
 (message = the build command). A payload that does not apply raises
@@ -106,6 +107,10 @@ def can_export(self) -> bool  /  def export_figure(self, path, **opts): ...   # 
   its frame count; the player only ever emits a frame *index*, never data.
 - **matplotlib** is used only for file export (`viz/mpl_export.py`,
   `Figure` without pyplot, 300 dpi, `.png/.pdf/.svg`), never on screen.
+- **`views/artifact_inspector.py`** (§28, "Raw artifact" dock, tabbed with the
+  Inspector) — for a node backed by files (`adapter.artifact_files(node)`): path,
+  format, size, and for CSV / JSON / JSONL / .npy / .npz the shape, dtype,
+  min/max/mean/std and NaN/Inf counts. Recompute-only nodes say so.
 - **`views/developer_panel.py`** (§37, opt-in) — frame time, cache hit rate,
   worker occupancy, and shape-consistency checks (transformed size a power of
   two? reconstruction length == raw length?).

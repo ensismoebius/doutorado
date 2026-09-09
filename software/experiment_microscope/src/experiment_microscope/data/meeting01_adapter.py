@@ -333,6 +333,19 @@ class Meeting01Adapter(ExperimentAdapter):
             metrics=_recon_metrics(original, recon),
         )
 
+    def artifact_files(self, node: TreeNode) -> list[str]:
+        h = getattr(node, "handle", {}) or {}
+        dataset, fold = h.get("dataset"), h.get("cv_fold")
+        if dataset is None or fold is None:
+            return []
+        cands = [
+            self.results_dir / f"{_RUN_TAG}_{dataset}_fold{fold}_events.jsonl",
+            self.results_dir / f"{_RUN_TAG}_{dataset}_fold{fold}_comparative_metrics.csv",
+            self.results_dir / f"{_RUN_TAG}_{dataset}_fold{fold}_per_window_errors.csv",
+            self.results_dir / f"{_RUN_TAG}_{dataset}_fold{fold}_split_manifest.json",
+        ]
+        return [str(p) for p in cands if p.is_file()]
+
     def load_provenance(self, node: TreeNode) -> ProvenanceRecord:
         h = node.handle
         dataset = h.get("dataset")

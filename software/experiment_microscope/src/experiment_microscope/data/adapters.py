@@ -131,6 +131,13 @@ class ExperimentAdapter(abc.ABC):
     def paraconsistent_points(self) -> list[ParaconsistentPoint]:
         return []
 
+    def artifact_files(self, node: TreeNode) -> list[str]:
+        """On-disk files the selected object originates from (FIXME §28).
+
+        Absolute paths, existing files only. Empty when the object is fully
+        recomputed (no persisted artifact)."""
+        return []
+
 
 def missing_map(*names: str) -> dict[str, Value]:
     return {n: Value.missing() for n in names}

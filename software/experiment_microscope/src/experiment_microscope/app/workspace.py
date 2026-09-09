@@ -32,12 +32,14 @@ from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
 import numpy as np
 
+from experiment_microscope.views.artifact_inspector import ArtifactInspector
 from experiment_microscope.views.bookmarks_dock import BookmarksDock
 from experiment_microscope.views.comparison_view import ComparisonView
 from experiment_microscope.views.developer_panel import DeveloperPanel
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_landscape import ParaconsistentLandscape
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
+from experiment_microscope.views.nsga_view import NsgaView
 from experiment_microscope.views.pipeline_dag import PipelineDag
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
 from experiment_microscope.views.encoding_lab import EncodingLab
@@ -93,6 +95,7 @@ class Workspace(QMainWindow):
         self.triangle.set_timeline(self.timeline)
         self.comparison = ComparisonView(self.repo)
         self.reconstruction = ReconstructionView(self.repo)
+        self.nsga = NsgaView(self.repo)
         self.ranking = RankingView(self.repo)
         self.ranking.run_activated.connect(self._on_ranking_run)
         self.timeline_view = ExperimentTimeline(self.repo)
@@ -110,6 +113,7 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.pipeline_dag, "Pipeline")
         self.tabs.addTab(self.triangle, "Triangle")
         self.tabs.addTab(self.comparison, "Comparison")
+        self.tabs.addTab(self.nsga, "NSGA-II")
         self.tabs.addTab(self.ranking, "Ranking")
         self.tabs.addTab(self.timeline_view, "Timeline")
 
@@ -144,7 +148,12 @@ class Workspace(QMainWindow):
         self._dock("Data Explorer", self.explorer, Qt.DockWidgetArea.LeftDockWidgetArea)
 
         self.provenance = ProvenanceInspector(self.repo)
-        self._dock("Inspector", self.provenance, Qt.DockWidgetArea.RightDockWidgetArea)
+        prov_dock = self._dock("Inspector", self.provenance, Qt.DockWidgetArea.RightDockWidgetArea)
+
+        self.artifact_inspector = ArtifactInspector(self.repo)
+        art_dock = self._dock("Raw artifact", self.artifact_inspector, Qt.DockWidgetArea.RightDockWidgetArea)
+        self.tabifyDockWidget(prov_dock, art_dock)
+        prov_dock.raise_()
 
         self.session_log = QPlainTextEdit()
         self.session_log.setReadOnly(True)
@@ -233,6 +242,7 @@ class Workspace(QMainWindow):
         self.follow_bar.update_for(node, adapter_key)
         self.pipeline_dag.show_experiment(adapter_key)
         self.provenance.show_node(node, adapter_key)
+        self.artifact_inspector.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
         self.wavelet_3d.show_node(node, adapter_key)
@@ -240,6 +250,7 @@ class Workspace(QMainWindow):
         self.encoding_lab.show_node(node, adapter_key)
         self.reconstruction.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
+        self.nsga.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
             self.timeline_view.refresh()
