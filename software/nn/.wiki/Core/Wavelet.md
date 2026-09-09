@@ -181,6 +181,8 @@ ctest --test-dir out/build/max-performance -R PyWtParity
 - [Wave](./Wave.md) - Related signal processing
 - [Statistics](./Statistics.md) - Time-frequency analysis
 - [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md)
+- [Experiment Microscope](../Guides/Experiment-Microscope.md) — `malat` is exposed to the
+  inspection GUI as `nn_microscope.wavelet.decompose`
 
 ## References
 

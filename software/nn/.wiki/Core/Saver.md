@@ -136,6 +136,9 @@ model.load_state_dict(restored);
 - [Optimizers](./Optimizers.md) - Saving optimizer state
 - [Training](./Training.md) - Checkpoint integration
 - [Architecture](../Architecture.md) - Save/load in training loop
+- [Experiment Microscope](../Guides/Experiment-Microscope.md) - `meeting01` now also emits
+  `NetworkSerializer` `.npz` for the SNN-AE `encoder_`/`decoder_` so the GUI can reload a
+  trained model and rerun one window's forward pass
 
 ## References
 

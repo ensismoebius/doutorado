@@ -238,6 +238,9 @@ flowchart LR
 - [Concepts/LFCC](../Concepts/LFCC.md) — Linear cepstral features evaluated by this method
 - [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) — EEG signal source
 - [Research-Context](../Research-Context.md) — Thesis overview
+- [Experiment Microscope](../Guides/Experiment-Microscope.md) — `score_feature_set` /
+  `rank_feature_sets` are recomputed live in the GUI (`nn_microscope.thesis`), bit-exact vs
+  persisted results
 
 ---
 

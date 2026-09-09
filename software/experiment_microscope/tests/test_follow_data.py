@@ -60,6 +60,28 @@ def test_thesis_eeg_sample_signal_and_wavelet():
     assert wl.decompose(sig.samples[0], "haar", "packet", 4).leaf_count == 16
 
 
+@pytest.mark.slow
+def test_thesis_run_feature_matrix_recompute():
+    from experiment_microscope.data.thesis_adapter import ThesisAdapter
+    from experiment_microscope.paths import THESIS_DEFAULT_DB
+
+    if not THESIS_DEFAULT_DB.is_file():
+        pytest.skip("~/database.sqlite absent")
+    a = ThesisAdapter()
+    phases = a.children(a.root_nodes()[0])
+    if not phases:
+        pytest.skip("no thesis results")
+    runs = a.children(phases[0])
+    hc = [r for r in runs if "hc_" in r.handle.get("run_tag", "")
+          and (a._summary(r.handle["phase"], r.handle["run_tag"]).get("strategy") == "handcrafted")]
+    if not hc:
+        pytest.skip("no handcrafted phase00 run")
+    fm = a.load_features(hc[0])
+    assert fm.values.ndim == 2 and fm.values.shape[0] == len(fm.sample_labels)
+    assert fm.origin.value == "computed"
+    assert a.load_features(hc[0]) is fm  # cached
+
+
 def test_window_feeds_wavelet_decompose():
     a = Meeting01Adapter()
     node = _first_window_node(a)

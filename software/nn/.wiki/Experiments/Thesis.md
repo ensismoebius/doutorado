@@ -660,6 +660,9 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 - [Experiment04](./Meeting01.md) — prior congress paper experiment
 - [Re-run Runbook](../Guides/Re-run-Runbook.md) — commands to regenerate every result
 - [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the current `d_penalized` metric, 208-profile grid, and re-run
+- [Experiment Microscope](../Guides/Experiment-Microscope.md) — inspect a Phase-00 run down to
+  per-sample EEG channels and wavelet leaves; the GUI recomputes `load_dataset → extract_features
+  → rank_feature_sets` via `nn_microscope.thesis`
 
 ---
 

@@ -24,6 +24,7 @@ from typing import Any
 from experiment_microscope.core.integrity import Origin, Value
 from experiment_microscope.data.adapters import (
     ExperimentAdapter,
+    FeatureMatrix,
     ParaconsistentPoint,
     ProvenanceRecord,
     TreeNode,
@@ -73,6 +74,7 @@ class ThesisAdapter(ExperimentAdapter):
         self.results_dir = Path(results_dir) if results_dir else THESIS_RESULTS
         self.db_path = Path(db_path) if db_path else THESIS_DEFAULT_DB
         self._view_cache: dict[str, Any] = {}  # modality -> nn_microscope DatasetView
+        self._feat_cache: dict[str, FeatureMatrix] = {}  # run_tag -> recomputed matrix
 
     # -- live dataset (recomputed via nn_microscope.thesis) ---------------
     def _view(self, modality: str):
@@ -165,6 +167,53 @@ class ThesisAdapter(ExperimentAdapter):
                 for i in range(n)
             ]
         return []
+
+    def load_features(self, node: TreeNode) -> FeatureMatrix:
+        """Recompute a Phase-00 run's handcrafted feature matrix live (FIXME §14).
+
+        Uses the run's own ``summary.json`` handcrafted config so the matrix is
+        the one that produced the persisted ranking.
+        """
+        h = node.handle
+        if h.get("level") != "run":
+            raise NotImplementedError("select a Phase-00 run node to recompute its feature matrix")
+        phase, tag = h.get("phase"), h.get("run_tag")
+        if not tag:
+            raise NotImplementedError("select a Phase-00 run")
+        s = self._summary(phase, tag)
+        hc = s.get("handcrafted") or {}
+        modality = s.get("modality") or "eeg"
+        if s.get("strategy") != "handcrafted":
+            raise NotImplementedError("live feature matrix is only wired for handcrafted runs")
+        cached = self._feat_cache.get(tag)
+        if cached is not None:
+            return cached
+        nm = load_binding()
+        view = self._view(modality)
+        sets = nm.thesis.extract_handcrafted_features(
+            view,
+            modality=modality,
+            transform=hc.get("transform", "dtwpt"),
+            scale=hc.get("scale", "lfcc"),
+            descriptors=list(hc.get("descriptors", ["energy", "zcr", "entropy", "teager"])),
+            dtwpt_level=int(hc.get("dtwpt_level", 4)),
+            wavelet=hc.get("wavelet", "daub4"),
+            cepstral=bool(hc.get("cepstral", False)),
+            seed=int(s.get("seed", 42)),
+        )
+        fs = sets[0]
+        values = np.asarray(fs.vectors, dtype=float)
+        subj = list(view.subject_ids)
+        matrix = FeatureMatrix(
+            values=values,
+            feature_names=tuple(f"f{j}" for j in range(values.shape[1])),
+            sample_labels=tuple(f"#{i} subj{subj[i]}" for i in range(values.shape[0])),
+            class_labels=tuple(subj),
+            origin=Origin.COMPUTED,
+            set_label=f"{tag} / {fs.label}",
+        )
+        self._feat_cache[tag] = matrix
+        return matrix
 
     def load_signal(self, node: TreeNode) -> Signal1D:
         h = node.handle

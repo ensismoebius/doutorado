@@ -152,6 +152,11 @@ Run in order; `thesis` is the primary experiment.
 - [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) — the Thesis runner
 - [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
 
+**Inspecting results**
+- [The Experiment Microscope](./Guides/Experiment-Microscope.md) — the PySide6 inspection GUI
+  (`software/experiment_microscope/`) and its `nn_microscope` pybind11 binding: walk any pipeline
+  number back to the raw signal
+
 **Performance and debugging**
 - [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) — **read
   before touching the OpenCL backend** (contains a memory-corruption hazard warning)
@@ -194,6 +199,14 @@ quantization and SNN mechanics, opened live from the lecture slides
 5. **Experiment Tracking**: JSON-based results logging with metrics
 
 ## Recent Highlights
+
+- New **`nn_microscope`** pybind11 binding (`src/bindings/`, `python-bindings` preset) and the
+  **[Experiment Microscope](./Guides/Experiment-Microscope.md)** GUI at
+  `software/experiment_microscope/`. The GUI recomputes wavelet / handcrafted-feature /
+  paraconsistent intermediates by calling the experiment's own C++ — a live thesis Phase-00
+  recompute matches the persisted `*_paraconsistent.csv` to all 8 decimals.
+- `meeting01` `save_models` now also writes `NetworkSerializer` `.npz` for the SNN-AE
+  encoder/decoder ([Meeting01 → Saved models](./Experiments/Meeting01.md#saved-models-datasetsave_models-true)).
 
 - OpenCL tensor backend gained a tuned lhs-transposed matmul path used by
     Linear backward `dL/dW` on GPU.

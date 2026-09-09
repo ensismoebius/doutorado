@@ -385,6 +385,20 @@ Results written to `results/` (or `dataset.results_dir` from profile):
 
 Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
+#### Saved models (`dataset.save_models: true`)
+
+Written to `results/meeting01/models/`, per (dataset, fold, encoding, architecture,
+v_th, alpha, run):
+
+| File | Format | Consumer |
+|------|--------|----------|
+| `…_encoder_params.txt` / `…_decoder_params.txt` | text parameter dump | human inspection, `scripts/data/npz_to_pytorch.py` |
+| `…_encoder.npz` / `…_decoder.npz` | `NetworkSerializer` npz (`Linear`/`Lif`) | `nn_microscope.meeting01.snn_ae_forward` — the [Experiment Microscope](../Guides/Experiment-Microscope.md) reloads these to reproduce a window's latent + reconstruction without retraining |
+
+`role` in the filename is `combo` for a sweep candidate and `final` for the
+retrained winner. `01_meeting01_run_loso.sh` clears `results/meeting01/models/`
+on a fresh run.
+
 ### Paper data pipeline
 
 ```bash
