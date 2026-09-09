@@ -9,16 +9,20 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "ThesisConfig.hpp"
+#include "ThesisDataset.hpp"
 #include "ThesisFeatureExtraction.hpp"
 #include "ThesisParaconsistent.hpp"
 #include "ThesisSample.hpp"
+#include "tensor_bridge.hpp"
 
 namespace py = pybind11;
+using nn_microscope::to_numpy;
 
 namespace
 {
@@ -117,4 +121,113 @@ void bind_thesis(py::module_& parent)
         "Grouping is by subject_id; d_penalized = d_truth + (2 - sqrt(2)) * |g2|.");
 
     m.attr("K_CONTRADICTION_PENALTY") = thesis::kContradictionPenalty;
+
+    // -- dataset -> features -> paraconsistent ranking (the full Phase 00 chain) -------
+    using ViewPtr = std::shared_ptr<thesis::ThesisDatasetView>;
+
+    py::class_<thesis::ThesisDatasetView, ViewPtr>(m, "DatasetView")
+        .def_property_readonly(
+            "n_samples", [](const thesis::ThesisDatasetView& v) { return v.samples.size(); })
+        .def_readonly("n_subjects", &thesis::ThesisDatasetView::n_subjects)
+        .def_readonly("n_stimuli", &thesis::ThesisDatasetView::n_stimuli)
+        .def_property_readonly("subject_ids",
+            [](const thesis::ThesisDatasetView& v)
+            {
+                std::vector<int> ids;
+                ids.reserve(v.samples.size());
+                for (const auto& s : v.samples) ids.push_back(s.subject_id);
+                return ids;
+            })
+        .def_property_readonly("stimuli",
+            [](const thesis::ThesisDatasetView& v)
+            {
+                std::vector<int> st;
+                st.reserve(v.samples.size());
+                for (const auto& s : v.samples) st.push_back(s.stimulus);
+                return st;
+            })
+        .def(
+            "sample",
+            [](const thesis::ThesisDatasetView& v, std::size_t i)
+            {
+                if (i >= v.samples.size())
+                {
+                    throw std::out_of_range("DatasetView.sample: index " + std::to_string(i) +
+                                            " >= n_samples " + std::to_string(v.samples.size()));
+                }
+                const auto& s = v.samples[i];
+                py::dict d;
+                d["subject_id"] = s.subject_id;
+                d["stimulus"] = s.stimulus;
+                d["text_phrase"] = s.text_phrase;
+                d["audio"] = to_numpy(s.audio); // (N_audio, 1)
+                d["eeg"] = to_numpy(s.eeg);     // (N_channels, N_samples)
+                return d;
+            },
+            py::arg("index"),
+            "Raw audio + EEG tensors for one sample, as ndarrays.");
+
+    py::class_<thesis::FeatureSet>(m, "FeatureSet")
+        .def_readonly("label", &thesis::FeatureSet::label)
+        .def_readonly("vectors", &thesis::FeatureSet::vectors)
+        .def("__repr__",
+            [](const thesis::FeatureSet& f)
+            { return "<FeatureSet '" + f.label + "' x" + std::to_string(f.vectors.size()) + ">"; });
+
+    m.def(
+        "load_dataset",
+        [](const std::string& root, const std::string& modality, int max_samples)
+        {
+            thesis::ThesisConfig::Dataset d;
+            d.root = root;
+            d.modality = modality;
+            d.max_samples = max_samples;
+            return std::make_shared<thesis::ThesisDatasetView>(thesis::load_dataset(d));
+        },
+        py::arg("root"),
+        py::arg("modality") = "eeg",
+        py::arg("max_samples") = 0,
+        "thesis::load_dataset — root may be a subject directory or a .sqlite file "
+        "('~' is expanded). modality: voice | eeg | fused.");
+
+    m.def(
+        "extract_handcrafted_features",
+        [](const ViewPtr& view,
+            const std::string& modality,
+            const std::string& transform,
+            const std::string& scale,
+            const std::vector<std::string>& descriptors,
+            int dtwpt_level,
+            const std::string& wavelet,
+            bool cepstral,
+            const std::string& fusion_mode,
+            std::uint32_t seed)
+        {
+            thesis::ThesisConfig::FeatureExtraction fx;
+            fx.strategy = "handcrafted";
+            fx.handcrafted =
+                make_handcrafted_cfg(transform, scale, descriptors, dtwpt_level, wavelet, cepstral);
+            const thesis::ThesisConfig::Training training{};
+            return thesis::extract_features(*view, fx, training, modality, fusion_mode, seed);
+        },
+        py::arg("view"),
+        py::arg("modality") = "eeg",
+        py::arg("transform") = "dtwpt",
+        py::arg("scale") = "lfcc",
+        py::arg("descriptors") = std::vector<std::string>{"energy", "zcr", "entropy", "teager"},
+        py::arg("dtwpt_level") = 4,
+        py::arg("wavelet") = "daub4",
+        py::arg("cepstral") = false,
+        py::arg("fusion_mode") = "late",
+        py::arg("seed") = 42U,
+        "thesis::extract_features with the handcrafted strategy — one FeatureSet per "
+        "modality/config, vectors aligned with view.samples.");
+
+    m.def(
+        "rank_feature_sets",
+        [](const ViewPtr& view, const std::vector<thesis::FeatureSet>& sets)
+        { return thesis::rank_feature_sets(view->samples, sets); },
+        py::arg("view"),
+        py::arg("feature_sets"),
+        "thesis::rank_feature_sets — ParaconsistentScore per set, ascending by d_penalized.");
 }
