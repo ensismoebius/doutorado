@@ -29,7 +29,11 @@ from experiment_microscope.data.adapters import (
     TreeNode,
     missing_map,
 )
-from experiment_microscope.paths import THESIS_RESULTS
+from experiment_microscope.data.adapters import Signal1D
+from experiment_microscope.paths import THESIS_DEFAULT_DB, THESIS_RESULTS
+from experiment_microscope.processing._binding import BindingUnavailableError, load_binding
+
+import numpy as np
 
 _PARA_SUFFIX = "_paraconsistent.csv"
 _SUMMARY_SUFFIX = "_summary.json"
@@ -65,8 +69,19 @@ class ThesisAdapter(ExperimentAdapter):
     key = "thesis"
     title = "Thesis"
 
-    def __init__(self, results_dir: Path | None = None) -> None:
+    def __init__(self, results_dir: Path | None = None, db_path: Path | None = None) -> None:
         self.results_dir = Path(results_dir) if results_dir else THESIS_RESULTS
+        self.db_path = Path(db_path) if db_path else THESIS_DEFAULT_DB
+        self._view_cache: dict[str, Any] = {}  # modality -> nn_microscope DatasetView
+
+    # -- live dataset (recomputed via nn_microscope.thesis) ---------------
+    def _view(self, modality: str):
+        v = self._view_cache.get(modality)
+        if v is None:
+            nm = load_binding()
+            v = nm.thesis.load_dataset(str(self.db_path), modality, 0)
+            self._view_cache[modality] = v
+        return v
 
     # -- discovery ------------------------------------------------
     def _phase_dir(self, phase: str) -> Path:
@@ -111,7 +126,7 @@ class ThesisAdapter(ExperimentAdapter):
         if level == "run":
             phase, tag = h["phase"], h["run_tag"]
             rows = self._para_rows(phase, tag)
-            return [
+            out: list[TreeNode] = [
                 TreeNode(
                     "result",
                     r["label"],
@@ -121,7 +136,56 @@ class ThesisAdapter(ExperimentAdapter):
                 )
                 for r in rows
             ]
+            modality = (self._run_metadata(phase, tag) or {}).get("modality")
+            if modality in ("eeg", "voice", "fused"):
+                out.append(
+                    TreeNode(
+                        "dataset",
+                        f"samples ({modality}, live)",
+                        {"level": "samples", "phase": phase, "run_tag": tag, "modality": modality},
+                    )
+                )
+            return out
+        if level == "samples":
+            try:
+                view = self._view(h["modality"])
+            except BindingUnavailableError:
+                return []
+            subj = view.subject_ids
+            stim = view.stimuli
+            n = min(view.n_samples, 200)  # lazy cap (FIXME §7)
+            return [
+                TreeNode(
+                    "sample",
+                    f"#{i}  subj {subj[i]}  stim {stim[i]}",
+                    {"level": "sample", "modality": h["modality"], "index": i},
+                    metadata={"subject_id": subj[i], "stimulus": stim[i]},
+                    has_children=False,
+                )
+                for i in range(n)
+            ]
         return []
+
+    def load_signal(self, node: TreeNode) -> Signal1D:
+        h = node.handle
+        if h.get("level") != "sample":
+            raise NotImplementedError("select an individual thesis sample")
+        modality = h["modality"]
+        view = self._view(modality)
+        s = view.sample(h["index"])
+        if modality == "voice":
+            data = np.asarray(s["audio"]).reshape(-1)
+            return Signal1D(
+                samples=data, sample_rate=44100.0, origin=Origin.MEASURED,
+                unit="amplitude",
+                label=f"voice sample #{h['index']} (subj {s['subject_id']}, stim {s['stimulus']})",
+            )
+        eeg = np.asarray(s["eeg"])  # (channels, samples)
+        return Signal1D(
+            samples=eeg, sample_rate=1024.0, origin=Origin.MEASURED,
+            channel_names=tuple(f"ch{c}" for c in range(eeg.shape[0])), unit="µV",
+            label=f"EEG sample #{h['index']} (subj {s['subject_id']}, stim {s['stimulus']})",
+        )
 
     # -- helpers ------------------------------------------------
     def _para_rows(self, phase: str, run_tag: str) -> list[dict[str, Any]]:

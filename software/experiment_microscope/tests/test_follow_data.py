@@ -39,6 +39,27 @@ def test_meeting01_window_signal_is_zscored():
     assert abs(x.mean()) < 1e-5 and abs(x.std() - 1.0) < 1e-3
 
 
+def test_thesis_eeg_sample_signal_and_wavelet():
+    from experiment_microscope.data.thesis_adapter import ThesisAdapter
+    from experiment_microscope.paths import THESIS_DEFAULT_DB
+
+    if not THESIS_DEFAULT_DB.is_file():
+        pytest.skip("~/database.sqlite absent")
+    a = ThesisAdapter()
+    phases = a.children(a.root_nodes()[0])
+    if not phases:
+        pytest.skip("no thesis results")
+    run = a.children(phases[0])[0]
+    groups = [n for n in a.children(run) if n.handle.get("level") == "samples"]
+    if not groups:
+        pytest.skip("run has no live-sample group")
+    sig = a.load_signal(a.children(groups[0])[2])
+    assert sig.samples.ndim == 2 and sig.samples.shape[0] == 6
+    from experiment_microscope.processing import wavelet as wl
+
+    assert wl.decompose(sig.samples[0], "haar", "packet", 4).leaf_count == 16
+
+
 def test_window_feeds_wavelet_decompose():
     a = Meeting01Adapter()
     node = _first_window_node(a)

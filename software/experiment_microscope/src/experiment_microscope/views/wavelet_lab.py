@@ -104,7 +104,10 @@ class WaveletLab(QWidget):
             return
         from experiment_microscope.processing import wavelet as wl
 
-        data = np.asarray(self._signal.samples, dtype=float).ravel()
+        raw = np.asarray(self._signal.samples, dtype=float)
+        # multichannel (EEG): decompose channel 0; a channel selector lands with
+        # the SNN-lab wiring (FIXME §8 channel selection).
+        data = raw[0] if raw.ndim == 2 else raw.ravel()
         try:
             self._decomp = wl.decompose(
                 data, self._wavelet.currentText(), self._mode.currentText(), self._level.value()
