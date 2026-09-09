@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.core.selection import SelectionState
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
@@ -42,6 +43,30 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 from experiment_microscope.views._timesync import TimeCursor
 
 _ENCODINGS = ("direct", "poisson", "latency")
+
+
+_HELP = """
+<b>What this shows.</b> How a meeting01 window becomes spikes.
+SNN = Spiking Neural Network; its neurons fire discrete 0/1 <b>spikes</b> instead
+of sending continuous numbers.
+<br><br>
+<b>Panel 1</b> — the normalised (z-scored) window.
+<b>Panel 2</b> — the input <b>spike train</b> for the chosen encoding
+(<i>direct</i> = pass-through, <i>poisson</i> = firing rate ∝ value,
+<i>latency</i> = bigger value fires earlier). Each mark is one spike; click it
+for its exact time.
+<b>Panel 3</b> — the <b>membrane voltage</b> v[t] of the recurrent
+Leaky-Integrate-and-Fire (LIF) transform, sweeping the 256 window samples as time
+steps: <code>v[t] = α·v[t−1] + x[t] − s[t−1]·v_th</code>. The dashed red line is
+the threshold <b>v_th</b>; a green mark sits on every step where v crossed it and
+the neuron fired.
+<b>Panel 4</b> (only with a trained model) — one membrane value per encoder LIF
+neuron, a snapshot because that network runs with a single time step.
+<br><br>
+<b>Sliders.</b> <b>α</b> (alpha) = leak, 0…1: near 1 the neuron remembers input
+longer. <b>v_th</b> = threshold: higher → fewer spikes.
+"""
+
 
 
 class SnnLab(QWidget):
@@ -58,6 +83,8 @@ class SnnLab(QWidget):
         self._window: np.ndarray | None = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('SNN Lab', _HELP))
         bar = QHBoxLayout()
         self._encoding = QComboBox()
         self._encoding.addItems(_ENCODINGS)

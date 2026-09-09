@@ -12,6 +12,8 @@ and the other views follow.
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -27,6 +29,18 @@ from experiment_microscope.data.repository import DataRepository
 
 _COLS = ("experiment", "run_tag", "feature set", "modality/enc", "seed",
          "alpha", "beta", "G1", "G2", "d_truth", "d_penalized")
+
+
+_HELP = """
+<b>What this shows.</b> Every persisted <b>paraconsistent</b> score from every
+experiment in one sortable table: experiment, run, feature set, modality /
+encoding, seed, and then α, β, G1, G2, D_truth, <b>D_penalized</b>.
+<br><br>
+Default sort is D_penalized ascending — <b>smaller is better</b> (it is the
+distance to "certainly true, no contradiction", with a contradiction penalty).
+Missing values show as "—" and sort last, never as 0. Type in the filter box to
+narrow by any text. Double-click a row to jump to that experiment.
+"""
 
 
 class _NumItem(QTableWidgetItem):
@@ -61,6 +75,8 @@ class RankingView(QWidget):
         self._rows: list[tuple] = []
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Ranking', _HELP))
         self._filter = QLineEdit()
         self._filter.setPlaceholderText("filter (substring over experiment / run_tag / feature set)…")
         self._filter.textChanged.connect(self._apply_filter)

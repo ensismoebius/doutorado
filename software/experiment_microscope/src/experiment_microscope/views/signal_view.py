@@ -12,11 +12,32 @@ import numpy as np
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from experiment_microscope.core.selection import SelectionState
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 from experiment_microscope.views._timesync import TimeCursor
+
+
+_HELP = """
+<b>What this shows.</b> The signal exactly as the pipeline sees it for the
+selected sample — an audio waveform, or several stacked EEG channels
+(EEG = electroencephalogram, brain electrical activity).
+<br><br>
+<b>Axes.</b> Horizontal = sample number (multiply by 1/sampling-rate for seconds;
+the rate is in the title). Vertical = amplitude. For meeting01 windows the
+amplitude is <b>z-scored</b> (mean 0, spread 1) because that is what the models
+receive; the unit is shown on the left axis.
+<br><br>
+<b>Colours / lines.</b> One colour per channel, named in the legend. Drag on the
+plot to select a time range — downstream views can restrict to it. The vertical
+cursor line reports the exact value under it.
+<br><br>
+<b>DISPLAY-DOWNSAMPLED</b> in the title (and the status bar) means the drawn
+curve is decimated for speed; the cursor still reads the full-resolution number.
+"""
+
 
 
 class SignalView(QWidget):
@@ -37,6 +58,7 @@ class SignalView(QWidget):
         self.repo = repo
         self.app_state = app_state
         layout = QVBoxLayout(self)
+        layout.addWidget(HelpBox('Raw signal', _HELP))
         layout.setContentsMargins(0, 0, 0, 0)
         self._cursor = None
         self._last_signal = None

@@ -46,7 +46,7 @@ def test_view_renders_trace(qapp):
     v.show_node(TreeNode("sample", "w", {"level": "window"}), "meeting01")
     assert v._trace is not None
     assert v.can_export()
-    assert "latent dim 8" in v._status.text()
+    assert "latent = 8 numbers" in v._status.text()
 
 
 def test_real_snn_ae_forward_end_to_end(qapp, first_fsdd_window):

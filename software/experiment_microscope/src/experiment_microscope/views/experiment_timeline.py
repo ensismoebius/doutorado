@@ -18,6 +18,8 @@ the expected state right after the results purge.
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QLabel,
@@ -33,6 +35,21 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 _ROLE = Qt.ItemDataRole.UserRole
 
 
+_HELP = """
+<b>What this shows.</b> The meeting01 run as a tree: session → dataset / fold →
+config → epoch, built live from the structured event log.
+<br><br>
+Selecting a config plots its learning curve below: <b>train loss</b> and
+<b>validation loss</b> per epoch (loss = reconstruction error the optimiser
+minimises), a dashed line at the best epoch, epoch <b>duration</b> on the right
+axis, and the learning rate in the title. A rising validation curve while train
+keeps falling is the classic overfitting shape — but the tool only shows it, it
+does not label it.
+<br><br>
+Empty until a LOSO run has written <code>results/meeting01/*_events.jsonl</code>.
+"""
+
+
 class ExperimentTimeline(QWidget):
     #: (dataset, fold, config_id)
     config_activated = Signal(str, int, str)
@@ -41,6 +58,7 @@ class ExperimentTimeline(QWidget):
         super().__init__(parent)
         self.repo = repo
         root = QVBoxLayout(self)
+        root.addWidget(HelpBox('Experiment timeline', _HELP))
         self._status = QLabel("No meeting01 event stream yet.")
         self._status.setWordWrap(True)
         root.addWidget(self._status)

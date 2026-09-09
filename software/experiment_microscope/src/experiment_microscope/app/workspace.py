@@ -235,6 +235,41 @@ class Workspace(QMainWindow):
             act.triggered.connect(lambda _=False, k=key: self.explorer.select_experiment(k))
             exp_menu.addAction(act)
 
+        help_menu = self.menuBar().addMenu("&Help")
+        explain = QAction("Explain the current view", self)
+        explain.setShortcut(QKeySequence("F1"))
+        explain.triggered.connect(self._explain_current_view)
+        help_menu.addAction(explain)
+        gloss = QAction("Glossary (all terms)…", self)
+        gloss.triggered.connect(self._show_glossary)
+        help_menu.addAction(gloss)
+
+    def _explain_current_view(self) -> None:
+        """F1 — open the current tab's 'How to read this' box, if it has one."""
+        view = self.tabs.currentWidget()
+        for child in view.findChildren(QWidget):
+            if child.__class__.__name__ == "HelpBox":
+                child.open()
+                self.statusBar().showMessage("opened the explanation for this view", 3000)
+                return
+        self.statusBar().showMessage(
+            "this view has no dedicated explanation yet — see Help → Glossary", 4000)
+
+    def _show_glossary(self) -> None:
+        from PySide6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout as _VB
+
+        from experiment_microscope.core.glossary import glossary_html
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Glossary — every abbreviation and metric")
+        dlg.resize(560, 640)
+        lay = _VB(dlg)
+        browser = QTextBrowser()
+        browser.setHtml(glossary_html())
+        browser.setOpenExternalLinks(False)
+        lay.addWidget(browser)
+        dlg.show()
+
     def _build_statusbar(self) -> None:
         bar = QStatusBar()
         self.setStatusBar(bar)
@@ -252,6 +287,10 @@ class Workspace(QMainWindow):
         )
         self.repo.cache.failed.connect(self._on_cache_failed)
         self.selection.changed.connect(self._on_selection_changed)
+        # Populate the two persisted-score scatters up front so their tabs are
+        # never blank; "Refresh paraconsistent views" re-scans on demand.
+        self.para_plane.refresh()
+        self.para_landscape.refresh()
 
     def _on_selection_changed(self, field: str) -> None:
         if field == "timestep":

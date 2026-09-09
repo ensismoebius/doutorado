@@ -14,6 +14,8 @@ the feature-matrix / triangle views can inspect the underlying vectors.
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 import re
 
 from PySide6.QtCore import Qt, Signal
@@ -55,6 +57,22 @@ def _scalar(v):
     return getattr(v, "magnitude", v) if v is not None else ""
 
 
+_HELP = """
+<b>What this shows.</b> Every persisted score as a point at
+(<b>D_truth</b>, <b>D_penalized</b>). The dashed diagonal is D_penalized =
+D_truth; the vertical gap above it <i>is</i> the contradiction penalty
+(2 − √2)·|G2|, so points far above the line have self-conflicting evidence.
+Point colour scales with that gap.
+<br><br>
+D_truth = distance on the (G1, G2) plane to the ideal "certainly true, no
+contradiction" corner. D_penalized = D_truth + the penalty; it is what the
+ranking sorts on. Both: smaller is better.
+<br><br>
+The seven facet filters (dataset, modality, wavelet, scale, fold, seed,
+strategy) narrow the cloud. Click a point to inspect it.
+"""
+
+
 class ParaconsistentLandscape(QWidget):
     point_clicked = Signal(object)
 
@@ -64,6 +82,8 @@ class ParaconsistentLandscape(QWidget):
         self._points: list[ParaconsistentPoint] = []
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Paraconsistent landscape', _HELP))
         bar = QHBoxLayout()
         form = QFormLayout()
         self._combos: dict[str, QComboBox] = {}

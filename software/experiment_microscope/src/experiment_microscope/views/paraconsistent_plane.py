@@ -18,10 +18,30 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from experiment_microscope.data.adapters import ParaconsistentPoint
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 
 _K = 0.5857864376269049  # 2 - sqrt(2), kContradictionPenalty
+
+
+_HELP = """
+<b>What this shows.</b> Each feature set placed on the <b>paraconsistent</b>
+plane. Paraconsistent logic lets a claim be supported <i>and</i> denied at once,
+which is exactly what noisy biometric evidence looks like.
+<br><br>
+<b>Axes.</b> Horizontal <b>G1 = α − β</b> (certainty): +1 = evidence firmly says
+"same person", −1 = firmly "different", 0 = undecided. Vertical
+<b>G2 = α + β − 1</b> (contradiction): +1 = evidence fully conflicts with itself,
+−1 = evidence missing, 0 = clean. α (alpha) is evidence <i>for</i>, β (beta) is
+evidence <i>against</i>, both 0…1.
+<br><br>
+The ideal corner is <b>(G1 = 1, G2 = 0)</b> — certainly true, no contradiction.
+<b>D_truth</b> is the straight-line distance to it; <b>D_penalized</b> adds
+(2 − √2)·|G2| for contradiction and is the number the ranking sorts on. Smaller
+is better. Hover a point for all six quantities.
+"""
+
 
 
 class ParaconsistentPlane(QWidget):
@@ -32,6 +52,7 @@ class ParaconsistentPlane(QWidget):
         self.repo = repo
         self._points: list[ParaconsistentPoint] = []
         layout = QVBoxLayout(self)
+        layout.addWidget(HelpBox('Paraconsistent plane', _HELP))
         layout.setContentsMargins(0, 0, 0, 0)
         if not PG_OK:
             layout.addWidget(missing_widget("Paraconsistent plane"))

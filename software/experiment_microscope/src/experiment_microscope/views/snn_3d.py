@@ -17,6 +17,8 @@ status line says so. Disabled entirely in low-performance mode (§39).
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 import os
 
 import numpy as np
@@ -36,6 +38,21 @@ from experiment_microscope.viz.pyvista_panel import PV_OK, PyVistaPanel, pv
 _LAYER_GAP = 40.0
 
 
+_HELP = """
+<b>What this shows.</b> The trained meeting01 SNN autoencoder <i>encoder</i> as
+columns of neurons: input → Linear(64) → LIF spikes(64) → latent(32).
+<br><br>
+<b>Node size &amp; colour</b> = that neuron's activity for the selected window
+(|activation|, or spike count for the LIF column; colour bar on the left).
+<b>Edges</b> = the connecting Linear layer's weights, drawn only for the top few
+|weight| per target neuron so the picture stays readable.
+<br><br>
+<b>Controls.</b> top-K edges per neuron, |weight| threshold, activity threshold.
+Press ▶ on the transport bar to <b>flood the signal through the layers</b> one
+column at a time. LIF = Leaky Integrate-and-Fire spiking neuron.
+"""
+
+
 class Snn3D(QWidget):
     def __init__(self, repo, app_state=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -46,6 +63,8 @@ class Snn3D(QWidget):
         self._active_upto = -1  # -1 = all columns lit; k = flood reached column k
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('SNN 3D', _HELP))
         bar = QHBoxLayout()
         self._topk = QSpinBox()
         self._topk.setRange(1, 32)

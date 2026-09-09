@@ -27,7 +27,31 @@ from PySide6.QtCore import Qt
 from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
+from experiment_microscope.views._help import HelpBox, fill_metric_table, metric_table
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+
+_HELP = """
+<b>What this shows.</b> One audio <b>window</b> (a 256-sample slice) after it has
+been pushed through a trained <b>SNN autoencoder</b> (SNN = Spiking Neural
+Network; an autoencoder squeezes the window into a small <b>latent</b> vector of
+32 numbers and then rebuilds it).
+<br><br>
+<b>Top plot.</b> Blue = the <i>original</i> encoder input (the flattened,
+spike-encoded window). Orange = the <i>reconstruction</i> the decoder produced
+from the latent vector. The closer they sit, the more information the 32-number
+latent kept.
+<br><b>Bottom plot.</b> The <i>residual</i> = original − reconstruction, point by
+point. A flat line near zero means a faithful rebuild; spikes mark where the
+model lost detail.
+<br><br>
+<b>The numbers</b> (table below): every one has a "what it means" column.
+MSE / MAE measure the error size (0 = perfect); R² is the fraction of the
+signal's variability captured (1 = perfect, 0 = no better than a flat line);
+Pearson r is shape agreement ignoring scale (+1 = identical shape).
+<br><br>
+<b>Origin tag</b> <code>[computed]</code> means these curves were recomputed here
+through the exact experiment code, not read from a cached file.
+"""
 
 
 class ReconstructionView(QWidget):
@@ -37,6 +61,7 @@ class ReconstructionView(QWidget):
         self._trace = None
 
         root = QVBoxLayout(self)
+        root.addWidget(HelpBox("Reconstruction", _HELP))
         self._status = QLabel("Select a meeting01 window.")
         self._status.setWordWrap(True)
         root.addWidget(self._status)
@@ -48,11 +73,9 @@ class ReconstructionView(QWidget):
         split = QSplitter(Qt.Orientation.Vertical)
         self._layout_widget = pg.GraphicsLayoutWidget()
         split.addWidget(self._layout_widget)
-        self._metrics = QTableWidget(0, 2)
-        self._metrics.setHorizontalHeaderLabels(["metric", "value"])
-        self._metrics.horizontalHeader().setStretchLastSection(True)
+        self._metrics = metric_table()
         split.addWidget(self._metrics)
-        split.setSizes([440, 150])
+        split.setSizes([440, 170])
         root.addWidget(split, 1)
         self._plot = self._layout_widget
 
@@ -111,25 +134,35 @@ class ReconstructionView(QWidget):
         x = np.arange(n)
         self._layout_widget.clear()
 
-        p0 = self._layout_widget.addPlot(row=0, col=0, title="original vs reconstruction")
-        p0.addLegend()
-        p0.plot(x, orig, pen=pg.mkPen((120, 170, 255)), name="original")
-        p0.plot(x, rec, pen=pg.mkPen((255, 170, 90)), name="reconstruction")
-        p0.showGrid(x=True, y=True, alpha=0.2)
-        p1 = self._layout_widget.addPlot(row=1, col=0, title="residual (original − reconstruction)")
-        p1.setXLink(p0)
-        p1.plot(x, orig - rec, pen=pg.mkPen((150, 150, 150)))
-        p1.showGrid(x=True, y=True, alpha=0.2)
+        from experiment_microscope.views._help import label_plot
 
-        self._metrics.setRowCount(len(t.metrics) + 2)
-        r = 0
+        p0 = self._layout_widget.addPlot(row=0, col=0)
+        label_plot(p0, bottom="index within the flattened window (sample number)",
+                   left="amplitude (z-scored, unitless)",
+                   title="original encoder input vs decoder reconstruction")
+        p0.plot(x, orig, pen=pg.mkPen((120, 170, 255)), name="original (encoder input)")
+        p0.plot(x, rec, pen=pg.mkPen((255, 170, 90)), name="reconstruction (decoder output)")
+        p1 = self._layout_widget.addPlot(row=1, col=0)
+        label_plot(p1, bottom="index within the flattened window (sample number)",
+                   left="original − reconstruction",
+                   title="residual — flat & near zero = faithful rebuild", legend=False)
+        p1.setXLink(p0)
+        p1.plot(x, orig - rec, pen=pg.mkPen((150, 150, 150)), name="residual")
+
+        _METRIC_NAMES = {
+            "mse": "MSE", "mae": "MAE", "r2": "R2", "pearson_r": "Pearson r",
+            "lif_params": "LIF parameters",
+        }
+        rows: list[tuple[str, str, str]] = []
         for name, val in t.metrics.items():
-            self._metrics.setItem(r, 0, QTableWidgetItem(name))
-            self._metrics.setItem(r, 1, QTableWidgetItem(val.labelled() if val else "—"))
-            r += 1
-        for name, v in (("latent_dim", np.asarray(t.latent).size), ("length", n)):
-            self._metrics.setItem(r, 0, QTableWidgetItem(name))
-            self._metrics.setItem(r, 1, QTableWidgetItem(str(v)))
-            r += 1
-        self._status.setText(f"reconstruction  [{t.origin.value}] — {n} points, latent dim "
-                             f"{np.asarray(t.latent).size}")
+            rows.append((_METRIC_NAMES.get(name, name),
+                         (val.labelled() if val else "—"), ""))
+        rows.append(("latent dimension", str(np.asarray(t.latent).size),
+                     "how many numbers the encoder compressed the window into"))
+        rows.append(("length", str(n),
+                     "number of points in the window / reconstruction"))
+        fill_metric_table(self._metrics, rows)
+        self._status.setText(
+            f"Reconstruction of one window  ·  origin [{t.origin.value}] (recomputed "
+            f"through the experiment code)  ·  {n} points  ·  latent = "
+            f"{np.asarray(t.latent).size} numbers")

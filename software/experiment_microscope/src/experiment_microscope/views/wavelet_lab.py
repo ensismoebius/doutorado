@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from experiment_microscope.core.selection import SelectionState
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
@@ -32,6 +33,24 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 from experiment_microscope.views._timesync import TimeCursor
 
 _WAVELETS = ["haar", "daub4", "daub6", "daub8", "daub10", "daub12", "daub20"]
+
+
+_HELP = """
+<b>What this shows.</b> The signal split into frequency <b>sub-bands</b> by a
+<b>wavelet packet</b> decomposition (a binary tree of filters; each leaf is a
+narrow frequency range). Unlike a plain spectrum this keeps <i>when</i> things
+happen, not only <i>what</i> frequencies are present.
+<br><br>
+<b>Controls.</b> <i>wavelet</i> picks the filter shape (Haar = blocky and fast;
+daub4…daub20 = progressively smoother Daubechies filters). <i>level</i> = tree
+depth, so 2<sup>level</sup> leaves. <i>channel</i> chooses which EEG channel to
+decompose.
+<br><br>
+<b>Table / plot.</b> Per leaf: <b>energy</b> (sum of squared coefficients = power
+in that band) and <b>relative energy</b> (share of the total, bands sum to 1).
+Click a leaf to see its raw coefficients.
+"""
+
 
 
 class WaveletLab(QWidget):
@@ -49,6 +68,8 @@ class WaveletLab(QWidget):
         self._decomp = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Wavelet Lab', _HELP))
         controls = QHBoxLayout()
         form = QFormLayout()
         self._wavelet = QComboBox()

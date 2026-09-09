@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.data.adapters import Signal1D, TreeNode
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.processing._binding import BindingUnavailableError
@@ -30,6 +31,22 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 from experiment_microscope.views._timesync import TimeCursor
 
 _ENCODINGS = ("direct", "poisson", "latency")
+
+
+_HELP = """
+<b>What this shows.</b> The three spike <b>encodings</b> side by side for one
+window, so you can see how each turns a real number into spike events.
+<br><br>
+<b>direct</b> — the normalised sample passes straight through (no spike-time
+conversion). <b>poisson</b> — a random spike train whose average <b>firing
+rate</b> is proportional to the value. <b>latency</b> — time-to-first-spike:
+larger values fire earlier, small values late or never.
+<br><br>
+Horizontal axis = time step within the window; each row/track is a spike train,
+each mark a spike. <i>seed</i> fixes the randomness of the poisson encoding so the
+picture is reproducible.
+"""
+
 
 
 class EncodingLab(QWidget):
@@ -46,6 +63,8 @@ class EncodingLab(QWidget):
         self._window: np.ndarray | None = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Encoding Lab', _HELP))
         top = QHBoxLayout()
         self._seed = QSpinBox()
         self._seed.setRange(0, 2**31 - 1)
