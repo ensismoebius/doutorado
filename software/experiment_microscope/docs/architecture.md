@@ -111,6 +111,9 @@ def can_export(self) -> bool  /  def export_figure(self, path, **opts): ...   # 
   Inspector) — for a node backed by files (`adapter.artifact_files(node)`): path,
   format, size, and for CSV / JSON / JSONL / .npy / .npz the shape, dtype,
   min/max/mean/std and NaN/Inf counts. Recompute-only nodes say so.
+- **`views/reproduce_panel.py`** (§31, "Reproduce" dock) — the selected run's
+  configuration, its result files (copy paths), and the exact regeneration
+  command as *copyable text*. Never executes anything.
 - **`views/developer_panel.py`** (§37, opt-in) — frame time, cache hit rate,
   worker occupancy, and shape-consistency checks (transformed size a power of
   two? reconstruction length == raw length?).

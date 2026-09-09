@@ -47,6 +47,7 @@ from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.reconstruction_view import ReconstructionView
+from experiment_microscope.views.reproduce_panel import ReproducePanel
 from experiment_microscope.views.search_bar import SearchBar
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
@@ -161,7 +162,10 @@ class Workspace(QMainWindow):
 
         self.artifact_inspector = ArtifactInspector(self.repo)
         art_dock = self._dock("Raw artifact", self.artifact_inspector, Qt.DockWidgetArea.RightDockWidgetArea)
+        self.reproduce_panel = ReproducePanel(self.repo)
+        repro_dock = self._dock("Reproduce", self.reproduce_panel, Qt.DockWidgetArea.RightDockWidgetArea)
         self.tabifyDockWidget(prov_dock, art_dock)
+        self.tabifyDockWidget(art_dock, repro_dock)
         prov_dock.raise_()
 
         self.session_log = QPlainTextEdit()
@@ -252,6 +256,7 @@ class Workspace(QMainWindow):
         self.pipeline_dag.show_experiment(adapter_key)
         self.provenance.show_node(node, adapter_key)
         self.artifact_inspector.show_node(node, adapter_key)
+        self.reproduce_panel.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
         self.wavelet_3d.show_node(node, adapter_key)
