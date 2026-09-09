@@ -13,23 +13,8 @@ from experiment_microscope.processing._binding import is_available
 pytestmark = pytest.mark.skipif(not is_available(), reason="nn_microscope not built")
 
 
-def _first_window_node(adapter):
-    root = adapter.root_nodes()[0]
-    fsdd = next(n for n in adapter.children(root) if n.label == "fsdd")
-    fold0 = adapter.children(fsdd)[0]
-    try:
-        windows_group = next(
-            n for n in adapter.children(fold0) if n.handle.get("level") == "windows"
-        )
-        wins = adapter.children(windows_group)
-    except RuntimeError:
-        return None
-    return wins[0] if wins else None
-
-
-def test_meeting01_window_signal_is_zscored():
-    a = Meeting01Adapter()
-    node = _first_window_node(a)
+def test_meeting01_window_signal_is_zscored(first_fsdd_window):
+    node, a = first_fsdd_window()
     if node is None:
         pytest.skip("FSDD corpus not available on this machine")
     sig = a.load_signal(node)
@@ -82,9 +67,8 @@ def test_thesis_run_feature_matrix_recompute():
     assert a.load_features(hc[0]) is fm  # cached
 
 
-def test_window_feeds_wavelet_decompose():
-    a = Meeting01Adapter()
-    node = _first_window_node(a)
+def test_window_feeds_wavelet_decompose(first_fsdd_window):
+    node, a = first_fsdd_window()
     if node is None:
         pytest.skip("FSDD corpus not available")
     from experiment_microscope.processing import wavelet as wl

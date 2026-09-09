@@ -30,11 +30,13 @@ from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
+from experiment_microscope.views.pipeline_dag import PipelineDag
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
 from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
+from experiment_microscope.views.triangle_view import TriangleView
 from experiment_microscope.views.wavelet_lab import WaveletLab
 
 _ORG = "doutorado"
@@ -71,11 +73,16 @@ class Workspace(QMainWindow):
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo)
         self.para_plane = ParaconsistentPlane(self.repo)
+        self.pipeline_dag = PipelineDag()
+        self.triangle = TriangleView(self.repo)
+        self.pipeline_dag.node_activated.connect(self._open_tab)
         self.tabs.addTab(self.signal_view, "Signal")
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
+        self.tabs.addTab(self.pipeline_dag, "Pipeline")
+        self.tabs.addTab(self.triangle, "Triangle")
 
         self.follow_bar = FollowDataBar(self.repo)
         self.follow_bar.stage_activated.connect(self._open_tab)
@@ -170,11 +177,13 @@ class Workspace(QMainWindow):
         )
         self._status_selection.setText(f"{adapter_key} › {node.kind} › {node.label}")
         self.follow_bar.update_for(node, adapter_key)
+        self.pipeline_dag.show_experiment(adapter_key)
         self.provenance.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
         self.feature_matrix.show_node(node, adapter_key)
         self.encoding_lab.show_node(node, adapter_key)
+        self.triangle.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
 
