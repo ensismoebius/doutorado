@@ -8,7 +8,9 @@ pipelines in this repository:
 - **thesis** — `software/nn/src/experiments/thesis/` (handcrafted wavelet +
   paraconsistent feature selection + DSNN authentication)
 
-The full specification is `FIXME.md` in this directory.
+The full specification is `FIXME.md` in this directory; user + developer
+documentation is under [`docs/`](docs/index.md) (start there for architecture,
+adapters, caching, provenance, extending, and current limitations).
 
 ## Running
 
