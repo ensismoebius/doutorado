@@ -43,6 +43,7 @@ from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
+from experiment_microscope.views.reconstruction_view import ReconstructionView
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
@@ -89,6 +90,7 @@ class Workspace(QMainWindow):
         self.triangle = TriangleView(self.repo)
         self.triangle.set_timeline(self.timeline)
         self.comparison = ComparisonView(self.repo)
+        self.reconstruction = ReconstructionView(self.repo)
         self.ranking = RankingView(self.repo)
         self.ranking.run_activated.connect(self._on_ranking_run)
         self.timeline_view = ExperimentTimeline(self.repo)
@@ -99,6 +101,7 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.wavelet_3d, "Wavelet 3D")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.encoding_lab, "Encoding Lab")
+        self.tabs.addTab(self.reconstruction, "Reconstruction")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
         self.tabs.addTab(self.pipeline_dag, "Pipeline")
         self.tabs.addTab(self.triangle, "Triangle")
@@ -230,6 +233,7 @@ class Workspace(QMainWindow):
         self.wavelet_3d.show_node(node, adapter_key)
         self.feature_matrix.show_node(node, adapter_key)
         self.encoding_lab.show_node(node, adapter_key)
+        self.reconstruction.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()

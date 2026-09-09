@@ -33,8 +33,8 @@ STAGES: tuple[Stage, ...] = (
     Stage("wavelet", "WAVELET", "Wavelet Lab"),
     Stage("features", "FEATURES", "Feature Matrix"),
     Stage("paraconsistent", "PARACONSISTENT", "Paraconsistent plane"),
-    Stage("latent", "LATENT", ""),
-    Stage("reconstruction", "RECONSTRUCTION", ""),
+    Stage("latent", "LATENT", "Reconstruction"),
+    Stage("reconstruction", "RECONSTRUCTION", "Reconstruction"),
     Stage("classification", "CLASSIFICATION", ""),
 )
 
@@ -109,6 +109,14 @@ class FollowDataBar(QWidget):
         # the paraconsistent plane is always populated (all persisted points)
         out["paraconsistent"] = ""
 
+        recon_ready = False
+        if adapter_key == "meeting01" and level == "window":
+            try:
+                recon_ready = bool(adapter._snn_model_specs())  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001
+                recon_ready = False
         for k in ("latent", "reconstruction", "classification"):
             out[k] = "needs a trained model .npz (not yet available)"
+        if recon_ready:
+            out["latent"] = out["reconstruction"] = ""
         return out

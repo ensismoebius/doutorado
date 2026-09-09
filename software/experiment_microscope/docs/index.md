@@ -102,10 +102,13 @@ Generated captions are checked against a banned-inferential-word list
 
 ## Limitations
 
-- **No reconstruction or latent-trajectory view yet.** Both need a trained SNN
-  autoencoder `.npz`; `meeting01`'s were purged and the reprocess is a
-  multi-hour guarded run. `snn_ae_forward` works but `meeting01`'s `time_steps=1`
-  gives a single-step forward pass, so there is no spike raster over time.
+- **The Reconstruction tab needs a trained SNN autoencoder `.npz`.** The view,
+  `Meeting01Adapter.load_latent` and `nn_microscope.meeting01.snn_ae_forward` are
+  all in place; until a LOSO fold runs with `dataset.save_models: true` (Step E
+  writes `results/meeting01/models/**/…_encoder.npz` / `_decoder.npz`) the tab
+  shows that exact remedy. `meeting01`'s `time_steps=1` means a single-step
+  forward pass, so there is still no spike raster over time, and no standalone
+  latent explorer (§19).
 - **3D is only the wavelet coefficient landscape** (§11) — the "Wavelet 3D" tab
   (X = coeff index, Y = packet leaf, Z = magnitude, threshold + isolate-leaf
   controls). The SNN 3D activity view (§18) and latent explorer (§19) are not

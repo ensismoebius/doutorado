@@ -27,9 +27,12 @@ from typing import Any
 
 import numpy as np
 
+import re
+
 from experiment_microscope.core.integrity import Origin, Value
 from experiment_microscope.data.adapters import (
     ExperimentAdapter,
+    LatentTrace,
     ProvenanceRecord,
     Signal1D,
     TreeNode,
@@ -65,6 +68,30 @@ def _load_monitor() -> ModuleType:
         sys.modules.pop("meeting01_monitor", None)
         raise
     return module
+
+
+def _recon_metrics(original: np.ndarray, recon: np.ndarray) -> dict[str, Value]:
+    """MSE / MAE / R2 / Pearson r between a signal and its reconstruction (FIXME §20)."""
+    a = np.asarray(original, dtype=float).reshape(-1)
+    b = np.asarray(recon, dtype=float).reshape(-1)
+    n = min(a.size, b.size)
+    if n == 0:
+        return {k: Value.missing() for k in ("mse", "mae", "r2", "pearson_r")}
+    a, b = a[:n], b[:n]
+    resid = a - b
+    mse = float(np.mean(resid**2))
+    ss_tot = float(np.sum((a - a.mean()) ** 2))
+    r2 = 1.0 - float(np.sum(resid**2)) / ss_tot if ss_tot > 0 else float("nan")
+    if a.std() > 0 and b.std() > 0:
+        r = float(np.corrcoef(a, b)[0, 1])
+    else:
+        r = float("nan")
+    return {
+        "mse": Value(mse, Origin.COMPUTED),
+        "mae": Value(float(np.mean(np.abs(resid))), Origin.COMPUTED),
+        "r2": Value(r2, Origin.COMPUTED) if r2 == r2 else Value.missing(),
+        "pearson_r": Value(r, Origin.COMPUTED) if r == r else Value.missing(),
+    }
 
 
 class Meeting01Adapter(ExperimentAdapter):
@@ -242,6 +269,70 @@ class Meeting01Adapter(ExperimentAdapter):
         }
 
     # -- provenance (from session_begin) -------------------------
+    # -- trained SNN-AE models (Step E .npz artifacts) -----------
+    _NPZ_RE = re.compile(
+        r"_snn_[a-z]+_(?P<dataset>[a-z0-9]+)_(?P<encoding>[a-z]+)_(?P<arch>[a-z0-9]+)_"
+        r"vth(?P<vth>[0-9.]+)_a(?P<alpha>[0-9.]+)_fold(?P<fold>\d+)_run(?P<run>\d+)_encoder\.npz$"
+    )
+
+    def _snn_model_specs(self) -> list[dict[str, Any]]:
+        specs: list[dict[str, Any]] = []
+        for enc_npz in sorted(self.results_dir.glob("models/**/*_encoder.npz")):
+            m = self._NPZ_RE.search(enc_npz.name)
+            dec_npz = enc_npz.with_name(enc_npz.name[: -len("_encoder.npz")] + "_decoder.npz")
+            if not m or not dec_npz.is_file():
+                continue
+            specs.append({
+                "encoder": str(enc_npz), "decoder": str(dec_npz),
+                "dataset": m["dataset"], "encoding": m["encoding"], "architecture": m["arch"],
+                "v_th": float(m["vth"]), "alpha": float(m["alpha"]),
+                "fold": int(m["fold"]), "run": int(m["run"]),
+            })
+        return specs
+
+    def load_latent(self, node: TreeNode, **params: Any) -> LatentTrace:
+        h = getattr(node, "handle", {}) or {}
+        if h.get("level") != "window":
+            raise NotImplementedError("select an individual window")
+        specs = self._snn_model_specs()
+        if not specs:
+            raise RuntimeError(
+                "no trained SNN-AE .npz under "
+                f"{self.results_dir / 'models'} — run a LOSO fold with "
+                "`dataset.save_models: true` (emits *_encoder.npz / *_decoder.npz via Step E) "
+                "then reselect this window."
+            )
+        ds, fold = h.get("dataset"), h.get("cv_fold")
+        want_enc, want_arch = h.get("encoding") or params.get("encoding"), h.get("architecture")
+        cand = [s for s in specs if s["dataset"] == ds and s["fold"] == fold] or specs
+        if want_enc:
+            cand = [s for s in cand if s["encoding"] == want_enc] or cand
+        if want_arch:
+            cand = [s for s in cand if s["architecture"] == want_arch] or cand
+        spec = cand[0]
+
+        from experiment_microscope.processing import meeting01 as m01
+
+        split = self._split(h["dataset"], h["cv_fold"])
+        window = np.asarray(split[f"{h['split']}_samples"][h["row"]], dtype=float)
+        trace = m01.snn_ae_forward(
+            str(self.profile_dir / _LOSO_PROFILE),
+            alpha=spec["alpha"], v_th=spec["v_th"], architecture=spec["architecture"],
+            encoder_npz=spec["encoder"], decoder_npz=spec["decoder"],
+            flat_window=window, encoding=spec["encoding"],
+        )
+        original = np.asarray(trace.encoded_input).reshape(-1)
+        recon = np.asarray(trace.reconstruction).reshape(-1)
+        return LatentTrace(
+            latent=np.asarray(trace.latent).reshape(-1),
+            reconstruction=recon,
+            original=original,
+            spikes=None,
+            v_mem=None,
+            origin=Origin.COMPUTED,
+            metrics=_recon_metrics(original, recon),
+        )
+
     def load_provenance(self, node: TreeNode) -> ProvenanceRecord:
         h = node.handle
         dataset = h.get("dataset")
