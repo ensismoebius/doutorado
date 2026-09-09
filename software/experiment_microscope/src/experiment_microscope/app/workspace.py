@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QStatusBar,
     QTabWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -30,6 +31,7 @@ from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.views.explorer import ExplorerTree
 from experiment_microscope.views.paraconsistent_plane import ParaconsistentPlane
 from experiment_microscope.views.feature_matrix import FeatureMatrixView
+from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.wavelet_lab import WaveletLab
@@ -71,7 +73,23 @@ class Workspace(QMainWindow):
         self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
         self.tabs.addTab(self.feature_matrix, "Feature Matrix")
         self.tabs.addTab(self.para_plane, "Paraconsistent plane")
-        self.setCentralWidget(self.tabs)
+
+        self.follow_bar = FollowDataBar(self.repo)
+        self.follow_bar.stage_activated.connect(self._open_tab)
+
+        central = QWidget()
+        col = QVBoxLayout(central)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(0)
+        col.addWidget(self.follow_bar)
+        col.addWidget(self.tabs, 1)
+        self.setCentralWidget(central)
+
+    def _open_tab(self, name: str) -> None:
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == name:
+                self.tabs.setCurrentIndex(i)
+                return
 
     def _dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
         dock = QDockWidget(title, self)
@@ -134,6 +152,7 @@ class Workspace(QMainWindow):
             encoding=h.get("encoding"),
         )
         self._status_selection.setText(f"{adapter_key} › {node.kind} › {node.label}")
+        self.follow_bar.update_for(node, adapter_key)
         self.provenance.show_node(node, adapter_key)
         self.signal_view.show_node(node, adapter_key)
         self.wavelet_lab.show_node(node, adapter_key)
