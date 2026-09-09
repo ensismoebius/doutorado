@@ -18,6 +18,8 @@ that on every latency value and never ranks by it silently.
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -37,6 +39,25 @@ from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 _X_KEYS = ("inference_cost", "param_count", "est_latency_ms", "latent_activity")
 
 
+_HELP = """
+<b>What this shows.</b> The result of <b>NSGA-II</b> (Non-dominated Sorting
+Genetic Algorithm II), a multi-objective architecture search: it evolves a
+population and keeps the candidates that are not beaten on every objective at
+once.
+<br><br>
+<b>Axes.</b> Vertical = D_penalized mean (paraconsistent quality, smaller
+better). Horizontal = the cost you pick: <b>inference cost</b> (spikes + 10 ×
+multiply-accumulates, hardware-independent), parameter count, estimated latency,
+or latent activity.
+<br><br>
+<b>Green</b> = <b>feasible</b> Pareto-front points (satisfy every hard
+constraint); <b>orange</b> = infeasible — shown for context, never winners.
+Estimated latency is labelled <b>UNCALIBRATED</b>: it is a rough model output,
+not a measured millisecond figure — the view never ranks by it. Click a point
+for its genome and fitness.
+"""
+
+
 class NsgaView(QWidget):
     individual_clicked = Signal(object)  # dict
 
@@ -47,6 +68,8 @@ class NsgaView(QWidget):
         self._pop: dict = {}
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('NSGA-II search', _HELP))
         bar = QHBoxLayout()
         self._run = QComboBox()
         self._run.currentIndexChanged.connect(self._load)

@@ -18,9 +18,26 @@ import numpy as np
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from experiment_microscope.data.adapters import TreeNode
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+
+
+_HELP = """
+<b>What this shows.</b> One thesis sample seen through three synchronised lenses
+at once — scrub the sample index and all three panels move together.
+<br><br>
+<b>Wavelet</b> (left) — the per-band <b>energy</b> of that sample's signal.
+<b>Features</b> (middle) — that sample's handcrafted feature vector as a bar
+chart. <b>Paraconsistent</b> (right) — the run's feature set on the G1×G2 plane
+(G1 = certainty α−β, G2 = contradiction α+β−1).
+<br><br>
+When the feature layout lines up 1:1 with the wavelet bands, clicking a feature
+bar highlights the band it came from, and vice versa — the "why did this number
+become this number" link.
+"""
+
 
 
 class TriangleView(QWidget):
@@ -33,6 +50,8 @@ class TriangleView(QWidget):
         self._syncing = False
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Triangle view', _HELP))
         bar = QHBoxLayout()
         self._sample = QSpinBox()
         self._sample.setRange(0, 0)

@@ -12,6 +12,8 @@ leaf out for inspection. Disabled entirely in low-performance mode (§39).
 
 from __future__ import annotations
 
+from experiment_microscope.views._help import HelpBox
+
 import os
 
 import numpy as np
@@ -32,6 +34,20 @@ from experiment_microscope.viz.pyvista_panel import PV_OK, PyVistaPanel, pv
 _WAVELETS = ["haar", "daub4", "daub6", "daub8", "daub10", "daub12", "daub20"]
 
 
+_HELP = """
+<b>What this shows.</b> The wavelet-packet decomposition as a 3-D surface instead
+of a table.
+<br><br>
+<b>X</b> = coefficient index within a leaf. <b>Y</b> = leaf number, low to high
+frequency. <b>Z</b> (height & colour) = |coefficient| magnitude, normalised so
+the largest is 1. Ridges are bands carrying a lot of the signal's power.
+<br><br>
+The <b>|z| threshold</b> slider hides small coefficients; <b>isolate leaf</b>
+lifts one band out as a red line. Rotate / zoom / pan with the mouse. Disabled in
+low-performance mode.
+"""
+
+
 class Wavelet3D(QWidget):
     def __init__(self, repo, app_state=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -41,6 +57,8 @@ class Wavelet3D(QWidget):
         self._grid_z: np.ndarray | None = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Wavelet 3D', _HELP))
         bar = QHBoxLayout()
         self._wavelet = QComboBox()
         self._wavelet.addItems(_WAVELETS)

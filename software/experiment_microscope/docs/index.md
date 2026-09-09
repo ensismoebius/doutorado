@@ -98,6 +98,24 @@ Generated captions are checked against a banned-inferential-word list
 (`assert_no_inferential_language`) so the tool never writes "best" / "optimal" /
 "significant" about something the artifact does not establish.
 
+## Didactic layer (FIXME §29, §55)
+
+Nothing in the app is shown without an explanation:
+
+- **Every central tab has a "How to read this" strip** (`views/_help.py::HelpBox`)
+  — collapsed by default, one click to open. It says what the view shows, what
+  each axis and number means (abbreviations spelled out), and what to do next.
+  Press **F1** (`Help → Explain the current view`) to open it.
+- **`Help → Glossary`** lists every term — MSE, MAE, R², SNN, LIF, LOSO, PCA,
+  t-SNE, v_th, α/β, G1/G2, D_truth, D_penalized, ZCR, LFCC, EER, AUC, … — each
+  with its expansion and a one-sentence plain-language meaning. The whole dialog
+  is generated from `core/glossary.py`, which is also the single source the views
+  pull their wording from (`glossary.expand` / `describe` / `tooltip`).
+- **Metric tables are three columns**: quantity · value · *what it means*
+  (`_help.py::metric_table`). No bare number.
+- **Plots carry axis labels with units and a legend** (`_help.py::label_plot`);
+  status lines spell out the origin tag and units in words.
+
 ---
 
 ## Limitations

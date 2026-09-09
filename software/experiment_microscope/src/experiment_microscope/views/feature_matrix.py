@@ -21,9 +21,30 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.data.adapters import FeatureMatrix, TreeNode
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+
+
+_HELP = """
+<b>What this shows.</b> The full table of handcrafted feature values for a thesis
+run: one row per sample, one column per feature.
+<br><br>
+<b>Colours.</b> A heatmap — brighter / darker means larger / smaller value; the
+colour bar gives the scale. The per-column statistics (mean, standard deviation,
+min, max) sit beside it. Turning on the z-score toggle rescales <i>for display
+only</i> so columns of different magnitude become comparable — the underlying
+numbers do not change.
+<br><br>
+<b>Click a cell</b> to read its exact value, the sample's class, and (when the
+wavelet layout allows) which frequency band it came from.
+<br><br>
+Feature names encode the descriptor and scale, e.g. energy / <b>ZCR</b>
+(zero-crossing rate) / entropy / <b>Teager</b> (Teager–Kaiser energy) / jitter /
+shimmer per wavelet band.
+"""
+
 
 
 class FeatureMatrixView(QWidget):
@@ -39,8 +60,13 @@ class FeatureMatrixView(QWidget):
         self._matrix: FeatureMatrix | None = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Feature Matrix', _HELP))
         top = QHBoxLayout()
         self._normalize = QCheckBox("per-column z-score (display only)")
+        # On by default: handcrafted columns span many orders of magnitude, so the
+        # raw heatmap is dominated by one column and reads as a black rectangle.
+        self._normalize.setChecked(True)
         self._normalize.stateChanged.connect(self._render)
         self._status = QLabel("Select a Phase-00 handcrafted run.")
         self._status.setWordWrap(True)

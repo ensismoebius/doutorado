@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.core.integrity import Origin
+from experiment_microscope.views._help import HelpBox
 from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
@@ -35,6 +36,27 @@ from experiment_microscope.viz.pyvista_panel import PV_OK, PyVistaPanel, pv
 _SPLITS = ("test", "val", "train")
 _METHODS = ("PCA", "t-SNE")
 _COLOR_BY = ("digit", "speaker")
+
+
+_HELP = """
+<b>What this shows.</b> Every window of one meeting01 <b>fold</b> pushed through
+the trained autoencoder, then its 32-number <b>latent</b> vector squeezed to 2-D
+(or 3-D) so you can see the structure.
+<br><br>
+<b>This is a PROJECTED view</b>, not a pipeline number.
+<b>PCA</b> (Principal Component Analysis) rotates onto the directions of greatest
+spread — distances stay roughly meaningful, and the title shows how much
+variability the 2 axes keep. <b>t-SNE</b> only preserves <i>who is near whom</i>;
+gaps and cluster sizes are not meaningful.
+<br><br>
+<b>Colour</b> = digit spoken, or speaker (legend/​controls). Well-separated
+colours mean the latent space encodes that property. <b>Click a point</b> to
+select that window everywhere else in the app.
+<br><br>
+The forward passes run on a background thread — press <i>Project</i> and wait for
+the status line.
+"""
+
 
 
 class _BatchWorker(QObject):
@@ -69,6 +91,8 @@ class LatentExplorer(QWidget):
         self._thread: QThread | None = None
 
         root = QVBoxLayout(self)
+
+        root.addWidget(HelpBox('Latent Space Explorer', _HELP))
         bar = QHBoxLayout()
         self._split = QComboBox()
         self._split.addItems(_SPLITS)
@@ -99,6 +123,8 @@ class LatentExplorer(QWidget):
         if PG_OK:
             self._plot = pg.PlotWidget()
             self._plot.showGrid(x=True, y=True, alpha=0.3)
+            self._plot.setLabel("bottom", "projection axis 1 (arbitrary units — a direction, not a measurement)")
+            self._plot.setLabel("left", "projection axis 2 (arbitrary units)")
             self._scatter = pg.ScatterPlotItem(size=9, pen=pg.mkPen(None))
             self._scatter.sigClicked.connect(self._on_point_clicked)
             self._plot.addItem(self._scatter)
@@ -228,12 +254,30 @@ class LatentExplorer(QWidget):
             spots.append({"pos": (float(x), float(y)), "data": i, "brush": c,
                           "symbol": "o", "size": 9})
         self._scatter.setData(spots)
+        self._legend(lut, idx)
         self._plot_title(label)
+
+    def _legend(self, lut: dict, idx: dict) -> None:
+        """A real colour key: one entry per class value."""
+        if self._plot is None:
+            return
+        pi = self._plot.getPlotItem()
+        if pi.legend is not None:
+            pi.legend.scene().removeItem(pi.legend)
+            pi.legend = None
+        leg = pi.addLegend(offset=(-10, 10))
+        c = self._color.currentText()
+        for val in sorted(idx, key=lambda x: str(x)):
+            dot = pg.ScatterPlotItem([0], [0], symbol="o", size=9, brush=lut[val],
+                                     pen=pg.mkPen(None))
+            leg.addItem(dot, f"{c} {val}")
 
     def _plot_title(self, method_label: str) -> None:
         c = self._color.currentText()
         if self._plot is not None:
-            self._plot.setTitle(f"latent → {method_label}  [projected]  · colour = {c}")
+            self._plot.setTitle(
+                f"latent vectors → {method_label}   [projected — a view, not a "
+                f"measurement]   ·   colour = {c}")
 
     def _on_point_clicked(self, _scatter, points) -> None:
         if not points or self._batch is None:
