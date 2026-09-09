@@ -30,6 +30,7 @@
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "nlohmann/json.hpp"
 #include "progress/ProgressManager.hpp"
+#include "serialization/NetworkSerializer.hpp"
 #include "utility/progress.hpp"
 
 using nn::models::autoencoder::AutoencoderConfig;
@@ -626,6 +627,19 @@ void save_snn_combo_models(const Meeting01Config& config,
     if (!enc_ok || !dec_ok)
     {
         NN_LOG_WARN("[comparative] failed to save SNN model artifacts for " + base_name);
+    }
+
+    // Binary .npz alongside the text dumps: the SNN AE encoder_/decoder_ are plain
+    // nn::Sequential of Linear/Lif, which NetworkSerializer round-trips exactly. This is
+    // the artifact nn_microscope.meeting01.snn_ae_forward reloads to reproduce a window's
+    // latent + reconstruction for the inspection GUI without retraining (FIXME §19, §20).
+    const bool enc_npz = NetworkSerializer::saveNetwork(
+        snn_model.encoder_, (models_dir / (base_name + "_encoder.npz")).string());
+    const bool dec_npz = NetworkSerializer::saveNetwork(
+        snn_model.decoder_, (models_dir / (base_name + "_decoder.npz")).string());
+    if (!enc_npz || !dec_npz)
+    {
+        NN_LOG_WARN("[comparative] failed to save SNN model .npz for " + base_name);
     }
 }
 

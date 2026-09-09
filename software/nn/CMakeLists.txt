@@ -115,7 +115,17 @@ include(cmake/VendorIncludes.cmake)
 # Auto-discover layer headers and generate include/nn/layers/Layers.hpp
 include(cmake/GenerateLayers.cmake)
 
+# Optional Python bindings (nn_microscope) for software/experiment_microscope/.
+# OFF by default — enabled by the `python-bindings` preset. VendorPybind11 is a
+# no-op unless NN_BUILD_PY_BINDINGS is set.
+option(NN_BUILD_PY_BINDINGS "Build the nn_microscope Python extension" OFF)
+include(cmake/VendorPybind11.cmake)
+
 # Source subdirectories
 add_subdirectory(${SRC_DIR}/core)
 add_subdirectory(${SRC_DIR}/demos)
 add_subdirectory(${SRC_DIR}/experiments)
+
+if(NN_BUILD_PY_BINDINGS)
+    add_subdirectory(${SRC_DIR}/bindings)
+endif()

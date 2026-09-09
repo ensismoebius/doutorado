@@ -122,6 +122,16 @@
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "NN_ENABLE_FAST_LINKER": "OFF"
             }
+        },
+        {
+            "name": "python-bindings",
+            "displayName": "Python bindings (nn_microscope)",
+            "description": "max-performance + the nn_microscope pybind11 extension for software/experiment_microscope/.",
+            "inherits": "max-performance",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "NN_BUILD_PY_BINDINGS": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -164,6 +174,10 @@
             "name": "pgo-use",
             "displayName": "Build (pgo-use)",
             "configurePreset": "pgo-use"
+        },
+        {
+            "name": "python-bindings",
+            "configurePreset": "python-bindings"
         }
     ]
 }
