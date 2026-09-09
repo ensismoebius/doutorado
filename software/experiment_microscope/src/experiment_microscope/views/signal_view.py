@@ -31,6 +31,7 @@ class SignalView(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._cursor = None
+        self._last_signal = None
         if PG_OK:
             self._plot = pg.PlotWidget()
             self._plot.showGrid(x=True, y=True, alpha=0.3)
@@ -43,6 +44,29 @@ class SignalView(QWidget):
         else:
             self._plot = None
             layout.addWidget(missing_widget("Signal view"))
+
+    def can_export(self) -> bool:
+        return getattr(self, "_last_signal", None) is not None
+
+    def export_figure(self, path, **opts):
+        from experiment_microscope.viz.mpl_export import annotate_provenance, new_figure, save_figure
+
+        sig = self._last_signal
+        data = np.asarray(sig.samples)
+        if data.ndim == 1:
+            data = data[None, :]
+        fig = new_figure(**{k: opts[k] for k in ("width_in", "height_in", "dpi") if k in opts})
+        ax = fig.add_subplot(111)
+        names = sig.channel_names or tuple(f"ch{i}" for i in range(data.shape[0]))
+        for i, row in enumerate(data):
+            ax.plot(row, lw=0.8, label=names[i] if i < len(names) else f"ch{i}")
+        ax.set_xlabel("sample")
+        ax.set_ylabel(sig.unit or "amplitude")
+        ax.set_title(sig.label or "signal")
+        if data.shape[0] > 1:
+            ax.legend(fontsize=6, ncol=min(6, data.shape[0]))
+        annotate_provenance(ax, f"origin: {sig.origin.value}")
+        return save_figure(fig, path, transparent=opts.get("transparent", False))
 
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         if self._plot is None:
@@ -69,6 +93,7 @@ class SignalView(QWidget):
         item.setPos(0, 0)
 
     def _render(self, signal: Signal1D) -> None:
+        self._last_signal = signal
         data = np.asarray(signal.samples)
         if data.ndim == 1:
             data = data[None, :]

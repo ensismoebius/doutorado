@@ -112,6 +112,28 @@ class FeatureMatrixView(QWidget):
             ):
                 self._stats.setItem(j, c, QTableWidgetItem(text))
 
+    def can_export(self) -> bool:
+        return self._matrix is not None
+
+    def export_figure(self, path, **opts):
+        from experiment_microscope.viz.mpl_export import annotate_provenance, new_figure, save_figure
+
+        m = self._matrix
+        data = np.asarray(m.values, dtype=float)
+        if self._normalize.isChecked():
+            mu, sd = data.mean(0, keepdims=True), data.std(0, keepdims=True)
+            sd[sd == 0] = 1.0
+            data = (data - mu) / sd
+        fig = new_figure(width_in=opts.get("width_in", 6.0), height_in=opts.get("height_in", 4.0))
+        ax = fig.add_subplot(111)
+        im = ax.imshow(data, aspect="auto", interpolation="nearest", cmap="magma")
+        ax.set_xlabel("feature")
+        ax.set_ylabel("sample")
+        ax.set_title(m.set_label)
+        fig.colorbar(im, ax=ax, shrink=0.8)
+        annotate_provenance(ax, f"origin: {m.origin.value}; {data.shape[0]}x{data.shape[1]}")
+        return save_figure(fig, path, transparent=opts.get("transparent", False))
+
     def _on_click(self, event) -> None:
         """Exact-value readout for the clicked cell (FIXME §29)."""
         if self._matrix is None or self._img is None:

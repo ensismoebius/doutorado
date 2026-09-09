@@ -79,6 +79,36 @@ class ParaconsistentPlane(QWidget):
             )
         self._scatter.setData(spots)
 
+    def can_export(self) -> bool:
+        return bool(self._points)
+
+    def export_figure(self, path, **opts):
+        import numpy as np
+
+        from experiment_microscope.viz.mpl_export import annotate_provenance, new_figure, save_figure
+
+        fig = new_figure(width_in=opts.get("width_in", 4.5), height_in=opts.get("height_in", 4.5))
+        ax = fig.add_subplot(111)
+        xs, ys = [], []
+        for p in self._points:
+            if p.g1.is_missing or p.g2.is_missing:
+                continue
+            xs.append(float(p.g1.magnitude))
+            ys.append(float(p.g2.magnitude))
+        ax.axhline(0, color="0.6", lw=0.6)
+        ax.axvline(0, color="0.6", lw=0.6)
+        ax.scatter(xs, ys, s=14, alpha=0.75)
+        for x, y, t in ((1, 0, "Truth"), (-1, 0, "False"), (0, 1, "Inconsistent"),
+                        (0, -1, "Indeterminate")):
+            ax.annotate(t, (x * 0.9, y * 0.9), fontsize=6, color="0.5", ha="center")
+        ax.set_xlim(-1.05, 1.05)
+        ax.set_ylim(-1.05, 1.05)
+        ax.set_xlabel("G1  (alpha - beta)")
+        ax.set_ylabel("G2  (alpha + beta - 1)")
+        ax.set_aspect("equal")
+        annotate_provenance(ax, f"origin: measured (persisted *_paraconsistent.csv); {len(xs)} sets")
+        return save_figure(fig, path, transparent=opts.get("transparent", False))
+
     def _on_click(self, _scatter, points) -> None:
         if not len(points):
             return

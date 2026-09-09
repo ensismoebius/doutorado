@@ -93,6 +93,24 @@ class WaveletLab(QWidget):
         split.setSizes([200, 500])
         root.addWidget(split, 1)
 
+    # -- publication export (§30) ------------------------------
+    def can_export(self) -> bool:
+        return self._decomp is not None
+
+    def export_figure(self, path, **opts):
+        from experiment_microscope.viz.mpl_export import annotate_provenance, new_figure, save_figure
+
+        d = self._decomp
+        fig = new_figure(width_in=opts.get("width_in", 6.5), height_in=opts.get("height_in", 3.0))
+        ax = fig.add_subplot(111)
+        e = np.asarray(d.subband_energies, dtype=float)
+        ax.bar(np.arange(e.size), e, width=0.85)
+        ax.set_xlabel("sub-band" if d.packet else "detail level")
+        ax.set_ylabel("energy (RMS)")
+        ax.set_title(f"{d.mode} {d.wavelet}, level {d.levels} — {self._signal.label or ''}")
+        annotate_provenance(ax, f"origin: computed (nn_microscope.wavelet); {e.size} bands")
+        return save_figure(fig, path, transparent=opts.get("transparent", False))
+
     # -- external API -------------------------------------------
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         adapter = self.repo.adapter(adapter_key)

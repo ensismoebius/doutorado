@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
+    QFileDialog,
     QLabel,
     QMainWindow,
     QPlainTextEdit,
@@ -136,6 +137,11 @@ class Workspace(QMainWindow):
         refresh.triggered.connect(self.para_plane.refresh)
         view_menu.addAction(refresh)
 
+        export_menu = self.menuBar().addMenu("E&xport")
+        act = QAction("Export current view…", self)
+        act.triggered.connect(self._export_current_view)
+        export_menu.addAction(act)
+
         exp_menu = self.menuBar().addMenu("&Experiment")
         for key, label in (("meeting01", "Meeting01"), ("thesis", "Thesis"),
                            ("paraconsistent_ga", "Paraconsistent GA")):
@@ -211,6 +217,24 @@ class Workspace(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             text = f"session dashboard unavailable: {exc}"
         self.session_log.setPlainText(text or "No meeting01 run detected under results/meeting01/.")
+
+    # -- publication export (FIXME §30) -------------------------
+    def _export_current_view(self) -> None:
+        view = self.tabs.currentWidget()
+        if not (hasattr(view, "can_export") and view.can_export()):
+            self.statusBar().showMessage("current view has nothing to export", 4000)
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export figure", "figure.pdf", "Vector/raster (*.pdf *.svg *.png)"
+        )
+        if not path:
+            return
+        try:
+            written = view.export_figure(path)
+        except Exception as exc:  # noqa: BLE001
+            self.statusBar().showMessage(f"export failed: {exc}", 8000)
+            return
+        self.statusBar().showMessage(f"wrote {written}", 6000)
 
     # -- bookmarks (FIXME §36) ----------------------------------
     def _save_bookmark(self, name: str) -> None:
