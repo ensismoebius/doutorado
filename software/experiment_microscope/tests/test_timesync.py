@@ -36,6 +36,20 @@ def test_region_drag_writes_time_range(qapp):
     assert sel.get("time_range") == (120, 220)
 
 
+def test_rebind_moves_cursor_to_new_plot_item(qapp):
+    sel = SelectionState()
+    w1, w2 = pg.PlotWidget(), pg.PlotWidget()
+    p1, p2 = w1.getPlotItem(), w2.getPlotItem()
+    c = TimeCursor(p1, sel)
+    sel.set("timestep", 55, cascade=False)
+    c.rebind(p2)
+    assert c._line in p2.items and c._line not in p1.items
+    assert abs(c._line.value() - 55.0) < 1e-6
+    # a rebind must not double-subscribe: moving the line writes once
+    c._line.setPos(77.0)
+    assert sel.get("timestep") == 77
+
+
 def test_reattach_keeps_cursor_after_clear(qapp):
     sel = SelectionState()
     w = pg.PlotWidget()

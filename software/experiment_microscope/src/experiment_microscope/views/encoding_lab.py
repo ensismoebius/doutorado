@@ -24,16 +24,25 @@ from PySide6.QtWidgets import (
 
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
+from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+from experiment_microscope.views._timesync import TimeCursor
 
 _ENCODINGS = ("direct", "poisson", "latency")
 
 
 class EncodingLab(QWidget):
-    def __init__(self, repo: DataRepository, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        repo: DataRepository,
+        selection: SelectionState | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.repo = repo
+        self._selection = selection
+        self._cursor: TimeCursor | None = None
         self._window: np.ndarray | None = None
 
         root = QVBoxLayout(self)
@@ -96,6 +105,11 @@ class EncodingLab(QWidget):
         p0.setTitle("normalized window (z-score)")
         p0.plot(t, self._window, pen=pg.mkPen((120, 170, 255)))
         p0.showGrid(x=True, y=True, alpha=0.2)
+        if self._selection is not None:
+            if self._cursor is None:
+                self._cursor = TimeCursor(p0, self._selection)
+            else:
+                self._cursor.rebind(p0)  # plots are rebuilt every render
 
         which = self._mode.currentText()
         encs = _ENCODINGS if which == "compare all" else (which,)

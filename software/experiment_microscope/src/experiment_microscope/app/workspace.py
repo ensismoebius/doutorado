@@ -83,7 +83,7 @@ class Workspace(QMainWindow):
         self.wavelet_lab = WaveletLab(self.repo, self.selection)
         self.wavelet_3d = Wavelet3D(self.repo, self.app_state)
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
-        self.encoding_lab = EncodingLab(self.repo)
+        self.encoding_lab = EncodingLab(self.repo, self.selection)
         self.para_plane = ParaconsistentPlane(self.repo)
         self.pipeline_dag = PipelineDag()
         self.triangle = TriangleView(self.repo)

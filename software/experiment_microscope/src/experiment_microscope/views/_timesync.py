@@ -92,6 +92,27 @@ class TimeCursor:
         if self._region is not None:
             self._region.setVisible(enabled)
 
+    def rebind(self, plot_item) -> None:
+        """Move the cursor items onto a freshly-created ``PlotItem``.
+
+        Views that rebuild their plots on every render (``GraphicsLayoutWidget``
+        + ``clear()``) call this instead of constructing a new ``TimeCursor``,
+        so the ``selection.changed`` subscription is made once, not leaked per
+        render.
+        """
+        if self._line is None or plot_item is None or plot_item is self._plot:
+            self._apply_from_selection()
+            return
+        for item in (self._line, self._region):
+            try:
+                self._plot.removeItem(item)
+            except Exception:  # noqa: BLE001 - old plot already gone
+                pass
+        self._plot = plot_item
+        plot_item.addItem(self._line, ignoreBounds=True)
+        plot_item.addItem(self._region, ignoreBounds=True)
+        self._apply_from_selection()
+
     def reattach(self) -> None:
         """Re-add the cursor items after a ``PlotItem.clear()`` wiped them."""
         if self._line is None:

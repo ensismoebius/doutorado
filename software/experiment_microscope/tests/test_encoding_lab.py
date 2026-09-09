@@ -29,3 +29,21 @@ def test_encoding_lab_ignores_non_window(qapp):
 
     lab.show_node(TreeNode("run", "r", {"level": "run"}), "thesis")
     assert lab._window is None
+
+
+def test_encoding_lab_cursor_survives_rerender(qapp, first_fsdd_window):
+    from experiment_microscope.core.selection import SelectionState
+
+    node, _a = first_fsdd_window()
+    if node is None:
+        pytest.skip("FSDD corpus not available")
+    sel = SelectionState()
+    lab = EncodingLab(DataRepository(), sel)
+    lab.show_node(node, "meeting01")
+    sel.set("timestep", 40, cascade=False)
+    cursor = lab._cursor
+    assert cursor is not None
+    lab._seed.setValue(7)  # forces a full _render (layout cleared + rebuilt)
+    assert lab._cursor is cursor  # same object, not leaked
+    assert abs(cursor._line.value() - 40.0) < 1e-6
+    assert cursor._line in lab._layout_widget.getItem(0, 0).items

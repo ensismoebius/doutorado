@@ -98,7 +98,9 @@ def can_export(self) -> bool  /  def export_figure(self, path, **opts): ...   # 
 - **`views/_timesync.py::TimeCursor`** — a draggable line + region bound to a
   `PlotItem` and `SelectionState`. Dragging in any panel writes
   `selection.timestep` / `time_range`; every other cursor follows.
-  `reattach()` survives `PlotItem.clear()`.
+  `reattach()` survives `PlotItem.clear()`; `rebind(new_plot)` is for views that
+  rebuild their plots every render (EncodingLab) — one subscription, not one per
+  render.
 - **`views/transport_bar.py` + `core/animation.py::TimelinePlayer`** — one
   shared transport. A temporal view calls `set_timeline(player)` and registers
   its frame count; the player only ever emits a frame *index*, never data.
