@@ -11,12 +11,14 @@ All panels talk only through ``SelectionState`` (FIXME §42).
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QSettings
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import (
+    QAbstractSpinBox,
     QDockWidget,
     QFileDialog,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPlainTextEdit,
     QStatusBar,
@@ -66,9 +68,15 @@ _APP = "experiment_microscope"
 
 
 class Workspace(QMainWindow):
-    def __init__(self, initial_experiment: str | None = None) -> None:
+    def __init__(
+        self,
+        initial_experiment: str | None = None,
+        initial_tour: str | None = None,
+        initial_tab: str | None = None,
+    ) -> None:
         super().__init__()
         self.resize(1400, 900)
+        self._clamp_to_screen()
 
         from experiment_microscope.core.i18n import language as _lang, set_language, t
 
@@ -84,13 +92,21 @@ class Workspace(QMainWindow):
         self._build_docks()
         self._build_menus()
         self._build_statusbar()
+        self._build_shortcuts()
         self._wire()
 
-        self._restore_layout()
+        had_layout = self._restore_layout()
+        self._clamp_to_screen()
+        self._apply_dock_sizes(force=not had_layout)
         saved_theme = QSettings(_ORG, _APP).value("theme", "system")
         self._apply_theme(str(saved_theme), persist=False)
         if initial_experiment:
             self.explorer.select_experiment(initial_experiment)
+        if initial_tour:
+            self.explorer.select_experiment(initial_tour)
+            self._start_tour()
+        if initial_tab:
+            self._open_tab(initial_tab)
 
     # -- construction ------------------------------------------------
     def _build_central(self) -> None:
@@ -251,7 +267,9 @@ class Workspace(QMainWindow):
         _pl.setSpacing(2)
         _pl.addWidget(self.search_bar)
         _pl.addWidget(self.explorer, 1)
-        self._dock("Data Explorer", explorer_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
+        explorer_panel.setMinimumWidth(190)
+        self._left_dock = self._dock(
+            "Data Explorer", explorer_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
 
         self.provenance = ProvenanceInspector(self.repo)
         prov_dock = self._dock("Inspector", self.provenance, Qt.DockWidgetArea.RightDockWidgetArea)
@@ -260,12 +278,10 @@ class Workspace(QMainWindow):
         art_dock = self._dock("Raw artifact", self.artifact_inspector, Qt.DockWidgetArea.RightDockWidgetArea)
         self.reproduce_panel = ReproducePanel(self.repo)
         repro_dock = self._dock("Reproduce", self.reproduce_panel, Qt.DockWidgetArea.RightDockWidgetArea)
-        self.tabifyDockWidget(prov_dock, art_dock)
-        self.tabifyDockWidget(art_dock, repro_dock)
-        prov_dock.raise_()
 
         self.session_log = QPlainTextEdit()
         self.session_log.setReadOnly(True)
+        self.session_log.setMaximumHeight(140)
         from experiment_microscope.core.i18n import t as _t
         self.session_log.setPlainText(_t("No meeting01 run detected under results/meeting01/."))
         self._dock("Meeting01 session", self.session_log, Qt.DockWidgetArea.BottomDockWidgetArea)
@@ -273,11 +289,20 @@ class Workspace(QMainWindow):
         self.bookmarks = BookmarksDock()
         self.bookmarks.save_requested.connect(self._save_bookmark)
         self.bookmarks.restore_requested.connect(self._restore_bookmark)
-        self._dock("Bookmarks", self.bookmarks, Qt.DockWidgetArea.RightDockWidgetArea)
+        bm_dock = self._dock("Bookmarks", self.bookmarks, Qt.DockWidgetArea.RightDockWidgetArea)
 
         self.developer = DeveloperPanel(self.repo.cache, self._probe_shapes)
         dev_dock = self._dock("Developer", self.developer, Qt.DockWidgetArea.RightDockWidgetArea)
         dev_dock.setVisible(False)  # opt-in (FIXME §37)
+
+        # One tab group on the right so the side panels never fight for width
+        # on a small screen (FIXME §6 — the docks must stay usable).
+        self._right_docks = [prov_dock, art_dock, repro_dock, bm_dock, dev_dock]
+        for d in self._right_docks:
+            d.widget().setMinimumWidth(240)
+        for prev, nxt in zip(self._right_docks, self._right_docks[1:]):
+            self.tabifyDockWidget(prev, nxt)
+        prov_dock.raise_()
 
     def _build_menus(self) -> None:
         from experiment_microscope.core.i18n import LANGUAGES, language, set_language, t
@@ -290,6 +315,10 @@ class Workspace(QMainWindow):
         refresh.triggered.connect(self.para_plane.refresh)
         refresh.triggered.connect(self.para_landscape.refresh)
         view_menu.addAction(refresh)
+
+        reset_layout = QAction(t("Reset panel layout"), self)
+        reset_layout.triggered.connect(self._reset_layout)
+        view_menu.addAction(reset_layout)
 
         theme_menu = view_menu.addMenu(t("Theme"))
         self._theme_group = QActionGroup(self)
@@ -315,6 +344,13 @@ class Workspace(QMainWindow):
         self._low_perf_action.setChecked(self.app_state.low_performance_mode)
         self._low_perf_action.toggled.connect(self._set_low_performance)
         view_menu.addAction(self._low_perf_action)
+
+        self._presentation_action = QAction(t("Presentation mode"), self)
+        self._presentation_action.setCheckable(True)
+        self._presentation_action.setChecked(self.app_state.presentation_mode)
+        self._presentation_action.setShortcut(QKeySequence(Qt.Key.Key_F5))
+        self._presentation_action.toggled.connect(self._set_presentation_mode)
+        view_menu.addAction(self._presentation_action)
 
         export_menu = self.menuBar().addMenu(t("E&xport"))
         act = QAction(t("Export current view…"), self)
@@ -360,6 +396,102 @@ class Workspace(QMainWindow):
         self.statusBar().showMessage(
             t("Language changed — some fixed labels update after a restart."), 6000)
 
+    # -- presenter ergonomics (inspired by efficient_nn_lab) --------
+    def _build_shortcuts(self) -> None:
+        """Keyboard-remote friendly navigation for lecturing (FIXME §51).
+
+        A presenter clicker sends PageUp / PageDown; Space / arrows drive the
+        guided tour when it is open, otherwise the animation transport.
+        """
+        specs = (
+            (Qt.Key.Key_Space, self._presenter_advance),
+            (Qt.Key.Key_Right, self._presenter_advance),
+            (Qt.Key.Key_PageDown, self._presenter_advance),
+            (Qt.Key.Key_Left, self._presenter_back),
+            (Qt.Key.Key_PageUp, self._presenter_back),
+            (Qt.Key.Key_Escape, self._presenter_escape),
+        )
+        self._shortcuts = []
+        for key, slot in specs:
+            sc = QShortcut(QKeySequence(key), self)
+            sc.activated.connect(slot)
+            self._shortcuts.append(sc)
+
+    def _typing_focus(self) -> bool:
+        w = QApplication.focusWidget()
+        return isinstance(w, (QLineEdit, QAbstractSpinBox))
+
+    def _tour_open(self) -> bool:
+        return bool(getattr(self, "_tour_active", False))
+
+    def _presenter_advance(self) -> None:
+        if self._typing_focus():
+            return
+        if self._tour_open():
+            self._story_panel._advance()
+        elif self.timeline.total_frames > 1:
+            self.timeline.step_forward()
+
+    def _presenter_back(self) -> None:
+        if self._typing_focus():
+            return
+        if self._tour_open():
+            self._story_panel._prev()
+        elif self.timeline.total_frames > 1:
+            self.timeline.step_backward()
+
+    def _presenter_escape(self) -> None:
+        if self._tour_open():
+            self._end_tour()
+        elif self.app_state.presentation_mode:
+            self._set_presentation_mode(False)
+
+    def _set_presentation_mode(self, on: bool) -> None:
+        """F5 — full-screen lecture surface (inspired by efficient_nn_lab's
+        lecture mode): hide the chrome, open the current view's explanation,
+        enlarge the type. F5 / Esc restores everything."""
+        self.app_state.presentation_mode = on
+        act = getattr(self, "_presentation_action", None)
+        if act is not None and act.isChecked() != on:
+            act.setChecked(on)
+
+        self.menuBar().setVisible(not on)
+        self.statusBar().setVisible(not on)
+        self.follow_bar.setVisible(not on)
+        self._legend_host.setVisible(not on)
+        self.transport.setVisible(
+            not on and not self.app_state.low_performance_mode
+            and self.timeline.total_frames > 1
+        )
+        if not hasattr(self, "_hidden_docks"):
+            self._hidden_docks = []
+        if on:
+            self._hidden_docks = [
+                d for d in self.findChildren(QDockWidget) if d.isVisible()
+            ]
+            for d in self._hidden_docks:
+                d.setVisible(False)
+        else:
+            for d in self._hidden_docks:
+                d.setVisible(True)
+            self._hidden_docks = []
+
+        app = QApplication.instance()
+        if app is not None:
+            f = app.font()
+            base = getattr(self, "_base_point_size", None)
+            if base is None:
+                self._base_point_size = base = max(f.pointSize(), 9)
+            f.setPointSize(round(base * 1.2) if on else base)
+            app.setFont(f)
+
+        if on:
+            self.showFullScreen()
+            self._explain_current_view()
+        else:
+            self.showNormal()
+            self._clamp_to_screen()
+
     def _start_tour(self) -> None:
         """Ctrl+G — open the Guided Tour dock for the current experiment."""
         from experiment_microscope.views.story_panel import StoryPanel
@@ -381,8 +513,10 @@ class Workspace(QMainWindow):
         self._story_dock.setVisible(True)
         self._story_dock.raise_()
         self._story_panel.start(key)
+        self._tour_active = True
 
     def _end_tour(self) -> None:
+        self._tour_active = False
         if getattr(self, "_story_dock", None) is not None:
             self._story_dock.setVisible(False)
         for i in range(self.tabs.count()):
@@ -645,7 +779,28 @@ class Workspace(QMainWindow):
         )
 
     # -- layout persistence -------------------------------------
-    def _restore_layout(self) -> None:
+    def _clamp_to_screen(self) -> None:
+        """Keep the window inside the current monitor's usable area.
+
+        A saved geometry from a bigger display, or the 1400×900 default on a
+        smaller one, otherwise leaves the window (and its title bar) partly
+        off-screen with no way to grab it.
+        """
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is None:
+            return
+        avail = screen.availableGeometry()
+        margin = 8
+        w = min(self.width(), avail.width() - 2 * margin)
+        h = min(self.height(), avail.height() - 2 * margin)
+        if w < self.width() or h < self.height():
+            self.resize(w, h)
+        g = self.frameGeometry()
+        x = min(max(g.x(), avail.left() + margin), avail.right() - g.width() - margin)
+        y = min(max(g.y(), avail.top() + margin), avail.bottom() - g.height() - margin)
+        self.move(max(x, avail.left() + margin), max(y, avail.top() + margin))
+
+    def _restore_layout(self) -> bool:
         settings = QSettings(_ORG, _APP)
         geo = settings.value("geometry")
         state = settings.value("windowState")
@@ -653,6 +808,44 @@ class Workspace(QMainWindow):
             self.restoreGeometry(geo)
         if state is not None:
             self.restoreState(state)
+        return state is not None
+
+    def _apply_dock_sizes(self, *, force: bool) -> None:
+        """Give the side docks a usable width relative to the window.
+
+        Runs unconditionally when there is no saved layout; when ``force`` is
+        False it only widens docks that a restored layout left too narrow to
+        read (the failure in the screenshot: side panels a few pixels wide).
+        """
+        win_w = max(self.width(), 800)
+        left_w = min(300, max(220, win_w // 5))
+        right_w = min(380, max(280, win_w // 4))
+        left = getattr(self, "_left_dock", None)
+        right_visible = [d for d in getattr(self, "_right_docks", []) if d.isVisible()]
+        if left is not None and (force or left.width() < 160):
+            self.resizeDocks([left], [left_w], Qt.Orientation.Horizontal)
+        if right_visible and (force or min(d.width() for d in right_visible) < 200):
+            self.resizeDocks(right_visible, [right_w] * len(right_visible),
+                             Qt.Orientation.Horizontal)
+
+    def _reset_layout(self) -> None:
+        """View → Reset panel layout — discard the saved arrangement."""
+        settings = QSettings(_ORG, _APP)
+        settings.remove("windowState")
+        settings.remove("geometry")
+        for d in getattr(self, "_right_docks", []):
+            d.setFloating(False)
+            d.setVisible(d is not self._right_docks[-1])  # keep Developer hidden
+        for prev, nxt in zip(self._right_docks, self._right_docks[1:]):
+            self.tabifyDockWidget(prev, nxt)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._left_dock)
+        self._left_dock.setFloating(False)
+        self._left_dock.setVisible(True)
+        self._right_docks[0].raise_()
+        self._clamp_to_screen()
+        self._apply_dock_sizes(force=True)
+        from experiment_microscope.core.i18n import t
+        self.statusBar().showMessage(t("Panel layout reset."), 4000)
 
     def closeEvent(self, event) -> None:  # noqa: N802
         settings = QSettings(_ORG, _APP)

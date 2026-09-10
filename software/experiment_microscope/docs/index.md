@@ -27,11 +27,21 @@ QT_QPA_PLATFORM=offscreen ./.venv/bin/python -m experiment_microscope
 ./.venv/bin/pytest -q          # 63 fast tests; `-m slow` adds the bit-exact parity checks
 ```
 
-Optional first argument pre-selects the pipeline:
+Optional flags pre-select what opens:
 
 ```bash
-./run.sh --experiment thesis
+./run.sh --experiment thesis          # pre-select a pipeline
+./run.sh --tour meeting01              # open straight into the guided tour
+./run.sh --tab "Wavelet Lab"          # raise a named tab on start
 ```
+
+### Presenting to a room
+
+**F5** (`View → Presentation mode`, or `Esc` to leave) makes the window a
+full-screen lecture surface: menus, docks, transport and colour key hidden, the
+current view's explanation open, larger type. A presenter clicker works —
+`Space` / `→` / `PageDown` advance the guided tour (or step the animation when no
+tour is running), `←` / `PageUp` go back.
 
 ### The C++ binding
 
