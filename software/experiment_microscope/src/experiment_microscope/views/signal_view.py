@@ -190,10 +190,14 @@ class SignalView(QWidget):
         downsampled = stride > 1
         x = np.arange(0, n, stride)
         for i, row in enumerate(data):
+            from experiment_microscope.core import palette
+
+            single = data.shape[0] == 1
             self._plot.plot(
                 x,
                 row[::stride],
-                pen=pg.intColor(i, hues=max(3, data.shape[0])),
+                pen=(palette.pen("input", 2) if single
+                     else pg.intColor(i, hues=max(3, data.shape[0]))),
                 name=names[i] if i < len(names) else f"ch{i}",
             )
         if self.app_state is not None:

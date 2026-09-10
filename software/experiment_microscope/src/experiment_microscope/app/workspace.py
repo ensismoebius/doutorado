@@ -143,9 +143,29 @@ class Workspace(QMainWindow):
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
         col.addWidget(self.follow_bar)
+        self._legend_host = QWidget()
+        _lh = QVBoxLayout(self._legend_host)
+        _lh.setContentsMargins(0, 0, 0, 0)
+        _lh.setSpacing(0)
+        col.addWidget(self._legend_host)
         col.addWidget(self.tabs, 1)
         col.addWidget(self.transport)
         self.setCentralWidget(central)
+        self.tabs.currentChanged.connect(self._refresh_legend)
+        self._refresh_legend(self.tabs.currentIndex())
+
+    def _refresh_legend(self, idx: int) -> None:
+        """Swap the colour-key strip under the tab bar to match the active tab."""
+        from experiment_microscope.core import palette
+
+        host = self._legend_host.layout()
+        while host.count():
+            w = host.takeAt(0).widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
+        strip = palette.legend_strip(self.tabs.tabText(idx) if idx >= 0 else "")
+        host.addWidget(strip)
 
     def _open_tab(self, name: str) -> None:
         for i in range(self.tabs.count()):
@@ -273,6 +293,11 @@ class Workspace(QMainWindow):
             exp_menu.addAction(act)
 
         help_menu = self.menuBar().addMenu("&Help")
+        tour = QAction("▶  Start guided tour", self)
+        tour.setShortcut(QKeySequence("Ctrl+G"))
+        tour.triggered.connect(self._start_tour)
+        help_menu.addAction(tour)
+        help_menu.addSeparator()
         explain = QAction("Explain the current view", self)
         explain.setShortcut(QKeySequence("F1"))
         explain.triggered.connect(self._explain_current_view)
@@ -280,6 +305,35 @@ class Workspace(QMainWindow):
         gloss = QAction("Glossary (all terms)…", self)
         gloss.triggered.connect(self._show_glossary)
         help_menu.addAction(gloss)
+
+    def _start_tour(self) -> None:
+        """Ctrl+G — open the Guided Tour dock for the current experiment."""
+        from experiment_microscope.views.story_panel import StoryPanel
+
+        if getattr(self, "_story_dock", None) is None:
+            self._story_panel = StoryPanel(self)
+            self._story_panel.finished.connect(self._end_tour)
+            self._story_dock = self._dock(
+                "Guided tour", self._story_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
+            self._story_dock.setMinimumWidth(340)
+            # full-height left panel, tabbed with the Data Explorer so it is big
+            # enough to read and one click gets back to the tree.
+            explorer_dock = next((d for d in self.findChildren(QDockWidget)
+                                  if d.objectName() == "dock::Data Explorer"), None)
+            if explorer_dock is not None:
+                self.tabifyDockWidget(explorer_dock, self._story_dock)
+        key = getattr(self, "_current_adapter", None)
+        key = key if key in ("meeting01", "thesis") else "meeting01"
+        self._story_dock.setVisible(True)
+        self._story_dock.raise_()
+        self._story_panel.start(key)
+
+    def _end_tour(self) -> None:
+        if getattr(self, "_story_dock", None) is not None:
+            self._story_dock.setVisible(False)
+        for i in range(self.tabs.count()):
+            self.tabs.setTabVisible(i, True)
+        self.statusBar().showMessage("Tour ended — every tab is back. Explore freely.", 4000)
 
     def _explain_current_view(self) -> None:
         """F1 — open the current tab's 'How to read this' box, if it has one."""

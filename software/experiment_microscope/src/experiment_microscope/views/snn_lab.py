@@ -182,8 +182,10 @@ class SnnLab(QWidget):
         self._layout_widget.clear()
         self._hovers = []
 
-        p0 = self._layout_widget.addPlot(row=0, col=0, title="normalized window (z-score)")
-        p0.plot(np.arange(self._window.size), self._window, pen=pg.mkPen((120, 170, 255)), name="window")
+        from experiment_microscope.core import palette, verdict
+
+        p0 = self._layout_widget.addPlot(row=0, col=0, title="1 · the window going in")
+        p0.plot(np.arange(self._window.size), self._window, pen=palette.pen("input", 2), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
         set_source(p0, "nn_microscope.meeting01.recurrent_lif_trace()")
         self._hovers.append(HoverReadout(p0, x_label="step"))
@@ -195,26 +197,26 @@ class SnnLab(QWidget):
 
         p1 = self._layout_widget.addPlot(
             row=1, col=0,
-            title=f"{enc_name} encoding — {in_spikes.size} spike(s) (click one)")
+            title=f"2 · spikes going in — {in_spikes.size} of them (click one to inspect)")
         p1.setXLink(p0)
-        _raster(p1, in_spikes, (255, 190, 90), on_click=self._on_input_spike)
+        _raster(p1, in_spikes, palette.rgb("spike"), on_click=self._on_input_spike)
 
         p2 = self._layout_widget.addPlot(
             row=2, col=0,
-            title=f"recurrent LIF membrane v[t] — {out_spikes.size} spike(s) "
-                  f"(α={self._alpha.value():.2f}, v_th={self._vth.value():.2f})")
+            title="3 · " + verdict.spikes(in_spikes.size, out_spikes.size, vmem1.size)
+                  + f"  (leak α={self._alpha.value():.2f}, firing line v_th={self._vth.value():.2f})")
         p2.setXLink(p0)
         p2.showGrid(x=True, y=True, alpha=0.2)
-        p2.setLabel("left", "membrane potential v[t]")
+        p2.setLabel("left", "charge inside the neuron  (membrane potential v[t])")
         p2.setLabel("bottom", "time step")
-        p2.plot(np.arange(vmem1.size), vmem1, pen=pg.mkPen((90, 220, 140), width=1), name="v[t]")
+        p2.plot(np.arange(vmem1.size), vmem1, pen=palette.pen("membrane", 2), name="charge v[t]")
         self._hovers.append(HoverReadout(p2, x_label="step"))
         p2.addLine(y=float(self._vth.value()),
-                   pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
+                   pen=palette.pen("threshold", 1, "dash"))
         if out_spikes.size:
             sc = pg.ScatterPlotItem(
                 x=out_spikes, y=vmem1[out_spikes], symbol="t", size=11,
-                brush=pg.mkBrush(90, 220, 140), pen=pg.mkPen(None), data=list(out_spikes))
+                brush=palette.brush("spike"), pen=pg.mkPen(None), data=list(out_spikes))
             sc.sigClicked.connect(self._on_membrane_spike)
             p2.addItem(sc)
 
@@ -222,21 +224,22 @@ class SnnLab(QWidget):
         if mem is not None:
             v_mem, spk, vth = mem
             neurons = np.arange(v_mem.size)
+            n_fire = int((spk > 0.5).sum()) if spk is not None else 0
             p3 = self._layout_widget.addPlot(
                 row=3, col=0,
-                title=f"trained encoder LIF — per-neuron membrane snapshot (time_steps=1), "
-                      f"{int((spk > 0.5).sum()) if spk is not None else 0} firing")
-            p3.setLabel("bottom", "encoder LIF neuron index")
-            p3.setLabel("left", "membrane potential")
+                title=f"4 · the trained network's 64 encoder neurons — {n_fire} of them "
+                      f"fired for this window (one charge value each, not a trajectory)")
+            p3.setLabel("bottom", "encoder neuron index")
+            p3.setLabel("left", "charge at readout")
             p3.plot(neurons, v_mem, pen=None, symbol="o", symbolSize=6,
-                    symbolBrush=(120, 170, 255), name="v_mem")
+                    symbolBrush=palette.brush("membrane"), name="charge")
             self._hovers.append(HoverReadout(p3, x_label="neuron"))
             if vth is not None:
-                p3.addLine(y=float(vth), pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
+                p3.addLine(y=float(vth), pen=palette.pen("threshold", 1, "dash"))
             if spk is not None and (spk > 0.5).any():
                 fi = np.flatnonzero(spk > 0.5)
                 p3.plot(fi, v_mem[fi], pen=None, symbol="t", symbolSize=10,
-                        symbolBrush=(90, 220, 140))
+                        symbolBrush=palette.brush("spike"), name="fired")
 
         kept = np.intersect1d(in_spikes, out_spikes).size
         mem_note = (

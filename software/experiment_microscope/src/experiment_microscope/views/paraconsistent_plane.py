@@ -59,8 +59,10 @@ class ParaconsistentPlane(QWidget):
             self._plot = None
             return
         self._plot = pg.PlotWidget()
-        self._plot.setLabel("bottom", "G1  (certainty:  alpha - beta)")
-        self._plot.setLabel("left", "G2  (contradiction:  alpha + beta - 1)")
+        self._plot.setTitle("Each dot is one feature recipe · right = 'same person' · "
+                            "up = the evidence contradicts itself · bottom-right corner is the goal")
+        self._plot.setLabel("bottom", "G1  —  net certainty  (right = same person, left = different)")
+        self._plot.setLabel("left", "G2  —  self-contradiction  (up = evidence fights itself)")
         self._plot.showGrid(x=True, y=True, alpha=0.3)
         self._plot.setXRange(-1.05, 1.05)
         self._plot.setYRange(-1.05, 1.05)

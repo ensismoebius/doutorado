@@ -196,14 +196,18 @@ class WaveletLab(QWidget):
             )
             item.setData(0, Qt.ItemDataRole.UserRole, i)
             self._tree.addTopLevelItem(item)
+        from experiment_microscope.core import verdict
+
         self._status.setText(
-            f"{self._signal.label or 'signal'}  [computed] — "
-            f"{self._decomp.mode} {self._decomp.wavelet}, "
-            f"{len(energies)} band(s), {data.size} samples in"
+            verdict.wavelet_energy(energies)
+            + f"   ·   {self._decomp.mode} {self._decomp.wavelet}, {len(energies)} bands, "
+            f"{data.size} samples in  ·  [computed]"
         )
+        from experiment_microscope.core import palette
+
         self._plot.clear()
-        self._plot.plot(np.arange(data.size), data, pen=pg.mkPen((120, 170, 255)), name="input")
-        self._plot.setTitle("input signal (pick a leaf below to see its coefficients)")
+        self._plot.plot(np.arange(data.size), data, pen=palette.pen("input", 2), name="input")
+        self._plot.setTitle("The signal going in — pick a band on the left to see just that band")
         set_source(self._plot, f"nn_microscope.wavelet.decompose() · {self._decomp.wavelet} "
                    f"{self._decomp.mode} L{self._level.value()}")
         self._hover.reattach()
@@ -221,10 +225,13 @@ class WaveletLab(QWidget):
         except RuntimeError:
             # regular (non-packet) transform — show the k-th detail band instead
             coeffs = self._decomp.transformed_signal
+        from experiment_microscope.core import palette
+
         self._plot.clear()
-        self._plot.plot(np.arange(coeffs.size), coeffs, pen=pg.mkPen((255, 190, 90)),
-                        name=f"leaf {idx}")
-        self._plot.setTitle(f"leaf {idx} coefficients ({coeffs.size})")
+        self._plot.plot(np.arange(coeffs.size), coeffs, pen=palette.pen("wavelet", 2),
+                        name=f"band {idx}")
+        self._plot.setTitle(f"Frequency band {idx} on its own — {coeffs.size} numbers "
+                            f"(band 0 = lowest pitch)")
         set_source(self._plot, f"nn_microscope.wavelet.decompose().leaf({idx})")
         self._hover.reattach()
         if self._cursor is not None:

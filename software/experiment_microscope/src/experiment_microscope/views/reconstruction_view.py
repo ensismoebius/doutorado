@@ -136,18 +136,31 @@ class ReconstructionView(QWidget):
 
         from experiment_microscope.views._help import label_plot
 
+        from experiment_microscope.core import palette, verdict
+
+        r2m = t.metrics.get("r2")
+        headline = verdict.reconstruction(
+            None if r2m is None or r2m.is_missing else float(r2m.magnitude))
         p0 = self._layout_widget.addPlot(row=0, col=0)
         label_plot(p0, bottom="index within the flattened window (sample number)",
-                   left="amplitude (z-scored, unitless)",
-                   title="original encoder input vs decoder reconstruction")
-        p0.plot(x, orig, pen=pg.mkPen((120, 170, 255)), name="original (encoder input)")
-        p0.plot(x, rec, pen=pg.mkPen((255, 170, 90)), name="reconstruction (decoder output)")
+                   left="amplitude (z-scored, unitless)", title=headline)
+        p0.plot(x, orig, pen=palette.pen("input", 2), name="original (what went in)")
+        p0.plot(x, rec, pen=palette.pen("output", 2), name="rebuild (what came out)")
+        resid = orig - rec
+        j = int(np.argmax(np.abs(resid))) if resid.size else 0
         p1 = self._layout_widget.addPlot(row=1, col=0)
         label_plot(p1, bottom="index within the flattened window (sample number)",
-                   left="original − reconstruction",
-                   title="residual — flat & near zero = faithful rebuild", legend=False)
+                   left="original − rebuild",
+                   title="What was lost — the flatter this line, the better the rebuild",
+                   legend=False)
         p1.setXLink(p0)
-        p1.plot(x, orig - rec, pen=pg.mkPen((150, 150, 150)), name="residual")
+        p1.plot(x, resid, pen=palette.pen("error"), name="difference")
+        if resid.size:
+            p1.plot([x[j]], [resid[j]], pen=None, symbol="o", symbolSize=10,
+                    symbolBrush=palette.brush("highlight"), name="biggest miss")
+            txt = pg.TextItem("biggest miss here", color=palette.rgb("highlight"), anchor=(0.5, 1.2))
+            txt.setPos(float(x[j]), float(resid[j]))
+            p1.addItem(txt)
 
         from experiment_microscope.views._plotinfo import HoverReadout, set_source
 

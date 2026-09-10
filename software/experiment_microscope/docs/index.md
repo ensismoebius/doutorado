@@ -102,6 +102,23 @@ Generated captions are checked against a banned-inferential-word list
 
 Nothing in the app is shown without an explanation:
 
+- **Guided tour** (`Help → Start guided tour`, `Ctrl+G`) — a left dock that walks
+  an audience through one pipeline a step at a time: a plain-language paragraph
+  (no undefined jargon), the one number that matters, and Back / Next. Each step
+  drives the app — selects the right data, opens the right tab, runs the forward
+  pass — so the presenter only talks and clicks Next. "Free explore" hands the
+  app back (Segel & Heer's "martini glass": guided first, open after). Stories:
+  `core/story.py`; panel: `views/story_panel.py`.
+- **One colour language** (`core/palette.py`) — blue = the original signal,
+  orange = the model's rebuild, grey = the error, amber = a spike, green =
+  membrane charge, red = the firing line, violet = a frequency band, teal = a
+  handcrafted measurement, yellow = your current selection. A "Colour key" strip
+  under the tab bar shows only the colours the active tab uses.
+- **Prescriptive plot titles** (`core/verdict.py`) — the title states the
+  takeaway computed from the data ("Near-perfect rebuild — the latent numbers
+  kept almost everything, R² 0.99" / "Conflicting evidence — supported *and*
+  denied"), not the category. Still passes the banned-inferential-word guard.
+
 - **Every central tab has a "How to read this" strip** (`views/_help.py::HelpBox`)
   — collapsed by default, one click to open. It says what the view shows, what
   each axis and number means (abbreviations spelled out), and what to do next.
