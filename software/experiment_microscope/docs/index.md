@@ -124,11 +124,13 @@ Nothing in the app is shown without an explanation:
   pipelines), the verdict sentences, the colour key, the full glossary (~90
   terms), every "How to read this" box, the Follow-the-Data bar, and the control
   labels / status lines of the Signal, Wavelet Lab, Encoding Lab, SNN Lab,
-  Feature Matrix, Inspector, Reproduce, Bookmarks and Search panels. A few
-  data-derived strings (signal labels, the meeting01 session log, some 3-D and
-  timeline axis text) are still English. The choice persists in `QSettings`;
-  menus, tabs, the tour and the glossary re-render live, other fixed labels
-  update on the next node selection or launch.
+  Feature Matrix, Experiment Timeline, Inspector, Raw-artifact, Reproduce,
+  Bookmarks and Search panels. The Portuguese is written to read naturally
+  (idiomatic phrasing, not word-for-word) since the tour and help boxes are the
+  teaching surface. A few data-derived strings (adapter signal labels, the
+  meeting01 session log, `source:` plot captions) are still English. The choice
+  persists in `QSettings`; menus, tabs, the tour and the glossary re-render live,
+  other fixed labels update on the next node selection or launch.
 - **Scale-to-fit + motion** — every line plot re-fits to its data on each
   render (`_plotinfo.autofit`) and fades in (`_plotinfo.fade_in`); the guided
   tour steps cross-fade.

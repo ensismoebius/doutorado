@@ -18,7 +18,7 @@ def test_translation_falls_back_to_english():
 def test_pt_br_translates_the_didactic_surface():
     i18n.set_language("pt_BR")
     try:
-        assert i18n.t("Free explore") == "Explorar livremente"
+        assert i18n.t("Free explore") == "Explorar à vontade"
         assert i18n.t("Start guided tour") != ""            # present or English, never blank
         s = verdict.reconstruction(0.99)
         assert "quase" in s.lower() and "R²" in s           # translated + keeps the symbol

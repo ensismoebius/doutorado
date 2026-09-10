@@ -74,12 +74,13 @@ class ArtifactInspector(QWidget):
 def _report(path: Path) -> str:
     if not path.is_file():
         return f"missing: {path}"
+    from experiment_microscope.core.i18n import t as _t
     st = path.stat()
     head = [
-        f"File   : {path.name}",
-        f"Path   : {path}",
-        f"Format : {path.suffix.lstrip('.') or 'unknown'}",
-        f"Size   : {_human(st.st_size)} ({st.st_size} bytes)",
+        f"{_t('File')}   : {path.name}",
+        f"{_t('Path')}   : {path}",
+        f"{_t('Format')} : {path.suffix.lstrip('.') or _t('unknown')}",
+        f"{_t('Size')}   : {_human(st.st_size)} ({st.st_size} {_t('bytes')})",
         "",
     ]
     try:
