@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPlainTextEdit,
+    QScrollArea,
     QStatusBar,
     QTabWidget,
     QVBoxLayout,
@@ -159,6 +160,9 @@ class Workspace(QMainWindow):
             i = self.tabs.addTab(widget, key)
             self.tabs.tabBar().setTabData(i, key)
         self.para_landscape.point_clicked.connect(self._on_para_point)
+        # don't let a single wide view (e.g. Comparison's table) push the window
+        # past the screen — let it clip/scroll within the tab instead.
+        self.tabs.setMinimumWidth(360)
         self._retranslate_tabs()
 
         self.follow_bar = FollowDataBar(self.repo)
@@ -169,17 +173,37 @@ class Workspace(QMainWindow):
         col = QVBoxLayout(central)
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
-        col.addWidget(self.follow_bar)
+        # The pipeline strip and colour key are wider than a small screen; scroll
+        # them sideways rather than forcing the whole window past the monitor edge.
+        self._follow_scroll = self._hscroll(self.follow_bar)
+        col.addWidget(self._follow_scroll)
         self._legend_host = QWidget()
         _lh = QVBoxLayout(self._legend_host)
         _lh.setContentsMargins(0, 0, 0, 0)
         _lh.setSpacing(0)
-        col.addWidget(self._legend_host)
+        self._legend_scroll = self._hscroll(self._legend_host)
+        col.addWidget(self._legend_scroll)
         col.addWidget(self.tabs, 1)
         col.addWidget(self.transport)
         self.setCentralWidget(central)
         self.tabs.currentChanged.connect(self._refresh_legend)
         self._refresh_legend(self.tabs.currentIndex())
+
+    def _hscroll(self, inner: QWidget) -> QScrollArea:
+        """Wrap a too-wide horizontal strip so it scrolls instead of stretching
+        the window past the screen. Height tracks the inner widget."""
+        sa = QScrollArea()
+        sa.setWidget(inner)
+        sa.setWidgetResizable(True)
+        sa.setFrameShape(QScrollArea.Shape.NoFrame)
+        sa.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        sa.setSizeAdjustPolicy(QScrollArea.SizeAdjustPolicy.AdjustToContents)
+        hint = inner.sizeHint().height()
+        sa.setMinimumHeight(hint)
+        sa.setMaximumHeight(hint + 16)  # room for a scrollbar when it appears
+        sa.setMinimumWidth(0)
+        return sa
 
     def _tab_key(self, i: int) -> str:
         """Stable English key for a tab (its visible text is translated)."""
@@ -267,7 +291,7 @@ class Workspace(QMainWindow):
         _pl.setSpacing(2)
         _pl.addWidget(self.search_bar)
         _pl.addWidget(self.explorer, 1)
-        explorer_panel.setMinimumWidth(190)
+        explorer_panel.setMinimumWidth(150)
         self._left_dock = self._dock(
             "Data Explorer", explorer_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
 
@@ -299,7 +323,7 @@ class Workspace(QMainWindow):
         # on a small screen (FIXME §6 — the docks must stay usable).
         self._right_docks = [prov_dock, art_dock, repro_dock, bm_dock, dev_dock]
         for d in self._right_docks:
-            d.widget().setMinimumWidth(240)
+            d.widget().setMinimumWidth(180)
         for prev, nxt in zip(self._right_docks, self._right_docks[1:]):
             self.tabifyDockWidget(prev, nxt)
         prov_dock.raise_()
@@ -457,8 +481,8 @@ class Workspace(QMainWindow):
 
         self.menuBar().setVisible(not on)
         self.statusBar().setVisible(not on)
-        self.follow_bar.setVisible(not on)
-        self._legend_host.setVisible(not on)
+        self._follow_scroll.setVisible(not on)
+        self._legend_scroll.setVisible(not on)
         self.transport.setVisible(
             not on and not self.app_state.low_performance_mode
             and self.timeline.total_frames > 1
