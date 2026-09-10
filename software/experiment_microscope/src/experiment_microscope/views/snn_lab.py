@@ -177,11 +177,16 @@ class SnnLab(QWidget):
         in_spikes = np.flatnonzero(enc1 > 0.5)
         out_spikes = np.flatnonzero(lif1 > 0.5)
         self._vmem_cache = vmem1
+        from experiment_microscope.views._plotinfo import HoverReadout, set_source
+
         self._layout_widget.clear()
+        self._hovers = []
 
         p0 = self._layout_widget.addPlot(row=0, col=0, title="normalized window (z-score)")
-        p0.plot(np.arange(self._window.size), self._window, pen=pg.mkPen((120, 170, 255)))
+        p0.plot(np.arange(self._window.size), self._window, pen=pg.mkPen((120, 170, 255)), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
+        set_source(p0, "nn_microscope.meeting01.recurrent_lif_trace()")
+        self._hovers.append(HoverReadout(p0, x_label="step"))
         if self._selection is not None:
             if self._cursor is None:
                 self._cursor = TimeCursor(p0, self._selection)
@@ -200,7 +205,10 @@ class SnnLab(QWidget):
                   f"(α={self._alpha.value():.2f}, v_th={self._vth.value():.2f})")
         p2.setXLink(p0)
         p2.showGrid(x=True, y=True, alpha=0.2)
-        p2.plot(np.arange(vmem1.size), vmem1, pen=pg.mkPen((90, 220, 140), width=1))
+        p2.setLabel("left", "membrane potential v[t]")
+        p2.setLabel("bottom", "time step")
+        p2.plot(np.arange(vmem1.size), vmem1, pen=pg.mkPen((90, 220, 140), width=1), name="v[t]")
+        self._hovers.append(HoverReadout(p2, x_label="step"))
         p2.addLine(y=float(self._vth.value()),
                    pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
         if out_spikes.size:
@@ -218,8 +226,11 @@ class SnnLab(QWidget):
                 row=3, col=0,
                 title=f"trained encoder LIF — per-neuron membrane snapshot (time_steps=1), "
                       f"{int((spk > 0.5).sum()) if spk is not None else 0} firing")
+            p3.setLabel("bottom", "encoder LIF neuron index")
+            p3.setLabel("left", "membrane potential")
             p3.plot(neurons, v_mem, pen=None, symbol="o", symbolSize=6,
-                    symbolBrush=(120, 170, 255))
+                    symbolBrush=(120, 170, 255), name="v_mem")
+            self._hovers.append(HoverReadout(p3, x_label="neuron"))
             if vth is not None:
                 p3.addLine(y=float(vth), pen=pg.mkPen((255, 120, 120), style=Qt.DashLine))
             if spk is not None and (spk > 0.5).any():

@@ -149,6 +149,14 @@ class ReconstructionView(QWidget):
         p1.setXLink(p0)
         p1.plot(x, orig - rec, pen=pg.mkPen((150, 150, 150)), name="residual")
 
+        from experiment_microscope.views._plotinfo import HoverReadout, set_source
+
+        src = f"meeting01.snn_ae_forward() · origin [{t.origin.value}]"
+        set_source(p0, src)
+        set_source(p1, src)
+        self._hovers = [HoverReadout(p0, x_label="sample"),
+                        HoverReadout(p1, x_label="sample")]
+
         _METRIC_NAMES = {
             "mse": "MSE", "mae": "MAE", "r2": "R2", "pearson_r": "Pearson r",
             "lif_params": "LIF parameters",

@@ -150,8 +150,45 @@ class Workspace(QMainWindow):
     def _open_tab(self, name: str) -> None:
         for i in range(self.tabs.count()):
             if self.tabs.tabText(i) == name:
+                self.tabs.setTabVisible(i, True)
                 self.tabs.setCurrentIndex(i)
                 return
+
+    #: which tabs make sense for a given selection. value(handle, adapter) -> bool.
+    #: tabs not listed here are always shown (Comparison, Ranking, Pipeline).
+    _TAB_RULES = {
+        "Signal": lambda h, a: (a == "meeting01" and h.get("level") == "window")
+        or (a == "thesis" and h.get("level") == "sample"),
+        "Wavelet Lab": lambda h, a: (a == "meeting01" and h.get("level") == "window")
+        or (a == "thesis" and h.get("level") == "sample"),
+        "Wavelet 3D": lambda h, a: (a == "meeting01" and h.get("level") == "window")
+        or (a == "thesis" and h.get("level") == "sample"),
+        "Feature Matrix": lambda h, a: a == "thesis" and h.get("level") == "run",
+        "Triangle": lambda h, a: a == "thesis" and h.get("level") == "run",
+        "Encoding Lab": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "SNN Lab": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "SNN 3D": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "Reconstruction": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "Latent Space": lambda h, a: a == "meeting01",
+        "Timeline": lambda h, a: a == "meeting01",
+        "Paraconsistent plane": lambda h, a: a in ("thesis", "paraconsistent_ga"),
+        "Paraconsistent landscape": lambda h, a: a in ("thesis", "paraconsistent_ga"),
+        "NSGA-II": lambda h, a: a == "paraconsistent_ga",
+    }
+
+    def _update_tab_visibility(self, handle: dict, adapter_key: str) -> None:
+        """Show only the tabs that apply to the current selection; keep the
+        always-on ones. If the active tab is hidden, fall back to the first
+        visible one."""
+        cur = self.tabs.currentIndex()
+        for i in range(self.tabs.count()):
+            rule = self._TAB_RULES.get(self.tabs.tabText(i))
+            self.tabs.setTabVisible(i, True if rule is None else bool(rule(handle, adapter_key)))
+        if cur >= 0 and not self.tabs.isTabVisible(cur):
+            for i in range(self.tabs.count()):
+                if self.tabs.isTabVisible(i):
+                    self.tabs.setCurrentIndex(i)
+                    break
 
     def _dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
         dock = QDockWidget(title, self)
@@ -332,6 +369,7 @@ class Workspace(QMainWindow):
         self.reconstruction.show_node(node, adapter_key)
         self.triangle.show_node(node, adapter_key)
         self.nsga.show_node(node, adapter_key)
+        self._update_tab_visibility(h, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()
             self.timeline_view.refresh()

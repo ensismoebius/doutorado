@@ -154,6 +154,10 @@ class ParaconsistentLandscape(QWidget):
             spots.append({"pos": (dt, dp), "data": p,
                           "brush": pg.mkBrush(int(min(255, 60 + pen_amt * 400)), 120, 200, 210)})
         self._scatter.setData(spots)
+        from experiment_microscope.views._plotinfo import set_source
+
+        set_source(self._plot, "persisted *_paraconsistent.csv · [measured] · "
+                   "hover a point for its facets + D values")
         if xs:
             lo, hi = min(xs), max(xs)
             self._ref.setData([lo, hi], [lo, hi])

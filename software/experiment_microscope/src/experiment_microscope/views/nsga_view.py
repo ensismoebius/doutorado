@@ -165,6 +165,10 @@ class NsgaView(QWidget):
                 "size": 11 if feasible else 8,
             })
         self._scatter.setData(spots)
+        from experiment_microscope.views._plotinfo import set_source
+
+        set_source(self._plot, "results/paraconsistentGA/pga_*_pareto.json (Pareto front) · "
+                   "hover a point for genome + fitness")
 
     def _on_click(self, _s, points) -> None:
         if not len(points):

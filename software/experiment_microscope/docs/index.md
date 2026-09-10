@@ -115,6 +115,17 @@ Nothing in the app is shown without an explanation:
   (`_help.py::metric_table`). No bare number.
 - **Plots carry axis labels with units and a legend** (`_help.py::label_plot`);
   status lines spell out the origin tag and units in words.
+- **Every data plot has a grey `source:` caption** (`_plotinfo.py::set_source`)
+  naming the adapter call / file / origin tag it was drawn from.
+- **Hover a line plot** and a label follows the cursor with the x position and
+  every curve's y value there, plus a vertical guide (`_plotinfo.py::HoverReadout`).
+  Scatter plots (paraconsistent plane / landscape, NSGA-II, Latent Space) show a
+  per-point tooltip on hover instead.
+- **Tabs are selection-aware** (`workspace.py::_update_tab_visibility`): a
+  meeting01 window hides the thesis-only tabs (Feature Matrix, Triangle, NSGA-II,
+  the paraconsistent scatters); a thesis run hides the meeting01-only tabs
+  (SNN Lab / 3D, Encoding Lab, Reconstruction, Latent Space, Timeline). Comparison,
+  Ranking and Pipeline are always shown.
 - **🔊 Listen** (Signal tab) plays the shown waveform through the default audio
   output at its own sample rate (`viz/audio.py::AudioPlayer`, `QtMultimedia`
   `QAudioSink`; amplitude peak-normalised for listening only). Audio samples

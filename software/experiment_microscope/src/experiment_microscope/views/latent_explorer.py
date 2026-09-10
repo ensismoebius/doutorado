@@ -125,7 +125,9 @@ class LatentExplorer(QWidget):
             self._plot.showGrid(x=True, y=True, alpha=0.3)
             self._plot.setLabel("bottom", "projection axis 1 (arbitrary units — a direction, not a measurement)")
             self._plot.setLabel("left", "projection axis 2 (arbitrary units)")
-            self._scatter = pg.ScatterPlotItem(size=9, pen=pg.mkPen(None))
+            self._scatter = pg.ScatterPlotItem(
+                size=9, pen=pg.mkPen(None), hoverable=True, tip=self._point_tip
+            )
             self._scatter.sigClicked.connect(self._on_point_clicked)
             self._plot.addItem(self._scatter)
             root.addWidget(self._plot, 1)
@@ -255,6 +257,10 @@ class LatentExplorer(QWidget):
                           "symbol": "o", "size": 9})
         self._scatter.setData(spots)
         self._legend(lut, idx)
+        from experiment_microscope.views._plotinfo import set_source
+
+        set_source(self._plot, "meeting01.latent_batch() → SNN-AE latents, "
+                   f"projected with {label.split()[0]} · PROJECTED (hover a point)")
         self._plot_title(label)
 
     def _legend(self, lut: dict, idx: dict) -> None:
@@ -271,6 +277,16 @@ class LatentExplorer(QWidget):
             dot = pg.ScatterPlotItem([0], [0], symbol="o", size=9, brush=lut[val],
                                      pen=pg.mkPen(None))
             leg.addItem(dot, f"{c} {val}")
+
+    def _point_tip(self, x: float, y: float, data) -> str:
+        b = self._batch
+        if b is None or not isinstance(data, int):
+            return f"({x:.3g}, {y:.3g})"
+        return (
+            f"window row {b['rows'][data]} ({b['split']})\n"
+            f"digit {b['digits'][data]}   speaker {b['speakers'][data]}\n"
+            f"projected coords ({x:.3g}, {y:.3g}) — not a pipeline value"
+        )
 
     def _plot_title(self, method_label: str) -> None:
         c = self._color.currentText()

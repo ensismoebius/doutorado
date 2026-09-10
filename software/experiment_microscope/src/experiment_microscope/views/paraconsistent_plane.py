@@ -99,6 +99,10 @@ class ParaconsistentPlane(QWidget):
                 }
             )
         self._scatter.setData(spots)
+        from experiment_microscope.views._plotinfo import set_source
+
+        set_source(self._plot, f"persisted *_paraconsistent.csv · {len(spots)} feature "
+                   "sets · [measured] (hover a point for α/β/G1/G2/D)")
 
     def can_export(self) -> bool:
         return bool(self._points)

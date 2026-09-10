@@ -79,6 +79,8 @@ class ExperimentTimeline(QWidget):
             self._curve.setLabel("bottom", "epoch")
             self._curve.setLabel("left", "loss")
             self._curve.showGrid(x=True, y=True, alpha=0.3)
+            from experiment_microscope.views._plotinfo import HoverReadout
+            self._hover = HoverReadout(self._curve, x_label="epoch")
             split.addWidget(self._curve)
         else:
             self._curve = None
@@ -166,6 +168,10 @@ class ExperimentTimeline(QWidget):
         best = getattr(cfg, "best_epoch", None)
         if best is not None:
             self._curve.addLine(x=best, pen=pg.mkPen((90, 200, 120), style=Qt.PenStyle.DashLine))
+        from experiment_microscope.views._plotinfo import set_source
+        set_source(self._curve, "results/meeting01/*_events.jsonl (epoch_end events)")
+        if getattr(self, "_hover", None) is not None:
+            self._hover.reattach()
 
         # epoch duration on a linked right-hand axis (FIXME §46)
         self._plot_epoch_ms(cfg, xs)

@@ -18,6 +18,7 @@ from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
+from experiment_microscope.views._plotinfo import HoverReadout, set_source
 from experiment_microscope.views._timesync import TimeCursor
 
 
@@ -90,6 +91,7 @@ class SignalView(QWidget):
             self._plot.addLegend()
             layout.addWidget(self._plot)
             self._message = pg.LabelItem(justify="left")
+            self._hover = HoverReadout(self._plot, x_label="sample")
             if selection is not None:
                 self._cursor = TimeCursor(self._plot.getPlotItem(), selection)
         else:
@@ -123,6 +125,7 @@ class SignalView(QWidget):
         if self._plot is None:
             return
         self._plot.clear()
+        self._adapter_key = adapter_key
         adapter = self.repo.adapter(adapter_key)
         try:
             signal: Signal1D = adapter.load_signal(node)
@@ -202,5 +205,13 @@ class SignalView(QWidget):
             title += f"  · DISPLAY-DOWNSAMPLED 1:{stride} ({n:,}→{x.size:,} pts; cursor reads full-res)"
         self._plot.setTitle(title)
         self._plot.setLabel("left", signal.unit or "amplitude")
+        set_source(
+            self._plot,
+            f"{getattr(self, '_adapter_key', '?')}.load_signal() · "
+            f"origin [{signal.origin.value if signal.origin else 'unknown'}] · "
+            f"{signal.sample_rate:.0f} Hz",
+        )
+        if getattr(self, "_hover", None) is not None:
+            self._hover.reattach()
         if self._cursor is not None:
             self._cursor.reattach()

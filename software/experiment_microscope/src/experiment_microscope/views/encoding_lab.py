@@ -117,13 +117,20 @@ class EncodingLab(QWidget):
     def _render(self) -> None:
         if self._layout_widget is None or self._window is None:
             return
+        from experiment_microscope.views._plotinfo import HoverReadout, set_source
+
         self._layout_widget.clear()
+        self._hovers = []
         t = np.arange(self._window.size)
 
         p0 = self._layout_widget.addPlot(row=0, col=0)
         p0.setTitle("normalized window (z-score)")
-        p0.plot(t, self._window, pen=pg.mkPen((120, 170, 255)))
+        p0.setLabel("bottom", "time step (sample within the window)")
+        p0.setLabel("left", "amplitude / spike")
+        p0.plot(t, self._window, pen=pg.mkPen((120, 170, 255)), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
+        set_source(p0, "nn_microscope.meeting01.encode_sample()")
+        self._hovers.append(HoverReadout(p0, x_label="step"))
         if self._selection is not None:
             if self._cursor is None:
                 self._cursor = TimeCursor(p0, self._selection)
@@ -138,6 +145,8 @@ class EncodingLab(QWidget):
                 p = self._layout_widget.addPlot(row=i, col=0)
                 p.setXLink(p0)
                 p.showGrid(x=True, y=True, alpha=0.2)
+                p.setLabel("bottom", "time step")
+                self._hovers.append(HoverReadout(p, x_label="step"))
                 if enc == "direct":
                     p.setTitle("direct (identity)")
                     p.plot(t, data, pen=pg.mkPen((160, 160, 160)))
