@@ -38,6 +38,7 @@ from experiment_microscope.data.repository import DataRepository
 import numpy as np
 
 from experiment_microscope.views.artifact_inspector import ArtifactInspector
+from experiment_microscope.views.autoencoder_view import AutoencoderView
 from experiment_microscope.views.bookmarks_dock import BookmarksDock
 from experiment_microscope.views.comparison_view import ComparisonView
 from experiment_microscope.views.developer_panel import DeveloperPanel
@@ -121,6 +122,8 @@ class Workspace(QMainWindow):
         self.snn_lab = SnnLab(self.repo, self.selection)
         self.snn_3d = Snn3D(self.repo, self.app_state)
         self.snn_3d.set_timeline(self.timeline)
+        self.autoencoder = AutoencoderView(self.repo, self.selection, self.app_state)
+        self.autoencoder.set_timeline(self.timeline)
         self.latent_explorer = LatentExplorer(self.repo, self.app_state)
         self.latent_explorer.sample_activated.connect(self._on_latent_sample)
         self.latent_explorer.working.connect(
@@ -146,6 +149,7 @@ class Workspace(QMainWindow):
             (self.encoding_lab, "Encoding Lab"),
             (self.snn_lab, "SNN Lab"),
             (self.snn_3d, "SNN 3D"),
+            (self.autoencoder, "Autoencoder"),
             (self.latent_explorer, "Latent Space"),
             (self.reconstruction, "Reconstruction"),
             (self.para_plane, "Paraconsistent plane"),
@@ -251,6 +255,7 @@ class Workspace(QMainWindow):
         "SNN Lab": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "SNN 3D": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Reconstruction": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "Autoencoder": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Latent Space": lambda h, a: a == "meeting01",
         "Timeline": lambda h, a: a == "meeting01",
         "Paraconsistent plane": lambda h, a: a in ("thesis", "paraconsistent_ga"),
@@ -648,6 +653,7 @@ class Workspace(QMainWindow):
             self.encoding_lab.show_node(node, adapter_key)
             self.snn_lab.show_node(node, adapter_key)
             self.snn_3d.show_node(node, adapter_key)
+            self.autoencoder.show_node(node, adapter_key)
             self.latent_explorer.show_node(node, adapter_key)
             self.reconstruction.show_node(node, adapter_key)
             self.triangle.show_node(node, adapter_key)

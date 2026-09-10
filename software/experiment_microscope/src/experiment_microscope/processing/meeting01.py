@@ -47,7 +47,7 @@ def flatten(sample) -> np.ndarray:
 
 @dataclass(frozen=True)
 class EncoderLayer:
-    """One encoder layer's post-forward trace (FIXME §15, §18).
+    """One layer's post-forward trace (encoder *or* decoder) (FIXME §15, §18, §19).
 
     ``kind`` is ``"linear"`` | ``"lif"`` | ``"other"``. ``output`` is that layer's
     activation for the window; ``weight`` is set for linear layers; ``v_mem`` and
@@ -68,6 +68,7 @@ class AeTrace:
     reconstruction: np.ndarray
     encoded_input: np.ndarray
     encoder_layers: tuple[EncoderLayer, ...] = ()
+    decoder_layers: tuple[EncoderLayer, ...] = ()
     origin: Origin = Origin.COMPUTED
 
 
@@ -88,23 +89,27 @@ def snn_ae_forward(
         config_path, alpha, v_th, architecture, encoder_npz, decoder_npz,
         np.asarray(flat_window, dtype=float), encoding, seed,
     )
-    layers: list[EncoderLayer] = []
-    for ld in out.get("encoder_layers", []) or []:
-        d = dict(ld)
-        layers.append(
-            EncoderLayer(
-                kind=str(d.get("type", "other")),
-                output=np.asarray(d["output"]) if "output" in d else None,
-                weight=np.asarray(d["weight"]) if "weight" in d else None,
-                v_mem=np.asarray(d["v_mem"]) if "v_mem" in d else None,
-                voltage_threshold=(
-                    float(d["voltage_threshold"]) if "voltage_threshold" in d else None
-                ),
+    def _layers(key: str) -> tuple[EncoderLayer, ...]:
+        built: list[EncoderLayer] = []
+        for ld in out.get(key, []) or []:
+            d = dict(ld)
+            built.append(
+                EncoderLayer(
+                    kind=str(d.get("type", "other")),
+                    output=np.asarray(d["output"]) if "output" in d else None,
+                    weight=np.asarray(d["weight"]) if "weight" in d else None,
+                    v_mem=np.asarray(d["v_mem"]) if "v_mem" in d else None,
+                    voltage_threshold=(
+                        float(d["voltage_threshold"]) if "voltage_threshold" in d else None
+                    ),
+                )
             )
-        )
+        return tuple(built)
+
     return AeTrace(
         latent=np.asarray(out["latent"]),
         reconstruction=np.asarray(out["reconstruction"]),
         encoded_input=np.asarray(out["encoded_input"]),
-        encoder_layers=tuple(layers),
+        encoder_layers=_layers("encoder_layers"),
+        decoder_layers=_layers("decoder_layers"),
     )

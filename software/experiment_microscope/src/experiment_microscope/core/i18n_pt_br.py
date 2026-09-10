@@ -640,6 +640,63 @@ CATALOG = {
     "needs a trained model .npz (not yet available)":
         "precisa de um modelo treinado .npz (ainda não disponível)",
 
+    # ---- Autoencoder (grafo encoder + decoder) ---------
+    "Autoencoder graph": "Grafo do autoencoder",
+    "\n"
+    "<b>What this panel shows.</b> The whole trained autoencoder — the half that\n"
+    "<i>compresses</i> (encoder) and the half that <i>rebuilds</i> (decoder) — as one\n"
+    "left-to-right drawing: input (256) → 64 → <b>latent code (32)</b> → 64 →\n"
+    "reconstruction (256).\n"
+    "<br><br>\n"
+    "<b>Every dot is a neuron.</b> Colour and size show how strongly it lit up for the\n"
+    "chosen window. <b>The lines are the weights</b>: blue adds, red subtracts; only the\n"
+    "strongest few per neuron are drawn or it becomes a smear.\n"
+    "<br><br>\n"
+    "<b>Press ▶</b> on the transport bar to watch the signal <b>travel through</b> the\n"
+    "network one column at a time, in to the latent code and back out.\n"
+    "<br><br>\n"
+    "<b>Zoom in</b> (mouse wheel) on a spiking column, or tick <i>Neuron detail</i>:\n"
+    "each LIF neuron then shows its built-up charge, its firing line and whether it\n"
+    "fired. Click a neuron for its exact numbers. LIF = leaky integrate-and-fire neuron.\n":
+        "\n"
+        "<b>O que este painel mostra.</b> O autoencoder inteiro treinado — a metade que\n"
+        "<i>comprime</i> (encoder) e a que <i>reconstrói</i> (decoder) — num só desenho,\n"
+        "da esquerda para a direita: entrada (256) → 64 → <b>código latente (32)</b> → 64 →\n"
+        "reconstrução (256).\n"
+        "<br><br>\n"
+        "<b>Cada bolinha é um neurônio.</b> A cor e o tamanho mostram o quanto ele se\n"
+        "acendeu para a janela escolhida. <b>As linhas são os pesos</b>: azul soma, vermelho\n"
+        "subtrai; só as mais fortes de cada neurônio aparecem, senão vira um borrão.\n"
+        "<br><br>\n"
+        "<b>Aperte ▶</b> na barra de transporte para ver o sinal <b>atravessar</b> a rede,\n"
+        "uma coluna de cada vez, até o código latente e de volta.\n"
+        "<br><br>\n"
+        "<b>Dê zoom</b> (roda do mouse) numa coluna de disparos, ou marque\n"
+        "<i>Detalhe do neurônio</i>: cada neurônio LIF passa a mostrar a carga acumulada,\n"
+        "a linha de disparo e se disparou. Clique num neurônio para ver os números exatos.\n"
+        "LIF = neurônio integra-e-dispara com vazamento.\n",
+    "Neuron detail": "Detalhe do neurônio",
+    "Select a meeting01 window with a trained model.":
+        "Selecione uma janela do meeting01 que tenha modelo treinado.",
+    "The autoencoder graph needs an individual meeting01 window.":
+        "O grafo do autoencoder precisa de uma janela individual do meeting01.",
+    "load_ae_trace failed: {exc}": "load_ae_trace falhou: {exc}",
+    "input": "entrada",
+    "latent": "código latente",
+    "reconstruction": "reconstrução",
+    "  — LIF params are constructed defaults (pre-fix checkpoint)":
+        "  — os parâmetros LIF são valores padrão (checkpoint anterior à correção)",
+    "{arch} / {enc} · {shape} neurons — press ▶ to send the signal through{note}":
+        "{arch} / {enc} · {shape} neurônios — aperte ▶ para o sinal percorrer a rede{note}",
+    "Encoder · ": "Encoder · ",
+    "Decoder · ": "Decoder · ",
+    "{half}{name} — neuron {i} of {n}: activation {a}":
+        "{half}{name} — neurônio {i} de {n}: ativação {a}",
+    "fired ({g} over the line)": "disparou ({g} acima da linha)",
+    "did not fire ({g} below the line)": "não disparou ({g} abaixo da linha)",
+    "  ·  membrane {vm}, firing line {vth} — {verdict}":
+        "  ·  carga {vm}, linha de disparo {vth} — {verdict}",
+
     # ---- Matriz de Atributos ---------------------------
     "per-column z-score (display only)": "z-score por coluna (só na exibição)",
     "No live feature matrix for this object.":

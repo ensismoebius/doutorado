@@ -246,7 +246,10 @@ void bind_meeting01(py::module_& parent)
             out["latent"] = to_numpy(latent);
             out["reconstruction"] = to_numpy(recon);
             out["encoded_input"] = to_numpy(flat);
+            // Both halves are traced with the same helper so the GUI can draw the
+            // encoder and decoder as one continuous graph (FIXME §18, §19).
             out["encoder_layers"] = encoder_trace(model.encoder_);
+            out["decoder_layers"] = encoder_trace(model.decoder_);
             return out;
         },
         py::arg("config_path"),
@@ -259,6 +262,7 @@ void bind_meeting01(py::module_& parent)
         py::arg("encoding") = "direct",
         py::arg("seed") = 0,
         "Latent + reconstruction for one window, from the retrained-winner .npz, plus "
-        "encoder_layers: per-layer {type, output, weight|v_mem, voltage_threshold}. "
-        "time_steps == 1 so v_mem is a per-neuron snapshot, not a trajectory.");
+        "encoder_layers and decoder_layers: per-layer {type, output, weight|v_mem, "
+        "voltage_threshold}. time_steps == 1 so v_mem is a per-neuron snapshot, not a "
+        "trajectory.");
 }

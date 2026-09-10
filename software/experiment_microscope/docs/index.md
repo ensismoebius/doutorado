@@ -211,7 +211,18 @@ Nothing in the app is shown without an explanation:
   (2-D scatter, or 3-D PCA in the VTK panel), colours by digit or speaker.
   Every projection is tagged `PROJECTED`. Clicking a point selects that window
   across the whole app (raw signal, wavelet, reconstruction, …).
-- **3D views**: "Wavelet 3D" (§11) and "SNN 3D" (§18 — encoder neuron columns
+- **Autoencoder graph** (§18, §19) — the "Autoencoder" tab draws the **whole**
+  trained network, encoder *and* decoder, as one left-to-right graph:
+  `input(256) → 64 → latent(32) → 64 → reconstruction(256)`. Every dot is a
+  neuron (colour/size = its activation for the window); lines are the `Linear`
+  weights (blue `+`, red `−`, top-K per neuron). Pressing ▶ floods the signal
+  column by column, in to the latent code and back out. Zooming in on a spiking
+  column — or the *Neuron detail* toggle — replaces its dots with per-neuron
+  gauges: built-up membrane charge, dashed firing line, `⚡` if it fired. Click
+  any neuron for its exact numbers. Both halves come from one
+  `nn_microscope.meeting01.snn_ae_forward` call (`encoder_layers` +
+  `decoder_layers`).
+- **3D views**: "Wavelet 3D" (§11) and "SNN 3D" (§18 — encoder-only neuron columns
   `input → Linear(64) → LIF(64) → latent(32)`, node size/colour = activity,
   edges = top-K `|Linear weight|` per target neuron). Pressing ▶ floods the
   signal layer-by-layer through the net (§17); the shared `TimelinePlayer`
