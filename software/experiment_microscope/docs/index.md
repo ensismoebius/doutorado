@@ -115,6 +115,11 @@ Nothing in the app is shown without an explanation:
   (`_help.py::metric_table`). No bare number.
 - **Plots carry axis labels with units and a legend** (`_help.py::label_plot`);
   status lines spell out the origin tag and units in words.
+- **🔊 Listen** (Signal tab) plays the shown waveform through the default audio
+  output at its own sample rate (`viz/audio.py::AudioPlayer`, `QtMultimedia`
+  `QAudioSink`; amplitude peak-normalised for listening only). Audio samples
+  only — EEG and sub-3 kHz signals disable the button. The **▶** transport is
+  unrelated: it steps animation frames, not sound.
 
 ---
 

@@ -9,10 +9,11 @@ command rather than an empty plot (no-fallback).
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from experiment_microscope.core.selection import SelectionState
 from experiment_microscope.views._help import HelpBox
+from experiment_microscope.viz.audio import AudioPlayer, is_available as _audio_ok
 from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
@@ -36,6 +37,10 @@ cursor line reports the exact value under it.
 <br><br>
 <b>DISPLAY-DOWNSAMPLED</b> in the title (and the status bar) means the drawn
 curve is decimated for speed; the cursor still reads the full-resolution number.
+<br><br>
+<b>🔊 Listen</b> plays the waveform through your speakers (audio samples only;
+EEG has no sound). The <b>▶</b> transport at the bottom is separate — it steps
+animation frames, it does not play audio.
 """
 
 
@@ -62,6 +67,22 @@ class SignalView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         self._cursor = None
         self._last_signal = None
+        self._audio = AudioPlayer(self)
+
+        bar = QHBoxLayout()
+        self._listen = QPushButton("\N{SPEAKER WITH THREE SOUND WAVES}  Listen")
+        self._listen.setToolTip(
+            "Play this waveform through the default audio output. The \N{BLACK RIGHT-POINTING TRIANGLE} "
+            "transport below only steps animation frames — it is not sound."
+        )
+        self._listen.clicked.connect(self._on_listen)
+        self._listen.setEnabled(False)
+        self._audio_note = QLabel("")
+        self._audio_note.setWordWrap(True)
+        bar.addWidget(self._listen)
+        bar.addWidget(self._audio_note, 1)
+        layout.addLayout(bar)
+
         if PG_OK:
             self._plot = pg.PlotWidget()
             self._plot.showGrid(x=True, y=True, alpha=0.3)
@@ -116,7 +137,27 @@ class SignalView(QWidget):
             return
         self._render(signal)
 
+    def _is_audio(self, signal: Signal1D) -> bool:
+        data = np.asarray(signal.samples)
+        return data.ndim == 1 and np.isfinite(signal.sample_rate) and signal.sample_rate >= 3000.0
+
+    def _on_listen(self) -> None:
+        sig = self._last_signal
+        if sig is None:
+            return
+        try:
+            dur = self._audio.play(np.asarray(sig.samples).reshape(-1), sig.sample_rate)
+        except RuntimeError as exc:
+            self._audio_note.setText(str(exc))
+            return
+        norm = "" if (sig.unit or "").lower() not in ("z-score", "") else "  · amplitude peak-normalised for listening"
+        self._audio_note.setText(
+            f"playing {dur * 1000:.0f} ms at {sig.sample_rate:.0f} Hz{norm}"
+        )
+
     def _banner(self, text: str) -> None:
+        self._listen.setEnabled(False)
+        self._audio_note.setText("")
         self._plot.clear()
         item = pg.TextItem(text, anchor=(0, 0), color=(200, 200, 200))
         self._plot.addItem(item)
@@ -124,6 +165,19 @@ class SignalView(QWidget):
 
     def _render(self, signal: Signal1D) -> None:
         self._last_signal = signal
+        audio = self._is_audio(signal)
+        self._listen.setEnabled(audio)
+        if not audio:
+            self._audio_note.setText(
+                "not audio (multi-channel or sub-3kHz) — nothing to play"
+                if np.asarray(signal.samples).ndim > 1 or signal.sample_rate < 3000.0
+                else ""
+            )
+        elif not _audio_ok():
+            self._listen.setEnabled(False)
+            self._audio_note.setText("QtMultimedia not installed — see Listen tooltip")
+        else:
+            self._audio_note.setText("")
         data = np.asarray(signal.samples)
         if data.ndim == 1:
             data = data[None, :]
