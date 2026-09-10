@@ -71,13 +71,15 @@ class EncodingLab(QWidget):
         self._seed.setValue(0)
         self._seed.valueChanged.connect(self._render)
         self._mode = QComboBox()
-        self._mode.addItems(["compare all", *(_ENCODINGS)])
+        from experiment_microscope.core.i18n import t as _mt
+        self._mode.addItems([_mt("compare all"), *(_ENCODINGS)])
         self._mode.currentIndexChanged.connect(self._render)
-        top.addWidget(QLabel("seed"))
+        from experiment_microscope.core.i18n import t as _t
+        top.addWidget(QLabel(_t("seed")))
         top.addWidget(self._seed)
-        top.addWidget(QLabel("show"))
+        top.addWidget(QLabel(_t("show")))
         top.addWidget(self._mode)
-        self._status = QLabel("Select a meeting01 window.")
+        self._status = QLabel(_t("Select a meeting01 window."))
         self._status.setWordWrap(True)
         top.addWidget(self._status, 1)
         root.addLayout(top)
@@ -94,7 +96,8 @@ class EncodingLab(QWidget):
             return
         if adapter_key != "meeting01" or (getattr(node, "handle", {}) or {}).get("level") != "window":
             self._window = None
-            self._status.setText("Encoding Lab needs a meeting01 window.")
+            from experiment_microscope.core.i18n import t as _t
+            self._status.setText(_t("Encoding Lab needs a meeting01 window."))
             self._layout_widget.clear()
             return
         adapter = self.repo.adapter(adapter_key)
@@ -128,8 +131,8 @@ class EncodingLab(QWidget):
 
         p0 = self._layout_widget.addPlot(row=0, col=0)
         p0.setTitle(_t("The window we start from — a slice of the signal, mean 0"))
-        p0.setLabel("bottom", "time step (sample within the window)")
-        p0.setLabel("left", "amplitude / spike")
+        p0.setLabel("bottom", _t("time step (sample within the window)"))
+        p0.setLabel("left", _t("amplitude / spike"))
         p0.plot(t, self._window, pen=palette.pen("input", 2), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
         from experiment_microscope.views._plotinfo import autofit as _autofit
@@ -143,14 +146,14 @@ class EncodingLab(QWidget):
                 self._cursor.rebind(p0)  # plots are rebuilt every render
 
         which = self._mode.currentText()
-        encs = _ENCODINGS if which == "compare all" else (which,)
+        encs = _ENCODINGS if self._mode.currentIndex() == 0 else (which,)
         try:
             for i, enc in enumerate(encs, start=1):
                 data = self._encode(enc)
                 p = self._layout_widget.addPlot(row=i, col=0)
                 p.setXLink(p0)
                 p.showGrid(x=True, y=True, alpha=0.2)
-                p.setLabel("bottom", "time step")
+                p.setLabel("bottom", _t("time step"))
                 self._hovers.append(HoverReadout(p, x_label="step"))
                 if enc == "direct":
                     p.setTitle(_t("direct — passes the numbers straight through (no spikes)"))
@@ -158,7 +161,7 @@ class EncodingLab(QWidget):
                 else:
                     spikes = np.flatnonzero(data > 0.5)
                     p.setTitle(verdict.spikes(0, spikes.size, t.size)
-                               + f"   [{enc} encoding]")
+                               + _t("   [{enc} encoding]", enc=enc))
                     p.plot(
                         spikes, np.ones_like(spikes, dtype=float),
                         pen=None, symbol="|", symbolSize=12,
@@ -168,8 +171,10 @@ class EncodingLab(QWidget):
                 from experiment_microscope.views._plotinfo import autofit
                 autofit(p, y=(enc == "direct"))
         except Exception as exc:  # noqa: BLE001
-            self._status.setText(f"encode failed: {exc}")
+            self._status.setText(_t("encode failed: {exc}", exc=exc))
             return
         from experiment_microscope.views._plotinfo import fade_in
         fade_in(self._layout_widget)
-        self._status.setText(f"{getattr(self, '_label', 'window')}  [computed] — seed {self._seed.value()}")
+        self._status.setText(_t("{label}  [computed] — seed {seed}",
+                                label=getattr(self, "_label", "window"),
+                                seed=self._seed.value()))

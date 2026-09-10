@@ -73,10 +73,11 @@ class SignalView(QWidget):
         bar = QHBoxLayout()
         from experiment_microscope.core.i18n import t as _t
         self._listen = QPushButton(_t("\N{SPEAKER WITH THREE SOUND WAVES}  Listen"))
-        self._listen.setToolTip(
+        self._t = _t
+        self._listen.setToolTip(_t(
             "Play this waveform through the default audio output. The \N{BLACK RIGHT-POINTING TRIANGLE} "
             "transport below only steps animation frames — it is not sound."
-        )
+        ))
         self._listen.clicked.connect(self._on_listen)
         self._listen.setEnabled(False)
         self._audio_note = QLabel("")
@@ -88,7 +89,7 @@ class SignalView(QWidget):
         if PG_OK:
             self._plot = pg.PlotWidget()
             self._plot.showGrid(x=True, y=True, alpha=0.3)
-            self._plot.setLabel("bottom", "sample")
+            self._plot.setLabel("bottom", _t("sample"))
             self._plot.addLegend()
             layout.addWidget(self._plot)
             self._message = pg.LabelItem(justify="left")
@@ -131,13 +132,13 @@ class SignalView(QWidget):
         try:
             signal: Signal1D = adapter.load_signal(node)
         except NotImplementedError:
-            self._banner("This object has no raw signal.")
+            self._banner(self._t("This object has no raw signal."))
             return
         except BindingUnavailableError as exc:
             self._banner(str(exc))
             return
         except Exception as exc:  # noqa: BLE001
-            self._banner(f"load_signal failed: {exc}")
+            self._banner(self._t("load_signal failed: {exc}", exc=exc))
             return
         self._render(signal)
 
@@ -154,9 +155,11 @@ class SignalView(QWidget):
         except RuntimeError as exc:
             self._audio_note.setText(str(exc))
             return
-        norm = "" if (sig.unit or "").lower() not in ("z-score", "") else "  · amplitude peak-normalised for listening"
+        norm = "" if (sig.unit or "").lower() not in ("z-score", "") else self._t(
+            "  · amplitude peak-normalised for listening")
         self._audio_note.setText(
-            f"playing {dur * 1000:.0f} ms at {sig.sample_rate:.0f} Hz{norm}"
+            self._t("playing {ms} ms at {hz} Hz", ms=f"{dur * 1000:.0f}",
+                    hz=f"{sig.sample_rate:.0f}") + norm
         )
 
     def _banner(self, text: str) -> None:
@@ -173,13 +176,13 @@ class SignalView(QWidget):
         self._listen.setEnabled(audio)
         if not audio:
             self._audio_note.setText(
-                "not audio (multi-channel or sub-3kHz) — nothing to play"
+                self._t("not audio (multi-channel or sub-3kHz) — nothing to play")
                 if np.asarray(signal.samples).ndim > 1 or signal.sample_rate < 3000.0
                 else ""
             )
         elif not _audio_ok():
             self._listen.setEnabled(False)
-            self._audio_note.setText("QtMultimedia not installed — see Listen tooltip")
+            self._audio_note.setText(self._t("QtMultimedia not installed — see Listen tooltip"))
         else:
             self._audio_note.setText("")
         data = np.asarray(signal.samples)
@@ -207,9 +210,10 @@ class SignalView(QWidget):
         if signal.origin is not None:
             title = f"{title}  [{signal.origin.value}]".strip()
         if downsampled:
-            title += f"  · DISPLAY-DOWNSAMPLED 1:{stride} ({n:,}→{x.size:,} pts; cursor reads full-res)"
+            title += self._t("  · DISPLAY-DOWNSAMPLED 1:{stride} ({n}→{m} pts; cursor reads full-res)",
+                             stride=stride, n=f"{n:,}", m=f"{x.size:,}")
         self._plot.setTitle(title)
-        self._plot.setLabel("left", signal.unit or "amplitude")
+        self._plot.setLabel("left", signal.unit or self._t("amplitude"))
         set_source(
             self._plot,
             f"{getattr(self, '_adapter_key', '?')}.load_signal() · "

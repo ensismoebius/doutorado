@@ -103,11 +103,13 @@ class SnnLab(QWidget):
         self._seed.setRange(0, 2**31 - 1)
         for w in (self._encoding, self._alpha, self._vth, self._seed):
             (w.currentIndexChanged if isinstance(w, QComboBox) else w.valueChanged).connect(self._render)
+        from experiment_microscope.core.i18n import t as _t
+        self._t = _t
         for lbl, w in (("encoding", self._encoding), ("", self._alpha), ("", self._vth), ("seed", self._seed)):
             if lbl:
-                bar.addWidget(QLabel(lbl))
+                bar.addWidget(QLabel(_t(lbl)))
             bar.addWidget(w)
-        self._status = QLabel("Select a meeting01 window.")
+        self._status = QLabel(_t("Select a meeting01 window."))
         self._status.setWordWrap(True)
         bar.addWidget(self._status, 1)
         root.addLayout(bar)
@@ -118,7 +120,7 @@ class SnnLab(QWidget):
             return
         self._layout_widget = pg.GraphicsLayoutWidget()
         root.addWidget(self._layout_widget, 1)
-        self._spike_readout = QLabel("click a spike marker for its exact time / membrane / threshold")
+        self._spike_readout = QLabel(_t("click a spike marker for its exact time / membrane / threshold"))
         self._spike_readout.setWordWrap(True)
         root.addWidget(self._spike_readout)
         self._vmem_cache: np.ndarray | None = None
@@ -129,7 +131,7 @@ class SnnLab(QWidget):
         h = getattr(node, "handle", {}) or {}
         if adapter_key != "meeting01" or h.get("level") != "window":
             self._window = None
-            self._status.setText("SNN Lab needs a meeting01 window.")
+            self._status.setText(self._t("SNN Lab needs a meeting01 window."))
             self._layout_widget.clear()
             return
         try:
@@ -168,7 +170,7 @@ class SnnLab(QWidget):
             lif_spk, v_mem = m.recurrent_lif_trace(
                 encoded, self._alpha.value(), self._vth.value())
         except Exception as exc:  # noqa: BLE001
-            self._status.setText(f"transform failed: {exc}")
+            self._status.setText(self._t("transform failed: {exc}", exc=exc))
             return
 
         enc1 = encoded.reshape(-1)
@@ -185,7 +187,8 @@ class SnnLab(QWidget):
         from experiment_microscope.core import palette, verdict
         from experiment_microscope.views._plotinfo import autofit, fade_in
 
-        p0 = self._layout_widget.addPlot(row=0, col=0, title="1 · the window going in")
+        _t = self._t
+        p0 = self._layout_widget.addPlot(row=0, col=0, title=_t("1 · the window going in"))
         p0.plot(np.arange(self._window.size), self._window, pen=palette.pen("input", 2), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
         autofit(p0)
@@ -200,18 +203,19 @@ class SnnLab(QWidget):
 
         p1 = self._layout_widget.addPlot(
             row=1, col=0,
-            title=f"2 · spikes going in — {in_spikes.size} of them (click one to inspect)")
+            title=_t("2 · spikes going in — {n} of them (click one to inspect)", n=in_spikes.size))
         p1.setXLink(p0)
         _raster(p1, in_spikes, palette.rgb("spike"), on_click=self._on_input_spike)
 
         p2 = self._layout_widget.addPlot(
             row=2, col=0,
             title="3 · " + verdict.spikes(in_spikes.size, out_spikes.size, vmem1.size)
-                  + f"  (leak α={self._alpha.value():.2f}, firing line v_th={self._vth.value():.2f})")
+                  + _t("  (leak α={a}, firing line v_th={v})",
+                       a=f"{self._alpha.value():.2f}", v=f"{self._vth.value():.2f}"))
         p2.setXLink(p0)
         p2.showGrid(x=True, y=True, alpha=0.2)
-        p2.setLabel("left", "charge inside the neuron  (membrane potential v[t])")
-        p2.setLabel("bottom", "time step")
+        p2.setLabel("left", _t("charge inside the neuron  (membrane potential v[t])"))
+        p2.setLabel("bottom", _t("time step"))
         p2.plot(np.arange(vmem1.size), vmem1, pen=palette.pen("membrane", 2), name="charge v[t]")
         autofit(p2, x=False)
         self._hovers.append(HoverReadout(p2, x_label="step"))
@@ -231,10 +235,10 @@ class SnnLab(QWidget):
             n_fire = int((spk > 0.5).sum()) if spk is not None else 0
             p3 = self._layout_widget.addPlot(
                 row=3, col=0,
-                title=f"4 · the trained network's 64 encoder neurons — {n_fire} of them "
-                      f"fired for this window (one charge value each, not a trajectory)")
-            p3.setLabel("bottom", "encoder neuron index")
-            p3.setLabel("left", "charge at readout")
+                title=_t("4 · the trained network's 64 encoder neurons — {n} of them "
+                         "fired for this window (one charge value each, not a trajectory)", n=n_fire))
+            p3.setLabel("bottom", _t("encoder neuron index"))
+            p3.setLabel("left", _t("charge at readout"))
             p3.plot(neurons, v_mem, pen=None, symbol="o", symbolSize=6,
                     symbolBrush=palette.brush("membrane"), name="charge")
             self._hovers.append(HoverReadout(p3, x_label="neuron"))
@@ -247,15 +251,15 @@ class SnnLab(QWidget):
 
         kept = np.intersect1d(in_spikes, out_spikes).size
         mem_note = (
-            f"; trained encoder LIF membrane shown ({mem[0].size} neurons)"
+            _t("; trained encoder LIF membrane shown ({n} neurons)", n=mem[0].size)
             if getattr(self, "_membrane", None) is not None
-            else "; no trained .npz for this fold — membrane panel hidden"
+            else _t("; no trained .npz for this fold — membrane panel hidden")
         )
         self._status.setText(
-            f"{getattr(self, '_label', 'window')}  [computed] — "
-            f"in {in_spikes.size} → out {out_spikes.size} spikes "
-            f"({kept} coincident, {out_spikes.size - kept} LIF-added, "
-            f"{in_spikes.size - kept} LIF-suppressed){mem_note}"
+            _t("{label}  [computed] — in {i} → out {o} spikes "
+               "({k} coincident, {a} LIF-added, {s} LIF-suppressed)",
+               label=getattr(self, "_label", "window"), i=in_spikes.size, o=out_spikes.size,
+               k=kept, a=out_spikes.size - kept, s=in_spikes.size - kept) + mem_note
         )
 
 
@@ -264,9 +268,9 @@ class SnnLab(QWidget):
             return
         t = int(points[0].data())
         self._spike_readout.setText(
-            f"input encoding spike — t = sample {t}  ·  encoding = "
-            f"{self._encoding.currentText()}  ·  seed {self._seed.value()}  "
-            f"(no membrane at the encoder input; it is a fixed spike train)"
+            self._t("input encoding spike — t = sample {t}  ·  encoding = {enc}  ·  seed {seed}  "
+                    "(no membrane at the encoder input; it is a fixed spike train)",
+                    t=t, enc=self._encoding.currentText(), seed=self._seed.value())
         )
         if self._selection is not None:
             self._selection.set("timestep", t)
@@ -278,8 +282,9 @@ class SnnLab(QWidget):
         v = float(self._vmem_cache[t])
         vth = float(self._vth.value())
         self._spike_readout.setText(
-            f"recurrent-LIF spike — t = sample {t}  ·  v[t] = {v:.5f}  ·  "
-            f"v_th = {vth:.3f}  ·  crossed by {v - vth:+.5f}  ·  layer = recurrent transform"
+            self._t("recurrent-LIF spike — t = sample {t}  ·  v[t] = {v}  ·  "
+                    "v_th = {vth}  ·  crossed by {d}  ·  layer = recurrent transform",
+                    t=t, v=f"{v:.5f}", vth=f"{vth:.3f}", d=f"{v - vth:+.5f}")
         )
         if self._selection is not None:
             self._selection.set("timestep", t)

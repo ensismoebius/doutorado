@@ -62,13 +62,15 @@ class FeatureMatrixView(QWidget):
         root = QVBoxLayout(self)
 
         root.addWidget(HelpBox('Feature Matrix', _HELP))
+        from experiment_microscope.core.i18n import t as _t
+        self._t = _t
         top = QHBoxLayout()
-        self._normalize = QCheckBox("per-column z-score (display only)")
+        self._normalize = QCheckBox(_t("per-column z-score (display only)"))
         # On by default: handcrafted columns span many orders of magnitude, so the
         # raw heatmap is dominated by one column and reads as a black rectangle.
         self._normalize.setChecked(True)
         self._normalize.stateChanged.connect(self._render)
-        self._status = QLabel("Select a Phase-00 handcrafted run.")
+        self._status = QLabel(_t("Select a Phase-00 handcrafted run."))
         self._status.setWordWrap(True)
         top.addWidget(self._normalize)
         top.addWidget(self._status, 1)
@@ -83,12 +85,13 @@ class FeatureMatrixView(QWidget):
         self._plot = pg.PlotWidget()
         self._img = pg.ImageItem()
         self._plot.addItem(self._img)
-        self._plot.setLabel("bottom", "feature")
-        self._plot.setLabel("left", "sample")
+        self._plot.setLabel("bottom", _t("feature"))
+        self._plot.setLabel("left", _t("sample"))
         self._plot.scene().sigMouseClicked.connect(self._on_click)
         split.addWidget(self._plot)
         self._stats = QTableWidget(0, 4)
-        self._stats.setHorizontalHeaderLabels(["feature", "mean", "std", "min / max"])
+        self._stats.setHorizontalHeaderLabels(
+            [_t("feature"), _t("mean"), _t("std"), _t("min / max")])
         split.addWidget(self._stats)
         split.setSizes([400, 160])
         root.addWidget(split, 1)
@@ -101,7 +104,7 @@ class FeatureMatrixView(QWidget):
             self._matrix = adapter.load_features(node)
         except NotImplementedError:
             self._matrix = None
-            self._status.setText("No live feature matrix for this object.")
+            self._status.setText(self._t("No live feature matrix for this object."))
             return
         except BindingUnavailableError as exc:
             self._matrix = None
@@ -109,7 +112,7 @@ class FeatureMatrixView(QWidget):
             return
         except Exception as exc:  # noqa: BLE001
             self._matrix = None
-            self._status.setText(f"load_features failed: {exc}")
+            self._status.setText(self._t("load_features failed: {exc}", exc=exc))
             return
         self._render()
 
@@ -127,7 +130,9 @@ class FeatureMatrixView(QWidget):
         # ImageItem is column-major over (x=feature, y=sample)
         self._img.setImage(shown.T, autoLevels=True)
         self._status.setText(
-            f"{m.set_label}  [{m.origin.value}] — {data.shape[0]} samples x {data.shape[1]} features"
+            self._t("{label}  [{origin}] — {r} samples x {c} features",
+                    label=m.set_label, origin=m.origin.value,
+                    r=data.shape[0], c=data.shape[1])
         )
         self._stats.setRowCount(data.shape[1])
         for j in range(data.shape[1]):
@@ -171,8 +176,9 @@ class FeatureMatrixView(QWidget):
             return
         m = self._matrix
         self._status.setText(
-            f"{m.feature_names[j]} @ {m.sample_labels[i]}  =  {data[i, j]:.6g}  "
-            f"(class {m.class_labels[i]})  [{m.origin.value}]"
+            self._t("{name} @ {sample}  =  {val}  (class {cls})  [{origin}]",
+                    name=m.feature_names[j], sample=m.sample_labels[i],
+                    val=f"{data[i, j]:.6g}", cls=m.class_labels[i], origin=m.origin.value)
         )
         if self.selection is not None:
             self.selection.set("feature", j, cascade=False)

@@ -55,7 +55,8 @@ class FollowDataBar(QWidget):
                 arrow = QLabel("→")
                 arrow.setEnabled(False)
                 layout.addWidget(arrow)
-            btn = QPushButton(stage.label)
+            from experiment_microscope.core.i18n import t as _t
+            btn = QPushButton(_t(stage.label))
             btn.setFlat(True)
             btn.setEnabled(False)
             btn.clicked.connect(lambda _=False, s=stage: self._on_click(s))
@@ -71,10 +72,11 @@ class FollowDataBar(QWidget):
         available = self._availability(node, adapter_key)
         for stage in STAGES:
             btn = self._buttons[stage.key]
+            from experiment_microscope.core.i18n import t as _t
             reason = available.get(stage.key, "not applicable to this selection")
             ok = reason == "" and bool(stage.tab)
             btn.setEnabled(ok)
-            btn.setToolTip("" if ok else reason)
+            btn.setToolTip("" if ok else _t(reason))
             font = btn.font()
             font.setBold(ok)
             btn.setFont(font)

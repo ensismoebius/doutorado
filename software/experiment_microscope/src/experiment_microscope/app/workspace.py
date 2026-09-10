@@ -141,7 +141,7 @@ class Workspace(QMainWindow):
             (self.timeline_view, "Timeline"),
         ):
             i = self.tabs.addTab(widget, key)
-            self.tabs.setTabData(i, key)
+            self.tabs.tabBar().setTabData(i, key)
         self.para_landscape.point_clicked.connect(self._on_para_point)
         self._retranslate_tabs()
 
@@ -167,7 +167,7 @@ class Workspace(QMainWindow):
 
     def _tab_key(self, i: int) -> str:
         """Stable English key for a tab (its visible text is translated)."""
-        data = self.tabs.tabData(i)
+        data = self.tabs.tabBar().tabData(i)
         return str(data) if data is not None else self.tabs.tabText(i)
 
     def _retranslate_tabs(self) -> None:

@@ -32,6 +32,7 @@ from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 from experiment_microscope.views._plotinfo import HoverReadout, set_source
 from experiment_microscope.views._timesync import TimeCursor
+from experiment_microscope.core.i18n import t as _t
 
 _WAVELETS = ["haar", "daub4", "daub6", "daub8", "daub10", "daub12", "daub20"]
 
@@ -86,12 +87,12 @@ class WaveletLab(QWidget):
         for w in (self._wavelet, self._level, self._mode):
             w.currentIndexChanged.connect(self._recompute) if isinstance(w, QComboBox) else \
                 w.valueChanged.connect(self._recompute)
-        form.addRow("wavelet", self._wavelet)
-        form.addRow("level", self._level)
-        form.addRow("mode", self._mode)
-        form.addRow("channel", self._channel)
+        form.addRow(_t("wavelet"), self._wavelet)
+        form.addRow(_t("level"), self._level)
+        form.addRow(_t("mode"), self._mode)
+        form.addRow(_t("channel"), self._channel)
         controls.addLayout(form)
-        self._status = QLabel("No signal selected.")
+        self._status = QLabel(_t("No signal selected."))
         self._status.setWordWrap(True)
         controls.addWidget(self._status, 1)
         root.addLayout(controls)
@@ -103,14 +104,14 @@ class WaveletLab(QWidget):
 
         split = QSplitter(Qt.Orientation.Horizontal)
         self._tree = QTreeWidget()
-        self._tree.setHeaderLabels(["Leaf", "Energy", "Rel. energy"])
+        self._tree.setHeaderLabels([_t("Leaf"), _t("Energy"), _t("Rel. energy")])
         self._tree.setColumnWidth(0, 90)
         self._tree.currentItemChanged.connect(self._on_leaf)
         split.addWidget(self._tree)
         self._plot = pg.PlotWidget()
         self._plot.showGrid(x=True, y=True, alpha=0.3)
-        self._plot.setLabel("bottom", "coefficient index (sample within the band)")
-        self._plot.setLabel("left", "coefficient value")
+        self._plot.setLabel("bottom", _t("coefficient index (sample within the band)"))
+        self._plot.setLabel("left", _t("coefficient value"))
         self._hover = HoverReadout(self._plot, x_label="index")
         split.addWidget(self._plot)
         if selection is not None:
@@ -143,7 +144,7 @@ class WaveletLab(QWidget):
             self._signal = adapter.load_signal(node)
         except NotImplementedError:
             self._signal = None
-            self._status.setText("Selected object has no 1-D signal to decompose.")
+            self._status.setText(_t("Selected object has no 1-D signal to decompose."))
             return
         except BindingUnavailableError as exc:
             self._signal = None
@@ -200,11 +201,11 @@ class WaveletLab(QWidget):
 
         self._status.setText(
             verdict.wavelet_energy(energies)
-            + f"   ·   {self._decomp.mode} {self._decomp.wavelet}, {len(energies)} bands, "
-            f"{data.size} samples in  ·  [computed]"
+            + _t("   ·   {mode} {wavelet}, {n} bands, {ns} samples in  ·  [computed]",
+                 mode=self._decomp.mode, wavelet=self._decomp.wavelet,
+                 n=len(energies), ns=data.size)
         )
         from experiment_microscope.core import palette
-        from experiment_microscope.core.i18n import t as _t
 
         self._plot.clear()
         self._plot.plot(np.arange(data.size), data, pen=palette.pen("input", 2), name="input")
@@ -234,8 +235,8 @@ class WaveletLab(QWidget):
         self._plot.clear()
         self._plot.plot(np.arange(coeffs.size), coeffs, pen=palette.pen("wavelet", 2),
                         name=f"band {idx}")
-        self._plot.setTitle(f"Frequency band {idx} on its own — {coeffs.size} numbers "
-                            f"(band 0 = lowest pitch)")
+        self._plot.setTitle(_t("Frequency band {idx} on its own — {n} numbers "
+                               "(band 0 = lowest pitch)", idx=idx, n=coeffs.size))
         set_source(self._plot, f"nn_microscope.wavelet.decompose().leaf({idx})")
         self._hover.reattach()
         if self._cursor is not None:
