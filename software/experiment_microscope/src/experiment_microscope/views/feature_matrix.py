@@ -129,6 +129,10 @@ class FeatureMatrixView(QWidget):
             shown = (data - mu) / sd
         # ImageItem is column-major over (x=feature, y=sample)
         self._img.setImage(shown.T, autoLevels=True)
+        # re-fit so the whole matrix is in view on every re-render (z-score toggle, new run)
+        vb = self._plot.getPlotItem().getViewBox()
+        vb.enableAutoRange(x=True, y=True)
+        vb.autoRange(padding=0.0)
         self._status.setText(
             self._t("{label}  [{origin}] — {r} samples x {c} features",
                     label=m.set_label, origin=m.origin.value,

@@ -678,4 +678,6 @@ CATALOG = {
     "{cfg} — no epoch data": "{cfg} — sem dados de época",
     "  ·  lr {lr}": "  ·  lr {lr}",
     "  ·  ~{s}s/epoch": "  ·  ~{s}s/época",
+    "Select a meeting01 or thesis object.":
+        "Selecione um objeto do meeting01 ou da tese.",
 }

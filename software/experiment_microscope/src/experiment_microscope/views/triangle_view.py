@@ -146,7 +146,7 @@ class TriangleView(QWidget):
         m = self._matrix
 
         # -- FEATURES (centre) : this sample's handcrafted vector -------------
-        from experiment_microscope.views._plotinfo import HoverReadout, set_source
+        from experiment_microscope.views._plotinfo import HoverReadout, autofit, set_source
 
         vec = np.asarray(m.values[i], dtype=float)
         pf = self._layout.addPlot(row=0, col=1, title=f"features — {m.sample_labels[i]}")
@@ -157,6 +157,7 @@ class TriangleView(QWidget):
         pf.showGrid(x=True, y=True, alpha=0.2)
         set_source(pf, "thesis.load_features() row for this sample · [computed]")
         self._pf = pf
+        autofit(pf)
         self._hovers = [HoverReadout(pf, x_label="feature")]
 
         # -- WAVELET (left) : sample's channel-0 packet energy ---------------
@@ -175,6 +176,7 @@ class TriangleView(QWidget):
             pw.setLabel("bottom", "wavelet sub-band index")
             set_source(pw, f"nn_microscope.wavelet.decompose({spec.wavelet}, packet, L{spec.dtwpt_level})")
             self._hovers.append(HoverReadout(pw, x_label="band"))
+            autofit(pw)
             self._map_features_to_bands(spec, int(e.size), int(vec.size))
         except Exception as exc:  # noqa: BLE001
             pw.addItem(pg.TextItem(f"wavelet unavailable: {exc}", color=(200, 160, 160)))

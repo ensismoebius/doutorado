@@ -260,10 +260,11 @@ class LatentExplorer(QWidget):
                           "symbol": "o", "size": 9})
         self._scatter.setData(spots)
         self._legend(lut, idx)
-        from experiment_microscope.views._plotinfo import set_source
+        from experiment_microscope.views._plotinfo import autofit, set_source
 
         set_source(self._plot, "meeting01.latent_batch() → SNN-AE latents, "
                    f"projected with {label.split()[0]} · PROJECTED (hover a point)")
+        autofit(self._plot)  # fit every projected point in view on each re-projection
         self._plot_title(label)
 
     def _legend(self, lut: dict, idx: dict) -> None:

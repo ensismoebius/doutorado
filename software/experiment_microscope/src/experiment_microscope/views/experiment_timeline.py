@@ -170,10 +170,11 @@ class ExperimentTimeline(QWidget):
         best = getattr(cfg, "best_epoch", None)
         if best is not None:
             self._curve.addLine(x=best, pen=pg.mkPen((90, 200, 120), style=Qt.PenStyle.DashLine))
-        from experiment_microscope.views._plotinfo import set_source
+        from experiment_microscope.views._plotinfo import autofit, set_source
         set_source(self._curve, "results/meeting01/*_events.jsonl (epoch_end events)")
         if getattr(self, "_hover", None) is not None:
             self._hover.reattach()
+        autofit(self._curve)  # re-fit every regeneration so all epochs stay in frame
 
         # epoch duration on a linked right-hand axis (FIXME §46)
         self._plot_epoch_ms(cfg, xs)
@@ -213,6 +214,8 @@ class ExperimentTimeline(QWidget):
                                 pen=pg.mkPen((160, 120, 200), width=1, style=Qt.PenStyle.DotLine))
         self._epoch_ms_vb.addItem(curve)
         self._epoch_ms_vb.setGeometry(pi.vb.sceneBoundingRect())
+        self._epoch_ms_vb.enableAutoRange(y=True)
+        self._epoch_ms_vb.autoRange(padding=0.08)  # fit the duration curve every regen
 
 
 def _fmt(x) -> str:

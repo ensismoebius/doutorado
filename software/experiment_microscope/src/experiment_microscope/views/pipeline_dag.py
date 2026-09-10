@@ -105,10 +105,12 @@ class PipelineDag(QWidget):
 
     def show_experiment(self, experiment: str | None) -> None:
         self._scene.clear()
+        from experiment_microscope.core.i18n import t as _t
         graph = _GRAPHS.get(experiment or "")
         if graph is None:
-            t = self._scene.addText("Select a meeting01 or thesis object.")
+            t = self._scene.addText(_t("Select a meeting01 or thesis object."))
             t.setDefaultTextColor(QColor(180, 180, 180))
+            self._scene.setSceneRect(self._scene.itemsBoundingRect())
             return
         nodes, edges = graph
         items: dict[str, _NodeItem] = {}
@@ -128,3 +130,13 @@ class PipelineDag(QWidget):
             edge.setZValue(-1)
             self._scene.addItem(edge)
         self._scene.setSceneRect(self._scene.itemsBoundingRect().adjusted(-20, -20, 20, 20))
+        self._fit()
+
+    def _fit(self) -> None:
+        rect = self._scene.sceneRect()
+        if rect.isValid() and not rect.isEmpty():
+            self._view.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._fit()  # keep the whole DAG in view when the panel is resized

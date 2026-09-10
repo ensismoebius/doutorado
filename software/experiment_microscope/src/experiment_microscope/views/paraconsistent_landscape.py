@@ -154,13 +154,14 @@ class ParaconsistentLandscape(QWidget):
             spots.append({"pos": (dt, dp), "data": p,
                           "brush": pg.mkBrush(int(min(255, 60 + pen_amt * 400)), 120, 200, 210)})
         self._scatter.setData(spots)
-        from experiment_microscope.views._plotinfo import set_source
+        from experiment_microscope.views._plotinfo import autofit, set_source
 
         set_source(self._plot, "persisted *_paraconsistent.csv · [measured] · "
                    "hover a point for its facets + D values")
         if xs:
             lo, hi = min(xs), max(xs)
             self._ref.setData([lo, hi], [lo, hi])
+        autofit(self._plot)  # re-fit to the filtered cloud on every facet change
         self._status.setText(
             f"{len(spots)} / {len(self._points)} feature set(s) shown — "
             f"vertical gap above y=x is the contradiction penalty (2−√2)·|g2|"

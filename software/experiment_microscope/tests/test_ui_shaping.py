@@ -9,7 +9,27 @@ from experiment_microscope.data.adapters import TreeNode
 
 
 def _visible(w):
-    return {w.tabs.tabText(i) for i in range(w.tabs.count()) if w.tabs.isTabVisible(i)}
+    return {w._tab_key(i) for i in range(w.tabs.count()) if w.tabs.isTabVisible(i)}
+
+
+def test_autofit_refits_on_regeneration(qapp):
+    """A plot that is re-rendered must scale to fit its NEW data, even after the
+    user has zoomed in — every point visible again on regeneration."""
+    import pyqtgraph as pg
+
+    from experiment_microscope.views._plotinfo import autofit
+
+    plot = pg.PlotWidget()
+    plot.plot([0, 1, 2], [0.0, 0.1, 0.2])
+    autofit(plot)
+    plot.getPlotItem().getViewBox().setRange(xRange=(0, 0.5), yRange=(0, 0.01))  # user zooms in
+
+    plot.clear()
+    plot.plot(np.arange(50), np.linspace(-5.0, 40.0, 50))                       # regenerate, bigger
+    autofit(plot)
+
+    (x0, x1), (y0, y1) = plot.getPlotItem().getViewBox().viewRange()
+    assert x1 >= 49 and y0 <= -5.0 and y1 >= 40.0                               # all points in frame
 
 
 def test_tabs_follow_selection(qapp):

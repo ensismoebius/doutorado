@@ -248,6 +248,7 @@ class SnnLab(QWidget):
                 fi = np.flatnonzero(spk > 0.5)
                 p3.plot(fi, v_mem[fi], pen=None, symbol="t", symbolSize=10,
                         symbolBrush=palette.brush("spike"), name="fired")
+            autofit(p3)  # every neuron's charge in frame on each re-render
 
         kept = np.intersect1d(in_spikes, out_spikes).size
         mem_note = (
