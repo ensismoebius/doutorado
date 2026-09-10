@@ -68,12 +68,12 @@ _APP = "experiment_microscope"
 class Workspace(QMainWindow):
     def __init__(self, initial_experiment: str | None = None) -> None:
         super().__init__()
-        self.setWindowTitle("Experiment Microscope")
         self.resize(1400, 900)
 
-        from experiment_microscope.core.i18n import language as _lang, set_language
+        from experiment_microscope.core.i18n import language as _lang, set_language, t
 
         set_language(str(QSettings(_ORG, _APP).value("language", _lang())))
+        self.setWindowTitle(t("Experiment Microscope"))
 
         self.repo = DataRepository()
         self.selection = SelectionState(self)
@@ -121,24 +121,29 @@ class Workspace(QMainWindow):
         self.timeline_view = ExperimentTimeline(self.repo)
         self.timeline_view.config_activated.connect(self._on_timeline_config)
         self.pipeline_dag.node_activated.connect(self._open_tab)
-        self.tabs.addTab(self.signal_view, "Signal")
-        self.tabs.addTab(self.wavelet_lab, "Wavelet Lab")
-        self.tabs.addTab(self.wavelet_3d, "Wavelet 3D")
-        self.tabs.addTab(self.feature_matrix, "Feature Matrix")
-        self.tabs.addTab(self.encoding_lab, "Encoding Lab")
-        self.tabs.addTab(self.snn_lab, "SNN Lab")
-        self.tabs.addTab(self.snn_3d, "SNN 3D")
-        self.tabs.addTab(self.latent_explorer, "Latent Space")
-        self.tabs.addTab(self.reconstruction, "Reconstruction")
-        self.tabs.addTab(self.para_plane, "Paraconsistent plane")
-        self.tabs.addTab(self.para_landscape, "Paraconsistent landscape")
+        for widget, key in (
+            (self.signal_view, "Signal"),
+            (self.wavelet_lab, "Wavelet Lab"),
+            (self.wavelet_3d, "Wavelet 3D"),
+            (self.feature_matrix, "Feature Matrix"),
+            (self.encoding_lab, "Encoding Lab"),
+            (self.snn_lab, "SNN Lab"),
+            (self.snn_3d, "SNN 3D"),
+            (self.latent_explorer, "Latent Space"),
+            (self.reconstruction, "Reconstruction"),
+            (self.para_plane, "Paraconsistent plane"),
+            (self.para_landscape, "Paraconsistent landscape"),
+            (self.pipeline_dag, "Pipeline"),
+            (self.triangle, "Triangle"),
+            (self.comparison, "Comparison"),
+            (self.nsga, "NSGA-II"),
+            (self.ranking, "Ranking"),
+            (self.timeline_view, "Timeline"),
+        ):
+            i = self.tabs.addTab(widget, key)
+            self.tabs.setTabData(i, key)
         self.para_landscape.point_clicked.connect(self._on_para_point)
-        self.tabs.addTab(self.pipeline_dag, "Pipeline")
-        self.tabs.addTab(self.triangle, "Triangle")
-        self.tabs.addTab(self.comparison, "Comparison")
-        self.tabs.addTab(self.nsga, "NSGA-II")
-        self.tabs.addTab(self.ranking, "Ranking")
-        self.tabs.addTab(self.timeline_view, "Timeline")
+        self._retranslate_tabs()
 
         self.follow_bar = FollowDataBar(self.repo)
         self.follow_bar.stage_activated.connect(self._open_tab)
@@ -160,6 +165,17 @@ class Workspace(QMainWindow):
         self.tabs.currentChanged.connect(self._refresh_legend)
         self._refresh_legend(self.tabs.currentIndex())
 
+    def _tab_key(self, i: int) -> str:
+        """Stable English key for a tab (its visible text is translated)."""
+        data = self.tabs.tabData(i)
+        return str(data) if data is not None else self.tabs.tabText(i)
+
+    def _retranslate_tabs(self) -> None:
+        from experiment_microscope.core.i18n import t
+
+        for i in range(self.tabs.count()):
+            self.tabs.setTabText(i, t(self._tab_key(i)))
+
     def _refresh_legend(self, idx: int) -> None:
         """Swap the colour-key strip under the tab bar to match the active tab."""
         from experiment_microscope.core import palette
@@ -170,12 +186,12 @@ class Workspace(QMainWindow):
             if w is not None:
                 w.setParent(None)
                 w.deleteLater()
-        strip = palette.legend_strip(self.tabs.tabText(idx) if idx >= 0 else "")
+        strip = palette.legend_strip(self._tab_key(idx) if idx >= 0 else "")
         host.addWidget(strip)
 
     def _open_tab(self, name: str) -> None:
         for i in range(self.tabs.count()):
-            if self.tabs.tabText(i) == name:
+            if self._tab_key(i) == name:
                 self.tabs.setTabVisible(i, True)
                 self.tabs.setCurrentIndex(i)
                 return
@@ -208,7 +224,7 @@ class Workspace(QMainWindow):
         visible one."""
         cur = self.tabs.currentIndex()
         for i in range(self.tabs.count()):
-            rule = self._TAB_RULES.get(self.tabs.tabText(i))
+            rule = self._TAB_RULES.get(self._tab_key(i))
             self.tabs.setTabVisible(i, True if rule is None else bool(rule(handle, adapter_key)))
         if cur >= 0 and not self.tabs.isTabVisible(cur):
             for i in range(self.tabs.count()):
@@ -217,7 +233,9 @@ class Workspace(QMainWindow):
                     break
 
     def _dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
-        dock = QDockWidget(title, self)
+        from experiment_microscope.core.i18n import t
+
+        dock = QDockWidget(t(title), self)
         dock.setObjectName(f"dock::{title}")
         dock.setWidget(widget)
         self.addDockWidget(area, dock)
@@ -248,7 +266,8 @@ class Workspace(QMainWindow):
 
         self.session_log = QPlainTextEdit()
         self.session_log.setReadOnly(True)
-        self.session_log.setPlainText("No meeting01 run detected under results/meeting01/.")
+        from experiment_microscope.core.i18n import t as _t
+        self.session_log.setPlainText(_t("No meeting01 run detected under results/meeting01/."))
         self._dock("Meeting01 session", self.session_log, Qt.DockWidgetArea.BottomDockWidgetArea)
 
         self.bookmarks = BookmarksDock()
@@ -323,11 +342,17 @@ class Workspace(QMainWindow):
         gloss.triggered.connect(self._show_glossary)
         help_menu.addAction(gloss)
 
+    def _retranslate_menus(self) -> None:
+        self.menuBar().clear()
+        self._build_menus()
+
     def _set_language(self, code: str) -> None:
         from experiment_microscope.core.i18n import set_language, t
 
         set_language(code)
         QSettings(_ORG, _APP).setValue("language", code)
+        self._retranslate_tabs()
+        self._retranslate_menus()
         self._refresh_legend(self.tabs.currentIndex())
         node = getattr(self, "_current_node", None)
         if node is not None:
@@ -368,22 +393,25 @@ class Workspace(QMainWindow):
 
     def _explain_current_view(self) -> None:
         """F1 — open the current tab's 'How to read this' box, if it has one."""
+        from experiment_microscope.core.i18n import t
+
         view = self.tabs.currentWidget()
         for child in view.findChildren(QWidget):
             if child.__class__.__name__ == "HelpBox":
                 child.open()
-                self.statusBar().showMessage("opened the explanation for this view", 3000)
+                self.statusBar().showMessage(t("opened the explanation for this view"), 3000)
                 return
         self.statusBar().showMessage(
-            "this view has no dedicated explanation yet — see Help → Glossary", 4000)
+            t("this view has no dedicated explanation yet — see Help → Glossary"), 4000)
 
     def _show_glossary(self) -> None:
         from PySide6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout as _VB
 
         from experiment_microscope.core.glossary import glossary_html
+        from experiment_microscope.core.i18n import t
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("Glossary — every abbreviation and metric")
+        dlg.setWindowTitle(t("Glossary — every abbreviation and metric"))
         dlg.resize(560, 640)
         lay = _VB(dlg)
         browser = QTextBrowser()
@@ -394,11 +422,12 @@ class Workspace(QMainWindow):
 
     def _build_statusbar(self) -> None:
         from experiment_microscope.views._busy import BusyIndicator
+        from experiment_microscope.core.i18n import t
 
         bar = QStatusBar()
         self.setStatusBar(bar)
         self._status_selection = QLabel("—")
-        self._status_res = QLabel("FULL RESOLUTION")
+        self._status_res = QLabel(t("FULL RESOLUTION"))
         self.busy = BusyIndicator()
         bar.addWidget(self._status_selection, 1)
         bar.addPermanentWidget(self.busy)
@@ -407,10 +436,13 @@ class Workspace(QMainWindow):
 
     # -- wiring ----------------------------------------------------
     def _wire(self) -> None:
+        from experiment_microscope.core.i18n import t
+
         self.explorer.node_selected.connect(self._on_node_selected)
         self.para_plane.point_clicked.connect(self._on_para_point)
         self.app_state.display_downsampled_changed.connect(
-            lambda on: self._status_res.setText("DISPLAY-DOWNSAMPLED" if on else "FULL RESOLUTION")
+            lambda on: self._status_res.setText(
+                t("DISPLAY-DOWNSAMPLED") if on else t("FULL RESOLUTION"))
         )
         self.repo.cache.failed.connect(self._on_cache_failed)
         self.selection.changed.connect(self._on_selection_changed)
@@ -421,9 +453,10 @@ class Workspace(QMainWindow):
 
     def _on_selection_changed(self, field: str) -> None:
         if field == "timestep":
+            from experiment_microscope.core.i18n import t
             ts = self.selection.get("timestep")
             self._status_res.setText(
-                "FULL RESOLUTION" if ts is None else f"cursor @ sample {ts}"
+                t("FULL RESOLUTION") if ts is None else t("cursor @ sample {ts}", ts=ts)
             )
         elif field == "time_range":
             tr = self.selection.get("time_range")
@@ -486,7 +519,8 @@ class Workspace(QMainWindow):
         """FIXME §38 — disable 3D / animation / live updates on weak hardware."""
         self.app_state.low_performance_mode = on
         self.transport.setEnabled(not on and self.timeline.total_frames > 1)
-        self._status_res.setText("LOW-PERFORMANCE MODE" if on else "FULL RESOLUTION")
+        from experiment_microscope.core.i18n import t
+        self._status_res.setText(t("LOW-PERFORMANCE MODE") if on else t("FULL RESOLUTION"))
         node = getattr(self, "_current_node", None)
         if node is not None:  # re-render so the 3D panel picks up the flag
             self.wavelet_3d.show_node(node, self._current_adapter)
@@ -528,7 +562,8 @@ class Workspace(QMainWindow):
             self.selection.update(experiment="thesis")
 
     def _on_cache_failed(self, _key, exc, _tb) -> None:
-        self.statusBar().showMessage(f"compute failed: {exc}", 8000)
+        from experiment_microscope.core.i18n import t
+        self.statusBar().showMessage(t("compute failed: {exc}", exc=exc), 8000)
 
     def _refresh_session_log(self) -> None:
         adapter = self.repo.adapter("meeting01")
@@ -563,21 +598,23 @@ class Workspace(QMainWindow):
 
     # -- publication export (FIXME §30) -------------------------
     def _export_current_view(self) -> None:
+        from experiment_microscope.core.i18n import t
+
         view = self.tabs.currentWidget()
         if not (hasattr(view, "can_export") and view.can_export()):
-            self.statusBar().showMessage("current view has nothing to export", 4000)
+            self.statusBar().showMessage(t("current view has nothing to export"), 4000)
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export figure", "figure.pdf", "Vector/raster (*.pdf *.svg *.png)"
+            self, t("Export figure"), "figure.pdf", "Vector/raster (*.pdf *.svg *.png)"
         )
         if not path:
             return
         try:
             written = view.export_figure(path)
         except Exception as exc:  # noqa: BLE001
-            self.statusBar().showMessage(f"export failed: {exc}", 8000)
+            self.statusBar().showMessage(t("export failed: {exc}", exc=exc), 8000)
             return
-        self.statusBar().showMessage(f"wrote {written}", 6000)
+        self.statusBar().showMessage(t("wrote {written}", written=written), 6000)
 
     # -- bookmarks (FIXME §36) ----------------------------------
     def _save_bookmark(self, name: str) -> None:
@@ -585,12 +622,13 @@ class Workspace(QMainWindow):
             name,
             self.selection.snapshot(),
             self.explorer.current_path(),
-            self.tabs.tabText(self.tabs.currentIndex()),
+            self._tab_key(self.tabs.currentIndex()),
             bytes(self.saveState()),
         )
         self.bookmarks.store.add(bm)
         self.bookmarks.refresh()
-        self.statusBar().showMessage(f"bookmarked: {name}", 4000)
+        from experiment_microscope.core.i18n import t
+        self.statusBar().showMessage(t("bookmarked: {name}", name=name), 4000)
 
     def _restore_bookmark(self, bm) -> None:
         if bm.window_state():
@@ -599,8 +637,10 @@ class Workspace(QMainWindow):
         if not found:
             self.selection.restore(bm.selection)
         self._open_tab(bm.active_tab)
+        from experiment_microscope.core.i18n import t
         self.statusBar().showMessage(
-            f"restored: {bm.name}" + ("" if found else "  (selection path not found — state only)"),
+            t("restored: {name}", name=bm.name)
+            + ("" if found else "  " + t("(selection path not found — state only)")),
             5000,
         )
 

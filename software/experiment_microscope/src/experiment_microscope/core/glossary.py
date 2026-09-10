@@ -12,6 +12,8 @@ table.
 
 from __future__ import annotations
 
+from experiment_microscope.core.i18n import t
+
 TERMS: dict[str, tuple[str, str]] = {
     # -- pipelines / structure ------------------------------------------------
     "meeting01": ("", "The conference-paper pipeline: it trains autoencoders "
@@ -206,13 +208,13 @@ def expand(term: str) -> str:
     hit = _lookup(term)
     if not hit or not hit[0]:
         return term
-    return f"{term} ({hit[0]})"
+    return f"{term} ({t(hit[0])})"
 
 
 def describe(term: str) -> str:
     """One-sentence meaning, or ``''`` if the term is not in the glossary."""
     hit = _lookup(term)
-    return hit[1] if hit else ""
+    return t(hit[1]) if hit else ""
 
 
 def tooltip(term: str) -> str:
@@ -221,13 +223,13 @@ def tooltip(term: str) -> str:
     if not hit:
         return ""
     exp, mean = hit
-    return f"{exp + ' — ' if exp else ''}{mean}"
+    return f"{t(exp) + ' — ' if exp else ''}{t(mean)}"
 
 
 def glossary_html() -> str:
     """The whole table as HTML for the Help → Glossary dialog."""
     rows = []
     for term, (exp, mean) in sorted(TERMS.items(), key=lambda kv: kv[0].lower()):
-        head = f"<b>{term}</b>" + (f" — <i>{exp}</i>" if exp else "")
-        rows.append(f"<p style='margin:4px 0'>{head}<br>{mean}</p>")
-    return "<h3>Glossary</h3>" + "".join(rows)
+        head = f"<b>{term}</b>" + (f" — <i>{t(exp)}</i>" if exp else "")
+        rows.append(f"<p style='margin:4px 0'>{head}<br>{t(mean)}</p>")
+    return f"<h3>{t('Glossary')}</h3>" + "".join(rows)

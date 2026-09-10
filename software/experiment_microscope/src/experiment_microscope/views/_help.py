@@ -70,8 +70,9 @@ class HelpBox(QWidget):
 
 def metric_table() -> QTableWidget:
     """A 3-column read-only table: metric · value · what it means."""
+    from experiment_microscope.core.i18n import t as _t
     t = QTableWidget(0, 3)
-    t.setHorizontalHeaderLabels(["quantity", "value", "what it means"])
+    t.setHorizontalHeaderLabels([_t("quantity"), _t("value"), _t("what it means")])
     t.horizontalHeader().setStretchLastSection(True)
     t.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
     t.setWordWrap(True)
