@@ -299,8 +299,10 @@ class LatentExplorer(QWidget):
                 f"latent vectors → {method_label}   [projected — a view, not a "
                 f"measurement]   ·   colour = {c}")
 
-    def _on_point_clicked(self, _scatter, points) -> None:
-        if not points or self._batch is None:
+    def _on_point_clicked(self, _scatter, points, *_ev) -> None:
+        # pyqtgraph ≥0.13 emits sigClicked(plot, points, event); `points` is a
+        # numpy array, so test it with len(), never `not points`.
+        if self._batch is None or points is None or len(points) == 0:
             return
         i = int(points[0].data())
         row = self._batch["rows"][i]

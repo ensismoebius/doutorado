@@ -51,5 +51,12 @@ def test_real_latent_batch_and_project(qapp, first_fsdd_window):
 
     seen = []
     v.sample_activated.connect(lambda *a: seen.append(a))
-    v._on_point_clicked(None, [type("P", (), {"data": lambda self: 0})()])
+    # pyqtgraph ≥0.13 delivers `points` as a numpy array + a trailing event arg;
+    # the handler must not do `not points` on it and must tolerate the extra arg.
+    import numpy as np
+    spot = type("P", (), {"data": lambda self: 0})()
+    v._on_point_clicked(None, np.array([spot, spot], dtype=object), object())
     assert seen and seen[0][0] == "fsdd"
+    seen.clear()
+    v._on_point_clicked(None, np.array([], dtype=object))   # empty → no crash, no emit
+    assert not seen

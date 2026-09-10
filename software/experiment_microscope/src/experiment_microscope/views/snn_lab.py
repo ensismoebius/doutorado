@@ -264,8 +264,8 @@ class SnnLab(QWidget):
         )
 
 
-    def _on_input_spike(self, _scatter, points) -> None:
-        if not points:
+    def _on_input_spike(self, _scatter, points, *_ev) -> None:
+        if points is None or len(points) == 0:  # `points` is a numpy array
             return
         t = int(points[0].data())
         self._spike_readout.setText(
@@ -276,8 +276,8 @@ class SnnLab(QWidget):
         if self._selection is not None:
             self._selection.set("timestep", t)
 
-    def _on_membrane_spike(self, _scatter, points) -> None:
-        if not points or self._vmem_cache is None:
+    def _on_membrane_spike(self, _scatter, points, *_ev) -> None:
+        if self._vmem_cache is None or points is None or len(points) == 0:
             return
         t = int(points[0].data())
         v = float(self._vmem_cache[t])
