@@ -183,10 +183,13 @@ class SnnLab(QWidget):
         self._hovers = []
 
         from experiment_microscope.core import palette, verdict
+        from experiment_microscope.views._plotinfo import autofit, fade_in
 
         p0 = self._layout_widget.addPlot(row=0, col=0, title="1 · the window going in")
         p0.plot(np.arange(self._window.size), self._window, pen=palette.pen("input", 2), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
+        autofit(p0)
+        fade_in(self._layout_widget)
         set_source(p0, "nn_microscope.meeting01.recurrent_lif_trace()")
         self._hovers.append(HoverReadout(p0, x_label="step"))
         if self._selection is not None:
@@ -210,6 +213,7 @@ class SnnLab(QWidget):
         p2.setLabel("left", "charge inside the neuron  (membrane potential v[t])")
         p2.setLabel("bottom", "time step")
         p2.plot(np.arange(vmem1.size), vmem1, pen=palette.pen("membrane", 2), name="charge v[t]")
+        autofit(p2, x=False)
         self._hovers.append(HoverReadout(p2, x_label="step"))
         p2.addLine(y=float(self._vth.value()),
                    pen=palette.pen("threshold", 1, "dash"))

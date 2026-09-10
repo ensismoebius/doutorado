@@ -71,6 +71,8 @@ class TransformationCache(QObject):
     #: (CacheKey, exception, traceback_text) — computation raised. The GUI
     #: surfaces the message unchanged (no-fallback policy).
     failed = Signal(object, object, str)
+    #: number of jobs currently computing — drives the busy indicator.
+    busy_changed = Signal(int)
 
     def __init__(self, max_entries: int = 256, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -115,6 +117,7 @@ class TransformationCache(QObject):
         if key in self._inflight:
             return None
         self._inflight.add(key)
+        self.busy_changed.emit(len(self._inflight))
         job = _Job(key, fn)
         job.signals.done.connect(self._on_done)
         job.signals.failed.connect(self._on_failed)
@@ -140,11 +143,13 @@ class TransformationCache(QObject):
 
     def _on_done(self, key: CacheKey, value: Any) -> None:
         self._inflight.discard(key)
+        self.busy_changed.emit(len(self._inflight))
         self._insert(key, value)
         self.ready.emit(key, value)
 
     def _on_failed(self, key: CacheKey, exc: BaseException, tb: str) -> None:
         self._inflight.discard(key)
+        self.busy_changed.emit(len(self._inflight))
         self.failed.emit(key, exc, tb)
 
     def clear(self) -> None:

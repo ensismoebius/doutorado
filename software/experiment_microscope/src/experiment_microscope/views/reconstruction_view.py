@@ -169,6 +169,10 @@ class ReconstructionView(QWidget):
         set_source(p1, src)
         self._hovers = [HoverReadout(p0, x_label="sample"),
                         HoverReadout(p1, x_label="sample")]
+        from experiment_microscope.views._plotinfo import autofit, fade_in
+        autofit(p0)
+        autofit(p1)
+        fade_in(self._layout_widget)
 
         _METRIC_NAMES = {
             "mse": "MSE", "mae": "MAE", "r2": "R2", "pearson_r": "Pearson r",

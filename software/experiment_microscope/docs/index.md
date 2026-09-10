@@ -118,6 +118,19 @@ Nothing in the app is shown without an explanation:
   takeaway computed from the data ("Near-perfect rebuild — the latent numbers
   kept almost everything, R² 0.99" / "Conflicting evidence — supported *and*
   denied"), not the category. Still passes the banned-inferential-word guard.
+- **Português (Brasil)** — `View → Language`. A runtime string catalog
+  (`core/i18n.py` + `core/i18n_pt_br.py`, `t()` lookup, English fallback for any
+  missing key) covers the menus, the guided tour (both pipelines), the verdict
+  sentences, the colour key, and the "How to read this" boxes. Deep per-view
+  internals are still English. The choice persists in `QSettings`; the tour and
+  glossary re-render live, fixed labels update on the next launch.
+- **Scale-to-fit + motion** — every line plot re-fits to its data on each
+  render (`_plotinfo.autofit`) and fades in (`_plotinfo.fade_in`); the guided
+  tour steps cross-fade.
+- **Busy indicator** — a moving bar + plain label in the status bar whenever the
+  app is loading a dataset, running the network, or projecting the latent space
+  (`views/_busy.py`, fed by `TransformationCache.busy_changed` and the latent
+  worker thread).
 
 - **Every central tab has a "How to read this" strip** (`views/_help.py::HelpBox`)
   — collapsed by default, one click to open. It says what the view shows, what

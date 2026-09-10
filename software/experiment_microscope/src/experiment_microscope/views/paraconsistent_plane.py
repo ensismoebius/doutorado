@@ -59,8 +59,9 @@ class ParaconsistentPlane(QWidget):
             self._plot = None
             return
         self._plot = pg.PlotWidget()
-        self._plot.setTitle("Each dot is one feature recipe · right = 'same person' · "
-                            "up = the evidence contradicts itself · bottom-right corner is the goal")
+        from experiment_microscope.core.i18n import t as _t
+        self._plot.setTitle(_t("Each dot is one feature recipe · right = 'same person' · "
+                               "up = the evidence contradicts itself · bottom-right corner is the goal"))
         self._plot.setLabel("bottom", "G1  —  net certainty  (right = same person, left = different)")
         self._plot.setLabel("left", "G2  —  self-contradiction  (up = evidence fights itself)")
         self._plot.showGrid(x=True, y=True, alpha=0.3)

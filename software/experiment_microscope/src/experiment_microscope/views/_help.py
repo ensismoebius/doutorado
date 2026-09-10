@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.core.glossary import describe
+from experiment_microscope.core.i18n import t
 
 
 class HelpBox(QWidget):
@@ -38,7 +39,7 @@ class HelpBox(QWidget):
         lay.setSpacing(2)
 
         self._btn = QToolButton()
-        self._btn.setText(f"  How to read this — {title}")
+        self._btn.setText(f"  {t('How to read this')} — {t(title)}")
         self._btn.setCheckable(True)
         self._btn.setChecked(start_open)
         self._btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
@@ -47,7 +48,7 @@ class HelpBox(QWidget):
         self._btn.toggled.connect(self._on_toggle)
         lay.addWidget(self._btn)
 
-        self._body = QLabel(body)
+        self._body = QLabel(t(body))
         self._body.setWordWrap(True)
         self._body.setTextFormat(Qt.TextFormat.RichText)
         self._body.setFrameShape(QFrame.Shape.StyledPanel)

@@ -111,6 +111,8 @@ def legend_strip(view_name: str):
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
+    from experiment_microscope.core.i18n import t
+
     w = QWidget()
     w.setMaximumHeight(24)
     row = QHBoxLayout(w)
@@ -120,16 +122,16 @@ def legend_strip(view_name: str):
     if not names:
         w.setVisible(False)
         return w
-    key = QLabel("<b>Colour key:</b>")
+    key = QLabel(f"<b>{t('Colour key:')}</b>")
     key.setStyleSheet("color:#999;")
     row.addWidget(key)
     for n in names:
         lab = QLabel(
             f"<span style='color:{hex_(n)};font-size:14px'>■</span> "
-            f"<span style='color:#bbb'>{MEANING.get(n, n)}</span>"
+            f"<span style='color:#bbb'>{t(MEANING.get(n, n))}</span>"
         )
         lab.setTextFormat(Qt.TextFormat.RichText)
-        lab.setToolTip(MEANING_LONG.get(n, ""))
+        lab.setToolTip(t(MEANING_LONG.get(n, "")))
         row.addWidget(lab)
     row.addStretch(1)
     return w

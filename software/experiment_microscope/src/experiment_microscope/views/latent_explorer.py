@@ -79,6 +79,7 @@ class _BatchWorker(QObject):
 
 class LatentExplorer(QWidget):
     sample_activated = Signal(str, int, str, int)  # dataset, fold, split, row
+    working = Signal(bool)  # True when the worker thread is running
 
     def __init__(self, repo, app_state=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -163,6 +164,7 @@ class LatentExplorer(QWidget):
             return
         self._go.setEnabled(False)
         self._status.setText("running SNN-AE forward passes on a worker thread…")
+        self.working.emit(True)
         self._thread = QThread(self)
         self._worker = _BatchWorker(
             adapter, self._ds, self._fold, self._split.currentText(), self._limit.value()
@@ -179,6 +181,7 @@ class LatentExplorer(QWidget):
             self._thread.wait()
             self._thread = None
         self._go.setEnabled(True)
+        self.working.emit(False)
 
     def _on_fail(self, msg: str) -> None:
         self._teardown_thread()

@@ -124,13 +124,16 @@ class EncodingLab(QWidget):
         t = np.arange(self._window.size)
 
         from experiment_microscope.core import palette, verdict
+        from experiment_microscope.core.i18n import t as _t
 
         p0 = self._layout_widget.addPlot(row=0, col=0)
-        p0.setTitle("The window we start from — a slice of the signal, mean 0")
+        p0.setTitle(_t("The window we start from — a slice of the signal, mean 0"))
         p0.setLabel("bottom", "time step (sample within the window)")
         p0.setLabel("left", "amplitude / spike")
         p0.plot(t, self._window, pen=palette.pen("input", 2), name="window")
         p0.showGrid(x=True, y=True, alpha=0.2)
+        from experiment_microscope.views._plotinfo import autofit as _autofit
+        _autofit(p0)
         set_source(p0, "nn_microscope.meeting01.encode_sample()")
         self._hovers.append(HoverReadout(p0, x_label="step"))
         if self._selection is not None:
@@ -150,7 +153,7 @@ class EncodingLab(QWidget):
                 p.setLabel("bottom", "time step")
                 self._hovers.append(HoverReadout(p, x_label="step"))
                 if enc == "direct":
-                    p.setTitle("direct — passes the numbers straight through (no spikes)")
+                    p.setTitle(_t("direct — passes the numbers straight through (no spikes)"))
                     p.plot(t, data, pen=palette.pen("error"))
                 else:
                     spikes = np.flatnonzero(data > 0.5)
@@ -161,8 +164,12 @@ class EncodingLab(QWidget):
                         pen=None, symbol="|", symbolSize=12,
                         symbolPen=palette.pen("spike", 2),
                     )
-                    p.setYRange(0.0, 1.5)
+                    p.setYRange(-0.1, 1.6)
+                from experiment_microscope.views._plotinfo import autofit
+                autofit(p, y=(enc == "direct"))
         except Exception as exc:  # noqa: BLE001
             self._status.setText(f"encode failed: {exc}")
             return
+        from experiment_microscope.views._plotinfo import fade_in
+        fade_in(self._layout_widget)
         self._status.setText(f"{getattr(self, '_label', 'window')}  [computed] — seed {self._seed.value()}")

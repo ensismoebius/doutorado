@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from experiment_microscope.core.i18n import on_language_changed, t
 from experiment_microscope.core.story import STORIES, Story
 
 
@@ -73,12 +74,13 @@ class StoryPanel(QWidget):
         root.addWidget(self._callout)
 
         nav = QHBoxLayout()
-        self._back = QPushButton("◀ Back")
+        self._back = QPushButton(t("◀ Back"))
         self._back.clicked.connect(self._prev)
-        self._next = QPushButton("Next ▶")
+        self._next = QPushButton(t("Next ▶"))
         self._next.clicked.connect(self._advance)
-        self._exit = QPushButton("Free explore")
+        self._exit = QPushButton(t("Free explore"))
         self._exit.clicked.connect(self._finish)
+        on_language_changed(lambda _c: self._render() if self._story else None)
         nav.addWidget(self._back)
         nav.addWidget(self._next)
         nav.addStretch(1)
@@ -88,7 +90,6 @@ class StoryPanel(QWidget):
     # -- public -----------------------------------------------------
     def start(self, key: str) -> None:
         self._story = STORIES.get(key) or STORIES["meeting01"]
-        self._story_title.setText(f"GUIDED TOUR — {self._story.title}")
         self._i = 0
         self._render()
 
@@ -116,11 +117,14 @@ class StoryPanel(QWidget):
             return
         n = len(self._story.steps)
         step = self._story.steps[self._i]
+        self._story_title.setText(f"{t('How to read this').upper()} — {t(self._story.title)}")
         self._dots.setText("".join("●" if j == self._i else "○" for j in range(n)))
-        self._step_title.setText(step.title)
-        self._body.setText(step.narration)
+        self._step_title.setText(t(step.title))
+        self._body.setText(t(step.narration))
+        self._back.setText(t("◀ Back"))
         self._back.setEnabled(self._i > 0)
-        self._next.setText("Finish ▶" if self._i == n - 1 else "Next ▶")
+        self._exit.setText(t("Free explore"))
+        self._next.setText(t("Finish ▶") if self._i == n - 1 else t("Next ▶"))
 
         # drive the app: select data, open the tab, run any extra action
         try:
@@ -138,7 +142,15 @@ class StoryPanel(QWidget):
             self._body.setText(step.narration + f"<br><br><i>(could not load the "
                                f"live view: {exc})</i>")
 
-        text = step.callout(self._ws) if callable(step.callout) else step.callout
+        text = step.callout(self._ws) if callable(step.callout) else t(step.callout)
         self._callout.setVisible(bool(text))
         if text:
             self._callout.setText(f"📊 &nbsp;{text}")
+        try:
+            from experiment_microscope.views._plotinfo import fade_in
+            fade_in(self._step_title, ms=220)
+            fade_in(self._body, ms=300)
+            if text:
+                fade_in(self._callout, ms=340)
+        except Exception:  # noqa: BLE001
+            pass

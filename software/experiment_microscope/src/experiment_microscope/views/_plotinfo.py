@@ -19,6 +19,45 @@ import numpy as np
 from experiment_microscope.views._pg import PG_OK, pg
 
 
+def autofit(plot, *, x: bool = True, y: bool = True) -> None:
+    """Make the plot scale to fit its data — enable auto-range and re-fit now.
+
+    Call at the end of a render, after the last ``plot()``. Views that need a
+    fixed frame (the paraconsistent plane) simply do not call this.
+    """
+    if not PG_OK:
+        return
+    try:
+        pi = plot.getPlotItem() if hasattr(plot, "getPlotItem") else plot
+        vb = pi.getViewBox()
+        vb.enableAutoRange(x=x, y=y)
+        vb.setAutoVisible(y=y, x=x)
+        pi.autoRange(padding=0.04)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def fade_in(widget, ms: int = 260) -> None:
+    """A short opacity fade so a freshly rendered plot/panel appears smoothly
+    instead of popping. No-op if animations are disabled or unavailable."""
+    try:
+        from PySide6.QtCore import QEasingCurve, QPropertyAnimation
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
+
+        eff = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(eff)
+        anim = QPropertyAnimation(eff, b"opacity", widget)
+        anim.setDuration(ms)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.finished.connect(lambda: widget.setGraphicsEffect(None))
+        anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+        widget._fade_anim = anim  # keep a ref until it finishes
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def set_source(plot, text: str) -> None:
     """Put a small grey provenance caption in the plot's top-left corner.
 

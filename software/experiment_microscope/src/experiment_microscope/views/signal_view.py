@@ -18,7 +18,7 @@ from experiment_microscope.data.adapters import Signal1D, TreeNode
 from experiment_microscope.data.repository import DataRepository
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
-from experiment_microscope.views._plotinfo import HoverReadout, set_source
+from experiment_microscope.views._plotinfo import HoverReadout, autofit, fade_in, set_source
 from experiment_microscope.views._timesync import TimeCursor
 
 
@@ -71,7 +71,8 @@ class SignalView(QWidget):
         self._audio = AudioPlayer(self)
 
         bar = QHBoxLayout()
-        self._listen = QPushButton("\N{SPEAKER WITH THREE SOUND WAVES}  Listen")
+        from experiment_microscope.core.i18n import t as _t
+        self._listen = QPushButton(_t("\N{SPEAKER WITH THREE SOUND WAVES}  Listen"))
         self._listen.setToolTip(
             "Play this waveform through the default audio output. The \N{BLACK RIGHT-POINTING TRIANGLE} "
             "transport below only steps animation frames — it is not sound."
@@ -219,3 +220,5 @@ class SignalView(QWidget):
             self._hover.reattach()
         if self._cursor is not None:
             self._cursor.reattach()
+        autofit(self._plot)
+        fade_in(self._plot)

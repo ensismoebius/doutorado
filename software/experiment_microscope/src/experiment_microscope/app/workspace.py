@@ -71,6 +71,10 @@ class Workspace(QMainWindow):
         self.setWindowTitle("Experiment Microscope")
         self.resize(1400, 900)
 
+        from experiment_microscope.core.i18n import language as _lang, set_language
+
+        set_language(str(QSettings(_ORG, _APP).value("language", _lang())))
+
         self.repo = DataRepository()
         self.selection = SelectionState(self)
         self.app_state = AppState()
@@ -102,6 +106,8 @@ class Workspace(QMainWindow):
         self.snn_3d.set_timeline(self.timeline)
         self.latent_explorer = LatentExplorer(self.repo, self.app_state)
         self.latent_explorer.sample_activated.connect(self._on_latent_sample)
+        self.latent_explorer.working.connect(
+            lambda on: self.busy.begin("Projecting the latent space…") if on else self.busy.end())
         self.para_plane = ParaconsistentPlane(self.repo)
         self.para_landscape = ParaconsistentLandscape(self.repo)
         self.pipeline_dag = PipelineDag()
@@ -255,56 +261,79 @@ class Workspace(QMainWindow):
         dev_dock.setVisible(False)  # opt-in (FIXME §37)
 
     def _build_menus(self) -> None:
-        view_menu = self.menuBar().addMenu("&View")
+        from experiment_microscope.core.i18n import LANGUAGES, language, set_language, t
+
+        view_menu = self.menuBar().addMenu(t("&View"))
         for dock in self.findChildren(QDockWidget):
             view_menu.addAction(dock.toggleViewAction())
         view_menu.addSeparator()
-        refresh = QAction("Refresh paraconsistent views", self)
+        refresh = QAction(t("Refresh paraconsistent views"), self)
         refresh.triggered.connect(self.para_plane.refresh)
         refresh.triggered.connect(self.para_landscape.refresh)
         view_menu.addAction(refresh)
 
-        theme_menu = view_menu.addMenu("Theme")
+        theme_menu = view_menu.addMenu(t("Theme"))
         self._theme_group = QActionGroup(self)
-        for key, label in (("system", "System"), ("light", "Light"), ("dark", "Dark")):
+        for key, label in (("system", t("System")), ("light", t("Light")), ("dark", t("Dark"))):
             act = QAction(label, self, checkable=True)
             act.setChecked(self.app_state.theme == key)
             act.triggered.connect(lambda _=False, k=key: self._apply_theme(k))
             self._theme_group.addAction(act)
             theme_menu.addAction(act)
+
+        lang_menu = view_menu.addMenu(t("Language"))
+        self._lang_group = QActionGroup(self)
+        for code, label in LANGUAGES.items():
+            act = QAction(label, self, checkable=True)
+            act.setChecked(language() == code)
+            act.triggered.connect(lambda _=False, c=code: self._set_language(c))
+            self._lang_group.addAction(act)
+            lang_menu.addAction(act)
         view_menu.addSeparator()
 
-        self._low_perf_action = QAction("Low-performance mode", self)
+        self._low_perf_action = QAction(t("Low-performance mode"), self)
         self._low_perf_action.setCheckable(True)
         self._low_perf_action.setChecked(self.app_state.low_performance_mode)
         self._low_perf_action.toggled.connect(self._set_low_performance)
         view_menu.addAction(self._low_perf_action)
 
-        export_menu = self.menuBar().addMenu("E&xport")
-        act = QAction("Export current view…", self)
+        export_menu = self.menuBar().addMenu(t("E&xport"))
+        act = QAction(t("Export current view…"), self)
         act.triggered.connect(self._export_current_view)
         export_menu.addAction(act)
 
-        exp_menu = self.menuBar().addMenu("&Experiment")
+        exp_menu = self.menuBar().addMenu(t("&Experiment"))
         for key, label in (("meeting01", "Meeting01"), ("thesis", "Thesis"),
                            ("paraconsistent_ga", "Paraconsistent GA")):
             act = QAction(label, self)
             act.triggered.connect(lambda _=False, k=key: self.explorer.select_experiment(k))
             exp_menu.addAction(act)
 
-        help_menu = self.menuBar().addMenu("&Help")
-        tour = QAction("▶  Start guided tour", self)
+        help_menu = self.menuBar().addMenu(t("&Help"))
+        tour = QAction(t("▶  Start guided tour"), self)
         tour.setShortcut(QKeySequence("Ctrl+G"))
         tour.triggered.connect(self._start_tour)
         help_menu.addAction(tour)
         help_menu.addSeparator()
-        explain = QAction("Explain the current view", self)
+        explain = QAction(t("Explain the current view"), self)
         explain.setShortcut(QKeySequence("F1"))
         explain.triggered.connect(self._explain_current_view)
         help_menu.addAction(explain)
-        gloss = QAction("Glossary (all terms)…", self)
+        gloss = QAction(t("Glossary (all terms)…"), self)
         gloss.triggered.connect(self._show_glossary)
         help_menu.addAction(gloss)
+
+    def _set_language(self, code: str) -> None:
+        from experiment_microscope.core.i18n import set_language, t
+
+        set_language(code)
+        QSettings(_ORG, _APP).setValue("language", code)
+        self._refresh_legend(self.tabs.currentIndex())
+        node = getattr(self, "_current_node", None)
+        if node is not None:
+            self._on_node_selected(node, self._current_adapter)
+        self.statusBar().showMessage(
+            t("Language changed — some fixed labels update after a restart."), 6000)
 
     def _start_tour(self) -> None:
         """Ctrl+G — open the Guided Tour dock for the current experiment."""
@@ -333,7 +362,9 @@ class Workspace(QMainWindow):
             self._story_dock.setVisible(False)
         for i in range(self.tabs.count()):
             self.tabs.setTabVisible(i, True)
-        self.statusBar().showMessage("Tour ended — every tab is back. Explore freely.", 4000)
+        from experiment_microscope.core.i18n import t
+        self.statusBar().showMessage(
+            t("Tour ended — every tab is back. Explore freely."), 4000)
 
     def _explain_current_view(self) -> None:
         """F1 — open the current tab's 'How to read this' box, if it has one."""
@@ -362,12 +393,17 @@ class Workspace(QMainWindow):
         dlg.show()
 
     def _build_statusbar(self) -> None:
+        from experiment_microscope.views._busy import BusyIndicator
+
         bar = QStatusBar()
         self.setStatusBar(bar)
         self._status_selection = QLabel("—")
         self._status_res = QLabel("FULL RESOLUTION")
+        self.busy = BusyIndicator()
         bar.addWidget(self._status_selection, 1)
+        bar.addPermanentWidget(self.busy)
         bar.addPermanentWidget(self._status_res)
+        self.repo.cache.busy_changed.connect(self.busy.on_count)
 
     # -- wiring ----------------------------------------------------
     def _wire(self) -> None:
@@ -409,20 +445,22 @@ class Workspace(QMainWindow):
         self._status_selection.setText(f"{adapter_key} › {node.kind} › {node.label}")
         self.follow_bar.update_for(node, adapter_key)
         self.pipeline_dag.show_experiment(adapter_key)
-        self.provenance.show_node(node, adapter_key)
-        self.artifact_inspector.show_node(node, adapter_key)
-        self.reproduce_panel.show_node(node, adapter_key)
-        self.signal_view.show_node(node, adapter_key)
-        self.wavelet_lab.show_node(node, adapter_key)
-        self.wavelet_3d.show_node(node, adapter_key)
-        self.feature_matrix.show_node(node, adapter_key)
-        self.encoding_lab.show_node(node, adapter_key)
-        self.snn_lab.show_node(node, adapter_key)
-        self.snn_3d.show_node(node, adapter_key)
-        self.latent_explorer.show_node(node, adapter_key)
-        self.reconstruction.show_node(node, adapter_key)
-        self.triangle.show_node(node, adapter_key)
-        self.nsga.show_node(node, adapter_key)
+        from experiment_microscope.core.i18n import t
+        with self.busy.working(t("Loading data…")):
+            self.provenance.show_node(node, adapter_key)
+            self.artifact_inspector.show_node(node, adapter_key)
+            self.reproduce_panel.show_node(node, adapter_key)
+            self.signal_view.show_node(node, adapter_key)
+            self.wavelet_lab.show_node(node, adapter_key)
+            self.wavelet_3d.show_node(node, adapter_key)
+            self.feature_matrix.show_node(node, adapter_key)
+            self.encoding_lab.show_node(node, adapter_key)
+            self.snn_lab.show_node(node, adapter_key)
+            self.snn_3d.show_node(node, adapter_key)
+            self.latent_explorer.show_node(node, adapter_key)
+            self.reconstruction.show_node(node, adapter_key)
+            self.triangle.show_node(node, adapter_key)
+            self.nsga.show_node(node, adapter_key)
         self._update_tab_visibility(h, adapter_key)
         if adapter_key == "meeting01":
             self._refresh_session_log()

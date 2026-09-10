@@ -33,7 +33,7 @@ def _load(code: str) -> dict[str, str]:
     cat: dict[str, str] = {}
     if code == "pt_BR":
         try:
-            from experiment_microscope.resources.i18n_pt_br import CATALOG
+            from experiment_microscope.core.i18n_pt_br import CATALOG
 
             cat = CATALOG
         except Exception:  # noqa: BLE001 - missing catalog just means English

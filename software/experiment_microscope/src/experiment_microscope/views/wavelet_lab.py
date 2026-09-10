@@ -204,15 +204,19 @@ class WaveletLab(QWidget):
             f"{data.size} samples in  ·  [computed]"
         )
         from experiment_microscope.core import palette
+        from experiment_microscope.core.i18n import t as _t
 
         self._plot.clear()
         self._plot.plot(np.arange(data.size), data, pen=palette.pen("input", 2), name="input")
-        self._plot.setTitle("The signal going in — pick a band on the left to see just that band")
+        self._plot.setTitle(_t("The signal going in — pick a band on the left to see just that band"))
         set_source(self._plot, f"nn_microscope.wavelet.decompose() · {self._decomp.wavelet} "
                    f"{self._decomp.mode} L{self._level.value()}")
         self._hover.reattach()
         if self._cursor is not None:
             self._cursor.reattach()
+        from experiment_microscope.views._plotinfo import autofit, fade_in
+        autofit(self._plot)
+        fade_in(self._plot)
 
     def _on_leaf(self, current: QTreeWidgetItem | None, _prev) -> None:
         if current is None or self._decomp is None:
@@ -236,3 +240,6 @@ class WaveletLab(QWidget):
         self._hover.reattach()
         if self._cursor is not None:
             self._cursor.reattach()
+        from experiment_microscope.views._plotinfo import autofit, fade_in
+        autofit(self._plot)
+        fade_in(self._plot)
