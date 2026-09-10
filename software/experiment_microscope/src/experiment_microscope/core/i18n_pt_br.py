@@ -659,4 +659,23 @@ CATALOG = {
         'buscar — p. ex. "daub10 lfcc eeg" ou "fold 0 fsdd"',
     "{shown} of {total} match(es)": "{shown} de {total} correspondência(s)",
     " — refine to see more": " — refine para ver mais",
+
+    # ---- experiment timeline ------------------------------
+    "No meeting01 event stream yet.": "Ainda sem fluxo de eventos do meeting01.",
+    "node": "nó", "detail": "detalhe", "epoch": "época", "loss": "perda",
+    "train": "treino", "val": "validação",
+    "epoch duration (s)": "duração da época (s)",
+    "event stream unreadable: {exc}": "fluxo de eventos ilegível: {exc}",
+    "No meeting01 event stream under results/meeting01/ (*_events.jsonl). Run a LOSO fold to populate this.":
+        "Sem fluxo de eventos do meeting01 em results/meeting01/ (*_events.jsonl). Rode uma dobra LOSO para preencher isto.",
+    "session — git {git}, seed {seed}, {nc} config(s), {nf} fold(s)":
+        "sessão — git {git}, seed {seed}, {nc} config(s), {nf} dobra(s)",
+    "{n} config(s)": "{n} config(s)",
+    "  ·  best val {v}": "  ·  melhor val {v}",
+    " @ epoch {e}": " @ época {e}",
+    "train {tr}   val {val}": "treino {tr}   val {val}",
+    "epoch {e}": "época {e}",
+    "{cfg} — no epoch data": "{cfg} — sem dados de época",
+    "  ·  lr {lr}": "  ·  lr {lr}",
+    "  ·  ~{s}s/epoch": "  ·  ~{s}s/época",
 }

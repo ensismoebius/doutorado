@@ -19,6 +19,7 @@ the expected state right after the results purge.
 from __future__ import annotations
 
 from experiment_microscope.views._help import HelpBox
+from experiment_microscope.core.i18n import t as _t
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -59,12 +60,12 @@ class ExperimentTimeline(QWidget):
         self.repo = repo
         root = QVBoxLayout(self)
         root.addWidget(HelpBox('Experiment timeline', _HELP))
-        self._status = QLabel("No meeting01 event stream yet.")
+        self._status = QLabel(_t("No meeting01 event stream yet."))
         self._status.setWordWrap(True)
         root.addWidget(self._status)
         split = QSplitter(Qt.Orientation.Vertical)
         self._tree = QTreeWidget()
-        self._tree.setHeaderLabels(["node", "detail"])
+        self._tree.setHeaderLabels([_t("node"), _t("detail")])
         self._tree.setColumnWidth(0, 320)
         self._tree.itemActivated.connect(self._on_activated)
         self._tree.currentItemChanged.connect(lambda cur, _prev: self._on_activated(cur, 0))
@@ -76,8 +77,8 @@ class ExperimentTimeline(QWidget):
         if PG_OK:
             self._curve = pg.PlotWidget()
             self._curve.addLegend()
-            self._curve.setLabel("bottom", "epoch")
-            self._curve.setLabel("left", "loss")
+            self._curve.setLabel("bottom", _t("epoch"))
+            self._curve.setLabel("left", _t("loss"))
             self._curve.showGrid(x=True, y=True, alpha=0.3)
             from experiment_microscope.views._plotinfo import HoverReadout
             self._hover = HoverReadout(self._curve, x_label="epoch")
@@ -100,22 +101,22 @@ class ExperimentTimeline(QWidget):
         try:
             state = adapter.session_state()
         except Exception as exc:  # noqa: BLE001
-            self._status.setText(f"event stream unreadable: {exc}")
+            self._status.setText(_t("event stream unreadable: {exc}", exc=exc))
             return
         if state is None or not getattr(state, "configs", None):
-            self._status.setText(
+            self._status.setText(_t(
                 "No meeting01 event stream under results/meeting01/ "
                 "(*_events.jsonl). Run a LOSO fold to populate this."
-            )
+            ))
             return
 
         sess = getattr(state, "session", {}) or {}
         commit = sess.get("git_commit", "?")
         seed = sess.get("seed", "?")
-        self._status.setText(
-            f"session — git {str(commit)[:10]}, seed {seed}, "
-            f"{len(state.configs)} config(s), {len(getattr(state, 'folds_seen', ()))} fold(s)"
-        )
+        self._status.setText(_t(
+            "session — git {git}, seed {seed}, {nc} config(s), {nf} fold(s)",
+            git=str(commit)[:10], seed=seed, nc=len(state.configs),
+            nf=len(getattr(state, 'folds_seen', ()))))
 
         groups: dict[tuple[str, int], list] = {}
         self._configs = {}
@@ -124,21 +125,22 @@ class ExperimentTimeline(QWidget):
             self._configs[cfg.config_id] = cfg
 
         for (ds, fold), cfgs in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1])):
-            fold_item = QTreeWidgetItem([f"{ds} / fold {fold}", f"{len(cfgs)} config(s)"])
+            fold_item = QTreeWidgetItem([f"{ds} / fold {fold}",
+                                        _t("{n} config(s)", n=len(cfgs))])
             self._tree.addTopLevelItem(fold_item)
             fold_item.setExpanded(True)
             for cfg in sorted(cfgs, key=lambda c: c.config_id):
                 detail = cfg.status
                 if cfg.best_val is not None:
-                    detail += f"  ·  best val {cfg.best_val:.6g}"
+                    detail += _t("  ·  best val {v}", v=f"{cfg.best_val:.6g}")
                     if cfg.best_epoch is not None:
-                        detail += f" @ epoch {cfg.best_epoch}"
+                        detail += _t(" @ epoch {e}", e=cfg.best_epoch)
                 c_item = QTreeWidgetItem([cfg.config_id, detail])
                 c_item.setData(0, _ROLE, (ds, fold, cfg.config_id))
                 fold_item.addChild(c_item)
                 for ep, tr, val in cfg.epochs:
-                    txt = f"train {_fmt(tr)}   val {_fmt(val)}"
-                    c_item.addChild(QTreeWidgetItem([f"epoch {ep}", txt]))
+                    txt = _t("train {tr}   val {val}", tr=_fmt(tr), val=_fmt(val))
+                    c_item.addChild(QTreeWidgetItem([_t("epoch {e}", e=ep), txt]))
 
     def _on_activated(self, item: QTreeWidgetItem | None, _col: int) -> None:
         if item is None:
@@ -158,13 +160,13 @@ class ExperimentTimeline(QWidget):
         cfg = self._configs.get(config_id)
         epochs = list(getattr(cfg, "epochs", []) or [])
         if not epochs:
-            self._curve.setTitle(f"{config_id} — no epoch data")
+            self._curve.setTitle(_t("{cfg} — no epoch data", cfg=config_id))
             return
         xs = [e[0] for e in epochs]
         tr = [e[1] if e[1] is not None else float("nan") for e in epochs]
         val = [e[2] if e[2] is not None else float("nan") for e in epochs]
-        self._curve.plot(xs, tr, pen=pg.mkPen((120, 170, 255), width=2), name="train")
-        self._curve.plot(xs, val, pen=pg.mkPen((255, 170, 90), width=2), name="val")
+        self._curve.plot(xs, tr, pen=pg.mkPen((120, 170, 255), width=2), name=_t("train"))
+        self._curve.plot(xs, val, pen=pg.mkPen((255, 170, 90), width=2), name=_t("val"))
         best = getattr(cfg, "best_epoch", None)
         if best is not None:
             self._curve.addLine(x=best, pen=pg.mkPen((90, 200, 120), style=Qt.PenStyle.DashLine))
@@ -178,10 +180,15 @@ class ExperimentTimeline(QWidget):
         lr = getattr(cfg, "lr", None)
         title = f"{config_id}  ·  {getattr(cfg, 'status', '')}"
         if lr is not None:
-            title += f"  ·  lr {lr:g}"
+            title += _t("  ·  lr {lr}", lr=f"{lr:g}")
         avg_ms = getattr(cfg, "avg_epoch_ms", None)
+        if callable(avg_ms):  # monitor.ConfigState exposes it as a method, not a property
+            try:
+                avg_ms = avg_ms()
+            except Exception:  # noqa: BLE001
+                avg_ms = None
         if avg_ms:
-            title += f"  ·  ~{avg_ms / 1000:.1f}s/epoch"
+            title += _t("  ·  ~{s}s/epoch", s=f"{avg_ms / 1000:.1f}")
         self._curve.setTitle(title)
 
     def _plot_epoch_ms(self, cfg, xs: list[int]) -> None:
@@ -196,7 +203,7 @@ class ExperimentTimeline(QWidget):
             pi.getAxis("right").linkToView(self._epoch_ms_vb)
             self._epoch_ms_vb.setXLink(pi)
             pi.showAxis("right")
-            pi.getAxis("right").setLabel("epoch duration (s)", color="#b0b0b0")
+            pi.getAxis("right").setLabel(_t("epoch duration (s)"), color="#b0b0b0")
             pi.vb.sigResized.connect(
                 lambda: self._epoch_ms_vb.setGeometry(pi.vb.sceneBoundingRect())
             )

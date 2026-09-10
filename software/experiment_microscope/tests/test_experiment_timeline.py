@@ -74,6 +74,20 @@ def test_selecting_config_plots_training_curve(qapp):
     assert len(v._curve.getPlotItem().listDataItems()) == 2
 
 
+def test_curve_title_handles_avg_epoch_ms_as_a_method(qapp):
+    """monitor.ConfigState exposes avg_epoch_ms() as a METHOD, not a property —
+    the view must call it, not divide the bound method."""
+    pytest.importorskip("pyqtgraph")
+    cfg = _cfg(config_id="m1", fold=0, status="done", lr=1e-3,
+               epochs=[(1, 0.9, 1.0), (2, 0.5, 0.6)])
+    cfg.avg_epoch_ms = lambda: 41000.0            # callable, like the real ConfigState
+    cfg._epoch_ms = [40000.0, 42000.0]
+    v = ExperimentTimeline(_repo(_FakeState([cfg])))
+    v.refresh()
+    v._on_activated(v._tree.topLevelItem(0).child(0), 0)          # must not raise
+    assert "41.0" in v._curve.getPlotItem().titleLabel.text
+
+
 def test_activating_config_emits_payload(qapp):
     state = _FakeState([_cfg(config_id="k", fold=3, dataset="audiomnist")])
     v = ExperimentTimeline(_repo(state))
