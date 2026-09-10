@@ -118,12 +118,17 @@ Nothing in the app is shown without an explanation:
   takeaway computed from the data ("Near-perfect rebuild — the latent numbers
   kept almost everything, R² 0.99" / "Conflicting evidence — supported *and*
   denied"), not the category. Still passes the banned-inferential-word guard.
-- **Português (Brasil)** — `View → Language`. A runtime string catalog
+- **Português (Brasil)** — `Exibir → Idioma`. A runtime string catalog
   (`core/i18n.py` + `core/i18n_pt_br.py`, `t()` lookup, English fallback for any
-  missing key) covers the menus, the guided tour (both pipelines), the verdict
-  sentences, the colour key, and the "How to read this" boxes. Deep per-view
-  internals are still English. The choice persists in `QSettings`; the tour and
-  glossary re-render live, fixed labels update on the next launch.
+  missing key) covers the menus, dock titles, tab labels, the guided tour (both
+  pipelines), the verdict sentences, the colour key, the full glossary (~90
+  terms), every "How to read this" box, the Follow-the-Data bar, and the control
+  labels / status lines of the Signal, Wavelet Lab, Encoding Lab, SNN Lab,
+  Feature Matrix, Inspector, Reproduce, Bookmarks and Search panels. A few
+  data-derived strings (signal labels, the meeting01 session log, some 3-D and
+  timeline axis text) are still English. The choice persists in `QSettings`;
+  menus, tabs, the tour and the glossary re-render live, other fixed labels
+  update on the next node selection or launch.
 - **Scale-to-fit + motion** — every line plot re-fits to its data on each
   render (`_plotinfo.autofit`) and fades in (`_plotinfo.fade_in`); the guided
   tour steps cross-fade.

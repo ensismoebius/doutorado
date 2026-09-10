@@ -16,7 +16,8 @@ class ProvenanceInspector(QTreeWidget):
     def __init__(self, repo: DataRepository, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.repo = repo
-        self.setHeaderLabels(["Field", "Value", "Origin"])
+        from experiment_microscope.core.i18n import t as _t
+        self.setHeaderLabels([_t("Field"), _t("Value"), _t("Origin")])
         self.setColumnWidth(0, 160)
         self.setColumnWidth(1, 220)
         self._show_placeholder("Select an object in the explorer.")

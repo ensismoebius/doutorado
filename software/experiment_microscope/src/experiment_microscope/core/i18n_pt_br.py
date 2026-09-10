@@ -640,4 +640,23 @@ CATALOG = {
         "{label}  [{origin}] — {r} amostras x {c} atributos",
     "{name} @ {sample}  =  {val}  (class {cls})  [{origin}]":
         "{name} @ {sample}  =  {val}  (classe {cls})  [{origin}]",
+
+    # ---- docks: inspector / reproduce / bookmarks / search ---
+    "Field": "Campo", "Value": "Valor", "Origin": "Origem",
+    "Add current…": "Adicionar atual…", "Remove": "Remover",
+    "Add bookmark": "Adicionar marcador", "Name:": "Nome:",
+    "Select a run.": "Selecione uma execução.",
+    "Configuration": "Configuração",
+    "Copy result-file paths": "Copiar caminhos dos arquivos de resultado",
+    "Reproduction command": "Comando de reprodução",
+    "not executed by this app (§31)": "não executado por este app (§31)",
+    "Copy command": "Copiar comando",
+    "Copied ✓": "Copiado ✓",
+    "Select a run / fold node to see its reproduction recipe.":
+        "Selecione um nó de execução / dobra para ver sua receita de reprodução.",
+    "(no persisted result files)": "(sem arquivos de resultado persistidos)",
+    'search — e.g. "daub10 lfcc eeg" or "fold 0 fsdd"':
+        'buscar — p. ex. "daub10 lfcc eeg" ou "fold 0 fsdd"',
+    "{shown} of {total} match(es)": "{shown} de {total} correspondência(s)",
+    " — refine to see more": " — refine para ver mais",
 }

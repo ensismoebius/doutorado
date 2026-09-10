@@ -11,6 +11,7 @@ depth) and rebuilt on demand.
 
 from __future__ import annotations
 
+from experiment_microscope.core.i18n import t as _t
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QLabel,
@@ -36,7 +37,7 @@ class SearchBar(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(2, 2, 2, 2)
         self._edit = QLineEdit()
-        self._edit.setPlaceholderText('search — e.g. "daub10 lfcc eeg" or "fold 0 fsdd"')
+        self._edit.setPlaceholderText(_t('search — e.g. "daub10 lfcc eeg" or "fold 0 fsdd"'))
         self._edit.setClearButtonEnabled(True)
         self._edit.textChanged.connect(self._on_text)
         self._edit.returnPressed.connect(self._activate_current)
@@ -73,7 +74,8 @@ class SearchBar(QWidget):
         shown = min(len(hits), _MAX_HITS)
         self._hint.setText(
             "" if not hits else
-            f"{shown} of {len(hits)} match(es)" + (" — refine to see more" if len(hits) > shown else "")
+            _t("{shown} of {total} match(es)", shown=shown, total=len(hits))
+            + (_t(" — refine to see more") if len(hits) > shown else "")
         )
 
     def _activate_current(self) -> None:

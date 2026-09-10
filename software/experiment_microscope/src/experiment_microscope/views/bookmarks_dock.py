@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from experiment_microscope.core.bookmarks import Bookmark, BookmarkStore
+from experiment_microscope.core.i18n import t as _t
 
 _ORG, _APP = "doutorado", "experiment_microscope"
 
@@ -32,9 +33,9 @@ class BookmarksDock(QWidget):
         self._list.itemDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._list)
         buttons = QHBoxLayout()
-        add = QPushButton("Add current…")
+        add = QPushButton(_t("Add current…"))
         add.clicked.connect(self._on_add)
-        rm = QPushButton("Remove")
+        rm = QPushButton(_t("Remove"))
         rm.clicked.connect(self._on_remove)
         buttons.addWidget(add)
         buttons.addWidget(rm)
@@ -52,7 +53,7 @@ class BookmarksDock(QWidget):
             self._list.addItem(item)
 
     def _on_add(self) -> None:
-        name, ok = QInputDialog.getText(self, "Add bookmark", "Name:")
+        name, ok = QInputDialog.getText(self, _t("Add bookmark"), _t("Name:"))
         if ok and name.strip():
             self.save_requested.emit(name.strip())
 

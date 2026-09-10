@@ -61,18 +61,20 @@ class ReproducePanel(QWidget):
         self._files: list[str] = []
         self._recipe = ""
 
+        from experiment_microscope.core.i18n import t as _t
+        self._t = _t
         root = QVBoxLayout(self)
-        self._title = QLabel("Select a run.")
+        self._title = QLabel(_t("Select a run."))
         self._title.setWordWrap(True)
         root.addWidget(self._title)
 
-        root.addWidget(QLabel("<b>Configuration</b>"))
+        root.addWidget(QLabel("<b>" + _t("Configuration") + "</b>"))
         self._config = QPlainTextEdit(readOnly=True)
         self._config.setMaximumHeight(160)
         root.addWidget(self._config)
 
         row = QHBoxLayout()
-        self._files_btn = QPushButton("Copy result-file paths")
+        self._files_btn = QPushButton(_t("Copy result-file paths"))
         self._files_btn.clicked.connect(self._copy_files)
         self._files_btn.setEnabled(False)
         row.addWidget(self._files_btn)
@@ -82,11 +84,12 @@ class ReproducePanel(QWidget):
         self._files_label.setWordWrap(True)
         root.addWidget(self._files_label)
 
-        root.addWidget(QLabel("<b>Reproduction command</b> — not executed by this app (§31)"))
+        root.addWidget(QLabel("<b>" + _t("Reproduction command") + "</b> — "
+                              + _t("not executed by this app (§31)")))
         self._cmd = QPlainTextEdit(readOnly=True)
         self._cmd.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         root.addWidget(self._cmd, 1)
-        self._copy_btn = QPushButton("Copy command")
+        self._copy_btn = QPushButton(_t("Copy command"))
         self._copy_btn.clicked.connect(self._copy_cmd)
         self._copy_btn.setEnabled(False)
         root.addWidget(self._copy_btn)
@@ -100,7 +103,7 @@ class ReproducePanel(QWidget):
         except Exception:  # noqa: BLE001
             self._files = []
         self._files_btn.setEnabled(bool(self._files))
-        self._files_label.setText("\n".join(self._files) or "(no persisted result files)")
+        self._files_label.setText("\n".join(self._files) or self._t("(no persisted result files)"))
 
         cfg_text, recipe, title = "", "", ""
         if adapter_key == "thesis" and h.get("phase") and h.get("run_tag"):
@@ -131,7 +134,7 @@ class ReproducePanel(QWidget):
             cfg_text = "\n".join(self._files) or "(pareto.json / individuals.csv)"
             recipe = _ga_cmd()
         else:
-            self._title.setText("Select a run / fold node to see its reproduction recipe.")
+            self._title.setText(self._t("Select a run / fold node to see its reproduction recipe."))
             self._config.setPlainText("")
             self._cmd.setPlainText("")
             self._copy_btn.setEnabled(False)
@@ -146,8 +149,8 @@ class ReproducePanel(QWidget):
     # -- clipboard -------------------------------------------
     def _copy_cmd(self) -> None:
         QApplication.clipboard().setText(self._recipe)
-        self._copy_btn.setText("Copied ✓")
+        self._copy_btn.setText(self._t("Copied ✓"))
 
     def _copy_files(self) -> None:
         QApplication.clipboard().setText("\n".join(self._files))
-        self._files_btn.setText("Copied ✓")
+        self._files_btn.setText(self._t("Copied ✓"))
