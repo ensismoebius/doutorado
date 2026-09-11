@@ -34,6 +34,19 @@ class WaveletDecomposition:
         return self.transformed_signal[index * n : (index + 1) * n]
 
 
+@dataclass(frozen=True)
+class LevelBand:
+    """One rung of the regular-transform decomposition ladder — either the
+    final approximation or one level's detail band. ``level`` names which
+    resolution it came from (COMPUTED, real coefficient counts — halving each
+    level, never resampled to a common length)."""
+
+    label: str
+    level: int
+    coefficients: np.ndarray
+    origin: Origin = Origin.COMPUTED
+
+
 def decompose(signal, wavelet: str = "haar", mode: str = "packet", level: int = 4) -> WaveletDecomposition:
     nm = load_binding()
     sig = [float(x) for x in np.asarray(signal).ravel()]
@@ -49,3 +62,33 @@ def decompose(signal, wavelet: str = "haar", mode: str = "packet", level: int = 
         wavelet=wavelet,
         mode=mode,
     )
+
+
+def decompose_levels(signal, wavelet: str = "haar", level: int = 4) -> list[LevelBand]:
+    """The classic multiresolution "ladder": the final approximation plus each
+    level's detail band, coarsest to finest — level N detail, level N-1 detail,
+    ..., level 1 detail, with the final level-N approximation first.
+
+    This needs the REGULAR (non-packet) transform: only there does
+    ``get_wavelet_transforms(detail_index)`` mean "the k-th detail band"
+    (0 = approximation, 1..levels = detail k) — packet mode chunks the signal
+    into same-sized leaves instead, which is what the 2D Wavelet Lab's existing
+    leaf table already shows. This is a second, complementary view, not a
+    replacement.
+    """
+    nm = load_binding()
+    sig = [float(x) for x in np.asarray(signal).ravel()]
+    result = nm.wavelet.decompose(sig, wavelet, "regular", level)
+    levels = int(result.levels)
+    bands = [LevelBand(
+        label="approximation",
+        level=levels,
+        coefficients=np.asarray(result.wavelet_transforms(0), dtype=float),
+    )]
+    for k in range(levels, 0, -1):
+        bands.append(LevelBand(
+            label=f"detail {k}",
+            level=k,
+            coefficients=np.asarray(result.wavelet_transforms(k), dtype=float),
+        ))
+    return bands

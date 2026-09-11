@@ -51,6 +51,13 @@ decompose.
 <b>Table / plot.</b> Per leaf: <b>energy</b> (sum of squared coefficients = power
 in that band) and <b>relative energy</b> (share of the total, bands sum to 1).
 Click a leaf to see its raw coefficients.
+<br><br>
+<b>Decomposition levels.</b> Below, a separate ladder: the final
+<b>approximation</b> plus every level's <b>detail</b> band, coarsest to finest —
+this is the regular (non-packet) transform, always recomputed on its own
+regardless of the <i>mode</i> picker above, since packet leaves aren't
+organized into levels. Each row's coefficient count halves going down (real
+counts, never resampled to match).
 """
 
 
@@ -117,7 +124,20 @@ class WaveletLab(QWidget):
         if selection is not None:
             self._cursor = TimeCursor(self._plot.getPlotItem(), selection)
         split.setSizes([200, 500])
-        root.addWidget(split, 1)
+
+        levels_col = QVBoxLayout()
+        levels_col.addWidget(QLabel(_t("Decomposition levels (coarsest → finest)")))
+        self._levels_view = pg.GraphicsLayoutWidget()
+        levels_col.addWidget(self._levels_view)
+        levels_wrap = QWidget()
+        levels_wrap.setLayout(levels_col)
+
+        outer = QSplitter(Qt.Orientation.Vertical)
+        outer.addWidget(split)
+        outer.addWidget(levels_wrap)
+        outer.setSizes([420, 260])
+        root.addWidget(outer, 1)
+        self._level_bands = None
 
     # -- publication export (§30) ------------------------------
     def can_export(self) -> bool:
@@ -218,6 +238,41 @@ class WaveletLab(QWidget):
         from experiment_microscope.views._plotinfo import autofit, fade_in
         autofit(self._plot)
         fade_in(self._plot)
+
+        self._recompute_levels(data)
+
+    def _recompute_levels(self, data: np.ndarray) -> None:
+        """The classic multiresolution ladder — always regular-transform, no
+        matter what ``self._mode`` is set to for the packet leaf table above:
+        packet mode's coefficients aren't organized as levels, so this panel
+        answers a different question ("how did each resolution contribute?")
+        with its own recompute, not a reinterpretation of the packet result.
+        """
+        from experiment_microscope.processing import wavelet as wl
+
+        self._levels_view.clear()
+        try:
+            bands = wl.decompose_levels(data, self._wavelet.currentText(), self._level.value())
+        except Exception as exc:  # noqa: BLE001
+            self._level_bands = None
+            row = self._levels_view.addPlot(row=0, col=0)
+            row.setTitle(_t("decomposition levels failed: {err}", err=str(exc)))
+            return
+        self._level_bands = bands
+        from experiment_microscope.core import palette
+
+        for row_idx, band in enumerate(bands):
+            p = self._levels_view.addPlot(row=row_idx, col=0)
+            p.showGrid(x=True, y=True, alpha=0.3)
+            p.plot(np.arange(band.coefficients.size), band.coefficients,
+                   pen=palette.pen("wavelet" if row_idx else "input", 2))
+            p.setTitle(_t("{label} — {n} coefficients [computed]",
+                          label=band.label, n=band.coefficients.size))
+            if row_idx < len(bands) - 1:
+                p.setLabel("bottom", "")
+                p.getAxis("bottom").setStyle(showValues=False)
+            if row_idx:
+                p.setXLink(self._levels_view.getItem(row=0, col=0))
 
     def _on_leaf(self, current: QTreeWidgetItem | None, _prev) -> None:
         if current is None or self._decomp is None:
