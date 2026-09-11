@@ -205,10 +205,14 @@ Nothing in the app is shown without an explanation:
   this (`_npz_has_lif_params`) and the trace carries an explicit `lif_params`
   caveat (`Origin.ESTIMATED`) shown in the metrics table — re-running the fold
   with the rebuilt binary produces complete checkpoints.
-- **Latent Space Explorer** (§19) — the "Latent Space" tab. Runs every
-  test/val/train window of the selected meeting01 fold through the trained
-  SNN-AE (worker thread, capped), projects the latent vectors with PCA or t-SNE
-  (2-D scatter, or 3-D PCA in the VTK panel), colours by digit or speaker.
+- **Latent Space Explorer** (§19, §45) — the "Latent Space" tab. A checklist lets
+  you tick **one or more meeting01 folds**; every test/val/train window of each
+  checked fold runs through its own trained SNN-AE (worker thread, capped), and
+  all their latent vectors are projected together with PCA or t-SNE (2-D
+  scatter, or 3-D PCA in the VTK panel). Colour by digit, speaker, or — once 2+
+  folds are checked — **fold**, to see whether the folds agree or one model
+  landed somewhere different. A fold with no trained checkpoint is skipped and
+  named in the status line, never silently replaced by another fold's model.
   Every projection is tagged `PROJECTED`. Clicking a point selects that window
   across the whole app (raw signal, wavelet, reconstruction, …).
 - **Autoencoder graph** (§18, §19) — the "Autoencoder" tab draws the **whole**
@@ -221,12 +225,34 @@ Nothing in the app is shown without an explanation:
   gauges: built-up membrane charge, dashed firing line, `⚡` if it fired. Click
   any neuron for its exact numbers. Both halves come from one
   `nn_microscope.meeting01.snn_ae_forward` call (`encoder_layers` +
-  `decoder_layers`).
-- **3D views**: "Wavelet 3D" (§11) and "SNN 3D" (§18 — encoder-only neuron columns
+  `decoder_layers`). A **model picker + "Run this model"** button lets you run
+  any trained model for the window's fold explicitly (`Meeting01Adapter.
+  models_for` / `load_ae_trace(..., spec_override=...)`) instead of always
+  taking the auto-matched winner — useful for comparing two runs/seeds/
+  architectures on the same window.
+- **Model Structure** (§15, §18, §19) — the "Model Structure" tab shows the
+  selected model's topology on its own: every layer, its shape, its trainable
+  weight count, and each spiking layer's trained threshold — a property of the
+  *checkpoint*, unlike the Autoencoder tab's per-window activations. It follows
+  whichever model is currently loaded there (`AutoencoderView.trace_changed`),
+  automatically on ordinary browsing and immediately after "Run this model".
+- **3D views**: "Wavelet 3D" (§11), "SNN 3D" (§18 — encoder-only neuron columns
   `input → Linear(64) → LIF(64) → latent(32)`, node size/colour = activity,
-  edges = top-K `|Linear weight|` per target neuron). Pressing ▶ floods the
-  signal layer-by-layer through the net (§17); the shared `TimelinePlayer`
-  drives the flood frames.
+  edges = top-K `|Linear weight|` per target neuron), and the Latent Space
+  Explorer's 3-D PCA panel. Pressing ▶ floods the signal layer-by-layer through
+  the net (§17); the shared `TimelinePlayer` drives the flood frames. **Every 3D
+  view always draws a visible coordinate box** (`show_grid` + `show_axes`) whose
+  ticks are real values, never a cosmetic scale factor baked into the mesh —
+  Wavelet 3D's axes are the true coefficient index / leaf number / |coeff|-max
+  ratio, SNN 3D's Y axis is explicitly titled "neuron slot (layout order)"
+  rather than pretending a layout position is a measurement, and the Latent
+  Explorer's 3-D axes are titled "arbitrary — a direction, not a measurement"
+  (PCA components have no physical unit by construction).
+- **`Meeting01Adapter` caches `load_ae_trace`** per (window, model) and
+  `_snn_model_specs()` for a few seconds — opening a window used to re-run the
+  same SNN-AE forward pass up to 4 times (SNN Lab, SNN 3D, Autoencoder,
+  Reconstruction) and re-glob `results/meeting01/models/**` up to 3 times; both
+  are now shared across the views that ask for the same thing in one click.
 - **Triangle feature-bar ↔ wavelet-leaf cross-highlight** is wired only when the
   handcrafted layout is 1:1 with the wavelet bands (else disabled, no guess) —
   the C++ does not expose a per-feature→band map.

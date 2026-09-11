@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from experiment_microscope.views._help import HelpBox
 
-import os
-
 import numpy as np
 from PySide6.QtWidgets import (
     QComboBox,
@@ -45,6 +43,10 @@ the largest is 1. Ridges are bands carrying a lot of the signal's power.
 The <b>|z| threshold</b> slider hides small coefficients; <b>isolate leaf</b>
 lifts one band out as a red line. Rotate / zoom / pan with the mouse. Disabled in
 low-performance mode.
+<br><br>
+<b>Axes.</b> The bounding box is real — its ticks are the true coefficient
+index, leaf number, and |coefficient|/max ratio; nothing on it is a cosmetic
+scale factor.
 """
 
 
@@ -154,7 +156,10 @@ class Wavelet3D(QWidget):
         xs = np.arange(per)
         ys = np.arange(n_leaves)
         xx, yy = np.meshgrid(xs, ys)
-        grid = pv.StructuredGrid(xx.astype(float), yy.astype(float) * 4.0, z * 20.0)
+        # Real coordinates only — no cosmetic scale factors baked into the mesh,
+        # so the bounding box drawn below reports the true coefficient index /
+        # leaf index / relative-magnitude ratio, never an arbitrary number.
+        grid = pv.StructuredGrid(xx.astype(float), yy.astype(float), z)
         grid["|z| / max"] = z.ravel(order="C")
         p = self._panel.plotter
         p.clear()
@@ -163,14 +168,28 @@ class Wavelet3D(QWidget):
         if 0 <= iso < n_leaves:
             row = z[iso].copy()
             rx = np.arange(per, dtype=float)
-            ry = np.full(per, iso * 4.0)
-            line = pv.lines_from_points(np.c_[rx, ry, np.nan_to_num(row) * 20.0 + 0.5])
+            ry = np.full(per, float(iso))
+            # tiny epsilon so the isolate-leaf line doesn't z-fight the surface
+            # it sits on — not a unit, just render order.
+            line = pv.lines_from_points(np.c_[rx, ry, np.nan_to_num(row) + 0.01])
             p.add_mesh(line, color="red", line_width=3)
-        steps = [lambda: p.set_scale(zscale=1.0), p.reset_camera]
-        if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
-            steps.insert(1, p.show_axes)  # needs a live interactor
-        for step in steps:
-            try:
-                step()
-            except Exception:  # noqa: BLE001 - headless VTK has no interactor
-                pass
+        try:
+            p.reset_camera()
+        except Exception:  # noqa: BLE001 - headless VTK has no interactor
+            pass
+        # A visible coordinate system, always — real axis titles, no invented
+        # units (FIXME §11). Z only spans 0..1 (a ratio) while X/Y span the
+        # leaf/coefficient counts, so its tick labels are cut down to a few
+        # short ones — the default 5 crowded into that short a span is what
+        # was rendering as an unreadable stacked blob. VTK's built-in font
+        # also has no glyph for "→", so the axis title spells it out instead
+        # of leaving a gap where the arrow should be.
+        try:
+            p.show_grid(xtitle="coefficient index", ytitle="leaf (low to high frequency)",
+                        ztitle="|coefficient| / max", n_zlabels=3, fmt="%.2f")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            p.show_axes()
+        except Exception:  # noqa: BLE001
+            pass

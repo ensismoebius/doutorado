@@ -75,3 +75,20 @@ def test_full_graph_builds_and_animates(qapp):
     # detail mode toggles without raising
     v._detail_cb.setChecked(True)
     v._detail_cb.setChecked(False)
+
+    # the model picker lists at least the auto-picked spec, and re-running the
+    # explicitly chosen model re-emits trace_changed (Model Structure follows it)
+    assert v._model_combo.count() >= 1
+    seen = []
+    v.trace_changed.connect(lambda tr, sp: seen.append(sp))
+    v._model_combo.setCurrentIndex(0)
+    v._run_selected_model()
+    assert seen and seen[-1]["dataset"] == s["dataset"]
+    assert "explicitly selected" in v._readout.text() or "selecionado manualmente" in v._readout.text()
+
+
+def test_run_selected_model_needs_a_pick(qapp):
+    v = AutoencoderView(DataRepository())
+    v._node = None
+    v._run_selected_model()  # no node selected yet — must not raise
+    assert v._cols is None

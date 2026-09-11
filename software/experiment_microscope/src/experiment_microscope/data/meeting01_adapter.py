@@ -21,6 +21,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import time
+from collections import OrderedDict
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -103,6 +105,15 @@ class Meeting01Adapter(ExperimentAdapter):
         self.profile_dir = Path(profile_dir) if profile_dir else MEETING01_PROFILES
         self._profile_cache: dict[str, Any] | None = None
         self._split_cache: dict[tuple[str, int], dict[str, Any]] = {}
+        # SNN-AE forward passes (.npz load + inference) are the slow part of
+        # opening a window — SNN Lab, SNN 3D, Autoencoder and Reconstruction
+        # each ask for the same window's trace independently, so without this
+        # a single click was re-running the network up to 4 times (FIXME §32).
+        self._ae_trace_cache: "OrderedDict[tuple, tuple]" = OrderedDict()
+        self._specs_cache: tuple[float, list[dict[str, Any]]] | None = None
+        # incremental event-log reader for session_state() — see its docstring.
+        self._event_tailer = None
+        self._session_state = None
 
     # -- profile --------------------------------------------------
     def _profile(self) -> dict[str, Any]:
@@ -124,15 +135,36 @@ class Meeting01Adapter(ExperimentAdapter):
         ds = self._profile().get("dataset") or {}
         return int(ds.get("cv_num_folds", 6))
 
+    def list_folds(self, dataset: str) -> list[int]:
+        """Every outer-CV fold index configured for ``dataset`` — lets a view
+        offer a multi-fold checklist (e.g. Latent Space Explorer) without
+        waiting for a run to have written anything (FIXME §19, §45)."""
+        return list(range(self._cv_folds()))
+
     # -- session state (may be empty) -----------------------------
     def session_state(self):
+        """The live meeting01 event stream, reduced to a ``SessionState``.
+
+        Reuses one ``EventTailer`` (it tracks a byte offset per file) and one
+        accumulating ``SessionState`` for the adapter's lifetime — this is
+        called on every meeting01 node selection (session log dock + Timeline
+        tab), and re-parsing every ``*_events.jsonl`` from byte zero on each
+        click was the single largest cost of opening a window once a LOSO run
+        had been going for a while (FIXME §32, §45).
+        """
         try:
             monitor = _load_monitor()
         except FileNotFoundError:
             return None
         if not self.results_dir.is_dir():
             return None
-        return monitor._drain(str(self.results_dir), _RUN_TAG)
+        if self._event_tailer is None:
+            self._event_tailer = monitor.EventTailer(str(self.results_dir), _RUN_TAG)
+            self._session_state = monitor.SessionState()
+        for ev in self._event_tailer.poll():
+            self._session_state.apply(ev)
+        self._session_state.reconcile(self._event_tailer.mtimes)
+        return self._session_state
 
     def dashboard_text(self) -> str | None:
         state = self.session_state()
@@ -281,7 +313,19 @@ class Meeting01Adapter(ExperimentAdapter):
     def _sanitized_float(s: str) -> float:
         return float(s.replace("_", ".", 1))
 
+    #: how long a `_snn_model_specs()` scan stays valid. The `models/**` glob
+    #: walks every checkpoint under a live LOSO run (thousands of files) and
+    #: was the main cost of opening a window — up to 3 separate callers
+    #: (follow-data bar, model picker, auto trace lookup) re-ran it on a single
+    #: click. A few seconds of staleness is a fair trade for not re-globbing
+    #: on every one of them (FIXME §32); a live run still shows up within it.
+    _SPECS_SCAN_TTL = 3.0
+
     def _snn_model_specs(self) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        cached = self._specs_cache
+        if cached is not None and now - cached[0] < self._SPECS_SCAN_TTL:
+            return cached[1]
         specs: list[dict[str, Any]] = []
         for enc_npz in sorted(self.results_dir.glob("models/**/*_snn_*_encoder.npz")):
             m = self._NPZ_RE.search(enc_npz.name)
@@ -296,6 +340,7 @@ class Meeting01Adapter(ExperimentAdapter):
             })
         # prefer the retrained winner ("final") over the grid ("combo")
         specs.sort(key=lambda s: (s["role"] != "final", s["architecture"], s["run"]))
+        self._specs_cache = (now, specs)
         return specs
 
     @staticmethod
@@ -314,36 +359,80 @@ class Meeting01Adapter(ExperimentAdapter):
         except Exception:  # noqa: BLE001
             return False
 
-    def load_ae_trace(self, node: TreeNode, **params: Any):
+    def models_for(self, node: TreeNode) -> list[dict[str, Any]]:
+        """Every trained SNN-AE spec that could run this window's fold, best
+        match first — lets a view offer an explicit model picker instead of
+        silently taking whichever ``load_ae_trace`` would auto-select
+        (FIXME §15, §18, §19)."""
+        h = getattr(node, "handle", {}) or {}
+        specs = self._snn_model_specs()
+        ds, fold = h.get("dataset"), h.get("cv_fold")
+        if ds is None or fold is None:
+            return specs
+        here = [s for s in specs if s["dataset"] == ds and s["fold"] == fold]
+        return here or specs
+
+    def load_ae_trace(self, node: TreeNode, *, spec_override: dict[str, Any] | None = None,
+                       **params: Any):
         """Full ``AeTrace`` (latent + reconstruction + per-layer encoder trace).
 
         Returns ``(trace, spec, lif_params_present)``. Shared by ``load_latent``
-        and the SNN Lab / SNN-3D views (FIXME §15, §18).
+        and the SNN Lab / SNN-3D / Autoencoder / Model Structure views (FIXME
+        §15, §18, §32) — cached per (window, model) so selecting one window
+        does not re-run the same SNN-AE forward pass once per consuming view.
+        Pass ``spec_override`` (one item from ``models_for``) to run a specific
+        model the user picked instead of the auto-matched winner.
         """
         h = getattr(node, "handle", {}) or {}
         if h.get("level") != "window":
             raise NotImplementedError("select an individual window")
-        specs = self._snn_model_specs()
-        if not specs:
-            raise RuntimeError(
-                "no trained SNN-AE .npz under "
-                f"{self.results_dir / 'models'} — run a LOSO fold with "
-                "`dataset.save_models: true` (emits *_encoder.npz / *_decoder.npz via "
-                "Step E) then reselect this window."
-            )
-        ds, fold = h.get("dataset"), h.get("cv_fold")
-        want_enc = h.get("encoding") or params.get("encoding")
-        want_arch = h.get("architecture")
-        cand = [s for s in specs if s["dataset"] == ds and s["fold"] == fold] or specs
-        if want_enc:
-            cand = [s for s in cand if s["encoding"] == want_enc] or cand
-        if want_arch:
-            cand = [s for s in cand if s["architecture"] == want_arch] or cand
+        key = (
+            h.get("dataset"), h.get("cv_fold"), h.get("split"), h.get("row"),
+            h.get("encoding") or params.get("encoding"), h.get("architecture"),
+            None if spec_override is None else (
+                spec_override["encoder"], spec_override["decoder"],
+                spec_override["alpha"], spec_override["v_th"],
+                spec_override["architecture"], spec_override["encoding"],
+            ),
+        )
+        cached = self._ae_trace_cache.get(key)
+        if cached is not None:
+            self._ae_trace_cache.move_to_end(key)
+            return cached
+        result = self._load_ae_trace_uncached(h, spec_override=spec_override, **params)
+        self._ae_trace_cache[key] = result
+        while len(self._ae_trace_cache) > 32:
+            self._ae_trace_cache.popitem(last=False)
+        return result
+
+    def _load_ae_trace_uncached(self, handle: dict[str, Any], *,
+                                 spec_override: dict[str, Any] | None, **params: Any):
+        """The actual forward pass behind ``load_ae_trace`` — never call this
+        directly, it skips the per-(window, model) cache."""
+        if spec_override is not None:
+            cand = [spec_override]
+        else:
+            specs = self._snn_model_specs()
+            if not specs:
+                raise RuntimeError(
+                    "no trained SNN-AE .npz under "
+                    f"{self.results_dir / 'models'} — run a LOSO fold with "
+                    "`dataset.save_models: true` (emits *_encoder.npz / *_decoder.npz via "
+                    "Step E) then reselect this window."
+                )
+            dataset, fold = handle.get("dataset"), handle.get("cv_fold")
+            want_enc = handle.get("encoding") or params.get("encoding")
+            want_arch = handle.get("architecture")
+            cand = [s for s in specs if s["dataset"] == dataset and s["fold"] == fold] or specs
+            if want_enc:
+                cand = [s for s in cand if s["encoding"] == want_enc] or cand
+            if want_arch:
+                cand = [s for s in cand if s["architecture"] == want_arch] or cand
 
         from experiment_microscope.processing import meeting01 as m01
 
-        split = self._split(h["dataset"], h["cv_fold"])
-        window = np.asarray(split[f"{h['split']}_samples"][h["row"]], dtype=float)
+        split = self._split(handle["dataset"], handle["cv_fold"])
+        window = np.asarray(split[f"{handle['split']}_samples"][handle["row"]], dtype=float)
         last_err: Exception | None = None
         for spec in cand:
             try:

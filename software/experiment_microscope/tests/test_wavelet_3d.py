@@ -44,6 +44,19 @@ def test_threshold_nans_low_coefficients(qapp):
     assert np.isfinite(v._grid_z).all()
 
 
+def test_coordinate_system_uses_real_bounds_not_cosmetic_scale(qapp):
+    """The mesh must be built from the true coefficient index / leaf index /
+    magnitude ratio — no invented multiplier baked into the geometry, so the
+    coordinate box drawn on screen reports real values."""
+    v = Wavelet3D(_repo())
+    v.show_node(TreeNode("sample", "s", {"level": "sample"}), "thesis")
+    n_leaves, per = v._grid_z.shape
+    xmin, xmax, ymin, ymax, zmin, zmax = v._panel.plotter.bounds
+    assert xmax == pytest.approx(per - 1, abs=1e-6)
+    assert ymax == pytest.approx(n_leaves - 1, abs=1e-6)
+    assert zmax <= 1.0 + 1e-6          # relative-magnitude ratio, never a scaled height
+
+
 def test_low_performance_mode_disables(qapp):
     st = AppState()
     st.low_performance_mode = True

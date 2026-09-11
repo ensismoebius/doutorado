@@ -20,8 +20,16 @@ implementation of the network here.
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from experiment_microscope.core.i18n import t as _t
 from experiment_microscope.data.adapters import TreeNode
@@ -56,6 +64,11 @@ network one column at a time, in to the latent code and back out.
 <b>Zoom in</b> (mouse wheel) on a spiking column, or tick <i>Neuron detail</i>:
 each LIF neuron then shows its built-up charge, its firing line and whether it
 fired. Click a neuron for its exact numbers. LIF = leaky integrate-and-fire neuron.
+<br><br>
+<b>Model.</b> The dropdown lists every trained model for this window's fold; it
+starts on the auto-picked winner. Choose another and press <i>Run this model</i>
+to see that exact checkpoint's structure and behaviour instead — the "Model
+Structure" tab updates to match whichever model is currently loaded here.
 """
 
 
@@ -69,6 +82,10 @@ def _lerp_brush(v: float):
 
 
 class AutoencoderView(QWidget):
+    #: emitted every time a fresh trace is loaded — auto (browsing) or explicit
+    #: (Run this model) — so other tabs (Model Structure) can mirror it.
+    trace_changed = Signal(object, object)  # (AeTrace, spec dict)
+
     def __init__(self, repo, selection=None, app_state=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.repo = repo
@@ -80,9 +97,21 @@ class AutoencoderView(QWidget):
         self._reveal = -1                          # -1 = whole net lit; k = flood reached column k
         self._detail = False
         self._rendering = False
+        self._node: TreeNode | None = None
+        self._specs: list[dict] = []
 
         root = QVBoxLayout(self)
         root.addWidget(HelpBox("Autoencoder graph", _HELP))
+
+        model_bar = QHBoxLayout()
+        model_bar.addWidget(QLabel(_t("model")))
+        self._model_combo = QComboBox()
+        self._model_combo.setMinimumWidth(260)
+        model_bar.addWidget(self._model_combo, 1)
+        self._run_btn = QPushButton(_t("Run this model"))
+        self._run_btn.clicked.connect(self._run_selected_model)
+        model_bar.addWidget(self._run_btn)
+        root.addLayout(model_bar)
 
         bar = QHBoxLayout()
         self._detail_cb = QCheckBox(_t("Neuron detail"))
@@ -109,16 +138,54 @@ class AutoencoderView(QWidget):
     # -- external API --------------------------------------------------
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         self._cols = None
+        self._node = None
         if self._plot is None:
             return
         h = getattr(node, "handle", {}) or {}
         if adapter_key != "meeting01" or h.get("level") != "window":
             self._readout.setText(_t("The autoencoder graph needs an individual meeting01 window."))
             self._plot.clear()
+            self._model_combo.clear()
             return
+        self._node = node
         adapter = self.repo.adapter(adapter_key)
+        self._populate_models(adapter, node)
+        self._load_trace(adapter, node, spec_override=None)
+
+    def _populate_models(self, adapter, node: TreeNode) -> None:
+        """List every trained model compatible with this window's fold so the
+        user can pick one explicitly (FIXME §15 — "run any selected model")."""
         try:
-            trace, spec, lif_ok = adapter.load_ae_trace(node)
+            self._specs = adapter.models_for(node)
+        except Exception:  # noqa: BLE001
+            self._specs = []
+        self._model_combo.blockSignals(True)
+        self._model_combo.clear()
+        for s in self._specs:
+            self._model_combo.addItem(_t(
+                "{role} · {arch}/{enc} · v_th={vth} α={a} · run {run}",
+                role=s.get("role", "?"), arch=s["architecture"], enc=s["encoding"],
+                vth=f"{s['v_th']:g}", a=f"{s['alpha']:g}", run=s.get("run", "?"),
+            ))
+        self._model_combo.blockSignals(False)
+        self._model_combo.setEnabled(bool(self._specs))
+        self._run_btn.setEnabled(bool(self._specs))
+
+    def _run_selected_model(self) -> None:
+        """"Run this model" — explicitly recompute with whichever model the
+        user picked in the combo, instead of the auto-matched winner."""
+        if self._node is None:
+            return
+        i = self._model_combo.currentIndex()
+        if not (0 <= i < len(self._specs)):
+            self._readout.setText(_t("Pick a model from the list first."))
+            return
+        adapter = self.repo.adapter("meeting01")
+        self._load_trace(adapter, self._node, spec_override=self._specs[i])
+
+    def _load_trace(self, adapter, node: TreeNode, *, spec_override: dict | None) -> None:
+        try:
+            trace, spec, lif_ok = adapter.load_ae_trace(node, spec_override=spec_override)
         except (BindingUnavailableError, NotImplementedError, RuntimeError) as exc:
             self._readout.setText(str(exc))
             self._plot.clear()
@@ -158,12 +225,14 @@ class AutoencoderView(QWidget):
         if self._player is not None:
             self._player.set_total_frames(len(cols))
         note = "" if lif_ok else _t("  — LIF params are constructed defaults (pre-fix checkpoint)")
+        picked = _t("  — explicitly selected") if spec_override is not None else ""
         self._readout.setText(_t(
-            "{arch} / {enc} · {shape} neurons — press ▶ to send the signal through{note}",
+            "{arch} / {enc} · {shape} neurons — press ▶ to send the signal through{note}{picked}",
             arch=spec["architecture"], enc=spec["encoding"],
-            shape=" → ".join(str(c["act"].size) for c in cols), note=note,
+            shape=" → ".join(str(c["act"].size) for c in cols), note=note, picked=picked,
         ))
         self._render()
+        self.trace_changed.emit(trace, spec)
 
     def set_timeline(self, player) -> None:
         self._player = player

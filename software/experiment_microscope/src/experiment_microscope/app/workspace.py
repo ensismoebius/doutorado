@@ -52,6 +52,7 @@ from experiment_microscope.views.encoding_lab import EncodingLab
 from experiment_microscope.views.experiment_timeline import ExperimentTimeline
 from experiment_microscope.views.follow_data import FollowDataBar
 from experiment_microscope.views.latent_explorer import LatentExplorer
+from experiment_microscope.views.model_structure_view import ModelStructureView
 from experiment_microscope.views.provenance_inspector import ProvenanceInspector
 from experiment_microscope.views.reconstruction_view import ReconstructionView
 from experiment_microscope.views.reproduce_panel import ReproducePanel
@@ -124,6 +125,8 @@ class Workspace(QMainWindow):
         self.snn_3d.set_timeline(self.timeline)
         self.autoencoder = AutoencoderView(self.repo, self.selection, self.app_state)
         self.autoencoder.set_timeline(self.timeline)
+        self.model_structure = ModelStructureView()
+        self.autoencoder.trace_changed.connect(self.model_structure.show_trace)
         self.latent_explorer = LatentExplorer(self.repo, self.app_state)
         self.latent_explorer.sample_activated.connect(self._on_latent_sample)
         self.latent_explorer.working.connect(
@@ -150,6 +153,7 @@ class Workspace(QMainWindow):
             (self.snn_lab, "SNN Lab"),
             (self.snn_3d, "SNN 3D"),
             (self.autoencoder, "Autoencoder"),
+            (self.model_structure, "Model Structure"),
             (self.latent_explorer, "Latent Space"),
             (self.reconstruction, "Reconstruction"),
             (self.para_plane, "Paraconsistent plane"),
@@ -256,6 +260,7 @@ class Workspace(QMainWindow):
         "SNN 3D": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Reconstruction": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Autoencoder": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "Model Structure": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Latent Space": lambda h, a: a == "meeting01",
         "Timeline": lambda h, a: a == "meeting01",
         "Paraconsistent plane": lambda h, a: a in ("thesis", "paraconsistent_ga"),

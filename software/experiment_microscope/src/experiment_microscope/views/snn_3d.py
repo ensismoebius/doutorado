@@ -4,11 +4,17 @@ Renders the meeting01 SNN-AE encoder as columns of neurons:
 
     encoded input  →  Linear(64)  →  LIF spikes(64)  →  latent(32)
 
-* node position  = (layer index, neuron index)
+* node position  = (layer index, neuron slot) — unit spacing, so the axis
+  bounds shown are the real layer/slot counts, never a made-up scale factor
 * node size / colour = activity for the selected window (|activation|; spike
   count for the LIF layer)
 * edge opacity / width = |weight| of the connecting ``Linear`` layer, top-K per
   target neuron only (never every edge of the layer)
+
+The neuron slot (Y) is a layout order, not a measurement — every neuron in a
+layer is drawn one unit apart with no meaning to *which* slot a neuron lands in
+(labelled as such on the axis, never presented as if it were a physical
+quantity). A visible bounding box + axis titles is always drawn (FIXME §11).
 
 ``time_steps == 1`` for this experiment, so the LIF trace is a single-step
 membrane snapshot, not a trajectory — there is nothing to animate here and the
@@ -18,8 +24,6 @@ status line says so. Disabled entirely in low-performance mode (§39).
 from __future__ import annotations
 
 from experiment_microscope.views._help import HelpBox
-
-import os
 
 import numpy as np
 from PySide6.QtWidgets import (
@@ -35,7 +39,7 @@ from experiment_microscope.data.adapters import TreeNode
 from experiment_microscope.processing._binding import BindingUnavailableError
 from experiment_microscope.viz.pyvista_panel import PV_OK, PyVistaPanel, pv
 
-_LAYER_GAP = 40.0
+_LAYER_GAP = 1.0  # one unit per layer index — a real count, not a cosmetic scale
 
 
 _HELP = """
@@ -50,6 +54,10 @@ columns of neurons: input → Linear(64) → LIF spikes(64) → latent(32).
 <b>Controls.</b> top-K edges per neuron, |weight| threshold, activity threshold.
 Press ▶ on the transport bar to <b>flood the signal through the layers</b> one
 column at a time. LIF = Leaky Integrate-and-Fire spiking neuron.
+<br><br>
+<b>Axes.</b> The bounding box you see is real: X is the layer index. Y is each
+neuron's slot within its layer — a layout order for spreading neurons apart,
+not a measurement, which is why its title says so instead of inventing a unit.
 """
 
 
@@ -167,7 +175,7 @@ class Snn3D(QWidget):
             act = col["activity"].astype(float)
             norm = act / (act.max() or 1.0)
             n = act.size
-            ys = (np.arange(n) - n / 2.0) * (60.0 / max(n, 1))
+            ys = np.arange(n, dtype=float) - n / 2.0  # unit spacing — a slot order, not a unit
             pts = np.c_[np.full(n, xi * _LAYER_GAP), ys, np.zeros(n)]
             centres.append(pts)
             reached = upto < 0 or xi <= upto
@@ -216,8 +224,13 @@ class Snn3D(QWidget):
                 step()
             except Exception:  # noqa: BLE001
                 pass
-        if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
-            try:
-                p.show_axes()
-            except Exception:  # noqa: BLE001
-                pass
+        # a visible coordinate system, always — real axis titles, no invented units (FIXME §11)
+        try:
+            p.show_grid(xtitle="layer index", ytitle="neuron slot (layout order)",
+                        ztitle="—", n_zlabels=1)
+        except Exception:  # noqa: BLE001 - headless VTK with no interactor
+            pass
+        try:
+            p.show_axes()
+        except Exception:  # noqa: BLE001
+            pass

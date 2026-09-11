@@ -39,6 +39,13 @@ def test_real_snn_3d_end_to_end(qapp, first_fsdd_window):
     assert any(c["name"] == "LIF spikes" for c in v._layers)
     assert v._layers[0]["activity"].ndim == 1
 
+    # unit spacing only — no cosmetic multiplier baked into node positions, so
+    # the coordinate box drawn on screen reports the real layer/slot counts
+    xmin, xmax, ymin, ymax, zmin, zmax = v._panel.plotter.bounds
+    assert xmax == pytest.approx(len(v._layers) - 1, abs=1e-6)
+    n_max = max(c["activity"].size for c in v._layers)
+    assert ymax <= n_max / 2.0 + 1e-6
+
 
 def test_timeline_flood_animation(qapp, first_fsdd_window):
     from experiment_microscope.core.animation import TimelinePlayer
