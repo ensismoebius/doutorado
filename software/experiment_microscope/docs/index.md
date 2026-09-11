@@ -236,23 +236,29 @@ Nothing in the app is shown without an explanation:
   *checkpoint*, unlike the Autoencoder tab's per-window activations. It follows
   whichever model is currently loaded there (`AutoencoderView.trace_changed`),
   automatically on ordinary browsing and immediately after "Run this model".
-- **3D views**: "Wavelet 3D" (§11), "SNN 3D" (§18 — encoder-only neuron columns
-  `input → Linear(64) → LIF(64) → latent(32)`, node size/colour = activity,
-  edges = top-K `|Linear weight|` per target neuron), and the Latent Space
-  Explorer's 3-D PCA panel. Pressing ▶ floods the signal layer-by-layer through
-  the net (§17); the shared `TimelinePlayer` drives the flood frames. **Every 3D
-  view always draws a visible coordinate box** (`show_grid` + `show_axes`) whose
-  ticks are real values, never a cosmetic scale factor baked into the mesh —
-  Wavelet 3D's axes are the true coefficient index / leaf number / |coeff|-max
-  ratio, SNN 3D's Y axis is explicitly titled "neuron slot (layout order)"
-  rather than pretending a layout position is a measurement, and the Latent
-  Explorer's 3-D axes are titled "arbitrary — a direction, not a measurement"
-  (PCA components have no physical unit by construction).
+- **3D views**: "Wavelet 3D" (§11) and the Latent Space Explorer's 3-D PCA
+  panel. **Every 3D view always draws a visible coordinate box** (`show_grid` +
+  `show_axes`) whose ticks are real values, never a cosmetic scale factor baked
+  into the mesh — Wavelet 3D's axes are the true coefficient index / leaf
+  number / |coeff|-max ratio, and the Latent Explorer's 3-D axes are titled
+  "arbitrary — a direction, not a measurement" (PCA components have no physical
+  unit by construction). The encoder-neuron-column view formerly here ("SNN
+  3D") was removed; "Voice Through the Network" replaced it with the more
+  useful question — not one window's static structure, but a whole recording's
+  activity over time, reusing the Autoencoder tab's own 2-D neuron graph.
+- **"Voice Through the Network"** (companion to Autoencoder) plays an entire
+  recording — every one of its consecutive windows, in true time order via
+  `recording_id`/`source_window_index` — through one fixed, explicitly chosen
+  model, one forward pass per animation frame. It embeds `AutoencoderView`'s
+  own graph (`AutoencoderView.show_frame`, no second rendering
+  implementation) so a window's activation pattern is drawn identically
+  whether reached by browsing or by playback.
 - **`Meeting01Adapter` caches `load_ae_trace`** per (window, model) and
   `_snn_model_specs()` for a few seconds — opening a window used to re-run the
-  same SNN-AE forward pass up to 4 times (SNN Lab, SNN 3D, Autoencoder,
-  Reconstruction) and re-glob `results/meeting01/models/**` up to 3 times; both
-  are now shared across the views that ask for the same thing in one click.
+  same SNN-AE forward pass up to 4 times (SNN Lab, Autoencoder, Voice Through
+  the Network, Reconstruction) and re-glob `results/meeting01/models/**` up to
+  3 times; both are now shared across the views that ask for the same thing in
+  one click.
 - **Triangle feature-bar ↔ wavelet-leaf cross-highlight** is wired only when the
   handcrafted layout is 1:1 with the wavelet bands (else disabled, no guess) —
   the C++ does not expose a per-feature→band map.

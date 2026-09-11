@@ -122,7 +122,13 @@ class AutoencoderView(QWidget):
         self._compare_btn = QPushButton(_t("Compare all"))
         self._compare_btn.clicked.connect(self._compare_all)
         model_bar.addWidget(self._compare_btn)
-        root.addLayout(model_bar)
+        # Wrapped in its own widget so an embedding view (Voice Through the
+        # Network drives this graph frame-by-frame with its own model picker)
+        # can hide the whole model-selection row as one unit instead of it
+        # sitting there showing stale, unusable controls.
+        self._model_bar_widget = QWidget()
+        self._model_bar_widget.setLayout(model_bar)
+        root.addWidget(self._model_bar_widget)
 
         self._compare_table = QTableWidget(0, 4)
         self._compare_table.setHorizontalHeaderLabels(
@@ -156,6 +162,14 @@ class AutoencoderView(QWidget):
             self._plot = None
             root.addWidget(QLabel("pyqtgraph unavailable — cannot draw the graph."))
 
+    def set_controls_visible(self, on: bool) -> None:
+        """Hide the model picker / Run / Compare row and the compare table —
+        for an embedding view (Voice Through the Network) that drives this
+        graph itself and owns its own model choice."""
+        self._model_bar_widget.setVisible(on)
+        if not on:
+            self._compare_table.hide()
+
     # -- external API --------------------------------------------------
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         self._cols = None
@@ -175,6 +189,23 @@ class AutoencoderView(QWidget):
         adapter = self.repo.adapter(adapter_key)
         self._populate_models(adapter, node)
         self._load_trace(adapter, node, spec_override=None)
+
+    def show_frame(self, node: TreeNode, spec: dict) -> None:
+        """Render one frame of an externally-driven animation (Voice Through
+        the Network) against a FIXED, caller-chosen model spec.
+
+        Unlike ``show_node``, this never touches the model combo or compare
+        table (an embedding view owns model choice) and never resets THIS
+        view's own flood-animation player — an embedded instance is never
+        given ``set_timeline()``, so its ``_reveal`` stays -1 (whole net lit)
+        and the caller is free to drive time however it wants (here: one
+        whole window per frame, not one layer).
+        """
+        if self._plot is None:
+            return
+        self._node = node
+        adapter = self.repo.adapter("meeting01")
+        self._load_trace(adapter, node, spec_override=spec)
 
     def _compare_all(self) -> None:
         """"Compare all" — run every trained model for this window's fold

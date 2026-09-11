@@ -118,7 +118,7 @@ def test_compare_all_fills_table_and_row_click_loads_model(qapp):
     v.show_node(node, "meeting01")
     v._compare_all()
     assert v._compare_rows  # at least this fold's own models were compared
-    assert v._compare_table.isVisible()
+    assert not v._compare_table.isHidden()  # isVisible() needs a shown top-level; this doesn't
     assert v._compare_table.rowCount() == len(v._compare_rows)
     # every compared row belongs to THIS window's exact fold — never a
     # cross-fold substitute (FIXME §33 no-substitution rule)
@@ -127,4 +127,45 @@ def test_compare_all_fills_table_and_row_click_loads_model(qapp):
     seen = []
     v.trace_changed.connect(lambda tr, sp: seen.append(sp))
     v._on_compare_row(0, 0)
+    assert seen and seen[-1]["fold"] == s["fold"]
+
+
+def test_set_controls_visible_toggles_model_bar_and_compare_table(qapp):
+    # isVisible() needs a shown top-level window (none of these tests call
+    # .show()); isHidden() reflects the widget's OWN explicit hide/show state
+    # regardless of ancestor visibility, which is what this actually checks.
+    v = AutoencoderView(DataRepository())
+    assert not v._model_bar_widget.isHidden()  # visible by default
+    v.set_controls_visible(False)
+    assert v._model_bar_widget.isHidden()
+    assert v._compare_table.isHidden()
+    v.set_controls_visible(True)
+    assert not v._model_bar_widget.isHidden()
+
+
+@pytest.mark.skipif(not is_available(), reason="nn_microscope not built")
+def test_show_frame_renders_with_a_fixed_spec_and_ignores_the_model_combo(qapp):
+    """show_frame() is what Voice Through the Network drives — it must render
+    exactly the given spec, and must NOT touch the model combo or reset this
+    view's own (unused, here) flood-animation total-frame count."""
+    repo = DataRepository()
+    adapter = repo.adapter("meeting01")
+    specs = adapter._snn_model_specs()
+    if not specs:
+        pytest.skip("no trained SNN-AE .npz")
+    s = specs[0]
+    node = TreeNode(
+        kind="sample", label="w",
+        handle={"level": "window", "dataset": s["dataset"], "cv_fold": s["fold"],
+                "split": "test", "row": 0},
+    )
+    v = AutoencoderView(repo)
+    v.set_controls_visible(False)
+    assert v._model_combo.count() == 0  # never populated — show_frame skips it
+    v.show_frame(node, s)
+    assert v._cols is not None
+    assert v._model_combo.count() == 0  # still untouched
+    seen = []
+    v.trace_changed.connect(lambda tr, sp: seen.append(sp))
+    v.show_frame(node, s)
     assert seen and seen[-1]["fold"] == s["fold"]

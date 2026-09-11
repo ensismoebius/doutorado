@@ -106,9 +106,10 @@ class Meeting01Adapter(ExperimentAdapter):
         self._profile_cache: dict[str, Any] | None = None
         self._split_cache: dict[tuple[str, int], dict[str, Any]] = {}
         # SNN-AE forward passes (.npz load + inference) are the slow part of
-        # opening a window — SNN Lab, SNN 3D, Autoencoder and Reconstruction
-        # each ask for the same window's trace independently, so without this
-        # a single click was re-running the network up to 4 times (FIXME §32).
+        # opening a window — SNN Lab, Autoencoder, Voice Through the Network and
+        # Reconstruction each ask for the same window's trace independently, so
+        # without this a single click was re-running the network up to 4 times
+        # (FIXME §32).
         self._ae_trace_cache: "OrderedDict[tuple, tuple]" = OrderedDict()
         self._specs_cache: tuple[float, list[dict[str, Any]]] | None = None
         # incremental event-log reader for session_state() — see its docstring.
@@ -408,6 +409,41 @@ class Meeting01Adapter(ExperimentAdapter):
                 row["error"] = str(exc)
             rows.append(row)
         return rows
+
+    def recordings_for(self, node: TreeNode) -> list[dict[str, Any]]:
+        """Every recording — one whole spoken utterance — in this node's
+        (dataset, fold, split), each with its windows in TRUE time order.
+
+        Every other SNN-AE view operates on a single fixed 256-sample window;
+        this is the unit "Voice Through the Network" needs instead: the split
+        arrays interleave windows from many different recordings (they were
+        never in recording order to begin with — shuffling is part of what
+        makes a split a split), so playing "the next window" without first
+        grouping by ``recording_id`` and sorting by ``source_window_index``
+        would jump between unrelated speakers/digits mid-utterance.
+        """
+        h = getattr(node, "handle", {}) or {}
+        dataset, fold = h.get("dataset"), h.get("cv_fold")
+        split = h.get("split") or "test"
+        if dataset is None or fold is None:
+            return []
+        data = self._split(dataset, fold)
+        metas = data.get(f"{split}_meta") or []
+        by_recording: dict[int, list[tuple[int, dict[str, Any]]]] = {}
+        for row, meta in enumerate(metas):
+            by_recording.setdefault(int(meta["recording_id"]), []).append((row, meta))
+        out: list[dict[str, Any]] = []
+        for recording_id, rows in sorted(by_recording.items()):
+            rows.sort(key=lambda t: t[1]["source_window_index"])
+            first = rows[0][1]
+            out.append({
+                "recording_id": recording_id,
+                "speaker": first["speaker"],
+                "digit": first["digit"],
+                "split": split,
+                "rows": [r for r, _ in rows],  # window indices, in playback order
+            })
+        return out
 
     def load_ae_trace(self, node: TreeNode, *, spec_override: dict[str, Any] | None = None,
                        **params: Any):

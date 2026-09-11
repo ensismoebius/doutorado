@@ -58,11 +58,11 @@ from experiment_microscope.views.reconstruction_view import ReconstructionView
 from experiment_microscope.views.reproduce_panel import ReproducePanel
 from experiment_microscope.views.search_bar import SearchBar
 from experiment_microscope.views.snn_lab import SnnLab
-from experiment_microscope.views.snn_3d import Snn3D
 from experiment_microscope.views.ranking_view import RankingView
 from experiment_microscope.views.signal_view import SignalView
 from experiment_microscope.views.transport_bar import TransportBar
 from experiment_microscope.views.triangle_view import TriangleView
+from experiment_microscope.views.voice_through_view import VoiceThroughView
 from experiment_microscope.views.wavelet_3d import Wavelet3D
 from experiment_microscope.views.wavelet_lab import WaveletLab
 
@@ -121,10 +121,10 @@ class Workspace(QMainWindow):
         self.feature_matrix = FeatureMatrixView(self.repo, self.selection)
         self.encoding_lab = EncodingLab(self.repo, self.selection)
         self.snn_lab = SnnLab(self.repo, self.selection)
-        self.snn_3d = Snn3D(self.repo, self.app_state)
-        self.snn_3d.set_timeline(self.timeline)
         self.autoencoder = AutoencoderView(self.repo, self.selection, self.app_state)
         self.autoencoder.set_timeline(self.timeline)
+        self.voice_through = VoiceThroughView(self.repo, self.app_state)
+        self.voice_through.set_timeline(self.timeline)
         self.model_structure = ModelStructureView()
         self.autoencoder.trace_changed.connect(self.model_structure.show_trace)
         self.latent_explorer = LatentExplorer(self.repo, self.app_state)
@@ -151,8 +151,8 @@ class Workspace(QMainWindow):
             (self.feature_matrix, "Feature Matrix"),
             (self.encoding_lab, "Encoding Lab"),
             (self.snn_lab, "SNN Lab"),
-            (self.snn_3d, "SNN 3D"),
             (self.autoencoder, "Autoencoder"),
+            (self.voice_through, "Voice Through the Network"),
             (self.model_structure, "Model Structure"),
             (self.latent_explorer, "Latent Space"),
             (self.reconstruction, "Reconstruction"),
@@ -257,9 +257,9 @@ class Workspace(QMainWindow):
         "Triangle": lambda h, a: a == "thesis" and h.get("level") == "run",
         "Encoding Lab": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "SNN Lab": lambda h, a: a == "meeting01" and h.get("level") == "window",
-        "SNN 3D": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Reconstruction": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Autoencoder": lambda h, a: a == "meeting01" and h.get("level") == "window",
+        "Voice Through the Network": lambda h, a: a == "meeting01",
         "Model Structure": lambda h, a: a == "meeting01" and h.get("level") == "window",
         "Latent Space": lambda h, a: a == "meeting01",
         "Timeline": lambda h, a: a == "meeting01",
@@ -657,8 +657,8 @@ class Workspace(QMainWindow):
             self.feature_matrix.show_node(node, adapter_key)
             self.encoding_lab.show_node(node, adapter_key)
             self.snn_lab.show_node(node, adapter_key)
-            self.snn_3d.show_node(node, adapter_key)
             self.autoencoder.show_node(node, adapter_key)
+            self.voice_through.show_node(node, adapter_key)
             self.latent_explorer.show_node(node, adapter_key)
             self.reconstruction.show_node(node, adapter_key)
             self.triangle.show_node(node, adapter_key)
@@ -693,7 +693,6 @@ class Workspace(QMainWindow):
         node = getattr(self, "_current_node", None)
         if node is not None:  # re-render so the 3D panel picks up the flag
             self.wavelet_3d.show_node(node, self._current_adapter)
-            self.snn_3d.show_node(node, self._current_adapter)
 
     def _on_timeline_config(self, dataset: str, fold: int, config_id: str) -> None:
         self.selection.update(experiment="meeting01", dataset=dataset)

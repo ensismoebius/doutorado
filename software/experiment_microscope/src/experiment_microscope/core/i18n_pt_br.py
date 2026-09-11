@@ -302,7 +302,7 @@ CATALOG = {
     "Feature Matrix": "Matriz de Atributos",
     "Encoding Lab": "Laboratório de Codificação",
     "SNN Lab": "Laboratório de SNN",
-    "SNN 3D": "SNN 3D",
+    "Voice Through the Network": "A voz atravessando a rede",
     "Latent Space": "Espaço Latente",
     "Reconstruction": "Reconstrução",
     "Paraconsistent plane": "Plano paraconsistente",
@@ -748,6 +748,54 @@ CATALOG = {
     "— double-click a row to load it above [computed]":
         "{n} de {total} modelos comparados para esta janela, melhor MSE primeiro "
         "— clique duas vezes numa linha para carregá-lo acima [calculado]",
+
+    # ---- Voz atravessando a rede -------------------------
+    "\n<b>What this shows.</b> The same neuron graph as the Autoencoder tab, but\n"
+    "fed a whole <b>recording</b> instead of one window — press ▶ and watch the\n"
+    "network's activity change as an entire spoken digit passes through it,\n"
+    "window by window, in the order it was actually spoken.\n"
+    "<br><br>\n"
+    "<b>Controls.</b> <i>split</i> / <i>recording</i> pick which utterance to\n"
+    "play (grouped from the same windows every other view uses, just put back in\n"
+    "time order). <i>model</i> picks which trained checkpoint runs it — chosen\n"
+    "once, then held fixed for the whole recording, so what changes frame to\n"
+    "frame is only the input, never the model.\n"
+    "<br><br>\n"
+    "<b>Reading it.</b> Node colour/size still means activation strength, same as\n"
+    "the Autoencoder tab — click a neuron there for its exact number. A short\n"
+    "recording may be only 2–4 windows; the transport's frame count updates to\n"
+    "match whichever recording is selected.\n":
+        "\n<b>O que este painel mostra.</b> O mesmo grafo de neurônios da aba\n"
+        "Autoencoder, mas alimentado com uma <b>gravação</b> inteira em vez de uma\n"
+        "janela — aperte ▶ e veja a atividade da rede mudar conforme um dígito\n"
+        "falado inteiro a atravessa, janela por janela, na ordem em que foi\n"
+        "realmente falado.\n"
+        "<br><br>\n"
+        "<b>Controles.</b> <i>recorte</i> / <i>gravação</i> escolhem qual\n"
+        "locução tocar (agrupada das mesmas janelas que os outros painéis usam,\n"
+        "só que devolvidas à ordem no tempo). <i>modelo</i> escolhe qual\n"
+        "checkpoint treinado a executa — escolhido uma vez e mantido fixo durante\n"
+        "toda a gravação, então o que muda de quadro a quadro é só a entrada,\n"
+        "nunca o modelo.\n"
+        "<br><br>\n"
+        "<b>Como ler.</b> A cor/tamanho do nó continua significando força de\n"
+        "ativação, igual na aba Autoencoder — clique num neurônio lá para ver o\n"
+        "número exato. Uma gravação curta pode ter só 2–4 janelas; a contagem de\n"
+        "quadros do transporte se atualiza para a gravação selecionada.\n",
+    "Select a meeting01 fold or window first.":
+        "Selecione uma dobra ou janela do meeting01 primeiro.",
+    "recording": "gravação",
+    "recording {rid} — speaker {spk}, digit {d}, {n} windows":
+        "gravação {rid} — falante {spk}, dígito {d}, {n} janelas",
+    "recordings_for failed: {exc}": "recordings_for falhou: {exc}",
+    "No recordings in this split.": "Nenhuma gravação neste recorte.",
+    "{role} · {arch}/{enc} · run {run}": "{role} · {arch}/{enc} · execução {run}",
+    "window {k}": "janela {k}",
+    "digit {d}, speaker {spk} — window {k} / {n} — press ▶ to play "
+    "the whole utterance through the network":
+        "dígito {d}, falante {spk} — janela {k} / {n} — aperte ▶ para tocar "
+        "toda a locução através da rede",
+
     "Encoder · ": "Encoder · ",
     "Decoder · ": "Decoder · ",
     "{half}{name} — neuron {i} of {n}: activation {a}":
