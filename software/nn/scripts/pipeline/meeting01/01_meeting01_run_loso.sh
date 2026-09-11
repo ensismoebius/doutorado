@@ -21,9 +21,10 @@
 #   encodings x 5 seeds x 18 (dataset,fold) processes. The caps keep every speaker and
 #   recording represented (round-robin subsample); LOSO structure and the recording-level
 #   statistical unit are unchanged. Per-epoch progress is logged as "[loso] ... epoch N/M"
-#   lines (stderr; survives nohup, where the live bars collapse). Run once. This script
-#   REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears results/meeting01/
-#   checkpoints/ first (resumed rows are not regenerated into the per-window CSV).
+#   lines (stderr; survives nohup, where the live bars collapse). Run once — by default.
+#   This script REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears
+#   results/meeting01/checkpoints/ first (resumed rows are not regenerated into the
+#   per-window CSV) UNLESS RESUME=1 (see below).
 #
 # Usage:
 #   cd software/nn
@@ -33,8 +34,20 @@
 #   SKIP_BUILD=1   reuse the existing binary (only when you know it is current)
 #   DATASETS      space-separated dataset list (default "fsdd audiomnist mitbih")
 #   CV_NUM_FOLDS   number of outer folds (default 6)
-#   KEEP_CHECKPOINTS=1  do not clear checkpoints (resume a partial run; per-window CSV
-#                       will then be incomplete)
+#   KEEP_CHECKPOINTS=1  do not clear checkpoints (per-window CSV will then be incomplete
+#                       for any fold re-run this way — RESUME=1 is almost always what
+#                       you actually want instead, see below)
+#
+#   RESUME=1   the simple way to continue an interrupted run: re-invoke the exact same
+#              command line with RESUME=1 added. It implies KEEP_CHECKPOINTS=1 (nothing
+#              is wiped), and before each (dataset, fold) skips straight past any pair
+#              that already has a complete `*_comparative_metrics.csv` — that file is
+#              written exactly once, at the very end of a fold's run, so its presence
+#              means the fold genuinely finished, not that it merely started. Only the
+#              fold that was actually running when the script died (no CSV yet) and
+#              everything after it get (re)run.
+#                cd software/nn
+#                EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -66,6 +79,12 @@ else
 fi
 [[ -x "$BIN" ]] || { echo "[loso-run] no binary at $BIN after build" >&2; exit 1; }
 
+RESUME="${RESUME:-0}"
+if [[ "$RESUME" == "1" ]]; then
+  KEEP_CHECKPOINTS=1
+  echo "[loso-run] RESUME=1 — keeping checkpoints/models/events, skipping already-finished (dataset, fold) pairs"
+fi
+
 if [[ "${KEEP_CHECKPOINTS:-0}" != "1" ]]; then
   echo "[loso-run] clearing results/meeting01/{checkpoints,models}/ and stale *_events.jsonl"
   rm -rf results/meeting01/checkpoints/ results/meeting01/models/
@@ -87,6 +106,11 @@ for ds in $DATASETS; do
   _di=$((_di + 1))
   for (( f = 0; f < CV_NUM_FOLDS; f++ )); do
     _f_start=$(date +%s)
+    _fold_csv="results/meeting01/meeting01_loso_${ds}_fold${f}_comparative_metrics.csv"
+    if [[ "$RESUME" == "1" && -s "$_fold_csv" ]]; then
+      echo "[loso-run] === ${ds} fold ${f}/${CV_NUM_FOLDS} === already complete ($_fold_csv exists) — RESUME=1 skip"
+      continue
+    fi
     export MEETING01_OVERALL="$(printf 'LOSO  %s (%d/%d)  fold %d/%d  elapsed %s' \
       "$ds" "$_di" "$_nds" "$((f + 1))" "$CV_NUM_FOLDS" "$(( $(date +%s) - _start ))s")"
     echo "[loso-run] === ${ds} fold ${f}/${CV_NUM_FOLDS} ==="

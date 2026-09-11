@@ -48,6 +48,7 @@ import math
 import os
 import re
 import sys
+import tempfile
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -76,10 +77,24 @@ class EventTailer:
         self._offsets: dict[str, int] = {}
         self._carry: dict[str, str] = {}
         self.mtimes: dict[str, float] = {}
+        # Paths this poll() found gone that a PRIOR poll() had tracked — a fold's
+        # events file removed out from under a live dashboard (a crashed attempt's
+        # leftover cleaned up by hand, or a fresh RESUME=1 run skipping it because
+        # the fold already has a complete CSV). Without this, a dashboard already
+        # holding that path in memory has no way to learn the file is gone short of
+        # ProcState.is_failed()'s STALE_SECONDS (15 min) timeout — it just keeps
+        # showing a dead proc as "running" until that timer finally expires.
+        self.missing: set[str] = set()
 
     def poll(self) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
-        for path in sorted(glob.glob(self._pattern)):
+        current = set(glob.glob(self._pattern))
+        self.missing = set(self._offsets) - current
+        for path in self.missing:
+            self._offsets.pop(path, None)
+            self._carry.pop(path, None)
+            self.mtimes.pop(path, None)
+        for path in sorted(current):
             try:
                 size = os.path.getsize(path)
                 self.mtimes[path] = os.path.getmtime(path)
@@ -358,10 +373,21 @@ class SessionState:
             self.configs[cid] = c
         return c
 
-    def reconcile(self, tailer_mtimes: dict[str, float]) -> None:
+    def reconcile(self, tailer_mtimes: dict[str, float], missing: "set[str] | None" = None) -> None:
         now = time.time()
         self._mtimes = dict(tailer_mtimes)
         for path, proc in self.procs.items():
+            if missing and path in missing:
+                # The events file itself is gone (RESUME=1 skipping an already-
+                # complete fold, or a crashed attempt's leftover cleaned up by
+                # hand) — that is unambiguous, immediate proof the proc is dead.
+                # Do not make the dashboard wait out STALE_SECONDS to learn what
+                # the filesystem already told it this poll.
+                proc.error = proc.error or "events file removed (fold already complete, or run abandoned)"
+                for c in self.configs.values():
+                    if c.dataset == proc.dataset and c.fold == proc.fold and c.status == "running":
+                        c.status = "failed"
+                continue
             mt = tailer_mtimes.get(path, proc.last_ts)
             if proc.is_failed(now, mt):
                 proc.error = proc.error or "process stopped without session_end"
@@ -984,7 +1010,7 @@ def _drain(results_dir: str, run_tag: str) -> SessionState:
     state = SessionState()
     for ev in tailer.poll():
         state.apply(ev)
-    state.reconcile(tailer.mtimes)
+    state.reconcile(tailer.mtimes, tailer.missing)
     return state
 
 
@@ -1026,7 +1052,7 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
                 try:
                     for ev in tailer.poll():
                         state.apply(ev)
-                    state.reconcile(tailer.mtimes)
+                    state.reconcile(tailer.mtimes, tailer.missing)
                     live.update(render_dashboard(state, console.size.height))
                     consecutive_errors = 0
                 except Exception as exc:  # noqa: BLE001
@@ -1148,6 +1174,36 @@ def _self_test() -> int:
         _event_line(ln)
     check(True, "_event_line handles every event type without raising")
 
+    # A fold's events file disappearing (RESUME=1 skipping an already-complete
+    # fold, or a crashed attempt's leftover cleaned up by hand) must fail its
+    # proc/config on the very next poll — not linger as "running" for up to
+    # STALE_SECONDS (15 min) the way a merely-slow file would. Uses a real file
+    # on disk since EventTailer globs the filesystem, not an in-memory fixture.
+    with tempfile.TemporaryDirectory() as td:
+        fold_path = os.path.join(td, "t_fsdd_fold9_events.jsonl")
+        with open(fold_path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(ev(type="config_begin", dataset="fsdd", fold=9,
+                                    config_id="lstm-ae_direct_seed42_run1", model="lstm-ae",
+                                    encoding="direct", role="baseline", run_id=1, seed=42,
+                                    max_epochs=10)) + "\n")
+        tailer = EventTailer(td, "t")
+        st3 = SessionState()
+        for e in tailer.poll():
+            st3.apply(e)
+        st3.reconcile(tailer.mtimes, tailer.missing)
+        check(not tailer.missing, "no missing files on the first poll")
+        check(st3.configs["lstm-ae_direct_seed42_run1"].status == "running",
+              "config is running while its events file still exists")
+
+        os.remove(fold_path)
+        for e in tailer.poll():  # nothing new to read, but this is what notices the removal
+            st3.apply(e)
+        st3.reconcile(tailer.mtimes, tailer.missing)
+        check(fold_path in tailer.missing, "EventTailer reports the removed file as missing")
+        check(st3.configs["lstm-ae_direct_seed42_run1"].status == "failed",
+              "config fails immediately when its events file is removed, no STALE_SECONDS wait")
+        check(not st3.live_procs(), "the removed-file proc no longer counts as live")
+
     print("\n" + ("ALL PASS" if ok else "FAILURES ABOVE"))
     return 0 if ok else 1
 
@@ -1182,7 +1238,7 @@ def main() -> int:
             try:
                 for ev in tailer.poll():
                     state.apply(ev)
-                state.reconcile(tailer.mtimes)
+                state.reconcile(tailer.mtimes, tailer.missing)
                 state.loop_error = ""
             except Exception as exc:  # noqa: BLE001 - a transient FS race must not stop the loop
                 state.loop_error = f"{type(exc).__name__}: {exc}"
