@@ -23,6 +23,7 @@ from experiment_microscope.core.i18n import t as _t
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QLabel,
     QSplitter,
     QTreeWidget,
@@ -30,6 +31,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+#: cycled for each config in a multi-fold comparison
+_COMPARE_COLORS = [
+    (120, 170, 255), (255, 170, 90), (120, 220, 150), (230, 120, 200),
+    (240, 210, 90), (140, 200, 230), (200, 140, 240), (230, 90, 90),
+]
 
 from experiment_microscope.views._pg import PG_OK, missing_widget, pg
 
@@ -46,6 +53,11 @@ minimises), a dashed line at the best epoch, epoch <b>duration</b> on the right
 axis, and the learning rate in the title. A rising validation curve while train
 keeps falling is the classic overfitting shape — but the tool only shows it, it
 does not label it.
+<br><br>
+<b>Compare folds.</b> Ctrl/Shift-click several configs (or a whole fold row,
+which selects every config under it) to overlay their curves — one colour per
+config, <b>solid = validation loss</b>, <b>dotted = train loss</b> — so you can
+see whether the network behaves the same way across folds or diverges on one.
 <br><br>
 Empty until a LOSO run has written <code>results/meeting01/*_events.jsonl</code>.
 """
@@ -67,8 +79,12 @@ class ExperimentTimeline(QWidget):
         self._tree = QTreeWidget()
         self._tree.setHeaderLabels([_t("node"), _t("detail")])
         self._tree.setColumnWidth(0, 320)
+        self._tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        # single click (or arrow-key move) plots — Ctrl/Shift-click adds more
+        # configs to the comparison (FIXME §45 — "how does it behave across folds").
+        self._tree.itemSelectionChanged.connect(self._on_selection_changed)
+        # double-click / Enter still jumps the rest of the app to that fold.
         self._tree.itemActivated.connect(self._on_activated)
-        self._tree.currentItemChanged.connect(lambda cur, _prev: self._on_activated(cur, 0))
         split.addWidget(self._tree)
 
         # training curve for the selected config (FIXME §46)
@@ -142,16 +158,50 @@ class ExperimentTimeline(QWidget):
                     txt = _t("train {tr}   val {val}", tr=_fmt(tr), val=_fmt(val))
                     c_item.addChild(QTreeWidgetItem([_t("epoch {e}", e=ep), txt]))
 
-    def _on_activated(self, item: QTreeWidgetItem | None, _col: int) -> None:
-        if item is None:
-            return
+    def _item_payload(self, item: QTreeWidgetItem):
         payload = item.data(0, _ROLE)
         if payload is None and item.parent() is not None:
             payload = item.parent().data(0, _ROLE)  # an epoch row → its config
+        return payload
+
+    def _on_activated(self, item: QTreeWidgetItem | None, _col: int) -> None:
+        """Double-click / Enter — jump the rest of the app to this fold."""
+        if item is None:
+            return
+        payload = self._item_payload(item)
         if payload:
             ds, fold, cfg_id = payload
-            self._plot_curve(cfg_id)
             self.config_activated.emit(ds, int(fold), cfg_id)
+
+    def _selected_config_ids(self) -> list[str]:
+        """Config ids implied by the current selection, in encounter order,
+        each once. Selecting a fold row stands in for every config under it —
+        the one-click way to compare a whole fold."""
+        ids: list[str] = []
+        seen: set[str] = set()
+        for item in self._tree.selectedItems():
+            payload = item.data(0, _ROLE)
+            if payload is not None:
+                cfg_id = payload[2]
+                if cfg_id not in seen:
+                    seen.add(cfg_id)
+                    ids.append(cfg_id)
+            elif item.parent() is None:  # a fold row — every child config
+                for i in range(item.childCount()):
+                    child_payload = item.child(i).data(0, _ROLE)
+                    if child_payload is not None and child_payload[2] not in seen:
+                        seen.add(child_payload[2])
+                        ids.append(child_payload[2])
+        return ids
+
+    def _on_selection_changed(self) -> None:
+        ids = self._selected_config_ids()
+        if not ids:
+            return
+        if len(ids) == 1:
+            self._plot_curve(ids[0])
+        else:
+            self._plot_compare(ids)
 
     def _plot_curve(self, config_id: str) -> None:
         if self._curve is None:
