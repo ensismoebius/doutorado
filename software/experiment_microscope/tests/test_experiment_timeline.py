@@ -68,7 +68,7 @@ def test_selecting_config_plots_training_curve(qapp):
     v = ExperimentTimeline(_repo(state))
     v.refresh()
     cfg_item = v._tree.topLevelItem(0).child(0)
-    v._on_activated(cfg_item, 0)
+    cfg_item.setSelected(True)
     assert v._curve is not None
     # two data curves (train, val) + the best-epoch marker line
     assert len(v._curve.getPlotItem().listDataItems()) == 2
@@ -84,8 +84,31 @@ def test_curve_title_handles_avg_epoch_ms_as_a_method(qapp):
     cfg._epoch_ms = [40000.0, 42000.0]
     v = ExperimentTimeline(_repo(_FakeState([cfg])))
     v.refresh()
-    v._on_activated(v._tree.topLevelItem(0).child(0), 0)          # must not raise
+    v._tree.topLevelItem(0).child(0).setSelected(True)             # must not raise
     assert "41.0" in v._curve.getPlotItem().titleLabel.text
+
+
+def test_multi_select_compares_folds(qapp):
+    pytest.importorskip("pyqtgraph")
+    state = _FakeState([
+        _cfg(config_id="c0", fold=0, epochs=[(1, 0.9, 1.0), (2, 0.5, 0.6)]),
+        _cfg(config_id="c1", fold=1, epochs=[(1, 0.8, 0.9), (2, 0.4, 0.5)]),
+    ])
+    v = ExperimentTimeline(_repo(state))
+    v.refresh()
+    fold0_cfg = v._tree.topLevelItem(0).child(0)
+    fold1_cfg = v._tree.topLevelItem(1).child(0)
+    fold0_cfg.setSelected(True)
+    fold1_cfg.setSelected(True)
+    # 2 configs x (val + train) = 4 curves, no single-config extras (best-epoch line)
+    assert len(v._curve.getPlotItem().listDataItems()) == 4
+    assert "comparing 2 configs" in v._curve.getPlotItem().titleLabel.text
+
+    # selecting a whole fold row stands in for every config under it
+    v._tree.clearSelection()
+    v._tree.topLevelItem(0).setSelected(True)
+    v._tree.topLevelItem(1).setSelected(True)
+    assert len(v._curve.getPlotItem().listDataItems()) == 4
 
 
 def test_activating_config_emits_payload(qapp):

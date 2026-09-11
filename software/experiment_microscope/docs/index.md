@@ -242,7 +242,11 @@ Cross-experiment comparison (§22) is the "Comparison" tab; the cross-run
   session→fold→config→epoch timeline (§45) is the "Timeline" tab, with the
   selected config's train/val loss curve below it — with epoch-duration on a
   linked right axis and lr / s-per-epoch in the title (§46); empty until a LOSO
-  run writes `results/meeting01/*_events.jsonl`.
+  run writes `results/meeting01/*_events.jsonl`. **Comparing folds**: Ctrl/Shift-click
+  several configs (or a whole fold row, which stands in for every config under
+  it) to overlay their curves — one colour per config, solid = validation loss,
+  dotted = train loss — to see whether the network behaves the same way across
+  folds or diverges on one.
 - **Themes** (§34): View → Theme → System / Light / Dark, persisted in
   `QSettings`. Colour is never the only signal — line style, markers and labels
   carry the same information.

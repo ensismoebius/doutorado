@@ -203,10 +203,16 @@ class ExperimentTimeline(QWidget):
         else:
             self._plot_compare(ids)
 
+    def _clear_legend(self) -> None:
+        legend = getattr(self._curve.getPlotItem(), "legend", None)
+        if legend is not None:
+            legend.clear()
+
     def _plot_curve(self, config_id: str) -> None:
         if self._curve is None:
             return
         self._curve.clear()
+        self._clear_legend()
         cfg = self._configs.get(config_id)
         epochs = list(getattr(cfg, "epochs", []) or [])
         if not epochs:
@@ -242,12 +248,49 @@ class ExperimentTimeline(QWidget):
             title += _t("  ·  ~{s}s/epoch", s=f"{avg_ms / 1000:.1f}")
         self._curve.setTitle(title)
 
+    def _plot_compare(self, config_ids: list[str]) -> None:
+        """Overlay several configs' curves (FIXME §45) — one colour per config,
+        solid = validation loss, dotted = train loss. Answers "does the network
+        behave the same way across folds, or does one diverge?"."""
+        if self._curve is None:
+            return
+        self._curve.clear()
+        self._clear_legend()
+        self._hide_epoch_ms_axis()
+        plotted = 0
+        for i, config_id in enumerate(config_ids):
+            cfg = self._configs.get(config_id)
+            epochs = list(getattr(cfg, "epochs", []) or [])
+            if not epochs:
+                continue
+            xs = [e[0] for e in epochs]
+            tr = [e[1] if e[1] is not None else float("nan") for e in epochs]
+            val = [e[2] if e[2] is not None else float("nan") for e in epochs]
+            color = _COMPARE_COLORS[i % len(_COMPARE_COLORS)]
+            self._curve.plot(xs, val, pen=pg.mkPen(color, width=2), name=config_id)
+            self._curve.plot(xs, tr, pen=pg.mkPen(color, width=1, style=Qt.PenStyle.DotLine))
+            plotted += 1
+        from experiment_microscope.views._plotinfo import autofit, set_source
+        set_source(self._curve, "results/meeting01/*_events.jsonl (epoch_end events)")
+        if getattr(self, "_hover", None) is not None:
+            self._hover.reattach()
+        autofit(self._curve)
+        self._curve.setTitle(_t(
+            "comparing {n} configs — solid = val loss, dotted = train loss",
+            n=plotted))
+
+    def _hide_epoch_ms_axis(self) -> None:
+        if self._epoch_ms_vb is not None:
+            self._epoch_ms_vb.clear()
+        self._curve.getPlotItem().hideAxis("right")
+
     def _plot_epoch_ms(self, cfg, xs: list[int]) -> None:
         ems = list(getattr(cfg, "_epoch_ms", []) or [])
         if not ems or self._curve is None:
             self._epoch_ms_vb = None
             return
         pi = self._curve.getPlotItem()
+        pi.showAxis("right")  # compare mode may have hidden it
         if getattr(self, "_epoch_ms_vb", None) is None:
             self._epoch_ms_vb = pg.ViewBox()
             pi.scene().addItem(self._epoch_ms_vb)
