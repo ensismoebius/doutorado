@@ -42,6 +42,7 @@ Descriptive only -- factual training diagnostics, no inferential or causal langu
 from __future__ import annotations
 
 import argparse
+import csv
 import glob
 import json
 import math
@@ -128,6 +129,43 @@ class EventTailer:
                     ev.setdefault("_path", path)
                     out.append(ev)
         return out
+
+
+_FOLD_CSV_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold(?P<fold>\d+)_comparative_metrics\.csv$")
+
+
+def scan_completed_folds(results_dir: str, run_tag: str) -> dict[tuple[str, int], int]:
+    """Trainings already finished in an EARLIER invocation of this run_tag, read
+    straight from each fold's ``*_comparative_metrics.csv`` — written exactly
+    once, at the very end of that fold's run (``write_experiment_outputs``), so
+    its presence is proof of real completion, not a guess.
+
+    Without this, RESUME=1 correctly skips re-running an already-complete fold
+    (see 01_meeting01_run_loso.sh), but that fold's process is no longer live
+    and never will be again this session — the dashboard would otherwise count
+    it as 0 done forever, understating true progress by everything finished
+    before this invocation started.
+    """
+    out: dict[tuple[str, int], int] = {}
+    pattern = os.path.join(results_dir, f"{glob.escape(run_tag)}_*_fold*_comparative_metrics.csv")
+    for path in glob.glob(pattern):
+        m = _FOLD_CSV_RE.search(path)
+        if not m:
+            continue
+        try:
+            with open(path, newline="", encoding="utf-8") as fh:
+                # one training may write a val row and a test row — count the
+                # distinct (model, encoding, hyperparams, run, seed) identity,
+                # not raw rows, so it lines up with how "done" counts live configs
+                trainings = {
+                    (row.get("model"), row.get("encoding"), row.get("architecture"),
+                     row.get("v_th"), row.get("alpha"), row.get("run"), row.get("seed"))
+                    for row in csv.DictReader(fh)
+                }
+        except OSError:
+            continue
+        out[(m["ds"], int(m["fold"]))] = len(trainings)
+    return out
 
 
 # --------------------------------------------------------------------------------------
@@ -271,6 +309,20 @@ class SessionState:
         self.selected: dict[str, dict[str, Any]] = {}
         self.started_wall: Optional[float] = None
         self.loop_error: str = ""  # last transient poll/render error, "" when clear
+        # (dataset, fold) -> training count, from scan_completed_folds() — folds
+        # that finished before THIS session started and so left no live config
+        # behind to count individually. See note_completed_folds().
+        self.completed_fold_trainings: dict[tuple[str, int], int] = {}
+
+    def note_completed_folds(self, mapping: dict[tuple[str, int], int]) -> None:
+        """Merge in scan_completed_folds() results. A fold this session has
+        itself observed live (a fold_begin was seen for it) is excluded even
+        if also present here — its configs are already counted individually
+        through self.configs as they finish, crediting the fold again from
+        its CSV the moment it completes would double it."""
+        self.completed_fold_trainings = {
+            k: v for k, v in mapping.items() if k not in self.folds_seen
+        }
 
     # ---- ingest -------------------------------------------------------------------
     def apply(self, ev: dict[str, Any]) -> None:
@@ -423,7 +475,11 @@ class SessionState:
         n_fold = int(self.session.get("cv_num_folds", 1) or 1)
         n_ds = len(self.session.get("all_datasets", []) or [1])
         if n_ds == 1 and n_fold > 1:
-            n_ds = max(1, len({d for d, _ in self.folds_seen}))
+            # a fold "seen" either live this session or as an already-complete
+            # CSV from an earlier invocation (RESUME=1) both count towards
+            # which datasets the grid actually spans
+            datasets = {d for d, _ in self.folds_seen} | {d for d, _ in self.completed_fold_trainings}
+            n_ds = max(1, len(datasets))
         return self.per_fold_trainings() * n_fold * n_ds
 
     def counts(self) -> dict[str, int]:
@@ -435,6 +491,7 @@ class SessionState:
                 done += 1
             elif c.status == "failed":
                 failed += 1
+        done += sum(self.completed_fold_trainings.values())
         return {"running": running, "done": done, "failed": failed, "total": self.grid_size()}
 
     def eta_seconds(self) -> Optional[float]:
@@ -678,9 +735,14 @@ def render_plain(state: SessionState) -> str:
 
     ln.append("")
     ln.append("COMPLETED  (ranked by held-out test loss, else best inner-validation loss)")
+    if state.completed_fold_trainings:
+        parts = ", ".join(f"{ds} fold {f} ({n} trainings)"
+                          for (ds, f), n in sorted(state.completed_fold_trainings.items()))
+        ln.append(f"  already complete from an earlier run (RESUME=1 skipped these): {parts}")
     comp = state.completed_configs()
     if not comp:
-        ln.append("  nothing finished yet - the first config takes ~10-20 min after a fold starts")
+        if not state.completed_fold_trainings:
+            ln.append("  nothing finished yet - the first config takes ~10-20 min after a fold starts")
     else:
         ln.append(f"  {'#':>2}  {'model':<14} {'enc':<8} {'hp':<18} {'epochs':>6} "
                   f"{'loss':>10} {'mae':>10} {'train s':>8} {'params':>9}")
@@ -840,8 +902,14 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
 
     comp = state.completed_configs()
     title = "COMPLETED  —  ranked by held-out test loss (else best inner-validation loss)"
+    resumed_note = ""
+    if state.completed_fold_trainings:
+        parts = ", ".join(f"{ds} fold {f} ({n} trainings)"
+                          for (ds, f), n in sorted(state.completed_fold_trainings.items()))
+        resumed_note = f"Already complete from an earlier run (RESUME=1 skipped these): {parts}.\n"
     if not comp:
-        body = Text("No config has finished yet.\n"
+        body = Text(resumed_note +
+                    ("No other config has finished yet.\n" if resumed_note else "No config has finished yet.\n") +
                     "Per fold: 3 baselines + a 27-config SNN v_th×α×arch sweep + "
                     "1 retrain,  × 3 encodings × 5 seeds.\n"
                     "The first (LSTM-AE) result lands ~10–20 min after a fold starts.",
@@ -868,7 +936,8 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
             style=style,
         )
     extra = "" if len(comp) <= max_rows else f"   (+{len(comp) - max_rows} more — --rank N for detail)"
-    parts = [tbl, Text(f"monitor.py --rank N  for one row's full detail{extra}", style="dim")]
+    parts = ([Text(resumed_note.strip(), style="yellow")] if resumed_note else []) + \
+        [tbl, Text(f"monitor.py --rank N  for one row's full detail{extra}", style="dim")]
 
     marg = state.marginals()
     if any(any(n for _, _, n in rs) for rs in marg.values()):
@@ -1011,6 +1080,7 @@ def _drain(results_dir: str, run_tag: str) -> SessionState:
     for ev in tailer.poll():
         state.apply(ev)
     state.reconcile(tailer.mtimes, tailer.missing)
+    state.note_completed_folds(scan_completed_folds(results_dir, run_tag))
     return state
 
 
@@ -1053,6 +1123,7 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
                     for ev in tailer.poll():
                         state.apply(ev)
                     state.reconcile(tailer.mtimes, tailer.missing)
+                    state.note_completed_folds(scan_completed_folds(results_dir, run_tag))
                     live.update(render_dashboard(state, console.size.height))
                     consecutive_errors = 0
                 except Exception as exc:  # noqa: BLE001
@@ -1204,6 +1275,31 @@ def _self_test() -> int:
               "config fails immediately when its events file is removed, no STALE_SECONDS wait")
         check(not st3.live_procs(), "the removed-file proc no longer counts as live")
 
+    # RESUME=1 skips a fold whose *_comparative_metrics.csv already exists —
+    # scan_completed_folds() must credit those trainings towards "done" even
+    # though this session never saw a single live event for that fold.
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = os.path.join(td, "t_fsdd_fold0_comparative_metrics.csv")
+        with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["model", "encoding", "architecture", "v_th", "alpha", "run", "seed", "split"])
+            # two rows (val + test) of the SAME training -> must count once
+            w.writerow(["lstm-ae", "direct", "lstm", "0", "0", "1", "42", "val"])
+            w.writerow(["lstm-ae", "direct", "lstm", "0", "0", "1", "42", "test"])
+            w.writerow(["gru-ae", "direct", "gru", "0", "0", "1", "42", "val"])
+        found = scan_completed_folds(td, "t")
+        check(found == {("fsdd", 0): 2}, "scan_completed_folds counts distinct trainings, not raw rows")
+
+        st4 = SessionState()
+        st4.note_completed_folds(found)
+        check(st4.counts()["done"] == 2, "resumed fold's trainings count towards done")
+
+        # a fold THIS session watched live must not be double-counted from its CSV
+        st4.folds_seen.add(("fsdd", 0))
+        st4.note_completed_folds(found)
+        check(st4.counts()["done"] == 0,
+              "a fold seen live this session is excluded from the CSV credit (no double count)")
+
     print("\n" + ("ALL PASS" if ok else "FAILURES ABOVE"))
     return 0 if ok else 1
 
@@ -1239,6 +1335,7 @@ def main() -> int:
                 for ev in tailer.poll():
                     state.apply(ev)
                 state.reconcile(tailer.mtimes, tailer.missing)
+                state.note_completed_folds(scan_completed_folds(args.results_dir, args.run_tag))
                 state.loop_error = ""
             except Exception as exc:  # noqa: BLE001 - a transient FS race must not stop the loop
                 state.loop_error = f"{type(exc).__name__}: {exc}"
