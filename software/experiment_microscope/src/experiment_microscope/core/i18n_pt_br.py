@@ -687,7 +687,12 @@ CATALOG = {
     "<b>Model.</b> The dropdown lists every trained model for this window's fold; it\n"
     "starts on the auto-picked winner. Choose another and press <i>Run this model</i>\n"
     "to see that exact checkpoint's structure and behaviour instead — the \"Model\n"
-    "Structure\" tab updates to match whichever model is currently loaded here.\n":
+    "Structure\" tab updates to match whichever model is currently loaded here.\n"
+    "<br><br>\n"
+    "<b>Compare all</b> runs every trained model for this fold against THIS window\n"
+    "and lists each one's reconstruction error (MSE / MAE / R², best first) — so you\n"
+    "can see how all of them behave, not just whichever one is loaded. Click a row\n"
+    "to load that model above.\n":
         "\n"
         "<b>O que este painel mostra.</b> O autoencoder inteiro treinado — a metade que\n"
         "<i>comprime</i> (encoder) e a que <i>reconstrói</i> (decoder) — num só desenho,\n"
@@ -709,7 +714,12 @@ CATALOG = {
         "<b>Modelo.</b> O menu lista todo modelo treinado para a dobra desta janela;\n"
         "começa no vencedor escolhido automaticamente. Escolha outro e aperte <i>Rodar\n"
         "este modelo</i> para ver a estrutura e o comportamento exatos daquele\n"
-        "checkpoint — a aba \"Estrutura do modelo\" acompanha o que estiver carregado aqui.\n",
+        "checkpoint — a aba \"Estrutura do modelo\" acompanha o que estiver carregado aqui.\n"
+        "<br><br>\n"
+        "<b>Comparar todos</b> roda cada modelo treinado desta dobra contra ESTA janela\n"
+        "e lista o erro de reconstrução de cada um (MSE / MAE / R², melhor primeiro) —\n"
+        "assim dá pra ver como todos se comportam, não só o que está carregado. Clique\n"
+        "numa linha para carregar aquele modelo acima.\n",
     "Neuron detail": "Detalhe do neurônio",
     "Select a meeting01 window with a trained model.":
         "Selecione uma janela do meeting01 que tenha modelo treinado.",
@@ -729,6 +739,15 @@ CATALOG = {
         "{role} · {arch}/{enc} · v_th={vth} α={a} · execução {run}",
     "Pick a model from the list first.": "Escolha um modelo na lista primeiro.",
     "  — explicitly selected": "  — selecionado manualmente",
+    "Compare all": "Comparar todos",
+    "failed: {exc}": "falhou: {exc}",
+    "No trained model for this window's fold to compare.":
+        "Não há modelo treinado na dobra desta janela para comparar.",
+    "compare_models failed: {exc}": "compare_models falhou: {exc}",
+    "{n} of {total} models compared for this window, best MSE first "
+    "— double-click a row to load it above [computed]":
+        "{n} de {total} modelos comparados para esta janela, melhor MSE primeiro "
+        "— clique duas vezes numa linha para carregá-lo acima [calculado]",
     "Encoder · ": "Encoder · ",
     "Decoder · ": "Decoder · ",
     "{half}{name} — neuron {i} of {n}: activation {a}":

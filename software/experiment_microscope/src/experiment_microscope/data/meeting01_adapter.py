@@ -214,31 +214,14 @@ class Meeting01Adapter(ExperimentAdapter):
             ]
         if level == "fold":
             ds, fold = h["dataset"], h["cv_fold"]
-            evaluation = self._profile().get("evaluation") or {}
-            encs = evaluation.get("encodings", ["direct", "poisson", "latency"])
-            archs = evaluation.get("snn_architectures", ["dense", "conv1d", "recurrent"])
-            out: list[TreeNode] = []
-            for split in ("test", "val", "train"):
-                out.append(
-                    TreeNode(
-                        "dataset",
-                        f"{split} windows (held-out speaker)" if split == "test" else f"{split} windows",
-                        {"level": "windows", "dataset": ds, "cv_fold": fold, "split": split},
-                    )
+            return [
+                TreeNode(
+                    "dataset",
+                    f"{split} windows (held-out speaker)" if split == "test" else f"{split} windows",
+                    {"level": "windows", "dataset": ds, "cv_fold": fold, "split": split},
                 )
-            # SNN-AE recompute leaves (FIXME §43-B).
-            for enc in encs:
-                for arch in archs:
-                    out.append(
-                        TreeNode(
-                            "model",
-                            f"snn-ae / {arch} / {enc}",
-                            {"level": "combo", "dataset": ds, "cv_fold": fold,
-                             "encoding": enc, "architecture": arch},
-                            has_children=False,
-                        )
-                    )
-            return out
+                for split in ("test", "val", "train")
+            ]
         if level == "windows":
             try:
                 split = self._split(h["dataset"], h["cv_fold"])
@@ -246,6 +229,11 @@ class Meeting01Adapter(ExperimentAdapter):
                 return []
             metas = split[f"{h['split']}_meta"]
             n = min(len(metas), 200)  # lazy cap; FIXME §7 "do not load enormous datasets"
+            # Whether this fold has any trained model decides if a window can be
+            # drilled into further (FIXME §55 navigation fix) — a window with no
+            # model has nothing to expand into, so it stays a plain leaf instead
+            # of offering an arrow that opens onto nothing.
+            has_models = bool(self._models_for_fold(h["dataset"], h["cv_fold"]))
             return [
                 TreeNode(
                     "sample",
@@ -253,10 +241,28 @@ class Meeting01Adapter(ExperimentAdapter):
                     {"level": "window", "dataset": h["dataset"], "cv_fold": h["cv_fold"],
                      "split": h["split"], "row": i},
                     metadata=dict(m),
-                    has_children=False,
+                    has_children=has_models,
                 )
                 for i, m in enumerate(metas[:n])
             ]
+        if level == "window":
+            # Every trained model that could actually run THIS window, one
+            # child per spec (FIXME §55) — replaces the old flat grid of 9
+            # "snn-ae / arch / enc" leaves that sat under the fold and led
+            # nowhere (they carried no window, so selecting one rendered
+            # nothing). Selecting one of these carries the window along, so
+            # every view auto-runs that exact model against it immediately.
+            out = []
+            for s in self._models_for_fold(h["dataset"], h["cv_fold"]):
+                label = f"{s['architecture']} / {s['encoding']}"
+                if s.get("role") != "final":
+                    label += f" ({s.get('role', '?')} · run {s.get('run', '?')})"
+                out.append(TreeNode(
+                    "model", label,
+                    {**h, "encoding": s["encoding"], "architecture": s["architecture"]},
+                    has_children=False,
+                ))
+            return out
         return []
 
     # -- live split cache (build_split ~1s; reused across views) ----------
@@ -359,18 +365,49 @@ class Meeting01Adapter(ExperimentAdapter):
         except Exception:  # noqa: BLE001
             return False
 
+    def _models_for_fold(self, dataset: Any, fold: Any) -> list[dict[str, Any]]:
+        """Trained specs for exactly this (dataset, fold) — no cross-fold
+        fallback. Used for tree navigation and model comparison, where
+        showing a model from the wrong fold would be a silent lie about
+        which data it was ever run against; ``models_for`` (the picker
+        dropdown) falls back on purpose, this does not."""
+        return [s for s in self._snn_model_specs()
+                if s["dataset"] == dataset and s["fold"] == fold]
+
     def models_for(self, node: TreeNode) -> list[dict[str, Any]]:
         """Every trained SNN-AE spec that could run this window's fold, best
         match first — lets a view offer an explicit model picker instead of
         silently taking whichever ``load_ae_trace`` would auto-select
         (FIXME §15, §18, §19)."""
         h = getattr(node, "handle", {}) or {}
-        specs = self._snn_model_specs()
         ds, fold = h.get("dataset"), h.get("cv_fold")
         if ds is None or fold is None:
-            return specs
-        here = [s for s in specs if s["dataset"] == ds and s["fold"] == fold]
-        return here or specs
+            return self._snn_model_specs()
+        return self._models_for_fold(ds, fold) or self._snn_model_specs()
+
+    def compare_models(self, node: TreeNode) -> list[dict[str, Any]]:
+        """Run every trained model for this window's own fold against this
+        exact window and report each one's reconstruction fidelity — the
+        side-by-side view a single "Run this model" click can't give
+        (FIXME §15, §18, §19: "run any selected model" one at a time was not
+        enough to *compare* them). Never falls back to another fold's models;
+        an empty list means none exist here, not "here's something close"."""
+        h = getattr(node, "handle", {}) or {}
+        if h.get("level") != "window":
+            raise NotImplementedError("select an individual window")
+        rows: list[dict[str, Any]] = []
+        for spec in self._models_for_fold(h.get("dataset"), h.get("cv_fold")):
+            row: dict[str, Any] = {"spec": spec}
+            try:
+                trace, _spec, lif_ok = self.load_ae_trace(node, spec_override=spec)
+                original = np.asarray(trace.encoded_input).reshape(-1)
+                recon = np.asarray(trace.reconstruction).reshape(-1)
+                row["metrics"] = _recon_metrics(original, recon)
+                row["lif_params"] = lif_ok
+            except Exception as exc:  # noqa: BLE001
+                row["error"] = str(exc)
+            rows.append(row)
+        return rows
 
     def load_ae_trace(self, node: TreeNode, *, spec_override: dict[str, Any] | None = None,
                        **params: Any):

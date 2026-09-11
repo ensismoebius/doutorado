@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -69,6 +71,11 @@ fired. Click a neuron for its exact numbers. LIF = leaky integrate-and-fire neur
 starts on the auto-picked winner. Choose another and press <i>Run this model</i>
 to see that exact checkpoint's structure and behaviour instead — the "Model
 Structure" tab updates to match whichever model is currently loaded here.
+<br><br>
+<b>Compare all</b> runs every trained model for this fold against THIS window
+and lists each one's reconstruction error (MSE / MAE / R², best first) — so you
+can see how all of them behave, not just whichever one is loaded. Click a row
+to load that model above.
 """
 
 
@@ -99,6 +106,7 @@ class AutoencoderView(QWidget):
         self._rendering = False
         self._node: TreeNode | None = None
         self._specs: list[dict] = []
+        self._compare_rows: list[dict] = []
 
         root = QVBoxLayout(self)
         root.addWidget(HelpBox("Autoencoder graph", _HELP))
@@ -111,7 +119,20 @@ class AutoencoderView(QWidget):
         self._run_btn = QPushButton(_t("Run this model"))
         self._run_btn.clicked.connect(self._run_selected_model)
         model_bar.addWidget(self._run_btn)
+        self._compare_btn = QPushButton(_t("Compare all"))
+        self._compare_btn.clicked.connect(self._compare_all)
+        model_bar.addWidget(self._compare_btn)
         root.addLayout(model_bar)
+
+        self._compare_table = QTableWidget(0, 4)
+        self._compare_table.setHorizontalHeaderLabels(
+            [_t("model"), _t("MSE"), _t("MAE"), _t("R²")])
+        self._compare_table.setMaximumHeight(140)
+        self._compare_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._compare_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._compare_table.cellDoubleClicked.connect(self._on_compare_row)
+        self._compare_table.hide()
+        root.addWidget(self._compare_table)
 
         bar = QHBoxLayout()
         self._detail_cb = QCheckBox(_t("Neuron detail"))
@@ -139,6 +160,9 @@ class AutoencoderView(QWidget):
     def show_node(self, node: TreeNode, adapter_key: str) -> None:
         self._cols = None
         self._node = None
+        self._compare_rows = []
+        self._compare_table.setRowCount(0)
+        self._compare_table.hide()
         if self._plot is None:
             return
         h = getattr(node, "handle", {}) or {}
@@ -151,6 +175,69 @@ class AutoencoderView(QWidget):
         adapter = self.repo.adapter(adapter_key)
         self._populate_models(adapter, node)
         self._load_trace(adapter, node, spec_override=None)
+
+    def _compare_all(self) -> None:
+        """"Compare all" — run every trained model for this window's fold
+        against THIS window and list each one's reconstruction error, so the
+        user sees how every model behaves instead of picking one blind."""
+        if self._node is None:
+            return
+        adapter = self.repo.adapter("meeting01")
+        try:
+            rows = adapter.compare_models(self._node)
+        except (NotImplementedError, BindingUnavailableError) as exc:
+            self._readout.setText(str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            self._readout.setText(_t("compare_models failed: {exc}", exc=exc))
+            return
+        if not rows:
+            self._readout.setText(_t("No trained model for this window's fold to compare."))
+            self._compare_table.hide()
+            return
+
+        def _sort_key(r):
+            mag = r.get("metrics", {}).get("mse")
+            # MISSING/failed rows sort last, never as if MSE were 0 (FIXME §33)
+            return mag.magnitude if (mag is not None and not mag.is_missing) else float("inf")
+
+        rows.sort(key=_sort_key)
+        self._compare_rows = rows
+        self._compare_table.setRowCount(len(rows))
+        for i, row in enumerate(rows):
+            spec = row["spec"]
+            label = f"{spec['architecture']} / {spec['encoding']}"
+            if spec.get("role") != "final":
+                label += f" ({spec.get('role', '?')}·{spec.get('run', '?')})"
+            self._compare_table.setItem(i, 0, QTableWidgetItem(label))
+            if "error" in row:
+                item = QTableWidgetItem(_t("failed: {exc}", exc=row["error"]))
+                self._compare_table.setItem(i, 1, item)
+                self._compare_table.setItem(i, 2, QTableWidgetItem(""))
+                self._compare_table.setItem(i, 3, QTableWidgetItem(""))
+                continue
+            m = row["metrics"]
+            self._compare_table.setItem(i, 1, QTableWidgetItem(m["mse"].display()))
+            self._compare_table.setItem(i, 2, QTableWidgetItem(m["mae"].display()))
+            self._compare_table.setItem(i, 3, QTableWidgetItem(m["r2"].display()))
+        self._compare_table.resizeColumnsToContents()
+        self._compare_table.show()
+        n_ok = sum(1 for r in rows if "error" not in r)
+        self._readout.setText(_t(
+            "{n} of {total} models compared for this window, best MSE first "
+            "— double-click a row to load it above [computed]",
+            n=n_ok, total=len(rows)))
+
+    def _on_compare_row(self, row: int, _col: int) -> None:
+        if not (0 <= row < len(self._compare_rows)) or self._node is None:
+            return
+        spec = self._compare_rows[row]["spec"]
+        adapter = self.repo.adapter("meeting01")
+        i = next((k for k, s in enumerate(self._specs)
+                  if s.get("encoder") == spec.get("encoder")), -1)
+        if i >= 0:
+            self._model_combo.setCurrentIndex(i)
+        self._load_trace(adapter, self._node, spec_override=spec)
 
     def _populate_models(self, adapter, node: TreeNode) -> None:
         """List every trained model compatible with this window's fold so the
