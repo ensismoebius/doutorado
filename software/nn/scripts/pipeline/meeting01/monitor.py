@@ -870,23 +870,27 @@ def _panel_session(state: SessionState):  # noqa: ANN201
     g = Table.grid(padding=(0, 1))
     g.add_column(justify="left")
     if not sess:
-        g.add_row(Text("waiting for the first event... start the run with:", style="yellow"))
+        g.add_row(Text("waiting for the first event... start the run with:", style="bold yellow"))
         g.add_row(Text("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/"
                        "01_meeting01_run_loso.sh", style="dim"))
     else:
         g.add_row(Text.assemble(
-            (str(sess.get("run_tag", "?")), "bold"),
+            (" " + str(sess.get("run_tag", "?")) + " ", "bold black on bright_white"),
             (f"   seed {sess.get('seed', '?')}   backend {sess.get('backend', '?')}"
              f"   git {sess.get('git_commit', '?')}", "dim"),
         ))
+        # badges use a solid background so done/running/failed pop at a glance,
+        # not just a color change on plain text
+        failed_badge = (f" {c['failed']} FAILED ", "bold white on red") if c["failed"] \
+            else (" 0 failed ", "dim")
         g.add_row(Text.assemble(
-            (f"[{_bar(frac, 26)}] ", "cyan"),
-            (f"{c['done']} done", "green"),
-            ("  /  ", "dim"),
-            (f"{c['running']} running", "cyan"),
-            ("  /  ", "dim"),
-            (f"{c['failed']} failed", "red" if c["failed"] else "dim"),
-            (f"   of ~{c['total']} trainings", "dim"),
+            (f"[{_bar(frac, 26)}] ", "green"),
+            (f" {c['done']} done ", "bold black on green"),
+            ("  ", ""),
+            (f" {c['running']} running ", "bold black on cyan"),
+            ("  ", ""),
+            failed_badge,
+            (f"   of ~{c['total']} trainings ({frac * 100:.1f}%)", "dim"),
         ))
         g.add_row(Text(f"elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough, "
                        f"from completed-so-far rate)", style="dim"))
@@ -903,8 +907,9 @@ def _panel_session(state: SessionState):  # noqa: ANN201
         fails = [p for p in state.procs.values() if p.error]
         if fails:
             g.add_row(Text("  ".join(f"[FAILED {p.dataset} f{p.fold}] {p.error}" for p in fails),
-                           style="red"))
-    return Panel(g, title="SESSION", title_align="left", border_style="blue", padding=(0, 1))
+                           style="bold white on red"))
+    return Panel(g, title="[bold]SESSION[/bold]", title_align="left", border_style="bold blue",
+                 padding=(0, 1))
 
 
 def _panel_now(state: SessionState):  # noqa: ANN201
@@ -913,6 +918,14 @@ def _panel_now(state: SessionState):  # noqa: ANN201
     from rich.table import Table
     from rich.text import Text
 
+    def _trend_color(values: list[Optional[float]]) -> str:
+        """green if the loss fell since the first finite point, red if it rose,
+        white if flat or too few points to tell -- a loss curve reads at a glance."""
+        vals = [v for v in values if v is not None and math.isfinite(v)]
+        if len(vals) < 2:
+            return "white"
+        return "green" if vals[-1] < vals[0] else "red" if vals[-1] > vals[0] else "white"
+
     act = state.active_configs()
     if not act:
         live = state.live_procs()
@@ -920,12 +933,12 @@ def _panel_now(state: SessionState):  # noqa: ANN201
             where = ", ".join(f"{p.dataset} fold {p.fold}" for p in live)
             body = Text(f"Process alive ({where}) — starting the next config.\n"
                         "The fast SNN sweep briefly shows this between configs; "
-                        "an epoch will appear within a few seconds.", style="cyan")
+                        "an epoch will appear within a few seconds.", style="bold cyan")
         else:
             body = Text("Nothing is training right now.\n"
                         "The run may be between folds, running the Python aggregation, "
-                        "or not started yet.", style="yellow")
-        return Panel(body, title="TRAINING NOW", title_align="left",
+                        "or not started yet.", style="bold yellow")
+        return Panel(body, title="[bold]TRAINING NOW[/bold]", title_align="left",
                      border_style="grey50", padding=(0, 1))
 
     blocks = []
@@ -936,16 +949,17 @@ def _panel_now(state: SessionState):  # noqa: ANN201
         avg = a.avg_epoch_ms()
         eta_tr = (_hms((a.max_epochs - done_ep) * avg / 1000.0)
                   if avg and a.max_epochs else None)
+        bar_color = "green" if ep_frac >= 0.9 else "cyan"
         t = Table.grid(padding=(0, 1))
         t.add_column()
         hp = _hp_inline(a.hyperparams)
         t.add_row(Text.assemble(
-            (f"{a.dataset} fold {a.fold}", "bold cyan"),
+            (f" {a.dataset} fold {a.fold} ", "bold black on cyan"),
             (f"   {a.model}  {a.encoding}{('  ' + hp) if hp else ''}", "bold"),
         ))
         t.add_row(Text.assemble(
             (f"epoch {run_ep}/{a.max_epochs}  ", ""),
-            (f"[{_bar(ep_frac, 22)}] ", "cyan"),
+            (f"[{_bar(ep_frac, 22)}] ", bar_color),
             (f"{done_ep} done", "dim"),
             (f"    ~{eta_tr} left in this training" if eta_tr else "", "dim"),
         ))
@@ -960,20 +974,28 @@ def _panel_now(state: SessionState):  # noqa: ANN201
             ))
         t.add_row(Text.assemble(
             (f"train {_f(a.last_train)}    val {_f(a.last_val)}    "),
-            (f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}", "green"),
+            (f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}", "bold green"),
         ))
-        t.add_row(Text(f"gap (val - train) {_f(a.gap, 5)}    "
-                       f"no improvement for {a.no_improve} epoch(s)    "
-                       f"val loss rose {a.val_increased_epochs} of the last epochs", style="dim"))
+        # a rising count of epochs since the best val loss is a fact worth a glance,
+        # not a diagnosis -- the color only escalates how loudly it is shown.
+        no_improve_style = "bold white on red" if a.no_improve >= 6 else \
+            "bold yellow" if a.no_improve >= 3 else "dim"
+        t.add_row(Text.assemble(
+            (f"gap (val - train) {_f(a.gap, 5)}    ", "dim"),
+            (f" no improvement for {a.no_improve} epoch(s) ", no_improve_style),
+            (f"    val loss rose {a.val_increased_epochs} of the last epochs", "dim"),
+        ))
         hint = "" if len(a.epochs) >= 3 else "   (fills in as epochs complete)"
+        train_vals = [e[1] for e in a.epochs]
+        val_vals = [e[2] for e in a.epochs]
         t.add_row(Text.assemble(("train  ", "dim"),
-                                (_spark([e[1] for e in a.epochs]) or "·", "white"),
+                                (_spark(train_vals) or "·", _trend_color(train_vals)),
                                 (hint, "dim")))
         t.add_row(Text.assemble(("val    ", "dim"),
-                                (_spark([e[2] for e in a.epochs]) or "·", "white")))
+                                (_spark(val_vals) or "·", _trend_color(val_vals))))
         blocks.append(t)
-    return Panel(Group(*blocks), title="TRAINING NOW", title_align="left",
-                 border_style="cyan", padding=(0, 1))
+    return Panel(Group(*blocks), title="[bold]TRAINING NOW[/bold]", title_align="left",
+                 border_style="bold cyan", padding=(0, 1))
 
 
 def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
@@ -984,7 +1006,7 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
     from rich.text import Text
 
     comp = state.completed_configs()
-    title = "COMPLETED  —  ranked by held-out test loss (else best inner-validation loss)"
+    title = "[bold]COMPLETED[/bold]  —  ranked by held-out test loss (else best inner-validation loss)"
     resumed_note = ""
     if state.completed_fold_trainings:
         parts = ", ".join(f"{ds} fold {f} ({n} trainings)"
@@ -996,36 +1018,55 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
                     "Per fold: 3 baselines + a 27-config SNN v_th×α×arch sweep + "
                     "1 retrain,  × 3 encodings × 5 seeds.\n"
                     "The first (LSTM-AE) result lands ~10–20 min after a fold starts.",
-                    style="yellow")
+                    style="bold yellow")
         return Panel(body, title=title, title_align="left", border_style="grey50", padding=(0, 1))
 
-    tbl = Table(box=box.SIMPLE_HEAD, expand=True, pad_edge=False, header_style="bold")
+    tbl = Table(box=box.SIMPLE_HEAD, expand=True, pad_edge=False, header_style="bold magenta")
     for name, just in (("#", "right"), ("model", "left"), ("enc", "left"), ("hp", "left"),
                        ("ep", "right"), ("loss", "right"), ("kind", "left"),
                        ("mae", "right"), ("train s", "right"), ("params", "right")):
         tbl.add_column(name, justify=just, no_wrap=True)
     best_loss = comp[0].rank_val
+    # kind = which split produced this row's loss: "test" (held-out, most trustworthy),
+    # "val" (inner-validation, evaluated but not held-out), "best" (no evaluation yet,
+    # just the lowest training-time validation loss seen).
+    kind_style = {"test": "bold green", "val": "yellow", "best": "dim"}
     for i, cs in enumerate(comp[:max_rows], 1):
         m = cs.metrics.get("test") or cs.metrics.get("val") or {}
         tms = m.get("train_ms")
-        style = "green" if cs.rank_val == best_loss else ""
+        is_best = cs.rank_val == best_loss
+        # zebra striping (even rows on a faint background) makes a 10+ row table
+        # scannable at a glance; the best row overrides it with a solid highlight.
+        if is_best:
+            style = "bold black on green"
+        elif i % 2 == 0:
+            style = "on grey15"
+        else:
+            style = ""
+        rank_cell = f"★{i}" if is_best else str(i)
         tbl.add_row(
-            str(i), cs.model, cs.encoding, _hp_str(cs.hyperparams),
+            rank_cell, cs.model, cs.encoding, _hp_str(cs.hyperparams),
             str(cs.epochs_run or len(cs.epochs)),
-            _f(cs.rank_val, 6), cs.rank_val_kind,
+            _f(cs.rank_val, 6),
+            cs.rank_val_kind if is_best else Text(cs.rank_val_kind, style=kind_style.get(cs.rank_val_kind, "")),
             _f(m.get("mae"), 6),
             f"{tms / 1000:.0f}" if tms else "-",
             str(cs.param_count or "-"),
             style=style,
         )
     extra = "" if len(comp) <= max_rows else f"   (+{len(comp) - max_rows} more — --rank N for detail)"
-    parts = ([Text(resumed_note.strip(), style="yellow")] if resumed_note else []) + \
-        [tbl, Text(f"monitor.py --rank N  for one row's full detail{extra}", style="dim")]
+    parts = ([Text(resumed_note.strip(), style="bold yellow")] if resumed_note else []) + \
+        [tbl, Text.assemble(
+            ("★", "bold green"), (" = best so far.   ", "dim"),
+            (f"monitor.py --rank N  for one row's full detail{extra}   ", "dim"),
+            ("kind", "bold"), (": ", "dim"), ("test", "bold green"), ("=held-out, ", "dim"),
+            ("val", "yellow"), ("=evaluated but not held-out, ", "dim"),
+            ("best", "dim"), ("=training-time only", "dim"))]
 
     marg = state.marginals()
     if any(any(n for _, _, n in rs) for rs in marg.values()):
         mt = Table.grid(padding=(0, 2))
-        mt.add_column(style="dim")
+        mt.add_column(style="bold dim")
         mt.add_column()
         for dim, rlist in marg.items():
             cells = "   ".join(f"{label} {_f(best, 5)} (n={n})" for label, best, n in rlist if n)
@@ -1044,7 +1085,7 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
             parts.append(Text(f"  {model} {enc}: {_f(mean, 5)} ± {_f(std, 5)} "
                               f"(n={n_ok}{f', {n_fail} failed' if n_fail else ''})", style="dim"))
 
-    return Panel(Group(*parts), title=title, title_align="left", border_style="blue",
+    return Panel(Group(*parts), title=title, title_align="left", border_style="bold magenta",
                  padding=(0, 1))
 
 
@@ -1053,8 +1094,8 @@ def _panel_events(state: SessionState, n: int = 8):  # noqa: ANN201
     from rich.table import Table
     from rich.text import Text
 
-    colour = {"session_error": "red", "config_end": "green", "config_selected": "yellow",
-              "fold_begin": "cyan", "fold_end": "cyan", "train_end": "green",
+    colour = {"session_error": "bold red", "config_end": "green", "config_selected": "yellow",
+              "fold_begin": "cyan", "fold_end": "cyan", "train_end": "bold green",
               "session_begin": "magenta"}
     t = Table.grid(padding=(0, 1))
     t.add_column(style="dim", no_wrap=True)
@@ -1065,13 +1106,47 @@ def _panel_events(state: SessionState, n: int = 8):  # noqa: ANN201
         t.add_row(tt, Text(et, style=colour.get(et, "white")), s)
     if not state.events:
         t.add_row("", "", Text("(no events yet)", style="dim"))
-    return Panel(t, title="RECENT", title_align="left", border_style="blue", padding=(0, 1))
+    return Panel(t, title="[bold]RECENT[/bold]", title_align="left", border_style="bold green",
+                 padding=(0, 1))
+
+
+def _panel_legend():  # noqa: ANN201
+    """A standalone, always-visible key so no abbreviation on the dashboard ever
+    has to be guessed at -- kept as its own panel (not squeezed into SESSION)
+    so it stays legible instead of wrapping into a wall of dim text."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    t = Table.grid(padding=(0, 1))
+    t.add_column(style="bold", no_wrap=True)
+    t.add_column()
+    rows = [
+        ("val / train", "loss for the current epoch (validation / training split)"),
+        ("gap", "val − train, last epoch -- a spread, not a diagnosis"),
+        ("no improve", "epochs since best val (dim → yellow ≥3 → red ≥6)"),
+        ("best val @ep", "lowest val loss seen, and which epoch produced it"),
+        ("loss (table)", "held-out TEST once evaluated, else best inner-val"),
+        ("kind", Text.assemble(("test", "bold green"), ("=held-out  ", ""),
+                              ("val", "yellow"), ("=evaluated, not held-out  ", ""),
+                              ("best", "dim"), ("=training-time only", ""))),
+        ("★", "the best-ranked row so far"),
+        ("mae", "mean absolute error, same split as loss"),
+        ("ETA", "trainings-left / (done-so-far rate) -- rough, not a guarantee"),
+        ("~N", "approximate count (grid size can shift under RESUME)"),
+    ]
+    for label, desc in rows:
+        t.add_row(label, desc)
+    return Panel(t, title="[bold]LEGEND[/bold]", title_align="left", border_style="grey50",
+                 padding=(0, 1))
 
 
 def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
     """Full-terminal layout: SESSION and TRAINING NOW at fixed heights, COMPLETED
-    takes the slack, RECENT pinned to the bottom. Each region clips its content, so
-    a short terminal just shows fewer ranking / event rows — nothing overflows."""
+    takes the slack, a bottom row splits RECENT (left) and a standing LEGEND
+    (right) so the abbreviation key is always visible without eating into the
+    ranking table's height. Each region clips its content, so a short terminal
+    just shows fewer ranking / event rows — nothing overflows."""
     from rich.layout import Layout
     from rich.panel import Panel
 
@@ -1089,7 +1164,11 @@ def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
         Layout(_safe(_panel_session, state), name="session", size=7),
         Layout(_safe(_panel_now, state), name="now", size=11),
         Layout(_safe(_panel_ranking, state, rank_rows), name="done", ratio=1, minimum_size=5),
-        Layout(_safe(_panel_events, state, ev_rows), name="recent", size=ev_rows + 2),
+        Layout(name="bottom", size=ev_rows + 2),
+    )
+    root["bottom"].split_row(
+        Layout(_safe(_panel_events, state, ev_rows), name="recent", ratio=2),
+        Layout(_safe(_panel_legend), name="legend", ratio=1, minimum_size=26),
     )
     return root
 
