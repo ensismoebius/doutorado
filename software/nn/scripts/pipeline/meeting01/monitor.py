@@ -32,7 +32,11 @@ and re-attach at any time. Ctrl-C to exit.
 Modes
   (default)      live dashboard (needs `rich`, in scripts/requirements.txt)
   --plain        periodic plain-text snapshots; also automatic when stdout is not a
-                 TTY (CI / redirect / `| tee`).  --once prints one snapshot.
+                 TTY (CI / redirect / `| tee`).  --once prints one snapshot.  Colored
+                 automatically when the terminal supports it; a legend at the bottom
+                 spells out every abbreviation (val, gap, ETA, mae, ...).
+  --color        force ANSI colors in --plain output even when piped (`| less -R`).
+  --no-color     disable ANSI colors in --plain output (also honors $NO_COLOR).
   --rank N       print the full detail of completed config #N (as ranked) and exit.
   --self-test    synthetic known-answer checks of the aggregator; stdlib only; CI-safe.
 
@@ -563,6 +567,53 @@ class SessionState:
 
 
 # --------------------------------------------------------------------------------------
+# color (ANSI) -- the --plain renderer only; the --rich dashboard (default, TTY) has
+# its own styling via `rich`. Off by default whenever stdout is not a terminal (a
+# redirect, `| tee`, CI) so a log file never fills up with escape codes; --color
+# forces it on (e.g. piping through `less -R`), --no-color forces it off, and the
+# NO_COLOR env var (https://no-color.org) is honored the same as --no-color.
+# --------------------------------------------------------------------------------------
+_ANSI = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33",
+         "blue": "34", "magenta": "35", "cyan": "36", "white": "37"}
+_COLOR_ENABLED = sys.stdout.isatty()
+
+
+def _set_color(enabled: bool) -> None:
+    global _COLOR_ENABLED
+    _COLOR_ENABLED = enabled
+
+
+def _c(text: str, *styles: str) -> str:
+    """Wrap `text` in ANSI SGR codes, or return it verbatim when color is off."""
+    if not _COLOR_ENABLED or not text:
+        return text
+    return f"\033[{';'.join(_ANSI[s] for s in styles)}m{text}\033[0m"
+
+
+_EVENT_COLOR = {"session_error": ("red", "bold"), "config_end": ("green",),
+                "config_selected": ("yellow",), "fold_begin": ("cyan",),
+                "fold_end": ("cyan",), "train_end": ("green",),
+                "session_begin": ("magenta",)}
+
+
+def _legend() -> list[str]:
+    """One block of plain-English definitions for every abbreviation the dashboard
+    uses, so a reader never has to guess what a column or field means."""
+    return [
+        "legend",
+        "  val / train        = validation / training loss for the current epoch",
+        "  gap(val-train)      = val loss minus train loss, last epoch (a spread, not a diagnosis)",
+        "  no improvement N ep = epochs since the best validation loss so far",
+        "  best val @ ep K     = lowest validation loss seen, and which epoch produced it",
+        "  loss (COMPLETED)    = held-out TEST loss once evaluated, else the best inner-",
+        "                        validation loss reached during the sweep (see the kind column",
+        "                        in --rank / the rich dashboard)",
+        "  mae                 = mean absolute error, same split as the loss column",
+        "  ETA                 = trainings-remaining / (done-so-far / elapsed) -- a rough",
+        "                        linear projection, not a guarantee",
+        "  ~N                  = an approximate count (the grid size can shift with RESUME)",
+    ]
+# --------------------------------------------------------------------------------------
 # formatting helpers
 # --------------------------------------------------------------------------------------
 def _f(x: Optional[float], nd: int = 6) -> str:
@@ -693,80 +744,112 @@ def render_plain(state: SessionState) -> str:
     sess = state.session
     c = state.counts()
     elapsed = time.time() - state.started_wall if state.started_wall else None
-    ln.append(f"SESSION  {sess.get('run_tag', '?')}  seed {sess.get('seed', '?')}  "
+    total = max(1, c["total"])
+    frac = c["done"] / total
+
+    if not sess:
+        ln.append(_c("SESSION", "bold", "blue") +
+                  "  waiting for the first event... start the run with:")
+        ln.append(_c("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/"
+                     "01_meeting01_run_loso.sh", "dim"))
+        return "\n".join(ln)
+
+    done_txt = _c(f"{c['done']} done", "bold", "green")
+    running_txt = _c(f"{c['running']} running", "cyan")
+    failed_txt = _c(f"{c['failed']} failed", "bold", "red") if c["failed"] else _c("0 failed", "dim")
+    ln.append(_c("SESSION", "bold", "blue") +
+              f"  {_c(str(sess.get('run_tag', '?')), 'bold')}  seed {sess.get('seed', '?')}  "
               f"backend {sess.get('backend', '?')}  git {sess.get('git_commit', '?')}")
-    ln.append(f"  done {c['done']}   running {c['running']}   failed {c['failed']}   "
+    ln.append(f"  [{_c(_bar(frac, 26), 'cyan')}]  {done_txt}   {running_txt}   {failed_txt}   "
               f"of ~{c['total']}   elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough)")
     for proc in state.procs.values():
         if proc.error:
-            ln.append(f"  FAILED  {proc.dataset} fold{proc.fold}: {proc.error}")
+            ln.append(_c(f"  FAILED  {proc.dataset} fold{proc.fold}: {proc.error}", "bold", "red"))
     if state.loop_error:
-        ln.append(f"  poll error (retrying): {state.loop_error}")
+        ln.append(_c(f"  poll error (retrying): {state.loop_error}", "yellow"))
 
     ln.append("")
-    ln.append("TRAINING NOW")
+    ln.append(_c("TRAINING NOW", "bold", "cyan"))
     act = state.active_configs()
     if not act:
         live = state.live_procs()
         if live:
             where = ", ".join(f"{p.dataset} fold {p.fold}" for p in live)
-            ln.append(f"  process alive ({where}) — starting the next config "
-                      "(no epoch reported yet)")
+            ln.append(_c(f"  process alive ({where}) — starting the next config "
+                        "(no epoch reported yet)", "dim"))
         else:
-            ln.append("  nothing training right now (between folds / aggregating / not started)")
+            ln.append(_c("  nothing training right now (between folds / aggregating / "
+                        "not started)", "dim"))
     for a in act[:6]:
         done_ep = len(a.epochs)
         run_ep = a.cur_progress_epoch or (done_ep + 1)
         ep_frac = done_ep / a.max_epochs if a.max_epochs else 0.0
-        ln.append(f"  {a.dataset} fold {a.fold}  {a.model} {a.encoding} "
+        where_txt = _c(f"{a.dataset} fold {a.fold}", "bold", "cyan")
+        ln.append(f"  {where_txt}  {a.model} {a.encoding} "
                   f"{_hp_inline(a.hyperparams)}".rstrip())
-        ln.append(f"    epoch {run_ep}/{a.max_epochs} [{_bar(ep_frac)}] {done_ep} done")
+        ln.append(f"    epoch {run_ep}/{a.max_epochs} [{_c(_bar(ep_frac), 'cyan')}] {done_ep} done")
         if a.cur_total_batches > 1:
             eta_e = _hms(a.cur_epoch_eta_s) if (a.cur_epoch_eta_s or 0) > 0 else "?"
             bl = f"   loss {_f(a.cur_batch_loss, 5)}" if a.cur_batch_loss is not None else ""
             ln.append(f"    batch {a.cur_batch}/{a.cur_total_batches} "
-                      f"[{_bar(a.cur_batch_frac)}] {a.cur_batch_frac * 100:.0f}%{bl}"
+                      f"[{_c(_bar(a.cur_batch_frac), 'green')}] {a.cur_batch_frac * 100:.0f}%{bl}"
                       f"   ~{eta_e} left this epoch")
+        no_improve_style = ("bold", "red") if a.no_improve >= 6 else \
+            ("yellow",) if a.no_improve >= 3 else ("dim",)
+        best_val_txt = _c(_f(a.running_best_val), "bold", "green")
+        no_improve_txt = _c(f"no improvement {a.no_improve} ep", *no_improve_style)
         ln.append(f"    train {_f(a.last_train)}   val {_f(a.last_val)}   "
-                  f"best val {_f(a.running_best_val)} @ ep {a.running_best_epoch}   "
-                  f"gap(val-train) {_f(a.gap, 5)}   no improvement {a.no_improve} ep")
-        ln.append(f"    train {_spark([e[1] for e in a.epochs])}")
-        ln.append(f"    val   {_spark([e[2] for e in a.epochs])}")
+                  f"best val {best_val_txt} @ ep {a.running_best_epoch}   "
+                  f"gap(val-train) {_f(a.gap, 5)}   {no_improve_txt}")
+        ln.append(f"    train {_c(_spark([e[1] for e in a.epochs]), 'white')}")
+        ln.append(f"    val   {_c(_spark([e[2] for e in a.epochs]), 'white')}")
 
     ln.append("")
-    ln.append("COMPLETED  (ranked by held-out test loss, else best inner-validation loss)")
+    ln.append(_c("COMPLETED", "bold", "blue") +
+              "  (ranked by held-out test loss, else best inner-validation loss)")
     if state.completed_fold_trainings:
         parts = ", ".join(f"{ds} fold {f} ({n} trainings)"
                           for (ds, f), n in sorted(state.completed_fold_trainings.items()))
-        ln.append(f"  already complete from an earlier run (RESUME=1 skipped these): {parts}")
+        ln.append(_c(f"  already complete from an earlier run (RESUME=1 skipped these): {parts}",
+                    "yellow"))
     comp = state.completed_configs()
     if not comp:
         if not state.completed_fold_trainings:
-            ln.append("  nothing finished yet - the first config takes ~10-20 min after a fold starts")
+            ln.append(_c("  nothing finished yet - the first config takes ~10-20 min after "
+                        "a fold starts", "dim"))
     else:
-        ln.append(f"  {'#':>2}  {'model':<14} {'enc':<8} {'hp':<18} {'epochs':>6} "
+        header = (f"  {'#':>2}  {'model':<14} {'enc':<8} {'hp':<18} {'epochs':>6} "
                   f"{'loss':>10} {'mae':>10} {'train s':>8} {'params':>9}")
+        ln.append(_c(header, "dim"))
+        best_loss = comp[0].rank_val
         for i, cs in enumerate(comp[:14], 1):
             m = cs.metrics.get("test") or cs.metrics.get("val") or {}
             tms = m.get("train_ms")
-            ln.append(f"  {i:>2}  {cs.model:<14} {cs.encoding:<8} {_hp_str(cs.hyperparams):<18} "
-                      f"{cs.epochs_run or len(cs.epochs):>6} {_f(cs.rank_val, 6):>10} "
-                      f"{_f(m.get('mae'), 6):>10} "
-                      f"{(f'{tms / 1000:.0f}' if tms else '-'):>8} {str(cs.param_count or '-'):>9}")
+            row = (f"  {i:>2}  {cs.model:<14} {cs.encoding:<8} {_hp_str(cs.hyperparams):<18} "
+                  f"{cs.epochs_run or len(cs.epochs):>6} {_f(cs.rank_val, 6):>10} "
+                  f"{_f(m.get('mae'), 6):>10} "
+                  f"{(f'{tms / 1000:.0f}' if tms else '-'):>8} {str(cs.param_count or '-'):>9}")
+            ln.append(_c(row, "bold", "green") if cs.rank_val == best_loss else row)
 
     agg = [r for r in state.aggregation() if r[4] >= 2]
     if agg:
         ln.append("")
-        ln.append("MEAN +/- STD  of loss over completed seeds x folds")
+        ln.append(_c("MEAN +/- STD", "bold", "blue") + "  of loss over completed seeds x folds")
         for model, enc, mean, std, n_ok, n_fail in agg:
+            fail_txt = _c(f", {n_fail} failed", "red") if n_fail else ""
             ln.append(f"  {model:<14} {enc:<8}  {_f(mean, 6)} +/- {_f(std, 6)}  "
-                      f"(n={n_ok}{f', {n_fail} failed' if n_fail else ''})")
+                      f"(n={n_ok}{fail_txt})")
 
     ln.append("")
-    ln.append("RECENT")
+    ln.append(_c("RECENT", "bold", "blue"))
     for ev in list(state.events)[-8:]:
         t, et, s = _event_line(ev)
-        ln.append(f"  {t}  {et:<15} {s}")
+        et_txt = _c(f"{et:<15}", *_EVENT_COLOR.get(et, ("white",)))
+        ln.append(f"  {_c(t, 'dim')}  {et_txt} {s}")
+
+    ln.append("")
+    for legend_line in _legend():
+        ln.append(_c(legend_line, "dim"))
     return "\n".join(ln)
 
 
@@ -1143,6 +1226,8 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
 # self-test
 # --------------------------------------------------------------------------------------
 def _self_test() -> int:
+    _set_color(False)  # deterministic text for the substring checks below
+
     def ev(**kw: Any) -> dict[str, Any]:
         kw.setdefault("v", 1)
         kw.setdefault("ts_unix", time.time())
@@ -1316,10 +1401,22 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="--plain: print one snapshot and exit")
     ap.add_argument("--rank", type=int, metavar="N",
                     help="print completed config #N's full detail and exit")
+    ap.add_argument("--color", action="store_true",
+                    help="force ANSI colors in --plain output even when stdout is not a TTY "
+                         "(e.g. piping through `less -R`)")
+    ap.add_argument("--no-color", action="store_true",
+                    help="disable ANSI colors in --plain output (also honors the NO_COLOR "
+                         "env var, https://no-color.org)")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
+    if args.color:
+        _set_color(True)
+    elif args.no_color or os.environ.get("NO_COLOR") is not None:
+        _set_color(False)
+
     if args.self_test:
+        _set_color(False)  # deterministic text for the substring checks below
         return _self_test()
     if args.rank is not None:
         return run_detail(args.results_dir, args.run_tag, args.rank)
