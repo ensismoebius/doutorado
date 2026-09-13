@@ -303,6 +303,31 @@ class ProcState:
         return self.started and (now - file_mtime) > STALE_SECONDS
 
 
+@dataclass
+class FoldCell:
+    """One (dataset, fold)'s progress for the fold x dataset overview panel."""
+    done: int = 0
+    running: int = 0
+    failed: int = 0
+    total: int = 0
+
+    @property
+    def frac(self) -> float:
+        """Fraction of this fold's expected trainings that are done, 0.0-1.0."""
+        return self.done / self.total if self.total else 0.0
+
+    @property
+    def status(self) -> str:
+        """One headline state to color the cell by: 'failed' (any failure seen,
+        regardless of how much else finished), 'done' (every expected training
+        finished), 'running' (some progress but not finished), or 'unstarted'."""
+        if self.failed:
+            return "failed"
+        if self.total and self.done >= self.total:
+            return "done"
+        if self.running or self.done:
+            return "running"
+        return "unstarted"
 class SessionState:
     def __init__(self) -> None:
         self.session: dict[str, Any] = {}
@@ -485,6 +510,28 @@ class SessionState:
             datasets = {d for d, _ in self.folds_seen} | {d for d, _ in self.completed_fold_trainings}
             n_ds = max(1, len(datasets))
         return self.per_fold_trainings() * n_fold * n_ds
+
+    def fold_grid(self) -> dict[tuple[str, int], FoldCell]:
+        """Per (dataset, fold) rollup of done/running/failed trainings out of
+        that fold's expected total -- feeds the fold x dataset overview panel,
+        the one place the dashboard shows the WHOLE nested-LOSO sweep's state
+        instead of just whichever fold happens to be training right now.
+        Combines this session's live configs with the same scan_completed_folds()
+        credit counts() uses, so the two panels never disagree."""
+        total = self.per_fold_trainings()
+        grid: dict[tuple[str, int], FoldCell] = {}
+        for cfg in self.configs.values():
+            cell = grid.setdefault((cfg.dataset, cfg.fold), FoldCell(total=total))
+            if cfg.status == "done":
+                cell.done += 1
+            elif cfg.status == "running":
+                cell.running += 1
+            elif cfg.status == "failed":
+                cell.failed += 1
+        for key, n_done in self.completed_fold_trainings.items():
+            cell = grid.setdefault(key, FoldCell(total=total))
+            cell.done += n_done
+        return grid
 
     def counts(self) -> dict[str, int]:
         running = done = failed = 0
@@ -671,6 +718,16 @@ def _bar(frac: float, width: int = 22) -> str:
 
 
 def _ascii_plot(values: list[Optional[float]], width: int = 56, height: int = 8) -> list[str]:
+    """A filled area chart (Unicode eighth-blocks, one full column of shading
+    per point) with the min/max labelled on the bottom/top row.
+
+    Deliberately NOT one '*' per column at its own row: at a small height
+    (the dashboard's 4-row TRAINING NOW chart) that scatter renders as
+    disconnected dots with mostly-blank rows between them -- unreadable. A
+    filled column reads as a shape at any height, 4 rows or 8, because the
+    column *below* each value is shaded too, not just the single row nearest
+    the value's height.
+    """
     vals = [v for v in values if v is not None and math.isfinite(v)]
     if len(vals) < 2:
         return ["(not enough points yet)"]
@@ -679,14 +736,19 @@ def _ascii_plot(values: list[Optional[float]], width: int = 56, height: int = 8)
         vals = [vals[min(len(vals) - 1, int(i * step))] for i in range(width)]
     lo, hi = min(vals), max(vals)
     rng = hi - lo or 1.0
-    grid = [[" "] * len(vals) for _ in range(height)]
-    for x, v in enumerate(vals):
-        y = height - 1 - int((v - lo) / rng * (height - 1))
-        grid[y][x] = "*"
+    blocks = " ▁▂▃▄▅▆▇█"
+    units = height * 8
+    filled_units = [max(0, min(units, round((v - lo) / rng * units))) for v in vals]
+    rows = []
+    for row in range(height):
+        row_from_bottom = height - 1 - row
+        floor = row_from_bottom * 8
+        rows.append("".join(blocks[max(0, min(8, u - floor))] for u in filled_units))
     pad = len(f"{hi:.4f} ")
-    rows = [f"{hi:.4f} " + "".join(grid[0])]
-    rows += [" " * pad + "".join(r) for r in grid[1:]]
-    rows.append(f"{lo:.4f} ".rjust(pad) + " " * len(vals))
+    rows[0] = f"{hi:.4f} " + rows[0]
+    for i in range(1, height - 1):
+        rows[i] = " " * pad + rows[i]
+    rows[-1] = f"{lo:.4f} ".rjust(pad) + rows[-1]
     return rows
 
 
@@ -856,7 +918,77 @@ def render_plain(state: SessionState) -> str:
 # --------------------------------------------------------------------------------------
 # rich renderers
 # --------------------------------------------------------------------------------------
-def _panel_session(state: SessionState):  # noqa: ANN201
+@dataclass
+class DashboardUI:
+    """Live-dashboard-only state a hotkey can change: never touched by
+    SessionState/render_plain, so --plain and --once stay pure functions of the
+    event stream. paused freezes polling (rendering + hotkeys keep working);
+    model_filter/fold_focus narrow COMPLETED / TRAINING NOW / the fold grid."""
+    paused: bool = False
+    model_filter: Optional[str] = None
+    fold_focus: Optional[tuple[str, int]] = None
+
+    def cycle_model_filter(self, state: SessionState, step: int = 1) -> None:
+        """Advance model_filter by `step` through [None, *sorted distinct models
+        seen], wrapping around -- None means "no filter"."""
+        models = sorted({c.model for c in state.configs.values()})
+        choices: list[Optional[str]] = [None] + models
+        i = choices.index(self.model_filter) if self.model_filter in choices else 0
+        self.model_filter = choices[(i + step) % len(choices)]
+
+    def cycle_fold_focus(self, state: SessionState, step: int = 1) -> None:
+        """Advance fold_focus by `step` through [None, *sorted (dataset, fold)
+        pairs in state.fold_grid()], wrapping around -- None means "no focus"."""
+        folds = sorted(state.fold_grid().keys())
+        choices: list[Optional[tuple[str, int]]] = [None] + folds
+        i = choices.index(self.fold_focus) if self.fold_focus in choices else 0
+        self.fold_focus = choices[(i + step) % len(choices)]
+
+    def clear(self) -> None:
+        """Drop both filters (the 'c' hotkey) -- paused is untouched."""
+        self.model_filter = None
+        self.fold_focus = None
+
+
+class _KeyReader:
+    """Non-blocking single-key reads from a TTY stdin for the live dashboard's
+    hotkeys (p pause, f/F cycle model filter, [/] cycle fold focus, c clear,
+    q quit). Uses cbreak mode (stdlib termios/tty), not raw, so Ctrl-C still
+    raises KeyboardInterrupt normally. A complete no-op (poll() always returns
+    "") when stdin is not a terminal (CI, a pipe, `--once`'s non-dashboard path)
+    -- the dashboard must never require a keyboard to run."""
+
+    def __init__(self) -> None:
+        """Detect once whether stdin is a TTY; every other method is a no-op
+        when it is not, so this never needs to raise."""
+        self._enabled = sys.stdin.isatty()
+        self._fd: Optional[int] = None
+        self._old: Optional[list[Any]] = None
+
+    def __enter__(self) -> "_KeyReader":
+        """Switch stdin to cbreak mode (no line buffering, no local echo)."""
+        if self._enabled:
+            import termios
+            import tty
+            self._fd = sys.stdin.fileno()
+            self._old = termios.tcgetattr(self._fd)
+            tty.setcbreak(self._fd)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        """Restore stdin's original terminal settings, even on an exception."""
+        if self._enabled and self._old is not None:
+            import termios
+            termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old)
+
+    def poll(self) -> str:
+        """One buffered keystroke if one is waiting, else "" -- never blocks."""
+        if not self._enabled:
+            return ""
+        import select
+        ready, _, _ = select.select([sys.stdin], [], [], 0)
+        return sys.stdin.read(1) if ready else ""
+def _panel_session(state: SessionState, ui: Optional[DashboardUI] = None):  # noqa: ANN201
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
@@ -874,11 +1006,14 @@ def _panel_session(state: SessionState):  # noqa: ANN201
         g.add_row(Text("  EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/"
                        "01_meeting01_run_loso.sh", style="dim"))
     else:
-        g.add_row(Text.assemble(
+        header = Text.assemble(
             (" " + str(sess.get("run_tag", "?")) + " ", "bold black on bright_white"),
             (f"   seed {sess.get('seed', '?')}   backend {sess.get('backend', '?')}"
              f"   git {sess.get('git_commit', '?')}", "dim"),
-        ))
+        )
+        if ui and ui.paused:
+            header.append_text(Text("  PAUSED ", style="bold black on yellow"))
+        g.add_row(header)
         # badges use a solid background so done/running/failed pop at a glance,
         # not just a color change on plain text
         failed_badge = (f" {c['failed']} FAILED ", "bold white on red") if c["failed"] \
@@ -908,11 +1043,19 @@ def _panel_session(state: SessionState):  # noqa: ANN201
         if fails:
             g.add_row(Text("  ".join(f"[FAILED {p.dataset} f{p.fold}] {p.error}" for p in fails),
                            style="bold white on red"))
+        g.add_row(Text.assemble(
+            ("keys: ", "bold dim"),
+            ("p", "bold"), (" pause/resume   ", "dim"),
+            ("f", "bold"), ("/", "dim"), ("F", "bold"), (" cycle model filter   ", "dim"),
+            ("[", "bold"), ("/", "dim"), ("]", "bold"), (" cycle fold focus   ", "dim"),
+            ("c", "bold"), (" clear filters   ", "dim"),
+            ("q", "bold"), (" quit", "dim"),
+        ))
     return Panel(g, title="[bold]SESSION[/bold]", title_align="left", border_style="bold blue",
                  padding=(0, 1))
 
 
-def _panel_now(state: SessionState):  # noqa: ANN201
+def _panel_now(state: SessionState, ui: Optional[DashboardUI] = None):  # noqa: ANN201
     from rich.console import Group
     from rich.panel import Panel
     from rich.table import Table
@@ -927,9 +1070,15 @@ def _panel_now(state: SessionState):  # noqa: ANN201
         return "green" if vals[-1] < vals[0] else "red" if vals[-1] > vals[0] else "white"
 
     act = state.active_configs()
+    if ui and ui.fold_focus:
+        act = [a for a in act if (a.dataset, a.fold) == ui.fold_focus]
     if not act:
         live = state.live_procs()
-        if live:
+        if ui and ui.fold_focus:
+            body = Text(f"Nothing training in fold focus {ui.fold_focus[0]} fold "
+                        f"{ui.fold_focus[1]} right now.\nPress [ or ] to change focus, "
+                        "c to clear it.", style="bold yellow")
+        elif live:
             where = ", ".join(f"{p.dataset} fold {p.fold}" for p in live)
             body = Text(f"Process alive ({where}) — starting the next config.\n"
                         "The fast SNN sweep briefly shows this between configs; "
@@ -942,7 +1091,7 @@ def _panel_now(state: SessionState):  # noqa: ANN201
                      border_style="grey50", padding=(0, 1))
 
     blocks = []
-    for a in act[:3]:
+    for idx, a in enumerate(act[:3]):
         done_ep = len(a.epochs)
         run_ep = a.cur_progress_epoch or (done_ep + 1)
         ep_frac = done_ep / a.max_epochs if a.max_epochs else 0.0
@@ -985,20 +1134,32 @@ def _panel_now(state: SessionState):  # noqa: ANN201
             (f" no improvement for {a.no_improve} epoch(s) ", no_improve_style),
             (f"    val loss rose {a.val_increased_epochs} of the last epochs", "dim"),
         ))
-        hint = "" if len(a.epochs) >= 3 else "   (fills in as epochs complete)"
         train_vals = [e[1] for e in a.epochs]
         val_vals = [e[2] for e in a.epochs]
-        t.add_row(Text.assemble(("train  ", "dim"),
-                                (_spark(train_vals) or "·", _trend_color(train_vals)),
-                                (hint, "dim")))
-        t.add_row(Text.assemble(("val    ", "dim"),
-                                (_spark(val_vals) or "·", _trend_color(val_vals))))
+        if idx == 0:
+            # the primary (most-recently-active) training gets the full-height
+            # line chart (reuses _ascii_plot, the same renderer --rank N uses --
+            # one chart implementation, not a second one); the rest fall back to
+            # a one-line sparkline so 2-3 concurrent folds don't blow the layout.
+            for label, vals in (("train", train_vals), ("val", val_vals)):
+                color = _trend_color(vals)
+                t.add_row(Text(f"{label} loss:", style="dim"))
+                for row in _ascii_plot(vals, width=44, height=4):
+                    t.add_row(Text(row, style=color))
+        else:
+            hint = "" if len(a.epochs) >= 3 else "   (fills in as epochs complete)"
+            t.add_row(Text.assemble(("train  ", "dim"),
+                                    (_spark(train_vals) or "·", _trend_color(train_vals)),
+                                    (hint, "dim")))
+            t.add_row(Text.assemble(("val    ", "dim"),
+                                    (_spark(val_vals) or "·", _trend_color(val_vals))))
         blocks.append(t)
     return Panel(Group(*blocks), title="[bold]TRAINING NOW[/bold]", title_align="left",
                  border_style="bold cyan", padding=(0, 1))
 
 
-def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
+def _panel_ranking(state: SessionState, max_rows: int = 12,
+                   ui: Optional[DashboardUI] = None):  # noqa: ANN201
     from rich import box
     from rich.console import Group
     from rich.panel import Panel
@@ -1006,20 +1167,31 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
     from rich.text import Text
 
     comp = state.completed_configs()
-    title = "[bold]COMPLETED[/bold]  —  ranked by held-out test loss (else best inner-validation loss)"
+    filter_bits = []
+    if ui and ui.model_filter:
+        comp = [c for c in comp if c.model == ui.model_filter]
+        filter_bits.append(f"model={ui.model_filter}")
+    if ui and ui.fold_focus:
+        comp = [c for c in comp if (c.dataset, c.fold) == ui.fold_focus]
+        filter_bits.append(f"fold={ui.fold_focus[0]} f{ui.fold_focus[1]}")
+    filter_note = f"  [yellow](filtered: {', '.join(filter_bits)} -- press c to clear)[/yellow]" \
+        if filter_bits else ""
+    title = ("[bold]COMPLETED[/bold]  —  ranked by held-out test loss "
+            f"(else best inner-validation loss){filter_note}")
     resumed_note = ""
     if state.completed_fold_trainings:
         parts = ", ".join(f"{ds} fold {f} ({n} trainings)"
                           for (ds, f), n in sorted(state.completed_fold_trainings.items()))
         resumed_note = f"Already complete from an earlier run (RESUME=1 skipped these): {parts}.\n"
     if not comp:
-        body = Text(resumed_note +
-                    ("No other config has finished yet.\n" if resumed_note else "No config has finished yet.\n") +
-                    "Per fold: 3 baselines + a 27-config SNN v_th×α×arch sweep + "
-                    "1 retrain,  × 3 encodings × 5 seeds.\n"
-                    "The first (LSTM-AE) result lands ~10–20 min after a fold starts.",
-                    style="bold yellow")
-        return Panel(body, title=title, title_align="left", border_style="grey50", padding=(0, 1))
+        msg = "No config matches the current filter.\n" if filter_bits else \
+            (resumed_note +
+             ("No other config has finished yet.\n" if resumed_note else "No config has finished yet.\n") +
+             "Per fold: 3 baselines + a 27-config SNN v_th×α×arch sweep + "
+             "1 retrain,  × 3 encodings × 5 seeds.\n"
+             "The first (LSTM-AE) result lands ~10–20 min after a fold starts.")
+        return Panel(Text(msg, style="bold yellow"), title=title, title_align="left",
+                     border_style="grey50", padding=(0, 1))
 
     tbl = Table(box=box.SIMPLE_HEAD, expand=True, pad_edge=False, header_style="bold magenta")
     for name, just in (("#", "right"), ("model", "left"), ("enc", "left"), ("hp", "left"),
@@ -1089,6 +1261,44 @@ def _panel_ranking(state: SessionState, max_rows: int = 12):  # noqa: ANN201
                  padding=(0, 1))
 
 
+def _panel_fold_grid(state: SessionState, dash_ui: Optional[DashboardUI] = None):  # noqa: ANN201
+    """One row per dataset, one cell per fold: the whole nested-LOSO sweep's
+    state at a glance -- which folds are done, mid-run, stuck, or not started
+    yet -- instead of only whichever fold TRAINING NOW happens to show. Press
+    [ / ] to focus one cell (narrows TRAINING NOW + COMPLETED to it), c clears."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    grid = state.fold_grid()
+    n_fold = int(state.session.get("cv_num_folds", 1) or 1)
+    datasets = sorted({dataset for dataset, _ in grid} |
+                      set(state.session.get("all_datasets", []) or []))
+    if not datasets or n_fold <= 1:
+        body = Text("Single fold (or no session yet) -- nothing to overview.", style="dim")
+        return Panel(body, title="[bold]FOLD GRID[/bold]", title_align="left",
+                     border_style="grey50", padding=(0, 1))
+
+    cell_style = {"done": "bold black on green", "running": "bold black on cyan",
+                 "failed": "bold white on red", "unstarted": "dim"}
+    cell_char = {"done": "done", "running": "run ", "failed": "FAIL", "unstarted": " -- "}
+    tbl = Table.grid(padding=(0, 1))
+    tbl.add_column(style="bold", no_wrap=True)
+    for _ in range(n_fold):
+        tbl.add_column(justify="center", no_wrap=True)
+    for dataset in datasets:
+        row: list[Any] = [dataset]
+        for fold in range(n_fold):
+            cell = grid.get((dataset, fold))
+            status = cell.status if cell else "unstarted"
+            pct = f"{cell.frac * 100:3.0f}%" if cell and cell.total else "  - "
+            style = cell_style[status]
+            if dash_ui and dash_ui.fold_focus == (dataset, fold):
+                style += " underline"
+            row.append(Text(f" f{fold} {cell_char[status]} {pct} ", style=style))
+        tbl.add_row(*row)
+    return Panel(tbl, title="[bold]FOLD GRID[/bold]  —  every (dataset, fold) in the sweep",
+                 title_align="left", border_style="bold yellow", padding=(0, 1))
 def _panel_events(state: SessionState, n: int = 8):  # noqa: ANN201
     from rich.panel import Panel
     from rich.table import Table
@@ -1141,14 +1351,18 @@ def _panel_legend():  # noqa: ANN201
                  padding=(0, 1))
 
 
-def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
-    """Full-terminal layout: SESSION and TRAINING NOW at fixed heights, COMPLETED
-    takes the slack, a bottom row splits RECENT (left) and a standing LEGEND
-    (right) so the abbreviation key is always visible without eating into the
-    ranking table's height. Each region clips its content, so a short terminal
-    just shows fewer ranking / event rows — nothing overflows."""
+def render_dashboard(state: SessionState, height: int = 40,
+                     dash_ui: Optional[DashboardUI] = None):  # noqa: ANN201
+    """Full-terminal layout: SESSION (identity + counters + hotkeys) and
+    TRAINING NOW (the active fold's full loss chart) at fixed heights, a FOLD
+    GRID row overviews the whole nested-LOSO sweep, COMPLETED takes the slack,
+    and a bottom row splits RECENT (left) and a standing LEGEND (right). Each
+    region clips its content, so a short terminal just shows fewer ranking /
+    event rows — nothing overflows."""
     from rich.layout import Layout
     from rich.panel import Panel
+
+    dash_ui = dash_ui or DashboardUI()
 
     def _safe(fn, *a):  # noqa: ANN001
         try:
@@ -1156,14 +1370,19 @@ def render_dashboard(state: SessionState, height: int = 40):  # noqa: ANN201
         except Exception as exc:  # noqa: BLE001
             return Panel(f"[red]panel error:[/red] {exc}", border_style="red")
 
-    ev_rows = max(3, min(9, height - 26))
-    rank_rows = max(3, height - 12 - ev_rows - 12)
+    ev_rows = max(3, min(9, height - 34))
+    grid = state.fold_grid()
+    datasets = {ds for ds, _ in grid} | set(state.session.get("all_datasets", []) or [])
+    n_fold = int(state.session.get("cv_num_folds", 1) or 1)
+    grid_size = (max(1, len(datasets)) + 2) if n_fold > 1 else 3
+    rank_rows = max(3, height - 8 - 19 - grid_size - (ev_rows + 2) - 2)
 
     root = Layout()
     root.split_column(
-        Layout(_safe(_panel_session, state), name="session", size=7),
-        Layout(_safe(_panel_now, state), name="now", size=11),
-        Layout(_safe(_panel_ranking, state, rank_rows), name="done", ratio=1, minimum_size=5),
+        Layout(_safe(_panel_session, state, dash_ui), name="session", size=8),
+        Layout(_safe(_panel_now, state, dash_ui), name="now", size=19),
+        Layout(_safe(_panel_fold_grid, state, dash_ui), name="grid", size=grid_size),
+        Layout(_safe(_panel_ranking, state, rank_rows, dash_ui), name="done", ratio=1, minimum_size=5),
         Layout(name="bottom", size=ev_rows + 2),
     )
     root["bottom"].split_row(
@@ -1264,6 +1483,48 @@ def run_detail(results_dir: str, run_tag: str, rank: int) -> int:
     return 0
 
 
+def _handle_hotkey(key: str, dash_ui: DashboardUI, state: SessionState) -> bool:
+    """Apply one keypress from _KeyReader.poll() to dash_ui. Returns True if
+    the dashboard should quit (the 'q' hotkey) -- everything else is a no-op
+    for an unrecognized or empty (no key waiting) `key`."""
+    if key in ("q", "Q"):
+        return True
+    if key in ("p", "P"):
+        dash_ui.paused = not dash_ui.paused
+    elif key == "f":
+        dash_ui.cycle_model_filter(state, 1)
+    elif key == "F":
+        dash_ui.cycle_model_filter(state, -1)
+    elif key == "[":
+        dash_ui.cycle_fold_focus(state, -1)
+    elif key == "]":
+        dash_ui.cycle_fold_focus(state, 1)
+    elif key in ("c", "C"):
+        dash_ui.clear()
+    return False
+
+
+def _poll_once(tailer: EventTailer, state: SessionState, results_dir: str, run_tag: str,
+               consecutive_errors: int) -> int:
+    """One tailer.poll() -> state.apply() round, tolerating a transient FS
+    race (a results file swapped/removed by a concurrent git op, a half-
+    written line) so it never freezes the dashboard. Raises once the same
+    error has recurred on 30 consecutive polls instead of forever. Returns
+    the (possibly reset) consecutive-error count."""
+    try:
+        for event in tailer.poll():
+            state.apply(event)
+        state.reconcile(tailer.mtimes, tailer.missing)
+        state.note_completed_folds(scan_completed_folds(results_dir, run_tag))
+        return 0
+    except Exception as exc:  # noqa: BLE001
+        consecutive_errors += 1
+        state.loop_error = f"{type(exc).__name__}: {exc}"
+        if consecutive_errors >= 30:
+            raise
+        return consecutive_errors
+
+
 def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
     try:
         from rich.console import Console
@@ -1275,28 +1536,22 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
 
     tailer = EventTailer(results_dir, run_tag)
     state = SessionState()
+    dash_ui = DashboardUI()
     console = Console()
     try:
-        with Live(render_dashboard(state, console.size.height), console=console, screen=True,
-                  refresh_per_second=4, redirect_stderr=False) as live:
+        with Live(render_dashboard(state, console.size.height, dash_ui), console=console,
+                  screen=True, refresh_per_second=4, redirect_stderr=False) as live, \
+                _KeyReader() as keys:
             consecutive_errors = 0
             while True:
-                try:
-                    for ev in tailer.poll():
-                        state.apply(ev)
-                    state.reconcile(tailer.mtimes, tailer.missing)
-                    state.note_completed_folds(scan_completed_folds(results_dir, run_tag))
-                    live.update(render_dashboard(state, console.size.height))
-                    consecutive_errors = 0
-                except Exception as exc:  # noqa: BLE001
-                    # A transient FS race (a results file swapped/removed by a
-                    # concurrent git op, a half-written line) must not freeze the
-                    # dashboard. Keep polling; surface it, bail only if it never clears.
-                    consecutive_errors += 1
-                    state.loop_error = f"{type(exc).__name__}: {exc}"
-                    if consecutive_errors >= 30:
-                        raise
-                time.sleep(max(0.5, poll))
+                ch = keys.poll()
+                if _handle_hotkey(ch, dash_ui, state):
+                    return 0
+                if not dash_ui.paused:
+                    consecutive_errors = _poll_once(tailer, state, results_dir, run_tag,
+                                                    consecutive_errors)
+                live.update(render_dashboard(state, console.size.height, dash_ui))
+                time.sleep(max(0.5, poll) if not ch else 0.05)
     except KeyboardInterrupt:
         return 0
 
