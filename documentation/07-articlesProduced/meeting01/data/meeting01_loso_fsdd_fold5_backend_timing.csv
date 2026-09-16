@@ -1,0 +1,7 @@
+backend,model,train_ms,infer_ms
+xtensor,LSTM-AE,639639.928125,1211.518778
+xtensor,SNN-conv1d,30890.468980,26.949182
+xtensor,SNN-dense,30298.198575,19.842972
+xtensor,SNN-recurrent,136144.701724,1328.150599
+xtensor,gru-ae,661016.685417,2224.160881
+xtensor,transformer-ae,107884.525781,376.532822
