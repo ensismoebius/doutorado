@@ -47,7 +47,6 @@ neural-network framework (`nn`) that runs the experiments.
   - `src/demos/` — standalone demos, including Python ones under `pyDemos/`.
   - `scripts/` — pipeline, testing, and analysis scripts.
   - `.wiki/` — **the project's real documentation.** Start at `.wiki/Home.md`.
-- `software/signalAquirer/` — signal acquisition project.
 
 ### Data, results, and exploration
 
