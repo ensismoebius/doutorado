@@ -1,0 +1,5 @@
+# Neither Dockerfile.ci nor Dockerfile.gridunesp-sim COPY anything from the
+# build context (both mount/rsync the repo in at `docker run` time instead),
+# so the context can be empty. Without this, `docker build` was sending the
+# full out/ + results/ trees (multi-GB) to the daemon on every build.
+*

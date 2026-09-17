@@ -10,6 +10,58 @@
 # which tries the system package first and falls back to a vendored amalgamation).
 # Most Linux base images already have it, but it costs nothing to guarantee.
 #
+# hdf5 is REQUIRED, not defensive: vendored matio (cmake/VendorMatio.cmake) needs
+# HDF5 for MAT73 support and has no fallback -- `find_package(HDF5)` failing turns
+# into a hard `CMake Error at .../matio-src/cmake/thirdParties.cmake: MAT73
+# requires HDF5` during configure. Caught by scripts/pipeline/meeting01/
+# run_gridunesp_docker_sim.sh (2026-09-17) -- omitting it here was silent until
+# the very first GridUnesp configure attempt.
+#
+# fftw is not REQUIRED but avoids an unnecessary from-source vendored build:
+# without it, cmake/VendorFFTW.cmake falls back to autotools-building FFTW3 from
+# source (works, just slower and needs the autotools toolchain to behave under
+# conda's compilers). Installing it from conda-forge is strictly cheaper.
+#
+# sqlite is REQUIRED for a reason specific to this environment: without a system
+# SQLite3, cmake/VendorSqlite.cmake falls back to downloading a vendored
+# amalgamation from a handful of hardcoded sqlite.org/GitHub URLs with no year
+# component (e.g. sqlite.org/sqlite-amalgamation-3510300.zip). sqlite.org moves a
+# version's amalgamation into a dated subdirectory once a newer release
+# supersedes it, so those URLs 404 the moment upstream ships a new point release
+# -- a latent, previously-unnoticed bug this validation surfaced (2026-09-17),
+# independent of GridUnesp. Installing `sqlite` here makes `find_package(SQLite3
+# QUIET)` succeed so that whole fallback path is never exercised.
+#
+# make is REQUIRED: neither `gcc_linux-64`/`gxx_linux-64` nor a minimal AlmaLinux
+# base ship GNU make. Two things silently need it: (1) the vendored NFFT3 build
+# (cmake/VendorNFFT3.cmake) runs its own `./configure && make`, and (2) GCC's own
+# `-flto=auto` (the `max-performance` preset) spawns parallel LTRANS jobs via an
+# internal `make -jN` -- with no `make` on PATH this fails deep inside
+# collect2/lto-wrapper as `lto-wrapper: fatal error: execvp: No such file or
+# directory`, a message that names neither "make" nor anything else recognisable
+# as the missing piece. Caught by run_gridunesp_docker_sim.sh (2026-09-17).
+#
+# gxx_linux-64/gcc_linux-64 are pinned to 13, not 10: GCC 10 satisfies the
+# `requires(...)` concepts floor (Tensor.hpp, Linear.hpp, Lif.hpp, Adam.hpp need
+# real C++20 concepts, not the older Concepts TS), but that is NOT the project's
+# actual minimum -- Meeting01Config.cpp uses `std::ostringstream::view()`, a C++20
+# *library* feature (P2495) that GCC 10's libstdc++ does not implement yet, one
+# compiler version short of concepts support. Building with `gxx_linux-64=10`
+# fails deep in the dependency graph (91/138 build steps in, `meeting01_lib`) with
+# `error: 'std::ostringstream' has no member named 'view'` -- easy to misdiagnose
+# as a concepts problem since concepts-using code upstream of it compiles fine.
+# Verified empirically (2026-09-17, run_gridunesp_docker_sim.sh) that GCC 13's
+# libstdc++ has it; GCC 10's does not.
+#
+# --override-channels: every package here comes from conda-forge, but conda
+# still consults the default `channels:` list (pkgs/main, pkgs/r) during
+# solving unless told not to. Recent conda refuses to run non-interactively
+# if those default channels' Terms of Service have not been accepted
+# (`CondaToSNonInteractiveError`) -- this breaks an unattended run even though
+# nothing is ever actually installed from them. `--override-channels` makes
+# conda-forge the only channel consulted, sidestepping the ToS gate entirely
+# instead of accepting it.
+#
 # Usage (on the GridUnesp login node, once):
 #   module load miniconda/24.4.0-libmamba   # module name confirmed 2026-09; re-check
 #                                            # with `module avail miniconda` if it 404s
@@ -28,14 +80,14 @@ fi
 
 if conda env list | grep -qE "^\s*${ENV_NAME}\s"; then
   echo "[gridunesp-setup] env '${ENV_NAME}' already exists -- updating packages"
-  conda install -n "$ENV_NAME" -y -c conda-forge \
-    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10" \
-    zlib
+  conda install -n "$ENV_NAME" -y --override-channels -c conda-forge \
+    openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
+    zlib hdf5 fftw sqlite make
 else
   echo "[gridunesp-setup] creating env '${ENV_NAME}'"
-  conda create -n "$ENV_NAME" -y -c conda-forge \
-    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10" \
-    zlib
+  conda create -n "$ENV_NAME" -y --override-channels -c conda-forge \
+    openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
+    zlib hdf5 fftw sqlite make
 fi
 
 cat <<'EOF'

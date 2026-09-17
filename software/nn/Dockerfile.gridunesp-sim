@@ -1,0 +1,46 @@
+# Dockerfile.gridunesp-sim
+#
+# Simulates the GridUnesp (NCC/UNESP) cluster toolchain locally, so the build
+# recipe in .wiki/Guides/GridUnesp-Deployment.md can be exercised before
+# spending real queue time on the cluster. See that page for the full
+# deployment story; this image only targets §1-2 (the toolchain gap).
+#
+# What this reproduces:
+# - AlmaLinux base (GridUnesp's compute/login nodes run AlmaLinux).
+# - No apt/dnf access to project dependencies. A real GridUnesp account is
+#   non-root with only Environment Modules + conda -- there is no package
+#   manager escape hatch. `cmake/ArchLinuxDependencies.cmake` and
+#   `cmake/UbuntuDependencies.cmake` already no-op on AlmaLinux (they gate on
+#   /etc/os-release `ID=`), so this validates that gate actually holds and
+#   that `PackageChecking.cmake` gets everything it needs from conda alone.
+# - `module load miniconda/24.4.0-libmamba` -> approximated here by installing
+#   stock Miniconda directly (there is no Environment Modules system to fake,
+#   and the exact module version is cluster-specific, not reproducible
+#   locally).
+# - `./scripts/pipeline/meeting01/gridunesp_setup_env.sh` run completely
+#   unmodified against the mounted repo -- if that script breaks (wrong conda
+#   package name, wrong activation path, a GCC version conda-forge stopped
+#   shipping), it breaks here first, not mid-queue on the cluster.
+#
+# What this does NOT reproduce (see the runbook's own "Unconfirmed" notes):
+# - Slurm / job-nanny scheduling, queues, `sbatch`, `srun`.
+# - The specific Xeon E5-2680 v4 CPU -- this validates the *build*, not
+#   `-march=native` codegen correctness for that exact microarchitecture.
+# - GridUnesp's actual Environment Modules names/versions.
+# - Compute-node network isolation -- this Dockerfile assumes internet during
+#   configure, matching the runbook's login-node configure step.
+#
+# Usage: scripts/pipeline/meeting01/run_gridunesp_docker_sim.sh
+
+FROM almalinux:9
+
+RUN dnf install -y --allowerasing ca-certificates git curl bzip2 tar which rsync && dnf clean all
+
+RUN curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/miniconda3 && \
+    rm /tmp/miniconda.sh
+ENV PATH="/opt/miniconda3/bin:${PATH}"
+
+WORKDIR /work
+
+CMD ["/bin/bash"]

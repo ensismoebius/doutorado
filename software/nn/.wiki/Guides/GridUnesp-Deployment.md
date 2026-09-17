@@ -64,16 +64,46 @@ floor (`cmake/3.9.0` default < `cmake_minimum_required(VERSION 3.10)`;
 `cmake/3.20.0-rc3` is the only one that clears it).
 
 Fix: `scripts/pipeline/meeting01/gridunesp_setup_env.sh` — a conda env
-(`meeting01-build`) with `openblas pkg-config ninja git cmake ccache zlib` and a
-pinned GCC 10 (`gxx_linux-64`/`gcc_linux-64`), so nothing in `PackageChecking.cmake`
-needs a cluster-specific carve-out and the build stays identical to the local one.
-GCC 10 was picked because the project's `requires(...)` concepts (`Tensor.hpp`,
-`Linear.hpp`, `Lif.hpp`, `Adam.hpp`) need real C++20 concepts support (GCC ≥10),
-not the older Concepts TS. `zlib` is defensive — `find_package(ZLIB REQUIRED)` in
-`src/core/data_loaders/CMakeLists.txt` has no vendored fallback (unlike SQLite3,
-which tries the system package via `find_package(SQLite3 QUIET)` and falls back to
-a vendored amalgamation) — most Linux base images already have it, but it costs
-nothing to guarantee.
+(`meeting01-build`) with `openblas pkg-config ninja git cmake ccache zlib hdf5
+fftw sqlite make` and a pinned GCC 13 (`gxx_linux-64`/`gcc_linux-64`), so nothing
+in `PackageChecking.cmake` needs a cluster-specific carve-out and the build stays
+identical to the local one. `zlib` is defensive — `find_package(ZLIB REQUIRED)`
+in `src/core/data_loaders/CMakeLists.txt` has no vendored fallback — most Linux
+base images already have it, but it costs nothing to guarantee. `hdf5` is
+**not** defensive — vendored `matio` (`cmake/VendorMatio.cmake`) hard-requires it
+for MAT73 support with no fallback, and its absence is a fatal configure error,
+not a warning. `fftw` avoids an unnecessary from-source vendored FFTW3 build
+(`cmake/VendorFFTW.cmake` falls back to it automatically, just slower). `sqlite`
+matters for a subtler reason: `cmake/VendorSqlite.cmake` prefers
+`find_package(SQLite3 QUIET)` and only falls back to downloading a vendored
+amalgamation from hardcoded, **non-year-prefixed** sqlite.org URLs if that fails
+— and those URLs 404 the moment sqlite.org ships a newer point release and moves
+the old one into a dated subdirectory. Without a system SQLite3, that fallback is
+a live 404, not a safety net. `make` is required because neither
+`gcc_linux-64`/`gxx_linux-64` nor a minimal AlmaLinux base ship GNU make, and two
+things silently need it: the vendored NFFT3 autotools build
+(`cmake/VendorNFFT3.cmake`), and — much less obviously — GCC's own `-flto=auto`
+(part of the `max-performance` preset), which spawns parallel LTRANS jobs via an
+internal `make -jN`; without it the failure surfaces deep inside
+collect2/lto-wrapper as `lto-wrapper: fatal error: execvp: No such file or
+directory`, a message that names neither "make" nor anything else recognisable.
+
+The GCC version matters more than it looks. GCC 10 satisfies the project's
+`requires(...)` concepts floor (`Tensor.hpp`, `Linear.hpp`, `Lif.hpp`,
+`Adam.hpp` need real C++20 concepts, not the older Concepts TS) — but concepts
+support is not the project's actual minimum. `Meeting01Config.cpp` uses
+`std::ostringstream::view()`, a separate C++20 **library** feature (P2495) that
+GCC 10's libstdc++ does not implement, one compiler version short of where
+concepts support lands. Building with `gxx_linux-64=10` compiles 90 of 138 build
+steps — including code that uses concepts — before failing with `error:
+'std::ostringstream' has no member named 'view'`, which is easy to misdiagnose
+as a concepts problem since everything upstream of it that *does* use concepts
+compiles fine. Verified empirically (not assumed) that GCC 13's libstdc++ has
+`ostringstream::view()` and GCC 10's does not.
+
+All five gaps (`hdf5`, `fftw`, `sqlite`, `make`, and the GCC 10→13 bump) were
+caught by `scripts/pipeline/meeting01/run_gridunesp_docker_sim.sh` (see below)
+before ever touching the real cluster.
 
 ```bash
 module load miniconda/24.4.0-libmamba
@@ -86,6 +116,27 @@ Every later shell (configure, build, and inside the sbatch job) needs:
 module load miniconda/24.4.0-libmamba
 conda activate meeting01-build
 ```
+
+### Validating this locally before submitting
+
+`scripts/pipeline/meeting01/run_gridunesp_docker_sim.sh` reproduces the toolchain
+gap above in a local AlmaLinux 9 + conda container (`Dockerfile.gridunesp-sim`) and
+runs `gridunesp_setup_env.sh` **unmodified**, then `cmake --preset=max-performance`
+and `cmake --build ... --target meeting01`, ending with a `meeting01 --help` smoke
+check — all without touching the host's own `out/` build tree or spending any
+GridUnesp queue time. It caught both the `hdf5`/`fftw` gap above and a
+`CondaToSNonInteractiveError` (recent conda refuses to run non-interactively unless
+the `defaults` channels' Terms of Service are accepted, even though this script
+only ever installs from `conda-forge` — fixed with `--override-channels`) before
+either one ever reached the real cluster.
+
+```bash
+./scripts/pipeline/meeting01/run_gridunesp_docker_sim.sh
+```
+
+It does **not** simulate Slurm/`sbatch`/`job-nanny`, GridUnesp's actual Environment
+Modules, or `-march=native` codegen for the cluster's specific Xeon E5-2680 v4 —
+see the Dockerfile's own header comment for the full boundary of what this checks.
 
 ## 3. One-time setup: datasets, configure, build
 
@@ -185,6 +236,24 @@ EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_lo
 Every `(dataset, fold)` is already complete after the sync, so this call skips the
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
+
+## Forward-looking: other experiments use a different dataset mechanism
+
+This runbook covers `meeting01` only, and `meeting01` never touches SQLite — its profile
+(`meeting01-loso.json`) hardcodes absolute WAV-directory paths
+(`/home/ensismoebius/.../databases/{fsdDataset,audioMNIST_8k,mitbih}`), which is exactly
+why §3 above mirrors the whole `databases/` tree to the *same absolute path* under the
+grid account's `$HOME` rather than doing anything sqlite-specific.
+
+`thesis`, `paraconsistentGA`, and `autoencoderRunner` are a different story: they all read
+a single `~/database.sqlite` file (three independent call sites —
+`ThesisDataset::load_dataset`, `SqliteBatchSource`, `TrialFoldSelector` — each opens its
+own `sqlite3` connection, but all resolve the path the same way, via
+`nn::utility::expand_home("~/database.sqlite")`). None of these are part of the current
+GridUnesp plan. If one of them is submitted to the grid later, the fix is one line, not a
+code change: `scp` the local `database.sqlite` to `~/database.sqlite` on
+`access2.grid.unesp.br` once, and `expand_home()` picks it up automatically on every
+later run, the same as any other `~`-relative path on that account.
 
 ## Open questions to confirm with `support.ncc@unesp.br`
 
