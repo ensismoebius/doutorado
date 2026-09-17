@@ -15,7 +15,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        # Build dependencies (eigen, openblas, sdl2, fftw, hdf5, glfw, omp,
+        # Build dependencies (eigen, openblas, fftw, hdf5, glfw, omp,
         # OpenCL headers/loader, sqlite, zlib, cmake, ninja, autotools, python3)
         # are installed by cmake/UbuntuDependencies.cmake at Configure time.
         # Only CI-specific tooling is installed here.

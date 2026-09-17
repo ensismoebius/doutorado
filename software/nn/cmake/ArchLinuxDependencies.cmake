@@ -73,7 +73,6 @@ set(NN_PACMAN_DEPENDENCIES
     m4                  # autotools build of vendored NFFT3
     openblas            # BLAS/LAPACK provider (pkg-config `openblas`)
     openmp              # LLVM OpenMP runtime for the clang presets (GCC uses libgomp)
-    sdl2-compat         # SDL2 compatibility layer (provides SDL2 for PackageChecking.cmake)
     fftw                # FFTW3 (avoids the vendored FFTW autotools build)
     hdf5                # HDF5 (required by vendored matio)
     eigen               # Eigen3 (EEG/Audio data loaders)

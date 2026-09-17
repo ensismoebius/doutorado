@@ -53,8 +53,6 @@ message(STATUS "Homebrew found at: ${NN_BREW_EXECUTABLE}")
 # 2. Homebrew packages required to configure/build/test this project.
 # ----------------------------------------------------------------------------
 # Notes:
-# - `sdl2` is an alias for `sdl2-compat` in Homebrew; the alias keeps working
-#   for `find_package(SDL2)` / pkg-config, which is all this project needs.
 # - `python3` is an alias for the current `python@3.x` formula.
 # - Compilers (Xcode Command Line Tools, i.e. the system AppleClang) and
 #   `git` cannot/should not be managed by brew and are assumed present.
@@ -68,7 +66,6 @@ set(NN_BREW_DEPENDENCIES
     m4                  # autotools build of vendored NFFT3
     openblas            # BLAS/LAPACK provider (pkg-config `openblas`)
     libomp              # OpenMP runtime for AppleClang
-    sdl2                # SDL2 (required by PackageChecking.cmake)
     fftw                # FFTW3 (avoids the vendored FFTW autotools build)
     hdf5                # HDF5 (required by vendored matio)
     eigen               # Eigen3 (EEG/Audio data loaders)

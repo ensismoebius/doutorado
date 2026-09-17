@@ -3,7 +3,7 @@
 #
 # System dependency discovery.
 #
-# This module is where we require system-provided packages (OpenMP, SDL2,
+# This module is where we require system-provided packages (OpenMP,
 # BLAS/LAPACK/OpenBLAS, etc). Vendored dependencies are handled separately via
 # `Vendor*.cmake` modules.
 #+#+#+#+-----------------------------------------------------------------------
@@ -13,9 +13,6 @@ find_package(PkgConfig REQUIRED)
 
 # Find OpenMP
 find_package(OpenMP REQUIRED)
-
-# Find SDL2
-find_package(SDL2 REQUIRED)
 
 # Find BLAS
 find_package(BLAS REQUIRED)

@@ -80,7 +80,6 @@ set(NN_APT_DEPENDENCIES
     m4                  # autotools build of vendored NFFT3
     libopenblas-dev     # BLAS/LAPACK provider (pkg-config `openblas`)
     libomp-dev          # LLVM OpenMP runtime for the clang presets (GCC uses libgomp)
-    libsdl2-dev         # SDL2 (required by PackageChecking.cmake)
     libfftw3-dev        # FFTW3 (avoids the vendored FFTW autotools build)
     libhdf5-dev         # HDF5 (required by vendored matio)
     libeigen3-dev       # Eigen3 (EEG/Audio data loaders)

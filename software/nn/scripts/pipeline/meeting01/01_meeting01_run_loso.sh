@@ -32,6 +32,15 @@
 #     ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 #
 #   SKIP_BUILD=1   reuse the existing binary (only when you know it is current)
+#   SKIP_POSTPROCESS=1  stop after the training loop -- skip 03_/02_/04_ (PCA/mean
+#                       baselines, paper tables, significance tests). Use this on a
+#                       remote/HPC checkout that has no `.venv`/numpy and no local copy
+#                       of documentation/07-articlesProduced/ (its --data-dir default is
+#                       an absolute local path): rsync results/meeting01/ back afterward
+#                       and re-run this script locally with RESUME=1 -- every (dataset,
+#                       fold) is then already complete, so it falls straight through to
+#                       the post-processing with correct local paths. See
+#                       .wiki/Guides/GridUnesp-Deployment.md.
 #   DATASETS      space-separated dataset list (default "fsdd audiomnist mitbih")
 #   CV_NUM_FOLDS   number of outer folds (default 6)
 #   KEEP_CHECKPOINTS=1  do not clear checkpoints (per-window CSV will then be incomplete
@@ -121,6 +130,11 @@ done
 unset MEETING01_OVERALL
 printf '[loso-run] all %d datasets x %d folds done in %ss\n' \
   "$_nds" "$CV_NUM_FOLDS" "$(( $(date +%s) - _start ))"
+
+if [[ "${SKIP_POSTPROCESS:-0}" == "1" ]]; then
+  echo "[loso-run] SKIP_POSTPROCESS=1 -- stopping after the training loop (03_/02_/04_ skipped)"
+  exit 0
+fi
 
 PY="python3"
 [[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"

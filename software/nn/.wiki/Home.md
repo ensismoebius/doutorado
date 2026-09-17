@@ -151,6 +151,8 @@ Run in order; `thesis` is the primary experiment.
 - [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order
 - [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) — the Thesis runner
 - [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
+- [GridUnesp Deployment](./Guides/GridUnesp-Deployment.md) — running Meeting01's LOSO
+  training loop on UNESP's free HPC cluster instead of a local machine
 
 **Inspecting results**
 - [The Experiment Microscope](./Guides/Experiment-Microscope.md) — the PySide6 inspection GUI
