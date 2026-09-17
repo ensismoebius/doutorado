@@ -78,7 +78,6 @@ set(NN_APT_DEPENDENCIES
     libfftw3-dev        # FFTW3 (avoids the vendored FFTW autotools build)
     libhdf5-dev         # HDF5 (required by vendored matio)
     libeigen3-dev       # Eigen3 (EEG/Audio data loaders)
-    libglfw3-dev        # GLFW3 (snn_spike_plotter demo, pkg-config glfw3)
     ccache              # optional compiler cache (Tooling.cmake)
     python3             # Python for the vendored venv provisioning
     git                 # version control (parity with other bootstraps)

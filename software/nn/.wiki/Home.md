@@ -174,7 +174,7 @@ Runnable examples per subsystem — see [Demos/Overview](./Demos/Overview.md) fo
 
 **C++:** [FFT](./Demos/fft-demo.md) · [Wavelet](./Demos/wavelet-demo.md) ·
 [LFCC](./Demos/lfcc-feature-demo.md) · [ResNet classifier](./Demos/resnet-classifier-demo.md) ·
-[SNN speaker](./Demos/snn-speaker-demo.md) · [Spike plotter](./Demos/snn-spike-plotter.md) ·
+[SNN speaker](./Demos/snn-speaker-demo.md) ·
 [WPT biometrics](./Demos/wpt-voice-biometrics.md) ·
 [Autoencoder LeakyReLU](./Demos/autoencoder-leakyrelu.md)
 

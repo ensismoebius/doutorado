@@ -135,6 +135,34 @@ set_target_properties(spiking_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
 gtest_discover_tests(spiking_mechanisms_gtest)
 configure_xtensor_parallel_target(spiking_mechanisms_gtest)
 
+##
+## lif_basic_behavior_gtest: black-box behavioral invariants for the single-step
+## Lif layer (binary output, threshold firing, reset/decay, gradient shape).
+## Relocated from the removed snn_spike_plotter demo.
+##
+add_executable(lif_basic_behavior_gtest
+    lif_basic_behavior_gtest.cpp
+)
+
+target_link_libraries(lif_basic_behavior_gtest
+    PRIVATE
+        google_test
+        xtensor xtensor-blas
+        layers
+        tensor
+)
+
+target_include_directories(lif_basic_behavior_gtest
+    PRIVATE
+        ${cnpy_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+set_target_properties(lif_basic_behavior_gtest PROPERTIES CXX_CLANG_TIDY "")
+
+gtest_discover_tests(lif_basic_behavior_gtest)
+configure_xtensor_parallel_target(lif_basic_behavior_gtest)
+
 # pytorch_parity_gtest moved to src/core/tensor/tests/ — it references concrete
 # backend type names (XTensorBackend, DeviceTensorBackend) directly to
 # test both side-by-side, which BackendImplementationGuard.cmake only

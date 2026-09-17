@@ -97,7 +97,7 @@ endif()
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 
-# Vendor includes and helpers (cnpy, imgui, implot, eigen parallel settings, fftw, nfft3)
+# Vendor includes and helpers (cnpy, eigen parallel settings, fftw, nfft3)
 include(cmake/VendorIncludes.cmake)
 
 # Auto-discover layer headers and generate include/nn/layers/Layers.hpp

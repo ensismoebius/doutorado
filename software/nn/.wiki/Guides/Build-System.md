@@ -41,8 +41,6 @@ include/             ← public headers for all core modules
 | `VendorCLI11.cmake` | CLI11 |
 | `VendorFFTW.cmake` | FFTW3 |
 | `VendorNFFT3.cmake` | NFFT3 |
-| `VendorImgui.cmake` | Dear ImGui |
-| `VendorImplot.cmake` | ImPlot |
 | `VendorGTest.cmake` | GoogleTest (`GTest::GTest`, `GTest::Main`) |
 | `VendorMatio.cmake` | matio (`MATIO::MATIO`) |
 | `VendorMatioCppShim.cmake` | matio-cpp shims/workarounds |
@@ -241,7 +239,6 @@ Each experiment may contain a `lib/` subdirectory for reusable components and a 
 | FFT demo (FFTW3) | `src/demos/cppDemos/fft_demo/` |
 | ResNet classifier demo | `src/demos/cppDemos/resnet_classifier_demo/` |
 | SNN speaker demo | `src/demos/cppDemos/snn_speaker_demo/` |
-| Spiking network plot | `src/demos/cppDemos/snn_spike_plotter/` |
 | Voice biometrics (WPT) | `src/demos/cppDemos/wpt_voice_biometrics/` |
 | Autoencoder LeakyReLU demo | `src/demos/cppDemos/autoencoder_leakyrelu/` |
 | Python demos root | `src/demos/pyDemos/` (voice_biometrics_snn_py, multimodal_eeg_audio, snn_hyperparam_search) |

@@ -1,9 +1,10 @@
 /**
- * @file snn_spike_plotter_gtest.cpp
- * @brief Unit tests for the Lif neuron layer.
+ * @file lif_basic_behavior_gtest.cpp
+ * @brief Black-box behavioral tests for the single-step Lif neuron layer.
  *
- * Tests the LIF dynamics independently from the spike plotter's OpenGL/GLFW/ImGui
- * rendering infrastructure.  No GUI headers are included here.
+ * Relocated here from the (now-removed) snn_spike_plotter demo, whose GUI
+ * (ImGui/GLFW/OpenGL) had nothing to do with these invariants — this file
+ * never included any GUI header.
  *
  * Invariants validated:
  * - Output values in {0,1}
@@ -36,7 +37,7 @@ static nn::Tensor make_const(size_t rows, size_t cols, float val)
 
 // ---- fixture ----
 
-class LifTest : public ::testing::Test
+class LifBasicBehaviorTest : public ::testing::Test
 {
    protected:
     static constexpr size_t kBatch = 4;
@@ -51,7 +52,7 @@ class LifTest : public ::testing::Test
 
 // ---- output shape ----
 
-TEST_F(LifTest, ForwardOutputShape_MatchesInput)
+TEST_F(LifBasicBehaviorTest, ForwardOutputShape_MatchesInput)
 {
     nn::Tensor input = make_const(kBatch, kFeatures, 0.5F);
     nn::Tensor out = neuron.forward(input);
@@ -61,7 +62,7 @@ TEST_F(LifTest, ForwardOutputShape_MatchesInput)
 
 // ---- binary output ----
 
-TEST_F(LifTest, ForwardOutput_IsBinary)
+TEST_F(LifBasicBehaviorTest, ForwardOutput_IsBinary)
 {
     // Drive with large positive input to produce spikes
     nn::Tensor input = make_const(kBatch, kFeatures, 2.0F);
@@ -77,7 +78,7 @@ TEST_F(LifTest, ForwardOutput_IsBinary)
 
 // ---- firing above threshold ----
 
-TEST_F(LifTest, FiresAboveThreshold)
+TEST_F(LifBasicBehaviorTest, FiresAboveThreshold)
 {
     // With dt=1, R=1, C=1: beta = exp(-1) ≈ 0.368.
     // Accumulated v_mem grows to > 1 (threshold) over several steps with input=2.0.
@@ -97,7 +98,7 @@ TEST_F(LifTest, FiresAboveThreshold)
 
 // ---- sub-threshold: no fire ----
 
-TEST_F(LifTest, SubThreshold_NoSpike)
+TEST_F(LifBasicBehaviorTest, SubThreshold_NoSpike)
 {
     // Very small input → v_mem never reaches threshold
     nn::Tensor input = make_const(1, 1, 0.001F);
@@ -110,7 +111,7 @@ TEST_F(LifTest, SubThreshold_NoSpike)
 
 // ---- reset_state clears v_mem ----
 
-TEST_F(LifTest, ResetState_ClearsMemPotential)
+TEST_F(LifBasicBehaviorTest, ResetState_ClearsMemPotential)
 {
     // Drive until v_mem is non-zero
     nn::Tensor input = make_const(1, 1, 0.5F);
@@ -131,7 +132,7 @@ TEST_F(LifTest, ResetState_ClearsMemPotential)
 
 // ---- reset between independent sequences ----
 
-TEST_F(LifTest, ResetBetweenSequences_StateDoesNotLeak)
+TEST_F(LifBasicBehaviorTest, ResetBetweenSequences_StateDoesNotLeak)
 {
     // Sequence 1: drive strongly
     nn::Tensor strong = make_const(1, 1, 3.0F);
@@ -150,7 +151,7 @@ TEST_F(LifTest, ResetBetweenSequences_StateDoesNotLeak)
 
 // ---- membrane decay with zero input ----
 
-TEST_F(LifTest, MembraneDecays_WithZeroInput)
+TEST_F(LifBasicBehaviorTest, MembraneDecays_WithZeroInput)
 {
     // Inject charge to just below threshold, then remove input → v_mem must decrease
     nn::Tensor prime = make_const(1, 1, 0.8F); // sub-threshold injection
@@ -167,7 +168,7 @@ TEST_F(LifTest, MembraneDecays_WithZeroInput)
 
 // ---- backward gradient shape ----
 
-TEST_F(LifTest, BackwardGradient_ShapeMatchesInput)
+TEST_F(LifBasicBehaviorTest, BackwardGradient_ShapeMatchesInput)
 {
     nn::Tensor input = make_const(kBatch, kFeatures, 0.5F);
     neuron.forward(input, /*requires_grad=*/true);
@@ -182,7 +183,7 @@ TEST_F(LifTest, BackwardGradient_ShapeMatchesInput)
 
 // ---- backward gradient finiteness ----
 
-TEST_F(LifTest, BackwardGradient_IsFinite)
+TEST_F(LifBasicBehaviorTest, BackwardGradient_IsFinite)
 {
     nn::Tensor input = make_const(kBatch, kFeatures, 0.5F);
     neuron.forward(input, true);
@@ -198,7 +199,7 @@ TEST_F(LifTest, BackwardGradient_IsFinite)
 
 // ---- shape adaptation (resize v_mem when input shape changes) ----
 
-TEST_F(LifTest, ShapeChange_ResidesMemPotential)
+TEST_F(LifBasicBehaviorTest, ShapeChange_ResidesMemPotential)
 {
     nn::Tensor small = make_const(1, 4, 0.3F);
     neuron.forward(small, false);

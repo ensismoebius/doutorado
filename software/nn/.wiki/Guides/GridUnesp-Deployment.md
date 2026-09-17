@@ -50,10 +50,12 @@ The top-level `CMakeLists.txt` → `cmake/PackageChecking.cmake` hard-requires
   `pkg_check_modules(OPENBLAS REQUIRED openblas)`
 
 (An `SDL2 REQUIRED` check used to be here too, hard-required project-wide despite
-having zero actual consumers anywhere in the codebase — no target linked it, and
-the project's real GUI backend is GLFW+OpenGL3, not SDL2. Removed at the source
-2026-09-16 rather than worked around, so this is one less thing to install
-everywhere, not just on GridUnesp.)
+having zero actual consumers anywhere in the codebase — no target linked it.
+Removed at the source 2026-09-16 rather than worked around, so this is one less
+thing to install everywhere, not just on GridUnesp. The project's only GUI demo,
+`snn_spike_plotter` — GLFW+OpenGL3+Dear ImGui — was itself removed later the same
+week as unused, so the project now has no GUI backend at all and no windowing
+dependency of any kind.)
 
 GridUnesp's module list has **no OpenBLAS-via-pkg-config** module (only Intel MKL,
 which is a different discovery path). It also has **no `ninja` module** (the
@@ -62,12 +64,16 @@ floor (`cmake/3.9.0` default < `cmake_minimum_required(VERSION 3.10)`;
 `cmake/3.20.0-rc3` is the only one that clears it).
 
 Fix: `scripts/pipeline/meeting01/gridunesp_setup_env.sh` — a conda env
-(`meeting01-build`) with `openblas pkg-config ninja git cmake ccache` and a pinned
-GCC 10 (`gxx_linux-64`/`gcc_linux-64`), so nothing in `PackageChecking.cmake` needs
-a cluster-specific carve-out and the build stays identical to the local one. GCC 10
-was picked because the project's `requires(...)` concepts (`Tensor.hpp`,
+(`meeting01-build`) with `openblas pkg-config ninja git cmake ccache zlib` and a
+pinned GCC 10 (`gxx_linux-64`/`gcc_linux-64`), so nothing in `PackageChecking.cmake`
+needs a cluster-specific carve-out and the build stays identical to the local one.
+GCC 10 was picked because the project's `requires(...)` concepts (`Tensor.hpp`,
 `Linear.hpp`, `Lif.hpp`, `Adam.hpp`) need real C++20 concepts support (GCC ≥10),
-not the older Concepts TS.
+not the older Concepts TS. `zlib` is defensive — `find_package(ZLIB REQUIRED)` in
+`src/core/data_loaders/CMakeLists.txt` has no vendored fallback (unlike SQLite3,
+which tries the system package via `find_package(SQLite3 QUIET)` and falls back to
+a vendored amalgamation) — most Linux base images already have it, but it costs
+nothing to guarantee.
 
 ```bash
 module load miniconda/24.4.0-libmamba

@@ -23,10 +23,7 @@ include(cmake/VendorFFTW.cmake)
 # Vendored NFFT3 handling
 include(cmake/VendorNFFT3.cmake)
 
-# ImGui integration
-include(cmake/VendorImgui.cmake)
-
-# Sets up GoogleTest (downloads, 
+# Sets up GoogleTest (downloads,
 # configures, exposes GTest::GTest 
 # and GTest::Main)
 include(cmake/VendorGTest.cmake)
@@ -36,8 +33,6 @@ include(cmake/VendorGTest.cmake)
 # MATIO_LIBRARY, exposes MATIO::MATIO)
 include(cmake/VendorMatio.cmake)
 
-# Implot integration
-include(cmake/VendorImplot.cmake)
 
 # Workarounds / shims for matio-cpp 
 # configure/export behavior

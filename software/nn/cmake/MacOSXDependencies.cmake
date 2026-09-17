@@ -69,7 +69,6 @@ set(NN_BREW_DEPENDENCIES
     fftw                # FFTW3 (avoids the vendored FFTW autotools build)
     hdf5                # HDF5 (required by vendored matio)
     eigen               # Eigen3 (EEG/Audio data loaders)
-    glfw                # GLFW3 (snn_spike_plotter demo, pkg-config glfw3)
     ccache              # optional compiler cache (Tooling.cmake)
     python3             # Python for the vendored venv provisioning
 )
@@ -180,9 +179,8 @@ endif()
 # ----------------------------------------------------------------------------
 # On Linux all these packages install headers into the system include path
 # (/usr/include), so targets that include a header without linking the package
-# (e.g. the vendored imgui backend `imgui_impl_glfw.cpp` includes
-# `<GLFW/glfw3.h>`) still compile. AppleClang does NOT search
-# /opt/homebrew/include by default, so replicate the Linux behaviour here.
+# still compile. AppleClang does NOT search /opt/homebrew/include by default,
+# so replicate the Linux behaviour here.
 execute_process(
     COMMAND ${NN_BREW_EXECUTABLE} --prefix
     OUTPUT_VARIABLE NN_BREW_PREFIX

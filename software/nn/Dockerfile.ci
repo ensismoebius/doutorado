@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Bootstrap tools needed to run `cmake ..` inside the container: the compiler,
 # cmake/ninja, git (vendored deps), pkg-config and the autotools stack (vendored
 # NFFT3) plus ca-certificates for the FetchContent downloads. Everything else the
-# build needs (eigen, openblas, fftw, hdf5, glfw, omp, sqlite, zlib) is installed
+# build needs (eigen, openblas, fftw, hdf5, omp, sqlite, zlib) is installed
 # by cmake/UbuntuDependencies.cmake at Configure time. Only CI tooling
 # (analysis/security/coverage/python) is baked in.
 RUN apt-get update && apt-get install -y \

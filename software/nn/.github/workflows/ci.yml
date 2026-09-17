@@ -19,7 +19,7 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          # Build dependencies (eigen, openblas, fftw, hdf5, glfw, omp,
+          # Build dependencies (eigen, openblas, fftw, hdf5, omp,
           # sqlite, zlib, cmake, ninja, autotools,
           # build-essential, python3) are installed by cmake/UbuntuDependencies.cmake
           # at Configure time. Only CI-specific tooling is installed here:

@@ -5,6 +5,11 @@
 # git) plus a C++20 compiler. See .wiki/Guides/GridUnesp-Deployment.md for why each
 # package is here and what happens if this step is skipped.
 #
+# zlib is defensive: find_package(ZLIB REQUIRED) in
+# src/core/data_loaders/CMakeLists.txt has no vendored fallback (unlike SQLite3,
+# which tries the system package first and falls back to a vendored amalgamation).
+# Most Linux base images already have it, but it costs nothing to guarantee.
+#
 # Usage (on the GridUnesp login node, once):
 #   module load miniconda/24.4.0-libmamba   # module name confirmed 2026-09; re-check
 #                                            # with `module avail miniconda` if it 404s
@@ -24,11 +29,13 @@ fi
 if conda env list | grep -qE "^\s*${ENV_NAME}\s"; then
   echo "[gridunesp-setup] env '${ENV_NAME}' already exists -- updating packages"
   conda install -n "$ENV_NAME" -y -c conda-forge \
-    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10"
+    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10" \
+    zlib
 else
   echo "[gridunesp-setup] creating env '${ENV_NAME}'"
   conda create -n "$ENV_NAME" -y -c conda-forge \
-    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10"
+    openblas pkg-config ninja git cmake ccache "gxx_linux-64=10" "gcc_linux-64=10" \
+    zlib
 fi
 
 cat <<'EOF'

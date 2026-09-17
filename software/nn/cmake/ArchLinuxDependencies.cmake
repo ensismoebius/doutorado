@@ -73,7 +73,6 @@ set(NN_PACMAN_DEPENDENCIES
     fftw                # FFTW3 (avoids the vendored FFTW autotools build)
     hdf5                # HDF5 (required by vendored matio)
     eigen               # Eigen3 (EEG/Audio data loaders)
-    glfw                # GLFW3 (snn_spike_plotter demo, pkg-config glfw3)
     ccache              # optional compiler cache (Tooling.cmake)
     python              # Python for the vendored venv provisioning
     git                 # clones the AUR yay source

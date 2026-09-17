@@ -11,7 +11,6 @@ The `src/demos/` directory contains self-contained runnable examples covering si
 | `lfcc_feature_demo` | Batch LFCC extraction pipeline over the BaseDeDatosHablaImaginada corpus | [lfcc-feature-demo](./lfcc-feature-demo.md) |
 | `resnet_classifier_demo` | Residual MLP trained on MAT audio features with CrossEntropyLoss + Adam | [resnet-classifier-demo](./resnet-classifier-demo.md) |
 | `snn_speaker_demo` | End-to-end SNN speaker identification: LFCC features → Poisson encoding → residual LifBPTT | [snn-speaker-demo](./snn-speaker-demo.md) |
-| `snn_spike_plotter` | Real-time ImGui/ImPlot visualisation of a two-neuron LIF chain driven by Poisson input | [snn-spike-plotter](./snn-spike-plotter.md) |
 | `wpt_voice_biometrics` | WPT subband energies → Poisson encoding → residual SNN; CLI with WAV input | [wpt-voice-biometrics](./wpt-voice-biometrics.md) |
 | `autoencoder_leakyrelu` | Spiking autoencoder (LifBPTT) trained end-to-end on synthetic data; validates BPTT stack | [autoencoder-leakyrelu](./autoencoder-leakyrelu.md) |
 
