@@ -67,14 +67,15 @@ Project Context (nn framework)
 
 **Hot paths to profile first:**
 1. `LeakyBPTT::forward` time loop — `(T*B, F)` shaped input; `v_mem_history`/`spike_history` pre-allocated outside loop
-2. `Trainer` mini-batch loop — forward+backward+optimizer step per batch
-3. `LinearImpl::forward` / `matmul_transposed_add_col_bias` — XTensor/BLAS path
+2. `Trainer` mini-batch loop — `BatchScope` wraps forward+backward; single `clFinish` per batch (OpenCL)
+3. `LinearImpl::forward` / `matmul_rhs_transposed_bias` — fused OpenCL kernels available (1.70× speedup)
 
 **Drift risks to check:**
 - Never include `XTensorBackend` headers in `src/core/` targets — breaks backend agnosticism
 - Time-major layout `(T*B, F)` must be preserved through all SNN layer transformations
+- OpenCL fused kernels: `matmul_transposed_add_col_bias_relu/leaky_relu/sigmoid/tanh` in `OpenCLTensorBackend`
 
-**Backend macro:** `#if defined(NN_BACKEND_DEVICE)` — guards the Device-backend documentation skeleton path (default backend is XTensor, no macro guard)
+**Backend macro:** `#if defined(NN_BACKEND_OPENCL)` — guards GPU-only code paths
 
 **Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
 - `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)

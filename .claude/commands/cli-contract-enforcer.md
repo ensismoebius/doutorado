@@ -38,14 +38,14 @@ Validation
 Project Context (nn framework)
 
 **Main CLI entry points:**
-- `meeting01 --comparative-config <profile.json>` — primary paper pipeline entry point
-- `meeting01 --help` — must list all flags, exit 0, no side effects
+- `guayaquil --comparative-config <profile.json>` — primary paper pipeline entry point
+- `guayaquil --help` — must list all flags, exit 0, no side effects
 - `autoencoderRunner --help` — same requirement
 - `paraconsistentBaseline [config.json]` — optional positional arg for config path
 
 **Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
 
-**No side effects on `--help`:** `--help` must not write files or touch the filesystem. Use `nn::logging::StreamRedirector` only after help check.
+**No side effects on `--help`:** `--help` must not write files, touch the filesystem, or open OpenCL devices. Use `nn::logging::StreamRedirector` only after help check.
 
 **Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
 - `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
