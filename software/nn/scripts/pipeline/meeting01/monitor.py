@@ -170,6 +170,48 @@ def scan_completed_folds(results_dir: str, run_tag: str) -> dict[tuple[str, int]
             continue
         out[(m["ds"], int(m["fold"]))] = len(trainings)
     return out
+def default_profile_path(run_tag: str) -> str:
+    """Where 01_meeting01_run_loso.sh's own profile normally lives for a given
+    run_tag: `src/experiments/meeting01/profiles/<run-tag-with-dashes>.json`
+    (every profile in that directory follows this run_tag-with-underscores ->
+    filename-with-dashes convention -- e.g. run_tag "meeting01_loso" <->
+    "meeting01-loso.json"). Only a default; --profile overrides it."""
+    return os.path.join("src", "experiments", "meeting01", "profiles",
+                        f"{run_tag.replace('_', '-')}.json")
+
+
+def dataset_roster_from_profile(profile_path: str) -> Optional[list[str]]:
+    """The FULL, fixed dataset list `evaluation.datasets` a LOSO profile
+    declares up front -- e.g. ["fsdd", "audiomnist", "mitbih"] -- read once
+    from the static config file, not inferred from which datasets happen to
+    have produced an event so far.
+
+    Without this, SessionState.grid_size() can only count a dataset once the
+    run script has actually STARTED it (a fold_begin/completed-CSV was seen
+    for it), so the "of ~N total" denominator silently jumps by a whole
+    dataset's worth of trainings (2700+) partway through a multi-day run, the
+    moment 01_meeting01_run_loso.sh's outer loop reaches the next dataset --
+    even though that dataset's full workload was always going to happen. The
+    total looks unstable and the ETA looks untrustworthy, but nothing was
+    actually wrong; the profile already knew the true count from the start.
+
+    Returns None (never raises) if the file is missing, unreadable, not JSON,
+    or has no non-empty `evaluation.datasets` list -- this is an optional
+    stabilizer for an observability-only estimate, not a correctness path;
+    grid_size() falls back to its old seen-so-far heuristic in that case.
+    """
+    try:
+        with open(profile_path, encoding="utf-8") as fh:
+            profile = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+    datasets = profile.get("evaluation", {}).get("datasets")
+    if not isinstance(datasets, list) or not datasets:
+        return None
+    return [str(d) for d in datasets]
+
+
+# --------------------------------------------------------------------------------------
 
 
 # --------------------------------------------------------------------------------------
@@ -342,6 +384,12 @@ class SessionState:
         # that finished before THIS session started and so left no live config
         # behind to count individually. See note_completed_folds().
         self.completed_fold_trainings: dict[tuple[str, int], int] = {}
+        # The FULL dataset roster from the run's own profile (see
+        # dataset_roster_from_profile()), set once via set_dataset_roster().
+        # None until set -- grid_size() then falls back to counting only the
+        # datasets observed so far, which understates the true total until
+        # every dataset has actually started.
+        self.dataset_roster: Optional[list[str]] = None
 
     def note_completed_folds(self, mapping: dict[tuple[str, int], int]) -> None:
         """Merge in scan_completed_folds() results. A fold this session has
@@ -352,6 +400,16 @@ class SessionState:
         self.completed_fold_trainings = {
             k: v for k, v in mapping.items() if k not in self.folds_seen
         }
+
+    def set_dataset_roster(self, datasets: Optional[list[str]]) -> None:
+        """Record the run's FULL, fixed dataset list (from
+        dataset_roster_from_profile()) so grid_size() has a stable, known-
+        upfront denominator instead of growing by a whole dataset's worth of
+        trainings each time 01_meeting01_run_loso.sh's outer loop reaches the
+        next one. A no-op for an empty/None list -- grid_size() keeps its
+        seen-so-far fallback."""
+        if datasets:
+            self.dataset_roster = list(datasets)
 
     # ---- ingest -------------------------------------------------------------------
     def apply(self, ev: dict[str, Any]) -> None:
@@ -502,13 +560,20 @@ class SessionState:
 
     def grid_size(self) -> int:
         n_fold = int(self.session.get("cv_num_folds", 1) or 1)
-        n_ds = len(self.session.get("all_datasets", []) or [1])
-        if n_ds == 1 and n_fold > 1:
-            # a fold "seen" either live this session or as an already-complete
-            # CSV from an earlier invocation (RESUME=1) both count towards
-            # which datasets the grid actually spans
-            datasets = {d for d, _ in self.folds_seen} | {d for d, _ in self.completed_fold_trainings}
-            n_ds = max(1, len(datasets))
+        if self.dataset_roster:
+            # the run's own profile already declares the full dataset list --
+            # a fixed, known-upfront denominator that never jumps mid-run as
+            # 01_meeting01_run_loso.sh's outer loop reaches the next dataset
+            n_ds = len(self.dataset_roster)
+        else:
+            n_ds = len(self.session.get("all_datasets", []) or [1])
+            if n_ds == 1 and n_fold > 1:
+                # a fold "seen" either live this session or as an already-complete
+                # CSV from an earlier invocation (RESUME=1) both count towards
+                # which datasets the grid actually spans -- an underestimate
+                # until dataset_roster is available, but the least-wrong guess
+                datasets = {d for d, _ in self.folds_seen} | {d for d, _ in self.completed_fold_trainings}
+                n_ds = max(1, len(datasets))
         return self.per_fold_trainings() * n_fold * n_ds
 
     def fold_grid(self) -> dict[tuple[str, int], FoldCell]:
@@ -658,7 +723,11 @@ def _legend() -> list[str]:
         "  mae                 = mean absolute error, same split as the loss column",
         "  ETA                 = trainings-remaining / (done-so-far / elapsed) -- a rough",
         "                        linear projection, not a guarantee",
-        "  ~N                  = an approximate count (the grid size can shift with RESUME)",
+        "  ~N (fixed)          = grid size read from the run's own profile -- stable for the",
+        "                        whole run, does not shift as new datasets start",
+        "  ~N (estimated)      = no profile found -- a guess from datasets seen live so far,",
+        "                        which grows in jumps as each new dataset begins (untrustworthy",
+        "                        ETA until every dataset has started; pass --profile to fix it)",
     ]
 # --------------------------------------------------------------------------------------
 # formatting helpers
@@ -822,8 +891,10 @@ def render_plain(state: SessionState) -> str:
     ln.append(_c("SESSION", "bold", "blue") +
               f"  {_c(str(sess.get('run_tag', '?')), 'bold')}  seed {sess.get('seed', '?')}  "
               f"backend {sess.get('backend', '?')}  git {sess.get('git_commit', '?')}")
+    total_kind = _c("fixed", "green") if state.dataset_roster else _c("estimated", "yellow")
     ln.append(f"  [{_c(_bar(frac, 26), 'cyan')}]  {done_txt}   {running_txt}   {failed_txt}   "
-              f"of ~{c['total']}   elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough)")
+              f"of ~{c['total']} ({total_kind})   elapsed {_hms(elapsed)}   "
+              f"eta {_hms(state.eta_seconds())} (rough)")
     for proc in state.procs.values():
         if proc.error:
             ln.append(_c(f"  FAILED  {proc.dataset} fold{proc.fold}: {proc.error}", "bold", "red"))
@@ -1025,7 +1096,9 @@ def _panel_session(state: SessionState, ui: Optional[DashboardUI] = None):  # no
             (f" {c['running']} running ", "bold black on cyan"),
             ("  ", ""),
             failed_badge,
-            (f"   of ~{c['total']} trainings ({frac * 100:.1f}%)", "dim"),
+            (f"   of ~{c['total']} trainings ({frac * 100:.1f}%) ", "dim"),
+            (" fixed " if state.dataset_roster else " estimated ",
+             "bold black on green" if state.dataset_roster else "bold black on yellow"),
         ))
         g.add_row(Text(f"elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough, "
                        f"from completed-so-far rate)", style="dim"))
@@ -1455,9 +1528,10 @@ def render_detail(cfg: ConfigState, session: dict[str, Any]):  # noqa: ANN201
     )
 
 
-def _drain(results_dir: str, run_tag: str) -> SessionState:
+def _drain(results_dir: str, run_tag: str, profile_path: Optional[str] = None) -> SessionState:
     tailer = EventTailer(results_dir, run_tag)
     state = SessionState()
+    state.set_dataset_roster(dataset_roster_from_profile(profile_path or default_profile_path(run_tag)))
     for ev in tailer.poll():
         state.apply(ev)
     state.reconcile(tailer.mtimes, tailer.missing)
@@ -1525,7 +1599,8 @@ def _poll_once(tailer: EventTailer, state: SessionState, results_dir: str, run_t
         return consecutive_errors
 
 
-def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
+def run_dashboard(results_dir: str, run_tag: str, poll: float,
+                  profile_path: Optional[str] = None) -> int:
     try:
         from rich.console import Console
         from rich.live import Live
@@ -1536,6 +1611,7 @@ def run_dashboard(results_dir: str, run_tag: str, poll: float) -> int:
 
     tailer = EventTailer(results_dir, run_tag)
     state = SessionState()
+    state.set_dataset_roster(dataset_roster_from_profile(profile_path or default_profile_path(run_tag)))
     dash_ui = DashboardUI()
     console = Console()
     try:
@@ -1719,6 +1795,46 @@ def _self_test() -> int:
         check(st4.counts()["done"] == 0,
               "a fold seen live this session is excluded from the CSV credit (no double count)")
 
+    # profile-derived dataset roster: grid_size()'s "of ~N total" must be a fixed
+    # number from minute one (read from the run's own profile), not a guess that
+    # grows by a whole dataset's worth of trainings each time
+    # 01_meeting01_run_loso.sh's outer loop reaches the next dataset.
+    with tempfile.TemporaryDirectory() as td:
+        profile_path = os.path.join(td, "roster.json")
+        with open(profile_path, "w", encoding="utf-8") as fh:
+            json.dump({"evaluation": {"datasets": ["fsdd", "audiomnist", "mitbih"]}}, fh)
+        check(dataset_roster_from_profile(profile_path) == ["fsdd", "audiomnist", "mitbih"],
+              "dataset_roster_from_profile reads evaluation.datasets")
+        check(dataset_roster_from_profile(os.path.join(td, "missing.json")) is None,
+              "dataset_roster_from_profile is None for a missing file (heuristic fallback)")
+        bad_path = os.path.join(td, "bad.json")
+        with open(bad_path, "w", encoding="utf-8") as fh:
+            fh.write("not json")
+        check(dataset_roster_from_profile(bad_path) is None,
+              "dataset_roster_from_profile is None for malformed JSON")
+
+    check(default_profile_path("meeting01_loso") ==
+          os.path.join("src", "experiments", "meeting01", "profiles", "meeting01-loso.json"),
+          "default_profile_path maps run_tag underscores to a dashed filename")
+
+    st5 = SessionState()
+    st5.apply(ev(type="session_begin", dataset="fsdd", fold=0, seed=42, repeats=2,
+                cv_num_folds=6, all_datasets=["fsdd"],
+                search_space={"snn_architectures": ["dense"], "v_th_values": [1.0],
+                              "alpha_values": [0.9], "encodings": ["direct"],
+                              "baselines": ["lstm-ae"]}))
+    check(st5.grid_size() == st5.per_fold_trainings() * 6 * 1,
+          "without a roster, grid_size() falls back to datasets seen so far (1 so far)")
+    st5.set_dataset_roster(["fsdd", "audiomnist", "mitbih"])
+    check(st5.grid_size() == st5.per_fold_trainings() * 6 * 3,
+          "with a roster, grid_size() uses the full fixed dataset count right away, not a growing guess")
+
+    st6 = SessionState()
+    st6.set_dataset_roster(None)
+    check(st6.dataset_roster is None, "set_dataset_roster(None) is a no-op")
+    st6.set_dataset_roster([])
+    check(st6.dataset_roster is None, "set_dataset_roster([]) is also a no-op (falsy list)")
+
     print("\n" + ("ALL PASS" if ok else "FAILURES ABOVE"))
     return 0 if ok else 1
 
@@ -1729,6 +1845,12 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--results-dir", default="results/meeting01")
     ap.add_argument("--run-tag", default="meeting01_loso")
+    ap.add_argument("--profile", default=None,
+                    help="path to the run's *.json profile, for the FULL dataset list "
+                         "(a stable 'of ~N total' denominator). Default: "
+                         "src/experiments/meeting01/profiles/<run-tag-with-dashes>.json "
+                         "(01_meeting01_run_loso.sh's own convention); silently falls back "
+                         "to estimating from datasets seen so far if that file is absent")
     ap.add_argument("--poll", type=float, default=1.0, help="seconds between event polls")
     ap.add_argument("--plain", action="store_true", help="periodic text snapshots (no rich)")
     ap.add_argument("--interval", type=float, default=15.0, help="--plain snapshot interval (s)")
@@ -1756,10 +1878,12 @@ def main() -> int:
         return run_detail(args.results_dir, args.run_tag, args.rank)
 
     if not (args.plain or not sys.stdout.isatty()):
-        return run_dashboard(args.results_dir, args.run_tag, args.poll)
+        return run_dashboard(args.results_dir, args.run_tag, args.poll, args.profile)
 
     tailer = EventTailer(args.results_dir, args.run_tag)
     state = SessionState()
+    state.set_dataset_roster(dataset_roster_from_profile(
+        args.profile or default_profile_path(args.run_tag)))
     try:
         while True:
             try:

@@ -112,6 +112,57 @@ logs stay free of cursor-control sequences.
 - Paper: `documentation/07-articlesProduced/meeting01/paper.tex`
   (`\resultsForDataset` macro, one block per dataset).
 
+> **Known caveat: AudioMNIST window degeneracy (found 2026-09-16, live LOSO run).**
+>
+> **The symptom.** A handful of `meeting01_loso_audiomnist_fold*_comparative_metrics.csv`
+> rows report `mse == 0.000000` for `model=snn-ae, encoding=direct, architecture=recurrent`
+> (mostly `alpha=0.8`) — on the held-out **test** speaker too, across all 5 seeds. That
+> looks like the model reached perfect reconstruction; it has not.
+>
+> **The mechanism.** `load_grouped_windows` (`Meeting01Dataset.cpp`) filters strictly by
+> `source_window_index`, in sequential order, with no silence trim. The stratified
+> train/val/test split then round-robins **one window per recording** to fill its quota
+> (`loso_max_{train,val,test}_windows`). AudioMNIST has far more distinct recordings per
+> fold than the quota needs, so index 1+ is never reached — every sampled AudioMNIST
+> window, train and test, is window 0 (the first 32 ms at 8 kHz) of its recording.
+> Confirmed directly: `source_window_index` distribution over a real fold was `{0: 1200}`
+> (train) and `{0: 1500}` (test) — no other index appeared.
+>
+> **Why AudioMNIST and not FSDD.** Raw WAV inspection: AudioMNIST's first 32 ms is a
+> near-silent lead-in (`audioMNIST_8k` recordings begin quiet — raw int16 values in
+> roughly ±2..±12) in essentially every file, whereas FSDD's window 0 already carries
+> real speech amplitude (hundreds) or a recording-specific pattern. `zscore_inplace`
+> forces `std == 1` regardless of original scale, so AudioMNIST's near-silent window 0
+> gets amplified into a shape that is virtually identical across the whole corpus. Direct
+> measurement on a real fold, `encode_sample("direct")` + `apply_snn_architecture_transform`
+> (`"recurrent"`, `alpha=0.8`, `v_th=1.0`) over every train+test window:
+>
+> | dataset | unique spike patterns | mean pairwise Hamming distance |
+> |---|---|---|
+> | AudioMNIST | 1 / 2700 | 0.0000 |
+> | FSDD | 1144 / 1500 (test only) | 0.21 |
+>
+> The autoencoder is not learning digit reconstruction for this config — it is
+> memorizing one near-constant "silence" spike train, which trivially reconstructs on
+> train and on the LOSO-held-out test speaker because that speaker's window is the same
+> degenerate pattern. `alpha=0.8` (fastest leak) concentrates the exact-`0.000000` hits
+> because it is most sensitive to reproducing that one fixed shape precisely; `0.9`/`0.99`
+> blur it just enough to land above the CSV's 6-decimal rounding floor instead of on it.
+>
+> **Scope.** Not limited to the rows that print exactly `0.000000`. Every model/config
+> trained on AudioMNIST in this run is trained on 32 ms of near-silent recording lead-in,
+> never the spoken digit — the other combinations likely aren't reconstructing real
+> content either, they just don't degenerate cleanly enough to round to zero. Treat the
+> whole AudioMNIST reconstruction arm as suspect until this is fixed, not only the exact
+> zero rows. `02_meeting01_build_loso_paper_data.py::check_degenerate_reconstruction` now
+> flags this automatically (`paper_loso_<ds>_CAVEATS.txt`, >2% of a dataset's test rows
+> below `mse=1e-4`) whenever the paper tables are built, so it cannot be missed silently.
+>
+> **Not yet fixed** (deliberately, to avoid re-running a multi-day live experiment on a
+> guess): candidate fixes are (a) silence-trim/VAD before windowing so window 0 lands on
+> real content, or (b) round-robin over `(recording, window_index)` pairs instead of
+> always draining index 0 first across the whole corpus.
+
 ---
 
 

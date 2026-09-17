@@ -173,6 +173,37 @@ def load_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------- degeneracy caveat
+
+# A window whose test-split reconstruction error is this tiny is not "the model
+# converged" -- at these window sizes it is the signature of a near-duplicate
+# input population (see the AudioMNIST case in .wiki/Experiments/Meeting01.md:
+# `source_window_index` stuck at 0 samples only the recording's leading
+# near-silence, so every window collapses to ~1 distinct pattern and any model
+# reproduces it trivially, on train AND on the LOSO-held-out test speaker).
+_DEGENERATE_MSE_THRESHOLD = 1e-4
+_DEGENERATE_FRACTION_WARN = 0.02
+
+
+def check_degenerate_reconstruction(rows: list[dict], dataset: str) -> str | None:
+    """None if `dataset`'s test-split mse values look ordinary; else a caveat
+    string naming the suspiciously-degenerate fraction, for callers to print
+    and/or write next to the paper tables so it cannot be missed later."""
+    if not rows:
+        return None
+    n_low = sum(1 for r in rows if r["mse"] < _DEGENERATE_MSE_THRESHOLD)
+    frac = n_low / len(rows)
+    if frac < _DEGENERATE_FRACTION_WARN:
+        return None
+    return (
+        f"CAVEAT ({dataset}): {n_low}/{len(rows)} test rows ({frac * 100:.1f}%) have "
+        f"mse < {_DEGENERATE_MSE_THRESHOLD}. Before citing these numbers, check whether "
+        "the sampled windows carry real signal (known cause for this pipeline: stratified "
+        "window sampling always takes source_window_index 0, which is pure recording "
+        "lead-in for some corpora -- see the 'Known caveat' box in "
+        ".wiki/Experiments/Meeting01.md)."
+    )
+
 # ------------------------------------------------------------------- aggregate
 
 def _per_seed_means(rows: list[dict], keyer, metric: str) -> dict:
@@ -342,6 +373,12 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if d_sel:
             written.append(write_snn_selection_tex(d_sel, args.data_dir, infix))
+        caveat = check_degenerate_reconstruction(d_rows, ds)
+        if caveat:
+            print(f"[loso-data] {caveat}", file=sys.stderr)
+            caveat_path = args.data_dir / f"paper_loso_{infix}CAVEATS.txt"
+            caveat_path.write_text(caveat + "\n", encoding="utf-8")
+            written.append(caveat_path)
 
     # datasets.tex: the \foreach list the paper iterates.
     dtex = args.data_dir / "paper_loso_datasets.tex"
