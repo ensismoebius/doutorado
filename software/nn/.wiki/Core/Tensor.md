@@ -1,6 +1,6 @@
 # Tensor
 
-The `Tensor` is the core data structure in the nn library, representing multi-dimensional arrays with optional GPU support via OpenCL.
+The `Tensor` is the core data structure in the nn library, representing multi-dimensional arrays dispatched to a swappable compute backend.
 
 ## Theoretical Background
 
@@ -61,58 +61,6 @@ class TensorImpl {
 
 Supported backends (selected via `NN_BACKEND` CMake option; see `include/Backend.hpp`):
 - `nn::XTensorBackend` — CPU operations (xtensor + BLAS); the reference implementation
-- `nn::OpenCLTensorBackend` — GPU operations via OpenCL kernels with lazy sync.
-  **No CPU fallback**: despite the historical `warn_opencl_cpu_fallback_once`
-  naming in `OpenCLTensorBackend.cpp`, every compute method already ends in
-  `throw_opencl_only_failure(...)` when OpenCL is unavailable or unusable —
-  there is no host-math substitute hidden behind those checks. Preset:
-  `max-performance-opencl`. `cmake/OpenCLGpuCapabilityCheck.cmake` adds a
-  configure-time gate (parses `clinfo -l`) that refuses to configure with a
-  "BIG FAT WARNING" if no OpenCL device is present, mirroring the SYCL gate
-  below; override with `-DNN_OPENCL_ACKNOWLEDGE_NO_GPU=ON`. Unlike SYCL there
-  is no known-bad-hardware denylist — this project's dev machine already runs
-  this backend successfully via Mesa's rusticl driver, an unrelated driver
-  stack from AdaptiveCpp/HIP.
-- `nn::SYCLTensorBackend` — Khronos SYCL 2020 kernels (AdaptiveCpp / oneAPI DPC++);
-  copy-in/copy-out against an XTensorBackend host mirror for storage, but
-  **compute ops have no CPU fallback**: every math op throws if no SYCL
-  device is available. Preset: `max-performance-sycl` (requires AdaptiveCpp;
-  parity suite: `sycl_backend_parity_gtest`).
-  **No silent fallback, by policy**: this backend either runs on a real GPU
-  or refuses to run at all — it never silently substitutes host math while
-  claiming to be the SYCL/GPU backend. This is enforced twice:
-  1. **Configure time** — `cmake/SyclGpuCapabilityCheck.cmake` parses
-     `rocminfo` (grouping HSA agent blocks, matching each `GPU`-typed
-     agent's `Name:` field — the actual gfx ISA code, e.g. `gfx90c` — against
-     a denylist of chips confirmed unsafe) and refuses to configure
-     (`FATAL_ERROR`, with a large "BIG FAT WARNING" banner) if the only GPU
-     present is denylisted, or if no GPU is present at all. Override with
-     `-DNN_SYCL_ACKNOWLEDGE_UNSUPPORTED_GPU=ON` if you've personally verified
-     your exact machine handles concurrent SYCL kernel submission safely.
-  2. **Run time** — `SYCLTensorBackend.cpp`'s queue construction throws with
-     an actionable message if no SYCL device is available; there is no
-     `device_ready()`-guarded host-mirror path in the compute methods
-     anymore (removed; previously every op silently fell back to
-     `XTensorBackend` when the device wasn't usable).
-  Background: on this project's dev hardware (an AMD Renoir/Lucienne
-  integrated GPU, ISA `gfx90c` — not on ROCm's officially supported hardware
-  list), AdaptiveCpp routes SYCL compute through its HIP backend anyway,
-  which reproducibly triggered a genuine GPU hang (`HW Exception ... reason:
-  GPU Hang` from the ROCm HSA runtime) under concurrent kernel submission
-  (e.g. parallel ctest workers) — it froze the whole display compositor with
-  it, not just the test process. `acpp-info -l`'s device listing reports
-  only a generic marketing name ("AMD Radeon Graphics") for this chip with
-  no gfx-architecture codename, so the capability check uses `rocminfo`
-  instead, which does expose it. The commonly-cited `HSA_OVERRIDE_GFX_VERSION`
-  workaround (impersonate a supported chip) is documented elsewhere to
-  sometimes crash the GPU badly enough to need a reboot, so it is not
-  recommended as a fix. `ACPP_VISIBILITY_MASK=omp` (force CPU-only) was also
-  tried as a possible safe escape hatch and found to silently produce wrong
-  numeric results — a separate bug in this AdaptiveCpp install's
-  generic/SSCP JIT path for the OpenMP backend — so it is not viable either.
-  Net effect: on unsupported hardware, this backend simply cannot be built
-  without an explicit, informed override; there is no safe default that lets
-  it "just work."
 - `nn::DeviceTensorBackend` — documented skeleton for adding new device
   backends. It always runs on an `XTensorBackend` host mirror — its
   "simulated device buffer" only exercises copy-semantics bookkeeping for
@@ -144,7 +92,7 @@ flowchart LR
 
     subgraph Compute
         CPU[xtensor ops]
-        GPU[OpenCL kernels]
+        DEV[Device backend]
     end
 
     subgraph Output
@@ -152,10 +100,10 @@ flowchart LR
     end
 
     A --> check
-    check -->|CPU| CPU
-    check -->|OpenCL| GPU
+    check -->|XTensor| CPU
+    check -->|Device| DEV
     CPU --> C
-    GPU --> C
+    DEV --> C
 ```
 
 ## Usage Example
@@ -185,276 +133,13 @@ model_param.set_grad(grad);
 optimizer.step(model.params());
 ```
 
-## Recent OpenCL Optimization (2026-05-02)
-
-The OpenCL backend now includes a tuned tiled kernel for direct
-$A^T \cdot B$ (`matmul_lhs_transposed_kernel`) and uses this path in the
-Linear-layer backward weight-gradient hot path (`dL/dW`).
-
-Implementation points:
-- Kernel source: `src/core/tensor/opencl/KernelManager.cpp`
-- Backend API: `OpenCLTensorBackend::matmul_lhs_transposed(...)` in
-    `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
-- Linear backward integration: `include/layers/dense/Linear.hpp`
-
-Measured evidence (20-iteration samples on rusticl + AMD Radeon Graphics):
-- `opencl,grad_weight_matmul_512x1024x256`: 5.662 and 5.858 ms/iter
-- `opencl,grad_weight_matmul_via_transpose_probe_512x1024x256`:
-    10.653 and 10.290 ms/iter
-- Observed speedup for grad-weight path: about $1.76\times$ to $1.88\times$
-
-(Detailed benchmark log referenced here previously pointed at a file that
-doesn't exist in the repo; the numbers above are the complete record.)
-
-## Recent OpenCL Stability and SNN Integration Update (2026-05-10)
-
-The OpenCL backend and SNN layer integration were extended to validate LIF helper usage from layer code, not only from backend helper unit tests.
-
-Implementation points:
-- OpenCL backend default constructor now initializes empty host storage to avoid null host-state dereference during early shape checks.
-    - `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
-- OpenCL tensor tests now include Lif layer forward/backward integration cases instantiated on `OpenCLTensorBackend`.
-    - `src/core/tensor/tests/opencl_tensor_backend_gtest.cpp`
-
-Observed behavior after the fix:
-- Direct helper tests (`lif_step_inplace`, `lif_grad`) pass.
-- Layer-level OpenCL tests for Lif forward parity and exponential-surrogate backward also pass.
-- A previously reproducible segmentation fault in first-call Lif forward is removed.
-
-## Recent OpenCL Buffer Pool Memory Cap (2026-07-14)
-
-`OpenCLTensorBackend` allocates device buffers through a static, process-wide
-`GPUBufferPool` (`include/tensor/opencl/GPUBufferPool.hpp`) that buckets
-requests into fixed size classes (1KB … 64MB, then 64MB-aligned) and caches
-idle buffers for reuse instead of calling `clCreateBuffer`/`clReleaseMemObject`
-per tensor. Each bucket was already capped at 20 idle buffers, but nothing
-capped the *number of buckets* — a long training run that touches many
-distinct tensor shapes (per-layer activations, gradients, optimizer moments,
-per-timestep SNN state) kept a growing set of buckets alive for the whole
-process lifetime and never shrank.
-
-This was found while investigating a memory report: four parallel
-`thesis` phase00 runs each plateaued at 2.1–4.4GB RSS+swap for a tiny
-256→64→32 autoencoder — disproportionate for the actual weight/activation
-sizes involved. Buffers use `CL_MEM_ALLOC_HOST_PTR` (pinned) by default, so on
-this (integrated-GPU / unified-memory) hardware the pool's memory is real host
-RAM, not separate VRAM — it shows up directly in `ps`/`free`.
-
-It wasn't an active leak (memory was confirmed flat over repeated sampling
-once a run plateaued) — the real trigger was `scripts/testing/run_thesis_profiles.sh`
-under-budgeting per-job RAM and oversubscribing concurrency (see
-[Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md)).
-This pool fix is a bound on the secondary inefficiency, not the root cause.
-
-Implementation points:
-- Added `GPUBufferPool::kDefaultMaxPoolBytes` (1 GiB) and a `max_pool_bytes`
-  constructor parameter — `include/tensor/opencl/GPUBufferPool.hpp`.
-- `release()` now only caches a returned buffer if the per-bucket count is
-  under 20 **and** the pool's total cached bytes (`cached_bytes_`) would stay
-  under the ceiling; otherwise the buffer is dropped immediately (destructor
-  calls `clReleaseMemObject`) instead of being retained forever —
-  `src/core/tensor/opencl/GPUBufferPool.cpp`.
-- `acquire()` decrements `cached_bytes_` when reusing a pooled buffer; `clear()`
-  resets it to 0.
-- No API break: `OpenCLTensorBackend::init_buffer_pool()` still constructs the
-  pool with the two required args; the new parameter defaults to 1 GiB.
-
-Verification: the pool's translation unit was compiled directly against the
-project's recorded compiler flags (`compile_commands.json`) — clean, no
-warnings. A full `cmake --build` reconfigure is currently blocked by an
-unrelated stale Python venv (`venv/bin/python` missing after a system Python
-upgrade to 3.14.6); not yet fixed.
-
-## OpenCL Device-Resident Fast Path (2026-07-15)
-
-Found while investigating why an SNN-AE Experiment05 profile ran ~9× slower
-under the `NN_BACKEND=OpenCL` preset than on the CPU backend (~0.4s per
-batch of 32×256 through a 3-layer autoencoder — transfer-bound, ~0% GPU
-compute): **every op paid a full host↔device round-trip on its inputs**.
-Each op began with `sync_gpu_if_needed()` (a blocking device→host download
-of whatever the previous kernel just produced), then re-uploaded both
-operands from the host mirror into pooled staging buffers — ignoring the
-operand's own live `m_gpu_buffer`. The file's latent "GPU-resident" branches
-(gated on `m_gpu_resident`) were unreachable in practice because training
-tensors are host-built and nothing ever set the flag.
-
-Fix, in `OpenCLTensorBackend.cpp`:
-
-- **`ensure_device_current(what)`** — makes the tensor's own persistent
-  buffer (allocated in the constructors) hold current data, uploading from
-  host only when `m_needs_sync_to_device`; marks the tensor resident so
-  later device-side writes are lazily pulled back by `sync_gpu_if_needed()`.
-- **Elementwise/inplace ops** (`add`, `subtract`, `multiply`, `divide`,
-  `exp`, `sqrt`, `square`, `abs`, `*_scalar`, `*_inplace`) got a uniform
-  fast path via 5 generic launchers (`launch_binary_resident` etc.) that
-  feed operands' buffers straight to kernels and leave results
-  device-resident — zero transfers for chained ops.
-- **All 35 latent resident gates** (matmul family, transpose, LIF, fill,
-  reductions, fused bias+activation variants) rewritten from
-  flag-checks to `ensure_device_current()`-based gates, making them
-  reachable for any tensor.
-- **Coherence fix this exposed**: ~29 sites wrote results back into host
-  storage via `m_backend->mutable_data_ptr()` (bypassing the flag-setting
-  wrapper) — harmless when every op re-uploaded from host, but stale-device
-  poison once ops trust `m_needs_sync_to_device`. All now call
-  `mark_host_dirty()` after the writeback. Caught by
-  `backend_parity_gtest`'s `ChainedOpsWithoutHostReads` (LIF spike
-  divergence) and `tensor_gtest`'s factory tests.
-
-Measured on the same 3-epoch SNN-AE probe: **~400s/epoch → ~82s/epoch
-(~5×)**. CPU (XTensor) still wins for these tiny tensors (~43s/epoch,
-kernel-launch overhead is irreducible), but the GPU path is no longer
-transfer-bound and scales properly with model size. Verified:
-`opencl_tensor_backend_gtest` (37), `backend_parity_gtest` (11),
-`pytorch_parity_gtest` (42), `tensor_gtest` (38) all pass under both the
-OpenCL and XTensor presets.
-
-## Concurrent GPU Test Serialization (2026-07-15, revised same day)
-
-Two hard, reboot-requiring freezes hit this project's dev machine (AMD Renoir/
-Lucienne integrated GPU) during this work cycle:
-
-1. AdaptiveCpp's HIP backend, under concurrent SYCL ctest workers.
-2. Immediately after, running the **full** ctest suite at high parallelism
-   (`ctest -j$(nproc)`) under the `NN_BACKEND=OpenCL` preset.
-
-Initial diagnosis treated both as the same root cause (concurrent kernel
-submission from independent processes, different driver stacks) and locked
-every test under both `NN_BACKEND=OpenCL` and `NN_BACKEND=SYCL` behind a
-shared CTest `RESOURCE_LOCK`. That diagnosis was **wrong for OpenCL**: the
-user determined incident 2 was residual fallout from incident 1 (SYCL/HIP),
-not OpenCL concurrency itself — OpenCL-touching tests had already run fine at
-high parallelism earlier in the same session (mixed into the default XTensor
-preset's full suite). Re-running the full 3418-test suite at
-`ctest -j$(nproc)` under the `NN_BACKEND=OpenCL` preset with the lock removed
-confirmed this: clean pass in 45s, no freeze, no reboot.
-
-Fix (revised): `cmake/GpuTestSerialization.cmake` provides
-`nn_gtest_discover_tests()`, a drop-in wrapper around `gtest_discover_tests()`
-that every test `CMakeLists.txt` in the project uses instead of calling it
-directly. It attaches a shared CTest `RESOURCE_LOCK` (`nn_gpu_device`) only
-where the actual reproduced hazard (SYCL/HIP) applies:
-
-- The lock applies automatically to **every** discovered test only when
-  `NN_BACKEND` is `SYCL` (every test binary in that preset uses it as
-  `nn::Backend`, and it's the driver stack that actually reproduced the
-  hang). `NN_BACKEND=OpenCL` no longer auto-locks.
-- Pass `FORCE_GPU_LOCK` for a target that explicitly instantiates
-  `SYCLTensorBackend` regardless of the selected `nn::Backend` — e.g.
-  `pytorch_parity_gtest`, `sycl_backend_parity_gtest`. These touch a real
-  SYCL device even under `NN_BACKEND=XTensor`/`OpenCL`/`Device`.
-- Targets that only ever touch `OpenCLTensorBackend` directly
-  (`backend_parity_gtest`, `tensor_all_backends_gtest`,
-  `tensor_backend_switchability_gtest`, `opencl_tensor_backend_gtest`,
-  `gpu_buffer_pool_gtest`) are **not** force-locked — OpenCL concurrency is
-  not believed to be a hang trigger on this hardware.
-- `device_backend_gtest` remains unlocked — `DeviceTensorBackend` is pure
-  host math (see above), never touches real hardware.
-
-Net effect: `ctest -j$(nproc)` under `NN_BACKEND=OpenCL` runs the full suite
-at full parallelism again. Only `NN_BACKEND=SYCL` (and the two
-SYCL-instantiating targets, under any preset) still serialize.
-
-## OpenCL Queue Profiling Is a Safety Requirement (2026-07-18)
-
-`OpenCLContext` creates its command queue with `CL_QUEUE_PROFILING_ENABLE`.
-Removing that flag is the single largest speed-up available to the backend —
-~95 µs per enqueue on rusticl/radeonsi (~100 µs with, ~4 µs without) — and it
-**corrupts the heap**.
-
-The flag's cost also masks a latent bug in rusticl's host-side event
-bookkeeping. Without it: `free(): double free detected in tcache 2`, SIGSEGV
-and SIGABRT inside `libRusticlOpenCL.so.1`. On the GPU device the corruption
-takes the display with it, because the compute device is also the display
-adapter — two forced reboots during this work cycle.
-
-Isolated on the **llvmpipe CPU device**, so it is a driver bug reproducible with
-no GPU involved (`thesis_classifiers_gtest`,
-`ThesisRunClassifier.DsnnWithRegularizationRuns`):
-
-| Configuration | Result |
-|---|---|
-| Unmodified baseline (profiling on) | 6/6 pass |
-| Profiling **off** | **0/6 pass** |
-| Profiling **on** | 6/6 pass |
-| Profiling off + `RUSTICL_DEBUG=sync` | 0/6 pass |
-
-`RUSTICL_DEBUG=sync` not helping rules out a GPU-completion race; the problem is
-host-side. Under valgrind the test passes with **0 errors** — valgrind's
-allocator and thread serialisation hide it, so a clean memcheck run is not
-evidence of correctness here.
-
-This is a **separate hazard from the 2026-07-15 concurrency incident above** and
-is unrelated to `ctest` parallelism: it reproduces under a single serial test
-process.
-
-Handling:
-
-- Queue profiling defaults **on**. `initialize_runtime_or_throw` can only ever
-  turn it *on*, never off, so no caller can silently re-arm the hazard.
-- `NN_OPENCL_UNSAFE_FAST_QUEUE=1` opts into the fast path and logs a warning.
-- Debug OpenCL with `RUSTICL_ENABLE=llvmpipe`, never by looping GPU suites.
-
-Full method, measurements and the profiling shim used to find this:
-[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md).
-
-## OpenCL Lazy Host Access and Device-Side View Ops (2026-07-18)
-
-Three related changes to `OpenCLTensorBackend`, all aimed at host↔device traffic
-(measured at 85% of OpenCL API time, against 2.4% in actual kernels):
-
-**Sync-on-read host access.** Ops used to call `sync_gpu()` at the top, forcing a
-blocking `clEnqueueReadBuffer` (~231 µs for 1 KiB) even when the op then went on
-to use the device buffer and never touched host bytes. Private `host_data()` /
-`mutable_host_data()` now pull the device copy down only at the moment host bytes
-are actually needed, so the host-staged fallback paths still work while the
-device-resident fast path costs nothing.
-
-**Asynchronous uploads inside `BatchScope`.** A blocking write is a full pipeline
-flush and defeats batching (~43 µs blocking vs ~2.5 µs non-blocking, 1 KiB).
-OpenCL requires the host source to stay valid until an async transfer completes,
-so the event is owned by the tensor (`m_upload_event`) and anything that would
-free or overwrite that storage waits on it first. This is why the destructor and
-move operations are hand-written rather than defaulted — a defaulted move would
-leave two objects releasing the same `cl_event`.
-
-**Device-side view ops, opt-in.** `slice_time`, `set_time_slice`, `setBlock`,
-`block`, `row`, `col`, `topRows`, `leftCols` can run as a single
-`strided_copy_2d_kernel` instead of a host element loop. Every one of them is a
-rectangular copy between two strided views, so one kernel covers all of them:
-element $(i,j)$ maps to `base + i*stride_i + j*stride_j` on each side.
-
-Which path wins depends entirely on the per-enqueue cost:
-
-- Profiling **off** (~4 µs/enqueue): the device path wins.
-- Profiling **on** (~95 µs/enqueue, the safe default): the device path *loses*.
-  It replaces a cheap host memcpy of a small slice with a kernel launch, raising
-  enqueue count from 678k to 817k (≈ +13 s on the Meeting01 benchmark).
-
-The default therefore matches the default queue mode: **off**. Enable with
-`NN_OPENCL_DEVICE_VIEW_OPS=1` on any stack where enqueues are cheap. Both paths
-are covered by `OpenCLViewOpsTest` in the separate `opencl_tensor_backend_viewops_gtest`
-target (split out of `opencl_tensor_backend_gtest.cpp`) — 10 tests added where these ops
-previously had **zero** coverage.
-
-Net effect with the safe queue default: these optimisations are
-performance-neutral on rusticl. They are retained because they are
-architecturally correct (fewer readbacks) and will pay off on a stack where the
-driver race is fixed or enqueues are cheap.
-
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$
 
 2. **Gradient Not Tracked**: There is no `set_requires_grad()` — pass `requires_grad=true` into the `forward()` call itself (see Usage Example above and the Module contract in [Layers](./Layers.md))
 
-3. **GPU Data Not Synced**: Use `sync_gpu_if_needed()` before accessing GPU tensor data on CPU, or use non-const `at()` accessor
-
-4. **Disabling OpenCL queue profiling**: it looks like free performance and it
-   corrupts memory on rusticl. Never turn it off for a real run — see the
-   2026-07-18 section above.
-
-5. **Reshape is not reframing**: storage is column-major, so reshaping
+3. **Reshape is not reframing**: storage is column-major, so reshaping
    `(N, 1)` to `(T, D)` yields the strided/polyphase split
    $\{t, t+T, t+2T, \dots\}$ per row, not $D$ consecutive elements. To group
    consecutive elements, reshape to `(D, T)` and transpose (see
@@ -466,8 +151,7 @@ driver race is fixed or enqueues are cheap.
 - [Optimizers](./Optimizers.md) - Operates on Tensor gradients
 - [DataLoaders](./DataLoaders.md) - Produces Tensors from datasets
 - [Architecture](../Architecture.md) - System interaction diagram
-- [Device](./Device.md) - CPU/OpenCL device abstraction
-- [OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md) - Safe llvmpipe debugging, per-call cost tables, the queue-profiling hazard
+- [Device](./Device.md) - Device abstraction
 
 ## References
 

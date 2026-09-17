@@ -27,7 +27,7 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 **Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
 
-**No side effects on `--help`:** `--help` must not write files, touch the filesystem, or open OpenCL devices. Use `nn::logging::StreamRedirector` only after help check.
+**No side effects on `--help`:** `--help` must not write files or touch the filesystem. Use `nn::logging::StreamRedirector` only after help check.
 
 ## Rules
 

@@ -23,10 +23,9 @@ cmake --preset=max-performance
 the conference paper both report numbers from it, and it is the right default unless you are
 specifically working on GPU code. Configuring takes a minute or two the first time.
 
-> **Other presets exist** (`max-performance-opencl`, `max-performance-sycl`, …) but they
-> require a working GPU stack, and the project deliberately refuses to configure them if that
-> stack is missing rather than silently falling back to CPU. Stick with `max-performance`
-> until you have a reason not to.
+> **Another preset exists** (`max-performance-device`) for the `Device` backend — a
+> documented skeleton for implementing a *new* backend, not a real accelerator; it still
+> runs on host math internally. Stick with `max-performance` until you have a reason not to.
 
 ## Step 2 — Build
 

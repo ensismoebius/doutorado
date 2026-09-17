@@ -65,7 +65,7 @@ auto resolve_profile_name(const std::string& profile_name) -> std::string
 auto normalize_device_token(const std::string& token) -> std::string
 {
     const auto normalized = CLI::detail::to_lower(token);
-    if (normalized == "cpu" || normalized == "opencl")
+    if (normalized == "cpu")
     {
         return normalized;
     }

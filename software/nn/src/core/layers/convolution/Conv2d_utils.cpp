@@ -5,11 +5,7 @@
 
 #include "layers/convolution/Conv2d.hpp"
 #include "tensor/DeviceTensorBackend.hpp"
-#include "tensor/opencl/OpenCLTensorBackend.hpp"
 #include "tensor/xtensor/XTensorBackend.hpp"
-#ifdef NN_BACKEND_SYCL
-#include "tensor/sycl/SYCLTensorBackend.hpp"
-#endif
 
 // ============ Index Caching & Computation ============
 
@@ -403,8 +399,4 @@ auto Conv2dImpl<Backend>::reshape_output_optimized(
 // See Conv1d_impl.cpp for why these are explicit-instantiated for every
 // concrete backend rather than only nn::Backend.
 template class Conv2dImpl<nn::XTensorBackend>;
-template class Conv2dImpl<nn::OpenCLTensorBackend>;
 template class Conv2dImpl<nn::DeviceTensorBackend>;
-#ifdef NN_BACKEND_SYCL
-template class Conv2dImpl<nn::SYCLTensorBackend>;
-#endif

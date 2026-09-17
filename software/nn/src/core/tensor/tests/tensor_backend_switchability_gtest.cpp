@@ -17,8 +17,7 @@ class MockSwitchBackend
    public:
     MockSwitchBackend() = default;
 
-    MockSwitchBackend(const MockSwitchBackend& other)
-        : shape_(other.shape_), data_(other.data_)
+    MockSwitchBackend(const MockSwitchBackend& other) : shape_(other.shape_), data_(other.data_)
     {
         if (other.grad_)
         {
@@ -93,8 +92,8 @@ class MockSwitchBackend
         return random(d1, d2, d3, rng);
     }
 
-    static auto random(
-        nn::Index d1, nn::Index d2, nn::Index d3, std::mt19937& rng) -> MockSwitchBackend
+    static auto random(nn::Index d1, nn::Index d2, nn::Index d3, std::mt19937& rng)
+        -> MockSwitchBackend
     {
         MockSwitchBackend out(d1, d2, d3);
         std::uniform_real_distribution<float> dist(0.0F, 1.0F);
@@ -405,10 +404,9 @@ TEST(TensorBackendSwitchability, TensorHeaderHasNoConcreteBackendLeak)
     buffer << input.rdbuf();
     const std::string contents = buffer.str();
 
-    EXPECT_EQ(contents.find("class OpenCLTensorBackend;"), std::string::npos);
+    EXPECT_EQ(contents.find("class DeviceTensorBackend;"), std::string::npos);
     EXPECT_EQ(contents.find("template <typename Backend = XTensorBackend>"), std::string::npos);
-    EXPECT_EQ(contents.find("#include \"tensor/xtensor/XTensorBackend.hpp\""),
-        std::string::npos);
+    EXPECT_EQ(contents.find("#include \"tensor/xtensor/XTensorBackend.hpp\""), std::string::npos);
 }
 
 } // namespace

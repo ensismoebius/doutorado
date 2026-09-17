@@ -28,7 +28,7 @@ include/             ← public headers for all core modules
 | `cmake/Flags.cmake` | C++20 standard, PIC, linker selection (mold → lld fallback), CMake options |
 | `cmake/EnableCoverage.cmake` | `--coverage` flags when `NN_ENABLE_COVERAGE=ON` |
 | `cmake/PrecompiledHeaders.cmake` | Per-target PCH helpers (opt-in via `NN_ENABLE_PCH`) |
-| `cmake/PackageChecking.cmake` | System deps: xtensor, OpenMP, BLAS/LAPACK/OpenBLAS, OpenCL |
+| `cmake/PackageChecking.cmake` | System deps: xtensor, OpenMP, BLAS/LAPACK/OpenBLAS |
 | `cmake/VendorIncludes.cmake` | Aggregates all vendored deps — includes each `Vendor*.cmake` in order |
 | `cmake/SanitizerFlags.cmake` | ASan + UBSan for Debug/RelWithDebInfo (opt-in via `NN_ENABLE_ASAN=ON`) |
 
@@ -62,7 +62,6 @@ Required at configure time:
 - **xtensor** — linear algebra
 - **OpenMP** — parallel loops
 - **BLAS / LAPACK / OpenBLAS** — linear algebra acceleration
-- **OpenCL** *(optional)* — GPU tensor backend; warning emitted if absent
 
 ---
 

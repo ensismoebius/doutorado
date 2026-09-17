@@ -136,11 +136,8 @@ each timestep. No information is discarded; the window is merely re-blocked.
 | input dim $D$ | 1 | 8 |
 | total MACs | 8 523 840 | 1 184 256 |
 | CPU LSTM train | 3 711 ms | **478 ms** |
-| OpenCL LSTM train | 144 848 ms | **18 335 ms** |
 
-~7× fewer MACs and ~8× less sequential depth, on **both** backends. On the
-OpenCL backend it matters even more, because each timestep costs several kernel
-enqueues at ~95 µs apiece.
+~7× fewer MACs and ~8× less sequential depth.
 
 `lstm_frame_size` must divide `dataset.window_size` (validated in
 `Meeting01Config::validate`). Set it to `1` to reproduce the original behaviour.
@@ -177,7 +174,6 @@ regime where LSTMs are known to struggle with long-range dependencies
 - [Layers](../Core/Layers.md) — FastActivations API reference
 - [PGO](PGO.md) — profile-guided optimization workflow
 - [Experiment04](../Experiments/Meeting01.md) — where `lstm_frame_size` is configured
-- [OpenCL Debugging and Performance](./OpenCL-Debugging-And-Performance.md) — why per-timestep enqueues cost so much on the GPU backend
 
 ## References
 

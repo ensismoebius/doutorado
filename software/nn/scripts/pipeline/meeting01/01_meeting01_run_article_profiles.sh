@@ -30,8 +30,7 @@
 # The first run of a preset also *configures* it (a few minutes); later runs are incremental.
 #
 # Runtime: ~2.5 h total (LSTM ~10 min, each SNN ~45 min).
-# Requires: cmake, Python 3 with numpy. (An OpenCL runtime is needed only if you pick an
-# OpenCL preset.)
+# Requires: cmake, Python 3 with numpy.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"

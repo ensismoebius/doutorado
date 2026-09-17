@@ -4,9 +4,14 @@ Purpose
 - Core tensor abstraction and xtensor-backed implementations used across the codebase.
 
 Source layout
-- `src/core/tensor/opencl/`: OpenCL-specific tensor runtime and backend implementation.
 - `src/core/tensor/eigen/`: Eigen-specific implementation files (reserved for backend-scoped code).
 - `src/core/tensor/tests/`: Unit tests for tensor backends and tensor-level behavior.
+
+Concrete backends: XTensor (default, CPU/BLAS) and Device (documentation skeleton for
+implementing a new backend, always delegates to XTensor host math). The OpenCL and SYCL
+backends that used to live under `src/core/tensor/opencl/` and `include/tensor/sycl/` were
+removed as ineffective for this project's workloads on this hardware — see the "Recent
+updates" history below for what they used to do.
 
 Usage
 - Use `nn::Tensor` for numeric data and call high-level operations from the `tensor` API. Prefer high-level helpers instead of dealing with raw Eigen matrices directly.

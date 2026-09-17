@@ -53,10 +53,6 @@
 #include "training/ITrainingCallback.hpp"
 #include "utility/GradClip.hpp"
 
-#if defined(NN_BACKEND_OPENCL)
-#include "tensor/opencl/OpenCLContext.hpp"
-#endif
-
 namespace nn::training
 {
 
@@ -380,12 +376,6 @@ class Trainer
 
                 float loss_val = 0.0F;
                 {
-#if defined(NN_BACKEND_OPENCL)
-                    // Covers zero_grad + forward + loss + backward + clip +
-                    // optimizer step: without the optimizer inside the scope,
-                    // Adam's per-parameter kernels each paid a full clFinish.
-                    nn::opencl::OpenCLContext::BatchScope _gpu_batch;
-#endif
                     // zero_grad BEFORE forward (bug 1 fix)
                     optimizer_->zero_grad(model_.params());
 
@@ -532,12 +522,6 @@ class Trainer
                 const std::size_t batch_sample_count = batch_end - batch_start;
 
                 {
-#if defined(NN_BACKEND_OPENCL)
-                    // Covers zero_grad + forward + loss + backward + clip +
-                    // optimizer step: without the optimizer inside the scope,
-                    // Adam's per-parameter kernels each paid a full clFinish.
-                    nn::opencl::OpenCLContext::BatchScope _gpu_batch;
-#endif
                     optimizer_->zero_grad(model_.params()); // zero BEFORE forward
 
                     const auto B = static_cast<nn::Index>(batch_sample_count);

@@ -730,8 +730,7 @@ int AutoencoderRunner::run()
     {
         /// Initialize device early to catch any configuration
         /// or runtime errors before starting the training loop.
-        const auto device =
-            Device::from_string(config_.device).with_profiling(config_.opencl_profiling_enabled);
+        const auto device = Device::from_string(config_.device);
 
         initialize_dataset();
 

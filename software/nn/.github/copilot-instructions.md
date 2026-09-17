@@ -126,7 +126,6 @@ Experiment04-specific editing guidance
 * Name code objects intuitively and readably: choose descriptive, human-friendly names for functions, variables, classes, and structs so their purpose is immediately clear.
 * Document everything: every function, variable, class, or struct should include a clear, concise comment describing its purpose, behaviour, inputs, outputs, and any important invariants or side effects.
 * Do NOT add deprecated code tags when modifying the codebase: replace the symbol or object and refactor all references to point to the new symbol or object.
-* For OpenCL code, prefer modern APIs (e.g., `clCreateCommandQueueWithProperties`) with explicit compatibility fallbacks for older header/runtime combinations; when deprecation warnings appear, proactively migrate call sites and add targeted tests.
 
 ## Preserve custom directives
 
@@ -136,7 +135,7 @@ Experiment04-specific editing guidance
 
 **Header Style: Canonical C++ API Header**
 
-Adopt `include/nn/tensor/opencl/OpenCLTensorBackend.hpp` as the canonical header style for all public and semi-public headers. Requirements:
+Adopt `include/tensor/xtensor/XTensorBackend.hpp` as the canonical header style for all public and semi-public headers. Requirements:
 
 * File prologue: short description, PHASE notes (if applicable), hardware/assumption bullets when relevant.
 * Includes: minimal, ordered, and use workspace-style path (e.g., `nn/tensor/...`).

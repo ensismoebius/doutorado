@@ -53,7 +53,7 @@ const cnpy::NpyArray& arr(const std::string& key)
 }
 
 // Fixture arrays are numpy C-order. Use only the structured accessor at(i,j) — never the
-// linear at(k), which exposes backend storage order and would transpose on OpenCL.
+// linear at(k), which exposes backend storage order directly.
 nn::Tensor to_tensor(const std::string& key)
 {
     const auto& a = arr(key);

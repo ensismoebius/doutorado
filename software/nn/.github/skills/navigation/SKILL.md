@@ -31,7 +31,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 | Exp04 profile parser | `src/experiments/meeting01/lib/include/ComparativeConfig.hpp` |
 | Exp04 encoding transforms | `src/experiments/meeting01/lib/src/ComparativeEncoding.cpp` |
 | KFold / NestedKFold | `include/statistics/kfold.hpp` |
-| OpenCL context | `include/tensor/opencl/OpenCLContext.hpp` |
 
 **SNN search anchors** — grep for these to find the relevant code:
 - `v_mem_history`, `spike_history` — membrane and spike recording in LifBPTT

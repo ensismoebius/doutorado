@@ -17,4 +17,4 @@ target_link_libraries(paraconsistent_gtest
         google_test
 )
 
-nn_gtest_discover_tests(paraconsistent_gtest)
+gtest_discover_tests(paraconsistent_gtest)

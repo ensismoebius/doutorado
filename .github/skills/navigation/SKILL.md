@@ -71,7 +71,6 @@ Project Context (nn framework)
 | Exp04 profile parser | `src/experiments/meeting01/lib/include/ComparativeConfig.hpp` |
 | Exp04 encoding transforms | `src/experiments/meeting01/lib/src/ComparativeEncoding.cpp` |
 | KFold / NestedKFold | `include/nn/statistics/kfold.hpp` |
-| OpenCL context | `include/nn/tensor/opencl/OpenCLContext.hpp` |
 
 **SNN search anchors** — `search_text` (MCP) or grep for these to find the relevant code:
 - `v_mem_history`, `spike_history` — membrane and spike recording in LeakyBPTT

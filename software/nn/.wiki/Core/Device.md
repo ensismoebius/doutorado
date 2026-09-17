@@ -1,6 +1,6 @@
 # Device
 
-Device abstraction for CPU and OpenCL GPU computation with lazy initialization.
+Device abstraction for CPU computation.
 
 ## Theoretical Background
 
@@ -8,21 +8,13 @@ Device abstraction for CPU and OpenCL GPU computation with lazy initialization.
 
 Modern ML systems support multiple compute devices:
 - **CPU**: Universal, moderate performance
-- **GPU (CUDA/OpenCL)**: High parallelism, tensor ops
-- **TPU/NPU**: Specialized accelerators
+- **GPU/TPU/NPU**: Specialized accelerators (not implemented by this abstraction — see below)
 
-### Lazy Initialization
-
-OpenCL runtime initialization is expensive. Using lazy initialization:
-- First call triggers one-time initialization
-- Runtime lives for process lifetime
-- No explicit cleanup needed
-
-### GPU Memory Management
-
-- **Allocation**: `clCreateBuffer`
-- **Transfer**: `clEnqueueRead/WriteBuffer`
-- **Pinned Memory**: `CL_MEM_ALLOC_HOST_PTR` for faster DMA
+This project's `Device`/`DeviceType` descriptor is CPU-only. It is a separate,
+smaller abstraction from the `NN_BACKEND` tensor backend selection (see
+[Tensor](./Tensor.md)) — it is what `Module::to(device)` and
+`autoencoderRunner`'s `--device` CLI flag consume, not what dispatches tensor
+math.
 
 ## How It Is Implemented Here
 
@@ -35,7 +27,6 @@ namespace nn
 enum class DeviceType
 {
     CPU,
-    OPENCL,
 };
 }
 ```
@@ -53,8 +44,6 @@ struct Device
     static auto from_string(const std::string& s) -> Device
     {
         if (s.empty()) return Device{DeviceType::CPU, "cpu"};
-        if (s == "cpu") return Device{DeviceType::CPU, s};
-        if (s.rfind("opencl", 0) == 0) return Device{DeviceType::OPENCL, s};
         return Device{DeviceType::CPU, s};
     }
 
@@ -66,7 +55,6 @@ struct Device
     }
 
     bool is_cpu() const { return type == DeviceType::CPU; }
-    bool is_opencl() const { return type == DeviceType::OPENCL; }
     const std::string& to_string() const { return id; }
 };
 ```
@@ -77,10 +65,14 @@ struct Device
 // File: include/device/DeviceRuntime.hpp
 struct DeviceRuntime
 {
-    // Lazy initialization - thread-safe
     static void ensure_runtime(const Device& device);
 };
 ```
+
+`ensure_runtime()` is an unconditional no-op (`src/core/tensor/DeviceRuntime.cpp`):
+CPU needs no runtime warm-up. It previously lazily started a GPU runtime
+scope on first call; that code path was removed along with the GPU backends.
+It stays in the API so `Module::to(device)` call sites don't need to change.
 
 ## Data Flow
 
@@ -92,49 +84,38 @@ flowchart TB
 
     subgraph Device
         parse[Parse String]
-        init[Lazy Init<br/>First Call]
+        init[ensure_runtime<br/>no-op]
     end
 
     subgraph Backend
         xtensor[xtensor CPU]
-        opencl[OpenCL GPU]
     end
 
     code --> parse
     parse --> init
-    init -->|CPU| eigen
-    init -->|OpenCL| opencl
+    init -->|CPU| xtensor
 ```
 
 ## Usage Example
 
 ```cpp
-// File: src/core/tensor/opencl/DeviceRuntime.cpp
+// File: src/core/tensor/DeviceRuntime.cpp
 #include "device/Device.hpp"
 #include "tensor/Tensor.hpp"
 
 // Create device from string
-nn::Device device = nn::Device::from_string("opencl");
+nn::Device device = nn::Device::from_string("cpu");
 
 // With profiling
 nn::Device device_profiled = device.with_profiling(true);
 
-// Lazy runtime initialization - called on first GPU operation
+// Runtime initialization is a no-op on this CPU-only abstraction, kept so
+// call sites need no special-casing.
 nn::DeviceRuntime::ensure_runtime(device);
 
 // Model to device
 model->to(device);
 ```
-
-## Common Pitfalls
-
-1. **Device Mismatch**: Can't mix CPU and GPU tensors in operations
-
-2. **Memory**: GPU memory limited; watch allocation
-
-3. **Pinned Memory**: Only for frequent CPU-GPU transfers
-
-4. **Profiling Overhead**: Can slow down execution
 
 ## See Also
 
@@ -143,6 +124,4 @@ model->to(device);
 
 ## References
 
-[1] A. Munshi, "The OpenCL specification," Khronos OpenCL Working Group, 2009. [Online]. Available: https://www.khronos.org/opencl/
-
-[2] J. D. Owens, M. Houston, D. Luebke, S. Green, J. E. Stone, and J. C. Phillips, "GPU computing," *Proc. IEEE*, vol. 96, no. 5, pp. 879–899, May 2008. [Online]. Available: https://doi.org/10.1109/JPROC.2008.917757
+[1] J. D. Owens, M. Houston, D. Luebke, S. Green, J. E. Stone, and J. C. Phillips, "GPU computing," *Proc. IEEE*, vol. 96, no. 5, pp. 879–899, May 2008. [Online]. Available: https://doi.org/10.1109/JPROC.2008.917757

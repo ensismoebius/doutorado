@@ -27,7 +27,7 @@ Two runners share one live-progress UI, failure capture, and binary auto-detecti
 **Binary selection** (works with any build profile):
 
 - auto: the most recently built `out/build/*/…/thesis`;
-- `THESIS_BUILD=max-performance-opencl ./scripts/testing/run_thesis_profiles.sh phase00`;
+- `THESIS_BUILD=max-performance-device ./scripts/testing/run_thesis_profiles.sh phase00`;
 - `THESIS_BIN=/abs/path/to/thesis ./scripts/testing/run_thesis_profiles.sh`.
 
 **Progress**: before each profile the runner prints
@@ -119,9 +119,7 @@ config with a different memory footprint, pass `THESIS_JOB_MEM_MB` explicitly
 rather than trusting the default blindly.
 
 The 2GB-per-job assumption wasn't a leak in `thesis` itself — see
-[Core/Tensor § Recent OpenCL Buffer Pool Memory Cap](../Core/Tensor.md#recent-opencl-buffer-pool-memory-cap-2026-07-14)
-for the related (secondary) buffer-pool bound that was tightened at the same
-time, and [Memory Diagnostics](./Memory-Diagnostics.md) for the full
+[Memory Diagnostics](./Memory-Diagnostics.md) for the full
 investigation writeup and the general leak-vs-plateau method.
 
 **2026-07-15 fixes** (both in `run_thesis_profiles.sh`):
@@ -134,9 +132,9 @@ investigation writeup and the general leak-vs-plateau method.
   throttles on live worker PIDs, which is immune to both.
 - **Binary auto-pick.** Auto-pick now prefers the `max-performance` (CPU) build
   when present, instead of "most recently built". These profiles' networks are
-  tiny and kernel-launch-bound on the GPU, so a stray OpenCL rebuild used to
-  silently switch runs onto the slower backend. Override with `THESIS_BUILD` /
-  `THESIS_BIN` to target a specific backend.
+  tiny, so a stray rebuild of another backend preset used to silently switch
+  runs onto a slower binary. Override with `THESIS_BUILD` / `THESIS_BIN` to
+  target a specific backend.
 
 ## Crash / power-loss recovery
 

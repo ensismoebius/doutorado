@@ -9,8 +9,6 @@
 #include <vector>
 
 #include "layers/dense/Linear.hpp"
-#include "tensor/opencl/OpenCLContext.hpp"
-#include "tensor/opencl/OpenCLTensorBackend.hpp"
 #include "tensor/xtensor/XTensorBackend.hpp"
 
 namespace
@@ -135,22 +133,10 @@ auto bench_linear_chain(
         iterations,
         [&]()
         {
-            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-            {
-                input.set_gpu_resident(true);
-                weight.set_gpu_resident(true);
-                bias.set_gpu_resident(true);
-                auto output = input.matmul_transposed_add_col_bias(weight, bias);
-                volatile float sink = output.at(0, 0);
-                (void) sink;
-            }
-            else
-            {
-                auto output = input.matmul_transposed(weight);
-                output.add_col_vector_to_rows_inplace(bias);
-                volatile float sink = output.at(0, 0);
-                (void) sink;
-            }
+            auto output = input.matmul_transposed(weight);
+            output.add_col_vector_to_rows_inplace(bias);
+            volatile float sink = output.at(0, 0);
+            (void) sink;
         });
 }
 
@@ -170,16 +156,7 @@ auto bench_linear_backward_chain(const std::string& backend_name,
         [&]()
         {
             auto grad_t = grad_output.transpose();
-            auto grad_weight = [&]()
-            {
-                if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-                {
-                    grad_output.set_gpu_resident(true);
-                    input.set_gpu_resident(true);
-                    return grad_output.matmul_lhs_transposed(input);
-                }
-                return grad_t.matmul(input);
-            }();
+            auto grad_weight = grad_t.matmul(input);
             auto grad_bias = grad_t.rowwise_sum();
             auto grad_input = grad_output.matmul(weight);
             volatile float sink = grad_weight.at(0, 0) + grad_bias.at(0, 0) + grad_input.at(0, 0);
@@ -214,35 +191,6 @@ auto bench_grad_weight_matmul(
         "grad_weight_matmul_512x1024x256",
         512,
         1024,
-        256,
-        iterations,
-        [&]()
-        {
-            auto grad_t = grad_output.transpose();
-            auto grad_weight = [&]()
-            {
-                if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-                {
-                    grad_output.set_gpu_resident(true);
-                    input.set_gpu_resident(true);
-                    return grad_output.matmul_lhs_transposed(input);
-                }
-                return grad_t.matmul(input);
-            }();
-            volatile float sink = grad_weight.at(0, 0);
-            (void) sink;
-        });
-}
-
-template <typename Backend>
-auto bench_grad_weight_matmul_via_transpose_probe(
-    const std::string& backend_name, int iterations, Backend& grad_output, Backend& input)
-    -> BenchResult
-{
-    return measure(backend_name,
-        "grad_weight_matmul_via_transpose_probe_512x1024x256",
-        1024,
-        512,
         256,
         iterations,
         [&]()
@@ -321,12 +269,6 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
     results.push_back(
         bench_grad_weight_matmul<Backend>(backend_name, iterations, grad_output, input));
 
-    if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-    {
-        results.push_back(bench_grad_weight_matmul_via_transpose_probe<Backend>(
-            backend_name, iterations, grad_output, input));
-    }
-
     results.push_back(bench_rowwise_sum<Backend>(backend_name, iterations, grad_output));
 
     if constexpr (std::is_same_v<Backend, nn::Backend>)
@@ -354,12 +296,6 @@ int main()
 {
     const int iterations = env_to_int("NN_TENSOR_BENCH_ITERS", 5);
     std::vector<BenchResult> results = benchmark_backend<nn::XTensorBackend>("xtensor", iterations);
-
-    if (nn::opencl::OpenCLContext::instance().is_available())
-    {
-        auto opencl_results = benchmark_backend<nn::OpenCLTensorBackend>("opencl", iterations);
-        results.insert(results.end(), opencl_results.begin(), opencl_results.end());
-    }
 
     print_results_csv(results);
     return 0;

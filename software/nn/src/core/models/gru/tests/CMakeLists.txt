@@ -23,4 +23,4 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/models
 )
 
-nn_gtest_discover_tests(gru_autoencoder_gtest)
+gtest_discover_tests(gru_autoencoder_gtest)

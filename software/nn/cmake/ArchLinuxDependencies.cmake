@@ -60,9 +60,6 @@ endif()
 #   clarity (the vendored NFFT3 build uses them) and are no-ops when already
 #   pulled in by base-devel.
 # - `git` is needed to bootstrap `yay` from the AUR below.
-# - OpenCL headers/loader come from `opencl-headers` + `ocl-icd`. A vendor ICD
-#   runtime (e.g. `intel-compute-runtime` for the Intel iGPU, or Mesa's
-#   rusticl) is hardware-specific and intentionally NOT auto-installed.
 set(NN_PACMAN_DEPENDENCIES
     pkgconf             # pkg-config, required by PackageChecking.cmake
     cmake               # build system
@@ -81,8 +78,6 @@ set(NN_PACMAN_DEPENDENCIES
     python              # Python for the vendored venv provisioning
     git                 # clones the AUR yay source
     base-devel          # toolchain + autotools (also required to build yay)
-    opencl-headers      # Khronos OpenCL headers (CL/cl.h)
-    ocl-icd             # OpenCL ICD loader
     sqlite              # SQLite3 (required by the data loaders, SQLite3::SQLite3)
     zlib                # ZLIB (find_package(ZLIB REQUIRED) in the data loaders)
 )
@@ -125,7 +120,7 @@ endif()
 # later gains an AUR-only dependency, add it to NN_AUR_DEPENDENCIES and this
 # block installs yay (from source via makepkg) and then pulls the packages.
 set(NN_AUR_DEPENDENCIES
-    # Example: "intel-compute-runtime-bin"  # AUR-only OpenCL runtime, if desired
+    # Example: "some-aur-only-package"
 )
 
 if(NN_AUR_DEPENDENCIES)

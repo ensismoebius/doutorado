@@ -27,7 +27,7 @@ target_include_directories(optimizers_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(optimizers_gtest)
+gtest_discover_tests(optimizers_gtest)
 configure_xtensor_parallel_target(optimizers_gtest)
 
 ## optimizer_parity_gtest: ground-truth parity for every optimizer against its reference
@@ -57,5 +57,5 @@ target_include_directories(optimizer_parity_gtest
 
 set_target_properties(optimizer_parity_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(optimizer_parity_gtest)
+gtest_discover_tests(optimizer_parity_gtest)
 configure_xtensor_parallel_target(optimizer_parity_gtest)

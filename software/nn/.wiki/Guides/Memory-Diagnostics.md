@@ -1,8 +1,7 @@
 # Memory Diagnostics — Leak vs. Bounded High-Water-Mark
 
 How to tell whether a process eating RAM is actively leaking or has simply
-plateaued at a large-but-bounded working set, using an OpenCL/pinned-memory
-workload as the running example. Written up after the 2026-07-14
+plateaued at a large-but-bounded working set. Written up after the 2026-07-14
 `thesis` memory investigation (case study below).
 
 ## Quick triage
@@ -33,20 +32,6 @@ awk '/VmRSS|VmSwap/' /proc/<pid>/status
 Don't rely on a single snapshot. A process caught mid-ramp-up looks identical
 to a genuinely leaking one; only a second sample distinguishes them.
 
-## Why "big but bounded" happens with OpenCL / pinned memory
-
-- `CL_MEM_ALLOC_HOST_PTR` buffers are pinned — on unified-memory/integrated-GPU
-  hardware this is real host RAM, not separate VRAM, so it shows up directly
-  in `ps`/`free`, not just in a GPU-specific tool.
-- A size-bucketed buffer pool (see `GPUBufferPool`,
-  [Core/Tensor](../Core/Tensor.md)) grows to whatever peak concurrent
-  shape-diversity a run touches, then holds that memory for the rest of the
-  process's life — a one-way high-water-mark cache, not a classic unbounded
-  leak, but easy to mistake for one from a single measurement.
-- Check whether such a pool has a *global* ceiling, not just a per-bucket one.
-  A per-bucket cap alone still lets aggregate memory grow indefinitely with
-  the number of distinct shapes seen.
-
 ## Before blaming the binary: check the launcher
 
 Several heavy processes that each plateau at a "reasonable" size can still
@@ -74,11 +59,7 @@ Symptom: 16/17GB RAM used, 14/25GB swap used, system sluggish.
    (`THESIS_JOB_MEM_MB` default). Real `snn-ae`/poisson voice profiles peak at
    ~4.4GB, EEG at ~2.1GB. The old default let 4 heavy jobs launch when RAM
    held roughly 2.
-6. Secondary, non-triggering finding: `GPUBufferPool` had a per-bucket cap (20
-   buffers) but no global byte ceiling — bounded per run, but disproportionate
-   for the tiny 256→64→32 autoencoder actually being trained. Fixed anyway
-   (see [Core/Tensor](../Core/Tensor.md)).
-7. Outcome: while investigating, the sweep exited on its own (no OOM-kill
+6. Outcome: while investigating, the sweep exited on its own (no OOM-kill
    trace found in `dmesg`/`journalctl` — exact cause unconfirmed) after
    18/300 phase00 profiles had checkpointed successfully. The 4 in-progress
    profiles were lost — resumable, since `run_thesis_profiles.sh` checkpoints per
@@ -88,6 +69,5 @@ Symptom: 16/17GB RAM used, 14/25GB swap used, system sluggish.
 
 ## Related
 
-- [Core/Tensor](../Core/Tensor.md) — `GPUBufferPool` global cache ceiling
 - [Running Experiment05 Profiles](./Running-Thesis-Profiles.md) —
   memory-gated parallelism (`THESIS_JOB_MEM_MB` / `THESIS_JOBS`)

@@ -33,4 +33,4 @@ target_include_directories(autoencoder_leakyrelu_gtest
 configure_xtensor_parallel_target(autoencoder_leakyrelu_gtest)
 
 include(GoogleTest)
-nn_gtest_discover_tests(autoencoder_leakyrelu_gtest)
+gtest_discover_tests(autoencoder_leakyrelu_gtest)

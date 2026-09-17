@@ -17,7 +17,7 @@ target_link_libraries(thesis_profile_audit_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(thesis_profile_audit_gtest)
+gtest_discover_tests(thesis_profile_audit_gtest)
 configure_xtensor_parallel_target(thesis_profile_audit_gtest)
 
 # ── Feature extraction unit tests ────────────────────────────────────────────
@@ -39,7 +39,7 @@ target_link_libraries(thesis_feature_extraction_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(thesis_feature_extraction_gtest)
+gtest_discover_tests(thesis_feature_extraction_gtest)
 configure_xtensor_parallel_target(thesis_feature_extraction_gtest)
 
 # ── Classifier unit tests ────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ target_link_libraries(thesis_classifiers_gtest
         OpenMP::OpenMP_CXX
 )
 
-nn_gtest_discover_tests(thesis_classifiers_gtest)
+gtest_discover_tests(thesis_classifiers_gtest)
 configure_xtensor_parallel_target(thesis_classifiers_gtest)
 
 # ── Output-artifact contract tests ──────────────────────────────────────────
@@ -85,7 +85,7 @@ target_link_libraries(thesis_output_gtest
         OpenMP::OpenMP_CXX
 )
 
-nn_gtest_discover_tests(thesis_output_gtest)
+gtest_discover_tests(thesis_output_gtest)
 configure_xtensor_parallel_target(thesis_output_gtest)
 
 # ── Spike-loss end-to-end smoke (SpikeCount / SpikeTime actually train) ──────
@@ -109,11 +109,11 @@ target_link_libraries(thesis_spike_loss_e2e_gtest
         OpenMP::OpenMP_CXX
 )
 
-nn_gtest_discover_tests(thesis_spike_loss_e2e_gtest)
+gtest_discover_tests(thesis_spike_loss_e2e_gtest)
 configure_xtensor_parallel_target(thesis_spike_loss_e2e_gtest)
 
 add_executable(thesis_freearch_gtest freearch_gtest.cpp)
 target_include_directories(thesis_freearch_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(thesis_freearch_gtest PRIVATE google_test thesis_lib xtensor xtensor-blas cnpy-static OpenMP::OpenMP_CXX)
-nn_gtest_discover_tests(thesis_freearch_gtest)
+gtest_discover_tests(thesis_freearch_gtest)
 configure_xtensor_parallel_target(thesis_freearch_gtest)

@@ -16,4 +16,4 @@ target_link_libraries(fsdd_loader_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(fsdd_loader_gtest)
+gtest_discover_tests(fsdd_loader_gtest)

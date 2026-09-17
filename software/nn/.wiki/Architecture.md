@@ -60,7 +60,7 @@ flowchart TB
 
     subgraph "Backends"
         xtensor[xtensor CPU]
-        OpenCL[OpenCL GPU]
+        DeviceBackend[Device backend]
     end
 
     User --> Exp03
@@ -89,7 +89,7 @@ flowchart TB
     Prefetch --> Core
 
     Tensor --> xtensor
-    Tensor --> OpenCL
+    Tensor --> DeviceBackend
     Optim --> Tensor
 ```
 
@@ -99,7 +99,7 @@ flowchart TB
 
 | Module | Purpose | Key Files |
 |--------|---------|------------|
-| `tensor/` | Tensor data structure and operations | `Tensor.hpp`, `XTensorBackend.hpp`, `OpenCLTensorBackend.cpp` |
+| `tensor/` | Tensor data structure and operations | `Tensor.hpp`, `XTensorBackend.hpp`, `DeviceTensorBackend.hpp` |
 | `layers/` | Neural network layer implementations | `Linear.hpp`, `Conv2d.hpp`, `LifBPTT.hpp` |
 | `optimizers/` | Optimization algorithms | `Adam.hpp`, `SGD.hpp` |
 | `training/` | Training loop implementation | `Trainer.hpp`, `TrainerConfig.hpp` |
@@ -120,9 +120,9 @@ flowchart TB
 
 | Path | Contents |
 |------|----------|
-| `tensor/` | Tensor, XTensor and OpenCL backends |
+| `tensor/` | Tensor, XTensor and Device backends |
 | `layers/` | All layer types |
-| `device/` | Device abstraction (CPU/OpenCL) |
+| `device/` | Device abstraction (CPU) |
 | `optimizers/` | Optimizer interfaces |
 
 ## Data Flow Examples
@@ -143,7 +143,7 @@ sequenceDiagram
         Trainer->>Model: forward(batch, true)
         Model->>Layers: forward pass
         Layers->>Tensor: matrix operations
-        Tensor->>Tensor: GPU compute (if OpenCL)
+        Tensor->>Tensor: backend dispatch (XTensor/Device)
         Layers-->>Model: output
         Model-->>Trainer: loss
 
@@ -179,11 +179,11 @@ sequenceDiagram
 
 ## Key Design Decisions
 
-1. **Template-based Backend Selection**: Layers use template parameters (`<Backend>`) to select between xtensor and OpenCL at compile time.
+1. **Template-based Backend Selection**: Layers use template parameters (`<Backend>`) to select the tensor backend (`XTensorBackend` or `DeviceTensorBackend`) at compile time via `NN_BACKEND`.
 
-2. **RAII Device Management**: `DeviceRuntime` ensures OpenCL context is initialized once and lives for process duration.
+2. **RAII Device Management**: `DeviceRuntime::ensure_runtime()` exists as an RAII-style hook for backends that need process-lifetime setup; on the current CPU-only `Device` abstraction it is a no-op.
 
-3. **Lazy Synchronization**: GPU tensors only sync to host when `const at()` is called, reducing data transfer overhead.
+3. **Host-Resident Storage**: both current backends (`XTensor`, `Device`) keep tensor data host-resident; there is no device-sync step to reason about.
 
 4. **PyTorch-like API**: Model interface mirrors PyTorch (`forward()`, `backward()`, `params()`, `state_dict()`).
 

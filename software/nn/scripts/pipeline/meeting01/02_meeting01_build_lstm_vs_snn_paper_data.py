@@ -268,17 +268,7 @@ def aggregate_all(rows: List[Dict[str, object]], data_dir: pathlib.Path) -> None
 
 
 def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> None:
-    # article-backend-bench.json is excluded: it is a single-seed, timing-only profile
-    # for build_xtensor_opencl_table() above (CPU-vs-OpenCL wall clock), run separately by
-    # meeting01_run_backend_comparison.sh, not by 01_meeting01_run_article_profiles.sh. Its repeats=1
-    # (vs. 3 for every other profile) reads as an inconsistency, and its data feeds no
-    # number or table anywhere in paper.tex — listing it in tab:profiles only confuses
-    # readers about what was actually used for the reported results.
-    profile_files = [
-        p
-        for p in sorted(profiles_dir.glob("article-*.json"))
-        if "backend-bench" not in p.name
-    ]
+    profile_files = sorted(profiles_dir.glob("article-*.json"))
     out_path = data_dir / "paper_profiles.csv"
     with out_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -316,8 +306,7 @@ def build_model_timing_table(rows: List[Dict[str, object]], data_dir: pathlib.Pa
     """LSTM-AE vs SNN-* inference/training timing on one (XTensor/CPU reference) backend.
 
     Feeds the paper's Table tab:backend ("Inference and training timing (XTensor backend,
-    mean over 3 seeds)") and the Sec. Timing prose speedup figures. This is a *model*
-    comparison, not a backend comparison — see build_xtensor_opencl_table below for that.
+    mean over 3 seeds)") and the Sec. Timing prose speedup figures.
     """
     by_model: Dict[str, List[Dict[str, object]]] = defaultdict(list)
     for row in rows:
@@ -347,37 +336,6 @@ def build_model_timing_table(rows: List[Dict[str, object]], data_dir: pathlib.Pa
         w.writerow(["model", "infer_ms", "train_ms", "infer_speedup"])
         for i, model in enumerate(models):
             w.writerow([model, infer_fmt[i], train_fmt[i], speedup_fmt[i]])
-
-
-def build_xtensor_opencl_table(results_dir: pathlib.Path, data_dir: pathlib.Path) -> None:
-    """XTensor/CPU vs OpenCL/GPU timing for the SAME model (article-backend-bench profile).
-
-    Populated only by scripts/pipeline/meeting01/meeting01_run_backend_comparison.sh, which builds and
-    runs both the max-performance and max-performance-opencl presets. Not currently
-    referenced from paper.tex — kept separate from paper_backend_comparison.csv (the
-    LSTM-vs-SNN model timing table) so the two comparisons never collide on one filename.
-    """
-    xt_path = results_dir / "article_backend_bench_xtensor_comparative_metrics.csv"
-    oc_path = results_dir / "article_backend_bench_opencl_comparative_metrics.csv"
-
-    out_path = data_dir / "paper_xtensor_opencl_comparison.csv"
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["operation", "xtensor_ms", "opencl_ms", "speedup"])
-
-        if not xt_path.exists() or not oc_path.exists():
-            return
-
-        xt_rows = read_csv_rows(xt_path)
-        oc_rows = read_csv_rows(oc_path)
-
-        xt_train = mean([float(r["train_ms"]) for r in xt_rows])
-        oc_train = mean([float(r["train_ms"]) for r in oc_rows])
-        xt_infer = mean([float(r["infer_ms"]) for r in xt_rows])
-        oc_infer = mean([float(r["infer_ms"]) for r in oc_rows])
-
-        w.writerow(["train", xt_train, oc_train, (xt_train / oc_train) if oc_train else 0.0])
-        w.writerow(["inference", xt_infer, oc_infer, (xt_infer / oc_infer) if oc_infer else 0.0])
 
 
 def main() -> int:
@@ -420,7 +378,6 @@ def main() -> int:
     aggregate_all(rows, data_dir)
     build_profile_table(profiles_dir, data_dir)
     build_model_timing_table(rows, data_dir)
-    build_xtensor_opencl_table(results_dir, data_dir)
     print(f"[paper-data] wrote aggregated files to {data_dir}")
     return 0
 

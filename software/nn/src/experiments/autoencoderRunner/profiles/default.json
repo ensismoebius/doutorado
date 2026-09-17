@@ -1,5 +1,5 @@
 {
-  "program_device": "opencl",
+  "program_device": "cpu",
   "training_batch_size": 100,
   "training_max_batches_per_epoch": 500,
   "sampler_shuffle_samples": true,
@@ -59,7 +59,6 @@
   "kfold_n_splits": 5,
   "kfold_shuffle": true,
   "kfold_seed": 42,
-  "program_opencl_profiling_enabled": true,
   "neural_network_layer": [
     "encoder:linear:latent:relu",
     "decoder:linear:output:identity",

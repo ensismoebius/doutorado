@@ -384,32 +384,12 @@ computed gradients (`CrossEntropyLoss` uses a `mean` reduction over
 `x.rows()`, i.e. it averages over the batch dimension) — nothing about *what*
 is computed changes. The benefit is purely computational: one appropriately-
 sized operation per layer instead of $B$ tiny ones, which matters a great deal
-on backends (like OpenCL) where each individual operation carries fixed
-overhead regardless of how much data it processes (see
-[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md)
-for measurements of exactly how much that overhead is).
+on backends where each individual operation carries fixed overhead regardless
+of how much data it processes.
 
 Validation batches are handled the same way: every validation sample is
 stacked into one $(N_v, D)$ tensor and forwarded once per epoch, rather than
 sample-by-sample.
-
-### OpenCL batching (2026-07-15)
-
-When running on the OpenCL (GPU) backend, both training loops wrap the entire
-per-batch sequence — zero gradients → forward → loss → backward → clip
-gradients → optimizer step — inside a single `OpenCLContext::BatchScope`. This
-lets many GPU operations be issued back-to-back without waiting for the GPU to
-actually finish after each one; the wait happens only once, when the whole
-batch's worth of work has been issued. Before this change the optimizer step
-ran *outside* that scope, so Adam's roughly 15 small operations per parameter
-each individually waited for the GPU to catch up — on the SNN autoencoder,
-about 250 of these waits per training batch, all avoidable. Combined with the
-fused [`adam_step_inplace`](./Optimizers.md#fused-gpu-update-2026-07-15) GPU
-kernel and other transfer-reduction work described in
-[OpenCL Debugging and Performance](../Guides/OpenCL-Debugging-And-Performance.md),
-this addresses one specific source of the OpenCL backend being slower than
-the CPU backend for small networks — though, as that guide explains in
-detail, it is not the whole story on this project's hardware.
 
 ## Data Flow
 

@@ -121,7 +121,7 @@ by `ThesisOptimizerLearningRate.*` and a per-profile assertion in
 - **SOAP** — needs an eigenvalue decomposition (`eigh`) of an internal
   matrix, an operation the `Tensor` interface does not currently expose on
   every backend. Adding it would mean extending the shared tensor-backend test
-  contract across all four backends (XTensor, OpenCL, SYCL, Device) first.
+  contract across both backends (XTensor, Device) first.
 - **Muon** — was implemented and checked against the reference `muon-optimizer`
   library, then removed at the author's request. It only orthogonalises 2-D
   weight matrices and silently falls back to plain Adam for everything else —
@@ -323,37 +323,6 @@ if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
 This is wired up from `TrainerConfig::weight_decay` in the `Trainer`
 constructor (`optimizer_.weight_decay = cfg_.weight_decay;`); in Experiment05
 it comes from the profile JSON's `training.weight_decay` field.
-
-### Fused GPU update (2026-07-15)
-
-When training runs on the OpenCL (GPU) backend, `Adam::step()` can run the
-*entire* per-parameter update — both moment averages, the bias correction, and
-the parameter step — as a single GPU kernel launch
-(`OpenCLTensorBackend::adam_step_inplace()`), instead of roughly fifteen
-separate tensor operations chained together. This kernel already existed in
-`KernelManager.cpp` but nothing was calling it until this change; the dispatch
-happens through a small helper, `try_fused_step()`, which checks at compile
-time whether the active backend actually provides the fused kernel and only
-uses it if so. Backends that don't provide a fused kernel (XTensor, Device,
-SYCL) keep using the original, generic sequence of operations, and even on
-OpenCL, the fused path falls back to the generic one automatically if
-anything about it fails at runtime. Weight decay is applied identically on
-both paths.
-
-A second change in the same pass: gradients now flow through `grad_ref()`
-(which hands out a direct reference, no copy) instead of the older
-`param.grad()` accessor, which copied the gradient tensor — and on the OpenCL
-backend, that copy meant every parameter's gradient made a round trip from
-GPU memory to host memory and back, once per parameter per training batch.
-
-Also, the `Trainer`'s per-batch OpenCL "batch scope" (a mechanism that lets
-many GPU operations run back-to-back before waiting for the GPU to actually
-finish, instead of waiting after every single operation) now covers
-`zero_grad()`, gradient clipping, and `optimizer_.step()` as well. Previously
-the optimizer ran *outside* that scope, so every one of its per-parameter GPU
-operations had to wait for the GPU individually — on the SNN autoencoder this
-meant roughly 250 separate GPU waits per training batch just from the
-optimizer step.
 
 ## Data Flow
 

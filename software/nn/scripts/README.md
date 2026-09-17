@@ -32,7 +32,6 @@ Full chain: `01_meeting01_run_article_profiles.sh` → CSVs → `02_meeting01_bu
 |---|---|
 | `01_meeting01_run_article_profiles.sh` | Run all 4 article profiles; calls `02_meeting01_build_lstm_vs_snn_paper_data.py` when done |
 | `02_meeting01_build_lstm_vs_snn_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
-| `meeting01_run_backend_comparison.sh` | Standalone: run CPU vs OpenCL backend comparison (also calls the step-02 aggregator itself, but isn't part of the numbered chain) |
 
 Quick start:
 ```bash

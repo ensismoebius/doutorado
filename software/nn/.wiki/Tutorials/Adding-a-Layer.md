@@ -112,7 +112,7 @@ struct SwishImpl : public Module<Backend>
 > ```
 >
 > If an operation you need is genuinely missing, you must add it to **every** backend
-> (XTensor, OpenCL, SYCL, Device) — the parity contract will not let you add it to just one.
+> (XTensor, Device) — the parity contract will not let you add it to just one.
 > See [Tensor](../Core/Tensor.md).
 
 ## Step 2 — Register the convenience alias

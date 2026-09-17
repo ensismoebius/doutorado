@@ -23,5 +23,5 @@ target_include_directories(initializers_gtest
     PRIVATE 
 )
 include(GoogleTest)
-nn_gtest_discover_tests(initializers_gtest)
+gtest_discover_tests(initializers_gtest)
 configure_xtensor_parallel_target(initializers_gtest)

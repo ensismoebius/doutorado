@@ -15,4 +15,4 @@ target_link_libraries(dataLoaders_samplers_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(dataLoaders_samplers_gtest)
+gtest_discover_tests(dataLoaders_samplers_gtest)

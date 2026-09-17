@@ -143,11 +143,9 @@ model.load_state_dict(restored);
 
 1. **Architecture Mismatch**: Can't load weights if layer sizes differ
 
-2. **Device Mismatch**: OpenCL weights can't load to CPU model
+2. **Version**: Saved format may change between versions
 
-3. **Version**: Saved format may change between versions
-
-4. **Partial Load**: Some frameworks allow partial loading (strict=false)
+3. **Partial Load**: Some frameworks allow partial loading (strict=false)
 
 ## See Also
 

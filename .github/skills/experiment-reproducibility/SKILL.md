@@ -33,7 +33,7 @@ Rules
   DO: Timestamp output folders/files (ISO 8601: `YYYYMMDD_HHMMSS`)
   AVOID: No overwriting prior results
 - RULE: DETERMINISM
-  DO: Record seeds and deterministic settings (`torch.manual_seed`, OpenCL queue order, etc.)
+  DO: Record seeds and deterministic settings (`torch.manual_seed`, etc.)
   AVOID: No non-repeatable runs
 
 Validation

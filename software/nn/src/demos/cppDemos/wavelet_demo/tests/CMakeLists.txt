@@ -30,4 +30,4 @@ target_include_directories(wavelet_demo_gtest
 configure_xtensor_parallel_target(wavelet_demo_gtest)
 
 include(GoogleTest)
-nn_gtest_discover_tests(wavelet_demo_gtest)
+gtest_discover_tests(wavelet_demo_gtest)

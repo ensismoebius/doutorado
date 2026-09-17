@@ -20,11 +20,10 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
           # Build dependencies (eigen, openblas, fftw, hdf5, glfw, omp,
-          # OpenCL headers/loader, sqlite, zlib, cmake, ninja, autotools,
+          # sqlite, zlib, cmake, ninja, autotools,
           # build-essential, python3) are installed by cmake/UbuntuDependencies.cmake
           # at Configure time. Only CI-specific tooling is installed here:
-          # static analysis, security scan, coverage/profiling, python dev tools,
-          # and the OpenCL CPU runtime (pocl) needed so OpenCL tests have an ICD.
+          # static analysis, security scan, coverage/profiling, python dev tools.
           sudo apt-get install -y \
             clang-tidy \
             cppcheck \
@@ -35,8 +34,7 @@ jobs:
             python3-venv \
             python3-pip \
             lcov \
-            gcovr \
-            pocl-opencl-icd
+            gcovr
 
       - name: Set up Python
         uses: actions/setup-python@v4

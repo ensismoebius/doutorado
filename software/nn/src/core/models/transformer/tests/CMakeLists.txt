@@ -17,4 +17,4 @@ target_include_directories(transformer_autoencoder_gtest
         ${CMAKE_SOURCE_DIR}/include
 )
 
-nn_gtest_discover_tests(transformer_autoencoder_gtest)
+gtest_discover_tests(transformer_autoencoder_gtest)

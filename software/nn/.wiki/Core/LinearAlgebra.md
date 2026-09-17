@@ -27,8 +27,7 @@ operations everything else is built from:
 These operations are the computational bottleneck of most neural network
 training — for a large network, the vast majority of total runtime is spent
 inside matrix multiplications. That's why production code uses heavily
-optimised libraries for them (xtensor on CPU, OpenCL/BLAS on GPU) rather than
-naive loops.
+optimised libraries for them (xtensor + BLAS on CPU) rather than naive loops.
 
 ## How It Is Implemented Here
 

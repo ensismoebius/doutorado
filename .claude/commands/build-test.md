@@ -50,7 +50,6 @@ Project Context (nn framework)
 
 **Presets** — always use, never invent raw cmake flags:
 - `cmake --preset=max-performance` — CPU release build → `out/build/max-performance/`
-- `cmake --preset=max-performance-opencl` — GPU/OpenCL build → `out/build/max-performance-opencl/`
 - `cmake --preset=Clang_20.1.8_x86_64-pc-linux-gnu` — debug/sanitizer build
 
 **Named targets** (use with `--target`):
@@ -86,10 +85,6 @@ tool has no preset parameter to force a choice.
 cmake --preset=max-performance
 cmake --build out/build/max-performance --target core_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R core --output-on-failure
-
-# GPU build + meeting01
-cmake --preset=max-performance-opencl
-cmake --build out/build/max-performance-opencl --target meeting01 -j$(nproc)
 
 # Profile audit (after any profile JSON edit)
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)

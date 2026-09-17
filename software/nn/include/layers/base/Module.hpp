@@ -170,9 +170,10 @@ struct Module
     /**
      * @brief Move the module to the specified compute device (PyTorch-like).
      *
-     * The default implementation lazily starts the device runtime for OpenCL
-     * devices and returns `*this` for method chaining. Derived modules that
-     * carry device-resident buffers may override to perform actual data transfer.
+     * The default implementation lazily starts the device runtime (a CPU no-op
+     * for every backend currently supported) and returns `*this` for method
+     * chaining. Derived modules that carry device-resident buffers may override
+     * to perform actual data transfer.
      *
      * @param device Target device (see `nn::Device::from_string`).
      * @return Reference to `*this` for chaining.

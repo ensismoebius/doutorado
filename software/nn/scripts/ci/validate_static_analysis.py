@@ -35,13 +35,8 @@ APPROVED_SUPPRESSIONS = {
     ("src/demos/cppdemos/speaker_demo.cpp", "useStlAlgorithm"): "argparse header noise",
     ("src/experiments/Config.cpp", "knownConditionTrueFalse"): "Condition is runtime guard",
     ("src/experiments/Config.cpp", "useStlAlgorithm"): "nlohmann_json header template noise",
-    
-    # OpenCL conditional implementations (guarded by can_use_opencl checks)
-    ("src/core/tensor/opencl/OpenCLTensorBackend.cpp", "knownConditionTrueFalse"): "can_use_opencl gates optional implementations",
-    
+
     # Syntax errors from header issues (cross-translation-unit macros)
-    ("src/core/tensor/opencl/OpenCLTensorBackend.cpp", "syntaxError"): "Header macro evaluation issue",
-    ("src/core/tensor/tests/opencl_tensor_backend_gtest.cpp", "syntaxError"): "Header macro evaluation issue",
     ("src/core/wavelet/tests/wavelet_gtest.cpp", "syntaxError"): "Header macro evaluation issue",
     
     # Unused structure members from cache implementations
@@ -57,7 +52,6 @@ APPROVED_SUPPRESSIONS = {
     ("src/core/dataLoaders/tests/count_mat_rows_gtest.cpp", "constVariable"): "Data array usage pattern in tests",
     
     # Cross-translation-unit symbol collisions (acceptable for classes with internal linkage)
-    ("src/core/tensor/opencl/OpenCLTensorBackend.cpp", "ctuOneDefinitionRuleViolation"): "Incomplete type definitions in headers",
     ("src/demos/cppdemos/rede_snn.cpp", "ctuOneDefinitionRuleViolation"): "Local class definition acceptable in demo",
     ("src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerConfig.hpp", "ctuOneDefinitionRuleViolation"): "Config struct in experiment header",
     

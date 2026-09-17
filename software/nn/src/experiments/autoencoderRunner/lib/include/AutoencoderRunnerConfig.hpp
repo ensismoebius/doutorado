@@ -24,7 +24,7 @@ struct Config
 {
     string profile_name; // Name of profile used to seed defaults.
 
-    string device; // Execution device token: cpu|opencl
+    string device; // Execution device token: cpu
 
     string dataset_subject_filter_regex; // Subject directory regex with an ID capture group
     string dataset_root_path;            // Path containing subject directories
@@ -206,8 +206,4 @@ struct Config
 
         return nn::models::autoencoder::AutoencoderArchitecture::ResidualDense;
     }
-
-    // Enable OpenCL profiling instrumentation when running with OpenCL.
-    // Default: false (disabled).
-    bool opencl_profiling_enabled = false;
 };

@@ -248,7 +248,7 @@ void apply_training(const std::string& text, Config& out_config)
         out_config.validation_modality_diagnostics_enabled);
 }
 
-/// Prefetch, k-fold, test split, and the OpenCL profiling switch.
+/// Prefetch, k-fold, and test split.
 void apply_program_and_kfold(const std::string& text, Config& out_config)
 {
     parse_number(text, "program_prefetch_lookahead", out_config.prefetch_lookahead);
@@ -261,7 +261,6 @@ void apply_program_and_kfold(const std::string& text, Config& out_config)
         out_config.kfold_seed = kfold_seed;
     }
     parse_number(text, "test_split", out_config.test_split);
-    parse_bool(text, "program_opencl_profiling_enabled", out_config.opencl_profiling_enabled);
 }
 
 /// Per-modality windowing, which is nested in the profile rather than flat.

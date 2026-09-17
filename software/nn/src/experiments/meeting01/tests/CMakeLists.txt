@@ -25,7 +25,7 @@ target_link_libraries(meeting01_comparative_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(meeting01_comparative_gtest)
+gtest_discover_tests(meeting01_comparative_gtest)
 configure_xtensor_parallel_target(meeting01_comparative_gtest)
 
 # DAT writer tests
@@ -50,7 +50,7 @@ target_link_libraries(dat_writer_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(dat_writer_gtest)
+gtest_discover_tests(dat_writer_gtest)
 configure_xtensor_parallel_target(dat_writer_gtest)
 
 # Checkpoint round-trip / resilience tests
@@ -73,7 +73,7 @@ target_link_libraries(checkpoint_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(checkpoint_gtest)
+gtest_discover_tests(checkpoint_gtest)
 configure_xtensor_parallel_target(checkpoint_gtest)
 
 # Profile audit: every shipping JSON profile must parse, validate, and
@@ -97,7 +97,7 @@ target_link_libraries(profile_audit_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(profile_audit_gtest)
+gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
 # Grouped-window dataset sources (FSDD / AudioMNIST / MIT-BIH): fast real-loader checks.
@@ -123,7 +123,7 @@ target_link_libraries(loaders_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(loaders_gtest)
+gtest_discover_tests(loaders_gtest)
 configure_xtensor_parallel_target(loaders_gtest)
 
 # Structured JSONL event sink for the live monitor (schema helpers + round-trip).
@@ -148,7 +148,7 @@ target_link_libraries(event_sink_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(event_sink_gtest)
+gtest_discover_tests(event_sink_gtest)
 configure_xtensor_parallel_target(event_sink_gtest)
 
 # Parameter-count audit: documented P for LSTM-/GRU-/Transformer-AE at the article config.
@@ -176,7 +176,7 @@ target_link_libraries(parameter_count_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(parameter_count_gtest)
+gtest_discover_tests(parameter_count_gtest)
 configure_xtensor_parallel_target(parameter_count_gtest)
 
 # Split audit: nested LOSO fold assignment is speaker/recording/window disjoint.
@@ -202,7 +202,7 @@ target_link_libraries(meeting01_split_audit_gtest
         cnpy-static
 )
 
-nn_gtest_discover_tests(meeting01_split_audit_gtest)
+gtest_discover_tests(meeting01_split_audit_gtest)
 configure_xtensor_parallel_target(meeting01_split_audit_gtest)
 
 # LSTM microbench (ops breakdown)

@@ -237,9 +237,9 @@ struct Adam : public Optimizer
                 param.set_grad(saved_grad);
             }
 
-            // Fused single-kernel update when the backend provides it (OpenCL:
-            // adam_step_kernel) — same math as the generic path below, without
-            // ~15 kernel launches and intermediate tensors per parameter.
+            // Fused single-kernel update when the backend provides one — same
+            // math as the generic path below, without the intermediate
+            // tensors per parameter that path allocates.
             if (try_fused_step(param, moment1[i], moment2[i], lr_i))
             {
                 continue;

@@ -31,7 +31,7 @@
 #   few generations, and lower dataset.max_samples / n_seeds / generations for faster iteration
 #   (SNN ≈ 2.5x ANN; see .wiki/Experiments/ParaconsistentGA-Design.md §5.4.1 / §5.6).
 #
-# Requires: cmake, ninja. CPU preset — no GPU/OpenCL runtime needed.
+# Requires: cmake, ninja. CPU preset — no GPU runtime needed.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"

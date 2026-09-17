@@ -1,13 +1,11 @@
 #ifndef NN_LAYERS_LINEAR_HPP
 #define NN_LAYERS_LINEAR_HPP
 
-#include <optional>
 #include <type_traits>
 
 #include "Backend.hpp"
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
-#include "tensor/opencl/OpenCLContext.hpp"
 
 /**
  * @file Linear.hpp
@@ -45,8 +43,6 @@ struct LinearImpl : public Module<Backend>
     Tensor bias;
     /// Cached input; populated when `forward(..., requires_grad=true)`.
     Tensor input_cache;
-    /// Backend-side cached input for avoiding CPU->backend re-conversion in backward.
-    std::optional<Tensor> input_cache_backend;
     // Owned view of parameter pointers. Must point to member tensors so the span
     // returned by `params()` remains valid for the lifetime of this object.
     std::array<Tensor*, 2> param_ptrs_{{&weight, &bias}};
@@ -93,12 +89,6 @@ struct LinearImpl : public Module<Backend>
      */
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
-        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
-        {
-            batch_scope.emplace();
-        }
-
         const auto shape = input.get_shape();
         if (shape.empty()) throw std::invalid_argument("Input tensor cannot be empty");
 
@@ -128,49 +118,9 @@ struct LinearImpl : public Module<Backend>
         }
 
         Tensor input_flat = input.reshape(flat_shape);
-        if (requires_grad)
-        {
-            if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
-            {
-                input_cache_backend = input_flat;
-            }
-        }
 
-        Tensor result_flat;
-        if constexpr (requires(const Backend& in, const Backend& w, const Backend& b) {
-                          in.matmul_transposed_add_col_bias(w, b);
-                      })
-        {
-            // Use the parameter members directly. Copying them here used to cost a
-            // full device→host sync, a host copy, a fresh clCreateBuffer and a
-            // host→device upload — per layer, per forward — while the originals
-            // were already device-resident. forward() is non-const, so residency
-            // can be set on the members themselves.
-            if constexpr (requires(Backend& be) { be.set_gpu_resident(true); })
-            {
-                input_flat.get_backend().set_gpu_resident(true);
-                weight.get_backend().set_gpu_resident(true);
-                bias.get_backend().set_gpu_resident(true);
-            }
-            result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
-                weight.get_backend(), bias.get_backend()));
-        }
-        else if constexpr (requires(const Backend& in,
-                               const Backend& w,
-                               Backend& out,
-                               const Backend& b) {
-                               in.matmul_transposed(w);
-                               out.add_col_vector_to_rows_inplace(b);
-                           })
-        {
-            result_flat = Tensor(input_flat.get_backend().matmul_transposed(weight.get_backend()));
-            result_flat.get_backend().add_col_vector_to_rows_inplace(bias.get_backend());
-        }
-        else
-        {
-            result_flat = input_flat.matmul_transposed(weight);
-            result_flat.add_col_vector_to_rows_inplace(bias);
-        }
+        Tensor result_flat = input_flat.matmul_transposed(weight);
+        result_flat.add_col_vector_to_rows_inplace(bias);
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)
         std::vector<nn::Index> out_shape = shape;
@@ -197,12 +147,6 @@ struct LinearImpl : public Module<Backend>
      */
     auto backward(const Tensor& grad_previous) -> Tensor override
     {
-        std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
-        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
-        {
-            batch_scope.emplace();
-        }
-
         const auto shape = grad_previous.get_shape();
         if (shape.empty()) throw std::invalid_argument("Gradient tensor cannot be empty");
 
@@ -241,42 +185,12 @@ struct LinearImpl : public Module<Backend>
         {
             flat_input_shape[0] = 1;
         }
-        Tensor input_t;
-        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
-        {
-            if (input_cache_backend.has_value())
-            {
-                input_t = *input_cache_backend;
-            }
-            else
-            {
-                input_t = Tensor(input_cache);
-                input_t.reshape(flat_input_shape);
-            }
-        }
-        else
-        {
-            input_t = Tensor(input_cache);
-            input_t.reshape(flat_input_shape);
-        }
+        Tensor input_t = Tensor(input_cache);
+        input_t.reshape(flat_input_shape);
 
-        Tensor grad_weight;
+        // dL/dW = (dL/dY)^T · X
         Tensor grad_t = grad_flat.transpose();
-        if constexpr (requires(const Backend& lhs, const Backend& rhs) {
-                          lhs.matmul_lhs_transposed(rhs);
-                      })
-        {
-            grad_flat.get_backend().set_gpu_resident(true);
-            input_t.get_backend().set_gpu_resident(true);
-            grad_weight =
-                Tensor(grad_flat.get_backend().matmul_lhs_transposed(input_t.get_backend()));
-            grad_t.get_backend().set_gpu_resident(true);
-        }
-        else
-        {
-            // dL/dW = (dL/dY)^T · X
-            grad_weight = grad_t.matmul(input_t);
-        }
+        Tensor grad_weight = grad_t.matmul(input_t);
         weight.set_grad(grad_weight);
 
         // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
@@ -284,15 +198,7 @@ struct LinearImpl : public Module<Backend>
         bias.set_grad(grad_bias);
 
         // dL/dX = dL/dY · W
-        Tensor grad_input_flat;
-        if constexpr (requires(const Backend& lhs, const Backend& rhs) { lhs.matmul(rhs); })
-        {
-            grad_input_flat = Tensor(grad_flat.get_backend().matmul(weight.get_backend()));
-        }
-        else
-        {
-            grad_input_flat = grad_flat.matmul(Tensor(weight));
-        }
+        Tensor grad_input_flat = grad_flat.matmul(Tensor(weight));
 
         // Restore original leading dimensions for the input gradient
         std::vector<nn::Index> input_out_shape = input_shape;

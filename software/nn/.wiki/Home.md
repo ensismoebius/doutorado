@@ -103,7 +103,7 @@ Then follow one of these reading paths depending on what you came for:
 | Statistics & metrics | [Statistics](./Core/Statistics.md) | [plain](./Core/Plain/Statistics.md) |
 | Linear algebra | [LinearAlgebra](./Core/LinearAlgebra.md) | — |
 | Serialization | [Saver](./Core/Saver.md) | — |
-| Device (CPU/OpenCL) | [Device](./Core/Device.md) | — |
+| Device (CPU) | [Device](./Core/Device.md) | — |
 | Logging | [Logging](./Core/Logging.md) | — |
 
 ### Experiments
@@ -160,8 +160,6 @@ Run in order; `thesis` is the primary experiment.
   number back to the raw signal
 
 **Performance and debugging**
-- [OpenCL Debugging and Performance](./Guides/OpenCL-Debugging-And-Performance.md) — **read
-  before touching the OpenCL backend** (contains a memory-corruption hazard warning)
 - [Memory Diagnostics](./Guides/Memory-Diagnostics.md) — leak vs. bounded high-water-mark
 - [PGO](./Guides/PGO.md) — profile-guided optimization
 
@@ -194,7 +192,7 @@ quantization and SNN mechanics, opened live from the lecture slides
 
 ## Key Features
 
-1. **Multiple Backend Support**: xtensor (CPU) and OpenCL (GPU) tensor backends
+1. **Backend Support**: xtensor (CPU) tensor backend, plus a `Device` backend skeleton for adding new ones
 2. **Spiking Neural Networks**: Leaky Integrate-and-Fire neurons with surrogate gradients
 3. **LSTM Autoencoders**: Sequence-to-sequence learning for time-series
 4. **Multimodal Learning**: Combined EEG and audio processing pipeline
@@ -210,28 +208,11 @@ quantization and SNN mechanics, opened live from the lecture slides
 - `meeting01` `save_models` now also writes `NetworkSerializer` `.npz` for the SNN-AE
   encoder/decoder ([Meeting01 → Saved models](./Experiments/Meeting01.md#saved-models-datasetsave_models-true)).
 
-- OpenCL tensor backend gained a tuned lhs-transposed matmul path used by
-    Linear backward `dL/dW` on GPU.
-- See details and benchmark numbers in [Core/Tensor](./Core/Tensor.md#recent-opencl-optimization-2026-05-02).
-- OpenCL SNN integration now includes Lif layer forward/backward tests running
-    against `OpenCLTensorBackend`, plus a stability fix for default-constructed
-    OpenCL tensor host storage.
-- See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
-- `GPUBufferPool` gained a 1 GiB global cache ceiling (previously only
-    capped per-bucket, letting cached pinned buffers accumulate unbounded over
-    a long run). `run_thesis_profiles.sh`'s per-job memory budget was also bumped
-    2048MB → 5120MB after measuring real `thesis` phase00 peaks
-    (~4.4GB for voice, ~2.1GB for EEG) — the old default let 4 heavy jobs
-    oversubscribe a 17GB box into swap thrashing.
-- See [Core/Tensor](./Core/Tensor.md) and
-    [Guides/Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md).
-
 ## Requirements
 
 - C++20 compatible compiler
 - CMake 3.16+
 - xtensor
-- OpenCL (optional, for GPU acceleration)
 
 ## Building
 

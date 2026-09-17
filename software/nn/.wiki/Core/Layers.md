@@ -178,14 +178,6 @@ struct LinearImpl : public Module<Backend>
 };
 ```
 
-Backward-path note (OpenCL backend only): computing the weight gradient
-$dL/dW$ needs the transpose of the incoming gradient. Rather than materialising
-that transpose as its own tensor and then multiplying, the OpenCL backend has
-a fused `matmul_lhs_transposed` kernel that does the transpose and the multiply
-in one step. This exists purely for speed — it produces the same numbers,
-just faster — and is checked by the OpenCL backend tests plus timing rows in
-`src/core/tensor/tests/tensor_perf_bench.cpp`.
-
 ### Spiking neuron (Leaky Integrate-and-Fire)
 
 A LIF ("Leaky Integrate-and-Fire") neuron is a different kind of building
@@ -249,16 +241,6 @@ non-temporal input into a spike train by constant-current encoding — then read
 out the average spike rate over time as the class score. This is a genuine use
 of the *temporal* dynamics of spiking neurons, not just a one-shot classifier
 wearing an SNN costume. See [Experiment05](../Experiments/Thesis.md).
-
-**OpenCL backend note.** When running on the OpenCL (GPU) backend, `LifImpl`
-uses two fused GPU kernels instead of the generic tensor operations: one that
-does the membrane update and spike generation together
-(`lif_step_inplace`), and one for the backward-pass surrogate gradient
-(`lif_grad`). Backends that don't provide these fall back to the plain,
-generic implementation automatically — this is purely a speed optimisation,
-never a behaviour change. Verified by `opencl_tensor_backend_lif_gtest`,
-including `LeakyLayerForwardParityOnOpenCLBackend` and
-`LeakyLayerBackwardExponentialSurrogateOnOpenCLBackend`.
 
 ### Threshold-Dependent Batch Normalization (tdBN)
 

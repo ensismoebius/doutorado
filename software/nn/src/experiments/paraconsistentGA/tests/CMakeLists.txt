@@ -19,5 +19,5 @@ target_link_libraries(paraconsistent_ga_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(paraconsistent_ga_gtest)
+gtest_discover_tests(paraconsistent_ga_gtest)
 configure_xtensor_parallel_target(paraconsistent_ga_gtest)

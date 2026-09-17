@@ -26,5 +26,5 @@ target_include_directories(lfcc_pipeline_utils_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(lfcc_pipeline_utils_gtest)
+gtest_discover_tests(lfcc_pipeline_utils_gtest)
 configure_xtensor_parallel_target(lfcc_pipeline_utils_gtest)

@@ -34,26 +34,6 @@ Top hotspot files from the latest scan:
 4. `src/experiments/meeting01/tests/ComparativeExperiment_gtest.cpp` (23)
 5. `src/core/optimizers/tests/optimizers_gtest.cpp` (22)
 
-### OpenCL Lif Integration Coverage Snapshot (2026-05-10)
-
-Coverage was collected from an instrumented build (`NN_ENABLE_COVERAGE=ON`) after running:
-
-- `build-coverage/src/core/tensor/tests/opencl_tensor_backend_gtest`
-
-Focused `lcov --extract` results for recently modified files:
-
-1. `include/layers/spiking/Lif.hpp`
-- Line coverage: 56.5% (124 lines)
-- Function coverage: 42.9% (7 functions)
-
-2. `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
-- Line coverage: 39.1% (4319 lines)
-- Function coverage: 66.7% (156 functions)
-
-Focused aggregate:
-- Line coverage: 39.6% (1760/4443)
-- Function coverage: 65.6% (107/163)
-
 ## SOTA-Aligned Test Quality Criteria
 
 These criteria are aligned with peer-reviewed testing literature and adapted to this codebase.
@@ -147,16 +127,12 @@ was aspirational rather than enforced. The largest gaps are concentrated, not di
 
 | File | Lines | Why |
 |---|---|---|
-| `src/core/tensor/opencl/OpenCLTensorBackend.cpp` | 34.7% (1819/5236) | GPU paths need a device; largest single gap by far |
 | `src/core/utility/progress.cpp` | 0.0% (0/208) | Progress bars are UI, never exercised by tests |
 | `src/core/statistics/confusion_matrix.cpp` | 0.0% (0/59) | Untested module |
 | `*Printer.cpp` (2 files) | 0.0% | Debug printers |
-| `src/core/tensor/opencl/DeviceMemory.cpp` | 29.6% | GPU-only |
 
-A large share is OpenCL/GPU code that cannot run in a CPU-only coverage build, plus
-UI/printer code. Reaching a genuine 100% would require either a GPU-enabled coverage run or
-an explicit, documented exclusion list for device-only and presentation code — a policy
-decision, not just more tests.
+Reaching a genuine 100% would require an explicit, documented exclusion list
+for device-only and presentation code — a policy decision, not just more tests.
 
 ### Reproducibility contract: results must not change independently of a run
 
@@ -289,37 +265,6 @@ autoencoder rows should be regenerated before the σ column is quoted as a stabi
 > for their numbers to be reproducible. The 184 handcrafted profiles are unaffected — they
 > train nothing, so they already reproduce bit-for-bit. See the
 > [Re-run Runbook](./Re-run-Runbook.md).
-
-## Backend numerical parity (XTensor vs OpenCL)
-
-`backend_parity_gtest` (`src/core/tensor/tests/backend_parity_gtest.cpp`) guards
-against the CPU (XTensor, row-major) and GPU (OpenCL, column-major) backends
-silently diverging. Every test builds identical deterministic inputs on both
-backends, runs the same operation through the shared `TensorImpl` / layer
-templates, and compares element-by-element via the backend-agnostic `at(i, j)`:
-
-- elementwise ops, matmul family, reductions, slicing/reshape
-- `Linear` forward/backward (incl. weight/bias gradients)
-- `Lif` batched multi-step state evolution + backward (R/C/V_th gradients) —
-  pits the OpenCL `lif_step_inplace` fast path against the XTensor generic path
-- `LifIntegrator` forward/backward
-- SNN-autoencoder-shaped chains (`Linear→Lif→Linear→LifIntegrator`), both with
-  intermediate comparisons and with **zero intermediate host reads**
-
-The no-host-reads variants matter: `at()` forces a device→host sync that can
-mask stale-buffer bugs. Two real defects were found and fixed by this suite:
-
-1. **Lazy-sync coherence** — binary/scalar/compare/transpose ops uploaded host
-   `data_ptr()` without `sync_gpu_if_needed()`, so a GPU-resident operand (e.g.
-   a fused `Linear` output) fed stale host data into the next op. All such ops
-   now sync both operands on entry (no-op when already coherent).
-2. **`reshape` semantics** — the OpenCL backend swapped shape metadata only,
-   reinterpreting its column-major buffer; XTensor reshapes in row-major order.
-   OpenCL `reshape` now physically permutes the buffer to preserve row-major
-   logical order (the backend-parity contract).
-
-The suite skips gracefully when no OpenCL device is present. Tolerances:
-`2e-4` per-op, `5e-4` for chained results (GPU fp32 rounding accumulates).
 
 ## References
 

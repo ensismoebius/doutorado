@@ -13,7 +13,7 @@
 # Usage:  ./scripts/testing/run_thesis_smoke.sh [phase00|phase01|all]   # default: all
 # Binary selection (works with any CMake profile):
 #   auto: most recently built out/build/*/…/thesis
-#   THESIS_BUILD=max-performance-opencl ./scripts/testing/run_thesis_smoke.sh
+#   THESIS_BUILD=max-performance-device ./scripts/testing/run_thesis_smoke.sh
 #   THESIS_BIN=/abs/path/to/thesis ./scripts/testing/run_thesis_smoke.sh
 set -u
 
@@ -21,7 +21,7 @@ cd "$(dirname "$0")/../.." # -> software/nn
 
 # Locate the thesis binary under any CMake build profile.
 #   THESIS_BIN=/path/to/thesis   → explicit override
-#   THESIS_BUILD=<name>                → out/build/<name>/…  (e.g. max-performance-opencl)
+#   THESIS_BUILD=<name>                → out/build/<name>/…  (e.g. max-performance-device)
 #   otherwise: auto-pick the most recently built thesis across out/build/*
 if [ -n "${THESIS_BIN:-}" ]; then
     BIN="$THESIS_BIN"

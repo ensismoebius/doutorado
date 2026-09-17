@@ -167,7 +167,6 @@ TEST(DeviceBackendTest, DeviceDescriptorHelpers)
 {
     const nn::Device default_cpu = nn::Device::from_string("");
     EXPECT_TRUE(default_cpu.is_cpu());
-    EXPECT_FALSE(default_cpu.is_opencl());
     EXPECT_EQ(default_cpu.to_string(), "cpu");
     EXPECT_FALSE(default_cpu.profiling_enabled);
 
@@ -175,17 +174,12 @@ TEST(DeviceBackendTest, DeviceDescriptorHelpers)
     EXPECT_TRUE(explicit_cpu.is_cpu());
     EXPECT_EQ(explicit_cpu.to_string(), "cpu");
 
-    const nn::Device opencl = nn::Device::from_string("opencl:0");
-    EXPECT_TRUE(opencl.is_opencl());
-    EXPECT_FALSE(opencl.is_cpu());
-    EXPECT_EQ(opencl.to_string(), "opencl:0");
-
     const nn::Device custom = nn::Device::from_string("gpu-like");
     EXPECT_TRUE(custom.is_cpu());
     EXPECT_EQ(custom.to_string(), "gpu-like");
 
-    const nn::Device profiled = opencl.with_profiling(true);
+    const nn::Device profiled = explicit_cpu.with_profiling(true);
     EXPECT_TRUE(profiled.profiling_enabled);
-    EXPECT_FALSE(opencl.profiling_enabled);
-    EXPECT_EQ(profiled.to_string(), opencl.to_string());
+    EXPECT_FALSE(explicit_cpu.profiling_enabled);
+    EXPECT_EQ(profiled.to_string(), explicit_cpu.to_string());
 }

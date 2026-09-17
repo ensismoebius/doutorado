@@ -9,13 +9,12 @@
  * weights + input into our layer, runs forward/backward, and asserts
  * EXPECT_NEAR against PyTorch's/snnTorch's output/gradients.
  *
- * Every test is a TYPED_TEST run once per concrete backend
- * (XTensorBackend, OpenCLTensorBackend, DeviceTensorBackend, and
- * SYCLTensorBackend when NN_BACKEND=SYCL) against the SAME fixture data —
- * this is deliberately independent of whichever backend NN_BACKEND selects
- * as nn::Backend for the rest of the project, so a single build validates
- * every backend's numerics against the same external ground truth rather
- * than only whichever one happens to be "primary" in that build.
+ * Every test is a TYPED_TEST run once per concrete backend (XTensorBackend,
+ * DeviceTensorBackend) against the SAME fixture data — this is deliberately
+ * independent of whichever backend NN_BACKEND selects as nn::Backend for the
+ * rest of the project, so a single build validates every backend's numerics
+ * against the same external ground truth rather than only whichever one
+ * happens to be "primary" in that build.
  *
  * Regenerate after touching a covered layer:
  *   software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
@@ -32,68 +31,29 @@
 #include "layers/Layers.hpp"
 #include "tensor/DeviceTensorBackend.hpp"
 #include "tensor/Tensor.hpp"
-#include "tensor/opencl/OpenCLTensorBackend.hpp"
 #include "tensor/xtensor/XTensorBackend.hpp"
-#ifdef NN_BACKEND_SYCL
-#include "tensor/sycl/SYCLTensorBackend.hpp"
-#endif
 
 namespace
 {
 
 using XT = nn::XTensorBackend;
-using CL = nn::OpenCLTensorBackend;
 using DV = nn::DeviceTensorBackend;
 
-// Per-backend tolerance: GPU fp32 kernels round differently from the host
-// serial loops, so chained/reduced ops need a looser bound than the default
-// used for the exact host-math backends (XTensor, and Device — which is
-// itself just an XTensor host mirror, see DeviceTensorBackend.hpp).
+// Per-backend tolerance: XTensor and Device (an XTensor host mirror, see
+// DeviceTensorBackend.hpp) are exact host math, so both use the same bound.
 template <typename Backend>
 constexpr float parity_tol()
 {
     return 1e-4F;
 }
-template <>
-constexpr float parity_tol<CL>()
-{
-    return 3e-4F;
-}
-#ifdef NN_BACKEND_SYCL
-using SY = nn::SYCLTensorBackend;
-template <>
-constexpr float parity_tol<SY>()
-{
-    return 3e-4F;
-}
-#endif
 
-// Skip gracefully for backends whose device isn't actually present at test
-// run time. XTensor and Device never need this (Device is host math only).
-// OpenCLTensorBackend.cpp/SYCLTensorBackend.cpp are the only backends that
-// throw rather than silently running on host if no device is available (see
-// cmake/OpenCLGpuCapabilityCheck.cmake / SyclGpuCapabilityCheck.cmake for the
-// configure-time side of that "no fallback" policy) — skip here instead of
-// letting every TYPED_TEST fail identically when a device is genuinely
-// absent (e.g. CI runners without a GPU).
+// No backend here can be genuinely unavailable at test run time (both are
+// host math), so this is a no-op left in place for symmetry with the
+// per-backend tolerance hook above.
 template <typename Backend>
 void skip_if_backend_unavailable()
 {
 }
-template <>
-void skip_if_backend_unavailable<CL>()
-{
-    if (!nn::opencl::OpenCLContext::instance().is_available())
-        GTEST_SKIP() << "No OpenCL device available — parity suite skipped for OpenCLTensorBackend";
-}
-#ifdef NN_BACKEND_SYCL
-template <>
-void skip_if_backend_unavailable<SY>()
-{
-    if (!SY::sycl_runtime_available())
-        GTEST_SKIP() << "No SYCL device available — parity suite skipped for SYCLTensorBackend";
-}
-#endif
 
 const cnpy::npz_t& refs()
 {
@@ -114,11 +74,10 @@ const cnpy::NpyArray& arr(const std::string& key)
 }
 
 // IMPORTANT: use only the structured accessors at(i,j)/at(i,j,k)/at(i,j,k,l),
-// never the linear at(k). The linear accessor exposes backend storage order
-// (row-major for xtensor, column-major for the OpenCL backend), so filling a
-// tensor from row-major fixture data via at(k) would transpose it on OpenCL.
-// at(i,j)… address the same *logical* element on every backend. Fixture arrays
-// are numpy C-order, so a C-order multi-index walk matches them.
+// never the linear at(k). The linear accessor exposes backend storage order,
+// which need not be row-major on every backend. at(i,j)… address the same
+// *logical* element on every backend. Fixture arrays are numpy C-order, so a
+// C-order multi-index walk matches them.
 using Shape = std::vector<nn::Index>;
 
 Shape shape_of(const cnpy::NpyArray& a)
@@ -234,11 +193,7 @@ void expect_close(const Tensor& got, const cnpy::NpyArray& ref, const std::strin
     } while (next_index(idx, s));
 }
 
-#ifdef NN_BACKEND_SYCL
-using AllBackends = ::testing::Types<XT, CL, DV, SY>;
-#else
-using AllBackends = ::testing::Types<XT, CL, DV>;
-#endif
+using AllBackends = ::testing::Types<XT, DV>;
 
 template <typename B>
 class PyTorchParityTyped : public ::testing::Test

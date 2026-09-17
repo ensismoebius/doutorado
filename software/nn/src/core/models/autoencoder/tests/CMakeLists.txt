@@ -25,4 +25,4 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/include
 )
 
-nn_gtest_discover_tests(autoencoder_config_gtest)
+gtest_discover_tests(autoencoder_config_gtest)

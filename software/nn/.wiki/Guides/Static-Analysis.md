@@ -96,5 +96,5 @@ python3 ../scripts/ci/validate_static_analysis.py --report cppcheck-report.xml
 ## See Also
 
 - [Architecture](../Architecture.md)
-- [Device](../Core/Device.md) (for OpenCL backend analysis)
+- [Device](../Core/Device.md)
 - [Test Quality and Determinism](./Test-Quality-and-Determinism.md)

@@ -55,9 +55,9 @@ target_link_libraries(waveletAE_reporting_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(waveletAE_data_gtest)
-nn_gtest_discover_tests(waveletAE_wavelets_gtest)
-nn_gtest_discover_tests(waveletAE_reporting_gtest)
+gtest_discover_tests(waveletAE_data_gtest)
+gtest_discover_tests(waveletAE_wavelets_gtest)
+gtest_discover_tests(waveletAE_reporting_gtest)
 configure_xtensor_parallel_target(waveletAE_data_gtest)
 configure_xtensor_parallel_target(waveletAE_wavelets_gtest)
 configure_xtensor_parallel_target(waveletAE_reporting_gtest)

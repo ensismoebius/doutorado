@@ -31,8 +31,7 @@ Ground-truth tests that compare this C++ library against PyTorch.
 The `.npz` is committed (whitelisted in `.gitignore`) so CI needs no torch.
 
 Every test is a `TYPED_TEST` run once per concrete tensor backend
-(`XTensorBackend`, `OpenCLTensorBackend`, `DeviceTensorBackend`, and
-`SYCLTensorBackend` when `NN_BACKEND=SYCL`) against the same fixture — not
+(`XTensorBackend`, `DeviceTensorBackend`) against the same fixture — not
 just whichever backend the current build selected as `nn::Backend`. Lives
 under `src/core/tensor/tests/` (not `src/core/layers/tests/`) because naming
 concrete backend types is restricted to that zone by
@@ -98,13 +97,11 @@ Then rebuild + run: `ctest --test-dir out/build/max-performance -R PyTorchParity
    keys, sets the weights, runs the op, and compares.
 3. Regenerate the fixtures and rebuild.
 
-**Backend note (important).** These tests run on all four backends: xtensor
-(row-major), OpenCL (column-major), Device (row-major, host mirror), and SYCL
-(row-major, host mirror + optional device dispatch). Use only the *structured*
+**Backend note (important).** These tests run on both backends: xtensor
+(row-major) and Device (row-major, host mirror). Use only the *structured*
 accessors `at(i,j)` /
 `at(i,j,k)` / `at(i,j,k,l)` — never the linear `at(k)`, which exposes backend
-storage order and would transpose a tensor filled from row-major fixture data on
-OpenCL. The helpers (`make_from`, `fill_from`, `expect_close`) already enforce
+storage order directly. The helpers (`make_from`, `fill_from`, `expect_close`) already enforce
 this; `expect_close` walks the tensor's own logical shape and reads the C-order
 fixture in lockstep, so it also tolerates a rank difference that flattens the same
 way (e.g. our 2-D `(T*B,F)` LIF output vs the 3-D `(T,B,F)` reference). New two-plus

@@ -21,4 +21,4 @@ target_include_directories(wave_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(wave_gtest)
+gtest_discover_tests(wave_gtest)

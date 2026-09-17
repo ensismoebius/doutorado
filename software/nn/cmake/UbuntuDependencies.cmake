@@ -65,11 +65,6 @@ endif()
 #   pulled in by build-essential.
 # - `git` is kept for parity with the other bootstrap modules (not strictly
 #   needed by apt itself).
-# - OpenCL headers/loader come from `opencl-headers` + `ocl-icd-libopencl1`.
-#   `ocl-icd-opencl-dev` is listed because it also ships the `OpenCL.pc`
-#   pkg-config module that PackageChecking.cmake probes. A vendor ICD runtime
-#   (e.g. `intel-opencl-icd`, `mesa-opencl-icd`, `pocl-opencl-icd`) is
-#   hardware-specific and intentionally NOT auto-installed.
 set(NN_APT_DEPENDENCIES
     pkg-config          # pkg-config, required by PackageChecking.cmake
     cmake               # build system
@@ -88,8 +83,6 @@ set(NN_APT_DEPENDENCIES
     python3             # Python for the vendored venv provisioning
     git                 # version control (parity with other bootstraps)
     build-essential     # toolchain + autotools
-    opencl-headers      # Khronos OpenCL headers (CL/cl.h)
-    ocl-icd-opencl-dev  # OpenCL ICD loader + OpenCL.pc pkg-config module
     libsqlite3-dev      # SQLite3 (required by the data loaders, SQLite3::SQLite3)
     zlib1g-dev          # ZLIB (find_package(ZLIB REQUIRED) in the data loaders)
 )

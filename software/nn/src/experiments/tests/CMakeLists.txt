@@ -16,4 +16,4 @@ target_link_libraries(experiments_config_gtest
         nlohmann_json_wrapper
 )
 
-nn_gtest_discover_tests(experiments_config_gtest)
+gtest_discover_tests(experiments_config_gtest)

@@ -49,19 +49,15 @@ element-by-element.
 The `.npz` is committed (whitelisted in `.gitignore`) so CI needs no torch.
 
 **Every concrete backend, not just whichever one is `nn::Backend`.** Every test
-is a `TYPED_TEST` run once per `XTensorBackend`, `OpenCLTensorBackend`,
-`DeviceTensorBackend`, and `SYCLTensorBackend` (the last only when
-`NN_BACKEND=SYCL`, since its kernels TU is only compiled then) — each backend's
-`LinearImpl<X>`/`Conv1dImpl<X>`/etc. is checked against the *same* PyTorch/
-snnTorch fixture, independent of which single backend the rest of the project
-happens to have selected in that build. OpenCL/SYCL skip gracefully
-(`GTEST_SKIP`) when no device is present at run time rather than failing;
-XTensor and Device never skip (host math only). Lives in
-`src/core/tensor/tests/` rather than `src/core/layers/tests/` because
-naming four concrete backend types side-by-side is exactly what
-`cmake/BackendImplementationGuard.cmake` restricts to `include/tensor/` /
-`src/core/tensor/` — see that file's comments for the "layers stay
-backend-agnostic" rule this test is deliberately exempt from.
+is a `TYPED_TEST` run once per `XTensorBackend` and `DeviceTensorBackend` —
+each backend's `LinearImpl<X>`/`Conv1dImpl<X>`/etc. is checked against the
+*same* PyTorch/snnTorch fixture, independent of which single backend the rest
+of the project happens to have selected in that build. Both are host math, so
+neither skips at run time. Lives in `src/core/tensor/tests/` rather than
+`src/core/layers/tests/` because naming concrete backend types side-by-side is
+exactly what `cmake/BackendImplementationGuard.cmake` restricts to
+`include/tensor/` / `src/core/tensor/` — see that file's comments for the
+"layers stay backend-agnostic" rule this test is deliberately exempt from.
 
 This cross-backend run caught two real, previously-latent bugs no prior test
 exercised (nothing had ever instantiated these templates for a non-default
@@ -153,44 +149,19 @@ Convolution weights are stored **pre-permuted into our im2col layout** so the C+
 test can `set_weights()`:
 `Conv1d[ic*K+k,oc]=torch[oc,ic,k]`, `Conv2d[ic*K*K+ky*K+kx,oc]=torch[oc,ic,ky,kx]`.
 
-> **GPU test concurrency.** `pytorch_parity_gtest` instantiates
-> `SYCLTensorBackend` directly, so it carries a shared CTest `RESOURCE_LOCK`
-> (`cmake/GpuTestSerialization.cmake`) that serializes it against every other
-> SYCL-touching test — this exists because concurrent kernel submission under
-> AdaptiveCpp's HIP backend hung this dev machine hard enough to need a
-> reboot. The lock does **not** apply to OpenCL: a full-suite freeze initially
-> attributed to concurrent OpenCL kernel submission turned out to be residual
-> fallout from that same SYCL/HIP incident — `ctest -j$(nproc)` under
-> `NN_BACKEND=OpenCL` re-ran clean afterward. See
-> [Tensor](../Core/Tensor.md#concurrent-gpu-test-serialization-2026-07-15-revised-same-day).
-
 ### Regenerate / extend
 
 ```bash
 software/nn/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 software/nn/.venv/bin/python -m pip install snntorch spikingjelly
 software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
-ctest --test-dir out/build/max-performance -R PyTorchParity   # XTensor/OpenCL/Device
-# SYCL needs its own preset + the safety override (see cmake/SyclGpuCapabilityCheck.cmake):
-cmake --preset=max-performance-sycl -DNN_SYCL_ACKNOWLEDGE_UNSUPPORTED_GPU=ON
-cmake --build out/build/max-performance-sycl --target pytorch_parity_gtest -j$(nproc)
-./out/build/max-performance-sycl/src/core/tensor/tests/pytorch_parity_gtest  # run single-threaded
+ctest --test-dir out/build/max-performance -R PyTorchParity   # XTensor/Device
 ```
 
 Add a layer: add a case block in `gen_pytorch_refs.py` (save input/weights/output/
 grads), add a `TYPED_TEST(PyTorchParityTyped, <Layer>)` in `pytorch_parity_gtest.cpp`
 using `nn::<Layer>Impl<B>` (the template, not the `nn::<Layer>` alias tied to the
 single selected `nn::Backend`), regenerate.
-
-> **Backend gotcha.** The tests run on **all four backends**: xtensor
-> (row-major), OpenCL (column-major), Device (row-major, host mirror), and
-> SYCL (row-major, host mirror + optional device dispatch). The linear `at(k)`
-> accessor exposes storage order, so a tensor filled from row-major fixture
-> data via `at(k)` is transposed on OpenCL — which silently broke every
-> structure-dependent op (matmul, conv, pool, LIF) while leaving elementwise
-> ops (layout-invariant) passing. Always use the structured accessors
-> `at(i,j)` / `at(i,j,k[,l])`, which address the same logical element on every
-> backend; the test helpers enforce this.
 
 See `software/nn/scripts/testing/README.md` for the full contract.
 

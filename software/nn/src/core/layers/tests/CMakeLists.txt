@@ -37,7 +37,7 @@ target_include_directories(
 set_target_properties(layers_gtest PROPERTIES CXX_CLANG_TIDY "")
 
 include(GoogleTest)
-nn_gtest_discover_tests(layers_gtest)
+gtest_discover_tests(layers_gtest)
 configure_xtensor_parallel_target(layers_gtest)
 
 foreach(_layers_split_test IN ITEMS
@@ -68,7 +68,7 @@ foreach(_layers_split_test IN ITEMS
 
     set_target_properties(${_layers_split_test} PROPERTIES CXX_CLANG_TIDY "")
 
-    nn_gtest_discover_tests(${_layers_split_test})
+    gtest_discover_tests(${_layers_split_test})
     configure_xtensor_parallel_target(${_layers_split_test})
 endforeach()
 
@@ -102,7 +102,7 @@ foreach(_fundamental_mechanisms_test IN ITEMS
 
     set_target_properties(${_fundamental_mechanisms_test} PROPERTIES CXX_CLANG_TIDY "")
 
-    nn_gtest_discover_tests(${_fundamental_mechanisms_test})
+    gtest_discover_tests(${_fundamental_mechanisms_test})
     configure_xtensor_parallel_target(${_fundamental_mechanisms_test})
 endforeach()
 
@@ -132,12 +132,12 @@ target_include_directories(spiking_mechanisms_gtest
 
 set_target_properties(spiking_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(spiking_mechanisms_gtest)
+gtest_discover_tests(spiking_mechanisms_gtest)
 configure_xtensor_parallel_target(spiking_mechanisms_gtest)
 
 # pytorch_parity_gtest moved to src/core/tensor/tests/ — it references concrete
-# backend type names (XTensorBackend, OpenCLTensorBackend, ...) directly to
-# test all four side-by-side, which BackendImplementationGuard.cmake only
+# backend type names (XTensorBackend, DeviceTensorBackend) directly to
+# test both side-by-side, which BackendImplementationGuard.cmake only
 # allows under include/tensor/ and src/core/tensor/.
 
 ##
@@ -171,7 +171,7 @@ target_include_directories(micro_network_parity_gtest
 
 set_target_properties(micro_network_parity_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(micro_network_parity_gtest)
+gtest_discover_tests(micro_network_parity_gtest)
 configure_xtensor_parallel_target(micro_network_parity_gtest)
 
 ##
@@ -205,5 +205,5 @@ target_include_directories(independent_refs_gtest
 
 set_target_properties(independent_refs_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(independent_refs_gtest)
+gtest_discover_tests(independent_refs_gtest)
 configure_xtensor_parallel_target(independent_refs_gtest)

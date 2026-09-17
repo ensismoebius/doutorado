@@ -18,22 +18,16 @@ project(nn VERSION 0.2.0 LANGUAGES CXX C)
 enable_testing()
 
 # Backend selection for backend-agnostic modules.
-set(NN_BACKEND "XTensor" CACHE STRING "Primary tensor backend (XTensor, OpenCL, SYCL, Device)")
-set_property(CACHE NN_BACKEND PROPERTY STRINGS XTensor OpenCL SYCL Device)
+set(NN_BACKEND "XTensor" CACHE STRING "Primary tensor backend (XTensor, Device)")
+set_property(CACHE NN_BACKEND PROPERTY STRINGS XTensor Device)
 
 if(NOT NN_BACKEND STREQUAL "XTensor" AND
-	 NOT NN_BACKEND STREQUAL "OpenCL" AND
-	 NOT NN_BACKEND STREQUAL "SYCL" AND
 	 NOT NN_BACKEND STREQUAL "Device")
-	message(FATAL_ERROR "NN_BACKEND must be one of: XTensor, OpenCL, SYCL, Device")
+	message(FATAL_ERROR "NN_BACKEND must be one of: XTensor, Device")
 endif()
 
 if(NN_BACKEND STREQUAL "XTensor")
 	add_compile_definitions(NN_BACKEND_XTENSOR)
-elseif(NN_BACKEND STREQUAL "OpenCL")
-	add_compile_definitions(NN_BACKEND_OPENCL)
-elseif(NN_BACKEND STREQUAL "SYCL")
-	add_compile_definitions(NN_BACKEND_SYCL)
 elseif(NN_BACKEND STREQUAL "Device")
 	add_compile_definitions(NN_BACKEND_DEVICE)
 	# DeviceTensorBackend (include/tensor/DeviceTensorBackend.hpp) is a
@@ -43,8 +37,8 @@ elseif(NN_BACKEND STREQUAL "Device")
 	# simulated device buffer only exercises copy-semantics bookkeeping in
 	# tests). Warn loudly so selecting NN_BACKEND=Device is never mistaken for
 	# testing a real accelerator — the "no silent fallback" policy this
-	# project applies to SYCL/OpenCL doesn't map onto a backend that was never
-	# backed by hardware in the first place.
+	# project applies to real accelerator backends doesn't map onto a backend
+	# that was never backed by hardware in the first place.
 	message(WARNING
 		"NN_BACKEND=Device selected: DeviceTensorBackend is a documentation "
 		"skeleton (see include/tensor/DeviceTensorBackend.hpp) — it always runs "
@@ -72,12 +66,6 @@ include(cmake/DevAndAnalysisTargets.cmake)
 
 # Enforce backend implementation reference boundaries.
 include(cmake/BackendImplementationGuard.cmake)
-
-# nn_gtest_discover_tests(): serializes GPU-touching tests against each other
-# so `ctest -jN` can't submit concurrent GPU kernels from independent
-# processes — this has caused hard, reboot-requiring hangs on this project's
-# dev hardware. Every gtest_discover_tests() call should use this wrapper.
-include(cmake/GpuTestSerialization.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)

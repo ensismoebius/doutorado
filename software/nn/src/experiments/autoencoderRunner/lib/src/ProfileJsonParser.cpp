@@ -243,7 +243,6 @@ auto is_known_profile_key(const std::string& key) -> bool
         "kfold_n_splits",
         "kfold_shuffle",
         "kfold_seed",
-        "program_opencl_profiling_enabled",
     };
 
     return kKnownKeys.contains(key);

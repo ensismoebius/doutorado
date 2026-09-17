@@ -43,7 +43,7 @@ Validation
 
 Project Context (nn framework)
 
-**Target hardware:** AMD Renoir APU — 7 compute units, 64 KiB LDS per CU, 4 GB RAM shared between CPU and GPU. No discrete VRAM; all OpenCL buffers come from this pool.
+**Target hardware:** AMD Renoir APU, CPU-only workload (XTensor/BLAS backend) — 4 GB RAM budget.
 
 **SNN memory cost:** `O(T × B × F)` per history buffer (`v_mem_history`, `spike_history`). For T=10, B=32, F=64: 20,480 floats = 80 KB per layer.
 

@@ -22,7 +22,7 @@ target_include_directories(wavelet_gtest
 )
 
 include(GoogleTest)
-nn_gtest_discover_tests(wavelet_gtest)
+gtest_discover_tests(wavelet_gtest)
 
 ##
 ## pywt_parity_gtest: ground truth vs PyWavelets. Loads committed fixtures
@@ -54,4 +54,4 @@ target_compile_definitions(pywt_parity_gtest
 
 set_target_properties(pywt_parity_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-nn_gtest_discover_tests(pywt_parity_gtest)
+gtest_discover_tests(pywt_parity_gtest)

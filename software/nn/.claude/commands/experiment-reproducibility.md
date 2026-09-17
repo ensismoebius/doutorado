@@ -43,7 +43,7 @@ ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 - **EXPLICIT_CONFIG**: Persist run config in JSON/YAML artifacts alongside results. No implicit defaults without serialization.
 - **RESULT_LINKAGE**: Link each result to the exact profile/config used. No detached outputs.
 - **TIMESTAMPED_OUTPUTS**: Timestamp output folders/files (ISO 8601: `YYYYMMDD_HHMMSS`). No overwriting prior results.
-- **DETERMINISM**: Record seeds and deterministic settings (`torch.manual_seed`, OpenCL queue order, etc.). No non-repeatable runs.
+- **DETERMINISM**: Record seeds and deterministic settings (`torch.manual_seed`, etc.). No non-repeatable runs.
 
 ## Required Artifact Structure
 

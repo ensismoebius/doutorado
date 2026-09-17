@@ -239,7 +239,6 @@ the LSTM roughly 7× more expensive than necessary:
 | sequential steps | 256 | 32 |
 | MACs | 8 523 840 | 1 184 256 |
 | CPU LSTM train (6 samples, 2 epochs) | 3 711 ms | 478 ms |
-| OpenCL LSTM train (same) | 144 848 ms | 18 335 ms |
 
 Constraints and caveats:
 
@@ -284,7 +283,6 @@ Article profiles live in `src/experiments/meeting01/profiles/`:
 | `article-snn-dense.json` | SNN dense, 3 encodings × V_th/alpha sweep × 3 seeds | varies | ~45 min |
 | `article-snn-conv1d.json` | SNN with 3-tap smoothing pre-filter | varies | ~45 min |
 | `article-snn-recurrent.json` | SNN with LIF input transform | varies | ~45 min |
-| `article-backend-bench.json` | Wall-clock timing only (xtensor vs OpenCL) | 2 | ~5 min |
 
 All article profiles share: `window_size=256`, `dataset=fsdd`, `seed_deterministic=false`, `loss_function=mse`, `latent_dim=32`.
 

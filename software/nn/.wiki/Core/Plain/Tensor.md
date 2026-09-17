@@ -26,7 +26,7 @@ The `Tensor` class in this library provides extra capabilities beyond a plain ar
 
 1. **Automatic gradient tracking**: when you ask the tensor to track gradients (`requires_grad=true`), every operation on it records what happened so that backpropagation can work out how to update the weights.
 
-2. **Backend dispatch**: the same code works on CPU or GPU. Internally, the tensor delegates math to either the `xtensor` CPU backend or the `OpenCL` GPU backend. The calling code doesn't need to know which.
+2. **Backend dispatch**: the same code works against a swappable backend — by default the `xtensor` CPU backend. The calling code doesn't need to know which backend is compiled in.
 
 3. **Named operations**: `matmul`, `element_wise_add`, `reshape` etc. are readable and checked for shape compatibility.
 
@@ -56,16 +56,8 @@ The SNN convention is unusual: instead of `(batch, time, features)`, all time st
 
 ---
 
-## CPU vs GPU
-
-The same tensor code runs on CPU (using `xtensor`) or GPU (using `OpenCL`). The GPU backend can run matrix multiplications in parallel on hundreds of shader cores, which speeds up training significantly for large batch sizes.
-
-GPU tensors live in GPU memory. To read a value, you must first synchronise (copy from GPU to CPU). The `sync_gpu_if_needed()` method handles this. If you directly call `.at(row, col)` on a GPU tensor it will synchronise automatically, but this triggers a slow copy — avoid doing this inside training loops.
-
----
-
 ## See also
 
-- [Tensor (technical)](../Tensor.md) — API reference, backend details, OpenCL benchmarks
+- [Tensor (technical)](../Tensor.md) — API reference, backend details
 - [Layers (plain)](../Layers.md) — how tensors flow through layers
 - [Training (plain)](../Training.md) — what happens to tensors during training

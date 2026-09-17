@@ -65,9 +65,7 @@ auto extract_layer_sizes(const std::vector<std::string>& specs)
 
 auto active_backend_name() -> std::string
 {
-#if defined(NN_BACKEND_OPENCL)
-    return "opencl";
-#elif defined(NN_BACKEND_DEVICE)
+#if defined(NN_BACKEND_DEVICE)
     return "device";
 #else
     return "xtensor";
