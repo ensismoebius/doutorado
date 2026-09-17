@@ -447,7 +447,7 @@ TEST(AutoencoderRunnerCliTest, LoadsOptimizerFromSelectedProfile)
 
     Config defaults{};
     defaults.profile_name = "";
-    defaults.device = "unset";
+    defaults.device = "cpu";
     defaults.dataset_subject_filter_regex = "^S(\\d+)$";
     defaults.dataset_root_path = dataset_root.string();
     defaults.training_batch_size = 10;

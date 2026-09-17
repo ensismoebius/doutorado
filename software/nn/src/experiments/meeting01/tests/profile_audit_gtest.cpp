@@ -27,7 +27,6 @@ const std::vector<std::string>& article_profiles()
         "article-snn-dense.json",
         "article-snn-conv1d.json",
         "article-snn-recurrent.json",
-        "article-backend-bench.json",
         "meeting01-loso.json",
     };
     return profiles;
