@@ -20,6 +20,8 @@
 #include "../include/Meeting01Evaluation.hpp"
 #include "../include/Meeting01EventCallback.hpp"
 #include "../include/Meeting01Events.hpp"
+#include "../include/Meeting01GaGenome.hpp"
+#include "../include/Meeting01GaSearch.hpp"
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01Output.hpp"
 #include "../include/Meeting01PerWindow.hpp"
@@ -552,50 +554,10 @@ void run_baseline_family(const Meeting01Config& config,
     }
 }
 
-/** Writes the per-run epoch-history and batch-convergence .dat files for one SNN combo,
- *  when LaTeX data export is configured. */
-void write_snn_combo_dats(const Meeting01Config& config,
-    const std::string& encoding,
-    const std::string& architecture,
-    float voltage_threshold,
-    float alpha,
-    int run_id,
-    const TrainResult& train_result)
-{
-    if (config.dataset.latex_data_dir.empty())
-    {
-        return;
-    }
-
-    const std::filesystem::path latex_dir = std::filesystem::path(config.dataset.latex_data_dir);
-    write_epoch_history_dat(
-        latex_dir / (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
-                        std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
-                        std::to_string(run_id + 1) + "_history.dat"),
-        "snn-ae",
-        encoding,
-        architecture,
-        voltage_threshold,
-        alpha,
-        run_id + 1,
-        train_result.history);
-    write_batch_convergence_dat(
-        latex_dir / (config.experiment.run_tag + "_snn_" + encoding + "_" + architecture + "_vth" +
-                        std::to_string(voltage_threshold) + "_a" + std::to_string(alpha) + "_run" +
-                        std::to_string(run_id + 1) + "_convergence.dat"),
-        "snn-ae",
-        encoding,
-        architecture,
-        voltage_threshold,
-        alpha,
-        run_id + 1,
-        train_result.history);
-}
-
 /** Writes the encoder/decoder parameter dumps for one SNN model, when model saving is
- *  configured. `role_tag` ("combo" for a sweep candidate, "final" for the retrained
- *  winner) plus the fold index keep the ~18 nested-LOSO processes from colliding on the
- *  same filename. */
+ *  configured. `role_tag` ("combo" for a GA-evaluated candidate genome, "final" for the
+ *  retrained winner) plus the fold index keep the ~18 nested-LOSO processes from
+ *  colliding on the same filename. */
 void save_snn_combo_models(const Meeting01Config& config,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -639,173 +601,6 @@ void save_snn_combo_models(const Meeting01Config& config,
     {
         NN_LOG_WARN("[comparative] failed to save SNN model .npz for " + base_name);
     }
-}
-
-// Trains (or loads from checkpoint) one SNN-AE sweep candidate for this (dataset,
-// encoding, architecture, voltage_threshold, alpha, run_id) combo on `train`, scores it
-// on the inner validation speaker, appends a split="val" ResultRow, and returns that
-// validation MSE so the caller can select the fold's winner. The held-out test speaker
-// is never touched here.
-auto run_snn_combo(const Meeting01Config& config,
-    const DatasetSplit& split,
-    const std::string& dataset_name,
-    const std::string& encoding,
-    const std::string& architecture,
-    float voltage_threshold,
-    float alpha,
-    int run_id,
-    std::uint32_t run_seed,
-    const std::string& backend_name,
-    std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
-    const std::filesystem::path& models_dir,
-    std::uint32_t run_bar,
-    int& completed_runs,
-    std::vector<ResultRow>& all_rows,
-    std::vector<PerWindowError>& pw_rows) -> float
-{
-    const CheckpointKey snn_key{config.experiment.run_tag,
-        backend_name,
-        dataset_name,
-        "snn-ae",
-        encoding,
-        architecture,
-        voltage_threshold,
-        alpha,
-        run_id + 1,
-        "val",
-        config.dataset.cv_fold};
-    const auto snn_chk = checkpoint_path(chk_dir, snn_key);
-
-    const std::string config_id = make_config_id(
-        "snn-ae", encoding, "snn_sweep", voltage_threshold, alpha, run_seed, run_id + 1);
-
-    if (checkpoint_is_valid(snn_chk, cfg_hash))
-    {
-        all_rows.push_back(checkpoint_load(snn_chk));
-        emit_config_end(all_rows.back(), config_id, "snn_sweep");
-        nn::progress::ProgressManager::instance().update_bar(
-            run_bar, static_cast<float>(++completed_runs));
-        return all_rows.back().metrics.mse;
-    }
-
-    {
-        EventContext evctx;
-        evctx.config_id = config_id;
-        evctx.model = "snn-ae";
-        evctx.encoding = encoding;
-        evctx.role = "snn_sweep";
-        evctx.hyperparams = {
-            {"v_th", voltage_threshold}, {"alpha", alpha}, {"architecture", architecture}};
-        evctx.run_id = run_id + 1;
-        evctx.seed = run_seed;
-        evctx.max_epochs = config.training.epochs;
-        evctx.lr = config.training.learning_rate;
-        evctx.lr_biophysical = config.training.learning_rate_biophysical;
-        evctx.early_stop_patience = config.training.early_stop_patience;
-        ExperimentEvents::instance().set_pending_context(evctx);
-    }
-
-    {
-        std::ostringstream d;
-        d << dataset_name << " fold" << config.dataset.cv_fold << " · SNN-" << architecture << " · "
-          << encoding << " · seed " << run_seed << " · v=" << std::fixed << std::setprecision(2)
-          << voltage_threshold << " a=" << alpha;
-        nn::progress::ProgressManager::instance().set_description(run_bar, d.str());
-    }
-
-    float train_ms = 0.0f;
-    float infer_ms = 0.0f;
-
-    AutoencoderConfig snn_config = make_snn_cfg( //
-        config,                                  //
-        alpha,                                   //
-        voltage_threshold                        //
-    );
-    snn_config.initializer_seed = run_seed;
-    snn_config.initializer_sampler_type =
-        "comparative|" + dataset_name + "|" + encoding + "|" + architecture + "|" +
-        std::to_string(extract_layer_sizes(config.model.encoder_layer_spec).empty()
-                           ? 0
-                           : extract_layer_sizes(config.model.encoder_layer_spec).front()) +
-        "|" + std::to_string(voltage_threshold) + "|" + std::to_string(alpha);
-
-    ProtocolSpikingAutoencoder snn_model(snn_config);
-
-    TrainResult train_result = train_with_early_stopping_snn( //
-        snn_model,                                            //
-        config,                                               //
-        split.train_samples,                                  //
-        split.val_samples,                                    //
-        split.val_labels,                                     //
-        encoding,                                             //
-        architecture,                                         //
-        alpha,                                                //
-        voltage_threshold,                                    //
-        run_seed,                                             //
-        static_cast<std::size_t>(run_id),                     //
-        static_cast<std::size_t>(config.experiment.repeats),  //
-        train_ms,                                             //
-        infer_ms                                              //
-    );
-
-    RunMetrics metrics = train_result.metrics;
-    metrics.train_ms = train_ms;
-
-    write_snn_combo_dats(
-        config, encoding, architecture, voltage_threshold, alpha, run_id, train_result);
-    save_snn_combo_models(config,
-        dataset_name,
-        encoding,
-        architecture,
-        voltage_threshold,
-        alpha,
-        run_id,
-        models_dir,
-        snn_model);
-
-    ResultRow snn_row{backend_name,
-        config.experiment.run_tag,
-        dataset_name,
-        "snn-ae",
-        encoding,
-        architecture,
-        static_cast<int>(config.model.encoder_layer_spec.size()),
-        voltage_threshold,
-        alpha,
-        run_id + 1,
-        run_seed,
-        cfg_hash,
-        metrics};
-    snn_row.split = "val";
-    snn_row.cv_fold = config.dataset.cv_fold;
-    all_rows.push_back(snn_row);
-    checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
-    emit_config_end(all_rows.back(), config_id, "snn_sweep");
-
-    PerWindowError proto;
-    proto.model = "snn-ae";
-    proto.architecture = architecture;
-    proto.v_th = voltage_threshold;
-    proto.alpha = alpha;
-    proto.run_id = run_id + 1;
-    proto.seed = run_seed;
-    proto.cv_fold = config.dataset.cv_fold;
-    proto.split = "val";
-    auto pw = per_window_errors_snn(snn_model,
-        split.val_samples,
-        split.val_meta,
-        encoding,
-        architecture,
-        alpha,
-        voltage_threshold,
-        run_seed,
-        proto);
-    pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
-
-    nn::progress::ProgressManager::instance().update_bar(
-        run_bar, static_cast<float>(++completed_runs));
-    return metrics.mse;
 }
 
 // Recording-disjoint early-stopping monitor carved from `train` for the nested-LOSO
@@ -857,9 +652,25 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
     return out;
 }
 
-// Runs the full SNN architecture × voltage_threshold × alpha sweep for one (dataset,
-// encoding, run_id) combo.
-void run_snn_sweep(const Meeting01Config& config,
+// The GA-selected SNN-AE candidate, ready for the nested-LOSO final fit.
+// `encoder_widths` is the winning genome's free-form layer widths (see
+// Meeting01GaGenome::to_ae_config) — always non-empty, since the GA is the only SNN
+// architecture search mechanism (no grid/sweep path exists).
+struct SnnSelection
+{
+    std::string architecture;
+    float v_th;
+    float alpha;
+    float val_mse;
+    std::vector<int> encoder_widths;
+};
+
+// Nested-LOSO final fit for the GA-selected SNN-AE: retrain `best` on
+// (train \ monitor) ∪ val, early-stop on the carved recording-disjoint monitor,
+// evaluate once on the held-out test speaker, checkpoint/save/manifest. `candidates` is
+// only used for the model-selection provenance manifest (every genome the GA
+// evaluated, not just the winner).
+void finalize_snn_selection(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     const std::string& encoding,
@@ -869,54 +680,12 @@ void run_snn_sweep(const Meeting01Config& config,
     std::size_t cfg_hash,
     const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
-    std::uint32_t run_bar,
-    int& completed_runs,
+    const SnnSelection& best,
+    const std::vector<SnnSelection>& candidates,
     std::vector<ResultRow>& all_rows,
     std::vector<PerWindowError>& pw_rows)
 {
-    struct Candidate
-    {
-        std::string architecture;
-        float v_th;
-        float alpha;
-        float val_mse;
-    };
-    std::vector<Candidate> candidates;
-
-    for (const auto& architecture : config.evaluation.snn_architectures)
-    {
-        for (float voltage_threshold : config.evaluation.v_th_values)
-        {
-            for (float alpha : config.evaluation.alpha_values)
-            {
-                const float val_mse = run_snn_combo(config,
-                    split,
-                    dataset_name,
-                    encoding,
-                    architecture,
-                    voltage_threshold,
-                    alpha,
-                    run_id,
-                    run_seed,
-                    backend_name,
-                    cfg_hash,
-                    chk_dir,
-                    models_dir,
-                    run_bar,
-                    completed_runs,
-                    all_rows,
-                    pw_rows);
-                candidates.push_back({architecture, voltage_threshold, alpha, val_mse});
-            }
-        }
-    }
-
-    // Nested-LOSO final fit: only when the fold carries a held-out test speaker.
-    if (split.test_samples.empty() || candidates.empty()) return;
-
-    const auto best = *std::min_element(candidates.begin(),
-        candidates.end(),
-        [](const Candidate& a, const Candidate& b) { return a.val_mse < b.val_mse; });
+    if (split.test_samples.empty()) return;
 
     const std::string final_config_id = make_config_id(
         "snn-ae", encoding, "snn_final", best.v_th, best.alpha, run_seed, run_id + 1);
@@ -977,7 +746,7 @@ void run_snn_sweep(const Meeting01Config& config,
     std::vector<Tensor> fit_samples = carve.fit_samples;
     fit_samples.insert(fit_samples.end(), split.val_samples.begin(), split.val_samples.end());
 
-    AutoencoderConfig snn_config = make_snn_cfg(config, best.alpha, best.v_th);
+    AutoencoderConfig snn_config = make_snn_cfg(config, best.alpha, best.v_th, best.encoder_widths);
     snn_config.initializer_seed = run_seed;
     snn_config.initializer_sampler_type =
         "comparative-final|" + dataset_name + "|" + encoding + "|" + best.architecture + "|" +
@@ -1001,15 +770,17 @@ void run_snn_sweep(const Meeting01Config& config,
         train_ms,
         infer_ms);
 
+    const std::vector<int> sizes = best.encoder_widths.empty()
+                                       ? extract_layer_sizes(config.model.encoder_layer_spec)
+                                       : best.encoder_widths;
+
     RunMetrics test_metrics = evaluate_snn(snn_model,
         split.test_samples,
         std::vector<int>(split.test_samples.size(), 0),
         config.training.max_reconstruct_mean_deviation,
         estimate_snn_macs(static_cast<std::size_t>(config.dataset.window_size),
-            extract_layer_sizes(config.model.encoder_layer_spec).empty()
-                ? 0
-                : extract_layer_sizes(config.model.encoder_layer_spec).front(),
-            static_cast<int>(extract_layer_sizes(config.model.encoder_layer_spec).size())),
+            sizes.empty() ? 0 : sizes.front(),
+            static_cast<int>(sizes.size())),
         parameter_count(snn_model.params()),
         encoding,
         best.architecture,
@@ -1025,7 +796,7 @@ void run_snn_sweep(const Meeting01Config& config,
         "snn-ae",
         encoding,
         best.architecture,
-        static_cast<int>(config.model.encoder_layer_spec.size()),
+        static_cast<int>(sizes.size()),
         best.v_th,
         best.alpha,
         run_id + 1,
@@ -1101,6 +872,97 @@ void run_snn_sweep(const Meeting01Config& config,
         std::ofstream mf(man_path);
         if (mf.is_open()) mf << man.dump(2);
     }
+}
+
+// Runs NSGA-II over the SNN-AE's own architecture (Meeting01GaSearch.hpp) for one
+// (dataset, run_id) — the ONLY SNN architecture search mechanism (no grid/sweep exists).
+// Evolves encoder_widths/encoding/architecture/v_th/alpha jointly. Called once per
+// run_id, OUTSIDE the per-encoding baseline loop: the SNN's own encoding is a gene
+// rather than an externally fixed sweep dimension, so there is no per-encoding SNN cell
+// to loop over (baselines still run per encoding, unaffected — see Meeting01.md).
+void run_snn_ga_search(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    const auto& ga_cfg = config.evaluation.ga;
+
+    meeting01::ga::GenomeBounds bounds;
+    bounds.min_layers = ga_cfg.min_layers;
+    bounds.max_layers = ga_cfg.max_layers;
+    bounds.min_width = ga_cfg.min_width;
+    bounds.max_width = ga_cfg.max_width;
+    bounds.voltage_threshold_min = ga_cfg.voltage_threshold_min;
+    bounds.voltage_threshold_max = ga_cfg.voltage_threshold_max;
+    bounds.alpha_min = ga_cfg.alpha_min;
+    bounds.alpha_max = ga_cfg.alpha_max;
+    bounds.encoding_choices = config.evaluation.encodings;
+    bounds.architecture_choices = config.evaluation.snn_architectures;
+
+    meeting01::ga::GaSearchConfig search_cfg;
+    search_cfg.population_size = ga_cfg.population_size;
+    search_cfg.generations = ga_cfg.generations;
+    search_cfg.crossover_prob = ga_cfg.crossover_prob;
+    search_cfg.mutation_prob = ga_cfg.mutation_prob;
+    search_cfg.tournament_k = ga_cfg.tournament_k;
+    search_cfg.seed = ga_cfg.seed;
+    search_cfg.bounds = bounds;
+    search_cfg.results_dir = config.dataset.results_dir;
+    search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
+                         std::to_string(config.dataset.cv_fold) + "_run" +
+                         std::to_string(run_id + 1);
+    search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+
+    const auto ga_result = meeting01::ga::run_ga_search(config,
+        split,
+        search_cfg,
+        run_seed,
+        [&](const meeting01::ga::Meeting01GaIndividual&)
+        {
+            nn::progress::ProgressManager::instance().update_bar(
+                run_bar, static_cast<float>(++completed_runs));
+        });
+
+    const auto& winner = meeting01::ga::pick_winner(ga_result);
+
+    const SnnSelection best{winner.genome.architecture,
+        winner.genome.voltage_threshold,
+        winner.genome.alpha,
+        winner.val_mse,
+        winner.genome.encoder_widths};
+
+    std::vector<SnnSelection> candidates;
+    candidates.reserve(ga_result.history.size());
+    for (const auto& ind : ga_result.history)
+        candidates.push_back({ind.genome.architecture,
+            ind.genome.voltage_threshold,
+            ind.genome.alpha,
+            ind.val_mse,
+            ind.genome.encoder_widths});
+
+    finalize_snn_selection(config,
+        split,
+        dataset_name,
+        winner.genome.encoding,
+        run_id,
+        run_seed,
+        backend_name,
+        cfg_hash,
+        chk_dir,
+        models_dir,
+        best,
+        candidates,
+        all_rows,
+        pw_rows);
 }
 
 // Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
@@ -1308,14 +1170,19 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         std::vector<ResultRow> all_rows;
 
-        // Total individual runs: datasets × encodings × repeats × (baselines + SNN sweep).
-        const int snn_per_combo = static_cast<int>(config.evaluation.snn_architectures.size()) *
-                                  static_cast<int>(config.evaluation.v_th_values.size()) *
-                                  static_cast<int>(config.evaluation.alpha_values.size());
-        const int total_outer_runs =
-            static_cast<int>(config.evaluation.datasets.size()) *
-            static_cast<int>(config.evaluation.encodings.size()) * config.experiment.repeats *
-            (static_cast<int>(config.evaluation.baselines.size()) + snn_per_combo);
+        // Total individual runs: baselines run per (dataset, encoding, repeat). The SNN
+        // arm does not — it is a GA search of population×(1+generations) evaluations
+        // per (dataset, repeat) ONLY, since encoding is a gene, not an outer sweep
+        // dimension, so it does not multiply the GA's cost the way it does the
+        // baselines'.
+        const int n_datasets = static_cast<int>(config.evaluation.datasets.size());
+        const int n_encodings = static_cast<int>(config.evaluation.encodings.size());
+        const int baseline_runs = n_datasets * n_encodings * config.experiment.repeats *
+                                  static_cast<int>(config.evaluation.baselines.size());
+        const auto& gc = config.evaluation.ga;
+        const int snn_runs =
+            n_datasets * config.experiment.repeats * gc.population_size * (1 + gc.generations);
+        const int total_outer_runs = baseline_runs + snn_runs;
 
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
@@ -1368,8 +1235,13 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             {"test", config.dataset.loso_max_test_windows}}},
                     {"search_space",
                         {{"snn_architectures", config.evaluation.snn_architectures},
-                            {"v_th_values", config.evaluation.v_th_values},
-                            {"alpha_values", config.evaluation.alpha_values},
+                            {"ga_population_size", config.evaluation.ga.population_size},
+                            {"ga_generations", config.evaluation.ga.generations},
+                            {"ga_voltage_threshold_range",
+                                {config.evaluation.ga.voltage_threshold_min,
+                                    config.evaluation.ga.voltage_threshold_max}},
+                            {"ga_alpha_range",
+                                {config.evaluation.ga.alpha_min, config.evaluation.ga.alpha_max}},
                             {"encodings", config.evaluation.encodings},
                             {"baselines", config.evaluation.baselines}}}});
         }
@@ -1436,11 +1308,24 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             all_rows,
                             pw_rows);
                     }
+                }
+            }
 
-                    run_snn_sweep(config,
+            // SNN arm: one NSGA-II run per (dataset, run_id), covering every encoding
+            // and architecture jointly — not nested under the per-encoding baseline
+            // loop above (the GA's own encoding gene replaces that outer sweep).
+            if (!config.evaluation.snn_architectures.empty())
+            {
+                for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
+                {
+                    const std::uint32_t run_seed =
+                        config.experiment.seed_deterministic
+                            ? config.experiment.seed
+                            : config.experiment.seed + static_cast<std::uint32_t>(run_id);
+
+                    run_snn_ga_search(config,
                         split,
                         dataset_name,
-                        encoding,
                         run_id,
                         run_seed,
                         backend_name,

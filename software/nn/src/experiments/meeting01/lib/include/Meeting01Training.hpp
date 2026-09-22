@@ -26,8 +26,16 @@ auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoenco
 auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoderConfig;
 auto make_transformer_cfg(const Meeting01Config& cfg)
     -> nn::models::transformer::TransformerAutoencoderConfig;
-auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th)
-    -> nn::models::autoencoder::AutoencoderConfig;
+// `encoder_widths`, when non-empty, overrides the profile's fixed
+// encoder_layer_spec/decoder_layer_spec with a free-form stack rendered from these
+// widths (last = latent; decoder mirrors in reverse then projects to output) — the
+// bridge the GA architecture search (Meeting01GaGenome::to_ae_config) uses to make a
+// genome's widths take effect. Empty (the default) reproduces today's behavior
+// exactly: every existing caller that never passes this argument is unaffected.
+auto make_snn_cfg(const Meeting01Config& cfg,
+    float alpha,
+    float v_th,
+    const std::vector<int>& encoder_widths = {}) -> nn::models::autoencoder::AutoencoderConfig;
 
 struct TrainResult
 {

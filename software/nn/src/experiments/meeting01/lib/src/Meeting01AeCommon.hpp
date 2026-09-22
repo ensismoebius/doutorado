@@ -41,7 +41,13 @@ namespace meeting01
 
 // Generic reconstruction evaluation in framed space. `Model::forward` consumes and
 // emits (T, frame_size); MSE/MAE/R2 are elementwise so framing both sides is a no-op
-// on the metrics. Mirrors the former evaluate_lstm() body verbatim.
+// on the metrics.
+//
+// The error is measured against the ORIGINAL analog window, not against the encoded
+// input. Scoring the encoded signal (what this did until 2026-09-22) made the number
+// incomparable between encodings, because each encoding has a different target
+// variance — a model that learns nothing scored 1.000 under direct but 0.0038 under
+// latency.
 template <typename Model>
 auto evaluate_ae(Model& model,
     const std::vector<Tensor>& val_samples,
@@ -52,7 +58,8 @@ auto evaluate_ae(Model& model,
     const std::string& encoding,
     std::uint32_t seed,
     float infer_ms,
-    int frame_size) -> RunMetrics
+    int frame_size,
+    int time_steps) -> RunMetrics
 {
     using ModelTensor = typename Model::Tensor;
 
@@ -72,22 +79,25 @@ auto evaluate_ae(Model& model,
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            encode_sample(
+                val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps),
             frame_size);
+        const Tensor target =
+            to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
 
-        mse_acc += mse_between(encoded, recon);
-        mae_acc += mae_between(encoded, recon);
+        mse_acc += mse_between(target, recon);
+        mae_acc += mae_between(target, recon);
 
         float sample_residual_mean = 0.0f;
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            sample_residual_mean += std::fabs(encoded.at(k) - recon.at(k));
-            y_mean_acc += encoded.at(k);
+            sample_residual_mean += std::fabs(target.at(k) - recon.at(k));
+            y_mean_acc += target.at(k);
             ++n_values;
         }
-        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, encoded.size()));
+        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, target.size()));
         pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 

@@ -10,7 +10,24 @@ namespace meeting01
 
 using Tensor = nn::Tensor;
 
-auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint32_t seed) -> Tensor;
+/// Encodes one window into a time-major spike/analog tensor of shape
+/// (`time_steps`, window_size): row = simulation step, column = one window sample.
+/// Each window sample is an input neuron; the rows are the axis a spike code uses.
+/// @throws std::invalid_argument if `time_steps < 2` — a single step leaves rate and
+///         latency coding nothing to encode on, and silently produces a plausible but
+///         meaningless result rather than failing.
+auto encode_sample(
+    const Tensor& sample, const std::string& encoding, std::uint32_t seed, int time_steps)
+    -> Tensor;
+
+/// Repeats one window across `time_steps` rows to form the reconstruction target that
+/// matches `encode_sample`'s output shape. The target is always the ORIGINAL analog
+/// window, never the encoded one, so MSE stays comparable across encodings.
+auto make_reconstruction_target(const Tensor& sample, int time_steps) -> Tensor;
+
+/// Collapses a (T, F) model output into the single (1, F) reconstruction of the window
+/// by averaging over the simulation steps — the standard temporal-averaging readout.
+auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor;
 
 auto flatten_time_series(const Tensor& sample) -> Tensor;
 auto unflatten_time_series(const Tensor& flat, nn::Index rows, nn::Index cols) -> Tensor;

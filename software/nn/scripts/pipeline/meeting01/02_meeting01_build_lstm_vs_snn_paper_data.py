@@ -279,14 +279,20 @@ def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> N
             "datasets",
             "encodings",
             "snn_architectures",
-            "v_th_values",
-            "alpha_values",
+            "ga_population_size",
+            "ga_generations",
+            "ga_voltage_threshold_range",
+            "ga_alpha_range",
             "window_size",
             "train_samples",
             "val_samples",
         ])
         for p in profile_files:
             cfg = json.loads(p.read_text(encoding="utf-8"))
+            # ga is only meaningful once snn_architectures is non-empty (matches
+            # Meeting01Config.hpp's check_evaluation early-return) -- LSTM-only
+            # profiles have no ga block at all.
+            ga = cfg["evaluation"].get("ga", {})
             w.writerow([
                 p.name,
                 cfg["experiment"]["run_tag"],
@@ -294,8 +300,10 @@ def build_profile_table(profiles_dir: pathlib.Path, data_dir: pathlib.Path) -> N
                 ";".join(cfg["evaluation"]["datasets"]),
                 ";".join(cfg["evaluation"]["encodings"]),
                 ";".join(cfg["evaluation"]["snn_architectures"]),
-                ";".join(str(v) for v in cfg["evaluation"]["v_th_values"]),
-                ";".join(str(v) for v in cfg["evaluation"]["alpha_values"]),
+                ga.get("population_size", ""),
+                ga.get("generations", ""),
+                f"{ga['voltage_threshold_min']};{ga['voltage_threshold_max']}" if ga else "",
+                f"{ga['alpha_min']};{ga['alpha_max']}" if ga else "",
                 cfg["dataset"]["window_size"],
                 cfg["dataset"]["max_loaded_train_samples"],
                 cfg["dataset"]["max_validation_samples"],

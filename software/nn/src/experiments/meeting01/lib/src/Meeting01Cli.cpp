@@ -229,8 +229,16 @@ auto config_hash(const Meeting01Config& cfg) -> std::size_t
     j["evaluation"]["encodings"] = cfg.evaluation.encodings;
     j["evaluation"]["baselines"] = cfg.evaluation.baselines;
     j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
-    j["evaluation"]["v_th_values"] = cfg.evaluation.v_th_values;
-    j["evaluation"]["alpha_values"] = cfg.evaluation.alpha_values;
+    j["evaluation"]["ga"] = nlohmann::json{{"population_size", cfg.evaluation.ga.population_size},
+        {"generations", cfg.evaluation.ga.generations},
+        {"min_layers", cfg.evaluation.ga.min_layers},
+        {"max_layers", cfg.evaluation.ga.max_layers},
+        {"min_width", cfg.evaluation.ga.min_width},
+        {"max_width", cfg.evaluation.ga.max_width},
+        {"voltage_threshold_min", cfg.evaluation.ga.voltage_threshold_min},
+        {"voltage_threshold_max", cfg.evaluation.ga.voltage_threshold_max},
+        {"alpha_min", cfg.evaluation.ga.alpha_min},
+        {"alpha_max", cfg.evaluation.ga.alpha_max}};
     j["experiment"]["seed_deterministic"] = cfg.experiment.seed_deterministic;
     j["experiment"]["check_determinism"] = cfg.experiment.check_determinism;
 

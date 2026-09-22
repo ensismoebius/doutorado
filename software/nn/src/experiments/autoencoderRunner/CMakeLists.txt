@@ -60,6 +60,10 @@ add_library(meeting01_lib STATIC
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Output.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Checkpoint.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Events.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaGenome.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaFitness.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaCheckpoint.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaSearch.cpp
 )
 
 target_include_directories(meeting01_lib

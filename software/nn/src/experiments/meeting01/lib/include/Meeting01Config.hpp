@@ -117,6 +117,12 @@ struct Meeting01Config
         // the recurrent term cost window_size times more than it needs to.
         // Must divide dataset.window_size.
         int lstm_frame_size = 8;
+        // SNN simulation steps per window. The encoder turns one window into a
+        // time-major (snn_time_steps * B, window_size) tensor, so this is the number
+        // of steps LifBPTT unrolls and over which a spike code can carry information.
+        // Must be >= 2: at 1 there is no membrane history, which silently disables
+        // both `alpha` and rate/latency coding (see .wiki/Experiments/Meeting01.md).
+        int snn_time_steps = 16;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
         // Bottlenecked Transformer-AE baseline dimensions (used only when
@@ -135,6 +141,32 @@ struct Meeting01Config
         std::vector<std::string> fusion_decoder_layer_spec;
     };
 
+    // NSGA-II architecture search over the SNN-AE's own shape — the ONLY SNN
+    // architecture search mechanism (no grid/sweep path exists). encoder depth/width,
+    // encoding, architecture, v_th and alpha are ALL genes; evaluation.encodings and
+    // evaluation.snn_architectures supply the legal choice pools for the
+    // encoding/architecture genes (reusing their existing whitelist validation).
+    // Runs whenever evaluation.snn_architectures is non-empty; an empty list means the
+    // run is LSTM/GRU/Transformer-only (no SNN arm), the pre-existing escape hatch.
+    struct Ga
+    {
+        int population_size = 10;
+        int generations = 8;
+        int min_layers = 1;
+        int max_layers = 4;
+        int min_width = 4;
+        int max_width = 128;
+        float voltage_threshold_min = 0.1f;
+        float voltage_threshold_max = 2.0f;
+        float alpha_min = 0.5f;
+        float alpha_max = 0.99f;
+        double crossover_prob = 0.9;
+        double mutation_prob = 0.2;
+        int tournament_k = 2;
+        unsigned int seed = 0; // 0 -> derive from experiment.seed + run_id
+        int checkpoint_every_generations = 1;
+    };
+
     struct Evaluation
     {
         std::vector<std::string> datasets;  // REQUIRED
@@ -145,8 +177,7 @@ struct Meeting01Config
         // in Python, not here.
         std::vector<std::string> baselines = {"lstm-ae"};
         std::vector<std::string> snn_architectures; // REQUIRED (use [] for SNN-free runs)
-        std::vector<float> v_th_values;             // REQUIRED if snn_architectures non-empty
-        std::vector<float> alpha_values;            // REQUIRED if snn_architectures non-empty
+        Ga ga; // GA search bounds; only consulted when snn_architectures is non-empty
     };
 
     Experiment experiment;
@@ -226,6 +257,7 @@ struct Meeting01Config
         get("latent_dim", cfg.model.latent_dim);
         get("lstm_hidden_size", cfg.model.lstm_hidden_size);
         get("lstm_frame_size", cfg.model.lstm_frame_size);
+        get("snn_time_steps", cfg.model.snn_time_steps);
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
@@ -245,10 +277,47 @@ struct Meeting01Config
         get("encodings", cfg.evaluation.encodings);
         get("baselines", cfg.evaluation.baselines);
         get("snn_architectures", cfg.evaluation.snn_architectures);
-        get("v_th_values", cfg.evaluation.v_th_values);
-        get("alpha_values", cfg.evaluation.alpha_values);
+
+        get("ga_population_size", cfg.evaluation.ga.population_size);
+        get("ga_generations", cfg.evaluation.ga.generations);
+        get("ga_min_layers", cfg.evaluation.ga.min_layers);
+        get("ga_max_layers", cfg.evaluation.ga.max_layers);
+        get("ga_min_width", cfg.evaluation.ga.min_width);
+        get("ga_max_width", cfg.evaluation.ga.max_width);
+        get("ga_voltage_threshold_min", cfg.evaluation.ga.voltage_threshold_min);
+        get("ga_voltage_threshold_max", cfg.evaluation.ga.voltage_threshold_max);
+        get("ga_alpha_min", cfg.evaluation.ga.alpha_min);
+        get("ga_alpha_max", cfg.evaluation.ga.alpha_max);
+        get("ga_crossover_prob", cfg.evaluation.ga.crossover_prob);
+        get("ga_mutation_prob", cfg.evaluation.ga.mutation_prob);
+        get("ga_tournament_k", cfg.evaluation.ga.tournament_k);
+        get("ga_seed", cfg.evaluation.ga.seed);
+        get("ga_checkpoint_every_generations", cfg.evaluation.ga.checkpoint_every_generations);
 
         return cfg;
+    }
+
+    static void parse_ga(const nlohmann::json& sec, Ga& ga)
+    {
+        auto get = [&](const std::string& key, auto& field)
+        {
+            if (sec.contains(key)) field = sec[key].get<std::decay_t<decltype(field)>>();
+        };
+        get("population_size", ga.population_size);
+        get("generations", ga.generations);
+        get("min_layers", ga.min_layers);
+        get("max_layers", ga.max_layers);
+        get("min_width", ga.min_width);
+        get("max_width", ga.max_width);
+        get("voltage_threshold_min", ga.voltage_threshold_min);
+        get("voltage_threshold_max", ga.voltage_threshold_max);
+        get("alpha_min", ga.alpha_min);
+        get("alpha_max", ga.alpha_max);
+        get("crossover_prob", ga.crossover_prob);
+        get("mutation_prob", ga.mutation_prob);
+        get("tournament_k", ga.tournament_k);
+        get("seed", ga.seed);
+        get("checkpoint_every_generations", ga.checkpoint_every_generations);
     }
 
     static Meeting01Config from_nested_json(const nlohmann::json& j)
@@ -329,6 +398,7 @@ struct Meeting01Config
         get(mdl, "latent_dim", cfg.model.latent_dim);
         get(mdl, "lstm_hidden_size", cfg.model.lstm_hidden_size);
         get(mdl, "lstm_frame_size", cfg.model.lstm_frame_size);
+        get(mdl, "snn_time_steps", cfg.model.snn_time_steps);
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);
@@ -346,8 +416,7 @@ struct Meeting01Config
         require(evl, "evaluation", "encodings", cfg.evaluation.encodings);
         get(evl, "baselines", cfg.evaluation.baselines);
         require(evl, "evaluation", "snn_architectures", cfg.evaluation.snn_architectures);
-        get(evl, "v_th_values", cfg.evaluation.v_th_values);
-        get(evl, "alpha_values", cfg.evaluation.alpha_values);
+        if (evl.contains("ga")) parse_ga(evl["ga"], cfg.evaluation.ga);
 
         return cfg;
     }

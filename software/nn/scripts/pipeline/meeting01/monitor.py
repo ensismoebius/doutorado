@@ -549,14 +549,19 @@ class SessionState:
 
     # ---- derived views ----------------------------------------------------------
     def per_fold_trainings(self) -> int:
+        """Matches Meeting01Experiment.cpp's total_outer_runs formula for one
+        (dataset, fold) process: baselines still multiply by encodings (their
+        training loop sweeps encoding as before); the SNN arm does not, since
+        encoding/architecture are now NSGA-II genes rather than an outer sweep."""
         s = self.session.get("search_space", {})
-        n_snn = (
-            len(s.get("snn_architectures", []) or [1])
-            * len(s.get("v_th_values", []) or [1])
-            * len(s.get("alpha_values", []) or [1])
-        )
-        per_cell = n_snn + len(s.get("baselines", []) or [])
-        return per_cell * len(s.get("encodings", []) or [1]) * int(self.session.get("repeats", 1) or 1)
+        repeats = int(self.session.get("repeats", 1) or 1)
+        n_encodings = len(s.get("encodings", []) or [1])
+        baseline_runs = len(s.get("baselines", []) or []) * n_encodings * repeats
+        has_snn = bool(s.get("snn_architectures"))
+        ga_pop = int(s.get("ga_population_size", 0) or 0)
+        ga_gen = int(s.get("ga_generations", 0) or 0)
+        snn_runs = (ga_pop * (1 + ga_gen) * repeats) if has_snn else 0
+        return baseline_runs + snn_runs
 
     def grid_size(self) -> int:
         n_fold = int(self.session.get("cv_num_folds", 1) or 1)
@@ -1103,14 +1108,14 @@ def _panel_session(state: SessionState, ui: Optional[DashboardUI] = None):  # no
         g.add_row(Text(f"elapsed {_hms(elapsed)}   eta {_hms(state.eta_seconds())} (rough, "
                        f"from completed-so-far rate)", style="dim"))
         sp = sess.get("search_space", {})
-        n_arch = len(sp.get("snn_architectures", []) or [])
-        n_v = len(sp.get("v_th_values", []) or [])
-        n_a = len(sp.get("alpha_values", []) or [])
         n_e = len(sp.get("encodings", []) or [])
         n_b = len(sp.get("baselines", []) or [])
+        has_snn = bool(sp.get("snn_architectures"))
+        ga_desc = (f"GA pop={sp.get('ga_population_size', '?')}×"
+                   f"(1+{sp.get('ga_generations', '?')} gen)" if has_snn else "no SNN arm")
         g.add_row(Text(
-            f"grid: {n_b} baselines + {n_arch}×{n_v}×{n_a} SNN sweep + retrain, "
-            f"× {n_e} encodings × {sess.get('repeats', '?')} seeds  "
+            f"grid: {n_b} baselines × {n_e} encodings + {ga_desc} + retrain, "
+            f"× {sess.get('repeats', '?')} seeds  "
             f"≈ {state.per_fold_trainings()}/fold", style="dim"))
         fails = [p for p in state.procs.values() if p.error]
         if fails:
@@ -1647,8 +1652,8 @@ def _self_test() -> int:
     st = SessionState()
     st.apply(ev(type="session_begin", dataset="fsdd", fold=0, seed=42, repeats=2,
                cv_num_folds=6, all_datasets=["fsdd"],
-               search_space={"snn_architectures": ["dense"], "v_th_values": [1.0],
-                             "alpha_values": [0.9], "encodings": ["direct"],
+               search_space={"snn_architectures": ["dense"], "ga_population_size": 1,
+                             "ga_generations": 0, "encodings": ["direct"],
                              "baselines": ["lstm-ae"]}))
     st.apply(ev(type="fold_begin", dataset="fsdd", fold=0))
     st.apply(ev(type="config_begin", dataset="fsdd", fold=0, config_id="lstm-ae_direct_seed42_run1",
@@ -1820,8 +1825,8 @@ def _self_test() -> int:
     st5 = SessionState()
     st5.apply(ev(type="session_begin", dataset="fsdd", fold=0, seed=42, repeats=2,
                 cv_num_folds=6, all_datasets=["fsdd"],
-                search_space={"snn_architectures": ["dense"], "v_th_values": [1.0],
-                              "alpha_values": [0.9], "encodings": ["direct"],
+                search_space={"snn_architectures": ["dense"], "ga_population_size": 1,
+                              "ga_generations": 0, "encodings": ["direct"],
                               "baselines": ["lstm-ae"]}))
     check(st5.grid_size() == st5.per_fold_trainings() * 6 * 1,
           "without a roster, grid_size() falls back to datasets seen so far (1 so far)")

@@ -29,8 +29,6 @@
     "evaluation": {
         "datasets": ["fsdd"],
         "encodings": ["direct", "poisson", "latency"],
-        "snn_architectures": ["dense", "conv1d", "recurrent"],
-        "v_th_values": [0.5, 1.0, 1.5],
-        "alpha_values": [0.8, 0.9, 0.99]
+        "snn_architectures": ["dense", "conv1d", "recurrent"]
     }
 }

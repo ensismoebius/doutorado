@@ -252,6 +252,50 @@ class Trainer
         return sample_transform_ ? sample_transform_(s, idx) : s;
     }
 
+    /// Stacks per-sample tensors into one batch in TIME-MAJOR order: a sample of shape
+    /// (T, F) contributes row `t*B + b`, giving a (T*B, F) batch — the layout `LifBPTT`
+    /// and the spike losses require. Single-row samples (T == 1) reduce to the plain
+    /// (B, F) stacking this replaced, so non-temporal models are unaffected.
+    /// @throws std::invalid_argument if the samples disagree on shape.
+    static auto stack_time_major(const std::vector<Tensor>& parts) -> Tensor
+    {
+        const auto B = static_cast<nn::Index>(parts.size());
+        const nn::Index T = parts.front().rows();
+        const nn::Index F = parts.front().cols();
+
+        Tensor out = Tensor::zeros(T * B, F);
+        for (nn::Index b = 0; b < B; ++b)
+        {
+            const Tensor& p = parts[static_cast<std::size_t>(b)];
+            if (p.rows() != T || p.cols() != F)
+            {
+                throw std::invalid_argument("Trainer: batch samples disagree on shape (expected " +
+                                            std::to_string(T) + "x" + std::to_string(F) + ", got " +
+                                            std::to_string(p.rows()) + "x" +
+                                            std::to_string(p.cols()) + ")");
+            }
+            for (nn::Index t = 0; t < T; ++t)
+                for (nn::Index f = 0; f < F; ++f) out.at(t * B + b, f) = p.at(t, f);
+        }
+        return out;
+    }
+
+    // --- stateful-model hygiene ---
+
+    /// Clears persistent per-sequence state (LIF `v_mem`, LSTM hidden/cell) before a
+    /// batch is pushed through. Batches are independent sequences, so without this the
+    /// previous batch's membrane leaks into this one: `LifBPTT` only re-zeroes `v_mem`
+    /// when the tensor SHAPE changes, and the shape is constant across a whole epoch.
+    /// Evaluation paths already reset explicitly, so skipping it here also made training
+    /// and evaluation run under different regimes.
+    void reset_model_state()
+    {
+        if constexpr (detail::has_reset_state<ModelType>::value)
+        {
+            model_.reset_state();
+        }
+    }
+
     // --- batch utilities ---
 
     static auto create_batch(const std::vector<Sample>& samples, std::size_t start, std::size_t end)
@@ -380,6 +424,7 @@ class Trainer
                     optimizer_->zero_grad(model_.params());
 
                     // Single forward+loss+backward (bug 2 fix)
+                    reset_model_state();
                     Tensor output = model_.forward(batch, true);
                     state.batch_progress = 0.65F;
                     cb_batch_progress(state);
@@ -440,6 +485,7 @@ class Trainer
 
                     Tensor vbatch = create_batch(vbatch_samples, 0, vbatch_samples.size());
 
+                    reset_model_state();
                     Tensor vout = model_.forward(vbatch, false);
                     loss_.set_target(vbatch);
                     Tensor vloss_t = loss_.forward(vout, false);
@@ -525,24 +571,24 @@ class Trainer
                     optimizer_->zero_grad(model_.params()); // zero BEFORE forward
 
                     const auto B = static_cast<nn::Index>(batch_sample_count);
-                    const nn::Index in_cols =
-                        transform(train_inputs[indices[batch_start]], indices[batch_start]).cols();
-                    const nn::Index tgt_cols = train_targets[indices[batch_start]].cols();
-
-                    Tensor batch_inp = Tensor::zeros(B, in_cols);
-                    Tensor batch_tgt = Tensor::zeros(B, tgt_cols);
+                    std::vector<Tensor> inp_parts;
+                    std::vector<Tensor> tgt_parts;
+                    inp_parts.reserve(batch_sample_count);
+                    tgt_parts.reserve(batch_sample_count);
                     for (std::size_t k = batch_start; k < batch_end; ++k)
                     {
                         const std::size_t idx = indices[k];
-                        const Tensor inp = transform(train_inputs[idx], idx);
-                        const auto row = static_cast<nn::Index>(k - batch_start);
-                        batch_inp.setBlock(row, 0, inp);
-                        batch_tgt.setBlock(row, 0, train_targets[idx]);
+                        inp_parts.push_back(transform(train_inputs[idx], idx));
+                        tgt_parts.push_back(train_targets[idx]);
                     }
+
+                    Tensor batch_inp = stack_time_major(inp_parts);
+                    Tensor batch_tgt = stack_time_major(tgt_parts);
 
                     state.batch_progress = 0.3F;
                     cb_batch_progress(state);
 
+                    reset_model_state();
                     Tensor output = model_.forward(batch_inp, true);
                     state.batch_progress = 0.6F;
                     cb_batch_progress(state);
@@ -587,19 +633,12 @@ class Trainer
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
             if (!val_inputs.empty())
             {
-                const auto Nv = static_cast<nn::Index>(val_inputs.size());
-                const nn::Index in_c = val_inputs[0].cols();
-                const nn::Index tgt_c = val_targets[0].cols();
-                Tensor val_inp = Tensor::zeros(Nv, in_c);
-                Tensor val_tgt = Tensor::zeros(Nv, tgt_c);
-                for (std::size_t k = 0; k < val_inputs.size(); ++k)
-                {
-                    val_inp.setBlock(static_cast<nn::Index>(k), 0, val_inputs[k]);
-                    val_tgt.setBlock(static_cast<nn::Index>(k), 0, val_targets[k]);
-                }
+                Tensor val_inp = stack_time_major(val_inputs);
+                Tensor val_tgt = stack_time_major(val_targets);
                 // See the note in fit_loop's validation block.
                 OptimizerEvalScope _eval_scope(*optimizer_);
 
+                reset_model_state();
                 Tensor vout = model_.forward(val_inp, false);
                 loss_.set_target(val_tgt);
                 Tensor vloss_t = loss_.forward(vout, false);

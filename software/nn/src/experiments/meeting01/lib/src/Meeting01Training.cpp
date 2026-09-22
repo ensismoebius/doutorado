@@ -109,15 +109,45 @@ auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoenco
     return arch;
 }
 
-auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th) -> AutoencoderConfig
+namespace
 {
-    const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
+// Renders free-form encoder_widths into the same "linear:W:act" spec convention the
+// profile's fixed encoder_layer_spec/decoder_layer_spec use — mirrors
+// pga::to_ae_config's rendering (GaGenome.cpp) so a genome-driven and a
+// profile-driven stack are built by the exact same downstream parser.
+auto render_encoder_spec(const std::vector<int>& widths) -> std::vector<std::string>
+{
+    std::vector<std::string> spec;
+    for (std::size_t i = 0; i + 1 < widths.size(); ++i)
+        spec.push_back("linear:" + std::to_string(widths[i]) + ":leaky");
+    spec.push_back("linear:" + std::to_string(widths.back()) + ":identity");
+    return spec;
+}
+
+auto render_decoder_spec(const std::vector<int>& widths) -> std::vector<std::string>
+{
+    std::vector<std::string> spec;
+    for (std::size_t i = widths.size() - 1; i-- > 0;)
+        spec.push_back("linear:" + std::to_string(widths[i]) + ":leaky");
+    spec.push_back("linear:output:identity");
+    return spec;
+}
+} // namespace
+
+auto make_snn_cfg(
+    const Meeting01Config& cfg, float alpha, float v_th, const std::vector<int>& encoder_widths)
+    -> AutoencoderConfig
+{
+    const auto sizes =
+        encoder_widths.empty() ? extract_layer_sizes(cfg.model.encoder_layer_spec) : encoder_widths;
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
                                                    cfg.model.decoder_layer_spec)
                                              : sizes.front();
     const int derived_latent =
-        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+        encoder_widths.empty()
+            ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
+            : encoder_widths.back();
 
     AutoencoderConfig model_cfg;
     if (cfg.model.loss_type.empty())
@@ -134,24 +164,36 @@ auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th) -> Autoen
     model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
     model_cfg.fusion_hidden_size = cfg.model.fusion_hidden_size;
-    // Meeting01's SNN input is flattened by flatten_time_series into a single
-    // {1, window_size} frame, so this stack genuinely has ONE time step. Declared
-    // explicitly: LifBPTT unrolls exactly one step here, matching the single-step Lif
-    // this experiment used before. Left unset it would raise, which is the point.
-    model_cfg.time_steps = 1;
+    // The encoder emits a time-major (T*B, window_size) tensor, so LifBPTT unrolls T
+    // real steps and the membrane actually carries state between them. This was 1 until
+    // 2026-09-22; at T=1 `beta` multiplied a zero-initialised membrane, which made both
+    // `alpha` and `v_th` inert, and rate/latency coding have no time axis to live on.
+    model_cfg.time_steps = cfg.model.snn_time_steps;
     model_cfg.delta_t = 1.0f;
-    model_cfg.resistance = 1.0f / std::max(v_th, 1e-3f);
-    model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));
+    // R and C are chosen so the two knobs stay independent and mean what they say:
+    // with delta_t = 1 and R = 1, beta = exp(-1/C) = alpha exactly, while v_th is the
+    // firing threshold instead of being folded into the time constant via R = 1/v_th.
+    model_cfg.resistance = 1.0f;
+    model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::clamp(alpha, 1e-3f, 0.999f)));
+    model_cfg.voltage_threshold = std::max(v_th, 1e-3f);
 
-    model_cfg.encoder_layer_spec =
-        cfg.model.encoder_layer_spec.empty()
-            ? std::vector<std::string>{"linear:hidden:leaky", "linear:latent:identity"}
-            : cfg.model.encoder_layer_spec;
+    if (!encoder_widths.empty())
+    {
+        model_cfg.encoder_layer_spec = render_encoder_spec(encoder_widths);
+        model_cfg.decoder_layer_spec = render_decoder_spec(encoder_widths);
+    }
+    else
+    {
+        model_cfg.encoder_layer_spec =
+            cfg.model.encoder_layer_spec.empty()
+                ? std::vector<std::string>{"linear:hidden:leaky", "linear:latent:identity"}
+                : cfg.model.encoder_layer_spec;
 
-    model_cfg.decoder_layer_spec =
-        cfg.model.decoder_layer_spec.empty()
-            ? std::vector<std::string>{"linear:hidden:leaky", "linear:output:identity"}
-            : cfg.model.decoder_layer_spec;
+        model_cfg.decoder_layer_spec =
+            cfg.model.decoder_layer_spec.empty()
+                ? std::vector<std::string>{"linear:hidden:leaky", "linear:output:identity"}
+                : cfg.model.decoder_layer_spec;
+    }
 
     model_cfg.branch_encoder_layer_spec = cfg.model.branch_encoder_layer_spec;
     model_cfg.branch_decoder_layer_spec = cfg.model.branch_decoder_layer_spec;

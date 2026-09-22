@@ -12,8 +12,9 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 > **The fix.** Nested six-fold **leave-one-group-out** cross-validation. A
 > *group* is the speaker (FSDD, AudioMNIST) or the ECG record (MIT-BIH). Windows
 > are partitioned by group *before any pooling*; per fold: test block = one
-> group-block, validation block = the next (rotating), the rest train. The SNN
-> `v_th × α × architecture` grid is selected on the **validation block only**,
+> group-block, validation block = the next (rotating), the rest train. The SNN's
+> architecture (encoder depth/width, encoding, input-transform, `v_th`, `alpha`)
+> is NSGA-II-searched on the **validation block only** ([details below](#nsga-ii-architecture-search-added-2026-09-22-grid-removed-2026-09-22)),
 > then the winner is retrained on train ∪ validation (early-stopping on a
 > recording-disjoint monitor carved from train) and evaluated **once** on the
 > test block. A startup assert aborts the run if any group or `recording_id`
@@ -36,8 +37,8 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
   `stratified_window_cap` subsamples each partition round-robin across recordings (ordered
   by `recording_id`), so every recording and speaker keeps representation and per-recording
   counts stay as even as the cap allows. Full pooled FSDD is ~27k train windows/fold —
-  intractable at batch-size 1 across the 27-combo SNN grid × 3 encodings × 5 seeds × 18
-  (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
+  intractable at batch-size 1 across the GA's population(10)×(1+generations(8))=90 SNN
+  trainings × 5 seeds × 18 (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
   or the recording-level statistical unit; they bound per-epoch cost. `cap <= 0` = unlimited.
   Per-epoch progress prints as `[loso] <ctx> epoch N/M train=… val=…` (`Meeting01EpochLogger`,
   to stderr — survives nohup, where the `ProgressManager` bars collapse to one line).
@@ -74,7 +75,7 @@ Each `meeting01` process appends structured events to
 `fold_end`, `config_begin` / `epoch` / `train_end` / `config_end` per trained model,
 `epoch_progress` (throttled intra-epoch heartbeat — one line per ~5 s of a slow
 epoch: batch fraction, running batch loss, epoch ETA; a fast epoch emits none),
-`config_selected` (SNN sweep winner), `session_end` / `session_error`. Raw values at
+`config_selected` (GA-selected SNN winner), `session_end` / `session_error`. Raw values at
 full precision; NaN → `null`. Emitting never gates training — pure side output.
 
 ```bash
@@ -267,10 +268,20 @@ Config is loaded from a JSON profile. Top-level sections:
   "model":      { "loss_function", "latent_dim", "lstm_hidden_size",
                   "lstm_frame_size",
                   "encoder_layer_spec", "decoder_layer_spec" },
-  "evaluation": { "datasets", "encodings", "snn_architectures",
-                  "v_th_values", "alpha_values" }
+  "evaluation": { "datasets", "encodings", "baselines", "snn_architectures",
+                  "ga": { "population_size", "generations",
+                          "min_layers", "max_layers", "min_width", "max_width",
+                          "voltage_threshold_min", "voltage_threshold_max",
+                          "alpha_min", "alpha_max",
+                          "crossover_prob", "mutation_prob", "tournament_k" } }
 }
 ```
+
+`evaluation.ga` is the NSGA-II search's bounds and budget — see
+[NSGA-II Architecture Search](#nsga-ii-architecture-search-added-2026-09-22-grid-removed-2026-09-22)
+below. It is only consulted when `snn_architectures` is non-empty; omitting it falls
+back to `Meeting01Config::Ga`'s struct defaults (population=10, generations=8), but
+every SNN-bearing profile shipped in `profiles/` declares it explicitly.
 
 Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
 
@@ -333,13 +344,13 @@ Article profiles live in `src/experiments/meeting01/profiles/`:
 | Profile | Purpose | Runs | ETA |
 |---------|---------|------|-----|
 | `article-lstm-ae.json` | LSTM-AE baseline, 3 encodings × 3 seeds | 9 | ~10 min |
-| `article-snn-dense.json` | SNN dense, 3 encodings × V_th/alpha sweep × 3 seeds | varies | ~45 min |
-| `article-snn-conv1d.json` | SNN with 3-tap smoothing pre-filter | varies | ~45 min |
-| `article-snn-recurrent.json` | SNN with LIF input transform | varies | ~45 min |
+| `article-snn-dense.json` | SNN dense, GA-searched architecture (`evaluation.ga`: population=10, generations=8) × 3 seeds | ~270 | ~45 min |
+| `article-snn-conv1d.json` | SNN with 3-tap smoothing pre-filter, GA-searched | ~270 | ~45 min |
+| `article-snn-recurrent.json` | SNN with LIF input transform, GA-searched | ~270 | ~45 min |
 
 All article profiles share: `window_size=256`, `dataset=fsdd`, `seed_deterministic=false`, `loss_function=mse`, `latent_dim=32`.
 
-Profile validation test: `profile_audit_gtest` (25 tests). Run after every profile edit.
+Profile validation test: `profile_audit_gtest`. Run after every profile edit.
 
 ### Dataset Support
 
@@ -506,8 +517,8 @@ v_th, alpha, run):
 | `…_encoder_params.txt` / `…_decoder_params.txt` | text parameter dump | human inspection, `scripts/data/npz_to_pytorch.py` |
 | `…_encoder.npz` / `…_decoder.npz` | `NetworkSerializer` npz (`Linear`/`Lif`) | `nn_microscope.meeting01.snn_ae_forward` — the [Experiment Microscope](../Guides/Experiment-Microscope.md) reloads these to reproduce a window's latent + reconstruction without retraining |
 
-`role` in the filename is `combo` for a sweep candidate and `final` for the
-retrained winner. `01_meeting01_run_loso.sh` clears `results/meeting01/models/`
+`role` in the filename is `combo` for a GA-evaluated candidate genome and `final` for
+the retrained winner. `01_meeting01_run_loso.sh` clears `results/meeting01/models/`
 on a fresh run.
 
 ### Paper data pipeline
@@ -554,6 +565,17 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 8. **`lstm_frame_size` changes LSTM-AE results, not just its speed.** Do not mix runs with different values in one comparison table.
 
 ## Results
+
+> **Grid-era results, pending a GA re-run.** Everything below was collected while the
+> SNN arm still used the fixed `linear:64:leaky, linear:32:identity` shape selected by
+> the exhaustive `v_th × alpha × architecture` grid (see
+> [NSGA-II Architecture Search](#nsga-ii-architecture-search-added-2026-09-22-grid-removed-2026-09-22)
+> for what replaced it). The grid code no longer exists, so these numbers cannot be
+> reproduced by re-running the current binary — they describe the files already on disk
+> in `results/`, not the current search mechanism. Row counts (e.g. "81 rows") describe
+> those existing CSVs, not what a fresh GA run would produce (~270 rows for the same
+> population/generations/seeds budget). Treat this whole section as a snapshot to be
+> superseded once a real GA run completes.
 
 All results from 3 independent runs, FSDD dataset, window size 256, Adam(lr=1e-3, β₁=0.9, β₂=0.999), up to 30 epochs with early stopping (patience=10). SNN: 2 linear layers (64→32 latent). LSTM: 1-layer hidden=64, latent=32.
 
@@ -689,6 +711,87 @@ Latency encoding is the only configuration where models learn meaningful varianc
 | `data/article_*_convergence.dat` | Convergence diagnostic per run |
 | `data/article_*_summary.dat` | Summary statistics (pgfplots format) |
 | `data/article_*_sweep.dat` | Hyperparameter sweep results |
+
+## NSGA-II Architecture Search (added 2026-09-22, grid removed 2026-09-22)
+
+**Problem.** The SNN-AE's own shape was never searched — `encoder_layer_spec`/
+`decoder_layer_spec` were a profile constant (`linear:64:leaky, linear:32:identity`),
+dimension-matched to the LSTM/GRU/Transformer baselines. Only `architecture` (the
+input-transform selector: dense/conv1d/recurrent), `v_th`, and `alpha` were swept, via
+an exhaustive 3×3×3=27-candidate grid (`run_snn_sweep`, one grid per encoding × dataset
+× fold × seed).
+
+**What changed.** NSGA-II search now evolves the SNN-AE's architecture jointly with its
+hyperparameters. **This is the only SNN architecture search mechanism in the code —
+`run_snn_sweep`, `run_snn_combo`, and the `v_th_values`/`alpha_values` discrete-sweep
+config fields were deleted outright, not kept behind a toggle.** The initial
+implementation added GA as an opt-in `evaluation.ga.enabled` flag alongside the
+unchanged grid; this was deliberately reversed the same day at the user's explicit
+request, specifically to rule out any code path that could produce an SNN result not
+generated by the GA. There is no default that silently falls back to a grid — a profile
+either declares `evaluation.snn_architectures` non-empty (GA runs) or empty (no SNN
+arm), full stop.
+
+| Gene | Range | Notes |
+|---|---|---|
+| `encoder_widths` | free length + free per-element width | layer count AND neurons/layer are both evolved (strictly decreasing, last = latent); decoder mirrors the encoder |
+| `encoding` | direct / poisson / latency | drawn from `evaluation.encodings` (the profile's existing whitelist) |
+| `architecture` | dense / conv1d / recurrent | drawn from `evaluation.snn_architectures` (existing whitelist) |
+| `voltage_threshold`, `alpha` | `evaluation.ga.{voltage_threshold,alpha}_{min,max}` | continuous, no longer discrete sweep lists |
+
+Objectives (minimized): validation MSE, and inference cost (`estimate_snn_macs`,
+reused unchanged — `Meeting01Metrics.hpp`). No feasibility constraint is modeled: unlike
+paraconsistentGA's latent-collapse guard (a real, previously observed failure mode of
+*that* pipeline's scoring), plain reconstruction MSE has no known degenerate false
+optimum — a collapsed model scores worse, not better — so every individual is
+unconditionally feasible and NSGA-II's constrained-dominance branch degenerates to
+plain Pareto dominance. Haploid, not diploid: the diploidy paraconsistentGA uses exists
+specifically to hedge against `d_penalized`'s known false optimum (the Ambiguity
+vertex); that rationale does not transfer here.
+
+Budget: population=10, generations=8 by default (`Meeting01Config::Ga`'s struct
+defaults), μ+λ elitism, up to 90 evaluations per (dataset, fold, seed). Every
+SNN-bearing profile shipped in `profiles/` now declares `evaluation.ga` explicitly
+(population/generations/`voltage_threshold_min-max`/`alpha_min-max`) rather than
+relying on the invisible struct default, so the search budget for a paper run is
+readable straight from the profile. Because `encoding` moved from an outer sweep loop
+into the genome, the real total is close to the old grid's — **≈8100 SNN-AE trainings
+vs. the old grid's 7560 (≈7% more, not the population×generations multiplier alone
+would suggest)** — removing the ×3 outer encoding loop for the SNN arm offsets most of
+the larger per-run budget.
+
+**Consequence for results framing (real, not a bug).** The old grid's `evaluation.encodings`
+loop applied the *same* encoding to the SNN **and** the baselines for each of 3 rows —
+"SNN vs LSTM under latency encoding" was a controlled, matched-input comparison. Now that the
+SNN's own encoding is GA-evolved (picked once per fold, not fixed per row), the SNN no
+longer has a separate number *under* each encoding — one number per fold, using
+whichever encoding the GA found best. Baselines still run per encoding (`run_baseline_family`
+is unchanged). So the comparison is now "GA-optimized SNN (its own preferred encoding
+logged per fold) vs. LSTM/GRU/Transformer under each of 3 controlled encodings," not
+"matched-encoding SNN vs LSTM/GRU/Transformer." The `## Results` R²
+table above (`Latency encoding is the only configuration where models learn meaningful
+variance structure`) is a grid-search-era, matched-encoding finding from before this
+change — it does not carry over as a like-for-like SNN-side result; the SNN-side
+analogue is the GA's own encoding-selection frequency, logged per individual in
+`*_model_selection_manifest.json`. This table needs updating once a real GA run exists.
+
+**Where it lives:**
+
+| File | Role |
+|---|---|
+| `lib/include/Meeting01GaGenome.hpp` + `.cpp` | Genome struct, repair/random/crossover/mutate, `to_ae_config` |
+| `lib/include/Meeting01GaFitness.hpp` + `.cpp` | `Meeting01GaIndividual`, `evaluate_individual` (trains + scores one genome) |
+| `lib/include/Meeting01GaSearch.hpp` + `.cpp` | The NSGA-II generational loop, `pick_winner` |
+| `lib/include/Meeting01GaCheckpoint.hpp` + `.cpp` | Two-layer crash-resilient checkpoint (per-individual cache + per-generation state), ported from `paraconsistentGA`'s `GaCheckpoint` |
+| `include/ga/Nsga2Core.hpp` | Shared, population-shape-agnostic NSGA-II core (`constrained_dominates`/`fast_non_dominated_sort`/`assign_crowding_distance`), used by both `paraconsistentGA` and this search — see [ParaconsistentGA](ParaconsistentGA.md) |
+| `Meeting01Experiment.cpp`: `finalize_snn_selection` | The nested-LOSO final retrain-on-train∪val + test-evaluation tail: retrains the GA winner from `run_snn_ga_search`, early-stops on the carved recording-disjoint monitor, evaluates once on the held-out test speaker |
+| `Meeting01Experiment.cpp`: `run_snn_ga_search` | Builds the initial population, runs the generational NSGA-II loop, picks the winning genome from the rank-0 Pareto front — the only entry point into the SNN arm |
+
+Tests: `tests/meeting01_ga_gtest.cpp` (genome legality, the free-form `to_ae_config`
+path reproducing today's fixed profile shape as a regression anchor, checkpoint
+round-trip, the shared NSGA-II core contract). Paper text changes (Limitations /
+Methodology) are deliberately **not** part of this change — they need a real GA run's
+results to write accurately.
 
 ## See Also
 

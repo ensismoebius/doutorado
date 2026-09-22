@@ -29,8 +29,6 @@
     "evaluation": {
         "datasets": ["fsdd"],
         "encodings": ["direct"],
-        "snn_architectures": ["dense"],
-        "v_th_values": [1.0],
-        "alpha_values": [0.9]
+        "snn_architectures": ["dense"]
     }
 }

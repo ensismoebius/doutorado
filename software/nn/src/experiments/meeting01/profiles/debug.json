@@ -21,6 +21,10 @@
     "datasets": ["fsdd"],
     "encodings": ["direct"],
     "snn_architectures": ["dense"],
-    "v_th_values": [1.0],
-    "alpha_values": [0.9]
+    "ga_population_size": 1,
+    "ga_generations": 0,
+    "ga_voltage_threshold_min": 1.0,
+    "ga_voltage_threshold_max": 1.0,
+    "ga_alpha_min": 0.9,
+    "ga_alpha_max": 0.9
 }

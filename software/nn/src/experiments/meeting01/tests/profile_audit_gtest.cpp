@@ -110,24 +110,27 @@ TEST_P(ProfileAuditTest, SeedDeterministicIsFalse)
         << "profile " << GetParam() << " has seed_deterministic=true; repeats will be identical";
 }
 
-TEST_P(ProfileAuditTest, EvaluationCountsAreConsistent)
+TEST_P(ProfileAuditTest, GaBoundsAreSaneWhenSnnArchitecturesPresent)
 {
+    // SNN architecture search is GA-only (no grid path exists): every profile with a
+    // non-empty snn_architectures pool must carry legal GA bounds, or the run has no
+    // valid genome to draw from at all.
     auto cfg = load(GetParam());
     if (cfg.evaluation.snn_architectures.empty())
     {
-        // LSTM-only profile: no v_th / alpha sweep
-        EXPECT_TRUE(cfg.evaluation.v_th_values.empty())
-            << "LSTM-only profile " << GetParam() << " must have empty v_th_values";
-        EXPECT_TRUE(cfg.evaluation.alpha_values.empty())
-            << "LSTM-only profile " << GetParam() << " must have empty alpha_values";
+        return; // LSTM-only profile: no SNN arm, GA bounds irrelevant
     }
-    else
-    {
-        EXPECT_FALSE(cfg.evaluation.v_th_values.empty())
-            << "SNN profile " << GetParam() << " must have non-empty v_th_values";
-        EXPECT_FALSE(cfg.evaluation.alpha_values.empty())
-            << "SNN profile " << GetParam() << " must have non-empty alpha_values";
-    }
+
+    const auto& ga = cfg.evaluation.ga;
+    EXPECT_GT(ga.population_size, 0) << "profile " << GetParam();
+    EXPECT_GE(ga.generations, 0) << "profile " << GetParam();
+    EXPECT_LE(ga.min_layers, ga.max_layers) << "profile " << GetParam();
+    EXPECT_LE(ga.min_width, ga.max_width) << "profile " << GetParam();
+    EXPECT_GT(ga.voltage_threshold_min, 0.0f) << "profile " << GetParam();
+    EXPECT_LE(ga.voltage_threshold_min, ga.voltage_threshold_max) << "profile " << GetParam();
+    EXPECT_GT(ga.alpha_min, 0.0f) << "profile " << GetParam();
+    EXPECT_LT(ga.alpha_max, 1.0f) << "profile " << GetParam();
+    EXPECT_LE(ga.alpha_min, ga.alpha_max) << "profile " << GetParam();
 }
 
 INSTANTIATE_TEST_SUITE_P(ArticleProfiles,
@@ -222,23 +225,23 @@ TEST(Meeting01ConfigValidation, ReportsEveryProblemInOneMessage)
     EXPECT_NE(message.find("model.decoder_layer_spec"), std::string::npos);
 }
 
-TEST(Meeting01ConfigValidation, LeavesTheSnnKnobsAloneForAnLstmOnlyRun)
+TEST(Meeting01ConfigValidation, LeavesGaBoundsAloneForAnLstmOnlyRun)
 {
-    // Empty `snn_architectures` means this run is LSTM-only, so unset
-    // thresholds are legitimate rather than missing.
+    // Empty `snn_architectures` means this run is LSTM-only — GA bounds are
+    // irrelevant and unchecked (there is no SNN arm to search).
     auto cfg = valid_config();
     cfg.evaluation.snn_architectures.clear();
-    cfg.evaluation.v_th_values.clear();
-    cfg.evaluation.alpha_values.clear();
     EXPECT_NO_THROW(cfg.validate());
 }
 
-TEST(Meeting01ConfigValidation, RequiresTheSnnKnobsOnceAnArchitectureIsAsked)
+TEST(Meeting01ConfigValidation, RequiresLegalGaBoundsOnceAnArchitectureIsAsked)
 {
+    // SNN architecture search is GA-only (no grid path exists): a non-empty
+    // snn_architectures pool with an illegal GA bound must be rejected.
     auto cfg = valid_config();
     cfg.evaluation.snn_architectures = {"dense"};
-    cfg.evaluation.v_th_values.clear();
-    EXPECT_NE(validation_error(cfg).find("v_th_values is empty"), std::string::npos);
+    cfg.evaluation.ga.population_size = 0;
+    EXPECT_NE(validation_error(cfg).find("population_size"), std::string::npos);
 }
 
 TEST(Meeting01ConfigValidation, RejectsUnknownBaselineFamily)

@@ -231,15 +231,16 @@ void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_pa
     const std::vector<ResultRow>& rows)
 {
     std::ofstream out(profile_manifest_path);
-    out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,"
-           "window_size,train_samples,val_samples,backend\n";
+    out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,ga_voltage_threshold_range,"
+           "ga_alpha_range,window_size,train_samples,val_samples,backend\n";
     out << run_tag << ',' << cfg.experiment.seed << ',' << cfg.experiment.repeats << ',' << '"'
         << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
         << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
         << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
-        << join_values(cfg.evaluation.v_th_values) << '"' << ',' << '"'
-        << join_values(cfg.evaluation.alpha_values) << '"' << ',' << cfg.dataset.window_size << ','
-        << cfg.dataset.max_loaded_train_samples << ',' << cfg.dataset.max_validation_samples << ','
+        << cfg.evaluation.ga.voltage_threshold_min << ';' << cfg.evaluation.ga.voltage_threshold_max
+        << '"' << ',' << '"' << cfg.evaluation.ga.alpha_min << ';' << cfg.evaluation.ga.alpha_max
+        << '"' << ',' << cfg.dataset.window_size << ',' << cfg.dataset.max_loaded_train_samples
+        << ',' << cfg.dataset.max_validation_samples << ','
         << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
 }
 

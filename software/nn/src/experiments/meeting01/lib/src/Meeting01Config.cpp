@@ -156,7 +156,19 @@ void check_model(const Meeting01Config::Model& model, std::ostringstream& errors
     {
         errors << "  - model.decoder_layer_spec is empty\n";
     }
+
+    // Rejected rather than clamped: at 1 step the membrane has no history, so `beta`
+    // multiplies a zero-initialised v_mem and the alpha/v_th knobs stop doing anything,
+    // while poisson/latency coding lose the axis they encode on. That failure is silent
+    // -- training completes and reports a plausible MSE -- so it has to fail loudly here.
+    if (model.snn_time_steps < 2)
+    {
+        errors << "  - model.snn_time_steps must be >= 2 (got " << model.snn_time_steps
+               << "); 1 step disables membrane dynamics and spike coding entirely\n";
+    }
 }
+
+void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors);
 
 void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostringstream& errors)
 {
@@ -200,32 +212,6 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
         return;
     }
 
-    if (evaluation.v_th_values.empty())
-    {
-        errors << "  - evaluation.snn_architectures non-empty but v_th_values is empty\n";
-    }
-
-    if (evaluation.alpha_values.empty())
-    {
-        errors << "  - evaluation.snn_architectures non-empty but alpha_values is empty\n";
-    }
-
-    for (float vth : evaluation.v_th_values)
-    {
-        if (vth <= 0.0f)
-        {
-            errors << "  - v_th_values contains non-positive value: " << vth << "\n";
-        }
-    }
-
-    for (float alpha : evaluation.alpha_values)
-    {
-        if (alpha <= 0.0f || alpha >= 1.0f)
-        {
-            errors << "  - alpha_values must be in (0, 1), got: " << alpha << "\n";
-        }
-    }
-
     const std::vector<std::string> valid_archs = {"dense", "conv1d", "recurrent"};
     for (const auto& arch : evaluation.snn_architectures)
     {
@@ -234,6 +220,64 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
             errors << "  - evaluation.snn_architectures contains unknown architecture: '" << arch
                    << "'\n";
         }
+    }
+
+    check_ga(evaluation.ga, errors);
+}
+
+void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors)
+{
+    if (ga.population_size <= 0)
+    {
+        errors << "  - evaluation.ga.population_size must be > 0 (got " << ga.population_size
+               << ")\n";
+    }
+    if (ga.generations < 0)
+    {
+        errors << "  - evaluation.ga.generations must be >= 0 (got " << ga.generations << ")\n";
+    }
+    if (ga.min_layers < 1)
+    {
+        errors << "  - evaluation.ga.min_layers must be >= 1 (got " << ga.min_layers << ")\n";
+    }
+    if (ga.max_layers < ga.min_layers)
+    {
+        errors << "  - evaluation.ga.max_layers (" << ga.max_layers << ") must be >= min_layers ("
+               << ga.min_layers << ")\n";
+    }
+    if (ga.min_width < 1)
+    {
+        errors << "  - evaluation.ga.min_width must be >= 1 (got " << ga.min_width << ")\n";
+    }
+    if (ga.max_width < ga.min_width)
+    {
+        errors << "  - evaluation.ga.max_width (" << ga.max_width << ") must be >= min_width ("
+               << ga.min_width << ")\n";
+    }
+    if (ga.voltage_threshold_min <= 0.0f || ga.voltage_threshold_max < ga.voltage_threshold_min)
+    {
+        errors << "  - evaluation.ga voltage_threshold_min/max must satisfy 0 < min <= max "
+                  "(got min="
+               << ga.voltage_threshold_min << ", max=" << ga.voltage_threshold_max << ")\n";
+    }
+    if (ga.alpha_min <= 0.0f || ga.alpha_max >= 1.0f || ga.alpha_max < ga.alpha_min)
+    {
+        errors << "  - evaluation.ga alpha_min/max must satisfy 0 < min <= max < 1 (got min="
+               << ga.alpha_min << ", max=" << ga.alpha_max << ")\n";
+    }
+    if (ga.crossover_prob < 0.0 || ga.crossover_prob > 1.0)
+    {
+        errors << "  - evaluation.ga.crossover_prob must be in [0, 1] (got " << ga.crossover_prob
+               << ")\n";
+    }
+    if (ga.mutation_prob < 0.0 || ga.mutation_prob > 1.0)
+    {
+        errors << "  - evaluation.ga.mutation_prob must be in [0, 1] (got " << ga.mutation_prob
+               << ")\n";
+    }
+    if (ga.tournament_k < 2)
+    {
+        errors << "  - evaluation.ga.tournament_k must be >= 2 (got " << ga.tournament_k << ")\n";
     }
 }
 

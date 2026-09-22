@@ -68,11 +68,13 @@
         "snn_architectures": [
             "dense"
         ],
-        "v_th_values": [
-            1.0
-        ],
-        "alpha_values": [
-            0.9
-        ]
+        "ga": {
+            "population_size": 1,
+            "generations": 0,
+            "voltage_threshold_min": 1.0,
+            "voltage_threshold_max": 1.0,
+            "alpha_min": 0.9,
+            "alpha_max": 0.9
+        }
     }
 }

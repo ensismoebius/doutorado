@@ -40,6 +40,19 @@ existing `thesis::extract_features` trains and turns into latent vectors, which
 | Config schema | `thesis::ThesisConfig::from_json` | embedded + a `ga` block |
 | **NSGA-II (new)** | `pga::run_nsga2` | `GaNsga2.cpp` |
 
+> **Shared core (2026-09-22).** `constrained_dominates`/`fast_non_dominated_sort`/
+> `assign_crowding_distance` (Deb 2002/2000) never touched anything paraconsistentGA-specific
+> — only `objectives`/`feasible`/`constraint_violation`/`rank`/`crowding` — so they moved to a
+> population-shape-agnostic template header, `include/ga/Nsga2Core.hpp` (concept `ga::Nsga2Scored`).
+> `GaNsga2.hpp` now forwards `pga::constrained_dominates`/etc. onto it unchanged, so no call
+> site here changed; `meeting01`'s SNN-AE architecture search
+> ([Meeting01.md](Meeting01.md#nsga-ii-architecture-search-added-2026-09-22)) is the second
+> consumer. Everything else — genome ops, the diploid genetics below, `GaFitness`, `GaConfig`,
+> `GaCheckpoint` — stays paraconsistentGA-specific and is NOT shared; meeting01's GA is a
+> parallel, haploid implementation that ports the same *patterns* (two-layer checkpoint,
+> phenotype-keyed eval cache) without sharing the code, since its genome shape (categorical
+> encoding/architecture genes, continuous v_th/alpha genes, no diploidy) genuinely differs.
+
 The fitness wrapper is the whole reuse story:
 
 ```cpp

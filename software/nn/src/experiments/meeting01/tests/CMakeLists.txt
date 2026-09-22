@@ -232,6 +232,34 @@ target_link_libraries(meeting01_split_audit_gtest
 gtest_discover_tests(meeting01_split_audit_gtest)
 configure_xtensor_parallel_target(meeting01_split_audit_gtest)
 
+# NSGA-II SNN-AE architecture search: genome repair/crossover/mutate legality,
+# to_ae_config free-form rendering (+ the fixed-profile regression anchor), checkpoint
+# round-trip, and the shared ga::Nsga2Core contract via Meeting01GaIndividual.
+add_executable(meeting01_ga_gtest
+    meeting01_ga_gtest.cpp
+)
+
+target_include_directories(meeting01_ga_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(meeting01_ga_gtest
+    PRIVATE
+        google_test
+        meeting01_lib
+        autoencoderRunner_lib
+        tensor
+        layers
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(meeting01_ga_gtest)
+configure_xtensor_parallel_target(meeting01_ga_gtest)
+
 # LSTM microbench (ops breakdown)
 add_executable(lstm_ops_microbench
     lstm_ops_microbench.cpp

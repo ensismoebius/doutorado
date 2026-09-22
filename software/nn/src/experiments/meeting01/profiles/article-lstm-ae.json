@@ -59,8 +59,6 @@
             "poisson",
             "latency"
         ],
-        "snn_architectures": [],
-        "v_th_values": [],
-        "alpha_values": []
+        "snn_architectures": []
     }
 }

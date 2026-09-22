@@ -4,10 +4,10 @@
     "_architecture_summary": "Encoder: Linear(64)+Lif -> Linear(32)+Identity -> latent z. Decoder: Linear(64)+Lif -> Linear(256)+LifIntegrator -> reconstruction. Surrogate: exponential. R, C, V_th learnable; clamped 1e-6.",
     "_loss_function": "MSE reconstruction loss",
     "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score normalisation per window. Encodings swept: direct, Poisson, latency. Mode 'dense' applies no extra pre-process.",
-    "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats (seeds 42,43,44).",
+    "_total_runs_breakdown": "NSGA-II GA search: population 10 x (1 generation + 8 generations) = 90 trainings, encoding/architecture/width/depth/v_th/alpha all genes, x 3 repeats (seeds 42,43,44).",
     "_dataset_config": "100 train, 30 val from FSDD pool (shuffled and split). 30 epochs max, early stop patience 5, lr 0.001 (weights), 0.0001 (R,C,V_th), batch size 1.",
     "_expected_outputs": "results/meeting01/article_snn_dense_*.csv (per-run-tag aggregated CSVs); .../data/article_snn_dense_summary.dat, _sweep.dat for paper figures.",
-    "_comment": "SNN-AE dense pre-process. 81 runs. ~45 min.",
+    "_comment": "SNN-AE dense pre-process, GA-searched architecture. ~270 trainings, 3 repeats.",
     "experiment": {
         "run_tag": "article_snn_dense",
         "seed": 42,
@@ -61,15 +61,13 @@
         "snn_architectures": [
             "dense"
         ],
-        "v_th_values": [
-            0.5,
-            1.0,
-            1.5
-        ],
-        "alpha_values": [
-            0.8,
-            0.9,
-            0.99
-        ]
+        "ga": {
+            "population_size": 10,
+            "generations": 8,
+            "voltage_threshold_min": 0.5,
+            "voltage_threshold_max": 1.5,
+            "alpha_min": 0.8,
+            "alpha_max": 0.99
+        }
     }
 }
