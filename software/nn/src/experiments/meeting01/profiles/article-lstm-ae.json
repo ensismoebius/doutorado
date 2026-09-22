@@ -33,11 +33,12 @@
         "max_reconstruct_mean_deviation": 0.25,
         "beta1": 0.9,
         "beta2": 0.999,
-        "epsilon": 1e-8
+        "epsilon": 1e-08
     },
     "model": {
         "loss_function": "mse",
         "latent_dim": 32,
+        "time_steps": 16,
         "lstm_hidden_size": 64,
         "encoder_layer_spec": [
             "lstm:64",

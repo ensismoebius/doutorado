@@ -40,6 +40,14 @@ fs::path profiles_dir()
     return here.parent_path() / "profiles";
 }
 
+/// The nested-vs-flat rule from Meeting01Cli.cpp::load_config, kept identical so the
+/// directory audit below loads each profile the way a real run loads it.
+bool is_nested_schema(const nlohmann::json& j)
+{
+    return j.contains("experiment") && j.contains("dataset") && j.contains("training") &&
+           j.contains("model") && j.contains("evaluation");
+}
+
 Meeting01Config load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
@@ -143,6 +151,170 @@ INSTANTIATE_TEST_SUITE_P(ArticleProfiles,
             if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
         return name;
     });
+
+// The list above is hand-maintained and names only the five ARTICLE profiles, so a
+// dev/smoke profile could -- and did -- ship on disk in a state that fails
+// `validate()` outright, with nothing noticing until someone ran it. On 2026-09-22
+// four of them were in exactly that state (`early_stop_patience >= epochs`:
+// debug_nested 5>=2, lstm-lightweight 30>=1, minimal-dat-test 2>=1,
+// test-dat-writers 5>=1). The failure was loud when finally run, but arbitrarily
+// late -- typically the moment someone reached for a quick smoke test.
+//
+// This walks the directory instead of a list, so a new profile is covered the day it
+// lands rather than the day someone remembers to add it here.
+TEST(ProfileDirectoryAudit, EveryProfileOnDiskParsesAndValidates)
+{
+    const fs::path dir = profiles_dir();
+    ASSERT_TRUE(fs::is_directory(dir)) << "missing profiles dir: " << dir;
+
+    int seen = 0;
+    for (const auto& entry : fs::directory_iterator(dir))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") continue;
+        ++seen;
+
+        const std::string name = entry.path().filename().string();
+        std::ifstream f(entry.path());
+        ASSERT_TRUE(f.is_open()) << name;
+
+        nlohmann::json j;
+        ASSERT_NO_THROW(f >> j) << name << ": not parseable JSON";
+
+        Meeting01Config cfg;
+        // Same dispatch the CLI uses (Meeting01Cli.cpp::load_config): debug.json is the
+        // one remaining flat-schema profile. Duplicating the rule here rather than
+        // assuming nested is deliberate -- the test must load a profile exactly the way
+        // a real run loads it, or it audits something the binary never sees.
+        if (is_nested_schema(j))
+        {
+            ASSERT_NO_THROW(cfg = Meeting01Config::from_nested_json(j))
+                << name << ": from_nested_json threw";
+        }
+        else
+        {
+            ASSERT_NO_THROW(cfg = Meeting01Config::from_flat_json(j))
+                << name << ": from_flat_json threw";
+        }
+        EXPECT_NO_THROW(cfg.validate()) << name << ": validate() rejected a shipped profile";
+    }
+
+    EXPECT_GE(seen, 5) << "profiles dir looks empty -- wrong path?";
+}
+
+// EVERY profile must state its simulation depth explicitly -- including the LSTM-only
+// ones. `time_steps` is misleadingly named: `run_baseline` reads it too
+// (Meeting01Experiment.cpp), so it sets the sequence length the LSTM/GRU/Transformer
+// baselines are trained on (T * window_size / lstm_frame_size), not just the SNN's
+// membrane depth. lstm-bench.json inherited the struct default silently, which changed
+// what that throughput benchmark measured without a single line of the profile changing.
+//
+// The struct default (16) is the right value; the point is that a run's temporal
+// resolution must be readable from the profile rather than from a header nobody opens.
+TEST(ProfileDirectoryAudit, EveryProfileDeclaresTimeStepsExplicitly)
+{
+    for (const auto& entry : fs::directory_iterator(profiles_dir()))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") continue;
+
+        const std::string name = entry.path().filename().string();
+        std::ifstream f(entry.path());
+        nlohmann::json j;
+        f >> j;
+
+        if (!is_nested_schema(j)) continue; // flat schema has no model section
+
+        ASSERT_TRUE(j.contains("model") && j["model"].contains("time_steps"))
+            << name
+            << ": no model.time_steps -- it governs the baselines too, so "
+               "inheriting it silently changes what the run measures";
+        const int steps = j["model"]["time_steps"].get<int>();
+        EXPECT_GE(steps, 2) << name
+                            << ": a single step disables membrane dynamics and "
+                               "spike coding entirely";
+    }
+}
+
+// A profile still carrying the pre-2026-09-22 key must fail loudly. Silently ignoring it
+// would fall back to the 16-step default -- a run that completes and reports a plausible
+// number under a temporal resolution nobody chose, which is the exact failure mode this
+// audit existed to eliminate. Copies of these profiles live on the cluster, so the old
+// key WILL show up again.
+TEST(RenamedKey, OldSnnTimeStepsKeyIsRejectedNotIgnored)
+{
+    const auto base = nlohmann::json::parse(R"({
+        "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
+        "dataset": {"dataset_root": "/tmp", "window_size": 64,
+                    "max_loaded_train_samples": 10, "max_validation_samples": 5},
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+                     "learning_rate": 0.001},
+        "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
+                  "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
+                  "time_steps": 8},
+        "evaluation": {"datasets": ["fsdd"], "encodings": ["direct"],
+                       "snn_architectures": []}
+    })");
+
+    // Sanity: the renamed key parses and lands where it should.
+    Meeting01Config ok;
+    ASSERT_NO_THROW(ok = Meeting01Config::from_nested_json(base));
+    EXPECT_EQ(ok.model.time_steps, 8);
+
+    nlohmann::json stale = base;
+    stale["model"].erase("time_steps");
+    stale["model"]["snn_time_steps"] = 8;
+
+    try
+    {
+        (void) Meeting01Config::from_nested_json(stale);
+        ADD_FAILURE() << "the old key was accepted; it must throw";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        // The exception must name the cause AND the remedy (CLAUDE.md's no-fallbacks rule).
+        const std::string msg = e.what();
+        EXPECT_NE(msg.find("snn_time_steps"), std::string::npos) << msg;
+        EXPECT_NE(msg.find("time_steps"), std::string::npos) << msg;
+        EXPECT_NE(msg.find("Remedy"), std::string::npos) << msg;
+    }
+
+    // Carrying BOTH keys is also a rejection, not a "the new one wins" merge.
+    nlohmann::json both = base;
+    both["model"]["snn_time_steps"] = 4;
+    EXPECT_THROW((void) Meeting01Config::from_nested_json(both), std::invalid_argument);
+}
+
+// The GA budget must be readable from the profile as well. Four dev profiles inherited
+// population 10 x (1 + 8 generations) = 90 evaluations from the struct default, which at
+// lstm-compare's settings (500 windows, 100 epochs, 3 repeats) is roughly a day and a
+// half of CPU -- on the profile the CLI runs when given no --comparative-config at all
+// (Meeting01Cli.cpp: kDefaultComparativeProfileStem = "lstm-compare").
+TEST(ProfileDirectoryAudit, SnnProfilesDeclareTheirGaBudgetExplicitly)
+{
+    for (const auto& entry : fs::directory_iterator(profiles_dir()))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") continue;
+
+        const std::string name = entry.path().filename().string();
+        std::ifstream f(entry.path());
+        nlohmann::json j;
+        f >> j;
+
+        if (!is_nested_schema(j)) continue;
+
+        const auto& eval = j["evaluation"];
+        const bool has_snn = eval.contains("snn_architectures") &&
+                             !eval["snn_architectures"].get<std::vector<std::string>>().empty();
+        if (!has_snn) continue; // no SNN arm: the GA never runs
+
+        ASSERT_TRUE(eval.contains("ga"))
+            << name
+            << " declares an SNN arm but no evaluation.ga block; the search budget "
+               "would be inherited invisibly from Meeting01Config::Ga";
+        const auto& ga = eval["ga"];
+        EXPECT_TRUE(ga.contains("population_size")) << name;
+        EXPECT_TRUE(ga.contains("generations")) << name;
+    }
+}
 
 // The tests above only ever validate profiles that are CORRECT, so the
 // failure path -- the half of `validate()` that decides a config is bad --

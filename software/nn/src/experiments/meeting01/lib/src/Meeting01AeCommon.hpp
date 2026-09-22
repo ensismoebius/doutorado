@@ -110,13 +110,16 @@ auto evaluate_ae(Model& model,
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            encode_sample(
+                val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps),
             frame_size);
+        const Tensor target =
+            to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            const float y = encoded.at(k);
+            const float y = target.at(k);
             const float yh = recon.at(k);
             ss_res += (y - yh) * (y - yh);
             ss_tot += (y - y_mean) * (y - y_mean);
@@ -143,6 +146,7 @@ auto per_window_errors_ae(Model& model,
     const std::string& encoding,
     std::uint32_t seed,
     int frame_size,
+    int time_steps,
     PerWindowError proto) -> std::vector<PerWindowError>
 {
     using ModelTensor = typename Model::Tensor;
@@ -151,7 +155,10 @@ auto per_window_errors_ae(Model& model,
     for (std::size_t i = 0; i < samples.size(); ++i)
     {
         const Tensor encoded = to_lstm_frames(
-            encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i)), frame_size);
+            encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps),
+            frame_size);
+        const Tensor target =
+            to_lstm_frames(make_reconstruction_target(samples[i], time_steps), frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
 
@@ -163,8 +170,8 @@ auto per_window_errors_ae(Model& model,
             r.window_id = meta[i].window_id;
             r.source_window_index = meta[i].source_window_index;
         }
-        r.mse = mse_between(encoded, recon);
-        r.mae = mae_between(encoded, recon);
+        r.mse = mse_between(target, recon);
+        r.mae = mae_between(target, recon);
         out.push_back(r);
     }
     return out;
@@ -219,25 +226,34 @@ auto train_ae(Model& model,
     auto batch_collector = std::make_shared<BatchLossCollector>();
     trainer.add_callback(batch_collector);
 
-    std::vector<ModelTensor> train_backend_samples;
-    train_backend_samples.reserve(train_samples.size());
-    for (const auto& sample : train_samples) train_backend_samples.emplace_back(sample);
-
-    std::vector<ModelTensor> val_backend_samples;
-    val_backend_samples.reserve(val_samples.size());
-    for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
-
     const int frame = cfg.model.lstm_frame_size;
-    trainer.set_sample_transform(
-        [&model, &encoding, seed, frame](const ModelTensor& s, std::size_t idx) -> ModelTensor
+    const int steps = cfg.model.time_steps;
+
+    // Input is the ENCODED window, target is the ORIGINAL analog window. Training the
+    // model to reproduce its own encoded input (what fit_autoencoder did here until
+    // 2026-09-22) makes the loss incomparable between encodings, because each encoding
+    // has its own target variance. Pairs are built once, so a stochastic encoding like
+    // poisson stays fixed across epochs rather than resampling every pass.
+    using Pair = std::pair<ModelTensor, ModelTensor>;
+    auto make_pairs = [&](const std::vector<Tensor>& src)
+    {
+        std::vector<Pair> pairs;
+        pairs.reserve(src.size());
+        for (std::size_t i = 0; i < src.size(); ++i)
         {
-            model.reset_state();
-            return ModelTensor(to_lstm_frames(
-                encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx)), frame));
-        });
+            pairs.emplace_back(
+                ModelTensor(to_lstm_frames(
+                    encode_sample(src[i], encoding, seed + static_cast<std::uint32_t>(i), steps),
+                    frame)),
+                ModelTensor(to_lstm_frames(make_reconstruction_target(src[i], steps), frame)));
+        }
+        return pairs;
+    };
+    const auto train_pairs = make_pairs(train_samples);
+    const auto val_pairs = make_pairs(val_samples);
 
     const auto t0 = std::chrono::steady_clock::now();
-    const auto epoch_results = trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
+    const auto epoch_results = trainer.fit_supervised(train_pairs, val_pairs);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -245,7 +261,8 @@ auto train_ae(Model& model,
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)), frame);
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), steps),
+            frame);
         model.reset_state();
         (void) model.forward(ModelTensor(encoded), false);
     }
@@ -261,7 +278,8 @@ auto train_ae(Model& model,
         encoding,
         seed,
         infer_ms,
-        frame);
+        frame,
+        steps);
 
     EpochHistory history;
     for (const auto& er : epoch_results)

@@ -1,6 +1,6 @@
 {
     "_profile_name": "minimal-dat-test",
-    "_network_type": "SNN autoencoder (dense) — minimal test",
+    "_network_type": "SNN autoencoder (dense) \u2014 minimal test",
     "_total_runs_breakdown": "1 total (GA population=1, generations=0 -> single genome, direct encoding, 1 repeat)",
     "experiment": {
         "run_tag": "minimal_dat_test",
@@ -22,7 +22,7 @@
         "samples_per_batch": 1,
         "batches_per_epoch": 0,
         "epochs": 1,
-        "early_stop_patience": 2,
+        "early_stop_patience": 0,
         "learning_rate": 0.001,
         "learning_rate_biophysical": 0.0001,
         "max_reconstruct_mean_deviation": 0.25,
@@ -31,7 +31,7 @@
         "optimizer": "adam",
         "adam_beta1": 0.9,
         "adam_beta2": 0.999,
-        "adam_epsilon": 1e-8
+        "adam_epsilon": 1e-08
     },
     "model": {
         "model_type": "snn_autoencoder_dense",
@@ -39,6 +39,7 @@
         "spike_regularization": true,
         "spike_regularization_weight": 0.01,
         "latent_dim": 4,
+        "time_steps": 4,
         "encoder_layer_spec": [
             "linear:8",
             "spiking_neuron:leaky:8",
@@ -67,6 +68,7 @@
         "ga": {
             "population_size": 1,
             "generations": 0,
+            "winner_seeds": 1,
             "voltage_threshold_min": 1.0,
             "voltage_threshold_max": 1.0,
             "alpha_min": 0.9,

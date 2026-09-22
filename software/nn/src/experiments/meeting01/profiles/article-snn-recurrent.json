@@ -34,11 +34,12 @@
         "max_reconstruct_mean_deviation": 0.25,
         "beta1": 0.9,
         "beta2": 0.999,
-        "epsilon": 1e-8
+        "epsilon": 1e-08
     },
     "model": {
         "loss_function": "mse",
         "latent_dim": 32,
+        "time_steps": 16,
         "lstm_hidden_size": 64,
         "encoder_layer_spec": [
             "linear:64:leaky",
@@ -62,8 +63,9 @@
             "recurrent"
         ],
         "ga": {
-            "population_size": 10,
-            "generations": 8,
+            "population_size": 8,
+            "generations": 5,
+            "winner_seeds": 3,
             "voltage_threshold_min": 0.5,
             "voltage_threshold_max": 1.5,
             "alpha_min": 0.8,

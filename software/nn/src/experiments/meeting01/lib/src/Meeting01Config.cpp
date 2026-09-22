@@ -161,9 +161,9 @@ void check_model(const Meeting01Config::Model& model, std::ostringstream& errors
     // multiplies a zero-initialised v_mem and the alpha/v_th knobs stop doing anything,
     // while poisson/latency coding lose the axis they encode on. That failure is silent
     // -- training completes and reports a plausible MSE -- so it has to fail loudly here.
-    if (model.snn_time_steps < 2)
+    if (model.time_steps < 2)
     {
-        errors << "  - model.snn_time_steps must be >= 2 (got " << model.snn_time_steps
+        errors << "  - model.time_steps must be >= 2 (got " << model.time_steps
                << "); 1 step disables membrane dynamics and spike coding entirely\n";
     }
 }
@@ -236,6 +236,15 @@ void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors)
     {
         errors << "  - evaluation.ga.generations must be >= 0 (got " << ga.generations << ")\n";
     }
+    // Breeding needs two distinct parents. population_size == 1 with generations >= 1
+    // used to be accepted and then hang forever in tournament()'s rejection loop, which
+    // on a cluster looks like a job that runs for days and produces nothing.
+    if (ga.population_size < 2 && ga.generations >= 1)
+    {
+        errors << "  - evaluation.ga.population_size must be >= 2 when generations >= 1 (got "
+               << ga.population_size << " with " << ga.generations
+               << " generations); breeding needs two distinct parents\n";
+    }
     if (ga.min_layers < 1)
     {
         errors << "  - evaluation.ga.min_layers must be >= 1 (got " << ga.min_layers << ")\n";
@@ -274,6 +283,10 @@ void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors)
     {
         errors << "  - evaluation.ga.mutation_prob must be in [0, 1] (got " << ga.mutation_prob
                << ")\n";
+    }
+    if (ga.winner_seeds < 1)
+    {
+        errors << "  - evaluation.ga.winner_seeds must be >= 1 (got " << ga.winner_seeds << ")\n";
     }
     if (ga.tournament_k < 2)
     {

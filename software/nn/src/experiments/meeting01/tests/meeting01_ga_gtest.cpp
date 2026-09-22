@@ -6,14 +6,18 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <random>
 #include <sstream>
 
+#include "Meeting01Config.hpp"
 #include "Meeting01GaCheckpoint.hpp"
 #include "Meeting01GaFitness.hpp"
 #include "Meeting01GaGenome.hpp"
+#include "Meeting01GaSearch.hpp"
+#include "Meeting01Metrics.hpp"
 #include "ga/Nsga2Core.hpp"
 
 namespace
@@ -333,6 +337,152 @@ TEST(Meeting01GaNsga2Core, SharedCoreRanksFeasibleAboveInfeasible)
     ASSERT_FALSE(fronts.empty());
     EXPECT_EQ(fronts[0].size(), 1u);
     EXPECT_EQ(fronts[0][0], 0);
+}
+
+// ---------------------------------------------------------------------------
+// NSGA-II search core (added 2026-09-22). run_ga_search / select_next_generation /
+// tournament / pick_winner previously had NO direct coverage at all — the code that
+// chooses the architecture the paper publishes was the least-tested code in the
+// experiment. These exercise the selection machinery through the public surface plus
+// the shared core, without training anything.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+meeting01::ga::Meeting01GaIndividual make_ind(double mse, double cost, bool feasible = true)
+{
+    meeting01::ga::Meeting01GaIndividual ind;
+    ind.genome = Genome{{64, 32}, "direct", "dense", 1.0f, 0.9f};
+    ind.val_mse = static_cast<float>(mse);
+    ind.inference_cost = static_cast<std::size_t>(cost);
+    ind.feasible = feasible;
+    ind.objectives = {mse, cost};
+    return ind;
+}
+} // namespace
+
+TEST(Meeting01GaSearch, PickWinnerTakesLowestMseThenLowestCost)
+{
+    meeting01::ga::GaSearchResult r;
+    r.pareto_front = {make_ind(0.20, 10.0), make_ind(0.10, 90.0), make_ind(0.10, 30.0)};
+    // pick_winner relies on run_ga_search having sorted the front; sort the same way.
+    std::sort(r.pareto_front.begin(),
+        r.pareto_front.end(),
+        [](const auto& a, const auto& b)
+        {
+            if (a.val_mse != b.val_mse) return a.val_mse < b.val_mse;
+            return a.inference_cost < b.inference_cost;
+        });
+
+    const auto& w = meeting01::ga::pick_winner(r);
+    EXPECT_FLOAT_EQ(w.val_mse, 0.10f);
+    EXPECT_EQ(w.inference_cost, 30u); // cheaper of the two tied on MSE
+}
+
+TEST(Meeting01GaSearch, PickWinnerThrowsOnEmptyFrontInsteadOfReturningGarbage)
+{
+    meeting01::ga::GaSearchResult empty;
+    EXPECT_THROW((void) meeting01::ga::pick_winner(empty), std::runtime_error);
+}
+
+TEST(Meeting01GaSearch, NonDominatedSortSeparatesDominatedIndividuals)
+{
+    // (0.1, 10) dominates (0.2, 20); (0.1, 50) and (0.3, 5) are mutually non-dominated.
+    std::vector<meeting01::ga::Meeting01GaIndividual> pop{
+        make_ind(0.1, 10.0), make_ind(0.2, 20.0), make_ind(0.3, 5.0)};
+
+    const auto fronts = ::ga::fast_non_dominated_sort(pop);
+    ASSERT_GE(fronts.size(), 2u);
+    // Front 0 holds the two mutually non-dominated ones (indices 0 and 2).
+    EXPECT_EQ(fronts[0].size(), 2u);
+    EXPECT_NE(std::find(fronts[0].begin(), fronts[0].end(), 0), fronts[0].end());
+    EXPECT_NE(std::find(fronts[0].begin(), fronts[0].end(), 2), fronts[0].end());
+    // The dominated one is not in front 0.
+    EXPECT_EQ(std::find(fronts[0].begin(), fronts[0].end(), 1), fronts[0].end());
+}
+
+TEST(Meeting01GaSearch, CrowdingKeepsBoundarySolutionsInfinite)
+{
+    std::vector<meeting01::ga::Meeting01GaIndividual> pop{
+        make_ind(0.1, 100.0), make_ind(0.2, 50.0), make_ind(0.3, 10.0)};
+    const auto fronts = ::ga::fast_non_dominated_sort(pop);
+    ::ga::assign_crowding_distance(pop, fronts[0]);
+
+    // Extremes must be preserved by elitism, so their crowding is infinite and the
+    // interior point is finite — that is what stops the front collapsing to one corner.
+    int infinite = 0;
+    for (int idx : fronts[0])
+        if (std::isinf(pop[static_cast<std::size_t>(idx)].crowding)) ++infinite;
+    EXPECT_GE(infinite, 2);
+}
+
+TEST(Meeting01GaSearch, ConfigRejectsPopulationOneWithGenerations)
+{
+    // Regression: population_size == 1 with generations >= 1 used to pass validation and
+    // then hang forever inside tournament()'s rejection loop — a cluster job that burns
+    // days producing nothing. Validation must reject it up front.
+    meeting01::Meeting01Config cfg;
+    cfg.experiment.run_tag = "t";
+    cfg.experiment.seed = 42;
+    cfg.experiment.repeats = 1;
+    cfg.dataset.dataset_root = "/tmp";
+    cfg.dataset.window_size = 64;
+    cfg.dataset.max_loaded_train_samples = 10;
+    cfg.dataset.max_validation_samples = 5;
+    cfg.training.samples_per_batch = 1;
+    cfg.training.epochs = 1;
+    cfg.training.early_stop_patience = 0;
+    cfg.training.learning_rate = 0.001f;
+    cfg.model.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
+    cfg.model.decoder_layer_spec = {"linear:8:leaky", "linear:output:identity"};
+    cfg.evaluation.datasets = {"fsdd"};
+    cfg.evaluation.encodings = {"direct"};
+    cfg.evaluation.snn_architectures = {"dense"};
+    cfg.evaluation.ga.population_size = 1;
+    cfg.evaluation.ga.generations = 1;
+
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+
+    // population 1 with 0 generations is legal: one random genome, no breeding.
+    cfg.evaluation.ga.generations = 0;
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(Meeting01GaSearch, ConfigRejectsSingleTimeStep)
+{
+    meeting01::Meeting01Config cfg;
+    cfg.experiment.run_tag = "t";
+    cfg.experiment.seed = 42;
+    cfg.experiment.repeats = 1;
+    cfg.dataset.dataset_root = "/tmp";
+    cfg.dataset.window_size = 64;
+    cfg.dataset.max_loaded_train_samples = 10;
+    cfg.dataset.max_validation_samples = 5;
+    cfg.training.samples_per_batch = 1;
+    cfg.training.epochs = 1;
+    cfg.training.early_stop_patience = 0;
+    cfg.training.learning_rate = 0.001f;
+    cfg.model.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
+    cfg.model.decoder_layer_spec = {"linear:8:leaky", "linear:output:identity"};
+    cfg.model.time_steps = 1;
+    cfg.evaluation.datasets = {"fsdd"};
+    cfg.evaluation.encodings = {"direct"};
+    cfg.evaluation.snn_architectures = {"dense"};
+
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+}
+
+TEST(Meeting01GaMetrics, MacsDistinguishWidthsTheOldProxyCollapsed)
+{
+    // The (first_width, depth) proxy gave these two genomes an identical cost, so the
+    // GA's second objective could not tell a cheap architecture from an expensive one.
+    const auto narrow = meeting01::estimate_snn_macs(256, std::vector<int>{128, 8}, 16);
+    const auto wide = meeting01::estimate_snn_macs(256, std::vector<int>{128, 120}, 16);
+    EXPECT_GT(wide, narrow);
+
+    // Cost scales with the simulation steps, which the window-flattened version ignored.
+    EXPECT_GT(meeting01::estimate_snn_macs(256, std::vector<int>{64, 32}, 16),
+        meeting01::estimate_snn_macs(256, std::vector<int>{64, 32}, 4));
 }
 
 } // namespace

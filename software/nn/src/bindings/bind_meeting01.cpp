@@ -90,14 +90,40 @@ void bind_meeting01(py::module_& parent)
         "meeting01", "Live meeting01 window pipeline (encodings, transforms, SNN-AE forward).");
 
     // -- encodings + transforms (Meeting01Encoding.hpp) -----------------------
+    // `time_steps` is deliberately required and deliberately ahead of `seed`: the encoded
+    // tensor's shape is (time_steps, window_size), so a caller that omits it would get a
+    // silently different tensor than the experiment produced. Breaking such a caller
+    // loudly is the point.
     m.def(
         "encode_sample",
-        [](const py::array& sample, const std::string& encoding, std::uint32_t seed)
-        { return to_numpy(meeting01::encode_sample(from_numpy(sample), encoding, seed)); },
+        [](const py::array& sample, const std::string& encoding, int time_steps, std::uint32_t seed)
+        {
+            return to_numpy(
+                meeting01::encode_sample(from_numpy(sample), encoding, seed, time_steps));
+        },
         py::arg("sample"),
         py::arg("encoding"),
+        py::arg("time_steps"),
         py::arg("seed") = 0,
-        "direct | poisson | latency, exactly as the experiment encodes it.");
+        "direct | poisson | latency, exactly as the experiment encodes it. Returns a "
+        "(time_steps, window_size) time-major tensor; time_steps must be >= 2.");
+
+    m.def(
+        "make_reconstruction_target",
+        [](const py::array& sample, int time_steps)
+        { return to_numpy(meeting01::make_reconstruction_target(from_numpy(sample), time_steps)); },
+        py::arg("sample"),
+        py::arg("time_steps"),
+        "The training target every model in the experiment is scored against: the ORIGINAL "
+        "z-scored window repeated across the steps, never the encoded one.");
+
+    m.def(
+        "reduce_time_major_output",
+        [](const py::array& output, int time_steps)
+        { return to_numpy(meeting01::reduce_time_major_output(from_numpy(output), time_steps)); },
+        py::arg("output"),
+        py::arg("time_steps"),
+        "Temporal-averaging readout: collapses a (T, F) model output to (1, F).");
 
     m.def(
         "apply_snn_architecture_transform",
@@ -200,19 +226,25 @@ void bind_meeting01(py::module_& parent)
             }
 
             // Reproduce the experiment's per-window recompute chain:
-            //   encode_sample -> apply_snn_architecture_transform -> flatten_time_series
+            //   encode_sample -> apply_snn_architecture_transform -> network
+            // The encoded tensor is fed in AS IS, time-major (T*B, F) with B = 1, because
+            // that is what the training path now does; flattening it to one row was the
+            // T=1 layout and would reproduce a model state the experiment never trains.
+            const int steps = cfg.model.time_steps;
             nn::Tensor sample = from_numpy(flat_window);
-            nn::Tensor enc = meeting01::encode_sample(sample, encoding, seed);
+            nn::Tensor enc = meeting01::encode_sample(sample, encoding, seed, steps);
             enc = meeting01::apply_snn_architecture_transform(enc, architecture, alpha, v_th);
-            nn::Tensor flat = meeting01::flatten_time_series(enc);
 
-            nn::Tensor latent = model.encode(flat, /*requires_grad=*/false);
+            model.reset_state();
+            nn::Tensor latent = model.encode(enc, /*requires_grad=*/false);
             nn::Tensor recon = model.decode(latent, /*requires_grad=*/false);
+            // The window-level reconstruction the metrics use is the temporal average.
+            nn::Tensor recon_window = meeting01::reduce_time_major_output(recon, steps);
 
             // Per-layer encoder trace for the SNN Lab / SNN-3D views (FIXME §15, §18).
             // Sequential caches every layer output; each LifBPTT keeps its post-forward
-            // membrane snapshot (time_steps == 1 here, so it is a single value/neuron,
-            // not a trajectory). Linear weights are the ones just loaded from the .npz.
+            // membrane snapshot — with time_steps = 16 that snapshot is the membrane at
+            // the LAST step, not a trajectory; `output` holds all T steps.
             auto encoder_trace = [](const nn::Sequential& seq)
             {
                 py::list layers;
@@ -245,7 +277,10 @@ void bind_meeting01(py::module_& parent)
             py::dict out;
             out["latent"] = to_numpy(latent);
             out["reconstruction"] = to_numpy(recon);
-            out["encoded_input"] = to_numpy(flat);
+            out["reconstruction_window"] = to_numpy(recon_window);
+            out["target_window"] = to_numpy(meeting01::make_reconstruction_target(sample, steps));
+            out["encoded_input"] = to_numpy(enc);
+            out["time_steps"] = steps;
             // Both halves are traced with the same helper so the GUI can draw the
             // encoder and decoder as one continuous graph (FIXME §18, §19).
             out["encoder_layers"] = encoder_trace(model.encoder_);
@@ -261,8 +296,10 @@ void bind_meeting01(py::module_& parent)
         py::arg("flat_window"),
         py::arg("encoding") = "direct",
         py::arg("seed") = 0,
-        "Latent + reconstruction for one window, from the retrained-winner .npz, plus "
+        "Latent + reconstruction for one window, from the retrained-winner .npz. "
+        "`reconstruction` is the raw (T, F) output, `reconstruction_window` its temporal "
+        "average against `target_window` (the original z-scored window). Plus "
         "encoder_layers and decoder_layers: per-layer {type, output, weight|v_mem, "
-        "voltage_threshold}. time_steps == 1 so v_mem is a per-neuron snapshot, not a "
-        "trajectory.");
+        "voltage_threshold}; `output` spans all T steps, `v_mem` is the membrane at the "
+        "last step only.");
 }

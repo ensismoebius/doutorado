@@ -334,8 +334,14 @@ void run_baseline(const Meeting01Config& config,
         proto.seed = run_seed;
         proto.cv_fold = config.dataset.cv_fold;
         proto.split = split_name;
-        auto pw = per_window_errors_ae(
-            model, samples, meta, encoding, run_seed, config.model.lstm_frame_size, proto);
+        auto pw = per_window_errors_ae(model,
+            samples,
+            meta,
+            encoding,
+            run_seed,
+            config.model.lstm_frame_size,
+            config.model.time_steps,
+            proto);
         pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
     };
 
@@ -446,7 +452,8 @@ void run_baseline(const Meeting01Config& config,
             encoding,
             run_seed,
             0.0f,
-            config.model.lstm_frame_size);
+            config.model.lstm_frame_size,
+            config.model.time_steps);
         all_rows.push_back(make_baseline_row(config,
             backend_name,
             dataset_name,
@@ -659,6 +666,12 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
 struct SnnSelection
 {
     std::string architecture;
+    // Which encoding this candidate was trained under. `encoding` is a GA gene, so
+    // candidates in one search differ in it; omitting it from the provenance manifest
+    // made every candidate look like it shared the winner's encoding, and made the
+    // GA's encoding-selection frequency — the SNN-side replacement for the old
+    // per-encoding comparison — impossible to audit.
+    std::string encoding;
     float v_th;
     float alpha;
     float val_mse;
@@ -787,7 +800,8 @@ void finalize_snn_selection(const Meeting01Config& config,
         best.alpha,
         best.v_th,
         run_seed,
-        infer_ms);
+        infer_ms,
+        config.model.time_steps);
     test_metrics.train_ms = train_ms;
 
     ResultRow test_row{backend_name,
@@ -840,6 +854,7 @@ void finalize_snn_selection(const Meeting01Config& config,
             best.alpha,
             best.v_th,
             run_seed,
+            config.model.time_steps,
             proto);
         pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
     }
@@ -855,13 +870,23 @@ void finalize_snn_selection(const Meeting01Config& config,
         man["seed"] = run_seed;
         man["selection_split"] = "val (speaker " + split.val_speaker + ")";
         man["selection_metric"] = "val_mse";
+        man["time_steps"] = config.model.time_steps;
         man["test_speaker"] = split.test_speaker;
+        // `encoder_widths` and `encoding` are what actually make this manifest a
+        // reproducibility record rather than a log line: the GA searches a free-form
+        // architecture AND its encoding, so without both the published network cannot
+        // be rebuilt from the manifest. The top-level "encoding" key above is the
+        // per-run loop label, NOT the winning genome's gene — they can differ.
         man["selected"] = {{"architecture", best.architecture},
+            {"encoding", best.encoding},
+            {"encoder_widths", best.encoder_widths},
             {"v_th", best.v_th},
             {"alpha", best.alpha},
             {"val_mse", best.val_mse}};
         for (const auto& c : candidates)
             man["candidates"].push_back({{"architecture", c.architecture},
+                {"encoding", c.encoding},
+                {"encoder_widths", c.encoder_widths},
                 {"v_th", c.v_th},
                 {"alpha", c.alpha},
                 {"val_mse", c.val_mse}});
@@ -914,6 +939,7 @@ void run_snn_ga_search(const Meeting01Config& config,
     search_cfg.crossover_prob = ga_cfg.crossover_prob;
     search_cfg.mutation_prob = ga_cfg.mutation_prob;
     search_cfg.tournament_k = ga_cfg.tournament_k;
+    search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
@@ -935,6 +961,7 @@ void run_snn_ga_search(const Meeting01Config& config,
     const auto& winner = meeting01::ga::pick_winner(ga_result);
 
     const SnnSelection best{winner.genome.architecture,
+        winner.genome.encoding,
         winner.genome.voltage_threshold,
         winner.genome.alpha,
         winner.val_mse,
@@ -944,6 +971,7 @@ void run_snn_ga_search(const Meeting01Config& config,
     candidates.reserve(ga_result.history.size());
     for (const auto& ind : ga_result.history)
         candidates.push_back({ind.genome.architecture,
+            ind.genome.encoding,
             ind.genome.voltage_threshold,
             ind.genome.alpha,
             ind.val_mse,
@@ -1058,6 +1086,7 @@ void dump_analytic_baseline_inputs(const Meeting01Config& config,
     if (config.dataset.results_dir.empty()) return;
 
     const int frame = config.model.lstm_frame_size;
+    const int steps = config.model.time_steps;
     const std::uint32_t seed = config.experiment.seed;
 
     auto encode_matrix =
@@ -1068,7 +1097,8 @@ void dump_analytic_baseline_inputs(const Meeting01Config& config,
         for (std::size_t i = 0; i < samples.size(); ++i)
         {
             const Tensor framed = to_lstm_frames(
-                encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i)), frame);
+                encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), steps),
+                frame);
             const Tensor row = flatten_time_series(framed);
             cols = static_cast<std::size_t>(row.size());
             for (nn::Index k = 0; k < row.size(); ++k) flat.push_back(row.at(k));

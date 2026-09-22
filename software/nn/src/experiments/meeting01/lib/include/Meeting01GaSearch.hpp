@@ -21,6 +21,12 @@ struct GaSearchConfig
     double mutation_prob = 0.2;
     int tournament_k = 2;
     unsigned int seed = 0; // 0 -> derive from base_seed passed to run_ga_search
+    // How many seeds each final Pareto-front member is scored on before the winner is
+    // picked. The search itself scores one seed per genome (cheap), which means the best
+    // of ~90 noisy scores is partly selected on seed luck — the winner's curse. Re-scoring
+    // only the front costs |front| * (winner_seeds - 1) extra trainings and makes the
+    // published architecture a mean over seeds rather than a lucky draw. 1 disables it.
+    int winner_seeds = 3;
     GenomeBounds bounds;
 
     // Checkpointing (two-layer, Meeting01GaCheckpoint.hpp). Empty results_dir disables it.

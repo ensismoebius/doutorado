@@ -1,0 +1,111 @@
+{
+    "_profile_name": "meeting01-loso",
+    "_network_type": "Nested leave-one-speaker-out (LOSO/LOGO) comparative: NSGA-II-searched SNN-AE (encoder depth/width, encoding, architecture, v_th, alpha all genes) vs LSTM-AE / GRU-AE / Transformer-AE baselines, one OS process per (dataset, outer fold).",
+    "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder), exponential surrogate; R, C, V_th learnable, clamped 1e-6. Baselines match article-lstm-ae (H=64, latent 32; GRU/Transformer analogues). The driver runs NSGA-II (population x (1+generations) evaluations) over the SNN-AE's own architecture, encoding, and biophysical params, selects the winning genome from the rank-0 Pareto front on the inner validation speaker, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train), and evaluates once on the held-out test speaker. GA is the only SNN architecture search mechanism -- no grid/sweep path exists.",
+    "_loss_function": "MSE reconstruction loss",
+    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 360 Hz for MIT-BIH). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
+    "_total_runs_breakdown": "Per (dataset, fold): 3 baselines x 3 encodings x 5 seeds + population(8) x (1 + generations(5)) = 48 GA-searched SNN trainings x 5 seeds + |Pareto front| x (winner_seeds(3) - 1) re-scorings x 5 seeds + 1 retrained winner. x 3 datasets x 6 folds. Weeks on CPU. The train/val window caps were cut (1200 -> 200, 300 -> 150) and the GA budget reduced (90 -> 48 evaluations) to pay for the 16x cost of real temporal simulation; the test cap stays at 1500 because evaluation is forward-only and those windows are what the recording-level statistics are computed over.",
+    "_dataset_config": "Speaker/record-disjoint outer folds (6). No pooled sample caps (max_loaded_train_samples / max_validation_samples = 0 -> every window of the disjoint partitions, then the stratified loso_max_* caps apply). 30 epochs max, early stop patience 5, lr 0.001 (weights) / 0.0001 (R, C, V_th), batch size 1. Per-epoch progress on stderr as '[loso] ... epoch N/M' (survives nohup, where the live bars collapse).",
+    "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<enc>_run<r>_model_selection_manifest.json, _events.jsonl, models/*.npz; documentation/07-articlesProduced/meeting01/data/*.tex",
+    "_comment": "Nested-LOSO comparative for the meeting01 paper revision. Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; ~weeks). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
+    "experiment": {
+        "run_tag": "meeting01_loso",
+        "seed": 42,
+        "repeats": 5,
+        "seed_deterministic": false,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results/meeting01",
+        "window_size": 256,
+        "max_loaded_train_samples": 0,
+        "max_validation_samples": 0,
+        "cv_fold": 0,
+        "cv_num_folds": 6,
+        "loso_max_train_windows": 200,
+        "loso_max_val_windows": 150,
+        "loso_max_test_windows": 1500,
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/meeting01/data",
+        "save_models": true,
+        "sources": [
+            {
+                "name": "fsdd",
+                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
+                "sample_rate": 8000,
+                "cv_num_folds": 6
+            },
+            {
+                "name": "audiomnist",
+                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/audioMNIST_8k",
+                "sample_rate": 8000,
+                "cv_num_folds": 6,
+                "max_windows_per_recording": 2
+            },
+            {
+                "name": "mitbih",
+                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/mitbih",
+                "sample_rate": 360,
+                "cv_num_folds": 6,
+                "max_windows_per_recording": 40
+            }
+        ]
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 30,
+        "early_stop_patience": 5,
+        "learning_rate": 0.001,
+        "learning_rate_biophysical": 0.0001,
+        "max_reconstruct_mean_deviation": 0.25,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "epsilon": 1e-08
+    },
+    "model": {
+        "loss_function": "mse",
+        "latent_dim": 32,
+        "time_steps": 16,
+        "lstm_hidden_size": 64,
+        "encoder_layer_spec": [
+            "linear:64:leaky",
+            "linear:32:identity"
+        ],
+        "decoder_layer_spec": [
+            "linear:64:leaky",
+            "linear:output:identity"
+        ]
+    },
+    "evaluation": {
+        "datasets": [
+            "fsdd",
+            "audiomnist",
+            "mitbih"
+        ],
+        "encodings": [
+            "direct",
+            "poisson",
+            "latency"
+        ],
+        "baselines": [
+            "lstm-ae",
+            "gru-ae",
+            "transformer-ae"
+        ],
+        "snn_architectures": [
+            "dense",
+            "conv1d",
+            "recurrent"
+        ],
+        "ga": {
+            "population_size": 8,
+            "generations": 5,
+            "winner_seeds": 3,
+            "voltage_threshold_min": 0.5,
+            "voltage_threshold_max": 1.5,
+            "alpha_min": 0.8,
+            "alpha_max": 0.99
+        }
+    }
+}

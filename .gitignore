@@ -41,6 +41,12 @@ __pycache__/
 # Paraconsistent GA experiment profiles must be committed (same rationale).
 !software/nn/src/experiments/paraconsistentGA/profiles/
 !software/nn/src/experiments/paraconsistentGA/profiles/**/*.json
+# Meeting01 experiment profiles must be committed (same rationale: profile_audit_gtest's
+# ProfileDirectoryAudit walks this whole directory on every checkout). Without this,
+# meeting01-loso.json -- the profile that defines the entire multi-week paper run -- was
+# untracked and existed on one machine only.
+!software/nn/src/experiments/meeting01/profiles/
+!software/nn/src/experiments/meeting01/profiles/**/*.json
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).

@@ -71,11 +71,23 @@ struct EvalCache
 };
 
 // Binary tournament; `exclude` (when >= 0) is never returned, so the second parent of a
-// mating can never be the first (no self-mating). Requires pop.size() >= 2 when
-// exclude >= 0.
+// mating can never be the first (no self-mating).
+//
+// Throws instead of spinning when the exclusion is unsatisfiable: with a population of
+// one, the rejection loop below would draw the only index forever, burning a core with
+// no output and no error — the worst possible failure on a multi-week cluster job.
+// `check_ga` rejects that configuration up front; this is the second line of defence.
 int tournament(
     const std::vector<Meeting01GaIndividual>& pop, std::mt19937& rng, int k, int exclude = -1)
 {
+    if (exclude >= 0 && pop.size() < 2)
+    {
+        throw std::invalid_argument(
+            "Meeting01GaSearch: tournament() cannot exclude an individual from a population "
+            "of " +
+            std::to_string(pop.size()) +
+            "; population_size must be >= 2 whenever generations >= 1.");
+    }
     std::uniform_int_distribution<int> pick(0, static_cast<int>(pop.size()) - 1);
     auto draw = [&]
     {
@@ -225,6 +237,28 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
         for (int idx : ff[0])
             if (parents[static_cast<std::size_t>(idx)].feasible)
                 result.pareto_front.push_back(parents[static_cast<std::size_t>(idx)]);
+
+    // Winner's-curse mitigation: re-score the front on extra seeds and replace each
+    // member's val_mse with the mean, so the pick reflects expected quality rather than
+    // the single luckiest evaluation. Only the front is re-scored, not all 90 genomes.
+    if (ga_cfg.winner_seeds > 1)
+    {
+        for (auto& ind : result.pareto_front)
+        {
+            double mse_sum = ind.val_mse;
+            for (int extra = 1; extra < ga_cfg.winner_seeds; ++extra)
+            {
+                Meeting01GaIndividual probe;
+                probe.genome = ind.genome;
+                evaluate_individual(
+                    probe, cfg, split, base_seed + static_cast<std::uint32_t>(extra) * 7919u, 0, 0);
+                if (on_eval) on_eval(probe);
+                mse_sum += probe.val_mse;
+            }
+            ind.val_mse = static_cast<float>(mse_sum / ga_cfg.winner_seeds);
+            if (!ind.objectives.empty()) ind.objectives[0] = ind.val_mse;
+        }
+    }
 
     std::sort(result.pareto_front.begin(),
         result.pareto_front.end(),

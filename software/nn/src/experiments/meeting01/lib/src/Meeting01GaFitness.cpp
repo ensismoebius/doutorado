@@ -47,7 +47,7 @@ void evaluate_individual(Meeting01GaIndividual& ind,
     ind.val_mse = train_result.metrics.mse;
     ind.param_count = meeting01::parameter_count(model.params());
     ind.inference_cost = meeting01::estimate_snn_macs(
-        static_cast<std::size_t>(cfg.dataset.window_size), g.encoder_widths.front(), g.depth());
+        static_cast<std::size_t>(cfg.dataset.window_size), g.encoder_widths, cfg.model.time_steps);
 
     ind.feasible = true;
     ind.constraint_violation = 0.0;

@@ -23,7 +23,8 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::string& encoding,
     std::uint32_t seed,
     float infer_ms,
-    int lstm_frame_size) -> RunMetrics
+    int lstm_frame_size,
+    int time_steps) -> RunMetrics
 {
     RunMetrics m;
     m.macs = macs;
@@ -43,22 +44,25 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
         // Compare in framed space: the model consumes and reconstructs frames, and
         // MSE/MAE/R2 are elementwise so framing both sides leaves them unchanged.
         const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            encode_sample(
+                val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps),
             lstm_frame_size);
+        const Tensor target =
+            to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), lstm_frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
 
-        mse_acc += mse_between(encoded, recon);
-        mae_acc += mae_between(encoded, recon);
+        mse_acc += mse_between(target, recon);
+        mae_acc += mae_between(target, recon);
 
         float sample_residual_mean = 0.0f;
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            sample_residual_mean += std::fabs(encoded.at(k) - recon.at(k));
-            y_mean_acc += encoded.at(k);
+            sample_residual_mean += std::fabs(target.at(k) - recon.at(k));
+            y_mean_acc += target.at(k);
             ++n_values;
         }
-        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, encoded.size()));
+        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, target.size()));
         pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
@@ -73,13 +77,16 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
         // Compare in framed space: the model consumes and reconstructs frames, and
         // MSE/MAE/R2 are elementwise so framing both sides leaves them unchanged.
         const Tensor encoded = to_lstm_frames(
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i)),
+            encode_sample(
+                val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps),
             lstm_frame_size);
+        const Tensor target =
+            to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), lstm_frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            const float y = encoded.at(k);
+            const float y = target.at(k);
             const float yh = recon.at(k);
             ss_res += (y - yh) * (y - yh);
             ss_tot += (y - y_mean) * (y - y_mean);
@@ -106,7 +113,8 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     float alpha,
     float v_th,
     std::uint32_t seed,
-    float infer_ms) -> RunMetrics
+    float infer_ms,
+    int time_steps) -> RunMetrics
 {
     RunMetrics m;
     m.macs = macs;
@@ -124,27 +132,26 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        Tensor encoded =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        Tensor encoded = encode_sample(
+            val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
+        const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
 
-        const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
-        const Tensor recon_flat = Tensor(model.forward(SnnTensor(flat), false));
-        const Tensor recon = unflatten_time_series(recon_flat, encoded.rows(), encoded.cols());
+        const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
 
-        mse_acc += mse_between(encoded, recon);
-        mae_acc += mae_between(encoded, recon);
+        mse_acc += mse_between(target, recon);
+        mae_acc += mae_between(target, recon);
 
         float sample_residual_mean = 0.0f;
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            sample_residual_mean += std::fabs(encoded.at(k) - recon.at(k));
-            y_mean_acc += encoded.at(k);
+            sample_residual_mean += std::fabs(target.at(k) - recon.at(k));
+            y_mean_acc += target.at(k);
             spike_sum += recon.at(k) > 0.0f ? 1.0f : 0.0f;
             ++n_values;
         }
-        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, encoded.size()));
+        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, target.size()));
         pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
@@ -156,16 +163,15 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     const float y_mean = (n_values > 0) ? y_mean_acc / static_cast<float>(n_values) : 0.0f;
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        Tensor encoded =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        Tensor encoded = encode_sample(
+            val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-        const Tensor flat = flatten_time_series(encoded);
+        const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
         model.reset_state();
-        const Tensor recon = unflatten_time_series(
-            Tensor(model.forward(SnnTensor(flat), false)), encoded.rows(), encoded.cols());
-        for (nn::Index k = 0; k < encoded.size(); ++k)
+        const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
+        for (nn::Index k = 0; k < target.size(); ++k)
         {
-            const float y = encoded.at(k);
+            const float y = target.at(k);
             const float yh = recon.at(k);
             ss_res += (y - yh) * (y - yh);
             ss_tot += (y - y_mean) * (y - y_mean);
@@ -189,18 +195,19 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
     float alpha,
     float v_th,
     std::uint32_t seed,
+    int time_steps,
     PerWindowError proto) -> std::vector<PerWindowError>
 {
     std::vector<PerWindowError> out;
     out.reserve(samples.size());
     for (std::size_t i = 0; i < samples.size(); ++i)
     {
-        Tensor encoded = encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+        Tensor encoded =
+            encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-        const Tensor flat = flatten_time_series(encoded);
+        const Tensor target = make_reconstruction_target(samples[i], time_steps);
         model.reset_state();
-        const Tensor recon = unflatten_time_series(
-            Tensor(model.forward(SnnTensor(flat), false)), encoded.rows(), encoded.cols());
+        const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
 
         PerWindowError r = proto;
         if (i < meta.size())
@@ -210,8 +217,8 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
             r.window_id = meta[i].window_id;
             r.source_window_index = meta[i].source_window_index;
         }
-        r.mse = mse_between(encoded, recon);
-        r.mae = mae_between(encoded, recon);
+        r.mse = mse_between(target, recon);
+        r.mae = mae_between(target, recon);
         out.push_back(r);
     }
     return out;

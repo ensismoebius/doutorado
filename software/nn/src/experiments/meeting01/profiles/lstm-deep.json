@@ -23,12 +23,34 @@
         "max_reconstruct_mean_deviation": 0.25
     },
     "model": {
-        "encoder_layer_spec": ["linear:192:leaky", "linear:32:identity"],
-        "decoder_layer_spec": ["linear:192:leaky", "linear:output:identity"]
+        "encoder_layer_spec": [
+            "linear:192:leaky",
+            "linear:32:identity"
+        ],
+        "decoder_layer_spec": [
+            "linear:192:leaky",
+            "linear:output:identity"
+        ],
+        "time_steps": 4
     },
     "evaluation": {
-        "datasets": ["fsdd"],
-        "encodings": ["direct"],
-        "snn_architectures": ["dense"]
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct"
+        ],
+        "snn_architectures": [
+            "dense"
+        ],
+        "ga": {
+            "population_size": 4,
+            "generations": 1,
+            "winner_seeds": 1,
+            "voltage_threshold_min": 0.5,
+            "voltage_threshold_max": 1.5,
+            "alpha_min": 0.8,
+            "alpha_max": 0.99
+        }
     }
 }

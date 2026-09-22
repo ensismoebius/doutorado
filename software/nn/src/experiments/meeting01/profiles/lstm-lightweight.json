@@ -18,7 +18,7 @@
         "samples_per_batch": 30,
         "batches_per_epoch": 3,
         "epochs": 1,
-        "early_stop_patience": 30,
+        "early_stop_patience": 0,
         "learning_rate": 0.001,
         "max_reconstruct_mean_deviation": 0.25
     },
@@ -30,7 +30,8 @@
         "decoder_layer_spec": [
             "linear:8:leaky",
             "linear:output:identity"
-        ]
+        ],
+        "time_steps": 4
     },
     "evaluation": {
         "datasets": [
@@ -41,6 +42,15 @@
         ],
         "snn_architectures": [
             "dense"
-        ]
+        ],
+        "ga": {
+            "population_size": 2,
+            "generations": 0,
+            "winner_seeds": 1,
+            "voltage_threshold_min": 0.5,
+            "voltage_threshold_max": 1.5,
+            "alpha_min": 0.8,
+            "alpha_max": 0.99
+        }
     }
 }

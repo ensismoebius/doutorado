@@ -102,7 +102,8 @@ Profile `src/experiments/meeting01/profiles/lstm-bench.json`:
 | Setting | Value |
 |---|---|
 | Dataset | FSDD (32 train, 8 val samples) |
-| Window size | 256 time steps |
+| Window size | 256 samples |
+| `model.time_steps` | 16 (see the warning below) |
 | Encodings | direct only |
 | Repeats | 1 |
 | Epochs | 3 |
@@ -114,7 +115,23 @@ Run:
   --profile src/experiments/meeting01/profiles/lstm-bench.json
 ```
 
-Wall time with fused-block optimizations: **~29s** (1 run, 3 epochs, 32 samples, T=256, 12 threads).
+> **The number below is stale as of 2026-09-22, and the field that invalidated it is
+> misleadingly named.** `model.time_steps` sounds like an SNN-only knob. It is not:
+> `run_baseline` (`Meeting01Experiment.cpp`) reads it too, so it sets the sequence length
+> the **LSTM** is unrolled over. The baseline now consumes a time-major
+> `(T·B, window_size)` tensor, giving a sequence of `T · window_size / lstm_frame_size`
+> frames instead of `window_size / lstm_frame_size`.
+>
+> At `T = 16` that is a **16× longer unroll** than when the timing below was recorded.
+> Nothing in this profile had to change for that to happen — it inherited the struct
+> default silently, which is exactly why `profile_audit_gtest`'s
+> `EveryProfileDeclaresTimeStepsExplicitly` now forces every profile to state it. Re-run
+> the benchmark before quoting a wall time; the optimisation *ratios* above still hold,
+> the absolute seconds do not.
+
+Wall time with fused-block optimizations, recorded under the pre-2026-09-22 layout
+(`T = 1`, sequence = `window_size / lstm_frame_size`): **~29s** (1 run, 3 epochs,
+32 samples, 12 threads).
 
 ## Input Framing: The Largest Win (2026-07-18)
 

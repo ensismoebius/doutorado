@@ -1,107 +1,193 @@
-// meeting01_encoding_gtest.cpp — direct coverage for the two `encode_sample` fixes:
-// (1) "latency" must be canonical time-to-first-spike (exactly one spike per
-//     channel, larger values fire earlier), not a threshold-crossing code that
-//     stays on; (2) "poisson" must normalize over the full [min, max] range, not
-//     max-only, so sub-mean (negative, post-z-score) samples keep a real firing
-//     probability instead of being silently clamped to 0.
+// meeting01_encoding_gtest.cpp — coverage for `encode_sample`'s time-major contract.
+//
+// These tests were rewritten on 2026-09-22. The previous LatencyEncodesExactlyOneSpike
+// test held each channel's value CONSTANT across time (`sample.at(t, d) = values[d]`),
+// which is the one input distribution under which the old implementation looked
+// correct. With a real, time-varying window the old code emitted ~1 spike per 256
+// samples and often none at all, and no test noticed. The tests below therefore use
+// varying signals on purpose, and assert on the shape contract as well as the counts.
 
 #include <gtest/gtest.h>
+
+#include <cmath>
+#include <stdexcept>
 
 #include "Meeting01Encoding.hpp"
 
 namespace
 {
 
-TEST(Meeting01Encoding, LatencyEncodesExactlyOneSpikePerChannel)
+constexpr int kSteps = 16;
+
+// A realistic window: 256 consecutive samples of a varying, z-scored signal.
+meeting01::Tensor make_window(int n = 256)
 {
-    // 16 time steps, 4 channels spanning distinct values so t_spike differs per
-    // channel; values held constant per channel in "time" since encode_sample's
-    // t_spike is purely a function of the (t, d) cell's own value, not of t.
-    meeting01::Tensor sample(16, 4);
-    const float values[4] = {-3.0f, -1.0f, 1.0f, 3.0f};
-    for (nn::Index t = 0; t < sample.rows(); ++t)
-        for (nn::Index d = 0; d < sample.cols(); ++d) sample.at(t, d) = values[d];
+    meeting01::Tensor w(n, 1);
+    double sum = 0.0;
+    double sq = 0.0;
+    for (nn::Index i = 0; i < n; ++i)
+    {
+        const float v = std::sin(0.11f * static_cast<float>(i)) +
+                        0.4f * std::sin(0.73f * static_cast<float>(i) + 1.1f);
+        w.at(i, 0) = v;
+        sum += v;
+        sq += static_cast<double>(v) * v;
+    }
+    const double mean = sum / n;
+    const double sd = std::sqrt(std::max(1e-12, sq / n - mean * mean));
+    for (nn::Index i = 0; i < n; ++i) w.at(i, 0) = static_cast<float>((w.at(i, 0) - mean) / sd);
+    return w;
+}
 
-    const auto encoded = meeting01::encode_sample(sample, "latency", /*seed=*/0);
+int count_spikes(const meeting01::Tensor& t)
+{
+    int n = 0;
+    for (nn::Index i = 0; i < t.size(); ++i) n += (t.at(i) > 0.5f) ? 1 : 0;
+    return n;
+}
 
-    for (nn::Index d = 0; d < sample.cols(); ++d)
+TEST(Meeting01Encoding, EncodesToTimeMajorStepsByFeatures)
+{
+    const auto window = make_window(256);
+    for (const char* enc : {"direct", "poisson", "latency"})
+    {
+        const auto e = meeting01::encode_sample(window, enc, /*seed=*/7, kSteps);
+        EXPECT_EQ(e.rows(), kSteps) << enc << ": rows must be the simulation steps";
+        EXPECT_EQ(e.cols(), 256) << enc << ": cols must be the window's samples";
+    }
+}
+
+TEST(Meeting01Encoding, RejectsSingleTimeStep)
+{
+    const auto window = make_window(32);
+    // Must fail loudly: at T=1 rate and latency coding have no axis to encode on, and
+    // the old behaviour was to silently produce a plausible-looking empty tensor.
+    EXPECT_THROW((void) meeting01::encode_sample(window, "latency", 0, 1), std::invalid_argument);
+    EXPECT_THROW((void) meeting01::encode_sample(window, "poisson", 0, 0), std::invalid_argument);
+}
+
+TEST(Meeting01Encoding, LatencyFiresEachFeatureExactlyOnceOnAVaryingSignal)
+{
+    const auto window = make_window(256);
+    const auto e = meeting01::encode_sample(window, "latency", /*seed=*/0, kSteps);
+
+    // Canonical TTFS: every input neuron (window sample) fires exactly once.
+    for (nn::Index f = 0; f < e.cols(); ++f)
     {
         int spikes = 0;
-        for (nn::Index t = 0; t < sample.rows(); ++t) spikes += (encoded.at(t, d) > 0.5f) ? 1 : 0;
-        EXPECT_EQ(spikes, 1) << "channel " << d
-                             << " did not fire exactly once -- latency must be TTFS, "
-                                "not a threshold-crossing code that stays on";
+        for (nn::Index t = 0; t < e.rows(); ++t) spikes += (e.at(t, f) > 0.5f) ? 1 : 0;
+        EXPECT_EQ(spikes, 1) << "feature " << f << " did not fire exactly once";
     }
+    // Regression guard on the measured old behaviour: 256 features must produce 256
+    // spikes, not the ~1 the coincidence-detector version emitted for a whole window.
+    EXPECT_EQ(count_spikes(e), 256);
 }
 
 TEST(Meeting01Encoding, LatencyLargerValuesFireEarlier)
 {
-    meeting01::Tensor sample(10, 2);
-    for (nn::Index t = 0; t < sample.rows(); ++t)
-    {
-        sample.at(t, 0) = 8.0f;  // largest value in the sample -> should fire earliest
-        sample.at(t, 1) = -8.0f; // smallest value in the sample -> should fire latest
-    }
+    meeting01::Tensor w(4, 1);
+    w.at(0, 0) = -8.0f; // global min -> latest
+    w.at(1, 0) = 0.0f;
+    w.at(2, 0) = 3.0f;
+    w.at(3, 0) = 8.0f; // global max -> earliest
+    const auto e = meeting01::encode_sample(w, "latency", 0, kSteps);
 
-    const auto encoded = meeting01::encode_sample(sample, "latency", /*seed=*/0);
-
-    auto spike_time = [&](nn::Index d) -> nn::Index
+    auto spike_time = [&](nn::Index f) -> nn::Index
     {
-        for (nn::Index t = 0; t < sample.rows(); ++t)
-            if (encoded.at(t, d) > 0.5f) return t;
-        ADD_FAILURE() << "channel " << d << " never fired";
+        for (nn::Index t = 0; t < e.rows(); ++t)
+            if (e.at(t, f) > 0.5f) return t;
+        ADD_FAILURE() << "feature " << f << " never fired";
         return -1;
     };
-
-    EXPECT_LT(spike_time(0), spike_time(1));
+    EXPECT_LT(spike_time(3), spike_time(2));
+    EXPECT_LT(spike_time(2), spike_time(1));
+    EXPECT_LT(spike_time(1), spike_time(0));
+    EXPECT_EQ(spike_time(3), 0);
+    EXPECT_EQ(spike_time(0), kSteps - 1);
 }
 
-TEST(Meeting01Encoding, PoissonUsesFullRangeNormalizationNotMaxOnly)
+TEST(Meeting01Encoding, PoissonRateMatchesNormalisedAmplitudeOverSteps)
 {
-    constexpr int kTrials = 5000;
-    // Row 0: the same sub-mean NEGATIVE value repeated kTrials times -- kTrials
-    // independent Bernoulli trials of the same firing probability. Row 1: the
-    // true min/max sentinels (columns 0/1) that set the sample's global range;
-    // the rest is filler strictly inside [min, max] so it cannot move the range.
-    meeting01::Tensor sample(2, kTrials);
-    for (int c = 0; c < kTrials; ++c) sample.at(0, c) = -5.0f;
-    sample.at(1, 0) = -10.0f;
-    sample.at(1, 1) = 10.0f;
-    for (int c = 2; c < kTrials; ++c) sample.at(1, c) = 0.0f;
+    // One feature at the global min, one at the global max, one halfway. Firing RATE
+    // over the T steps must track the normalised amplitude — that is what makes this a
+    // rate code rather than the single Bernoulli draw the old T=1 layout allowed.
+    constexpr int kLongRun = 4000;
+    meeting01::Tensor w(3, 1);
+    w.at(0, 0) = -10.0f;
+    w.at(1, 0) = 0.0f;
+    w.at(2, 0) = 10.0f;
 
-    const auto encoded = meeting01::encode_sample(sample, "poisson", /*seed=*/1234);
+    const auto e = meeting01::encode_sample(w, "poisson", /*seed=*/1234, kLongRun);
+    auto rate = [&](nn::Index f)
+    {
+        int n = 0;
+        for (nn::Index t = 0; t < e.rows(); ++t) n += (e.at(t, f) > 0.5f) ? 1 : 0;
+        return static_cast<float>(n) / static_cast<float>(e.rows());
+    };
 
-    int fired = 0;
-    for (int c = 0; c < kTrials; ++c) fired += (encoded.at(0, c) > 0.5f) ? 1 : 0;
-    const float empirical_rate = static_cast<float>(fired) / static_cast<float>(kTrials);
-
-    // Old max-only normalization clamped this negative value's probability to
-    // exactly 0 (sample/max = -5/10, clamped to [0,1] -> 0): every trial would be
-    // silent. Full-range min-max gives p = (-5 - (-10)) / 20 = 0.25.
-    EXPECT_GT(fired, 0) << "poisson must not silently zero out sub-mean "
-                           "(negative, post-z-score) samples";
-    EXPECT_NEAR(empirical_rate, 0.25f, 0.03f);
+    EXPECT_NEAR(rate(0), 0.0f, 0.02f);
+    EXPECT_NEAR(rate(1), 0.5f, 0.03f);
+    EXPECT_NEAR(rate(2), 1.0f, 0.02f);
 }
 
-TEST(Meeting01Encoding, PoissonFiringRateMatchesFullRangeAtExtremes)
+TEST(Meeting01Encoding, DirectHoldsTheAnalogValueAtEveryStep)
 {
-    constexpr int kTrials = 5000;
-    meeting01::Tensor sample(2, kTrials);
-    for (int c = 0; c < kTrials; ++c) sample.at(0, c) = -10.0f; // == global min -> p ~ 0
-    sample.at(1, 0) = -10.0f;
-    sample.at(1, 1) = 10.0f;
-    for (int c = 2; c < kTrials; ++c) sample.at(1, c) = 0.0f;
+    const auto window = make_window(64);
+    const auto e = meeting01::encode_sample(window, "direct", 0, kSteps);
+    for (nn::Index t = 0; t < e.rows(); ++t)
+        for (nn::Index f = 0; f < e.cols(); ++f) EXPECT_FLOAT_EQ(e.at(t, f), window.at(f));
+}
 
-    const auto encoded_min = meeting01::encode_sample(sample, "poisson", /*seed=*/7);
-    int fired_min = 0;
-    for (int c = 0; c < kTrials; ++c) fired_min += (encoded_min.at(0, c) > 0.5f) ? 1 : 0;
-    EXPECT_NEAR(static_cast<float>(fired_min) / kTrials, 0.0f, 0.02f);
+TEST(Meeting01Encoding, ReconstructionTargetIsTheOriginalWindowNotTheCode)
+{
+    const auto window = make_window(64);
+    const auto target = meeting01::make_reconstruction_target(window, kSteps);
 
-    for (int c = 0; c < kTrials; ++c) sample.at(0, c) = 10.0f; // == global max -> p ~ 1
-    const auto encoded_max = meeting01::encode_sample(sample, "poisson", /*seed=*/7);
-    int fired_max = 0;
-    for (int c = 0; c < kTrials; ++c) fired_max += (encoded_max.at(0, c) > 0.5f) ? 1 : 0;
-    EXPECT_NEAR(static_cast<float>(fired_max) / kTrials, 1.0f, 0.02f);
+    ASSERT_EQ(target.rows(), kSteps);
+    ASSERT_EQ(target.cols(), 64);
+    for (nn::Index t = 0; t < target.rows(); ++t)
+        for (nn::Index f = 0; f < target.cols(); ++f)
+            EXPECT_FLOAT_EQ(target.at(t, f), window.at(f));
+}
+
+TEST(Meeting01Encoding, TargetVarianceIsIdenticalAcrossEncodings)
+{
+    // The property that makes val_mse comparable between encodings, and that stops the
+    // GA from winning 261x by simply selecting the lowest-variance code: the target
+    // does not depend on the encoding at all.
+    const auto window = make_window(128);
+    const auto target = meeting01::make_reconstruction_target(window, kSteps);
+
+    double sum = 0.0;
+    for (nn::Index i = 0; i < target.size(); ++i) sum += target.at(i);
+    const double mean = sum / target.size();
+    double var = 0.0;
+    for (nn::Index i = 0; i < target.size(); ++i)
+        var += (target.at(i) - mean) * (target.at(i) - mean);
+    var /= target.size();
+
+    // A z-scored window repeated across steps keeps unit variance regardless of which
+    // encoding feeds the network.
+    EXPECT_NEAR(var, 1.0, 0.05);
+}
+
+TEST(Meeting01Encoding, ReduceTimeMajorOutputAveragesOverSteps)
+{
+    meeting01::Tensor out(kSteps, 3); // B = 1
+    for (nn::Index t = 0; t < kSteps; ++t)
+        for (nn::Index f = 0; f < 3; ++f) out.at(t, f) = static_cast<float>(t) + f;
+
+    const auto reduced = meeting01::reduce_time_major_output(out, kSteps);
+    ASSERT_EQ(reduced.rows(), 1);
+    ASSERT_EQ(reduced.cols(), 3);
+    const float mean_t = (kSteps - 1) / 2.0f;
+    for (nn::Index f = 0; f < 3; ++f) EXPECT_NEAR(reduced.at(0, f), mean_t + f, 1e-4f);
+}
+
+TEST(Meeting01Encoding, ReduceTimeMajorOutputRejectsRaggedInput)
+{
+    meeting01::Tensor out(7, 2);
+    EXPECT_THROW((void) meeting01::reduce_time_major_output(out, kSteps), std::invalid_argument);
 }
 
 } // namespace

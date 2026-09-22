@@ -26,7 +26,8 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::string& encoding,
     std::uint32_t seed,
     float infer_ms,
-    int lstm_frame_size) -> RunMetrics;
+    int lstm_frame_size,
+    int time_steps) -> RunMetrics;
 
 auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
@@ -39,7 +40,8 @@ auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     float alpha,
     float v_th,
     std::uint32_t seed,
-    float infer_ms) -> RunMetrics;
+    float infer_ms,
+    int time_steps) -> RunMetrics;
 
 // Per-window reconstruction error for the SNN-AE (arch transform + flatten + forward +
 // unflatten, mse/mae in encoded space). `proto` carries the shared identity fields;
@@ -52,6 +54,7 @@ auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& 
     float alpha,
     float v_th,
     std::uint32_t seed,
+    int time_steps,
     PerWindowError proto) -> std::vector<PerWindowError>;
 
 } // namespace meeting01

@@ -84,6 +84,32 @@ auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) 
     return in_proj + hidden_proj + out_proj;
 }
 
+auto estimate_snn_macs(
+    std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
+    -> std::size_t
+{
+    // Sums the REAL per-layer projections instead of assuming every hidden layer is as
+    // wide as the first. The (first_width, depth) approximation gave {128, 8} and
+    // {128, 120} an identical cost, so the GA's second objective could not tell a cheap
+    // genome from an expensive one. Encoder is mirrored by the decoder, and the whole
+    // stack is evaluated once per simulation step.
+    if (encoder_widths.empty()) return 0;
+
+    std::size_t per_step = input_features * static_cast<std::size_t>(encoder_widths.front());
+    for (std::size_t i = 0; i + 1 < encoder_widths.size(); ++i)
+        per_step += static_cast<std::size_t>(encoder_widths[i]) *
+                    static_cast<std::size_t>(encoder_widths[i + 1]);
+
+    // Decoder mirrors the encoder (reversed widths, then back out to the window).
+    std::size_t decoder = 0;
+    for (std::size_t i = encoder_widths.size() - 1; i > 0; --i)
+        decoder += static_cast<std::size_t>(encoder_widths[i]) *
+                   static_cast<std::size_t>(encoder_widths[i - 1]);
+    decoder += static_cast<std::size_t>(encoder_widths.front()) * input_features;
+
+    return (per_step + decoder) * static_cast<std::size_t>(std::max(1, time_steps));
+}
+
 auto estimate_gru_macs(const nn::models::gru::GRUAutoencoderConfig& cfg) -> std::size_t
 {
     const std::size_t T = static_cast<std::size_t>(cfg.seq_len);

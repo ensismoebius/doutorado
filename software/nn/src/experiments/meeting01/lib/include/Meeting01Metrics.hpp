@@ -27,6 +27,14 @@ void compute_precision_recall_f1(const std::vector<int>& y_true,
 auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t;
 auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t;
 
+/// Exact per-layer MAC count for a free-form encoder (decoder mirrored), multiplied by
+/// the simulation steps. Prefer this over the (hidden_size, layers) overload for genome
+/// costing: that one assumes a uniform hidden width and cannot distinguish {128, 8} from
+/// {128, 120}.
+auto estimate_snn_macs(
+    std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
+    -> std::size_t;
+
 /// Raw multiply-accumulate estimate for the GRU autoencoder. Mirrors
 /// estimate_lstm_macs (one stack, T steps, + projections) with 3 gates instead of 4,
 /// so the two are directly comparable.

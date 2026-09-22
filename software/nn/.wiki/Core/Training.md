@@ -391,6 +391,49 @@ Validation batches are handled the same way: every validation sample is
 stacked into one $(N_v, D)$ tensor and forwarded once per epoch, rather than
 sample-by-sample.
 
+### Time-major batching (`stack_time_major`, added 2026-09-22)
+
+A plain $(B, D)$ stack has nowhere to put time. When each sample is itself a
+$(T, F)$ sequence — which is what a spiking encoder produces — the trainer
+instead builds the $(T \cdot B, F)$ **time-major** tensor the SNN layers
+require, with `out.at(t * B + b, f) = part_b.at(t, f)`:
+
+```
+T = 3 steps, B = 2 samples, F features
+
+row 0 | t0, sample 0 |
+row 1 | t0, sample 1 |   <- all of step 0 first
+row 2 | t1, sample 0 |
+row 3 | t1, sample 1 |   <- then all of step 1
+row 4 | t2, sample 0 |
+row 5 | t2, sample 1 |
+```
+
+Row order is *step-major, then batch* — the invariant `LifBPTTImpl` and
+`SpikeTimeLossImpl` both assume (see [Time-Steps](../Concepts/Time-Steps.md)).
+`stack_time_major` throws if the parts disagree on shape, and degenerates to
+the old $(B, F)$ stacking when $T = 1$, so non-sequence training is unaffected.
+
+### Resetting stateful models between batches (`reset_model_state`)
+
+Batches are independent sequences. A stateful model — LIF membrane `v_mem`,
+LSTM hidden/cell — must start each one from zero, or the previous batch leaks
+into this one.
+
+The trainer now calls `reset_model_state()` before every `model_.forward(...)`
+(both training and validation, both the autoencoder and the supervised loop).
+It uses the `detail::has_reset_state` trait, so models without `reset_state()`
+are unaffected at compile time.
+
+> **Why this was a silent bug, not a loud one.** The trait existed but nothing
+> called it. `LifBPTT` re-zeroes `v_mem` only when the input tensor's *shape*
+> changes — and the shape is constant across a whole epoch — so the membrane
+> carried over from sample to sample for the entire epoch, and training
+> completed normally with a plausible loss. Worse, the evaluation paths *did*
+> reset explicitly, so the same network was being trained and evaluated under
+> two different regimes. Found during the `meeting01` pre-GridUnesp audit; see
+> [Meeting01 § The Missing Time Axis](../Experiments/Meeting01.md#the-missing-time-axis-found--fixed-2026-09-22-second-pre-gridunesp-audit).
+
 ## Data Flow
 
 ```mermaid

@@ -168,7 +168,7 @@ auto make_snn_cfg(
     // real steps and the membrane actually carries state between them. This was 1 until
     // 2026-09-22; at T=1 `beta` multiplied a zero-initialised membrane, which made both
     // `alpha` and `v_th` inert, and rate/latency coding have no time axis to live on.
-    model_cfg.time_steps = cfg.model.snn_time_steps;
+    model_cfg.time_steps = cfg.model.time_steps;
     model_cfg.delta_t = 1.0f;
     // R and C are chosen so the two knobs stay independent and mean what they say:
     // with delta_t = 1 and R = 1, beta = exp(-1/C) = alpha exactly, while v_th is the
@@ -398,25 +398,32 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     auto batch_collector = std::make_shared<BatchLossCollector>();
     trainer.add_callback(batch_collector);
 
-    std::vector<SnnTensor> train_backend_samples;
-    train_backend_samples.reserve(train_samples.size());
-    for (const auto& sample : train_samples) train_backend_samples.emplace_back(sample);
+    const int steps = cfg.model.time_steps;
 
-    std::vector<SnnTensor> val_backend_samples;
-    val_backend_samples.reserve(val_samples.size());
-    for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
-
-    trainer.set_sample_transform(
-        [&encoding, &architecture, alpha, v_th, seed](
-            const SnnTensor& s, std::size_t idx) -> SnnTensor
+    // Input is the encoded (time_steps, window_size) spike tensor; target is the
+    // ORIGINAL analog window held across those same steps. Reconstructing the encoded
+    // input instead made the loss incomparable across encodings and handed the GA a
+    // free win for picking latency (see .wiki/Experiments/Meeting01.md).
+    using SnnPair = std::pair<SnnTensor, SnnTensor>;
+    auto make_pairs = [&](const std::vector<Tensor>& src)
+    {
+        std::vector<SnnPair> pairs;
+        pairs.reserve(src.size());
+        for (std::size_t i = 0; i < src.size(); ++i)
         {
-            Tensor enc = encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx));
+            Tensor enc =
+                encode_sample(src[i], encoding, seed + static_cast<std::uint32_t>(i), steps);
             enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
-            return SnnTensor(flatten_time_series(enc));
-        });
+            pairs.emplace_back(
+                SnnTensor(enc), SnnTensor(make_reconstruction_target(src[i], steps)));
+        }
+        return pairs;
+    };
+    const auto train_pairs = make_pairs(train_samples);
+    const auto val_pairs = make_pairs(val_samples);
 
     const auto t0 = std::chrono::steady_clock::now();
-    const auto epoch_results = trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
+    const auto epoch_results = trainer.fit_supervised(train_pairs, val_pairs);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -425,11 +432,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         nn::Tensor enc =
-            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), steps);
         enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
-        const nn::Tensor flat = flatten_time_series(enc);
         model.reset_state();
-        (void) model.forward(SnnTensor(flat), false);
+        (void) model.forward(SnnTensor(enc), false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
@@ -452,7 +458,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         alpha,
         v_th,
         seed,
-        infer_ms);
+        infer_ms,
+        steps);
 
     EpochHistory history;
     for (const auto& er : epoch_results)

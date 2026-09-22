@@ -13,14 +13,26 @@
     "samples_per_batch": 1,
     "batches_per_epoch": 0,
     "epochs": 2,
-    "early_stop_patience": 5,
+    "early_stop_patience": 1,
     "learning_rate": 0.001,
     "max_reconstruct_mean_deviation": 0.25,
-    "encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
-    "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
-    "datasets": ["fsdd"],
-    "encodings": ["direct"],
-    "snn_architectures": ["dense"],
+    "encoder_layer_spec": [
+        "linear:16:leaky",
+        "linear:8:identity"
+    ],
+    "decoder_layer_spec": [
+        "linear:8:leaky",
+        "linear:output:identity"
+    ],
+    "datasets": [
+        "fsdd"
+    ],
+    "encodings": [
+        "direct"
+    ],
+    "snn_architectures": [
+        "dense"
+    ],
     "ga_population_size": 1,
     "ga_generations": 0,
     "ga_voltage_threshold_min": 1.0,

@@ -27,7 +27,7 @@ auto encode_sample(
         throw std::invalid_argument(
             "encode_sample: time_steps must be >= 2 (got " + std::to_string(time_steps) +
             "); a single step leaves rate and latency coding no axis to encode on. Set "
-            "model.snn_time_steps in the profile.");
+            "model.time_steps in the profile.");
     }
 
     const nn::Index T = static_cast<nn::Index>(time_steps);

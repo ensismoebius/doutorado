@@ -10,6 +10,26 @@
 namespace meeting01
 {
 
+/// `model.snn_time_steps` was renamed to `model.time_steps` on 2026-09-22, because the
+/// `snn_` prefix was a lie: `run_baseline` reads the same field, so it also sets the
+/// sequence length the LSTM / GRU / Transformer baselines are unrolled over.
+///
+/// A profile still carrying the old key must FAIL, not be quietly ignored. Ignoring it
+/// would silently fall back to the struct default — which is exactly the class of bug
+/// this whole audit existed to remove: a run that completes normally and reports a
+/// plausible number produced under a temporal resolution nobody asked for.
+inline void reject_renamed_time_steps(const nlohmann::json& section)
+{
+    if (!section.is_object() || !section.contains("snn_time_steps")) return;
+
+    throw std::invalid_argument(
+        "Meeting01Config: 'snn_time_steps' was renamed to 'time_steps' on 2026-09-22 "
+        "(the field sets the unroll length for the LSTM/GRU/Transformer baselines too, "
+        "not only the SNN's membrane depth). Remedy: rename the key to 'time_steps' in "
+        "this profile. Do NOT delete it — dropping the key would silently fall back to "
+        "the default of 16 steps.");
+}
+
 struct Meeting01Config
 {
     struct Experiment
@@ -118,11 +138,11 @@ struct Meeting01Config
         // Must divide dataset.window_size.
         int lstm_frame_size = 8;
         // SNN simulation steps per window. The encoder turns one window into a
-        // time-major (snn_time_steps * B, window_size) tensor, so this is the number
+        // time-major (time_steps * B, window_size) tensor, so this is the number
         // of steps LifBPTT unrolls and over which a spike code can carry information.
         // Must be >= 2: at 1 there is no membrane history, which silently disables
         // both `alpha` and rate/latency coding (see .wiki/Experiments/Meeting01.md).
-        int snn_time_steps = 16;
+        int time_steps = 16;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
         // Bottlenecked Transformer-AE baseline dimensions (used only when
@@ -163,6 +183,9 @@ struct Meeting01Config
         double crossover_prob = 0.9;
         double mutation_prob = 0.2;
         int tournament_k = 2;
+        // Seeds used to re-score each final Pareto-front member before picking the
+        // winner (winner's-curse mitigation). 1 = pick on the single search score.
+        int winner_seeds = 3;
         unsigned int seed = 0; // 0 -> derive from experiment.seed + run_id
         int checkpoint_every_generations = 1;
     };
@@ -257,7 +280,8 @@ struct Meeting01Config
         get("latent_dim", cfg.model.latent_dim);
         get("lstm_hidden_size", cfg.model.lstm_hidden_size);
         get("lstm_frame_size", cfg.model.lstm_frame_size);
-        get("snn_time_steps", cfg.model.snn_time_steps);
+        reject_renamed_time_steps(j);
+        get("time_steps", cfg.model.time_steps);
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
@@ -291,6 +315,7 @@ struct Meeting01Config
         get("ga_crossover_prob", cfg.evaluation.ga.crossover_prob);
         get("ga_mutation_prob", cfg.evaluation.ga.mutation_prob);
         get("ga_tournament_k", cfg.evaluation.ga.tournament_k);
+        get("ga_winner_seeds", cfg.evaluation.ga.winner_seeds);
         get("ga_seed", cfg.evaluation.ga.seed);
         get("ga_checkpoint_every_generations", cfg.evaluation.ga.checkpoint_every_generations);
 
@@ -316,6 +341,7 @@ struct Meeting01Config
         get("crossover_prob", ga.crossover_prob);
         get("mutation_prob", ga.mutation_prob);
         get("tournament_k", ga.tournament_k);
+        get("winner_seeds", ga.winner_seeds);
         get("seed", ga.seed);
         get("checkpoint_every_generations", ga.checkpoint_every_generations);
     }
@@ -398,7 +424,8 @@ struct Meeting01Config
         get(mdl, "latent_dim", cfg.model.latent_dim);
         get(mdl, "lstm_hidden_size", cfg.model.lstm_hidden_size);
         get(mdl, "lstm_frame_size", cfg.model.lstm_frame_size);
-        get(mdl, "snn_time_steps", cfg.model.snn_time_steps);
+        reject_renamed_time_steps(mdl);
+        get(mdl, "time_steps", cfg.model.time_steps);
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);

@@ -219,6 +219,263 @@ logs stay free of cursor-control sequences.
 
 ---
 
+## The Missing Time Axis (found + fixed 2026-09-22, second pre-GridUnesp audit)
+
+### Start with the thing that was wrong
+
+A spiking neuron does not compute an answer from one snapshot. It charges up, fires,
+resets, charges again. Take that sequence away and it is no longer a spiking neuron — it
+is a step function with extra parameters that never get used.
+
+`meeting01` ran with `time_steps = 1`.
+
+That single number is the root of everything in this section. The framework itself warns
+about it ([Time-Steps](../Concepts/Time-Steps.md): *"Default 0 = unset and RAISES — never
+assume 1"*), and `meeting01` was assuming 1 anyway.
+
+### Where the confusion came from
+
+A window is 256 audio samples. The old code treated *those 256 samples* as the time axis,
+and told the network there was 1 time step. Two different things were both called "time":
+
+```
+OLD  encode_sample(window)  ->  (256, 1)      network time_steps = 1
+     row = window sample #             "1 neuron, observed for 256 steps"
+     col = the single channel
+
+NEW  encode_sample(window, T=16) -> (16, 256)  network time_steps = 16
+     row = simulation step t                   "256 neurons, simulated for 16 steps"
+     col = window sample #  (= one input neuron)
+```
+
+Canonical time-to-first-spike coding says: **each input neuron fires exactly once.** Under
+the old layout there was exactly *one* input neuron, so a whole 256-sample window produced
+**one spike**. Measured on a real z-scored speech window: **1.07 spikes per window, 99.58%
+zeros, and frequently 0 spikes.** The SNN was being handed a nearly empty tensor and asked
+to reconstruct a signal from it.
+
+The test suite did not catch this because the one latency test built its input as
+`sample.at(t, d) = values[d]` — each channel held *constant across time*. That is the single
+input distribution under which the broken implementation looks correct.
+
+### Same tensor, two meanings
+
+| | Old (`T = 1`) | New (`T = 16`) |
+|---|---|---|
+| What a row is | one window sample | one simulation step |
+| What a column is | the mono channel | one input neuron (one window sample) |
+| Input neurons | 1 | 256 |
+| Latency spikes per window | **1** (measured 1.07) | **256** (one per neuron, asserted) |
+| Poisson draws per feature | 1 Bernoulli coin flip | 16 draws → a real firing *rate* |
+| `v = v*beta + vin` | `v` is always 0 at entry, so `beta` multiplies zero | `v` carries 15 steps of history |
+| `alpha` (→ `beta`) | **inert** | governs the leak |
+| `voltage_threshold` | **never assigned at all** | drives the spike/reset |
+
+### The four silent failures
+
+Every one of these produced a completed run with a plausible MSE. None of them crashed,
+warned, or logged anything. That is what makes them expensive: a GridUnesp job would have
+burned weeks and published numbers nobody could trace back to a mechanism.
+
+| # | Failure | Evidence | Loud or silent |
+|---|---|---|---|
+| B1 | Latency encoding was a coincidence detector, not TTFS | 1.07 spikes / 256-sample window; 0 spikes on speech-like input | **Silent** |
+| B2 | Models were trained to reconstruct their **own spike code**, not the signal | see below | **Silent**, and it biased the GA |
+| B3 | LIF membrane leaked across independent samples for a whole epoch | `has_reset_state` trait existed but `Trainer` never called `reset_state()`; `LifBPTT` only re-zeroes `v_mem` when the tensor *shape* changes, and the shape is constant all epoch | **Silent** |
+| B4 | `voltage_threshold` was never written into the model config | zero occurrences of the assignment in `Meeting01Training.cpp` | **Silent** |
+| B5 | `time_steps = 1` contradicted the framework's own invariant | `.wiki/Concepts/Time-Steps.md`, CLAUDE.md | **Silent** |
+
+B3 had a second edge: the evaluation paths *did* reset explicitly, so training and
+evaluation were running the same network under two different regimes.
+
+### B2 in numbers: the 261× free win
+
+`evaluate_snn` scored `mse_between(encoded, reconstruction)` — the target was the *encoded*
+tensor. Different encodings have wildly different variance, so a model that learns nothing
+at all still scores very differently depending on which encoding it drew:
+
+| Encoding | Target | MSE of a trivial (mean-predicting) model |
+|---|---|---|
+| `direct` | z-scored analog values | **1.000** |
+| `poisson` | Bernoulli 0/1, p ≈ 0.5 | **0.247** |
+| `latency` | 0/1 with ~99.6% zeros | **0.0038** |
+
+The GA minimizes validation MSE. Selecting `latency` therefore bought a **261× lower score
+for free**, with no reconstruction skill involved. The search would have reported "the GA
+discovered latency coding is best" when it had discovered that sparse targets have small
+variance.
+
+**Fix (user decision, 2026-09-22): reconstruct the ORIGINAL signal.** Every model — the
+SNN *and* all three baselines — is now scored against `make_reconstruction_target(window, T)`:
+the original z-scored window, repeated across the T steps. The target no longer depends on
+the encoding at all, which is exactly the property `TargetVarianceIsIdenticalAcrossEncodings`
+asserts. `val_mse` is now comparable across encodings, and the GA's encoding gene competes
+on reconstruction quality alone.
+
+### What changed, file by file
+
+| File | Change |
+|---|---|
+| `src/core/training/Trainer.hpp` | **Core framework.** New `reset_model_state()` (calls `reset_state()` when the model has it) invoked before all four `forward()` sites; new `stack_time_major(parts)` building `(T*B, F)` with `out.at(t*B + b, f)`, throwing on shape disagreement and degenerating to the old `(B, F)` stacking at `T == 1`. Fixes B3 for every experiment, not just this one. |
+| `Meeting01Encoding.cpp` | `encode_sample(sample, encoding, seed, time_steps)` → `(T, F)` time-major; throws below `T = 2`. `latency` = exactly one spike per feature at `t_f = round((1 − scaled_f)·(T − 1))`; `poisson` = T Bernoulli draws per feature; `direct` holds the analog value at every step. New `make_reconstruction_target` and `reduce_time_major_output`. `conv1d_temporal_smooth` now smooths along the signal axis (columns) after the relayout. |
+| `Meeting01Training.cpp` | `make_snn_cfg` finally assigns `voltage_threshold` (B4) and sets `time_steps` from config, `delta_t = 1`, `R = 1`, `C = −1/ln(alpha)` so `beta = exp(−Δt/RC) = alpha` exactly. SNN training moved from `fit_autoencoder` to `fit_supervised` with explicit `(encoded, target)` pairs. |
+| `Meeting01AeCommon.hpp`, `Meeting01Evaluation.cpp` | `evaluate_ae` / `per_window_errors_ae` / `evaluate_lstm` / `evaluate_snn` / `per_window_errors_snn` all take `time_steps` and score against the original-signal target. Baselines keep the `to_lstm_frames` framing of the `(T, F)` tensor, so LSTM/GRU/Transformer parameter counts and the H=64 / latent=32 matching with the SNN are unchanged. |
+| `Meeting01GaSearch.cpp` | `tournament()` throws instead of spinning forever when the exclusion is unsatisfiable (H1). Winner's-curse mitigation (H5): each final Pareto-front member is re-scored on `winner_seeds` seeds and its `val_mse` replaced by the mean. |
+| `Meeting01Config.cpp` | Rejects `time_steps < 2`, `winner_seeds < 1`, and `population_size < 2` combined with `generations ≥ 1` — the last used to validate cleanly and then hang forever in `tournament()`. |
+| `Meeting01Metrics.cpp` | New `estimate_snn_macs(input_features, encoder_widths, time_steps)` summing real per-layer projections × steps. The old `(hidden_size, layers)` proxy gave `{128, 8}` and `{128, 120}` the same cost, so the GA's second objective could not tell a cheap architecture from an expensive one (H3). |
+| `Meeting01Experiment.cpp` | `SnnSelection` now records `encoding` (H6), and the model-selection manifest's `selected` block records `encoding`, `encoder_widths` and `time_steps` alongside `architecture`/`v_th`/`alpha`. Without those three the published network could not be rebuilt from the manifest — the GA searches a free-form shape *and* its encoding, so "architecture: dense" alone says almost nothing. Note the manifest's top-level `encoding` is the per-run loop label, not the winning genome's gene; they can differ. |
+| `profiles/*.json` + `profile_audit_gtest.cpp` | Four shipped profiles (`debug_nested`, `lstm-lightweight`, `minimal-dat-test`, `test-dat-writers`) plus flat-schema `debug.json` failed `validate()` outright (`early_stop_patience >= epochs`) and nothing caught it — the audit only covered the five *article* profiles by name. New `ProfileDirectoryAudit` walks the directory instead of a list, dispatching flat vs nested exactly as `Meeting01Cli::load_config` does, and separately requires every SNN-bearing profile to declare `time_steps >= 2` explicitly. `debug_nested.json` also gained `loso_max_*` caps: without them, `--cv-fold 0` silently ignores the pooled sample caps and trains on every window of FSDD (~105k batches/epoch) on a profile named "debug". |
+| `src/bindings/bind_meeting01.cpp` | `encode_sample` now requires `time_steps` (deliberately positional *before* `seed`, so an old caller breaks loudly rather than silently getting a different shape); `snn_ae_forward` feeds the `(T, F)` tensor in as is and returns `reconstruction_window` / `target_window` / `time_steps`. |
+
+### Paying for the 16× (the budget compensation)
+
+Real temporal simulation multiplies every forward and backward pass by T. At T = 16 that is
+a 16× bill, on a job that already ran for weeks. Two levers were used to pay it — the
+profile's window caps and the GA budget:
+
+| Knob | Before | After | Why |
+|---|---|---|---|
+| `model.time_steps` | 1 (hardcoded) | **16** | the whole point |
+| `loso_max_train_windows` | 1200 | **200** | the dominant cost (30 epochs × fwd+bwd × T) |
+| `loso_max_val_windows` | 300 | **150** | evaluated every epoch for early stopping |
+| `loso_max_test_windows` | 1500 | **1500 (unchanged)** | forward-only, and these windows *are* the recording-level statistical unit — cutting them buys little compute and costs statistical power directly |
+| `ga.population_size` × `(1 + generations)` | 10 × 9 = 90 | **8 × 6 = 48** | fewer trainings per cell |
+| `ga.winner_seeds` | — | **3** | new cost: `\|front\|` × 2 extra trainings per cell, buying the winner's-curse fix |
+
+Net effect ≈ 1.8× the old wall-clock, i.e. still weeks, not months. The window caps apply
+to the SNN and the baselines alike, so the reduction is matched across the comparison — all
+arms train on the same 200 windows. Absolute reconstruction quality will be lower than the
+old tables for every model; the *comparison* stays fair.
+
+### New config keys
+
+| Key | Default | Meaning |
+|---|---|---|
+| `model.time_steps` | 16 | simulation steps per window. **< 2 is rejected at validation**, not clamped |
+| `evaluation.ga.winner_seeds` | 3 | seeds each final Pareto-front member is re-scored on before `pick_winner`. 1 disables the mitigation |
+
+Production profiles (`meeting01-loso`, `article-*`) declare `time_steps: 16`;
+dev/smoke profiles (`debug_nested`, `minimal-dat-test`, `test-dat-writers`, `lstm-compare`,
+`lstm-default`, `lstm-deep`, `lstm-lightweight`) use `4` with `winner_seeds: 1` to stay fast
+while remaining legal.
+
+### `snn_time_steps` → `time_steps`: the name was lying about who it affects
+
+The field used to be called `model.snn_time_steps`. The `snn_` prefix said "this is an SNN
+knob, the baselines are not affected". That was false, and the false half is the dangerous
+half: `run_baseline` (`Meeting01Experiment.cpp`) reads the very same field, because the
+baselines are trained on the same encoded tensor. So it sets the **LSTM/GRU/Transformer
+unroll length** as well:
+
+```
+sequence length fed to the baseline = T * window_size / lstm_frame_size
+
+T = 1,  window 256, frame 8  ->   32 frames    (the pre-2026-09-22 layout)
+T = 16, window 256, frame 8  ->  512 frames    (now)
+```
+
+Two profiles were inheriting it invisibly and were caught only by the new audit:
+
+- `article-lstm-ae.json` — a **production** profile feeding the paper's LSTM-AE numbers.
+  It happened to inherit 16, matching `article-snn-*`, so the comparison was never wrong;
+  but nothing in the profile said so, and a change to the struct default would have
+  silently desynchronised the two arms of the published comparison.
+- `lstm-bench.json` — the LSTM throughput benchmark behind
+  [LSTM Performance](../Guides/LSTM-Performance.md). Its recorded wall time was measured
+  at a 16× shorter unroll and is now stale. Flagged there.
+
+`EveryProfileDeclaresTimeStepsExplicitly` now requires the field on every nested profile,
+LSTM-only ones included.
+
+**The field was renamed to `model.time_steps` on the user's decision (2026-09-22).** The
+Python demo `src/demos/pyDemos/multimodal_eeg_audio/` keeps its own unrelated
+`snn_time_steps` and was deliberately left alone.
+
+A profile still carrying the old key is **rejected**, not quietly ignored:
+
+```
+Meeting01Config: 'snn_time_steps' was renamed to 'time_steps' on 2026-09-22 (the field
+sets the unroll length for the LSTM/GRU/Transformer baselines too, not only the SNN's
+membrane depth). Remedy: rename the key to 'time_steps' in this profile. Do NOT delete
+it — dropping the key would silently fall back to the default of 16 steps.
+```
+
+Ignoring the stale key would have meant falling back to the 16-step default — a run that
+completes and reports a plausible number under a temporal resolution nobody chose, which
+is precisely the failure class this audit existed to remove. Copies of these profiles live
+on the cluster, so the old key will resurface; `RenamedKey.OldSnnTimeStepsKeyIsRejectedNotIgnored`
+covers both the stale-key-only and both-keys-present cases.
+
+### Dev-profile GA budgets were inherited, and the CLI default was the worst case
+
+Four profiles declared an SNN arm but no `evaluation.ga` block, so they silently ran the
+struct default of population 10 × (1 + 8 generations) = **90 evaluations**. The worst of
+them is `lstm-compare.json`, which is what the CLI runs when given no
+`--comparative-config` at all (`Meeting01Cli.cpp`: `kDefaultComparativeProfileStem`).
+
+Measured on this machine (FSDD, window 256, 500 train windows, `T = 4`, 12 threads):
+**SNN ≈ 4 s/epoch, LSTM-AE ≈ 62 s/epoch.** Extrapolating over each profile's own
+`epochs`/`repeats`/`encodings`:
+
+| Profile | GA budget before → after | Est. SNN time | Est. baseline time | Est. total after |
+|---|---|---|---|---|
+| `lstm-compare` (CLI default) | 90 → **24** (6×(1+3)) | 30 h → 8 h | 15.5 h | **≈ 24 h** |
+| `lstm-default` | 90 → **8** (4×(1+1)) | ~20 h → 1.8 h | ~3.4 h | **≈ 5 h** |
+| `lstm-deep` | 90 → **8** (4×(1+1)) | ~20 h → 1.8 h | ~3.4 h | **≈ 5 h** |
+| `lstm-lightweight` | 90 → **2** (2×(1+0)) | minutes → seconds | seconds | **seconds** |
+
+`SnnProfilesDeclareTheirGaBudgetExplicitly` now requires the block, so a new profile
+cannot inherit a 90-evaluation search by omission.
+
+**The remaining ~24 h in `lstm-compare` is deliberate (user decision, 2026-09-22).** After
+the GA fix, what is left is the profile's *own* `epochs: 100` × `repeats: 3` × 3 encodings
+on the baseline loop — 15.5 h that no GA budget can touch. Cutting it to ~2.5 h (30 epochs,
+1 repeat) was offered and **declined**: those numbers define what the profile measures, and
+1 repeat would drop the standard deviation. So the CLI default is a ~24 h run by choice,
+not by omission — the difference that matters, since the same 24 h reached by inheriting a
+struct default is a trap and this one is a decision.
+
+### Why `winner_seeds` exists
+
+The GA scores each genome on one seed, then reports the best of ~48 noisy scores. The best
+of many noisy draws is biased high by construction — the *winner's curse*. Re-scoring only
+the final front (not all 48 genomes) on 3 seeds and publishing the mean makes the selected
+architecture reflect expected quality rather than one lucky initialization, at a cost
+proportional to the front size rather than the population.
+
+### Verified
+
+`meeting01_encoding_gtest` was rewritten from scratch (the old tests are what let B1
+through): time-major shape contract, `T < 2` rejection, exactly-one-spike-per-feature on a
+*varying* signal with an explicit `EXPECT_EQ(count_spikes(e), 256)` regression guard,
+Poisson firing rate tracking normalized amplitude over 4000 steps, and the
+encoding-independence of the target. `meeting01_ga_gtest` gained the first direct coverage
+of the selection machinery (`pick_winner` ordering and its empty-front throw, non-dominated
+sort, crowding boundary preservation, the `population_size = 1` validation guard, the MAC
+proxy fix).
+
+Whole tree: **3204 tests pass, 0 failing binaries**, including `trainer_gtest`, `core_gtest`
+and `paraconsistent_ga_gtest` — the `Trainer.hpp` change touches every experiment, so those
+were re-run deliberately. The `nn_microscope` Python bindings were configured and built
+under the `python-bindings` preset to confirm the new `encode_sample` signature compiles.
+
+End to end, the `meeting01` binary was run on a capped nested-LOSO smoke config (FSDD,
+fold 0, `T = 4`, 20/10/20 windows, population 1 × 0 generations): split → leakage gate →
+analytic-baseline dump → LSTM-AE baseline → GA → retrained winner → metrics CSVs, all the
+way to a `model_selection_manifest.json` carrying the winner's `encoder_widths`. **No
+production profile was run** — `meeting01-loso.json` remains a multi-week cluster job.
+
+### Consequence for the Results tables below
+
+They are now **twice** superseded: once by the 2026-09-21 encoding fixes, and again by
+everything in this section. Under `T = 1` the reported SNN numbers describe a network with
+no membrane dynamics, an inert `alpha`, an unset `voltage_threshold`, a latency encoding
+emitting ~1 spike per window, and an encoding-dependent target. They are not a weaker
+version of the current result — they measure a different object. Treat them as historical
+until the LOSO pipeline is rerun.
+
+---
+
 
 ## Theoretical Background
 
@@ -573,9 +830,16 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 > for what replaced it). The grid code no longer exists, so these numbers cannot be
 > reproduced by re-running the current binary — they describe the files already on disk
 > in `results/`, not the current search mechanism. Row counts (e.g. "81 rows") describe
-> those existing CSVs, not what a fresh GA run would produce (~270 rows for the same
+> those existing CSVs, not what a fresh GA run would produce (~144 rows at the current
 > population/generations/seeds budget). Treat this whole section as a snapshot to be
 > superseded once a real GA run completes.
+>
+> **They are also pre-`T=16`.** These SNN numbers were produced at `time_steps = 1`, with
+> no membrane dynamics, an inert `alpha`, an unset `voltage_threshold`, a latency encoding
+> emitting ~1 spike per 256-sample window, and an encoding-dependent reconstruction target.
+> See [The Missing Time Axis](#the-missing-time-axis-found--fixed-2026-09-22-second-pre-gridunesp-audit).
+> They do not describe a weaker version of the current SNN — they describe a different
+> model.
 
 All results from 3 independent runs, FSDD dataset, window size 256, Adam(lr=1e-3, β₁=0.9, β₂=0.999), up to 30 epochs with early stopping (patience=10). SNN: 2 linear layers (64→32 latent). LSTM: 1-layer hidden=64, latent=32.
 
@@ -749,16 +1013,18 @@ plain Pareto dominance. Haploid, not diploid: the diploidy paraconsistentGA uses
 specifically to hedge against `d_penalized`'s known false optimum (the Ambiguity
 vertex); that rationale does not transfer here.
 
-Budget: population=10, generations=8 by default (`Meeting01Config::Ga`'s struct
-defaults), μ+λ elitism, up to 90 evaluations per (dataset, fold, seed). Every
-SNN-bearing profile shipped in `profiles/` now declares `evaluation.ga` explicitly
-(population/generations/`voltage_threshold_min-max`/`alpha_min-max`) rather than
-relying on the invisible struct default, so the search budget for a paper run is
-readable straight from the profile. Because `encoding` moved from an outer sweep loop
-into the genome, the real total is close to the old grid's — **≈8100 SNN-AE trainings
-vs. the old grid's 7560 (≈7% more, not the population×generations multiplier alone
-would suggest)** — removing the ×3 outer encoding loop for the SNN arm offsets most of
-the larger per-run budget.
+Budget: **population=8, generations=5** in the shipped production profiles, μ+λ elitism,
+48 evaluations per (dataset, fold, seed), plus `|Pareto front| × (winner_seeds − 1)`
+re-scorings of the final front. This was cut from the originally planned 10×9=90 on
+2026-09-22 to help pay for real temporal simulation (`time_steps = 16`) — see
+[The Missing Time Axis](#the-missing-time-axis-found--fixed-2026-09-22-second-pre-gridunesp-audit)
+for the full compensation table. Every SNN-bearing profile shipped in `profiles/` declares
+`evaluation.ga` explicitly (population/generations/`winner_seeds`/`voltage_threshold_min-max`/
+`alpha_min-max`) rather than relying on the invisible struct default, so the search budget
+for a paper run is readable straight from the profile. Because `encoding` moved from an
+outer sweep loop into the genome, one GA run covers all three encodings jointly — removing
+the ×3 outer encoding loop for the SNN arm is what made the reduced budget affordable
+without shrinking the searched space.
 
 **Consequence for results framing (real, not a bug).** The old grid's `evaluation.encodings`
 loop applied the *same* encoding to the SNN **and** the baselines for each of 3 rows —
@@ -787,11 +1053,15 @@ analogue is the GA's own encoding-selection frequency, logged per individual in
 | `Meeting01Experiment.cpp`: `finalize_snn_selection` | The nested-LOSO final retrain-on-train∪val + test-evaluation tail: retrains the GA winner from `run_snn_ga_search`, early-stops on the carved recording-disjoint monitor, evaluates once on the held-out test speaker |
 | `Meeting01Experiment.cpp`: `run_snn_ga_search` | Builds the initial population, runs the generational NSGA-II loop, picks the winning genome from the rank-0 Pareto front — the only entry point into the SNN arm |
 
-Tests: `tests/meeting01_ga_gtest.cpp` (genome legality, the free-form `to_ae_config`
+Tests: `tests/meeting01_ga_gtest.cpp` — genome legality, the free-form `to_ae_config`
 path reproducing today's fixed profile shape as a regression anchor, checkpoint
-round-trip, the shared NSGA-II core contract). Paper text changes (Limitations /
-Methodology) are deliberately **not** part of this change — they need a real GA run's
-results to write accurately.
+round-trip, the shared NSGA-II core contract, and (added 2026-09-22) the selection
+machinery itself: `pick_winner`'s (val_mse, then cost) ordering and its empty-front throw,
+non-dominated sort separating dominated individuals, crowding preserving the front's
+boundary solutions, the `population_size = 1 with generations ≥ 1` validation guard that
+replaced an infinite loop, and the MAC proxy distinguishing `{128, 8}` from `{128, 120}`.
+Paper text changes (Limitations / Methodology) are deliberately **not** part of this
+change — they need a real GA run's results to write accurately.
 
 ## See Also
 
