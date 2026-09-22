@@ -59,7 +59,7 @@ During the **forward pass** (computing the output), the network uses the real sp
 
 During the **backward pass** (computing gradients), instead of using the true gradient (which is zero), the network pretends the spike function has a smooth, differentiable shape — the **surrogate gradient**.
 
-The project uses the **exponential surrogate** (also called SuperSpike):
+The framework's default is the **exponential surrogate** (also called SuperSpike):
 
 ```
 True gradient: 0 everywhere except exactly at threshold (undefined)
@@ -68,6 +68,12 @@ Surrogate:     β × exp(−β × |voltage − threshold|)
 ```
 
 This is a "white lie" told only during backpropagation. It gives a non-zero gradient for neurons close to threshold, enabling the weights to be adjusted in the right direction.
+
+The `meeting01` experiment (the SNN-vs-LSTM/GRU/Transformer comparative study) opts into a
+different one, **ArcTan** — the same shape as the default in snnTorch (a widely used SNN
+library) since 2023. Its bump is wider in the tails, so a neuron sitting a bit further from
+threshold still gets a usable gradient instead of one that's already decayed to nearly zero.
+Both are "smooth bump peaked at the threshold" shapes; ArcTan's bump just falls off slower.
 
 ---
 

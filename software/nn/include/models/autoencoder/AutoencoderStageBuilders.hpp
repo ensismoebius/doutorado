@@ -66,6 +66,15 @@ inline void append_ann_activation(Sequential& seq, const std::string& activation
     throw std::invalid_argument("Unsupported ANN activation type: " + activation_type);
 }
 
+// cfg.surrogate_gradient overrides the LifBPTT default (ExponentialSurrogate) when set;
+// unset (nullptr, the common case) reproduces the exact prior behavior for every caller
+// that never touches the field.
+inline auto resolved_surrogate(const AutoencoderConfig& cfg) -> std::shared_ptr<ISurrogateGradient>
+{
+    return cfg.surrogate_gradient ? cfg.surrogate_gradient
+                                  : std::make_shared<ExponentialSurrogate>();
+}
+
 // Reject an unset/invalid BPTT sequence length instead of assuming 1. Assuming 1 would
 // silently turn LifBPTT into a single-step Lif — a model that trains, reports a loss,
 // and has no temporal credit assignment whatsoever.
@@ -87,8 +96,15 @@ inline void append_snn_activation(
     if (activation_type == "leaky")
     {
         require_time_steps(cfg.time_steps);
-        seq.add_module(std::make_shared<LifBPTT>(
-            cfg.time_steps, cfg.delta_t, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
+        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
+            cfg.delta_t,
+            cfg.resistance,
+            cfg.capacitance,
+            cfg.voltage_threshold,
+            /*reset_zero=*/true,
+            /*reset_potential=*/0.0F,
+            /*readout_mode=*/false,
+            resolved_surrogate(cfg)));
         return;
     }
     if (activation_type == "leaky_integrator")
@@ -103,7 +119,8 @@ inline void append_snn_activation(
             /*voltage_threshold=*/1.0F,
             /*reset_zero=*/true,
             /*reset_potential=*/0.0F,
-            /*readout_mode=*/true));
+            /*readout_mode=*/true,
+            resolved_surrogate(cfg)));
         return;
     }
     if (activation_type == "identity")
@@ -285,11 +302,20 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
             /*voltage_threshold=*/1.0F,
             /*reset_zero=*/true,
             /*reset_potential=*/0.0F,
-            /*readout_mode=*/true));
+            /*readout_mode=*/true,
+            resolved_surrogate(cfg)));
     }
     else
     {
-        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps, delta_t, resistance, capacitance));
+        seq.add_module(std::make_shared<LifBPTT>(cfg.time_steps,
+            delta_t,
+            resistance,
+            capacitance,
+            /*voltage_threshold=*/1.0F,
+            /*reset_zero=*/true,
+            /*reset_potential=*/0.0F,
+            /*readout_mode=*/false,
+            resolved_surrogate(cfg)));
     }
 }
 

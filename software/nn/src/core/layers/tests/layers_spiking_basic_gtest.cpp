@@ -505,6 +505,8 @@ TEST(SurrogateGradientTest, ThrowsOnInvalidHyperparameters)
     EXPECT_THROW((void) ExponentialSurrogate(-1.0F), std::invalid_argument);
     EXPECT_THROW((void) BoxcarSurrogate(0.0F), std::invalid_argument);
     EXPECT_THROW((void) BoxcarSurrogate(-0.5F), std::invalid_argument);
+    EXPECT_THROW((void) ArcTanSurrogate(0.0F), std::invalid_argument);
+    EXPECT_THROW((void) ArcTanSurrogate(-2.0F), std::invalid_argument);
 }
 
 // BoxcarSurrogate.width() accessor (BoxcarSurrogate.hpp line 42)
@@ -512,6 +514,31 @@ TEST(SurrogateGradientTest, BoxcarSurrogateWidthAccessor)
 {
     BoxcarSurrogate surrogate(0.5F);
     EXPECT_FLOAT_EQ(surrogate.width(), 0.5F);
+}
+
+// ArcTanSurrogate: gradient of (1/pi)*arctan(pi*alpha*U/2) w.r.t. U, at U=0 (v_mem ==
+// threshold) reduces exactly to alpha/2 with no transcendental arithmetic to hand-verify.
+TEST(SurrogateGradientTest, ArcTanPeaksAtAlphaOverTwoWhenAtThreshold)
+{
+    ArcTanSurrogate surrogate(2.0F);
+    nn::Tensor v_mem_tensor(1, 1);
+    v_mem_tensor.at(0, 0) = 2.0F; // == threshold -> diff = 0
+    auto grad = surrogate.calculate(v_mem_tensor, 2.0F);
+    ASSERT_NEAR(grad.at(0, 0), 1.0F, 1e-6F); // alpha/2 = 2.0/2
+}
+
+TEST(SurrogateGradientTest, ArcTanSymmetricAroundThreshold)
+{
+    ArcTanSurrogate surrogate(2.0F);
+    const float above = surrogate.calculate_scalar(2.3F, 2.0F);
+    const float below = surrogate.calculate_scalar(1.7F, 2.0F);
+    EXPECT_NEAR(above, below, 1e-6F);
+}
+
+TEST(SurrogateGradientTest, ArcTanAlphaAccessor)
+{
+    ArcTanSurrogate surrogate(3.5F);
+    EXPECT_FLOAT_EQ(surrogate.alpha(), 3.5F);
 }
 
 // Teste para LeakyReLU

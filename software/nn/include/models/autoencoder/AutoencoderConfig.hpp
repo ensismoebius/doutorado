@@ -1,9 +1,12 @@
 #ifndef NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP
 #define NN_MODELS_AUTOENCODER_AUTOENCODER_CONFIG_HPP
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "layers/spiking/ISurrogateGradient.hpp"
 
 namespace nn::models::autoencoder
 {
@@ -88,6 +91,14 @@ struct AutoencoderConfig
     float firing_rate_reg_lambda = 0.0F;
     float firing_rate_min = 0.05F; ///< Lower band edge (dead-neuron guard).
     float firing_rate_max = 0.80F; ///< Upper band edge (burst guard).
+
+    /// Optional override for the spike-derivative surrogate every LifBPTT stage
+    /// the SNN builders construct will use. nullptr (default) preserves each
+    /// LifBPTT's own default (ExponentialSurrogate) — existing callers that never
+    /// set this see no behavior change. Set explicitly to opt an experiment into
+    /// a different surrogate (e.g. ArcTanSurrogate) without touching every other
+    /// caller of these shared builders.
+    std::shared_ptr<ISurrogateGradient> surrogate_gradient = nullptr;
 
     // Initializer controls propagated from sampler options for reproducibility.
     std::optional<unsigned int> initializer_seed = std::nullopt;

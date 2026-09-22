@@ -207,6 +207,12 @@ quantization and SNN mechanics, opened live from the lecture slides
   recompute matches the persisted `*_paraconsistent.csv` to all 8 decimals.
 - `meeting01` `save_models` now also writes `NetworkSerializer` `.npz` for the SNN-AE
   encoder/decoder ([Meeting01 → Saved models](./Experiments/Meeting01.md#saved-models-datasetsave_models-true)).
+- Pre-GridUnesp SOTA audit of `meeting01` found and fixed three encoding/training bugs:
+  `poisson` was max-only normalized (silently zeroing negative post-z-score samples),
+  `latency` was a threshold-crossing code rather than canonical TTFS, and the SNN-AE used
+  the framework's default `ExponentialSurrogate` instead of ArcTan (snnTorch's default since
+  2023). New `ArcTanSurrogate` layer, opt-in via `AutoencoderConfig::surrogate_gradient`
+  ([Meeting01 → Encoding and Surrogate-Gradient Fixes](./Experiments/Meeting01.md#encoding-and-surrogate-gradient-fixes-found-fixed-2026-09-21-pre-gridunesp-audit)).
 
 ## Requirements
 

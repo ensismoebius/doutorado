@@ -13,6 +13,7 @@
 #include "Meeting01AeCommon.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "layers/spiking/ArcTanSurrogate.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 
@@ -156,6 +157,10 @@ auto make_snn_cfg(const Meeting01Config& cfg, float alpha, float v_th) -> Autoen
     model_cfg.branch_decoder_layer_spec = cfg.model.branch_decoder_layer_spec;
     model_cfg.fusion_encoder_layer_spec = cfg.model.fusion_encoder_layer_spec;
     model_cfg.fusion_decoder_layer_spec = cfg.model.fusion_decoder_layer_spec;
+    // ArcTan over the framework's ExponentialSurrogate default: snnTorch's default
+    // spike-derivative estimator since 2023, with heavier gradient tails that avoid
+    // the saturation exponential/boxcar surrogates show away from threshold.
+    model_cfg.surrogate_gradient = std::make_shared<ArcTanSurrogate>();
     return model_cfg;
 }
 

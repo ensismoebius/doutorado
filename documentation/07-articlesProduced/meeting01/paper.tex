@@ -242,7 +242,7 @@ charge for smoother gradients.
   \hat{\sigma}'(V) = \frac{1}{\sigma_s}
     \exp\!\left(-\frac{|V - V_{th}|}{\sigma_s}\right).
 \end{equation}
-\par Exponential surrogate gradient.  $\sigma_s$ controls the width of the approximation; $\sigma_s=1$ is used in this work.
+\par Exponential surrogate gradient.  $\sigma_s$ controls the width of the approximation.
 
 \textbf{Boxcar:}
 \begin{equation}
@@ -250,7 +250,16 @@ charge for smoother gradients.
 \end{equation}
 \par Boxcar surrogate gradient.  $w$ controls the width of the approximation.
 
-\par We use the exponential surrogate ($\sigma_s=1$).
+\textbf{ArcTan~\cite{eshraghian2023training}:}
+\begin{equation}
+  \hat{\sigma}'(V) = \frac{\alpha}{2\left(1 + \left(\frac{\pi}{2}\alpha(V-V_{th})\right)^2\right)}.
+\end{equation}
+\par ArcTan surrogate gradient, the default spike-derivative estimator in
+snnTorch since 2023. Compared to the exponential and boxcar surrogates above,
+its heavier tails keep gradient flowing further from threshold, avoiding the
+saturation those surrogates show away from $V_{th}$.
+
+\par We use the arctan surrogate ($\alpha=2$).
 BPTT \cite{werbos1990backpropagation} unrolls both LSTM and SNN through the
 full time dimension $T$; the reverse-time recurrence for layer $l$ is:
 \begin{equation}
@@ -318,22 +327,27 @@ ranking and is reported explicitly in the operation-count budget
 binarization.
 
 \textbf{Poisson.}  Each element is independently binarized via Bernoulli
-sampling \cite{neftci2019surrogate}:
+sampling \cite{neftci2019surrogate}, normalized over the window's full range
+so that sub-mean (post-z-score negative) samples keep a nonzero firing
+probability rather than being clipped to zero:
 \begin{equation}
   \tilde{x}_i \sim \mathrm{Bernoulli}\!\left(\mathrm{clip}\!\left(
-    \frac{x_i}{x_{\max}},\;0,\;1\right)\right).
+    \frac{x_i - x_{\min}}{x_{\max}-x_{\min}},\;0,\;1\right)\right).
 \end{equation}
-\par Where $x_{\max}$ is the maximum value in the window after z-score normalization, 
-     ensuring the Bernoulli parameter is in $[0,1]$.
+\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the
+window after z-score normalization, respectively --- the same range used by
+the latency encoding below, so the two encodings see identical signal
+magnitude information and differ only in how it is temporally coded.
 
-\textbf{Latency.} A binary step fires once per element from a time
-inversely proportional to signal strength \cite{thorpe1998rank}:
+\textbf{Latency.} A single spike fires per element, at a time
+inversely proportional to signal strength (time-to-first-spike coding)
+\cite{thorpe1998rank,comsa2020temporal}:
 \begin{equation}
-  \tilde{x}_{t,i} = \mathbf{1}\!\left[t \geq
+  \tilde{x}_{t,i} = \mathbf{1}\!\left[t =
     \left\lfloor\!\left(1 - \frac{x_i - x_{\min}}{x_{\max}-x_{\min}}
     \right)(T-1)\right\rceil\right].
 \end{equation}
-\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the window after z-score normalization, respectively.  Stronger signals fire earlier; weaker signals fire later.
+\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the window after z-score normalization, respectively.  Stronger signals fire earlier; weaker signals fire later; each element fires exactly once.
 
 \begin{figure}[!t]
   \centering
@@ -775,9 +789,20 @@ implementation and backend, not silicon-level energy.
   \item \textbf{Correlated windows.} Non-overlapping windows of one recording
         remain correlated, so window-level statistics are pseudoreplicated and
         used descriptively only.
-  \item \textbf{Approximate parameter matching.} The Transformer-AE is sized
-        \emph{near}, not equal to, the recurrent baselines; the summary tables
-        reports the real counts so cost and quality can be read together.
+  \item \textbf{Dimension-matched, not parameter-matched.} SNN-AE, LSTM-AE,
+        GRU-AE, and Transformer-AE share the same hidden width ($H=64$) and
+        latent size ($d=32$), not the same trainable parameter count $P$.
+        Dropping the LSTM cell state removes one gate's worth of parameters
+        per layer, so GRU-AE is strictly smaller than LSTM-AE at identical
+        $H$; the Transformer-AE is sized \emph{near}, not equal to, the
+        recurrent baselines; and the SNN-AE carries its own biophysical
+        parameters ($R$, $C$, $V_{th}$) with no non-spiking analogue. This
+        follows the common convention in SNN-vs-ANN comparisons of matching
+        architectural dimensions rather than raw parameter count, but it
+        means a quality gap partly reflects a capacity gap, not only an
+        inductive-bias difference. The summary tables report each model's
+        real $P$ (Table~\ref{tab:perf-fsdd} and following) precisely so cost
+        and quality can be read together rather than assumed equal.
 \end{itemize}
 
 \par All results are loaded directly from experiment-generated CSV files; the

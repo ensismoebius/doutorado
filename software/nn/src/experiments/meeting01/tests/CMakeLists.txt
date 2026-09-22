@@ -179,6 +179,33 @@ target_link_libraries(parameter_count_gtest
 gtest_discover_tests(parameter_count_gtest)
 configure_xtensor_parallel_target(parameter_count_gtest)
 
+# Encoding audit: latency is canonical single-spike TTFS; poisson normalizes over
+# the full [min, max] range (not max-only), so sub-mean/negative post-z-score
+# samples keep a real firing probability.
+add_executable(meeting01_encoding_gtest
+    meeting01_encoding_gtest.cpp
+)
+
+target_include_directories(meeting01_encoding_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(meeting01_encoding_gtest
+    PRIVATE
+        google_test
+        meeting01_lib
+        autoencoderRunner_lib
+        tensor
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(meeting01_encoding_gtest)
+configure_xtensor_parallel_target(meeting01_encoding_gtest)
+
 # Split audit: nested LOSO fold assignment is speaker/recording/window disjoint.
 add_executable(meeting01_split_audit_gtest
     split_audit_gtest.cpp

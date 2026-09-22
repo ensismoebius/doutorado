@@ -9,6 +9,7 @@
 
 #include "gtest/gtest.h"
 #include "layers/Layers.hpp"
+#include "layers/spiking/ArcTanSurrogate.hpp"
 #include "layers/spiking/BoxcarSurrogate.hpp"
 #include "layers/spiking/ExponentialSurrogate.hpp"
 
@@ -423,4 +424,59 @@ TEST(SurrogateGradientMechanismTest, InvalidHyperparametersThrow)
 {
     EXPECT_THROW(BoxcarSurrogate(0.0F), std::invalid_argument);
     EXPECT_THROW(ExponentialSurrogate(0.0F), std::invalid_argument);
+    EXPECT_THROW(ArcTanSurrogate(0.0F), std::invalid_argument);
+}
+
+TEST(SurrogateGradientMechanismTest, ArcTanSurrogateMonotonicallyDecreasesAwayFromThreshold)
+{
+    ArcTanSurrogate surrogate(2.0F);
+    nn::Tensor center(1, 1);
+    nn::Tensor mid(1, 1);
+    nn::Tensor far(1, 1);
+    center.at(0, 0) = 0.0F;
+    mid.at(0, 0) = 0.5F;
+    far.at(0, 0) = 1.0F;
+    const float g0 = surrogate.calculate(center, 0.0F).at(0, 0);
+    const float g1 = surrogate.calculate(mid, 0.0F).at(0, 0);
+    const float g2 = surrogate.calculate(far, 0.0F).at(0, 0);
+    EXPECT_GT(g0, g1);
+    EXPECT_GT(g1, g2);
+}
+
+TEST(SurrogateGradientMechanismTest, ArcTanSurrogateAlphaEffect)
+{
+    // At threshold (diff=0) the gradient reduces exactly to alpha/2.
+    nn::Tensor tensor(1, 1);
+    tensor.at(0, 0) = 0.0F;
+    EXPECT_NEAR(ArcTanSurrogate(1.0F).calculate(tensor, 0.0F).at(0, 0), 0.5F, 1e-6F);
+    EXPECT_NEAR(ArcTanSurrogate(4.0F).calculate(tensor, 0.0F).at(0, 0), 2.0F, 1e-6F);
+}
+
+// Integration check for the actual production path (LifBPTT::compute_grad_step calls
+// surrogate_gradient->calculate_scalar() generically, no per-type special-casing) --
+// meeting01 opts every LifBPTT stage into ArcTanSurrogate via AutoencoderConfig, so this
+// pins that it flows through correctly end to end, not just as an isolated unit.
+TEST(SurrogateGradientMechanismTest, LifBPTTWithArcTanSurrogateProducesExactPeakGradient)
+{
+    nn::LifBPTT layer(1, // time_steps
+        1.0F,            // delta_t
+        1.0F,            // resistance
+        1.0F,            // capacitance
+        1.0F,            // voltage_threshold
+        true,            // reset_zero
+        0.0F,            // reset_potential
+        false,           // readout_mode
+        std::make_shared<ArcTanSurrogate>(2.0F));
+
+    const nn::Tensor input = make_const(1, 1, 1.0F); // v_pre == threshold -> diff = 0
+    const nn::Tensor output = layer.forward(input, true);
+    EXPECT_EQ(output.at(0, 0), 0.0F); // spike condition is v_pre > threshold, strict
+
+    nn::Tensor grad_out(1, 1);
+    grad_out.at(0, 0) = 1.0F;
+    const nn::Tensor grad_in = layer.backward(grad_out);
+
+    // grad_from_next is 0 (single time step), so grad_in = grad_out * surr(diff=0) =
+    // 1.0 * alpha/2 = 1.0, exactly -- no transcendental call needed at diff=0.
+    EXPECT_NEAR(grad_in.at(0, 0), 1.0F, 1e-6F);
 }

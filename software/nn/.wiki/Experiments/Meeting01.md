@@ -165,6 +165,59 @@ logs stay free of cursor-control sequences.
 
 ---
 
+## Encoding and Surrogate-Gradient Fixes (found + fixed 2026-09-21, pre-GridUnesp audit)
+
+> **The problem this fixes.** A state-of-the-art audit ahead of the GridUnesp submission
+> found `Meeting01Encoding.cpp`'s `poisson` and `latency` encodings — the core independent
+> variable of the encoding comparison — diverging from both the literature and this
+> project's own paper text (`documentation/07-articlesProduced/meeting01/paper.tex` already
+> described the intended full-range design; the code had drifted from it).
+>
+> **Poisson encoding normalized by `max_v` only** (`clamp(sample/max_v, 0, 1)`). Every
+> sub-mean, post-z-score sample — roughly half the signal, by construction — is negative,
+> so it was silently clamped to firing probability 0. `latency`, by contrast, already used
+> the full `(sample - min_v) / range`. This asymmetry meant `poisson` and `latency` were not
+> being compared on the same information content: one discarded half the window's dynamic
+> range, the other didn't. **Fix:** `poisson` now uses the same full-range
+> `(sample - min_v) / range` as `latency`.
+>
+> **Latency encoding was a threshold-crossing/step code, not TTFS.** `encoded.at(t,d) =
+> (t >= t_spike) ? 1 : 0` fires at `t_spike` and *stays on* afterward (~50% duty-cycle
+> spike trains), whereas canonical time-to-first-spike coding (Thorpe; Mostafa 2017; Comşa
+> et al. 2020/2021) is exactly one spike per channel, silent otherwise. **Fix:**
+> `(t == t_spike) ? 1 : 0` — single spike, matching the paper's own description
+> ("A binary step fires once per element") which the old code never actually implemented.
+>
+> **Surrogate gradient.** `meeting01`'s SNN-AE previously fell back on the framework's
+> `ExponentialSurrogate` default (see [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md#surrogate-gradient-methods)).
+> ArcTan has been the default spike-derivative estimator in snnTorch since 2023, with
+> heavier gradient tails that avoid the saturation Exponential/Boxcar show away from
+> threshold. A new opt-in field, `AutoencoderConfig::surrogate_gradient` (default
+> `nullptr` — every other experiment's behavior is unchanged), lets `meeting01::make_snn_cfg`
+> (`Meeting01Training.cpp`) select `ArcTanSurrogate` without touching `thesis`/
+> `autoencoderRunner`/demos. `LifBPTT::compute_grad_step` already calls
+> `surrogate_gradient->calculate_scalar()` polymorphically — no per-type special-casing —
+> so this is a config-level swap, not a new code path per surrogate.
+>
+> **Parameter matching.** The paper's Limitations section ("Dimension-matched, not
+> parameter-matched") now explicitly covers the whole comparison set (SNN-AE, LSTM-AE,
+> GRU-AE, Transformer-AE share $H=64$/$d=32$, not trainable-parameter count $P$), not just
+> the Transformer-AE as before — `parameter_count_gtest.cpp` already verifies GRU-AE has
+> fewer parameters than LSTM-AE at matched dims (3 gates vs. 4), and the SNN-AE carries its
+> own biophysical parameters ($R$, $C$, $V_{th}$) with no non-spiking analogue.
+>
+> **Verified.** New direct coverage for `Meeting01Encoding.cpp` (`meeting01_encoding_gtest`,
+> previously zero) plus new `ArcTanSurrogate` unit + `LifBPTT` integration tests
+> (`layers_spiking_basic_gtest`, `spiking_mechanisms_gtest`) — 111 tests, zero regressions.
+> Re-validated end to end with the GridUnesp docker toolchain sim (138/138 build steps).
+>
+> **Consequence for the Results tables below.** They were generated under the *pre-fix*
+> encoding implementation — the Poisson numbers in particular reflect the max-only bug, and
+> the specific MSE/R²/spike-rate values will change on the next LOSO run. Treat them as
+> historical (pre-2026-09-21), not current, until the pipeline is rerun.
+
+---
+
 
 ## Theoretical Background
 

@@ -31,14 +31,20 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
 
     if (encoding == "poisson")
     {
+        // Full-range min-max normalization, same as "latency" below, so both
+        // codings see identical signal magnitude information — a max-only
+        // normalization would clamp every sub-mean, post-z-score sample (half
+        // the signal, by construction) to firing probability 0, confounding
+        // the encoding comparison with an information-asymmetry that has
+        // nothing to do with rate vs. temporal coding.
         std::mt19937 rng(seed);
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        const float max_only = std::max(max_v, 1e-6f);
         for (nn::Index t = 0; t < sample.rows(); ++t)
         {
             for (nn::Index d = 0; d < sample.cols(); ++d)
             {
-                const float p = std::clamp(sample.at(t * sample.cols() + d) / max_only, 0.0f, 1.0f);
+                const float p =
+                    std::clamp((sample.at(t * sample.cols() + d) - min_v) / range, 0.0f, 1.0f);
                 encoded.at(t, d) = (dist(rng) < p) ? 1.0f : 0.0f;
             }
         }
@@ -47,6 +53,9 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
 
     if (encoding == "latency")
     {
+        // Canonical time-to-first-spike (TTFS): exactly one spike per channel,
+        // at t_spike (larger values fire earlier). Not a threshold-crossing
+        // code that stays on — that would be a dense step code, not TTFS.
         const nn::Index T = sample.rows();
         for (nn::Index t = 0; t < sample.rows(); ++t)
         {
@@ -55,7 +64,7 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
                 const float scaled = (sample.at(t * sample.cols() + d) - min_v) / range;
                 const nn::Index t_spike = static_cast<nn::Index>(std::llround(
                     (1.0f - scaled) * static_cast<float>(std::max<nn::Index>(1, T - 1))));
-                encoded.at(t, d) = (t >= t_spike) ? 1.0f : 0.0f;
+                encoded.at(t, d) = (t == t_spike) ? 1.0f : 0.0f;
             }
         }
         return encoded;

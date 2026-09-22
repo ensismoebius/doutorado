@@ -22,6 +22,7 @@ set(_exclude_patterns
     ".*/spiking/ISurrogateGradient\\.hpp$"
     ".*/spiking/BoxcarSurrogate\\.hpp$"
     ".*/spiking/ExponentialSurrogate\\.hpp$"
+    ".*/spiking/ArcTanSurrogate\\.hpp$"
     ".*/spiking/SurrogateGradient\\.hpp$"  # umbrella include
     ".*/layers/Layers\\.hpp$"        # the generated file itself — avoid self-include
     ".*/activations/FastActivations\\.hpp$"  # inline functions only, no FooImpl<Backend> class

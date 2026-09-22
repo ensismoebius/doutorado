@@ -41,6 +41,16 @@ $$\frac{\partial s}{\partial V} \approx \begin{cases} 1 & |V - V_{th}| < w/2 \\ 
 
 Where $\alpha$ (sharpness) or $w$ (window width) are hyperparameters.
 
+**ArcTan** [27] — the default surrogate in snnTorch since 2023:
+$$\frac{\partial s}{\partial V} \approx \frac{\alpha}{2\left(1 + \left(\frac{\pi}{2}\alpha (V - V_{th})\right)^2\right)}$$
+
+Where $\alpha$ controls sharpness (peak value $\alpha/2$ at $V=V_{th}$). Compared to Exponential
+and Boxcar above, ArcTan's heavier tails keep gradient flowing further from threshold, which is
+why `meeting01` (Experiment04, SNN-vs-LSTM/GRU/Transformer comparative study) opts every LifBPTT
+stage into it via `AutoencoderConfig::surrogate_gradient` rather than the framework's
+`ExponentialSurrogate` default — see
+[Meeting01](../Experiments/Meeting01.md#encoding-and-surrogate-gradient-fixes-found-fixed-2026-09-21-pre-gridunesp-audit).
+
 ### Spike-Frequency Adaptation
 
 To prevent bursting and improve temporal coding, an adaptation variable $a[t]$ raises the effective threshold after each spike [35]:
@@ -107,6 +117,31 @@ public:
     }
 };
 ```
+
+### ArcTan Surrogate
+
+```cpp
+// File: include/layers/spiking/ArcTanSurrogate.hpp
+class ArcTanSurrogate : public ISurrogateGradient
+{
+    float alpha_ = 2.0f;
+public:
+    explicit ArcTanSurrogate(float alpha = 2.0f) : alpha_(alpha) {}
+    float calculate_scalar(float v_mem_pre_spike, float voltage_threshold) const override
+    {
+        const float diff = v_mem_pre_spike - voltage_threshold;
+        const float x = (std::numbers::pi_v<float> / 2.0f) * alpha_ * diff;
+        return alpha_ / (2.0f * (1.0f + x * x));
+    }
+};
+```
+
+`LifBPTTImpl::backward` calls `surrogate_gradient->calculate_scalar()` generically through the
+`ISurrogateGradient` interface (no per-type special-casing), so any surrogate — including this
+one — flows through the real BPTT gradient path unmodified. `LifImpl::backward` (the
+single-step neuron), by contrast, special-cases `ExponentialSurrogate`/`BoxcarSurrogate` via
+`dynamic_cast` and falls back to the exponential formula for anything else; `ArcTanSurrogate`
+is only wired through `AutoencoderConfig`/`LifBPTT`, not through `LifImpl`.
 
 ### Single-Step Spiking Neuron (LifImpl)
 
@@ -331,7 +366,9 @@ flowchart TB
 
 [26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023. [Online]. Available: https://www.science.org/doi/10.1126/sciadv.adi1480
 
-[27] W. Gerstner and W. M. Kistler, *Spiking Neuron Models: Single Neurons, Populations, Plasticity*. Cambridge University Press, 2002.
+[21] W. Gerstner and W. M. Kistler, *Spiking Neuron Models: Single Neurons, Populations, Plasticity*. Cambridge University Press, 2002.
+
+[27] J. K. Eshraghian et al., "Training spiking neural networks using lessons from deep learning," *Proceedings of the IEEE*, vol. 111, no. 9, pp. 1016–1054, Sep. 2023. [Online]. Available: https://arxiv.org/abs/2109.12894
 
 [29] K. Kamata et al., "Fully spiking variational autoencoder," in *Proc. AAAI Conf. Artificial Intelligence*, 2022.
 

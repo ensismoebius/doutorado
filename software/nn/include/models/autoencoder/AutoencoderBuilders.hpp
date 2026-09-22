@@ -420,7 +420,8 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
         /*voltage_threshold=*/1.0F,
         /*reset_zero=*/true,
         /*reset_potential=*/0.0F,
-        /*readout_mode=*/true));
+        /*readout_mode=*/true,
+        resolved_surrogate(cfg)));
     return decoder;
 }
 
