@@ -63,13 +63,15 @@
             "recurrent"
         ],
         "ga": {
-            "population_size": 8,
-            "generations": 5,
-            "winner_seeds": 3,
-            "voltage_threshold_min": 0.5,
-            "voltage_threshold_max": 1.5,
-            "alpha_min": 0.8,
-            "alpha_max": 0.99
+            "snn": {
+                "population_size": 8,
+                "generations": 5,
+                "winner_seeds": 3,
+                "voltage_threshold_min": 0.5,
+                "voltage_threshold_max": 1.5,
+                "alpha_min": 0.8,
+                "alpha_max": 0.99
+            }
         }
     }
 }

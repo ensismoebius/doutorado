@@ -168,7 +168,154 @@ void check_model(const Meeting01Config::Model& model, std::ostringstream& errors
     }
 }
 
-void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors);
+// Fields every family's GA block shares (search mechanics, not genome bounds) — one
+// check reused by SNN/LSTM/GRU/Transformer instead of four copies.
+template <typename T>
+void check_ga_common(const std::string& prefix, const T& ga, std::ostringstream& errors)
+{
+    if (ga.population_size <= 0)
+    {
+        errors << "  - " << prefix << ".population_size must be > 0 (got " << ga.population_size
+               << ")\n";
+    }
+    if (ga.generations < 0)
+    {
+        errors << "  - " << prefix << ".generations must be >= 0 (got " << ga.generations << ")\n";
+    }
+    // Breeding needs two distinct parents. population_size == 1 with generations >= 1
+    // used to be accepted and then hang forever in tournament()'s rejection loop, which
+    // on a cluster looks like a job that runs for days and produces nothing.
+    if (ga.population_size < 2 && ga.generations >= 1)
+    {
+        errors << "  - " << prefix << ".population_size must be >= 2 when generations >= 1 (got "
+               << ga.population_size << " with " << ga.generations
+               << " generations); breeding needs two distinct parents\n";
+    }
+    if (ga.crossover_prob < 0.0 || ga.crossover_prob > 1.0)
+    {
+        errors << "  - " << prefix << ".crossover_prob must be in [0, 1] (got " << ga.crossover_prob
+               << ")\n";
+    }
+    if (ga.mutation_prob < 0.0 || ga.mutation_prob > 1.0)
+    {
+        errors << "  - " << prefix << ".mutation_prob must be in [0, 1] (got " << ga.mutation_prob
+               << ")\n";
+    }
+    if (ga.winner_seeds < 1)
+    {
+        errors << "  - " << prefix << ".winner_seeds must be >= 1 (got " << ga.winner_seeds
+               << ")\n";
+    }
+    if (ga.tournament_k < 2)
+    {
+        errors << "  - " << prefix << ".tournament_k must be >= 2 (got " << ga.tournament_k
+               << ")\n";
+    }
+}
+
+void check_ga(const std::string& prefix, const Meeting01Config::Ga& ga, std::ostringstream& errors)
+{
+    check_ga_common(prefix, ga, errors);
+    if (ga.min_layers < 1)
+    {
+        errors << "  - " << prefix << ".min_layers must be >= 1 (got " << ga.min_layers << ")\n";
+    }
+    if (ga.max_layers < ga.min_layers)
+    {
+        errors << "  - " << prefix << ".max_layers (" << ga.max_layers
+               << ") must be >= min_layers (" << ga.min_layers << ")\n";
+    }
+    if (ga.min_width < 1)
+    {
+        errors << "  - " << prefix << ".min_width must be >= 1 (got " << ga.min_width << ")\n";
+    }
+    if (ga.max_width < ga.min_width)
+    {
+        errors << "  - " << prefix << ".max_width (" << ga.max_width << ") must be >= min_width ("
+               << ga.min_width << ")\n";
+    }
+    if (ga.voltage_threshold_min <= 0.0f || ga.voltage_threshold_max < ga.voltage_threshold_min)
+    {
+        errors << "  - " << prefix
+               << " voltage_threshold_min/max must satisfy 0 < min <= max (got min="
+               << ga.voltage_threshold_min << ", max=" << ga.voltage_threshold_max << ")\n";
+    }
+    if (ga.alpha_min <= 0.0f || ga.alpha_max >= 1.0f || ga.alpha_max < ga.alpha_min)
+    {
+        errors << "  - " << prefix
+               << " alpha_min/max must satisfy 0 < min <= max < 1 (got min=" << ga.alpha_min
+               << ", max=" << ga.alpha_max << ")\n";
+    }
+}
+
+void check_recurrent_ga(
+    const std::string& prefix, const Meeting01Config::RecurrentGa& ga, std::ostringstream& errors)
+{
+    check_ga_common(prefix, ga, errors);
+    if (ga.min_hidden < 1)
+    {
+        errors << "  - " << prefix << ".min_hidden must be >= 1 (got " << ga.min_hidden << ")\n";
+    }
+    if (ga.max_hidden < ga.min_hidden)
+    {
+        errors << "  - " << prefix << ".max_hidden (" << ga.max_hidden
+               << ") must be >= min_hidden (" << ga.min_hidden << ")\n";
+    }
+    if (ga.min_layers < 1)
+    {
+        errors << "  - " << prefix << ".min_layers must be >= 1 (got " << ga.min_layers << ")\n";
+    }
+    if (ga.max_layers < ga.min_layers)
+    {
+        errors << "  - " << prefix << ".max_layers (" << ga.max_layers
+               << ") must be >= min_layers (" << ga.min_layers << ")\n";
+    }
+}
+
+void check_transformer_ga(
+    const std::string& prefix, const Meeting01Config::TransformerGa& ga, std::ostringstream& errors)
+{
+    check_ga_common(prefix, ga, errors);
+    if (ga.min_d_model < 1)
+    {
+        errors << "  - " << prefix << ".min_d_model must be >= 1 (got " << ga.min_d_model << ")\n";
+    }
+    if (ga.max_d_model < ga.min_d_model)
+    {
+        errors << "  - " << prefix << ".max_d_model (" << ga.max_d_model
+               << ") must be >= min_d_model (" << ga.min_d_model << ")\n";
+    }
+    if (ga.head_choices.empty())
+    {
+        errors << "  - " << prefix << ".head_choices is empty (need >= 1 legal head count)\n";
+    }
+    for (int h : ga.head_choices)
+    {
+        if (h < 1)
+        {
+            errors << "  - " << prefix << ".head_choices contains a non-positive value (" << h
+                   << ")\n";
+        }
+    }
+    if (ga.min_layers < 1)
+    {
+        errors << "  - " << prefix << ".min_layers must be >= 1 (got " << ga.min_layers << ")\n";
+    }
+    if (ga.max_layers < ga.min_layers)
+    {
+        errors << "  - " << prefix << ".max_layers (" << ga.max_layers
+               << ") must be >= min_layers (" << ga.min_layers << ")\n";
+    }
+    if (ga.min_d_ff < 1)
+    {
+        errors << "  - " << prefix << ".min_d_ff must be >= 1 (got " << ga.min_d_ff << ")\n";
+    }
+    if (ga.max_d_ff < ga.min_d_ff)
+    {
+        errors << "  - " << prefix << ".max_d_ff (" << ga.max_d_ff << ") must be >= min_d_ff ("
+               << ga.min_d_ff << ")\n";
+    }
+}
 
 void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostringstream& errors)
 {
@@ -204,8 +351,27 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
         }
     }
 
+    // Every architecture-searched family (2026-09-22: LSTM-AE/GRU-AE/Transformer-AE
+    // search their own shape now, not just the SNN) is checked only when that family
+    // actually runs — evaluation.baselines lists the non-spiking families,
+    // evaluation.snn_architectures being non-empty is what turns the SNN arm on.
+    const bool has_lstm =
+        std::find(evaluation.baselines.begin(), evaluation.baselines.end(), "lstm-ae") !=
+        evaluation.baselines.end();
+    const bool has_gru =
+        std::find(evaluation.baselines.begin(), evaluation.baselines.end(), "gru-ae") !=
+        evaluation.baselines.end();
+    const bool has_transformer =
+        std::find(evaluation.baselines.begin(), evaluation.baselines.end(), "transformer-ae") !=
+        evaluation.baselines.end();
+
+    if (has_lstm) check_recurrent_ga("evaluation.ga.lstm", evaluation.ga.lstm, errors);
+    if (has_gru) check_recurrent_ga("evaluation.ga.gru", evaluation.ga.gru, errors);
+    if (has_transformer)
+        check_transformer_ga("evaluation.ga.transformer", evaluation.ga.transformer, errors);
+
     // The SNN knobs are only meaningful once an SNN architecture is asked
-    // for; an empty list means this run is LSTM-only and the thresholds
+    // for; an empty list means this run has no SNN arm and the thresholds
     // below are legitimately unset.
     if (evaluation.snn_architectures.empty())
     {
@@ -222,76 +388,7 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
         }
     }
 
-    check_ga(evaluation.ga, errors);
-}
-
-void check_ga(const Meeting01Config::Ga& ga, std::ostringstream& errors)
-{
-    if (ga.population_size <= 0)
-    {
-        errors << "  - evaluation.ga.population_size must be > 0 (got " << ga.population_size
-               << ")\n";
-    }
-    if (ga.generations < 0)
-    {
-        errors << "  - evaluation.ga.generations must be >= 0 (got " << ga.generations << ")\n";
-    }
-    // Breeding needs two distinct parents. population_size == 1 with generations >= 1
-    // used to be accepted and then hang forever in tournament()'s rejection loop, which
-    // on a cluster looks like a job that runs for days and produces nothing.
-    if (ga.population_size < 2 && ga.generations >= 1)
-    {
-        errors << "  - evaluation.ga.population_size must be >= 2 when generations >= 1 (got "
-               << ga.population_size << " with " << ga.generations
-               << " generations); breeding needs two distinct parents\n";
-    }
-    if (ga.min_layers < 1)
-    {
-        errors << "  - evaluation.ga.min_layers must be >= 1 (got " << ga.min_layers << ")\n";
-    }
-    if (ga.max_layers < ga.min_layers)
-    {
-        errors << "  - evaluation.ga.max_layers (" << ga.max_layers << ") must be >= min_layers ("
-               << ga.min_layers << ")\n";
-    }
-    if (ga.min_width < 1)
-    {
-        errors << "  - evaluation.ga.min_width must be >= 1 (got " << ga.min_width << ")\n";
-    }
-    if (ga.max_width < ga.min_width)
-    {
-        errors << "  - evaluation.ga.max_width (" << ga.max_width << ") must be >= min_width ("
-               << ga.min_width << ")\n";
-    }
-    if (ga.voltage_threshold_min <= 0.0f || ga.voltage_threshold_max < ga.voltage_threshold_min)
-    {
-        errors << "  - evaluation.ga voltage_threshold_min/max must satisfy 0 < min <= max "
-                  "(got min="
-               << ga.voltage_threshold_min << ", max=" << ga.voltage_threshold_max << ")\n";
-    }
-    if (ga.alpha_min <= 0.0f || ga.alpha_max >= 1.0f || ga.alpha_max < ga.alpha_min)
-    {
-        errors << "  - evaluation.ga alpha_min/max must satisfy 0 < min <= max < 1 (got min="
-               << ga.alpha_min << ", max=" << ga.alpha_max << ")\n";
-    }
-    if (ga.crossover_prob < 0.0 || ga.crossover_prob > 1.0)
-    {
-        errors << "  - evaluation.ga.crossover_prob must be in [0, 1] (got " << ga.crossover_prob
-               << ")\n";
-    }
-    if (ga.mutation_prob < 0.0 || ga.mutation_prob > 1.0)
-    {
-        errors << "  - evaluation.ga.mutation_prob must be in [0, 1] (got " << ga.mutation_prob
-               << ")\n";
-    }
-    if (ga.winner_seeds < 1)
-    {
-        errors << "  - evaluation.ga.winner_seeds must be >= 1 (got " << ga.winner_seeds << ")\n";
-    }
-    if (ga.tournament_k < 2)
-    {
-        errors << "  - evaluation.ga.tournament_k must be >= 2 (got " << ga.tournament_k << ")\n";
-    }
+    check_ga("evaluation.ga.snn", evaluation.ga.snn, errors);
 }
 
 } // namespace

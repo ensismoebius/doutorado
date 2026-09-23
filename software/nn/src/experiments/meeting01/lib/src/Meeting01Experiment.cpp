@@ -25,8 +25,12 @@
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01Output.hpp"
 #include "../include/Meeting01PerWindow.hpp"
+#include "../include/Meeting01RecurrentGaFitness.hpp"
+#include "../include/Meeting01RecurrentGaGenome.hpp"
 #include "../include/Meeting01Runner.hpp"
 #include "../include/Meeting01Training.hpp"
+#include "../include/Meeting01TransformerGaFitness.hpp"
+#include "../include/Meeting01TransformerGaGenome.hpp"
 #include "Meeting01AeCommon.hpp"
 #include "cnpy.h"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
@@ -288,278 +292,17 @@ auto make_baseline_row(const Meeting01Config& config,
     return row;
 }
 
-// Trains one fixed-architecture baseline family (LSTM-/GRU-/Transformer-AE) for this
-// (dataset, encoding, run_id): fit on train, early-stop on val, then evaluate once on
-// val and once on the held-out test speaker. Emits a "val" row always and a "test" row
-// whenever the fold carries a test partition. Model type and train entry point are the
-// only things that vary, so this is a template over the concrete AE.
-template <typename Model>
-void run_baseline(const Meeting01Config& config,
-    const DatasetSplit& split,
-    const std::string& dataset_name,
-    const BaselineFamily& fam,
-    Model& model,
-    TrainResult (*train_fn)(Model&,
-        const Meeting01Config&,
-        const std::vector<Tensor>&,
-        const std::vector<Tensor>&,
-        const std::string&,
-        std::uint32_t,
-        std::size_t,
-        std::size_t,
-        float&,
-        float&),
-    const std::string& encoding,
-    int run_id,
-    std::uint32_t run_seed,
-    const std::string& backend_name,
-    std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
-    const std::filesystem::path& models_dir,
-    std::uint32_t run_bar,
-    int& completed_runs,
-    std::vector<ResultRow>& all_rows,
-    std::vector<PerWindowError>& pw_rows)
+// Summary of one family's GA winner, returned by run_snn_ga_search /
+// run_lstm_ga_search / run_gru_ga_search / run_transformer_ga_search so the per-run_id
+// loop (run_comparative_experiment) can compare the 4 winners at the end and record
+// which family is best overall — same ordering pick_winner already uses within a single
+// family's Pareto front: val_mse first, inference_cost as the tie-break.
+struct FamilyWinnerSummary
 {
-    const bool has_test = !split.test_samples.empty();
-
-    auto append_pw = [&](const std::vector<Tensor>& samples,
-                         const std::vector<WindowMetadata>& meta,
-                         const std::string& split_name)
-    {
-        PerWindowError proto;
-        proto.model = fam.token;
-        proto.architecture = fam.arch;
-        proto.run_id = run_id + 1;
-        proto.seed = run_seed;
-        proto.cv_fold = config.dataset.cv_fold;
-        proto.split = split_name;
-        auto pw = per_window_errors_ae(model,
-            samples,
-            meta,
-            encoding,
-            run_seed,
-            config.model.lstm_frame_size,
-            config.model.time_steps,
-            proto);
-        pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
-    };
-
-    CheckpointKey val_key{config.experiment.run_tag,
-        backend_name,
-        dataset_name,
-        fam.token,
-        encoding,
-        fam.arch,
-        0.0f,
-        0.0f,
-        run_id + 1,
-        "val",
-        config.dataset.cv_fold};
-    CheckpointKey test_key = val_key;
-    test_key.split = "test";
-
-    const auto val_chk = checkpoint_path(chk_dir, val_key);
-    const auto test_chk = checkpoint_path(chk_dir, test_key);
-
-    const std::string config_id =
-        make_config_id(fam.token, encoding, "baseline", 0.0f, 0.0f, run_seed, run_id + 1);
-
-    const bool val_cached = checkpoint_is_valid(val_chk, cfg_hash);
-    const bool test_cached = !has_test || checkpoint_is_valid(test_chk, cfg_hash);
-    if (val_cached && test_cached)
-    {
-        all_rows.push_back(checkpoint_load(val_chk));
-        emit_config_end(all_rows.back(), config_id, "baseline");
-        if (has_test)
-        {
-            all_rows.push_back(checkpoint_load(test_chk));
-            emit_config_end(all_rows.back(), config_id, "baseline");
-        }
-        nn::progress::ProgressManager::instance().update_bar(
-            run_bar, static_cast<float>(++completed_runs));
-        return;
-    }
-
-    EventContext evctx;
-    evctx.config_id = config_id;
-    evctx.model = fam.token;
-    evctx.encoding = encoding;
-    evctx.role = "baseline";
-    evctx.run_id = run_id + 1;
-    evctx.seed = run_seed;
-    evctx.max_epochs = config.training.epochs;
-    evctx.lr = config.training.learning_rate;
-    evctx.lr_biophysical = config.training.learning_rate_biophysical;
-    evctx.early_stop_patience = config.training.early_stop_patience;
-    ExperimentEvents::instance().set_pending_context(evctx);
-
-    nn::progress::ProgressManager::instance().set_description(run_bar,
-        dataset_name + " fold" + std::to_string(config.dataset.cv_fold) + " · " + fam.token +
-            " · " + encoding + " · seed " + std::to_string(run_seed));
-
-    float train_ms = 0.0f;
-    float infer_ms = 0.0f;
-
-    TrainResult train_result = train_fn(model,
-        config,
-        split.train_samples,
-        split.val_samples,
-        encoding,
-        run_seed,
-        static_cast<std::size_t>(run_id),
-        static_cast<std::size_t>(config.experiment.repeats),
-        train_ms,
-        infer_ms);
-
-    RunMetrics val_metrics = train_result.metrics;
-    val_metrics.train_ms = train_ms;
-
-    if (config.dataset.save_models)
-    {
-        const std::string base_name = sanitize_name(
-            config.experiment.run_tag + "_" + fam.arch + "_" + dataset_name + "_" + encoding +
-            "_fold" + std::to_string(config.dataset.cv_fold) + "_run" + std::to_string(run_id + 1));
-        if (!save_state_dict_text(models_dir / (base_name + "_state_dict.txt"), model.state_dict()))
-        {
-            NN_LOG_WARN(
-                "[comparative] failed to save " + fam.token + " state_dict for " + base_name);
-        }
-    }
-
-    all_rows.push_back(make_baseline_row(config,
-        backend_name,
-        dataset_name,
-        fam,
-        encoding,
-        run_id,
-        run_seed,
-        cfg_hash,
-        "val",
-        val_metrics));
-    checkpoint_save(val_chk, all_rows.back(), train_result.history, cfg_hash);
-    emit_config_end(all_rows.back(), config_id, "baseline");
-    append_pw(split.val_samples, split.val_meta, "val");
-
-    if (has_test)
-    {
-        const RunMetrics test_metrics = evaluate_ae(model,
-            split.test_samples,
-            std::vector<int>(split.test_samples.size(), 0),
-            config.training.max_reconstruct_mean_deviation,
-            val_metrics.macs,
-            val_metrics.parameter_count,
-            encoding,
-            run_seed,
-            0.0f,
-            config.model.lstm_frame_size,
-            config.model.time_steps);
-        all_rows.push_back(make_baseline_row(config,
-            backend_name,
-            dataset_name,
-            fam,
-            encoding,
-            run_id,
-            run_seed,
-            cfg_hash,
-            "test",
-            test_metrics));
-        checkpoint_save(test_chk, all_rows.back(), train_result.history, cfg_hash);
-        emit_config_end(all_rows.back(), config_id, "baseline");
-        append_pw(split.test_samples, split.test_meta, "test");
-    }
-
-    nn::progress::ProgressManager::instance().update_bar(
-        run_bar, static_cast<float>(++completed_runs));
-}
-
-// Dispatches one baseline family token to the right concrete AE + train entry point.
-void run_baseline_family(const Meeting01Config& config,
-    const DatasetSplit& split,
-    const std::string& dataset_name,
-    const std::string& family_token,
-    const std::string& encoding,
-    int run_id,
-    std::uint32_t run_seed,
-    const std::string& backend_name,
-    std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
-    const std::filesystem::path& models_dir,
-    std::uint32_t run_bar,
-    int& completed_runs,
-    std::vector<ResultRow>& all_rows,
-    std::vector<PerWindowError>& pw_rows)
-{
-    if (family_token == "lstm-ae")
-    {
-        nn::models::lstm::LSTMAutoencoder model(make_lstm_cfg(config));
-        run_baseline<nn::models::lstm::LSTMAutoencoder>(config,
-            split,
-            dataset_name,
-            BaselineFamily{"lstm-ae", "lstm"},
-            model,
-            &train_with_early_stopping_lstm,
-            encoding,
-            run_id,
-            run_seed,
-            backend_name,
-            cfg_hash,
-            chk_dir,
-            models_dir,
-            run_bar,
-            completed_runs,
-            all_rows,
-            pw_rows);
-    }
-    else if (family_token == "gru-ae")
-    {
-        nn::models::gru::GRUAutoencoder model(make_gru_cfg(config));
-        run_baseline<nn::models::gru::GRUAutoencoder>(config,
-            split,
-            dataset_name,
-            BaselineFamily{"gru-ae", "gru"},
-            model,
-            &train_with_early_stopping_gru,
-            encoding,
-            run_id,
-            run_seed,
-            backend_name,
-            cfg_hash,
-            chk_dir,
-            models_dir,
-            run_bar,
-            completed_runs,
-            all_rows,
-            pw_rows);
-    }
-    else if (family_token == "transformer-ae")
-    {
-        nn::models::transformer::TransformerAutoencoder model(make_transformer_cfg(config));
-        run_baseline<nn::models::transformer::TransformerAutoencoder>(config,
-            split,
-            dataset_name,
-            BaselineFamily{"transformer-ae", "transformer"},
-            model,
-            &train_with_early_stopping_transformer,
-            encoding,
-            run_id,
-            run_seed,
-            backend_name,
-            cfg_hash,
-            chk_dir,
-            models_dir,
-            run_bar,
-            completed_runs,
-            all_rows,
-            pw_rows);
-    }
-    else
-    {
-        throw std::invalid_argument(
-            "run_baseline_family: unknown baseline '" + family_token +
-            "' — validate() should have rejected this. Valid: lstm-ae, gru-ae, transformer-ae.");
-    }
-}
+    std::string family_token; // "snn-ae" | "lstm-ae" | "gru-ae" | "transformer-ae"
+    float val_mse;
+    std::size_t inference_cost;
+};
 
 /** Writes the encoder/decoder parameter dumps for one SNN model, when model saving is
  *  configured. `role_tag` ("combo" for a GA-evaluated candidate genome, "final" for the
@@ -657,6 +400,191 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
             out.fit_samples.push_back(train_samples[i]);
     }
     return out;
+}
+
+// Shared nested-LOSO final-fit + test-evaluate + manifest routine for one baseline
+// family's GA winner (LSTM-AE / GRU-AE / Transformer-AE). All three are frame-consuming
+// AEs sharing train_ae/evaluate_ae/per_window_errors_ae (Meeting01AeCommon.hpp), so only
+// the model itself and its genome-derived cost differ between families — the caller
+// builds `model` from the winning genome (to_lstm_cfg/to_gru_cfg/to_transformer_cfg) and
+// passes its true MAC estimate; this function is everything IDENTICAL across the three
+// (retrain on train ∪ val, early-stop on a recording-disjoint monitor carve, test-
+// evaluate, checkpoint, save, manifest) — the baseline-arm analogue of
+// finalize_snn_selection, minus the SNN's architecture-family/encoder-widths axes since
+// a baseline's shape is fully described by `model` and `selected_hyperparams`.
+template <typename Model>
+void finalize_baseline_selection(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    const BaselineFamily& fam,
+    const std::string& encoding,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    Model& model,
+    std::size_t macs,
+    const nlohmann::json& selected_hyperparams,
+    const nlohmann::json& candidates_json,
+    float val_mse,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    if (split.test_samples.empty()) return;
+
+    const std::string final_config_id =
+        make_config_id(fam.token, encoding, fam.arch + "_final", 0.0f, 0.0f, run_seed, run_id + 1);
+    ExperimentEvents::instance().emit("config_selected",
+        {{"config_id", final_config_id},
+            {"encoding", encoding},
+            {"run_id", run_id + 1},
+            {"seed", run_seed},
+            {"selection_metric", "val_mse"},
+            {"selected", selected_hyperparams}});
+
+    CheckpointKey test_key{config.experiment.run_tag,
+        backend_name,
+        dataset_name,
+        fam.token,
+        encoding,
+        fam.arch,
+        0.0f,
+        0.0f,
+        run_id + 1,
+        "test",
+        config.dataset.cv_fold};
+    const auto test_chk = checkpoint_path(chk_dir, test_key);
+    if (checkpoint_is_valid(test_chk, cfg_hash))
+    {
+        all_rows.push_back(checkpoint_load(test_chk));
+        emit_config_end(all_rows.back(), final_config_id, fam.arch + "_final");
+        return;
+    }
+
+    {
+        EventContext evctx;
+        evctx.config_id = final_config_id;
+        evctx.model = fam.token;
+        evctx.encoding = encoding;
+        evctx.role = fam.arch + "_final";
+        evctx.hyperparams = selected_hyperparams;
+        evctx.run_id = run_id + 1;
+        evctx.seed = run_seed;
+        evctx.max_epochs = config.training.epochs;
+        evctx.lr = config.training.learning_rate;
+        evctx.lr_biophysical = config.training.learning_rate_biophysical;
+        evctx.early_stop_patience = config.training.early_stop_patience;
+        ExperimentEvents::instance().set_pending_context(evctx);
+    }
+
+    // Retrain the selected genome on (train \ monitor) ∪ val, early-stopping on the
+    // carved recording-disjoint monitor — identical discipline to finalize_snn_selection:
+    // the test speaker never enters any fit.
+    const MonitorCarve carve = carve_recording_disjoint_monitor(
+        split.train_samples, split.train_meta, split.val_samples.size(), run_seed);
+
+    std::vector<Tensor> fit_samples = carve.fit_samples;
+    fit_samples.insert(fit_samples.end(), split.val_samples.begin(), split.val_samples.end());
+
+    float train_ms = 0.0f;
+    float infer_ms = 0.0f;
+    const TrainResult final_train = train_ae(model,
+        config,
+        fit_samples,
+        carve.monitor_samples,
+        encoding,
+        run_seed,
+        static_cast<std::size_t>(run_id),
+        static_cast<std::size_t>(config.experiment.repeats),
+        fam.token + " final: encoding=" + encoding,
+        fam.token + " (final)",
+        macs,
+        train_ms,
+        infer_ms);
+
+    const RunMetrics test_metrics = evaluate_ae(model,
+        split.test_samples,
+        std::vector<int>(split.test_samples.size(), 0),
+        config.training.max_reconstruct_mean_deviation,
+        macs,
+        parameter_count(model.params()),
+        encoding,
+        run_seed,
+        infer_ms,
+        config.model.lstm_frame_size,
+        config.model.time_steps);
+
+    all_rows.push_back(make_baseline_row(config,
+        backend_name,
+        dataset_name,
+        fam,
+        encoding,
+        run_id,
+        run_seed,
+        cfg_hash,
+        "test",
+        test_metrics));
+    checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
+    emit_config_end(all_rows.back(), final_config_id, fam.arch + "_final");
+
+    if (config.dataset.save_models)
+    {
+        const std::string base_name =
+            sanitize_name(config.experiment.run_tag + "_" + fam.arch + "_" + dataset_name + "_" +
+                          encoding + "_fold" + std::to_string(config.dataset.cv_fold) + "_run" +
+                          std::to_string(run_id + 1) + "_final");
+        if (!save_state_dict_text(models_dir / (base_name + "_state_dict.txt"), model.state_dict()))
+        {
+            NN_LOG_WARN(
+                "[comparative] failed to save " + fam.token + " state_dict for " + base_name);
+        }
+    }
+
+    {
+        PerWindowError proto;
+        proto.model = fam.token;
+        proto.architecture = fam.arch;
+        proto.run_id = run_id + 1;
+        proto.seed = run_seed;
+        proto.cv_fold = config.dataset.cv_fold;
+        proto.split = "test";
+        auto pw = per_window_errors_ae(model,
+            split.test_samples,
+            split.test_meta,
+            encoding,
+            run_seed,
+            config.model.lstm_frame_size,
+            config.model.time_steps,
+            proto);
+        pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
+    }
+
+    // Model-selection provenance manifest — same rationale as finalize_snn_selection's:
+    // proves the choice used inner-val only, and records every genome the GA evaluated.
+    if (!config.dataset.results_dir.empty())
+    {
+        nlohmann::json man;
+        man["dataset"] = dataset_name;
+        man["cv_fold"] = config.dataset.cv_fold;
+        man["encoding"] = encoding;
+        man["run_id"] = run_id + 1;
+        man["seed"] = run_seed;
+        man["selection_split"] = "val (speaker " + split.val_speaker + ")";
+        man["selection_metric"] = "val_mse";
+        man["test_speaker"] = split.test_speaker;
+        man["selected"] = selected_hyperparams;
+        man["selected"]["encoding"] = encoding;
+        man["selected"]["val_mse"] = val_mse;
+        man["candidates"] = candidates_json;
+        const std::filesystem::path man_path =
+            std::filesystem::path(config.dataset.results_dir) /
+            (fold_output_tag(config, dataset_name) + "_" + fam.token + "_run" +
+                std::to_string(run_id + 1) + "_model_selection_manifest.json");
+        std::ofstream mf(man_path);
+        if (mf.is_open()) mf << man.dump(2);
+    }
 }
 
 // The GA-selected SNN-AE candidate, ready for the nested-LOSO final fit.
@@ -905,7 +833,7 @@ void finalize_snn_selection(const Meeting01Config& config,
 // run_id, OUTSIDE the per-encoding baseline loop: the SNN's own encoding is a gene
 // rather than an externally fixed sweep dimension, so there is no per-encoding SNN cell
 // to loop over (baselines still run per encoding, unaffected — see Meeting01.md).
-void run_snn_ga_search(const Meeting01Config& config,
+FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
     const DatasetSplit& split,
     const std::string& dataset_name,
     int run_id,
@@ -919,7 +847,7 @@ void run_snn_ga_search(const Meeting01Config& config,
     std::vector<ResultRow>& all_rows,
     std::vector<PerWindowError>& pw_rows)
 {
-    const auto& ga_cfg = config.evaluation.ga;
+    const auto& ga_cfg = config.evaluation.ga.snn;
 
     meeting01::ga::GenomeBounds bounds;
     bounds.min_layers = ga_cfg.min_layers;
@@ -932,6 +860,13 @@ void run_snn_ga_search(const Meeting01Config& config,
     bounds.alpha_max = ga_cfg.alpha_max;
     bounds.encoding_choices = config.evaluation.encodings;
     bounds.architecture_choices = config.evaluation.snn_architectures;
+    // Bottleneck fixed at the profile's latent_dim (never a gene — same rule as the 3
+    // baseline families, see GenomeBounds::latent_dim's comment), NOT bounds.max_width:
+    // build_snn_decoder's first layer always expects exactly cfg.model.latent_dim
+    // input features regardless of what the genome draws, so leaving this unset (the
+    // struct default of 32) would silently diverge from a profile using a different
+    // latent_dim.
+    bounds.latent_dim = config.model.latent_dim;
 
     meeting01::ga::GaSearchConfig search_cfg;
     search_cfg.population_size = ga_cfg.population_size;
@@ -948,15 +883,21 @@ void run_snn_ga_search(const Meeting01Config& config,
                          std::to_string(run_id + 1);
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
 
-    const auto ga_result = meeting01::ga::run_ga_search(config,
-        split,
-        search_cfg,
-        run_seed,
-        [&](const meeting01::ga::Meeting01GaIndividual&)
-        {
-            nn::progress::ProgressManager::instance().update_bar(
-                run_bar, static_cast<float>(++completed_runs));
-        });
+    // `Ind` is given explicitly: it cannot be deduced from the callback argument alone
+    // (a raw lambda converting to std::function<void(const Ind&)> is a non-deduced
+    // context in template argument deduction), so every run_ga_search call site names
+    // its individual type — the same reason each family's orchestration function below
+    // does too.
+    const auto ga_result =
+        meeting01::ga::run_ga_search<meeting01::ga::Meeting01GaIndividual>(config,
+            split,
+            search_cfg,
+            run_seed,
+            [&](const meeting01::ga::Meeting01GaIndividual&)
+            {
+                nn::progress::ProgressManager::instance().update_bar(
+                    run_bar, static_cast<float>(++completed_runs));
+            });
 
     const auto& winner = meeting01::ga::pick_winner(ga_result);
 
@@ -991,6 +932,286 @@ void run_snn_ga_search(const Meeting01Config& config,
         candidates,
         all_rows,
         pw_rows);
+
+    return FamilyWinnerSummary{"snn-ae", winner.val_mse, winner.inference_cost};
+}
+
+// Runs NSGA-II over the LSTM-AE's own architecture (hidden_size/num_layers/encoding)
+// for one (dataset, run_id) — the baseline-arm analogue of run_snn_ga_search, now that
+// every family (SNN and all three baselines) searches its own architecture instead of
+// training at a profile-fixed shape (2026-09-22 scope change: the experiment's goal is
+// "the best autoencoder, period", not "SNN vs three fixed baselines").
+FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    const auto& ga_cfg = config.evaluation.ga.lstm;
+
+    meeting01::ga::RecurrentGenomeBounds bounds;
+    bounds.min_hidden = ga_cfg.min_hidden;
+    bounds.max_hidden = ga_cfg.max_hidden;
+    bounds.min_layers = ga_cfg.min_layers;
+    bounds.max_layers = ga_cfg.max_layers;
+    bounds.encoding_choices = config.evaluation.encodings;
+
+    meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
+    search_cfg.population_size = ga_cfg.population_size;
+    search_cfg.generations = ga_cfg.generations;
+    search_cfg.crossover_prob = ga_cfg.crossover_prob;
+    search_cfg.mutation_prob = ga_cfg.mutation_prob;
+    search_cfg.tournament_k = ga_cfg.tournament_k;
+    search_cfg.winner_seeds = ga_cfg.winner_seeds;
+    search_cfg.seed = ga_cfg.seed;
+    search_cfg.bounds = bounds;
+    search_cfg.results_dir = config.dataset.results_dir;
+    search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
+                         std::to_string(config.dataset.cv_fold) + "_run" +
+                         std::to_string(run_id + 1) + "_lstm";
+    search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+
+    const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::LstmGaIndividual>(config,
+        split,
+        search_cfg,
+        run_seed,
+        [&](const meeting01::ga::LstmGaIndividual&)
+        {
+            nn::progress::ProgressManager::instance().update_bar(
+                run_bar, static_cast<float>(++completed_runs));
+        });
+
+    const auto& winner = meeting01::ga::pick_winner(ga_result);
+
+    nlohmann::json candidates_json;
+    for (const auto& ind : ga_result.history)
+        candidates_json.push_back({{"hidden_size", ind.genome.hidden_size},
+            {"num_layers", ind.genome.num_layers},
+            {"encoding", ind.genome.encoding},
+            {"val_mse", ind.val_mse}});
+
+    const nlohmann::json selected_hyperparams{
+        {"hidden_size", winner.genome.hidden_size}, {"num_layers", winner.genome.num_layers}};
+
+    const auto lstm_cfg = meeting01::ga::to_lstm_cfg(winner.genome, config);
+    nn::models::lstm::LSTMAutoencoder model(lstm_cfg);
+    const std::size_t macs = estimate_lstm_macs(lstm_cfg);
+
+    finalize_baseline_selection(config,
+        split,
+        dataset_name,
+        BaselineFamily{"lstm-ae", "lstm"},
+        winner.genome.encoding,
+        run_id,
+        run_seed,
+        backend_name,
+        cfg_hash,
+        chk_dir,
+        models_dir,
+        model,
+        macs,
+        selected_hyperparams,
+        candidates_json,
+        winner.val_mse,
+        all_rows,
+        pw_rows);
+
+    return FamilyWinnerSummary{"lstm-ae", winner.val_mse, winner.inference_cost};
+}
+
+// GRU-AE analogue of run_lstm_ga_search — same RecurrentGenome axes, distinct type
+// (GruGaIndividual) so evaluate_individual overload resolution trains the right cell
+// (Meeting01RecurrentGaFitness.hpp).
+FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    const auto& ga_cfg = config.evaluation.ga.gru;
+
+    meeting01::ga::RecurrentGenomeBounds bounds;
+    bounds.min_hidden = ga_cfg.min_hidden;
+    bounds.max_hidden = ga_cfg.max_hidden;
+    bounds.min_layers = ga_cfg.min_layers;
+    bounds.max_layers = ga_cfg.max_layers;
+    bounds.encoding_choices = config.evaluation.encodings;
+
+    meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
+    search_cfg.population_size = ga_cfg.population_size;
+    search_cfg.generations = ga_cfg.generations;
+    search_cfg.crossover_prob = ga_cfg.crossover_prob;
+    search_cfg.mutation_prob = ga_cfg.mutation_prob;
+    search_cfg.tournament_k = ga_cfg.tournament_k;
+    search_cfg.winner_seeds = ga_cfg.winner_seeds;
+    search_cfg.seed = ga_cfg.seed;
+    search_cfg.bounds = bounds;
+    search_cfg.results_dir = config.dataset.results_dir;
+    search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
+                         std::to_string(config.dataset.cv_fold) + "_run" +
+                         std::to_string(run_id + 1) + "_gru";
+    search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+
+    const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::GruGaIndividual>(config,
+        split,
+        search_cfg,
+        run_seed,
+        [&](const meeting01::ga::GruGaIndividual&)
+        {
+            nn::progress::ProgressManager::instance().update_bar(
+                run_bar, static_cast<float>(++completed_runs));
+        });
+
+    const auto& winner = meeting01::ga::pick_winner(ga_result);
+
+    nlohmann::json candidates_json;
+    for (const auto& ind : ga_result.history)
+        candidates_json.push_back({{"hidden_size", ind.genome.hidden_size},
+            {"num_layers", ind.genome.num_layers},
+            {"encoding", ind.genome.encoding},
+            {"val_mse", ind.val_mse}});
+
+    const nlohmann::json selected_hyperparams{
+        {"hidden_size", winner.genome.hidden_size}, {"num_layers", winner.genome.num_layers}};
+
+    const auto gru_cfg = meeting01::ga::to_gru_cfg(winner.genome, config);
+    nn::models::gru::GRUAutoencoder model(gru_cfg);
+    const std::size_t macs = estimate_gru_macs(gru_cfg);
+
+    finalize_baseline_selection(config,
+        split,
+        dataset_name,
+        BaselineFamily{"gru-ae", "gru"},
+        winner.genome.encoding,
+        run_id,
+        run_seed,
+        backend_name,
+        cfg_hash,
+        chk_dir,
+        models_dir,
+        model,
+        macs,
+        selected_hyperparams,
+        candidates_json,
+        winner.val_mse,
+        all_rows,
+        pw_rows);
+
+    return FamilyWinnerSummary{"gru-ae", winner.val_mse, winner.inference_cost};
+}
+
+// Transformer-AE analogue of run_lstm_ga_search. `n_heads` is drawn from
+// bounds.head_choices and reconciled against d_model by repair_transformer
+// (Meeting01TransformerGaGenome.cpp) — the one family whose genome carries a hard
+// structural constraint (d_model % n_heads == 0).
+FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& chk_dir,
+    const std::filesystem::path& models_dir,
+    std::uint32_t run_bar,
+    int& completed_runs,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    const auto& ga_cfg = config.evaluation.ga.transformer;
+
+    meeting01::ga::TransformerGenomeBounds bounds;
+    bounds.min_d_model = ga_cfg.min_d_model;
+    bounds.max_d_model = ga_cfg.max_d_model;
+    bounds.head_choices = ga_cfg.head_choices;
+    bounds.min_layers = ga_cfg.min_layers;
+    bounds.max_layers = ga_cfg.max_layers;
+    bounds.min_d_ff = ga_cfg.min_d_ff;
+    bounds.max_d_ff = ga_cfg.max_d_ff;
+    bounds.encoding_choices = config.evaluation.encodings;
+
+    meeting01::ga::GaSearchConfigT<meeting01::ga::TransformerGenomeBounds> search_cfg;
+    search_cfg.population_size = ga_cfg.population_size;
+    search_cfg.generations = ga_cfg.generations;
+    search_cfg.crossover_prob = ga_cfg.crossover_prob;
+    search_cfg.mutation_prob = ga_cfg.mutation_prob;
+    search_cfg.tournament_k = ga_cfg.tournament_k;
+    search_cfg.winner_seeds = ga_cfg.winner_seeds;
+    search_cfg.seed = ga_cfg.seed;
+    search_cfg.bounds = bounds;
+    search_cfg.results_dir = config.dataset.results_dir;
+    search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
+                         std::to_string(config.dataset.cv_fold) + "_run" +
+                         std::to_string(run_id + 1) + "_transformer";
+    search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+
+    const auto ga_result =
+        meeting01::ga::run_ga_search<meeting01::ga::TransformerGaIndividual>(config,
+            split,
+            search_cfg,
+            run_seed,
+            [&](const meeting01::ga::TransformerGaIndividual&)
+            {
+                nn::progress::ProgressManager::instance().update_bar(
+                    run_bar, static_cast<float>(++completed_runs));
+            });
+
+    const auto& winner = meeting01::ga::pick_winner(ga_result);
+
+    nlohmann::json candidates_json;
+    for (const auto& ind : ga_result.history)
+        candidates_json.push_back({{"d_model", ind.genome.d_model},
+            {"n_heads", ind.genome.n_heads},
+            {"n_layers", ind.genome.n_layers},
+            {"d_ff", ind.genome.d_ff},
+            {"encoding", ind.genome.encoding},
+            {"val_mse", ind.val_mse}});
+
+    const nlohmann::json selected_hyperparams{{"d_model", winner.genome.d_model},
+        {"n_heads", winner.genome.n_heads},
+        {"n_layers", winner.genome.n_layers},
+        {"d_ff", winner.genome.d_ff}};
+
+    const auto tf_cfg = meeting01::ga::to_transformer_cfg(winner.genome, config);
+    nn::models::transformer::TransformerAutoencoder model(tf_cfg);
+    const std::size_t macs = estimate_transformer_macs(tf_cfg);
+
+    finalize_baseline_selection(config,
+        split,
+        dataset_name,
+        BaselineFamily{"transformer-ae", "transformer"},
+        winner.genome.encoding,
+        run_id,
+        run_seed,
+        backend_name,
+        cfg_hash,
+        chk_dir,
+        models_dir,
+        model,
+        macs,
+        selected_hyperparams,
+        candidates_json,
+        winner.val_mse,
+        all_rows,
+        pw_rows);
+
+    return FamilyWinnerSummary{"transformer-ae", winner.val_mse, winner.inference_cost};
 }
 
 // Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
@@ -1200,19 +1421,30 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         std::vector<ResultRow> all_rows;
 
-        // Total individual runs: baselines run per (dataset, encoding, repeat). The SNN
-        // arm does not — it is a GA search of population×(1+generations) evaluations
-        // per (dataset, repeat) ONLY, since encoding is a gene, not an outer sweep
-        // dimension, so it does not multiply the GA's cost the way it does the
-        // baselines'.
+        // Total individual runs: every searched family (SNN and, since the 2026-09-22
+        // scope change, every baseline too) is its own GA search of
+        // population×(1+generations) evaluations per (dataset, repeat) — encoding is a
+        // gene for all four families now, not an outer sweep dimension for any of them,
+        // so it does not multiply any family's cost.
         const int n_datasets = static_cast<int>(config.evaluation.datasets.size());
-        const int n_encodings = static_cast<int>(config.evaluation.encodings.size());
-        const int baseline_runs = n_datasets * n_encodings * config.experiment.repeats *
-                                  static_cast<int>(config.evaluation.baselines.size());
         const auto& gc = config.evaluation.ga;
-        const int snn_runs =
-            n_datasets * config.experiment.repeats * gc.population_size * (1 + gc.generations);
-        const int total_outer_runs = baseline_runs + snn_runs;
+        auto ga_evals = [](int population, int generations)
+        { return population * (1 + generations); };
+        int evals_per_dataset_repeat = 0;
+        if (!config.evaluation.snn_architectures.empty())
+            evals_per_dataset_repeat += ga_evals(gc.snn.population_size, gc.snn.generations);
+        for (const auto& family : config.evaluation.baselines)
+        {
+            if (family == "lstm-ae")
+                evals_per_dataset_repeat += ga_evals(gc.lstm.population_size, gc.lstm.generations);
+            else if (family == "gru-ae")
+                evals_per_dataset_repeat += ga_evals(gc.gru.population_size, gc.gru.generations);
+            else if (family == "transformer-ae")
+                evals_per_dataset_repeat +=
+                    ga_evals(gc.transformer.population_size, gc.transformer.generations);
+        }
+        const int total_outer_runs =
+            n_datasets * config.experiment.repeats * evals_per_dataset_repeat;
 
         // Overall-progress banner across the whole 4-profile run. Each profile is a separate
         // process, so this process cannot know the outer progress on its own — the wrapper
@@ -1265,15 +1497,33 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             {"test", config.dataset.loso_max_test_windows}}},
                     {"search_space",
                         {{"snn_architectures", config.evaluation.snn_architectures},
-                            {"ga_population_size", config.evaluation.ga.population_size},
-                            {"ga_generations", config.evaluation.ga.generations},
-                            {"ga_voltage_threshold_range",
-                                {config.evaluation.ga.voltage_threshold_min,
-                                    config.evaluation.ga.voltage_threshold_max}},
-                            {"ga_alpha_range",
-                                {config.evaluation.ga.alpha_min, config.evaluation.ga.alpha_max}},
                             {"encodings", config.evaluation.encodings},
-                            {"baselines", config.evaluation.baselines}}}});
+                            {"baselines", config.evaluation.baselines},
+                            {"ga",
+                                {{"snn",
+                                     {{"population_size", config.evaluation.ga.snn.population_size},
+                                         {"generations", config.evaluation.ga.snn.generations},
+                                         {"voltage_threshold_range",
+                                             {config.evaluation.ga.snn.voltage_threshold_min,
+                                                 config.evaluation.ga.snn.voltage_threshold_max}},
+                                         {"alpha_range",
+                                             {config.evaluation.ga.snn.alpha_min,
+                                                 config.evaluation.ga.snn.alpha_max}}}},
+                                    {"lstm",
+                                        {{"population_size",
+                                             config.evaluation.ga.lstm.population_size},
+                                            {"generations",
+                                                config.evaluation.ga.lstm.generations}}},
+                                    {"gru",
+                                        {{"population_size",
+                                             config.evaluation.ga.gru.population_size},
+                                            {"generations", config.evaluation.ga.gru.generations}}},
+                                    {"transformer",
+                                        {{"population_size",
+                                             config.evaluation.ga.transformer.population_size},
+                                            {"generations",
+                                                config.evaluation.ga.transformer
+                                                    .generations}}}}}}}});
         }
 
         for (const auto& dataset_name : config.evaluation.datasets)
@@ -1309,24 +1559,33 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             // a run that needs the per-window CSV (the article pipeline always does).
             std::vector<PerWindowError> pw_rows;
 
+            // Diagnostic dumps only — not part of any fit. Kept per-encoding since
+            // they're plain descriptive stats of the raw signal under each encoding, not
+            // a model training pass.
             for (const auto& encoding : config.evaluation.encodings)
-            {
                 dump_analytic_baseline_inputs(config, split, dataset_name, encoding, out_dir);
 
-                for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
-                {
-                    const std::uint32_t run_seed =
-                        config.experiment.seed_deterministic
-                            ? config.experiment.seed
-                            : config.experiment.seed + static_cast<std::uint32_t>(run_id);
+            // Architecture search: every family (SNN and, since the 2026-09-22 scope
+            // change, every baseline too) runs its own NSGA-II search once per
+            // (dataset, run_id), covering every encoding and architecture axis jointly
+            // — encoding is a gene for all four families now, not an outer sweep
+            // dimension for any of them, so there is no per-encoding loop left here.
+            for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
+            {
+                const std::uint32_t run_seed =
+                    config.experiment.seed_deterministic
+                        ? config.experiment.seed
+                        : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
-                    for (const auto& family : config.evaluation.baselines)
+                std::vector<FamilyWinnerSummary> family_winners;
+
+                for (const auto& family : config.evaluation.baselines)
+                {
+                    if (family == "lstm-ae")
                     {
-                        run_baseline_family(config,
+                        family_winners.push_back(run_lstm_ga_search(config,
                             split,
                             dataset_name,
-                            family,
-                            encoding,
                             run_id,
                             run_seed,
                             backend_name,
@@ -1336,24 +1595,52 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             run_bar,
                             completed_runs,
                             all_rows,
-                            pw_rows);
+                            pw_rows));
+                    }
+                    else if (family == "gru-ae")
+                    {
+                        family_winners.push_back(run_gru_ga_search(config,
+                            split,
+                            dataset_name,
+                            run_id,
+                            run_seed,
+                            backend_name,
+                            cfg_hash,
+                            chk_dir,
+                            models_dir,
+                            run_bar,
+                            completed_runs,
+                            all_rows,
+                            pw_rows));
+                    }
+                    else if (family == "transformer-ae")
+                    {
+                        family_winners.push_back(run_transformer_ga_search(config,
+                            split,
+                            dataset_name,
+                            run_id,
+                            run_seed,
+                            backend_name,
+                            cfg_hash,
+                            chk_dir,
+                            models_dir,
+                            run_bar,
+                            completed_runs,
+                            all_rows,
+                            pw_rows));
+                    }
+                    else
+                    {
+                        throw std::invalid_argument(
+                            "run_comparative_experiment: unknown baseline '" + family +
+                            "' — validate() should have rejected this. Valid: lstm-ae, "
+                            "gru-ae, transformer-ae.");
                     }
                 }
-            }
 
-            // SNN arm: one NSGA-II run per (dataset, run_id), covering every encoding
-            // and architecture jointly — not nested under the per-encoding baseline
-            // loop above (the GA's own encoding gene replaces that outer sweep).
-            if (!config.evaluation.snn_architectures.empty())
-            {
-                for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
+                if (!config.evaluation.snn_architectures.empty())
                 {
-                    const std::uint32_t run_seed =
-                        config.experiment.seed_deterministic
-                            ? config.experiment.seed
-                            : config.experiment.seed + static_cast<std::uint32_t>(run_id);
-
-                    run_snn_ga_search(config,
+                    family_winners.push_back(run_snn_ga_search(config,
                         split,
                         dataset_name,
                         run_id,
@@ -1365,7 +1652,42 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         run_bar,
                         completed_runs,
                         all_rows,
-                        pw_rows);
+                        pw_rows));
+                }
+
+                // Compare the 4 winners: same ordering pick_winner already uses within a
+                // single family's Pareto front (val_mse first, inference_cost the tie-
+                // break). This is the "find the best autoencoder, period" step the
+                // 2026-09-22 scope change is actually for — the per-family manifests
+                // each finalize_*_selection call already wrote only answer "what won
+                // within this family".
+                if (!family_winners.empty() && !config.dataset.results_dir.empty())
+                {
+                    const auto overall = std::min_element(family_winners.begin(),
+                        family_winners.end(),
+                        [](const FamilyWinnerSummary& a, const FamilyWinnerSummary& b)
+                        {
+                            if (a.val_mse != b.val_mse) return a.val_mse < b.val_mse;
+                            return a.inference_cost < b.inference_cost;
+                        });
+
+                    nlohmann::json man;
+                    man["dataset"] = dataset_name;
+                    man["cv_fold"] = config.dataset.cv_fold;
+                    man["run_id"] = run_id + 1;
+                    man["seed"] = run_seed;
+                    man["selection_metric"] = "val_mse";
+                    man["overall_winner"] = overall->family_token;
+                    for (const auto& fw : family_winners)
+                        man["families"].push_back({{"family", fw.family_token},
+                            {"val_mse", fw.val_mse},
+                            {"inference_cost", fw.inference_cost}});
+                    const std::filesystem::path man_path =
+                        std::filesystem::path(config.dataset.results_dir) /
+                        (fold_output_tag(config, dataset_name) + "_run" +
+                            std::to_string(run_id + 1) + "_overall_winner_manifest.json");
+                    std::ofstream mf(man_path);
+                    if (mf.is_open()) mf << man.dump(2);
                 }
             }
 

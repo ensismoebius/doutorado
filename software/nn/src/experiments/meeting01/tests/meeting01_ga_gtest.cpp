@@ -217,7 +217,8 @@ TEST(Meeting01GaCheckpoint, IndividualJsonRoundTripPreservesEveryField)
     ind.born_generation = 3;
 
     const auto j = meeting01::ga::individual_to_checkpoint_json(ind);
-    const auto back = meeting01::ga::individual_from_checkpoint_json(j);
+    const auto back =
+        meeting01::ga::individual_from_checkpoint_json<meeting01::ga::Meeting01GaIndividual>(j);
 
     EXPECT_EQ(back.genome.encoder_widths, ind.genome.encoder_widths);
     EXPECT_EQ(back.genome.encoding, ind.genome.encoding);
@@ -262,7 +263,8 @@ TEST(Meeting01GaCheckpoint, CacheAppendAndReloadRoundTrips)
     meeting01::ga::append_cache_entry(path, a);
     meeting01::ga::append_cache_entry(path, b);
 
-    const auto loaded = meeting01::ga::load_cache_entries(path);
+    const auto loaded =
+        meeting01::ga::load_cache_entries<meeting01::ga::Meeting01GaIndividual>(path);
     ASSERT_EQ(loaded.size(), 2u);
     EXPECT_EQ(loaded[0].genome.encoder_widths, a.genome.encoder_widths);
     EXPECT_EQ(loaded[1].genome.encoder_widths, b.genome.encoder_widths);
@@ -286,7 +288,8 @@ TEST(Meeting01GaCheckpoint, TornTrailingCacheLineIsDroppedNotFatal)
         f << "{\"genome\":{\"encoder_widths\":[1"; // torn: no closing braces
     }
 
-    const auto loaded = meeting01::ga::load_cache_entries(path);
+    const auto loaded =
+        meeting01::ga::load_cache_entries<meeting01::ga::Meeting01GaIndividual>(path);
     ASSERT_EQ(loaded.size(), 1u);
     EXPECT_EQ(loaded[0].genome.encoder_widths, a.genome.encoder_widths);
 
@@ -309,7 +312,8 @@ TEST(Meeting01GaCheckpoint, GenerationCheckpointRoundTrips)
     meeting01::ga::save_generation_checkpoint(dir, tag, 2, rng, parents);
     EXPECT_TRUE(meeting01::ga::state_checkpoint_exists(dir, tag));
 
-    const auto ck = meeting01::ga::load_generation_checkpoint(dir, tag);
+    const auto ck =
+        meeting01::ga::load_generation_checkpoint<meeting01::ga::Meeting01GaIndividual>(dir, tag);
     EXPECT_EQ(ck.generation, 2);
     ASSERT_EQ(ck.parents.size(), 2u);
     EXPECT_EQ(ck.parents[0].genome.encoder_widths, parents[0].genome.encoder_widths);
@@ -438,13 +442,13 @@ TEST(Meeting01GaSearch, ConfigRejectsPopulationOneWithGenerations)
     cfg.evaluation.datasets = {"fsdd"};
     cfg.evaluation.encodings = {"direct"};
     cfg.evaluation.snn_architectures = {"dense"};
-    cfg.evaluation.ga.population_size = 1;
-    cfg.evaluation.ga.generations = 1;
+    cfg.evaluation.ga.snn.population_size = 1;
+    cfg.evaluation.ga.snn.generations = 1;
 
     EXPECT_THROW(cfg.validate(), std::invalid_argument);
 
     // population 1 with 0 generations is legal: one random genome, no breeding.
-    cfg.evaluation.ga.generations = 0;
+    cfg.evaluation.ga.snn.generations = 0;
     EXPECT_NO_THROW(cfg.validate());
 }
 

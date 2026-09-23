@@ -237,10 +237,11 @@ void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_pa
         << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
         << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
         << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
-        << cfg.evaluation.ga.voltage_threshold_min << ';' << cfg.evaluation.ga.voltage_threshold_max
-        << '"' << ',' << '"' << cfg.evaluation.ga.alpha_min << ';' << cfg.evaluation.ga.alpha_max
-        << '"' << ',' << cfg.dataset.window_size << ',' << cfg.dataset.max_loaded_train_samples
-        << ',' << cfg.dataset.max_validation_samples << ','
+        << cfg.evaluation.ga.snn.voltage_threshold_min << ';'
+        << cfg.evaluation.ga.snn.voltage_threshold_max << '"' << ',' << '"'
+        << cfg.evaluation.ga.snn.alpha_min << ';' << cfg.evaluation.ga.snn.alpha_max << '"' << ','
+        << cfg.dataset.window_size << ',' << cfg.dataset.max_loaded_train_samples << ','
+        << cfg.dataset.max_validation_samples << ','
         << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
 }
 

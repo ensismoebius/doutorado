@@ -1,13 +1,13 @@
 {
     "_profile_name": "meeting01-loso",
-    "_network_type": "Nested leave-one-speaker-out (LOSO/LOGO) comparative: NSGA-II-searched SNN-AE (encoder depth/width, encoding, architecture, v_th, alpha all genes) vs LSTM-AE / GRU-AE / Transformer-AE baselines, one OS process per (dataset, outer fold).",
-    "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder), exponential surrogate; R, C, V_th learnable, clamped 1e-6. Baselines match article-lstm-ae (H=64, latent 32; GRU/Transformer analogues). The driver runs NSGA-II (population x (1+generations) evaluations) over the SNN-AE's own architecture, encoding, and biophysical params, selects the winning genome from the rank-0 Pareto front on the inner validation speaker, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train), and evaluates once on the held-out test speaker. GA is the only SNN architecture search mechanism -- no grid/sweep path exists.",
+    "_network_type": "Nested leave-one-speaker-out (LOSO/LOGO) architecture search: NSGA-II runs SEPARATELY for each of 4 model families (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE), one OS process per (dataset, outer fold). Goal (2026-09-22 scope change): find the best autoencoder overall across all 4 families at equal latent_dim=32, not 'SNN vs 3 fixed baselines' -- every family now searches its own architecture and its own input encoding.",
+    "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder), exponential surrogate; R, C, V_th learnable, clamped 1e-6. LSTM-AE/GRU-AE: hidden_size + num_layers genes (Meeting01RecurrentGaGenome). Transformer-AE: d_model + n_heads + n_layers + d_ff genes, d_model % n_heads == 0 enforced by repair (Meeting01TransformerGaGenome). All 4: encoding (direct/poisson/latency) is a gene, latent_dim is fixed at 32 (never a gene) so every family is compared at the same compression ratio. Each family's driver runs its own NSGA-II (population x (1+generations) evaluations), selects the winning genome from its own rank-0 Pareto front on the inner validation speaker, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train), evaluates once on the held-out test speaker, then the 4 winners are compared (val_mse, then inference cost) and the overall winner is recorded in a '_run<r>_overall_winner_manifest.json'.",
     "_loss_function": "MSE reconstruction loss",
-    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 360 Hz for MIT-BIH). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
-    "_total_runs_breakdown": "Per (dataset, fold): 3 baselines x 3 encodings x 5 seeds + population(8) x (1 + generations(5)) = 48 GA-searched SNN trainings x 5 seeds + |Pareto front| x (winner_seeds(3) - 1) re-scorings x 5 seeds + 1 retrained winner. x 3 datasets x 6 folds. Weeks on CPU. The train/val window caps were cut (1200 -> 200, 300 -> 150) and the GA budget reduced (90 -> 48 evaluations) to pay for the 16x cost of real temporal simulation; the test cap stays at 1500 because evaluation is forward-only and those windows are what the recording-level statistics are computed over.",
+    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 360 Hz for MIT-BIH). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene for every family, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings and families. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
+    "_total_runs_breakdown": "Per (dataset, fold, run_id): 4 SEPARATE NSGA-II searches (SNN + LSTM + GRU + Transformer), each population x (1 + generations) evaluations + |Pareto front| x (winner_seeds - 1) re-scorings + 1 retrained winner. SNN's budget (population 8 x (1+5 generations) = 48 evaluations) was measured against real per-epoch cost at these production settings (200 train windows, T=16). ga.lstm/ga.gru/ga.transformer below are NOT YET calibrated the same way -- they are unset here and fall back to Meeting01Config's struct defaults (population 10 x (1+8) = 90 evaluations each), which is a placeholder, not a measured equal-time budget. Per the approved multi-family plan, population_size/generations for these 3 must be set from a real per-epoch cost probe at T=16/200 windows before this profile is grid-ready -- until then this profile's LSTM/GRU/Transformer arms cost roughly 90/48 =~ 1.9x the SNN arm each, not the equal-wall-clock budget the design calls for. Overall: swapping 3 fixed-architecture baselines for 3 more GA searches of comparable size to the SNN's roughly QUADRUPLES total grid wall-clock time versus the SNN-only design. x 3 datasets x 6 folds x 5 seeds. Weeks on CPU.",
     "_dataset_config": "Speaker/record-disjoint outer folds (6). No pooled sample caps (max_loaded_train_samples / max_validation_samples = 0 -> every window of the disjoint partitions, then the stratified loso_max_* caps apply). 30 epochs max, early stop patience 5, lr 0.001 (weights) / 0.0001 (R, C, V_th), batch size 1. Per-epoch progress on stderr as '[loso] ... epoch N/M' (survives nohup, where the live bars collapse).",
-    "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<enc>_run<r>_model_selection_manifest.json, _events.jsonl, models/*.npz; documentation/07-articlesProduced/meeting01/data/*.tex",
-    "_comment": "Nested-LOSO comparative for the meeting01 paper revision. Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; ~weeks). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
+    "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<family>_run<r>_model_selection_manifest.json (one per family), _run<r>_overall_winner_manifest.json (4-way comparison), _events.jsonl, models/*.npz; documentation/07-articlesProduced/meeting01/data/*.tex",
+    "_comment": "Nested-LOSO multi-family architecture search for the meeting01 paper revision. NOT YET GRID-READY: see _total_runs_breakdown -- ga.lstm/ga.gru/ga.transformer budgets are placeholders pending an empirical per-epoch cost measurement. Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; ~weeks). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
     "experiment": {
         "run_tag": "meeting01_loso",
         "seed": 42,
@@ -99,13 +99,15 @@
             "recurrent"
         ],
         "ga": {
-            "population_size": 8,
-            "generations": 5,
-            "winner_seeds": 3,
-            "voltage_threshold_min": 0.5,
-            "voltage_threshold_max": 1.5,
-            "alpha_min": 0.8,
-            "alpha_max": 0.99
+            "snn": {
+                "population_size": 8,
+                "generations": 5,
+                "winner_seeds": 3,
+                "voltage_threshold_min": 0.5,
+                "voltage_threshold_max": 1.5,
+                "alpha_min": 0.8,
+                "alpha_max": 0.99
+            }
         }
     }
 }

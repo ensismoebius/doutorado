@@ -10,8 +10,14 @@
 namespace meeting01::ga
 {
 
-// A fully-evaluated GA individual. Satisfies ga::Nsga2Scored (include/ga/Nsga2Core.hpp):
-// feasible/constraint_violation/objectives/rank/crowding.
+// A fully-evaluated GA individual, generic over the genome type G. Satisfies
+// ga::Nsga2Scored (include/ga/Nsga2Core.hpp): feasible/constraint_violation/
+// objectives/rank/crowding. Every family's architecture search (SNN via Genome,
+// LSTM/GRU via RecurrentGenome, Transformer via TransformerGenome —
+// Meeting01RecurrentGaGenome.hpp / Meeting01TransformerGaGenome.hpp) uses THIS same
+// template instead of a hand-copied struct per family; only the genome shape differs,
+// and `genome_type` lets the generic search driver (Meeting01GaSearch.hpp) and
+// checkpoint layer (Meeting01GaCheckpoint.hpp) name it without being told explicitly.
 //
 // No feasibility constraint is modeled: unlike paraconsistentGA's latent-collapse
 // guard (a real, previously-observed failure mode of the paraconsistent scoring
@@ -22,13 +28,16 @@ namespace meeting01::ga
 // Pareto dominance, which is the correct behavior here. Inventing a threshold-based
 // "collapse guard" with no grounding in this pipeline's actual failure modes would be
 // exactly the fabricated-recovery pattern CLAUDE.md's no-fallbacks rule forbids.
-struct Meeting01GaIndividual
+template <typename G>
+struct GaIndividualT
 {
-    Genome genome;
+    using genome_type = G;
+
+    G genome{};
 
     float val_mse = 0.0f;
     std::size_t param_count = 0;
-    std::size_t inference_cost = 0; // estimate_snn_macs(window_size, widths.front(), depth())
+    std::size_t inference_cost = 0; // family-specific MAC estimate of this genome
 
     bool feasible = true;
     double constraint_violation = 0.0;
@@ -39,6 +48,11 @@ struct Meeting01GaIndividual
 
     int born_generation = -1;
 };
+
+// The SNN individual, kept under its original name — every existing caller
+// (Meeting01GaSearch.*, Meeting01GaCheckpoint.*, Meeting01Experiment.cpp,
+// meeting01_ga_gtest.cpp) refers to this type name unchanged.
+using Meeting01GaIndividual = GaIndividualT<Genome>;
 
 // Train this individual's genome on split.train_samples, score it on split.val_samples
 // (exactly what run_snn_combo does today for one grid cell), and fill every field of

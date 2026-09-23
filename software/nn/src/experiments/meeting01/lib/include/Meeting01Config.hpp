@@ -167,7 +167,7 @@ struct Meeting01Config
     // evaluation.snn_architectures supply the legal choice pools for the
     // encoding/architecture genes (reusing their existing whitelist validation).
     // Runs whenever evaluation.snn_architectures is non-empty; an empty list means the
-    // run is LSTM/GRU/Transformer-only (no SNN arm), the pre-existing escape hatch.
+    // run has no SNN arm.
     struct Ga
     {
         int population_size = 10;
@@ -190,17 +190,80 @@ struct Meeting01Config
         int checkpoint_every_generations = 1;
     };
 
+    // NSGA-II bounds shared by the LSTM-AE and GRU-AE architecture searches (2026-09-22:
+    // every family now searches its own shape, not just the SNN — see
+    // .wiki/Experiments/Meeting01.md). Consulted only when "lstm-ae"/"gru-ae" appears in
+    // evaluation.baselines. hidden_size/num_layers are the free axes; latent_dim is
+    // deliberately NOT here — it stays fixed at model.latent_dim for every family so the
+    // comparison is "best architecture at the same compression ratio", not "whichever
+    // family got the more generous bottleneck".
+    struct RecurrentGa
+    {
+        int population_size = 10;
+        int generations = 8;
+        int min_hidden = 8;
+        int max_hidden = 256;
+        int min_layers = 1;
+        int max_layers = 3;
+        double crossover_prob = 0.9;
+        double mutation_prob = 0.2;
+        int tournament_k = 2;
+        int winner_seeds = 3;
+        unsigned int seed = 0;
+        int checkpoint_every_generations = 1;
+    };
+
+    // NSGA-II bounds for the Transformer-AE architecture search. `head_choices` is the
+    // legal pool n_heads is drawn from and repaired against d_model (multi-head
+    // attention requires d_model % n_heads == 0 — see Meeting01TransformerGaGenome.cpp's
+    // repair_transformer). Consulted only when "transformer-ae" is in
+    // evaluation.baselines.
+    struct TransformerGa
+    {
+        int population_size = 10;
+        int generations = 8;
+        int min_d_model = 16;
+        int max_d_model = 128;
+        std::vector<int> head_choices = {1, 2, 4, 8};
+        int min_layers = 1;
+        int max_layers = 4;
+        int min_d_ff = 32;
+        int max_d_ff = 256;
+        double crossover_prob = 0.9;
+        double mutation_prob = 0.2;
+        int tournament_k = 2;
+        int winner_seeds = 3;
+        unsigned int seed = 0;
+        int checkpoint_every_generations = 1;
+    };
+
+    // One block per searchable family, nested under evaluation.ga in JSON
+    // (evaluation.ga.snn / .lstm / .gru / .transformer) — every family's search budget
+    // is readable from the profile as its own named block, not inherited invisibly
+    // from a shared default. A profile still carrying the pre-2026-09-22 flat
+    // evaluation.ga shape (fields directly under "ga", no "snn"/"lstm"/"gru"/
+    // "transformer" wrapper) is REJECTED with a remedy — see
+    // reject_flat_ga_schema below — never silently reinterpreted as "only the SNN
+    // searches, the rest stay fixed".
+    struct GaBlock
+    {
+        Ga snn;
+        RecurrentGa lstm;
+        RecurrentGa gru;
+        TransformerGa transformer;
+    };
+
     struct Evaluation
     {
         std::vector<std::string> datasets;  // REQUIRED
         std::vector<std::string> encodings; // REQUIRED
-        // Trained non-spiking baseline families to run per fold. Valid entries:
-        // "lstm-ae", "gru-ae", "transformer-ae". Default keeps the legacy
-        // LSTM-only behaviour. PCA / mean-frame references are added downstream
-        // in Python, not here.
+        // Architecture-searched non-spiking baseline families to run per fold. Valid
+        // entries: "lstm-ae", "gru-ae", "transformer-ae". Default keeps the legacy
+        // LSTM-only behaviour. PCA / mean-frame references are added downstream in
+        // Python, not here.
         std::vector<std::string> baselines = {"lstm-ae"};
         std::vector<std::string> snn_architectures; // REQUIRED (use [] for SNN-free runs)
-        Ga ga; // GA search bounds; only consulted when snn_architectures is non-empty
+        GaBlock ga; // per-family GA bounds; each block consulted only when that family runs
     };
 
     Experiment experiment;
@@ -302,27 +365,32 @@ struct Meeting01Config
         get("baselines", cfg.evaluation.baselines);
         get("snn_architectures", cfg.evaluation.snn_architectures);
 
-        get("ga_population_size", cfg.evaluation.ga.population_size);
-        get("ga_generations", cfg.evaluation.ga.generations);
-        get("ga_min_layers", cfg.evaluation.ga.min_layers);
-        get("ga_max_layers", cfg.evaluation.ga.max_layers);
-        get("ga_min_width", cfg.evaluation.ga.min_width);
-        get("ga_max_width", cfg.evaluation.ga.max_width);
-        get("ga_voltage_threshold_min", cfg.evaluation.ga.voltage_threshold_min);
-        get("ga_voltage_threshold_max", cfg.evaluation.ga.voltage_threshold_max);
-        get("ga_alpha_min", cfg.evaluation.ga.alpha_min);
-        get("ga_alpha_max", cfg.evaluation.ga.alpha_max);
-        get("ga_crossover_prob", cfg.evaluation.ga.crossover_prob);
-        get("ga_mutation_prob", cfg.evaluation.ga.mutation_prob);
-        get("ga_tournament_k", cfg.evaluation.ga.tournament_k);
-        get("ga_winner_seeds", cfg.evaluation.ga.winner_seeds);
-        get("ga_seed", cfg.evaluation.ga.seed);
-        get("ga_checkpoint_every_generations", cfg.evaluation.ga.checkpoint_every_generations);
+        // Flat schema predates the multi-family architecture search (2026-09-22) and is
+        // kept for the one remaining flat profile (debug.json), which never searches a
+        // baseline family — these keys only ever populate the SNN block.
+        get("ga_population_size", cfg.evaluation.ga.snn.population_size);
+        get("ga_generations", cfg.evaluation.ga.snn.generations);
+        get("ga_min_layers", cfg.evaluation.ga.snn.min_layers);
+        get("ga_max_layers", cfg.evaluation.ga.snn.max_layers);
+        get("ga_min_width", cfg.evaluation.ga.snn.min_width);
+        get("ga_max_width", cfg.evaluation.ga.snn.max_width);
+        get("ga_voltage_threshold_min", cfg.evaluation.ga.snn.voltage_threshold_min);
+        get("ga_voltage_threshold_max", cfg.evaluation.ga.snn.voltage_threshold_max);
+        get("ga_alpha_min", cfg.evaluation.ga.snn.alpha_min);
+        get("ga_alpha_max", cfg.evaluation.ga.snn.alpha_max);
+        get("ga_crossover_prob", cfg.evaluation.ga.snn.crossover_prob);
+        get("ga_mutation_prob", cfg.evaluation.ga.snn.mutation_prob);
+        get("ga_tournament_k", cfg.evaluation.ga.snn.tournament_k);
+        get("ga_winner_seeds", cfg.evaluation.ga.snn.winner_seeds);
+        get("ga_seed", cfg.evaluation.ga.snn.seed);
+        get("ga_checkpoint_every_generations", cfg.evaluation.ga.snn.checkpoint_every_generations);
 
         return cfg;
     }
 
-    static void parse_ga(const nlohmann::json& sec, Ga& ga)
+    // Fields every family's GA block shares (search mechanics, not genome bounds).
+    template <typename T>
+    static void parse_ga_common(const nlohmann::json& sec, T& ga)
     {
         auto get = [&](const std::string& key, auto& field)
         {
@@ -330,6 +398,21 @@ struct Meeting01Config
         };
         get("population_size", ga.population_size);
         get("generations", ga.generations);
+        get("crossover_prob", ga.crossover_prob);
+        get("mutation_prob", ga.mutation_prob);
+        get("tournament_k", ga.tournament_k);
+        get("winner_seeds", ga.winner_seeds);
+        get("seed", ga.seed);
+        get("checkpoint_every_generations", ga.checkpoint_every_generations);
+    }
+
+    static void parse_ga(const nlohmann::json& sec, Ga& ga)
+    {
+        parse_ga_common(sec, ga);
+        auto get = [&](const std::string& key, auto& field)
+        {
+            if (sec.contains(key)) field = sec[key].get<std::decay_t<decltype(field)>>();
+        };
         get("min_layers", ga.min_layers);
         get("max_layers", ga.max_layers);
         get("min_width", ga.min_width);
@@ -338,12 +421,71 @@ struct Meeting01Config
         get("voltage_threshold_max", ga.voltage_threshold_max);
         get("alpha_min", ga.alpha_min);
         get("alpha_max", ga.alpha_max);
-        get("crossover_prob", ga.crossover_prob);
-        get("mutation_prob", ga.mutation_prob);
-        get("tournament_k", ga.tournament_k);
-        get("winner_seeds", ga.winner_seeds);
-        get("seed", ga.seed);
-        get("checkpoint_every_generations", ga.checkpoint_every_generations);
+    }
+
+    static void parse_recurrent_ga(const nlohmann::json& sec, RecurrentGa& ga)
+    {
+        parse_ga_common(sec, ga);
+        auto get = [&](const std::string& key, auto& field)
+        {
+            if (sec.contains(key)) field = sec[key].get<std::decay_t<decltype(field)>>();
+        };
+        get("min_hidden", ga.min_hidden);
+        get("max_hidden", ga.max_hidden);
+        get("min_layers", ga.min_layers);
+        get("max_layers", ga.max_layers);
+    }
+
+    static void parse_transformer_ga(const nlohmann::json& sec, TransformerGa& ga)
+    {
+        parse_ga_common(sec, ga);
+        auto get = [&](const std::string& key, auto& field)
+        {
+            if (sec.contains(key)) field = sec[key].get<std::decay_t<decltype(field)>>();
+        };
+        get("min_d_model", ga.min_d_model);
+        get("max_d_model", ga.max_d_model);
+        get("head_choices", ga.head_choices);
+        get("min_layers", ga.min_layers);
+        get("max_layers", ga.max_layers);
+        get("min_d_ff", ga.min_d_ff);
+        get("max_d_ff", ga.max_d_ff);
+    }
+
+    // A profile still carrying the pre-2026-09-22 flat evaluation.ga shape (fields
+    // directly under "ga" — "population_size", "min_layers", ...) is REJECTED, not
+    // silently reinterpreted as "only the SNN searches, the baselines stay fixed".
+    // That silent reinterpretation is exactly the class of bug the 2026-09-22 audit
+    // spent a whole day eliminating (see reject_renamed_time_steps above, same
+    // rationale): a run that completes normally and reports plausible numbers under a
+    // search scope nobody chose.
+    static void reject_flat_ga_schema(const nlohmann::json& ga_sec)
+    {
+        const bool has_family_wrapper = ga_sec.contains("snn") || ga_sec.contains("lstm") ||
+                                        ga_sec.contains("gru") || ga_sec.contains("transformer");
+        const bool looks_flat = ga_sec.contains("population_size") ||
+                                ga_sec.contains("generations") || ga_sec.contains("min_layers") ||
+                                ga_sec.contains("min_width");
+        if (looks_flat && !has_family_wrapper)
+            throw std::invalid_argument(
+                "Meeting01Config: evaluation.ga uses the pre-2026-09-22 flat shape (fields "
+                "directly under 'ga'). Since that date every architecture-searched family "
+                "(SNN, LSTM-AE, GRU-AE, Transformer-AE) has its own GA budget, nested under "
+                "'ga': {\"snn\": {...}, \"lstm\": {...}, \"gru\": {...}, \"transformer\": "
+                "{...}}. Remedy: move this profile's existing fields under 'ga.snn' and add "
+                "'ga.lstm'/'ga.gru'/'ga.transformer' blocks for whichever families appear in "
+                "evaluation.baselines. Do NOT leave the flat shape in place — it would be "
+                "silently ignored by every family, not just reinterpreted as SNN-only.");
+    }
+
+    static void parse_ga_block(const nlohmann::json& ga_sec, GaBlock& block)
+    {
+        reject_flat_ga_schema(ga_sec);
+        if (ga_sec.contains("snn")) parse_ga(ga_sec["snn"], block.snn);
+        if (ga_sec.contains("lstm")) parse_recurrent_ga(ga_sec["lstm"], block.lstm);
+        if (ga_sec.contains("gru")) parse_recurrent_ga(ga_sec["gru"], block.gru);
+        if (ga_sec.contains("transformer"))
+            parse_transformer_ga(ga_sec["transformer"], block.transformer);
     }
 
     static Meeting01Config from_nested_json(const nlohmann::json& j)
@@ -443,7 +585,7 @@ struct Meeting01Config
         require(evl, "evaluation", "encodings", cfg.evaluation.encodings);
         get(evl, "baselines", cfg.evaluation.baselines);
         require(evl, "evaluation", "snn_architectures", cfg.evaluation.snn_architectures);
-        if (evl.contains("ga")) parse_ga(evl["ga"], cfg.evaluation.ga);
+        if (evl.contains("ga")) parse_ga_block(evl["ga"], cfg.evaluation.ga);
 
         return cfg;
     }

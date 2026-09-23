@@ -41,7 +41,20 @@ void repair_widths(Genome& g, const GenomeBounds& bounds)
 
     if (w.empty()) w.push_back(bounds.max_width); // seed; the strict-decrease pass fixes it
 
-    for (int& x : w) x = std::clamp(x, bounds.min_width, bounds.max_width);
+    // The bottleneck (encoder_widths.back(), what build_snn_decoder actually receives
+    // as its first layer's expected input via cfg.model.latent_dim) is fixed, never a
+    // gene — every HIDDEN width must sit strictly above it, or the strictly-decreasing
+    // sequence couldn't terminate at bounds.latent_dim at all. Before this, a genome's
+    // last width was just another free draw in [min_width, max_width], decoupled from
+    // cfg.model.latent_dim: build_snn_decoder always builds its first Linear expecting
+    // exactly cfg.latent_size in features, so any genome whose smallest width landed
+    // away from cfg.model.latent_dim crashed the very first real forward pass with a
+    // "Linear layer forward: input features (…) do not match expected in_features (…)"
+    // — never caught by the existing genome-repair/checkpoint tests, which never
+    // construct-and-run the actual network.
+    const int hidden_min = std::max(bounds.min_width, bounds.latent_dim + 1);
+
+    for (int& x : w) x = std::clamp(x, hidden_min, bounds.max_width);
 
     std::sort(w.begin(), w.end(), std::greater<int>());
     std::vector<int> fixed;
@@ -50,15 +63,16 @@ void repair_widths(Genome& g, const GenomeBounds& bounds)
     for (int x : w)
     {
         int v = std::min(x, ceiling - 1);
-        if (v < bounds.min_width) break;
+        if (v < hidden_min) break;
         fixed.push_back(v);
         ceiling = v;
     }
-    if (fixed.empty()) fixed.push_back(bounds.min_width);
 
-    if (static_cast<int>(fixed.size()) > bounds.max_layers)
-        fixed.resize(static_cast<std::size_t>(bounds.max_layers));
+    const int hidden_cap = std::max(0, bounds.max_layers - 1);
+    if (static_cast<int>(fixed.size()) > hidden_cap)
+        fixed.resize(static_cast<std::size_t>(hidden_cap));
 
+    fixed.push_back(bounds.latent_dim);
     w = std::move(fixed);
 }
 
@@ -155,6 +169,24 @@ auto genome_key(const Genome& g) -> std::string
     for (int w : g.encoder_widths) s << w << ',';
     s << '|' << g.encoding << '|' << g.architecture << '|' << g.voltage_threshold << '|' << g.alpha;
     return s.str();
+}
+
+auto genome_to_json(const Genome& g) -> nlohmann::json
+{
+    return {{"encoder_widths", g.encoder_widths},
+        {"encoding", g.encoding},
+        {"architecture", g.architecture},
+        {"voltage_threshold", g.voltage_threshold},
+        {"alpha", g.alpha}};
+}
+
+void genome_from_json(const nlohmann::json& j, Genome& out)
+{
+    out.encoder_widths = j.at("encoder_widths").get<std::vector<int>>();
+    out.encoding = j.at("encoding").get<std::string>();
+    out.architecture = j.at("architecture").get<std::string>();
+    out.voltage_threshold = j.at("voltage_threshold").get<float>();
+    out.alpha = j.at("alpha").get<float>();
 }
 
 } // namespace meeting01::ga

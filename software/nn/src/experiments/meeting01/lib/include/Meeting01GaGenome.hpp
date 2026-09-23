@@ -6,6 +6,7 @@
 
 #include "Meeting01Config.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
+#include "nlohmann/json.hpp"
 
 namespace meeting01::ga
 {
@@ -28,6 +29,13 @@ struct GenomeBounds
     float alpha_max = 0.99f;
     std::vector<std::string> encoding_choices;
     std::vector<std::string> architecture_choices;
+    // The bottleneck width — NEVER a gene, same rule as every other family (2026-09-22
+    // decision, see Meeting01RecurrentGaGenome.hpp's identical note): fixed so every
+    // family is compared at the same compression ratio. `repair_widths` forces
+    // `encoder_widths.back()` to exactly this value; `min_width`/`max_width` bound only
+    // the HIDDEN layers above it. Wired from cfg.model.latent_dim by the caller
+    // (run_snn_ga_search) — this struct doesn't read Meeting01Config itself.
+    int latent_dim = 32;
 };
 
 // One individual's genotype. Every axis the user asked to be free is a gene here:
@@ -104,5 +112,15 @@ auto to_ae_config(const Genome& g, const meeting01::Meeting01Config& cfg)
 // encoding/architecture/continuous genes) collapse to one training. Mirrors
 // pga::genome_key (GaNsga2.cpp).
 auto genome_key(const Genome& g) -> std::string;
+
+// ADL hooks the generic checkpoint layer (Meeting01GaCheckpoint.hpp) calls unqualified
+// on whatever concrete genome type an individual carries — `genome_to_json` resolves by
+// argument type, `genome_from_json` writes into its out-param so the SAME call shape
+// works for every family without the checkpoint code ever naming a genome type itself.
+// These were private helpers inside Meeting01GaCheckpoint.cpp before the multi-family
+// generalization; promoted here (same file as every other Genome-specific operation)
+// once a second and third genome type existed and needed the identical hook.
+auto genome_to_json(const Genome& g) -> nlohmann::json;
+void genome_from_json(const nlohmann::json& j, Genome& out);
 
 } // namespace meeting01::ga

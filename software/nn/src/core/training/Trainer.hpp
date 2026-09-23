@@ -629,20 +629,54 @@ class Trainer
             const float avg_train_loss =
                 (n_train > 0) ? train_loss_sum / static_cast<float>(n_train) : 0.0F;
 
-            // Validation — single batched forward pass over all val samples.
+            // Validation — chunked into cfg_.batch_size-sized groups, mirroring the
+            // training loop above exactly. A single stack_time_major() over the WHOLE
+            // val set (the previous behaviour here) is only correct when the model
+            // itself unstacks a (T*B, F) batch back into B independent length-T
+            // sequences, which time-major SNN/LifBPTT models do via their own
+            // time_steps config. A frame-consuming sequence autoencoder (LSTM-AE/
+            // GRU-AE/Transformer-AE) has no such B: it treats every input row as one
+            // more step of ONE sequence, so stacking 10 val samples produced one
+            // 10x-too-long pseudo-sequence — wrong for LSTM/GRU (silently: they infer
+            // seq_len dynamically) and a hard crash for TransformerAutoencoder (whose
+            // positional-encoding buffer is fixed-size). Chunking by cfg_.batch_size
+            // reproduces the old single-batch behaviour whenever batch_size is already
+            // >= the val set size (the SNN case, unaffected), and validates one true
+            // sequence at a time when batch_size == 1 (the AE case, now correct).
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
             if (!val_inputs.empty())
             {
-                Tensor val_inp = stack_time_major(val_inputs);
-                Tensor val_tgt = stack_time_major(val_targets);
-                // See the note in fit_loop's validation block.
                 OptimizerEvalScope _eval_scope(*optimizer_);
 
-                reset_model_state();
-                Tensor vout = model_.forward(val_inp, false);
-                loss_.set_target(val_tgt);
-                Tensor vloss_t = loss_.forward(vout, false);
-                avg_val_loss = vloss_t.at(0, 0);
+                float val_loss_sum = 0.0F;
+                int n_val = 0;
+                std::size_t vstart = 0;
+                while (vstart < val_inputs.size())
+                {
+                    const std::size_t vend = std::min(
+                        vstart + static_cast<std::size_t>(cfg_.batch_size), val_inputs.size());
+                    const std::vector<Tensor> vinp_parts(
+                        val_inputs.begin() + static_cast<std::ptrdiff_t>(vstart),
+                        val_inputs.begin() + static_cast<std::ptrdiff_t>(vend));
+                    const std::vector<Tensor> vtgt_parts(
+                        val_targets.begin() + static_cast<std::ptrdiff_t>(vstart),
+                        val_targets.begin() + static_cast<std::ptrdiff_t>(vend));
+
+                    Tensor val_inp = stack_time_major(vinp_parts);
+                    Tensor val_tgt = stack_time_major(vtgt_parts);
+
+                    reset_model_state();
+                    Tensor vout = model_.forward(val_inp, false);
+                    loss_.set_target(val_tgt);
+                    Tensor vloss_t = loss_.forward(vout, false);
+
+                    const int vbs = static_cast<int>(vend - vstart);
+                    val_loss_sum += vloss_t.at(0, 0) * static_cast<float>(vbs);
+                    n_val += vbs;
+                    vstart = vend;
+                }
+                avg_val_loss = (n_val > 0) ? val_loss_sum / static_cast<float>(n_val)
+                                           : std::numeric_limits<float>::quiet_NaN();
             }
 
             const auto t_end = std::chrono::steady_clock::now();

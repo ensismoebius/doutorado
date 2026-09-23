@@ -88,7 +88,8 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
     return 16;
 }
 
-auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
+auto make_lstm_cfg(const Meeting01Config& cfg, int hidden_size_override, int num_layers_override)
+    -> nn::models::lstm::LSTMAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
@@ -98,14 +99,26 @@ auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoenco
         extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
     nn::models::lstm::LSTMAutoencoderConfig arch;
-    // The window is consumed lstm_frame_size samples per timestep, so the
-    // sequence is that many times shorter. See to_lstm_frames().
+    // encode_sample() (2026-09-22, commit 19c7b488) expands every window into a
+    // (time_steps, window_size) time-major tensor BEFORE to_lstm_frames() reframes it —
+    // this is the same real temporal axis the SNN unrolls, not a baseline-only
+    // shortcut, so the actual sequence length to_lstm_frames() produces is
+    // (window_size * time_steps) / lstm_frame_size, not window_size / lstm_frame_size.
+    // Getting this wrong doesn't affect LSTMAutoencoder's own forward pass (it infers
+    // seq_len dynamically from the encoder's actual input via last_T_), but it DOES
+    // silently under-count estimate_lstm_macs()'s cost (linear in seq_len) — the same
+    // stale formula in TransformerAutoencoderConfig crashes outright, since that model's
+    // positional encoding buffer is sized once from this field at construction.
     arch.input_size = cfg.model.lstm_frame_size;
-    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
-    arch.hidden_size =
-        (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.hidden_size = (hidden_size_override > 0)         ? hidden_size_override
+                       : (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size
+                                                          : derived_hidden;
+    // latent_dim is never genome-driven — fixed compression ratio across every family.
     arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
-    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
+    arch.num_layers = (num_layers_override > 0)
+                          ? num_layers_override
+                          : static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
 }
 
@@ -261,7 +274,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 // GRU / Transformer training — same frame-consuming path as the LSTM-AE.
 // ---------------------------------------------------------------------------
 
-auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoderConfig
+auto make_gru_cfg(const Meeting01Config& cfg, int hidden_size_override, int num_layers_override)
+    -> nn::models::gru::GRUAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int derived_hidden = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
@@ -272,27 +286,41 @@ auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoder
 
     nn::models::gru::GRUAutoencoderConfig arch;
     arch.input_size = cfg.model.lstm_frame_size;
-    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
-    arch.hidden_size =
-        (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    // See make_lstm_cfg()'s comment: to_lstm_frames() reframes the (time_steps,
+    // window_size) tensor encode_sample() already produced, so the real sequence
+    // length includes the time_steps factor too.
+    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.hidden_size = (hidden_size_override > 0)         ? hidden_size_override
+                       : (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size
+                                                          : derived_hidden;
     arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
-    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
+    arch.num_layers = (num_layers_override > 0)
+                          ? num_layers_override
+                          : static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
 }
 
-auto make_transformer_cfg(const Meeting01Config& cfg)
-    -> nn::models::transformer::TransformerAutoencoderConfig
+auto make_transformer_cfg(const Meeting01Config& cfg,
+    int d_model_override,
+    int n_heads_override,
+    int n_layers_override,
+    int d_ff_override) -> nn::models::transformer::TransformerAutoencoderConfig
 {
     const int derived_latent =
         extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
     nn::models::transformer::TransformerAutoencoderConfig arch;
     arch.input_size = cfg.model.lstm_frame_size;
-    arch.seq_len = cfg.dataset.window_size / cfg.model.lstm_frame_size;
-    arch.d_model = cfg.model.transformer_d_model;
-    arch.n_heads = cfg.model.transformer_heads;
-    arch.n_layers = cfg.model.transformer_layers;
-    arch.d_ff = cfg.model.transformer_d_ff;
+    // See make_lstm_cfg()'s comment. Unlike LSTM/GRU, TransformerAutoencoder sizes its
+    // positional-encoding buffer from this field ONCE at construction (it does not
+    // infer seq_len dynamically) — getting it wrong here doesn't just under-cost
+    // estimate_transformer_macs(), it makes every real forward pass overrun that buffer
+    // and throw "Block indices out of range".
+    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.d_model = (d_model_override > 0) ? d_model_override : cfg.model.transformer_d_model;
+    arch.n_heads = (n_heads_override > 0) ? n_heads_override : cfg.model.transformer_heads;
+    arch.n_layers = (n_layers_override > 0) ? n_layers_override : cfg.model.transformer_layers;
+    arch.d_ff = (d_ff_override > 0) ? d_ff_override : cfg.model.transformer_d_ff;
     arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     return arch;
 }

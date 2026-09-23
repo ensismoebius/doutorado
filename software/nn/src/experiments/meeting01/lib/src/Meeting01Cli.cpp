@@ -229,16 +229,41 @@ auto config_hash(const Meeting01Config& cfg) -> std::size_t
     j["evaluation"]["encodings"] = cfg.evaluation.encodings;
     j["evaluation"]["baselines"] = cfg.evaluation.baselines;
     j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
-    j["evaluation"]["ga"] = nlohmann::json{{"population_size", cfg.evaluation.ga.population_size},
-        {"generations", cfg.evaluation.ga.generations},
-        {"min_layers", cfg.evaluation.ga.min_layers},
-        {"max_layers", cfg.evaluation.ga.max_layers},
-        {"min_width", cfg.evaluation.ga.min_width},
-        {"max_width", cfg.evaluation.ga.max_width},
-        {"voltage_threshold_min", cfg.evaluation.ga.voltage_threshold_min},
-        {"voltage_threshold_max", cfg.evaluation.ga.voltage_threshold_max},
-        {"alpha_min", cfg.evaluation.ga.alpha_min},
-        {"alpha_max", cfg.evaluation.ga.alpha_max}};
+    // Every architecture-searched family's bounds feed the hash now (2026-09-22), not
+    // just the SNN's: this hash gates checkpoint reuse (Meeting01Checkpoint.hpp), so
+    // omitting a family's GA block here would mean changing that family's search
+    // bounds silently reused a checkpoint scored under the OLD bounds.
+    j["evaluation"]["ga"]["snn"] = {{"population_size", cfg.evaluation.ga.snn.population_size},
+        {"generations", cfg.evaluation.ga.snn.generations},
+        {"min_layers", cfg.evaluation.ga.snn.min_layers},
+        {"max_layers", cfg.evaluation.ga.snn.max_layers},
+        {"min_width", cfg.evaluation.ga.snn.min_width},
+        {"max_width", cfg.evaluation.ga.snn.max_width},
+        {"voltage_threshold_min", cfg.evaluation.ga.snn.voltage_threshold_min},
+        {"voltage_threshold_max", cfg.evaluation.ga.snn.voltage_threshold_max},
+        {"alpha_min", cfg.evaluation.ga.snn.alpha_min},
+        {"alpha_max", cfg.evaluation.ga.snn.alpha_max}};
+    auto recurrent_ga_json = [](const Meeting01Config::RecurrentGa& g)
+    {
+        return nlohmann::json{{"population_size", g.population_size},
+            {"generations", g.generations},
+            {"min_hidden", g.min_hidden},
+            {"max_hidden", g.max_hidden},
+            {"min_layers", g.min_layers},
+            {"max_layers", g.max_layers}};
+    };
+    j["evaluation"]["ga"]["lstm"] = recurrent_ga_json(cfg.evaluation.ga.lstm);
+    j["evaluation"]["ga"]["gru"] = recurrent_ga_json(cfg.evaluation.ga.gru);
+    j["evaluation"]["ga"]["transformer"] = {
+        {"population_size", cfg.evaluation.ga.transformer.population_size},
+        {"generations", cfg.evaluation.ga.transformer.generations},
+        {"min_d_model", cfg.evaluation.ga.transformer.min_d_model},
+        {"max_d_model", cfg.evaluation.ga.transformer.max_d_model},
+        {"head_choices", cfg.evaluation.ga.transformer.head_choices},
+        {"min_layers", cfg.evaluation.ga.transformer.min_layers},
+        {"max_layers", cfg.evaluation.ga.transformer.max_layers},
+        {"min_d_ff", cfg.evaluation.ga.transformer.min_d_ff},
+        {"max_d_ff", cfg.evaluation.ga.transformer.max_d_ff}};
     j["experiment"]["seed_deterministic"] = cfg.experiment.seed_deterministic;
     j["experiment"]["check_determinism"] = cfg.experiment.check_determinism;
 

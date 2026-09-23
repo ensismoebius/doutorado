@@ -1063,6 +1063,285 @@ replaced an infinite loop, and the MAC proxy distinguishing `{128, 8}` from `{12
 Paper text changes (Limitations / Methodology) are deliberately **not** part of this
 change — they need a real GA run's results to write accurately.
 
+## Multi-family architecture search (added 2026-09-22, same day, later scope change)
+
+### The question changed, not just the code
+
+Everything in the section above answers "does a *searched* SNN beat three *fixed*
+baselines?" — LSTM-AE, GRU-AE and Transformer-AE each still had exactly one shape
+(`hidden_size=64`, `d_model=64`, …), read straight from the profile, never evolved.
+That comparison is unfair in a specific, nameable way: the SNN got to try dozens of
+shapes and report its best; the baselines got exactly one guess each. A baseline that
+lost might just have had the wrong `hidden_size` — nothing in the old design could tell
+you which.
+
+The user's decision (2026-09-22, same day as the section above): stop asking "SNN vs.
+three fixed baselines" and start asking **"what is the best autoencoder overall, at a
+fixed compression ratio, for the next thesis phase and a paper"** — which means every
+family now gets the same deal the SNN already had: its own architecture, searched.
+
+### Four searches, not one population
+
+A tempting shortcut would be one NSGA-II population containing all four model types,
+competing directly. That was considered and rejected (user decision, locked via
+`AskUserQuestion`): a mixed population needs crossover between an SNN genome and a
+Transformer genome to mean something, and it doesn't — there is no principled way to
+"average" `encoder_widths=[96,40,12]` with `d_model=64,n_heads=4`. Instead:
+
+```
+   SNN-AE search  --> Pareto front --> winner_snn  (val_mse, cost)
+   LSTM-AE search --> Pareto front --> winner_lstm (val_mse, cost)
+   GRU-AE search  --> Pareto front --> winner_gru  (val_mse, cost)
+   Transformer-AE search --> Pareto front --> winner_transformer (val_mse, cost)
+                                    |
+                                    v
+                    min(val_mse, then cost) over the 4 winners
+                                    |
+                                    v
+                    <run>_overall_winner_manifest.json
+```
+
+Four independent NSGA-II runs, each with its own population, its own Pareto front, its
+own winner — then the 4 winners (not the 4 populations) are compared once, by the exact
+same rule `pick_winner` already used inside each search: lowest validation MSE, ties
+broken by lowest inference cost. This is the same shape as choosing a race winner per
+event and then comparing gold-medal times across events, not merging every runner from
+every event into one race.
+
+### `latent_dim` is fixed, not evolved — on purpose
+
+Every genome (SNN, recurrent, Transformer) can freely evolve its hidden width, depth,
+attention heads, and input encoding. None of them can evolve `latent_dim`. It is read
+once from `cfg.model.latent_dim` (32 in the production profile) and held fixed across
+all four families and every individual in every population.
+
+**Why this matters:** the bottleneck width is *the* thing that decides how hard the
+compression problem is. An SNN allowed a 64-wide bottleneck and a Transformer stuck at
+8 are not competing on architecture quality — the SNN's task is strictly easier. Fixing
+`latent_dim` means a win is "this family reconstructs better *through the same size
+hole*," not "this family gave itself a bigger hole." Every genome struct's bounds
+comment says this explicitly (`GenomeBounds::latent_dim`, `RecurrentGenomeBounds`'s
+header note, `TransformerGenome`'s header note) — the same sentence, repeated at each
+of the four call sites, so nobody wiring a fifth family later has to go hunting for the
+rule.
+
+### `d_model % n_heads == 0`: the one constraint no other family has
+
+Every other gene in every other genome is a free integer inside a range — any
+`hidden_size` in `[min_hidden, max_hidden]` is legal. The Transformer's `d_model` is
+not: multi-head attention splits the embedding into `n_heads` equal pieces, so
+`d_model` must be an exact multiple of `n_heads`, not merely close to one. `d_model=100,
+n_heads=3` is not a worse Transformer — it is a Transformer that cannot be constructed
+at all.
+
+`repair_transformer` (`Meeting01TransformerGaGenome.cpp`) enforces this the same way
+`repair_widths` enforces the SNN's strictly-decreasing widths: applied unconditionally
+after every random draw, crossover, and mutation, never left to chance. It first snaps
+`n_heads` to the nearest value in `head_choices` (a short list of legal counts — 1, 2,
+4, 8 — not an arbitrary range, because "nearest integer" doesn't make sense for a divisor
+constraint the way it does for a width), then rounds `d_model` to the nearest legal
+multiple of *that* `n_heads` inside `[min_d_model, max_d_model]`. `meeting01_transformer_ga_gtest.cpp`
+asserts `d_model % n_heads == 0` after 200 random draws, 100 crossovers, and 500
+mutations, plus a direct repair of a deliberately illegal `(d_model=100, n_heads=3)`
+pair — the one property that must never slip.
+
+### Distinct C++ types for one shared genome (the LSTM/GRU trick)
+
+LSTM-AE and GRU-AE vary over exactly the same axes — `hidden_size`, `num_layers`,
+`encoding` — so they share one genome struct, `RecurrentGenome`. But the generic search
+driver (`run_ga_search<Ind>`, templatized once and reused by all four families) needs to
+know, for a given individual, which recurrent cell to actually train — and that
+decision can't be a runtime string threaded through every call site without undoing the
+point of having a generic driver.
+
+The resolution: `LstmGaIndividual` and `GruGaIndividual` are two **empty structs**, both
+deriving from `GaIndividualT<RecurrentGenome>`:
+
+```cpp
+struct LstmGaIndividual : GaIndividualT<RecurrentGenome> {};
+struct GruGaIndividual  : GaIndividualT<RecurrentGenome> {};
+```
+
+Same layout, same genome, same everything — except the C++ type. `evaluate_individual`
+is overloaded on that type, so `void evaluate_individual(LstmGaIndividual&, ...)` trains
+an LSTM and `void evaluate_individual(GruGaIndividual&, ...)` trains a GRU, and ordinary
+overload resolution — not a family string checked at runtime — decides which one runs.
+The generic driver never special-cases either type; it just calls `evaluate_individual`
+unqualified (ADL) on whatever `Ind` it was instantiated with. The Transformer, having no
+sibling to share a genome with, doesn't need this trick: `TransformerGaIndividual` is a
+plain alias, `GaIndividualT<TransformerGenome>`.
+
+### Equal TIME budget, not equal evaluation count
+
+**The problem this solves.** "Give every family the same population size and generation
+count" sounds fair and is not: population×generations counts *evaluations*, and one
+evaluation costs wildly different amounts of wall-clock time per family, because it costs
+a different number of *sequential steps*. The encoder turns every window into a
+`(time_steps, window_size)` tensor before any family-specific framing — that axis is
+real and shared, not an SNN-only artifact — but each family then unrolls a different
+number of steps over it:
+
+| Family | Steps actually unrolled | Why |
+|---|---|---|
+| SNN-AE | `time_steps` (16 in production) | LIF membrane updates once per simulation step |
+| LSTM-AE / GRU-AE | `(window_size * time_steps) / lstm_frame_size` (512 at `window_size=256, time_steps=16, lstm_frame_size=8`) | recurrent cell processes one frame per step, sequentially, no cross-step batching |
+| Transformer-AE | same 512, but attention is over the whole sequence per layer, not one step at a time | self-attention is `O(seq_len²)` per layer, not `O(seq_len)` |
+
+512 sequential recurrent steps per sample vs. 16 membrane updates is not a rounding
+difference — equal *evaluation counts* across families would have handed the SNN a
+generous search budget and starved the other three, or handed the SNN a starved budget
+to let the others run 32× more evaluations, either way silently. This is exactly why
+"48 evaluations for everyone" was rejected in favor of measuring real wall-clock cost per
+family and solving for the evaluation count each one can afford in the SNN's already-
+budgeted time.
+
+**The method.** SNN's budget was fixed first (population=8, generations=5 → 48
+evaluations, see the section above) and its wall-clock cost at production settings (200
+train windows, 150 validation windows, `time_steps=16`, `window_size=256`) becomes the
+TIME ceiling every other family must fit inside. A short probe (population=1,
+generations=0 — exactly one evaluation — for each family, pinned to a
+production-representative genome: the same `H=64`/`d_model=64,n_heads=4,n_layers=2,d_ff=128`
+dimensions the old fixed baselines used) measures real seconds-per-epoch at those exact
+settings. Assuming the same expected epochs-per-evaluation across families — a stated,
+checkable assumption, not a hidden one: all four share the identical `epochs=30`/
+`early_stop_patience=5`/learning-rate regime and train on the same windows, so nothing
+in the setup would make one family's early-stopping behavior systematically different
+from another's without actually observing it — the equal-time condition reduces to:
+
+```
+population_family × (1 + generations_family)   sec_per_epoch_SNN
+──────────────────────────────────────────── = ──────────────────
+population_SNN × (1 + generations_SNN)          sec_per_epoch_family
+```
+
+Measured per-epoch costs and the resulting budgets: see `evaluation.ga.{lstm,gru,transformer}`
+in `meeting01-loso.json` and the table below — each budget's comment states the measured
+seconds/epoch it was derived from, so a future re-measurement (different hardware, a
+model change) has a concrete number to check against, not just a population/generations
+pair with no derivation.
+
+**Failure mode this prevents, and how loud it is.** Before this fix, `meeting01-loso.json`
+shipped without `ga.lstm`/`ga.gru`/`ga.transformer` set at all, silently falling back to
+`Meeting01Config`'s struct defaults (population=10, generations=8 → 90 evaluations) for
+all three — a number picked for no reason connected to this profile's actual cost, just
+however many evaluations the SNN's own struct happened to default to before its budget
+was calibrated. That failure is **silent**: the run completes, produces plausible
+numbers, and nothing anywhere says the three baseline arms cost roughly 90/48 ≈ 1.9× the
+SNN arm each rather than the intended equal-time budget. `SnnProfilesDeclareTheirGaBudgetExplicitly`-style
+guards exist for exactly this class of mistake; the fix here is the LSTM/GRU/Transformer
+analogue.
+
+### Config schema: `evaluation.ga` is now four blocks, not one
+
+```jsonc
+"evaluation": {
+  "baselines": ["lstm-ae", "gru-ae", "transformer-ae"],
+  "snn_architectures": ["dense", "conv1d", "recurrent"],
+  "ga": {
+    "snn":         { "population_size": 8, "generations": 5, "min_layers", "max_layers",
+                      "min_width", "max_width", "voltage_threshold_min/max", "alpha_min/max", ... },
+    "lstm":        { "population_size", "generations", "min_hidden", "max_hidden",
+                      "min_layers", "max_layers", ... },
+    "gru":         { "population_size", "generations", "min_hidden", "max_hidden",
+                      "min_layers", "max_layers", ... },
+    "transformer": { "population_size", "generations", "min_d_model", "max_d_model",
+                      "head_choices", "min_layers", "max_layers", "min_d_ff", "max_d_ff", ... }
+  }
+}
+```
+
+A profile on the OLD flat `"ga": {"population_size": ..., ...}` schema (pre-2026-09-22,
+SNN-only) is **rejected at load**, not silently reinterpreted as "only the SNN arm
+searches, the baselines stay fixed" — the same discipline `reject_renamed_time_steps`
+uses for the `time_steps` rename. `evaluation.ga.lstm`/`.gru` are only consulted when
+`"lstm-ae"`/`"gru-ae"` appears in `evaluation.baselines`; `.transformer` likewise for
+`"transformer-ae"`; `.snn` only when `snn_architectures` is non-empty — a family absent
+from the profile has no arm and its GA block, if present, is simply unread.
+
+### Where the new code lives
+
+| File | Role |
+|---|---|
+| `lib/include/Meeting01RecurrentGaGenome.hpp` + `.cpp` | `RecurrentGenome` (shared LSTM/GRU shape), repair/random/crossover/mutate, `to_lstm_cfg`/`to_gru_cfg` |
+| `lib/include/Meeting01RecurrentGaFitness.hpp` + `.cpp` | `LstmGaIndividual`/`GruGaIndividual` (the distinct-type overload trick), their `evaluate_individual` overloads |
+| `lib/include/Meeting01TransformerGaGenome.hpp` + `.cpp` | `TransformerGenome`, `repair_transformer` (the `d_model % n_heads` invariant), `to_transformer_cfg` |
+| `lib/include/Meeting01TransformerGaFitness.hpp` + `.cpp` | `TransformerGaIndividual`, its `evaluate_individual` |
+| `Meeting01Experiment.cpp`: `finalize_baseline_selection<Model>` | Shared nested-LOSO final retrain/test/checkpoint/manifest tail for LSTM-AE/GRU-AE/Transformer-AE — one template instead of three near-identical copies, mirroring `finalize_snn_selection`'s shape |
+| `Meeting01Experiment.cpp`: `run_lstm_ga_search` / `run_gru_ga_search` / `run_transformer_ga_search` | Build that family's bounds from the profile, run its NSGA-II search, retrain+finalize the winner, return a `FamilyWinnerSummary` |
+| `Meeting01Experiment.cpp`: `FamilyWinnerSummary` | `{family_token, val_mse, inference_cost}` — what each of the 4 per-family searches hands back to the comparison step |
+
+Tests: `tests/meeting01_recurrent_ga_gtest.cpp` (`RecurrentGenome` legality, `to_lstm_cfg`/
+`to_gru_cfg` regression anchors — including the `(window_size * time_steps) / lstm_frame_size`
+seq_len formula and the fixed-`latent_dim` rule — checkpoint round-trip for both
+`LstmGaIndividual` and `GruGaIndividual`), `tests/meeting01_transformer_ga_gtest.cpp`
+(`TransformerGenome` legality including `d_model % n_heads == 0` under repair/crossover/
+mutation, the same seq_len regression anchor, checkpoint round-trip for
+`TransformerGaIndividual`).
+
+### Three bugs this change's own smoke-verification step found
+
+The approved plan for this change required an end-to-end smoke run (small windows,
+minimal population) confirming all 4 families search, retrain, and appear in the
+manifests before calling the work done. That step is what caught these — none were
+introduced by the multi-family orchestration code itself; all three were pre-existing
+and would have silently corrupted a real GridUnesp run.
+
+1. **`seq_len` missing the `time_steps` factor.** `make_lstm_cfg`/`make_gru_cfg`/
+   `make_transformer_cfg` computed `arch.seq_len = window_size / lstm_frame_size`, dating
+   from before [the missing-time-axis fix](#the-missing-time-axis-found--fixed-2026-09-22-second-pre-gridunesp-audit)
+   made the encoder expand every window into a real `(time_steps, window_size)` tensor.
+   The correct formula, `(window_size * time_steps) / lstm_frame_size`, was already
+   documented in this file's "Paying for the 16×" section — but only the reasoning had
+   been updated, not this one call site. For LSTM/GRU this only under-costs the MAC
+   estimate (they infer their real sequence length dynamically at forward time). For the
+   Transformer it is **loud**: `TransformerAutoencoder` sizes a *fixed* positional-encoding
+   buffer from `seq_len` once at construction, so a wrong value throws "Block indices out
+   of range" on the very first real forward pass — which is exactly how this was found.
+
+2. **`Trainer`'s validation loop ignored `batch_size`.** `fit_loop_supervised` stacked the
+   *entire* validation set into one `stack_time_major` call, rather than chunking it by
+   `cfg_.batch_size` the way the training loop already did. For a frame-consuming sequence
+   autoencoder this silently concatenates every validation sample into one impossibly long
+   pseudo-sequence — 10 validation windows at `seq_len=128` became one `1280`-row
+   tensor — which is **loud** for the same reason as bug 1 (the Transformer's fixed
+   positional buffer overruns), but would have been **silent** corruption for any model
+   that tolerates an arbitrary `T` at inference (the loss would still compute, just over
+   the wrong groupings). Fixed by chunking validation the same way training already was;
+   existing SNN/time-major consumers are unaffected because their `batch_size` is
+   typically ≥ their validation set size, so the new chunked loop degenerates to the old
+   single-batch behavior for them.
+
+3. **The SNN GA's own bottleneck was never pinned to `latent_dim`.** `Genome::encoder_widths.back()`
+   carried a comment saying "last = latent" and a `latent()` accessor implying the
+   invariant was enforced — but `repair_widths` treated the last width as just another
+   free draw in `[min_width, max_width]`, and `Genome::latent()` turned out to have zero
+   call sites anywhere in the codebase: a documented invariant nobody actually checked.
+   `build_snn_decoder` (`AutoencoderBuilders.hpp`, shared core code) always builds its
+   first decoder layer expecting exactly `cfg.model.latent_dim` input features, regardless
+   of what the genome's encoder actually output — so any genome whose smallest width
+   landed away from `latent_dim` crashed with "Linear layer forward: input features (…)
+   do not match expected in_features (…)" on its very first real forward pass. This is the
+   SNN-side version of the same rule LSTM/GRU/Transformer already followed correctly
+   (§"`latent_dim` is fixed, not evolved") — the SNN just never had it enforced in code.
+   Fixed by adding `GenomeBounds::latent_dim` and rewriting `repair_widths` to
+   unconditionally force `encoder_widths.back() == bounds.latent_dim`, raising the
+   effective minimum for every *hidden* width to `latent_dim + 1` so the strictly-decreasing
+   sequence can still terminate there.
+
+All three were confirmed fixed by a full rebuild (0 errors/warnings), the full test suite
+(3198 → 3220 after the two new test files, 0 failures), and re-running the 4-family smoke
+profile end to end: all four families now train, retrain their GA winner, and write both
+their own `_model_selection_manifest.json` and the combined `_run<r>_overall_winner_manifest.json`.
+
+### Cost consequence (stated plainly, not buried)
+
+Before this change: 1 GA search (SNN) + 3 fixed-architecture trainings per (dataset, fold,
+encoding, run). After: 4 GA searches of comparable size, one per family. Swapping 3 cheap
+fixed trainings for 3 more searches roughly **quadruples** total grid wall-clock time
+versus the SNN-only design that shipped earlier the same day — this is inherent to the
+scope change the user asked for (search every family's architecture, not just the SNN's),
+not a cost that a different implementation choice could have avoided.
+
 ## See Also
 
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md) - Theory

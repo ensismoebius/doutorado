@@ -48,13 +48,15 @@
             "dense"
         ],
         "ga": {
-            "population_size": 1,
-            "generations": 0,
-            "winner_seeds": 1,
-            "voltage_threshold_min": 1.0,
-            "voltage_threshold_max": 1.0,
-            "alpha_min": 0.9,
-            "alpha_max": 0.9
+            "snn": {
+                "population_size": 1,
+                "generations": 0,
+                "winner_seeds": 1,
+                "voltage_threshold_min": 1.0,
+                "voltage_threshold_max": 1.0,
+                "alpha_min": 0.9,
+                "alpha_max": 0.9
+            }
         }
     }
 }

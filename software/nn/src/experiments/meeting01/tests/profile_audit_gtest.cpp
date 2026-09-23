@@ -129,7 +129,7 @@ TEST_P(ProfileAuditTest, GaBoundsAreSaneWhenSnnArchitecturesPresent)
         return; // LSTM-only profile: no SNN arm, GA bounds irrelevant
     }
 
-    const auto& ga = cfg.evaluation.ga;
+    const auto& ga = cfg.evaluation.ga.snn;
     EXPECT_GT(ga.population_size, 0) << "profile " << GetParam();
     EXPECT_GE(ga.generations, 0) << "profile " << GetParam();
     EXPECT_LE(ga.min_layers, ga.max_layers) << "profile " << GetParam();
@@ -310,7 +310,12 @@ TEST(ProfileDirectoryAudit, SnnProfilesDeclareTheirGaBudgetExplicitly)
             << name
             << " declares an SNN arm but no evaluation.ga block; the search budget "
                "would be inherited invisibly from Meeting01Config::Ga";
-        const auto& ga = eval["ga"];
+        ASSERT_TRUE(eval["ga"].contains("snn"))
+            << name
+            << " declares an SNN arm but no evaluation.ga.snn block (2026-09-22 nested "
+               "schema); the search budget would be inherited invisibly from "
+               "Meeting01Config::Ga's defaults";
+        const auto& ga = eval["ga"]["snn"];
         EXPECT_TRUE(ga.contains("population_size")) << name;
         EXPECT_TRUE(ga.contains("generations")) << name;
     }
@@ -412,7 +417,7 @@ TEST(Meeting01ConfigValidation, RequiresLegalGaBoundsOnceAnArchitectureIsAsked)
     // snn_architectures pool with an illegal GA bound must be rejected.
     auto cfg = valid_config();
     cfg.evaluation.snn_architectures = {"dense"};
-    cfg.evaluation.ga.population_size = 0;
+    cfg.evaluation.ga.snn.population_size = 0;
     EXPECT_NE(validation_error(cfg).find("population_size"), std::string::npos);
 }
 

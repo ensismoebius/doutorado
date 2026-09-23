@@ -64,6 +64,10 @@ add_library(meeting01_lib STATIC
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaFitness.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaCheckpoint.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaSearch.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01RecurrentGaGenome.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01RecurrentGaFitness.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01TransformerGaGenome.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01TransformerGaFitness.cpp
 )
 
 target_include_directories(meeting01_lib

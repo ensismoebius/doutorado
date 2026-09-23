@@ -260,6 +260,63 @@ target_link_libraries(meeting01_ga_gtest
 gtest_discover_tests(meeting01_ga_gtest)
 configure_xtensor_parallel_target(meeting01_ga_gtest)
 
+# Shared LSTM-AE / GRU-AE architecture search: RecurrentGenome repair/crossover/mutate
+# legality, to_lstm_cfg/to_gru_cfg regression anchors (seq_len formula, fixed
+# latent_dim), checkpoint round-trip for both LstmGaIndividual and GruGaIndividual.
+add_executable(meeting01_recurrent_ga_gtest
+    meeting01_recurrent_ga_gtest.cpp
+)
+
+target_include_directories(meeting01_recurrent_ga_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(meeting01_recurrent_ga_gtest
+    PRIVATE
+        google_test
+        meeting01_lib
+        autoencoderRunner_lib
+        tensor
+        layers
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(meeting01_recurrent_ga_gtest)
+configure_xtensor_parallel_target(meeting01_recurrent_ga_gtest)
+
+# Transformer-AE architecture search: TransformerGenome repair/crossover/mutate
+# legality (including the d_model % n_heads == 0 invariant unique to this family),
+# to_transformer_cfg regression anchor (seq_len formula, fixed latent_dim), checkpoint
+# round-trip for TransformerGaIndividual.
+add_executable(meeting01_transformer_ga_gtest
+    meeting01_transformer_ga_gtest.cpp
+)
+
+target_include_directories(meeting01_transformer_ga_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(meeting01_transformer_ga_gtest
+    PRIVATE
+        google_test
+        meeting01_lib
+        autoencoderRunner_lib
+        tensor
+        layers
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(meeting01_transformer_ga_gtest)
+configure_xtensor_parallel_target(meeting01_transformer_ga_gtest)
+
 # LSTM microbench (ops breakdown)
 add_executable(lstm_ops_microbench
     lstm_ops_microbench.cpp

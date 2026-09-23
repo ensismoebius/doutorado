@@ -22,10 +22,28 @@ namespace meeting01
 
 using Tensor = nn::Tensor;
 
-auto make_lstm_cfg(const Meeting01Config& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
-auto make_gru_cfg(const Meeting01Config& cfg) -> nn::models::gru::GRUAutoencoderConfig;
-auto make_transformer_cfg(const Meeting01Config& cfg)
-    -> nn::models::transformer::TransformerAutoencoderConfig;
+// `hidden_size_override`/`num_layers_override`, when > 0, override the profile's fixed
+// lstm_hidden_size / derived layer count with a genome-driven value — the bridge the
+// recurrent architecture search (Meeting01RecurrentGaGenome::to_lstm_cfg /
+// to_gru_cfg) uses to make a genome's hidden_size/num_layers take effect. 0 (the
+// default) reproduces today's behavior exactly: every existing caller that never
+// passes these arguments is unaffected. latent_dim is deliberately NOT overridable
+// here — it stays fixed at cfg.model.latent_dim for every family (user decision,
+// 2026-09-22: same compression ratio across SNN/LSTM/GRU/Transformer).
+auto make_lstm_cfg(
+    const Meeting01Config& cfg, int hidden_size_override = 0, int num_layers_override = 0)
+    -> nn::models::lstm::LSTMAutoencoderConfig;
+auto make_gru_cfg(
+    const Meeting01Config& cfg, int hidden_size_override = 0, int num_layers_override = 0)
+    -> nn::models::gru::GRUAutoencoderConfig;
+// `d_model_override`/`n_heads_override`/`n_layers_override`/`d_ff_override`: same
+// 0-means-"use the profile field" convention as above, for the Transformer
+// architecture search (Meeting01TransformerGaGenome::to_transformer_cfg).
+auto make_transformer_cfg(const Meeting01Config& cfg,
+    int d_model_override = 0,
+    int n_heads_override = 0,
+    int n_layers_override = 0,
+    int d_ff_override = 0) -> nn::models::transformer::TransformerAutoencoderConfig;
 // `encoder_widths`, when non-empty, overrides the profile's fixed
 // encoder_layer_spec/decoder_layer_spec with a free-form stack rendered from these
 // widths (last = latent; decoder mirrors in reverse then projects to output) — the
