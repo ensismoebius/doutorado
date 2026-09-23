@@ -12,6 +12,7 @@
 #include "Meeting01Eeg.hpp"
 #include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
+#include "utility/RandomIndexCrop.hpp"
 
 namespace meeting01
 {
@@ -92,6 +93,83 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
     return out;
 }
 
+// Deterministic stratified subsample to <= cap windows, round-robin across recordings
+// (grouped by WindowMetadata::recording_id) so every recording keeps representation and
+// per-recording counts stay as even as the cap allows. cap <= 0 or already under cap → no-op.
+//
+// Each recording's own candidate windows are shuffled (seeded, deterministic) before the
+// round-robin picks its "next" one -- fixes the "AudioMNIST window degeneracy" bug (see
+// .wiki/Experiments/Meeting01.md): the round-robin always took idxs.front() = the LOWEST
+// source_window_index, and whenever a corpus has more recordings than the cap needs (true
+// for AudioMNIST here), the loop hits `cap` and stops during its FIRST pass over `by_rec` --
+// every recording contributes only its index 0, never reaching index 1+. For AudioMNIST that
+// index-0 window is a near-silent recording lead-in on essentially every file, so the model
+// was training/testing on 32ms of near-silence, not the spoken digit. Shuffling each
+// recording's own window list breaks the "always index 0" bias while leaving the outer
+// round-robin's per-recording/per-speaker fairness guarantee untouched.
+//
+// Defined here (in meeting01:: proper, not the anonymous namespace below) because the header
+// declares it with external linkage so it's directly unit-testable on synthetic metadata
+// without a WAV corpus (see split_audit_gtest.cpp) -- a stray anonymous-namespace placement
+// here previously gave it internal linkage, silently diverging from the header declaration;
+// callers inside this TU (build_loso_split) still resolved fine via unqualified lookup, which
+// is exactly why the mismatch went unnoticed until an out-of-TU caller needed the symbol.
+//
+// The per-recording shuffle below is nn::transforms::RandomIndexCrop (utility/
+// RandomIndexCrop.hpp) -- the discrete analogue of torchvision-style RandomCrop for a corpus
+// that pre-slices every candidate window up front, used here instead of a continuous-signal
+// crop because window_id/source_window_index provenance (needed by leakage-safe splitting)
+// must stay stable across the whole pipeline. Factoring it out this way keeps the exact same
+// std::mt19937 + std::shuffle draw sequence as before (same seed -> byte-identical output,
+// covered by StratifiedWindowCap.* in split_audit_gtest.cpp), just as a reusable component
+// instead of inline logic.
+void stratified_window_cap(std::vector<Tensor>& samples,
+    std::vector<WindowMetadata>& meta,
+    std::vector<int>* labels,
+    int cap,
+    unsigned int seed)
+{
+    if (cap <= 0 || static_cast<int>(samples.size()) <= cap) return;
+
+    std::map<int, std::vector<std::size_t>> by_rec;
+    for (std::size_t i = 0; i < meta.size(); ++i) by_rec[meta[i].recording_id].push_back(i);
+
+    const nn::transforms::RandomIndexCrop crop(seed);
+    for (auto& [rid, idxs] : by_rec) idxs = crop(idxs);
+
+    std::vector<std::size_t> keep;
+    keep.reserve(static_cast<std::size_t>(cap));
+    bool progress = true;
+    while (static_cast<int>(keep.size()) < cap && progress)
+    {
+        progress = false;
+        for (auto& [rid, idxs] : by_rec)
+        {
+            if (idxs.empty()) continue;
+            keep.push_back(idxs.front());
+            idxs.erase(idxs.begin());
+            progress = true;
+            if (static_cast<int>(keep.size()) >= cap) break;
+        }
+    }
+    std::sort(keep.begin(), keep.end());
+
+    std::vector<Tensor> s;
+    std::vector<WindowMetadata> m;
+    std::vector<int> l;
+    s.reserve(keep.size());
+    m.reserve(keep.size());
+    for (std::size_t k : keep)
+    {
+        s.push_back(std::move(samples[k]));
+        m.push_back(meta[k]);
+        if (labels != nullptr) l.push_back((*labels)[k]);
+    }
+    samples = std::move(s);
+    meta = std::move(m);
+    if (labels != nullptr) *labels = std::move(l);
+}
+
 namespace
 {
 
@@ -154,54 +232,6 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
 // before any pooling, so no speaker/record and no source recording crosses a
 // boundary. The SNN hyperparameter sweep selects on `val` only; the winning
 // config is retrained on train ∪ val and evaluated once on `test`.
-// Deterministic stratified subsample to <= cap windows, round-robin across recordings
-// (ordered by recording_id), so every recording and every speaker keeps representation and
-// per-recording counts stay as even as the cap allows. cap <= 0 or already under → no-op.
-// Bounds per-epoch training cost (batch_size 1) without collapsing the LOSO structure or
-// the recording-level statistical unit.
-void stratified_window_cap(std::vector<Tensor>& samples,
-    std::vector<WindowMetadata>& meta,
-    std::vector<int>* labels,
-    int cap)
-{
-    if (cap <= 0 || static_cast<int>(samples.size()) <= cap) return;
-
-    std::map<int, std::vector<std::size_t>> by_rec;
-    for (std::size_t i = 0; i < meta.size(); ++i) by_rec[meta[i].recording_id].push_back(i);
-
-    std::vector<std::size_t> keep;
-    keep.reserve(static_cast<std::size_t>(cap));
-    bool progress = true;
-    while (static_cast<int>(keep.size()) < cap && progress)
-    {
-        progress = false;
-        for (auto& [rid, idxs] : by_rec)
-        {
-            if (idxs.empty()) continue;
-            keep.push_back(idxs.front());
-            idxs.erase(idxs.begin());
-            progress = true;
-            if (static_cast<int>(keep.size()) >= cap) break;
-        }
-    }
-    std::sort(keep.begin(), keep.end());
-
-    std::vector<Tensor> s;
-    std::vector<WindowMetadata> m;
-    std::vector<int> l;
-    s.reserve(keep.size());
-    m.reserve(keep.size());
-    for (std::size_t k : keep)
-    {
-        s.push_back(std::move(samples[k]));
-        m.push_back(meta[k]);
-        if (labels != nullptr) l.push_back((*labels)[k]);
-    }
-    samples = std::move(s);
-    meta = std::move(m);
-    if (labels != nullptr) *labels = std::move(l);
-}
-
 auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
@@ -238,19 +268,28 @@ auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, in
         split.train_meta.push_back(meta[i]);
     }
 
-    // Per-fold stratified window caps (bound training cost; 0 = unlimited).
+    // Per-fold stratified window caps (bound training cost; 0 = unlimited). Distinct
+    // +0/+1/+2 seed offsets so test/val/train don't all shuffle each recording's
+    // candidate windows identically.
+    const unsigned int base_seed = cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u;
+    stratified_window_cap(split.test_samples,
+        split.test_meta,
+        &split.test_labels,
+        src.loso_max_test_windows,
+        base_seed);
+    stratified_window_cap(split.val_samples,
+        split.val_meta,
+        &split.val_labels,
+        src.loso_max_val_windows,
+        base_seed + 1);
     stratified_window_cap(
-        split.test_samples, split.test_meta, &split.test_labels, src.loso_max_test_windows);
-    stratified_window_cap(
-        split.val_samples, split.val_meta, &split.val_labels, src.loso_max_val_windows);
-    stratified_window_cap(
-        split.train_samples, split.train_meta, nullptr, src.loso_max_train_windows);
+        split.train_samples, split.train_meta, nullptr, src.loso_max_train_windows, base_seed + 2);
 
     // Deterministic shuffle of the train windows, carrying the parallel metadata.
     {
         std::vector<std::size_t> idx(split.train_samples.size());
         std::iota(idx.begin(), idx.end(), 0u);
-        std::mt19937 rng(cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u);
+        std::mt19937 rng(base_seed);
         std::shuffle(idx.begin(), idx.end(), rng);
 
         std::vector<Tensor> s;

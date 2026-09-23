@@ -6,5 +6,8 @@
 #include "utility/EEGWindowZScore.hpp"
 #include "utility/FusedModalityTransform.hpp"
 #include "utility/ITransform.hpp"
+#include "utility/RandomCrop.hpp"
+#include "utility/RandomIndexCrop.hpp"
+#include "utility/WindowZScore.hpp"
 
 #endif // NN_UTILITY_TRANSFORMS_HPP

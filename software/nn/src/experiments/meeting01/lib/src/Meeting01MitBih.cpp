@@ -13,7 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "utility/SignalPreprocessing.hpp"
+#include "utility/WindowZScore.hpp"
 
 namespace meeting01
 {
@@ -146,6 +146,7 @@ MitBihWindowDataset::MitBihWindowDataset(const std::filesystem::path& dataset_ro
         for (auto& kv : record_id) kv.second = next++;
     }
 
+    const nn::transforms::WindowZScore zscore;
     int global_window_id = 0;
     for (std::size_t rec = 0; rec < headers.size(); ++rec)
     {
@@ -169,7 +170,7 @@ MitBihWindowDataset::MitBihWindowDataset(const std::filesystem::path& dataset_ro
             nn::Tensor window(static_cast<nn::Index>(window_size), 1);
             for (int t = 0; t < window_size; ++t)
                 window.at(t, 0) = sig0[offset + static_cast<std::size_t>(t)];
-            nn::utility::zscore_inplace(window);
+            window = zscore(window);
 
             windows_.push_back(std::move(window));
             labels_.push_back(-1);

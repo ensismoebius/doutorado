@@ -25,7 +25,7 @@
 #include <map>
 #include <stdexcept>
 
-#include "utility/SignalPreprocessing.hpp"
+#include "utility/WindowZScore.hpp"
 
 namespace meeting01
 {
@@ -178,6 +178,7 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root, in
         for (auto& kv : subject_id) kv.second = next++;
     }
 
+    const nn::transforms::WindowZScore zscore;
     int global_window_id = 0;
     for (std::size_t rec = 0; rec < files.size(); ++rec)
     {
@@ -191,7 +192,7 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root, in
             nn::Tensor window(static_cast<nn::Index>(window_size), 1);
             for (int t = 0; t < window_size; ++t)
                 window.at(t, 0) = sig0[offset + static_cast<std::size_t>(t)];
-            nn::utility::zscore_inplace(window);
+            window = zscore(window);
 
             windows_.push_back(std::move(window));
             labels_.push_back(-1);

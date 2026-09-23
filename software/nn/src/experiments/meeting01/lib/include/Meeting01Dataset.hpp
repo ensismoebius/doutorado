@@ -39,6 +39,26 @@ struct SpeakerFoldAssignment
 auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int num_folds)
     -> SpeakerFoldAssignment;
 
+// Deterministic stratified subsample to <= cap windows, round-robin across recordings
+// (grouped by WindowMetadata::recording_id) so every recording keeps representation and
+// per-recording counts stay as even as the cap allows. cap <= 0 or already under cap → no-op.
+// Factored out (like assign_speaker_fold above) so it can be unit-tested on synthetic
+// metadata without a WAV corpus.
+//
+// `seed` shuffles each recording's own candidate windows before the round-robin picks its
+// next one — this is what fixes the "AudioMNIST window degeneracy" bug (see
+// .wiki/Experiments/Meeting01.md): without it, the round-robin always took a recording's
+// LOWEST source_window_index first, and a corpus with more recordings than the cap needs
+// (true for AudioMNIST) exhausts the cap during the very first pass, so every kept window is
+// index 0 — a near-silent recording lead-in for AudioMNIST specifically, not the spoken
+// digit. Same seed → same result (reproducible); different seed → different window-index mix
+// while the per-recording fairness guarantee is unchanged either way.
+void stratified_window_cap(std::vector<Tensor>& samples,
+    std::vector<WindowMetadata>& meta,
+    std::vector<int>* labels,
+    int cap,
+    unsigned int seed);
+
 // cv_fold >= 0 is REQUIRED — nested leave-one-speaker/group-out fold, speaker- and
 // recording-disjoint across train/val/test. There is no pooled/shuffled fallback
 // (removed 2026-09-23; it leaked speakers/recordings across the split). Throws if

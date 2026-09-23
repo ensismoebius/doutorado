@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 #include "data_loaders/10.5281/zenodo.1342401/loaders/FsddLoader.hpp"
-#include "utility/SignalPreprocessing.hpp"
+#include "utility/WindowZScore.hpp"
 
 namespace nn::dataLoaders::fsdd
 {
@@ -49,6 +49,7 @@ FsddWindowDataset::FsddWindowDataset(const std::filesystem::path& dataset_root, 
     }
 
     // Pass 2: window each recording.
+    const nn::transforms::WindowZScore zscore;
     int global_window_id = 0;
     for (std::size_t rec = 0; rec < files.size(); ++rec)
     {
@@ -73,7 +74,7 @@ FsddWindowDataset::FsddWindowDataset(const std::filesystem::path& dataset_root, 
                 // else: zero-pad (default-constructed Tensor is zero)
             }
 
-            nn::utility::zscore_inplace(window);
+            window = zscore(window);
 
             windows_.push_back(std::move(window));
             labels_.push_back(info.digit);

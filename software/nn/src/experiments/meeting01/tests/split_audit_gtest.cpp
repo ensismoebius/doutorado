@@ -17,6 +17,7 @@
 
 using meeting01::assign_speaker_fold;
 using meeting01::SpeakerFoldAssignment;
+using meeting01::stratified_window_cap;
 using nn::dataLoaders::fsdd::WindowMetadata;
 
 namespace
@@ -146,4 +147,66 @@ TEST(SplitAudit, RejectsDegenerateFoldCount)
     EXPECT_THROW(assign_speaker_fold(meta, 0, 1), std::runtime_error);
     // K == 2 leaves no training speaker → empty-partition guard fires.
     EXPECT_THROW(assign_speaker_fold(meta, 0, 2), std::runtime_error);
+}
+
+// Reproduces the exact shape of the "AudioMNIST window degeneracy" bug
+// (.wiki/Experiments/Meeting01.md): more recordings (50) than the cap (30) needs, 2
+// candidate windows each. Before the seeded per-recording shuffle was added, the
+// round-robin always took idxs.front() = the lowest source_window_index, so the cap
+// was reached during the very first pass over by_rec and every kept window was index
+// 0 — never the spoken digit for AudioMNIST specifically, just its near-silent
+// recording lead-in.
+TEST(StratifiedWindowCap, ShuffleDiversifiesKeptWindowIndex)
+{
+    constexpr int kRecordings = 50;
+    constexpr int kWindowsPerRecording = 2;
+    constexpr int kCap = 30;
+
+    auto meta = make_meta(kRecordings, /*recordings_per_speaker*/ 1, kWindowsPerRecording);
+    std::vector<nn::Tensor> samples;
+    samples.reserve(meta.size());
+    for (std::size_t i = 0; i < meta.size(); ++i) samples.push_back(nn::Tensor::zeros(1, 1));
+    std::vector<int> labels(meta.size(), 0);
+
+    stratified_window_cap(samples, meta, &labels, kCap, /*seed*/ 7);
+
+    ASSERT_EQ(meta.size(), static_cast<std::size_t>(kCap));
+    ASSERT_EQ(samples.size(), meta.size());
+    ASSERT_EQ(labels.size(), meta.size());
+
+    const bool all_index_zero = std::all_of(meta.begin(),
+        meta.end(),
+        [](const WindowMetadata& m) { return m.source_window_index == 0; });
+    EXPECT_FALSE(all_index_zero) << "every kept window is source_window_index 0 -- the "
+                                    "AudioMNIST window degeneracy bug is back";
+
+    // Per-recording fairness is unchanged by the shuffle: no recording contributes
+    // more than one window when there are more recordings than the cap needs.
+    std::set<int> rec_ids;
+    for (const auto& m : meta) rec_ids.insert(m.recording_id);
+    EXPECT_EQ(rec_ids.size(), static_cast<std::size_t>(kCap));
+}
+
+TEST(StratifiedWindowCap, DeterministicForFixedSeed)
+{
+    constexpr int kRecordings = 50;
+    constexpr int kWindowsPerRecording = 2;
+    constexpr int kCap = 30;
+
+    auto run = [&](unsigned int seed) -> std::vector<int>
+    {
+        auto meta = make_meta(kRecordings, 1, kWindowsPerRecording);
+        std::vector<nn::Tensor> samples;
+        samples.reserve(meta.size());
+        for (std::size_t i = 0; i < meta.size(); ++i) samples.push_back(nn::Tensor::zeros(1, 1));
+        stratified_window_cap(samples, meta, nullptr, kCap, seed);
+        std::vector<int> window_ids;
+        window_ids.reserve(meta.size());
+        for (const auto& m : meta) window_ids.push_back(m.window_id);
+        return window_ids;
+    };
+
+    EXPECT_EQ(run(7), run(7));
+    // Different seeds are not required to differ (small sample space), but should
+    // still both diversify away from all-index-0 -- covered by the test above.
 }

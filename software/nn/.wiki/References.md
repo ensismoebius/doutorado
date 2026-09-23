@@ -196,3 +196,7 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [74] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin, "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. [Online]. Available: https://arxiv.org/abs/1706.03762 (Scaled dot-product / multi-head self-attention, sinusoidal positional encoding, the encoder block.)
 
 [75] J. L. Ba, J. R. Kiros, and G. E. Hinton, "Layer normalization," *arXiv:1607.06450*, 2016. [Online]. Available: https://arxiv.org/abs/1607.06450 (Per-sample normalization over the feature dimension with learned gain/bias.)
+
+## Data Loading and Transform Pipelines
+
+[76] A. Paszke et al., "PyTorch: An imperative style, high-performance deep learning library," in *Adv. Neural Inf. Process. Syst. (NeurIPS)*, vol. 32, 2019. [Online]. Available: https://arxiv.org/abs/1912.01703 (`torchvision.transforms.Compose`/`RandomCrop` — the design this project's `nn::transforms::ITransform`/`Compose`/`RandomCrop` mirror.)

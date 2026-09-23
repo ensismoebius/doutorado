@@ -1,13 +1,16 @@
 /**
  * @file transforms_gtest.cpp
  * @brief Unit tests for nn::transforms: Compose, AudioMeanStdNormalize,
- *        EEGWindowZScore, and FusedModalityTransform.
+ *        EEGWindowZScore, FusedModalityTransform, RandomCrop, RandomIndexCrop,
+ *        and WindowZScore.
  */
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
+#include <vector>
 
 #include "tensor/Tensor.hpp"
 #include "utility/Transforms.hpp"
@@ -22,8 +25,7 @@ auto constant_tensor(nn::Index rows, nn::Index cols, float value) -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
     for (nn::Index i = 0; i < rows; ++i)
-        for (nn::Index j = 0; j < cols; ++j)
-            t.at(i, j) = value;
+        for (nn::Index j = 0; j < cols; ++j) t.at(i, j) = value;
     return t;
 }
 
@@ -32,8 +34,7 @@ auto sequential_tensor(nn::Index rows, nn::Index cols, float base = 0.0F) -> nn:
 {
     nn::Tensor t(rows, cols);
     for (nn::Index i = 0; i < rows; ++i)
-        for (nn::Index j = 0; j < cols; ++j)
-            t.at(i, j) = base + static_cast<float>(i * cols + j);
+        for (nn::Index j = 0; j < cols; ++j) t.at(i, j) = base + static_cast<float>(i * cols + j);
     return t;
 }
 
@@ -41,8 +42,7 @@ auto sequential_tensor(nn::Index rows, nn::Index cols, float base = 0.0F) -> nn:
 auto row_mean(const nn::Tensor& t, nn::Index i) -> float
 {
     float sum = 0.0F;
-    for (nn::Index j = 0; j < t.cols(); ++j)
-        sum += t.at(i, j);
+    for (nn::Index j = 0; j < t.cols(); ++j) sum += t.at(i, j);
     return sum / static_cast<float>(t.cols());
 }
 
@@ -50,7 +50,7 @@ auto row_mean(const nn::Tensor& t, nn::Index i) -> float
 auto row_std(const nn::Tensor& t, nn::Index i) -> float
 {
     const float mu = row_mean(t, i);
-    float sq_sum   = 0.0F;
+    float sq_sum = 0.0F;
     for (nn::Index j = 0; j < t.cols(); ++j)
     {
         const float d = t.at(i, j) - mu;
@@ -63,8 +63,7 @@ auto row_std(const nn::Tensor& t, nn::Index i) -> float
 auto col_mean(const nn::Tensor& t, nn::Index j) -> float
 {
     float sum = 0.0F;
-    for (nn::Index i = 0; i < t.rows(); ++i)
-        sum += t.at(i, j);
+    for (nn::Index i = 0; i < t.rows(); ++i) sum += t.at(i, j);
     return sum / static_cast<float>(t.rows());
 }
 
@@ -72,7 +71,7 @@ auto col_mean(const nn::Tensor& t, nn::Index j) -> float
 auto col_std(const nn::Tensor& t, nn::Index j) -> float
 {
     const float mu = col_mean(t, j);
-    float sq_sum   = 0.0F;
+    float sq_sum = 0.0F;
     for (nn::Index i = 0; i < t.rows(); ++i)
     {
         const float d = t.at(i, j) - mu;
@@ -89,7 +88,7 @@ TEST(EEGWindowZScore, OutputShapePreserved)
 {
     nn::transforms::EEGWindowZScore zscore;
     const auto input = sequential_tensor(4, 8);
-    const auto out   = zscore(input);
+    const auto out = zscore(input);
     EXPECT_EQ(out.rows(), input.rows());
     EXPECT_EQ(out.cols(), input.cols());
 }
@@ -98,7 +97,7 @@ TEST(EEGWindowZScore, PerRowZeroMean)
 {
     nn::transforms::EEGWindowZScore zscore;
     const auto input = sequential_tensor(5, 10);
-    const auto out   = zscore(input);
+    const auto out = zscore(input);
     for (nn::Index i = 0; i < out.rows(); ++i)
         EXPECT_NEAR(row_mean(out, i), 0.0F, 1e-5F) << "row " << i;
 }
@@ -107,7 +106,7 @@ TEST(EEGWindowZScore, PerRowUnitStd)
 {
     nn::transforms::EEGWindowZScore zscore;
     const auto input = sequential_tensor(5, 10);
-    const auto out   = zscore(input);
+    const auto out = zscore(input);
     for (nn::Index i = 0; i < out.rows(); ++i)
         EXPECT_NEAR(row_std(out, i), 1.0F, 1e-5F) << "row " << i;
 }
@@ -117,10 +116,9 @@ TEST(EEGWindowZScore, ConstantRowProducesZeros)
     // A constant row has zero variance; result should be near zero (eps stabilized).
     nn::transforms::EEGWindowZScore zscore;
     const auto input = constant_tensor(3, 6, 7.0F);
-    const auto out   = zscore(input);
+    const auto out = zscore(input);
     for (nn::Index i = 0; i < out.rows(); ++i)
-        for (nn::Index j = 0; j < out.cols(); ++j)
-            EXPECT_NEAR(out.at(i, j), 0.0F, 1e-4F);
+        for (nn::Index j = 0; j < out.cols(); ++j) EXPECT_NEAR(out.at(i, j), 0.0F, 1e-4F);
 }
 
 TEST(EEGWindowZScore, EmptyTensorPassthrough)
@@ -181,7 +179,7 @@ TEST(AudioMeanStdNormalize, MultiBatchAccumulationMatchesSingleBatch)
 {
     // Fitting on two halves must produce the same statistics as fitting on
     // the full tensor at once.
-    const auto full  = sequential_tensor(20, 4);
+    const auto full = sequential_tensor(20, 4);
     const auto half1 = full.block(0, 0, 10, 4);
     const auto half2 = full.block(10, 0, 10, 4);
 
@@ -195,7 +193,7 @@ TEST(AudioMeanStdNormalize, MultiBatchAccumulationMatchesSingleBatch)
     norm_multi.finalize();
 
     const auto out_single = norm_single(full);
-    const auto out_multi  = norm_multi(full);
+    const auto out_multi = norm_multi(full);
 
     for (nn::Index i = 0; i < out_single.rows(); ++i)
         for (nn::Index j = 0; j < out_single.cols(); ++j)
@@ -232,8 +230,7 @@ TEST(AudioMeanStdNormalize, ConstantColumnProducesZeros)
     norm.finalize();
     const auto out = norm(train);
     for (nn::Index i = 0; i < out.rows(); ++i)
-        for (nn::Index j = 0; j < out.cols(); ++j)
-            EXPECT_NEAR(out.at(i, j), 0.0F, 1e-4F);
+        for (nn::Index j = 0; j < out.cols(); ++j) EXPECT_NEAR(out.at(i, j), 0.0F, 1e-4F);
 }
 
 // ─── Compose ─────────────────────────────────────────────────────────────────
@@ -248,7 +245,7 @@ TEST(Compose, AppliesTransformsInOrder)
     Compose compose({zscore1, zscore2});
 
     const auto input = sequential_tensor(4, 8);
-    const auto out   = compose(input);
+    const auto out = compose(input);
 
     EXPECT_EQ(out.rows(), input.rows());
     EXPECT_EQ(out.cols(), input.cols());
@@ -261,10 +258,9 @@ TEST(Compose, EmptyStepsReturnsSameData)
 {
     nn::transforms::Compose compose({});
     const auto input = sequential_tensor(3, 5);
-    const auto out   = compose(input);
+    const auto out = compose(input);
     for (nn::Index i = 0; i < input.rows(); ++i)
-        for (nn::Index j = 0; j < input.cols(); ++j)
-            EXPECT_EQ(out.at(i, j), input.at(i, j));
+        for (nn::Index j = 0; j < input.cols(); ++j) EXPECT_EQ(out.at(i, j), input.at(i, j));
 }
 
 // ─── FusedModalityTransform ───────────────────────────────────────────────────
@@ -288,10 +284,8 @@ TEST(FusedModalityTransform, EegColumnsAreZeroMeanPerRow)
     nn::Tensor input(5, kEeg + kAudio);
     for (nn::Index i = 0; i < 5; ++i)
     {
-        for (nn::Index j = 0; j < kEeg; ++j)
-            input.at(i, j) = static_cast<float>(i * kEeg + j);
-        for (nn::Index j = 0; j < kAudio; ++j)
-            input.at(i, kEeg + j) = static_cast<float>(j + 1);
+        for (nn::Index j = 0; j < kEeg; ++j) input.at(i, j) = static_cast<float>(i * kEeg + j);
+        for (nn::Index j = 0; j < kAudio; ++j) input.at(i, kEeg + j) = static_cast<float>(j + 1);
     }
 
     const auto out = fused(input);
@@ -302,8 +296,7 @@ TEST(FusedModalityTransform, EegColumnsAreZeroMeanPerRow)
     for (nn::Index i = 0; i < out.rows(); ++i)
     {
         float sum = 0.0F;
-        for (nn::Index j = 0; j < kEeg; ++j)
-            sum += out.at(i, j);
+        for (nn::Index j = 0; j < kEeg; ++j) sum += out.at(i, j);
         EXPECT_NEAR(sum / static_cast<float>(kEeg), 0.0F, 1e-4F) << "EEG row " << i;
     }
 }
@@ -339,4 +332,165 @@ TEST(AudioMeanStdNormalize, EmptyBatchIsIgnored)
     nn::Tensor zero_col(4, 0);
     norm.accumulate(zero_col);
     // No crash = pass (early return path is covered)
+}
+
+// ─── RandomCrop ────────────────────────────────────────────────────────────────
+
+TEST(RandomCrop, ThrowsOnNonColumnInput)
+{
+    nn::transforms::RandomCrop crop(4, /*seed=*/1);
+    EXPECT_THROW(crop(sequential_tensor(10, 2)), std::invalid_argument);
+}
+
+TEST(RandomCrop, ThrowsWhenSignalShorterThanCropSize)
+{
+    nn::transforms::RandomCrop crop(10, /*seed=*/1);
+    EXPECT_THROW(crop(sequential_tensor(4, 1)), std::invalid_argument);
+}
+
+TEST(RandomCrop, ReturnsUnchangedWhenSignalEqualsCropSize)
+{
+    nn::transforms::RandomCrop crop(6, /*seed=*/1);
+    const auto input = sequential_tensor(6, 1);
+    const auto out = crop(input);
+    ASSERT_EQ(out.rows(), input.rows());
+    for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(out.at(i, 0), input.at(i, 0));
+}
+
+TEST(RandomCrop, CropIsContiguousSubrangeOfInput)
+{
+    // sequential_tensor(N, 1, base) is strictly increasing by 1 per row, so any
+    // contiguous crop is identifiable by its first value and step.
+    constexpr nn::Index kN = 40, kCrop = 5;
+    nn::transforms::RandomCrop crop(kCrop, /*seed=*/7);
+    const auto input = sequential_tensor(kN, 1, 100.0F);
+    const auto out = crop(input);
+
+    ASSERT_EQ(out.rows(), kCrop);
+    ASSERT_EQ(out.cols(), 1u);
+    const float first = out.at(0, 0);
+    EXPECT_GE(first, 100.0F);
+    EXPECT_LE(first, 100.0F + static_cast<float>(kN - kCrop));
+    for (nn::Index i = 1; i < kCrop; ++i)
+        EXPECT_FLOAT_EQ(out.at(i, 0), first + static_cast<float>(i));
+}
+
+TEST(RandomCrop, DeterministicForFixedSeed)
+{
+    const auto input = sequential_tensor(50, 1);
+    nn::transforms::RandomCrop crop_a(8, /*seed=*/42);
+    nn::transforms::RandomCrop crop_b(8, /*seed=*/42);
+    const auto out_a = crop_a(input);
+    const auto out_b = crop_b(input);
+    for (nn::Index i = 0; i < out_a.rows(); ++i) EXPECT_EQ(out_a.at(i, 0), out_b.at(i, 0));
+}
+
+TEST(RandomCrop, DiversifiesOffsetAcrossCalls)
+{
+    // Same instance, many calls on the same (large) signal: the offset must not be
+    // pinned to the same value every time -- this is the exact property that fixes
+    // the "always window 0" AudioMNIST degeneracy when a dataset uses RandomCrop
+    // instead of a fixed, deterministic slice.
+    nn::transforms::RandomCrop crop(4, /*seed=*/123);
+    const auto input = sequential_tensor(200, 1);
+
+    std::vector<float> first_values;
+    for (int i = 0; i < 30; ++i) first_values.push_back(crop(input).at(0, 0));
+
+    const bool all_same = std::all_of(first_values.begin(),
+        first_values.end(),
+        [&](float v) { return v == first_values.front(); });
+    EXPECT_FALSE(all_same) << "RandomCrop offset never changed across 30 calls";
+}
+
+// ─── RandomIndexCrop ─────────────────────────────────────────────────────────
+
+TEST(RandomIndexCrop, PreservesMultisetOfIndices)
+{
+    nn::transforms::RandomIndexCrop crop(/*seed=*/1);
+    const std::vector<std::size_t> input = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto out = crop(input);
+    std::sort(out.begin(), out.end());
+    EXPECT_EQ(out, input);
+}
+
+TEST(RandomIndexCrop, EmptyInputReturnsEmpty)
+{
+    nn::transforms::RandomIndexCrop crop(/*seed=*/1);
+    EXPECT_TRUE(crop({}).empty());
+}
+
+TEST(RandomIndexCrop, DeterministicForFixedSeed)
+{
+    const std::vector<std::size_t> input = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    nn::transforms::RandomIndexCrop crop_a(/*seed=*/42);
+    nn::transforms::RandomIndexCrop crop_b(/*seed=*/42);
+    EXPECT_EQ(crop_a(input), crop_b(input));
+}
+
+TEST(RandomIndexCrop, DiversifiesOrderAcrossCalls)
+{
+    // Same instance, called once per "recording" (as stratified_window_cap does):
+    // the draw sequence must not degenerate into the same order every time.
+    nn::transforms::RandomIndexCrop crop(/*seed=*/7);
+    const std::vector<std::size_t> input = {0, 1, 2, 3, 4, 5, 6, 7};
+
+    std::vector<std::size_t> first_elements;
+    for (int i = 0; i < 30; ++i) first_elements.push_back(crop(input).front());
+
+    const bool all_same = std::all_of(first_elements.begin(),
+        first_elements.end(),
+        [&](std::size_t v) { return v == first_elements.front(); });
+    EXPECT_FALSE(all_same) << "RandomIndexCrop order never changed across 30 calls";
+}
+
+// ─── WindowZScore ────────────────────────────────────────────────────────────
+
+TEST(WindowZScore, OutputShapePreserved)
+{
+    nn::transforms::WindowZScore zscore;
+    const auto input = sequential_tensor(32, 1);
+    const auto out = zscore(input);
+    EXPECT_EQ(out.rows(), input.rows());
+    EXPECT_EQ(out.cols(), input.cols());
+}
+
+TEST(WindowZScore, WholeTensorZeroMeanUnitStd)
+{
+    // Whole-tensor convention (not per-row like EEGWindowZScore): one mean/std over
+    // every element, matching nn::utility::zscore_inplace and this framework's
+    // (window_size, 1) single-channel window shape.
+    nn::transforms::WindowZScore zscore;
+    const auto input = sequential_tensor(64, 1, -10.0F);
+    const auto out = zscore(input);
+
+    float sum = 0.0F, sq_sum = 0.0F;
+    for (nn::Index i = 0; i < out.rows(); ++i)
+    {
+        sum += out.at(i, 0);
+        sq_sum += out.at(i, 0) * out.at(i, 0);
+    }
+    const float mean = sum / static_cast<float>(out.rows());
+    const float var = sq_sum / static_cast<float>(out.rows()) - mean * mean;
+    EXPECT_NEAR(mean, 0.0F, 1e-4F);
+    EXPECT_NEAR(std::sqrt(var), 1.0F, 1e-3F);
+}
+
+TEST(WindowZScore, ConstantInputProducesZeros)
+{
+    nn::transforms::WindowZScore zscore;
+    const auto input = constant_tensor(16, 1, 3.0F);
+    const auto out = zscore(input);
+    for (nn::Index i = 0; i < out.rows(); ++i) EXPECT_NEAR(out.at(i, 0), 0.0F, 1e-3F);
+}
+
+TEST(WindowZScore, DoesNotMutateInput)
+{
+    // Unlike the zscore_inplace() it wraps, the transform is value-in/value-out --
+    // callers that only hold `const Tensor&` must see it unchanged after the call.
+    nn::transforms::WindowZScore zscore;
+    const auto input = sequential_tensor(10, 1, 5.0F);
+    const auto before = input;
+    (void) zscore(input);
+    for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(input.at(i, 0), before.at(i, 0));
 }

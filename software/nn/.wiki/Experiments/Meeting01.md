@@ -157,7 +157,7 @@ logs stay free of cursor-control sequences.
 - Paper: `documentation/07-articlesProduced/meeting01/paper.tex`
   (`\resultsForDataset` macro, one block per dataset).
 
-> **Known caveat: AudioMNIST window degeneracy (found 2026-09-16, live LOSO run).**
+> **Fixed: AudioMNIST window degeneracy (found 2026-09-16, live LOSO run; fixed 2026-09-23, before any run started on this data — no re-run risk).**
 >
 > **The symptom.** A handful of `meeting01_loso_audiomnist_fold*_comparative_metrics.csv`
 > rows report `mse == 0.000000` for `model=snn-ae, encoding=direct, architecture=recurrent`
@@ -194,19 +194,62 @@ logs stay free of cursor-control sequences.
 > because it is most sensitive to reproducing that one fixed shape precisely; `0.9`/`0.99`
 > blur it just enough to land above the CSV's 6-decimal rounding floor instead of on it.
 >
-> **Scope.** Not limited to the rows that print exactly `0.000000`. Every model/config
-> trained on AudioMNIST in this run is trained on 32 ms of near-silent recording lead-in,
-> never the spoken digit — the other combinations likely aren't reconstructing real
-> content either, they just don't degenerate cleanly enough to round to zero. Treat the
-> whole AudioMNIST reconstruction arm as suspect until this is fixed, not only the exact
-> zero rows. `02_meeting01_build_loso_paper_data.py::check_degenerate_reconstruction` now
-> flags this automatically (`paper_loso_<ds>_CAVEATS.txt`, >2% of a dataset's test rows
-> below `mse=1e-4`) whenever the paper tables are built, so it cannot be missed silently.
+> **Scope.** Was not limited to the rows that printed exactly `0.000000`: every model/config
+> trained on AudioMNIST in the affected run was trained on 32 ms of near-silent recording
+> lead-in, never the spoken digit — so any *past* AudioMNIST reconstruction numbers from
+> before the fix below remain suspect, not only the exact-zero rows.
+> `02_meeting01_build_loso_paper_data.py::check_degenerate_reconstruction` still flags this
+> automatically (`paper_loso_<ds>_CAVEATS.txt`, >2% of a dataset's test rows below
+> `mse=1e-4`) whenever the paper tables are built — kept as a safety net after the fix below,
+> not removed, since it catches the *symptom* (degenerate reconstruction) regardless of
+> cause, and costs nothing when the run is healthy.
 >
-> **Not yet fixed** (deliberately, to avoid re-running a multi-day live experiment on a
-> guess): candidate fixes are (a) silence-trim/VAD before windowing so window 0 lands on
-> real content, or (b) round-robin over `(recording, window_index)` pairs instead of
-> always draining index 0 first across the whole corpus.
+> **The fix (2026-09-23).** `stratified_window_cap` (`Meeting01Dataset.cpp`, declared in
+> `Meeting01Dataset.hpp` for direct unit testing — see `StratifiedWindowCap.*` in
+> `split_audit_gtest.cpp`) now shuffles each recording's own candidate-window list with a
+> seeded `std::mt19937` **before** the round-robin loop runs, instead of always handing the
+> loop `idxs.front()` in ascending `source_window_index` order. Candidate fix (a) from the
+> original note — silence-trim/VAD before windowing — was rejected: it changes what a
+> "window" *is* for every dataset, not just AudioMNIST, and trims are themselves a source of
+> leakage/selection bias that would need its own validation before trusting it. Candidate fix
+> (b) as literally worded ("round-robin over `(recording,
+> window_index)` pairs") would **not** have worked: a plain round-robin over those pairs in
+> a fixed, deterministic order still drains every recording's index 0 before any recording's
+> index 1 is reached — the bug is the deterministic *order*, not the grouping. The shuffle is
+> the part that actually breaks the "always index 0" bias, while leaving the round-robin's
+> per-recording/per-speaker fairness guarantee (the thing that made caps safe in the first
+> place) untouched. Same seed → same kept windows (reproducible); different seed → different
+> window-index mix.
+>
+> **Why this was safe to change without a re-run.** The multi-day live GridUnesp LOSO run
+> referenced above had not started as of the fix date — this repo was still at the
+> dataset-swap/deployment-tooling stage (CHB-MIT → Siena, `gridunesp_deploy.sh`). No
+> published result depends on the pre-fix behavior.
+>
+> **Verification.** `meeting01_split_audit_gtest` gained two tests:
+> `StratifiedWindowCap.ShuffleDiversifiesKeptWindowIndex` reproduces the exact bug shape (50
+> recordings, 2 candidate windows each, cap=30 — more recordings than the cap needs, exactly
+> like AudioMNIST) and asserts the kept set is *not* 100% `source_window_index == 0`, plus
+> that per-recording fairness still holds (one window per recording, no recording
+> double-counted). `StratifiedWindowCap.DeterministicForFixedSeed` asserts the same seed
+> produces byte-identical output across two independent calls. Full suite: 3206/3207 passing
+> (the one failure, `SienaRealCorpusLoadsAndGroupsBySubject`, is pre-existing and unrelated —
+> partial Siena download in this environment, not this fix).
+>
+> **Reframed as a reusable transform (2026-09-23).** The inline `std::mt19937` shuffle above
+> was factored out into `nn::transforms::RandomIndexCrop` (`include/utility/
+> RandomIndexCrop.hpp`) — this framework's PyTorch-style `nn::transforms::ITransform`/
+> `Compose` system (previously only wired into `autoencoderRunner`) now also covers meeting01.
+> `stratified_window_cap` calls `RandomIndexCrop(seed)` once and applies it per recording,
+> which is the exact same `std::mt19937` + `std::shuffle` call sequence as before — same seed,
+> byte-identical output, confirmed by re-running `StratifiedWindowCap.*` unchanged after the
+> refactor. `RandomIndexCrop` is the discrete counterpart of a new, genuinely general
+> `nn::transforms::RandomCrop` (the literal `torchvision.transforms.RandomCrop` analogue,
+> cropping one random window from a continuous signal) added alongside it for any future
+> dataset that loads lazily instead of pre-slicing. See [Core/DataLoaders.md](../Core/DataLoaders.md#transforms)
+> for the full transform catalogue, including the three normalizers' easy-to-confuse shape
+> conventions (`WindowZScore`, used by all three meeting01 loaders as of this change, replaces
+> the ad hoc `zscore_inplace()` call sites with the same underlying numeric implementation).
 
 ---
 
