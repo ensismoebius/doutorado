@@ -10,7 +10,8 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 > generalization. A reviewer flagged this as a strong-reject defect.
 >
 > **The fix.** Nested six-fold **leave-one-group-out** cross-validation. A
-> *group* is the speaker (FSDD, AudioMNIST) or the ECG record (MIT-BIH). Windows
+> *group* is the speaker (FSDD, AudioMNIST) or the EEG subject (eegmmidb, chbmit;
+> the group directory a recording's `.edf` file lives in — see below). Windows
 > are partitioned by group *before any pooling*; per fold: test block = one
 > group-block, validation block = the next (rotating), the rest train. The SNN's
 > architecture (encoder depth/width, encoding, input-transform, `v_th`, `alpha`)
@@ -22,11 +23,45 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 
 ### Three datasets (multi-dataset answer to "one small database")
 
+> **Dataset swap, 2026-09-22 → 2026-09-23.** The grid originally paired the two
+> spoken-digit datasets with `mitbih` (single-lead ECG) as its third, structurally
+> different signal — the point being "not just audio". 2026-09-23: `mitbih` was
+> replaced by *two* EEG datasets instead of one, per direct request, so the grid
+> now has **four** datasets. `mitbih`'s loader code (`Meeting01MitBih.{hpp,cpp}`,
+> dataset name `"mitbih"`) was **not deleted** — it still parses and dispatches
+> correctly, it is simply no longer listed in `meeting01-loso.json`'s
+> `evaluation.datasets`. The heading below still says "Three" because renaming a
+> stable anchor breaks every internal link to it; read it as historical, the table
+> is current.
+
 | key | signal | group | #groups / K | per-recording window cap | root (default) |
 |---|---|---|---|---|---|
 | `fsdd` | spoken digits, 8 kHz | speaker | 6 / 6 | none | `.../databases/fsdDataset` |
 | `audiomnist` | spoken digits, offline-resampled 48→8 kHz | speaker | 60 / 6 | 2 | `.../databases/audioMNIST_8k` |
-| `mitbih` | single-lead ECG (lead 0), 360 Hz | record | 48 / 6 | 40 | `.../databases/mitbih` |
+| `eegmmidb` | EEG, 64 ch (signal 0 read), 160 Hz, EDF+ | subject (parent dir) | 109 / 6 | 40 | `.../databases/eegmmidb` **(placeholder — not yet downloaded)** |
+| `chbmit` | EEG, up to 23 ch (signal 0 read), 256 Hz, EDF | subject (parent dir) | 22 / 6 | 40 | `.../databases/chbmit` **(placeholder — not yet downloaded)** |
+
+**Why a new loader, not the existing `EEGLoader`.** The codebase already has an
+EEG loader (`nn::dataLoaders::EEGLoader`), but it reads a MAT-file/sqlite
+"imagined speech" format for the `thesis`/`paraconsistentGA` experiments — a
+different format, a single dataset, not wired into meeting01. `eegmmidb` and
+`chbmit` are public PhysioNet corpora distributed as **EDF** (European Data
+Format, Kemp et al. 1992), a different binary layout entirely. Rather than an
+offline edf→WFDB conversion step, `Meeting01Eeg.{hpp,cpp}` reads EDF directly:
+fixed 256-byte main header, `ns × 256` bytes of per-signal header fields, then
+2-byte little-endian samples — parsed and cross-checked against the format spec's
+own worked example before being wired in. It reads signal 0 of every `.edf`
+file (assumed to be an EEG channel — true for both corpora, not yet verified
+against real downloaded files on this machine).
+
+**Why the group is a directory name, not a filename.** Both target corpora
+organize files as one subdirectory per subject — `chbNN/chbNN_MM.edf` for
+CHB-MIT, `SNNN/SNNNRMM.edf` for eegmmidb — so `EegWindowDataset` takes each
+`.edf` file's *immediate parent directory name* as the leave-one-group-out
+group, with no dataset-specific filename parsing needed. This is the same
+"group = whatever the LOSO split must never let leak across train/val/test"
+idea as `fsdd`/`audiomnist`'s per-speaker grouping and `mitbih`'s per-record
+grouping — only *where the loader reads the group from* differs.
 
 - `dataset.sources[]` in the profile gives each dataset its `root` / `window_size` /
   `cv_num_folds` / `sample_rate` / `max_windows_per_recording` / `loso_max_{train,val,test}_windows`;
@@ -48,9 +83,16 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
   `digit_speaker_index.wav` parse identically; convert to 8 kHz mono first, e.g.
   `sox in.wav -r 8000 -c 1 -b 16 out.wav`). `mitbih` uses `MitBihWindowDataset`
   (`Meeting01MitBih.{hpp,cpp}`) — a minimal WFDB format-212 reader (non-recursive
-  `.hea` scan, 12-bit two's-complement decode, physical units via header gain/baseline).
-- Tests: `loaders_gtest` (real-loader checks, skipped when a root is absent),
-  `meeting01_split_audit_gtest`, `profile_audit_gtest` (`DatasetSourceResolution…`).
+  `.hea` scan, 12-bit two's-complement decode, physical units via header gain/baseline);
+  loader still present, `"mitbih"` no longer in the active profile's `evaluation.datasets`.
+  `eegmmidb`/`chbmit` both use `EegWindowDataset` (`Meeting01Eeg.{hpp,cpp}`) — a minimal
+  EDF reader (recursive `.edf` scan, header self-check against its own declared byte size,
+  reads data records until a short read rather than trusting `n_data_records`, digital→
+  physical via the header's min/max, group = parent directory name).
+- Tests: `loaders_gtest` (real-loader checks, skipped when a root is absent — plus
+  `EegSyntheticEdfDecodesAndGroupsBySubject`, a hand-built-`.edf`-fixture test that runs
+  even without either real EEG corpus downloaded), `meeting01_split_audit_gtest`,
+  `profile_audit_gtest` (`DatasetSourceResolution…`).
 
 ### Running it
 
@@ -1214,11 +1256,51 @@ population_family × (1 + generations_family)   sec_per_epoch_SNN
 population_SNN × (1 + generations_SNN)          sec_per_epoch_family
 ```
 
-Measured per-epoch costs and the resulting budgets: see `evaluation.ga.{lstm,gru,transformer}`
-in `meeting01-loso.json` and the table below — each budget's comment states the measured
-seconds/epoch it was derived from, so a future re-measurement (different hardware, a
-model change) has a concrete number to check against, not just a population/generations
-pair with no derivation.
+**The measurement, and the wall it hit.** A probe (population=1, generations=0, one
+evaluation, production-representative genome per family) at production settings
+(window_size=256, time_steps=16, 200 train / 150 val windows) measured:
+
+| Family | sec/epoch (measured) | vs. SNN |
+|---|---|---|
+| SNN | 0.5 | 1× |
+| Transformer | 83.75 | 168× |
+| LSTM | 97.2 | 194× |
+| GRU | 136.0 | 272× |
+
+SNN's already-fixed budget (48 evaluations) costs **at most ~12 minutes** even at the
+full 30-epoch cap. At 168–272× that per-epoch cost, 12 minutes buys the other three
+families **less than one evaluation each** — the equal-time design, as originally
+conceived, is mathematically incompatible with running any real search on LSTM/GRU/
+Transformer. This was not visible before the measurement: the plan's original "roughly
+quadruples total wall-clock" estimate (see [the Cost consequence section](#cost-consequence-stated-plainly-not-buried))
+assumed the baselines would cost about the same per evaluation as the SNN. They do not.
+
+**Resolution (user decision, 2026-09-23, confronted with the exact numbers above).**
+Equal wall-clock time was abandoned for the three baseline families in favor of each
+getting its **own independently-sized budget**. Offered a smaller, cheaper option
+(`population=4, generations=4`, ~29 evaluations worst case, ≈ 288 days grid-wide) against
+a larger one matching the SNN's own shape, the user edited `meeting01-loso.json`
+directly to set `ga.lstm`/`ga.gru`/`ga.transformer` to **`population=8, generations=5,
+winner_seeds=3` — the same shape as `ga.snn`** (48 search evaluations each, ~65 with
+re-scoring and the final retrain) — deliberately choosing search thoroughness over
+minimizing wall-clock, consistent with a standing preference for the more rigorous
+option even at real cost. Worst-case total per (dataset, fold, run) cell, assuming every
+evaluation runs the full 30-epoch cap (no early stop): SNN ≈ 0.27 h, Transformer ≈ 45.4 h,
+LSTM ≈ 52.7 h, GRU ≈ 73.7 h — summing to **≈ 172 h/cell**. Across the grid as it stood
+that day (3 datasets × 6 folds × 5 repeats = 90 cells): **≈ 15 476 CPU-hours, ≈ 645 days
+(≈ 21.5 months) worst case.** The grid widened to 4 datasets the same day (`mitbih`
+replaced by two EEG datasets — see [Three datasets](#three-datasets-multi-dataset-answer-to-one-small-database));
+per-cell cost is unchanged, so this scales directly: **120 cells → ≈ 20 635 CPU-hours,
+≈ 860 days (≈ 28.7 months) worst case** (cited from the profile's own
+`_total_runs_breakdown`, not re-derived here). Real elapsed time will be lower — `early_stop_patience=5` truncates
+most evaluations well before 30 epochs — but no measured average-epochs-under-early-
+stopping exists, so this is a stated **upper bound**, not a point estimate; deriving a
+tighter number would need an actual multi-evaluation run, which is exactly the
+multi-month commitment being sized here. The one OS process per (dataset, fold) design
+already lets cells run in parallel across a cluster to reduce *elapsed* wall-clock — CPU-
+hours are unchanged. `meeting01-loso.json`'s own `_total_runs_breakdown` carries this
+same derivation so the number is checkable against the profile that will actually run,
+not just this page.
 
 **Failure mode this prevents, and how loud it is.** Before this fix, `meeting01-loso.json`
 shipped without `ga.lstm`/`ga.gru`/`ga.transformer` set at all, silently falling back to
@@ -1227,9 +1309,10 @@ all three — a number picked for no reason connected to this profile's actual c
 however many evaluations the SNN's own struct happened to default to before its budget
 was calibrated. That failure is **silent**: the run completes, produces plausible
 numbers, and nothing anywhere says the three baseline arms cost roughly 90/48 ≈ 1.9× the
-SNN arm each rather than the intended equal-time budget. `SnnProfilesDeclareTheirGaBudgetExplicitly`-style
-guards exist for exactly this class of mistake; the fix here is the LSTM/GRU/Transformer
-analogue.
+SNN arm each rather than the intended equal-time budget — and even that 1.9× framing
+turns out to have been the wrong order of magnitude entirely once the real per-epoch
+cost was measured. `SnnProfilesDeclareTheirGaBudgetExplicitly`-style guards exist for
+exactly this class of mistake; the fix here is the LSTM/GRU/Transformer analogue.
 
 ### Config schema: `evaluation.ga` is now four blocks, not one
 
@@ -1336,11 +1419,22 @@ their own `_model_selection_manifest.json` and the combined `_run<r>_overall_win
 ### Cost consequence (stated plainly, not buried)
 
 Before this change: 1 GA search (SNN) + 3 fixed-architecture trainings per (dataset, fold,
-encoding, run). After: 4 GA searches of comparable size, one per family. Swapping 3 cheap
-fixed trainings for 3 more searches roughly **quadruples** total grid wall-clock time
-versus the SNN-only design that shipped earlier the same day — this is inherent to the
-scope change the user asked for (search every family's architecture, not just the SNN's),
-not a cost that a different implementation choice could have avoided.
+encoding, run). After: 4 GA searches, one per family — but **not** of comparable size.
+The original estimate here said swapping 3 cheap fixed trainings for 3 more searches
+"roughly quadruples" total grid wall-clock time, on the assumption that a baseline
+evaluation would cost about what an SNN evaluation costs. The real measurement (see
+[Equal TIME budget, not equal evaluation count](#equal-time-budget-not-equal-evaluation-count)
+above) found LSTM/GRU/Transformer cost 168–272× more **per epoch** than the SNN, not
+roughly the same — and the search budget the user ultimately chose for the three
+baselines matches the SNN's own shape (`population=8, generations=5`) rather than a
+smaller one, so the full grid lands at an estimated **≈ 860 days worst case** (≈ 28.7
+months, cited from `_total_runs_breakdown` after the 2026-09-23 dataset-grid widening
+from 3 to 4 datasets — see [Three datasets](#three-datasets-multi-dataset-answer-to-one-small-database)),
+not a ~4× multiple of the SNN-only design's already-multi-week cost. This is
+inherent to the scope change the user asked for (search every family's architecture, not
+just the SNN's) combined with how expensive a truly sequential 512-step recurrent/
+attention unroll is at batch size 1, compounded by the deliberate choice to give the
+baselines the same search power as the SNN rather than a cheaper, smaller one.
 
 ## See Also
 

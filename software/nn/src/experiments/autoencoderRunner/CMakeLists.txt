@@ -53,6 +53,7 @@ add_library(meeting01_lib STATIC
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Config.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Dataset.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01MitBih.cpp
+    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Eeg.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Encoding.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Metrics.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Evaluation.cpp

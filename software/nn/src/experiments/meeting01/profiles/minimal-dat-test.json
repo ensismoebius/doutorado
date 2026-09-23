@@ -2,6 +2,7 @@
     "_profile_name": "minimal-dat-test",
     "_network_type": "SNN autoencoder (dense) \u2014 minimal test",
     "_total_runs_breakdown": "1 total (GA population=1, generations=0 -> single genome, direct encoding, 1 repeat)",
+    "_comment": "Audit fixture, not a runnable experiment. Exists so profile_audit_gtest's ProfileDirectoryAudit (which walks every *.json in this directory, not a hardcoded list) has a profile that exercises the flat (non-nested) SNN-dense schema with a minimal GA (population=1, generations=0). Previously failed validate() silently (early_stop_patience >= epochs) until the directory-wide audit was added -- see .wiki/Experiments/Meeting01.md's NSGA-II section.",
     "experiment": {
         "run_tag": "minimal_dat_test",
         "seed": 42,

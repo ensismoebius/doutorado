@@ -47,7 +47,7 @@ void print_usage(const char* prog)
               << "  --cv-fold <n>                    Override the profile's nested-LOSO fold "
                  "index (0..cv_num_folds-1)\n"
               << "  --dataset <name>                 Run only this dataset from "
-                 "evaluation.datasets (fsdd|audiomnist|mitbih)\n"
+                 "evaluation.datasets (fsdd|audiomnist|eegmmidb|chbmit)\n"
               << "  --no-tui                          Disable the live progress TUI "
                  "(auto-off when stdout is not a terminal)\n"
               << "  --help                            Print this message\n";

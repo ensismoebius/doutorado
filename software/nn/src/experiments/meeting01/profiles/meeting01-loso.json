@@ -3,11 +3,11 @@
     "_network_type": "Nested leave-one-speaker-out (LOSO/LOGO) architecture search: NSGA-II runs SEPARATELY for each of 4 model families (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE), one OS process per (dataset, outer fold). Goal (2026-09-22 scope change): find the best autoencoder overall across all 4 families at equal latent_dim=32, not 'SNN vs 3 fixed baselines' -- every family now searches its own architecture and its own input encoding.",
     "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder), exponential surrogate; R, C, V_th learnable, clamped 1e-6. LSTM-AE/GRU-AE: hidden_size + num_layers genes (Meeting01RecurrentGaGenome). Transformer-AE: d_model + n_heads + n_layers + d_ff genes, d_model % n_heads == 0 enforced by repair (Meeting01TransformerGaGenome). All 4: encoding (direct/poisson/latency) is a gene, latent_dim is fixed at 32 (never a gene) so every family is compared at the same compression ratio. Each family's driver runs its own NSGA-II (population x (1+generations) evaluations), selects the winning genome from its own rank-0 Pareto front on the inner validation speaker, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train), evaluates once on the held-out test speaker, then the 4 winners are compared (val_mse, then inference cost) and the overall winner is recorded in a '_run<r>_overall_winner_manifest.json'.",
     "_loss_function": "MSE reconstruction loss",
-    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 360 Hz for MIT-BIH). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene for every family, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings and families. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
-    "_total_runs_breakdown": "Per (dataset, fold, run_id): 4 SEPARATE NSGA-II searches (SNN + LSTM + GRU + Transformer), each population x (1 + generations) evaluations + |Pareto front| x (winner_seeds - 1) re-scorings + 1 retrained winner. SNN's budget (population 8 x (1+5 generations) = 48 evaluations) was measured against real per-epoch cost at these production settings (200 train windows, T=16). ga.lstm/ga.gru/ga.transformer below are NOT YET calibrated the same way -- they are unset here and fall back to Meeting01Config's struct defaults (population 10 x (1+8) = 90 evaluations each), which is a placeholder, not a measured equal-time budget. Per the approved multi-family plan, population_size/generations for these 3 must be set from a real per-epoch cost probe at T=16/200 windows before this profile is grid-ready -- until then this profile's LSTM/GRU/Transformer arms cost roughly 90/48 =~ 1.9x the SNN arm each, not the equal-wall-clock budget the design calls for. Overall: swapping 3 fixed-architecture baselines for 3 more GA searches of comparable size to the SNN's roughly QUADRUPLES total grid wall-clock time versus the SNN-only design. x 3 datasets x 6 folds x 5 seeds. Weeks on CPU.",
+    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 1.6 s @ 160 Hz for PhysioNet eegmmidb; 1 s @ 256 Hz for CHB-MIT). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene for every family, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings and families. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
+    "_total_runs_breakdown": "Per (dataset, fold, run_id): 4 SEPARATE NSGA-II searches (SNN + LSTM + GRU + Transformer), each population x (1 + generations) evaluations + |Pareto front| x (winner_seeds - 1) re-scorings + 1 retrained winner. CALIBRATED 2026-09-23 from a real per-epoch cost probe at production settings (window_size=256, time_steps=16, 200 train / 150 val windows, batch_size=1, each family pinned to a production-representative genome: SNN 64->32, LSTM/GRU hidden=64, Transformer d_model=64/heads=4/layers=2/d_ff=128). Measured mean wall-clock per epoch: SNN ~0.5 s, Transformer ~83.75 s (168x SNN), LSTM ~97.2 s (194x SNN), GRU ~136.0 s (272x SNN). At these ratios a literal equal-wall-clock-to-SNN budget (SNN's own 48 evaluations cost only ~12 min worst-case) is mathematically incompatible with running any real search on the 3 baseline families, so the equal-TIME-budget design (as originally conceived) was abandoned for them (user decision, 2026-09-23) in favor of each getting its own independently-sized evaluation budget. ga.lstm/ga.gru/ga.transformer are set to population=8, generations=5, winner_seeds=3 -- the SAME shape as ga.snn (48 search evaluations each, user's explicit choice after seeing the per-family cost breakdown, deliberately prioritizing search thoroughness over minimizing wall-clock). 65 evaluations per family per cell worst case (48 search + up to |front|x2=16 winner's-curse re-scorings + 1 final retrain). Worst-case total (every evaluation running the full 30-epoch cap, no early stop) per (dataset,fold,run) cell: SNN ~0.27 h, Transformer ~45.4 h, LSTM ~52.7 h, GRU ~73.7 h -- summing to ~172 h/cell (cited, not recomputed, from the 2026-09-23 measurement). Grid widened 2026-09-23 from 3 to 4 datasets (mitbih replaced by two EEG datasets, eegmmidb + chbmit, per user request) -- per-cell cost is unchanged, so the prior 90-cell total (~15 476 CPU-hours) scales by 120/90: across the full grid (4 datasets x 6 folds x 5 repeats = 120 cells): approximately 20 635 CPU-hours, i.e. ~860 days (~28.7 months) WORST CASE. Real elapsed time will be lower thanks to early_stop_patience=5 truncating most evaluations well before 30 epochs, but no measured average-epochs-under-early-stopping exists yet -- this is a stated upper bound, not a point estimate. Confirm cluster/wall-clock capacity for a job of this scale before launching; consider splitting across (dataset, fold) processes run in parallel (already the design -- one OS process per cell) to bring elapsed wall-clock down, though total CPU-hours are unchanged.",
     "_dataset_config": "Speaker/record-disjoint outer folds (6). No pooled sample caps (max_loaded_train_samples / max_validation_samples = 0 -> every window of the disjoint partitions, then the stratified loso_max_* caps apply). 30 epochs max, early stop patience 5, lr 0.001 (weights) / 0.0001 (R, C, V_th), batch size 1. Per-epoch progress on stderr as '[loso] ... epoch N/M' (survives nohup, where the live bars collapse).",
     "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<family>_run<r>_model_selection_manifest.json (one per family), _run<r>_overall_winner_manifest.json (4-way comparison), _events.jsonl, models/*.npz; documentation/07-articlesProduced/meeting01/data/*.tex",
-    "_comment": "Nested-LOSO multi-family architecture search for the meeting01 paper revision. NOT YET GRID-READY: see _total_runs_breakdown -- ga.lstm/ga.gru/ga.transformer budgets are placeholders pending an empirical per-epoch cost measurement. Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; ~weeks). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
+    "_comment": "Nested-LOSO multi-family architecture search for the meeting01 paper revision. GA budgets for all 4 families are calibrated from a real per-epoch cost measurement (2026-09-23) -- see _total_runs_breakdown for the method. ga.lstm/ga.gru/ga.transformer match ga.snn's own shape (population=8, generations=5, winner_seeds=3, 48 search evaluations each -- user's explicit choice, 2026-09-23, after being shown the per-family cost breakdown). Dataset grid changed 2026-09-23: mitbih (ECG) replaced by two EEG datasets, eegmmidb + chbmit (user request), both read via a new EDF-format loader (Meeting01Eeg.{hpp,cpp}) -- see dataset.sources[] for the (currently PLACEHOLDER) root paths, not yet downloaded on this machine. Worst-case grid estimate, updated for 4 datasets: ~860 days (~28.7 months) of CPU time (cited, scaled from the 3-dataset ~645-day estimate -- see _total_runs_breakdown). Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; potentially close to THREE YEARS on CPU worst case -- confirm cluster capacity and timeline before launching). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
     "experiment": {
         "run_tag": "meeting01_loso",
         "seed": 42,
@@ -43,9 +43,18 @@
                 "max_windows_per_recording": 2
             },
             {
-                "name": "mitbih",
-                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/mitbih",
-                "sample_rate": 360,
+                "_comment": "PLACEHOLDER path -- dataset not yet downloaded on this machine (2026-09-23). Source: PhysioNet EEG Motor Movement/Imagery Database, https://physionet.org/content/eegmmidb/1.0.0/ (109 subjects, 64 channels, 160 Hz, EDF+, one subdirectory per subject: S001/S001R01.edf ...). Signal 0 of each .edf is read; verify that is an EEG channel (not e.g. a status channel) once the real files are in place.",
+                "name": "eegmmidb",
+                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/eegmmidb",
+                "sample_rate": 160,
+                "cv_num_folds": 6,
+                "max_windows_per_recording": 40
+            },
+            {
+                "_comment": "PLACEHOLDER path -- dataset not yet downloaded on this machine (2026-09-23). Source: CHB-MIT Scalp EEG Database, https://physionet.org/content/chbmit/1.0.0/ (22 subjects, up to 23 channels, 256 Hz, EDF, one subdirectory per subject: chb01/chb01_01.edf ...). Signal 0 of each .edf is read; verify that is an EEG channel once the real files are in place.",
+                "name": "chbmit",
+                "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/chbmit",
+                "sample_rate": 256,
                 "cv_num_folds": 6,
                 "max_windows_per_recording": 40
             }
@@ -81,7 +90,8 @@
         "datasets": [
             "fsdd",
             "audiomnist",
-            "mitbih"
+            "eegmmidb",
+            "chbmit"
         ],
         "encodings": [
             "direct",
@@ -107,6 +117,36 @@
                 "voltage_threshold_max": 1.5,
                 "alpha_min": 0.8,
                 "alpha_max": 0.99
+            },
+            "lstm": {
+                "population_size": 8,
+                "generations": 5,
+                "winner_seeds": 3,
+                "min_hidden": 8,
+                "max_hidden": 256,
+                "min_layers": 1,
+                "max_layers": 3
+            },
+            "gru": {
+                "population_size": 8,
+                "generations": 5,
+                "winner_seeds": 3,
+                "min_hidden": 8,
+                "max_hidden": 256,
+                "min_layers": 1,
+                "max_layers": 3
+            },
+            "transformer": {
+                "population_size": 8,
+                "generations": 5,
+                "winner_seeds": 3,
+                "min_d_model": 16,
+                "max_d_model": 128,
+                "head_choices": [1, 2, 4, 8],
+                "min_layers": 1,
+                "max_layers": 4,
+                "min_d_ff": 32,
+                "max_d_ff": 256
             }
         }
     }

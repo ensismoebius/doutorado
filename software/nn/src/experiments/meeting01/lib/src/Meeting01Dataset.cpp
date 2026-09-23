@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "Meeting01Eeg.hpp"
 #include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
@@ -253,10 +254,16 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
         g.windows = ds.windows();
         g.meta = ds.metadata();
     }
+    else if (dataset == "eegmmidb" || dataset == "chbmit")
+    {
+        EegWindowDataset ds(src.root, src.window_size);
+        g.windows = ds.windows();
+        g.meta = ds.metadata();
+    }
     else
     {
         throw std::runtime_error("load_grouped_windows: unknown grouped dataset '" + dataset +
-                                 "' (expected fsdd | audiomnist | mitbih)");
+                                 "' (expected fsdd | audiomnist | mitbih | eegmmidb | chbmit)");
     }
 
     if (src.max_windows_per_recording > 0)
@@ -403,7 +410,8 @@ auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, in
 auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit
 {
-    if (cv_fold >= 0 && (dataset == "fsdd" || dataset == "audiomnist" || dataset == "mitbih"))
+    if (cv_fold >= 0 && (dataset == "fsdd" || dataset == "audiomnist" || dataset == "mitbih" ||
+                            dataset == "eegmmidb" || dataset == "chbmit"))
         return build_loso_split(cfg, dataset, cv_fold);
     return build_legacy_split(cfg, dataset);
 }

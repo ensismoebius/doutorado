@@ -47,11 +47,11 @@ struct Meeting01Config
     // field left 0 / empty inherits the singular Dataset value below.
     struct DatasetSource
     {
-        std::string name;                  // REQUIRED ("fsdd" | "audiomnist" | "mitbih")
-        std::string root;                  // REQUIRED
-        int window_size = 0;               // 0 → inherit Dataset::window_size
-        int cv_num_folds = 0;              // 0 → inherit Dataset::cv_num_folds
-        int sample_rate = 0;               // native rate to resample from (0 → loader default)
+        std::string name;     // REQUIRED ("fsdd" | "audiomnist" | "mitbih" | "eegmmidb" | "chbmit")
+        std::string root;     // REQUIRED
+        int window_size = 0;  // 0 → inherit Dataset::window_size
+        int cv_num_folds = 0; // 0 → inherit Dataset::cv_num_folds
+        int sample_rate = 0;  // native rate to resample from (0 → loader default)
         int max_windows_per_recording = 0; // 0 → unlimited (FSDD); >0 caps long recordings
         // Per-fold stratified window caps (0 → inherit Dataset value; still 0 → unlimited).
         // Applied after the LOSO split, round-robin across recordings, so every recording

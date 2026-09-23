@@ -1,17 +1,25 @@
-// loaders_gtest.cpp — fast checks for the three grouped-window dataset sources
-// wired into the nested-LOSO pipeline (FSDD, AudioMNIST, MIT-BIH). Each test is
-// skipped (not failed) when its dataset root is absent, so CI without the corpora
-// still passes; on a developer machine with the databases present they exercise
-// the real loaders and the grouped fold assignment.
+// loaders_gtest.cpp — fast checks for the grouped-window dataset sources wired
+// into the nested-LOSO pipeline (FSDD, AudioMNIST, MIT-BIH, and the EDF-format
+// EEG loader shared by eegmmidb/chbmit). Real-corpus tests are skipped (not
+// failed) when their dataset root is absent, so CI without the corpora still
+// passes; on a developer machine with the databases present they exercise the
+// real loaders and the grouped fold assignment. The EEG loader additionally
+// gets a synthetic-fixture test (EegSyntheticEdfDecodesAndGroupsBySubject)
+// that writes a minimal hand-built .edf, so its header parsing and digital
+// decoding are actually exercised even when neither real EEG corpus is present.
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "Meeting01Config.hpp"
 #include "Meeting01Dataset.hpp"
+#include "Meeting01Eeg.hpp"
 #include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 
@@ -38,6 +46,55 @@ int distinct_speakers(const std::vector<meeting01::WindowMetadata>& m)
     std::set<int> s;
     for (const auto& w : m) s.insert(w.speaker_id);
     return static_cast<int>(s.size());
+}
+
+std::string edf_field(const std::string& value, std::size_t width)
+{
+    if (value.size() >= width) return value.substr(0, width);
+    return value + std::string(width - value.size(), ' ');
+}
+
+// Writes a minimal single-signal EDF file: header fields sized exactly per the
+// spec (https://www.edfplus.info/specs/edf.html), one data record per
+// samples_per_record-sized chunk of `digital_values`, little-endian int16
+// samples. physical_min/max and digital_min/max are chosen so scale == 1 and
+// offset == 0 (physical == digital exactly), which keeps the test's expected
+// values simple without needing to special-case the conversion formula.
+void write_synthetic_edf(const std::filesystem::path& path,
+    const std::vector<std::int16_t>& digital_values,
+    int samples_per_record)
+{
+    const int n_records = static_cast<int>(digital_values.size()) / samples_per_record;
+    ASSERT_EQ(static_cast<int>(digital_values.size()), n_records * samples_per_record);
+
+    std::ofstream out(path, std::ios::binary);
+    ASSERT_TRUE(out.is_open());
+
+    const int header_bytes = 256 + 256; // main header + 1 signal's per-signal header
+    out << edf_field("0", 8);           // version
+    out << edf_field("synthetic patient", 80);
+    out << edf_field("synthetic recording", 80);
+    out << edf_field("01.01.01", 8); // startdate
+    out << edf_field("00.00.00", 8); // starttime
+    out << edf_field(std::to_string(header_bytes), 8);
+    out << edf_field("", 44); // reserved
+    out << edf_field(std::to_string(n_records), 8);
+    out << edf_field("1", 8); // duration of a data record, seconds
+    out << edf_field("1", 4); // ns
+
+    out << edf_field("EEG synth", 16); // label
+    out << edf_field("", 80);          // transducer
+    out << edf_field("uV", 8);         // physical dimension
+    out << edf_field("-16384", 8);     // physical_min
+    out << edf_field("16383", 8);      // physical_max
+    out << edf_field("-16384", 8);     // digital_min
+    out << edf_field("16383", 8);      // digital_max (scale == 1, offset == 0)
+    out << edf_field("", 80);          // prefiltering
+    out << edf_field(std::to_string(samples_per_record), 8);
+    out << edf_field("", 32); // reserved
+
+    out.write(reinterpret_cast<const char*>(digital_values.data()),
+        static_cast<std::streamsize>(digital_values.size() * sizeof(std::int16_t)));
 }
 
 } // namespace
@@ -100,6 +157,78 @@ TEST(Meeting01Loaders, MitBihFormat212DecodesAndWindows)
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back({"mitbih", root, 256, 6, 360, 40});
     const auto split = meeting01::build_split(cfg, "mitbih", 0);
+    for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
+    EXPECT_FALSE(split.test_samples.empty());
+}
+
+TEST(Meeting01Loaders, EegSyntheticEdfDecodesAndGroupsBySubject)
+{
+    const fs::path root = fs::temp_directory_path() / "meeting01_eeg_synth_test";
+    fs::remove_all(root);
+    fs::create_directories(root / "subjA");
+    fs::create_directories(root / "subjB");
+
+    // Monotonically increasing digital ramp; physical_min/max == digital_min/max
+    // in write_synthetic_edf, so scale == 1 and physical == digital exactly.
+    // z-score is a positive affine map, so strict monotonic order survives it --
+    // this is what the per-window checks below verify, without needing to
+    // replicate zscore_inplace's exact mean/std convention in the test.
+    std::vector<std::int16_t> ramp(16);
+    for (std::size_t i = 0; i < ramp.size(); ++i) ramp[i] = static_cast<std::int16_t>(i);
+    write_synthetic_edf(root / "subjA" / "subjA_01.edf", ramp, /*samples_per_record=*/4);
+    write_synthetic_edf(root / "subjB" / "subjB_01.edf", ramp, /*samples_per_record=*/4);
+
+    meeting01::EegWindowDataset ds(root, /*window_size=*/8);
+    ASSERT_EQ(ds.size(), 4u); // 2 windows/file x 2 files
+    EXPECT_EQ(ds.windows().size(), ds.metadata().size());
+    EXPECT_EQ(distinct_speakers(ds.metadata()), 2);
+
+    for (std::size_t i = 0; i < ds.windows().size(); ++i)
+    {
+        const auto& w = ds.windows()[i];
+        EXPECT_EQ(w.size(), 8);
+        for (int t = 1; t < 8; ++t) EXPECT_GT(w.at(t, 0), w.at(t - 1, 0)) << "window " << i;
+
+        const auto& m = ds.metadata()[i];
+        EXPECT_TRUE(m.speaker == "subjA" || m.speaker == "subjB");
+        EXPECT_EQ(m.source_window_index, static_cast<int>(i) % 2);
+    }
+
+    fs::remove_all(root);
+}
+
+TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
+{
+    const std::string root = kDbRoot + "/eegmmidb";
+    if (!fs::exists(root)) GTEST_SKIP() << "no PhysioNet eegmmidb root";
+
+    meeting01::EegWindowDataset ds(root, 256);
+    ASSERT_FALSE(ds.windows().empty());
+    EXPECT_EQ(ds.windows().size(), ds.metadata().size());
+    for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
+
+    auto cfg = base_config();
+    cfg.dataset.dataset_root = root;
+    cfg.dataset.sources.push_back({"eegmmidb", root, 256, 6, 160, 40});
+    const auto split = meeting01::build_split(cfg, "eegmmidb", 0);
+    for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
+    EXPECT_FALSE(split.test_samples.empty());
+}
+
+TEST(Meeting01Loaders, ChbMitRealCorpusLoadsAndGroupsBySubject)
+{
+    const std::string root = kDbRoot + "/chbmit";
+    if (!fs::exists(root)) GTEST_SKIP() << "no CHB-MIT root";
+
+    meeting01::EegWindowDataset ds(root, 256);
+    ASSERT_FALSE(ds.windows().empty());
+    EXPECT_EQ(ds.windows().size(), ds.metadata().size());
+    for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
+
+    auto cfg = base_config();
+    cfg.dataset.dataset_root = root;
+    cfg.dataset.sources.push_back({"chbmit", root, 256, 6, 256, 40});
+    const auto split = meeting01::build_split(cfg, "chbmit", 0);
     for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
     EXPECT_FALSE(split.test_samples.empty());
 }

@@ -44,7 +44,10 @@ import numpy as np
 from scipy import stats
 
 _DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold\d+_")
-DATASET_ORDER = ["fsdd", "audiomnist", "mitbih"]
+# "mitbih" replaced 2026-09-23 by eegmmidb/chbmit in the active LOSO grid; kept here
+# (unknown datasets fall to the sort-order tail anyway) so pre-swap mitbih result
+# CSVs, if any exist, still sort deterministically.
+DATASET_ORDER = ["fsdd", "audiomnist", "eegmmidb", "chbmit", "mitbih"]
 
 
 def _dataset_of(path: pathlib.Path, run_tag: str) -> str:
