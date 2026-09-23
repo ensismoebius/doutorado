@@ -1,86 +1,81 @@
-# Experiment 04 — LSTM vs SNN Comparative Autoencoder
+# meeting01 — Nested-LOSO comparative autoencoder study
 
-Profile-driven comparative experiment. Runs LSTM and SNN autoencoders side-by-side on
-the same EEG/audio dataset, producing CSV metrics and pgfplots DAT files for the paper.
+Profile-driven comparative experiment: SNN, LSTM, GRU, and Transformer autoencoders, each
+with its own genetic-algorithm architecture search, compared on FSDD / AudioMNIST /
+eegmmidb / CHB-MIT under nested leave-one-speaker/recording-out cross-validation.
 
-## What it does
+Full documentation lives in the wiki — this file is just a build/run pointer:
+[.wiki/Experiments/Meeting01.md](../../../.wiki/Experiments/Meeting01.md).
 
-1. Loads a JSON profile specifying model paradigm (`lstm` or `snn`), architecture, and training config
-2. Runs k-fold cross-validation with the specified model
-3. Writes per-fold metrics to `results/meeting01/article_*_comparative_metrics.csv`
-4. Optionally writes DAT files for LaTeX pgfplots
+> The original design (four fixed-architecture `article-*.json` profiles, one LSTM baseline
+> vs. three SNN variants, split by pooling+shuffling every window) was **deleted
+> 2026-09-23**: it never set `dataset.cv_fold`, so the same speaker/recording could land in
+> both train and validation — the leakage defect a reviewer flagged as strong-reject on
+> submission 71. `dataset.cv_fold` is now required everywhere; there is no non-LOSO
+> fallback left in the code.
 
 ## Build
 
 ```bash
+cd software/nn
 cmake --preset=max-performance
-cmake --build out/build/max-performance --target meeting01 -j$(nproc)
+cmake --build --preset=max-performance --target meeting01 -j"$(nproc)"
 ```
 
 ## Run
 
 ```bash
-# Single profile
+# Single (dataset, fold) slice
 ./out/build/max-performance/src/experiments/meeting01/meeting01 \
-  --comparative-config src/experiments/meeting01/profiles/article-lstm-ae.json
+  --comparative-config src/experiments/meeting01/profiles/meeting01-loso.json \
+  --dataset fsdd --cv-fold 0
 
-# Full article pipeline (all 4 models, ~2.5 h)
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
+# Full nested-LOSO grid + paper post-processing (weeks-scale — see Re-run Runbook)
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
+
+See [Re-run Runbook](../../../.wiki/Guides/Re-run-Runbook.md) for `RESUME=1`,
+`SKIP_BUILD=1`, `SKIP_POSTPROCESS=1`, and the full post-processing chain (03_/02_/04_).
 
 ## Profiles (`profiles/`)
 
-| Profile | Model | Est. runtime |
-|---|---|---|
-| `article-lstm-ae.json` | LSTM autoencoder | ~10 min |
-| `article-snn-dense.json` | SNN, dense input transform | ~45 min |
-| `article-snn-conv1d.json` | SNN, conv1d input transform | ~45 min |
-| `article-snn-recurrent.json` | SNN, recurrent input transform | ~45 min |
-
-`debug.json` and `debug_nested.json` are fast smoke-test profiles (few epochs/folds).
+`meeting01-loso.json` is the only production profile. Everything else in `profiles/` is a
+dev/smoke fixture (small caps, `time_steps=4`) used by tests and local iteration — see the
+directory audit in `tests/profile_audit_gtest.cpp` for what each one is for.
 
 ## Profile audit tests
 
 ```bash
-cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+cmake --build out/build/max-performance --target profile_audit_gtest -j"$(nproc)"
 ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 ```
 
-25 tests verify all 5 article profiles parse, validate, have `loss=mse`,
-`seed_deterministic=false`, and consistent sweep arrays.
+Every profile in `profiles/` is checked directory-wide (parses + `validate()` doesn't
+throw); `meeting01-loso.json` additionally gets a fuller, hand-maintained set of checks.
 
 ## Key source files
+
+Current module layout (`lib/include/`, `lib/src/`) — see the wiki page's
+[Implementation](../../../.wiki/Experiments/Meeting01.md#implementation) section and
+[Multi-family architecture search](../../../.wiki/Experiments/Meeting01.md#multi-family-architecture-search-added-2026-09-22-same-day-later-scope-change)
+for what each does; the short version:
 
 | File | Role |
 |---|---|
 | `meeting01.cpp` | Thin CLI entry point |
-| `lib/include/ComparativeConfig.hpp` | Profile JSON parser |
-| `lib/include/AutoencoderBuilders.hpp` | LSTM/SNN network builder |
-| `lib/src/ComparativeDataset.cpp` | Dataset loading + z-score normalization |
-| `lib/src/ComparativeEncoding.cpp` | Input transform (dense/conv1d/recurrent) |
-| `lib/src/ComparativeTraining.cpp` | K-fold training loop |
-| `lib/src/ComparativeOutput.cpp` | CSV and DAT writers |
+| `lib/include/Meeting01Cli*.hpp`, `lib/src/Meeting01Cli.cpp` | CLI parsing |
+| `lib/include/Meeting01Config.hpp`, `lib/src/Meeting01Config.cpp` | Profile JSON schema + validation |
+| `lib/include/Meeting01Dataset*.hpp`, `lib/src/Meeting01Dataset.cpp` | Dataset loading, nested-LOSO split |
+| `lib/src/Meeting01Eeg.cpp`, `lib/src/Meeting01MitBih.cpp` | Per-dataset loaders (eegmmidb/chbmit, mitbih) |
+| `lib/include/Meeting01Encoding.hpp`, `lib/src/Meeting01Encoding.cpp` | Spike encoding (direct/poisson/latency), LSTM framing |
+| `lib/include/Meeting01GaGenome.hpp` + family variants, `lib/src/Meeting01Ga*.cpp` | Per-family genetic architecture search (SNN, recurrent LSTM/GRU, Transformer) |
+| `lib/include/Meeting01Training.hpp`, `lib/src/Meeting01Training.cpp` | Training loop |
+| `lib/src/Meeting01Experiment.cpp` | Per-fold orchestration (search → retrain winners → manifest) |
+| `lib/include/Meeting01Metrics.hpp`, `lib/src/Meeting01Metrics.cpp` | Reconstruction metrics, cost proxies |
+| `lib/include/Meeting01Output.hpp`, `lib/src/Meeting01Output.cpp` | CSV/manifest writers |
 
 ## SNN architecture note
 
 `snn_architectures: ["dense", "conv1d", "recurrent"]` in a profile selects the **input
-transform**, not the network topology. All three share the same autoencoder network
-(`linear:64:leaky → linear:32:identity` encoder, mirrored decoder). Only `linear`
-layer specs are valid in `encoder_layer_spec` / `decoder_layer_spec`.
-
-## Paper pipeline
-
-```bash
-# 1. Run all profiles
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
-
-# 2. Aggregate CSVs → paper DAT files (called automatically by step 1)
-python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
-  --results-dir results \
-  --data-dir /path/to/meeting01/data \
-  --profiles-dir src/experiments/meeting01/profiles
-
-# 3. Compile paper
-cd documentation/07-articlesProduced/meeting01
-pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
-```
+transform**, not a fixed network topology — the SNN's actual layer widths are chosen by
+the genetic search. See the wiki's NSGA-II / multi-family search sections for details.

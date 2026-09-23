@@ -396,10 +396,15 @@ old tables for every model; the *comparison* stays fair.
 | `model.time_steps` | 16 | simulation steps per window. **< 2 is rejected at validation**, not clamped |
 | `evaluation.ga.winner_seeds` | 3 | seeds each final Pareto-front member is re-scored on before `pick_winner`. 1 disables the mitigation |
 
-Production profiles (`meeting01-loso`, `article-*`) declare `time_steps: 16`;
-dev/smoke profiles (`debug_nested`, `minimal-dat-test`, `test-dat-writers`, `lstm-compare`,
-`lstm-default`, `lstm-deep`, `lstm-lightweight`) use `4` with `winner_seeds: 1` to stay fast
-while remaining legal.
+Only 4 profiles remain after the 2026-09-23 unused-profile cleanup (the other 6
+non-production ones had no real consumer — nothing loaded them by name, they were only
+swept by the directory-wide audit). `meeting01-loso.json` (production) and
+`lstm-bench.json` (the cited benchmark behind [LSTM Performance](../Guides/LSTM-Performance.md))
+both declare `time_steps: 16` to match production. `lstm-compare.json` (the CLI's own
+default profile) declares `time_steps: 4` with `winner_seeds: 1` to stay fast. `debug.json`
+is flat-schema (see below) and has no `model.time_steps` field at all — it inherits the
+struct default (16) since the flat-schema branch is exempt from the explicit-declaration
+requirement.
 
 ### `snn_time_steps` → `time_steps`: the name was lying about who it affects
 
@@ -519,6 +524,20 @@ until the LOSO pipeline is rerun.
 ---
 
 
+> **This section through [Results](#results) documents the pre-LOSO design** (the
+> `article-*.json` profiles, the pooled/shuffled split, and the single-family GA). That
+> pipeline was **deleted 2026-09-23**: the profiles never set `dataset.cv_fold`, so they
+> pooled every window across speakers/recordings, shuffled, then split — the same
+> speaker/recording could land in both train and validation, the leakage defect a
+> reviewer flagged as strong-reject on submission 71. `dataset.cv_fold` is now a hard
+> requirement everywhere; there is no non-LOSO fallback left in the code, and the
+> `article-*.json` profiles no longer exist on disk. The general theory (seq2seq, surrogate
+> gradients, layer specs) below is still accurate; the concrete config schema, data-loading
+> description, profile table, run commands, and result numbers are **not** — for those, see
+> [Reviewer-driven revision](#reviewer-driven-revision-meeting01-losojson) above and
+> [Multi-family architecture search](#multi-family-architecture-search-added-2026-09-22-same-day-later-scope-change)
+> below, plus [Re-run Runbook](../Guides/Re-run-Runbook.md) for how to actually run it today.
+
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
@@ -621,12 +640,16 @@ would produce a polyphase split rather than consecutive frames.
 
 ### Data Loading Limits
 
-Samples are loaded from FSDD WAV files, windowed into non-overlapping `window_size`-sample frames, **shuffled** (seeded by `experiment.seed`), then split:
-
-$$\text{Val Count} = \min(\text{max\_validation\_samples},\ \text{Total Loaded})$$
-$$\text{Train Count} = \text{Total Loaded} - \text{Val Count}$$
-
-The shuffle happens before the split, so the validation set is a random draw from all loaded windows — not just the last 20%.  The profile fields `max_loaded_train_samples` and `max_validation_samples` are **hard limits**, not ratios.
+**Superseded — this describes `build_legacy_split`, deleted 2026-09-23 along with the
+`article-*.json` profiles that relied on it.** It pooled every loaded window across every
+speaker/recording, shuffled the pool (seeded by `experiment.seed`), then sliced train/val
+from the shuffled pool with zero group-disjointness — the leakage defect described in the
+banner above. `build_split` now unconditionally calls `build_loso_split`
+(`Meeting01Dataset.cpp`), which partitions by speaker/recording group per `dataset.cv_fold`;
+see [Reviewer-driven revision](#reviewer-driven-revision-meeting01-losojson) for the current
+split mechanics. `max_loaded_train_samples`/`max_validation_samples` are still required at
+JSON-parse time but are no longer consulted by the split; the active caps are
+`loso_max_{train,val,test}_windows`.
 
 ### Training Stability and Reproducibility
 
@@ -638,16 +661,11 @@ Because neural network performance can vary based on random weight initializatio
 
 ### Profile Configurations
 
-Article profiles live in `src/experiments/meeting01/profiles/`:
-
-| Profile | Purpose | Runs | ETA |
-|---------|---------|------|-----|
-| `article-lstm-ae.json` | LSTM-AE baseline, 3 encodings × 3 seeds | 9 | ~10 min |
-| `article-snn-dense.json` | SNN dense, GA-searched architecture (`evaluation.ga`: population=10, generations=8) × 3 seeds | ~270 | ~45 min |
-| `article-snn-conv1d.json` | SNN with 3-tap smoothing pre-filter, GA-searched | ~270 | ~45 min |
-| `article-snn-recurrent.json` | SNN with LIF input transform, GA-searched | ~270 | ~45 min |
-
-All article profiles share: `window_size=256`, `dataset=fsdd`, `seed_deterministic=false`, `loss_function=mse`, `latent_dim=32`.
+**Superseded — the four `article-*.json` profiles this table listed were deleted
+2026-09-23.** `meeting01-loso.json` (nested leave-one-group-out, all 4 datasets, all 4
+model families searched by GA) is now the only production profile; see
+[Multi-family architecture search](#multi-family-architecture-search-added-2026-09-22-same-day-later-scope-change)
+for its shape and `_total_runs_breakdown` field for its actual run/ETA counts.
 
 Profile validation test: `profile_audit_gtest`. Run after every profile edit.
 
@@ -661,9 +679,10 @@ Profile validation test: `profile_audit_gtest`. Run after every profile edit.
 
 ### WAV Loading
 
-`Meeting01Dataset.cpp` itself only windows and z-score normalizes an
-already-loaded signal (`to_window_tensor`); the actual WAV file reading is
-delegated to the shared FSDD loader:
+`to_window_tensor` (windowing/z-score on an already-loaded signal) was deleted
+2026-09-23 along with `build_legacy_split`, its only caller; windowing/normalization for
+the current LOSO split lives in `build_loso_split` (`Meeting01Dataset.cpp`) instead. The
+WAV file reading itself is unaffected — still delegated to the shared FSDD loader:
 
 ```cpp
 // File: src/core/data_loaders/10.5281/zenodo.1342401/loaders/FsddLoader.cpp
@@ -782,12 +801,14 @@ The total network is built by concatenating these specs.
 ## Usage
 
 ```bash
-# Run a specific profile (from software/nn/)
+# Run a single (dataset, fold) slice directly (from software/nn/)
 ./out/build/max-performance/src/experiments/meeting01/meeting01 \
-  --comparative-config src/experiments/meeting01/profiles/article-lstm-ae.json
+  --comparative-config src/experiments/meeting01/profiles/meeting01-loso.json \
+  --dataset fsdd --cv-fold 0
 
-# Run all article profiles + build paper CSVs (~2.5 h)
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
+# Run the full nested-LOSO grid (all datasets x folds) + build paper CSVs
+# (weeks-scale; see Re-run Runbook)
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
 
 Both `--comparative-config` and `--profile` are accepted as the flag name.
@@ -822,12 +843,13 @@ on a fresh run.
 
 ### Paper data pipeline
 
+`01_meeting01_run_loso.sh` chains into this automatically once the grid finishes (skip with
+`SKIP_POSTPROCESS=1` and run manually later — see [Re-run Runbook](../Guides/Re-run-Runbook.md)):
+
 ```bash
-# After all article runs complete:
-python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
-  --results-dir results \
-  --data-dir /path/to/meeting01/data \
-  --profiles-dir src/experiments/meeting01/profiles
+python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py       # --results-dir/--run-tag default to results/meeting01, meeting01_loso
+python3 scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py    # writes DAT files to --data-dir (defaults to documentation/07-articlesProduced/meeting01/data)
+python3 scripts/pipeline/meeting01/04_meeting01_significance_tests.py
 
 # Compile paper:
 cd documentation/07-articlesProduced/meeting01

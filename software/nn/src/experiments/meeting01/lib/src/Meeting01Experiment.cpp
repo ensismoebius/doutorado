@@ -1219,7 +1219,11 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
 void assert_split_disjoint_and_manifest(
     const Meeting01Config& config, const DatasetSplit& split, const std::string& dataset_name)
 {
-    if (config.dataset.cv_fold < 0) return; // legacy pooled path — not a LOSO fold
+    // cv_fold is always >= 0 post-validate() (the pooled/shuffled legacy split was
+    // removed 2026-09-23); this guard is now unreachable dead code, kept only so a
+    // future caller that somehow bypasses validate() still fails safe by skipping
+    // the assertion rather than crashing on an unset fold.
+    if (config.dataset.cv_fold < 0) return;
 
     auto speakers = [](const std::vector<WindowMetadata>& m)
     {
@@ -1446,13 +1450,13 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const int total_outer_runs =
             n_datasets * config.experiment.repeats * evals_per_dataset_repeat;
 
-        // Overall-progress banner across the whole 4-profile run. Each profile is a separate
-        // process, so this process cannot know the outer progress on its own — the wrapper
-        // (01_meeting01_run_article_profiles.sh) computes it the same way run_thesis_profiles.sh
-        // does (work-weighted, EMA-smoothed seconds-per-unit-work — see scripts/lib/run_eta.sh) and
-        // passes the ready-made line in via MEETING01_OVERALL. Logging it renders it as a
-        // persistent top line above the per-profile bars; empty/unset when run standalone, so
-        // unchanged.
+        // Overall-progress banner: an optional pre-rendered line a wrapper script can inject
+        // via MEETING01_OVERALL (this process, one dataset/fold slice of a larger grid, cannot
+        // know the outer progress on its own). Logging it renders it as a persistent top line
+        // above the per-run bars. No current script sets this — 01_meeting01_run_loso.sh reports
+        // per-fold progress via its own "[loso] ... epoch N/M" stderr lines instead (see that
+        // script's header) — so this is presently a harmless no-op, kept as the hook a future
+        // wrapper can use without touching this file.
         if (const char* overall = std::getenv("MEETING01_OVERALL");
             overall != nullptr && overall[0] != '\0')
         {

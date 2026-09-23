@@ -23,13 +23,13 @@ The standalone `meeting01` implementation now lives under `src/experiments/meeti
 invoked through the `autoencoderRunner` binary with comparative flags:
 
 ```bash
-./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config lstm-default
+./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config lstm-compare
 ```
 
 You can also pass an explicit JSON file:
 
 ```bash
-./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config src/experiments/meeting01/profiles/lstm-lightweight.json
+./src/experiments/autoencoderRunner/autoencoderRunner --comparative --comparative-config src/experiments/meeting01/profiles/meeting01-loso.json --dataset fsdd --cv-fold 0
 ```
 
 LSTM profiles now live under `src/experiments/meeting01/profiles` and remain prefixed with `lstm-`.
@@ -57,17 +57,13 @@ Current integrated runner behavior:
 
 Integrated LSTM profiles
 ------------------------
-The built-in LSTM profiles are intended for distinct validation tiers:
-
-- `lstm-lightweight.json`: quick smoke profile, `input_size=16`, `seq_len=12`, `hidden_size=24`, `latent_size=4`, `epochs=5`, and `max_batches_per_epoch=8`.
-- `lstm-default.json`: baseline profile, `input_size=64`, `seq_len=32`, `hidden_size=128`, `latent_size=16`, `epochs=30`, and uncapped epoch batches.
-- `lstm-deep.json`: heavier profile, `hidden_size=192`, `latent_size=32`, `num_layers=2`, `epochs=40`, and uncapped epoch batches.
-
-Recommended usage:
-
-1. Start with `lstm-lightweight` after touching LSTM code or CMake wiring.
-2. Move to `lstm-default` for normal functional validation.
-3. Use `lstm-deep` only when checking deeper-stack behavior or longer optimization traces.
+`lstm-lightweight.json`, `lstm-default.json`, and `lstm-deep.json` were deleted
+2026-09-23 (unused-profile cleanup — nothing loaded them by name). `lstm-compare.json`
+(fast, CLI default) and `meeting01-loso.json` (production) are the current profiles; see
+[src/experiments/meeting01/README.md](../meeting01/README.md) and
+[.wiki/Experiments/Meeting01.md](../../../.wiki/Experiments/Meeting01.md) for what each
+field actually does — the parameter names below this heading in older revisions of this
+file (`input_size`/`seq_len`/`max_batches_per_epoch`) do not match the current schema.
 
 Determinism policy
 ------------------
@@ -121,9 +117,6 @@ Useful built-in examples:
 - `default.json`: generic baseline defaults.
 - `lightweight.json`: smaller/faster smoke-test baseline.
 - `fused-window-snn-default.json`: fused SNN baseline.
-- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/meeting01/profiles`).
-- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/meeting01/profiles`).
-- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/meeting01/profiles`).
 - `protocol-ann-default.json`: protocol ANN baseline.
 - `protocol-snn-default.json`: protocol SNN baseline.
 - `sample-training-flow.json`: commented, loadable example that shows how to move from smoke tests to full training.

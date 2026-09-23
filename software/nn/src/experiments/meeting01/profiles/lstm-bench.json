@@ -12,6 +12,11 @@
         "window_size": 256,
         "max_loaded_train_samples": 32,
         "max_validation_samples": 8,
+        "cv_fold": 0,
+        "cv_num_folds": 6,
+        "loso_max_train_windows": 32,
+        "loso_max_val_windows": 8,
+        "loso_max_test_windows": 8,
         "latex_data_dir": "",
         "save_models": false
     },
@@ -50,5 +55,5 @@
         "snn_architectures": [],
         "_comment": "LSTM-only benchmark: 1 encoding \u00d7 1 repeat. ~32 train + 8 val samples. 3 epochs. NO SNN to isolate LSTM performance."
     },
-    "_comment": "LSTM throughput benchmark (.wiki/Guides/LSTM-Performance.md). model.time_steps governs the BASELINES too, not only the SNN arm: run_baseline feeds the LSTM a time-major (T*B, F) tensor, so the sequence length is T*window/lstm_frame_size. Declared explicitly at 16 to match the production profiles -- inheriting the struct default would silently change what this benchmark measures."
+    "_comment": "LSTM throughput benchmark (.wiki/Guides/LSTM-Performance.md). model.time_steps governs the BASELINES too, not only the SNN arm: run_baseline feeds the LSTM a time-major (T*B, F) tensor, so the sequence length is T*window/lstm_frame_size. Declared explicitly at 16 to match the production profiles -- inheriting the struct default would silently change what this benchmark measures. Migrated to LOSO 2026-09-23: the legacy pooled/shuffled split (cv_fold unset) was removed -- it let the same speaker/recording land in both train and validation, the leakage defect a reviewer flagged as strong-reject on submission 71. Its recorded wall time predates this migration and a prior 16x-shorter-unroll change -- treat the numbers in LSTM-Performance.md as stale until re-measured."
 }

@@ -1,5 +1,6 @@
 {
     "_comment": "Comprehensive SNN-vs-LSTM comparison on FSDD",
+    "_loso_caps_comment": "Migrated to LOSO 2026-09-23: this is Meeting01Cli.cpp's kDefaultComparativeProfileStem (the profile 'meeting01 --comparative' loads with no --comparative-config). The legacy pooled/shuffled split (cv_fold unset) was removed -- it let the same speaker/recording land in both train and validation, the leakage defect a reviewer flagged as strong-reject on submission 71 -- so the CLI's own default now runs a real leave-one-speaker-out fold, not a shuffled pool. max_loaded_train_samples/max_validation_samples below are accepted but ignored once cv_fold >= 0; loso_max_* are the caps that actually apply.",
     "experiment": {
         "run_tag": "lstm_compare",
         "seed": 42,
@@ -12,7 +13,12 @@
         "results_dir": "results/meeting01",
         "window_size": 256,
         "max_loaded_train_samples": 500,
-        "max_validation_samples": 100
+        "max_validation_samples": 100,
+        "cv_fold": 0,
+        "cv_num_folds": 6,
+        "loso_max_train_windows": 500,
+        "loso_max_val_windows": 100,
+        "loso_max_test_windows": 100
     },
     "training": {
         "samples_per_batch": 1,

@@ -1,4 +1,4 @@
-// Profile audit: every shipping article profile must parse cleanly via
+// Profile audit: every shipping production profile must parse cleanly via
 // Meeting01Config::from_nested_json AND must populate the live config
 // fields with non-default values that the experiment harness will actually
 // consume. Catches silent profile-key drift (e.g. a future rename moving a
@@ -20,13 +20,17 @@ using meeting01::Meeting01Config;
 namespace
 {
 
-const std::vector<std::string>& article_profiles()
+// The four article-*.json profiles (article-lstm-ae, article-snn-{dense,conv1d,
+// recurrent}) were deleted 2026-09-23: they never set dataset.cv_fold, so they ran
+// the pooled/shuffled legacy split -- the same train/validation speaker-leakage
+// defect a reviewer flagged as strong-reject on submission 71 -- and CLAUDE.md
+// still pointed at them as "the paper pipeline". meeting01-loso.json (the fixed,
+// nested-LOSO grid) is now the only profile that gets this suite's full,
+// hand-maintained validation; every other shipped profile still gets the looser
+// directory-wide walk below (ProfileDirectoryAudit).
+const std::vector<std::string>& production_profiles()
 {
     static const std::vector<std::string> profiles = {
-        "article-lstm-ae.json",
-        "article-snn-dense.json",
-        "article-snn-conv1d.json",
-        "article-snn-recurrent.json",
         "meeting01-loso.json",
     };
     return profiles;
@@ -74,13 +78,10 @@ TEST_P(ProfileAuditTest, ParsesAndValidates)
     EXPECT_GT(cfg.experiment.repeats, 0);
     EXPECT_FALSE(cfg.dataset.dataset_root.empty());
     EXPECT_GT(cfg.dataset.window_size, 0);
-    if (cfg.dataset.cv_fold < 0)
-    {
-        // Pooled-split budgets only apply to the legacy path; nested LOSO uses every
-        // window of the speaker-disjoint partitions.
-        EXPECT_GT(cfg.dataset.max_loaded_train_samples, 0);
-        EXPECT_GT(cfg.dataset.max_validation_samples, 0);
-    }
+    // Every profile is nested LOSO (cv_fold >= 0 required, validated); the legacy
+    // pooled split -- and its max_loaded_train_samples/max_validation_samples
+    // budget checks -- was removed 2026-09-23.
+    EXPECT_GE(cfg.dataset.cv_fold, 0);
     EXPECT_GT(cfg.training.samples_per_batch, 0);
     EXPECT_GT(cfg.training.epochs, 0);
     EXPECT_GE(cfg.training.early_stop_patience, 0);
@@ -111,7 +112,7 @@ TEST_P(ProfileAuditTest, LossIsMSE)
 
 TEST_P(ProfileAuditTest, SeedDeterministicIsFalse)
 {
-    // Article profiles must produce variance over repeats. seed_deterministic
+    // Production profiles must produce variance over repeats. seed_deterministic
     // = true would make every repeat identical (silent statistics death).
     auto cfg = load(GetParam());
     EXPECT_FALSE(cfg.experiment.seed_deterministic)
@@ -141,18 +142,18 @@ TEST_P(ProfileAuditTest, GaBoundsAreSaneWhenSnnArchitecturesPresent)
     EXPECT_LE(ga.alpha_min, ga.alpha_max) << "profile " << GetParam();
 }
 
-INSTANTIATE_TEST_SUITE_P(ArticleProfiles,
+INSTANTIATE_TEST_SUITE_P(ProductionProfiles,
     ProfileAuditTest,
-    ::testing::ValuesIn(article_profiles()),
-    [](const ::testing::TestParamInfo<std::string>& info)
+    ::testing::ValuesIn(production_profiles()),
+    [](const ::testing::TestParamInfo<std::string>& param_info)
     {
-        std::string name = info.param;
+        std::string name = param_info.param;
         for (auto& c : name)
             if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
         return name;
     });
 
-// The list above is hand-maintained and names only the five ARTICLE profiles, so a
+// The list above is hand-maintained and names only meeting01-loso.json, so a
 // dev/smoke profile could -- and did -- ship on disk in a state that fails
 // `validate()` outright, with nothing noticing until someone ran it. On 2026-09-22
 // four of them were in exactly that state (`early_stop_patience >= epochs`:
@@ -198,7 +199,12 @@ TEST(ProfileDirectoryAudit, EveryProfileOnDiskParsesAndValidates)
         EXPECT_NO_THROW(cfg.validate()) << name << ": validate() rejected a shipped profile";
     }
 
-    EXPECT_GE(seen, 5) << "profiles dir looks empty -- wrong path?";
+    // 4 profiles remain after the 2026-09-23 unused-profile cleanup (meeting01-loso,
+    // lstm-compare, debug, lstm-bench -- each has a real consumer: production run,
+    // CLI default, sole flat-schema fixture, and LSTM-Performance.md's cited benchmark,
+    // respectively). This floor exists to catch "wrong path" (an empty/near-empty
+    // directory), not to pin the exact count.
+    EXPECT_GE(seen, 4) << "profiles dir looks empty -- wrong path?";
 }
 
 // EVERY profile must state its simulation depth explicitly -- including the LSTM-only
@@ -332,10 +338,13 @@ namespace
 {
 
 /// A config that passes validation, as the starting point for "break one
-/// field and check it is caught".
+/// field and check it is caught". article-lstm-ae.json (used here before
+/// 2026-09-23) was deleted along with the other three article-*.json profiles --
+/// they never set cv_fold and so ran the leakage-prone legacy pooled split.
+/// meeting01-loso.json is now the only production profile.
 Meeting01Config valid_config()
 {
-    return load("article-lstm-ae.json");
+    return load("meeting01-loso.json");
 }
 
 std::string validation_error(const Meeting01Config& cfg)
@@ -478,10 +487,11 @@ TEST(Meeting01ConfigValidation, RejectsAFoldOutsideTheFoldCount)
     EXPECT_NE(validation_error(cfg).find("cv_fold"), std::string::npos);
 }
 
-TEST(Meeting01ConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
+TEST(Meeting01ConfigValidation, LosoFoldAcceptsZeroPooledSampleCaps)
 {
-    // Under nested LOSO (cv_fold >= 0) the split is speaker-disjoint and uses
-    // every window, so max_loaded_train_samples / max_validation_samples = 0 is fine.
+    // Nested LOSO (the only split) uses every window of the speaker-disjoint
+    // partitions, not a pooled sample budget, so max_loaded_train_samples /
+    // max_validation_samples = 0 is fine.
     auto cfg = valid_config();
     cfg.dataset.cv_fold = 0;
     cfg.dataset.cv_num_folds = 6;
@@ -490,11 +500,24 @@ TEST(Meeting01ConfigValidation, LosoFoldRelaxesThePooledSampleCaps)
     EXPECT_NO_THROW(cfg.validate());
 }
 
-// The two rules below span sections. They are the ones a refactor that
-// splits validation per section can silently drop: each checker sees only
-// its own struct, so the relation between two structs has nowhere to live
-// unless someone deliberately keeps it. Both checkers deliberately take the
-// whole config for this reason, and these tests are what proves it stuck.
+TEST(Meeting01ConfigValidation, RejectsAMissingCvFold)
+{
+    // The pooled/shuffled legacy split (cv_fold < 0) was removed 2026-09-23 -- it
+    // let the same speaker/recording land in both train and validation (the
+    // leakage defect a reviewer flagged as strong-reject on submission 71).
+    // cv_fold is now REQUIRED, not merely optional-with-a-fallback.
+    auto cfg = valid_config();
+    cfg.dataset.cv_fold = -1;
+    const std::string message = validation_error(cfg);
+    EXPECT_NE(message.find("cv_fold"), std::string::npos);
+    EXPECT_NE(message.find("must be set"), std::string::npos);
+}
+
+// The rule below spans sections. It is the kind a refactor that splits
+// validation per section can silently drop: each checker sees only its own
+// struct, so a relation between two structs has nowhere to live unless
+// someone deliberately keeps it. check_dataset deliberately takes the whole
+// config for this reason, and this test is what proves it stuck.
 
 TEST(Meeting01ConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
 {
@@ -508,15 +531,4 @@ TEST(Meeting01ConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
     const std::string message = validation_error(cfg);
     EXPECT_NE(message.find("lstm_frame_size"), std::string::npos);
     EXPECT_NE(message.find("must divide"), std::string::npos);
-}
-
-TEST(Meeting01ConfigValidation, CatchesABatchLargerThanTheLoadedSampleBudget)
-{
-    // A batch bigger than everything loaded cannot ever be filled; the two
-    // numbers live in different sections.
-    auto cfg = valid_config();
-    cfg.dataset.max_loaded_train_samples = 10;
-    cfg.training.samples_per_batch = 64;
-
-    EXPECT_NE(validation_error(cfg).find("exceeds max_loaded_train_samples"), std::string::npos);
 }

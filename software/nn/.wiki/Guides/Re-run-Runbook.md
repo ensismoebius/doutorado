@@ -81,50 +81,61 @@ Clean up with `rm -rf results/thesis/smoke` afterwards.
 ## 1. Meeting01 — Meeting01 paper (do this FIRST)
 
 Highest priority: it is the only artifact with an external audience, and its current
-SNN-vs-LSTM table used to be **unfair to the paper's own contribution** — the SNN side trained
-every weight 10× slower than the LSTM baseline it is compared against (D3, now fixed).
+SNN-vs-LSTM/GRU/Transformer table used to be **unfair to the paper's own contribution** — the
+SNN side trained every weight 10× slower than the baselines it is compared against (D3, now
+fixed).
+
+> The old `01_meeting01_run_article_profiles.sh` / `02_meeting01_build_lstm_vs_snn_paper_data.py`
+> chain (and the `article-*.json` profiles it ran) was **deleted 2026-09-23**: those profiles
+> never set `dataset.cv_fold`, so they pooled every window across speakers/recordings, shuffled,
+> then split — the same speaker/recording could land in both train and validation. A reviewer
+> flagged this as a strong-reject defect on submission 71 (see [Meeting01](../Experiments/Meeting01.md)).
+> `meeting01-loso.json` (nested leave-one-group-out) is now the only production profile; there is
+> no non-LOSO fallback left in the code.
 
 **Do not pre-build anything for this one.** The script builds its own binary from the preset
-*it* selects; a binary you built from some other preset is ignored unless you pick that preset.
+named in `MEETING01_BUILD` (default `max-performance`); a binary you built from some other
+preset is ignored unless you set that preset.
 
-It **asks which build to use**, because that choice is part of the measurement rather than a
-convenience: the paper reports **`train_ms` / `infer_ms` / latency**, and
-`02_meeting01_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables, so all four
-profiles must run on the **same** backend. **`max-performance` (CPU/XTensor) is the reference
-and the default** — the same backend the thesis uses — so both experiments report from one
-setup. Picking anything else prints a warning and must be reported as a different backend.
+`train_ms` / `infer_ms` / latency feed the paper's tables directly, so every (dataset, fold) run
+must land on the **same** backend. **`max-performance` (CPU/XTensor) is the reference and the
+default** — the same backend the thesis uses. The script prints a warning if `MEETING01_BUILD`
+is anything else, and that choice must then be reported as a different backend.
 
 ```bash
-# ~2.5 h (LSTM ~10 min, each SNN ~45 min). Asks which build, then configures + builds it,
-# runs all 4 article profiles, converts the NPZ artifacts, and aggregates the paper CSV/DAT.
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
+cd software/nn
+# Weeks-scale across all datasets x folds (see the profile's own _total_runs_breakdown).
+# Refuses to start without EXPERIMENT_CONFIRMED=1. Runs profiles/meeting01-loso.json once
+# per (dataset, outer fold), then chains into 03_/02_/04_ (PCA/mean baselines, paper DAT
+# files, significance tests) when the grid finishes.
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
 
-While it runs, an **`Overall [i/4] … ETA`** line sits at the top of each profile's TUI — the
-same **work-weighted, EMA-smoothed** estimate `run_thesis_profiles.sh` uses (`scripts/lib/run_eta.sh`):
-it weights each profile by rough cost (LSTM light, SNN ~4-5× heavier) and tracks
-seconds-per-unit-work, so it does not lurch at the LSTM→SNN boundary the way a naive
-per-profile mean would. It is optimistic before the first SNN lands (the weights are a prior)
-and tightens once real timings arrive; treat it as a guide, not a promise.
-
-The prompt lists every preset, marks which already have an `meeting01` binary `[built]`,
-flags the reference, and defaults to it — so pressing Enter is the reference choice.
-Non-interactive runs (pipe/CI) skip the prompt and use the reference.
+Per-epoch progress is logged as `[loso] ... epoch N/M` lines on stderr (survives `nohup`, unlike
+a live progress bar). The script is non-interactive throughout — no build-selection prompt —
+everything is env-var driven:
 
 ```bash
-# Choose non-interactively (required in a pipe/CI):
-MEETING01_BUILD=max-performance ./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
-
 # Reuse the existing binary instead of rebuilding — only when you know it is current:
-SKIP_BUILD=1 MEETING01_BUILD=max-performance ./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
+SKIP_BUILD=1 EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
+
+# Resume an interrupted run — skips any (dataset, fold) that already finished:
+EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
+
+# Stop after training, before the Python post-processing (e.g. on a remote/HPC checkout
+# with no .venv/numpy) — see .wiki/Guides/GridUnesp-Deployment.md:
+EXPERIMENT_CONFIRMED=1 SKIP_POSTPROCESS=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
 
 The first run of a preset also **configures** it (a few minutes on top of the runtime); later
-runs are incremental no-ops.
+runs are incremental no-ops. By default the script clears `results/meeting01/checkpoints/` and
+`results/meeting01/models/` first — pass `RESUME=1` (implies `KEEP_CHECKPOINTS=1`) instead of
+`KEEP_CHECKPOINTS=1` directly, since a bare `KEEP_CHECKPOINTS=1` re-run leaves the per-window CSV
+incomplete for any fold it re-runs.
 
-> Article results predating this default (`results/meeting01/article_*_comparative_metrics.csv`)
-> may have been produced on OpenCL — the summaries don't record the backend, so it can't be told
-> from disk. For a clean paper, run all four fresh on `max-performance`.
+> Article-pipeline results predating this deletion (`results/meeting01/article_*_comparative_metrics.csv`)
+> are stale artifacts of the removed leakage-prone split — do not cite them; regenerate from
+> `meeting01-loso.json` instead.
 
 Then recompile the paper:
 

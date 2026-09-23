@@ -5,8 +5,8 @@ All scripts are organized into five subdirectories by purpose.
 ```
 scripts/
   pipeline/
-    e04/      Meeting01 article chain (numbered by execution order)
-    e05/      thesis phase00→phase01 chain (numbered by execution order)
+    meeting01/  Meeting01 nested-LOSO chain (numbered by execution order)
+    e05/        thesis phase00→phase01 chain (numbered by execution order)
   data/       dataset handling & format conversion
   ci/         CI gates (called by ci.yml and coverage builds)
   dev/        developer workflow & tooling
@@ -24,19 +24,30 @@ Within each, filenames are prefixed with their execution order (`01_`, `02_`,
 ...) when the chain has a fixed sequence; a script with no numeric prefix runs
 standalone (not part of that ordered chain).
 
-### e04/ — Meeting01 article
+### meeting01/ — Meeting01 nested-LOSO grid
 
-Full chain: `01_meeting01_run_article_profiles.sh` → CSVs → `02_meeting01_build_lstm_vs_snn_paper_data.py` → DAT files → `pdflatex`
+The `01_meeting01_run_article_profiles.sh` / `02_meeting01_build_lstm_vs_snn_paper_data.py`
+chain (and the `article-*.json` profiles it ran) was **deleted 2026-09-23**: those profiles
+never set `dataset.cv_fold`, so they ran the pooled/shuffled split, letting the same
+speaker/recording land in both train and validation — the leakage defect a reviewer
+flagged as strong-reject on submission 71. `meeting01-loso.json` (nested leave-one-group-out)
+is now the only production profile.
+
+Full chain: `01_meeting01_run_loso.sh` → per-`(dataset,fold)` CSVs → `03_meeting01_pca_mean_baselines.py`
+→ `02_meeting01_build_loso_paper_data.py` → DAT files → `04_meeting01_significance_tests.py` → `pdflatex`
 
 | Script | Role |
 |---|---|
-| `01_meeting01_run_article_profiles.sh` | Run all 4 article profiles; calls `02_meeting01_build_lstm_vs_snn_paper_data.py` when done |
-| `02_meeting01_build_lstm_vs_snn_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
+| `01_meeting01_run_loso.sh` | Run the full nested-LOSO grid, one process per (dataset, fold); calls 03_/02_/04_ when done |
+| `02_meeting01_build_loso_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
+| `03_meeting01_pca_mean_baselines.py` | PCA/mean baselines for the paper's comparison table |
+| `04_meeting01_significance_tests.py` | Recording-level significance tests |
 
-Quick start:
+Quick start (multi-day/multi-week/multi-month — see `meeting01-loso.json`'s own
+`_total_runs_breakdown`; `EXPERIMENT_CONFIRMED=1` required, `expensive-experiment-guard` hook):
 ```bash
 cd software/nn
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
 
 ### e05/ — Thesis phase00 → phase01 chain

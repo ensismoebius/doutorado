@@ -86,7 +86,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
-| `profile_audit_gtest` | 25 tests verifying all 5 Meeting01 article profiles parse + validate |
+| `profile_audit_gtest` | Every profile in `profiles/` parses + validates (directory-wide); fuller hand-maintained checks for `meeting01-loso.json` |
 | `nn_progress` | Progress bar library |
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
@@ -341,40 +341,41 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp05 classifiers | `src/experiments/thesis/lib/src/ThesisClassifiers.cpp` |
 | Exp05 output writers | `src/experiments/thesis/lib/src/ThesisOutput.cpp` |
 | Exp05 profile audit tests | `src/experiments/thesis/tests/thesis_profile_audit_gtest.cpp` |
-| Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py` |
-| Article run script | `scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh` |
+| Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py` |
+| LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
 
 ---
 
 ## Experiment04 paper pipeline
 
-Full chain from profiles to compiled PDF:
+The `article-*.json` profiles and their pipeline (`01_meeting01_run_article_profiles.sh`
++ `02_meeting01_build_lstm_vs_snn_paper_data.py`) were **deleted 2026-09-23**: they never
+set `dataset.cv_fold`, so they ran the pooled/shuffled split, letting the same
+speaker/recording land in both train and validation — the leakage defect a reviewer
+flagged as strong-reject on submission 71. `meeting01-loso.json` (nested leave-one-group-out)
+is now the only paper-pipeline profile; there is no non-LOSO fallback (`dataset.cv_fold`
+is validated `>= 0` for every profile).
+
+Full chain from profile to compiled PDF:
 
 ```bash
-# 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
+# 1. Run the full nested-LOSO grid (multi-day/multi-week — see the profile's own
+#    _total_runs_breakdown; EXPERIMENT_CONFIRMED=1 required, expensive-experiment-guard hook)
 cd software/nn
-./scripts/pipeline/meeting01/01_meeting01_run_article_profiles.sh
-# writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
-# writes .../meeting01/data/article_*_*.dat  (pgfplots DAT files)
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
+# writes results/meeting01/meeting01_loso_<dataset>_fold<f>_{comparative_metrics,per_window_errors}.csv
+# then runs 03_ (PCA/mean baselines) -> 02_ (paper tables) -> 04_ (recording-level significance)
 
-# 2. Aggregate into paper_*.csv (called automatically by e04_run_article_profiles.sh)
-python3 scripts/pipeline/meeting01/02_meeting01_build_lstm_vs_snn_paper_data.py \
-  --results-dir results \
-  --data-dir .../meeting01/data \
-  --profiles-dir src/experiments/meeting01/profiles
-
-# 3. Compile paper
+# 2. Compile paper
 cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Column mapping** (`02_meeting01_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
-- `model == "lstm-ae"` → label `LSTM-AE`
-- `model == "snn-ae"` + `architecture == "dense/conv1d/recurrent"` → label `SNN-{arch}`
-
-**Profile guard**: `profile_audit_gtest` (25 tests × 5 profiles) verifies every profile
-parses, validates, has `loss=mse`, `seed_deterministic=false`, and consistent sweep arrays.
-Run after any profile edit:
+**Profile guard**: `profile_audit_gtest` verifies every profile in `profiles/` parses and
+validates (`ProfileDirectoryAudit`, directory-wide, not a hardcoded list), plus a fuller
+hand-maintained check (`loss=mse`, `seed_deterministic=false`, GA bounds sane, `cv_fold`
+set, ...) for `meeting01-loso.json` specifically (`ProductionProfiles`). Run after any
+profile edit:
 ```bash
 cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure

@@ -66,21 +66,19 @@ void check_dataset(const Meeting01Config& config, std::ostringstream& errors)
                << ") must divide dataset.window_size (" << dataset.window_size << ")\n";
     }
 
-    // Under nested LOSO (cv_fold >= 0) the split is speaker-disjoint and uses
-    // every window, so the pooled-split sample caps do not apply. They are still
-    // required for the legacy pooled path.
-    const bool loso = dataset.cv_fold >= 0;
-
-    if (!loso && dataset.max_loaded_train_samples <= 0)
+    // The pooled/shuffled split (cv_fold < 0) was removed 2026-09-23 -- it let the
+    // same speaker/recording land in both train and validation (the leakage defect
+    // a reviewer flagged as strong-reject on submission 71). Every profile now runs
+    // nested leave-one-group-out, which uses every window of the speaker-disjoint
+    // partitions rather than a fixed pooled sample budget, so cv_fold is required
+    // and max_loaded_train_samples/max_validation_samples are no longer checked
+    // here (they are accepted but ignored -- see dataset.loso_max_* for the real,
+    // per-fold caps).
+    if (dataset.cv_fold < 0)
     {
-        errors << "  - dataset.max_loaded_train_samples must be > 0 (got "
-               << dataset.max_loaded_train_samples << ")\n";
-    }
-
-    if (!loso && dataset.max_validation_samples <= 0)
-    {
-        errors << "  - dataset.max_validation_samples must be > 0 (got "
-               << dataset.max_validation_samples << ")\n";
+        errors << "  - dataset.cv_fold must be set (>= 0). Remedy: add cv_fold (and "
+                  "cv_num_folds) to the profile's dataset block, or pass --cv-fold on "
+                  "the CLI.\n";
     }
 
     if (dataset.cv_fold >= 0 && dataset.cv_fold >= dataset.cv_num_folds)
@@ -100,18 +98,10 @@ void check_dataset(const Meeting01Config& config, std::ostringstream& errors)
 void check_training(const Meeting01Config& config, std::ostringstream& errors)
 {
     const auto& training = config.training;
-    const auto& dataset = config.dataset;
 
     if (training.samples_per_batch <= 0)
     {
         errors << "  - training.samples_per_batch must be > 0 (got " << training.samples_per_batch
-               << ")\n";
-    }
-
-    if (dataset.cv_fold < 0 && training.samples_per_batch > dataset.max_loaded_train_samples)
-    {
-        errors << "  - training.samples_per_batch (" << training.samples_per_batch
-               << ") exceeds max_loaded_train_samples (" << dataset.max_loaded_train_samples
                << ")\n";
     }
 

@@ -433,6 +433,8 @@ TEST(Meeting01GaSearch, ConfigRejectsPopulationOneWithGenerations)
     cfg.dataset.window_size = 64;
     cfg.dataset.max_loaded_train_samples = 10;
     cfg.dataset.max_validation_samples = 5;
+    cfg.dataset.cv_fold = 0;
+    cfg.dataset.cv_num_folds = 6;
     cfg.training.samples_per_batch = 1;
     cfg.training.epochs = 1;
     cfg.training.early_stop_patience = 0;

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # run_eta.sh — work-weighted, EMA-smoothed ETA for multi-profile runs.
 #
-# Shared by the thesis (run_thesis_profiles.sh) and the Meeting01 paper
-# (01_meeting01_run_article_profiles.sh). `source` it, then per profile:
+# Shared by the thesis (run_thesis_profiles.sh) and the Meeting01 nested-LOSO grid
+# (01_meeting01_run_loso.sh). `source` it, then per profile/fold:
 #
 #   eta_reset                       # once, at the start of a run
 #   w=$(profile_weight "$path")     # caller-provided cost estimate (see below)

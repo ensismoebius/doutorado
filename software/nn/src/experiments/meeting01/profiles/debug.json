@@ -1,5 +1,6 @@
 {
     "_comment": "Minimal profile for debugging",
+    "_loso_caps_comment": "Migrated 2026-09-23: the legacy pooled/shuffled split (cv_fold unset) was removed -- it let the same speaker/recording land in both train and validation, the leakage defect a reviewer flagged as strong-reject on submission 71. cv_fold is now REQUIRED. max_loaded_train_samples/max_validation_samples below are accepted but ignored once cv_fold >= 0; loso_max_* are the caps that actually apply. This is the only remaining flat-schema profile (its nested-schema smoke twin, debug_nested.json, was deleted 2026-09-23 in the unused-profile cleanup -- nothing loaded it by name).",
     "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
     "results_dir": "results/meeting01",
     "run_tag": "debug",
@@ -10,6 +11,11 @@
     "window_size": 64,
     "max_loaded_train_samples": 20,
     "max_validation_samples": 10,
+    "cv_fold": 0,
+    "cv_num_folds": 6,
+    "loso_max_train_windows": 20,
+    "loso_max_val_windows": 10,
+    "loso_max_test_windows": 20,
     "samples_per_batch": 1,
     "batches_per_epoch": 0,
     "epochs": 2,

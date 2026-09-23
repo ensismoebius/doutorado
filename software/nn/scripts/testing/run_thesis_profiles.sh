@@ -50,8 +50,8 @@ cd "$(dirname "$0")/../.." # -> software/nn
 
 # Locate the thesis binary under any CMake build profile.
 # Auto-pick prefers the CPU (max-performance) build when it exists. This is the reference
-# backend for the thesis — the same one the Meeting01 paper pipeline defaults to
-# (01_meeting01_run_article_profiles.sh), so both experiments report from one backend. It is also
+# backend for the thesis — the same one the Meeting01 nested-LOSO pipeline defaults to
+# (01_meeting01_run_loso.sh), so both experiments report from one backend. It is also
 # the right default on the merits: these profiles' networks are tiny (kernel-launch-bound on
 # GPU), and "most recently built" used to silently switch runs to whatever was rebuilt last.
 # Override with THESIS_BUILD/THESIS_BIN to target another backend.

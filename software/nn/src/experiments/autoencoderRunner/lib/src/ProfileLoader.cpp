@@ -87,7 +87,7 @@ static auto parse_neural_network_layers(
 
 /// Where a profile might live, in the order the CLI has always searched.
 ///
-/// The chain is deliberate: `--profile article-lstm-ae` has to resolve from
+/// The chain is deliberate: `--profile default` has to resolve from
 /// the build directory, from the source tree, and from a results directory,
 /// while an absolute path or an explicit `.json` has to win over all of
 /// them. An empty return means nothing matched -- the caller turns that
