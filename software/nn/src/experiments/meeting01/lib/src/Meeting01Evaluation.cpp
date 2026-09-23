@@ -94,7 +94,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     }
     m.r2 = (ss_tot > 1e-8f) ? (1.0f - (ss_res / ss_tot)) : 0.0f;
 
-    compute_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
+    binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
     m.spike_rate = 0.0f;
     m.energy = 10.0f * static_cast<float>(m.macs);
@@ -179,7 +179,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     }
     m.r2 = (ss_tot > 1e-8f) ? (1.0f - (ss_res / ss_tot)) : 0.0f;
 
-    compute_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
+    binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
     m.spike_rate = (n_values > 0) ? spike_sum / static_cast<float>(n_values) : 0.0f;
     m.energy = m.spike_rate * static_cast<float>(n_values) + 10.0f * static_cast<float>(m.macs);

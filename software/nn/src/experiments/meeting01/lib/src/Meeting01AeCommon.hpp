@@ -127,7 +127,7 @@ auto evaluate_ae(Model& model,
     }
     m.r2 = (ss_tot > 1e-8f) ? (1.0f - (ss_res / ss_tot)) : 0.0f;
 
-    compute_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
+    binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
     m.spike_rate = 0.0f;
     m.energy = 10.0f * static_cast<float>(m.macs);

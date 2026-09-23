@@ -208,10 +208,8 @@ float epoch_mean = loss_stat.value();
 
 ### Metrics
 
-There are no standalone `accuracy()`/`confusion_matrix()`/`precision()`/
-`recall()`/`f1_score()` functions, and none of these operate on `Tensor` —
-the real API works on plain `std::vector<int>` class labels and returns one
-aggregate struct:
+The macro-averaged, multi-class API works on plain `std::vector<int>` class
+labels and returns one aggregate struct:
 
 ```cpp
 // File: include/statistics/multi_class_metrics.hpp
@@ -232,16 +230,45 @@ ClassificationMetrics compute_classification_metrics(
 }
 ```
 
+A second, deliberately separate function covers the case where only the
+**positive class** matters (not a balanced multi-class summary) — e.g. "did
+reconstruction error cross a threshold":
+
+```cpp
+// File: include/statistics/binary_classification_metrics.hpp
+namespace statistics
+{
+// precision/recall/f1 for label == 1 only, via tp/fp/fn — NOT the same number
+// as compute_classification_metrics()'s macro-averaged fields whenever the two
+// classes' per-class precision/recall differ.
+void binary_precision_recall_f1(const std::vector<int>& y_true,
+    const std::vector<int>& y_pred, float& precision, float& recall, float& f1);
+}
+```
+
+Moved from `meeting01` 2026-09-23 (was `compute_precision_recall_f1`, no
+meeting01-specific coupling — pure `std::vector<int>` labels).
+
 ### Regression Metrics
 
-<!-- STALE: `r2_score`, `mae`, `mse` (as standalone metric functions, on Tensor
-     or otherwise) do not exist anywhere in the codebase — searched the whole
-     tree. `include/statistics/inference_tests.hpp` actually declares
-     cohens_d/t_test_pvalue_approx/wilcoxon_signed_rank_pvalue_approx (see the
-     "Statistical Significance Tests" section above), not regression metrics.
-     Needs a human decision: was this ever implemented and removed, or is it
-     aspirational? MSELossImpl/MAELossImpl (Core/Layers.md) compute similar
-     quantities but as training-loss layers, not evaluation-metric functions. -->
+Plain scalar reconstruction-error metrics between two equal-shaped tensors —
+for reporting/comparison, not a trainable loss (no backward pass; for that see
+`MSELossImpl`/`MAELossImpl` in [Layers](./Layers.md)):
+
+```cpp
+// File: include/statistics/reconstruction_metrics.hpp
+namespace statistics
+{
+template <typename Tensor>
+auto mse_between(const Tensor& a, const Tensor& b) -> float;
+template <typename Tensor>
+auto mae_between(const Tensor& a, const Tensor& b) -> float;
+}
+```
+
+Moved from `meeting01` 2026-09-23 (elementwise MSE/MAE over `nn::Tensor`, zero
+meeting01-specific coupling). `r2_score` still does not exist anywhere in the
+codebase as of this writing.
 
 ## Data Flow
 

@@ -1450,19 +1450,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const int total_outer_runs =
             n_datasets * config.experiment.repeats * evals_per_dataset_repeat;
 
-        // Overall-progress banner: an optional pre-rendered line a wrapper script can inject
-        // via MEETING01_OVERALL (this process, one dataset/fold slice of a larger grid, cannot
-        // know the outer progress on its own). Logging it renders it as a persistent top line
-        // above the per-run bars. No current script sets this — 01_meeting01_run_loso.sh reports
-        // per-fold progress via its own "[loso] ... epoch N/M" stderr lines instead (see that
-        // script's header) — so this is presently a harmless no-op, kept as the hook a future
-        // wrapper can use without touching this file.
-        if (const char* overall = std::getenv("MEETING01_OVERALL");
-            overall != nullptr && overall[0] != '\0')
-        {
-            nn::progress::ProgressManager::instance().log(std::string(overall));
-        }
-
         const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
             "Profile: " + config.experiment.run_tag, static_cast<float>(total_outer_runs));
         nn::progress::ProgressManager::instance().set_description(

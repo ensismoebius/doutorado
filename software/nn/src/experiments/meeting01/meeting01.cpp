@@ -1,5 +1,3 @@
-// TODO Profiles must contain the specification of two nn: LSTM and SNN
-
 /**
  * @file src/experiments/meeting01/meeting01.cpp
  * @brief Standalone Experiment04 entrypoint (thin main wrapper).

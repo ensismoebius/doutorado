@@ -15,12 +15,6 @@ constexpr const char* kDefaultComparativeProfileStem = "lstm-compare";
 
 static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
-void infer_dimensions_from_layer_specs(Meeting01Config& cfg)
-{
-    // This function is now deprecated as layer_sizes is removed from Meeting01Config.
-    // Dimensions are inferred on-the-fly in Training.
-}
-
 auto has_compare_marker(const std::string& arg) -> bool
 {
     return arg == "--comparative" || arg == "--experiment=snn-lstm-compare" ||
