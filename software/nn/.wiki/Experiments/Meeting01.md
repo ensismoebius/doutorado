@@ -10,7 +10,7 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 > generalization. A reviewer flagged this as a strong-reject defect.
 >
 > **The fix.** Nested six-fold **leave-one-group-out** cross-validation. A
-> *group* is the speaker (FSDD, AudioMNIST) or the EEG subject (eegmmidb, chbmit;
+> *group* is the speaker (FSDD, AudioMNIST) or the EEG subject (eegmmidb, siena;
 > the group directory a recording's `.edf` file lives in — see below). Windows
 > are partitioned by group *before any pooling*; per fold: test block = one
 > group-block, validation block = the next (rotating), the rest train. The SNN's
@@ -38,25 +38,27 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 |---|---|---|---|---|---|
 | `fsdd` | spoken digits, 8 kHz | speaker | 6 / 6 | none | `.../databases/fsdDataset` |
 | `audiomnist` | spoken digits, offline-resampled 48→8 kHz | speaker | 60 / 6 | 2 | `.../databases/audioMNIST_8k` |
-| `eegmmidb` | EEG, 64 ch (signal 0 read), 160 Hz, EDF+ | subject (parent dir) | 109 / 6 | 40 | `.../databases/eegmmidb` **(placeholder — not yet downloaded)** |
-| `chbmit` | EEG, up to 23 ch (signal 0 read), 256 Hz, EDF | subject (parent dir) | 22 / 6 | 40 | `.../databases/chbmit` **(placeholder — not yet downloaded)** |
+| `eegmmidb` | EEG, 64 ch (signal 0 read), 160 Hz, EDF+ | subject (parent dir) | 109 / 6 | 40 | `.../databases/eegmmidb` |
+| `siena` | EEG, up to 35 ch (signal 0 read), 512 Hz, EDF | subject (parent dir) | 14 / 6 | 40 | `.../databases/siena` |
 
 **Why a new loader, not the existing `EEGLoader`.** The codebase already has an
 EEG loader (`nn::dataLoaders::EEGLoader`), but it reads a MAT-file/sqlite
 "imagined speech" format for the `thesis`/`paraconsistentGA` experiments — a
 different format, a single dataset, not wired into meeting01. `eegmmidb` and
-`chbmit` are public PhysioNet corpora distributed as **EDF** (European Data
+`siena` are public PhysioNet corpora distributed as **EDF** (European Data
 Format, Kemp et al. 1992), a different binary layout entirely. Rather than an
 offline edf→WFDB conversion step, `Meeting01Eeg.{hpp,cpp}` reads EDF directly:
 fixed 256-byte main header, `ns × 256` bytes of per-signal header fields, then
 2-byte little-endian samples — parsed and cross-checked against the format spec's
 own worked example before being wired in. It reads signal 0 of every `.edf`
-file (assumed to be an EEG channel — true for both corpora, not yet verified
-against real downloaded files on this machine).
+file (assumed to be an EEG channel — verified 2026-09-23 against real
+downloaded file headers: signal 0 is labelled `EEG Fp1` for Siena and `Fc5.`
+for eegmmidb, both genuine 10-20-system electrode positions, not a status/EKG
+channel).
 
 **Why the group is a directory name, not a filename.** Both target corpora
-organize files as one subdirectory per subject — `chbNN/chbNN_MM.edf` for
-CHB-MIT, `SNNN/SNNNRMM.edf` for eegmmidb — so `EegWindowDataset` takes each
+organize files as one subdirectory per subject — `PNNN/PNNN-M.edf` for
+Siena, `SNNN/SNNNRMM.edf` for eegmmidb — so `EegWindowDataset` takes each
 `.edf` file's *immediate parent directory name* as the leave-one-group-out
 group, with no dataset-specific filename parsing needed. This is the same
 "group = whatever the LOSO split must never let leak across train/val/test"
@@ -85,7 +87,7 @@ grouping — only *where the loader reads the group from* differs.
   (`Meeting01MitBih.{hpp,cpp}`) — a minimal WFDB format-212 reader (non-recursive
   `.hea` scan, 12-bit two's-complement decode, physical units via header gain/baseline);
   loader still present, `"mitbih"` no longer in the active profile's `evaluation.datasets`.
-  `eegmmidb`/`chbmit` both use `EegWindowDataset` (`Meeting01Eeg.{hpp,cpp}`) — a minimal
+  `eegmmidb`/`siena` both use `EegWindowDataset` (`Meeting01Eeg.{hpp,cpp}`) — a minimal
   EDF reader (recursive `.edf` scan, header self-check against its own declared byte size,
   reads data records until a short read rather than trusting `n_data_records`, digital→
   physical via the header's min/max, group = parent directory name).
@@ -1204,8 +1206,8 @@ longer fixed *across* dataset domains that were never comparable to begin with.
 |---|---|---|---|---|
 | fsdd | short speech | 16 | 16:1 | Traditional/LSTM speech autoencoders typically bottleneck at 8–16. |
 | audiomnist | short speech | 16 | 16:1 | Same domain as fsdd; AudioMNIST encoder architectures in the literature sit in the 16–64 range. |
-| eegmmidb | EEG (motor imagery) | 64 | 4:1 | No eegmmidb-specific autoencoder paper found; extrapolated from CHB-MIT (same EEG modality and window scale) — unverified extrapolation, not a direct citation. |
-| chbmit | EEG (seizure) | 64 | 4:1 | Khan et al. (2023), shallow autoencoder on CHB-MIT, hidden_size=64; a separate {32, 64, 128} sweep on CHB-MIT also selected 64. |
+| eegmmidb | EEG (motor imagery) | 64 | 4:1 | No eegmmidb-specific autoencoder paper found; extrapolated from Khan et al. (2023)'s shallow-AE result on CHB-MIT (same EEG modality and window scale, but a dataset not used in this study — see `siena` row) — unverified extrapolation, not a direct citation. |
+| siena | EEG (seizure) | 64 | 4:1 | No Siena-specific autoencoder paper found; extrapolated from Khan et al. (2023), shallow autoencoder on CHB-MIT, hidden_size=64 (a separate {32, 64, 128} sweep on CHB-MIT also selected 64) — same seizure-EEG task category as Siena, not a direct hit. Siena replaced CHB-MIT itself in the active grid 2026-09-23 (CHB-MIT's 42.6GB did not fit available disk; Siena is a complete 14-subject, 20.3GB dataset in the same category). |
 
 A tempting-looking counter-claim surfaced during the search — "latent dimensions ≤50
 fail to reconstruct reliably" — and was checked all the way to the source (arXiv:2109.11045)

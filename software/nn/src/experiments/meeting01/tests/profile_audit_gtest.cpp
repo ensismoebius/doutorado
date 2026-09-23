@@ -157,7 +157,7 @@ INSTANTIATE_TEST_SUITE_P(ProductionProfiles,
 // REAL shipping meeting01-loso.json (not a synthetic cfg like
 // DatasetSourceResolutionInheritsAndOverridesLatentDim above) and confirms
 // resolve() gives every dataset the domain-appropriate bottleneck width -- audio
-// (fsdd/audiomnist) narrower than EEG (eegmmidb/chbmit), matching the literature
+// (fsdd/audiomnist) narrower than EEG (eegmmidb/siena), matching the literature
 // table in .wiki/Experiments/Meeting01.md's "latent_dim is fixed, not evolved"
 // section. Deliberately does not run the grid itself (see the expensive-experiment
 // guard) -- this only proves the config resolution a real run would depend on.
@@ -167,7 +167,7 @@ TEST(ProductionProfiles, MeetingOneLosoResolvesLatentDimPerDataset)
     EXPECT_EQ(cfg.dataset.resolve("fsdd").latent_dim, 16);
     EXPECT_EQ(cfg.dataset.resolve("audiomnist").latent_dim, 16);
     EXPECT_EQ(cfg.dataset.resolve("eegmmidb").latent_dim, 64);
-    EXPECT_EQ(cfg.dataset.resolve("chbmit").latent_dim, 64);
+    EXPECT_EQ(cfg.dataset.resolve("siena").latent_dim, 64);
 }
 
 // The list above is hand-maintained and names only meeting01-loso.json, so a

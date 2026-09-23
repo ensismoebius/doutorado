@@ -47,7 +47,7 @@ struct Meeting01Config
     // field left 0 / empty inherits the singular Dataset value below.
     struct DatasetSource
     {
-        std::string name;     // REQUIRED ("fsdd" | "audiomnist" | "mitbih" | "eegmmidb" | "chbmit")
+        std::string name;     // REQUIRED ("fsdd" | "audiomnist" | "mitbih" | "eegmmidb" | "siena")
         std::string root;     // REQUIRED
         int window_size = 0;  // 0 → inherit Dataset::window_size
         int cv_num_folds = 0; // 0 → inherit Dataset::cv_num_folds

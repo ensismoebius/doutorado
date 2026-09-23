@@ -122,7 +122,7 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
         g.windows = ds.windows();
         g.meta = ds.metadata();
     }
-    else if (dataset == "eegmmidb" || dataset == "chbmit")
+    else if (dataset == "eegmmidb" || dataset == "siena")
     {
         EegWindowDataset ds(src.root, src.window_size);
         g.windows = ds.windows();
@@ -131,7 +131,7 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
     else
     {
         throw std::runtime_error("load_grouped_windows: unknown grouped dataset '" + dataset +
-                                 "' (expected fsdd | audiomnist | mitbih | eegmmidb | chbmit)");
+                                 "' (expected fsdd | audiomnist | mitbih | eegmmidb | siena)");
     }
 
     if (src.max_windows_per_recording > 0)
@@ -287,9 +287,9 @@ auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_
             "submission 71; see .wiki/Experiments/Meeting01.md). Remedy: set dataset.cv_fold "
             "(and dataset.cv_num_folds) in the profile, or pass --cv-fold on the CLI.");
     if (dataset != "fsdd" && dataset != "audiomnist" && dataset != "mitbih" &&
-        dataset != "eegmmidb" && dataset != "chbmit")
+        dataset != "eegmmidb" && dataset != "siena")
         throw std::runtime_error("build_split: unknown dataset '" + dataset +
-                                 "' (expected fsdd | audiomnist | mitbih | eegmmidb | chbmit)");
+                                 "' (expected fsdd | audiomnist | mitbih | eegmmidb | siena)");
     return build_loso_split(cfg, dataset, cv_fold);
 }
 

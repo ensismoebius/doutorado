@@ -1,6 +1,6 @@
 // loaders_gtest.cpp — fast checks for the grouped-window dataset sources wired
 // into the nested-LOSO pipeline (FSDD, AudioMNIST, MIT-BIH, and the EDF-format
-// EEG loader shared by eegmmidb/chbmit). Real-corpus tests are skipped (not
+// EEG loader shared by eegmmidb/siena). Real-corpus tests are skipped (not
 // failed) when their dataset root is absent, so CI without the corpora still
 // passes; on a developer machine with the databases present they exercise the
 // real loaders and the grouped fold assignment. The EEG loader additionally
@@ -215,10 +215,10 @@ TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
     EXPECT_FALSE(split.test_samples.empty());
 }
 
-TEST(Meeting01Loaders, ChbMitRealCorpusLoadsAndGroupsBySubject)
+TEST(Meeting01Loaders, SienaRealCorpusLoadsAndGroupsBySubject)
 {
-    const std::string root = kDbRoot + "/chbmit";
-    if (!fs::exists(root)) GTEST_SKIP() << "no CHB-MIT root";
+    const std::string root = kDbRoot + "/siena";
+    if (!fs::exists(root)) GTEST_SKIP() << "no Siena root";
 
     meeting01::EegWindowDataset ds(root, 256);
     ASSERT_FALSE(ds.windows().empty());
@@ -227,8 +227,8 @@ TEST(Meeting01Loaders, ChbMitRealCorpusLoadsAndGroupsBySubject)
 
     auto cfg = base_config();
     cfg.dataset.dataset_root = root;
-    cfg.dataset.sources.push_back({"chbmit", root, 256, 6, 256, 40});
-    const auto split = meeting01::build_split(cfg, "chbmit", 0);
+    cfg.dataset.sources.push_back({"siena", root, 256, 6, 512, 40});
+    const auto split = meeting01::build_split(cfg, "siena", 0);
     for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
     EXPECT_FALSE(split.test_samples.empty());
 }

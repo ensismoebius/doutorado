@@ -12,6 +12,10 @@
 #SBATCH --job-name=meeting01-loso
 #SBATCH --partition=long
 #SBATCH --time=30-00:00:00
+# --cpus-per-task=28 is the node's full physical core count (2x14-core Xeon E5-2680
+# v4); the v3 manual (2026-09-23 check, see .wiki/Guides/GridUnesp-Deployment.md
+# Sec 1) says only ~26 cores/node are actually schedulable, 2 reserved for the OS --
+# if this job sits in PENDING instead of starting, try --cpus-per-task=26.
 #SBATCH --cpus-per-task=28
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
@@ -25,14 +29,23 @@ conda activate meeting01-build
 
 # job-nanny's documented convention (INPUT/OUTPUT as space-separated FILE names,
 # staged to per-node /tmp) is built for a handful of named files, not the
-# directory trees this run reads (3 dataset roots) and writes (results/meeting01/,
-# growing continuously over days). SHARED_FS=true tells job-nanny to operate
-# directly against shared storage instead of staging to local /tmp -- the read
-# choice here, since our total I/O (~500MB datasets, incrementally-written
-# results) is small enough that shared-storage latency is not the bottleneck, and
+# directory trees this run reads (4 dataset roots, ~24GB total -- see the dataset
+# size note below) and writes (results/meeting01/, growing continuously over days).
+# SHARED_FS=true tells job-nanny to operate directly against shared storage instead
+# of staging to local /tmp -- the read choice here, since datasets are read-only
+# and results are incrementally-written, so shared-storage latency is not the
+# bottleneck for either direction, and
 # staying on shared storage means results survive a node failure without waiting
 # on job-nanny's checkpoint interval. NOT independently confirmed against
 # GridUnesp's docs for a directory-shaped workload like this one -- verify with
+# support.ncc@unesp.br before the first long submission; the training loop itself
+# is safe to interrupt and RESUME=1 restart if this guess is wrong.
+#
+# Dataset size note (2026-09-23): the 4 dataset roots read here total ~24GB
+# (fsdd 27MB + audiomnist 357MB + eegmmidb 3.4GB + siena 20.3GB), fetched once
+# ahead of time via ensure_datasets.sh on the login node (see
+# .wiki/Guides/GridUnesp-Deployment.md Sec 3) -- this job itself does not touch
+# the network.
 # support.ncc@unesp.br before the first long submission; the training loop itself
 # is safe to interrupt and RESUME=1 restart if this guess is wrong.
 export SHARED_FS=true

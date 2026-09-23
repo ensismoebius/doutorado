@@ -65,14 +65,16 @@ import numpy as np
 # "meeting01_loso_audiomnist_fold3_comparative_metrics.csv" -> dataset "audiomnist".
 # Legacy files without a dataset segment ("meeting01_loso_fold3_...") fall back to "fsdd".
 _DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold\d+_")
-# "mitbih" replaced 2026-09-23 by eegmmidb/chbmit in the active LOSO grid; kept here
-# (falls back to DATASET_ORDER's unknown-dataset tail / DATASET_TITLE.get(d, d) otherwise)
-# so any pre-existing mitbih result CSVs from before the swap still title correctly.
-DATASET_ORDER = ["fsdd", "audiomnist", "eegmmidb", "chbmit", "mitbih"]
+# "mitbih" replaced 2026-09-23 by eegmmidb/chbmit, then chbmit replaced the same day by
+# siena (disk space), in the active LOSO grid; both mitbih and chbmit are kept here (fall
+# back to DATASET_ORDER's unknown-dataset tail / DATASET_TITLE.get(d, d) otherwise) so any
+# pre-existing result CSVs from before either swap still title correctly.
+DATASET_ORDER = ["fsdd", "audiomnist", "eegmmidb", "siena", "chbmit", "mitbih"]
 DATASET_TITLE = {
     "fsdd": "FSDD",
     "audiomnist": "AudioMNIST",
     "eegmmidb": "PhysioNet EEGMMIDB",
+    "siena": "Siena Scalp EEG",
     "chbmit": "CHB-MIT EEG",
     "mitbih": "MIT-BIH ECG",
 }

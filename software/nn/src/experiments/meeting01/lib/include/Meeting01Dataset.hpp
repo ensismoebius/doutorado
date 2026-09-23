@@ -43,7 +43,7 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
 // recording-disjoint across train/val/test. There is no pooled/shuffled fallback
 // (removed 2026-09-23; it leaked speakers/recordings across the split). Throws if
 // cv_fold < 0 or dataset is not one of the grouped loaders (fsdd | audiomnist |
-// mitbih | eegmmidb | chbmit).
+// mitbih | eegmmidb | siena).
 auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit;
 

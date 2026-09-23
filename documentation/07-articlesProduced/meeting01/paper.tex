@@ -47,7 +47,8 @@ models share a single C++/CPU harness \cite{furlan2026doi} for matched timing
 and a transparent operation-count cost budget. Evaluation uses \emph{nested
 six-fold leave-one-group-out cross-validation} on four datasets --- spoken
 digits (FSDD \cite{jackson2018fsdd} and AudioMNIST) and single-channel EEG
-(the PhysioNet EEG Motor Movement/Imagery Database and CHB-MIT) --- where the
+(the PhysioNet EEG Motor Movement/Imagery Database and the Siena Scalp EEG
+Database) --- where the
 group is the speaker or the EEG subject: no source recording or group crosses
 a split, and architecture and hyperparameters for every family are selected
 inside each fold on the held-out validation group only, then retrained on the
@@ -105,7 +106,7 @@ Speaker (or subject) identity is the natural unit of generalization, and the
 publicly available spoken-digit benchmarks used here have on the order of tens
 of such groups (six and sixty), which also bounds how strong any
 population-level claim can be; the two EEG benchmarks span a wider range
-(twenty-two and one hundred nine subjects). We therefore evaluate on four
+(fourteen and one hundred nine subjects). We therefore evaluate on four
 datasets and make the recording-level paired difference, not the group-level
 one, the primary estimand.
 
@@ -122,7 +123,8 @@ all four families for a given dataset.
   \item A leakage-controlled protocol: \emph{nested six-fold
         leave-one-group-out cross-validation} on four datasets (FSDD
         \cite{jackson2018fsdd}, AudioMNIST, the PhysioNet EEG Motor
-        Movement/Imagery Database, CHB-MIT) in which no source recording or
+        Movement/Imagery Database, the Siena Scalp EEG Database) in which no
+        source recording or
         group (speaker / subject) crosses a split and architecture and
         hyperparameters are selected on the inner validation group only.
   \item A comparison of four independently architecture-searched autoencoder
@@ -194,7 +196,7 @@ so measured error conflates generalization with memorization. Speaker-disjoint
 hyperparameter selection is also involved, a \emph{nested} scheme is required so
 that the test speaker never influences selection or early stopping
 \cite{cawley2010overfitting}. Three of the four benchmarks here have tens of
-groups (six, sixty, twenty-two); the fourth has one hundred nine, still a
+groups (six, sixty, fourteen); the fourth has one hundred nine, still a
 modest population by classification-dataset standards. We treat the
 group-level result as a robustness check throughout and make the
 recording-level paired difference the primary estimand.
@@ -588,17 +590,17 @@ signal domains rather than variants of one task.
         (channel 0 of each recording), 109 subjects, $160\,$Hz; group $=$
         subject (one subject per source directory, so every recording of a
         subject stays in the same split by construction).
-  \item \textbf{CHB-MIT} \cite{shoeb2009application,goldberger2000physiobank}
-        --- the CHB-MIT Scalp EEG Database, single-channel EEG (channel 0),
-        22 pediatric subjects, $256\,$Hz; group $=$ subject, same
+  \item \textbf{Siena} \cite{detti2020siena,goldberger2000physiobank} ---
+        the Siena Scalp EEG Database, single-channel EEG (channel 0), 14
+        adult epilepsy patients, $512\,$Hz; group $=$ subject, same
         one-directory-per-subject grouping as EEGMMIDB.
 \end{itemize}
 Every recording is partitioned into non-overlapping windows of $T=256$ samples
 with stride $S=T$ --- $32\,$ms for the two audio datasets, $1.6\,$s for
-EEGMMIDB, and $1.0\,$s for CHB-MIT at their native sampling rates. For FSDD all
+EEGMMIDB, and $0.5\,$s for Siena at their native sampling rates. For FSDD all
 windows are used; for the three larger datasets a per-recording cap keeps long
 recordings from dominating the pooled window counts (2 windows/recording for
-AudioMNIST, 40 for EEGMMIDB and CHB-MIT), which also keeps the four datasets'
+AudioMNIST, 40 for EEGMMIDB and Siena), which also keeps the four datasets'
 training sizes comparable. Adjacent windows of one recording remain temporally
 correlated, which motivates the recording-level statistical unit
 (Sec.~\ref{sec:stats}).
@@ -615,7 +617,7 @@ Dataset & Signal & $G$ & \#$G$ / $K$ & cap & $d$ \\
 FSDD       & digits, 8\,kHz    & speaker & 6 / 6   & --- & 16 \\
 AudioMNIST & digits, 8\,kHz    & speaker & 60 / 6  & 2   & 16 \\
 EEGMMIDB   & EEG, 160\,Hz      & subject & 109 / 6 & 40  & 64 \\
-CHB-MIT    & EEG, 256\,Hz      & subject & 22 / 6  & 40  & 64 \\
+Siena      & EEG, 512\,Hz      & subject & 14 / 6  & 40  & 64 \\
 \bottomrule
 \end{tabular}
 \label{tab:datasets}
@@ -635,8 +637,8 @@ contiguous blocks. For outer fold $f \in \{0,\dots,5\}$ the test block is $f$,
 the validation block is $(f+1)\bmod 6$, and the remaining four blocks train.
 When \#groups $=K$ (FSDD) each block is a single speaker and this is ordinary
 leave-one-speaker-out; when \#groups $>K$ (AudioMNIST: 10 speakers per block;
-EEGMMIDB and CHB-MIT: $\approx\!18$ and $\approx\!4$ subjects per block, since
-109 and 22 do not divide evenly by 6) it is grouped leave-one-block-out. Every window is
+EEGMMIDB and Siena: $\approx\!18$ and $\approx\!2$ subjects per block, since
+109 and 14 do not divide evenly by 6) it is grouped leave-one-block-out. Every window is
 assigned to a split \emph{by its group, before any pooling}; training windows
 are shuffled (seeded), validation and test windows kept in
 $(\text{recording},\text{position})$ order. Each group is in the test block
@@ -654,7 +656,7 @@ the test block (Sec.~\ref{sec:archsearch}).
 \input{figs/fig_windowing.tex}
 \caption{Signal windowing (audio case shown; $T=256$ samples $=32\,$ms at
 $8\,$kHz). The EEG datasets use the same $T=256$ at their own native rate
-($1.6\,$s at $160\,$Hz for EEGMMIDB, $1.0\,$s at $256\,$Hz for CHB-MIT).
+($1.6\,$s at $160\,$Hz for EEGMMIDB, $0.5\,$s at $512\,$Hz for Siena).
 Stride $S=T$ yields windows with no shared samples. Windows are assigned to
 train / validation / test splits by group (speaker or EEG subject) before any
 pooling.}
@@ -858,13 +860,13 @@ self-attention term shows up in its $C_{\mathrm{raw}}$ independently of its MSE.
 \resultsForDataset{fsdd}{FSDD (spoken digits, 6 speakers)}
 \resultsForDataset{audiomnist}{AudioMNIST (spoken digits, sixty speakers)}
 \resultsForDataset{eegmmidb}{EEGMMIDB (EEG motor imagery, 109 subjects)}
-\resultsForDataset{chbmit}{CHB-MIT (EEG seizure recordings, 22 subjects)}
+\resultsForDataset{siena}{Siena Scalp EEG (seizure recordings, 14 subjects)}
 
 \par \emph{Reading across datasets.} A model family's advantage is credible to
 the extent it recurs on all four datasets' recording-level analyses; an effect
 that appears only on FSDD --- the smallest --- or only on one modality is
 reported as such. The spoken-digit datasets (FSDD, AudioMNIST) test the same
-task at two speaker-pool sizes; EEGMMIDB and CHB-MIT test whether the ranking
+task at two speaker-pool sizes; EEGMMIDB and Siena test whether the ranking
 transfers to a different signal modality (EEG, at $d=64$ instead of $16$) and
 to two different subject-pool sizes within that modality.
 
@@ -898,13 +900,13 @@ implementation and backend, not silicon-level energy.
 
 \emph{Limitations.}
 \begin{itemize}
-  \item \textbf{Few groups.} The four datasets have 6, 60, 109, and 22 groups;
+  \item \textbf{Few groups.} The four datasets have 6, 60, 109, and 14 groups;
         the group-level analysis is a robustness check, not population
         inference, which is why the recording-level analysis is the primary
         estimand.
   \item \textbf{Four small datasets.} Two are the same task (spoken digits) and
         two are EEG (motor imagery and seizure recordings); the ranking may not
-        transfer to other 1-D signal domains. AudioMNIST, EEGMMIDB, and CHB-MIT
+        transfer to other 1-D signal domains. AudioMNIST, EEGMMIDB, and Siena
         are additionally window-capped per recording (2, 40, and 40) to bound
         compute. Unlike the earlier MIT-BIH-based design, the EEG group unit is
         the subject directory itself (Sec.~\ref{sec:setup}), so every recording
@@ -912,8 +914,9 @@ implementation and backend, not silicon-level energy.
         record-vs-subject over-count concern the earlier design had. The EEG
         loader reads a single fixed channel (channel 0) of each recording under
         the assumption that it is an EEG channel and not, e.g., a status
-        channel --- true for both target datasets' documented layouts but not
-        yet checked against downloaded files (Sec.~\ref{sec:results}).
+        channel --- verified against real downloaded file headers for both
+        datasets (signal 0 is labelled ``EEG Fp1'' for Siena and ``Fc5.'' for
+        EEGMMIDB, both genuine 10--20-system electrode positions).
   \item \textbf{Cost is not energy.} $C_{\mathrm{raw}}$ and $C_{\mathrm{weighted}}$
         count operations under matched software; real energy depends on memory
         movement, sparsity exploitation, and target hardware. On-device
@@ -958,9 +961,13 @@ implementation and backend, not silicon-level energy.
         non-exhaustive literature scan rather than a systematic sweep on these
         four datasets: the audio width reflects compression ratios common in
         prior autoencoder work on short speech; the EEG width follows a single
-        shallow-autoencoder result on one of the two EEG datasets, extrapolated
-        to the other for lack of a dataset-specific reference. It is a stated,
-        literature-informed design choice, not a validated optimum.
+        shallow-autoencoder result (hidden size 64) on CHB-MIT, a seizure-EEG
+        dataset in the same task category as Siena but not used in this study
+        (Siena replaced CHB-MIT on 2026-09-23 for dataset-size reasons, after
+        the latent-width literature scan) and extrapolated to EEGMMIDB as
+        well; neither EEG dataset actually used here has a dataset-specific
+        latent-width reference. It is a stated, literature-informed design
+        choice, not a validated optimum.
 \end{itemize}
 
 \par All results are loaded directly from experiment-generated CSV files; the
@@ -976,7 +983,7 @@ per-run CSVs are immutable and aggregation never overwrites them.
 spike-encoding front ends, against PCA and mean-frame linear references, for
 1-D temporal signal reconstruction on four datasets spanning two signal
 domains (FSDD, AudioMNIST; the PhysioNet EEG Motor Movement/Imagery Database,
-CHB-MIT). The evaluation is leakage-controlled: nested six-fold
+the Siena Scalp EEG Database). The evaluation is leakage-controlled: nested six-fold
 leave-one-group-out cross-validation with no recording or group crossing a
 split and, for every family, architecture and hyperparameters selected on the
 inner validation group only via an independent NSGA-II search under a

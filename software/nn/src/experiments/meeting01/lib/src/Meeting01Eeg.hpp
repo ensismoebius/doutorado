@@ -1,21 +1,21 @@
 #pragma once
 // Meeting01Eeg.hpp — EDF (European Data Format, Kemp et al. 1992) reader for
-// subject-organized public EEG datasets (PhysioNet CHB-MIT, PhysioNet EEG Motor
-// Movement/Imagery), producing the same windowed representation as the FSDD/
-// MIT-BIH loaders so the Meeting01 nested-LOSO pipeline can treat an EEG
-// recording exactly like a spoken-digit recording or an ECG record.
+// subject-organized public EEG datasets (PhysioNet Siena Scalp EEG, PhysioNet
+// EEG Motor Movement/Imagery), producing the same windowed representation as
+// the FSDD/MIT-BIH loaders so the Meeting01 nested-LOSO pipeline can treat an
+// EEG recording exactly like a spoken-digit recording or an ECG record.
 //
 // Scope: reads signal 0 of every .edf file found (recursively) under
 // dataset_root, converts to physical units via the header's digital/physical
 // min-max, slices non-overlapping windows, z-score normalises each window in
 // place. One .edf file == one "recording"; the file's immediate PARENT
 // DIRECTORY name is the leave-one-group-out unit ("subject") — both target
-// datasets (CHB-MIT: chbNN/chbNN_MM.edf, PhysioNet eegmmidb: SNNN/SNNNRMM.edf)
+// datasets (Siena: PNNN/PNNN-M.edf, PhysioNet eegmmidb: SNNN/SNNNRMM.edf)
 // organize files one subdirectory per subject, so this needs no
-// dataset-specific filename parsing. Assumes signal 0 is an EEG channel (true
-// for both target datasets — neither interleaves a non-EEG channel first —
-// but not verified against real files on this machine; a header whose signal 0
-// label looks wrong would silently window the wrong channel).
+// dataset-specific filename parsing. Assumes signal 0 is an EEG channel:
+// verified 2026-09-23 against real downloaded headers — signal 0 is "EEG Fp1"
+// for Siena and "Fc5." for eegmmidb, both genuine 10-20-system electrode
+// labels, not a status/EKG channel.
 
 #include <filesystem>
 #include <string>

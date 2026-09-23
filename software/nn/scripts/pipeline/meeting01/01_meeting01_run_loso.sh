@@ -2,7 +2,7 @@
 # 01_meeting01_run_loso.sh — nested leave-one-group-out run for the paper revision.
 #
 # Runs profiles/meeting01-loso.json once per (dataset, outer fold): --dataset {fsdd |
-# audiomnist | eegmmidb | chbmit} --cv-fold 0..N-1, each as its own process. Per run
+# audiomnist | eegmmidb | siena} --cv-fold 0..N-1, each as its own process. Per run
 # the binary:
 # trains the LSTM-/GRU-/Transformer-AE baselines (fit on train, early-stop on val,
 # evaluate once on val and once on the held-out test group); runs the SNN
@@ -42,7 +42,7 @@
 #                       fold) is then already complete, so it falls straight through to
 #                       the post-processing with correct local paths. See
 #                       .wiki/Guides/GridUnesp-Deployment.md.
-#   DATASETS      space-separated dataset list (default "fsdd audiomnist eegmmidb chbmit")
+#   DATASETS      space-separated dataset list (default "fsdd audiomnist eegmmidb siena")
 #   CV_NUM_FOLDS   number of outer folds (default 6)
 #   KEEP_CHECKPOINTS=1  do not clear checkpoints (per-window CSV will then be incomplete
 #                       for any fold re-run this way — RESUME=1 is almost always what
@@ -108,7 +108,7 @@ echo "[loso-run] live dashboard (separate terminal, from software/nn):"
 echo "[loso-run]   ${ROOT_DIR}/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso"
 echo "[loso-run]   (add --plain when piped / not a terminal; --rank N for one config's detail)"
 
-DATASETS="${DATASETS:-fsdd audiomnist eegmmidb chbmit}"
+DATASETS="${DATASETS:-fsdd audiomnist eegmmidb siena}"
 _start=$(date +%s)
 _nds=$(wc -w <<< "$DATASETS")
 _di=0

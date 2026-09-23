@@ -182,7 +182,7 @@ def default_profile_path(run_tag: str) -> str:
 
 def dataset_roster_from_profile(profile_path: str) -> Optional[list[str]]:
     """The FULL, fixed dataset list `evaluation.datasets` a LOSO profile
-    declares up front -- e.g. ["fsdd", "audiomnist", "eegmmidb", "chbmit"] -- read once
+    declares up front -- e.g. ["fsdd", "audiomnist", "eegmmidb", "siena"] -- read once
     from the static config file, not inferred from which datasets happen to
     have produced an event so far.
 
