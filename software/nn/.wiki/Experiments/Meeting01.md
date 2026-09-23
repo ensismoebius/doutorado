@@ -1176,8 +1176,8 @@ every event into one race.
 
 Every genome (SNN, recurrent, Transformer) can freely evolve its hidden width, depth,
 attention heads, and input encoding. None of them can evolve `latent_dim`. It is read
-once from `cfg.model.latent_dim` (32 in the production profile) and held fixed across
-all four families and every individual in every population.
+once from `cfg.model.latent_dim` and held fixed across all four families and every
+individual in every population, for that dataset's runs.
 
 **Why this matters:** the bottleneck width is *the* thing that decides how hard the
 compression problem is. An SNN allowed a 64-wide bottleneck and a Transformer stuck at
@@ -1188,6 +1188,61 @@ comment says this explicitly (`GenomeBounds::latent_dim`, `RecurrentGenomeBounds
 header note, `TransformerGenome`'s header note) — the same sentence, repeated at each
 of the four call sites, so nobody wiring a fifth family later has to go hunting for the
 rule.
+
+**The hole is per dataset, not a single global number (2026-09-23).** Before this date
+`latent_dim` was one value (32) shared by all 4 datasets, with no recorded justification
+— `git log -S'latent_dim'` traces it to the prototype's earliest commits with nothing
+explaining the choice. Since meeting01 is part of a thesis that explicitly compares
+handcrafted vs. automated feature-engineering strategies, an unexamined magic number
+here was the wrong default to keep. A short literature pass (see table) found that audio
+and EEG autoencoders use different bottleneck widths in practice, so `latent_dim` is now
+per **signal domain**, resolved once per dataset before that dataset's 4 searches start —
+still fixed *within* a dataset (the "same hole" argument above is untouched), just no
+longer fixed *across* dataset domains that were never comparable to begin with.
+
+| Dataset | Domain | `latent_dim` | Ratio (window=256) | Source |
+|---|---|---|---|---|
+| fsdd | short speech | 16 | 16:1 | Traditional/LSTM speech autoencoders typically bottleneck at 8–16. |
+| audiomnist | short speech | 16 | 16:1 | Same domain as fsdd; AudioMNIST encoder architectures in the literature sit in the 16–64 range. |
+| eegmmidb | EEG (motor imagery) | 64 | 4:1 | No eegmmidb-specific autoencoder paper found; extrapolated from CHB-MIT (same EEG modality and window scale) — unverified extrapolation, not a direct citation. |
+| chbmit | EEG (seizure) | 64 | 4:1 | Khan et al. (2023), shallow autoencoder on CHB-MIT, hidden_size=64; a separate {32, 64, 128} sweep on CHB-MIT also selected 64. |
+
+A tempting-looking counter-claim surfaced during the search — "latent dimensions ≤50
+fail to reconstruct reliably" — and was checked all the way to the source (arXiv:2109.11045)
+rather than taken at face value: it is specific to **MNIST images (784-dim)**, holds only
+for the paper's **non-spiking** baselines, and that paper's own **spiking autoencoders are
+the stated exception**. It does not transfer to meeting01's SNN-AE or to a 256-sample 1-D
+signal window, and was discarded as a reason to keep a larger `latent_dim`.
+
+Mechanism: `Meeting01Config::Dataset::resolve(name)` returns a `DatasetSource` whose
+`latent_dim` follows the same "0 inherits, >0 overrides" rule already used for
+`sample_rate`/`max_windows_per_recording` — a `DatasetSource`-level value wins if set,
+else the `Dataset`-level value, else 0. Inside `run_comparative_experiment`
+(`Meeting01Experiment.cpp`), each iteration of the per-dataset loop resolves this value
+and, only when it is `> 0`, copies the whole config with `model.latent_dim` overridden
+for that iteration — a profile that never sets a per-dataset `latent_dim` keeps reading
+its own single global `model.latent_dim`, unchanged from today's behavior.
+
+**A "same hole" hole, found and closed the same day.** The "same hole" guarantee above
+only held structurally for the SNN: `repair_widths` forces `hidden_min =
+max(min_width, latent_dim+1)`, so every SNN genome's real bottleneck is exactly
+`latent_dim`. LSTM-AE/GRU-AE and Transformer-AE had no equivalent floor —
+`repair_recurrent`/`repair_transformer` clamp `hidden_size`/`d_model` only to
+`[min_hidden, max_hidden]`/`[min_d_model, max_d_model]`, never checking `latent_dim`.
+Both models project down to the latent through a separate linear
+(`LSTMAutoencoder::enc_proj_: H→Z`, `TransformerAutoencoder::to_latent_: d_model→Z`), so
+a genome drawing `hidden_size`/`d_model` below `latent_dim` has a REAL bottleneck
+narrower than the one the comparison assumes — silently, no crash, just a worse-than-
+labeled individual. With a single global `latent_dim=32` this affected a modest slice of
+the search range (`min_hidden=8` → 24/249 ≈ 9.6% of draws for LSTM/GRU, `min_d_model=16`
+→ 16/113 ≈ 14.2% for Transformer). Making `latent_dim` per-dataset made it worse
+specifically for EEG (`latent_dim=64`): 56/249 ≈ 22.5% for LSTM/GRU, 48/113 ≈ 42.5% for
+Transformer — found during the per-dataset `latent_dim` review, before any real EEG data
+was on disk to run against, and fixed the same day: `run_lstm_ga_search`/
+`run_gru_ga_search`/`run_transformer_ga_search` now set `bounds.min_hidden`/
+`bounds.min_d_model = std::max(profile_value, config.model.latent_dim)`, mirroring the
+SNN's own floor. The profile's own `min_hidden`/`min_d_model` values are untouched —
+this only raises the *effective* floor for datasets whose `latent_dim` exceeds it.
 
 ### `d_model % n_heads == 0`: the one constraint no other family has
 

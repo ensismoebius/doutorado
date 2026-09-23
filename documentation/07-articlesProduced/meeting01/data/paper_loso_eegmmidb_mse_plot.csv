@@ -1,0 +1,4 @@
+encoding,mean,pca,snn_ae,lstm_ae,gru_ae,transformer_ae
+direct,0,0,0,0,0,0
+poisson,0,0,0,0,0,0
+latency,0,0,0,0,0,0

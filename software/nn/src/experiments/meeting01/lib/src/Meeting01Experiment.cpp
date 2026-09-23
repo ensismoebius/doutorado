@@ -803,8 +803,12 @@ void finalize_snn_selection(const Meeting01Config& config,
         // `encoder_widths` and `encoding` are what actually make this manifest a
         // reproducibility record rather than a log line: the GA searches a free-form
         // architecture AND its encoding, so without both the published network cannot
-        // be rebuilt from the manifest. The top-level "encoding" key above is the
-        // per-run loop label, NOT the winning genome's gene — they can differ.
+        // be rebuilt from the manifest. The top-level "encoding" key above and
+        // `selected.encoding` below are always equal (this function's only caller,
+        // run_snn_ga_search, passes winner.genome.encoding as `encoding` itself) --
+        // both are the winning genome's own gene, not a grid-search sweep label.
+        // (This comment used to describe a pre-2026-09-22 grid-search caller that
+        // looped over encodings externally; that caller no longer exists.)
         man["selected"] = {{"architecture", best.architecture},
             {"encoding", best.encoding},
             {"encoder_widths", best.encoder_widths},
@@ -962,6 +966,16 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     bounds.max_hidden = ga_cfg.max_hidden;
     bounds.min_layers = ga_cfg.min_layers;
     bounds.max_layers = ga_cfg.max_layers;
+    // Floor hidden_size at latent_dim (2026-09-23): LSTMAutoencoder projects hidden_size
+    // (H) down to latent_dim (Z) via a separate enc_proj_ Linear(H, Z) -- if a genome
+    // draws H < Z, that individual's REAL bottleneck is H, not the profile's latent_dim,
+    // silently breaking the "every family compared through the same hole" guarantee
+    // (the SNN's own repair_widths already enforces this via hidden_min =
+    // max(min_width, latent_dim+1), see Meeting01GaGenome.cpp). ga_cfg.min_hidden is
+    // left untouched in the profile; this only raises the EFFECTIVE floor for datasets
+    // whose latent_dim exceeds it (EEG, 64) without over-constraining datasets where it
+    // doesn't (audio, 16).
+    bounds.min_hidden = std::max(bounds.min_hidden, config.model.latent_dim);
     bounds.encoding_choices = config.evaluation.encodings;
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
@@ -1051,6 +1065,9 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     bounds.max_hidden = ga_cfg.max_hidden;
     bounds.min_layers = ga_cfg.min_layers;
     bounds.max_layers = ga_cfg.max_layers;
+    // Floor hidden_size at latent_dim -- see run_lstm_ga_search's identical comment
+    // (GRUAutoencoder has the same separate H->Z projection as LSTMAutoencoder).
+    bounds.min_hidden = std::max(bounds.min_hidden, config.model.latent_dim);
     bounds.encoding_choices = config.evaluation.encodings;
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
@@ -1144,6 +1161,13 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
     bounds.max_layers = ga_cfg.max_layers;
     bounds.min_d_ff = ga_cfg.min_d_ff;
     bounds.max_d_ff = ga_cfg.max_d_ff;
+    // Floor d_model at latent_dim -- see run_lstm_ga_search's identical comment.
+    // TransformerAutoencoder's to_latent_ is a separate d_model->Z Linear, so d_model <
+    // latent_dim would make d_model (not latent_dim) that individual's real bottleneck.
+    // repair_transformer's lo_k = ceil(min_d_model / n_heads) already keeps the repaired
+    // d_model >= min_d_model for every legal n_heads, so raising the floor here is
+    // sufficient -- no change needed in repair_transformer itself.
+    bounds.min_d_model = std::max(bounds.min_d_model, config.model.latent_dim);
     bounds.encoding_choices = config.evaluation.encodings;
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::TransformerGenomeBounds> search_cfg;
@@ -1519,10 +1543,29 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         for (const auto& dataset_name : config.evaluation.datasets)
         {
+            // Per-dataset bottleneck width (2026-09-23): a signal domain sizes its own
+            // hole (short audio tolerates a much harder squeeze than EEG before
+            // reconstruction degrades -- see .wiki/Experiments/Meeting01.md's "latent_dim
+            // is fixed, not evolved" section for the literature). `config` is const for
+            // the whole function, so this is a per-iteration copy with the override
+            // applied; the rest of the loop body reads `resolved_config`, not `config`
+            // (a same-named shadow would do this for free but trips -Wshadow, which this
+            // project fixes rather than suppresses). Only overrides model.latent_dim when
+            // this dataset actually configured one (Dataset- or DatasetSource-level > 0);
+            // profiles with no such override keep today's single global
+            // model.latent_dim untouched.
+            Meeting01Config resolved_config = config;
+            if (const int resolved_latent = config.dataset.resolve(dataset_name).latent_dim;
+                resolved_latent > 0)
+            {
+                resolved_config.model.latent_dim = resolved_latent;
+            }
+
             NN_LOG_INFO("[loso] " + dataset_name + " fold" +
-                        std::to_string(config.dataset.cv_fold) + ": building split…");
+                        std::to_string(resolved_config.dataset.cv_fold) + ": building split…");
             const auto t_bs0 = std::chrono::steady_clock::now();
-            const DatasetSplit split = build_split(config, dataset_name, config.dataset.cv_fold);
+            const DatasetSplit split =
+                build_split(resolved_config, dataset_name, resolved_config.dataset.cv_fold);
             NN_LOG_INFO("[loso] split built: train=" + std::to_string(split.train_samples.size()) +
                         " val=" + std::to_string(split.val_samples.size()) +
                         " test=" + std::to_string(split.test_samples.size()) + "  (" +
@@ -1530,7 +1573,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             std::chrono::steady_clock::now() - t_bs0)
                                 .count()) +
                         " ms)");
-            assert_split_disjoint_and_manifest(config, split, dataset_name);
+            assert_split_disjoint_and_manifest(resolved_config, split, dataset_name);
             NN_LOG_INFO("[loso] leakage gate + split manifest OK");
 
             ExperimentEvents::instance().emit("fold_begin",
@@ -1553,28 +1596,29 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             // Diagnostic dumps only — not part of any fit. Kept per-encoding since
             // they're plain descriptive stats of the raw signal under each encoding, not
             // a model training pass.
-            for (const auto& encoding : config.evaluation.encodings)
-                dump_analytic_baseline_inputs(config, split, dataset_name, encoding, out_dir);
+            for (const auto& encoding : resolved_config.evaluation.encodings)
+                dump_analytic_baseline_inputs(
+                    resolved_config, split, dataset_name, encoding, out_dir);
 
             // Architecture search: every family (SNN and, since the 2026-09-22 scope
             // change, every baseline too) runs its own NSGA-II search once per
             // (dataset, run_id), covering every encoding and architecture axis jointly
             // — encoding is a gene for all four families now, not an outer sweep
             // dimension for any of them, so there is no per-encoding loop left here.
-            for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
+            for (int run_id = 0; run_id < resolved_config.experiment.repeats; ++run_id)
             {
                 const std::uint32_t run_seed =
-                    config.experiment.seed_deterministic
-                        ? config.experiment.seed
-                        : config.experiment.seed + static_cast<std::uint32_t>(run_id);
+                    resolved_config.experiment.seed_deterministic
+                        ? resolved_config.experiment.seed
+                        : resolved_config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
                 std::vector<FamilyWinnerSummary> family_winners;
 
-                for (const auto& family : config.evaluation.baselines)
+                for (const auto& family : resolved_config.evaluation.baselines)
                 {
                     if (family == "lstm-ae")
                     {
-                        family_winners.push_back(run_lstm_ga_search(config,
+                        family_winners.push_back(run_lstm_ga_search(resolved_config,
                             split,
                             dataset_name,
                             run_id,
@@ -1590,7 +1634,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                     }
                     else if (family == "gru-ae")
                     {
-                        family_winners.push_back(run_gru_ga_search(config,
+                        family_winners.push_back(run_gru_ga_search(resolved_config,
                             split,
                             dataset_name,
                             run_id,
@@ -1606,7 +1650,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                     }
                     else if (family == "transformer-ae")
                     {
-                        family_winners.push_back(run_transformer_ga_search(config,
+                        family_winners.push_back(run_transformer_ga_search(resolved_config,
                             split,
                             dataset_name,
                             run_id,
@@ -1629,9 +1673,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                     }
                 }
 
-                if (!config.evaluation.snn_architectures.empty())
+                if (!resolved_config.evaluation.snn_architectures.empty())
                 {
-                    family_winners.push_back(run_snn_ga_search(config,
+                    family_winners.push_back(run_snn_ga_search(resolved_config,
                         split,
                         dataset_name,
                         run_id,
@@ -1652,7 +1696,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 // 2026-09-22 scope change is actually for — the per-family manifests
                 // each finalize_*_selection call already wrote only answer "what won
                 // within this family".
-                if (!family_winners.empty() && !config.dataset.results_dir.empty())
+                if (!family_winners.empty() && !resolved_config.dataset.results_dir.empty())
                 {
                     const auto overall = std::min_element(family_winners.begin(),
                         family_winners.end(),
@@ -1664,7 +1708,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
                     nlohmann::json man;
                     man["dataset"] = dataset_name;
-                    man["cv_fold"] = config.dataset.cv_fold;
+                    man["cv_fold"] = resolved_config.dataset.cv_fold;
                     man["run_id"] = run_id + 1;
                     man["seed"] = run_seed;
                     man["selection_metric"] = "val_mse";
@@ -1674,19 +1718,19 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             {"val_mse", fw.val_mse},
                             {"inference_cost", fw.inference_cost}});
                     const std::filesystem::path man_path =
-                        std::filesystem::path(config.dataset.results_dir) /
-                        (fold_output_tag(config, dataset_name) + "_run" +
+                        std::filesystem::path(resolved_config.dataset.results_dir) /
+                        (fold_output_tag(resolved_config, dataset_name) + "_run" +
                             std::to_string(run_id + 1) + "_overall_winner_manifest.json");
                     std::ofstream mf(man_path);
                     if (mf.is_open()) mf << man.dump(2);
                 }
             }
 
-            if (!pw_rows.empty() && !config.dataset.results_dir.empty())
+            if (!pw_rows.empty() && !resolved_config.dataset.results_dir.empty())
             {
                 const std::filesystem::path pw_path =
-                    std::filesystem::path(config.dataset.results_dir) /
-                    (fold_output_tag(config, dataset_name) + "_per_window_errors.csv");
+                    std::filesystem::path(resolved_config.dataset.results_dir) /
+                    (fold_output_tag(resolved_config, dataset_name) + "_per_window_errors.csv");
                 write_per_window_errors_csv(pw_path, pw_rows);
             }
 

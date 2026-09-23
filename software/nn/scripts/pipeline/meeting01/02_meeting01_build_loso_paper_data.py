@@ -3,8 +3,21 @@
 paper-ready tables.
 
 Inputs (per outer fold f, written by the meeting01 binary):
-    results/meeting01/<tag>_fold<f>_comparative_metrics.csv          (split = val | test rows)
-    results/meeting01/<tag>_fold<f>_<enc>_run<r>_model_selection_manifest.json
+    results/meeting01/<tag>_fold<f>_comparative_metrics.csv                     (split = val | test rows)
+    results/meeting01/<tag>_fold<f>_<enc>_run<r>_model_selection_manifest.json  (SNN-AE winner)
+    results/meeting01/<tag>_fold<f>_<fam>_run<r>_model_selection_manifest.json  (LSTM-AE/GRU-AE/
+                                                                                  Transformer-AE winner,
+                                                                                  <fam> in {lstm-ae,
+                                                                                  gru-ae, transformer-ae})
+
+One manifest per (dataset, fold, run_id) per family, for all four families alike -- every
+family runs its own NSGA-II search and this file records its winner (see
+Meeting01Experiment.cpp's finalize_snn_selection / finalize_baseline_selection). The
+filename segment right before "_run<r>_..." disambiguates: for SNN-AE it is the winning
+genome's own encoding (direct/poisson/latency); for a baseline it is the family token
+itself. LSTM-AE's and GRU-AE's JSON bodies are byte-for-byte identical in shape
+(hidden_size, num_layers, encoding, val_mse) -- only that filename segment tells them
+apart; see _classify_manifest().
 
 Only  split == "test"  rows feed the headline tables. Reconstruction quality is reported
 as mean +/- sample standard deviation across the FIVE seeds (per-seed means first). Seeds
@@ -20,11 +33,15 @@ PCA and Mean are analytic reference points appended by 03_meeting01_pca_mean_bas
 to the per-window CSVs; their reconstruction error is folded in from there.
 
 Outputs (--data-dir):
-    paper_loso_summary.csv            model; mse; mae; r2; params; craw; train_ms; infer_ms
-                                      (mse/mae/r2/timing = "mean$\\pm$std" strings, best bold)
-    paper_loso_recon_by_encoding.csv  model; encoding; mse; mae; r2   (formatted, no bold)
-    paper_loso_mse_plot.csv           encoding, <one column per model>  (mse means, for bars)
-    paper_loso_snn_selection.tex      per (fold, encoding): winning SNN mode / V_th / alpha
+    paper_loso_summary.csv               model; mse; mae; r2; params; craw; train_ms; infer_ms
+                                         (mse/mae/r2/timing = "mean$\\pm$std" strings, best bold)
+    paper_loso_recon_by_encoding.csv     model; encoding; mse; mae; r2   (formatted, no bold)
+    paper_loso_mse_plot.csv              encoding, <one column per model>  (mse means, for bars)
+    paper_loso_snn_selection.tex         per (fold, encoding): winning SNN mode / V_th / alpha
+    paper_loso_recurrent_selection.tex   per (family, fold): winning LSTM-AE/GRU-AE hidden
+                                         size / depth (median over run_ids) + modal encoding
+    paper_loso_transformer_selection.tex per fold: winning Transformer-AE d_model / heads /
+                                         depth / d_ff (median over run_ids) + modal encoding
 
 Usage:
     python scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py \\
@@ -65,6 +82,40 @@ def _dataset_of(path: pathlib.Path, run_tag: str) -> str:
     rest = path.name[len(run_tag):] if path.name.startswith(run_tag) else path.name
     m = _DATASET_RE.search(rest)
     return m["ds"] if m else "fsdd"
+
+
+# Selection-manifest filename: "..._fold<f>_<segment>_run<r>_model_selection_manifest.json".
+# <segment> disambiguates which family wrote it -- see finalize_snn_selection /
+# finalize_baseline_selection in Meeting01Experiment.cpp. SNN's segment is the winning
+# genome's own encoding gene (never a grid-search sweep label, despite an older comment
+# in that source file that said otherwise -- fixed 2026-09-23); a baseline's segment is
+# its family token verbatim.
+_MANIFEST_RE = re.compile(
+    r"_fold(?P<fold>\d+)_(?P<segment>.+)_run(?P<run>\d+)_model_selection_manifest\.json$")
+_SNN_ENCODINGS = {"direct", "poisson", "latency"}
+# family token (as it appears in the filename) -> paper-facing label.
+_BASELINE_FAMILY_LABEL = {
+    "lstm-ae": "LSTM-AE",
+    "gru-ae": "GRU-AE",
+    "transformer-ae": "Transformer-AE",
+}
+
+
+def _classify_manifest(path: pathlib.Path) -> tuple[str, int, int] | None:
+    """(family, fold, run_id) from a selection-manifest filename, family in
+    {"snn-ae", "lstm-ae", "gru-ae", "transformer-ae"}. None if the filename's segment
+    matches neither the known encodings nor the known family tokens -- e.g. a 5th
+    family added later without updating this map -- so callers can warn instead of
+    silently mis-sorting an unrecognised manifest into the wrong table."""
+    m = _MANIFEST_RE.search(path.name)
+    if not m:
+        return None
+    segment = m["segment"]
+    if segment in _SNN_ENCODINGS:
+        return ("snn-ae", int(m["fold"]), int(m["run"]))
+    if segment in _BASELINE_FAMILY_LABEL:
+        return (segment, int(m["fold"]), int(m["run"]))
+    return None
 
 # label -> stable column key for the wide plot CSV
 PLOT_KEY = {
@@ -163,15 +214,23 @@ def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     return rows
 
 
-def load_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
+def load_snn_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     out: list[dict] = []
     for path in sorted(results_dir.glob(f"{run_tag}*_fold*_*_model_selection_manifest.json")):
+        cls = _classify_manifest(path)
+        if cls is None or cls[0] != "snn-ae":
+            continue
         m = json.loads(path.read_text(encoding="utf-8"))
         sel = m["selected"]
         out.append({
             "dataset": m.get("dataset", _dataset_of(path, run_tag)),
             "fold": int(m["cv_fold"]),
-            "encoding": m["encoding"],
+            # The winning genome's own encoding gene; identical to the top-level
+            # m["encoding"] by construction (finalize_snn_selection's only caller
+            # passes winner.genome.encoding as both), but read from `selected` since
+            # that is the field that is guaranteed to mean "the gene", not "whatever
+            # the caller happened to label this call".
+            "encoding": sel["encoding"],
             "test_speaker": m.get("test_speaker", "?"),
             "val_speaker": m.get("selection_split", "").replace("val (speaker ", "").rstrip(")"),
             "architecture": sel["architecture"],
@@ -179,6 +238,43 @@ def load_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
             "alpha": float(sel["alpha"]),
             "val_mse": float(sel["val_mse"]),
         })
+    return out
+
+
+def load_baseline_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
+    """One row per (dataset, family, fold, run_id) LSTM-AE/GRU-AE/Transformer-AE
+    winner -- the baseline-family analogue of load_snn_selection(). LSTM-AE and
+    GRU-AE manifests are indistinguishable by JSON shape alone (both are
+    {hidden_size, num_layers, encoding, val_mse}); _classify_manifest() disambiguates
+    from the filename's family-token segment, so `family` here is authoritative even
+    though it is never itself a JSON key inside the manifest body."""
+    out: list[dict] = []
+    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_*_model_selection_manifest.json")):
+        cls = _classify_manifest(path)
+        if cls is None or cls[0] not in _BASELINE_FAMILY_LABEL:
+            continue
+        family, fold, run_id = cls
+        m = json.loads(path.read_text(encoding="utf-8"))
+        sel = m["selected"]
+        row = {
+            "dataset": m.get("dataset", _dataset_of(path, run_tag)),
+            "family": family,
+            "fold": fold,
+            "run_id": run_id,
+            "encoding": sel["encoding"],
+            "test_speaker": m.get("test_speaker", "?"),
+            "val_speaker": m.get("selection_split", "").replace("val (speaker ", "").rstrip(")"),
+            "val_mse": float(sel["val_mse"]),
+        }
+        if family in ("lstm-ae", "gru-ae"):
+            row["hidden_size"] = int(sel["hidden_size"])
+            row["num_layers"] = int(sel["num_layers"])
+        else:  # transformer-ae
+            row["d_model"] = int(sel["d_model"])
+            row["n_heads"] = int(sel["n_heads"])
+            row["n_layers"] = int(sel["n_layers"])
+            row["d_ff"] = int(sel["d_ff"])
+        out.append(row)
     return out
 
 
@@ -347,6 +443,79 @@ def write_snn_selection_tex(sel: list[dict], data_dir: pathlib.Path, infix: str 
     return out
 
 
+def write_recurrent_selection_tex(sel: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
+    """One row per (family, fold) for LSTM-AE and GRU-AE: modal winning encoding +
+    median hidden_size/num_layers over run_ids. Mirrors write_snn_selection_tex's
+    aggregation convention (mode for the categorical gene, median for the numeric
+    ones); LSTM-AE and GRU-AE share this table since their genome shape is identical."""
+    by: dict = defaultdict(list)
+    for s in sel:
+        if s["family"] not in ("lstm-ae", "gru-ae"):
+            continue
+        by[(s["family"], s["fold"])].append(s)
+    lines = [
+        r"% auto-generated by 02_meeting01_build_loso_paper_data.py",
+        r"\begin{tabular}{llllrrr}",
+        r"\toprule",
+        r"Family & Fold & Test spk. & Enc. & $H$ & $L$ & val MSE \\",
+        r"\midrule",
+    ]
+    for (family, fold) in sorted(by, key=lambda k: (k[0], k[1])):
+        grp = by[(family, fold)]
+        encs = collections.Counter(g["encoding"] for g in grp)
+        enc = encs.most_common(1)[0][0]
+        agree = encs[enc]
+        hidden = pystat.median(g["hidden_size"] for g in grp)
+        layers = pystat.median(g["num_layers"] for g in grp)
+        val_mse = pystat.median(g["val_mse"] for g in grp)
+        enc_cell = enc if agree == len(grp) else f"{enc} ({agree}/{len(grp)})"
+        lines.append(
+            f"{_BASELINE_FAMILY_LABEL[family]} & {fold} & {grp[0]['test_speaker']} & "
+            f"{enc_cell} & {hidden:.0f} & {layers:.0f} & {val_mse:.4f} \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", ""]
+    out = data_dir / f"paper_loso_{infix}recurrent_selection.tex"
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
+def write_transformer_selection_tex(sel: list[dict], data_dir: pathlib.Path, infix: str = "") -> pathlib.Path:
+    """One row per fold for Transformer-AE: modal winning encoding + median
+    d_model/n_heads/n_layers/d_ff over run_ids. Same aggregation convention as
+    write_recurrent_selection_tex; Transformer-AE gets its own table because its
+    genome has a different shape (no hidden_size/num_layers)."""
+    by: dict = defaultdict(list)
+    for s in sel:
+        if s["family"] != "transformer-ae":
+            continue
+        by[s["fold"]].append(s)
+    lines = [
+        r"% auto-generated by 02_meeting01_build_loso_paper_data.py",
+        r"\begin{tabular}{lllrrrr}",
+        r"\toprule",
+        r"Fold & Test spk. & Enc. & $d_{\mathrm{model}}$ & Heads & $N$ & $d_{\mathrm{ff}}$ \\",
+        r"\midrule",
+    ]
+    for fold in sorted(by):
+        grp = by[fold]
+        encs = collections.Counter(g["encoding"] for g in grp)
+        enc = encs.most_common(1)[0][0]
+        agree = encs[enc]
+        d_model = pystat.median(g["d_model"] for g in grp)
+        n_heads = pystat.median(g["n_heads"] for g in grp)
+        n_layers = pystat.median(g["n_layers"] for g in grp)
+        d_ff = pystat.median(g["d_ff"] for g in grp)
+        enc_cell = enc if agree == len(grp) else f"{enc} ({agree}/{len(grp)})"
+        lines.append(
+            f"{fold} & {grp[0]['test_speaker']} & {enc_cell} & {d_model:.0f} & "
+            f"{n_heads:.0f} & {n_layers:.0f} & {d_ff:.0f} \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", ""]
+    out = data_dir / f"paper_loso_{infix}transformer_selection.tex"
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir", type=pathlib.Path, default=pathlib.Path("results/meeting01"))
@@ -366,7 +535,8 @@ def main(argv: list[str] | None = None) -> int:
     if not rows:
         print("[loso-data] no test-split rows found", file=sys.stderr)
         return 1
-    sel = load_selection(args.results_dir, args.run_tag)
+    sel = load_snn_selection(args.results_dir, args.run_tag)
+    baseline_sel = load_baseline_selection(args.results_dir, args.run_tag)
 
     datasets = sorted({r["dataset"] for r in rows},
                       key=lambda d: (DATASET_ORDER.index(d) if d in DATASET_ORDER else 99, d))
@@ -375,6 +545,7 @@ def main(argv: list[str] | None = None) -> int:
         infix = f"{ds}_"
         d_rows = [r for r in rows if r["dataset"] == ds]
         d_sel = [s for s in sel if s.get("dataset") == ds]
+        d_baseline_sel = [s for s in baseline_sel if s.get("dataset") == ds]
         written += [
             write_summary(d_rows, args.data_dir, infix),
             write_recon_by_encoding(d_rows, args.data_dir, infix),
@@ -382,6 +553,10 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if d_sel:
             written.append(write_snn_selection_tex(d_sel, args.data_dir, infix))
+        if any(s["family"] in ("lstm-ae", "gru-ae") for s in d_baseline_sel):
+            written.append(write_recurrent_selection_tex(d_baseline_sel, args.data_dir, infix))
+        if any(s["family"] == "transformer-ae" for s in d_baseline_sel):
+            written.append(write_transformer_selection_tex(d_baseline_sel, args.data_dir, infix))
         caveat = check_degenerate_reconstruction(d_rows, ds)
         if caveat:
             print(f"[loso-data] {caveat}", file=sys.stderr)

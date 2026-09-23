@@ -59,6 +59,14 @@ struct Meeting01Config
         int loso_max_train_windows = 0;
         int loso_max_val_windows = 0;
         int loso_max_test_windows = 0;
+        // Autoencoder bottleneck width for THIS dataset's signal domain (0 → inherit
+        // Dataset::latent_dim, then model.latent_dim). All 4 model families compare
+        // "through the same hole" within one dataset (never a gene) -- but the hole
+        // itself is sized per signal domain: short audio (fsdd/audiomnist) tolerates a
+        // much harder bottleneck than EEG before reconstruction degrades (see
+        // .wiki/Experiments/Meeting01.md's "latent_dim is fixed, not evolved" section
+        // for the literature this is based on, 2026-09-23).
+        int latent_dim = 0;
     };
 
     struct Dataset
@@ -85,6 +93,7 @@ struct Meeting01Config
         int loso_max_train_windows = 0;     // optional (0 = unlimited); stratified per-fold cap
         int loso_max_val_windows = 0;       // optional (0 = unlimited)
         int loso_max_test_windows = 0;      // optional (0 = unlimited)
+        int latent_dim = 0;                 // optional (0 = per-source, else model.latent_dim)
         std::string latex_data_dir = "";    // optional
         bool save_models = false;           // optional
         std::vector<DatasetSource> sources; // optional per-dataset overrides
@@ -102,6 +111,7 @@ struct Meeting01Config
             s.loso_max_train_windows = loso_max_train_windows;
             s.loso_max_val_windows = loso_max_val_windows;
             s.loso_max_test_windows = loso_max_test_windows;
+            s.latent_dim = latent_dim;
             for (const auto& e : sources)
             {
                 if (e.name != name) continue;
@@ -115,6 +125,7 @@ struct Meeting01Config
                     s.loso_max_train_windows = e.loso_max_train_windows;
                 if (e.loso_max_val_windows > 0) s.loso_max_val_windows = e.loso_max_val_windows;
                 if (e.loso_max_test_windows > 0) s.loso_max_test_windows = e.loso_max_test_windows;
+                if (e.latent_dim > 0) s.latent_dim = e.latent_dim;
                 break;
             }
             return s;
@@ -295,6 +306,7 @@ struct Meeting01Config
             s.loso_max_train_windows = e.value("loso_max_train_windows", 0);
             s.loso_max_val_windows = e.value("loso_max_val_windows", 0);
             s.loso_max_test_windows = e.value("loso_max_test_windows", 0);
+            s.latent_dim = e.value("latent_dim", 0);
             out.push_back(std::move(s));
         }
     }
@@ -327,6 +339,7 @@ struct Meeting01Config
         get("loso_max_train_windows", cfg.dataset.loso_max_train_windows);
         get("loso_max_val_windows", cfg.dataset.loso_max_val_windows);
         get("loso_max_test_windows", cfg.dataset.loso_max_test_windows);
+        get("latent_dim", cfg.dataset.latent_dim);
         get("latex_data_dir", cfg.dataset.latex_data_dir);
         get("save_models", cfg.dataset.save_models);
         if (j.contains("dataset_sources")) parse_sources(j["dataset_sources"], cfg.dataset.sources);
@@ -547,6 +560,7 @@ struct Meeting01Config
         get(dat, "loso_max_train_windows", cfg.dataset.loso_max_train_windows);
         get(dat, "loso_max_val_windows", cfg.dataset.loso_max_val_windows);
         get(dat, "loso_max_test_windows", cfg.dataset.loso_max_test_windows);
+        get(dat, "latent_dim", cfg.dataset.latent_dim);
         get(dat, "results_dir", cfg.dataset.results_dir);
         get(dat, "latex_data_dir", cfg.dataset.latex_data_dir);
         get(dat, "save_models", cfg.dataset.save_models);

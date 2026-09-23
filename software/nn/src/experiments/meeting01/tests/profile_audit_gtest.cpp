@@ -153,6 +153,23 @@ INSTANTIATE_TEST_SUITE_P(ProductionProfiles,
         return name;
     });
 
+// End-to-end check for the 2026-09-23 per-dataset latent_dim change: loads the
+// REAL shipping meeting01-loso.json (not a synthetic cfg like
+// DatasetSourceResolutionInheritsAndOverridesLatentDim above) and confirms
+// resolve() gives every dataset the domain-appropriate bottleneck width -- audio
+// (fsdd/audiomnist) narrower than EEG (eegmmidb/chbmit), matching the literature
+// table in .wiki/Experiments/Meeting01.md's "latent_dim is fixed, not evolved"
+// section. Deliberately does not run the grid itself (see the expensive-experiment
+// guard) -- this only proves the config resolution a real run would depend on.
+TEST(ProductionProfiles, MeetingOneLosoResolvesLatentDimPerDataset)
+{
+    auto cfg = load("meeting01-loso.json");
+    EXPECT_EQ(cfg.dataset.resolve("fsdd").latent_dim, 16);
+    EXPECT_EQ(cfg.dataset.resolve("audiomnist").latent_dim, 16);
+    EXPECT_EQ(cfg.dataset.resolve("eegmmidb").latent_dim, 64);
+    EXPECT_EQ(cfg.dataset.resolve("chbmit").latent_dim, 64);
+}
+
 // The list above is hand-maintained and names only meeting01-loso.json, so a
 // dev/smoke profile could -- and did -- ship on disk in a state that fails
 // `validate()` outright, with nothing noticing until someone ran it. On 2026-09-22
@@ -477,6 +494,36 @@ TEST(Meeting01ConfigValidation, DatasetSourceResolutionInheritsAndOverrides)
     // A name with no entry falls back entirely to the singular Dataset fields.
     const auto other = cfg.dataset.resolve("audiomnist");
     EXPECT_EQ(other.root, "/data/fsdd");
+}
+
+TEST(Meeting01ConfigValidation, DatasetSourceResolutionInheritsAndOverridesLatentDim)
+{
+    // 2026-09-23: latent_dim is per-dataset (audio vs. EEG bottleneck width), same
+    // 0-means-inherit / >0-means-override pattern as sample_rate/max_windows_per_recording
+    // above -- mirrors that test.
+    auto cfg = valid_config();
+    cfg.dataset.dataset_root = "/data/fsdd";
+    cfg.dataset.window_size = 256;
+    cfg.dataset.cv_num_folds = 6;
+    cfg.dataset.latent_dim = 32; // Dataset-level fallback
+    cfg.dataset.sources = {
+        {"fsdd", "/data/fsdd", 0, 6, 0, 0, 0, 0, 0, 16},
+        {"audiomnist", "/data/audiomnist", 0, 6, 0, 0, 0, 0, 0, 0},
+    };
+
+    const auto fsdd = cfg.dataset.resolve("fsdd");
+    EXPECT_EQ(fsdd.latent_dim, 16); // source-level override wins
+
+    const auto audiomnist = cfg.dataset.resolve("audiomnist");
+    EXPECT_EQ(audiomnist.latent_dim, 32); // no source override -> inherits Dataset-level
+
+    // Neither a source override nor a Dataset-level value -> resolves to 0. The 0
+    // itself is not a bottleneck width; run_comparative_experiment only overrides
+    // model.latent_dim when resolve(...).latent_dim > 0, so 0 here means "this
+    // dataset kept the profile's single global model.latent_dim untouched".
+    cfg.dataset.latent_dim = 0;
+    const auto eegmmidb = cfg.dataset.resolve("eegmmidb"); // no matching source entry at all
+    EXPECT_EQ(eegmmidb.latent_dim, 0);
 }
 
 TEST(Meeting01ConfigValidation, RejectsAFoldOutsideTheFoldCount)
