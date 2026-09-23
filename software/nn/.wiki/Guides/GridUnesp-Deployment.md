@@ -173,8 +173,15 @@ exact `sbatch` command from §4 below and exits, so starting the actual multi-we
 run is still a decision you make explicitly.
 
 ```bash
-GRIDUNESP_USER=<your grid username> ./scripts/pipeline/meeting01/gridunesp_deploy.sh
+./scripts/pipeline/meeting01/gridunesp_deploy.sh
 ```
+
+Prompts interactively for your GridUnesp username and (unless an SSH key is already
+set up) your password, at `ssh`'s own normal password prompt — never captured,
+stored, or passed as a script argument. Despite several `ssh`/`rsync` calls inside,
+you're only asked once: the first connection is multiplexed and every later call
+reuses it. Set `GRIDUNESP_USER=<user>` beforehand to skip the username prompt (e.g.
+for a non-interactive/scripted invocation).
 
 The rest of this section explains what it does and why, step by step — read on if
 it fails partway and you need to debug a specific stage, or if you'd rather run the
@@ -272,21 +279,24 @@ reach from the local machine without an interactive login shell each time:
 # Live view, no local copy of the data -- one SSH session, --plain mode (stdlib
 # only, no `rich`/conda env needed remotely). Runs monitor.py's own refresh loop
 # INSIDE that one session rather than reconnecting repeatedly.
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/remote_monitor.sh
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/remote_monitor.sh --once   # single snapshot
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/remote_monitor.sh --rank 3
+./scripts/pipeline/meeting01/remote_monitor.sh
+./scripts/pipeline/meeting01/remote_monitor.sh --once   # single snapshot
+./scripts/pipeline/meeting01/remote_monitor.sh --rank 3
 
 # Or: sync results/meeting01/ down and use the local rich dashboard / archive it
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/pull_progress.sh
+./scripts/pipeline/meeting01/pull_progress.sh
 .venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso
 ```
 
-Both default `GRIDUNESP_HOST=access.grid.unesp.br` and
-`GRIDUNESP_REMOTE_DIR=software/nn` (override via those env vars if your remote
-layout differs). Both are designed around the Fail2Ban lockout above: one SSH/rsync
-connection per invocation, not a retry loop — use `monitor.py`'s own `--interval`
-(inside `remote_monitor.sh`'s one session) or a real-delay `watch -n 60 ...` around
-`pull_progress.sh` rather than hammering the login node.
+Both prompt interactively for your username (and, without a working SSH key, your
+password at `ssh`'s own prompt — never captured or stored by either script); set
+`GRIDUNESP_USER=<user>` beforehand to skip that prompt. Both also default
+`GRIDUNESP_HOST=access.grid.unesp.br` and `GRIDUNESP_REMOTE_DIR=software/nn`
+(override via those env vars if your remote layout differs). Both are designed
+around the Fail2Ban lockout above: one SSH/rsync connection per invocation, not a
+retry loop — use `monitor.py`'s own `--interval` (inside `remote_monitor.sh`'s one
+session) or a real-delay `watch -n 60 ...` around `pull_progress.sh` rather than
+hammering the login node.
 
 > **Partially confirmed, one real gap still open (v3 recheck, 2026-09-23)**:
 > `job-nanny`'s `SHARED_FS` flag is real and does what the sbatch script assumes —

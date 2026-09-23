@@ -91,7 +91,8 @@ else
     exit 1
   }
 
-  echo "[ensure-datasets] audiomnist: resampling to 8kHz mono into $audiomnist_8k"
+  total=$(find "$audiomnist_raw" -name '*.wav' -print0 | grep -zc .)
+  echo "[ensure-datasets] audiomnist: resampling ${total} files to 8kHz mono into $audiomnist_8k"
   mkdir -p "$audiomnist_8k"
   n=0
   while IFS= read -r -d '' src; do
@@ -100,8 +101,11 @@ else
     mkdir -p "$(dirname "$dst")"
     sox "$src" -r 8000 -c 1 -b 16 "$dst"
     n=$((n + 1))
+    if (( n % 250 == 0 || n == total )); then
+      pct=$(( n * 100 / total ))
+      echo "[ensure-datasets] audiomnist: resampled ${n}/${total} (${pct}%)"
+    fi
   done < <(find "$audiomnist_raw" -name '*.wav' -print0)
-  echo "[ensure-datasets] audiomnist: resampled ${n} files"
   rm -rf "$audiomnist_raw"
 fi
 
@@ -110,7 +114,8 @@ eegmmidb_root="$DATASETS_ROOT/eegmmidb"
 if [[ -d "$eegmmidb_root" ]] && find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] eegmmidb: already present at $eegmmidb_root -- checking for gaps"
 fi
-wget -c -q -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+wget -c -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+  --progress=dot:mega \
   -P "$eegmmidb_root" "https://physionet.org/files/eegmmidb/1.0.0/"
 find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q . || {
   echo "ensure_datasets.sh: eegmmidb fetch produced no .edf files" >&2
@@ -122,7 +127,8 @@ siena_root="$DATASETS_ROOT/siena"
 if [[ -d "$siena_root" ]] && find "$siena_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] siena: already present at $siena_root -- checking for gaps"
 fi
-wget -c -q -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+wget -c -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+  --progress=dot:mega \
   -P "$siena_root" "https://physionet.org/files/siena-scalp-eeg/1.0.0/"
 find "$siena_root" -name '*.edf' -print -quit | grep -q . || {
   echo "ensure_datasets.sh: siena fetch produced no .edf files" >&2

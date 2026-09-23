@@ -21,6 +21,11 @@ __pycache__/
 # code_intelligence index (44MB SQLite cache, rebuilt on demand)
 .code-intelligence/
 
+# GridUnesp SSH credentials (plaintext username/password, saved locally by
+# _gridunesp_env.sh so gridunesp_deploy.sh / remote_monitor.sh / pull_progress.sh
+# don't re-prompt on every run) — never track this.
+scripts/pipeline/meeting01/.env
+
 # Live experiment event logs — a running meeting01 process holds one of these
 # open (single long-lived ofstream) for the whole run. If git ever mutates the
 # working-tree copy (checkout / stash / clean / a background auto-commit that

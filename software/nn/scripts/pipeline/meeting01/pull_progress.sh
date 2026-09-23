@@ -6,8 +6,10 @@
 # is the simpler choice for a quick live check; use this one when you specifically
 # want the rich dashboard or a local copy of the data.
 #
-# Usage:
-#   GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/pull_progress.sh
+# Usage (first run prompts for username + password and saves them to .env next to
+# this script -- see _gridunesp_env.sh; later runs read .env instead of asking
+# again):
+#   ./scripts/pipeline/meeting01/pull_progress.sh
 #   then: .venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso
 #
 # Safe to re-run repeatedly -- rsync only transfers deltas, and merges into whatever
@@ -19,13 +21,16 @@
 # it.
 set -euo pipefail
 
-: "${GRIDUNESP_USER:?set GRIDUNESP_USER=<your grid username>}"
+# shellcheck source=./_gridunesp_env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_gridunesp_env.sh"
+
 HOST="${GRIDUNESP_HOST:-access.grid.unesp.br}"
 REMOTE_DIR="${GRIDUNESP_REMOTE_DIR:-software/nn}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 mkdir -p "$ROOT_DIR/results/meeting01"
-rsync -avz "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/results/meeting01/" \
+rsync -avz -e "sshpass -e ssh" \
+  "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/results/meeting01/" \
   "$ROOT_DIR/results/meeting01/"
 
 echo "[pull-progress] synced -- view with:"

@@ -42,12 +42,16 @@ See [Re-run Runbook](../../../.wiki/Guides/Re-run-Runbook.md) for `RESUME=1`,
 ```bash
 # One-shot: sync checkout, bootstrap env, fetch datasets, configure, build.
 # Idempotent, safe to re-run. Stops before submitting -- prints the sbatch command.
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/gridunesp_deploy.sh
+./scripts/pipeline/meeting01/gridunesp_deploy.sh
 
 # Monitor a running job without an interactive login shell:
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/remote_monitor.sh   # live, --plain, one SSH session
-GRIDUNESP_USER=<user> ./scripts/pipeline/meeting01/pull_progress.sh    # sync results/ down, use local monitor.py
+./scripts/pipeline/meeting01/remote_monitor.sh   # live, --plain, one SSH session
+./scripts/pipeline/meeting01/pull_progress.sh    # sync results/ down, use local monitor.py
 ```
+
+All three prompt interactively for your GridUnesp username and, unless an SSH key
+is already set up, your password (at `ssh`'s own prompt — never captured or stored
+by these scripts). Set `GRIDUNESP_USER=<user>` beforehand to skip the prompt.
 
 Full runbook, cluster facts, and open questions:
 [GridUnesp Deployment](../../../.wiki/Guides/GridUnesp-Deployment.md).
