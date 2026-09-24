@@ -58,6 +58,21 @@
 # out.wav` is the resample step, run once per file during dataset setup, not during
 # training itself.
 #
+# python=3.11 is REQUIRED, not defensive, and easy to miss: NONE of the C++
+# toolchain packages above pull in a Python interpreter as a transitive
+# dependency, so without this line `python3` on PATH (even inside this very
+# env, via conda's system-PATH fallback) silently resolves to GridUnesp's own
+# base-OS interpreter -- confirmed 2026-09-24 to be Python 3.6.8 on the login
+# node. `scripts/pipeline/meeting01/monitor.py` and
+# `gridunesp_status_remote.py` both use `from __future__ import annotations`
+# (PEP 563, Python 3.7+) at module level -- under 3.6.8 that is not a runtime
+# warning, it is `SyntaxError: future feature annotations is not defined`
+# before a single line of either script executes. This is what
+# `remote_monitor.sh`'s and `gridunesp_tui.py`'s remote invocations both
+# depend on; pinned to 3.11 (not left floating) for the same reproducibility
+# reason `gxx_linux-64`/`gcc_linux-64` are pinned above, not because monitor.py
+# needs anything version-specific past 3.7.
+#
 # --override-channels: every package here comes from conda-forge, but conda
 # still consults the default `channels:` list (pkgs/main, pkgs/r) during
 # solving unless told not to. Recent conda refuses to run non-interactively
@@ -92,12 +107,12 @@ if conda env list | grep -qE "^\s*${ENV_NAME}\s"; then
   echo "[gridunesp-setup] env '${ENV_NAME}' already exists -- updating packages"
   conda install -n "$ENV_NAME" -y --override-channels -c conda-forge \
     openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
-    zlib hdf5 fftw sqlite make sox
+    zlib hdf5 fftw sqlite make sox "python=3.11"
 else
   echo "[gridunesp-setup] creating env '${ENV_NAME}'"
   conda create -n "$ENV_NAME" -y --override-channels -c conda-forge \
     openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
-    zlib hdf5 fftw sqlite make sox
+    zlib hdf5 fftw sqlite make sox "python=3.11"
 fi
 
 cat <<'EOF'

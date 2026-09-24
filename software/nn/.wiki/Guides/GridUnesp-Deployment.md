@@ -345,6 +345,27 @@ FSDD's clone and AudioMNIST's resample both land in a `.*_staging` directory fir
 and are only renamed into the path that gets checked once they finish successfully,
 so a partial run is never mistaken for a finished one.
 
+### `monitor.py` fails with `SyntaxError: future feature annotations is not defined`
+
+Hit while building the multi-panel `gridunesp_tui.py` control dashboard (below),
+and — once checked — found to also silently break the pre-existing
+`remote_monitor.sh`, which had never actually been run against the real cluster
+end-to-end before this point; its "works unmodified, stdlib only" claim on this
+page was wrong until this fix. Cause: GridUnesp's bare `python3` (no module, no
+env active) is **3.6.8**. `monitor.py` uses `from __future__ import annotations`
+(PEP 563) at module level, which requires Python 3.7+ — under 3.6.8 this is not a
+warning, it's a `SyntaxError` before any of the script's own code runs. The
+`meeting01-build` conda env did not fix this either: none of its C++-toolchain
+packages (openblas, ninja, gcc, ...) pull in a Python interpreter as a
+dependency, so `python3` inside the activated env fell through conda's PATH to
+the same system 3.6.8. Fixed 2026-09-24: `python=3.11` added directly to
+`gridunesp_setup_env.sh`'s package list (pinned, same reasoning as
+`gxx_linux-64`/`gcc_linux-64`'s pin). `remote_monitor.sh` updated to `module
+load` + activate the env before invoking `monitor.py`, which it previously did
+not do at all. Re-run `gridunesp_setup_env.sh` on an env created before
+2026-09-24 to pick this up (`conda install`, idempotent, does not recreate the
+env).
+
 ### `wget` retries a file forever with `HTTP request sent, awaiting response... 416 Requested Range Not Satisfiable`
 
 Hit on eegmmidb, but the same recursive `wget` pattern is used for Siena too. The
@@ -390,13 +411,18 @@ local-machine behavior (see [Meeting01](../Experiments/Meeting01.md#running-it))
 
 **Monitoring progress remotely.** `monitor.py` (the same live dashboard used for a
 local run — see [Meeting01 § Running it](../Experiments/Meeting01.md#running-it))
-already works unmodified against a GridUnesp run; two thin wrappers make it easy to
-reach from the local machine without an interactive login shell each time:
+runs against a GridUnesp run unmodified **once the `meeting01-build` conda env has a
+real Python** (see Troubleshooting below — GridUnesp's own bare `python3` is 3.6.8,
+too old for `monitor.py`'s `from __future__ import annotations`; `python=3.11` was
+added to `gridunesp_setup_env.sh`'s package list 2026-09-24 specifically for this).
+Two thin wrappers make it easy to reach from the local machine without an
+interactive login shell each time:
 
 ```bash
 # Live view, no local copy of the data -- one SSH session, --plain mode (stdlib
-# only, no `rich`/conda env needed remotely). Runs monitor.py's own refresh loop
-# INSIDE that one session rather than reconnecting repeatedly.
+# only, no `rich` needed remotely -- but the conda env IS needed now, for python
+# itself, see above). Runs monitor.py's own refresh loop INSIDE that one session
+# rather than reconnecting repeatedly.
 ./scripts/pipeline/meeting01/remote_monitor.sh
 ./scripts/pipeline/meeting01/remote_monitor.sh --once   # single snapshot
 ./scripts/pipeline/meeting01/remote_monitor.sh --rank 3
@@ -462,6 +488,44 @@ EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_lo
 Every `(dataset, fold)` is already complete after the sync, so this call skips the
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
+
+## 6. Optional: all-in-one control TUI
+
+`scripts/pipeline/meeting01/gridunesp_tui.py` is a multi-panel terminal dashboard
+that wraps everything in §2–§5 into one screen instead of running each script by
+hand: dataset-fetch progress, build state, the Slurm queue, and live training
+progress, all updating together from **one** persistent SSH session (added
+2026-09-24). It is a **controller, not a reimplementation** — every panel's data
+comes from `gridunesp_status_remote.py` (which itself reuses `monitor.py`'s own
+`SessionState`/`EventTailer` classes for the training numbers, not a second,
+parallel readout of the same event files), and every action key shells out to the
+same scripts documented above:
+
+```bash
+.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
+.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
+```
+
+| Key | Action | Runs |
+|---|---|---|
+| `d` | Deploy | `gridunesp_deploy.sh` (§2/§3) |
+| `s` | Submit | the same `sbatch ...` call as §4, behind a confirm dialog (this starts a job that can run up to 30 days) |
+| `m` | Full monitor | `remote_monitor.sh` (§4) — the complete `rich` training dashboard, fullscreen |
+| `p` | Pull results | `pull_progress.sh` (§5) |
+| `v` | Validate toolchain | `run_gridunesp_docker_sim.sh` (§2, local Docker sim) |
+| `r` | Reconnect | manual only — a dropped connection is never auto-retried (Fail2Ban, same reasoning as everywhere else on this page) |
+| `q` | Quit | — |
+
+`d`/`m`/`v` use Textual's `App.suspend()`: the dashboard steps aside, the other
+script gets the real terminal (so `gridunesp_deploy.sh`'s own prompts and
+`remote_monitor.sh`'s own fullscreen dashboard work exactly as they do run
+directly), and the control TUI resumes when it exits.
+
+**LOCAL machine only** — `textual` (`scripts/requirements.txt`) is never needed on
+GridUnesp itself; the remote-side script it drives is stdlib + `monitor.py`'s
+ingestion classes only. Needs the SAME `sshpass` + `.env` credentials as every
+other script here (shared file, `scripts/pipeline/meeting01/.env` — first run
+prompts once, same as `gridunesp_deploy.sh`).
 
 ## Forward-looking: other experiments use a different dataset mechanism
 

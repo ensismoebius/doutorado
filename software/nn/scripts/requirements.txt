@@ -6,6 +6,13 @@ tqdm
 # Pure-Python. The monitor's --plain and --self-test modes need only the stdlib.
 rich>=13.0
 
+# Multi-panel GridUnesp control TUI (scripts/pipeline/meeting01/gridunesp_tui.py) --
+# LOCAL machine only, never needed on GridUnesp itself: the remote-side status
+# script it drives (gridunesp_status_remote.py) is stdlib + monitor.py's own
+# ingestion classes only, no textual/rich dependency, so it runs fine on a bare
+# GridUnesp Python with no venv at all.
+textual>=0.80
+
 # CPU-only PyTorch wheels — this project trains on CPU, not CUDA, and the
 # CUDA build pulls several GB of unused nvidia-* packages. Needed by
 # scripts/data/npz_to_pytorch.py and the

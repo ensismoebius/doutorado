@@ -30,5 +30,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_gridunesp_env.sh"
 HOST="${GRIDUNESP_HOST:-access.grid.unesp.br}"
 REMOTE_DIR="${GRIDUNESP_REMOTE_DIR:-software/nn}"
 
+# GridUnesp's own `python3` (no module, no env) is 3.6.8 -- too old for
+# monitor.py's `from __future__ import annotations` (needs 3.7+). The
+# meeting01-build conda env's python=3.11 (added 2026-09-24 to
+# gridunesp_setup_env.sh specifically for this) is what actually runs it; the
+# module+hook dance is the same fix documented in
+# .wiki/Guides/GridUnesp-Deployment.md's Troubleshooting section.
 exec sshpass -e ssh "${GRIDUNESP_USER}@${HOST}" \
-  "cd ${REMOTE_DIR} && python3 scripts/pipeline/meeting01/monitor.py --plain $*"
+  "cd ${REMOTE_DIR} && module load miniconda/24.4.0-libmamba && \
+   eval \"\$(conda shell.bash hook)\" && conda activate meeting01-build && \
+   python3 scripts/pipeline/meeting01/monitor.py --plain $*"
