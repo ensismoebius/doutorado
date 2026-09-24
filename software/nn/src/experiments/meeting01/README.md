@@ -1,3 +1,45 @@
+Instalação/deploy do meeting01 no GridUnesp — passo a passo:
+
+0. Conta (humano). Coordenador (afiliado UNESP, ex: orientador) registra projeto em unesp.br/portal#!/gridunesp/submissao-de-projetos/ ou grid@ncc.unesp.br (form src/experiments/meeting01/docs/formularioGridUnesp.odt já pronto). Depois você se registra em ncc.unesp.br/registration/. ~1-2 dias úteis.
+
+1. Deploy (um comando).
+
+
+cd software/nn
+./scripts/pipeline/meeting01/gridunesp_deploy.sh
+Faz tudo sozinho: pede credencial uma vez (cacheia em .env, git-ignored), rsync do checkout pro cluster, bootstrap de env conda meeting01-build (supre OpenBLAS/ninja/GCC13 que os modules do grid não têm), baixa os 4 datasets (ensure_datasets.sh, ~24GB), cmake --preset=max-performance, build cruzado num compute node (srun, pra -march=native bater com o Xeon E5-2680 v4 real — build NÃO pode rodar no login node). Termina com smoke test meeting01 --help e imprime o comando sbatch exato. Não submete o job longo sozinho.
+
+2. Validar toolchain local antes (opcional, recomendado).
+
+
+./scripts/pipeline/meeting01/run_gridunesp_docker_sim.sh
+Container AlmaLinux+conda simulando o gap de toolchain, sem gastar fila real.
+
+3. Submeter o job real.
+
+
+sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch
+squeue -u $USER
+Fila long (30 dias, hard cap), 28 cores, job-nanny envolvendo o 01_meeting01_run_loso.sh sem modificação. RESUME=1 sbatch ... retoma run interrompido.
+
+4. Monitorar.
+
+
+./scripts/pipeline/meeting01/remote_monitor.sh   # dashboard live via SSH
+# ou
+./scripts/pipeline/meeting01/pull_progress.sh    # rsync resultados pra local
+5. Trazer resultados de volta.
+
+
+rsync -avz user@access.grid.unesp.br:software/nn/results/meeting01/ results/meeting01/
+EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
+Fold já completo → pula treino, roda pós-processamento (03_/02_/04_) local.
+
+Fonte canônica, ler antes da submissão real: .wiki/Guides/GridUnesp-Deployment.md. Dois pontos em aberto lá: acesso à internet dos compute nodes (não confirmado) e semântica das vars INPUT/OUTPUT do job-nanny — vale testar com job curto (meeting01 --help na fila short) antes de comprometer 30 dias de fila.
+
+Nota: EXPERIMENT_CONFIRMED=1 obrigatório (guard do hook) — já embutido no sbatch script.
+
+
 # meeting01 — Nested-LOSO comparative autoencoder study
 
 Profile-driven comparative experiment: SNN, LSTM, GRU, and Transformer autoencoders, each

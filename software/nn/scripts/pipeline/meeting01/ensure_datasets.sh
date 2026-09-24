@@ -51,28 +51,46 @@ if (( avail_gb < 30 )); then
 fi
 
 # --- FSDD (27MB; Jakobovski/free-spoken-digit-dataset, DOI 10.5281/zenodo.1342401) ---
+# Cloned into a staging dir and only `mv`d into place on success: an interrupted
+# `git clone` (Ctrl-C, dropped connection) is not resumable, and a bare "does
+# $fsdd_root contain at least one .wav" check cannot tell a full checkout from a
+# partial one that got interrupted mid-"Updating files" -- it would find the few
+# files that DID land, call it done, and silently leave a truncated dataset in
+# place forever. The final `mv` is the only thing that creates $fsdd_root itself,
+# so its existence becomes a true completeness marker instead of a guess.
 fsdd_root="$DATASETS_ROOT/fsdDataset"
 if [[ -d "$fsdd_root" ]] && find "$fsdd_root" -name '*.wav' -print -quit | grep -q .; then
   echo "[ensure-datasets] fsdd: already present at $fsdd_root -- skip"
 else
-  echo "[ensure-datasets] fsdd: cloning into $fsdd_root"
-  rm -rf "$fsdd_root"
-  git clone --depth 1 https://github.com/Jakobovski/free-spoken-digit-dataset.git "$fsdd_root"
-  find "$fsdd_root" -name '*.wav' -print -quit | grep -q . || {
+  fsdd_staging="$DATASETS_ROOT/.fsdDataset_staging"
+  echo "[ensure-datasets] fsdd: cloning into $fsdd_staging"
+  rm -rf "$fsdd_staging" "$fsdd_root"
+  git clone --depth 1 https://github.com/Jakobovski/free-spoken-digit-dataset.git "$fsdd_staging"
+  find "$fsdd_staging" -name '*.wav' -print -quit | grep -q . || {
     echo "ensure_datasets.sh: fsdd clone has no .wav files -- upstream repo layout" \
          "may have changed" >&2
+    rm -rf "$fsdd_staging"
     exit 1
   }
+  mv "$fsdd_staging" "$fsdd_root"
 fi
 
 # --- AudioMNIST (soerenab/AudioMNIST, 48kHz raw -> resampled to 8kHz mono here) ---
+# Same interrupted-run hazard as FSDD above, at two points: the raw clone (not
+# resumable) and the resample loop (thousands of individual `sox` calls -- an
+# interruption partway leaves $audiomnist_8k with SOME files, which the "any .wav
+# present" check would mistake for a finished resample on the next run). Both the
+# raw clone and the resampled output land in staging dirs first; only a fully
+# successful resample loop renames the staging dir to $audiomnist_8k, so its
+# existence is a true completeness marker, not a guess from partial content.
 audiomnist_8k="$DATASETS_ROOT/audioMNIST_8k"
 if [[ -d "$audiomnist_8k" ]] && find "$audiomnist_8k" -name '*.wav' -print -quit | grep -q .; then
   echo "[ensure-datasets] audiomnist: already present at $audiomnist_8k -- skip"
 else
   audiomnist_raw="$DATASETS_ROOT/.audioMNIST_raw_staging"
+  audiomnist_8k_staging="$DATASETS_ROOT/.audioMNIST_8k_staging"
   echo "[ensure-datasets] audiomnist: cloning raw 48kHz corpus into $audiomnist_raw"
-  rm -rf "$audiomnist_raw"
+  rm -rf "$audiomnist_raw" "$audiomnist_8k_staging"
   git clone --depth 1 https://github.com/soerenab/AudioMNIST.git "$audiomnist_raw"
 
   raw_sample="$(find "$audiomnist_raw" -name '*.wav' -print -quit)"
@@ -92,12 +110,12 @@ else
   }
 
   total=$(find "$audiomnist_raw" -name '*.wav' -print0 | grep -zc .)
-  echo "[ensure-datasets] audiomnist: resampling ${total} files to 8kHz mono into $audiomnist_8k"
-  mkdir -p "$audiomnist_8k"
+  echo "[ensure-datasets] audiomnist: resampling ${total} files to 8kHz mono into $audiomnist_8k_staging"
+  mkdir -p "$audiomnist_8k_staging"
   n=0
   while IFS= read -r -d '' src; do
     rel="${src#"$audiomnist_raw"/}"
-    dst="$audiomnist_8k/$rel"
+    dst="$audiomnist_8k_staging/$rel"
     mkdir -p "$(dirname "$dst")"
     sox "$src" -r 8000 -c 1 -b 16 "$dst"
     n=$((n + 1))
@@ -106,15 +124,25 @@ else
       echo "[ensure-datasets] audiomnist: resampled ${n}/${total} (${pct}%)"
     fi
   done < <(find "$audiomnist_raw" -name '*.wav' -print0)
-  rm -rf "$audiomnist_raw"
+  rm -rf "$audiomnist_raw" "$audiomnist_8k"
+  mv "$audiomnist_8k_staging" "$audiomnist_8k"
 fi
 
 # --- eegmmidb (PhysioNet EEG Motor Movement/Imagery Database, 3.4GB, open access) ---
+# -N (timestamping), not -c (byte-range resume): -c on a recursive -r crawl asks
+# for Range: bytes=<local_size>- on EVERY already-complete file too, and PhysioNet's
+# server answers a completely-done file with 416 (nothing left in that range) --
+# wget does not treat that as success and retries the same URL until it exhausts
+# its default 20 tries (with growing backoff), sometimes minutes per file, on a
+# directory of ~1500 files this hits often. -N compares remote Last-Modified/size
+# against the local file instead of ever sending a Range request: an already-
+# complete file is skipped outright (no request that could 416), and a missing or
+# genuinely-incomplete one is fetched fresh (not byte-resumed, but correct).
 eegmmidb_root="$DATASETS_ROOT/eegmmidb"
 if [[ -d "$eegmmidb_root" ]] && find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] eegmmidb: already present at $eegmmidb_root -- checking for gaps"
 fi
-wget -c -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+wget -N -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
   --progress=dot:mega \
   -P "$eegmmidb_root" "https://physionet.org/files/eegmmidb/1.0.0/"
 find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q . || {
@@ -123,11 +151,12 @@ find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q . || {
 }
 
 # --- Siena Scalp EEG Database (PhysioNet, 20.3GB, open access; Detti 2020) ---
+# -N, not -c -- same 416-retry-loop hazard as eegmmidb above, see its comment.
 siena_root="$DATASETS_ROOT/siena"
 if [[ -d "$siena_root" ]] && find "$siena_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] siena: already present at $siena_root -- checking for gaps"
 fi
-wget -c -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
+wget -N -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
   --progress=dot:mega \
   -P "$siena_root" "https://physionet.org/files/siena-scalp-eeg/1.0.0/"
 find "$siena_root" -name '*.edf' -print -quit | grep -q . || {

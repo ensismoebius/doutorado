@@ -138,8 +138,12 @@ Every later shell (configure, build, and inside the sbatch job) needs:
 
 ```bash
 module load miniconda/24.4.0-libmamba
+eval "$(conda shell.bash hook)"
 conda activate meeting01-build
 ```
+
+(The `eval` line matters — see Troubleshooting below for why `conda activate` fails
+without it.)
 
 ### Validating this locally before submitting
 
@@ -205,7 +209,9 @@ another machine" approach — a fresh GridUnesp checkout no longer depends on th
 machine having downloaded everything first:
 
 ```bash
-module load miniconda/24.4.0-libmamba && conda activate meeting01-build   # needs git/wget/sox
+module load miniconda/24.4.0-libmamba
+eval "$(conda shell.bash hook)"
+conda activate meeting01-build   # needs git/wget/sox
 ./scripts/pipeline/meeting01/ensure_datasets.sh
 ```
 
@@ -220,7 +226,9 @@ than "running a simulation," on the login node where internet is known to work):
 
 ```bash
 cd software/nn
-module load miniconda/24.4.0-libmamba && conda activate meeting01-build
+module load miniconda/24.4.0-libmamba
+eval "$(conda shell.bash hook)"
+conda activate meeting01-build
 cmake --preset=max-performance
 ```
 
@@ -230,7 +238,9 @@ cmake --preset=max-performance
 
 ```bash
 srun --partition=short --time=00:30:00 --cpus-per-task=28 --pty bash
-module load miniconda/24.4.0-libmamba && conda activate meeting01-build
+module load miniconda/24.4.0-libmamba
+eval "$(conda shell.bash hook)"
+conda activate meeting01-build
 cmake --build out/build/max-performance --target meeting01 -j28
 exit
 ```
@@ -244,6 +254,114 @@ Sanity-check before submitting the long job:
 srun --partition=short --time=00:10:00 --cpus-per-task=4 --pty \
   out/build/max-performance/src/experiments/meeting01/meeting01 --help
 ```
+
+## Troubleshooting (first real deployment attempt, 2026-09-24)
+
+Four real issues hit in this order during the first actual run of §2/§3 above —
+each is concrete, not hypothetical, and each was hit on the real cluster, not the
+Docker sim.
+
+### `gridunesp_deploy.sh` must run on the LOCAL machine, not on GridUnesp itself
+
+Running it from an interactive login shell already on `access.grid.unesp.br` fails
+immediately:
+
+```
+gridunesp_deploy.sh: 'sshpass' not found on PATH -- needed to use the saved
+password non-interactively.
+```
+
+That's the correct error, not a bug. `sshpass` is a **local-machine-only**
+dependency (`_gridunesp_env.sh`'s own header says so) — the script's whole job is
+to `ssh`/`rsync` *from* your machine *into* GridUnesp. Running it from inside
+GridUnesp means it would try to `ssh` from the login node back to itself, which was
+never the design. Run it from your own machine's checkout instead. If you're
+already logged into the login node and want to keep going from there anyway, skip
+`gridunesp_deploy.sh` and run §3's steps by hand instead — they don't need `sshpass`
+because there's no second `ssh` hop involved.
+
+### `conda activate` fails with `CondaError: Run 'conda init' before 'conda activate'`
+
+`module load miniconda/...` only puts the `conda` binary on `PATH` — it does not run
+`conda init`, which is what actually installs the `conda activate` shell function
+into an interactive login shell's rc file. Without that hook, `conda activate` in
+**any** non-interactive shell (an `ssh host bash -s` heredoc, an
+`srun ... bash -c "..."` payload, an `sbatch` script) — and potentially an
+interactive one too, if `conda init` was never run on this account — falls through
+to the raw `conda` binary's own `activate` subcommand, which refuses with exactly
+that error instead of doing anything. Fix: source the hook explicitly, once per
+shell, right after `module load` and before `conda activate`:
+
+```bash
+module load miniconda/24.4.0-libmamba
+eval "$(conda shell.bash hook)"
+conda activate meeting01-build
+```
+
+Every `module load ... && conda activate ...` snippet on this page,
+`gridunesp_setup_env.sh`'s own printed instructions, `gridunesp_deploy.sh`'s two
+remote blocks, and `01_meeting01_run_loso_gridunesp.sbatch` were all fixed
+2026-09-24 to include the `eval` line.
+
+### `tmux`/`screen` fails with `open terminal failed: missing or unsuitable terminal: xterm-kitty`
+
+Only relevant if your local terminal is Kitty. Kitty sets `TERM=xterm-kitty`, and
+GridUnesp's terminfo database has no entry for it, so any terminal-aware program on
+the remote (`tmux`, `screen`, sometimes `less`/`vim`) fails the same way. Fix, no
+install needed — force a `TERM` GridUnesp definitely has before starting the
+session:
+
+```bash
+TERM=xterm-256color tmux new -s meeting01deploy
+```
+
+### Babysitting a long setup across a dropped connection
+
+`ensure_datasets.sh` (24GB, dominated by Siena's 20.3GB) and the compute-node build
+can run for hours. If you're driving them from an interactive login-node shell
+(§3's by-hand path, e.g. after hitting the `sshpass` issue above) rather than
+through `gridunesp_deploy.sh`'s own held-open connection, wrap them in `tmux` **on
+the login node itself**, not locally, so the download/build survives your local
+connection dropping:
+
+```bash
+TERM=xterm-256color tmux new -s meeting01deploy
+# inside: module load ...; eval "$(conda shell.bash hook)"; conda activate ...;
+# ./scripts/pipeline/meeting01/ensure_datasets.sh; cmake --preset=...;
+# srun ... cmake --build ...  (the §3 sequence above, run by hand)
+```
+
+Detach with `Ctrl-b d` — the session, and everything running inside it, keeps going
+on GridUnesp regardless of your local terminal. Reattach later from the same login
+shell with `tmux attach -t meeting01deploy`.
+
+A related, already-fixed robustness gap: `ensure_datasets.sh`'s "already
+downloaded" check used to be "does at least one matching file exist" — true for a
+genuinely complete download, but also true for one interrupted mid-transfer
+(Ctrl-C, a dropped tmux-less SSH session), which would then be silently accepted as
+complete on the next run — exactly the "plausible-looking result nobody can trace"
+failure mode this project's no-fallbacks rule exists to prevent. Fixed 2026-09-24:
+FSDD's clone and AudioMNIST's resample both land in a `.*_staging` directory first
+and are only renamed into the path that gets checked once they finish successfully,
+so a partial run is never mistaken for a finished one.
+
+### `wget` retries a file forever with `HTTP request sent, awaiting response... 416 Requested Range Not Satisfiable`
+
+Hit on eegmmidb, but the same recursive `wget` pattern is used for Siena too. The
+original `ensure_datasets.sh` used `wget -c -r ...` (continue + recursive) for both.
+`-c` asks for `Range: bytes=<local_size>-` on **every** file, including ones
+already fully downloaded from a previous run — and PhysioNet's server correctly
+answers a fully-complete file with 416 (there is nothing left in that byte range).
+`wget` does not treat that as "already done, move on"; it retries the same URL up
+to its default 20 times with growing backoff, which on a directory of ~1500 files
+(eegmmidb) is slow and, worse, was observed to hang on this specific loop for
+several minutes on one small file (`ANNOTATORS`) before giving up. Fixed
+2026-09-24: both fetches now use `-N` (timestamping) instead of `-c`. `-N` compares
+the remote `Last-Modified`/size against the local file and skips it outright if
+already current — no `Range` request is ever sent for a complete file, so this 416
+loop cannot happen — and fetches a missing or stale file fresh (a full re-fetch,
+not a byte-range resume, but correct and loop-free). If you hit this before
+updating, `Ctrl-C` and re-run `ensure_datasets.sh`; it is idempotent either way.
 
 ## 4. Submitting the run
 

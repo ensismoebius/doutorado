@@ -25,6 +25,11 @@
 set -euo pipefail
 
 module load miniconda/24.4.0-libmamba
+# `module load` only puts conda on PATH -- `conda activate` needs the shell hook
+# that `conda init` normally installs into an interactive login shell's rc file,
+# which a batch job's non-interactive shell never sources. Source it explicitly
+# (same fix as gridunesp_deploy.sh's remote build step).
+eval "$(conda shell.bash hook)"
 conda activate meeting01-build
 
 # job-nanny's documented convention (INPUT/OUTPUT as space-separated FILE names,

@@ -73,7 +73,12 @@
 #   ./scripts/pipeline/meeting01/gridunesp_setup_env.sh
 #
 # Every later step (configure, build, and the sbatch job itself) does:
-#   module load miniconda/24.4.0-libmamba && conda activate meeting01-build
+#   module load miniconda/24.4.0-libmamba
+#   eval "$(conda shell.bash hook)"   # module load alone does not run `conda init`,
+#                                      # so `conda activate` has no shell function to
+#                                      # call yet in a non-interactive shell -- this
+#                                      # sources the hook `conda init` would have set up
+#   conda activate meeting01-build
 set -euo pipefail
 
 ENV_NAME="${ENV_NAME:-meeting01-build}"
@@ -99,6 +104,7 @@ cat <<'EOF'
 
 [gridunesp-setup] done. Before configuring/building, every shell needs:
   module load miniconda/24.4.0-libmamba
+  eval "$(conda shell.bash hook)"
   conda activate meeting01-build
 
 The env's own gcc/g++ (gxx_linux-64) are pinned ahead of the module gcc/10.2.0 on

@@ -66,6 +66,9 @@ sshpass -e ssh -o ControlMaster=auto -o ControlPath="$CTRL_PATH" -o ControlPersi
   exit 1
 }
 
+echo "[gridunesp-deploy] ensuring remote dir ${REMOTE_DIR} exists"
+ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" "mkdir -p '${REMOTE_DIR}'"
+
 echo "[gridunesp-deploy] syncing checkout to ${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}"
 rsync -avz --delete --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" \
   --exclude out/ --exclude results/ --exclude '*.o' --exclude '__pycache__/' \
@@ -81,6 +84,12 @@ BUILD_CPUS="$2"
 echo "[gridunesp-deploy:remote] toolchain env (module load + conda create/update)"
 module load miniconda/24.4.0-libmamba
 ./scripts/pipeline/meeting01/gridunesp_setup_env.sh
+# `module load` only puts the conda binary on PATH -- it does not run `conda init`,
+# so the `conda activate` shell function does not exist yet in this non-interactive
+# `ssh ... bash -s` session (only an interactive login shell that has run `conda
+# init` gets it). Sourcing the hook here does what `conda init` would have done,
+# scoped to just this script.
+eval "$(conda shell.bash hook)"
 conda activate meeting01-build
 
 echo "[gridunesp-deploy:remote] datasets (skips anything already present)"
@@ -90,11 +99,17 @@ echo "[gridunesp-deploy:remote] configuring (login node, needs internet for Fetc
 cmake --preset=max-performance
 
 echo "[gridunesp-deploy:remote] building on a compute node (srun, cpus=${BUILD_CPUS})"
-srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c "
+# BUILD_CPUS is exported so the child bash srun spawns can read it as $BUILD_CPUS at
+# its own runtime -- the whole script below is single-quoted (no expansion by THIS
+# shell) so `eval "$(conda shell.bash hook)"` also only runs once, inside that fresh
+# process, instead of being expanded too early against this shell's environment.
+export BUILD_CPUS
+srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c '
   module load miniconda/24.4.0-libmamba
+  eval "$(conda shell.bash hook)"
   conda activate meeting01-build
-  cmake --build out/build/max-performance --target meeting01 -j${BUILD_CPUS}
-"
+  cmake --build out/build/max-performance --target meeting01 -j"$BUILD_CPUS"
+'
 
 echo "[gridunesp-deploy:remote] smoke check"
 srun --partition=short --time=00:10:00 --cpus-per-task=4 \
