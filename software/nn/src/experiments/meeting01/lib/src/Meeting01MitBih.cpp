@@ -181,6 +181,7 @@ MitBihWindowDataset::MitBihWindowDataset(const std::filesystem::path& dataset_ro
                 global_window_id,
                 source_window_idx,
                 -1,
+                window_size, // loop condition above never emits a padded trailing window
             });
             ++global_window_id;
             ++source_window_idx;

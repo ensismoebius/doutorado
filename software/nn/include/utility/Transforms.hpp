@@ -5,6 +5,7 @@
 #include "utility/Compose.hpp"
 #include "utility/EEGWindowZScore.hpp"
 #include "utility/FusedModalityTransform.hpp"
+#include "utility/GaussianNoise.hpp"
 #include "utility/ITransform.hpp"
 #include "utility/RandomCrop.hpp"
 #include "utility/RandomIndexCrop.hpp"

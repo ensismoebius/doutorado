@@ -27,7 +27,9 @@ using Tensor = nn::Tensor;
 using nn::utils::parameter_count;
 using statistics::binary_precision_recall_f1;
 using statistics::mae_between;
+using statistics::mae_between_masked;
 using statistics::mse_between;
+using statistics::mse_between_masked;
 
 auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t;
 auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t;

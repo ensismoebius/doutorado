@@ -250,6 +250,62 @@ logs stay free of cursor-control sequences.
 > for the full transform catalogue, including the three normalizers' easy-to-confuse shape
 > conventions (`WindowZScore`, used by all three meeting01 loaders as of this change, replaces
 > the ad hoc `zscore_inplace()` call sites with the same underlying numeric implementation).
+>
+> **EEG preprocessing gap closed (2026-09-24).** Literature review found the standard practice
+> for both Siena and eegmmidb (and EEG deep learning generally) is bandpass 0.5-40 Hz + mains
+> notch (50 Hz Italy/Siena, 60 Hz US/eegmmidb) applied **before** normalization — this loader
+> previously z-scored the raw signal directly, with no filtering at all. `EegWindowDataset`
+> (`Meeting01Eeg.cpp`) now runs `nn::utility::bandpass_notch` on each full recording before
+> windowing (see [Core/DataLoaders.md](../Core/DataLoaders.md#transforms) for why this has to
+> happen on the full recording, not per-window, and for a real, unrelated FIR-normalization bug
+> this work found — and left unfixed, zero blast radius today — in
+> `wave/filter_operations.hpp`). Verified with frequency-response tests (sine tone in-band
+> survives near-unity gain; sub-0.5 Hz drift, above-40 Hz noise, and the mains tone are all
+> attenuated >90%), not just "matches its own formula."
+>
+> **Activity mask for FSDD/AudioMNIST zero-padded windows (2026-09-24).** A *different*
+> issue from the degeneracy above: `FsddWindowDataset` zero-pads the *last*, trailing
+> window of any recording whose length isn't a multiple of `window_size` (unaffected by
+> `RandomIndexCrop` — that fix addresses which window gets *selected*, not what a selected
+> window's *content* is). The reconstruction loss for all four model families counted that
+> padding as real signal to reconstruct, with no error or warning. `WindowMetadata` gained
+> `valid_length` (real, non-padded sample count); `MSELossImpl::set_mask()`
+> (`include/layers/losses/MSELoss.hpp`) and `Trainer::fit_supervised_masked()`
+> (`src/core/training/Trainer.hpp`, purely additive — every existing `Trainer`/`MSELossImpl`
+> caller across `thesis`/`autoencoderRunner`/core tests is unaffected) exclude the padded
+> region from both training loss and reported evaluation metrics
+> (`mse_between_masked`/`mae_between_masked`,
+> `include/statistics/reconstruction_metrics.hpp`). A second, independent bug found in the
+> same investigation: z-score was previously computed over the *whole* padded window,
+> contaminating its statistics and leaving the padded tail no longer even literally zero —
+> fixed to normalize only the real prefix. See
+> [Core/DataLoaders.md](../Core/DataLoaders.md#activity-mask--excluding-zero-padding-from-the-loss-not-from-the-window)
+> for the full mechanism and a worked example, and
+> [Core/Layers.md](../Core/Layers.md#mselossimplset_mask--restricting-a-loss-to-part-of-a-tensor)
+> for the loss-side API. EEG (`eegmmidb`/`siena`) and MIT-BIH are unaffected — those loaders
+> drop a trailing partial window instead of padding it.
+>
+> **Denoising-autoencoder corruption, all 4 model families (2026-09-24).** Third and last of
+> a 3-task sequence (bandpass+notch → activity mask → this). Vincent et al. (2008 ICML, 2010
+> JMLR): corrupt the encoder's input with noise, keep the reconstruction target clean, so the
+> network can't cheat toward a low loss by approximating the identity function — it has to
+> learn signal structure well enough to denoise. New `nn::transforms::GaussianNoise`
+> (`include/utility/GaussianNoise.hpp`, elementwise `out = x + N(0, std²)`, same stateful-RNG
+> contract as `RandomCrop`/`RandomIndexCrop`) is applied to the raw analog window ONCE per
+> run/seed, before `encode_sample`, in `make_triples` — not per epoch. A per-epoch option via
+> `Trainer::sample_transform_` was considered and rejected: that hook only sees the tensor
+> AFTER encoding, where adding Gaussian noise to a 0/1 spike train has no physical meaning.
+> Applying it before encoding keeps the corruption physically meaningful and identical across
+> SNN/LSTM/GRU/Transformer-AE — the same reasoning that already pins poisson encoding to one
+> draw per run instead of resampling every epoch. New `model.denoising_noise_std` config field
+> (default `0.0`, exact no-op — `GaussianNoise` short-circuits at `std=0` instead of hitting
+> `std::normal_distribution`'s stddev=0 UB) means every profile written before this feature
+> trains byte-identically to before. Validation/test input is never corrupted
+> (`apply_noise=false`) — only training input is; the target and the activity mask (above) are
+> always built from the clean sample. See
+> [Core/DataLoaders.md](../Core/DataLoaders.md#denoising-autoencoder-corruption) for the full
+> mechanism, the corrupted-input/clean-target diagram, and the per-epoch-vs-per-run tradeoff
+> table.
 
 ---
 

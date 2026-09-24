@@ -411,6 +411,47 @@ TEST(Meeting01ConfigValidation, RejectsEachSectionAndNamesTheField)
         cfg.evaluation.encodings = {"telepathy"};
         EXPECT_NE(validation_error(cfg).find("unknown encoding"), std::string::npos);
     }
+    {
+        auto cfg = valid_config();
+        cfg.model.denoising_noise_std = -0.1F;
+        EXPECT_NE(validation_error(cfg).find("model.denoising_noise_std"), std::string::npos);
+    }
+}
+
+TEST(Meeting01ConfigValidation, DenoisingNoiseStdDefaultsToDisabledAndValidates)
+{
+    // 0.0f = disabled (exact pass-through in GaussianNoise), matching the
+    // codebase-wide "0 = derive/disabled" convention (latent_dim, lstm_hidden_size).
+    auto cfg = valid_config();
+    EXPECT_FLOAT_EQ(cfg.model.denoising_noise_std, 0.0F);
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(Meeting01ConfigValidation, AcceptsAPositiveDenoisingNoiseStd)
+{
+    auto cfg = valid_config();
+    cfg.model.denoising_noise_std = 0.05F;
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(Meeting01ConfigValidation, DenoisingNoiseStdParsesFromNestedJson)
+{
+    const auto j = nlohmann::json::parse(R"({
+        "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
+        "dataset": {"dataset_root": "/tmp", "window_size": 64,
+                    "max_loaded_train_samples": 10, "max_validation_samples": 5},
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+                     "learning_rate": 0.001},
+        "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
+                  "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
+                  "time_steps": 8, "denoising_noise_std": 0.03},
+        "evaluation": {"datasets": ["fsdd"], "encodings": ["direct"],
+                       "snn_architectures": []}
+    })");
+
+    Meeting01Config cfg;
+    ASSERT_NO_THROW(cfg = Meeting01Config::from_nested_json(j));
+    EXPECT_FLOAT_EQ(cfg.model.denoising_noise_std, 0.03F);
 }
 
 TEST(Meeting01ConfigValidation, ReportsEveryProblemInOneMessage)

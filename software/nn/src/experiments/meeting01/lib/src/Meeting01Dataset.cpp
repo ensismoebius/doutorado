@@ -202,7 +202,11 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
     }
     else if (dataset == "eegmmidb" || dataset == "siena")
     {
-        EegWindowDataset ds(src.root, src.window_size);
+        // Mains frequency is a property of the recording SITE, not the signal itself: Siena
+        // was recorded in Italy (50 Hz mains), eegmmidb at PhysioNet/US sites (60 Hz) -- see
+        // .wiki/Core/DataLoaders.md for the literature this bandpass+notch choice is based on.
+        const double notch_hz = (dataset == "siena") ? 50.0 : 60.0;
+        EegWindowDataset ds(src.root, src.window_size, src.sample_rate, notch_hz);
         g.windows = ds.windows();
         g.meta = ds.metadata();
     }

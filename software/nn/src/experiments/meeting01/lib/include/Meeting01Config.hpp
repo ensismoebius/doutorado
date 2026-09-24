@@ -170,6 +170,14 @@ struct Meeting01Config
         int transformer_heads = 4;
         int transformer_layers = 2;
         int transformer_d_ff = 128;
+        // Denoising-autoencoder corruption (Vincent et al. 2008/2010 -- see
+        // .wiki/References.md): std of additive Gaussian noise applied to the ENCODER's
+        // input only, never the reconstruction target. 0 (default) = disabled, exact
+        // pass-through -- every profile that doesn't set this trains identically to before
+        // this field existed. Applied to the z-scored analog window BEFORE encode_sample,
+        // the same point/mechanism for all 4 model families -- see
+        // .wiki/Core/DataLoaders.md#denoising-autoencoder-corruption.
+        float denoising_noise_std = 0.0f;
         std::string loss_type = "mse";               // optional (from model.loss_function)
         std::vector<std::string> encoder_layer_spec; // REQUIRED
         std::vector<std::string> decoder_layer_spec; // REQUIRED
@@ -365,6 +373,7 @@ struct Meeting01Config
         get("lstm_frame_size", cfg.model.lstm_frame_size);
         reject_renamed_time_steps(j);
         get("time_steps", cfg.model.time_steps);
+        get("denoising_noise_std", cfg.model.denoising_noise_std);
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
@@ -589,6 +598,7 @@ struct Meeting01Config
         get(mdl, "lstm_frame_size", cfg.model.lstm_frame_size);
         reject_renamed_time_steps(mdl);
         get(mdl, "time_steps", cfg.model.time_steps);
+        get(mdl, "denoising_noise_std", cfg.model.denoising_noise_std);
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);
         get(mdl, "fusion_hidden_size", cfg.model.fusion_hidden_size);

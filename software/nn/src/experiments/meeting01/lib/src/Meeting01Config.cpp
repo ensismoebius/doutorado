@@ -156,6 +156,12 @@ void check_model(const Meeting01Config::Model& model, std::ostringstream& errors
         errors << "  - model.time_steps must be >= 2 (got " << model.time_steps
                << "); 1 step disables membrane dynamics and spike coding entirely\n";
     }
+
+    if (model.denoising_noise_std < 0.0f)
+    {
+        errors << "  - model.denoising_noise_std must be >= 0 (got " << model.denoising_noise_std
+               << ")\n";
+    }
 }
 
 // Fields every family's GA block shares (search mechanics, not genome bounds) — one

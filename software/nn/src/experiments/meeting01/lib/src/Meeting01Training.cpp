@@ -16,6 +16,7 @@
 #include "layers/spiking/ArcTanSurrogate.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
+#include "utility/GaussianNoise.hpp"
 
 using nn::models::autoencoder::AutoencoderConfig;
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
@@ -248,6 +249,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -259,6 +262,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         cfg,
         train_samples,
         val_samples,
+        train_meta,
+        val_meta,
         encoding,
         seed,
         run_id,
@@ -329,6 +334,8 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -340,6 +347,8 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
         cfg,
         train_samples,
         val_samples,
+        train_meta,
+        val_meta,
         encoding,
         seed,
         run_id,
@@ -355,6 +364,8 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -366,6 +377,8 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
         cfg,
         train_samples,
         val_samples,
+        train_meta,
+        val_meta,
         encoding,
         seed,
         run_id,
@@ -385,6 +398,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     const std::string& encoding,
     const std::string& architecture,
@@ -428,30 +443,49 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
     const int steps = cfg.model.time_steps;
 
+    // Denoising-autoencoder corruption (Vincent et al. 2008/2010 — see
+    // .wiki/Core/DataLoaders.md#denoising-autoencoder-corruption): additive Gaussian noise
+    // on the encoder's input only, fixed for this run/seed (not resampled per epoch — see
+    // that wiki section for why, mirroring the poisson-encoding precedent below).
+    // denoising_noise_std == 0 (default) makes this an exact no-op, byte-identical to
+    // before this feature existed.
+    const nn::transforms::GaussianNoise denoise_noise(cfg.model.denoising_noise_std, seed);
+
     // Input is the encoded (time_steps, window_size) spike tensor; target is the
     // ORIGINAL analog window held across those same steps. Reconstructing the encoded
     // input instead made the loss incomparable across encodings and handed the GA a
     // free win for picking latency (see .wiki/Experiments/Meeting01.md).
-    using SnnPair = std::pair<SnnTensor, SnnTensor>;
-    auto make_pairs = [&](const std::vector<Tensor>& src)
+    //
+    // The mask excludes the zero-padded tail of a variable-length window's last slice
+    // (FSDD/AudioMNIST only — see WindowMetadata::valid_length) from the loss.
+    using SnnTriple = nn::training::Trainer<ProtocolSpikingAutoencoder>::SampleTriple;
+    auto make_triples = [&](const std::vector<Tensor>& src,
+                            const std::vector<WindowMetadata>& meta,
+                            bool apply_noise)
     {
-        std::vector<SnnPair> pairs;
-        pairs.reserve(src.size());
+        std::vector<SnnTriple> triples;
+        triples.reserve(src.size());
         for (std::size_t i = 0; i < src.size(); ++i)
         {
+            // Corruption feeds the encoder only — target and mask below are always built
+            // from the CLEAN src[i], never the noisy version.
+            const Tensor encoder_input = apply_noise ? denoise_noise(src[i]) : src[i];
             Tensor enc =
-                encode_sample(src[i], encoding, seed + static_cast<std::uint32_t>(i), steps);
+                encode_sample(encoder_input, encoding, seed + static_cast<std::uint32_t>(i), steps);
             enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
-            pairs.emplace_back(
-                SnnTensor(enc), SnnTensor(make_reconstruction_target(src[i], steps)));
+            const Tensor mask = make_reconstruction_target(
+                make_activity_mask(meta[i].valid_length, static_cast<int>(src[i].size())), steps);
+            triples.emplace_back(SnnTensor(enc),
+                SnnTensor(make_reconstruction_target(src[i], steps)),
+                SnnTensor(mask));
         }
-        return pairs;
+        return triples;
     };
-    const auto train_pairs = make_pairs(train_samples);
-    const auto val_pairs = make_pairs(val_samples);
+    const auto train_triples = make_triples(train_samples, train_meta, /*apply_noise=*/true);
+    const auto val_triples = make_triples(val_samples, val_meta, /*apply_noise=*/false);
 
     const auto t0 = std::chrono::steady_clock::now();
-    const auto epoch_results = trainer.fit_supervised(train_pairs, val_pairs);
+    const auto epoch_results = trainer.fit_supervised_masked(train_triples, val_triples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -475,6 +509,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
     RunMetrics metrics = evaluate_snn(model,
         val_samples,
+        val_meta,
         val_labels,
         cfg.training.max_reconstruct_mean_deviation,
         estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),

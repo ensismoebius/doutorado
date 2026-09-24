@@ -43,6 +43,9 @@ class MSELossImpl : public Module<Backend>
     Tensor last_target_;
     bool target_set_ = false;
 
+    Tensor mask_;
+    bool mask_set_ = false;
+
     bool training_ = true;
 
    public:
@@ -51,6 +54,28 @@ class MSELossImpl : public Module<Backend>
     void train(bool on) override
     {
         training_ = on;
+    }
+
+    /// Restricts the loss to a subset of elements: `mask` must be the same shape as the
+    /// prediction/target, 1.0 where an element should count, 0.0 where it should be
+    /// excluded (e.g. the zero-padded tail of a variable-length window — see
+    /// meeting01::make_activity_mask). Both forward() and backward() then normalize by
+    /// sum(mask) instead of element count, so a masked-out element contributes neither to
+    /// the reported loss value nor to the gradient. Persists across calls like the target
+    /// (set once per batch shape, not per sample) until clear_mask() is called.
+    void set_mask(const Tensor& mask)
+    {
+        mask_ = mask;
+        mask_set_ = true;
+    }
+
+    /// Reverts to the default, unmasked behaviour (every element counts, matches
+    /// torch.nn.functional.mse_loss exactly). This is the state before set_mask() is ever
+    /// called, so every existing caller in the framework is unaffected by masking support
+    /// unless it explicitly opts in via set_mask().
+    void clear_mask()
+    {
+        mask_set_ = false;
     }
 
     // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
@@ -81,7 +106,25 @@ class MSELossImpl : public Module<Backend>
             NN_LOG_DEBUG(_dbg_oss.str());
         }
 
-        float mse = input.mean_squared_error(last_target_);
+        float mse;
+        if (mask_set_)
+        {
+            // Masked MSE: sum(mask * (pred-target)^2) / sum(mask). A masked-out element
+            // (mask==0) contributes exactly 0 to the numerator and is excluded from the
+            // denominator, instead of diluting the mean with a residual it never should
+            // have had a say in (e.g. a zero-padded window tail — see make_activity_mask).
+            Tensor diff = input;
+            diff.subtract_inplace(last_target_);
+            Tensor sq = diff;
+            sq.multiply_inplace(diff);
+            sq.multiply_inplace(mask_);
+            const float mask_sum = mask_.sum();
+            mse = (mask_sum > 0.0F) ? sq.sum() / mask_sum : 0.0F;
+        }
+        else
+        {
+            mse = input.mean_squared_error(last_target_);
+        }
 
         // Clip extremely large values to prevent overflow (but let NaN/Inf propagate)
         if (std::isfinite(mse))
@@ -109,8 +152,21 @@ class MSELossImpl : public Module<Backend>
         // Compute gradient: 2 * (prediction - target) / num_elements
         Tensor grad = last_input_;
         grad.subtract_inplace(last_target_);
-        float factor = kMseGradientFactor / static_cast<float>(last_input_.size());
-        grad.multiply_scalar_inplace(factor);
+        if (mask_set_)
+        {
+            // d/d(pred) of sum(mask*(pred-target)^2)/sum(mask) is mask*2*(pred-target)/sum(mask):
+            // zero out the masked-out elements' gradient contribution, then normalize by the
+            // same sum(mask) the forward pass used (not element count).
+            grad.multiply_inplace(mask_);
+            const float mask_sum = mask_.sum();
+            const float factor = (mask_sum > 0.0F) ? (kMseGradientFactor / mask_sum) : 0.0F;
+            grad.multiply_scalar_inplace(factor);
+        }
+        else
+        {
+            float factor = kMseGradientFactor / static_cast<float>(last_input_.size());
+            grad.multiply_scalar_inplace(factor);
+        }
 
         // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
         float grad_check = grad.norm();

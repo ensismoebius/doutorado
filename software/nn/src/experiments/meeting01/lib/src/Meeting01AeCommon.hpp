@@ -35,6 +35,7 @@
 #include "tensor/Tensor.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
+#include "utility/GaussianNoise.hpp"
 
 namespace meeting01
 {
@@ -51,6 +52,7 @@ namespace meeting01
 template <typename Model>
 auto evaluate_ae(Model& model,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,
     std::size_t macs,
@@ -84,20 +86,30 @@ auto evaluate_ae(Model& model,
             frame_size);
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
+        const Tensor mask = to_lstm_frames(
+            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
 
-        mse_acc += mse_between(target, recon);
-        mae_acc += mae_between(target, recon);
+        mse_acc += mse_between_masked(target, recon, mask);
+        mae_acc += mae_between_masked(target, recon, mask);
 
-        float sample_residual_mean = 0.0f;
+        float sample_residual_sum = 0.0f;
+        float sample_mask_sum = 0.0f;
         for (nn::Index k = 0; k < target.size(); ++k)
         {
-            sample_residual_mean += std::fabs(target.at(k) - recon.at(k));
-            y_mean_acc += target.at(k);
-            ++n_values;
+            const float mk = mask.at(k);
+            sample_residual_sum += mk * std::fabs(target.at(k) - recon.at(k));
+            sample_mask_sum += mk;
+            if (mk > 0.0f)
+            {
+                y_mean_acc += target.at(k);
+                ++n_values;
+            }
         }
-        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, target.size()));
+        const float sample_residual_mean =
+            (sample_mask_sum > 0.0f) ? sample_residual_sum / sample_mask_sum : 0.0f;
         pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
@@ -115,10 +127,14 @@ auto evaluate_ae(Model& model,
             frame_size);
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
+        const Tensor mask = to_lstm_frames(
+            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
         for (nn::Index k = 0; k < target.size(); ++k)
         {
+            if (mask.at(k) <= 0.0f) continue;
             const float y = target.at(k);
             const float yh = recon.at(k);
             ss_res += (y - yh) * (y - yh);
@@ -159,6 +175,9 @@ auto per_window_errors_ae(Model& model,
             frame_size);
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(samples[i], time_steps), frame_size);
+        const Tensor mask = to_lstm_frames(
+            make_activity_mask(meta[i].valid_length, static_cast<int>(samples[i].size())),
+            frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
 
@@ -170,8 +189,8 @@ auto per_window_errors_ae(Model& model,
             r.window_id = meta[i].window_id;
             r.source_window_index = meta[i].source_window_index;
         }
-        r.mse = mse_between(target, recon);
-        r.mae = mae_between(target, recon);
+        r.mse = mse_between_masked(target, recon, mask);
+        r.mae = mae_between_masked(target, recon, mask);
         out.push_back(r);
     }
     return out;
@@ -185,6 +204,8 @@ auto train_ae(Model& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -229,31 +250,54 @@ auto train_ae(Model& model,
     const int frame = cfg.model.lstm_frame_size;
     const int steps = cfg.model.time_steps;
 
+    // Denoising-autoencoder corruption (Vincent et al. 2008/2010 — see
+    // .wiki/Core/DataLoaders.md#denoising-autoencoder-corruption): additive Gaussian noise
+    // on the encoder's input only, fixed for this run/seed, same mechanism/point in the
+    // pipeline as the SNN path (train_with_early_stopping_snn) so all 4 families are
+    // compared through the same corruption. denoising_noise_std == 0 (default) is an exact
+    // no-op, byte-identical to before this feature existed.
+    const nn::transforms::GaussianNoise denoise_noise(cfg.model.denoising_noise_std, seed);
+
     // Input is the ENCODED window, target is the ORIGINAL analog window. Training the
     // model to reproduce its own encoded input (what fit_autoencoder did here until
     // 2026-09-22) makes the loss incomparable between encodings, because each encoding
     // has its own target variance. Pairs are built once, so a stochastic encoding like
     // poisson stays fixed across epochs rather than resampling every pass.
-    using Pair = std::pair<ModelTensor, ModelTensor>;
-    auto make_pairs = [&](const std::vector<Tensor>& src)
+    //
+    // The mask excludes the zero-padded tail of a variable-length window's last slice
+    // (FSDD/AudioMNIST only — see WindowMetadata::valid_length) from the loss, so the
+    // model is never penalized for "failing" to reconstruct samples that were never in
+    // the recording. It goes through the SAME to_lstm_frames() reshape as the target,
+    // since it must match the target's shape exactly.
+    using Triple = typename nn::training::Trainer<Model>::SampleTriple;
+    auto make_triples = [&](const std::vector<Tensor>& src,
+                            const std::vector<WindowMetadata>& meta,
+                            bool apply_noise)
     {
-        std::vector<Pair> pairs;
-        pairs.reserve(src.size());
+        std::vector<Triple> triples;
+        triples.reserve(src.size());
         for (std::size_t i = 0; i < src.size(); ++i)
         {
-            pairs.emplace_back(
+            // Corruption feeds the encoder only — target and mask below are always built
+            // from the CLEAN src[i], never the noisy version.
+            const Tensor encoder_input = apply_noise ? denoise_noise(src[i]) : src[i];
+            triples.emplace_back(
                 ModelTensor(to_lstm_frames(
-                    encode_sample(src[i], encoding, seed + static_cast<std::uint32_t>(i), steps),
+                    encode_sample(
+                        encoder_input, encoding, seed + static_cast<std::uint32_t>(i), steps),
                     frame)),
-                ModelTensor(to_lstm_frames(make_reconstruction_target(src[i], steps), frame)));
+                ModelTensor(to_lstm_frames(make_reconstruction_target(src[i], steps), frame)),
+                ModelTensor(to_lstm_frames(
+                    make_activity_mask(meta[i].valid_length, static_cast<int>(src[i].size())),
+                    frame)));
         }
-        return pairs;
+        return triples;
     };
-    const auto train_pairs = make_pairs(train_samples);
-    const auto val_pairs = make_pairs(val_samples);
+    const auto train_triples = make_triples(train_samples, train_meta, /*apply_noise=*/true);
+    const auto val_triples = make_triples(val_samples, val_meta, /*apply_noise=*/false);
 
     const auto t0 = std::chrono::steady_clock::now();
-    const auto epoch_results = trainer.fit_supervised(train_pairs, val_pairs);
+    const auto epoch_results = trainer.fit_supervised_masked(train_triples, val_triples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -271,6 +315,7 @@ auto train_ae(Model& model,
 
     RunMetrics metrics = evaluate_ae(model,
         val_samples,
+        val_meta,
         std::vector<int>(val_samples.size(), 0),
         cfg.training.max_reconstruct_mean_deviation,
         macs,

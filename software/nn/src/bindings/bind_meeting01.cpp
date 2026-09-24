@@ -59,6 +59,7 @@ py::dict window_meta_to_dict(const meeting01::WindowMetadata& m)
     d["window_id"] = m.window_id;
     d["source_window_index"] = m.source_window_index;
     d["digit"] = m.digit;
+    d["valid_length"] = m.valid_length;
     return d;
 }
 
@@ -116,6 +117,17 @@ void bind_meeting01(py::module_& parent)
         py::arg("time_steps"),
         "The training target every model in the experiment is scored against: the ORIGINAL "
         "z-scored window repeated across the steps, never the encoded one.");
+
+    m.def(
+        "make_activity_mask",
+        [](int valid_length, int window_size)
+        { return to_numpy(meeting01::make_activity_mask(valid_length, window_size)); },
+        py::arg("valid_length"),
+        py::arg("window_size"),
+        "1.0 for the first valid_length rows (real signal), 0.0 for the zero-padded tail "
+        "(FSDD/AudioMNIST's trailing partial window only -- see build_split's "
+        "*_meta[i]['valid_length']). Pass through make_reconstruction_target/to_lstm_frames "
+        "exactly like the window itself to get a mask of matching shape for a masked loss.");
 
     m.def(
         "reduce_time_major_output",

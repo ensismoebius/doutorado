@@ -98,6 +98,85 @@ TEST(MSELossTest, GradientIsClippedWhenExplicitlyEnabled)
     EXPECT_NEAR(std::fabs(grad.at(0, 0)), 1.0F, 1e-5F);
 }
 
+// set_mask() support added for meeting01's activity-mask-in-loss feature (excludes the
+// zero-padded tail of a variable-length window from the reconstruction loss). A masked-out
+// element (mask==0) must contribute neither to the reported loss value nor to backward()'s
+// gradient, however large its residual is.
+TEST(MSELossTest, MaskedForwardExcludesMaskedElements)
+{
+    MSELoss mse;
+    nn::Tensor pred(3, 1);
+    pred.at(0, 0) = 1.0F;
+    pred.at(1, 0) = 2.0F;
+    pred.at(2, 0) = 1000.0F; // huge residual, but masked out below
+    nn::Tensor target(3, 1);
+    target.at(0, 0) = 0.0F;
+    target.at(1, 0) = 2.0F;
+    target.at(2, 0) = 0.0F;
+    nn::Tensor mask(3, 1);
+    mask.at(0, 0) = 1.0F;
+    mask.at(1, 0) = 1.0F;
+    mask.at(2, 0) = 0.0F;
+
+    mse.set_target(target);
+    mse.set_mask(mask);
+    nn::Tensor loss = mse.forward(pred, true);
+    // sum(mask*(pred-target)^2)/sum(mask) = (1^2 + 0^2) / 2 = 0.5 -- the huge residual at
+    // index 2 must not move this at all.
+    ASSERT_NEAR(loss.at(0, 0), 0.5F, 1e-5F);
+}
+
+TEST(MSELossTest, MaskedBackwardZerosGradientOnMaskedElements)
+{
+    MSELoss mse;
+    nn::Tensor pred(3, 1);
+    pred.at(0, 0) = 1.0F;
+    pred.at(1, 0) = 2.0F;
+    pred.at(2, 0) = 1000.0F;
+    nn::Tensor target(3, 1);
+    target.at(0, 0) = 0.0F;
+    target.at(1, 0) = 2.0F;
+    target.at(2, 0) = 0.0F;
+    nn::Tensor mask(3, 1);
+    mask.at(0, 0) = 1.0F;
+    mask.at(1, 0) = 1.0F;
+    mask.at(2, 0) = 0.0F;
+
+    mse.set_target(target);
+    mse.set_mask(mask);
+    (void) mse.forward(pred, true);
+    nn::Tensor grad = mse.backward(pred);
+    // mask*2*(pred-target)/sum(mask): index0 = 2*1/2 = 1.0, index1 = 2*0/2 = 0.0,
+    // index2 (masked, huge residual) must still come out exactly 0.
+    EXPECT_NEAR(grad.at(0, 0), 1.0F, 1e-5F);
+    EXPECT_NEAR(grad.at(1, 0), 0.0F, 1e-5F);
+    EXPECT_NEAR(grad.at(2, 0), 0.0F, 1e-5F);
+}
+
+// clear_mask() must revert to plain, element-count-normalized MSE -- bit-identical to a
+// MSELossImpl that never called set_mask() at all, so every pre-existing caller in the
+// framework stays unaffected unless it explicitly opts in.
+TEST(MSELossTest, ClearMaskRevertsToUnmaskedBehavior)
+{
+    MSELoss mse;
+    nn::Tensor pred(2, 1);
+    pred.at(0, 0) = 1.0F;
+    pred.at(1, 0) = 2.0F;
+    nn::Tensor target(2, 1);
+    target.at(0, 0) = 0.0F;
+    target.at(1, 0) = 2.0F;
+    nn::Tensor mask(2, 1);
+    mask.at(0, 0) = 1.0F;
+    mask.at(1, 0) = 0.0F; // would change the result below if still active
+
+    mse.set_target(target);
+    mse.set_mask(mask);
+    mse.clear_mask();
+    nn::Tensor loss = mse.forward(pred, true);
+    // Same as MSELossTest.ForwardAndBackward: mean((pred-target)^2) = (1+0)/2 = 0.5.
+    ASSERT_NEAR(loss.at(0, 0), 0.5F, 1e-5F);
+}
+
 TEST(MAELossTest, TrainToggleAndForwardBackward)
 {
     MAELoss mae;

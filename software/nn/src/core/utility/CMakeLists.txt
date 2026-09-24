@@ -7,6 +7,7 @@ add_library(util
         progress.cpp
         comparison.cpp
         signal_preprocessing.cpp
+        bandpass_notch_filter.cpp
 )
 
 

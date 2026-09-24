@@ -131,6 +131,13 @@ TEST(Meeting01Loaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
     ASSERT_FALSE(ds.windows().empty());
     // 60 speakers in the published corpus; grouped into 6 folds of 10.
     EXPECT_GE(distinct_speakers(ds.metadata()), 10);
+    // Every window's valid_length is a real sample count in (0, window_size] -- the
+    // trailing partial window of a variable-length recording is the only case < 256.
+    for (const auto& m : ds.metadata())
+    {
+        EXPECT_GT(m.valid_length, 0);
+        EXPECT_LE(m.valid_length, 256);
+    }
 
     auto cfg = base_config();
     cfg.dataset.dataset_root = root;
@@ -150,6 +157,9 @@ TEST(Meeting01Loaders, MitBihFormat212DecodesAndWindows)
     ASSERT_FALSE(ds.windows().empty());
     EXPECT_EQ(ds.windows().size(), ds.metadata().size());
     for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
+    // The windowing loop drops a trailing partial window rather than padding it (unlike
+    // FSDD/AudioMNIST), so every window here is full -- see WindowMetadata::valid_length.
+    for (const auto& m : ds.metadata()) EXPECT_EQ(m.valid_length, 256);
     // 48 records in mitdb.
     EXPECT_EQ(distinct_speakers(ds.metadata()), 48);
 
@@ -168,17 +178,23 @@ TEST(Meeting01Loaders, EegSyntheticEdfDecodesAndGroupsBySubject)
     fs::create_directories(root / "subjA");
     fs::create_directories(root / "subjB");
 
-    // Monotonically increasing digital ramp; physical_min/max == digital_min/max
-    // in write_synthetic_edf, so scale == 1 and physical == digital exactly.
-    // z-score is a positive affine map, so strict monotonic order survives it --
-    // this is what the per-window checks below verify, without needing to
-    // replicate zscore_inplace's exact mean/std convention in the test.
+    // Monotonically increasing digital ramp; physical_min/max == digital_min/max in
+    // write_synthetic_edf, so scale == 1 and physical == digital exactly. This test exercises
+    // decode/windowing/subject-grouping mechanics only -- it deliberately does NOT assert
+    // per-sample monotonicity survives z-score any more, because the bandpass+notch filter now
+    // runs first: a monotonic ramp IS low-frequency/DC content by construction, so a 0.5 Hz
+    // highpass correctly removes almost all of it. That is the filter doing its job, not a
+    // regression -- see BandpassNotchFilter.SubLowCutoffDriftIsAttenuated for the dedicated
+    // frequency-response test.
     std::vector<std::int16_t> ramp(16);
     for (std::size_t i = 0; i < ramp.size(); ++i) ramp[i] = static_cast<std::int16_t>(i);
     write_synthetic_edf(root / "subjA" / "subjA_01.edf", ramp, /*samples_per_record=*/4);
     write_synthetic_edf(root / "subjB" / "subjB_01.edf", ramp, /*samples_per_record=*/4);
 
-    meeting01::EegWindowDataset ds(root, /*window_size=*/8);
+    meeting01::EegWindowDataset ds(root,
+        /*window_size=*/8,
+        /*sampling_rate=*/512.0,
+        /*notch_hz=*/-1.0);
     ASSERT_EQ(ds.size(), 4u); // 2 windows/file x 2 files
     EXPECT_EQ(ds.windows().size(), ds.metadata().size());
     EXPECT_EQ(distinct_speakers(ds.metadata()), 2);
@@ -187,11 +203,11 @@ TEST(Meeting01Loaders, EegSyntheticEdfDecodesAndGroupsBySubject)
     {
         const auto& w = ds.windows()[i];
         EXPECT_EQ(w.size(), 8);
-        for (int t = 1; t < 8; ++t) EXPECT_GT(w.at(t, 0), w.at(t - 1, 0)) << "window " << i;
 
         const auto& m = ds.metadata()[i];
         EXPECT_TRUE(m.speaker == "subjA" || m.speaker == "subjB");
         EXPECT_EQ(m.source_window_index, static_cast<int>(i) % 2);
+        EXPECT_EQ(m.valid_length, 8); // EEG windowing never pads a trailing partial window
     }
 
     fs::remove_all(root);
@@ -202,10 +218,11 @@ TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
     const std::string root = kDbRoot + "/eegmmidb";
     if (!fs::exists(root)) GTEST_SKIP() << "no PhysioNet eegmmidb root";
 
-    meeting01::EegWindowDataset ds(root, 256);
+    meeting01::EegWindowDataset ds(root, 256, /*sampling_rate=*/160.0, /*notch_hz=*/60.0);
     ASSERT_FALSE(ds.windows().empty());
     EXPECT_EQ(ds.windows().size(), ds.metadata().size());
     for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
+    for (const auto& m : ds.metadata()) EXPECT_EQ(m.valid_length, 256);
 
     auto cfg = base_config();
     cfg.dataset.dataset_root = root;
@@ -220,10 +237,11 @@ TEST(Meeting01Loaders, SienaRealCorpusLoadsAndGroupsBySubject)
     const std::string root = kDbRoot + "/siena";
     if (!fs::exists(root)) GTEST_SKIP() << "no Siena root";
 
-    meeting01::EegWindowDataset ds(root, 256);
+    meeting01::EegWindowDataset ds(root, 256, /*sampling_rate=*/512.0, /*notch_hz=*/50.0);
     ASSERT_FALSE(ds.windows().empty());
     EXPECT_EQ(ds.windows().size(), ds.metadata().size());
     for (const auto& w : ds.windows()) EXPECT_EQ(w.size(), 256);
+    for (const auto& m : ds.metadata()) EXPECT_EQ(m.valid_length, 256);
 
     auto cfg = base_config();
     cfg.dataset.dataset_root = root;

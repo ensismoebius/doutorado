@@ -9,6 +9,7 @@ add_executable(util_gtest
     util_gtest.cpp
     transforms_gtest.cpp
     progress_gtest.cpp
+    bandpass_notch_filter_gtest.cpp
 )
 target_link_libraries(util_gtest 
     PRIVATE 

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Meeting01Config.hpp"
+#include "Meeting01DatasetSplit.hpp" // WindowMetadata
 #include "Meeting01EpochHistory.hpp"
 #include "Meeting01RunMetrics.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
@@ -65,6 +66,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -76,6 +79,8 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -87,6 +92,8 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::string& encoding,
     std::uint32_t seed,
     std::size_t run_id,
@@ -98,6 +105,8 @@ auto train_with_early_stopping_snn(nn::models::autoencoder::ProtocolSpikingAutoe
     const Meeting01Config& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& train_meta,
+    const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     const std::string& encoding,
     const std::string& architecture,

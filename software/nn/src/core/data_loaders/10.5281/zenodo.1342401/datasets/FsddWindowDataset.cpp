@@ -74,7 +74,27 @@ FsddWindowDataset::FsddWindowDataset(const std::filesystem::path& dataset_root, 
                 // else: zero-pad (default-constructed Tensor is zero)
             }
 
-            window = zscore(window);
+            if (take == static_cast<std::size_t>(window_size))
+            {
+                window = zscore(window);
+            }
+            else
+            {
+                // take < window_size: z-scoring the whole (real + zero-padded) window would
+                // let the padding drag the mean/std away from the real signal's own
+                // statistics, AND turn the padded tail into (0-mean)/std instead of a literal
+                // 0 -- no longer even recognisable as "padding" downstream. Normalize only the
+                // real prefix, against its own statistics, and leave the rest at literal 0
+                // (default-constructed). Callers that need to exclude this region from a loss
+                // or metric use valid_length / make_activity_mask instead of relying on the
+                // padded tail happening to be zero.
+                nn::Tensor real(static_cast<nn::Index>(take), 1);
+                for (std::size_t t = 0; t < take; ++t)
+                    real.at(static_cast<nn::Index>(t), 0) = window.at(static_cast<nn::Index>(t), 0);
+                real = zscore(real);
+                for (std::size_t t = 0; t < take; ++t)
+                    window.at(static_cast<nn::Index>(t), 0) = real.at(static_cast<nn::Index>(t), 0);
+            }
 
             windows_.push_back(std::move(window));
             labels_.push_back(info.digit);
@@ -85,6 +105,7 @@ FsddWindowDataset::FsddWindowDataset(const std::filesystem::path& dataset_root, 
                 global_window_id,
                 source_window_idx,
                 info.digit,
+                static_cast<int>(take),
             });
 
             ++global_window_id;

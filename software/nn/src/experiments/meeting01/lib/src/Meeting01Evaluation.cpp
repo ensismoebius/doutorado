@@ -104,6 +104,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
 auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
+    const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,
     std::size_t macs,
@@ -136,22 +137,32 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
+        const Tensor mask = make_reconstruction_target(
+            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            time_steps);
 
         model.reset_state();
         const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
 
-        mse_acc += mse_between(target, recon);
-        mae_acc += mae_between(target, recon);
+        mse_acc += mse_between_masked(target, recon, mask);
+        mae_acc += mae_between_masked(target, recon, mask);
 
-        float sample_residual_mean = 0.0f;
+        float sample_residual_sum = 0.0f;
+        float sample_mask_sum = 0.0f;
         for (nn::Index k = 0; k < target.size(); ++k)
         {
-            sample_residual_mean += std::fabs(target.at(k) - recon.at(k));
-            y_mean_acc += target.at(k);
-            spike_sum += recon.at(k) > 0.0f ? 1.0f : 0.0f;
-            ++n_values;
+            const float mk = mask.at(k);
+            sample_residual_sum += mk * std::fabs(target.at(k) - recon.at(k));
+            sample_mask_sum += mk;
+            if (mk > 0.0f)
+            {
+                y_mean_acc += target.at(k);
+                spike_sum += recon.at(k) > 0.0f ? 1.0f : 0.0f;
+                ++n_values;
+            }
         }
-        sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, target.size()));
+        const float sample_residual_mean =
+            (sample_mask_sum > 0.0f) ? sample_residual_sum / sample_mask_sum : 0.0f;
         pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
@@ -167,10 +178,14 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
+        const Tensor mask = make_reconstruction_target(
+            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            time_steps);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
         for (nn::Index k = 0; k < target.size(); ++k)
         {
+            if (mask.at(k) <= 0.0f) continue;
             const float y = target.at(k);
             const float yh = recon.at(k);
             ss_res += (y - yh) * (y - yh);
@@ -206,6 +221,9 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
             encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor target = make_reconstruction_target(samples[i], time_steps);
+        const Tensor mask = make_reconstruction_target(
+            make_activity_mask(meta[i].valid_length, static_cast<int>(samples[i].size())),
+            time_steps);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
 
@@ -217,8 +235,8 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
             r.window_id = meta[i].window_id;
             r.source_window_index = meta[i].source_window_index;
         }
-        r.mse = mse_between(target, recon);
-        r.mae = mae_between(target, recon);
+        r.mse = mse_between_masked(target, recon, mask);
+        r.mae = mae_between_masked(target, recon, mask);
         out.push_back(r);
     }
     return out;

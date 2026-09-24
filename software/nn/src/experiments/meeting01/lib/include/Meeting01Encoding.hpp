@@ -25,6 +25,15 @@ auto encode_sample(
 /// window, never the encoded one, so MSE stays comparable across encodings.
 auto make_reconstruction_target(const Tensor& sample, int time_steps) -> Tensor;
 
+/// Builds a (window_size, 1) activity mask: 1.0 for the first `valid_length` rows
+/// (real signal), 0.0 for the rest (zero-padded tail — see WindowMetadata::valid_length).
+/// The result is a plain (window_size, 1) tensor with no notion of encoding or time
+/// steps, so it composes with make_reconstruction_target/to_lstm_frames exactly like the
+/// window itself does — pass it through the SAME calls used to shape the target to get a
+/// mask of matching shape, then feed both to MSELossImpl::set_mask.
+/// @throws std::invalid_argument if valid_length is outside [0, window_size].
+auto make_activity_mask(int valid_length, int window_size) -> Tensor;
+
 /// Collapses a (T, F) model output into the single (1, F) reconstruction of the window
 /// by averaging over the simulation steps — the standard temporal-averaging readout.
 auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor;

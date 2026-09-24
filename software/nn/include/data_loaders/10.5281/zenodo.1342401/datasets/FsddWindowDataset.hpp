@@ -34,6 +34,14 @@ namespace nn::dataLoaders::fsdd
 //                   that lets downstream paired statistics align the same window
 //                   across every model.
 // source_window_index — position of this window within its own recording (0-based).
+// valid_length    — number of REAL (non-zero-padded) samples in this window, out of
+//                   window_size. Equal to window_size for every window except the
+//                   last, trailing window of a recording whose length isn't a
+//                   multiple of window_size (FSDD/AudioMNIST only — EEG and MIT-BIH
+//                   loaders drop a trailing partial window instead of padding it, so
+//                   their windows always report valid_length == window_size). Use
+//                   make_activity_mask(valid_length, window_size) (Meeting01Encoding.hpp)
+//                   to turn this into a 0/1 tensor for masked loss/metrics.
 struct WindowMetadata
 {
     std::string speaker;
@@ -42,6 +50,7 @@ struct WindowMetadata
     int window_id;
     int source_window_index;
     int digit;
+    int valid_length;
 };
 
 class FsddWindowDataset

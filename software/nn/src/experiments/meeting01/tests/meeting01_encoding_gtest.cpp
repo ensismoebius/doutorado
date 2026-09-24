@@ -150,6 +150,50 @@ TEST(Meeting01Encoding, ReconstructionTargetIsTheOriginalWindowNotTheCode)
             EXPECT_FLOAT_EQ(target.at(t, f), window.at(f));
 }
 
+TEST(Meeting01Encoding, ActivityMaskIsOnesForValidTailZerosForPadding)
+{
+    const auto mask = meeting01::make_activity_mask(/*valid_length=*/5, /*window_size=*/8);
+    ASSERT_EQ(mask.rows(), 8);
+    ASSERT_EQ(mask.cols(), 1);
+    for (nn::Index t = 0; t < 5; ++t) EXPECT_FLOAT_EQ(mask.at(t, 0), 1.0f) << t;
+    for (nn::Index t = 5; t < 8; ++t) EXPECT_FLOAT_EQ(mask.at(t, 0), 0.0f) << t;
+}
+
+TEST(Meeting01Encoding, ActivityMaskFullValidLengthIsAllOnes)
+{
+    const auto mask = meeting01::make_activity_mask(/*valid_length=*/8, /*window_size=*/8);
+    for (nn::Index t = 0; t < mask.rows(); ++t) EXPECT_FLOAT_EQ(mask.at(t, 0), 1.0f) << t;
+}
+
+TEST(Meeting01Encoding, ActivityMaskZeroValidLengthIsAllZeros)
+{
+    const auto mask = meeting01::make_activity_mask(/*valid_length=*/0, /*window_size=*/8);
+    for (nn::Index t = 0; t < mask.rows(); ++t) EXPECT_FLOAT_EQ(mask.at(t, 0), 0.0f) << t;
+}
+
+TEST(Meeting01Encoding, ActivityMaskRejectsOutOfRangeValidLength)
+{
+    EXPECT_THROW(meeting01::make_activity_mask(-1, 8), std::invalid_argument);
+    EXPECT_THROW(meeting01::make_activity_mask(9, 8), std::invalid_argument);
+}
+
+// The mask composes with make_reconstruction_target exactly like the window itself: both
+// go through the same replication, so a masked SNN target has a mask of matching shape
+// "for free" -- see train_with_early_stopping_snn.
+TEST(Meeting01Encoding, ActivityMaskComposesWithReconstructionTarget)
+{
+    const auto mask = meeting01::make_activity_mask(/*valid_length=*/5, /*window_size=*/8);
+    const auto replicated = meeting01::make_reconstruction_target(mask, kSteps);
+
+    ASSERT_EQ(replicated.rows(), kSteps);
+    ASSERT_EQ(replicated.cols(), 8);
+    for (nn::Index t = 0; t < replicated.rows(); ++t)
+    {
+        for (nn::Index f = 0; f < 5; ++f) EXPECT_FLOAT_EQ(replicated.at(t, f), 1.0f);
+        for (nn::Index f = 5; f < 8; ++f) EXPECT_FLOAT_EQ(replicated.at(t, f), 0.0f);
+    }
+}
+
 TEST(Meeting01Encoding, TargetVarianceIsIdenticalAcrossEncodings)
 {
     // The property that makes val_mse comparable between encodings, and that stops the

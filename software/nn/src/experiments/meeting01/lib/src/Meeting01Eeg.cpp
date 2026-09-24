@@ -25,6 +25,7 @@
 #include <map>
 #include <stdexcept>
 
+#include "utility/BandpassNotchFilter.hpp"
 #include "utility/WindowZScore.hpp"
 
 namespace meeting01
@@ -155,9 +156,19 @@ std::vector<float> read_signal0(const std::filesystem::path& edf)
     return out;
 }
 
+// Standard EEG analysis band (see .wiki/Core/DataLoaders.md "Transforms" section for the
+// literature this is based on -- 0.5-40 Hz bandpass is the practice found for both Siena and
+// general EEG deep-learning preprocessing).
+constexpr double kEegBandLowHz = 0.5;
+constexpr double kEegBandHighHz = 40.0;
+constexpr double kNotchWidthHz = 2.0;
+
 } // namespace
 
-EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root, int window_size)
+EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root,
+    int window_size,
+    double sampling_rate,
+    double notch_hz)
 {
     if (window_size <= 0) throw std::invalid_argument("EegWindowDataset: window_size must be > 0");
     if (!std::filesystem::exists(dataset_root))
@@ -182,7 +193,9 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root, in
     int global_window_id = 0;
     for (std::size_t rec = 0; rec < files.size(); ++rec)
     {
-        const std::vector<float> sig0 = read_signal0(files[rec]);
+        const std::vector<float> raw = read_signal0(files[rec]);
+        const std::vector<float> sig0 = nn::utility::bandpass_notch(
+            raw, sampling_rate, kEegBandLowHz, kEegBandHighHz, notch_hz, kNotchWidthHz);
         const std::string subject = files[rec].parent_path().filename().string();
 
         int source_window_idx = 0;
@@ -203,6 +216,7 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root, in
                 global_window_id,
                 source_window_idx,
                 -1,
+                window_size, // loop condition below never emits a padded trailing window
             });
             ++global_window_id;
             ++source_window_idx;

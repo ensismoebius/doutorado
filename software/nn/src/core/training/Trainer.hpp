@@ -39,6 +39,7 @@
 #include <numeric>
 #include <random>
 #include <span>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -100,6 +101,20 @@ template <typename T>
 struct has_sops<T, std::void_t<decltype(std::declval<T>().sops())>> : std::true_type
 {
 };
+
+// Detect set_mask(Tensor) on LossType at compile time — gates fit_supervised_masked() via
+// static_assert so an unsupported LossType fails to compile there, rather than silently
+// training as if the mask were never set.
+template <typename T, typename Tensor, typename = void>
+struct has_set_mask : std::false_type
+{
+};
+template <typename T, typename Tensor>
+struct has_set_mask<T,
+    Tensor,
+    std::void_t<decltype(std::declval<T>().set_mask(std::declval<Tensor>()))>> : std::true_type
+{
+};
 } // namespace detail
 
 template <typename ModelType, typename LossType = MSELossImpl<nn::Backend>>
@@ -109,6 +124,9 @@ class Trainer
     using Tensor = typename ModelType::Tensor;
     using Sample = Tensor;
     using SamplePair = std::pair<Tensor, Tensor>;
+    // (input, target, mask) — mask is elementwise, same shape as target; see
+    // fit_supervised_masked() and MSELossImpl::set_mask().
+    using SampleTriple = std::tuple<Tensor, Tensor, Tensor>;
     using SampleTransform = std::function<Tensor(const Tensor&, std::size_t)>;
 
     explicit Trainer(ModelType& model, const TrainerConfig& cfg) : Trainer(model, cfg, LossType{})
@@ -176,6 +194,36 @@ class Trainer
             val_targets.push_back(t);
         }
         return fit_loop_supervised(train_inputs, train_targets, val_inputs, val_targets);
+    }
+
+    // Same as fit_supervised(), but each sample additionally carries an elementwise mask
+    // (same shape as its target) that LossType applies via set_mask() before every
+    // forward/backward — see MSELossImpl::set_mask() and meeting01::make_activity_mask().
+    // A LossType without set_mask(Tensor) fails to COMPILE here rather than silently
+    // ignoring the mask — see detail::has_set_mask.
+    auto fit_supervised_masked(const std::vector<SampleTriple>& train_triples,
+        const std::vector<SampleTriple>& val_triples = {}) -> std::vector<EpochResult>
+    {
+        static_assert(detail::has_set_mask<LossType, Tensor>::value,
+            "Trainer::fit_supervised_masked requires a LossType with set_mask(Tensor) — "
+            "MSELossImpl has it; a LossType without it would silently train unmasked.");
+
+        std::vector<Sample> train_inputs, train_targets, train_masks;
+        std::vector<Sample> val_inputs, val_targets, val_masks;
+        for (const auto& [i, t, msk] : train_triples)
+        {
+            train_inputs.push_back(i);
+            train_targets.push_back(t);
+            train_masks.push_back(msk);
+        }
+        for (const auto& [i, t, msk] : val_triples)
+        {
+            val_inputs.push_back(i);
+            val_targets.push_back(t);
+            val_masks.push_back(msk);
+        }
+        return fit_loop_supervised_masked(
+            train_inputs, train_targets, train_masks, val_inputs, val_targets, val_masks);
     }
 
     const TrainerConfig& config() const
@@ -668,6 +716,193 @@ class Trainer
                     reset_model_state();
                     Tensor vout = model_.forward(val_inp, false);
                     loss_.set_target(val_tgt);
+                    Tensor vloss_t = loss_.forward(vout, false);
+
+                    const int vbs = static_cast<int>(vend - vstart);
+                    val_loss_sum += vloss_t.at(0, 0) * static_cast<float>(vbs);
+                    n_val += vbs;
+                    vstart = vend;
+                }
+                avg_val_loss = (n_val > 0) ? val_loss_sum / static_cast<float>(n_val)
+                                           : std::numeric_limits<float>::quiet_NaN();
+            }
+
+            const auto t_end = std::chrono::steady_clock::now();
+            const float ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+
+            EpochResult result{epoch, avg_train_loss, avg_val_loss, ms};
+            maybe_populate_snn_fields(result);
+
+            state.last_epoch_result = &result;
+            cb_epoch_end(state, result);
+            history.push_back(result);
+
+            if (cb_should_stop()) break;
+        }
+
+        cb_train_end(history);
+        return history;
+    }
+
+    // --- supervised loop with a per-sample elementwise mask (input != target, masked loss) ---
+    //
+    // Identical to fit_loop_supervised() except each batch also stacks a mask (same
+    // stack_time_major() used for input/target, so it reshapes identically) and calls
+    // loss_.set_mask() before every forward/backward. See fit_supervised_masked().
+    auto fit_loop_supervised_masked(const std::vector<Sample>& train_inputs,
+        const std::vector<Sample>& train_targets,
+        const std::vector<Sample>& train_masks,
+        const std::vector<Sample>& val_inputs,
+        const std::vector<Sample>& val_targets,
+        const std::vector<Sample>& val_masks) -> std::vector<EpochResult>
+    {
+        const int N = static_cast<int>(train_inputs.size());
+        const int batches_per_epoch = (N + cfg_.batch_size - 1) / cfg_.batch_size;
+
+        std::vector<EpochResult> history;
+        history.reserve(static_cast<std::size_t>(cfg_.epochs));
+
+        std::vector<std::size_t> indices(train_inputs.size());
+        std::iota(indices.begin(), indices.end(), 0u);
+        std::mt19937 rng(cfg_.sampler_shuffle_seed);
+
+        cb_train_begin(cfg_.epochs);
+
+        for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
+        {
+            const auto t_start = std::chrono::steady_clock::now();
+
+            TrainingState state;
+            state.epoch = epoch;
+            state.total_epochs = cfg_.epochs;
+            state.total_batches = batches_per_epoch;
+            cb_epoch_begin(state);
+
+            std::shuffle(indices.begin(), indices.end(), rng);
+
+            float train_loss_sum = 0.0F;
+            int n_train = 0;
+            int batch_idx = 0;
+
+            std::size_t batch_start = 0;
+            while (batch_start < train_inputs.size())
+            {
+                const std::size_t batch_end = std::min(
+                    batch_start + static_cast<std::size_t>(cfg_.batch_size), train_inputs.size());
+
+                state.batch = ++batch_idx;
+                state.batch_progress = 0.0F;
+                state.batch_loss = 0.0F;
+                cb_batch_begin(state);
+
+                float batch_loss_sum = 0.0F;
+                const std::size_t batch_sample_count = batch_end - batch_start;
+
+                {
+                    optimizer_->zero_grad(model_.params());
+
+                    const auto B = static_cast<nn::Index>(batch_sample_count);
+                    std::vector<Tensor> inp_parts, tgt_parts, msk_parts;
+                    inp_parts.reserve(batch_sample_count);
+                    tgt_parts.reserve(batch_sample_count);
+                    msk_parts.reserve(batch_sample_count);
+                    for (std::size_t k = batch_start; k < batch_end; ++k)
+                    {
+                        const std::size_t idx = indices[k];
+                        inp_parts.push_back(transform(train_inputs[idx], idx));
+                        tgt_parts.push_back(train_targets[idx]);
+                        msk_parts.push_back(train_masks[idx]);
+                    }
+
+                    Tensor batch_inp = stack_time_major(inp_parts);
+                    Tensor batch_tgt = stack_time_major(tgt_parts);
+                    Tensor batch_msk = stack_time_major(msk_parts);
+
+                    state.batch_progress = 0.3F;
+                    cb_batch_progress(state);
+
+                    reset_model_state();
+                    Tensor output = model_.forward(batch_inp, true);
+                    state.batch_progress = 0.6F;
+                    cb_batch_progress(state);
+
+                    loss_.set_target(batch_tgt);
+                    // Guarded by if constexpr (not just the static_assert in
+                    // fit_supervised_masked) so this function template itself stays
+                    // instantiable-but-inert for a LossType without set_mask, matching the
+                    // has_reset_state/has_last_mean_rate idiom above instead of leaving a
+                    // second, less legible compiler error alongside the static_assert.
+                    if constexpr (detail::has_set_mask<LossType, Tensor>::value)
+                        loss_.set_mask(batch_msk);
+                    Tensor loss_t = loss_.forward(output, true);
+                    batch_loss_sum = loss_t.at(0, 0) * static_cast<float>(B);
+                    state.batch_loss = loss_t.at(0, 0);
+                    state.batch_progress = 0.75F;
+                    cb_batch_progress(state);
+
+                    Tensor d_out = loss_.backward(output);
+                    model_.backward(d_out);
+                    state.batch_progress = 0.9F;
+                    cb_batch_progress(state);
+
+                    if (cfg_.grad_clip_norm > 0.0F)
+                        clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                    state.batch_progress = 0.92F;
+                    cb_batch_progress(state);
+
+                    optimizer_->step(model_.params());
+                }
+
+                const int bs = static_cast<int>(batch_end - batch_start);
+                const float avg_batch_loss = batch_loss_sum / static_cast<float>(bs);
+                train_loss_sum += avg_batch_loss * static_cast<float>(bs);
+                n_train += bs;
+
+                state.batch_loss = avg_batch_loss;
+                state.batch_progress = 1.0F;
+                cb_batch_end(state);
+
+                batch_start = batch_end;
+            }
+
+            const float avg_train_loss =
+                (n_train > 0) ? train_loss_sum / static_cast<float>(n_train) : 0.0F;
+
+            // Validation — chunked exactly like fit_loop_supervised(); see that method's
+            // comment for why a single whole-set stack would be wrong for the frame-
+            // consuming AEs.
+            float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
+            if (!val_inputs.empty())
+            {
+                OptimizerEvalScope _eval_scope(*optimizer_);
+
+                float val_loss_sum = 0.0F;
+                int n_val = 0;
+                std::size_t vstart = 0;
+                while (vstart < val_inputs.size())
+                {
+                    const std::size_t vend = std::min(
+                        vstart + static_cast<std::size_t>(cfg_.batch_size), val_inputs.size());
+                    const std::vector<Tensor> vinp_parts(
+                        val_inputs.begin() + static_cast<std::ptrdiff_t>(vstart),
+                        val_inputs.begin() + static_cast<std::ptrdiff_t>(vend));
+                    const std::vector<Tensor> vtgt_parts(
+                        val_targets.begin() + static_cast<std::ptrdiff_t>(vstart),
+                        val_targets.begin() + static_cast<std::ptrdiff_t>(vend));
+                    const std::vector<Tensor> vmsk_parts(
+                        val_masks.begin() + static_cast<std::ptrdiff_t>(vstart),
+                        val_masks.begin() + static_cast<std::ptrdiff_t>(vend));
+
+                    Tensor val_inp = stack_time_major(vinp_parts);
+                    Tensor val_tgt = stack_time_major(vtgt_parts);
+                    Tensor val_msk = stack_time_major(vmsk_parts);
+
+                    reset_model_state();
+                    Tensor vout = model_.forward(val_inp, false);
+                    loss_.set_target(val_tgt);
+                    if constexpr (detail::has_set_mask<LossType, Tensor>::value)
+                        loss_.set_mask(val_msk);
                     Tensor vloss_t = loss_.forward(vout, false);
 
                     const int vbs = static_cast<int>(vend - vstart);

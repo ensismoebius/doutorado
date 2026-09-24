@@ -194,6 +194,9 @@ const nn::Tensor normalized = pipeline(raw_window);
 | `FusedModalityTransform` | `(rows, eeg_cols + audio_cols)` | Applies one transform to the EEG column block and another to the audio column block of the same tensor | — |
 | `RandomCrop` | `(N, 1)`, `N ≥ crop_size` | Returns a `crop_size`-long window at a uniformly random offset — the *continuous-signal* analogue of `torchvision.transforms.RandomCrop` | `RandomIndexCrop` |
 | `RandomIndexCrop` | none (operates on `vector<size_t>` indices, not tensors) | Returns a random permutation of a set of already-materialized candidate indices | `RandomCrop` |
+| `bandpass_notch` (`nn::utility`, not `ITransform`) | `vector<float>`, one **full recording**, not a window | FIR bandpass + optional mains-notch — see its own subsection below for why it can't be a window-level `ITransform` | — |
+| `make_activity_mask` (`meeting01`, not `ITransform`) | takes `(valid_length, window_size)` ints, returns `(window_size, 1)` | 1.0/0.0 mask marking a window's zero-padded tail — see its own subsection below | `RandomIndexCrop` — different problem, see that box |
+| `GaussianNoise` | `(N, 1)`, any N | Elementwise `out = x + N(0, std²)`; `std=0` is an exact no-op — see its own subsection below | `WindowZScore` — this adds, that normalizes |
 
 ### The confusable pair: three normalizers, three different axes
 
@@ -261,6 +264,200 @@ one seed, not from re-seeding before each call. Two instances built with the
 same seed and called the same number of times produce byte-identical output;
 the same instance called twice in a row does *not* (that's the point — it's
 what breaks the "always index/offset 0" bias).
+
+### `bandpass_notch` — not an `ITransform` (recording-level, not window-level)
+
+`nn::utility::bandpass_notch` (`include/utility/BandpassNotchFilter.hpp`) removes
+sub-0.5 Hz drift, above-40 Hz muscle/EMG noise, and mains hum (50 Hz Siena/Italy,
+60 Hz eegmmidb/US) from a **full, un-windowed** EEG recording before
+`EegWindowDataset` slices it into windows. It deliberately does *not* implement
+`ITransform`: a sharp low-frequency cutoff needs hundreds of FIR taps for a
+usable transition width, which would dwarf a 256-sample window — filtering has
+to happen once on the whole recording, upstream of windowing, the same
+"continuous signal, not a discrete already-sliced candidate" territory
+`RandomCrop` lives in (see the confusable-pair box above), just at the
+preprocessing stage instead of the sampling stage.
+
+**A real bug found while building this, left unfixed on purpose**: this
+project already had FIR filter *coefficient generators*
+(`include/wave/filter_operations.hpp` — `createLowPassFilter`,
+`createStopBandFilter`, `bandStopFilter`). Their windowed-sinc kernel is
+min-max-rescaled to `[0, 1]` after generation
+(`buildSincLowPassKernel`, `filter_operations.cpp`). A sinc lowpass kernel
+needs negative side-lobe taps to cancel stopband frequencies — squashing every
+tap into `[0, 1]` removes all of them, so the result is not a working filter,
+just something sinc-*shaped*. The existing tests for these functions only
+check that the output matches the function's *own* (buggy) formula — never an
+actual frequency response — so this passed CI silently. Nothing in the
+codebase currently calls these functions outside their own tests (confirmed
+via `find_references`), so the blast radius today is zero, but do **not**
+reuse them for real filtering without fixing the normalization first (unity
+DC-gain, i.e. divide by `sum(taps)`, not min-max). `bandpass_notch` is a
+from-scratch, independently-tested implementation — it does not depend on or
+share code with the broken one.
+
+### Activity mask — excluding zero-padding from the loss, not from the window
+
+**The problem.** `FsddWindowDataset` (used by both `fsdd` and `audiomnist`) slices each
+recording into non-overlapping `window_size`-sample windows. When a recording's length
+isn't a multiple of `window_size`, the *last* window is shorter, and the loader fills the
+rest with zeros so every window still has a fixed shape. Those zeros were never recorded —
+they don't exist in the audio. But the reconstruction loss (MSE, used by all four model
+families — SNN/LSTM/GRU/Transformer-AE) can't tell "real silence" from "padding": every
+element of every window, fake or not, counted equally toward the score. The network was
+being penalized for failing to "reconstruct" samples that were never part of the
+recording.
+
+**A concrete example.** `window_size=8`, one recording is 12 samples long:
+
+```
+recording:         [ 3  7  2  9 | 10 20 30 40 ]           <- 12 real samples
+window 0 (take=8):  3  7  2  9 10 20 30 40                 full, no padding
+window 1 (take=4): 10 20 30 40  0  0  0  0                 4 real + 4 FAKE zeros
+                    └──────────┘ └────────┘
+                    real prefix   padding (never recorded)
+```
+
+`WindowMetadata::valid_length` records this per window: `8` for window 0, `4` for
+window 1. `make_activity_mask(valid_length, window_size)` turns that single int into the
+tensor a loss/metric needs: `[1,1,1,1,0,0,0,0]` for window 1, all-ones for window 0.
+EEG (`eegmmidb`/`siena`) and MIT-BIH loaders never emit this case — their windowing loop
+*drops* a trailing partial window instead of padding it, so `valid_length == window_size`
+always for every window they produce.
+
+**A second, independent bug found while fixing this.** Before this fix, z-score
+normalization ran on the whole *padded* window (real + fake zeros together) — window 1's
+mean/std above would have been computed over `[10,20,30,40,0,0,0,0]`, not just the real
+`[10,20,30,40]`. Two problems follow: the real samples get normalized against statistics
+that don't describe them, and — worse — the padded tail is no longer even literally zero
+after normalization (it becomes `(0 - mean) / std` of the *mixed* population), so it can't
+even be recognized as padding downstream by inspecting the values. The fix normalizes only
+the real prefix, against its own mean/std, and leaves the padded tail at literal `0.0`.
+
+**The mechanism.** `make_activity_mask(valid_length, window_size)` (`Meeting01Encoding.hpp`)
+is a pure, content-agnostic function — it doesn't know or care what "window" means, it just
+returns a `(window_size, 1)` tensor of 1s then 0s. That's deliberate: `make_reconstruction_target`
+and `to_lstm_frames` (the two functions that already reshape the *target* into whatever
+shape a given model family needs — time-major replication for the SNN, frame-reshaping for
+LSTM/GRU/Transformer) are ALSO pure structural transforms with no notion of "signal" built
+in. Passing the raw mask through the *same* calls used for the target produces a mask of
+matching shape for free, with zero new reshape logic:
+
+```cpp
+const Tensor mask = to_lstm_frames(
+    make_activity_mask(meta.valid_length, window_size), frame_size);   // LSTM/GRU/Transformer
+const Tensor mask = make_reconstruction_target(
+    make_activity_mask(meta.valid_length, window_size), time_steps);   // SNN
+```
+
+`MSELossImpl::set_mask(mask)` (`include/layers/losses/MSELoss.hpp`) then restricts both
+`forward()` and `backward()` to `sum(mask ⊙ (pred-target)²) / sum(mask)` instead of the
+plain element-count mean — a masked-out element contributes to neither the reported loss
+nor the gradient, however large its residual. `Trainer::fit_supervised_masked()`
+(`src/core/training/Trainer.hpp`) threads a per-sample mask through the training loop
+alongside input/target; it is purely additive (a new method, a new `SampleTriple` type,
+SFINAE-detected `set_mask` support) so every existing `Trainer`/`MSELossImpl` caller in the
+framework — `thesis`, `autoencoderRunner`, core tests — is unaffected unless it opts in.
+`mse_between_masked`/`mae_between_masked` (`include/statistics/reconstruction_metrics.hpp`)
+apply the identical masked formula to evaluation and per-window-error reporting, so a
+model's reported test-set MSE is computed the same way its training loss was — without
+this, training would correctly ignore the padding while the *reported* metrics still
+silently included it, producing a misleading train/test gap that isn't real.
+
+**Failure mode: silent, and specific to FSDD/AudioMNIST's last window per recording.**
+Every other window of every dataset is completely unaffected (`valid_length == window_size`
+there, so the mask is all-ones and the masked and unmasked computations coincide exactly).
+Only the trailing, padded window of a variable-length FSDD/AudioMNIST recording — a small
+fraction of the total — was silently training and scoring against fabricated zero content.
+
+### Denoising-autoencoder corruption
+
+**The problem.** A vanilla autoencoder trained with `target = input` has a trivial escape
+hatch: given enough capacity, it can learn something close to the identity function and
+still score a good reconstruction loss without ever building a compressed, general
+representation of the signal — it's just copying. Vincent et al. (2008, ICML; 2010, JMLR)
+close that escape hatch: corrupt the network's INPUT with noise, but keep the loss TARGET
+clean. The network can no longer copy its way to a low loss — it has to recover the clean
+signal from a corrupted one, which forces the bottleneck to encode signal structure instead
+of exact sample values.
+
+**A concrete example.** `denoising_noise_std=0.05`, one post-z-score FSDD sample value
+`x=0.42`:
+
+```
+clean signal:              0.42
+                              │ GaussianNoise(std=0.05), one draw ~ N(0, 0.05²) = -0.03
+                              ▼
+corrupted encoder input:   0.42 + (-0.03) = 0.39     <- what the network SEES
+reconstruction target:     0.42                       <- what the loss SCORES against, unchanged
+```
+
+The network is graded on how close its output gets to `0.42`, having only ever seen `0.39`.
+It cannot get there by copying its input — it has to have learned enough about the signal's
+structure, across the whole training set, to denoise.
+
+**Where corruption is applied, and where it is not.**
+
+```
+train_samples[i]  (clean analog window)
+        │
+        ├─ apply_noise=true ──> GaussianNoise ──> encode_sample ──> ENCODER INPUT (train)
+        │
+        └───────────────────────────────────────> make_reconstruction_target / to_lstm_frames
+                                                    ──> TARGET (train)  <- always clean
+                                                    ──> MASK   (train)  <- always clean (see Activity mask, above)
+
+val_samples[i]    (clean analog window)
+        └─ apply_noise=false ─> encode_sample ──> ENCODER INPUT (val)   <- also clean
+                                                    TARGET / MASK (val) <- clean
+```
+
+Validation input is never corrupted (`apply_noise=false` in `make_triples`,
+`Meeting01Training.cpp`/`Meeting01AeCommon.hpp`): the comparison across model families is
+about how well each one reconstructs the REAL signal, not how well it denoises a synthetic
+noise distribution nobody will see at inference. Only the training encoder input is
+corrupted; the target and the activity mask are always built from the clean sample.
+
+**The confusable pair: per-epoch resampling vs. per-run fixed noise.**
+
+|                            | Per-epoch resampling (rejected) | Per-run fixed noise (chosen) |
+|---|---|---|
+| When noise is drawn | fresh draw every epoch, via `Trainer::sample_transform_` | once, when `make_triples` builds the `(input, target, mask)` triples, before the epoch loop starts |
+| What it perturbs | the ALREADY-ENCODED tensor — post spike-conversion for SNN, post frame-reshape for LSTM/GRU/Transformer | the RAW analog signal, before `encode_sample` |
+| Effect on a spike train | adds Gaussian noise to 0/1 spike values — not physically meaningful, wrong semantic layer | none directly: noise perturbs the analog signal, and the SAME encoding pipeline converts the (now slightly different) signal to spikes, exactly as real sensor noise would |
+| Consistency across families | `sample_transform_` exists only on `Trainer`, unreachable before encoding | identical mechanism (same `GaussianNoise` call, same position relative to `encode_sample`) for all 4 families |
+| `Trainer` changes needed | none — hook already exists, but at the wrong layer | none |
+
+`Trainer::sample_transform_` (`set_sample_transform()`) already exists and IS applied fresh
+every batch/epoch — but only to the tensor AFTER encoding. For SNN that means after
+Poisson/latency conversion to spikes, where "add Gaussian noise" no longer means "the
+microphone/electrode picked up some noise": it perturbs 0/1 spike values into non-binary
+floats, which the spike machinery downstream was never built to consume. Applying noise to
+the raw analog signal once per run, before `encode_sample`, keeps the corruption physically
+meaningful and identical across all four families being compared — the same reasoning that
+already fixed poisson encoding to one draw per run instead of resampling every epoch (see
+`.wiki/Experiments/Meeting01.md`).
+
+**Mechanism.** `GaussianNoise` (`include/utility/GaussianNoise.hpp`), a new
+`nn::transforms::ITransform`: elementwise `out = x + N(0, std²)`, with a private
+`std::mt19937` seeded once at construction and advanced on every call — the same
+stateful-callable contract as `RandomCrop`/`RandomIndexCrop` (see Determinism, above).
+`denoising_noise_std=0.0f` (the default) makes `operator()` return its input completely
+unchanged: `std::normal_distribution` at `stddev=0` is a standard-library precondition
+violation (UB), so the class short-circuits instead of constructing that distribution. This
+is why every profile written before this feature existed trains byte-identically to before.
+
+**Failure mode: silent, and directional.** If corruption were accidentally applied to the
+TARGET as well as the input — or applied after `make_reconstruction_target`/`to_lstm_frames`
+instead of before `encode_sample` — the network would be asked to reconstruct a noisy
+target. Training would proceed, the loss curve would look completely normal, and the number
+the GA optimizes against would still look reasonable — but it would no longer measure
+denoising ability at all: a model that perfectly reproduces the corruption would now score
+best, the opposite of the property this technique exists to encourage. Nothing about this
+fails loudly. It produces a plausible, lower-than-expected training loss (matching noise is
+easier than removing it) that would only surface by inspecting reconstructions directly, or
+by noticing the val/test reconstruction metrics — computed on the clean target, see above —
+diverge suspiciously from the training loss.
 
 ## Data Flow
 

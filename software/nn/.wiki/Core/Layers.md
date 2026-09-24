@@ -518,6 +518,22 @@ these two encodings:
 | `SpikeCountLossImpl` | `losses/SpikeCountLoss.hpp` | Rate-coded outputs (information is in *how many* spikes fired) — mean-squared error on spike counts, plus a regularisation term that discourages neurons from always firing or never firing |
 | `SpikeTimeLossImpl` | `losses/SpikeTimeLoss.hpp` | Latency-coded outputs (information is in *when* the first spike fires) — mean-squared error on first-spike timing |
 
+### `MSELossImpl::set_mask` — restricting a loss to part of a tensor
+
+`MSELossImpl` (`losses/MSELoss.hpp`, the `Trainer` default loss) optionally takes an
+elementwise mask: `set_mask(mask)` before `forward()`/`backward()` restricts both to
+`sum(mask ⊙ (pred-target)²) / sum(mask)` — a masked-out (`mask==0`) element contributes to
+neither the reported loss value nor the gradient, however large its residual is.
+`clear_mask()` (or never calling `set_mask()` at all, the default) reverts to plain,
+element-count-normalized MSE, bit-identical to every pre-existing caller in the framework —
+masking is purely opt-in.
+
+This exists for meeting01's activity mask: the zero-padded tail of a variable-length
+FSDD/AudioMNIST window must not be scored as if it were real signal. See
+[DataLoaders — Activity mask](./DataLoaders.md#activity-mask--excluding-zero-padding-from-the-loss-not-from-the-window)
+for the full motivating example and how `Trainer::fit_supervised_masked()` threads a mask
+through training.
+
 ## Data Flow
 
 ```mermaid

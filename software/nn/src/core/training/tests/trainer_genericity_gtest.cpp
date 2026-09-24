@@ -55,8 +55,15 @@ struct TinyModel
         for (std::size_t i = 0; i < grad_out.rows(); ++i)
             for (std::size_t j = 0; j < grad_out.cols(); ++j)
                 g += grad_out.at(i, j) * last_input_.at(i, j);
-        weight_.set_grad(nn::Tensor(1, 1));
-        weight_.grad().at(0, 0) = g;
+        // grad() returns a *copy* (see Tensor.hpp / MixedParamModel's comment below) — the
+        // gradient tensor must be fully built BEFORE set_grad(), not mutated through the
+        // getter afterward. The old `set_grad(zeros); grad().at(0,0) = g;` silently left
+        // weight_'s real gradient at 0 (mutating a throwaway copy of the zero tensor) —
+        // dormant until a test actually read weight_'s post-training VALUE (every prior
+        // TinyModel test only checked callback counts / history size, never the weight).
+        nn::Tensor grad(1, 1);
+        grad.at(0, 0) = g;
+        weight_.set_grad(grad);
     }
 
     std::span<nn::Tensor*> params()
@@ -419,6 +426,81 @@ TEST(TrainerGenericity, OptimizerTypeSelectsImplementation)
     // behave that way — but a single step suffices to prove the factory wired a real
     // SGD: an unknown type must throw rather than silently fall back to Adam.
     EXPECT_THROW(delta_for("nonexistent-optimizer", kLr), std::runtime_error);
+}
+
+// fit_supervised_masked() (meeting01's activity-mask-in-loss feature): a target value at
+// a masked-out (mask==0) position must never influence training, however large it is.
+// TinyModel's backward() is g = sum(grad_out[i] * input[i]) — if the masked position's
+// gradient isn't exactly zero, its garbage target value will move the weight differently
+// than a masked position holding a plain zero.
+TEST(TrainerGenericity, MaskedFitIgnoresMaskedOutTargetGarbage)
+{
+    auto weight_after_one_step = [](float masked_out_target_value) -> float
+    {
+        TinyModel model;
+        nn::training::TrainerConfig cfg;
+        cfg.epochs = 1;
+        cfg.batch_size = 1;
+        cfg.learning_rate = 0.1F;
+        cfg.snn_lr_scale = 1.0F;
+
+        nn::training::Trainer<TinyModel> trainer(model, cfg); // default LossType = MSELossImpl
+
+        nn::Tensor input(2, 1);
+        input.at(0, 0) = 2.0F;
+        input.at(1, 0) = 3.0F;
+
+        nn::Tensor target(2, 1);
+        target.at(0, 0) = 5.0F; // != input[0]*weight_init(1.0)=2.0, so this position has a
+                                // real, nonzero residual and must actually move the weight
+        target.at(1, 0) = masked_out_target_value;
+
+        nn::Tensor mask(2, 1);
+        mask.at(0, 0) = 1.0F;
+        mask.at(1, 0) = 0.0F;
+
+        using Triple = nn::training::Trainer<TinyModel>::SampleTriple;
+        std::vector<Triple> triples;
+        triples.emplace_back(input, target, mask);
+
+        trainer.fit_supervised_masked(triples);
+        return model.weight_.at(0, 0);
+    };
+
+    const float weight_with_zero = weight_after_one_step(0.0F);
+    const float weight_with_garbage = weight_after_one_step(999.0F);
+    EXPECT_FLOAT_EQ(weight_with_zero, weight_with_garbage);
+    // The masked step must actually move the weight -- otherwise the equality above would
+    // be trivially true regardless of whether masking works.
+    EXPECT_NE(weight_with_zero, 1.0F);
+}
+
+// fit_supervised() (input != target) had zero test coverage before this — every other
+// TinyModel test above uses fit_autoencoder(), where TinyModel's weight starts AT its own
+// fixed point (target==input, so a weight of 1.0 already has zero residual) and therefore
+// never needs to move. This is a real regression guard for the fit_supervised path itself.
+TEST(TrainerGenericity, UnmaskedSupervisedFitMovesWeightTowardTarget)
+{
+    TinyModel model;
+    nn::training::TrainerConfig cfg;
+    cfg.epochs = 1;
+    cfg.batch_size = 1;
+    cfg.learning_rate = 0.1F;
+    cfg.snn_lr_scale = 1.0F;
+
+    nn::training::Trainer<TinyModel> trainer(model, cfg);
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 2.0F;
+    input.at(1, 0) = 3.0F;
+    nn::Tensor target(2, 1);
+    target.at(0, 0) = 5.0F;
+    target.at(1, 0) = 5.0F;
+
+    std::vector<nn::training::Trainer<TinyModel>::SamplePair> pairs;
+    pairs.emplace_back(input, target);
+    trainer.fit_supervised(pairs);
+    EXPECT_NE(model.weight_.at(0, 0), 1.0F) << "weight after unmasked fit_supervised";
 }
 
 } // namespace

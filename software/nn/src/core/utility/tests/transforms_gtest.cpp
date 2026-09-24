@@ -1,8 +1,8 @@
 /**
  * @file transforms_gtest.cpp
  * @brief Unit tests for nn::transforms: Compose, AudioMeanStdNormalize,
- *        EEGWindowZScore, FusedModalityTransform, RandomCrop, RandomIndexCrop,
- *        and WindowZScore.
+ *        EEGWindowZScore, FusedModalityTransform, GaussianNoise, RandomCrop,
+ *        RandomIndexCrop, and WindowZScore.
  */
 
 #include <gtest/gtest.h>
@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "tensor/Tensor.hpp"
@@ -493,4 +494,86 @@ TEST(WindowZScore, DoesNotMutateInput)
     const auto before = input;
     (void) zscore(input);
     for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(input.at(i, 0), before.at(i, 0));
+}
+
+// ─── GaussianNoise ───────────────────────────────────────────────────────────
+
+TEST(GaussianNoise, NegativeStdThrows)
+{
+    EXPECT_THROW(nn::transforms::GaussianNoise(-1.0F, /*seed=*/1), std::invalid_argument);
+}
+
+TEST(GaussianNoise, ZeroStdIsExactPassThrough)
+{
+    // std::normal_distribution at stddev=0 is a standard-library precondition
+    // violation (UB) -- operator() must short-circuit to identity instead of
+    // drawing from a zero-stddev distribution. This is also the disabled/default
+    // state (denoising_noise_std=0.0f in Meeting01Config).
+    nn::transforms::GaussianNoise noise(0.0F, /*seed=*/1);
+    const auto input = sequential_tensor(32, 1, -5.0F);
+    const auto out = noise(input);
+    for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(out.at(i, 0), input.at(i, 0));
+}
+
+TEST(GaussianNoise, OutputShapePreserved)
+{
+    nn::transforms::GaussianNoise noise(0.5F, /*seed=*/1);
+    const auto input = sequential_tensor(32, 1);
+    const auto out = noise(input);
+    EXPECT_EQ(out.rows(), input.rows());
+    EXPECT_EQ(out.cols(), input.cols());
+}
+
+TEST(GaussianNoise, DoesNotMutateInput)
+{
+    nn::transforms::GaussianNoise noise(0.5F, /*seed=*/1);
+    const auto input = sequential_tensor(10, 1, 5.0F);
+    const auto before = input;
+    (void) noise(input);
+    for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(input.at(i, 0), before.at(i, 0));
+}
+
+TEST(GaussianNoise, DeterministicForFixedSeed)
+{
+    const auto input = sequential_tensor(64, 1);
+    nn::transforms::GaussianNoise noise_a(0.5F, /*seed=*/42);
+    nn::transforms::GaussianNoise noise_b(0.5F, /*seed=*/42);
+    const auto out_a = noise_a(input);
+    const auto out_b = noise_b(input);
+    for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(out_a.at(i, 0), out_b.at(i, 0));
+}
+
+TEST(GaussianNoise, DiversifiesAcrossCalls)
+{
+    // Stateful RNG (matches RandomCrop/RandomIndexCrop): a second call on the same
+    // instance must not repeat the first call's draw -- required for per-run noise
+    // fixed across epochs but still i.i.d. per sample within `make_triples`.
+    nn::transforms::GaussianNoise noise(0.5F, /*seed=*/7);
+    const auto input = constant_tensor(8, 1, 0.0F);
+    const auto out_1 = noise(input);
+    const auto out_2 = noise(input);
+
+    bool any_differs = false;
+    for (nn::Index i = 0; i < input.rows(); ++i)
+        if (out_1.at(i, 0) != out_2.at(i, 0)) any_differs = true;
+    EXPECT_TRUE(any_differs) << "GaussianNoise draw identical across consecutive calls";
+}
+
+TEST(GaussianNoise, PerturbsWithApproximatelyCorrectStd)
+{
+    // Large constant input -> output deviations ARE the noise draws; check their
+    // empirical std lands near the configured std (loose tolerance, statistical).
+    constexpr float kStd = 2.0F;
+    nn::transforms::GaussianNoise noise(kStd, /*seed=*/99);
+    const auto input = constant_tensor(4000, 1, 10.0F);
+    const auto out = noise(input);
+
+    float sq_sum = 0.0F;
+    for (nn::Index i = 0; i < out.rows(); ++i)
+    {
+        const float d = out.at(i, 0) - input.at(i, 0);
+        sq_sum += d * d;
+    }
+    const float empirical_std = std::sqrt(sq_sum / static_cast<float>(out.rows()));
+    EXPECT_NEAR(empirical_std, kStd, 0.15F);
 }

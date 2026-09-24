@@ -360,8 +360,10 @@ void save_snn_combo_models(const Meeting01Config& config,
 // are correlated); selection is seeded for reproducibility.
 struct MonitorCarve
 {
-    std::vector<Tensor> fit_samples;     // (train \ monitor)
-    std::vector<Tensor> monitor_samples; // carved early-stopping set
+    std::vector<Tensor> fit_samples;          // (train \ monitor)
+    std::vector<Tensor> monitor_samples;      // carved early-stopping set
+    std::vector<WindowMetadata> fit_meta;     // parallel to fit_samples
+    std::vector<WindowMetadata> monitor_meta; // parallel to monitor_samples
 };
 
 auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
@@ -395,9 +397,15 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
     for (std::size_t i = 0; i < train_samples.size(); ++i)
     {
         if (is_monitor[i] != 0)
+        {
             out.monitor_samples.push_back(train_samples[i]);
+            out.monitor_meta.push_back(train_meta[i]);
+        }
         else
+        {
             out.fit_samples.push_back(train_samples[i]);
+            out.fit_meta.push_back(train_meta[i]);
+        }
     }
     return out;
 }
@@ -487,6 +495,8 @@ void finalize_baseline_selection(const Meeting01Config& config,
 
     std::vector<Tensor> fit_samples = carve.fit_samples;
     fit_samples.insert(fit_samples.end(), split.val_samples.begin(), split.val_samples.end());
+    std::vector<WindowMetadata> fit_meta = carve.fit_meta;
+    fit_meta.insert(fit_meta.end(), split.val_meta.begin(), split.val_meta.end());
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
@@ -494,6 +504,8 @@ void finalize_baseline_selection(const Meeting01Config& config,
         config,
         fit_samples,
         carve.monitor_samples,
+        fit_meta,
+        carve.monitor_meta,
         encoding,
         run_seed,
         static_cast<std::size_t>(run_id),
@@ -506,6 +518,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
 
     const RunMetrics test_metrics = evaluate_ae(model,
         split.test_samples,
+        split.test_meta,
         std::vector<int>(split.test_samples.size(), 0),
         config.training.max_reconstruct_mean_deviation,
         macs,
@@ -686,6 +699,8 @@ void finalize_snn_selection(const Meeting01Config& config,
 
     std::vector<Tensor> fit_samples = carve.fit_samples;
     fit_samples.insert(fit_samples.end(), split.val_samples.begin(), split.val_samples.end());
+    std::vector<WindowMetadata> fit_meta = carve.fit_meta;
+    fit_meta.insert(fit_meta.end(), split.val_meta.begin(), split.val_meta.end());
 
     AutoencoderConfig snn_config = make_snn_cfg(config, best.alpha, best.v_th, best.encoder_widths);
     snn_config.initializer_seed = run_seed;
@@ -700,6 +715,8 @@ void finalize_snn_selection(const Meeting01Config& config,
         config,
         fit_samples,
         carve.monitor_samples,
+        fit_meta,
+        carve.monitor_meta,
         std::vector<int>(carve.monitor_samples.size(), 0),
         encoding,
         best.architecture,
@@ -717,6 +734,7 @@ void finalize_snn_selection(const Meeting01Config& config,
 
     RunMetrics test_metrics = evaluate_snn(snn_model,
         split.test_samples,
+        split.test_meta,
         std::vector<int>(split.test_samples.size(), 0),
         config.training.max_reconstruct_mean_deviation,
         estimate_snn_macs(static_cast<std::size_t>(config.dataset.window_size),

@@ -38,7 +38,9 @@ auto make_meta(int speakers, int recordings_per_speaker, int windows_per_recordi
         {
             for (int w = 0; w < windows_per_recording; ++w)
             {
-                meta.push_back(WindowMetadata{name, s, recording_id, window_id, w, w % 10});
+                // valid_length is irrelevant to fold-assignment leakage checks (this file
+                // never computes a mask/loss) -- 256 is an arbitrary "full window" filler.
+                meta.push_back(WindowMetadata{name, s, recording_id, window_id, w, w % 10, 256});
                 ++window_id;
             }
             ++recording_id;

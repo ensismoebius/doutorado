@@ -109,6 +109,21 @@ auto make_reconstruction_target(const Tensor& sample, int time_steps) -> Tensor
     return target;
 }
 
+auto make_activity_mask(int valid_length, int window_size) -> Tensor
+{
+    if (window_size <= 0)
+        throw std::invalid_argument("make_activity_mask: window_size must be > 0");
+    if (valid_length < 0 || valid_length > window_size)
+        throw std::invalid_argument(
+            "make_activity_mask: valid_length (" + std::to_string(valid_length) +
+            ") must be within [0, window_size=" + std::to_string(window_size) + "]");
+
+    Tensor mask(static_cast<nn::Index>(window_size), 1);
+    for (int t = 0; t < valid_length; ++t) mask.at(static_cast<nn::Index>(t), 0) = 1.0F;
+    // [valid_length, window_size) stays 0.0 (default-constructed Tensor is zero).
+    return mask;
+}
+
 auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor
 {
     const nn::Index T = static_cast<nn::Index>(time_steps);
