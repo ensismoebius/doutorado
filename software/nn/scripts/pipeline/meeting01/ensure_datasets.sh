@@ -18,8 +18,11 @@
 # internet in .wiki/Guides/GridUnesp-Deployment.md), not inside an sbatch job —
 # compute-node internet is unconfirmed there.
 #
-# Needs on PATH: git, wget, sox (WAV resampling for AudioMNIST). All three are in
-# gridunesp_setup_env.sh's package list.
+# Needs on PATH: git, wget, sox (WAV resampling for AudioMNIST) -- all three are in
+# gridunesp_setup_env.sh's package list -- and curl (eegmmidb/siena's RECORDS
+# manifest fetch from the S3 mirror, see fetch_physionet_s3()'s own comment below);
+# curl is a base-OS package on every system checked so far (confirmed present on
+# GridUnesp's login node 2026-09-24), not added to the conda env's package list.
 #
 # Total download size (2026-09-23, from each source's own stated total): FSDD 27MB +
 # AudioMNIST ~9.4GB raw (discarded after resampling; ~357MB survives as audioMNIST_8k)
@@ -30,7 +33,7 @@ set -euo pipefail
 DATASETS_ROOT="${DATASETS_ROOT:-/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases}"
 mkdir -p "$DATASETS_ROOT"
 
-for cmd in git wget sox; do
+for cmd in git wget sox curl; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ensure_datasets.sh: '$cmd' not found on PATH -- install it (see" \
          "gridunesp_setup_env.sh's package list) before running this script." >&2
@@ -128,37 +131,66 @@ else
   mv "$audiomnist_8k_staging" "$audiomnist_8k"
 fi
 
+# --- shared: fetch a PhysioNet open dataset via its AWS S3 mirror, per-file ---
+# PhysioNet mirrors every open-access dataset to the public `physionet-open` S3
+# bucket at the same relative layout as the website (`s3://physionet-open/<slug>/
+# 1.0.0/...`), reachable over plain HTTPS with no AWS account, credentials, or CLI
+# tool needed -- the bucket policy allows anonymous GET, same effect as
+# `--no-sign-request`. Measured 2026-09-24 from the GridUnesp login node on this
+# exact dataset (Siena): physionet.org's own web server served ~90 KB/s;
+# https://physionet-open.s3.amazonaws.com served the same data at ~12.1 MB/s --
+# ~138x faster (see .wiki/Guides/GridUnesp-Deployment.md's Troubleshooting section
+# for the measurement). This is also what fixes the 416-retry-loop hazard the
+# direct site had (see git history / the wiki for that fix's own reasoning) --
+# moot here since S3 is never asked for a byte-range resume in the first place.
+#
+# S3 has no browsable HTML directory index the way physionet.org's own file tree
+# does, so `wget -r` (which crawls <a href> links) cannot point at it directly --
+# this fetches the dataset's own RECORDS manifest (the same file
+# ensure_datasets.sh's DATASET_TOTALS-equivalent expected counts are verified
+# against) and downloads each listed path individually. `-N` per file still means
+# an already-complete file is skipped (compared against S3's own Last-Modified/
+# size), so a re-run after an interruption resumes at the file level, same as
+# before; `--tries=5` gives each individual file some resilience against a single
+# transient blip without masking a genuine, repeated failure.
+fetch_physionet_s3() {
+  local slug="$1" root="$2"
+  local base="https://physionet-open.s3.amazonaws.com/${slug}/1.0.0"
+  local records
+  records="$(curl -fsSL "${base}/RECORDS")" || {
+    echo "ensure_datasets.sh: could not fetch ${slug}'s RECORDS manifest from the S3 mirror" >&2
+    return 1
+  }
+  local total n=0
+  total=$(printf '%s\n' "$records" | grep -c .)
+  local rel
+  while IFS= read -r rel; do
+    [[ -n "$rel" ]] || continue
+    n=$((n + 1))
+    wget -N -nv --tries=5 -P "$(dirname "${root}/${rel}")" "${base}/${rel}"
+    if (( n % 5 == 0 || n == total )); then
+      echo "[ensure-datasets] ${slug}: fetched ${n}/${total} files"
+    fi
+  done <<< "$records"
+}
+
 # --- eegmmidb (PhysioNet EEG Motor Movement/Imagery Database, 3.4GB, open access) ---
-# -N (timestamping), not -c (byte-range resume): -c on a recursive -r crawl asks
-# for Range: bytes=<local_size>- on EVERY already-complete file too, and PhysioNet's
-# server answers a completely-done file with 416 (nothing left in that range) --
-# wget does not treat that as success and retries the same URL until it exhausts
-# its default 20 tries (with growing backoff), sometimes minutes per file, on a
-# directory of ~1500 files this hits often. -N compares remote Last-Modified/size
-# against the local file instead of ever sending a Range request: an already-
-# complete file is skipped outright (no request that could 416), and a missing or
-# genuinely-incomplete one is fetched fresh (not byte-resumed, but correct).
 eegmmidb_root="$DATASETS_ROOT/eegmmidb"
 if [[ -d "$eegmmidb_root" ]] && find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] eegmmidb: already present at $eegmmidb_root -- checking for gaps"
 fi
-wget -N -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
-  --progress=dot:mega \
-  -P "$eegmmidb_root" "https://physionet.org/files/eegmmidb/1.0.0/"
+fetch_physionet_s3 "eegmmidb" "$eegmmidb_root"
 find "$eegmmidb_root" -name '*.edf' -print -quit | grep -q . || {
   echo "ensure_datasets.sh: eegmmidb fetch produced no .edf files" >&2
   exit 1
 }
 
 # --- Siena Scalp EEG Database (PhysioNet, 20.3GB, open access; Detti 2020) ---
-# -N, not -c -- same 416-retry-loop hazard as eegmmidb above, see its comment.
 siena_root="$DATASETS_ROOT/siena"
 if [[ -d "$siena_root" ]] && find "$siena_root" -name '*.edf' -print -quit | grep -q .; then
   echo "[ensure-datasets] siena: already present at $siena_root -- checking for gaps"
 fi
-wget -N -r -np -nH --cut-dirs=3 -R "index.html*" -e robots=off \
-  --progress=dot:mega \
-  -P "$siena_root" "https://physionet.org/files/siena-scalp-eeg/1.0.0/"
+fetch_physionet_s3 "siena-scalp-eeg" "$siena_root"
 find "$siena_root" -name '*.edf' -print -quit | grep -q . || {
   echo "ensure_datasets.sh: siena fetch produced no .edf files" >&2
   exit 1
