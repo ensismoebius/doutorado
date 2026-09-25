@@ -442,6 +442,65 @@ retry loop — use `monitor.py`'s own `--interval` (inside `remote_monitor.sh`'s
 session) or a real-delay `watch -n 60 ...` around `pull_progress.sh` rather than
 hammering the login node.
 
+## 7. Remote GA collection from the dashboard
+
+The web dashboard (see [Meeting01 § Web dashboard](../Experiments/Meeting01.md#web-dashboard-fastapi--plotlyjs))
+can fetch GA search results directly from GridUnesp via SSH, without manually
+syncing `results/meeting01/` first.
+
+### How it works
+
+1. **Server-side:** `scripts/pipeline/meeting01/collect_ga_local.py` SSHes into
+   GridUnesp, reads `*_cache.jsonl` files from the remote `results/meeting01/`
+   directory, and writes a local `<run_tag>_ga_remote.jsonl` file with per-cell GA
+   summaries (n_individuals, n_generations, best_val_mse, best_inference_cost).
+2. **Dashboard:** The `POST /api/ga/remote/collect` endpoint runs
+   `collect_ga_local.py` as a subprocess. The `GET /api/ga/remote` endpoint reads
+   the last entry from the JSONL file and returns it as JSON.
+
+### Setup
+
+Credentials are read from `scripts/pipeline/meeting01/.env` (shared with
+`gridunesp_deploy.sh`). Required variables:
+
+```
+GRIDUNESP_USER=<your-username>
+GRIDUNESP_PASSWORD=<your-password>   # or set up SSH keys to skip this
+GRIDUNESP_HOST=access.grid.unesp.br  # default
+GRIDUNESP_REMOTE_DIR=software/nn     # default
+```
+
+### Usage
+
+```bash
+# one-shot collection (writes <run_tag>_ga_remote.jsonl)
+.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py
+
+# continuous collection every 60s
+.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --interval 60
+```
+
+Or trigger from the dashboard: open the **Architecture Search** tab and click
+**Collect from GridUnesp**. The button shows status (collecting / done / error)
+and populates the GA panel with remote results.
+
+### SSH key setup (recommended)
+
+To avoid entering your password on every collection, set up an SSH key:
+
+```bash
+# on your local machine
+ssh-keygen -t ed25519 -f ~/.ssh/gridunesp -N ""
+ssh-copy-id -i ~/.ssh/gridunesp.pub <user>@access.grid.unesp.br
+```
+
+Then `collect_ga_local.py` will use the key automatically (no password prompt).
+
+> **Note:** GridUnesp's Fail2Ban triggers after rapid repeated login attempts.
+> The `POST /api/ga/remote/collect` endpoint runs one SSH session per call —
+> avoid hammering it. The one-shot `collect_ga_local.py` is designed around this:
+> one connection per invocation, not a retry loop.
+
 > **Partially confirmed, one real gap still open (v3 recheck, 2026-09-23)**:
 > `job-nanny`'s `SHARED_FS` flag is real and does what the sbatch script assumes —
 > v3 documents it exactly (default `false`; single-node job with `SHARED_FS`/

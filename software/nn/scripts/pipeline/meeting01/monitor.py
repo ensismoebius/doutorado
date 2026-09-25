@@ -684,6 +684,169 @@ class SessionState:
 
 
 # --------------------------------------------------------------------------------------
+# plain-JSON accessors (dashboard backend)
+# --------------------------------------------------------------------------------------
+# Every float passes through _finite_or_none before it reaches json.dumps —
+# json.dumps(float('nan')) emits the literal token NaN, which is not valid
+# JSON and silently breaks JSON.parse on the frontend the first time a run
+# produces an Inf or NaN loss.
+def _finite_or_none(v: Any) -> Any:
+    """Return *v* unchanged unless it is a float that is NaN or Inf, in which
+    case return None.  Applied recursively to nested lists/dicts."""
+    if isinstance(v, float):
+        return v if math.isfinite(v) else None
+    if isinstance(v, dict):
+        return {k: _finite_or_none(val) for k, val in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_finite_or_none(x) for x in v]
+    return v
+
+
+def _config_state_to_dict(c: ConfigState) -> dict[str, Any]:
+    return _finite_or_none({
+        "config_id": c.config_id,
+        "dataset": c.dataset,
+        "fold": c.fold,
+        "model": c.model,
+        "encoding": c.encoding,
+        "role": c.role,
+        "run_id": c.run_id,
+        "seed": c.seed,
+        "hyperparams": dict(c.hyperparams),
+        "max_epochs": c.max_epochs,
+        "lr": c.lr,
+        "param_count": c.param_count,
+        "macs": c.macs,
+        "epochs": [{"epoch": e, "train": t, "val": v} for e, t, v in c.epochs],
+        "status": c.status,
+        "stop_reason": c.stop_reason,
+        "epochs_run": c.epochs_run,
+        "best_val": c.best_val,
+        "best_epoch": c.best_epoch,
+        "metrics": c.metrics,
+        "last_train": c.last_train,
+        "last_val": c.last_val,
+        "gap": c.gap,
+        "no_improve": c.no_improve,
+        "rank_val": c.rank_val,
+        "rank_val_kind": c.rank_val_kind,
+        "cur_progress_epoch": c.cur_progress_epoch,
+        "cur_batch": c.cur_batch,
+        "cur_total_batches": c.cur_total_batches,
+        "cur_batch_frac": c.cur_batch_frac,
+        "cur_batch_loss": c.cur_batch_loss,
+        "cur_epoch_elapsed_s": c.cur_epoch_elapsed_s,
+        "cur_epoch_eta_s": c.cur_epoch_eta_s,
+    })
+
+
+def _proc_state_to_dict(p: ProcState) -> dict[str, Any]:
+    return {
+        "path": p.path,
+        "dataset": p.dataset,
+        "fold": p.fold,
+        "started": p.started,
+        "ended": p.ended,
+        "error": p.error,
+    }
+
+
+def _fold_cell_to_dict(ds: str, fold: int, cell: FoldCell) -> dict[str, Any]:
+    return {
+        "dataset": ds,
+        "fold": fold,
+        "done": cell.done,
+        "running": cell.running,
+        "failed": cell.failed,
+        "total": cell.total,
+        "frac": cell.frac,
+        "status": cell.status,
+    }
+
+
+# Methods added to SessionState for JSON-serializable snapshots consumed by the
+# web dashboard backend.  Zero edits to any existing render_* / _panel_* function.
+def _session_summary(self) -> dict[str, Any]:
+    c = self.counts()
+    return _finite_or_none({
+        "session": dict(self.session),
+        "counts": c,
+        "eta_seconds": self.eta_seconds(),
+        "started_wall": self.started_wall,
+        "per_fold_trainings": self.per_fold_trainings(),
+        "grid_size": self.grid_size(),
+    })
+
+
+def _fold_grid_json(self) -> list[dict[str, Any]]:
+    return [
+        _fold_cell_to_dict(ds, fold, cell)
+        for (ds, fold), cell in sorted(self.fold_grid().items())
+    ]
+
+
+def _active_configs_json(self) -> list[dict[str, Any]]:
+    return [_config_state_to_dict(c) for c in self.active_configs()]
+
+
+def _completed_configs_json(self) -> list[dict[str, Any]]:
+    return [_config_state_to_dict(c) for c in self.completed_configs()]
+
+
+def _marginals_json(self) -> dict[str, list[dict[str, Any]]]:
+    return {
+        dim: [{"value": k, "best": _finite_or_none(b), "count": n}
+              for k, b, n in entries]
+        for dim, entries in self.marginals().items()
+    }
+
+
+def _aggregation_json(self) -> list[dict[str, Any]]:
+    return [
+        _finite_or_none({
+            "model": model, "encoding": enc,
+            "mean": mean, "std": std,
+            "n_done": n_done, "n_failed": n_failed,
+        })
+        for model, enc, mean, std, n_done, n_failed in self.aggregation()
+    ]
+
+
+def _events_json(self) -> list[dict[str, Any]]:
+    return [dict(ev) for ev in self.events]
+
+
+def _procs_json(self) -> list[dict[str, Any]]:
+    return [_proc_state_to_dict(p) for p in self.procs.values()]
+
+
+def _full_snapshot(self) -> dict[str, Any]:
+    return _finite_or_none({
+        "summary": _session_summary(self),
+        "fold_grid": _fold_grid_json(self),
+        "active_configs": _active_configs_json(self),
+        "completed_configs": _completed_configs_json(self),
+        "marginals": _marginals_json(self),
+        "aggregation": _aggregation_json(self),
+        "events": _events_json(self),
+        "procs": _procs_json(self),
+    })
+
+
+# Bind as methods on SessionState (kept as free functions above for testability
+# and to avoid cluttering the class with closures over module-level helpers).
+SessionState.session_summary_json = _session_summary  # type: ignore[attr-defined]
+SessionState.fold_grid_json = _fold_grid_json  # type: ignore[attr-defined]
+SessionState.active_configs_json = _active_configs_json  # type: ignore[attr-defined]
+SessionState.completed_configs_json = _completed_configs_json  # type: ignore[attr-defined]
+SessionState.marginals_json = _marginals_json  # type: ignore[attr-defined]
+SessionState.aggregation_json = _aggregation_json  # type: ignore[attr-defined]
+SessionState.events_json = _events_json  # type: ignore[attr-defined]
+SessionState.procs_json = _procs_json  # type: ignore[attr-defined]
+SessionState.full_snapshot_json = _full_snapshot  # type: ignore[attr-defined]
+
+
+# --------------------------------------------------------------------------------------
 # color (ANSI) -- the --plain renderer only; the --rich dashboard (default, TTY) has
 # its own styling via `rich`. Off by default whenever stdout is not a terminal (a
 # redirect, `| tee`, CI) so a log file never fills up with escape codes; --color

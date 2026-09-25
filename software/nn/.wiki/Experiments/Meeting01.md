@@ -140,6 +140,74 @@ configs finish, **descriptive** marginal best-val per sweep dimension and
 per-(model, encoding) `mean ± std`), and **RECENT** (event tail). Read-only — start,
 kill, re-attach freely; `Ctrl-C` exits. `monitor.py --rank N` prints one completed
 config's full detail (all metrics + reproducibility). `--no-tui` on the `meeting01`
+
+#### Web dashboard (FastAPI + Plotly.js)
+
+A browser-based alternative to the `rich` TUI — same read-only philosophy, richer
+visualizations. Serves a SPA from `dashboard/static/` at
+`http://localhost:8787/`. No C++ changes required.
+
+```bash
+# start the dashboard (needs fastapi + uvicorn in the venv)
+.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01
+
+# or with explicit run tag
+.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01 --run-tag meeting01_loso
+```
+
+**Architecture.** The server (`dashboard/server.py`) is a FastAPI app that tails
+events + GA cache files on disk, same as the TUI monitor. It exposes:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/summary` | GET | Session overview (total cells, done/running/failed, per-dataset counts) |
+| `/api/fold-grid` | GET | 2D grid of (dataset × fold) cells with status and active config |
+| `/api/active-configs` | GET | All currently training configs with epoch/batch progress |
+| `/api/completed-configs` | GET | Finished configs ranked by best validation loss |
+| `/api/marginals` | GET | Per-sweep-dimension marginal best-val (once enough configs complete) |
+| `/api/ga` | GET | GA search status: Pareto frontier, generations, per-family breakdown |
+| `/api/ga/remote` | GET | GA data fetched from GridUnesp (last `collect_ga_local.py` output) |
+| `/api/ga/remote/collect` | POST | Trigger SSH collection of GA cache from GridUnesp (needs `.env` credentials) |
+| `/api/events` | GET | Last N events from the event tail |
+| `/api/stream` | GET | SSE — named frames pushed as training progresses |
+
+**SSE event types:** `summary`, `fold_grid`, `active_configs`, `completed_configs`,
+`marginals`, `aggregation`, `events`, `ga_summary`, `heartbeat` (keepalive every
+10 s). The client (`dashboard/static/app.js`) subscribes to `/api/stream` and
+re-renders panels on each named event, with 400 ms debounced flushes to avoid
+layout thrashing.
+
+**Browser tabs:**
+
+- **Overview** — fold grid (color-coded cells: blue=running, green=done,
+  orange=failed, grey=queued), session summary, elapsed/ETA.
+- **Training Now** — active config cards with epoch progress bar, batch loss chart
+  (live), train/val loss overlay with best-epoch marker. Charts use LTTB downsampling
+  (MAX_POINTS=500) to keep Plotly responsive.
+- **Architecture Search** — GA Pareto frontier scatter (MSE vs inference cost),
+  generation progress chart, per-family status. "Collect from GridUnesp" button
+  triggers `collect_ga_local.py` via SSH to fetch the latest GA cache files.
+- **Comparison** — sortable table of completed configs (click column headers),
+  best-val-per-fold highlighted in green.
+- **Events** — raw event tail with search, colored by event type.
+- **Historical Runs** — placeholder for past run summaries.
+
+**GA remote collection.** The `GET /api/ga/remote` endpoint reads the last entry
+from `<run_tag>_ga_remote.jsonl`, produced by `collect_ga_local.py`. The
+`POST /api/ga/remote/collect` endpoint triggers a one-shot SSH fetch from GridUnesp,
+reading credentials from `scripts/pipeline/meeting01/.env` (shared with
+`gridunesp_deploy.sh`). See
+[GridUnesp Deployment §6](../Guides/GridUnesp-Deployment.md#7-remote-ga-collection-from-the-dashboard)
+for setup.
+
+**Performance optimizations:** LTTB downsampling in `charts.js` limits all line
+charts to 500 points. Debounced SSE renders (400 ms FLUSH_MS) batch multiple panel
+updates into a single DOM flush. Training and GA charts only render when their tab
+is active (lazy rendering).
+
+**Static file serving.** `app.mount("/", StaticFiles(directory=..., html=True))` serves
+`dashboard/static/{index.html,style.css,api.js,charts.js,app.js}`. The mount must
+be registered last in the FastAPI app (it catches `/*`).
 binary (and any non-TTY stdout) disables its own `ProgressManager` bars so redirected
 logs stay free of cursor-control sequences.
 

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>meeting01 dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>meeting01 <span class="dim">nested-LOSO dashboard</span></h1>
+        <div id="status-bar">
+            <span id="sb-conn" class="dot dot-red" title="SSE disconnected"></span>
+            <span id="sb-counts">—</span>
+            <span id="sb-eta">ETA —</span>
+            <span id="sb-poll">last poll —</span>
+        </div>
+    </header>
+
+    <nav id="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="training">Training Now</button>
+        <button class="tab" data-tab="ga">Architecture Search</button>
+        <button class="tab" data-tab="comparison">Comparison</button>
+        <button class="tab" data-tab="events">Events</button>
+        <button class="tab" data-tab="runs">Historical Runs</button>
+    </nav>
+
+    <main>
+        <!-- Overview tab -->
+        <section id="tab-overview" class="tab-panel active">
+            <div class="grid-container">
+                <div class="card" id="card-session">
+                    <h3>Session</h3>
+                    <pre id="session-detail">—</pre>
+                </div>
+                <div class="card" id="card-fold-grid">
+                    <h3>Fold × Dataset Grid</h3>
+                    <div id="fold-grid-table"></div>
+                </div>
+                <div class="card" id="card-stats">
+                    <h3>Runtime Stats</h3>
+                    <div id="runtime-stats">—</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Training Now tab -->
+        <section id="tab-training" class="tab-panel">
+            <div id="training-configs"></div>
+            <div class="card" style="margin-top:16px">
+                <h3>Active Configs — Val Loss Overlay</h3>
+                <div id="training-overlay-chart" style="height:300px"></div>
+            </div>
+            <div id="training-charts"></div>
+        </section>
+
+        <!-- Architecture Search tab -->
+        <section id="tab-ga" class="tab-panel">
+            <div class="card" style="margin-bottom:16px">
+                <h3>Remote GA Collection</h3>
+                <div id="remote-ga-controls">
+                    <button id="btn-collect-ga" class="btn">Collect from GridUnesp</button>
+                    <span id="remote-ga-status" class="dim">—</span>
+                </div>
+                <div id="remote-ga-results"></div>
+            </div>
+            <div id="ga-cards"></div>
+        </section>
+
+        <!-- Comparison tab -->
+        <section id="tab-comparison" class="tab-panel">
+            <div id="comp-table"></div>
+        </section>
+
+        <!-- Events tab -->
+        <section id="tab-events" class="tab-panel">
+            <div id="events-controls">
+                <input type="text" id="events-filter" placeholder="Filter events…">
+                <label><input type="checkbox" id="events-pause"> Pause</label>
+            </div>
+            <div id="events-log"></div>
+        </section>
+
+        <!-- Historical Runs tab -->
+        <section id="tab-runs" class="tab-panel">
+            <div id="runs-list"></div>
+        </section>
+    </main>
+
+    <script src="api.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
