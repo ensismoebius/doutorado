@@ -38,10 +38,43 @@ from efficient_nn_lab.app.theme import ACCENT_COLOR, TEXT_COLOR
 
 # Inline equations inside the explanation panel are rendered at this DPI
 # (~28 px cap height, one line) and tinted with the theme's highlight
-# color so they stand out from the surrounding prose.
+# color so they stand out from the surrounding prose. These are the BASE
+# values at UI scale 1.0 (see theme.compute_ui_scale) -- an inline equation
+# is embedded as a raster image at its natural pixel size, so unlike the
+# surrounding text's point size it does not rescale on its own when the
+# app's UI scale changes; _inline_dpi()/_inline_max_width() below keep it
+# proportional to whatever the current scale is instead of staying fixed
+# while the body text around it shrinks or grows.
 _INLINE_DPI = 190
 _INLINE_COLOR = ACCENT_COLOR
 _INLINE_MAX_WIDTH = 460
+
+#: Current UI scale, set by main_window.py whenever it recomputes the
+#: window's scale (see theme.compute_ui_scale). Module-level rather than a
+#: parameter threaded through every call because MathTextLabel.set_math_text
+#: -- the actual call site that needs it -- is invoked from many places
+#: (every frame change) that do not otherwise carry the window's scale.
+_ui_scale = 1.0
+
+
+def set_ui_scale(scale: float) -> None:
+    """Record the app's current UI scale for inline-equation rendering.
+
+    Does not itself re-render anything: existing MathTextLabel instances
+    keep whatever image they already built until their text is next set
+    (main_window.py re-sets explanation text on every frame change, and
+    forces one on a bare scale change too -- see MainWindow._apply_ui_scale).
+    """
+    global _ui_scale
+    _ui_scale = scale
+
+
+def _inline_dpi() -> int:
+    return max(1, round(_INLINE_DPI * _ui_scale))
+
+
+def _inline_max_width() -> int:
+    return max(1, round(_INLINE_MAX_WIDTH * _ui_scale))
 
 _MATH_DELIMITER_RE = re.compile(r"\$([^$]+)\$")
 
@@ -279,10 +312,11 @@ def _explanation_to_html(text: str) -> tuple[str, dict[str, QImage]]:
         if m.start() > index:
             parts.append(html.escape(text[index : m.start()], quote=False))
         fragment = m.group(1).strip()
-        img = render_math_image(fragment, dpi=_INLINE_DPI, color=_INLINE_COLOR)
+        img = render_math_image(fragment, dpi=_inline_dpi(), color=_INLINE_COLOR)
         if img is not None and not img.isNull() and img.width() > 0:
-            if img.width() > _INLINE_MAX_WIDTH:
-                img = img.scaledToWidth(_INLINE_MAX_WIDTH)
+            max_width = _inline_max_width()
+            if img.width() > max_width:
+                img = img.scaledToWidth(max_width)
             b64 = _qimage_to_png_b64(img)
             parts.append(
                 f'<img src="data:image/png;base64,{b64}"'

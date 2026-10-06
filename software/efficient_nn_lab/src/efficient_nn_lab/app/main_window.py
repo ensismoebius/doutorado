@@ -30,8 +30,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from efficient_nn_lab.app.math_render import MathTextLabel, render_math_image
-from efficient_nn_lab.app.theme import STYLESHEET, TEXT_COLOR
+from efficient_nn_lab.app.math_render import MathTextLabel, render_math_image, set_ui_scale
+from efficient_nn_lab.app.theme import TEXT_COLOR, build_stylesheet, compute_ui_scale
 from efficient_nn_lab.core.animation import StepPlayer
 from efficient_nn_lab.core.demo import DemoModule
 from efficient_nn_lab.core.state import AppState
@@ -167,8 +167,12 @@ _DESCRIPTION_MAX_LINES = 4
 # The equation panel is a fixed-height framed box so toggling it never
 # reflows the right column mid-playback; the rendered equation is scaled
 # to fit inside it. Rendered at a high DPI so the downscale stays crisp.
-_EQUATION_FRAME_HEIGHT = 108
-_EQUATION_DPI = 320
+# These are the BASE values at UI scale 1.0 (theme.compute_ui_scale); the
+# window scales both by its current factor (see _apply_ui_scale) so the
+# equation panel grows/shrinks with the rest of the UI instead of staying
+# pinned at one pixel size on every resolution.
+_BASE_EQUATION_FRAME_HEIGHT = 108
+_BASE_EQUATION_DPI = 320
 
 
 def _height_for_lines(fm: QFontMetrics, height_px: float, max_lines: int, padding: int) -> int:
@@ -244,7 +248,16 @@ class MainWindow(QMainWindow):
         # and every diagram becomes too small to read regardless of not
         # being "clipped". This is a usability floor, not a clipping fix.
         self.setMinimumSize(900, 600)
-        self.setStyleSheet(STYLESHEET)
+        # Scale state is set up before _build_ui() so every widget it creates
+        # (and the stylesheet applied to them) already reflects this window's
+        # real starting size, not a later correction; _apply_ui_scale(force=True)
+        # applies the stylesheet unconditionally for this first call, since
+        # there is no previous scale to compare against yet.
+        self._ui_scale = 1.0
+        self._equation_frame_height = _BASE_EQUATION_FRAME_HEIGHT
+        self._equation_dpi = _BASE_EQUATION_DPI
+        self._current_equation_text = ""
+        self._apply_ui_scale(force=True)
 
         self.state = AppState()
         self._demo_groups = _build_demo_tree()
@@ -411,7 +424,7 @@ class MainWindow(QMainWindow):
         self.equation_label.setObjectName("Equation")
         self.equation_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         eq_layout.addWidget(self.equation_label, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.equation_frame.setFixedHeight(_EQUATION_FRAME_HEIGHT)
+        self.equation_frame.setFixedHeight(self._equation_frame_height)
         self._equation_pixmap: QPixmap | None = None
         right.addWidget(self.equation_frame)
 
@@ -638,6 +651,32 @@ class MainWindow(QMainWindow):
             label.setFixedHeight(height)
         return height
 
+    def _apply_ui_scale(self, force: bool = False) -> None:
+        """Rescale fonts and equation-rendering chrome to the current window size.
+
+        Mirrors a game's "UI scale" setting: one factor derived from the
+        window's current size (``theme.compute_ui_scale``), reapplied on
+        every resize rather than fixed at whatever size the app happened to
+        open at. Called once from ``__init__`` (``force=True``, before
+        ``_build_ui`` has created any widget) and again on every
+        ``resizeEvent`` (``force=False``, so an unchanged scale during a
+        resize drag skips the stylesheet/re-render work entirely).
+        """
+        scale = compute_ui_scale(self.width(), self.height())
+        if not force and scale == self._ui_scale:
+            return
+        self._ui_scale = scale
+        set_ui_scale(scale)
+        self.setStyleSheet(build_stylesheet(scale))
+        self._equation_frame_height = round(_BASE_EQUATION_FRAME_HEIGHT * scale)
+        self._equation_dpi = round(_BASE_EQUATION_DPI * scale)
+        # Guard: this runs once from __init__ before _build_ui() exists, when
+        # there is no equation_frame/equation yet to resize or re-render.
+        if hasattr(self, "equation_frame"):
+            self.equation_frame.setFixedHeight(self._equation_frame_height)
+            if self._current_equation_text:
+                self._set_equation(self._current_equation_text)
+
     def _apply_canvas_floor(self) -> None:
         """Reserve as much height for the animation as the window can spare.
 
@@ -676,6 +715,7 @@ class MainWindow(QMainWindow):
         the wider one and clips the text that now wraps to more lines.
         """
         super().resizeEvent(event)
+        self._apply_ui_scale()
         self._apply_canvas_floor()
         if self.player is not None:
             self._reserve_text_heights(self.player.demo)
@@ -801,12 +841,13 @@ class MainWindow(QMainWindow):
 
     def _set_equation(self, equation: str) -> None:
         """Render ``frame.equation`` as a big typeset equation in its frame."""
+        self._current_equation_text = equation
         self._equation_pixmap = None
         self.equation_label.clear()
         if not equation:
             self.equation_label.setText("(sem equação para este passo)")
             return
-        img = render_math_image(equation, dpi=_EQUATION_DPI, color=TEXT_COLOR)
+        img = render_math_image(equation, dpi=self._equation_dpi, color=TEXT_COLOR)
         if img is None or img.isNull():
             self.equation_label.setText(equation)
             return
@@ -818,7 +859,7 @@ class MainWindow(QMainWindow):
         if self._equation_pixmap is None:
             return
         box_w = max(140, self.equation_frame.width() - 24)
-        box_h = _EQUATION_FRAME_HEIGHT - 24
+        box_h = self._equation_frame_height - 24
         pix = self._equation_pixmap
         if pix.width() > box_w or pix.height() > box_h:
             pix = pix.scaled(
