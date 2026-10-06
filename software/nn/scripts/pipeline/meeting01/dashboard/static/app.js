@@ -49,6 +49,54 @@ const App = (() => {
         // Render charts for the now-visible tab
         if (tab === "training") rerenderTrainingCharts();
         if (tab === "ga") rerenderGACharts();
+        if (tab === "runs") loadRuns();
+    }
+
+    // ── Historical runs ───────────────────────────────────────────────────
+    // Run history is *not* part of the SSE snapshot: a run is a cold file on
+    // disk, and re-globbing + re-summarising every 2s to show a list that
+    // changes once per run is wasted work. Fetch it when the tab is opened.
+
+    let _runsCache = null;
+
+    async function loadRuns(force) {
+        const el = document.getElementById("runs-list");
+        if (!el) return;
+        if (_runsCache && !force) { el.innerHTML = _runsCache; return; }
+        el.innerHTML = `<div class="null-notice">Scanning ${API.resultsDir} …</div>`;
+        try {
+            const runs = await API.get("/api/runs");
+            _runsCache = renderRunsTable(runs || []);
+            el.innerHTML = _runsCache;
+        } catch (err) {
+            _runsCache = null;
+            el.innerHTML = `<div class="null-notice">Could not list runs: ${err.message}</div>`;
+        }
+    }
+
+    function renderRunsTable(runs) {
+        if (!runs.length) {
+            return `<div class="null-notice">No <code>*_events.jsonl</code> files under
+                <code>${API.resultsDir}</code> yet. Runs appear here as soon as a
+                sweep starts writing its event log.</div>`;
+        }
+        const rows = runs.map(r => `
+            <tr>
+                <td><code>${r.run_tag}</code></td>
+                <td>${r.events_files}</td>
+                <td>${(r.datasets || []).map(d => `<span class="tag">${d}</span>`).join(" ")}</td>
+            </tr>`).join("");
+        return `
+            <div class="null-notice">
+                Detected by globbing <code>${API.resultsDir}/*_events.jsonl</code>.
+                To inspect a past run, open the dashboard with
+                <code>?results_dir=…&amp;run_tag=…</code> pointing at it.
+            </div>
+            <table class="data-table">
+                <thead><tr><th>run tag</th><th>event files</th><th>datasets</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <button class="btn" id="runs-refresh">Rescan</button>`;
     }
 
     // ── SSE connection ───────────────────────────────────────────────────
@@ -358,6 +406,14 @@ const App = (() => {
                     Charts.paretoScatter(paretoEl, s.pareto,
                         `Pareto: ${s.dataset} f${s.fold} ${s.family}`);
                 }
+                const genEl = document.getElementById(`gen-${s.dataset}-${s.fold}-${s.run_id}-${s.family}`);
+                if (genEl) {
+                    // `progress` is the compact per-generation series the server
+                    // computes (GaSearchState.progress). Log y because val_mse
+                    // for an SNN spans several orders of magnitude across a run.
+                    Charts.gaGenerationProgress(genEl, s.progress,
+                        `Convergence: ${s.dataset} f${s.fold} ${s.family}`);
+                }
             });
         });
     }
@@ -434,7 +490,18 @@ const App = (() => {
 
         document.getElementById("btn-collect-ga").addEventListener("click", collectRemoteGA);
 
+        // Delegated: renderRunsTable() replaces #runs-list wholesale, so a
+        // per-button listener would be thrown away on every re-render.
+        document.getElementById("runs-list").addEventListener("click", (e) => {
+            if (e.target.id === "runs-refresh") {
+                _runsCache = null;
+                loadRuns();
+            }
+        });
+
         connectSSE();
+        // Warm the runs cache so the tab is populated on first click.
+        loadRuns();
     }
 
     async function collectRemoteGA() {

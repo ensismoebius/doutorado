@@ -442,65 +442,6 @@ retry loop — use `monitor.py`'s own `--interval` (inside `remote_monitor.sh`'s
 session) or a real-delay `watch -n 60 ...` around `pull_progress.sh` rather than
 hammering the login node.
 
-## 7. Remote GA collection from the dashboard
-
-The web dashboard (see [Meeting01 § Web dashboard](../Experiments/Meeting01.md#web-dashboard-fastapi--plotlyjs))
-can fetch GA search results directly from GridUnesp via SSH, without manually
-syncing `results/meeting01/` first.
-
-### How it works
-
-1. **Server-side:** `scripts/pipeline/meeting01/collect_ga_local.py` SSHes into
-   GridUnesp, reads `*_cache.jsonl` files from the remote `results/meeting01/`
-   directory, and writes a local `<run_tag>_ga_remote.jsonl` file with per-cell GA
-   summaries (n_individuals, n_generations, best_val_mse, best_inference_cost).
-2. **Dashboard:** The `POST /api/ga/remote/collect` endpoint runs
-   `collect_ga_local.py` as a subprocess. The `GET /api/ga/remote` endpoint reads
-   the last entry from the JSONL file and returns it as JSON.
-
-### Setup
-
-Credentials are read from `scripts/pipeline/meeting01/.env` (shared with
-`gridunesp_deploy.sh`). Required variables:
-
-```
-GRIDUNESP_USER=<your-username>
-GRIDUNESP_PASSWORD=<your-password>   # or set up SSH keys to skip this
-GRIDUNESP_HOST=access.grid.unesp.br  # default
-GRIDUNESP_REMOTE_DIR=software/nn     # default
-```
-
-### Usage
-
-```bash
-# one-shot collection (writes <run_tag>_ga_remote.jsonl)
-.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py
-
-# continuous collection every 60s
-.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --interval 60
-```
-
-Or trigger from the dashboard: open the **Architecture Search** tab and click
-**Collect from GridUnesp**. The button shows status (collecting / done / error)
-and populates the GA panel with remote results.
-
-### SSH key setup (recommended)
-
-To avoid entering your password on every collection, set up an SSH key:
-
-```bash
-# on your local machine
-ssh-keygen -t ed25519 -f ~/.ssh/gridunesp -N ""
-ssh-copy-id -i ~/.ssh/gridunesp.pub <user>@access.grid.unesp.br
-```
-
-Then `collect_ga_local.py` will use the key automatically (no password prompt).
-
-> **Note:** GridUnesp's Fail2Ban triggers after rapid repeated login attempts.
-> The `POST /api/ga/remote/collect` endpoint runs one SSH session per call —
-> avoid hammering it. The one-shot `collect_ga_local.py` is designed around this:
-> one connection per invocation, not a retry loop.
-
 > **Partially confirmed, one real gap still open (v3 recheck, 2026-09-23)**:
 > `job-nanny`'s `SHARED_FS` flag is real and does what the sbatch script assumes —
 > v3 documents it exactly (default `false`; single-node job with `SHARED_FS`/
@@ -585,6 +526,144 @@ GridUnesp itself; the remote-side script it drives is stdlib + `monitor.py`'s
 ingestion classes only. Needs the SAME `sshpass` + `.env` credentials as every
 other script here (shared file, `scripts/pipeline/meeting01/.env` — first run
 prompts once, same as `gridunesp_deploy.sh`).
+
+## 7. Remote GA collection from the dashboard
+
+The web dashboard (see [Meeting01 § Web dashboard](../Experiments/Meeting01.md#web-dashboard-fastapi--plotlyjs))
+can fetch GA search results directly from GridUnesp via SSH, without manually
+syncing `results/meeting01/` first.
+
+### How it works
+
+1. **Remote side:** the command that `collect_ga_local.py` sends over SSH does
+   `cd <remote_dir>`, activates the remote conda env, then pipes a small Python
+   snippet on **stdin** (a quoted heredoc, not `python3 -c`) that imports
+   `collect_ga()` from `gridunesp_status_remote.py` and prints its result as one
+   JSON object. The activation must be, in order:
+
+   ```bash
+   module load miniconda/24.4.0-libmamba \
+     && eval "$(conda shell.bash hook)" \
+     && conda activate meeting01-build
+   ```
+
+   Skipping the `eval` hook makes `conda activate` fail outright; skipping the
+   whole chain silently falls back to the login node's `python3` (3.6.8), which
+   cannot even parse `from __future__ import annotations`. The `&&` chaining is
+   load-bearing for exactly that reason.
+2. **Local side:** `collect_ga_local.py` writes the payload to
+   `<results_dir>/<run_tag>_ga_remote.jsonl`, one JSON object per line, with
+   per-cell fields (`n_individuals`, `n_generations`, `best_val_mse`,
+   `best_inference_cost`) plus `ts` and `source`.
+3. **Dashboard:** `POST /api/ga/remote/collect` performs that collection
+   synchronously. `GET /api/ga/remote` reads the last **complete** record from
+   the JSONL and returns it as JSON.
+
+**Parsing is deliberately tolerant.** Cluster SSH prepends a fixed banner to
+every connection (an OpenSSH post-quantum-key-exchange warning plus a `====`
+block around the `module load` conda notice), so `collect_ga_local.py` scans
+stdout **backwards** for the last line that parses as a JSON object. Error
+reporting strips the same boilerplate and keeps the tail, because the actual
+cause is a Python traceback at the very end — a naive head-truncation shows
+only the banner and hides the failure.
+
+**Quoting.** Each interpolated value gets exactly one quoting context.
+`GRIDUNESP_REMOTE_DIR` lands in shell position (`cd <dir>`) and is
+`shlex.quote`d; the results path and run tag are embedded in the Python body
+with `repr()`. Running `shlex.quote` over a value that `repr()` then re-quotes
+yields a string with literal quote characters embedded in it — a silently wrong
+path rather than a loud failure. Because the heredoc delimiter is quoted
+(`<<'EOF'`), the shell does no expansion inside the Python body, so a
+caller-supplied `results_dir` is shell-inert.
+
+### Setup
+
+Credentials are read from `scripts/pipeline/meeting01/.env` (shared with
+`gridunesp_deploy.sh`). Variables:
+
+```
+GRIDUNESP_USER=<your-username>            # required
+GRIDUNESP_PASSWORD=<your-password>        # optional — omit when using an SSH key
+GRIDUNESP_HOST=access.grid.unesp.br       # default
+GRIDUNESP_PORT=22                         # default
+GRIDUNESP_REMOTE_DIR=software/nn          # default
+GRIDUNESP_CONDA_ENV=meeting01-build       # default
+```
+
+Keep the file mode at `600`; it may hold a cluster password.
+
+Two **mutually exclusive** authentication modes, selected by whether
+`GRIDUNESP_PASSWORD` is set:
+
+| Mode | Trigger | Command shape |
+|---|---|---|
+| Password | `GRIDUNESP_PASSWORD` set | `sshpass -e ssh …` with `SSHPASS` exported into the child environment |
+| SSH key | password unset | `ssh -o BatchMode=yes …` |
+
+`BatchMode=yes` disables all interactive prompts, which is what makes the
+dashboard's HTTP request safe to serve (a request must never block on a terminal
+prompt), and it is also why key auth must be set up beforehand: without a key and
+without a password there is no way in, by design. The password is passed to
+`sshpass` via its `-e` flag and the `SSHPASS` environment variable rather than on
+the command line, so it does not appear in the remote process's `argv`.
+
+### Usage
+
+```bash
+# one-shot collection (writes <run_tag>_ga_remote.jsonl)
+.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py
+
+# continuous collection every 60s
+.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --interval 60
+
+# print the remote command without running SSH (debugging aid)
+.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
+```
+
+Or trigger from the dashboard: open the **Architecture Search** tab and click
+**Collect from GridUnesp**. The button shows status (collecting / done / error)
+and populates the GA panel with remote results. The endpoint is synchronous and
+bounded by `SSH_TIMEOUT_S` (60 s).
+
+> **Prerequisite — the remote checkout must contain `collect_ga`.** The remote
+> command imports `collect_ga` from
+> `scripts/pipeline/meeting01/gridunesp_status_remote.py` **on the cluster**. A
+> cluster checkout predating that function fails with
+> `ImportError: cannot import name 'collect_ga'`, which the collector surfaces
+> verbatim after stripping the SSH banner. Check the remote tree before relying
+> on the button:
+>
+> ```bash
+> .venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
+> # then, on the cluster:
+> grep -c '^def collect_ga' ~/software/nn/scripts/pipeline/meeting01/gridunesp_status_remote.py
+> ```
+>
+> Note that a checkout made by `rsync`/`scp` (rather than `git clone`) has no
+> git history, so there is no `git rev-parse HEAD` to compare against — compare
+> the file contents instead. Syncing a new file over a checkout that a running
+> job is using can disturb that job, so treat any remote update as an
+> intentional, separately-verified step.
+
+### SSH key setup (recommended)
+
+To avoid re-entering your password and to keep `BatchMode=yes` viable, set up an
+SSH key:
+
+```bash
+# on your local machine
+ssh-keygen -t ed25519 -f ~/.ssh/gridunesp -N ""
+ssh-copy-id -i ~/.ssh/gridunesp.pub <user>@access.grid.unesp.br
+```
+
+Then leave `GRIDUNESP_PASSWORD` unset in `.env`; `collect_ga_local.py` uses the
+key with `BatchMode=yes` and never prompts.
+
+> **Note:** GridUnesp's Fail2Ban triggers after rapid repeated login attempts.
+> The `POST /api/ga/remote/collect` endpoint runs one SSH session per call —
+> avoid hammering it, and run the server single-worker so a burst of clicks
+> cannot fan out into concurrent sessions. The one-shot `collect_ga_local.py` is
+> designed around this: one connection per invocation, not a retry loop.
 
 ## Forward-looking: other experiments use a different dataset mechanism
 

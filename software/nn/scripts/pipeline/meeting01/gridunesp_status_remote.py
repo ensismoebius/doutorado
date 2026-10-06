@@ -47,6 +47,7 @@ from monitor import (  # noqa: E402  (path insert above must run first)
     default_profile_path,
     scan_completed_folds,
 )
+from ga_cache import GaCacheTailer, GaSearchState  # noqa: E402
 
 # (dataset dir name) -> (expected file count, extension). Verified 2026-09-24
 # against upstream sources: fsdDataset/audioMNIST_8k counted from a complete
@@ -249,63 +250,28 @@ def collect_training(results_dir: str, run_tag: str, profile: str | None) -> dic
 def collect_ga(results_dir: str, run_tag: str) -> dict[str, Any]:
     """Collect GA per-individual cache data from the remote results dir.
 
+    Delegates identity parsing (filename -> dataset/fold/run_id/family),
+    incremental reading, and Pareto-frontier computation entirely to
+    ga_cache.py (GaCacheTailer/GaSearchState) -- the same module the local
+    dashboard backend uses -- so the two never drift against each other.
+    One fresh tailer per call (this function itself is already called once
+    per --interval tick by collect_once(), so there is no cross-call state
+    to persist here, same as collect_training()'s own fresh EventTailer).
+
     Returns a dict keyed by cell identity (dataset/fold/run_id/family) with
-    per-cell individual counts and generation stats.  The full individual
-    data is too large for the status stream; use collect_ga_individuals()
-    for one cell at a time via the dashboard's /api/ga/individuals endpoint.
+    each cell's full summary() (counts, generation progress, Pareto front).
+    The full individual data is too large for the status stream; use
+    collect_ga_individuals() for one cell at a time via the dashboard's
+    /api/ga/individuals endpoint.
     """
-    import re
-    cache_re = re.compile(
-        r"meeting01_ga_(?P<rt>.+?)_(?P<ds>[a-z0-9]+)_fold(?P<fold>\d+)"
-        r"_run(?P<run>\d+)(?:_(?P<family>lstm|gru|transformer))?_cache\.jsonl$"
-    )
-    pattern = os.path.join(results_dir, f"meeting01_ga_{run_tag}_*_cache.jsonl")
-    cells: dict[str, dict[str, Any]] = {}
-    for path in glob.glob(pattern):
-        m = cache_re.search(os.path.basename(path))
-        if not m:
-            continue
-        family = m["family"] or "snn"
-        key = f"{m['ds']}/fold{m['fold']}/run{m['run']}/{family}"
-        # Count lines and find best val_mse without loading everything
-        n_lines = 0
-        best_val = None
-        best_cost = None
-        generations: set[int] = set()
-        try:
-            with open(path, "r", encoding="utf-8", errors="replace") as fh:
-                for line in fh:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        ind = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    n_lines += 1
-                    gen = ind.get("born_generation")
-                    if gen is not None:
-                        generations.add(gen)
-                    if ind.get("feasible", True):
-                        v = ind.get("val_mse")
-                        c = ind.get("inference_cost")
-                        if v is not None and (best_val is None or v < best_val):
-                            best_val = v
-                        if c is not None and (best_cost is None or c < best_cost):
-                            best_cost = c
-        except OSError:
-            continue
-        cells[key] = {
-            "dataset": m["ds"],
-            "fold": int(m["fold"]),
-            "run_id": int(m["run"]),
-            "family": family,
-            "n_individuals": n_lines,
-            "n_generations": len(generations),
-            "best_val_mse": best_val,
-            "best_inference_cost": best_cost,
-        }
-    return {"cells": list(cells.values())}
+    tailer = GaCacheTailer(results_dir, run_tag)
+    searches: dict[tuple[str, int, int, str], GaSearchState] = {}
+    for ind in tailer.poll():
+        key = (ind["_dataset"], ind["_fold"], ind["_run_id"], ind["_family"])
+        if key not in searches:
+            searches[key] = GaSearchState(*key)
+        searches[key].add(ind)
+    return {"cells": [s.summary() for s in searches.values()]}
 
 
 def collect_once(remote_dir: str, results_dir: str, run_tag: str, profile: str | None,

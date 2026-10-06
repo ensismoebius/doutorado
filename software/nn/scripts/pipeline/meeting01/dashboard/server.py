@@ -32,6 +32,7 @@ import glob
 import json
 import math
 import os
+import re
 import sys
 import time
 from typing import Any, Optional
@@ -45,6 +46,7 @@ if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
 from monitor import (
+    _finite_or_none,
     EventTailer,
     SessionState,
     dataset_roster_from_profile,
@@ -70,6 +72,17 @@ app = FastAPI(title="meeting01 dashboard", version="0.1.0")
 
 POLL_INTERVAL = 2.0  # seconds between background polls
 
+# Bounded tail window used when reading the last record of the remote-GA JSONL.
+# One record is a few KB (per-cell summaries only), so 256 KiB is generous while
+# keeping the read O(1) as the file grows under --interval polling.
+_TAIL_WINDOW_BYTES = 256 * 1024
+
+# How many *completed* GA searches keep a collapsible row in the GA tab.  Cache
+# files are deleted on completion, so without a cap the summary list — and every
+# SSE frame carrying it — would grow by one entry per finished cell for the
+# whole run (480 cells under the standard profile).
+MAX_GA_FINISHED = 64
+
 
 class RunWatcher:
     """Owns one EventTailer + SessionState + GaCacheTailer pair and polls them
@@ -88,6 +101,9 @@ class RunWatcher:
         self._state = SessionState()
         self._ga_tailer: Optional[Any] = None
         self._ga_states: dict[tuple[str, int, int, str], Any] = {}
+        # Collapsed summaries of searches whose cache file has disappeared.
+        # Insertion-ordered; trimmed to MAX_GA_FINISHED in _collapse_finished_ga.
+        self._ga_finished: dict[tuple[str, int, int, str], dict[str, Any]] = {}
         self._snapshot: dict[str, Any] = {}
         self._last_poll = 0.0
         self._consecutive_errors = 0
@@ -120,7 +136,7 @@ class RunWatcher:
                 raise
 
         # GA cache poll
-        if self._ga_tailer is not None:
+        if self._ga_tailer is not None and GaSearchState is not None:
             for ind in self._ga_tailer.poll():
                 key = (
                     ind.get("_dataset", ""),
@@ -131,9 +147,32 @@ class RunWatcher:
                 if key not in self._ga_states:
                     self._ga_states[key] = GaSearchState(*key)
                 self._ga_states[key].add(ind)
+            self._collapse_finished_ga()
 
         self._last_poll = time.time()
         self._rebuild_snapshot()
+
+    def _collapse_finished_ga(self) -> None:
+        """Drop per-individual state for GA searches whose cache file is gone.
+
+        Cache files are deleted on successful completion
+        (remove_checkpoint_artifacts), so a cell that stops appearing in
+        active_cells() has finished.  Without this the watcher would retain
+        every genome of every family for the whole run — 480 cells x ~40
+        individuals for the standard profile — and _ga_summary() would rebuild
+        and re-serialize all of it into every SSE frame, every 2 s, for weeks.
+
+        The collapsed summary is kept (bounded to MAX_GA_FINISHED, most recent
+        first) so a just-finished search stays visible instead of vanishing.
+        """
+        live = self._ga_tailer.active_cells() if self._ga_tailer is not None else set()
+        for key in [k for k in self._ga_states if k not in live]:
+            state = self._ga_states.pop(key)
+            self._ga_finished[key] = state.summary()
+        if len(self._ga_finished) > MAX_GA_FINISHED:
+            # dict preserves insertion order — drop the oldest keys.
+            for stale in list(self._ga_finished)[: len(self._ga_finished) - MAX_GA_FINISHED]:
+                del self._ga_finished[stale]
 
     def _rebuild_snapshot(self) -> None:
         active = self._state.active_configs_json()
@@ -149,11 +188,19 @@ class RunWatcher:
             "events": self._state.events_json(),
             "procs": self._state.procs_json(),
             "ga_summary": self._ga_summary(),
+            "ga_finished_count": len(self._ga_finished),
             "last_poll": self._last_poll,
         }
 
     def _ga_summary(self) -> list[dict[str, Any]]:
-        return [s.summary() for s in self._ga_states.values()]
+        """In-flight searches first, then the most recent finished ones.
+
+        Ordering matters: the GA tab is about watching searches progress, so
+        live cells must not be pushed off the end of the list by a backlog of
+        completed ones.
+        """
+        live = [s.summary() for s in self._ga_states.values()]
+        return live + list(self._ga_finished.values())[:MAX_GA_FINISHED]
 
     def snapshot(self) -> dict[str, Any]:
         """Return the latest snapshot, polling if stale."""
@@ -281,28 +328,55 @@ def api_ga_individuals(
     return JSONResponse(rows)
 
 
+def _last_jsonl_record(path: str) -> Optional[dict[str, Any]]:
+    """Return the last complete JSON object in a JSONL file, or None.
+
+    Reads only a bounded tail window rather than the whole file (these grow
+    without limit under --interval polling).  A trailing partial line — the
+    normal state while collect_ga_local.py is mid-append — is skipped in
+    favour of the last *parseable* record.
+
+    A missing, empty or entirely unparseable file yields None rather than
+    raising: "no remote snapshot yet" is the normal state before the first
+    collection, not an error worth a 500.
+    """
+    try:
+        with open(path, "rb") as fh:
+            size = fh.seek(0, os.SEEK_END)
+            if size == 0:
+                return None
+            window = min(size, _TAIL_WINDOW_BYTES)
+            fh.seek(size - window)
+            tail = fh.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+
+    # Walk backwards over non-empty lines; the first one that parses wins.
+    for line in reversed(tail.split("\n")):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # partial/truncated tail record — try the previous one
+        if isinstance(rec, dict):
+            # Sanitize here rather than at each call site: json.loads accepts the
+            # non-standard NaN/Infinity tokens by default, so a NaN can enter
+            # through this parse and then make the eventual JSONResponse raise.
+            return _finite_or_none(rec)
+    return None
+
+
 @app.get("/api/ga/remote")
 def api_ga_remote_status(results_dir: str = "results/meeting01", run_tag: str = "meeting01_loso"):
     """Check if a local remote-GA JSONL file exists and return its last entry."""
     remote_path = os.path.join(results_dir, f"{run_tag}_ga_remote.jsonl")
-    if not os.path.isfile(remote_path):
+    data = _last_jsonl_record(remote_path) if os.path.isfile(remote_path) else None
+    if data is None:
         return JSONResponse({"available": False, "cells": []})
-    # Read last line
-    try:
-        with open(remote_path, "rb") as fh:
-            fh.seek(0, 2)
-            size = fh.tell()
-            if size == 0:
-                return JSONResponse({"available": False, "cells": []})
-            # Seek backwards to find last newline
-            fh.seek(max(0, size - 10000))
-            tail = fh.read().decode("utf-8", errors="replace")
-            last_line = tail.rsplit("\n", 2)[-2]  # second-to-last (last may be partial)
-            data = json.loads(last_line)
-            data["available"] = True
-            return JSONResponse(data)
-    except (OSError, json.JSONDecodeError):
-        return JSONResponse({"available": False, "cells": []})
+    data["available"] = True
+    return JSONResponse(_finite_or_none(data))
 
 
 @app.post("/api/ga/remote/collect")
@@ -314,28 +388,44 @@ def api_ga_remote_collect(
 
     Returns the collected data and appends it to the local JSONL file.
     Requires gridunesp_config.py credentials to be configured.
+
+    Synchronous and potentially slow (one SSH round-trip plus a cold conda
+    activate, bounded by collect_ga_local.SSH_TIMEOUT_S).  Run this against a
+    single-worker server; under multiple uvicorn workers each request is handled
+    by whichever worker is free, so a burst of clicks fans out into concurrent
+    SSH sessions — which is exactly what GridUnesp's Fail2Ban lockout punishes.
     """
     try:
-        sys.path.insert(0, os.path.join(_SCRIPT_DIR, ".."))
         from gridunesp_config import load_config
-        from collect_ga_local import collect_once as _collect_once
+        from collect_ga_local import append_record, collect_once
     except ImportError as exc:
         return JSONResponse({"error": f"Missing dependency: {exc}"}, status_code=500)
 
+    remote_path = os.path.join(results_dir, f"{run_tag}_ga_remote.jsonl")
     try:
         cfg = load_config()
-        data = _collect_once(cfg, results_dir, run_tag)
-        if data is None:
-            return JSONResponse({"error": "SSH collection returned no data"}, status_code=502)
-        # Append to local JSONL
-        remote_path = os.path.join(results_dir, f"{run_tag}_ga_remote.jsonl")
-        with open(remote_path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(data) + "\n")
-        return JSONResponse(data)
     except SystemExit:
-        return JSONResponse({"error": "Credentials not configured"}, status_code=500)
-    except Exception as exc:
-        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+        return JSONResponse(
+            {"error": "GridUnesp credentials not configured (set GRIDUNESP_USER "
+                      "in scripts/pipeline/meeting01/.env, or use an SSH key)"},
+            status_code=500,
+        )
+
+    data = collect_once(cfg, results_dir, run_tag)
+    if data is None:
+        return JSONResponse(
+            {"error": "SSH collection failed — see the server log for the "
+                      "ssh/conda error"},
+            status_code=502,
+        )
+    try:
+        append_record(remote_path, data)
+    except OSError as exc:
+        return JSONResponse(
+            {"error": f"collected OK but could not write {remote_path}: {exc}"},
+            status_code=500,
+        )
+    return JSONResponse(_finite_or_none(data))
 
 
 @app.get("/api/runs")
@@ -348,7 +438,6 @@ def api_runs(results_dir: str = "results/meeting01"):
         # Strip _events.jsonl suffix to get the run identifier
         identifier = basename.replace("_events.jsonl", "")
         # Extract run_tag (everything before the first _<dataset>_fold pattern)
-        import re
         m = re.match(r"^(.+?)_([a-z0-9]+)_fold(\d+)$", identifier)
         if m:
             tag = m.group(1)
@@ -369,31 +458,67 @@ def api_runs(results_dir: str = "results/meeting01"):
 
 # ── SSE endpoint ─────────────────────────────────────────────────────────────
 
+# Panels pushed as named SSE frames, in render order.
+SSE_PANELS = (
+    "summary", "fold_grid", "active_configs", "completed_configs",
+    "marginals", "aggregation", "events", "ga_summary",
+)
+
+
+class SseDedupe:
+    """Suppresses SSE frames whose payload has not changed since last sent.
+
+    A dashboard tab left open for days would otherwise re-send every panel
+    every POLL_INTERVAL — including `aggregation` and `completed_configs`,
+    which can sit byte-identical for hours.  The heartbeat frame is emitted
+    unconditionally, so the client still gets proof the stream is alive.
+    """
+
+    def __init__(self) -> None:
+        self._last: dict[str, str] = {}
+
+    def frames(self, snap: dict[str, Any]) -> list[str]:
+        """Return the frames to send for this tick (empty when nothing moved)."""
+        out: list[str] = []
+        for panel in SSE_PANELS:
+            data = snap.get(panel)
+            if data is None:
+                continue
+            try:
+                # allow_nan=False makes a stray NaN a caught error rather than
+                # an invalid `data:` payload the browser silently drops.
+                blob = json.dumps(_finite_or_none(data), allow_nan=False)
+            except (TypeError, ValueError):
+                continue  # one bad panel must not kill the stream
+            if self._last.get(panel) == blob:
+                continue
+            self._last[panel] = blob
+            out.append(f"event: {panel}\ndata: {blob}\n\n")
+        return out
+
+
 @app.get("/api/stream")
 async def api_stream(
     results_dir: str = "results/meeting01",
     run_tag: str = "meeting01_loso",
 ):
-    """Server-Sent Events stream.  Sends one JSON frame per panel per tick.
-    Named frames: session, fold_grid, active_configs, completed_configs,
+    """Server-Sent Events stream.  Sends one JSON frame per changed panel per
+    tick, plus an unconditional heartbeat.
+
+    Named frames: summary, fold_grid, active_configs, completed_configs,
     marginals, aggregation, events, ga_summary, heartbeat."""
     import asyncio
-    import json as _json
 
     async def event_generator():
         w = _get_watcher(results_dir, run_tag)
+        dedupe = SseDedupe()
         while True:
             snap = w.snapshot()
-            # Send each panel as a named SSE event
-            for panel in (
-                "summary", "fold_grid", "active_configs", "completed_configs",
-                "marginals", "aggregation", "events", "ga_summary",
-            ):
-                data = snap.get(panel)
-                if data is not None:
-                    yield f"event: {panel}\ndata: {_json.dumps(data)}\n\n"
-            # Heartbeat with last poll timestamp
-            yield f"event: heartbeat\ndata: {_json.dumps({'ts': snap.get('last_poll', 0)})}\n\n"
+            for frame in dedupe.frames(snap):
+                yield frame
+            # Heartbeat carries last_poll so the client can show staleness.
+            yield (f"event: heartbeat\ndata: "
+                   f"{json.dumps({'ts': snap.get('last_poll', 0)})}\n\n")
             await asyncio.sleep(POLL_INTERVAL)
 
     return StreamingResponse(

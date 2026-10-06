@@ -144,8 +144,7 @@ config's full detail (all metrics + reproducibility). `--no-tui` on the `meeting
 #### Web dashboard (FastAPI + Plotly.js)
 
 A browser-based alternative to the `rich` TUI — same read-only philosophy, richer
-visualizations. Serves a SPA from `dashboard/static/` at
-`http://localhost:8787/`. No C++ changes required.
+visualizations. Serves a SPA from `dashboard/static/`. No C++ changes required.
 
 ```bash
 # start the dashboard (needs fastapi + uvicorn in the venv)
@@ -155,27 +154,45 @@ visualizations. Serves a SPA from `dashboard/static/` at
 .venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01 --run-tag meeting01_loso
 ```
 
+Defaults are `--host 127.0.0.1 --port 8000`, so the dashboard is at
+`http://localhost:8000/`. It binds loopback only; it is a read-only view with no
+authentication, so do not expose it on a shared network.
+
 **Architecture.** The server (`dashboard/server.py`) is a FastAPI app that tails
-events + GA cache files on disk, same as the TUI monitor. It exposes:
+events + GA cache files on disk, same as the TUI monitor. A single `RunWatcher`
+per `(results_dir, run_tag)` polls every `POLL_INTERVAL` (2 s) and holds the last
+snapshot, so N browser tabs cost one set of file reads, not N.
+
+Every endpoint below takes the same `results_dir` and `run_tag` query parameters.
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/summary` | GET | Session overview (total cells, done/running/failed, per-dataset counts) |
-| `/api/fold-grid` | GET | 2D grid of (dataset × fold) cells with status and active config |
-| `/api/active-configs` | GET | All currently training configs with epoch/batch progress |
-| `/api/completed-configs` | GET | Finished configs ranked by best validation loss |
+| `/api/session` | GET | Session overview (total cells, done/running/failed, per-dataset counts, elapsed/ETA) |
+| `/api/folds` | GET | 2D grid of (dataset × fold) cells with status and active config |
+| `/api/configs/active` | GET | All currently training configs with epoch/batch progress |
+| `/api/configs/completed` | GET | Finished configs ranked by best validation loss |
+| `/api/configs/{config_id}/history` | GET | Full epoch history for one config |
 | `/api/marginals` | GET | Per-sweep-dimension marginal best-val (once enough configs complete) |
-| `/api/ga` | GET | GA search status: Pareto frontier, generations, per-family breakdown |
-| `/api/ga/remote` | GET | GA data fetched from GridUnesp (last `collect_ga_local.py` output) |
-| `/api/ga/remote/collect` | POST | Trigger SSH collection of GA cache from GridUnesp (needs `.env` credentials) |
+| `/api/aggregation` | GET | Per-fold/per-dataset aggregated results |
 | `/api/events` | GET | Last N events from the event tail |
+| `/api/ga/summary` | GET | Per-cell GA progress: Pareto frontier, generations, `progress` series, per-family breakdown |
+| `/api/ga/individuals` | GET | Raw individuals for the **in-flight** searches (see the cap note below) |
+| `/api/ga/remote` | GET | GA data from the last local `collect_ga_local.py` output |
+| `/api/ga/remote/collect` | POST | Trigger one SSH collection from GridUnesp (needs `.env` credentials) |
+| `/api/runs` | GET | Historical run tags discovered by globbing `*_events.jsonl` |
 | `/api/stream` | GET | SSE — named frames pushed as training progresses |
+| `/api/health` | GET | Liveness probe |
 
 **SSE event types:** `summary`, `fold_grid`, `active_configs`, `completed_configs`,
-`marginals`, `aggregation`, `events`, `ga_summary`, `heartbeat` (keepalive every
-10 s). The client (`dashboard/static/app.js`) subscribes to `/api/stream` and
-re-renders panels on each named event, with 400 ms debounced flushes to avoid
-layout thrashing.
+`marginals`, `aggregation`, `events`, `ga_summary`, plus an unconditional
+`heartbeat` carrying the last-poll timestamp. A panel frame is sent **only when
+its serialized payload has changed** (`SseDedupe`), so a tab left open for days
+does not re-send byte-identical `aggregation`/`completed_configs` frames every
+2 s; the heartbeat still fires each tick to prove the stream is alive. Frames are
+serialized with `allow_nan=False`, and a panel that cannot be serialized is
+skipped rather than killing the stream. The client
+(`dashboard/static/app.js`) re-renders panels on each named event, with 400 ms
+debounced flushes to avoid layout thrashing.
 
 **Browser tabs:**
 
@@ -184,32 +201,57 @@ layout thrashing.
 - **Training Now** — active config cards with epoch progress bar, batch loss chart
   (live), train/val loss overlay with best-epoch marker. Charts use LTTB downsampling
   (MAX_POINTS=500) to keep Plotly responsive.
-- **Architecture Search** — GA Pareto frontier scatter (MSE vs inference cost),
-  generation progress chart, per-family status. "Collect from GridUnesp" button
-  triggers `collect_ga_local.py` via SSH to fetch the latest GA cache files.
+- **Architecture Search** — GA Pareto frontier scatter (MSE vs inference cost) and a
+  log-scale generation-progress chart per cell, both driven by the compact
+  `progress` series (`[{gen, n, best_val_mse, best_cost}]`) that the server
+  computes in `GaSearchState.progress`. "Collect from GridUnesp" triggers an SSH
+  fetch (below).
 - **Comparison** — sortable table of completed configs (click column headers),
   best-val-per-fold highlighted in green.
 - **Events** — raw event tail with search, colored by event type.
-- **Historical Runs** — placeholder for past run summaries.
+- **Historical Runs** — run tags found by globbing `<results_dir>/*_events.jsonl`,
+  with event-file counts and datasets per run, plus a Rescan button. Fetched on tab
+  open rather than pushed over SSE (run history changes once per run, so
+  re-globbing it every 2 s would be wasted work).
 
-**GA remote collection.** The `GET /api/ga/remote` endpoint reads the last entry
-from `<run_tag>_ga_remote.jsonl`, produced by `collect_ga_local.py`. The
-`POST /api/ga/remote/collect` endpoint triggers a one-shot SSH fetch from GridUnesp,
-reading credentials from `scripts/pipeline/meeting01/.env` (shared with
-`gridunesp_deploy.sh`). See
-[GridUnesp Deployment §6](../Guides/GridUnesp-Deployment.md#7-remote-ga-collection-from-the-dashboard)
-for setup.
+**GA remote collection.** `GET /api/ga/remote` reads the last complete record from
+`<results_dir>/<run_tag>_ga_remote.jsonl`, produced by `collect_ga_local.py`.
+`POST /api/ga/remote/collect` triggers a one-shot SSH fetch. The endpoint is
+**synchronous** and bounded by `SSH_TIMEOUT_S` (60 s): one SSH round-trip plus a
+cold `conda activate`. Run it against a single-worker server — with several
+uvicorn workers a burst of clicks fans out into concurrent SSH sessions, which is
+what GridUnesp's lockout policy punishes.
 
-**Performance optimizations:** LTTB downsampling in `charts.js` limits all line
-charts to 500 points. Debounced SSE renders (400 ms FLUSH_MS) batch multiple panel
-updates into a single DOM flush. Training and GA charts only render when their tab
-is active (lazy rendering).
+Both the CLI and the endpoint read credentials from
+`scripts/pipeline/meeting01/.env` (`GRIDUNESP_USER`, and `GRIDUNESP_PASSWORD` for
+password auth). Two mutually exclusive auth modes are supported — see
+[GridUnesp Deployment §7](../Guides/GridUnesp-Deployment.md#7-remote-ga-collection-from-the-dashboard).
+
+**Known operational prerequisite.** The remote command imports `collect_ga` from
+`scripts/pipeline/meeting01/gridunesp_status_remote.py` **on the cluster**. If the
+cluster checkout predates that function, collection fails with
+`ImportError: cannot import name 'collect_ga'`. Check the remote tree before
+relying on this button; see the deployment guide.
+
+**Bounded GA state.** GA cache files are deleted on successful completion, so
+`RunWatcher` collapses a search's per-individual state into a summary once its
+file disappears and keeps at most `MAX_GA_FINISHED` (64) such summaries. Without
+that, a 480-cell run would retain every genome and re-serialize all of them into
+every SSE frame for weeks. A consequence: `/api/ga/individuals` covers in-flight
+searches, not finished ones.
+
+**Performance optimizations:** LTTB downsampling in `charts.js` limits line
+charts to 500 points. Debounced SSE renders (400 ms `FLUSH_MS`) batch multiple
+panel updates into a single DOM flush, and Plotly `react()` calls are debounced so
+a burst of frames does not trigger a re-layout per frame. Training and GA charts
+render only when their tab is active (lazy rendering), which matters because
+Plotly needs a non-zero-size container to measure. The GA convergence y-axis is
+logarithmic, since `val_mse` for an SNN spans several orders of magnitude over a
+run.
 
 **Static file serving.** `app.mount("/", StaticFiles(directory=..., html=True))` serves
 `dashboard/static/{index.html,style.css,api.js,charts.js,app.js}`. The mount must
 be registered last in the FastAPI app (it catches `/*`).
-binary (and any non-TTY stdout) disables its own `ProgressManager` bars so redirected
-logs stay free of cursor-control sequences.
 
 ### Statistics & paper data
 

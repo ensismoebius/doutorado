@@ -32,9 +32,13 @@ Usage:
   .venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
   .venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
 
-First run prompts for your GridUnesp username + password (like every other script
-here) and saves them to scripts/pipeline/meeting01/.env (chmod 600, git-ignored);
-later runs read it silently. Needs `sshpass` locally (never on GridUnesp itself).
+Credentials/connection config are handled by gridunesp_config.py (shared with
+gridunesp_status_remote.py's one-shot GA collector and the web dashboard backend):
+first run prompts for your GridUnesp username, then a password (or leave it blank
+to use an SSH key instead), and saves whichever applies to
+scripts/pipeline/meeting01/.env (chmod 600, git-ignored); later runs read it
+silently. Password mode needs `sshpass` locally (never on GridUnesp itself); key
+mode needs neither `sshpass` nor a stored password.
 """
 from __future__ import annotations
 
@@ -43,11 +47,10 @@ import json
 import os
 import shlex
 import shutil
-import stat
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from typing import Any, Optional
 
 try:
@@ -67,68 +70,14 @@ except ImportError:
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
-ENV_FILE = os.path.join(SCRIPT_DIR, ".env")
 
-# Same activation dance every other fixed script in this directory now uses (see
-# .wiki/Guides/GridUnesp-Deployment.md's Troubleshooting section): module load alone
-# does not run `conda init`, and the meeting01-build env needs its own python=3.11 --
-# GridUnesp's bare python3 is 3.6.8, too old for monitor.py's `from __future__ import
-# annotations`.
-REMOTE_ACTIVATE = (
-    "module load miniconda/24.4.0-libmamba && "
-    'eval "$(conda shell.bash hook)" && '
-    "conda activate meeting01-build"
-)
-
-
-# --------------------------------------------------------------------------------------
-# credentials -- same .env file, same format, as _gridunesp_env.sh, so either can be
-# used interchangeably and both stay in sync automatically.
-# --------------------------------------------------------------------------------------
-@dataclass
-class Credentials:
-    user: str
-    password: str
-
-
-def load_credentials() -> Credentials:
-    env: dict[str, str] = {}
-    if os.path.isfile(ENV_FILE):
-        with open(ENV_FILE, encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, _, v = line.partition("=")
-                env[k.strip()] = v.strip()
-    user = env.get("GRIDUNESP_USER") or os.environ.get("GRIDUNESP_USER")
-    password = env.get("GRIDUNESP_PASSWORD")
-    if user and password:
-        return Credentials(user, password)
-
-    if not sys.stdin.isatty():
-        print("gridunesp_tui.py: GridUnesp credentials missing (no .env, and stdin is "
-              "not a terminal to prompt for them)", file=sys.stderr)
-        raise SystemExit(1)
-    if not user:
-        user = input("GridUnesp username: ").strip()
-        if not user:
-            print("gridunesp_tui.py: username cannot be empty", file=sys.stderr)
-            raise SystemExit(1)
-    if not password:
-        import getpass
-        password = getpass.getpass("GridUnesp password: ")
-        if not password:
-            print("gridunesp_tui.py: password cannot be empty", file=sys.stderr)
-            raise SystemExit(1)
-
-    fd = os.open(ENV_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(f"GRIDUNESP_USER={user}\nGRIDUNESP_PASSWORD={password}\n")
-    os.chmod(ENV_FILE, stat.S_IRUSR | stat.S_IWUSR)
-    print(f"[gridunesp] saved credentials to {ENV_FILE} (chmod 600, git-ignored) -- "
-          "later runs will not ask again")
-    return Credentials(user, password)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+# Shared SSH/credential config (gridunesp_config.py) -- same .env file, same format,
+# as _gridunesp_env.sh, so every script in this directory (this one, the dashboard
+# backend, collect_ga_local.py) reads/writes the identical file and stays in sync
+# automatically instead of each keeping its own copy of this logic.
+from gridunesp_config import GridUnespConfig, load_config  # noqa: E402
 
 
 # --------------------------------------------------------------------------------------
@@ -355,11 +304,9 @@ class GridUnespTUI(App):
 
     status: reactive[Status] = reactive(Status, always_update=True)
 
-    def __init__(self, creds: Credentials, host: str, remote_dir: str, interval: float) -> None:
+    def __init__(self, config: GridUnespConfig, interval: float) -> None:
         super().__init__()
-        self._creds = creds
-        self._host = host
-        self._remote_dir = remote_dir
+        self._config = config
         self._interval = interval
         self._proc: Optional[subprocess.Popen] = None
 
@@ -384,29 +331,28 @@ class GridUnespTUI(App):
         self.query_one("#log", LogPanel).update_status(st)
 
     # ---- SSH status stream ---------------------------------------------------------
-    def _ssh_argv(self, remote_cmd: str) -> list[str]:
-        return ["sshpass", "-e", "ssh", "-o", "ConnectTimeout=15",
-               f"{self._creds.user}@{self._host}", remote_cmd]
-
     def _start_stream(self) -> None:
         self.run_worker(self._stream_worker(), exclusive=True, thread=False, name="status")
 
     async def _stream_worker(self) -> None:
         import asyncio
 
-        remote_cmd = (f"cd {shlex.quote(self._remote_dir)} && {REMOTE_ACTIVATE} && "
+        remote_cmd = (f"cd {shlex.quote(self._config.remote_dir)} && "
+                      f"{self._config.remote_activate()} && "
                       f"python3 -u scripts/pipeline/meeting01/gridunesp_status_remote.py "
                       f"--interval {self._interval}")
-        env = dict(os.environ)
-        env["SSHPASS"] = self._creds.password
+        try:
+            argv = self._config.ssh_argv(remote_cmd)
+        except RuntimeError as exc:
+            self.status = Status(connected=False, error=str(exc))
+            return
         try:
             proc = await asyncio.create_subprocess_exec(
-                *self._ssh_argv(remote_cmd), stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL, env=env,
+                *argv, stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL, env=self._config.ssh_env(),
             )
-        except FileNotFoundError:
-            st = Status(connected=False, error="'sshpass' not found on PATH")
-            self.status = st
+        except FileNotFoundError as exc:
+            self.status = Status(connected=False, error=f"'ssh' not found on PATH ({exc})")
             return
 
         assert proc.stdout is not None
@@ -466,12 +412,15 @@ class GridUnespTUI(App):
         def handle(confirmed: bool | None) -> None:
             if not confirmed:
                 return
-            env = dict(os.environ)
-            env["SSHPASS"] = self._creds.password
-            remote_cmd = (f"cd {shlex.quote(self._remote_dir)} && "
+            remote_cmd = (f"cd {shlex.quote(self._config.remote_dir)} && "
                           "sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch")
             with self.suspend():
-                subprocess.run(self._ssh_argv(remote_cmd), env=env, check=False)
+                try:
+                    argv = self._config.ssh_argv(remote_cmd)
+                except RuntimeError as exc:
+                    print(f"\n[gridunesp-tui] {exc}")
+                else:
+                    subprocess.run(argv, env=self._config.ssh_env(), check=False)
                 input("\n[gridunesp-tui] press Enter to return to the dashboard...")
         self.push_screen(
             ConfirmScreen("Submit the real training job to Slurm?\n"
@@ -487,18 +436,29 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--interval", type=float, default=20.0,
                     help="seconds between remote status samples (default 20)")
-    ap.add_argument("--host", default=os.environ.get("GRIDUNESP_HOST", "access.grid.unesp.br"))
-    ap.add_argument("--remote-dir", default=os.environ.get("GRIDUNESP_REMOTE_DIR", "software/nn"))
+    ap.add_argument("--host", default=None,
+                    help="default: GRIDUNESP_HOST from .env/environment, else access.grid.unesp.br")
+    ap.add_argument("--remote-dir", default=None,
+                    help="default: GRIDUNESP_REMOTE_DIR from .env/environment, else software/nn")
     args = ap.parse_args()
 
-    if shutil.which("sshpass") is None:
+    config = load_config()
+    overrides: dict[str, str] = {}
+    if args.host is not None:
+        overrides["host"] = args.host
+    if args.remote_dir is not None:
+        overrides["remote_dir"] = args.remote_dir
+    if overrides:
+        config = dataclass_replace(config, **overrides)
+
+    if config.uses_password and shutil.which("sshpass") is None:
         print("gridunesp_tui.py: 'sshpass' not found on PATH -- needed to use the saved\n"
               "password non-interactively. Install it: 'sudo apt install sshpass'\n"
-              "(Debian/Ubuntu) or 'conda install -c conda-forge sshpass'.", file=sys.stderr)
+              "(Debian/Ubuntu) or 'conda install -c conda-forge sshpass'. Alternatively "
+              "remove GRIDUNESP_PASSWORD from .env and use an SSH key.", file=sys.stderr)
         return 1
 
-    creds = load_credentials()
-    app = GridUnespTUI(creds, args.host, args.remote_dir, args.interval)
+    app = GridUnespTUI(config, args.interval)
     app.run()
     return 0
 

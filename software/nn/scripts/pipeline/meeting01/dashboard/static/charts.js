@@ -151,45 +151,44 @@ const Charts = (() => {
 
     // ── GA generation progress ──────────────────────────────────────────
 
-    function gaGenerationProgress(el, byGeneration, title) {
+    /**
+     * @param {HTMLElement} el      target plot div
+     * @param {Array<{gen:number, n:number, best_val_mse:?number, best_cost:?number}>} progress
+     *        the compact per-generation series from GaSearchState.progress (server-side).
+     *        Deliberately NOT the raw individuals: with 480 cells x ~40 genomes
+     *        the browser has no use for them, and shipping them every SSE frame
+     *        would cost megabytes per push.
+     * @param {string} title
+     * @param {string} [label]     series name (e.g. "fsdd f0 snn")
+     * @param {number} [_alpha]    trace opacity, so overlapping cells stay readable
+     */
+    function gaGenerationProgress(el, progress, title, label, _alpha) {
         if (!el) return;
-        const gens = Object.keys(byGeneration).map(Number).sort((a, b) => a - b);
-        if (!gens.length) { Plotly.purge(el); return; }
-        const bestPerGen = gens.map(g => {
-            const inds = byGeneration[g];
-            const vals = inds
-                .filter(i => i.feasible !== false && i.val_mse != null)
-                .map(i => i.val_mse);
-            return vals.length ? Math.min(...vals) : null;
-        });
-        const costPerGen = gens.map(g => {
-            const inds = byGeneration[g];
-            const costs = inds
-                .filter(i => i.feasible !== false && i.inference_cost != null)
-                .map(i => i.inference_cost);
-            return costs.length ? Math.min(...costs) : null;
-        });
+        if (!progress || !progress.length) { Plotly.purge(el); return; }
+        const rows = progress.slice().sort((a, b) => a.gen - b.gen);
+        const gens = rows.map(r => r.gen);
+        const alpha = _alpha == null ? 1 : _alpha;
+        const common = { mode: "lines+markers", line: { width: 1.6 }, marker: { size: 4 }, opacity: alpha };
         const traces = [
             {
-                x: gens, y: bestPerGen,
-                name: "best val_mse", mode: "lines+markers",
-                line: { color: "#6c8cff", width: 2 },
-                marker: { size: 5 },
-                yaxis: "y",
+                x: gens, y: rows.map(r => r.best_val_mse),
+                name: label ? `${label} · val_mse` : "best val_mse",
+                line: { color: "#6c8cff", width: 1.6 }, marker: { size: 4 }, opacity: alpha,
+                connectgaps: false, yaxis: "y",
             },
             {
-                x: gens, y: costPerGen,
-                name: "best cost", mode: "lines+markers",
-                line: { color: "#fb923c", width: 2, dash: "dot" },
-                marker: { size: 5 },
-                yaxis: "y2",
+                x: gens, y: rows.map(r => r.best_cost),
+                name: label ? `${label} · cost` : "best cost",
+                line: { color: "#fb923c", width: 1.6, dash: "dot" },
+                marker: { size: 4 }, opacity: alpha,
+                connectgaps: false, yaxis: "y2",
             },
         ];
         const layout = {
             ...LAYOUT_BASE,
             title: { text: title || "Generation Progress", font: { size: 12 } },
             xaxis: { ...LAYOUT_BASE.xaxis, title: "Generation" },
-            yaxis: { ...LAYOUT_BASE.yaxis, title: "Best Val MSE", side: "left" },
+            yaxis: { ...LAYOUT_BASE.yaxis, title: "Best Val MSE", side: "left", type: "log" },
             yaxis2: {
                 ...LAYOUT_BASE.yaxis, title: "Best Cost",
                 overlaying: "y", side: "right",
@@ -198,6 +197,7 @@ const Charts = (() => {
             legend: { orientation: "h", y: -0.2 },
         };
         Plotly.react(el, traces, layout, CONFIG);
+        return common; // kept for callers that want to merge style
     }
 
     // ── Multi-config loss overlay ───────────────────────────────────────

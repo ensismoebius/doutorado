@@ -209,6 +209,34 @@ class GaSearchState:
                  if v is not None and isinstance(v, (int, float))]
         return min(costs) if costs else None
 
+    @property
+    def progress(self) -> list[dict[str, Any]]:
+        """Per-generation convergence series: [{gen, n, best_val_mse, best_cost}].
+
+        This is the series the dashboard's "Generation Progress" chart plots
+        (best error vs generation, one line per cell).  Computed from the
+        individuals already in memory, so it is O(n) — cheap enough to rebuild
+        on every SSE frame, unlike the O(n^2) Pareto frontier, which _rebuild()
+        caches via self._dirty.
+        """
+        self._rebuild()
+        series: list[dict[str, Any]] = []
+        for gen in sorted(self._by_generation):
+            members = self._by_generation[gen]
+            vals = [v for v in (ind.get("val_mse") for ind in members
+                                if ind.get("feasible", True))
+                    if v is not None and isinstance(v, (int, float))]
+            costs = [int(v) for v in (ind.get("inference_cost") for ind in members
+                                      if ind.get("feasible", True))
+                     if v is not None and isinstance(v, (int, float))]
+            series.append({
+                "gen": gen,
+                "n": len(members),
+                "best_val_mse": _finite_or_none(min(vals)) if vals else None,
+                "best_cost": min(costs) if costs else None,
+            })
+        return series
+
     def summary(self) -> dict[str, Any]:
         """JSON-serializable progress summary for this cell."""
         self._rebuild()
@@ -222,6 +250,7 @@ class GaSearchState:
             "max_generation": max(self.generations) if self.generations else 0,
             "best_val_mse": _finite_or_none(self.best_val_mse),
             "best_inference_cost": self.best_inference_cost,
+            "progress": self.progress,
             "pareto": [_finite_or_none(ind) for ind in self._pareto],
             "mutation_count": None,
             "crossover_count": None,

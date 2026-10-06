@@ -411,6 +411,38 @@ class SessionState:
         if datasets:
             self.dataset_roster = list(datasets)
 
+    # ---- JSON snapshots (web dashboard) ---------------------------------------------
+    # Thin typed delegates to the module-level _*_json functions defined below.
+    # They live here (rather than being bound onto the class from outside) so
+    # that type checkers, IDEs and `help()` can see them; the functions stay
+    # module-level and independently testable without an instance.
+    def session_summary_json(self) -> dict[str, Any]:
+        return _session_summary(self)
+
+    def fold_grid_json(self) -> list[dict[str, Any]]:
+        return _fold_grid_json(self)
+
+    def active_configs_json(self) -> list[dict[str, Any]]:
+        return _active_configs_json(self)
+
+    def completed_configs_json(self) -> list[dict[str, Any]]:
+        return _completed_configs_json(self)
+
+    def marginals_json(self) -> dict[str, list[dict[str, Any]]]:
+        return _marginals_json(self)
+
+    def aggregation_json(self) -> list[dict[str, Any]]:
+        return _aggregation_json(self)
+
+    def events_json(self) -> list[dict[str, Any]]:
+        return _events_json(self)
+
+    def procs_json(self) -> list[dict[str, Any]]:
+        return _procs_json(self)
+
+    def full_snapshot_json(self) -> dict[str, Any]:
+        return _full_snapshot(self)
+
     # ---- ingest -------------------------------------------------------------------
     def apply(self, ev: dict[str, Any]) -> None:
         if ev.get("v") != SCHEMA_VERSION:
@@ -833,17 +865,10 @@ def _full_snapshot(self) -> dict[str, Any]:
     })
 
 
-# Bind as methods on SessionState (kept as free functions above for testability
-# and to avoid cluttering the class with closures over module-level helpers).
-SessionState.session_summary_json = _session_summary  # type: ignore[attr-defined]
-SessionState.fold_grid_json = _fold_grid_json  # type: ignore[attr-defined]
-SessionState.active_configs_json = _active_configs_json  # type: ignore[attr-defined]
-SessionState.completed_configs_json = _completed_configs_json  # type: ignore[attr-defined]
-SessionState.marginals_json = _marginals_json  # type: ignore[attr-defined]
-SessionState.aggregation_json = _aggregation_json  # type: ignore[attr-defined]
-SessionState.events_json = _events_json  # type: ignore[attr-defined]
-SessionState.procs_json = _procs_json  # type: ignore[attr-defined]
-SessionState.full_snapshot_json = _full_snapshot  # type: ignore[attr-defined]
+# NOTE: the *_json accessors above are exposed as real methods on SessionState
+# (see the "JSON snapshots" section of the class body).  They are defined at
+# module level, *after* the class, so the delegates there reference them by
+# name at call time rather than capturing them at class-creation time.
 
 
 # --------------------------------------------------------------------------------------
