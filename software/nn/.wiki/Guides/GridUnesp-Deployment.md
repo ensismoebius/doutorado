@@ -203,7 +203,12 @@ match the real account home first.
 `scripts/pipeline/meeting01/ensure_datasets.sh` fetches all four datasets directly on
 whichever machine it runs on — idempotent (safe to re-run; skips anything already
 complete) and fail-loud (a bad clone or an interrupted transfer is a hard error, not a
-silent partial dataset). Run it **on the login node** (confirmed internet; compute-node
+silent partial dataset). The two PhysioNet sets (eegmmidb, Siena) used to be re-checked file by
+file on every run (one HTTPS request each: minutes, even with nothing missing); a finished fetch
+now leaves a `.fetch-complete` marker holding the `RECORDS` list, and a later run skips the
+per-file pass when `RECORDS` is unchanged and every listed file exists. The marker is removed
+before fetching and written only after the last file, so an interrupted run never leaves one.
+Run it **on the login node** (confirmed internet; compute-node
 internet is unconfirmed, see below) instead of the old "scp a pre-populated tree from
 another machine" approach — a fresh GridUnesp checkout no longer depends on the local
 machine having downloaded everything first:

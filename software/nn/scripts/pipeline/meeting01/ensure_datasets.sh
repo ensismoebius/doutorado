@@ -153,17 +153,41 @@ fi
 # size), so a re-run after an interruption resumes at the file level, same as
 # before; `--tries=5` gives each individual file some resilience against a single
 # transient blip without masking a genuine, repeated failure.
+#
+# Re-checking a COMPLETE dataset used to cost one HTTPS request per file (1526 for eegmmidb)
+# on every deploy, minutes of `wget -N` timestamp comparisons that find nothing to do. Now a
+# finished fetch leaves a marker (.fetch-complete) holding the RECORDS list it fetched; a
+# later run fetches RECORDS once and skips the per-file pass iff the marker is identical AND
+# every listed file exists locally. The marker is written only after the last file arrived
+# and removed before any fetching starts, so an interrupted run leaves none -- which matters
+# because wget leaves a truncated file under its final name, and "the file exists" alone
+# could not tell it from a whole one. Anything else (no marker, RECORDS changed, a file
+# missing) falls back to the full pass.
 fetch_physionet_s3() {
   local slug="$1" root="$2"
-  local base="https://physionet-open.s3.amazonaws.com/${slug}/1.0.0"
+  local base="${PHYSIONET_S3_BASE:-https://physionet-open.s3.amazonaws.com}/${slug}/1.0.0"
   local records
   records="$(curl -fsSL "${base}/RECORDS")" || {
     echo "ensure_datasets.sh: could not fetch ${slug}'s RECORDS manifest from the S3 mirror" >&2
     return 1
   }
-  local total n=0
+  local total n=0 rel marker="${root}/.fetch-complete"
   total=$(printf '%s\n' "$records" | grep -c .)
-  local rel
+
+  if [[ -f "$marker" && "$(cat "$marker")" == "$records" ]]; then
+    local missing=0
+    while IFS= read -r rel; do
+      [[ -n "$rel" ]] || continue
+      [[ -f "${root}/${rel}" ]] || { missing=$((missing + 1)); break; }
+    done <<< "$records"
+    if (( missing == 0 )); then
+      echo "[ensure-datasets] ${slug}: complete (marker matches RECORDS, ${total} files present) -- skipping"
+      return 0
+    fi
+    echo "[ensure-datasets] ${slug}: marker present but a listed file is missing -- full pass"
+  fi
+
+  rm -f "$marker"
   while IFS= read -r rel; do
     [[ -n "$rel" ]] || continue
     n=$((n + 1))
@@ -172,6 +196,7 @@ fetch_physionet_s3() {
       echo "[ensure-datasets] ${slug}: fetched ${n}/${total} files"
     fi
   done <<< "$records"
+  printf '%s\n' "$records" > "${marker}.tmp" && mv "${marker}.tmp" "$marker"
 }
 
 # --- eegmmidb (PhysioNet EEG Motor Movement/Imagery Database, 3.4GB, open access) ---
