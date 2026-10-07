@@ -137,34 +137,50 @@ cmake --preset=max-performance
 # A stamp from an earlier deploy must not survive a deploy that then fails to build.
 rm -f out/build/max-performance/SOURCE_REVISION.built
 
-echo "[gridunesp-deploy:remote] building on a compute node (srun, cpus=${BUILD_CPUS})"
-# BUILD_CPUS is exported so the child bash srun spawns can read it as $BUILD_CPUS at
-# its own runtime -- the whole script below is single-quoted (no expansion by THIS
-# shell) so `eval "$(conda shell.bash hook)"` also only runs once, inside that fresh
-# process, instead of being expanded too early against this shell's environment.
-export BUILD_CPUS
-srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c '
+# Compute-node work goes through `sbatch --wait`, not `srun`. From the login node, in this
+# non-interactive session, srun got its allocation but then timed out launching the step
+# ("started 0 of N tasks", 12 minutes in, on three different healthy nodes) -- AND still
+# exited 0, so a build that never ran looked like one that had. sbatch needs no step launch
+# from here, is the same path the real job takes, and --wait returns the job's own exit
+# code. The script goes in a file with a bash shebang (the conda hook needs bash, and
+# `sbatch --wrap` would run it under sh).
+on_compute_node() {   # on_compute_node NAME CPUS TIME 'script'
+  local name="$1" cpus="$2" limit="$3" script="$4"
+  local dir="$PWD/out/build/max-performance"
+  local file="${dir}/deploy-${name}.sh" log="${dir}/deploy-${name}.log"
+  mkdir -p "$dir"
+  rm -f "$log"
+  printf '#!/bin/bash\nset -eo pipefail\ncd %q\n%s\n' "$PWD" "$script" > "$file"
+  chmod +x "$file"
+  if ! sbatch --wait --partition=short --time="$limit" --cpus-per-task="$cpus" \
+        --job-name="meeting01-${name}" --output="$log" "$file"
+  then
+    echo "[gridunesp-deploy:remote] ERROR: the ${name} job failed; last lines of ${log}:" >&2
+    tail -n 40 "$log" >&2 || true
+    return 1
+  fi
+}
+
+echo "[gridunesp-deploy:remote] building on a compute node (sbatch --wait, cpus=${BUILD_CPUS})"
+on_compute_node build "$BUILD_CPUS" 00:30:00 '
   module load miniconda/24.4.0-libmamba
   eval "$(conda shell.bash hook)"
   conda activate meeting01-build
-  cmake --build out/build/max-performance --target meeting01 -j"$BUILD_CPUS"
+  cmake --build out/build/max-performance --target meeting01 -j'"$BUILD_CPUS"'
 '
 
-# srun can come back without having run the build (a step that never launched: "started 0 of
-# 2 tasks"), and the smoke check below would then happily run the OLD binary and stamp it. So
-# ask ninja, dry-run (-n, no compute node needed): "no work to do" proves the binary is up to
-# date with the sources just synced.
+# Belt and braces: whatever the job reported, ask ninja (dry run, no compute node needed)
+# whether the binary is now up to date with the sources just synced. The smoke check below
+# would otherwise happily run an OLD binary and the stamp would vouch for it.
 if ! cmake --build out/build/max-performance --target meeting01 -- -n | grep -q "no work to do"; then
   echo "[gridunesp-deploy:remote] ERROR: the meeting01 binary is out of date with the synced" \
-       "sources -- the srun build above did not complete (a job step that never launches, as" \
-       "\"started 0 of N tasks\", is a node problem: check sinfo / scontrol show job <id>;" \
-       "too many CPUs only keeps the job queued). Nothing was stamped. Rerun later." >&2
+       "sources although the build job finished -- see out/build/max-performance/deploy-build.log." \
+       "Nothing was stamped." >&2
   exit 1
 fi
 
 echo "[gridunesp-deploy:remote] smoke check"
-srun --partition=short --time=00:10:00 --cpus-per-task=4 \
-  out/build/max-performance/src/experiments/meeting01/meeting01 --help >/dev/null
+on_compute_node smoke 4 00:10:00 'out/build/max-performance/src/experiments/meeting01/meeting01 --help >/dev/null'
 
 # Only a binary that built AND ran gets the stamp, so "stamp == SOURCE_REVISION" means
 # "this binary was built from exactly the sources on disk".
