@@ -255,6 +255,50 @@ srun --partition=short --time=00:10:00 --cpus-per-task=4 --pty \
   out/build/max-performance/src/experiments/meeting01/meeting01 --help
 ```
 
+### Redeploying: what is stamped, what is refused, when it is safe (2026-10-07)
+
+**The problem.** A run lasts weeks, and afterwards the question "which code made these numbers?"
+needs an answer that does not depend on anyone's memory. The tree on the cluster has no git
+metadata (`~/software/nn/.git` is an empty directory — the deploy copies the working tree, and
+the repository root is its parent), and a commit hash alone would be wrong anyway: a deploy
+ships uncommitted edits too. So `gridunesp_deploy.sh` works the identity out **locally** and ships
+it:
+
+| File on the cluster | Written | Says |
+|---|---|---|
+| `~/software/nn/SOURCE_REVISION` | by the deploy, **after** the tree | commit, dirty flag and a hash of every source file's content, of the tree that was shipped |
+| `~/software/nn/out/build/max-performance/SOURCE_REVISION.built` | by the deploy, only once the remote build **and** the smoke check have succeeded | the revision the binary was built from |
+| `~/software/nn/results/meeting01/source_revisions.log` | by the run script, once per start (restarts included) | `2026-10-08T01:02:03Z start resume=0 revision=414e2422+dirty/3fa9c01b2d4e` |
+
+The same label goes into every fold's events file (`session_begin`, `git_commit`) and the live
+monitor. The sbatch script runs with `SKIP_BUILD=1`, so `01_meeting01_run_loso.sh` **refuses to
+start** unless the first two files are identical. That closes the one way a deploy could lie: a
+sync of a newer tree whose build then failed (or was skipped) leaves new sources beside an old
+binary, and a job that waited days in the queue would start on it and record the new revision.
+
+```
+deploy ok:       SOURCE_REVISION == SOURCE_REVISION.built   -> job starts
+build failed:    SOURCE_REVISION  != SOURCE_REVISION.built  -> "REFUSED: the meeting01 binary was
+                                                               not built from the sources on disk"
+deploy died between tree and revision: no SOURCE_REVISION   -> refused as well
+```
+
+What to do, by state of the job:
+
+| Situation | Action |
+|---|---|
+| job queued (`PD`) or held (`scontrol hold <id>`) | Safe. Redeploy, read the revision the deploy prints, then `scontrol release <id>`; the refusal covers a build that failed. |
+| job **running** | **Do not redeploy.** The run script starts the binary anew for every (dataset, fold), so a rebuild underneath it swaps the binary mid-run, while the revision label — read once, at start — keeps naming the old one. *Silent*; nothing guards it. Cancel the job (or wait for it to end), redeploy, then start with `RESUME=1`. |
+| `results/meeting01/` holds folds of an older binary | Move them aside first: `mv results/meeting01 results/meeting01_pre_<date> && mkdir -p results/meeting01`. `03_`, `02_` and `04_` refuse folds whose `results_format` is not the current one, and a checkpoint of another format is retrained, never restored — but a directory mixing old and new folds is not a result. |
+| `scripts/pipeline/meeting01/.env` exists on the cluster | Delete it: `rm ~/software/nn/scripts/pipeline/meeting01/.env`. Earlier deploys copied your local password file there; nothing on the cluster reads it, and the deploy no longer sends it (it warns if it finds one). |
+
+A queued job also keeps the CPU count and partition it was submitted with — Slurm freezes the
+sbatch script at submission — so changing `--cpus-per-task` takes `scancel` and a new `sbatch`,
+not a redeploy.
+
+Why a hash of the *content* and not just the commit: see
+[Meeting01 § Which code made these numbers?](../Experiments/Meeting01.md#which-code-made-these-numbers-added-2026-10-07).
+
 ## Troubleshooting (first real deployment attempt, 2026-09-24)
 
 Four real issues hit in this order during the first actual run of §2/§3 above —
@@ -489,15 +533,18 @@ Every `(dataset, fold)` is already complete after the sync, so this call skips t
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
 
-> **Results made by a `meeting01` binary older than 2026-10-06 cannot be finished.** Their
-> manifests carry no `results_format`, so `03_`, `02_` and `04_` each stop before writing
-> anything and name the fold. There is no repair path: those folds normalized padded
-> windows differently (before commit `6f332734`), left the per-window `encoding` empty and
-> wrote `train_ms = 0` for the baselines. Rebuild `meeting01` from the current tree on the
-> cluster, then rerun those folds: either the whole run without `RESUME` (it clears the
-> checkpoints and reruns every fold), or delete only the affected folds'
-> `*_comparative_metrics.csv` and use `RESUME=1` — a checkpoint without `results_format` is
-> retrained, never restored, so no old row survives the rerun. Why:
+> **Results made by a `meeting01` binary older than 2026-10-07 cannot be finished.** Their
+> manifests carry no `results_format` (binaries before 2026-10-06) or a 2 (the interim binary
+> of commit `b434792e`; the current format is 3), so `03_`, `02_` and `04_` each stop before writing
+> anything and name the fold and the reason. There is no repair path. Without a stamp, those
+> folds normalized padded windows differently (before commit `6f332734`), left the per-window
+> `encoding` empty and wrote `train_ms = 0` for the baselines. With a 2, the LSTM/GRU/Transformer
+> frames were a strided gather and the LSTM/GRU cost counted one stack of two. Rebuild
+> `meeting01` from the current tree on the cluster (a redeploy does it), then rerun those
+> folds: either the whole run without `RESUME` (it clears the checkpoints and reruns every
+> fold), or delete only the affected folds' `*_comparative_metrics.csv` and use `RESUME=1` — a
+> checkpoint of another `results_format` is retrained, never restored, so no old row survives
+> the rerun. Why:
 > [Meeting01 § What the Post-Processing Refuses to Read](../Experiments/Meeting01.md#what-the-post-processing-refuses-to-read-found--fixed-2026-10-06-second-pass).
 
 ## 6. Optional: all-in-one control TUI

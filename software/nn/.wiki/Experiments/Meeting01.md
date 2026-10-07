@@ -897,15 +897,28 @@ a reference returned nothing, and only the recording level (`d_r`) produced a nu
 
 ### One stamp per fold: `results_format`
 
-The binary writes `"results_format": 2` into every JSON manifest of a fold
+The binary writes `"results_format": 3` into every JSON manifest of a fold
 (`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
-(`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`):
+(`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`). The stamp was 2 when this
+section was first written (second pass, commit `b434792e`) and became 3 on 2026-10-07, when two more silent changes
+to what a row means landed ([frames](#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now),
+[cost](#the-lstmgru-operation-count-covered-half-the-network-found--fixed-2026-10-07)).
 
 ```
-manifest without the key   ->  refused: "older than 2026-10-06 ... rerun the fold"
-results_format == 2         ->  read
-results_format == 3         ->  refused: "update the post-processing scripts together with the binary"
+manifest without the key    ->  refused: "older than 2026-10-06 ... rerun the fold"
+results_format == 2         ->  refused: "the frames were a strided gather and the cost counted one stack of two ... rerun"
+results_format == 3         ->  read
+results_format >= 4         ->  refused: "newer than the scripts (or the manifest was edited)"
 ```
+
+| `results_format` | Written by | What its rows contain |
+|---|---|---|
+| absent | binaries before 2026-10-06 | empty `encoding`; `train_ms = 0` on baseline rows; padded windows z-scored together with their padding |
+| 2 | the second-pass binary, commit `b434792e` (interim — **no production fold ran with it**) | padding fixed and stamped, but LSTM/GRU/Transformer frames were a strided gather and the LSTM/GRU `C_raw` counted one stack of two |
+| 3 | 2026-10-07 on | consecutive frames; encoder **and** decoder counted |
+
+A format-2 fold is refused with its reason, not with "unknown version": the message tells the
+reader which of the two changes makes those rows incomparable.
 
 Why old folds are refused rather than repaired: their baseline `train_ms` was never written
 anywhere, and a fold from before `6f332734` normalized its padded windows differently, which
@@ -967,17 +980,22 @@ fold 0: 1 window,  PCA 1.0        pooled over windows:  (1.0 + 3 × 0.2) / 4 = 0
 fold 1: 3 windows, PCA 0.2        per fold, then folds: (1.0 + 0.2) / 2     = 0.60  <- same estimand as the families
 ```
 
-### The sequence models read 512 gathered frames, not 32 consecutive ones
+### Frames of the sequence models (gathered until 2026-10-07, consecutive now)
+
+An LSTM, GRU or Transformer reads its input as a sequence of *frames*, and what one frame
+holds decides what "the next step" means to it. `to_lstm_frames()` cuts the encoded window
+into those frames. It cut them differently from what every document said, and nothing failed.
 
 **What the docs said.** `to_lstm_frames()` "groups `lstm_frame_size` consecutive samples into
 each timestep" (its own comment, [LSTM Performance](../Guides/LSTM-Performance.md),
 [Tensor pitfall 3](../Core/Tensor.md#common-pitfalls)), on the premise that storage is
 column-major. The paper said the window "is reshaped into T/f frames of f samples": 32.
 
-**What the code does.** Storage is row-major (`xt::xarray`'s default; `DeviceTensorBackend`
-delegates to the same host tensor), and since 2026-09-22 the input is the `(T, M)` encoded
-window, not `(M, 1)`. A scratch probe ran the function's three tensor operations on a
-`(T=4, M=6)` window labelled `100·t + m`, frame width 2:
+**What the code did (2026-09-22 to 2026-10-06).** Storage is row-major (`xt::xarray`'s default;
+`DeviceTensorBackend` delegates to the same host tensor), and since 2026-09-22 the input is the
+`(T, M)` encoded window, not `(M, 1)`. The function reshaped to `(frame, T·M/frame)` and
+transposed. A scratch probe ran those operations on a `(T=4, M=6)` window labelled `100·t + m`,
+frame width 2:
 
 ```
 frame  0:    0  200     <- sample 0 at steps 0, 2
@@ -994,26 +1012,61 @@ frame j, j < 256:   window sample j        at steps 0, 2, 4, ..., 14
 frame j, j >= 256:  window sample j − 256  at steps 1, 3, 5, ..., 15
 ```
 
-| | what the docs described | what the models get |
-|---|---|---|
-| one frame holds | 8 consecutive window samples | 1 window sample at 8 alternate steps |
-| `direct` encoding, one frame | 8 different values | 8 copies of one value |
-| sequence length | 32 (paper) | 512 |
-| the sequence axis runs through | the window in 8-sample chunks | the window's samples in order, twice |
-
-**Are the numbers wrong?** No error is miscomputed: input, target and mask all pass through
+**Were the numbers wrong?** No error was miscomputed: input, target and mask all pass through
 the same function, and MSE is elementwise, so the gather is a fixed permutation of the same
-entries on both sides. What changes is the *task* the three sequence families are given — and
+entries on both sides. What changed was the *task* the three sequence families were given — and
 that changed silently: nothing crashes or warns. Before 2026-09-22 (input `(256, 1)`) the same
 operations gave frame `t` = samples `t, t+32, …, t+224`, the polyphase split the docs warned
 against. Whether the submission-71 LSTM-AE numbers were produced this way depends on the
 binary that made them (not checked).
 
-**Open decision.** Keep the gather (now what the code comment and the paper describe) or
-switch to consecutive framing — a plain row-major reshape of the `(T, M)` window to
-`(512, 8)`, giving 8 consecutive samples of one step per frame, the window run through 16
-times. Both are internally consistent; they are different tasks. Every fold has to be rerun
-for `results_format` 2 anyway, so this is the cheapest moment to decide.
+**Decision (2026-10-07): consecutive framing.** The two layouts are both internally consistent
+and are different tasks. The author chose the documented one: a plain row-major reshape of the
+`(T, M)` window to `(S, F)`. The same probe, before and after:
+
+```
+(T=4, M=6) window, element = 100·t + m, F = 2, S = 4·6/2 = 12 frames
+
+gather (until 2026-10-06)             consecutive (now)
+frame  0:    0  200                   frame  0:    0    1    <- samples 0, 1 of step 0
+frame  1:    1  201                   frame  1:    2    3
+ ...                                  frame  2:    4    5
+frame  6:  100  300                   frame  3:  100  101    <- samples 0, 1 of step 1
+```
+
+Production (`T = 16`, `M = 256`, `F = 8`): `M / F = 32` frames per step, and frame `j` holds
+window samples `8·(j mod 32) … 8·(j mod 32) + 7` of step `⌊j / 32⌋`.
+
+| | what the docs said | gather (until 10-06) | consecutive (now) |
+|---|---|---|---|
+| one frame holds | 8 consecutive window samples | 1 window sample at 8 alternate steps | 8 consecutive samples of **one** step |
+| `direct` encoding, one frame | 8 different values | 8 copies of one value | 8 different values |
+| sequence length | 32 (paper) | 512 | 512 |
+| the sequence axis runs through | the window, once | the window's samples in order, twice | the window, once per step: 16 times |
+
+**What does not go away: the sequence models still read the window `T` times.** All four
+families receive the same encoded `(T, M)` array. For the sequence models that is 512 frames
+of which only 32 are distinct:
+
+| Encoding | The 16 sweeps of the window are |
+|---|---|
+| `direct` | identical copies |
+| `poisson` | 16 independent Bernoulli draws of the same window |
+| `latency` | one spike per sample, at one of the 16 steps |
+
+It keeps the input identical across families, but it makes the sequence models' cost (`S`
+frames; quadratic in `S` for self-attention) a consequence of the shared encoding rather than
+of the window length. The paper's Limitations now say so.
+
+**What changed in code.** `to_lstm_frames` is `reshape({total / frame, frame})` and throws
+`std::invalid_argument` — naming `model.lstm_frame_size` — when `frame` does not divide the
+element count. The `frame == 1` early return is gone: it handed the `(T, M)` window to a model
+built for `(T·M, 1)`. Input, target and mask still all pass through the function, so they stay
+aligned. `Meeting01Config::validate` already required `frame | window_size`; its message now
+says why (a frame must not straddle two steps). Tests:
+`FramesHoldNeighbouringSamplesOfOneStep`, `FrameSizeOneUnrollsTheWholeEncodedWindow`,
+`FramingRefusesAnUnevenSplit` (`meeting01_encoding_gtest.cpp`), and the existing
+mask-aligned-with-target test, unchanged.
 
 ### The paper's notation
 
@@ -1039,22 +1092,152 @@ index; they became `F` and `ρ`. The fix exposed claims that were false, not jus
 | latency figure: `1[t ≥ t_sp]` | fires once: `1[t = t_i]` (the paper's own equation and `encode_sample`) |
 | "the encoding only reshapes the SNN's input" | every family reads the encoded window; encoding is a gene for all four |
 
+### The LSTM/GRU operation count covered half the network (found + fixed 2026-10-07)
+
+**The problem.** `C_raw` — the multiply-accumulates of one forward pass over one window — is
+the paper's cost column, and the second objective each family's architecture search minimises
+next to validation MSE. A cost column ranks families only if all four count the same thing.
+The Transformer's estimate counted its encoder **and** its decoder. The LSTM and GRU
+estimates did not.
+
+```
+LSTM-AE, one window: S = 512 frames of D = 8 values
+
+ frames ─► encoder stack ─► h ─► enc_proj ─► z ─► dec_expand ─► z × S ─► decoder stack ─► out_proj ─► frames
+           layer 0: D→H          H→Z             Z→H                    L layers, H→H     H→D at EVERY
+           layers 1..: H→H      (once)          (once)                                     position
+```
+
+A recurrent layer costs `layer(in) = gates · H · (in + H)` per position (the input and the
+previous state both enter every gate; `gates` = 4 for the LSTM, 3 for the GRU):
+
+| Piece | Old estimate | Now | Why |
+|---|---|---|---|
+| encoder layer 0 | `layer(D)` | `layer(D)` | reads the `D`-wide frame |
+| encoder layers 1 … L−1 | `layer(D)` each | `layer(H)` each | they read the `H`-wide state below, not a frame |
+| decoder, `L` layers | not counted | `L · layer(H)` | it runs over the same `S` positions |
+| `out_proj` | `H·D` once | `H·D` per position | one reconstructed frame per position |
+| `enc_proj`, `dec_expand` | `2·H·Z` once | `2·H·Z` once | once per window |
+
+One network — LSTM, `H = 64`, `L = 1`, `D = 8`, `Z = 16`, `S = 512`:
+
+```
+old   512 · 4·64·(8 + 64)                          + (2·64·16 + 64·8)   =  9 437 184 +  2 560 =  9 439 744
+now   512 · (4·64·72 + 4·64·128 + 64·8)           +  2·64·16           = 26 476 544 +  2 048 = 26 478 592   <- 2.8×
+```
+
+The GRU (`gates` = 3) of the same shape now counts 19 924 992.
+
+**Loud or silent?** Silent: the column printed a plausible number, and the search used it. The
+old count priced every layer at the cheap first-layer width and ignored the decoder's `L`
+layers, so it under-charged depth — which, from reading the formula (not from a search run),
+gave the LSTM/GRU searches less reason to stop at a shallow stack than the corrected objective
+does.
+
+**How it is pinned now.** `parameter_count_gtest` builds the real `LSTMAutoencoder` /
+`GRUAutoencoder`, counts its parameters, and requires
+
+```
+MACs = S · (params − biases − 2·H·Z) + 2·H·Z
+```
+
+The identity holds because every dense weight on a per-position path (the gates, `out_proj`)
+is used once per position, the two latent projections once per window, and a bias is an
+addition, not a MAC. The estimate therefore cannot drift from the network's real size without
+a test failing. The same file holds hand-computed anchors (26 478 592, 19 924 992, and the two
+[LSTM Performance](../Guides/LSTM-Performance.md) cases) and checks that an impossible
+architecture (`seq_len`, `input_size`, `hidden_size`, `latent_size` or `num_layers` < 1 — for
+instance `latent_size = -1`, an unset `model.latent_dim`) throws instead of returning a number.
+
+All four families still count dense MACs only; nonlinearities, softmax, LayerNorm and biases
+are in none of them.
+
+### Which code made these numbers? (added 2026-10-07)
+
+**The problem.** A results directory says *what* was computed, never *by which code*. Each
+fold's `session_begin` event has a `git_commit` field, but on GridUnesp it always read
+`unknown`: the deploy rsyncs the working tree and `software/nn/.git` is an empty directory
+(the repository root is its parent). A commit hash alone would have been wrong anyway — a
+deploy ships the working tree, uncommitted edits included. And the binary and the sources can
+disagree: a sync of a newer tree whose build then fails or is skipped leaves new sources next
+to an old binary, and a job that waited days in the queue would start on it without a word.
+
+**Two questions, two identifiers.**
+
+| | commit | `tree_sha256` |
+|---|---|---|
+| answers | which history | which bytes |
+| sees an uncommitted edit | no | yes |
+| equal after an edit and its undo | — | yes |
+
+The one-line label combines them: `414e2422+dirty/3fa9c01b2d4e` is the commit, a `+dirty` mark
+when `git status --porcelain` is non-empty, and the first 12 hex digits of the tree hash.
+
+`tree_sha256` covers what git tracks plus what it would track
+(`git ls-files --cached --others --exclude-standard`), one sorted line per file: `F <path>
+<sha256 of the content>` (`L` symlink, `D` tracked but deleted, `G` submodule directory). Ignored
+files — the code index, logs, `out/`, `results/` — never change it; an edit, an added file, a
+rename or a deletion always does. `source_revision.py --self-test` (a CI step) demonstrates each
+and recomputes the recipe with `sha256sum`, so a person can follow it by hand.
+
+```
+local machine (has git)                         cluster (no git)
+gridunesp_deploy.sh
+  1. source_revision.py compute  -> SOURCE_REVISION block + label
+  2. rsync the tree (--delete removes a stale SOURCE_REVISION)
+  3. rsync SOURCE_REVISION, AFTER the tree
+  4. remote build + smoke check, then
+       cp SOURCE_REVISION  out/build/max-performance/SOURCE_REVISION.built
+                                                01_meeting01_run_loso.sh
+                                                  provenance_resolve: label -> MEETING01_GIT_COMMIT
+                                                    -> session_begin "git_commit" -> monitor
+                                                  SKIP_BUILD=1: SOURCE_REVISION must equal .built
+                                                  provenance_log_start: one line per start in
+                                                    results/meeting01/source_revisions.log
+```
+
+| State of the tree | Outcome |
+|---|---|
+| deployed, binary built from it | `SOURCE_REVISION` = `.built` → runs |
+| sync done, build failed or skipped | `.built` older or absent → **refused** (loud) |
+| a git checkout (local run) | no `SOURCE_REVISION` → label computed live |
+| neither git nor `SOURCE_REVISION` | refused in seconds, before the build, not after ten minutes of it |
+
+`source_revisions.log` keeps the trail across `RESUME=1` restarts, which may run different
+revisions: `2026-10-08T01:02:03Z start resume=0 revision=414e2422+dirty/3fa9c01b2d4e`.
+
+Not covered, and silent: a file git ignores that a run nevertheless needs. None exists today
+(the production profile is tracked; the credentials file `.env` is neither tracked nor shipped);
+a new one would have to be added to git, or it is not part of the identity.
+
+**Found on the way.** The deploy used to rsync `scripts/pipeline/meeting01/.env` — a password
+file — to the cluster on every run. It is excluded now. A copy already on the cluster stays
+until someone removes it; the deploy prints a warning when it finds one
+([GridUnesp Deployment](../Guides/GridUnesp-Deployment.md)).
+
 ### Verified
 
-- C++: all 12 meeting01 test binaries pass, including the new truncation test, the CLI
-  refusal of `--dump-reference-inputs-only` and `CheckpointResultsFormat`. That last test was
-  **not** shown to fail with the check removed (the mutation run was not done); that it would
-  is reasoned from the code, not measured.
-- `02_`, `03_`, `04_ --self-test` (all three in CI now): every refusal above, the broadcast
-  (window `n` = windows × seeds, seed `d` exact, floor 0.25 at 3 seeds), the 0.60-not-0.40
-  case. A mutation sweep of 15 deliberate regressions was caught 15/15.
-- Synthetic end to end with the real binary (6 speakers, window 64, `T = 4`): every manifest
-  carries `results_format` 2; re-running fold 0 left its per-window CSV at 97 lines with no
-  duplicate; `03_` → `02_` → `04_` gave PCA 0.1428 (the per-fold mean), LSTM `train_ms`
-  749.7, and against the references a window-level `n` of 96 and a seed-level `n` of 2
-  (floor 0.5). An old-format fold was refused by all three scripts, with nothing written.
-- Paper: compiles with 0 errors and no undefined references.
-- **Not run:** any production profile, and any real dataset.
+- C++: clean build; all 12 meeting01 test binaries pass, including the new framing, cost
+  (`parameter_count_gtest`: built-network identity, hand-computed anchors, refusals) and
+  `CheckpointResultsFormat` tests. That last test was **not** shown to fail with the check
+  removed (the mutation run was not done); that it would is reasoned from the code, not
+  measured.
+- Python: `02_`, `03_`, `04_` and `source_revision.py` `--self-test` all pass (all four are CI
+  steps); `ruff` clean at the CI settings (Python 3.9, line length 100). The earlier mutation
+  sweep of 15 deliberate regressions of `02_`/`03_`/`04_` was caught 15/15; it was not repeated
+  for `source_revision.py`.
+- Synthetic end to end with the real binary (6 speakers, window 64, `T = 4`, all four families,
+  2 seeds, fold 0; 16 s): every manifest and 8 of 8 checkpoints carry `results_format` 3;
+  `03_` → `02_` → `04_` ran on it without a refusal; the recorded LSTM (42 768) and GRU
+  (32 688) `macs` equal an independent Python recomputation from each winner's `H` and `L`
+  (`S = 32`, `D = 8`, `Z = 8`). Every trained family's MSE is ≈ 1.0 there (2 epochs on 24
+  windows), so that run shows "finite, no crash", not model quality.
+- The run script's provenance block was syntax-checked and simulated under `set -euo
+  pipefail` on a scratch copy; `01_meeting01_run_loso.sh` itself was not run (it is the
+  expensive-experiment guard's target).
+- Paper: compiles with 0 errors and no undefined references; the overfull boxes left are in the
+  results-table macros, as before.
+- **Not run:** any production profile, any real dataset, CI itself, and the cluster deploy.
 
 ---
 
@@ -1142,44 +1325,53 @@ Parsed by: `src/experiments/meeting01/lib/include/Meeting01Config.hpp` (`from_ne
 
 #### `model.lstm_frame_size` (default 8)
 
-> **Corrected 2026-10-06.** Three statements below are wrong today: the sequence length has
-> been `time_steps × window_size / lstm_frame_size` (512) since 2026-09-22; encoding happens
-> on the `(time_steps, window_size)` layout, not the flat window; and `to_lstm_frames()` does
-> not cut consecutive frames. See
-> [The sequence models read 512 gathered frames](#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
+> **Updated 2026-10-07.** Read this subsection with the history in mind: the sequence length
+> has been `time_steps × window_size / lstm_frame_size` (512 in production) since 2026-09-22,
+> because encoding happens on the `(time_steps, window_size)` layout and not on the flat
+> window; and `to_lstm_frames()` cut a strided gather until 2026-10-07, when it became a plain
+> row-major reshape (consecutive frames). See
+> [Frames of the sequence models](#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now).
 
-Samples fed to the LSTM per timestep. The sequence length becomes
-`window_size / lstm_frame_size`, so with the article profiles' `window_size=256`
-the default gives $T = 32$, $D = 8$.
+Values fed to the sequence models per timestep. The input is the encoded `(T, M)` window, so
+the sequence length is `S = T · M / lstm_frame_size`: with the production `time_steps = 16`,
+`window_size = 256` the default gives $S = 512$, $D = 8$. (The July-2026 numbers further down
+are for the layout of that date, the window alone: $S = 32$.)
 
 Before 2026-07-18 this was hard-coded to `input_size = 1`, i.e. the window was
-consumed one scalar per timestep ($T = 256$, $D = 1$). Because the dominant cost
+consumed one scalar per timestep ($S = 256$, $D = 1$). Because the dominant cost
 per step is the recurrent term $h \cdot U^\top$ — independent of $D$ — that made
-the LSTM roughly 7× more expensive than necessary:
+the LSTM roughly 8× more expensive than necessary. Both stacks, `H = 64`, `L = 2`, `Z = 32`:
 
 | | frame=1 | frame=8 |
 |---|---|---|
 | sequential steps | 256 | 32 |
-| MACs | 8 523 840 | 1 184 256 |
+| MACs (encoder + decoder, [corrected 2026-10-07](#the-lstmgru-operation-count-covered-half-the-network-found--fixed-2026-10-07)) | 29 446 144 | 3 756 032 |
 | CPU LSTM train (6 samples, 2 epochs) | 3 711 ms | 478 ms |
+
+The table used to read 8 523 840 / 1 184 256 — one stack of the two, ratio 7.2×. The corrected
+ratio is 7.8×, next to the measured 3 711 / 478 = 7.8×; that agreement is a sanity check, not a
+validation, because wall-clock time contains work that is not a MAC.
 
 Constraints and caveats:
 
-- Must divide `window_size`, enforced by `Meeting01Config::validate()`.
-- Encoding is applied to the flat `(window_size, 1)` window **first**, then
-  framing — the `direct`/`poisson`/`latency` transforms expect the flat layout.
+- Must divide `window_size`, enforced by `Meeting01Config::validate()` — so a frame never
+  straddles two simulation steps — and again by `to_lstm_frames()` itself.
+- Encoding is applied to the window **first** and yields the `(T, M)` array; framing then
+  cuts that array into frames in row-major order (neighbouring samples of one step).
 - Evaluation compares reconstruction in framed space. MSE/MAE/$R^2$ are
   elementwise, so framing both sides leaves them unchanged.
 - **This changes the LSTM-AE architecture and therefore the paper's LSTM
-  results.** Set `lstm_frame_size: 1` to reproduce pre-2026-07-18 numbers. It is
+  results.** No setting reproduces pre-2026-07-18 numbers any more: with the `(T, M)` input,
+  `lstm_frame_size: 1` gives $S = T \cdot M = 4096$ steps, not 256. It is
   arguably a fairer baseline, since the SNN-AE sees the whole window at once via
   `linear:64` while the old LSTM saw one scalar per step.
 
 Implemented by `to_lstm_frames()` in `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp`.
 The claim that used to stand here — a plain reshape would give a polyphase split, which the
-function avoids — is backwards: storage is row-major, so the plain reshape is the consecutive
-one and the function's reshape-then-transpose is the strided gather. See
-[The sequence models read 512 gathered frames](#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
+function avoids — was backwards: storage is row-major, so the plain reshape is the consecutive
+one, and the function's old reshape-then-transpose was the strided gather. Since 2026-10-07 the
+function is the plain reshape. See
+[Frames of the sequence models](#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now).
 
 ### Data Loading Limits
 

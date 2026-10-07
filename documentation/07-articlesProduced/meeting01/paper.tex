@@ -232,10 +232,10 @@ latent width through an undersized hidden layer upstream of it
 $T=16$ simulation steps (Sec.~\ref{sec:encodings}), so every family receives a
 $T\times M$ array. The SNN-AE presents its $M$ columns to $M$ input neurons at
 each of the $T$ steps; the sequence models read the same $TM$ values as
-$S=TM/F=512$ frames of $F=8$ values, frame $j$ holding window sample
-$j \bmod M$ at every second step (steps $0,2,\dots,14$ for $j<M$, steps
-$1,3,\dots,15$ after), so their sequence axis runs through the window's
-samples in order, twice. PCA with $k=d$ components ---
+$S=TM/F=512$ frames of $F=8$ neighbouring samples ($F$ divides $M$, so a frame
+never spans two steps): each step contributes $M/F=32$ consecutive frames, so
+their sequence axis sweeps the window in order once per simulation step,
+$T$ times in all. PCA with $k=d$ components ---
 the best linear code through the same bottleneck --- and a mean-frame predictor
 provide linear reference points, fitted per fold on the same non-test data as
 the families' final fits (Sec.~\ref{sec:training}).
@@ -954,6 +954,17 @@ implementation and backend, not silicon-level energy.
         count operations under matched software; real energy depends on memory
         movement, sparsity exploitation, and target hardware. On-device
         measurement is future work.
+  \item \textbf{The sequence models read the window $T$ times.} All four
+        families receive the same encoded $T\times M$ array, so LSTM-AE,
+        GRU-AE, and Transformer-AE run over $S=TM/F=512$ frames although a
+        window holds only $M/F=32$ distinct ones: under direct coding the $T$
+        sweeps are identical, under Poisson coding they are independent
+        Bernoulli draws of the same window, and under latency coding each
+        sample is a single spike at one step. This keeps the inputs identical
+        across families, but it makes the sequence models' cost ($S$ frames,
+        quadratic in $S$ for self-attention) a consequence of the shared
+        encoding rather than of the window length: their operation counts are
+        conditional on $T=16$.
   \item \textbf{Correlated windows.} Non-overlapping windows of one recording
         remain correlated, so window-level statistics are pseudoreplicated and
         used descriptively only.

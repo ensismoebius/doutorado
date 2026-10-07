@@ -144,42 +144,55 @@ timestep**. The dominant cost per step is not the input term but the recurrent
 one, $h \cdot U^\top$ with $U$ of shape $(4H, H)$ — 16 384 MACs for $H = 64$ —
 and it was paid 256 times.
 
-`model.lstm_frame_size` (default **8**) groups that many values into each timestep
-(which values — not consecutive ones — is below). No information is discarded; the window
-is merely re-blocked.
+`model.lstm_frame_size` (default **8**) groups that many values into each timestep: 8
+neighbouring samples (of one simulation step, since 2026-10-07; the history is below). No
+information is discarded; the window is merely re-blocked.
+
+Both columns below: `H = 64`, `L = 2`, `Z = 32`, the layout of July 2026 (the window alone is
+the sequence).
 
 | | frame=1 (old) | frame=8 |
 |---|---|---|
-| sequential steps $T$ | 256 | 32 |
+| sequential steps $S$ | 256 | 32 |
 | input dim $D$ | 1 | 8 |
-| total MACs | 8 523 840 | 1 184 256 |
+| total MACs (encoder + decoder) | 29 446 144 | 3 756 032 |
 | CPU LSTM train | 3 711 ms | **478 ms** |
 
-~7× fewer MACs and ~8× less sequential depth.
+~8× fewer MACs (7.8×) and 8× less sequential depth.
+
+The MAC row used to read 8 523 840 / 1 184 256 (ratio 7.2×): the estimate counted the encoder
+stack only, at width $D$ for every layer. Corrected 2026-10-07 — see
+[Meeting01](../Experiments/Meeting01.md#the-lstmgru-operation-count-covered-half-the-network-found--fixed-2026-10-07).
+The same two settings under today's `(T, M)` input (`T = 16`, `M = 256`) give $S = 4096$ and
+$S = 512$, and 471 076 864 and 60 035 072 MACs: the 16 sweeps multiply the cost of both, the
+ratio between them stays 7.8×.
 
 `lstm_frame_size` must divide `dataset.window_size` (validated in
-`Meeting01Config::validate`). Set it to `1` to reproduce the original behaviour.
+`Meeting01Config::validate`, and again by `to_lstm_frames()`). It can no longer reproduce the
+original behaviour: with the `(T, M)` input, `1` means $S = T \cdot M = 4096$ steps, not 256.
 
-### Framing *is* a plain reshape — and `to_lstm_frames()` does not do one
+### Framing is a plain reshape — and, since 2026-10-07, `to_lstm_frames()` is one
 
-This section used to say the opposite, from a wrong premise (corrected 2026-10-06). Storage
-is row-major, so reshaping `(256, 1)` straight to `(32, 8)` gives frame $t$ = samples
-$8t, \dots, 8t+7$: consecutive framing. `to_lstm_frames()` instead reshapes to
-`(frame, steps)` and transposes, which puts samples $\{t, t+32, t+64, \dots, t+224\}$ in
-frame $t$ — the polyphase split this section was warning against:
+This section once said the opposite — that a plain reshape would give the polyphase split, which
+`to_lstm_frames()` avoided by transposing — from a wrong premise (column-major storage). The
+2026-10-06 correction found the function was the strided one; the function itself was fixed on
+2026-10-07. Storage is row-major, so reshaping `(256, 1)` straight to `(32, 8)` gives frame $t$
+= samples $8t, \dots, 8t+7$: consecutive framing. Until 2026-10-07 `to_lstm_frames()` reshaped
+to `(frame, steps)` and transposed instead, which puts samples
+$\{t, t+32, t+64, \dots, t+224\}$ in frame $t$ — the polyphase split. It is now:
 
 ```cpp
 // src/experiments/meeting01/lib/src/Meeting01Encoding.cpp
-Tensor d_major = sample;
-d_major.reshape({frame, steps});   // row-major: element (d,t) = sample[d*steps + t]
-return d_major.transpose();        // -> (steps, frame): frame t = {sample[t], sample[t+steps], ...}
+Tensor frames = sample;
+frames.reshape({total / frame, frame});   // row-major: frame j = elements j*frame .. j*frame + frame - 1
+return frames;                            // throws if frame does not divide the element count
 ```
 
 Since 2026-09-22 the input is the `(time_steps, window_size)` encoded window, so in
-production each of the 512 frames holds one window sample at 8 alternate simulation steps.
-The timings above do not depend on which values share a frame; the task the model is given
-does. Full account and the open decision:
-[Meeting01](../Experiments/Meeting01.md#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
+production each of the 512 frames holds 8 neighbouring samples of one simulation step: 32
+frames per step, the window swept once per step, 16 times in all. The timings above do not
+depend on which values share a frame; the task the model is given does. Full account:
+[Meeting01](../Experiments/Meeting01.md#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now).
 
 ### Scientific note
 

@@ -144,8 +144,10 @@ optimizer.step(model.params());
    `(T, D)` puts $D$ consecutive elements in each row. Reshaping to `(D, T)` and then
    transposing gives the strided/polyphase split $\{t, t+T, t+2T, \dots\}$ per row instead.
    This pitfall used to say the opposite ("storage is column-major"), and
-   `to_lstm_frames` was written from it — it performs the strided version (see
-   [Meeting01](../Experiments/Meeting01.md#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones)).
+   `to_lstm_frames` was written from it, so until 2026-10-07 it performed the strided version —
+   silently, because input, target and mask were gathered alike. It is now the plain reshape
+   (see
+   [Meeting01](../Experiments/Meeting01.md#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now)).
 
 ## See Also
 

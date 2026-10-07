@@ -128,10 +128,11 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
 Three models reconstruct a 1-D signal window through a fixed-dimension latent
 bottleneck. They share an interface (`Module<nn::Backend>`,
 `forward`/`backward`/`params`/`reset_state`/`state_dict`) and the same input
-framing — the encoded `(time_steps, window_size)` window gathered by `to_lstm_frames()`
-into `(S, frame_size)`, `S = time_steps × window_size / frame_size` (512 in production;
-which entries share a frame:
-[Meeting01](../Experiments/Meeting01.md#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones)) — so
+framing — the encoded `(time_steps, window_size)` window cut by `to_lstm_frames()` (a plain
+row-major reshape: a frame holds `frame_size` neighbouring samples of one step) into
+`(S, frame_size)`, `S = time_steps × window_size / frame_size` (512 in production; history
+and consequences:
+[Meeting01](../Experiments/Meeting01.md#frames-of-the-sequence-models-gathered-until-2026-10-07-consecutive-now)) — so
 the Meeting01 experiment drives all three through one templated training path
 and compares them fairly. They are the trained non-spiking baselines in the
 reviewer-driven paper revision.

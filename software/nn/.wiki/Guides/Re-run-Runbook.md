@@ -127,6 +127,15 @@ EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_lo
 EXPERIMENT_CONFIRMED=1 SKIP_POSTPROCESS=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 ```
 
+Every start records which code it ran: the script prints a revision label
+(`commit[+dirty]/tree-hash`), exports it into each fold's events file, and appends one line to
+`results/meeting01/source_revisions.log` (restarts included). In a **deployed** tree (one with a
+`SOURCE_REVISION` file at its root, as `gridunesp_deploy.sh` leaves it) `SKIP_BUILD=1` is
+checked, not trusted: the script refuses to start unless the binary's build stamp equals
+`SOURCE_REVISION`. In a git checkout there is nothing to compare, so "only when you know it is
+current" still means you. Details:
+[GridUnesp Deployment](./GridUnesp-Deployment.md#redeploying-what-is-stamped-what-is-refused-when-it-is-safe-2026-10-07).
+
 The first run of a preset also **configures** it (a few minutes on top of the runtime); later
 runs are incremental no-ops. By default the script clears `results/meeting01/checkpoints/` and
 `results/meeting01/models/` first — pass `RESUME=1` (implies `KEEP_CHECKPOINTS=1`) instead of
