@@ -19,6 +19,7 @@
 # Env overrides:
 #   GRIDUNESP_HOST        default access.grid.unesp.br
 #   GRIDUNESP_REMOTE_DIR  default software/nn (relative to the remote $HOME)
+#   SKIP_DATASETS=1       skip ensure_datasets.sh (only after a deploy that completed it)
 #   GRIDUNESP_BUILD_CPUS  default 26, not the node's full 28 -- ~2 cores/node are
 #                         OS-reserved per the v3 manual (2026-09-23 check), so
 #                         requesting 28 risks the build's srun allocation hanging in
@@ -105,10 +106,11 @@ rsync -a -e "ssh -o ControlPath=${CTRL_PATH}" "$REV_FILE" \
   "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/SOURCE_REVISION"
 
 echo "[gridunesp-deploy] remote environment + datasets + configure + build (reusing the same connection)"
-ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" bash -s -- "$REMOTE_DIR" "$BUILD_CPUS" <<'REMOTE'
+ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" bash -s -- "$REMOTE_DIR" "$BUILD_CPUS" "${SKIP_DATASETS:-0}" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 BUILD_CPUS="$2"
+SKIP_DATASETS="$3"
 
 echo "[gridunesp-deploy:remote] toolchain env (module load + conda create/update)"
 module load miniconda/24.4.0-libmamba
@@ -121,8 +123,13 @@ module load miniconda/24.4.0-libmamba
 eval "$(conda shell.bash hook)"
 conda activate meeting01-build
 
-echo "[gridunesp-deploy:remote] datasets (skips anything already present)"
-./scripts/pipeline/meeting01/ensure_datasets.sh
+if [[ "$SKIP_DATASETS" == "1" ]]; then
+  echo "[gridunesp-deploy:remote] datasets: SKIPPED (SKIP_DATASETS=1) -- only when an earlier" \
+       "deploy already completed ensure_datasets.sh; the profile's roots are not re-verified"
+else
+  echo "[gridunesp-deploy:remote] datasets (skips anything already present)"
+  ./scripts/pipeline/meeting01/ensure_datasets.sh
+fi
 
 echo "[gridunesp-deploy:remote] configuring (login node, needs internet for FetchContent)"
 cmake --preset=max-performance

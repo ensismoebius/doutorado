@@ -191,7 +191,7 @@ fetch_physionet_s3() {
   while IFS= read -r rel; do
     [[ -n "$rel" ]] || continue
     n=$((n + 1))
-    wget -N -nv --tries=5 -P "$(dirname "${root}/${rel}")" "${base}/${rel}"
+    wget -N -nv --tries=5 --timeout=60 -P "$(dirname "${root}/${rel}")" "${base}/${rel}"
     if (( n % 5 == 0 || n == total )); then
       echo "[ensure-datasets] ${slug}: fetched ${n}/${total} files"
     fi
