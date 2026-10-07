@@ -9,7 +9,7 @@
 ]
 
 \node[main] (fsdd) {FSDD Dataset};
-\node[main, below=of fsdd] (win)  {Windowing ($T=256$)};
+\node[main, below=of fsdd] (win)  {Windowing ($M=256$)};
 \node[main, below=of win]  (enc)  {Direct \textbar{} Poisson \textbar{} Latency};
 
 \node[side, below left  = 5mm and 5mm of enc] (snn)

@@ -50,12 +50,13 @@ seed=0, run_id=0), one per test window per encoding of the profile, REPLACING an
 mean/pca rows already there -- re-running gives the same file, byte for byte.
 
 Refuses, naming cause and remedy, instead of guessing (no fallbacks):
+  - a fold written by a binary older than 2026-10-06 (its split manifest has no
+    results_format; meeting01_results.py says why no post-processing can rescue it);
   - a dataset with no single k (latent_dim unset: each family derived its own);
   - a fold whose manifest records a different latent_dim / window_size / split than the
     profile and dumps say (the profile is not the run's, or the dumps are not the run's);
-  - a fold with family rows but no target dumps (a run made by an older binary -- rebuild
-    them, no retraining: meeting01 --comparative-config <profile> --dataset <d>
-    --cv-fold <f> --dump-reference-inputs-only);
+  - a fold with family rows but missing target dumps (deleted, or the write was cut off);
+  - a per-window CSV that mixes two runs of the fold;
   - target test windows that are not exactly the windows the families were scored on.
 Problems are collected over every fold first; nothing is written unless all folds pass.
 A fold with dumps but no per-window CSV is still running (the binary writes that CSV once,
@@ -85,20 +86,28 @@ from dataclasses import dataclass
 
 import numpy as np
 
-PW_HEADER = [
-    "model", "encoding", "architecture", "v_th", "alpha", "run_id", "seed",
-    "cv_fold", "split", "speaker_id", "recording_id", "window_id",
-    "source_window_index", "mse", "mae",
-]
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from meeting01_results import (  # noqa: E402
+    PW_HEADER,
+    REFERENCE_MODELS,
+    REFERENCE_SEED,
+    RESULTS_FORMAT,
+    WINDOW_FIELDS,
+    ResultsError,
+    fold_files,
+    read_per_window,
+    split_manifest,
+)
+
 META_HEADER = ["speaker_id", "recording_id", "window_id", "source_window_index", "valid_length"]
-KEY_FIELDS = ("speaker_id", "recording_id", "window_id", "source_window_index")
-REFERENCE_MODELS = ("mean", "pca")
 KNOWN_ENCODINGS = ("direct", "poisson", "latency")
 PARTS = ("train", "val", "test")
 _NESTED_SECTIONS = ("experiment", "dataset", "training", "model", "evaluation")
 
 
-class BaselineInputError(RuntimeError):
+class BaselineInputError(ResultsError):
     """The references cannot be computed faithfully; the message names cause and remedy."""
 
 
@@ -228,7 +237,7 @@ class FoldResult:
 
 
 def _key(row: dict) -> tuple:
-    return tuple(int(row[f]) for f in KEY_FIELDS)
+    return tuple(int(row[f]) for f in WINDOW_FIELDS)
 
 
 def _read_csv(path: pathlib.Path, header: list) -> list:
@@ -255,28 +264,22 @@ def _load_part(results_dir: pathlib.Path, stem: str, part: str, width: int):
     return x.astype(np.float64), meta, valid
 
 
-def _check_manifest(manifest: dict, dataset: str, fold: int, k: int, width: int,
-                    parts: dict) -> str:
-    if manifest.get("dataset") != dataset or manifest.get("cv_fold") != fold:
-        raise BaselineInputError(
-            f"manifest says dataset={manifest.get('dataset')} fold={manifest.get('cv_fold')}.")
-    if "latent_dim" in manifest:
-        if int(manifest["latent_dim"]) != k:
-            raise BaselineInputError(
-                f"the run built every family with latent_dim {manifest['latent_dim']}, but the "
-                f"profile resolves k={k}: pass the profile the run actually used (or undo the "
-                "edit made to it since).")
-        k_note = "k matches the run's manifest"
-    else:
-        k_note = "k from the profile (manifest predates the latent_dim record)"
-    if "window_size" in manifest and int(manifest["window_size"]) != width:
-        raise BaselineInputError(
-            f"the run's windows had {manifest['window_size']} samples, the profile says {width}.")
+def _check_manifest(manifest: dict, k: int, width: int, parts: dict) -> None:
+    """The run's own record (split_manifest() already checked whose it is and its
+    results_format) against the k / width the profile resolves and the dumps' windows."""
     try:
+        latent, window = int(manifest["latent_dim"]), int(manifest["window_size"])
         counts, recordings = manifest["window_counts"], manifest["recordings"]
     except KeyError as e:
-        raise BaselineInputError(f"the split manifest lacks {e}, so the target windows cannot "
-                                 "be checked against the run's split.") from None
+        raise BaselineInputError(f"the split manifest lacks {e}, which every results_format "
+                                 f"{RESULTS_FORMAT} manifest records: it was edited.") from None
+    if latent != k:
+        raise BaselineInputError(
+            f"the run built every family with latent_dim {latent}, but the profile resolves "
+            f"k={k}: pass the profile the run actually used (or undo the edit made to it since).")
+    if window != width:
+        raise BaselineInputError(
+            f"the run's windows had {window} samples, the profile says {width}.")
     for part, (_, meta, _) in parts.items():
         expected_n = int(counts[part])
         expected_rec = {int(r["recording_id"]): int(r["window_count"]) for r in recordings[part]}
@@ -287,7 +290,6 @@ def _check_manifest(manifest: dict, dataset: str, fold: int, k: int, width: int,
                 f"are not the run's {part} split ({expected_n} windows, {len(expected_rec)} "
                 "recordings): they were rebuilt from different data or a binary whose split "
                 "logic differs. Rebuild them from the run's dataset with the run's profile.")
-    return k_note
 
 
 def _process_fold(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int,
@@ -298,42 +300,28 @@ def _process_fold(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: i
             f"dataset '{dataset}' is not in {profile.path.name}'s evaluation.datasets "
             f"{list(profile.datasets)}: this is not the profile of the run that wrote it.")
     k, width = profile.resolve(dataset)
+    # First, so a fold from an older binary is refused for what it is -- not for a
+    # missing dump, which would invite rebuilding the dump.
+    manifest = split_manifest(results_dir, run_tag, dataset, fold)
 
     pw_path = results_dir / f"{stem}_per_window_errors.csv"
-    rows = _read_csv(pw_path, PW_HEADER)
+    rows = read_per_window(pw_path, fold, check_references=False)  # references replaced below
     family_rows = [r for r in rows if r["model"] not in REFERENCE_MODELS]
     family_test = [r for r in family_rows if r["split"] == "test"]
     if not family_test:
         raise BaselineInputError(f"{pw_path.name} has no trained-family test rows to pair with.")
 
-    rebuild = ("meeting01 --comparative-config <the run's profile> "
-               f"--dataset {dataset} --cv-fold {fold} --dump-reference-inputs-only")
     dump_files = [f"{stem}_target_{part}_windows{suffix}"
                   for part in PARTS for suffix in (".npy", "_meta.csv")]
     missing = [name for name in dump_files if not (results_dir / name).exists()]
-    if len(missing) == len(dump_files):
-        legacy = sorted(p.name for p in results_dir.glob(f"{stem}_*_train_windows.npy")
-                        if "_target_" not in p.name)
-        raise BaselineInputError(
-            "no target dumps (*_target_*_windows.npy) -- the run was made by a meeting01 "
-            "binary that predates them"
-            + (f"; its per-encoding dumps ({', '.join(legacy)}) hold the ENCODED window "
-               "(0/1 spikes under poisson/latency) without valid_length, which is not what "
-               "the families are scored against" if legacy else "")
-            + f". Rebuild them without retraining: {rebuild}")
     if missing:
         raise BaselineInputError(
-            f"incomplete target dump, missing {', '.join(missing)} (the write was "
-            f"interrupted). Rebuild it without retraining: {rebuild}")
+            f"target dump incomplete, missing {', '.join(missing)}. The binary writes all six "
+            "files at fold start, so they were deleted or the write was cut off; rerun the "
+            "fold (no copy from another run: the windows must be this run's).")
 
     parts = {part: _load_part(results_dir, stem, part, width) for part in PARTS}
-    manifest_path = results_dir / f"{stem}_split_manifest.json"
-    if not manifest_path.exists():
-        raise BaselineInputError(
-            f"{manifest_path.name} is missing: without the run's split record the target "
-            "windows cannot be checked against the windows the families saw.")
-    k_note = _check_manifest(json.loads(manifest_path.read_text(encoding="utf-8")),
-                             dataset, fold, k, width, parts)
+    _check_manifest(manifest, k, width, parts)
 
     test_x, test_meta, test_valid = parts["test"]
     target_keys = [_key(m) for m in test_meta]
@@ -346,10 +334,7 @@ def _process_fold(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: i
             f"holds {len(target_keys)}; {len(family_keys - set(target_keys))} family windows "
             "are missing from the dump. The dump is not this run's test split -- rebuild it "
             "with the run's profile, binary and dataset.")
-    folds_seen = {int(r["cv_fold"]) for r in family_rows}
-    if folds_seen != {fold}:
-        raise BaselineInputError(f"{pw_path.name} carries rows of folds {sorted(folds_seen)}.")
-    family_encodings = {r["encoding"] for r in family_rows} - {""}
+    family_encodings = {r["encoding"] for r in family_rows}
     if not family_encodings <= set(profile.encodings):
         raise BaselineInputError(
             f"families used encodings {sorted(family_encodings)}, not all in the profile's "
@@ -366,7 +351,8 @@ def _process_fold(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: i
             for m, mse_v, mae_v in zip(test_meta, mse, mae):
                 reference_rows.append({
                     "model": model, "encoding": encoding, "architecture": model,
-                    "v_th": "0.00000000", "alpha": "0.00000000", "run_id": "0", "seed": "0",
+                    "v_th": "0.00000000", "alpha": "0.00000000", "run_id": "0",
+                    "seed": REFERENCE_SEED,
                     "cv_fold": str(fold), "split": "test",
                     "speaker_id": m["speaker_id"], "recording_id": m["recording_id"],
                     "window_id": m["window_id"],
@@ -374,7 +360,8 @@ def _process_fold(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: i
                     "mse": f"{mse_v:.8f}", "mae": f"{mae_v:.8f}",
                 })
     n_padded = int(np.sum(test_valid < width))
-    summary = (f"{dataset} fold {fold}: k={k} ({k_note}); fit {fit_x.shape[0]} windows "
+    summary = (f"{dataset} fold {fold}: k={k} (= the run's latent_dim); "
+               f"fit {fit_x.shape[0]} windows "
                f"(train {parts['train'][0].shape[0]} + val {parts['val'][0].shape[0]}), "
                f"test {test_x.shape[0]} ({n_padded} padded); "
                f"mean MSE {errors['mean'][0].mean():.5f}  pca MSE {errors['pca'][0].mean():.5f}")
@@ -405,14 +392,10 @@ def run(results_dir: pathlib.Path, run_tag: str, profile: Profile) -> list:
         raise BaselineInputError(
             f"--run-tag {run_tag} but {profile.path.name} has experiment.run_tag "
             f"{profile.run_tag!r}: pass the profile of the run whose results these are.")
-    fold_re = re.compile(rf"^{re.escape(run_tag)}_(?P<ds>[^_]+)_fold(?P<fold>\d+)_"
-                         r"(?:per_window_errors\.csv|target_test_windows\.npy)$")
-    with_csv, with_dump = set(), set()
-    for p in results_dir.iterdir():
-        m = fold_re.match(p.name)
-        if m:
-            target = with_csv if p.name.endswith(".csv") else with_dump
-            target.add((m["ds"], int(m["fold"])))
+    with_csv = {(ds, fold) for _, ds, fold, _ in
+                fold_files(results_dir, run_tag, re.escape("per_window_errors.csv"))}
+    with_dump = {(ds, fold) for _, ds, fold, _ in
+                 fold_files(results_dir, run_tag, re.escape("target_test_windows.npy"))}
     if not with_csv and not with_dump:
         raise BaselineInputError(f"no {run_tag}_<dataset>_fold<f> per-window CSV or target "
                                  f"dump under {results_dir}.")
@@ -421,7 +404,7 @@ def run(results_dir: pathlib.Path, run_tag: str, profile: Profile) -> list:
     for dataset, fold in sorted(with_csv):
         try:
             results.append(_process_fold(results_dir, run_tag, dataset, fold, profile))
-        except BaselineInputError as e:
+        except ResultsError as e:
             problems.append(f"{dataset} fold {fold}: {e}")
     if problems:
         raise BaselineInputError("nothing written; fix these first:\n  " + "\n  ".join(problems))
@@ -474,7 +457,8 @@ def _synthetic_fold(rng, width=8, n=(12, 6, 5), latent=2):
                          "valid_length": int(valid[i])})
             wid += 1
         parts[part] = (x, meta)
-    manifest = {"dataset": "fsdd", "cv_fold": 0, "latent_dim": latent, "window_size": width,
+    manifest = {"dataset": "fsdd", "cv_fold": 0, "results_format": RESULTS_FORMAT,
+                "latent_dim": latent, "window_size": width,
                 "window_counts": {p: len(parts[p][1]) for p in PARTS},
                 "recordings": {p: [{"recording_id": m["recording_id"], "window_count": 1}
                                    for m in parts[p][1]] for p in PARTS}}
@@ -498,7 +482,7 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     def expect_refusal(fn, needle: str, what: str) -> None:
         try:
             fn()
-        except BaselineInputError as e:
+        except ResultsError as e:
             expect(needle in str(e), f"{what}: refused, but message lacks {needle!r}: {e}")
         else:
             failures.append(f"{what}: not refused")
@@ -620,13 +604,26 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     expect(pw.read_text() == staged, "a refused run wrote to the per-window CSV")
     _write_fold(d, "t_fsdd_fold0", parts, manifest, family[1:])
     expect_refusal(lambda: run(d, "t", prof), "not this run's test split", "test-key mismatch")
+    older = {key: v for key, v in manifest.items() if key != "results_format"}
+    _write_fold(d, "t_fsdd_fold0", parts, older, family)
+    expect_refusal(lambda: run(d, "t", prof), "older than 2026-10-06", "older binary's fold")
+    _write_fold(d, "t_fsdd_fold0", parts, manifest, family + family[:1])
+    expect_refusal(lambda: run(d, "t", prof), "mixes two runs", "two runs in one file")
+    _write_fold(d, "t_fsdd_fold0", parts, manifest, [dict(family[0], encoding="")] + family[1:])
+    expect_refusal(lambda: run(d, "t", prof), "without an encoding", "empty encoding")
+
     _write_fold(d, "t_fsdd_fold0", parts, manifest, family)
+    other_run = d / "t_smoke_fsdd_fold0_per_window_errors.csv"  # run tag "t_smoke", not "t"
+    other_run.write_text("not this run's\n")
+    run(d, "t", prof)
+    expect(pw.read_text() == first, "another run's file changed this run's references")
+    other_run.unlink()
+    nameless = d / "t_fold0_per_window_errors.csv"
+    nameless.write_text("which dataset?\n")
+    expect_refusal(lambda: run(d, "t", prof), "no dataset segment", "file without a dataset")
+    nameless.unlink()
     (d / "t_fsdd_fold0_target_val_windows_meta.csv").unlink()
     expect_refusal(lambda: run(d, "t", prof), "incomplete", "partial target dump")
-    for f in d.glob("t_fsdd_fold0_target_*"):
-        f.unlink()
-    np.save(d / "t_fsdd_fold0_poisson_train_windows.npy", np.zeros((2, width), np.float32))
-    expect_refusal(lambda: run(d, "t", prof), "--dump-reference-inputs-only", "no target dumps")
     expect_refusal(lambda: run(d, "other", prof), "run_tag", "run-tag mismatch")
     return failures
 
@@ -664,7 +661,7 @@ def main(argv: list | None = None) -> int:
                  "run's profile")
     try:
         run(args.results_dir, args.run_tag, load_profile(args.profile))
-    except BaselineInputError as e:
+    except ResultsError as e:
         print(f"[pca-mean] ERROR: {e}", file=sys.stderr)
         return 1
     return 0

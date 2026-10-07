@@ -34,8 +34,10 @@ struct PerWindowError
     float mae = 0.0f;
 };
 
-// Appends `rows` to `<path>` as CSV, writing the header only when the file does not yet
-// exist (each fold's rows accumulate across models / encodings / seeds into one file).
+// Writes `rows` -- every model, encoding and seed of one fold, collected over the whole
+// fold -- to `<path>` as CSV, REPLACING any file already there: the file is one fold
+// run's rows, never a mix of two runs. (03_meeting01_pca_mean_baselines.py then adds the
+// mean / pca reference rows to it.)
 void write_per_window_errors_csv(
     const std::filesystem::path& path, const std::vector<PerWindowError>& rows);
 

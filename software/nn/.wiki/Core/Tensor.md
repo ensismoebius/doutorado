@@ -139,11 +139,13 @@ optimizer.step(model.params());
 
 2. **Gradient Not Tracked**: There is no `set_requires_grad()` — pass `requires_grad=true` into the `forward()` call itself (see Usage Example above and the Module contract in [Layers](./Layers.md))
 
-3. **Reshape is not reframing**: storage is column-major, so reshaping
-   `(N, 1)` to `(T, D)` yields the strided/polyphase split
-   $\{t, t+T, t+2T, \dots\}$ per row, not $D$ consecutive elements. To group
-   consecutive elements, reshape to `(D, T)` and transpose (see
-   `to_lstm_frames` in [Experiment04](../Experiments/Meeting01.md)).
+3. **Reshape keeps row-major order**: storage is row-major (`xt::xarray`'s default;
+   `DeviceTensorBackend` delegates to the same host tensor), so reshaping `(N, 1)` to
+   `(T, D)` puts $D$ consecutive elements in each row. Reshaping to `(D, T)` and then
+   transposing gives the strided/polyphase split $\{t, t+T, t+2T, \dots\}$ per row instead.
+   This pitfall used to say the opposite ("storage is column-major"), and
+   `to_lstm_frames` was written from it — it performs the strided version (see
+   [Meeting01](../Experiments/Meeting01.md#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones)).
 
 ## See Also
 

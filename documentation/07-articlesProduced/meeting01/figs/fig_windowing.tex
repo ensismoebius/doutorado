@@ -1,4 +1,5 @@
-% Signal windowing diagram: non-overlapping T=256 windows, stride S=T
+% Signal windowing diagram: non-overlapping M=256-sample windows, each starting where
+% the previous one ends. M, not T: T is the number of simulation steps (16).
 \begin{tikzpicture}[font=\scriptsize, >=Latex]
 
   % ── Raw waveform ──────────────────────────────────────────────────────
@@ -29,13 +30,13 @@
   \node[teal!80, anchor=north] at (5.0, 0.0) {$w_2$};
 
   % ── Dimension braces ──────────────────────────────────────────────────
-  % Window size T=256 (under W0)
+  % Window size M=256 (under W0)
   \draw[<->, black] (0.0, -0.45) -- (2.0, -0.45)
-    node[midway, anchor=north, inner sep=2pt] {$T\!=\!256$ smp (32\,ms)};
+    node[midway, anchor=north, inner sep=2pt] {$M\!=\!256$ smp (32\,ms)};
 
-  % Stride S=T (from start of W0 to start of W1)
+  % Hop = M (from start of W0 to start of W1)
   \draw[<->, black!60] (0.0, -0.85) -- (2.0, -0.85)
-    node[midway, anchor=north, inner sep=2pt] {$S\!=\!T$\,(no overlap)};
+    node[midway, anchor=north, inner sep=2pt] {hop $=M$\,(no overlap)};
 
   % ── Time axis arrow ───────────────────────────────────────────────────
   \draw[->, gray] (0.0, -1.20) -- (6.4, -1.20)

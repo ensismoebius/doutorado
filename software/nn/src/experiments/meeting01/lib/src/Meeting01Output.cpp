@@ -502,17 +502,16 @@ void write_batch_convergence_dat(const std::filesystem::path& path,
 void write_per_window_errors_csv(
     const std::filesystem::path& path, const std::vector<PerWindowError>& rows)
 {
-    const bool need_header = !std::filesystem::exists(path);
-    std::ofstream out(path, std::ios::app);
+    // Truncate, never append: a fold re-run into the same results directory used to add
+    // its rows after the previous run's, and the readers then averaged the two runs (old
+    // binary and new) as if they were one.
+    std::ofstream out(path, std::ios::trunc);
     if (!out.is_open())
     {
         throw std::runtime_error("write_per_window_errors_csv: cannot open " + path.string());
     }
-    if (need_header)
-    {
-        out << "model,encoding,architecture,v_th,alpha,run_id,seed,cv_fold,split,"
-               "speaker_id,recording_id,window_id,source_window_index,mse,mae\n";
-    }
+    out << "model,encoding,architecture,v_th,alpha,run_id,seed,cv_fold,split,"
+           "speaker_id,recording_id,window_id,source_window_index,mse,mae\n";
     out << std::fixed << std::setprecision(8);
     for (const auto& r : rows)
     {

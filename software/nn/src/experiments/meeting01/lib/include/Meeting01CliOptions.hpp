@@ -13,8 +13,6 @@ struct CliOptions
     int cv_fold = -1;    // -1 = use the profile's value; >= 0 overrides it (LOSO fold loop)
     bool cv_fold_set = false;
     bool no_tui = false; // force-disable the live progress TUI even on a terminal
-    // Build the split, write only the PCA / mean-frame reference inputs, exit (no training).
-    bool dump_reference_inputs_only = false;
     bool help = false;
 };
 

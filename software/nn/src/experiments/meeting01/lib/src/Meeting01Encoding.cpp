@@ -210,9 +210,10 @@ static auto conv1d_temporal_smooth(const Tensor& sample) -> Tensor
 
 // Core of the `recurrent` architecture transform. Keeps BOTH the spike train and
 // the pre-reset membrane value v[t] at every step, so an inspector can plot the
-// real membrane trajectory (Axis B: the 256 window samples ARE the time steps
-// here — v[t] = alpha*v[t-1] + x[t] - s[t-1]*v_th). `recurrent_lif_encode`
-// discards `v_mem`; `recurrent_lif_trace` (binding) returns it.
+// real membrane trajectory. Rows are the T simulation steps and every column (window
+// sample) is its own cell: v[t] = alpha*v[t-1] + x[t] - s[t-1]*v_th per column. (Before
+// the 2026-09-22 layout change the 256 window samples were the steps.)
+// `recurrent_lif_encode` discards `v_mem`; `recurrent_lif_trace` (binding) returns it.
 static auto recurrent_lif_run(const Tensor& sample, float alpha, float v_th) -> RecurrentLifTrace
 {
     Tensor spikes(sample.rows(), sample.cols());
@@ -284,9 +285,15 @@ auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor
 
     const nn::Index steps = total / frame;
 
-    // Column-major storage: reshaping to (frame, steps) makes element (d, t)
-    // land on flat index d + t*frame, i.e. sample[t*frame + d] — the consecutive
-    // framing we want, laid out D-major. Transposing gives (steps, frame).
+    // NOT consecutive frames. Storage is row-major, so reshaping to (frame, steps) and
+    // transposing puts the input's flat element d*steps + j at entry d of frame j: a
+    // stride-`steps` gather. (The comment here until 2026-10-06 assumed column-major
+    // storage and promised frame j = sample[j*frame .. j*frame + frame-1].) For the
+    // (T, M) window encode_sample() returns, with frame dividing T (production: T=16,
+    // M=256, frame=8, steps=512), frame j holds window sample j mod M at steps
+    // floor(j/M), floor(j/M) + T/frame, ...: the sequence runs through the window's
+    // samples in order T/frame times, pass p carrying the steps congruent to p.
+    // Input, target and mask all go through here, so they stay aligned.
     Tensor d_major = sample;
     d_major.reshape({frame, steps});
     return d_major.transpose();

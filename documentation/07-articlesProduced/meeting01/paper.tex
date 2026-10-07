@@ -60,7 +60,7 @@ seed-level results reported as generalization- and optimization-robustness
 evidence. We report reconstruction quality (MSE, MAE, $R^2$) as mean $\pm$
 standard deviation over seeds, a raw per-class operation count as the primary
 cost figure (with a weighted proxy as a labelled sensitivity analysis), the
-self-attention $O(T^2 d_{\mathrm{model}})$ interaction cost, and real
+self-attention cost, quadratic in input-sequence length, and real
 parameter counts. The harness and profiles are released for reproduction.
 \end{abstract}
 
@@ -142,8 +142,8 @@ all four families for a given dataset.
         robustness rather than population inference.
   \item An analytic computational-cost budget reported as a raw per-class
         operation count (primary) with a weighted proxy as a labelled
-        sensitivity analysis, alongside the self-attention
-        $O(T^2 d_{\mathrm{model}})$ term and real parameter counts; the
+        sensitivity analysis, alongside the self-attention term that grows
+        quadratically with sequence length and real parameter counts; the
         reproducible framework is released.
 \end{enumerate}
 
@@ -160,7 +160,8 @@ Unit (GRU) \cite{cho2014gru} merges the input and forget gates and drops the
 separate cell state, giving a smaller recurrent cell with performance
 comparable to the LSTM on many sequence tasks \cite{chung2014gru}. Self-attention
 encoders \cite{vaswani2017attention} replace recurrence with a content-based
-$O(T^2)$ mixing operation and layer normalization \cite{ba2016layernorm}. We
+mixing operation, quadratic in sequence length, and layer normalization
+\cite{ba2016layernorm}. We
 use all three as trained non-spiking baselines; the Transformer variant is
 \emph{bottlenecked} --- the decoder is conditioned only on the fixed-dimension
 latent, with no encoder--decoder cross-attention --- so that, like PCA and the
@@ -206,9 +207,9 @@ recording-level paired difference the primary estimand.
 
 \subsection{Problem formulation}
 
-\par Let $x \in \mathbb{R}^{T}$ denote a temporal signal window of length $T$.
-An autoencoder learns encoder $E:\mathbb{R}^T \to \mathbb{R}^d$ and decoder
-$D:\mathbb{R}^d \to \mathbb{R}^T$ minimizing reconstruction loss:
+\par Let $x \in \mathbb{R}^{M}$ denote a temporal signal window of $M=256$
+samples. An autoencoder learns encoder $E:\mathbb{R}^M \to \mathbb{R}^d$ and
+decoder $D:\mathbb{R}^d \to \mathbb{R}^M$ minimizing reconstruction loss:
 \begin{equation}
   \mathcal{L} = \|x - D(E(x))\|_2^2.
 \end{equation}
@@ -216,7 +217,7 @@ $D:\mathbb{R}^d \to \mathbb{R}^T$ minimizing reconstruction loss:
 
 \par The latent dimension $d$ is fixed \emph{per dataset signal domain} rather
 than globally: $d=16$ for the two spoken-digit datasets and $d=64$ for the two
-EEG datasets (a $16{:}1$ and a $4{:}1$ compression ratio against the $T=256$
+EEG datasets (a $16{:}1$ and a $4{:}1$ compression ratio against the $M=256$
 window, respectively). Within a dataset $d$ is identical for all four trained
 families and is never itself searched, so a reconstruction-quality difference
 reflects architecture quality at a matched compression ratio rather than a
@@ -227,8 +228,14 @@ in that family's own architecture search (Sec.~\ref{sec:archsearch}); a
 per-family lower bound on that gene enforces $H,d_{\mathrm{model}}\geq d$, so
 no searched architecture's true bottleneck can fall below the dataset's
 latent width through an undersized hidden layer upstream of it
-(Sec.~\ref{sec:archsearch}). The window is reshaped into $T/f$ frames of
-$f$ samples before entering the sequence models. PCA with $k=d$ components ---
+(Sec.~\ref{sec:archsearch}). Each input encoding spreads the window over
+$T=16$ simulation steps (Sec.~\ref{sec:encodings}), so every family receives a
+$T\times M$ array. The SNN-AE presents its $M$ columns to $M$ input neurons at
+each of the $T$ steps; the sequence models read the same $TM$ values as
+$S=TM/F=512$ frames of $F=8$ values, frame $j$ holding window sample
+$j \bmod M$ at every second step (steps $0,2,\dots,14$ for $j<M$, steps
+$1,3,\dots,15$ after), so their sequence axis runs through the window's
+samples in order, twice. PCA with $k=d$ components ---
 the best linear code through the same bottleneck --- and a mean-frame predictor
 provide linear reference points, fitted per fold on the same non-test data as
 the families' final fits (Sec.~\ref{sec:training}).
@@ -296,8 +303,9 @@ its heavier tails keep gradient flowing further from threshold, avoiding the
 saturation those surrogates show away from $V_{th}$.
 
 \par We use the arctan surrogate ($\alpha=2$).
-BPTT \cite{werbos1990backpropagation} unrolls both LSTM and SNN through the
-full time dimension $T$; the reverse-time recurrence for layer $l$ is:
+BPTT \cite{werbos1990backpropagation} unrolls the SNN through its $T$
+simulation steps and the LSTM-AE and GRU-AE through their $S$ frames; for the
+SNN, the reverse-time recurrence for layer $l$ is:
 \begin{equation}
   \delta_l[t] = \hat{\sigma}'(V[t]) \odot \big(W_{l+1}^{\top}\,\delta_{l+1}[t]\big)
               + \beta\,\delta_l[t+1],
@@ -340,7 +348,7 @@ applies $N$ post-norm self-attention blocks with $n_h$ heads
 \cite{vaswani2017attention,ba2016layernorm} ($d_{\mathrm{model}}$, $n_h$, $N$,
 and the feed-forward width searched, Sec.~\ref{sec:archsearch}), mean-pools
 over time, and projects to the $d$ latent through a $\tanh$. The decoder
-expands the latent, replicates it over $T/f$ positions, adds positional
+expands the latent, replicates it over the $S$ positions, adds positional
 encodings, applies $N$ self-attention blocks, and projects back to frames.
 There is \emph{no encoder--decoder cross-attention}: this is a deliberate
 design choice so that reconstruction must pass through the fixed-dimension
@@ -349,12 +357,19 @@ to PCA and the recurrent autoencoders. Its parameter count is not matched to
 the recurrent baselines; the actual value is reported in the results.
 
 \par \textbf{Sequence-length cost.} Per input window, the recurrent baselines
-cost $O(T d H)$ operations while self-attention costs
-$O(T^2 d_{\mathrm{model}})$ for the score and context products plus
-$O(T d_{\mathrm{model}}^2)$ for the projections. At $T/f = 32$ frames this
-quadratic interaction term is modest, but it is an architecture-level cost
-that is independent of the reconstruction-error ranking and is reported
-explicitly in the operation-count budget (Sec.~\ref{sec:energy}).
+cost $O(L\,S\,H(F+H))$ multiply--accumulates, linear in the sequence length
+$S$. Each Transformer-AE block costs $2S^2 d_{\mathrm{model}}$ for the score
+and context products, $4S d_{\mathrm{model}}^2$ for the projections, and
+$2S d_{\mathrm{model}} d_{\mathrm{ff}}$ for the feed-forward layer, where
+$d_{\mathrm{ff}}$ is the feed-forward width. The quadratic term is
+$S/(2d_{\mathrm{model}}+d_{\mathrm{ff}})$ times the other two combined: at
+$S=512$ that ratio is at least $1$ everywhere in the searched range
+($d_{\mathrm{model}}\leq 128$, $d_{\mathrm{ff}}\leq 256$) and reaches $8$ at the
+narrowest Transformer the spoken-digit search allows ($d_{\mathrm{model}}=16$,
+$d_{\mathrm{ff}}=32$), so self-attention is the largest single term of the
+Transformer-AE's cost rather than a minor correction. It is an
+architecture-level cost, independent of the reconstruction-error ranking, and
+is reported explicitly in the operation-count budget (Sec.~\ref{sec:energy}).
 
 % ── Architecture search ───────────────────────────────────────
 \subsection{Architecture search}
@@ -397,17 +412,20 @@ spoken-digit datasets' $d=16$) but never the profile's stated bounds.
 \subsection{Spike encodings}
 \label{sec:encodings}
 
-\par Three strategies convert raw window $x$ into pre-processed $\tilde{x}$:
+\par Three strategies turn the window $x\in\mathbb{R}^M$ into a $T\times M$
+array $\tilde{x}$, one row per simulation step $t=0,\dots,T-1$, with $T=16$
+for every family and dataset:
 
-\textbf{Direct.} $\tilde{x} = x$.  Normalized values are passed without
-binarization.
+\textbf{Direct.} $\tilde{x}_{t,i} = x_i$ at every step $t$: the normalized
+value is presented as a constant input current, without binarization.
 
-\textbf{Poisson.}  Each element is independently binarized via Bernoulli
-sampling \cite{neftci2019surrogate}, normalized over the window's full range
-so that sub-mean (post-z-score negative) samples keep a nonzero firing
-probability rather than being clipped to zero:
+\textbf{Poisson.}  Each element is binarized at every step by an independent
+Bernoulli draw \cite{neftci2019surrogate}, so its spike count over the $T$
+steps carries its amplitude. The firing probability is normalized over the
+window's full range so that sub-mean (post-z-score negative) samples keep a
+nonzero firing probability rather than being clipped to zero:
 \begin{equation}
-  \tilde{x}_i \sim \mathrm{Bernoulli}\!\left(\mathrm{clip}\!\left(
+  \tilde{x}_{t,i} \sim \mathrm{Bernoulli}\!\left(\mathrm{clip}\!\left(
     \frac{x_i - x_{\min}}{x_{\max}-x_{\min}},\;0,\;1\right)\right).
 \end{equation}
 \par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the
@@ -443,18 +461,20 @@ before the autoencoder input.
 
 \textbf{Dense.} $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
 
-\textbf{Conv1d.} A fixed 3-tap temporal smoothing filter:
+\textbf{Conv1d.} A fixed 3-tap smoothing filter along the window's sample
+axis, applied at every step $t$:
 \begin{equation}
-  \phi(\tilde{x})_t = 0.25\,\tilde{x}_{t-1} + 0.5\,\tilde{x}_t
-                    + 0.25\,\tilde{x}_{t+1},
+  \phi(\tilde{x})_{t,i} = 0.25\,\tilde{x}_{t,i-1} + 0.5\,\tilde{x}_{t,i}
+                        + 0.25\,\tilde{x}_{t,i+1},
 \end{equation}
-\par with boundary clamping.  Reduces high-frequency spike jitter before
-autoencoder input.
+\par with boundary clamping.  Reduces high-frequency jitter between
+neighbouring samples before autoencoder input.
 
-\textbf{Recurrent.}  A recurrent LIF cell integrates the encoded signal:
+\textbf{Recurrent.}  One recurrent LIF cell per window sample $i$ integrates
+the encoded signal over the $T$ steps:
 \begin{align}
-  v[t] &= \alpha\, v[t-1] + \tilde{x}[t] - s[t-1]\,V_{th},\\
-  s[t] &= \mathbf{1}[v[t] \geq V_{th}],
+  v_{t,i} &= \alpha\, v_{t-1,i} + \tilde{x}_{t,i} - s_{t-1,i}\,V_{th},\\
+  s_{t,i} &= \mathbf{1}[v_{t,i} \geq V_{th}],
 \end{align}
 \par where $\alpha$ and $V_{th}$ are sweep parameters.
 
@@ -468,13 +488,15 @@ strictly decreasing width, terminating at the dataset's latent width $d$; the
 decoder mirrors the encoder:
 \begin{align*}
 \text{Enc:}&\quad
-  \mathrm{Lin}(T{\to}w_1)\to\mathrm{Leaky}\to\dots\to
-  \mathrm{Lin}(w_{L-1}{\to}d)\to\mathrm{Leaky}\\
+  \mathrm{Lin}(M{\to}w_1)\to\mathrm{Leaky}\to\dots\\
+  &\quad\to\mathrm{Lin}(w_{L-1}{\to}d)\to\mathrm{Leaky}\\
 \text{Dec:}&\quad
-  \mathrm{Lin}(d{\to}w_{L-1})\to\dots\to
-  \mathrm{Lin}(w_1{\to}T)\to\mathrm{LeakyInt}
+  \mathrm{Lin}(d{\to}w_{L-1})\to\dots\\
+  &\quad\to\mathrm{Lin}(w_1{\to}M)\to\mathrm{LeakyInt}
 \end{align*}
-\par with $T=256$ and $w_1>\dots>w_{L-1}>d$.
+\par with $M=256$ input neurons, one per window sample, and
+$w_1>\dots>w_{L-1}>d$; the whole stack is evaluated once per simulation step,
+$T$ times per window.
 \par Leaky layers emit binary spikes; LeakyInt operates in readout mode, emitting membrane potential $v$ directly to enable continuous-valued reconstruction. The discrete LIF update follows Eq.~(\ref{eq:lif}) with $R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters. All membrane states are reset between independent samples.
 
 \par The four trained families are: SNN-AE (the spiking autoencoder above),
@@ -507,9 +529,10 @@ SNN biophysical parameters ($R$, $C$, $V_{th}$) use a scaled learning rate
 $\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane-dynamics optimization
 \cite{neftci2019surrogate}; $R$ and $C$ are clamped to $10^{-6}$ in the
 forward pass with gradients zeroed in the clamped region.
-BPTT \cite{werbos1990backpropagation} propagates gradients through the full
-time dimension. Early stopping monitors a held-out monitor MSE with patience
-$P=5$ epochs and minimum delta $10^{-8}$ over a maximum of 30 epochs
+BPTT \cite{werbos1990backpropagation} propagates gradients through all $T$
+simulation steps (SNN-AE) or all $S$ frames (LSTM-AE, GRU-AE). Early stopping
+monitors a held-out monitor MSE with a patience of 5 epochs and minimum delta
+$10^{-8}$ over a maximum of 30 epochs
 \cite{eshraghian2023training}. Batch size is 1 to accommodate stateful
 sequence processing. Each configuration is trained with five random seeds
 ($42$--$46$).
@@ -556,7 +579,7 @@ dense multiply--accumulates (MACs), nonlinearity evaluations, attention
 $QK^{\top}$/$\cdot\,V$ products, and normalization operations; for the SNN,
 synaptic accumulations, neuron-state updates, and spike/event operations. The
 event-driven classes are scaled by the measured mean spike fraction
-$r\in[0,1]$ of the evaluated run, so an SNN that never spikes contributes no
+$\rho\in[0,1]$ of the evaluated run, so an SNN that never spikes contributes no
 event-operation cost.
 
 \par As a secondary, explicitly labelled \emph{sensitivity analysis} we also
@@ -601,8 +624,8 @@ signal domains rather than variants of one task.
         adult epilepsy patients, $512\,$Hz; group $=$ subject, same
         one-directory-per-subject grouping as EEGMMIDB.
 \end{itemize}
-Every recording is partitioned into non-overlapping windows of $T=256$ samples
-with stride $S=T$ --- $32\,$ms for the two audio datasets, $1.6\,$s for
+Every recording is partitioned into non-overlapping windows of $M=256$ samples,
+each starting where the previous one ends --- $32\,$ms for the two audio datasets, $1.6\,$s for
 EEGMMIDB, and $0.5\,$s for Siena at their native sampling rates. For FSDD all
 windows are used; for the three larger datasets a per-recording cap keeps long
 recordings from dominating the pooled window counts (2 windows/recording for
@@ -662,10 +685,10 @@ the test block (Sec.~\ref{sec:archsearch}).
 \begin{figure}[!t]
 \centering
 \input{figs/fig_windowing.tex}
-\caption{Signal windowing (audio case shown; $T=256$ samples $=32\,$ms at
-$8\,$kHz). The EEG datasets use the same $T=256$ at their own native rate
+\caption{Signal windowing (audio case shown; $M=256$ samples $=32\,$ms at
+$8\,$kHz). The EEG datasets use the same $M=256$ at their own native rate
 ($1.6\,$s at $160\,$Hz for EEGMMIDB, $0.5\,$s at $512\,$Hz for Siena).
-Stride $S=T$ yields windows with no shared samples. Windows are assigned to
+Consecutive windows start $M$ samples apart, so no two share a sample. Windows are assigned to
 train / validation / test splits by group (speaker or EEG subject) before any
 pooling.}
 \label{fig:windowing}
@@ -776,7 +799,7 @@ SNN-AE, disagreement of the selected pre-processing mode across folds is
 itself a finding about how encoding-dependent the best pre-processing is. The
 cost columns ($P$, $C_{\mathrm{raw}}$, timing) reflect each fold's selected
 architecture and so can vary across folds and datasets, unlike in a
-fixed-architecture design; the Transformer's $O(T^2 d_{\mathrm{model}})$
+fixed-architecture design; the Transformer's $O(S^2 d_{\mathrm{model}})$
 self-attention term shows up in its $C_{\mathrm{raw}}$ independently of its MSE.
 
 % \resultsForDataset{<key>}{<Title>} — one block per dataset. All files are
@@ -893,14 +916,16 @@ whether an ordering that holds in the pooled recording-level analysis also holds
 run-to-run and group-to-group (speaker-to-speaker or subject-to-subject).
 
 \par The encoding comparison (the per-dataset per-encoding tables) is where an SNN-specific
-effect is most likely to appear, because the encoding only reshapes the SNN's
-input; the non-spiking baselines consume the same framed window regardless. If
-latency or Poisson coding helps the SNN relative to direct coding, that is a
-property of spike-based representation, not of the reconstruction task.
+effect is most likely to appear. Every family reads the encoded $T\times M$
+array, but only the SNN-AE integrates it as spikes in membrane potentials; the
+sequence models read the same values as ordinary real-valued frames. If latency
+or Poisson coding helps the SNN-AE relative to direct coding without helping the
+sequence models, that is a property of spike-based representation, not of the
+reconstruction task.
 
 \par The cost picture is separable from the quality picture. The
 operation-count column of the summary tables orders the models by arithmetic
-work under matched software; the self-attention $O(T^2 d_{\mathrm{model}})$ term
+work under matched software; the self-attention $O(S^2 d_{\mathrm{model}})$ term
 makes the Transformer's per-window cost grow faster in sequence length than the
 recurrent models', independent of which model reconstructs best. Wall-clock
 timing on the shared CPU backend is reported alongside, but it reflects this

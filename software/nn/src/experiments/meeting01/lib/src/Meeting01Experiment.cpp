@@ -13,6 +13,7 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "../include/Meeting01Checkpoint.hpp"
 #include "../include/Meeting01Cli.hpp"
@@ -174,6 +175,22 @@ auto fold_output_tag(const Meeting01Config& c, const std::string& dataset) -> st
         t += "_fold" + std::to_string(c.dataset.cv_fold);
     }
     return t;
+}
+
+// Writes one of a fold's JSON manifests, stamped with kResultsFormat (Meeting01Output.hpp).
+// An unwritable manifest stops the run: the post-processing scripts refuse a fold whose
+// manifests are missing, so carrying on would only burn the fold's training time first.
+void write_fold_manifest(const std::filesystem::path& path, nlohmann::json man)
+{
+    man["results_format"] = kResultsFormat;
+    std::ofstream mf(path);
+    if (!mf.is_open())
+    {
+        throw std::runtime_error("cannot write " + path.string() +
+                                 ": check that dataset.results_dir exists and is writable.");
+    }
+    mf << man.dump(2);
+    if (!mf) throw std::runtime_error("write failed (disk full?): " + path.string());
 }
 
 // Serializes a completed ResultRow as a `config_end` event for the live monitor.
@@ -599,8 +616,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
             std::filesystem::path(config.dataset.results_dir) /
             (fold_output_tag(config, dataset_name) + "_" + fam.token + "_run" +
                 std::to_string(run_id + 1) + "_model_selection_manifest.json");
-        std::ofstream mf(man_path);
-        if (mf.is_open()) mf << man.dump(2);
+        write_fold_manifest(man_path, std::move(man));
     }
 }
 
@@ -849,8 +865,7 @@ void finalize_snn_selection(const Meeting01Config& config,
             std::filesystem::path(config.dataset.results_dir) /
             (fold_output_tag(config, dataset_name) + "_" + encoding + "_run" +
                 std::to_string(run_id + 1) + "_model_selection_manifest.json");
-        std::ofstream mf(man_path);
-        if (mf.is_open()) mf << man.dump(2);
+        write_fold_manifest(man_path, std::move(man));
     }
 }
 
@@ -1262,13 +1277,11 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
 }
 
 // Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
-// any speaker or any source recording appears in more than one of train/val/test.
-// `write_manifest` is false only for --dump-reference-inputs-only, which must not
-// overwrite the manifest an earlier training run left behind (it is that run's record).
-void assert_split_disjoint_and_manifest(const Meeting01Config& config,
-    const DatasetSplit& split,
-    const std::string& dataset_name,
-    bool write_manifest)
+// any speaker or any source recording appears in more than one of train/val/test. The
+// manifest is also the fold's provenance record: its results_format is what the
+// post-processing scripts check before they use any of the fold's numbers.
+void assert_split_disjoint_and_manifest(
+    const Meeting01Config& config, const DatasetSplit& split, const std::string& dataset_name)
 {
     // cv_fold is always >= 0 post-validate() (the pooled/shuffled legacy split was
     // removed 2026-09-23); this guard is now unreachable dead code, kept only so a
@@ -1312,7 +1325,7 @@ void assert_split_disjoint_and_manifest(const Meeting01Config& config,
                                              std::to_string(config.dataset.cv_fold) + ")");
         }
 
-    if (!write_manifest || config.dataset.results_dir.empty()) return;
+    if (config.dataset.results_dir.empty()) return;
     nlohmann::json man;
     man["dataset"] = dataset_name;
     man["cv_fold"] = config.dataset.cv_fold;
@@ -1349,8 +1362,7 @@ void assert_split_disjoint_and_manifest(const Meeting01Config& config,
     const std::filesystem::path man_path =
         std::filesystem::path(config.dataset.results_dir) /
         (fold_output_tag(config, dataset_name) + "_split_manifest.json");
-    std::ofstream mf(man_path);
-    if (mf.is_open()) mf << man.dump(2);
+    write_fold_manifest(man_path, std::move(man));
 }
 
 // Writes this fold's PCA / mean-frame reference inputs (write_reference_inputs: the
@@ -1390,35 +1402,6 @@ auto resolve_dataset_config(const Meeting01Config& config, const std::string& da
         resolved_config.model.latent_dim = resolved_latent;
     }
     return resolved_config;
-}
-
-// --dump-reference-inputs-only: rebuild each requested (dataset, fold) split and write
-// ONLY the reference-baseline inputs, then stop. For a run made by a binary that
-// predates the target dump, so its references can be computed without retraining.
-// Writes nothing else on purpose: opening the events sink would truncate the run's
-// events log, and the split manifest / metric CSVs are the run's own records.
-// 03_meeting01_pca_mean_baselines.py checks the rebuilt windows against that manifest
-// and against the families' per-window test rows, so a split that no longer reproduces
-// fails there, loudly, instead of yielding a reference fitted on different windows.
-auto run_reference_input_dump(const Meeting01Config& config) -> int
-{
-    if (config.dataset.results_dir.empty())
-    {
-        throw std::runtime_error(
-            "--dump-reference-inputs-only: dataset.results_dir is empty, so there is "
-            "nowhere to write the reference inputs. Set it in the profile to the directory "
-            "holding the run's per-window CSVs (normally results/meeting01).");
-    }
-    for (const auto& dataset_name : config.evaluation.datasets)
-    {
-        const Meeting01Config resolved_config = resolve_dataset_config(config, dataset_name);
-        const DatasetSplit split =
-            build_split(resolved_config, dataset_name, resolved_config.dataset.cv_fold);
-        assert_split_disjoint_and_manifest(
-            resolved_config, split, dataset_name, /*write_manifest=*/false);
-        dump_reference_inputs(resolved_config, split, dataset_name);
-    }
-    return 0;
 }
 
 // Writes every result artifact for the whole experiment: comparative CSV, publication
@@ -1475,9 +1458,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         const Meeting01Config config = load_config(resolve_profile_path(cli), cli);
         config.validate();
-        // Before resolve_output_dirs / the events sink: this mode must leave every output
-        // of an earlier run untouched except the reference inputs it rewrites.
-        if (cli.dump_reference_inputs_only) return run_reference_input_dump(config);
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
 
@@ -1598,8 +1578,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             std::chrono::steady_clock::now() - t_bs0)
                                 .count()) +
                         " ms)");
-            assert_split_disjoint_and_manifest(
-                resolved_config, split, dataset_name, /*write_manifest=*/true);
+            assert_split_disjoint_and_manifest(resolved_config, split, dataset_name);
             NN_LOG_INFO("[loso] leakage gate + split manifest OK");
 
             ExperimentEvents::instance().emit("fold_begin",
@@ -1746,8 +1725,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         std::filesystem::path(resolved_config.dataset.results_dir) /
                         (fold_output_tag(resolved_config, dataset_name) + "_run" +
                             std::to_string(run_id + 1) + "_overall_winner_manifest.json");
-                    std::ofstream mf(man_path);
-                    if (mf.is_open()) mf << man.dump(2);
+                    write_fold_manifest(man_path, std::move(man));
                 }
             }
 

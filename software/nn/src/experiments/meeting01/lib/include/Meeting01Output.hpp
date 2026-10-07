@@ -13,6 +13,22 @@
 namespace meeting01
 {
 
+// Version of the results this binary writes, stamped as "results_format" into every JSON
+// manifest of a fold and every checkpoint. The post-processing scripts accept exactly this
+// value (RESULTS_FORMAT in scripts/pipeline/meeting01/meeting01_results.py) and refuse any
+// other, so results whose numbers cannot be compared never reach a paper table; a
+// checkpoint of another format is not restored (Meeting01Checkpoint.cpp). Bump BOTH
+// whenever a change makes new numbers incomparable with old ones.
+//   absent  binaries before 2026-10-06. Up to commit 6f332734 a zero-padded window (the
+//           last of a FSDD / AudioMNIST recording) was z-scored together with its padding
+//           and scored over it; from that commit the LSTM/GRU/Transformer-AE path crashed
+//           on its first batch. Per-window rows had no encoding, baseline test rows said
+//           train_ms 0, and there were no reference target dumps.
+//   2       padding excluded from normalization, every loss and every error
+//           (valid_length); target dumps for the references; per-window encoding and
+//           baseline train_ms written.
+inline constexpr int kResultsFormat = 2;
+
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split
 // part p in {train, val, test}:

@@ -2,13 +2,12 @@
 """02_meeting01_build_loso_paper_data.py — aggregate the nested-LOSO run into
 paper-ready tables.
 
-Inputs (per outer fold f, written by the meeting01 binary):
-    results/meeting01/<tag>_fold<f>_comparative_metrics.csv                     (split = val | test rows)
-    results/meeting01/<tag>_fold<f>_<enc>_run<r>_model_selection_manifest.json  (SNN-AE winner)
-    results/meeting01/<tag>_fold<f>_<fam>_run<r>_model_selection_manifest.json  (LSTM-AE/GRU-AE/
-                                                                                  Transformer-AE winner,
-                                                                                  <fam> in {lstm-ae,
-                                                                                  gru-ae, transformer-ae})
+Inputs (per dataset d and outer fold f, prefix <tag>_<d>_fold<f>, written by the binary):
+    _comparative_metrics.csv                     one test row per family winner and seed
+    _per_window_errors.csv                       with 03_'s mean / pca reference rows
+    _split_manifest.json                         the fold's provenance (results_format)
+    _<enc>_run<r>_model_selection_manifest.json  SNN-AE winner (<enc> = its encoding gene)
+    _<fam>_run<r>_model_selection_manifest.json  LSTM-AE / GRU-AE / Transformer-AE winner
 
 One manifest per (dataset, fold, run_id) per family, for all four families alike -- every
 family runs its own NSGA-II search and this file records its winner (see
@@ -17,20 +16,30 @@ filename segment right before "_run<r>_..." disambiguates: for SNN-AE it is the 
 genome's own encoding (direct/poisson/latency); for a baseline it is the family token
 itself. LSTM-AE's and GRU-AE's JSON bodies are byte-for-byte identical in shape
 (hidden_size, num_layers, encoding, val_mse) -- only that filename segment tells them
-apart; see _classify_manifest().
+apart; see selection_manifests().
 
 Only  split == "test"  rows feed the headline tables. Reconstruction quality is reported
-as mean +/- sample standard deviation across the FIVE seeds (per-seed means first). Seeds
-establish optimization / reproducibility robustness around the estimate, not independent
-samples -- see the paper's Statistical methods and 04_meeting01_significance_tests.py for
-the inferential (recording-level) analysis.
+as mean +/- sample standard deviation across the FIVE seeds (per-seed means first, each a
+mean over folds of the fold's mean window error). Seeds establish optimization /
+reproducibility robustness around the estimate, not independent samples -- see the
+paper's Statistical methods and 04_meeting01_significance_tests.py for the inferential
+(recording-level) analysis.
 
 Model inventory: FOUR trained families -- SNN-AE, LSTM-AE, GRU-AE, Transformer-AE. The SNN
 pre-processing modes (dense / conv1d / recurrent) are input transforms selected per fold,
 NOT separate families: every selected SNN winner is labelled "SNN-AE" here, and which mode
 won on which validation speaker is reported separately in paper_loso_snn_selection.tex.
 PCA and Mean are analytic reference points appended by 03_meeting01_pca_mean_baselines.py
-to the per-window CSVs; their reconstruction error is folded in from there.
+to the per-window CSVs; they are averaged per fold first, exactly like a family's
+comparative row (the mean window error of the fold), so both sides of the table are the
+same estimand even when folds hold different numbers of test windows.
+
+Refuses, naming cause and remedy (no fallbacks): a fold from a binary older than
+2026-10-06 (meeting01_results.py); a file without a dataset segment; a fold with a
+comparative CSV but no per-window CSV, or the reverse; a fold without reference rows; a
+test row whose dataset / fold disagrees with its file name; a trained model with
+train_ms <= 0; a selection manifest without its test row (left over from an earlier run)
+or a test row without its manifest.
 
 Outputs (--data-dir):
     paper_loso_summary.csv               model; mse; mae; r2; params; craw; train_ms; infer_ms
@@ -54,21 +63,35 @@ import argparse
 import collections
 import csv
 import json
+import os
 import pathlib
 import re
+import shutil
 import statistics as pystat
 import sys
+import tempfile
 from collections import defaultdict
 
 import numpy as np
 
-# "meeting01_loso_audiomnist_fold3_comparative_metrics.csv" -> dataset "audiomnist".
-# Legacy files without a dataset segment ("meeting01_loso_fold3_...") fall back to "fsdd".
-_DATASET_RE = re.compile(r"_(?P<ds>[a-z0-9]+)_fold\d+_")
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from meeting01_results import (  # noqa: E402
+    PW_HEADER,
+    REFERENCE_MODELS,
+    REFERENCE_SEED,
+    RESULTS_FORMAT,
+    TRAINED_MODELS,
+    ResultsError,
+    check_results_format,
+    fold_files,
+    read_per_window,
+    split_manifest,
+)
+
 # "mitbih" replaced 2026-09-23 by eegmmidb/chbmit, then chbmit replaced the same day by
-# siena (disk space), in the active LOSO grid; both mitbih and chbmit are kept here (fall
-# back to DATASET_ORDER's unknown-dataset tail / DATASET_TITLE.get(d, d) otherwise) so any
-# pre-existing result CSVs from before either swap still title correctly.
+# siena (disk space), in the active LOSO grid; both are kept so their titles stay known.
 DATASET_ORDER = ["fsdd", "audiomnist", "eegmmidb", "siena", "chbmit", "mitbih"]
 DATASET_TITLE = {
     "fsdd": "FSDD",
@@ -80,20 +103,13 @@ DATASET_TITLE = {
 }
 
 
-def _dataset_of(path: pathlib.Path, run_tag: str) -> str:
-    rest = path.name[len(run_tag):] if path.name.startswith(run_tag) else path.name
-    m = _DATASET_RE.search(rest)
-    return m["ds"] if m else "fsdd"
-
-
-# Selection-manifest filename: "..._fold<f>_<segment>_run<r>_model_selection_manifest.json".
+# Selection-manifest filename: "<tag>_<d>_fold<f>_<segment>_run<r>_model_selection_manifest.json".
 # <segment> disambiguates which family wrote it -- see finalize_snn_selection /
 # finalize_baseline_selection in Meeting01Experiment.cpp. SNN's segment is the winning
 # genome's own encoding gene (never a grid-search sweep label, despite an older comment
 # in that source file that said otherwise -- fixed 2026-09-23); a baseline's segment is
 # its family token verbatim.
-_MANIFEST_RE = re.compile(
-    r"_fold(?P<fold>\d+)_(?P<segment>.+)_run(?P<run>\d+)_model_selection_manifest\.json$")
+_MANIFEST_SUFFIX = r"(?P<segment>[a-z0-9-]+)_run(?P<run>\d+)_model_selection_manifest\.json"
 _SNN_ENCODINGS = {"direct", "poisson", "latency"}
 # family token (as it appears in the filename) -> paper-facing label.
 _BASELINE_FAMILY_LABEL = {
@@ -101,23 +117,39 @@ _BASELINE_FAMILY_LABEL = {
     "gru-ae": "GRU-AE",
     "transformer-ae": "Transformer-AE",
 }
+# The comparative-CSV columns this script reads (write_rows_csv, Meeting01Output.cpp).
+_COMPARATIVE_COLUMNS = ("dataset", "model", "encoding", "architecture", "run", "seed", "split",
+                        "cv_fold", "mse", "mae", "r2", "train_ms", "infer_ms", "param_count",
+                        "macs")
 
 
-def _classify_manifest(path: pathlib.Path) -> tuple[str, int, int] | None:
-    """(family, fold, run_id) from a selection-manifest filename, family in
-    {"snn-ae", "lstm-ae", "gru-ae", "transformer-ae"}. None if the filename's segment
-    matches neither the known encodings nor the known family tokens -- e.g. a 5th
-    family added later without updating this map -- so callers can warn instead of
-    silently mis-sorting an unrecognised manifest into the wrong table."""
-    m = _MANIFEST_RE.search(path.name)
-    if not m:
-        return None
-    segment = m["segment"]
-    if segment in _SNN_ENCODINGS:
-        return ("snn-ae", int(m["fold"]), int(m["run"]))
-    if segment in _BASELINE_FAMILY_LABEL:
-        return (segment, int(m["fold"]), int(m["run"]))
-    return None
+def selection_manifests(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
+    """Every family winner's selection manifest of the run, as {dataset, fold, family,
+    run_id, seed, manifest}: in the current results format, and recording the dataset /
+    fold / run its file name says. A segment that is neither an SNN encoding nor a known
+    family token (a fifth family added without updating this map) is refused, not
+    silently left out of the tables."""
+    out = []
+    for path, ds, fold, m in fold_files(results_dir, run_tag, _MANIFEST_SUFFIX):
+        segment, run_id = m["segment"], int(m["run"])
+        if segment in _SNN_ENCODINGS:
+            family = "snn-ae"
+        elif segment in _BASELINE_FAMILY_LABEL:
+            family = segment
+        else:
+            raise ResultsError(
+                f"{path.name}: segment {segment!r} is neither an SNN encoding "
+                f"{sorted(_SNN_ENCODINGS)} nor a family token {sorted(_BASELINE_FAMILY_LABEL)}. "
+                "A new family? Add it to _BASELINE_FAMILY_LABEL so its winners are tabulated.")
+        man = json.loads(path.read_text(encoding="utf-8"))
+        check_results_format(man, path.name)
+        if (man.get("dataset"), man.get("cv_fold"), man.get("run_id")) != (ds, fold, run_id):
+            raise ResultsError(
+                f"{path.name} records dataset={man.get('dataset')!r} fold={man.get('cv_fold')!r} "
+                f"run={man.get('run_id')!r}: it was renamed or copied from elsewhere.")
+        out.append({"dataset": ds, "fold": fold, "family": family, "run_id": run_id,
+                    "seed": int(man["seed"]), "manifest": man, "name": path.name})
+    return out
 
 # label -> stable column key for the wide plot CSV
 PLOT_KEY = {
@@ -163,78 +195,148 @@ def _mean_std(per_seed: list[float]) -> tuple[float, float]:
 # --------------------------------------------------------------------- loading
 
 def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
-    """One dict per test-split comparative row (fold x seed x model x encoding)."""
+    """One dict per test-split comparative row (dataset x fold x seed x family)."""
     rows: list[dict] = []
-    paths = sorted(results_dir.glob(f"{run_tag}*_fold*_comparative_metrics.csv"))
-    for path in paths:
-        ds = _dataset_of(path, run_tag)
-        with path.open(encoding="utf-8") as f:
-            for r in csv.DictReader(f):
-                if r.get("split") != "test":
-                    continue
-                rows.append({
-                    "dataset": ds,
-                    "label": _model_label(r["model"], r.get("architecture", "")),
-                    "encoding": r["encoding"],
-                    "seed": int(r["seed"]),
-                    "mse": float(r["mse"]),
-                    "mae": float(r["mae"]),
-                    "r2": float(r["r2"]),
-                    "train_ms": float(r["train_ms"]),
-                    "infer_ms": float(r["infer_ms"]),
-                    "params": float(r["param_count"]),
-                    "craw": float(r["macs"]),
-                })
-    if not paths:
-        print(f"[loso-data] no {run_tag}_fold*_comparative_metrics.csv under {results_dir}",
-              file=sys.stderr)
+    for path, ds, fold, _ in fold_files(results_dir, run_tag,
+                                        re.escape("comparative_metrics.csv")):
+        split_manifest(results_dir, run_tag, ds, fold)
+        with path.open(encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            absent = [c for c in _COMPARATIVE_COLUMNS if c not in (reader.fieldnames or [])]
+            if absent:
+                raise ResultsError(f"{path.name} lacks the column(s) {absent}: written by a "
+                                   "meeting01 version this script does not read.")
+            fold_rows = [r for r in reader if r["split"] == "test"]
+        seen: set = set()
+        for line, r in enumerate(fold_rows, start=2):
+            where = f"{path.name} (test row {line - 1})"
+            if r["dataset"] != ds or int(r["cv_fold"]) != fold:
+                raise ResultsError(f"{where} says dataset={r['dataset']} fold={r['cv_fold']}, "
+                                   f"its file name {ds} fold {fold}: renamed or concatenated.")
+            if r["model"] not in TRAINED_MODELS:
+                raise ResultsError(f"{where}: unknown model {r['model']!r}; add it to "
+                                   "TRAINED_MODELS in meeting01_results.py.")
+            if not r["encoding"]:
+                raise ResultsError(f"{where}: {r['model']} winner without an encoding.")
+            if float(r["train_ms"]) <= 0.0:
+                raise ResultsError(
+                    f"{where}: {r['model']} seed {r['seed']} has train_ms {r['train_ms']} -- a "
+                    "trained model cannot take no time, and the cost table would print it as "
+                    "the fastest. A binary before 2026-10-06 wrote 0 for every LSTM/GRU/"
+                    "Transformer-AE test row (and a checkpoint without train_ms restores 0); "
+                    "rerun the fold with the current binary and RESUME unset.")
+            key = (r["model"], r["run"], r["seed"])
+            if key in seen:
+                raise ResultsError(f"{where}: {r['model']} run {r['run']} seed {r['seed']} "
+                                   "appears twice.")
+            seen.add(key)
+            rows.append({
+                "dataset": ds,
+                "fold": fold,
+                "model": r["model"],
+                "run_id": int(r["run"]),
+                "label": _model_label(r["model"], r["architecture"]),
+                "encoding": r["encoding"],
+                "seed": int(r["seed"]),
+                "mse": float(r["mse"]),
+                "mae": float(r["mae"]),
+                "r2": float(r["r2"]),
+                "train_ms": float(r["train_ms"]),
+                "infer_ms": float(r["infer_ms"]),
+                "params": float(r["param_count"]),
+                "craw": float(r["macs"]),
+            })
     return rows
 
 
 def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
-    """PCA / Mean test rows from the per-window CSVs (appended by 03_)."""
+    """PCA / Mean, one row per (dataset, fold, model, encoding): the mean of the fold's
+    per-window test errors -- the same estimand as a family's comparative row, whose mse
+    is the mean window error of that fold (evaluate_ae). Averaging all windows of all
+    folds at once instead would weight the folds by their window counts, which the
+    families' numbers do not."""
     rows: list[dict] = []
-    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_per_window_errors.csv")):
-        ds = _dataset_of(path, run_tag)
-        with path.open(encoding="utf-8") as f:
-            for r in csv.DictReader(f):
-                if r.get("split") != "test" or r["model"] not in ("pca", "mean"):
-                    continue
-                rows.append({
-                    "dataset": ds,
-                    "label": _model_label(r["model"], ""),
-                    "encoding": r["encoding"],
-                    "seed": int(r["seed"]),
-                    "mse": float(r["mse"]),
-                    "mae": float(r["mae"]),
-                    "r2": float("nan"),
-                    "train_ms": float("nan"),
-                    "infer_ms": float("nan"),
-                    "params": float("nan"),
-                    "craw": float("nan"),
-                })
+    for path, ds, fold, _ in fold_files(results_dir, run_tag, re.escape("per_window_errors.csv")):
+        split_manifest(results_dir, run_tag, ds, fold)
+        acc: dict = defaultdict(list)
+        for r in read_per_window(path, fold):
+            if r["split"] == "test" and r["model"] in REFERENCE_MODELS:
+                acc[(r["model"], r["encoding"])].append((float(r["mse"]), float(r["mae"])))
+        missing = [m for m in REFERENCE_MODELS if not any(k[0] == m for k in acc)]
+        if missing:
+            raise ResultsError(f"{path.name} has no {'/'.join(missing)} reference rows: run "
+                               "03_meeting01_pca_mean_baselines.py first.")
+        for (model, encoding), errors in sorted(acc.items()):
+            mse, mae = np.mean(errors, axis=0)
+            rows.append({
+                "dataset": ds,
+                "fold": fold,
+                "label": _model_label(model, ""),
+                "encoding": encoding,
+                "seed": int(REFERENCE_SEED),
+                "mse": float(mse),
+                "mae": float(mae),
+                "r2": float("nan"),
+                "train_ms": float("nan"),
+                "infer_ms": float("nan"),
+                "params": float("nan"),
+                "craw": float("nan"),
+            })
     return rows
 
 
-def load_snn_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
+def check_folds_and_manifests(comparative: list[dict], references: list[dict],
+                              manifests: list[dict]) -> None:
+    """The three file families of a run must describe the same folds and the same family
+    winners. A fold with test rows but no references (03_ not run since it finished), a
+    selection manifest whose test row is gone (left over from an earlier run with more
+    seeds, which a rerun does not delete), or a test row whose manifest is missing would
+    each make one table silently disagree with another."""
+    def folds(rows):
+        return {(r["dataset"], r["fold"]) for r in rows}
+
+    problems = []
+    if folds(comparative) - folds(references):
+        problems.append("folds with test rows but no per-window CSV: "
+                        f"{sorted(folds(comparative) - folds(references))}")
+    if folds(references) - folds(comparative):
+        problems.append("folds with a per-window CSV but no test rows: "
+                        f"{sorted(folds(references) - folds(comparative))}")
+    if problems:
+        raise ResultsError("; ".join(problems) + ". A fold that crashed between the two writes, "
+                           "or a file left from another run: rerun those folds.")
+    winners = {(r["dataset"], r["fold"], r["model"], r["run_id"], r["seed"]) for r in comparative}
+    recorded = {(m["dataset"], m["fold"], m["family"], m["run_id"], m["seed"]) for m in manifests}
+    stale = sorted(m["name"] for m in manifests
+                   if (m["dataset"], m["fold"], m["family"], m["run_id"], m["seed"]) not in winners)
+    if stale:
+        problems.append(f"selection manifests without their test row: {stale} (left over from "
+                        "an earlier run of the fold -- delete them)")
+    if winners - recorded:
+        problems.append(f"test rows without their manifest: {sorted(winners - recorded)} (the "
+                        "manifest write failed: rerun the fold)")
+    if problems:
+        raise ResultsError("; ".join(problems) + ".")
+
+
+def load_snn_selection(manifests: list[dict]) -> list[dict]:
     out: list[dict] = []
-    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_*_model_selection_manifest.json")):
-        cls = _classify_manifest(path)
-        if cls is None or cls[0] != "snn-ae":
+    for entry in manifests:
+        if entry["family"] != "snn-ae":
             continue
-        m = json.loads(path.read_text(encoding="utf-8"))
+        m = entry["manifest"]
         sel = m["selected"]
         out.append({
-            "dataset": m.get("dataset", _dataset_of(path, run_tag)),
-            "fold": int(m["cv_fold"]),
+            "dataset": entry["dataset"],
+            "fold": entry["fold"],
             # The winning genome's own encoding gene; identical to the top-level
             # m["encoding"] by construction (finalize_snn_selection's only caller
             # passes winner.genome.encoding as both), but read from `selected` since
             # that is the field that is guaranteed to mean "the gene", not "whatever
             # the caller happened to label this call".
             "encoding": sel["encoding"],
-            "test_speaker": m.get("test_speaker", "?"),
-            "val_speaker": m.get("selection_split", "").replace("val (speaker ", "").rstrip(")"),
+            "test_speaker": m["test_speaker"],
+            "val_speaker": m["selection_split"].replace("val (speaker ", "").rstrip(")"),
             "architecture": sel["architecture"],
             "v_th": float(sel["v_th"]),
             "alpha": float(sel["alpha"]),
@@ -243,29 +345,28 @@ def load_snn_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     return out
 
 
-def load_baseline_selection(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
+def load_baseline_selection(manifests: list[dict]) -> list[dict]:
     """One row per (dataset, family, fold, run_id) LSTM-AE/GRU-AE/Transformer-AE
     winner -- the baseline-family analogue of load_snn_selection(). LSTM-AE and
     GRU-AE manifests are indistinguishable by JSON shape alone (both are
-    {hidden_size, num_layers, encoding, val_mse}); _classify_manifest() disambiguates
+    {hidden_size, num_layers, encoding, val_mse}); selection_manifests() disambiguates
     from the filename's family-token segment, so `family` here is authoritative even
     though it is never itself a JSON key inside the manifest body."""
     out: list[dict] = []
-    for path in sorted(results_dir.glob(f"{run_tag}*_fold*_*_model_selection_manifest.json")):
-        cls = _classify_manifest(path)
-        if cls is None or cls[0] not in _BASELINE_FAMILY_LABEL:
+    for entry in manifests:
+        family = entry["family"]
+        if family not in _BASELINE_FAMILY_LABEL:
             continue
-        family, fold, run_id = cls
-        m = json.loads(path.read_text(encoding="utf-8"))
+        m = entry["manifest"]
         sel = m["selected"]
         row = {
-            "dataset": m.get("dataset", _dataset_of(path, run_tag)),
+            "dataset": entry["dataset"],
             "family": family,
-            "fold": fold,
-            "run_id": run_id,
+            "fold": entry["fold"],
+            "run_id": entry["run_id"],
             "encoding": sel["encoding"],
-            "test_speaker": m.get("test_speaker", "?"),
-            "val_speaker": m.get("selection_split", "").replace("val (speaker ", "").rstrip(")"),
+            "test_speaker": m["test_speaker"],
+            "val_speaker": m["selection_split"].replace("val (speaker ", "").rstrip(")"),
             "val_mse": float(sel["val_mse"]),
         }
         if family in ("lstm-ae", "gru-ae"):
@@ -518,8 +619,201 @@ def write_transformer_selection_tex(sel: list[dict], data_dir: pathlib.Path, inf
     return out
 
 
+def build(results_dir: pathlib.Path, run_tag: str, data_dir: pathlib.Path) -> list:
+    """Reads and cross-checks the whole run, then writes the paper tables; returns the
+    datasets. Raises ResultsError, before writing anything, on any inconsistency."""
+    comparative = load_comparative(results_dir, run_tag)
+    references = load_per_window_refs(results_dir, run_tag)
+    manifests = selection_manifests(results_dir, run_tag)
+    if not comparative:
+        raise ResultsError(f"no {run_tag}_<dataset>_fold<f>_comparative_metrics.csv test rows "
+                           f"under {results_dir}.")
+    check_folds_and_manifests(comparative, references, manifests)
+    rows = comparative + references
+    sel = load_snn_selection(manifests)
+    baseline_sel = load_baseline_selection(manifests)
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    datasets = sorted({r["dataset"] for r in rows},
+                      key=lambda d: (DATASET_ORDER.index(d) if d in DATASET_ORDER else 99, d))
+    written: list[pathlib.Path] = []
+    for ds in datasets:
+        infix = f"{ds}_"
+        d_rows = [r for r in rows if r["dataset"] == ds]
+        d_sel = [s for s in sel if s["dataset"] == ds]
+        d_baseline_sel = [s for s in baseline_sel if s["dataset"] == ds]
+        written += [
+            write_summary(d_rows, data_dir, infix),
+            write_recon_by_encoding(d_rows, data_dir, infix),
+            write_mse_plot(d_rows, data_dir, infix),
+        ]
+        if d_sel:
+            written.append(write_snn_selection_tex(d_sel, data_dir, infix))
+        if any(s["family"] in ("lstm-ae", "gru-ae") for s in d_baseline_sel):
+            written.append(write_recurrent_selection_tex(d_baseline_sel, data_dir, infix))
+        if any(s["family"] == "transformer-ae" for s in d_baseline_sel):
+            written.append(write_transformer_selection_tex(d_baseline_sel, data_dir, infix))
+        caveat = check_degenerate_reconstruction(d_rows, ds)
+        if caveat:
+            print(f"[loso-data] {caveat}", file=sys.stderr)
+            caveat_path = data_dir / f"paper_loso_{infix}CAVEATS.txt"
+            caveat_path.write_text(caveat + "\n", encoding="utf-8")
+            written.append(caveat_path)
+
+    # datasets.tex: the \foreach list the paper iterates.
+    dtex = data_dir / "paper_loso_datasets.tex"
+    dtex.write_text(
+        "% auto-generated by 02_meeting01_build_loso_paper_data.py\n"
+        + "".join(f"\\loParseDataset{{{d}}}{{{DATASET_TITLE.get(d, d)}}}\n" for d in datasets),
+        encoding="utf-8",
+    )
+    written.append(dtex)
+    print(f"[loso-data] {len(datasets)} dataset(s): {', '.join(datasets)}")
+    print("[loso-data] wrote " + ", ".join(p.name for p in written) + f" to {data_dir}")
+    return datasets
+
+
+# ------------------------------------------------------------------- self-test
+
+def _write_synthetic_run(d: pathlib.Path) -> None:
+    """Two fsdd folds as the binary + 03_ leave them: SNN-AE and LSTM-AE winners for runs
+    1-2, and mean / pca rows. Fold 0 has ONE test window (pca error 1.0), fold 1 has THREE
+    (pca 0.2 each): per fold first, PCA's MSE is (1.0 + 0.2) / 2 = 0.6, while pooling the
+    four windows would give (1.0 + 3 * 0.2) / 4 = 0.4."""
+    for fold, n_windows, pca_err in ((0, 1, 1.0), (1, 3, 0.2)):
+        stem = d / f"t_fsdd_fold{fold}"
+        (d / f"{stem.name}_split_manifest.json").write_text(json.dumps(
+            {"dataset": "fsdd", "cv_fold": fold, "results_format": RESULTS_FORMAT}))
+        with (d / f"{stem.name}_comparative_metrics.csv").open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(_COMPARATIVE_COLUMNS), lineterminator="\n")
+            w.writeheader()
+            for run_id in (1, 2):
+                for model, enc, err in (("snn-ae", "latency", 0.5), ("lstm-ae", "poisson", 0.7)):
+                    w.writerow({"dataset": "fsdd", "model": model, "encoding": enc,
+                                "architecture": "dense" if model == "snn-ae" else "lstm",
+                                "run": run_id, "seed": 41 + run_id, "split": "test",
+                                "cv_fold": fold, "mse": err, "mae": err, "r2": 0.1,
+                                "train_ms": 1000.0, "infer_ms": 1.0, "param_count": 100,
+                                "macs": 1000})
+                for family, selected in (
+                        ("snn-ae", {"architecture": "dense", "encoding": "latency",
+                                    "v_th": 1.0, "alpha": 0.9, "val_mse": 0.5}),
+                        ("lstm-ae", {"hidden_size": 32, "num_layers": 1, "encoding": "poisson",
+                                     "val_mse": 0.7})):
+                    segment = "latency" if family == "snn-ae" else family
+                    (d / f"{stem.name}_{segment}_run{run_id}_model_selection_manifest.json"
+                     ).write_text(json.dumps({
+                         "dataset": "fsdd", "cv_fold": fold, "run_id": run_id,
+                         "seed": 41 + run_id, "results_format": RESULTS_FORMAT,
+                         "test_speaker": str(fold), "selection_split": "val (speaker 9)",
+                         "selected": selected}))
+        with (d / f"{stem.name}_per_window_errors.csv").open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=PW_HEADER, lineterminator="\n")
+            w.writeheader()
+            for i in range(n_windows):
+                ident = {"cv_fold": fold, "split": "test", "speaker_id": fold,
+                         "recording_id": 10 * fold + i, "window_id": 100 * fold + i,
+                         "source_window_index": 0, "v_th": 0.0, "alpha": 0.0}
+                for model, err in (("mean", 1.5), ("pca", pca_err)):
+                    for enc in ("latency", "poisson"):
+                        w.writerow({"model": model, "encoding": enc, "architecture": model,
+                                    "run_id": 0, "seed": REFERENCE_SEED, "mse": err,
+                                    "mae": err, **ident})
+
+
+def _self_test_checks(tmp_root: pathlib.Path) -> list:
+    failures = []
+
+    def expect(ok: bool, what: str) -> None:
+        if not ok:
+            failures.append(what)
+
+    def expect_refusal(fn, needle: str, what: str) -> None:
+        try:
+            fn()
+        except ResultsError as e:
+            expect(needle in str(e), f"{what}: refused, but message lacks {needle!r}: {e}")
+        else:
+            failures.append(f"{what}: not refused")
+
+    d, out = tmp_root / "results", tmp_root / "data"
+    d.mkdir()
+    _write_synthetic_run(d)
+    expect(build(d, "t", out) == ["fsdd"], "a clean run builds")
+    summary = {r[0]: r for r in csv.reader((out / "paper_loso_fsdd_summary.csv").open(),
+                                          delimiter=";")}
+    expect(summary["PCA"][1].startswith("0.6000"), f"PCA averaged per fold: {summary['PCA']}")
+    expect(summary["SNN-AE"][1].startswith("\\textbf{0.5000"), f"SNN-AE: {summary['SNN-AE']}")
+    sel = (out / "paper_loso_fsdd_recurrent_selection.tex").read_text()
+    expect("LSTM-AE & 0" in sel and "LSTM-AE & 1" in sel, "recurrent selection table")
+
+    def rewrite(name: str, edit) -> str:
+        path = d / name
+        before = path.read_text()
+        path.write_text(edit(before))
+        return before
+
+    comp0 = "t_fsdd_fold0_comparative_metrics.csv"
+    before = rewrite(comp0, lambda s: s.replace(",1000.0,1.0,", ",0.0,1.0,", 1))
+    expect_refusal(lambda: build(d, "t", out), "cannot take no time", "train_ms 0")
+    (d / comp0).write_text(before)
+
+    stale = d / "t_fsdd_fold0_latency_run3_model_selection_manifest.json"
+    stale.write_text((d / "t_fsdd_fold0_latency_run2_model_selection_manifest.json").read_text()
+                     .replace('"run_id": 2', '"run_id": 3').replace('"seed": 43', '"seed": 44'))
+    expect_refusal(lambda: build(d, "t", out), "left over from an earlier run", "stale manifest")
+    stale.unlink()
+
+    gone = d / "t_fsdd_fold1_lstm-ae_run2_model_selection_manifest.json"
+    kept = gone.read_text()
+    gone.unlink()
+    expect_refusal(lambda: build(d, "t", out), "test rows without their manifest",
+                   "missing manifest")
+    gone.write_text(kept)
+
+    manifest0 = "t_fsdd_fold0_split_manifest.json"
+    before = rewrite(manifest0, lambda s: s.replace(f', "results_format": {RESULTS_FORMAT}', ""))
+    expect_refusal(lambda: build(d, "t", out), "older than 2026-10-06", "older binary's fold")
+    (d / manifest0).write_text(before)
+
+    before = rewrite(comp0, lambda s: s.replace("fsdd,snn-ae", "siena,snn-ae", 1))
+    expect_refusal(lambda: build(d, "t", out), "renamed or concatenated", "row of another dataset")
+    (d / comp0).write_text(before)
+
+    pw1 = d / "t_fsdd_fold1_per_window_errors.csv"
+    kept = pw1.read_text()
+    pw1.unlink()
+    expect_refusal(lambda: build(d, "t", out), "no per-window CSV", "fold without references")
+    pw1.write_text(kept)
+
+    nameless = d / "t_fold4_comparative_metrics.csv"
+    nameless.write_text("which dataset?\n")
+    expect_refusal(lambda: build(d, "t", out), "no dataset segment", "file without a dataset")
+    nameless.unlink()
+
+    (d / "t_smoke_fsdd_fold0_comparative_metrics.csv").write_text("another run's\n")
+    expect(build(d, "t", out) == ["fsdd"], "another run's prefix-sharing file is not read")
+    return failures
+
+
+def self_test() -> int:
+    tmp_root = pathlib.Path(tempfile.mkdtemp(prefix="loso_paper_data_selftest_"))
+    try:
+        failures = _self_test_checks(tmp_root)
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
+    if failures:
+        for f in failures:
+            print(f"[self-test] FAIL: {f}", file=sys.stderr)
+        return 1
+    print("[self-test] all synthetic known-answer checks passed")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--self-test", action="store_true",
+                    help="run synthetic known-answer checks instead of reading real data")
     ap.add_argument("--results-dir", type=pathlib.Path, default=pathlib.Path("results/meeting01"))
     ap.add_argument("--run-tag", default="meeting01_loso")
     ap.add_argument(
@@ -530,52 +824,13 @@ def main(argv: list[str] | None = None) -> int:
             "meeting01/data"),
     )
     args = ap.parse_args(argv)
-    args.data_dir.mkdir(parents=True, exist_ok=True)
-
-    rows = load_comparative(args.results_dir, args.run_tag)
-    rows += load_per_window_refs(args.results_dir, args.run_tag)
-    if not rows:
-        print("[loso-data] no test-split rows found", file=sys.stderr)
+    if args.self_test:
+        return self_test()
+    try:
+        build(args.results_dir, args.run_tag, args.data_dir)
+    except ResultsError as e:
+        print(f"[loso-data] ERROR: {e}", file=sys.stderr)
         return 1
-    sel = load_snn_selection(args.results_dir, args.run_tag)
-    baseline_sel = load_baseline_selection(args.results_dir, args.run_tag)
-
-    datasets = sorted({r["dataset"] for r in rows},
-                      key=lambda d: (DATASET_ORDER.index(d) if d in DATASET_ORDER else 99, d))
-    written: list[pathlib.Path] = []
-    for ds in datasets:
-        infix = f"{ds}_"
-        d_rows = [r for r in rows if r["dataset"] == ds]
-        d_sel = [s for s in sel if s.get("dataset") == ds]
-        d_baseline_sel = [s for s in baseline_sel if s.get("dataset") == ds]
-        written += [
-            write_summary(d_rows, args.data_dir, infix),
-            write_recon_by_encoding(d_rows, args.data_dir, infix),
-            write_mse_plot(d_rows, args.data_dir, infix),
-        ]
-        if d_sel:
-            written.append(write_snn_selection_tex(d_sel, args.data_dir, infix))
-        if any(s["family"] in ("lstm-ae", "gru-ae") for s in d_baseline_sel):
-            written.append(write_recurrent_selection_tex(d_baseline_sel, args.data_dir, infix))
-        if any(s["family"] == "transformer-ae" for s in d_baseline_sel):
-            written.append(write_transformer_selection_tex(d_baseline_sel, args.data_dir, infix))
-        caveat = check_degenerate_reconstruction(d_rows, ds)
-        if caveat:
-            print(f"[loso-data] {caveat}", file=sys.stderr)
-            caveat_path = args.data_dir / f"paper_loso_{infix}CAVEATS.txt"
-            caveat_path.write_text(caveat + "\n", encoding="utf-8")
-            written.append(caveat_path)
-
-    # datasets.tex: the \foreach list the paper iterates.
-    dtex = args.data_dir / "paper_loso_datasets.tex"
-    dtex.write_text(
-        "% auto-generated by 02_meeting01_build_loso_paper_data.py\n"
-        + "".join(f"\\loParseDataset{{{d}}}{{{DATASET_TITLE.get(d, d)}}}\n" for d in datasets),
-        encoding="utf-8",
-    )
-    written.append(dtex)
-    print(f"[loso-data] {len(datasets)} dataset(s): {', '.join(datasets)}")
-    print("[loso-data] wrote " + ", ".join(p.name for p in written) + f" to {args.data_dir}")
     return 0
 
 

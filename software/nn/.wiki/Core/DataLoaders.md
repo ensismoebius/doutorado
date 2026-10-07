@@ -344,11 +344,18 @@ in. Passing the raw mask through the *same* calls used for the target produces a
 matching shape for free, with zero new reshape logic:
 
 ```cpp
-const Tensor mask = to_lstm_frames(
-    make_activity_mask(meta.valid_length, window_size), frame_size);   // LSTM/GRU/Transformer
+const Tensor mask = to_lstm_frames(                                    // LSTM/GRU/Transformer
+    make_reconstruction_mask(meta.valid_length, window_size, time_steps), frame_size);
 const Tensor mask = make_reconstruction_target(
     make_activity_mask(meta.valid_length, window_size), time_steps);   // SNN
 ```
+
+`make_reconstruction_mask` is `make_reconstruction_target(make_activity_mask(...), T)`: the
+frame-consuming families' target is the window repeated over the `T` steps *before* framing,
+so their mask must be too. Framing the bare `(window_size, 1)` mask (what this snippet showed
+until 2026-10-06) gives `(W/frame, frame)` against a `(T·W/frame, frame)` target — the shape
+that crashed every LSTM/GRU/Transformer-AE run on its first batch (R1 in
+[Meeting01](../Experiments/Meeting01.md#found-on-the-way-three-defects-outside-the-references)).
 
 `MSELossImpl::set_mask(mask)` (`include/layers/losses/MSELoss.hpp`) then restricts both
 `forward()` and `backward()` to `sum(mask ⊙ (pred-target)²) / sum(mask)` instead of the

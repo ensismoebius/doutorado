@@ -4,6 +4,8 @@
 #include <fstream>
 
 #include "../lib/include/Meeting01Checkpoint.hpp"
+#include "../lib/include/Meeting01Output.hpp"
+#include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
 using namespace meeting01;
@@ -190,6 +192,44 @@ TEST(CheckpointStaleFileReplaced, NewHashValidOldHashInvalid)
     EXPECT_FALSE(checkpoint_is_valid(path, old_hash))
         << "old hash should no longer validate after re-save";
     EXPECT_TRUE(checkpoint_is_valid(path, new_hash)) << "new hash should validate";
+
+    fs::remove_all(dir);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 6. A checkpoint from a binary of another results_format is not restored
+// ──────────────────────────────────────────────────────────────────────────────
+// The config hash does not know which binary computed the row. Without this check, RESUME=1
+// on a fold first run by a binary older than 2026-10-06 restored that binary's test rows
+// (padding z-scored with the window, baseline train_ms 0) and published them under the new
+// results_format.
+TEST(CheckpointResultsFormat, OneFromAnotherBinaryIsNotRestored)
+{
+    const fs::path dir = fs::temp_directory_path() / "chk_test_format";
+    fs::create_directories(dir);
+
+    const std::size_t hash = 0x3333333333333333ULL;
+    const auto path = checkpoint_path(dir, make_key());
+    checkpoint_save(path, make_row(), make_history(), hash);
+    ASSERT_TRUE(checkpoint_is_valid(path, hash));
+
+    const auto rewrite = [&path](const auto& edit)
+    {
+        std::ifstream in(path);
+        nlohmann::json j = nlohmann::json::parse(in);
+        in.close();
+        edit(j);
+        std::ofstream(path) << j.dump(2);
+    };
+
+    rewrite([](nlohmann::json& j) { j.erase("results_format"); });
+    EXPECT_FALSE(checkpoint_is_valid(path, hash)) << "a pre-2026-10-06 checkpoint has no format";
+
+    rewrite([](nlohmann::json& j) { j["results_format"] = kResultsFormat + 1; });
+    EXPECT_FALSE(checkpoint_is_valid(path, hash)) << "another format's numbers are not this one's";
+
+    rewrite([](nlohmann::json& j) { j["results_format"] = kResultsFormat; });
+    EXPECT_TRUE(checkpoint_is_valid(path, hash));
 
     fs::remove_all(dir);
 }

@@ -57,7 +57,8 @@
 #              written exactly once, at the very end of a fold's run, so its presence
 #              means the fold genuinely finished, not that it merely started. Only the
 #              fold that was actually running when the script died (no CSV yet) and
-#              everything after it get (re)run.
+#              everything after it get (re)run. A checkpoint written by a binary of another
+#              results_format (any binary older than 2026-10-06) is retrained, not restored.
 #                cd software/nn
 #                EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 set -euo pipefail
@@ -146,8 +147,8 @@ PAPER_DATA="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced
 # Order matters: 03_ writes the pca/mean rows that 02_ and 04_ then read (it replaces
 # any it wrote before, so a RESUME=1 re-run does not duplicate them). PCA's k is each
 # dataset's own latent_dim, read from the profile and checked against every fold's split
-# manifest. A fold made by an older binary has no target dumps: 03_ stops and prints the
-# --dump-reference-inputs-only command that rebuilds them without retraining.
+# manifest. All three scripts refuse a fold whose manifests lack results_format (a binary
+# older than 2026-10-06): such a fold cannot be repaired, only rerun with this binary.
 echo "[loso-run] fitting PCA / mean-frame reference baselines (per fold, on train + val)"
 "$PY" scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
   --results-dir results/meeting01 --run-tag meeting01_loso --profile "$PROFILE"

@@ -637,27 +637,26 @@ auto parse_args(std::vector<std::string> args) -> meeting01::CliOptions
 
 } // namespace
 
-TEST(Meeting01Cli, ParsesTheReferenceInputDumpMode)
+TEST(Meeting01Cli, ParsesTheFoldAndDatasetTheRunScriptPasses)
 {
-    const auto opts = parse_args({"--comparative-config",
-        "meeting01-loso.json",
-        "--dataset",
-        "fsdd",
-        "--cv-fold",
-        "2",
-        "--dump-reference-inputs-only"});
-    EXPECT_TRUE(opts.dump_reference_inputs_only);
+    const auto opts = parse_args(
+        {"--comparative-config", "meeting01-loso.json", "--dataset", "fsdd", "--cv-fold", "2"});
+    EXPECT_EQ(opts.comparative_config, "meeting01-loso.json");
     EXPECT_EQ(opts.dataset, "fsdd");
     EXPECT_EQ(opts.cv_fold, 2);
-    EXPECT_FALSE(
-        parse_args({"--comparative-config", "meeting01-loso.json"}).dump_reference_inputs_only);
+    EXPECT_TRUE(opts.cv_fold_set);
 }
 
 TEST(Meeting01Cli, RefusesAnUnknownArgument)
 {
-    // A misspelt dump flag must not fall through to a full training run, which would
-    // truncate the fold's events log and rewrite its result files.
+    // A misspelt option must not fall through to a full training run of the profile's own
+    // fold, which would truncate that fold's events log and rewrite its result files.
+    EXPECT_THROW(parse_args({"--comparative-config", "meeting01-loso.json", "--cv_fold", "3"}),
+        std::runtime_error);
+    // Nor may the removed --dump-reference-inputs-only, briefly suggested (never committed)
+    // for giving an older run its reference inputs: that pairs references with family
+    // errors computed on differently normalized windows (see kResultsFormat).
     EXPECT_THROW(
-        parse_args({"--comparative-config", "meeting01-loso.json", "--dump-reference-input-only"}),
+        parse_args({"--comparative-config", "meeting01-loso.json", "--dump-reference-inputs-only"}),
         std::runtime_error);
 }

@@ -144,8 +144,9 @@ timestep**. The dominant cost per step is not the input term but the recurrent
 one, $h \cdot U^\top$ with $U$ of shape $(4H, H)$ — 16 384 MACs for $H = 64$ —
 and it was paid 256 times.
 
-`model.lstm_frame_size` (default **8**) groups that many consecutive samples into
-each timestep. No information is discarded; the window is merely re-blocked.
+`model.lstm_frame_size` (default **8**) groups that many values into each timestep
+(which values — not consecutive ones — is below). No information is discarded; the window
+is merely re-blocked.
 
 | | frame=1 (old) | frame=8 |
 |---|---|---|
@@ -159,19 +160,26 @@ each timestep. No information is discarded; the window is merely re-blocked.
 `lstm_frame_size` must divide `dataset.window_size` (validated in
 `Meeting01Config::validate`). Set it to `1` to reproduce the original behaviour.
 
-### Framing is not a plain reshape
+### Framing *is* a plain reshape — and `to_lstm_frames()` does not do one
 
-Storage is column-major, so reshaping `(256, 1)` to `(32, 8)` would place samples
-$\{t, t+32, t+64, \dots\}$ in frame $t$ — a polyphase split, not framing.
-`to_lstm_frames()` reshapes to `(frame, T)` and transposes, giving
-`element(t,d) = sample[t*frame + d]`:
+This section used to say the opposite, from a wrong premise (corrected 2026-10-06). Storage
+is row-major, so reshaping `(256, 1)` straight to `(32, 8)` gives frame $t$ = samples
+$8t, \dots, 8t+7$: consecutive framing. `to_lstm_frames()` instead reshapes to
+`(frame, steps)` and transposes, which puts samples $\{t, t+32, t+64, \dots, t+224\}$ in
+frame $t$ — the polyphase split this section was warning against:
 
 ```cpp
 // src/experiments/meeting01/lib/src/Meeting01Encoding.cpp
 Tensor d_major = sample;
-d_major.reshape({frame, steps});   // element (d,t) = sample[t*frame + d]
-return d_major.transpose();        // -> (steps, frame)
+d_major.reshape({frame, steps});   // row-major: element (d,t) = sample[d*steps + t]
+return d_major.transpose();        // -> (steps, frame): frame t = {sample[t], sample[t+steps], ...}
 ```
+
+Since 2026-09-22 the input is the `(time_steps, window_size)` encoded window, so in
+production each of the 512 frames holds one window sample at 8 alternate simulation steps.
+The timings above do not depend on which values share a frame; the task the model is given
+does. Full account and the open decision:
+[Meeting01](../Experiments/Meeting01.md#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
 
 ### Scientific note
 

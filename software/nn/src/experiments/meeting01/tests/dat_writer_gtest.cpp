@@ -8,6 +8,7 @@
 #include "../lib/include/Meeting01DatasetSplit.hpp"
 #include "../lib/include/Meeting01EpochHistory.hpp"
 #include "../lib/include/Meeting01Output.hpp"
+#include "../lib/include/Meeting01PerWindow.hpp"
 #include "../lib/include/Meeting01ResultRow.hpp"
 #include "../lib/include/Meeting01RunMetrics.hpp"
 #include "cnpy.h"
@@ -500,4 +501,31 @@ TEST_F(DATWriterTest, ReferenceInputsRefuseMetadataNotParallelToWindows)
     DatasetSplit split = three_part_split();
     split.test_meta.pop_back();
     EXPECT_THROW(write_reference_inputs(test_dir, "t", split), std::runtime_error);
+}
+
+TEST_F(DATWriterTest, PerWindowErrorsOfARerunReplaceTheEarlierRunsRows)
+{
+    // The same fold run twice into one results directory: the file must hold the second
+    // run's rows only. Appending (the old behaviour) left both, and the readers averaged an
+    // older binary's errors with the new ones as if they were one run.
+    const fs::path path = test_dir / "t_fsdd_fold0_per_window_errors.csv";
+    PerWindowError earlier;
+    earlier.model = "lstm-ae";
+    earlier.seed = 42u;
+    earlier.cv_fold = 0;
+    earlier.split = "test";
+    earlier.window_id = 7;
+    earlier.mse = 9.0f;
+    write_per_window_errors_csv(path, {earlier});
+
+    PerWindowError rerun = earlier;
+    rerun.encoding = "poisson";
+    rerun.mse = 0.5f;
+    write_per_window_errors_csv(path, {rerun});
+
+    const auto lines = read_file_lines(path);
+    ASSERT_EQ(lines.size(), 2u) << "header + the rerun's one row";
+    EXPECT_EQ(lines[0].rfind("model,encoding,architecture,", 0), 0u);
+    EXPECT_EQ(lines[1].rfind("lstm-ae,poisson,", 0), 0u) << lines[1];
+    EXPECT_NE(lines[1].find(",0.50000000,"), std::string::npos) << lines[1];
 }

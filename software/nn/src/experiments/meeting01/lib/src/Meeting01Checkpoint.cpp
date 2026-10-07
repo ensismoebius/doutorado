@@ -5,6 +5,7 @@
 #include <fstream>
 #include <stdexcept>
 
+#include "Meeting01Output.hpp"
 #include "nlohmann/json.hpp"
 
 namespace meeting01
@@ -55,6 +56,11 @@ auto checkpoint_is_valid(const std::filesystem::path& path, std::size_t expected
         if (!f.is_open()) return false;
         const nlohmann::json j = nlohmann::json::parse(f);
         if (j.value("version", 0) != kSchemaVersion) return false;
+        // A checkpoint is a finished result row, and the config hash does not know which
+        // binary computed it. Restored under RESUME=1, a row from a binary of another
+        // results_format (one written before 2026-10-06 has none) would be published under
+        // this binary's stamp; retrain it instead.
+        if (j.value("results_format", 0) != kResultsFormat) return false;
         const auto stored = j.value("config_hash", std::size_t{0});
         return stored == expected_hash;
     }
@@ -111,6 +117,7 @@ void checkpoint_save(const std::filesystem::path& path,
 {
     nlohmann::json j;
     j["version"] = kSchemaVersion;
+    j["results_format"] = kResultsFormat;
     j["config_hash"] = config_hash;
     j["backend"] = row.backend;
     j["profile"] = row.profile;

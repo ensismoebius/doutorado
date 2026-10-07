@@ -489,15 +489,16 @@ Every `(dataset, fold)` is already complete after the sync, so this call skips t
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
 
-> **Results made by a `meeting01` binary older than 2026-10-06** have no
-> `*_target_*_windows*` reference inputs, so `03_` stops before writing anything and
-> prints, per fold, the command that rebuilds them without retraining:
-> `meeting01 --comparative-config <profile> --dataset <d> --cv-fold <f> --dump-reference-inputs-only`.
-> Run it wherever the datasets sit at the profile's roots (it builds the split and writes
-> only those files), sync them next to the results, and re-run the command above. `03_`
-> checks the rebuilt windows against each fold's split manifest and test rows, so a split
-> that does not reproduce is refused, not silently used. Why: [Meeting01 § The References
-> Were Scored Against the Wrong Thing](../Experiments/Meeting01.md#the-references-were-scored-against-the-wrong-thing-found--fixed-2026-10-06).
+> **Results made by a `meeting01` binary older than 2026-10-06 cannot be finished.** Their
+> manifests carry no `results_format`, so `03_`, `02_` and `04_` each stop before writing
+> anything and name the fold. There is no repair path: those folds normalized padded
+> windows differently (before commit `6f332734`), left the per-window `encoding` empty and
+> wrote `train_ms = 0` for the baselines. Rebuild `meeting01` from the current tree on the
+> cluster, then rerun those folds: either the whole run without `RESUME` (it clears the
+> checkpoints and reruns every fold), or delete only the affected folds'
+> `*_comparative_metrics.csv` and use `RESUME=1` — a checkpoint without `results_format` is
+> retrained, never restored, so no old row survives the rerun. Why:
+> [Meeting01 § What the Post-Processing Refuses to Read](../Experiments/Meeting01.md#what-the-post-processing-refuses-to-read-found--fixed-2026-10-06-second-pass).
 
 ## 6. Optional: all-in-one control TUI
 

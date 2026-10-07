@@ -830,25 +830,20 @@ changes no number.
 | File | Change |
 |---|---|
 | `Meeting01Output.{hpp,cpp}` | New `write_reference_inputs`: per fold, `<tag>_fold<f>_target_{train,val,test}_windows.npy` (float32, `(N, window_size)`, sample order) + `_meta.csv` with `valid_length`. Throws on an empty part, ragged windows, an impossible `valid_length`, an unwritable file. |
-| `Meeting01Experiment.cpp` | Writes them once per fold at fold start, replacing the per-encoding encoded dumps (~84 MB/fold). The split manifest records `latent_dim` and `window_size`. `resolve_dataset_config` factored out of the loop. New `--dump-reference-inputs-only` mode (below). |
-| `Meeting01Cli.cpp` | Parses `--dump-reference-inputs-only`. **Unknown arguments now throw**: a misspelt dump flag used to fall through to a full training run that truncates the fold's events log. |
+| `Meeting01Experiment.cpp` | Writes them once per fold at fold start, replacing the per-encoding encoded dumps (~84 MB/fold). The split manifest records `latent_dim` and `window_size`. `resolve_dataset_config` factored out of the loop. (A `--dump-reference-inputs-only` mode added here was removed later the same day — see below.) |
+| `Meeting01Cli.cpp` | **Unknown arguments now throw**: a misspelt option (say `--cv_fold 3`) used to fall through to a full training run of the profile's own fold, truncating that fold's events log. |
 | `03_meeting01_pca_mean_baselines.py` | Rewritten. `--profile` (required) gives `k` per dataset by the binary's own resolution chain, cross-checked against every fold's manifest; fits on train ∪ val; masks; refuses mismatched dumps, manifests or test windows (all folds checked before anything is written); replaces its own rows atomically; `--self-test`, wired into CI. |
 | `01_meeting01_run_loso.sh` | `--profile "$PROFILE"` instead of `--latent 32`; header rewritten for the NSGA-II pipeline. |
 
 ### A run made by an older binary
 
-Its folds have no `_target_*` dumps, so `03_` stops and prints, per fold:
-
-```bash
-meeting01 --comparative-config <the run's profile> --dataset <d> --cv-fold <f> --dump-reference-inputs-only
-```
-
-That rebuilds the split and writes **only** the six target files — no training, no events
-file (opening it would truncate the run's log), no manifest or CSV writes. `03_` then checks
-the rebuilt windows against the run's own split manifest (window and per-recording counts)
-and against the exact test windows the families were scored on, so a split that no longer
-reproduces fails loudly instead of silently fitting the reference on other windows. It
-needs the datasets at the profile's roots — run it where the data is.
+**Superseded later the same day.** This subsection used to describe a
+`--dump-reference-inputs-only` mode that rebuilt an old fold's reference targets without
+retraining. It was removed: the rebuilt references made an old fold pass `03_` while its
+family rows still carried the old binary's normalization, empty encodings and zero
+`train_ms`. Every reader now refuses a fold whose manifests lack `results_format`, and the
+only remedy is to rerun the fold — see
+[What the Post-Processing Refuses to Read](#what-the-post-processing-refuses-to-read-found--fixed-2026-10-06-second-pass).
 
 ### Found on the way: three defects outside the references
 
@@ -875,10 +870,191 @@ ending in a padded window), then `03_` → `02_` → `04_`. That run exposed:
   deliberate regressions — including the original `k = 32`, the train-only fit and
   append-instead-of-replace — was caught 10/10.
 - Synthetic end to end: 2 folds → `03_` twice (byte-identical output, family rows
-  untouched, file mode kept) → `02_` → `04_`. Dump-only mode on the finished run rebuilt
-  all six target files byte-identically and left every other file untouched, manifest and
-  events mtimes included.
+  untouched, file mode kept) → `02_` → `04_`. (The dump-only mode tested here was later
+  removed; see the next section.)
 - **Not run:** any production profile, and any real dataset (none is on this machine).
+
+---
+
+## What the Post-Processing Refuses to Read (found + fixed 2026-10-06, second pass)
+
+### The problem: a results directory cannot vouch for itself
+
+`03_`, `02_` and `04_` see nothing but files named `<run_tag>_<dataset>_fold<f>_<what>`.
+Until this pass they trusted three things they never checked:
+
+| They assumed | What can actually be on disk | Loud or silent |
+|---|---|---|
+| the file is this run's, for the dataset its name says | another run whose tag shares the prefix (`meeting01_loso_smoke_fsdd_…`); a name with no dataset segment, which `02_`/`04_` read as `fsdd` | **Silent** |
+| the rows come from the current binary | a fold from a binary older than 2026-10-06: empty `encoding`, `train_ms = 0` on baseline rows, and (before `6f332734`) padded windows z-scored together with their padding | **Silent** |
+| one file holds one run | a re-run fold **appended** its per-window rows after the old run's; the readers averaged both runs as one | **Silent** |
+
+And one statistics hole. `04_` paired a family with PCA/mean by intersecting the keys
+`(cv_fold, window_id, seed)`. The references have no seed (`03_` writes `"0"`), the families
+have 42…46: the intersection was empty, so every window- and seed-level comparison against
+a reference returned nothing, and only the recording level (`d_r`) produced a number.
+**Silent** — an absent row looks like "not computed", not like "broken".
+
+### One stamp per fold: `results_format`
+
+The binary writes `"results_format": 2` into every JSON manifest of a fold
+(`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
+(`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`):
+
+```
+manifest without the key   ->  refused: "older than 2026-10-06 ... rerun the fold"
+results_format == 2         ->  read
+results_format == 3         ->  refused: "update the post-processing scripts together with the binary"
+```
+
+Why old folds are refused rather than repaired: their baseline `train_ms` was never written
+anywhere, and a fold from before `6f332734` normalized its padded windows differently, which
+nothing on disk records. The `--dump-reference-inputs-only` mode added earlier the same day
+(it rebuilt the reference targets of an old fold without retraining) was **removed** for the
+same reason: the rebuilt references then passed `03_` while the fold's family rows still
+carried the old binary's numbers. An old fold has exactly one remedy — rerun it.
+
+Checkpoints carry the same stamp, and that closes the last way back in. A checkpoint is a
+finished result row keyed by a config hash, and the hash does not know which binary computed
+the row: `RESUME=1` on a fold first run by an old binary used to restore that binary's test
+rows and publish them under the new stamp. `checkpoint_is_valid` now also requires
+`results_format == kResultsFormat`, so such a checkpoint is retrained, never restored (test
+`CheckpointResultsFormat.OneFromAnotherBinaryIsNotRestored`).
+
+### One run per file, one file per run
+
+| Check | Where | Refuses |
+|---|---|---|
+| per-window CSV is truncated, never appended | `write_per_window_errors_csv` | — (test `PerWindowErrorsOfARerunReplaceTheEarlierRunsRows`) |
+| file name ↔ manifest ↔ rows agree on dataset and fold | `fold_files`, `split_manifest`, `read_per_window` | renamed or concatenated files; a name with no dataset |
+| one row per (model, seed, split, window) | `read_per_window` | "mixes two runs" |
+| every selection manifest has its test rows and back | `check_folds_and_manifests` (`02_`) | "left over from an earlier run" |
+| a trained winner took time | `load_comparative` (`02_`) | `train_ms <= 0` |
+| no NaN/inf error | `load_per_window` (`04_`) | "diverged" |
+
+### Pairing a family with a reference that has no seed (`04_`)
+
+A reference is fitted once per fold on train ∪ val; it has no seed. A family has five test
+rows per window, one per seed. Each seed is paired with the **same** reference error:
+
+```
+window  seed   family MSE   PCA MSE (fold fit)   difference
+w17     42     0.91         1.07                 −0.16
+w17     43     0.88         1.07                 −0.19
+w17     44     0.95         1.07                 −0.12
+ ...
+```
+
+`check_coverage` then demands the full rectangle — every window of the fold under every seed
+the family has, for both sides. Pairing on the shared part only would silently shrink `n`
+and change what the mean is a mean of; a missing fold or seed is refused instead.
+
+The seed level has `n = 5` pairs. An exact two-sided Wilcoxon test on 5 pairs cannot go below
+`2/2^5 = 0.0625` even when all five agree, so `p < 0.05` is unreachable there. `04_` reports
+that floor as `min_attainable_p` next to the `p`: a seed-level "not significant" is a
+statement about `n`, not evidence of no difference. The recording level stays the primary
+estimand.
+
+### Reference rows averaged like the families' (`02_`)
+
+A family's `mse` in `comparative_metrics.csv` is the mean window error **of one fold**
+(`evaluate_ae`); the table then averages folds. `02_` used to average the references' per-window
+rows of all folds at once, which weights folds by their window counts. The `02_ --self-test`
+case:
+
+```
+fold 0: 1 window,  PCA 1.0        pooled over windows:  (1.0 + 3 × 0.2) / 4 = 0.40
+fold 1: 3 windows, PCA 0.2        per fold, then folds: (1.0 + 0.2) / 2     = 0.60  <- same estimand as the families
+```
+
+### The sequence models read 512 gathered frames, not 32 consecutive ones
+
+**What the docs said.** `to_lstm_frames()` "groups `lstm_frame_size` consecutive samples into
+each timestep" (its own comment, [LSTM Performance](../Guides/LSTM-Performance.md),
+[Tensor pitfall 3](../Core/Tensor.md#common-pitfalls)), on the premise that storage is
+column-major. The paper said the window "is reshaped into T/f frames of f samples": 32.
+
+**What the code does.** Storage is row-major (`xt::xarray`'s default; `DeviceTensorBackend`
+delegates to the same host tensor), and since 2026-09-22 the input is the `(T, M)` encoded
+window, not `(M, 1)`. A scratch probe ran the function's three tensor operations on a
+`(T=4, M=6)` window labelled `100·t + m`, frame width 2:
+
+```
+frame  0:    0  200     <- sample 0 at steps 0, 2
+frame  1:    1  201     <- sample 1 at steps 0, 2
+ ...
+frame  6:  100  300     <- sample 0 at steps 1, 3
+```
+
+In production (`T = 16`, `M = 256`, frame 8):
+
+```
+S = T·M / frame = 16 · 256 / 8 = 512 frames
+frame j, j < 256:   window sample j        at steps 0, 2, 4, ..., 14
+frame j, j >= 256:  window sample j − 256  at steps 1, 3, 5, ..., 15
+```
+
+| | what the docs described | what the models get |
+|---|---|---|
+| one frame holds | 8 consecutive window samples | 1 window sample at 8 alternate steps |
+| `direct` encoding, one frame | 8 different values | 8 copies of one value |
+| sequence length | 32 (paper) | 512 |
+| the sequence axis runs through | the window in 8-sample chunks | the window's samples in order, twice |
+
+**Are the numbers wrong?** No error is miscomputed: input, target and mask all pass through
+the same function, and MSE is elementwise, so the gather is a fixed permutation of the same
+entries on both sides. What changes is the *task* the three sequence families are given — and
+that changed silently: nothing crashes or warns. Before 2026-09-22 (input `(256, 1)`) the same
+operations gave frame `t` = samples `t, t+32, …, t+224`, the polyphase split the docs warned
+against. Whether the submission-71 LSTM-AE numbers were produced this way depends on the
+binary that made them (not checked).
+
+**Open decision.** Keep the gather (now what the code comment and the paper describe) or
+switch to consecutive framing — a plain row-major reshape of the `(T, M)` window to
+`(512, 8)`, giving 8 consecutive samples of one step per frame, the window run through 16
+times. Both are internally consistent; they are different tasks. Every fold has to be rerun
+for `results_format` 2 anyway, so this is the cheapest moment to decide.
+
+### The paper's notation
+
+`T` meant both the window length (256) and the number of simulation steps (16). The paper now
+uses one symbol per quantity, matching the code:
+
+| Symbol | Meaning | Value | Code |
+|---|---|---|---|
+| `T` | simulation steps per window | 16 | `model.time_steps` |
+| `M` | window length (samples) | 256 | `dataset.window_size` |
+| `F` | frame width of the sequence models | 8 | `model.lstm_frame_size` |
+| `S` | sequence length of the sequence models, `TM/F` | 512 | `arch.seq_len` (`make_*_cfg`) |
+
+`f` (frame) collided with the outer-fold index and `r` (spike fraction) with the recording
+index; they became `F` and `ρ`. The fix exposed claims that were false, not just badly named:
+
+| Paper said | True |
+|---|---|
+| sequence models read `T/f = 32` frames | `S = 512` |
+| "at 32 frames this quadratic term is modest" | attention / (projections + FFN) = `S / (2 d_model + d_ff)` ≥ 1 everywhere in the searched range, up to 8 (`d_model = 16`, `d_ff = 32`) |
+| BPTT unrolls LSTM and SNN "through `T`" | SNN through `T` steps, LSTM/GRU through `S` frames |
+| conv1d smooths over time `t` | over neighbouring window samples (`conv1d_temporal_smooth` runs along columns) |
+| latency figure: `1[t ≥ t_sp]` | fires once: `1[t = t_i]` (the paper's own equation and `encode_sample`) |
+| "the encoding only reshapes the SNN's input" | every family reads the encoded window; encoding is a gene for all four |
+
+### Verified
+
+- C++: all 12 meeting01 test binaries pass, including the new truncation test, the CLI
+  refusal of `--dump-reference-inputs-only` and `CheckpointResultsFormat`. That last test was
+  **not** shown to fail with the check removed (the mutation run was not done); that it would
+  is reasoned from the code, not measured.
+- `02_`, `03_`, `04_ --self-test` (all three in CI now): every refusal above, the broadcast
+  (window `n` = windows × seeds, seed `d` exact, floor 0.25 at 3 seeds), the 0.60-not-0.40
+  case. A mutation sweep of 15 deliberate regressions was caught 15/15.
+- Synthetic end to end with the real binary (6 speakers, window 64, `T = 4`): every manifest
+  carries `results_format` 2; re-running fold 0 left its per-window CSV at 97 lines with no
+  duplicate; `03_` → `02_` → `04_` gave PCA 0.1428 (the per-fold mean), LSTM `train_ms`
+  749.7, and against the references a window-level `n` of 96 and a seed-level `n` of 2
+  (floor 0.5). An old-format fold was refused by all three scripts, with nothing written.
+- Paper: compiles with 0 errors and no undefined references.
+- **Not run:** any production profile, and any real dataset.
 
 ---
 
@@ -966,6 +1142,12 @@ Parsed by: `src/experiments/meeting01/lib/include/Meeting01Config.hpp` (`from_ne
 
 #### `model.lstm_frame_size` (default 8)
 
+> **Corrected 2026-10-06.** Three statements below are wrong today: the sequence length has
+> been `time_steps × window_size / lstm_frame_size` (512) since 2026-09-22; encoding happens
+> on the `(time_steps, window_size)` layout, not the flat window; and `to_lstm_frames()` does
+> not cut consecutive frames. See
+> [The sequence models read 512 gathered frames](#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
+
 Samples fed to the LSTM per timestep. The sequence length becomes
 `window_size / lstm_frame_size`, so with the article profiles' `window_size=256`
 the default gives $T = 32$, $D = 8$.
@@ -993,9 +1175,11 @@ Constraints and caveats:
   arguably a fairer baseline, since the SNN-AE sees the whole window at once via
   `linear:64` while the old LSTM saw one scalar per step.
 
-Implemented by `to_lstm_frames()` in `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp`;
-see [LSTM Performance](../Guides/LSTM-Performance.md) for why a plain reshape
-would produce a polyphase split rather than consecutive frames.
+Implemented by `to_lstm_frames()` in `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp`.
+The claim that used to stand here — a plain reshape would give a polyphase split, which the
+function avoids — is backwards: storage is row-major, so the plain reshape is the consecutive
+one and the function's reshape-then-transpose is the strided gather. See
+[The sequence models read 512 gathered frames](#the-sequence-models-read-512-gathered-frames-not-32-consecutive-ones).
 
 ### Data Loading Limits
 
