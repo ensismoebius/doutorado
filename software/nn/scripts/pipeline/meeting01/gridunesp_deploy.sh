@@ -169,18 +169,15 @@ on_compute_node build "$BUILD_CPUS" 00:30:00 '
   cmake --build out/build/max-performance --target meeting01 -j'"$BUILD_CPUS"'
 '
 
-# Belt and braces: whatever the job reported, ask ninja (dry run, no compute node needed)
-# whether the binary is now up to date with the sources just synced. The smoke check below
-# would otherwise happily run an OLD binary and the stamp would vouch for it.
-if ! cmake --build out/build/max-performance --target meeting01 -- -n | grep -q "no work to do"; then
-  echo "[gridunesp-deploy:remote] ERROR: the meeting01 binary is out of date with the synced" \
-       "sources although the build job finished -- see out/build/max-performance/deploy-build.log." \
-       "Nothing was stamped." >&2
-  exit 1
-fi
+# The job's exit code is the build's (set -e in the job script, sbatch --wait returns it), so
+# a failed build never gets here. NOT a `ninja -n` "no work to do" check: with CMake's globbed
+# directories a dry run always reports "Re-running CMake" (it cannot restat), measured on the
+# cluster 2026-10-07 right after a build that had worked.
+BIN=out/build/max-performance/src/experiments/meeting01/meeting01
+[[ -x "$BIN" ]] || { echo "[gridunesp-deploy:remote] ERROR: no binary at $BIN" >&2; exit 1; }
 
 echo "[gridunesp-deploy:remote] smoke check"
-on_compute_node smoke 4 00:10:00 'out/build/max-performance/src/experiments/meeting01/meeting01 --help >/dev/null'
+on_compute_node smoke 4 00:10:00 "$BIN --help >/dev/null"
 
 # Only a binary that built AND ran gets the stamp, so "stamp == SOURCE_REVISION" means
 # "this binary was built from exactly the sources on disk".
