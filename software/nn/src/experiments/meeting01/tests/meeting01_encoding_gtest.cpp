@@ -222,6 +222,63 @@ TEST(Meeting01Encoding, ReconstructionMaskStaysAlignedWithTheFramedTarget)
             << "element " << k << " holds sample " << target.at(k);
 }
 
+// to_lstm_frames cuts an encoded (T, M) window into frames of `frame` values taken in
+// row-major order: a frame holds NEIGHBOURING samples of ONE simulation step, and the
+// sequence runs through step 0's window, then step 1's, and so on. Until 2026-10-07 it
+// reshaped to (frame, T*M/frame) and transposed, on the belief that storage is column-major;
+// storage is row-major, so that gathered ONE window sample at `frame` alternate steps
+// instead, and nothing failed (input, target and mask were gathered alike). Labelling every
+// element 100*t + m names its (step, sample), so the layout is readable in the assertion.
+TEST(Meeting01Encoding, FramesHoldNeighbouringSamplesOfOneStep)
+{
+    constexpr int kT = 3;
+    constexpr int kM = 8;
+    constexpr int kFrame = 4;
+    meeting01::Tensor encoded(kT, kM);
+    for (nn::Index t = 0; t < kT; ++t)
+        for (nn::Index m = 0; m < kM; ++m) encoded.at(t, m) = static_cast<float>(100 * t + m);
+
+    const auto frames = meeting01::to_lstm_frames(encoded, kFrame);
+
+    ASSERT_EQ(frames.rows(), kT * kM / kFrame);
+    ASSERT_EQ(frames.cols(), kFrame);
+    for (nn::Index j = 0; j < frames.rows(); ++j)
+    {
+        const nn::Index step = j * kFrame / kM; // M / frame = 2 frames per step
+        const nn::Index first_sample = (j * kFrame) % kM;
+        for (nn::Index d = 0; d < kFrame; ++d)
+            EXPECT_FLOAT_EQ(frames.at(j, d), static_cast<float>(100 * step + first_sample + d))
+                << "frame " << j << ", column " << d;
+    }
+}
+
+// frame_size == 1 used to return its input untouched ("already one scalar per timestep"):
+// right for the old (window, 1) layout, wrong for the (T, M) encoded window, where the model
+// is built for (T*M, 1).
+TEST(Meeting01Encoding, FrameSizeOneUnrollsTheWholeEncodedWindow)
+{
+    constexpr int kT = 3;
+    constexpr int kM = 5;
+    meeting01::Tensor encoded(kT, kM);
+    for (nn::Index t = 0; t < kT; ++t)
+        for (nn::Index m = 0; m < kM; ++m) encoded.at(t, m) = static_cast<float>(100 * t + m);
+
+    const auto frames = meeting01::to_lstm_frames(encoded, 1);
+
+    ASSERT_EQ(frames.rows(), kT * kM);
+    ASSERT_EQ(frames.cols(), 1);
+    for (nn::Index k = 0; k < frames.rows(); ++k)
+        EXPECT_FLOAT_EQ(frames.at(k, 0), static_cast<float>(100 * (k / kM) + k % kM))
+            << "frame " << k;
+}
+
+TEST(Meeting01Encoding, FramingRefusesAnUnevenSplit)
+{
+    meeting01::Tensor encoded(3, 5); // 15 values
+    EXPECT_THROW(meeting01::to_lstm_frames(encoded, 4), std::invalid_argument);
+    EXPECT_THROW(meeting01::to_lstm_frames(encoded, 0), std::invalid_argument);
+}
+
 TEST(Meeting01Encoding, TargetVarianceIsIdenticalAcrossEncodings)
 {
     // The property that makes val_mse comparable between encodings, and that stops the

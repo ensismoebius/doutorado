@@ -63,7 +63,8 @@ void check_dataset(const Meeting01Config& config, std::ostringstream& errors)
     else if (dataset.window_size > 0 && (dataset.window_size % model.lstm_frame_size) != 0)
     {
         errors << "  - model.lstm_frame_size (" << model.lstm_frame_size
-               << ") must divide dataset.window_size (" << dataset.window_size << ")\n";
+               << ") must divide dataset.window_size (" << dataset.window_size
+               << "), so that a frame never straddles two simulation steps\n";
     }
 
     // The pooled/shuffled split (cv_fold < 0) was removed 2026-09-23 -- it let the

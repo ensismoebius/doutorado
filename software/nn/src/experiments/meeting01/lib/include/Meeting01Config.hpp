@@ -150,10 +150,13 @@ struct Meeting01Config
     {
         int latent_dim = 0;       // optional (0 = derive from encoder_layer_spec)
         int lstm_hidden_size = 0; // optional (0 = derive from encoder_layer_spec)
-        // Samples per LSTM timestep. window_size/lstm_frame_size becomes the
-        // sequence length. 1 = the old scalar-per-timestep behaviour, which makes
-        // the recurrent term cost window_size times more than it needs to.
-        // Must divide dataset.window_size.
+        // Values per timestep of the frame-consuming models (LSTM-AE, GRU-AE, Transformer-AE).
+        // The encoded (time_steps, window_size) window is cut into frames of this many
+        // consecutive samples of one step (to_lstm_frames), so the sequence length is
+        // S = time_steps * window_size / lstm_frame_size (512 in production: 16 * 256 / 8).
+        // 1 = one value per timestep, which makes the recurrent term cost frame_size times
+        // more than it needs to. Must divide dataset.window_size, so a frame never straddles
+        // two simulation steps.
         int lstm_frame_size = 8;
         // SNN simulation steps per window. The encoder turns one window into a
         // time-major (time_steps * B, window_size) tensor, so this is the number

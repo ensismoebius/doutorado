@@ -500,6 +500,13 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list[str]:
     _write_fold(d, "t_fsdd_fold0", {k: v for k, v in manifest.items() if k != "results_format"},
                 rows0)
     expect_refusal(lambda: run(d, "t", out), "older than 2026-10-06", "older binary's fold")
+    # A numbered older format says WHY it is unusable; a newer one says to update the scripts.
+    _write_fold(d, "t_fsdd_fold0", dict(manifest, results_format=RESULTS_FORMAT - 1), rows0)
+    expect_refusal(lambda: run(d, "t", out), "strided gather", "interim format 2 fold")
+    _write_fold(d, "t_fsdd_fold0", dict(manifest, results_format=RESULTS_FORMAT + 1), rows0)
+    expect_refusal(lambda: run(d, "t", out), "newer than the scripts", "newer format's fold")
+    _write_fold(d, "t_fsdd_fold0", dict(manifest, results_format=True), rows0)
+    expect_refusal(lambda: run(d, "t", out), "newer than the scripts", "boolean format stamp")
     _write_fold(d, "t_fsdd_fold0", manifest, [x for x in rows0 if x["model"] != "pca"])
     expect_refusal(lambda: run(d, "t", out), "run 03_", "no reference rows")
     _write_fold(d, "t_fsdd_fold0", manifest, rows0 + rows0[:1])

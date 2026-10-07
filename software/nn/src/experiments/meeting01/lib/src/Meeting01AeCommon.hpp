@@ -5,8 +5,9 @@
  * @brief Model-generic train / evaluate helpers for the frame-consuming autoencoders
  *        (LSTM-AE, GRU-AE, bottlenecked Transformer-AE).
  *
- * All three consume a window reshaped by to_lstm_frames() into (T, frame_size) and
- * reconstruct it in the same layout, expose the Module contract
+ * All three consume the encoded (time_steps, window_size) window cut by to_lstm_frames()
+ * into S = time_steps * window_size / frame_size frames of frame_size consecutive samples
+ * of one step, and reconstruct it in the same layout, expose the Module contract
  * (forward/backward/params/reset_state), and are driven one sequence at a time
  * (Trainer batch_size = 1). Only the concrete model type and its analytic MAC
  * estimate differ, so the loop below is written once and instantiated per model.

@@ -24,10 +24,14 @@ namespace meeting01
 //           and scored over it; from that commit the LSTM/GRU/Transformer-AE path crashed
 //           on its first batch. Per-window rows had no encoding, baseline test rows said
 //           train_ms 0, and there were no reference target dumps.
-//   2       padding excluded from normalization, every loss and every error
-//           (valid_length); target dumps for the references; per-window encoding and
-//           baseline train_ms written.
-inline constexpr int kResultsFormat = 2;
+//   2       interim, superseded 2026-10-07 (no production fold was run with it): padding
+//           excluded from normalization, every loss and every error (valid_length); target
+//           dumps for the references; per-window encoding and baseline train_ms written.
+//           But the sequence models' frames were a strided gather (one window sample at
+//           alternate steps per frame) and the LSTM/GRU cost counted one stack of two.
+//   3       to_lstm_frames cuts consecutive samples of one step; the LSTM/GRU `macs` count
+//           the encoder and decoder stacks (and so steer the architecture search).
+inline constexpr int kResultsFormat = 3;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

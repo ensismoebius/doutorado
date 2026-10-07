@@ -31,6 +31,11 @@ using statistics::mae_between_masked;
 using statistics::mse_between;
 using statistics::mse_between_masked;
 
+/// Raw multiply-accumulate estimate for the LSTM autoencoder: the encoder AND decoder stacks
+/// (L layers each, 4 gates) over the S = seq_len frames, the output head on every frame, and
+/// the two latent projections once. Layers after the first read the H-wide state, not the
+/// D-wide frame. Throws std::invalid_argument for a configuration that is not a buildable
+/// network (any of seq_len / input_size / hidden_size / latent_size / num_layers < 1).
 auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t;
 auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t;
 
@@ -42,14 +47,14 @@ auto estimate_snn_macs(
     std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
     -> std::size_t;
 
-/// Raw multiply-accumulate estimate for the GRU autoencoder. Mirrors
-/// estimate_lstm_macs (one stack, T steps, + projections) with 3 gates instead of 4,
-/// so the two are directly comparable.
+/// Raw multiply-accumulate estimate for the GRU autoencoder. Same counting as
+/// estimate_lstm_macs (both stacks, the head per frame, the latent projections once) with
+/// 3 gates instead of 4, so the two are directly comparable. Throws like it.
 auto estimate_gru_macs(const nn::models::gru::GRUAutoencoderConfig& cfg) -> std::size_t;
 
 /// Raw multiply-accumulate estimate for the bottlenecked Transformer autoencoder.
-/// Includes the O(T^2 * d_model) self-attention term explicitly (scores + A*V),
-/// counted once per encoder block in both the encoder and the decoder stack.
+/// Includes the O(S^2 * d_model) self-attention term explicitly (scores + A*V), S = seq_len,
+/// counted once per block in both the encoder and the decoder stack.
 auto estimate_transformer_macs(const nn::models::transformer::TransformerAutoencoderConfig& cfg)
     -> std::size_t;
 

@@ -610,9 +610,9 @@ TEST(Meeting01ConfigValidation, RejectsAMissingCvFold)
 
 TEST(Meeting01ConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
 {
-    // dataset.window_size / model.lstm_frame_size is the LSTM's timestep
-    // count. A remainder means the last timestep is short, so the rule is a
-    // relation between the dataset and the model, not a fact about either.
+    // A frame holds lstm_frame_size neighbouring samples of ONE simulation step, so it
+    // must not straddle two steps: window_size has to be a multiple of lstm_frame_size.
+    // The rule is a relation between the dataset and the model, not a fact about either.
     auto cfg = valid_config();
     cfg.dataset.window_size = 100;
     cfg.model.lstm_frame_size = 8;

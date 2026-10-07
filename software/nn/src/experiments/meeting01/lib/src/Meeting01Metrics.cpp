@@ -1,23 +1,81 @@
 #include "../include/Meeting01Metrics.hpp"
 
 #include <algorithm>
+#include <stdexcept>
+#include <string>
 
 namespace meeting01
 {
 
+namespace
+{
+
+// MACs of one forward pass over one window of a LSTMAutoencoder / GRUAutoencoder, which have
+// the same topology (`gates` is 4 for the LSTM, 3 for the GRU). Dense multiply-accumulates
+// only: gate nonlinearities and biases are not MACs, the convention
+// estimate_transformer_macs() uses too.
+//
+//   encoder   layer 0 reads the D-wide frame, layers 1..L-1 the H-wide state below them
+//   decoder   L layers, each H -> H, run over the same S positions
+//   head      out_proj H -> D on every position
+//   latent    enc_proj H -> Z on the final state, dec_expand Z -> H on the latent: once each
+//
+// A recurrent layer costs gates * H * (in + H) per position: the input and the previous
+// state go into every gate. Until 2026-10-07 the estimate counted the encoder stack alone,
+// at width D for every layer, and the head once: about 2.8x too low at H = 64, L = 1 (and
+// 3.2x at the production profile), while the Transformer's estimate always counted both
+// stacks. parameter_count_gtest ties this to the network the constructor really builds.
+auto recurrent_ae_macs(const char* who,
+    std::size_t gates,
+    int seq_len,
+    int input_size,
+    int hidden_size,
+    int latent_size,
+    int num_layers) -> std::size_t
+{
+    const auto require_positive = [who](const char* field, int value)
+    {
+        if (value < 1)
+        {
+            throw std::invalid_argument(std::string(who) + ": " + field + " must be >= 1 (got " +
+                                        std::to_string(value) +
+                                        "): that is not a buildable network, so it has no "
+                                        "cost. Check the profile's model.* fields (a latent "
+                                        "width of -1 means model.latent_dim is unset and the "
+                                        "layer specs gave none) or the genome that produced it");
+        }
+    };
+    require_positive("seq_len", seq_len);
+    require_positive("input_size", input_size);
+    require_positive("hidden_size", hidden_size);
+    require_positive("latent_size", latent_size);
+    require_positive("num_layers", num_layers);
+
+    const auto S = static_cast<std::size_t>(seq_len);
+    const auto D = static_cast<std::size_t>(input_size);
+    const auto H = static_cast<std::size_t>(hidden_size);
+    const auto Z = static_cast<std::size_t>(latent_size);
+    const auto L = static_cast<std::size_t>(num_layers);
+
+    const auto layer = [gates, H](std::size_t in) { return gates * H * (in + H); };
+
+    std::size_t per_position = layer(D) + (L - 1) * layer(H); // encoder
+    per_position += L * layer(H);                             // decoder
+    per_position += H * D;                                    // out_proj
+    return S * per_position + 2 * H * Z;                      // + enc_proj, dec_expand
+}
+
+} // namespace
+
 auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t
 {
-    const std::size_t T = static_cast<std::size_t>(cfg.seq_len);
-    const std::size_t I = static_cast<std::size_t>(cfg.input_size);
-    const std::size_t H = static_cast<std::size_t>(cfg.hidden_size);
-    const std::size_t L = static_cast<std::size_t>(cfg.num_layers);
-
-    const std::size_t per_gate = H * (I + H);
-    const std::size_t per_step = 4 * per_gate;
-    const std::size_t per_stack = per_step * L;
-    const std::size_t proj = H * static_cast<std::size_t>(cfg.latent_size) +
-                             static_cast<std::size_t>(cfg.latent_size) * H + H * I;
-    return T * per_stack + proj;
+    return recurrent_ae_macs("estimate_lstm_macs",
+        4,
+        cfg.seq_len,
+        cfg.input_size,
+        cfg.hidden_size,
+        cfg.latent_size,
+        cfg.num_layers);
 }
 
 auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t
@@ -58,21 +116,15 @@ auto estimate_snn_macs(
 
 auto estimate_gru_macs(const nn::models::gru::GRUAutoencoderConfig& cfg) -> std::size_t
 {
-    const std::size_t T = static_cast<std::size_t>(cfg.seq_len);
-    const std::size_t I = static_cast<std::size_t>(cfg.input_size);
-    const std::size_t H = static_cast<std::size_t>(cfg.hidden_size);
-    const std::size_t L = static_cast<std::size_t>(std::max(1, cfg.num_layers));
-    const std::size_t Z = static_cast<std::size_t>(cfg.latent_size);
-
-    // Mirrors estimate_lstm_macs() exactly so the two are directly comparable:
-    // one stack of L layers unrolled T steps, plus the projection heads. GRU has
-    // 3 gates (r, z, n) where the LSTM has 4, so at matched dimensions the GRU
-    // estimate is strictly 3/4 of the LSTM's recurrent term.
-    const std::size_t per_gate = H * (I + H);
-    const std::size_t per_step = 3 * per_gate;
-    const std::size_t per_stack = per_step * L;
-    const std::size_t proj = H * Z + Z * H + H * I;
-    return T * per_stack + proj;
+    // Same topology as the LSTM autoencoder with 3 gates (r, z, n) where the LSTM has 4, so
+    // at matched dimensions every recurrent layer costs 3/4 of the LSTM's.
+    return recurrent_ae_macs("estimate_gru_macs",
+        3,
+        cfg.seq_len,
+        cfg.input_size,
+        cfg.hidden_size,
+        cfg.latent_size,
+        cfg.num_layers);
 }
 
 auto estimate_transformer_macs(const nn::models::transformer::TransformerAutoencoderConfig& cfg)

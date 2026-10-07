@@ -67,20 +67,26 @@ struct RecurrentLifTrace
 auto recurrent_lif_trace(const Tensor& encoded, float alpha, float v_th) -> RecurrentLifTrace;
 
 /**
- * @brief Reshape a (window_size, 1) sample into (window_size/frame_size, frame_size) frames.
+ * @brief Cut a tensor into frames of `frame_size` consecutive values: (N values) ->
+ *        (N / frame_size, frame_size), taken in row-major order.
  *
- * The LSTM previously consumed the window one scalar per timestep (D=1,
- * T=window_size). That makes the recurrent term — the dominant cost, h·Uᵀ with
- * U of shape (4H, H) — get paid `window_size` times. Grouping `frame_size`
- * consecutive samples per timestep cuts both the sequential depth and the total
- * MAC count by `frame_size`, with no information discarded.
+ * The LSTM once consumed the window one scalar per timestep (D=1, S=window_size), which
+ * pays the recurrent term — the dominant cost, h·Uᵀ with U of shape (4H, H) — once per
+ * sample. Frames of `frame_size` values cut the sequential depth and the MAC count by
+ * `frame_size`, with no information discarded.
  *
- * Frame t holds the consecutive samples [t*frame_size, (t+1)*frame_size).
- * Storage is column-major, so a direct reshape to (T, frame_size) would instead
- * interleave (frame t would get samples t, t+T, t+2T, …). Reshaping to
- * (frame_size, T) and transposing produces the intended consecutive framing.
+ * Applied to the encoded (T, M) window of `encode_sample` (T = time_steps, M = window_size,
+ * frame_size dividing M) a frame holds `frame_size` neighbouring samples of ONE simulation
+ * step, and the S = T*M/frame_size frames run through step 0's window, then step 1's, and so
+ * on. Input, reconstruction target and activity mask all go through this one function, so
+ * element k of each still names the same (step, sample).
  *
- * @throws std::invalid_argument if frame_size <= 0 or does not divide the sample length.
+ * Storage is row-major, so this is a plain reshape. Until 2026-10-07 it reshaped to
+ * (frame_size, S) and transposed, believing storage column-major, which gathered one sample
+ * at `frame_size` alternate steps into each frame instead (see the comment in the
+ * definition).
+ *
+ * @throws std::invalid_argument if frame_size <= 0 or does not divide the element count.
  */
 auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor;
 

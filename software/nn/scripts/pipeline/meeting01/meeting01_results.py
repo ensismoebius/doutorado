@@ -42,7 +42,15 @@ from collections import defaultdict
 #:     first batch, so those binaries finished no fold;
 #:   - baseline test rows said train_ms 0 (the final fit was timed, but the time was never
 #:     written anywhere) and per-window rows carried no encoding.
-RESULTS_FORMAT = 2
+#: Format 2 was the first stamped one (commit b434792e) and is refused too; no production fold
+#: was run with it. It had the padding fix, but the LSTM/GRU/Transformer-AE frames were a strided
+#: gather and the LSTM/GRU cost counted one stack of two. 3 is the first with both fixed.
+RESULTS_FORMAT = 3
+_OLDER_FORMATS = {
+    2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
+       "alternate steps per frame) instead of consecutive samples of one step, and the "
+       "LSTM/GRU cost counted one stack of two, which also steered their architecture search",
+}
 
 PW_HEADER = [
     "model", "encoding", "architecture", "v_th", "alpha", "run_id", "seed",
@@ -98,10 +106,16 @@ def check_results_format(manifest: dict, where: str) -> None:
             "padded windows were normalized together with their padding and scored over it, "
             "baseline test rows say train_ms 0 (the real time was never written down) and "
             f"per-window rows have no encoding. No post-processing recovers these: {_RERUN}.")
+    if isinstance(got, int) and not isinstance(got, bool) and got < RESULTS_FORMAT:
+        why = _OLDER_FORMATS.get(got, "see the history above RESULTS_FORMAT in this module")
+        raise ResultsError(
+            f"{where} has results_format {got}, older than the {RESULTS_FORMAT} this script "
+            f"reads: {why}. Its numbers cannot be compared with a current fold's; {_RERUN}.")
     raise ResultsError(
-        f"{where} has results_format {got!r}, but this script reads {RESULTS_FORMAT}: update "
-        "the post-processing scripts together with the binary (RESULTS_FORMAT in "
-        "meeting01_results.py, kResultsFormat in Meeting01Output.hpp).")
+        f"{where} has results_format {got!r}, but this script reads {RESULTS_FORMAT}: the fold "
+        "is newer than the scripts (or the manifest was edited). Update the post-processing "
+        "scripts together with the binary (RESULTS_FORMAT in meeting01_results.py, "
+        "kResultsFormat in Meeting01Output.hpp).")
 
 
 def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int) -> dict:

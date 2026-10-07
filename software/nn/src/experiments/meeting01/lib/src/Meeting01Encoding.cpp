@@ -278,25 +278,27 @@ auto to_lstm_frames(const Tensor& sample, int frame_size) -> Tensor
     {
         throw std::invalid_argument("to_lstm_frames: sample length (" + std::to_string(total) +
                                     ") is not divisible by frame_size (" +
-                                    std::to_string(frame_size) + ")");
+                                    std::to_string(frame_size) +
+                                    "); set model.lstm_frame_size to a divisor of "
+                                    "dataset.window_size");
     }
 
-    if (frame == 1) return sample; // already one scalar per timestep
-
-    const nn::Index steps = total / frame;
-
-    // NOT consecutive frames. Storage is row-major, so reshaping to (frame, steps) and
-    // transposing puts the input's flat element d*steps + j at entry d of frame j: a
-    // stride-`steps` gather. (The comment here until 2026-10-06 assumed column-major
-    // storage and promised frame j = sample[j*frame .. j*frame + frame-1].) For the
-    // (T, M) window encode_sample() returns, with frame dividing T (production: T=16,
-    // M=256, frame=8, steps=512), frame j holds window sample j mod M at steps
-    // floor(j/M), floor(j/M) + T/frame, ...: the sequence runs through the window's
-    // samples in order T/frame times, pass p carrying the steps congruent to p.
-    // Input, target and mask all go through here, so they stay aligned.
-    Tensor d_major = sample;
-    d_major.reshape({frame, steps});
-    return d_major.transpose();
+    // Storage is row-major, so reshaping straight to (steps, frame) makes frame j the flat
+    // elements [j*frame, (j+1)*frame): consecutive values. For the (T, M) window
+    // encode_sample() returns, with frame dividing M (Meeting01Config::validate checks it),
+    // a frame holds `frame` neighbouring samples of ONE simulation step, and the
+    // S = T*M/frame frames run through step 0's window, then step 1's, and so on.
+    // frame == 1 is the same reshape, to (T*M, 1).
+    //
+    // History: until 2026-10-07 this reshaped to (frame, steps) and transposed, on the belief
+    // that storage is column-major. It is row-major, so that gathered ONE window sample at
+    // `frame` alternate steps into each frame (frame j = sample j mod M at steps
+    // floor(j/M), floor(j/M) + T/frame, ...), and nothing failed: input, target and mask
+    // all go through here, so they were gathered alike. Every LSTM/GRU/Transformer-AE
+    // number made by such a binary is a different task from the one this builds.
+    Tensor frames = sample;
+    frames.reshape({total / frame, frame});
+    return frames;
 }
 
 } // namespace meeting01
