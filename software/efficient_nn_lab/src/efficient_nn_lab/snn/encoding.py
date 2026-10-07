@@ -93,3 +93,63 @@ def poisson_spike_frames(
     rng = np.random.RandomState(seed)
     draws = rng.random_sample((n_steps,) + prob.shape)
     return (draws < prob[None, ...]).astype(float)
+
+
+# -- structural noise floor of each encoding, before any learning happens --
+# (software/nn's .wiki/Concepts/Spike-Encoding.md) -- used by
+# snn/demos/encoding_noise.py to show that "direct > latency > poisson" in
+# reconstruction quality is largely an artifact of this noise floor, not
+# evidence that temporal codes carry less information.
+
+
+def poisson_noise_sigma(time_steps: int) -> float:
+    """Worst-case (p=0.5) standard deviation of a Bernoulli rate estimate
+    over ``time_steps`` independent trials: sigma = sqrt(p(1-p)/T), maximized
+    at p=0.5 -> sqrt(0.25/T).
+    """
+    return (0.25 / time_steps) ** 0.5
+
+
+def latency_quantization_error(time_steps: int) -> float:
+    """Worst-case error of representing a value in [0, 1] by its spike frame.
+
+    `latency_spike_time` maps [0, 1] onto the ``T`` frames 0..T-1, i.e. ``T``
+    levels spaced ``1/(T-1)`` apart; the best possible decoder is off by at
+    most half a spacing: ``0.5 / (T-1)``. (A ``T - floor(x*T)`` encoder would
+    give ``0.5/T``, but no encoder in software/nn uses that formula.)
+    """
+    if time_steps < 2:
+        raise ValueError(f"latency coding needs time_steps >= 2 to have a time axis, got {time_steps}")
+    return 0.5 / (time_steps - 1)
+
+
+def latency_spike_time(x: float, time_steps: int) -> int:
+    """``t = round((1 - x) * (T - 1))`` on frames 0..T-1 -- the formula both
+    software/nn encoders use (meeting01's ``Meeting01Encoding.cpp`` and the
+    thesis pipeline's ``ThesisFeatureExtractionInternal.hpp``). High input
+    fires early, low input late, and every value fires (x = 0 on the last
+    frame). meeting01 emits that one spike; the thesis encoder keeps the
+    neuron on from that frame to the end.
+
+    Rounds half away from zero like the C++ ``std::llround``; Python's
+    ``round`` would round half to even and disagree at x = 0.5, T = 16.
+    """
+    scaled = min(1.0, max(0.0, float(x)))
+    return int(np.floor((1.0 - scaled) * (time_steps - 1) + 0.5))
+
+
+def first_spike_time(spikes: np.ndarray, time_steps: int) -> int:
+    """The index of the first nonzero entry, or ``time_steps`` if the unit
+    never fires -- `SpikeTimeLoss`'s "no-spike" convention
+    (`include/layers/losses/SpikeTimeLoss.hpp`).
+    """
+    nonzero = np.nonzero(spikes)[0]
+    return int(nonzero[0]) if len(nonzero) else time_steps
+
+
+def spike_time_grad_is_live(predicted_time: int, time_steps: int) -> bool:
+    """Mirrors `SpikeTimeLossImpl::backward`'s ``if (t < T)`` guard: no
+    gradient is written at all when the predicted unit never fired
+    (``predicted_time == time_steps``) -- the "no-spike deadlock".
+    """
+    return predicted_time < time_steps

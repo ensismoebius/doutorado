@@ -32,7 +32,6 @@
 #include "../include/Meeting01TransformerGaFitness.hpp"
 #include "../include/Meeting01TransformerGaGenome.hpp"
 #include "Meeting01AeCommon.hpp"
-#include "cnpy.h"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "nlohmann/json.hpp"
 #include "progress/ProgressManager.hpp"
@@ -516,7 +515,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
         train_ms,
         infer_ms);
 
-    const RunMetrics test_metrics = evaluate_ae(model,
+    RunMetrics test_metrics = evaluate_ae(model,
         split.test_samples,
         split.test_meta,
         std::vector<int>(split.test_samples.size(), 0),
@@ -528,6 +527,10 @@ void finalize_baseline_selection(const Meeting01Config& config,
         infer_ms,
         config.model.lstm_frame_size,
         config.model.time_steps);
+    // evaluate_ae only scores; the final fit's training time is train_ae's to report (as
+    // finalize_snn_selection does). Without this every baseline test row said train_ms 0,
+    // and 02_ bolded that 0 as the fastest training in the paper's cost table.
+    test_metrics.train_ms = train_ms;
 
     all_rows.push_back(make_baseline_row(config,
         backend_name,
@@ -558,6 +561,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
     {
         PerWindowError proto;
         proto.model = fam.token;
+        proto.encoding = encoding;
         proto.architecture = fam.arch;
         proto.run_id = run_id + 1;
         proto.seed = run_seed;
@@ -785,6 +789,7 @@ void finalize_snn_selection(const Meeting01Config& config,
     {
         PerWindowError proto;
         proto.model = "snn-ae";
+        proto.encoding = encoding;
         proto.architecture = best.architecture;
         proto.v_th = best.v_th;
         proto.alpha = best.alpha;
@@ -1258,8 +1263,12 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
 
 // Hard leakage gate + split manifest. Aborts the run (named exception, no fallback) if
 // any speaker or any source recording appears in more than one of train/val/test.
-void assert_split_disjoint_and_manifest(
-    const Meeting01Config& config, const DatasetSplit& split, const std::string& dataset_name)
+// `write_manifest` is false only for --dump-reference-inputs-only, which must not
+// overwrite the manifest an earlier training run left behind (it is that run's record).
+void assert_split_disjoint_and_manifest(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    bool write_manifest)
 {
     // cv_fold is always >= 0 post-validate() (the pooled/shuffled legacy split was
     // removed 2026-09-23); this guard is now unreachable dead code, kept only so a
@@ -1303,12 +1312,19 @@ void assert_split_disjoint_and_manifest(
                                              std::to_string(config.dataset.cv_fold) + ")");
         }
 
-    if (config.dataset.results_dir.empty()) return;
+    if (!write_manifest || config.dataset.results_dir.empty()) return;
     nlohmann::json man;
     man["dataset"] = dataset_name;
     man["cv_fold"] = config.dataset.cv_fold;
     man["cv_num_folds"] = config.dataset.cv_num_folds;
     man["seed"] = config.experiment.seed;
+    // The run's own record of the two numbers the PCA / mean-frame references must match
+    // (03_meeting01_pca_mean_baselines.py checks them against the profile it is given): the
+    // bottleneck every family of this dataset was built with -- PCA's k -- and the window
+    // width. 0 for latent_dim means the profile set no width and each family derived its
+    // own from encoder_layer_spec, which leaves PCA no single k; 03_ refuses that case.
+    man["latent_dim"] = config.model.latent_dim;
+    man["window_size"] = config.dataset.resolve(dataset_name).window_size;
     const std::set<std::string> train_speakers = speakers(split.train_meta);
     man["speakers"]["train"] =
         std::vector<std::string>(train_speakers.begin(), train_speakers.end());
@@ -1337,70 +1353,72 @@ void assert_split_disjoint_and_manifest(
     if (mf.is_open()) mf << man.dump(2);
 }
 
-// Dumps the framed-encoded train/test window matrices (row = window, col = flattened
-// (T, frame_size)) for one fold+encoding so the Python PCA / mean-frame reference
-// baselines can be fitted on train and scored on test in the exact representation the
-// trained AEs reconstruct. Uses the seed-0 encoding realization (poisson is stochastic;
-// the linear references are reported as one representative realization — direct and
-// latency are deterministic). Once per fold+encoding, not per seed/model.
-void dump_analytic_baseline_inputs(const Meeting01Config& config,
-    const DatasetSplit& split,
-    const std::string& dataset_name,
-    const std::string& encoding,
-    const std::filesystem::path& out_dir)
+// Writes this fold's PCA / mean-frame reference inputs (write_reference_inputs: the
+// target window of every train/val/test window + valid_length) next to the other fold
+// outputs. Until 2026-10-06 this dumped encode_sample(window) once per encoding instead,
+// so under poisson/latency the references were fitted and scored on 0/1 spike trains, a
+// target no trained family reconstructs (they all reconstruct the analog window).
+void dump_reference_inputs(
+    const Meeting01Config& config, const DatasetSplit& split, const std::string& dataset_name)
 {
-    if (config.dataset.cv_fold < 0 || split.test_samples.empty()) return;
     if (config.dataset.results_dir.empty()) return;
-
-    const int frame = config.model.lstm_frame_size;
-    const int steps = config.model.time_steps;
-    const std::uint32_t seed = config.experiment.seed;
-
-    auto encode_matrix =
-        [&](const std::vector<Tensor>& samples) -> std::pair<std::vector<float>, std::size_t>
-    {
-        std::vector<float> flat;
-        std::size_t cols = 0;
-        for (std::size_t i = 0; i < samples.size(); ++i)
-        {
-            const Tensor framed = to_lstm_frames(
-                encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), steps),
-                frame);
-            const Tensor row = flatten_time_series(framed);
-            cols = static_cast<std::size_t>(row.size());
-            for (nn::Index k = 0; k < row.size(); ++k) flat.push_back(row.at(k));
-        }
-        return {flat, cols};
-    };
-
-    const std::string stem = fold_output_tag(config, dataset_name) + "_" + encoding;
     const std::filesystem::path dir(config.dataset.results_dir);
+    std::filesystem::create_directories(dir);
+    write_reference_inputs(dir, fold_output_tag(config, dataset_name), split);
+    NN_LOG_INFO(
+        "[loso] reference-baseline inputs written: " + std::to_string(split.train_samples.size()) +
+        " train + " + std::to_string(split.val_samples.size()) + " val + " +
+        std::to_string(split.test_samples.size()) + " test target windows");
+}
 
-    NN_LOG_INFO("[loso] analytic-baseline dump: encoding " + encoding + " over " +
-                std::to_string(split.train_samples.size()) + " train + " +
-                std::to_string(split.test_samples.size()) + " test windows…");
-    const auto [train_flat, train_cols] = encode_matrix(split.train_samples);
-    const auto [test_flat, test_cols] = encode_matrix(split.test_samples);
-    NN_LOG_INFO("[loso] analytic-baseline dump: " + encoding + " encoded");
-    if (train_cols == 0 || test_cols == 0) return;
-
-    cnpy::npy_save((dir / (stem + "_train_windows.npy")).string(),
-        train_flat.data(),
-        {split.train_samples.size(), train_cols},
-        "w");
-    cnpy::npy_save((dir / (stem + "_test_windows.npy")).string(),
-        test_flat.data(),
-        {split.test_samples.size(), test_cols},
-        "w");
-
-    std::ofstream meta(dir / (stem + "_test_windows_meta.csv"));
-    if (meta.is_open())
+// Per-dataset bottleneck width (2026-09-23): a signal domain sizes its own hole (short
+// audio tolerates a much harder squeeze than EEG before reconstruction degrades -- see
+// .wiki/Experiments/Meeting01.md's "latent_dim is fixed, not evolved" section for the
+// literature). Returns a copy of `config` with the override applied, so callers read
+// the result instead of `config` (a same-named shadow would do this for free but trips
+// -Wshadow, which this project fixes rather than suppresses). Only overrides
+// model.latent_dim when this dataset actually configured one (Dataset- or
+// DatasetSource-level > 0); profiles with no such override keep their single global
+// model.latent_dim untouched.
+auto resolve_dataset_config(const Meeting01Config& config, const std::string& dataset_name)
+    -> Meeting01Config
+{
+    Meeting01Config resolved_config = config;
+    if (const int resolved_latent = config.dataset.resolve(dataset_name).latent_dim;
+        resolved_latent > 0)
     {
-        meta << "speaker_id,recording_id,window_id,source_window_index\n";
-        for (const auto& m : split.test_meta)
-            meta << m.speaker_id << ',' << m.recording_id << ',' << m.window_id << ','
-                 << m.source_window_index << '\n';
+        resolved_config.model.latent_dim = resolved_latent;
     }
+    return resolved_config;
+}
+
+// --dump-reference-inputs-only: rebuild each requested (dataset, fold) split and write
+// ONLY the reference-baseline inputs, then stop. For a run made by a binary that
+// predates the target dump, so its references can be computed without retraining.
+// Writes nothing else on purpose: opening the events sink would truncate the run's
+// events log, and the split manifest / metric CSVs are the run's own records.
+// 03_meeting01_pca_mean_baselines.py checks the rebuilt windows against that manifest
+// and against the families' per-window test rows, so a split that no longer reproduces
+// fails there, loudly, instead of yielding a reference fitted on different windows.
+auto run_reference_input_dump(const Meeting01Config& config) -> int
+{
+    if (config.dataset.results_dir.empty())
+    {
+        throw std::runtime_error(
+            "--dump-reference-inputs-only: dataset.results_dir is empty, so there is "
+            "nowhere to write the reference inputs. Set it in the profile to the directory "
+            "holding the run's per-window CSVs (normally results/meeting01).");
+    }
+    for (const auto& dataset_name : config.evaluation.datasets)
+    {
+        const Meeting01Config resolved_config = resolve_dataset_config(config, dataset_name);
+        const DatasetSplit split =
+            build_split(resolved_config, dataset_name, resolved_config.dataset.cv_fold);
+        assert_split_disjoint_and_manifest(
+            resolved_config, split, dataset_name, /*write_manifest=*/false);
+        dump_reference_inputs(resolved_config, split, dataset_name);
+    }
+    return 0;
 }
 
 // Writes every result artifact for the whole experiment: comparative CSV, publication
@@ -1457,6 +1475,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         const Meeting01Config config = load_config(resolve_profile_path(cli), cli);
         config.validate();
+        // Before resolve_output_dirs / the events sink: this mode must leave every output
+        // of an earlier run untouched except the reference inputs it rewrites.
+        if (cli.dump_reference_inputs_only) return run_reference_input_dump(config);
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
 
@@ -1561,23 +1582,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         for (const auto& dataset_name : config.evaluation.datasets)
         {
-            // Per-dataset bottleneck width (2026-09-23): a signal domain sizes its own
-            // hole (short audio tolerates a much harder squeeze than EEG before
-            // reconstruction degrades -- see .wiki/Experiments/Meeting01.md's "latent_dim
-            // is fixed, not evolved" section for the literature). `config` is const for
-            // the whole function, so this is a per-iteration copy with the override
-            // applied; the rest of the loop body reads `resolved_config`, not `config`
-            // (a same-named shadow would do this for free but trips -Wshadow, which this
-            // project fixes rather than suppresses). Only overrides model.latent_dim when
-            // this dataset actually configured one (Dataset- or DatasetSource-level > 0);
-            // profiles with no such override keep today's single global
-            // model.latent_dim untouched.
-            Meeting01Config resolved_config = config;
-            if (const int resolved_latent = config.dataset.resolve(dataset_name).latent_dim;
-                resolved_latent > 0)
-            {
-                resolved_config.model.latent_dim = resolved_latent;
-            }
+            // The rest of the loop body reads `resolved_config` (per-dataset latent_dim
+            // applied), not `config` -- see resolve_dataset_config.
+            const Meeting01Config resolved_config = resolve_dataset_config(config, dataset_name);
 
             NN_LOG_INFO("[loso] " + dataset_name + " fold" +
                         std::to_string(resolved_config.dataset.cv_fold) + ": building split…");
@@ -1591,7 +1598,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             std::chrono::steady_clock::now() - t_bs0)
                                 .count()) +
                         " ms)");
-            assert_split_disjoint_and_manifest(resolved_config, split, dataset_name);
+            assert_split_disjoint_and_manifest(
+                resolved_config, split, dataset_name, /*write_manifest=*/true);
             NN_LOG_INFO("[loso] leakage gate + split manifest OK");
 
             ExperimentEvents::instance().emit("fold_begin",
@@ -1611,12 +1619,11 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             // a run that needs the per-window CSV (the article pipeline always does).
             std::vector<PerWindowError> pw_rows;
 
-            // Diagnostic dumps only — not part of any fit. Kept per-encoding since
-            // they're plain descriptive stats of the raw signal under each encoding, not
-            // a model training pass.
-            for (const auto& encoding : resolved_config.evaluation.encodings)
-                dump_analytic_baseline_inputs(
-                    resolved_config, split, dataset_name, encoding, out_dir);
+            // Inputs of the PCA / mean-frame references (fitted afterwards, outside this
+            // binary, by 03_meeting01_pca_mean_baselines.py) -- not part of any fit here.
+            // Written at fold start, before any training, and once per fold: the target
+            // window does not depend on the encoding.
+            dump_reference_inputs(resolved_config, split, dataset_name);
 
             // Architecture search: every family (SNN and, since the 2026-09-22 scope
             // change, every baseline too) runs its own NSGA-II search once per

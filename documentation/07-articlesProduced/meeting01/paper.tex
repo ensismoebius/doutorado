@@ -228,9 +228,10 @@ per-family lower bound on that gene enforces $H,d_{\mathrm{model}}\geq d$, so
 no searched architecture's true bottleneck can fall below the dataset's
 latent width through an undersized hidden layer upstream of it
 (Sec.~\ref{sec:archsearch}). The window is reshaped into $T/f$ frames of
-$f$ samples before entering the sequence models. PCA and a mean-frame
-predictor provide linear reference points, fitted per fold on training data
-only.
+$f$ samples before entering the sequence models. PCA with $k=d$ components ---
+the best linear code through the same bottleneck --- and a mean-frame predictor
+provide linear reference points, fitted per fold on the same non-test data as
+the families' final fits (Sec.~\ref{sec:training}).
 
 % ── LIF theory ───────────────────────────────────────────
 \subsection{LIF neuron model}
@@ -498,6 +499,7 @@ so SNN-AE denotes the selected variant.
 
 % ── Training ──────────────────────────────────────────────────
 \subsection{Training}
+\label{sec:training}
 
 \par All trained models minimize MSE reconstruction loss via Adam
 \cite{kingma2015adam} ($\eta = 10^{-3}$, $\beta_1=0.9$, $\beta_2=0.999$).
@@ -531,8 +533,12 @@ pre-processing mode, $V_{th}$, and $\alpha$ are summarized per dataset in the
 selection tables (e.g.\ Table~\ref{tab:snnsel-fsdd}).
 
 \par \textbf{Linear references.} PCA and the mean-frame predictor are not
-searched; both are fitted per fold on the training groups only, with no use of
-the validation or test group.
+searched: PCA keeps $k=d$ principal components, the dataset's latent width, and
+the mean-frame predictor outputs the per-sample mean window. Both are fitted per
+fold on the training and validation groups --- every non-test window, the same
+pool each family's winner is retrained on --- and never see the test group. They
+are scored exactly like the trained families: against the analog window rather
+than its spike encoding, so one reference serves all three encodings.
 
 % ── Computational cost ────────────────────────────────────────
 \subsection{Analytic computational cost}
@@ -629,7 +635,9 @@ standard deviation) before encoding --- a per-window statistic, so it introduces
 no cross-window leakage. Encodings that require a $[0,1]$ range (Poisson,
 latency) re-normalise the z-scored window to its own $(x_{\min}, x_{\max})$
 range internally. The three encodings are deterministic transforms (Poisson uses
-a per-window seeded draw) and are not fitted.
+a per-window seeded draw) and are not fitted. A recording's last window is
+zero-padded to full length (only its real samples are z-scored); the padded
+samples are excluded from every training loss and every reported error.
 
 \textbf{Nested leave-one-group-out cross-validation.}
 \par For each dataset the distinct groups are sorted and partitioned into $K=6$

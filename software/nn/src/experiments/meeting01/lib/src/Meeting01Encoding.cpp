@@ -124,6 +124,11 @@ auto make_activity_mask(int valid_length, int window_size) -> Tensor
     return mask;
 }
 
+auto make_reconstruction_mask(int valid_length, int window_size, int time_steps) -> Tensor
+{
+    return make_reconstruction_target(make_activity_mask(valid_length, window_size), time_steps);
+}
+
 auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor
 {
     const nn::Index T = static_cast<nn::Index>(time_steps);

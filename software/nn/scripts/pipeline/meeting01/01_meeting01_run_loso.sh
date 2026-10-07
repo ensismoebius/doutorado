@@ -3,26 +3,28 @@
 #
 # Runs profiles/meeting01-loso.json once per (dataset, outer fold): --dataset {fsdd |
 # audiomnist | eegmmidb | siena} --cv-fold 0..N-1, each as its own process. Per run
-# the binary:
-# trains the LSTM-/GRU-/Transformer-AE baselines (fit on train, early-stop on val,
-# evaluate once on val and once on the held-out test group); runs the SNN
-# v_th x alpha x architecture sweep selecting on the inner validation group only, then
-# retrains the winner on train + val (early-stopping on a recording-disjoint monitor
-# carved from train) and evaluates it once on test.
+# (seed) the binary runs one NSGA-II architecture search per family -- SNN-, LSTM-,
+# GRU- and Transformer-AE; the encoding is a gene of every family -- scoring each
+# candidate on the inner validation group only. Each family's winner is retrained on
+# (train \ monitor) + val, early-stopping on a recording-disjoint monitor carved from
+# train, and evaluated once on the held-out test group. Every family of a dataset shares
+# that dataset's bottleneck width (dataset.sources[].latent_dim: 16 audio, 64 EEG).
 #
-# Outputs, per dataset d and fold f:
-#   results/meeting01/meeting01_loso_<d>_fold<f>_comparative_metrics.csv   (split=val | test rows)
-#   results/meeting01/meeting01_loso_<d>_fold<f>_per_window_errors.csv     (recording-level stats input)
-#   results/meeting01/meeting01_loso_<d>_fold<f>_split_manifest.json       (leakage audit)
-#   results/meeting01/meeting01_loso_<d>_fold<f>_<enc>_run<r>_model_selection_manifest.json
+# Outputs, per dataset d and fold f (prefix results/meeting01/meeting01_loso_<d>_fold<f>):
+#   _comparative_metrics.csv           test rows, one per family winner and seed
+#   _per_window_errors.csv             per test window: the recording-level stats input
+#                                      (03_ adds the mean/pca reference rows)
+#   _split_manifest.json               leakage audit + the latent_dim / window_size used
+#   _target_{train,val,test}_windows.npy / _meta.csv
+#                                      inputs of the PCA / mean-frame references
+#   _<family-or-encoding>_run<r>_model_selection_manifest.json, _run<r>_overall_winner_manifest.json
 #
-# COST: weeks over all datasets x folds even with the stratified per-fold window caps
-#   (loso_max_{train,val,test}_windows in the profile: 1200 / 300 / 1500). Full pooled
-#   FSDD is 27k train windows/fold — intractable across the 27-combo SNN grid x 3
-#   encodings x 5 seeds x 18 (dataset,fold) processes. The caps keep every speaker and
-#   recording represented (round-robin subsample); LOSO structure and the recording-level
-#   statistical unit are unchanged. Per-epoch progress is logged as "[loso] ... epoch N/M"
-#   lines (stderr; survives nohup, where the live bars collapse). Run once — by default.
+# COST: weeks to months over all datasets x folds even with the stratified per-fold window
+#   caps (loso_max_{train,val,test}_windows: 200 / 150 / 1500) -- the calibrated per-epoch
+#   cost of each family is in the profile's _total_runs_breakdown. The caps keep every
+#   speaker and recording represented; LOSO structure and the recording-level statistical
+#   unit are unchanged. Per-epoch progress is logged as "[loso] ... epoch N/M" lines
+#   (stderr; survives nohup, where the live bars collapse). Run once -- by default.
 #   This script REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears
 #   results/meeting01/checkpoints/ first (resumed rows are not regenerated into the
 #   per-window CSV) UNLESS RESUME=1 (see below).
@@ -141,10 +143,14 @@ PY="python3"
 [[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
 PAPER_DATA="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/meeting01/data"
 
-# Order matters: 03_ appends the pca/mean rows that 02_ and 04_ then read.
-echo "[loso-run] fitting PCA / mean-frame reference baselines (per fold, train-only)"
+# Order matters: 03_ writes the pca/mean rows that 02_ and 04_ then read (it replaces
+# any it wrote before, so a RESUME=1 re-run does not duplicate them). PCA's k is each
+# dataset's own latent_dim, read from the profile and checked against every fold's split
+# manifest. A fold made by an older binary has no target dumps: 03_ stops and prints the
+# --dump-reference-inputs-only command that rebuilds them without retraining.
+echo "[loso-run] fitting PCA / mean-frame reference baselines (per fold, on train + val)"
 "$PY" scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
-  --results-dir results/meeting01 --run-tag meeting01_loso --latent 32
+  --results-dir results/meeting01 --run-tag meeting01_loso --profile "$PROFILE"
 
 echo "[loso-run] aggregating per-fold test rows into paper tables (mean +/- std over seeds)"
 "$PY" scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py \

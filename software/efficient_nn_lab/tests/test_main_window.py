@@ -7,6 +7,8 @@ prior session's fix), the deep-linking slug selector, and the keyboard
 shortcuts -- the wiring that lives entirely in app/main_window.py.
 """
 
+import gc
+
 import pytest
 from unittest.mock import Mock
 
@@ -23,6 +25,30 @@ def _all_demos():
     for group in _build_demo_tree().values():
         demos.extend(group)
     return demos
+
+
+@pytest.fixture(autouse=True)
+def _dispose_qt_widgets_between_tests():
+    """Force native Qt/matplotlib resources to be reclaimed after each test.
+
+    This file's `_window()` helper creates a full `MainWindow` (3 heavy
+    matplotlib-backed widgets each) per test, with no explicit teardown --
+    harmless with 14 demos, but growing the demo catalog to 24 (10 new
+    ones added for the thesis/paraconsistent-logic demos) pushed the
+    cumulative count of live-but-unreferenced top-level windows across a
+    single `pytest -q` run past whatever the offscreen QPA platform's
+    repaint manager can tolerate, crashing with a native segfault inside
+    `qWaitForWindowActive` partway through this file -- reproducible at the
+    same point every run, but ONLY when the full suite runs in one process
+    (this file alone, or any smaller slice, passed every time). Python's
+    refcounting/GC eventually reclaims these, just not fast enough relative
+    to creation rate. Forcing a collection + event-queue flush after every
+    test keeps the live count bounded regardless of how many demos exist.
+    """
+    yield
+    QApplication.processEvents()
+    gc.collect()
+    QApplication.processEvents()
 
 
 def _window(qapp):
@@ -184,6 +210,41 @@ def test_step_title_never_clips_the_text_it_shows(qapp):
             ).height()
             assert needed <= reserved, (
                 f"{demo.slug}: {text!r} needs {needed}px, only {reserved}px reserved"
+            )
+
+
+def test_explanation_never_clips_the_text_it_shows(qapp):
+    """Every checkpoint explanation of every demo must fit the reserved height.
+
+    What "Mostrar explicação" shows is rich text with formula images, so it
+    is measured the way MainWindow measures it: on the off-screen
+    MathTextLabel twin, at the label's own width -- AFTER the layout has
+    settled, because that is the width on screen. Two silent clips this
+    catches, both measured at 1024x700: the reservation used to be taken
+    before the new demo's sliders were laid out, i.e. at the PREVIOUS demo's
+    width (paraconsistent.plane: 56px of text in a 50px label), and
+    formula-heavy texts outgrew a 6-line ceiling (bitnet.ste, backprop.classic).
+    1024x700 rather than the default size: narrower wraps more, so it is the
+    stricter of the two.
+    """
+    window = _window(qapp)
+    window.resize(1024, 700)
+    QTest.qWait(60)
+    twin = window._measure_label
+    for demo in _all_demos():
+        window._select_demo(demo)
+        QApplication.processEvents()
+        label = window.explanation_label
+        reserved = label.height()
+        twin.setFont(label.font())
+        width = window._label_measure_width(label)
+        for frame in demo.checkpoint_frames():
+            if not frame.explanation:
+                continue
+            twin.set_math_text(frame.explanation)
+            needed = twin.heightForWidth(width)
+            assert needed <= reserved, (
+                f"{demo.slug}: {frame.label!r} needs {needed}px, only {reserved}px reserved"
             )
 
 

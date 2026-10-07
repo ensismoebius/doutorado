@@ -489,6 +489,16 @@ Every `(dataset, fold)` is already complete after the sync, so this call skips t
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
 
+> **Results made by a `meeting01` binary older than 2026-10-06** have no
+> `*_target_*_windows*` reference inputs, so `03_` stops before writing anything and
+> prints, per fold, the command that rebuilds them without retraining:
+> `meeting01 --comparative-config <profile> --dataset <d> --cv-fold <f> --dump-reference-inputs-only`.
+> Run it wherever the datasets sit at the profile's roots (it builds the split and writes
+> only those files), sync them next to the results, and re-run the command above. `03_`
+> checks the rebuilt windows against each fold's split manifest and test rows, so a split
+> that does not reproduce is refused, not silently used. Why: [Meeting01 § The References
+> Were Scored Against the Wrong Thing](../Experiments/Meeting01.md#the-references-were-scored-against-the-wrong-thing-found--fixed-2026-10-06).
+
 ## 6. Optional: all-in-one control TUI
 
 `scripts/pipeline/meeting01/gridunesp_tui.py` is a multi-panel terminal dashboard

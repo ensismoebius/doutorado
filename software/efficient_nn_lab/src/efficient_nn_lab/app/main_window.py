@@ -13,7 +13,7 @@ from math import ceil
 
 import numpy as np
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QRect, Qt
 from PySide6.QtGui import QFontMetrics, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -49,6 +49,10 @@ from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
 from efficient_nn_lab.bitnet.demos.guided_sequence import GuidedBitNetDemo
 from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantizationDemo
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
+from efficient_nn_lab.comparison.autoencoders import AutoencoderComparisonDemo
+from efficient_nn_lab.paraconsistent.demos.dpenalized import ParaconsistentDPenalizedDemo
+from efficient_nn_lab.paraconsistent.demos.ga_pareto import ParaconsistentGaParetoDemo
+from efficient_nn_lab.paraconsistent.demos.plane import ParaconsistentPlaneDemo
 
 
 def _summarize_value(value: object) -> str:
@@ -85,21 +89,33 @@ def _summarize_value(value: object) -> str:
 
 def _format_professor_detail(values: dict[str, object]) -> str:
     return "\n".join(f"{key}: {_summarize_value(val)}" for key, val in values.items())
+from efficient_nn_lab.snn.demos.encoding_loss_mismatch import EncodingLossMismatchDemo
+from efficient_nn_lab.snn.demos.encoding_noise import EncodingNoiseDemo
+from efficient_nn_lab.snn.demos.firing_rate_reg import FiringRateRegDemo
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
+from efficient_nn_lab.snn.demos.normalization_demo import NormalizationDemo
 from efficient_nn_lab.snn.demos.poisson_coding import PoissonCodingDemo
 from efficient_nn_lab.snn.demos.poisson_image_coding import PoissonImageCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
 from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
+from efficient_nn_lab.snn.demos.tdbn_demo import TdBNDemo
+from efficient_nn_lab.snn.demos.timesteps import TimeStepsDemo
 
 #: Which widget renders which frame "kind" (see core/demo.py's Frame.values
 #: — every frame in a demo carries the same "kind" tag throughout).
 _SIGNAL_KINDS = {
     "signal_spikes", "poisson_spikes", "poisson_image_coding", "lif_trace", "backprop_convergence",
+    "firing_rate_reg", "encoding_loss_mismatch",
 }
-_WEIGHT_KINDS = {"scalar_quantization", "staircase", "quant_derivative", "surrogate_curve"}
+_WEIGHT_KINDS = {
+    "scalar_quantization", "staircase", "quant_derivative", "surrogate_curve",
+    "paraconsistent_plane", "paraconsistent_dpenalized", "paraconsistent_ga_pareto",
+    "encoding_noise_floor", "tdbn_distribution",
+}
 _NEURON_KINDS = {
     "backprop_pipeline", "mlp_network", "matrix_algebra", "chain_layers", "forward_pipeline", "ste_pipeline",
-    "guided_pipeline", "comparison_pipeline",
+    "guided_pipeline", "comparison_pipeline", "timesteps_tensor", "autoencoder_comparison_pipeline",
+    "normalization_pipeline",
 }
 
 _REFERENCES_TEXT = """\
@@ -136,7 +152,13 @@ _WELCOME_TEXT = (
 # _reserve_text_heights), the visible symptom being clipped descenders on
 # every step title. It is now measured. These are only the ceilings, so a
 # pathological text cannot eat the whole canvas.
-_EXPL_MAX_LINES = 6
+#
+# 9, not 6: an inline derivative is drawn as a stacked fraction about two
+# text lines tall, so three ordinary sentences with formulas already need
+# 7-8 "lines" -- at 6, bitnet.ste and backprop.classic showed their
+# explanations with the last sentence cut off. _MAX_TEXT_SHARE below is the
+# guard that actually protects the canvas.
+_EXPL_MAX_LINES = 9
 _FRAME_MAX_LINES = 2
 #: Fallback width for the measurement when the label has not been laid out
 #: yet (a --demo deep link measures during __init__, before the first
@@ -202,9 +224,21 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
             PoissonImageCodingDemo(),
             LIFDynamicsDemo(),
             SurrogateGradientDemo(),
+            TimeStepsDemo(),
+            EncodingNoiseDemo(),
+            EncodingLossMismatchDemo(),
+            TdBNDemo(),
+            FiringRateRegDemo(),
+            NormalizationDemo(),
+        ],
+        "Paraconsistente": [
+            ParaconsistentPlaneDemo(),
+            ParaconsistentDPenalizedDemo(),
+            ParaconsistentGaParetoDemo(),
         ],
         "Comparação": [
             AnnBitnetSnnComparisonDemo(),
+            AutoencoderComparisonDemo(),
         ],
     }
 
@@ -489,6 +523,13 @@ class MainWindow(QMainWindow):
         self.next_demo_btn.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
         self.controls.set_fast_loop_available(demo.supports_fast_loop)
+        # The new sliders change the width the explanation label gets, but
+        # Qt applies that layout change on the NEXT event-loop pass.
+        # Measuring now would size the label for the previous demo's width,
+        # and a text that wraps to one more line at the new width would be
+        # clipped (measured: paraconsistent.plane at 1024x700, 56px of text
+        # in a 50px label). Flush the pending layout first.
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest)
         self._reserve_text_heights(demo)
         self._refresh_frame()
 

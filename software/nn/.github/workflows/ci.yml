@@ -46,6 +46,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install numpy matplotlib scipy
 
+      - name: Meeting01 PCA / mean-frame reference self-test (synthetic known-answer)
+        run: |
+          python scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py --self-test
+
       - name: Meeting01 significance self-test (synthetic known-answer)
         run: |
           python scripts/pipeline/meeting01/04_meeting01_significance_tests.py --self-test

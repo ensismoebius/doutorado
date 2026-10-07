@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <random>
 
@@ -172,6 +173,48 @@ TEST(Meeting01RecurrentGaGenome, ToGruCfgUsesWindowTimesTimeStepsForSeqLen)
     EXPECT_EQ(arch.hidden_size, 48);
     EXPECT_EQ(arch.num_layers, 3);
     EXPECT_EQ(arch.latent_size, cfg.model.latent_dim);
+}
+
+// Regression for the 2026-10-06 mask fix: train AND score a real LSTM-AE genome (the
+// train_ae / evaluate_ae path every frame-consuming family shares) on windows that
+// include zero-padded ones. Before the fix the activity mask skipped the time_steps
+// repeat, so it was T times smaller than the framed target and the first training batch
+// threw (xtensor "Incompatible dimension of arrays"): no LSTM/GRU/Transformer-AE could
+// train at all once time_steps > 1.
+TEST(Meeting01RecurrentGaFitness, TrainsAndScoresWindowsWithAZeroPaddedTail)
+{
+    auto cfg = base_cfg();
+    cfg.dataset.window_size = 16;
+    cfg.model.lstm_frame_size = 8;
+    cfg.model.time_steps = 2;
+    cfg.model.latent_dim = 4;
+    cfg.training.samples_per_batch = 1;
+    cfg.training.epochs = 1;
+    cfg.training.early_stop_patience = 1;
+    cfg.training.learning_rate = 1e-3f;
+
+    // valid samples carry a sinusoid; [valid, 16) stays 0, like the loader's padding.
+    auto window = [](float phase, int valid)
+    {
+        meeting01::Tensor w(16, 1);
+        for (nn::Index i = 0; i < valid; ++i)
+            w.at(i, 0) = std::sin(0.7f * static_cast<float>(i) + phase);
+        return w;
+    };
+    auto meta = [](int recording, int valid)
+    { return meeting01::WindowMetadata{"s", 0, recording, recording, 0, 0, valid}; };
+
+    meeting01::DatasetSplit split;
+    split.train_samples = {window(0.0f, 16), window(1.0f, 16), window(2.0f, 9)};
+    split.train_meta = {meta(0, 16), meta(1, 16), meta(2, 9)};
+    split.val_samples = {window(3.0f, 16), window(4.0f, 5)};
+    split.val_meta = {meta(3, 16), meta(4, 5)};
+
+    meeting01::ga::LstmGaIndividual ind;
+    ind.genome = RecurrentGenome{8, 1, "direct"};
+    ASSERT_NO_THROW(meeting01::ga::evaluate_individual(ind, cfg, split, 1u, 0, 1));
+    EXPECT_TRUE(std::isfinite(ind.val_mse));
+    EXPECT_GT(ind.val_mse, 0.0f);
 }
 
 TEST(Meeting01GaCheckpoint, LstmIndividualJsonRoundTripPreservesEveryField)

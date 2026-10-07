@@ -15,7 +15,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from efficient_nn_lab.app.theme import ACCENT_COLOR, CONVERGE_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, CONVERGE_COLOR, NEUTRAL_COLOR, SNN_COLOR
 from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
 
@@ -51,6 +51,10 @@ class SignalView(QWidget):
             # them equal height instead.
             self._ax_top.set_position([0.06, 0.52, 0.9, 0.37])
             self._ax_bottom.set_position([0.06, 0.06, 0.9, 0.37])
+        elif kind == "firing_rate_reg":
+            # one panel per failure mode (dead / bursting), equal weight.
+            self._ax_top.set_position([0.11, 0.56, 0.85, 0.36])
+            self._ax_bottom.set_position([0.11, 0.12, 0.85, 0.36])
         else:
             self._ax_top.set_position(self._default_top_pos)
             self._ax_bottom.set_position(self._default_bottom_pos)
@@ -64,6 +68,10 @@ class SignalView(QWidget):
             self._render_poisson_image(values)
         elif kind == "backprop_convergence":
             self._render_backprop_convergence(values)
+        elif kind == "firing_rate_reg":
+            self._render_firing_rate_reg(values)
+        elif kind == "encoding_loss_mismatch":
+            self._render_encoding_loss_mismatch(values)
         else:
             self._ax_top.text(0.5, 0.5, "(sem sinal para este passo)", ha="center", va="center")
         self._canvas.draw_idle()
@@ -247,6 +255,107 @@ class SignalView(QWidget):
             slope=float(values["slope"]), grad_z=float(values["grad_z"]),
             z_trail=np.asarray(values["z_trail"]),
         )
+
+    def _render_firing_rate_reg(self, values: dict[str, object]) -> None:
+        """Two zoomed panels, one per failure: the nearly dead neuron climbing
+        to the floor (top) and the bursting one descending to the ceiling
+        (bottom). The arrow at each tip is the regularizer's push, drawn in
+        rate units -- it visibly shrinks to nothing at the band's edge."""
+        epochs = np.asarray(values["epochs"])
+        n_total = int(values["n_total"])
+        r_min = float(values["r_min"])
+        r_max = float(values["r_max"])
+        push_reveal = float(values["push_reveal"])
+        panels = (
+            (self._ax_top, "dead", SNN_COLOR, "quase morto", (0.0, float(values["dead_top"])), r_min, "piso r_min"),
+            (self._ax_bottom, "burst", BITNET_COLOR, "em rajada", (float(values["burst_bottom"]), 1.0), r_max, "teto r_max"),
+        )
+        x_right = n_total * 1.5  # room for the tip labels
+        for ax, key, color, name, (lo, hi), edge, edge_name in panels:
+            rates = np.asarray(values[f"rate_{key}"])
+            push = float(values[f"push_{key}"])
+            loss = float(values[f"loss_{key}"])
+            ax.axhspan(r_min, r_max, color=CONVERGE_COLOR, alpha=0.13)
+            ax.axhline(edge, color=NEUTRAL_COLOR, linestyle="--", linewidth=1)
+            ax.text(
+                0.3, edge, f"{edge_name} = {edge:.2f}", va="bottom" if key == "dead" else "top",
+                fontsize=8, color=NEUTRAL_COLOR,
+            )
+            ax.plot(epochs, rates, color=color, linewidth=2, marker="o", markersize=3.5)
+            if len(epochs):
+                tip_x, tip_y = float(epochs[-1]), float(rates[-1])
+                ax.plot([tip_x], [tip_y], marker="o", markersize=8, color=color, zorder=4)
+                ax.text(
+                    tip_x + 0.6, tip_y, f"{name}: taxa {tip_y:.3f}\nL_reg = {loss:.5f}",
+                    va="center", fontsize=8, color=color, weight="bold",
+                )
+                if push_reveal > 0.02 and abs(push) > 1e-4:
+                    ax.annotate(
+                        "", xy=(tip_x, tip_y + push), xytext=(tip_x, tip_y),
+                        arrowprops=dict(arrowstyle="-|>", color=ACCENT_COLOR, linewidth=2.2, alpha=push_reveal),
+                    )
+            ax.set_yscale("linear")  # backprop_convergence leaves the bottom axis log-scaled otherwise
+            ax.set_ylim(lo, hi)
+            ax.set_xlim(0, x_right)
+            ax.set_ylabel("taxa média")
+        self._ax_top.set_title("Faixa alvo (verde): o regularizador só empurra quem está fora dela", fontsize=9.5)
+        self._ax_bottom.set_xlabel("época")
+
+    def _render_encoding_loss_mismatch(self, values: dict[str, object]) -> None:
+        """Top: WHERE each unit fires (the thing a latency code carries).
+        Bottom: what the training loss REPORTS for that same run. The
+        failure shows up as the two panels disagreeing."""
+        iterations = np.asarray(values["iterations"])
+        n_total = int(values["n_total"])
+        time_steps = int(values["time_steps"])
+        target_frame = float(values["target_frame"])
+        never_reveal = float(values["never_reveal"])
+        runs = (
+            (np.asarray(values["frame_a"]), np.asarray(values["loss_a"]), values["label_a"], CONVERGE_COLOR),
+            (np.asarray(values["frame_b"]), np.asarray(values["loss_b"]), values["label_b"], SNN_COLOR),
+        )
+
+        top, bottom = self._ax_top, self._ax_bottom
+        top.axhline(target_frame, color=CONVERGE_COLOR, linestyle="--", linewidth=1.2)
+        top.text(
+            0.2, target_frame - 0.3, f"alvo: quadro {target_frame:g}", ha="left", va="top", fontsize=8,
+            color=CONVERGE_COLOR,
+        )
+        if never_reveal > 0.02:
+            top.axhline(time_steps, color=SNN_COLOR, linestyle=":", linewidth=1.4, alpha=never_reveal)
+            top.text(
+                0.2, time_steps + 0.3, f"t = T = {time_steps}: nunca disparou", ha="left", va="bottom",
+                fontsize=8, color=SNN_COLOR, alpha=never_reveal,
+            )
+        # Labelled at the moving tip rather than in a legend: any legend
+        # corner sits on one of the two runs in one of the two acts.
+        for index, (frames, losses, label, color) in enumerate(runs):
+            top.step(iterations, frames, where="post", color=color, linewidth=2.2)
+            bottom.step(iterations, losses, where="post", color=color, linewidth=2.2)
+            if not len(iterations):
+                continue
+            above = index == 1
+            top.plot([iterations[-1]], [frames[-1]], marker="o", markersize=8, color=color, zorder=4)
+            top.text(
+                iterations[-1] + 0.25, frames[-1] + (0.4 if above else -0.4), f"{label}: quadro {frames[-1]:g}",
+                ha="left", va="bottom" if above else "top", fontsize=8, color=color, weight="bold",
+            )
+            bottom.plot([iterations[-1]], [losses[-1]], marker="o", markersize=7, color=color, zorder=4)
+            bottom.text(
+                iterations[-1] + 0.25, losses[-1], f"{losses[-1]:g}", va="center", fontsize=8.5,
+                color=color, weight="bold",
+            )
+        x_right = n_total * 1.4  # room for the tip labels past the last epoch
+        top.set_xlim(0, x_right)
+        top.set_ylim(-0.5, time_steps + 1.5)
+        top.set_ylabel("quadro do 1º disparo")
+        top.set_title(values["act_title"], fontsize=9.5)
+
+        bottom.set_yscale("linear")  # backprop_convergence leaves this axis log-scaled otherwise
+        bottom.set_xlim(0, x_right)
+        bottom.set_ylim(-0.08 * float(values["loss_max"]), float(values["loss_max"]) * 1.15)
+        bottom.set_ylabel("perda reportada")
+        bottom.set_xlabel("época")
 
     def _draw_sigmoid_inset(
         self, rect: tuple[float, float, float, float], z: float, y: float, slope: float, grad_z: float,

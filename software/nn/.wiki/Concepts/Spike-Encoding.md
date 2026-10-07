@@ -18,19 +18,30 @@ where $\sigma$ is a normalising function and $f_\text{max}$ is the maximum firin
 
 ### Latency Coding (Time-to-First-Spike)
 
-In latency coding, input magnitude is represented by the **time of the first spike** [32]:
+In latency coding, input magnitude is represented by the **time of the first spike** [32].
+Both encoders in this codebase — `meeting01`'s `encode_sample` (`Meeting01Encoding.cpp`) and
+the thesis pipeline's `spike_frame` (`ThesisFeatureExtractionInternal.hpp`) — first min-max
+scale the window to $x \in [0, 1]$, then fire at
 
-$$t_\text{spike}(x) = T - \lfloor x \cdot T \rfloor$$
+$$t_\text{spike}(x) = \operatorname{round}\big((1 - x)\,(T - 1)\big), \qquad t \in \{0, \dots, T-1\}$$
 
-- High input → early spike (small $t$)
-- Low input → late spike (large $t$) or no spike ($t = T$)
-- Information is carried in a single spike per neuron → highly energy-efficient
+rounding half away from zero (`std::llround` / `std::lround`).
+
+- High input → early spike: $x = 1$ fires at frame $0$.
+- Low input → late spike: $x = 0$ fires at the last frame, $T-1$. The encoder never
+  withholds a spike; "no spike" is a property of a network's *output* neurons (below).
+- Worked numbers at $T = 16$: $x = 0.8 \to$ frame $3$, $0.4 \to 9$, $0.2 \to 12$. Avoid
+  example values whose $(1-x)(T-1)$ lands on $.5$ (e.g. $0.9 \to 1.5$): float rounding then
+  decides the frame, and the float32 C++ and a float64 re-implementation disagree.
+- Same spike time, two shapes: `meeting01` emits **one** spike per input neuron (the
+  information sits in a single event → highly energy-efficient); the thesis encoder keeps
+  the neuron on from $t_\text{spike}$ to the end of the window.
 
 For reconstruction tasks, the decoder receives the first-spike time and reconstructs the original signal.
 
 ### The No-Spike Problem
 
-Latency coding represents a value as *when* a spike happens — but if the input is low enough (or the network hasn't learned to fire yet), the first-spike time is undefined: the neuron never crosses threshold within the window. $t_\text{spike}=T-\lfloor x\cdot T\rfloor$ degenerates to $t=T$ as $x\to 0$, so this is the natural limiting case of the encoding, not a corner case that can be designed away [32].
+Latency coding represents a value as *when* a spike happens — but a network's own output neurons are not bound by the encoder's formula. An output neuron whose drive stays low (or a network that has not learned to fire yet) may never cross threshold within the window, and then its first-spike time is undefined. The input encoder never produces this case — $x = 0$ still fires at $t = T-1$ — so it cannot be designed away at the encoder: it belongs to the trained network's outputs, and the loss has to define it [32].
 
 `SpikeTimeLoss` (`include/layers/losses/SpikeTimeLoss.hpp`) resolves this by definition rather than by special-casing it:
 
@@ -41,7 +52,7 @@ for (int t = 0; t < T; ++t)
     if (spikes.at(t * B + b, f) > 0.5f) { fst = static_cast<float>(t); break; }
 ```
 
-A never-firing unit is scored as if it had fired at the last possible step ($t=T$). This keeps the MSE term finite — an undefined time would otherwise force a NaN or an arbitrary infinite penalty — but it also means "never fires" and "fires at the very last step" are indistinguishable to the loss. If that distinction matters for a given task, $T$ needs to be tuned so the two cases are close enough in practice not to matter, or the loss needs to be replaced.
+A never-firing unit is scored as if it had fired one step after the last frame ($t=T$; frames run $0..T-1$). This keeps the MSE term finite — an undefined time would otherwise force a NaN or an arbitrary infinite penalty — but it also means "never fires" costs only one step more than "fires on the very last frame" ($T$ vs. $T-1$): the loss can barely tell them apart. If that distinction matters for a given task, $T$ needs to be tuned so the two cases are close enough in practice not to matter, or the loss needs to be replaced.
 
 **A sharper consequence shows up in the backward pass**, and it is not just a "smaller penalty" — it is a dead end for gradient flow:
 
@@ -230,7 +241,7 @@ flowchart TB
     end
 
     subgraph LatencyCoding["Latency Coding path"]
-        latency_enc["Latency encoder\nt_spike = T - round(x·T)"]
+        latency_enc["Latency encoder\nt_spike = round((1 − x)(T − 1))"]
         latency_spikes["Single-spike train s ∈ {0,1}^(T×F)"]
         time_loss["SpikeTimeLoss\nMSE on first-spike times"]
     end

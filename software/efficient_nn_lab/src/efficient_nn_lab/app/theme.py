@@ -36,6 +36,7 @@ SNN_COLOR = "#E61F00"  # vermillion-red, contrast 4.6:1 on white
 CONVERGE_COLOR = "#008752"  # bluish green, contrast 4.6:1 on white
 NEUTRAL_COLOR = "#5B6472"  # darker grey -- was too light to contrast against white
 ACCENT_COLOR = "#966E00"  # deep amber/gold, contrast 4.6:1 on white
+PARACONSISTENT_COLOR = "#A36186"  # reddish-purple (Okabe-Ito family), contrast 4.55:1 on white
 
 BACKGROUND = "#FFFFFF"
 PANEL_BACKGROUND = "#EDF1F8"  # cooler, slightly more saturated than pure grey

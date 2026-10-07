@@ -119,6 +119,36 @@ def test_every_demo_equation_is_really_parsed_as_math(qapp):
                 ) from None
 
 
+def test_every_demo_explanation_fragment_is_really_parsed_as_math(qapp):
+    """The explanation-panel counterpart of the test above.
+
+    ``test_every_demo_explanation_fragment_translates`` only calls latexize,
+    which never raises -- so a fragment written as ``$\\mu = 4$`` passed it
+    even though latexize turns the word ``mu`` into ``\\mu`` and the
+    pre-escaped input into ``\\\\mu``, which mathtext rejects; the label then
+    falls back to rendering the raw string. Ten explanations of the
+    thesis/paraconsistent demos shipped that way. Fragments are stripped
+    first because _explanation_to_html strips them before rendering.
+    """
+    from matplotlib import mathtext
+
+    parser = mathtext.MathTextParser("agg")
+    for demo in _all_demos():
+        fragments = {
+            match.group(1).strip()
+            for frame in demo._frames
+            for match in re.finditer(r"\$([^$]+)\$", frame.explanation or "")
+        }
+        for fragment in fragments:
+            translated = latexize(fragment)
+            try:
+                parser.parse(f"${translated}$")
+            except Exception as exc:  # noqa: BLE001 - report which one and why
+                raise AssertionError(
+                    f"{demo.slug}: {fragment!r} -> {translated!r} rejeitada: {exc}"
+                ) from None
+
+
 @pytest.mark.parametrize(
     "raw, expected",
     [

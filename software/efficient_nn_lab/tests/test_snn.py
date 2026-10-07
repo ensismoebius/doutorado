@@ -3,18 +3,26 @@ import pytest
 
 from efficient_nn_lab.snn.encoding import (
     direct_threshold_spikes,
+    first_spike_time,
+    latency_quantization_error,
+    latency_spike_time,
     load_grayscale_image,
+    poisson_noise_sigma,
     poisson_spike_frames,
     poisson_spikes,
     spike_probability,
+    spike_time_grad_is_live,
 )
 from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
+from efficient_nn_lab.snn.normalization import fit_zscore, leaky_fit_zscore, zscore
+from efficient_nn_lab.snn.rate_reg import rate_reg_loss, rate_reg_push
 from efficient_nn_lab.snn.surrogate import (
     fast_sigmoid,
     fast_sigmoid_surrogate,
     heaviside,
     heaviside_derivative,
 )
+from efficient_nn_lab.snn.tdbn import tdbn_transform
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
 from efficient_nn_lab.snn.demos.poisson_image_coding import _IMAGE_PATH, PoissonImageCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
@@ -211,3 +219,84 @@ def test_surrogate_gradient_demo_sweeps_gradient_and_sigmoid_together():
     # morph, unlike the old height-tweening design this replaces.
     np.testing.assert_array_equal(mid_tween.values["sigmoid"], checkpoints[3].values["sigmoid"])
     np.testing.assert_array_equal(mid_tween.values["surrogate"], checkpoints[3].values["surrogate"])
+
+
+# -- tdBN: verified against software/nn's own worked numeric example
+# (.wiki/Concepts/Threshold-Dependent-Batch-Normalization.md) --------------
+def test_tdbn_transform_matches_wiki_worked_example():
+    x = np.array([0.0, 2.0, 4.0, 6.0])
+    y_vth1 = tdbn_transform(x, v_th=1.0)
+    np.testing.assert_allclose(y_vth1, [-1.3416, -0.4472, 0.4472, 1.3416], atol=1e-4)
+    y_vth2 = tdbn_transform(x, v_th=2.0)
+    np.testing.assert_allclose(y_vth2, [-2.6833, -0.8944, 0.8944, 2.6833], atol=1e-4)
+
+
+# -- firing-rate regularization (.wiki/Concepts/Spike-Rate-Regularization.md)
+def test_rate_reg_pushes_below_floor_rate_upward():
+    push = rate_reg_push(mean_rate=0.02, lambda_reg=0.5, r_min=0.05)
+    assert push > 0.0
+
+
+def test_rate_reg_no_push_inside_band():
+    assert rate_reg_push(mean_rate=0.3, lambda_reg=0.5, r_min=0.05, r_max=0.8) == pytest.approx(0.0)
+    assert rate_reg_loss(mean_rate=0.3, lambda_reg=0.5, r_min=0.05, r_max=0.8) == pytest.approx(0.0)
+
+
+def test_rate_reg_pushes_above_ceiling_downward():
+    push = rate_reg_push(mean_rate=0.95, lambda_reg=0.5, r_max=0.8)
+    assert push < 0.0
+
+
+# -- encoding noise floor / no-spike guard (.wiki/Concepts/Spike-Encoding.md)
+def test_poisson_noise_sigma_worst_case_at_t16():
+    assert poisson_noise_sigma(16) == pytest.approx(0.125, abs=1e-9)
+
+
+def test_latency_quantization_error_is_half_the_level_spacing():
+    # T frames 0..T-1 hold T levels spaced 1/(T-1) apart (round((1-x)(T-1)),
+    # the formula of both software/nn encoders) -> worst error 0.5/(T-1).
+    assert latency_quantization_error(16) == pytest.approx(0.5 / 15, abs=1e-12)
+    assert latency_quantization_error(16) == pytest.approx(0.0333, abs=1e-4)
+    with pytest.raises(ValueError):
+        latency_quantization_error(1)
+
+
+def test_latency_spike_time_matches_the_software_nn_encoders():
+    # t = round((1 - x) * (T - 1)), frames 0..T-1 (Meeting01Encoding.cpp,
+    # ThesisFeatureExtractionInternal.hpp); every value fires exactly once.
+    assert [latency_spike_time(x, time_steps=16) for x in (1.0, 0.8, 0.4, 0.2, 0.0)] == [0, 3, 9, 12, 15]
+    # half away from zero, like std::llround -- Python's round(7.5) is 8 too,
+    # but round(0.5) would be 0, so T=2 at x=0.5 pins the rounding rule.
+    assert latency_spike_time(0.5, time_steps=2) == 1
+
+
+def test_first_spike_time_never_fires_defaults_to_t():
+    assert first_spike_time(np.zeros(16), time_steps=16) == 16
+    assert first_spike_time(np.array([0, 0, 1, 0]), time_steps=4) == 2
+
+
+def test_spike_time_grad_is_live_false_exactly_at_no_spike_deadlock():
+    assert spike_time_grad_is_live(predicted_time=5, time_steps=16) is True
+    assert spike_time_grad_is_live(predicted_time=16, time_steps=16) is False
+
+
+# -- normalization: per-feature (fit-once) vs per-window, and the leaky-fit
+# hazard (thesis chapter 07, sec:normalizacaoEntrada) ----------------------
+def test_zscore_worked_examples():
+    """The thesis's own numbers (chapter 07): the audio training column
+    [2, 4, 4, 6] scores a test x = 5 as 0.7071; the EEG window
+    [10, 12, 14, 16] uV scores its first sample as -1.3416."""
+    mean, std = fit_zscore(np.array([2.0, 4.0, 4.0, 6.0]))
+    assert (mean, std**2) == pytest.approx((4.0, 2.0))
+    assert zscore(5.0, mean, std) == pytest.approx(0.7071, abs=1e-4)
+    mean, std = fit_zscore(np.array([10.0, 12.0, 14.0, 16.0]))
+    assert (mean, std**2) == pytest.approx((13.0, 5.0))
+    assert zscore(10.0, mean, std) == pytest.approx(-1.3416, abs=1e-4)
+
+
+def test_leaky_fit_differs_from_train_only_fit():
+    train = np.array([1.0, 2.0, 3.0])
+    test = np.array([100.0, 101.0])
+    train_only = fit_zscore(train)
+    leaky = leaky_fit_zscore(train, test)
+    assert train_only != leaky

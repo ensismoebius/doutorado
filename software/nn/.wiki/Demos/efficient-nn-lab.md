@@ -5,8 +5,11 @@ animates BitNet quantization and spiking-neural-network mechanics, one step at a
 one-hour undergraduate lecture. It is **not** part of the C++ `nn` library and shares no code
 with it — it is the live companion to the LaTeX deck in
 `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`, opened on stage at the moment the
-matching slide is on screen. 14 demos, 1810 precomputed frames, zero randomness at playback
-time.
+matching slide is on screen. 24 demos across 5 groups, 1874 precomputed frames, zero
+randomness at playback time. The newest group, **Paraconsistente**, bridges in the author's
+own PhD thesis (da Costa paraconsistent feature engineering, `software/nn`'s
+`include/paraconsistent/`) and its reuse, as an explicit extension this lab makes rather than
+something the thesis itself does, to rank architectures in `paraconsistentGA`'s NSGA-II search.
 
 ## The problem it solves
 
@@ -99,7 +102,7 @@ how a demo maps onto a widget, routed by the `kind` tag every frame carries.
 ### Structure
 
 ```
-MainWindow ── tree (14 demos) ── ControlsWidget ── signals only, no demo access
+MainWindow ── tree (24 demos, 5 groups) ── ControlsWidget ── signals only, no demo access
      │
      ├── StepPlayer  (the only QTimer: 40 ms tick, 1100 ms dwell at checkpoints)
      │        └── DemoModule ── [Frame, Frame, ...]   precomputed, deterministic
@@ -117,7 +120,7 @@ flowchart TD
     P["Demo parameters<br/>(sliders: w, tau, target...)"] --> B["_build_frames()<br/>deterministic, no RNG"]
     B --> C["checkpoints<br/>named steps"]
     C --> T["build_sequence()<br/>+ tween frames"]
-    T --> L["Frame list<br/>1810 frames across 14 demos"]
+    T --> L["Frame list<br/>1874 frames across 24 demos"]
     L --> S["StepPlayer<br/>40 ms tick / 1100 ms dwell"]
     S --> M["MainWindow._refresh_frame()<br/>routes on values['kind']"]
     M --> V["SignalView / WeightView / NeuronView<br/>render(values)"]
@@ -130,7 +133,7 @@ flowchart TD
 # software/efficient_nn_lab/
 ./run.sh                          # opens on the welcome screen
 ./run.sh --demo snn.lif           # deep-link straight to one demo (slug)
-python -m pytest -q               # 365 tests
+python -m pytest -q               # 509 tests
 ```
 
 The deck's PDF links call the same entry point, so a `run:` link on a slide opens the lab on
@@ -158,7 +161,7 @@ class MyDemo(DemoModule):
         ])
 ```
 
-## The 14 demos
+## The 24 demos
 
 Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoints, not frames.
 
@@ -177,7 +180,17 @@ Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoi
 | `snn.poisson_image` | Codificação Poisson (imagem) | Como fica a esparsidade num caso real, pixel a pixel? | 30 |
 | `snn.lif` | LIF | Como um neurônio LIF integra, dispara e reseta? | 13 |
 | `snn.surrogate` | Surrogate gradient | Como se treina através de uma função em degrau? | 5 |
+| `snn.timesteps` | time_steps × delta_t | "Quantos quadros" x "quanto dura um quadro" — e por que a ordem das linhas no tensor `(T*B,F)` importa? | 8 |
+| `snn.encoding_noise` | Ruído estrutural da codificação | "Direta > latência > Poisson" é informação real ou só o chão de ruído de cada codificação? | 6 |
+| `snn.encoding_loss_mismatch` | Perda incompatível com a codificação | Por que a perda tem de medir onde a codificação guarda o valor — e por que uma unidade de latência que nunca dispara trava `SpikeTimeLoss`? | 5 |
+| `snn.tdbn` | tdBN | Por que BatchNorm comum cala a camada com `V_th = 2`, e como tdBN torna a fração acima do limiar independente de `V_th`? | 4 |
+| `snn.firing_rate_reg` | Regularização de taxa de disparo | Como a penalidade traz de volta à faixa alvo um neurônio quase morto e um em rajada? | 4 |
+| `snn.normalization` | Normalização: por característica × por janela | Por que áudio normaliza cada característica uma vez (treino) e EEG a cada janela — e por que só o caminho ajustado vaza? | 5 |
+| `paraconsistent.plane` | Plano paraconsistente | Onde (α, β) caem no plano paraconsistente, e quão perto de Verdade? | 4 |
+| `paraconsistent.dpenalized` | D_truth × D_penalized | Por que um extrator "morto" passa à frente de um fraco porém real em `D_truth`, e como `D_penalized` corrige isso? | 7 |
+| `paraconsistent.ga_pareto` | Busca genética de arquiteturas (extensão) | Dominância, fronteira de Pareto e teto de latência (Deb) numa busca NSGA-II com `D_penalized` — fora da monografia, como no `paraconsistentGA`. | 6 |
 | `comparison` | ANN × BitNet × SNN | Em que os três diferem? | 8 |
+| `comparison.autoencoders` | Autoencoders (SNN × LSTM × GRU × Transformer) | Como o Meeting01 compara as quatro famílias sem trapacear: mesmo gargalo, mesmo alvo, referências média e PCA (PCA real; famílias sem números inventados)? | 7 |
 
 `snn.poisson_image` is the only demo that offers **Loop rápido** — continuous, dwell-free
 playback that wraps at the end (~1,2 s per lap versus ~33 s for a normal `Play` pass). It earns

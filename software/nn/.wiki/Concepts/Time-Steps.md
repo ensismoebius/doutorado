@@ -43,11 +43,15 @@ One EEG or voice sample is pooled to 256 numbers, then expanded into `T` frames 
 neuron fires:
 
 ```
-feature = 0.9 (strong) -> fires early:   ▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁    frame 1
-feature = 0.5 (medium) -> fires middle:  ▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁    frame 7
-feature = 0.1 (weak)   -> fires late:    ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁    frame 14
-                                         └──── 16 frames ────┘
+feature = 0.8 (strong) -> fires early:   ▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁    frame 3
+feature = 0.4 (medium) -> fires middle:  ▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁    frame 9
+feature = 0.2 (weak)   -> fires late:    ▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁    frame 12
+                                         └─ 16 frames, 0..15 ─┘
+              t_spike = round((1 - x) * (T - 1)) -- the encoder both experiments use
 ```
+
+(Frames count from 0. The example values make `(1 - x)·15` a whole number on purpose: at
+`x = 0.9` it is exactly 1.5, and float rounding — not the formula — picks frame 1 or 2.)
 
 That 16 is `time_steps`. One sample now occupies **16 rows**, not one.
 

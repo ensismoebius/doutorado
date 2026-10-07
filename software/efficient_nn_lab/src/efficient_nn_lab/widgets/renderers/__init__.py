@@ -7,11 +7,14 @@ the split changes where the code lives, not how it is called.
 """
 
 from efficient_nn_lab.widgets.renderers._painting import PaintingMixin
+from efficient_nn_lab.widgets.renderers.autoencoder_comparison import AutoencoderComparisonRendererMixin
 from efficient_nn_lab.widgets.renderers.chain_layers import ChainLayersRendererMixin
 from efficient_nn_lab.widgets.renderers.comparison import ComparisonRendererMixin
 from efficient_nn_lab.widgets.renderers.matrix_algebra import MatrixAlgebraRendererMixin
 from efficient_nn_lab.widgets.renderers.mlp import MlpNetworkRendererMixin
+from efficient_nn_lab.widgets.renderers.normalization import NormalizationRendererMixin
 from efficient_nn_lab.widgets.renderers.pipelines import PipelineRenderersMixin
+from efficient_nn_lab.widgets.renderers.timesteps import TimestepsRendererMixin
 
 __all__ = [
     "PaintingMixin",
@@ -20,4 +23,7 @@ __all__ = [
     "ChainLayersRendererMixin",
     "PipelineRenderersMixin",
     "ComparisonRendererMixin",
+    "TimestepsRendererMixin",
+    "AutoencoderComparisonRendererMixin",
+    "NormalizationRendererMixin",
 ]

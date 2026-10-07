@@ -103,8 +103,8 @@ One process per **(dataset, fold)**:
 ```bash
 cd software/nn
 EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
-# loops --dataset {fsdd,audiomnist,mitbih} --cv-fold 0..5, then 03_ (PCA/mean)
-# → 02_ (paper tables) → 04_ (recording-level significance).
+# loops --dataset {fsdd,audiomnist,eegmmidb,siena} --cv-fold 0..5, then 03_ (PCA/mean,
+# k = each dataset's latent_dim) → 02_ (paper tables) → 04_ (recording-level significance).
 ```
 
 Outputs are tagged `meeting01_loso_<dataset>_fold<f>_*`. Weeks-scale even with the
@@ -262,8 +262,10 @@ be registered last in the FastAPI app (it catches `/*`).
 - `02_meeting01_build_loso_paper_data.py` → `paper_loso_<ds>_{summary,recon_by_encoding,mse_plot}.csv`
   + `paper_loso_<ds>_snn_selection.tex` (mean ± std over 5 seeds; best cell bolded).
 - Model inventory: **four trained families** (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE)
-  + PCA and mean-frame references. SNN `dense/conv1d/recurrent` are *input transforms*
-  selected per fold, not families.
+  + PCA (`k` = the dataset's `latent_dim`) and mean-frame references, fitted on train ∪ val
+  and scored against the analog window like the families — see
+  [The References Were Scored Against the Wrong Thing](#the-references-were-scored-against-the-wrong-thing-found--fixed-2026-10-06).
+  SNN `dense/conv1d/recurrent` are *input transforms* selected per fold, not families.
 - Paper: `documentation/07-articlesProduced/meeting01/paper.tex`
   (`\resultsForDataset` macro, one block per dataset).
 
@@ -459,6 +461,8 @@ be registered last in the FastAPI app (it catches `/*`).
 > the Transformer-AE as before — `parameter_count_gtest.cpp` already verifies GRU-AE has
 > fewer parameters than LSTM-AE at matched dims (3 gates vs. 4), and the SNN-AE carries its
 > own biophysical parameters ($R$, $C$, $V_{th}$) with no non-spiking analogue.
+> *(Superseded 2026-09-23: only $d$ is still shared, per dataset — 16 audio, 64 EEG — and
+> $H$ is a searched gene; see [`latent_dim` is fixed, not evolved](#latent_dim-is-fixed-not-evolved--on-purpose).)*
 >
 > **Verified.** New direct coverage for `Meeting01Encoding.cpp` (`meeting01_encoding_gtest`,
 > previously zero) plus new `ArcTanSurrogate` unit + `LifBPTT` integration tests
@@ -572,7 +576,7 @@ on reconstruction quality alone.
 | `src/core/training/Trainer.hpp` | **Core framework.** New `reset_model_state()` (calls `reset_state()` when the model has it) invoked before all four `forward()` sites; new `stack_time_major(parts)` building `(T*B, F)` with `out.at(t*B + b, f)`, throwing on shape disagreement and degenerating to the old `(B, F)` stacking at `T == 1`. Fixes B3 for every experiment, not just this one. |
 | `Meeting01Encoding.cpp` | `encode_sample(sample, encoding, seed, time_steps)` → `(T, F)` time-major; throws below `T = 2`. `latency` = exactly one spike per feature at `t_f = round((1 − scaled_f)·(T − 1))`; `poisson` = T Bernoulli draws per feature; `direct` holds the analog value at every step. New `make_reconstruction_target` and `reduce_time_major_output`. `conv1d_temporal_smooth` now smooths along the signal axis (columns) after the relayout. |
 | `Meeting01Training.cpp` | `make_snn_cfg` finally assigns `voltage_threshold` (B4) and sets `time_steps` from config, `delta_t = 1`, `R = 1`, `C = −1/ln(alpha)` so `beta = exp(−Δt/RC) = alpha` exactly. SNN training moved from `fit_autoencoder` to `fit_supervised` with explicit `(encoded, target)` pairs. |
-| `Meeting01AeCommon.hpp`, `Meeting01Evaluation.cpp` | `evaluate_ae` / `per_window_errors_ae` / `evaluate_lstm` / `evaluate_snn` / `per_window_errors_snn` all take `time_steps` and score against the original-signal target. Baselines keep the `to_lstm_frames` framing of the `(T, F)` tensor, so LSTM/GRU/Transformer parameter counts and the H=64 / latent=32 matching with the SNN are unchanged. |
+| `Meeting01AeCommon.hpp`, `Meeting01Evaluation.cpp` | `evaluate_ae` / `per_window_errors_ae` / `evaluate_lstm` / `evaluate_snn` / `per_window_errors_snn` all take `time_steps` and score against the original-signal target. Baselines keep the `to_lstm_frames` framing of the `(T, F)` tensor, so LSTM/GRU/Transformer parameter counts and the H=64 / latent=32 matching with the SNN are unchanged. *(Superseded 2026-09-23: `latent_dim` is per dataset — 16 audio, 64 EEG — and `H` is a searched gene; see [`latent_dim` is fixed, not evolved](#latent_dim-is-fixed-not-evolved--on-purpose).)* |
 | `Meeting01GaSearch.cpp` | `tournament()` throws instead of spinning forever when the exclusion is unsatisfiable (H1). Winner's-curse mitigation (H5): each final Pareto-front member is re-scored on `winner_seeds` seeds and its `val_mse` replaced by the mean. |
 | `Meeting01Config.cpp` | Rejects `time_steps < 2`, `winner_seeds < 1`, and `population_size < 2` combined with `generations ≥ 1` — the last used to validate cleanly and then hang forever in `tournament()`. |
 | `Meeting01Metrics.cpp` | New `estimate_snn_macs(input_features, encoder_widths, time_steps)` summing real per-layer projections × steps. The old `(hidden_size, layers)` proxy gave `{128, 8}` and `{128, 120}` the same cost, so the GA's second objective could not tell a cheap architecture from an expensive one (H3). |
@@ -731,6 +735,150 @@ no membrane dynamics, an inert `alpha`, an unset `voltage_threshold`, a latency 
 emitting ~1 spike per window, and an encoding-dependent target. They are not a weaker
 version of the current result — they measure a different object. Treat them as historical
 until the LOSO pipeline is rerun.
+
+---
+
+## The References Were Scored Against the Wrong Thing (found + fixed 2026-10-06)
+
+### Start with the question a reference answers
+
+A trained family's test MSE of, say, 0.90 says nothing on its own. Is 0.90 good? The paper
+answers with two references, scored on the same held-out windows:
+
+```
+mean-frame   x_hat = mu                         "knows no structure at all"
+PCA          x_hat = mu + (x - mu) V_k V_k^T    "the best LINEAR code through a k-wide hole"
+```
+
+The primary estimand pairs every family against them per recording,
+`d_r = MSE_family(r) − MSE_PCA(r)`. A negative `d_r` means "this family beat every linear
+compression through the same bottleneck" — but only if PCA is built exactly like the
+families: same hole, same target, same data, same metric. Until 2026-10-06 it matched on
+none of the four.
+
+### Same reference, two constructions
+
+| | Families | References until 2026-10-06 | Bias on `d_r` | Loud or silent |
+|---|---|---|---|---|
+| hole `k` | the dataset's `latent_dim`: 16 (fsdd, audiomnist), 64 (eegmmidb, siena) | `--latent 32` for every dataset | audio: PCA twice as wide → too strong; EEG: half → too weak | **Silent** |
+| target | the analog window `x` (the B2 fix above) | the **encoded** window, per encoding — 0/1 spikes under poisson/latency | reference error far too low → every family looks worse | **Silent** |
+| fit data | final fit on (train \ monitor) ∪ val, early-stopped on monitor ⊂ train | train only | reference a little weaker → families look better | **Silent** |
+| metric | masked: zero-padded samples excluded | unmasked | small, only on a recording's last window | **Silent** |
+| re-runs | — | rows **appended**: every `RESUME=1` re-run duplicated them | none on means; mixed `k` if the flag changed in between | **Silent** |
+
+B2 was fixed for the four families on 2026-09-22 — they reconstruct the analog window. The
+reference dump (`dump_analytic_baseline_inputs`) was not part of that fix and kept writing
+`encode_sample(x)`, so the references were still scored the B2 way.
+
+### In numbers (real FSDD fold 0, the 2026-09-23 dumps)
+
+Measured on the only real dumps on disk (`results/meeting01/meeting01_loso_fsdd_fold0_*`:
+200 train / 1500 test windows; no val dump existed, so every row is a train-only fit). The
+old per-encoding targets have very different variances, and `04_` paired each family
+against their pool:
+
+| target the reference was scored on | target variance | zeros | mean-frame MSE | PCA MSE |
+|---|---|---|---|---|
+| direct (= the analog window) | 1.000 | 0 % | 1.356 | 0.717 (k = 32) |
+| poisson spikes | 0.194 | 62.4 % | 0.346 | 0.244 (k = 32) |
+| latency spikes | 0.059 | 93.8 % | 0.082 | 0.065 (k = 32) |
+| **pooled — what `04_` paired against** | | | **0.595** | **0.342** |
+| **correct: analog window, k = 16** | 1.000 | 0 % | **1.356** | **1.068** |
+
+A family with test MSE 0.90 on this fold:
+
+```
+old   d_r = 0.90 − 0.342 = +0.56    "loses to PCA, badly"
+new   d_r = 0.90 − 1.068 = −0.17    "beats PCA"
+```
+
+The sign flips, and nothing along the way crashed, warned or looked odd: 0.34 is a
+perfectly plausible PCA error.
+
+### Why neither T nor the encoding enters the reference
+
+Every family is scored against `make_reconstruction_target(x, T)`, the window repeated over
+the `T` simulation steps (then reframed for the sequence models — a fixed reshuffle of the
+same entries). A reference predicts the same `x_hat` at every step:
+
+```
+target   x0  x1  ... x255 | x0  x1  ... x255 | ...   (T copies)
+recon    x̂0  x̂1  ... x̂255 | x̂0  x̂1  ... x̂255 | ...
+MSE      mean over T·256 entries  =  mean over the 256 of one copy
+```
+
+So one reference value per window serves every encoding. `03_` still writes it once per
+encoding of the profile — the same number each time — because `02_`/`04_` pair rows by
+encoding label.
+
+### Padding is missing data, not zeros
+
+A recording's last window is zero-padded after `valid_length` real samples:
+
+| step | what a padded sample does |
+|---|---|
+| position mean `mu` | nothing — averaged over real samples only |
+| PCA fit | replaced by `mu`: its centred value is 0, so it adds no variance and pulls no axis |
+| PCA projection of a test window | replaced by `mu`: contributes nothing to the code |
+| error | excluded, with the same activity mask as the families |
+
+`03_ --self-test` checks it directly: junk (1e6) in a padded tail, at fit or at test time,
+changes no number.
+
+### What changed, file by file
+
+| File | Change |
+|---|---|
+| `Meeting01Output.{hpp,cpp}` | New `write_reference_inputs`: per fold, `<tag>_fold<f>_target_{train,val,test}_windows.npy` (float32, `(N, window_size)`, sample order) + `_meta.csv` with `valid_length`. Throws on an empty part, ragged windows, an impossible `valid_length`, an unwritable file. |
+| `Meeting01Experiment.cpp` | Writes them once per fold at fold start, replacing the per-encoding encoded dumps (~84 MB/fold). The split manifest records `latent_dim` and `window_size`. `resolve_dataset_config` factored out of the loop. New `--dump-reference-inputs-only` mode (below). |
+| `Meeting01Cli.cpp` | Parses `--dump-reference-inputs-only`. **Unknown arguments now throw**: a misspelt dump flag used to fall through to a full training run that truncates the fold's events log. |
+| `03_meeting01_pca_mean_baselines.py` | Rewritten. `--profile` (required) gives `k` per dataset by the binary's own resolution chain, cross-checked against every fold's manifest; fits on train ∪ val; masks; refuses mismatched dumps, manifests or test windows (all folds checked before anything is written); replaces its own rows atomically; `--self-test`, wired into CI. |
+| `01_meeting01_run_loso.sh` | `--profile "$PROFILE"` instead of `--latent 32`; header rewritten for the NSGA-II pipeline. |
+
+### A run made by an older binary
+
+Its folds have no `_target_*` dumps, so `03_` stops and prints, per fold:
+
+```bash
+meeting01 --comparative-config <the run's profile> --dataset <d> --cv-fold <f> --dump-reference-inputs-only
+```
+
+That rebuilds the split and writes **only** the six target files — no training, no events
+file (opening it would truncate the run's log), no manifest or CSV writes. `03_` then checks
+the rebuilt windows against the run's own split manifest (window and per-recording counts)
+and against the exact test windows the families were scored on, so a split that no longer
+reproduces fails loudly instead of silently fitting the reference on other windows. It
+needs the datasets at the profile's roots — run it where the data is.
+
+### Found on the way: three defects outside the references
+
+The fix was verified by running the real `meeting01` binary end to end on a synthetic
+FSDD-shaped corpus (6 speakers × 10 digits × 3 trials, window 64, `T = 4`, most recordings
+ending in a padded window), then `03_` → `02_` → `04_`. That run exposed:
+
+| # | Defect | Loud or silent | Fix |
+|---|---|---|---|
+| R1 | LSTM/GRU/Transformer-AE activity mask skipped the `T` repeat: mask `(W/f, f)` against target `(T·W/f, f)`, so the first training batch threw `xt::broadcast_error: Incompatible dimension of arrays`. Introduced by commit `6f332734` ("Transformations added"). | **Loud** — every AE family crashed before producing a number | `make_reconstruction_mask` (`Meeting01Encoding`) at all four AE sites, mirroring the SNN path |
+| R2 | Baseline-family test rows said `train_ms = 0`: `finalize_baseline_selection` never copied the final fit's time into the row (`finalize_snn_selection` does) | **Silent** — `02_` bolded that 0 as the fastest training in the cost table | one line, as in the SNN path |
+| R3 | Every family's per-window rows had an empty `encoding` column | **Silent** — recording-level statistics pool over encodings, so unaffected; any per-encoding window analysis was impossible | `proto.encoding = encoding` in both finalize paths |
+
+### Verified
+
+- C++ (all 12 meeting01 test binaries pass): `dat_writer_gtest` +6 (layout, `valid_length`,
+  every refusal), `profile_audit_gtest` +2 (CLI), `meeting01_encoding_gtest` +1 (mask stays
+  aligned with the framed target), `meeting01_recurrent_ga_gtest` +1 (a real LSTM-AE trains
+  and scores on padded windows). Both R1 tests were confirmed to **fail** with the old mask
+  shape — with the production `xt::broadcast_error` — before the fix was restored.
+- `03_ --self-test`: k resolution (nested and flat profiles), PCA exact on its own subspace,
+  padding invariance at fit and test time, T-repeat invariance, end-to-end write,
+  idempotency, family rows byte-identical, every refusal. A mutation sweep of 10
+  deliberate regressions — including the original `k = 32`, the train-only fit and
+  append-instead-of-replace — was caught 10/10.
+- Synthetic end to end: 2 folds → `03_` twice (byte-identical output, family rows
+  untouched, file mode kept) → `02_` → `04_`. Dump-only mode on the finished run rebuilt
+  all six target files byte-identically and left every other file untouched, manifest and
+  events mtimes included.
+- **Not run:** any production profile, and any real dataset (none is on this machine).
 
 ---
 
@@ -1058,7 +1206,8 @@ on a fresh run.
 `SKIP_POSTPROCESS=1` and run manually later — see [Re-run Runbook](../Guides/Re-run-Runbook.md)):
 
 ```bash
-python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py       # --results-dir/--run-tag default to results/meeting01, meeting01_loso
+python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
+    --profile src/experiments/meeting01/profiles/meeting01-loso.json        # required (k per dataset); --results-dir/--run-tag default to results/meeting01, meeting01_loso
 python3 scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py    # writes DAT files to --data-dir (defaults to documentation/07-articlesProduced/meeting01/data)
 python3 scripts/pipeline/meeting01/04_meeting01_significance_tests.py
 

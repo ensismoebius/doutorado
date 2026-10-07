@@ -10,6 +10,7 @@
 #include <stdexcept>
 
 #include "../include/Meeting01PerWindow.hpp"
+#include "cnpy.h"
 #include "io/ReportIO.hpp"
 #include "nlohmann/json.hpp"
 #include "statistics/inference_tests.hpp"
@@ -520,6 +521,79 @@ void write_per_window_errors_csv(
             << ',' << r.speaker_id << ',' << r.recording_id << ',' << r.window_id << ','
             << r.source_window_index << ',' << r.mse << ',' << r.mae << '\n';
     }
+}
+
+void write_reference_inputs(
+    const std::filesystem::path& dir, const std::string& stem, const DatasetSplit& split)
+{
+    auto write_part = [&](const std::string& part,
+                          const std::vector<Tensor>& samples,
+                          const std::vector<WindowMetadata>& meta)
+    {
+        if (samples.empty())
+        {
+            throw std::runtime_error("write_reference_inputs: " + stem + " has an empty " + part +
+                                     " split; the reference baselines need windows in every "
+                                     "part. Check the fold's speaker assignment and the "
+                                     "loso_max_*_windows caps in the profile.");
+        }
+        if (meta.size() != samples.size())
+        {
+            throw std::runtime_error("write_reference_inputs: " + stem + " " + part + " has " +
+                                     std::to_string(samples.size()) + " windows but " +
+                                     std::to_string(meta.size()) +
+                                     " metadata rows; build_split must keep them parallel.");
+        }
+
+        const nn::Index width = samples.front().size();
+        std::vector<float> flat;
+        flat.reserve(samples.size() * static_cast<std::size_t>(width));
+        for (std::size_t i = 0; i < samples.size(); ++i)
+        {
+            if (samples[i].size() != width)
+            {
+                throw std::runtime_error("write_reference_inputs: " + stem + " " + part +
+                                         " window " + std::to_string(i) + " has " +
+                                         std::to_string(samples[i].size()) + " samples, expected " +
+                                         std::to_string(width) +
+                                         "; every window of a dataset must share window_size.");
+            }
+            if (meta[i].valid_length < 0 || meta[i].valid_length > width)
+            {
+                throw std::runtime_error("write_reference_inputs: " + stem + " " + part +
+                                         " window " + std::to_string(i) + " has valid_length " +
+                                         std::to_string(meta[i].valid_length) + " outside [0, " +
+                                         std::to_string(width) +
+                                         "]; the loader's WindowMetadata is corrupt.");
+            }
+            for (nn::Index k = 0; k < width; ++k) flat.push_back(samples[i].at(k));
+        }
+
+        const std::string base = stem + "_target_" + part + "_windows";
+        cnpy::npy_save((dir / (base + ".npy")).string(),
+            flat.data(),
+            {samples.size(), static_cast<std::size_t>(width)},
+            "w");
+
+        const std::filesystem::path meta_path = dir / (base + "_meta.csv");
+        std::ofstream out(meta_path);
+        if (!out.is_open())
+        {
+            throw std::runtime_error("write_reference_inputs: cannot open " + meta_path.string() +
+                                     " for writing; check that the results directory exists "
+                                     "and is writable.");
+        }
+        out << "speaker_id,recording_id,window_id,source_window_index,valid_length\n";
+        for (const auto& m : meta)
+        {
+            out << m.speaker_id << ',' << m.recording_id << ',' << m.window_id << ','
+                << m.source_window_index << ',' << m.valid_length << '\n';
+        }
+    };
+
+    write_part("train", split.train_samples, split.train_meta);
+    write_part("val", split.val_samples, split.val_meta);
+    write_part("test", split.test_samples, split.test_meta);
 }
 
 void validate_repeat_determinism(const Meeting01Config& cfg, const std::vector<ResultRow>& rows)

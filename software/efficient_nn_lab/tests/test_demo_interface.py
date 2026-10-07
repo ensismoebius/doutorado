@@ -13,11 +13,21 @@ from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
 from efficient_nn_lab.bitnet.demos.guided_sequence import GuidedBitNetDemo
 from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantizationDemo
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
+from efficient_nn_lab.comparison.autoencoders import AutoencoderComparisonDemo
+from efficient_nn_lab.paraconsistent.demos.dpenalized import ParaconsistentDPenalizedDemo
+from efficient_nn_lab.paraconsistent.demos.ga_pareto import ParaconsistentGaParetoDemo
+from efficient_nn_lab.paraconsistent.demos.plane import ParaconsistentPlaneDemo
+from efficient_nn_lab.snn.demos.encoding_loss_mismatch import EncodingLossMismatchDemo
+from efficient_nn_lab.snn.demos.encoding_noise import EncodingNoiseDemo
+from efficient_nn_lab.snn.demos.firing_rate_reg import FiringRateRegDemo
 from efficient_nn_lab.snn.demos.lif_dynamics import LIFDynamicsDemo
+from efficient_nn_lab.snn.demos.normalization_demo import NormalizationDemo
 from efficient_nn_lab.snn.demos.poisson_coding import PoissonCodingDemo
 from efficient_nn_lab.snn.demos.poisson_image_coding import PoissonImageCodingDemo
 from efficient_nn_lab.snn.demos.spike_generation import SpikeGenerationDemo
 from efficient_nn_lab.snn.demos.surrogate_gradient import SurrogateGradientDemo
+from efficient_nn_lab.snn.demos.tdbn_demo import TdBNDemo
+from efficient_nn_lab.snn.demos.timesteps import TimeStepsDemo
 
 #: Every demo the app ships. Kept in sync with the app's own tree by
 #: test_all_demo_classes_covers_the_app_tree below -- the three backprop
@@ -37,7 +47,17 @@ ALL_DEMO_CLASSES = [
     PoissonImageCodingDemo,
     LIFDynamicsDemo,
     SurrogateGradientDemo,
+    TimeStepsDemo,
+    EncodingNoiseDemo,
+    EncodingLossMismatchDemo,
+    TdBNDemo,
+    FiringRateRegDemo,
+    NormalizationDemo,
+    ParaconsistentPlaneDemo,
+    ParaconsistentDPenalizedDemo,
+    ParaconsistentGaParetoDemo,
     AnnBitnetSnnComparisonDemo,
+    AutoencoderComparisonDemo,
 ]
 
 

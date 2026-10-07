@@ -194,6 +194,34 @@ TEST(Meeting01Encoding, ActivityMaskComposesWithReconstructionTarget)
     }
 }
 
+// The frame-consuming AEs (LSTM/GRU/Transformer) reshape the target with to_lstm_frames
+// AFTER the T-fold repeat. Until 2026-10-06 their mask skipped the repeat and was framed
+// straight from make_activity_mask: (W/frame, frame) against a (T*W/frame, frame) target,
+// which MSELossImpl's elementwise multiply rejected on the first batch of every AE run.
+// Window values = sample indices, so target element k names its own sample; the mask must
+// be 1 exactly where that sample is real (index < valid_length).
+TEST(Meeting01Encoding, ReconstructionMaskStaysAlignedWithTheFramedTarget)
+{
+    constexpr int kWindow = 16;
+    constexpr int kValid = 11;
+    constexpr int kFrame = 4;
+    constexpr int kT = 3;
+    meeting01::Tensor window(kWindow, 1);
+    for (nn::Index i = 0; i < kWindow; ++i) window.at(i, 0) = static_cast<float>(i);
+
+    const auto target =
+        meeting01::to_lstm_frames(meeting01::make_reconstruction_target(window, kT), kFrame);
+    const auto mask =
+        meeting01::to_lstm_frames(meeting01::make_reconstruction_mask(kValid, kWindow, kT), kFrame);
+
+    ASSERT_EQ(mask.rows(), target.rows());
+    ASSERT_EQ(mask.cols(), target.cols());
+    ASSERT_EQ(target.rows(), kT * kWindow / kFrame);
+    for (nn::Index k = 0; k < target.size(); ++k)
+        EXPECT_FLOAT_EQ(mask.at(k), target.at(k) < static_cast<float>(kValid) ? 1.0f : 0.0f)
+            << "element " << k << " holds sample " << target.at(k);
+}
+
 TEST(Meeting01Encoding, TargetVarianceIsIdenticalAcrossEncodings)
 {
     // The property that makes val_mse comparable between encodings, and that stops the

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "../lib/include/Meeting01Cli.hpp"
 #include "../lib/include/Meeting01Config.hpp"
 #include "nlohmann/json.hpp"
 
@@ -619,4 +620,44 @@ TEST(Meeting01ConfigValidation, CatchesAFrameSizeThatDoesNotDivideTheWindow)
     const std::string message = validation_error(cfg);
     EXPECT_NE(message.find("lstm_frame_size"), std::string::npos);
     EXPECT_NE(message.find("must divide"), std::string::npos);
+}
+
+// ---- command line (Meeting01Cli.cpp::parse_cli) ----
+
+namespace
+{
+
+auto parse_args(std::vector<std::string> args) -> meeting01::CliOptions
+{
+    args.insert(args.begin(), "meeting01");
+    std::vector<char*> argv;
+    for (auto& a : args) argv.push_back(a.data());
+    return meeting01::parse_cli(static_cast<int>(argv.size()), argv.data());
+}
+
+} // namespace
+
+TEST(Meeting01Cli, ParsesTheReferenceInputDumpMode)
+{
+    const auto opts = parse_args({"--comparative-config",
+        "meeting01-loso.json",
+        "--dataset",
+        "fsdd",
+        "--cv-fold",
+        "2",
+        "--dump-reference-inputs-only"});
+    EXPECT_TRUE(opts.dump_reference_inputs_only);
+    EXPECT_EQ(opts.dataset, "fsdd");
+    EXPECT_EQ(opts.cv_fold, 2);
+    EXPECT_FALSE(
+        parse_args({"--comparative-config", "meeting01-loso.json"}).dump_reference_inputs_only);
+}
+
+TEST(Meeting01Cli, RefusesAnUnknownArgument)
+{
+    // A misspelt dump flag must not fall through to a full training run, which would
+    // truncate the fold's events log and rewrite its result files.
+    EXPECT_THROW(
+        parse_args({"--comparative-config", "meeting01-loso.json", "--dump-reference-input-only"}),
+        std::runtime_error);
 }

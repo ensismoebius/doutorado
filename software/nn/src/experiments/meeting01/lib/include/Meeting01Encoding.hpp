@@ -34,6 +34,15 @@ auto make_reconstruction_target(const Tensor& sample, int time_steps) -> Tensor;
 /// @throws std::invalid_argument if valid_length is outside [0, window_size].
 auto make_activity_mask(int valid_length, int window_size) -> Tensor;
 
+/// The activity mask shaped like make_reconstruction_target's output: (`time_steps`,
+/// window_size), every row = make_activity_mask(valid_length, window_size). It is that
+/// function applied to the mask, so after the same later reshape the target gets (e.g.
+/// to_lstm_frames) element k of the mask still marks element k of the target. Skipping
+/// the time_steps repeat leaves a mask T times smaller than the target, which the
+/// elementwise masked loss/metric rejects (xtensor "Incompatible dimension of arrays").
+/// @throws std::invalid_argument if valid_length is outside [0, window_size].
+auto make_reconstruction_mask(int valid_length, int window_size, int time_steps) -> Tensor;
+
 /// Collapses a (T, F) model output into the single (1, F) reconstruction of the window
 /// by averaging over the simulation steps — the standard temporal-averaging readout.
 auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor;

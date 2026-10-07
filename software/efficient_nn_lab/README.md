@@ -166,10 +166,19 @@ src/efficient_nn_lab/
 ├── snn/
 │   ├── lif.py                neurônio LIF (integração de Euler)
 │   ├── surrogate.py          função de disparo + gradiente substituto
-│   ├── encoding.py           sinal sintético + spike por limiar direto
-│   └── demos/                5 demonstrações (ver tabela abaixo)
+│   ├── encoding.py           sinal sintético + spike por limiar direto + ruído estrutural
+│   ├── tdbn.py                normalização dependente de limiar (tdBN)
+│   ├── rate_reg.py            regularização de taxa de disparo
+│   ├── normalization.py       z-score por característica/janela + risco de vazamento
+│   └── demos/                11 demonstrações (ver tabela abaixo)
+├── paraconsistent/
+│   ├── metrics.py             alpha/beta -> plano paraconsistente -> D_truth/D_penalized
+│   ├── ga_synthetic.py        populações sintéticas + dominância restrita de Deb (NSGA-II)
+│   └── demos/                3 demonstrações (ver tabela abaixo)
 ├── comparison/
-│   └── ann_bitnet_snn.py     comparação lado a lado
+│   ├── ann_bitnet_snn.py     comparação lado a lado
+│   ├── autoencoder_synthetic.py  janelas sintéticas + PCA real + constantes do Meeting01
+│   └── autoencoders.py       comparação SNN-AE x LSTM-AE x GRU-AE x Transformer-AE
 ├── resources/                imagem usada pela codificação Poisson
 └── widgets/
     ├── signal_view.py        sinal/corrente + potencial + raster de spikes
@@ -221,7 +230,17 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | SNN → Codificação Poisson (imagem) | Como fica a esparsidade num caso real, pixel a pixel — e por que só a soma de vários passos reconstrói a imagem? | `max_rate` |
 | SNN → LIF | Como um neurônio LIF integra, dispara e reseta? | `tau, R, V_th`, amplitude |
 | SNN → Surrogate gradient | Como se treina através de uma função em degrau? | `k` |
+| SNN → time_steps x delta_t | Por que confundir "quantos quadros" com "quanto dura um quadro" quebra o treino, e por que a ORDEM das linhas no tensor `(T*B,F)` importa? | `n_samples` |
+| SNN → Ruído estrutural da codificação | "Direta > latência > Poisson" em reconstrução é uma diferença real de informação, ou só o chão de ruído de cada codificação? | `time_steps` |
+| SNN → Perda incompatível com a codificação | Por que a perda precisa medir o lugar onde a codificação guarda o valor? Com a perda errada o treino reporta "perfeito" sem corrigir nada; com a certa, uma unidade que nunca dispara trava sem gradiente — duas falhas silenciosas, e a validação que as torna barulhentas. | fixo |
+| SNN → Normalização dependente de limiar (tdBN) | Como tdBN reescala a corrente de entrada para um espalhamento proporcional ao limiar `V_th`, em vez de variância unitária? | `V_th` |
+| SNN → Regularização de taxa de disparo | Como a penalidade empurra de volta à faixa alvo tanto um neurônio quase morto quanto um em rajada — e por que dentro da faixa ela não faz nada? | `lambda`, `r_min` |
+| SNN → Normalização: por característica x por janela | Por que áudio normaliza cada característica com estatísticas ajustadas uma vez no treino e EEG recalcula a cada janela — e por que só o caminho ajustado pode vazar dados de teste? | fixo |
+| Paraconsistente → Plano paraconsistente | Dado o quão compacta (`alpha`) e sobreposta (`beta`) cada classe é, onde cai o ponto no plano paraconsistente, e quão perto de "Verdade" ele está? | `alpha`, `beta` |
+| Paraconsistente → D_truth x D_penalized | Por que um extrator "morto" (sempre a mesma saída) passa à frente de extratores fracos porém reais na distância ingênua até "Verdade", e como `D_penalized` fecha essa brecha? | fixo |
+| Paraconsistente → Busca genética de arquiteturas (extensão) | Como uma busca NSGA-II escolhe arquiteturas quando qualidade (`D_penalized`) e custo brigam — dominância, fronteira de Pareto, teto de latência pela regra de Deb, e por que o resultado é um cardápio e não um vencedor? Fora da monografia: é o experimento `paraconsistentGA` do software/nn, com dados sintéticos. | `latency_ceiling` |
 | Comparação → ANN x BitNet x SNN | Em que ANN, BitNet e SNN diferem? | fixo |
+| Comparação → Autoencoders (SNN x LSTM x GRU x Transformer) | Como o Meeting01 compara quatro famílias de autoencoder sem trapacear: mesmo gargalo (o tamanho do latente decide o placar), mesmo alvo (o bug B2), referências média e PCA? PCA de verdade sobre janelas sintéticas; as quatro famílias não recebem números inventados. | `latent` |
 
 ### A tabela da comparação se dimensiona sozinha
 

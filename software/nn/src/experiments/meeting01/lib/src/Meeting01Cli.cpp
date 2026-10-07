@@ -44,6 +44,12 @@ void print_usage(const char* prog)
                  "evaluation.datasets (fsdd|audiomnist|eegmmidb|siena)\n"
               << "  --no-tui                          Disable the live progress TUI "
                  "(auto-off when stdout is not a terminal)\n"
+              << "  --dump-reference-inputs-only      Build the split, write only the "
+                 "PCA/mean-frame\n"
+              << "                                    reference inputs (*_target_*_windows*), "
+                 "then exit\n"
+              << "                                    without training (for runs made by an "
+                 "older binary)\n"
               << "  --help                            Print this message\n";
 }
 
@@ -100,6 +106,18 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         else if (arg == "--no-tui")
         {
             opts.no_tui = true;
+        }
+        else if (arg == "--dump-reference-inputs-only")
+        {
+            opts.dump_reference_inputs_only = true;
+        }
+        else
+        {
+            // An ignored typo is not harmless here: a misspelt
+            // --dump-reference-inputs-only would silently start a full training run that
+            // truncates the fold's events log and rewrites its result files.
+            throw std::runtime_error(
+                "Unknown argument '" + arg + "'. Run with --help for the accepted options.");
         }
     }
 

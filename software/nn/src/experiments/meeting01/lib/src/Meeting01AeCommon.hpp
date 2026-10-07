@@ -87,7 +87,8 @@ auto evaluate_ae(Model& model,
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
         const Tensor mask = to_lstm_frames(
-            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            make_reconstruction_mask(
+                val_meta[i].valid_length, static_cast<int>(val_samples[i].size()), time_steps),
             frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
@@ -128,7 +129,8 @@ auto evaluate_ae(Model& model,
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(val_samples[i], time_steps), frame_size);
         const Tensor mask = to_lstm_frames(
-            make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
+            make_reconstruction_mask(
+                val_meta[i].valid_length, static_cast<int>(val_samples[i].size()), time_steps),
             frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
@@ -176,7 +178,8 @@ auto per_window_errors_ae(Model& model,
         const Tensor target =
             to_lstm_frames(make_reconstruction_target(samples[i], time_steps), frame_size);
         const Tensor mask = to_lstm_frames(
-            make_activity_mask(meta[i].valid_length, static_cast<int>(samples[i].size())),
+            make_reconstruction_mask(
+                meta[i].valid_length, static_cast<int>(samples[i].size()), time_steps),
             frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
@@ -267,8 +270,9 @@ auto train_ae(Model& model,
     // The mask excludes the zero-padded tail of a variable-length window's last slice
     // (FSDD/AudioMNIST only — see WindowMetadata::valid_length) from the loss, so the
     // model is never penalized for "failing" to reconstruct samples that were never in
-    // the recording. It goes through the SAME to_lstm_frames() reshape as the target,
-    // since it must match the target's shape exactly.
+    // the recording. It is built like the target (make_reconstruction_mask repeats it over
+    // the T steps, as make_reconstruction_target does the window) and goes through the
+    // SAME to_lstm_frames() reshape, since it must match the target's shape exactly.
     using Triple = typename nn::training::Trainer<Model>::SampleTriple;
     auto make_triples = [&](const std::vector<Tensor>& src,
                             const std::vector<WindowMetadata>& meta,
@@ -288,7 +292,8 @@ auto train_ae(Model& model,
                     frame)),
                 ModelTensor(to_lstm_frames(make_reconstruction_target(src[i], steps), frame)),
                 ModelTensor(to_lstm_frames(
-                    make_activity_mask(meta[i].valid_length, static_cast<int>(src[i].size())),
+                    make_reconstruction_mask(
+                        meta[i].valid_length, static_cast<int>(src[i].size()), steps),
                     frame)));
         }
         return triples;

@@ -26,12 +26,15 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.widgets._mpl_perf import fast_clear
 from efficient_nn_lab.widgets.renderers import (
+    AutoencoderComparisonRendererMixin,
     ChainLayersRendererMixin,
     ComparisonRendererMixin,
     MatrixAlgebraRendererMixin,
     MlpNetworkRendererMixin,
+    NormalizationRendererMixin,
     PaintingMixin,
     PipelineRenderersMixin,
+    TimestepsRendererMixin,
 )
 
 
@@ -42,6 +45,9 @@ class NeuronView(
     ChainLayersRendererMixin,
     PipelineRenderersMixin,
     ComparisonRendererMixin,
+    TimestepsRendererMixin,
+    AutoencoderComparisonRendererMixin,
+    NormalizationRendererMixin,
     QWidget,
 ):
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -80,12 +86,17 @@ class NeuronView(
             # could have used. Claim nearly the whole figure: this alone
             # buys ~25% larger text for the same layout.
             self._ax.set_position(self._CMP_AX_RECT)
+        elif kind == "autoencoder_comparison_pipeline":
+            # its insets and bottleneck sketch are laid out in figure
+            # coordinates: a whole-figure axes makes data coords == figure coords.
+            self._ax.set_position(self._AEC_AX_RECT)
         else:
             self._ax.set_position(self._default_ax_pos)
         inset_keep = {
             "backprop_pipeline": frozenset(["main"]),
             "mlp_network": frozenset(self._MLP_NAMES),
             "forward_pipeline": frozenset(["forward_numberline"]),
+            "autoencoder_comparison_pipeline": frozenset(["aec_signal", "aec_error"]),
         }.get(kind, frozenset())
         self._hide_insets(keep=inset_keep)
         handler = {
@@ -97,6 +108,9 @@ class NeuronView(
             "ste_pipeline": self._render_ste_pipeline,
             "guided_pipeline": self._render_guided_pipeline,
             "comparison_pipeline": self._render_comparison_pipeline,
+            "timesteps_tensor": self._render_timesteps_tensor,
+            "autoencoder_comparison_pipeline": self._render_autoencoder_comparison_pipeline,
+            "normalization_pipeline": self._render_normalization_pipeline,
         }.get(kind)
         if handler is None:
             self._reset_axes(xlim=(0, 1), ylim=(0, 1))
