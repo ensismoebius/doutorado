@@ -127,6 +127,9 @@ echo "[gridunesp-deploy:remote] datasets (skips anything already present)"
 echo "[gridunesp-deploy:remote] configuring (login node, needs internet for FetchContent)"
 cmake --preset=max-performance
 
+# A stamp from an earlier deploy must not survive a deploy that then fails to build.
+rm -f out/build/max-performance/SOURCE_REVISION.built
+
 echo "[gridunesp-deploy:remote] building on a compute node (srun, cpus=${BUILD_CPUS})"
 # BUILD_CPUS is exported so the child bash srun spawns can read it as $BUILD_CPUS at
 # its own runtime -- the whole script below is single-quoted (no expansion by THIS
@@ -139,6 +142,17 @@ srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c '
   conda activate meeting01-build
   cmake --build out/build/max-performance --target meeting01 -j"$BUILD_CPUS"
 '
+
+# srun can come back without having run the build (a step that never launched: "started 0 of
+# 2 tasks"), and the smoke check below would then happily run the OLD binary and stamp it. So
+# ask ninja, dry-run (-n, no compute node needed): "no work to do" proves the binary is up to
+# date with the sources just synced.
+if ! cmake --build out/build/max-performance --target meeting01 -- -n | grep -q "no work to do"; then
+  echo "[gridunesp-deploy:remote] ERROR: the meeting01 binary is out of date with the synced" \
+       "sources -- the srun build above did not complete. Nothing was stamped. Rerun with" \
+       "GRIDUNESP_BUILD_CPUS=2 (or more)." >&2
+  exit 1
+fi
 
 echo "[gridunesp-deploy:remote] smoke check"
 srun --partition=short --time=00:10:00 --cpus-per-task=4 \
