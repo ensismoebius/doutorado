@@ -149,8 +149,9 @@ srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c '
 # date with the sources just synced.
 if ! cmake --build out/build/max-performance --target meeting01 -- -n | grep -q "no work to do"; then
   echo "[gridunesp-deploy:remote] ERROR: the meeting01 binary is out of date with the synced" \
-       "sources -- the srun build above did not complete. Nothing was stamped. Rerun with" \
-       "GRIDUNESP_BUILD_CPUS=2 (or more)." >&2
+       "sources -- the srun build above did not complete (a job step that never launches, as" \
+       "\"started 0 of N tasks\", is a node problem: check sinfo / scontrol show job <id>;" \
+       "too many CPUs only keeps the job queued). Nothing was stamped. Rerun later." >&2
   exit 1
 fi
 
