@@ -58,6 +58,10 @@ jobs:
         run: |
           python scripts/pipeline/meeting01/04_meeting01_significance_tests.py --self-test
 
+      - name: Meeting01 source-revision self-test (tree hash + stale-binary refusal)
+        run: |
+          python scripts/pipeline/meeting01/source_revision.py --self-test
+
       - name: Meeting01 live-monitor aggregator self-test (synthetic known-answer)
         run: |
           python scripts/pipeline/meeting01/monitor.py --self-test

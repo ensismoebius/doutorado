@@ -18,6 +18,8 @@
 #   _target_{train,val,test}_windows.npy / _meta.csv
 #                                      inputs of the PCA / mean-frame references
 #   _<family-or-encoding>_run<r>_model_selection_manifest.json, _run<r>_overall_winner_manifest.json
+# and, once per start of this script (RESUME restarts included), one line appended to
+#   results/meeting01/source_revisions.log     which code ran: commit[+dirty]/tree-hash prefix
 #
 # COST: weeks to months over all datasets x folds even with the stratified per-fold window
 #   caps (loso_max_{train,val,test}_windows: 200 / 150 / 1500) -- the calibrated per-epoch
@@ -82,13 +84,27 @@ if [[ "$MEETING01_BUILD" != "$REFERENCE_BUILD" ]]; then
   echo "[loso-run] ⚠  train_ms / infer_ms feed the paper directly — report the backend used."
 fi
 
+# Which code is this? Resolved BEFORE the build, so a tree that cannot say is refused in
+# seconds rather than after a ten-minute compile. The label (commit, +dirty, tree hash)
+# goes into every fold's events file as git_commit and into results/meeting01/
+# source_revisions.log; on the cluster it comes from the SOURCE_REVISION that
+# gridunesp_deploy.sh shipped, there being no git there. See _provenance.sh.
+PY="python3"
+[[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
+# shellcheck source=./_provenance.sh
+source "$ROOT_DIR/scripts/pipeline/meeting01/_provenance.sh"
+provenance_resolve "$ROOT_DIR" "$PY"
+
 if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
   [[ -x "$BIN" ]] || { echo "[loso-run] SKIP_BUILD=1 but no binary at $BIN" >&2; exit 1; }
+  # Not just "a binary exists": in a deployed tree it must have been built from THESE sources.
+  provenance_check_binary_is_current "$ROOT_DIR" "$MEETING01_BUILD"
   echo "[loso-run] SKIP_BUILD=1 — reusing $BIN"
 else
   echo "[loso-run] configuring/building ${MEETING01_BUILD}"
   cmake --preset="${MEETING01_BUILD}"
   cmake --build --preset="${MEETING01_BUILD}" -j"$(nproc)" --target meeting01
+  provenance_mark_built "$ROOT_DIR" "$MEETING01_BUILD"
 fi
 [[ -x "$BIN" ]] || { echo "[loso-run] no binary at $BIN after build" >&2; exit 1; }
 
@@ -104,8 +120,11 @@ if [[ "${KEEP_CHECKPOINTS:-0}" != "1" ]]; then
   rm -f results/meeting01/*_events.jsonl
 fi
 
-# Recorded in every session_begin event so the live monitor can show provenance.
-export MEETING01_GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# MEETING01_GIT_COMMIT (exported by provenance_resolve above) is recorded in every
+# session_begin event so the live monitor can show provenance. One line per start here keeps
+# the trail across RESUME=1 restarts, which may run different revisions.
+echo "[loso-run] source revision: ${MEETING01_GIT_COMMIT}"
+provenance_log_start "$ROOT_DIR" "$RESUME"
 
 echo "[loso-run] live dashboard (separate terminal, from software/nn):"
 echo "[loso-run]   ${ROOT_DIR}/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso"
@@ -140,8 +159,6 @@ if [[ "${SKIP_POSTPROCESS:-0}" == "1" ]]; then
   exit 0
 fi
 
-PY="python3"
-[[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
 PAPER_DATA="/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/meeting01/data"
 
 # Order matters: 03_ writes the pca/mean rows that 02_ and 04_ then read (it replaces

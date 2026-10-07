@@ -26,9 +26,18 @@
 #
 # What gets synced: everything under this checkout EXCEPT out/ (local build
 # artifacts -- the remote builds its own, compiled for its own CPU) and results/
-# (in-progress or completed run output). rsync's --delete keeps the remote source
-# tree an exact mirror of this one, but --delete never touches an excluded path, so
-# a redeploy can never wipe a run already in progress on the remote.
+# (in-progress or completed run output), and scripts/pipeline/meeting01/.env (your
+# GridUnesp password, which nothing on the cluster reads; it used to be copied too). rsync's
+# --delete keeps the remote source tree an exact mirror of this one, but --delete never
+# touches an excluded path, so a redeploy can never wipe a run already in progress on the
+# remote.
+#
+# Which code is on the cluster: before anything is sent, source_revision.py writes the
+# tree's revision (commit, dirty flag, hash of every source file's content) and the deploy
+# ships it as SOURCE_REVISION AFTER the tree; after a successful build it is copied to
+# out/build/max-performance/SOURCE_REVISION.built. 01_meeting01_run_loso.sh refuses to start
+# when the two differ -- a sync whose build failed would otherwise run the old binary under
+# the new revision. See scripts/pipeline/meeting01/_provenance.sh.
 set -euo pipefail
 
 # shellcheck source=./_gridunesp_env.sh
@@ -41,6 +50,18 @@ BUILD_CPUS="${GRIDUNESP_BUILD_CPUS:-26}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
+# shellcheck source=./_provenance.sh
+source "$ROOT_DIR/scripts/pipeline/meeting01/_provenance.sh"
+
+# Which code is about to be shipped? Worked out before the first ssh, so a tree that cannot
+# be identified (not a git checkout, no commit yet) fails without touching the login node.
+REV_FILE="$(mktemp)"
+python3 "$ROOT_DIR/scripts/pipeline/meeting01/source_revision.py" compute "$ROOT_DIR" \
+  > "$REV_FILE"
+chmod 644 "$REV_FILE"
+REVISION="$(provenance_label "$REV_FILE")"
+echo "[gridunesp-deploy] source revision: ${REVISION}"
+
 # One multiplexed SSH connection for the whole script: the first call below is what
 # actually authenticates (via sshpass -e, using the password _gridunesp_env.sh just
 # loaded/prompted) and every later ssh/rsync call below reuses that same connection
@@ -51,6 +72,7 @@ CTRL_PATH="${CTRL_DIR}/ssh-%r@%h:%p"
 cleanup() {
   ssh -o ControlPath="$CTRL_PATH" -O exit "${GRIDUNESP_USER}@${HOST}" >/dev/null 2>&1 || true
   rm -rf "$CTRL_DIR"
+  rm -f "$REV_FILE"
 }
 trap cleanup EXIT
 
@@ -72,8 +94,15 @@ ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" "mkdir -p '${REMOTE_
 echo "[gridunesp-deploy] syncing checkout to ${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}"
 rsync -avz --delete --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" \
   --exclude out/ --exclude results/ --exclude '*.o' --exclude '__pycache__/' \
-  --exclude '.venv/' \
+  --exclude '.venv/' --exclude /scripts/pipeline/meeting01/.env \
   "$ROOT_DIR/" "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/"
+
+# The revision goes AFTER the tree on purpose: the --delete above removed any older copy (it
+# is not in this checkout), so a deploy that dies between the two steps leaves the cluster
+# with NO SOURCE_REVISION -- which 01_meeting01_run_loso.sh refuses -- never with a stale one.
+echo "[gridunesp-deploy] shipping SOURCE_REVISION (${REVISION})"
+rsync -a -e "ssh -o ControlPath=${CTRL_PATH}" "$REV_FILE" \
+  "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/SOURCE_REVISION"
 
 echo "[gridunesp-deploy] remote environment + datasets + configure + build (reusing the same connection)"
 ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" bash -s -- "$REMOTE_DIR" "$BUILD_CPUS" <<'REMOTE'
@@ -114,7 +143,18 @@ srun --partition=short --time=00:30:00 --cpus-per-task="$BUILD_CPUS" bash -c '
 echo "[gridunesp-deploy:remote] smoke check"
 srun --partition=short --time=00:10:00 --cpus-per-task=4 \
   out/build/max-performance/src/experiments/meeting01/meeting01 --help >/dev/null
-echo "[gridunesp-deploy:remote] build OK"
+
+# Only a binary that built AND ran gets the stamp, so "stamp == SOURCE_REVISION" means
+# "this binary was built from exactly the sources on disk".
+cp SOURCE_REVISION out/build/max-performance/SOURCE_REVISION.built
+echo "[gridunesp-deploy:remote] build OK, stamped with $(sed -n 's/^commit=//p' SOURCE_REVISION)"
+
+# Earlier deploys copied your local credentials file here. Nothing on the cluster reads it.
+if [[ -e scripts/pipeline/meeting01/.env ]]; then
+  echo "[gridunesp-deploy:remote] WARNING: $PWD/scripts/pipeline/meeting01/.env is a copy of" \
+       "your local GridUnesp password file, shipped by an earlier deploy. Nothing here reads" \
+       "it; delete it:  rm $PWD/scripts/pipeline/meeting01/.env" >&2
+fi
 REMOTE
 
 cat <<EOF
@@ -122,6 +162,9 @@ cat <<EOF
 [gridunesp-deploy] done. Environment, all 4 datasets, and the built binary are ready
 on ${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}. Nothing has been submitted to the queue
 yet -- that is this script's one deliberate stop.
+
+Source revision on the cluster: ${REVISION}
+(every fold's events file will carry it; so will results/meeting01/source_revisions.log)
 
 To start the real run (weeks-to-months, see meeting01-loso.json's
 _total_runs_breakdown; plain ssh below will prompt for your password once, same as
