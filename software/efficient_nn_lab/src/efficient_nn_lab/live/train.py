@@ -120,8 +120,14 @@ def train(
     epochs: int = 400,
     lr: float = 0.5,
     lr_decay: float = 0.985,
-    hidden: int = 32,
-    n_bins: int = 20,
+    hidden: int = 40,
+    # 30, not 20: validation confusion measured on real recordings showed
+    # /u/ and /o/ -- both back vowels, differing mainly in a lower second
+    # formant that a coarser filterbank blurs across fewer, wider bins --
+    # as each other's only real mistake. More, narrower bins is the direct
+    # lever on that specific confusion (not more epochs, which a fixed
+    # bin count cannot fix no matter how long training runs).
+    n_bins: int = 30,
     sample_rate: int = 16000,
     window_seconds: float = 0.5,
     hop_seconds: float = 0.1,
@@ -189,11 +195,12 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--lr", type=float, default=0.99)
     parser.add_argument("--lr-decay", type=float, default=0.995, help="per-epoch multiplier on --lr")
-    parser.add_argument("--hidden", type=int, default=32)
+    parser.add_argument("--hidden", type=int, default=40)
+    parser.add_argument("--n-bins", type=int, default=30, help="frequency bands in the feature vector")
     parser.add_argument("--out", type=Path, default=_WEIGHTS_PATH)
     args = parser.parse_args()
 
-    weights = train(epochs=args.epochs, lr=args.lr, lr_decay=args.lr_decay, hidden=args.hidden)
+    weights = train(epochs=args.epochs, lr=args.lr, lr_decay=args.lr_decay, hidden=args.hidden, n_bins=args.n_bins)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     save_weights(str(args.out), weights)
     print(f"pesos salvos em {args.out}")
