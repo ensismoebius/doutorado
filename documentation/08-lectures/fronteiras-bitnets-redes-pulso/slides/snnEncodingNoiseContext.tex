@@ -1,22 +1,45 @@
-\begin{frame}[shrink]
-	\frametitle{Cada codificação tem seu próprio piso de erro}
+\begin{frame}
+	\frametitle{Ruído estrutural da codificação: o que é?}
+	\framesubtitle{O piso mínimo de perda de informação antes de qualquer processamento}
 	\small
-	\par Mesmo antes do treino, converter um valor contínuo em pulsos pode perder precisão. Esse \textbf{piso de codificação} não é ruído do sensor nem erro do classificador: é o erro que a representação e sua leitura já permitem.
-	\par Exemplo idealizado: $x$ uniforme em $[0,1]$, $T=16$ passos e a mesma métrica (erro RMS de reconstrução):
+	\par Ao converter um valor contínuo $x \in [0, 1]$ em trens de pulso e depois tentar reconstruí-lo, ocorre uma perda de precisão inevitável. O \textbf{ruído estrutural} é o erro médio mínimo (o "piso de ruído") imposto pela própria matemática da codificação.
+	\par Esse piso independe do aprendizado: com $x \sim \mathcal{U}[0, 1]$ e $T=16$ passos, o erro RMS de reconstrução teórico é:
 	\begin{center}
-		\begin{tabular}{lcc}
+		\footnotesize
+		\begin{tabular}{llc}
 			\toprule
-			\textbf{Codificação} & \textbf{De onde vem o erro} & \textbf{Piso RMS} \\
+			\textbf{Codificação} & \textbf{Mecanismo de representação} & \textbf{Piso RMS ($T=16$)} \\
 			\midrule
-			Direta & $x$ entra sem quantização em pulsos & $0$ \\
-			Latência & arredondamento para um dos 16 instantes & $\frac{1}{15\sqrt{12}}\approx 0{,}019$ \\
-			Poisson & contagem aleatória de pulsos & $\sqrt{\frac{1}{6\cdot16}}\approx 0{,}102$ \\
+			\textbf{Direta} & Corrente sem quantização prévia & $\mathbf{0}$ \\
+			\textbf{Latência (TTFS)} & Primeiro pulso em $t \in \{0,\dots,15\}$ & $\approx \mathbf{0{,}019}$ \\
+			\textbf{Poisson (Taxa)} & Contagem de disparos no tempo & $\approx \mathbf{0{,}102}$ \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
 	\begin{itemize}
-		\item O zero da codificação direta vale só para esta etapa ideal de entrada e reconstrução; não significa que a rede inteira terá erro zero.
-		\item \textbf{Por que importa?} Se um modelo começa com um piso maior, comparar apenas seu erro final pode atribuir à arquitetura uma diferença que veio da codificação.
-		\item Compare as redes com o mesmo $T$, a mesma métrica e em relação ao piso de cada codificação. A escolha entre códigos também envolve latência, energia e robustez, não só erro \cite{eshraghian2023training, liu2023firstspike}.
+		\setlength{\itemsep}{1pt}
+		\item Na \textbf{latência}, o erro vem da quantização em 16 níveis discretos ($\Delta x = 1/15$).
+		\item Em \textbf{Poisson}, o erro decorre da variância intrínseca dos sorteios aleatórios.
 	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Ruído estrutural da codificação: qual a sua importância?}
+	\framesubtitle{Evitando conclusões errôneas ao comparar modelos e arquiteturas}
+	\small
+	\begin{itemize}
+		\setlength{\itemsep}{2pt}
+		\item \textbf{A armadilha metodológica em comparações de modelos}:
+		\begin{itemize}
+			\item Se uma rede com codificação direta supera uma rede com Poisson, a tentação é atribuir o mérito à arquitetura ou aos pesos.
+			\item \textbf{Porém}: a rede Poisson começou com um piso de ruído cinco vezes superior na própria entrada! A diferença observada pode ser fruto da representação, e não da rede.
+		\end{itemize}
+		\item \textbf{Decisões de projeto e compromissos}:
+		\begin{itemize}
+			\item \textbf{Codificação Direta}: sem erro na entrada, mas a primeira camada perde a computação puramente orientada a eventos.
+			\item \textbf{Latência (TTFS)}: piso de erro baixo com alta eficiência (1 pulso por neurônio).
+			\item \textbf{Poisson}: piso maior para $T$ curto, porém tolerante a ruído e falhas pontuais.
+		\end{itemize}
+	\end{itemize}
+	\par\vfill{\tiny Referências: \cite{eshraghian2023training, liu2023firstspike}.}
 \end{frame}

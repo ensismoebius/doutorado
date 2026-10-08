@@ -1,16 +1,49 @@
-\begin{frame}[shrink]
-	\frametitle{Regularizar a taxa: evitar silêncio e rajadas}
+\begin{frame}
+	\frametitle{Regularização de taxa de disparo: o que é?}
+	\framesubtitle{Mantendo a atividade dos neurônios dentro de uma faixa operacional saudável}
 	\small
-	\par Uma rede pode acertar a saída disparando quase nunca ou disparando em quase todo quadro. Uma penalidade de taxa acrescenta ao objetivo de treino um custo quando a atividade média da camada sai de uma faixa escolhida:
+	\par Durante a otimização, uma SNN pode aprender adotando comportamentos degenerados. A \textbf{regularização de taxa de disparo} insere um custo na função de perda quando a atividade média $\rho$ sai de uma faixa saudável $[r_{\min}, r_{\max}]$:
 	\[
-		L_{\mathrm{reg}}=\lambda\!\left[\max(0,r_{\min}-\rho)^2+
-		\max(0,\rho-r_{\max})^2\right],
-		\qquad \rho=\text{taxa média da camada}.
+		L_{\mathrm{reg}} = \lambda \left[ \max(0, r_{\min} - \rho)^2 + \max(0, \rho - r_{\max})^2 \right]
 	\]
+	\par onde $\rho$ é a taxa média da camada. A penalidade atua contra dois extremos:
+	\begin{center}
+		\footnotesize
+		\begin{tabular}{lcl}
+			\toprule
+			\textbf{Comportamento} & \textbf{Taxa $\rho$} & \textbf{Consequência} \\
+			\midrule
+			\textbf{Silenciados} & $\rho < r_{\min}$ & Sem aprendizado (gradiente nulo) \\
+			\textbf{Rajadas} & $\rho > r_{\max}$ & Satura chips e anula economia \\
+			\textbf{Faixa alvo} & $[r_{\min}, r_{\max}]$ & \textbf{Custo zero}: esparsidade com gradientes vivos \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
 	\begin{itemize}
-		\item Exemplo: faixa $[0{,}10,0{,}80]$. Uma camada com média $0{,}02$ recebe pressão para disparar mais; uma com média $0{,}95$ recebe pressão para disparar menos.
-		\item \textbf{Por que importa?} Controlar a atividade pode favorecer pulsos esparsos e equilibrar a taxa com a tarefa. Isso pode reduzir operações em hardware orientado a eventos, mas a penalidade não garante economia em qualquer processador.
-		\item Limite importante: se duas unidades têm taxas $0{,}02$ e $0{,}95$, a média é $0{,}485$; a penalidade sobre a média é zero. Esta formulação vê a camada, não cada unidade.
-		\item A forma da penalidade e a faixa desejada são escolhas de projeto, não uma regra universal para toda SNN \cite{yan2022sparsity, eshraghian2023training}.
+		\item Dentro da janela $[r_{\min}, r_{\max}]$, a penalidade é nula e a rede treina livremente.
 	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Regularização de taxa de disparo: qual a sua importância?}
+	\framesubtitle{Garantindo esparsidade neuromórfica e estabilidade de treinamento}
+	\small
+	\begin{itemize}
+		\setlength{\itemsep}{2pt}
+		\item \textbf{Eficiência energética neuromórfica}:
+		\begin{itemize}
+			\item Chips neuromórficos (Loihi, SpiNNaker) só gastam energia quando há pulsos (acumulações esparsas).
+			\item Disparar em 80\% dos passos elimina o benefício energético sobre ANNs. Manter $\rho \in [0{,}05, 0{,}20]$ garante a economia real prometida.
+		\end{itemize}
+		\item \textbf{Fluxo contínuo de gradientes}:
+		\begin{itemize}
+			\item Gradientes substitutos atuam em uma faixa estreita em torno de $V_{th}$. Taxas reguladas mantêm os neurônios operando nessa zona ativa de transição.
+		\end{itemize}
+		\item \textbf{A sutileza: camada vs. neurônio individual}:
+		\begin{itemize}
+			\item Se duas unidades têm taxas $0{,}0$ (morta) e $1{,}0$ (saturada), a média é $0{,}5$ (penalidade zero!).
+			\item Técnicas avançadas regularizam cada neurônio individualmente \cite{yan2022sparsity, eshraghian2023training}.
+		\end{itemize}
+	\end{itemize}
+	\par\vfill{\tiny Referências: \cite{yan2022sparsity, eshraghian2023training}.}
 \end{frame}

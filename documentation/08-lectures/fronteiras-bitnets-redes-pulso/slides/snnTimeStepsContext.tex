@@ -1,20 +1,42 @@
-\begin{frame}[shrink]
-	\frametitle{time\_steps e $\Delta t$: quantos passos e quanto dura cada passo}
+\begin{frame}
+	\frametitle{time\_steps ($T$) e $\Delta t$: o que são?}
+	\framesubtitle{Discretização do tempo contínuo em redes neurais de pulso}
 	\small
-	\par Um neurônio de pulso guarda estado entre atualizações. Para simular essa memória, é preciso saber tanto \textbf{quantas atualizações} fazer quanto \textbf{quanto tempo simulado} decorre entre elas.
+	\par Redes biológicas e sinais físicos operam em \textbf{tempo contínuo}. Ao simular uma SNN em computadores digitais, o tempo precisa ser fatiado em intervalos discretos --- como os quadros de um filme.
 	\begin{center}
+		\footnotesize
 		\begin{tabular}{lcc}
 			\toprule
-			& \textbf{time\_steps ($T$)} & \textbf{$\Delta t$} \\
+			& \textbf{time\_steps ($T$)} & \textbf{Passo de tempo ($\Delta t$)} \\
 			\midrule
-			Responde a & Quantos quadros? & Quanto dura cada quadro? \\
-			Exemplo & $T=16$: 16 atualizações & $\Delta t=1$: 1 unidade por quadro \\
+			\textbf{Conceito} & Quantidade de iterações/quadros & Duração física de cada quadro \\
+			\textbf{Responde a} & Quantos passos calcular? & Quanto tempo passa por passo? \\
+			\textbf{Exemplo} & $T = 16$ passos & $\Delta t = 1{,}0\,\text{ms}$ por passo \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
 	\begin{itemize}
-		\item Duração simulada: $T\Delta t$. Com $T=16$, mudar $\Delta t$ de 1 para 16 muda a duração de 16 para 256 unidades, sem mudar o número de quadros.
-		\item No LIF, a fração de potencial que sobrevive a cada passo é $\beta=e^{-\Delta t/(RC)}$. Com $RC=5$, $\beta=0{,}82$ para $\Delta t=1$, mas cai para $0{,}04$ se $\Delta t=16$: a unidade quase esquece o estado anterior.
-		\item \textbf{Por que importa?} Confundir as duas grandezas pode alterar silenciosamente a memória temporal. E, ao empilhar sequências no lote, a ordem dos quadros também precisa continuar correta \cite{gerstner2014neuronal, eshraghian2023training}.
+		\setlength{\itemsep}{1pt}
+		\item \textbf{Janela temporal simulada total}: $t_{\mathrm{total}} = T \cdot \Delta t$.
+		\item Com $T=16$ e $\Delta t=1\,\text{ms}$, simula-se $16\,\text{ms}$. Se $\Delta t = 0{,}1\,\text{ms}$, os mesmos 16 passos cobrem apenas $1{,}6\,\text{ms}$ de física real.
+		\item $T$ dita o \textbf{esforço computacional} (laços no tempo); $\Delta t$ dita a \textbf{escala temporal física} da dinâmica neuronal \cite{gerstner2014neuronal, eshraghian2023training}.
 	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{time\_steps ($T$) e $\Delta t$: qual a sua importância?}
+	\framesubtitle{Impacto na memória do neurônio LIF e na estrutura dos tensores}
+	\small
+	\begin{itemize}
+		\setlength{\itemsep}{2pt}
+		\item \textbf{Memória e decaimento do potencial ($\beta$)}:
+		No neurônio LIF, a fração do potencial que sobrevive entre passos sucessivos é $\beta = \exp(-\Delta t / \tau)$. Com constante de tempo $\tau = 5\,\text{ms}$:
+		\begin{itemize}
+			\item Se $\Delta t = 1\,\text{ms}$: $\beta = e^{-0{,}2} \approx 0{,}82 \implies$ a membrana retém 82\% da carga (memória temporal ativa).
+			\item Se $\Delta t = 16\,\text{ms}$: $\beta = e^{-3{,}2} \approx 0{,}04 \implies$ o potencial vaza quase todo em um único passo (perda de memória).
+		\end{itemize}
+		\item \textbf{Custo computacional e BPTT}: Mais passos ($T$ alto) capturam dinâmicas mais ricas, mas elevam o custo de tempo e de memória de treino linearmente ($O(T)$).
+		\item \textbf{Armadilha na ordem dos tensores}: Tensores usam $(T, B, F)$ ou $(B, T, F)$. Misturar as dimensões corrompe a causalidade temporal.
+	\end{itemize}
+	\par\vfill{\tiny Referências: \cite{gerstner2014neuronal, eshraghian2023training}.}
 \end{frame}

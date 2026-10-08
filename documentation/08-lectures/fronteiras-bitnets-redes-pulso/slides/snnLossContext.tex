@@ -1,23 +1,47 @@
-\begin{frame}[shrink]
-	\frametitle{A perda precisa medir onde o código guarda a informação}
+\begin{frame}
+	\frametitle{Perda incompatível com a codificação: o que é?}
+	\framesubtitle{O descompasso entre onde a informação está e o que a perda avalia}
 	\small
-	\par Uma função de perda só consegue corrigir aquilo que mede. Se o código guarda o valor no \textbf{instante} do pulso, contar pulsos pode declarar sucesso mesmo quando o pulso chega na hora errada.
+	\par Em SNNs, a saída é uma \textbf{sequência de pulsos no tempo}. A função de perda deve mensurar a grandeza exata onde a informação foi codificada.
+	\par Um \textbf{descompasso de codificação} ocorre quando a métrica ignora a dimensão temporal do código:
 	\begin{center}
+		\footnotesize
 		\begin{tabular}{lcc}
 			\toprule
-			& \textbf{Alvo} & \textbf{Previsão} \\
+			& \textbf{Alvo desejado} & \textbf{Previsão da rede} \\
 			\midrule
-			Instante do pulso, $T=16$ & quadro 4 & quadro 12 \\
-			Contagem de pulsos & 1 & 1 \\
+			\textbf{Instante do pulso} (latência, $T=16$) & Quadro $t = 4$ & Quadro $t = 12$ \\
+			\textbf{Contagem total de pulsos} & 1 pulso & 1 pulso \\
+			\midrule
+			\textbf{Perda por contagem (taxa)} & \multicolumn{2}{c}{$(1 - 1)^2 = \mathbf{0} \implies \text{Erro zero (ilusão de acerto)}$} \\
+			\textbf{Perda temporal (latência)} & \multicolumn{2}{c}{$(12 - 4)^2 = \mathbf{64} \implies \text{Erro: 8 passos atrasado}$} \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
 	\begin{itemize}
-		\item Perda de contagem: $(1-1)^2=0$; o treino diz ``perfeito'', embora o pulso esteja 8 quadros atrasado.
-		\item Perda de tempo: $(12-4)^2=64$; ela enxerga o erro que a codificação por latência realmente representa.
-		\item Há outra armadilha: se a unidade nunca dispara, esta implementação atribui $t=T=16$. A perda de tempo vale $(16-4)^2=144$, mas seu \textit{backward} não escreve gradiente para $t=T$; a unidade permanece silenciosa.
+		\setlength{\itemsep}{1pt}
+		\item A perda por contagem calcula gradiente zero e não corrige nada, embora o pulso tenha chegado completamente atrasado!
 	\end{itemize}
-	\begin{alertblock}{Importância prática}
-		Confirme que codificação, alvo e perda concordam; monitore se há gradientes vivos. Uma perda baixa, sozinha, não prova que a rede aprendeu a resposta temporal \cite{eshraghian2023training, liu2023firstspike}.
-	\end{alertblock}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Perda incompatível com a codificação: qual a sua importância?}
+	\framesubtitle{Duas falhas silenciosas que sabotam o treinamento de SNNs}
+	\footnotesize
+	\begin{itemize}
+		\setlength{\itemsep}{2pt}
+		\item \textbf{Falha Silenciosa 1: Otimização cega por incompatibilidade}:
+		\begin{itemize}
+			\item As curvas de perda caem a zero e o otimizador reporta convergência, mas o modelo falha na tarefa porque a resposta temporal nunca foi ajustada.
+		\end{itemize}
+		\item \textbf{Falha Silenciosa 2: Gradientes mortos na perda temporal (\textit{SpikeTimeLoss})}:
+		\begin{itemize}
+			\item Para códigos temporais, mede-se $|t_{\mathrm{pred}} - t_{\mathrm{alvo}}|^2$.
+			\item Se um neurônio \textbf{nunca dispara} em nenhum dos $T$ passos, adota-se $t_{\mathrm{pred}} = T$.
+			\item A perda reportada é alta, mas como o neurônio nunca cruzou o limiar, a derivada do tempo de disparo não fornece gradiente para erguer o potencial!
+			\item O neurônio entra em silêncio irreversível durante o restante do treino.
+		\end{itemize}
+		\item \textbf{Diretriz}: Alinhar estritamente a perda ao código (taxa $\leftrightarrow$ contagem; latência $\leftrightarrow$ instante) e monitorar neurônios inativos.
+	\end{itemize}
+	\par\vfill{\tiny Referências: \cite{eshraghian2023training, liu2023firstspike}.}
 \end{frame}

@@ -187,8 +187,8 @@ def train(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--epochs", type=int, default=400)
-    parser.add_argument("--lr", type=float, default=0.5)
-    parser.add_argument("--lr-decay", type=float, default=0.985, help="per-epoch multiplier on --lr")
+    parser.add_argument("--lr", type=float, default=0.99)
+    parser.add_argument("--lr-decay", type=float, default=0.995, help="per-epoch multiplier on --lr")
     parser.add_argument("--hidden", type=int, default=32)
     parser.add_argument("--out", type=Path, default=_WEIGHTS_PATH)
     args = parser.parse_args()

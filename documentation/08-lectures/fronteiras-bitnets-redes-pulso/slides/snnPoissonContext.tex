@@ -1,22 +1,51 @@
-\begin{frame}[shrink]
-	\frametitle{Codificação Poisson: intensidade vira chance}
+\begin{frame}
+	\frametitle{Codificação Poisson: o que é?}
+	\framesubtitle{Mapeando intensidade contínua em probabilidade de disparo de pulsos}
 	\small
-	\par Uma rede precisa receber números comuns, mas seus neurônios trocam pulsos. Na codificação Poisson, o valor de entrada não determina um pulso certo: determina a \textbf{probabilidade} de disparar em cada passo.
+	\par Sinais reais (pixels, áudio, medidas analógicas) são contínuos ($x \in [0, 1]$). Neurônios de pulso comunicam-se via eventos binários discretos ($s_t \in \{0, 1\}$).
+	\par A \textbf{codificação Poisson} (por taxa estocástica) converte a intensidade na \textbf{probabilidade de disparo por passo}:
+	\[
+		p_t = x \cdot r_{\max}, \qquad s_t \sim \mathrm{Bernoulli}(p_t)
+	\]
 	\begin{center}
-		\begin{tabular}{lcl}
+		\footnotesize
+		\begin{tabular}{lcc}
 			\toprule
-			\textbf{Entrada} & \textbf{Probabilidade por passo} & \textbf{Leitura após 10 passos} \\
+			\textbf{Estímulo de entrada} & \textbf{Probabilidade ($r_{\max}=0{,}9$)} & \textbf{Média esperada ($T=10$)} \\
 			\midrule
-			$x=0{,}6$, $r_{\max}=0{,}9$ & $p=x\,r_{\max}=0{,}54$ & $E[n]=10p=5{,}4$ pulsos \\
+			Pixel escuro ($x = 0{,}1$) & $p = 0{,}09$ (9\%) & $\mathbb{E}[N] = 10 \times 0{,}09 = 0{,}9$ pulso \\
+			Pixel brilhante ($x = 0{,}6$) & $p = 0{,}54$ (54\%) & $\mathbb{E}[N] = 10 \times 0{,}54 = 5{,}4$ pulsos \\
+			Pixel saturado ($x = 1{,}0$) & $p = 0{,}90$ (90\%) & $\mathbb{E}[N] = 10 \times 0{,}90 = 9{,}0$ pulsos \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
 	\begin{itemize}
-		\item Duas repetições com a mesma entrada podem gerar contagens diferentes; ambas tendem a representar a mesma intensidade.
-		\item \textbf{Por que importa?} A contagem aproxima o valor, mas traz variação aleatória. Mais passos tornam a estimativa de taxa mais estável, ao custo de mais tempo de simulação.
-		\item É uma escolha de representação, não ruído adicionado depois do treino. A codificação por taxa é comum, mas não é a única forma de representar informação em pulsos \cite{diehl2015fast, eshraghian2023training}.
+		\setlength{\itemsep}{1pt}
+		\item A cada passo $\Delta t$, sorteia-se independentemente se o pulso ocorre ou não.
+		\item A informação não está no instante exato de um pulso individual, mas na \textbf{taxa média de disparos} ao longo da janela simulada.
 	\end{itemize}
-	\begin{block}{O que observar na demonstração}
-		O mesmo sinal alimenta cada passo. A intensidade define a chance de disparo; não garante que um pulso apareça em um instante específico.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Codificação Poisson: qual a sua importância e limitações?}
+	\framesubtitle{Ponte para bases convencionais e os custos da estocasticidade}
+	\footnotesize
+	\begin{itemize}
+		\setlength{\itemsep}{2pt}
+		\item \textbf{Importância fundamental}:
+		\begin{itemize}
+			\item Inspiração neurobiológica direta (codificação por taxa média no córtex).
+			\item Permite alimentar SNNs com qualquer conjunto de dados estático clássico (MNIST, CIFAR) sem sensores neuromórficos nativos (como DVS) \cite{diehl2015fast}.
+		\end{itemize}
+		\item \textbf{Limitações e o custo da variância}:
+		\begin{itemize}
+			\item \textbf{Variância de amostragem}: duas repetições do mesmo estímulo geram sequências diferentes de pulsos.
+			\item \textbf{Custo de latência e energia}: estimar a taxa com precisão ($\sigma \propto 1/\sqrt{T}$) exige $T$ grande ($T \ge 50$), gerando muitos pulsos e elevando o tempo e a energia.
+			\item Com poucos passos ($T$ curto), essa dispersão atua como um ruído intrínseco.
+		\end{itemize}
+	\end{itemize}
+	\begin{block}{O que observar na demonstração a seguir}
+		O mesmo sinal alimenta cada passo. A intensidade define a probabilidade de pulso, produzindo um padrão pontilhado no tempo.
 	\end{block}
+	\par\vfill{\tiny Referências: \cite{diehl2015fast, eshraghian2023training}.}
 \end{frame}

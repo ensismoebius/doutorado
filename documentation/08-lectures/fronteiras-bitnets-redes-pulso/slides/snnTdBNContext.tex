@@ -1,21 +1,51 @@
-\begin{frame}[shrink]
-	\frametitle{tdBN: colocar a corrente na escala do limiar}
+\begin{frame}
+	\frametitle{Normalização dependente de limiar (tdBN): o que é?}
+	\framesubtitle{Adequando a normalização por lote à física dos neurônios de pulso}
 	\small
-	\par BatchNorm comum padroniza valores para média 0 e variância 1. Isso funciona em redes contínuas, mas um neurônio de pulso só dispara quando seu potencial alcança $V_{th}$; uma escala fixa pode deixar toda a camada abaixo desse limiar.
+	\par Em redes clássicas, a \textbf{Batch Normalization (BN)} padroniza saídas com média $0$ e variância unitária ($\sigma = 1$), acelerando a convergência.
+	\par \textbf{O dilema em SNNs}: Neurônios LIF disparam só quando o potencial atinge o limiar $V_{th}$.
+	\begin{itemize}
+		\setlength{\itemsep}{1pt}
+		\item Com BN clássica ($\sigma=1$), se $V_{th} = 2{,}0$, quase toda a distribuição normalizada fica abaixo de $V_{th}$ $\implies$ \textbf{a camada inteira silencia (zero disparos)!}
+		\item Se $V_{th}$ for muito baixo, a camada inteira satura em rajadas descontroladas.
+	\end{itemize}
+	\par A \textbf{tdBN} (\textit{Threshold-dependent Batch Normalization}) escala a corrente proporcionalmente ao próprio limiar $V_{th}$:
+	\[
+		Y = \alpha V_{th} \cdot \frac{X - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta
+	\]
 	\begin{center}
+		\footnotesize
 		\begin{tabular}{lcc}
 			\toprule
-			& \textbf{BatchNorm comum} & \textbf{tdBN, $V_{th}=2$, $\alpha=1$} \\
+			& \textbf{BatchNorm clássica ($\sigma=1$)} & \textbf{tdBN ($V_{th}=2{,}0$, $\alpha=1$)} \\
 			\midrule
-			Entrada $X=[0,2,4,6]$ & $[-1{,}34,-0{,}45,0{,}45,1{,}34]$ & $[-2{,}68,-0{,}89,0{,}89,2{,}68]$ \\
-			Escala do desvio & $1$ & $\alpha V_{th}=2$ \\
-			Valores acima do limiar & $0$ de $4$ & $1$ de $4$ \\
+			Valores normalizados & $[-1{,}34;\; -0{,}45;\; 0{,}45;\; 1{,}34]$ & $[-2{,}68;\; -0{,}89;\; 0{,}89;\; 2{,}68]$ \\
+			Acima de $V_{th}=2$ & \textbf{0 de 4} (camada calada) & \textbf{1 de 4} (fração ativa) \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Normalização dependente de limiar (tdBN): qual a sua importância?}
+	\framesubtitle{A chave para treinar SNNs profundas diretamente com BPTT}
+	\footnotesize
 	\begin{itemize}
-		\item A tdBN usa $Y=\alpha V_{th}(X-\mu)/\sigma$: a escala acompanha o limiar, em vez de ignorá-lo.
-		\item \textbf{Por que importa?} Mais valores podem alcançar o limiar e gerar gradientes úteis; isso ajuda a treinar redes de pulso profundas e reduz o problema de camadas sem disparos.
-		\item Não é garantia de que cada neurônio disparará nem substitui uma boa escolha de dinâmica e perda. É uma normalização proposta para estabilizar o treinamento direto de SNNs profundas \cite{zheng2021deeper, eshraghian2023training}.
+		\setlength{\itemsep}{2pt}
+		\item \textbf{Viabilização de SNNs muito profundas}:
+		\begin{itemize}
+			\item Antes da tdBN, o treino com gradiente direto colapsava após 3 a 5 camadas por desvanecimento ou saturação de pulsos.
+			\item A tdBN garantiu o primeiro treino supervisionado direto de arquiteturas profundas (ResNet-18, 34 e 50) em dados neuromórficos \cite{zheng2021deeper}.
+		\end{itemize}
+		\item \textbf{Desacoplamento do limiar de disparo}:
+		\begin{itemize}
+			\item A fração de neurônios que ultrapassa o limiar deixa de ser refém do valor numérico arbitrário de $V_{th}$.
+			\item Ajustar parâmetros de membrana ($\tau$, $V_{th}$) não quebra a escala da camada.
+		\end{itemize}
+		\item \textbf{Estabilidade retrógrada de gradientes}:
+		\begin{itemize}
+			\item Neurônios sem pulsos geram gradiente substituto nulo. A tdBN assegura atividade contínua, mantendo o sinal de erro vivo até as primeiras camadas.
+		\end{itemize}
 	\end{itemize}
+	\par\vfill{\tiny Referências: \cite{zheng2021deeper, eshraghian2023training}.}
 \end{frame}
