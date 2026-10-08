@@ -12,12 +12,12 @@
 #SBATCH --job-name=meeting01-loso
 #SBATCH --partition=long
 #SBATCH --time=30-00:00:00
-# --cpus-per-task=26, not the node's 28 physical cores (2x14-core Xeon E5-2680 v4): the v3
-# manual (2026-09-23 check, see .wiki/Guides/GridUnesp-Deployment.md Sec 1) says only ~26
-# cores/node are schedulable, 2 reserved for the OS. A first submission with 28 sat in
-# PENDING ("Nodes required for job are DOWN, DRAINED or reserved ...") and was replaced by
-# this 26 on 2026-10-07 (the gridunesp_deploy.sh build step uses 26 for the same reason).
-#SBATCH --cpus-per-task=26
+# --cpus-per-task=12. Each node has 56 CPUs (28 cores x 2 threads) but the partition is shared
+# and nearly full: on 2026-10-07 only 2 of 54 `long` nodes had >= 26 CPUs idle, 11 had >= 12,
+# and requests of 28 and then 26 both sat in PENDING ("Nodes required for job are DOWN,
+# DRAINED or reserved ..."). Fewer CPUs per task start sooner and cost wall time; the run is
+# restartable (RESUME=1). The deploy's build step uses its own count (GRIDUNESP_BUILD_CPUS).
+#SBATCH --cpus-per-task=12
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=meeting01_loso_%j.out
