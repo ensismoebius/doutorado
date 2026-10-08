@@ -1,0 +1,22 @@
+% Thesis-only counterpart to desafios.tex (which frames open challenges as
+% BitNets-vs-SNN columns -- not applicable once BitNet is out of the
+% deck). Content drawn from the thesis' own "Limitações" section
+% (documentation/00-thesis/monography/chapters/10-conclusions.tex), not
+% invented for this talk: these are the three design limitations the
+% thesis itself names, so the live software's demos (paraconsistent.*,
+% comparison.autoencoders) are shown next to the caveats the real
+% experiment ran into, not just the mechanics in isolation.
+\begin{frame}
+	\frametitle{Limitações do experimento}
+	\small
+	\begin{block}{A limitação dominante: tamanho da base}
+		15 locutores, 1974 amostras. Sob protocolo de verificação --- partições disjuntas por locutor --- cada dobra treina com poucas identidades: risco alto de o classificador não ter sinal suficiente para generalizar.
+	\end{block}
+	\begin{itemize}
+		\item As três categorias de representação (manual, \textit{autoencoder}, fusão) \textbf{não} foram comparadas por um classificador comum --- só pelo critério paraconsistente.
+		\item Os \textit{autoencoders} tiveram $\bar\beta > 0{,}97$ em toda configuração: latentes perto do colapso. Não dá para distinguir, com os dados disponíveis, ``extrator pior'' de ``treino insuficiente''.
+	\end{itemize}
+	\begin{alertblock}{Consequência}
+		A seleção paraconsistente ranqueia qualidade \textbf{antes} de treinar um classificador --- mas ranquear bem um extrator degenerado via treino insuficiente ainda é um risco que $D_{\text{penalizado}}$ por si só não resolve.
+	\end{alertblock}
+\end{frame}

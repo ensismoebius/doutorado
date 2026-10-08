@@ -9,11 +9,23 @@
 % noise. Also fills in the PDF's Subject/Keywords, which \title/\author
 % derive but the metadata block otherwise leaves blank (checked with
 % pdfinfo -- Title/Author were populated, Subject/Keywords empty).
+% \ifincludebitnet is set by whichever entry file (apresentacao.tex or
+% apresentacao-tese.tex) \input this preamble, before doing so -- see
+% their matching comments. Subject/keywords differ per deck, same as
+% \title/\subtitle in each entry file.
+\ifincludebitnet
 \hypersetup{
 	hidelinks,
 	pdfsubject={As fronteiras da arquitetura de redes neurais: BitNets e redes de pulso},
 	pdfkeywords={BitNet, spiking neural networks, quantização, STE, surrogate gradient}
 }
+\else
+\hypersetup{
+	hidelinks,
+	pdfsubject={Fundamentos computacionais da tese: redes neurais de pulso e lógica paraconsistente},
+	pdfkeywords={spiking neural networks, lógica paraconsistente, LIF, surrogate gradient, EEG}
+}
+\fi
 
 % Absolute position for text and elements
 \usepackage[absolute,overlay]{textpos}

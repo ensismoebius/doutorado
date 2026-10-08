@@ -17,7 +17,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from efficient_nn_lab.app.main_window import MainWindow, _build_demo_tree, _choose_view
+from efficient_nn_lab.app.main_window import MainWindow, _build_demo_tree, _choose_view, _demo_order
 
 
 def _all_demos():
@@ -678,3 +678,70 @@ def test_right_arrow_still_steps_inside_the_demo(qapp):
     QTest.qWait(600)
     assert window.player.demo.slug == order[0]
     assert window.player.demo.current_frame_index > before
+
+
+# -- show-bitnet toggle (narrowing the deck to the thesis' own material) ---
+#
+# The thesis (software/efficient_nn_lab is its companion software) never
+# uses BitNet -- see AppState.show_bitnet's docstring. These pin the
+# toggle that lets a presenter drop it from the running deck without a
+# second build of the app.
+
+def test_show_bitnet_starts_checked_and_on(qapp):
+    window = _window(qapp)
+    assert window.show_bitnet_btn.isChecked()
+    assert window.state.show_bitnet is True
+    assert "BitNet" in window._demo_groups
+    assert any(d.slug == "comparison" for d in window._demo_groups["Comparação"])
+
+
+def test_unchecking_show_bitnet_drops_the_bitnet_group_and_column(qapp):
+    window = _window(qapp)
+    window.show_bitnet_btn.setChecked(False)
+    assert window.state.show_bitnet is False
+    assert "BitNet" not in window._demo_groups
+    # AnnBitnetSnnComparisonDemo (slug "comparison") is gone; the
+    # unrelated AutoencoderComparisonDemo stays -- dropping BitNet must
+    # not take the whole "Comparação" category with it.
+    remaining = [d.slug for d in window._demo_groups["Comparação"]]
+    assert "comparison" not in remaining
+    assert "comparison.autoencoders" in remaining
+    tree_categories = [
+        window.tree.topLevelItem(i).text(0) for i in range(window.tree.topLevelItemCount())
+    ]
+    assert "BitNet" not in tree_categories
+
+
+def test_rechecking_show_bitnet_restores_the_same_demo_instances(qapp):
+    """Toggling off and back on must not rebuild the demos from scratch --
+    a demo's parameters/frame position would silently reset on every
+    flip otherwise (see _build_demo_tree's docstring)."""
+    window = _window(qapp)
+    before = {d.slug: d for d in _demo_order(window._full_demo_groups)}
+    window.show_bitnet_btn.setChecked(False)
+    window.show_bitnet_btn.setChecked(True)
+    after = {d.slug: d for d in _demo_order(window._demo_groups)}
+    assert after.keys() == before.keys()
+    for slug, demo in before.items():
+        assert after[slug] is demo
+
+
+def test_hiding_bitnet_while_a_bitnet_demo_is_open_falls_back_to_welcome(qapp):
+    window = _window(qapp)
+    window._select_demo_by_slug("bitnet.ste")
+    window.show_bitnet_btn.setChecked(False)
+    assert window.demo_title_label.text() == "Efficient Neural Networks Lab"
+    assert not window.controls.isEnabled()
+
+
+def test_hiding_bitnet_while_a_non_bitnet_demo_is_open_keeps_it_selected(qapp):
+    window = _window(qapp)
+    window._select_demo_by_slug("snn.lif")
+    window.show_bitnet_btn.setChecked(False)
+    assert window.player.demo.slug == "snn.lif"
+
+
+def test_build_demo_tree_without_bitnet_matches_the_toggle(qapp):
+    groups = _build_demo_tree(include_bitnet=False)
+    assert "BitNet" not in groups
+    assert [d.slug for d in groups["Comparação"]] == ["comparison.autoencoders"]

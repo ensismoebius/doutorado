@@ -14,7 +14,9 @@ recompilados e verificados — ver checklists marcados abaixo). O que resta
 é exclusivamente o **ensaio ao vivo** (seção 6): testar os links `run:` no
 notebook/visualizador reais do dia, e decidir o modo de operação da seção
 4.2. Fase 2 (o mapeamento em si) sempre foi só a tabela da seção 3, já
-completa desde a primeira versão deste documento.
+completa desde a primeira versão deste documento. Desde a seção 9, o
+deck existe em **duas** versões (a completa, com BitNet, e uma só com o
+que a tese usa); o software ganhou o toggle equivalente.
 
 ---
 
@@ -575,3 +577,52 @@ sobrevive independente do resultado da Fase 3.
 4. Fase 3 (CLI `--demo` + `\href{run:...}`) **só se sobrar tempo** depois
    de 1-3 — é a parte de maior risco de falhar silenciosamente no dia (ver
    4.2), então nunca deve ser a única forma de navegação preparada.
+
+---
+
+## 9. Dois decks: completo x só-tese
+
+A tese (`documentation/00-thesis/monography/`) nunca usa BitNet — zero
+ocorrências em `chapters/*.tex` — mas esta palestra cobre as duas
+fronteiras (BitNet e redes de pulso) porque foi concebida como uma talk
+de divulgação, não como a defesa. Para apresentar só o que a tese usa
+(redes de pulso + lógica paraconsistente), sem reescrever um segundo
+conjunto de slides que divergiria do primeiro a cada edição, o corpo da
+palestra foi extraído para um arquivo compartilhado e cada versão é um
+ponto de entrada fino sobre ele:
+
+| Arquivo | Papel |
+|---|---|
+| `conteudo.tex` | Corpo compartilhado (todas as `\section`s). Blocos só-BitNet ficam dentro de `\ifincludebitnet ... \fi`. |
+| `apresentacao.tex` | Entrada da palestra completa: `\includebitnettrue` antes de `\input{preamble.tex}`, título "As fronteiras da arquitetura de redes neurais". |
+| `apresentacao-tese.tex` | Entrada só-tese: `\includebitnetfalse`, título "Fundamentos computacionais da tese". |
+| `slides/desafiosTese.tex`, `slides/conclusaoTese.tex` | Substituem `desafios.tex`/`conclusao.tex` (que enquadram tudo como BitNet-vs-SNN) no deck só-tese, com números reais do capítulo de conclusões da tese (EER, $\bar\beta$, base de 15 locutores) em vez de recapitular as demos. |
+| `slides/obrigado.tex` | Quadro de encerramento, compartilhado (extraído de `conclusao.tex`, que antes misturava o quadro de síntese BitNet-vs-SNN com este). |
+
+O que o deck só-tese **remove** do corpo compartilhado: a seção
+"Motivação" (enquadra como duas respostas independentes — `motivacao.tex`,
+`taxonomia.tex`), toda a seção "Parte I — BitNets", a demo de comparação
+ANN x BitNet x SNN, `convergenciaQuadrante.tex`/`convergenciaTema.tex`
+(mesmo enquadramento de duas fronteiras) e a analogia ao STE do BitNet em
+`snnTreinamento.tex` (ali trocada por uma frase que não pressupõe
+BitNet). A seção "Convergência" é renomeada "Lógica paraconsistente" e
+passa a conter só a demo de autoencoders e as três demos paraconsistentes
+— o resultado é 49 páginas contra 73 do deck completo, verificado
+(`pdftotext apresentacao-tese.pdf - | grep -i bitnet` não retorna nada).
+
+`make pdf` compila só o deck completo; `make tese` compila só o
+só-tese; `make all` (ou sem alvo) compila os dois.
+
+### 9.1 Equivalente no software
+
+`software/efficient_nn_lab` ganhou o mesmo corte: o botão **Mostrar
+BitNet** na barra superior (ligado por padrão) esconde o grupo "BitNet"
+da árvore e a demo `comparison` (ANN x BitNet x SNN) de dentro de
+"Comparação", sem tocar `comparison.autoencoders` (SNN x LSTM x GRU x
+Transformer, que não tem BitNet). `AppState.show_bitnet` é o estado;
+`MainWindow._filter_bitnet_demos` faz o corte sobre os **mesmos**
+objetos `DemoModule` já construídos — alternar o botão não reconstrói
+demo nenhuma, então nenhum parâmetro ajustado se perde. Se a demo aberta
+no momento for escondida, a tela volta para a boas-vindas; se não for,
+continua selecionada. Testado em
+`software/efficient_nn_lab/tests/test_main_window.py` (6 casos novos).

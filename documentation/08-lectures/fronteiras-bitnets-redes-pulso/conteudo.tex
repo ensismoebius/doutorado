@@ -1,0 +1,124 @@
+% Shared body for both decks (apresentacao.tex = full talk, including
+% BitNets; apresentacao-tese.tex = thesis-only, SNN + lógica
+% paraconsistente). Each entry file does `\includebitnettrue` or
+% `\includebitnetfalse` BEFORE `\input{preamble.tex}` (preamble.tex
+% declares the \newif), then `\input{conteudo.tex}` right after
+% `\begin{document}`. \ifincludebitnet below gates every BitNet-only
+% block -- the thesis itself never uses BitNet (grep confirms zero
+% mentions across documentation/00-thesis/monography/chapters/*.tex), so
+% the thesis-only deck's job is to be exactly this file with those
+% blocks compiled out, not a hand-maintained second copy that can drift
+% from this one.
+
+\frame{\titlepage}
+
+% Frametitle/title bar color changes per section, so the chrome itself
+% signals which frontier is on screen instead of staying blue
+% throughout (see preamble.tex's \setbeamercolor{structure} comment).
+% Must be set BEFORE each \section command: \AtBeginSection's divider
+% frame is emitted during \section's own expansion, so setting the
+% color only after \section would leave the divider frame one step
+% behind.
+\setbeamercolor{title}{fg=chromeText,bg=neutralColor!55!white}
+\setbeamercolor{frametitle}{fg=chromeText,bg=neutralColor!55!white}
+\section{Fundamentos de redes neurais}
+	\input{slides/fundamentosArquitetura.tex}
+	\DemoSlide{Backpropagation, Rede 3-2-2-1}{backprop.mlp}{}
+	\input{slides/fundamentosPesos.tex}
+	\input{slides/fundamentosTreinamento.tex}
+	\DemoSlide{Backprop \textrightarrow{} Forward e backward clássicos}{backprop.classic}{}
+	\input{slides/fundamentosMatrizes.tex}
+	\input{slides/fundamentosCadeia.tex}
+	\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{}
+	% Vem depois de fundamentosCadeia.tex de proposito: o slide enuncia a
+	% regra da cadeia, e esta demo mostra de qual bloco da rede sai cada
+	% fator dela (uma camada = operacao linear + ativacao = dois fatores).
+	\DemoSlide{Backprop \textrightarrow{} Camadas e a regra da cadeia}{backprop.chain}{Percorra os passos de $\partial L/\partial a_2$ até $\partial L/\partial b_1$: cada carta é a derivada local de um bloco, na coluna do bloco. Feche com os cinco fatores em fila.}
+
+\ifincludebitnet
+	\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}
+	\section{Motivação}
+		\input{slides/motivacao.tex}
+		\input{slides/taxonomia.tex}
+
+	\setbeamercolor{title}{fg=chromeText,bg=bitnetColor!92!white}
+	\setbeamercolor{frametitle}{fg=chromeText,bg=bitnetColor!92!white}
+	\section{Parte I --- BitNets}
+		\input{slides/bitnetLinha.tex}
+		\input{slides/bitnetProblema.tex}
+		\input{slides/bitnetCamada.tex}
+		\DemoSlide{BitNet \textrightarrow{} Quantização}{bitnet.quant}{}
+		\DemoSlide{BitNet \textrightarrow{} Forward}{bitnet.forward}{}
+		\input{slides/bitnetTreinamento.tex}
+		\DemoSlide{BitNet \textrightarrow{} Backward \textrightarrow{} STE}{bitnet.ste}{}
+		% Demo de reserva. Estava como \abrirNoSoftware no rodape de
+		% bitnetTreinamento.tex; aquele quadro ja usa [shrink] e os links
+		% foram removidos de la, o que deixou esta demo sem nenhuma porta
+		% de entrada no PDF (test_every_demo_is_reachable_from_the_lecture_deck).
+		% Como quadro proprio nao disputa espaco com nada.
+		\DemoSlide{BitNet \textrightarrow{} Exemplo guiado (bônus)}{bitnet.guided}{Ciclo completo forward \textrightarrow{} perda \textrightarrow{} STE \textrightarrow{} update num peso só: peso latente 0,80 \textrightarrow{} 0,84. Demo de reserva, se sobrar tempo.}
+		\input{slides/bitnetResultados.tex}
+		\input{slides/bitnetHardwareLimitacoes.tex}
+\fi
+
+\setbeamercolor{title}{fg=chromeText,bg=snnColor!85!white}
+\setbeamercolor{frametitle}{fg=chromeText,bg=snnColor!85!white}
+\section{\ifincludebitnet Parte II --- \fi Redes de pulso}
+	\input{slides/snnMotivacao.tex}
+	\input{slides/snnConfusable.tex}
+	\DemoSlide{SNN \textrightarrow{} Normalização: por característica x por janela}{snn.normalization}{Áudio padroniza cada característica com média/desvio ajustados uma vez no treino (CMVN); EEG recalcula a cada janela, e uma deriva de +50~$\mu$V some. Só o caminho ajustado pode vazar dados de teste -- em silêncio.}
+	\DemoSlide{SNN \textrightarrow{} Sinal e spikes}{snn.spikes}{}
+	\DemoSlide{SNN \textrightarrow{} Codificação Poisson}{snn.poisson}{}
+	\DemoSlide{SNN \textrightarrow{} Ruído estrutural da codificação}{snn.encoding_noise}{"Direta > latência > Poisson" pode ser só o chão de ruído estrutural de cada codificação, não uma diferença real de informação.}
+	\DemoSlide{SNN \textrightarrow{} Perda incompatível com a codificação}{snn.encoding_loss_mismatch}{Perda de contagem sobre latência: o treino reporta perda zero sem corrigir nada. Perda certa (SpikeTimeLoss): uma unidade que nunca dispara fica sem gradiente. Duas falhas silenciosas -- e a validação que as torna barulhentas.}
+	\input{slides/snnLif.tex}
+	\DemoSlide{SNN \textrightarrow{} LIF}{snn.lif}{Os parâmetros padrão (tau=5, R=5, V\_th=1) já reproduzem o exemplo numérico anterior; aperte Play para o comportamento completo.}
+	\DemoSlide{SNN \textrightarrow{} time\_steps x delta\_t}{snn.timesteps}{Quantos quadros x quanto dura um quadro -- e por que a ordem das linhas no tensor (T*B,F) importa.}
+	\input{slides/snnEsparsidade.tex}
+	\DemoSlide{SNN \textrightarrow{} Codificação Poisson (imagem)}{snn.poisson_image}{}
+	\input{slides/snnTreinamento.tex}
+	\DemoSlide{SNN \textrightarrow{} Surrogate gradient}{snn.surrogate}{Percorra os checkpoints "A derivada real" até "O gradiente substituto".}
+	\DemoSlide{SNN \textrightarrow{} Normalização dependente de limiar (tdBN)}{snn.tdbn}{BatchNorm comum fixa variância 1 e, com V\_th = 2, cala a camada; tdBN espalha a corrente em $\alpha \cdot V_{th}$, e a fração acima do limiar deixa de depender de V\_th.}
+	\DemoSlide{SNN \textrightarrow{} Regularização de taxa de disparo}{snn.firing_rate_reg}{Um neurônio quase morto e um em rajada são empurrados de volta à faixa alvo de taxa de disparo; dentro da faixa, a penalidade não faz nada.}
+	\input{slides/snnBptt.tex}
+	\label{sec:snnHardware}
+	\input{slides/snnHardware.tex}
+	\input{slides/snnAplicacoes.tex}
+
+\setbeamercolor{title}{fg=chromeText,bg=convergeColor!80!white}
+\setbeamercolor{frametitle}{fg=chromeText,bg=convergeColor!80!white}
+\section{\ifincludebitnet Convergência\else Lógica paraconsistente\fi}
+	\label{sec:convergencia}
+	\ifincludebitnet
+		\input{slides/convergenciaQuadrante.tex}
+		\DemoSlide{Comparação \textrightarrow{} ANN x BitNet x SNN}{comparison}{Avance até o último checkpoint: a tabela completa ANN x BitNet x SNN.}
+	\fi
+	\DemoSlide{Comparação \textrightarrow{} Autoencoders (SNN x LSTM x GRU x Transformer)}{comparison.autoencoders}{Como o Meeting01 compara quatro famílias sem trapacear: mesmo gargalo, mesmo alvo, referências média e PCA. A PCA é real (janelas sintéticas); as famílias ficam sem números inventados -- só o experimento LOSO os preenche.}
+	% Lógica paraconsistente (tese de doutorado do autor): uma métrica
+	% geométrica (alpha/beta -> plano paraconsistente -> D_penalized) que
+	% ranqueia QUALIDADE de um resultado antes de treinar qualquer coisa --
+	% usada pela tese para ranquear extratores de features, e reutilizada
+	% pelo experimento paraconsistentGA do software/nn (fora da monografia)
+	% como objetivo de uma busca NSGA-II por arquiteturas. Cabe em
+	% "Convergência": é literalmente o ponto onde a lógica de ranqueamento
+	% da tese encontra a busca de arquitetura. (No deck só-tese esta é a
+	% seção principal de contribuições, sem a moldura de "convergência".)
+	\DemoSlide{Paraconsistente \textrightarrow{} Plano paraconsistente}{paraconsistent.plane}{Alpha (compacidade intraclasse) e beta (sobreposição interclasse) definem um ponto no plano, com quatro cantos: Verdade, Falsidade, Ambiguidade, Indefinição.}
+	\DemoSlide{Paraconsistente \textrightarrow{} D\_truth x D\_penalized}{paraconsistent.dpenalized}{Por D\_truth, um extrator "morto" ($\sqrt{2} \approx 1{,}41$) passa à frente de um fraco porém real (1,50); D\_penalized leva os três cantos ruins a exatamente 2 e fecha essa brecha -- contribuição central da tese do autor.}
+	\DemoSlide{Paraconsistente \textrightarrow{} Busca genética de arquiteturas (extensão)}{paraconsistent.ga_pareto}{Fora da monografia: o paraconsistentGA do software/nn usa D\_penalized como objetivo de uma busca NSGA-II -- dominância, fronteira de Pareto, teto de latência pela regra de Deb, e um cardápio, não um vencedor.}
+	\ifincludebitnet
+		\input{slides/convergenciaTema.tex}
+	\fi
+
+\setbeamercolor{title}{fg=chromeText,bg=accentColor!75!white}
+\setbeamercolor{frametitle}{fg=chromeText,bg=accentColor!75!white}
+\section{Desafios e síntese}
+	\ifincludebitnet
+		\input{slides/desafios.tex}
+		\input{slides/conclusao.tex}
+	\else
+		\input{slides/desafiosTese.tex}
+		\input{slides/conclusaoTese.tex}
+	\fi
+	\input{slides/obrigado.tex}

@@ -1,0 +1,23 @@
+% Thesis-only counterpart to conclusao.tex's "Síntese" frame (which frames
+% the synthesis as BitNets-vs-SNN -- not applicable once BitNet is out of
+% the deck). Content drawn from the thesis' own "Síntese dos resultados"
+% and "Contribuições" sections (documentation/00-thesis/monography/
+% chapters/10-conclusions.tex): the real numbers the experiment produced,
+% not a restatement of the demos just shown.
+\begin{frame}
+	\frametitle{Síntese}
+	\small
+	\begin{itemize}
+		\item \textbf{Extração manual venceu a seleção paraconsistente} para voz e EEG, com a mesma configuração (\textit{wavelet} Haar, LFCC) --- nenhuma das 24 variantes de \textit{autoencoder} se aproximou.
+		\item \textbf{Autenticação ficou perto do acaso}: melhor $\text{EER} = 0{,}4534$, melhor $\text{AUC} = 0{,}5452$, contra $0{,}5$/$0{,}5$ de um classificador aleatório --- um resultado negativo, não um ajuste fino pendente.
+		\item EEG e fusões superaram voz isolada entre as configurações mais bem colocadas --- consistente com a motivação de complementar fala degradada com sinal cerebral.
+	\end{itemize}
+	\begin{block}{Três contribuições metodológicas}
+		\begin{itemize}
+			\setlength{\itemsep}{0pt}
+			\item $D_{\text{penalizado}}$ --- fecha a brecha dos três cantos degenerados do plano paraconsistente.
+			\item Diagnóstico do piso de ruído estrutural de codificações temporais (\texttt{direct} $\succ$ \texttt{latency} $\succ$ \texttt{poisson}).
+			\item Protocolo em duas fases: seleção do extrator separada da medição de desempenho.
+		\end{itemize}
+	\end{block}
+\end{frame}

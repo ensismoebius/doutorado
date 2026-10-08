@@ -22,15 +22,26 @@ class AppState(QObject):
     lecture_mode: collapses the tree/menu chrome into the two-button
     Anterior/Proximo layout described in ESPECIFICACAO_DLVL.md #28, driven
     by keyboard shortcuts instead of mouse navigation.
+
+    show_bitnet: include the BitNet demos (sidebar "BitNet" group, plus
+    the BitNet column of the ANN x BitNet x SNN comparison) in the
+    running deck. Default on, matching the app's original scope. Off is
+    for presenting just the thesis' own material (redes de pulso +
+    lógica paraconsistente) without the unrelated BitNet frontier that
+    `documentation/08-lectures/fronteiras-bitnets-redes-pulso/` also
+    covers -- see that talk's `apresentacao-tese.tex` for the slide-deck
+    half of the same split.
     """
 
     professor_mode_changed = Signal(bool)
     lecture_mode_changed = Signal(bool)
+    show_bitnet_changed = Signal(bool)
 
     def __init__(self) -> None:
         super().__init__()
         self._professor_mode = False
         self._lecture_mode = False
+        self._show_bitnet = True
 
     @property
     def professor_mode(self) -> bool:
@@ -51,3 +62,13 @@ class AppState(QObject):
         if value != self._lecture_mode:
             self._lecture_mode = value
             self.lecture_mode_changed.emit(value)
+
+    @property
+    def show_bitnet(self) -> bool:
+        return self._show_bitnet
+
+    @show_bitnet.setter
+    def show_bitnet(self, value: bool) -> None:
+        if value != self._show_bitnet:
+            self._show_bitnet = value
+            self.show_bitnet_changed.emit(value)

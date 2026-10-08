@@ -1,0 +1,34 @@
+% Entry point for the THESIS-ONLY talk -- exactly the concepts the PhD
+% thesis itself uses (redes neurais de pulso + lógica paraconsistente),
+% with BitNet (the other frontier covered by apresentacao.tex, but never
+% mentioned anywhere in documentation/00-thesis/monography/chapters/)
+% compiled out of the shared body. See conteudo.tex and
+% \ifincludebitnet's uses there for exactly what that removes.
+%
+% \newif must run before \input{preamble.tex} -- see apresentacao.tex's
+% matching comment; this file is apresentacao.tex's twin, differing only
+% in this flag and the title block below.
+\newif\ifincludebitnet
+\includebitnetfalse
+
+\input{preamble.tex}
+
+\title{Fundamentos computacionais da tese}
+\subtitle{Redes neurais de pulso e lógica paraconsistente}
+
+\institute{https://github.com/ensismoebius}
+
+\author{André Furlan - ensismoebius@gmail.com}
+
+\date{\the\year}
+
+\begin{document}
+
+	\input{conteudo.tex}
+
+	\begin{frame}[allowframebreaks]
+		\frametitle{Referências}
+		\bibliography{referencias.bib}
+	\end{frame}
+
+\end{document}

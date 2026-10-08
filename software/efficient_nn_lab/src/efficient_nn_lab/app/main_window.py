@@ -218,8 +218,21 @@ def _height_for_lines(fm: QFontMetrics, height_px: float, max_lines: int, paddin
     return spacing * lines + padding
 
 
-def _build_demo_tree() -> dict[str, list[DemoModule]]:
-    return {
+def _build_demo_tree(include_bitnet: bool = True) -> dict[str, list[DemoModule]]:
+    """Build the sidebar tree: category name -> its demos, in order.
+
+    Always constructs every demo (including BitNet's), then applies
+    ``include_bitnet`` via `_filter_bitnet_demos` -- kept as a single pass
+    rather than an `if` around each BitNet entry so there is exactly one
+    place that knows what "a BitNet demo" means (see that function).
+    MainWindow calls this once, at start-up, and never again: toggling
+    `AppState.show_bitnet` later re-filters the same already-built dict
+    (`_filter_bitnet_demos`) instead of calling this a second time, which
+    would construct a second, independent set of demo instances and
+    silently reset every demo's parameters/frame position, BitNet's
+    included or not.
+    """
+    groups: dict[str, list[DemoModule]] = {
         "Backpropagation": [
             TraditionalBackpropDemo(),
             MultilayerNetworkDemo(),
@@ -255,6 +268,32 @@ def _build_demo_tree() -> dict[str, list[DemoModule]]:
             AutoencoderComparisonDemo(),
         ],
     }
+    return _filter_bitnet_demos(groups, include_bitnet)
+
+
+def _filter_bitnet_demos(
+    groups: dict[str, list[DemoModule]], include_bitnet: bool
+) -> dict[str, list[DemoModule]]:
+    """Drop the BitNet category and the BitNet column's comparison demo.
+
+    A no-op (same dict, same instances) when ``include_bitnet`` is True,
+    so callers can run this unconditionally. When False: drops the whole
+    "BitNet" category, and drops only `AnnBitnetSnnComparisonDemo` out of
+    "Comparação" -- dropping that whole category over one unwanted demo
+    would also take `AutoencoderComparisonDemo` (SNN x LSTM x GRU x
+    Transformer), which has nothing to do with BitNet. Never constructs a
+    new demo instance: every `DemoModule` that survives the filter is the
+    *same object* the caller passed in, so filtering never resets a
+    demo's parameters or frame position (see `_build_demo_tree`'s
+    docstring on why that matters for the runtime toggle).
+    """
+    if include_bitnet:
+        return groups
+    filtered = {category: demos for category, demos in groups.items() if category != "BitNet"}
+    filtered["Comparação"] = [
+        demo for demo in filtered["Comparação"] if not isinstance(demo, AnnBitnetSnnComparisonDemo)
+    ]
+    return filtered
 
 
 def _demo_order(groups: dict[str, list[DemoModule]]) -> list[DemoModule]:
@@ -309,7 +348,13 @@ class MainWindow(QMainWindow):
         self._apply_ui_scale(force=True)
 
         self.state = AppState()
-        self._demo_groups = _build_demo_tree()
+        # Built once, with every demo (BitNet's included) -- the single
+        # set of DemoModule instances this window will ever hold.
+        # self._demo_groups (the sidebar's and _demo_order's actual view)
+        # is a *filtered* dict of these same instances, re-filtered by
+        # _on_show_bitnet_toggled; see _build_demo_tree's docstring.
+        self._full_demo_groups = _build_demo_tree(include_bitnet=True)
+        self._demo_groups = self._full_demo_groups
         self.player: StepPlayer | None = None
 
         self._build_ui()
@@ -349,17 +394,7 @@ class MainWindow(QMainWindow):
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
         self.tree.setMaximumWidth(260)
-        for category, demos in self._demo_groups.items():
-            parent_item = QTreeWidgetItem([category])
-            self.tree.addTopLevelItem(parent_item)
-            for demo in demos:
-                child = QTreeWidgetItem([demo.title])
-                child.setData(0, Qt.ItemDataRole.UserRole, demo)
-                parent_item.addChild(child)
-            parent_item.setExpanded(True)
-        ref_item = QTreeWidgetItem(["Referências"])
-        ref_item.setData(0, Qt.ItemDataRole.UserRole, "references")
-        self.tree.addTopLevelItem(ref_item)
+        self._populate_tree()
         self.tree.itemClicked.connect(self._on_tree_item_clicked)
         root.addWidget(self.tree)
 
@@ -392,8 +427,19 @@ class MainWindow(QMainWindow):
         self.professor_mode_btn = QPushButton("Modo professor")
         self.professor_mode_btn.setCheckable(True)
         self.professor_mode_btn.toggled.connect(self._on_professor_mode_toggled)
+        # Hides the "BitNet" sidebar group and the BitNet column's demo out
+        # of "Comparação" -- for presenting only the thesis' own material
+        # (redes de pulso + lógica paraconsistente), the other frontier
+        # this app also demos being out of scope. Checked by default
+        # (state.show_bitnet starts True), so unchecking it is the action
+        # that narrows the deck, matching the button's own label.
+        self.show_bitnet_btn = QPushButton("Mostrar BitNet")
+        self.show_bitnet_btn.setCheckable(True)
+        self.show_bitnet_btn.setChecked(True)
+        self.show_bitnet_btn.toggled.connect(self._on_show_bitnet_toggled)
         top_bar.addWidget(self.lecture_mode_btn)
         top_bar.addWidget(self.professor_mode_btn)
+        top_bar.addWidget(self.show_bitnet_btn)
         right.addLayout(top_bar)
 
         self.demo_description_label = QLabel(_WELCOME_TEXT)
@@ -501,6 +547,29 @@ class MainWindow(QMainWindow):
 
         # every sibling now exists, so the floor can be measured
         self._apply_canvas_floor()
+
+    def _populate_tree(self) -> None:
+        """(Re)build the tree's items from `self._demo_groups`.
+
+        Split out of `_build_ui` so `_on_show_bitnet_toggled` can call it
+        again after rebuilding `self._demo_groups` with a different
+        `include_bitnet` -- the tree has to reflect the new set of demos,
+        not just stop offering them from `_demo_order`/`_on_next_demo`.
+        `self.tree.clear()` drops the "Referências" leaf too, so it is
+        re-added every time rather than carried over.
+        """
+        self.tree.clear()
+        for category, demos in self._demo_groups.items():
+            parent_item = QTreeWidgetItem([category])
+            self.tree.addTopLevelItem(parent_item)
+            for demo in demos:
+                child = QTreeWidgetItem([demo.title])
+                child.setData(0, Qt.ItemDataRole.UserRole, demo)
+                parent_item.addChild(child)
+            parent_item.setExpanded(True)
+        ref_item = QTreeWidgetItem(["Referências"])
+        ref_item.setData(0, Qt.ItemDataRole.UserRole, "references")
+        self.tree.addTopLevelItem(ref_item)
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence(Qt.Key.Key_Space), self, activated=self._toggle_play_pause)
@@ -863,6 +932,24 @@ class MainWindow(QMainWindow):
         if enabled:
             self.controls.show_equation_toggled.emit(True)
         self._refresh_frame()
+
+    def _on_show_bitnet_toggled(self, enabled: bool) -> None:
+        self.state.show_bitnet = enabled
+        current = self.player.demo if self.player is not None else None
+        # Re-filters self._full_demo_groups -- the same DemoModule
+        # instances throughout the window's life -- rather than calling
+        # _build_demo_tree again, which would construct a second set and
+        # reset every demo's parameters/frame position (see its docstring).
+        self._demo_groups = _filter_bitnet_demos(self._full_demo_groups, enabled)
+        self._populate_tree()
+        if current is not None and current not in _demo_order(self._demo_groups):
+            # the demo on screen just left the deck (BitNet hidden while
+            # e.g. bitnet.ste was open) -- the welcome screen is the only
+            # state that is still correct, since nothing in the new tree
+            # is "where we were".
+            self._show_welcome()
+        elif current is not None:
+            self._highlight_in_tree(current)
 
     # -- rendering ------------------------------------------------------
     def _refresh_frame(self) -> None:
