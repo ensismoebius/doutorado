@@ -12,12 +12,13 @@
 #SBATCH --job-name=meeting01-loso
 #SBATCH --partition=long
 #SBATCH --time=30-00:00:00
-# --cpus-per-task=12. Each node has 56 CPUs (28 cores x 2 threads) but the partition is shared
-# and nearly full: on 2026-10-07 only 2 of 54 `long` nodes had >= 26 CPUs idle, 11 had >= 12,
-# and requests of 28 and then 26 both sat in PENDING ("Nodes required for job are DOWN,
-# DRAINED or reserved ..."). Fewer CPUs per task start sooner and cost wall time; the run is
-# restartable (RESUME=1). The deploy's build step uses its own count (GRIDUNESP_BUILD_CPUS).
-#SBATCH --cpus-per-task=12
+# --cpus-per-task=20 (the user's choice, from their own earlier timing tests; a short
+# synthetic probe on 2026-10-07 had pointed the other way, so this is not settled). Each node
+# has 56 CPUs (28 cores x 2 threads) but the partition is shared and nearly full: requests of
+# 28, 26 and 12 all sat in PENDING ("Nodes required for job are DOWN, DRAINED or reserved ..."),
+# a queue-priority effect of the `long` tier, not of the CPU count. The run is restartable
+# (RESUME=1). The deploy's build step uses its own count (GRIDUNESP_BUILD_CPUS).
+#SBATCH --cpus-per-task=20
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=meeting01_loso_%j.out
