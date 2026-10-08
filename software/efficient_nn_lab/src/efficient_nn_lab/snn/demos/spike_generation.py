@@ -14,7 +14,7 @@ so manual navigation moves meaningfully instead of one sample at a time.
 from __future__ import annotations
 
 from efficient_nn_lab.core.demo import DemoModule, Frame, slider
-from efficient_nn_lab.snn.encoding import direct_threshold_spikes, synthetic_signal
+from efficient_nn_lab.snn.encoding import threshold_crossing_spikes, synthetic_signal
 
 _N_STEPS = 60
 
@@ -35,7 +35,7 @@ class SpikeGenerationDemo(DemoModule):
 
     def _build_frames(self) -> list[Frame]:
         signal = synthetic_signal(_N_STEPS)
-        spikes = direct_threshold_spikes(signal, self.level)
+        spikes = threshold_crossing_spikes(signal, self.level)
         spike_times = {i for i, s in enumerate(spikes) if s > 0}
 
         frames: list[Frame] = []

@@ -255,8 +255,8 @@ demos correspondentes.
 
 | Slide (arquivo) | Ideia-chave | Demo do software | Passo/checkpoint | Slug |
 |---|---|---|---|---|
-| `fundamentosArquitetura.tex` (diagrama 3-2-2-1) | Camadas, pesos, ativação não linear | **Backprop -> Rede de 4 camadas** | Percorrer o forward neurônio a neurônio, na mesma topologia do diagrama | `backprop.mlp` |
-| `fundamentosPesos.tex` (`z = Σ wᵢxᵢ`, exemplo `z=-0,05 → y=0,4875`) | O peso é o parâmetro que se aprende; entra na combinação linear | **Backprop -> Rede de 4 camadas** | Passo "Forward: L1-A" — mostra este mesmo `z=-0,05 → y=0,4875` | `backprop.mlp` |
+| `fundamentosArquitetura.tex` (diagrama 3-2-2-1) | Camadas, pesos, ativação não linear | **Backprop -> Rede 3-2-2-1** | Percorrer o forward neurônio a neurônio, na mesma topologia do diagrama | `backprop.mlp` |
+| `fundamentosPesos.tex` (`z = Σ wᵢxᵢ`, exemplo `z=-0,05 → y=0,4875`) | O peso é o parâmetro que se aprende; entra na combinação linear | **Backprop -> Rede 3-2-2-1** | Passo "Forward: L1-A" — mostra este mesmo `z=-0,05 → y=0,4875` | `backprop.mlp` |
 | `fundamentosTreinamento.tex` (ciclo forward/perda/backward/update) | A regra da cadeia dá `∂L/∂w`; o peso anda contra o gradiente | **Backprop -> Forward e backward clássicos** | Os 9 estágios da iteração 1 reproduzem exatamente os números do slide | `backprop.classic` |
 | `fundamentosMatrizes.tex` (`z = Wx`, exemplo `2→2→1`) | A camada inteira é uma multiplicação matriz-vetor; `W[i,j]` **é** a seta do grafo | **Backprop -> A rede como matrizes** | Fase do mapeamento (passos "w11: a seta x1 → H1" …) e o forward termo a termo | `backprop.matrix` |
 | `fundamentosCadeia.tex` (`∂L/∂y = Wᵀ ∂L/∂z`, cadeia de 5 fatores) | Backward = mesma matriz transposta; multiplicar matrizes é a cadeia em lote | **Backprop -> A rede como matrizes** | Fase backward e os 5 fatores da cadeia; terminar na conferência contra `grad_W1[H1,x1]` | `backprop.matrix` |
@@ -319,7 +319,7 @@ negativo" do `README.md` do software.
   fora de escopo para esta palestra (adicionar uma demo nova não é
   prioridade dado o prazo de uma semana).
 - ~~**`Backprop -> Forward e backward clássicos`** e
-  **`Backprop -> Rede de 4 camadas`** não têm slide dedicado~~ —
+  **`Backprop -> Rede 3-2-2-1`** não têm slide dedicado~~ —
   **resolvido**: a seção "Fundamentos" foi criada (ver a tabela acima) e
   hoje os três demos do grupo "Backpropagation" têm slide de conteúdo e
   `\DemoSlide` próprios em `apresentacao.tex`. A recomendação original

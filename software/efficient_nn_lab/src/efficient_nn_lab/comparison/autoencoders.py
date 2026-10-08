@@ -20,8 +20,10 @@ import numpy as np
 from efficient_nn_lab.comparison.autoencoder_synthetic import (
     B2_FREE_WIN,
     EPOCH_SECONDS,
+    LATENCY_TRIVIAL_MSE_T16,
     LATENT_AUDIO,
     LATENT_EEG,
+    OLD_LATENCY_TIME_AXIS,
     TRIVIAL_MSE_BY_TARGET,
     WINDOW,
     fit_pca,
@@ -162,8 +164,11 @@ class AutoencoderComparisonDemo(DemoModule):
             f"{TRIVIAL_MSE_BY_TARGET['direta']:.3f} com codificação direta, "
             f"{TRIVIAL_MSE_BY_TARGET['Poisson']:.3f} com Poisson e {TRIVIAL_MSE_BY_TARGET['latência']:.4f} "
             "com latência, porque um alvo quase todo zero tem pouca variância. A busca 'descobriu' que "
-            f"latência era {B2_FREE_WIN}× melhor, de graça. A correção: toda família reconstrói a "
-            "janela original.",
+            f"latência era {B2_FREE_WIN}× melhor, de graça. Esses números são do codificador da época, que "
+            f"usava as {OLD_LATENCY_TIME_AXIS} amostras da janela como eixo de tempo (latência: cerca de 1 "
+            f"disparo a cada {OLD_LATENCY_TIME_AXIS} posições, 99,6% de zeros). Com o de hoje, T = 16, seria 1 disparo em 16 "
+            f"— variância ≈ {LATENCY_TRIVIAL_MSE_T16:.3f}, ainda ~{1 / LATENCY_TRIVIAL_MSE_T16:.0f}× abaixo da "
+            "direta: a armadilha não depende do T. A correção: toda família reconstrói a janela original.",
             "MSE_{trivial} = Var(\\text{alvo})",
             bottom="targets", **settled,
         )
@@ -171,8 +176,9 @@ class AutoencoderComparisonDemo(DemoModule):
         cost = EPOCH_SECONDS
         families_step = frame(
             "Quatro famílias, quatro jeitos de ler a janela",
-            "SNN: a janela entra como pulsos ao longo de T = 16 passos (direta, Poisson ou latência — a "
-            "codificação também é buscada). LSTM e GRU: leem a janela em quadros, um após o outro, "
+            "SNN: a janela é apresentada ao longo de T = 16 passos — como corrente analógica (codificação "
+            "direta, sem pulsos na entrada) ou como pulsos (Poisson ou latência); a codificação também é "
+            "buscada. LSTM e GRU: leem a janela em quadros, um após o outro, "
             "levando memória num estado oculto (a GRU com menos portas). Transformer: vê todos os "
             "quadros de uma vez e pesa cada par por atenção. Custo medido por época neste framework "
             f"(CPU, lote 1, redes típicas): SNN {cost['SNN-AE']:g} s; Transformer "

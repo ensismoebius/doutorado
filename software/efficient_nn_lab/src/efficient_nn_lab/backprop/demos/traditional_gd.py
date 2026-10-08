@@ -3,9 +3,10 @@
 Duas partes, um único fio condutor: primeiro o mecanismo (o que o forward
 calcula — incluindo a ativação sigmoide, que é o que torna o neurônio não
 linear — e o que a regra da cadeia calcula no backward, agora com três elos
-em vez de dois); depois o resultado de repetir esse mesmo passo várias
-vezes seguidas — um neurônio de verdade convergindo para um alvo, número
-por número, até a saída ficar arbitrariamente perto do que se queria.
+em vez de dois), repetido ciclo a ciclo até a saída ficar perto o bastante
+do alvo; depois as MESMAS iterações resumidas num gráfico, um ponto por
+atualização. As duas partes usam a mesma regra de parada (perto o bastante
+=> para ANTES de atualizar), então contam o mesmo número de atualizações.
 
 Nenhuma quantização aqui: é o caso "liso" (sem função em degrau no meio)
 que as demonstrações de STE (bitnet/demos/backward.py) e de surrogate
@@ -144,17 +145,17 @@ def _build_update_explanation(
     """The narration for a cycle's final ("update the weight") frame."""
     if is_last_cycle and converged:
         return (
-            f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
-            f"$w = {w_updated:g}$. Agora a saída ($y = {y:g}$) já está perto o suficiente do "
-            f"alvo ($target = {target:g}$, diferença de $|y - target| = {abs(diff):.3f}$) — "
-            f"o ciclo para de se repetir aqui."
+            f"A saída ($y = {y:g}$) já está a $|y - target| = {abs(diff):.3f}$ do alvo "
+            f"($target = {target:g}$), abaixo da tolerância de {_CONVERGENCE_EPS:g}: perto o "
+            f"suficiente. O treino para aqui, sem aplicar mais uma atualização — a mesma regra "
+            f"de parada do gráfico que vem a seguir."
         )
     if is_last_cycle:
         return (
             f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
             f"$w = {w_updated:g}$. A diferença ainda é $|y - target| = {abs(diff):.3f}$, mas "
-            f"chegamos ao limite de iterações mostradas neste passo a passo detalhado — a "
-            f"próxima parte continua daqui, de forma resumida."
+            f"chegamos ao limite de {_MAX_ITERATIONS} iterações desta demonstração — o gráfico a "
+            f"seguir resume essas mesmas iterações, uma por ponto."
         )
     return (
         f"O peso anda um pequeno passo no sentido contrário ao gradiente: "
@@ -204,6 +205,12 @@ class TraditionalBackpropDemo(DemoModule):
         grad_w = grad_z * x
         w_updated = sgd_update(w, grad_w, self.learning_rate)
         converged = abs(diff) < _CONVERGENCE_EPS
+        # Same stopping rule as _run_gradient_descent: once close enough,
+        # training stops BEFORE the update, so this walkthrough and the
+        # convergence chart count exactly the same number of updates.
+        stops_here = is_last_cycle and converged
+        if stops_here:
+            w_updated = w
 
         base = _build_base_frame_values(
             iteration, x, w, z, y, self.target, diff, loss, slope, grad_y, grad_z, grad_w,
@@ -244,8 +251,8 @@ class TraditionalBackpropDemo(DemoModule):
             ),
             frame(
                 "A perda (loss)",
-                "A perda resume a diferença em um único número, sempre positivo, que cresce "
-                "quanto mais longe do alvo a saída estiver.",
+                "A perda resume a diferença em um único número, que nunca é negativo (zero só no "
+                "alvo) e cresce quanto mais longe do alvo a saída estiver.",
                 equation="L = 1/2 (y - target)^2",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0, loss_glow=1.0,
                 point_reveal=1.0,
@@ -277,11 +284,12 @@ class TraditionalBackpropDemo(DemoModule):
                 point_reveal=1.0, arrow_reveal=1.0,
             ),
             frame(
-                "Atualizar o peso",
+                "Convergiu: parar" if stops_here else "Atualizar o peso",
                 update_explanation,
-                equation="w <- w - taxa * ∂L/∂w",
+                equation=f"|y - target| < {_CONVERGENCE_EPS:g}: parar" if stops_here else "w <- w - taxa * ∂L/∂w",
                 z_reveal=1.0, y_reveal=1.0, target_reveal=1.0, diff_reveal=1.0, loss_reveal=1.0,
-                grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0, update_reveal=1.0, w_pulse=1.0,
+                grady_reveal=1.0, gradz_reveal=1.0, gradw_reveal=1.0,
+                update_reveal=0.0 if stops_here else 1.0, w_pulse=0.0 if stops_here else 1.0,
                 point_reveal=1.0, arrow_reveal=1.0,
             ),
         ]
@@ -447,13 +455,15 @@ class TraditionalBackpropDemo(DemoModule):
             hold=("z", "y", "slope", "grad_y", "grad_z"),
         )
         convergence = self._build_convergence_frames()
+        n_updates = sum(1 for f in convergence if f.is_checkpoint) - 1
         # deliberate cut: block diagram -> line chart is a genuine change
         # of visualization kind, not a blend of unrelated pictures.
         bridge = Frame(
             convergence[0].label,
             convergence[0].values,
-            "Agora, em vez de olhar um único passo, vamos repeti-lo e observar a saída "
-            "convergir para o alvo, iteração após iteração.",
+            f"As mesmas {n_updates} atualizações que você acabou de ver, ciclo a ciclo, agora "
+            "resumidas num gráfico: o ponto k é a saída com o w depois de k atualizações. Observe "
+            "a distância até o alvo encolher a cada ponto.",
             is_checkpoint=True,
         )
         return pipeline + [bridge] + convergence[1:]

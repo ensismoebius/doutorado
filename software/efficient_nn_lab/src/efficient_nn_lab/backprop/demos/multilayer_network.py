@@ -1,4 +1,4 @@
-"""Demonstração — Backpropagation numa rede de 4 camadas.
+"""Demonstração — Backpropagation numa rede 3-2-2-1 (duas camadas ocultas).
 
 O neurônio único de traditional_gd.py mostra a mecânica (forward, ativação,
 regra da cadeia) num caso mínimo. Esta demonstração é o mesmo mecanismo
@@ -10,11 +10,17 @@ ativação sigmoide, sem viés (mesma simplificação didática do neurônio
 A caminhada é sempre um neurônio de cada vez, na ordem topológica correta:
 forward da entrada até a saída, depois backward da saída até a entrada —
 exatamente a ordem em que os valores ficam disponíveis para cada cálculo.
-Em cada passo, o neurônio "ativo" ganha um destaque no diagrama, o painel
-de detalhe mostra a equação e os números daquele neurônio especificamente,
-e o gráfico da sigmoide ao lado atualiza para mostrar o ponto, a tangente
-e a direção do gradiente daquele neurônio -- literalmente "o gráfico da
-sigmoide de cada neurônio", um de cada vez, não cinco sobrepostos.
+Em cada passo, o neurônio "ativo" ganha um destaque no diagrama e o painel
+de detalhe mostra a equação e os números daquele neurônio especificamente.
+Cada neurônio tem o SEU gráfico de sigmoide -- cinco painéis pequenos,
+sempre visíveis (widgets/renderers/mlp.py): o ponto e a tangente de um
+neurônio aparecem quando o forward passa por ele, e a direção do gradiente
+quando o backward chega nele.
+
+Contagem de camadas: a entrada não conta (não tem pesos nem ativação),
+como no diagrama do slide `fundamentosArquitetura.tex` ("Camada 1",
+"Camada 2", saída) e na demo `backprop.chain` (1-1-1 = camada 1 e camada
+2). Por isso o título diz "3-2-2-1", e não "4 camadas".
 
 Pesos fixos e determinísticos (ESPECIFICACAO_DLVL.md #35): nada de
 inicialização aleatória.
@@ -36,7 +42,7 @@ _W3 = np.array([[0.5, -0.6]])  # output (O): 1x2
 
 
 class MultilayerNetworkDemo(DemoModule):
-    title = "Backprop -> Rede de 4 camadas"
+    title = "Backprop -> Rede 3-2-2-1"
     slug = "backprop.mlp"
     description = (
         "O mesmo forward/backward do neurônio único, agora numa rede de verdade: "
@@ -141,9 +147,10 @@ class MultilayerNetworkDemo(DemoModule):
         checkpoints = [
             frame(
                 "A rede",
-                "Quatro camadas: 3 entradas, 2 neurônios na camada 1, 2 na camada 2, 1 na "
-                "saída -- todas com ativação sigmoide, sem viés. Vamos calcular o forward "
-                "neurônio por neurônio, na ordem em que cada valor fica disponível.",
+                "Rede 3-2-2-1: 3 entradas, 2 neurônios na camada 1, 2 na camada 2 e 1 na saída "
+                "-- três camadas de neurônios (a entrada não conta: não tem pesos nem ativação), "
+                "todas com ativação sigmoide, sem viés. Vamos calcular o forward neurônio por "
+                "neurônio, na ordem em que cada valor fica disponível.",
                 equation="y = σ(W · entrada); \\text{Em cada camada}"
             ),
             frame(

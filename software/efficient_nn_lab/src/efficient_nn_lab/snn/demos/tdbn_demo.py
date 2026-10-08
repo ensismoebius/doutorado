@@ -56,6 +56,10 @@ class TdBNDemo(DemoModule):
         mu, std = float(_X.mean()), float(_X.std())
 
         def fires(values: np.ndarray, threshold: float) -> int:
+            # First time step only: in tdBN's LIF (Zheng et al.,
+            # u_t = tau_decay * u_{t-1} * (1 - o_{t-1}) + x_t) the potential
+            # starts at 0, so on that step u = x and "fires" means x > V_th.
+            # Later steps also carry what is left of u_{t-1}.
             return int(np.sum(values > threshold))
 
         def frame(label: str, explanation: str, **values: object) -> Frame:
@@ -69,7 +73,9 @@ class TdBNDemo(DemoModule):
             "Corrente bruta: a escala não conversa com o limiar",
             "Um LIF só dispara se a corrente empurra V acima de V_th. Aqui, 4 correntes de um mesmo "
             "canal: 2 amostras × 2 quadros, juntadas — tdBN calcula média e desvio sobre o lote E o "
-            f"tempo. X = [0, 2, 4, 6]; com V_th = {v:g}, {_pass(fires(_X, v))}. Mas isso é sorte "
+            "tempo. Para comparar corrente e limiar diretamente, olhe o primeiro passo: V parte de 0, "
+            "então nele V = X (nos passos seguintes V soma também o que sobrou do anterior). "
+            f"X = [0, 2, 4, 6]; com V_th = {v:g}, {_pass(fires(_X, v))}. Mas isso é sorte "
             "da escala: numa camada mais funda X pode encolher até ninguém disparar, ou crescer até "
             "todos dispararem.",
             y=_X, main_label="X bruto", stage_title="1. Corrente bruta",
@@ -101,7 +107,8 @@ class TdBNDemo(DemoModule):
             f"de V_th não muda — {_pass(fires(y_target, target))}. A fileira cinza é o BatchNorm comum, "
             f"que ignora V_th: {_pass(fires(x_hat, target))}. Em geral, P(Y > V_th) = P(X̂ > 1/α) não "
             "depende de V_th, da escala nem da profundidade — com α = 1 e entradas ~gaussianas, "
-            "≈ 15.9% por passo (Zheng et al.).",
+            "≈ 15.9% das entradas normalizadas passam do limiar, a fração que dispara já no "
+            "primeiro passo (Zheng et al.).",
             y=y_target, v_th=target, ghost_reveal=1.0, main_label="tdBN",
             stage_title="4. O mesmo tdBN com outro limiar",
         )

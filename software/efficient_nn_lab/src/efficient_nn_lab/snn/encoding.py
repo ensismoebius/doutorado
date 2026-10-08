@@ -3,7 +3,13 @@
 (ESPECIFICACAO_DLVL.md #17.) This module intentionally does *not* use the
 LIF neuron: the very first SNN demo should build the "spike = event"
 intuition before membrane dynamics are introduced, so spikes here come
-from direct level-crossing on a synthetic waveform, not from integration.
+from level crossings on a synthetic waveform, not from integration.
+
+Naming: the level-crossing encoder is `threshold_crossing_spikes` (the
+threshold-crossing / "delta" family), NOT "direct". In SNN literature, and
+in the encoding-noise and autoencoder demos of this app, *direct* encoding
+means the analog value enters as a current, with no input spikes at all.
+An earlier name, ``direct_threshold_spikes``, made the two collide.
 """
 
 from __future__ import annotations
@@ -21,8 +27,12 @@ def synthetic_signal(n_steps: int = 60) -> np.ndarray:
     return np.clip(np.sin(t) * np.exp(-((t - 6.0) ** 2) / 18.0) * 3.0, -1.0, 1.0)
 
 
-def direct_threshold_spikes(signal: np.ndarray, level: float = 0.4) -> np.ndarray:
-    """Spike whenever the signal crosses ``level`` from below (rising edge only)."""
+def threshold_crossing_spikes(signal: np.ndarray, level: float = 0.4) -> np.ndarray:
+    """Spike whenever the signal crosses ``level`` from below (rising edge only).
+
+    A threshold-crossing encoder -- not "direct" encoding, which feeds the
+    analog value in as current without producing input spikes.
+    """
     signal = np.asarray(signal, dtype=float)
     above = signal >= level
     rising_edge = np.zeros_like(signal)
@@ -35,7 +45,7 @@ def spike_probability(signal: np.ndarray, max_rate: float = 0.9) -> np.ndarray:
     """Map signal intensity to a per-step spike probability (rate coding).
 
     Only the non-negative part of the signal carries intensity here — the
-    same convention `direct_threshold_spikes` uses implicitly by comparing
+    same convention `threshold_crossing_spikes` uses implicitly by comparing
     against a positive level. Intensity 0 -> probability 0; intensity 1 ->
     probability `max_rate` (kept below 1 so even a maximally-intense input
     still looks like a *rate*, not a spike on every single step).
@@ -47,7 +57,7 @@ def spike_probability(signal: np.ndarray, max_rate: float = 0.9) -> np.ndarray:
 def poisson_spikes(signal: np.ndarray, max_rate: float = 0.9, seed: int = SEED) -> np.ndarray:
     """Rate (Poisson) coding: an independent coin flip per time-step.
 
-    Unlike `direct_threshold_spikes`, where the same intensity always
+    Unlike `threshold_crossing_spikes`, where the same intensity always
     produces the same outcome, here the probability of a spike is
     proportional to intensity but the outcome itself is a draw — two
     identical-looking steps in the signal can differ in whether they spike.
@@ -121,6 +131,28 @@ def latency_quantization_error(time_steps: int) -> float:
     if time_steps < 2:
         raise ValueError(f"latency coding needs time_steps >= 2 to have a time axis, got {time_steps}")
     return 0.5 / (time_steps - 1)
+
+
+def poisson_rms_error(time_steps: int) -> float:
+    """RMS error of the rate estimate (spikes / T) with p = x, averaged over
+    x uniform on [0, 1]: E_x[x(1 - x)] / T = 1/(6T) -> sqrt(1/(6T)).
+
+    Same statistic as :func:`latency_rms_error`, so the two noise floors can
+    share one axis. (`poisson_noise_sigma` is the worst case over x instead.)
+    """
+    return (1.0 / (6.0 * time_steps)) ** 0.5
+
+
+def latency_rms_error(time_steps: int) -> float:
+    """RMS error of rounding x uniform on [0, 1] to the nearest of the ``T``
+    latency levels spaced ``1/(T-1)`` apart: spacing / sqrt(12).
+
+    Same statistic as :func:`poisson_rms_error`. (`latency_quantization_error`
+    is the worst case, half a spacing.)
+    """
+    if time_steps < 2:
+        raise ValueError(f"latency coding needs time_steps >= 2 to have a time axis, got {time_steps}")
+    return (1.0 / (time_steps - 1)) / 12.0**0.5
 
 
 def latency_spike_time(x: float, time_steps: int) -> int:

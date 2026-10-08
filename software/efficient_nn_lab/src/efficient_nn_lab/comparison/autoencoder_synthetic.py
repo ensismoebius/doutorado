@@ -41,7 +41,15 @@ EPOCH_SECONDS = {"SNN-AE": 0.5, "Transformer-AE": 83.75, "LSTM-AE": 97.2, "GRU-A
 #: MSE of a model that learns nothing (predicts the mean) when the target is
 #: the ENCODED tensor instead of the window -- Meeting01's bug B2
 #: (.wiki/Experiments/Meeting01.md, "B2 in numbers"), quoted verbatim.
+#: Measured with the encoder of that time (git 20b47e9f^), which used the
+#: window's 256 rows as the time axis and set a spike only where a sample's
+#: own latency frame equalled its row index: about 1 spike per 256
+#: positions, variance ~0.0039 ("~99.6% zeros"). Today's encoder uses
+#: T = 16 frames (one spike in 16, variance 1/16 * 15/16 ~ 0.059) -- see
+#: LATENCY_TRIVIAL_MSE_T16 -- so the 0.0038 must not be read as a T = 16 number.
 TRIVIAL_MSE_BY_TARGET = {"direta": 1.000, "Poisson": 0.247, "latência": 0.0038}
+OLD_LATENCY_TIME_AXIS = WINDOW  # the pre-fix encoder's time axis: the 256 window samples
+LATENCY_TRIVIAL_MSE_T16 = (1 / 16) * (1 - 1 / 16)  # one spike per feature in T = 16 frames
 B2_FREE_WIN = 261  # the wiki's own ratio (from unrounded values)
 
 

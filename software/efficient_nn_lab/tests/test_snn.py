@@ -1,17 +1,21 @@
+import itertools
+
 import numpy as np
 import pytest
 
 from efficient_nn_lab.snn.encoding import (
-    direct_threshold_spikes,
     first_spike_time,
     latency_quantization_error,
+    latency_rms_error,
     latency_spike_time,
     load_grayscale_image,
     poisson_noise_sigma,
+    poisson_rms_error,
     poisson_spike_frames,
     poisson_spikes,
     spike_probability,
     spike_time_grad_is_live,
+    threshold_crossing_spikes,
 )
 from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 from efficient_nn_lab.snn.normalization import fit_zscore, leaky_fit_zscore, zscore
@@ -70,7 +74,32 @@ def test_surrogate_peaks_at_threshold_and_decays_away():
     near = fast_sigmoid_surrogate(np.array([0.05]), k=5.0)[0]
     far = fast_sigmoid_surrogate(np.array([2.0]), k=5.0)[0]
     assert peak > near > far
-    assert peak == pytest.approx(1.0)
+    assert peak == pytest.approx(2.5)  # k/2
+
+
+def test_surrogate_has_unit_area_like_the_step_it_replaces():
+    # The step jumps by 1, so a stand-in for its derivative should carry
+    # area 1 for every k -- otherwise k silently rescales the gradient.
+    x = np.linspace(-400.0, 400.0, 2_000_001)
+    for k in (1.0, 5.0, 10.0):
+        area = np.trapezoid(fast_sigmoid_surrogate(x, k=k), x)
+        assert area == pytest.approx(1.0, abs=5e-3)
+
+
+def test_fast_sigmoid_is_a_smooth_step_that_sharpens_with_k():
+    # It must span the step's own range (0..1) and get CLOSER to the step
+    # as k grows -- the earlier 0.5 + x/(1+k|x|) only spanned 0.5 +- 1/k,
+    # flattening as k grew, the opposite of what the slider teaches.
+    x = np.linspace(-2.0, 2.0, 401)
+    step = heaviside(x)
+    errors = []
+    for k in (1.0, 5.0, 10.0):
+        s = fast_sigmoid(x, k=k)
+        assert np.all((s > 0.0) & (s < 1.0))
+        errors.append(float(np.mean(np.abs(s - step))))
+    assert errors[0] > errors[1] > errors[2]
+    assert fast_sigmoid(np.array([-1e6]), k=5.0)[0] == pytest.approx(0.0, abs=1e-6)
+    assert fast_sigmoid(np.array([1e6]), k=5.0)[0] == pytest.approx(1.0, abs=1e-6)
 
 
 def test_fast_sigmoid_is_the_true_antiderivative_of_the_surrogate():
@@ -82,16 +111,19 @@ def test_fast_sigmoid_is_the_true_antiderivative_of_the_surrogate():
     sigmoid = fast_sigmoid(x, k=5.0)
     surrogate = fast_sigmoid_surrogate(x, k=5.0)
     numeric_slope = np.gradient(sigmoid, x)
-    np.testing.assert_allclose(numeric_slope, surrogate, atol=1.5e-2)
+    # relative: the peak is k/2 = 2.5, and the finite-difference error is
+    # largest right at that cusp (~1% there, far less elsewhere).
+    np.testing.assert_allclose(numeric_slope, surrogate, rtol=2e-2, atol=1e-9)
     zero_idx = int(np.abs(x).argmin())
     assert sigmoid[0] < sigmoid[zero_idx] < sigmoid[-1]
-    assert sigmoid[zero_idx] == pytest.approx(0.5, abs=1e-2)
+    # exactly 0.5 AT the threshold (the 400-point grid has no x = 0 sample)
+    assert fast_sigmoid(np.array([0.0]), k=5.0)[0] == pytest.approx(0.5)
 
 
 # -- direct threshold spike encoding --------------------------------------
-def test_direct_threshold_spikes_only_on_rising_edge():
+def test_threshold_crossing_spikes_only_on_rising_edge():
     signal = np.array([0.0, 0.5, 0.5, 0.0, 0.5])
-    spikes = direct_threshold_spikes(signal, level=0.4)
+    spikes = threshold_crossing_spikes(signal, level=0.4)
     np.testing.assert_array_equal(spikes, [0.0, 1.0, 0.0, 0.0, 1.0])
 
 
@@ -300,3 +332,59 @@ def test_leaky_fit_differs_from_train_only_fit():
     train_only = fit_zscore(train)
     leaky = leaky_fit_zscore(train, test)
     assert train_only != leaky
+
+
+def test_rate_reg_demo_mixed_layer_mean_hides_both_sick_units():
+    # software/nn penalizes ONE mean per layer (spikes.sum() / n): a layer
+    # holding a dead unit and a bursting unit averages into the band, so
+    # neither unit is pushed. The demo must show that blind spot.
+    from efficient_nn_lab.snn.demos.firing_rate_reg import FiringRateRegDemo
+
+    demo = FiringRateRegDemo()
+    mixed = next(f.values for f in demo.checkpoint_frames() if f.values["mixed_reveal"] >= 1.0)
+    assert mixed["mixed_dead"] < mixed["r_min"]
+    assert mixed["mixed_burst"] > mixed["r_max"]
+    assert mixed["r_min"] <= mixed["mixed_mean"] <= mixed["r_max"]
+    assert mixed["mixed_push"] == pytest.approx(0.0)
+    # while each uniformly sick layer IS pushed back toward the band
+    first = demo.checkpoint_frames()[0].values
+    assert first["push_dead"] > 0.0 > first["push_burst"]
+
+
+def test_lif_dynamics_demo_shows_the_leak_decaying_after_the_current_switches_off():
+    # With a constant current V only rises, so the "vazamento" phase used to
+    # be unreachable. The pulse input makes the leak visible on its own.
+    demo = LIFDynamicsDemo()
+    leak = [f for f in demo._frames if f.values["phase"] == "vazamento"]
+    assert leak
+    membrane = demo._frames[-1].values["membrane"]
+    first_leak = len(demo._frames) - len(leak)
+    decay = membrane[first_leak:]
+    assert all(a > b for a, b in itertools.pairwise(decay))
+    assert any(f.is_checkpoint for f in leak)
+
+
+def test_lif_dynamics_demo_explains_subthreshold_equilibrium():
+    demo = LIFDynamicsDemo()
+    demo.set_parameter("amplitude", 0.1)  # R*I = 0.5 < V_th = 1
+    # on a CHECKPOINT: the window sizes the explanation label from
+    # checkpoint texts only, so a text shown only between checkpoints is
+    # never measured and can clip
+    texts = {f.explanation for f in demo.checkpoint_frames()}
+    assert any("nunca" in t and "dispara" in t for t in texts)
+    assert not any(f.values["phase"] == "spike + reset" for f in demo._frames)
+
+
+def test_noise_floor_rms_formulas_match_monte_carlo():
+    # Both floors on the encoding-noise plot must be the SAME statistic --
+    # RMS error with x uniform on [0, 1] -- or the shared axis lies.
+    rng = np.random.default_rng(0)
+    t_steps = 16
+    x = rng.uniform(0.0, 1.0, 200_000)
+    counts = rng.binomial(t_steps, x)
+    poisson_rms = float(np.sqrt(np.mean((counts / t_steps - x) ** 2)))
+    assert poisson_rms == pytest.approx(poisson_rms_error(t_steps), rel=0.01)
+    frames = np.array([latency_spike_time(v, t_steps) for v in x[:20_000]])
+    decoded = 1.0 - frames / (t_steps - 1)
+    latency_rms = float(np.sqrt(np.mean((decoded - x[:20_000]) ** 2)))
+    assert latency_rms == pytest.approx(latency_rms_error(t_steps), rel=0.02)

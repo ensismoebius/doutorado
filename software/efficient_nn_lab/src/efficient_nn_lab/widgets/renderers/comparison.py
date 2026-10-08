@@ -26,7 +26,8 @@ class ComparisonRendererMixin:
     # short phrases, plus an outputs row and two footnotes. Its first
     # version placed every cell at a hard-coded data coordinate with a
     # hard-coded fontsize=8 -- which is what "the SNN and ANN comparison
-    # fonts are too small" (FIXME.md) reports. Two separate causes:
+    # fonts are too small" reports (old repo-root FIXME.md, deleted in
+    # commit 933133a3). Two separate causes:
     #
     #   1. A fixed point size cannot be right for this widget. The Qt
     #      matplotlib canvas keeps its dpi constant and grows the figure's
@@ -56,14 +57,14 @@ class ComparisonRendererMixin:
     _CMP_LABEL_FRAC = 0.20
     _CMP_COL_ORDER = ("ANN", "BitNet", "SNN")
     _CMP_COL_COLORS = {"ANN": NEUTRAL_COLOR, "BitNet": BITNET_COLOR, "SNN": SNN_COLOR}
-    #: Characters per line inside a value column. 19 is the smallest
-    #: budget that still wraps every cell of comparison/ann_bitnet_snn.py
-    #: to at most TWO lines ("quantizada conforme" / "arquitetura" is the
-    #: binding case -- at 18 it splits into three, which would collide
-    #: with the row below). The row-height budget assumes two.
+    #: Characters per line inside a value column. 19 is the budget that
+    #: wraps every cell of comparison/ann_bitnet_snn.py to at most TWO
+    #: lines (tests/test_comparison_table_layout.py checks every cell);
+    #: three would collide with the row below. The row-height budget
+    #: assumes two.
     _CMP_WRAP = 19
     #: Characters per line for the row names ("Operação principal" ->
-    #: two lines). Wide enough to keep "Representação" on one line.
+    #: two lines, "Domínio temporal" -> two lines).
     _CMP_LABEL_WRAP = 14
     #: Average glyph advance as a fraction of the font size, for DejaVu
     #: Sans on these mixed-case strings. Measured from a rendered frame
@@ -150,13 +151,7 @@ class ComparisonRendererMixin:
 
         table = values["table"]
         row_order = list(values["table_rows"])
-        reveal_map = {
-            "Representação": values["reveal_repr"],
-            "Ativação": values["reveal_activation"],
-            "Domínio temporal": values["reveal_domain"],
-            "Treinamento": values["reveal_training"],
-            "Operação principal": values["reveal_operation"],
-        }
+        reveal_map = {row: float(values[key]) for row, key in values["row_reveal_keys"].items()}
 
         # top-down placement cursor, in axes fractions: `text` consumes
         # what the font needs, `gap` consumes stretchable space.
@@ -218,7 +213,7 @@ class ComparisonRendererMixin:
             outputs = {
                 "ANN": f"y = {values['y_ann']:g}",
                 "BitNet": f"y = {values['y_bitnet']:g}",
-                "SNN": f"{values['snn_spike_count']} spikes",
+                "SNN": f"{values['snn_spike_count']} spikes / {values['snn_steps']} passos",
             }
             for name, text_value in outputs.items():
                 self._fading_text(cols_x[name], outputs_y, text_value, self._CMP_COL_COLORS[name], reveal_outputs, fontsize=fs)

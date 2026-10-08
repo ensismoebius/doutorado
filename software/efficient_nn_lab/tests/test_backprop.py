@@ -832,3 +832,17 @@ def test_chain_demo_equations_all_typeset():
     parser = mathtext.MathTextParser("agg")
     for equation in {f.equation for f in _chain_demo().checkpoint_frames() if f.equation}:
         parser.parse(f"${latexize(equation)}$")
+
+
+def test_walkthrough_and_convergence_chart_count_the_same_updates():
+    # Part 2 is described on screen as a recap of the SAME iterations, so
+    # both parts must use the same stopping rule (close enough => stop
+    # BEFORE updating) and end on the same weight.
+    demo = TraditionalBackpropDemo()
+    pipeline = [f for f in demo.checkpoint_frames() if f.values["kind"] == "backprop_pipeline"]
+    chart = [f for f in demo.checkpoint_frames() if f.values["kind"] == "backprop_convergence"]
+    updates = sum(1 for f in pipeline if f.label.endswith("Atualizar o peso"))
+    assert updates == len(chart) - 1
+    assert pipeline[-1].label.endswith("Convergiu: parar")
+    assert pipeline[-1].values["w_updated"] == pytest.approx(pipeline[-1].values["w"])
+    assert pipeline[-1].values["w"] == pytest.approx(chart[-1].values["w"][-1])

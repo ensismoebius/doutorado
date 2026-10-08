@@ -15,7 +15,8 @@ para ilustrar de forma interativa e passo a passo:
 - o *surrogate gradient* usado para treinar SNNs;
 - uma comparação lado a lado entre RNA convencional, BitNet e SNN.
 
-Implementa a especificação em [`ESPECIFICACAO_DLVL.md`](../../ESPECIFICACAO_DLVL.md).
+Implementa a especificação em [`ESPECIFICACAO_DLVL.md`](ESPECIFICACAO_DLVL.md), com os desvios
+deliberados listados em [Desvios deliberados da especificação](#desvios-deliberados-da-especificação).
 
 Este software **não substitui** os slides — é um laboratório visual que o
 palestrante abre ao vivo, no momento correspondente do slide, para tornar
@@ -108,8 +109,11 @@ outras demos o botão não aparece — cada passo ali tem texto para ler, e
 passar voando por eles seria ruído.
 
 O intervalo do loop é igual ao do tick normal (40ms) de propósito: o
-redesenho dessa demo custa ~39ms (p90 medido), então um intervalo menor só
-enfileiraria redesenhos que o widget não consegue atender.
+redesenho dessa demo custava ~39ms (p90 medido na máquina da palestra),
+então um intervalo menor só enfileiraria redesenhos que o widget não
+consegue atender. O painel da estimativa (original e reconstrução lado a
+lado) deixou cada redesenho ~14% mais caro (medido offscreen, mesma
+máquina, antes e depois); se o loop engasgar no projetor, é esse o custo.
 
 O botão **Modo palestra** simplifica a barra lateral; o botão **Modo
 professor** revela equações e o estado numérico completo de cada passo.
@@ -153,10 +157,11 @@ src/efficient_nn_lab/
 │   └── math_utils.py         seed determinística, interpolação (tweens)
 ├── backprop/
 │   ├── activation.py         sigmoide + derivada
-│   └── demos/                3 demonstrações (ver tabela abaixo)
+│   └── demos/                4 demonstrações (ver tabela abaixo)
 │       ├── traditional_gd.py     forward/backward clássicos + convergência
 │       ├── multilayer_network.py rede 3-2-2-1, um neurônio de cada vez
-│       └── matrix_algebra.py     a mesma rede como vetores/matrizes
+│       ├── matrix_algebra.py     a mesma rede como vetores/matrizes
+│       └── chain_rule_layers.py  rede 1-1-1: um bloco, um fator da cadeia
 ├── bitnet/
 │   ├── quantization.py       Q(w) ternário didático
 │   ├── ste.py                Straight-Through Estimator (numpy)
@@ -166,7 +171,7 @@ src/efficient_nn_lab/
 ├── snn/
 │   ├── lif.py                neurônio LIF (integração de Euler)
 │   ├── surrogate.py          função de disparo + gradiente substituto
-│   ├── encoding.py           sinal sintético + spike por limiar direto + ruído estrutural
+│   ├── encoding.py           sinal sintético + spike por cruzamento de nível + ruído estrutural
 │   ├── tdbn.py                normalização dependente de limiar (tdBN)
 │   ├── rate_reg.py            regularização de taxa de disparo
 │   ├── normalization.py       z-score por característica/janela + risco de vazamento
@@ -218,23 +223,23 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | Módulo | Pergunta única respondida | Fixo/configurável |
 |---|---|---|
 | Backprop → Forward e backward clássicos | Como o forward/backward funcionam sem quantização, e o exemplo converge de fato? | `target`, taxa de aprendizado |
-| Backprop → Rede de 4 camadas | Como o forward/backward funcionam numa rede de verdade (3→2→2→1)? Um neurônio de cada vez, com entradas, saída, pesos e equação de cada um — e **cada neurônio com seu próprio gráfico** de sigmoide/derivada (5 gráficos, sempre visíveis, atualizando independentemente conforme o forward/backward avança). | `target`, taxa de aprendizado |
+| Backprop → Rede 3-2-2-1 | Como o forward/backward funcionam numa rede de verdade (3 entradas, duas camadas ocultas de 2, 1 saída; a entrada não conta como camada)? Um neurônio de cada vez, com entradas, saída, pesos e equação de cada um — e **cada neurônio com seu próprio gráfico** de sigmoide/derivada (5 gráficos, sempre visíveis, atualizando independentemente conforme o forward/backward avança). | `target`, taxa de aprendizado |
 | Backprop → A rede como matrizes | Em que sentido a rede inteira é **só** multiplicação de matrizes — inclusive o backward? Liga cada célula de `W` à seta correspondente do grafo (`W[i,j]` *é* aquela seta), faz o forward `z = Wx` termo a termo, o backward pelos mesmos pesos transpostos (`Wᵀ`), e fecha conferindo a regra da cadeia de um peso contra `grad_W1[H1,x1]`. Um passo por operação escalar, sem agrupar nada. | `target` |
 | Backprop → Camadas e a regra da cadeia | De onde sai cada fator da regra da cadeia? Cada camada aparece como **dois blocos** (operação linear `w·entrada + b` e ativação `σ`) e embaixo de cada bloco fica a sua derivada local, na mesma coluna: um bloco, um fator. O produto acumulado δ desce a fila da direita para a esquerda, e cada parâmetro (`w1`, `b1`, `w2`, `b2`) pega o δ da sua camada e multiplica pela sua própria derivada local — inclusive os vieses, cuja derivada local vale 1, que é de onde sai `∂L/∂b = δ`. Fecha com os cinco fatores de `∂L/∂w1` em fila, multiplicados um por vez. | `target` |
 | BitNet → Quantização | O que significa quantizar um peso? | `w`, `tau` |
 | BitNet → Forward | O que acontece no forward, e quão longe do alvo? | `x1,x2,w1,w2,target` |
-| BitNet → Backward → STE | Por que o backward é problemático (com o gráfico da derivada real vs. a do STE), e como o STE resolve? | `tau` |
+| BitNet → Backward → STE | Por que o backward é problemático (com o gráfico da derivada real vs. a do STE), e como o STE resolve? O gradiente que chega ao quantizador já inclui o fator x (`∂L/∂Q(w) = ∂L/∂y · x`), o mesmo número do exemplo guiado. | `w`, `target`, `tau` |
 | BitNet → Exemplo guiado | Sequência fixa "Do peso real ao BitNet" (10 passos) | fixo |
 | SNN → Sinal e spikes | O que é um spike? | nível de disparo |
 | SNN → Codificação Poisson | A informação pode estar na *probabilidade* de disparo, não só no instante exato? | `max_rate` |
-| SNN → Codificação Poisson (imagem) | Como fica a esparsidade num caso real, pixel a pixel — e por que só a soma de vários passos reconstrói a imagem? | `max_rate` |
-| SNN → LIF | Como um neurônio LIF integra, dispara e reseta? | `tau, R, V_th`, amplitude |
-| SNN → Surrogate gradient | Como se treina através de uma função em degrau? | `k` |
+| SNN → Codificação Poisson (imagem) | Como fica a esparsidade num caso real, pixel a pixel — e por que só a soma de vários passos reconstrói a imagem? A estimativa (spikes até t ÷ (t+1) ÷ taxa máxima) aparece ao lado do original, com o erro médio caindo a cada passo. | `max_rate` |
+| SNN → LIF | Como um neurônio LIF integra, dispara e reseta — e, quando a corrente desliga, como o vazamento traz o potencial de volta ao repouso? | `tau, R, V_th`, amplitude |
+| SNN → Surrogate gradient | Como se treina através de uma função em degrau? A sigmoide suave vai de 0 a 1 e fica mais íngreme com `k`; o gradiente substituto é a inclinação exata dela (área 1). | `k` |
 | SNN → time_steps x delta_t | Por que confundir "quantos quadros" com "quanto dura um quadro" quebra o treino, e por que a ORDEM das linhas no tensor `(T*B,F)` importa? | `n_samples` |
 | SNN → Ruído estrutural da codificação | "Direta > latência > Poisson" em reconstrução é uma diferença real de informação, ou só o chão de ruído de cada codificação? | `time_steps` |
 | SNN → Perda incompatível com a codificação | Por que a perda precisa medir o lugar onde a codificação guarda o valor? Com a perda errada o treino reporta "perfeito" sem corrigir nada; com a certa, uma unidade que nunca dispara trava sem gradiente — duas falhas silenciosas, e a validação que as torna barulhentas. | fixo |
 | SNN → Normalização dependente de limiar (tdBN) | Como tdBN reescala a corrente de entrada para um espalhamento proporcional ao limiar `V_th`, em vez de variância unitária? | `V_th` |
-| SNN → Regularização de taxa de disparo | Como a penalidade empurra de volta à faixa alvo tanto um neurônio quase morto quanto um em rajada — e por que dentro da faixa ela não faz nada? | `lambda`, `r_min` |
+| SNN → Regularização de taxa de disparo | A penalidade olha a taxa MÉDIA de cada camada: como ela empurra de volta à faixa uma camada quase morta e uma em rajada, por que dentro da faixa não faz nada — e por que uma camada que mistura uma unidade morta e uma em rajada passa despercebida? | `lambda`, `r_min` |
 | SNN → Normalização: por característica x por janela | Por que áudio normaliza cada característica com estatísticas ajustadas uma vez no treino e EEG recalcula a cada janela — e por que só o caminho ajustado pode vazar dados de teste? | fixo |
 | Paraconsistente → Plano paraconsistente | Dado o quão compacta (`alpha`) e sobreposta (`beta`) cada classe é, onde cai o ponto no plano paraconsistente, e quão perto de "Verdade" ele está? | `alpha`, `beta` |
 | Paraconsistente → D_truth x D_penalized | Por que um extrator "morto" (sempre a mesma saída) passa à frente de extratores fracos porém reais na distância ingênua até "Verdade", e como `D_penalized` fecha essa brecha? | fixo |
@@ -250,7 +255,8 @@ dentro do Qt mantém o dpi e **cresce em polegadas** junto com a janela —
 então um `fontsize=8` calibrado num canvas de 900x400 vira 8pt dentro de
 uma figura de ~1000pt de altura quando o app está no projetor: encolhe,
 relativamente, exatamente quando precisa ser legível (era a queixa
-registrada em `FIXME.md`).
+registrada no antigo `FIXME.md` da raiz do repositório, removido no commit
+933133a3).
 
 O tamanho agora vem da geometria (`NeuronView._cmp_geometry`): o menor
 entre o que a **altura** permite (todas as linhas de texto mais os
@@ -267,10 +273,18 @@ o anterior. Os invariantes estão em `tests/test_comparison_table_layout.py`
   e simétrico — uma simplificação didática, **não** a quantização absmean
   real de BitNet b1.58 (que usa uma escala γ = média(|W|) por tensor).
 - O STE aqui é a ideia central do estimador (forward quantizado, backward
-  identidade), não uma cópia da implementação oficial.
+  identidade), não uma cópia da implementação oficial. Só `dQ/dw` vira 1:
+  os outros fatores da cadeia continuam, então com `y = x · Q(w)` o
+  gradiente entregue ao peso real é `∂L/∂y · x`.
 - O gradiente substituto da SNN é uma sigmoide rápida comum na literatura
   didática, análoga em espírito ao STE — não a mesma técnica, nem a mesma
-  fórmula de nenhum artigo específico.
+  fórmula de nenhum artigo específico. O par é normalizado: a sigmoide
+  `0,5 + 0,5·kx/(1 + k|x|)` vai de 0 a 1 como o degrau, e o substituto é a
+  derivada exata dela, `(k/2)/(1 + k|x|)²`, com área 1. Muitas bibliotecas
+  usam a mesma forma com pico 1, que difere só pelo fator constante `2/k`.
+- A comparação ANN x BitNet x SNN compara peso com peso e ativação com
+  ativação: os pesos de uma SNN são contínuos; o que é binário nela é a
+  ativação (spikes). A BitNet b1.58 usa ativações de 8 bits.
 - Nenhuma tela afirma que BitNet e SNN são equivalentes, nem que a
   eficiência energética é garantida pela arquitetura por si só — ver a
   tela **Comparação → Advertência sobre eficiência**.
@@ -286,9 +300,21 @@ Ver a tela **Referências** dentro da aplicação. Resumo:
 - Neftci, E. O.; Mostafa, H.; Zenke, F. *Surrogate Gradient Learning in
   Spiking Neural Networks*. IEEE Signal Processing Magazine, v. 36, n. 6,
   p. 51-63, 2019. DOI: 10.1109/MSP.2019.2931595.
+- Zheng, H.; Wu, Y.; Deng, L.; Hu, Y.; Li, G. *Going Deeper With
+  Directly-Trained Larger Spiking Neural Networks*. Proceedings of the AAAI
+  Conference on Artificial Intelligence, v. 35, n. 12, p. 11062-11070,
+  2021. DOI: 10.1609/aaai.v35i12.17320. (tdBN)
+- Deb, K.; Pratap, A.; Agarwal, S.; Meyarivan, T. *A Fast and Elitist
+  Multiobjective Genetic Algorithm: NSGA-II*. IEEE Transactions on
+  Evolutionary Computation, v. 6, n. 2, p. 182-197, 2002.
+  DOI: 10.1109/4235.996017. (NSGA-II e dominância com restrições)
+- Eckart, C.; Young, G. *The Approximation of One Matrix by Another of
+  Lower Rank*. Psychometrika, v. 1, n. 3, p. 211-218, 1936.
+  DOI: 10.1007/BF02288367. (PCA como melhor compressor linear)
 
-Todas as três referências foram verificadas por resolução de DOI/busca
-antes da inclusão (metadados conferidos, não apenas lembrados).
+As seis referências foram verificadas por resolução de DOI/busca antes da
+inclusão (metadados conferidos, não apenas lembrados). As três últimas
+entraram porque o texto das demos atribui afirmações a elas.
 
 ## Testes
 
@@ -305,18 +331,48 @@ Cobertura:
 
 - `test_backprop.py` — forward/backward clássicos: números do passo único
   batem com a conta manual, e a sequência de gradiente descendente converge
-  de fato (distância ao alvo cai monotonicamente até < 0,1), sem saltos
-  instantâneos entre iterações.
+  de fato (distância ao alvo cai monotonicamente até < 0,05), sem saltos
+  instantâneos entre iterações; o passo a passo e o gráfico contam o mesmo
+  número de atualizações. Também as demos matricial, 3-2-2-1 e da regra da
+  cadeia (um número novo por passo, cadeia = gradiente matricial).
 - `test_bitnet.py` — quantização, STE (incluindo o gráfico da derivada real
   morfando na constante que o STE usa), neurônio linear, perda, e os
   números exatos dos exemplos da especificação (y=2, loss=2, w: 0,80→0,84).
+  O gradiente do STE (`∂L/∂w = -4`) é o mesmo na demo do backward e no
+  exemplo guiado, e todo texto que depende da posição de w segue o slider.
 - `test_snn.py` — integração LIF (nunca dispara sem corrente, dispara e
-  reseta com corrente suficiente, nunca excede o limiar), forma do
-  gradiente substituto, codificação por limiar direto.
+  reseta com corrente suficiente, nunca excede o limiar, o vazamento
+  aparece quando a corrente desliga), par sigmoide/substituto (degrau suave
+  de 0 a 1, área 1, derivada exata), codificação por cruzamento de nível,
+  chãos de ruído conferidos por Monte Carlo, e o ponto cego da
+  regularização pela média da camada.
+- `test_surrogate_example_markers.py`, `test_math_render.py`,
+  `test_comparison_table_layout.py`, `test_widgets_no_clipping.py`,
+  `test_chain_layout.py`, `test_main_window.py` — exemplo numérico do
+  gradiente substituto, equações tipografáveis, legibilidade da tabela,
+  nada desenhado fora do canvas, layout da regra da cadeia e navegação.
 - `test_demo_interface.py` — contrato genérico: toda demonstração começa
   no passo 0, não ultrapassa os limites, é determinística ao resetar.
 - `test_widgets_render.py` — todo frame de toda demonstração renderiza sem
   lançar exceção no widget para o qual é roteado.
+
+## Desvios deliberados da especificação
+
+- **Duração das animações (#27, 3 a 15 s).** As demos de backprop são
+  passo a passo por decisão didática: `Backprop → Forward e backward
+  clássicos` repete o ciclo de 9 passos até convergir (fixado em
+  `test_pipeline_cycle_repeats_until_close_enough_to_target`), e as demos
+  matricial e da regra da cadeia revelam um número por passo. No modo
+  automático elas passam bem de 15 s.
+- **Tabela da comparação (#21).** A linha "Pesos" diz que os pesos da SNN
+  são contínuos em qualquer precisão, como a especificação. A linha
+  "Potencial de eficiência" virou a advertência final, porque a própria
+  especificação proíbe tratar eficiência como propriedade da arquitetura.
+  "Domínio temporal" diz "normalmente ausente" para ANN e BitNet
+  feedforward, em vez de "não explícito".
+- **Contagem de camadas.** A entrada não conta como camada (não tem pesos
+  nem ativação), como no slide `fundamentosArquitetura.tex`. Por isso a
+  demo antes chamada "Rede de 4 camadas" é `Backprop → Rede 3-2-2-1`.
 
 ## Escopo negativo (ESPECIFICACAO_DLVL.md #37)
 

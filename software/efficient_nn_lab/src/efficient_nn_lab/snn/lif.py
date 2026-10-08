@@ -56,8 +56,12 @@ def simulate_lif(current: np.ndarray, params: LIFParams = LIFParams()) -> LIFTra
     return LIFTrace(current=np.asarray(current, dtype=float), membrane=v, spikes=spikes)
 
 
-def constant_current(amplitude: float, n_steps: int, onset: int = 0) -> np.ndarray:
-    """A current trace that is zero before ``onset`` and ``amplitude`` after."""
+def constant_current(amplitude: float, n_steps: int, onset: int = 0, offset: int | None = None) -> np.ndarray:
+    """A current trace that is ``amplitude`` from ``onset`` up to (not
+    including) ``offset`` and zero elsewhere -- a step when ``offset`` is
+    None, a pulse otherwise. Only a pulse shows the leak on its own: while
+    a constant current is on, V never falls; after it switches off, the
+    leak is the only thing acting and V decays back to rest."""
     trace = np.zeros(n_steps, dtype=float)
-    trace[onset:] = amplitude
+    trace[onset:offset] = amplitude
     return trace

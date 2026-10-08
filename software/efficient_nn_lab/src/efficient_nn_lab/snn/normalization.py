@@ -1,6 +1,6 @@
 """Input normalization: per-feature z-score (fit once on train, e.g.
-audio/CMVN-style) vs per-window z-score (recomputed for every window, e.g.
-EEG) -- and the data-leakage hazard of fitting stats on test data too
+audio's *global* CMVN -- classic CMVN is per utterance, i.e. per-window in
+spirit) vs per-window z-score (recomputed for every window, e.g. EEG) -- and the data-leakage hazard of fitting stats on test data too
 (software/nn thesis chapter 07, sec:normalizacaoEntrada).
 """
 

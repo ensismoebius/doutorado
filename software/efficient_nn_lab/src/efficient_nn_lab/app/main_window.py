@@ -133,6 +133,20 @@ Neftci, E. O.; Mostafa, H.; Zenke, F. Surrogate Gradient Learning in
 Spiking Neural Networks. IEEE Signal Processing Magazine, v. 36, n. 6,
 p. 51-63, 2019. DOI: 10.1109/MSP.2019.2931595.
 
+Zheng, H.; Wu, Y.; Deng, L.; Hu, Y.; Li, G. Going Deeper With
+Directly-Trained Larger Spiking Neural Networks. Proceedings of the AAAI
+Conference on Artificial Intelligence, v. 35, n. 12, p. 11062-11070, 2021.
+DOI: 10.1609/aaai.v35i12.17320. (tdBN)
+
+Deb, K.; Pratap, A.; Agarwal, S.; Meyarivan, T. A Fast and Elitist
+Multiobjective Genetic Algorithm: NSGA-II. IEEE Transactions on
+Evolutionary Computation, v. 6, n. 2, p. 182-197, 2002.
+DOI: 10.1109/4235.996017. (NSGA-II e dominância com restrições)
+
+Eckart, C.; Young, G. The Approximation of One Matrix by Another of Lower
+Rank. Psychometrika, v. 1, n. 3, p. 211-218, 1936.
+DOI: 10.1007/BF02288367. (PCA como melhor compressor linear)
+
 Metadados verificados por resolução de DOI / busca antes da inclusão nesta
 tela (ver ESPECIFICACAO_DLVL.md #33).
 """
@@ -248,7 +262,8 @@ def _demo_order(groups: dict[str, list[DemoModule]]) -> list[DemoModule]:
 
     This flat list *is* the lecture running order: walking it forwards
     means "next item in this section, or the first item of the next
-    section once this one runs out" (FIXME.md), because the tree is built
+    section once this one runs out" (a request in the old repo-root
+    FIXME.md, deleted in commit 933133a3), because the tree is built
     section by section. Keeping it derived from the same dict the tree is
     built from is what stops the two from drifting apart.
     """
@@ -358,8 +373,8 @@ class MainWindow(QMainWindow):
         self.demo_title_label = QLabel("Efficient Neural Networks Lab")
         self.demo_title_label.setObjectName("DemoTitle")
         top_bar.addWidget(self.demo_title_label, stretch=1)
-        # Lecture-mode navigation (FIXME.md): lecture mode hides the demo
-        # tree, which is the only way to change demo -- so in the mode
+        # Lecture-mode navigation (a request in the old repo-root FIXME.md,
+        # deleted in commit 933133a3): lecture mode hides the demo tree, which is the only way to change demo -- so in the mode
         # meant for presenting there was no way to move on without
         # leaving it. This button is that way. It is visible in both
         # modes (it is a convenience with the tree, a necessity without
@@ -533,7 +548,7 @@ class MainWindow(QMainWindow):
         self._reserve_text_heights(demo)
         self._refresh_frame()
 
-    # -- lecture-mode navigation (FIXME.md) -------------------------------
+    # -- lecture-mode navigation (old FIXME.md request, gone since 933133a3)
     def _on_next_demo(self) -> None:
         """Advance to the next demo in the sidebar's running order.
 

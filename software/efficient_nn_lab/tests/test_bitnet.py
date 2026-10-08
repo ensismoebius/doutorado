@@ -122,9 +122,11 @@ def test_backward_demo_exposes_both_ste_paths():
 
 
 def test_backward_demo_worked_example_is_hand_computable():
-    # default w = 0.65, tau = 0.5: Q(w) = +1, y = x*Q(w) = 2*1 = 2,
-    # L = 1/2 (2 - 4)^2 = 2, ∂L/∂Q(w) = 2 - 4 = -2. The STE substitute for
-    # dQ/dw is 1, so ∂L/∂w_ste = -2 while ∂L/∂w_real = 0.
+    # default x = 2, w = 0.65, tau = 0.5: Q(w) = +1, y = x*Q(w) = 2*1 = 2,
+    # L = 1/2 (2 - 4)^2 = 2, ∂L/∂y = 2 - 4 = -2, and since y = x*Q(w),
+    # ∂L/∂Q(w) = ∂L/∂y * x = -4. The STE substitute for dQ/dw is 1, so
+    # ∂L/∂w_ste = -4 while ∂L/∂w_real = 0. (An earlier version dropped the
+    # factor x and pinned -2 here, disagreeing with the guided sequence.)
     demo = BackwardSTEDemo()
     ste = [f for f in demo.checkpoint_frames() if f.values["kind"] == "ste_pipeline"]
     assert ste
@@ -133,11 +135,12 @@ def test_backward_demo_worked_example_is_hand_computable():
     assert v["w_quant"] == 1
     assert v["y"] == pytest.approx(2.0)
     assert v["loss"] == pytest.approx(2.0)
-    assert v["upstream_grad"] == pytest.approx(-2.0)  # ∂L/∂Q(w)
+    assert v["grad_y"] == pytest.approx(-2.0)  # ∂L/∂y
+    assert v["upstream_grad"] == pytest.approx(-4.0)  # ∂L/∂Q(w) = ∂L/∂y * x
     assert v["dq_dw_real"] == pytest.approx(0.0)
     assert v["dq_dw_ste"] == pytest.approx(1.0)
     assert v["dl_dw_real"] == pytest.approx(0.0)
-    assert v["dl_dw_ste"] == pytest.approx(-2.0)
+    assert v["dl_dw_ste"] == pytest.approx(-4.0)
     assert v["threshold"] == pytest.approx(0.5)
 
 
@@ -187,3 +190,44 @@ def test_backward_demo_kind_changes_only_at_deliberate_cuts():
     kinds_in_order = [f.values["kind"] for f in demo._frames]
     changes = sum(1 for a, b in zip(kinds_in_order, kinds_in_order[1:]) if a != b)
     assert changes == 2
+
+
+def test_backward_demo_ste_gradient_agrees_with_the_guided_sequence():
+    # Same x = 2, target = 4, Q(w) = +1 in both demos: the STE gradient
+    # handed to the real weight must be the same number on both screens.
+    ste = [f for f in BackwardSTEDemo().checkpoint_frames() if f.values["kind"] == "ste_pipeline"][0]
+    guided = GuidedBitNetDemo().checkpoint_frames()[-1]
+    assert ste.values["dl_dw_ste"] == pytest.approx(guided.values["grad_value"])
+
+
+@pytest.mark.parametrize("w,expected", [(0.65, "acima de"), (-0.8, "abaixo de"), (0.2, "zona morta"), (0.5, "salto")])
+def test_backward_demo_position_text_follows_the_slider(w, expected):
+    demo = BackwardSTEDemo()
+    demo.set_parameter("w", w)
+    first = demo.checkpoint_frames()[0].explanation
+    assert expected in first
+    if expected != "acima de":
+        assert "acima de" not in first
+
+
+@pytest.mark.parametrize("w1", [0.3, 0.8, -0.9])
+def test_forward_demo_dead_zone_sentence_matches_q(w1):
+    demo = ForwardLossDemo()
+    demo.set_parameter("w1", w1)
+    text = demo.checkpoint_frames()[1].explanation
+    inside = abs(w1) <= demo.threshold
+    assert ("dentro da faixa cinza" in text) == inside
+    assert ("fora da faixa cinza" in text) == (not inside)
+
+
+def test_no_ternary_level_is_ever_printed_as_plus_zero():
+    # {-1, 0, +1} has no "+0"; f"{q:+d}" used to print one for Q(w) = 0.
+    import re
+
+    backward = BackwardSTEDemo()
+    backward.set_parameter("w", 0.2)  # Q(w) = 0
+    forward = ForwardLossDemo()  # default w2 = 0.2 -> Q(w2) = 0
+    plus_zero = re.compile(r"\+0(?![.,\d])")
+    for demo in (backward, forward):
+        for f in demo.checkpoint_frames():
+            assert not plus_zero.search(f.explanation), f.explanation

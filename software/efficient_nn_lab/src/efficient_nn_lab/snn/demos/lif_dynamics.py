@@ -6,9 +6,16 @@ input -> integration -> threshold -> spike -> reset -> repeat.)
 Every time-step is a frame, so the membrane trace sweeps smoothly and
 continuously — nothing about a leaking, integrating potential should ever
 jump. Checkpoints mark only the phase changes that matter didactically
-(current onset, each spike+reset, the end), so "Anterior"/"Próximo"
-moves between those moments while playback still glides through every
-sample in between.
+(current onset, each spike+reset, current offset, the end), so
+"Anterior"/"Próximo" moves between those moments while playback still
+glides through every sample in between.
+
+The input is a current PULSE, not a step: while a constant current is on,
+V only rises (after every reset it starts below the equilibrium R·I), so
+the leak never shows on its own. Once the current switches off, the leak
+is the only thing acting and V visibly decays back to V_rest -- the "Leaky"
+in LIF. With R·I below V_th the text says why the neuron never fires: the
+leak grows with V and balances the input at V = R·I.
 """
 
 from __future__ import annotations
@@ -18,12 +25,20 @@ from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 
 _N_STEPS = 60
 _ONSET = 5
+#: Switch-off frame. With the default tau = R = 5, V_th = 1, I = 0.3 the
+#: neuron fires every 5 steps (t = 9, 14, ..., 34); switching off at 39
+#: catches V high (~0.89), so the decay is large and easy to see. At 40 a
+#: spike at t = 39 would have reset V to 0 first, leaving nothing to leak.
+_OFFSET = 39
 
 
 class LIFDynamicsDemo(DemoModule):
     title = "SNN -> LIF"
     slug = "snn.lif"
-    description = "O potencial de membrana integra a corrente de entrada, vaza com o tempo, e dispara ao cruzar o limiar."
+    description = (
+        "O potencial de membrana integra a corrente de entrada, dispara ao cruzar o limiar e "
+        "reinicia; quando a corrente desliga, o vazamento traz o potencial de volta ao repouso."
+    )
 
     def __init__(self) -> None:
         self.tau = 5.0
@@ -42,8 +57,26 @@ class LIFDynamicsDemo(DemoModule):
 
     def _build_frames(self) -> list[Frame]:
         params = LIFParams(tau=self.tau, r=self.r, v_th=self.v_th)
-        current = constant_current(self.amplitude, _N_STEPS, onset=_ONSET)
+        current = constant_current(self.amplitude, _N_STEPS, onset=_ONSET, offset=_OFFSET)
         trace = simulate_lif(current, params)
+        equilibrium = self.r * self.amplitude  # where the leak balances the input: -(V - 0) + R·I = 0
+        reaches_threshold = equilibrium >= self.v_th
+
+        # Every explanation is kept to ONE line: the window reserves the
+        # height of this demo's tallest checkpoint text, and LIF already
+        # gives up height to its 4 sliders (see
+        # test_lif_canvas_not_shrunk_by_short_explanations).
+        if reaches_threshold:
+            onset = "A corrente de entrada liga: o potencial começa a subir em direção ao limiar."
+            rising = "A corrente de entrada acumula: o potencial sobe em direção ao limiar."
+        else:
+            # Shown from the onset checkpoint on, not only between
+            # checkpoints: the height reservation measures checkpoint
+            # texts only, so a text no checkpoint shows is never measured.
+            onset = rising = (
+                "O vazamento cresce com V e equilibra a entrada em "
+                f"$R · I = {equilibrium:.2f} < V_th = {self.v_th:.2f}$: nunca dispara."
+            )
 
         frames = []
         for t in range(_N_STEPS):
@@ -57,14 +90,17 @@ class LIFDynamicsDemo(DemoModule):
                 is_checkpoint = True
             elif t == _ONSET:
                 phase = "integração"
-                explanation = "A corrente de entrada liga: o potencial começa a subir em direção ao limiar."
+                explanation = onset
                 is_checkpoint = True
-            elif trace.membrane[t] > (trace.membrane[t - 1] if t > 0 else 0.0):
+            elif t < _OFFSET:
                 phase = "integração"
-                explanation = "A corrente de entrada acumula: o potencial sobe em direção ao limiar."
+                explanation = rising
             else:
                 phase = "vazamento"
-                explanation = "Sem corrente suficiente para compensar o vazamento: o potencial decai."
+                explanation = (
+                    "Corrente desligada: só o vazamento age, e V decai exponencialmente de volta a $V_rest$."
+                )
+                is_checkpoint = is_checkpoint or t == _OFFSET
 
             frames.append(
                 Frame(

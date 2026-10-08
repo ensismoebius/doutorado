@@ -210,10 +210,14 @@ class ParaconsistentGaParetoDemo(DemoModule):
             "Um cardápio, não um vencedor",
             f"O resultado é a fronteira inteira: {int(last_front.sum())} opções. Na ponta barata, "
             f"{_pt(last, lo)}; na ponta boa, {_pt(last, hi)}. Quem escolhe é o orçamento do "
-            "dispositivo. Por que não somar os objetivos com pesos? As escalas não conversam: D vai "
-            "de 0 a 2, e o custo real de um codificador 256 → 128 → 64 → 32 com T = 16 é "
-            f"{_EXAMPLE_MACS} MACs. A soma só enxergaria o custo — e nada na tela avisaria.",
-            f"0.5 · D + 0.5 · MACs:\\ D \\leq 2,\\ MACs = {_EXAMPLE_MACS}",
+            "dispositivo. Por que não somar os objetivos com pesos, w·D + (1 − w)·custo? Não é pela "
+            "escala: essa se resolve normalizando, como o eixo x aqui já faz (cru, o custo de um "
+            f"codificador 256 → 128 → 64 → 32 com T = 16 é {_EXAMPLE_MACS} MACs e engoliria D, que vai "
+            "de 0 a 2). O problema é outro: w precisa ser escolhido ANTES de ver as opções, cada w "
+            "devolve um único ponto, e trechos não convexos da fronteira não são o ótimo de nenhum w "
+            "— a soma nunca os encontra. O NSGA-II devolve a fronteira inteira e deixa a escolha para "
+            "quando o orçamento for conhecido.",
+            "\\min\\ w · D + (1 - w) · custo:\\ \\text{um } w,\\ \\text{um ponto}",
             last, _N_GENERATIONS - 1, ceiling_x=ceiling, ceiling_reveal=1.0, front_reveal=1.0, menu_reveal=1.0,
         )
 

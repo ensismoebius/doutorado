@@ -2,7 +2,7 @@
 
 Single question answered: how does an SNN turn a real-valued input into
 spikes when the value isn't just "above or below a level," but a rate? This
-sits next to spike_generation.py's `direct_threshold_spikes` on purpose —
+sits next to spike_generation.py's `threshold_crossing_spikes` on purpose —
 same synthetic signal, same time axis, so the two demos are directly
 comparable: one produces a spike deterministically at every rising edge,
 the other produces spikes probabilistically, more often where the signal

@@ -181,7 +181,7 @@ class MatrixAlgebraDemo(DemoModule):
         # The five factors of ∂L/∂w11 walked one at a time in the closing
         # phase. H1 feeds only O (single output neuron), so this weight has
         # exactly ONE path to the loss and the chain rule is a plain product
-        # -- no sum over paths. (The 4-layer demo covers the multi-path case.)
+        # -- no sum over paths. (The 3-2-2-1 network demo covers the multi-path case.)
         chain_names = ("∂L/∂y_O", "σ'(z_O)", "w_H1O", "σ'(z_H1)", "x1")
         chain_values = (float(gy2), float(sp2), float(w2[0, 0]), float(sp1[0]), float(x[0]))
         chain_partials = tuple(float(np.prod(chain_values[: i + 1])) for i in range(len(chain_values)))
@@ -386,18 +386,27 @@ class MatrixAlgebraDemo(DemoModule):
             rv_target=1.0, hl_out=0.0, hl_y1=_ZERO_2.copy(),
             work_text=f"y_O  = {y2:.4f}   (o que a rede deu)\nalvo = {target:.2f}     (o que se queria)",
         )
+        # The target is a slider (0.10..0.95) and the default output is
+        # ~0.58, so the difference can have either sign: the sentence is
+        # chosen from the actual sign, never assumed.
+        if diff < 0:
+            sign_text, sign_work = "é negativa: a rede está ABAIXO do alvo", "negativo => a saída precisa CRESCER"
+        elif diff > 0:
+            sign_text, sign_work = "é positiva: a rede está ACIMA do alvo", "positivo => a saída precisa DIMINUIR"
+        else:
+            sign_text, sign_work = "é zero: a rede acertou o alvo em cheio", "zero => nada a corrigir"
         board.snap(
             "A diferença",
-            f"A diferença y_O - alvo = {diff:+.4f} é negativa: a rede está ABAIXO do alvo. O "
+            f"A diferença y_O - alvo = {diff:+.4f} {sign_text}. O "
             "sinal importa, porque é ele que vai dizer para que lado os pesos devem andar.",
             equation="y_O - alvo",
             rv_diff=1.0,
-            work_text=f"y_O - alvo = {y2:.4f} - {target:.2f} = {diff:+.4f}\nnegativo => a saída precisa CRESCER",
+            work_text=f"y_O - alvo = {y2:.4f} - {target:.2f} = {diff:+.4f}\n{sign_work}",
         )
         board.snap(
             "A perda",
             f"Elevar ao quadrado e dividir por dois transforma a diferença num único número "
-            f"positivo: L = {loss:.4f}. É esse escalar que o backward vai derivar em relação a "
+            f"que nunca é negativo: L = {loss:.4f}. É esse escalar que o backward vai derivar em relação a "
             "cada peso -- e derivar um escalar em relação a matrizes é o que produz gradientes "
             "com a forma das matrizes.",
             equation="L = 1/2 (y_O - alvo)^2",

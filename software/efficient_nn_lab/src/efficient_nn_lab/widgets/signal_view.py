@@ -142,6 +142,7 @@ class SignalView(QWidget):
     def _render_poisson_image(self, values: dict[str, object]) -> None:
         image = np.asarray(values["image"])
         frame = np.asarray(values["frame"])
+        estimate = np.asarray(values.get("estimate", np.zeros_like(image)))
         t = int(values["t"])
         n_total = int(values["n_total"])
         max_rate = float(values["max_rate"])
@@ -166,13 +167,24 @@ class SignalView(QWidget):
         # these base limits to the panel's shape, keeping pixels square and
         # the whole photo visible every time.
         rows, cols = image.shape
-        self._ax_top.imshow(image, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
+        # Original and the rate-decoded estimate side by side in ONE image,
+        # with a blank (NaN -> background) gutter between them: the claim
+        # "only the sum of steps rebuilds the picture" is then visible as
+        # the right half sharpening toward the left half.
+        gutter = max(2, cols // 24)
+        pair = np.full((rows, 2 * cols + gutter), np.nan)
+        pair[:, :cols] = image
+        pair[:, cols + gutter:] = estimate
+        pair_cols = pair.shape[1]
+        self._ax_top.imshow(pair, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
         self._ax_top.set_aspect("equal", adjustable="datalim")
-        self._ax_top.set_xlim(-0.5, cols - 0.5)
+        self._ax_top.set_xlim(-0.5, pair_cols - 0.5)
         self._ax_top.set_ylim(rows - 0.5, -0.5)
         self._ax_top.set_xticks([])
         self._ax_top.set_yticks([])
-        self._ax_top.set_title("Imagem original (brilho = probabilidade de disparo)")
+        self._ax_top.set_title(
+            f"Original (esq.)  |  estimativa = spikes até t ÷ (t+1) ÷ taxa máxima, t = {t} (dir.)"
+        )
 
         self._ax_bottom.imshow(frame, cmap="gray", vmin=0.0, vmax=1.0, aspect="equal", interpolation="nearest")
         self._ax_bottom.set_aspect("equal", adjustable="datalim")
@@ -257,18 +269,24 @@ class SignalView(QWidget):
         )
 
     def _render_firing_rate_reg(self, values: dict[str, object]) -> None:
-        """Two zoomed panels, one per failure: the nearly dead neuron climbing
-        to the floor (top) and the bursting one descending to the ceiling
-        (bottom). The arrow at each tip is the regularizer's push, drawn in
-        rate units -- it visibly shrinks to nothing at the band's edge."""
+        """Two zoomed panels, one per failure: the nearly dead LAYER's mean
+        rate climbing to the floor (top) and the bursting layer's mean
+        descending to the ceiling (bottom). The arrow at each tip is the
+        regularizer's push on that mean, drawn in rate units -- it visibly
+        shrinks to nothing at the band's edge. With ``mixed_reveal`` on, a
+        dashed line per panel marks the two units of a third, mixed layer
+        whose mean sits inside the band and therefore gets no push."""
         epochs = np.asarray(values["epochs"])
         n_total = int(values["n_total"])
         r_min = float(values["r_min"])
         r_max = float(values["r_max"])
         push_reveal = float(values["push_reveal"])
+        mixed_reveal = float(values.get("mixed_reveal", 0.0))
+        mixed_mean = float(values.get("mixed_mean", 0.0))
+        mixed_push = float(values.get("mixed_push", 0.0))
         panels = (
-            (self._ax_top, "dead", SNN_COLOR, "quase morto", (0.0, float(values["dead_top"])), r_min, "piso r_min"),
-            (self._ax_bottom, "burst", BITNET_COLOR, "em rajada", (float(values["burst_bottom"]), 1.0), r_max, "teto r_max"),
+            (self._ax_top, "dead", SNN_COLOR, "camada quase morta", (0.0, float(values["dead_top"])), r_min, "piso r_min"),
+            (self._ax_bottom, "burst", BITNET_COLOR, "camada em rajada", (float(values["burst_bottom"]), 1.0), r_max, "teto r_max"),
         )
         x_right = n_total * 1.5  # room for the tip labels
         for ax, key, color, name, (lo, hi), edge, edge_name in panels:
@@ -286,7 +304,7 @@ class SignalView(QWidget):
                 tip_x, tip_y = float(epochs[-1]), float(rates[-1])
                 ax.plot([tip_x], [tip_y], marker="o", markersize=8, color=color, zorder=4)
                 ax.text(
-                    tip_x + 0.6, tip_y, f"{name}: taxa {tip_y:.3f}\nL_reg = {loss:.5f}",
+                    tip_x + 0.6, tip_y, f"{name}: média {tip_y:.3f}\nL_reg = {loss:.5f}",
                     va="center", fontsize=8, color=color, weight="bold",
                 )
                 if push_reveal > 0.02 and abs(push) > 1e-4:
@@ -294,11 +312,19 @@ class SignalView(QWidget):
                         "", xy=(tip_x, tip_y + push), xytext=(tip_x, tip_y),
                         arrowprops=dict(arrowstyle="-|>", color=ACCENT_COLOR, linewidth=2.2, alpha=push_reveal),
                     )
+            if mixed_reveal > 0.02:
+                unit_rate = float(values[f"mixed_{key}"])
+                ax.axhline(unit_rate, color=NEUTRAL_COLOR, linestyle="--", linewidth=1.6, alpha=mixed_reveal)
+                ax.text(
+                    n_total * 0.5, unit_rate,
+                    f"camada mista: unidade em {unit_rate:.2f}, média {mixed_mean:.3f}, empurrão {mixed_push:+.3f}",
+                    va="bottom", ha="center", fontsize=7.5, color=NEUTRAL_COLOR, alpha=mixed_reveal,
+                )
             ax.set_yscale("linear")  # backprop_convergence leaves the bottom axis log-scaled otherwise
             ax.set_ylim(lo, hi)
             ax.set_xlim(0, x_right)
             ax.set_ylabel("taxa média")
-        self._ax_top.set_title("Faixa alvo (verde): o regularizador só empurra quem está fora dela", fontsize=9.5)
+        self._ax_top.set_title("Faixa alvo (verde): o regularizador só empurra a MÉDIA de camada que está fora dela", fontsize=9.5)
         self._ax_bottom.set_xlabel("época")
 
     def _render_encoding_loss_mismatch(self, values: dict[str, object]) -> None:

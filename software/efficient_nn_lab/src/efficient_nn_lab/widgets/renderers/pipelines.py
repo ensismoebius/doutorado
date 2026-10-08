@@ -10,6 +10,7 @@ from efficient_nn_lab.app.theme import (
     NEUTRAL_COLOR,
     SNN_COLOR,
 )
+from efficient_nn_lab.bitnet.quantization import format_level
 
 
 class PipelineRenderersMixin:
@@ -164,8 +165,8 @@ class PipelineRenderersMixin:
         self._box(*self._X1, f"x1 = {x1:g}", NEUTRAL_COLOR)
         self._box(*self._X2, f"x2 = {x2:g}", NEUTRAL_COLOR)
 
-        w_label1 = f"Q(w1) = {round(w1q):+d}" if quant1_reveal >= 0.999 else f"w1 = {w1_real:.2f}"
-        w_label2 = f"Q(w2) = {round(w2q):+d}" if quant2_reveal >= 0.999 else f"w2 = {w2_real:.2f}"
+        w_label1 = f"Q(w1) = {format_level(w1q)}" if quant1_reveal >= 0.999 else f"w1 = {w1_real:.2f}"
+        w_label2 = f"Q(w2) = {format_level(w2q)}" if quant2_reveal >= 0.999 else f"w2 = {w2_real:.2f}"
         self._box(*self._W1, w_label1, BITNET_COLOR if quant1_reveal > 0.5 else NEUTRAL_COLOR, glow=h1)
         self._box(*self._W2, w_label2, BITNET_COLOR if quant2_reveal > 0.5 else NEUTRAL_COLOR, glow=h2)
         self._equation_near(*self._W1, "Q(w) ∈ {+1, 0, -1}", max(quant1_reveal, quant2_reveal))
@@ -221,17 +222,21 @@ class PipelineRenderersMixin:
         x = float(values.get("x", 2.0))
         y = float(values.get("y", 2.0))
         loss = float(values.get("loss", 2.0))
-        upstream = float(values.get("upstream_grad", -2.0))
+        grad_y = float(values.get("grad_y", -2.0))
+        # ∂L/∂Q(w) = ∂L/∂y * x: the multiplication y = x*Q(w) sits between
+        # the loss and the quantizer, so x is part of this gradient.
+        upstream = float(values.get("upstream_grad", grad_y * x))
         dq_real = float(values.get("dq_dw_real", 0.0))
         dq_ste = float(values.get("dq_dw_ste", 1.0))
         dl_real = float(values.get("dl_dw_real", 0.0))
         dl_ste = float(values.get("dl_dw_ste", upstream))
         tau = float(values.get("threshold", 0.5))
 
+        wq_txt = format_level(wq)
         fwd_labels = [
             f"peso real\nw = {w:.2f}",
             "quantização\nQ(w)",
-            f"peso ternário\nQ(w) = {wq:+d}",
+            f"peso ternário\nQ(w) = {wq_txt}",
             f"operação\ny = {x:g}·Q(w) = {y:g}",
         ]
         bwd_labels = [
@@ -254,7 +259,7 @@ class PipelineRenderersMixin:
             self._flow_arrow((a[0] + 1.0, a[1]), (b[0] - 1.0, b[1]), fwd, BITNET_COLOR)
         self._fading_text(5.1, 5.35, "FORWARD", BITNET_COLOR, fwd, fontsize=12, weight="bold")
         self._fading_text(
-            5.1, 5.02, f"y = {x:g}·Q(w), com Q({w:.2f}) = {wq:+d} (τ = {tau:g})",
+            5.1, 5.02, f"y = {x:g}·Q(w), com Q({w:.2f}) = {wq_txt} (τ = {tau:g})",
             BITNET_COLOR, fwd, fontsize=8,
         )
 
@@ -264,7 +269,8 @@ class PipelineRenderersMixin:
             self._flow_arrow((a[0] - 1.0, a[1]), (b[0] + 1.0, b[1]), bwd, SNN_COLOR)
         self._fading_text(5.1, 0.65, "BACKWARD (STE)", SNN_COLOR, bwd, fontsize=12, weight="bold")
         self._fading_text(
-            5.1, 0.98, f"∂L/∂w = {dl_ste:g}  (dQ/dw: {dq_real:g} -> {dq_ste:g})",
+            5.1, 0.98,
+            f"∂L/∂y = {grad_y:g}  ·  ∂L/∂Q(w) = ∂L/∂y·x = {upstream:g}  ·  ∂L/∂w = {dl_ste:g}  (dQ/dw: {dq_real:g} -> {dq_ste:g})",
             SNN_COLOR, bwd, fontsize=8,
         )
 
@@ -310,10 +316,11 @@ class PipelineRenderersMixin:
 
         self._box(*self._W_POS, f"w = {values['w_value']:.2f}", BITNET_COLOR)
         self._flow_arrow(self._W_POS, self._Q_POS, q_reveal, BITNET_COLOR)
-        self._box(*self._Q_POS, f"Q(w) = {round(values['q_value']):+d}", BITNET_COLOR, alpha=q_reveal, glow=q_pulse)
+        self._box(*self._Q_POS, f"Q(w) = {format_level(values['q_value'])}", BITNET_COLOR, alpha=q_reveal, glow=q_pulse)
         self._equation_near(*self._Q_POS, "Q(w) = ±1/0 (limiar τ)", q_reveal)
 
-        self._box(*self._X_POS, f"x = {2.0:g}", NEUTRAL_COLOR, alpha=x_reveal)
+        x_value = float(values["x_value"])
+        self._box(*self._X_POS, f"x = {x_value:g}", NEUTRAL_COLOR, alpha=x_reveal)
         self._flow_arrow(self._Q_POS, self._Y_POS_G, y_reveal, CONVERGE_COLOR)
         self._flow_arrow(self._X_POS, self._Y_POS_G, y_reveal, NEUTRAL_COLOR)
         self._box(*self._Y_POS_G, f"y = {values['y_value']:g}", CONVERGE_COLOR, alpha=y_reveal)
@@ -328,7 +335,9 @@ class PipelineRenderersMixin:
 
         self._flow_arrow(self._LOSS_POS_G, self._GRAD_POS, grad_reveal, SNN_COLOR)
         self._box(*self._GRAD_POS, f"∂L/∂w ~= {values['grad_value']:g}", SNN_COLOR, alpha=grad_reveal)
-        self._equation_near(*self._GRAD_POS, "∂L/∂w ≈ ∂L/∂y  (STE)", grad_reveal, side="above")
+        # y = x*Q(w): the STE replaces dQ/dw by 1, but the factor x from the
+        # multiplication stays -- ∂L/∂w ≈ ∂L/∂y * x, not ∂L/∂y.
+        self._equation_near(*self._GRAD_POS, "∂L/∂w ≈ ∂L/∂y · x  (STE)", grad_reveal, side="above")
 
         self._flow_arrow(self._GRAD_POS, self._W_POS, update_reveal, ACCENT_COLOR, )
         self._fading_text(3.5, 0.15, "STE: gradiente atravessa Q(w) como identidade", ACCENT_COLOR, ste_reveal, fontsize=8)

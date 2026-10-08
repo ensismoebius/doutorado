@@ -1,6 +1,7 @@
 """The ANN x BitNet x SNN table must be readable from the back of a room.
 
-FIXME.md: "the SNN and ANN comparison fonts are too small". The cause was
+The old repo-root FIXME.md (deleted in commit 933133a3) reported "the SNN
+and ANN comparison fonts are too small". The cause was
 a hard-coded fontsize on a widget whose canvas grows: the Qt matplotlib
 backend keeps dpi fixed and grows the figure's inches, so fixed point
 sizes shrink *relatively* as the window grows -- worst exactly when the

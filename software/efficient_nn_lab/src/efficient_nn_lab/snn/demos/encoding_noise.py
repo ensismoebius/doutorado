@@ -7,8 +7,15 @@ The cursor sweeps T upward; at the slider's T the spotlight cross-fades
 from the Poisson curve to latency to direct (tweened 0..1 weights, so it
 glides rather than snaps), each with its own mechanism and numbers; then
 the sweep continues to T=64 for the cost/benefit and the fair-comparison
-conclusion. Latency uses the floor of the encoder software/nn really runs,
-0.5/(T-1) -- see `latency_quantization_error`.
+conclusion.
+
+Both curves are the SAME statistic -- the RMS error with x spread uniformly
+over [0, 1] -- so they can honestly share one axis: sqrt(1/(6T)) for
+Poisson, spacing/sqrt(12) = 1/((T-1) sqrt(12)) for latency (the encoder
+software/nn really runs, `latency_spike_time`). An earlier version plotted
+the Poisson standard deviation at its worst-case p against the latency
+WORST-CASE error -- a typical value against a maximum on one axis. The
+worst cases still appear in the text, labelled as such.
 """
 
 from __future__ import annotations
@@ -16,11 +23,18 @@ from __future__ import annotations
 import numpy as np
 
 from efficient_nn_lab.core.demo import DemoModule, Frame, slider, transition
-from efficient_nn_lab.snn.encoding import latency_quantization_error, poisson_noise_sigma
+from efficient_nn_lab.snn.encoding import (
+    latency_quantization_error,
+    latency_rms_error,
+    poisson_noise_sigma,
+    poisson_rms_error,
+)
 
 _T_MIN, _T_MAX = 4, 64
 _FOCUS_STEPS = 6
-_EQUATION = "sigma_poisson = \\dfrac{0.5}{\\sqrt{T}};  erro_latencia = \\dfrac{0.5}{T - 1};  erro_direta = 0"
+_EQUATION = (
+    "RMS_poisson = \\sqrt{\\dfrac{1}{6T}};  RMS_latencia = \\dfrac{1}{(T - 1)\\sqrt{12}};  erro_direta = 0"
+)
 
 
 class EncodingNoiseDemo(DemoModule):
@@ -44,18 +58,19 @@ class EncodingNoiseDemo(DemoModule):
         curves = {
             "kind": "encoding_noise_floor",
             "t_range": t_range,
-            "poisson_sigma": np.array([poisson_noise_sigma(int(t)) for t in t_range]),
-            "latency_error": np.array([latency_quantization_error(int(t)) for t in t_range]),
+            "poisson_curve": np.array([poisson_rms_error(int(t)) for t in t_range]),
+            "latency_curve": np.array([latency_rms_error(int(t)) for t in t_range]),
         }
         t_sel = int(round(self.time_steps))
-        p_sel, l_sel = poisson_noise_sigma(t_sel), latency_quantization_error(t_sel)
+        p_sel, l_sel = poisson_rms_error(t_sel), latency_rms_error(t_sel)
+        p_worst, l_worst = poisson_noise_sigma(t_sel), latency_quantization_error(t_sel)
 
         def values(t: int, w_p: float = 1.0, w_l: float = 1.0, w_d: float = 1.0) -> dict[str, object]:
             return {
                 **curves,
                 "t_current": t,
-                "poisson_at_t": poisson_noise_sigma(t),
-                "latency_at_t": latency_quantization_error(t),
+                "poisson_at_t": poisson_rms_error(t),
+                "latency_at_t": latency_rms_error(t),
                 "w_poisson": w_p,
                 "w_latency": w_l,
                 "w_direct": w_d,
@@ -69,35 +84,38 @@ class EncodingNoiseDemo(DemoModule):
             "Três SNNs reconstroem o mesmo sinal, cada uma com uma codificação. Nem uma rede perfeita "
             "reconstrói melhor do que a própria codificação permite: cada uma já injeta um erro "
             f"mínimo — um chão — antes de qualquer treino. Com T = {_T_MIN} quadros o chão é alto; "
-            "acompanhe o cursor aumentando T.",
+            "acompanhe o cursor aumentando T. As duas curvas usam a mesma régua: o erro RMS típico, "
+            "com o valor x espalhado por igual em [0, 1].",
         )
         poisson = (
             "Poisson: o chão é estatístico",
             "Poisson: em cada quadro a unidade dispara com probabilidade p = x, e o valor é lido "
             "como disparos/T. A contagem é sorteada: duas passadas do mesmo x dão contagens "
-            "diferentes. O desvio dessa leitura é √(p(1 − p)/T), pior em p = 0.5: em "
-            f"T = {t_sel}, $sigma = {p_sel:.3f}$ — um erro típico de {100 * p_sel:.1f}% da escala inteira.",
+            f"diferentes. O desvio dessa leitura é √(x(1 − x)/T): no pior caso, x = 0.5, vale "
+            f"{p_worst:.3f} em T = {t_sel}. Na média sobre x, o erro RMS é √(1/(6T)): "
+            f"$RMS = {p_sel:.3f}$ — um erro típico de {100 * p_sel:.1f}% da escala inteira.",
         )
         latency = (
             "Latência: o chão é de arredondamento",
             f"Latência: não há sorteio, mas só existem T = {t_sel} momentos de disparo, ou seja {t_sel} "
             f"níveis espaçados de 1/(T − 1) = {1 / (t_sel - 1):.3f}. Um valor entre dois níveis vira o "
-            f"mais próximo: erro máximo de meio espaço, 0.5/(T − 1) = {l_sel:.4f}. Sempre o mesmo "
-            "resultado, mas em degraus.",
+            f"mais próximo: no pior caso erra meio espaço, 0.5/(T − 1) = {l_worst:.4f}; na média, o erro "
+            f"RMS é espaço/√12 = {l_sel:.4f} — a mesma régua da curva Poisson. Sempre o mesmo resultado, "
+            "mas em degraus.",
         )
         direct = (
             "Direta: chão zero",
             "Direta: o valor analógico entra como corrente, sem virar pulsos na entrada — nada a "
-            f"sortear, nada a arredondar: chão zero (a linha no eixo). Em T = {t_sel}: direta 0 < "
-            f"latência {l_sel:.3f} < Poisson {p_sel:.3f}. Se um experimento mostra 'direta > "
+            f"sortear, nada a arredondar: chão zero (a linha no eixo). Em T = {t_sel}, erro RMS: direta 0 "
+            f"< latência {l_sel:.3f} < Poisson {p_sel:.3f}. Se um experimento mostra 'direta > "
             "latência > Poisson', essa ordem pode ser só a dos chãos, não informação a mais.",
         )
         more_t = (
             "Mais quadros baixam o chão — a um custo",
             "Mais quadros baixam os dois chãos, em ritmos diferentes: de T = 16 para T = 64 (4×), "
-            f"Poisson só cai pela metade ({poisson_noise_sigma(16):.3f} → {poisson_noise_sigma(64):.3f}, "
+            f"Poisson só cai pela metade ({poisson_rms_error(16):.3f} → {poisson_rms_error(64):.3f}, "
             "∝ 1/√T); latência cai uns 4× ("
-            f"{latency_quantization_error(16):.4f} → {latency_quantization_error(64):.4f}, ∝ 1/T). "
+            f"{latency_rms_error(16):.4f} → {latency_rms_error(64):.4f}, ∝ 1/T). "
             "Nenhum chega a zero, e cada quadro a mais custa tempo de simulação e energia.",
         )
         fair = (
@@ -105,7 +123,7 @@ class EncodingNoiseDemo(DemoModule):
             "A armadilha: comparar o erro de reconstrução das três e concluir que uma 'carrega mais "
             "informação'. Parte da diferença é só o chão de cada codificação — uma falha silenciosa "
             "de interpretação, sem erro nenhum no código. O justo é medir quanto cada rede fica "
-            "ACIMA do seu próprio chão, no mesmo T.",
+            "ACIMA do seu próprio chão, no mesmo T e com a mesma estatística de erro.",
         )
 
         frames = [frame(_T_MIN, *intro, checkpoint=True)]

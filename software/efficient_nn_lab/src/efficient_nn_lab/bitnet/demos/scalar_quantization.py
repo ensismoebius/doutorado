@@ -10,7 +10,7 @@ row of separate slideshow frames the user has to click through one by one.
 from __future__ import annotations
 
 from efficient_nn_lab.core.demo import DemoModule, Frame, build_sequence, slider
-from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, ternary_quantize
+from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, format_level, ternary_quantize
 
 _SLIDE_TWEEN_STEPS = 12
 
@@ -19,8 +19,8 @@ class ScalarQuantizationDemo(DemoModule):
     title = "BitNet -> Quantização"
     slug = "bitnet.quant"
     description = (
-        "Um unico peso real w e quantizado para um dos tres niveis "
-        "{-1, 0, +1}. Ajuste w e o limiar para ver a fronteira de decisao."
+        "Um único peso real w é quantizado para um dos três níveis "
+        "{-1, 0, +1}. Ajuste w e o limiar para ver a fronteira de decisão."
     )
 
     def __init__(self) -> None:
@@ -53,10 +53,10 @@ class ScalarQuantizationDemo(DemoModule):
             label="Resultado quantizado",
             values={"kind": "scalar_quantization", "w_display": float(q), "w_real": self.w, "w_quant": q, "threshold": self.threshold, "revealed": True},
             explanation=(
-                f"$Q({self.w:.2f}) = {q:+d}$. "
+                f"$Q({self.w:.2f}) = {format_level(q)}$. "
                 f"{'Dentro' if in_dead_zone else 'Fora'} da zona morta "
                 f"$[-{self.threshold:.2f}, {self.threshold:.2f}]$."
             ),
-            equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
+            equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrário}.",
         )
         return build_sequence([real, result], steps=_SLIDE_TWEEN_STEPS)

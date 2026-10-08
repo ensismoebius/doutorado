@@ -22,7 +22,7 @@ from efficient_nn_lab.bitnet.linear import (
     quantized_forward,
     squared_error_loss,
 )
-from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, ternary_quantize
+from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, format_level, ternary_quantize
 from efficient_nn_lab.bitnet.ste import sgd_update, ste_backward
 
 _W0 = 0.80
@@ -50,6 +50,7 @@ class GuidedBitNetDemo(DemoModule):
 
         base = {
             "kind": "guided_pipeline",
+            "x_value": _X,
             "w_value": w,
             "q_value": q,
             "q_reveal": 0.0,
@@ -77,15 +78,15 @@ class GuidedBitNetDemo(DemoModule):
             frame("Passo 1 — peso real", f"$w = {w:.2f}$.", step_number=1),
             frame(
                 "Passo 2 — quantização",
-                f"$Q(w) = Q({w:.2f}) = {q:+d}$.",
-                equation="Q(w) = +1 se w > tau; -1 se w < -tau; 0 \\text{ caso contrario}.",
+                f"$Q(w) = Q({w:.2f}) = {format_level(q)}$.",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrário}.",
                 q_reveal=1.0,
                 step_number=2,
             ),
             frame("Passo 3 — entrada", f"$x = {_X:g}$.", q_reveal=1.0, x_reveal=1.0, step_number=3),
             frame(
                 "Passo 4 — saída",
-                f"$y = x . Q(w) = {_X:g} . {q:+d} = {y:g}$.",
+                f"$y = x . Q(w) = {_X:g} . {format_level(q)} = {y:g}$.",
                 equation="y = x . Q(w)",
                 q_reveal=1.0,
                 x_reveal=1.0,
@@ -114,7 +115,8 @@ class GuidedBitNetDemo(DemoModule):
             ),
             frame(
                 "Passo 7 — gradiente",
-                f"$∂L/∂y = y - target = {grad_y:g}$. Via STE, $∂L/∂w ~= ∂L/∂y . x = {grad_w:g}$.",
+                f"$∂L/∂y = y - target = {grad_y:g}$. Como $y = x . Q(w)$, $∂L/∂Q(w) = ∂L/∂y . x = {grad_y * _X:g}$; "
+                f"via STE, $∂L/∂w ~= ∂L/∂Q(w) = {grad_w:g}$.",
                 equation="∂L/∂w ~= (y - target) . x  [STE]",
                 q_reveal=1.0,
                 x_reveal=1.0,
@@ -155,7 +157,7 @@ class GuidedBitNetDemo(DemoModule):
             frame(
                 "Passo 10 — nova quantização",
                 (
-                    f"$Q({w_new:.2f}) = {q_new:+d}$. "
+                    f"$Q({w_new:.2f}) = {format_level(q_new)}$. "
                     + (
                         "A representação usada no forward não mudou, mesmo com o parâmetro real atualizado."
                         if q_new == q

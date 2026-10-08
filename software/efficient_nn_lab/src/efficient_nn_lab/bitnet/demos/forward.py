@@ -30,7 +30,7 @@ from efficient_nn_lab.bitnet.linear import (
     quantized_forward,
     squared_error_loss,
 )
-from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD
+from efficient_nn_lab.bitnet.quantization import DEFAULT_THRESHOLD, format_level
 
 
 def _base_values(result, target: float, diff: float, loss: float, grad: float, threshold: float) -> dict[str, object]:
@@ -68,8 +68,8 @@ class ForwardLossDemo(DemoModule):
     title = "BitNet -> Forward"
     slug = "bitnet.forward"
     description = (
-        "Um neuronio linear com dois pesos quantizados: entradas fluem "
-        "pelos pesos ternarios ate a saida, que e comparada a um alvo."
+        "Um neurônio linear com dois pesos quantizados: entradas fluem "
+        "pelos pesos ternários até a saída, que é comparada a um alvo."
     )
 
     def __init__(self) -> None:
@@ -106,6 +106,33 @@ class ForwardLossDemo(DemoModule):
                 return f"${w:g} < -tau (-{tau:g})$, então $Q(w) = -1$"
             return f"$-tau <= {w:g} <= tau$, então $Q(w) = 0$"
 
+        # Every sentence below is chosen from where the weight ACTUALLY sits:
+        # the sliders can put either weight inside or outside the dead zone,
+        # and a fixed sentence written for the defaults would then contradict
+        # the Q(w) printed right next to it.
+        def zone(name: str, wq: int) -> str:
+            if wq == 0:
+                return (
+                    f"No número-linha ao lado, {name} cai dentro da faixa cinza (a 'zona morta' entre "
+                    "-tau e tau): é para isso que ela existe, pesos pequenos colapsam a zero."
+                )
+            return (
+                f"No número-linha ao lado, {name} cai fora da faixa cinza (a 'zona morta' entre "
+                "-tau e tau), por isso não vira zero."
+            )
+
+        def product_note(x_name: str, wq: int) -> str:
+            if wq == 0:
+                return (
+                    f" Como o peso quantizado é 0, este produto é zero qualquer que seja {x_name} -- "
+                    "esse peso não contribui em nada para y."
+                )
+            kept = "mantém" if wq > 0 else "troca"
+            return (
+                f" Com peso {format_level(wq)} não há multiplicação de verdade: o produto só {kept} "
+                f"o sinal de {x_name}."
+            )
+
         def frame(label: str, explanation: str, equation: str = "", **overrides) -> Frame:
             values = _base_values(result, self.target, diff, loss, grad, tau)
             values.update(overrides)
@@ -119,22 +146,20 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Quantizar w1",
-                f"$w1 = {self.w1:g}$: {reason(self.w1, w1q)}. No número-linha ao lado, w1 cai "
-                "fora da faixa cinza (a 'zona morta' entre -tau e tau) — por isso não vira zero.",
-                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
+                f"$w1 = {self.w1:g}$: {reason(self.w1, w1q)}. {zone('w1', w1q)}",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrário}.",
                 quant1_reveal=1.0,
             ),
             frame(
                 "Quantizar w2",
-                f"$w2 = {self.w2:g}$: {reason(self.w2, w2q)}. Desta vez w2 cai dentro da faixa "
-                "cinza — a zona morta existe exatamente para isso: pesos pequenos colapsam a zero.",
-                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrario}.",
+                f"$w2 = {self.w2:g}$: {reason(self.w2, w2q)}. {zone('w2', w2q)}",
+                equation="Q(w) = +1 \\text{ se: } w > tau; -1 \\text{ se: } w < -tau; 0 \\text{ caso contrário}.",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
             ),
             frame(
                 "Multiplicação 1",
-                f"$x1 . Q(w1) = {self.x1:g} . {w1q:+d} = {p1:g}$.",
+                f"$x1 . Q(w1) = {self.x1:g} . {format_level(w1q)} = {p1:g}$.{product_note('x1', w1q)}",
                 equation="produto_1 = x1 . Q(w1)",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,
@@ -144,8 +169,7 @@ class ForwardLossDemo(DemoModule):
             ),
             frame(
                 "Multiplicação 2",
-                f"$x2 . Q(w2) = {self.x2:g} . {w2q:+d} = {p2:g}$. Como $Q(w2) = 0$, este produto "
-                "é sempre zero, não importa quanto valha x2 -- o segundo peso não contribui em nada para y.",
+                f"$x2 . Q(w2) = {self.x2:g} . {format_level(w2q)} = {p2:g}$.{product_note('x2', w2q)}",
                 equation="produto_2 = x2 . Q(w2)",
                 quant1_reveal=1.0,
                 quant2_reveal=1.0,

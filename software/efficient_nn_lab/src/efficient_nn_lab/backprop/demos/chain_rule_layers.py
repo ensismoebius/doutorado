@@ -26,7 +26,7 @@ Esta demo existe para dar endereço a cada fator. A ideia central:
 
 Rede 1 → 1 → 1 de propósito: com um neurônio por camada o caminho de cada
 peso até a perda é **único**, então a regra da cadeia é um produto puro,
-sem soma sobre caminhos (a demo de 4 camadas cobre o caso com vários
+sem soma sobre caminhos (a demo da rede 3-2-2-1 cobre o caso com vários
 caminhos). Assim os cinco fatores de ∂L/∂w1 caberem na tela em corpo
 grande, um por bloco.
 

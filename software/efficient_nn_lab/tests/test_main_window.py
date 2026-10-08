@@ -528,6 +528,13 @@ def test_tick_is_not_re_entrant(qapp):
     demo = _loop_demo(window)
     player = window.player
     player.play_fast_loop()
+    # play_fast_loop's own redraw ends in processEvents *outside* any tick,
+    # so when that redraw is slower than the loop interval (a loaded
+    # machine, or the test suite running alongside other work) the live
+    # timer advances one frame before the hand-driven ticks begin. Where
+    # they begin is not the point; that each one advances exactly one
+    # frame is.
+    start = demo.current_frame_index
 
     executed = []
     inner = player._tick_once
@@ -543,10 +550,10 @@ def test_tick_is_not_re_entrant(qapp):
         player._tick()
 
     assert len(executed) == 8, f"tick re-entrou: {len(executed)} execuções para 8 chamadas"
-    assert indices == list(range(8)), indices
+    assert indices == list(range(start, start + 8)), indices
 
 
-# -- lecture-mode navigation (FIXME.md) --------------------------------
+# -- lecture-mode navigation (old FIXME.md request, gone since 933133a3) ---
 #
 # Lecture mode hides the demo tree, and the tree was the only way to move
 # from one demo to the next -- so the mode built for presenting was the one

@@ -6,7 +6,14 @@ whole comparison is visible at once and self-explanatory without needing
 to remember what a now-vanished earlier slide said. Closes on the one
 caution the spec insists on making explicit: efficiency is not a free
 property of an architecture; it depends on hardware, implementation,
-memory, bandwidth, sparsity, algorithm and workload (#21, #669).
+memory, bandwidth, sparsity, algorithm and workload (#21).
+
+Rows compare like with like: the "Pesos" row compares weights in all three
+columns and the "Ativação" row compares activations. (An earlier
+"Representação" row set ANN/BitNet *weights* against SNN *spikes*, which
+are activations, and claimed an SNN keeps no continuous value -- but its
+weights and membrane potential are continuous.) The outputs row feeds the
+same weighted sum, x . w, to all three, as #23 asks.
 """
 
 from __future__ import annotations
@@ -18,10 +25,11 @@ from efficient_nn_lab.snn.lif import LIFParams, constant_current, simulate_lif
 
 _X = (2.0, 3.0)
 _W = (0.8, 0.2)
+_SNN_STEPS = 30
 
-_ROW_ORDER = ["Representação", "Ativação", "Domínio temporal", "Treinamento", "Operação principal"]
+_ROW_ORDER = ["Pesos", "Ativação", "Domínio temporal", "Treinamento", "Operação principal"]
 _REVEAL_KEYS = {
-    "Representação": "reveal_repr",
+    "Pesos": "reveal_weights",
     "Ativação": "reveal_activation",
     "Domínio temporal": "reveal_domain",
     "Treinamento": "reveal_training",
@@ -37,22 +45,31 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
     def _build_frames(self) -> list[Frame]:
         y_ann = sum(x * w for x, w in zip(_X, _W))
         bitnet_result = quantized_forward(_X, _W, DEFAULT_THRESHOLD)
-        snn_trace = simulate_lif(constant_current(0.30, 30), LIFParams(tau=5.0, r=5.0, v_th=1.0))
+        # The SAME conceptual input as the other two columns (#23): the
+        # weighted sum x . w drives the LIF neuron as a constant current. R = 1
+        # keeps the drive on the scale of the sum itself, so the neuron
+        # answers with a rate instead of saturating at one spike per step.
+        snn_params = LIFParams(tau=5.0, r=1.0, v_th=1.0)
+        snn_trace = simulate_lif(constant_current(y_ann, _SNN_STEPS), snn_params)
         snn_spike_count = int(snn_trace.spikes.sum())
 
         table = {
-            "Representação": ("FP32/BF16 continuo", "ternário {-1,0,+1}", "spikes (0/1) no tempo"),
-            "Ativação": ("contínua", "quantizada conforme arquitetura", "spikes"),
-            "Domínio temporal": ("normalmente implícito", "normalmente implícito", "explícito"),
+            "Pesos": ("FP32/BF16 contínuos", "ternários {-1,0,+1}", "contínuos, qualquer precisão"),
+            "Ativação": ("contínua", "quantizada (8 bits na b1.58)", "spikes binários (0/1)"),
+            "Domínio temporal": ("normalmente ausente", "normalmente ausente", "explícito"),
             "Treinamento": ("backprop direto", "backprop + STE", "backprop + surrogate gradient"),
-            "Operação principal": ("MAC (multiply-accumulate)", "soma/subtração de baixa precisão", "eventos/spikes"),
+            "Operação principal": ("MAC (multiply-accumulate)", "soma/subtração de baixa precisão", "somar o peso a cada spike"),
         }
 
         base = {
             "kind": "comparison_pipeline",
             "table_rows": _ROW_ORDER,
             "table": table,
-            "reveal_repr": 0.0,
+            # row name -> reveal field, carried in the frame so the renderer
+            # never keeps its own copy of the row names (a copy that drifted
+            # is what a row rename would otherwise break, silently).
+            "row_reveal_keys": dict(_REVEAL_KEYS),
+            "reveal_weights": 0.0,
             "reveal_activation": 0.0,
             "reveal_domain": 0.0,
             "reveal_training": 0.0,
@@ -61,6 +78,7 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
             "y_ann": y_ann,
             "y_bitnet": bitnet_result.y,
             "snn_spike_count": snn_spike_count,
+            "snn_steps": _SNN_STEPS,
             "reveal_gradients": 0.0,
             "reveal_caveat": 0.0,
         }
@@ -73,29 +91,33 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
         # one real sentence per row, naming the actual cell values (from
         # `table` above) instead of a templated "see how they compare".
         row_narration = {
-            "Representação": (
-                "ANN guarda o valor em ponto flutuante contínuo (FP32/BF16); BitNet reduz cada peso "
-                "a {-1,0,+1}; SNN nem guarda um valor contínuo — representa por spikes (0/1) ao "
-                "longo do tempo."
+            "Pesos": (
+                "Compare peso com peso. A ANN guarda cada peso em ponto flutuante (FP32/BF16); a "
+                "BitNet reduz cada peso a {-1,0,+1}; a SNN usa pesos contínuos comuns, em qualquer "
+                "precisão. O que é binário numa SNN não é o peso, é a ativação — próxima linha."
             ),
             "Ativação": (
-                "A ativação acompanha a representação: contínua na ANN, quantizada conforme a "
-                "arquitetura na BitNet, e binária na SNN — o neurônio dispara (1) ou não (0)."
+                "Agora ativação com ativação: contínua na ANN; quantizada na BitNet (8 bits na "
+                "b1.58); binária na SNN — o neurônio dispara (1) ou não (0). Mas o potencial de "
+                "membrana que decide o disparo é contínuo: a SNN guarda valores contínuos, só não "
+                "os transmite."
             ),
             "Domínio temporal": (
-                "Tempo é normalmente implícito na ANN e na BitNet (uma passada síncrona); na SNN ele "
-                "é explícito — cada entrada vira uma série de spikes e a informação mora na "
-                "distribuição deles no tempo."
+                "ANN e BitNet feedforward não têm tempo: uma passada, uma saída (redes recorrentes "
+                "são a exceção). Na SNN o tempo é explícito — cada entrada vira uma série de spikes "
+                "e a informação mora na distribuição deles no tempo."
             ),
             "Treinamento": (
-                "Os três treinam com backprop; o que muda é como a derivada da função descontínua "
-                "atravessa: direta na ANN, via Straight-Through Estimator na BitNet, via gradiente "
-                "substituto na SNN."
+                "Os três treinam com backprop. Na ANN toda função do caminho é diferenciável, e a "
+                "derivada exata passa direto. Na BitNet a quantização do peso é um degrau, contornado "
+                "pelo Straight-Through Estimator; na SNN o disparo é um degrau, contornado pelo "
+                "gradiente substituto."
             ),
             "Operação principal": (
                 "A operação dominante é o MAC de ponto flutuante na ANN; na BitNet vira "
-                "soma/subtração de baixa precisão (sem multiplicação); na SNN é só acumulação de "
-                "eventos/spikes."
+                "soma/subtração de baixa precisão (sem multiplicação); na SNN, cada spike que chega "
+                "soma o peso da sinapse ao potencial — acumulação, sem multiplicação, e só onde há "
+                "spike."
             ),
         }
 
@@ -113,9 +135,12 @@ class AnnBitnetSnnComparisonDemo(DemoModule):
             frame(
                 "Saída, para a mesma entrada conceitual",
                 (
-                    f"ANN: y = {y_ann:g} (contínuo). BitNet: y = {bitnet_result.y:g} (pesos ternários). "
-                    f"SNN: {snn_spike_count} spikes em 30 passos, para uma corrente comparável — "
-                    "uma codificação por taxa, não o mesmo número na mesma escala."
+                    f"A mesma soma ponderada nos três. ANN: $y = x · w = {y_ann:g}$ (contínuo). BitNet: "
+                    f"$y = x · Q(w) = {bitnet_result.y:g}$ (pesos ternários). SNN: os mesmos ${y_ann:g}$ "
+                    f"entram como corrente constante num LIF (R = {snn_params.r:g}, τ = {snn_params.tau:g}, "
+                    f"V_th = {snn_params.v_th:g}), que responde com {snn_spike_count} spikes em "
+                    f"{_SNN_STEPS} passos: a intensidade virou TAXA de disparo, não o mesmo número na "
+                    "mesma escala."
                 ),
                 **revealed,
             )

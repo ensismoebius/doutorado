@@ -101,7 +101,7 @@ def test_every_demo_equation_is_really_parsed_as_math(qapp):
 
     render_math_image falls back to rendering the raw string when mathtext
     rejects the translation, so the test above passes even when the audience
-    is shown pseudo-LaTeX source. Four equations of the 4-layer demo shipped
+    is shown pseudo-LaTeX source. Four equations of the 3-2-2-1 network demo shipped
     broken that way (``w_A→C`` translated to ``w_{A\toC}``, an unknown
     symbol) because nothing asserted the parse itself. This does.
     """
@@ -180,7 +180,7 @@ def test_char_map_never_glues_a_command_to_the_next_letter(raw):
     """``→`` + ``C`` must not become ``\toC`` (an unknown symbol).
 
     Every control word _CHAR_MAP emits has to be terminated. This is the
-    regression that made four of the 4-layer demo's equations unrenderable.
+    regression that made four of the 3-2-2-1 network demo's equations unrenderable.
     """
     from matplotlib import mathtext
 

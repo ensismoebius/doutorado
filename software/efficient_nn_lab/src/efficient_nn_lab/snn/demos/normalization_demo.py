@@ -1,5 +1,6 @@
 """Demonstração — normalização de entrada por característica (áudio,
-ajustada UMA vez no treino) × por janela (EEG, recalculada a cada janela),
+ajustada UMA vez no treino: CMVN *global*; o CMVN clássico é por enunciado)
+× por janela (EEG, recalculada a cada janela),
 e o vazamento que só o caminho ajustado tem (tese, capítulo 07,
 sec:normalizacaoEntrada, incluindo o exemplo numérico de lá).
 
@@ -32,7 +33,7 @@ class NormalizationDemo(DemoModule):
     title = "SNN -> Normalização: por característica x por janela"
     slug = "snn.normalization"
     description = (
-        "Áudio normaliza cada característica com média/desvio ajustados UMA vez no treino (CMVN); "
+        "Áudio normaliza cada característica com média/desvio ajustados UMA vez no treino (CMVN global); "
         "EEG recalcula média/desvio dentro de cada janela. Ajustar com dados de teste é um "
         "vazamento silencioso -- e só o caminho ajustado corre esse risco."
     )
@@ -86,7 +87,9 @@ class NormalizationDemo(DemoModule):
             "No áudio, a coluna j é sempre a mesma banda de frequência: sua escala é da característica, "
             f"não da amostra. Então μ e σ saem UMA vez, só do treino {_fmt_list(_AUDIO_TRAIN)}: μ = "
             f"{a_mean:g}, σ² = {a_std**2:g}. Uma amostra de teste x = {_AUDIO_TEST_X:g}, nunca vista no "
-            f"ajuste, usa a mesma régua: $x' = {a_z:.4f}$. É o CMVN do reconhecimento de fala.",
+            f"ajuste, usa a mesma régua: $x' = {a_z:.4f}$. É o CMVN global do reconhecimento de fala. "
+            "(O CMVN clássico é por enunciado: recalcula média e desvio em cada gravação — o mesmo "
+            "espírito do caminho por janela do EEG, a seguir.)",
             audio_travel=1.0,
         )
         eeg = frame(

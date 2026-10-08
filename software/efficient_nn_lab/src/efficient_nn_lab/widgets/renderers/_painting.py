@@ -149,7 +149,7 @@ class PaintingMixin:
     # -- a small sigmoid-curve panel: point on the curve, tangent line
     # (slope = the local derivative), and an arrow showing which way
     # gradient descent pushes z. Used both by the single-neuron backprop
-    # demo and, one per neuron, by the 4-layer network demo below.
+    # demo and, one per neuron, by the 3-2-2-1 network demo below.
     def _paint_sigmoid(
         self, ax, z: float, y: float, slope: float, grad_z: float, point_reveal: float,
         tangent_reveal: float, arrow_reveal: float, title: str, compact: bool = False,

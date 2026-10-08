@@ -16,10 +16,14 @@ answer to "where does this bump come from" is watched forming, point by
 point, rather than stated as a formula.
 
 One concrete worked example runs through every scene (same pattern as
-bitnet/demos/backward.py's): v_th = 1.0, example v = 1.2 (0.2 above the
-threshold) -> S(v) = 1, sigmoid = 0.60, real derivative = 0, surrogate
-gradient = 0.25. The numbers come out of the real surrogate/Heaviside
+bitnet/demos/backward.py's): v_th = 1.0, k = 5, example v = 1.2 (0.2 above
+the threshold) -> S(v) = 1, sigmoid = 0.75, real derivative = 0, surrogate
+gradient = 0.625. The numbers come out of the real surrogate/Heaviside
 code, never hand-typed into the f-strings.
+
+The sigmoid is a genuine smooth step (0 to 1, steeper as k grows) and the
+surrogate is its exact slope (area 1, taller and narrower as k grows) --
+see snn/surrogate.py for why the pair is normalized that way.
 """
 
 from __future__ import annotations
@@ -44,7 +48,7 @@ class SurrogateGradientDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "k": slider("Inclinação (k)", 1.0, 15.0, 0.5, self.k),
+            "k": slider("Inclinação (k)", 1.0, 10.0, 0.5, self.k),
             "v_th": slider("Limiar (v_th)", 0.0, 2.0, 0.1, self.v_th),
         }
 
@@ -98,31 +102,34 @@ class SurrogateGradientDemo(DemoModule):
             ),
             frame(
                 "A sigmoide suave por trás do gradiente substituto",
-                f"O degrau em si não muda. Mas a curva em S mostrada aqui é a antiderivada exata do "
-                f"gradiente substituto que será usado no backward — ou seja, a inclinação dessa "
-                f"sigmoide em cada ponto é, por construção, exatamente a curva de gradiente que vem "
-                f"a seguir. No nosso exemplo, $v = {v_example:g}$ ($v - v_th = {vmt_example:g}$): a "
-                f"sigmoide vale {example_sigmoid:.2f} e a sua inclinação ali é {example_surrogate:.2f}.",
-                equation="sigmoide(v) = 0,5 + (v - v_th) / (1 + k|v - v_th|)",
+                f"O degrau em si não muda. A curva em S tracejada é uma versão suave dele: vai de 0 a 1 "
+                f"como o degrau, passa por 0,5 no limiar e fica mais íngreme quanto maior o k — no "
+                f"limite, vira o próprio degrau. A inclinação dessa sigmoide em cada ponto é, por "
+                f"construção, exatamente a curva de gradiente que vem a seguir. No nosso exemplo, "
+                f"$v = {v_example:g}$ ($v - v_th = {vmt_example:g}$): a sigmoide vale "
+                f"{example_sigmoid:.3g} e a sua inclinação ali é {example_surrogate:.3g}.",
+                equation="sigmoide(v) = 0,5 + 0,5 · k(v - v_th) / (1 + k|v - v_th|)",
                 sigmoid_reveal=1.0,
             ),
             frame(
                 "A derivada real",
                 f"A derivada real do degrau é zero em quase todo ponto — inútil para descida de "
                 f"gradiente. Em $v = {v_example:g}$ ($v - v_th = {vmt_example:g}$), $dS/dv = 0$, "
-                f"exatamente como no STE do BitNet: o gradiente não tem por onde passar.",
+                f"exatamente como na quantização do BitNet antes do STE: o gradiente não tem por "
+                f"onde passar.",
                 equation="dS/dv = 0 (quase todo ponto)",
                 bottom_reveal=1.0,
                 sigmoid_reveal=1.0,
             ),
             frame(
                 "O gradiente substituto",
-                f"Observe o traço se formando da esquerda para a direita: a sigmoide e o gradiente são "
-                f"desenhados juntos, no mesmo ritmo, e a altura do gradiente em cada ponto é exatamente "
-                f"a inclinação da sigmoide naquele mesmo ponto — é literalmente de onde o gradiente vem. "
-                f"Em $v = {v_example:g}$, com $k = {self.k:g}$, o gradiente substituto vale "
-                f"{example_surrogate:.2f} (em vez do $0$ real).",
-                equation="dS/dv ~= 1 / (1 + k|v - v_th|)^2",
+                f"Sigmoide e gradiente são traçados juntos, da esquerda para a direita: a altura do "
+                f"gradiente em cada ponto é a inclinação da sigmoide ali — é de onde ele vem. Em "
+                f"$v = {v_example:g}$, com $k = {self.k:g}$, ele vale {example_surrogate:.3g} (em vez do "
+                f"$0$ real). A área sob o pico é 1, a altura do degrau; k maior deixa o pico "
+                f"({0.5 * self.k:g}) mais alto e estreito. Bibliotecas com pico 1 usam esta curva vezes "
+                f"2/k: escala constante, absorvida pela taxa de aprendizado.",
+                equation="dS/dv ~= (k/2) / (1 + k|v - v_th|)^2",
                 bottom_reveal=1.0,
                 sigmoid_reveal=1.0,
                 draw_reveal=1.0,
@@ -131,7 +138,7 @@ class SurrogateGradientDemo(DemoModule):
                 "Os dois juntos",
                 f"Forward continua discreto (spike/não-spike: em $v = {v_example:g}$, $S = "
                 f"{example_spike:g}$); só o backward usa a curva suave (gradiente substituto = "
-                f"{example_surrogate:.2f} no mesmo ponto). "
+                f"{example_surrogate:.3g} no mesmo ponto). "
                 f"Análogo ao STE do BitNet, mas com uma função diferente — não é a mesma técnica.",
                 bottom_reveal=1.0,
                 overlay_reveal=1.0,

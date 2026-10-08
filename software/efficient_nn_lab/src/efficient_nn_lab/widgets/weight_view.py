@@ -216,6 +216,10 @@ class WeightView(QWidget):
         example_spike = float(values.get("example_spike", 1.0))
         example_sigmoid = float(values.get("example_sigmoid", 0.0))
         example_surrogate = float(values.get("example_surrogate", 0.0))
+        # The surrogate's peak is k/2 (area 1 under it), so the backward
+        # panel's height follows k; the sigmoid (0..1) shares the axis so
+        # "slope of one = height of the other" stays readable at a glance.
+        y_top = max(1.2, 1.15 * float(np.max(values["surrogate"])))
 
         ax.axvline(0, color=NEUTRAL_COLOR, linewidth=1, linestyle=":")
 
@@ -271,8 +275,8 @@ class WeightView(QWidget):
             ax.plot([x[tip]], [surrogate[tip]], marker="o", markersize=7, color=SNN_COLOR, zorder=5)
             tip_ha = "right" if x[tip] > x[-1] - 0.5 else "center"
             ax.text(
-                x[tip], min(1.1, surrogate[tip] + 0.1),
-                f"inclinação da sigmoide aqui = altura do gradiente = {surrogate[tip]:.2f}",
+                x[tip], min(y_top - 0.1, surrogate[tip] + 0.06 * y_top),
+                f"inclinação da sigmoide aqui = altura do gradiente = {surrogate[tip]:.3g}",
                 ha=tip_ha, fontsize=8, color=SNN_COLOR,
             )
 
@@ -283,17 +287,17 @@ class WeightView(QWidget):
                 ex_ha = "right" if example_vmt > x[-1] - 0.5 else "left"
                 ax.text(
                     example_vmt + (0.06 if ex_ha == "left" else -0.06),
-                    example_surrogate + 0.08,
-                    f"v = {example_v:g}: grad = {example_surrogate:.2f}",
+                    example_surrogate + 0.05 * y_top,
+                    f"v = {example_v:g}: grad = {example_surrogate:.3g}",
                     ha=ex_ha, fontsize=8.5, color=BITNET_COLOR,
                 )
 
             peak_idx = int(np.argmax(surrogate))
             if cut > peak_idx and surrogate[peak_idx] > 0.05:
                 ax.annotate(
-                    f"pico = {surrogate[peak_idx]:.2f}",
+                    f"pico = {surrogate[peak_idx]:.3g}",
                     xy=(x[peak_idx], surrogate[peak_idx]),
-                    xytext=(x[peak_idx] + 0.35, surrogate[peak_idx] + 0.15),
+                    xytext=(x[peak_idx] + 0.35, min(y_top * 0.97, surrogate[peak_idx] + 0.08 * y_top)),
                     fontsize=8, color=SNN_COLOR,
                     arrowprops=dict(arrowstyle="->", color=SNN_COLOR),
                 )
@@ -311,7 +315,7 @@ class WeightView(QWidget):
             ax.set_ylabel("gradiente usado no backward")
             ax.set_title("O gradiente nasce da inclinação da sigmoide, ponto a ponto")
         if bottom_reveal >= 0.02:
-            ax.set_ylim(-0.2, 1.2)
+            ax.set_ylim(-0.2, y_top)
         ax.set_xlabel("v - v_th")
 
     # -- paraconsistent.plane / paraconsistent.dpenalized ------------------
@@ -507,8 +511,10 @@ class WeightView(QWidget):
     def _render_encoding_noise_floor(self, values: dict[str, object]) -> None:
         ax = self._ax
         t_range = np.asarray(values["t_range"])
-        poisson_sigma = np.asarray(values["poisson_sigma"])
-        latency_error = np.asarray(values["latency_error"])
+        # Both curves are the same statistic (RMS error, x uniform on [0, 1]),
+        # so sharing this axis compares like with like.
+        poisson_sigma = np.asarray(values["poisson_curve"])
+        latency_error = np.asarray(values["latency_curve"])
         t_current = float(values["t_current"])
         poisson_at_t = float(values["poisson_at_t"])
         latency_at_t = float(values["latency_at_t"])
@@ -523,11 +529,11 @@ class WeightView(QWidget):
 
         ax.plot(
             t_range, poisson_sigma, color=SNN_COLOR, linewidth=1.4 + 1.8 * w_p, alpha=alpha(w_p),
-            label="Poisson: σ do estimador, pior caso p = 0.5  (0.5/√T)",
+            label="Poisson: erro RMS da taxa, x uniforme  (√(1/(6T)))",
         )
         ax.plot(
             t_range, latency_error, color=BITNET_COLOR, linewidth=1.4 + 1.8 * w_l, alpha=alpha(w_l),
-            label="latência: erro máximo de quantização  (0.5/(T−1))",
+            label="latência: erro RMS de arredondamento  (1/((T−1)√12))",
         )
         ax.axhline(
             0.0, color=NEUTRAL_COLOR, linewidth=1.0 + 2.2 * w_d, alpha=alpha(w_d),
@@ -553,7 +559,7 @@ class WeightView(QWidget):
         )
 
         ax.set_xlabel("T (time_steps)")
-        ax.set_ylabel("ruído estrutural (antes de qualquer aprendizado)")
+        ax.set_ylabel("erro RMS estrutural (antes de aprender)")
         ax.set_title("Por que \"direto > latência > Poisson\" pode ser só o chão de ruído")
         ax.legend(loc="upper right", fontsize=7.5)
         ax.set_xlim(t_range.min(), t_range.max())

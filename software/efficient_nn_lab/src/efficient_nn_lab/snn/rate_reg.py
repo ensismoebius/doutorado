@@ -1,5 +1,10 @@
 """Firing-rate regularization: a soft penalty pushing the mean firing rate
-toward a target band [r_min, r_max], preventing dead and bursting neurons.
+toward a target band [r_min, r_max], against dead and bursting layers.
+
+"Mean" is ONE number per layer -- the average over every unit, frame and
+sample of the layer's spike tensor -- so the push is the same for every
+unit of the layer, and a layer mixing dead and bursting units can average
+into the band and get no push at all.
 Mirrors `SpikeCountLossImpl`'s `rate_reg_lambda`/`min_rate`/`max_rate`
 (`include/layers/losses/SpikeCountLoss.hpp`), per software/nn's
 .wiki/Concepts/Spike-Rate-Regularization.md.
@@ -29,4 +34,4 @@ def rate_reg_push(mean_rate: float, lambda_reg: float, r_min: float = DEFAULT_MI
     """
     clamped = min(max(mean_rate, r_min), r_max)
     grad = 2.0 * lambda_reg * (mean_rate - clamped)
-    return -grad
+    return 0.0 - grad  # not -grad: inside the band that would be IEEE -0.0, shown as "-0.000"

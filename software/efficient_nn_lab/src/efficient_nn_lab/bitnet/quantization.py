@@ -26,6 +26,16 @@ def ternary_quantize(w: float, threshold: float = DEFAULT_THRESHOLD) -> int:
     return 0
 
 
+def format_level(q: float) -> str:
+    """A ternary level as shown on screen: "+1", "0" or "-1".
+
+    ``f"{q:+d}"`` would print the zero level as "+0", a sign that does not
+    exist on the {-1, 0, +1} scale.
+    """
+    level = int(round(q))
+    return f"{level:+d}" if level else "0"
+
+
 def ternary_quantize_np(w: np.ndarray, threshold: float = DEFAULT_THRESHOLD) -> np.ndarray:
     """Vectorized version of :func:`ternary_quantize`."""
     q = np.zeros_like(w, dtype=float)

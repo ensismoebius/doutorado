@@ -15,6 +15,11 @@ continuation of the previous one, so there is nothing meaningful to
 interpolate between two consecutive steps (mirrors guided_sequence.py's
 fixed-checkpoint-sequence pattern, not spike_generation.py's continuous
 sweep).
+
+The claim "only the sum of many steps rebuilds the image" is SHOWN, not
+left to the viewer's eye: next to the original sits the decoder's estimate
+after t + 1 steps -- mean spike count per pixel divided by the max rate --
+and the text reports its mean absolute error, which falls as t grows.
 """
 
 from __future__ import annotations
@@ -50,6 +55,7 @@ def _failure_frame(max_rate: float, exc: Exception) -> Frame:
             "kind": "poisson_image_coding",
             "image": np.zeros(_IMAGE_SIZE),
             "frame": np.zeros(_IMAGE_SIZE),
+            "estimate": np.zeros(_IMAGE_SIZE),
             "t": 0,
             "n_total": 1,
             "max_rate": max_rate,
@@ -91,10 +97,17 @@ class PoissonImageCodingDemo(DemoModule):
         except Exception as exc:
             return [_failure_frame(self.max_rate, exc)]
         spike_frames = poisson_spike_frames(image, _N_STEPS, self.max_rate)
+        # Rate decoding: the fraction of steps each pixel fired, divided by
+        # max_rate, estimates its brightness. One step is a coin flip; the
+        # estimate only converges as steps accumulate.
+        counts = np.cumsum(spike_frames, axis=0)
+        steps_so_far = np.arange(1, _N_STEPS + 1)[:, None, None]
+        estimates = np.clip(counts / steps_so_far / self.max_rate, 0.0, 1.0)
 
         frames: list[Frame] = []
         for t in range(_N_STEPS):
             n_active = int(spike_frames[t].sum())
+            mae = float(np.mean(np.abs(estimates[t] - image)))
             frames.append(
                 Frame(
                     label=f"t = {t}/{_N_STEPS - 1}",
@@ -102,6 +115,7 @@ class PoissonImageCodingDemo(DemoModule):
                         "kind": "poisson_image_coding",
                         "image": image,
                         "frame": spike_frames[t],
+                        "estimate": estimates[t],
                         "t": t,
                         "n_total": _N_STEPS,
                         "max_rate": self.max_rate,
@@ -109,9 +123,12 @@ class PoissonImageCodingDemo(DemoModule):
                     explanation=(
                         f"{n_active} de {image.size} pixels dispararam neste passo. Cada pixel sorteia "
                         "de forma independente: probabilidade = seu brilho x taxa máxima — os pixels "
-                        "claros do rosto disparam bem mais que o fundo escuro, mas nunca com certeza."
+                        "claros do rosto disparam bem mais que o fundo escuro, mas nunca com certeza. "
+                        f"Em cima à direita, a estimativa depois de {t + 1} passo(s): quantas vezes cada "
+                        f"pixel disparou ÷ {t + 1} ÷ taxa máxima. Erro médio por pixel: {mae:.3f} — cai "
+                        "à medida que os passos se somam."
                     ),
-                    equation="P(pixel dispara em t) = brilho(pixel) . taxa_máxima",
+                    equation="P(pixel dispara) = brilho . taxa_máxima;  brilho_estimado = soma(spikes) / ((t + 1) . taxa_máxima)",
                 )
             )
         return frames

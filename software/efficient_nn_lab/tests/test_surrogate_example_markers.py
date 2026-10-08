@@ -1,8 +1,8 @@
 """Lock the surrogate-gradient worked example (ESPECIFICACAO_DLVL.md #20).
 
 The demo docstring promises one concrete example that runs through every
-scene: v_th = 1.0, v = 1.2 (0.2 above threshold), spike S(v) = 1,
-sigmoid = 0.60, real derivative = 0, surrogate gradient = 0.25. These
+scene: v_th = 1.0, k = 5, v = 1.2 (0.2 above threshold), spike S(v) = 1,
+sigmoid = 0.75, real derivative = 0, surrogate gradient = 0.625. These
 same numbers are drawn as markers by the surrogate_curve widget, so if
 either the code or the docstring drifts, these tests catch the mismatch.
 """
@@ -16,8 +16,8 @@ V_TH = 1.0
 EXAMPLE_V = 1.2
 EXAMPLE_VMT = 0.2
 EXAMPLE_SPIKE = 1.0
-EXAMPLE_SIGMOID = 0.60
-EXAMPLE_SURROGATE = 0.25
+EXAMPLE_SIGMOID = 0.75  # 0.5 + 0.5 * 5*0.2 / (1 + 5*0.2)
+EXAMPLE_SURROGATE = 0.625  # (5/2) / (1 + 5*0.2)^2
 
 REFERENCE = {
     "example_v": EXAMPLE_V,
@@ -47,8 +47,8 @@ def test_docstring_still_promises_the_example_values():
         "v = 1.2",
         "0.2 above the threshold",
         "S(v) = 1",
-        "sigmoid = 0.60",
-        "surrogate gradient = 0.25",
+        "sigmoid = 0.75",
+        "surrogate gradient = 0.625",
     ):
         assert literal in doc, f"docstring drifted: {literal!r} missing"
 
