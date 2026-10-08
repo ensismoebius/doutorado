@@ -114,6 +114,58 @@ _FACTOR_NODE = (NODE_L, NODE_A2, NODE_Z2, NODE_A1, NODE_Z1)
 
 
 
+def compute_chain_1_1_1(target: float) -> dict[str, float]:
+    """Forward e backward da rede 1->1->1, com TODOS os fatores intermediários.
+
+    Devolve cada derivada local em separado (não só os gradientes finais),
+    porque cada uma é um passo próprio da animação -- e porque é sobre elas
+    que os testes conferem a cadeia.
+
+    Função livre (não método) porque a demo da máquina de Rube Goldberg
+    (backprop/demos/rube_goldberg_chain.py) precisa exatamente desta mesma
+    conta, com a mesma rede -- reusar esta função é o que garante que as
+    duas demos mostram, por construção, o mesmo resultado numérico.
+    """
+    x = _X
+
+    z1 = _W1 * x + _B1
+    a1 = float(sigmoid(z1))
+    z2 = _W2 * a1 + _B2
+    a2 = float(sigmoid(z2))
+    loss = float(squared_error_loss(a2, target))
+
+    # derivadas locais, uma por elo do caminho
+    dL_da2 = float(loss_gradient_wrt_y(a2, target))  # a2 - alvo
+    sp2 = float(sigmoid_derivative(z2))              # ∂a2/∂z2
+    dz2_da1 = _W2                                    # ∂z2/∂a1
+    sp1 = float(sigmoid_derivative(z1))              # ∂a1/∂z1
+    dz2_dw2 = a1                                     # ∂z2/∂w2
+    dz1_dw1 = x                                      # ∂z1/∂w1
+    # ∂z/∂b = 1 para qualquer camada: o viés entra somando, com
+    # coeficiente 1. É o único fator que vale exatamente 1 -- e é por
+    # isso que o gradiente do viés é o próprio δ.
+    dz2_db2 = 1.0
+    dz1_db1 = 1.0
+
+    # produtos acumulados: δ é o gradiente do lado de dentro da ativação
+    delta2 = dL_da2 * sp2
+    dL_da1 = delta2 * dz2_da1
+    delta1 = dL_da1 * sp1
+
+    return {
+        "x": x, "w1": _W1, "b1": _B1, "z1": z1, "a1": a1,
+        "w2": _W2, "b2": _B2, "z2": z2, "a2": a2,
+        "target": target, "loss": loss,
+        "dL_da2": dL_da2, "sp2": sp2, "delta2": delta2,
+        "dz2_dw2": dz2_dw2, "g_w2": delta2 * dz2_dw2,
+        "dz2_db2": dz2_db2, "g_b2": delta2 * dz2_db2,
+        "dz2_da1": dz2_da1, "dL_da1": dL_da1,
+        "sp1": sp1, "delta1": delta1,
+        "dz1_dw1": dz1_dw1, "g_w1": delta1 * dz1_dw1,
+        "dz1_db1": dz1_db1, "g_b1": delta1 * dz1_db1,
+    }
+
+
 class ChainRuleLayersDemo(DemoModule):
     title = "Backprop -> Camadas e a regra da cadeia"
     slug = "backprop.chain"
@@ -137,50 +189,7 @@ class ChainRuleLayersDemo(DemoModule):
 
     # -- a conta: um forward e um backward completos -----------------------
     def _forward_backward(self) -> dict[str, float]:
-        """Forward e backward desta rede, com TODOS os fatores intermediários.
-
-        Devolve cada derivada local em separado (não só os gradientes
-        finais), porque cada uma é um passo próprio da animação -- e porque
-        é sobre elas que os testes conferem a cadeia.
-        """
-        x, target = _X, self.target
-
-        z1 = _W1 * x + _B1
-        a1 = float(sigmoid(z1))
-        z2 = _W2 * a1 + _B2
-        a2 = float(sigmoid(z2))
-        loss = float(squared_error_loss(a2, target))
-
-        # derivadas locais, uma por elo do caminho
-        dL_da2 = float(loss_gradient_wrt_y(a2, target))  # a2 - alvo
-        sp2 = float(sigmoid_derivative(z2))              # ∂a2/∂z2
-        dz2_da1 = _W2                                    # ∂z2/∂a1
-        sp1 = float(sigmoid_derivative(z1))              # ∂a1/∂z1
-        dz2_dw2 = a1                                     # ∂z2/∂w2
-        dz1_dw1 = x                                      # ∂z1/∂w1
-        # ∂z/∂b = 1 para qualquer camada: o viés entra somando, com
-        # coeficiente 1. É o único fator que vale exatamente 1 -- e é por
-        # isso que o gradiente do viés é o próprio δ.
-        dz2_db2 = 1.0
-        dz1_db1 = 1.0
-
-        # produtos acumulados: δ é o gradiente do lado de dentro da ativação
-        delta2 = dL_da2 * sp2
-        dL_da1 = delta2 * dz2_da1
-        delta1 = dL_da1 * sp1
-
-        return {
-            "x": x, "w1": _W1, "b1": _B1, "z1": z1, "a1": a1,
-            "w2": _W2, "b2": _B2, "z2": z2, "a2": a2,
-            "target": target, "loss": loss,
-            "dL_da2": dL_da2, "sp2": sp2, "delta2": delta2,
-            "dz2_dw2": dz2_dw2, "g_w2": delta2 * dz2_dw2,
-            "dz2_db2": dz2_db2, "g_b2": delta2 * dz2_db2,
-            "dz2_da1": dz2_da1, "dL_da1": dL_da1,
-            "sp1": sp1, "delta1": delta1,
-            "dz1_dw1": dz1_dw1, "g_w1": delta1 * dz1_dw1,
-            "dz1_db1": dz1_db1, "g_b1": delta1 * dz1_db1,
-        }
+        return compute_chain_1_1_1(self.target)
 
     def _build_frames(self) -> list[Frame]:  # noqa: PLR0915 - one call per checkpoint
         c = self._forward_backward()

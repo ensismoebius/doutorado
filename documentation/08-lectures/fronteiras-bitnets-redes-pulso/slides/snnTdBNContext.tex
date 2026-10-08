@@ -13,6 +13,29 @@
 	\[
 		Y = \alpha V_{th} \cdot \frac{X - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta
 	\]
+	\par Onde: $X$ é o valor bruto (corrente/potencial pré-ativação) de um neurônio, \textbf{antes} de normalizar; $\mu$ e $\sigma^2$ são a \textbf{média} e a \textbf{variância do lote} (\textit{batch}) daquele canal; $\epsilon$ é uma constante pequena só para não dividir por zero; $\alpha,\beta$ são escala e deslocamento \textbf{aprendidos} (a mesma dupla da BN clássica --- a única diferença da tdBN é multiplicar essa escala por $V_{th}$).
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{tdBN: um exemplo numérico}
+	\framesubtitle{De onde vêm os números da tabela a seguir}
+	\small
+	\par Um lote de 4 valores pré-ativação do mesmo canal, $X = \{-3,-1,1,3\}$, com $\alpha=1$, $\beta=0$, $\epsilon \approx 0$ (para simplificar a conta):
+	\begin{equation*}
+		\mu = 0
+		\qquad
+		\sigma^2 = \frac{1}{4}\sum_i (X_i-\mu)^2 = \frac{9+1+1+9}{4} = 5
+		\qquad
+		\sigma = \sqrt{5} \approx 2{,}236
+	\end{equation*}
+	\par \textbf{BatchNorm clássica} ($\alpha=1$, sem $V_{th}$): $z_i = (X_i-\mu)/\sigma$, ou seja $X_i/2{,}236$:
+	\begin{equation*}
+		z = \{-3/2{,}236,\ -1/2{,}236,\ 1/2{,}236,\ 3/2{,}236\} \approx \{-1{,}34,\ -0{,}45,\ 0{,}45,\ 1{,}34\}
+	\end{equation*}
+	\par \textbf{tdBN} ($V_{th}=2{,}0$): $Y_i = \alpha V_{th}\cdot z_i = 2\cdot z_i$ --- o mesmo $z$ de cima, só esticado por $V_{th}$:
+	\begin{equation*}
+		Y \approx \{-2{,}68,\ -0{,}89,\ 0{,}89,\ 2{,}68\}
+	\end{equation*}
 	\begin{center}
 		\footnotesize
 		\begin{tabular}{lcc}

@@ -7,8 +7,8 @@
 		\par Quatro famílias de resposta, historicamente:
 		\begin{itemize}
 			\setlength{\itemsep}{0pt}
-			\item \textbf{STDP}: regra local --- se o neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, a conexão se fortalece; se depois, se enfraquece. Biologicamente plausível, não supervisionada.
-			\item \textbf{Gradiente substituto + BPTT}: usa a função em degrau real no \textit{forward}, e uma aproximação suave e diferenciável só no \textit{backward}\ifincludebitnet{} --- a mesma lógica do STE do BitNet\fi.
+			\item \textbf{STDP} (\textit{Spike-Timing-Dependent Plasticity}, "plasticidade dependente do tempo entre pulsos"): regra local --- se o pré-sináptico dispara \textbf{antes} do pós-sináptico ($\Delta t = t_{\text{pós}}-t_{\text{pré}} > 0$), a conexão se fortalece; se depois ($\Delta t < 0$), se enfraquece. Biologicamente plausível, não supervisionada.
+			\item \textbf{Gradiente substituto + BPTT} (\textit{Backpropagation Through Time} --- detalhada nos próximos slides): usa a função em degrau real no \textit{forward}, e uma aproximação suave e diferenciável só no \textit{backward}\ifincludebitnet{} --- a mesma lógica do STE do BitNet\fi.
 			\item \textbf{Algoritmos evolutivos}: seleção dos hiperparâmetros mais aptos ao longo de gerações.
 			\item \textbf{Reservatório / computação dinâmica}: treina só a camada de saída, mantendo pesos recorrentes fixos (\textit{echo state networks}, \textit{liquid state machines}).
 		\end{itemize}

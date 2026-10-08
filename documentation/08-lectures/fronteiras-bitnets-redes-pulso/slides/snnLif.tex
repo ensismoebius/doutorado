@@ -21,11 +21,23 @@
 	}
 	\only<2>{
 		\framesubtitle{Exemplo numérico: decaimento sem entrada}
-		\par Com $R=5\,\Omega$, $C=1\,F$ (logo $\tau = R\cdot C = 5$) e potencial inicial $V_{mem}(0)=1$, sem corrente de entrada:
+		\par Sem corrente ($I_{in}=0$), a equação do slide anterior vira $\tau\,dV_{mem}/dt = -V_{mem}$. Separando as variáveis e integrando os dois lados:
 		\begin{equation*}
-			V_{mem}(t) = V_{mem}(0)\cdot e^{-t/\tau}
-			\quad\Longrightarrow\quad
-			V_{mem}(1) = e^{-1/5} \approx 0{,}8187
+			\begin{aligned}
+				\frac{dV_{mem}}{V_{mem}} = -\frac{dt}{\tau}
+				\ & \Rightarrow\
+				\int \frac{dV_{mem}}{V_{mem}} = \int -\frac{dt}{\tau}
+				\ \Rightarrow\
+				\ln V_{mem} = -\frac{t}{\tau} + k \\
+				& \Rightarrow\ V_{mem}(t) = e^{k}\cdot e^{-t/\tau}
+				\ \Rightarrow\
+				V_{mem}(t) = V_{mem}(0)\cdot e^{-t/\tau}
+			\end{aligned}
+		\end{equation*}
+		\par {\small (pois em $t=0$: $e^{k}=V_{mem}(0)$)}
+		\par Com $R=5\,\Omega$, $C=1\,F$ (logo $\tau = R\cdot C = 5$) e potencial inicial $V_{mem}(0)=1$:
+		\begin{equation*}
+			V_{mem}(1) = 1 \cdot e^{-1/5} \approx 0{,}8187
 		\end{equation*}
 		\par O potencial \textbf{vaza} exponencialmente na ausência de estímulo --- daí o nome \textit{leaky}. Quando um estímulo chega, o potencial sobe (mesma matemática, sinal oposto) até cruzar um limiar $V_{th}$, disparando um pulso e reiniciando.
 	}

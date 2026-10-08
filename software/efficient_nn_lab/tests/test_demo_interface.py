@@ -7,6 +7,7 @@ import pytest
 from efficient_nn_lab.backprop.demos.chain_rule_layers import ChainRuleLayersDemo
 from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
+from efficient_nn_lab.backprop.demos.rube_goldberg_chain import RubeGoldbergChainDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
 from efficient_nn_lab.bitnet.demos.backward import BackwardSTEDemo
 from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
@@ -38,6 +39,7 @@ ALL_DEMO_CLASSES = [
     TraditionalBackpropDemo,
     MultilayerNetworkDemo,
     MatrixAlgebraDemo,
+    RubeGoldbergChainDemo,
     ChainRuleLayersDemo,
     ScalarQuantizationDemo,
     ForwardLossDemo,

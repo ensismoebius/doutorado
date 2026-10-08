@@ -26,7 +26,7 @@
 	\end{itemize}
 \end{frame}
 
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{Codificação Poisson: qual a sua importância e limitações?}
 	\framesubtitle{Ponte para bases convencionais e os custos da estocasticidade}
 	\footnotesize
@@ -40,7 +40,7 @@
 		\item \textbf{Limitações e o custo da variância}:
 		\begin{itemize}
 			\item \textbf{Variância de amostragem}: duas repetições do mesmo estímulo geram sequências diferentes de pulsos.
-			\item \textbf{Custo de latência e energia}: estimar a taxa com precisão ($\sigma \propto 1/\sqrt{T}$) exige $T$ grande ($T \ge 50$), gerando muitos pulsos e elevando o tempo e a energia.
+			\item \textbf{Custo de latência e energia}: estimar a taxa com precisão ($\sigma \propto 1/\sqrt{T}$, com $\sigma = (p(1-p)/T)^{1/2}$) exige $T$ grande. Para o pixel brilhante do quadro anterior ($p=0{,}54$): em $T=10$, $\sigma \approx 0{,}158$ (29\% de erro relativo); em $T=50$, $\sigma \approx 0{,}070$ (13\%) --- 5$\times$ mais passos (mais pulsos, mais tempo, mais energia) para menos que a metade do erro.
 			\item Com poucos passos ($T$ curto), essa dispersão atua como um ruído intrínseco.
 		\end{itemize}
 	\end{itemize}

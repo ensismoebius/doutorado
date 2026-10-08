@@ -834,6 +834,122 @@ def test_chain_demo_equations_all_typeset():
         parser.parse(f"${latexize(equation)}$")
 
 
+# ======================================================================
+# backprop.rube_goldberg -- the SAME 1->1->1 network and the SAME five
+# chain-rule factors as backprop.chain, re-skinned as a physical machine
+# (see backprop/demos/rube_goldberg_chain.py's module docstring). The
+# tests below pin the one thing that must never drift: this demo and
+# chain_rule_layers.py's demo must agree on every number, because both
+# call the exact same `compute_chain_1_1_1`.
+# ======================================================================
+
+def _rube_demo():
+    from efficient_nn_lab.backprop.demos.rube_goldberg_chain import RubeGoldbergChainDemo
+
+    return RubeGoldbergChainDemo()
+
+
+def test_rube_goldberg_matches_chain_layers_demo_exactly():
+    """Two demos, one function: compute_chain_1_1_1 must give identical numbers.
+
+    This is the guarantee the Rube Goldberg demo's whole premise rests on
+    -- if it ever drifted from chain_rule_layers.py's own numbers, the
+    audience would see two different answers to "what is ∂L/∂w1?" five
+    minutes apart.
+    """
+    rube = _rube_demo()
+    chain = _chain_demo()
+    assert rube.target == chain.target  # same default target (0.2)
+    c = chain._forward_backward()
+    factors = (c["dL_da2"], c["sp2"], c["dz2_da1"], c["sp1"], c["dz1_dw1"])
+
+    last = rube.checkpoint_frames()[-1].values
+    assert tuple(last["chain_values"]) == pytest.approx(factors)
+    assert float(last["g_w1"]) == pytest.approx(c["g_w1"], abs=1e-12)
+
+
+def test_rube_goldberg_chain_product_equals_final_gradient():
+    demo = _rube_demo()
+    last = demo.checkpoint_frames()[-1].values
+    factors = last["chain_values"]
+    assert float(np.prod(factors)) == pytest.approx(float(last["g_w1"]), abs=1e-12)
+    # and the ball's own carried value, at the final checkpoint, must be
+    # that same number -- the picture and the number must agree.
+    assert float(last["ball_value"]) == pytest.approx(float(last["g_w1"]), abs=1e-12)
+
+
+def test_rube_goldberg_sign_flips_at_the_lever():
+    """w2 < 0 in this network (see chain_rule_layers.py) -- the running
+    product carried past the lever station must flip sign relative to
+    what entered it, exactly the physical "the alavanca jogou a bolinha
+    para o outro lado" the explanation text claims."""
+    demo = _rube_demo()
+    checkpoints = demo.checkpoint_frames()
+    before_lever = checkpoints[2].values["ball_value"]  # after the first ramp (station 1)
+    after_lever = checkpoints[3].values["ball_value"]  # after the lever (station 2)
+    w2 = checkpoints[0].values["chain_values"][2]
+    assert w2 < 0
+    assert before_lever * after_lever < 0, "the ball's sign did not flip at the w2 lever"
+
+
+def test_rube_goldberg_station_fired_is_cumulative_and_monotonic():
+    # once a gadget has fired it must stay fired -- the machine never
+    # "forgets" a step that already happened.
+    demo = _rube_demo()
+    checkpoints = demo.checkpoint_frames()
+    for before, after in zip(checkpoints, checkpoints[1:]):
+        a = np.asarray(before.values["station_fired"], dtype=float)
+        b = np.asarray(after.values["station_fired"], dtype=float)
+        assert np.all(b >= a - 1e-9)
+    assert np.all(np.asarray(checkpoints[-1].values["station_fired"], dtype=float) >= 0.999)
+
+
+def test_rube_goldberg_ball_progress_reaches_the_bucket():
+    demo = _rube_demo()
+    last = demo.checkpoint_frames()[-1].values
+    assert float(last["ball_progress"]) == pytest.approx(5.0)
+    assert float(last["bucket_reveal"]) >= 0.999
+
+
+def test_rube_goldberg_every_frame_renders(qapp):
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    view = NeuronView()
+    view.show()
+    view.resize(1200, 800)
+    for frame in _rube_demo()._frames:
+        view.render(frame.values)
+    view._canvas.draw()
+
+
+def test_rube_goldberg_canvas_click_only_advances_for_this_demo(qapp):
+    """The click-to-push interaction is gated to this demo's kind alone --
+    a click while any OTHER demo's picture is on screen must not emit."""
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    view = NeuronView()
+    received = []
+    view.advance_requested.connect(lambda: received.append(1))
+
+    view.render(_chain_demo().current_frame().values)  # kind == "chain_layers"
+    view._on_canvas_click(None)
+    assert received == []
+
+    view.render(_rube_demo().current_frame().values)  # kind == "rube_goldberg"
+    view._on_canvas_click(None)
+    assert received == [1]
+
+
+def test_rube_goldberg_equations_all_typeset():
+    from matplotlib import mathtext
+
+    from efficient_nn_lab.app.math_render import latexize
+
+    parser = mathtext.MathTextParser("agg")
+    for equation in {f.equation for f in _rube_demo().checkpoint_frames() if f.equation}:
+        parser.parse(f"${latexize(equation)}$")
+
+
 def test_walkthrough_and_convergence_chart_count_the_same_updates():
     # Part 2 is described on screen as a recap of the SAME iterations, so
     # both parts must use the same stopping rule (close enough => stop

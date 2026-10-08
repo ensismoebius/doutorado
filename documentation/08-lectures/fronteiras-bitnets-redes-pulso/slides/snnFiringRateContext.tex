@@ -1,4 +1,4 @@
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{Regularização de taxa de disparo: o que é?}
 	\framesubtitle{Mantendo a atividade dos neurônios dentro de uma faixa operacional saudável}
 	\small
@@ -19,8 +19,12 @@
 			\bottomrule
 		\end{tabular}
 	\end{center}
+	\par Exemplo com $r_{\min}=0{,}05$, $r_{\max}=0{,}20$, $\lambda=10$ (os mesmos limites do slide seguinte):
 	\begin{itemize}
-		\item Dentro da janela $[r_{\min}, r_{\max}]$, a penalidade é nula e a rede treina livremente.
+		\setlength{\itemsep}{1pt}
+		\item \textbf{Silenciado} ($\rho=0{,}01$): $\max(0,\,0{,}05-0{,}01)^2 = 0{,}04^2 = 0{,}0016 \Rightarrow L_{\mathrm{reg}} = 10 \times 0{,}0016 = 0{,}016$.
+		\item \textbf{Faixa alvo} ($\rho=0{,}12$): os dois termos são $\max(0,\text{negativo})=0$ $\Rightarrow L_{\mathrm{reg}} = 0$.
+		\item \textbf{Rajada} ($\rho=0{,}35$): $\max(0,\,0{,}35-0{,}20)^2 = 0{,}15^2 = 0{,}0225 \Rightarrow L_{\mathrm{reg}} = 10 \times 0{,}0225 = 0{,}225$.
 	\end{itemize}
 \end{frame}
 

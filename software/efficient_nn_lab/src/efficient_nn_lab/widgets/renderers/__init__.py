@@ -14,6 +14,7 @@ from efficient_nn_lab.widgets.renderers.matrix_algebra import MatrixAlgebraRende
 from efficient_nn_lab.widgets.renderers.mlp import MlpNetworkRendererMixin
 from efficient_nn_lab.widgets.renderers.normalization import NormalizationRendererMixin
 from efficient_nn_lab.widgets.renderers.pipelines import PipelineRenderersMixin
+from efficient_nn_lab.widgets.renderers.rube_goldberg import RubeGoldbergRendererMixin
 from efficient_nn_lab.widgets.renderers.timesteps import TimestepsRendererMixin
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "MlpNetworkRendererMixin",
     "MatrixAlgebraRendererMixin",
     "ChainLayersRendererMixin",
+    "RubeGoldbergRendererMixin",
     "PipelineRenderersMixin",
     "ComparisonRendererMixin",
     "TimestepsRendererMixin",

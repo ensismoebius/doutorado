@@ -48,6 +48,7 @@ from efficient_nn_lab.widgets.weight_view import WeightView
 from efficient_nn_lab.backprop.demos.chain_rule_layers import ChainRuleLayersDemo
 from efficient_nn_lab.backprop.demos.matrix_algebra import MatrixAlgebraDemo
 from efficient_nn_lab.backprop.demos.multilayer_network import MultilayerNetworkDemo
+from efficient_nn_lab.backprop.demos.rube_goldberg_chain import RubeGoldbergChainDemo
 from efficient_nn_lab.backprop.demos.traditional_gd import TraditionalBackpropDemo
 from efficient_nn_lab.bitnet.demos.backward import BackwardSTEDemo
 from efficient_nn_lab.bitnet.demos.forward import ForwardLossDemo
@@ -118,9 +119,9 @@ _WEIGHT_KINDS = {
     "encoding_noise_floor", "tdbn_distribution",
 }
 _NEURON_KINDS = {
-    "backprop_pipeline", "mlp_network", "matrix_algebra", "chain_layers", "forward_pipeline", "ste_pipeline",
-    "guided_pipeline", "comparison_pipeline", "timesteps_tensor", "autoencoder_comparison_pipeline",
-    "normalization_pipeline",
+    "backprop_pipeline", "mlp_network", "matrix_algebra", "chain_layers", "rube_goldberg",
+    "forward_pipeline", "ste_pipeline", "guided_pipeline", "comparison_pipeline", "timesteps_tensor",
+    "autoencoder_comparison_pipeline", "normalization_pipeline",
 }
 
 _REFERENCES_TEXT = """\
@@ -251,6 +252,7 @@ def _build_demo_tree(include_bitnet: bool = True) -> dict[str, list[DemoModule]]
             TraditionalBackpropDemo(),
             MultilayerNetworkDemo(),
             MatrixAlgebraDemo(),
+            RubeGoldbergChainDemo(),
             ChainRuleLayersDemo(),
         ],
         "BitNet": [
@@ -618,6 +620,10 @@ class MainWindow(QMainWindow):
         self.controls.reset_clicked.connect(self._on_reset)
         self.controls.step_backward_clicked.connect(self._on_step_backward)
         self.controls.step_forward_clicked.connect(self._on_step_forward)
+        # backprop.rube_goldberg's click-to-push interaction: a canvas click
+        # is the exact same "advance to next checkpoint" call as the button
+        # above, gated inside NeuronView to only fire for that one demo.
+        self.neuron_view.advance_requested.connect(self._on_step_forward)
         self.controls.play_clicked.connect(self._on_play)
         self.controls.pause_clicked.connect(self._on_pause)
         self.controls.fast_loop_clicked.connect(self._on_fast_loop)

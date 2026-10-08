@@ -30,6 +30,10 @@
 	\input{slides/fundamentosMatrizes.tex}
 	\input{slides/fundamentosCadeia.tex}
 	\DemoSlide{Backprop \textrightarrow{} A rede como matrizes}{backprop.matrix}{}
+	% Intuicao antes do rigor: a mesma rede 1-1-1 e os mesmos cinco fatores
+	% da demo backprop.chain logo abaixo, mas como uma maquina fisica em vez
+	% de um diagrama de blocos -- de proposito ANTES dela.
+	\DemoSlide{Backprop \textrightarrow{} A regra da cadeia como máquina de Rube Goldberg}{backprop.rube_goldberg}{Clique na tela para empurrar a bolinha por cada engenhoca; o sinal troca de lado na alavanca do peso $w_2$, que é negativo.}
 	% Vem depois de fundamentosCadeia.tex de proposito: o slide enuncia a
 	% regra da cadeia, e esta demo mostra de qual bloco da rede sai cada
 	% fator dela (uma camada = operacao linear + ativacao = dois fatores).

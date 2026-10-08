@@ -3,7 +3,7 @@
 	\framesubtitle{O piso mínimo de perda de informação antes de qualquer processamento}
 	\small
 	\par Ao converter um valor contínuo $x \in [0, 1]$ em trens de pulso e depois tentar reconstruí-lo, ocorre uma perda de precisão inevitável. O \textbf{ruído estrutural} é o erro médio mínimo (o "piso de ruído") imposto pela própria matemática da codificação.
-	\par Esse piso independe do aprendizado: com $x \sim \mathcal{U}[0, 1]$ e $T=16$ passos, o erro RMS de reconstrução teórico é:
+	\par Esse piso independe do aprendizado: tomando $x$ \textbf{uniformemente distribuído} em $[0,1]$ (notação $x \sim \mathcal{U}[0,1]$: todo valor entre 0 e 1 igualmente provável, só para não favorecer nenhuma entrada específica na conta) e $T=16$ passos, o \textbf{erro RMS} --- raiz do erro quadrático médio, $\sqrt{\mathbb{E}[(x-\hat{x})^2]}$, entre o valor original $x$ e o valor $\hat x$ reconstruído a partir dos pulsos --- de reconstrução teórico é:
 	\begin{center}
 		\footnotesize
 		\begin{tabular}{llc}
@@ -21,6 +21,28 @@
 		\item Na \textbf{latência}, o erro vem da quantização em 16 níveis discretos ($\Delta x = 1/15$).
 		\item Em \textbf{Poisson}, o erro decorre da variância intrínseca dos sorteios aleatórios.
 	\end{itemize}
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{De onde vêm os números da tabela: TTFS e o cálculo do piso RMS}
+	\framesubtitle{Nada na tabela anterior caiu do céu}
+	\small
+	\par \textbf{TTFS} (\textit{Time To First Spike}, "tempo até o primeiro pulso"): cada neurônio dispara \textbf{um único pulso}, no passo $t$ que codifica $x$ --- quanto \textbf{maior} $x$, mais \textbf{cedo} o pulso. Com $T=16$ passos ($t \in \{0,\dots,15\}$):
+	\begin{equation*}
+		t = \mathrm{round}\big((1-x)\cdot(T-1)\big)
+		\qquad\Longrightarrow\qquad
+		\hat x = 1 - \frac{t}{T-1}
+	\end{equation*}
+	\par Exemplo: $x = 0{,}63 \Rightarrow t = \mathrm{round}(0{,}37 \times 15) = \mathrm{round}(5{,}55) = 6 \Rightarrow \hat x = 1 - 6/15 = 0{,}60$ --- erro de $0{,}03$, dentro de meio passo ($\Delta x/2 \approx 0{,}033$). É exatamente esse arredondamento, repetido para todo $x \in [0,1]$, que produz o piso $\approx 0{,}019$ da tabela:
+	\begin{equation*}
+		\mathrm{RMS}_{\mathrm{lat}} = \frac{\Delta x}{\sqrt{12}}
+		= \frac{1/15}{\sqrt{12}} \approx 0{,}019
+	\end{equation*}
+	\par {\small (um erro de arredondamento uniforme em $[-\Delta x/2, \Delta x/2]$ tem variância $\Delta x^2/12$ --- resultado clássico de quantização)}
+	\par Já em \textbf{Poisson}, $\hat x$ é a taxa estimada $N/T$ pulsos; sua variância é $p(1-p)/T$. Integrando sobre $x \sim \mathcal{U}[0,1]$ (logo $p=x$): $\mathbb{E}[p(1-p)] = \tfrac12 - \tfrac13 = \tfrac16$, o que dá o piso $\approx 0{,}102$ da tabela:
+	\begin{equation*}
+		\mathrm{RMS}_{\mathrm{Poisson}} = \sqrt{\frac{\mathbb{E}[p(1-p)]}{T}} = \sqrt{\frac{1/6}{16}} \approx 0{,}102
+	\end{equation*}
 \end{frame}
 
 \begin{frame}

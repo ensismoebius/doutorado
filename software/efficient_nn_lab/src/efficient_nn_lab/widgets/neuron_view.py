@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from efficient_nn_lab.widgets._mpl_perf import fast_clear
@@ -34,6 +35,7 @@ from efficient_nn_lab.widgets.renderers import (
     NormalizationRendererMixin,
     PaintingMixin,
     PipelineRenderersMixin,
+    RubeGoldbergRendererMixin,
     TimestepsRendererMixin,
 )
 
@@ -43,6 +45,7 @@ class NeuronView(
     MlpNetworkRendererMixin,
     MatrixAlgebraRendererMixin,
     ChainLayersRendererMixin,
+    RubeGoldbergRendererMixin,
     PipelineRenderersMixin,
     ComparisonRendererMixin,
     TimestepsRendererMixin,
@@ -50,6 +53,14 @@ class NeuronView(
     NormalizationRendererMixin,
     QWidget,
 ):
+    #: Emitted on a canvas click while the `rube_goldberg` kind is the one
+    #: currently rendered -- and only then (see `_on_canvas_click`). Every
+    #: other demo is driven exclusively by the sidebar transport; this is
+    #: the one exception, wired by main_window.py to the exact same
+    #: "advance to the next checkpoint" call the "Próximo" button makes, so
+    #: a click is literally "push the machine", not a second code path.
+    advance_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._figure = Figure(figsize=(6.4, 3.9))
@@ -62,12 +73,19 @@ class NeuronView(
         # once, cached by key, and merely cleared + repositioned + shown/
         # hidden on later frames instead of being recreated each time.
         self._inset_axes: dict[str, object] = {}
+        self._current_kind: str | None = None
+        self._canvas.mpl_connect("button_press_event", self._on_canvas_click)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
 
+    def _on_canvas_click(self, event: object) -> None:
+        if self._current_kind == "rube_goldberg":
+            self.advance_requested.emit()
+
     def render(self, values: dict[str, object]) -> None:
         kind = values.get("kind")
+        self._current_kind = kind if isinstance(kind, str) else None
         if kind in ("backprop_pipeline", "mlp_network", "forward_pipeline"):
             # shrink the diagram to the left half so the inset panel(s)
             # have clean room on the right instead of floating over the
@@ -102,6 +120,7 @@ class NeuronView(
         handler = {
             "matrix_algebra": self._render_matrix_algebra,
             "chain_layers": self._render_chain_layers,
+            "rube_goldberg": self._render_rube_goldberg,
             "mlp_network": self._render_mlp_network,
             "backprop_pipeline": self._render_backprop_pipeline,
             "forward_pipeline": self._render_forward_pipeline,

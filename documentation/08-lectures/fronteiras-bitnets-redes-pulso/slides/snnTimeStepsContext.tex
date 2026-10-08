@@ -23,7 +23,7 @@
 	\end{itemize}
 \end{frame}
 
-\begin{frame}
+\begin{frame}[shrink]
 	\frametitle{time\_steps ($T$) e $\Delta t$: qual a sua importância?}
 	\framesubtitle{Impacto na memória do neurônio LIF e na estrutura dos tensores}
 	\small
@@ -36,7 +36,7 @@
 			\item Se $\Delta t = 16\,\text{ms}$: $\beta = e^{-3{,}2} \approx 0{,}04 \implies$ o potencial vaza quase todo em um único passo (perda de memória).
 		\end{itemize}
 		\item \textbf{Custo computacional e BPTT}: Mais passos ($T$ alto) capturam dinâmicas mais ricas, mas elevam o custo de tempo e de memória de treino linearmente ($O(T)$).
-		\item \textbf{Armadilha na ordem dos tensores}: Tensores usam $(T, B, F)$ ou $(B, T, F)$. Misturar as dimensões corrompe a causalidade temporal.
+		\item \textbf{Armadilha na ordem dos tensores}: $(T,B,F)$ guarda a linha $t \cdot B + b$; $(B,T,F)$ guarda a linha $b \cdot T + t$ --- duas ordens diferentes para os MESMOS dados. Exemplo com $T=2, B=2$: a ordem real é $[b_0t_0,\, b_0t_1,\, b_1t_0,\, b_1t_1]$. Se o código espera $(T,B,F)$ mas recebe $(B,T,F)$, a linha 1 --- de verdade $b_0t_1$, o \textbf{segundo} passo da amostra 0 --- é lida como "amostra 1 no passo $t{=}0$": o LIF encadeia a memória de \textbf{duas amostras diferentes} como se fosse uma única linha do tempo. Sem erro, sem aviso --- o treino roda e aprende algo errado (falha silenciosa).
 	\end{itemize}
 	\par\vfill{\tiny Referências: \cite{gerstner2014neuronal, eshraghian2023training}.}
 \end{frame}
