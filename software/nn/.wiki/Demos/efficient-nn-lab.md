@@ -5,11 +5,12 @@ animates BitNet quantization and spiking-neural-network mechanics, one step at a
 one-hour undergraduate lecture. It is **not** part of the C++ `nn` library and shares no code
 with it — it is the live companion to the LaTeX deck in
 `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`, opened on stage at the moment the
-matching slide is on screen. 25 demos across 6 groups, 1874 precomputed frames, zero
+matching slide is on screen. 26 demos across 6 groups, 1874 precomputed frames, zero
 randomness at playback time -- except the newest, standalone group, **Demonstração ao
-vivo**: one demo driven by a real trained model and the live microphone instead of a
-precomputed frame list (see "The live-mic exception" below). The **Paraconsistente** group
-bridges in the author's
+vivo**: two demos sharing one real trained model and the live microphone instead of a
+precomputed frame list, differing only in which picture of the live state is on screen --
+a time-over-neurons spike raster, or the network's own neurons and weights (see "The
+live-mic exception" below). The **Paraconsistente** group bridges in the author's
 own PhD thesis (da Costa paraconsistent feature engineering, `software/nn`'s
 `include/paraconsistent/`) and its reuse, as an explicit extension this lab makes rather than
 something the thesis itself does, to rank architectures in `paraconsistentGA`'s NSGA-II search.
@@ -164,7 +165,7 @@ class MyDemo(DemoModule):
         ])
 ```
 
-## The 25 demos
+## The 26 demos
 
 Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoints, not frames.
 
@@ -195,24 +196,31 @@ Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoi
 | `comparison` | ANN × BitNet × SNN | Em que os três diferem? | 8 |
 | `comparison.autoencoders` | Autoencoders (SNN × LSTM × GRU × Transformer) | Como o Meeting01 compara as quatro famílias sem trapacear: mesmo gargalo, mesmo alvo, referências média e PCA (PCA real; famílias sem números inventados)? | 7 |
 | `live.vowel_snn` | Classificação de vogais ao vivo (microfone) | Uma SNN pequena, realmente treinada, reconhece qual vogal (a/e/i/o/u) está sendo falada ao vivo? | 1 (sem passos — ver abaixo) |
+| `live.vowel_snn_nodes` | Classificação de vogais ao vivo (neurônios) | O mesmo classificador, mas mostrando os próprios neurônios (entrada/oculta/saída) e os pesos aprendidos, em vez do gráfico de disparos no tempo? | 1 (sem passos — ver abaixo) |
 
 ### The live-mic exception
 
-`live.vowel_snn` is the one demo that does not fit `core/demo.py`'s "fully precomputed,
-zero randomness" contract (above) at all: the microphone hasn't happened yet, and it is
-never the same twice. Rather than bend that contract, `LiveVowelSnnDemo._build_frames`
-returns exactly one static placeholder `Frame`, so the base class's own checks all pass
-trivially, and the actual behaviour lives entirely in `start_capture`/`stop_capture`/
-`poll_and_advance`/`snapshot`, called directly by `main_window.py` instead of through
-`StepPlayer` (`DemoModule.supports_live_capture` is the flag that tells `MainWindow` to
-take that path). It is also the only demo with a model **really trained** on real
-data — a `live/train.py` script fits a small two-layer spiking network (a new, vectorized,
-multi-neuron, trainable LIF layer in `live/lif_layer.py`, since `snn/lif.py` is a
-single-neuron scalar simulator with no weight matrix) on short labelled recordings
-(`live/record.py`), with BPTT and the surrogate gradient already used elsewhere in this
-lab. Every other demo's numbers are fixed or synthetic by design (see
-`comparison/autoencoders.py`); this is the sole deliberate exception, and its description
-says so on screen.
+`live.vowel_snn` and `live.vowel_snn_nodes` are the two demos that do not fit
+`core/demo.py`'s "fully precomputed, zero randomness" contract (above) at all: the
+microphone hasn't happened yet, and it is never the same twice. Rather than bend that
+contract, `LiveVowelSnnDemoBase._build_frames` returns exactly one static placeholder
+`Frame`, so the base class's own checks all pass trivially, and the actual behaviour
+lives entirely in `start_capture`/`stop_capture`/`poll_and_advance`/`snapshot`, called
+directly by `main_window.py` instead of through `StepPlayer`
+(`DemoModule.supports_live_capture` is the flag that tells `MainWindow` to take that
+path). Both demos share that ONE base -- same microphone capture, same trained model,
+same inference -- and differ only in which widget renders the shared `snapshot()` dict:
+`LiveSpikeView` draws a time-over-neurons spike raster, `LiveNodeView` draws the network
+itself (input/hidden/output neurons as nodes, lit by recent activity, joined by the real
+`W1`/`W2` weights); the per-vowel confidence bars underneath are the same code in both
+(`widgets/_live_readouts.py`), so there is exactly one place that draws them. They are
+also the only demos with a model **really trained** on real data — a `live/train.py`
+script fits a small two-layer spiking network (a new, vectorized, multi-neuron, trainable
+LIF layer in `live/lif_layer.py`, since `snn/lif.py` is a single-neuron scalar simulator
+with no weight matrix) on short labelled recordings (`live/record.py`), with BPTT and the
+surrogate gradient already used elsewhere in this lab. Every other demo's numbers are
+fixed or synthetic by design (see `comparison/autoencoders.py`); this is the sole
+deliberate exception, and both demos' descriptions say so on screen.
 
 `snn.poisson_image` is the only step-through demo that offers **Loop rápido** — continuous, dwell-free
 playback that wraps at the end (~1,2 s per lap versus ~33 s for a normal `Play` pass). It earns

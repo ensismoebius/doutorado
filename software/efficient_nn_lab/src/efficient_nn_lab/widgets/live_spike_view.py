@@ -1,23 +1,24 @@
 """Renders `live.demo.LiveVowelSnnDemo`'s snapshot: a scrolling multi-row
 spike raster (hidden layer, then output layer) on top, and a live
-per-vowel confidence bar chart below.
+per-vowel confidence bar chart below (`widgets/_live_readouts.py`, shared
+with `LiveNodeView`'s different top panel on the same snapshot).
 
-The ONLY demo in this app driven by a live, repeatedly-redrawn snapshot
-rather than one `Frame` per render -- see `live/demo.py`'s module
+One of only two demos in this app driven by a live, repeatedly-redrawn
+snapshot rather than one `Frame` per render -- see `live/demo.py`'s module
 docstring. Still follows every other widget's perf convention
 (`fast_clear` + explicit limits every call, see `widgets/_mpl_perf.py`)
 and visual convention (`theme.py`'s colors): there was no reason for the
-one live widget to look or behave like a different app.
+live widgets to look or behave like a different app.
 """
 
 from __future__ import annotations
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from efficient_nn_lab.app.theme import ACCENT_COLOR, BITNET_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.app.theme import BITNET_COLOR, NEUTRAL_COLOR, SNN_COLOR
+from efficient_nn_lab.widgets._live_readouts import render_confidence_bars
 from efficient_nn_lab.widgets._mpl_perf import fast_clear
 
 
@@ -52,7 +53,7 @@ class LiveSpikeView(QWidget):
             return
 
         self._render_raster(snapshot)
-        self._render_confidence(snapshot)
+        render_confidence_bars(self._ax_bottom, snapshot)
         self._canvas.draw_idle()
 
     def _render_raster(self, snapshot: dict[str, object]) -> None:
@@ -73,19 +74,3 @@ class LiveSpikeView(QWidget):
         self._ax_top.set_xlabel("passos recentes da SNN (mais à direita = agora)")
         status = "capturando" if snapshot.get("is_capturing") else "parado"
         self._ax_top.set_title(f"Camada oculta ({n_hidden} neurônios) + saída ({n_output}) -- {status}", fontsize=9.5)
-
-    def _render_confidence(self, snapshot: dict[str, object]) -> None:
-        names = list(snapshot["class_names"])
-        confidences = list(snapshot["class_confidences"])
-        predicted = snapshot.get("predicted_class")
-        for i, (name, value) in enumerate(zip(names, confidences)):
-            color = ACCENT_COLOR if name == predicted else NEUTRAL_COLOR
-            self._ax_bottom.add_patch(Rectangle((i - 0.3, 0), 0.6, value, facecolor=color, edgecolor="none", alpha=0.9))
-            self._ax_bottom.text(i, value + 0.03, f"{value:.2f}", ha="center", va="bottom", fontsize=8, weight="bold")
-        self._ax_bottom.set_xticks(range(len(names)))
-        self._ax_bottom.set_xticklabels([n.upper() for n in names])
-        self._ax_bottom.set_xlim(-0.6, len(names) - 0.4)
-        self._ax_bottom.set_ylim(0, 1.15)
-        self._ax_bottom.set_ylabel("taxa de disparo")
-        title = f"Confiança por vogal -- previsto: {predicted.upper()}" if predicted else "Confiança por vogal"
-        self._ax_bottom.set_title(title, fontsize=9.5)

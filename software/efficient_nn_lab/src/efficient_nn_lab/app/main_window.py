@@ -37,8 +37,9 @@ from efficient_nn_lab.app.theme import TEXT_COLOR, build_stylesheet, compute_ui_
 from efficient_nn_lab.core.animation import StepPlayer
 from efficient_nn_lab.core.demo import DemoModule
 from efficient_nn_lab.core.state import AppState
-from efficient_nn_lab.live.demo import LiveVowelSnnDemo
+from efficient_nn_lab.live.demo import LiveVowelSnnDemo, LiveVowelSnnDemoBase, LiveVowelSnnNodesDemo
 from efficient_nn_lab.widgets.controls import ControlsWidget
+from efficient_nn_lab.widgets.live_node_view import LiveNodeView
 from efficient_nn_lab.widgets.live_spike_view import LiveSpikeView
 from efficient_nn_lab.widgets.neuron_view import NeuronView
 from efficient_nn_lab.widgets.signal_view import SignalView
@@ -287,6 +288,7 @@ def _build_demo_tree(include_bitnet: bool = True) -> dict[str, list[DemoModule]]
         # mid-deck via "Próxima demo".
         "Demonstração ao vivo": [
             LiveVowelSnnDemo(),
+            LiveVowelSnnNodesDemo(),
         ],
     }
     return _filter_bitnet_demos(groups, include_bitnet)
@@ -538,12 +540,14 @@ class MainWindow(QMainWindow):
         self.weight_view = WeightView()
         self.neuron_view = NeuronView()
         self.live_spike_view = LiveSpikeView()
+        self.live_node_view = LiveNodeView()
         self.references_view = QTextEdit(_REFERENCES_TEXT)
         self.references_view.setReadOnly(True)
         self.stack.addWidget(self.signal_view)
         self.stack.addWidget(self.weight_view)
         self.stack.addWidget(self.neuron_view)
         self.stack.addWidget(self.live_spike_view)
+        self.stack.addWidget(self.live_node_view)
         self.stack.addWidget(self.references_view)
         # The animation is the demo; the text under it is the caption. When
         # the window is short, Qt has to take the missing pixels from
@@ -1004,18 +1008,24 @@ class MainWindow(QMainWindow):
     def _on_playback_finished(self) -> None:
         self.controls.set_playing(False)
 
-    # -- live-capture demo (live/demo.py's LiveVowelSnnDemo) -------------
+    # -- live-capture demos (live/demo.py's LiveVowelSnnDemoBase) --------
+    def _live_view_for(self, demo: LiveVowelSnnDemoBase) -> QWidget:
+        """Which widget shows this live demo's snapshot -- the two demos
+        share all capture/inference state (see LiveVowelSnnDemoBase's own
+        docstring) and differ only in which picture of it is on screen."""
+        return self.live_node_view if isinstance(demo, LiveVowelSnnNodesDemo) else self.live_spike_view
+
     def _stop_live_capture_if_active(self) -> None:
         """Make sure the microphone is never left open behind the scenes:
         called before switching to any other demo, before showing the
         welcome/references screens, and from closeEvent."""
         self._live_timer.stop()
-        if self.player is not None and isinstance(self.player.demo, LiveVowelSnnDemo):
+        if self.player is not None and isinstance(self.player.demo, LiveVowelSnnDemoBase):
             self.player.demo.stop_capture()
             self.controls.set_capture_active(False)
 
     def _on_capture_toggled(self, start: bool) -> None:
-        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemo):
+        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemoBase):
             return
         demo = self.player.demo
         if start:
@@ -1024,14 +1034,14 @@ class MainWindow(QMainWindow):
         else:
             demo.stop_capture()
             self._live_timer.stop()
-        self.live_spike_view.render(demo.snapshot())
+        self._live_view_for(demo).render(demo.snapshot())
 
     def _on_live_tick(self) -> None:
-        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemo):
+        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemoBase):
             return
         demo = self.player.demo
         demo.poll_and_advance()
-        self.live_spike_view.render(demo.snapshot())
+        self._live_view_for(demo).render(demo.snapshot())
 
     def closeEvent(self, event) -> None:  # noqa: N802 -- Qt's own method name
         self._stop_live_capture_if_active()
@@ -1115,14 +1125,15 @@ class MainWindow(QMainWindow):
         demo = self.player.demo
         frame = demo.current_frame()
 
-        if isinstance(demo, LiveVowelSnnDemo):
-            # The live demo has only one static Frame (see live/demo.py);
+        if isinstance(demo, LiveVowelSnnDemoBase):
+            # Each live demo has only one static Frame (see live/demo.py);
             # the actually-changing picture is demo.snapshot(), pushed by
             # _on_live_tick/_on_capture_toggled while capturing, and shown
             # as-is (idle placeholder) otherwise -- never through
             # _choose_view, which only knows about precomputed Frame kinds.
-            self.stack.setCurrentWidget(self.live_spike_view)
-            self.live_spike_view.render(demo.snapshot())
+            view = self._live_view_for(demo)
+            self.stack.setCurrentWidget(view)
+            view.render(demo.snapshot())
             self.frame_label.setText(frame.label)
             self.explanation_label.set_math_text(frame.explanation)
             self._set_equation(frame.equation)

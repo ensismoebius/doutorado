@@ -90,10 +90,11 @@ def test_selecting_demo_routes_to_correct_stack_widget(qapp, demo):
     window = _window(qapp)
     window._select_demo(demo)
     if demo.supports_live_capture:
-        # LiveVowelSnnDemo always shows live_spike_view directly -- its one
-        # static placeholder Frame carries a "kind" _choose_view does not
-        # know about on purpose (see live/demo.py's module docstring).
-        assert window.stack.currentWidget() is window.live_spike_view
+        # Each live demo always shows its own live widget directly -- its
+        # one static placeholder Frame carries a "kind" _choose_view does
+        # not know about on purpose (see live/demo.py's module docstring).
+        expected_live_view = window._live_view_for(demo)
+        assert window.stack.currentWidget() is expected_live_view
     else:
         expected = {
             "signal": window.signal_view,

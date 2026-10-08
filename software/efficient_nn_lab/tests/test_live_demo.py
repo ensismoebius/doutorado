@@ -37,7 +37,13 @@ def _tone(seconds: float, freq: float = 300.0) -> np.ndarray:
     return (np.sin(2 * np.pi * freq * t)).astype(np.float32)
 
 
-def test_demo_without_weights_reports_no_weights():
+def test_demo_without_weights_reports_no_weights(monkeypatch):
+    # weights=None means "fall back to the trained weights file on disk if
+    # one exists" (so the real app works out of the box once trained) --
+    # force that fallback to miss too, so this test still covers the
+    # "nothing trained yet" path even after a real vowel_snn_weights.npz
+    # has been produced by live.train on this machine.
+    monkeypatch.setattr("efficient_nn_lab.live.demo._try_load_default_weights", lambda: None)
     demo = LiveVowelSnnDemo(source=SyntheticSource(_tone(1.0)), weights=None)
     snapshot = demo.snapshot()
     assert snapshot["has_weights"] is False

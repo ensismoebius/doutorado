@@ -117,12 +117,13 @@ def _evaluate(features: np.ndarray, labels: np.ndarray, weights: VowelSnnWeights
 
 
 def train(
-    epochs: int = 40,
+    epochs: int = 400,
     lr: float = 0.5,
+    lr_decay: float = 0.985,
     hidden: int = 32,
     n_bins: int = 20,
     sample_rate: int = 16000,
-    window_seconds: float = 0.4,
+    window_seconds: float = 0.5,
     hop_seconds: float = 0.1,
     t_steps: int = 16,
     val_fraction: float = 0.25,
@@ -144,33 +145,55 @@ def train(
         lif=LIFLayerParams(),
     )
 
+    # Val accuracy is noisy from one epoch to the next (each window's own
+    # Poisson draw, plus a small dataset) -- more epochs alone mostly makes
+    # it oscillate longer around the same spot rather than climb, because a
+    # FIXED step size keeps overshooting the minimum it is circling. Decay
+    # shrinks the step as training goes on, so later epochs actually settle
+    # instead of just adding more oscillation; keeping the best-val-seen
+    # weights (not whichever epoch happens to be last) is what turns "ran
+    # longer" into "more precise" rather than "equally noisy, just slower".
+    best_val_acc = -1.0
+    best_w1, best_w2 = weights.w1.copy(), weights.w2.copy()
     for epoch in range(epochs):
+        current_lr = lr * (lr_decay**epoch)
         order = rng.permutation(len(train_x))
         total_loss, correct = 0.0, 0
         for i in order:
             loss, predicted, grad_w1, grad_w2 = _forward_backward(
                 train_x[i], int(train_y[i]), weights, seed=int(rng.randint(0, 2**31 - 1))
             )
-            weights.w1 -= lr * grad_w1
-            weights.w2 -= lr * grad_w2
+            weights.w1 -= current_lr * grad_w1
+            weights.w2 -= current_lr * grad_w2
             total_loss += loss
             correct += int(predicted == train_y[i])
         train_acc = correct / len(train_x)
         val_acc = _evaluate(val_x, val_y, weights, seed=seed)
-        print(f"epoch {epoch + 1:3d}/{epochs}  loss={total_loss / len(train_x):.4f}  train_acc={train_acc:.2f}  val_acc={val_acc:.2f}")
+        if len(val_x) and val_acc >= best_val_acc:
+            best_val_acc = val_acc
+            best_w1, best_w2 = weights.w1.copy(), weights.w2.copy()
+        marker = " *" if len(val_x) and val_acc == best_val_acc else ""
+        print(
+            f"epoch {epoch + 1:3d}/{epochs}  lr={current_lr:.3f}  loss={total_loss / len(train_x):.4f}  "
+            f"train_acc={train_acc:.2f}  val_acc={val_acc:.2f}{marker}"
+        )
 
+    if len(val_x):
+        weights.w1, weights.w2 = best_w1, best_w2
+        print(f"melhor val_acc durante o treino: {best_val_acc:.2f} (pesos salvos são desse ponto, não do último epoch)")
     return weights
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--epochs", type=int, default=40)
+    parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--lr", type=float, default=0.5)
+    parser.add_argument("--lr-decay", type=float, default=0.985, help="per-epoch multiplier on --lr")
     parser.add_argument("--hidden", type=int, default=32)
     parser.add_argument("--out", type=Path, default=_WEIGHTS_PATH)
     args = parser.parse_args()
 
-    weights = train(epochs=args.epochs, lr=args.lr, hidden=args.hidden)
+    weights = train(epochs=args.epochs, lr=args.lr, lr_decay=args.lr_decay, hidden=args.hidden)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     save_weights(str(args.out), weights)
     print(f"pesos salvos em {args.out}")

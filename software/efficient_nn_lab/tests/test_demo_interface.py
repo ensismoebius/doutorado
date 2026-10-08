@@ -14,7 +14,7 @@ from efficient_nn_lab.bitnet.demos.guided_sequence import GuidedBitNetDemo
 from efficient_nn_lab.bitnet.demos.scalar_quantization import ScalarQuantizationDemo
 from efficient_nn_lab.comparison.ann_bitnet_snn import AnnBitnetSnnComparisonDemo
 from efficient_nn_lab.comparison.autoencoders import AutoencoderComparisonDemo
-from efficient_nn_lab.live.demo import LiveVowelSnnDemo
+from efficient_nn_lab.live.demo import LiveVowelSnnDemo, LiveVowelSnnNodesDemo
 from efficient_nn_lab.paraconsistent.demos.dpenalized import ParaconsistentDPenalizedDemo
 from efficient_nn_lab.paraconsistent.demos.ga_pareto import ParaconsistentGaParetoDemo
 from efficient_nn_lab.paraconsistent.demos.plane import ParaconsistentPlaneDemo
@@ -60,6 +60,7 @@ ALL_DEMO_CLASSES = [
     AnnBitnetSnnComparisonDemo,
     AutoencoderComparisonDemo,
     LiveVowelSnnDemo,
+    LiveVowelSnnNodesDemo,
 ]
 
 

@@ -253,6 +253,7 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | Comparação → ANN x BitNet x SNN | Em que ANN, BitNet e SNN diferem? | fixo |
 | Comparação → Autoencoders (SNN x LSTM x GRU x Transformer) | Como o Meeting01 compara quatro famílias de autoencoder sem trapacear: mesmo gargalo (o tamanho do latente decide o placar), mesmo alvo (o bug B2), referências média e PCA? PCA de verdade sobre janelas sintéticas; as quatro famílias não recebem números inventados. | `latent` |
 | SNN → Classificação de vogais ao vivo (microfone) | A única demonstração com um classificador REALMENTE treinado (todas as outras usam dados fixos ou sintéticos, de propósito): uma SNN pequena reconhece, ao vivo pelo microfone, qual vogal (a/e/i/o/u) está sendo falada, com os disparos das camadas oculta e de saída e a confiança por vogal em tempo real. Ver `live/README` abaixo para gravar amostras e treinar antes de usar. | microfone (sem parâmetro) |
+| SNN → Classificação de vogais ao vivo (neurônios) | O mesmo classificador ao vivo, desta vez mostrando os NEURÔNIOS da rede — uma bolinha por neurônio de entrada, oculto e de saída, brilhando com a atividade recente, ligadas pelos pesos (W1, W2) realmente aprendidos — em vez do gráfico de disparos no tempo. | microfone (sem parâmetro) |
 
 ### A tabela da comparação se dimensiona sozinha
 
