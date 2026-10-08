@@ -21,9 +21,14 @@
 		\end{aligned}
 	\end{equation*}
 	\begin{equation*}
-		\frac{\partial L}{\partial w} \approx -0{,}1640
-		\quad\Longrightarrow\quad
-		w_1 = -1{,}0 - 3{,}0 \cdot(-0{,}1640) \approx -0{,}508
+		\begin{aligned}
+			\frac{\partial L}{\partial w} & =
+			\underbrace{(y-\text{alvo})}_{\partial L/\partial y} \!\cdot\!
+			\underbrace{y(1-y)}_{\sigma'(z)} \!\cdot\!
+			\underbrace{x}_{\partial z/\partial w}
+			= (-0{,}7808) \cdot 0{,}1050 \cdot 2{,}0 \approx -0{,}1640 \\
+			w_1 & = -1{,}0 - 3{,}0 \cdot(-0{,}1640) \approx -0{,}508
+		\end{aligned}
 	\end{equation*}
 	\par Repetindo os quatro passos, $y$ converge para o alvo. É exatamente esse ciclo que se questiona: E se os pesos só valerem $\{-1,0,1\}$, ou se a ativação virar um pulso discreto?
 \end{frame}

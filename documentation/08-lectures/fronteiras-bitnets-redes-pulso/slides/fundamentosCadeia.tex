@@ -5,23 +5,48 @@
 	\setlength{\belowdisplayskip}{2pt}
 	\begin{itemize}
 		\setlength{\itemsep}{0pt}
-		\item No forward, $W_2$ levou 2 valores (os ocultos) para 1 (a saída). O gradiente precisa fazer o caminho \textbf{inverso}: 1 volta para 2. A matriz que faz isso é a \textbf{mesma}, só que transposta: o que era linha vira coluna. \newline \newline \textbf{O erro volta pelos próprios pesos do forward}, não por pesos novos.\newline 
-		\item $W \leftarrow W - \eta \, \partial L/\partial W$\newline
+		\item No forward, $W_2$ levou 2 valores (os ocultos $H_1,H_2$) para 1 (a saída $O$). O gradiente faz o caminho \textbf{inverso}: de 1 volta para 2. A matriz que faz isso é a \textbf{mesma}, só que transposta: o que era \textbf{linha} vira \textbf{coluna}. \textbf{O erro volta pelos próprios pesos do forward}, não por pesos novos.
 	\end{itemize}
-	
 	\begin{equation*}
 		\frac{\partial L}{\partial x} = W^{\top} \frac{\partial L}{\partial z}
 		\qquad\qquad
 		\frac{\partial L}{\partial W} = \frac{\partial L}{\partial z} \otimes \text{entrada}
 	\end{equation*}
-	\par A regra da cadeia diluída nessas matrizes é o produto das derivadas locais de cada elo do caminho $x_1 \rightarrow H_1 \rightarrow O \rightarrow L$:
+	\par Continuando a rede do slide anterior ($H_1 \approx 0{,}6365$, $H_2 \approx 0{,}4775$) até a saída $O$, com $W_2 = \begin{bmatrix}1{,}2 & -0{,}9\end{bmatrix}$ (1 linha: 2 entradas $\to$ 1 saída) e alvo $=0{,}9$:
 	\begin{equation*}
-		\frac{\partial L}{\partial w_{11}} =
-		\underbrace{(-0{,}3173)}_{\partial L/\partial y_O} \!\cdot\!
-		\underbrace{0{,}2432}_{\sigma'(z_O)} \!\cdot\!
-		\underbrace{1{,}2}_{w_{H_1 O}} \!\cdot\!
-		\underbrace{0{,}2314}_{\sigma'(z_{H_1})} \!\cdot\!
-		\underbrace{0{,}9}_{x_1}
-		= -0{,}01928
+		\begin{aligned}
+			& z_O = W_2 \cdot H = 1{,}2 \!\cdot\! 0{,}6365 + (-0{,}9) \!\cdot\! 0{,}4775 \approx 0{,}3340 \Rightarrow \\
+			& y_O = \sigma(z_O) \approx 0{,}5827 \Rightarrow \\
+			& L = \tfrac12(y_O - \text{alvo})^2 \approx 0{,}0503
+			\ \Rightarrow\
+			\frac{\partial L}{\partial y_O} = y_O - \text{alvo} \approx -0{,}3173
+		\end{aligned}
 	\end{equation*}
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{A cadeia completa: de $\partial L/\partial y_O$ até o peso $w_{11}$}
+	\small
+	\setlength{\abovedisplayskip}{2pt}
+	\setlength{\belowdisplayskip}{2pt}
+	\par \textbf{Passo 1 --- atravessa a sigmoide de $O$:}
+	\begin{equation*}
+		\frac{\partial L}{\partial z_O} = \frac{\partial L}{\partial y_O} \cdot \sigma'(z_O) \approx (-0{,}3173)\cdot 0{,}2432 \approx -0{,}0771
+	\end{equation*}
+	\par \textbf{Passo 2 --- volta por $W_2^{\top}$ (a linha vira coluna: 1 escalar $\to$ 2 valores, um por neurônio oculto):}
+	\begin{equation*}
+		\underbrace{\begin{bmatrix} 1{,}2 \\ -0{,}9 \end{bmatrix}}_{W_2^{\top}} \cdot (-0{,}0771)
+		=
+		\begin{bmatrix} -0{,}0926 \\ 0{,}0694 \end{bmatrix}
+		=
+		\begin{bmatrix} \partial L/\partial H_1 \\ \partial L/\partial H_2 \end{bmatrix}
+	\end{equation*}
+	\par \textbf{Passo 3 --- atravessa a sigmoide de $H_1$ e chega no peso $w_{11}$ (de $x_1$ para $H_1$):}
+	\begin{equation*}
+		\begin{aligned}
+			\frac{\partial L}{\partial z_{H_1}} & = \frac{\partial L}{\partial H_1}\cdot \sigma'(z_{H_1}) \approx (-0{,}0926)\cdot 0{,}2314 \approx -0{,}0214 \\
+			\frac{\partial L}{\partial w_{11}} & = \frac{\partial L}{\partial z_{H_1}} \cdot x_1 \approx (-0{,}0214)\cdot 0{,}9 \approx -0{,}01928
+		\end{aligned}
+	\end{equation*}
+	\par Mesmo resultado de antes --- agora com cada multiplicação da cadeia visível, não só o produto final.
 \end{frame}
