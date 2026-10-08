@@ -190,15 +190,21 @@ def _simulate() -> list[PhysicsSample]:
 #: needs to depend on (or be recomputed for) the demo's `target` slider.
 TRAJECTORY: list[PhysicsSample] = _simulate()
 
-#: The five narrative legs, as (start_x_threshold, end_x_threshold) pairs in
-#: the SAME order as `rube_goldberg_chain.py`'s five gadget checkpoints
-#: (funnel+ramp1, lever, ramp2, pulley, bucket). Each is a half-open slice
-#: of `TRAJECTORY` by ball x-position -- the ball never stops moving
-#: between them (a real machine doesn't pause between gadgets either), so
-#: these are where one gadget's influence on the picture hands off to the
-#: next, not places the ball rests.
+#: The six narrative legs, as (start_x_threshold, end_x_threshold) pairs,
+#: ONE PER CLICK -- in the SAME order as `rube_goldberg_chain.py`'s six
+#: checkpoint-to-checkpoint motion gaps (funnel drop, ramp 1, lever, ramp
+#: 2, pulley, bucket). Each is a half-open slice of `TRAJECTORY` by ball
+#: x-position -- the ball never stops moving between them (a real machine
+#: doesn't pause between gadgets either), so these are where one gadget's
+#: influence on the picture hands off to the next, not places the ball
+#: rests. Deliberately six, not five: an earlier version folded the
+#: funnel-drop into the ramp-1 leg, which meant the FIRST click of the demo
+#: produced no visible motion at all (ball just faded in, standing still)
+#: -- confirmed by simulating a click end to end and tracing ball_x across
+#: it. Every click must move the ball, including the first one.
 LEG_X_BOUNDS: tuple[tuple[float, float], ...] = (
-    (P_SPAWN[0], P_RAMP1_BOTTOM[0]),
+    (P_SPAWN[0], P_RAMP1_TOP[0]),
+    (P_RAMP1_TOP[0], P_RAMP1_BOTTOM[0]),
     (P_RAMP1_BOTTOM[0], P_LEVER_RIGHT[0]),
     (P_LEVER_RIGHT[0], P_RAMP2_BOTTOM[0]),
     (P_RAMP2_BOTTOM[0], P_BUCKET_DROP_TOP[0]),

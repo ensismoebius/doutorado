@@ -145,9 +145,10 @@ class RubeGoldbergChainDemo(DemoModule):
         snap(
             "A bolinha cai no funil",
             f"O funil recebe o erro da rede: ∂L/∂a2 = {chain_values[0]:+.4f}. É o primeiro fator "
-            "da cadeia -- a bolinha nasce com este valor e já começa a rolar rampa abaixo.",
+            "da cadeia -- a bolinha nasce com este valor e cai pelo funil até o topo da primeira "
+            "rampa.",
             "∂L/∂a2 = a_2 - alvo",
-            **_ball_fields(leg_boundary_sample(0, end=False)),
+            **_ball_fields(leg_boundary_sample(0, end=True)),
             ball_value=chain_partials[0], ball_reveal=1.0,
             station_fired=onehot(0), station_glow=onehot(0),
         )
@@ -157,7 +158,7 @@ class RubeGoldbergChainDemo(DemoModule):
             "sempre um número entre 0 e 0,25, então a bolinha SEMPRE encolhe aqui. Produto até "
             f"agora: {chain_partials[0]:+.4f} · {chain_values[1]:.4f} = {chain_partials[1]:+.5f}.",
             "σ'(z_2) = a_2 (1 - a_2)",
-            **_ball_fields(leg_boundary_sample(0, end=True)),
+            **_ball_fields(leg_boundary_sample(1, end=True)),
             ball_value=chain_partials[1], ball_reveal=1.0,
             station_fired=(onehot(0) + onehot(1)), station_glow=onehot(1),
         )
@@ -174,7 +175,7 @@ class RubeGoldbergChainDemo(DemoModule):
             f"A alavanca multiplica pelo peso w2 = {chain_values[2]:+.2f}. {sign_note} Produto "
             f"até agora: {chain_partials[2]:+.5f}.",
             "∂z2/∂a1 = w_2",
-            **_ball_fields(leg_boundary_sample(1, end=True)),
+            **_ball_fields(leg_boundary_sample(2, end=True)),
             ball_value=chain_partials[2], ball_reveal=1.0,
             station_fired=(onehot(0) + onehot(1) + onehot(2)), station_glow=onehot(2),
         )
@@ -184,7 +185,7 @@ class RubeGoldbergChainDemo(DemoModule):
             "Não é a mesma rampa da camada 2 -- cada ativação tem a sua. Produto até agora: "
             f"{chain_partials[3]:+.6f}.",
             "σ'(z_1) = a_1 (1 - a_1)",
-            **_ball_fields(leg_boundary_sample(2, end=True)),
+            **_ball_fields(leg_boundary_sample(3, end=True)),
             ball_value=chain_partials[3], ball_reveal=1.0,
             station_fired=(onehot(0) + onehot(1) + onehot(2) + onehot(3)), station_glow=onehot(3),
         )
@@ -194,7 +195,7 @@ class RubeGoldbergChainDemo(DemoModule):
             f"{chain_values[4]:+.2f}. É o quinto e último fator -- produto final: "
             f"{chain_partials[4]:+.6f}.",
             "∂z1/∂w1 = x",
-            **_ball_fields(leg_boundary_sample(3, end=True)),
+            **_ball_fields(leg_boundary_sample(4, end=True)),
             ball_value=chain_partials[4], ball_reveal=1.0,
             station_fired=(onehot(0) + onehot(1) + onehot(2) + onehot(3) + onehot(4)),
             station_glow=onehot(4),
@@ -233,18 +234,20 @@ class RubeGoldbergChainDemo(DemoModule):
         simulated trajectory instead of a generic eased interpolation.
 
         `checkpoints` is always [intro, funnel, ramp1, lever, ramp2, pulley,
-        bucket, recap] (8 entries, built in `_build_frames`): the 5 middle
-        gaps (funnel->ramp1, ramp1->lever, ..., pulley->bucket) are where
-        the ball actually moves, in the same order as `LEG_X_BOUNDS`. The
-        intro->funnel gap (the ball appearing) and bucket->recap gap (a
-        glow-only change) have no motion, so they keep the ordinary
+        bucket, recap] (8 entries, built in `_build_frames`): the first 6
+        gaps (intro->funnel, funnel->ramp1, ..., pulley->bucket) are where
+        the ball actually moves, in the same order as `LEG_X_BOUNDS` --
+        EVERY click animates real motion, including the first one (the
+        ball visibly falls through the funnel, not just fades in in
+        place). Only the last gap (bucket->recap, a glow-only change with
+        the ball already at rest) has no motion and keeps the ordinary
         generic tween untouched.
         """
         n_motion_gaps = len(LEG_X_BOUNDS)
         sequence = [checkpoints[0]]
         for gap_index, (a, b) in enumerate(zip(checkpoints, checkpoints[1:])):
             tweened = transition(a, b, steps=PHYSICS_TWEEN_STEPS)
-            leg_index = gap_index - 1
+            leg_index = gap_index
             if 0 <= leg_index < n_motion_gaps:
                 samples = leg_samples(leg_index, PHYSICS_TWEEN_STEPS)
                 for frame, sample in zip(tweened, samples):

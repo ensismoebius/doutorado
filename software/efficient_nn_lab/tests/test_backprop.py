@@ -945,7 +945,7 @@ def test_rube_goldberg_lever_tips_under_the_balls_weight():
     it -- a REAL tip caused by the ball's weight, not a fixed decoration."""
     from efficient_nn_lab.backprop.demos.rube_goldberg_physics import LEVER_REST_ANGLE, LEG_X_BOUNDS, TRAJECTORY
 
-    x0, x1 = LEG_X_BOUNDS[1]  # the lever leg
+    x0, x1 = LEG_X_BOUNDS[2]  # the lever leg (0=funnel, 1=ramp1, 2=lever, ...)
     lever_angles_during = [s.lever_angle for s in TRAJECTORY if x0 <= s.ball_x <= x1]
     assert lever_angles_during, "ball never crossed the lever's x-range"
     max_deviation = max(abs(a - LEVER_REST_ANGLE) for a in lever_angles_during)

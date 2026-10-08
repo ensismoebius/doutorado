@@ -68,8 +68,21 @@ class RubeGoldbergRendererMixin:
         "roldana\n× x",
     )
 
-    # -- static track (skeleton-first: drawn every frame, faint, so the
-    # whole machine's shape is visible before the first click) -------------
+    #: Every piece of the machine -- connectors AND the ramps/floor the
+    #: gadget overlays also draw over -- shares this one stroke weight, so
+    #: the rail reads as one continuous mechanism. The earlier version drew
+    #: the connectors as a separate, much thinner/fainter "skeleton" line
+    #: than the bold gadget overlays (5-6pt): at every hand-off the bold
+    #: piece visibly thinned to a pale thread before the next bold piece
+    #: picked up, which read as disconnected floating objects even though
+    #: the endpoints were coordinate-exact (confirmed by rendering and
+    #: cropping each junction -- a real bug report, not a false alarm).
+    _RG_RAIL_LINEWIDTH = 5.0
+    _RG_RAIL_ALPHA = 0.55
+
+    # -- static track (rail-first: drawn every frame at full stroke weight,
+    # so the whole machine's shape reads as one connected mechanism before
+    # the first click, not a diagram of separate labelled parts) -----------
     def _rg_track_skeleton(self) -> None:
         segments = (
             (P_FUNNEL_TOP, P_RAMP1_TOP),
@@ -83,11 +96,19 @@ class RubeGoldbergRendererMixin:
             ((BUCKET_RIGHT_WALL_X, P_BUCKET_FLOOR_LEFT[1]), (BUCKET_RIGHT_WALL_X, BUCKET_WALL_TOP)),
         )
         for a, b in segments:
-            self._ax.plot([a[0], b[0]], [a[1], b[1]], color=NEUTRAL_COLOR, linewidth=2.2, alpha=_SKELETON_ALPHA, zorder=0, solid_capstyle="round")
+            self._ax.plot(
+                [a[0], b[0]], [a[1], b[1]], color=NEUTRAL_COLOR, linewidth=self._RG_RAIL_LINEWIDTH,
+                alpha=self._RG_RAIL_ALPHA, zorder=0, solid_capstyle="round",
+            )
 
     def _rg_funnel(self, color: str, alpha: float) -> None:
-        x, y = P_FUNNEL_TOP[0], P_FUNNEL_TOP[1] + 0.35
-        pts = [(x - 0.85, y + 0.55), (x + 0.85, y + 0.55), (x + 0.2, y - 0.55), (x - 0.2, y - 0.55)]
+        # bottom opening centred exactly ON P_FUNNEL_TOP (the rail's own
+        # start point) rather than above it, so the spout and the rail
+        # meet at one coincident point instead of the rail emerging from
+        # partway up the funnel's sloped side.
+        x, y_bottom = P_FUNNEL_TOP
+        y_top = y_bottom + 1.1
+        pts = [(x - 0.85, y_top), (x + 0.85, y_top), (x + 0.15, y_bottom), (x - 0.15, y_bottom)]
         self._ax.add_patch(Polygon(pts, closed=True, facecolor=color, edgecolor=color, alpha=alpha, linewidth=1.5, zorder=1))
 
     def _rg_lever(self, lever_angle: float, color: str, alpha: float) -> None:
@@ -116,7 +137,8 @@ class RubeGoldbergRendererMixin:
         left_x = P_BUCKET_FLOOR_LEFT[0]
         pts = [(left_x, floor_y), (BUCKET_RIGHT_WALL_X, floor_y), (BUCKET_RIGHT_WALL_X, BUCKET_WALL_TOP), (left_x, floor_y + 1.1)]
         self._ax.add_patch(Polygon(
-            pts, closed=False, facecolor="none", edgecolor=color, alpha=max(alpha, _SKELETON_ALPHA), linewidth=2.2, zorder=1,
+            pts, closed=False, facecolor="none", edgecolor=color, alpha=max(alpha, self._RG_RAIL_ALPHA),
+            linewidth=self._RG_RAIL_LINEWIDTH, zorder=1,
         ))
         if alpha > 0.02:
             self._ax.add_patch(Polygon(pts, closed=True, facecolor=color, edgecolor="none", alpha=_FILL_ALPHA * alpha, zorder=0))
