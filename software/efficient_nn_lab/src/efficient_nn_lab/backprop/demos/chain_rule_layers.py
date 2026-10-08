@@ -114,7 +114,7 @@ _FACTOR_NODE = (NODE_L, NODE_A2, NODE_Z2, NODE_A1, NODE_Z1)
 
 
 
-def compute_chain_1_1_1(target: float) -> dict[str, float]:
+def compute_chain_1_1_1(target: float, w2: float = _W2, x: float = _X) -> dict[str, float]:
     """Forward e backward da rede 1->1->1, com TODOS os fatores intermediários.
 
     Devolve cada derivada local em separado (não só os gradientes finais),
@@ -124,20 +124,25 @@ def compute_chain_1_1_1(target: float) -> dict[str, float]:
     Função livre (não método) porque a demo da máquina de Rube Goldberg
     (backprop/demos/rube_goldberg_chain.py) precisa exatamente desta mesma
     conta, com a mesma rede -- reusar esta função é o que garante que as
-    duas demos mostram, por construção, o mesmo resultado numérico.
+    duas demos concordam POR CONSTRUÇÃO sempre que `w2`/`x` estão nos seus
+    valores padrão (`_W2`/`_X`). `w2` e `x` existem como parâmetros (em vez
+    de ficarem só como as constantes do módulo) porque a máquina de Rube
+    Goldberg deixa o usuário arrastar a alavanca (define `w2`) e a roldana
+    (define `x`) para QUALQUER rede 1->1->1 -- a partir daí as duas demos
+    legitimamente mostram redes diferentes, e só concordam de novo se o
+    usuário arrastar de volta aos valores padrão. `target` nunca teve essa
+    ambiguidade (sempre foi um slider nas duas demos).
     """
-    x = _X
-
     z1 = _W1 * x + _B1
     a1 = float(sigmoid(z1))
-    z2 = _W2 * a1 + _B2
+    z2 = w2 * a1 + _B2
     a2 = float(sigmoid(z2))
     loss = float(squared_error_loss(a2, target))
 
     # derivadas locais, uma por elo do caminho
     dL_da2 = float(loss_gradient_wrt_y(a2, target))  # a2 - alvo
     sp2 = float(sigmoid_derivative(z2))              # ∂a2/∂z2
-    dz2_da1 = _W2                                    # ∂z2/∂a1
+    dz2_da1 = w2                                     # ∂z2/∂a1
     sp1 = float(sigmoid_derivative(z1))              # ∂a1/∂z1
     dz2_dw2 = a1                                     # ∂z2/∂w2
     dz1_dw1 = x                                      # ∂z1/∂w1
@@ -154,7 +159,7 @@ def compute_chain_1_1_1(target: float) -> dict[str, float]:
 
     return {
         "x": x, "w1": _W1, "b1": _B1, "z1": z1, "a1": a1,
-        "w2": _W2, "b2": _B2, "z2": z2, "a2": a2,
+        "w2": w2, "b2": _B2, "z2": z2, "a2": a2,
         "target": target, "loss": loss,
         "dL_da2": dL_da2, "sp2": sp2, "delta2": delta2,
         "dz2_dw2": dz2_dw2, "g_w2": delta2 * dz2_dw2,

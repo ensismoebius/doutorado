@@ -907,57 +907,85 @@ def test_rube_goldberg_station_fired_is_cumulative_and_monotonic():
 
 
 def test_rube_goldberg_ball_reaches_the_bucket():
-    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import P_BUCKET_FLOOR_LEFT, final_sample
+    from efficient_nn_lab.backprop.demos.chain_rule_layers import _W2, _X, compute_chain_1_1_1
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import final_sample, simulate_machine
 
     demo = _rube_demo()
     last = demo.checkpoint_frames()[-1].values
-    rest = final_sample()
+    coeffs = compute_chain_1_1_1(demo.target, w2=_W2, x=_X)
+    run = simulate_machine(coeffs["sp2"], coeffs["sp1"], _W2)
+    rest = final_sample(run)
     assert float(last["ball_x"]) == pytest.approx(rest.ball_x)
     assert float(last["ball_y"]) == pytest.approx(rest.ball_y)
-    assert float(last["ball_x"]) > P_BUCKET_FLOOR_LEFT[0] - 0.2
+    assert float(last["ball_x"]) > run.layout.bucket_floor_left[0] - 0.2
     assert float(last["bucket_reveal"]) >= 0.999
 
 
 def test_rube_goldberg_physics_is_deterministic():
     """No randomness anywhere in the simulation (ESPECIFICACAO_DLVL.md #35)
-    -- re-simulating must give the bit-identical trajectory."""
-    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import _simulate
+    -- re-simulating the SAME (sp2, sp1, w2) must give the bit-identical
+    trajectory."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import simulate_machine
 
-    a = _simulate()
-    b = _simulate()
-    assert len(a) == len(b)
-    assert all(x == y for x, y in zip(a, b))
+    a = simulate_machine(0.24, 0.23, -1.3)
+    b = simulate_machine(0.24, 0.23, -1.3)
+    assert len(a.trajectory) == len(b.trajectory)
+    assert all(x == y for x, y in zip(a.trajectory, b.trajectory))
 
 
 def test_rube_goldberg_ball_x_is_monotonic_and_never_leaves_the_track():
     """The ball travels strictly left to right (it never backtracks past a
     gadget it already cleared) and never falls through the floor."""
-    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import TRAJECTORY
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import simulate_machine
 
-    xs = [s.ball_x for s in TRAJECTORY]
-    ys = [s.ball_y for s in TRAJECTORY]
+    run = simulate_machine(0.24, 0.23, -1.3)
+    xs = [s.ball_x for s in run.trajectory]
+    ys = [s.ball_y for s in run.trajectory]
     assert all(b >= a - 0.1 for a, b in zip(xs, xs[1:])), "ball moved backward through the machine"
-    assert min(ys) > -1.0, "ball fell through the floor"
+    assert min(ys) > run.layout.bucket_floor_left[1] - 1.5, "ball fell through the floor"
 
 
 def test_rube_goldberg_lever_tips_under_the_balls_weight():
     """The lever must swing away from its rest angle while the ball is on
     it -- a REAL tip caused by the ball's weight, not a fixed decoration."""
-    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import LEVER_REST_ANGLE, LEG_X_BOUNDS, TRAJECTORY
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import simulate_machine
 
-    x0, x1 = LEG_X_BOUNDS[2]  # the lever leg (0=funnel, 1=ramp1, 2=lever, ...)
-    lever_angles_during = [s.lever_angle for s in TRAJECTORY if x0 <= s.ball_x <= x1]
+    run = simulate_machine(0.24, 0.23, -1.3)
+    x0, x1 = run.leg_x_bounds[2]  # the lever leg (0=funnel, 1=ramp1, 2=lever, ...)
+    lever_angles_during = [s.lever_angle for s in run.trajectory if x0 <= s.ball_x <= x1]
     assert lever_angles_during, "ball never crossed the lever's x-range"
-    max_deviation = max(abs(a - LEVER_REST_ANGLE) for a in lever_angles_during)
+    max_deviation = max(abs(a - run.layout.lever_rest_angle) for a in lever_angles_during)
     assert max_deviation > math.radians(3.0), "lever barely moved under the ball's weight"
 
 
 def test_rube_goldberg_pulley_spins_as_the_ball_passes():
     """The pulley must have accumulated real rotation by the time the ball
     has passed it -- not just sat there as a static icon."""
-    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import final_sample
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import final_sample, simulate_machine
 
-    assert abs(final_sample().pulley_angle) > math.radians(30.0)
+    run = simulate_machine(0.24, 0.23, -1.3)
+    assert abs(final_sample(run).pulley_angle) > math.radians(30.0)
+
+
+def test_rube_goldberg_physics_robust_across_drag_range():
+    """The user can drag w2/x anywhere in their bounds -- every combination
+    must still land the ball in the bucket, not strand it somewhere on the
+    track. A layout that only worked for the one default (w2, x) would
+    silently break the first time someone actually drags a handle."""
+    from efficient_nn_lab.backprop.demos.chain_rule_layers import compute_chain_1_1_1
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import (
+        W2_DRAG_BOUNDS, X_DRAG_BOUNDS, final_sample, simulate_machine,
+    )
+
+    w2_values = [W2_DRAG_BOUNDS[0], -1.3, -0.05, 0.05, 1.3, W2_DRAG_BOUNDS[1]]
+    x_values = [X_DRAG_BOUNDS[0], 0.0, 0.9, X_DRAG_BOUNDS[1]]
+    for w2 in w2_values:
+        for x in x_values:
+            c = compute_chain_1_1_1(0.2, w2=w2, x=x)
+            run = simulate_machine(c["sp2"], c["sp1"], w2)
+            rest = final_sample(run)
+            assert rest.ball_x > run.layout.bucket_floor_left[0] - 0.3, (w2, x, rest)
+            assert rest.ball_x < run.layout.bucket_right_wall_x, (w2, x, rest)
 
 
 def test_rube_goldberg_every_frame_renders(qapp):
@@ -973,7 +1001,8 @@ def test_rube_goldberg_every_frame_renders(qapp):
 
 def test_rube_goldberg_canvas_click_only_advances_for_this_demo(qapp):
     """The click-to-push interaction is gated to this demo's kind alone --
-    a click while any OTHER demo's picture is on screen must not emit."""
+    a click (press + release, away from either drag handle) while any OTHER
+    demo's picture is on screen must not emit."""
     from efficient_nn_lab.widgets.neuron_view import NeuronView
 
     view = NeuronView()
@@ -981,12 +1010,111 @@ def test_rube_goldberg_canvas_click_only_advances_for_this_demo(qapp):
     view.advance_requested.connect(lambda: received.append(1))
 
     view.render(_chain_demo().current_frame().values)  # kind == "chain_layers"
-    view._on_canvas_click(None)
+    view._on_canvas_press(None)
+    view._on_canvas_release(None)
     assert received == []
 
     view.render(_rube_demo().current_frame().values)  # kind == "rube_goldberg"
-    view._on_canvas_click(None)
+    view._on_canvas_press(None)
+    view._on_canvas_release(None)
     assert received == [1]
+
+
+class _FakeMouseEvent:
+    """Minimal stand-in for a matplotlib `MouseEvent` -- the drag handlers
+    only ever read `.xdata`/`.ydata`, so a real event (which needs a live
+    canvas/backend) isn't necessary to exercise them."""
+
+    def __init__(self, xdata, ydata):
+        self.xdata = xdata
+        self.ydata = ydata
+
+
+def test_rube_goldberg_handle_hit_test_finds_lever_and_pulley_only():
+    """Pressing near the lever hits "w2", near the pulley hits "x", and
+    everywhere else (including the ball/track) hits nothing -- the other
+    three gadgets are consequences, not handles (see the demo's docstring)."""
+    from efficient_nn_lab.widgets.renderers.rube_goldberg import RubeGoldbergRendererMixin
+
+    hit_test = RubeGoldbergRendererMixin()
+    values = _rube_demo().current_frame().values
+    layout = values["layout"]
+
+    assert hit_test.rg_handle_at(values, *layout.lever_pivot) == "w2"
+    assert hit_test.rg_handle_at(values, *layout.pulley_center) == "x"
+    assert hit_test.rg_handle_at(values, *layout.funnel_top) is None
+    assert hit_test.rg_handle_at(values, *layout.ramp1_top) is None
+    assert hit_test.rg_handle_at(values, 1000.0, 1000.0) is None
+
+
+def test_rube_goldberg_drag_lever_commits_new_w2(qapp):
+    """Dragging the lever up/down and releasing must emit `("w2", value)`
+    with `value` inside W2_DRAG_BOUNDS and tracking the drag direction."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import W2_DRAG_BOUNDS
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    view = NeuronView()
+    view.render(_rube_demo().current_frame().values)
+    layout = view._last_values["layout"]
+    px, py = layout.lever_pivot
+
+    received = []
+    view.parameter_drag_committed.connect(lambda name, value: received.append((name, value)))
+
+    view._on_canvas_press(_FakeMouseEvent(px, py))
+    assert view._rg_drag_param == "w2"
+    view._on_canvas_motion(_FakeMouseEvent(px, py + 1.5))  # drag upward
+    view._on_canvas_release(_FakeMouseEvent(px, py + 1.5))
+
+    assert view._rg_drag_param is None  # drag state cleared after release
+    assert len(received) == 1
+    name, value = received[0]
+    assert name == "w2"
+    lo, hi = W2_DRAG_BOUNDS
+    assert lo <= value <= hi
+    # dragging upward from the demo's default w2 (-1.3) must move the
+    # value upward (toward more positive), not snap somewhere unrelated.
+    assert value > -1.3
+
+
+def test_rube_goldberg_drag_pulley_commits_new_x_and_rebuilds_physics(qapp):
+    """Dragging the roldana commits a new `x` AND, once applied via
+    set_parameter (the same path a slider uses), the resulting network's
+    two ramp angles must differ from the default layout -- the whole point
+    of "only true free parameters are draggable, everything else follows"."""
+    from efficient_nn_lab.widgets.neuron_view import NeuronView
+
+    demo = _rube_demo()
+    original_layout = demo.current_frame().values["layout"]
+
+    view = NeuronView()
+    view.render(demo.current_frame().values)
+    layout = view._last_values["layout"]
+    px, py = layout.pulley_center
+
+    received = []
+    view.parameter_drag_committed.connect(lambda name, value: received.append((name, value)))
+    view._on_canvas_press(_FakeMouseEvent(px, py))
+    assert view._rg_drag_param == "x"
+    view._on_canvas_release(_FakeMouseEvent(px, py - 2.0))  # drag downward
+
+    assert len(received) == 1
+    name, value = received[0]
+    assert name == "x"
+    assert value < demo.x  # dragged downward from the default -> smaller x
+
+    demo.set_parameter("x", value)
+    new_layout = demo.current_frame().values["layout"]
+    assert new_layout.ramp1_bottom != original_layout.ramp1_bottom
+    assert new_layout.ramp2_bottom != original_layout.ramp2_bottom
+
+
+def test_rube_goldberg_lever_and_pulley_captions_mark_them_draggable():
+    from efficient_nn_lab.widgets.renderers.rube_goldberg import RubeGoldbergRendererMixin
+
+    assert "arraste" in RubeGoldbergRendererMixin._RG_GADGET_CAPTIONS[2].lower()  # alavanca
+    assert "arraste" in RubeGoldbergRendererMixin._RG_GADGET_CAPTIONS[4].lower()  # roldana
+    assert "arraste" not in RubeGoldbergRendererMixin._RG_GADGET_CAPTIONS[0].lower()  # funil
 
 
 def test_rube_goldberg_equations_all_typeset():

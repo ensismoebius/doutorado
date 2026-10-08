@@ -624,6 +624,11 @@ class MainWindow(QMainWindow):
         # is the exact same "advance to next checkpoint" call as the button
         # above, gated inside NeuronView to only fire for that one demo.
         self.neuron_view.advance_requested.connect(self._on_step_forward)
+        # backprop.rube_goldberg's two draggable handles (lever -> w2,
+        # roldana -> x): same (name, value) shape as a slider's
+        # parameter_changed, so it reuses _on_parameter_changed directly
+        # instead of a second update path.
+        self.neuron_view.parameter_drag_committed.connect(self._on_parameter_changed)
         self.controls.play_clicked.connect(self._on_play)
         self.controls.pause_clicked.connect(self._on_pause)
         self.controls.fast_loop_clicked.connect(self._on_fast_loop)

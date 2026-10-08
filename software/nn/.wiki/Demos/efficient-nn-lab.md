@@ -238,8 +238,15 @@ give the gradient at all?* — with the same network and the same five factors s
 REAL 2D physics simulation, `backprop/demos/rube_goldberg_physics.py`, pymunk: the ball
 rolls down the ramps along their actual slope, the lever tips under its weight through a
 pivot+spring, the pulley spins from rolling contact friction — intuition before this demo's
-rigor, and still fully deterministic, since the simulation has no randomness and is run
-once at import time.) It draws a 1→1→1 network as **six** blocks
+rigor, and still fully deterministic, since any fixed `(w2, x)` pair always replays the
+identical trajectory, with no randomness anywhere in the simulation. The lever and the
+pulley are draggable — "edit between runs": drag while paused, release to re-run the real
+`compute_chain_1_1_1` math once with the new value and watch the machine re-simulate. They
+are the *only* draggable pieces because `w2` and `x` are the network's only genuinely free
+parameters; σ'(z2), σ'(z1), and ∂L/∂a2 are mathematically derived from them, never
+independently settable, so the ramps re-tilt on their own as a consequence of the drag
+instead of being handles themselves — dragging never shows a number that didn't come out
+of the real backward pass.) It draws a 1→1→1 network as **six** blocks
 rather than two neurons — `x`, `z1`, `a1`, `z2`, `a2`, `L` — because a layer is a linear op
 *and* an activation, and the chain rule treats each as its own link. Under each block, in the
 same column, sits that block's local derivative; a block with parameters gets one card per
