@@ -7,11 +7,12 @@
 	\[
 		p_t = x \cdot r_{\max}, \qquad s_t \sim \mathrm{Bernoulli}(p_t)
 	\]
+	onde $x \in [0,1]$ é a entrada, $r_{\max} \in (0,1]$ a taxa máxima, $p_t$ a probabilidade no passo $t$ e $s_t \in \{0,1\}$ o disparo ($1$ = pulso, $0$ = silêncio).
 	\begin{center}
 		\footnotesize
 		\begin{tabular}{lcc}
 			\toprule
-			\textbf{Estímulo de entrada} & \textbf{Probabilidade ($r_{\max}=0{,}9$)} & \textbf{Média esperada ($T=10$)} \\
+			\textbf{Entrada ($x$)} & \textbf{Probabilidade ($p$)} & \textbf{Média $\mathbb{E}[N]$ ($T=10$)} \\
 			\midrule
 			Pixel escuro ($x = 0{,}1$) & $p = 0{,}09$ (9\%) & $\mathbb{E}[N] = 10 \times 0{,}09 = 0{,}9$ pulso \\
 			Pixel brilhante ($x = 0{,}6$) & $p = 0{,}54$ (54\%) & $\mathbb{E}[N] = 10 \times 0{,}54 = 5{,}4$ pulsos \\
@@ -21,8 +22,8 @@
 	\end{center}
 	\begin{itemize}
 		\setlength{\itemsep}{1pt}
-		\item A cada passo $\Delta t$, sorteia-se independentemente se o pulso ocorre ou não.
-		\item A informação não está no instante exato de um pulso individual, mas na \textbf{taxa média de disparos} ao longo da janela simulada.
+		\item $N = \sum_{t=1}^T s_t$ é a contagem total de pulsos acumulada nos $T$ passos.
+		\item A informação reside na \textbf{taxa média de disparos} ao longo da janela simulada.
 	\end{itemize}
 \end{frame}
 
@@ -40,7 +41,7 @@
 		\item \textbf{Limitações e o custo da variância}:
 		\begin{itemize}
 			\item \textbf{Variância de amostragem}: duas repetições do mesmo estímulo geram sequências diferentes de pulsos.
-			\item \textbf{Custo de latência e energia}: estimar a taxa com precisão ($\sigma \propto 1/\sqrt{T}$, com $\sigma = (p(1-p)/T)^{1/2}$) exige $T$ grande. Para o pixel brilhante do quadro anterior ($p=0{,}54$): em $T=10$, $\sigma \approx 0{,}158$ (29\% de erro relativo); em $T=50$, $\sigma \approx 0{,}070$ (13\%) --- 5$\times$ mais passos (mais pulsos, mais tempo, mais energia) para menos que a metade do erro.
+			\item \textbf{Custo de latência e energia}: estimar a taxa pela frequência $\hat{p} = N/T$ com desvio padrão $\sigma = \sqrt{p(1-p)/T}$ exige $T$ grande. Para o pixel brilhante anterior ($p=0{,}54$): em $T=10$, $\sigma \approx 0{,}158$ (29\% de erro relativo); em $T=50$, $\sigma \approx 0{,}070$ (13\%) --- 5$\times$ mais passos (mais pulsos, mais tempo, mais energia) para menos que a metade do erro.
 			\item Com poucos passos ($T$ curto), essa dispersão atua como um ruído intrínseco.
 		\end{itemize}
 	\end{itemize}

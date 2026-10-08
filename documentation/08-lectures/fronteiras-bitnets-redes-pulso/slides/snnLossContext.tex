@@ -10,11 +10,11 @@
 			\toprule
 			& \textbf{Alvo desejado} & \textbf{Previsão da rede} \\
 			\midrule
-			\textbf{Instante do pulso} (latência, $T=16$) & Quadro $t = 4$ & Quadro $t = 12$ \\
-			\textbf{Contagem total de pulsos} & 1 pulso & 1 pulso \\
+			\textbf{Instante do pulso ($t$)} & $t_{\mathrm{alvo}} = 4$ & $t_{\mathrm{pred}} = 12$ \\
+			\textbf{Contagem de pulsos ($N$)} & $N_{\mathrm{alvo}} = 1$ & $N_{\mathrm{pred}} = 1$ \\
 			\midrule
-			\textbf{Perda por contagem (taxa)} & \multicolumn{2}{c}{$(1 - 1)^2 = \mathbf{0} \implies \text{Erro zero (ilusão de acerto)}$} \\
-			\textbf{Perda temporal (latência)} & \multicolumn{2}{c}{$(12 - 4)^2 = \mathbf{64} \implies \text{Erro: 8 passos atrasado}$} \\
+			\textbf{Perda de contagem ($L_{\mathrm{taxa}}$)} & \multicolumn{2}{c}{$(N_{\mathrm{pred}} - N_{\mathrm{alvo}})^2 = (1 - 1)^2 = \mathbf{0} \implies \text{Erro zero (ilusão)}$} \\
+			\textbf{Perda temporal ($L_{\mathrm{tempo}}$)} & \multicolumn{2}{c}{$(t_{\mathrm{pred}} - t_{\mathrm{alvo}})^2 = (12 - 4)^2 = \mathbf{64}$ (8 passos atrasado)} \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
@@ -36,8 +36,8 @@
 		\end{itemize}
 		\item \textbf{Falha Silenciosa 2: Gradientes mortos na perda temporal (\textit{SpikeTimeLoss})}:
 		\begin{itemize}
-			\item Para códigos temporais, mede-se $|t_{\mathrm{pred}} - t_{\mathrm{alvo}}|^2$.
-			\item Se um neurônio \textbf{nunca dispara} em nenhum dos $T$ passos, adota-se $t_{\mathrm{pred}} = T$.
+			\item Para códigos temporais, mede-se a perda quadrática $L = (t_{\mathrm{pred}} - t_{\mathrm{alvo}})^2$.
+			\item Se um neurônio \textbf{nunca dispara} em nenhum dos $T$ passos, adota-se a convenção de penalidade máxima $t_{\mathrm{pred}} = T$ (o fim da janela temporal).
 			\item A perda reportada é alta, mas como o neurônio nunca cruzou o limiar, a derivada do tempo de disparo não fornece gradiente para erguer o potencial!
 			\item O neurônio entra em silêncio irreversível durante o restante do treino.
 		\end{itemize}

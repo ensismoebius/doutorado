@@ -5,7 +5,7 @@ animates BitNet quantization and spiking-neural-network mechanics, one step at a
 one-hour undergraduate lecture. It is **not** part of the C++ `nn` library and shares no code
 with it — it is the live companion to the LaTeX deck in
 `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`, opened on stage at the moment the
-matching slide is on screen. 27 demos across 6 groups, 2415 precomputed frames, zero
+matching slide is on screen. 27 demos across 6 groups, 2427 precomputed frames, zero
 randomness at playback time -- except the newest, standalone group, **Demonstração ao
 vivo**: two demos sharing one real trained model and the live microphone instead of a
 precomputed frame list, differing only in which picture of the live state is on screen --
@@ -124,7 +124,7 @@ flowchart TD
     P["Demo parameters<br/>(sliders: w, tau, target...)"] --> B["_build_frames()<br/>deterministic, no RNG"]
     B --> C["checkpoints<br/>named steps"]
     C --> T["build_sequence()<br/>+ tween frames"]
-    T --> L["Frame list<br/>2415 frames across 27 demos"]
+    T --> L["Frame list<br/>2427 frames across 27 demos"]
     L --> S["StepPlayer<br/>40 ms tick / 1100 ms dwell"]
     S --> M["MainWindow._refresh_frame()<br/>routes on values['kind']"]
     M --> V["SignalView / WeightView / NeuronView<br/>render(values)"]
@@ -235,7 +235,11 @@ the eye to integrate them.
 does each factor of the chain rule come from?* (`backprop.rube_goldberg`, right before it,
 answers a different question first — *why does multiplying five local derivatives in a row
 give the gradient at all?* — with the same network and the same five factors staged as a
-physical machine, intuition before this demo's rigor.) It draws a 1→1→1 network as **six** blocks
+REAL 2D physics simulation, `backprop/demos/rube_goldberg_physics.py`, pymunk: the ball
+rolls down the ramps along their actual slope, the lever tips under its weight through a
+pivot+spring, the pulley spins from rolling contact friction — intuition before this demo's
+rigor, and still fully deterministic, since the simulation has no randomness and is run
+once at import time.) It draws a 1→1→1 network as **six** blocks
 rather than two neurons — `x`, `z1`, `a1`, `z2`, `a2`, `L` — because a layer is a linear op
 *and* an activation, and the chain rule treats each as its own link. Under each block, in the
 same column, sits that block's local derivative; a block with parameters gets one card per

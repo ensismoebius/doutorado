@@ -16,6 +16,9 @@ dependencies = [
     # PortAudio, which needs its own system package on Linux
     # (libportaudio2 on Debian/Ubuntu) -- see README.md.
     "sounddevice>=0.4",
+    # backprop.rube_goldberg demo only (backprop/demos/rube_goldberg_physics.py):
+    # a real 2D physics engine for the ball/lever/pulley simulation.
+    "pymunk>=6.6",
 ]
 
 [project.optional-dependencies]

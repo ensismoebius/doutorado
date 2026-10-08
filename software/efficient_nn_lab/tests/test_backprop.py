@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 
@@ -904,11 +906,58 @@ def test_rube_goldberg_station_fired_is_cumulative_and_monotonic():
     assert np.all(np.asarray(checkpoints[-1].values["station_fired"], dtype=float) >= 0.999)
 
 
-def test_rube_goldberg_ball_progress_reaches_the_bucket():
+def test_rube_goldberg_ball_reaches_the_bucket():
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import P_BUCKET_FLOOR_LEFT, final_sample
+
     demo = _rube_demo()
     last = demo.checkpoint_frames()[-1].values
-    assert float(last["ball_progress"]) == pytest.approx(5.0)
+    rest = final_sample()
+    assert float(last["ball_x"]) == pytest.approx(rest.ball_x)
+    assert float(last["ball_y"]) == pytest.approx(rest.ball_y)
+    assert float(last["ball_x"]) > P_BUCKET_FLOOR_LEFT[0] - 0.2
     assert float(last["bucket_reveal"]) >= 0.999
+
+
+def test_rube_goldberg_physics_is_deterministic():
+    """No randomness anywhere in the simulation (ESPECIFICACAO_DLVL.md #35)
+    -- re-simulating must give the bit-identical trajectory."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import _simulate
+
+    a = _simulate()
+    b = _simulate()
+    assert len(a) == len(b)
+    assert all(x == y for x, y in zip(a, b))
+
+
+def test_rube_goldberg_ball_x_is_monotonic_and_never_leaves_the_track():
+    """The ball travels strictly left to right (it never backtracks past a
+    gadget it already cleared) and never falls through the floor."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import TRAJECTORY
+
+    xs = [s.ball_x for s in TRAJECTORY]
+    ys = [s.ball_y for s in TRAJECTORY]
+    assert all(b >= a - 0.1 for a, b in zip(xs, xs[1:])), "ball moved backward through the machine"
+    assert min(ys) > -1.0, "ball fell through the floor"
+
+
+def test_rube_goldberg_lever_tips_under_the_balls_weight():
+    """The lever must swing away from its rest angle while the ball is on
+    it -- a REAL tip caused by the ball's weight, not a fixed decoration."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import LEVER_REST_ANGLE, LEG_X_BOUNDS, TRAJECTORY
+
+    x0, x1 = LEG_X_BOUNDS[1]  # the lever leg
+    lever_angles_during = [s.lever_angle for s in TRAJECTORY if x0 <= s.ball_x <= x1]
+    assert lever_angles_during, "ball never crossed the lever's x-range"
+    max_deviation = max(abs(a - LEVER_REST_ANGLE) for a in lever_angles_during)
+    assert max_deviation > math.radians(3.0), "lever barely moved under the ball's weight"
+
+
+def test_rube_goldberg_pulley_spins_as_the_ball_passes():
+    """The pulley must have accumulated real rotation by the time the ball
+    has passed it -- not just sat there as a static icon."""
+    from efficient_nn_lab.backprop.demos.rube_goldberg_physics import final_sample
+
+    assert abs(final_sample().pulley_angle) > math.radians(30.0)
 
 
 def test_rube_goldberg_every_frame_renders(qapp):

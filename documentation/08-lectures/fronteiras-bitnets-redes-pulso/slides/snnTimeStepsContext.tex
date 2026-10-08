@@ -18,8 +18,8 @@
 	\begin{itemize}
 		\setlength{\itemsep}{1pt}
 		\item \textbf{Janela temporal simulada total}: $t_{\mathrm{total}} = T \cdot \Delta t$.
-		\item Com $T=16$ e $\Delta t=1\,\text{ms}$, simula-se $16\,\text{ms}$. Se $\Delta t = 0{,}1\,\text{ms}$, os mesmos 16 passos cobrem apenas $1{,}6\,\text{ms}$ de física real.
-		\item $T$ dita o \textbf{esforço computacional} (laços no tempo); $\Delta t$ dita a \textbf{escala temporal física} da dinâmica neuronal \cite{gerstner2014neuronal, eshraghian2023training}.
+		\item Com $T=16$ passos e $\Delta t=1\,\text{ms}$, simula-se $16\,\text{ms}$. Se $\Delta t = 0{,}1\,\text{ms}$, os mesmos 16 passos cobrem apenas $1{,}6\,\text{ms}$ de física real.
+		\item $T$ dita o \textbf{esforço computacional} (número de laços temporais); $\Delta t$ dita a \textbf{escala temporal física} da dinâmica neuronal \cite{gerstner2014neuronal, eshraghian2023training}.
 	\end{itemize}
 \end{frame}
 
@@ -30,13 +30,15 @@
 	\begin{itemize}
 		\setlength{\itemsep}{2pt}
 		\item \textbf{Memória e decaimento do potencial ($\beta$)}:
-		No neurônio LIF, a fração do potencial que sobrevive entre passos sucessivos é $\beta = \exp(-\Delta t / \tau)$. Com constante de tempo $\tau = 5\,\text{ms}$:
+		No neurônio LIF, a fração do potencial que sobrevive entre passos sucessivos é $\beta = \exp(-\Delta t / \tau)$, onde $\tau = RC$ é a constante de tempo da membrana (resistência $R \times$ capacitância $C$). Com $\tau = 5\,\text{ms}$:
 		\begin{itemize}
 			\item Se $\Delta t = 1\,\text{ms}$: $\beta = e^{-0{,}2} \approx 0{,}82 \implies$ a membrana retém 82\% da carga (memória temporal ativa).
 			\item Se $\Delta t = 16\,\text{ms}$: $\beta = e^{-3{,}2} \approx 0{,}04 \implies$ o potencial vaza quase todo em um único passo (perda de memória).
 		\end{itemize}
-		\item \textbf{Custo computacional e BPTT}: Mais passos ($T$ alto) capturam dinâmicas mais ricas, mas elevam o custo de tempo e de memória de treino linearmente ($O(T)$).
-		\item \textbf{Armadilha na ordem dos tensores}: $(T,B,F)$ guarda a linha $t \cdot B + b$; $(B,T,F)$ guarda a linha $b \cdot T + t$ --- duas ordens diferentes para os MESMOS dados. Exemplo com $T=2, B=2$: a ordem real é $[b_0t_0,\, b_0t_1,\, b_1t_0,\, b_1t_1]$. Se o código espera $(T,B,F)$ mas recebe $(B,T,F)$, a linha 1 --- de verdade $b_0t_1$, o \textbf{segundo} passo da amostra 0 --- é lida como "amostra 1 no passo $t{=}0$": o LIF encadeia a memória de \textbf{duas amostras diferentes} como se fosse uma única linha do tempo. Sem erro, sem aviso --- o treino roda e aprende algo errado (falha silenciosa).
+		\item \textbf{Custo computacional e BPTT}: Mais passos ($T$ alto) capturam dinâmicas ricas, mas elevam tempo e memória de treino linearmente ($O(T)$).
+		\item \textbf{Armadilha na ordem dos tensores}: Em tensores com dimensões Tempo ($T$), Lote ($B$, \textit{batch size}) e Características ($F$, \textit{features}):
+		$(T,B,F)$ indexa a linha por $t \cdot B + b$, enquanto $(B,T,F)$ indexa por $b \cdot T + t$ (onde $t \in [0, T-1]$ e $b \in [0, B-1]$).
+		Se o código espera $(T,B,F)$ mas recebe $(B,T,F)$, a linha $b_0t_1$ (segundo passo da amostra 0) é lida como "amostra 1 no passo $t{=}0$": o LIF encadeia a memória de \textbf{duas amostras distintas} como se fosse uma mesma linha do tempo, gerando uma falha silenciosa no aprendizado.
 	\end{itemize}
 	\par\vfill{\tiny Referências: \cite{gerstner2014neuronal, eshraghian2023training}.}
 \end{frame}
