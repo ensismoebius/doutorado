@@ -57,10 +57,12 @@ class AutoencoderComparisonDemo(DemoModule):
     title = "Comparação -> Autoencoders (SNN x LSTM x GRU x Transformer)"
     slug = "comparison.autoencoders"
     description = (
-        "Como o experimento Meeting01 compara quatro famílias de autoencoder sem trapacear: "
-        "mesmo gargalo, mesmo alvo, referências lineares (média e PCA) e avaliação num locutor "
-        "nunca visto. PCA de verdade sobre janelas sintéticas; as quatro famílias não são "
-        "treinadas aqui e não recebem números inventados."
+        "Como o experimento Meeting01 compara quatro famílias de autoencoder -- SNN (Spiking "
+        "Neural Network, rede neural de pulso), LSTM (Long Short-Term Memory), GRU (Gated "
+        "Recurrent Unit) e Transformer -- sem trapacear: mesmo gargalo, mesmo alvo (áudio ou "
+        "EEG, eletroencefalograma), referências lineares (média e PCA, Análise de Componentes "
+        "Principais) e avaliação num locutor nunca visto. PCA de verdade sobre janelas "
+        "sintéticas; as quatro famílias não são treinadas aqui e não recebem números inventados."
     )
 
     def __init__(self) -> None:
@@ -113,7 +115,7 @@ class AutoencoderComparisonDemo(DemoModule):
 
         x, guess = float(window[sample]), float(pca.mean[sample])
         mse_step = frame(
-            "Erro de reconstrução: o MSE",
+            "Erro de reconstrução: o MSE (Erro Quadrático Médio)",
             "Como medir 'deu certo'? Amostra a amostra: erro = original − reconstrução, ao quadrado; "
             f"o MSE é a média nas {WINDOW}. O palpite mais preguiçoso devolve a janela média do treino "
             f"(≈ 0 em toda amostra). Na amostra {sample} o original vale {x:.2f} e o palpite "
@@ -178,8 +180,9 @@ class AutoencoderComparisonDemo(DemoModule):
             "Quatro famílias, quatro jeitos de ler a janela",
             "SNN: a janela é apresentada ao longo de T = 16 passos — como corrente analógica (codificação "
             "direta, sem pulsos na entrada) ou como pulsos (Poisson ou latência); a codificação também é "
-            "buscada. LSTM e GRU: leem a janela em quadros, um após o outro, "
-            "levando memória num estado oculto (a GRU com menos portas). Transformer: vê todos os "
+            "buscada. LSTM (Long Short-Term Memory) e GRU (Gated Recurrent Unit): leem a janela em "
+            "quadros, um após o outro, levando memória num estado oculto (a GRU com menos portas). "
+            "Transformer: vê todos os "
             "quadros de uma vez e pesa cada par por atenção. Custo medido por época neste framework "
             f"(CPU, lote 1, redes típicas): SNN {cost['SNN-AE']:g} s; Transformer "
             f"{cost['Transformer-AE']:.0f} s; LSTM {cost['LSTM-AE']:.0f} s; GRU {cost['GRU-AE']:.0f} s.",
@@ -189,7 +192,8 @@ class AutoencoderComparisonDemo(DemoModule):
 
         verdict_step = frame(
             "Quem vence? Só o experimento diz",
-            "No Meeting01 cada família busca a própria arquitetura (NSGA-II) com o mesmo latente; a "
+            "No Meeting01 cada família busca a própria arquitetura (NSGA-II, uma busca genética por "
+            "Pareto) com o mesmo latente; a "
             "vencedora é avaliada uma única vez num locutor ou sujeito nunca visto (6 dobras, um grupo "
             "de fora por vez), e a estatística é pareada por gravação — janelas da mesma gravação não "
             "são independentes. Para valer, a família precisa ficar abaixo da PCA. Este app não treina "

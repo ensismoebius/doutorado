@@ -5,3 +5,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# live/record.py's own voice recordings for the vowel-classifier demo --
+# personal audio, no reason to leave this machine. Trained weights
+# (live/weights/vowel_snn_weights.npz) are NOT excluded: those are just
+# numbers and are meant to be committed once trained.
+data/vowel_snn/

@@ -78,8 +78,9 @@ class PoissonImageCodingDemo(DemoModule):
     #: through 30 checkpoints with a 1,1s dwell each never shows that.
     supports_fast_loop = True
     description = (
-        "Cada pixel de uma imagem real vira um neurônio: dispara, passo a passo, com probabilidade "
-        "proporcional ao seu brilho. Só a soma de vários passos faz a imagem reaparecer."
+        "Numa SNN (Spiking Neural Network, rede neural de pulso), cada pixel de uma imagem real "
+        "vira um neurônio: dispara, passo a passo, com probabilidade proporcional ao seu brilho. "
+        "Só a soma de vários passos faz a imagem reaparecer."
     )
 
     def __init__(self) -> None:

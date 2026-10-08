@@ -24,7 +24,23 @@ class SignalView(QWidget):
         super().__init__(parent)
         self._figure = Figure(figsize=(6, 3.6))
         self._canvas = FigureCanvasQTAgg(self._figure)
-        self._ax_top, self._ax_bottom = self._figure.subplots(2, 1, sharex=True, height_ratios=[2, 1])
+        # sharex=False (NOT the default-looking choice it seems): every
+        # render() here already sets its own xlim on each axis explicitly
+        # (see _mpl_perf.fast_clear's docstring), and most kinds plot the
+        # *same* quantity -- "tempo (passos)" -- on both panels, so a
+        # shared x-axis cost nothing there. snn.poisson_image breaks that
+        # assumption: its top panel is TWO pixel grids side by side
+        # (~2*cols+gutter columns) and its bottom panel is ONE (~cols
+        # columns) -- genuinely different widths, not "the same x,
+        # redundantly set twice". With sharex=True, Matplotlib locks both
+        # axes to whichever set_xlim call ran *last* in the render --
+        # here, the bottom panel's narrower range -- so the top panel's
+        # right half (the whole rate-decoded estimate) silently fell
+        # outside the view and Patrick's face rendered cropped into
+        # roughly its left half, reading as "zoomed in". Each axis
+        # keeping its own x-range is what every other kind already
+        # assumed was happening.
+        self._ax_top, self._ax_bottom = self._figure.subplots(2, 1, sharex=False, height_ratios=[2, 1])
         self._default_top_pos = self._ax_top.get_position()
         self._default_bottom_pos = self._ax_bottom.get_position()
         # cached, not recreated every frame -- see widgets/_mpl_perf.py.
@@ -36,6 +52,29 @@ class SignalView(QWidget):
     def render(self, values: dict[str, object]) -> None:
         fast_clear(self._ax_top)
         fast_clear(self._ax_bottom)
+        # fast_clear only drops artists (lines, images, text...); an axis's
+        # title and aspect-ratio mode are Axes-level *properties*, not
+        # artists, so they are NOT among them -- and most render methods
+        # below only ever set the title/aspect they want, never the ones
+        # they don't, on the assumption that "not set" means "default".
+        # On this widget's long-lived, reused axes that assumption is
+        # false: once _render_poisson_image runs, both axes are left with
+        # aspect="equal" (pixels-must-stay-square, so Patrick doesn't
+        # distort) and a "Spikes sorteados..." title -- and every kind
+        # that renders next, lif_trace included, silently inherits both.
+        # aspect="equal" is the more damaging of the two: combined with
+        # adjustable="datalim" it makes Matplotlib override that next
+        # kind's OWN explicit set_ylim to keep pixels square against
+        # whatever box shape this panel happens to have, which is how a
+        # LIF membrane trace deliberately set to (-0.1, 1.4) rendered at
+        # (-3.1, 4.4) instead -- a wrong, arbitrary range that reads as
+        # "the curve barely moves", not a deliberately chosen margin.
+        # Resetting both to Matplotlib's own defaults here, before any
+        # kind runs, is what makes "a render() that doesn't set X" actually
+        # mean "X is default" again.
+        for ax in (self._ax_top, self._ax_bottom):
+            ax.set_title("")
+            ax.set_aspect("auto")
         if self._inset_ax is not None:
             self._inset_ax.set_visible(False)
         kind = values.get("kind")
@@ -200,6 +239,16 @@ class SignalView(QWidget):
         spikes = np.asarray(values["spikes"])
         v_th = float(values["v_th"])
         t = np.arange(len(membrane))
+        # The module docstring above promises a FIXED x-axis -- the trace
+        # grows left-to-right inside it as the animation steps, instead of
+        # the axis rescaling to whatever partial slice is plotted this
+        # frame. Falls back to the partial length only for a values dict
+        # that predates "n_total" (e.g. a test building one by hand); the
+        # real demo always supplies it now.
+        n_total = int(values.get("n_total", len(t) if len(t) else 1))
+        x_right = max(1, n_total - 1)
+        self._ax_top.set_xlim(0, x_right)
+        self._ax_bottom.set_xlim(0, x_right)
 
         self._ax_top.plot(t, current, color=ACCENT_COLOR, linewidth=2)
         if len(t):

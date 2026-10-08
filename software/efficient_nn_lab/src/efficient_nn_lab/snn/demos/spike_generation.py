@@ -22,7 +22,10 @@ _N_STEPS = 60
 class SpikeGenerationDemo(DemoModule):
     title = "SNN -> Sinal e spikes"
     slug = "snn.spikes"
-    description = "Um sinal contínuo cruza um nível; cada cruzamento de subida produz um spike."
+    description = (
+        "A entrada mais simples de uma SNN (Spiking Neural Network, rede neural de pulso): um "
+        "sinal contínuo cruza um nível; cada cruzamento de subida produz um spike."
+    )
 
     def __init__(self) -> None:
         self.level = 0.4
@@ -30,7 +33,7 @@ class SpikeGenerationDemo(DemoModule):
 
     def parameters(self) -> dict[str, dict[str, object]]:
         return {
-            "level": slider("Nivel de disparo", 0.1, 0.9, 0.05, self.level)
+            "level": slider("Nível de disparo", 0.1, 0.9, 0.05, self.level)
         }
 
     def _build_frames(self) -> list[Frame]:

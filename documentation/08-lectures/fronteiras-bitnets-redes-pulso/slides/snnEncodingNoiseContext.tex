@@ -1,0 +1,22 @@
+\begin{frame}[shrink]
+	\frametitle{Cada codificação tem seu próprio piso de erro}
+	\small
+	\par Mesmo antes do treino, converter um valor contínuo em pulsos pode perder precisão. Esse \textbf{piso de codificação} não é ruído do sensor nem erro do classificador: é o erro que a representação e sua leitura já permitem.
+	\par Exemplo idealizado: $x$ uniforme em $[0,1]$, $T=16$ passos e a mesma métrica (erro RMS de reconstrução):
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			\textbf{Codificação} & \textbf{De onde vem o erro} & \textbf{Piso RMS} \\
+			\midrule
+			Direta & $x$ entra sem quantização em pulsos & $0$ \\
+			Latência & arredondamento para um dos 16 instantes & $\frac{1}{15\sqrt{12}}\approx 0{,}019$ \\
+			Poisson & contagem aleatória de pulsos & $\sqrt{\frac{1}{6\cdot16}}\approx 0{,}102$ \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item O zero da codificação direta vale só para esta etapa ideal de entrada e reconstrução; não significa que a rede inteira terá erro zero.
+		\item \textbf{Por que importa?} Se um modelo começa com um piso maior, comparar apenas seu erro final pode atribuir à arquitetura uma diferença que veio da codificação.
+		\item Compare as redes com o mesmo $T$, a mesma métrica e em relação ao piso de cada codificação. A escolha entre códigos também envolve latência, energia e robustez, não só erro \cite{eshraghian2023training, liu2023firstspike}.
+	\end{itemize}
+\end{frame}

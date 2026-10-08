@@ -13,7 +13,7 @@ from math import ceil
 
 import numpy as np
 
-from PySide6.QtCore import QCoreApplication, QEvent, QRect, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QRect, Qt, QTimer
 from PySide6.QtGui import QFontMetrics, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QSizePolicy,
+    QSplitter,
     QStackedWidget,
     QTextEdit,
     QTreeWidget,
@@ -35,7 +37,9 @@ from efficient_nn_lab.app.theme import TEXT_COLOR, build_stylesheet, compute_ui_
 from efficient_nn_lab.core.animation import StepPlayer
 from efficient_nn_lab.core.demo import DemoModule
 from efficient_nn_lab.core.state import AppState
+from efficient_nn_lab.live.demo import LiveVowelSnnDemo
 from efficient_nn_lab.widgets.controls import ControlsWidget
+from efficient_nn_lab.widgets.live_spike_view import LiveSpikeView
 from efficient_nn_lab.widgets.neuron_view import NeuronView
 from efficient_nn_lab.widgets.signal_view import SignalView
 from efficient_nn_lab.widgets.weight_view import WeightView
@@ -155,7 +159,9 @@ _WELCOME_TEXT = (
     "Efficient Neural Networks Lab\n\n"
     "Selecione uma demonstração à esquerda para começar.\n"
     "Atalhos: Espaço = play/pause, -> = próximo passo, <- = passo anterior, "
-    "R = reset, N = próxima demo, Esc = voltar ao menu."
+    "R = reset, N = próxima demo, Esc = voltar ao menu.\n\n"
+    "Categorias: SNN (Spiking Neural Network, rede neural de pulso), BitNet "
+    "(pesos ternários) e Comparação (ANN, Artificial Neural Network, x BitNet x SNN)."
 )
 
 # The frame-title and explanation labels under the canvas are kept at a
@@ -199,6 +205,13 @@ _MAX_TEXT_SHARE = 0.28
 #: The demo's description paragraph is a subtitle, not the demo. Capped so
 #: a wordy one cannot claim a third of a short window.
 _DESCRIPTION_MAX_LINES = 4
+
+#: Width of the collapsed sidebar: just the re-expand button. Shared by
+#: the button's own setFixedWidth and the splitter size calculation in
+#: _on_sidebar_collapse_clicked -- QPushButton.sizeHint() does not reflect
+#: a fixed width set via setFixedWidth, so that calculation cannot derive
+#: this number from the button itself and both must agree on one constant.
+_SIDEBAR_COLLAPSED_WIDTH = 28
 
 # The equation panel is a fixed-height framed box so toggling it never
 # reflows the right column mid-playback; the rendered equation is scaled
@@ -266,6 +279,14 @@ def _build_demo_tree(include_bitnet: bool = True) -> dict[str, list[DemoModule]]
         "Comparação": [
             AnnBitnetSnnComparisonDemo(),
             AutoencoderComparisonDemo(),
+        ],
+        # Last on purpose (_demo_order walks this dict in insertion order,
+        # and that order IS the lecture running order -- see _demo_order's
+        # docstring): the one demo with a really-trained model and live
+        # input is the natural closer, not something to stumble into
+        # mid-deck via "Próxima demo".
+        "Demonstração ao vivo": [
+            LiveVowelSnnDemo(),
         ],
     }
     return _filter_bitnet_demos(groups, include_bitnet)
@@ -356,6 +377,14 @@ class MainWindow(QMainWindow):
         self._full_demo_groups = _build_demo_tree(include_bitnet=True)
         self._demo_groups = self._full_demo_groups
         self.player: StepPlayer | None = None
+        # Drives LiveVowelSnnDemo.poll_and_advance()/snapshot() independently
+        # of StepPlayer (which animates between precomputed Frames -- the
+        # live demo has only one, static, placeholder Frame; see
+        # live/demo.py). Same interval as StepPlayer's own tick so neither
+        # one visibly out-paces the other if both happened to run at once.
+        self._live_timer = QTimer(self)
+        self._live_timer.setInterval(40)
+        self._live_timer.timeout.connect(self._on_live_tick)
 
         self._build_ui()
         self._build_shortcuts()
@@ -387,26 +416,74 @@ class MainWindow(QMainWindow):
 
     # -- UI construction --------------------------------------------------
     def _build_ui(self) -> None:
-        central = QWidget()
-        self.setCentralWidget(central)
-        root = QHBoxLayout(central)
+        # A QSplitter, not a QHBoxLayout -- the sidebar used to be a fixed
+        # 260px (setMaximumWidth), which is wrong in both directions: too
+        # narrow once a demo's title wraps to two lines, too wide once
+        # "Mostrar parâmetros" is the only reason anyone needs the tree on
+        # screen at all. The splitter lets the viewer drag the boundary to
+        # whatever width their demo titles and window actually need.
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.setCentralWidget(self._splitter)
+
+        # The sidebar is its own container (collapse button above the
+        # tree), not the tree directly, so collapsing has something to
+        # collapse TO: hiding self.tree alone would leave an empty pane
+        # with no way back. Qt's own drag-to-the-edge collapse (the
+        # splitter default) still works as a bonus; this button is the
+        # discoverable path, since nothing about a splitter handle says
+        # "drag me all the way to hide this".
+        self._sidebar = QWidget()
+        sidebar_layout = QVBoxLayout(self._sidebar)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(2)
+        self._sidebar_collapse_btn = QPushButton("◀")  # ◀, flips to ▶ when collapsed
+        self._sidebar_collapse_btn.setToolTip("Recolher/expandir a barra lateral")
+        self._sidebar_collapse_btn.setFixedWidth(_SIDEBAR_COLLAPSED_WIDTH)
+        self._sidebar_collapse_btn.clicked.connect(self._on_sidebar_collapse_clicked)
+        sidebar_layout.addWidget(self._sidebar_collapse_btn, alignment=Qt.AlignmentFlag.AlignLeft)
 
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        self.tree.setMaximumWidth(260)
+        self.tree.setMinimumWidth(120)
         self._populate_tree()
         self.tree.itemClicked.connect(self._on_tree_item_clicked)
-        root.addWidget(self.tree)
+        sidebar_layout.addWidget(self.tree)
+        self._splitter.addWidget(self._sidebar)
+        # the width to restore on expand -- set once here, then kept in
+        # sync with whatever the viewer last dragged it to (see
+        # _on_splitter_moved), so re-expanding lands where they left it
+        # instead of snapping back to this default every time.
+        self._sidebar_expanded_width = 260
+        self._sidebar_collapsed = False
 
-        right = QVBoxLayout()
+        right_container = QWidget()
+        right = QVBoxLayout(right_container)
         # kept for _apply_canvas_floor, which measures this column's own
         # spacing/margins instead of assuming them.
         self._right_column = right
-        root.addLayout(right, stretch=1)
+        self._splitter.addWidget(right_container)
+        self._splitter.setSizes([self._sidebar_expanded_width, 1])
+        # Only the right pane claims new space on window resize -- the
+        # sidebar existing at a comfortable, viewer-chosen width is the
+        # point; growing it on every window resize would undo that choice.
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        self._splitter.splitterMoved.connect(self._on_splitter_moved)
 
         top_bar = QHBoxLayout()
         self.demo_title_label = QLabel("Efficient Neural Networks Lab")
         self.demo_title_label.setObjectName("DemoTitle")
+        # Ignored, not the QLabel default (Preferred): a single-line,
+        # non-wrapping label's minimumSizeHint equals its FULL TEXT width,
+        # and the longest demo title (this placeholder text included) made
+        # the right-hand column refuse to shrink below ~910px -- which,
+        # at this window's default 1180px width, left the sidebar splitter
+        # at most ~260px to work with regardless of where the viewer
+        # dragged it: "resizable" in name only. Ignored tells the layout
+        # not to count this label's own preferred width as a floor; text
+        # longer than the space available still just clips, same as it
+        # always could at the window's minimum size.
+        self.demo_title_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         top_bar.addWidget(self.demo_title_label, stretch=1)
         # Lecture-mode navigation (a request in the old repo-root FIXME.md,
         # deleted in commit 933133a3): lecture mode hides the demo tree, which is the only way to change demo -- so in the mode
@@ -460,11 +537,13 @@ class MainWindow(QMainWindow):
         self.signal_view = SignalView()
         self.weight_view = WeightView()
         self.neuron_view = NeuronView()
+        self.live_spike_view = LiveSpikeView()
         self.references_view = QTextEdit(_REFERENCES_TEXT)
         self.references_view.setReadOnly(True)
         self.stack.addWidget(self.signal_view)
         self.stack.addWidget(self.weight_view)
         self.stack.addWidget(self.neuron_view)
+        self.stack.addWidget(self.live_spike_view)
         self.stack.addWidget(self.references_view)
         # The animation is the demo; the text under it is the caption. When
         # the window is short, Qt has to take the missing pixels from
@@ -538,6 +617,7 @@ class MainWindow(QMainWindow):
         self.controls.play_clicked.connect(self._on_play)
         self.controls.pause_clicked.connect(self._on_pause)
         self.controls.fast_loop_clicked.connect(self._on_fast_loop)
+        self.controls.capture_toggled.connect(self._on_capture_toggled)
         self.controls.speed_changed.connect(self._on_speed_changed)
         self.controls.parameter_changed.connect(self._on_parameter_changed)
         self.controls.show_equation_toggled.connect(self._on_equation_toggled)
@@ -591,6 +671,7 @@ class MainWindow(QMainWindow):
             self._select_demo(payload)
 
     def _select_demo(self, demo: DemoModule) -> None:
+        self._stop_live_capture_if_active()
         demo.reset()
         if self.player is not None:
             self.player.pause()
@@ -606,7 +687,10 @@ class MainWindow(QMainWindow):
         self.controls.setEnabled(True)
         self.next_demo_btn.setEnabled(True)
         self.controls.rebuild_parameters(demo.parameters())
-        self.controls.set_fast_loop_available(demo.supports_fast_loop)
+        is_live = demo.supports_live_capture
+        self.controls.set_fast_loop_available(demo.supports_fast_loop and not is_live)
+        self.controls.set_transport_visible(not is_live)
+        self.controls.set_live_capture_available(is_live)
         # The new sliders change the width the explanation label gets, but
         # Qt applies that layout change on the NEXT event-loop pass.
         # Measuring now would size the label for the previous demo's width,
@@ -851,6 +935,7 @@ class MainWindow(QMainWindow):
         return f"{label}    (passo {step}/{total})"
 
     def _show_welcome(self) -> None:
+        self._stop_live_capture_if_active()
         if self.player is not None:
             self.player.pause()
         self.demo_title_label.setText("Efficient Neural Networks Lab")
@@ -861,6 +946,7 @@ class MainWindow(QMainWindow):
         self.controls.setEnabled(False)
 
     def _show_references(self) -> None:
+        self._stop_live_capture_if_active()
         if self.player is not None:
             self.player.pause()
         self.demo_title_label.setText("Referências")
@@ -918,13 +1004,84 @@ class MainWindow(QMainWindow):
     def _on_playback_finished(self) -> None:
         self.controls.set_playing(False)
 
+    # -- live-capture demo (live/demo.py's LiveVowelSnnDemo) -------------
+    def _stop_live_capture_if_active(self) -> None:
+        """Make sure the microphone is never left open behind the scenes:
+        called before switching to any other demo, before showing the
+        welcome/references screens, and from closeEvent."""
+        self._live_timer.stop()
+        if self.player is not None and isinstance(self.player.demo, LiveVowelSnnDemo):
+            self.player.demo.stop_capture()
+            self.controls.set_capture_active(False)
+
+    def _on_capture_toggled(self, start: bool) -> None:
+        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemo):
+            return
+        demo = self.player.demo
+        if start:
+            demo.start_capture()
+            self._live_timer.start()
+        else:
+            demo.stop_capture()
+            self._live_timer.stop()
+        self.live_spike_view.render(demo.snapshot())
+
+    def _on_live_tick(self) -> None:
+        if self.player is None or not isinstance(self.player.demo, LiveVowelSnnDemo):
+            return
+        demo = self.player.demo
+        demo.poll_and_advance()
+        self.live_spike_view.render(demo.snapshot())
+
+    def closeEvent(self, event) -> None:  # noqa: N802 -- Qt's own method name
+        self._stop_live_capture_if_active()
+        super().closeEvent(event)
+
     # -- mode toggles -----------------------------------------------------
     def _on_lecture_mode_toggled(self, enabled: bool) -> None:
         self.state.lecture_mode = enabled
-        self.tree.setVisible(not enabled)
+        # the whole sidebar (collapse button included), not just the tree:
+        # lecture mode's point is to simplify the chrome down to nothing,
+        # and a lone collapse button for an already-gone tree is chrome
+        # with nothing left to do.
+        self._sidebar.setVisible(not enabled)
         self.professor_mode_btn.setVisible(not enabled)
         # next_demo_btn stays visible on purpose: with the tree gone it is
         # the only demo-to-demo navigation left.
+
+    def _on_sidebar_collapse_clicked(self) -> None:
+        """Collapse the sidebar to a thin strip (just the re-expand button),
+        or restore it to the last width the viewer dragged it to.
+
+        Collapsing hides `self.tree` and shrinks the splitter down to the
+        collapse button's own width rather than to 0: a 0-width pane has
+        nothing left on screen to click to bring it back, which is exactly
+        the trap a *discoverable* collapse control exists to avoid.
+        """
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        self.tree.setVisible(not self._sidebar_collapsed)
+        self._sidebar_collapse_btn.setText("▶" if self._sidebar_collapsed else "◀")
+        if self._sidebar_collapsed:
+            total = sum(self._splitter.sizes())
+            self._splitter.setSizes(
+                [_SIDEBAR_COLLAPSED_WIDTH, max(1, total - _SIDEBAR_COLLAPSED_WIDTH)]
+            )
+        else:
+            total = sum(self._splitter.sizes())
+            width = min(self._sidebar_expanded_width, max(120, total - 120))
+            self._splitter.setSizes([width, max(1, total - width)])
+
+    def _on_splitter_moved(self, _pos: int, _index: int) -> None:
+        """Remember a manually-dragged sidebar width, so re-expanding after
+        a collapse lands back where the viewer put it, not at the built-in
+        default every time. Ignored while collapsed -- that drag is the
+        collapsed strip itself being dragged, not a width worth keeping.
+        """
+        if self._sidebar_collapsed:
+            return
+        width = self._splitter.sizes()[0]
+        if width > 0:
+            self._sidebar_expanded_width = width
 
     def _on_professor_mode_toggled(self, enabled: bool) -> None:
         self.state.professor_mode = enabled
@@ -957,6 +1114,24 @@ class MainWindow(QMainWindow):
             return
         demo = self.player.demo
         frame = demo.current_frame()
+
+        if isinstance(demo, LiveVowelSnnDemo):
+            # The live demo has only one static Frame (see live/demo.py);
+            # the actually-changing picture is demo.snapshot(), pushed by
+            # _on_live_tick/_on_capture_toggled while capturing, and shown
+            # as-is (idle placeholder) otherwise -- never through
+            # _choose_view, which only knows about precomputed Frame kinds.
+            self.stack.setCurrentWidget(self.live_spike_view)
+            self.live_spike_view.render(demo.snapshot())
+            self.frame_label.setText(frame.label)
+            self.explanation_label.set_math_text(frame.explanation)
+            self._set_equation(frame.equation)
+            self.controls.set_playing(False)
+            self.controls.set_fast_loop_active(False)
+            app = QApplication.instance()
+            if app is not None:
+                app.processEvents()
+            return
 
         view_name = _choose_view(frame.values)
         view = {"signal": self.signal_view, "weight": self.weight_view, "neuron": self.neuron_view}[view_name]

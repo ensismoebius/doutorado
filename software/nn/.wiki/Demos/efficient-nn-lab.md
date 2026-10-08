@@ -5,8 +5,11 @@ animates BitNet quantization and spiking-neural-network mechanics, one step at a
 one-hour undergraduate lecture. It is **not** part of the C++ `nn` library and shares no code
 with it — it is the live companion to the LaTeX deck in
 `documentation/08-lectures/fronteiras-bitnets-redes-pulso/`, opened on stage at the moment the
-matching slide is on screen. 24 demos across 5 groups, 1874 precomputed frames, zero
-randomness at playback time. The newest group, **Paraconsistente**, bridges in the author's
+matching slide is on screen. 25 demos across 6 groups, 1874 precomputed frames, zero
+randomness at playback time -- except the newest, standalone group, **Demonstração ao
+vivo**: one demo driven by a real trained model and the live microphone instead of a
+precomputed frame list (see "The live-mic exception" below). The **Paraconsistente** group
+bridges in the author's
 own PhD thesis (da Costa paraconsistent feature engineering, `software/nn`'s
 `include/paraconsistent/`) and its reuse, as an explicit extension this lab makes rather than
 something the thesis itself does, to rank architectures in `paraconsistentGA`'s NSGA-II search.
@@ -161,7 +164,7 @@ class MyDemo(DemoModule):
         ])
 ```
 
-## The 24 demos
+## The 25 demos
 
 Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoints, not frames.
 
@@ -181,7 +184,7 @@ Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoi
 | `snn.lif` | LIF | Como um neurônio LIF integra, dispara e reseta? | 13 |
 | `snn.surrogate` | Surrogate gradient | Como se treina através de uma função em degrau? | 5 |
 | `snn.timesteps` | time_steps × delta_t | "Quantos quadros" x "quanto dura um quadro" — e por que a ordem das linhas no tensor `(T*B,F)` importa? | 8 |
-| `snn.encoding_noise` | Ruído estrutural da codificação | "Direta > latência > Poisson" é informação real ou só o chão de ruído de cada codificação? | 6 |
+| `snn.encoding_noise` | Ruído estrutural da codificação | "Direta > latência > Poisson" é informação real ou só o piso de ruído de cada codificação? | 6 |
 | `snn.encoding_loss_mismatch` | Perda incompatível com a codificação | Por que a perda tem de medir onde a codificação guarda o valor — e por que uma unidade de latência que nunca dispara trava `SpikeTimeLoss`? | 5 |
 | `snn.tdbn` | tdBN | Por que BatchNorm comum cala a camada com `V_th = 2`, e como tdBN torna a fração acima do limiar independente de `V_th`? | 4 |
 | `snn.firing_rate_reg` | Regularização de taxa de disparo | Como a penalidade traz de volta à faixa alvo um neurônio quase morto e um em rajada? | 4 |
@@ -191,8 +194,27 @@ Each answers one question (`ESPECIFICACAO_DLVL.md` #5). "Passos" counts checkpoi
 | `paraconsistent.ga_pareto` | Busca genética de arquiteturas (extensão) | Dominância, fronteira de Pareto e teto de latência (Deb) numa busca NSGA-II com `D_penalized` — fora da monografia, como no `paraconsistentGA`. | 6 |
 | `comparison` | ANN × BitNet × SNN | Em que os três diferem? | 8 |
 | `comparison.autoencoders` | Autoencoders (SNN × LSTM × GRU × Transformer) | Como o Meeting01 compara as quatro famílias sem trapacear: mesmo gargalo, mesmo alvo, referências média e PCA (PCA real; famílias sem números inventados)? | 7 |
+| `live.vowel_snn` | Classificação de vogais ao vivo (microfone) | Uma SNN pequena, realmente treinada, reconhece qual vogal (a/e/i/o/u) está sendo falada ao vivo? | 1 (sem passos — ver abaixo) |
 
-`snn.poisson_image` is the only demo that offers **Loop rápido** — continuous, dwell-free
+### The live-mic exception
+
+`live.vowel_snn` is the one demo that does not fit `core/demo.py`'s "fully precomputed,
+zero randomness" contract (above) at all: the microphone hasn't happened yet, and it is
+never the same twice. Rather than bend that contract, `LiveVowelSnnDemo._build_frames`
+returns exactly one static placeholder `Frame`, so the base class's own checks all pass
+trivially, and the actual behaviour lives entirely in `start_capture`/`stop_capture`/
+`poll_and_advance`/`snapshot`, called directly by `main_window.py` instead of through
+`StepPlayer` (`DemoModule.supports_live_capture` is the flag that tells `MainWindow` to
+take that path). It is also the only demo with a model **really trained** on real
+data — a `live/train.py` script fits a small two-layer spiking network (a new, vectorized,
+multi-neuron, trainable LIF layer in `live/lif_layer.py`, since `snn/lif.py` is a
+single-neuron scalar simulator with no weight matrix) on short labelled recordings
+(`live/record.py`), with BPTT and the surrogate gradient already used elsewhere in this
+lab. Every other demo's numbers are fixed or synthetic by design (see
+`comparison/autoencoders.py`); this is the sole deliberate exception, and its description
+says so on screen.
+
+`snn.poisson_image` is the only step-through demo that offers **Loop rápido** — continuous, dwell-free
 playback that wraps at the end (~1,2 s per lap versus ~33 s for a normal `Play` pass). It earns
 the exception because there the *cadence is the content*: one Poisson time-step is
 indistinguishable from noise, and the picture only emerges once frames go by fast enough for

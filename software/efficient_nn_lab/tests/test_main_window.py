@@ -17,7 +17,13 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from efficient_nn_lab.app.main_window import MainWindow, _build_demo_tree, _choose_view, _demo_order
+from efficient_nn_lab.app.main_window import (
+    MainWindow,
+    _SIDEBAR_COLLAPSED_WIDTH,
+    _build_demo_tree,
+    _choose_view,
+    _demo_order,
+)
 
 
 def _all_demos():
@@ -82,13 +88,19 @@ def _window(qapp):
 @pytest.mark.parametrize("demo", _all_demos(), ids=lambda d: d.slug)
 def test_selecting_demo_routes_to_correct_stack_widget(qapp, demo):
     window = _window(qapp)
-    expected = {
-        "signal": window.signal_view,
-        "weight": window.weight_view,
-        "neuron": window.neuron_view,
-    }[_choose_view(demo.current_frame().values)]
     window._select_demo(demo)
-    assert window.stack.currentWidget() is expected
+    if demo.supports_live_capture:
+        # LiveVowelSnnDemo always shows live_spike_view directly -- its one
+        # static placeholder Frame carries a "kind" _choose_view does not
+        # know about on purpose (see live/demo.py's module docstring).
+        assert window.stack.currentWidget() is window.live_spike_view
+    else:
+        expected = {
+            "signal": window.signal_view,
+            "weight": window.weight_view,
+            "neuron": window.neuron_view,
+        }[_choose_view(demo.current_frame().values)]
+        assert window.stack.currentWidget() is expected
     assert window.demo_title_label.text() == demo.title
     assert window.controls.isEnabled()
 
@@ -745,3 +757,69 @@ def test_build_demo_tree_without_bitnet_matches_the_toggle(qapp):
     groups = _build_demo_tree(include_bitnet=False)
     assert "BitNet" not in groups
     assert [d.slug for d in groups["Comparação"]] == ["comparison.autoencoders"]
+
+
+# -- sidebar: resizable (QSplitter) and collapsible --------------------
+#
+# The sidebar used to be a fixed setMaximumWidth(260) QTreeWidget sitting
+# directly in a QHBoxLayout -- no way to make it wider, no way to hide it
+# short of the all-or-nothing lecture mode. These pin the splitter that
+# replaced it.
+
+def test_sidebar_starts_at_the_default_width_and_is_genuinely_resizable(qapp):
+    window = _window(qapp)
+    QTest.qWait(30)
+    first, _second = window._splitter.sizes()
+    assert first == window._sidebar_expanded_width
+
+    window._splitter.setSizes([450, 730])
+    QTest.qWait(30)
+    new_first, _ = window._splitter.sizes()
+    # exact pixel equality isn't the point (handle width/rounding), being
+    # able to move meaningfully far from the default is
+    assert new_first > first + 100
+
+
+def test_collapsing_the_sidebar_hides_the_tree_and_shrinks_to_the_button(qapp):
+    window = _window(qapp)
+    QTest.qWait(30)
+    assert window.tree.isVisible()
+    assert not window._sidebar_collapsed
+
+    window._sidebar_collapse_btn.click()
+    assert window._sidebar_collapsed
+    assert not window.tree.isVisible()
+    first, _ = window._splitter.sizes()
+    assert first == _SIDEBAR_COLLAPSED_WIDTH
+
+
+def test_expanding_restores_the_last_dragged_width_not_the_original_default(qapp):
+    window = _window(qapp)
+    QTest.qWait(30)
+    window._splitter.setSizes([420, 760])
+    QTest.qWait(30)
+    window._on_splitter_moved(0, 1)  # the real drag fires this signal; simulate it
+
+    window._sidebar_collapse_btn.click()
+    assert not window.tree.isVisible()
+    window._sidebar_collapse_btn.click()
+    assert window.tree.isVisible()
+    first, _ = window._splitter.sizes()
+    assert first == window._sidebar_expanded_width
+    assert first != 260  # the original default -- would mean the drag was forgotten
+
+
+def test_lecture_mode_hides_the_whole_sidebar_collapse_button_included(qapp):
+    """Regression: lecture mode used to hide only window.tree, which -- now
+    that the tree sits inside a sidebar container with its own collapse
+    button -- would have left that button on screen pointing at nothing,
+    contradicting lecture mode's whole point (simplify the chrome away)."""
+    window = _window(qapp)
+    QTest.qWait(30)
+    assert window._sidebar.isVisible()
+
+    window.lecture_mode_btn.setChecked(True)
+    assert not window._sidebar.isVisible()
+
+    window.lecture_mode_btn.setChecked(False)
+    assert window._sidebar.isVisible()

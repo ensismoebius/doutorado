@@ -64,7 +64,8 @@ class BackwardSTEDemo(DemoModule):
     slug = "bitnet.ste"
     description = (
         "A função de quantização é uma escada: constante em quase toda "
-        "parte, descontínua em dois pontos. O STE contorna o problema "
+        "parte, descontínua em dois pontos. O STE (Straight-Through Estimator, "
+        "'estimador de passagem direta') contorna o problema "
         "usando um caminho diferente no forward e no backward."
     )
 

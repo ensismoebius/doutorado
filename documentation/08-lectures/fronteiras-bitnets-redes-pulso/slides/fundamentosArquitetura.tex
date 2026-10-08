@@ -1,6 +1,8 @@
 \begin{frame}[shrink]
 	\frametitle{Como uma rede neural é construída}
+	\framesubtitle{O problema: aprender a transformação em vez de programá-la à mão}
 	\small
+	\par Dado um sinal de entrada (um pixel, uma amostra de áudio, uma janela de EEG) e a resposta certa que se quer para ele, como chegar da entrada à resposta sem escrever a regra manualmente? A rede neural é essa transformação --- com parâmetros que o próprio treino ajusta, em vez de uma fórmula fixada por quem programou.
 	\begin{itemize}
 		\item Uma rede neural é organizada em \textbf{camadas}:\newline entrada $\rightarrow$ uma ou mais camadas ocultas $\rightarrow$ saída.\newline
 		

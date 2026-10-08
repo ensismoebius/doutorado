@@ -560,7 +560,7 @@ class WeightView(QWidget):
 
         ax.set_xlabel("T (time_steps)")
         ax.set_ylabel("erro RMS estrutural (antes de aprender)")
-        ax.set_title("Por que \"direto > latência > Poisson\" pode ser só o chão de ruído")
+        ax.set_title("Por que \"direto > latência > Poisson\" pode ser só o piso de ruído")
         ax.legend(loc="upper right", fontsize=7.5)
         ax.set_xlim(t_range.min(), t_range.max())
         ax.set_ylim(-0.02, max(float(poisson_sigma.max()), float(latency_error.max())) * 1.15)

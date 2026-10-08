@@ -39,7 +39,12 @@ _X = np.linspace(-2.0, 2.0, 400)
 class SurrogateGradientDemo(DemoModule):
     title = "SNN -> Surrogate gradient"
     slug = "snn.surrogate"
-    description = "O spike no forward continua discreto; apenas o backward usa uma aproximação suave."
+    description = (
+        "Numa SNN (Spiking Neural Network, rede neural de pulso), o spike no forward continua "
+        "discreto; apenas o backward usa uma aproximação suave -- a mesma ideia do STE "
+        "(Straight-Through Estimator, 'estimador de passagem direta') usado no BitNet, com uma "
+        "função diferente."
+    )
 
     def __init__(self) -> None:
         self.k = 5.0

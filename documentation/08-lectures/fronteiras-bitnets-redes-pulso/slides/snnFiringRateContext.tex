@@ -1,0 +1,16 @@
+\begin{frame}[shrink]
+	\frametitle{Regularizar a taxa: evitar silêncio e rajadas}
+	\small
+	\par Uma rede pode acertar a saída disparando quase nunca ou disparando em quase todo quadro. Uma penalidade de taxa acrescenta ao objetivo de treino um custo quando a atividade média da camada sai de uma faixa escolhida:
+	\[
+		L_{\mathrm{reg}}=\lambda\!\left[\max(0,r_{\min}-\rho)^2+
+		\max(0,\rho-r_{\max})^2\right],
+		\qquad \rho=\text{taxa média da camada}.
+	\]
+	\begin{itemize}
+		\item Exemplo: faixa $[0{,}10,0{,}80]$. Uma camada com média $0{,}02$ recebe pressão para disparar mais; uma com média $0{,}95$ recebe pressão para disparar menos.
+		\item \textbf{Por que importa?} Controlar a atividade pode favorecer pulsos esparsos e equilibrar a taxa com a tarefa. Isso pode reduzir operações em hardware orientado a eventos, mas a penalidade não garante economia em qualquer processador.
+		\item Limite importante: se duas unidades têm taxas $0{,}02$ e $0{,}95$, a média é $0{,}485$; a penalidade sobre a média é zero. Esta formulação vê a camada, não cada unidade.
+		\item A forma da penalidade e a faixa desejada são escolhas de projeto, não uma regra universal para toda SNN \cite{yan2022sparsity, eshraghian2023training}.
+	\end{itemize}
+\end{frame}

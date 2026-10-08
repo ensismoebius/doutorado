@@ -67,9 +67,10 @@ class EncodingLossMismatchDemo(DemoModule):
     title = "SNN -> Perda incompatível com a codificação"
     slug = "snn.encoding_loss_mismatch"
     description = (
-        "A perda tem que medir o lugar onde a codificação guarda o valor. Com a perda errada, o "
-        "treino reporta 'perfeito' sem corrigir nada; com a certa, uma unidade que nunca dispara "
-        "também trava. Duas falhas silenciosas."
+        "Numa SNN (Spiking Neural Network, rede neural de pulso), a perda tem que medir o lugar "
+        "onde a codificação guarda o valor. Com a perda errada, o treino reporta 'perfeito' sem "
+        "corrigir nada; com a certa, uma unidade que nunca dispara também trava. Duas falhas "
+        "silenciosas."
     )
 
     def _build_frames(self) -> list[Frame]:

@@ -1,0 +1,22 @@
+\begin{frame}[shrink]
+	\frametitle{Codificação Poisson: intensidade vira chance}
+	\small
+	\par Uma rede precisa receber números comuns, mas seus neurônios trocam pulsos. Na codificação Poisson, o valor de entrada não determina um pulso certo: determina a \textbf{probabilidade} de disparar em cada passo.
+	\begin{center}
+		\begin{tabular}{lcl}
+			\toprule
+			\textbf{Entrada} & \textbf{Probabilidade por passo} & \textbf{Leitura após 10 passos} \\
+			\midrule
+			$x=0{,}6$, $r_{\max}=0{,}9$ & $p=x\,r_{\max}=0{,}54$ & $E[n]=10p=5{,}4$ pulsos \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item Duas repetições com a mesma entrada podem gerar contagens diferentes; ambas tendem a representar a mesma intensidade.
+		\item \textbf{Por que importa?} A contagem aproxima o valor, mas traz variação aleatória. Mais passos tornam a estimativa de taxa mais estável, ao custo de mais tempo de simulação.
+		\item É uma escolha de representação, não ruído adicionado depois do treino. A codificação por taxa é comum, mas não é a única forma de representar informação em pulsos \cite{diehl2015fast, eshraghian2023training}.
+	\end{itemize}
+	\begin{block}{O que observar na demonstração}
+		O mesmo sinal alimenta cada passo. A intensidade define a chance de disparo; não garante que um pulso apareça em um instante específico.
+	\end{block}
+\end{frame}

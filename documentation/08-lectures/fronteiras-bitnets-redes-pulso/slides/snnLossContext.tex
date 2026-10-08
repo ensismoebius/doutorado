@@ -1,0 +1,23 @@
+\begin{frame}[shrink]
+	\frametitle{A perda precisa medir onde o código guarda a informação}
+	\small
+	\par Uma função de perda só consegue corrigir aquilo que mede. Se o código guarda o valor no \textbf{instante} do pulso, contar pulsos pode declarar sucesso mesmo quando o pulso chega na hora errada.
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			& \textbf{Alvo} & \textbf{Previsão} \\
+			\midrule
+			Instante do pulso, $T=16$ & quadro 4 & quadro 12 \\
+			Contagem de pulsos & 1 & 1 \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item Perda de contagem: $(1-1)^2=0$; o treino diz ``perfeito'', embora o pulso esteja 8 quadros atrasado.
+		\item Perda de tempo: $(12-4)^2=64$; ela enxerga o erro que a codificação por latência realmente representa.
+		\item Há outra armadilha: se a unidade nunca dispara, esta implementação atribui $t=T=16$. A perda de tempo vale $(16-4)^2=144$, mas seu \textit{backward} não escreve gradiente para $t=T$; a unidade permanece silenciosa.
+	\end{itemize}
+	\begin{alertblock}{Importância prática}
+		Confirme que codificação, alvo e perda concordam; monitore se há gradientes vivos. Uma perda baixa, sozinha, não prova que a rede aprendeu a resposta temporal \cite{eshraghian2023training, liu2023firstspike}.
+	\end{alertblock}
+\end{frame}

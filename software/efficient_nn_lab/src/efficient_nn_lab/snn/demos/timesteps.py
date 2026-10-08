@@ -35,9 +35,10 @@ class TimeStepsDemo(DemoModule):
     title = "SNN -> time_steps x delta_t"
     slug = "snn.timesteps"
     description = (
-        "time_steps (quantos quadros) e delta_t (quanto dura cada quadro) parecem o mesmo "
-        "nome, mas significam coisas completamente diferentes -- confundi-los produz uma rede "
-        "que treina, mas não aprende nada temporal."
+        "Numa SNN (Spiking Neural Network, rede neural de pulso), time_steps (quantos quadros) e "
+        "delta_t (quanto dura cada quadro) parecem o mesmo nome, mas significam coisas "
+        "completamente diferentes -- confundi-los produz uma rede que treina, mas não aprende "
+        "nada temporal."
     )
 
     def __init__(self) -> None:
@@ -79,12 +80,13 @@ class TimeStepsDemo(DemoModule):
                 f"x = {x_lo:.1f}: (1 − {x_lo:.1f}) × {_T - 1} = {f_lo}, quadro {f_lo}; x = 0 dispararia no "
                 f"último, o {_T - 1}. Com {_T} quadros só existem {_T} valores possíveis: x = {x_lo:.1f} e "
                 f"x = {near_lo} caem ambos no quadro {latency_spike_time(near_lo, _T)}. Discretizar o tempo "
-                "custa precisão — é o chão de ruído da latência (demo Ruído estrutural).",
+                "custa precisão — é o piso de ruído da latência (demo Ruído estrutural).",
             ),
             _T - 1: (
                 f"time_steps = {_T}: QUANTOS quadros",
                 f"time_steps = {_T} responde QUANTOS quadros cada amostra ocupa: {_T} linhas no tensor, "
-                f"não uma, e {_T} passos para o BPTT percorrer de trás para frente. No software/nn ele "
+                f"não uma, e {_T} passos para o BPTT (Backpropagation Through Time, retropropagação "
+                "ao longo do tempo) percorrer de trás para frente. No software/nn ele "
                 "não tem valor padrão: deixar sem definir é erro, porque assumir 1 criaria em silêncio "
                 "uma 'rede de pulso' de um passo só — sem memória, sem aprendizado temporal, mas que "
                 "treina e mostra uma perda.",

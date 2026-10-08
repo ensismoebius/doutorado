@@ -12,6 +12,10 @@ dependencies = [
     "PySide6>=6.5",
     "matplotlib>=3.7",
     "numpy>=1.24",
+    # Live-mic vowel-classifier demo only (live/audio_capture.py). Wraps
+    # PortAudio, which needs its own system package on Linux
+    # (libportaudio2 on Debian/Ubuntu) -- see README.md.
+    "sounddevice>=0.4",
 ]
 
 [project.optional-dependencies]

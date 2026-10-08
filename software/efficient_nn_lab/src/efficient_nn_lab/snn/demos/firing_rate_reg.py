@@ -43,9 +43,10 @@ class FiringRateRegDemo(DemoModule):
     title = "SNN -> Regularização de taxa de disparo"
     slug = "snn.firing_rate_reg"
     description = (
-        "A penalidade olha a taxa MÉDIA de cada camada: empurra de volta à faixa alvo uma camada "
-        "quase morta e uma em rajada -- mas não enxerga uma camada que mistura as duas coisas. "
-        "lambda e a faixa vêm dos perfis reais; taxas iniciais e passo são ilustrativos."
+        "Numa SNN (Spiking Neural Network, rede neural de pulso), a penalidade olha a taxa MÉDIA "
+        "de cada camada: empurra de volta à faixa alvo uma camada quase morta e uma em rajada -- "
+        "mas não enxerga uma camada que mistura as duas coisas. lambda e a faixa vêm dos perfis "
+        "reais; taxas iniciais e passo são ilustrativos."
     )
 
     def __init__(self) -> None:

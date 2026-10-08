@@ -35,8 +35,9 @@ class TdBNDemo(DemoModule):
     title = "SNN -> Normalização dependente de limiar (tdBN)"
     slug = "snn.tdbn"
     description = (
-        "tdBN normaliza a corrente de entrada de um neurônio LIF para um espalhamento "
-        "proporcional ao próprio limiar de disparo V_th, em vez de variância unitária."
+        "tdBN (threshold-dependent batch normalization) normaliza a corrente de entrada de um "
+        "neurônio LIF (Leaky Integrate-and-Fire, 'integra e dispara com vazamento') para um "
+        "espalhamento proporcional ao próprio limiar de disparo V_th, em vez de variância unitária."
     )
 
     def __init__(self) -> None:

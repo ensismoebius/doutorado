@@ -40,7 +40,11 @@ _REVEAL_KEYS = {
 class AnnBitnetSnnComparisonDemo(DemoModule):
     title = "Comparação -> ANN x BitNet x SNN"
     slug = "comparison"
-    description = "Mesma entrada conceitual, três formas de representar e operar sobre ela — uma tabela que cresce, não uma sequência de telas soltas."
+    description = (
+        "Mesma entrada conceitual, três formas de representar e operar sobre ela: ANN (Artificial "
+        "Neural Network, a rede neural comum), BitNet (pesos ternários) e SNN (Spiking Neural "
+        "Network, rede neural de pulso) — uma tabela que cresce, não uma sequência de telas soltas."
+    )
 
     def _build_frames(self) -> list[Frame]:
         y_ann = sum(x * w for x, w in zip(_X, _W))

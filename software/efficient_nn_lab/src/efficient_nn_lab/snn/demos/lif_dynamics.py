@@ -36,8 +36,9 @@ class LIFDynamicsDemo(DemoModule):
     title = "SNN -> LIF"
     slug = "snn.lif"
     description = (
-        "O potencial de membrana integra a corrente de entrada, dispara ao cruzar o limiar e "
-        "reinicia; quando a corrente desliga, o vazamento traz o potencial de volta ao repouso."
+        "O neurônio LIF (Leaky Integrate-and-Fire, 'integra e dispara com vazamento') acumula a "
+        "corrente de entrada no potencial de membrana, dispara ao cruzar o limiar e reinicia; "
+        "quando a corrente desliga, o vazamento traz o potencial de volta ao repouso."
     )
 
     def __init__(self) -> None:
@@ -112,6 +113,16 @@ class LIFDynamicsDemo(DemoModule):
                         "spikes": trace.spikes[: t + 1],
                         "v_th": self.v_th,
                         "phase": phase,
+                        # the FULL window, not t+1 -- _render_lif pins the
+                        # x-axis to this so the trace grows left-to-right
+                        # inside a fixed frame instead of the axis
+                        # rescaling to the partial trace every step (this
+                        # file's module docstring: "nothing about a
+                        # leaking, integrating potential should ever
+                        # jump", which an x-axis that keeps resizing
+                        # itself undercuts just as much as a jumpy trace
+                        # would).
+                        "n_total": _N_STEPS,
                     },
                     explanation=explanation,
                     equation="tau dV/dt = -(V - V_rest) + R . I(t); dispara e reinicia V se V >= V_th",

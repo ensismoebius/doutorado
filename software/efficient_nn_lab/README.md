@@ -118,6 +118,12 @@ máquina, antes e depois); se o loop engasgar no projetor, é esse o custo.
 O botão **Modo palestra** simplifica a barra lateral; o botão **Modo
 professor** revela equações e o estado numérico completo de cada passo.
 
+A barra lateral (árvore de demos) é redimensionável: arraste a borda entre
+ela e o canvas, ou use o botão ◀/▶ no topo dela para recolher/expandir —
+útil em janelas estreitas ou quando o foco é só a animação. A largura
+escolhida é lembrada entre um recolhimento e o seguinte, dentro da mesma
+sessão.
+
 ## Animação: checkpoints e tweens
 
 Nenhuma demonstração pula direto de uma imagem para outra. Cada uma define
@@ -236,7 +242,7 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | SNN → LIF | Como um neurônio LIF integra, dispara e reseta — e, quando a corrente desliga, como o vazamento traz o potencial de volta ao repouso? | `tau, R, V_th`, amplitude |
 | SNN → Surrogate gradient | Como se treina através de uma função em degrau? A sigmoide suave vai de 0 a 1 e fica mais íngreme com `k`; o gradiente substituto é a inclinação exata dela (área 1). | `k` |
 | SNN → time_steps x delta_t | Por que confundir "quantos quadros" com "quanto dura um quadro" quebra o treino, e por que a ORDEM das linhas no tensor `(T*B,F)` importa? | `n_samples` |
-| SNN → Ruído estrutural da codificação | "Direta > latência > Poisson" em reconstrução é uma diferença real de informação, ou só o chão de ruído de cada codificação? | `time_steps` |
+| SNN → Ruído estrutural da codificação | "Direta > latência > Poisson" em reconstrução é uma diferença real de informação, ou só o piso de ruído de cada codificação? | `time_steps` |
 | SNN → Perda incompatível com a codificação | Por que a perda precisa medir o lugar onde a codificação guarda o valor? Com a perda errada o treino reporta "perfeito" sem corrigir nada; com a certa, uma unidade que nunca dispara trava sem gradiente — duas falhas silenciosas, e a validação que as torna barulhentas. | fixo |
 | SNN → Normalização dependente de limiar (tdBN) | Como tdBN reescala a corrente de entrada para um espalhamento proporcional ao limiar `V_th`, em vez de variância unitária? | `V_th` |
 | SNN → Regularização de taxa de disparo | A penalidade olha a taxa MÉDIA de cada camada: como ela empurra de volta à faixa uma camada quase morta e uma em rajada, por que dentro da faixa não faz nada — e por que uma camada que mistura uma unidade morta e uma em rajada passa despercebida? | `lambda`, `r_min` |
@@ -246,6 +252,7 @@ Novas demonstrações só precisam implementar `_build_frames()` — o resto
 | Paraconsistente → Busca genética de arquiteturas (extensão) | Como uma busca NSGA-II escolhe arquiteturas quando qualidade (`D_penalized`) e custo brigam — dominância, fronteira de Pareto, teto de latência pela regra de Deb, e por que o resultado é um cardápio e não um vencedor? Fora da monografia: é o experimento `paraconsistentGA` do software/nn, com dados sintéticos. | `latency_ceiling` |
 | Comparação → ANN x BitNet x SNN | Em que ANN, BitNet e SNN diferem? | fixo |
 | Comparação → Autoencoders (SNN x LSTM x GRU x Transformer) | Como o Meeting01 compara quatro famílias de autoencoder sem trapacear: mesmo gargalo (o tamanho do latente decide o placar), mesmo alvo (o bug B2), referências média e PCA? PCA de verdade sobre janelas sintéticas; as quatro famílias não recebem números inventados. | `latent` |
+| SNN → Classificação de vogais ao vivo (microfone) | A única demonstração com um classificador REALMENTE treinado (todas as outras usam dados fixos ou sintéticos, de propósito): uma SNN pequena reconhece, ao vivo pelo microfone, qual vogal (a/e/i/o/u) está sendo falada, com os disparos das camadas oculta e de saída e a confiança por vogal em tempo real. Ver `live/README` abaixo para gravar amostras e treinar antes de usar. | microfone (sem parâmetro) |
 
 ### A tabela da comparação se dimensiona sozinha
 
@@ -266,6 +273,31 @@ espaço entre as linhas, para a tabela preencher a caixa em vez de se
 amontoar em cima. Medido no tamanho real da janela: ~22pt por célula, ~3x
 o anterior. Os invariantes estão em `tests/test_comparison_table_layout.py`
 (cresce com o canvas, nada se sobrepõe, preenche a caixa).
+
+### Classificador de vogais ao vivo (microfone)
+
+A única demonstração com um classificador **realmente treinado** (todas
+as outras usam dados fixos ou sintéticos, de propósito — ver
+`comparison/autoencoders.py`). Antes de usá-la pela primeira vez (ou num
+computador novo):
+
+```bash
+# grave algumas gravações curtas de cada vogal (repita --vowel para a/e/i/o/u)
+./.venv/bin/python -m efficient_nn_lab.live.record --vowel a --takes 6
+
+# treine a SNN de duas camadas sobre as gravações e salve os pesos
+./.venv/bin/python -m efficient_nn_lab.live.train
+```
+
+`record.py` salva em `data/vowel_snn/raw/<vogal>/` (gitignored — é a sua
+própria voz). `train.py` divide treino/validação **por gravação**, não por
+janela, para não deixar duas janelas quase idênticas da mesma gravação
+caírem uma de cada lado do corte (ver o docstring do módulo), e imprime a
+acurácia de validação a cada época. Os pesos finais vão para
+`live/weights/vowel_snn_weights.npz`, que o app carrega automaticamente ao
+abrir — sem esse arquivo, a demo mostra "sem pesos treinados ainda" em vez
+de travar. Requer `libportaudio2` (Debian/Ubuntu) ou equivalente para o
+`sounddevice` conseguir abrir o microfone.
 
 ## Precisão científica (ESPECIFICACAO_DLVL.md #32)
 
@@ -344,7 +376,7 @@ Cobertura:
   reseta com corrente suficiente, nunca excede o limiar, o vazamento
   aparece quando a corrente desliga), par sigmoide/substituto (degrau suave
   de 0 a 1, área 1, derivada exata), codificação por cruzamento de nível,
-  chãos de ruído conferidos por Monte Carlo, e o ponto cego da
+  pisos de ruído conferidos por Monte Carlo, e o ponto cego da
   regularização pela média da camada.
 - `test_surrogate_example_markers.py`, `test_math_render.py`,
   `test_comparison_table_layout.py`, `test_widgets_no_clipping.py`,

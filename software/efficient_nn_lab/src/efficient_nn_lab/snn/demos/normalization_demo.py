@@ -33,9 +33,10 @@ class NormalizationDemo(DemoModule):
     title = "SNN -> Normalização: por característica x por janela"
     slug = "snn.normalization"
     description = (
-        "Áudio normaliza cada característica com média/desvio ajustados UMA vez no treino (CMVN global); "
-        "EEG recalcula média/desvio dentro de cada janela. Ajustar com dados de teste é um "
-        "vazamento silencioso -- e só o caminho ajustado corre esse risco."
+        "Áudio normaliza cada característica com média/desvio ajustados UMA vez no treino (CMVN "
+        "global, Cepstral Mean and Variance Normalization); EEG (eletroencefalograma) recalcula "
+        "média/desvio dentro de cada janela. Ajustar com dados de teste é um vazamento silencioso "
+        "-- e só o caminho ajustado corre esse risco."
     )
 
     def _build_frames(self) -> list[Frame]:

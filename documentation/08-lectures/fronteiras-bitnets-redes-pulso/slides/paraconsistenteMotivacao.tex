@@ -1,0 +1,19 @@
+% Framing slide for the "Lógica paraconsistente"/"Convergência" section,
+% shown before the three paraconsistent.* demos in BOTH decks. Without
+% it, the section jumped straight from the auto-generated section divider
+% into \DemoSlide frames -- no prose ever said what problem the plane
+% solves, only the demo's own captions (terse by design: they are
+% navigation cues, not the explanation). Numbers (208 execuções, 24
+% variantes) are the thesis' own, from
+% documentation/00-thesis/monography/chapters/08-proposedApproach.tex.
+\begin{frame}
+	\frametitle{Por que não só treinar e comparar?}
+	\framesubtitle{O problema: escolher entre muitos extratores de características}
+	\small
+	\par A tese compara extração manual (\textit{wavelet}) com extração automatizada (\textit{autoencoder}) --- 24 variantes de \textit{autoencoder}, mais as manuais, para dois sinais. Treinar um classificador para \textbf{cada} combinação só para descobrir qual representação é melhor é caro, e pior: o resultado fica amarrado a \textbf{qual} classificador se escolheu treinar.
+	\par A alternativa: medir a qualidade do vetor de características \textbf{antes} de treinar qualquer coisa, olhando só para sua geometria --- o quanto cada classe se agrupa (compacidade intraclasse, $\alpha$) e o quanto classes diferentes se misturam (sobreposição interclasse, $\beta$).
+	\begin{alertblock}{O plano paraconsistente}
+		$\alpha$ e $\beta$ definem um ponto num plano com quatro cantos: \textbf{Verdade} (classes compactas e separadas --- o alvo), \textbf{Falsidade}, \textbf{Ambiguidade} e \textbf{Indefinição}. Quanto mais perto de Verdade, melhor a representação separa as classes \textbf{sem treinar classificador nenhum}.
+	\end{alertblock}
+	\par As próximas demos mostram esse plano, uma falha dele que passou despercebida até ser medida, e a correção --- a contribuição central desta tese.
+\end{frame}

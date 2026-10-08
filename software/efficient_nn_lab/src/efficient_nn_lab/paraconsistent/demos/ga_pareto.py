@@ -79,7 +79,8 @@ class ParaconsistentGaParetoDemo(DemoModule):
     slug = "paraconsistent.ga_pareto"
     description = (
         "Fora da monografia: o experimento paraconsistentGA do software/nn usa o D_penalized da "
-        "tese como um dos dois objetivos de uma busca NSGA-II por arquiteturas de autoencoder; o "
+        "tese como um dos dois objetivos de uma busca NSGA-II (Non-dominated Sorting Genetic "
+        "Algorithm II, um algoritmo genético multiobjetivo) por arquiteturas de autoencoder; o "
         "outro é o custo de inferência. Dominância, fronteira de Pareto, teto de latência e "
         "gerações -- com dados sintéticos ilustrativos, não uma busca real."
     )

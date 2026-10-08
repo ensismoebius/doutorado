@@ -1,22 +1,112 @@
 \begin{frame}[shrink]
-	\frametitle{Retropropagação através do tempo (BPTT)}
+	\frametitle{BPTT (1/4): um neurônio vê um filme, não uma foto}
 	\small
-	\setlength{\abovedisplayskip}{1pt}
-	\setlength{\belowdisplayskip}{1pt}
-	\begin{columns}[T]
-		\column{.55\linewidth}
-		\resizebox{!}{3.5cm}{\input{../../00-thesis/monography/images/bptt.tex}}
-		\column{.4\linewidth}
-		\begin{itemize}
-			\item A rede é \textbf{desenrolada} em $T$ cópias no tempo, com os mesmos pesos $W$.
-			\item \textit{Forward}: o estado $h_t$ avança da esquerda para a direita.
-			\item \textit{Backward}: o gradiente percorre o caminho inverso, acumulando cada passo:
-		\end{itemize}
-		\begin{equation*}
-			\frac{\partial \mathcal{L}}{\partial W} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial W}
-		\end{equation*}
-		\par\tiny Exemplo, $T=3$: $0{,}10 + (-0{,}05) + 0{,}20 = 0{,}25$.
-	\end{columns}
-	\vspace{1pt}
-	\par\sloppy É aqui que o gradiente substituto entra: ele troca a derivada (nula) da função de disparo real por uma aproximação suave, deixando o gradiente fluir de volta pelos $T$ passos \cite{wu2018spatio, eshraghian2023training}.
+	\par Uma rede comum calcula a saída de uma vez. Um neurônio LIF mantém parte do potencial anterior; por isso, a resposta de agora depende também do que aconteceu antes. Para treinar, a sequência é aberta em passos ligados pela memória.
+	\par Exemplo didático: $u_t=0{,}5u_{t-1}+x_t$, limiar $V_{th}=1$, potencial inicial $u_0=0$; ao disparar, o neurônio reinicia.
+	\begin{center}
+		\begin{tabular}{ccccc}
+			\toprule
+			\textbf{Passo} & $x_t$ & Cálculo de $u_t$ & $u_t$ antes do reset & \textbf{Pulso?} \\
+			\midrule
+			1 & $0{,}8$ & $0{,}5(0)+0{,}8$ & $0{,}8$ & Não \\
+			2 & $0$ & $0{,}5(0{,}8)+0$ & $0{,}4$ & Não \\
+			3 & $0{,}8$ & $0{,}5(0{,}4)+0{,}8$ & $1{,}0$ & Sim; reinicia \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{block}{A intuição}
+		O primeiro quadro ainda contribui no terceiro: sem ele, $u_3$ seria só $0{,}8$ e não haveria pulso. Treinar apenas cada quadro isoladamente apagaria essa dependência temporal.
+	\end{block}
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{BPTT (2/4): abrir a rede ao longo do tempo}
+	\small
+	\par O problema: a saída de uma SNN depende do estado que veio antes. Para enxergar essa dependência, desenhamos a mesma rede uma vez por instante da sequência:
+	\begin{center}
+		\begin{tikzpicture}[>=Stealth, every node/.style={font=\small}]
+			\tikzset{
+				rede/.style={draw, rounded corners, thick, minimum width=2.5cm,
+					minimum height=1.35cm, align=center, fill=snnColor!8},
+				entrada/.style={font=\normalsize},
+				saida/.style={font=\normalsize}
+			}
+			\node[rede] (r1) at (0,0) {\textbf{Rede completa}\\camadas + LIF};
+			\node[rede] (r2) at (4.15,0) {\textbf{Rede completa}\\camadas + LIF};
+			\node[rede] (r3) at (8.3,0) {\textbf{Rede completa}\\camadas + LIF};
+			\node[entrada] (x1) at (0,1.2) {$x_1$};
+			\node[entrada] (x2) at (4.15,1.2) {$x_2$};
+			\node[entrada] (x3) at (8.3,1.2) {$x_3$};
+			\node[saida] (s1) at (0,-1.15) {$s_1$};
+			\node[saida] (s2) at (4.15,-1.15) {$s_2$};
+			\node[saida] (s3) at (8.3,-1.15) {$s_3$};
+			\node[font=\small] at (4.15,2.0) {Desenho expandido: mesmas três cópias temporais, pesos compartilhados $W$};
+			\draw[->,thick] (x1) -- (r1);
+			\draw[->,thick] (x2) -- (r2);
+			\draw[->,thick] (x3) -- (r3);
+			\draw[->,thick] (r1) -- (s1);
+			\draw[->,thick] (r2) -- (s2);
+			\draw[->,thick] (r3) -- (s3);
+			\draw[->,thick,snnColor] (r1.east) -- node[above, midway] {$h_1$} (r2.west);
+			\draw[->,thick,snnColor] (r2.east) -- node[above, midway] {$h_2$} (r3.west);
+		\end{tikzpicture}
+	\end{center}
+	\begin{itemize}
+		\item Cada caixa faz um passo da \textbf{rede inteira}; $h_t$ é o estado interno que ela entrega ao passo seguinte. $s_t$ é a saída naquele instante.
+		\item São três quadros do mesmo cálculo, não três redes independentes: todas atualizam os mesmos pesos $W$.
+		\item No exemplo anterior, $h_1=0{,}8$ chega ao segundo passo; após a entrada $x_3=0{,}8$, a memória faz o potencial chegar a $u_3=1{,}0$ e disparar.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{BPTT (3/4): o erro volta pela rede aberta}
+	\small
+	\par No treino, primeiro calculamos a sequência para a frente. Depois, a regra da cadeia percorre o mesmo desenho para trás: o erro da saída em $t=3$ pode atravessar o estado $h_2$ e chegar ao cálculo feito em $t=1$.
+	\begin{center}
+		\begin{tikzpicture}[>=Stealth, every node/.style={font=\small}]
+			\tikzset{passo/.style={draw, rounded corners, thick, minimum width=2.2cm,
+				minimum height=0.8cm, align=center, fill=snnColor!8}}
+			\node[passo] (p1) at (0,0) {rede inteira\\$t=1$};
+			\node[passo] (p2) at (3.2,0) {rede inteira\\$t=2$};
+			\node[passo] (p3) at (6.4,0) {rede inteira\\$t=3$};
+			\draw[->,thick] (p1) -- node[above] {$h_1$} (p2);
+			\draw[->,thick] (p2) -- node[above] {$h_2$} (p3);
+			\node (loss) at (8.2,0) {$L(s_3)$};
+			\draw[->,thick] (p3.east) -- (loss.west);
+			\draw[->,thick,snnColor] (6.4,-0.72) -- (0,-0.72);
+			\node[font=\small, text=snnColor] at (3.2,-1.02)
+				{gradiente volta: $t=3 \to 2 \to 1$};
+		\end{tikzpicture}
+	\end{center}
+	\begin{itemize}
+		\item Cada instante calcula uma contribuição para ajustar o mesmo peso; elas se somam:
+		\[
+			\frac{\partial L}{\partial W}
+			=\sum_{t=1}^{3}\frac{\partial L}{\partial W^{(t)}}
+			=0{,}10-0{,}05+0{,}20=0{,}25.
+		\]
+		\item O gradiente que chega a um passo inclui tanto o erro local quanto o que retorna dos passos seguintes: é assim que o primeiro instante pode ser corrigido por ter influenciado o terceiro \cite{wu2018spatio, eshraghian2023training}.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[shrink]
+	\frametitle{BPTT (4/4): o que o treino precisa guardar}
+	\small
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			& \textbf{Rede feedforward} & \textbf{SNN + BPTT} \\
+			\midrule
+			Erro volta por & camadas & camadas e tempo \\
+			Estados guardados & uma passada & ao longo de $T$ \\
+			Memória cresce com & profundidade & profundidade e $T$ \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item Mais passos revelam dependências mais longas, mas aumentam computação e memória de treino.
+		\item O pulso real é um degrau, cuja derivada é zero quase em toda parte. O gradiente substituto aproxima essa derivada \textbf{só na volta}; na ida, o disparo continua discreto.
+		\item BPTT percorre o tempo; o gradiente substituto permite atravessar o degrau durante o treino.
+	\end{itemize}
+	\par\vfill{\tiny Referência: \cite{eshraghian2023training}.}
 \end{frame}

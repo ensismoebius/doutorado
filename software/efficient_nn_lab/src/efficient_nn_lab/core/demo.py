@@ -183,6 +183,15 @@ class DemoModule(ABC):
     #: becomes visible when the frames go by fast enough for the eye to
     #: integrate them (see snn/demos/poisson_image_coding.py).
     supports_fast_loop: bool = False
+    #: Whether this demo drives itself from continuous, non-deterministic
+    #: live input (e.g. a microphone) instead of the usual precomputed
+    #: frame list -- see live/demo.py's module docstring for why that one
+    #: demo still satisfies this class's contract (a single static
+    #: placeholder Frame) while doing almost everything else differently.
+    #: main_window.py checks this flag to skip StepPlayer-driven playback
+    #: entirely and drive the demo's own start_capture/stop_capture/
+    #: poll_and_advance/snapshot methods instead.
+    supports_live_capture: bool = False
     #: Stable identifier for deep-linking from outside the app (the
     #: lecture slides' "open this demo" links, see main.py's --demo flag
     #: and documentation/08-lectures/fronteiras-bitnets-redes-pulso/

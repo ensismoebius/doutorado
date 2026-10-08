@@ -1,7 +1,7 @@
 """Demonstração — ruído estrutural das 3 codificações, antes de qualquer
 aprendizado (software/nn's .wiki/Concepts/Spike-Encoding.md). Explica por
 que "direta > latência > Poisson" em reconstrução pode ser apenas esse
-chão de ruído, não uma diferença real de informação carregada.
+piso de ruído, não uma diferença real de informação carregada.
 
 The cursor sweeps T upward; at the slider's T the spotlight cross-fades
 from the Poisson curve to latency to direct (tweened 0..1 weights, so it
@@ -41,9 +41,10 @@ class EncodingNoiseDemo(DemoModule):
     title = "SNN -> Ruído estrutural da codificação"
     slug = "snn.encoding_noise"
     description = (
-        "Antes de qualquer aprendizado, cada codificação já injeta um 'chão' de ruído "
-        "estrutural diferente. 'Direta > latência > Poisson' em reconstrução pode ser "
-        "só esse chão de ruído, não uma diferença real de informação."
+        "Antes de qualquer aprendizado, cada codificação de uma SNN (Spiking Neural Network, "
+        "rede neural de pulso) já injeta um piso de ruído estrutural diferente. 'Direta > "
+        "latência > Poisson' em reconstrução pode ser só esse piso de ruído, não uma diferença "
+        "real de informação."
     )
 
     def __init__(self) -> None:
@@ -83,12 +84,12 @@ class EncodingNoiseDemo(DemoModule):
             "Antes de aprender qualquer coisa",
             "Três SNNs reconstroem o mesmo sinal, cada uma com uma codificação. Nem uma rede perfeita "
             "reconstrói melhor do que a própria codificação permite: cada uma já injeta um erro "
-            f"mínimo — um chão — antes de qualquer treino. Com T = {_T_MIN} quadros o chão é alto; "
+            f"mínimo — um piso — antes de qualquer treino. Com T = {_T_MIN} quadros o piso é alto; "
             "acompanhe o cursor aumentando T. As duas curvas usam a mesma régua: o erro RMS típico, "
             "com o valor x espalhado por igual em [0, 1].",
         )
         poisson = (
-            "Poisson: o chão é estatístico",
+            "Poisson: o piso é estatístico",
             "Poisson: em cada quadro a unidade dispara com probabilidade p = x, e o valor é lido "
             "como disparos/T. A contagem é sorteada: duas passadas do mesmo x dão contagens "
             f"diferentes. O desvio dessa leitura é √(x(1 − x)/T): no pior caso, x = 0.5, vale "
@@ -96,7 +97,7 @@ class EncodingNoiseDemo(DemoModule):
             f"$RMS = {p_sel:.3f}$ — um erro típico de {100 * p_sel:.1f}% da escala inteira.",
         )
         latency = (
-            "Latência: o chão é de arredondamento",
+            "Latência: o piso é de arredondamento",
             f"Latência: não há sorteio, mas só existem T = {t_sel} momentos de disparo, ou seja {t_sel} "
             f"níveis espaçados de 1/(T − 1) = {1 / (t_sel - 1):.3f}. Um valor entre dois níveis vira o "
             f"mais próximo: no pior caso erra meio espaço, 0.5/(T − 1) = {l_worst:.4f}; na média, o erro "
@@ -104,15 +105,15 @@ class EncodingNoiseDemo(DemoModule):
             "mas em degraus.",
         )
         direct = (
-            "Direta: chão zero",
+            "Direta: piso zero",
             "Direta: o valor analógico entra como corrente, sem virar pulsos na entrada — nada a "
-            f"sortear, nada a arredondar: chão zero (a linha no eixo). Em T = {t_sel}, erro RMS: direta 0 "
+            f"sortear, nada a arredondar: piso zero (a linha no eixo). Em T = {t_sel}, erro RMS: direta 0 "
             f"< latência {l_sel:.3f} < Poisson {p_sel:.3f}. Se um experimento mostra 'direta > "
-            "latência > Poisson', essa ordem pode ser só a dos chãos, não informação a mais.",
+            "latência > Poisson', essa ordem pode ser só a dos pisos, não informação a mais.",
         )
         more_t = (
-            "Mais quadros baixam o chão — a um custo",
-            "Mais quadros baixam os dois chãos, em ritmos diferentes: de T = 16 para T = 64 (4×), "
+            "Mais quadros baixam o piso — a um custo",
+            "Mais quadros baixam os dois pisos, em ritmos diferentes: de T = 16 para T = 64 (4×), "
             f"Poisson só cai pela metade ({poisson_rms_error(16):.3f} → {poisson_rms_error(64):.3f}, "
             "∝ 1/√T); latência cai uns 4× ("
             f"{latency_rms_error(16):.4f} → {latency_rms_error(64):.4f}, ∝ 1/T). "
@@ -121,9 +122,9 @@ class EncodingNoiseDemo(DemoModule):
         fair = (
             "Como comparar codificações com justiça",
             "A armadilha: comparar o erro de reconstrução das três e concluir que uma 'carrega mais "
-            "informação'. Parte da diferença é só o chão de cada codificação — uma falha silenciosa "
+            "informação'. Parte da diferença é só o piso de cada codificação — uma falha silenciosa "
             "de interpretação, sem erro nenhum no código. O justo é medir quanto cada rede fica "
-            "ACIMA do seu próprio chão, no mesmo T e com a mesma estatística de erro.",
+            "ACIMA do seu próprio piso, no mesmo T e com a mesma estatística de erro.",
         )
 
         frames = [frame(_T_MIN, *intro, checkpoint=True)]

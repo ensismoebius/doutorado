@@ -32,6 +32,7 @@ class ControlsWidget(QWidget):
     play_clicked = Signal()
     pause_clicked = Signal()
     fast_loop_clicked = Signal()
+    capture_toggled = Signal(bool)
     speed_changed = Signal(float)
     parameter_changed = Signal(str, float)
     show_equation_toggled = Signal(bool)
@@ -45,6 +46,14 @@ class ControlsWidget(QWidget):
         self._is_playing = False
 
         root = QVBoxLayout(self)
+
+        # Reset/Step/Play/speed share one container so the live-capture
+        # demo (which has none of those -- see set_transport_visible) can
+        # hide them all with a single setVisible call, the same pattern
+        # self._params_container already uses for the sliders area.
+        self._transport_container = QWidget()
+        transport_container_layout = QVBoxLayout(self._transport_container)
+        transport_container_layout.setContentsMargins(0, 0, 0, 0)
 
         transport_row = QHBoxLayout()
         self._reset_btn = QPushButton("Reset")
@@ -72,7 +81,7 @@ class ControlsWidget(QWidget):
         self._loop_btn.setVisible(False)
         for btn in (self._reset_btn, self._back_btn, self._play_btn, self._fwd_btn, self._loop_btn):
             transport_row.addWidget(btn)
-        root.addLayout(transport_row)
+        transport_container_layout.addLayout(transport_row)
 
         self._loop_btn.clicked.connect(self._on_loop_clicked)
 
@@ -88,7 +97,21 @@ class ControlsWidget(QWidget):
         self._speed_slider.setValue(100)
         self._speed_slider.valueChanged.connect(lambda v: self.speed_changed.emit(v / 100.0))
         speed_row.addWidget(self._speed_slider)
-        root.addLayout(speed_row)
+        transport_container_layout.addLayout(speed_row)
+        root.addWidget(self._transport_container)
+
+        # Opt-in per demo (DemoModule.supports_live_capture): hidden unless
+        # the active demo is the one driven by a real microphone instead
+        # of the usual Reset/Step/Play transport (see set_transport_visible,
+        # which hides that whole transport for exactly this demo).
+        capture_row = QHBoxLayout()
+        self._capture_btn = QPushButton("Iniciar captura ao vivo")
+        self._capture_btn.setCheckable(True)
+        self._capture_btn.setToolTip("Liga/desliga a captura do microfone para este demo")
+        self._capture_btn.setVisible(False)
+        self._capture_btn.toggled.connect(self._on_capture_toggled)
+        capture_row.addWidget(self._capture_btn)
+        root.addLayout(capture_row)
 
         toggle_row = QHBoxLayout()
         self._eq_btn = QPushButton("Mostrar equação")
@@ -98,12 +121,34 @@ class ControlsWidget(QWidget):
         self._expl_btn.setCheckable(True)
         self._expl_btn.setChecked(True)
         self._expl_btn.toggled.connect(self.show_explanation_toggled)
+        # Starts unchecked/hidden on purpose: the sliders are for someone
+        # who already wants to poke at a parameter, not something every
+        # viewer needs on screen for every demo. Shown only for a demo
+        # that actually HAS parameters (rebuild_parameters below), same
+        # rule set_fast_loop_available already applies to the loop button.
+        self._params_btn = QPushButton("Mostrar parâmetros")
+        self._params_btn.setCheckable(True)
+        self._params_btn.setVisible(False)
+        self._params_btn.toggled.connect(self._on_params_toggled)
         toggle_row.addWidget(self._eq_btn)
         toggle_row.addWidget(self._expl_btn)
+        toggle_row.addWidget(self._params_btn)
         root.addLayout(toggle_row)
 
         self._params_layout = QVBoxLayout()
-        root.addLayout(self._params_layout)
+        # One container around the whole params_layout, not a per-slider
+        # setVisible(False): rebuild_parameters tears down and rebuilds
+        # the individual slider rows on every demo switch, so hiding them
+        # one by one would have to be redone every time too. Hiding the
+        # single container instead is one setVisible call, and it is
+        # exactly what toggled() below already does.
+        self._params_container = QWidget()
+        self._params_container.setLayout(self._params_layout)
+        self._params_container.setVisible(False)
+        root.addWidget(self._params_container)
+
+    def _on_params_toggled(self, visible: bool) -> None:
+        self._params_container.setVisible(visible)
 
     def set_playing(self, playing: bool) -> None:
         self._is_playing = playing
@@ -127,6 +172,31 @@ class ControlsWidget(QWidget):
         self._loop_btn.blockSignals(True)
         self._loop_btn.setChecked(active)
         self._loop_btn.blockSignals(False)
+
+    def set_transport_visible(self, visible: bool) -> None:
+        """Hide Reset/Step/Play/speed entirely for a live-capture demo,
+        which has no notion of "steps" to play/pause/step through."""
+        self._transport_container.setVisible(visible)
+
+    def set_live_capture_available(self, available: bool) -> None:
+        """Show the capture button only for the one demo that has it."""
+        self._capture_btn.setVisible(available)
+        if not available:
+            self.set_capture_active(False)
+
+    def set_capture_active(self, active: bool) -> None:
+        """Mirror the demo's actual capture state onto the button without
+        re-emitting capture_toggled -- same reasoning as set_fast_loop_active."""
+        if self._capture_btn.isChecked() == active:
+            return
+        self._capture_btn.blockSignals(True)
+        self._capture_btn.setChecked(active)
+        self._capture_btn.blockSignals(False)
+        self._capture_btn.setText("Parar captura" if active else "Iniciar captura ao vivo")
+
+    def _on_capture_toggled(self, checked: bool) -> None:
+        self._capture_btn.setText("Parar captura" if checked else "Iniciar captura ao vivo")
+        self.capture_toggled.emit(checked)
 
     def _on_loop_clicked(self) -> None:
         # A second click on an active loop means "stop", which is exactly
@@ -175,6 +245,17 @@ class ControlsWidget(QWidget):
             self._param_sliders[name] = slider
             self._param_labels[name] = label
             self._param_scale[name] = scale
+
+        has_params = bool(spec)
+        self._params_btn.setVisible(has_params)
+        if not has_params:
+            # no button left to show it with -- e.g. switching from a demo
+            # that had parameters (toggled open) to one that has none must
+            # not leave an empty, visible params area behind.
+            self._params_btn.setChecked(False)
+            self._params_container.setVisible(False)
+        else:
+            self._params_container.setVisible(self._params_btn.isChecked())
 
     def _on_slider(self, name: str, raw_value: int, scale: float, label: QLabel, cfg: dict) -> None:
         value = raw_value / scale

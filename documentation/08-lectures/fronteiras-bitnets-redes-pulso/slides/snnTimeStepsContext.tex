@@ -1,0 +1,20 @@
+\begin{frame}[shrink]
+	\frametitle{time\_steps e $\Delta t$: quantos passos e quanto dura cada passo}
+	\small
+	\par Um neurônio de pulso guarda estado entre atualizações. Para simular essa memória, é preciso saber tanto \textbf{quantas atualizações} fazer quanto \textbf{quanto tempo simulado} decorre entre elas.
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			& \textbf{time\_steps ($T$)} & \textbf{$\Delta t$} \\
+			\midrule
+			Responde a & Quantos quadros? & Quanto dura cada quadro? \\
+			Exemplo & $T=16$: 16 atualizações & $\Delta t=1$: 1 unidade por quadro \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item Duração simulada: $T\Delta t$. Com $T=16$, mudar $\Delta t$ de 1 para 16 muda a duração de 16 para 256 unidades, sem mudar o número de quadros.
+		\item No LIF, a fração de potencial que sobrevive a cada passo é $\beta=e^{-\Delta t/(RC)}$. Com $RC=5$, $\beta=0{,}82$ para $\Delta t=1$, mas cai para $0{,}04$ se $\Delta t=16$: a unidade quase esquece o estado anterior.
+		\item \textbf{Por que importa?} Confundir as duas grandezas pode alterar silenciosamente a memória temporal. E, ao empilhar sequências no lote, a ordem dos quadros também precisa continuar correta \cite{gerstner2014neuronal, eshraghian2023training}.
+	\end{itemize}
+\end{frame}

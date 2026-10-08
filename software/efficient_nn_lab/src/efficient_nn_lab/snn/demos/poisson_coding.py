@@ -25,8 +25,9 @@ class PoissonCodingDemo(DemoModule):
     title = "SNN -> Codificação Poisson"
     slug = "snn.poisson"
     description = (
-        "O mesmo sinal contínuo, mas cada passo de tempo só dispara com uma probabilidade "
-        "proporcional à intensidade — não mais um cruzamento de nível garantido."
+        "Como uma SNN (Spiking Neural Network, rede neural de pulso) codifica um sinal: o mesmo "
+        "sinal contínuo, mas cada passo de tempo só dispara com uma probabilidade proporcional à "
+        "intensidade — não mais um cruzamento de nível garantido."
     )
 
     def __init__(self) -> None:
