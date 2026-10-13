@@ -619,9 +619,12 @@ stopping the run at any moment is routine. It now goes through `.tmp` + rename a
 
 **What can still go wrong, and how it shows:**
 
-- `stop_run` waits up to 30 s for the process-group file (a run that has not started yet). If it
-  never appears, the handler says so in the `.err` and stops nothing; the limit then plays out
-  as it did for 5259424 — visible: no `STOPPED` line, `/store/$USER/<id>/` still there.
+- A signal during the setup (before job-nanny starts) ends the job without starting the run:
+  `stop signal during setup -- not starting the run`, exit 143, the stage removed by the EXIT
+  trap. After job-nanny starts, `stop_run` waits up to 30 s for the process-group file (job-nanny
+  may still be copying the stage in). If it never appears, the handler says so in the `.err` and
+  stops nothing; the limit then plays out as it did for 5259424 — visible: no `STOPPED` line,
+  `/store/$USER/<id>/` still there.
 - Any SIGKILL before the final copy finishes (a node failure; a plain `scancel` whose final
   copy takes over 120 s) leaves the same two things behind.
 

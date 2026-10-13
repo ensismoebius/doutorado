@@ -17,9 +17,9 @@
 #SBATCH --job-name=meeting01-loso
 #SBATCH --partition=long
 #SBATCH --time=30-00:00:00
-# USR1 to this shell (B:) 15 min before the time limit: the stop handler at the end ends the run
-# and lets job-nanny copy the results back and delete its work dir. Why the limit itself cannot
-# do that: the "Slurm signals only this shell" comment at the end.
+# USR1 to this shell (B:) 15 min before the time limit: the stop handler below ends the run and
+# lets job-nanny copy the results back and delete its work dir. Why the limit itself cannot do
+# that: the "Slurm signals only this shell" comment under `set -euo pipefail`.
 #SBATCH --signal=B:USR1@900
 # --cpus-per-task=20 (the user's choice, from their own earlier timing tests; a short
 # synthetic probe on 2026-10-07 had pointed the other way, so this is not settled). Each node
@@ -34,6 +34,38 @@
 #SBATCH --error=meeting01_loso_%j.err
 
 set -euo pipefail
+
+# ── Slurm signals only this shell ─────────────────────────────────────────────────────────────
+# At the time limit (or a scancel) Slurm sends SIGTERM and, KillWait = 120 s later, SIGKILL. With
+# ProctrackType=proctrack/cgroup the SIGTERM goes to the step's own task -- this shell -- and not
+# to the processes under it; they only ever get the SIGKILL. Smoke job 5259424 (2026-10-13) shows
+# it: its run kept training past the limit, job-nanny made one more periodic copy, and 120 s later
+# everything died by signal 9 (sacct: batch step CANCELLED, 0:9) -- no final copy, WORK_DIR left
+# on /store, and this shell's own trap never ran either, because a shell waiting on a FOREGROUND
+# command defers every trap until that command returns. Hence job-nanny goes to the background
+# (`wait` returns as soon as a trapped signal arrives) and this handler ends the run itself:
+# job-nanny then sees its command return and does its normal finish -- final copy back, WORK_DIR
+# deleted. USR1 comes 15 min ahead (--signal above); TERM is the limit itself or a plain scancel.
+# Installed first, so that a signal during the staging below is not fatal (USR1's default action
+# is to terminate); before job-nanny starts it only sets STOPPED, checked right before the launch.
+STOPPED=0
+NANNY_PID=""
+stop_run() {
+  STOPPED=1
+  [[ -n "$NANNY_PID" ]] || return 0   # during setup: reported by the check before the launch
+  echo "[gridunesp] $(date '+%F %T') stop signal: ending the run; job-nanny copies the results back" >&2
+  local pgid="" _
+  for _ in {1..30}; do   # job-nanny may still be copying the stage in; the run starts after that
+    if [[ -s "$RUN_PGID_FILE" ]]; then pgid="$(<"$RUN_PGID_FILE")"; break; fi
+    sleep 1
+  done
+  if [[ -z "$pgid" ]]; then
+    echo "[gridunesp] no run process group recorded in $RUN_PGID_FILE -- cannot stop the run" >&2
+    return 0
+  fi
+  kill -TERM -- "-$pgid" 2>/dev/null || true
+}
+trap stop_run USR1 TERM
 
 # job-nanny is NOT on a batch job's PATH: it comes with the `gridunesp` module
 # (/opt/gridunesp/dist/gridunesp/bin/job-nanny -> goo-job-nanny-v2), which only a LOGIN shell
@@ -136,34 +168,12 @@ START
 export INPUT="$STAGE"
 export OUTPUT="$STAGE/results"
 
-# ── Slurm signals only this shell ─────────────────────────────────────────────────────────────
-# At the time limit (or a scancel) Slurm sends SIGTERM and, KillWait = 120 s later, SIGKILL. With
-# ProctrackType=proctrack/cgroup the SIGTERM goes to the step's own task -- this shell -- and not
-# to the processes under it; they only ever get the SIGKILL. Smoke job 5259424 (2026-10-13) shows
-# it: its run kept training past the limit, job-nanny made one more periodic copy, and 120 s later
-# everything died by signal 9 (sacct: batch step CANCELLED, 0:9) -- no final copy, WORK_DIR left
-# on /store, and this shell's own trap never ran either, because a shell waiting on a FOREGROUND
-# command defers every trap until that command returns. Hence job-nanny goes to the background
-# (`wait` returns as soon as a trapped signal arrives) and the handler ends the run itself:
-# job-nanny then sees its command return and does its normal finish -- final copy back, WORK_DIR
-# deleted. USR1 comes 15 min ahead (--signal above); TERM is the limit itself or a plain scancel.
-STOPPED=0
-stop_run() {
-  STOPPED=1
-  echo "[gridunesp] $(date '+%F %T') stop signal: ending the run; job-nanny copies the results back" >&2
-  local pgid="" _
-  for _ in {1..30}; do   # the run may not have started yet
-    if [[ -s "$RUN_PGID_FILE" ]]; then pgid="$(<"$RUN_PGID_FILE")"; break; fi
-    sleep 1
-  done
-  if [[ -z "$pgid" ]]; then
-    echo "[gridunesp] no run process group recorded in $RUN_PGID_FILE -- cannot stop the run" >&2
-    return
-  fi
-  kill -TERM -- "-$pgid" 2>/dev/null || true
-}
-trap stop_run USR1 TERM
-
+# The stop handler (installed at the top) found a signal before this point: do not start a run
+# that would only be SIGKILLed 120 s later.
+if [[ "$STOPPED" == "1" ]]; then
+  echo "[gridunesp] $(date '+%F %T') stop signal during setup -- not starting the run" >&2
+  exit 143
+fi
 job-nanny bash "$STAGE/start.sh" "$PWD/$STAGE" "$RUN_PGID_FILE" \
   "$STAGE/scripts/pipeline/meeting01/01_meeting01_run_loso.sh" &
 NANNY_PID=$!
