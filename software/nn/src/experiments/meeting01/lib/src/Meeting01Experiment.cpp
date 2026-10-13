@@ -1418,9 +1418,6 @@ void write_experiment_outputs(const Meeting01Config& config,
     const std::string tag = fold_output_tag(config,
         config.evaluation.datasets.empty() ? std::string{} : config.evaluation.datasets.front());
 
-    const std::filesystem::path csv_path = out_dir / (tag + "_comparative_metrics.csv");
-    write_rows_csv(csv_path, all_rows);
-
     const std::filesystem::path table_path = out_dir / (tag + "_publication_table.csv");
     write_publication_table(table_path, all_rows);
 
@@ -1435,6 +1432,13 @@ void write_experiment_outputs(const Meeting01Config& config,
         write_pgfplots_summary_dat(latex_dir / (tag + "_summary.dat"), all_rows);
         write_pgfplots_sweep_dat(latex_dir / (tag + "_sweep.dat"), all_rows);
     }
+
+    // LAST, after every other output of the fold: 01_meeting01_run_loso.sh's RESUME=1 skips a
+    // fold as soon as this file exists, so a process killed between two of the writes above
+    // must find it absent and rerun the fold, not skip one with half its outputs. It used to
+    // be written first. (Atomic on its own -- see write_rows_csv.)
+    const std::filesystem::path csv_path = out_dir / (tag + "_comparative_metrics.csv");
+    write_rows_csv(csv_path, all_rows);
 
     NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() + ", " +
                 table_path.string() + ", " + summary_json.string());

@@ -52,6 +52,11 @@ inline constexpr int kResultsFormat = 3;
 void write_reference_inputs(
     const std::filesystem::path& dir, const std::string& stem, const DatasetSplit& split);
 
+// The per-fold `<tag>_comparative_metrics.csv`. It doubles as 01_meeting01_run_loso.sh's
+// RESUME=1 "this fold finished" marker (a fold whose file is non-empty is skipped), so it is
+// written to `<path>.tmp` and renamed into place: a process killed mid-write (a cluster time
+// limit, a scancel) leaves the previous state or the complete file, never a truncated one that
+// RESUME would take for a finished fold. Throws std::runtime_error on a file it cannot write.
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows);
 
 void write_publication_table(const std::filesystem::path& path, const std::vector<ResultRow>& rows);

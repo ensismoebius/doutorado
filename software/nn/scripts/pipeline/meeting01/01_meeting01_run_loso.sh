@@ -56,8 +56,10 @@
 #              command line with RESUME=1 added. It implies KEEP_CHECKPOINTS=1 (nothing
 #              is wiped), and before each (dataset, fold) skips straight past any pair
 #              that already has a complete `*_comparative_metrics.csv` — that file is
-#              written exactly once, at the very end of a fold's run, so its presence
-#              means the fold genuinely finished, not that it merely started. Only the
+#              written exactly once, at the very end of a fold's run, after every other
+#              output and through a temporary file + rename (since 2026-10-13; before, a
+#              kill mid-write could leave a truncated one), so its presence means the
+#              fold genuinely finished, not that it merely started. Only the
 #              fold that was actually running when the script died (no CSV yet) and
 #              everything after it get (re)run. A checkpoint written by a binary of another
 #              results_format (any binary older than 2026-10-06) is retrained, not restored.

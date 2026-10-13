@@ -529,3 +529,34 @@ TEST_F(DATWriterTest, PerWindowErrorsOfARerunReplaceTheEarlierRunsRows)
     EXPECT_EQ(lines[1].rfind("lstm-ae,poisson,", 0), 0u) << lines[1];
     EXPECT_NE(lines[1].find(",0.50000000,"), std::string::npos) << lines[1];
 }
+
+TEST_F(DATWriterTest, ComparativeCsvReplacesTheOldFileWholeThroughATmpFile)
+{
+    // This file is 01_meeting01_run_loso.sh's RESUME=1 "fold finished" marker, so it goes
+    // through <path>.tmp + rename: a kill mid-write can leave a stray .tmp, never a truncated
+    // marker. Here: an older marker is replaced in full and no .tmp is left behind.
+    const fs::path path = test_dir / "t_fsdd_fold0_comparative_metrics.csv";
+    ResultRow older;
+    older.model = "lstm-ae";
+    older.split = "test";
+    older.cv_fold = 0;
+    write_rows_csv(path, {older, older, older});
+
+    ResultRow newer = older;
+    newer.model = "gru-ae";
+    write_rows_csv(path, {newer});
+
+    EXPECT_FALSE(fs::exists(fs::path(path.string() + ".tmp")));
+    const auto lines = read_file_lines(path);
+    ASSERT_EQ(lines.size(), 2u) << "header + the newer run's one row";
+    EXPECT_EQ(lines[0].rfind("backend,profile,dataset,model,", 0), 0u) << lines[0];
+    EXPECT_NE(lines[1].find(",gru-ae,"), std::string::npos) << lines[1];
+}
+
+TEST_F(DATWriterTest, ComparativeCsvRefusesADirectoryItCannotWrite)
+{
+    // It used to open the stream unchecked, so an unwritable path wrote nothing and returned:
+    // the fold then looked unfinished to RESUME, with no error anywhere.
+    EXPECT_THROW(write_rows_csv(test_dir / "no_such_dir" / "x_comparative_metrics.csv", {}),
+        std::runtime_error);
+}

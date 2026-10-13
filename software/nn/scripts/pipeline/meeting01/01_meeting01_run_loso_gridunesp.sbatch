@@ -7,14 +7,20 @@
 # Usage (from ~/software/nn on GridUnesp, after gridunesp_deploy.sh):
 #   sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch            # fresh run
 #   RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch   # continue
-# Smoke test of this whole path before a long queue wait (~15 min; it ends in TIMEOUT on purpose,
-# then move results/meeting01 aside -- a fresh run refuses a non-empty one):
-#   WAIT_CHECKPOINT=120 sbatch -p short -t 00:15:00 -c 4 --job-name=meeting01-smoke \
-#     scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch
+#   scancel --batch --signal=USR1 <jobid>    # stop early, results copied back (as at the limit)
+# Smoke test of this whole path before a long queue wait (~6 min: the early stop at the time limit
+# is part of what it tests; then move results/meeting01 aside -- a fresh run refuses a non-empty
+# one). Keep the meeting01-loso prefix in any --job-name: gridunesp_deploy.sh looks for it.
+#   WAIT_CHECKPOINT=60 sbatch -p short -t 00:06:00 -c 4 --signal=B:USR1@150 \
+#     --job-name=meeting01-loso-smoke scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch
 #
 #SBATCH --job-name=meeting01-loso
 #SBATCH --partition=long
 #SBATCH --time=30-00:00:00
+# USR1 to this shell (B:) 15 min before the time limit: the stop handler at the end ends the run
+# and lets job-nanny copy the results back and delete its work dir. Why the limit itself cannot
+# do that: the "Slurm signals only this shell" comment at the end.
+#SBATCH --signal=B:USR1@900
 # --cpus-per-task=20 (the user's choice, from their own earlier timing tests; a short
 # synthetic probe on 2026-10-07 had pointed the other way, so this is not settled). Each node
 # has 56 CPUs (28 cores x 2 threads) but the partition is shared and nearly full: requests of
@@ -58,9 +64,10 @@ export RESUME="${RESUME:-0}"
 #     already has the layout the run expects (built below);
 #   - it cd's into WORK_DIR, runs the command, and every WAIT_CHECKPOINT seconds copies OUTPUT
 #     back to the submit directory (rsync -a -u, nothing deleted there);
-#   - at the end it copies OUTPUT back, deletes WORK_DIR and exits with the command's own code;
-#   - killed (TIMEOUT, scancel): no final copy, no cleanup. The submit directory then has the last
-#     periodic copy, and WORK_DIR keeps the newest state on /store -- recover it by hand.
+#   - when the command ends it copies OUTPUT back, deletes WORK_DIR and exits with the command's
+#     own code -- only then: it has no signal handling, so a job-nanny that is SIGKILLed (what a
+#     time limit or scancel does to it, see the end) leaves WORK_DIR on /store with the newest
+#     state and the submit directory with the last periodic copy.
 # /store rather than node-local /tmp: no automatic cleanup and it survives a node failure (docs
 # v3, storage guide), while /tmp is wiped by a cron for users with no job on that node.
 export SHARED_FS=true
@@ -89,11 +96,15 @@ fi
 
 # INPUT: exactly what the run reads relative to its own root, in the same layout. Datasets are
 # read from their absolute /home paths (the profile's dataset.sources[].root), once per fold, and
-# the binary loads its shared libraries from the build tree on /home -- so do not redeploy while
-# this job runs. latex_data_dir (absolute) also receives a few small files per fold.
+# every fold's process loads libstatistics.so and libmatio* from the build tree on /home (the
+# binary's RPATH; only the executable is staged) -- which is why gridunesp_deploy.sh refuses to
+# run while a meeting01-loso job does. latex_data_dir (absolute) also receives a few small files
+# per fold.
 STAGE=".job-input-${SLURM_JOB_ID}"
-trap 'rm -rf -- "$STAGE"' EXIT
-trap 'exit 143' TERM
+RUN_PGID_FILE="/tmp/meeting01-run-${SLURM_JOB_ID}.pgid"
+# Covers a job that fails before job-nanny runs start.sh; after that, start.sh has already
+# deleted the stage (below) and this finds nothing.
+trap 'rm -rf -- "$STAGE" "$RUN_PGID_FILE"' EXIT
 mkdir -p "$STAGE/scripts/pipeline" "$STAGE/src/experiments/meeting01/profiles" \
          "$STAGE/${BUILD_DIR}/src/experiments/meeting01" "$STAGE/results"
 cp -a SOURCE_REVISION "$STAGE/"
@@ -105,9 +116,67 @@ if [[ "$RESUME" == "1" && -d "$RES" ]]; then
   cp -a "$RES" "$STAGE/results/"
 fi
 
+# What job-nanny runs, from WORK_DIR, once it has copied the stage there. It deletes the stage
+# in ~/software/nn at once (from then on only the WORK_DIR copy is used, and a job that gets
+# killed never reaches the EXIT trap above -- smoke job 5259424 left its stage behind), then
+# starts the run as the leader of a new process group and writes the group id down, so that
+# stop_run can end the run, and only the run, while job-nanny goes on to its final copy.
+cat > "$STAGE/start.sh" <<'START'
+#!/bin/bash
+# start.sh STAGE_IN_SUBMIT_DIR PGID_FILE RUN_SCRIPT -- written by
+# 01_meeting01_run_loso_gridunesp.sbatch for job-nanny; not meant to be run by hand.
+set -euo pipefail
+[[ "$1" == */.job-input-"$SLURM_JOB_ID" ]] || { echo "start.sh: refusing to delete '$1'" >&2; exit 1; }
+rm -rf -- "$1"
+exec setsid -w bash -c 'echo "$$" > "$1"; exec bash "$2"' start "$2" "$3"
+START
+
 # OUTPUT is relative to WORK_DIR; rsync copies the directory `results` into the submit
 # directory, i.e. onto ~/software/nn/results.
 export INPUT="$STAGE"
 export OUTPUT="$STAGE/results"
 
-job-nanny bash "$STAGE/scripts/pipeline/meeting01/01_meeting01_run_loso.sh"
+# ── Slurm signals only this shell ─────────────────────────────────────────────────────────────
+# At the time limit (or a scancel) Slurm sends SIGTERM and, KillWait = 120 s later, SIGKILL. With
+# ProctrackType=proctrack/cgroup the SIGTERM goes to the step's own task -- this shell -- and not
+# to the processes under it; they only ever get the SIGKILL. Smoke job 5259424 (2026-10-13) shows
+# it: its run kept training past the limit, job-nanny made one more periodic copy, and 120 s later
+# everything died by signal 9 (sacct: batch step CANCELLED, 0:9) -- no final copy, WORK_DIR left
+# on /store, and this shell's own trap never ran either, because a shell waiting on a FOREGROUND
+# command defers every trap until that command returns. Hence job-nanny goes to the background
+# (`wait` returns as soon as a trapped signal arrives) and the handler ends the run itself:
+# job-nanny then sees its command return and does its normal finish -- final copy back, WORK_DIR
+# deleted. USR1 comes 15 min ahead (--signal above); TERM is the limit itself or a plain scancel.
+STOPPED=0
+stop_run() {
+  STOPPED=1
+  echo "[gridunesp] $(date '+%F %T') stop signal: ending the run; job-nanny copies the results back" >&2
+  local pgid="" _
+  for _ in {1..30}; do   # the run may not have started yet
+    if [[ -s "$RUN_PGID_FILE" ]]; then pgid="$(<"$RUN_PGID_FILE")"; break; fi
+    sleep 1
+  done
+  if [[ -z "$pgid" ]]; then
+    echo "[gridunesp] no run process group recorded in $RUN_PGID_FILE -- cannot stop the run" >&2
+    return
+  fi
+  kill -TERM -- "-$pgid" 2>/dev/null || true
+}
+trap stop_run USR1 TERM
+
+job-nanny bash "$STAGE/start.sh" "$PWD/$STAGE" "$RUN_PGID_FILE" \
+  "$STAGE/scripts/pipeline/meeting01/01_meeting01_run_loso.sh" &
+NANNY_PID=$!
+RC=0
+while :; do
+  wait "$NANNY_PID" && RC=0 || RC=$?
+  # A trap ends `wait` early (status > 128) while job-nanny is still running -- wait again.
+  kill -0 "$NANNY_PID" 2>/dev/null || break
+done
+
+if [[ "$STOPPED" == "1" ]]; then
+  echo "[gridunesp] STOPPED before the run finished (time limit or scancel; run exit code $RC)." \
+       "Results so far are in $PWD/$RES. Continue with:" \
+       "RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch" >&2
+fi
+exit "$RC"

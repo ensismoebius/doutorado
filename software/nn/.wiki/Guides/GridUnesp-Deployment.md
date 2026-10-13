@@ -293,7 +293,7 @@ What to do, by state of the job:
 | Situation | Action |
 |---|---|
 | job queued (`PD`) or held (`scontrol hold <id>`) | Safe. Redeploy, read the revision the deploy prints, then `scontrol release <id>`; the refusal covers a build that failed. |
-| job **running** | **Do not redeploy.** The run script starts the binary anew for every (dataset, fold), so a rebuild underneath it swaps the binary mid-run, while the revision label — read once, at start — keeps naming the old one. *Silent*; nothing guards it. Cancel the job (or wait for it to end), redeploy, then start with `RESUME=1`. |
+| job **running** | **Do not redeploy — `gridunesp_deploy.sh` refuses (since 2026-10-13).** The job stages only the `meeting01` executable; every (dataset, fold) is a new process that loads `libstatistics.so`, `libmatioCpp.so` and `libmatio.so` from the build tree (the binary's RPATH is absolute), so a rebuild underneath it changes the code of its later folds, while the revision label — logged once, at start — keeps naming the old one. That was *silent* until the deploy started checking `squeue` for a running `meeting01-loso*` job. Stop it (`scancel --batch --signal=USR1 <id>` copies its results back, see [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13)) or wait for it to end, redeploy, then start with `RESUME=1`. |
 | `results/meeting01/` holds folds of an older binary | Move them aside first: `mv results/meeting01 results/meeting01_pre_<date> && mkdir -p results/meeting01`. `03_`, `02_` and `04_` refuse folds whose `results_format` is not the current one, and a checkpoint of another format is retrained, never restored — but a directory mixing old and new folds is not a result. |
 | `scripts/pipeline/meeting01/.env` exists on the cluster | Delete it: `rm ~/software/nn/scripts/pipeline/meeting01/.env`. Earlier deploys copied your local password file there; nothing on the cluster reads it, and the deploy no longer sends it (it warns if it finds one). |
 
@@ -442,7 +442,9 @@ squeue -u $USER
 
 The script (`01_meeting01_run_loso_gridunesp.sbatch`) sets `EXPERIMENT_CONFIRMED=1
 SKIP_BUILD=1 SKIP_POSTPROCESS=1` and calls the **unmodified**
-`01_meeting01_run_loso.sh` under `job-nanny` (GridUnesp's required job wrapper).
+`01_meeting01_run_loso.sh` under `job-nanny` (GridUnesp's mandatory job wrapper — how it is
+used here, and why the first submission died in one second, is in
+[job-nanny below](#job-nanny-what-it-really-does-and-how-this-job-uses-it-2026-10-13)).
 `SKIP_POSTPROCESS=1` (new flag, this session) stops the script after the training
 loop — the paper-table scripts (`03_`/`02_`/`04_`) default `--data-dir` to an absolute
 path under the *local* machine's `documentation/` tree, which does not exist on
@@ -456,7 +458,11 @@ RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatc
 
 `RESUME=1` uses the training loop's existing semantics — skips straight past any
 `(dataset, fold)` whose `*_comparative_metrics.csv` already exists, unchanged from
-local-machine behavior (see [Meeting01](../Experiments/Meeting01.md#running-it)).
+local-machine behavior (see [Meeting01](../Experiments/Meeting01.md#running-it)). That file is
+the last thing a fold writes, through a temporary file and a rename (since 2026-10-13), so it
+exists only once the fold has written everything — even for a run stopped in the middle of a
+write; why that matters here is in
+[Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13).
 
 **Monitoring progress remotely.** `monitor.py` (the same live dashboard used for a
 local run — see [Meeting01 § Running it](../Experiments/Meeting01.md#running-it))
@@ -491,31 +497,173 @@ retry loop — use `monitor.py`'s own `--interval` (inside `remote_monitor.sh`'s
 session) or a real-delay `watch -n 60 ...` around `pull_progress.sh` rather than
 hammering the login node.
 
-> **Partially confirmed, one real gap still open (v3 recheck, 2026-09-23)**:
-> `job-nanny`'s `SHARED_FS` flag is real and does what the sbatch script assumes —
-> v3 documents it exactly (default `false`; single-node job with `SHARED_FS`/
-> `LARGE_FILES` both unset stages to per-node `/tmp`; `SHARED_FS=true` — what this
-> sbatch script sets — or `LARGE_FILES=true`, or a multi-node job, stages to the
-> shared `/store` instead). There is also a periodic-sync mechanism, `CHECKPOINT`
-> (default `$OUTPUT`) / `WAIT_CHECKPOINT` (default 10800s = 3h), which is how a
-> multi-day `/tmp`-staged run's results would get copied back to `/home`
-> incrementally rather than only at job end — not directly relevant here since
-> `SHARED_FS=true` writes to `/store` directly, but useful context for why that flag
-> matters at all.
->
-> The real gap: v3 describes `INPUT` and `OUTPUT` as **required** job-nanny
-> variables (files/dirs staged in before the job runs / copied back when it ends),
-> and this sbatch script sets neither. Whether that is a hard failure (job-nanny
-> refuses to run without them) or a soft one (only logging/staging metadata is
-> incomplete, since `SHARED_FS=true` already means job-nanny isn't doing any actual
-> copying) was **not resolved** by this recheck — the source page itself only
-> describes `INPUT`/`OUTPUT` as "always define" without stating what happens if you
-> don't. Do not trust the reading above as settled: confirm with
-> `support.ncc@unesp.br`, or — cheaper — first submit a `short`-queue smoke job
-> using the real sbatch script with a trivial workload (e.g. `meeting01 --help`
-> instead of the full training loop) and read job-nanny's own log output for a
-> complaint about missing `INPUT`/`OUTPUT` before ever submitting the real 30-day
-> job. If wrong, the run is still safe to kill and `RESUME=1` restart either way.
+### job-nanny: what it really does, and how this job uses it (2026-10-13)
+
+**What went wrong first.** Job 5245836 waited five days in `long`, started on node036 and died
+in one second: `job-nanny: command not found` (exit 127). The script had been written from the
+docs and never run. The callout that stood here even said to smoke-test it in `short` first; nobody
+did.
+
+**Where job-nanny lives.** The v3 docs ("Melhorando o Script de Submissão"): *"O script
+`job-nanny` é reconhecido ao carregar o módulo **gridunesp**. Quando o usuário faz login no
+cluster, esse módulo é carregado automaticamente."* A batch job is not a login shell, so the
+module is not loaded there. `module show gridunesp` puts `/opt/gridunesp/dist/gridunesp/bin` on
+`PATH`, where `job-nanny` is a symlink to `goo-job-nanny-v2`, a 131-line bash script. The sbatch
+script now runs `module load gridunesp` first.
+
+**What it does — read from its source, not from the docs:**
+
+| Step | `goo-job-nanny-v2` | Consequence here |
+|---|---|---|
+| start | exits 3 if `INPUT` or `OUTPUT` is unset | both are required, not optional metadata |
+| work dir | `/store/$USER/$SLURM_JOB_ID/` when `SHARED_FS=true`, else node-local `/tmp/…` | `/store`: no automatic cleanup, survives a node failure |
+| copy in | `rsync -a -u $INPUT $WORK_DIR`, **no `-R`** | `out/build/…/meeting01` would arrive as plain `meeting01`, so `INPUT` is one directory already laid out like the tree |
+| run | `cd $WORK_DIR`, then the command | the run's root is the copy, not `~/software/nn` |
+| during | every `WAIT_CHECKPOINT` s: `rsync -a -u $OUTPUT <submit dir>` | results appear in `~/software/nn/results` every 30 min (set to 1800 s) |
+| end | copies `OUTPUT` back, deletes the work dir, exits with the command's own code — only when the command returns | a failed run is a failed job |
+| killed | no signal handling at all: no final copy, no cleanup | `~/software/nn` has the last periodic copy; the newest state stays in `/store/$USER/<jobid>/`. The sbatch script makes sure the command *returns* first — see [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13) |
+
+**How the sbatch script feeds it.** It builds `.job-input-<jobid>/` in `~/software/nn` with
+exactly what the run reads, in the same layout: `SOURCE_REVISION`, `scripts/pipeline/meeting01/`,
+the profile, the binary, its `.built` stamp, a small `start.sh`, and — for `RESUME=1` only —
+`results/meeting01/`. That directory is `INPUT`; its `results/` is `OUTPUT`, which lands on
+`~/software/nn/results`. job-nanny's command is `start.sh`: by the time it runs, job-nanny has
+copied the stage to `/store` and only that copy is used, so it deletes the one in `~/software/nn`
+at once, then starts the run in a process group of its own (why: Stopping, below).
+
+```
+~/software/nn/.job-input-<id>/   --INPUT-->   /store/<user>/<id>/.job-input-<id>/   (run here)
+   deleted by start.sh seconds after the start
+~/software/nn/results/          <--OUTPUT--   /store/<user>/<id>/.job-input-<id>/results/
+                                              (every 30 min, and at the end)
+```
+
+Until 2026-10-13 the stage was meant to be deleted by the script's EXIT trap "when the job
+ends, also on TIMEOUT". It was not: smoke job 5259424 left `.job-input-5259424/` behind, for the
+reason the next section explains.
+
+#### Stopping a run: the 30-day limit, `scancel`, and why Slurm's own signal never reaches it (2026-10-13)
+
+**The problem.** `long` allows 30 days and the full LOSO grid needs more (weeks to months, per
+the profile's `_total_runs_breakdown`), so the first job will most likely end *at its time
+limit*, and a `RESUME=1` job will continue from whatever that ending left behind. The ending
+at the limit is the main path, not an edge case.
+
+**What the limit did to smoke job 5259424** (limit 15 min, `KillWait` = 120 s on this cluster):
+
+```
+03:42:46  limit     slurmstepd: "*** JOB 5259424 ... CANCELLED AT 03:42:47 DUE TO TIME LIMIT ***"
+                    SIGTERM -> the batch shell only
+03:42:47..03:44:47  the run went on training; job-nanny made one more periodic copy
+03:44:47  +120 s    SIGKILL -> every process of the job
+
+sacct:  5259424         TIMEOUT    00:15:09   0:0
+        5259424.batch   CANCELLED  00:17:10   0:9      <- died of signal 9, 120 s after the limit
+left:   ~/software/nn/.job-input-5259424/        /store/ensismoebius/5259424/
+```
+
+Two facts combine:
+
+1. **The SIGTERM reaches the batch shell, not the processes under it.** With
+   `ProctrackType=proctrack/cgroup` (this cluster's setting) Slurm signals the step's own task —
+   for a batch job, the shell running the sbatch script — and its descendants get only the
+   SIGKILL that follows `KillWait`. *Reasoned* from that plugin's behaviour; every observation
+   above fits it (job-nanny, a plain bash script with no handler, would otherwise have died at
+   once), but it was not separately confirmed.
+2. **A shell running a foreground command defers its traps until the command returns.** The
+   batch shell was running `job-nanny …` in the foreground, so its own trap waited behind a
+   command that was never going to return before the SIGKILL.
+
+So nobody stopped the run: job-nanny's finish — final copy back, deleting its work dir — only
+happens when its command returns, and the shell's trap only when job-nanny returns.
+
+**What the sbatch script does now** — the shell stays free to act, and acts before the limit:
+
+```
+limit - 15 min   Slurm: USR1 -> batch shell                     (#SBATCH --signal=B:USR1@900)
+                 the shell is in `wait` (job-nanny runs in the background), which a trapped
+                 signal interrupts at once -> stop_run:
+                     SIGTERM -> the run's process group    (start.sh started the run with setsid
+                                                            and wrote the group id to
+                                                            /tmp/meeting01-run-<id>.pgid)
+                 run script + meeting01 binary die -> job-nanny's command returns 143 ->
+                 job-nanny's normal finish: final copy back, rm -rf /store/<user>/<id>/
+                 shell: "[gridunesp] STOPPED ... Continue with: RESUME=1 sbatch ...", exit 143
+limit            nothing left to kill
+```
+
+| at the time limit | before (job 5259424) | now |
+|---|---|---|
+| who stops the run | nobody — SIGKILL at limit + 120 s | the batch shell, 15 min before the limit |
+| results in `~/software/nn` | the last periodic copy (up to 30 min old) | all of them — job-nanny's final copy ran |
+| `/store/<user>/<id>/` | left behind; clean by hand | deleted by job-nanny |
+| `~/software/nn/.job-input-<id>/` | left behind | deleted by `start.sh` seconds after the start |
+| job state | `TIMEOUT` | `FAILED`, exit 143, a `STOPPED` line in the `.err` |
+
+The same stop on demand: **`scancel --batch --signal=USR1 <jobid>`**. `--batch` matters — without
+it `scancel --signal` goes to job steps, and this job has none (everything runs inside the batch
+step). A plain `scancel <jobid>` sends SIGTERM to the batch shell, which runs the same handler,
+but then only the 120 s of `KillWait` remain for the final copy before the SIGKILL.
+
+**Why a run stopped at an arbitrary instant cannot corrupt what `RESUME=1` reads.** `RESUME=1`
+restores a fold from its checkpoints, which have always been written to `<file>.tmp` and renamed
+(an interrupted write leaves a stray `.tmp`, never a torn checkpoint), and it skips a fold whose
+`*_comparative_metrics.csv` exists. That marker was **not** written that way until 2026-10-13:
+the binary wrote it straight to its final path, and *first* of the fold's final outputs. A
+process killed during that write left a truncated, non-empty file — skipped by the next
+`RESUME=1` as a finished fold, read by `02_` as one. **Silent**, and newly reachable now that
+stopping the run at any moment is routine. It now goes through `.tmp` + rename and is written
+*last*, after the publication table, summary and LaTeX exports (`write_rows_csv`,
+`write_experiment_outputs`; tests `DATWriterTest.ComparativeCsv*`), so "the file exists" means
+"the fold wrote everything".
+
+**What can still go wrong, and how it shows:**
+
+- `stop_run` waits up to 30 s for the process-group file (a run that has not started yet). If it
+  never appears, the handler says so in the `.err` and stops nothing; the limit then plays out
+  as it did for 5259424 — visible: no `STOPPED` line, `/store/$USER/<id>/` still there.
+- Any SIGKILL before the final copy finishes (a node failure; a plain `scancel` whose final
+  copy takes over 120 s) leaves the same two things behind.
+
+Recovery in both cases: `rsync -a /store/$USER/<id>/.job-input-<id>/results ~/software/nn/`,
+then `rm -rf /store/$USER/<id> ~/software/nn/.job-input-<id>` and `RESUME=1 sbatch …`.
+
+**A fresh run refuses a non-empty `results/meeting01`.** Before job-nanny the run script deleted
+old checkpoints in place. Now it deletes them inside the work dir, and the copy back never deletes
+anything, so old checkpoints would sit next to the new rows. Move the old directory aside, or
+continue it with `RESUME=1`.
+
+**What still touches `/home` during the run** (the docs say jobs doing heavy `/home` I/O may be
+cancelled): the datasets, read from their absolute paths in the profile once per fold; the
+shared libraries `libstatistics.so`, `libmatioCpp.so` and `libmatio.so`, which every fold's
+process loads from the build tree (the binary's RPATH is absolute; only the executable is
+staged) — the reason `gridunesp_deploy.sh` refuses to run while a `meeting01-loso*` job does;
+and `latex_data_dir`, which receives a few small files per fold under
+`~/Repos/doutorado/documentation/…` on the cluster — files nothing reads, the paper's data all
+coming from `02_`/`04_`, run locally (§5).
+
+**Smoke test — run it after any change to this path** (~6 min in `short`; it stops itself
+before its limit on purpose — that is the ending the real job will have):
+
+```bash
+WAIT_CHECKPOINT=60 sbatch -p short -t 00:06:00 -c 4 --signal=B:USR1@150 \
+  --job-name=meeting01-loso-smoke scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch
+# meeting01_loso_<id>.err should end with: "stop signal: ending the run", job-nanny's
+#   "Return Code 143" and "Removing files from /store/...", then "[gridunesp] STOPPED ..."
+# gone: ~/software/nn/.job-input-<id>/ (seconds after the start) and /store/$USER/<id>/
+# afterwards: mv results/meeting01 ~/meeting01_smoke_<id>   (a fresh run refuses a non-empty one)
+```
+
+`--signal` on the command line replaces the script's own `@900`, and Slurm may deliver it up to a
+minute early. Keep the `meeting01-loso` prefix in any `--job-name`: it is how the deploy
+recognises a running job.
+
+Job 5259424 (2026-10-13, the earlier 15-minute version of this test) showed the start path
+works: the module loaded, the staging reached `/store`, the run printed revision
+`1977723e/b87ea04341e1`, built fold 0's split, passed the leakage gate and began training, and
+the periodic copy put the events file and `source_revisions.log` in
+`~/software/nn/results/meeting01`. Its *ending* is what [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13)
+is about.
 
 ## 5. Bringing results home
 
@@ -758,10 +906,12 @@ marked so; everything else here is still genuinely open.)
   to avoid needing this), but would simplify things if true.
 - `SHARED_FS=true` itself is now v3-confirmed as the flag that routes a single-node
   job to `/store` instead of per-node `/tmp` staging — **resolved**, no longer an
-  open question on its own. What's still open: whether `job-nanny`'s `INPUT`/
-  `OUTPUT` variables (documented as required) can safely be left unset the way this
-  sbatch script currently does — see the callout in §4 above; verify with a short
-  smoke job before the first long submission.
+  open question on its own. `INPUT`/`OUTPUT` are **resolved** too (2026-10-13): they are
+  hard requirements (job-nanny exits 3 without them), and the sbatch script now sets
+  both — see [job-nanny](#job-nanny-what-it-really-does-and-how-this-job-uses-it-2026-10-13).
+- Whether reading the datasets from `/home` once per fold counts as the heavy `/home` I/O the
+  job-nanny page says may get a job cancelled. Copying them into `INPUT` would mean copying
+  ~24GB per job start and pointing the profile's absolute roots elsewhere.
 - Realistic queue wait time for `long` (30-day) jobs — affects whether `long` or a
   shorter, resubmitted-via-`RESUME=1` `medium`/`short` chain is the better fit.
 - Two internal contradictions in v3's own pages, neither resolved by this recheck:

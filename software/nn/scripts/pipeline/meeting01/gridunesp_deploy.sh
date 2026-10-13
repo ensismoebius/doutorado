@@ -91,6 +91,29 @@ sshpass -e ssh -o ControlMaster=auto -o ControlPath="$CTRL_PATH" -o ControlPersi
   exit 1
 }
 
+# Not while a run is going on. The job stages only the meeting01 EXECUTABLE; the shared
+# libraries it needs from this project (libstatistics.so, libmatio*) are loaded from the remote
+# build tree -- an absolute RPATH -- by every fold's process, each fold being a new process. A
+# rebuild under a running job would hand its later folds different code, recorded nowhere
+# (source_revisions.log is written once per start). A PENDING job is fine: it stages whatever is
+# deployed when it starts, and logs that revision. Jobs are recognised by the meeting01-loso
+# prefix of their name (the sbatch's --job-name; keep it in any override).
+if ! RUNNING_JOBS="$(ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" \
+      "set -o pipefail; squeue -u \"\$USER\" -h -t RUNNING,COMPLETING -o '%i %j %M' | awk '\$2 ~ /^meeting01-loso/'")"
+then
+  echo "gridunesp_deploy.sh: could not list your jobs on ${HOST} (squeue failed); not deploying" \
+       "without knowing whether a run would be disturbed." >&2
+  exit 1
+fi
+if [[ -n "$RUNNING_JOBS" ]]; then
+  echo "gridunesp_deploy.sh: REFUSED -- a meeting01-loso job is running from ${REMOTE_DIR}:" >&2
+  echo "$RUNNING_JOBS" | sed 's/^/    /' >&2
+  echo "Its folds load shared libraries from the build tree this deploy would rebuild. Wait for" \
+       "it to end, or stop it first -- 'scancel --batch --signal=USR1 <jobid>' copies its" \
+       "results back (see .wiki/Guides/GridUnesp-Deployment.md)." >&2
+  exit 1
+fi
+
 echo "[gridunesp-deploy] ensuring remote dir ${REMOTE_DIR} exists"
 ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" "mkdir -p '${REMOTE_DIR}'"
 

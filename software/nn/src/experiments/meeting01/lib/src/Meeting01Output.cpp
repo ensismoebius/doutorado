@@ -250,23 +250,42 @@ void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_pa
 
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
 {
-    std::ofstream out(path);
-    out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_"
-           "hash,split,cv_fold,";
-    out << "mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,macs\n";
-
-    out << std::fixed << std::setprecision(6);
-    for (const auto& row : rows)
+    // Through <path>.tmp + rename, like checkpoint_save: this file is the RESUME=1 "fold
+    // finished" marker, and a process killed while writing it straight to `path` left a
+    // truncated but non-empty file that the next RESUME skipped as a finished fold.
+    const std::filesystem::path tmp(path.string() + ".tmp");
     {
-        out << row.backend << ',' << row.profile << ',' << row.dataset << ',' << row.model << ','
-            << row.encoding << ',' << row.architecture << ',' << row.layers << ',' << row.v_th
-            << ',' << row.alpha << ',' << row.run_id << ',' << row.seed << ',' << row.config_hash
-            << ',' << row.split << ',' << row.cv_fold << ',' << row.metrics.mse << ','
-            << row.metrics.mae << ',' << row.metrics.r2 << ',' << row.metrics.precision << ','
-            << row.metrics.recall << ',' << row.metrics.f1 << ',' << row.metrics.spike_rate << ','
-            << row.metrics.energy << ',' << row.metrics.train_ms << ',' << row.metrics.infer_ms
-            << ',' << row.metrics.parameter_count << ',' << row.metrics.macs << '\n';
+        std::ofstream out(tmp, std::ios::trunc);
+        if (!out.is_open())
+        {
+            throw std::runtime_error("write_rows_csv: cannot open " + tmp.string());
+        }
+        out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,"
+               "config_hash,split,cv_fold,";
+        out << "mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,"
+               "macs\n";
+
+        out << std::fixed << std::setprecision(6);
+        for (const auto& row : rows)
+        {
+            out << row.backend << ',' << row.profile << ',' << row.dataset << ',' << row.model
+                << ',' << row.encoding << ',' << row.architecture << ',' << row.layers << ','
+                << row.v_th << ',' << row.alpha << ',' << row.run_id << ',' << row.seed << ','
+                << row.config_hash << ',' << row.split << ',' << row.cv_fold << ','
+                << row.metrics.mse << ',' << row.metrics.mae << ',' << row.metrics.r2 << ','
+                << row.metrics.precision << ',' << row.metrics.recall << ',' << row.metrics.f1
+                << ',' << row.metrics.spike_rate << ',' << row.metrics.energy << ','
+                << row.metrics.train_ms << ',' << row.metrics.infer_ms << ','
+                << row.metrics.parameter_count << ',' << row.metrics.macs << '\n';
+        }
+        out.close();
+        if (!out)
+        {
+            throw std::runtime_error("write_rows_csv: writing " + tmp.string() +
+                                     " failed (disk full?) -- " + path.string() + " not written");
+        }
     }
+    std::filesystem::rename(tmp, path);
 }
 
 void write_summary_json(const std::filesystem::path& path,
