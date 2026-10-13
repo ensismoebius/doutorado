@@ -10,7 +10,8 @@
 #   scancel --batch --signal=USR1 <jobid>    # stop early, results copied back (as at the limit)
 # Smoke test of this whole path before a long queue wait (~6 min: the early stop at the time limit
 # is part of what it tests; then move results/meeting01 aside -- a fresh run refuses a non-empty
-# one). Keep the meeting01-loso prefix in any --job-name: gridunesp_deploy.sh looks for it.
+# one). Keep the meeting01-loso prefix in any --job-name: gridunesp_deploy.sh looks for it. Any
+# -t under 15 min needs its own --signal, as here: the @900 below would arrive at the start.
 #   WAIT_CHECKPOINT=60 sbatch -p short -t 00:06:00 -c 4 --signal=B:USR1@150 \
 #     --job-name=meeting01-loso-smoke scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch
 #

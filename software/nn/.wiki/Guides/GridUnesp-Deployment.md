@@ -567,9 +567,10 @@ Two facts combine:
 1. **The SIGTERM reaches the batch shell, not the processes under it.** With
    `ProctrackType=proctrack/cgroup` (this cluster's setting) Slurm signals the step's own task —
    for a batch job, the shell running the sbatch script — and its descendants get only the
-   SIGKILL that follows `KillWait`. *Reasoned* from that plugin's behaviour; every observation
-   above fits it (job-nanny, a plain bash script with no handler, would otherwise have died at
-   once), but it was not separately confirmed.
+   SIGKILL that follows `KillWait`. Both halves are measured: the shell does get it (smoke job
+   5259471, below — its handler ran in the second of the `scancel`), and the processes under it
+   do not (here: job-nanny, a plain bash script with no handler, would otherwise have died at
+   once, and the shell's deferred trap would then have run).
 2. **A shell running a foreground command defers its traps until the command returns.** The
    batch shell was running `job-nanny …` in the foreground, so its own trap waited behind a
    command that was never going to return before the SIGKILL.
@@ -598,12 +599,19 @@ limit            nothing left to kill
 | results in `~/software/nn` | the last periodic copy (up to 30 min old) | all of them — job-nanny's final copy ran |
 | `/store/<user>/<id>/` | left behind; clean by hand | deleted by job-nanny |
 | `~/software/nn/.job-input-<id>/` | left behind | deleted by `start.sh` seconds after the start |
-| job state | `TIMEOUT` | `FAILED`, exit 143, a `STOPPED` line in the `.err` |
+| job state | `TIMEOUT` | `FAILED`, sacct ExitCode `15:0`, a `STOPPED` line in the `.err` |
+
+`15:0` is how this cluster's Slurm (22.05) shows the script's `exit 143`: a probe job whose whole
+script was `exit 143` came out the same, `FAILED 15:0` (job 5259470, 2026-10-13). Read it as
+"128 + 15, SIGTERM", not as a code the run chose.
 
 The same stop on demand: **`scancel --batch --signal=USR1 <jobid>`**. `--batch` matters — without
 it `scancel --signal` goes to job steps, and this job has none (everything runs inside the batch
 step). A plain `scancel <jobid>` sends SIGTERM to the batch shell, which runs the same handler,
-but then only the 120 s of `KillWait` remain for the final copy before the SIGKILL.
+but then only the 120 s of `KillWait` remain for the final copy before the SIGKILL. Measured on
+smoke job 5259471: `scancel` at 04:22:47, the handler's `stop signal` line in the same second,
+final copy and `/store` cleanup done, the batch step ended 1 s later (sacct: job `CANCELLED`,
+batch step `FAILED 15:0`).
 
 **Why a run stopped at an arbitrary instant cannot corrupt what `RESUME=1` reads.** `RESUME=1`
 restores a fold from its checkpoints, which have always been written to `<file>.tmp` and renamed
@@ -658,8 +666,10 @@ WAIT_CHECKPOINT=60 sbatch -p short -t 00:06:00 -c 4 --signal=B:USR1@150 \
 ```
 
 `--signal` on the command line replaces the script's own `@900`, and Slurm may deliver it up to a
-minute early. Keep the `meeting01-loso` prefix in any `--job-name`: it is how the deploy
-recognises a running job.
+minute early. **Any `-t` under 15 minutes needs its own `--signal`**: Slurm sends the signal once
+the job is within that many seconds of its end, so with `@900` on a 6-minute job it comes at the
+start, and the job ends with `stop signal during setup -- not starting the run`. Keep the
+`meeting01-loso` prefix in any `--job-name`: it is how the deploy recognises a running job.
 
 Job 5259424 (2026-10-13, the earlier 15-minute version of this test) showed the start path
 works: the module loaded, the staging reached `/store`, the run printed revision
@@ -667,6 +677,17 @@ works: the module loaded, the staging reached `/store`, the run printed revision
 the periodic copy put the events file and `source_revisions.log` in
 `~/software/nn/results/meeting01`. Its *ending* is what [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13)
 is about.
+
+The current version passed on 2026-10-13, at commit `1f9003e6`:
+
+| job | ended by | what happened |
+|---|---|---|
+| 5259463 | `--signal=B:USR1@150` on a 6-min limit | USR1 at 3:22; run stopped (job-nanny: `Return Code 143`), final copy, `/store/…/5259463/` deleted, `STOPPED` line; job `FAILED 15:0` at 3:27 |
+| 5259471 | plain `scancel` after 1 min | same sequence, 1 s from `scancel` to the end of the batch step; job `CANCELLED` |
+| both | — | `.job-input-<id>/` already gone 20 s after the start; results, events, checkpoints and `source_revisions.log` (`1f9003e6/166ec23c148f`) in `~/software/nn/results/meeting01` |
+
+While 5259471 ran, `gridunesp_deploy.sh` refused, naming it (`5259471 meeting01-loso-smoke`),
+before sending anything.
 
 ## 5. Bringing results home
 
