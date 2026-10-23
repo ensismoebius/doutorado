@@ -689,6 +689,67 @@ The current version passed on 2026-10-13, at commit `1f9003e6`:
 While 5259471 ran, `gridunesp_deploy.sh` refused, naming it (`5259471 meeting01-loso-smoke`),
 before sending anything.
 
+### Threads: why 20 CPUs made the run about 1000× slower (2026-10-23)
+
+**The problem.** The first real job (5259474, 20 CPUs, `OMP_NUM_THREADS=20`) ran for 6 days 17 hours
+and finished 3 epochs of the first of 8 runs of the first of 24 (dataset, fold) pairs. An epoch
+took about 2 days. The same epoch takes about 80 seconds on one core of a desktop. **Silent**: the
+job was `RUNNING`, its CPUs were busy (Slurm's `AveCPU` showed ~9.5 of 20 cores in use), and the
+only sign was the time between `epoch N/30` lines in the `.err` log.
+
+**Why more threads cannot help here.** One training step is one window: `samples_per_batch = 1`.
+The LSTM then does 512 sequential steps, each a matrix times a single vector. For hidden size 64
+(the size the cost formulas in [Meeting01](../Experiments/Meeting01.md) use as their example; the
+architecture search picks the real one) that is about 18,000 multiply-adds per call — too little to
+split across threads, so every call pays the cost of waking and joining 20 threads and gets
+nothing back.
+
+```
+one window, one training step (batch size 1), hidden size 64
+
+  step t  : gates = W · [x_t, h_{t-1}]        <- (4·64) x (8+64) times a vector: 18,432 MACs
+  step t+1: ...                                  cannot start before step t has finished
+  ... 512 steps in a row, and a backward pass of the same length
+
+  1 thread : 512 small multiplies, one after the other
+  20 threads: 512 small multiplies, each preceded and followed by a 20-thread rendezvous
+```
+
+**Measured locally** (same fold, seed and caps as the production profile, 12-core desktop; seconds
+per training step, first LSTM-AE run, latency encoding):
+
+| `OMP_NUM_THREADS` | 1 | 2 | 4 | 8 | 12 | 20 |
+|---|---|---|---|---|---|---|
+| s / step | **0.41** | 0.58 | 0.62 | 0.81 | 1.03 | **9.2** |
+
+More threads is monotonically slower, and past the number of cores (12 here) it is catastrophic:
+20 threads cost 22× the single thread. The cluster job asked for 20 CPUs, but those are
+hyperthreads — 10 physical cores — and its epoch times were far worse than this table would predict:
+
+```
+cluster, 20 threads        steps  1..21 : 2.7 s each
+                           steps 23.. : ~1,200 s each, for 6+ days   (events file, epoch_progress)
+local, 20 threads / 12 cores         : 9.2 s each
+local,  1 thread                     : 0.41 s each
+```
+
+What is **measured**: more threads is slower, locally, at every count I tried; the cluster's
+step-time jumped from 2.7 s to ~1,200 s and stayed there. What is **not** established: why the
+cluster jumped by ~440× at one particular step, which local oversubscription (22×) does not
+reproduce. The single-thread cluster smoke test below is the test of that.
+
+**Same tensors, same maths.** Epoch 1 gives train 1.000119 / val 1.000270 locally and 1.000119 /
+1.000271 on the cluster, so the slowdown is the environment, not different data or code.
+
+**What the sbatch now does.** `OMP_NUM_THREADS` and `OPENBLAS_NUM_THREADS` both follow
+`--cpus-per-task`; the thread count is therefore chosen in exactly one place, the CPU request.
+OpenBLAS sizes its own pool separately from OpenMP, so setting only the OpenMP variable left it
+free to multiply the two.
+
+**Not a thread problem: the loss.** At every epoch, locally and on the cluster, the loss sat at
+1.0001, which is the variance of the z-scored windows — the model outputs the mean and has learnt
+nothing. See [Meeting01](../Experiments/Meeting01.md) for whether it ever leaves that value.
+
 ## 5. Bringing results home
 
 Sync back to the local checkout (merges into whatever folds already ran locally —

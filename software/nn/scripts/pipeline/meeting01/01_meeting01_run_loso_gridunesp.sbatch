@@ -83,6 +83,10 @@ conda activate meeting01-build
 # The docs' OpenMP example does this; it also stops OpenMP from defaulting to every CPU of the
 # node should the allocation not be enforced as an affinity mask.
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
+# OpenBLAS sizes its own thread pool separately from OpenMP; pin it to the same count so the two
+# cannot multiply (job 5259474, 20 CPUs, ran ~1000x slower than expected: see the wiki's
+# "Threads" section).
+export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
 export EXPERIMENT_CONFIRMED=1
 export SKIP_BUILD=1
