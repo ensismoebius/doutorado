@@ -43,7 +43,8 @@
         "branch_decoder_layer_spec": [],
         "fusion_encoder_layer_spec": [],
         "fusion_decoder_layer_spec": [],
-        "time_steps": 16
+        "time_steps": 16,
+        "recurrent_time_steps": 1
     },
     "evaluation": {
         "datasets": [
@@ -55,5 +56,5 @@
         "snn_architectures": [],
         "_comment": "LSTM-only benchmark: 1 encoding \u00d7 1 repeat. ~32 train + 8 val samples. 3 epochs. NO SNN to isolate LSTM performance."
     },
-    "_comment": "LSTM throughput benchmark (.wiki/Guides/LSTM-Performance.md). model.time_steps governs the BASELINES too, not only the SNN arm: run_baseline feeds the LSTM a time-major (T*B, F) tensor, so the sequence length is T*window/lstm_frame_size. Declared explicitly at 16 to match the production profiles -- inheriting the struct default would silently change what this benchmark measures. Migrated to LOSO 2026-09-23: the legacy pooled/shuffled split (cv_fold unset) was removed -- it let the same speaker/recording land in both train and validation, the leakage defect a reviewer flagged as strong-reject on submission 71. Its recorded wall time predates this migration and a prior 16x-shorter-unroll change -- treat the numbers in LSTM-Performance.md as stale until re-measured."
+    "_comment": "LSTM throughput benchmark (.wiki/Guides/LSTM-Performance.md). The LSTM's sequence length is S = model.recurrent_time_steps * window_size / lstm_frame_size = 1 * 256 / 8 = 32 frames, declared explicitly to match meeting01-loso.json -- inheriting the struct default would silently change what this benchmark measures. (From 2026-09-22 until results_format 4, 2026-10-24, the baselines read model.time_steps instead, so this benchmark unrolled S = 512; this comment said so until 2026-11-02.) model.time_steps is the SNN's T only; this profile runs no SNN, and the value is kept because profile_audit_gtest requires every profile to state T. Migrated to LOSO 2026-09-23: the legacy pooled/shuffled split (cv_fold unset) was removed -- it let the same speaker/recording land in both train and validation, the leakage defect a reviewer flagged as strong-reject on submission 71. Its recorded wall time predates this migration and a prior 16x-shorter-unroll change -- treat the numbers in LSTM-Performance.md as stale until re-measured."
 }

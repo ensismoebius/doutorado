@@ -145,15 +145,19 @@ meeting01::Meeting01Config base_cfg()
 // (window_size * time_steps) / lstm_frame_size, not window_size / lstm_frame_size. A
 // genome-driven config must inherit the same formula as the profile-driven one, since
 // the genome never owns seq_len — only hidden_size/num_layers do.
-TEST(Meeting01RecurrentGaGenome, ToLstmCfgUsesWindowTimesTimeStepsForSeqLen)
+TEST(Meeting01RecurrentGaGenome, ToLstmCfgUsesWindowTimesRecurrentTimeStepsForSeqLen)
 {
-    const auto cfg = base_cfg();
+    // The baselines read the window at recurrent_time_steps, NOT the SNN's time_steps:
+    // the two differ on purpose, so a regression that reads the wrong one fails here.
+    auto cfg = base_cfg();
+    cfg.model.time_steps = 16;
+    cfg.model.recurrent_time_steps = 1;
     const RecurrentGenome g{96, 2, "poisson"};
     const auto arch = meeting01::ga::to_lstm_cfg(g, cfg);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
-    EXPECT_EQ(
-        arch.seq_len, (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size);
+    EXPECT_EQ(arch.seq_len,
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.hidden_size, 96);
     EXPECT_EQ(arch.num_layers, 2);
     // latent_dim is never genome-driven — every family compared at the same
@@ -161,15 +165,19 @@ TEST(Meeting01RecurrentGaGenome, ToLstmCfgUsesWindowTimesTimeStepsForSeqLen)
     EXPECT_EQ(arch.latent_size, cfg.model.latent_dim);
 }
 
-TEST(Meeting01RecurrentGaGenome, ToGruCfgUsesWindowTimesTimeStepsForSeqLen)
+TEST(Meeting01RecurrentGaGenome, ToGruCfgUsesWindowTimesRecurrentTimeStepsForSeqLen)
 {
-    const auto cfg = base_cfg();
+    // The baselines read the window at recurrent_time_steps, NOT the SNN's time_steps:
+    // the two differ on purpose, so a regression that reads the wrong one fails here.
+    auto cfg = base_cfg();
+    cfg.model.time_steps = 16;
+    cfg.model.recurrent_time_steps = 1;
     const RecurrentGenome g{48, 3, "latency"};
     const auto arch = meeting01::ga::to_gru_cfg(g, cfg);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
-    EXPECT_EQ(
-        arch.seq_len, (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size);
+    EXPECT_EQ(arch.seq_len,
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.hidden_size, 48);
     EXPECT_EQ(arch.num_layers, 3);
     EXPECT_EQ(arch.latent_size, cfg.model.latent_dim);
@@ -275,10 +283,11 @@ TEST(Meeting01GaCheckpoint, LstmCacheAppendAndReloadRoundTrips)
     b.genome = RecurrentGenome{160, 2, "poisson"};
     b.objectives = {0.3, 200.0};
 
-    meeting01::ga::append_cache_entry(path, a);
-    meeting01::ga::append_cache_entry(path, b);
+    meeting01::ga::append_cache_entry(path, a, 7u);
+    meeting01::ga::append_cache_entry(path, b, 7u);
 
-    const auto loaded = meeting01::ga::load_cache_entries<meeting01::ga::LstmGaIndividual>(path);
+    const auto loaded =
+        meeting01::ga::load_cache_entries<meeting01::ga::LstmGaIndividual>(path, 7u);
     ASSERT_EQ(loaded.size(), 2u);
     EXPECT_EQ(loaded[0].genome.hidden_size, a.genome.hidden_size);
     EXPECT_EQ(loaded[1].genome.hidden_size, b.genome.hidden_size);
@@ -299,11 +308,11 @@ TEST(Meeting01GaCheckpoint, GruGenerationCheckpointRoundTrips)
     parents[1].genome = RecurrentGenome{200, 3, "latency"};
     parents[1].objectives = {0.3, 300.0};
 
-    meeting01::ga::save_generation_checkpoint(dir, tag, 2, rng, parents);
+    meeting01::ga::save_generation_checkpoint(dir, tag, 2, rng, parents, 7u);
     EXPECT_TRUE(meeting01::ga::state_checkpoint_exists(dir, tag));
 
     const auto ck =
-        meeting01::ga::load_generation_checkpoint<meeting01::ga::GruGaIndividual>(dir, tag);
+        meeting01::ga::load_generation_checkpoint<meeting01::ga::GruGaIndividual>(dir, tag, 7u);
     EXPECT_EQ(ck.generation, 2);
     ASSERT_EQ(ck.parents.size(), 2u);
     EXPECT_EQ(ck.parents[0].genome.hidden_size, parents[0].genome.hidden_size);

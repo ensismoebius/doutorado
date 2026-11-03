@@ -16,8 +16,8 @@ namespace meeting01
 // Version of the results this binary writes, stamped as "results_format" into every JSON
 // manifest of a fold and every checkpoint. The post-processing scripts accept exactly this
 // value (RESULTS_FORMAT in scripts/pipeline/meeting01/meeting01_results.py) and refuse any
-// other, so results whose numbers cannot be compared never reach a paper table; a
-// checkpoint of another format is not restored (Meeting01Checkpoint.cpp). Bump BOTH
+// other, so results whose numbers cannot be compared never reach a paper table; a GA
+// checkpoint of another format is refused on resume (Meeting01GaCheckpoint.hpp). Bump BOTH
 // whenever a change makes new numbers incomparable with old ones.
 //   absent  binaries before 2026-10-06. Up to commit 6f332734 a zero-padded window (the
 //           last of a FSDD / AudioMNIST recording) was z-scored together with its padding
@@ -31,7 +31,22 @@ namespace meeting01
 //           alternate steps per frame) and the LSTM/GRU cost counted one stack of two.
 //   3       to_lstm_frames cuts consecutive samples of one step; the LSTM/GRU `macs` count
 //           the encoder and decoder stacks (and so steer the architecture search).
-inline constexpr int kResultsFormat = 3;
+//   4       the LSTM/GRU/Transformer-AE read the window at model.recurrent_time_steps (1 in
+//           production: S = 32 frames) instead of repeating it at the SNN's time_steps
+//           (S = 512), where they did not learn (loss ~0.99). Their encoding gene is `direct`
+//           only. No production fold ran with format 3.
+//   5       2026-11-01. The SNN-AE gains model.snn_time_pool / model.snn_decoder_neuron
+//           (production: the mean over T of the latent, an analog decoder run once, T = 4),
+//           from the gap diagnosis in .wiki/Experiments/Meeting01.md. `spike_rate` is the
+//           spiking fraction of the hidden LIF neurons (was the fraction of output values
+//           > 0, ~0.5 for any model) and NaN for non-spiking models; `energy` (spikes +
+//           10 x MACs, unitless) is replaced by `acs` and `arith_energy_nj` (4.6 pJ/MAC,
+//           0.9 pJ/AC); the SNN's `macs` is counted from its forward passes (was the dense
+//           estimate x T). No production fold ran with format 4.
+//   6       2026-11-02. T (model.time_steps) is a gene of the SNN-AE search
+//           (evaluation.ga.snn.time_steps_min/max), so each selection manifest and each
+//           GA candidate records its own `time_steps`. No production fold ran with format 5.
+inline constexpr int kResultsFormat = 6;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

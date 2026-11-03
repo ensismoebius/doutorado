@@ -13,6 +13,9 @@ struct CliOptions
     int cv_fold = -1;    // -1 = use the profile's value; >= 0 overrides it (LOSO fold loop)
     bool cv_fold_set = false;
     bool no_tui = false; // force-disable the live progress TUI even on a terminal
+    // Print the validated, resolved configuration (resolved_config_json, plus each dataset's
+    // resolved source) as JSON on stdout and exit without running anything.
+    bool print_resolved_config = false;
     bool help = false;
 };
 

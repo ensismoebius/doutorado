@@ -100,6 +100,13 @@ struct AutoencoderConfig
     /// caller of these shared builders.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient = nullptr;
 
+    // Weight init of every Linear the builders make: "xavier" (uniform sqrt(6/(in+out))) or
+    // "kaiming" (uniform sqrt(6/in), kaimingSNNInitializer). Empty (default) keeps each builder's
+    // own: xavier in the ANN builders, kaiming in the SNN ones. Set it when an ANN and an SNN
+    // must start from the same init (meeting01's matched ann-ae control): left empty, the two
+    // differ in the initializer as well as the neuron.
+    std::string initializer;
+
     // Initializer controls propagated from sampler options for reproducibility.
     std::optional<unsigned int> initializer_seed = std::nullopt;
     std::string initializer_sampler_type;

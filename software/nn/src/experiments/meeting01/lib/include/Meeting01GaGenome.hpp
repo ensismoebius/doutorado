@@ -27,6 +27,9 @@ struct GenomeBounds
     float voltage_threshold_max = 2.0f;
     float alpha_min = 0.5f;
     float alpha_max = 0.99f;
+    // T, already resolved by the caller (snn_time_steps_range): min == max when not searched.
+    int time_steps_min = 16;
+    int time_steps_max = 16;
     std::vector<std::string> encoding_choices;
     std::vector<std::string> architecture_choices;
     // The bottleneck width — NEVER a gene, same rule as every other family (2026-09-22
@@ -41,7 +44,7 @@ struct GenomeBounds
 // One individual's genotype. Every axis the user asked to be free is a gene here:
 // encoder_widths (layer count = size(), neurons/layer = each element, both free and
 // under mutation/crossover), encoding, architecture (the input-transform selector),
-// voltage_threshold, alpha. The decoder mirrors the encoder (reversed widths + output
+// voltage_threshold, alpha, time_steps. The decoder mirrors the encoder (reversed widths + output
 // projection) rather than being independently evolved — confirmed with the user.
 //
 //   encoder_widths = {96, 40, 12}
@@ -54,6 +57,7 @@ struct Genome
     std::string architecture = "dense";
     float voltage_threshold = 1.0f;
     float alpha = 0.9f;
+    int time_steps = 16; // simulation steps T: the LIF unroll and the encodings' time axis
 
     // Never call on an empty genome (random/repair guarantee at least one layer).
     [[nodiscard]] int latent() const
@@ -69,7 +73,7 @@ struct Genome
     {
         return encoder_widths == o.encoder_widths && encoding == o.encoding &&
                architecture == o.architecture && voltage_threshold == o.voltage_threshold &&
-               alpha == o.alpha;
+               alpha == o.alpha && time_steps == o.time_steps;
     }
 };
 
@@ -86,7 +90,7 @@ Genome random_genome(std::mt19937& rng, const GenomeBounds& bounds);
 
 // Recombine two variable-length parents: child depth inherited from one parent (coin
 // flip), each width position sampled from whichever parent has it, then repaired.
-// encoding/architecture each inherited via coin flip; voltage_threshold/alpha via
+// encoding/architecture/time_steps each inherited via coin flip; voltage_threshold/alpha via
 // arithmetic mean of the two parents (no categorical precedent for continuous genes in
 // paraconsistentGA, so this is new — a standard real-valued GA crossover).
 Genome crossover(const Genome& a, const Genome& b, std::mt19937& rng, const GenomeBounds& bounds);
@@ -94,12 +98,14 @@ Genome crossover(const Genome& a, const Genome& b, std::mt19937& rng, const Geno
 // Structural mutation (jitter/insert/delete a layer, ported from pga::mutate) plus
 // categorical mutation (uniform reassignment among encoding_choices/
 // architecture_choices) and continuous jitter (uniform redraw within
-// [voltage_threshold_min,max] / [alpha_min,max]) — each gated by the same per-operator
+// [voltage_threshold_min,max] / [alpha_min,max] / [time_steps_min,max]) — each gated by
+// the same per-operator
 // probability `prob`.
 void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double prob);
 
 // Build the AutoencoderConfig this genome represents: starts from
-// make_snn_cfg(cfg, g.alpha, g.voltage_threshold, g.encoder_widths) — the profile's
+// make_snn_cfg(with_snn_time_steps(cfg, g.time_steps), g.alpha, g.voltage_threshold,
+// g.encoder_widths) — the profile's
 // base config with only the genome-owned fields overridden (layer spec + R/C), so any
 // field the profile sets and the genome doesn't own (loss_type, surrogate_gradient,
 // branch/fusion specs, ...) is carried through untouched. Mirrors pga::to_ae_config's

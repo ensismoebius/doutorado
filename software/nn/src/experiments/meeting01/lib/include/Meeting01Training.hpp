@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Meeting01Config.hpp"
@@ -51,10 +52,35 @@ auto make_transformer_cfg(const Meeting01Config& cfg,
 // bridge the GA architecture search (Meeting01GaGenome::to_ae_config) uses to make a
 // genome's widths take effect. Empty (the default) reproduces today's behavior
 // exactly: every existing caller that never passes this argument is unaffected.
+//
+// The rendered stack follows model.snn_decoder_neuron (the decoder's hidden neuron, "lif" or
+// "analog") and model.snn_time_pool (a `time_mean` stage after the latent for "latent",
+// after the output for "output"). The fixed-spec path (no widths) refuses both non-default
+// values: it would have to rewrite free-form profile specs, which nothing in meeting01 uses.
 auto make_snn_cfg(const Meeting01Config& cfg,
     float alpha,
     float v_th,
     const std::vector<int>& encoder_widths = {}) -> nn::models::autoencoder::AutoencoderConfig;
+
+// The matched ANN control's builder config (family "ann-ae"): the SNN winner's widths with a
+// leaky ReLU wherever the default SNN stack has a LIF, and no time stage (it reads the window
+// once). Independent of snn_time_pool / snn_decoder_neuron, which shape only the SNN.
+auto make_ann_twin_cfg(const Meeting01Config& cfg, const std::vector<int>& encoder_widths)
+    -> nn::models::autoencoder::AutoencoderConfig;
+
+// Rows the SNN-AE emits per window: 1 when its time axis is averaged (model.snn_time_pool
+// "output" or "latent"), else model.time_steps (one reconstruction per step). The target and
+// mask it is trained and scored against have this many rows.
+auto snn_output_steps(const Meeting01Config& cfg) -> int;
+
+// The SNN's T range [min, max]: evaluation.ga.snn.time_steps_min/max, or
+// [model.time_steps, model.time_steps] when both are 0 (T not searched).
+auto snn_time_steps_range(const Meeting01Config& cfg) -> std::pair<int, int>;
+
+// `cfg` with model.time_steps set to one genome's T. Every SNN path (build, encode,
+// train, evaluate, cost) reads T from model.time_steps, so evaluating a genome on this
+// copy is what makes T a gene; the profile's own value is only the fixed-T default.
+auto with_snn_time_steps(const Meeting01Config& cfg, int time_steps) -> Meeting01Config;
 
 struct TrainResult
 {

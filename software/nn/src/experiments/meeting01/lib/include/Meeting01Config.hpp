@@ -164,6 +164,38 @@ struct Meeting01Config
         // Must be >= 2: at 1 there is no membrane history, which silently disables
         // both `alpha` and rate/latency coding (see .wiki/Experiments/Meeting01.md).
         int time_steps = 16;
+        // Steps the frame-consuming baselines (LSTM-AE, GRU-AE, Transformer-AE) see per
+        // window: the sequence they read is S = recurrent_time_steps * window_size /
+        // lstm_frame_size frames. Separate from `time_steps` because the two models need
+        // different things from it. A spiking neuron integrates over simulation steps, so
+        // the SNN needs T >= 2 (16 in production). An LSTM already carries its own memory,
+        // so repeating the window T times adds no information and only lengthens the
+        // sequence the gradient must cross: measured with a PyTorch twin on FSDD fold 0,
+        // S=512 (T=16) stays at loss ~0.99 while S=32 (T=1) learns (0.91 at 30 epochs).
+        // >= 1. At 1 the baselines are restricted to encoding `direct` (rate and latency
+        // coding need >= 2 steps); the recurrent GA's encoding gene is narrowed to match.
+        int recurrent_time_steps = 1;
+        // Where the SNN-AE averages over its `time_steps` simulation steps (2026-11-01; the
+        // gap diagnosis in .wiki/Experiments/Meeting01.md, "Where the gap comes from"):
+        //   "none"    no average: the loss scores the output of EVERY step against the
+        //             window, so each step, driven by at most one spike per neuron, must
+        //             reproduce the analog window alone (results_format <= 4; costs ~0.05
+        //             test MSE on FSDD fold 0, measured with the PyTorch twin)
+        //   "output"  the loss scores the mean over the T steps of the decoder's output
+        //   "latent"  the mean over the T steps of the latent; the decoder then runs ONCE
+        //             per window, so it has to be analog (snn_decoder_neuron = "analog")
+        // Default "none" reproduces results_format <= 4; the production profile sets it.
+        std::string snn_time_pool = "none";
+        // The SNN-AE decoder's hidden neuron: "lif" (LifBPTT, results_format <= 4) or
+        // "analog" (leaky ReLU, the neuron of ann-ae's decoder). With "analog" the only
+        // spiking layer is the encoder's, and SNN-AE and ann-ae differ in that neuron alone.
+        std::string snn_decoder_neuron = "lif";
+        // Weight init of the SNN-AE and of its matched control ann-ae: "kaiming" (uniform
+        // sqrt(6/fan_in)) or "xavier" (uniform sqrt(6/(fan_in+fan_out))). Empty (default) keeps
+        // each builder's own, kaiming for the SNN and xavier for ann-ae (results_format <= 4),
+        // so the control differed from the SNN in its init as well as its neuron; validate()
+        // requires it once ann-ae is a baseline. 2026-11-01.
+        std::string initializer;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
         // Bottlenecked Transformer-AE baseline dimensions (used only when
@@ -209,6 +241,11 @@ struct Meeting01Config
         float voltage_threshold_max = 2.0f;
         float alpha_min = 0.5f;
         float alpha_max = 0.99f;
+        // Simulation steps T as a gene: an integer drawn uniformly in [min, max]. Both 0
+        // (the default) keeps T fixed at model.time_steps, so a profile without these keys
+        // runs exactly as before. Validation refuses one bound set without the other.
+        int time_steps_min = 0;
+        int time_steps_max = 0;
         double crossover_prob = 0.9;
         double mutation_prob = 0.2;
         int tournament_k = 2;
@@ -376,6 +413,10 @@ struct Meeting01Config
         get("lstm_frame_size", cfg.model.lstm_frame_size);
         reject_renamed_time_steps(j);
         get("time_steps", cfg.model.time_steps);
+        get("recurrent_time_steps", cfg.model.recurrent_time_steps);
+        get("snn_time_pool", cfg.model.snn_time_pool);
+        get("snn_decoder_neuron", cfg.model.snn_decoder_neuron);
+        get("initializer", cfg.model.initializer);
         get("denoising_noise_std", cfg.model.denoising_noise_std);
         get("loss_function", cfg.model.loss_type);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
@@ -410,6 +451,8 @@ struct Meeting01Config
         get("ga_voltage_threshold_max", cfg.evaluation.ga.snn.voltage_threshold_max);
         get("ga_alpha_min", cfg.evaluation.ga.snn.alpha_min);
         get("ga_alpha_max", cfg.evaluation.ga.snn.alpha_max);
+        get("ga_time_steps_min", cfg.evaluation.ga.snn.time_steps_min);
+        get("ga_time_steps_max", cfg.evaluation.ga.snn.time_steps_max);
         get("ga_crossover_prob", cfg.evaluation.ga.snn.crossover_prob);
         get("ga_mutation_prob", cfg.evaluation.ga.snn.mutation_prob);
         get("ga_tournament_k", cfg.evaluation.ga.snn.tournament_k);
@@ -453,6 +496,8 @@ struct Meeting01Config
         get("voltage_threshold_max", ga.voltage_threshold_max);
         get("alpha_min", ga.alpha_min);
         get("alpha_max", ga.alpha_max);
+        get("time_steps_min", ga.time_steps_min);
+        get("time_steps_max", ga.time_steps_max);
     }
 
     static void parse_recurrent_ga(const nlohmann::json& sec, RecurrentGa& ga)
@@ -601,6 +646,10 @@ struct Meeting01Config
         get(mdl, "lstm_frame_size", cfg.model.lstm_frame_size);
         reject_renamed_time_steps(mdl);
         get(mdl, "time_steps", cfg.model.time_steps);
+        get(mdl, "recurrent_time_steps", cfg.model.recurrent_time_steps);
+        get(mdl, "snn_time_pool", cfg.model.snn_time_pool);
+        get(mdl, "snn_decoder_neuron", cfg.model.snn_decoder_neuron);
+        get(mdl, "initializer", cfg.model.initializer);
         get(mdl, "denoising_noise_std", cfg.model.denoising_noise_std);
         get(mdl, "loss_function", cfg.model.loss_type);
         get(mdl, "branch_hidden_size", cfg.model.branch_hidden_size);

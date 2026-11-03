@@ -343,6 +343,53 @@ public:
 };
 ```
 
+### Time-mean pool (rate readout)
+
+**The problem.** A spiking stack emits one row per simulation step. With T = 4 steps and a
+256-sample window, the SNN-AE produces a `(4, 256)` reconstruction. If the loss scores every
+row against the window, each step — driven by at most one spike per neuron — has to rebuild
+the whole analog window on its own. On FSDD fold 0 that per-step scoring alone cost ~0.05
+test MSE (PyTorch twin, `scripts/analysis/snn_gap_ablation_torch.py`; see
+[Meeting01](../Experiments/Meeting01.md#where-the-gap-comes-from-fsdd-fold-0-pytorch-twin-2026-11-01)).
+
+**What it does.** `TimeMeanPool` averages the T rows of each sample: only the average over the
+steps has to be right, which is what a firing *rate* encodes.
+
+```
+time-major input (T*B, F), T = 2, B = 2          output (B, F)
+  row 0  t0 b0  [1 2]  ┐
+  row 1  t0 b1  [3 4]  │  y[b] = (x[t0 b] + x[t1 b]) / 2   b0  [3 4]
+  row 2  t1 b0  [5 6]  │                                    b1  [5 6]
+  row 3  t1 b1  [7 8]  ┘
+backward: every step gets the same share, dL/dx[t*B+b] = dL/dy[b] / T
+```
+
+```cpp
+// File: include/layers/spiking/TimeMeanPool.hpp
+template <typename Backend>
+struct TimeMeanPoolImpl : public Module<Backend>
+{
+    int time_steps;                                  // T: rows per sample that are averaged
+    explicit TimeMeanPoolImpl(int time_steps_);      // throws on T < 1
+    // forward: (T*B, F) -> (B, F); throws std::invalid_argument if rows % T != 0
+    // backward: (B, F) -> (T*B, F), each row grad/T; throws std::logic_error without a forward
+};
+```
+
+In an autoencoder spec it is the bare token `time_mean` (SNN builder only — the ANN builder
+rejects it, since an ANN has no time axis). Placed after the latent
+(`["linear:64:leaky", "linear:16:identity", "time_mean"]`) every later layer runs **once** per
+sample, so none of them may be a `LifBPTT` (it would throw on B rows that are not a multiple
+of T). meeting01 renders it from `model.snn_time_pool`.
+
+| Placement | The decoder runs | Decoder neuron | FSDD fold 0 test MSE, T = 4 (twin, 3 seeds) |
+|---|---|---|---|
+| none (score every step) | T times | LIF or analog | 0.780 (T = 16, LIF decoder) |
+| after the output | T times | LIF or analog | 0.724 (analog decoder) |
+| after the latent | once | analog only | 0.724 |
+
+Tests: `TimeMeanPoolTest.*` in `layers_spiking_basic_gtest`.
+
 ### LSTM layer
 
 An LSTM ("Long Short-Term Memory") is the classical (non-spiking) way to give

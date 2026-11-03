@@ -1,8 +1,0 @@
-# model=snn-ae encoding=poisson architecture=conv1d v_th=1.5 alpha=0.9 run=1
-epoch train_loss val_loss
-1 0.156513 0.088482
-2 0.131697 0.097380
-3 0.135964 0.107350
-4 0.116780 0.106481
-5 0.113178 0.094966
-6 0.101205 0.126216

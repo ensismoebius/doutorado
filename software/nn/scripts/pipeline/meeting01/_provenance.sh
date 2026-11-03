@@ -26,7 +26,7 @@
 #   provenance_resolve ROOT PY             sets + exports MEETING01_GIT_COMMIT
 #   provenance_check_binary_is_current ROOT BUILD     the stale-binary refusal above
 #   provenance_mark_built ROOT BUILD       stamp after a successful build (no-op in a checkout)
-#   provenance_log_start ROOT RESUME       append one line to results/meeting01/source_revisions.log
+#   provenance_log_start ROOT RESUME       append one line to results/meeting01/source_revisions[SUFFIX].log
 
 _PROVENANCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -93,8 +93,11 @@ provenance_mark_built() {
   return 0
 }
 
+# PROVENANCE_LOG_SUFFIX (a job-array task sets it to _<array job>_<task>): each task runs in its
+# own work dir and job-nanny copies the whole results directory back with `rsync -a -u`, so tasks
+# appending to one shared source_revisions.log would overwrite each other's lines.
 provenance_log_start() {
   mkdir -p "$1/results/meeting01"
   printf '%s start resume=%s revision=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$2" \
-    "$MEETING01_GIT_COMMIT" >> "$1/results/meeting01/source_revisions.log"
+    "$MEETING01_GIT_COMMIT" >> "$1/results/meeting01/source_revisions${PROVENANCE_LOG_SUFFIX:-}.log"
 }

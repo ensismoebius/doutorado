@@ -20,6 +20,8 @@ void evaluate_individual(Meeting01GaIndividual& ind,
     using nn::models::autoencoder::ProtocolSpikingAutoencoder;
 
     const Genome& g = ind.genome;
+    // The genome's own T: the training, the encodings and the cost below all read it.
+    const meeting01::Meeting01Config cfg_t = meeting01::with_snn_time_steps(cfg, g.time_steps);
 
     AutoencoderConfig snn_config = to_ae_config(g, cfg);
     snn_config.initializer_seed = seed;
@@ -30,7 +32,7 @@ void evaluate_individual(Meeting01GaIndividual& ind,
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
     const meeting01::TrainResult train_result = meeting01::train_with_early_stopping_snn(model,
-        cfg,
+        cfg_t,
         split.train_samples,
         split.val_samples,
         split.train_meta,
@@ -48,8 +50,13 @@ void evaluate_individual(Meeting01GaIndividual& ind,
 
     ind.val_mse = train_result.metrics.mse;
     ind.param_count = meeting01::parameter_count(model.params());
-    ind.inference_cost = meeting01::estimate_snn_macs(
-        static_cast<std::size_t>(cfg.dataset.window_size), g.encoder_widths, cfg.model.time_steps);
+    // Spike-blind and analytic (it ranks genomes, so it must not depend on how one training
+    // run happened to fire); the decoder runs once when the latent is averaged over time.
+    ind.inference_cost =
+        meeting01::estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),
+            g.encoder_widths,
+            g.time_steps,
+            cfg.model.snn_time_pool == "latent" ? 1 : g.time_steps);
 
     ind.feasible = true;
     ind.constraint_violation = 0.0;

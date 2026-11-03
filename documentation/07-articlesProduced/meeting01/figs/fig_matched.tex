@@ -1,0 +1,33 @@
+% The SNN-AE and its matched non-spiking control (ANN-AE): the same widths, initializer and
+% training; they differ only in the encoder's hidden neuron (one column).
+\begin{tikzpicture}[font=\scriptsize, >=Latex,
+  box/.style={draw, rounded corners=1pt, align=center, minimum height=6.5mm,
+              inner sep=2pt, fill=gray!6},
+  spk/.style={box, fill=red!12, draw=red!60!black},
+  same/.style={box}]
+  % SNN-AE (top)
+  \node[anchor=west] (lab1) at (0,0.95) {\textbf{SNN-AE}};
+  \node[same] (x1)  at (0.45,0)  {$x$\\[-1pt]$\times T$};
+  \node[same] (l1)  at (1.55,0)  {Lin};
+  \node[spk]  (n1)  at (2.55,0)  {LIF\\[-1pt]$T$ steps};
+  \node[same] (z1)  at (3.65,0)  {Lin\\[-1pt]$\to d$};
+  \node[spk]  (m1)  at (4.75,0)  {mean\\[-1pt]over $T$};
+  \node[same] (d1)  at (6.15,0)  {decoder\\[-1pt]Lin--LReLU--Lin};
+  \node[same] (o1)  at (7.6,0)   {$\hat{x}$};
+  % ANN-AE (bottom)
+  \node[anchor=west] (lab2) at (0,-0.75) {\textbf{ANN-AE}};
+  \node[same] (x2)  at (0.45,-1.6) {$x$};
+  \node[same] (l2)  at (1.55,-1.6) {Lin};
+  \node[box]  (n2)  at (2.55,-1.6) {LReLU\\[-1pt]once};
+  \node[same] (z2)  at (3.65,-1.6) {Lin\\[-1pt]$\to d$};
+  \node[same] (d2)  at (6.15,-1.6) {decoder\\[-1pt]Lin--LReLU--Lin};
+  \node[same] (o2)  at (7.6,-1.6)  {$\hat{x}$};
+  \foreach \a/\b in {x1/l1,l1/n1,n1/z1,z1/m1,m1/d1,d1/o1,x2/l2,l2/n2,n2/z2,z2/d2,d2/o2}
+    \draw[->] (\a) -- (\b);
+  % what is shared
+  \draw[densely dotted, gray] (l1.south) -- (l2.north);
+  \draw[densely dotted, gray] (z1.south) -- (z2.north);
+  \draw[densely dotted, gray] (d1.south) -- (d2.north);
+  \node[gray, align=center, font=\tiny] at (4.9,-0.8)
+    {same widths, initializer, optimizer, data};
+\end{tikzpicture}

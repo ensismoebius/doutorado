@@ -53,6 +53,9 @@ struct GaSearchConfigT
     std::string results_dir;
     std::string run_tag;
     int checkpoint_every_generations = 1;
+    // Stamped into the checkpoint and checked on resume (config_hash, Meeting01Cli.hpp).
+    // Required when checkpointing: 0 is refused as unset.
+    std::size_t config_hash = 0;
 };
 using GaSearchConfig = GaSearchConfigT<GenomeBounds>;
 
@@ -96,6 +99,7 @@ struct EvalCache
     std::map<std::string, Ind> table;
     std::vector<Ind> history;
     std::string persist_path;
+    std::size_t config_hash = 0; // stamped into every persisted line
 
     void preload(const std::vector<Ind>& entries)
     {
@@ -125,7 +129,7 @@ struct EvalCache
         evaluate_individual(ind, cfg, split, seed, idx, total);
         if (on_eval) on_eval(ind);
 
-        if (!persist_path.empty()) append_cache_entry(persist_path, ind);
+        if (!persist_path.empty()) append_cache_entry(persist_path, ind, config_hash);
 
         auto [ins, _] = table.emplace(key, ind);
         history.push_back(ind);
@@ -218,9 +222,15 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
     const bool ckpt = !ga_cfg.results_dir.empty();
     if (ckpt)
     {
+        if (ga_cfg.config_hash == 0)
+            throw std::invalid_argument(
+                "run_ga_search: checkpointing to '" + ga_cfg.results_dir +
+                "' needs GaSearchConfig::config_hash (the stamp that keeps a resume from mixing "
+                "configurations); set it from config_hash(config).");
         std::filesystem::create_directories(ga_cfg.results_dir);
         cache.persist_path = checkpoint_cache_path(ga_cfg.results_dir, ga_cfg.run_tag);
-        cache.preload(load_cache_entries<Ind>(cache.persist_path));
+        cache.config_hash = ga_cfg.config_hash;
+        cache.preload(load_cache_entries<Ind>(cache.persist_path, ga_cfg.config_hash));
     }
 
     std::vector<Ind> parents;
@@ -229,7 +239,7 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
     if (ckpt && state_checkpoint_exists(ga_cfg.results_dir, ga_cfg.run_tag))
     {
         GenerationCheckpoint<Ind> ck =
-            load_generation_checkpoint<Ind>(ga_cfg.results_dir, ga_cfg.run_tag);
+            load_generation_checkpoint<Ind>(ga_cfg.results_dir, ga_cfg.run_tag, ga_cfg.config_hash);
         rng_from_string(rng, ck.rng_state);
         parents = std::move(ck.parents);
         detail::rerank(parents);
@@ -251,7 +261,9 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
                 on_eval));
         }
         detail::rerank(parents);
-        if (ckpt) save_generation_checkpoint(ga_cfg.results_dir, ga_cfg.run_tag, 0, rng, parents);
+        if (ckpt)
+            save_generation_checkpoint(
+                ga_cfg.results_dir, ga_cfg.run_tag, 0, rng, parents, ga_cfg.config_hash);
     }
 
     std::bernoulli_distribution do_cross(ga_cfg.crossover_prob);
@@ -295,7 +307,8 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
 
         if (ckpt && (gen % std::max(1, ga_cfg.checkpoint_every_generations) == 0 ||
                         gen == ga_cfg.generations))
-            save_generation_checkpoint(ga_cfg.results_dir, ga_cfg.run_tag, gen, rng, parents);
+            save_generation_checkpoint(
+                ga_cfg.results_dir, ga_cfg.run_tag, gen, rng, parents, ga_cfg.config_hash);
     }
 
     GaSearchResultT<Ind> result;

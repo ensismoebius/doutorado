@@ -30,6 +30,35 @@ using nn::ReLU;
 using nn::ResidualBlock;
 using nn::Sequential;
 using nn::Tanh;
+using nn::TimeMeanPool;
+
+// Initialise one Linear by cfg.initializer, or by `builder_default` when it is empty (the init
+// that builder has always used, so an unset field changes nothing). An unknown token throws.
+inline void initialize_linear(const AutoencoderConfig& cfg,
+    const std::shared_ptr<Linear>& linear,
+    const char* builder_default)
+{
+    const std::string kind = cfg.initializer.empty() ? builder_default : cfg.initializer;
+    if (kind == "xavier")
+    {
+        xavierInitializer(linear->in_features,
+            linear->out_features,
+            linear->weight,
+            linear->bias,
+            cfg.initializer_seed,
+            cfg.initializer_sampler_type);
+        return;
+    }
+    if (kind == "kaiming")
+    {
+        kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+        return;
+    }
+    throw std::invalid_argument(
+        "AutoencoderConfig::initializer must be \"xavier\" or \"kaiming\" "
+        "(got \"" +
+        kind + "\")");
+}
 
 inline void append_ann_activation(Sequential& seq, const std::string& activation_type)
 {
@@ -123,6 +152,15 @@ inline void append_snn_activation(
             resolved_surrogate(cfg)));
         return;
     }
+    if (activation_type == "time_mean")
+    {
+        // Mean over the T steps of the time-major tensor: (T*B, F) -> (B, F). Every layer
+        // after it runs once per sample, so none of them may be a LifBPTT (it would throw on
+        // B rows that are not a multiple of T).
+        require_time_steps(cfg.time_steps);
+        seq.add_module(std::make_shared<TimeMeanPool>(cfg.time_steps));
+        return;
+    }
     if (activation_type == "identity")
     {
         return;
@@ -153,7 +191,7 @@ inline void append_activation_by_mode(const AutoencoderConfig& cfg,
     }
 
     if (activation_type == "leaky" || activation_type == "leaky_integrator" ||
-        activation_type == "identity")
+        activation_type == "time_mean" || activation_type == "identity")
     {
         append_snn_activation(cfg, seq, activation_type);
         return;
@@ -291,7 +329,7 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
 {
     require_time_steps(cfg.time_steps);
     auto linear = std::make_shared<Linear>(input_size, output_size);
-    kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+    initialize_linear(cfg, linear, "kaiming");
     seq.add_module(linear);
     if (readout)
     {

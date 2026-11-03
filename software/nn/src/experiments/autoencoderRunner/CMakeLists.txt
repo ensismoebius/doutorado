@@ -59,7 +59,6 @@ add_library(meeting01_lib STATIC
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Evaluation.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Training.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Output.cpp
-    ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Checkpoint.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01Events.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaGenome.cpp
     ${SRC_DIR}/experiments/meeting01/lib/src/Meeting01GaFitness.cpp

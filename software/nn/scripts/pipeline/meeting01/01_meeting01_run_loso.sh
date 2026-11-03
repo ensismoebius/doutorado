@@ -22,14 +22,14 @@
 #   results/meeting01/source_revisions.log     which code ran: commit[+dirty]/tree-hash prefix
 #
 # COST: weeks to months over all datasets x folds even with the stratified per-fold window
-#   caps (loso_max_{train,val,test}_windows: 200 / 150 / 1500) -- the calibrated per-epoch
-#   cost of each family is in the profile's _total_runs_breakdown. The caps keep every
+#   caps (loso_max_{train,val,test}_windows: 1000 / 150 / 1500) -- the profile's
+#   _total_runs_breakdown was calibrated 2026-09-23 under older settings (200 train windows,
+#   512-frame baselines) and is stale; one fold's wall time has not been re-measured. The caps keep every
 #   speaker and recording represented; LOSO structure and the recording-level statistical
 #   unit are unchanged. Per-epoch progress is logged as "[loso] ... epoch N/M" lines
 #   (stderr; survives nohup, where the live bars collapse). Run once -- by default.
-#   This script REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears
-#   results/meeting01/checkpoints/ first (resumed rows are not regenerated into the
-#   per-window CSV) UNLESS RESUME=1 (see below).
+#   This script REFUSES to start without EXPERIMENT_CONFIRMED=1, and clears the GA's
+#   interrupted-search files, models/ and stale events first UNLESS RESUME=1 (see below).
 #
 # Usage:
 #   cd software/nn
@@ -48,9 +48,13 @@
 #                       .wiki/Guides/GridUnesp-Deployment.md.
 #   DATASETS      space-separated dataset list (default "fsdd audiomnist eegmmidb siena")
 #   CV_NUM_FOLDS   number of outer folds (default 6)
-#   KEEP_CHECKPOINTS=1  do not clear checkpoints (per-window CSV will then be incomplete
-#                       for any fold re-run this way — RESUME=1 is almost always what
-#                       you actually want instead, see below)
+#   FOLDS         space-separated outer folds to run (default: 0..CV_NUM_FOLDS-1). The job array
+#                 (01_meeting01_run_loso_gridunesp.sbatch) runs one "DATASETS=<d> FOLDS=<f>" per task.
+#   OMP_NUM_THREADS / OPENBLAS_NUM_THREADS  compute threads (default 1 each, see below; the
+#                 GridUnesp sbatch sets both to its CPU request)
+#   KEEP_CHECKPOINTS=1  do not clear the GA's interrupted-search files, models/ or events
+#                       (unlike RESUME=1, finished folds are rerun; RESUME=1 is almost
+#                       always what you actually want instead, see below)
 #
 #   RESUME=1   the simple way to continue an interrupted run: re-invoke the exact same
 #              command line with RESUME=1 added. It implies KEEP_CHECKPOINTS=1 (nothing
@@ -61,8 +65,12 @@
 #              kill mid-write could leave a truncated one), so its presence means the
 #              fold genuinely finished, not that it merely started. Only the
 #              fold that was actually running when the script died (no CSV yet) and
-#              everything after it get (re)run. A checkpoint written by a binary of another
-#              results_format (any binary older than 2026-10-06) is retrained, not restored.
+#              everything after it get (re)run. Within that fold every run is recomputed
+#              (its test row and per-window rows included: no finished run is restored,
+#              since 2026-11-02), except that a search cut mid-way continues from its GA
+#              checkpoint (results/meeting01/meeting01_ga_*_{checkpoint.json,cache.jsonl}).
+#              That checkpoint is stamped with the profile's config_hash and the binary's
+#              results_format; if either changed since, the binary refuses to resume it.
 #                cd software/nn
 #                EXPERIMENT_CONFIRMED=1 RESUME=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 set -euo pipefail
@@ -117,9 +125,13 @@ if [[ "$RESUME" == "1" ]]; then
 fi
 
 if [[ "${KEEP_CHECKPOINTS:-0}" != "1" ]]; then
-  echo "[loso-run] clearing results/meeting01/{checkpoints,models}/ and stale *_events.jsonl"
+  # The GA's interrupted-search files are the only resumable state; a fresh run must not
+  # continue an older search. checkpoints/ held test-row checkpoints until 2026-11-02 (no
+  # binary writes it now); removed so no copy of them outlives that binary.
+  echo "[loso-run] clearing results/meeting01/{checkpoints,models}/, GA search checkpoints and stale *_events.jsonl"
   rm -rf results/meeting01/checkpoints/ results/meeting01/models/
   rm -f results/meeting01/*_events.jsonl
+  rm -f results/meeting01/meeting01_ga_*_checkpoint.json results/meeting01/meeting01_ga_*_cache.jsonl
 fi
 
 # MEETING01_GIT_COMMIT (exported by provenance_resolve above) is recorded in every
@@ -132,13 +144,25 @@ echo "[loso-run] live dashboard (separate terminal, from software/nn):"
 echo "[loso-run]   ${ROOT_DIR}/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso"
 echo "[loso-run]   (add --plain when piped / not a terminal; --rank N for one config's detail)"
 
+# One compute thread unless the caller chose otherwise. Unset, OpenMP and OpenBLAS each size
+# their own pool from the machine, and this program gets slower with every thread it is given:
+# batch size 1 makes each multiply too small to split (wiki GridUnesp-Deployment, "Threads":
+# 0.41 s per step at 1 thread, 9.2 s at 20 on a 12-core desktop). Printed, so the log says
+# what ran.
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+echo "[loso-run] threads: OMP_NUM_THREADS=${OMP_NUM_THREADS} OPENBLAS_NUM_THREADS=${OPENBLAS_NUM_THREADS}"
+
 DATASETS="${DATASETS:-fsdd audiomnist eegmmidb siena}"
+FOLDS="${FOLDS:-$(seq -s ' ' 0 $((CV_NUM_FOLDS - 1)))}"
 _start=$(date +%s)
 _nds=$(wc -w <<< "$DATASETS")
 _di=0
 for ds in $DATASETS; do
   _di=$((_di + 1))
-  for (( f = 0; f < CV_NUM_FOLDS; f++ )); do
+  for f in $FOLDS; do
+    [[ "$f" =~ ^[0-9]+$ && "$f" -lt "$CV_NUM_FOLDS" ]] || {
+      echo "[loso-run] FOLDS contains '$f': need integers in 0..$((CV_NUM_FOLDS - 1))" >&2; exit 1; }
     _f_start=$(date +%s)
     _fold_csv="results/meeting01/meeting01_loso_${ds}_fold${f}_comparative_metrics.csv"
     if [[ "$RESUME" == "1" && -s "$_fold_csv" ]]; then

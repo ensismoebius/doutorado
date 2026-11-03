@@ -7,15 +7,18 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <limits>
 #include <map>
 #include <random>
 #include <set>
 #include <span>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 
-#include "../include/Meeting01Checkpoint.hpp"
 #include "../include/Meeting01Cli.hpp"
 #include "../include/Meeting01Dataset.hpp"
 #include "../include/Meeting01Evaluation.hpp"
@@ -34,12 +37,14 @@
 #include "../include/Meeting01TransformerGaGenome.hpp"
 #include "Meeting01AeCommon.hpp"
 #include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
+#include "models/autoencoder/ProtocolAutoencoder.hpp"
 #include "nlohmann/json.hpp"
 #include "progress/ProgressManager.hpp"
 #include "serialization/NetworkSerializer.hpp"
 #include "utility/progress.hpp"
 
 using nn::models::autoencoder::AutoencoderConfig;
+using nn::models::autoencoder::ProtocolAutoencoder;
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
 
 // Helper to extract sizes from layer specs
@@ -162,6 +167,40 @@ namespace meeting01
 namespace
 {
 
+// The encodings the frame-consuming baselines may draw. At recurrent_time_steps = 1 only
+// `direct` is defined (rate and latency coding need >= 2 steps), so the GA's encoding gene is
+// narrowed to it -- stated here, not silently dropped inside the genome. Throws when the
+// profile lists no usable encoding, instead of handing the GA an empty gene.
+std::vector<std::string> recurrent_encoding_choices(const Meeting01Config& config)
+{
+    if (config.model.recurrent_time_steps >= 2) return config.evaluation.encodings;
+    const auto& enc = config.evaluation.encodings;
+    if (std::find(enc.begin(), enc.end(), "direct") == enc.end())
+    {
+        throw std::invalid_argument(
+            "model.recurrent_time_steps = 1 allows only the 'direct' encoding for the "
+            "LSTM/GRU/Transformer baselines, but evaluation.encodings has no 'direct'. Add "
+            "'direct' to evaluation.encodings or set model.recurrent_time_steps >= 2.");
+    }
+    return {"direct"};
+}
+
+// The LSTM/GRU GA floors hidden_size at latent_dim (a narrower hidden layer would be the real
+// bottleneck, not the profile's latent_dim). If the profile's max_hidden is below that floor
+// the genome has no valid value: uniform_int_distribution(lo, hi) with lo > hi is undefined
+// behaviour, which segfaulted a run. Fail loudly with the cause and the remedy instead.
+void require_hidden_range(
+    const Meeting01Config& config, int min_hidden, int max_hidden, const char* family)
+{
+    if (max_hidden >= min_hidden) return;
+    throw std::invalid_argument(
+        std::string("evaluation.ga.") + family + ".max_hidden (" + std::to_string(max_hidden) +
+        ") is below the effective floor " + std::to_string(min_hidden) +
+        " = max(min_hidden, model.latent_dim=" + std::to_string(config.model.latent_dim) +
+        "), so no hidden size is valid. Raise max_hidden to at least " +
+        std::to_string(min_hidden) + " or lower model.latent_dim.");
+}
+
 // Per-fold output filename stem: "<run_tag>_<dataset>_fold<f>" under nested LOSO,
 // "<run_tag>" otherwise. The dataset segment keeps folds of FSDD / AudioMNIST /
 // MIT-BIH from clobbering each other when each (dataset, fold) runs as its own
@@ -221,10 +260,12 @@ void emit_config_end(const ResultRow& row, const std::string& config_id, const s
                     {"recall", jnum(row.metrics.recall)},
                     {"f1", jnum(row.metrics.f1)},
                     {"spike_rate", jnum(row.metrics.spike_rate)},
+                    {"arith_energy_nj", jnum(row.metrics.arith_energy_nj)},
                     {"train_ms", jnum(row.metrics.train_ms)},
                     {"infer_ms", jnum(row.metrics.infer_ms)},
                     {"param_count", row.metrics.parameter_count},
-                    {"macs", row.metrics.macs}}}});
+                    {"macs", row.metrics.macs},
+                    {"acs", jnum(row.metrics.acs)}}}});
 }
 
 // Resolved output locations for one experiment run: raw metrics/summary files, saved model
@@ -233,7 +274,6 @@ struct OutputDirs
 {
     std::filesystem::path out_dir;
     std::filesystem::path models_dir;
-    std::filesystem::path chk_dir;
 };
 
 // Resolves `out_dir` (falling back to plain "results" when the implicit source-tree
@@ -264,10 +304,7 @@ OutputDirs resolve_output_dirs(const Meeting01Config& config)
         std::filesystem::create_directories(models_dir);
     }
 
-    const auto chk_dir = out_dir / "checkpoints";
-    std::filesystem::create_directories(chk_dir);
-
-    return {out_dir, models_dir, chk_dir};
+    return {out_dir, models_dir};
 }
 
 // Maps an evaluation.baselines family token to (model config, arch label used in the
@@ -318,6 +355,9 @@ struct FamilyWinnerSummary
     std::string family_token; // "snn-ae" | "lstm-ae" | "gru-ae" | "transformer-ae"
     float val_mse;
     std::size_t inference_cost;
+    // The winning genome's layer widths (the last one is the latent). Filled by the SNN search
+    // only: the matched ANN control copies it.
+    std::vector<int> encoder_widths = {};
 };
 
 /** Writes the encoder/decoder parameter dumps for one SNN model, when model saving is
@@ -426,6 +466,23 @@ auto carve_recording_disjoint_monitor(const std::vector<Tensor>& train_samples,
     return out;
 }
 
+// What a winner's final fit cost, for 00_meeting01_prevalidation_report.py: train_ms is the
+// whole fit (epochs_run epochs over fit_windows windows, one window per step), infer_ms one
+// forward pass over each of the monitor_windows windows. The test rows carry the same two
+// times without the counts, which a per-step or per-window figure needs.
+auto final_fit_json(std::size_t fit_windows,
+    std::size_t monitor_windows,
+    const EpochHistory& history,
+    float train_ms,
+    float infer_ms) -> nlohmann::json
+{
+    return {{"fit_windows", fit_windows},
+        {"monitor_windows", monitor_windows},
+        {"epochs_run", history.epoch_nums.size()},
+        {"train_ms", train_ms},
+        {"monitor_infer_ms", infer_ms}};
+}
+
 // Shared nested-LOSO final-fit + test-evaluate + manifest routine for one baseline
 // family's GA winner (LSTM-AE / GRU-AE / Transformer-AE). All three are frame-consuming
 // AEs sharing train_ae/evaluate_ae/per_window_errors_ae (Meeting01AeCommon.hpp), so only
@@ -446,7 +503,6 @@ void finalize_baseline_selection(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     Model& model,
     std::size_t macs,
@@ -468,24 +524,11 @@ void finalize_baseline_selection(const Meeting01Config& config,
             {"selection_metric", "val_mse"},
             {"selected", selected_hyperparams}});
 
-    CheckpointKey test_key{config.experiment.run_tag,
-        backend_name,
-        dataset_name,
-        fam.token,
-        encoding,
-        fam.arch,
-        0.0f,
-        0.0f,
-        run_id + 1,
-        "test",
-        config.dataset.cv_fold};
-    const auto test_chk = checkpoint_path(chk_dir, test_key);
-    if (checkpoint_is_valid(test_chk, cfg_hash))
-    {
-        all_rows.push_back(checkpoint_load(test_chk));
-        emit_config_end(all_rows.back(), final_config_id, fam.arch + "_final");
-        return;
-    }
+    // No test-row restore (removed 2026-11-02, option B of the cross-review): resuming a
+    // cut-short fold re-searches a finished run anyway (the GA deletes its artifacts on
+    // completion), the restored row brought no per-window rows (so 04_ refused the fold), and
+    // its key did not identify the winner (no hyperparameters; for the SNN-AE no T or widths,
+    // v_th / alpha rounded). Every run's test row and per-window rows are recomputed.
 
     {
         EventContext evctx;
@@ -543,7 +586,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
         run_seed,
         infer_ms,
         config.model.lstm_frame_size,
-        config.model.time_steps);
+        config.model.recurrent_time_steps);
     // evaluate_ae only scores; the final fit's training time is train_ae's to report (as
     // finalize_snn_selection does). Without this every baseline test row said train_ms 0,
     // and 02_ bolded that 0 as the fastest training in the paper's cost table.
@@ -559,7 +602,6 @@ void finalize_baseline_selection(const Meeting01Config& config,
         cfg_hash,
         "test",
         test_metrics));
-    checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
     emit_config_end(all_rows.back(), final_config_id, fam.arch + "_final");
 
     if (config.dataset.save_models)
@@ -590,7 +632,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
             encoding,
             run_seed,
             config.model.lstm_frame_size,
-            config.model.time_steps,
+            config.model.recurrent_time_steps,
             proto);
         pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
     }
@@ -612,6 +654,11 @@ void finalize_baseline_selection(const Meeting01Config& config,
         man["selected"]["encoding"] = encoding;
         man["selected"]["val_mse"] = val_mse;
         man["candidates"] = candidates_json;
+        man["final_fit"] = final_fit_json(fit_samples.size(),
+            carve.monitor_samples.size(),
+            final_train.history,
+            train_ms,
+            infer_ms);
         const std::filesystem::path man_path =
             std::filesystem::path(config.dataset.results_dir) /
             (fold_output_tag(config, dataset_name) + "_" + fam.token + "_run" +
@@ -637,6 +684,7 @@ struct SnnSelection
     float alpha;
     float val_mse;
     std::vector<int> encoder_widths;
+    int time_steps; // the genome's T, a gene like the others
 };
 
 // Nested-LOSO final fit for the GA-selected SNN-AE: retrain `best` on
@@ -652,7 +700,6 @@ void finalize_snn_selection(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     const SnnSelection& best,
     const std::vector<SnnSelection>& candidates,
@@ -660,6 +707,10 @@ void finalize_snn_selection(const Meeting01Config& config,
     std::vector<PerWindowError>& pw_rows)
 {
     if (split.test_samples.empty()) return;
+
+    // The winner's own T: the retrain, the test evaluation and the per-window errors all read
+    // model.time_steps from this copy (config itself keeps the profile's fixed-T default).
+    const Meeting01Config config_t = with_snn_time_steps(config, best.time_steps);
 
     const std::string final_config_id = make_config_id(
         "snn-ae", encoding, "snn_final", best.v_th, best.alpha, run_seed, run_id + 1);
@@ -673,27 +724,14 @@ void finalize_snn_selection(const Meeting01Config& config,
                 {{"architecture", best.architecture},
                     {"v_th", best.v_th},
                     {"alpha", best.alpha},
+                    {"time_steps", best.time_steps},
                     {"val_score", jnum(best.val_mse)}}}});
 
-    // Test row for the winner may already be checkpointed.
-    CheckpointKey test_key{config.experiment.run_tag,
-        backend_name,
-        dataset_name,
-        "snn-ae",
-        encoding,
-        best.architecture,
-        best.v_th,
-        best.alpha,
-        run_id + 1,
-        "test",
-        config.dataset.cv_fold};
-    const auto test_chk = checkpoint_path(chk_dir, test_key);
-    if (checkpoint_is_valid(test_chk, cfg_hash))
-    {
-        all_rows.push_back(checkpoint_load(test_chk));
-        emit_config_end(all_rows.back(), final_config_id, "snn_final");
-        return;
-    }
+    // No test-row restore (removed 2026-11-02, option B of the cross-review): resuming a
+    // cut-short fold re-searches a finished run anyway (the GA deletes its artifacts on
+    // completion), the restored row brought no per-window rows (so 04_ refused the fold), and
+    // its key did not identify the winner (no hyperparameters; for the SNN-AE no T or widths,
+    // v_th / alpha rounded). Every run's test row and per-window rows are recomputed.
 
     {
         EventContext evctx;
@@ -701,8 +739,10 @@ void finalize_snn_selection(const Meeting01Config& config,
         evctx.model = "snn-ae";
         evctx.encoding = encoding;
         evctx.role = "snn_final";
-        evctx.hyperparams = {
-            {"v_th", best.v_th}, {"alpha", best.alpha}, {"architecture", best.architecture}};
+        evctx.hyperparams = {{"v_th", best.v_th},
+            {"alpha", best.alpha},
+            {"architecture", best.architecture},
+            {"time_steps", best.time_steps}};
         evctx.run_id = run_id + 1;
         evctx.seed = run_seed;
         evctx.max_epochs = config.training.epochs;
@@ -722,17 +762,19 @@ void finalize_snn_selection(const Meeting01Config& config,
     std::vector<WindowMetadata> fit_meta = carve.fit_meta;
     fit_meta.insert(fit_meta.end(), split.val_meta.begin(), split.val_meta.end());
 
-    AutoencoderConfig snn_config = make_snn_cfg(config, best.alpha, best.v_th, best.encoder_widths);
+    AutoencoderConfig snn_config =
+        make_snn_cfg(config_t, best.alpha, best.v_th, best.encoder_widths);
     snn_config.initializer_seed = run_seed;
     snn_config.initializer_sampler_type =
         "comparative-final|" + dataset_name + "|" + encoding + "|" + best.architecture + "|" +
-        std::to_string(best.v_th) + "|" + std::to_string(best.alpha);
+        std::to_string(best.v_th) + "|" + std::to_string(best.alpha) + "|T" +
+        std::to_string(best.time_steps);
     ProtocolSpikingAutoencoder snn_model(snn_config);
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
     const TrainResult final_train = train_with_early_stopping_snn(snn_model,
-        config,
+        config_t,
         fit_samples,
         carve.monitor_samples,
         fit_meta,
@@ -757,9 +799,6 @@ void finalize_snn_selection(const Meeting01Config& config,
         split.test_meta,
         std::vector<int>(split.test_samples.size(), 0),
         config.training.max_reconstruct_mean_deviation,
-        estimate_snn_macs(static_cast<std::size_t>(config.dataset.window_size),
-            sizes.empty() ? 0 : sizes.front(),
-            static_cast<int>(sizes.size())),
         parameter_count(snn_model.params()),
         encoding,
         best.architecture,
@@ -767,7 +806,8 @@ void finalize_snn_selection(const Meeting01Config& config,
         best.v_th,
         run_seed,
         infer_ms,
-        config.model.time_steps);
+        config_t.model.time_steps,
+        snn_output_steps(config_t));
     test_metrics.train_ms = train_ms;
 
     ResultRow test_row{backend_name,
@@ -786,7 +826,6 @@ void finalize_snn_selection(const Meeting01Config& config,
     test_row.split = "test";
     test_row.cv_fold = config.dataset.cv_fold;
     all_rows.push_back(test_row);
-    checkpoint_save(test_chk, all_rows.back(), final_train.history, cfg_hash);
     emit_config_end(all_rows.back(), final_config_id, "snn_final");
 
     // Persist the retrained winner: this is the model whose held-out test metrics feed
@@ -821,7 +860,8 @@ void finalize_snn_selection(const Meeting01Config& config,
             best.alpha,
             best.v_th,
             run_seed,
-            config.model.time_steps,
+            config_t.model.time_steps,
+            snn_output_steps(config_t),
             proto);
         pw_rows.insert(pw_rows.end(), pw.begin(), pw.end());
     }
@@ -837,7 +877,7 @@ void finalize_snn_selection(const Meeting01Config& config,
         man["seed"] = run_seed;
         man["selection_split"] = "val (speaker " + split.val_speaker + ")";
         man["selection_metric"] = "val_mse";
-        man["time_steps"] = config.model.time_steps;
+        man["time_steps"] = best.time_steps;
         man["test_speaker"] = split.test_speaker;
         // `encoder_widths` and `encoding` are what actually make this manifest a
         // reproducibility record rather than a log line: the GA searches a free-form
@@ -853,6 +893,7 @@ void finalize_snn_selection(const Meeting01Config& config,
             {"encoder_widths", best.encoder_widths},
             {"v_th", best.v_th},
             {"alpha", best.alpha},
+            {"time_steps", best.time_steps},
             {"val_mse", best.val_mse}};
         for (const auto& c : candidates)
             man["candidates"].push_back({{"architecture", c.architecture},
@@ -860,7 +901,13 @@ void finalize_snn_selection(const Meeting01Config& config,
                 {"encoder_widths", c.encoder_widths},
                 {"v_th", c.v_th},
                 {"alpha", c.alpha},
+                {"time_steps", c.time_steps},
                 {"val_mse", c.val_mse}});
+        man["final_fit"] = final_fit_json(fit_samples.size(),
+            carve.monitor_samples.size(),
+            final_train.history,
+            train_ms,
+            infer_ms);
         const std::filesystem::path man_path =
             std::filesystem::path(config.dataset.results_dir) /
             (fold_output_tag(config, dataset_name) + "_" + encoding + "_run" +
@@ -882,7 +929,6 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
@@ -900,6 +946,7 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
     bounds.voltage_threshold_max = ga_cfg.voltage_threshold_max;
     bounds.alpha_min = ga_cfg.alpha_min;
     bounds.alpha_max = ga_cfg.alpha_max;
+    std::tie(bounds.time_steps_min, bounds.time_steps_max) = snn_time_steps_range(config);
     bounds.encoding_choices = config.evaluation.encodings;
     bounds.architecture_choices = config.evaluation.snn_architectures;
     // Bottleneck fixed at the profile's latent_dim (never a gene — same rule as the 3
@@ -924,6 +971,7 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1);
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+    search_cfg.config_hash = cfg_hash;
 
     // `Ind` is given explicitly: it cannot be deduced from the callback argument alone
     // (a raw lambda converting to std::function<void(const Ind&)> is a non-deduced
@@ -948,7 +996,8 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
         winner.genome.voltage_threshold,
         winner.genome.alpha,
         winner.val_mse,
-        winner.genome.encoder_widths};
+        winner.genome.encoder_widths,
+        winner.genome.time_steps};
 
     std::vector<SnnSelection> candidates;
     candidates.reserve(ga_result.history.size());
@@ -958,7 +1007,8 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
             ind.genome.voltage_threshold,
             ind.genome.alpha,
             ind.val_mse,
-            ind.genome.encoder_widths});
+            ind.genome.encoder_widths,
+            ind.genome.time_steps});
 
     finalize_snn_selection(config,
         split,
@@ -968,14 +1018,85 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
         run_seed,
         backend_name,
         cfg_hash,
-        chk_dir,
         models_dir,
         best,
         candidates,
         all_rows,
         pw_rows);
 
-    return FamilyWinnerSummary{"snn-ae", winner.val_mse, winner.inference_cost};
+    return FamilyWinnerSummary{
+        "snn-ae", winner.val_mse, winner.inference_cost, winner.genome.encoder_widths};
+}
+
+// Multiply-accumulates of one forward pass of the matched ANN (dense layers only): window ->
+// widths... -> latent -> widths reversed -> window.
+std::size_t estimate_ann_macs(int window_size, const std::vector<int>& encoder_widths)
+{
+    std::vector<int> dims{window_size};
+    dims.insert(dims.end(), encoder_widths.begin(), encoder_widths.end());
+    for (std::size_t i = encoder_widths.size() - 1; i-- > 0;) dims.push_back(encoder_widths[i]);
+    dims.push_back(window_size);
+    std::size_t macs = 0;
+    for (std::size_t i = 0; i + 1 < dims.size(); ++i)
+        macs += static_cast<std::size_t>(dims[i]) * static_cast<std::size_t>(dims[i + 1]);
+    return macs;
+}
+
+// The matched ANN control (family "ann-ae"): the SNN GA winner's layer widths and the same
+// layer specs, with a leaky-ReLU neuron where the SNN has a LIF one, fed the analog window once.
+// It is NOT searched: giving it its own GA would change two things at once (neuron and widths),
+// and the point of this arm is to isolate the neuron. The window is its own "frame" and there is
+// one step, so it goes through the same train_ae / evaluate_ae / per-window path as the
+// recurrent baselines, on a copy of the config that says so. Encoding is `direct`: rate and
+// latency coding exist to give spikes a time axis, which an analog network does not have.
+// Same final-fit protocol (train \ monitor + val, recording-disjoint early stopping, one test
+// evaluation), so only the neuron differs from the SNN row.
+void run_ann_twin(const Meeting01Config& config,
+    const DatasetSplit& split,
+    const std::string& dataset_name,
+    int run_id,
+    std::uint32_t run_seed,
+    const std::string& backend_name,
+    std::size_t cfg_hash,
+    const std::filesystem::path& models_dir,
+    const FamilyWinnerSummary& snn_winner,
+    std::vector<ResultRow>& all_rows,
+    std::vector<PerWindowError>& pw_rows)
+{
+    if (snn_winner.encoder_widths.empty())
+        throw std::logic_error(
+            "run_ann_twin: the SNN winner carries no encoder_widths, so there is nothing to "
+            "copy. The 'ann-ae' arm must run after the SNN search of the same (dataset, run).");
+
+    Meeting01Config ann_config = config;
+    ann_config.model.lstm_frame_size = config.dataset.window_size;
+    ann_config.model.recurrent_time_steps = 1;
+
+    ProtocolAutoencoder model(make_ann_twin_cfg(config, snn_winner.encoder_widths));
+    const std::size_t macs =
+        estimate_ann_macs(config.dataset.window_size, snn_winner.encoder_widths);
+
+    const nlohmann::json selected_hyperparams{{"encoder_widths", snn_winner.encoder_widths},
+        {"copied_from", "snn-ae winner of the same (dataset, fold, run)"},
+        {"selection", "none: not searched, so there is no val_mse of its own"}};
+
+    finalize_baseline_selection(ann_config,
+        split,
+        dataset_name,
+        BaselineFamily{"ann-ae", "ann"},
+        "direct",
+        run_id,
+        run_seed,
+        backend_name,
+        cfg_hash,
+        models_dir,
+        model,
+        macs,
+        selected_hyperparams,
+        nlohmann::json::array(),
+        std::numeric_limits<float>::quiet_NaN(),
+        all_rows,
+        pw_rows);
 }
 
 // Runs NSGA-II over the LSTM-AE's own architecture (hidden_size/num_layers/encoding)
@@ -990,7 +1111,6 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
@@ -1014,7 +1134,8 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     // whose latent_dim exceeds it (EEG, 64) without over-constraining datasets where it
     // doesn't (audio, 16).
     bounds.min_hidden = std::max(bounds.min_hidden, config.model.latent_dim);
-    bounds.encoding_choices = config.evaluation.encodings;
+    require_hidden_range(config, bounds.min_hidden, bounds.max_hidden, "lstm");
+    bounds.encoding_choices = recurrent_encoding_choices(config);
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
     search_cfg.population_size = ga_cfg.population_size;
@@ -1030,6 +1151,7 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_lstm";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+    search_cfg.config_hash = cfg_hash;
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::LstmGaIndividual>(config,
         split,
@@ -1066,7 +1188,6 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
         run_seed,
         backend_name,
         cfg_hash,
-        chk_dir,
         models_dir,
         model,
         macs,
@@ -1089,7 +1210,6 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
@@ -1106,7 +1226,8 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     // Floor hidden_size at latent_dim -- see run_lstm_ga_search's identical comment
     // (GRUAutoencoder has the same separate H->Z projection as LSTMAutoencoder).
     bounds.min_hidden = std::max(bounds.min_hidden, config.model.latent_dim);
-    bounds.encoding_choices = config.evaluation.encodings;
+    require_hidden_range(config, bounds.min_hidden, bounds.max_hidden, "gru");
+    bounds.encoding_choices = recurrent_encoding_choices(config);
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::RecurrentGenomeBounds> search_cfg;
     search_cfg.population_size = ga_cfg.population_size;
@@ -1122,6 +1243,7 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_gru";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+    search_cfg.config_hash = cfg_hash;
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::GruGaIndividual>(config,
         split,
@@ -1158,7 +1280,6 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
         run_seed,
         backend_name,
         cfg_hash,
-        chk_dir,
         models_dir,
         model,
         macs,
@@ -1182,7 +1303,6 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
     std::uint32_t run_seed,
     const std::string& backend_name,
     std::size_t cfg_hash,
-    const std::filesystem::path& chk_dir,
     const std::filesystem::path& models_dir,
     std::uint32_t run_bar,
     int& completed_runs,
@@ -1206,7 +1326,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
     // d_model >= min_d_model for every legal n_heads, so raising the floor here is
     // sufficient -- no change needed in repair_transformer itself.
     bounds.min_d_model = std::max(bounds.min_d_model, config.model.latent_dim);
-    bounds.encoding_choices = config.evaluation.encodings;
+    bounds.encoding_choices = recurrent_encoding_choices(config);
 
     meeting01::ga::GaSearchConfigT<meeting01::ga::TransformerGenomeBounds> search_cfg;
     search_cfg.population_size = ga_cfg.population_size;
@@ -1222,6 +1342,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_transformer";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
+    search_cfg.config_hash = cfg_hash;
 
     const auto ga_result =
         meeting01::ga::run_ga_search<meeting01::ga::TransformerGaIndividual>(config,
@@ -1263,7 +1384,6 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
         run_seed,
         backend_name,
         cfg_hash,
-        chk_dir,
         models_dir,
         model,
         macs,
@@ -1338,6 +1458,10 @@ void assert_split_disjoint_and_manifest(
     // own from encoder_layer_spec, which leaves PCA no single k; 03_ refuses that case.
     man["latent_dim"] = config.model.latent_dim;
     man["window_size"] = config.dataset.resolve(dataset_name).window_size;
+    // What ran, in full: 02_ writes the paper's configuration numbers from these two records
+    // (and refuses folds that disagree), so the text cannot drift from the run.
+    man["config"] = resolved_config_json(config);
+    man["source"] = dataset_source_json(config.dataset.resolve(dataset_name));
     const std::set<std::string> train_speakers = speakers(split.train_meta);
     man["speakers"]["train"] =
         std::vector<std::string>(train_speakers.begin(), train_speakers.end());
@@ -1462,13 +1586,26 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         const Meeting01Config config = load_config(resolve_profile_path(cli), cli);
         config.validate();
+        if (cli.print_resolved_config)
+        {
+            nlohmann::json out;
+            out["config"] = resolved_config_json(config);
+            out["results_format"] = kResultsFormat;
+            for (const auto& name : config.evaluation.datasets)
+            {
+                out["datasets"][name]["source"] = dataset_source_json(config.dataset.resolve(name));
+                out["datasets"][name]["latent_dim"] =
+                    resolve_dataset_config(config, name).model.latent_dim;
+            }
+            std::cout << out.dump(2) << '\n';
+            return 0;
+        }
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
 
         const OutputDirs dirs = resolve_output_dirs(config);
         const std::filesystem::path& out_dir = dirs.out_dir;
         const std::filesystem::path& models_dir = dirs.models_dir;
-        const std::filesystem::path& chk_dir = dirs.chk_dir;
 
         std::vector<ResultRow> all_rows;
 
@@ -1633,7 +1770,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             run_seed,
                             backend_name,
                             cfg_hash,
-                            chk_dir,
                             models_dir,
                             run_bar,
                             completed_runs,
@@ -1649,7 +1785,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             run_seed,
                             backend_name,
                             cfg_hash,
-                            chk_dir,
                             models_dir,
                             run_bar,
                             completed_runs,
@@ -1665,19 +1800,22 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             run_seed,
                             backend_name,
                             cfg_hash,
-                            chk_dir,
                             models_dir,
                             run_bar,
                             completed_runs,
                             all_rows,
                             pw_rows));
                     }
+                    else if (family == "ann-ae")
+                    {
+                        // Not searched: runs after the SNN search below, from its winner.
+                    }
                     else
                     {
                         throw std::invalid_argument(
                             "run_comparative_experiment: unknown baseline '" + family +
                             "' — validate() should have rejected this. Valid: lstm-ae, "
-                            "gru-ae, transformer-ae.");
+                            "gru-ae, transformer-ae, ann-ae.");
                     }
                 }
 
@@ -1690,12 +1828,39 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         run_seed,
                         backend_name,
                         cfg_hash,
-                        chk_dir,
                         models_dir,
                         run_bar,
                         completed_runs,
                         all_rows,
                         pw_rows));
+                }
+
+                // The matched ANN control. Not part of the winner comparison below: it is a
+                // control, not a searched candidate.
+                const auto ann_it = std::find(resolved_config.evaluation.baselines.begin(),
+                    resolved_config.evaluation.baselines.end(),
+                    "ann-ae");
+                if (ann_it != resolved_config.evaluation.baselines.end())
+                {
+                    const auto snn_it = std::find_if(family_winners.begin(),
+                        family_winners.end(),
+                        [](const FamilyWinnerSummary& w) { return w.family_token == "snn-ae"; });
+                    if (snn_it == family_winners.end())
+                        throw std::logic_error(
+                            "run_comparative_experiment: 'ann-ae' is in evaluation.baselines "
+                            "but the SNN search produced no winner -- validate() requires an "
+                            "SNN architecture for it.");
+                    run_ann_twin(resolved_config,
+                        split,
+                        dataset_name,
+                        run_id,
+                        run_seed,
+                        backend_name,
+                        cfg_hash,
+                        models_dir,
+                        *snn_it,
+                        all_rows,
+                        pw_rows);
                 }
 
                 // Compare the 4 winners: same ordering pick_winner already uses within a

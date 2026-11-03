@@ -200,3 +200,9 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 ## Data Loading and Transform Pipelines
 
 [76] A. Paszke et al., "PyTorch: An imperative style, high-performance deep learning library," in *Adv. Neural Inf. Process. Syst. (NeurIPS)*, vol. 32, 2019. [Online]. Available: https://arxiv.org/abs/1912.01703 (`torchvision.transforms.Compose`/`RandomCrop` — the design this project's `nn::transforms::ITransform`/`Compose`/`RandomCrop` mirror.)
+
+## Cost and Energy Estimates
+
+[77] M. Horowitz, "Computing's energy problem (and what we can do about it)," in *IEEE Int. Solid-State Circuits Conf. (ISSCC) Dig. Tech. Papers*, 2014, pp. 10–14. [Online]. Available: https://ieeexplore.ieee.org/document/6757323 (Fig. 1.1.9, 45 nm at 0.9 V: 32-bit float add 0.9 pJ, 32-bit float multiply 3.7 pJ — read from the figure, 2026-11-01 — so one MAC = 4.6 pJ and one AC = 0.9 pJ; the same figure puts a 32 KB cache access at 20 pJ and DRAM at 1.3–2.6 nJ, which is why an arithmetic-only estimate is not the energy of real hardware. Used by `kMacEnergyPj`/`kAcEnergyPj` in meeting01's `Meeting01Metrics.hpp`.)
+
+[78] Z. Zhou, Y. Zhu, C. He, Y. Wang, S. Yan, Y. Tian, and L. Yuan, "Spikformer: When spiking neural network meets Transformer," in *Proc. Int. Conf. Learning Representations (ICLR)*, 2023. [Online]. Available: https://arxiv.org/abs/2209.15425 (Appendix: E = E_MAC × FLOPs of the analog-input first layer + E_AC × synaptic operations of the spike-driven layers, with E_MAC = 4.6 pJ and E_AC = 0.9 pJ from [77] — the convention meeting01's `count_snn_ops` follows.)

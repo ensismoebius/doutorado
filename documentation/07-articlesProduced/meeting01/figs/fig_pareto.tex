@@ -1,0 +1,58 @@
+% Test MSE against arithmetic energy per window, one panel per dataset (headline folds).
+% Reads data/paper_loso_<dataset>_pareto.csv (02_meeting01_build_loso_paper_data.py):
+% key, mse, mse_std, energy_nj; one row per family the run configured, then PCA. PCA has no
+% energy (it is not costed) and is drawn as the dashed line.
+% WHICH families are drawn comes from data/paper_loso_pareto_series.tex, generated from the
+% same list as the CSV rows (\paretoAllSeries, \paretoAllLegend, \paretoPcaRow,
+% \paretoLegendColumns): a family the run left out has no empty series and no legend entry.
+% Each family's mark is its "pareto <key>" style below; a key without one is a pgfkeys error.
+% only key=<k> keeps the row whose key is <k>. Inside a filter \thisrow{key} expands to the
+% math-parser form thisrow("key"), not the cell, so it would never match and every point
+% would be dropped silently; \getthisrow reads the cell (and \pgfmathresult is kept around it).
+\input{data/paper_loso_pareto_series.tex}
+\pgfplotsset{
+  only key/.style={x filter/.append code={%
+      \let\tmpx\pgfmathresult\getthisrow{key}\tmpkey\let\pgfmathresult\tmpx
+      \edef\tmpwant{#1}%
+      \ifx\tmpkey\tmpwant\else\def\pgfmathresult{nan}\fi}},
+  pareto mark/.style 2 args={only marks, mark=#1, mark size=2.2pt, color=#2,
+      error bars/y dir=both, error bars/y explicit},
+  pareto snn/.style={pareto mark={*}{red!75!black}},
+  pareto ann/.style={pareto mark={square*}{blue!70!black}},
+  pareto lstm/.style={pareto mark={triangle*}{black!70}},
+  pareto gru/.style={pareto mark={diamond*}{teal!80!black}},
+  pareto transformer/.style={pareto mark={pentagon*}{orange!85!black}},
+}
+% One family's points of the current panel's table \pt.
+\newcommand{\paretoSeries}[1]{%
+  \addplot[pareto #1, only key=#1] table[x=energy_nj, y=mse, y error=mse_std] {\pt};}
+% [#1]: extra axis options (the legend is taken from the first panel only: a later panel's
+% `legend to name` would overwrite it with its own, empty, legend).
+\newcommand{\paretoPanel}[3][]{%
+  \nextgroupplot[title={#3}, #1]
+  \pgfplotstableread[col sep=comma]{data/paper_loso_#2_pareto.csv}\pt
+  \paretoAllSeries
+  \pgfplotstablegetelem{\paretoPcaRow}{mse}\of\pt
+  \edef\pcamse{\pgfplotsretval}
+  \draw[dashed, gray] ({rel axis cs:0,0} |- {axis cs:1,\pcamse})
+    -- ({rel axis cs:1,0} |- {axis cs:1,\pcamse});
+}
+\begin{tikzpicture}[font=\scriptsize]
+  \begin{groupplot}[
+    group style={group size=4 by 1, horizontal sep=9mm},
+    width=0.275\textwidth, height=3.6cm,
+    xmode=log, xlabel={energy / window (nJ)},
+    ymajorgrids, unbounded coords=discard,
+    title style={yshift=-1.5mm},
+    legend columns=\paretoLegendColumns,
+    legend style={draw=none, /tikz/every even column/.append style={column sep=4pt}}]
+    \paretoPanel[legend to name=paretolegend]{fsdd}{FSDD}
+    \paretoAllLegend
+    \paretoPanel{audiomnist}{AudioMNIST}
+    \paretoPanel{eegmmidb}{EEGMMIDB}
+    \paretoPanel{siena}{Siena}
+  \end{groupplot}
+  \node[anchor=north] at ($(group c1r1.south west)!0.5!(group c4r1.south east) + (0,-7mm)$)
+    {\pgfplotslegendfromname{paretolegend}};
+  \node[rotate=90, anchor=south] at ($(group c1r1.west) + (-7mm,0)$) {test MSE};
+\end{tikzpicture}

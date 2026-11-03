@@ -170,15 +170,19 @@ meeting01::Meeting01Config base_cfg()
 // here doesn't just under-cost the MAC estimate, it makes the very first real forward
 // pass throw "Block indices out of range". The genome-driven path must use the same
 // (window_size * time_steps) / lstm_frame_size formula as the profile-driven one.
-TEST(Meeting01TransformerGaGenome, ToTransformerCfgUsesWindowTimesTimeStepsForSeqLen)
+TEST(Meeting01TransformerGaGenome, ToTransformerCfgUsesWindowTimesRecurrentTimeStepsForSeqLen)
 {
-    const auto cfg = base_cfg();
+    // The baselines read the window at recurrent_time_steps, NOT the SNN's time_steps:
+    // the two differ on purpose, so a regression that reads the wrong one fails here.
+    auto cfg = base_cfg();
+    cfg.model.time_steps = 16;
+    cfg.model.recurrent_time_steps = 1;
     const TransformerGenome g{32, 8, 3, 64, "poisson"};
     const auto arch = meeting01::ga::to_transformer_cfg(g, cfg);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
-    EXPECT_EQ(
-        arch.seq_len, (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size);
+    EXPECT_EQ(arch.seq_len,
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.d_model, 32);
     EXPECT_EQ(arch.n_heads, 8);
     EXPECT_EQ(arch.n_layers, 3);
@@ -247,11 +251,11 @@ TEST(Meeting01GaCheckpoint, TransformerCacheAppendAndReloadRoundTrips)
     b.genome = TransformerGenome{32, 8, 1, 32, "poisson"};
     b.objectives = {0.3, 50.0};
 
-    meeting01::ga::append_cache_entry(path, a);
-    meeting01::ga::append_cache_entry(path, b);
+    meeting01::ga::append_cache_entry(path, a, 7u);
+    meeting01::ga::append_cache_entry(path, b, 7u);
 
     const auto loaded =
-        meeting01::ga::load_cache_entries<meeting01::ga::TransformerGaIndividual>(path);
+        meeting01::ga::load_cache_entries<meeting01::ga::TransformerGaIndividual>(path, 7u);
     ASSERT_EQ(loaded.size(), 2u);
     EXPECT_EQ(loaded[0].genome.d_model, a.genome.d_model);
     EXPECT_EQ(loaded[1].genome.d_model, b.genome.d_model);
@@ -272,11 +276,12 @@ TEST(Meeting01GaCheckpoint, TransformerGenerationCheckpointRoundTrips)
     parents[1].genome = TransformerGenome{16, 1, 1, 32, "latency"};
     parents[1].objectives = {0.3, 30.0};
 
-    meeting01::ga::save_generation_checkpoint(dir, tag, 3, rng, parents);
+    meeting01::ga::save_generation_checkpoint(dir, tag, 3, rng, parents, 7u);
     EXPECT_TRUE(meeting01::ga::state_checkpoint_exists(dir, tag));
 
     const auto ck =
-        meeting01::ga::load_generation_checkpoint<meeting01::ga::TransformerGaIndividual>(dir, tag);
+        meeting01::ga::load_generation_checkpoint<meeting01::ga::TransformerGaIndividual>(
+            dir, tag, 7u);
     EXPECT_EQ(ck.generation, 3);
     ASSERT_EQ(ck.parents.size(), 2u);
     EXPECT_EQ(ck.parents[0].genome.d_model, parents[0].genome.d_model);

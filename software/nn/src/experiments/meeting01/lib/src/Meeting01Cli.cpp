@@ -44,6 +44,8 @@ void print_usage(const char* prog)
                  "evaluation.datasets (fsdd|audiomnist|eegmmidb|siena)\n"
               << "  --no-tui                          Disable the live progress TUI "
                  "(auto-off when stdout is not a terminal)\n"
+              << "  --print-resolved-config          Print the validated, resolved profile as "
+                 "JSON and exit (02_ --placeholders reads it)\n"
               << "  --help                            Print this message\n";
 }
 
@@ -100,6 +102,10 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         else if (arg == "--no-tui")
         {
             opts.no_tui = true;
+        }
+        else if (arg == "--print-resolved-config")
+        {
+            opts.print_resolved_config = true;
         }
         else
         {
@@ -193,83 +199,144 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     return cfg;
 }
 
-auto config_hash(const Meeting01Config& cfg) -> std::size_t
+auto dataset_source_json(const Meeting01Config::DatasetSource& s) -> nlohmann::json
+{
+    return {{"name", s.name},
+        {"root", s.root},
+        {"window_size", s.window_size},
+        {"cv_num_folds", s.cv_num_folds},
+        {"sample_rate", s.sample_rate},
+        {"max_windows_per_recording", s.max_windows_per_recording},
+        {"loso_max_train_windows", s.loso_max_train_windows},
+        {"loso_max_val_windows", s.loso_max_val_windows},
+        {"loso_max_test_windows", s.loso_max_test_windows},
+        {"latent_dim", s.latent_dim}};
+}
+
+auto resolved_config_json(const Meeting01Config& cfg) -> nlohmann::json
 {
     nlohmann::json j;
-    j["experiment"]["run_tag"] = cfg.experiment.run_tag;
-    j["experiment"]["seed"] = cfg.experiment.seed;
-    j["experiment"]["repeats"] = cfg.experiment.repeats;
-    j["dataset"]["dataset_root"] = cfg.dataset.dataset_root;
-    j["dataset"]["results_dir"] = cfg.dataset.results_dir;
-    j["dataset"]["window_size"] = cfg.dataset.window_size;
-    j["dataset"]["max_loaded_train_samples"] = cfg.dataset.max_loaded_train_samples;
-    j["dataset"]["max_validation_samples"] = cfg.dataset.max_validation_samples;
-    j["dataset"]["cv_fold"] = cfg.dataset.cv_fold;
-    j["dataset"]["cv_num_folds"] = cfg.dataset.cv_num_folds;
-    j["dataset"]["max_windows_per_recording"] = cfg.dataset.max_windows_per_recording;
-    j["dataset"]["loso_max_train_windows"] = cfg.dataset.loso_max_train_windows;
-    j["dataset"]["loso_max_val_windows"] = cfg.dataset.loso_max_val_windows;
-    j["dataset"]["loso_max_test_windows"] = cfg.dataset.loso_max_test_windows;
-    for (const auto& s : cfg.dataset.sources)
-        j["dataset"]["sources"].push_back({{"name", s.name},
-            {"root", s.root},
-            {"window_size", s.window_size},
-            {"cv_num_folds", s.cv_num_folds},
-            {"sample_rate", s.sample_rate},
-            {"max_windows_per_recording", s.max_windows_per_recording},
-            {"loso_max_train_windows", s.loso_max_train_windows},
-            {"loso_max_val_windows", s.loso_max_val_windows},
-            {"loso_max_test_windows", s.loso_max_test_windows}});
-    j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
-    j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
-    j["training"]["epochs"] = cfg.training.epochs;
-    j["training"]["early_stop_patience"] = cfg.training.early_stop_patience;
-    j["training"]["learning_rate"] = cfg.training.learning_rate;
-    j["training"]["max_reconstruct_mean_deviation"] = cfg.training.max_reconstruct_mean_deviation;
+    const auto& e = cfg.experiment;
+    j["experiment"] = {{"run_tag", e.run_tag},
+        {"seed", e.seed},
+        {"repeats", e.repeats},
+        {"seed_deterministic", e.seed_deterministic},
+        {"check_determinism", e.check_determinism}};
 
-    j["evaluation"]["datasets"] = cfg.evaluation.datasets;
-    j["evaluation"]["encodings"] = cfg.evaluation.encodings;
-    j["evaluation"]["baselines"] = cfg.evaluation.baselines;
-    j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
-    // Every architecture-searched family's bounds feed the hash now (2026-09-22), not
-    // just the SNN's: this hash gates checkpoint reuse (Meeting01Checkpoint.hpp), so
-    // omitting a family's GA block here would mean changing that family's search
-    // bounds silently reused a checkpoint scored under the OLD bounds.
-    j["evaluation"]["ga"]["snn"] = {{"population_size", cfg.evaluation.ga.snn.population_size},
-        {"generations", cfg.evaluation.ga.snn.generations},
-        {"min_layers", cfg.evaluation.ga.snn.min_layers},
-        {"max_layers", cfg.evaluation.ga.snn.max_layers},
-        {"min_width", cfg.evaluation.ga.snn.min_width},
-        {"max_width", cfg.evaluation.ga.snn.max_width},
-        {"voltage_threshold_min", cfg.evaluation.ga.snn.voltage_threshold_min},
-        {"voltage_threshold_max", cfg.evaluation.ga.snn.voltage_threshold_max},
-        {"alpha_min", cfg.evaluation.ga.snn.alpha_min},
-        {"alpha_max", cfg.evaluation.ga.snn.alpha_max}};
-    auto recurrent_ga_json = [](const Meeting01Config::RecurrentGa& g)
+    const auto& d = cfg.dataset;
+    j["dataset"] = {{"dataset_root", d.dataset_root},
+        {"results_dir", d.results_dir},
+        {"window_size", d.window_size},
+        {"max_loaded_train_samples", d.max_loaded_train_samples},
+        {"max_validation_samples", d.max_validation_samples},
+        {"cv_fold", d.cv_fold},
+        {"cv_num_folds", d.cv_num_folds},
+        {"max_windows_per_recording", d.max_windows_per_recording},
+        {"loso_max_train_windows", d.loso_max_train_windows},
+        {"loso_max_val_windows", d.loso_max_val_windows},
+        {"loso_max_test_windows", d.loso_max_test_windows},
+        {"latent_dim", d.latent_dim},
+        {"sources", nlohmann::json::array()}};
+    for (const auto& s : d.sources) j["dataset"]["sources"].push_back(dataset_source_json(s));
+
+    const auto& t = cfg.training;
+    j["training"] = {{"samples_per_batch", t.samples_per_batch},
+        {"batches_per_epoch", t.batches_per_epoch},
+        {"epochs", t.epochs},
+        {"early_stop_patience", t.early_stop_patience},
+        {"learning_rate", t.learning_rate},
+        {"learning_rate_biophysical", t.learning_rate_biophysical},
+        {"beta1", t.beta1},
+        {"beta2", t.beta2},
+        {"epsilon", t.epsilon},
+        {"max_reconstruct_mean_deviation", t.max_reconstruct_mean_deviation}};
+
+    const auto& m = cfg.model;
+    j["model"] = {{"latent_dim", m.latent_dim},
+        {"lstm_hidden_size", m.lstm_hidden_size},
+        {"lstm_frame_size", m.lstm_frame_size},
+        {"time_steps", m.time_steps},
+        {"recurrent_time_steps", m.recurrent_time_steps},
+        {"snn_time_pool", m.snn_time_pool},
+        {"snn_decoder_neuron", m.snn_decoder_neuron},
+        {"initializer", m.initializer},
+        {"branch_hidden_size", m.branch_hidden_size},
+        {"fusion_hidden_size", m.fusion_hidden_size},
+        {"transformer_d_model", m.transformer_d_model},
+        {"transformer_heads", m.transformer_heads},
+        {"transformer_layers", m.transformer_layers},
+        {"transformer_d_ff", m.transformer_d_ff},
+        {"denoising_noise_std", m.denoising_noise_std},
+        {"loss_type", m.loss_type},
+        {"encoder_layer_spec", m.encoder_layer_spec},
+        {"decoder_layer_spec", m.decoder_layer_spec},
+        {"branch_encoder_layer_spec", m.branch_encoder_layer_spec},
+        {"branch_decoder_layer_spec", m.branch_decoder_layer_spec},
+        {"fusion_encoder_layer_spec", m.fusion_encoder_layer_spec},
+        {"fusion_decoder_layer_spec", m.fusion_decoder_layer_spec}};
+
+    const auto& ev = cfg.evaluation;
+    j["evaluation"] = {{"datasets", ev.datasets},
+        {"encodings", ev.encodings},
+        {"baselines", ev.baselines},
+        {"snn_architectures", ev.snn_architectures}};
+    // The search mechanics every family's block shares; checkpoint_every_generations is left
+    // out (when the GA saves its state changes no result).
+    auto mechanics = [](const auto& g)
     {
         return nlohmann::json{{"population_size", g.population_size},
             {"generations", g.generations},
-            {"min_hidden", g.min_hidden},
+            {"crossover_prob", g.crossover_prob},
+            {"mutation_prob", g.mutation_prob},
+            {"tournament_k", g.tournament_k},
+            {"winner_seeds", g.winner_seeds},
+            {"seed", g.seed}};
+    };
+    const auto& snn = ev.ga.snn;
+    auto js = mechanics(snn);
+    js.update({{"min_layers", snn.min_layers},
+        {"max_layers", snn.max_layers},
+        {"min_width", snn.min_width},
+        {"max_width", snn.max_width},
+        {"voltage_threshold_min", snn.voltage_threshold_min},
+        {"voltage_threshold_max", snn.voltage_threshold_max},
+        {"alpha_min", snn.alpha_min},
+        {"alpha_max", snn.alpha_max},
+        {"time_steps_min", snn.time_steps_min},
+        {"time_steps_max", snn.time_steps_max}});
+    j["evaluation"]["ga"]["snn"] = js;
+    auto recurrent = [&](const Meeting01Config::RecurrentGa& g)
+    {
+        auto jr = mechanics(g);
+        jr.update({{"min_hidden", g.min_hidden},
             {"max_hidden", g.max_hidden},
             {"min_layers", g.min_layers},
-            {"max_layers", g.max_layers}};
+            {"max_layers", g.max_layers}});
+        return jr;
     };
-    j["evaluation"]["ga"]["lstm"] = recurrent_ga_json(cfg.evaluation.ga.lstm);
-    j["evaluation"]["ga"]["gru"] = recurrent_ga_json(cfg.evaluation.ga.gru);
-    j["evaluation"]["ga"]["transformer"] = {
-        {"population_size", cfg.evaluation.ga.transformer.population_size},
-        {"generations", cfg.evaluation.ga.transformer.generations},
-        {"min_d_model", cfg.evaluation.ga.transformer.min_d_model},
-        {"max_d_model", cfg.evaluation.ga.transformer.max_d_model},
-        {"head_choices", cfg.evaluation.ga.transformer.head_choices},
-        {"min_layers", cfg.evaluation.ga.transformer.min_layers},
-        {"max_layers", cfg.evaluation.ga.transformer.max_layers},
-        {"min_d_ff", cfg.evaluation.ga.transformer.min_d_ff},
-        {"max_d_ff", cfg.evaluation.ga.transformer.max_d_ff}};
-    j["experiment"]["seed_deterministic"] = cfg.experiment.seed_deterministic;
-    j["experiment"]["check_determinism"] = cfg.experiment.check_determinism;
+    j["evaluation"]["ga"]["lstm"] = recurrent(ev.ga.lstm);
+    j["evaluation"]["ga"]["gru"] = recurrent(ev.ga.gru);
+    const auto& tr = ev.ga.transformer;
+    auto jt = mechanics(tr);
+    jt.update({{"min_d_model", tr.min_d_model},
+        {"max_d_model", tr.max_d_model},
+        {"head_choices", tr.head_choices},
+        {"min_layers", tr.min_layers},
+        {"max_layers", tr.max_layers},
+        {"min_d_ff", tr.min_d_ff},
+        {"max_d_ff", tr.max_d_ff}});
+    j["evaluation"]["ga"]["transformer"] = jt;
+    return j;
+}
 
-    return std::hash<std::string>{}(j.dump());
+// Until 2026-11-02 this hashed a hand-picked subset that left out most of model.* (the SNN's
+// time pool, decoder neuron, initializer, latent width, the baselines' recurrent_time_steps),
+// the learning rate of the biophysical parameters and every GA block's winner_seeds and
+// operator probabilities: a profile edited in any of them between two RESUME=1 starts reused
+// the checkpoints trained under the old values. Hashing resolved_config_json closes that.
+auto config_hash(const Meeting01Config& cfg) -> std::size_t
+{
+    return std::hash<std::string>{}(resolved_config_json(cfg).dump());
 }
 
 auto should_run_comparative_cli(int argc, char* argv[]) -> bool

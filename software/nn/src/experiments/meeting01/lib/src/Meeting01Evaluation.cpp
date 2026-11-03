@@ -96,8 +96,8 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
-    m.spike_rate = 0.0f;
-    m.energy = 10.0f * static_cast<float>(m.macs);
+    // No spiking neuron: spike_rate stays NaN (not applicable) and acs 0.
+    m.arith_energy_nj = arith_energy_nj(static_cast<double>(m.macs), 0.0);
 
     return m;
 }
@@ -107,7 +107,6 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,
-    std::size_t macs,
     std::size_t param_count,
     const std::string& encoding,
     const std::string& architecture,
@@ -115,10 +114,10 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     float v_th,
     std::uint32_t seed,
     float infer_ms,
-    int time_steps) -> RunMetrics
+    int time_steps,
+    int output_steps) -> RunMetrics
 {
     RunMetrics m;
-    m.macs = macs;
     m.parameter_count = param_count;
     m.infer_ms = infer_ms;
 
@@ -129,20 +128,28 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     float mae_acc = 0.0f;
     float y_mean_acc = 0.0f;
     std::size_t n_values = 0;
-    float spike_sum = 0.0f;
+    SnnOpCounts ops;
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         Tensor encoded = encode_sample(
             val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-        const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
+        const Tensor target = make_reconstruction_target(val_samples[i], output_steps);
         const Tensor mask = make_reconstruction_target(
             make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
-            time_steps);
+            output_steps);
 
         model.reset_state();
-        const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
+        const SnnTensor input(encoded);
+        const Tensor recon = Tensor(model.forward(input, false));
+        const SnnOpCounts window_ops =
+            count_snn_ops(model, input, snn_input_is_spikes(encoding, architecture));
+        ops.macs += window_ops.macs + count_architecture_transform_macs(
+                                          architecture, static_cast<std::size_t>(encoded.size()));
+        ops.acs += window_ops.acs;
+        ops.spikes += window_ops.spikes;
+        ops.neuron_steps += window_ops.neuron_steps;
 
         mse_acc += mse_between_masked(target, recon, mask);
         mae_acc += mae_between_masked(target, recon, mask);
@@ -157,7 +164,6 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             if (mk > 0.0f)
             {
                 y_mean_acc += target.at(k);
-                spike_sum += recon.at(k) > 0.0f ? 1.0f : 0.0f;
                 ++n_values;
             }
         }
@@ -177,10 +183,10 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         Tensor encoded = encode_sample(
             val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-        const Tensor target = make_reconstruction_target(val_samples[i], time_steps);
+        const Tensor target = make_reconstruction_target(val_samples[i], output_steps);
         const Tensor mask = make_reconstruction_target(
             make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
-            time_steps);
+            output_steps);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
         for (nn::Index k = 0; k < target.size(); ++k)
@@ -196,8 +202,16 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
 
     binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
-    m.spike_rate = (n_values > 0) ? spike_sum / static_cast<float>(n_values) : 0.0f;
-    m.energy = m.spike_rate * static_cast<float>(n_values) + 10.0f * static_cast<float>(m.macs);
+    // Per-window means of the measured counts. No windows, or a network with no spiking
+    // layer, leaves spike_rate NaN: there is no fraction to report.
+    if (!val_samples.empty())
+    {
+        const auto n = static_cast<double>(val_samples.size());
+        m.macs = static_cast<std::size_t>(std::llround(ops.macs / n));
+        m.acs = ops.acs / n;
+        m.arith_energy_nj = arith_energy_nj(ops.macs / n, m.acs);
+    }
+    if (ops.neuron_steps > 0.0) m.spike_rate = static_cast<float>(ops.spikes / ops.neuron_steps);
 
     return m;
 }
@@ -211,6 +225,7 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
     float v_th,
     std::uint32_t seed,
     int time_steps,
+    int output_steps,
     PerWindowError proto) -> std::vector<PerWindowError>
 {
     std::vector<PerWindowError> out;
@@ -220,10 +235,10 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
         Tensor encoded =
             encode_sample(samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-        const Tensor target = make_reconstruction_target(samples[i], time_steps);
+        const Tensor target = make_reconstruction_target(samples[i], output_steps);
         const Tensor mask = make_reconstruction_target(
             make_activity_mask(meta[i].valid_length, static_cast<int>(samples[i].size())),
-            time_steps);
+            output_steps);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(SnnTensor(encoded), false));
 

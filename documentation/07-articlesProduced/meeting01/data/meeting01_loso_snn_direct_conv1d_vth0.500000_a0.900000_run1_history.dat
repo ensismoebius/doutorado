@@ -1,8 +1,0 @@
-# model=snn-ae encoding=direct architecture=conv1d v_th=0.5 alpha=0.9 run=1
-epoch train_loss val_loss
-1 0.063970 0.000299
-2 0.000382 0.000452
-3 0.000416 0.000373
-4 0.000523 0.000454
-5 0.000403 0.000394
-6 0.000421 0.000450

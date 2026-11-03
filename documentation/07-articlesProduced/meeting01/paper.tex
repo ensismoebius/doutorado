@@ -1,1044 +1,545 @@
-% IEEE conference paper — leakage-controlled nested-LOSO comparison of
-% spiking / recurrent / attention autoencoders on FSDD.
-% Revision of rejected submission 71 (Meeting01); retargeted to the next congress.
+% IEEE conference paper (8 pages) -- what spiking costs an autoencoder, measured against a
+% matched non-spiking control under nested leave-one-group-out cross-validation.
+% Revision of rejected submission 71 (Meeting01). Every configuration number comes from
+% data/paper_config.tex and every result from data/*, both written by
+% software/nn/scripts/pipeline/meeting01/02_ and 04_ (placeholders before the grid run);
+% the pre-validation's (Section sec:prevalidation) from data/paper_prevalidation*.tex,
+% written by 00_meeting01_prevalidation_report.py.
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric,arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,positioning,calc}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
 \usepackage{pgfplotstable}
 \usepackage{cite}
-\usepackage{balance}
 \usepackage{booktabs}
 \usepackage[english]{babel}
 
-% Per-dataset MSE plot data file, set by \resultsForDataset before each \input.
-\newcommand{\loMsePlotData}{data/paper_loso_fsdd_mse_plot.csv}
+\input{data/paper_config.tex}
+\input{data/paper_prevalidation_config.tex}
+% Placeholder tables (before the grid run) print a banner instead of the results figure.
+\def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
+\newif\ifplaceholder
+\ifx\curStatus\phStatus\placeholdertrue\fi
 
-\title{Spiking, Recurrent, and Attention Autoencoders for
-Temporal Signals: A Leakage-Controlled Nested Cross-Validation Comparison}
+\title{What Does Spiking Cost an Autoencoder? A Leakage-Controlled Comparison
+with a Matched Non-Spiking Control on Speech and EEG}
 
-\author{André Furlan\\Instituto de Biociências, Letras e Ciências Exatas - UNESP\\ andre.furlan@unesp.br}
+\author{André Furlan\\Instituto de Biociências, Letras e Ciências Exatas -- UNESP\\
+andre.furlan@unesp.br}
 
 \begin{document}
 \maketitle
 \sloppy
-\emergencystretch=3em
 
 \begin{abstract}
-
-\par Spiking Neural Networks (SNNs) promise low-power temporal signal
-processing through event-driven, sparse computation, but their use as
-autoencoders for waveform reconstruction lacks a controlled, leakage-free
-empirical comparison against modern non-spiking baselines. We compare four
-trained autoencoder families --- a spiking autoencoder (SNN-AE), an LSTM
-autoencoder (LSTM-AE), a GRU autoencoder (GRU-AE), and a bottlenecked
-Transformer autoencoder (Transformer-AE) without encoder--decoder
-cross-attention --- under three spike-encoding front ends (direct, Poisson,
-latency), together with PCA and mean-frame linear reference points. Each
-family runs its own multi-objective (NSGA-II) architecture search; only the
-latent bottleneck width is held fixed across families, per dataset signal
-domain (16 for the two spoken-digit datasets, 64 for the two EEG datasets), so
-no family can win by evolving itself a wider bottleneck than the others. All
-models share a single C++/CPU harness \cite{furlan2026doi} for matched timing
-and a transparent operation-count cost budget. Evaluation uses \emph{nested
-six-fold leave-one-group-out cross-validation} on four datasets --- spoken
-digits (FSDD \cite{jackson2018fsdd} and AudioMNIST) and single-channel EEG
-(the PhysioNet EEG Motor Movement/Imagery Database and the Siena Scalp EEG
-Database) --- where the
-group is the speaker or the EEG subject: no source recording or group crosses
-a split, and architecture and hyperparameters for every family are selected
-inside each fold on the held-out validation group only, then retrained on the
-combined training and validation data before a single evaluation on the
-untouched test group. Model differences are assessed per dataset with a
-recording-level paired analysis (bootstrap confidence intervals over
-recordings, Wilcoxon signed-rank, Holm--Bonferroni), with group-level and
-seed-level results reported as generalization- and optimization-robustness
-evidence. We report reconstruction quality (MSE, MAE, $R^2$) as mean $\pm$
-standard deviation over seeds, a raw per-class operation count as the primary
-cost figure (with a weighted proxy as a labelled sensitivity analysis), the
-self-attention cost, quadratic in input-sequence length, and real
-parameter counts. The harness and profiles are released for reproduction.
+Spiking autoencoders are usually compared with non-spiking networks that differ from them in
+more than the neuron, and mostly on images. We ask how much reconstruction quality the spike
+costs, and what it returns in arithmetic, for short speech and single-channel EEG windows.
+The spiking autoencoder (SNN-AE) is compared with a matched control (ANN-AE) that copies its
+selected widths, initializer and training and replaces only the leaky integrate-and-fire
+neuron by a leaky ReLU, and with PCA. The SNN-AE selects its architecture, the number of
+simulation steps, the initial threshold and decay, the spike encoding and an input transform
+by multi-objective search inside nested leave-one-group-out cross-validation on four datasets,
+and differences are tested at the recording level. Cost is an arithmetic energy estimate from
+the operations each forward pass executes. Searched LSTM, GRU and Transformer autoencoders,
+which differ from the SNN-AE in more than the neuron, were measured once, under one reduced
+search budget on development folds, for their training and inference cost and their quality,
+and left out of the main comparison. A design study on a development fold, excluded from
+the headline numbers, shows that two avoidable choices -- scoring every simulation step and a
+spiking decoder -- enlarged the gap, that the initializer decided the EEG comparison (with
+fan-in scaling in both arms the control was handicapped and the gap vanished), and that what
+remains is reproduced by a non-spiking network with a hard-clipped activation: the cost is
+the saturation of the neuron's transfer function, not the spike.
+% TODO(after the grid run): one sentence with the headline SNN-AE vs ANN-AE result per modality.
 \end{abstract}
 
 \begin{IEEEkeywords}
-spiking neural networks, LSTM, GRU, Transformer, autoencoder,
-temporal signals, surrogate gradients, nested cross-validation,
-data leakage, audio signal processing, EEG, neuroevolution
+spiking neural networks, autoencoder, matched control, energy estimate, nested
+cross-validation, speech, EEG
 \end{IEEEkeywords}
 
 % ─────────────────────────────────────────────────────────────
 \section{Introduction}
 
-\par One-dimensional temporal signals such as audio waveforms, biosignals, and
-sensor streams often need to be processed and interpreted in low-power
-embedded systems where the energy budget is a primary constraint.
+\par Spiking neural networks (SNNs) communicate with binary events, so a synapse whose input
+did not spike does no work, and a synapse whose input did spike adds a weight instead of
+multiplying by it \cite{maass1997networks,pfeiffer2018deep}. Surrogate gradients
+\cite{neftci2019surrogate,zenke2018superspike,zenke2021remarkable} made such networks
+trainable end to end, and autoencoders are an obvious use: compress a signal window to a
+small code on a low-power device and reconstruct it elsewhere.
 
-\par Autoencoders for such signals must learn compact latent representations
-efficiently and accurately reconstruct the original sequence.
+\par Whether that trade is worth it is a question about two numbers measured on the
+\emph{same} network: how much reconstruction error the spike adds, and how much arithmetic it
+removes. Published comparisons answer a different question. Spiking autoencoders have been
+reported as comparable to conventional ones on MNIST-type images, against baselines of
+similar size \cite{comsa2021spiking} or the same architecture \cite{kamata2022fully}; when
+the comparison is against recurrent or attention models, those differ in recurrence, sequence
+length and capacity at once, so a quality difference cannot be attributed to the neuron. We
+are not aware of a matched comparison for the reconstruction of speech or EEG.
 
-\par Long Short-Term Memory (LSTM) autoencoders are a well-established baseline
-for sequence reconstruction \cite{sutskever2014sequence,hochreiter1997long},
-but their dense matrix operations are computationally expensive.
-Spiking Neural Networks (SNNs) otherwise communicate via sparse binary events and
-perform synaptic updates only when spikes occur, offering potential energy
-reduction on general-purpose and neuromorphic hardware
-\cite{maass1997networks,pfeiffer2018deep,gerstner2002spiking}.
+\par Two further confounds are easy to miss. First, evaluation: windows of one recording and
+one speaker are near-duplicates, so pooling windows before splitting measures memorization,
+and selecting hyperparameters on the test speaker biases every number \cite{cawley2010overfitting}.
+Second, the comparison can be skewed by design choices that are not the spike, and in our
+case were: Section~\ref{sec:design} documents a per-step loss and a spiking decoder that
+inflated the gap, and an initializer that, applied to both arms, handicapped the control
+enough to make the gap vanish on EEG.
 
-\par Training SNNs for reconstruction requires backpropagation through
-non-differentiable spike functions which behave like step functions.
-Surrogate gradient methods \cite{neftci2019surrogate,zenke2018superspike} enable
-end-to-end gradient-based training and have produced competitive SNN
-classification performance \cite{eshraghian2023training,pfeiffer2018deep}.
-However, a controlled study of SNN autoencoders for temporal signal
-reconstruction --- compared against several modern non-spiking baselines, under
-an evaluation protocol that provably prevents information from the test signals
-leaking into training or hyperparameter selection --- is lacking.
-
-\par Evaluation rigor is the crux. When fixed-length windows from all recordings
-are pooled, shuffled, and split, windows from the same utterance --- and the
-same speaker --- appear in both training and validation, so reported errors
-partly measure memorization of speaker- and recording-specific waveform detail.
-Speaker (or subject) identity is the natural unit of generalization, and the
-publicly available spoken-digit benchmarks used here have on the order of tens
-of such groups (six and sixty), which also bounds how strong any
-population-level claim can be; the two EEG benchmarks span a wider range
-(fourteen and one hundred nine subjects). We therefore evaluate on four
-datasets and make the recording-level paired difference, not the group-level
-one, the primary estimand.
-
-\par A second source of unfairness is architectural: if one family is allowed
-a wider latent bottleneck than another, a reconstruction-quality difference
-may reflect only that difference in task difficulty, not architecture quality.
-We address this by giving every family its own architecture search rather
-than a shared or hand-picked shape, while holding the one dimension that sets
-the difficulty of the compression task --- the latent width --- fixed across
-all four families for a given dataset.
-
-\par This paper addresses these gaps with four contributions:
+\par This paper makes four contributions.
 \begin{enumerate}
-  \item A leakage-controlled protocol: \emph{nested six-fold
-        leave-one-group-out cross-validation} on four datasets (FSDD
-        \cite{jackson2018fsdd}, AudioMNIST, the PhysioNet EEG Motor
-        Movement/Imagery Database, the Siena Scalp EEG Database) in which no
-        source recording or
-        group (speaker / subject) crosses a split and architecture and
-        hyperparameters are selected on the inner validation group only.
-  \item A comparison of four independently architecture-searched autoencoder
-        families under three input encodings --- SNN-AE, LSTM-AE, GRU-AE, and
-        a bottlenecked Transformer-AE without encoder--decoder cross-attention
-        --- plus PCA and mean-frame linear reference points, all on one
-        matched C++/CPU harness \cite{furlan2026doi,xtensor}. Each family runs
-        its own multi-objective (NSGA-II) search over its own architecture
-        genes; only the latent width is fixed, per dataset signal domain, so
-        that a difference in reconstruction quality cannot be explained by one
-        family being handed an easier compression task.
-  \item A hierarchical statistical analysis with the recording-level paired
-        difference as the primary estimand (bootstrap over recordings, Wilcoxon,
-        Holm--Bonferroni), and group-level and seed-level results reported as
-        robustness rather than population inference.
-  \item An analytic computational-cost budget reported as a raw per-class
-        operation count (primary) with a weighted proxy as a labelled
-        sensitivity analysis, alongside the self-attention term that grows
-        quadratically with sequence length and real parameter counts; the
-        reproducible framework is released.
+  \item A \emph{matched non-spiking control}: the ANN-AE copies the selected SNN-AE's widths,
+        initializer, optimizer and data, and differs from it only in the encoder's hidden
+        neuron, so the gap between them is the cost of spiking.
+  \item A leakage-controlled protocol: nested \cfgFolds-fold leave-one-group-out
+        cross-validation on two speech and two EEG datasets, with the SNN-AE's architecture
+        selected on inner validation groups only, and recording-level paired statistics.
+  \item A quality--cost accounting in which the SNN's arithmetic is counted from the
+        operations its forward pass executes (multiply--accumulates for analog inputs,
+        additions for spikes), priced with one published per-operation energy table.
+  \item A design study, on a development fold kept out of the headline numbers, that locates
+        where the SNN-AE's reconstruction error comes from, and a pre-validation on the same
+        folds that measures what searched sequence autoencoders cost to train and to run.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────
 \section{Related Work}
 
-\subsection{Recurrent and attention sequence autoencoders}
-\par LSTM autoencoders encode variable-length sequences into fixed-size latent
-vectors and reconstruct the original sequence from the latent code
-\cite{sutskever2014sequence,hochreiter1997long}. The constant-error carousel in
-the cell recurrence mitigates vanishing gradients during backpropagation through
-time (BPTT) \cite{werbos1990backpropagation,greff2017lstm}. The Gated Recurrent
-Unit (GRU) \cite{cho2014gru} merges the input and forget gates and drops the
-separate cell state, giving a smaller recurrent cell with performance
-comparable to the LSTM on many sequence tasks \cite{chung2014gru}. Self-attention
-encoders \cite{vaswani2017attention} replace recurrence with a content-based
-mixing operation, quadratic in sequence length, and layer normalization
-\cite{ba2016layernorm}. We
-use all three as trained non-spiking baselines; the Transformer variant is
-\emph{bottlenecked} --- the decoder is conditioned only on the fixed-dimension
-latent, with no encoder--decoder cross-attention --- so that, like PCA and the
-recurrent autoencoders, all reconstruction information must pass through the
-latent.
+\par \textbf{Spiking autoencoders.} Comşa et al.\ \cite{comsa2021spiking} trained spiking
+autoencoders with temporal coding and found reconstruction errors comparable to
+conventional autoencoders of similar size on MNIST and Fashion-MNIST. The fully spiking VAE
+\cite{kamata2022fully} compared against a non-spiking VAE of the same architecture on image
+datasets. Both support the matched design we adopt; neither addresses temporal signals or a
+group-disjoint protocol.
 
-\subsection{Spiking neural networks and surrogate gradients}
-\par SNNs model computation via binary spike events governed by membrane
-potential dynamics \cite{gerstner2002spiking,maass1997networks}.
-The Leaky Integrate-and-Fire (LIF) neuron is the most widely deployed model.
-Training with backpropagation requires differentiable surrogates for the
-discontinuous Heaviside activation; surrogate gradient methods
-\cite{neftci2019surrogate,zenke2021remarkable,bellec2020solution} have
-enabled competitive SNN accuracy with lower inference cost.
-SNN research has also expanded from classification to temporal sequence
-modelling and representation learning, but systematic reconstruction
-benchmarks remain limited \cite{bellec2020solution,eshraghian2023training}.
+\par \textbf{Training and coding.} We train with surrogate gradients and backpropagation
+through time \cite{neftci2019surrogate,eshraghian2023training,werbos1990backpropagation}, and
+use the three common input codes: direct currents, rate (Bernoulli) coding, and latency coding
+\cite{thorpe1998rank,comsa2020temporal}.
 
-\subsection{Spike encoding for temporal signals}
-\par Continuous signals must be converted to spike trains before SNN processing.
-Rate coding (Poisson spike generation proportional to amplitude), latency
-coding (earlier spikes for stronger stimuli), and direct pass-through of
-normalized values represent the three dominant strategies
-\cite{neftci2019surrogate,thorpe1998rank}.
-Encoding choice affects sparsity, gradient flow, training stability, and
-reconstruction fidelity \cite{neftci2019surrogate}.
+\par \textbf{Energy accounting.} A widespread convention prices an SNN's analog-input layers
+by multiply--accumulates (MACs) and its spike-driven layers by accumulations (ACs), with
+45\,nm figures from Horowitz \cite{horowitz2014computing}; Spikformer
+\cite{zhou2023spikformer} is one example. The same source shows that memory accesses cost
+one to three orders of magnitude more than the arithmetic, so such numbers rank
+architectures, they do not predict a chip's consumption.
 
-\subsection{Evaluation protocol and leakage}
-\par On speaker-labelled audio benchmarks, pooling windows before splitting
-places windows from the same utterance and speaker on both sides of the split,
-so measured error conflates generalization with memorization. Speaker-disjoint
-(leave-one-speaker-out) evaluation is the standard remedy; when model or
-hyperparameter selection is also involved, a \emph{nested} scheme is required so
-that the test speaker never influences selection or early stopping
-\cite{cawley2010overfitting}. Three of the four benchmarks here have tens of
-groups (six, sixty, fourteen); the fourth has one hundred nine, still a
-modest population by classification-dataset standards. We treat the
-group-level result as a robustness check throughout and make the
-recording-level paired difference the primary estimand.
+\par \textbf{Sequence autoencoders and protocol.} LSTM \cite{hochreiter1997long,sutskever2014sequence},
+GRU \cite{cho2014gru,chung2014gru} and self-attention \cite{vaswani2017attention,ba2016layernorm}
+autoencoders are the usual non-spiking baselines for sequences; because they differ from an
+SNN-AE in more than the neuron, we measure them in a pre-validation only
+(Section~\ref{sec:prevalidation}). Group-disjoint, nested
+evaluation is the standard remedy for leakage in model selection \cite{cawley2010overfitting}.
 
 % ─────────────────────────────────────────────────────────────
-\section{Methodology}
+\section{Methods}
 
-\subsection{Problem formulation}
+\subsection{Task}
+\par A window $x\in\mathbb{R}^M$ of $M=\cfgWindow$ consecutive samples is z-scored on its own
+statistics and reconstructed through a latent $z\in\mathbb{R}^d$, minimizing the mean squared
+error. The latent width $d$ is fixed per signal domain ($d=\cfgLatentFsdd$ for speech,
+$d=\cfgLatentEegmmidb$ for EEG) and is never searched, so every model faces the same
+compression ratio. A recording's last window is zero-padded; padded samples are excluded from
+normalization, every loss and every reported error.
 
-\par Let $x \in \mathbb{R}^{M}$ denote a temporal signal window of $M=256$
-samples. An autoencoder learns encoder $E:\mathbb{R}^M \to \mathbb{R}^d$ and
-decoder $D:\mathbb{R}^d \to \mathbb{R}^M$ minimizing reconstruction loss:
+\subsection{SNN-AE}
+\label{sec:snn}
+\par \textbf{Neuron.} The encoder's hidden layers are leaky integrate-and-fire (LIF) neurons
+\cite{gerstner2002spiking} simulated for $T$ steps:
 \begin{equation}
-  \mathcal{L} = \|x - D(E(x))\|_2^2.
-\end{equation}
-\par Where $x$ is the input window, $E(x)$ is the latent representation, and $D(E(x))$ is the reconstructed output.
-
-\par The latent dimension $d$ is fixed \emph{per dataset signal domain} rather
-than globally: $d=16$ for the two spoken-digit datasets and $d=64$ for the two
-EEG datasets (a $16{:}1$ and a $4{:}1$ compression ratio against the $M=256$
-window, respectively). Within a dataset $d$ is identical for all four trained
-families and is never itself searched, so a reconstruction-quality difference
-reflects architecture quality at a matched compression ratio rather than a
-difference in task difficulty. Every other architectural dimension --- hidden
-width $H$ (SNN-AE, LSTM-AE, GRU-AE), encoder depth, $d_{\mathrm{model}}$,
-attention heads, and feed-forward width (Transformer-AE) --- is instead a gene
-in that family's own architecture search (Sec.~\ref{sec:archsearch}); a
-per-family lower bound on that gene enforces $H,d_{\mathrm{model}}\geq d$, so
-no searched architecture's true bottleneck can fall below the dataset's
-latent width through an undersized hidden layer upstream of it
-(Sec.~\ref{sec:archsearch}). Each input encoding spreads the window over
-$T=16$ simulation steps (Sec.~\ref{sec:encodings}), so every family receives a
-$T\times M$ array. The SNN-AE presents its $M$ columns to $M$ input neurons at
-each of the $T$ steps; the sequence models read the same $TM$ values as
-$S=TM/F=512$ frames of $F=8$ neighbouring samples ($F$ divides $M$, so a frame
-never spans two steps): each step contributes $M/F=32$ consecutive frames, so
-their sequence axis sweeps the window in order once per simulation step,
-$T$ times in all. PCA with $k=d$ components ---
-the best linear code through the same bottleneck --- and a mean-frame predictor
-provide linear reference points, fitted per fold on the same non-test data as
-the families' final fits (Sec.~\ref{sec:training}).
-
-% ── LIF theory ───────────────────────────────────────────
-\subsection{LIF neuron model}
-
-\par The continuous-time Leaky Integrate-and-Fire neuron is described by
-\cite{gerstner2002spiking}:
-\begin{equation}
-  \tau \frac{dV}{dt} = -(V - V_{\mathrm{rest}}) + R\,I(t), \qquad \tau = RC.
-\end{equation}
-\par Where $V$ is the membrane potential, $V_{\mathrm{rest}}$ is the resting potential, $I(t)$ is the input current, $R$ is the membrane resistance, and $C$ is the membrane capacitance. The time constant $\tau$ governs the rate of potential decay. The $R\,I(t)$ term is consistent with the discrete update in Eq.~\eqref{eq:lif}.
-
-\par Discretising with time step $\Delta t$ and defining
-$\beta = e^{-\Delta t/(RC)}$ gives the iterative update:
-\begin{equation}
-  V[t] = \beta\, V[t-1] + R\,I[t].
+  V[t] = \beta\,V[t-1] + I[t],\qquad s[t] = \mathbf{1}[V[t]> V_{th}],
   \label{eq:lif}
 \end{equation}
-
-\par When the membrane potential reaches the threshold, a spike is emitted and
-the membrane is reset:
+and $V[t]\leftarrow 0$ after a spike (hard reset),
+with $\beta=e^{-\Delta t/(RC)}$ and $\Delta t=1$. $R$, $C$ and $V_{th}$ are trained per layer
+(clamped above $10^{-6}$) from initial values $R=1$, $C=-1/\ln\beta^{(0)}$ and
+$V_{th}^{(0)}$, so the searched $\beta^{(0)}$ is the initial decay. The spike's zero gradient
+is replaced in the backward pass by the arctan surrogate \cite{eshraghian2023training}
+$\hat\sigma'(V)=\alpha/\big(2(1+(\tfrac{\pi}{2}\alpha(V-V_{th}))^2)\big)$, $\alpha=2$, and the
+error is propagated through time as
 \begin{equation}
-  s[t] = \mathbf{1}[V[t] \geq V_{th}], \qquad
-  V \leftarrow
-    \begin{cases} 0 & \text{(hard reset)} \\ V - V_{th} & \text{(soft reset)} \end{cases}.
+  \delta_l[t] = \hat\sigma'(V_l[t])\odot\big(W_{l+1}^{\top}\delta_{l+1}[t]\big)
+                + \beta\,\delta_l[t+1].
 \end{equation}
 
-\par Resistance $R$, capacitance $C$, and threshold $V_{th}$ are trainable
-parameters; $R$ and $C$ are clamped to $10^{-6}$ to prevent numerical
-instability.
+\par \textbf{Network.} The encoder is $\mathrm{Lin}(M{\to}w_1)\to\mathrm{LIF}\to\dots\to
+\mathrm{Lin}(w_{L-1}{\to}d)$ with $w_1>\dots>w_{L-1}>d$; the latent layer is analog. The
+latent is averaged over the $T$ steps and decoded \emph{once} by the mirror image of the
+encoder with leaky ReLUs (slope $0.01$) and a linear output (Fig.~\ref{fig:matched}). The loss
+is computed on that single reconstruction. Section~\ref{sec:design} shows why: the earlier
+design, which scored the reconstruction of every step and spiked in the decoder too, was
+measurably worse for reasons unrelated to spiking.
 
-\par Both hard and soft resets are supported; soft reset preserves supra-threshold
-charge for smoother gradients.
+\par \textbf{Input.} The window is presented for $T$ steps as a constant current
+(\emph{direct}), as Bernoulli spikes with probability proportional to the min--max-scaled
+sample (\emph{Poisson}), or as one spike per sample at a time that decreases with its value
+(\emph{latency}). An optional input transform is applied before the network: none
+(\emph{dense}), a fixed 3-tap smoothing along the window (\emph{conv1d}), or one LIF cell
+per sample with the network's threshold and decay (\emph{recurrent}), which turns any code
+into spikes.
 
-% ── Surrogate gradients ──────────────────────────────────
-\subsection{Surrogate gradient training}
-\label{sec:surr}
+\begin{figure}[!t]
+  \centering
+  \input{figs/fig_matched.tex}
+  \caption{The SNN-AE and its matched control. Shared blocks have identical widths, initializer
+  and training; only the encoder's hidden neuron differs (red: the parts that exist only in the
+  spiking network).}
+  \label{fig:matched}
+\end{figure}
 
-\par The spike function $s = \mathbf{1}[V \geq V_{th}]$ has true gradient zero almost everywhere, blocking standard backpropagation \cite{neftci2019surrogate}.
+\subsection{Matched control (ANN-AE)}
+\par For every dataset, fold and run, the ANN-AE takes the widths of that run's selected
+SNN-AE and replaces each hidden LIF by a leaky ReLU applied once to the analog window; it is
+trained with the same initializer, optimizer, data and stopping rule. It is \emph{not}
+searched. The SNN-AE therefore receives the larger search budget, which favours it, and a gap
+in the ANN-AE's favour is conservative.
 
-\par Surrogate gradient methods replace $\partial s / \partial V$ with a smooth approximation in the backward pass while preserving the exact Heaviside rule in the forward pass \cite{neftci2019surrogate,zenke2021remarkable}.
+\subsection{References}
+\par PCA with $k=d$ components, fitted on all non-test windows of the fold, is the best
+linear code through the same bottleneck; a mean-window predictor fixes the scale of ``no
+model''.
 
-\textbf{Exponential (SuperSpike~\cite{zenke2018superspike}):}
-\begin{equation}
-  \hat{\sigma}'(V) = \frac{1}{\sigma_s}
-    \exp\!\left(-\frac{|V - V_{th}|}{\sigma_s}\right).
-\end{equation}
-\par Exponential surrogate gradient.  $\sigma_s$ controls the width of the approximation.
-
-\textbf{Boxcar:}
-\begin{equation}
-  \hat{\sigma}'(V) = \mathbf{1}\!\left[|V - V_{th}| < \tfrac{w}{2}\right].
-\end{equation}
-\par Boxcar surrogate gradient.  $w$ controls the width of the approximation.
-
-\textbf{ArcTan~\cite{eshraghian2023training}:}
-\begin{equation}
-  \hat{\sigma}'(V) = \frac{\alpha}{2\left(1 + \left(\frac{\pi}{2}\alpha(V-V_{th})\right)^2\right)}.
-\end{equation}
-\par ArcTan surrogate gradient, the default spike-derivative estimator in
-snnTorch since 2023. Compared to the exponential and boxcar surrogates above,
-its heavier tails keep gradient flowing further from threshold, avoiding the
-saturation those surrogates show away from $V_{th}$.
-
-\par We use the arctan surrogate ($\alpha=2$).
-BPTT \cite{werbos1990backpropagation} unrolls the SNN through its $T$
-simulation steps and the LSTM-AE and GRU-AE through their $S$ frames; for the
-SNN, the reverse-time recurrence for layer $l$ is:
-\begin{equation}
-  \delta_l[t] = \hat{\sigma}'(V[t]) \odot \big(W_{l+1}^{\top}\,\delta_{l+1}[t]\big)
-              + \beta\,\delta_l[t+1],
-  \label{eq:bptt}
-\end{equation}
-\par where $\delta_l[t]\in\mathbb{R}^{n_l}$ is the error signal at layer $l$ and time
-$t$, $W_{l+1}\in\mathbb{R}^{n_{l+1}\times n_l}$ is the feed-forward weight matrix mapping
-layer-$l$ activations to layer-$(l+1)$ pre-activations (so the forward pass computes
-$W_{l+1}\,a_l$), $\odot$ is the element-wise product, $\hat{\sigma}'(V[t])$ is the
-surrogate derivative of Sec.~\ref{sec:surr}, and $\beta=\partial V_{\mathrm{post}}/\partial
-V_{\mathrm{pre}}=e^{-\Delta t/(RC)}$ carries the error one step back in time through the
-membrane recurrence. The spatial term $W_{l+1}^{\top}\delta_{l+1}[t]$ and the temporal
-term $\beta\,\delta_l[t+1]$ are the SNN analogue of the standard BPTT split.
-
-% ── EXPANDED: non-spiking baselines ───────────────────────────
-\subsection{Recurrent and attention baselines}
-\label{sec:baselines}
-
-\par \textbf{LSTM-AE.} Standard gate equations --- input, forget, and output
-gates from a dense pre-activation, with cell-state accumulation
-$C_t = f_t \odot C_{t-1} + i_t \odot g_t$ \cite{hochreiter1997long,greff2017lstm}.
-The encoder stacks $L$ LSTM layers of hidden width $H$ ($L$ and $H$ searched,
-Sec.~\ref{sec:archsearch}); the final hidden state is projected to the $d$
-latent (fixed per dataset, Sec.~\ref{sec:setup}) by
-$\mathrm{Linear}(H\to d)\to\tanh$. The decoder applies $\mathrm{Linear}(d\to
-H)$, replicates the result over time, runs $L$ stacked LSTM layers, and
-projects each step back to the frame. States reset between samples.
-
-\par \textbf{GRU-AE.} Identical topology with the LSTM cell replaced by a GRU
-cell \cite{cho2014gru,chung2014gru}: reset gate $r_t$, update gate $z_t$, and
-candidate $n_t = \tanh\!\big(x_t W_n^\top + r_t \odot (h_{t-1} U_n^\top) + b_n\big)$,
-$h_t = (1-z_t)\odot n_t + z_t \odot h_{t-1}$. Dropping the cell state removes one
-gate's worth of parameters per layer; $L$ and $H$ are searched independently of
-LSTM-AE's (Sec.~\ref{sec:archsearch}), and the real counts are reported in
-the per-dataset summary tables (Table~\ref{tab:perf-fsdd} and following).
-
-\par \textbf{Transformer-AE (bottlenecked).} The encoder embeds each frame to a
-searched width $d_{\mathrm{model}}$, adds sinusoidal positional encodings,
-applies $N$ post-norm self-attention blocks with $n_h$ heads
-\cite{vaswani2017attention,ba2016layernorm} ($d_{\mathrm{model}}$, $n_h$, $N$,
-and the feed-forward width searched, Sec.~\ref{sec:archsearch}), mean-pools
-over time, and projects to the $d$ latent through a $\tanh$. The decoder
-expands the latent, replicates it over the $S$ positions, adds positional
-encodings, applies $N$ self-attention blocks, and projects back to frames.
-There is \emph{no encoder--decoder cross-attention}: this is a deliberate
-design choice so that reconstruction must pass through the fixed-dimension
-latent, making the model a strict-compression autoencoder directly comparable
-to PCA and the recurrent autoencoders. Its parameter count is not matched to
-the recurrent baselines; the actual value is reported in the results.
-
-\par \textbf{Sequence-length cost.} Per input window, the recurrent baselines
-cost $O(L\,S\,H(F+H))$ multiply--accumulates, linear in the sequence length
-$S$. Each Transformer-AE block costs $2S^2 d_{\mathrm{model}}$ for the score
-and context products, $4S d_{\mathrm{model}}^2$ for the projections, and
-$2S d_{\mathrm{model}} d_{\mathrm{ff}}$ for the feed-forward layer, where
-$d_{\mathrm{ff}}$ is the feed-forward width. The quadratic term is
-$S/(2d_{\mathrm{model}}+d_{\mathrm{ff}})$ times the other two combined: at
-$S=512$ that ratio is at least $1$ everywhere in the searched range
-($d_{\mathrm{model}}\leq 128$, $d_{\mathrm{ff}}\leq 256$) and reaches $8$ at the
-narrowest Transformer the spoken-digit search allows ($d_{\mathrm{model}}=16$,
-$d_{\mathrm{ff}}=32$), so self-attention is the largest single term of the
-Transformer-AE's cost rather than a minor correction. It is an
-architecture-level cost, independent of the reconstruction-error ranking, and
-is reported explicitly in the operation-count budget (Sec.~\ref{sec:energy}).
-
-% ── Architecture search ───────────────────────────────────────
 \subsection{Architecture search}
-\label{sec:archsearch}
+\label{sec:search}
+\par The SNN-AE's architecture is selected by NSGA-II \cite{deb2002fast} with population
+\cfgGaPop{} for \cfgGaGen{} generations (\cfgGaEvals{} evaluations), minimizing validation
+MSE and an analytic inference cost. The final front is re-scored over \cfgGaWinnerSeeds{}
+seeds and the member with the lowest re-scored validation MSE wins (ties: lower cost). Genes:
+depth $L\in[\cfgSnnDepth]$ and widths in $(d,\cfgSnnWidthMax]$, $T\in[\cfgTmin,\cfgTmax]$ (an
+integer drawn uniformly), $V_{th}^{(0)}\in[\cfgVth]$, $\beta^{(0)}\in[\cfgAlpha]$, encoding and
+input transform. The cost objective is a
+spike-blind MAC count in which $T$ multiplies every encoder layer; it keeps cheaper genomes on
+the front, but the winner is chosen by validation MSE alone, so a longer simulation is selected
+only when it validates better.
 
-\par Every trained family --- SNN-AE, LSTM-AE, GRU-AE, Transformer-AE ---
-searches its own architecture with an independent multi-objective genetic
-algorithm (NSGA-II \cite{deb2002fast}), minimizing validation MSE and an
-inference-cost proxy; no gene is shared across families and no population is
-shared across families. Each search uses a population of 8 for 5 generations
-(48 evaluations), re-scores every member of the final rank-0 Pareto front over
-3 seeds to mitigate winner's-curse selection bias, then picks the individual
-with the lowest re-scored validation MSE (ties broken by inference cost). The
-input encoding (direct, Poisson, latency) is itself a gene for every family,
-not an outer sweep dimension: a family's search jointly selects its
-architecture \emph{and} which encoding suits it best. SNN-AE additionally
-searches its pre-processing mode (Sec.~\ref{sec:modes}) and its encoder depth
-and per-layer width (strictly decreasing, terminating at the dataset's latent
-width $d$); LSTM-AE and GRU-AE search hidden width $H\in[8,256]$ and depth
-$L\in[1,3]$; Transformer-AE searches $d_{\mathrm{model}}\in[16,128]$, attention
-heads from $\{1,2,4,8\}$ (repaired to divide $d_{\mathrm{model}}$), depth
-$N\in[1,4]$, and feed-forward width in $[32,256]$. The latent width $d$ itself
-is never a gene, for any family (Sec.~\ref{sec:setup}).
-
-\par \textbf{Bottleneck-floor constraint.} Because $H$ and $d_{\mathrm{model}}$
-are searched independently of $d$, an otherwise-legal draw could place a
-family's true information bottleneck \emph{below} $d$ --- both LSTM-AE/GRU-AE
-and Transformer-AE project their recurrent state or embedding down to the
-latent through a separate linear layer, so $H<d$ or $d_{\mathrm{model}}<d$
-would make $H$ or $d_{\mathrm{model}}$, not $d$, that individual's real
-bottleneck, silently invalidating the equal-compression-ratio comparison for
-that individual. Each family's lower bound is therefore floored at
-$\max(\text{profile bound}, d)$ before sampling; SNN-AE's own encoder-width
-repair enforces the analogous constraint structurally (every hidden width
-strictly exceeds $d$ by construction). This floor changes the \emph{effective}
-search range per dataset (tighter for the EEG datasets' $d=64$ than for the
-spoken-digit datasets' $d=16$) but never the profile's stated bounds.
-
-% ── Spike encodings ───────────────────────────────────────────
-\subsection{Spike encodings}
-\label{sec:encodings}
-
-\par Three strategies turn the window $x\in\mathbb{R}^M$ into a $T\times M$
-array $\tilde{x}$, one row per simulation step $t=0,\dots,T-1$, with $T=16$
-for every family and dataset:
-
-\textbf{Direct.} $\tilde{x}_{t,i} = x_i$ at every step $t$: the normalized
-value is presented as a constant input current, without binarization.
-
-\textbf{Poisson.}  Each element is binarized at every step by an independent
-Bernoulli draw \cite{neftci2019surrogate}, so its spike count over the $T$
-steps carries its amplitude. The firing probability is normalized over the
-window's full range so that sub-mean (post-z-score negative) samples keep a
-nonzero firing probability rather than being clipped to zero:
-\begin{equation}
-  \tilde{x}_{t,i} \sim \mathrm{Bernoulli}\!\left(\mathrm{clip}\!\left(
-    \frac{x_i - x_{\min}}{x_{\max}-x_{\min}},\;0,\;1\right)\right).
-\end{equation}
-\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the
-window after z-score normalization, respectively --- the same range used by
-the latency encoding below, so the two encodings see identical signal
-magnitude information and differ only in how it is temporally coded.
-
-\textbf{Latency.} A single spike fires per element, at a time
-inversely proportional to signal strength (time-to-first-spike coding)
-\cite{thorpe1998rank,comsa2020temporal}:
-\begin{equation}
-  \tilde{x}_{t,i} = \mathbf{1}\!\left[t =
-    \left\lfloor\!\left(1 - \frac{x_i - x_{\min}}{x_{\max}-x_{\min}}
-    \right)(T-1)\right\rceil\right].
-\end{equation}
-\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the window after z-score normalization, respectively.  Stronger signals fire earlier; weaker signals fire later; each element fires exactly once.
-
-\begin{figure}[!t]
-  \centering
-  \input{figs/spikeEncodingSchemes.tex}
-  \caption{Three spike encoding schemes. Direct passes raw values; Poisson generates stochastic binary spikes proportional to amplitude; latency fires at a time inversely proportional to stimulus strength.}
-  \label{fig:encodings}
-\end{figure}
-
-% ── SNN pre-processing modes ──────────────────────────────────
-\subsection{SNN pre-processing modes}
-\label{sec:modes}
-
-% "applied beforeDense." was corrupted text — the \textbf{Dense.} heading had been
-% merged into the preceding sentence, losing "before the autoencoder input".
-\par After spike encoding, a pre-processing transform $\phi$ is applied
-before the autoencoder input.
-
-\textbf{Dense.} $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
-
-\textbf{Conv1d.} A fixed 3-tap smoothing filter along the window's sample
-axis, applied at every step $t$:
-\begin{equation}
-  \phi(\tilde{x})_{t,i} = 0.25\,\tilde{x}_{t,i-1} + 0.5\,\tilde{x}_{t,i}
-                        + 0.25\,\tilde{x}_{t,i+1},
-\end{equation}
-\par with boundary clamping.  Reduces high-frequency jitter between
-neighbouring samples before autoencoder input.
-
-\textbf{Recurrent.}  One recurrent LIF cell per window sample $i$ integrates
-the encoded signal over the $T$ steps:
-\begin{align}
-  v_{t,i} &= \alpha\, v_{t-1,i} + \tilde{x}_{t,i} - s_{t-1,i}\,V_{th},\\
-  s_{t,i} &= \mathbf{1}[v_{t,i} \geq V_{th}],
-\end{align}
-\par where $\alpha$ and $V_{th}$ are sweep parameters.
-
-% ── SNN architecture ──────────────────────────────────────────
-\subsection{SNN autoencoder architecture}
-\label{sec:snn-arch}
-
-\par The SNN autoencoder (Fig.~\ref{fig:arch}) is a fully connected network
-with $L$ encoder layers ($L\in[1,4]$, searched, Sec.~\ref{sec:archsearch}) of
-strictly decreasing width, terminating at the dataset's latent width $d$; the
-decoder mirrors the encoder:
-\begin{align*}
-\text{Enc:}&\quad
-  \mathrm{Lin}(M{\to}w_1)\to\mathrm{Leaky}\to\dots\\
-  &\quad\to\mathrm{Lin}(w_{L-1}{\to}d)\to\mathrm{Leaky}\\
-\text{Dec:}&\quad
-  \mathrm{Lin}(d{\to}w_{L-1})\to\dots\\
-  &\quad\to\mathrm{Lin}(w_1{\to}M)\to\mathrm{LeakyInt}
-\end{align*}
-\par with $M=256$ input neurons, one per window sample, and
-$w_1>\dots>w_{L-1}>d$; the whole stack is evaluated once per simulation step,
-$T$ times per window.
-\par Leaky layers emit binary spikes; LeakyInt operates in readout mode, emitting membrane potential $v$ directly to enable continuous-valued reconstruction. The discrete LIF update follows Eq.~(\ref{eq:lif}) with $R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters. All membrane states are reset between independent samples.
-
-\par The four trained families are: SNN-AE (the spiking autoencoder above),
-LSTM-AE, GRU-AE, and Transformer-AE (Sec.~\ref{sec:baselines}). The spiking
-pre-processing choices --- dense ($\phi$ identity), conv1d (fixed 3-tap
-smoothing), recurrent (the LIF input transform above) --- are \emph{input
-transforms} to the one SNN autoencoder, not separate families: only the latent
-width $d$ is fixed (per dataset); $\phi$, the encoder depth and widths, the
-input encoding, and the biophysical parameters $V_{th}$ and $\alpha$ are all
-jointly selected by the per-fold search procedure (Sec.~\ref{sec:archsearch}),
-so SNN-AE denotes the selected variant.
-
-\begin{figure}[!t]
-  \centering
-  \input{figs/fig1.tex}
-  \caption{SNN autoencoder architecture.  Input window $x$ is encoded and
-  pre-processed by mode $\phi$, then compressed to latent $z \in \mathbb{R}^{d}$
-  ($d$ fixed per dataset; $L$ encoder layers, searched) by the encoder
-  (Linear+Leaky layers).  The decoder (LeakyInt+Linear) reconstructs $\hat{x}$.}
-  \label{fig:arch}
-\end{figure}
-
-% ── Training ──────────────────────────────────────────────────
 \subsection{Training}
 \label{sec:training}
+\par All models use Adam \cite{kingma2015adam} (learning rate $\cfgLr$; $\cfgLrBio$ for $R$,
+$C$, $V_{th}$), batch size \cfgBatch, at most \cfgEpochs{} epochs and early stopping with
+patience \cfgPatience. The SNN-AE and the ANN-AE are both initialized with \cfgInit{}
+\cite{glorot2010understanding}. Left to their builders, the two arms had different defaults
+(fan-in scaling \cite{he2015delving} for the SNN), and Section~\ref{sec:design} shows that the
+initializer decides the EEG comparison, so it is fixed and shared. Within a fold the selected architecture is retrained on training $\cup$ validation
+groups, early-stopped on a recording-disjoint slice of the training groups, and evaluated once
+on the test group. Each fold is repeated \cfgRuns{} times (seeds \cfgSeeds), each repeat with
+its own search.
 
-\par All trained models minimize MSE reconstruction loss via Adam
-\cite{kingma2015adam} ($\eta = 10^{-3}$, $\beta_1=0.9$, $\beta_2=0.999$).
-SNN biophysical parameters ($R$, $C$, $V_{th}$) use a scaled learning rate
-$\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane-dynamics optimization
-\cite{neftci2019surrogate}; $R$ and $C$ are clamped to $10^{-6}$ in the
-forward pass with gradients zeroed in the clamped region.
-BPTT \cite{werbos1990backpropagation} propagates gradients through all $T$
-simulation steps (SNN-AE) or all $S$ frames (LSTM-AE, GRU-AE). Early stopping
-monitors a held-out monitor MSE with a patience of 5 epochs and minimum delta
-$10^{-8}$ over a maximum of 30 epochs
-\cite{eshraghian2023training}. Batch size is 1 to accommodate stateful
-sequence processing. Each configuration is trained with five random seeds
-($42$--$46$).
+\subsection{Cost}
+\label{sec:cost}
+\par Cost is the arithmetic energy of one window's forward pass,
+$E = 4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} + 0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the
+32-bit floating-point multiply--add and add of \cite{horowitz2014computing}. For the SNN-AE
+the counts come from the executed forward pass (Table~\ref{tab:cost}): a linear layer whose
+input is binary by construction (spikes, Poisson or latency input, the recurrent transform)
+costs one AC per nonzero input and output; any other linear layer costs MACs at every step it
+runs. The non-spiking models' MACs follow from their architectures (attention products
+included, Section~\ref{sec:prevalidation}). Activations, biases and the input encoding are
+not counted for any model.
+$E$ ranks architectures under one convention; it is not the energy of a chip, which memory
+traffic dominates \cite{horowitz2014computing}.
 
-\par \textbf{Per-fold architecture selection (all four trained families).}
-Within each outer fold, each of the four families runs its own architecture
-search (Sec.~\ref{sec:archsearch}) on that fold's training groups, scoring
-every candidate on the inner validation group. Each family's winner --- the
-Pareto-front individual with the lowest 3-seed re-scored validation MSE, ties
-broken by inference cost --- is then \emph{retrained} on the training and
-validation groups combined and evaluated \emph{once} on the held-out test
-group. Because train and validation groups share no recordings with the test
-group but not with each other, the retrain's early-stopping monitor is a
-recording-disjoint slice carved (seeded, whole recordings) from the training
-groups, so no test-group signal ever reaches a fitting, search, or stopping
-decision. Each family's per-fold winner and its inner-validation score are
-written to a selection manifest; the four winners are additionally compared
-against each other (lowest validation MSE, ties broken by inference cost) and
-the overall winner recorded per fold and repeat. SNN-AE's selected
-pre-processing mode, $V_{th}$, and $\alpha$ are summarized per dataset in the
-selection tables (e.g.\ Table~\ref{tab:snnsel-fsdd}).
-
-\par \textbf{Linear references.} PCA and the mean-frame predictor are not
-searched: PCA keeps $k=d$ principal components, the dataset's latent width, and
-the mean-frame predictor outputs the per-sample mean window. Both are fitted per
-fold on the training and validation groups --- every non-test window, the same
-pool each family's winner is retrained on --- and never see the test group. They
-are scored exactly like the trained families: against the analog window rather
-than its spike encoding, so one reference serves all three encodings.
-
-% ── Computational cost ────────────────────────────────────────
-\subsection{Analytic computational cost}
-\label{sec:energy}
-
-\par We report an analytic \emph{computational-cost} figure, not an energy
-measurement. The primary quantity is the raw operation count
-\begin{equation}
-  C_{\mathrm{raw}} = \sum_k N_k,
-  \label{eq:craw}
-\end{equation}
-where $N_k$ is the number of operations of class $k$ executed in one forward pass
-over a window. We count, separately, the following classes: for the ANN models,
-dense multiply--accumulates (MACs), nonlinearity evaluations, attention
-$QK^{\top}$/$\cdot\,V$ products, and normalization operations; for the SNN,
-synaptic accumulations, neuron-state updates, and spike/event operations. The
-event-driven classes are scaled by the measured mean spike fraction
-$\rho\in[0,1]$ of the evaluated run, so an SNN that never spikes contributes no
-event-operation cost.
-
-\par As a secondary, explicitly labelled \emph{sensitivity analysis} we also
-report a weighted proxy
-\begin{equation}
-  C_{\mathrm{weighted}} = \sum_k w_k N_k,
-  \label{eq:cweighted}
-\end{equation}
-under a stated choice of relative per-class weights $w_k$; the ranking of models
-under $C_{\mathrm{weighted}}$ is reported only alongside the weights that produce
-it, never as a standalone claim.
-
-\par Neither $C_{\mathrm{raw}}$ nor $C_{\mathrm{weighted}}$ is energy. Real energy
-on a given device is dominated by memory movement, cache and SIMD behaviour, clock
-frequency, supply voltage, exploited sparsity, and the target silicon
-(CPU, GPU, or neuromorphic). On-device power measurement is future work; the
-figures here are design-time guidance for comparing architectures under matched
-software and a single CPU backend.
+\begin{table}[!t]
+\caption{Operations counted per window ($T$ steps, binary input = spikes by construction).}
+\centering\footnotesize
+\begin{tabular}{lll}
+\toprule
+Operation & Class & Count \\
+\midrule
+Linear, binary input & AC & nonzero inputs $\times$ outputs \\
+Linear, analog input & MAC & rows $\times$ inputs $\times$ outputs \\
+LIF update, Eq.~\eqref{eq:lif} & MAC & neurons $\times$ steps \\
+Mean over $T$ & AC, MAC & adds; one $1/T$ per output \\
+\bottomrule
+\end{tabular}
+\label{tab:cost}
+\end{table}
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
 \label{sec:setup}
 
-\textbf{Datasets.}
-\par We evaluate on four datasets, each a corpus of 1-D signals with a natural
-group unit for leave-one-group-out (Table~\ref{tab:datasets}): two spoken-digit
-corpora and two single-channel EEG corpora, chosen so the comparison spans two
-signal domains rather than variants of one task.
-\begin{itemize}
-  \item \textbf{FSDD} \cite{jackson2018fsdd} --- spoken digits (0--9), six
-        speakers, $8\,$kHz; group $=$ speaker.
-  \item \textbf{AudioMNIST} --- spoken digits, sixty speakers, offline-resampled
-        from $48\,$kHz to $8\,$kHz; group $=$ speaker. The same task as FSDD at
-        ten times the speaker count.
-  \item \textbf{EEGMMIDB} \cite{schalk2004bci2000,goldberger2000physiobank} ---
-        the PhysioNet EEG Motor Movement/Imagery Database, single-channel EEG
-        (channel 0 of each recording), 109 subjects, $160\,$Hz; group $=$
-        subject (one subject per source directory, so every recording of a
-        subject stays in the same split by construction).
-  \item \textbf{Siena} \cite{detti2020siena,goldberger2000physiobank} ---
-        the Siena Scalp EEG Database, single-channel EEG (channel 0), 14
-        adult epilepsy patients, $512\,$Hz; group $=$ subject, same
-        one-directory-per-subject grouping as EEGMMIDB.
-\end{itemize}
-Every recording is partitioned into non-overlapping windows of $M=256$ samples,
-each starting where the previous one ends --- $32\,$ms for the two audio datasets, $1.6\,$s for
-EEGMMIDB, and $0.5\,$s for Siena at their native sampling rates. For FSDD all
-windows are used; for the three larger datasets a per-recording cap keeps long
-recordings from dominating the pooled window counts (2 windows/recording for
-AudioMNIST, 40 for EEGMMIDB and Siena), which also keeps the four datasets'
-training sizes comparable. Adjacent windows of one recording remain temporally
-correlated, which motivates the recording-level statistical unit
-(Sec.~\ref{sec:stats}).
+\par \textbf{Datasets} (Table~\ref{tab:datasets}). FSDD \cite{jackson2018fsdd} and
+AudioMNIST are spoken digits at 8\,kHz; EEGMMIDB \cite{schalk2004bci2000,goldberger2000physiobank}
+(motor movement/imagery) and Siena \cite{detti2020siena} (epilepsy) are scalp EEG, read from
+the first channel of each recording (Fc5 and Fp1 in the file headers). The group is the
+speaker or subject. Windows do not overlap; long recordings are capped to a number of windows,
+and each fold keeps at most \cfgTrainWindows{} training, \cfgValWindows{} validation and
+\cfgTestWindows{} test windows, sampled round-robin across recordings.
 
-% Source: hand-authored from src/experiments/meeting01/profiles/meeting01-loso.json.
+% Group counts: hand-authored from the datasets; the other columns are generated.
 \begin{table}[!t]
-\caption{Datasets. $G$ = group unit; $K$ = outer folds; cap = windows kept per
-recording; $d$ = latent width used for this dataset (Sec.~\ref{sec:setup}).}
-\centering\small
-\begin{tabular}{llllrr}
+\caption{Datasets. $G$: group unit; cap: windows kept per recording; $d$: latent width.}
+\centering\footnotesize
+\begin{tabular}{llrrrr}
 \toprule
-Dataset & Signal & $G$ & \#$G$ / $K$ & cap & $d$ \\
+Dataset & Signal & $G$ & \#$G$ & cap & $d$ \\
 \midrule
-FSDD       & digits, 8\,kHz    & speaker & 6 / 6   & --- & 16 \\
-AudioMNIST & digits, 8\,kHz    & speaker & 60 / 6  & 2   & 16 \\
-EEGMMIDB   & EEG, 160\,Hz      & subject & 109 / 6 & 40  & 64 \\
-Siena      & EEG, 512\,Hz      & subject & 14 / 6  & 40  & 64 \\
+FSDD       & speech, \cfgRateFsdd\,Hz       & speaker & 6   & \cfgCapFsdd       & \cfgLatentFsdd \\
+AudioMNIST & speech, \cfgRateAudiomnist\,Hz & speaker & 60  & \cfgCapAudiomnist & \cfgLatentAudiomnist \\
+EEGMMIDB   & EEG, \cfgRateEegmmidb\,Hz      & subject & 109 & \cfgCapEegmmidb   & \cfgLatentEegmmidb \\
+Siena      & EEG, \cfgRateSiena\,Hz         & subject & 14  & \cfgCapSiena      & \cfgLatentSiena \\
 \bottomrule
 \end{tabular}
 \label{tab:datasets}
 \end{table}
 
-\textbf{Preprocessing.}
-\par Each window is z-score normalised in place (subtract mean, divide by
-standard deviation) before encoding --- a per-window statistic, so it introduces
-no cross-window leakage. Encodings that require a $[0,1]$ range (Poisson,
-latency) re-normalise the z-scored window to its own $(x_{\min}, x_{\max})$
-range internally. The three encodings are deterministic transforms (Poisson uses
-a per-window seeded draw) and are not fitted. A recording's last window is
-zero-padded to full length (only its real samples are z-scored); the padded
-samples are excluded from every training loss and every reported error.
+\par \textbf{Nested leave-one-group-out.} Groups are sorted and split into \cfgFolds{}
+contiguous blocks. In fold $f$ block $f$ is the test set, block $f{+}1$ (mod \cfgFolds) the
+validation set, and the rest train; for FSDD this is leave-one-speaker-out. Every window is
+assigned by its group before any pooling, and the harness aborts if a recording or group
+appears in two splits. All selection uses the validation block only.
 
-\textbf{Nested leave-one-group-out cross-validation.}
-\par For each dataset the distinct groups are sorted and partitioned into $K=6$
-contiguous blocks. For outer fold $f \in \{0,\dots,5\}$ the test block is $f$,
-the validation block is $(f+1)\bmod 6$, and the remaining four blocks train.
-When \#groups $=K$ (FSDD) each block is a single speaker and this is ordinary
-leave-one-speaker-out; when \#groups $>K$ (AudioMNIST: 10 speakers per block;
-EEGMMIDB and Siena: $\approx\!18$ and $\approx\!2$ subjects per block, since
-109 and 14 do not divide evenly by 6) it is grouped leave-one-block-out. Every window is
-assigned to a split \emph{by its group, before any pooling}; training windows
-are shuffled (seeded), validation and test windows kept in
-$(\text{recording},\text{position})$ order. Each group is in the test block
-exactly once and the validation block exactly once. At run start the harness
-asserts that no \texttt{recording\_id} and no group appears in more than one
-split and writes a per-fold split manifest (group sets, per-recording window
-counts); a violation aborts the run. Headline numbers come only from the
-test split, aggregated across the six folds. Architecture and hyperparameters
-for every trained family are selected on the validation block only, then the
-winner is retrained on train $\cup$ validation before a single evaluation on
-the test block (Sec.~\ref{sec:archsearch}).
+\par \textbf{Development fold.} The design study (Section~\ref{sec:design}) compared variants
+on fold \cfgDevFoldsFsdd{} of FSDD and of EEGMMIDB, including their test windows. Those folds
+are therefore excluded from every headline number: FSDD and EEGMMIDB are reported on folds
+\cfgHeadlineFoldsFsdd, AudioMNIST and Siena on folds \cfgHeadlineFoldsSiena. Including them is
+reported as a sensitivity analysis (Table~\ref{tab:sensitivity}).
 
-\begin{figure}[!t]
-\centering
-\input{figs/fig_windowing.tex}
-\caption{Signal windowing (audio case shown; $M=256$ samples $=32\,$ms at
-$8\,$kHz). The EEG datasets use the same $M=256$ at their own native rate
-($1.6\,$s at $160\,$Hz for EEGMMIDB, $0.5\,$s at $512\,$Hz for Siena).
-Consecutive windows start $M$ samples apart, so no two share a sample. Windows are assigned to
-train / validation / test splits by group (speaker or EEG subject) before any
-pooling.}
-\label{fig:windowing}
-\end{figure}
+\par \textbf{Statistics.} Every model reconstructs the same test windows. The primary
+estimand is the recording-level paired difference $d_r=E_{m,r}-E_{b,r}$, the SNN-AE's mean
+window error on recording $r$ minus a reference model's: we report $\overline{d_r}$, a 95\%
+bootstrap interval over recordings, and the Wilcoxon signed-rank $p$, Holm-corrected across
+the \cfgHolmRefs{} references \cite{holm1979simple}. Group-level and seed-level tests are reported
+as robustness only; window-level statistics are pseudoreplicated and descriptive.
 
-\textbf{Evaluation harness.}
-\par The C++ harness \cite{furlan2026doi} runs on the XTensor backend
-\cite{xtensor} (CPU-only, CBLAS, SIMD via xsimd). All models --- spiking and
-non-spiking --- are trained and timed on this one backend, so the training and
-inference times in the per-dataset summary tables are directly comparable.
+% ─────────────────────────────────────────────────────────────
+\section{Design Study on the Development Fold}
+\label{sec:design}
 
-\textbf{Metrics.}
-\par Per run we report reconstruction quality (MSE, MAE, $R^2$) and, for cost,
-spike rate (SNN only; $0$ for the non-spiking models), the raw per-class
-operation count of Sec.~\ref{sec:energy}, parameter count, training time, and
-inference time in ms. FSDD provides no anomaly labels, so classification metrics
-are out of scope. Reconstruction error in the headline tables is the mean $\pm$
-sample standard deviation over the five seeds (per-seed means first); the
-inferential analysis is in Sec.~\ref{sec:stats}. A per-window error record
-(model, encoding, fold, split, group, recording, window, MSE, MAE) is written
-for every model so that paired comparisons can be formed at the window,
-recording, group, or seed level.
+\par Before the main run we asked where the gap between an earlier SNN-AE design and the
+matched control came from, varying one factor at a time on the development fold (1000
+training windows, the search's most frequent winner, three seeds). The variants were
+implemented in a PyTorch replica of the network, validated against the C++ harness (EEGMMIDB:
+earlier SNN-AE 0.592 vs.\ 0.593; FSDD: ANN-AE 0.667 vs.\ 0.662). Table~\ref{tab:design} lists
+the test MSE.
 
-\textbf{Profile.}
-\par A single JSON profile (\texttt{meeting01-loso.json}) configures the harness:
-the four datasets (each with its own latent width $d$, Table~\ref{tab:datasets}),
-six outer folds, five seeds ($42$--$46$), the four trained families plus the
-two linear references, three encodings, and each family's own NSGA-II
-architecture-search bounds (Sec.~\ref{sec:archsearch}). The run script iterates
-over (dataset, fold); a profile audit test verifies the profile parses and
-validates.
+\begin{table}[!t]
+\caption{Design study, development fold, test MSE (mean of 3 seeds; $-$: not run). Kaiming /
+Xavier: the initializer of every variant in the column.}
+\centering\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{FSDD} & \multicolumn{2}{c}{EEGMMIDB} \\
+Variant & Kaiming & Xavier & Kaiming & Xavier \\
+\midrule
+ANN, leaky ReLU (control)          & 0.667 & 0.654 & 0.489 & 0.293 \\
+ANN, sigmoid                       & 0.685 & $-$   & 0.308 & $-$ \\
+ANN, clamp to $[0,1]$              & 0.743 & $-$   & 0.547 & $-$ \\
+\midrule
+SNN, per-step loss, LIF dec., $T{=}16$ & 0.780 & $-$ & 0.592 & 0.589 \\
+SNN, loss on time mean, $T{=}16$       & 0.734 & $-$ & 0.454 & $-$ \\
+SNN, latent mean, LReLU dec., $T{=}4$  & 0.724 & 0.729 & 0.484 & 0.449 \\
+SNN, latent mean, LReLU dec., $T{=}16$ & 0.729 & $-$ & 0.457 & 0.396 \\
+\bottomrule
+\end{tabular}
+\label{tab:design}
+\end{table}
 
-\begin{figure}[!t]
-  \centering
-  \input{figs/fig_flow.tex}
-  \caption{Experiment execution pipeline (FSDD shown; identical per dataset).
-  Per outer fold, each window is encoded three ways and processed by the four
-  independently architecture-searched trained families (each with its own
-  per-fold NSGA-II selection) plus the PCA and mean-frame references.
-  Per-window errors and manifests are written to CSV
-  and JSON.}
-  \label{fig:flow}
-\end{figure}
+\par Three findings shaped the method. \emph{(i) Two costs were not the spike.} Scoring the
+reconstruction of every simulation step asks each step, carrying at most one binary event per
+neuron, to reproduce the analog window alone; scoring the time mean removed $0.046$ on FSDD.
+A spiking decoder added error on top of the encoder's; averaging the latent and decoding once
+with leaky ReLUs is as good and runs the decoder once instead of $T$ times. \emph{(ii) The
+initializer decided the EEG comparison.} With fan-in scaling in both arms the control stopped
+at 0.489 (0.479 with a 200-epoch cap, so not for lack of epochs) and the SNN-AE looked equal
+to it (0.484); with Xavier in both arms the control reaches 0.293 and the SNN-AE 0.449.
+Xavier is the better or equal choice for each arm on both datasets, so the matched comparison
+is also a best-against-best one. \emph{(iii) What remains is saturation.} A non-spiking network
+with a hard clamp lands among the spiking variants (FSDD 0.743, against 0.734 for the SNN
+trained on the time mean; EEG 0.547, against 0.592 for the per-step SNN), while a sigmoid,
+bounded but smooth, stays near the control (FSDD 0.685 vs.\ 0.667; EEG 0.308, near the
+Xavier control's 0.293). A reason, argued rather than measured: under direct
+input an LIF neuron sees the same current $I$ at every step, so with a hard reset it never
+fires for $I<V_{th}(1-\beta)$ and fires at every step for $I\geq V_{th}$ -- a clipped transfer
+function.
 
-% ── Statistical methods ───────────────────────────────────────
-\subsection{Statistical methods}
-\label{sec:stats}
+\par $T$ mattered on EEG (0.449 at $T{=}4$, 0.396 at $T{=}16$) but not on FSDD (0.717 to 0.729
+for $T$ from 1 to 16), which is why $T$ is searched rather than fixed. Every choice above came
+out the same on the fold's validation windows (e.g.\ EEG, Xavier: 0.425 vs.\ 0.372 for $T=4$
+vs.\ 16), but the test windows were seen, hence the development-fold rule of
+Section~\ref{sec:setup}. A check of the adopted design in the C++ harness on the same fold
+(two runs, small search) moved the SNN-AE from 0.827 to 0.768 on FSDD and from 0.593 to 0.532
+on EEG, against controls of 0.652 and 0.302.
 
-\par Comparisons are paired on a shared, model-independent window identifier, so
-every model reconstructs the same windows and differences are formed per window.
-Let $\mathrm{MSE}_{m,i}$ be the error of model $m$ on window $i$.
+\subsection{Pre-validation of sequence baselines}
+\label{sec:prevalidation}
+\par The submitted version also searched LSTM, GRU and Transformer autoencoders. They differ
+from the SNN-AE in recurrence, sequence length and capacity at once, so they cannot isolate
+what the spike costs, and their searches dominated the grid's compute. Before leaving them out
+we measured them once, on the development folds (\preFolds). LSTM-AE and GRU-AE stack
+$L\in[\preRnnLayers]$ recurrent layers of width $H\in[\preRnnHidden]$ (floored at $d$),
+project the last state to $d$ and decode by repeating a projection of $z$ over time. The
+Transformer-AE embeds frames to $d_{\mathrm{model}}\in[\preTfDmodel]$, adds sinusoidal
+positions, applies $N\in[\preTfLayers]$ self-attention blocks (heads $\in\{\preTfHeads\}$,
+feed-forward width $\in[\preTfDff]$), mean-pools to $d$ and decodes with $N$ further blocks and
+no cross-attention, so all information passes through $z$. All three read the window as
+$S=\preSeqLen$ frames of $\preFrame$ samples, so only the direct code is defined for them.
+Every family, the SNN-AE included, ran one NSGA-II of population \preGaPop{} for \preGaGen{}
+generations (\preGaEvals{} evaluations, front re-scored over \preGaWinnerSeeds{} seeds),
+\preRuns{} runs (seeds \preSeeds), with the windows, training and selection of
+Sections~\ref{sec:search}--\ref{sec:training}, each family in its own process on one CPU
+thread.
 
-\par \textbf{Primary --- recording level.} For a recording $r$, let
-$E_{m,r} = \operatorname{mean}_{i \in r}\mathrm{MSE}_{m,i}$. For model $m$ and
-reference $b$ the paired difference is $d_r = E_{m,r} - E_{b,r}$. We report
-$\operatorname{mean}(d_r)$, a $95\%$ confidence interval from a bootstrap that
-resamples recordings, the Wilcoxon signed-rank $p$-value on $\{d_r\}$, and
-Holm--Bonferroni correction across the reference set
-$b \in \{\text{LSTM-AE, GRU-AE, Transformer-AE, PCA, Mean}\}$. Effect size is
-reported both absolute ($\operatorname{mean}(d_r)$) and relative
-($\operatorname{mean}(d_r)/\operatorname{mean}(E_{b,\cdot})$). Recordings are the
-smallest unit across which windows are not, by construction, near-duplicates.
+\par Table~\ref{tab:prevalidation} reports the cost of training (the fold's wall time) and of
+processing data after training (the measured time to reconstruct one window, and $E$):
+\preCostVerdict. On quality, \preQualityVerdict. The reduced budget can change any family's
+winner, and with it both its error and its per-window cost; the table describes the winners
+found here, not the families' best.
 
-\par \textbf{Robustness --- group level.} Per held-out group (speaker or EEG
-subject) we form the mean error and run a paired Wilcoxon / sign test. This checks
-whether the sign and rough magnitude of a difference hold across a dataset's
-groups; with only tens to a little over a hundred groups it is not strong population-level inference and
-is reported as such.
-
-\par \textbf{Descriptive --- window level.} Paired bootstrap on all windows,
-reported but explicitly labelled pseudoreplicated (adjacent windows of a
-recording are correlated), so it is never the basis of a claim.
-
-\par \textbf{Robustness --- seed level.} Paired Wilcoxon across the five
-per-seed mean errors, characterizing optimization/reproducibility variation
-around the estimate.
-
-\par The per-run CSVs are immutable; aggregation and statistics are separate
-downstream steps that never overwrite them. Synthetic known-answer tests
-(identical predictions $\Rightarrow p\approx1$ and CI spanning $0$; injected
-constant offset $\Rightarrow$ significant with CI excluding $0$ and recovered
-offset; label permutation $\Rightarrow$ approximately uniform $p$) guard the
-analysis code in continuous integration.
+\begin{table}[!t]
+\caption{Pre-validation, development folds, \preRuns{} runs. Fold: wall time of the family's
+fold, data loading excluded (search, re-scoring, final fit, test); $\times$SNN: its ratio to
+the SNN-AE's, whose fold also trains the ANN-AE. Train: final fit, per training window and
+epoch. Infer.: one window reconstructed after training. One CPU thread each.}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\input{data/paper_prevalidation.tex}
+\label{tab:prevalidation}
+\end{table}
 
 % ─────────────────────────────────────────────────────────────
 \section{Results}
 \label{sec:results}
 
-\par \emph{Status.} The tables and figure below are populated from the
-harness's own output files by an automated pipeline (Sec.~\ref{sec:setup}) and
-contain placeholder zeros until the full nested-LOSO grid has been run; the two
-EEG datasets additionally await download (Sec.~\ref{sec:discussion}). This
-draft therefore documents the finalized protocol and reporting structure ahead
-of that run, not yet its outcome.
+\ifplaceholder
+\par \fbox{\parbox{0.92\columnwidth}{\emph{Draft:} the tables of this section are placeholders
+($-$) until the nested-LOSO grid has run; they are regenerated from the harness's outputs.}}
+\fi
 
-\par All numbers come from the held-out test split only, pooled across the six
-outer folds, reported as mean $\pm$ sample standard deviation over the five
-seeds. Each dataset is reported in its own block: a per-model reconstruction and
-cost table, a per-encoding breakdown, the per-fold SNN selection, the
-recording-level paired analysis, and an MSE bar chart. The mean-frame predictor
-and PCA fix the scale of a ``no-model'' and a ``best linear'' reference; a
-trained model is interesting only to the extent it beats PCA, and an ordering
-among the trained families is asserted only where the Holm-corrected
-recording-level interval excludes zero. Because every trained family's
-architecture is re-searched inside each fold (Sec.~\ref{sec:archsearch}), each
-model name denotes a \emph{selection procedure}, not a fixed network; for
-SNN-AE, disagreement of the selected pre-processing mode across folds is
-itself a finding about how encoding-dependent the best pre-processing is. The
-cost columns ($P$, $C_{\mathrm{raw}}$, timing) reflect each fold's selected
-architecture and so can vary across folds and datasets, unlike in a
-fixed-architecture design; the Transformer's $O(S^2 d_{\mathrm{model}})$
-self-attention term shows up in its $C_{\mathrm{raw}}$ independently of its MSE.
+\par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
+folds, Table~\ref{tab:sig} the recording-level differences between the SNN-AE and each
+reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane, and
+Table~\ref{tab:snnsel} what the SNN-AE's search selected.
 
-% \resultsForDataset{<key>}{<Title>} — one block per dataset. All files are
-% regenerated by scripts/pipeline/meeting01/02_ and 04_; placeholders keep the
-% document compiling before the run.
-\newcommand{\resultsForDataset}[2]{%
-  \subsection{#2}%
-  \begin{table}[!t]
-  \caption{#2: test reconstruction and cost by model (mean $\pm$ std over five
-  seeds; best per column in bold). $P$ = trainable parameters; $C_{\mathrm{raw}}$
-  = raw per-forward-pass operation count. PCA / Mean are analytic references.}
-  \centering\footnotesize
-  \pgfplotstabletypeset[
-    col sep=semicolon,
-    columns={model,mse,mae,r2,params,craw,train_ms,infer_ms},
-    columns/model/.style={string type,column name=Model},
-    columns/mse/.style={string type,column type={r},column name=MSE},
-    columns/mae/.style={string type,column type={r},column name=MAE},
-    columns/r2/.style={string type,column type={r},column name=$R^2$},
-    columns/params/.style={string type,column type={r},column name=$P$},
-    columns/craw/.style={string type,column type={r},column name=$C_{\mathrm{raw}}$},
-    columns/train_ms/.style={string type,column type={r},column name=Tr.\,(ms)},
-    columns/infer_ms/.style={string type,column type={r},column name=Inf.\,(ms)},
-    every head row/.style={before row=\toprule,after row=\midrule},
-    every last row/.style={after row=\bottomrule}
-  ]{data/paper_loso_#1_summary.csv}%
-  \label{tab:perf-#1}
-  \end{table}
-  \begin{table}[!t]
-  \caption{#2: reconstruction per input encoding (mean $\pm$ std over five seeds).}
-  \centering\footnotesize
-  \pgfplotstabletypeset[
-    col sep=semicolon,
-    columns={model,encoding,mse,mae,r2},
-    columns/model/.style={string type,column name=Model},
-    columns/encoding/.style={string type,column name=Enc.},
-    columns/mse/.style={string type,column type={r},column name=MSE},
-    columns/mae/.style={string type,column type={r},column name=MAE},
-    columns/r2/.style={string type,column type={r},column name=$R^2$},
-    every head row/.style={before row=\toprule,after row=\midrule},
-    every last row/.style={after row=\bottomrule}
-  ]{data/paper_loso_#1_recon_by_encoding.csv}
-  \label{tab:recon-#1}
-  \end{table}
-  \begin{table}[!t]
-  \caption{#2: SNN pre-processing mode / $V_{th}$ / $\alpha$ selected on each
-  fold's validation block (parenthesised fraction = seeds not unanimous).}
-  \centering\footnotesize
-  \input{data/paper_loso_#1_snn_selection.tex}
-  \label{tab:snnsel-#1}
-  \end{table}
-  \begin{table}[!t]
-  \caption{#2: LSTM-AE / GRU-AE architecture selected by NSGA-II on each fold's
-  validation block -- hidden size $H$, depth $L$, and input encoding (median /
-  mode over the three re-scoring seeds; families disambiguated by their own
-  independent search, not by a shared column).}
-  \centering\footnotesize
-  \input{data/paper_loso_#1_recurrent_selection.tex}
-  \label{tab:recurrentsel-#1}
-  \end{table}
-  \begin{table}[!t]
-  \caption{#2: Transformer-AE architecture selected by NSGA-II on each fold's
-  validation block -- model width $d_{\mathrm{model}}$, heads, depth $N$,
-  feed-forward width $d_{\mathrm{ff}}$, and input encoding (median / mode over
-  the three re-scoring seeds).}
-  \centering\footnotesize
-  \input{data/paper_loso_#1_transformer_selection.tex}
-  \label{tab:transformersel-#1}
-  \end{table}
-  \begin{table}[!t]
-  \caption{#2: recording-level paired analysis. $\overline{d_r}$ = mean
-  per-recording MSE difference (model $-$ reference); negative favours the model.
-  CI = $95\%$ bootstrap over recordings; $p_{\text{Holm}}$ = Holm-corrected
-  Wilcoxon signed-rank.}
-  \centering\footnotesize
-  \input{data/meeting01_loso_#1_significance_recording.tex}
-  \label{tab:sig-#1}
-  \end{table}
-  \begin{figure}[!t]
-    \centering
-    \renewcommand{\loMsePlotData}{data/paper_loso_#1_mse_plot.csv}%
-    \input{figs/fig_results.tex}
-    \caption{#2: test MSE by model and input encoding (mean over seeds and folds;
-    mean-frame omitted for scale).}
-    \label{fig:results-#1}
-  \end{figure}%
-}
+\begin{table*}[!t]
+\caption{Test MSE (mean $\pm$ std over \cfgRuns{} seeds; lowest per dataset in bold) and
+arithmetic energy per window $E$ (nJ, Section~\ref{sec:cost}) on the headline folds. PCA and
+Mean are fitted once (no seeds, no std) and are not costed.}
+\centering\footnotesize
+\pgfplotstabletypeset[
+  col sep=semicolon, string type,
+  columns={model,fsddmse,fsddenergy,audiomnistmse,audiomnistenergy,eegmmidbmse,eegmmidbenergy,sienamse,sienaenergy},
+  columns/model/.style={column name=Model, column type=l},
+  columns/fsddmse/.style={column name={FSDD MSE}, column type=r},
+  columns/fsddenergy/.style={column name=$E$, column type=r},
+  columns/audiomnistmse/.style={column name={AudioMNIST MSE}, column type=r},
+  columns/audiomnistenergy/.style={column name=$E$, column type=r},
+  columns/eegmmidbmse/.style={column name={EEGMMIDB MSE}, column type=r},
+  columns/eegmmidbenergy/.style={column name=$E$, column type=r},
+  columns/sienamse/.style={column name={Siena MSE}, column type=r},
+  columns/sienaenergy/.style={column name=$E$, column type=r},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every row no 1/.style={after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{data/paper_loso_overview.csv}
+\label{tab:overview}
+\end{table*}
 
-\resultsForDataset{fsdd}{FSDD (spoken digits, 6 speakers)}
-\resultsForDataset{audiomnist}{AudioMNIST (spoken digits, sixty speakers)}
-\resultsForDataset{eegmmidb}{EEGMMIDB (EEG motor imagery, 109 subjects)}
-\resultsForDataset{siena}{Siena Scalp EEG (seizure recordings, 14 subjects)}
+\begin{table*}[!t]
+\caption{SNN-AE minus reference, recording level, headline folds: $\overline{d_r}$ (positive:
+the SNN-AE errs more; $^{*}$: Holm-corrected Wilcoxon $p<0.05$) and its 95\% bootstrap
+interval.}
+\centering\footnotesize
+\input{data/paper_loso_significance.tex}
+\label{tab:sig}
+\end{table*}
 
-\par \emph{Reading across datasets.} A model family's advantage is credible to
-the extent it recurs on all four datasets' recording-level analyses; an effect
-that appears only on FSDD --- the smallest --- or only on one modality is
-reported as such. The spoken-digit datasets (FSDD, AudioMNIST) test the same
-task at two speaker-pool sizes; EEGMMIDB and Siena test whether the ranking
-transfers to a different signal modality (EEG, at $d=64$ instead of $16$) and
-to two different subject-pool sizes within that modality.
+\begin{figure*}[!t]
+  \centering
+  \ifplaceholder
+    \fbox{\parbox[c][2.6cm][c]{0.9\textwidth}{\centering Quality--energy plane:
+    generated from data/paper\_loso\_$\langle$dataset$\rangle$\_pareto.csv after the grid run.}}
+  \else
+    \input{figs/fig_pareto.tex}
+  \fi
+  \caption{Test MSE (mean $\pm$ std over seeds) against arithmetic energy per window, headline
+  folds. Down and left is better; the dashed line is PCA with $k=d$.}
+  \label{fig:pareto}
+\end{figure*}
+
+\begin{table}[!t]
+\caption{SNN-AE selected per dataset over every (fold, run): modal encoding and input
+transform ($k/n$ agreeing, if not all), median $T$ [range], median initial threshold and decay, median
+depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows.}
+\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{data/paper_loso_snn_overview.tex}
+\label{tab:snnsel}
+\end{table}
+
+\begin{table}[!t]
+\caption{Sensitivity to the development fold: SNN-AE minus ANN-AE, recording level, without
+(headline) and with it.}
+\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{data/paper_loso_sensitivity.tex}
+\label{tab:sensitivity}
+\end{table}
+
+% TODO(after the grid run): replace the reading guide below by the findings.
+\par \textbf{Reading guide.} The first question is the gap between the SNN-AE and its matched
+control, per dataset and modality, and whether its interval excludes zero. The second is
+whether the SNN-AE buys arithmetic for it: its $E$ against the ANN-AE's, read together with
+the selected encoding and $T$ in Table~\ref{tab:snnsel}, since binary inputs turn the first
+layer's MACs into ACs while direct input pays a dense first layer at every step. The third
+places both against PCA; a model that does not beat PCA has not
+shown that its nonlinearity helps on that dataset. Orderings are asserted only where the
+Holm-corrected $p$ is below 0.05 and the interval excludes zero, and a finding that holds on one modality only is
+reported as such.
 
 % ─────────────────────────────────────────────────────────────
 \section{Discussion}
 \label{sec:discussion}
 
-\par Two things should be read from the recording-level tables (Table~\ref{tab:sig-fsdd} and following) rather than from raw MSE
-gaps. First, whether each trained family beats the PCA reference at all: under
-group-disjoint evaluation, a family whose recording-level interval against PCA
-includes zero has not demonstrated that its nonlinearity buys anything on this
-benchmark. Second, the ordering among SNN-AE, LSTM-AE, GRU-AE, and Transformer-AE
---- a difference is only asserted where the Holm-corrected interval excludes
-zero. The seed-level and group-level checks in the released JSON say
-whether an ordering that holds in the pooled recording-level analysis also holds
-run-to-run and group-to-group (speaker-to-speaker or subject-to-subject).
+% TODO(after the grid run): discussion of the measured gap and cost.
+\par The design study already constrains what the main run can show. The spike's cost in this
+autoencoder is not a property of discrete events as such: a non-spiking network with the same
+clipped transfer function pays it, and a smooth bounded one does not. Remedies that act on the
+transfer function -- a membrane read out instead of spikes in some layers, adaptive thresholds,
+or soft resets, which made things worse here -- are therefore the levers to test. Longer
+simulations helped on EEG only (Table~\ref{tab:design}) and cost arithmetic in proportion to
+$T$. On cost, the convention we follow rewards binary inputs: whether the SNN-AE ends
+up cheaper than its control depends on which encoding the search selects, not on spiking alone.
 
-\par The encoding comparison (the per-dataset per-encoding tables) is where an SNN-specific
-effect is most likely to appear. Every family reads the encoded $T\times M$
-array, but only the SNN-AE integrates it as spikes in membrane potentials; the
-sequence models read the same values as ordinary real-valued frames. If latency
-or Poisson coding helps the SNN-AE relative to direct coding without helping the
-sequence models, that is a property of spike-based representation, not of the
-reconstruction task.
+\par \textbf{Limitations.}
+(i) \emph{Groups.} Recordings are nested in 6, 60, 109 and 14 groups (5 FSDD speakers on the
+headline folds). The recording-level test treats recordings as independent, so it speaks to new
+recordings of these speakers and subjects, not to new ones; the group-level tests that would are
+reported as robustness only, and with 5 speakers the exact Wilcoxon $p$ cannot fall below
+0.0625. (ii) \emph{One channel, short windows.} EEG is
+read from one channel and every window has \cfgWindow{} samples; results may not transfer to
+multichannel or longer contexts. (iii) \emph{Estimated, not measured energy.} $E$ counts
+arithmetic only; memory traffic, sparsity exploitation and the target hardware decide real
+consumption. (iv) \emph{Search budget.} The SNN-AE evaluates \cfgGaEvals{} candidates per
+fold and run, and the control none (it inherits the SNN-AE's widths), which favours the SNN-AE
+over its control; a larger budget could change the winner. (v) \emph{Matched, not identical inputs.} The ANN-AE always reads
+the analog window, whereas the SNN-AE may read spikes; the information available is the same,
+its code is not. (vi) \emph{Fixed latent width.} $d$ follows prior autoencoder practice for
+each domain, not a sweep on these datasets. (vii) \emph{Training cap.} At most \cfgEpochs{}
+epochs; on the development fold most EEG runs were still improving at the cap.
+(viii) \emph{Sequence models pre-validated, not compared.} The LSTM-, GRU- and Transformer-AE
+were searched with \preGaEvals{} evaluations on two development folds only, so the conclusions
+concern spiking against its matched control, not against sequence models.
 
-\par The cost picture is separable from the quality picture. The
-operation-count column of the summary tables orders the models by arithmetic
-work under matched software; the self-attention $O(S^2 d_{\mathrm{model}})$ term
-makes the Transformer's per-window cost grow faster in sequence length than the
-recurrent models', independent of which model reconstructs best. Wall-clock
-timing on the shared CPU backend is reported alongside, but it reflects this
-implementation and backend, not silicon-level energy.
-
-\emph{Limitations.}
-\begin{itemize}
-  \item \textbf{Few groups.} The four datasets have 6, 60, 109, and 14 groups;
-        the group-level analysis is a robustness check, not population
-        inference, which is why the recording-level analysis is the primary
-        estimand.
-  \item \textbf{Four small datasets.} Two are the same task (spoken digits) and
-        two are EEG (motor imagery and seizure recordings); the ranking may not
-        transfer to other 1-D signal domains. AudioMNIST, EEGMMIDB, and Siena
-        are additionally window-capped per recording (2, 40, and 40) to bound
-        compute. Unlike the earlier MIT-BIH-based design, the EEG group unit is
-        the subject directory itself (Sec.~\ref{sec:setup}), so every recording
-        of a subject is guaranteed to stay in the same split, removing the
-        record-vs-subject over-count concern the earlier design had. The EEG
-        loader reads a single fixed channel (channel 0) of each recording under
-        the assumption that it is an EEG channel and not, e.g., a status
-        channel --- verified against real downloaded file headers for both
-        datasets (signal 0 is labelled ``EEG Fp1'' for Siena and ``Fc5.'' for
-        EEGMMIDB, both genuine 10--20-system electrode positions).
-  \item \textbf{Cost is not energy.} $C_{\mathrm{raw}}$ and $C_{\mathrm{weighted}}$
-        count operations under matched software; real energy depends on memory
-        movement, sparsity exploitation, and target hardware. On-device
-        measurement is future work.
-  \item \textbf{The sequence models read the window $T$ times.} All four
-        families receive the same encoded $T\times M$ array, so LSTM-AE,
-        GRU-AE, and Transformer-AE run over $S=TM/F=512$ frames although a
-        window holds only $M/F=32$ distinct ones: under direct coding the $T$
-        sweeps are identical, under Poisson coding they are independent
-        Bernoulli draws of the same window, and under latency coding each
-        sample is a single spike at one step. This keeps the inputs identical
-        across families, but it makes the sequence models' cost ($S$ frames,
-        quadratic in $S$ for self-attention) a consequence of the shared
-        encoding rather than of the window length: their operation counts are
-        conditional on $T=16$.
-  \item \textbf{Correlated windows.} Non-overlapping windows of one recording
-        remain correlated, so window-level statistics are pseudoreplicated and
-        used descriptively only.
-  \item \textbf{Bottleneck-matched, not parameter-matched.} SNN-AE, LSTM-AE,
-        GRU-AE, and Transformer-AE each search their own hidden width, depth,
-        and (for the Transformer) attention shape (Sec.~\ref{sec:archsearch});
-        only the latent width $d$ is fixed, per dataset, across all four.
-        Because each family's search independently picks whatever capacity
-        best trades off validation MSE against inference cost, this is closer
-        to matching \emph{capability under an equal compression ratio} than
-        the fixed-dimension design of the earlier version of this study, but
-        it still does not match trainable parameter count $P$: dropping the
-        LSTM cell state removes one gate's worth of parameters per layer, so a
-        GRU-AE winner is smaller than an LSTM-AE winner at the same hidden
-        width; the Transformer-AE's parameter count follows from its own
-        searched shape, not a size chosen to match the recurrent baselines;
-        and SNN-AE carries its own biophysical parameters ($R$, $C$, $V_{th}$)
-        with no non-spiking analogue. A quality gap can therefore still partly
-        reflect a capacity gap that emerged from the search, not only an
-        inductive-bias difference. A per-family lower bound keeps every
-        searched hidden width and $d_{\mathrm{model}}$ at or above $d$
-        (Sec.~\ref{sec:archsearch}), so this capacity difference cannot mean
-        one family's \emph{effective} bottleneck was narrower than $d$; it can
-        still be wider. The summary tables report each model's real $P$
-        (Table~\ref{tab:perf-fsdd} and following) precisely so cost and
-        quality can be read together rather than assumed equal.
-  \item \textbf{Search budget, not exhaustive search.} Each family's NSGA-II
-        search evaluates 48 candidates per (dataset, fold, repeat) --- a
-        population of 8 for 5 generations, chosen to keep the four families'
-        search costs comparable in evaluation count rather than wall-clock
-        time, since their per-evaluation costs differ by roughly two orders
-        of magnitude (Sec.~\ref{sec:archsearch}). A larger budget could find a
-        better architecture for any family; the reported comparison is
-        therefore a comparison of what each family reaches under a matched
-        \emph{evaluation} budget, not of each family's best possible
-        architecture. Likewise, the per-dataset latent width itself ($16$ for
-        the spoken-digit datasets, $64$ for the EEG datasets) follows a brief,
-        non-exhaustive literature scan rather than a systematic sweep on these
-        four datasets: the audio width reflects compression ratios common in
-        prior autoencoder work on short speech; the EEG width follows a single
-        shallow-autoencoder result (hidden size 64) on CHB-MIT, a seizure-EEG
-        dataset in the same task category as Siena but not used in this study
-        (Siena replaced CHB-MIT on 2026-09-23 for dataset-size reasons, after
-        the latent-width literature scan) and extrapolated to EEGMMIDB as
-        well; neither EEG dataset actually used here has a dataset-specific
-        latent-width reference. It is a stated, literature-informed design
-        choice, not a validated optimum.
-\end{itemize}
-
-\par All results are loaded directly from experiment-generated CSV files; the
-per-run CSVs are immutable and aggregation never overwrites them.
-
-\IEEEtriggeratref{13}
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 \label{sec:conclusion}
 
-\par We compared four independently architecture-searched autoencoder families
---- SNN-AE, LSTM-AE, GRU-AE, and a bottlenecked Transformer-AE --- under three
-spike-encoding front ends, against PCA and mean-frame linear references, for
-1-D temporal signal reconstruction on four datasets spanning two signal
-domains (FSDD, AudioMNIST; the PhysioNet EEG Motor Movement/Imagery Database,
-the Siena Scalp EEG Database). The evaluation is leakage-controlled: nested six-fold
-leave-one-group-out cross-validation with no recording or group crossing a
-split and, for every family, architecture and hyperparameters selected on the
-inner validation group only via an independent NSGA-II search under a
-per-dataset latent-width constraint shared by all four families. Differences
-are reported at the recording level with bootstrap intervals and
-Holm-corrected tests, with group- and seed-level results as robustness
-evidence; cost is an analytic per-class operation count, explicitly not an
-energy measurement. This design directly answers the leakage, missing-baseline,
-missing-significance, energy-overclaim, and fixed-architecture objections to
-the earlier version of this study. The harness, profiles, and analysis scripts
-are released so the protocol can be reused for other 1-D signal families.
+% TODO(after the grid run): one sentence with the headline result.
+\par We compared a spiking autoencoder with a matched non-spiking control and PCA on two
+speech and two EEG datasets, under nested leave-one-group-out cross-validation with every
+choice made on validation groups and the development fold kept out of the headline numbers;
+searched sequence autoencoders were measured in a pre-validation on the same folds for what
+they cost to train and to run. Matching the control exposed two
+confounds that would have changed the conclusion -- a per-step loss and a spiking decoder
+that inflated the gap, and an initializer that, shared but poorly chosen, made it vanish on
+EEG -- and located the remaining cost in the saturation of the LIF transfer function. The harness, profile and analysis scripts
+are released \cite{furlan2026doi}.
 
 \bibliographystyle{IEEEtran}
 \bibliography{paper}

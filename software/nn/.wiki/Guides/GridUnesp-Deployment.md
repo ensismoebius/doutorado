@@ -294,7 +294,7 @@ What to do, by state of the job:
 |---|---|
 | job queued (`PD`) or held (`scontrol hold <id>`) | Safe. Redeploy, read the revision the deploy prints, then `scontrol release <id>`; the refusal covers a build that failed. |
 | job **running** | **Do not redeploy — `gridunesp_deploy.sh` refuses (since 2026-10-13).** The job stages only the `meeting01` executable; every (dataset, fold) is a new process that loads `libstatistics.so`, `libmatioCpp.so` and `libmatio.so` from the build tree (the binary's RPATH is absolute), so a rebuild underneath it changes the code of its later folds, while the revision label — logged once, at start — keeps naming the old one. That was *silent* until the deploy started checking `squeue` for a running `meeting01-loso*` job. Stop it (`scancel --batch --signal=USR1 <id>` copies its results back, see [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13)) or wait for it to end, redeploy, then start with `RESUME=1`. |
-| `results/meeting01/` holds folds of an older binary | Move them aside first: `mv results/meeting01 results/meeting01_pre_<date> && mkdir -p results/meeting01`. `03_`, `02_` and `04_` refuse folds whose `results_format` is not the current one, and a checkpoint of another format is retrained, never restored — but a directory mixing old and new folds is not a result. |
+| `results/meeting01/` holds folds of an older binary | Move them aside first: `mv results/meeting01 results/meeting01_pre_<date> && mkdir -p results/meeting01`. `03_`, `02_` and `04_` refuse folds whose `results_format` is not the current one, and an interrupted GA search of another format or profile is refused on resume — but a directory mixing old and new folds is not a result. |
 | `scripts/pipeline/meeting01/.env` exists on the cluster | Delete it: `rm ~/software/nn/scripts/pipeline/meeting01/.env`. Earlier deploys copied your local password file there; nothing on the cluster reads it, and the deploy no longer sends it (it warns if it finds one). |
 
 A queued job also keeps the CPU count and partition it was submitted with — Slurm freezes the
@@ -614,9 +614,10 @@ final copy and `/store` cleanup done, the batch step ended 1 s later (sacct: job
 batch step `FAILED 15:0`).
 
 **Why a run stopped at an arbitrary instant cannot corrupt what `RESUME=1` reads.** `RESUME=1`
-restores a fold from its checkpoints, which have always been written to `<file>.tmp` and renamed
-(an interrupted write leaves a stray `.tmp`, never a torn checkpoint), and it skips a fold whose
-`*_comparative_metrics.csv` exists. That marker was **not** written that way until 2026-10-13:
+skips a fold whose `*_comparative_metrics.csv` exists and reruns the others; since 2026-11-02 it
+restores no finished run of a fold (see [Meeting01 § Cross-review](../Experiments/Meeting01.md#cross-review-with-a-second-agent-2026-11-02)),
+only the search cut mid-way, whose state is written to `<file>.tmp` and renamed (an interrupted
+write leaves a stray `.tmp`, never a torn state) and whose cache drops a torn last line. That marker was **not** written that way until 2026-10-13:
 the binary wrote it straight to its final path, and *first* of the fold's final outputs. A
 process killed during that write left a truncated, non-empty file — skipped by the next
 `RESUME=1` as a finished fold, read by `02_` as one. **Silent**, and newly reachable now that
@@ -648,10 +649,10 @@ continue it with `RESUME=1`.
 cancelled): the datasets, read from their absolute paths in the profile once per fold; the
 shared libraries `libstatistics.so`, `libmatioCpp.so` and `libmatio.so`, which every fold's
 process loads from the build tree (the binary's RPATH is absolute; only the executable is
-staged) — the reason `gridunesp_deploy.sh` refuses to run while a `meeting01-loso*` job does;
-and `latex_data_dir`, which receives a few small files per fold under
-`~/Repos/doutorado/documentation/…` on the cluster — files nothing reads, the paper's data all
-coming from `02_`/`04_`, run locally (§5).
+staged) — the reason `gridunesp_deploy.sh` refuses to run while a `meeting01-loso*` job does.
+(`latex_data_dir` used to write a few small files per fold under
+`~/Repos/doutorado/documentation/…` too — files nothing read, the paper's data all coming from
+`02_`/`04_`, run locally (§5). It is empty since 2026-11-02.)
 
 **Smoke test — run it after any change to this path** (~6 min in `short`; it stops itself
 before its limit on purpose — that is the ending the real job will have):
@@ -744,11 +745,107 @@ reproduce. The single-thread cluster smoke test below is the test of that.
 **What the sbatch now does.** `OMP_NUM_THREADS` and `OPENBLAS_NUM_THREADS` both follow
 `--cpus-per-task`; the thread count is therefore chosen in exactly one place, the CPU request.
 OpenBLAS sizes its own pool separately from OpenMP, so setting only the OpenMP variable left it
-free to multiply the two.
+free to multiply the two. Since 2026-11-02 the sbatch's own default is `--cpus-per-task=1` (it
+said 20, a choice made before this measurement; `submit_loso_array.sh` passed `-c 1` anyway,
+which overrides it), and `01_meeting01_run_loso.sh` run locally exports both variables as 1
+unless the caller set them, and prints them: unset, each library sized its pool from the
+machine, the slow side of the table above.
 
 **Not a thread problem: the loss.** At every epoch, locally and on the cluster, the loss sat at
 1.0001, which is the variance of the z-scored windows — the model outputs the mean and has learnt
 nothing. See [Meeting01](../Experiments/Meeting01.md) for whether it ever leaves that value.
+
+### Job array: one task per (dataset, fold) (2026-10-24)
+
+**Problem.** One 20-CPU job runs the 24 (dataset, fold) pairs in series, and the program is
+~1000× slower with 20 threads than with 1 (previous section). One-CPU jobs that run side by side
+avoid the thread penalty *and* a single failure no longer stops everything.
+
+```
+task t   0..5   fsdd fold 0..5        task t = dataset[t / 6], fold t % 6
+         6..11  audiomnist             one Slurm job per task, 1 CPU, its own /store work dir
+         12..17 eegmmidb               and its own job-nanny; results meet in results/meeting01
+         18..23 siena
+```
+
+Use `scripts/pipeline/meeting01/submit_loso_array.sh` (from `~/software/nn`):
+
+| You want | Command |
+|---|---|
+| see what would be submitted | `submit_loso_array.sh --dry-run` |
+| submit the unfinished folds | `submit_loso_array.sh` |
+| recover after a limit / `scancel` / node failure | the same command — a fold with its `*_comparative_metrics.csv` is skipped, a cut-short one is rerun, continuing only its interrupted search |
+| a smoke test | `--partition short --time 00:06:00 --extra "--signal=B:USR1@150 --job-name=meeting01-loso-smoke" --only "0 6"` |
+
+What it enforces (each a *loud* failure):
+
+* **No double submission:** refuses while any `meeting01-loso*` job is RUNNING or PENDING.
+* **The mapping cannot drift:** each task checks the profile still has the same 4 datasets and 6
+  folds, else it refuses (edit `ARRAY_DATASETS` / `ARRAY_FOLDS` in the sbatch).
+* **Fresh task, existing files:** a task that is not `RESUME` refuses if *its own* fold already has
+  files. (The whole-directory check of a single job cannot be used: other tasks copy results into
+  the same directory while a late task is still queued.)
+* **Provenance:** each task writes `source_revisions_<arrayjob>_<task>.log`. A shared log would
+  lose lines: job-nanny copies the whole directory with `rsync -a -u`, and the newest copy wins.
+* **Deploy guard unchanged:** a redeploy is refused while *any* task is RUNNING, so no fold runs
+  on a half-replaced build tree. A fully PENDING array may be redeployed; every task logs the
+  revision it starts with.
+
+**Not measured:** the wall time of a real fold at 1 thread. The profile's `_total_runs_breakdown`
+was calibrated with the 512-frame baselines and is now too high for them.
+
+### The baseline pre-validation on the grid (2026-11-02)
+
+**What it is.** The evidence for removing LSTM-AE, GRU-AE and Transformer-AE from the grid: every
+family through one reduced search on the development folds, 8 one-thread processes
+([Meeting01 § Sequence baselines removed](../Experiments/Meeting01.md#sequence-baselines-removed-and-measured-once-2026-11-02)).
+`00_meeting01_prevalidate_gridunesp.sbatch` runs `00_meeting01_prevalidate_baselines.sh` under
+job-nanny with the same stop handler and staging as the grid's sbatch.
+
+**Why one job, not an array.** The result is a *ratio* of wall times — each family's fold over
+the SNN-AE's. Array tasks land on different nodes beside different co-tenants, so each family
+would be timed under its own conditions:
+
+```
+array (rejected)                       one job (used)
+  node A: snn-ae  fsdd   + strangers     node X, 16 CPUs (8 cores x 2 hyperthreads):
+  node B: lstm-ae fsdd   + others          snn-ae  fsdd | lstm-ae fsdd | gru-ae fsdd | tf-ae fsdd
+  ...      ratio = two different nodes     snn-ae  eeg  | lstm-ae eeg  | gru-ae eeg  | tf-ae eeg
+                                           ratio = same node, same neighbours, a core each
+```
+
+16 CPUs for 8 processes because a CPU here is a hyperthread: with 8, two processes could share a
+core, a slowdown that would hit some families and not others.
+
+**Interrupted tasks start over.** The binary continues a cut search from its GA checkpoint and
+truncates the events log at the restart, so a resumed task's `fold_begin → fold_end` would time
+only the part after the restart — a shorter fold, **silently**. Under `RESUME=1` the runner moves
+an unfinished task's files to `<family>/interrupted_<time>_<ds>_fold<f>/` and reruns it whole.
+Hence the generous limit (`medium`, 5 days) for a run estimated at under a day.
+
+```bash
+# smoke (tiny profile copied to ~/prevalidation_smoke/, ~10 min in short)
+PREVALIDATION_PROFILE=$HOME/prevalidation_smoke/smoke_profile.json \
+PREVALIDATION_DIR=results/meeting01_prevalidation_smoke \
+sbatch -p short -t 00:20:00 --signal=B:USR1@150 --job-name=meeting01-loso-preval-smoke \
+  scripts/pipeline/meeting01/00_meeting01_prevalidate_gridunesp.sbatch
+# the real run
+sbatch scripts/pipeline/meeting01/00_meeting01_prevalidate_gridunesp.sbatch
+```
+
+**Afterwards, locally** (03_ and the report write the paper's files; the datasets are local too):
+
+```bash
+rsync -avz <user>@access.grid.unesp.br:software/nn/results/meeting01_prevalidation/ \
+  results/meeting01_prevalidation/
+.venv/bin/python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
+  --results-dir results/meeting01_prevalidation/snn-ae --run-tag meeting01_prevalidation \
+  --profile results/meeting01_prevalidation/snn-ae/profile.json
+.venv/bin/python3 scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --report \
+  --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
+  --out-root results/meeting01_prevalidation \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+```
 
 ## 5. Bringing results home
 
@@ -771,6 +868,15 @@ Every `(dataset, fold)` is already complete after the sync, so this call skips t
 entire training loop and falls straight through to `03_`/`02_`/`04_` with correct
 local absolute paths — no GridUnesp-specific path handling needed on this end.
 
+`02_` and `04_` overwrite the paper's placeholder files in
+`documentation/07-articlesProduced/meeting01/data/` (`\cfgDataStatus` turns from `placeholder`
+to `results`), so the next `pdflatex` pass prints the run's numbers. Two rules apply there
+(since results_format 6, 2026-11-02): the headline tables leave out the **development fold**
+(fold 0 of FSDD and eegmmidb), which `04_` analyses again in `paper_loso_sensitivity.tex`; and
+`02_` refuses folds whose recorded configuration differs (a redeploy that changed the profile
+mid-run). What each file feeds:
+[Meeting01 § The paper's data contract](../Experiments/Meeting01.md#the-papers-data-contract).
+
 > **Results made by a `meeting01` binary older than 2026-10-07 cannot be finished.** Their
 > manifests carry no `results_format` (binaries before 2026-10-06) or a 2 (the interim binary
 > of commit `b434792e`; the current format is 3), so `03_`, `02_` and `04_` each stop before writing
@@ -779,10 +885,10 @@ local absolute paths — no GridUnesp-specific path handling needed on this end.
 > `encoding` empty and wrote `train_ms = 0` for the baselines. With a 2, the LSTM/GRU/Transformer
 > frames were a strided gather and the LSTM/GRU cost counted one stack of two. Rebuild
 > `meeting01` from the current tree on the cluster (a redeploy does it), then rerun those
-> folds: either the whole run without `RESUME` (it clears the checkpoints and reruns every
-> fold), or delete only the affected folds' `*_comparative_metrics.csv` and use `RESUME=1` — a
-> checkpoint of another `results_format` is retrained, never restored, so no old row survives
-> the rerun. Why:
+> folds: either the whole run without `RESUME` (it clears the GA search checkpoints and reruns
+> every fold), or delete only the affected folds' `*_comparative_metrics.csv` and use `RESUME=1` —
+> a rerun fold recomputes every run, and an interrupted search of another `results_format` is
+> refused (delete its `meeting01_ga_*` files), so no old row survives the rerun. Why:
 > [Meeting01 § What the Post-Processing Refuses to Read](../Experiments/Meeting01.md#what-the-post-processing-refuses-to-read-found--fixed-2026-10-06-second-pass).
 
 ## 6. Optional: all-in-one control TUI

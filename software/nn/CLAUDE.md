@@ -214,7 +214,7 @@ Gradient shape always matches forward input shape.
 5. **β = exp(−Δt/(R·C))** clamped: R and C are clamped to `1e-6` in forward and grad is zeroed in clamped region. Never let optimizer drive them negative.
 6. **readout_mode**: `LifBPTTImpl` with `readout_mode=true` emits `v_mem` directly — no spike/reset. Backward is purely continuous. Don't mix with spike losses.
 7. **Experiment04 SNN architecture modes are INPUT TRANSFORMS, not network architecture changes.** `dense`/`conv1d`/`recurrent` in the profile `snn_architectures` list select how the raw signal is pre-processed before entering the shared autoencoder network. All three modes use the same `linear:64:leaky / linear:32:identity` network. `conv1d` = 3-tap smoothing `{0.25, 0.5, 0.25}`; `recurrent` = stand-alone LIF transform on input; `dense` = pass-through.
-8. **Experiment04 SNN builder only parses `linear:width[:activation]`.** Entries like `conv1d:64:kernel=3`, `pool1d:4`, `residual` in `encoder_layer_spec`/`decoder_layer_spec` cause `parse_layer_module_spec` to throw at startup. Only `linear` entries are instantiated into the SNN network.
+8. **Experiment04 SNN builder only parses `linear:width[:activation]` and the bare token `time_mean`.** Entries like `conv1d:64:kernel=3`, `pool1d:4`, `residual` in `encoder_layer_spec`/`decoder_layer_spec` cause `parse_layer_module_spec` to throw at startup. `time_mean` adds a `TimeMeanPool` ((T*B, F) -> (B, F)); every layer after it runs once per sample, so no `LifBPTT` may follow it. meeting01 renders it from `model.snn_time_pool` (results_format 5).
 
 ---
 
@@ -343,6 +343,7 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp05 profile audit tests | `src/experiments/thesis/tests/thesis_profile_audit_gtest.cpp` |
 | Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py` |
 | LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
+| Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |
 
 ---
 
@@ -370,6 +371,33 @@ EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
+
+**Paper data contract (results_format 6)**: the paper reads only generated files in its
+`data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
+`paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_significance.tex`,
+`paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`);
+never type a configuration number or a result into `paper.tex`. Before the run they are
+placeholders: `meeting01 --comparative --comparative-config <profile> --print-resolved-config >
+cfg.json`, then `02_ --placeholders cfg.json --data-dir <paper>/data`,
+`04_ --placeholders cfg.json --out-dir <paper>/data` and
+`00_meeting01_prevalidation_report.py --placeholders --profile <prevalidation profile>
+--data-dir <paper>/data`. Headline tables exclude the development
+fold (`DEVELOPMENT_FOLDS` in `meeting01_results.py`: fold 0 of fsdd and eegmmidb). T is an
+SNN-AE GA gene (`ga.snn.time_steps_min/max`). Details:
+`.wiki/Experiments/Meeting01.md` § "Ready for the grid run".
+
+**No ghosts**: the grid runs `snn-ae` + `ann-ae` only (LSTM/GRU/Transformer-AE removed
+2026-11-02). Every paper element follows `configured_families(config)` in
+`meeting01_results.py` — a family not configured leaves no row, column, series, legend entry
+or macro, and a `\cfg*` macro of an absent family is an undefined control sequence (loud).
+`dataset.latex_data_dir` is `""` in the production profiles (its exports were read by nothing).
+
+**Pre-validation of the removed families**: `profiles/meeting01-prevalidation.json` (the grid
+profile + the three families, one reduced budget, development folds only; its difference from
+`meeting01-loso.json` is pinned by `ProductionProfiles.PrevalidationDiffersFromTheGridOnlyWhereDeclared`),
+run by `00_meeting01_prevalidate_baselines.sh` (hours to days, `EXPERIMENT_CONFIRMED=1`) and
+reported by `00_meeting01_prevalidation_report.py`. Details: `.wiki/Experiments/Meeting01.md`
+§ "Sequence baselines removed, and measured once".
 
 **Profile guard**: `profile_audit_gtest` verifies every profile in `profiles/` parses and
 validates (`ProfileDirectoryAudit`, directory-wide, not a hardcoded list), plus a fuller

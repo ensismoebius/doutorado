@@ -6,13 +6,17 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "../lib/include/Meeting01Cli.hpp"
 #include "../lib/include/Meeting01Config.hpp"
+#include "../lib/include/Meeting01Training.hpp"
 #include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
@@ -225,15 +229,17 @@ TEST(ProfileDirectoryAudit, EveryProfileOnDiskParsesAndValidates)
     EXPECT_GE(seen, 4) << "profiles dir looks empty -- wrong path?";
 }
 
-// EVERY profile must state its simulation depth explicitly -- including the LSTM-only
-// ones. `time_steps` is misleadingly named: `run_baseline` reads it too
-// (Meeting01Experiment.cpp), so it sets the sequence length the LSTM/GRU/Transformer
-// baselines are trained on (T * window_size / lstm_frame_size), not just the SNN's
-// membrane depth. lstm-bench.json inherited the struct default silently, which changed
+// EVERY profile must state the SNN's simulation depth T explicitly -- including the
+// LSTM-only ones. lstm-bench.json once inherited the struct default silently, which changed
 // what that throughput benchmark measured without a single line of the profile changing.
+// T is stated in one of two ways:
+//   fixed     model.time_steps = T
+//   searched  evaluation.ga.snn.time_steps_min / time_steps_max (results_format 6: T is a
+//             gene, and model.time_steps is then read by no SNN, so a profile may omit it)
+// Since results_format 4 the LSTM/GRU/Transformer-AE read model.recurrent_time_steps, not T.
 //
-// The struct default (16) is the right value; the point is that a run's temporal
-// resolution must be readable from the profile rather than from a header nobody opens.
+// The point is that a run's temporal resolution must be readable from the profile rather
+// than from a header nobody opens.
 TEST(ProfileDirectoryAudit, EveryProfileDeclaresTimeStepsExplicitly)
 {
     for (const auto& entry : fs::directory_iterator(profiles_dir()))
@@ -247,14 +253,55 @@ TEST(ProfileDirectoryAudit, EveryProfileDeclaresTimeStepsExplicitly)
 
         if (!is_nested_schema(j)) continue; // flat schema has no model section
 
-        ASSERT_TRUE(j.contains("model") && j["model"].contains("time_steps"))
+        const nlohmann::json snn_ga =
+            j.value("/evaluation/ga/snn"_json_pointer, nlohmann::json::object());
+        const bool searched =
+            snn_ga.contains("time_steps_min") || snn_ga.contains("time_steps_max");
+        const bool fixed = j.contains("model") && j["model"].contains("time_steps");
+        ASSERT_TRUE(fixed || searched)
             << name
-            << ": no model.time_steps -- it governs the baselines too, so "
-               "inheriting it silently changes what the run measures";
-        const int steps = j["model"]["time_steps"].get<int>();
+            << ": neither model.time_steps nor evaluation.ga.snn.time_steps_min/max -- the "
+               "SNN would silently run the struct default's T";
+        const int steps =
+            searched ? snn_ga.at("time_steps_min").get<int>() : j["model"]["time_steps"].get<int>();
         EXPECT_GE(steps, 2) << name
                             << ": a single step disables membrane dynamics and "
                                "spike coding entirely";
+    }
+}
+
+// The same rule for the sequence models: since results_format 4 the LSTM/GRU/Transformer-AE
+// read S = model.recurrent_time_steps * window_size / lstm_frame_size frames, so that field
+// is their temporal resolution. lstm-bench.json and lstm-compare.json inherited it (1) until
+// 2026-11-02 while lstm-bench's comment still claimed model.time_steps set its unroll (16,
+// i.e. S = 512): the benchmark measured S = 32 and its own profile said otherwise.
+// Required only of a profile that runs one of them: the matched control ann-ae overrides
+// both fields (run_ann_twin: one frame, the whole window), so meeting01-loso.json, which
+// since 2026-11-02 runs no sequence baseline, would only carry a value nothing reads.
+TEST(ProfileDirectoryAudit, EveryProfileDeclaresTheBaselinesSequenceExplicitly)
+{
+    for (const auto& entry : fs::directory_iterator(profiles_dir()))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") continue;
+
+        const std::string name = entry.path().filename().string();
+        std::ifstream f(entry.path());
+        nlohmann::json j;
+        f >> j;
+
+        if (!is_nested_schema(j)) continue; // flat schema has no model section
+        // Absent, the list is Meeting01Config's default, which is lstm-ae.
+        const auto baselines =
+            j["evaluation"].value("baselines", std::vector<std::string>{"lstm-ae"});
+        const bool reads_frames = std::any_of(
+            baselines.begin(), baselines.end(), [](const std::string& b) { return b != "ann-ae"; });
+        if (!reads_frames) continue;
+
+        ASSERT_TRUE(j.contains("model") && j["model"].contains("recurrent_time_steps"))
+            << name
+            << ": no model.recurrent_time_steps -- the LSTM/GRU/Transformer-AE would silently "
+               "read the struct default's sequence length";
+        EXPECT_GE(j["model"]["recurrent_time_steps"].get<int>(), 1) << name;
     }
 }
 
@@ -455,6 +502,183 @@ TEST(Meeting01ConfigValidation, DenoisingNoiseStdParsesFromNestedJson)
     EXPECT_FLOAT_EQ(cfg.model.denoising_noise_std, 0.03F);
 }
 
+// The SNN-AE design the 2026-11-01 gap diagnosis led to (results_format 5): latent averaged
+// over the T steps, analog decoder run once; and the run the author fixed on 2026-11-02
+// (format 6): T a free gene in [2, 32], the matched control ann-ae, 1000 training windows.
+// Pinned so a stray edit of the paper profile shows up here instead of in a finished grid.
+TEST(ProductionProfiles, MeetingOneLosoUsesTheDiagnosedSnnDesign)
+{
+    const auto cfg = valid_config();
+    EXPECT_EQ(cfg.model.snn_time_pool, "latent");
+    EXPECT_EQ(cfg.model.snn_decoder_neuron, "analog");
+    EXPECT_EQ(cfg.model.initializer, "xavier");
+    EXPECT_EQ(cfg.evaluation.ga.snn.time_steps_min, 2);
+    EXPECT_EQ(cfg.evaluation.ga.snn.time_steps_max, 32);
+    EXPECT_EQ(meeting01::snn_time_steps_range(cfg), (std::pair<int, int>{2, 32}));
+    // The matched control only: the searched LSTM-AE, GRU-AE and Transformer-AE were removed
+    // 2026-11-02 on the evidence of the pre-validation (meeting01-prevalidation.json).
+    EXPECT_EQ(cfg.evaluation.baselines, (std::vector<std::string>{"ann-ae"}));
+    EXPECT_EQ(cfg.dataset.loso_max_train_windows, 1000);
+}
+
+namespace
+{
+
+nlohmann::json read_profile_json(const std::string& name)
+{
+    std::ifstream f(profiles_dir() / name);
+    EXPECT_TRUE(f.is_open()) << "missing profile: " << name;
+    nlohmann::json j;
+    f >> j;
+    return j;
+}
+
+// The profile without its "_..." comment keys, at every depth.
+nlohmann::json without_comments(const nlohmann::json& j)
+{
+    if (!j.is_object()) return j;
+    nlohmann::json out = nlohmann::json::object();
+    for (const auto& [k, v] : j.items())
+        if (k.empty() || k[0] != '_') out[k] = without_comments(v);
+    return out;
+}
+
+} // namespace
+
+// The pre-validation is evidence for removing the three sequence baselines from the grid only
+// if it ran them the way the grid would have: the same windows, caps, training, SNN search
+// space and model, on the development folds, with only the search budget reduced. Each
+// difference allowed below is one the pre-validation declares; any other one (an edit of
+// meeting01-loso.json not carried over, or the reverse) fails here, before hours of runs
+// produce a table that compares something else. The three families' own GA blocks and the
+// sequence fields exist in the pre-validation only: the grid no longer runs those families.
+TEST(ProductionProfiles, PrevalidationDiffersFromTheGridOnlyWhereDeclared)
+{
+    nlohmann::json grid = without_comments(read_profile_json("meeting01-loso.json"));
+    nlohmann::json pre = without_comments(read_profile_json("meeting01-prevalidation.json"));
+    const std::vector<std::string> declared = {"/experiment/run_tag",
+        "/experiment/repeats",
+        "/dataset/results_dir",
+        "/dataset/save_models",
+        "/evaluation/datasets",
+        "/evaluation/baselines",
+        "/evaluation/ga/snn/population_size",
+        "/evaluation/ga/snn/generations",
+        "/evaluation/ga/snn/winner_seeds",
+        "/evaluation/ga/lstm",
+        "/evaluation/ga/gru",
+        "/evaluation/ga/transformer",
+        "/model/recurrent_time_steps",
+        "/model/lstm_frame_size",
+        "/model/lstm_hidden_size"};
+    for (const auto& ptr : declared)
+    {
+        const nlohmann::json::json_pointer p(ptr);
+        for (auto* j : {&grid, &pre})
+            if (j->contains(p)) (*j)[p.parent_pointer()].erase(p.back());
+    }
+    EXPECT_EQ(grid, pre) << "meeting01-prevalidation.json differs from meeting01-loso.json "
+                            "outside its declared fields: "
+                         << nlohmann::json::diff(grid, pre).dump();
+}
+
+// What the pre-validation runs: every family, the SNN arm, the development folds' datasets
+// (DEVELOPMENT_FOLDS in scripts/pipeline/meeting01/meeting01_results.py, which the run script
+// checks against too), and ONE reduced budget for all of them -- a family searched longer than
+// another would win the comparison by budget, not by architecture.
+TEST(ProductionProfiles, PrevalidationRunsEveryFamilyOnOneReducedBudget)
+{
+    const auto grid = load("meeting01-loso.json");
+    const auto pre = load("meeting01-prevalidation.json");
+    EXPECT_EQ(pre.evaluation.baselines,
+        (std::vector<std::string>{"ann-ae", "lstm-ae", "gru-ae", "transformer-ae"}));
+    EXPECT_EQ(pre.evaluation.snn_architectures, grid.evaluation.snn_architectures);
+    EXPECT_EQ(pre.evaluation.datasets, (std::vector<std::string>{"fsdd", "eegmmidb"}));
+
+    const auto& g = pre.evaluation.ga;
+    const auto budget = [](int pop, int gens, int seeds) { return std::tuple{pop, gens, seeds}; };
+    const auto snn = budget(g.snn.population_size, g.snn.generations, g.snn.winner_seeds);
+    EXPECT_EQ(budget(g.lstm.population_size, g.lstm.generations, g.lstm.winner_seeds), snn);
+    EXPECT_EQ(budget(g.gru.population_size, g.gru.generations, g.gru.winner_seeds), snn);
+    EXPECT_EQ(
+        budget(
+            g.transformer.population_size, g.transformer.generations, g.transformer.winner_seeds),
+        snn);
+    EXPECT_LT(g.snn.population_size * (1 + g.snn.generations),
+        grid.evaluation.ga.snn.population_size * (1 + grid.evaluation.ga.snn.generations));
+    // The paper gives one range for LSTM-AE and GRU-AE.
+    EXPECT_EQ(g.lstm.min_hidden, g.gru.min_hidden);
+    EXPECT_EQ(g.lstm.max_hidden, g.gru.max_hidden);
+    EXPECT_EQ(g.lstm.min_layers, g.gru.min_layers);
+    EXPECT_EQ(g.lstm.max_layers, g.gru.max_layers);
+}
+
+// The per-fold LaTeX exports (dataset.latex_data_dir) are files nothing reads: the paper's
+// data come only from 02_/04_/00_. Pointed at the paper's data/, they sat next to the
+// generated files, and the pre-validation's four family processes -- one run tag -- wrote the
+// same names there and overwrote each other (smoke test, 2026-11-02).
+TEST(ProductionProfiles, LeaveNoExportsNothingReads)
+{
+    for (const char* name : {"meeting01-loso.json", "meeting01-prevalidation.json"})
+        EXPECT_EQ(load(name).dataset.latex_data_dir, "") << name;
+}
+
+TEST(Meeting01ConfigValidation, SnnTimePoolAndDecoderNeuronDefaultToTheFormat4Network)
+{
+    const Meeting01Config::Model defaults;
+    EXPECT_EQ(defaults.snn_time_pool, "none");
+    EXPECT_EQ(defaults.snn_decoder_neuron, "lif");
+    auto cfg = valid_config();
+    cfg.model.snn_time_pool = "none";
+    cfg.model.snn_decoder_neuron = "lif";
+    EXPECT_NO_THROW(cfg.validate());
+    cfg.model.snn_time_pool = "output"; // an average after a spiking decoder is legal
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(Meeting01ConfigValidation, RejectsAnUnknownSnnTimePoolOrDecoderNeuron)
+{
+    auto pool = valid_config();
+    pool.model.snn_time_pool = "mean"; // not a token: refused, not read as "none"
+    EXPECT_NE(validation_error(pool).find("model.snn_time_pool"), std::string::npos);
+
+    auto neuron = valid_config();
+    neuron.model.snn_decoder_neuron = "relu";
+    EXPECT_NE(validation_error(neuron).find("model.snn_decoder_neuron"), std::string::npos);
+}
+
+TEST(Meeting01ConfigValidation, RejectsALatentPoolWithASpikingDecoder)
+{
+    // After the latent average the decoder sees one row per window: a LifBPTT there has no
+    // time axis to unroll.
+    auto cfg = valid_config();
+    cfg.model.snn_time_pool = "latent";
+    cfg.model.snn_decoder_neuron = "lif";
+    const std::string msg = validation_error(cfg);
+    EXPECT_NE(msg.find("needs model.snn_decoder_neuron"), std::string::npos) << msg;
+}
+
+TEST(Meeting01ConfigValidation, SnnTimePoolAndDecoderNeuronParseFromNestedJson)
+{
+    const auto j = nlohmann::json::parse(R"({
+        "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
+        "dataset": {"dataset_root": "/tmp", "window_size": 64,
+                    "max_loaded_train_samples": 10, "max_validation_samples": 5},
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+                     "learning_rate": 0.001},
+        "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
+                  "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
+                  "time_steps": 4, "snn_time_pool": "output", "snn_decoder_neuron": "analog"},
+        "evaluation": {"datasets": ["fsdd"], "encodings": ["direct"],
+                       "snn_architectures": []}
+    })");
+
+    Meeting01Config cfg;
+    ASSERT_NO_THROW(cfg = Meeting01Config::from_nested_json(j));
+    EXPECT_EQ(cfg.model.snn_time_pool, "output");
+    EXPECT_EQ(cfg.model.snn_decoder_neuron, "analog");
+}
+
 TEST(Meeting01ConfigValidation, ReportsEveryProblemInOneMessage)
 {
     auto cfg = valid_config();
@@ -476,6 +700,7 @@ TEST(Meeting01ConfigValidation, LeavesGaBoundsAloneForAnLstmOnlyRun)
     // irrelevant and unchecked (there is no SNN arm to search).
     auto cfg = valid_config();
     cfg.evaluation.snn_architectures.clear();
+    cfg.evaluation.baselines = {"lstm-ae"}; // ann-ae copies an SNN winner: none here
     EXPECT_NO_THROW(cfg.validate());
 }
 
@@ -507,6 +732,36 @@ TEST(Meeting01ConfigValidation, AcceptsTheTrainedBaselineTriple)
 {
     auto cfg = valid_config();
     cfg.evaluation.baselines = {"lstm-ae", "gru-ae", "transformer-ae"};
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(Meeting01ConfigValidation, AnnAeIsTheMatchedControlOfTheSnnArm)
+{
+    // "ann-ae" copies the SNN winner's layer widths, so it is valid only next to an SNN arm.
+    auto cfg = valid_config();
+    cfg.evaluation.snn_architectures = {"dense"};
+    cfg.evaluation.baselines = {"gru-ae", "ann-ae"};
+    cfg.model.initializer = "xavier";
+    EXPECT_NO_THROW(cfg.validate());
+
+    cfg.evaluation.snn_architectures.clear();
+    EXPECT_NE(validation_error(cfg).find("matched ANN control"), std::string::npos);
+}
+
+TEST(Meeting01ConfigValidation, AnnAeNeedsTheSameInitializerAsTheSnn)
+{
+    // Left empty, each builder keeps its own init (kaiming SNN, xavier ANN), and the control
+    // would differ from the SNN in its starting weights as well as its neuron.
+    auto cfg = valid_config();
+    cfg.evaluation.snn_architectures = {"dense"};
+    cfg.evaluation.baselines = {"ann-ae"};
+    cfg.model.initializer.clear();
+    EXPECT_NE(validation_error(cfg).find("model.initializer is empty"), std::string::npos);
+
+    cfg.model.initializer = "he"; // not a token
+    EXPECT_NE(validation_error(cfg).find("model.initializer must be"), std::string::npos);
+
+    cfg.model.initializer = "kaiming";
     EXPECT_NO_THROW(cfg.validate());
 }
 
@@ -659,4 +914,71 @@ TEST(Meeting01Cli, RefusesAnUnknownArgument)
     EXPECT_THROW(
         parse_args({"--comparative-config", "meeting01-loso.json", "--dump-reference-inputs-only"}),
         std::runtime_error);
+}
+
+// The checkpoint gate (config_hash) must move with every field that can change a result.
+// Until 2026-11-02 it hashed a subset that missed these, so a profile edited in one of them
+// between two RESUME=1 starts reused checkpoints trained under the old value -- silently.
+TEST(Meeting01ConfigHash, MovesWithEveryResultChangingField)
+{
+    const auto base = valid_config();
+    const auto h0 = meeting01::config_hash(base);
+    const std::vector<std::pair<const char*, void (*)(Meeting01Config&)>> edits = {
+        {"model.snn_time_pool", [](Meeting01Config& c) { c.model.snn_time_pool = "output"; }},
+        {"model.snn_decoder_neuron",
+            [](Meeting01Config& c) { c.model.snn_decoder_neuron = "lif"; }},
+        {"model.initializer", [](Meeting01Config& c) { c.model.initializer = "kaiming"; }},
+        {"model.latent_dim", [](Meeting01Config& c) { c.model.latent_dim += 1; }},
+        {"model.recurrent_time_steps",
+            [](Meeting01Config& c) { c.model.recurrent_time_steps = 2; }},
+        {"model.lstm_frame_size", [](Meeting01Config& c) { c.model.lstm_frame_size = 16; }},
+        {"model.time_steps", [](Meeting01Config& c) { c.model.time_steps += 1; }},
+        {"training.learning_rate_biophysical",
+            [](Meeting01Config& c) { c.training.learning_rate_biophysical *= 2.0F; }},
+        {"ga.snn.winner_seeds", [](Meeting01Config& c) { c.evaluation.ga.snn.winner_seeds += 1; }},
+        {"ga.snn.time_steps_max",
+            [](Meeting01Config& c) { c.evaluation.ga.snn.time_steps_max -= 1; }},
+        {"ga.lstm.mutation_prob",
+            [](Meeting01Config& c) { c.evaluation.ga.lstm.mutation_prob = 0.5; }},
+        {"ga.transformer.winner_seeds",
+            [](Meeting01Config& c) { c.evaluation.ga.transformer.winner_seeds += 1; }},
+        {"dataset.sources[].latent_dim",
+            [](Meeting01Config& c) { c.dataset.sources.front().latent_dim += 1; }},
+    };
+    for (const auto& [name, edit] : edits)
+    {
+        auto cfg = base;
+        edit(cfg);
+        EXPECT_NE(meeting01::config_hash(cfg), h0) << name << " does not reach the hash";
+    }
+
+    // Output-only fields: changing them must NOT throw away a finished checkpoint.
+    auto out_only = base;
+    out_only.dataset.latex_data_dir = "/elsewhere";
+    out_only.dataset.save_models = !base.dataset.save_models;
+    out_only.evaluation.ga.snn.checkpoint_every_generations += 1;
+    EXPECT_EQ(meeting01::config_hash(out_only), h0);
+}
+
+// --print-resolved-config and the split manifest carry the resolved configuration; the
+// fields the paper's configuration macros are generated from must be in it.
+TEST(Meeting01ConfigHash, ResolvedConfigJsonCarriesThePaperFields)
+{
+    const auto j = meeting01::resolved_config_json(valid_config());
+    for (const char* path : {"/training/epochs",
+             "/training/early_stop_patience",
+             "/training/learning_rate",
+             "/training/learning_rate_biophysical",
+             "/model/snn_time_pool",
+             "/model/initializer",
+             "/model/recurrent_time_steps",
+             "/model/lstm_frame_size",
+             "/dataset/loso_max_train_windows",
+             "/evaluation/ga/snn/time_steps_min",
+             "/evaluation/ga/snn/time_steps_max",
+             "/evaluation/ga/lstm/max_hidden",
+             "/evaluation/ga/transformer/head_choices",
+             "/experiment/repeats"})
+        EXPECT_TRUE(j.contains(nlohmann::json::json_pointer(path))) << path;
+    EXPECT_FALSE(j["dataset"].contains("latex_data_dir"));
 }

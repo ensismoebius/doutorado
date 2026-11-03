@@ -51,7 +51,8 @@ struct Aggregated
     double recall = 0.0;
     double f1 = 0.0;
     double spike_rate = 0.0;
-    double energy = 0.0;
+    double acs = 0.0;
+    double arith_energy_nj = 0.0;
     double train_ms = 0.0;
     double infer_ms = 0.0;
     double param_count = 0.0;
@@ -66,8 +67,9 @@ struct Aggregated
         precision += row.metrics.precision;
         recall += row.metrics.recall;
         f1 += row.metrics.f1;
-        spike_rate += row.metrics.spike_rate;
-        energy += row.metrics.energy;
+        spike_rate += row.metrics.spike_rate; // NaN for a non-spiking model: its mean is NaN too
+        acs += row.metrics.acs;
+        arith_energy_nj += row.metrics.arith_energy_nj;
         train_ms += row.metrics.train_ms;
         infer_ms += row.metrics.infer_ms;
         param_count += static_cast<double>(row.metrics.parameter_count);
@@ -93,7 +95,7 @@ void write_summary_by_model_csv(
     }
 
     std::ofstream out(summary_path);
-    out << "model,mse,mae,r2,spike_rate,energy,infer_ms,train_ms,param_count,macs\n";
+    out << "model,mse,mae,r2,spike_rate,arith_energy_nj,infer_ms,train_ms,param_count,macs,acs\n";
     out << std::fixed << std::setprecision(6);
     for (const auto& [model, agg] : by_model)
     {
@@ -101,11 +103,12 @@ void write_summary_by_model_csv(
             << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+            << avg(agg, [](const Aggregated& a) { return a.macs; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.acs; }) << '\n';
     }
 }
 
@@ -123,7 +126,7 @@ void write_recon_and_efficiency_by_encoding_csv(const std::filesystem::path& rec
     std::ofstream recon(recon_path);
     std::ofstream eff(eff_path);
     recon << "model,encoding,mse,mae,r2,f1\n";
-    eff << "model,encoding,spike_rate,energy,param_count,macs\n";
+    eff << "model,encoding,spike_rate,arith_energy_nj,param_count,macs,acs\n";
 
     recon << std::fixed << std::setprecision(6);
     eff << std::fixed << std::setprecision(6);
@@ -141,9 +144,10 @@ void write_recon_and_efficiency_by_encoding_csv(const std::filesystem::path& rec
 
         eff << model << ',' << encoding << ','
             << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ','
             << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+            << avg(agg, [](const Aggregated& a) { return a.macs; }) << ','
+            << avg(agg, [](const Aggregated& a) { return a.acs; }) << '\n';
     }
 }
 
@@ -262,8 +266,8 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
         }
         out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,"
                "config_hash,split,cv_fold,";
-        out << "mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,"
-               "macs\n";
+        out << "mse,mae,r2,precision,recall,f1,spike_rate,arith_energy_nj,train_ms,infer_ms,"
+               "param_count,macs,acs\n";
 
         out << std::fixed << std::setprecision(6);
         for (const auto& row : rows)
@@ -274,9 +278,10 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
                 << row.config_hash << ',' << row.split << ',' << row.cv_fold << ','
                 << row.metrics.mse << ',' << row.metrics.mae << ',' << row.metrics.r2 << ','
                 << row.metrics.precision << ',' << row.metrics.recall << ',' << row.metrics.f1
-                << ',' << row.metrics.spike_rate << ',' << row.metrics.energy << ','
+                << ',' << row.metrics.spike_rate << ',' << row.metrics.arith_energy_nj << ','
                 << row.metrics.train_ms << ',' << row.metrics.infer_ms << ','
-                << row.metrics.parameter_count << ',' << row.metrics.macs << '\n';
+                << row.metrics.parameter_count << ',' << row.metrics.macs << ',' << row.metrics.acs
+                << '\n';
         }
         out.close();
         if (!out)
@@ -305,7 +310,10 @@ void write_summary_json(const std::filesystem::path& path,
     j["limitation_notes"] = {
         "Surrogate gradient in spiking model is an approximation.",
         "Latency encoding can reduce information throughput.",
-        "Energy metric is a proxy: spikes + 10*MACs.",
+        "arith_energy_nj is an arithmetic-only estimate (4.6 pJ/MAC, 0.9 pJ/AC, Horowitz "
+        "ISSCC 2014, 45 nm fp32) from counted operations; memory traffic is not included.",
+        "spike_rate is the spiking fraction of the hidden LIF (neuron, step) pairs; NaN for "
+        "models without spiking neurons.",
         "Evaluation depends on available FSDD/PhysioNet files under dataset_root.",
     };
 
@@ -332,7 +340,7 @@ void write_summary_json(const std::filesystem::path& path,
 void write_publication_table(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
 {
     std::ofstream out(path);
-    out << "Model,Codificacao,Camadas,MSE,MAE,R2,F1,SpikeRate,Energia,TempoTreinoMs\n";
+    out << "Model,Codificacao,Camadas,MSE,MAE,R2,F1,SpikeRate,EnergiaAritNj,TempoTreinoMs\n";
 
     std::map<std::string, std::vector<const ResultRow*>> groups;
     for (const auto& row : rows)
@@ -349,7 +357,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
         float r2 = 0.0f;
         float f1 = 0.0f;
         float spike_rate = 0.0f;
-        float energy = 0.0f;
+        float arith_energy_nj = 0.0f;
         float train_ms = 0.0f;
         for (const auto* row : vec)
         {
@@ -358,7 +366,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
             r2 += row->metrics.r2;
             f1 += row->metrics.f1;
             spike_rate += row->metrics.spike_rate;
-            energy += row->metrics.energy;
+            arith_energy_nj += row->metrics.arith_energy_nj;
             train_ms += row->metrics.train_ms;
         }
         const float n = static_cast<float>(vec.size());
@@ -366,7 +374,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
         const auto* first = vec.front();
         out << first->model << ',' << first->encoding << ',' << first->layers << ',' << (mse / n)
             << ',' << (mae / n) << ',' << (r2 / n) << ',' << (f1 / n) << ',' << (spike_rate / n)
-            << ',' << (energy / n) << ',' << (train_ms / n) << '\n';
+            << ',' << (arith_energy_nj / n) << ',' << (train_ms / n) << '\n';
     }
 }
 
@@ -406,8 +414,8 @@ void write_pgfplots_summary_dat(
     }
 
     std::ofstream out(path);
-    out << "model encoding architecture v_th alpha mse mae r2 f1 spike_rate energy infer_ms "
-           "train_ms param_count macs\n";
+    out << "model encoding architecture v_th alpha mse mae r2 f1 spike_rate arith_energy_nj "
+           "infer_ms train_ms param_count macs\n";
     out << std::fixed << std::setprecision(4);
 
     for (const auto& [key, agg] : by_config)
@@ -429,7 +437,7 @@ void write_pgfplots_summary_dat(
             << avg(agg, [](const Aggregated& a) { return a.r2; }) << ' '
             << avg(agg, [](const Aggregated& a) { return a.f1; }) << ' '
             << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ' '
             << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ' '
             << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ' '
             << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ' '
@@ -464,7 +472,7 @@ void write_pgfplots_sweep_dat(const std::filesystem::path& path, const std::vect
         {
             const auto it = arch_map.find(arch);
             if (it == arch_map.end()) return 0.0;
-            return avg(it->second, [](const Aggregated& a) { return a.energy; });
+            return avg(it->second, [](const Aggregated& a) { return a.arith_energy_nj; });
         };
 
         out << alpha << ' ' << get_mse("dense") << ' ' << get_mse("conv1d") << ' '
@@ -671,15 +679,19 @@ void validate_repeat_determinism(const Meeting01Config& cfg, const std::vector<R
                 diff << " f1(" << ref.f1 << " vs " << cur.f1 << ")";
                 has_diff = true;
             }
-            if (!almost_eq(ref.spike_rate, cur.spike_rate) &&
+            // NaN on both sides (a model with no spiking neuron) is the same value here.
+            const bool both_nan = std::isnan(ref.spike_rate) && std::isnan(cur.spike_rate);
+            if (!both_nan && !almost_eq(ref.spike_rate, cur.spike_rate) &&
                 !rel_eq(ref.spike_rate, cur.spike_rate))
             {
                 diff << " spike_rate(" << ref.spike_rate << " vs " << cur.spike_rate << ")";
                 has_diff = true;
             }
-            if (!almost_eq(ref.energy, cur.energy) && !rel_eq(ref.energy, cur.energy))
+            if (!almost_eq(ref.arith_energy_nj, cur.arith_energy_nj) &&
+                !rel_eq(ref.arith_energy_nj, cur.arith_energy_nj))
             {
-                diff << " energy(" << ref.energy << " vs " << cur.energy << ")";
+                diff << " arith_energy_nj(" << ref.arith_energy_nj << " vs " << cur.arith_energy_nj
+                     << ")";
                 has_diff = true;
             }
 

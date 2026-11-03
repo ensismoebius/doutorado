@@ -78,31 +78,21 @@ auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> s
         cfg.num_layers);
 }
 
-auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t
-{
-    const std::size_t H = static_cast<std::size_t>(hidden_size);
-    const std::size_t L = static_cast<std::size_t>(std::max(1, layers));
-    const std::size_t in_proj = input_features * H;
-    const std::size_t hidden_proj = (L > 1) ? (L - 1) * H * H : 0;
-    const std::size_t out_proj = H * input_features;
-    return in_proj + hidden_proj + out_proj;
-}
-
-auto estimate_snn_macs(
-    std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
-    -> std::size_t
+auto estimate_snn_macs(std::size_t input_features,
+    const std::vector<int>& encoder_widths,
+    int encoder_steps,
+    int decoder_steps) -> std::size_t
 {
     // Sums the REAL per-layer projections instead of assuming every hidden layer is as
     // wide as the first. The (first_width, depth) approximation gave {128, 8} and
     // {128, 120} an identical cost, so the GA's second objective could not tell a cheap
-    // genome from an expensive one. Encoder is mirrored by the decoder, and the whole
-    // stack is evaluated once per simulation step.
+    // genome from an expensive one. Encoder is mirrored by the decoder.
     if (encoder_widths.empty()) return 0;
 
-    std::size_t per_step = input_features * static_cast<std::size_t>(encoder_widths.front());
+    std::size_t encoder = input_features * static_cast<std::size_t>(encoder_widths.front());
     for (std::size_t i = 0; i + 1 < encoder_widths.size(); ++i)
-        per_step += static_cast<std::size_t>(encoder_widths[i]) *
-                    static_cast<std::size_t>(encoder_widths[i + 1]);
+        encoder += static_cast<std::size_t>(encoder_widths[i]) *
+                   static_cast<std::size_t>(encoder_widths[i + 1]);
 
     // Decoder mirrors the encoder (reversed widths, then back out to the window).
     std::size_t decoder = 0;
@@ -111,7 +101,132 @@ auto estimate_snn_macs(
                    static_cast<std::size_t>(encoder_widths[i - 1]);
     decoder += static_cast<std::size_t>(encoder_widths.front()) * input_features;
 
-    return (per_step + decoder) * static_cast<std::size_t>(std::max(1, time_steps));
+    return encoder * static_cast<std::size_t>(std::max(1, encoder_steps)) +
+           decoder * static_cast<std::size_t>(std::max(1, decoder_steps));
+}
+
+auto estimate_snn_macs(
+    std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
+    -> std::size_t
+{
+    return estimate_snn_macs(input_features, encoder_widths, time_steps, time_steps);
+}
+
+auto arith_energy_nj(double macs, double acs) -> float
+{
+    return static_cast<float>((kMacEnergyPj * macs + kAcEnergyPj * acs) / 1000.0);
+}
+
+namespace
+{
+
+// Counts one Sequential's layers into `ops`; `input` is what its first layer received and
+// `input_is_spikes` whether it is a spike train. Returns whether the last layer's output is one.
+auto count_sequential_ops(
+    const nn::Sequential& seq, const Tensor& input, bool input_is_spikes, SnnOpCounts& ops) -> bool
+{
+    if (seq.outputs.size() != seq.layers.size())
+        throw std::logic_error("count_snn_ops: a Sequential cached " +
+                               std::to_string(seq.outputs.size()) + " outputs for " +
+                               std::to_string(seq.layers.size()) +
+                               " layers. Call it right after model.forward() on the window "
+                               "whose operations it should count.");
+
+    const Tensor* in = &input;
+    bool in_is_spikes = input_is_spikes;
+    for (std::size_t i = 0; i < seq.layers.size(); ++i)
+    {
+        const auto* layer = seq.layers[i].get();
+        const Tensor& out = seq.outputs[i];
+        const auto in_values = static_cast<double>(in->size());
+        const auto out_values = static_cast<double>(out.size());
+        bool out_is_spikes = false;
+
+        if (dynamic_cast<const nn::Linear*>(layer) != nullptr)
+        {
+            const auto out_features = static_cast<double>(out.cols());
+            if (in_is_spikes)
+            {
+                double spikes = 0.0;
+                for (nn::Index k = 0; k < in->size(); ++k)
+                {
+                    const float v = in->at(k);
+                    if (v != 0.0F && v != 1.0F)
+                        throw std::logic_error(
+                            "count_snn_ops: layer " + std::to_string(i) +
+                            " (Linear) was taken to read spikes but its input holds " +
+                            std::to_string(v) +
+                            ". Check snn_input_is_spikes for this encoding/architecture.");
+                    spikes += v;
+                }
+                ops.acs += spikes * out_features;
+            }
+            else
+            {
+                ops.macs += in_values * out_features; // rows x in x out
+            }
+        }
+        else if (const auto* lif = dynamic_cast<const nn::LifBPTT*>(layer); lif != nullptr)
+        {
+            ops.macs += out_values;
+            if (!lif->readout_mode)
+            {
+                ops.neuron_steps += out_values;
+                ops.spikes += static_cast<double>(out.sum());
+                out_is_spikes = true;
+            }
+        }
+        else if (dynamic_cast<const nn::TimeMeanPool*>(layer) != nullptr)
+        {
+            ops.acs += in_values;
+            ops.macs += out_values;
+        }
+        in = &out;
+        in_is_spikes = out_is_spikes;
+    }
+    return in_is_spikes;
+}
+
+} // namespace
+
+auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
+    const Tensor& input,
+    bool input_is_spikes) -> SnnOpCounts
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "count_snn_ops: the dual-branch ProtocolSpikingAutoencoder is not counted (meeting01 "
+            "never builds it). Extend count_snn_ops over its six Sequentials before using it.");
+    SnnOpCounts ops;
+    const bool latent_is_spikes = count_sequential_ops(model.encoder_, input, input_is_spikes, ops);
+    if (model.encoder_.outputs.empty())
+        throw std::logic_error("count_snn_ops: the encoder cached no outputs; run forward first.");
+    count_sequential_ops(model.decoder_, model.encoder_.outputs.back(), latent_is_spikes, ops);
+    return ops;
+}
+
+auto snn_input_is_spikes(const std::string& encoding, const std::string& architecture) -> bool
+{
+    if (encoding != "direct" && encoding != "poisson" && encoding != "latency")
+        throw std::invalid_argument("snn_input_is_spikes: unknown encoding '" + encoding +
+                                    "' (expected direct, poisson or latency)");
+    if (architecture == "recurrent") return true;
+    if (architecture == "conv1d") return false;
+    if (architecture == "dense") return encoding != "direct";
+    throw std::invalid_argument("snn_input_is_spikes: unknown SNN architecture '" + architecture +
+                                "' (expected dense, conv1d or recurrent)");
+}
+
+auto count_architecture_transform_macs(const std::string& architecture, std::size_t values)
+    -> double
+{
+    if (architecture == "dense") return 0.0;
+    if (architecture == "conv1d") return 3.0 * static_cast<double>(values);
+    if (architecture == "recurrent") return static_cast<double>(values);
+    throw std::invalid_argument("count_architecture_transform_macs: unknown SNN architecture '" +
+                                architecture +
+                                "' (expected dense, conv1d or recurrent, the tokens "
+                                "apply_snn_architecture_transform implements)");
 }
 
 auto estimate_gru_macs(const nn::models::gru::GRUAutoencoderConfig& cfg) -> std::size_t

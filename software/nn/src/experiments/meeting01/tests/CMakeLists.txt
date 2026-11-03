@@ -53,29 +53,6 @@ target_link_libraries(dat_writer_gtest
 gtest_discover_tests(dat_writer_gtest)
 configure_xtensor_parallel_target(dat_writer_gtest)
 
-# Checkpoint round-trip / resilience tests
-add_executable(checkpoint_gtest
-    checkpoint_gtest.cpp
-)
-
-target_include_directories(checkpoint_gtest
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
-target_link_libraries(checkpoint_gtest
-    PRIVATE
-        google_test
-        meeting01_lib
-        autoencoderRunner_lib
-        xtensor xtensor-blas
-        cnpy-static
-)
-
-gtest_discover_tests(checkpoint_gtest)
-configure_xtensor_parallel_target(checkpoint_gtest)
-
 # Profile audit: every shipping JSON profile must parse, validate, and
 # populate every config field the harness consumes (catches silent drift).
 add_executable(profile_audit_gtest

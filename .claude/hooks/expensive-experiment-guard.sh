@@ -31,7 +31,9 @@ rm -f "$tmpfile"
 # .wiki/Experiments/Meeting01.md). 01_meeting01_run_loso.sh is now the expensive one
 # (multi-day/multi-week/multi-month grid; it also has its own internal
 # EXPERIMENT_CONFIRMED=1 gate, so this is a second, redundant guard).
-if echo "$cmd" | grep -qE '(01_meeting01_run_loso(_gridunesp)?\.(sh|sbatch)|timeout[[:space:]]+[0-9]{3,}|experiment0[0-9][[:space:]]--profile|ctest[[:space:]].*-j[0-9]+[[:space:]]*$)'; then
+# 00_meeting01_prevalidate_baselines.sh (2026-11-02) runs every family's reduced search on the
+# development folds: hours to days, the same internal gate.
+if echo "$cmd" | grep -qE '(01_meeting01_run_loso(_gridunesp)?\.(sh|sbatch)|00_meeting01_prevalidate_(baselines\.sh|gridunesp\.sbatch)|timeout[[:space:]]+[0-9]{3,}|experiment0[0-9][[:space:]]--profile|ctest[[:space:]].*-j[0-9]+[[:space:]]*$)'; then
     # Allow if user added explicit "CONFIRMED:" prefix in comment or env
     if echo "$cmd" | grep -qiE '(#[[:space:]]*CONFIRMED|EXPERIMENT_CONFIRMED=1)'; then
         exit 0

@@ -148,8 +148,8 @@ auto evaluate_ae(Model& model,
 
     binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
-    m.spike_rate = 0.0f;
-    m.energy = 10.0f * static_cast<float>(m.macs);
+    // No spiking neuron: spike_rate stays NaN (not applicable) and acs 0.
+    m.arith_energy_nj = arith_energy_nj(static_cast<double>(m.macs), 0.0);
 
     return m;
 }
@@ -252,7 +252,7 @@ auto train_ae(Model& model,
     trainer.add_callback(batch_collector);
 
     const int frame = cfg.model.lstm_frame_size;
-    const int steps = cfg.model.time_steps;
+    const int steps = cfg.model.recurrent_time_steps;
 
     // Denoising-autoencoder corruption (Vincent et al. 2008/2010 — see
     // .wiki/Core/DataLoaders.md#denoising-autoencoder-corruption): additive Gaussian noise

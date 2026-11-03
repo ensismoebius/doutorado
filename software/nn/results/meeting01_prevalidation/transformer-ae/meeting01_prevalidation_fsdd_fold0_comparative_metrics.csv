@@ -1,0 +1,3 @@
+backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_hash,split,cv_fold,mse,mae,r2,precision,recall,f1,spike_rate,arith_energy_nj,train_ms,infer_ms,param_count,macs,acs
+xtensor,meeting01_prevalidation,fsdd,transformer-ae,direct,transformer,1,0.000000,0.000000,1,42,5796507421120188285,test,0,0.998206,0.764478,0.001915,0.000000,0.000000,0.000000,nan,15603.200195,103860.945312,160.311661,100134,3392000,0.000000
+xtensor,meeting01_prevalidation,fsdd,transformer-ae,direct,transformer,1,0.000000,0.000000,2,43,5796507421120188285,test,0,0.997558,0.764410,0.002551,0.000000,0.000000,0.000000,nan,5753.606445,27346.720703,59.754353,36010,1250784,0.000000

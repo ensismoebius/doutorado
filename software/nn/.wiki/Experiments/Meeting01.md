@@ -897,7 +897,7 @@ a reference returned nothing, and only the recording level (`d_r`) produced a nu
 
 ### One stamp per fold: `results_format`
 
-The binary writes `"results_format": 3` into every JSON manifest of a fold
+The binary writes `"results_format": 5` into every JSON manifest of a fold
 (`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
 (`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`). The stamp was 2 when this
 section was first written (second pass, commit `b434792e`) and became 3 on 2026-10-07, when two more silent changes
@@ -907,15 +907,19 @@ to what a row means landed ([frames](#frames-of-the-sequence-models-gathered-unt
 ```
 manifest without the key    ->  refused: "older than 2026-10-06 ... rerun the fold"
 results_format == 2         ->  refused: "the frames were a strided gather and the cost counted one stack of two ... rerun"
-results_format == 3         ->  read
-results_format >= 4         ->  refused: "newer than the scripts (or the manifest was edited)"
+results_format == 3         ->  refused: "the baselines read the window repeated 16 times and did not learn ... rerun"
+results_format == 4         ->  refused: "the SNN-AE was scored at every step, its spike_rate counted outputs > 0 ... rerun"
+results_format == 5         ->  read
+results_format >= 6         ->  refused: "newer than the scripts (or the manifest was edited)"
 ```
 
 | `results_format` | Written by | What its rows contain |
 |---|---|---|
 | absent | binaries before 2026-10-06 | empty `encoding`; `train_ms = 0` on baseline rows; padded windows z-scored together with their padding |
 | 2 | the second-pass binary, commit `b434792e` (interim — **no production fold ran with it**) | padding fixed and stamped, but LSTM/GRU/Transformer frames were a strided gather and the LSTM/GRU `C_raw` counted one stack of two |
-| 3 | 2026-10-07 on | consecutive frames; encoder **and** decoder counted |
+| 3 | 2026-10-07 to 2026-10-24 (**no production fold ran with it**) | consecutive frames; encoder **and** decoder counted; the LSTM/GRU/Transformer read the window repeated at the SNN's `time_steps` (512 frames) |
+| 4 | 2026-10-24 to 2026-11-01 (**no production fold ran with it**) | the baselines read the window at `model.recurrent_time_steps` (1: 32 frames), encoding `direct` only — [why](#why-the-recurrent-baselines-read-the-window-once-found--fixed-2026-10-24) |
+| 5 | 2026-11-01 on | the SNN-AE averages its latent over T = 4 steps and decodes once with an analog decoder (`model.snn_time_pool` / `snn_decoder_neuron`); `spike_rate` counts hidden LIF spikes (NaN for non-spiking models); `energy` replaced by `acs` + `arith_energy_nj`; the SNN's `macs` is counted — [why](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01) |
 
 A format-2 fold is refused with its reason, not with "unknown version": the message tells the
 reader which of the two changes makes those rows incomparable.
@@ -1256,6 +1260,689 @@ until someone removes it; the deploy prints a warning when it finds one
 > [Multi-family architecture search](#multi-family-architecture-search-added-2026-09-22-same-day-later-scope-change)
 > below, plus [Re-run Runbook](../Guides/Re-run-Runbook.md) for how to actually run it today.
 
+## Why the recurrent baselines read the window once (found + fixed 2026-10-24)
+
+### The problem
+
+A comparison "SNN-AE reconstructs better than LSTM-AE" is only worth something if the LSTM was
+given a fair chance to learn. The first cluster job showed the LSTM-AE at loss 1.0001 at every
+epoch. A z-scored window has variance 1, so **1.0 means the model outputs the mean and has
+learned nothing** — a *baseline that never trained*, and a win over it proves nothing.
+
+### One window, two ways to feed it
+
+The SNN needs `T = 16` simulation steps: a neuron integrates input over time, so it has to *see*
+the window several times before it can fire. The encoder therefore repeats the window (`direct`
+encoding), and the LSTM/GRU/Transformer inherited that repetition:
+
+```
+window: 256 samples, cut into frames of 8             -> 32 frames
+
+SNN   time_steps = 16     [window][window] ... x16    (the neuron needs the time)
+LSTM  used to see         [window][window] ... x16    S = 16 x 32 = 512 steps; 15 of the 16 copies add nothing
+LSTM  now sees            [window]                    S = 32 steps   (model.recurrent_time_steps = 1)
+```
+
+An LSTM has its own memory; repeating the window gives it **no information, only a longer
+sequence for the gradient to cross**.
+
+### Measured (FSDD fold 0, the same 200 train / 150 val windows, H=64, L=1, 1 thread)
+
+| Sequence length S | PyTorch twin (`compare_lstm_ae_torch.py`) | C++ (`meeting01`) |
+|---|---|---|
+| 512 (T=16, the old setting) | train 0.994 at 30 epochs, 0.991 at 60; val ~1.00 | train 0.999 at 7 epochs (flat) |
+| 64 (T=2) | train 0.958 at 30 epochs | — |
+| 32 (T=1) | plateau ~0.997 until epoch ~20-30, then falls; 0.80 at epoch 100 (val back at 1.0) | 0.999 → 0.962 (epoch 5) → 0.927 (10) → 0.889 (30); val best 0.955 |
+
+The C++ LSTM-AE equals the PyTorch twin *step for step*: `lstm_ae_pytorch_parity_gtest` loads the
+same weights into both and compares the reconstruction, the masked loss and the gradient of
+**every** parameter after a backward pass (agreement within 2e-5 / 5e-5), for a stacked and a
+single-layer case. So the stuck loss was the setup, not a bug. An epoch also costs ~1 s instead
+of ~16 s at S=32.
+
+### What is measured and what is not
+
+* **Measured:** S=512 does not learn in either implementation; S=32 does in the C++ one.
+* **Reasoned, not isolated:** that the cause is the gradient crossing 512 steps. A per-step
+  gradient-norm check would confirm it.
+* **Open, unfixed:** at S=32 the loss *plateaus near 1.0 before it falls* (PyTorch: until epoch
+  ~20-30), and validation is noisy (0.95-1.02) with only 200 training windows. With
+  `early_stop_patience = 5` an unlucky seed can stop inside the plateau. The production profile
+  still uses patience 5; whether to change it (a method change) is the author's call.
+
+### What changed in the code
+
+| Where | Change |
+|---|---|
+| `model.recurrent_time_steps` (new, default 1, `>= 1`) | steps the LSTM/GRU/Transformer read per window; `model.time_steps` stays the SNN's |
+| `encode_sample` | 1 step allowed **only for `direct`**; rate and latency still throw (no axis to encode on) |
+| recurrent GA | the encoding gene is `{direct}` when `recurrent_time_steps < 2`; throws if `direct` is not in `evaluation.encodings` |
+| recurrent GA | throws (cause + remedy) when `max_hidden < max(min_hidden, latent_dim)`; before, that was undefined behaviour and a segfault |
+| `results_format` | 3 → 4 |
+
+**Silent if forgotten:** an old profile without the key now gets 1, so its baselines change
+meaning without any error — `results_format` 4 is what makes the readers refuse mixed folds.
+
+## The matched ANN control: `ann-ae` (added 2026-10-29)
+
+### The problem
+
+LSTM, GRU and Transformer differ from the SNN in *everything at once* (recurrence, attention,
+sequence length, no spikes). When one of them beats the SNN, nothing says it was the spikes. The
+control that isolates the spike is the **same network with a different neuron**.
+
+```
+SNN-AE   window(256) x T steps -> Linear 64 -> LIF   -> Linear 16 -> Linear 64 -> LIF   -> Linear 256   (loss on every one of the T rows)
+ann-ae   window(256) x 1 step  -> Linear 64 -> leaky -> Linear 16 -> Linear 64 -> leaky -> Linear 256
+                                                        ^ analog latent in BOTH (no neuron after Linear 16)
+         (the widths come from the SNN GA winner of the same dataset / fold / run)
+```
+
+The only spiking layers are the two 64-wide hidden ones (`linear:64:leaky` renders to `LifBPTT` in
+SNN mode). The bottleneck (`linear:16:identity`) and the output (`linear:output:identity`) are
+plain analog `Linear` layers in both arms; there is no readout integrator. (An earlier version of
+this page drew a LIF after the bottleneck and a LIF-integrator readout — wrong, corrected from
+`AutoencoderBuilders.hpp` on 2026-11-01.)
+
+### How it is wired
+
+| Piece | Choice | Why |
+|---|---|---|
+| Widths | copied from the SNN winner, **not searched** | a second GA would change neuron *and* widths; this arm exists to change only the neuron |
+| Encoding | `direct`, one step, the window is its own "frame" | rate / latency coding exist to give spikes a time axis; an analog net has none |
+| Training | the same final fit as every baseline (train \ monitor + val, recording-disjoint early stop, one test evaluation) | only the neuron differs |
+| Profile | `evaluation.baselines: ["ann-ae"]`; validation requires an SNN arm | without one there are no widths to copy |
+| Winner comparison | **not** part of `overall_winner`: it is a control, not a searched candidate | |
+| Rows | `model = ann-ae`, `architecture = ann`; the selection manifest has `val_mse` null | no selection of its own |
+
+### Measured (FSDD fold 0, test MSE, 1.0 = predicting the mean, mean of 2 runs, 1 thread)
+
+| Training windows | SNN-AE | ann-ae | gap | GRU-AE |
+|---|---|---|---|---|
+| 200 | 0.880 | **0.706** | 0.174 | 0.952 |
+| 500 | 0.851 | **0.680** | 0.171 | not run |
+| 1000 | 0.827 | **0.662** | 0.165 | 0.867 |
+| 2000 | 0.791 | **0.630** | 0.161 | not run |
+| 3000 | 0.783 | **0.599** | 0.184 | not run |
+| 5000 | 0.782 | **0.584** | 0.198 | not run |
+| 10000 | 0.764 | **0.544** | 0.220 | not run |
+
+The same network is better by ~0.16–0.22 once it stops spiking, and more data does not close
+the gap: from 3000 windows on the ann-ae keeps improving and the SNN-AE barely moves. (The SNN
+GA picked the same two winners at every size: direct / recurrent / v_th 1.28 / alpha 0.91 and
+poisson / dense / v_th 0.63 / alpha 0.83.) An independent PyTorch
+prototype (`scripts/analysis/compare_ann_ae_torch.py`) gave 0.69 / 0.66 / ~0.64, so this is not a
+quirk of the C++ trainer. PCA with the same bottleneck: 0.59–0.66 on the same test windows.
+
+**Not the number of simulation steps.** SNN with `time_steps` 4 / 16 / 32 (1000 windows, `direct`,
+`dense`): 0.793/0.770, 0.797/0.776, 0.797/0.776 (two runs each) — flat. The gap is not closed by
+simulating longer.
+
+### What is measured and what is not
+
+* **Measured:** the gap on one fold of one dataset (FSDD fold 0), 2 runs per cell, a minimal GA
+  (population 4 × 2 generations for the SNN) — a direction, not a result.
+* **Not measured:** other folds; other EEG datasets (Siena does not fit on the dev disk). EEG
+  (eegmmidb fold 0): [below](#the-diagnosis-on-eeg-eegmmidb-fold-0-2026-11-01).
+* **Not an energy advantage either (estimate, not measurement):** with `direct` input and an
+  analog bottleneck, the layers fed by the window and by the latent are MACs at every step; at
+  T = 16 and the measured hidden spike rates (0.35–0.45, dense) the format-4 SNN costs ~8.6x the
+  ann-ae per window (MAC 4.6 pJ / AC 0.9 pJ [77]). Up to format 4 the `spike_rate` / `energy`
+  columns did not measure this; format 5 counts it (`acs`, `arith_energy_nj`).
+
+### Where the gap comes from (FSDD fold 0, PyTorch twin, 2026-11-01)
+
+`scripts/analysis/snn_gap_ablation_torch.py` is a PyTorch twin of the C++ SNN-AE (validated: SNN
+val 0.646–0.656 vs C++ 0.644–0.662 at the same `v_th = 0.6`, `alpha = 0.83`; ANN test 0.667 vs C++
+0.662). 1000 training windows, 3 seeds per row, one change per variant. Test MSE:
+
+```
+0.667  ann            (leaky ReLU)
+0.685  ann_sigmoid    (bounded, smooth gradient)        bounded range costs little:   +0.018
+0.743  ann_clip       (clamp(x, 0, 1), NO spikes)        hard saturation costs:        +0.076
+0.734  snn_rate       (spikes, loss on the mean over T)  ~= ann_clip
+0.780  snn            (spikes, loss on every step)       per-step loss costs:          +0.046
+```
+
+| Not the cause (measured) | Result |
+|---|---|
+| Simulation steps | `snn` T 16/64: 0.780/0.779; `snn_rate` T 4/16/32/64: 0.742/0.734/0.735/0.735 |
+| Surrogate width (ArcTan alpha 0.5 / 2 / 8, `snn_rate`) | 0.754 / 0.734 / 0.744 — the C++ value is already best |
+| Threshold (`v_th` 0.3 / 0.6 / 1.0) | 0.790 / 0.780 / 0.789 |
+| Reset (soft `v -= v_th`) | 0.799, worse than hard reset |
+| Readout integrator on the output | 0.771 |
+
+Where the spikes sit matters: decoder-only analog (`enc_lif_only`) 0.737, encoder-only analog
+(`dec_lif_only`) 0.759; best spiking variant measured: `enc_lif_only_rate` 0.721.
+
+Reasoned, not proven: under `direct` input the encoder LIF sees the same current every step, and a
+hard-reset LIF then *is* a clipped transfer function — silent for I <= v_th(1 - beta), firing every
+step for I > v_th (for 0.6 / 0.83 the useful band is (0.10, 0.60]). That is why a clamp with no
+spikes reproduces it and why more steps do not help. Not yet run in C++ or on EEG.
+
+### The SNN-AE after the diagnosis (results_format 5, 2026-11-01)
+
+**The problem.** The diagnosis above found two costs that come from how the SNN-AE was *set up*,
+not from spiking itself: the loss scored every one of the T steps (+0.046), and the decoder's
+spiking layer added to the encoder's (`enc_lif_only_rate` 0.721 vs `snn_rate` 0.734). Leaving
+them in would compare a handicapped SNN against the ANN control.
+
+**The change** (author's decision, 2026-11-01): three profile fields, so results_format 4 is still
+reproducible with the defaults.
+
+```
+format 4   window x T=16 -> Linear 64 -> LIF -> Linear 16 -> Linear 64 -> LIF   -> Linear 256    loss on all 16 rows
+format 5   window x T=4  -> Linear 64 -> LIF -> Linear 16 -> mean over T
+                                                           -> Linear 64 -> leaky -> Linear 256    loss on 1 row
+                                                              ^ decoder runs ONCE per window
+ann-ae     window x 1    -> Linear 64 -> leaky -> Linear 16 -> Linear 64 -> leaky -> Linear 256
+```
+
+| Field | format 4 (default) | format 5 (production) | Why |
+|---|---|---|---|
+| `model.snn_time_pool` | `none` | `latent` | scoring the mean, not each step, is what a rate code can deliver; at the latent the decoder runs once |
+| `model.snn_decoder_neuron` | `lif` | `analog` | the decoder's LIF added error; `latent` requires it (one row has no time axis) |
+| `model.time_steps` | 16 | 4 | T buys no quality (below) and every step is a dense pass of the first layer |
+
+Now SNN-AE and ann-ae differ in **one neuron**: the encoder's hidden layer is a LIF unrolled over
+4 steps in one and a leaky ReLU applied once in the other. `make_ann_twin_cfg` keeps ann-ae on its
+own specs, so the SNN's time stage never leaks into the control.
+
+Twin, FSDD fold 0, 1000 windows, `v_th 0.6 / alpha 0.83`, 3 seeds, test MSE:
+
+| T | mean after the latent (format 5) | mean after the output | format 4 network |
+|---|---|---|---|
+| 1 | 0.726 | 0.726 | — |
+| 2 | 0.717 | 0.718 | — |
+| 4 | **0.724** | 0.724 | — |
+| 16 | 0.729 | 0.721 | 0.780 |
+
+ann-ae on the same windows: 0.667. The changes close about half of the twin's gap (0.113 → 0.057);
+the other half is the clipped transfer function, which no setting above removes. T = 1 is
+excluded although it scores the same: at one step `alpha` is inert and poisson/latency coding
+lose their time axis, so the GA's genes would stop meaning what they say (`validate()` rejects
+`time_steps < 2`).
+
+#### Cost columns (format 5)
+
+Format 4's `spike_rate` counted *output* values > 0 and its `energy` added that count to 10 × MACs.
+Format 5 counts what the forward pass did (`count_snn_ops`, `Meeting01Metrics.hpp`) and prices it
+with Horowitz's 45 nm figures [77], the convention of Spikformer [78]:
+
+| Operation | Class | Count |
+|---|---|---|
+| `Linear` whose input is all 0/1 (spikes, poisson/latency input, `recurrent` transform) | AC | nonzero inputs × outputs |
+| `Linear` with any other input (`direct`, `conv1d`, latent, decoder) | MAC | rows × inputs × outputs |
+| LIF membrane update `v = beta v + I` | MAC | neurons × steps |
+| time mean | AC + MAC | one add per input value, one 1/T per output |
+| activations, biases, input encoding | — | not counted (as in every `estimate_*_macs`) |
+
+`arith_energy_nj = (4.6 macs + 0.9 acs) / 1000`. Worked example, production widths 64/16, T = 4,
+`direct` input, encoder spike rate 0.39 (twin): MACs = 256·64·4 (65 536) + 64·4 (256) + 16 +
+16·64 + 64·256 (17 408) = 83 216; ACs ≈ 100 spikes × 16 + 64 = 1 664; **≈ 384 nJ**, against
+ann-ae's 34 816 MACs = **160 nJ** (2.4×). The first layer dominates: a `direct` window is analog,
+so it is a dense pass at each of the 4 steps. (An implementation that noticed the input is the
+same at every step could compute it once, 16 384 MACs, ≈ 0.99× ann-ae; the count reports what
+the code executes.) With poisson input the first layer becomes ACs instead.
+
+**Failure mode — silent.** A CSV from format 4 still has a column called `spike_rate`, with
+plausible numbers in it (~0.5). The post-processing scripts refuse format-4 folds
+(`RESULTS_FORMAT = 5`), so it cannot reach a paper table, but anyone reading the CSV by hand
+would be misled.
+
+#### Same initializer for both arms (`model.initializer`, 2026-11-01)
+
+**The problem.** The SNN builder initialises every `Linear` with Kaiming (uniform √(6/fan_in)),
+the ANN builder with Xavier (uniform √(6/(fan_in + fan_out))). ann-ae is built by the ANN
+builder, so until this fix the "matched" control differed from the SNN in its starting weights as
+well as its neuron. For the 65 → 256 output layer of the EEG winner that is a 2.2x wider draw.
+
+On FSDD it did not show; on eegmmidb it decides the comparison (PyTorch twin, 3 seeds, test MSE):
+
+| Init of both arms | SNN-AE (format 5, T = 4) | ANN | Gap | FSDD: SNN-AE / ANN |
+|---|---|---|---|---|
+| Kaiming | 0.484 | 0.489 | ~0 | 0.724 / 0.667 |
+| Xavier | **0.449** | **0.293** | 0.156 | 0.729 / 0.654 |
+
+The ANN's Kaiming deficit is not speed: with a 200-epoch cap (early stopping still on) it stops at
+0.479 against Xavier's 0.291. Under Kaiming the SNN only *looks* level because the control is
+handicapped. `model.initializer` now sets one init for both arms (`AutoencoderConfig::initializer`,
+honoured by every builder; empty keeps each builder's own, so no other experiment changes), and
+`validate()` refuses a profile with ann-ae and no initializer. Production uses `xavier`: it is the
+best or equal init for **each** arm on both datasets, so the matched comparison is also the
+best-against-best one. Failure mode: **silent** — both arms train, report plausible numbers, and
+the gap is off by the init's effect on whichever arm is more sensitive.
+
+### The diagnosis on EEG (eegmmidb fold 0, 2026-11-01)
+
+Same twin, the EEG GA winner (widths 65/64 — latent 64 forces hidden >= 65 —, `v_th 0.96`,
+`alpha 0.965`, `direct`, `dense`), 1000 training windows, 3 seeds. Twin validated: `snn` 0.592 vs
+C++ 0.593 (2 runs); `ann` with Xavier 0.293 vs C++ ann-ae 0.305. Test MSE:
+
+| Variant | Kaiming | Xavier |
+|---|---|---|
+| `ann` (the control) | 0.489 | **0.293** |
+| `ann_sigmoid` | 0.308 | — |
+| `ann_clip` (clamp, no spikes) | 0.547 | — |
+| `snn` (format 4, T = 16) | 0.592 | 0.589 |
+| `snn_rate` (mean at the output, LIF decoder, T = 16) | 0.454 | — |
+| `dec_lif_only` | 0.606 | — |
+| format 5: latent mean, analog decoder, T = 4 | 0.484 | 0.449 |
+| output mean, analog decoder, T = 4 | — | 0.446 |
+| latent mean, T = 16 | 0.457 | 0.396 |
+| output mean, T = 16 | 0.403 | 0.392 |
+
+* The FSDD picture holds: a clamp without spikes lands near the format-4 SNN, a sigmoid near the
+  ANN — hard saturation is still the main cost — and latent vs output averaging tie.
+* The format-5 changes halve the EEG gap: 0.296 → 0.156 (Xavier in both arms).
+* **Unlike FSDD, T matters on EEG:** T = 16 is ~0.05 better than T = 4, at ~4x the arithmetic. The
+  T = 4 of the production profile was chosen on FSDD alone; it is an author's decision.
+* Nearly every EEG run stops at the 30-epoch cap still improving, so these are "after 30 epochs"
+  numbers. With a 200-epoch cap the change was small (SNN-AE Kaiming T = 4: 0.484 → 0.465).
+* **Fold 0 is now a development fold.** The format-5 design (latent mean, Xavier, T) was chosen
+  looking at fold-0 *test* windows of FSDD and eegmmidb. Every choice comes out the same on the
+  fold's *validation* windows (latent vs output 0.425 / 0.424 EEG and 0.598 / 0.592 FSDD; Xavier vs
+  Kaiming SNN 0.425 / 0.465 EEG; T 4 / 16 EEG 0.425 / 0.372, FSDD flat), but the test windows were
+  seen: report the paper's numbers without fold 0 of these two datasets, or flag it.
+
+#### The C++ binary agrees (fold 0, 2026-11-01)
+
+**The problem.** Everything above is the PyTorch twin, which runs one fixed genome. The paper's
+numbers come from the C++ binary, where the GA picks the genome per (fold, run). So the format-5
+profile was run end to end: 1000 training windows, a local GA of population 4 × 2 generations,
+2 runs, ann-ae built from each run's SNN winner. Test MSE, mean of the 2 runs; energy is
+`arith_energy_nj` (above):
+
+| Dataset | Init (both arms) | SNN-AE | ann-ae | Gap | Energy SNN / ann |
+|---|---|---|---|---|---|
+| FSDD | Kaiming | 0.786 | 0.731 | 0.055 | 485 / 339 nJ |
+| FSDD | **Xavier** | 0.768 | 0.652 | 0.116 | 180 / 292 nJ |
+| eegmmidb | Kaiming | 0.543 | 0.550 | ~0 | 546 / 268 nJ |
+| eegmmidb | **Xavier** | 0.532 | 0.302 | 0.230 | 263 / 191 nJ |
+
+On the same windows, the format-4 design gives FSDD 0.827 vs 0.662 and eegmmidb 0.593 vs 0.305.
+
+* **Format 5 improves the SNN by ~0.06 on both datasets.** The Xavier gap shrinks 0.165 → 0.116
+  (FSDD) and 0.29 → 0.23 (eegmmidb). This is less than the twin's 0.156 on EEG, because the GA
+  budget is tiny (next bullet).
+* **Under Kaiming, the C++ shows the twin's trap too.** The EEG arms look level only because the
+  control is handicapped.
+* **Selection noise in a small GA.** EEG Xavier run 1 picked `direct`/`dense` (0.476); run 2 picked
+  `recurrent` (0.589). With 8 evaluations per run, which architecture wins is close to a coin flip.
+  The GridUnesp budget is what makes the selection meaningful; don't read these 2 runs as the
+  result.
+* **Energy depends on what the GA picks.** On FSDD Xavier the SNN is cheaper than ann-ae (180 vs
+  292 nJ) because both winners take binary input (`poisson`, `recurrent`), so the first layer is
+  priced as ACs. A `direct` winner pays a dense first layer at each of the T = 4 steps instead.
+  Encoder spike rates were 0.15–0.46. ann-ae's `spike_rate` is written as `nan` (not applicable).
+* **Matched ANN ≈ PCA on FSDD.** With k = latent = 16, PCA scores 0.649 on the same windows, against
+  ann-ae's 0.652. The SNN-AE (0.768) loses to both.
+* **The whole Python pipeline reads format 5.** `03_` → `02_` → `04_` run on these folds. `02_`
+  refused `ann-ae` until 2026-11-01: its selection-manifest map knew only the searched families.
+  It now lists ann-ae as an *unsearched* family. Its manifest is still checked against its test
+  row, its rows reach `summary.csv` / `mse_plot.csv` as "ANN-AE (matched)" (`ann_ae`), and it gets
+  no selection table: it has no genome of its own. The failure mode was **loud** (`ResultsError`).
+  It would have stopped the paper build, not falsified it.
+
+## Ready for the grid run (results_format 6, 2026-11-02)
+
+### The problem
+
+The diagnosis above left three things that a months-long GridUnesp run must not get wrong:
+
+1. **T was fixed at 4, chosen on FSDD alone**, while eegmmidb fold 0 preferred T = 16 (validation
+   0.425 vs 0.372). Fixing either value hands one modality a handicap the author picked.
+2. **Fold 0 of FSDD and eegmmidb was looked at.** Its *test* windows steered the format-5 design.
+   If those folds enter the headline, the paper reports numbers partly tuned on its own test set.
+3. **The paper's tables were typed by hand.** A configuration number in the text (epochs, window
+   caps, search ranges) could describe a run that never happened, and nobody would notice.
+
+### What changed
+
+| Problem | Fix | Where |
+|---|---|---|
+| T fixed | T is a **gene** of the SNN-AE search: an integer drawn uniformly in [2, 32] (author's decision: a free range, not preset values such as {4, 8, 16}) | `ga.snn.time_steps_min/max` in the profile; `Genome::time_steps`; `with_snn_time_steps` |
+| fold 0 seen | fold 0 of FSDD and eegmmidb is a **development fold**: headline tables use folds 1–5 there (all 6 for AudioMNIST and Siena); `04_` repeats the analysis with fold 0 in, as `sensitivity_all_folds` | `DEVELOPMENT_FOLDS` in `meeting01_results.py` |
+| typed numbers | every fold's split manifest records the **resolved configuration** (`"config"`, `"source"`); `02_` turns it into LaTeX macros (`paper_config.tex`) and refuses folds that disagree | `resolved_config_json` (`Meeting01Cli.cpp`), `run_configuration`, `write_config_tex` |
+
+Also in this format: `loso_max_train_windows` 200 → **1000** (the design was validated at 1000),
+and `ann-ae` is in the production `evaluation.baselines`.
+
+### How T moves through the search
+
+```
+genome  = {layers, widths, encoding, architecture, v_th, alpha, T}
+            crossover: T from either parent (coin flip)     mutation: T redrawn in [2, 32]
+            key:       "...|T12"  (two genomes differing only in T are two candidates)
+fitness = (validation MSE,  estimate_snn_macs(window, widths, T, pool == latent ? 1 : T))
+            ^ a longer simulation must buy its quality: every step of a `direct` input is a
+              dense pass of the first layer, so the cost objective grows with T
+winner  -> manifest "time_steps": T     -> paper Table "SNN-AE selected": median T [range]
+```
+
+`model.time_steps` is no longer in `meeting01-loso.json`: with the gene on, no SNN reads it
+(`with_snn_time_steps` copies the config with the genome's T for build, encode, train, evaluate and
+cost). The baselines never read it either: since format 4 they use `model.recurrent_time_steps`.
+`ProfileDirectoryAudit.EveryProfileDeclaresTimeStepsExplicitly` therefore accepts T stated either
+way, fixed (`model.time_steps`) or searched (`ga.snn.time_steps_min/max`), and still fails a
+profile that states neither (the SNN would run the struct default **silently**). Its new sibling
+`EveryProfileDeclaresTheBaselinesSequenceExplicitly` does the same for
+`model.recurrent_time_steps`: lstm-bench.json and lstm-compare.json had inherited it, while
+lstm-bench's comment still said `model.time_steps` set its LSTM unroll (S = 512; it ran S = 32 —
+see [LSTM-Performance](../Guides/LSTM-Performance.md#experiment-benchmark)).
+
+### `config_hash` covered a subset (found + fixed on the way)
+
+`RESUME=1` restores a checkpoint only when the profile's `config_hash` matches. Until 2026-11-02
+that hash was built from a hand-picked subset that left out most of `model.*` (time pool, decoder
+neuron, initializer, latent width, `recurrent_time_steps`), the biophysical learning rate and every
+GA block's `winner_seeds` and operator probabilities. Editing any of those between two starts
+**silently** reused checkpoints trained under the old values. The hash is now taken over
+`resolved_config_json`, the same record the manifests carry, minus the fields that cannot change a
+result (`latex_data_dir`, `save_models`, `checkpoint_every_generations`).
+
+### The paper's data contract
+
+The paper (`documentation/07-articlesProduced/meeting01/paper.tex`) reads only generated files from
+its `data/` directory. Before the run they hold placeholders (empty cells, `\cfgDataStatus` =
+`placeholder`, which also prints a banner and replaces the figure by a box). After the run, `01_`
+calls `02_` and `04_` with `--data-dir` / `--out-dir` pointing there and the same files are
+overwritten with results (`\cfgDataStatus` = `results`).
+
+| File | Paper element | Written by |
+|---|---|---|
+| `paper_config.tex` | every configuration number (`\cfgEpochs`, `\cfgTmin`, `\cfgTrainWindows`, ...) | `02_` `write_config_tex` |
+| `paper_loso_overview.csv` | Table "Test MSE and energy" (MSE ± std over seeds; PCA/Mean without std: fitted once) | `02_` `write_overview` |
+| `paper_loso_<ds>_pareto.csv` | Figure "quality vs energy" (the configured families, then PCA) | `02_` `write_pareto` |
+| `paper_loso_pareto_series.tex` | the figure's series, legend and PCA row, one per configured family | `02_` `write_pareto_series` |
+| `paper_loso_snn_overview.tex` | Table "SNN-AE selected" (modal encoding, median T [range], ρ) | `02_` `write_snn_overview` |
+| `paper_loso_significance.tex` | Table "SNN-AE minus reference", recording level, Holm | `04_` `write_overview_tex` |
+| `paper_loso_sensitivity.tex` | Table "with and without the development fold" | `04_` `write_sensitivity_tex` |
+| `paper_prevalidation.tex` | Table "Pre-validation" (development folds, every family) | `00_meeting01_prevalidation_report.py` `write_table` |
+| `paper_prevalidation_config.tex` | `\pre*` macros: budget, search ranges, generated verdicts | `00_meeting01_prevalidation_report.py` `write_macros` |
+
+Placeholders, before any fold has run:
+
+```bash
+cd software/nn
+out/build/max-performance/src/experiments/meeting01/meeting01 --comparative \
+  --comparative-config src/experiments/meeting01/profiles/meeting01-loso.json \
+  --print-resolved-config > /tmp/resolved.json
+.venv/bin/python scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py \
+  --placeholders /tmp/resolved.json --data-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/04_meeting01_significance_tests.py \
+  --placeholders /tmp/resolved.json --out-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --placeholders \
+  --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+```
+
+`write_config_tex` refuses a configuration the text has no wording for (**loud**): a biophysical
+learning rate left at 0, unequal GA budgets among the families that ran, LSTM-AE and GRU-AE with
+different bounds, datasets with different fold counts or caps.
+
+### Verified (2026-11-02)
+
+* All 11 meeting01 test binaries pass (179 tests, counted from the binaries' own summaries;
+  an earlier version of this line said 199/200, a miscount; `checkpoint_gtest` was deleted with
+  the test-row checkpoint, see the cross-review below), including the new T-gene tests in
+  `meeting01_ga_gtest` and `Meeting01ConfigHash.MovesWithEveryResultChangingField`.
+* Smoke run of the binary with the gene: format 6, winner T = 28, candidates T = 20–32; `02_`
+  correctly reports an empty headline for development fold 0.
+* **End to end on a synthetic grid run** (4 datasets × 6 folds × 5 seeds × 5 families + PCA/Mean,
+  672 files written the way the binary and `03_` leave them, recorded config = the production
+  `--print-resolved-config`): `02_` and `04_` accept it, the paper compiles with every table and the
+  figure filled (0 errors, 0 overfull boxes, 6 pages), n_rec = 20 on the 5 headline folds of FSDD
+  and 24 on the 6 of AudioMNIST.
+* Found by that test: the figure's key filter compared `\thisrow{key}`, which inside a pgfplots
+  filter expands to the parser form `thisrow("key")`, so it never matched and **every point was
+  dropped silently** (empty axes, no error). It reads the cell with `\getthisrow` now.
+
+Not done yet (as of this section): the Transformer-AE still does not train (test MSE ≈ 1.0, the
+mean predictor), and one fold's wall time at S = 32 / 1000 windows has not been measured. Both
+blocked the grid run; the same day the three sequence families left the grid (see "Sequence
+baselines removed, and measured once" below), which removes the first and leaves the second to
+the SNN-AE alone.
+
+### Cross-review with a second agent (2026-11-02)
+
+**Why.** One reviewer checking its own work finds what it already thought of. The format-6 work
+was therefore re-reviewed by OpenCode (Gemini 2.5 Flash) on a secret-free snapshot of the tree,
+in three independent passes (C++, Python statistics, paper vs code), then a second round in
+which each side defended or conceded its findings with file:line evidence. Every claim below was
+checked against the code before it was accepted or rejected.
+
+| Finding | Raised by | Verdict | Outcome |
+|---|---|---|---|
+| Eq. (1) fires on V ≥ V_th; `LifBPTT` fires on `v > eff_thresh` | OpenCode | confirmed | paper fixed |
+| Holm correction cited to Cawley & Talbot (a selection-bias paper) | Claude | confirmed | cites Holm (1979) |
+| "Holm-corrected interval": Holm adjusts p-values, the bootstrap CI is uncorrected | Claude | confirmed | paper fixed |
+| Limitation (i): the recording-level test treats recordings nested in 5 FSDD speakers as independent; it speaks to new recordings, not new speakers (n = 5 Wilcoxon cannot go below p = 0.0625) | Claude | confirmed | paper fixed |
+| "the cost objective trades T against quality": the winner is the lowest re-scored validation MSE on the front, cost only breaks ties | Claude | confirmed | paper fixed |
+| `02_` skipped a NaN test error silently (`_per_seed_means`), dropping a diverged seed | both (OpenCode's energy finding led to it) | confirmed, **silent** | `load_comparative` refuses non-finite metrics |
+| `02_` tabulated an incomplete grid (a fold, family or run missing) that `04_` refuses only later, after `02_` has written the paper's tables; a family missing from *every* fold had no row to notice it by | both (debate round) | confirmed, **silent** | `check_complete_grid` against the recorded configuration |
+| `make_snn_cfg` clamped `alpha` to [0.001, 0.999] and `v_th` to ≥ 0.001 | both | confirmed (unreachable with the shipped profiles) | throws; `check_ga` enforces the limits |
+| Test-row checkpoint keys do not identify the genome (see below) | both, independently | confirmed | restore removed (option B) |
+| `04_` `_means` pools seeds and windows (pseudoreplication) | OpenCode | rejected: `check_coverage` forces every seed onto every window, so the pooled mean equals the mean of per-seed means | conceded in round 2 |
+| `estimate_snn_macs` counts T decoder passes with `snn_time_pool = output` | OpenCode | rejected: `time_mean` sits at the *end* of the decoder there, which does run T times | conceded in round 2 |
+| Holm family should span models/datasets | OpenCode | design choice: the confirmatory claims are SNN-AE vs every reference per dataset, as the paper states (six then; three since the sequence families left the grid, `\cfgHolmRefs`) | kept |
+
+**Resuming a cut-short fold restored test rows by a key that was not the genome.** The
+SNN-AE's test-row checkpoint was keyed by (family, encoding, architecture, `v_th`, `alpha`, run,
+fold), with `v_th`/`alpha` rounded to two decimals in the file name; crossover sets both genes to
+the parents' mean, so siblings share them exactly while differing in T and widths. The baselines'
+key held no hyperparameter at all. Under `RESUME=1` inside a fold:
+
+```
+before (until 2026-11-02)                        after (option B, author's choice)
+  run r's GA       -> searched again               run r's GA       -> searched again
+  run r's test row -> restored if the KEY matched  run r's test row -> recomputed
+  per-window rows  -> missing -> 04_ refused       per-window rows  -> recomputed
+  interrupted GA   -> resumed, NO stamp            interrupted GA   -> resumed, stamp checked
+```
+
+The test-row checkpoint (`Meeting01Checkpoint.{hpp,cpp}`, `checkpoint_gtest`) is deleted: it
+saved nothing (the search reruns anyway) and could only break or mislabel a fold. The cost: a
+resumed fold recomputes its finished runs. The alternative (store genome + per-window rows per
+run and skip a finished run's search) would save that time and was not chosen.
+
+**Found while doing it: the GA's own resume had no guard.** The interrupted-search files
+(`meeting01_ga_<tag>_checkpoint.json`, `_cache.jsonl`) were identified by (dataset, fold, run)
+only, so `RESUME=1` after a profile edit continued the search with validation MSEs scored under
+the old profile while the fold's manifest recorded the new one — **silent**, and invisible to
+`02_`. Both files now carry `config_hash` and `results_format`; a mismatch or a missing stamp
+throws (`Meeting01GaCheckpoint.ResumeRefusesAnotherConfigurationsCheckpoint`). A fresh run
+(`RESUME` unset) deletes them first. Checked live on the smoke profile: a search cut at
+generation 0, resumed with `training.epochs` 3 → 4, was refused with the message naming both
+hashes; resumed with the original profile, it finished (exit 0, all three families with 60
+per-window rows each, the stamped hash in the comparative CSV, no `meeting01_ga_*` file left).
+
+**Found in the review of option B (by Claude; OpenCode's pass reported nothing): a torn cache
+line broke the resume after the next one.** A crash in the middle of an append leaves a last
+line with no closing brace and no `\n`. `load_cache_entries` dropped it, correctly, but left it
+in the file, so the resumed search's next append was glued onto it:
+
+```
+after the crash          after resume 1 + two appends           resume 2
+  {a}\n                    {a}\n                                  line 1  ok
+  {"genome":{...[1         {"genome":{...[1{b}\n   <- glued       line 2  not the last line
+                           {c}\n                                          -> "corrupt cache", refused
+```
+
+Loud, not silent, but it would have blocked a weeks-long fold after its second interruption.
+The dropped line is now removed from the file (rewrite + rename). The same rule was also too
+lenient: a last line that *parsed* but was not an individual of this binary (a schema change)
+was dropped as "torn" and retrained; only a parse failure is a torn write now, anything else
+throws. Tests: `TornTrailingCacheLineDoesNotCorruptTheNextResume`,
+`ParseableTrailingLineOfAnotherSchemaIsRefusedNotDropped` (both failed before the fix). The
+`paraconsistentGA` experiment's own `GaCheckpoint.cpp`, which this code was ported from, keeps
+the old rule; it is not part of this paper.
+
+## Sequence baselines removed, and measured once (2026-11-02)
+
+### The problem
+
+Format 6 searched five families in every cell of the grid (4 datasets × 6 folds × 5 runs = 120
+cells). Three of them — LSTM-AE, GRU-AE, Transformer-AE — had two problems:
+
+1. **They answer another question.** The paper asks what the *spike* costs. A sequence model
+   differs from the SNN-AE in recurrence, sequence length and capacity at once, so a gap between
+   them cannot be put on the neuron. The matched control `ann-ae` answers the paper's question.
+2. **They were nearly all of the compute.** The 2026-09-23 calibration (cited in the profile's
+   `_total_runs_breakdown`, not re-measured): SNN-AE ~0.27 h per cell, the three families
+   ~45–74 h per cell *each*, ~172 h per cell in all. Also, the Transformer-AE did not train
+   (test MSE ≈ 1.0), a blocker of the grid run.
+
+The author removed them (`evaluation.baselines = ["ann-ae"]`). But "they were slow" is a
+sentence, not evidence; a reviewer can ask for the numbers. The **pre-validation** produces
+them once, on the folds the paper already sets aside for design decisions.
+
+### What it runs
+
+```
+profiles/meeting01-prevalidation.json      grid profile + the three families back, ONE reduced
+        |                                  budget for all: 4 x (1 + 2) = 12 evaluations, 2 seeds
+        |  00_meeting01_prevalidation_report.py --plan     (grid: 8 x (1 + 5) = 48, 3 seeds)
+        v
+results/meeting01_prevalidation/
+  snn-ae/profile.json          baselines [ann-ae]        snn_architectures = the grid's
+  lstm-ae/profile.json         baselines [lstm-ae]       snn_architectures = []
+  gru-ae/profile.json          baselines [gru-ae]        snn_architectures = []
+  transformer-ae/profile.json  baselines [transformer-ae] snn_architectures = []
+        |
+        |  00_meeting01_prevalidate_baselines.sh: 4 families x {fsdd, eegmmidb} fold 0
+        |  = 8 processes, JOBS at a time, 1 compute thread each
+        v
+  <family>/<ds>_fold0_process.json   exit code + process wall time (written last, via rename)
+  <family>/..._events.jsonl          fold_begin ... fold_end   <- the training-side cost
+  <family>/..._model_selection_manifest.json  final_fit: windows, epochs, train_ms, infer_ms
+        |
+        |  03_ on snn-ae/ (PCA, mean)  ->  00_..._report.py --report
+        v
+  prevalidation_summary.csv          + paper data/paper_prevalidation.tex (Table "Pre-validation")
+                                       + paper data/paper_prevalidation_config.tex (\pre* macros)
+```
+
+`ProductionProfiles.PrevalidationDiffersFromTheGridOnlyWhereDeclared` diffs the two profiles
+(comments stripped) and fails on any difference outside a declared list (run tag, repeats,
+results dir, datasets, baselines, the SNN budget, the three families' GA blocks, the sequence
+fields). Without it, an edit to `meeting01-loso.json` not carried over would make the
+pre-validation compare something the grid does not run — **silently**.
+
+### Three costs, two sides of training
+
+The author asked for the cost of training and the cost of processing data after training. They
+are different numbers and answer different questions:
+
+| Column | Side | Measured or estimated | Answers |
+|---|---|---|---|
+| Fold (h), ×SNN | training | measured: `fold_begin` → `fold_end` (search, re-scoring, final fit, test) | what it costs to *obtain* a model of this family |
+| Train (ms/win.) | training | measured: final fit's `train_ms / (epochs_run × fit_windows)` | what one training step costs, independent of how many epochs early stopping allowed |
+| Infer. (ms/win.) | after training | measured: forward pass over the monitor set / its windows | what it costs to *use* the model on one window, on this CPU |
+| E (nJ) | after training | estimated: MACs × 4.6 pJ + ACs × 0.9 pJ | the same, under the paper's hardware-independent convention |
+
+**Process time vs fold time — same run, two answers.** The process also loads the dataset,
+which is the same for every family. Smoke run (below), eegmmidb fold 0:
+
+```
+                 process wall     fold (fold_begin -> fold_end)
+SNN-AE           0.0180 h         0.0019 h       <- ~56 s of the process is loading
+LSTM-AE          0.0411 h         0.0251 h
+ratio            2.3x             13x
+```
+
+The first version of the report divided process times: the ratio shrank toward 1 by a constant
+nobody would see — **silent**. It reads the events log now, and refuses a log with ≠ 1
+`fold_begin` or `fold_end` (two sessions appended to one file). On the real run a minute of
+loading is small against hours, but the bias has a known direction and is gone.
+
+**The ANN-AE has no fold of its own.** It is trained inside the SNN-AE's process (it copies
+that run's winner), so the SNN-AE's fold time includes it. That enlarges the denominator of
+every ×SNN ratio: the ratios err *against* the removal, the safe direction.
+
+### What the paper prints
+
+The two verdict sentences are generated (`_cost_verdict`, `_verdict`), so the text cannot claim
+more than the table holds. Each cost clause takes the *smallest* ratio over the three families
+and both folds; it says "each … at least r times" only when every one is the costlier, and
+names the exception otherwise. Self-test, synthetic numbers:
+
+```
+all costlier:  "each of the three families' runs took at least 83 times the SNN-AE's wall time
+                on the same fold, each winner took at least 125 times the SNN-AE's time to
+                reconstruct a window, and each winner needed at least 145 times ..."
+GRU-AE cheaper in energy only:
+               "... and the GRU-AE winner on FSDD needed only 0.50 times the SNN-AE's
+                arithmetic energy per window"   (the other two clauses still say "at least")
+```
+
+Quality: "none of the three reached the test error of PCA on either development fold", or the
+families and folds that did, with both numbers.
+
+### Refusals (all loud)
+
+A family left out of the profile, a dataset without a development fold or a development fold
+left out (`--plan`); a task without `_process.json` or with exit ≠ 0; an events log without
+exactly one fold; a fold of another `results_format`; families run under different resolved
+configurations (`_PER_FAMILY_FIELDS` excepted); a missing or duplicated seed; a NaN/inf
+metric; a manifest without `final_fit` (binary older than 2026-11-02); LSTM-AE and GRU-AE with
+different bounds (the paper gives one range); a profile without `model.lstm_frame_size` or
+`model.recurrent_time_steps` (the paper states the sequence S = 256 × 1 / 8 = 32 frames).
+
+### Found by the smoke test: four processes, one file name
+
+`dataset.latex_data_dir` pointed at the paper's `data/`. Every fold process wrote its LaTeX
+exports there (`<run_tag>_<ds>_fold<f>_summary.dat`, `_sweep.dat`, `_mse_plot.csv`, … — 9
+files), files **nothing reads** (the paper's data come only from `02_`/`04_`/`00_`). In the
+pre-validation the four family processes share a run tag, so they wrote the *same* names and
+the last to finish overwrote the others: files in the paper's directory that looked like a
+fold's results and held one family's — **silent**. `latex_data_dir` is now `""` in both
+profiles (`ProductionProfiles.LeaveNoExportsNothingReads`); it is output-only, outside
+`config_hash`, so no checkpoint is invalidated. On the cluster this also removes the per-fold
+`/home` writes the GridUnesp guide used to list.
+
+### The pipeline without ghosts
+
+Removing a family must remove every trace of it from the paper, or the paper describes a run
+that did not happen. `configured_families(config)` (`meeting01_results.py`) is the one place
+that says which families ran — `snn-ae` if `snn_architectures` is non-empty, then `ann-ae`,
+`lstm-ae`, `gru-ae`, `transformer-ae` in that order, filtered by `baselines`:
+
+| Paper element | Before (fixed list) | Now |
+|---|---|---|
+| Overview table rows | 7 rows, a removed family as a row of "--" | Mean, PCA + configured families |
+| Pareto CSV / figure series / legend | 5 series, PCA read as row 5 | `paper_loso_pareto_series.tex`: `\paretoAllSeries`, `\paretoAllLegend`, `\paretoPcaRow` |
+| `\cfgFrame`, `\cfgSeqLen`, `\cfgRnn*`, `\cfgTf*` | always written | only if a family that reads them ran: a sentence still using one is an *undefined control sequence* — loud |
+| Holm family | "six references" typed in the text | `\cfgHolmRefs` = configured families − SNN-AE + PCA + mean ("three") |
+| Significance / sensitivity columns | fixed list | references from the configuration; `04_` refuses rows ≠ configuration |
+| `recurrent_selection` / `transformer_selection` tables | — | written only when that family has rows (was already so) |
+
+The Holm count was the silent one: with three families gone, "Holm-corrected across the six
+references" would have described a stronger correction than the one computed.
+
+### Smoke test (2026-11-02, not evidence)
+
+Smoke profile = the pre-validation with 80/20/30 windows, 2 epochs, population 2 × 1
+generation. All 8 processes exit 0 (fsdd 7–53 s, eegmmidb 65–148 s, loading included), `03_`
+and the report run, the table compiles in the paper (worst-case synthetic widths too, with
+`\scriptsize`). Its numbers mean nothing for the paper (2 epochs: every family near the mean
+predictor).
+
+### Running it
+
+```bash
+cd software/nn
+EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh
+#   JOBS=N (default 4)   RESUME=1 (keeps tasks whose _process.json says exit 0)
+#   SKIP_BUILD=1   PREVALIDATION_PROFILE / PREVALIDATION_DIR / PAPER_DATA (smoke tests)
+```
+
+Hours to days (the three sequence families dominate it — that is what it measures); the
+`expensive-experiment-guard` hook and the script's own gate both require the confirmation.
+On GridUnesp: `00_meeting01_prevalidate_gridunesp.sbatch`, one 16-CPU job on one node, then 03_
+and the report locally — see [GridUnesp § The baseline pre-validation on the grid](../Guides/GridUnesp-Deployment.md#the-baseline-pre-validation-on-the-grid-2026-11-02).
+Under `RESUME=1` an unfinished task starts over (its fold time must be one interval).
+
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
@@ -1473,8 +2160,10 @@ The experiment is a **pure reconstruction study**. FSDD carries no anomaly label
 | MSE | $\frac{1}{N}\sum(x-\hat x)^2$ | Primary quality metric |
 | MAE | $\frac{1}{N}\sum|x-\hat x|$ | Robust alternative |
 | $R^2$ | $1 - \text{SS\_res}/\text{SS\_tot}$ | Coefficient of determination |
-| Spike rate | mean spike fraction over val set | SNN only |
-| Energy | $r \cdot N + 10 \cdot \text{MACs}$ (SNN) / $10 \cdot \text{MACs}$ (LSTM) | Proxy; 10× constant = energy cost per MAC vs spike op |
+| `spike_rate` | spikes / (neuron, step) pairs of the hidden LIF layers, over the evaluated windows | SNN only; NaN (not applicable) for the non-spiking families. Until results_format 4 it was the fraction of *output* values > 0 |
+| `macs` | dense multiply-accumulates per window | SNN: counted from its forward passes (`count_snn_ops`); others: analytic `estimate_*_macs` |
+| `acs` | spike-driven accumulates per window (a binary input × each output) | SNN only; 0 for the others (a true count) |
+| `arith_energy_nj` | $4.6\,\text{pJ}\cdot\text{macs} + 0.9\,\text{pJ}\cdot\text{acs}$ | Arithmetic-only estimate, 45 nm fp32 [77, 78]; memory traffic, which dominates real energy, is not in it. Replaces `energy` ($r \cdot N + 10 \cdot$ MACs, unitless) |
 
 `max_reconstruct_mean_deviation` remains in the config but is only used as a per-sample pass/fail threshold for logging — it does not affect the reported metrics.
 
@@ -1640,6 +2329,12 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 > See [The Missing Time Axis](#the-missing-time-axis-found--fixed-2026-09-22-second-pre-gridunesp-audit).
 > They do not describe a weaker version of the current SNN — they describe a different
 > model.
+>
+> **Their `Spike Rate` and `Energy` columns measure nothing.** Up to results_format 4,
+> `spike_rate` was the fraction of the reconstruction's values above zero (no spike is
+> involved; ~0.5 for any model) and `energy` was that fraction times the value count plus
+> 10 × MACs — two unitless terms added. The "227× lower energy" below is that sum. Format 5
+> replaced both; see [The SNN-AE after the diagnosis](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01).
 
 All results from 3 independent runs, FSDD dataset, window size 256, Adam(lr=1e-3, β₁=0.9, β₂=0.999), up to 30 epochs with early stopping (patience=10). SNN: 2 linear layers (64→32 latent). LSTM: 1-layer hidden=64, latent=32.
 
@@ -1706,7 +2401,10 @@ Recurrent mode = stand-alone LIF transform on input before encoding.
 
 SNN consistently outperforms LSTM-AE on reconstruction MSE for all three encodings. Best overall: SNN-conv1d + poisson (MSE = 0.0697).
 
-#### Energy efficiency (proxy: spike\_rate × N + 10 × MACs)
+#### Energy efficiency (proxy: spike\_rate × N + 10 × MACs) — withdrawn
+
+> Withdrawn 2026-11-01: this "energy" adds a count of output values > 0 to 10 × MACs, so the
+> 227× is an artefact of the formula, not a cost. See the banner at the top of Results.
 
 | Model | Energy (mean) | vs LSTM-AE | Factor |
 |-------|--------------|------------|--------|

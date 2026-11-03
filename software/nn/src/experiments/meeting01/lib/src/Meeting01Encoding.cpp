@@ -22,12 +22,17 @@ auto encode_sample(
     // exist. Latency coding then compared each row index against a spike time derived
     // from that row's own amplitude, so it fired only on coincidence: measured 1.07
     // spikes per 256-sample window (99.6% zeros), and 0 spikes on speech-like input.
-    if (time_steps < 2)
+    // One step is legitimate only for `direct` (the analog window itself, repeated once):
+    // the frame-consuming baselines run at model.recurrent_time_steps = 1 on purpose. Rate
+    // and latency coding have no axis to encode on at 1 step, so they still throw.
+    if (time_steps < 1 || (time_steps < 2 && encoding != "direct"))
     {
         throw std::invalid_argument(
-            "encode_sample: time_steps must be >= 2 (got " + std::to_string(time_steps) +
+            "encode_sample: time_steps must be >= 2 for '" + encoding + "' (got " +
+            std::to_string(time_steps) +
             "); a single step leaves rate and latency coding no axis to encode on. Set "
-            "model.time_steps in the profile.");
+            "model.time_steps (SNN) or model.recurrent_time_steps (LSTM/GRU/Transformer; "
+            "1 only with encoding 'direct') in the profile.");
     }
 
     const nn::Index T = static_cast<nn::Index>(time_steps);

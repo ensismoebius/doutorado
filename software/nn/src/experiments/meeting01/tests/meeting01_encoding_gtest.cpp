@@ -66,6 +66,19 @@ TEST(Meeting01Encoding, RejectsSingleTimeStep)
     EXPECT_THROW((void) meeting01::encode_sample(window, "poisson", 0, 0), std::invalid_argument);
 }
 
+TEST(Meeting01Encoding, DirectAtOneStepIsTheWindowItself)
+{
+    // The LSTM/GRU/Transformer baselines run at recurrent_time_steps = 1. There `direct` is
+    // the analog window once, (1, F); only rate and latency coding need >= 2 steps. 0 steps
+    // is still an error for every encoding.
+    const auto window = make_window(32);
+    const auto encoded = meeting01::encode_sample(window, "direct", 0, 1);
+    ASSERT_EQ(encoded.rows(), 1);
+    ASSERT_EQ(encoded.cols(), 32);
+    for (nn::Index f = 0; f < 32; ++f) EXPECT_EQ(encoded.at(0, f), window.at(f));
+    EXPECT_THROW((void) meeting01::encode_sample(window, "direct", 0, 0), std::invalid_argument);
+}
+
 TEST(Meeting01Encoding, LatencyFiresEachFeatureExactlyOnceOnAVaryingSignal)
 {
     const auto window = make_window(256);

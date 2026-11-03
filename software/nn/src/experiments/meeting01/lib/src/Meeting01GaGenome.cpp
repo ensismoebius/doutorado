@@ -33,6 +33,12 @@ float rand_in(std::mt19937& rng, float lo, float hi)
     std::uniform_real_distribution<float> d(lo, hi);
     return d(rng);
 }
+
+int rand_time_steps(std::mt19937& rng, const GenomeBounds& b)
+{
+    std::uniform_int_distribution<int> d(b.time_steps_min, b.time_steps_max);
+    return d(rng);
+}
 } // namespace
 
 void repair_widths(Genome& g, const GenomeBounds& bounds)
@@ -91,6 +97,7 @@ Genome random_genome(std::mt19937& rng, const GenomeBounds& bounds)
     g.architecture = pick(rng, bounds.architecture_choices);
     g.voltage_threshold = rand_in(rng, bounds.voltage_threshold_min, bounds.voltage_threshold_max);
     g.alpha = rand_in(rng, bounds.alpha_min, bounds.alpha_max);
+    g.time_steps = rand_time_steps(rng, bounds);
     return g;
 }
 
@@ -121,6 +128,7 @@ Genome crossover(const Genome& a, const Genome& b, std::mt19937& rng, const Geno
     c.architecture = coin(rng) ? a.architecture : b.architecture;
     c.voltage_threshold = 0.5f * (a.voltage_threshold + b.voltage_threshold);
     c.alpha = 0.5f * (a.alpha + b.alpha);
+    c.time_steps = coin(rng) ? a.time_steps : b.time_steps;
     return c;
 }
 
@@ -155,19 +163,24 @@ void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double pro
         g.voltage_threshold =
             rand_in(rng, bounds.voltage_threshold_min, bounds.voltage_threshold_max);
     if (hit(rng)) g.alpha = rand_in(rng, bounds.alpha_min, bounds.alpha_max);
+    if (hit(rng)) g.time_steps = rand_time_steps(rng, bounds);
 }
 
 auto to_ae_config(const Genome& g, const meeting01::Meeting01Config& cfg)
     -> nn::models::autoencoder::AutoencoderConfig
 {
-    return meeting01::make_snn_cfg(cfg, g.alpha, g.voltage_threshold, g.encoder_widths);
+    return meeting01::make_snn_cfg(meeting01::with_snn_time_steps(cfg, g.time_steps),
+        g.alpha,
+        g.voltage_threshold,
+        g.encoder_widths);
 }
 
 auto genome_key(const Genome& g) -> std::string
 {
     std::ostringstream s;
     for (int w : g.encoder_widths) s << w << ',';
-    s << '|' << g.encoding << '|' << g.architecture << '|' << g.voltage_threshold << '|' << g.alpha;
+    s << '|' << g.encoding << '|' << g.architecture << '|' << g.voltage_threshold << '|' << g.alpha
+      << "|T" << g.time_steps;
     return s.str();
 }
 
@@ -177,7 +190,8 @@ auto genome_to_json(const Genome& g) -> nlohmann::json
         {"encoding", g.encoding},
         {"architecture", g.architecture},
         {"voltage_threshold", g.voltage_threshold},
-        {"alpha", g.alpha}};
+        {"alpha", g.alpha},
+        {"time_steps", g.time_steps}};
 }
 
 void genome_from_json(const nlohmann::json& j, Genome& out)
@@ -187,6 +201,7 @@ void genome_from_json(const nlohmann::json& j, Genome& out)
     out.architecture = j.at("architecture").get<std::string>();
     out.voltage_threshold = j.at("voltage_threshold").get<float>();
     out.alpha = j.at("alpha").get<float>();
+    out.time_steps = j.at("time_steps").get<int>();
 }
 
 } // namespace meeting01::ga

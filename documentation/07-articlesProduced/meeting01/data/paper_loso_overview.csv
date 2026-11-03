@@ -1,0 +1,5 @@
+model;fsddmse;fsddenergy;audiomnistmse;audiomnistenergy;eegmmidbmse;eegmmidbenergy;sienamse;sienaenergy
+Mean;--;--;--;--;--;--;--;--
+PCA;--;--;--;--;--;--;--;--
+SNN-AE;--;--;--;--;--;--;--;--
+ANN-AE (matched);--;--;--;--;--;--;--;--

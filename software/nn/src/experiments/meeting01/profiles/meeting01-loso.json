@@ -1,13 +1,13 @@
 {
     "_profile_name": "meeting01-loso",
-    "_network_type": "Nested leave-one-speaker-out (LOSO/LOGO) architecture search: NSGA-II runs SEPARATELY for each of 4 model families (SNN-AE, LSTM-AE, GRU-AE, Transformer-AE), one OS process per (dataset, outer fold). Goal (2026-09-22 scope change): find the best autoencoder overall across all 4 families at equal latent_dim WITHIN a dataset, not 'SNN vs 3 fixed baselines' -- every family now searches its own architecture and its own input encoding. latent_dim itself is per-dataset since 2026-09-23 (see dataset.sources[].latent_dim): audio (fsdd/audiomnist) and EEG (eegmmidb/siena) use different bottleneck widths, literature-backed -- .wiki/Experiments/Meeting01.md's 'latent_dim is fixed, not evolved' section has the citations.",
-    "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder), exponential surrogate; R, C, V_th learnable, clamped 1e-6. LSTM-AE/GRU-AE: hidden_size + num_layers genes (Meeting01RecurrentGaGenome). Transformer-AE: d_model + n_heads + n_layers + d_ff genes, d_model % n_heads == 0 enforced by repair (Meeting01TransformerGaGenome). All 4: encoding (direct/poisson/latency) is a gene, latent_dim is fixed per dataset (never a gene) so every family is compared at the same compression ratio within that dataset -- fsdd/audiomnist (audio) = 16, eegmmidb/siena (EEG) = 64 (dataset.sources[].latent_dim, resolved once per dataset before that dataset's 4 searches start). Each family's driver runs its own NSGA-II (population x (1+generations) evaluations), selects the winning genome from its own rank-0 Pareto front on the inner validation speaker, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train), evaluates once on the held-out test speaker, then the 4 winners are compared (val_mse, then inference cost) and the overall winner is recorded in a '_run<r>_overall_winner_manifest.json'.",
+    "_network_type": "Nested leave-one-group-out (LOSO/LOGO) comparison of a spiking autoencoder (SNN-AE, its architecture searched by NSGA-II) with its matched non-spiking control (ann-ae: the SNN winner's widths, a leaky ReLU where the SNN has a LIF), one OS process per (dataset, outer fold). PCA and the mean frame are added by 03_. The LSTM-AE, GRU-AE and Transformer-AE searched baselines were REMOVED 2026-11-02 (author's decision) on the evidence of a pre-validation on the development folds -- meeting01-prevalidation.json, scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh, .wiki/Experiments/Meeting01.md 'Baseline pre-validation'. latent_dim is per-dataset since 2026-09-23 (dataset.sources[].latent_dim): audio (fsdd/audiomnist) 16, EEG (eegmmidb/siena) 64, literature-backed -- .wiki/Experiments/Meeting01.md's 'latent_dim is fixed, not evolved' section has the citations.",
+    "_architecture_summary": "SNN-AE: free encoder_widths genome (strictly decreasing, decoder mirrors encoder); LIF (LifBPTT, ArcTan surrogate, hard reset) in the encoder's hidden layers only, analog latent averaged over the T steps (T a gene, 2..32, since 2026-11-02), leaky-ReLU decoder run once (model.snn_time_pool / snn_decoder_neuron, 2026-11-01); R, C, V_th learnable, clamped 1e-6. Encoding (direct/poisson/latency) and the input transform (dense/conv1d/recurrent) are genes; latent_dim is fixed per dataset (never a gene). The search selects the winning genome from its rank-0 Pareto front on the inner validation group, retrains it on train+val (early-stopping on a recording-disjoint monitor carved from train) and evaluates it once on the held-out test group; ann-ae is then built from that winner's widths and goes through the same final fit and test.",
     "_loss_function": "MSE reconstruction loss",
-    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 1.6 s @ 160 Hz for PhysioNet eegmmidb; 0.5 s @ 512 Hz for Siena Scalp EEG). Per-window z-score, then spike encoding over model.time_steps = 16 REAL simulation steps -> a (16, 256) time-major tensor (row = t*B + b). Encoding (direct/poisson/latency) is a GA gene for every family, not an outer sweep. Every model -- SNN and the three baselines alike -- is trained to reconstruct the ORIGINAL z-scored window (repeated across the 16 steps), never its own spike code, so val_mse is comparable across encodings and families. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 200 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
-    "_total_runs_breakdown": "Per (dataset, fold, run_id): 4 SEPARATE NSGA-II searches (SNN + LSTM + GRU + Transformer), each population x (1 + generations) evaluations + |Pareto front| x (winner_seeds - 1) re-scorings + 1 retrained winner. CALIBRATED 2026-09-23 from a real per-epoch cost probe at production settings (window_size=256, time_steps=16, 200 train / 150 val windows, batch_size=1, each family pinned to a production-representative genome: SNN 64->32, LSTM/GRU hidden=64, Transformer d_model=64/heads=4/layers=2/d_ff=128). Measured mean wall-clock per epoch: SNN ~0.5 s, Transformer ~83.75 s (168x SNN), LSTM ~97.2 s (194x SNN), GRU ~136.0 s (272x SNN). At these ratios a literal equal-wall-clock-to-SNN budget (SNN's own 48 evaluations cost only ~12 min worst-case) is mathematically incompatible with running any real search on the 3 baseline families, so the equal-TIME-budget design (as originally conceived) was abandoned for them (user decision, 2026-09-23) in favor of each getting its own independently-sized evaluation budget. ga.lstm/ga.gru/ga.transformer are set to population=8, generations=5, winner_seeds=3 -- the SAME shape as ga.snn (48 search evaluations each, user's explicit choice after seeing the per-family cost breakdown, deliberately prioritizing search thoroughness over minimizing wall-clock). 65 evaluations per family per cell worst case (48 search + up to |front|x2=16 winner's-curse re-scorings + 1 final retrain). Worst-case total (every evaluation running the full 30-epoch cap, no early stop) per (dataset,fold,run) cell: SNN ~0.27 h, Transformer ~45.4 h, LSTM ~52.7 h, GRU ~73.7 h -- summing to ~172 h/cell (cited, not recomputed, from the 2026-09-23 measurement). Grid widened 2026-09-23 from 3 to 4 datasets (mitbih replaced by two EEG datasets, eegmmidb + siena, per user request) -- per-cell cost is unchanged, so the prior 90-cell total (~15 476 CPU-hours) scales by 120/90: across the full grid (4 datasets x 6 folds x 5 repeats = 120 cells): approximately 20 635 CPU-hours, i.e. ~860 days (~28.7 months) WORST CASE. Real elapsed time will be lower thanks to early_stop_patience=5 truncating most evaluations well before 30 epochs, but no measured average-epochs-under-early-stopping exists yet -- this is a stated upper bound, not a point estimate. Confirm cluster/wall-clock capacity for a job of this scale before launching; consider splitting across (dataset, fold) processes run in parallel (already the design -- one OS process per cell) to bring elapsed wall-clock down, though total CPU-hours are unchanged.",
+    "_preprocessing": "Non-overlapping 256-sample windows (32 ms @ 8 kHz for FSDD / AudioMNIST; 1.6 s @ 160 Hz for PhysioNet eegmmidb; 0.5 s @ 512 Hz for Siena Scalp EEG). Per-window z-score, then, for the SNN-AE, spike encoding over T REAL simulation steps (a gene, 2..32) -> a (T, 256) time-major tensor (row = t*B + b); ann-ae reads the analog window once. Encoding (direct/poisson/latency) is a GA gene, not an outer sweep. Both models are trained to reconstruct the ORIGINAL z-scored window once (the SNN-AE averages its steps before the decoder, model.snn_time_pool = latent), never its own spike code, so val_mse is comparable across encodings. Stratified per-fold window caps (loso_max_{train,val,test}_windows = 1000 / 150 / 1500) round-robin across recording_id so every speaker/recording stays represented; LOSO structure and the recording-level statistical unit are unchanged.",
+    "_total_runs_breakdown": "Per (dataset, fold, run_id): ONE NSGA-II search (the SNN-AE), population x (1 + generations) = 8 x 6 = 48 evaluations + up to |Pareto front| x (winner_seeds - 1) re-scorings + 1 retrained winner, then the ann-ae control (1 training). 4 datasets x 6 folds x 5 runs = 120 cells, one process per (dataset, fold) = 24 processes. NOT MEASURED at these settings: the 2026-09-23 calibration (SNN ~0.5 s per epoch at 200 training windows and T = 16, ~0.27 h per cell worst case; the three removed families ~45-74 h per cell each, ~172 h per cell in all) predates 1000 training windows, T up to 32 and the removal. The pre-validation (meeting01-prevalidation.json) records the SNN-AE search's wall time on the development folds at a reduced budget; 00_meeting01_prevalidation_report.py prints it next to the removed families'.",
     "_dataset_config": "Speaker/record-disjoint outer folds (6). No pooled sample caps (max_loaded_train_samples / max_validation_samples = 0 -> every window of the disjoint partitions, then the stratified loso_max_* caps apply). 30 epochs max, early stop patience 5, lr 0.001 (weights) / 0.0001 (R, C, V_th), batch size 1. Per-epoch progress on stderr as '[loso] ... epoch N/M' (survives nohup, where the live bars collapse).",
-    "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<family>_run<r>_model_selection_manifest.json (one per family), _run<r>_overall_winner_manifest.json (4-way comparison), _events.jsonl, models/*.npz; documentation/07-articlesProduced/meeting01/data/*.tex",
-    "_comment": "Nested-LOSO multi-family architecture search for the meeting01 paper revision. GA budgets for all 4 families are calibrated from a real per-epoch cost measurement (2026-09-23) -- see _total_runs_breakdown for the method. ga.lstm/ga.gru/ga.transformer match ga.snn's own shape (population=8, generations=5, winner_seeds=3, 48 search evaluations each -- user's explicit choice, 2026-09-23, after being shown the per-family cost breakdown). Dataset grid changed 2026-09-23: mitbih (ECG) replaced by two EEG datasets, eegmmidb + siena (user request), both read via a new EDF-format loader (Meeting01Eeg.{hpp,cpp}) -- see dataset.sources[] for root paths; eegmmidb downloaded 2026-09-23, siena substituted for an original chbmit choice the same day when CHB-MIT's 42.6GB did not fit available disk (siena is 20.3GB, same seizure-EEG task category, complete 14-subject dataset). Worst-case grid estimate, updated for 4 datasets: ~860 days (~28.7 months) of CPU time (cited, scaled from the 3-dataset ~645-day estimate -- see _total_runs_breakdown). Run once via scripts/pipeline/meeting01/01_meeting01_run_loso.sh (ONE invocation; potentially close to THREE YEARS on CPU worst case -- confirm cluster capacity and timeline before launching). cv_fold here is a default; the run script overrides it per process with --cv-fold.",
+    "_expected_outputs": "results/meeting01/meeting01_loso_<ds>_fold<f>_{comparative_metrics,per_window_errors}.csv, _split_manifest.json, _<encoding>_run<r>_model_selection_manifest.json (the SNN-AE) and _ann-ae_run<r>_model_selection_manifest.json, _run<r>_overall_winner_manifest.json, _events.jsonl, models/*; documentation/07-articlesProduced/meeting01/data/*.tex",
+    "_comment": "Nested-LOSO SNN-AE vs matched-control grid for the meeting01 paper revision. Dataset grid changed 2026-09-23: mitbih (ECG) replaced by two EEG datasets, eegmmidb + siena (user request), both read via the EDF loader (Meeting01Eeg.{hpp,cpp}) -- see dataset.sources[] for root paths; siena substituted for an original chbmit choice the same day when CHB-MIT's 42.6GB did not fit available disk (siena is 20.3GB, same seizure-EEG task category, complete 14-subject dataset). Searched sequence baselines removed 2026-11-02 (see _network_type). Run via scripts/pipeline/meeting01/01_meeting01_run_loso.sh, or on GridUnesp as a 24-task array (submit_loso_array.sh); see _total_runs_breakdown for what is and is not measured about its cost. cv_fold here is a default; the run script overrides it per process with --cv-fold.",
     "experiment": {
         "run_tag": "meeting01_loso",
         "seed": 42,
@@ -23,10 +23,12 @@
         "max_validation_samples": 0,
         "cv_fold": 0,
         "cv_num_folds": 6,
-        "loso_max_train_windows": 200,
+        "_loso_max_train_windows_comment": "1000 since 2026-11-02 (was 200; author's decision): the format-5 design was diagnosed and validated at 1000 training windows per fold, and more windows improve every model (FSDD fold 0, C++, format 4: SNN-AE 0.880 -> 0.827, ann-ae 0.706 -> 0.662 from 200 to 1000) without closing the SNN-AE / ann-ae gap.",
+        "loso_max_train_windows": 1000,
         "loso_max_val_windows": 150,
         "loso_max_test_windows": 1500,
-        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/meeting01/data",
+        "_latex_data_dir_comment": "Empty since 2026-11-02: the per-fold LaTeX exports (<tag>_summary.dat, _sweep.dat, _mse_plot.csv, ...) are files nothing reads -- the paper's data come only from 02_/04_/00_ -- and they landed in the paper's data/ next to the generated files, on the cluster as /home I/O. Output-only: not in config_hash, so a checkpoint survives the change.",
+        "latex_data_dir": "",
         "save_models": true,
         "sources": [
             {
@@ -47,7 +49,7 @@
                 "latent_dim": 16
             },
             {
-                "_comment": "PLACEHOLDER path -- dataset not yet downloaded on this machine (2026-09-23). Source: PhysioNet EEG Motor Movement/Imagery Database, https://physionet.org/content/eegmmidb/1.0.0/ (109 subjects, 64 channels, 160 Hz, EDF+, one subdirectory per subject: S001/S001R01.edf ...). Signal 0 of each .edf is read; verify that is an EEG channel (not e.g. a status channel) once the real files are in place.",
+                "_comment": "Source: PhysioNet EEG Motor Movement/Imagery Database, https://physionet.org/content/eegmmidb/1.0.0/ (109 subjects, 64 channels, 160 Hz, EDF+, one subdirectory per subject: S001/S001R01.edf ...). Downloaded 2026-11-01 (1526 EDF, 3.4 GB). Signal 0 of each .edf is read; verified 2026-11-01 against the headers of all 1526 files to be the EEG channel 'Fc5.' (65 signals per file, 160 samples per 1 s record), not an annotation/status channel.",
                 "name": "eegmmidb",
                 "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/eegmmidb",
                 "sample_rate": 160,
@@ -84,8 +86,13 @@
         "loss_function": "mse",
         "_latent_dim_comment": "Fallback only: every dataset in evaluation.datasets below overrides this via dataset.sources[].latent_dim (16 audio / 64 EEG), so this value is never actually read by the LOSO grid -- kept as a sane default for ad-hoc single-dataset runs of this profile with --dataset omitted-override.",
         "latent_dim": 32,
-        "time_steps": 16,
-        "lstm_hidden_size": 64,
+        "_time_steps_comment": "Not set here since 2026-11-02: T is a gene of the SNN-AE search (evaluation.ga.snn.time_steps_min/max), so model.time_steps would be a value no SNN reads. History: 16 until 2026-11-01, then 4 from FSDD alone; on eegmmidb fold 0 T = 16 beat T = 4 by ~0.05 (validation 0.372 vs 0.425), on FSDD T made no difference, so the author made T a free gene chosen on validation per fold.",
+        "_snn_time_pool_comment": "latent (2026-11-01): the SNN-AE averages its latent over the T steps and runs its decoder once. Gap diagnosis (.wiki/Experiments/Meeting01.md, 'Where the gap comes from'): scoring every step's output costs ~0.05 test MSE; averaging at the latent or at the output measured the same (0.724 vs 0.724 at T = 4), and the latent is T x cheaper in the decoder.",
+        "snn_time_pool": "latent",
+        "_snn_decoder_neuron_comment": "analog (2026-11-01): leaky ReLU in the decoder, the neuron ann-ae's decoder has, so the SNN-AE and the ann-ae control differ in the encoder's hidden neuron alone (LIF over T steps vs leaky ReLU once). Required by snn_time_pool = latent.",
+        "snn_decoder_neuron": "analog",
+        "_initializer_comment": "xavier (2026-11-01) for the SNN-AE and, when it runs, its matched control ann-ae (validate() requires the field once ann-ae is a baseline). Left empty each builder kept its own -- kaiming SNN, xavier ANN -- so the control differed in its starting weights too. PyTorch twin, 3 seeds, test MSE kaiming -> xavier: eegmmidb fold 0 ANN 0.489 -> 0.293, SNN-AE (this design) 0.484 -> 0.449; FSDD fold 0 ANN 0.667 -> 0.654, SNN-AE 0.724 -> 0.729. Xavier is better or equal for both arms on both datasets; the ANN's kaiming deficit on EEG persists to convergence (200-epoch cap: 0.479 vs 0.291).",
+        "initializer": "xavier",
         "encoder_layer_spec": [
             "linear:64:leaky",
             "linear:32:identity"
@@ -107,10 +114,9 @@
             "poisson",
             "latency"
         ],
+        "_baselines_comment": "ann-ae added 2026-11-02 (author's decision): the matched non-spiking control -- the SNN-AE winner's own widths, a leaky ReLU where the SNN has a LIF, the same initializer and training -- is the comparison the paper is built on. It is not searched (it copies the SNN winner of the same dataset, fold and run). lstm-ae, gru-ae and transformer-ae removed 2026-11-02 (author's decision), justified by the pre-validation of meeting01-prevalidation.json on the development folds: cost of training, cost of inference and quality, each family through a reduced search of the same budget. The binary still has them; 02_ / 04_ list only the configured families.",
         "baselines": [
-            "lstm-ae",
-            "gru-ae",
-            "transformer-ae"
+            "ann-ae"
         ],
         "snn_architectures": [
             "dense",
@@ -125,37 +131,10 @@
                 "voltage_threshold_min": 0.5,
                 "voltage_threshold_max": 1.5,
                 "alpha_min": 0.8,
-                "alpha_max": 0.99
-            },
-            "lstm": {
-                "population_size": 8,
-                "generations": 5,
-                "winner_seeds": 3,
-                "min_hidden": 8,
-                "max_hidden": 256,
-                "min_layers": 1,
-                "max_layers": 3
-            },
-            "gru": {
-                "population_size": 8,
-                "generations": 5,
-                "winner_seeds": 3,
-                "min_hidden": 8,
-                "max_hidden": 256,
-                "min_layers": 1,
-                "max_layers": 3
-            },
-            "transformer": {
-                "population_size": 8,
-                "generations": 5,
-                "winner_seeds": 3,
-                "min_d_model": 16,
-                "max_d_model": 128,
-                "head_choices": [1, 2, 4, 8],
-                "min_layers": 1,
-                "max_layers": 4,
-                "min_d_ff": 32,
-                "max_d_ff": 256
+                "alpha_max": 0.99,
+                "_time_steps_comment": "T, an integer drawn uniformly in [2, 32] (author's decision 2026-11-02: a free range, not preset values). 2 is the least validate() accepts (one step leaves alpha and the poisson/latency codes without a time axis); 32 is twice the largest T measured on EEG (16, the best there). Every step is a dense pass of the first layer for direct input, so the GA's cost objective (estimate_snn_macs) grows with T: it keeps cheaper genomes on the Pareto front, but the winner is the front's lowest re-scored validation MSE (cost only breaks ties), so a longer T is selected only when it validates better.",
+                "time_steps_min": 2,
+                "time_steps_max": 32
             }
         }
     }

@@ -20,11 +20,14 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "../lib/include/Meeting01Config.hpp"
 #include "../lib/include/Meeting01Metrics.hpp"
 #include "../lib/include/Meeting01Training.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/gru/GRUAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "models/transformer/TransformerAutoencoder.hpp"
@@ -300,4 +303,177 @@ TEST(ParameterCount, TransformerMacEstimateIsSuperlinearInSeqLen)
     // A purely linear cost would give m2 - m1 == m3 - m2. The O(T^2) attention term
     // makes each doubling add strictly more than the previous one.
     EXPECT_GT(m3 - m2, m2 - m1);
+}
+
+// ---------------------------------------------------------------------------------------
+// SNN-AE cost (results_format 5): what count_snn_ops counts, on a network small enough to
+// count by hand. Window 16, encoder widths {8, 4}, T = 4, latent averaged over time and an
+// analog decoder (the production design):
+//
+//   encoder  Linear 16->8 -> LifBPTT -> Linear 8->4 -> TimeMeanPool     4 rows in
+//   decoder  Linear 4->8  -> LeakyReLU -> Linear 8->16                  1 row in
+// ---------------------------------------------------------------------------------------
+
+namespace
+{
+
+Meeting01Config tiny_snn_config(const std::string& pool, const std::string& neuron)
+{
+    Meeting01Config cfg = load_loso();
+    cfg.dataset.window_size = 16;
+    cfg.model.time_steps = 4;
+    cfg.model.latent_dim = 4;
+    cfg.model.snn_time_pool = pool;
+    cfg.model.snn_decoder_neuron = neuron;
+    return cfg;
+}
+
+using nn::models::autoencoder::ProtocolSpikingAutoencoder;
+
+} // namespace
+
+TEST(SnnCost, RendersTheTimeStageAndDecoderNeuronTheProfileAsks)
+{
+    using Spec = std::vector<std::string>;
+    const auto pooled =
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 1.0F, {8, 4});
+    EXPECT_EQ(
+        pooled.encoder_layer_spec, (Spec{"linear:8:leaky", "linear:4:identity", "time_mean"}));
+    EXPECT_EQ(pooled.decoder_layer_spec, (Spec{"linear:8:leaky_relu", "linear:output:identity"}));
+
+    const auto per_step =
+        meeting01::make_snn_cfg(tiny_snn_config("none", "lif"), 0.9F, 1.0F, {8, 4});
+    EXPECT_EQ(per_step.encoder_layer_spec, (Spec{"linear:8:leaky", "linear:4:identity"}));
+    EXPECT_EQ(per_step.decoder_layer_spec, (Spec{"linear:8:leaky", "linear:output:identity"}));
+
+    // The ANN control never inherits the SNN's time stage or decoder choice.
+    const auto twin = meeting01::make_ann_twin_cfg(tiny_snn_config("latent", "analog"), {8, 4});
+    EXPECT_EQ(twin.encoder_layer_spec, per_step.encoder_layer_spec);
+    EXPECT_EQ(twin.decoder_layer_spec, per_step.decoder_layer_spec);
+
+    EXPECT_EQ(meeting01::snn_output_steps(tiny_snn_config("latent", "analog")), 1);
+    EXPECT_EQ(meeting01::snn_output_steps(tiny_snn_config("output", "lif")), 1);
+    EXPECT_EQ(meeting01::snn_output_steps(tiny_snn_config("none", "lif")), 4);
+}
+
+TEST(SnnCost, CountsAnAnalogInputForwardByHand)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16); // direct-coded: analog values, never all 0/1
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d)
+            x.at(t, d) = 0.1F * static_cast<float>((t * 16 + d) % 7) - 0.25F;
+
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    const auto y = model.forward(input, false);
+    ASSERT_EQ(y.rows(), 1) << "the latent average leaves one row: the decoder runs once";
+    ASSERT_EQ(y.cols(), 16);
+
+    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/false);
+    const double spikes = model.encoder_.outputs[1].sum(); // the LifBPTT's spike train
+    // MACs: Linear 16->8 on 4 rows (512) + LIF 4 x 8 (32) + the 1/T of 4 latents (4)
+    //       + Linear 4->8 once (32) + Linear 8->16 once (128)
+    EXPECT_DOUBLE_EQ(ops.macs, 512.0 + 32.0 + 4.0 + 32.0 + 128.0);
+    // ACs: every spike feeds the 4 latent units; the time sum adds 4 rows x 4 values
+    EXPECT_DOUBLE_EQ(ops.acs, 4.0 * spikes + 16.0);
+    EXPECT_DOUBLE_EQ(ops.spikes, spikes);
+    EXPECT_DOUBLE_EQ(ops.neuron_steps, 32.0);
+}
+
+TEST(SnnCost, CountsABinaryInputAsAccumulates)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16); // poisson/latency-coded: 0/1 only
+    double nonzero = 0.0;
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d)
+        {
+            x.at(t, d) = ((t + d) % 3 == 0) ? 1.0F : 0.0F;
+            nonzero += x.at(t, d);
+        }
+
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/true);
+    const double spikes = model.encoder_.outputs[1].sum();
+    // The first layer costs nonzero x 8 ACs instead of 512 MACs.
+    EXPECT_DOUBLE_EQ(ops.macs, 32.0 + 4.0 + 32.0 + 128.0);
+    EXPECT_DOUBLE_EQ(ops.acs, nonzero * 8.0 + 4.0 * spikes + 16.0);
+}
+
+TEST(SnnCost, CountingBeforeAForwardIsRefused)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16);
+    x.setZero();
+    EXPECT_THROW(
+        (void) meeting01::count_snn_ops(model, ProtocolSpikingAutoencoder::Tensor(x), false),
+        std::logic_error);
+}
+
+// An encoder that fires nothing leaves an all-zero latent (zero-initialised biases), which
+// looks binary. It is still an analog tensor, and the decoder still runs its dense passes:
+// deciding "spikes" by value instead of by origin priced those passes at 0 (and failed this
+// test whenever a random init happened to stay silent).
+TEST(SnnCost, ASilentEncoderStillPaysForItsAnalogLayers)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 1000.0F, {8, 4}));
+    nn::Tensor x(4, 16);
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d) x.at(t, d) = 0.01F * static_cast<float>(d);
+
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+    const auto ops = meeting01::count_snn_ops(model, input, false);
+    ASSERT_EQ(ops.spikes, 0.0) << "v_th = 1000 must keep the encoder silent";
+    EXPECT_DOUBLE_EQ(ops.macs, 512.0 + 32.0 + 4.0 + 32.0 + 128.0);
+    EXPECT_DOUBLE_EQ(ops.acs, 16.0); // the time sum only
+}
+
+TEST(SnnCost, AnInputTakenForSpikesMustBeBinary)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16);
+    x.setZero();
+    x.at(0, 0) = 0.5F;
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+    EXPECT_THROW((void) meeting01::count_snn_ops(model, input, true), std::logic_error);
+}
+
+TEST(SnnCost, InputIsSpikesFollowsEncodingAndArchitecture)
+{
+    EXPECT_FALSE(meeting01::snn_input_is_spikes("direct", "dense"));
+    EXPECT_TRUE(meeting01::snn_input_is_spikes("poisson", "dense"));
+    EXPECT_TRUE(meeting01::snn_input_is_spikes("latency", "dense"));
+    EXPECT_FALSE(meeting01::snn_input_is_spikes("poisson", "conv1d"));  // smoothed: analog
+    EXPECT_TRUE(meeting01::snn_input_is_spikes("direct", "recurrent")); // a LIF's spikes
+    EXPECT_THROW((void) meeting01::snn_input_is_spikes("rate", "dense"), std::invalid_argument);
+    EXPECT_THROW((void) meeting01::snn_input_is_spikes("direct", "cnn"), std::invalid_argument);
+}
+
+TEST(SnnCost, AnalyticEstimateRunsTheDecoderOnceAfterALatentAverage)
+{
+    // encoder 16*8 + 8*4 = 160 per step, decoder 4*8 + 8*16 = 160 per run.
+    EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4), 4u * 160u + 4u * 160u);
+    EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1), 4u * 160u + 160u);
+}
+
+TEST(SnnCost, EnergyAndTransformCountsUseTheDeclaredConstants)
+{
+    EXPECT_FLOAT_EQ(meeting01::arith_energy_nj(1000.0, 1000.0), 5.5F); // 4.6 + 0.9 nJ
+    EXPECT_DOUBLE_EQ(meeting01::count_architecture_transform_macs("dense", 64), 0.0);
+    EXPECT_DOUBLE_EQ(meeting01::count_architecture_transform_macs("conv1d", 64), 192.0);
+    EXPECT_DOUBLE_EQ(meeting01::count_architecture_transform_macs("recurrent", 64), 64.0);
+    EXPECT_THROW(
+        (void) meeting01::count_architecture_transform_macs("cnn", 64), std::invalid_argument);
 }

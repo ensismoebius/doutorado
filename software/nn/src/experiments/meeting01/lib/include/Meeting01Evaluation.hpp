@@ -29,12 +29,15 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     int lstm_frame_size,
     int time_steps) -> RunMetrics;
 
+// `time_steps` is how many steps a window is encoded over; `output_steps` how many rows the
+// model emits per window (snn_output_steps: 1 when its time axis is averaged, else
+// time_steps), which is the shape of the target and mask it is scored against. macs, acs
+// and spike_rate are counted from the forward passes of `val_samples` (count_snn_ops).
 auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,
-    std::size_t macs,
     std::size_t param_count,
     const std::string& encoding,
     const std::string& architecture,
@@ -42,11 +45,12 @@ auto evaluate_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     float v_th,
     std::uint32_t seed,
     float infer_ms,
-    int time_steps) -> RunMetrics;
+    int time_steps,
+    int output_steps) -> RunMetrics;
 
 // Per-window reconstruction error for the SNN-AE (arch transform + flatten + forward +
-// unflatten, mse/mae in encoded space). `proto` carries the shared identity fields;
-// `meta` is parallel to `samples`.
+// unflatten, mse/mae against the window held over `output_steps` rows). `proto` carries
+// the shared identity fields; `meta` is parallel to `samples`.
 auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& samples,
     const std::vector<WindowMetadata>& meta,
@@ -56,6 +60,7 @@ auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& 
     float v_th,
     std::uint32_t seed,
     int time_steps,
+    int output_steps,
     PerWindowError proto) -> std::vector<PerWindowError>;
 
 } // namespace meeting01

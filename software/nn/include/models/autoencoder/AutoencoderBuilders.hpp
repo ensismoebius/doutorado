@@ -84,12 +84,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
             {
                 const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
                 auto linear = std::make_shared<Linear>(current, output_size);
-                xavierInitializer(current,
-                    output_size,
-                    linear->weight,
-                    linear->bias,
-                    cfg.initializer_seed,
-                    cfg.initializer_sampler_type);
+                initialize_linear(cfg, linear, "xavier");
                 encoder.add_module(linear);
                 append_ann_activation(encoder, stage.activation_type);
                 current = output_size;
@@ -180,12 +175,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
     }
 
     auto latent_linear = std::make_shared<Linear>(current, cfg.latent_size);
-    xavierInitializer(current,
-        cfg.latent_size,
-        latent_linear->weight,
-        latent_linear->bias,
-        cfg.initializer_seed,
-        cfg.initializer_sampler_type);
+    initialize_linear(cfg, latent_linear, "xavier");
     encoder.add_module(latent_linear);
     encoder.add_module(std::make_shared<ReLU>());
     return encoder;
@@ -205,12 +195,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
             {
                 const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
                 auto linear = std::make_shared<Linear>(current, stage_output);
-                xavierInitializer(current,
-                    stage_output,
-                    linear->weight,
-                    linear->bias,
-                    cfg.initializer_seed,
-                    cfg.initializer_sampler_type);
+                initialize_linear(cfg, linear, "xavier");
                 decoder.add_module(linear);
                 append_ann_activation(decoder, stage.activation_type);
                 current = stage_output;
@@ -295,12 +280,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
     }
 
     auto output_linear = std::make_shared<Linear>(current, output_size);
-    xavierInitializer(current,
-        output_size,
-        output_linear->weight,
-        output_linear->bias,
-        cfg.initializer_seed,
-        cfg.initializer_sampler_type);
+    initialize_linear(cfg, output_linear, "xavier");
     decoder.add_module(output_linear);
     return decoder;
 }
@@ -319,7 +299,7 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
             {
                 const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
                 auto linear = std::make_shared<Linear>(current, output_size);
-                kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+                initialize_linear(cfg, linear, "kaiming");
                 encoder.add_module(linear);
                 append_activation_by_mode(cfg, encoder, stage.activation_type, true);
                 current = output_size;
@@ -376,7 +356,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
             {
                 const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
                 auto linear = std::make_shared<Linear>(current, stage_output);
-                kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+                initialize_linear(cfg, linear, "kaiming");
                 decoder.add_module(linear);
                 append_activation_by_mode(cfg, decoder, stage.activation_type, true);
                 current = stage_output;
@@ -410,7 +390,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     }
 
     auto output_linear = std::make_shared<Linear>(current, output_size);
-    kaimingSNNInitializer(output_linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+    initialize_linear(cfg, output_linear, "kaiming");
     decoder.add_module(output_linear);
     require_time_steps(cfg.time_steps);
     decoder.add_module(std::make_shared<LifBPTT>(cfg.time_steps,

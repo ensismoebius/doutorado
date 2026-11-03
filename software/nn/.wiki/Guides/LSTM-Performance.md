@@ -103,7 +103,8 @@ Profile `src/experiments/meeting01/profiles/lstm-bench.json`:
 |---|---|
 | Dataset | FSDD (32 train, 8 val samples) |
 | Window size | 256 samples |
-| `model.time_steps` | 16 (see the warning below) |
+| `model.recurrent_time_steps` | 1 → the LSTM reads S = 1 · 256 / 8 = **32 frames** |
+| `model.time_steps` | 16 (the SNN's T; this profile runs no SNN) |
 | Encodings | direct only |
 | Repeats | 1 |
 | Epochs | 3 |
@@ -115,19 +116,26 @@ Run:
   --profile src/experiments/meeting01/profiles/lstm-bench.json
 ```
 
-> **The number below is stale as of 2026-09-22, and the field that invalidated it is
-> misleadingly named.** `model.time_steps` sounds like an SNN-only knob. It is not:
-> `run_baseline` (`Meeting01Experiment.cpp`) reads it too, so it sets the sequence length
-> the **LSTM** is unrolled over. The baseline now consumes a time-major
-> `(T·B, window_size)` tensor, giving a sequence of `T · window_size / lstm_frame_size`
-> frames instead of `window_size / lstm_frame_size`.
+> **Which field sets the LSTM's sequence length changed twice, and this page said the wrong
+> one until 2026-11-02.**
 >
-> At `T = 16` that is a **16× longer unroll** than when the timing below was recorded.
-> Nothing in this profile had to change for that to happen — it inherited the struct
-> default silently, which is exactly why `profile_audit_gtest`'s
-> `EveryProfileDeclaresTimeStepsExplicitly` now forces every profile to state it. Re-run
-> the benchmark before quoting a wall time; the optimisation *ratios* above still hold,
-> the absolute seconds do not.
+> | Period | Field the LSTM reads | lstm-bench's S |
+> |---|---|---|
+> | before 2026-09-22 | none (the window alone) | 256 / 8 = 32 |
+> | 2026-09-22 → 2026-10-24 | `model.time_steps` (T) | 16 · 256 / 8 = 512 |
+> | since results_format 4 (2026-10-24) | `model.recurrent_time_steps` | 1 · 256 / 8 = 32 |
+>
+> In the middle period the warning here was right: a field named for the SNN set the LSTM's
+> unroll. Since format 4 it is wrong — `model.time_steps` is the SNN's T only — and
+> lstm-bench.json, which declared T = 16 "to match production", in fact ran S = 32 by
+> inheriting `recurrent_time_steps`'s default. A **silent** mismatch: nothing failed, the
+> profile just said one thing and measured another. The profile now declares
+> `recurrent_time_steps` and `profile_audit_gtest`'s
+> `EveryProfileDeclaresTheBaselinesSequenceExplicitly` requires it of every profile.
+>
+> The ~29 s below was recorded at S = 32, the same S as today, but before the LOSO migration
+> (2026-09-23) and the frame fixes of 2026-10-07: re-run the benchmark before quoting a wall
+> time. The optimisation *ratios* above still hold.
 
 Wall time with fused-block optimizations, recorded under the pre-2026-09-22 layout
 (`T = 1`, sequence = `window_size / lstm_frame_size`): **~29s** (1 run, 3 epochs,

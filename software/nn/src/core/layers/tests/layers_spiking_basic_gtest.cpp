@@ -558,3 +558,62 @@ TEST(LeakyReLUTest, ForwardAndBackward)
     ASSERT_NEAR(grad_in.at(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad_in.at(1, 0), 0.1F, 1e-5F);
 }
+
+// TimeMeanPool: time-major (T*B, F) -> (B, F), the mean over T; backward hands every step
+// an equal 1/T share. T = 2, B = 2, F = 2, rows t0b0 [1 2], t0b1 [3 4], t1b0 [5 6], t1b1 [7 8].
+TEST(TimeMeanPoolTest, ForwardAveragesEachSampleOverItsSteps)
+{
+    nn::TimeMeanPool pool(2);
+    nn::Tensor x(4, 2);
+    float v = 1.0F;
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 2; ++c) x.at(r, c) = v++;
+
+    const nn::Tensor y = pool.forward(x, true);
+    ASSERT_EQ(y.rows(), 2);
+    ASSERT_EQ(y.cols(), 2);
+    EXPECT_FLOAT_EQ(y.at(0, 0), 3.0F); // sample 0: (1 + 5) / 2
+    EXPECT_FLOAT_EQ(y.at(0, 1), 4.0F); //           (2 + 6) / 2
+    EXPECT_FLOAT_EQ(y.at(1, 0), 5.0F); // sample 1: (3 + 7) / 2
+    EXPECT_FLOAT_EQ(y.at(1, 1), 6.0F); //           (4 + 8) / 2
+}
+
+TEST(TimeMeanPoolTest, BackwardGivesEveryStepAnEqualShare)
+{
+    nn::TimeMeanPool pool(2);
+    nn::Tensor x(4, 2);
+    x.setZero();
+    (void) pool.forward(x, true);
+
+    nn::Tensor g(2, 2);
+    g.at(0, 0) = 2.0F;
+    g.at(0, 1) = 4.0F;
+    g.at(1, 0) = 6.0F;
+    g.at(1, 1) = 8.0F;
+    const nn::Tensor gx = pool.backward(g);
+    ASSERT_EQ(gx.rows(), 4);
+    for (int t = 0; t < 2; ++t)
+    {
+        EXPECT_FLOAT_EQ(gx.at(t * 2 + 0, 0), 1.0F);
+        EXPECT_FLOAT_EQ(gx.at(t * 2 + 0, 1), 2.0F);
+        EXPECT_FLOAT_EQ(gx.at(t * 2 + 1, 0), 3.0F);
+        EXPECT_FLOAT_EQ(gx.at(t * 2 + 1, 1), 4.0F);
+    }
+}
+
+TEST(TimeMeanPoolTest, RejectsRowsThatAreNotAMultipleOfTimeSteps)
+{
+    nn::TimeMeanPool pool(4);
+    nn::Tensor x(3, 2);
+    x.setZero();
+    EXPECT_THROW((void) pool.forward(x, true), std::invalid_argument);
+    EXPECT_THROW(nn::TimeMeanPool(0), std::invalid_argument);
+}
+
+TEST(TimeMeanPoolTest, BackwardWithoutForwardIsRefused)
+{
+    nn::TimeMeanPool pool(2);
+    nn::Tensor g(1, 2);
+    g.setZero();
+    EXPECT_THROW((void) pool.backward(g), std::logic_error);
+}

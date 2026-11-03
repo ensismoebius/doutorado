@@ -75,7 +75,7 @@ class DATWriterTest : public ::testing::Test
         metrics.r2 = 0.77f;
         metrics.f1 = 0.85f;
         metrics.spike_rate = 0.42f;
-        metrics.energy = 650.0f;
+        metrics.arith_energy_nj = 650.0f;
         metrics.infer_ms = 420.0f;
         metrics.train_ms = 1200.0f;
         metrics.parameter_count = 18000;

@@ -158,6 +158,41 @@ void check_model(const Meeting01Config::Model& model, std::ostringstream& errors
                << "); 1 step disables membrane dynamics and spike coding entirely\n";
     }
 
+    if (model.recurrent_time_steps < 1)
+    {
+        errors << "  - model.recurrent_time_steps must be >= 1 (got " << model.recurrent_time_steps
+               << "); it is the number of steps the LSTM/GRU/Transformer baselines read per "
+                  "window (1 = the window once, 16 = repeated like the SNN)\n";
+    }
+
+    const bool known_pool = model.snn_time_pool == "none" || model.snn_time_pool == "output" ||
+                            model.snn_time_pool == "latent";
+    if (!known_pool)
+    {
+        errors << "  - model.snn_time_pool must be \"none\", \"output\" or \"latent\" (got \""
+               << model.snn_time_pool << "\")\n";
+    }
+    if (model.snn_decoder_neuron != "lif" && model.snn_decoder_neuron != "analog")
+    {
+        errors << "  - model.snn_decoder_neuron must be \"lif\" or \"analog\" (got \""
+               << model.snn_decoder_neuron << "\")\n";
+    }
+    // After a latent average the decoder sees one row per window, and a LifBPTT there would
+    // have no time axis to unroll (it throws on B rows that are not a multiple of T).
+    if (model.snn_time_pool == "latent" && model.snn_decoder_neuron != "analog")
+    {
+        errors << "  - model.snn_time_pool \"latent\" runs the decoder once per window, so it "
+                  "needs model.snn_decoder_neuron \"analog\" (got \""
+               << model.snn_decoder_neuron << "\")\n";
+    }
+
+    if (!model.initializer.empty() && model.initializer != "kaiming" &&
+        model.initializer != "xavier")
+    {
+        errors << "  - model.initializer must be \"kaiming\" or \"xavier\" (got \""
+               << model.initializer << "\")\n";
+    }
+
     if (model.denoising_noise_std < 0.0f)
     {
         errors << "  - model.denoising_noise_std must be >= 0 (got " << model.denoising_noise_std
@@ -231,17 +266,26 @@ void check_ga(const std::string& prefix, const Meeting01Config::Ga& ga, std::ost
         errors << "  - " << prefix << ".max_width (" << ga.max_width << ") must be >= min_width ("
                << ga.min_width << ")\n";
     }
-    if (ga.voltage_threshold_min <= 0.0f || ga.voltage_threshold_max < ga.voltage_threshold_min)
+    if (ga.voltage_threshold_min < 1e-3f || ga.voltage_threshold_max < ga.voltage_threshold_min)
     {
         errors << "  - " << prefix
-               << " voltage_threshold_min/max must satisfy 0 < min <= max (got min="
+               << " voltage_threshold_min/max must satisfy 0.001 <= min <= max (got min="
                << ga.voltage_threshold_min << ", max=" << ga.voltage_threshold_max << ")\n";
     }
-    if (ga.alpha_min <= 0.0f || ga.alpha_max >= 1.0f || ga.alpha_max < ga.alpha_min)
+    if (ga.alpha_min < 1e-3f || ga.alpha_max > 0.999f || ga.alpha_max < ga.alpha_min)
     {
         errors << "  - " << prefix
-               << " alpha_min/max must satisfy 0 < min <= max < 1 (got min=" << ga.alpha_min
-               << ", max=" << ga.alpha_max << ")\n";
+               << " alpha_min/max must satisfy 0.001 <= min <= max <= 0.999 (got min="
+               << ga.alpha_min << ", max=" << ga.alpha_max << ")\n";
+    }
+    const bool fixed_t = ga.time_steps_min == 0 && ga.time_steps_max == 0;
+    if (!fixed_t && (ga.time_steps_min < 2 || ga.time_steps_max < ga.time_steps_min))
+    {
+        errors << "  - " << prefix
+               << " time_steps_min/max must both be 0 (T fixed at model.time_steps) or satisfy "
+                  "2 <= min <= max (got min="
+               << ga.time_steps_min << ", max=" << ga.time_steps_max
+               << "). One step leaves alpha and the poisson/latency codes without a time axis.\n";
     }
 }
 
@@ -326,7 +370,8 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
         errors << "  - evaluation.encodings is empty\n";
     }
 
-    const std::vector<std::string> valid_baselines = {"lstm-ae", "gru-ae", "transformer-ae"};
+    const std::vector<std::string> valid_baselines = {
+        "lstm-ae", "gru-ae", "transformer-ae", "ann-ae"};
     for (const auto& b : evaluation.baselines)
     {
         if (std::find(valid_baselines.begin(), valid_baselines.end(), b) == valid_baselines.end())
@@ -337,6 +382,17 @@ void check_evaluation(const Meeting01Config::Evaluation& evaluation, std::ostrin
     if (evaluation.baselines.empty())
     {
         errors << "  - evaluation.baselines is empty (need at least one trained baseline family)\n";
+    }
+    // "ann-ae" is not searched: it is the matched control of the SNN arm -- the SNN GA winner's
+    // layer widths with a leaky-ReLU neuron instead of a LIF one -- so without an SNN arm there
+    // is no architecture for it to copy.
+    if (std::find(evaluation.baselines.begin(), evaluation.baselines.end(), "ann-ae") !=
+            evaluation.baselines.end() &&
+        evaluation.snn_architectures.empty())
+    {
+        errors << "  - evaluation.baselines has 'ann-ae' (the matched ANN control of the SNN "
+                  "winner) but evaluation.snn_architectures is empty, so there is no SNN "
+                  "winner to copy; add an SNN architecture or drop 'ann-ae'\n";
     }
 
     const std::vector<std::string> valid_encodings = {"direct", "poisson", "latency"};
@@ -399,6 +455,20 @@ void Meeting01Config::validate() const
     check_training(*this, errors);
     check_model(model, errors);
     check_evaluation(evaluation, errors);
+
+    // ann-ae is the SNN-AE with one neuron changed. With model.initializer empty each builder
+    // keeps its own init (kaiming in the SNN one, xavier in the ANN one), so the control would
+    // differ in its starting weights too -- on eegmmidb that alone moved a twin's test MSE
+    // (measured 2026-11-01, .wiki/Experiments/Meeting01.md).
+    if (std::find(evaluation.baselines.begin(), evaluation.baselines.end(), "ann-ae") !=
+            evaluation.baselines.end() &&
+        model.initializer.empty())
+    {
+        errors << "  - evaluation.baselines has 'ann-ae' but model.initializer is empty, so it "
+                  "would start from xavier weights and the SNN-AE from kaiming ones; set "
+                  "model.initializer to \"kaiming\" or \"xavier\" so the two arms differ in "
+                  "the neuron only\n";
+    }
 
     // Every check appends to `errors` and nothing else writes to it, so a
     // non-empty buffer IS the failure condition. The `has_error` flag this

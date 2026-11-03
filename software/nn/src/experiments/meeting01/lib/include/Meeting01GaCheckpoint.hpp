@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Meeting01GaFitness.hpp"
+#include "Meeting01Output.hpp"
 #include "nlohmann/json.hpp"
 
 namespace meeting01::ga
@@ -32,6 +33,36 @@ namespace meeting01::ga
 //      index, written atomically after each generation.
 //
 // Both are resume ARTIFACTS, removed on successful completion.
+//
+// Both carry a STAMP (config_hash, results_format) and loading refuses any other stamp:
+// a validation MSE scored under one profile or binary must not be ranked against genomes
+// scored under another. Until 2026-11-02 they had none, so RESUME=1 after a profile edit
+// (epochs, window caps, ...) silently continued the search with the old scores, while the
+// fold's manifest recorded the new configuration.
+inline auto checkpoint_stamp(std::size_t config_hash) -> nlohmann::json
+{
+    return {{"config_hash", config_hash}, {"results_format", meeting01::kResultsFormat}};
+}
+
+inline void check_checkpoint_stamp(
+    const nlohmann::json& j, std::size_t config_hash, const std::string& where)
+{
+    if (!j.contains("config_hash") || !j.contains("results_format") ||
+        j.at("config_hash").get<std::size_t>() != config_hash ||
+        j.at("results_format").get<int>() != meeting01::kResultsFormat)
+        throw std::runtime_error(
+            "Meeting01GaCheckpoint: " + where + " was written under " +
+            (j.contains("config_hash")
+                    ? "config_hash " + j.at("config_hash").dump() + " / results_format " +
+                          j.value("results_format", nlohmann::json()).dump()
+                    : std::string("no stamp (a binary before 2026-11-02)")) +
+            ", this run is config_hash " + std::to_string(config_hash) + " / results_format " +
+            std::to_string(meeting01::kResultsFormat) +
+            ": the profile or the binary changed since this search was interrupted, and resuming "
+            "would rank genomes scored under both. Restore the profile and binary that wrote it, "
+            "or delete this search's meeting01_ga_<tag>_checkpoint.json and _cache.jsonl to "
+            "restart it.");
+}
 
 auto checkpoint_state_path(const std::string& results_dir, const std::string& run_tag)
     -> std::string;
@@ -74,19 +105,25 @@ auto individual_from_checkpoint_json(const nlohmann::json& j) -> Ind
 
 // ── Per-individual cache (layer 1) ───────────────────────────────────────────
 template <typename Ind>
-void append_cache_entry(const std::string& cache_path, const Ind& ind)
+void append_cache_entry(const std::string& cache_path, const Ind& ind, std::size_t config_hash)
 {
     std::ofstream f(cache_path, std::ios::app);
     if (!f.is_open())
         throw std::runtime_error(
             "Meeting01GaCheckpoint: cannot append to cache file " + cache_path);
-    f << individual_to_checkpoint_json(ind).dump() << '\n';
+    nlohmann::json j = individual_to_checkpoint_json(ind);
+    j.update(checkpoint_stamp(config_hash));
+    f << j.dump() << '\n';
 }
 
 // A single torn TRAILING line (crash mid-append) is dropped with a warning, not
-// treated as corruption; any earlier parse failure throws.
+// treated as corruption, and removed from the file: it has no '\n', so the resumed
+// search's next append would be glued onto it, and that glued line, no longer the last
+// once another entry follows, would make the NEXT resume refuse the whole cache.
+// Only an unparseable line can be torn (a cut JSON object lacks its closing brace); a
+// line that parses is checked like any other: another stamp or a missing field throws.
 template <typename Ind>
-auto load_cache_entries(const std::string& cache_path) -> std::vector<Ind>
+auto load_cache_entries(const std::string& cache_path, std::size_t config_hash) -> std::vector<Ind>
 {
     std::vector<Ind> out;
     std::ifstream f(cache_path);
@@ -96,23 +133,47 @@ auto load_cache_entries(const std::string& cache_path) -> std::vector<Ind>
     std::string line;
     while (std::getline(f, line))
         if (!line.empty()) lines.push_back(line);
+    f.close();
 
     for (std::size_t i = 0; i < lines.size(); ++i)
     {
+        const std::string where = cache_path + " line " + std::to_string(i + 1);
+        nlohmann::json j;
         try
         {
-            out.push_back(individual_from_checkpoint_json<Ind>(nlohmann::json::parse(lines[i])));
+            j = nlohmann::json::parse(lines[i]);
         }
-        catch (const std::exception& e)
+        catch (const nlohmann::json::parse_error& e)
         {
-            if (i + 1 == lines.size())
+            if (i + 1 != lines.size())
+                throw std::runtime_error(
+                    "Meeting01GaCheckpoint: corrupt cache " + where + ": " + e.what());
+            std::cerr << "[Meeting01Ga] checkpoint: dropping incomplete trailing cache line ("
+                      << e.what() << ") — its genome will be retrained.\n";
+            const std::string tmp = cache_path + ".tmp";
             {
-                std::cerr << "[Meeting01Ga] checkpoint: dropping incomplete trailing cache line ("
-                          << e.what() << ") — its genome will be retrained.\n";
-                break;
+                std::ofstream g(tmp, std::ios::trunc);
+                for (std::size_t k = 0; k < i; ++k) g << lines[k] << '\n';
+                if (!g)
+                    throw std::runtime_error("Meeting01GaCheckpoint: cannot rewrite " + cache_path +
+                                             " without its torn last line (writing " + tmp +
+                                             " failed).");
             }
-            throw std::runtime_error("Meeting01GaCheckpoint: corrupt cache line " +
-                                     std::to_string(i + 1) + " in " + cache_path + ": " + e.what());
+            std::filesystem::rename(tmp, cache_path);
+            break;
+        }
+        check_checkpoint_stamp(j, config_hash, where);
+        try
+        {
+            out.push_back(individual_from_checkpoint_json<Ind>(j));
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            throw std::runtime_error("Meeting01GaCheckpoint: cache " + where +
+                                     " parses but is not an individual of this binary (" +
+                                     e.what() +
+                                     "). Delete this search's _checkpoint.json and "
+                                     "_cache.jsonl to restart it.");
         }
     }
     return out;
@@ -134,11 +195,12 @@ void save_generation_checkpoint(const std::string& results_dir,
     const std::string& run_tag,
     int generation,
     const std::mt19937& rng,
-    const std::vector<Ind>& parents)
+    const std::vector<Ind>& parents,
+    std::size_t config_hash)
 {
     std::filesystem::create_directories(results_dir);
 
-    nlohmann::json j;
+    nlohmann::json j = checkpoint_stamp(config_hash);
     j["run_tag"] = run_tag;
     j["generation"] = generation;
     j["rng_state"] = rng_to_string(rng);
@@ -158,7 +220,8 @@ void save_generation_checkpoint(const std::string& results_dir,
 }
 
 template <typename Ind>
-auto load_generation_checkpoint(const std::string& results_dir, const std::string& run_tag)
+auto load_generation_checkpoint(
+    const std::string& results_dir, const std::string& run_tag, std::size_t config_hash)
     -> GenerationCheckpoint<Ind>
 {
     const std::string path = checkpoint_state_path(results_dir, run_tag);
@@ -168,6 +231,7 @@ auto load_generation_checkpoint(const std::string& results_dir, const std::strin
 
     nlohmann::json j;
     f >> j;
+    check_checkpoint_stamp(j, config_hash, path);
 
     GenerationCheckpoint<Ind> ck;
     ck.generation = j.at("generation").get<int>();

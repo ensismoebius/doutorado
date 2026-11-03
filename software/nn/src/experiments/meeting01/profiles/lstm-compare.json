@@ -37,7 +37,8 @@
             "linear:64:leaky",
             "linear:output:identity"
         ],
-        "time_steps": 4
+        "time_steps": 4,
+        "recurrent_time_steps": 1
     },
     "evaluation": {
         "datasets": [

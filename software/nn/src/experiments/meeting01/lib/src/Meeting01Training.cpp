@@ -111,7 +111,8 @@ auto make_lstm_cfg(const Meeting01Config& cfg, int hidden_size_override, int num
     // stale formula in TransformerAutoencoderConfig crashes outright, since that model's
     // positional encoding buffer is sized once from this field at construction.
     arch.input_size = cfg.model.lstm_frame_size;
-    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.seq_len =
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size;
     arch.hidden_size = (hidden_size_override > 0)         ? hidden_size_override
                        : (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size
                                                           : derived_hidden;
@@ -129,24 +130,57 @@ namespace
 // profile's fixed encoder_layer_spec/decoder_layer_spec use — mirrors
 // pga::to_ae_config's rendering (GaGenome.cpp) so a genome-driven and a
 // profile-driven stack are built by the exact same downstream parser.
-auto render_encoder_spec(const std::vector<int>& widths) -> std::vector<std::string>
+//
+// `hidden` is the hidden layers' activation token ("leaky" is a LIF in the SNN builder and a
+// leaky ReLU in the ANN one; "leaky_relu" is a leaky ReLU in both); `time_mean` appends the
+// TimeMeanPool stage (SNN builder only).
+auto render_encoder_spec(const std::vector<int>& widths, bool time_mean) -> std::vector<std::string>
 {
     std::vector<std::string> spec;
     for (std::size_t i = 0; i + 1 < widths.size(); ++i)
         spec.push_back("linear:" + std::to_string(widths[i]) + ":leaky");
     spec.push_back("linear:" + std::to_string(widths.back()) + ":identity");
+    if (time_mean) spec.emplace_back("time_mean");
     return spec;
 }
 
-auto render_decoder_spec(const std::vector<int>& widths) -> std::vector<std::string>
+auto render_decoder_spec(const std::vector<int>& widths, const std::string& hidden, bool time_mean)
+    -> std::vector<std::string>
 {
     std::vector<std::string> spec;
     for (std::size_t i = widths.size() - 1; i-- > 0;)
-        spec.push_back("linear:" + std::to_string(widths[i]) + ":leaky");
+        spec.push_back("linear:" + std::to_string(widths[i]) + ":" + hidden);
     spec.push_back("linear:output:identity");
+    if (time_mean) spec.emplace_back("time_mean");
     return spec;
 }
 } // namespace
+
+auto snn_output_steps(const Meeting01Config& cfg) -> int
+{
+    return cfg.model.snn_time_pool == "none" ? cfg.model.time_steps : 1;
+}
+
+auto snn_time_steps_range(const Meeting01Config& cfg) -> std::pair<int, int>
+{
+    const auto& ga = cfg.evaluation.ga.snn;
+    if (ga.time_steps_min == 0 && ga.time_steps_max == 0)
+        return {cfg.model.time_steps, cfg.model.time_steps};
+    return {ga.time_steps_min, ga.time_steps_max};
+}
+
+auto with_snn_time_steps(const Meeting01Config& cfg, int time_steps) -> Meeting01Config
+{
+    const auto [lo, hi] = snn_time_steps_range(cfg);
+    if (time_steps < lo || time_steps > hi)
+        throw std::invalid_argument("with_snn_time_steps: T = " + std::to_string(time_steps) +
+                                    " is outside the profile's range [" + std::to_string(lo) +
+                                    ", " + std::to_string(hi) +
+                                    "]: a genome or checkpoint from another profile.");
+    Meeting01Config out = cfg;
+    out.model.time_steps = time_steps;
+    return out;
+}
 
 auto make_snn_cfg(
     const Meeting01Config& cfg, float alpha, float v_th, const std::vector<int>& encoder_widths)
@@ -187,17 +221,38 @@ auto make_snn_cfg(
     // R and C are chosen so the two knobs stay independent and mean what they say:
     // with delta_t = 1 and R = 1, beta = exp(-1/C) = alpha exactly, while v_th is the
     // firing threshold instead of being folded into the time constant via R = 1/v_th.
+    // The genes are used as given, never clamped (a clamped alpha would make beta differ
+    // from the gene the GA reports): check_ga keeps the profile's ranges inside these
+    // limits, so a value outside them is a caller's bug.
+    if (!(alpha >= 1e-3f && alpha <= 0.999f))
+        throw std::invalid_argument("make_snn_cfg: alpha = " + std::to_string(alpha) +
+                                    " is outside [0.001, 0.999], where beta = alpha holds. "
+                                    "Keep evaluation.ga.snn.alpha_min/max inside it.");
+    if (!(v_th >= 1e-3f))
+        throw std::invalid_argument("make_snn_cfg: v_th = " + std::to_string(v_th) +
+                                    " is below 0.001. Keep "
+                                    "evaluation.ga.snn.voltage_threshold_min >= 0.001.");
     model_cfg.resistance = 1.0f;
-    model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::clamp(alpha, 1e-3f, 0.999f)));
-    model_cfg.voltage_threshold = std::max(v_th, 1e-3f);
+    model_cfg.capacitance = -1.0f / std::log(alpha);
+    model_cfg.voltage_threshold = v_th;
 
     if (!encoder_widths.empty())
     {
-        model_cfg.encoder_layer_spec = render_encoder_spec(encoder_widths);
-        model_cfg.decoder_layer_spec = render_decoder_spec(encoder_widths);
+        const std::string& pool = cfg.model.snn_time_pool;
+        model_cfg.encoder_layer_spec = render_encoder_spec(encoder_widths, pool == "latent");
+        model_cfg.decoder_layer_spec = render_decoder_spec(encoder_widths,
+            cfg.model.snn_decoder_neuron == "analog" ? "leaky_relu" : "leaky",
+            pool == "output");
     }
     else
     {
+        if (cfg.model.snn_time_pool != "none" || cfg.model.snn_decoder_neuron != "lif")
+            throw std::invalid_argument(
+                "make_snn_cfg: model.snn_time_pool \"" + cfg.model.snn_time_pool +
+                "\" / model.snn_decoder_neuron \"" + cfg.model.snn_decoder_neuron +
+                "\" need encoder widths to render the stack from (the GA genome's); the "
+                "fixed encoder_layer_spec/decoder_layer_spec path builds the profile specs "
+                "verbatim. Pass the widths, or set \"none\" / \"lif\".");
         model_cfg.encoder_layer_spec =
             cfg.model.encoder_layer_spec.empty()
                 ? std::vector<std::string>{"linear:hidden:leaky", "linear:latent:identity"}
@@ -217,6 +272,25 @@ auto make_snn_cfg(
     // spike-derivative estimator since 2023, with heavier gradient tails that avoid
     // the saturation exponential/boxcar surrogates show away from threshold.
     model_cfg.surrogate_gradient = std::make_shared<ArcTanSurrogate>();
+    // Empty keeps the builder's own init; ann-ae (make_ann_twin_cfg) inherits this value, so
+    // a set model.initializer gives both arms the same one.
+    model_cfg.initializer = cfg.model.initializer;
+    return model_cfg;
+}
+
+auto make_ann_twin_cfg(const Meeting01Config& cfg, const std::vector<int>& encoder_widths)
+    -> AutoencoderConfig
+{
+    if (encoder_widths.empty())
+        throw std::invalid_argument(
+            "make_ann_twin_cfg: no encoder widths. The ann-ae control copies the SNN winner's "
+            "widths, so it needs that winner's genome.");
+    // alpha / v_th are spiking-only fields of the shared builder config; the ANN builders ignore
+    // them (AutoencoderConfig: "SNN-specific parameters (ignored by ANN models)").
+    AutoencoderConfig model_cfg = make_snn_cfg(cfg, 0.9F, 1.0F, encoder_widths);
+    model_cfg.encoder_layer_spec = render_encoder_spec(encoder_widths, /*time_mean=*/false);
+    model_cfg.decoder_layer_spec =
+        render_decoder_spec(encoder_widths, "leaky", /*time_mean=*/false);
     return model_cfg;
 }
 
@@ -294,7 +368,8 @@ auto make_gru_cfg(const Meeting01Config& cfg, int hidden_size_override, int num_
     // See make_lstm_cfg()'s comment: to_lstm_frames() reframes the (time_steps,
     // window_size) tensor encode_sample() already produced, so the real sequence
     // length includes the time_steps factor too.
-    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.seq_len =
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size;
     arch.hidden_size = (hidden_size_override > 0)         ? hidden_size_override
                        : (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size
                                                           : derived_hidden;
@@ -321,7 +396,8 @@ auto make_transformer_cfg(const Meeting01Config& cfg,
     // infer seq_len dynamically) — getting it wrong here doesn't just under-cost
     // estimate_transformer_macs(), it makes every real forward pass overrun that buffer
     // and throw "Block indices out of range".
-    arch.seq_len = (cfg.dataset.window_size * cfg.model.time_steps) / cfg.model.lstm_frame_size;
+    arch.seq_len =
+        (cfg.dataset.window_size * cfg.model.recurrent_time_steps) / cfg.model.lstm_frame_size;
     arch.d_model = (d_model_override > 0) ? d_model_override : cfg.model.transformer_d_model;
     arch.n_heads = (n_heads_override > 0) ? n_heads_override : cfg.model.transformer_heads;
     arch.n_layers = (n_layers_override > 0) ? n_layers_override : cfg.model.transformer_layers;
@@ -442,6 +518,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     trainer.add_callback(batch_collector);
 
     const int steps = cfg.model.time_steps;
+    const int out_steps = snn_output_steps(cfg);
 
     // Denoising-autoencoder corruption (Vincent et al. 2008/2010 — see
     // .wiki/Core/DataLoaders.md#denoising-autoencoder-corruption): additive Gaussian noise
@@ -452,9 +529,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const nn::transforms::GaussianNoise denoise_noise(cfg.model.denoising_noise_std, seed);
 
     // Input is the encoded (time_steps, window_size) spike tensor; target is the
-    // ORIGINAL analog window held across those same steps. Reconstructing the encoded
-    // input instead made the loss incomparable across encodings and handed the GA a
-    // free win for picking latency (see .wiki/Experiments/Meeting01.md).
+    // ORIGINAL analog window, held across those same steps when the model emits one row
+    // per step (snn_time_pool "none") and given once when it averages them (out_steps 1).
+    // Reconstructing the encoded input instead made the loss incomparable across encodings
+    // and handed the GA a free win for picking latency (see .wiki/Experiments/Meeting01.md).
     //
     // The mask excludes the zero-padded tail of a variable-length window's last slice
     // (FSDD/AudioMNIST only — see WindowMetadata::valid_length) from the loss.
@@ -474,9 +552,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
                 encode_sample(encoder_input, encoding, seed + static_cast<std::uint32_t>(i), steps);
             enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
             const Tensor mask = make_reconstruction_target(
-                make_activity_mask(meta[i].valid_length, static_cast<int>(src[i].size())), steps);
+                make_activity_mask(meta[i].valid_length, static_cast<int>(src[i].size())),
+                out_steps);
             triples.emplace_back(SnnTensor(enc),
-                SnnTensor(make_reconstruction_target(src[i], steps)),
+                SnnTensor(make_reconstruction_target(src[i], out_steps)),
                 SnnTensor(mask));
         }
         return triples;
@@ -502,19 +581,11 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const auto infer_end = std::chrono::steady_clock::now();
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
 
-    const auto enc_sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
-    const int top_hidden = enc_sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
-                                                   cfg.model.decoder_layer_spec)
-                                             : enc_sizes.front();
-
     RunMetrics metrics = evaluate_snn(model,
         val_samples,
         val_meta,
         val_labels,
         cfg.training.max_reconstruct_mean_deviation,
-        estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),
-            top_hidden,
-            static_cast<int>(enc_sizes.size())),
         parameter_count(model.params()),
         encoding,
         architecture,
@@ -522,7 +593,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         v_th,
         seed,
         infer_ms,
-        steps);
+        steps,
+        out_steps);
 
     EpochHistory history;
     for (const auto& er : epoch_results)

@@ -8,6 +8,9 @@
 #   sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch            # fresh run
 #   RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch   # continue
 #   scancel --batch --signal=USR1 <jobid>    # stop early, results copied back (as at the limit)
+# One task per (dataset, fold) instead of one long job -- 24 one-CPU tasks, resubmittable per
+# task (see "Array mode" below): use scripts/pipeline/meeting01/submit_loso_array.sh, which
+# submits `--array=<unfinished tasks> -c 1` and refuses to double-submit.
 # Smoke test of this whole path before a long queue wait (~6 min: the early stop at the time limit
 # is part of what it tests; then move results/meeting01 aside -- a fresh run refuses a non-empty
 # one). Keep the meeting01-loso prefix in any --job-name: gridunesp_deploy.sh looks for it. Any
@@ -22,13 +25,17 @@
 # lets job-nanny copy the results back and delete its work dir. Why the limit itself cannot do
 # that: the "Slurm signals only this shell" comment under `set -euo pipefail`.
 #SBATCH --signal=B:USR1@900
-# --cpus-per-task=20 (the user's choice, from their own earlier timing tests; a short
-# synthetic probe on 2026-10-07 had pointed the other way, so this is not settled). Each node
-# has 56 CPUs (28 cores x 2 threads) but the partition is shared and nearly full: requests of
-# 28, 26 and 12 all sat in PENDING ("Nodes required for job are DOWN, DRAINED or reserved ..."),
-# a queue-priority effect of the `long` tier, not of the CPU count. The run is restartable
-# (RESUME=1). The deploy's build step uses its own count (GRIDUNESP_BUILD_CPUS).
-#SBATCH --cpus-per-task=20
+# --cpus-per-task=1: this program gets slower with every thread it is given (batch size 1
+# makes each multiply too small to split; the wiki's "Threads" section: 0.41 s per step at 1
+# thread, 9.2 s at 20 on a 12-core desktop, and job 5259474 at 20 CPUs took ~2 days an epoch).
+# Until 2026-11-02 this said 20, the user's choice from earlier timing tests made before that
+# measurement. submit_loso_array.sh passes -c 1 anyway; this default matters for a single job
+# submitted without it. Each node has 56 CPUs (28 cores x 2 threads) but the partition is
+# shared and nearly full: requests of 28, 26 and 12 all sat in PENDING ("Nodes required for
+# job are DOWN, DRAINED or reserved ..."), a queue-priority effect of the `long` tier, not of
+# the CPU count. The run is restartable (RESUME=1). The deploy's build step uses its own
+# count (GRIDUNESP_BUILD_CPUS).
+#SBATCH --cpus-per-task=1
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=meeting01_loso_%j.out
@@ -94,6 +101,37 @@ export SKIP_POSTPROCESS=1
 export MEETING01_BUILD=max-performance
 export RESUME="${RESUME:-0}"
 
+# ── Array mode: one task per (dataset, outer fold) ────────────────────────────────────────────
+# `sbatch --array=0-23 -c 1 ...` (submit_loso_array.sh builds that line, and resubmits only the
+# unfinished tasks). Task t is dataset ARRAY_DATASETS[t / 6], fold t % 6 -- the profile's four
+# datasets and cv_num_folds = 6, which the check below ties to the profile so a change there
+# cannot silently shift the mapping. Each task is its own Slurm job (own %j, own job-nanny work
+# dir on /store), runs ONE fold in ONE process, and RESUME=1 on a resubmitted task reruns that fold,
+# continuing only the search that was cut mid-way from its stamped GA checkpoint. The point: the measured cost of this program is per-thread (see the
+# wiki's "Threads" section), so 24 one-CPU tasks beat one 20-CPU job running the folds in series.
+ARRAY_DATASETS=(fsdd audiomnist eegmmidb siena)
+ARRAY_FOLDS=6
+if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+  PROFILE_JSON="src/experiments/meeting01/profiles/meeting01-loso.json"
+  python3 - "$PROFILE_JSON" "$ARRAY_FOLDS" "${ARRAY_DATASETS[*]}" <<'PY' || exit 1
+import json, sys
+profile, folds, datasets = sys.argv[1], int(sys.argv[2]), sys.argv[3].split()
+p = json.load(open(profile))
+if p["dataset"]["cv_num_folds"] != folds or p["evaluation"]["datasets"] != datasets:
+    sys.exit(f"REFUSED: the array mapping assumes {datasets} x {folds} folds, but {profile} has "
+             f"{p['evaluation']['datasets']} x {p['dataset']['cv_num_folds']}. Edit ARRAY_DATASETS / "
+             "ARRAY_FOLDS in the sbatch to match.")
+PY
+  if (( SLURM_ARRAY_TASK_ID < 0 || SLURM_ARRAY_TASK_ID >= ${#ARRAY_DATASETS[@]} * ARRAY_FOLDS )); then
+    echo "REFUSED: array task ${SLURM_ARRAY_TASK_ID} is outside 0..$(( ${#ARRAY_DATASETS[@]} * ARRAY_FOLDS - 1 ))" >&2
+    exit 1
+  fi
+  export DATASETS="${ARRAY_DATASETS[$(( SLURM_ARRAY_TASK_ID / ARRAY_FOLDS ))]}"
+  export FOLDS="$(( SLURM_ARRAY_TASK_ID % ARRAY_FOLDS ))"
+  export PROVENANCE_LOG_SUFFIX="_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+  echo "[gridunesp] array task ${SLURM_ARRAY_TASK_ID}: dataset ${DATASETS}, fold ${FOLDS}"
+fi
+
 # ── job-nanny, as its source (goo-job-nanny-v2, read 2026-10-13) actually behaves ──────────────
 #   - INPUT and OUTPUT are required ("INPUT is missing ..." and exit 3 otherwise);
 #   - `rsync -a -u $INPUT $WORK_DIR`, WORK_DIR=/store/$USER/$SLURM_JOB_ID/ under SHARED_FS=true,
@@ -125,9 +163,19 @@ done
 # A fresh run must start from nothing. Before job-nanny the run script cleared the old
 # checkpoints/models in place; now it clears them inside WORK_DIR, and the copy back (which never
 # deletes) would leave the old ones in ~/software/nn next to the new rows.
-if [[ "$RESUME" != "1" && -d "$RES" && -n "$(ls -A "$RES")" ]]; then
+if [[ "$RESUME" != "1" && -z "${SLURM_ARRAY_TASK_ID:-}" && -d "$RES" && -n "$(ls -A "$RES")" ]]; then
   echo "REFUSED: fresh run (RESUME unset) but $PWD/$RES is not empty. Move it aside first" \
        "(mv $RES ${RES}_before_${SLURM_JOB_ID}), or continue it with RESUME=1." >&2
+  exit 1
+fi
+# In an array the other tasks copy their results into the same $RES every WAIT_CHECKPOINT seconds,
+# so "$RES is empty" is false for a task that merely queued longer. A task's own fold is what must
+# not exist: every file of a fold starts meeting01_loso_<dataset>_fold<f>_.
+if [[ "$RESUME" != "1" && -n "${SLURM_ARRAY_TASK_ID:-}" ]] &&
+   compgen -G "$RES/meeting01_loso_${DATASETS}_fold${FOLDS}_*" >/dev/null; then
+  echo "REFUSED: fresh task for ${DATASETS} fold ${FOLDS} but $PWD/$RES already holds its files." \
+       "Continue it with RESUME=1, or move those files aside" \
+       "(mv $RES/meeting01_loso_${DATASETS}_fold${FOLDS}_* elsewhere)." >&2
   exit 1
 fi
 
@@ -135,8 +183,8 @@ fi
 # read from their absolute /home paths (the profile's dataset.sources[].root), once per fold, and
 # every fold's process loads libstatistics.so and libmatio* from the build tree on /home (the
 # binary's RPATH; only the executable is staged) -- which is why gridunesp_deploy.sh refuses to
-# run while a meeting01-loso job does. latex_data_dir (absolute) also receives a few small files
-# per fold.
+# run while a meeting01-loso job does. (latex_data_dir, which used to receive a few small files
+# per fold on /home, is empty since 2026-11-02: nothing read them.)
 STAGE=".job-input-${SLURM_JOB_ID}"
 RUN_PGID_FILE="/tmp/meeting01-run-${SLURM_JOB_ID}.pgid"
 # Covers a job that fails before job-nanny runs start.sh; after that, start.sh has already
@@ -192,6 +240,8 @@ done
 if [[ "$STOPPED" == "1" ]]; then
   echo "[gridunesp] STOPPED before the run finished (time limit or scancel; run exit code $RC)." \
        "Results so far are in $PWD/$RES. Continue with:" \
-       "RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch" >&2
+       "$( [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] \
+            && echo 'scripts/pipeline/meeting01/submit_loso_array.sh   (resubmits only the unfinished tasks)' \
+            || echo 'RESUME=1 sbatch scripts/pipeline/meeting01/01_meeting01_run_loso_gridunesp.sbatch' )" >&2
 fi
 exit "$RC"
