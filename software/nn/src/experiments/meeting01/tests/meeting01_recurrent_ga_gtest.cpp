@@ -199,6 +199,7 @@ TEST(Meeting01RecurrentGaFitness, TrainsAndScoresWindowsWithAZeroPaddedTail)
     cfg.training.samples_per_batch = 1;
     cfg.training.epochs = 1;
     cfg.training.early_stop_patience = 1;
+    cfg.training.early_stop_min_skill = 0.1f;
     cfg.training.learning_rate = 1e-3f;
 
     // valid samples carry a sinusoid; [valid, 16) stays 0, like the loader's padding.

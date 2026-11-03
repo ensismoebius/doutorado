@@ -25,6 +25,7 @@
         "batches_per_epoch": 0,
         "epochs": 100,
         "early_stop_patience": 20,
+        "early_stop_min_skill": 0.10,
         "learning_rate": 0.001,
         "max_reconstruct_mean_deviation": 0.25
     },

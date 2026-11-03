@@ -565,6 +565,42 @@ trainer.add_callback(stopper);
 float best = stopper->best_val_loss(); // for RunMetrics reporting
 ```
 
+**Arming the patience (`arm_below`, third argument).** A network that sits on a plateau
+for its first epochs -- an autoencoder at the error of the mean predictor, MSE ≈ 1.0 on
+z-scored windows -- has "not improved for 5 epochs" without having started. Plain patience
+stops it there and the run reads as "cannot learn". With `arm_below`, epochs only count once
+the monitored loss has reached that level (inclusive); a run that never gets there trains every
+epoch:
+
+```cpp
+// Patience 5, counted only once the loss is 10% below the mean predictor's (L0 = 1.0 here).
+auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(5, 1e-8F, 0.9F * 1.0F);
+// losses 1.0 x12, then 0.8, 0.7, 0.75 x5  ->  armed_epoch() == 13, stops after epoch 19
+```
+
+| | default (`arm_below` = +inf) | `arm_below` = 0.9 |
+|---|---|---|
+| 12 epochs at 1.0 | stops at epoch 6 | keeps training |
+| reaches 0.8 at 13 | -- | armed at 13; 5 epochs without a new best -> stop at 19 |
+| never below 0.9 | stops after 5 flat epochs | trains all epochs |
+
+Tests: `EarlyStoppingCallback.*` in `src/core/training/tests/trainer_gtest.cpp`. meeting01 computes
+the mean predictor's loss per training (`Meeting01Stopping.hpp`) -- see
+[Meeting01](../Experiments/Meeting01.md#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03).
+
+**`BestWeightsCallback<Model>`** (`include/training/BestWeightsCallback.hpp`) -- early stopping
+ends training *after* the patience epochs, so the last epoch is up to `patience` epochs past the
+best one. This callback copies `model.params()` whenever the validation loss reaches a new best
+and writes that copy back in `on_train_end` (Goodfellow et al. 2016, Alg. 7.1):
+
+```cpp
+trainer.add_callback(std::make_shared<nn::training::BestWeightsCallback<MyModel>>(model));
+```
+
+It **throws** instead of guessing: on a NaN validation loss (no validation set -- nothing to
+choose by), on a run that ended without any best epoch, and if the parameter count changed
+between snapshot and restore. Tests: `BestWeightsCallback.*` in the same file.
+
 `Trainer` checks every callback's `should_stop()` after each epoch ends; if
 any callback returns `true`, the training loop exits early and
 `on_train_end` still fires normally.

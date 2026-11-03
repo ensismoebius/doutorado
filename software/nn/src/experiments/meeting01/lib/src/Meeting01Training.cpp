@@ -8,12 +8,15 @@
 
 #include "../include/Meeting01BatchLossCollector.hpp"
 #include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01Energy.hpp"
 #include "../include/Meeting01Evaluation.hpp"
 #include "../include/Meeting01Metrics.hpp"
+#include "../include/Meeting01Stopping.hpp"
 #include "Meeting01AeCommon.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "layers/spiking/ArcTanSurrogate.hpp"
+#include "training/BestWeightsCallback.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 #include "utility/GaussianNoise.hpp"
@@ -317,6 +320,20 @@ static auto make_trainer_config(const Meeting01Config& cfg, float snn_lr_scale =
 
 // ---------------------------------------------------------------------------
 // LSTM training
+auto frame_ae_cost(const Meeting01Config& cfg,
+    const std::string& encoding,
+    std::size_t macs,
+    EnergyLedger model_energy) -> ModelCost
+{
+    // A frame-consuming model reads the whole encoded tensor, so the encoder writes all of it.
+    model_energy += encoding_energy(encoding,
+        static_cast<double>(cfg.dataset.window_size),
+        cfg.model.recurrent_time_steps,
+        0.0,
+        /*event_driven=*/false);
+    return ModelCost{macs, model_energy};
+}
+
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
@@ -344,7 +361,10 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         total_runs,
         "LSTM-AE: encoding=" + encoding,
         "LSTM Autoencoder",
-        estimate_lstm_macs(make_lstm_cfg(cfg)),
+        frame_ae_cost(cfg,
+            encoding,
+            estimate_lstm_macs(make_lstm_cfg(cfg)),
+            lstm_ae_energy(make_lstm_cfg(cfg))),
         train_ms,
         infer_ms);
 }
@@ -431,7 +451,8 @@ auto train_with_early_stopping_gru(nn::models::gru::GRUAutoencoder& model,
         total_runs,
         "GRU-AE: encoding=" + encoding,
         "GRU Autoencoder",
-        estimate_gru_macs(make_gru_cfg(cfg)),
+        frame_ae_cost(
+            cfg, encoding, estimate_gru_macs(make_gru_cfg(cfg)), gru_ae_energy(make_gru_cfg(cfg))),
         train_ms,
         infer_ms);
 }
@@ -461,7 +482,10 @@ auto train_with_early_stopping_transformer(nn::models::transformer::TransformerA
         total_runs,
         "Transformer-AE: encoding=" + encoding,
         "Transformer Autoencoder",
-        estimate_transformer_macs(make_transformer_cfg(cfg)),
+        frame_ae_cost(cfg,
+            encoding,
+            estimate_transformer_macs(make_transformer_cfg(cfg)),
+            transformer_ae_energy(make_transformer_cfg(cfg))),
         train_ms,
         infer_ms);
 }
@@ -508,11 +532,11 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
     // Structured JSONL events for the live monitor (identity from the driver's
     // pending context). No-op when the events sink was never opened.
-    trainer.add_callback(std::make_shared<Meeting01EventCallback>());
+    auto events = std::make_shared<Meeting01EventCallback>();
+    trainer.add_callback(events);
 
-    auto stopper =
-        std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
-    trainer.add_callback(stopper);
+    // The stopping callbacks need the monitor set's mean-predictor loss, so they are added
+    // once the triples below exist.
 
     auto batch_collector = std::make_shared<BatchLossCollector>();
     trainer.add_callback(batch_collector);
@@ -562,6 +586,15 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     };
     const auto train_triples = make_triples(train_samples, train_meta, /*apply_noise=*/true);
     const auto val_triples = make_triples(val_samples, val_meta, /*apply_noise=*/false);
+
+    // Patience armed by skill over the mean predictor, best epoch kept (Meeting01Stopping.hpp).
+    const StoppingRule rule = make_stopping_rule(cfg,
+        input_independent_monitor_loss(train_triples, val_triples, trainer.config().batch_size));
+    events->set_stopping_rule(rule.trivial_loss, rule.arm_below, cfg.training.early_stop_min_skill);
+    trainer.add_callback(std::make_shared<nn::training::EarlyStoppingCallback>(
+        cfg.training.early_stop_patience, 1e-8F, rule.arm_below));
+    trainer.add_callback(
+        std::make_shared<nn::training::BestWeightsCallback<ProtocolSpikingAutoencoder>>(model));
 
     const auto t0 = std::chrono::steady_clock::now();
     const auto epoch_results = trainer.fit_supervised_masked(train_triples, val_triples);

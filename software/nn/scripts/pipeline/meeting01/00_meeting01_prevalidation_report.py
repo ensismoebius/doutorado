@@ -17,8 +17,11 @@ budget, meeting01-prevalidation.json):
                     excluded), and its ratio to the SNN-AE's on the same fold; the winner's
                     final fit in ms per training window and epoch
     inference cost  the cost of processing data after training: the winner's forward pass in
-                    ms per window (measured), and its arithmetic energy per window in nJ
-                    (analytic, the cost model the paper uses)
+                    ms per window (measured), and its energy per window in nJ (analytic,
+                    memory-aware: Lemaire et al. 2022's operations + addressing + memory model
+                    at Horowitz 2014's 45 nm prices, Meeting01Energy.hpp -- the paper's number),
+                    with the two checks the paper prints beside it: the same counts priced at
+                    one on-chip memory size (8 KB, 32 KB, 1 MB), and arithmetic alone
 
 Usage (from software/nn; 00_meeting01_prevalidate_baselines.sh calls the first two):
     00_meeting01_prevalidation_report.py --plan --profile P --out-root D
@@ -55,6 +58,8 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
+    ENERGY_CHECKS,
+    ENERGY_COLUMNS,
     PW_HEADER,
     REFERENCE_SEED,
     RESULTS_FORMAT,
@@ -165,6 +170,22 @@ def _finite(x, where: str) -> float:
     return v
 
 
+def _energy(row: dict, column: str, where: str) -> float:
+    """One energy column of a test row. Not a divergence when it is missing or not finite: the
+    energy is analytic (counted from the architecture, Meeting01Energy.hpp), so a NaN there is
+    a model kind the binary did not price, and a missing column a binary older than format 7."""
+    if column not in row:
+        raise ResultsError(f"{where}: the test row has no {column} column; the binary that wrote "
+                           "it predates the memory-aware energy (results_format 7). Rebuild "
+                           "meeting01 and rerun the task.")
+    v = float(row[column])
+    if not math.isfinite(v) or v < 0:
+        raise ResultsError(f"{where}: {column} is {row[column]}; the binary did not price this "
+                           "model's inference (set_energy, Meeting01Energy.hpp, was not called "
+                           "for it). Fix the binary and rerun the task.")
+    return v
+
+
 def _fold_seconds(events: pathlib.Path, where: str) -> float:
     """Seconds from the fold's fold_begin event to its fold_end: every search, final fit and
     test of the fold, without loading the dataset. Loading is the same for every family (about
@@ -247,7 +268,7 @@ def collect(profile: dict, out_root: pathlib.Path) -> tuple[list[dict], dict, di
                         "model": model, "dataset": ds, "fold": fold, "run": run, "seed": seed,
                         "test_mse": _finite(row["mse"], f"{w} test MSE"),
                         "val_mse": sel["selected"].get("val_mse"),
-                        "energy_nj": _finite(row["arith_energy_nj"], f"{w} energy"),
+                        **{k: _energy(row, k, w) for k in ENERGY_COLUMNS},
                         "macs": float(row["macs"]),
                         "params": int(row["param_count"]),
                         "train_ms_per_window_epoch": ff["train_ms"] / (ff["epochs_run"] * ff["fit_windows"]),
@@ -297,7 +318,7 @@ def summarize(records, walls, pca, datasets) -> list[dict]:
                 "fold_wall_ratio_vs_snn": search / snn_search,
                 "train_ms_per_window_epoch": _mean([r["train_ms_per_window_epoch"] for r in rs]),
                 "infer_ms_per_window": _mean([r["infer_ms_per_window"] for r in rs]),
-                "energy_nj_per_window": _mean([r["energy_nj"] for r in rs]),
+                **{f"{k}_per_window": _mean([r[k] for r in rs]) for k in ENERGY_COLUMNS},
                 "macs_per_window": _mean([r["macs"] for r in rs]),
                 "params": _mean([r["params"] for r in rs]),
                 "epochs_run": _mean([r["epochs_run"] for r in rs]),
@@ -367,9 +388,13 @@ def _ratio(x: float) -> str:
 def _cost_verdict(summary: list[dict]) -> str:
     """The cost sentence the paper prints, generated for the same reason as _verdict. One
     clause per cost: the training side (the fold's wall time) and the two after training (the
-    measured time to reconstruct a window, the estimated arithmetic energy). Each clause gives
+    measured time to reconstruct a window, the estimated memory-aware energy). Each clause gives
     the smallest ratio over the removed families and folds, so it says "at least" only when
-    every one of them is the costlier, and names the exception otherwise."""
+    every one of them is the costlier, and names the exception otherwise. A last clause says
+    whether the energy comparison -- which of each removed family and the SNN-AE needs less --
+    is the same under every repricing (one memory size for every access, arithmetic alone),
+    and names the first repricing that turns one around otherwise: an energy claim that
+    holds only under one memory model is what a reviewer is right to reject."""
     removed = [s for s in summary if s["model"] in REMOVED]
     snn = {s["dataset"]: s for s in summary if s["model"] == "snn-ae"}
 
@@ -386,8 +411,27 @@ def _cost_verdict(summary: list[dict]) -> str:
         clause("fold_wall_h", "wall time on the same fold", "took", "of the three families' runs",
                "run"),
         clause("infer_ms_per_window", "time to reconstruct a window", "took", "winner", "winner"),
-        "and " + clause("energy_nj_per_window", "arithmetic energy per window", "needed",
-                        "winner", "winner")))
+        clause("energy_nj_per_window", "energy per window (operations and memory accesses)",
+               "needed", "winner", "winner"),
+        "and " + _energy_robustness(removed, snn)))
+
+
+def _energy_robustness(removed: list[dict], snn: dict) -> str:
+    """The clause on whether the energy comparison survives each repricing (ENERGY_CHECKS)."""
+    def cheaper(s: dict, key: str) -> bool:
+        return s[key] < snn[s["dataset"]][key]
+
+    for column, what in ENERGY_CHECKS:
+        key = f"{column}_per_window"
+        for s in removed:
+            if cheaper(s, key) != cheaper(s, "energy_nj_per_window"):
+                ds = DATASET_SHORT.get(s["dataset"], s["dataset"])
+                r = s[key] / snn[s["dataset"]][key]
+                return (f"that energy comparison does not hold {what}: there the "
+                        f"{LABEL[s['model']]} winner on {ds} needs {_ratio(r)} times the "
+                        "SNN-AE's")
+    return ("that energy comparison holds with every memory access priced at one SRAM "
+            "size, 8 KB, 32 KB or 1 MB, and with arithmetic alone")
 
 
 def write_macros(profile: dict, summary: list[dict] | None, data_dir: pathlib.Path) -> None:
@@ -480,12 +524,17 @@ def _synthetic_profile() -> dict:
 
 
 # (test MSE, energy nJ, train ms per window-epoch, fold wall s) of each model on fsdd / eegmmidb.
+# The energy is the memory-aware energy_nj; its checks are fixed multiples of it (so every
+# repricing keeps every ratio) unless a test's row_mutate changes one.
+_SYN_ENERGY = {"energy_nj": 1.0, "energy_ops_nj": 0.4, "energy_mem_nj": 0.6, "mem_accesses": 0.05,
+               "energy_nj_sram8k": 0.8, "energy_nj_sram32k": 1.1, "energy_nj_sram1m": 3.0,
+               "arith_energy_nj": 0.3}
 _SYN = {"snn-ae": (0.78, 2000.0, 2.0, 3600.0), "ann-ae": (0.66, 150.0, 0.5, None),
         "lstm-ae": (0.87, 380000.0, 300.0, 360000.0), "gru-ae": (0.86, 290000.0, 250.0, 300000.0),
         "transformer-ae": (1.00, 500000.0, 400.0, 540000.0)}
 
 
-def _write_synthetic(out_root: pathlib.Path, profile: dict, mutate=None) -> None:
+def _write_synthetic(out_root: pathlib.Path, profile: dict, mutate=None, row_mutate=None) -> None:
     for fam, (baselines, snn) in FAMILIES.items():
         d = out_root / fam
         d.mkdir(parents=True, exist_ok=True)
@@ -508,9 +557,12 @@ def _write_synthetic(out_root: pathlib.Path, profile: dict, mutate=None) -> None
                     mse, nj, ms, _ = _SYN[model]
                     mse = mse * scale + 0.01 * (run - 1.5)
                     enc = "latency" if model == "snn-ae" else "direct"
-                    rows.append({"model": model, "encoding": enc, "run": run, "seed": seed,
-                                 "split": "test", "mse": mse, "arith_energy_nj": nj,
-                                 "macs": nj / 4.6e-3, "param_count": 1000})
+                    row = {"model": model, "encoding": enc, "run": run, "seed": seed,
+                           "split": "test", "mse": mse, "macs": nj / 4.6e-3, "param_count": 1000,
+                           **{k: f * nj for k, f in _SYN_ENERGY.items()}}
+                    if row_mutate:
+                        row_mutate(ds, row)
+                    rows.append(row)
                     segment = enc if model == "snn-ae" else model
                     (d / f"{stem}_{segment}_run{run}_model_selection_manifest.json").write_text(
                         json.dumps({"selected": {"val_mse": None if model == "ann-ae" else mse},
@@ -616,8 +668,10 @@ def _self_test_checks(tmp: pathlib.Path) -> list[str]:
                    # smallest ratios, all GRU-AE: 300000/3600 s, 83.3/0.667 ms, 290000/2000 nJ
                    ("\\newcommand{\\preCostVerdict}{each of the three families' runs took at least 83 "
                     "times the SNN-AE's wall time on the same fold, each winner took at least "
-                    "125 times the SNN-AE's time to reconstruct a window, and each winner "
-                    "needed at least 145 times the SNN-AE's arithmetic energy per window}"),
+                    "125 times the SNN-AE's time to reconstruct a window, each winner "
+                    "needed at least 145 times the SNN-AE's energy per window (operations and "
+                    "memory accesses), and that energy comparison holds with every memory access "
+                    "priced at one SRAM size, 8 KB, 32 KB or 1 MB, and with arithmetic alone}"),
                    "\\newcommand{\\preQualityVerdict}{none of the three reached",
                    "\\newcommand{\\preFolds}{FSDD fold 0 and EEGMMIDB fold 0}",
                    "\\newcommand{\\preSeqLen}{32}", "\\newcommand{\\preRnnHidden}{8, 256}",
@@ -633,10 +687,28 @@ def _self_test_checks(tmp: pathlib.Path) -> list[str]:
     macros = (data / "paper_prevalidation_config.tex").read_text()
     expect("reached by GRU-AE on FSDD (0.600 against PCA's 0.650)" in macros,
            f"verdict names the hit: {macros}")
-    expect("and the GRU-AE winner on FSDD needed only 0.50 times the SNN-AE's arithmetic" in macros
+    expect("the GRU-AE winner on FSDD needed only 0.50 times the SNN-AE's energy per window" in macros
            and "each winner took at least 125 times" in macros,
            f"cost verdict names a cheaper winner, and only for that cost: {macros}")
     _SYN["gru-ae"] = (0.86, 290000.0, 250.0, 300000.0)
+
+    # An energy comparison that one repricing turns around is named, with the repricing: here
+    # the GRU-AE on FSDD costs 145 times the SNN-AE's memory-aware energy, but under the
+    # arithmetic-only count it needs 100 nJ against the SNN-AE's 0.3 x 2000 = 600.
+    def cheap_gru_arith(ds, row):
+        if row["model"] == "gru-ae" and ds == "fsdd":
+            row["arith_energy_nj"] = 100.0
+    _write_synthetic(out, profile, row_mutate=cheap_gru_arith)
+    report(ppath, out, data)
+    macros = (data / "paper_prevalidation_config.tex").read_text()
+    expect("and that energy comparison does not hold with arithmetic alone: there the GRU-AE "
+           "winner on FSDD needs 0.17 times the SNN-AE's}" in macros,
+           f"robustness clause names the repricing that turns a comparison around: {macros}")
+    expect("each winner needed at least 145 times" in macros,
+           f"the primary energy clause is unchanged by a check: {macros}")
+    summary_csv = (out / "prevalidation_summary.csv").read_text()
+    expect("energy_nj_sram1m_per_window" in summary_csv and "arith_energy_nj_per_window" in summary_csv,
+           f"the summary keeps every energy check: {summary_csv.splitlines()[0]}")
     _write_synthetic(out, profile)
     bad = copy.deepcopy(profile)
     bad["evaluation"]["ga"]["gru"]["max_hidden"] = 128
@@ -678,6 +750,14 @@ def _self_test_checks(tmp: pathlib.Path) -> list[str]:
                    "a missing seed")
     comp.write_text(kept.replace("lstm-ae,direct,1,42,test,0.865", "lstm-ae,direct,1,42,test,nan"))
     expect_refusal(lambda: report(ppath, out, data), "diverged", "a NaN test error")
+    head, *body = kept.splitlines(keepends=True)
+    cols = head.rstrip("\n").split(",")
+    i = cols.index("energy_nj_sram1m")
+    body = [",".join(c if j != i else "nan" for j, c in enumerate(l.rstrip("\n").split(","))) + "\n"
+            for l in body]
+    comp.write_text(head + "".join(body))
+    expect_refusal(lambda: report(ppath, out, data), "energy_nj_sram1m",
+                   "a NaN energy check (a binary that did not price one SRAM size)")
     comp.write_text(kept)
 
     # Placeholders: the same two files, every cell "--".

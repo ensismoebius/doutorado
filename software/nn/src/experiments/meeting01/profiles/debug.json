@@ -20,6 +20,7 @@
     "batches_per_epoch": 0,
     "epochs": 2,
     "early_stop_patience": 1,
+    "early_stop_min_skill": 0.10,
     "learning_rate": 0.001,
     "max_reconstruct_mean_deviation": 0.25,
     "encoder_layer_spec": [

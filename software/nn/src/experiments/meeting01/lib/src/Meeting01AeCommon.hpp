@@ -24,16 +24,19 @@
 #include "../include/Meeting01BatchLossCollector.hpp"
 #include "../include/Meeting01DatasetSplit.hpp"
 #include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01Energy.hpp"
 #include "../include/Meeting01EpochHistory.hpp"
 #include "../include/Meeting01EpochLogger.hpp"
 #include "../include/Meeting01EventCallback.hpp"
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01PerWindow.hpp"
 #include "../include/Meeting01RunMetrics.hpp"
+#include "../include/Meeting01Stopping.hpp"
 #include "../include/Meeting01Training.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
 #include "tensor/Tensor.hpp"
+#include "training/BestWeightsCallback.hpp"
 #include "training/EarlyStoppingCallback.hpp"
 #include "training/ProgressCallback.hpp"
 #include "utility/GaussianNoise.hpp"
@@ -56,7 +59,7 @@ auto evaluate_ae(Model& model,
     const std::vector<WindowMetadata>& val_meta,
     const std::vector<int>& val_labels,
     float max_reconstruct_mean_deviation,
-    std::size_t macs,
+    const ModelCost& cost,
     std::size_t param_count,
     const std::string& encoding,
     std::uint32_t seed,
@@ -67,7 +70,7 @@ auto evaluate_ae(Model& model,
     using ModelTensor = typename Model::Tensor;
 
     RunMetrics m;
-    m.macs = macs;
+    m.macs = cost.macs;
     m.parameter_count = param_count;
     m.infer_ms = infer_ms;
 
@@ -148,8 +151,10 @@ auto evaluate_ae(Model& model,
 
     binary_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
-    // No spiking neuron: spike_rate stays NaN (not applicable) and acs 0.
+    // No spiking neuron: spike_rate stays NaN (not applicable) and acs 0. The energy does not
+    // depend on the data, so the caller's analytic ledger is the per-window value.
     m.arith_energy_nj = arith_energy_nj(static_cast<double>(m.macs), 0.0);
+    set_energy(m, cost.energy);
 
     return m;
 }
@@ -200,9 +205,9 @@ auto per_window_errors_ae(Model& model,
     return out;
 }
 
-// Generic early-stopping training loop for a frame-consuming AE. `macs` is the
-// caller-supplied analytic estimate for this concrete model. Mirrors the former
-// train_with_early_stopping_lstm() body.
+// Generic early-stopping training loop for a frame-consuming AE. `cost` is the
+// caller-supplied analytic estimate for this concrete model (MACs and energy ledger, see
+// frame_ae_cost). Mirrors the former train_with_early_stopping_lstm() body.
 template <typename Model>
 auto train_ae(Model& model,
     const Meeting01Config& cfg,
@@ -216,7 +221,7 @@ auto train_ae(Model& model,
     std::size_t total_runs,
     const std::string& progress_label,
     const std::string& progress_title,
-    std::size_t macs,
+    const ModelCost& cost,
     float& train_ms,
     float& infer_ms) -> TrainResult
 {
@@ -243,10 +248,11 @@ auto train_ae(Model& model,
 
     // Structured JSONL events for the live monitor (identity from the driver's
     // pending context). No-op when the events sink was never opened.
-    trainer.add_callback(std::make_shared<Meeting01EventCallback>());
+    auto events = std::make_shared<Meeting01EventCallback>();
+    trainer.add_callback(events);
 
-    trainer.add_callback(
-        std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience));
+    // The stopping callbacks need the monitor set's mean-predictor loss, so they are added
+    // once the triples below exist.
 
     auto batch_collector = std::make_shared<BatchLossCollector>();
     trainer.add_callback(batch_collector);
@@ -302,6 +308,14 @@ auto train_ae(Model& model,
     const auto train_triples = make_triples(train_samples, train_meta, /*apply_noise=*/true);
     const auto val_triples = make_triples(val_samples, val_meta, /*apply_noise=*/false);
 
+    // Patience armed by skill over the mean predictor, best epoch kept (Meeting01Stopping.hpp).
+    const StoppingRule rule = make_stopping_rule(cfg,
+        input_independent_monitor_loss(train_triples, val_triples, trainer.config().batch_size));
+    events->set_stopping_rule(rule.trivial_loss, rule.arm_below, cfg.training.early_stop_min_skill);
+    trainer.add_callback(std::make_shared<nn::training::EarlyStoppingCallback>(
+        cfg.training.early_stop_patience, 1e-8F, rule.arm_below));
+    trainer.add_callback(std::make_shared<nn::training::BestWeightsCallback<Model>>(model));
+
     const auto t0 = std::chrono::steady_clock::now();
     const auto epoch_results = trainer.fit_supervised_masked(train_triples, val_triples);
     const auto t1 = std::chrono::steady_clock::now();
@@ -324,7 +338,7 @@ auto train_ae(Model& model,
         val_meta,
         std::vector<int>(val_samples.size(), 0),
         cfg.training.max_reconstruct_mean_deviation,
-        macs,
+        cost,
         parameter_count(model.params()),
         encoding,
         seed,

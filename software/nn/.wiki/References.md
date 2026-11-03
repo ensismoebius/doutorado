@@ -206,3 +206,16 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [77] M. Horowitz, "Computing's energy problem (and what we can do about it)," in *IEEE Int. Solid-State Circuits Conf. (ISSCC) Dig. Tech. Papers*, 2014, pp. 10–14. [Online]. Available: https://ieeexplore.ieee.org/document/6757323 (Fig. 1.1.9, 45 nm at 0.9 V: 32-bit float add 0.9 pJ, 32-bit float multiply 3.7 pJ — read from the figure, 2026-11-01 — so one MAC = 4.6 pJ and one AC = 0.9 pJ; the same figure puts a 32 KB cache access at 20 pJ and DRAM at 1.3–2.6 nJ, which is why an arithmetic-only estimate is not the energy of real hardware. Used by `kMacEnergyPj`/`kAcEnergyPj` in meeting01's `Meeting01Metrics.hpp`.)
 
 [78] Z. Zhou, Y. Zhu, C. He, Y. Wang, S. Yan, Y. Tian, and L. Yuan, "Spikformer: When spiking neural network meets Transformer," in *Proc. Int. Conf. Learning Representations (ICLR)*, 2023. [Online]. Available: https://arxiv.org/abs/2209.15425 (Appendix: E = E_MAC × FLOPs of the analog-input first layer + E_AC × synaptic operations of the spike-driven layers, with E_MAC = 4.6 pJ and E_AC = 0.9 pJ from [77] — the convention meeting01's `count_snn_ops` follows.)
+
+[79] E. Lemaire, L. Cordone, A. Castagnetti, P.-E. Novac, J. Courtois, and B. Miramond, "An analytical estimation of spiking neural networks energy efficiency," in *Neural Information Processing (ICONIP 2022)*, ser. LNCS, vol. 13623. Springer, 2023, pp. 574–587. [Online]. Available: https://doi.org/10.1007/978-3-031-30105-6_48 (The model of meeting01's `energy_nj`: Eq. 18, E = E_ops + E_addressing + E_memory, with per-layer counts for analog and spike inputs, local SRAMs priced by size from Horowitz [77]. Its own result: their SNNs 6–8× more efficient than FNNs. Metadata checked against Crossref 2026-11-03.)
+
+[80] M. Dampfhoffer, T. Mesquida, A. Valentian, and L. Anghel, "Are SNNs really more energy-efficient than ANNs? An in-depth hardware-aware study," *IEEE Trans. Emerg. Topics Comput. Intell.*, vol. 7, no. 3, pp. 731–741, 2023. [Online]. Available: https://doi.org/10.1109/TETCI.2022.3214509 (SNNs with IF neurons match efficient ANN implementations only at 0.15–1.38 spikes per synapse per inference. Why meeting01 counts memory and reports a sensitivity analysis.)
+
+[81] Z. Yan, Z. Bai, K. Tang, and W.-F. Wong, "Reconsidering the energy efficiency of spiking neural networks inference from analytical perspectives," *arXiv:2409.08290*, 2024 (v1 2024-08-29; listed as accepted by TCAD). [Online]. Available: https://arxiv.org/abs/2409.08290 (With data movement counted and capacity-matched quantized ANNs, the SNN advantage holds only under strict limits on time steps and sparsity.)
+
+## Training Procedure
+
+[82] L. Prechelt, "Early stopping — but when?," in *Neural Networks: Tricks of the Trade*, ser. LNCS, vol. 1524. Springer, 1998, pp. 55–69. [Online]. Available: https://doi.org/10.1007/3-540-49430-8_3 (Patience-style stopping criteria; cited for meeting01's armed patience, `EarlyStoppingCallback`.)
+
+[83] I. Goodfellow, Y. Bengio, and A. Courville, *Deep Learning*. MIT Press, 2016, Sec. 7.8, Alg. 7.1. [Online]. Available: https://www.deeplearningbook.org (Early stopping returns the parameters of the best validation epoch, not the last: `BestWeightsCallback`.)
+

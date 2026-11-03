@@ -123,6 +123,15 @@ void check_training(const Meeting01Config& config, std::ostringstream& errors)
                << ") should be < epochs (" << training.epochs << ") for effective early stopping\n";
     }
 
+    // Not >= 1: a skill of 1 is a perfect reconstruction, so patience would never start.
+    if (!(training.early_stop_min_skill >= 0.0f && training.early_stop_min_skill < 1.0f))
+    {
+        errors << "  - training.early_stop_min_skill must be in [0, 1) (got "
+               << training.early_stop_min_skill
+               << "); it is the share of the mean predictor's monitor loss a run must remove "
+                  "before patience counts\n";
+    }
+
     if (training.learning_rate <= 0.0f || training.learning_rate > 0.1f)
     {
         errors << "  - training.learning_rate outside typical range [1e-8, 0.1] (got "

@@ -134,10 +134,17 @@ struct Meeting01Config
 
     struct Training
     {
-        int samples_per_batch = 0;                    // REQUIRED (validated > 0)
-        int batches_per_epoch = 0;                    // optional (0 = use all samples)
-        int epochs = 0;                               // REQUIRED (validated > 0)
-        int early_stop_patience = -1;                 // REQUIRED (validated >= 0)
+        int samples_per_batch = 0;    // REQUIRED (validated > 0)
+        int batches_per_epoch = 0;    // optional (0 = use all samples)
+        int epochs = 0;               // REQUIRED (validated > 0)
+        int early_stop_patience = -1; // REQUIRED (validated >= 0)
+        // REQUIRED (validated in [0, 1)). Patience only starts counting once the monitor loss
+        // is at most (1 - early_stop_min_skill) x the loss of the input-independent predictor
+        // (input_independent_monitor_loss, Meeting01Stopping.hpp): the network must first
+        // explain that share of the error the mean target leaves. Until then a run cannot stop
+        // early, so a network still on the mean-predictor plateau gets every epoch instead of
+        // being stopped there (results_format 7; see nn::training::EarlyStoppingCallback).
+        float early_stop_min_skill = -1.0f;
         float learning_rate = 0.0f;                   // REQUIRED (validated > 0)
         float learning_rate_biophysical = 0.0f;       // optional (0 = use 0.1 × lr)
         float beta1 = 0.9f;                           // optional (Adam default)
@@ -397,6 +404,7 @@ struct Meeting01Config
         get("batches_per_epoch", cfg.training.batches_per_epoch);
         get("epochs", cfg.training.epochs);
         get("early_stop_patience", cfg.training.early_stop_patience);
+        get("early_stop_min_skill", cfg.training.early_stop_min_skill);
         get("learning_rate", cfg.training.learning_rate);
         get("learning_rate_biophysical", cfg.training.learning_rate_biophysical);
         get("beta1", cfg.training.beta1);
@@ -627,6 +635,7 @@ struct Meeting01Config
         require(trn, "training", "samples_per_batch", cfg.training.samples_per_batch);
         require(trn, "training", "epochs", cfg.training.epochs);
         require(trn, "training", "early_stop_patience", cfg.training.early_stop_patience);
+        require(trn, "training", "early_stop_min_skill", cfg.training.early_stop_min_skill);
         require(trn, "training", "learning_rate", cfg.training.learning_rate);
         get(trn, "batches_per_epoch", cfg.training.batches_per_epoch);
         get(trn, "learning_rate_biophysical", cfg.training.learning_rate_biophysical);

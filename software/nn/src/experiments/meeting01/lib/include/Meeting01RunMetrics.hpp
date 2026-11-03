@@ -32,6 +32,19 @@ struct RunMetrics
     // memory traffic, which dominates real energy, is not in it. Replaces `energy`
     // (results_format <= 4), which added a spike count to 10 x MACs (two unitless terms).
     float arith_energy_nj = 0.0f;
+    // Memory-aware energy per window, nJ, the paper's primary energy number (results_format 7):
+    // operations + address arithmetic + every SRAM access, Lemaire et al. 2022's model at
+    // Horowitz 2014's prices (Meeting01Energy.hpp). energy_nj = energy_ops_nj + energy_mem_nj;
+    // mem_accesses is their access count, and energy_nj_sram{8k,32k,1m} reprice all of them at
+    // one memory size (the sensitivity analysis). NaN until set_energy() fills them, so a row
+    // that never got an estimate is loud downstream instead of reading as free.
+    double energy_nj = std::numeric_limits<double>::quiet_NaN();
+    double energy_ops_nj = std::numeric_limits<double>::quiet_NaN();
+    double energy_mem_nj = std::numeric_limits<double>::quiet_NaN();
+    double mem_accesses = std::numeric_limits<double>::quiet_NaN();
+    double energy_nj_sram8k = std::numeric_limits<double>::quiet_NaN();
+    double energy_nj_sram32k = std::numeric_limits<double>::quiet_NaN();
+    double energy_nj_sram1m = std::numeric_limits<double>::quiet_NaN();
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

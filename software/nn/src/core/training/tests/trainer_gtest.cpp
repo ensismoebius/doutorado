@@ -10,12 +10,17 @@
 
 #include <array>
 #include <limits>
+#include <span>
+#include <stdexcept>
+#include <vector>
 
 #include "../EpochResult.hpp"
 #include "../TrainerConfig.hpp"
 #include "Backend.hpp"
 #include "layers/losses/SpikeCountLoss.hpp"
 #include "tensor/Tensor.hpp"
+#include "training/BestWeightsCallback.hpp"
+#include "training/EarlyStoppingCallback.hpp"
 #include "training/ITrainingCallback.hpp"
 #include "utility/GradClip.hpp"
 
@@ -210,4 +215,106 @@ TEST(ITrainingCallbackTest, DefaultImplementationsAreSafe)
     cb.on_batch_end(state);
     cb.on_train_end({});
     EXPECT_FALSE(cb.should_stop());
+}
+
+namespace
+{
+
+// Feeds one monitored loss per epoch; returns the epoch after which should_stop() first
+// became true, 0 if it never did.
+int first_stop_epoch(nn::training::EarlyStoppingCallback& cb, const std::vector<float>& losses)
+{
+    nn::training::TrainingState state;
+    for (std::size_t i = 0; i < losses.size(); ++i)
+    {
+        state.epoch = static_cast<int>(i) + 1;
+        cb.on_epoch_end(state, nn::training::EpochResult{state.epoch, losses[i], losses[i], 1.0F});
+        if (cb.should_stop()) return state.epoch;
+    }
+    return 0;
+}
+
+} // namespace
+
+// The default (+inf) arms on epoch 1: the plain patience rule, unchanged for every caller
+// that does not pass arm_below.
+TEST(EarlyStoppingCallback, DefaultStopsAfterPatienceEpochsWithoutANewBest)
+{
+    nn::training::EarlyStoppingCallback cb(5);
+    EXPECT_EQ(first_stop_epoch(cb, {1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.5F}), 6);
+    EXPECT_EQ(cb.armed_epoch(), 1);
+}
+
+// A run on the mean-predictor plateau is not stopped there: the 12 flat epochs count for
+// nothing, patience starts at the epoch that crosses arm_below (13), and the run stops 5
+// epochs after its last new best (14).
+TEST(EarlyStoppingCallback, PlateauEpochsDoNotCountUntilArmed)
+{
+    nn::training::EarlyStoppingCallback cb(5, 1e-8F, 0.9F);
+    std::vector<float> losses(12, 1.0F);
+    for (const float v : {0.8F, 0.7F, 0.75F, 0.75F, 0.75F, 0.75F, 0.75F}) losses.push_back(v);
+    EXPECT_EQ(first_stop_epoch(cb, losses), 19);
+    EXPECT_EQ(cb.armed_epoch(), 13);
+}
+
+TEST(EarlyStoppingCallback, ARunThatNeverArmsTrainsEveryEpoch)
+{
+    nn::training::EarlyStoppingCallback cb(5, 1e-8F, 0.9F);
+    EXPECT_EQ(first_stop_epoch(cb, std::vector<float>(30, 0.95F)), 0);
+    EXPECT_EQ(cb.armed_epoch(), 0);
+}
+
+namespace
+{
+
+struct TwoTensorModel
+{
+    nn::Tensor w = nn::Tensor(2, 2);
+    nn::Tensor b = nn::Tensor(1, 2);
+    std::vector<nn::Tensor*> ptrs{&w, &b};
+    auto params() -> std::span<nn::Tensor*>
+    {
+        return ptrs;
+    }
+    void fill(float v)
+    {
+        for (nn::Index k = 0; k < w.size(); ++k) w.at(k) = v;
+        for (nn::Index k = 0; k < b.size(); ++k) b.at(k) = -v;
+    }
+};
+
+} // namespace
+
+// The network handed back is the best validation epoch's (2), not the last one (3).
+TEST(BestWeightsCallback, RestoresTheEpochWithTheLowestValidationLoss)
+{
+    TwoTensorModel model;
+    nn::training::BestWeightsCallback<TwoTensorModel> cb(model);
+    nn::training::TrainingState state;
+    const std::vector<std::pair<float, float>> epochs{{1.0F, 0.5F}, {2.0F, 0.3F}, {3.0F, 0.4F}};
+    for (std::size_t i = 0; i < epochs.size(); ++i)
+    {
+        model.fill(epochs[i].first); // what the optimizer left after this epoch
+        state.epoch = static_cast<int>(i) + 1;
+        cb.on_epoch_end(
+            state, nn::training::EpochResult{state.epoch, 9.0F, epochs[i].second, 1.0F});
+    }
+    cb.on_train_end({});
+    EXPECT_EQ(cb.best_epoch(), 2);
+    for (nn::Index k = 0; k < model.w.size(); ++k) EXPECT_FLOAT_EQ(model.w.at(k), 2.0F);
+    for (nn::Index k = 0; k < model.b.size(); ++k) EXPECT_FLOAT_EQ(model.b.at(k), -2.0F);
+}
+
+TEST(BestWeightsCallback, RefusesARunWithoutValidationLoss)
+{
+    TwoTensorModel model;
+    nn::training::BestWeightsCallback<TwoTensorModel> cb(model);
+    nn::training::TrainingState state;
+    state.epoch = 1;
+    EXPECT_THROW(
+        cb.on_epoch_end(state,
+            nn::training::EpochResult{1, 1.0F, std::numeric_limits<float>::quiet_NaN(), 1.0F}),
+        std::logic_error);
+    nn::training::BestWeightsCallback<TwoTensorModel> untouched(model);
+    EXPECT_THROW(untouched.on_train_end({}), std::logic_error); // no epoch ever ended
 }

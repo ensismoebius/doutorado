@@ -267,7 +267,8 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
         out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,"
                "config_hash,split,cv_fold,";
         out << "mse,mae,r2,precision,recall,f1,spike_rate,arith_energy_nj,train_ms,infer_ms,"
-               "param_count,macs,acs\n";
+               "param_count,macs,acs,energy_nj,energy_ops_nj,energy_mem_nj,mem_accesses,"
+               "energy_nj_sram8k,energy_nj_sram32k,energy_nj_sram1m\n";
 
         out << std::fixed << std::setprecision(6);
         for (const auto& row : rows)
@@ -281,7 +282,10 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
                 << ',' << row.metrics.spike_rate << ',' << row.metrics.arith_energy_nj << ','
                 << row.metrics.train_ms << ',' << row.metrics.infer_ms << ','
                 << row.metrics.parameter_count << ',' << row.metrics.macs << ',' << row.metrics.acs
-                << '\n';
+                << ',' << row.metrics.energy_nj << ',' << row.metrics.energy_ops_nj << ','
+                << row.metrics.energy_mem_nj << ',' << row.metrics.mem_accesses << ','
+                << row.metrics.energy_nj_sram8k << ',' << row.metrics.energy_nj_sram32k << ','
+                << row.metrics.energy_nj_sram1m << '\n';
         }
         out.close();
         if (!out)

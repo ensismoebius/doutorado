@@ -261,6 +261,13 @@ void emit_config_end(const ResultRow& row, const std::string& config_id, const s
                     {"f1", jnum(row.metrics.f1)},
                     {"spike_rate", jnum(row.metrics.spike_rate)},
                     {"arith_energy_nj", jnum(row.metrics.arith_energy_nj)},
+                    {"energy_nj", jnum(row.metrics.energy_nj)},
+                    {"energy_ops_nj", jnum(row.metrics.energy_ops_nj)},
+                    {"energy_mem_nj", jnum(row.metrics.energy_mem_nj)},
+                    {"mem_accesses", jnum(row.metrics.mem_accesses)},
+                    {"energy_nj_sram8k", jnum(row.metrics.energy_nj_sram8k)},
+                    {"energy_nj_sram32k", jnum(row.metrics.energy_nj_sram32k)},
+                    {"energy_nj_sram1m", jnum(row.metrics.energy_nj_sram1m)},
                     {"train_ms", jnum(row.metrics.train_ms)},
                     {"infer_ms", jnum(row.metrics.infer_ms)},
                     {"param_count", row.metrics.parameter_count},
@@ -505,7 +512,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
     std::size_t cfg_hash,
     const std::filesystem::path& models_dir,
     Model& model,
-    std::size_t macs,
+    const ModelCost& cost,
     const nlohmann::json& selected_hyperparams,
     const nlohmann::json& candidates_json,
     float val_mse,
@@ -571,7 +578,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
         static_cast<std::size_t>(config.experiment.repeats),
         fam.token + " final: encoding=" + encoding,
         fam.token + " (final)",
-        macs,
+        cost,
         train_ms,
         infer_ms);
 
@@ -580,7 +587,7 @@ void finalize_baseline_selection(const Meeting01Config& config,
         split.test_meta,
         std::vector<int>(split.test_samples.size(), 0),
         config.training.max_reconstruct_mean_deviation,
-        macs,
+        cost,
         parameter_count(model.params()),
         encoding,
         run_seed,
@@ -1073,8 +1080,12 @@ void run_ann_twin(const Meeting01Config& config,
     ann_config.model.recurrent_time_steps = 1;
 
     ProtocolAutoencoder model(make_ann_twin_cfg(config, snn_winner.encoder_widths));
-    const std::size_t macs =
-        estimate_ann_macs(config.dataset.window_size, snn_winner.encoder_widths);
+    // The ledger walks the network's own layers (one forward pass of a zero window: its cost
+    // does not depend on the data); "direct" adds no encoder.
+    const ModelCost cost = frame_ae_cost(ann_config,
+        "direct",
+        estimate_ann_macs(config.dataset.window_size, snn_winner.encoder_widths),
+        ann_ae_energy(model, config.dataset.window_size));
 
     const nlohmann::json selected_hyperparams{{"encoder_widths", snn_winner.encoder_widths},
         {"copied_from", "snn-ae winner of the same (dataset, fold, run)"},
@@ -1091,7 +1102,7 @@ void run_ann_twin(const Meeting01Config& config,
         cfg_hash,
         models_dir,
         model,
-        macs,
+        cost,
         selected_hyperparams,
         nlohmann::json::array(),
         std::numeric_limits<float>::quiet_NaN(),
@@ -1177,7 +1188,8 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
 
     const auto lstm_cfg = meeting01::ga::to_lstm_cfg(winner.genome, config);
     nn::models::lstm::LSTMAutoencoder model(lstm_cfg);
-    const std::size_t macs = estimate_lstm_macs(lstm_cfg);
+    const ModelCost cost = frame_ae_cost(
+        config, winner.genome.encoding, estimate_lstm_macs(lstm_cfg), lstm_ae_energy(lstm_cfg));
 
     finalize_baseline_selection(config,
         split,
@@ -1190,7 +1202,7 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
         cfg_hash,
         models_dir,
         model,
-        macs,
+        cost,
         selected_hyperparams,
         candidates_json,
         winner.val_mse,
@@ -1269,7 +1281,8 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
 
     const auto gru_cfg = meeting01::ga::to_gru_cfg(winner.genome, config);
     nn::models::gru::GRUAutoencoder model(gru_cfg);
-    const std::size_t macs = estimate_gru_macs(gru_cfg);
+    const ModelCost cost = frame_ae_cost(
+        config, winner.genome.encoding, estimate_gru_macs(gru_cfg), gru_ae_energy(gru_cfg));
 
     finalize_baseline_selection(config,
         split,
@@ -1282,7 +1295,7 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
         cfg_hash,
         models_dir,
         model,
-        macs,
+        cost,
         selected_hyperparams,
         candidates_json,
         winner.val_mse,
@@ -1373,7 +1386,10 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
 
     const auto tf_cfg = meeting01::ga::to_transformer_cfg(winner.genome, config);
     nn::models::transformer::TransformerAutoencoder model(tf_cfg);
-    const std::size_t macs = estimate_transformer_macs(tf_cfg);
+    const ModelCost cost = frame_ae_cost(config,
+        winner.genome.encoding,
+        estimate_transformer_macs(tf_cfg),
+        transformer_ae_energy(tf_cfg));
 
     finalize_baseline_selection(config,
         split,
@@ -1386,7 +1402,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
         cfg_hash,
         models_dir,
         model,
-        macs,
+        cost,
         selected_hyperparams,
         candidates_json,
         winner.val_mse,

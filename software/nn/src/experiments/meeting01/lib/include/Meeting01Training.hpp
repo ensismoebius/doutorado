@@ -7,6 +7,7 @@
 
 #include "Meeting01Config.hpp"
 #include "Meeting01DatasetSplit.hpp" // WindowMetadata
+#include "Meeting01Energy.hpp"
 #include "Meeting01EpochHistory.hpp"
 #include "Meeting01RunMetrics.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
@@ -67,6 +68,15 @@ auto make_snn_cfg(const Meeting01Config& cfg,
 // once). Independent of snn_time_pool / snn_decoder_neuron, which shape only the SNN.
 auto make_ann_twin_cfg(const Meeting01Config& cfg, const std::vector<int>& encoder_widths)
     -> nn::models::autoencoder::AutoencoderConfig;
+
+// The per-window cost of a frame-consuming autoencoder (LSTM/GRU/Transformer-AE, ann-ae): its
+// analytic MACs, and its energy ledger plus that of the spike encoder it reads (encoding_energy,
+// dense: the model reads every encoded value). `cfg` is the config the model trains under
+// (window_size, recurrent_time_steps).
+auto frame_ae_cost(const Meeting01Config& cfg,
+    const std::string& encoding,
+    std::size_t macs,
+    EnergyLedger model_energy) -> ModelCost;
 
 // Rows the SNN-AE emits per window: 1 when its time axis is averaged (model.snn_time_pool
 // "output" or "latent"), else model.time_steps (one reconstruction per step). The target and

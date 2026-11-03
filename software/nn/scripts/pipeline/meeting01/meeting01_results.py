@@ -51,7 +51,11 @@ from collections import defaultdict
 #: output values > 0 and an `energy` that added a spike count to 10 x MACs; 5 averages the
 #: SNN's steps (model.snn_time_pool), counts real spikes, and writes acs / arith_energy_nj.
 #: Format 6 makes T a gene of the SNN-AE search: every SNN selection records its own T.
-RESULTS_FORMAT = 6
+#: Format 7 arms patience only once a run beats the mean predictor by
+#: training.early_stop_min_skill and keeps the best monitor epoch's network, and adds the
+#: memory-aware energy columns (energy_nj, energy_ops_nj, energy_mem_nj, mem_accesses,
+#: energy_nj_sram8k/32k/1m), the paper's primary energy.
+RESULTS_FORMAT = 7
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -64,6 +68,10 @@ _OLDER_FORMATS = {
        "above zero and its energy added unitless terms",
     5: "the SNN-AE's T was one fixed value for every genome, so its selection manifests do "
        "not record the T each winner was trained with",
+    6: "patience stopped networks still on the mean-predictor plateau and the last epoch's "
+       "weights were kept (it reported 'cannot learn' for runs that had not started), and "
+       "the rows carry only the arithmetic-only energy, not the memory-aware one the paper "
+       "reports",
 }
 
 PW_HEADER = [
@@ -77,6 +85,19 @@ WINDOW_FIELDS = ("speaker_id", "recording_id", "window_id", "source_window_index
 #: it with every other trained model.
 TRAINED_MODELS = ("snn-ae", "lstm-ae", "gru-ae", "transformer-ae", "ann-ae")
 REFERENCE_MODELS = ("mean", "pca")
+#: The per-window inference energy of a trained model's rows (results_format 7), in nJ unless
+#: noted. energy_nj is the paper's number: Lemaire et al. 2022's model (operations + address
+#: arithmetic + memory accesses, each local SRAM priced at its own size) at Horowitz 2014's
+#: 45 nm prices, = energy_ops_nj + energy_mem_nj. The rest are its checks: the same counts
+#: with every access priced at one SRAM size, and the older arithmetic-only estimate
+#: (4.6 pJ x MACs + 0.9 pJ x ACs), which no longer carries a claim. Meeting01Energy.hpp.
+ENERGY_COLUMNS = ("energy_nj", "energy_ops_nj", "energy_mem_nj", "mem_accesses",
+                  "energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "arith_energy_nj")
+#: The repricings a claim about energy must survive: (column, the words the paper uses).
+ENERGY_CHECKS = (("energy_nj_sram8k", "with every memory access priced at an 8 KB SRAM"),
+                 ("energy_nj_sram32k", "with every memory access priced at a 32 KB SRAM"),
+                 ("energy_nj_sram1m", "with every memory access priced at a 1 MB SRAM"),
+                 ("arith_energy_nj", "with arithmetic alone"))
 #: 03_ writes every reference row with seed 0: a reference is fitted once,
 #: deterministically, so it HAS no seed -- 0 marks that, it is not a seed value.
 REFERENCE_SEED = "0"
@@ -368,7 +389,8 @@ def synthetic_run_config(fold: int, baselines: tuple = ("lstm-ae", "ann-ae")) ->
                                  "max_windows_per_recording": 0, "latent_dim": 16},
                                 {**source, "name": "siena", "sample_rate": 512,
                                  "max_windows_per_recording": 40, "latent_dim": 64}]},
-        "training": {"epochs": 30, "early_stop_patience": 5, "samples_per_batch": 1,
+        "training": {"epochs": 30, "early_stop_patience": 5,
+                     "early_stop_min_skill": 0.10000000149011612, "samples_per_batch": 1,
                      "learning_rate": 0.0010000000474974513,
                      "learning_rate_biophysical": 9.999999747378752e-05},
         "model": {"latent_dim": 16, "lstm_frame_size": 8, "recurrent_time_steps": 1,

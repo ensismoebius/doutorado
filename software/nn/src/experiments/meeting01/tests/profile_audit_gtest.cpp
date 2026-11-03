@@ -316,7 +316,7 @@ TEST(RenamedKey, OldSnnTimeStepsKeyIsRejectedNotIgnored)
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
         "dataset": {"dataset_root": "/tmp", "window_size": 64,
                     "max_loaded_train_samples": 10, "max_validation_samples": 5},
-        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1, "early_stop_min_skill": 0.1,
                      "learning_rate": 0.001},
         "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
                   "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
@@ -488,7 +488,7 @@ TEST(Meeting01ConfigValidation, DenoisingNoiseStdParsesFromNestedJson)
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
         "dataset": {"dataset_root": "/tmp", "window_size": 64,
                     "max_loaded_train_samples": 10, "max_validation_samples": 5},
-        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1, "early_stop_min_skill": 0.1,
                      "learning_rate": 0.001},
         "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
                   "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
@@ -623,6 +623,31 @@ TEST(ProductionProfiles, LeaveNoExportsNothingReads)
         EXPECT_EQ(load(name).dataset.latex_data_dir, "") << name;
 }
 
+// The stopping rule's arming level (Meeting01Stopping.hpp): the grid and the pre-validation
+// must train under the same rule, at the value its rationale was measured for.
+TEST(ProductionProfiles, ArmPatienceAtTenPercentSkill)
+{
+    for (const char* name : {"meeting01-loso.json", "meeting01-prevalidation.json"})
+    {
+        const auto cfg = load(name);
+        EXPECT_FLOAT_EQ(cfg.training.early_stop_min_skill, 0.10F) << name;
+        EXPECT_EQ(cfg.training.early_stop_patience, 5) << name;
+    }
+}
+
+TEST(Meeting01ConfigValidation, EarlyStopMinSkillIsRequiredAndBelowOne)
+{
+    for (const float bad : {-1.0F, 1.0F, 1.5F})
+    {
+        auto cfg = valid_config();
+        cfg.training.early_stop_min_skill = bad;
+        EXPECT_NE(validation_error(cfg).find("early_stop_min_skill"), std::string::npos) << bad;
+    }
+    auto zero = valid_config();
+    zero.training.early_stop_min_skill = 0.0F; // arms at the mean predictor's loss itself
+    EXPECT_EQ(validation_error(zero).find("early_stop_min_skill"), std::string::npos);
+}
+
 TEST(Meeting01ConfigValidation, SnnTimePoolAndDecoderNeuronDefaultToTheFormat4Network)
 {
     const Meeting01Config::Model defaults;
@@ -664,7 +689,7 @@ TEST(Meeting01ConfigValidation, SnnTimePoolAndDecoderNeuronParseFromNestedJson)
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
         "dataset": {"dataset_root": "/tmp", "window_size": 64,
                     "max_loaded_train_samples": 10, "max_validation_samples": 5},
-        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1,
+        "training": {"samples_per_batch": 1, "epochs": 2, "early_stop_patience": 1, "early_stop_min_skill": 0.1,
                      "learning_rate": 0.001},
         "model": {"encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
                   "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"],
@@ -935,6 +960,8 @@ TEST(Meeting01ConfigHash, MovesWithEveryResultChangingField)
         {"model.time_steps", [](Meeting01Config& c) { c.model.time_steps += 1; }},
         {"training.learning_rate_biophysical",
             [](Meeting01Config& c) { c.training.learning_rate_biophysical *= 2.0F; }},
+        {"training.early_stop_min_skill",
+            [](Meeting01Config& c) { c.training.early_stop_min_skill = 0.2F; }},
         {"ga.snn.winner_seeds", [](Meeting01Config& c) { c.evaluation.ga.snn.winner_seeds += 1; }},
         {"ga.snn.time_steps_max",
             [](Meeting01Config& c) { c.evaluation.ga.snn.time_steps_max -= 1; }},
@@ -967,6 +994,7 @@ TEST(Meeting01ConfigHash, ResolvedConfigJsonCarriesThePaperFields)
     const auto j = meeting01::resolved_config_json(valid_config());
     for (const char* path : {"/training/epochs",
              "/training/early_stop_patience",
+             "/training/early_stop_min_skill",
              "/training/learning_rate",
              "/training/learning_rate_biophysical",
              "/model/snn_time_pool",

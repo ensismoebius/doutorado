@@ -897,7 +897,7 @@ a reference returned nothing, and only the recording level (`d_r`) produced a nu
 
 ### One stamp per fold: `results_format`
 
-The binary writes `"results_format": 5` into every JSON manifest of a fold
+The binary writes `"results_format": 7` into every JSON manifest of a fold
 (`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
 (`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`). The stamp was 2 when this
 section was first written (second pass, commit `b434792e`) and became 3 on 2026-10-07, when two more silent changes
@@ -909,8 +909,10 @@ manifest without the key    ->  refused: "older than 2026-10-06 ... rerun the fo
 results_format == 2         ->  refused: "the frames were a strided gather and the cost counted one stack of two ... rerun"
 results_format == 3         ->  refused: "the baselines read the window repeated 16 times and did not learn ... rerun"
 results_format == 4         ->  refused: "the SNN-AE was scored at every step, its spike_rate counted outputs > 0 ... rerun"
-results_format == 5         ->  read
-results_format >= 6         ->  refused: "newer than the scripts (or the manifest was edited)"
+results_format == 5         ->  refused: "the SNN-AE's T was one fixed value for every genome ... rerun"
+results_format == 6         ->  refused: "patience stopped networks still on the mean-predictor plateau ... arithmetic-only energy ... rerun"
+results_format == 7         ->  read
+results_format >= 8         ->  refused: "newer than the scripts (or the manifest was edited)"
 ```
 
 | `results_format` | Written by | What its rows contain |
@@ -919,7 +921,9 @@ results_format >= 6         ->  refused: "newer than the scripts (or the manifes
 | 2 | the second-pass binary, commit `b434792e` (interim — **no production fold ran with it**) | padding fixed and stamped, but LSTM/GRU/Transformer frames were a strided gather and the LSTM/GRU `C_raw` counted one stack of two |
 | 3 | 2026-10-07 to 2026-10-24 (**no production fold ran with it**) | consecutive frames; encoder **and** decoder counted; the LSTM/GRU/Transformer read the window repeated at the SNN's `time_steps` (512 frames) |
 | 4 | 2026-10-24 to 2026-11-01 (**no production fold ran with it**) | the baselines read the window at `model.recurrent_time_steps` (1: 32 frames), encoding `direct` only — [why](#why-the-recurrent-baselines-read-the-window-once-found--fixed-2026-10-24) |
-| 5 | 2026-11-01 on | the SNN-AE averages its latent over T = 4 steps and decodes once with an analog decoder (`model.snn_time_pool` / `snn_decoder_neuron`); `spike_rate` counts hidden LIF spikes (NaN for non-spiking models); `energy` replaced by `acs` + `arith_energy_nj`; the SNN's `macs` is counted — [why](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01) |
+| 5 | 2026-11-01 to 2026-11-02 | the SNN-AE averages its latent over T = 4 steps and decodes once with an analog decoder (`model.snn_time_pool` / `snn_decoder_neuron`); `spike_rate` counts hidden LIF spikes (NaN for non-spiking models); `energy` replaced by `acs` + `arith_energy_nj`; the SNN's `macs` is counted — [why](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01) |
+| 6 | 2026-11-02 to 2026-11-03 (pre-validation job 5314513 only) | T is an SNN-AE GA gene, recorded per winner — [why](#ready-for-the-grid-run-results_format-6-2026-11-02) |
+| 7 | 2026-11-03 on | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
 
 A format-2 fold is refused with its reason, not with "unknown version": the message tells the
 reader which of the two changes makes those rows incomparable.
@@ -1943,6 +1947,147 @@ On GridUnesp: `00_meeting01_prevalidate_gridunesp.sbatch`, one 16-CPU job on one
 and the report locally — see [GridUnesp § The baseline pre-validation on the grid](../Guides/GridUnesp-Deployment.md#the-baseline-pre-validation-on-the-grid-2026-11-02).
 Under `RESUME=1` an unfinished task starts over (its fold time must be one interval).
 
+## Stopping rule and memory-aware energy (results_format 7, 2026-11-03)
+
+Two changes, both made after the pre-validation job 5314513 (2026-11-02/03, 8/8 tasks ok),
+both on the author's decision of 2026-11-03 ("the more rigorous option"; "the paper must
+prioritise the options that spend less energy, and the energy must be well-founded enough not
+to be rejected in review").
+
+### The problem: patience stopped networks that had not started
+
+Every window is z-scored on its own statistics, so the cheapest thing a network can output is
+the mean window, and its MSE is about 1.0. Every family starts there and sits there for a
+while -- a **plateau** -- before it starts reconstructing. Plain patience (stop after 5 epochs
+without a new best) cannot tell "sitting on the plateau" from "finished learning":
+
+```
+monitor MSE, one LSTM-AE search run on EEG (job 5314513, shape of the 8 that stopped)
+
+1.00 | ■ ■ ■ ■ ■ ■ ■ ■ ■ ■            <- plateau: the mean predictor's error
+     |                     ✗ stopped (5 epochs without a new best)
+0.58 |                                   ... where the runs that left the plateau got to
+      1 2 3 4 5 6 7 8 9 10 11 12 epoch
+```
+
+Measured in job 5314513's events logs: **8 of 11** LSTM-AE search evaluations on EEG stopped at
+epochs 8-16 with validation MSE 0.98-1.00, while the ones that left the plateau reached 0.58;
+**3 of 8** final refits of the recurrent families returned the mean predictor. The failure is
+**silent**: the run ends normally and its MSE (≈ 1.0) is a valid-looking number, which the
+pre-validation table then reports as "this family cannot learn".
+
+### The rule (`EarlyStoppingCallback` `arm_below` + `BestWeightsCallback`)
+
+```
+monitor MSE
+ L0 = 1.00 | ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■                   12 epochs on the plateau: NOT counted
+arm_below  |- - - - - - - - - - - - - - - - - - -    (1 - s)·L0, s = 0.10  ->  0.90
+     0.80  |                         ■ <- armed (epoch 13)
+     0.75  |                              ■ ■ ■ ■ ■  1..5 epochs without a new best -> stop at 19
+     0.70  |                            ■ <- best (epoch 14): these weights are kept
+             1 . . . . . . . . . .  12 13 14 15 .. 19
+```
+
+That exact sequence is `EarlyStoppingCallback.PlateauEpochsDoNotCountUntilArmed`
+(`src/core/training/tests/trainer_gtest.cpp`): armed at 13, stopped at 19.
+
+| Rule | Question it answers | The run above |
+|---|---|---|
+| plain patience 5 | has the loss stopped improving? | stops at epoch 6, on the plateau; reports the mean predictor |
+| patience armed below $(1-s)L_0$ | has it stopped improving **since it started learning**? | trains on, arms at 13, stops at 19 |
+| never armed | -- | trains all `training.epochs` (30); the result is honestly "did not learn in 30 epochs" |
+| best-weight restore | **which** epoch's network is evaluated? | epoch 14 (0.70), not the last one (0.75) |
+
+**$L_0$, the mean predictor's loss**, is computed per training from that training's own data
+(`input_independent_monitor_loss`, `Meeting01Stopping.hpp`): the elementwise mean of the fit
+windows' targets (padded positions masked), scored on the monitor windows exactly as the
+Trainer scores validation (chunked masked MSE, chunks weighted by size). It is **not** the
+constant 1.0: on FSDD the plateau sits at ≈ 0.962, so a constant would arm late there.
+Recorded per training in the events log (`config_begin`: `trivial_val_loss`, `arm_below`,
+`early_stop_min_skill`; `train_end`: `armed_epoch`, null when never armed). Smoke
+(2026-11-03, 2-epoch tiny profile): $L_0$ = 1.008, `arm_below` = 0.907, 7 of 99 trainings armed.
+
+**Why s = 0.10** (`training.early_stop_min_skill`, required, in [0, 1)): of job 5314513's 216
+trainings, 87 ended on the plateau (last monitor MSE ≥ 0.95). The deepest dip of a
+run that **never left** it was a skill of 0.066 (GRU-AE, FSDD: 0.937 at epoch 2, back to
+0.999), so 0.10 is not armed by noise on the plateau. Two runs went past it (0.092 and 0.15)
+and then fell back; the best-weight restore keeps their good epoch. References: patience
+criteria [82]; the best-parameters meta-algorithm, Alg. 7.1 of [83].
+
+### The problem: the energy counted arithmetic only
+
+Up to format 6 the energy was `arith_energy_nj` = 4.6 pJ × MACs + 0.9 pJ × ACs. A spike turns
+a 4.6 pJ MAC into a 0.9 pJ add, so the SNN wins whenever its spikes are sparse. But in the same
+Horowitz table [77] **fetching** the operand costs more than using it: one access to a 32 KB
+SRAM is 20 pJ, 22 times the add. And an SNN has memory traffic an ANN does not: it reads and
+writes every neuron's membrane potential at every one of its T steps. The same windows, the two
+estimates (local smoke of 2026-11-03, 2 epochs, tiny caps -- plumbing, **not evidence**):
+
+| FSDD, smoke | arithmetic only | memory-aware `energy_nj` | memory share |
+|---|---|---|---|
+| SNN-AE | 283 nJ | 7000 nJ | 96 % |
+| ANN-AE | 292 nJ | 1852 nJ | 84 % |
+| SNN-AE ÷ ANN-AE | **0.97 (SNN cheaper)** | **3.8 (SNN dearer)** | |
+
+Same counts, opposite conclusion: that is why an arithmetic-only SNN energy claim is what
+reviewers reject [80, 81], and why the paper's number now counts memory.
+
+### The model (`Meeting01Energy.hpp/.cpp`)
+
+Lemaire et al. 2022 [79], Eq. 18, applied unchanged to every family:
+$E = E_\text{ops} + E_\text{addr} + E_\text{mem}$. Per linear layer $n_{in} \to n_{out}$
+over $R$ rows ($R = T$ steps for the SNN-AE, 1 for the ANN-AE, $S$ positions for the sequence
+models), $\theta$ input spikes:
+
+| Term | analog input | spike input |
+|---|---|---|
+| fp32 MAC | $R\,n_{in}n_{out}$ | -- |
+| fp32 add (bias; synapse) | $R\,n_{out}$ | $(\theta+R)\,n_{out}$ |
+| int32 address add | $R(n_{in}+n_{out})$ | $\theta\,n_{out}$ |
+| read input | $R\,n_{in}$ | $\theta$ |
+| read weight + bias | $R(n_{in}+1)\,n_{out}$ | $(\theta+R)\,n_{out}$ |
+| read, write potential | -- | $(\theta+R)\,n_{out}$ each |
+| write output | $R\,n_{out}$ (none if an LIF follows) | -- (the LIF writes one event per spike) |
+
+LIF per (neuron, step): leak MAC, threshold add (ours, see below), and after an analog-input
+layer a potential read + write; per spike: reset add, one event write.
+**Prices**, Horowitz ISSCC 2014 Fig. 1.1.9, 45 nm 0.9 V, read off the figure [77]: fp32 add
+0.9, mul 3.7, int32 add 0.1, int32 mul 3.1 pJ; one 64-bit SRAM access 10 / 20 / 100 pJ at
+8 KB / 32 KB / 1 MB. Each layer's memories (weights, potentials, input/output buffers) are
+priced at their own size on the straight lines through those points; one access = one 32-bit
+word at the 64-bit price; above 2 MB the code throws (that is DRAM, 1.3-2.6 nJ, not modelled).
+
+**Choices the paper leaves to us, each against the claim it could flatter:** below 8 KB =
+10 pJ (overprices the SNN's small potential memories); LIF threshold test = 1 add per
+(neuron, step) (Lemaire do not count it); spike encoder charged to the SNN-AE (Poisson: LCG
+draw + compare per value and step; latency: one spike time per value + an int compare per
+value and step); nonlinearities ReLU = 1 add, leaky ReLU / tanh / sigmoid / exp = add +
+multiply (below a real exp: favours the sequence baselines); window not re-read from DRAM by
+anyone. **Sensitivity** (`total_nj_at`): the same counts with every access at one SRAM size,
+and arithmetic alone.
+
+**Cited for what they say, checked 2026-11-03:** Lemaire et al. [79] find their SNNs 6-8×
+more efficient than FNNs (memory counted) -- they are the model, not evidence against SNNs;
+Dampfhoffer et al. [80]: SNNs match efficient ANN accelerators only at 0.15-1.38 spikes per
+synapse per inference; Yan et al. [81]: an advantage needs strict limits on T and sparsity.
+
+### Where it lands
+
+* CSV columns (`write_rows_csv`, after `acs`): `energy_nj, energy_ops_nj, energy_mem_nj,
+  mem_accesses, energy_nj_sram8k, energy_nj_sram32k, energy_nj_sram1m`; NaN for a model kind
+  not priced, which both readers refuse ("did not price"), never "diverged".
+* `00_` report: the table's $E$ is `energy_nj`; `\preCostVerdict` gains a clause saying whether
+  each removed-family-vs-SNN-AE energy ordering survives all four repricings, naming the first
+  that turns one around.
+* `02_`: `paper_loso_energy.tex` (per dataset × family: $E$, memory share, the three
+  one-size repricings, arithmetic only, then SNN-AE ÷ each other family per column) and
+  `paper_loso_energy_verdict.tex` (`\energyVerdict`, same robustness logic); `\cfgMinSkill`.
+* Paper: Sec. "Energy" (model, prices, choices, sensitivity, Table I counts), Sec. "Training"
+  (the stopping rule), "Energy first" in Experimental Setup: where the recording-level test does
+  not separate two models, the lower-$E$ one is recommended; otherwise the error-vs-energy
+  trade-off is reported. **Selection inside the GA is unchanged** (min validation MSE on the
+  front; the author's choice, 2026-11-03).
+
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
@@ -2163,7 +2308,11 @@ The experiment is a **pure reconstruction study**. FSDD carries no anomaly label
 | `spike_rate` | spikes / (neuron, step) pairs of the hidden LIF layers, over the evaluated windows | SNN only; NaN (not applicable) for the non-spiking families. Until results_format 4 it was the fraction of *output* values > 0 |
 | `macs` | dense multiply-accumulates per window | SNN: counted from its forward passes (`count_snn_ops`); others: analytic `estimate_*_macs` |
 | `acs` | spike-driven accumulates per window (a binary input × each output) | SNN only; 0 for the others (a true count) |
-| `arith_energy_nj` | $4.6\,\text{pJ}\cdot\text{macs} + 0.9\,\text{pJ}\cdot\text{acs}$ | Arithmetic-only estimate, 45 nm fp32 [77, 78]; memory traffic, which dominates real energy, is not in it. Replaces `energy` ($r \cdot N + 10 \cdot$ MACs, unitless) |
+| `arith_energy_nj` | $4.6\,\text{pJ}\cdot\text{macs} + 0.9\,\text{pJ}\cdot\text{acs}$ | Arithmetic-only estimate, 45 nm fp32 [77, 78]; memory traffic, which dominates real energy, is not in it. Replaces `energy` ($r \cdot N + 10 \cdot$ MACs, unitless). Since format 7 a **check** of `energy_nj`, not the paper's number |
+| `energy_nj` | $E_\text{ops} + E_\text{addr} + E_\text{mem}$ per window [79, 77] | **The paper's energy** (format 7): operations, address adds and memory accesses, each local SRAM priced at its own size — [section](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
+| `energy_ops_nj`, `energy_mem_nj` | the two parts of `energy_nj` (ops + address adds; memory) | `energy_ops_nj + energy_mem_nj = energy_nj` |
+| `mem_accesses` | 32-bit SRAM accesses per window | the count `energy_mem_nj` prices |
+| `energy_nj_sram8k` / `_sram32k` / `_sram1m` | the same counts with every access priced at one SRAM size | sensitivity: a claim must survive all three and `arith_energy_nj` |
 
 `max_reconstruct_mean_deviation` remains in the config but is only used as a per-sample pass/fail threshold for logging — it does not affect the reported metrics.
 

@@ -244,6 +244,7 @@ auto resolved_config_json(const Meeting01Config& cfg) -> nlohmann::json
         {"batches_per_epoch", t.batches_per_epoch},
         {"epochs", t.epochs},
         {"early_stop_patience", t.early_stop_patience},
+        {"early_stop_min_skill", t.early_stop_min_skill},
         {"learning_rate", t.learning_rate},
         {"learning_rate_biophysical", t.learning_rate_biophysical},
         {"beta1", t.beta1},

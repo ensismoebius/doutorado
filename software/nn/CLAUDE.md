@@ -372,9 +372,10 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 6)**: the paper reads only generated files in its
+**Paper data contract (results_format 7)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
-`paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_significance.tex`,
+`paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
+`paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
 `paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`);
 never type a configuration number or a result into `paper.tex`. Before the run they are
 placeholders: `meeting01 --comparative --comparative-config <profile> --print-resolved-config >
@@ -385,6 +386,17 @@ cfg.json`, then `02_ --placeholders cfg.json --data-dir <paper>/data`,
 fold (`DEVELOPMENT_FOLDS` in `meeting01_results.py`: fold 0 of fsdd and eegmmidb). T is an
 SNN-AE GA gene (`ga.snn.time_steps_min/max`). Details:
 `.wiki/Experiments/Meeting01.md` § "Ready for the grid run".
+
+**Energy (results_format 7)**: the paper's $E$ is `energy_nj`, memory-aware (Lemaire et al.
+2022 Eq. 18 at Horowitz 2014 prices, `Meeting01Energy.hpp`), NOT `arith_energy_nj` (now a
+check). Every energy claim is generated with a robustness clause over `ENERGY_CHECKS`
+(`meeting01_results.py`: one SRAM size 8 KB / 32 KB / 1 MB, arithmetic alone). A new layer type
+in any family needs an energy model or `walk_sequential` throws.
+
+**Stopping (results_format 7)**: patience counts only once the monitor loss is
+`training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's
+(`Meeting01Stopping.hpp`); best epoch's weights restored (`BestWeightsCallback`). Plain patience
+stopped plateau runs and reported the mean predictor as a trained model (job 5314513).
 
 **No ghosts**: the grid runs `snn-ae` + `ann-ae` only (LSTM/GRU/Transformer-AE removed
 2026-11-02). Every paper element follows `configured_families(config)` in

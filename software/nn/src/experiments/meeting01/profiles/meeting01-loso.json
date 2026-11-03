@@ -75,6 +75,8 @@
         "batches_per_epoch": 0,
         "epochs": 30,
         "early_stop_patience": 5,
+        "early_stop_min_skill": 0.10,
+        "_early_stop_min_skill_comment": "Patience (early_stop_patience) only counts once the monitor loss is at most (1 - this) x the loss of the mean-target predictor; until then the run cannot stop early, and the best monitor epoch's network is kept (results_format 7). 0.10: the deepest plateau excursion in the pre-validation's 216 trainings was a skill of 0.066. Rationale: lib/include/Meeting01Stopping.hpp.",
         "learning_rate": 0.001,
         "learning_rate_biophysical": 0.0001,
         "max_reconstruct_mean_deviation": 0.25,

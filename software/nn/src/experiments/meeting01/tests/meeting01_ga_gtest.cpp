@@ -590,6 +590,7 @@ TEST(Meeting01GaSearch, ConfigRejectsPopulationOneWithGenerations)
     cfg.training.samples_per_batch = 1;
     cfg.training.epochs = 1;
     cfg.training.early_stop_patience = 0;
+    cfg.training.early_stop_min_skill = 0.1f;
     cfg.training.learning_rate = 0.001f;
     cfg.model.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
     cfg.model.decoder_layer_spec = {"linear:8:leaky", "linear:output:identity"};
@@ -619,6 +620,7 @@ TEST(Meeting01GaSearch, ConfigRejectsSingleTimeStep)
     cfg.training.samples_per_batch = 1;
     cfg.training.epochs = 1;
     cfg.training.early_stop_patience = 0;
+    cfg.training.early_stop_min_skill = 0.1f;
     cfg.training.learning_rate = 0.001f;
     cfg.model.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
     cfg.model.decoder_layer_spec = {"linear:8:leaky", "linear:output:identity"};
@@ -643,6 +645,7 @@ TEST(Meeting01GaSearch, ConfigChecksTheTimeStepsRange)
     cfg.training.samples_per_batch = 1;
     cfg.training.epochs = 1;
     cfg.training.early_stop_patience = 0;
+    cfg.training.early_stop_min_skill = 0.1f;
     cfg.training.learning_rate = 0.001f;
     cfg.model.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
     cfg.model.decoder_layer_spec = {"linear:8:leaky", "linear:output:identity"};

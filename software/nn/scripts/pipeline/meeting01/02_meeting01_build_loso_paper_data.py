@@ -44,8 +44,14 @@ or a test row without its manifest.
 Outputs (--data-dir):
     paper_loso_summary.csv               model; mse; mae; r2; params; craw; energy_nj; train_ms;
                                          infer_ms (craw = macs + acs, the paper's C_raw; energy_nj
-                                         = arith_energy_nj; params/craw/energy_nj = means)
+                                         = the memory-aware energy, ENERGY_COLUMNS in
+                                         meeting01_results.py; params/craw/energy_nj = means)
                                          (mse/mae/r2/timing = "mean$\\pm$std" strings, best bold)
+    paper_loso_energy.tex                per dataset x family: memory-aware E, its memory share,
+                                         E at one SRAM size (8 KB / 32 KB / 1 MB), arithmetic
+                                         only, and the SNN-AE's E over each other family's
+    paper_loso_energy_verdict.tex        \\energyVerdict: that comparison as a sentence, and
+                                         whether it survives every repricing
     paper_loso_recon_by_encoding.csv     model; encoding; mse; mae; r2   (formatted, no bold)
     paper_loso_mse_plot.csv              encoding, <one column per model>  (mse means, for bars)
     paper_loso_snn_selection.tex         per (fold, encoding): winning SNN mode / V_th / alpha
@@ -84,6 +90,8 @@ from meeting01_results import (  # noqa: E402
     DATASET_ORDER,
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
+    ENERGY_CHECKS,
+    ENERGY_COLUMNS,
     PW_HEADER,
     REFERENCE_MODELS,
     REFERENCE_SEED,
@@ -138,7 +146,7 @@ _UNSEARCHED_FAMILY_LABEL = {
 # The comparative-CSV columns this script reads (write_rows_csv, Meeting01Output.cpp).
 _COMPARATIVE_COLUMNS = ("dataset", "model", "encoding", "architecture", "run", "seed", "split",
                         "cv_fold", "mse", "mae", "r2", "train_ms", "infer_ms", "param_count",
-                        "macs", "acs", "arith_energy_nj", "spike_rate")
+                        "macs", "acs", *ENERGY_COLUMNS, "spike_rate")
 
 
 def selection_manifests(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
@@ -216,6 +224,15 @@ def _mean_std(per_seed: list[float]) -> tuple[float, float]:
 
 # --------------------------------------------------------------------- loading
 
+def _is_price(cell: str) -> bool:
+    """A finite, non-negative number: what every energy column of a priced model holds."""
+    try:
+        v = float(cell)
+    except ValueError:
+        return False
+    return math.isfinite(v) and v >= 0.0
+
+
 def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
     """One dict per test-split comparative row (dataset x fold x seed x family)."""
     rows: list[dict] = []
@@ -240,7 +257,7 @@ def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                                    "TRAINED_MODELS in meeting01_results.py.")
             if not r["encoding"]:
                 raise ResultsError(f"{where}: {r['model']} winner without an encoding.")
-            finite = ["mse", "mae", "r2", "train_ms", "infer_ms", "arith_energy_nj"]
+            finite = ["mse", "mae", "r2", "train_ms", "infer_ms"]
             if r["model"] == "snn-ae":
                 finite.append("spike_rate")  # nan only for the models without spikes
             bad = {c: r[c] for c in finite if not math.isfinite(float(r[c]))}
@@ -250,6 +267,14 @@ def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                     "the model diverged. Leaving the seed out would flatter the model (its mean "
                     "would average the seeds that converged), keeping it makes the mean NaN -- "
                     "look into the run before tabulating it.")
+            # The energy is counted from the architecture (Meeting01Energy.hpp), not measured:
+            # a non-finite value is a model kind the binary did not price, not a divergence.
+            unpriced = {c: r[c] for c in ENERGY_COLUMNS if not _is_price(r[c])}
+            if unpriced:
+                raise ResultsError(
+                    f"{where}: {r['model']} seed {r['seed']} has {unpriced}: the binary did not "
+                    "price this model's inference (set_energy, Meeting01Energy.hpp, was not "
+                    "called for it). Fix the binary and rerun the fold.")
             if float(r["train_ms"]) <= 0.0:
                 raise ResultsError(
                     f"{where}: {r['model']} seed {r['seed']} has train_ms {r['train_ms']} -- a "
@@ -279,7 +304,8 @@ def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                 # C_raw = sum over operation classes (paper, Sec. "Analytic computational
                 # cost"): dense MACs plus spike-driven ACs, which is 0 for a non-spiking model.
                 "craw": float(r["macs"]) + float(r["acs"]),
-                "energy_nj": float(r["arith_energy_nj"]),
+                # The memory-aware energy per window (the paper's E) and its checks.
+                **{c: float(r[c]) for c in ENERGY_COLUMNS},
                 "spike_rate": float(r["spike_rate"]),  # nan for a model without spikes
             })
     return rows
@@ -317,7 +343,7 @@ def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                 "infer_ms": float("nan"),
                 "params": float("nan"),
                 "craw": float("nan"),
-                "energy_nj": float("nan"),
+                **{c: float("nan") for c in ENERGY_COLUMNS},  # a reference is not costed
                 "spike_rate": float("nan"),
             })
     return rows
@@ -723,7 +749,7 @@ def paper_labels(config: dict) -> list[str]:
 
 
 def _label_stats(rows: list[dict]) -> tuple[dict, dict]:
-    """({label: (mse mean, std over seeds)}, {label: mean arithmetic energy in nJ})."""
+    """({label: (mse mean, std over seeds)}, {label: mean memory-aware energy in nJ})."""
     mse = {k: _mean_std(v) for k, v in _per_seed_means(rows, lambda r: r["label"], "mse").items()}
     energy: dict = defaultdict(list)
     for r in rows:
@@ -736,7 +762,7 @@ def write_overview(rows: list[dict], labels: list[str], datasets: list[str],
                    data_dir: pathlib.Path) -> pathlib.Path:
     """paper_loso_overview.csv: one row per model of `labels` (paper_labels), two columns per
     dataset -- test MSE (mean +/- std over seeds, the lowest of the dataset in bold) and
-    arithmetic energy per window (nJ, mean over every winner). Column keys are
+    memory-aware energy per window (nJ, mean over every winner). Column keys are
     <dataset>mse / <dataset>energy."""
     unlisted = sorted({r["label"] for r in rows} - set(labels))
     if unlisted:
@@ -856,6 +882,112 @@ def write_snn_overview(sel: list[dict], rows: list[dict], datasets: list[str],
     return out
 
 
+# ------------------------------------------------------------------------- energy
+
+def _ratio_text(x: float) -> str:
+    return f"{x:.0f}" if x >= 10 else f"{x:.1f}" if x >= 1 else f"{x:.2f}"
+
+
+def _nj(x: float) -> str:
+    """An energy for a table: whole nJ from 100 up, one decimal from 10, two below."""
+    return f"{x:.0f}" if x >= 100 else f"{x:.1f}" if x >= 10 else f"{x:.2f}"
+
+
+def _energy_means(rows: list[dict], ds: str, label: str) -> dict | None:
+    """{column: mean over every winner of `label` on `ds`} for ENERGY_COLUMNS, or None when the
+    label has no row there (the dataset has not run yet)."""
+    rs = [r for r in rows if r["dataset"] == ds and r["label"] == label]
+    if not rs:
+        return None
+    return {c: float(np.mean([r[c] for r in rs])) for c in ENERGY_COLUMNS}
+
+
+def write_energy_tex(rows: list[dict], families: list[str], datasets: list[str],
+                     data_dir: pathlib.Path) -> pathlib.Path:
+    """paper_loso_energy.tex: the energy model's breakdown and its sensitivity, per dataset and
+    configured family -- E (memory-aware, the paper's number; mean over every winner), the
+    share of E spent on memory accesses, E with every access priced at ONE SRAM size (8 KB,
+    32 KB, 1 MB: Horowitz 2014's three points), and the arithmetic-only estimate. Then one row
+    per other family with the SNN-AE's energy divided by that family's, in every column, so a
+    reader can see whether the comparison survives each repricing without computing it."""
+    head = [r"% auto-generated by 02_meeting01_build_loso_paper_data.py -- do not edit",
+            r"\begin{tabular}{lrrrrrr}", r"\toprule",
+            r" & $E$ & Mem. & \multicolumn{3}{c}{$E$, one SRAM size} & Arith. \\",
+            r"\cmidrule(lr){4-6}",
+            r"Model & (nJ) & share & 8\,KB & 32\,KB & 1\,MB & only \\"]
+    cols = ("energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "arith_energy_nj")
+    lines = list(head)
+    for ds in datasets:
+        lines += [r"\midrule", rf"\multicolumn{{7}}{{l}}{{\emph{{{DATASET_SHORT.get(ds, ds)}}}}} \\"]
+        means = {m: _energy_means(rows, ds, _model_label(m, "")) for m in families}
+        for m in families:
+            e = means[m]
+            if e is None:
+                lines.append(f"{_PARETO_KEY[m][1]} & " + " & ".join([_NONE] * 6) + r" \\")
+                continue
+            lines.append(f"{_PARETO_KEY[m][1]} & {_nj(e['energy_nj'])} & "
+                         f"{100.0 * e['energy_mem_nj'] / e['energy_nj']:.0f}\\% & "
+                         + " & ".join(_nj(e[c]) for c in cols) + r" \\")
+        snn = means.get("snn-ae")
+        for m in families:
+            if m == "snn-ae":
+                continue
+            other = means[m]
+            label = rf"SNN-AE $\div$ {_PARETO_KEY[m][1]}"
+            if snn is None or other is None:
+                lines.append(f"{label} & " + " & ".join([_NONE] * 6) + r" \\")
+                continue
+            lines.append(f"{label} & {_ratio_text(snn['energy_nj'] / other['energy_nj'])} & "
+                         f"{_NONE} & "
+                         + " & ".join(_ratio_text(snn[c] / other[c]) for c in cols) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}", ""]
+    out = data_dir / "paper_loso_energy.tex"
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
+def energy_verdict(rows: list[dict], families: list[str], datasets: list[str]) -> str:
+    """The sentence the paper prints about energy, generated so the text cannot claim more
+    than the table shows: per dataset, how many times the energy of each other configured
+    family the SNN-AE needs (memory-aware E), then whether each of those orderings -- which of
+    the two needs less -- holds under every repricing (ENERGY_CHECKS), naming the first that
+    turns one around otherwise."""
+    pairs = []
+    for ds in datasets:
+        snn = _energy_means(rows, ds, _model_label("snn-ae", ""))
+        for m in families:
+            if m == "snn-ae":
+                continue
+            other = _energy_means(rows, ds, _model_label(m, ""))
+            if snn is not None and other is not None:
+                pairs.append((ds, m, snn, other))
+    if not pairs:
+        return "[the energy comparison has not run yet]"
+    parts = [f"{_ratio_text(snn['energy_nj'] / other['energy_nj'])} times the "
+             f"{_PARETO_KEY[m][1]}'s energy on {DATASET_SHORT.get(ds, ds)}"
+             for ds, m, snn, other in pairs]
+    # The paper prints it after "On energy per window,".
+    claim = "the SNN-AE needs " + (parts[0] if len(parts) == 1
+                                   else ", ".join(parts[:-1]) + " and " + parts[-1])
+    for column, what in ENERGY_CHECKS:
+        for ds, m, snn, other in pairs:
+            if (snn[column] < other[column]) != (snn["energy_nj"] < other["energy_nj"]):
+                return (f"{claim}; that ordering does not hold {what}, under which the SNN-AE "
+                        f"needs {_ratio_text(snn[column] / other[column])} times the "
+                        f"{_PARETO_KEY[m][1]}'s energy on {DATASET_SHORT.get(ds, ds)}")
+    return (f"{claim}, an ordering that holds with every memory access priced at one SRAM "
+            "size, 8 KB, 32 KB or 1 MB, and with arithmetic alone")
+
+
+def write_energy_verdict(rows: list[dict], families: list[str], datasets: list[str],
+                         data_dir: pathlib.Path) -> pathlib.Path:
+    out = data_dir / "paper_loso_energy_verdict.tex"
+    out.write_text("% auto-generated by 02_meeting01_build_loso_paper_data.py -- do not edit\n"
+                   f"\\newcommand{{\\energyVerdict}}{{{energy_verdict(rows, families, datasets)}}}\n",
+                   encoding="utf-8")
+    return out
+
+
 # --------------------------------------------------------------- configuration macros
 
 def _num(x) -> str:
@@ -933,6 +1065,8 @@ def write_config_tex(config: dict, datasets_info: dict, status: str,
         "cfgFolds": str(k_folds),
         "cfgEpochs": str(tr["epochs"]),
         "cfgPatience": str(tr["early_stop_patience"]),
+        # s, the share below the mean predictor's monitor loss that arms the patience, in %.
+        "cfgMinSkill": f"{100.0 * float(tr['early_stop_min_skill']):.4g}",
         "cfgBatch": str(tr["samples_per_batch"]),
         "cfgLr": _num(tr["learning_rate"]),
         "cfgLrBio": _num(tr["learning_rate_biophysical"]),
@@ -1010,7 +1144,9 @@ def write_paper_tables(rows: list[dict], sel: list[dict], config: dict, datasets
     written = [write_config_tex(config, datasets_info, status, data_dir),
                write_overview(rows, paper_labels(config), datasets, data_dir),
                write_snn_overview(sel, rows, datasets, data_dir),
-               write_pareto_series(families, data_dir)]
+               write_pareto_series(families, data_dir),
+               write_energy_tex(rows, families, datasets, data_dir),
+               write_energy_verdict(rows, families, datasets, data_dir)]
     written += [write_pareto(rows, families, ds, data_dir) for ds in datasets]
     return written
 
@@ -1086,7 +1222,14 @@ def build(results_dir: pathlib.Path, run_tag: str, data_dir: pathlib.Path) -> li
 
 # ------------------------------------------------------------------- self-test
 
-def _write_synthetic_run(d: pathlib.Path) -> None:
+# The energy checks of a synthetic row as multiples of its energy_nj: equal for every model,
+# so every repricing keeps every ratio unless a test passes `energy_factors` for one model.
+_SYN_ENERGY = {"energy_nj": 1.0, "energy_ops_nj": 0.4, "energy_mem_nj": 0.6, "mem_accesses": 0.05,
+               "energy_nj_sram8k": 0.8, "energy_nj_sram32k": 1.1, "energy_nj_sram1m": 3.0,
+               "arith_energy_nj": 0.3}
+
+
+def _write_synthetic_run(d: pathlib.Path, energy_factors: dict | None = None) -> None:
     """Three fsdd folds as the binary + 03_ leave them: SNN-AE, LSTM-AE and ann-ae winners
     for runs 1-2, and mean / pca rows. Fold 0 is a DEVELOPMENT fold (DEVELOPMENT_FOLDS) whose
     errors are 10x the others', so any of its rows in a table shows. Of the headline folds,
@@ -1114,8 +1257,10 @@ def _write_synthetic_run(d: pathlib.Path) -> None:
                                 "cv_fold": fold, "mse": err, "mae": err, "r2": 0.1,
                                 "train_ms": 1000.0, "infer_ms": 1.0, "param_count": 100,
                                 "macs": 1000, "acs": 0,
-                                "arith_energy_nj": {"snn-ae": 3.0, "lstm-ae": 50.0,
-                                                    "ann-ae": 4.6}[model] * scale,
+                                **{c: f"{f * e:.6g}" for c, f in
+                                   {**_SYN_ENERGY, **(energy_factors or {}).get(model, {})}.items()
+                                   for e in [{"snn-ae": 3.0, "lstm-ae": 50.0,
+                                              "ann-ae": 4.6}[model] * scale]},
                                 "spike_rate": 0.25 * scale if model == "snn-ae" else "nan"})
                 for family, selected in (
                         ("snn-ae", {"architecture": "dense", "encoding": "latency",
@@ -1210,6 +1355,20 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
            and "\\addlegendentry{LSTM-AE}" in series and "GRU" not in series
            and "\\newcommand{\\paretoPcaRow}{3}" in series
            and "\\newcommand{\\paretoLegendColumns}{4}" in series, f"pareto series: {series}")
+    # The energy table: memory-aware E, its memory share, the three one-SRAM-size repricings
+    # and arithmetic alone, then the SNN-AE's energy over each other family's in every column.
+    energy = (out / "paper_loso_energy.tex").read_text()
+    for needle in ("\nSNN-AE & 3.00 & 60\\% & 2.40 & 3.30 & 9.00 & 0.90 \\\\",
+                   "\nANN-AE & 4.60 & 60\\% & 3.68 & 5.06 & 13.8 & 1.38 \\\\",
+                   "\nSNN-AE $\\div$ ANN-AE & 0.65 & -- & 0.65 & 0.65 & 0.65 & 0.65 \\\\",
+                   "\nSNN-AE $\\div$ LSTM-AE & 0.06 & -- &",
+                   "\\multicolumn{7}{l}{\\emph{Siena}} \\\\\nSNN-AE & -- & -- &"):
+        expect(needle in energy, f"energy table lacks {needle!r}: {energy}")
+    verdict = (out / "paper_loso_energy_verdict.tex").read_text()
+    expect("{the SNN-AE needs 0.65 times the ANN-AE's energy on FSDD and 0.06 times "
+           "the LSTM-AE's energy on FSDD, an ordering that holds with every memory access priced "
+           "at one SRAM size, 8 KB, 32 KB or 1 MB, and with arithmetic alone}" in verdict,
+           f"energy verdict: {verdict}")
     macros = (out / "paper_config.tex").read_text()
     for needle in ("\\newcommand{\\cfgTmin}{2}", "\\newcommand{\\cfgTmax}{32}",
                    "\\newcommand{\\cfgLr}{10^{-3}}", "\\newcommand{\\cfgLrBio}{10^{-4}}",
@@ -1220,7 +1379,8 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
                    "\\newcommand{\\cfgHeadlineFoldsFsdd}{1--2}",
                    "\\newcommand{\\cfgHeadlineFoldsSiena}{0--2}",
                    "\\newcommand{\\cfgLatentSiena}{64}", "\\newcommand{\\cfgCapFsdd}{--}",
-                   "\\newcommand{\\cfgInit}{Xavier}", "\\newcommand{\\cfgDataStatus}{results}"):
+                   "\\newcommand{\\cfgInit}{Xavier}", "\\newcommand{\\cfgDataStatus}{results}",
+                   "\\newcommand{\\cfgMinSkill}{10}"):
         expect(needle in macros, f"config macro {needle} missing")
     expect("cfgTf" not in macros, f"Transformer macros without a Transformer-AE run: {macros}")
 
@@ -1253,6 +1413,21 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     expect(not any(m in macros1 for m in ("cfgRnn", "cfgTf", "cfgSeqLen", "cfgFrame")),
            f"sequence-baseline macros without a sequence baseline: {macros1}")
     expect("\\newcommand{\\cfgHolmRefs}{three}" in macros1, f"Holm family: {macros1}")
+
+    # An ordering that one repricing turns around is named with it: arithmetic alone makes
+    # the ANN-AE 0.3 x 0.5 x 4.6 = 0.69 nJ against the SNN-AE's 0.9, 1.3 times.
+    _write_synthetic_run(d, {"ann-ae": {"arith_energy_nj": 0.15}})
+    build(d, "t", out)
+    verdict = (out / "paper_loso_energy_verdict.tex").read_text()
+    expect("; that ordering does not hold with arithmetic alone, under which the SNN-AE needs "
+           "1.3 times the ANN-AE's energy on FSDD}" in verdict, f"turned-around verdict: {verdict}")
+    _write_synthetic_run(d, {"ann-ae": {"energy_nj_sram1m": float("nan")}})
+    expect_refusal(lambda: build(d, "t", out), "did not price", "an unpriced energy check")
+    _write_synthetic_run(d)
+    ph_energy = (ph / "paper_loso_energy.tex").read_text()
+    expect("SNN-AE & -- & -- & -- & -- & -- & -- \\\\" in ph_energy
+           and "{[the energy comparison has not run yet]}"
+           in (ph / "paper_loso_energy_verdict.tex").read_text(), f"energy placeholders: {ph_energy}")
 
     # A fold run with another configuration (a redeploy mid-run) is refused.
     m2 = d / "t_fsdd_fold2_split_manifest.json"

@@ -46,7 +46,15 @@ namespace meeting01
 //   6       2026-11-02. T (model.time_steps) is a gene of the SNN-AE search
 //           (evaluation.ga.snn.time_steps_min/max), so each selection manifest and each
 //           GA candidate records its own `time_steps`. No production fold ran with format 5.
-inline constexpr int kResultsFormat = 6;
+//   7       2026-11-03. Every training's patience is armed only once the monitor loss is
+//           (1 - training.early_stop_min_skill) x the mean predictor's, and the best monitor
+//           epoch's network is kept (Meeting01Stopping.hpp): format 6 stopped networks still on
+//           the mean-predictor plateau and kept the last epoch's weights. Rows gain the
+//           memory-aware energy (`energy_nj`, its ops/memory split, `mem_accesses`, and the
+//           one-memory-size repricings `energy_nj_sram8k/32k/1m`; Meeting01Energy.hpp), the
+//           paper's primary energy; `arith_energy_nj` stays as the arithmetic-only figure.
+//           No production fold ran with format 6.
+inline constexpr int kResultsFormat = 7;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

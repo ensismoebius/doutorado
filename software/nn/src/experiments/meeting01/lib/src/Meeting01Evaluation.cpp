@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "../include/Meeting01Encoding.hpp"
+#include "../include/Meeting01Energy.hpp"
 #include "../include/Meeting01Metrics.hpp"
 
 using nn::models::autoencoder::ProtocolSpikingAutoencoder;
@@ -129,12 +130,13 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     float y_mean_acc = 0.0f;
     std::size_t n_values = 0;
     SnnOpCounts ops;
+    EnergyLedger energy; // summed over the windows, averaged below
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        Tensor encoded = encode_sample(
+        const Tensor raw = encode_sample(
             val_samples[i], encoding, seed + static_cast<std::uint32_t>(i), time_steps);
-        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
+        const Tensor encoded = apply_snn_architecture_transform(raw, architecture, alpha, v_th);
         const Tensor target = make_reconstruction_target(val_samples[i], output_steps);
         const Tensor mask = make_reconstruction_target(
             make_activity_mask(val_meta[i].valid_length, static_cast<int>(val_samples[i].size())),
@@ -150,6 +152,21 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         ops.acs += window_ops.acs;
         ops.spikes += window_ops.spikes;
         ops.neuron_steps += window_ops.neuron_steps;
+
+        // The memory-aware estimate: the encoder that made the spikes, the input transform,
+        // then the network. Only the "dense" transform reads the encoder's output as events;
+        // conv1d and recurrent read every (value, step), so the encoder writes all of them.
+        const auto values = static_cast<double>(val_samples[i].size());
+        energy += encoding_energy(encoding,
+            values,
+            time_steps,
+            encoding == "direct" ? 0.0 : static_cast<double>(raw.sum()),
+            /*event_driven=*/architecture == "dense");
+        energy += architecture_transform_energy(architecture,
+            values,
+            time_steps,
+            architecture == "recurrent" ? static_cast<double>(encoded.sum()) : 0.0);
+        energy += snn_ae_energy(model, input, snn_input_is_spikes(encoding, architecture));
 
         mse_acc += mse_between_masked(target, recon, mask);
         mae_acc += mae_between_masked(target, recon, mask);
@@ -210,6 +227,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         m.macs = static_cast<std::size_t>(std::llround(ops.macs / n));
         m.acs = ops.acs / n;
         m.arith_energy_nj = arith_energy_nj(ops.macs / n, m.acs);
+        set_energy(m, energy.scaled(1.0 / n));
     }
     if (ops.neuron_steps > 0.0) m.spike_rate = static_cast<float>(ops.spikes / ops.neuron_steps);
 

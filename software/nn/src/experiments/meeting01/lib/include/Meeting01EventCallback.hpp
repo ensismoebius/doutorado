@@ -16,6 +16,7 @@
 // mutation of state).
 
 #include <chrono>
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -32,6 +33,16 @@ class Meeting01EventCallback : public nn::training::ITrainingCallback
    public:
     Meeting01EventCallback() : ctx_(ExperimentEvents::instance().pending_context()) {}
 
+    // The stopping rule of this training (Meeting01Stopping.hpp), logged in config_begin and
+    // used by train_end to say when patience was armed. Call before fit; without it both
+    // events carry nulls (a training that does not use the rule).
+    void set_stopping_rule(float trivial_loss, float arm_below, float min_skill)
+    {
+        trivial_loss_ = trivial_loss;
+        arm_below_ = arm_below;
+        min_skill_ = min_skill;
+    }
+
     void on_train_begin(int total_epochs) override
     {
         if (total_epochs > 0) ctx_.max_epochs = total_epochs;
@@ -47,6 +58,9 @@ class Meeting01EventCallback : public nn::training::ITrainingCallback
                 {"lr", jnum(ctx_.lr)},
                 {"lr_biophysical", jnum(ctx_.lr_biophysical)},
                 {"early_stop_patience", ctx_.early_stop_patience},
+                {"early_stop_min_skill", jnum(min_skill_)},
+                {"trivial_val_loss", jnum(trivial_loss_)},
+                {"arm_below", jnum(arm_below_)},
                 {"param_count", ctx_.param_count},
                 {"macs", ctx_.macs}});
     }
@@ -101,6 +115,7 @@ class Meeting01EventCallback : public nn::training::ITrainingCallback
     void on_train_end(const std::vector<nn::training::EpochResult>& history) override
     {
         int best_epoch = 0;
+        int armed_epoch = 0; // first epoch at or below arm_below_; 0 = never armed
         float best = std::numeric_limits<float>::infinity();
         for (const auto& e : history)
         {
@@ -110,20 +125,28 @@ class Meeting01EventCallback : public nn::training::ITrainingCallback
                 best = v;
                 best_epoch = e.epoch;
             }
+            if (armed_epoch == 0 && !std::isnan(arm_below_) && v <= arm_below_)
+                armed_epoch = e.epoch;
         }
         const bool early = static_cast<int>(history.size()) < ctx_.max_epochs;
+        // best_val_epoch is also the epoch whose network BestWeightsCallback restored.
         ExperimentEvents::instance().emit("train_end",
             {{"config_id", ctx_.config_id},
                 {"epochs_run", static_cast<int>(history.size())},
                 {"stop_reason", early ? "early_stop" : "max_epochs"},
                 {"best_val_loss", jnum(best)},
-                {"best_val_epoch", best_epoch}});
+                {"best_val_epoch", best_epoch},
+                {"armed_epoch",
+                    std::isnan(arm_below_) ? nlohmann::json() : nlohmann::json(armed_epoch)}});
     }
 
    private:
     static constexpr int kProgressEverySeconds = 5;
 
     EventContext ctx_;
+    float trivial_loss_ = std::numeric_limits<float>::quiet_NaN();
+    float arm_below_ = std::numeric_limits<float>::quiet_NaN();
+    float min_skill_ = std::numeric_limits<float>::quiet_NaN();
     int cur_epoch_ = 0;
     std::chrono::steady_clock::time_point epoch_start_{};
     std::chrono::steady_clock::time_point last_progress_{};
