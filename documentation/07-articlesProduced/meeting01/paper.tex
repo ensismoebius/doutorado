@@ -21,6 +21,7 @@
 
 \input{data/paper_config.tex}
 \input{data/paper_prevalidation_config.tex}
+\input{data/paper_loso_energy_verdict.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
 \newif\ifplaceholder
@@ -39,14 +40,17 @@ andre.furlan@unesp.br}
 \begin{abstract}
 Spiking autoencoders are usually compared with non-spiking networks that differ from them in
 more than the neuron, and mostly on images. We ask how much reconstruction quality the spike
-costs, and what it returns in arithmetic, for short speech and single-channel EEG windows.
+costs, and what it returns in energy, for short speech and single-channel EEG windows.
 The spiking autoencoder (SNN-AE) is compared with a matched control (ANN-AE) that copies its
 selected widths, initializer and training and replaces only the leaky integrate-and-fire
 neuron by a leaky ReLU, and with PCA. The SNN-AE selects its architecture, the number of
 simulation steps, the initial threshold and decay, the spike encoding and an input transform
 by multi-objective search inside nested leave-one-group-out cross-validation on four datasets,
-and differences are tested at the recording level. Cost is an arithmetic energy estimate from
-the operations each forward pass executes. Searched LSTM, GRU and Transformer autoencoders,
+and differences are tested at the recording level. The target is a low-power device, so
+energy is the cost we put first: it is estimated per window with a published analytical model
+that counts memory accesses and address arithmetic as well as operations, at published 45\,nm
+prices, and every energy comparison is repeated under each of three memory sizes and with
+arithmetic alone. Searched LSTM, GRU and Transformer autoencoders,
 which differ from the SNN-AE in more than the neuron, were measured once, under one reduced
 search budget on development folds, for their training and inference cost and their quality,
 and left out of the main comparison. A design study on a development fold, excluded from
@@ -74,8 +78,12 @@ trainable end to end, and autoencoders are an obvious use: compress a signal win
 small code on a low-power device and reconstruct it elsewhere.
 
 \par Whether that trade is worth it is a question about two numbers measured on the
-\emph{same} network: how much reconstruction error the spike adds, and how much arithmetic it
-removes. Published comparisons answer a different question. Spiking autoencoders have been
+\emph{same} network: how much reconstruction error the spike adds, and how much energy it
+saves. The second must count what spiking adds as well as what it removes: a spike turns a
+multiply--accumulate into an add, but every operand must also be fetched, at a higher price
+than the arithmetic, and a spiking layer reads and writes its membrane potentials at every
+simulation step \cite{horowitz2014computing,dampfhoffer2023snns}. Published comparisons
+answer a different question. Spiking autoencoders have been
 reported as comparable to conventional ones on MNIST-type images, against baselines of
 similar size \cite{comsa2021spiking} or the same architecture \cite{kamata2022fully}; when
 the comparison is against recurrent or attention models, those differ in recurrence, sequence
@@ -98,9 +106,11 @@ enough to make the gap vanish on EEG.
   \item A leakage-controlled protocol: nested \cfgFolds-fold leave-one-group-out
         cross-validation on two speech and two EEG datasets, with the SNN-AE's architecture
         selected on inner validation groups only, and recording-level paired statistics.
-  \item A quality--cost accounting in which the SNN's arithmetic is counted from the
-        operations its forward pass executes (multiply--accumulates for analog inputs,
-        additions for spikes), priced with one published per-operation energy table.
+  \item A quality--energy accounting that counts memory accesses and address arithmetic as
+        well as operations, with the analytical model of \cite{lemaire2022analytical} at the
+        45\,nm prices of \cite{horowitz2014computing}, applied unchanged to every model, the
+        SNN's counts taken from its executed forward pass, and every comparison checked
+        under three memory sizes and under arithmetic alone.
   \item A design study, on a development fold kept out of the headline numbers, that locates
         where the SNN-AE's reconstruction error comes from, and a pre-validation on the same
         folds that measures what searched sequence autoencoders cost to train and to run.
@@ -124,9 +134,16 @@ use the three common input codes: direct currents, rate (Bernoulli) coding, and 
 \par \textbf{Energy accounting.} A widespread convention prices an SNN's analog-input layers
 by multiply--accumulates (MACs) and its spike-driven layers by accumulations (ACs), with
 45\,nm figures from Horowitz \cite{horowitz2014computing}; Spikformer
-\cite{zhou2023spikformer} is one example. The same source shows that memory accesses cost
-one to three orders of magnitude more than the arithmetic, so such numbers rank
-architectures, they do not predict a chip's consumption.
+\cite{zhou2023spikformer} is one example. It leaves out memory, which in the same table costs
+more than the arithmetic it feeds (a 32-bit float add 0.9\,pJ, one access to a 32\,KB SRAM
+20\,pJ), and with it the traffic only an SNN has: its potentials, read and written at every
+step. Estimates that count memory do not agree on the outcome, which depends on the spike rate,
+the number of steps and the hardware: Lemaire et al.\ \cite{lemaire2022analytical} find their
+SNNs 6 to 8 times more efficient than non-spiking networks, Dampfhoffer et al.\
+\cite{dampfhoffer2023snns} that SNNs match efficient ANN accelerators only at very high
+sparsity, and Yan et al.\ \cite{yan2024reconsidering} that an advantage requires strict limits
+on both. We therefore count memory, and report whether each conclusion survives a change of
+the memory model (Section~\ref{sec:cost}).
 
 \par \textbf{Sequence autoencoders and protocol.} LSTM \cite{hochreiter1997long,sutskever2014sequence},
 GRU \cite{cho2014gru,chung2014gru} and self-attention \cite{vaswani2017attention,ba2016layernorm}
@@ -219,8 +236,15 @@ only when it validates better.
 \subsection{Training}
 \label{sec:training}
 \par All models use Adam \cite{kingma2015adam} (learning rate $\cfgLr$; $\cfgLrBio$ for $R$,
-$C$, $V_{th}$), batch size \cfgBatch, at most \cfgEpochs{} epochs and early stopping with
-patience \cfgPatience. The SNN-AE and the ANN-AE are both initialized with \cfgInit{}
+$C$, $V_{th}$), batch size \cfgBatch{} and at most \cfgEpochs{} epochs. Early stopping
+\cite{prechelt1998early} has patience \cfgPatience, counted only once the monitored loss is
+\cfgMinSkill\% below that of the mean predictor (the mean training window, scored on the same
+monitor windows). On z-scored windows every network starts on that plateau, and in an earlier
+run of the pre-validation (Section~\ref{sec:prevalidation}) plain patience stopped networks
+that had not left it yet, which then entered the comparison as the mean predictor under
+another name. A run that never reaches that level trains all \cfgEpochs{} epochs, and every
+run keeps the weights of its best monitored epoch \cite[Alg.~7.1]{goodfellow2016deep}. The
+SNN-AE and the ANN-AE are both initialized with \cfgInit{}
 \cite{glorot2010understanding}. Left to their builders, the two arms had different defaults
 (fan-in scaling \cite{he2015delving} for the SNN), and Section~\ref{sec:design} shows that the
 initializer decides the EEG comparison, so it is fixed and shared. Within a fold the selected architecture is retrained on training $\cup$ validation
@@ -228,31 +252,60 @@ groups, early-stopped on a recording-disjoint slice of the training groups, and 
 on the test group. Each fold is repeated \cfgRuns{} times (seeds \cfgSeeds), each repeat with
 its own search.
 
-\subsection{Cost}
+\subsection{Energy}
 \label{sec:cost}
-\par Cost is the arithmetic energy of one window's forward pass,
-$E = 4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} + 0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the
-32-bit floating-point multiply--add and add of \cite{horowitz2014computing}. For the SNN-AE
-the counts come from the executed forward pass (Table~\ref{tab:cost}): a linear layer whose
-input is binary by construction (spikes, Poisson or latency input, the recurrent transform)
-costs one AC per nonzero input and output; any other linear layer costs MACs at every step it
-runs. The non-spiking models' MACs follow from their architectures (attention products
-included, Section~\ref{sec:prevalidation}). Activations, biases and the input encoding are
-not counted for any model.
-$E$ ranks architectures under one convention; it is not the energy of a chip, which memory
-traffic dominates \cite{horowitz2014computing}.
+\par $E$ is the energy of one window's forward pass, after training. It must count what
+spiking adds as well as what it removes, so it is the analytical model of Lemaire et al.\
+\cite{lemaire2022analytical}, applied unchanged to every model:
+\begin{equation}
+  E = E_{\mathrm{ops}} + E_{\mathrm{addr}} + E_{\mathrm{mem}},
+\end{equation}
+the arithmetic, the integer additions that compute memory addresses, and the memory accesses,
+with the counts of Table~\ref{tab:cost}. The prices are Horowitz's for 45\,nm at 0.9\,V
+\cite{horowitz2014computing}: 32-bit float add 0.9\,pJ and multiply 3.7\,pJ (a MAC
+4.6\,pJ), 32-bit integer add 0.1\,pJ, and one SRAM access 10, 20 and 100\,pJ at 8\,KB,
+32\,KB and 1\,MB. As in \cite{lemaire2022analytical}, each layer holds its weights, its
+potentials and its input and output buffers in local SRAMs, each priced at its own size on the
+straight lines through those three points, and one access moves one 32-bit word. The SNN-AE's
+counts come from its forward pass on each test window, with that window's spikes; the
+ANN-AE's follow from its architecture.
+
+\par Where the model leaves a choice, we take the one that works against the conclusion it
+could support. Memories below 8\,KB, the SNN's potentials among them, are priced at
+8\,KB's 10\,pJ. The LIF's threshold test costs one add per neuron and step, which
+\cite{lemaire2022analytical} do not count. The spike encoder is charged to the SNN-AE (Poisson:
+a pseudo-random draw and a comparison per sample and step; latency: one spike time per
+sample and a comparison per sample and step); the ANN-AE has none. Leaky ReLU costs a comparison and a multiply. Reading the window
+from off-chip memory is left out for every model, since all start from the same buffer.
+Because estimates of this kind turn on the memory model \cite{dampfhoffer2023snns,yan2024reconsidering},
+every energy comparison is repeated with every access priced at one SRAM size (8\,KB, 32\,KB,
+1\,MB) and with arithmetic alone ($4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} +
+0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the convention of \cite{zhou2023spikformer}), and
+Table~\ref{tab:energy} reports all of them. $E$ estimates a modeled accelerator; it is not a
+measurement on a chip.
 
 \begin{table}[!t]
-\caption{Operations counted per window ($T$ steps, binary input = spikes by construction).}
+\caption{Counts per linear layer $n_{\mathrm{in}}{\to}n_{\mathrm{out}}$ over $R$ rows ($R=T$
+steps for the SNN-AE, 1 for the ANN-AE), after \cite{lemaire2022analytical}; $\theta$: input
+spikes.}
 \centering\footnotesize
+\setlength{\tabcolsep}{3pt}
 \begin{tabular}{lll}
 \toprule
-Operation & Class & Count \\
+ & Analog input & Spike input \\
 \midrule
-Linear, binary input & AC & nonzero inputs $\times$ outputs \\
-Linear, analog input & MAC & rows $\times$ inputs $\times$ outputs \\
-LIF update, Eq.~\eqref{eq:lif} & MAC & neurons $\times$ steps \\
-Mean over $T$ & AC, MAC & adds; one $1/T$ per output \\
+MAC & $R\,n_{\mathrm{in}}n_{\mathrm{out}}$ & -- \\
+Add (bias, synapse) & $R\,n_{\mathrm{out}}$ & $(\theta+R)\,n_{\mathrm{out}}$ \\
+Address add (integer) & $R(n_{\mathrm{in}}+n_{\mathrm{out}})$ & $\theta\,n_{\mathrm{out}}$ \\
+Read input & $R\,n_{\mathrm{in}}$ & $\theta$ \\
+Read weight, bias & $R(n_{\mathrm{in}}+1)\,n_{\mathrm{out}}$ & $(\theta+R)\,n_{\mathrm{out}}$ \\
+Read, write potential & -- & $(\theta+R)\,n_{\mathrm{out}}$ each \\
+Write output & $R\,n_{\mathrm{out}}$ & -- \\
+\midrule
+\multicolumn{3}{p{0.93\columnwidth}}{LIF, per neuron and step: the leak (MAC) and the threshold
+test (add), and after an analog-input layer a read and a write of the potential; per output
+spike: the reset (add) and one write of the event. A layer that feeds an LIF writes no output
+of its own. Mean over $T$: one add per input spike, one multiply per output.} \\
 \bottomrule
 \end{tabular}
 \label{tab:cost}
@@ -305,6 +358,13 @@ window error on recording $r$ minus a reference model's: we report $\overline{d_
 bootstrap interval over recordings, and the Wilcoxon signed-rank $p$, Holm-corrected across
 the \cfgHolmRefs{} references \cite{holm1979simple}. Group-level and seed-level tests are reported
 as robustness only; window-level statistics are pseudoreplicated and descriptive.
+
+\par \textbf{Energy first.} The application is a low-power device, so we fixed in advance how
+the two axes are read. Where the recording-level test does not separate the SNN-AE from a
+reference (interval including zero or Holm-corrected $p\geq0.05$), the model with the lower
+$E$ is the one we recommend; where it does, we report what the lower-energy model gives up --
+its error difference against its energy ratio -- instead of ranking on either axis alone.
+Selection inside the search is unchanged by this rule (Section~\ref{sec:search}).
 
 % ─────────────────────────────────────────────────────────────
 \section{Design Study on the Development Fold}
@@ -383,7 +443,10 @@ Every family, the SNN-AE included, ran one NSGA-II of population \preGaPop{} for
 generations (\preGaEvals{} evaluations, front re-scored over \preGaWinnerSeeds{} seeds),
 \preRuns{} runs (seeds \preSeeds), with the windows, training and selection of
 Sections~\ref{sec:search}--\ref{sec:training}, each family in its own process on one CPU
-thread.
+thread. Their $E$ applies the counts of Table~\ref{tab:cost} to every matrix product of a cell
+or an attention block at each of the $S$ positions; gate, softmax and normalization
+nonlinearities cost an add and a multiply each, below an exact exponential, which favours
+them.
 
 \par Table~\ref{tab:prevalidation} reports the cost of training (the fold's wall time) and of
 processing data after training (the measured time to reconstruct one window, and $E$):
@@ -413,12 +476,24 @@ epoch. Infer.: one window reconstructed after training. One CPU thread each.}
 
 \par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
 folds, Table~\ref{tab:sig} the recording-level differences between the SNN-AE and each
-reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane, and
-Table~\ref{tab:snnsel} what the SNN-AE's search selected.
+reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane,
+Table~\ref{tab:energy} the energy under each repricing, and Table~\ref{tab:snnsel} what the
+SNN-AE's search selected. On energy per window, \energyVerdict.
+
+\begin{table}[!t]
+\caption{Energy per window (nJ), headline folds, mean over every winner: $E$
+(Section~\ref{sec:cost}), its share spent on memory accesses, $E$ with every access priced at
+one SRAM size, and arithmetic alone. Last row of each dataset: the SNN-AE's energy over the
+ANN-AE's, per column.}
+\centering\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\input{data/paper_loso_energy.tex}
+\label{tab:energy}
+\end{table}
 
 \begin{table*}[!t]
 \caption{Test MSE (mean $\pm$ std over \cfgRuns{} seeds; lowest per dataset in bold) and
-arithmetic energy per window $E$ (nJ, Section~\ref{sec:cost}) on the headline folds. PCA and
+energy per window $E$ (nJ, memory-aware, Section~\ref{sec:cost}) on the headline folds. PCA and
 Mean are fitted once (no seeds, no std) and are not costed.}
 \centering\footnotesize
 \pgfplotstabletypeset[
@@ -457,7 +532,7 @@ interval.}
   \else
     \input{figs/fig_pareto.tex}
   \fi
-  \caption{Test MSE (mean $\pm$ std over seeds) against arithmetic energy per window, headline
+  \caption{Test MSE (mean $\pm$ std over seeds) against energy per window $E$, headline
   folds. Down and left is better; the dashed line is PCA with $k=d$.}
   \label{fig:pareto}
 \end{figure*}
@@ -484,9 +559,10 @@ depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows.}
 % TODO(after the grid run): replace the reading guide below by the findings.
 \par \textbf{Reading guide.} The first question is the gap between the SNN-AE and its matched
 control, per dataset and modality, and whether its interval excludes zero. The second is
-whether the SNN-AE buys arithmetic for it: its $E$ against the ANN-AE's, read together with
-the selected encoding and $T$ in Table~\ref{tab:snnsel}, since binary inputs turn the first
-layer's MACs into ACs while direct input pays a dense first layer at every step. The third
+whether the SNN-AE saves energy for it: its $E$ against the ANN-AE's, and whether that ordering
+survives every column of Table~\ref{tab:energy}, read together with the selected encoding and
+$T$ in Table~\ref{tab:snnsel}: binary inputs turn the first layer's MACs into adds, but every
+step adds a read and a write of every potential. The third
 places both against PCA; a model that does not beat PCA has not
 shown that its nonlinearity helps on that dataset. Orderings are asserted only where the
 Holm-corrected $p$ is below 0.05 and the interval excludes zero, and a finding that holds on one modality only is
@@ -503,8 +579,9 @@ clipped transfer function pays it, and a smooth bounded one does not. Remedies t
 transfer function -- a membrane read out instead of spikes in some layers, adaptive thresholds,
 or soft resets, which made things worse here -- are therefore the levers to test. Longer
 simulations helped on EEG only (Table~\ref{tab:design}) and cost arithmetic in proportion to
-$T$. On cost, the convention we follow rewards binary inputs: whether the SNN-AE ends
-up cheaper than its control depends on which encoding the search selects, not on spiking alone.
+$T$ and in memory traffic. On energy, binary inputs save the first layer's multiplies while
+every step pays for the potentials, so whether the SNN-AE ends up cheaper than its control
+depends on the encoding, $T$ and spike rate the search selects, not on spiking alone.
 
 \par \textbf{Limitations.}
 (i) \emph{Groups.} Recordings are nested in 6, 60, 109 and 14 groups (5 FSDD speakers on the
@@ -513,9 +590,10 @@ recordings of these speakers and subjects, not to new ones; the group-level test
 reported as robustness only, and with 5 speakers the exact Wilcoxon $p$ cannot fall below
 0.0625. (ii) \emph{One channel, short windows.} EEG is
 read from one channel and every window has \cfgWindow{} samples; results may not transfer to
-multichannel or longer contexts. (iii) \emph{Estimated, not measured energy.} $E$ counts
-arithmetic only; memory traffic, sparsity exploitation and the target hardware decide real
-consumption. (iv) \emph{Search budget.} The SNN-AE evaluates \cfgGaEvals{} candidates per
+multichannel or longer contexts. (iii) \emph{Estimated, not measured energy.} $E$ models an
+accelerator with local SRAMs at 45\,nm and leaves out off-chip traffic, leakage and control;
+a real chip's consumption, and whether it can exploit sparsity, decide the final number. The
+repricings bound how much the conclusion depends on the memory model, not on the chip. (iv) \emph{Search budget.} The SNN-AE evaluates \cfgGaEvals{} candidates per
 fold and run, and the control none (it inherits the SNN-AE's widths), which favours the SNN-AE
 over its control; a larger budget could change the winner. (v) \emph{Matched, not identical inputs.} The ANN-AE always reads
 the analog window, whereas the SNN-AE may read spikes; the information available is the same,
