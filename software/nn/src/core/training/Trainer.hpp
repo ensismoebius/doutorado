@@ -39,6 +39,8 @@
 #include <numeric>
 #include <random>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -161,6 +163,12 @@ class Trainer
         {
             optimizer_->attach(model_.params());
         }
+        if (cfg_.lr_warmup_steps < 0)
+            throw std::invalid_argument("Trainer: lr_warmup_steps must be >= 0 (got " +
+                                        std::to_string(cfg_.lr_warmup_steps) +
+                                        "); 0 turns the warm-up off");
+        // Fails here, before any training, for an optimizer whose rate cannot be scheduled.
+        if (cfg_.lr_warmup_steps > 0) optimizer_->set_learning_rate(cfg_.learning_rate);
     }
 
     void add_callback(std::shared_ptr<ITrainingCallback> cb)
@@ -243,6 +251,20 @@ class Trainer
     std::vector<std::shared_ptr<ITrainingCallback>> callbacks_;
 
     // --- callback helpers ---
+
+    // Optimizer steps taken in the current fit (the warm-up's clock; reset by each fit loop).
+    long long lr_schedule_step_ = 0;
+
+    // Sets the rate of the step about to be taken (TrainerConfig::lr_warmup_steps); no-op
+    // when the warm-up is off.
+    void apply_lr_schedule()
+    {
+        if (cfg_.lr_warmup_steps <= 0) return;
+        ++lr_schedule_step_;
+        const double frac = std::min(1.0,
+            static_cast<double>(lr_schedule_step_) / static_cast<double>(cfg_.lr_warmup_steps));
+        optimizer_->set_learning_rate(static_cast<float>(cfg_.learning_rate * frac));
+    }
 
     void cb_train_begin(int total_epochs)
     {
@@ -419,6 +441,8 @@ class Trainer
         std::iota(indices.begin(), indices.end(), 0u);
         std::mt19937 rng(cfg_.sampler_shuffle_seed);
 
+        lr_schedule_step_ = 0;
+
         cb_train_begin(cfg_.epochs);
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
@@ -491,6 +515,8 @@ class Trainer
 
                     if (cfg_.grad_clip_norm > 0.0F)
                         clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                    apply_lr_schedule();
 
                     optimizer_->step(model_.params());
                 } // BatchScope destructs here: single clFinish per batch
@@ -582,6 +608,8 @@ class Trainer
         std::iota(indices.begin(), indices.end(), 0u);
         std::mt19937 rng(cfg_.sampler_shuffle_seed);
 
+        lr_schedule_step_ = 0;
+
         cb_train_begin(cfg_.epochs);
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
@@ -658,6 +686,8 @@ class Trainer
 
                     state.batch_progress = 0.92F;
                     cb_batch_progress(state);
+
+                    apply_lr_schedule();
 
                     optimizer_->step(model_.params());
                 } // BatchScope destructs here: single clFinish per mini-batch
@@ -766,6 +796,8 @@ class Trainer
         std::iota(indices.begin(), indices.end(), 0u);
         std::mt19937 rng(cfg_.sampler_shuffle_seed);
 
+        lr_schedule_step_ = 0;
+
         cb_train_begin(cfg_.epochs);
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
@@ -850,6 +882,8 @@ class Trainer
 
                     state.batch_progress = 0.92F;
                     cb_batch_progress(state);
+
+                    apply_lr_schedule();
 
                     optimizer_->step(model_.params());
                 }

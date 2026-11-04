@@ -145,7 +145,12 @@ struct Meeting01Config
         // early, so a network still on the mean-predictor plateau gets every epoch instead of
         // being stopped there (results_format 7; see nn::training::EarlyStoppingCallback).
         float early_stop_min_skill = -1.0f;
-        float learning_rate = 0.0f;                   // REQUIRED (validated > 0)
+        float learning_rate = 0.0f; // REQUIRED (validated > 0)
+        // optional (0 = off, validated >= 0): every training's rate rises linearly over its
+        // first N optimizer steps (nn::training::TrainerConfig::lr_warmup_steps). Added for the
+        // Transformer-AE test of 2026-11-03 (post-norm blocks need a warm-up at a fixed Adam
+        // rate, Xiong et al. 2020); the production profiles leave it at 0.
+        int lr_warmup_steps = 0;
         float learning_rate_biophysical = 0.0f;       // optional (0 = use 0.1 × lr)
         float beta1 = 0.9f;                           // optional (Adam default)
         float beta2 = 0.999f;                         // optional (Adam default)
@@ -212,6 +217,9 @@ struct Meeting01Config
         int transformer_heads = 4;
         int transformer_layers = 2;
         int transformer_d_ff = 128;
+        // optional: pre-norm Transformer-AE blocks closed by a final LayerNorm per stack
+        // (Xiong et al., ICML 2020) instead of post-norm (TransformerEncoderBlock.hpp).
+        bool transformer_norm_first = false;
         // Denoising-autoencoder corruption (Vincent et al. 2008/2010 -- see
         // .wiki/References.md): std of additive Gaussian noise applied to the ENCODER's
         // input only, never the reconstruction target. 0 (default) = disabled, exact
@@ -406,6 +414,7 @@ struct Meeting01Config
         get("early_stop_patience", cfg.training.early_stop_patience);
         get("early_stop_min_skill", cfg.training.early_stop_min_skill);
         get("learning_rate", cfg.training.learning_rate);
+        get("lr_warmup_steps", cfg.training.lr_warmup_steps);
         get("learning_rate_biophysical", cfg.training.learning_rate_biophysical);
         get("beta1", cfg.training.beta1);
         get("adam_beta1", cfg.training.beta1);
@@ -433,6 +442,7 @@ struct Meeting01Config
         get("transformer_heads", cfg.model.transformer_heads);
         get("transformer_layers", cfg.model.transformer_layers);
         get("transformer_d_ff", cfg.model.transformer_d_ff);
+        get("transformer_norm_first", cfg.model.transformer_norm_first);
         get("encoder_layer_spec", cfg.model.encoder_layer_spec);
         get("decoder_layer_spec", cfg.model.decoder_layer_spec);
         get("branch_encoder_layer_spec", cfg.model.branch_encoder_layer_spec);
@@ -638,6 +648,7 @@ struct Meeting01Config
         require(trn, "training", "early_stop_min_skill", cfg.training.early_stop_min_skill);
         require(trn, "training", "learning_rate", cfg.training.learning_rate);
         get(trn, "batches_per_epoch", cfg.training.batches_per_epoch);
+        get(trn, "lr_warmup_steps", cfg.training.lr_warmup_steps);
         get(trn, "learning_rate_biophysical", cfg.training.learning_rate_biophysical);
         get(trn, "beta1", cfg.training.beta1);
         get(trn, "adam_beta1", cfg.training.beta1);
@@ -667,6 +678,7 @@ struct Meeting01Config
         get(mdl, "transformer_heads", cfg.model.transformer_heads);
         get(mdl, "transformer_layers", cfg.model.transformer_layers);
         get(mdl, "transformer_d_ff", cfg.model.transformer_d_ff);
+        get(mdl, "transformer_norm_first", cfg.model.transformer_norm_first);
         get(mdl, "branch_encoder_layer_spec", cfg.model.branch_encoder_layer_spec);
         get(mdl, "branch_decoder_layer_spec", cfg.model.branch_decoder_layer_spec);
         get(mdl, "fusion_encoder_layer_spec", cfg.model.fusion_encoder_layer_spec);

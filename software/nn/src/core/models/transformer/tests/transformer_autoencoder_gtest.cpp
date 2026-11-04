@@ -132,6 +132,69 @@ TEST(TransformerAutoencoder, ComposedFiniteDifference)
     check(ae.dec_blocks_[0]->mha_->lin_v_->weight, "dec0.mha.Wv");
 }
 
+// Pre-norm blocks plus the two final LayerNorms (Xiong et al. 2020): every new parameter is
+// in params() and the state dict, and the composed gradient is right through all of them.
+TEST(TransformerAutoencoder, PreNormAddsTwoFinalNormsAndHasCorrectGradients)
+{
+    auto c = small_cfg();
+    TransformerAutoencoder post(c);
+    c.norm_first = true;
+    TransformerAutoencoder ae(c);
+    ASSERT_TRUE(ae.enc_final_ln_ && ae.dec_final_ln_);
+    EXPECT_FALSE(post.enc_final_ln_ || post.dec_final_ln_);
+    EXPECT_EQ(ae.params().size(), post.params().size() + 4u); // gamma, beta per final norm
+    EXPECT_EQ(ae.state_dict().count("enc_ln.gamma") + ae.state_dict().count("dec_ln.beta"), 2u);
+
+    Tensor x = smooth_target(4, 3);
+    // Non-trivial final-norm scales, so their gradients are not the identity's.
+    for (nn::Index j = 0; j < 4; ++j)
+    {
+        ae.enc_final_ln_->gamma.at(0, j) = 0.8f + 0.1f * static_cast<float>(j);
+        ae.dec_final_ln_->gamma.at(0, j) = 1.2f - 0.1f * static_cast<float>(j);
+    }
+    ae.reset_state();
+    const Tensor recon = ae.forward(x, true);
+    ae.backward(recon - x);
+
+    constexpr float kEps = 1e-3f;
+    auto check = [&](Tensor& p, const char* tag)
+    {
+        const Tensor g = p.grad();
+        for (nn::Index k = 0; k < static_cast<nn::Index>(p.size()); ++k)
+        {
+            const float base = p.at(k);
+            p.at(k) = base + kEps;
+            ae.reset_state();
+            const float lp = sse(ae.forward(x, false), x);
+            p.at(k) = base - kEps;
+            ae.reset_state();
+            const float lm = sse(ae.forward(x, false), x);
+            p.at(k) = base;
+            const float num = (lp - lm) / (2.0f * kEps);
+            const float tol = std::max(5e-2f * std::fabs(g.at(k)), 5e-3f);
+            EXPECT_NEAR(g.at(k), num, tol) << tag << " k=" << k;
+        }
+    };
+    check(ae.embed_->weight, "pre embed.W");
+    check(ae.enc_blocks_[0]->ln1_->gamma, "pre enc0.ln1.gamma");
+    check(ae.enc_final_ln_->gamma, "pre enc_ln.gamma");
+    check(ae.enc_final_ln_->beta, "pre enc_ln.beta");
+    check(ae.to_latent_->weight, "pre to_latent.W");
+    check(ae.dec_blocks_[0]->ff2_->bias, "pre dec0.ff2.b");
+    check(ae.dec_final_ln_->gamma, "pre dec_ln.gamma");
+    check(ae.out_proj_->weight, "pre out_proj.W");
+
+    // The state dict carries the final norms: a second pre-norm model reproduces the output.
+    TransformerAutoencoder b(c);
+    b.load_state_dict(ae.state_dict());
+    ae.reset_state();
+    b.reset_state();
+    const Tensor ra = ae.forward(x, false);
+    const Tensor rb = b.forward(x, false);
+    for (nn::Index k = 0; k < static_cast<nn::Index>(ra.size()); ++k)
+        EXPECT_NEAR(ra.at(k), rb.at(k), 1e-6f);
+}
+
 TEST(TransformerAutoencoder, OverfitsSingleSequence)
 {
     TransformerAutoencoder ae(small_cfg());

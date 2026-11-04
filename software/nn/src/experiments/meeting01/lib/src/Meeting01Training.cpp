@@ -311,6 +311,7 @@ static auto make_trainer_config(const Meeting01Config& cfg, float snn_lr_scale =
     tcfg.adam_beta1 = cfg.training.beta1;
     tcfg.adam_beta2 = cfg.training.beta2;
     tcfg.adam_epsilon = cfg.training.epsilon;
+    tcfg.lr_warmup_steps = cfg.training.lr_warmup_steps;
     // If explicit biophysical lr set in profile, derive scale from it.
     tcfg.snn_lr_scale = (cfg.training.learning_rate_biophysical > 0.0f)
                             ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
@@ -422,6 +423,7 @@ auto make_transformer_cfg(const Meeting01Config& cfg,
     arch.n_heads = (n_heads_override > 0) ? n_heads_override : cfg.model.transformer_heads;
     arch.n_layers = (n_layers_override > 0) ? n_layers_override : cfg.model.transformer_layers;
     arch.d_ff = (d_ff_override > 0) ? d_ff_override : cfg.model.transformer_d_ff;
+    arch.norm_first = cfg.model.transformer_norm_first;
     arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     return arch;
 }

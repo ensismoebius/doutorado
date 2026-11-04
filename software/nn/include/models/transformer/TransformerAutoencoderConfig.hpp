@@ -18,6 +18,9 @@ struct TransformerAutoencoderConfig
     int n_layers = 2;     ///< encoder blocks in the encoder AND in the decoder
     int d_ff = 128;       ///< position-wise FFN hidden size
     int latent_size = 32; ///< Z: bottleneck dimension
+    /// Pre-norm blocks (Xiong et al., ICML 2020) and a final LayerNorm closing each stack,
+    /// instead of the post-norm blocks of Vaswani et al. 2017 (TransformerEncoderBlock.hpp).
+    bool norm_first = false;
 };
 
 } // namespace nn::models::transformer

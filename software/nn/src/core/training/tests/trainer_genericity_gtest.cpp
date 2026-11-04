@@ -9,6 +9,8 @@
 #include <atomic>
 #include <memory>
 #include <span>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "../EpochResult.hpp"
@@ -501,6 +503,48 @@ TEST(TrainerGenericity, UnmaskedSupervisedFitMovesWeightTowardTarget)
     pairs.emplace_back(input, target);
     trainer.fit_supervised(pairs);
     EXPECT_NE(model.weight_.at(0, 0), 1.0F) << "weight after unmasked fit_supervised";
+}
+
+// TrainerConfig::lr_warmup_steps. MixedParamModel's gradient is a constant 1, so every Adam
+// step moves a weight by exactly its rate (m_hat / sqrt(v_hat) = 1): after 6 steps with a
+// 4-step warm-up at 0.01 the weight has moved 0.01 x (1/4 + 2/4 + 3/4 + 1 + 1 + 1) = 0.045,
+// not the 0.06 of a constant rate; a second fit warms up again from step 1.
+TEST(TrainerGenericity, LinearWarmupRampsTheRateAndRestartsEachFit)
+{
+    const auto fit_twice = [](int warmup) -> std::pair<float, float>
+    {
+        MixedParamModel model;
+        nn::training::TrainerConfig cfg;
+        cfg.epochs = 1;
+        cfg.batch_size = 1;
+        cfg.learning_rate = 0.01F;
+        cfg.snn_lr_scale = 1.0F;
+        cfg.lr_warmup_steps = warmup;
+        nn::training::Trainer<MixedParamModel> trainer(model, cfg);
+        std::vector<nn::Tensor> data(6, nn::Tensor(1, 1));
+        trainer.fit_autoencoder(data);
+        const float first = -model.matrix_.at(0, 0);
+        trainer.fit_autoencoder(data);
+        return {first, -model.matrix_.at(0, 0) - first};
+    };
+    const auto [off1, off2] = fit_twice(0);
+    EXPECT_NEAR(off1, 0.06F, 1e-6F);
+    EXPECT_NEAR(off2, 0.06F, 1e-6F);
+    const auto [on1, on2] = fit_twice(4);
+    EXPECT_NEAR(on1, 0.045F, 1e-6F);
+    EXPECT_NEAR(on2, 0.045F, 1e-6F) << "the warm-up must restart with each fit";
+}
+
+TEST(TrainerGenericity, WarmupIsRefusedWhereItCannotBeApplied)
+{
+    MixedParamModel model;
+    nn::training::TrainerConfig cfg;
+    cfg.snn_lr_scale = 1.0F;
+    cfg.lr_warmup_steps = -1;
+    EXPECT_THROW((nn::training::Trainer<MixedParamModel>(model, cfg)), std::invalid_argument);
+    cfg.lr_warmup_steps = 10;
+    cfg.optimizer_type = "sgd"; // no set_learning_rate: refused before training, not ignored
+    EXPECT_THROW((nn::training::Trainer<MixedParamModel>(model, cfg)), std::logic_error);
 }
 
 } // namespace

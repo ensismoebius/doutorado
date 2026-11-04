@@ -165,6 +165,10 @@ struct TrainerConfig
     float adam_beta2 = 0.999F;
     float adam_epsilon = 1e-8F;
 
+    // Linear learning-rate warm-up: step k of each fit uses
+    // learning_rate * min(1, k / lr_warmup_steps). 0 = off. Adam only (others throw).
+    int lr_warmup_steps = 0;
+
     // Gradient clipping
     float grad_clip_norm = 0.0F;
 
@@ -227,6 +231,50 @@ simply forwards this value to `Optimizer::weight_decay`, which shrinks only
 ordinary 2-D weight matrices by `lr·weight_decay·θ` after every step — biases
 and the SNN's biophysical scalars are exempt, so their values aren't pulled
 toward zero by a mechanism meant for weight matrices.
+
+**Learning-rate warm-up (`lr_warmup_steps`, added 2026-11-03).**
+
+*The problem.* A freshly initialised network has no good descent direction yet, but a constant
+learning rate applies its full size from the very first step. For most layers that is fine. For
+a **post-norm** Transformer it is not: Xiong et al. (ICML 2020) [84] show its gradients near the
+output are largest at initialisation, so full-size Adam steps at step 1 can throw it into a bad
+region it never leaves. Warm-up starts the rate small and lets it grow.
+
+*The rule.* Optimizer step $k$ (1-based) uses
+
+$$\eta_k = \eta \cdot \min\!\left(1, \frac{k}{W}\right), \qquad W = \texttt{lr\_warmup\_steps}.$$
+
+*With meeting01's numbers.* $\eta = 10^{-3}$, batch of 1 window, 1000 training windows, so
+1000 steps per epoch. $W = 4000$ (Vaswani et al.'s value [74]) ramps over the first 4 epochs:
+
+```
+step k        1      1000    2000    4000    4001 ... 30000
+lr       2.5e-7    2.5e-4  5.0e-4  1.0e-3  1.0e-3 ... 1.0e-3
+epoch         1         1       2       4       5 ...    30
+```
+
+*What it is not.* It is not a decay schedule: after step $W$ the rate stays at $\eta$. It counts
+**optimizer steps**, not epochs or samples. With mini-batches of 32 the same $W$ lasts 32× more
+epochs.
+
+| | Off (`0`, the default) | On (`W > 0`) |
+|---|---|---|
+| Step 1 rate | $\eta$ | $\eta / W$ |
+| Step $W$ onward | $\eta$ | $\eta$ |
+| Behaviour of a run that never sets the field | unchanged, byte for byte | — |
+
+*Mechanics.* `Trainer` calls `apply_lr_schedule()` before every `optimizer_->step(...)` in all
+three fit loops, and resets its step counter at each `on_train_begin`, so every `fit` warms up
+again from step 1: a second `fit` on the same `Trainer` does **not** continue the previous ramp
+(`TrainerGenericity.LinearWarmupRampsTheRateAndRestartsEachFit`). The rate is set through
+`Optimizer::set_learning_rate`. Only `Adam` overrides it; on any other optimizer the base-class
+version throws, and `Trainer` calls it once at construction when `lr_warmup_steps > 0`, so the
+failure is **loud and immediate**, not a warm-up that silently does nothing. A negative value
+throws too (`TrainerGenericity.WarmupIsRefusedWhereItCannotBeApplied`).
+
+*Trap.* `ScheduleFreeAdamW` has its own `warmup_steps`. It is a different mechanism inside that
+optimizer, and `lr_warmup_steps` refuses it (it does not override `set_learning_rate`). Do not set
+both expecting them to stack.
 
 **Nested cross-validation.** If you tune hyperparameters using the same
 validation split you report your final accuracy on, your reported accuracy
@@ -663,3 +711,7 @@ before `model.forward()` is called.
 [26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023.
 
 [41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/
+
+[74] A. Vaswani et al., "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. arXiv: [1706.03762](https://arxiv.org/abs/1706.03762)
+
+[84] R. Xiong, Y. Yang, D. He, K. Zheng, S. Zheng, C. Xing, H. Zhang, Y. Lan, L. Wang, and T.-Y. Liu, "On layer normalization in the Transformer architecture," in *Proc. 37th Int. Conf. Machine Learning (ICML)*, PMLR vol. 119, 2020, pp. 10524–10533. [Online]. Available: https://proceedings.mlr.press/v119/xiong20b.html

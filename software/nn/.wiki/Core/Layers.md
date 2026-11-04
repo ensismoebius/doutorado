@@ -534,23 +534,56 @@ not a `FooImpl<Backend>` class.)
 
 ### Transformer encoder block
 
-One **post-norm** Transformer encoder block [74] composes the pieces above:
+One Transformer encoder block composes the pieces above, in one of two wirings. The
+constructor's last argument, `norm_first` (default `false`), picks it.
+
+*Why two.* The original block [74] normalises **after** each residual sum ("post-norm"). Xiong
+et al. (ICML 2020) [84] showed that, at initialisation, its gradients near the output are large,
+so Adam at a fixed rate needs a learning-rate warm-up (see
+[Training](./Training.md#trainer-configuration), `lr_warmup_steps`). Normalising **before** each
+sub-layer ("pre-norm") keeps a path from input to output that no LayerNorm touches, and trains
+without one. The meeting01 Transformer-AE (post-norm, Adam 1e-3, no warm-up) stayed on the
+mean-predictor plateau in all 55 trainings of GridUnesp job 5315335. The pre-norm wiring exists
+to test that explanation (meeting01 T1).
 
 ```
-a   = MultiHeadAttention(x)
-n1  = LayerNorm1(x + a)
-f   = W2 · ReLU(W1 · n1 + b1) + b2      // position-wise feed-forward
-out = LayerNorm2(n1 + f)
+post-norm (norm_first = false)              pre-norm (norm_first = true)
+
+x ─┬─ MHA ──(+)── LN1 ─┬─ FFN ──(+)── LN2 ─→    x ─┬─ LN1 ─ MHA ──(+)─┬─ LN2 ─ FFN ──(+)─→
+   └───────────┘       └───────────┘              └────────────────┘  └────────────────┘
+                                                  identity path: x reaches the output untouched
+
+a   = MHA(x)                                    h   = x + MHA(LN1(x))
+n1  = LN1(x + a)                                out = h + FFN(LN2(h))
+out = LN2(n1 + FFN(n1))
+FFN(v) = W2 · ReLU(W1 · v + b1) + b2            (position-wise, same in both)
 ```
+
+| | Post-norm (default) | Pre-norm |
+|---|---|---|
+| Where LayerNorm sits | after each residual sum | before each sub-layer |
+| Output scale | normalised by LN2 | **not** normalised: grows with depth |
+| Needs a final LayerNorm after the stack | no | yes (the model adds it, not the block) |
+| Warm-up at a fixed Adam rate (Xiong et al.) | needed | not needed |
+| Same weights, same input → same output? | — | no: a different function, not a renamed one |
+
+**Silent trap.** A pre-norm stack with no final LayerNorm still trains and still produces
+numbers, but its output scale drifts with the number of blocks. `TransformerAutoencoder` adds the
+final norms when `norm_first` is set (see [Models](./Models.md)). Anyone stacking blocks by hand
+must add them too.
 
 **Location:** `include/layers/attention/TransformerEncoderBlock.hpp`
 
-Sub-modules: `mha_`, `ln1_`, `ff1_`, `relu_`, `ff2_`, `ln2_`. Each is already
-individually gradient-checked; the block adds a *composed* finite-difference
-check that perturbs one representative parameter from every sub-module plus the
-input (`transformer_encoder_block_gtest.cpp`). Self-attention only — sufficient
-for the encoder-only / bottlenecked Transformer autoencoder (see
-[Models](./Models.md)).
+Sub-modules: `mha_`, `ln1_`, `ff1_`, `relu_`, `ff2_`, `ln2_`, the same in both wirings, and so
+are `params()` and `state_dict()`. Each sub-module is already individually gradient-checked. The
+block adds a *composed* finite-difference check for each wiring: one representative parameter
+from every sub-module plus the input, and for pre-norm every LayerNorm parameter
+(`TransformerEncoderBlock.FiniteDifferenceGradientsAcrossSubmodules`,
+`PreNormFiniteDifferenceGradientsAcrossSubmodules`).
+`PreNormIsADifferentWiringWithAnIdentityPath` checks two things. The two wirings give different
+outputs from the same weights. With the attention's and FFN's output layers zeroed, the
+pre-norm block returns its input exactly. Self-attention only, which is enough for the
+encoder-only / bottlenecked Transformer autoencoder (see [Models](./Models.md)).
 
 ### Spike losses
 
@@ -682,6 +715,8 @@ nn::Tensor y = fc2.forward(h, true);
 [74] A. Vaswani et al., "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. arXiv: [1706.03762](https://arxiv.org/abs/1706.03762)
 
 [75] J. L. Ba, J. R. Kiros, and G. E. Hinton, "Layer normalization," *arXiv:1607.06450*, 2016. [Online]. Available: https://arxiv.org/abs/1607.06450
+
+[84] R. Xiong, Y. Yang, D. He, K. Zheng, S. Zheng, C. Xing, H. Zhang, Y. Lan, L. Wang, and T.-Y. Liu, "On layer normalization in the Transformer architecture," in *Proc. 37th Int. Conf. Machine Learning (ICML)*, PMLR vol. 119, 2020, pp. 10524–10533. [Online]. Available: https://proceedings.mlr.press/v119/xiong20b.html
 
 > In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
 

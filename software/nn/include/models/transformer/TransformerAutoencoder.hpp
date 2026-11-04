@@ -10,10 +10,13 @@
  * information must pass through the bottleneck (a strict-compression AE), which
  * makes it directly comparable to PCA / the recurrent AEs.
  *
- * Encoder: Linear(D->d_model) + positional -> N encoder blocks
+ * Encoder: Linear(D->d_model) + positional -> N encoder blocks [-> LayerNorm]
  *          -> mean-pool over time -> Linear(d_model->Z) -> tanh -> z
  * Decoder: Linear(Z->d_model) -> replicate T -> + positional
- *          -> N encoder blocks (self-attention only) -> Linear(d_model->D) per step
+ *          -> N encoder blocks (self-attention only) [-> LayerNorm] -> Linear(d_model->D)
+ *          per step
+ * [LayerNorm]: only with cfg.norm_first -- pre-norm blocks leave their output unnormalised,
+ * so each stack is closed by one LayerNorm (Xiong et al., ICML 2020, Fig. 1b).
  *
  * 2-D single-sequence contract only (Meeting01 trains at batch size 1):
  *   forward(Tensor{T, D}) -> Tensor{T, D}
@@ -31,6 +34,7 @@
 #include "layers/Layers.hpp"
 #include "layers/attention/TransformerEncoderBlock.hpp"
 #include "layers/base/Module.hpp"
+#include "layers/normalization/LayerNorm.hpp"
 #include "models/transformer/TransformerAutoencoderConfig.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -45,12 +49,16 @@ class TransformerAutoencoder : public Module<nn::Backend>
 
     TransformerAutoencoderConfig cfg_;
 
+    using Norm = LayerNormImpl<nn::Backend>;
+
     std::unique_ptr<Linear> embed_;
     std::vector<std::unique_ptr<Block>> enc_blocks_;
+    std::unique_ptr<Norm> enc_final_ln_; // null unless cfg_.norm_first
     std::unique_ptr<Linear> to_latent_;
 
     std::unique_ptr<Linear> from_latent_;
     std::vector<std::unique_ptr<Block>> dec_blocks_;
+    std::unique_ptr<Norm> dec_final_ln_; // null unless cfg_.norm_first
     std::unique_ptr<Linear> out_proj_;
 
     Tensor pe_; // (T, d_model) fixed sinusoidal positional encoding

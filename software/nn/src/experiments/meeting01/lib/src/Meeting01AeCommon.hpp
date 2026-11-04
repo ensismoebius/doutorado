@@ -234,6 +234,7 @@ auto train_ae(Model& model,
     tcfg.adam_beta1 = cfg.training.beta1;
     tcfg.adam_beta2 = cfg.training.beta2;
     tcfg.adam_epsilon = cfg.training.epsilon;
+    tcfg.lr_warmup_steps = cfg.training.lr_warmup_steps;
 
     nn::training::Trainer<Model> trainer(model, tcfg);
 

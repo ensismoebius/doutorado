@@ -42,6 +42,14 @@ struct TrainerConfig
     float adam_epsilon = 1e-8F;
     float grad_clip_norm = 0.0F;
 
+    /// Linear learning-rate warm-up: optimizer step k (1-based, counted from the start of each
+    /// fit) uses learning_rate * min(1, k / lr_warmup_steps). 0 = off: learning_rate from the
+    /// first step. Post-norm Transformers need it at a fixed Adam rate (Xiong et al., ICML
+    /// 2020; Vaswani et al. 2017 warmed up over 4000 steps). Requires an optimizer whose rate
+    /// can be set (Optimizer::set_learning_rate; Adam): Trainer throws at construction
+    /// otherwise, and for a negative value.
+    int lr_warmup_steps = 0;
+
     /// L2 weight decay (decoupled / AdamW-style). 0 = disabled.
     /// Applied only to 2-D weight matrices; biases and SNN biophysical scalars
     /// (R, C, V_th — shape 1×1 or N×1) are excluded so the membrane time

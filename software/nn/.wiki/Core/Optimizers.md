@@ -277,6 +277,23 @@ effect of throttling the *entire* network's learning rate by 10× rather than
 just the biophysical parameters — a bug that went unnoticed for a while
 because training still "worked", just ten times slower than intended.
 
+### Changing the rate during training (`set_learning_rate`, added 2026-11-03)
+
+A learning-rate schedule (for now, only the `Trainer`'s linear warm-up, `lr_warmup_steps`; see
+[Training](./Training.md#trainer-configuration)) has to change an optimizer's rate between steps.
+`Optimizer::set_learning_rate(float)` is the one entry point for that.
+
+| Optimizer | `set_learning_rate` |
+|---|---|
+| `Adam` | sets the base rate. Per-parameter scales (`attach_with_scales`) still multiply it. Throws on a rate ≤ 0 or non-finite. |
+| `SGD`, `SGDMinimal`, `Lion`, `ScheduleFreeAdamW` | not overridden: the base class **throws** `std::logic_error` |
+
+Why throw instead of a no-op default: a no-op would let a warm-up be configured, logged and
+reported while the optimizer trained at its constructed rate all along. That failure is
+**silent** and fakes the result. `Trainer` calls the setter once at construction when a warm-up is
+configured, so an unsupported optimizer fails before the first epoch. To schedule another
+optimizer, override `set_learning_rate` in it and add a test.
+
 ### Decoupled weight decay (AdamW / SGDW)
 
 **Weight decay** is a regularisation technique: after the normal gradient

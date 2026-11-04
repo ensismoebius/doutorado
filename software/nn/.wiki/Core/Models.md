@@ -167,10 +167,28 @@ Mean-pool and replicate are implemented as `ones`-matrix matmuls so their
 backward passes are plain matmuls. `state_dict` prefixes: `embed.`, `enc{l}.`,
 `to_latent.`, `from_latent.`, `dec{l}.`, `out_proj.`. Config
 (`TransformerAutoencoderConfig`): `input_size`, `seq_len`, `d_model`,
-`n_heads`, `n_layers`, `d_ff`, `latent_size` — chosen near the recurrent
+`n_heads`, `n_layers`, `d_ff`, `latent_size`, `norm_first` — chosen near the recurrent
 baselines' parameter count, with the real count reported (never "matched").
 Composed finite-difference gradient check + overfit test
 (`transformer_autoencoder_gtest.cpp`).
+
+**`norm_first` (added 2026-11-03, default `false`).** `true` builds every block pre-norm
+(Xiong et al. 2020 [84]; see [Layers](./Layers.md#transformer-encoder-block)) and closes each
+stack with one more LayerNorm, the usual pre-norm layout:
+
+```
+encode:  ... →  N pre-norm blocks  →  LayerNorm (enc_ln.)  →  mean-pool  → ...
+decode:  ... →  N pre-norm blocks  →  LayerNorm (dec_ln.)  →  Linear(d_model → D)
+```
+
+Why the extra norm: a pre-norm block adds every sub-layer's output onto the raw residual
+stream, which nothing normalises, so its scale grows with depth. The final LayerNorm puts it back
+on one scale before the pooling / output projection. The two final norms exist only when
+`norm_first` is set: they add 4 parameter tensors (`gamma`, `beta` each) and the state-dict keys
+`enc_ln.*` / `dec_ln.*`. A post-norm model's parameters, state dict and outputs are unchanged.
+A pre-norm checkpoint loaded into a post-norm model, or the reverse, is a different
+architecture, not a compatible one
+(`TransformerAutoencoder.PreNormAddsTwoFinalNormsAndHasCorrectGradients`).
 
 ## Data Flow
 
@@ -253,6 +271,8 @@ model->backward(grad_output);
 [73] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio, "Empirical evaluation of gated recurrent neural networks on sequence modeling," *NeurIPS Deep Learning Workshop*, 2014. arXiv: [1412.3555](https://arxiv.org/abs/1412.3555)
 
 [74] A. Vaswani et al., "Attention is all you need," in *Advances in Neural Information Processing Systems (NeurIPS)*, 2017, pp. 5998–6008. arXiv: [1706.03762](https://arxiv.org/abs/1706.03762)
+
+[84] R. Xiong, Y. Yang, D. He, K. Zheng, S. Zheng, C. Xing, H. Zhang, Y. Lan, L. Wang, and T.-Y. Liu, "On layer normalization in the Transformer architecture," in *Proc. 37th Int. Conf. Machine Learning (ICML)*, PMLR vol. 119, 2020, pp. 10524–10533. [Online]. Available: https://proceedings.mlr.press/v119/xiong20b.html
 
 > In-text numbers follow the project-wide numbering in [References](../References.md). The entries cited above are reproduced here.
 

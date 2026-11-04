@@ -3,15 +3,26 @@
 
 /**
  * @file include/layers/attention/TransformerEncoderBlock.hpp
- * @brief One post-norm Transformer encoder block (Vaswani et al., 2017).
+ * @brief One Transformer encoder block, post-norm (Vaswani et al., 2017; the default) or
+ *        pre-norm (Xiong et al., ICML 2020).
  *
- *   a    = MultiHeadAttention(x)
- *   n1   = LayerNorm1(x + a)
- *   f    = W2 * ReLU(W1 * n1 + b1) + b2                 // position-wise FFN
- *   out  = LayerNorm2(n1 + f)
+ *   post-norm (norm_first = false)            pre-norm (norm_first = true)
+ *   a    = MultiHeadAttention(x)              a    = MultiHeadAttention(LayerNorm1(x))
+ *   n1   = LayerNorm1(x + a)                  h    = x + a
+ *   f    = FFN(n1)                            f    = FFN(LayerNorm2(h))
+ *   out  = LayerNorm2(n1 + f)                 out  = h + f
+ *   FFN(v) = W2 * ReLU(W1 * v + b1) + b2      (position-wise)
+ *
+ * Why both: Xiong et al. show that at initialisation the post-norm block's gradients near the
+ * output are large, so Adam at a fixed learning rate needs a warm-up, while the pre-norm block
+ * keeps an identity path from input to output and trains without one. The meeting01
+ * Transformer-AE (post-norm, Adam 1e-3, no warm-up) never left the mean-predictor plateau in
+ * the 55 trainings of GridUnesp job 5315335; the pre-norm variant is how that is tested. A
+ * pre-norm stack is normally closed by a final LayerNorm, which the model adds
+ * (TransformerAutoencoder), not the block.
  *
  * All sub-modules are individually finite-difference gradient-checked; this block
- * adds a composed check (transformer_encoder_block_gtest.cpp). Self-attention
+ * adds a composed check of each variant (transformer_encoder_block_gtest.cpp). Self-attention
  * only — sufficient for the encoder-only / bottlenecked Transformer autoencoder.
  */
 
@@ -38,6 +49,7 @@ class TransformerEncoderBlockImpl : public Module<Backend>
 
     int d_model_;
     int d_ff_;
+    bool norm_first_; // pre-norm (Xiong et al. 2020) instead of post-norm
 
     std::unique_ptr<MultiHeadAttentionImpl<Backend>> mha_;
     std::unique_ptr<LayerNormImpl<Backend>> ln1_;
@@ -49,8 +61,9 @@ class TransformerEncoderBlockImpl : public Module<Backend>
     bool forward_cached_ = false;
     std::vector<Tensor*> param_ptrs_;
 
-    TransformerEncoderBlockImpl(int d_model, int n_heads, int d_ff, unsigned seed = 0u)
-        : d_model_(d_model), d_ff_(d_ff)
+    TransformerEncoderBlockImpl(
+        int d_model, int n_heads, int d_ff, unsigned seed = 0u, bool norm_first = false)
+        : d_model_(d_model), d_ff_(d_ff), norm_first_(norm_first)
     {
         if (d_model <= 0 || d_ff <= 0)
             throw std::invalid_argument("TransformerEncoderBlockImpl: d_model, d_ff must be > 0");
@@ -82,11 +95,23 @@ class TransformerEncoderBlockImpl : public Module<Backend>
             throw std::invalid_argument(
                 "TransformerEncoderBlockImpl::forward: expected (T, d_model)");
 
-        const Tensor a = mha_->forward(x, requires_grad);
-        const Tensor n1 = ln1_->forward(x.add(a), requires_grad);
-        const Tensor f = ff2_->forward(
-            relu_->forward(ff1_->forward(n1, requires_grad), requires_grad), requires_grad);
-        const Tensor out = ln2_->forward(n1.add(f), requires_grad);
+        const auto ffn = [&](const Tensor& v)
+        {
+            return ff2_->forward(
+                relu_->forward(ff1_->forward(v, requires_grad), requires_grad), requires_grad);
+        };
+        Tensor out;
+        if (norm_first_)
+        {
+            const Tensor h = x.add(mha_->forward(ln1_->forward(x, requires_grad), requires_grad));
+            out = h.add(ffn(ln2_->forward(h, requires_grad)));
+        }
+        else
+        {
+            const Tensor a = mha_->forward(x, requires_grad);
+            const Tensor n1 = ln1_->forward(x.add(a), requires_grad);
+            out = ln2_->forward(n1.add(ffn(n1)), requires_grad);
+        }
 
         if (requires_grad) forward_cached_ = true;
         return out;
@@ -97,6 +122,16 @@ class TransformerEncoderBlockImpl : public Module<Backend>
         if (!forward_cached_)
             throw std::runtime_error(
                 "TransformerEncoderBlockImpl::backward called before forward(requires_grad=true)");
+
+        if (norm_first_)
+        {
+            // out = h + FFN(LayerNorm2(h)): the residual and the FFN path both reach h.
+            Tensor d_u = ff2_->backward(grad_output);
+            d_u = relu_->backward(d_u);
+            const Tensor d_h = grad_output.add(ln2_->backward(ff1_->backward(d_u)));
+            // h = x + MHA(LayerNorm1(x))
+            return d_h.add(ln1_->backward(mha_->backward(d_h)));
+        }
 
         // out = LayerNorm2(n1 + f)
         const Tensor d_res2 = ln2_->backward(grad_output);

@@ -183,6 +183,19 @@ struct Optimizer
     /// which defines both the AdamW and SGDW variants.
     float weight_decay = 0.0F;
 
+    /**
+     * Sets the global learning rate, for a schedule (TrainerConfig::lr_warmup_steps calls it
+     * before every step). An optimizer that does not override it cannot be scheduled and
+     * throws, instead of silently training at its constructed rate.
+     */
+    virtual auto set_learning_rate(float /*lr*/) -> void
+    {
+        throw std::logic_error(
+            "Optimizer::set_learning_rate: this optimizer has no schedulable learning rate. "
+            "Use Adam for a warm-up (TrainerConfig::lr_warmup_steps), or override "
+            "set_learning_rate in it.");
+    }
+
     virtual ~Optimizer() = default;
     /**
      * @brief Return optimizer internal state as a map of name->Tensor.

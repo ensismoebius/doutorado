@@ -197,6 +197,8 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [75] J. L. Ba, J. R. Kiros, and G. E. Hinton, "Layer normalization," *arXiv:1607.06450*, 2016. [Online]. Available: https://arxiv.org/abs/1607.06450 (Per-sample normalization over the feature dimension with learned gain/bias.)
 
+[84] R. Xiong, Y. Yang, D. He, K. Zheng, S. Zheng, C. Xing, H. Zhang, Y. Lan, L. Wang, and T.-Y. Liu, "On layer normalization in the Transformer architecture," in *Proc. 37th Int. Conf. Machine Learning (ICML)*, PMLR vol. 119, 2020, pp. 10524–10533. [Online]. Available: https://proceedings.mlr.press/v119/xiong20b.html (Post-norm Transformers have large gradients near the output at initialisation, so Adam at a fixed rate needs a warm-up; pre-norm blocks train without one. Basis of `TransformerEncoderBlock`'s `norm_first`, `TransformerAutoencoder`'s final LayerNorms and `TrainerConfig::lr_warmup_steps`, meeting01 T1. Their experiments are deep translation/BERT models; that it applies to meeting01's 1–3-block AEs is the hypothesis T1 tests.)
+
 ## Data Loading and Transform Pipelines
 
 [76] A. Paszke et al., "PyTorch: An imperative style, high-performance deep learning library," in *Adv. Neural Inf. Process. Syst. (NeurIPS)*, vol. 32, 2019. [Online]. Available: https://arxiv.org/abs/1912.01703 (`torchvision.transforms.Compose`/`RandomCrop` — the design this project's `nn::transforms::ITransform`/`Compose`/`RandomCrop` mirror.)

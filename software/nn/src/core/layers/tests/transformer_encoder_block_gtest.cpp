@@ -108,6 +108,65 @@ TEST(TransformerEncoderBlock, FiniteDifferenceGradientsAcrossSubmodules)
         }
 }
 
+// The pre-norm block (Xiong et al. 2020): the same composed check, every parameter group and
+// the input, through the residual paths that bypass both LayerNorms.
+TEST(TransformerEncoderBlock, PreNormFiniteDifferenceGradientsAcrossSubmodules)
+{
+    Block blk(kDModel, kHeads, kDFF, /*seed*/ 3u, /*norm_first=*/true);
+    Tensor x = make_input(11u);
+    std::mt19937 rng(1u);
+    std::uniform_real_distribution<float> d(0.7f, 1.3f);
+    for (nn::Index j = 0; j < kDModel; ++j)
+    {
+        blk.ln1_->gamma.at(0, j) = d(rng);
+        blk.ln2_->gamma.at(0, j) = d(rng);
+    }
+
+    blk.reset_state();
+    const Tensor out = blk.forward(x, true);
+    const Tensor dx = blk.backward(out);
+
+    check_tensor(blk, x, blk.mha_->lin_q_->weight, "pre mha.Wq");
+    check_tensor(blk, x, blk.mha_->lin_o_->bias, "pre mha.bo");
+    check_tensor(blk, x, blk.ff1_->weight, "pre ff1.W");
+    check_tensor(blk, x, blk.ff2_->bias, "pre ff2.b");
+    check_tensor(blk, x, blk.ln1_->gamma, "pre ln1.gamma");
+    check_tensor(blk, x, blk.ln1_->beta, "pre ln1.beta");
+    check_tensor(blk, x, blk.ln2_->gamma, "pre ln2.gamma");
+    check_tensor(blk, x, blk.ln2_->beta, "pre ln2.beta");
+    for (nn::Index i = 0; i < kT; ++i)
+        for (nn::Index j = 0; j < kDModel; ++j)
+        {
+            const float base = x.at(i, j);
+            expect_close(
+                dx.at(i, j), num_grad(blk, x, [&](float v) { x.at(i, j) = v; }, base), "pre dx");
+        }
+}
+
+// Same weights, two wirings: the outputs differ (it is not a renamed post-norm block), and
+// the pre-norm output keeps the input on its identity path: with every sub-layer's output
+// zeroed (ff2 and the attention's output projection at 0) it returns x itself.
+TEST(TransformerEncoderBlock, PreNormIsADifferentWiringWithAnIdentityPath)
+{
+    Block post(kDModel, kHeads, kDFF, 3u, false);
+    Block pre(kDModel, kHeads, kDFF, 3u, true);
+    const Tensor x = make_input(5u);
+    const Tensor y_post = post.forward(x, false);
+    const Tensor y_pre = pre.forward(x, false);
+    float diff = 0.0f;
+    for (nn::Index k = 0; k < static_cast<nn::Index>(x.size()); ++k)
+        diff += std::fabs(y_post.at(k) - y_pre.at(k));
+    EXPECT_GT(diff, 1e-3f);
+
+    pre.ff2_->weight.set_zero();
+    pre.ff2_->bias.set_zero();
+    pre.mha_->lin_o_->weight.set_zero();
+    pre.mha_->lin_o_->bias.set_zero();
+    const Tensor y_id = pre.forward(x, false);
+    for (nn::Index k = 0; k < static_cast<nn::Index>(x.size()); ++k)
+        EXPECT_FLOAT_EQ(y_id.at(k), x.at(k));
+}
+
 TEST(TransformerEncoderBlock, ShapeAndContract)
 {
     Block blk(kDModel, kHeads, kDFF);

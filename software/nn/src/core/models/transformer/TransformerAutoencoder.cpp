@@ -48,10 +48,15 @@ TransformerAutoencoder::TransformerAutoencoder(const TransformerAutoencoderConfi
 
     for (int l = 0; l < cfg_.n_layers; ++l)
     {
-        enc_blocks_.push_back(
-            std::make_unique<Block>(M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(200 + l)));
-        dec_blocks_.push_back(
-            std::make_unique<Block>(M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(300 + l)));
+        enc_blocks_.push_back(std::make_unique<Block>(
+            M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(200 + l), cfg_.norm_first));
+        dec_blocks_.push_back(std::make_unique<Block>(
+            M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(300 + l), cfg_.norm_first));
+    }
+    if (cfg_.norm_first)
+    {
+        enc_final_ln_ = std::make_unique<Norm>(M);
+        dec_final_ln_ = std::make_unique<Norm>(M);
     }
 
     pe_ = sinusoidal_positional_encoding<nn::Backend>(cfg_.seq_len, M);
@@ -68,9 +73,11 @@ void TransformerAutoencoder::build_param_ptrs()
     };
     take(embed_->params());
     for (auto& b : enc_blocks_) take(b->params());
+    if (enc_final_ln_) take(enc_final_ln_->params());
     take(to_latent_->params());
     take(from_latent_->params());
     for (auto& b : dec_blocks_) take(b->params());
+    if (dec_final_ln_) take(dec_final_ln_->params());
     take(out_proj_->params());
 }
 
@@ -85,6 +92,7 @@ auto TransformerAutoencoder::encode(const Tensor& input, bool requires_grad) -> 
 
     Tensor h = embed_->forward(input, requires_grad).add(pe); // (T, d_model)
     for (auto& b : enc_blocks_) h = b->forward(h, requires_grad);
+    if (enc_final_ln_) h = enc_final_ln_->forward(h, requires_grad);
 
     // Mean-pool over time → (1, d_model).
     const Tensor pooled = Tensor::ones(1, static_cast<nn::Index>(last_T_)).matmul(h) *
@@ -109,6 +117,7 @@ auto TransformerAutoencoder::decode(const Tensor& latent, int seq_len, bool requ
         Tensor::ones(static_cast<nn::Index>(seq_len), 1).matmul(expand).add(pe); // (T, d_model)
 
     for (auto& b : dec_blocks_) h = b->forward(h, requires_grad);
+    if (dec_final_ln_) h = dec_final_ln_->forward(h, requires_grad);
 
     return out_proj_->forward(h, requires_grad); // (T, D)
 }
@@ -129,6 +138,7 @@ auto TransformerAutoencoder::backward(const Tensor& grad_output) -> Tensor
 
     // ---- decoder ----
     Tensor d_h = out_proj_->backward(grad_output); // (T, d_model)
+    if (dec_final_ln_) d_h = dec_final_ln_->backward(d_h);
     for (int l = static_cast<int>(dec_blocks_.size()) - 1; l >= 0; --l)
         d_h = dec_blocks_[static_cast<std::size_t>(l)]->backward(d_h);
     // + pe : identity passthrough.
@@ -145,6 +155,7 @@ auto TransformerAutoencoder::backward(const Tensor& grad_output) -> Tensor
     // mean-pool backward: every time step receives d_pooled / T.
     Tensor d_enc_h = Tensor::ones(static_cast<nn::Index>(T), 1).matmul(d_pooled) *
                      (1.0f / static_cast<float>(T)); // (T, d_model)
+    if (enc_final_ln_) d_enc_h = enc_final_ln_->backward(d_enc_h);
     for (int l = static_cast<int>(enc_blocks_.size()) - 1; l >= 0; --l)
         d_enc_h = enc_blocks_[static_cast<std::size_t>(l)]->backward(d_enc_h);
     // + pe : identity passthrough.
@@ -155,6 +166,8 @@ void TransformerAutoencoder::reset_state()
 {
     for (auto& b : enc_blocks_) b->reset_state();
     for (auto& b : dec_blocks_) b->reset_state();
+    if (enc_final_ln_) enc_final_ln_->reset_state();
+    if (dec_final_ln_) dec_final_ln_->reset_state();
     forward_cached_ = false;
 }
 
@@ -173,10 +186,12 @@ auto TransformerAutoencoder::state_dict() const -> std::map<std::string, Tensor>
     merge("embed.", embed_->state_dict());
     for (std::size_t l = 0; l < enc_blocks_.size(); ++l)
         merge("enc" + std::to_string(l) + ".", enc_blocks_[l]->state_dict());
+    if (enc_final_ln_) merge("enc_ln.", enc_final_ln_->state_dict());
     merge("to_latent.", to_latent_->state_dict());
     merge("from_latent.", from_latent_->state_dict());
     for (std::size_t l = 0; l < dec_blocks_.size(); ++l)
         merge("dec" + std::to_string(l) + ".", dec_blocks_[l]->state_dict());
+    if (dec_final_ln_) merge("dec_ln.", dec_final_ln_->state_dict());
     merge("out_proj.", out_proj_->state_dict());
     return sd;
 }
@@ -193,10 +208,12 @@ void TransformerAutoencoder::load_state_dict(const std::map<std::string, Tensor>
     embed_->load_state_dict(sub("embed."));
     for (std::size_t l = 0; l < enc_blocks_.size(); ++l)
         enc_blocks_[l]->load_state_dict(sub("enc" + std::to_string(l) + "."));
+    if (enc_final_ln_) enc_final_ln_->load_state_dict(sub("enc_ln."));
     to_latent_->load_state_dict(sub("to_latent."));
     from_latent_->load_state_dict(sub("from_latent."));
     for (std::size_t l = 0; l < dec_blocks_.size(); ++l)
         dec_blocks_[l]->load_state_dict(sub("dec" + std::to_string(l) + "."));
+    if (dec_final_ln_) dec_final_ln_->load_state_dict(sub("dec_ln."));
     out_proj_->load_state_dict(sub("out_proj."));
 }
 

@@ -124,6 +124,9 @@ void check_training(const Meeting01Config& config, std::ostringstream& errors)
     }
 
     // Not >= 1: a skill of 1 is a perfect reconstruction, so patience would never start.
+    if (training.lr_warmup_steps < 0)
+        errors << "  - training.lr_warmup_steps must be >= 0 (got " << training.lr_warmup_steps
+               << "); 0 turns the warm-up off\n";
     if (!(training.early_stop_min_skill >= 0.0f && training.early_stop_min_skill < 1.0f))
     {
         errors << "  - training.early_stop_min_skill must be in [0, 1) (got "

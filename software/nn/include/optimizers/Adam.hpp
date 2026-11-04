@@ -1,8 +1,10 @@
 #ifndef ADAM_HPP
 #define ADAM_HPP
 
+#include <cmath>
 #include <concepts>
 #include <stdexcept>
+#include <string>
 
 #include "optimizers/Optimizer.hpp"
 #include "tensor/Tensor.hpp"
@@ -199,6 +201,16 @@ struct Adam : public Optimizer
         {
             return false;
         }
+    }
+
+    auto set_learning_rate(float lr) -> void override
+    {
+        if (!(lr > 0.0F) || !std::isfinite(lr))
+            throw std::invalid_argument(
+                "Adam::set_learning_rate: the rate must be a positive finite "
+                "number (got " +
+                std::to_string(lr) + ")");
+        learning_rate = lr;
     }
 
     auto step(std::span<Tensor*> paramsList) -> void override
