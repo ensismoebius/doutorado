@@ -59,6 +59,7 @@ from meeting01_results import (  # noqa: E402
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
     ENERGY_CHECKS,
+    ENERGY_CHECKS_HOLD,
     ENERGY_COLUMNS,
     PW_HEADER,
     REFERENCE_SEED,
@@ -173,11 +174,12 @@ def _finite(x, where: str) -> float:
 def _energy(row: dict, column: str, where: str) -> float:
     """One energy column of a test row. Not a divergence when it is missing or not finite: the
     energy is analytic (counted from the architecture, Meeting01Energy.hpp), so a NaN there is
-    a model kind the binary did not price, and a missing column a binary older than format 7."""
+    a model kind the binary did not price, and a missing column a binary older than the format
+    that introduced it (7 for the memory-aware energy, 8 for energy_nj_as_executed)."""
     if column not in row:
         raise ResultsError(f"{where}: the test row has no {column} column; the binary that wrote "
-                           "it predates the memory-aware energy (results_format 7). Rebuild "
-                           "meeting01 and rerun the task.")
+                           "it predates this energy column (memory-aware energy: results_format "
+                           "7; energy_nj_as_executed: 8). Rebuild meeting01 and rerun the task.")
     v = float(row[column])
     if not math.isfinite(v) or v < 0:
         raise ResultsError(f"{where}: {column} is {row[column]}; the binary did not price this "
@@ -430,8 +432,7 @@ def _energy_robustness(removed: list[dict], snn: dict) -> str:
                 return (f"that energy comparison does not hold {what}: there the "
                         f"{LABEL[s['model']]} winner on {ds} needs {_ratio(r)} times the "
                         "SNN-AE's")
-    return ("that energy comparison holds with every memory access priced at one SRAM "
-            "size, 8 KB, 32 KB or 1 MB, and with arithmetic alone")
+    return "that energy comparison holds " + ENERGY_CHECKS_HOLD
 
 
 def write_macros(profile: dict, summary: list[dict] | None, data_dir: pathlib.Path) -> None:
@@ -528,7 +529,7 @@ def _synthetic_profile() -> dict:
 # repricing keeps every ratio) unless a test's row_mutate changes one.
 _SYN_ENERGY = {"energy_nj": 1.0, "energy_ops_nj": 0.4, "energy_mem_nj": 0.6, "mem_accesses": 0.05,
                "energy_nj_sram8k": 0.8, "energy_nj_sram32k": 1.1, "energy_nj_sram1m": 3.0,
-               "arith_energy_nj": 0.3}
+               "arith_energy_nj": 0.3, "energy_nj_as_executed": 1.5}
 _SYN = {"snn-ae": (0.78, 2000.0, 2.0, 3600.0), "ann-ae": (0.66, 150.0, 0.5, None),
         "lstm-ae": (0.87, 380000.0, 300.0, 360000.0), "gru-ae": (0.86, 290000.0, 250.0, 300000.0),
         "transformer-ae": (1.00, 500000.0, 400.0, 540000.0)}
@@ -671,7 +672,9 @@ def _self_test_checks(tmp: pathlib.Path) -> list[str]:
                     "125 times the SNN-AE's time to reconstruct a window, each winner "
                     "needed at least 145 times the SNN-AE's energy per window (operations and "
                     "memory accesses), and that energy comparison holds with every memory access "
-                    "priced at one SRAM size, 8 KB, 32 KB or 1 MB, and with arithmetic alone}"),
+                    "priced at one SRAM size, 8 KB, 32 KB or 1 MB, with arithmetic alone, and with the "
+                    "first layer of a direct-coded input recomputed at every time step, as the "
+                    "code runs it}"),
                    "\\newcommand{\\preQualityVerdict}{none of the three reached",
                    "\\newcommand{\\preFolds}{FSDD fold 0 and EEGMMIDB fold 0}",
                    "\\newcommand{\\preSeqLen}{32}", "\\newcommand{\\preRnnHidden}{8, 256}",

@@ -45,6 +45,11 @@ struct RunMetrics
     double energy_nj_sram8k = std::numeric_limits<double>::quiet_NaN();
     double energy_nj_sram32k = std::numeric_limits<double>::quiet_NaN();
     double energy_nj_sram1m = std::numeric_limits<double>::quiet_NaN();
+    // results_format 8: energy_nj (and macs, acs, arith_energy_nj) price an input repeated at
+    // every step -- the SNN-AE's direct code through the dense or conv1d transform -- once
+    // per window (Meeting01Energy.hpp). This is the memory-aware total with every step's rows
+    // priced, as the code runs it: the check. Equal to energy_nj for every other model.
+    double energy_nj_as_executed = std::numeric_limits<double>::quiet_NaN();
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

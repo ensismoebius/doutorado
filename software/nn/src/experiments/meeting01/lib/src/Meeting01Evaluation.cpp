@@ -131,6 +131,12 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     std::size_t n_values = 0;
     SnnOpCounts ops;
     EnergyLedger energy; // summed over the windows, averaged below
+    // The same with every step's rows priced, as the code runs it (the check; results_format
+    // 8). It differs from `energy` only when the input repeats at every step.
+    EnergyLedger energy_as_executed;
+    const bool input_is_spikes = snn_input_is_spikes(encoding, architecture);
+    const bool repeats = snn_input_repeats_every_step(encoding, architecture);
+    const int repeated_steps = repeats ? time_steps : 1;
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
@@ -145,10 +151,11 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         model.reset_state();
         const SnnTensor input(encoded);
         const Tensor recon = Tensor(model.forward(input, false));
-        const SnnOpCounts window_ops =
-            count_snn_ops(model, input, snn_input_is_spikes(encoding, architecture));
-        ops.macs += window_ops.macs + count_architecture_transform_macs(
-                                          architecture, static_cast<std::size_t>(encoded.size()));
+        // A repeated input's transform (conv1d) and first Linear are counted once per window.
+        const SnnOpCounts window_ops = count_snn_ops(model, input, input_is_spikes, repeated_steps);
+        ops.macs += window_ops.macs + count_architecture_transform_macs(architecture,
+                                          static_cast<std::size_t>(encoded.size()) /
+                                              static_cast<std::size_t>(repeated_steps));
         ops.acs += window_ops.acs;
         ops.spikes += window_ops.spikes;
         ops.neuron_steps += window_ops.neuron_steps;
@@ -157,16 +164,21 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         // then the network. Only the "dense" transform reads the encoder's output as events;
         // conv1d and recurrent read every (value, step), so the encoder writes all of them.
         const auto values = static_cast<double>(val_samples[i].size());
-        energy += encoding_energy(encoding,
+        const EnergyLedger encoder = encoding_energy(encoding,
             values,
             time_steps,
             encoding == "direct" ? 0.0 : static_cast<double>(raw.sum()),
             /*event_driven=*/architecture == "dense");
-        energy += architecture_transform_energy(architecture,
-            values,
-            time_steps,
-            architecture == "recurrent" ? static_cast<double>(encoded.sum()) : 0.0);
-        energy += snn_ae_energy(model, input, snn_input_is_spikes(encoding, architecture));
+        const double transform_spikes =
+            architecture == "recurrent" ? static_cast<double>(encoded.sum()) : 0.0;
+        energy += encoder;
+        energy += architecture_transform_energy(
+            architecture, values, repeats ? 1 : time_steps, transform_spikes);
+        energy += snn_ae_energy(model, input, input_is_spikes, repeated_steps);
+        energy_as_executed += encoder;
+        energy_as_executed +=
+            architecture_transform_energy(architecture, values, time_steps, transform_spikes);
+        energy_as_executed += snn_ae_energy(model, input, input_is_spikes, 1);
 
         mse_acc += mse_between_masked(target, recon, mask);
         mae_acc += mae_between_masked(target, recon, mask);
@@ -228,6 +240,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         m.acs = ops.acs / n;
         m.arith_energy_nj = arith_energy_nj(ops.macs / n, m.acs);
         set_energy(m, energy.scaled(1.0 / n));
+        set_energy_as_executed(m, energy_as_executed.scaled(1.0 / n));
     }
     if (ops.neuron_steps > 0.0) m.spike_rate = static_cast<float>(ops.spikes / ops.neuron_steps);
 

@@ -54,7 +54,15 @@ namespace meeting01
 //           one-memory-size repricings `energy_nj_sram8k/32k/1m`; Meeting01Energy.hpp), the
 //           paper's primary energy; `arith_energy_nj` stays as the arithmetic-only figure.
 //           No production fold ran with format 6.
-inline constexpr int kResultsFormat = 7;
+//   8       2026-11-03. An SNN-AE input that is the same at every step (direct code through the
+//           dense or conv1d transform; snn_input_repeats_every_step) has its transform and first
+//           Linear counted once per window in `energy_nj` and its repricings, `macs`, `acs` and
+//           `arith_energy_nj` (format 7 counted them T times, as the code runs); rows gain
+//           `energy_nj_as_executed`, that T-times count, as a check (Meeting01Energy.hpp). GA
+//           evaluations log their own identity in the events file (format 7 logged every
+//           evaluation after a final fit under that fit's identity). No production fold ran with
+//           format 7; the pre-validation job 5315335 did.
+inline constexpr int kResultsFormat = 8;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

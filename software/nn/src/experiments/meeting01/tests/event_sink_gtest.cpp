@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "Meeting01EventCallback.hpp"
 #include "Meeting01Events.hpp"
 #include "nlohmann/json.hpp"
 
@@ -85,7 +86,7 @@ TEST(EventSink, EmitWritesOneMergedJsonLinePerEvent)
     std::filesystem::remove(path);
 }
 
-TEST(EventSink, DisabledSinkIsANoOpAndPendingContextRoundTrips)
+TEST(EventSink, DisabledSinkIsANoOpAndPendingContextIsTakenOnce)
 {
     auto& ev = ExperimentEvents::instance();
     ev.open(""); // empty path → sink stays closed
@@ -98,9 +99,49 @@ TEST(EventSink, DisabledSinkIsANoOpAndPendingContextRoundTrips)
     ctx.seed = 44U;
     ctx.max_epochs = 30;
     ev.set_pending_context(ctx);
-    const auto got = ev.pending_context();
+    const auto got = ev.take_pending_context();
     EXPECT_EQ(got.config_id, "cid");
     EXPECT_EQ(got.model, "gru-ae");
     EXPECT_EQ(got.seed, 44U);
     EXPECT_EQ(got.max_epochs, 30);
+    // One context, one training: the slot is empty after the take (job 5315335 logged 11
+    // GA evaluations under the previous final's identity because the slot kept it).
+    EXPECT_TRUE(ev.take_pending_context().config_id.empty());
+}
+
+TEST(EventSink, GaEvalContextNamesTheGenomeAndRefusesAnEmptyKey)
+{
+    const auto c = meeting01::ga_eval_context(
+        "gru-ae", "direct", "h123_l1_direct", {{"hidden_size", 123}}, 42U, 30, 1e-3F, 1e-4F, 5);
+    EXPECT_EQ(c.config_id, "gru-ae_ga_h123_l1_direct_seed42");
+    EXPECT_EQ(c.role, "ga_eval");
+    EXPECT_EQ(c.hyperparams.at("hidden_size"), 123);
+    EXPECT_EQ(c.max_epochs, 30);
+    EXPECT_EQ(c.early_stop_patience, 5);
+    EXPECT_THROW(
+        (void) meeting01::ga_eval_context("gru-ae", "direct", "", {}, 42U, 30, 1e-3F, 1e-4F, 5),
+        std::invalid_argument);
+}
+
+TEST(EventSink, ATrainingWithoutAContextThrowsWhileTheSinkIsOpen)
+{
+    const auto path = std::filesystem::temp_directory_path() /
+                      ("meeting01_events_ctx_test_" + std::to_string(::getpid()) + ".jsonl");
+    std::filesystem::remove(path);
+    auto& ev = ExperimentEvents::instance();
+    ev.open(path.string());
+    ASSERT_TRUE(ev.is_open());
+
+    meeting01::EventContext ctx;
+    ctx.config_id = "snn-ae_ga_k_seed42";
+    ev.set_pending_context(ctx);
+    EXPECT_NO_THROW(meeting01::Meeting01EventCallback{});
+    // The first callback took the context, so a second training that declared none must not
+    // run under that identity.
+    EXPECT_THROW(meeting01::Meeting01EventCallback{}, std::logic_error);
+
+    ev.close();
+    std::filesystem::remove(path);
+    // A closed sink writes nothing, so no identity is needed.
+    EXPECT_NO_THROW(meeting01::Meeting01EventCallback{});
 }

@@ -1,5 +1,6 @@
 #include "../include/Meeting01RecurrentGaFitness.hpp"
 
+#include "../include/Meeting01Events.hpp"
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01Training.hpp"
 #include "models/gru/GRUAutoencoder.hpp"
@@ -7,6 +8,25 @@
 
 namespace meeting01::ga
 {
+
+namespace
+{
+auto recurrent_eval_context(const char* model,
+    const RecurrentGenome& g,
+    const meeting01::Meeting01Config& cfg,
+    std::uint32_t seed) -> meeting01::EventContext
+{
+    return meeting01::ga_eval_context(model,
+        g.encoding,
+        genome_key(g),
+        {{"hidden_size", g.hidden_size}, {"num_layers", g.num_layers}},
+        seed,
+        cfg.training.epochs,
+        cfg.training.learning_rate,
+        cfg.training.learning_rate_biophysical,
+        cfg.training.early_stop_patience);
+}
+} // namespace
 
 void evaluate_individual(LstmGaIndividual& ind,
     const meeting01::Meeting01Config& cfg,
@@ -19,6 +39,9 @@ void evaluate_individual(LstmGaIndividual& ind,
     const auto lstm_cfg = to_lstm_cfg(g, cfg);
 
     nn::models::lstm::LSTMAutoencoder model(lstm_cfg);
+
+    meeting01::ExperimentEvents::instance().set_pending_context(
+        recurrent_eval_context("lstm-ae", g, cfg, seed));
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
@@ -55,6 +78,9 @@ void evaluate_individual(GruGaIndividual& ind,
     const auto gru_cfg = to_gru_cfg(g, cfg);
 
     nn::models::gru::GRUAutoencoder model(gru_cfg);
+
+    meeting01::ExperimentEvents::instance().set_pending_context(
+        recurrent_eval_context("gru-ae", g, cfg, seed));
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

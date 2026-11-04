@@ -15,7 +15,9 @@
 #include <cstdint>
 #include <fstream>
 #include <mutex>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "nlohmann/json.hpp"
 
@@ -62,12 +64,19 @@ namespace meeting01
 // Identity + static configuration of one training, carried from the driver (which
 // knows model/role/hyperparameters) to the in-training callback via the singleton's
 // pending slot. No signature churn through train_ae / train_with_early_stopping_snn.
+//
+// ONE CONTEXT, ONE TRAINING. The callback takes the slot (take_pending_context empties it),
+// and with the sink open a training whose slot is empty throws. Before, the slot was only
+// read, and only the final fits set it, so every GA evaluation after a final inherited that
+// final's identity: in job 5315335, 11 of the Transformer-AE's FSDD search trainings were
+// logged as "transformer-ae_direct_seed42_run1" with its hyperparameters. Silent: nothing
+// downstream of the events log reads those fields to compute a result, so no number moved.
 struct EventContext
 {
     std::string config_id;
-    std::string model;    // "lstm-ae" | "gru-ae" | "transformer-ae" | "snn-ae"
+    std::string model;    // "lstm-ae" | "gru-ae" | "transformer-ae" | "snn-ae" | "ann-ae"
     std::string encoding; // "direct" | "poisson" | "latency"
-    std::string role;     // "baseline" | "snn_sweep" | "snn_final"
+    std::string role;     // "ga_eval" | "<arch>_final" | "snn_final"
     nlohmann::json hyperparams = nlohmann::json::object();
     int run_id = 0;
     std::uint32_t seed = 0u;
@@ -78,6 +87,37 @@ struct EventContext
     std::size_t param_count = 0u;
     std::size_t macs = 0u;
 };
+
+// The identity of one GA evaluation: "<model>_ga_<genome key>_seed<seed>", role "ga_eval".
+// The genome key is the search cache's own (genome_key), so a config_id names exactly one
+// cached evaluation.
+[[nodiscard]] inline auto ga_eval_context(const std::string& model,
+    const std::string& encoding,
+    const std::string& genome_key,
+    nlohmann::json hyperparams,
+    std::uint32_t seed,
+    int max_epochs,
+    float lr,
+    float lr_biophysical,
+    int early_stop_patience) -> EventContext
+{
+    if (model.empty() || genome_key.empty())
+        throw std::invalid_argument("ga_eval_context: empty " +
+                                    std::string(model.empty() ? "model" : "genome key") +
+                                    "; a GA evaluation needs both to be identified in the log");
+    EventContext c;
+    c.config_id = model + "_ga_" + genome_key + "_seed" + std::to_string(seed);
+    c.model = model;
+    c.encoding = encoding;
+    c.role = "ga_eval";
+    c.hyperparams = std::move(hyperparams);
+    c.seed = seed;
+    c.max_epochs = max_epochs;
+    c.lr = lr;
+    c.lr_biophysical = lr_biophysical;
+    c.early_stop_patience = early_stop_patience;
+    return c;
+}
 
 class ExperimentEvents
 {
@@ -105,10 +145,11 @@ class ExperimentEvents
     // Fields merged into every subsequent line: {v, run_tag, dataset, fold}.
     void set_common(nlohmann::json common);
 
-    // Slot read by Meeting01EventCallback::on_train_begin. Set by the driver right
-    // before each training call.
+    // Slot taken by the Meeting01EventCallback constructor. Set right before each training
+    // call (every GA evaluation and every final fit); taking it leaves it empty, so a
+    // context serves exactly one training.
     void set_pending_context(EventContext ctx);
-    [[nodiscard]] auto pending_context() const -> EventContext;
+    [[nodiscard]] auto take_pending_context() -> EventContext;
 
     // Emit one line: {<common>, ts_unix, type, <fields>}. Thread-safe; flushes.
     void emit(const std::string& type, const nlohmann::json& fields = nlohmann::json::object());

@@ -268,6 +268,7 @@ void emit_config_end(const ResultRow& row, const std::string& config_id, const s
                     {"energy_nj_sram8k", jnum(row.metrics.energy_nj_sram8k)},
                     {"energy_nj_sram32k", jnum(row.metrics.energy_nj_sram32k)},
                     {"energy_nj_sram1m", jnum(row.metrics.energy_nj_sram1m)},
+                    {"energy_nj_as_executed", jnum(row.metrics.energy_nj_as_executed)},
                     {"train_ms", jnum(row.metrics.train_ms)},
                     {"infer_ms", jnum(row.metrics.infer_ms)},
                     {"param_count", row.metrics.parameter_count},

@@ -1,5 +1,6 @@
 #include "../include/Meeting01TransformerGaFitness.hpp"
 
+#include "../include/Meeting01Events.hpp"
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01Training.hpp"
 #include "models/transformer/TransformerAutoencoder.hpp"
@@ -18,6 +19,20 @@ void evaluate_individual(TransformerGaIndividual& ind,
     const auto tf_cfg = to_transformer_cfg(g, cfg);
 
     nn::models::transformer::TransformerAutoencoder model(tf_cfg);
+
+    meeting01::ExperimentEvents::instance().set_pending_context(
+        meeting01::ga_eval_context("transformer-ae",
+            g.encoding,
+            genome_key(g),
+            {{"d_model", g.d_model},
+                {"n_heads", g.n_heads},
+                {"n_layers", g.n_layers},
+                {"d_ff", g.d_ff}},
+            seed,
+            cfg.training.epochs,
+            cfg.training.learning_rate,
+            cfg.training.learning_rate_biophysical,
+            cfg.training.early_stop_patience));
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

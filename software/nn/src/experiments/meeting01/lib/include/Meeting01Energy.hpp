@@ -1,15 +1,28 @@
 #pragma once
-// Meeting01Energy.hpp -- the inference energy the paper reports (results_format 7).
+// Meeting01Energy.hpp -- the inference energy the paper reports (results_format 8).
 //
 // WHY NOT JUST COUNT OPERATIONS. The usual SNN estimate prices arithmetic only:
 // 4.6 pJ x MACs + 0.9 pJ x ACs (arith_energy_nj, Meeting01Metrics.hpp), and the SNN wins
 // because a spike turns a multiply-accumulate into an add. But fetching an operand costs
 // more than using it -- in the same table a 32-bit float add is 0.9 pJ and one read of a
 // 32 KB SRAM 20 pJ -- and an SNN reads and writes every neuron's membrane potential at every
-// time step, traffic an ANN does not have. Estimates that count memory (Lemaire et al. 2022;
-// Dampfhoffer et al., IEEE TETCI 7(3) 2023) find the advantage shrinks or reverses, and an
-// operation count alone is what reviewers reject. So the number this file computes, the
-// paper's primary one, is memory-aware.
+// time step, traffic an ANN does not have. Dampfhoffer et al. (IEEE TETCI 7(3) 2023), who
+// count it, find an SNN matches an efficient ANN only at 0.15-1.38 spikes per synapse per
+// inference; an operation count alone is what reviewers reject. So the number this file
+// computes, the paper's primary one, is memory-aware. (Lemaire et al. 2022, whose model this
+// is, find SNNs 6-8x MORE efficient in their setting: they are cited for the model, not as
+// evidence against SNNs.)
+//
+// A REPEATED INPUT IS COMPUTED ONCE (results_format 8, the author's decision of 2026-11-03).
+// The direct code presents the same analog window at every one of the T steps, and the dense
+// and conv1d transforms keep the rows identical (snn_input_repeats_every_step), so everything
+// upstream of the first LIF -- the conv1d filter, the first Linear -- is the same computation T
+// times. The primary count does it once per window and stores the first layer's current
+// (n_out writes), which the LIF reads back at every step (T x n_out reads); the code as it
+// runs repeats it T times, and that count is kept as a check (energy_nj_as_executed). The
+// choice favours the SNN-AE -- in job 5315335 it moved a direct winner (FSDD fold 0, T = 28)
+// from 14.4x to 1.53x the ANN-AE's energy -- which is the conservative side for a paper whose
+// measured conclusion is that the SNN-AE costs more.
 //
 // THE MODEL is Lemaire et al., "An Analytical Estimation of Spiking Neural Networks Energy
 // Efficiency", ICONIP 2022, LNCS 13623, pp. 574-587 (doi 10.1007/978-3-031-30105-6_48), its
@@ -143,8 +156,12 @@ struct ModelCost
 };
 
 /// Fills RunMetrics' energy fields from one window's ledger (a mean over windows is a ledger
-/// too: EnergyLedger::scaled).
+/// too: EnergyLedger::scaled). energy_nj_as_executed is set to the same total: for every
+/// model but an SNN-AE with a repeated input the two counts coincide; that SNN-AE's evaluation
+/// then sets it from its own as-executed ledger (set_energy_as_executed).
 void set_energy(RunMetrics& m, const EnergyLedger& per_window);
+/// Overwrites energy_nj_as_executed with the total of a ledger that prices every step's rows.
+void set_energy_as_executed(RunMetrics& m, const EnergyLedger& per_window);
 
 // --- building blocks (Lemaire et al. 2022, Sec. III, fully-connected layers) ---------------
 
@@ -181,11 +198,18 @@ void add_nonlinearity(EnergyLedger& e, double values, Nonlinearity kind);
 
 /// The SNN-AE's last forward pass, walked layer by layer (call right after model.forward on
 /// `input`, like count_snn_ops). Whether a Linear's input is spikes is decided by provenance,
-/// as count_snn_ops does. Throws std::logic_error for a layer it has no model for, a LifBPTT
-/// not fed by a Linear, the dual-branch model, or cached outputs that do not match the layers.
+/// as count_snn_ops does. `repeated_steps`: T when the input rows are the same at every step
+/// (snn_input_repeats_every_step) and the first Linear is to be priced once -- once per sample
+/// plus the stored current's n_out writes and its rows x n_out reads by the LIF --, 1 to price
+/// every row (the code as it runs). Throws std::logic_error for a layer it has no model for, a
+/// LifBPTT not fed by a Linear, the dual-branch model, cached outputs that do not match the
+/// layers, a repeated input that is spikes, does not divide into `repeated_steps` equal parts
+/// or feeds anything but a Linear followed by a LifBPTT; std::invalid_argument for
+/// repeated_steps < 1.
 auto snn_ae_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,
-    bool input_is_spikes) -> EnergyLedger;
+    bool input_is_spikes,
+    int repeated_steps) -> EnergyLedger;
 /// The ANN-AE: one forward pass of a zero window of `window_size` values, then the same walk
 /// (its cost does not depend on the data). Throws like snn_ae_energy.
 auto ann_ae_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int window_size)
@@ -211,7 +235,7 @@ auto encoding_energy(
 /// step and `time_steps` steps: "dense" nothing; "conv1d" a 3-tap filter (3 MACs, 3 input and
 /// 3 kernel reads, 1 write per value and step); "recurrent" a LIF per value (add_lif with an
 /// analog input current read per value and step), emitting `spikes_out` spikes. Throws on an
-/// unknown token.
+/// unknown token. A conv1d of a repeated input is priced once: pass time_steps = 1 then.
 auto architecture_transform_energy(
     const std::string& architecture, double values, int time_steps, double spikes_out)
     -> EnergyLedger;

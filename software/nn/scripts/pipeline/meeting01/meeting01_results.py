@@ -55,7 +55,10 @@ from collections import defaultdict
 #: training.early_stop_min_skill and keeps the best monitor epoch's network, and adds the
 #: memory-aware energy columns (energy_nj, energy_ops_nj, energy_mem_nj, mem_accesses,
 #: energy_nj_sram8k/32k/1m), the paper's primary energy.
-RESULTS_FORMAT = 7
+#: Format 8 counts an SNN-AE input that is the same at every step (direct code through the
+#: dense or conv1d transform) once per window in energy_nj, its repricings, macs, acs and
+#: arith_energy_nj, and adds energy_nj_as_executed, the every-step count, as a check.
+RESULTS_FORMAT = 8
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -72,6 +75,10 @@ _OLDER_FORMATS = {
        "weights were kept (it reported 'cannot learn' for runs that had not started), and "
        "the rows carry only the arithmetic-only energy, not the memory-aware one the paper "
        "reports",
+    7: "a direct-coded SNN-AE's first layer was priced at every one of its T steps, as the "
+       "code runs it, in energy_nj, macs and arith_energy_nj (format 8 prices a repeated input "
+       "once and keeps the every-step count as energy_nj_as_executed), and its GA evaluations "
+       "were logged under the previous final fit's identity",
 }
 
 PW_HEADER = [
@@ -85,19 +92,30 @@ WINDOW_FIELDS = ("speaker_id", "recording_id", "window_id", "source_window_index
 #: it with every other trained model.
 TRAINED_MODELS = ("snn-ae", "lstm-ae", "gru-ae", "transformer-ae", "ann-ae")
 REFERENCE_MODELS = ("mean", "pca")
-#: The per-window inference energy of a trained model's rows (results_format 7), in nJ unless
+#: The per-window inference energy of a trained model's rows (results_format 8), in nJ unless
 #: noted. energy_nj is the paper's number: Lemaire et al. 2022's model (operations + address
 #: arithmetic + memory accesses, each local SRAM priced at its own size) at Horowitz 2014's
-#: 45 nm prices, = energy_ops_nj + energy_mem_nj. The rest are its checks: the same counts
-#: with every access priced at one SRAM size, and the older arithmetic-only estimate
-#: (4.6 pJ x MACs + 0.9 pJ x ACs), which no longer carries a claim. Meeting01Energy.hpp.
+#: 45 nm prices, = energy_ops_nj + energy_mem_nj, with an SNN-AE input that repeats at every
+#: step (direct code) computed once per window. The rest are its checks: the same counts with
+#: every access priced at one SRAM size, the older arithmetic-only estimate (4.6 pJ x MACs +
+#: 0.9 pJ x ACs), which no longer carries a claim, and energy_nj_as_executed, the memory-aware
+#: count with that input's first layer recomputed at every step, as the code runs it.
+#: Meeting01Energy.hpp.
 ENERGY_COLUMNS = ("energy_nj", "energy_ops_nj", "energy_mem_nj", "mem_accesses",
-                  "energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "arith_energy_nj")
+                  "energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "arith_energy_nj",
+                  "energy_nj_as_executed")
 #: The repricings a claim about energy must survive: (column, the words the paper uses).
 ENERGY_CHECKS = (("energy_nj_sram8k", "with every memory access priced at an 8 KB SRAM"),
                  ("energy_nj_sram32k", "with every memory access priced at a 32 KB SRAM"),
                  ("energy_nj_sram1m", "with every memory access priced at a 1 MB SRAM"),
-                 ("arith_energy_nj", "with arithmetic alone"))
+                 ("arith_energy_nj", "with arithmetic alone"),
+                 ("energy_nj_as_executed",
+                  "with the first layer of a direct-coded input recomputed at every time step, "
+                  "as the code runs it"))
+#: How the generated text says a comparison survived every check in ENERGY_CHECKS.
+ENERGY_CHECKS_HOLD = ("with every memory access priced at one SRAM size, 8 KB, 32 KB or 1 MB, "
+                      "with arithmetic alone, and with the first layer of a direct-coded input "
+                      "recomputed at every time step, as the code runs it")
 #: 03_ writes every reference row with seed 0: a reference is fitted once,
 #: deterministically, so it HAS no seed -- 0 marks that, it is not a seed value.
 REFERENCE_SEED = "0"

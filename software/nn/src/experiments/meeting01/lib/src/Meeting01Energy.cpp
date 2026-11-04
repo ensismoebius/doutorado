@@ -105,6 +105,12 @@ void set_energy(RunMetrics& m, const EnergyLedger& w)
     m.energy_nj_sram8k = w.total_nj_at(energy::kSramPoints[0].bytes);
     m.energy_nj_sram32k = w.total_nj_at(energy::kSramPoints[1].bytes);
     m.energy_nj_sram1m = w.total_nj_at(energy::kSramPoints[2].bytes);
+    m.energy_nj_as_executed = w.total_nj();
+}
+
+void set_energy_as_executed(RunMetrics& m, const EnergyLedger& w)
+{
+    m.energy_nj_as_executed = w.total_nj();
 }
 
 // --- building blocks -----------------------------------------------------------------------
@@ -173,11 +179,14 @@ namespace
 {
 
 // Walks one Sequential's last forward pass into `e`; returns whether its output is spikes.
+// repeated_steps > 1: the input's rows repeat that many times (snn_ae_energy), so its first
+// layer -- a Linear into a LifBPTT, on analog input -- is priced once per sample.
 auto walk_sequential(const nn::Sequential& seq,
     const Tensor& input,
     bool input_is_spikes,
     EnergyLedger& e,
-    const char* who) -> bool
+    const char* who,
+    int repeated_steps) -> bool
 {
     if (seq.outputs.size() != seq.layers.size())
         throw std::logic_error(std::string(who) + ": a Sequential cached " +
@@ -185,6 +194,24 @@ auto walk_sequential(const nn::Sequential& seq,
                                std::to_string(seq.layers.size()) +
                                " layers. Call it right after model.forward() on the window "
                                "whose energy it should count.");
+    if (repeated_steps < 1)
+        throw std::invalid_argument(std::string(who) + ": repeated_steps must be >= 1 (got " +
+                                    std::to_string(repeated_steps) +
+                                    "); 1 prices every row, T a repeated input once");
+    if (repeated_steps > 1)
+    {
+        const bool first_is_linear_into_lif =
+            seq.layers.size() >= 2 && dynamic_cast<const nn::Linear*>(seq.layers[0].get()) &&
+            dynamic_cast<const nn::LifBPTT*>(seq.layers[1].get());
+        if (input_is_spikes || !first_is_linear_into_lif ||
+            input.rows() % static_cast<nn::Index>(repeated_steps) != 0)
+            throw std::logic_error(
+                std::string(who) + ": a repeated input is priced once only when it is analog, " +
+                "its " + std::to_string(input.rows()) + " rows split into " +
+                std::to_string(repeated_steps) +
+                " equal steps, and it feeds a Linear followed by a LifBPTT; this one does not. "
+                "Pass repeated_steps = 1, or extend the model for this topology.");
+    }
 
     const Tensor* in = &input;
     bool in_is_spikes = input_is_spikes;
@@ -207,6 +234,13 @@ auto walk_sequential(const nn::Sequential& seq,
             const auto n_out = static_cast<double>(lin->out_features);
             if (in_is_spikes)
                 add_spiking_fc(e, static_cast<double>(in->sum()), rows, n_in, n_out, !next_is_lif);
+            else if (i == 0 && repeated_steps > 1)
+            {
+                // The same current at every step: computed and written once per sample, read
+                // back by the LIF at each of the `rows` steps (checked above).
+                add_dense_fc(e, rows / repeated_steps, n_in, n_out, /*writes_output=*/true);
+                e.access(e.rd_in, rows * n_out, n_out);
+            }
             else
                 add_dense_fc(e, rows, n_in, n_out, !next_is_lif);
             is_linear = true;
@@ -322,7 +356,8 @@ auto recurrent_ae_energy(const char* who,
 
 auto snn_ae_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,
-    bool input_is_spikes) -> EnergyLedger
+    bool input_is_spikes,
+    int repeated_steps) -> EnergyLedger
 {
     if (model.use_dual_branch_)
         throw std::logic_error(
@@ -330,11 +365,12 @@ auto snn_ae_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& mo
             "counted (meeting01 never builds it).");
     EnergyLedger e;
     const bool latent_is_spikes =
-        walk_sequential(model.encoder_, input, input_is_spikes, e, "snn_ae_energy");
+        walk_sequential(model.encoder_, input, input_is_spikes, e, "snn_ae_energy", repeated_steps);
     if (model.encoder_.outputs.empty())
         throw std::logic_error("snn_ae_energy: the encoder cached no outputs; run forward first.");
+    // The decoder reads the latent, which changes from step to step (or is pooled once).
     walk_sequential(
-        model.decoder_, model.encoder_.outputs.back(), latent_is_spikes, e, "snn_ae_energy");
+        model.decoder_, model.encoder_.outputs.back(), latent_is_spikes, e, "snn_ae_energy", 1);
     return e;
 }
 
@@ -351,10 +387,10 @@ auto ann_ae_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int wind
     const Tensor zeros = Tensor::zeros(1, window_size);
     (void) model.forward(zeros, false);
     EnergyLedger e;
-    walk_sequential(model.encoder_, zeros, false, e, "ann_ae_energy");
+    walk_sequential(model.encoder_, zeros, false, e, "ann_ae_energy", 1);
     if (model.encoder_.outputs.empty())
         throw std::logic_error("ann_ae_energy: the encoder cached no outputs after forward.");
-    walk_sequential(model.decoder_, model.encoder_.outputs.back(), false, e, "ann_ae_energy");
+    walk_sequential(model.decoder_, model.encoder_.outputs.back(), false, e, "ann_ae_energy", 1);
     return e;
 }
 
@@ -469,6 +505,9 @@ auto transformer_ae_energy(const nn::models::transformer::TransformerAutoencoder
     add_dense_fc(e, S, D, M, true); // embed
     positional();
     for (int l = 0; l < cfg.n_layers; ++l) block();
+    // A pre-norm block has the same LayerNorms and residuals, in another order; only the
+    // final LayerNorm that closes a pre-norm stack is extra (TransformerAutoencoder).
+    if (cfg.norm_first) layer_norm();
     e.fp_adds += S * M; // mean over positions
     e.fp_macs += M;
     e.access(e.rd_in, S * M, M);
@@ -478,6 +517,7 @@ auto transformer_ae_energy(const nn::models::transformer::TransformerAutoencoder
     add_dense_fc(e, 1.0, Z, M, true);                            // from_latent
     positional();                                                // replicate + positional
     for (int l = 0; l < cfg.n_layers; ++l) block();
+    if (cfg.norm_first) layer_norm();
     add_dense_fc(e, S, M, D, true); // out_proj
     return e;
 }

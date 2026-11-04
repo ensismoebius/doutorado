@@ -122,8 +122,13 @@ namespace
 
 // Counts one Sequential's layers into `ops`; `input` is what its first layer received and
 // `input_is_spikes` whether it is a spike train. Returns whether the last layer's output is one.
-auto count_sequential_ops(
-    const nn::Sequential& seq, const Tensor& input, bool input_is_spikes, SnnOpCounts& ops) -> bool
+// repeated_steps > 1: the input's rows repeat that many times, so its first Linear is counted
+// once per sample (the same rule, and the same checks, as walk_sequential in Meeting01Energy).
+auto count_sequential_ops(const nn::Sequential& seq,
+    const Tensor& input,
+    bool input_is_spikes,
+    SnnOpCounts& ops,
+    int repeated_steps) -> bool
 {
     if (seq.outputs.size() != seq.layers.size())
         throw std::logic_error("count_snn_ops: a Sequential cached " +
@@ -131,6 +136,23 @@ auto count_sequential_ops(
                                std::to_string(seq.layers.size()) +
                                " layers. Call it right after model.forward() on the window "
                                "whose operations it should count.");
+    if (repeated_steps < 1)
+        throw std::invalid_argument("count_snn_ops: repeated_steps must be >= 1 (got " +
+                                    std::to_string(repeated_steps) + ")");
+    if (repeated_steps > 1)
+    {
+        const bool first_is_linear_into_lif =
+            seq.layers.size() >= 2 && dynamic_cast<const nn::Linear*>(seq.layers[0].get()) &&
+            dynamic_cast<const nn::LifBPTT*>(seq.layers[1].get());
+        if (input_is_spikes || !first_is_linear_into_lif ||
+            input.rows() % static_cast<nn::Index>(repeated_steps) != 0)
+            throw std::logic_error(
+                "count_snn_ops: a repeated input is counted once only when it is analog, its " +
+                std::to_string(input.rows()) + " rows split into " +
+                std::to_string(repeated_steps) +
+                " equal steps, and it feeds a Linear followed by a LifBPTT; this one does not. "
+                "Pass repeated_steps = 1, or extend the count for this topology.");
+    }
 
     const Tensor* in = &input;
     bool in_is_spikes = input_is_spikes;
@@ -160,6 +182,10 @@ auto count_sequential_ops(
                     spikes += v;
                 }
                 ops.acs += spikes * out_features;
+            }
+            else if (i == 0 && repeated_steps > 1)
+            {
+                ops.macs += in_values / repeated_steps * out_features; // once per sample
             }
             else
             {
@@ -191,18 +217,27 @@ auto count_sequential_ops(
 
 auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,
-    bool input_is_spikes) -> SnnOpCounts
+    bool input_is_spikes,
+    int repeated_steps) -> SnnOpCounts
 {
     if (model.use_dual_branch_)
         throw std::logic_error(
             "count_snn_ops: the dual-branch ProtocolSpikingAutoencoder is not counted (meeting01 "
             "never builds it). Extend count_snn_ops over its six Sequentials before using it.");
     SnnOpCounts ops;
-    const bool latent_is_spikes = count_sequential_ops(model.encoder_, input, input_is_spikes, ops);
+    const bool latent_is_spikes =
+        count_sequential_ops(model.encoder_, input, input_is_spikes, ops, repeated_steps);
     if (model.encoder_.outputs.empty())
         throw std::logic_error("count_snn_ops: the encoder cached no outputs; run forward first.");
-    count_sequential_ops(model.decoder_, model.encoder_.outputs.back(), latent_is_spikes, ops);
+    count_sequential_ops(model.decoder_, model.encoder_.outputs.back(), latent_is_spikes, ops, 1);
     return ops;
+}
+
+auto snn_input_repeats_every_step(const std::string& encoding, const std::string& architecture)
+    -> bool
+{
+    (void) snn_input_is_spikes(encoding, architecture); // validates both tokens
+    return encoding == "direct" && (architecture == "dense" || architecture == "conv1d");
 }
 
 auto snn_input_is_spikes(const std::string& encoding, const std::string& architecture) -> bool

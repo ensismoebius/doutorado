@@ -8,9 +8,9 @@
 // kProgressEverySeconds. A fast epoch (< that) emits none; a slow one emits a
 // batch-fraction update so the monitor can show a within-epoch bar + ETA.
 //
-// Identity + static config come from ExperimentEvents::pending_context(), set by
-// the driver immediately before each training call — so this callback takes no
-// constructor arguments and no experiment signature has to grow an event param.
+// Identity + static config come from ExperimentEvents::take_pending_context(), set
+// immediately before each training call (GA evaluation or final fit) — so this callback
+// takes no constructor arguments and no experiment signature has to grow an event param.
 //
 // OBSERVABILITY ONLY: never influences training (no should_stop override, no
 // mutation of state).
@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
 #include "Meeting01Events.hpp"
@@ -31,7 +32,18 @@ namespace meeting01
 class Meeting01EventCallback : public nn::training::ITrainingCallback
 {
    public:
-    Meeting01EventCallback() : ctx_(ExperimentEvents::instance().pending_context()) {}
+    // Takes (and so empties) the pending context: one context, one training. With the sink
+    // open, a training that declared none is a driver bug and throws here, before it runs,
+    // instead of logging under the previous training's identity (Meeting01Events.hpp).
+    Meeting01EventCallback() : ctx_(ExperimentEvents::instance().take_pending_context())
+    {
+        if (ctx_.config_id.empty() && ExperimentEvents::instance().is_open())
+            throw std::logic_error(
+                "Meeting01EventCallback: a training started with no event context, so its "
+                "events would carry no identity. Call ExperimentEvents::instance()."
+                "set_pending_context(...) right before the training call (GA evaluations: "
+                "ga_eval_context in evaluate_individual; final fits: the driver).");
+    }
 
     // The stopping rule of this training (Meeting01Stopping.hpp), logged in config_begin and
     // used by train_end to say when patience was armed. Call before fit; without it both

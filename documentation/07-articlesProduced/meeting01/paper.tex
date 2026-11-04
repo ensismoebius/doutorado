@@ -49,8 +49,9 @@ by multi-objective search inside nested leave-one-group-out cross-validation on 
 and differences are tested at the recording level. The target is a low-power device, so
 energy is the cost we put first: it is estimated per window with a published analytical model
 that counts memory accesses and address arithmetic as well as operations, at published 45\,nm
-prices, and every energy comparison is repeated under each of three memory sizes and with
-arithmetic alone. Searched LSTM, GRU and Transformer autoencoders,
+prices, and every energy comparison is repeated under each of three memory sizes, with
+arithmetic alone, and with a direct-coded input's first layer recomputed at every step.
+Searched LSTM, GRU and Transformer autoencoders,
 which differ from the SNN-AE in more than the neuron, were measured once, under one reduced
 search budget on development folds, for their training and inference cost and their quality,
 and left out of the main comparison. A design study on a development fold, excluded from
@@ -110,7 +111,8 @@ enough to make the gap vanish on EEG.
         well as operations, with the analytical model of \cite{lemaire2022analytical} at the
         45\,nm prices of \cite{horowitz2014computing}, applied unchanged to every model, the
         SNN's counts taken from its executed forward pass, and every comparison checked
-        under three memory sizes and under arithmetic alone.
+        under three memory sizes, under arithmetic alone, and with a repeated input
+        recomputed at every step.
   \item A design study, on a development fold kept out of the headline numbers, that locates
         where the SNN-AE's reconstruction error comes from, and a pre-validation on the same
         folds that measures what searched sequence autoencoders cost to train and to run.
@@ -277,17 +279,22 @@ could support. Memories below 8\,KB, the SNN's potentials among them, are priced
 a pseudo-random draw and a comparison per sample and step; latency: one spike time per
 sample and a comparison per sample and step); the ANN-AE has none. Leaky ReLU costs a comparison and a multiply. Reading the window
 from off-chip memory is left out for every model, since all start from the same buffer.
+Direct coding presents the same window at every step, so the SNN-AE's first layer (and the
+smoothing filter of the conv1d input transform in front of it) computes the same current $T$
+times; $E$ counts it once per window, plus one write of that current and its read at every
+step, as an accelerator that reuses a constant input would. This choice favours the SNN-AE.
 Because estimates of this kind turn on the memory model \cite{dampfhoffer2023snns,yan2024reconsidering},
 every energy comparison is repeated with every access priced at one SRAM size (8\,KB, 32\,KB,
-1\,MB) and with arithmetic alone ($4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} +
-0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the convention of \cite{zhou2023spikformer}), and
+1\,MB), with arithmetic alone ($4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} +
+0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the convention of \cite{zhou2023spikformer}), and with
+that first layer recomputed at every step, as our implementation runs it;
 Table~\ref{tab:energy} reports all of them. $E$ estimates a modeled accelerator; it is not a
 measurement on a chip.
 
 \begin{table}[!t]
 \caption{Counts per linear layer $n_{\mathrm{in}}{\to}n_{\mathrm{out}}$ over $R$ rows ($R=T$
-steps for the SNN-AE, 1 for the ANN-AE), after \cite{lemaire2022analytical}; $\theta$: input
-spikes.}
+steps for the SNN-AE, but 1 for the first layer of a direct-coded input; 1 for the ANN-AE),
+after \cite{lemaire2022analytical}; $\theta$: input spikes.}
 \centering\footnotesize
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{lll}
@@ -483,8 +490,8 @@ SNN-AE's search selected. On energy per window, \energyVerdict.
 \begin{table}[!t]
 \caption{Energy per window (nJ), headline folds, mean over every winner: $E$
 (Section~\ref{sec:cost}), its share spent on memory accesses, $E$ with every access priced at
-one SRAM size, and arithmetic alone. Last row of each dataset: the SNN-AE's energy over the
-ANN-AE's, per column.}
+one SRAM size, arithmetic alone, and $E$ as executed (a direct-coded first layer recomputed at
+every step). Last row of each dataset: the SNN-AE's energy over the ANN-AE's, per column.}
 \centering\scriptsize
 \setlength{\tabcolsep}{2.5pt}
 \input{data/paper_loso_energy.tex}

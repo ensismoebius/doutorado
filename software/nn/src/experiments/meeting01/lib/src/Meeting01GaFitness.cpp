@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "../include/Meeting01Events.hpp"
 #include "../include/Meeting01Metrics.hpp"
 #include "../include/Meeting01Training.hpp"
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
@@ -28,6 +29,20 @@ void evaluate_individual(Meeting01GaIndividual& ind,
     snn_config.initializer_sampler_type = "ga|" + genome_key(g);
 
     ProtocolSpikingAutoencoder model(snn_config);
+
+    meeting01::ExperimentEvents::instance().set_pending_context(meeting01::ga_eval_context("snn-ae",
+        g.encoding,
+        genome_key(g),
+        {{"encoder_widths", g.encoder_widths},
+            {"architecture", g.architecture},
+            {"v_th", g.voltage_threshold},
+            {"alpha", g.alpha},
+            {"time_steps", g.time_steps}},
+        seed,
+        cfg.training.epochs,
+        cfg.training.learning_rate,
+        cfg.training.learning_rate_biophysical,
+        cfg.training.early_stop_patience));
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

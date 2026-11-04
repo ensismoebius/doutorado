@@ -372,7 +372,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 7)**: the paper reads only generated files in its
+**Paper data contract (results_format 8)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -387,16 +387,30 @@ fold (`DEVELOPMENT_FOLDS` in `meeting01_results.py`: fold 0 of fsdd and eegmmidb
 SNN-AE GA gene (`ga.snn.time_steps_min/max`). Details:
 `.wiki/Experiments/Meeting01.md` § "Ready for the grid run".
 
-**Energy (results_format 7)**: the paper's $E$ is `energy_nj`, memory-aware (Lemaire et al.
+**Energy (results_format 8)**: the paper's $E$ is `energy_nj`, memory-aware (Lemaire et al.
 2022 Eq. 18 at Horowitz 2014 prices, `Meeting01Energy.hpp`), NOT `arith_energy_nj` (now a
-check). Every energy claim is generated with a robustness clause over `ENERGY_CHECKS`
-(`meeting01_results.py`: one SRAM size 8 KB / 32 KB / 1 MB, arithmetic alone). A new layer type
-in any family needs an energy model or `walk_sequential` throws.
+check). Since format 8 a direct-coded input through `dense`/`conv1d`
+(`snn_input_repeats_every_step`) has its first layer priced ONCE per window plus the stored
+current's n_out writes and T·n_out reads; `energy_nj_as_executed` keeps the T-times count as a
+check. Every energy claim is generated with a robustness clause over `ENERGY_CHECKS`
+(`meeting01_results.py`: one SRAM size 8 KB / 32 KB / 1 MB, arithmetic alone, as executed). A
+new layer type in any family needs an energy model or `walk_sequential` throws; a
+`repeated_steps > 1` on a network not starting Linear→LifBPTT throws. The GA cost objective
+(`estimate_snn_macs`) still counts the direct first layer T times (pending decision).
 
-**Stopping (results_format 7)**: patience counts only once the monitor loss is
+**Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's
 (`Meeting01Stopping.hpp`); best epoch's weights restored (`BestWeightsCallback`). Plain patience
 stopped plateau runs and reported the mean predictor as a trained model (job 5314513).
+
+**Events (results_format 8)**: one context, one training — `take_pending_context()` clears
+the slot; GA evaluations set `ga_eval_context(...)`; a `Meeting01EventCallback` with no context
+while the sink is open throws.
+
+**Transformer switches (2026-11-03, default off = old behaviour)**: `training.lr_warmup_steps`
+(linear warm-up, Adam only, `TrainerConfig::lr_warmup_steps`) and `model.transformer_norm_first`
+(pre-norm blocks + a final LayerNorm per stack). Used by T1 (`results/meeting01_t1/`), not by the
+production profiles.
 
 **No ghosts**: the grid runs `snn-ae` + `ann-ae` only (LSTM/GRU/Transformer-AE removed
 2026-11-02). Every paper element follows `configured_families(config)` in

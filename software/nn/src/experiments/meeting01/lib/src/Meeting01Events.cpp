@@ -55,10 +55,12 @@ void ExperimentEvents::set_pending_context(EventContext ctx)
     pending_ = std::move(ctx);
 }
 
-auto ExperimentEvents::pending_context() const -> EventContext
+auto ExperimentEvents::take_pending_context() -> EventContext
 {
     const std::lock_guard<std::mutex> lock(mu_);
-    return pending_;
+    EventContext taken = std::move(pending_);
+    pending_ = EventContext{};
+    return taken;
 }
 
 void ExperimentEvents::emit(const std::string& type, const nlohmann::json& fields)

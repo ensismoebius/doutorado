@@ -89,14 +89,26 @@ struct SnnOpCounts
     double spikes = 0.0;
     double neuron_steps = 0.0;
 };
+/// `repeated_steps` as in snn_ae_energy (Meeting01Energy.hpp): T counts the first Linear of a
+/// repeated analog input once per sample (results_format 8), 1 counts every row.
 auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,
-    bool input_is_spikes) -> SnnOpCounts;
+    bool input_is_spikes,
+    int repeated_steps) -> SnnOpCounts;
 
 /// Whether the tensor the SNN-AE receives is a spike train: `recurrent` emits the spikes of a
 /// LIF, `dense` passes the encoding through (poisson/latency spikes, direct analog), `conv1d`
 /// smooths it into analog values. Throws on an unknown token.
 auto snn_input_is_spikes(const std::string& encoding, const std::string& architecture) -> bool;
+
+/// Whether that tensor has the same row at every one of the T steps: the direct code repeats
+/// the analog window (encode_sample) and the dense (pass-through) and conv1d (per-row filter)
+/// transforms keep the rows identical; poisson and latency draw a different row per step, and
+/// the recurrent transform's LIF turns any input into spikes that change from step to step.
+/// The primary cost then counts the computation upstream of the first LIF once per window
+/// (results_format 8, Meeting01Energy.hpp). Throws on an unknown token.
+auto snn_input_repeats_every_step(const std::string& encoding, const std::string& architecture)
+    -> bool;
 
 /// MACs of apply_snn_architecture_transform over `values` input values, which the SNN
 /// pipeline runs before the model: "dense" 0, "conv1d" 3 (a 3-tap filter), "recurrent" 1

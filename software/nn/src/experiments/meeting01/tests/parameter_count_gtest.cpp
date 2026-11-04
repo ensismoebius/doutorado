@@ -375,7 +375,7 @@ TEST(SnnCost, CountsAnAnalogInputForwardByHand)
     ASSERT_EQ(y.rows(), 1) << "the latent average leaves one row: the decoder runs once";
     ASSERT_EQ(y.cols(), 16);
 
-    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/false);
+    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/false, 1);
     const double spikes = model.encoder_.outputs[1].sum(); // the LifBPTT's spike train
     // MACs: Linear 16->8 on 4 rows (512) + LIF 4 x 8 (32) + the 1/T of 4 latents (4)
     //       + Linear 4->8 once (32) + Linear 8->16 once (128)
@@ -402,7 +402,7 @@ TEST(SnnCost, CountsABinaryInputAsAccumulates)
     model.reset_state();
     const ProtocolSpikingAutoencoder::Tensor input(x);
     (void) model.forward(input, false);
-    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/true);
+    const auto ops = meeting01::count_snn_ops(model, input, /*input_is_spikes=*/true, 1);
     const double spikes = model.encoder_.outputs[1].sum();
     // The first layer costs nonzero x 8 ACs instead of 512 MACs.
     EXPECT_DOUBLE_EQ(ops.macs, 32.0 + 4.0 + 32.0 + 128.0);
@@ -416,7 +416,7 @@ TEST(SnnCost, CountingBeforeAForwardIsRefused)
     nn::Tensor x(4, 16);
     x.setZero();
     EXPECT_THROW(
-        (void) meeting01::count_snn_ops(model, ProtocolSpikingAutoencoder::Tensor(x), false),
+        (void) meeting01::count_snn_ops(model, ProtocolSpikingAutoencoder::Tensor(x), false, 1),
         std::logic_error);
 }
 
@@ -435,7 +435,7 @@ TEST(SnnCost, ASilentEncoderStillPaysForItsAnalogLayers)
     model.reset_state();
     const ProtocolSpikingAutoencoder::Tensor input(x);
     (void) model.forward(input, false);
-    const auto ops = meeting01::count_snn_ops(model, input, false);
+    const auto ops = meeting01::count_snn_ops(model, input, false, 1);
     ASSERT_EQ(ops.spikes, 0.0) << "v_th = 1000 must keep the encoder silent";
     EXPECT_DOUBLE_EQ(ops.macs, 512.0 + 32.0 + 4.0 + 32.0 + 128.0);
     EXPECT_DOUBLE_EQ(ops.acs, 16.0); // the time sum only
@@ -451,7 +451,7 @@ TEST(SnnCost, AnInputTakenForSpikesMustBeBinary)
     model.reset_state();
     const ProtocolSpikingAutoencoder::Tensor input(x);
     (void) model.forward(input, false);
-    EXPECT_THROW((void) meeting01::count_snn_ops(model, input, true), std::logic_error);
+    EXPECT_THROW((void) meeting01::count_snn_ops(model, input, true, 1), std::logic_error);
 }
 
 TEST(SnnCost, InputIsSpikesFollowsEncodingAndArchitecture)
@@ -559,7 +559,7 @@ TEST(MemoryAwareEnergy, SnnAeWalkMatchesAHandCount)
     (void) model.forward(input, false);
     const double s = model.encoder_.outputs[1].sum();
 
-    const auto e = meeting01::snn_ae_energy(model, input, /*input_is_spikes=*/false);
+    const auto e = meeting01::snn_ae_energy(model, input, /*input_is_spikes=*/false, 1);
     EXPECT_DOUBLE_EQ(e.fp_macs, 708.0); // = count_snn_ops' macs for the same pass
     EXPECT_DOUBLE_EQ(e.fp_adds, 128.0 + 5.0 * s);
     EXPECT_DOUBLE_EQ(e.fp_muls, 8.0);
@@ -663,6 +663,99 @@ TEST(MemoryAwareEnergy, SetEnergySplitsOpsAndMemory)
     EXPECT_DOUBLE_EQ(m.mem_accesses, 46.0);
     EXPECT_DOUBLE_EQ(m.energy_nj_sram8k, m.energy_nj); // every memory here is under 8 KB
     EXPECT_GT(m.energy_nj_sram1m, m.energy_nj_sram32k);
+    // No repeated input here, so the as-executed check is the same total ...
+    EXPECT_DOUBLE_EQ(m.energy_nj_as_executed, m.energy_nj);
+    // ... until an SNN-AE evaluation overwrites it with its own every-step ledger.
+    meeting01::EnergyLedger twice = e;
+    twice += e;
+    meeting01::set_energy_as_executed(m, twice);
+    EXPECT_DOUBLE_EQ(m.energy_nj_as_executed, 2.0 * m.energy_nj);
+}
+
+// --- a repeated input computed once (results_format 8) --------------------------------------
+
+namespace
+{
+// The SnnCost model (window 16, T 4, widths {8, 4}) on a DIRECT-coded window: the same analog
+// row at all 4 steps, as encode_sample builds it.
+ProtocolSpikingAutoencoder::Tensor repeated_window(ProtocolSpikingAutoencoder& model)
+{
+    nn::Tensor x(4, 16);
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d) x.at(t, d) = 0.1F * static_cast<float>(d % 7) - 0.25F;
+    model.reset_state();
+    ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+    return input;
+}
+} // namespace
+
+TEST(RepeatedInput, OnlyTheDirectCodeThroughDenseOrConv1dRepeats)
+{
+    EXPECT_TRUE(meeting01::snn_input_repeats_every_step("direct", "dense"));
+    EXPECT_TRUE(meeting01::snn_input_repeats_every_step("direct", "conv1d"));
+    // The recurrent transform's LIF turns the repeated window into spikes that change.
+    EXPECT_FALSE(meeting01::snn_input_repeats_every_step("direct", "recurrent"));
+    EXPECT_FALSE(meeting01::snn_input_repeats_every_step("poisson", "dense"));
+    EXPECT_FALSE(meeting01::snn_input_repeats_every_step("latency", "conv1d"));
+    EXPECT_THROW(
+        (void) meeting01::snn_input_repeats_every_step("rate", "dense"), std::invalid_argument);
+    EXPECT_THROW(
+        (void) meeting01::snn_input_repeats_every_step("direct", "cnn"), std::invalid_argument);
+}
+
+// The first Linear (16 -> 8 into the LIF) once instead of on each of the 4 rows: 128 MACs
+// instead of 512; everything after it is the same pass.
+TEST(RepeatedInput, CountsTheFirstLayerOnce)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    const auto input = repeated_window(model);
+    const auto as_run = meeting01::count_snn_ops(model, input, false, 1);
+    const auto once = meeting01::count_snn_ops(model, input, false, 4);
+    EXPECT_DOUBLE_EQ(as_run.macs, 512.0 + 32.0 + 4.0 + 32.0 + 128.0);
+    EXPECT_DOUBLE_EQ(once.macs, 128.0 + 32.0 + 4.0 + 32.0 + 128.0);
+    EXPECT_DOUBLE_EQ(once.acs, as_run.acs);
+    EXPECT_DOUBLE_EQ(once.spikes, as_run.spikes);
+}
+
+// The first layer as it runs (4 rows, current straight into the LIF) against once (1 row,
+// current written once and read back at each of the 4 steps):
+//                 macs  adds  int   rd_in          rd_param        wr_out
+//   as executed    512    32   96      64           512 + 32            0
+//   once           128     8   24   16 + 4 x 8      128 + 8             8
+// Every memory is under 8 KB, so the accesses' difference (-416) is -4160 pJ.
+TEST(RepeatedInput, PricesTheFirstLayerOncePlusItsStoredCurrent)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    const auto input = repeated_window(model);
+    const auto run = meeting01::snn_ae_energy(model, input, false, 1);
+    const auto once = meeting01::snn_ae_energy(model, input, false, 4);
+    EXPECT_DOUBLE_EQ(run.fp_macs - once.fp_macs, 384.0);
+    EXPECT_DOUBLE_EQ(once.fp_macs, meeting01::count_snn_ops(model, input, false, 4).macs);
+    EXPECT_DOUBLE_EQ(run.fp_adds - once.fp_adds, 24.0);
+    EXPECT_DOUBLE_EQ(run.int_adds - once.int_adds, 72.0);
+    EXPECT_DOUBLE_EQ(run.rd_in - once.rd_in, 16.0);
+    EXPECT_DOUBLE_EQ(run.rd_param - once.rd_param, 408.0);
+    EXPECT_DOUBLE_EQ(once.wr_out - run.wr_out, 8.0);
+    EXPECT_DOUBLE_EQ(once.rd_pot, run.rd_pot); // the LIF still integrates at every step
+    EXPECT_DOUBLE_EQ(once.wr_pot, run.wr_pot);
+    EXPECT_DOUBLE_EQ(run.mem_pj - once.mem_pj, 4160.0);
+}
+
+TEST(RepeatedInput, RefusesWhatItCannotPriceOnce)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    const auto input = repeated_window(model);
+    // 4 rows do not split into 3 steps.
+    EXPECT_THROW((void) meeting01::snn_ae_energy(model, input, false, 3), std::logic_error);
+    EXPECT_THROW((void) meeting01::count_snn_ops(model, input, false, 3), std::logic_error);
+    // Spikes are not an analog repeated input.
+    EXPECT_THROW((void) meeting01::snn_ae_energy(model, input, true, 4), std::logic_error);
+    EXPECT_THROW((void) meeting01::snn_ae_energy(model, input, false, 0), std::invalid_argument);
+    EXPECT_THROW((void) meeting01::count_snn_ops(model, input, false, 0), std::invalid_argument);
 }
 
 // --- the stopping rule's mean predictor (Meeting01Stopping.hpp) ------------------------------

@@ -2088,6 +2088,138 @@ synapse per inference; Yan et al. [81]: an advantage needs strict limits on T an
   trade-off is reported. **Selection inside the GA is unchanged** (min validation MSE on the
   front; the author's choice, 2026-11-03).
 
+## A repeated input is computed once (results_format 8, 2026-11-03)
+
+### The problem: the direct code pays for the same layer T times
+
+With direct coding the SNN-AE gets the **same** analog window at every one of its T steps. The
+code runs the first `Linear` T times, on T identical rows, so format 7 priced it T times. An
+accelerator, which is what the energy model assumes (on-chip SRAM, Lemaire et al. [79]), would
+compute that current once and feed the stored value to the LIF at every step. The format-7 count
+therefore charged the SNN-AE for work no sensible hardware does.
+
+FSDD fold 0, seed 42, job 5315335 winner: direct, T = 28, first layer 256 → 59, recomputed after
+the job from its counts (`questionsAndTasks.md`, T2; the script reproduced the binary's
+`energy_nj` on the four ANN-AE rows to < 1e-3 nJ):
+
+| $E$ per window | as executed (format 7) | first layer once (format 8) | ANN-AE | SNN ÷ ANN |
+|---|---|---|---|---|
+| memory-aware (the paper's) | 12 321 nJ | **1 304 nJ** | 854 nJ | 14.4× → **1.53×** |
+| arithmetic only | 2 038 nJ | 162 nJ | 148 nJ | 13.8× → 1.10× |
+
+The ANN-AE is still cheaper, and still more accurate, under every pricing. But the magnitude of
+the gap was mostly this accounting choice, not the network.
+
+### The rule
+
+```
+direct + dense / conv1d             every other SNN-AE input (poisson, latency, recurrent)
+x ─ [transform once] ─ Linear once ─┐       x_t (differs per step) ─ Linear ─ LIF   × T
+                                    ├─ write I once (n_out words)
+              LIF  ×T  ← read I ────┘  (T · n_out reads)
+```
+
+* Which inputs count once: `snn_input_repeats_every_step(encoding, architecture)` (=
+  `direct` and `dense` or `conv1d`). `recurrent` is excluded because its input transform is
+  itself an LIF, whose output differs per step. Poisson and latency are excluded because their
+  input differs per step.
+* Counted once per window: the conv1d smoothing (priced with time_steps = 1) and the first
+  `Linear` (MACs, input and weight reads, bias). Added: `n_out` writes of the stored current and
+  `T · n_out` reads of it by the LIF.
+* `count_snn_ops(..., repeated_steps)` and `snn_ae_energy(..., repeated_steps)` check the
+  claim instead of assuming it. With `repeated_steps > 1` the input must be analog and its rows
+  divisible by T, and the network must start with `Linear` followed by `LifBPTT`. Anything else
+  throws (`std::logic_error`), so a new layer order cannot be silently priced as "once".
+  Tests: `RepeatedInput.*` in `parameter_count_gtest.cpp`.
+
+### The check: `energy_nj_as_executed`
+
+The format-7 count, with the first layer recomputed at every step as the code runs it, is still
+written, as a new CSV column (`energy_nj_as_executed`) and a config_end event field. It joins
+`ENERGY_CHECKS` (`meeting01_results.py`): every generated energy claim must hold under the one-size
+SRAM repricings, arithmetic alone, **and** as executed (`ENERGY_CHECKS_HOLD`), and the energy
+table gains an "As exec." column.
+
+| | `energy_nj` (format 8, the paper's) | `energy_nj_as_executed` (check) |
+|---|---|---|
+| Direct-coded SNN-AE, dense/conv1d | first layer once + stored-current traffic | first layer T times |
+| Every other model and input | identical | identical |
+| Favours | the SNN-AE (the claim it could flatter is "SNN-AE costs more") | — |
+
+**Not changed, a pending decision:** the GA's cost objective (`estimate_snn_macs`) still counts
+the direct first layer T times. It only shapes the Pareto front and breaks ties (the winner is the
+front's lowest validation MSE). Changing it would change the search.
+
+### Events: one context, one training
+
+**Bug found in job 5315335 (silent):** in `events.jsonl`, every GA evaluation after run 1's
+final retraining carried that final's `config_id` and role, because the pending context was read
+and never cleared. Now `ExperimentEvents::take_pending_context()` moves the context out (one
+context, one training). The GA fitness functions set `ga_eval_context(...)`
+(`"<model>_ga_<genome key>_seed<s>"`, role `ga_eval`) before each evaluation. A
+`Meeting01EventCallback` constructed with no context while the sink is open throws
+(`EventSink.ATrainingWithoutAContextThrowsWhileTheSinkIsOpen`). The failure is now loud.
+
+### T1: does the Transformer-AE fail because of post-norm without warm-up?
+
+In job 5315335 the Transformer-AE never armed in 55 trainings. Xiong et al. [84] give an
+alternative explanation: post-norm at a fixed Adam rate needs warm-up. T1 tests that explanation
+locally (CPU, xtensor). Arms and criterion were fixed before the run (`questionsAndTasks.md`):
+
+| Arm | Block | Rate | Switch |
+|---|---|---|---|
+| A (control) | post-norm | Adam 1e-3 constant | — |
+| B | post-norm | linear warm-up over 4000 steps (≈ 4 epochs), then 1e-3 | `training.lr_warmup_steps: 4000` |
+| C | pre-norm + final LayerNorm per stack | Adam 1e-3 constant | `model.transformer_norm_first: true` |
+
+* Configurations: the two FSDD fold-0 winners of the job, c1 = (d_model 27, d_ff 135, 1 head,
+  1 layer), c2 = (24, 101, 4 heads, 3 layers). Seeds: 42 and 43.
+* Each run is the job's transformer-ae profile with the GA pinned to one genome (population 1,
+  generations 0, winner_seeds 1: one search training, then the final fit) and one arm switch.
+* Profiles: `results/meeting01_t1/profiles/`. Results: `results/meeting01_t1/<cfg>_<arm>/`.
+* Success: the run arms (validation ≤ 0.90 · L0) **and** its test MSE is clearly below L0.
+
+**Result (2026-11-04, local, 18 distinct trainings).** L0 = 1.001 on validation and 0.996 on test.
+"Windows" is the share of the 1500 test windows whose error is at least 10% below the mean
+predictor's.
+
+| Config | Arm | Armed (of 3) | Test MSE s42 / s43 | Windows |
+|---|---|---|---|---|
+| c1 | A | 0 | 0.931 / 0.931 | 8% |
+| c1 | **B warm-up** | **2** (both finals; the GA evaluation did not arm) | **0.900 / 0.901** | 18–22% |
+| c1 | C pre-norm | 0 | 0.932 / 0.946 | 8% |
+| c2 | A / B / C | 0 / 0 / 0 | 0.931–0.941 | 8% |
+
+For reference, the same fold in job 5315335: GRU-AE 0.857, SNN-AE 0.713, ANN-AE 0.661, PCA 0.649.
+
+* Pre-norm changes nothing.
+* Warm-up lets only the shallow config off the plateau, and only just: its best epochs were 29
+  and 30, so it was still descending at the 30-epoch cap. It does nothing for the 3-block config,
+  which is the opposite of what Xiong et al. predict, since deep post-norm should need warm-up
+  most. "Post-norm without warm-up" does not explain the plateau.
+* No arm comes near the other families.
+* The a-priori criterion said "clearly below L0" without a number. c1-B is 9.6% below L0,
+  exactly the arming margin, so the criterion was not decidable as written (a design flaw).
+* Control A reproduces the job's plateau (no arming, about 8% of windows), not its exact numbers:
+  c2 s43 gives 0.9313 against 0.9316 in the job, c1 s42 gives 0.9309 against 0.9135. The likely
+  cause, unverified, is a different machine and BLAS.
+* **Caveat:** the three trainings per arm share one initialisation. See the seed finding below.
+
+**Seed finding (silent; found by T1).** For LSTM-AE, GRU-AE and Transformer-AE, the run seed
+changes neither the initialisation nor the window order. Their weights are initialised from
+constants in the model code, and `train_ae` never sets `TrainerConfig::sampler_shuffle_seed`
+(default 42), so the same genome trained under two seeds in a GA search gives identical numbers.
+The seed changes only the GA's genome sampling and the final fit's recording-disjoint monitor
+carve. SNN-AE and ANN-AE do get the seed in their initialisation (`initializer_seed`,
+`proto.seed`). No meeting01 path seeds the shuffle, so every family sees one window order across
+all seeds. The proposed fix is to seed all three sequence models and the sampler of every family
+with the run seed. It changes results, so it is pending the author's decision and goes with the
+next pre-validation run.
+
+Both switches default to off, and off reproduces the old behaviour byte for byte. The two
+fields are in `resolved_config_json`, so the config hash changes, which is why a format-7 GA
+cache is not reused.
+
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
@@ -2306,13 +2438,14 @@ The experiment is a **pure reconstruction study**. FSDD carries no anomaly label
 | MAE | $\frac{1}{N}\sum|x-\hat x|$ | Robust alternative |
 | $R^2$ | $1 - \text{SS\_res}/\text{SS\_tot}$ | Coefficient of determination |
 | `spike_rate` | spikes / (neuron, step) pairs of the hidden LIF layers, over the evaluated windows | SNN only; NaN (not applicable) for the non-spiking families. Until results_format 4 it was the fraction of *output* values > 0 |
-| `macs` | dense multiply-accumulates per window | SNN: counted from its forward passes (`count_snn_ops`); others: analytic `estimate_*_macs` |
+| `macs` | dense multiply-accumulates per window | SNN: counted from its forward passes (`count_snn_ops`), a direct-coded first layer once since format 8; others: analytic `estimate_*_macs` |
 | `acs` | spike-driven accumulates per window (a binary input × each output) | SNN only; 0 for the others (a true count) |
 | `arith_energy_nj` | $4.6\,\text{pJ}\cdot\text{macs} + 0.9\,\text{pJ}\cdot\text{acs}$ | Arithmetic-only estimate, 45 nm fp32 [77, 78]; memory traffic, which dominates real energy, is not in it. Replaces `energy` ($r \cdot N + 10 \cdot$ MACs, unitless). Since format 7 a **check** of `energy_nj`, not the paper's number |
 | `energy_nj` | $E_\text{ops} + E_\text{addr} + E_\text{mem}$ per window [79, 77] | **The paper's energy** (format 7): operations, address adds and memory accesses, each local SRAM priced at its own size — [section](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
 | `energy_ops_nj`, `energy_mem_nj` | the two parts of `energy_nj` (ops + address adds; memory) | `energy_ops_nj + energy_mem_nj = energy_nj` |
 | `mem_accesses` | 32-bit SRAM accesses per window | the count `energy_mem_nj` prices |
-| `energy_nj_sram8k` / `_sram32k` / `_sram1m` | the same counts with every access priced at one SRAM size | sensitivity: a claim must survive all three and `arith_energy_nj` |
+| `energy_nj_sram8k` / `_sram32k` / `_sram1m` | the same counts with every access priced at one SRAM size | sensitivity: a claim must survive all three, `arith_energy_nj` and `energy_nj_as_executed` |
+| `energy_nj_as_executed` | `energy_nj` with a direct-coded input's first layer recomputed at every step, as the code runs it | format 8 check; equals `energy_nj` for every other model and input — [section](#a-repeated-input-is-computed-once-results_format-8-2026-11-03) |
 
 `max_reconstruct_mean_deviation` remains in the config but is only used as a per-sample pass/fail threshold for logging — it does not affect the reported metrics.
 
