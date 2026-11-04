@@ -2186,6 +2186,24 @@ locally (CPU, xtensor). Arms and criterion were fixed before the run (`questions
   (79, 105, 1 head, 1 layer)).
 * Success: the run arms (validation ≤ 0.90 · L0) **and** its test MSE is clearly below L0.
 
+**Result of record (2026-11-04, results_format 9, seeds fixed, 48 trainings).** The test MSE is the
+mean of the 4 final fits per arm. "Armed" counts all 8 trainings (GA evaluations and final fits).
+
+| | A control | B warm-up | C pre-norm | mean predictor |
+|---|---|---|---|---|
+| FSDD armed | 0 / 8 | 1 / 8 | 1 / 8 | |
+| FSDD test MSE | 0.935 | 0.916 | 0.931 | 0.996 |
+| EEGMMIDB armed | 1 / 8 (a GA evaluation) | 0 / 8 | 1 / 8 | |
+| EEGMMIDB test MSE | 0.992 | 0.993 | 0.921 | 1.001 |
+
+* Leaving the plateau is rare and random in every arm, the control included: 1, 1 and 2 of 16.
+* The best single fits (0.867 FSDD warm-up, 0.792 EEG pre-norm) are still above the GRU-AE
+  (0.857 / 0.688 in job 5315335) and far above the ANN-AE (0.661 / 0.291).
+* Neither switch explains the plateau, and the removal stands. The paper cites Xiong et al.
+  [84] and states these numbers through `\tOneVerdict` (`data/paper_t1.tex`).
+* The first run below said warm-up armed both c1 finals. Those two shared one initialisation; with
+  distinct initialisations it was 1 of 4.
+
 **First result (2026-11-04, results_format 8, FSDD only, before the seed fix; its files were
 deleted, the numbers are kept here and in `questionsAndTasks.md`).** L0 = 1.001 on validation and 0.996 on test.
 "Windows" is the share of the 1500 test windows whose error is at least 10% below the mean

@@ -4,7 +4,8 @@
 % data/paper_config.tex and every result from data/*, both written by
 % software/nn/scripts/pipeline/meeting01/02_ and 04_ (placeholders before the grid run);
 % the pre-validation's (Section sec:prevalidation) from data/paper_prevalidation*.tex,
-% written by 00_meeting01_prevalidation_report.py.
+% written by 00_meeting01_prevalidation_report.py, and its warm-up / pre-norm test from
+% data/paper_t1.tex, written by 05_meeting01_t1_transformer.py.
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{microtype}
@@ -21,6 +22,7 @@
 
 \input{data/paper_config.tex}
 \input{data/paper_prevalidation_config.tex}
+\input{data/paper_t1.tex}
 \input{data/paper_loso_energy_verdict.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
@@ -460,6 +462,12 @@ processing data after training (the measured time to reconstruct one window, and
 \preCostVerdict. On quality, \preQualityVerdict. The reduced budget can change any family's
 winner, and with it both its error and its per-window cost; the table describes the winners
 found here, not the families' best.
+\par A Transformer whose layer normalization follows each residual sum, as ours does, can
+need a learning-rate warm-up to train at a fixed Adam rate; one that normalizes before each
+sub-layer does not~\cite{xiong2020layer}. We therefore retrained the Transformer-AE winners of
+both development folds, \preRuns{} seeds each, with a linear warm-up over \tOneWarmupSteps{}
+steps and, separately, with pre-norm blocks closed by a final layer normalization:
+\tOneVerdict.
 
 \begin{table}[!t]
 \caption{Pre-validation, development folds, \preRuns{} runs. Fold: wall time of the family's

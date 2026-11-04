@@ -210,7 +210,11 @@ def collect(out_root: pathlib.Path) -> list[dict]:
 
 
 def verdict(rows: list[dict]) -> str:
-    """One clause per dataset: how many trainings of each arm armed, and the test errors."""
+    """One clause per dataset: how many trainings of each arm armed, and each arm's MEAN test MSE.
+
+    The mean over the arm's final fits, not its best one: the best of eight picked on the test
+    set is the optimistic number a selection on test gives (the single best is named after it,
+    marked as such)."""
     parts = []
     for ds in WINNERS:
         r = [x for x in rows if x["dataset"] == ds]
@@ -222,7 +226,10 @@ def verdict(rows: list[dict]) -> str:
             return sum(1 for x in a if x["armed_epoch"] > 0), len(a)
 
         def finals(arm):
-            return [x["test_mse"] for x in r if x["arm"] == arm and x["training"] == "final"]
+            f = [x["test_mse"] for x in r if x["arm"] == arm and x["training"] == "final"]
+            if not f:
+                raise ResultsError(f"{ds}: no final fit of arm {arm}")
+            return f
 
         l0 = float(np.mean([x["mean_predictor_test_mse"] for x in r if x["training"] == "final"]))
         best_arm = min(ARMS, key=lambda a: min(finals(a)))
@@ -230,9 +237,10 @@ def verdict(rows: list[dict]) -> str:
         parts.append(
             f"on {DATASET_SHORT.get(ds, ds)} fold {sorted(DEVELOPMENT_FOLDS[ds])[0]}, "
             f"{ab} of {nb} warm-up trainings and {ac} of {nc} pre-norm trainings left the "
-            f"mean-predictor plateau (control: {aa} of {na}); the lowest test MSE of any arm was "
-            f"{min(finals(best_arm)):.3f} ({ARMS[best_arm][0]}), against {np.mean(finals('A')):.3f} "
-            f"for the control and {l0:.3f} for the mean predictor")
+            f"mean-predictor plateau (control: {aa} of {na}), and the mean test MSE of the final "
+            f"fits was {np.mean(finals('B')):.3f} with warm-up, {np.mean(finals('C')):.3f} with "
+            f"pre-norm and {np.mean(finals('A')):.3f} for the control, against {l0:.3f} for the "
+            f"mean predictor (best single fit: {min(finals(best_arm)):.3f}, {ARMS[best_arm][0]})")
     return "; ".join(parts)
 
 
@@ -307,8 +315,9 @@ def self_test() -> int:
                  row(ds, "C", 0, 0.94), row(ds, "C", 0, float("nan"), "ga_eval")]
     v = verdict(rows)
     want = ("on FSDD fold 0, 1 of 2 warm-up trainings and 0 of 2 pre-norm trainings left the "
-            "mean-predictor plateau (control: 0 of 2); the lowest test MSE of any arm was 0.900 "
-            "(warm-up), against 0.930 for the control and 1.000 for the mean predictor; on EEGMMIDB")
+            "mean-predictor plateau (control: 0 of 2), and the mean test MSE of the final fits was "
+            "0.900 with warm-up, 0.940 with pre-norm and 0.930 for the control, against 1.000 for "
+            "the mean predictor (best single fit: 0.900, warm-up); on EEGMMIDB")
     if not v.startswith(want):
         failures.append(f"verdict text:\n  got  {v}\n  want {want}...")
     with tempfile.TemporaryDirectory() as tmp:

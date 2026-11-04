@@ -377,7 +377,50 @@ São 3 braços × 2 configurações × 2 sementes = 12 treinos. Localmente deve 
 horas na CPU (backend xtensor; nada de OpenCL). Isso é uma estimativa, não uma medição. Comandos
 acima de 600 s precisam de `# CONFIRMED`.
 
-#### Resultado (2026-11-04): rodado localmente, 18 treinos distintos
+#### Resultado definitivo (2026-11-04, formato 9, com a correção das sementes): FSDD e EEG, 48 treinos
+
+**O que mudou em relação à primeira rodada (logo abaixo).**
+- Agora a semente muda os pesos iniciais e a ordem das janelas, então os 4 treinos de cada
+  processo são de fato distintos.
+- Entrou o EEGMMIDB fold 0, com os vencedores do job: (96, 135, 8 cabeças, 1 camada) e
+  (79, 105, 1 cabeça, 1 camada).
+- O T1 virou script do repositório: `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`.
+  Ele gera `results/meeting01_t1/t1_summary.csv` e a macro `\tOneVerdict` do paper.
+
+| | Controle A | Warmup B | Pre-LN C | Preditor da média |
+|---|---|---|---|---|
+| FSDD: treinos que armaram | 0 de 8 | 1 de 8 | 1 de 8 | |
+| FSDD: MSE de teste, **média** dos 4 retreinos finais | 0,935 | 0,916 | 0,931 | 0,996 |
+| FSDD: melhor treino isolado | 0,931 | 0,867 | 0,921 | |
+| EEG: treinos que armaram | 1 de 8 (uma avaliação do GA) | 0 de 8 | 1 de 8 | |
+| EEG: MSE de teste, média dos 4 finais | 0,992 | 0,993 | 0,921 | 1,001 |
+| EEG: melhor treino isolado | 0,991 | 0,993 | 0,792 | |
+
+Referência, no mesmo fold (job 5315335, formato 7, a refazer no formato 9): FSDD GRU-AE 0,857
+e ANN-AE 0,661; EEG GRU-AE 0,688 e ANN-AE 0,291.
+
+**Leitura.**
+1. **Sair do platô é raro e aleatório em todos os braços, inclusive no controle.** No EEG, uma
+   avaliação do GA do controle armou (validação 0,759), e o retreino final da mesma configuração
+   não. Somando: controle 1 de 16, warmup 1 de 16, Pre-LN 2 de 16. Com contagens desse tamanho,
+   nenhuma diferença entre braços é distinguível do acaso.
+2. **A primeira rodada exagerou o warmup.** Ela tinha "2 de 2 retreinos finais armaram em c1",
+   mas com a mesma inicialização nos dois. Com inicializações diferentes, foi 1 de 4. É o que o
+   achado das sementes (item 4) previa: um único sorteio de pesos aparecendo duas vezes.
+3. **Nenhum braço chega ao GRU-AE nem ao ANN-AE, nem na média nem no melhor caso.** A média é a
+   comparação honesta, porque o melhor de 8 escolhido pelo teste é otimista. Mesmo o melhor treino
+   isolado (0,867 no FSDD, 0,792 no EEG) fica acima do GRU-AE (0,857 / 0,688) e muito acima do
+   ANN-AE (0,661 / 0,291).
+4. **Conclusão.** "Post-LN sem warmup" não explica o platô do nosso Transformer-AE. A remoção da
+   grade se sustenta, e o paper agora diz isso com números gerados (`\tOneVerdict`, citando Xiong
+   et al. 2020).
+
+**Limites.** Só os dois vencedores de cada fold, teto de 30 épocas, lote de 1 janela. O lote de 1
+e o learning rate comum às famílias continuam não testados (Q3).
+
+---
+
+#### Primeira rodada (2026-11-04, formato 8, FSDD, antes da correção das sementes; arquivos apagados): rodado localmente, 18 treinos distintos
 
 **Como foi rodado.**
 - Seis processos locais (CPU, xtensor, 1 thread cada; 5 a 15 min cada), um por (configuração,
@@ -555,7 +598,12 @@ No EEG nada muda: os dois vencedores são Poisson (9,4× com memória, 1,6× só
    alto (T = 19 a 31, com 36% a 41% dos pares neurônio-passo disparando), não o
    fato de ser uma SNN.
 
-**Decisões pendentes do autor.**
+**Decisões do autor (tomadas).** A contagem "primeira camada uma vez" é a principal, e a "como
+executado" fica como verificação (2026-11-03, formato 8). O objetivo de custo do GA também
+conta a primeira camada uma vez desde o formato 9 (2026-11-04). O texto abaixo é o que estava em
+aberto antes dessas decisões.
+
+**Decisões pendentes do autor (até 2026-11-03).**
 - **Qual contagem é a principal no paper.** Recomendação: a "primeira camada uma vez" como
   principal e a "como executado" como sensibilidade.
   - Motivo: o paper conclui que o SNN-AE gasta mais. A conclusão fica mais à prova de revisor
@@ -629,6 +677,15 @@ No EEG nada muda: os dois vencedores são Poisson (9,4× com memória, 1,6× só
      variância de inicialização. A frase do perfil ("enough to see whether a family's result is one
      seed's luck") vale só em parte para elas. Na grade (SNN-AE + ANN-AE), a inicialização varia,
      mas a ordem das janelas é a mesma nas 5 sementes.
-   - **Correção proposta, aguardando o autor.** Passar a semente da rodada à inicialização dos três
-     modelos sequenciais e ao `sampler_shuffle_seed` de todas as famílias. Isso muda os resultados,
-     então só vale junto com a nova pré-validação no formato 8.
+   - **Corrigido no formato 9 (2026-11-04, autor: "execute os próximos passos").**
+     - Os três modelos sequenciais ganharam `init_seed` na configuração. Sem ele, os pesos são os
+       fixos de antes, byte a byte. Com ele, cada tensor e cada camada recebe uma semente
+       derivada por `nn::utility::derive_seed(semente, fluxo)` (`std::seed_seq`).
+     - `to_lstm_cfg` / `to_gru_cfg` / `to_transformer_cfg` agora **exigem** a semente, então
+       esquecer de passá-la é erro de compilação, não um silêncio.
+     - `train_ae` e o treino do SNN passam `sampler_shuffle_seed = semente`.
+     - Testes: `*AutoencoderInitSeed.*`, `SeedDerivation.*` e `Meeting01SeedReach.*`. O mesmo
+       genoma com duas sementes agora dá resultados diferentes, e só a ordem das janelas, com
+       os pesos fixos, já muda o resultado.
+     - Por que não `semente + deslocamento`: o segundo tensor da semente 42 seria o primeiro da
+       semente 43, e as "duas sementes" começariam com pesos em parte iguais.
