@@ -41,6 +41,20 @@ The codebase includes a WAV reader for loading audio datasets like FSDD:
 - **Channels**: Mono
 - **Sample Rate**: Any (typically 8kHz for FSDD)
 
+### Where the samples start
+
+A WAV file is a list of chunks, and the samples are wherever the `data` chunk is:
+
+```
+"RIFF" size "WAVE" | "fmt " size <format> | [other chunks] | "data" size <samples>
+```
+
+`Wav::read` walks the chunks and stops on the first sample. That is byte 44 only for the
+minimal layout; a `LIST` chunk or a longer `fmt` moves it. Until 2026-11-04 the reader assumed the
+layout and then seeked back to byte 0, so the 44 header bytes became 22 samples of a 16-bit mono
+file and the last 22 real samples were lost. The sample count was right, so **nothing failed**.
+It reached the networks as a recognizable first window ([what it cost](../Experiments/Meeting01.md#the-windows-were-wrong-results_format-10-2026-11-04)).
+
 ### Wav Class API
 
 ```cpp

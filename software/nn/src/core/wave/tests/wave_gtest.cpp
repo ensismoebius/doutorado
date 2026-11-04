@@ -307,6 +307,91 @@ TEST(WavFileTest, ProcessInvokesCallbackForMonoAndStereo)
     EXPECT_EQ(g_callback_calls, 3);
 }
 
+// Known answer: the bytes are written by hand, so a reader that starts anywhere but the first
+// sample cannot pass. Until 2026-11-04 Wav::read started at byte 0 and decoded the header as 22
+// samples (18770 = "RI", 17990 = "FF", ...), silently, with the right sample count.
+namespace
+{
+void append_u16(std::string& out, uint16_t v)
+{
+    out.push_back(static_cast<char>(v & 0xFFU));
+    out.push_back(static_cast<char>((v >> 8U) & 0xFFU));
+}
+
+void append_u32(std::string& out, uint32_t v)
+{
+    append_u16(out, static_cast<uint16_t>(v & 0xFFFFU));
+    append_u16(out, static_cast<uint16_t>(v >> 16U));
+}
+
+// A 16-bit mono PCM file with `extra` placed between the fmt and data chunks.
+auto pcm_file(const std::vector<int16_t>& samples, const std::string& extra, uint32_t fmt_pad = 0)
+    -> std::string
+{
+    std::string body = "WAVEfmt ";
+    append_u32(body, 16U + fmt_pad);
+    append_u16(body, 1);     // PCM
+    append_u16(body, 1);     // mono
+    append_u32(body, 8000);  // rate
+    append_u32(body, 16000); // byte rate
+    append_u16(body, 2);     // block align
+    append_u16(body, 16);    // bits
+    body.append(fmt_pad, '\0');
+    body += extra;
+    body += "data";
+    append_u32(body, static_cast<uint32_t>(samples.size() * 2U));
+    for (int16_t v : samples) append_u16(body, static_cast<uint16_t>(v));
+    std::string file = "RIFF";
+    append_u32(file, static_cast<uint32_t>(body.size()));
+    return file + body;
+}
+
+auto read_pcm(const std::string& bytes, const std::string& name) -> std::vector<double>
+{
+    const auto path = (std::filesystem::temp_directory_path() / name).string();
+    std::ofstream(path, std::ios::binary) << bytes;
+    Wav reader;
+    reader.read(path);
+    return reader.get_data();
+}
+
+auto expected_values(const std::vector<int16_t>& samples) -> std::vector<double>
+{
+    return {samples.begin(), samples.end()};
+}
+} // namespace
+
+TEST(WavFileTest, ReadStartsAtTheFirstSampleAndReadsThemAll)
+{
+    const std::vector<int16_t> samples{-369, -431, -475, -543, -571, -557, 7, 12000, -32768, 32767};
+    EXPECT_EQ(read_pcm(pcm_file(samples, ""), "wave_known_answer.wav"), expected_values(samples));
+}
+
+TEST(WavFileTest, ReadFindsTheDataChunkPastOtherChunksAndALongFmt)
+{
+    const std::vector<int16_t> samples{1, -2, 3, -4, 5};
+    std::string list = "LIST";
+    append_u32(list, 5);         // odd size: the chunk is followed by one pad byte
+    list += std::string(6, 'x'); // 5 bytes + pad
+    EXPECT_EQ(read_pcm(pcm_file(samples, list), "wave_list_chunk.wav"), expected_values(samples));
+    EXPECT_EQ(read_pcm(pcm_file(samples, "", 2), "wave_long_fmt.wav"), expected_values(samples));
+}
+
+TEST(WavFileTest, ReadRefusesAFileThatIsNotWaveOrHasNoSamples)
+{
+    EXPECT_THROW(read_pcm("not a wave file at all, but long enough to hold a header ......",
+                     "wave_not_riff.wav"),
+        std::runtime_error);
+
+    std::string no_data = pcm_file({1, 2}, "");
+    no_data.resize(no_data.find("data")); // the fmt chunk is there, the data chunk is not
+    EXPECT_THROW(read_pcm(no_data, "wave_no_data.wav"), std::runtime_error);
+
+    std::string truncated = pcm_file({1, 2, 3, 4}, "");
+    truncated.resize(truncated.size() - 2); // declares 4 samples, holds 3
+    EXPECT_THROW(read_pcm(truncated, "wave_truncated.wav"), std::runtime_error);
+}
+
 TEST(WavFileTest, ReadRejectsNonPCMAndTruncatedFiles)
 {
     const auto wav_path = std::filesystem::temp_directory_path().string() + "/wave_patch_test.wav";

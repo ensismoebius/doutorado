@@ -43,7 +43,7 @@
                 "latent_dim": 16
             },
             {
-                "_comment": "Source: PhysioNet EEG Motor Movement/Imagery Database, https://physionet.org/content/eegmmidb/1.0.0/ (109 subjects, 64 channels, 160 Hz, EDF+, one subdirectory per subject: S001/S001R01.edf ...). Downloaded 2026-11-01 (1526 EDF, 3.4 GB). Signal 0 of each .edf is read; verified 2026-11-01 against the headers of all 1526 files to be the EEG channel 'Fc5.' (65 signals per file, 160 samples per 1 s record), not an annotation/status channel.",
+                "_comment": "Source: PhysioNet EEG Motor Movement/Imagery Database, https://physionet.org/content/eegmmidb/1.0.0/ (109 subjects, 64 channels, EDF+, one subdirectory per subject: S001/S001R01.edf ...). Downloaded 2026-11-01 (1526 EDF, 3.4 GB). Signal 0 of each .edf is read; verified 2026-11-04 against the headers of all 1526 files to be the EEG channel 'Fc5.', not an annotation/status channel: 1490 files at 160 Hz, 36 at 128 Hz (subjects S088, S092, S100). sample_rate is the rate all windows are cut at: each file is filtered at its own rate and converted (Meeting01Eeg.hpp).",
                 "name": "eegmmidb",
                 "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/eegmmidb",
                 "sample_rate": 160,

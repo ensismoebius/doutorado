@@ -1,0 +1,1 @@
+{"born_generation":0,"config_hash":8547665276157578342,"constraint_violation":0.0,"feasible":true,"genome":{"encoding":"direct","hidden_size":106,"num_layers":3},"inference_cost":11977152,"objectives":[0.9493145942687988,11977152.0],"param_count":379610,"results_format":10,"val_mse":0.9493145942687988}

@@ -10,9 +10,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <numbers>
 #include <set>
 #include <string>
 #include <vector>
@@ -22,6 +26,7 @@
 #include "Meeting01Eeg.hpp"
 #include "Meeting01MitBih.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
+#include "wave/Wav.hpp"
 
 namespace
 {
@@ -62,7 +67,8 @@ std::string edf_field(const std::string& value, std::size_t width)
 // values simple without needing to special-case the conversion formula.
 void write_synthetic_edf(const std::filesystem::path& path,
     const std::vector<std::int16_t>& digital_values,
-    int samples_per_record)
+    int samples_per_record,
+    const std::string& record_seconds = "1")
 {
     const int n_records = static_cast<int>(digital_values.size()) / samples_per_record;
     ASSERT_EQ(static_cast<int>(digital_values.size()), n_records * samples_per_record);
@@ -79,8 +85,8 @@ void write_synthetic_edf(const std::filesystem::path& path,
     out << edf_field(std::to_string(header_bytes), 8);
     out << edf_field("", 44); // reserved
     out << edf_field(std::to_string(n_records), 8);
-    out << edf_field("1", 8); // duration of a data record, seconds
-    out << edf_field("1", 4); // ns
+    out << edf_field(record_seconds, 8); // duration of a data record, seconds
+    out << edf_field("1", 4);            // ns
 
     out << edf_field("EEG synth", 16); // label
     out << edf_field("", 80);          // transducer
@@ -97,7 +103,61 @@ void write_synthetic_edf(const std::filesystem::path& path,
         static_cast<std::streamsize>(digital_values.size() * sizeof(std::int16_t)));
 }
 
+// A per-recording cap of `cap` windows must hold, and must not mean "the first cap windows".
+void expect_drawn_across_recordings(const std::vector<meeting01::WindowMetadata>& meta, int cap)
+{
+    std::map<int, int> per_recording;
+    int furthest = 0;
+    for (const auto& m : meta)
+    {
+        EXPECT_LE(++per_recording[m.recording_id], cap);
+        furthest = std::max(furthest, m.source_window_index);
+    }
+    EXPECT_GE(furthest, cap) << "no window beyond each recording's start";
+}
+
 } // namespace
+
+// The real file, read by hand: its first sample is -369 at byte 44 (0_jackson_0.wav). Before
+// 2026-11-04 Wav::read gave 18770 here, the letters "RI" of the header.
+TEST(Meeting01Loaders, FsddFirstSampleIsAudioNotTheHeader)
+{
+    const fs::path file = kDbRoot + "/fsdDataset/recordings/0_jackson_0.wav";
+    if (!fs::exists(file)) GTEST_SKIP() << "no FSDD root";
+    Wav reader;
+    reader.read(file.string());
+    ASSERT_FALSE(reader.get_data().empty());
+    EXPECT_EQ(reader.get_data().front(), -369.0);
+}
+
+// The production caps on the real corpus: FSDD fold 0 kept digits 0-4 in train and 0-2 in val.
+TEST(Meeting01Loaders, FsddCapsKeepEveryDigitOnTheRealCorpus)
+{
+    const std::string root = kDbRoot + "/fsdDataset";
+    if (!fs::exists(root)) GTEST_SKIP() << "no FSDD root";
+
+    auto cfg = base_config();
+    cfg.dataset.dataset_root = root;
+    meeting01::Meeting01Config::DatasetSource source{"fsdd", root, 256, 6, 8000, 0};
+    source.loso_max_train_windows = 1000;
+    source.loso_max_val_windows = 150;
+    source.loso_max_test_windows = 1500;
+    cfg.dataset.sources.push_back(source);
+    const auto split = meeting01::build_split(cfg, "fsdd", 0);
+
+    const auto digits = [](const std::vector<meeting01::WindowMetadata>& meta)
+    {
+        std::map<int, int> counts;
+        for (const auto& m : meta) ++counts[m.digit];
+        return counts;
+    };
+    ASSERT_EQ(split.train_samples.size(), 1000U);
+    ASSERT_EQ(split.val_samples.size(), 150U);
+    EXPECT_EQ(digits(split.train_meta).size(), 10U);
+    EXPECT_EQ(digits(split.val_meta).size(), 10U);
+    for (const auto& [digit, n] : digits(split.train_meta)) EXPECT_GE(n, 90) << "digit " << digit;
+    for (const auto& [digit, n] : digits(split.val_meta)) EXPECT_GE(n, 12) << "digit " << digit;
+}
 
 TEST(Meeting01Loaders, FsddGroupedFoldIsSpeakerDisjoint)
 {
@@ -167,7 +227,7 @@ TEST(Meeting01Loaders, MitBihFormat212DecodesAndWindows)
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back({"mitbih", root, 256, 6, 360, 40});
     const auto split = meeting01::build_split(cfg, "mitbih", 0);
-    for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
+    expect_drawn_across_recordings(split.train_meta, 40);
     EXPECT_FALSE(split.test_samples.empty());
 }
 
@@ -188,8 +248,9 @@ TEST(Meeting01Loaders, EegSyntheticEdfDecodesAndGroupsBySubject)
     // frequency-response test.
     std::vector<std::int16_t> ramp(16);
     for (std::size_t i = 0; i < ramp.size(); ++i) ramp[i] = static_cast<std::int16_t>(i);
-    write_synthetic_edf(root / "subjA" / "subjA_01.edf", ramp, /*samples_per_record=*/4);
-    write_synthetic_edf(root / "subjB" / "subjB_01.edf", ramp, /*samples_per_record=*/4);
+    // 16 samples in one record of 1/32 s: 512 Hz, the rate the dataset below asks for.
+    write_synthetic_edf(root / "subjA" / "subjA_01.edf", ramp, 16, "0.03125");
+    write_synthetic_edf(root / "subjB" / "subjB_01.edf", ramp, 16, "0.03125");
 
     meeting01::EegWindowDataset ds(root,
         /*window_size=*/8,
@@ -213,6 +274,67 @@ TEST(Meeting01Loaders, EegSyntheticEdfDecodesAndGroupsBySubject)
     fs::remove_all(root);
 }
 
+// S088, S092 and S100 of EEGMMIDB are at 128 Hz among files at 160 Hz. The same 10 Hz tone at
+// both rates must give the same windows: same count, same duration, same values. Treated as
+// 160 Hz, as they were until 2026-11-04, the 128 Hz windows held a 12.5 Hz tone and the file
+// fewer of them.
+TEST(Meeting01Loaders, EegFilesAtAnotherRateBecomeTheDatasetRate)
+{
+    const fs::path root = fs::temp_directory_path() / "meeting01_eeg_rates_test";
+    fs::remove_all(root);
+    fs::create_directories(root / "S001");
+    fs::create_directories(root / "S088");
+
+    constexpr int kSeconds = 41; // 128 Hz: the last sample falls 8 ms short of the end
+    const auto tone = [](int rate)
+    {
+        std::vector<std::int16_t> x(static_cast<std::size_t>(rate * kSeconds));
+        for (std::size_t i = 0; i < x.size(); ++i)
+            x[i] = static_cast<std::int16_t>(std::lround(
+                8000.0 * std::sin(2.0 * std::numbers::pi * 10.0 * static_cast<double>(i) / rate)));
+        return x;
+    };
+    write_synthetic_edf(root / "S001" / "S001R01.edf", tone(160), 160);
+    write_synthetic_edf(root / "S088" / "S088R01.edf", tone(128), 128);
+
+    const meeting01::EegWindowDataset ds(root, 256, /*sampling_rate=*/160.0, /*notch_hz=*/60.0);
+    EXPECT_EQ(ds.resampled_recordings(), 1);
+
+    std::vector<std::size_t> a;
+    std::vector<std::size_t> b;
+    for (std::size_t i = 0; i < ds.size(); ++i)
+        (ds.metadata()[i].speaker == "S001" ? a : b).push_back(i);
+    ASSERT_EQ(a.size(), 25U);
+    ASSERT_EQ(b.size(), a.size());
+
+    // Windows 8-16: well inside the recording, away from the filter's edges.
+    for (std::size_t w = 8; w <= 16; ++w)
+    {
+        const auto& x = ds.windows()[a[w]];
+        const auto& y = ds.windows()[b[w]];
+        double squared = 0.0;
+        for (nn::Index t = 0; t < 256; ++t)
+        {
+            const double d = static_cast<double>(x.at(t, 0)) - static_cast<double>(y.at(t, 0));
+            squared += d * d;
+        }
+        EXPECT_LT(squared / 256.0, 1e-3) << "window " << w;
+    }
+    fs::remove_all(root);
+}
+
+TEST(Meeting01Loaders, EegRefusesARecordOfNoDurationAndARateBelowTheBand)
+{
+    const fs::path root = fs::temp_directory_path() / "meeting01_eeg_bad_header_test";
+    fs::remove_all(root);
+    fs::create_directories(root / "S001");
+    const std::vector<std::int16_t> samples(320, 1);
+    write_synthetic_edf(root / "S001" / "S001R01.edf", samples, 160, "0");
+    EXPECT_THROW(meeting01::EegWindowDataset(root, 256, 160.0, 60.0), std::runtime_error);
+    EXPECT_THROW(meeting01::EegWindowDataset(root, 256, 64.0, 60.0), std::invalid_argument);
+    fs::remove_all(root);
+}
+
 TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
 {
     const std::string root = kDbRoot + "/eegmmidb";
@@ -228,8 +350,9 @@ TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back({"eegmmidb", root, 256, 6, 160, 40});
     const auto split = meeting01::build_split(cfg, "eegmmidb", 0);
-    for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
+    expect_drawn_across_recordings(split.train_meta, 40);
     EXPECT_FALSE(split.test_samples.empty());
+    EXPECT_EQ(ds.resampled_recordings(), 36) << "S088, S092 and S100, at 128 Hz";
 }
 
 TEST(Meeting01Loaders, SienaRealCorpusLoadsAndGroupsBySubject)
@@ -247,6 +370,7 @@ TEST(Meeting01Loaders, SienaRealCorpusLoadsAndGroupsBySubject)
     cfg.dataset.dataset_root = root;
     cfg.dataset.sources.push_back({"siena", root, 256, 6, 512, 40});
     const auto split = meeting01::build_split(cfg, "siena", 0);
-    for (const auto& m : split.train_meta) EXPECT_LT(m.source_window_index, 40);
+    expect_drawn_across_recordings(split.train_meta, 40);
     EXPECT_FALSE(split.test_samples.empty());
+    EXPECT_EQ(ds.resampled_recordings(), 0);
 }

@@ -35,10 +35,12 @@ namespace meeting01::ga
 // Both are resume ARTIFACTS, removed on successful completion.
 //
 // Both carry a STAMP (config_hash, results_format) and loading refuses any other stamp:
-// a validation MSE scored under one profile or binary must not be ranked against genomes
-// scored under another. Until 2026-11-02 they had none, so RESUME=1 after a profile edit
-// (epochs, window caps, ...) silently continued the search with the old scores, while the
-// fold's manifest recorded the new configuration.
+// a validation MSE scored under one profile, binary or set of windows must not be ranked against
+// genomes scored under another. The stamp's hash is checkpoint_hash (Meeting01Dataset.hpp), which
+// also covers the split's window values, so a resume across a data-pipeline change is refused
+// whether or not that change bumped results_format. Until 2026-11-02 they had none, so RESUME=1
+// after a profile edit (epochs, window caps, ...) silently continued the search with the old
+// scores, while the fold's manifest recorded the new configuration.
 inline auto checkpoint_stamp(std::size_t config_hash) -> nlohmann::json
 {
     return {{"config_hash", config_hash}, {"results_format", meeting01::kResultsFormat}};
@@ -58,8 +60,10 @@ inline void check_checkpoint_stamp(
                     : std::string("no stamp (a binary before 2026-11-02)")) +
             ", this run is config_hash " + std::to_string(config_hash) + " / results_format " +
             std::to_string(meeting01::kResultsFormat) +
-            ": the profile or the binary changed since this search was interrupted, and resuming "
-            "would rank genomes scored under both. Restore the profile and binary that wrote it, "
+            ": the profile, the binary or the windows changed since this search was interrupted, "
+            "and "
+            "resuming "
+            "would rank genomes scored under both. Restore what wrote it, "
             "or delete this search's meeting01_ga_<tag>_checkpoint.json and _cache.jsonl to "
             "restart it.");
 }

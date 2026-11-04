@@ -71,9 +71,9 @@ grouping — only *where the loader reads the group from* differs.
   does the merge.
 - **Stratified per-fold window caps** (`loso_max_train_windows` 1200, `loso_max_val_windows`
   300, `loso_max_test_windows` 1500 in `meeting01-loso.json`): after the LOSO split,
-  `stratified_window_cap` subsamples each partition round-robin across recordings (ordered
-  by `recording_id`), so every recording and speaker keeps representation and per-recording
-  counts stay as even as the cap allows. Full pooled FSDD is ~27k train windows/fold —
+  `stratified_window_cap` subsamples each partition balanced by speaker, digit and recording
+  ([since format 10](#the-windows-were-wrong-results_format-10-2026-11-04); before, it walked a
+  sorted list and stopped at the cap). Full pooled FSDD is ~27k train windows/fold —
   intractable at batch-size 1 across the GA's population(10)×(1+generations(8))=90 SNN
   trainings × 5 seeds × 18 (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
   or the recording-level statistical unit; they bound per-epoch cost. `cap <= 0` = unlimited.
@@ -897,7 +897,7 @@ a reference returned nothing, and only the recording level (`d_r`) produced a nu
 
 ### One stamp per fold: `results_format`
 
-The binary writes `"results_format": 7` into every JSON manifest of a fold
+The binary writes `"results_format": 10` into every JSON manifest of a fold
 (`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
 (`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`). The stamp was 2 when this
 section was first written (second pass, commit `b434792e`) and became 3 on 2026-10-07, when two more silent changes
@@ -911,8 +911,11 @@ results_format == 3         ->  refused: "the baselines read the window repeated
 results_format == 4         ->  refused: "the SNN-AE was scored at every step, its spike_rate counted outputs > 0 ... rerun"
 results_format == 5         ->  refused: "the SNN-AE's T was one fixed value for every genome ... rerun"
 results_format == 6         ->  refused: "patience stopped networks still on the mean-predictor plateau ... arithmetic-only energy ... rerun"
-results_format == 7         ->  read
-results_format >= 8         ->  refused: "newer than the scripts (or the manifest was edited)"
+results_format == 7         ->  refused: "a direct-coded first layer was priced at every step ... rerun"
+results_format == 8         ->  refused: "every seed started from the same weights ... rerun"
+results_format == 9         ->  refused: "the windows were wrong: WAV header, sorted caps, 128 Hz files ... rerun"
+results_format == 10        ->  read
+results_format >= 11        ->  refused: "newer than the scripts (or the manifest was edited)"
 ```
 
 | `results_format` | Written by | What its rows contain |
@@ -923,7 +926,85 @@ results_format >= 8         ->  refused: "newer than the scripts (or the manifes
 | 4 | 2026-10-24 to 2026-11-01 (**no production fold ran with it**) | the baselines read the window at `model.recurrent_time_steps` (1: 32 frames), encoding `direct` only — [why](#why-the-recurrent-baselines-read-the-window-once-found--fixed-2026-10-24) |
 | 5 | 2026-11-01 to 2026-11-02 | the SNN-AE averages its latent over T = 4 steps and decodes once with an analog decoder (`model.snn_time_pool` / `snn_decoder_neuron`); `spike_rate` counts hidden LIF spikes (NaN for non-spiking models); `energy` replaced by `acs` + `arith_energy_nj`; the SNN's `macs` is counted — [why](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01) |
 | 6 | 2026-11-02 to 2026-11-03 (pre-validation job 5314513 only) | T is an SNN-AE GA gene, recorded per winner — [why](#ready-for-the-grid-run-results_format-6-2026-11-02) |
-| 7 | 2026-11-03 on | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
+| 7 | 2026-11-03 (pre-validation job 5315335 only) | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
+| 8 | 2026-11-03 to 2026-11-04 (T1 only) | a repeated input's first layer priced once; `energy_nj_as_executed` as a check |
+| 9 | 2026-11-04 (pre-validation job 5316016, T1) | the run seed reaches every training; the GA cost counts a repeated first layer once |
+| 10 | 2026-11-04 on | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
+
+### The windows were wrong (results_format 10, 2026-11-04)
+
+Found by the adversarial review of the paper (`documentation/07-articlesProduced/meeting01/review/`).
+All four defects share one property, and it is why they lasted: **nothing failed.** Every count
+was right, every loss finite, every test green. Only the content of the windows was wrong.
+
+| Defect | What the network received | What it broke | Loud? |
+|---|---|---|---|
+| WAV header read as audio | 22 samples of header at the start of each recording; the last 22 real ones lost | every FSDD and AudioMNIST recording | silent |
+| Caps walk a sorted list | FSDD fold 0: train digits 0-4, validation 0-2, test 0-9; EEGMMIDB validation 11 of 18 subjects | who is in the sample | silent |
+| Per-recording cap keeps the start | EEGMMIDB's first 64 s of each run, Siena's first 20 s of each file, AudioMNIST's windows 0 and 1 | what is in the sample | silent |
+| 36 EDF files at 128 Hz treated as 160 Hz | the 40 Hz edge at 32 Hz, the 60 Hz notch at 48 Hz, windows of 2.0 s | S088, S092, S100 | silent |
+
+**The header, drawn.** The file is `[44 bytes of header][samples]`, and the reader seeked back to
+byte 0 after parsing the header:
+
+```
+expected:  -369  -431  -475  -543  -571 ...
+read:     18770 17990 10332     0 16727 ... (22 values) -369 -431 ...
+```
+
+Speech is in the hundreds and those values are in the tens of thousands, so after the per-window
+z-score window 0 is nearly the same pattern in every recording (mean pairwise correlation 0.98,
+86% of its energy in those 22 samples). About 8% of the windows could be memorized. In a
+replica, the T1 control erred 0.113 on window 0 and 1.000 on the others:
+
+```
+0.08 x 0.113 + 0.92 x 1.000 = 0.93     the T1 control's 0.935: not a network that learned a little
+```
+
+Measured effect on absolute errors: PCA k=16 goes from 0.649 to 0.707, the mean predictor from 0.995
+to 1.001. Measured effect on the SNN-AE / ANN-AE gap, in the replica: 0.060 to 0.064-0.066. Both arms
+memorize the header, so a difference between them barely moves. Absolute numbers were wrong; that
+comparison was not.
+
+**The caps.** `stratified_window_cap` now balances speaker -> digit -> recording -> window, and a
+per-recording cap draws across the recording, uniformly and without looking at the signal
+(voice-activity selection was rejected: it is a selection the protocol would have to defend).
+The draw is fixed per dataset and fold, from `experiment.seed`, so every repeat sees the same
+windows and PCA and the mean predictor, fitted once, score the same test set. The cost of that
+choice: the repeats do not sample the draw, and PCA k=16 moved 0.047 between two balanced draws
+on FSDD fold 0. Every split manifest now records its `composition`, because a cap's bias cannot be
+seen in a window count.
+
+**The 128 Hz files are kept, not excluded.** Each file's rate comes from its own header. The filter
+runs at that rate, because its cut-offs are in Hz, and then `nn::utility::resample_bandlimited`
+converts the signal to the profile's `sample_rate`, so a window lasts 1.6 s and a frequency means one
+thing in every recording. Nothing is lost: after the 0.5-40 Hz band, the signal holds nothing near
+either Nyquist (64 and 80 Hz). Excluding the three subjects would also have moved seven others
+across the folds, one of them (S019) from the development test block into a headline test block,
+because blocks follow the sorted subject list. Converting leaves all 109 where they were.
+
+| Rejected fix | Why |
+|---|---|
+| Exclude S088, S092, S100 | moves 7 subjects between blocks; loses data that is fine |
+| Filter at 128 Hz, keep 128 Hz windows | one window, two durations: the frequency axis still differs |
+| Select voiced windows | a content-based selection, the kind this protocol avoids |
+
+**Checkpoints.** The GA stamp was already refusing another `results_format`, which covers this
+change. It now also carries `checkpoint_hash`: `config_hash` extended by the split's window ids and
+values. A code fix that alters the windows changes neither the profile nor, unless someone remembers,
+the format; the hash notices either way, and the resume stops with an error.
+
+Verified on the real files (2026-11-04, every header on GridUnesp): FSDD 3000 and AudioMNIST 30000
+files, data at byte 44, 16-bit mono 8 kHz; EEGMMIDB 1490 files at 160 Hz and 36 at 128 Hz, signal 0
+`Fc5.`; Siena 41 files at 512 Hz, signal 0 `EEG Fp1`. Known-answer tests: `WavFileTest.*`,
+`ResampleBandlimited.*`, `StratifiedWindowCap.*`, `CapWindowsPerRecording.*`, `CheckpointHash.*`,
+`Meeting01Loaders.FsddFirstSampleIsAudioNotTheHeader`,
+`Meeting01Loaders.FsddCapsKeepEveryDigitOnTheRealCorpus`,
+`Meeting01Loaders.EegFilesAtAnotherRateBecomeTheDatasetRate`.
+
+Everything before format 10 carries these defects: T1, jobs 5314513, 5315335 and 5316016, the
+design-study tables, and probably the speech numbers of submission 71 (the seek is old; inferred
+from `Wav.cpp`'s history, not measured).
 
 A format-2 fold is refused with its reason, not with "unknown version": the message tells the
 reader which of the two changes makes those rows incomparable.

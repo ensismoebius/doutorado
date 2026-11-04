@@ -7,6 +7,7 @@
 
 #include "Meeting01Config.hpp"
 #include "Meeting01DatasetSplit.hpp"
+#include "nlohmann/json.hpp"
 
 namespace meeting01
 {
@@ -39,25 +40,29 @@ struct SpeakerFoldAssignment
 auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int num_folds)
     -> SpeakerFoldAssignment;
 
-// Deterministic stratified subsample to <= cap windows, round-robin across recordings
-// (grouped by WindowMetadata::recording_id) so every recording keeps representation and
-// per-recording counts stay as even as the cap allows. cap <= 0 or already under cap → no-op.
-// Factored out (like assign_speaker_fold above) so it can be unit-tested on synthetic
-// metadata without a WAV corpus.
-//
-// `seed` shuffles each recording's own candidate windows before the round-robin picks its
-// next one — this is what fixes the "AudioMNIST window degeneracy" bug (see
-// .wiki/Experiments/Meeting01.md): without it, the round-robin always took a recording's
-// LOWEST source_window_index first, and a corpus with more recordings than the cap needs
-// (true for AudioMNIST) exhausts the cap during the very first pass, so every kept window is
-// index 0 — a near-silent recording lead-in for AudioMNIST specifically, not the spoken
-// digit. Same seed → same result (reproducible); different seed → different window-index mix
-// while the per-recording fairness guarantee is unchanged either way.
+// Keeps at most `cap` windows, balanced by speaker, then digit, then recording, in a seeded
+// order, so no sorted-list prefix survives a cap (rationale in Meeting01Dataset.cpp). Same seed
+// -> same result. cap <= 0, or a pool within the cap, keeps everything.
 void stratified_window_cap(std::vector<Tensor>& samples,
     std::vector<WindowMetadata>& meta,
     std::vector<int>* labels,
     int cap,
     unsigned int seed);
+
+// Keeps at most `cap` windows of each recording, drawn uniformly across it (not its first
+// `cap`; rationale in Meeting01Dataset.cpp). Same seed -> same result. cap <= 0 keeps everything.
+void cap_windows_per_recording(
+    std::vector<Tensor>& windows, std::vector<WindowMetadata>& meta, int cap, unsigned int seed);
+
+// What a split part is made of: windows per speaker, per digit and per source window index.
+// Written into every fold's split manifest, because a cap's bias is invisible in a window count.
+auto split_composition_json(const std::vector<WindowMetadata>& meta) -> nlohmann::json;
+
+// config_hash extended by the windows themselves (their ids and values, every split). The GA
+// checkpoints are stamped with it: a validation score is a function of the data, and a code
+// change that alters the windows changes neither the profile nor, unless someone remembers to
+// bump it, results_format.
+auto checkpoint_hash(std::size_t config_hash, const DatasetSplit& split) -> std::size_t;
 
 // cv_fold >= 0 is REQUIRED — nested leave-one-speaker/group-out fold, speaker- and
 // recording-disjoint across train/val/test. There is no pooled/shuffled fallback

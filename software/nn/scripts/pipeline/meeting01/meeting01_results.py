@@ -61,7 +61,8 @@ from collections import defaultdict
 #: Format 9 seeds every training from its run seed: the LSTM/GRU/Transformer-AE weights and
 #: every family's window order (format 8 fixed both for the sequence families and the order
 #: for all), and the SNN GA's cost objective counts a repeated first layer once.
-RESULTS_FORMAT = 9
+#: Format 10 corrects the windows themselves, for every dataset: see _OLDER_FORMATS[9].
+RESULTS_FORMAT = 10
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -85,6 +86,9 @@ _OLDER_FORMATS = {
     8: "the LSTM/GRU/Transformer-AE started every seed from the same weights and every family "
        "saw one window order whatever the seed, so its seeds sampled neither, and the SNN GA's "
        "cost objective charged a direct-coded first layer T times",
+    9: "the windows were wrong: FSDD and AudioMNIST carried the WAV header as 22 samples, caps "
+       "kept a sorted list's prefix (FSDD fold 0 trained on digits 0-4), the per-recording cap "
+       "kept each recording's start, and 36 EEGMMIDB files at 128 Hz were treated as 160 Hz",
 }
 
 PW_HEADER = [

@@ -979,7 +979,7 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1);
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     // `Ind` is given explicitly: it cannot be deduced from the callback argument alone
     // (a raw lambda converting to std::function<void(const Ind&)> is a non-deduced
@@ -1163,7 +1163,7 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_lstm";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::LstmGaIndividual>(config,
         split,
@@ -1256,7 +1256,7 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_gru";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::GruGaIndividual>(config,
         split,
@@ -1356,7 +1356,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_transformer";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result =
         meeting01::ga::run_ga_search<meeting01::ga::TransformerGaIndividual>(config,
@@ -1499,6 +1499,9 @@ void assert_split_disjoint_and_manifest(
     man["recordings"]["train"] = rec_list(split.train_meta);
     man["recordings"]["val"] = rec_list(split.val_meta);
     man["recordings"]["test"] = rec_list(split.test_meta);
+    man["composition"]["train"] = split_composition_json(split.train_meta);
+    man["composition"]["val"] = split_composition_json(split.val_meta);
+    man["composition"]["test"] = split_composition_json(split.test_meta);
 
     const std::filesystem::path man_path =
         std::filesystem::path(config.dataset.results_dir) /

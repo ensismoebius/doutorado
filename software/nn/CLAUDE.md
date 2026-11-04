@@ -345,6 +345,8 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
 | Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |
 | Transformer warm-up / pre-norm test (T1) | `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `05_meeting01_t1_transformer.py` |
+| Stopping threshold calibration | `scripts/pipeline/meeting01/06_meeting01_stopping_calibration.py` |
+| Band-limited resampling | `include/utility/Resample.hpp` |
 
 ---
 
@@ -373,7 +375,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 9)**: the paper reads only generated files in its
+**Paper data contract (results_format 10)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -404,6 +406,14 @@ objective (`estimate_snn_macs(..., first_layer_steps)`) counts it once as well.
 carry `init_seed` (set by `to_*_cfg`, seed argument required; unset = the old fixed weights), and
 `TrainerConfig::sampler_shuffle_seed = seed` for every family. Before, the three sequence models
 started every seed from the same weights and every family saw one window order.
+
+**Windows (results_format 10)**: `Wav::read` walks the RIFF chunks (it used to decode the header as
+22 samples); `stratified_window_cap` balances speaker -> digit -> recording; a per-recording cap
+draws across the recording (`cap_windows_per_recording`); each EDF is filtered at its own header
+rate and converted to the profile's `sample_rate` (`nn::utility::resample_bandlimited`), the 128 Hz
+files included: no subject is excluded, because excluding one moves others across folds. GA
+checkpoints are stamped with `checkpoint_hash`, which covers the window values. Each split manifest
+records its `composition`.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

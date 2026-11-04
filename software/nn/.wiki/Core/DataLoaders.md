@@ -265,6 +265,16 @@ same seed and called the same number of times produce byte-identical output;
 the same instance called twice in a row does *not* (that's the point — it's
 what breaks the "always index/offset 0" bias).
 
+### `resample_bandlimited` — not an `ITransform` (recording-level)
+
+A network reads a window as 256 numbers and never sees the clock. At 160 Hz they last 1.6 s, at
+128 Hz 2.0 s, and a 10 Hz rhythm at 128 Hz is, sample for sample, a 12.5 Hz rhythm at 160 Hz.
+`nn::utility::resample_bandlimited` (`include/utility/Resample.hpp`) reads each output sample off the
+continuous signal the input defines, with a Hann-windowed sinc, and lowers the cut-off on a
+downsample so nothing aliases. `EegWindowDataset` calls it after filtering, at each file's own rate
+from its EDF header. Verified by `ResampleBandlimited.A128HzToneBecomesThe160HzTone` (error
+below 1e-3 up to 40 Hz) and `ADownsampleDoesNotAlias`.
+
 ### `bandpass_notch` — not an `ITransform` (recording-level, not window-level)
 
 `nn::utility::bandpass_notch` (`include/utility/BandpassNotchFilter.hpp`) removes
@@ -644,7 +654,11 @@ this dataset fits into the thesis as a whole.
    shape — see the Transforms section above for exactly how each one
    degenerates.
 
-5. **Not reshuffling between epochs.** If the same order is used every epoch,
+5. **Assuming a file's rate.** A header states it; a profile states an assumption. 36 of
+   EEGMMIDB's 1526 files are at 128 Hz, and treating them as 160 Hz fails silently: the
+   cut-offs shift, and the windows last longer.
+
+6. **Not reshuffling between epochs.** If the same order is used every epoch,
    the network can start to memorise the sequence of batches rather than
    learning general patterns from the data itself.
 

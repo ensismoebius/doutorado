@@ -69,7 +69,20 @@ namespace meeting01
 //           seed). The SNN GA's cost objective counts a repeated input's first layer once,
 //           as energy_nj does (format 8 charged it T times there), so the search changes.
 //           No production fold ran with format 8; T1 (results/meeting01_t1) did, locally.
-inline constexpr int kResultsFormat = 9;
+//   10      2026-11-04. The data changed, for every dataset. (1) Speech: Wav::read decoded the
+//           44 header bytes as 22 samples, so window 0 of every FSDD and AudioMNIST recording
+//           was mostly header and the last 22 real samples were lost; the networks could score
+//           by memorizing it (T1, FSDD: error 0.113 on window 0, 1.000 on the others in a
+//           replica). (2) stratified_window_cap walked the sorted recordings and stopped at the
+//           cap (FSDD fold 0 trained on digits 0-4); it now balances speaker, digit, recording.
+//           (3) max_windows_per_recording kept each recording's first windows; it now draws
+//           across the recording. (4) The 36 EEGMMIDB files at 128 Hz were filtered and windowed
+//           as 160 Hz; each file is now filtered at its own rate and converted to the dataset's.
+//           Blocks are still assigned on all 109 subjects, so no subject moved fold. GA
+//           checkpoints are also stamped with the windows (checkpoint_hash). The split manifest
+//           records each part's composition. No production fold ran with format 9; the
+//           pre-validation job 5316016 and T1 did.
+inline constexpr int kResultsFormat = 10;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

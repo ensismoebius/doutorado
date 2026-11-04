@@ -24,8 +24,11 @@
 #include <fstream>
 #include <map>
 #include <stdexcept>
+#include <string>
 
+#include "logging/Logger.hpp"
 #include "utility/BandpassNotchFilter.hpp"
+#include "utility/Resample.hpp"
 #include "utility/WindowZScore.hpp"
 
 namespace meeting01
@@ -55,6 +58,7 @@ struct EdfHeader
 {
     int header_bytes = 0;
     int n_signals = 0;
+    double record_seconds = 0.0;
     std::vector<double> physical_min;
     std::vector<double> physical_max;
     std::vector<double> digital_min;
@@ -75,9 +79,12 @@ EdfHeader parse_edf_header(std::ifstream& in, const std::string& edf_path)
     h.header_bytes = std::stoi(field(8));
     (void) field(44); // reserved
     (void) field(8);  // number of data records (unreliable — may be -1; we read to EOF instead)
-    (void) field(8);  // duration of a data record, in seconds
+    h.record_seconds = std::stod(field(8));
     h.n_signals = std::stoi(field(4));
 
+    if (h.record_seconds <= 0.0)
+        throw std::runtime_error("EegWindowDataset: EDF header declares a data record of " +
+                                 std::to_string(h.record_seconds) + " s in " + edf_path);
     if (h.n_signals <= 0)
         throw std::runtime_error("EegWindowDataset: EDF header declares 0 signals in " + edf_path);
 
@@ -116,8 +123,14 @@ EdfHeader parse_edf_header(std::ifstream& in, const std::string& edf_path)
     return h;
 }
 
-// Reads signal 0's full time series (physical units) from one .edf file.
-std::vector<float> read_signal0(const std::filesystem::path& edf)
+struct EdfSignal
+{
+    std::vector<float> samples;
+    double rate_hz = 0.0; // the file's own: samples per data record / record duration
+};
+
+// Reads signal 0's full time series (physical units) and its rate from one .edf file.
+EdfSignal read_signal0(const std::filesystem::path& edf)
 {
     std::ifstream in(edf, std::ios::binary);
     if (!in) throw std::runtime_error("EegWindowDataset: cannot open " + edf.string());
@@ -153,7 +166,7 @@ std::vector<float> read_signal0(const std::filesystem::path& edf)
             if (!in) break;
         }
     }
-    return out;
+    return {std::move(out), static_cast<double>(s0_per_record) / h.record_seconds};
 }
 
 // Standard EEG analysis band (see .wiki/Core/DataLoaders.md "Transforms" section for the
@@ -189,13 +202,26 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root,
         for (auto& kv : subject_id) kv.second = next++;
     }
 
+    if (sampling_rate <= 2.0 * kEegBandHighHz)
+        throw std::invalid_argument(
+            "EegWindowDataset: sampling_rate " + std::to_string(sampling_rate) +
+            " Hz cannot hold the EEG band up to " + std::to_string(kEegBandHighHz) + " Hz");
+
     const nn::transforms::WindowZScore zscore;
     int global_window_id = 0;
     for (std::size_t rec = 0; rec < files.size(); ++rec)
     {
-        const std::vector<float> raw = read_signal0(files[rec]);
-        const std::vector<float> sig0 = nn::utility::bandpass_notch(
-            raw, sampling_rate, kEegBandLowHz, kEegBandHighHz, notch_hz, kNotchWidthHz);
+        const EdfSignal raw = read_signal0(files[rec]);
+        // Filter at the file's own rate: the cut-offs are in Hz, and the filter turns them
+        // into samples with the rate it is given. Then convert, so that one window lasts the
+        // same time and one frequency has one meaning in every recording. After the filter
+        // the signal holds nothing above the band, below both Nyquists, so the conversion
+        // loses nothing.
+        const std::vector<float> filtered = nn::utility::bandpass_notch(
+            raw.samples, raw.rate_hz, kEegBandLowHz, kEegBandHighHz, notch_hz, kNotchWidthHz);
+        const std::vector<float> sig0 =
+            nn::utility::resample_bandlimited(filtered, raw.rate_hz, sampling_rate);
+        if (raw.rate_hz != sampling_rate) ++resampled_recordings_;
         const std::string subject = files[rec].parent_path().filename().string();
 
         int source_window_idx = 0;
@@ -222,6 +248,11 @@ EegWindowDataset::EegWindowDataset(const std::filesystem::path& dataset_root,
             ++source_window_idx;
         }
     }
+
+    if (resampled_recordings_ > 0)
+        NN_LOG_INFO("[eeg] " + std::to_string(resampled_recordings_) + " of " +
+                    std::to_string(files.size()) + " recordings converted to " +
+                    std::to_string(sampling_rate) + " Hz");
 
     if (windows_.empty())
         throw std::runtime_error("EegWindowDataset: produced no windows (window_size " +
