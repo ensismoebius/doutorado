@@ -14,6 +14,7 @@
 
 #include "core/utility/tests/test_helpers.hpp"
 #include "tensor/Tensor.hpp"
+#include "utility/SeedDerivation.hpp"
 #include "utility/SignalPreprocessing.hpp"
 #include "utility/batching.hpp"
 #include "utility/comparison.hpp"
@@ -711,4 +712,18 @@ TEST(UtilHelpersTest, TestHelpersApproxAndSubtractBranches)
     EXPECT_FLOAT_EQ(sub.at(0, 0), 2.0F);
 
     EXPECT_THROW((void) test_helpers::tensor_subtract(a, b), std::invalid_argument);
+}
+
+// derive_seed: deterministic, and distinct (base, stream) pairs give distinct seeds. The case
+// that matters is the one `base + stream` got wrong: run 42's stream 1 was run 43's stream 0.
+TEST(SeedDerivation, DeterministicAndNoOverlapBetweenAdjacentRuns)
+{
+    using nn::utility::derive_seed;
+    EXPECT_EQ(derive_seed(42u, 7u), derive_seed(42u, 7u));
+    EXPECT_NE(derive_seed(42u, 1u), derive_seed(43u, 0u));
+    std::set<std::uint32_t> seen;
+    for (std::uint32_t base = 40u; base < 50u; ++base)
+        for (std::uint32_t stream = 0u; stream < 64u; ++stream)
+            seen.insert(derive_seed(base, stream));
+    EXPECT_EQ(seen.size(), 640u) << "two (base, stream) pairs share a seed";
 }

@@ -178,7 +178,7 @@ TEST(Meeting01TransformerGaGenome, ToTransformerCfgUsesWindowTimesRecurrentTimeS
     cfg.model.time_steps = 16;
     cfg.model.recurrent_time_steps = 1;
     const TransformerGenome g{32, 8, 3, 64, "poisson"};
-    const auto arch = meeting01::ga::to_transformer_cfg(g, cfg);
+    const auto arch = meeting01::ga::to_transformer_cfg(g, cfg, 42u);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.seq_len,

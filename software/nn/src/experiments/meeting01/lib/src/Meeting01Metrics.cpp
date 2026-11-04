@@ -105,6 +105,24 @@ auto estimate_snn_macs(std::size_t input_features,
            decoder * static_cast<std::size_t>(std::max(1, decoder_steps));
 }
 
+auto estimate_snn_macs(std::size_t input_features,
+    const std::vector<int>& encoder_widths,
+    int encoder_steps,
+    int decoder_steps,
+    int first_layer_steps) -> std::size_t
+{
+    if (first_layer_steps < 1 || first_layer_steps > std::max(1, encoder_steps))
+        throw std::invalid_argument("estimate_snn_macs: first_layer_steps must be in [1, " +
+                                    std::to_string(std::max(1, encoder_steps)) + "] (got " +
+                                    std::to_string(first_layer_steps) + ")");
+    const std::size_t all =
+        estimate_snn_macs(input_features, encoder_widths, encoder_steps, decoder_steps);
+    if (encoder_widths.empty()) return all;
+    // Remove the first layer's (encoder_steps - first_layer_steps) repeats.
+    const std::size_t first = input_features * static_cast<std::size_t>(encoder_widths.front());
+    return all - first * static_cast<std::size_t>(std::max(1, encoder_steps) - first_layer_steps);
+}
+
 auto estimate_snn_macs(
     std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)
     -> std::size_t

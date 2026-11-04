@@ -36,7 +36,7 @@ void evaluate_individual(LstmGaIndividual& ind,
     std::size_t progress_total)
 {
     const RecurrentGenome& g = ind.genome;
-    const auto lstm_cfg = to_lstm_cfg(g, cfg);
+    const auto lstm_cfg = to_lstm_cfg(g, cfg, seed);
 
     nn::models::lstm::LSTMAutoencoder model(lstm_cfg);
 
@@ -75,7 +75,7 @@ void evaluate_individual(GruGaIndividual& ind,
     std::size_t progress_total)
 {
     const RecurrentGenome& g = ind.genome;
-    const auto gru_cfg = to_gru_cfg(g, cfg);
+    const auto gru_cfg = to_gru_cfg(g, cfg, seed);
 
     nn::models::gru::GRUAutoencoder model(gru_cfg);
 

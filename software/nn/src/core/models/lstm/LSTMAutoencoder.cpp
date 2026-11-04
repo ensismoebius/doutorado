@@ -9,12 +9,15 @@
 
 #include "models/lstm/LSTMAutoencoder.hpp"
 
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <utility>
 
 #include "layers/activations/Tanh.hpp"
 #include "layers/lstm/LSTMLayer.hpp"
+#include "utility/SeedDerivation.hpp"
 
 namespace nn::models::lstm
 {
@@ -26,11 +29,23 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     const int Z = cfg_.latent_size;
     const int L = cfg_.num_layers;
 
+    // cfg_.init_seed unset: the fixed seeds this model always used (100/101/102 for the
+    // projections, the layer's own 42/43 for every recurrent layer). Set: one derived seed per
+    // tensor and per layer (encoder 1000 + l, decoder 2000 + l), see SeedDerivation.hpp.
+    const auto tensor_seed = [this](unsigned fixed) -> unsigned
+    { return cfg_.init_seed ? nn::utility::derive_seed(*cfg_.init_seed, fixed) : fixed; };
+    const auto layer_seed = [this](unsigned stream) -> std::optional<std::uint32_t>
+    {
+        if (!cfg_.init_seed) return std::nullopt;
+        return nn::utility::derive_seed(*cfg_.init_seed, stream);
+    };
+
     // Build stacked encoder LSTM layers.
     for (int l = 0; l < L; ++l)
     {
         const int in_dim = (l == 0) ? D : H;
-        enc_lstms_.push_back(std::make_unique<LSTMLayer>(in_dim, H));
+        enc_lstms_.push_back(
+            std::make_unique<LSTMLayer>(in_dim, H, layer_seed(1000u + static_cast<unsigned>(l))));
     }
 
     // Initialise projection weights with N(0, 0.05) for stable early training.
@@ -45,21 +60,22 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     };
 
     enc_proj_ = std::make_unique<Linear>(H, Z);
-    normal_fill(enc_proj_->weight, 100u);
+    normal_fill(enc_proj_->weight, tensor_seed(100u));
     enc_proj_->bias.set_zero();
 
     dec_expand_ = std::make_unique<Linear>(Z, H);
-    normal_fill(dec_expand_->weight, 101u);
+    normal_fill(dec_expand_->weight, tensor_seed(101u));
     dec_expand_->bias.set_zero();
 
     // Decoder LSTM layers (hidden→hidden; all layers share the same H dimension).
     for (int l = 0; l < L; ++l)
     {
-        dec_lstms_.push_back(std::make_unique<LSTMLayer>(H, H));
+        dec_lstms_.push_back(
+            std::make_unique<LSTMLayer>(H, H, layer_seed(2000u + static_cast<unsigned>(l))));
     }
 
     out_proj_ = std::make_unique<Linear>(H, D);
-    normal_fill(out_proj_->weight, 102u);
+    normal_fill(out_proj_->weight, tensor_seed(102u));
     out_proj_->bias.set_zero();
 
     build_param_ptrs();

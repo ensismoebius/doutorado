@@ -10,6 +10,7 @@
 #include <string>
 
 #include "layers/attention/PositionalEncoding.hpp"
+#include "utility/SeedDerivation.hpp"
 
 namespace nn::models::transformer
 {
@@ -37,21 +38,27 @@ TransformerAutoencoder::TransformerAutoencoder(const TransformerAutoencoderConfi
     if (D <= 0 || M <= 0 || Z <= 0 || cfg_.seq_len <= 0 || cfg_.n_layers <= 0)
         throw std::invalid_argument("TransformerAutoencoder: all dimensions must be > 0");
 
+    // cfg_.init_seed unset: the fixed seeds this model always used (4100-4103 for the four
+    // projections, 200 + l / 300 + l for encoder / decoder block l). Set: one derived seed per
+    // tensor and per block (SeedDerivation.hpp); a block spreads its seed over its own tensors.
+    const auto seed_for = [this](unsigned fixed) -> unsigned
+    { return cfg_.init_seed ? nn::utility::derive_seed(*cfg_.init_seed, fixed) : fixed; };
+
     embed_ = std::make_unique<Linear>(D, M);
-    init_linear(*embed_, 4100u);
+    init_linear(*embed_, seed_for(4100u));
     to_latent_ = std::make_unique<Linear>(M, Z);
-    init_linear(*to_latent_, 4101u);
+    init_linear(*to_latent_, seed_for(4101u));
     from_latent_ = std::make_unique<Linear>(Z, M);
-    init_linear(*from_latent_, 4102u);
+    init_linear(*from_latent_, seed_for(4102u));
     out_proj_ = std::make_unique<Linear>(M, D);
-    init_linear(*out_proj_, 4103u);
+    init_linear(*out_proj_, seed_for(4103u));
 
     for (int l = 0; l < cfg_.n_layers; ++l)
     {
         enc_blocks_.push_back(std::make_unique<Block>(
-            M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(200 + l), cfg_.norm_first));
+            M, cfg_.n_heads, cfg_.d_ff, seed_for(static_cast<unsigned>(200 + l)), cfg_.norm_first));
         dec_blocks_.push_back(std::make_unique<Block>(
-            M, cfg_.n_heads, cfg_.d_ff, static_cast<unsigned>(300 + l), cfg_.norm_first));
+            M, cfg_.n_heads, cfg_.d_ff, seed_for(static_cast<unsigned>(300 + l)), cfg_.norm_first));
     }
     if (cfg_.norm_first)
     {

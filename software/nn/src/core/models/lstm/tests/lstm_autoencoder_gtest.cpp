@@ -5,6 +5,9 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+
+#include "core/models/tests/seeded_init_checks.hpp"
 #include "layers/lstm/LSTMLayer.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
@@ -168,7 +171,8 @@ TEST(CoreLSTMAutoencoderBatch, BackwardShapeMatchesInput)
 
     nn::Tensor recon = model.forward(input, true);
     nn::Tensor grad(std::vector<nn::Index>{static_cast<nn::Index>(B),
-        static_cast<nn::Index>(cfg.seq_len), static_cast<nn::Index>(cfg.input_size)});
+        static_cast<nn::Index>(cfg.seq_len),
+        static_cast<nn::Index>(cfg.input_size)});
     for (nn::Index k = 0; k < grad.size(); ++k) grad.at(k) = 1.0f;
     nn::Tensor grad_in = model.backward(grad);
     ASSERT_EQ(grad_in.get_shape().size(), 3u);
@@ -239,3 +243,22 @@ TEST(CoreLSTMAutoencoderTest, StateDictRoundtrip)
 }
 
 } // namespace
+
+// init_seed (2026-11-04): unset keeps the fixed weights the model always had; set, every random
+// tensor is drawn from the seed, and stacked layers of one shape no longer start identical.
+TEST(LSTMAutoencoderInitSeed, UnsetKeepsTheFixedWeightsAndASeedReachesEveryTensor)
+{
+    nn::models::lstm::LSTMAutoencoderConfig cfg;
+    cfg.input_size = 3;
+    cfg.seq_len = 4;
+    cfg.hidden_size = 5;
+    cfg.latent_size = 2;
+    cfg.num_layers = 2;
+    nn::test::expect_init_seed_contract<nn::models::lstm::LSTMAutoencoder>(cfg);
+
+    // Regression anchor: unset, the first encoder layer's W is still mt19937(42)'s N(0, 0.05).
+    nn::models::lstm::LSTMAutoencoder fixed(cfg);
+    std::mt19937 rng(42u);
+    std::normal_distribution<float> dist(0.0f, 0.05f);
+    EXPECT_EQ(fixed.enc_lstms_[0]->W_.at(0), dist(rng));
+}

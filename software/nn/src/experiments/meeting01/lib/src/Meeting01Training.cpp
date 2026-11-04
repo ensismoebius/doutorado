@@ -301,7 +301,9 @@ auto make_ann_twin_cfg(const Meeting01Config& cfg, const std::vector<int>& encod
 // Build a TrainerConfig from Meeting01Config
 // ---------------------------------------------------------------------------
 
-static auto make_trainer_config(const Meeting01Config& cfg, float snn_lr_scale = 1.0F)
+// `seed` (required) orders the windows: TrainerConfig::sampler_shuffle_seed (results_format 9;
+// before, the default 42 gave every seed the same order).
+static auto make_trainer_config(const Meeting01Config& cfg, std::uint32_t seed, float snn_lr_scale)
     -> nn::training::TrainerConfig
 {
     nn::training::TrainerConfig tcfg;
@@ -312,6 +314,7 @@ static auto make_trainer_config(const Meeting01Config& cfg, float snn_lr_scale =
     tcfg.adam_beta2 = cfg.training.beta2;
     tcfg.adam_epsilon = cfg.training.epsilon;
     tcfg.lr_warmup_steps = cfg.training.lr_warmup_steps;
+    tcfg.sampler_shuffle_seed = seed;
     // If explicit biophysical lr set in profile, derive scale from it.
     tcfg.snn_lr_scale = (cfg.training.learning_rate_biophysical > 0.0f)
                             ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
@@ -514,7 +517,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     float& infer_ms) -> TrainResult
 {
     // SNN biophysical params (R, C, V_th) need ~10× smaller lr than weights [37].
-    nn::training::TrainerConfig tcfg = make_trainer_config(cfg, 0.1F);
+    nn::training::TrainerConfig tcfg = make_trainer_config(cfg, seed, 0.1F);
 
     nn::training::Trainer<ProtocolSpikingAutoencoder> trainer(model, tcfg);
 

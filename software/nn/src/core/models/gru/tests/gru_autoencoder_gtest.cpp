@@ -8,7 +8,9 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <random>
 
+#include "core/models/tests/seeded_init_checks.hpp"
 #include "models/gru/GRUAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -174,4 +176,21 @@ TEST(GRUAutoencoder, OverfitsSingleSequence)
     ae.reset_state();
     const float loss1 = sse(ae.forward(x, false), x);
     EXPECT_LT(loss1, 0.5f * loss0) << "loss0=" << loss0 << " loss1=" << loss1;
+}
+
+// init_seed (2026-11-04): see LSTMAutoencoderInitSeed; the GRU has the same contract.
+TEST(GRUAutoencoderInitSeed, UnsetKeepsTheFixedWeightsAndASeedReachesEveryTensor)
+{
+    GRUAutoencoderConfig cfg;
+    cfg.input_size = 3;
+    cfg.seq_len = 4;
+    cfg.hidden_size = 5;
+    cfg.latent_size = 2;
+    cfg.num_layers = 2;
+    nn::test::expect_init_seed_contract<GRUAutoencoder>(cfg);
+
+    GRUAutoencoder fixed(cfg);
+    std::mt19937 rng(42u);
+    std::normal_distribution<float> dist(0.0f, 0.05f);
+    EXPECT_EQ(fixed.enc_grus_[0]->W_.at(0), dist(rng));
 }

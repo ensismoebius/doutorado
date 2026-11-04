@@ -470,6 +470,15 @@ TEST(SnnCost, AnalyticEstimateRunsTheDecoderOnceAfterALatentAverage)
     // encoder 16*8 + 8*4 = 160 per step, decoder 4*8 + 8*16 = 160 per run.
     EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4), 4u * 160u + 4u * 160u);
     EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1), 4u * 160u + 160u);
+    // The first layer (16 -> 8 = 128 MACs) once instead of 4 times: 3 x 128 fewer.
+    EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1, 1),
+        4u * 160u + 160u - 3u * 128u);
+    EXPECT_EQ(meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1, 4),
+        meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1));
+    EXPECT_THROW(
+        meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1, 0), std::invalid_argument);
+    EXPECT_THROW(
+        meeting01::estimate_snn_macs(16, std::vector<int>{8, 4}, 4, 1, 5), std::invalid_argument);
 }
 
 TEST(SnnCost, EnergyAndTransformCountsUseTheDeclaredConstants)

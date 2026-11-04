@@ -1187,7 +1187,7 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     const nlohmann::json selected_hyperparams{
         {"hidden_size", winner.genome.hidden_size}, {"num_layers", winner.genome.num_layers}};
 
-    const auto lstm_cfg = meeting01::ga::to_lstm_cfg(winner.genome, config);
+    const auto lstm_cfg = meeting01::ga::to_lstm_cfg(winner.genome, config, run_seed);
     nn::models::lstm::LSTMAutoencoder model(lstm_cfg);
     const ModelCost cost = frame_ae_cost(
         config, winner.genome.encoding, estimate_lstm_macs(lstm_cfg), lstm_ae_energy(lstm_cfg));
@@ -1280,7 +1280,7 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     const nlohmann::json selected_hyperparams{
         {"hidden_size", winner.genome.hidden_size}, {"num_layers", winner.genome.num_layers}};
 
-    const auto gru_cfg = meeting01::ga::to_gru_cfg(winner.genome, config);
+    const auto gru_cfg = meeting01::ga::to_gru_cfg(winner.genome, config, run_seed);
     nn::models::gru::GRUAutoencoder model(gru_cfg);
     const ModelCost cost = frame_ae_cost(
         config, winner.genome.encoding, estimate_gru_macs(gru_cfg), gru_ae_energy(gru_cfg));
@@ -1385,7 +1385,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
         {"n_layers", winner.genome.n_layers},
         {"d_ff", winner.genome.d_ff}};
 
-    const auto tf_cfg = meeting01::ga::to_transformer_cfg(winner.genome, config);
+    const auto tf_cfg = meeting01::ga::to_transformer_cfg(winner.genome, config, run_seed);
     nn::models::transformer::TransformerAutoencoder model(tf_cfg);
     const ModelCost cost = frame_ae_cost(config,
         winner.genome.encoding,

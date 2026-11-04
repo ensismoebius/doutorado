@@ -18,6 +18,10 @@
 #include "Meeting01GaCheckpoint.hpp"
 #include "Meeting01RecurrentGaFitness.hpp"
 #include "Meeting01RecurrentGaGenome.hpp"
+#include "Meeting01Training.hpp"
+#include "Meeting01TransformerGaFitness.hpp"
+#include "Meeting01TransformerGaGenome.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
 
 namespace
 {
@@ -153,7 +157,7 @@ TEST(Meeting01RecurrentGaGenome, ToLstmCfgUsesWindowTimesRecurrentTimeStepsForSe
     cfg.model.time_steps = 16;
     cfg.model.recurrent_time_steps = 1;
     const RecurrentGenome g{96, 2, "poisson"};
-    const auto arch = meeting01::ga::to_lstm_cfg(g, cfg);
+    const auto arch = meeting01::ga::to_lstm_cfg(g, cfg, 42u);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.seq_len,
@@ -173,7 +177,7 @@ TEST(Meeting01RecurrentGaGenome, ToGruCfgUsesWindowTimesRecurrentTimeStepsForSeq
     cfg.model.time_steps = 16;
     cfg.model.recurrent_time_steps = 1;
     const RecurrentGenome g{48, 3, "latency"};
-    const auto arch = meeting01::ga::to_gru_cfg(g, cfg);
+    const auto arch = meeting01::ga::to_gru_cfg(g, cfg, 42u);
 
     EXPECT_EQ(arch.input_size, cfg.model.lstm_frame_size);
     EXPECT_EQ(arch.seq_len,
@@ -224,6 +228,122 @@ TEST(Meeting01RecurrentGaFitness, TrainsAndScoresWindowsWithAZeroPaddedTail)
     ASSERT_NO_THROW(meeting01::ga::evaluate_individual(ind, cfg, split, 1u, 0, 1));
     EXPECT_TRUE(std::isfinite(ind.val_mse));
     EXPECT_GT(ind.val_mse, 0.0f);
+}
+
+// --- results_format 9: the run seed reaches the sequence families -------------------------
+// Until format 8 the LSTM/GRU/Transformer-AE started every seed from weights fixed in the model
+// code and every family trained in one window order (TrainerConfig::sampler_shuffle_seed left at
+// 42), so the same genome trained under two seeds gave the same number to the last digit (T1,
+// questionsAndTasks.md, other findings, item 4). Now the seed reaches both; each is checked here.
+
+meeting01::Meeting01Config seed_cfg()
+{
+    auto cfg = base_cfg();
+    cfg.dataset.window_size = 16;
+    cfg.model.lstm_frame_size = 8;
+    cfg.model.time_steps = 2;
+    cfg.model.latent_dim = 4;
+    cfg.training.samples_per_batch = 1;
+    cfg.training.epochs = 2;
+    cfg.training.early_stop_patience = 2;
+    cfg.training.early_stop_min_skill = 0.1f;
+    cfg.training.learning_rate = 1e-2f;
+    return cfg;
+}
+
+meeting01::DatasetSplit seed_split()
+{
+    auto window = [](float phase)
+    {
+        meeting01::Tensor w(16, 1);
+        for (nn::Index i = 0; i < 16; ++i)
+            w.at(i, 0) = std::sin(0.7f * static_cast<float>(i) + phase);
+        return w;
+    };
+    auto meta = [](int recording)
+    { return meeting01::WindowMetadata{"s", 0, recording, recording, 0, 0, 16}; };
+    meeting01::DatasetSplit split;
+    for (int i = 0; i < 6; ++i)
+    {
+        split.train_samples.push_back(window(0.9f * static_cast<float>(i)));
+        split.train_meta.push_back(meta(i));
+    }
+    split.val_samples = {window(7.0f), window(8.3f)};
+    split.val_meta = {meta(10), meta(11)};
+    return split;
+}
+
+TEST(Meeting01SeedReach, GaEvaluationsOfOneGenomeDifferAcrossSeedsAndRepeatWithinOne)
+{
+    const auto cfg = seed_cfg();
+    const auto split = seed_split();
+    auto lstm = [&](std::uint32_t seed)
+    {
+        meeting01::ga::LstmGaIndividual ind;
+        ind.genome = RecurrentGenome{8, 1, "direct"};
+        meeting01::ga::evaluate_individual(ind, cfg, split, seed, 0, 1);
+        return ind.val_mse;
+    };
+    auto gru = [&](std::uint32_t seed)
+    {
+        meeting01::ga::GruGaIndividual ind;
+        ind.genome = RecurrentGenome{8, 1, "direct"};
+        meeting01::ga::evaluate_individual(ind, cfg, split, seed, 0, 1);
+        return ind.val_mse;
+    };
+    auto transformer = [&](std::uint32_t seed)
+    {
+        meeting01::ga::TransformerGaIndividual ind;
+        ind.genome = meeting01::ga::TransformerGenome{8, 2, 1, 16, "direct"};
+        meeting01::ga::evaluate_individual(ind, cfg, split, seed, 0, 1);
+        return ind.val_mse;
+    };
+    EXPECT_EQ(lstm(42u), lstm(42u));
+    EXPECT_NE(lstm(42u), lstm(43u));
+    EXPECT_EQ(gru(42u), gru(42u));
+    EXPECT_NE(gru(42u), gru(43u));
+    EXPECT_EQ(transformer(42u), transformer(42u));
+    EXPECT_NE(transformer(42u), transformer(43u));
+}
+
+// The window order alone: the same weights (init seed 7) trained under two run seeds.
+TEST(Meeting01SeedReach, TheRunSeedOrdersTheWindowsWithTheWeightsHeldFixed)
+{
+    const auto cfg = seed_cfg();
+    const auto split = seed_split();
+    auto train = [&](std::uint32_t run_seed)
+    {
+        nn::models::lstm::LSTMAutoencoder model(
+            meeting01::ga::to_lstm_cfg(RecurrentGenome{8, 1, "direct"}, cfg, 7u));
+        float train_ms = 0.0f;
+        float infer_ms = 0.0f;
+        return meeting01::train_with_early_stopping_lstm(model,
+            cfg,
+            split.train_samples,
+            split.val_samples,
+            split.train_meta,
+            split.val_meta,
+            "direct",
+            run_seed,
+            0,
+            1,
+            train_ms,
+            infer_ms)
+            .metrics.mse;
+    };
+    EXPECT_EQ(train(1u), train(1u));
+    EXPECT_NE(train(1u), train(2u));
+}
+
+TEST(Meeting01SeedReach, ToCfgCarriesTheSeed)
+{
+    const auto cfg = base_cfg();
+    EXPECT_EQ(meeting01::ga::to_lstm_cfg(RecurrentGenome{8, 1, "direct"}, cfg, 5u).init_seed, 5u);
+    EXPECT_EQ(meeting01::ga::to_gru_cfg(RecurrentGenome{8, 1, "direct"}, cfg, 6u).init_seed, 6u);
+    EXPECT_EQ(meeting01::ga::to_transformer_cfg(
+                  meeting01::ga::TransformerGenome{32, 2, 1, 16, "direct"}, cfg, 9u)
+                  .init_seed,
+        9u);
 }
 
 TEST(Meeting01GaCheckpoint, LstmIndividualJsonRoundTripPreservesEveryField)

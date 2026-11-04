@@ -68,16 +68,22 @@ void mutate(RecurrentGenome& g, std::mt19937& rng, const RecurrentGenomeBounds& 
     repair_recurrent(g, bounds);
 }
 
-auto to_lstm_cfg(const RecurrentGenome& g, const meeting01::Meeting01Config& cfg)
+auto to_lstm_cfg(
+    const RecurrentGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::lstm::LSTMAutoencoderConfig
 {
-    return meeting01::make_lstm_cfg(cfg, g.hidden_size, g.num_layers);
+    auto out = meeting01::make_lstm_cfg(cfg, g.hidden_size, g.num_layers);
+    out.init_seed = init_seed;
+    return out;
 }
 
-auto to_gru_cfg(const RecurrentGenome& g, const meeting01::Meeting01Config& cfg)
+auto to_gru_cfg(
+    const RecurrentGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::gru::GRUAutoencoderConfig
 {
-    return meeting01::make_gru_cfg(cfg, g.hidden_size, g.num_layers);
+    auto out = meeting01::make_gru_cfg(cfg, g.hidden_size, g.num_layers);
+    out.init_seed = init_seed;
+    return out;
 }
 
 auto genome_key(const RecurrentGenome& g) -> std::string

@@ -32,7 +32,9 @@
  */
 
 #include <cmath>
+#include <cstdint>
 #include <map>
+#include <optional>
 #include <random>
 #include <span>
 #include <stdexcept>
@@ -43,6 +45,7 @@
 #include "layers/activations/FastActivations.hpp"
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
+#include "utility/SeedDerivation.hpp"
 
 template <typename Backend>
 struct GRUStepCacheT
@@ -84,7 +87,11 @@ class GRULayerImpl : public Module<Backend>
     std::vector<GRUStepCacheT<Backend>> cache_;
     bool requires_grad_ = false;
 
-    explicit GRULayerImpl(int input_size, int hidden_size)
+    /// `init_seed` unset: W and U from the fixed seeds 42 and 43, the layer's initialisation
+    /// since it was written (every layer of one shape starts identical). Set: from
+    /// nn::utility::derive_seed(*init_seed, 0 / 1), so a run seed reaches the weights.
+    explicit GRULayerImpl(
+        int input_size, int hidden_size, std::optional<std::uint32_t> init_seed = std::nullopt)
         : input_size_(input_size),
           hidden_size_(hidden_size),
           W_(3 * hidden_size, input_size),
@@ -95,9 +102,10 @@ class GRULayerImpl : public Module<Backend>
           db_(3 * hidden_size, 1),
           h0_(1, hidden_size)
     {
-        auto normal_fill = [](Tensor& t, unsigned seed_offset)
+        auto normal_fill = [&init_seed](Tensor& t, unsigned seed_offset)
         {
-            std::mt19937 rng(42u + seed_offset);
+            std::mt19937 rng(
+                init_seed ? nn::utility::derive_seed(*init_seed, seed_offset) : 42u + seed_offset);
             std::normal_distribution<float> dist(0.0f, 0.05f);
             for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k) t.at(k) = dist(rng);
         };

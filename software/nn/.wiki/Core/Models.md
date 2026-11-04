@@ -167,10 +167,29 @@ Mean-pool and replicate are implemented as `ones`-matrix matmuls so their
 backward passes are plain matmuls. `state_dict` prefixes: `embed.`, `enc{l}.`,
 `to_latent.`, `from_latent.`, `dec{l}.`, `out_proj.`. Config
 (`TransformerAutoencoderConfig`): `input_size`, `seq_len`, `d_model`,
-`n_heads`, `n_layers`, `d_ff`, `latent_size`, `norm_first` — chosen near the recurrent
+`n_heads`, `n_layers`, `d_ff`, `latent_size`, `norm_first`, `init_seed` — chosen near the recurrent
 baselines' parameter count, with the real count reported (never "matched").
 Composed finite-difference gradient check + overfit test
 (`transformer_autoencoder_gtest.cpp`).
+
+**`init_seed` (all three sequence AEs, added 2026-11-04).**
+
+*The problem.* Until this field existed, LSTM-AE, GRU-AE and Transformer-AE drew every weight
+from seeds written in the model code (`42`/`43` per recurrent layer, `100`–`102` and `4100`–`4103`
+for the projections, `200 + l` / `300 + l` per Transformer block). So two "seeds" of an experiment
+trained the same starting network twice. Every recurrent layer of one shape also started
+identical to every other.
+
+| `init_seed` | Weights | Two models built from it |
+|---|---|---|
+| unset (default) | the fixed seeds above, unchanged byte for byte | identical, whatever run they belong to |
+| set to `s` | each tensor from `nn::utility::derive_seed(s, <its stream>)` | identical for the same `s`; different for `s ≠ s'`; stacked layers distinct |
+
+Constant initial values (zero biases, the LSTM's forget-gate 1s, LayerNorm's 1/0) are the same
+under every seed. The contract is tested once for all three models
+(`src/core/models/tests/seeded_init_checks.hpp`, `*AutoencoderInitSeed.*`). The failure it
+prevents is **silent**: a replicate that is not one still produces different-looking numbers, from
+the data split alone.
 
 **`norm_first` (added 2026-11-03, default `false`).** `true` builds every block pre-norm
 (Xiong et al. 2020 [84]; see [Layers](./Layers.md#transformer-encoder-block)) and closes each

@@ -48,6 +48,16 @@ auto estimate_snn_macs(std::size_t input_features,
     const std::vector<int>& encoder_widths,
     int encoder_steps,
     int decoder_steps) -> std::size_t;
+/// The same with the FIRST encoder layer run `first_layer_steps` times: 1 when the input is
+/// the same at every step (snn_input_repeats_every_step), so its current is computed once,
+/// the rule energy_nj and count_snn_ops follow since results_format 8; the GA's cost
+/// objective follows it since format 9. Throws std::invalid_argument unless
+/// 1 <= first_layer_steps <= encoder_steps.
+auto estimate_snn_macs(std::size_t input_features,
+    const std::vector<int>& encoder_widths,
+    int encoder_steps,
+    int decoder_steps,
+    int first_layer_steps) -> std::size_t;
 /// The same with the decoder run as many times as the encoder.
 auto estimate_snn_macs(
     std::size_t input_features, const std::vector<int>& encoder_widths, int time_steps)

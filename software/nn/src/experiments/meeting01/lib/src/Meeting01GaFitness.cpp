@@ -66,12 +66,15 @@ void evaluate_individual(Meeting01GaIndividual& ind,
     ind.val_mse = train_result.metrics.mse;
     ind.param_count = meeting01::parameter_count(model.params());
     // Spike-blind and analytic (it ranks genomes, so it must not depend on how one training
-    // run happened to fire); the decoder runs once when the latent is averaged over time.
+    // run happened to fire); the decoder runs once when the latent is averaged over time, and
+    // the first layer once when the input repeats at every step (results_format 9: the same
+    // rule as energy_nj; before, a direct genome's first layer was charged T times here).
     ind.inference_cost =
         meeting01::estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),
             g.encoder_widths,
             g.time_steps,
-            cfg.model.snn_time_pool == "latent" ? 1 : g.time_steps);
+            cfg.model.snn_time_pool == "latent" ? 1 : g.time_steps,
+            meeting01::snn_input_repeats_every_step(g.encoding, g.architecture) ? 1 : g.time_steps);
 
     ind.feasible = true;
     ind.constraint_violation = 0.0;

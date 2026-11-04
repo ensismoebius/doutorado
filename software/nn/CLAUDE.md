@@ -344,6 +344,7 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py` |
 | LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
 | Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |
+| Transformer warm-up / pre-norm test (T1) | `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `05_meeting01_t1_transformer.py` |
 
 ---
 
@@ -372,11 +373,12 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 8)**: the paper reads only generated files in its
+**Paper data contract (results_format 9)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
-`paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`);
+`paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`,
+`paper_t1.tex`);
 never type a configuration number or a result into `paper.tex`. Before the run they are
 placeholders: `meeting01 --comparative --comparative-config <profile> --print-resolved-config >
 cfg.json`, then `02_ --placeholders cfg.json --data-dir <paper>/data`,
@@ -395,8 +397,13 @@ current's n_out writes and T·n_out reads; `energy_nj_as_executed` keeps the T-t
 check. Every energy claim is generated with a robustness clause over `ENERGY_CHECKS`
 (`meeting01_results.py`: one SRAM size 8 KB / 32 KB / 1 MB, arithmetic alone, as executed). A
 new layer type in any family needs an energy model or `walk_sequential` throws; a
-`repeated_steps > 1` on a network not starting Linear→LifBPTT throws. The GA cost objective
-(`estimate_snn_macs`) still counts the direct first layer T times (pending decision).
+`repeated_steps > 1` on a network not starting Linear→LifBPTT throws. Since format 9 the GA cost
+objective (`estimate_snn_macs(..., first_layer_steps)`) counts it once as well.
+
+**Seeds (results_format 9)**: the run seed reaches every training. LSTM/GRU/Transformer-AE configs
+carry `init_seed` (set by `to_*_cfg`, seed argument required; unset = the old fixed weights), and
+`TrainerConfig::sampler_shuffle_seed = seed` for every family. Before, the three sequence models
+started every seed from the same weights and every family saw one window order.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's
@@ -409,8 +416,9 @@ while the sink is open throws.
 
 **Transformer switches (2026-11-03, default off = old behaviour)**: `training.lr_warmup_steps`
 (linear warm-up, Adam only, `TrainerConfig::lr_warmup_steps`) and `model.transformer_norm_first`
-(pre-norm blocks + a final LayerNorm per stack). Used by T1 (`results/meeting01_t1/`), not by the
-production profiles.
+(pre-norm blocks + a final LayerNorm per stack). Used by T1
+(`scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `EXPERIMENT_CONFIRMED=1`, tens of
+minutes locally → `results/meeting01_t1/`, `data/paper_t1.tex`), not by the production profiles.
 
 **No ghosts**: the grid runs `snn-ae` + `ann-ae` only (LSTM/GRU/Transformer-AE removed
 2026-11-02). Every paper element follows `configured_families(config)` in

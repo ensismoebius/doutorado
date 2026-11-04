@@ -6,11 +6,14 @@
 
 #include "models/gru/GRUAutoencoder.hpp"
 
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <utility>
 
 #include "layers/gru/GRULayer.hpp"
+#include "utility/SeedDerivation.hpp"
 
 namespace nn::models::gru
 {
@@ -22,10 +25,22 @@ GRUAutoencoder::GRUAutoencoder(const GRUAutoencoderConfig& cfg) : cfg_(cfg)
     const int Z = cfg_.latent_size;
     const int L = cfg_.num_layers;
 
+    // cfg_.init_seed unset: the fixed seeds this model always used (100/101/102 for the
+    // projections, the layer's own 42/43 for every recurrent layer). Set: one derived seed per
+    // tensor and per layer (encoder 1000 + l, decoder 2000 + l), see SeedDerivation.hpp.
+    const auto tensor_seed = [this](unsigned fixed) -> unsigned
+    { return cfg_.init_seed ? nn::utility::derive_seed(*cfg_.init_seed, fixed) : fixed; };
+    const auto layer_seed = [this](unsigned stream) -> std::optional<std::uint32_t>
+    {
+        if (!cfg_.init_seed) return std::nullopt;
+        return nn::utility::derive_seed(*cfg_.init_seed, stream);
+    };
+
     for (int l = 0; l < L; ++l)
     {
         const int in_dim = (l == 0) ? D : H;
-        enc_grus_.push_back(std::make_unique<GRULayer>(in_dim, H));
+        enc_grus_.push_back(
+            std::make_unique<GRULayer>(in_dim, H, layer_seed(1000u + static_cast<unsigned>(l))));
     }
 
     auto normal_fill = [](Tensor& t, unsigned seed)
@@ -36,17 +51,19 @@ GRUAutoencoder::GRUAutoencoder(const GRUAutoencoderConfig& cfg) : cfg_(cfg)
     };
 
     enc_proj_ = std::make_unique<Linear>(H, Z);
-    normal_fill(enc_proj_->weight, 100u);
+    normal_fill(enc_proj_->weight, tensor_seed(100u));
     enc_proj_->bias.set_zero();
 
     dec_expand_ = std::make_unique<Linear>(Z, H);
-    normal_fill(dec_expand_->weight, 101u);
+    normal_fill(dec_expand_->weight, tensor_seed(101u));
     dec_expand_->bias.set_zero();
 
-    for (int l = 0; l < L; ++l) dec_grus_.push_back(std::make_unique<GRULayer>(H, H));
+    for (int l = 0; l < L; ++l)
+        dec_grus_.push_back(
+            std::make_unique<GRULayer>(H, H, layer_seed(2000u + static_cast<unsigned>(l))));
 
     out_proj_ = std::make_unique<Linear>(H, D);
-    normal_fill(out_proj_->weight, 102u);
+    normal_fill(out_proj_->weight, tensor_seed(102u));
     out_proj_->bias.set_zero();
 
     build_param_ptrs();

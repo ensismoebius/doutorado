@@ -62,7 +62,14 @@ namespace meeting01
 //           evaluations log their own identity in the events file (format 7 logged every
 //           evaluation after a final fit under that fit's identity). No production fold ran with
 //           format 7; the pre-validation job 5315335 did.
-inline constexpr int kResultsFormat = 8;
+//   9       2026-11-04. The run seed reaches every training: the LSTM/GRU/Transformer-AE draw
+//           their weights from it (format 8 started all three from weights fixed in the model
+//           code, so their seeds sampled no initialisation) and every family's window order
+//           comes from it (TrainerConfig::sampler_shuffle_seed; format 8 used 42 for every
+//           seed). The SNN GA's cost objective counts a repeated input's first layer once,
+//           as energy_nj does (format 8 charged it T times there), so the search changes.
+//           No production fold ran with format 8; T1 (results/meeting01_t1) did, locally.
+inline constexpr int kResultsFormat = 9;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

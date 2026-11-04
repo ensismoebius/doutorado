@@ -58,7 +58,10 @@ from collections import defaultdict
 #: Format 8 counts an SNN-AE input that is the same at every step (direct code through the
 #: dense or conv1d transform) once per window in energy_nj, its repricings, macs, acs and
 #: arith_energy_nj, and adds energy_nj_as_executed, the every-step count, as a check.
-RESULTS_FORMAT = 8
+#: Format 9 seeds every training from its run seed: the LSTM/GRU/Transformer-AE weights and
+#: every family's window order (format 8 fixed both for the sequence families and the order
+#: for all), and the SNN GA's cost objective counts a repeated first layer once.
+RESULTS_FORMAT = 9
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -79,6 +82,9 @@ _OLDER_FORMATS = {
        "code runs it, in energy_nj, macs and arith_energy_nj (format 8 prices a repeated input "
        "once and keeps the every-step count as energy_nj_as_executed), and its GA evaluations "
        "were logged under the previous final fit's identity",
+    8: "the LSTM/GRU/Transformer-AE started every seed from the same weights and every family "
+       "saw one window order whatever the seed, so its seeds sampled neither, and the SNN GA's "
+       "cost objective charged a direct-coded first layer T times",
 }
 
 PW_HEADER = [

@@ -131,10 +131,13 @@ void mutate(
     repair_transformer(g, bounds);
 }
 
-auto to_transformer_cfg(const TransformerGenome& g, const meeting01::Meeting01Config& cfg)
+auto to_transformer_cfg(
+    const TransformerGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::transformer::TransformerAutoencoderConfig
 {
-    return meeting01::make_transformer_cfg(cfg, g.d_model, g.n_heads, g.n_layers, g.d_ff);
+    auto out = meeting01::make_transformer_cfg(cfg, g.d_model, g.n_heads, g.n_layers, g.d_ff);
+    out.init_seed = init_seed;
+    return out;
 }
 
 auto genome_key(const TransformerGenome& g) -> std::string

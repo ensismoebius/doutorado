@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>
@@ -53,7 +54,12 @@ TransformerGenome crossover(const TransformerGenome& a,
 void mutate(
     TransformerGenome& g, std::mt19937& rng, const TransformerGenomeBounds& bounds, double prob);
 
-auto to_transformer_cfg(const TransformerGenome& g, const meeting01::Meeting01Config& cfg)
+// `init_seed` is REQUIRED and becomes the config's init_seed: every model the GA or a final fit
+// builds starts from weights drawn from its run's seed (results_format 9). Before, the three
+// sequence models always started from the same weights, so their "seeds" sampled no
+// initialisation at all (questionsAndTasks.md, other findings, item 4).
+auto to_transformer_cfg(
+    const TransformerGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::transformer::TransformerAutoencoderConfig;
 
 auto genome_key(const TransformerGenome& g) -> std::string;

@@ -29,6 +29,8 @@
  *   backward(Tensor{B, T, H})→ Tensor{B, T, D} — batch; grads W/U/b accumulated over B
  */
 
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <stdexcept>
 #include <tuple>
@@ -39,6 +41,7 @@
 #include "layers/activations/Tanh.hpp"
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
+#include "utility/SeedDerivation.hpp"
 
 template <typename Backend>
 struct LSTMStepCacheT
@@ -89,7 +92,11 @@ class LSTMLayerImpl : public Module<Backend>
     std::vector<LSTMStepCacheT<Backend>> cache_;
     bool requires_grad_ = false;
 
-    explicit LSTMLayerImpl(int input_size, int hidden_size)
+    /// `init_seed` unset: W and U from the fixed seeds 42 and 43, the layer's initialisation
+    /// since it was written (every layer of one shape starts identical). Set: from
+    /// nn::utility::derive_seed(*init_seed, 0 / 1), so a run seed reaches the weights.
+    explicit LSTMLayerImpl(
+        int input_size, int hidden_size, std::optional<std::uint32_t> init_seed = std::nullopt)
         : input_size_(input_size),
           hidden_size_(hidden_size),
           W_(4 * hidden_size, input_size),
@@ -101,9 +108,10 @@ class LSTMLayerImpl : public Module<Backend>
           h0_(1, hidden_size),
           c0_(1, hidden_size)
     {
-        auto normal_fill = [](Tensor& t, unsigned seed_offset)
+        auto normal_fill = [&init_seed](Tensor& t, unsigned seed_offset)
         {
-            std::mt19937 rng(42u + seed_offset);
+            std::mt19937 rng(
+                init_seed ? nn::utility::derive_seed(*init_seed, seed_offset) : 42u + seed_offset);
             std::normal_distribution<float> dist(0.0f, 0.05f);
             for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k) t.at(k) = dist(rng);
         };

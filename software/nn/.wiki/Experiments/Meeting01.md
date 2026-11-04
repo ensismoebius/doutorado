@@ -2146,9 +2146,11 @@ table gains an "As exec." column.
 | Every other model and input | identical | identical |
 | Favours | the SNN-AE (the claim it could flatter is "SNN-AE costs more") | — |
 
-**Not changed, a pending decision:** the GA's cost objective (`estimate_snn_macs`) still counts
-the direct first layer T times. It only shapes the Pareto front and breaks ties (the winner is the
-front's lowest validation MSE). Changing it would change the search.
+**GA cost objective (results_format 9, 2026-11-04):** `estimate_snn_macs(..., first_layer_steps)`
+counts the repeated first layer once too (`first_layer_steps = 1` when
+`snn_input_repeats_every_step`), so the search ranks a direct genome by the same rule as its
+`energy_nj`. Format 8 still charged it T times there. It shapes the Pareto front and breaks ties
+(the winner is the front's lowest validation MSE), so the search changes.
 
 ### Events: one context, one training
 
@@ -2176,10 +2178,16 @@ locally (CPU, xtensor). Arms and criterion were fixed before the run (`questions
   1 layer), c2 = (24, 101, 4 heads, 3 layers). Seeds: 42 and 43.
 * Each run is the job's transformer-ae profile with the GA pinned to one genome (population 1,
   generations 0, winner_seeds 1: one search training, then the final fit) and one arm switch.
-* Profiles: `results/meeting01_t1/profiles/`. Results: `results/meeting01_t1/<cfg>_<arm>/`.
+* Run by `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh` (`EXPERIMENT_CONFIRMED=1`),
+  which generates the profiles from `meeting01-prevalidation.json` (`05_..._transformer.py
+  --profiles`, winners in its `WINNERS`), runs the 12 processes and writes
+  `results/meeting01_t1/t1_summary.csv` and the paper's `data/paper_t1.tex` (`\tOneVerdict`).
+  Since 2026-11-04 it covers EEGMMIDB fold 0 too (winners (96, 135, 8 heads, 1 layer) and
+  (79, 105, 1 head, 1 layer)).
 * Success: the run arms (validation ≤ 0.90 · L0) **and** its test MSE is clearly below L0.
 
-**Result (2026-11-04, local, 18 distinct trainings).** L0 = 1.001 on validation and 0.996 on test.
+**First result (2026-11-04, results_format 8, FSDD only, before the seed fix; its files were
+deleted, the numbers are kept here and in `questionsAndTasks.md`).** L0 = 1.001 on validation and 0.996 on test.
 "Windows" is the share of the 1500 test windows whose error is at least 10% below the mean
 predictor's.
 
@@ -2212,9 +2220,14 @@ constants in the model code, and `train_ae` never sets `TrainerConfig::sampler_s
 The seed changes only the GA's genome sampling and the final fit's recording-disjoint monitor
 carve. SNN-AE and ANN-AE do get the seed in their initialisation (`initializer_seed`,
 `proto.seed`). No meeting01 path seeds the shuffle, so every family sees one window order across
-all seeds. The proposed fix is to seed all three sequence models and the sampler of every family
-with the run seed. It changes results, so it is pending the author's decision and goes with the
-next pre-validation run.
+all seeds. **Fixed in results_format 9 (2026-11-04):** `LSTMAutoencoderConfig` / `GRUAutoencoderConfig` /
+`TransformerAutoencoderConfig::init_seed` (unset = the old fixed weights, byte for byte), set from
+the run seed by `to_lstm_cfg` / `to_gru_cfg` / `to_transformer_cfg`, whose seed argument is
+required; `train_ae` and the SNN path set `TrainerConfig::sampler_shuffle_seed = seed`. Per-tensor
+seeds come from `nn::utility::derive_seed(seed, stream)` (`include/utility/SeedDerivation.hpp`,
+`std::seed_seq`), not `seed + offset`, under which run 42's second tensor would be run 43's first.
+Tests: `*AutoencoderInitSeed.*`, `SeedDerivation.*`, `Meeting01SeedReach.*` (the same genome
+trained under two seeds now differs, and the window order alone changes the result).
 
 Both switches default to off, and off reproduces the old behaviour byte for byte. The two
 fields are in `resolved_config_json`, so the config hash changes, which is why a format-7 GA

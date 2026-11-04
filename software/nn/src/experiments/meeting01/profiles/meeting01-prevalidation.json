@@ -134,7 +134,7 @@
                 "voltage_threshold_max": 1.5,
                 "alpha_min": 0.8,
                 "alpha_max": 0.99,
-                "_time_steps_comment": "T, an integer drawn uniformly in [2, 32] (author's decision 2026-11-02: a free range, not preset values). 2 is the least validate() accepts (one step leaves alpha and the poisson/latency codes without a time axis); 32 is twice the largest T measured on EEG (16, the best there). Every step is a dense pass of the first layer for direct input, so the GA's cost objective (estimate_snn_macs) grows with T: it keeps cheaper genomes on the Pareto front, but the winner is the front's lowest re-scored validation MSE (cost only breaks ties), so a longer T is selected only when it validates better.",
+                "_time_steps_comment": "T, an integer drawn uniformly in [2, 32] (author's decision 2026-11-02: a free range, not preset values). 2 is the least validate() accepts (one step leaves alpha and the poisson/latency codes without a time axis); 32 is twice the largest T measured on EEG (16, the best there). The GA's cost objective (estimate_snn_macs) grows with T: every layer runs at every step, except that a direct-coded input through dense/conv1d has its first layer counted once (results_format 9, the energy_nj rule); it keeps cheaper genomes on the Pareto front, but the winner is the front's lowest re-scored validation MSE (cost only breaks ties), so a longer T is selected only when it validates better.",
                 "time_steps_min": 2,
                 "time_steps_max": 32
             },

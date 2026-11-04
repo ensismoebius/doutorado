@@ -235,6 +235,9 @@ auto train_ae(Model& model,
     tcfg.adam_beta2 = cfg.training.beta2;
     tcfg.adam_epsilon = cfg.training.epsilon;
     tcfg.lr_warmup_steps = cfg.training.lr_warmup_steps;
+    // The run's seed orders the windows (results_format 9). Left at its default (42) until
+    // then, every seed of every family saw the same window order.
+    tcfg.sampler_shuffle_seed = seed;
 
     nn::training::Trainer<Model> trainer(model, tcfg);
 

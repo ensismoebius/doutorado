@@ -8,7 +8,9 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <random>
 
+#include "core/models/tests/seeded_init_checks.hpp"
 #include "models/transformer/TransformerAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -220,4 +222,22 @@ TEST(TransformerAutoencoder, OverfitsSingleSequence)
     ae.reset_state();
     const float loss1 = sse(ae.forward(x, false), x);
     EXPECT_LT(loss1, 0.6f * loss0) << "loss0=" << loss0 << " loss1=" << loss1;
+}
+
+// init_seed (2026-11-04): unset keeps the fixed weights (embed_ from mt19937(4100), the blocks
+// from 200 + l / 300 + l); set, every random tensor of every block is drawn from the seed, in
+// the post-norm and the pre-norm wiring alike.
+TEST(TransformerAutoencoderInitSeed, UnsetKeepsTheFixedWeightsAndASeedReachesEveryTensor)
+{
+    auto c = small_cfg();
+    c.n_layers = 2;
+    nn::test::expect_init_seed_contract<TransformerAutoencoder>(c);
+    c.norm_first = true;
+    nn::test::expect_init_seed_contract<TransformerAutoencoder>(c);
+
+    c.norm_first = false;
+    TransformerAutoencoder fixed(c);
+    std::mt19937 rng(4100u);
+    std::normal_distribution<float> dist(0.0f, 0.05f);
+    EXPECT_EQ(fixed.embed_->weight.at(0), dist(rng));
 }

@@ -6,6 +6,9 @@
  * @brief Configuration for the bottlenecked Transformer autoencoder.
  */
 
+#include <cstdint>
+#include <optional>
+
 namespace nn::models::transformer
 {
 
@@ -21,6 +24,10 @@ struct TransformerAutoencoderConfig
     /// Pre-norm blocks (Xiong et al., ICML 2020) and a final LayerNorm closing each stack,
     /// instead of the post-norm blocks of Vaswani et al. 2017 (TransformerEncoderBlock.hpp).
     bool norm_first = false;
+    /// Unset (the default): every weight from a seed fixed in the model's code, so two runs
+    /// start from the same weights whatever their seed. Set: every weight tensor from
+    /// nn::utility::derive_seed(*init_seed, <its stream>), distinct per layer and tensor.
+    std::optional<std::uint32_t> init_seed;
 };
 
 } // namespace nn::models::transformer

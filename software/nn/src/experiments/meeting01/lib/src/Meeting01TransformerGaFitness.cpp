@@ -16,7 +16,7 @@ void evaluate_individual(TransformerGaIndividual& ind,
     std::size_t progress_total)
 {
     const TransformerGenome& g = ind.genome;
-    const auto tf_cfg = to_transformer_cfg(g, cfg);
+    const auto tf_cfg = to_transformer_cfg(g, cfg, seed);
 
     nn::models::transformer::TransformerAutoencoder model(tf_cfg);
 

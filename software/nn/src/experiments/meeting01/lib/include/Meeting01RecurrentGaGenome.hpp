@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>
@@ -64,9 +65,15 @@ void mutate(
 // mirrors Meeting01GaGenome::to_ae_config's "override a copy, never rebuild from
 // scratch" rule, for the same reason: fields the genome doesn't own must survive
 // untouched.
-auto to_lstm_cfg(const RecurrentGenome& g, const meeting01::Meeting01Config& cfg)
+// `init_seed` is REQUIRED and becomes the config's init_seed: every model the GA or a final fit
+// builds starts from weights drawn from its run's seed (results_format 9). Before, the three
+// sequence models always started from the same weights, so their "seeds" sampled no
+// initialisation at all (questionsAndTasks.md, other findings, item 4).
+auto to_lstm_cfg(
+    const RecurrentGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::lstm::LSTMAutoencoderConfig;
-auto to_gru_cfg(const RecurrentGenome& g, const meeting01::Meeting01Config& cfg)
+auto to_gru_cfg(
+    const RecurrentGenome& g, const meeting01::Meeting01Config& cfg, std::uint32_t init_seed)
     -> nn::models::gru::GRUAutoencoderConfig;
 
 auto genome_key(const RecurrentGenome& g) -> std::string;

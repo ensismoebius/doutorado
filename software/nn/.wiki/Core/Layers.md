@@ -474,6 +474,12 @@ semantics. The backward pass is a full BPTT and is checked against central
 finite differences on `W_`, `U_`, `b_`, and the input gradient
 (`gru_layer_gtest.cpp`).
 
+**Initial weights (`LSTMLayerImpl` and `GRULayerImpl`, third constructor argument `init_seed`,
+added 2026-11-04).** Unset (the default), `W_` and `U_` come from `N(0, 0.05)` seeded 42 and 43,
+as they always did. Every layer of one shape therefore starts identical, and so does every run.
+Set, they come from `nn::utility::derive_seed(*init_seed, 0 / 1)`. The autoencoders pass one
+derived seed per layer (see [Models](./Models.md), `init_seed`).
+
 ### LayerNorm
 
 **Layer normalization** [75] standardises each row of the input independently
