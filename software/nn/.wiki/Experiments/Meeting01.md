@@ -2088,12 +2088,46 @@ Recorded per training in the events log (`config_begin`: `trivial_val_loss`, `ar
 `early_stop_min_skill`; `train_end`: `armed_epoch`, null when never armed). Smoke
 (2026-11-03, 2-epoch tiny profile): $L_0$ = 1.008, `arm_below` = 0.907, 7 of 99 trainings armed.
 
-**Why s = 0.10** (`training.early_stop_min_skill`, required, in [0, 1)): of job 5314513's 216
-trainings, 87 ended on the plateau (last monitor MSE ≥ 0.95). The deepest dip of a
-run that **never left** it was a skill of 0.066 (GRU-AE, FSDD: 0.937 at epoch 2, back to
-0.999), so 0.10 is not armed by noise on the plateau. Two runs went past it (0.092 and 0.15)
-and then fell back; the best-weight restore keeps their good epoch. References: patience
-criteria [82]; the best-parameters meta-algorithm, Alg. 7.1 of [83].
+**Why s = 0.10** (`training.early_stop_min_skill`, required, in [0, 1)).
+
+The threshold has one job: a run sitting on the plateau must not arm, or patience stops it and the
+mean predictor enters the results as a trained model. So s must sit above what plateau noise
+reaches. The first value came from format-7 runs (deepest excursion 0.066), whose FSDD plateau
+was shaped by the WAV header, so it was measured again on the corrected windows
+(`06_meeting01_stopping_calibration.py`, the pre-validation profile cut to 4 random genomes per
+family, `results/meeting01_s_calibration/`): 84 trainings of the five families, fold 0 of FSDD and
+EEGMMIDB, monitor losses only.
+
+| dataset | trainings | plateau | collapsed | learned | deepest plateau excursion | lowest learned peak | learned below 0.10 |
+|---|---|---|---|---|---|---|---|
+| EEGMMIDB | 42 | 16 | 0 | 26 | 0.0505 (GRU-AE) | 0.1004 (GRU-AE) | 0 |
+| FSDD | 42 | 13 | 1 | 28 | 0.0487 (Transformer-AE) | 0.0519 (GRU-AE) | 14 |
+
+No plateau run passed 0.0505, so 0.10 is about twice what noise reaches. EEGMMIDB shows a clean
+gap around it. FSDD does not: 14 runs of LSTM/GRU/Transformer-AE learned a little (peaks 0.052 to
+0.095) and never armed.
+
+The rule fixed before the run (`choose`) refused 0.10 because of those 14: s must not exceed the
+lowest learned peak. That condition treats a run that cannot arm as a harmed run, so it was
+measured. Replaying each recorded curve through `EarlyStoppingCallback`'s rule (`replay`; exact for
+a lower s, since arming sooner only cuts a curve earlier):
+
+| s | epochs, of 2349 | runs stopping sooner | runs with a worse best monitor loss | SNN-AE and ANN-AE runs changed |
+|---|---|---|---|---|
+| 0.08 | 2345 | 2 | 0 | 0 |
+| 0.06 | 2340 | 3 | 1 | 0 |
+| 0.05 | 2336 | 4 | 2 | 0 |
+
+All 14 ended within 0.01 of their peak, so patience had almost nothing to cut. **Decision (author,
+2026-11-05): keep 0.10**, overriding the automatic refusal, which remains in the script as its
+output. A lower s would save 0.6% of the epochs at best, and leave the grid's two families
+unchanged.
+
+**"Armed" does not mean "learned", silently.** On FSDD a run can reach 0.09 without arming, so a
+report that counts armed runs as "left the plateau" (T1's verdict, the pre-validation) undercounts
+the sequence models there. Read their monitor curves, or their test error, instead.
+
+References: patience criteria [82]; the best-parameters meta-algorithm, Alg. 7.1 of [83].
 
 ### The problem: the energy counted arithmetic only
 

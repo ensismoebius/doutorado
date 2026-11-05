@@ -20,6 +20,12 @@ The rule, fixed before the first run. For each training, skill(e) = 1 - monitor(
         run. If no candidate qualifies, or s exceeds the lowest peak of a learned run (s would
         keep a real learner from ever arming), no value is chosen and a person must look.
 
+Outcome (2026-11-05, results_format 10, 84 trainings). The rule returned no value: 14 of the 54
+learned runs (all FSDD, sequence families) peak below 0.10, the lowest at 0.0519. The author kept
+0.10: no plateau run passed 0.0505, and replaying the curves at s = 0.05 saves 13 of 2349 epochs and
+changes no SNN-AE or ANN-AE training (`what_if`, printed by --report). The numbers and the reasoning
+are in .wiki/Experiments/Meeting01.md, "Why s = 0.10".
+
 Usage (from software/nn):
     06_meeting01_stopping_calibration.py --profile --base P --out F    the reduced profile
     06_meeting01_stopping_calibration.py --report --out-root D         D/stopping_calibration.csv
@@ -46,6 +52,10 @@ from meeting01_results import RESULTS_FORMAT, ResultsError  # noqa: E402
 PLATEAU_LAST_SKILL = 0.05
 PLATEAU_MAX_EPOCHS_ABOVE = 2
 CANDIDATES = (0.10, 0.15, 0.20, 0.25)
+CURRENT_S = 0.10
+WHAT_IF = (0.05, 0.06, 0.08)
+PATIENCE = 5  # training.early_stop_patience in the production profiles
+MIN_DELTA = 1e-8  # EarlyStoppingCallback's default, the one meeting01 passes
 FIELDS = ["dataset", "family", "config_id", "epochs", "trivial_loss", "peak_skill", "last_skill",
           "epochs_above", "kind"]
 
@@ -99,6 +109,48 @@ def choose(rows: list[dict]) -> tuple[float | None, str]:
     return s, f"deepest plateau excursion {deepest:.4f}, lowest learned peak {low}"
 
 
+def replay(trivial: float, losses: list[float], s: float, patience: int = PATIENCE) -> tuple[int, float]:
+    """(epochs run, best monitor loss) of a training under threshold s, from its recorded curve.
+
+    EarlyStoppingCallback's rule, epoch by epoch. Exact for an s below the one the run used: arming
+    earlier only cuts the recorded curve sooner. It cannot extend a curve, so it says nothing
+    about an s above the run's.
+    """
+    arm_below = (1.0 - s) * trivial
+    best = float("inf")
+    armed = False
+    bad = 0
+    for epoch, loss in enumerate(losses, start=1):
+        armed = armed or loss <= arm_below
+        if loss < best - MIN_DELTA:
+            best = loss
+            bad = 0
+        elif armed:
+            bad += 1
+            if bad >= patience:
+                return epoch, best
+    return len(losses), best
+
+
+def what_if(rows: list[dict], s: float, base: float) -> dict:
+    """What a lower s would have changed, against the same curves replayed at `base`."""
+    if s >= base:
+        raise ResultsError(f"replay cannot extend a curve: s {s} must be below {base}")
+    out = {"epochs": 0, "base_epochs": 0, "stopped_sooner": 0, "worse": 0, "worst_loss": 0.0,
+           "plateau_stopped": 0}
+    for r in rows:
+        ep, best = replay(r["trivial_loss"], r["losses"], s)
+        base_ep, base_best = replay(r["trivial_loss"], r["losses"], base)
+        out["epochs"] += ep
+        out["base_epochs"] += base_ep
+        out["stopped_sooner"] += ep < base_ep
+        loss = (best - base_best) / r["trivial_loss"]
+        out["worse"] += loss > 1e-3
+        out["worst_loss"] = max(out["worst_loss"], loss)
+        out["plateau_stopped"] += r["kind"] != "learned" and ep < base_ep
+    return out
+
+
 def read_events(path: pathlib.Path) -> list[dict]:
     """One record per training, in file order."""
     out: list[dict] = []
@@ -134,14 +186,14 @@ def collect(out_root: pathlib.Path) -> list[dict]:
             raise ResultsError(f"{manifest}: results_format {got}, need {RESULTS_FORMAT}")
         for t in read_events(f):
             rows.append({"dataset": dataset, "family": family, "config_id": t["config_id"],
-                         **classify(float(t["trivial"]), t["losses"])})
+                         "losses": t["losses"], **classify(float(t["trivial"]), t["losses"])})
     return rows
 
 
 def report(out_root: pathlib.Path) -> tuple[float | None, str]:
     rows = collect(out_root)
     with (out_root / "stopping_calibration.csv").open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS)
+        w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
     for ds in sorted({r["dataset"] for r in rows}):
@@ -160,6 +212,17 @@ def report(out_root: pathlib.Path) -> tuple[float | None, str]:
         if r["kind"] != "learned":
             print(f"  {r['kind']}: {r['dataset']} {r['family']} peak {r['peak_skill']:.4f} "
                   f"last {r['last_skill']:.4f} epochs above {r['epochs_above']}/{r['epochs']}")
+    below = [r for r in rows if r["kind"] == "learned" and r["peak_skill"] < CURRENT_S]
+    print(f"learned runs that never reach {CURRENT_S}: {len(below)} of "
+          f"{sum(1 for r in rows if r['kind'] == 'learned')}")
+    for label, sub in (("all families", rows),
+                       ("SNN-AE + ANN-AE", [r for r in rows if r["family"] == "snn-ae"])):
+        for lower in WHAT_IF:
+            w = what_if(sub, lower, CURRENT_S)
+            print(f"  {label}, s = {lower} instead of {CURRENT_S}: epochs {w['base_epochs']} -> "
+                  f"{w['epochs']}, {w['stopped_sooner']} runs stop sooner, {w['worse']} end with "
+                  f"a worse best monitor loss (worst +{w['worst_loss']:.4f} of L0), "
+                  f"{w['plateau_stopped']} of them not learners")
     s, why = choose(rows)
     print(f"s = {s}: {why}")
     return s, why
@@ -175,6 +238,23 @@ def self_test() -> int:
 
     def row(kind, peak):
         return {"kind": kind, "peak_skill": peak}
+    # Armed at 0.9, then 5 epochs without a new best: stops at the 6th epoch, keeps 0.85.
+    assert replay(1.0, [1.0, 0.85, 0.9, 0.9, 0.9, 0.9, 0.9, 0.7], 0.10) == (7, 0.85)
+    # Never armed: every epoch runs, whatever the bad streak.
+    assert replay(1.0, [0.99, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.98], 0.10) == (8, 0.98)
+    # The epoch crossing the level is a new best: the count starts at zero there.
+    assert replay(1.0, [0.95, 0.96, 0.96, 0.96, 0.96, 0.96, 0.8], 0.05) == (6, 0.95)
+    curve = {"trivial_loss": 1.0, "kind": "learned",
+             "losses": [0.95, 0.96, 0.96, 0.96, 0.96, 0.96, 0.8]}
+    w = what_if([curve], 0.05, 0.10)
+    assert (w["epochs"], w["base_epochs"], w["stopped_sooner"], w["worse"]) == (6, 7, 1, 1)
+    try:
+        what_if([curve], 0.10, 0.10)
+    except ResultsError:
+        pass
+    else:
+        raise AssertionError("a replay above the run's s must be refused")
+
     assert choose([row("plateau", 0.066), row("learned", 0.3)])[0] == 0.10
     assert choose([row("plateau", 0.10), row("learned", 0.3)])[0] == 0.15, "strictly above"
     assert choose([row("plateau", 0.3)])[0] is None
