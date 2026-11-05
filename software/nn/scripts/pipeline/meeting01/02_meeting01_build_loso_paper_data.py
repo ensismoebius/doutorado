@@ -89,7 +89,9 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_ORDER,
     DATASET_SHORT,
+    DESIGN_INFORMED_FOLDS,
     DEVELOPMENT_FOLDS,
+    EQUIVALENCE_MARGIN,
     ENERGY_CHECKS,
     ENERGY_CHECKS_HOLD,
     ENERGY_COLUMNS,
@@ -104,6 +106,7 @@ from meeting01_results import (  # noqa: E402
     fold_files,
     folds_text,
     is_headline_fold,
+    pca_energy_nj,
     paper_datasets,
     printed_configuration,
     read_per_window,
@@ -142,12 +145,16 @@ _BASELINE_FAMILY_LABEL = {
 # where the widths came from and has no genome or val_mse of its own. Its manifest is
 # still cross-checked against its test row; it just has no selection table.
 _UNSEARCHED_FAMILY_LABEL = {
-    "ann-ae": "ANN-AE (matched)",
+    "ann-ae": "ANN-AE (control)",
 }
 # The comparative-CSV columns this script reads (write_rows_csv, Meeting01Output.cpp).
 _COMPARATIVE_COLUMNS = ("dataset", "model", "encoding", "architecture", "run", "seed", "split",
                         "cv_fold", "mse", "mae", "r2", "train_ms", "infer_ms", "param_count",
-                        "macs", "acs", *ENERGY_COLUMNS, "spike_rate")
+                        "macs", "acs", *ENERGY_COLUMNS, "energy_nj_encoder", "spike_rate",
+                        "hidden_silent_share", "hidden_always_share", "lif_v_th_mean",
+                        "lif_v_th_min", "lif_beta_mean", "train_mse")
+#: What a final fit logs about its own insides (results_format 11, RunMetrics).
+_INSIDE_COLUMNS = _COMPARATIVE_COLUMNS[-6:]
 
 
 def selection_manifests(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
@@ -187,9 +194,9 @@ PLOT_KEY = {
     "GRU-AE": "gru_ae",
     "Transformer-AE": "transformer_ae",
     "SNN-AE": "snn_ae",
-    "ANN-AE (matched)": "ann_ae",
+    "ANN-AE (control)": "ann_ae",
 }
-MODEL_ORDER = ["Mean", "PCA", "SNN-AE", "ANN-AE (matched)", "LSTM-AE", "GRU-AE",
+MODEL_ORDER = ["Mean", "PCA", "SNN-AE", "ANN-AE (control)", "LSTM-AE", "GRU-AE",
                "Transformer-AE"]
 ENCODINGS = ["direct", "poisson", "latency"]
 
@@ -210,7 +217,7 @@ def _model_label(model: str, architecture: str) -> str:
         "lstm-ae": "LSTM-AE",
         "gru-ae": "GRU-AE",
         "transformer-ae": "Transformer-AE",
-        "ann-ae": "ANN-AE (matched)",
+        "ann-ae": "ANN-AE (control)",
         "pca": "PCA",
         "mean": "Mean",
     }.get(model, model)
@@ -307,6 +314,10 @@ def load_comparative(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                 "craw": float(r["macs"]) + float(r["acs"]),
                 # The memory-aware energy per window (the paper's E) and its checks.
                 **{c: float(r[c]) for c in ENERGY_COLUMNS},
+                "energy_nj_encoder": float(r["energy_nj_encoder"]),  # nan: not split
+                # Memory priced at half: the prices are for 64-bit accesses, one word is 32.
+                "energy_nj_half_mem": float(r["energy_ops_nj"]) + 0.5 * float(r["energy_mem_nj"]),
+                **{c: float(r[c]) for c in _INSIDE_COLUMNS},  # nan: not applicable
                 "spike_rate": float(r["spike_rate"]),  # nan for a model without spikes
             })
     return rows
@@ -344,10 +355,35 @@ def load_per_window_refs(results_dir: pathlib.Path, run_tag: str) -> list[dict]:
                 "infer_ms": float("nan"),
                 "params": float("nan"),
                 "craw": float("nan"),
-                **{c: float("nan") for c in ENERGY_COLUMNS},  # a reference is not costed
+                # The mean predictor is a stored vector, so nothing to cost; PCA's cost needs
+                # the fold's k and window and is filled in by price_pca.
+                **{c: float("nan") for c in ENERGY_COLUMNS},
+                "energy_nj_encoder": float("nan"),
+                "energy_nj_half_mem": float("nan"),
+                **{c: float("nan") for c in _INSIDE_COLUMNS},
                 "spike_rate": float("nan"),
             })
     return rows
+
+
+def price_pca(rows: list[dict], window: int, latent: dict) -> None:
+    """Fills the energy columns of every PCA row, in place, from pca_energy_nj at each dataset's
+    k = latent width, so PCA sits in the energy table on the same model as the networks. It has
+    one pass and no spike-dependent count, so its as-executed value is its E."""
+    for r in rows:
+        if r["label"] != "PCA":
+            continue
+        k = latent[r["dataset"]]
+        base = pca_energy_nj(window, k)
+        columns = {"energy_nj": base["total"], "energy_nj_encoder": base["encoder"],
+                   "energy_nj_as_executed": base["total"], "arith_energy_nj": base["arith"],
+                   "energy_ops_nj": base["ops"], "energy_mem_nj": base["mem"],
+                   "energy_nj_half_mem": base["ops"] + 0.5 * base["mem"],
+                   "mem_accesses": float("nan")}
+        for name, size in (("energy_nj_sram8k", 8.0), ("energy_nj_sram32k", 32.0),
+                           ("energy_nj_sram1m", 1024.0)):
+            columns[name] = pca_energy_nj(window, k, size * 1024.0)["total"]
+        r.update(columns)
 
 
 def check_folds_and_manifests(comparative: list[dict], references: list[dict],
@@ -805,8 +841,8 @@ def write_pareto(rows: list[dict], families: list[str], ds: str,
                  data_dir: pathlib.Path) -> pathlib.Path:
     """paper_loso_<ds>_pareto.csv: key, mse, mse_std, energy_nj per configured family
     (configured_families), then PCA as the LAST row (paper_loso_pareto_series.tex gives its
-    index). PCA has no energy (it is not costed): its row carries nan there and the figure
-    draws it as a horizontal reference line."""
+    index). PCA is costed since 2026-11-05 (pca_energy_nj); the figure draws its error as a
+    horizontal reference and its energy as a mark on it."""
     mse, energy = _label_stats([r for r in rows if r["dataset"] == ds])
     out = data_dir / f"paper_loso_{ds}_pareto.csv"
     with out.open("w", newline="", encoding="utf-8") as f:
@@ -843,22 +879,25 @@ def write_snn_overview(sel: list[dict], rows: list[dict], datasets: list[str],
     """paper_loso_snn_overview.tex: what the SNN-AE search chose, one row per dataset over
     every (fold, run) winner -- modal encoding and input transform (with agreement k/n),
     median and range of T, median V_th / alpha / depth, and the hidden LIF neurons' mean
-    spike fraction rho on the test windows."""
+    spike fraction rho on the test windows; then what training did with them: the trained
+    V_th (mean, and the lowest layer's, which nothing bounds), the trained beta, the shares of
+    (neuron, window) pairs that never fired and that fired at every step, and the training
+    error of the SNN-AE and of the ANN-AE."""
     lines = [
         r"% auto-generated by 02_meeting01_build_loso_paper_data.py",
-        r"\begin{tabular}{lllrrrrr}",
+        r"\begin{tabular}{lllrrrrrrrrrrr}",
         r"\toprule",
         # V_th and the decay are the INITIAL values the search draws (both are trained after);
         # the decay is beta in the paper, so it is not confused with the surrogate's alpha.
-        r"Dataset & Enc. & Transf. & $T$ & $V_{th}^{(0)}$ & $\beta^{(0)}$ & $L$ & $\rho$ \\",
+        (r"Dataset & Enc. & Transf. & $T$ & $V_{th}^{(0)}$ & $\beta^{(0)}$ & $L$ & $\rho$ & "
+         r"$V_{th}$ & min & $\beta$ & silent & always & \multicolumn{1}{c}{train SNN / ANN} \\"),
         r"\midrule",
     ]
     for ds in datasets:
         grp = [s for s in sel if s["dataset"] == ds]
         name = DATASET_SHORT.get(ds, ds)
         if not grp:
-            lines.append(f"{name} & {_NONE} & {_NONE} & {_NONE} & {_NONE} & {_NONE} & {_NONE} & "
-                         f"{_NONE} \\\\")
+            lines.append(f"{name} & " + " & ".join([_NONE] * 13) + " \\\\")
             continue
 
         def modal(field, grp=grp):
@@ -871,12 +910,25 @@ def write_snn_overview(sel: list[dict], rows: list[dict], datasets: list[str],
                   else f"{pystat.median(steps):g} [{min(steps)}--{max(steps)}]")
         rho = [r["spike_rate"] for r in rows
                if r["dataset"] == ds and r["label"] == "SNN-AE" and r["spike_rate"] == r["spike_rate"]]
+        snn = [r for r in rows if r["dataset"] == ds and r["label"] == "SNN-AE"]
+        ann = [r for r in rows if r["dataset"] == ds and r["label"] == "ANN-AE (control)"]
+
+        def mean_of(rs, column, digits=2):
+            values = [r[column] for r in rs if r[column] == r[column]]
+            return f"{np.mean(values):.{digits}f}" if values else _NONE
+
+        v_th_low = [r["lif_v_th_min"] for r in snn if r["lif_v_th_min"] == r["lif_v_th_min"]]
         lines.append(
             f"{name} & {modal('encoding')} & {modal('architecture')} & {t_cell} & "
             f"{pystat.median(g['v_th'] for g in grp):.2f} & "
             f"{pystat.median(g['alpha'] for g in grp):.2f} & "
             f"{pystat.median(len(g['encoder_widths']) for g in grp):g} & "
-            f"{(f'{np.mean(rho):.2f}' if rho else _NONE)} \\\\")
+            f"{(f'{np.mean(rho):.2f}' if rho else _NONE)} & "
+            f"{mean_of(snn, 'lif_v_th_mean')} & "
+            f"{(f'{min(v_th_low):.2f}' if v_th_low else _NONE)} & "
+            f"{mean_of(snn, 'lif_beta_mean')} & {mean_of(snn, 'hidden_silent_share')} & "
+            f"{mean_of(snn, 'hidden_always_share')} & "
+            f"{mean_of(snn, 'train_mse', 3)} / {mean_of(ann, 'train_mse', 3)} \\\\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     out = data_dir / "paper_loso_snn_overview.tex"
     out.write_text("\n".join(lines), encoding="utf-8")
@@ -895,12 +947,13 @@ def _nj(x: float) -> str:
 
 
 def _energy_means(rows: list[dict], ds: str, label: str) -> dict | None:
-    """{column: mean over every winner of `label` on `ds`} for ENERGY_COLUMNS, or None when the
-    label has no row there (the dataset has not run yet)."""
+    """{column: mean over every winner of `label` on `ds`} for ENERGY_COLUMNS and the encoder's
+    share, or None when the label has no row there (the dataset has not run yet)."""
     rs = [r for r in rows if r["dataset"] == ds and r["label"] == label]
     if not rs:
         return None
-    return {c: float(np.mean([r[c] for r in rs])) for c in ENERGY_COLUMNS}
+    columns = (*ENERGY_COLUMNS, "energy_nj_encoder", "energy_nj_half_mem")
+    return {c: float(np.mean([r[c] for r in rs])) for c in columns}
 
 
 def write_energy_tex(rows: list[dict], families: list[str], datasets: list[str],
@@ -912,40 +965,49 @@ def write_energy_tex(rows: list[dict], families: list[str], datasets: list[str],
     per other family with the SNN-AE's energy divided by that family's, in every column, so a
     reader can see whether the comparison survives each repricing without computing it."""
     head = [r"% auto-generated by 02_meeting01_build_loso_paper_data.py -- do not edit",
-            r"\begin{tabular}{lrrrrrrr}", r"\toprule",
-            r" & $E$ & Mem. & \multicolumn{3}{c}{$E$, one SRAM size} & Arith. & As \\",
-            r"\cmidrule(lr){4-6}",
-            r"Model & (nJ) & share & 8\,KB & 32\,KB & 1\,MB & only & exec. \\"]
-    cols = ("energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "arith_energy_nj",
-            "energy_nj_as_executed")
+            r"\begin{tabular}{lrrrrrrrrr}", r"\toprule",
+            (r" & $E$ & Enc. & Mem. & \multicolumn{3}{c}{$E$, one SRAM size} & Mem. & Arith. & As "
+             r"\\"),
+            r"\cmidrule(lr){5-7}",
+            r"Model & (nJ) & only & share & 8\,KB & 32\,KB & 1\,MB & $\div 2$ & only & exec. \\"]
+    cols = ("energy_nj_sram8k", "energy_nj_sram32k", "energy_nj_sram1m", "energy_nj_half_mem",
+            "arith_energy_nj", "energy_nj_as_executed")
     lines = list(head)
     for ds in datasets:
-        lines += [r"\midrule", rf"\multicolumn{{8}}{{l}}{{\emph{{{DATASET_SHORT.get(ds, ds)}}}}} \\"]
-        means = {m: _energy_means(rows, ds, _model_label(m, "")) for m in families}
-        for m in families:
+        lines += [r"\midrule", rf"\multicolumn{{10}}{{l}}{{\emph{{{DATASET_SHORT.get(ds, ds)}}}}} \\"]
+        priced = [(m, _PARETO_KEY[m][1], _model_label(m, "")) for m in families]
+        priced.append(("pca", "PCA", "PCA"))
+        means = {m: _energy_means(rows, ds, label) for m, _, label in priced}
+        for m, name, _ in priced:
             e = means[m]
             if e is None:
-                lines.append(f"{_PARETO_KEY[m][1]} & " + " & ".join([_NONE] * 7) + r" \\")
+                lines.append(f"{name} & " + " & ".join([_NONE] * 9) + r" \\")
                 continue
-            lines.append(f"{_PARETO_KEY[m][1]} & {_nj(e['energy_nj'])} & "
-                         f"{100.0 * e['energy_mem_nj'] / e['energy_nj']:.0f}\\% & "
-                         + " & ".join(_nj(e[c]) for c in cols) + r" \\")
+            share = (f"{100.0 * e['energy_mem_nj'] / e['energy_nj']:.0f}\\%"
+                     if e["energy_mem_nj"] == e["energy_mem_nj"] else _NONE)
+            lines.append(f"{name} & {_nj(e['energy_nj'])} & {_nj(e['energy_nj_encoder'])} & "
+                         f"{share} & " + " & ".join(_nj(e[c]) for c in cols) + r" \\")
         snn = means.get("snn-ae")
-        for m in families:
+        for m, name, _ in priced:
             if m == "snn-ae":
                 continue
             other = means[m]
-            label = rf"SNN-AE $\div$ {_PARETO_KEY[m][1]}"
+            label = rf"SNN-AE $\div$ {name}"
             if snn is None or other is None:
-                lines.append(f"{label} & " + " & ".join([_NONE] * 7) + r" \\")
+                lines.append(f"{label} & " + " & ".join([_NONE] * 9) + r" \\")
                 continue
             lines.append(f"{label} & {_ratio_text(snn['energy_nj'] / other['energy_nj'])} & "
+                         f"{_ratio_text(snn['energy_nj_encoder'] / other['energy_nj_encoder'])} & "
                          f"{_NONE} & "
                          + " & ".join(_ratio_text(snn[c] / other[c]) for c in cols) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     out = data_dir / "paper_loso_energy.tex"
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
+
+
+def _cost_name(model: str) -> str:
+    return "PCA" if model == "pca" else _PARETO_KEY[model][1]
 
 
 def energy_verdict(rows: list[dict], families: list[str], datasets: list[str]) -> str:
@@ -957,16 +1019,14 @@ def energy_verdict(rows: list[dict], families: list[str], datasets: list[str]) -
     pairs = []
     for ds in datasets:
         snn = _energy_means(rows, ds, _model_label("snn-ae", ""))
-        for m in families:
-            if m == "snn-ae":
-                continue
-            other = _energy_means(rows, ds, _model_label(m, ""))
+        for m in families[1:] + ["pca"]:
+            other = _energy_means(rows, ds, "PCA" if m == "pca" else _model_label(m, ""))
             if snn is not None and other is not None:
                 pairs.append((ds, m, snn, other))
     if not pairs:
         return "[the energy comparison has not run yet]"
     parts = [f"{_ratio_text(snn['energy_nj'] / other['energy_nj'])} times the "
-             f"{_PARETO_KEY[m][1]}'s energy on {DATASET_SHORT.get(ds, ds)}"
+             f"{_cost_name(m)}'s energy on {DATASET_SHORT.get(ds, ds)}"
              for ds, m, snn, other in pairs]
     # The paper prints it after "On energy per window,".
     claim = "the SNN-AE needs " + (parts[0] if len(parts) == 1
@@ -976,7 +1036,7 @@ def energy_verdict(rows: list[dict], families: list[str], datasets: list[str]) -
             if (snn[column] < other[column]) != (snn["energy_nj"] < other["energy_nj"]):
                 return (f"{claim}; that ordering does not hold {what}, under which the SNN-AE "
                         f"needs {_ratio_text(snn[column] / other[column])} times the "
-                        f"{_PARETO_KEY[m][1]}'s energy on {DATASET_SHORT.get(ds, ds)}")
+                        f"{_cost_name(m)}'s energy on {DATASET_SHORT.get(ds, ds)}")
     return f"{claim}, an ordering that holds {ENERGY_CHECKS_HOLD}"
 
 
@@ -1081,6 +1141,8 @@ def write_config_tex(config: dict, datasets_info: dict, status: str,
         "cfgVth": _interval(ga["snn"]["voltage_threshold_min"], ga["snn"]["voltage_threshold_max"]),
         "cfgAlpha": _interval(ga["snn"]["alpha_min"], ga["snn"]["alpha_max"]),
         "cfgSnnDepth": _interval(ga["snn"]["min_layers"], ga["snn"]["max_layers"]),
+        # repair_widths always keeps one hidden layer, and at most max_layers - 1 of them.
+        "cfgSnnHidden": _interval(1, ga["snn"]["max_layers"] - 1),
         "cfgSnnWidthMax": str(ga["snn"]["max_width"]),
         "cfgGaPop": str(pop),
         "cfgGaGen": str(gens),
@@ -1117,9 +1179,12 @@ def write_config_tex(config: dict, datasets_info: dict, status: str,
         macros[f"cfgCap{tag}"] = str(cap) if cap > 0 else _NONE
         macros[f"cfgRate{tag}"] = str(src["sample_rate"])
         dev = sorted(DEVELOPMENT_FOLDS.get(ds, frozenset()))
+        macros[f"cfgDesignFolds{tag}"] = folds_text(
+            sorted(DESIGN_INFORMED_FOLDS.get(ds, frozenset())))
         macros[f"cfgHeadlineFolds{tag}"] = folds_text(
             [f for f in range(src["cv_num_folds"]) if is_headline_fold(ds, f)])
         macros[f"cfgDevFolds{tag}"] = folds_text(dev)
+    macros["cfgMargin"] = f"{EQUIVALENCE_MARGIN:g}"
     lines = ["% auto-generated by 02_meeting01_build_loso_paper_data.py -- do not edit;",
              f"% {status}: from the configuration "
              + ("the folds recorded" if status == "results" else "the binary printed") + "."]
@@ -1179,6 +1244,8 @@ def build(results_dir: pathlib.Path, run_tag: str, data_dir: pathlib.Path) -> li
     manifests = [m for m in manifests if is_headline_fold(m["dataset"], m["fold"])]
     sel = load_snn_selection(manifests)
     baseline_sel = load_baseline_selection(manifests)
+    price_pca(rows, int(config["dataset"]["window_size"]),
+              {ds: info["latent_dim"] for ds, info in datasets_info.items()})
 
     data_dir.mkdir(parents=True, exist_ok=True)
     datasets = sorted({r["dataset"] for r in rows},
@@ -1227,7 +1294,7 @@ def build(results_dir: pathlib.Path, run_tag: str, data_dir: pathlib.Path) -> li
 # so every repricing keeps every ratio unless a test passes `energy_factors` for one model.
 _SYN_ENERGY = {"energy_nj": 1.0, "energy_ops_nj": 0.4, "energy_mem_nj": 0.6, "mem_accesses": 0.05,
                "energy_nj_sram8k": 0.8, "energy_nj_sram32k": 1.1, "energy_nj_sram1m": 3.0,
-               "arith_energy_nj": 0.3, "energy_nj_as_executed": 1.5}
+               "arith_energy_nj": 0.3, "energy_nj_as_executed": 1.5, "energy_nj_encoder": 0.5}
 
 
 def _write_synthetic_run(d: pathlib.Path, energy_factors: dict | None = None) -> None:
@@ -1262,7 +1329,13 @@ def _write_synthetic_run(d: pathlib.Path, energy_factors: dict | None = None) ->
                                    {**_SYN_ENERGY, **(energy_factors or {}).get(model, {})}.items()
                                    for e in [{"snn-ae": 3.0, "lstm-ae": 50.0,
                                               "ann-ae": 4.6}[model] * scale]},
-                                "spike_rate": 0.25 * scale if model == "snn-ae" else "nan"})
+                                "spike_rate": 0.25 * scale if model == "snn-ae" else "nan",
+                                "hidden_silent_share": 0.4 if model == "snn-ae" else "nan",
+                                "hidden_always_share": 0.1 if model == "snn-ae" else "nan",
+                                "lif_v_th_mean": 0.9 if model == "snn-ae" else "nan",
+                                "lif_v_th_min": 0.7 if model == "snn-ae" else "nan",
+                                "lif_beta_mean": 0.8 if model == "snn-ae" else "nan",
+                                "train_mse": 0.5 * err})
                 for family, selected in (
                         ("snn-ae", {"architecture": "dense", "encoding": "latency",
                                     "v_th": 1.0, "alpha": 0.9, "time_steps": 4 + 4 * run_id
@@ -1317,8 +1390,8 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
                                           delimiter=";")}
     expect(summary["PCA"][1].startswith("0.6000"), f"PCA averaged per fold: {summary['PCA']}")
     expect(summary["SNN-AE"][1].startswith("0.5000"), f"SNN-AE: {summary['SNN-AE']}")
-    expect(summary["ANN-AE (matched)"][1].startswith("\\textbf{0.4000"),
-           f"ann-ae is tabulated: {summary.get('ANN-AE (matched)')}")
+    expect(summary["ANN-AE (control)"][1].startswith("\\textbf{0.4000"),
+           f"ann-ae is tabulated: {summary.get('ANN-AE (control)')}")
     plot_head = (out / "paper_loso_fsdd_mse_plot.csv").read_text().splitlines()[0]
     expect(plot_head == "encoding,mean,pca,snn_ae,ann_ae,lstm_ae", f"plot columns: {plot_head}")
     sel = (out / "paper_loso_fsdd_recurrent_selection.tex").read_text()
@@ -1332,14 +1405,14 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
            f"overview columns: {overview['model']}")
     expect(overview["SNN-AE"][1].startswith("0.500") and overview["SNN-AE"][2] == "3",
            f"overview SNN-AE (dev fold 0 left out): {overview['SNN-AE']}")
-    expect(overview["ANN-AE (matched)"][1].startswith("\\textbf{0.400"),
-           f"overview best in bold: {overview['ANN-AE (matched)']}")
-    expect(overview["PCA"][1].startswith("0.600") and overview["PCA"][2] == "--",
-           f"overview PCA per fold, not costed: {overview['PCA']}")
+    expect(overview["ANN-AE (control)"][1].startswith("\\textbf{0.400"),
+           f"overview best in bold: {overview['ANN-AE (control)']}")
+    expect(overview["PCA"][1].startswith("0.600") and overview["PCA"][2] == "158",
+           f"overview PCA per fold, costed: {overview['PCA']}")
     expect(overview["SNN-AE"][3:] == ["--", "--"], f"siena not run yet: {overview['SNN-AE']}")
     # Rows of the configured families only (baselines: lstm-ae, ann-ae): a family the run
     # left out gets no "--" row, which would read as "not run yet".
-    expect(list(overview)[1:] == ["Mean", "PCA", "SNN-AE", "ANN-AE (matched)", "LSTM-AE"],
+    expect(list(overview)[1:] == ["Mean", "PCA", "SNN-AE", "ANN-AE (control)", "LSTM-AE"],
            f"overview rows: {list(overview)}")
     snn = (out / "paper_loso_snn_overview.tex").read_text()
     expect("FSDD & latency & dense & 10 [8--12] & 1.00 & 0.90 & 2 & 0.25" in snn,
@@ -1347,7 +1420,7 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     expect("Siena & -- &" in snn, f"SNN overview row for a dataset not run: {snn}")
     pareto = (out / "paper_loso_fsdd_pareto.csv").read_text().splitlines()
     expect(pareto[0] == "key,mse,mse_std,energy_nj" and "snn,0.5,0,3" in pareto
-           and "pca,0.6,0,nan" in pareto, f"pareto: {pareto}")
+           and "pca,0.6,0,157.985" in pareto, f"pareto: {pareto}")
     expect([r.split(",")[0] for r in pareto[1:]] == ["snn", "ann", "lstm", "pca"],
            f"pareto rows: the configured families, PCA last: {pareto}")
     series = (out / "paper_loso_pareto_series.tex").read_text()
@@ -1360,17 +1433,18 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     # arithmetic alone and E as executed, then the SNN-AE's energy over each other family's in
     # every column.
     energy = (out / "paper_loso_energy.tex").read_text()
-    for needle in ("\nSNN-AE & 3.00 & 60\\% & 2.40 & 3.30 & 9.00 & 0.90 & 4.50 \\\\",
-                   "\nANN-AE & 4.60 & 60\\% & 3.68 & 5.06 & 13.8 & 1.38 & 6.90 \\\\",
-                   "\nSNN-AE $\\div$ ANN-AE & 0.65 & -- & 0.65 & 0.65 & 0.65 & 0.65 & 0.65 \\\\",
-                   "\nSNN-AE $\\div$ LSTM-AE & 0.06 & -- &",
-                   "\\multicolumn{8}{l}{\\emph{Siena}} \\\\\nSNN-AE & -- & -- &"):
+    for needle in ("\nSNN-AE & 3.00 & 1.50 & 60\\% & 2.40 & 3.30 & 9.00 & 2.10 & 0.90 & 4.50 \\\\",
+                   "\nANN-AE & 4.60 & 2.30 & 60\\% & 3.68 & 5.06 & 13.8 & 3.22 & 1.38 & 6.90 \\\\",
+                   "\nSNN-AE $\\div$ ANN-AE & 0.65 & 0.65 & -- & 0.65 & 0.65 & 0.65 & 0.65 & 0.65 & 0.65 \\\\",
+                   "\nSNN-AE $\\div$ LSTM-AE & 0.06 & 0.06 & -- &",
+                   "\\multicolumn{10}{l}{\\emph{Siena}} \\\\\nSNN-AE & -- & -- &"):
         expect(needle in energy, f"energy table lacks {needle!r}: {energy}")
     verdict = (out / "paper_loso_energy_verdict.tex").read_text()
-    expect("{the SNN-AE needs 0.65 times the ANN-AE's energy on FSDD and 0.06 times "
-           "the LSTM-AE's energy on FSDD, an ordering that holds with every memory access priced "
-           "at one SRAM size, 8 KB, 32 KB or 1 MB, with arithmetic alone, and with the first layer "
-           "of a direct-coded input recomputed at every time step, as the code runs it}" in verdict,
+    expect("{the SNN-AE needs 0.65 times the ANN-AE's energy on FSDD, 0.06 times "
+           "the LSTM-AE's energy on FSDD and 0.02 times the PCA's energy on FSDD, an ordering that holds with every memory access priced "
+           "at one SRAM size, 8 KB, 32 KB or 1 MB, with every memory price halved, with arithmetic "
+           "alone, and with the first layer of a direct-coded input recomputed at every time "
+           "step, as the code runs it}" in verdict,
            f"energy verdict: {verdict}")
     macros = (out / "paper_config.tex").read_text()
     for needle in ("\\newcommand{\\cfgTmin}{2}", "\\newcommand{\\cfgTmax}{32}",
@@ -1406,7 +1480,7 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     ph1 = tmp_root / "placeholders_ann_only"
     build_placeholders(printed, ph1)
     rows1 = [r[0] for r in csv.reader((ph1 / "paper_loso_overview.csv").open(), delimiter=";")]
-    expect(rows1 == ["model", "Mean", "PCA", "SNN-AE", "ANN-AE (matched)"], f"rows: {rows1}")
+    expect(rows1 == ["model", "Mean", "PCA", "SNN-AE", "ANN-AE (control)"], f"rows: {rows1}")
     series1 = (ph1 / "paper_loso_pareto_series.tex").read_text()
     expect("lstm" not in series1 and "LSTM" not in series1
            and "\\newcommand{\\paretoPcaRow}{2}" in series1, f"series: {series1}")
@@ -1428,7 +1502,7 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     expect_refusal(lambda: build(d, "t", out), "did not price", "an unpriced energy check")
     _write_synthetic_run(d)
     ph_energy = (ph / "paper_loso_energy.tex").read_text()
-    expect("SNN-AE & -- & -- & -- & -- & -- & -- & -- \\\\" in ph_energy
+    expect("SNN-AE & -- & -- & -- & -- & -- & -- & -- & -- & -- \\\\" in ph_energy
            and "{[the energy comparison has not run yet]}"
            in (ph / "paper_loso_energy_verdict.tex").read_text(), f"energy placeholders: {ph_energy}")
 
@@ -1518,12 +1592,34 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     return failures
 
 
+def _pca_checks() -> list:
+    """Known answers for PCA's price, worked by hand for window 256, k 16: 4096 MACs each way at
+    4.6 pJ, 256 mean adds at 0.9 pJ, 272 address adds at 0.1 pJ; 4096 reads of a 16 KB memory at
+    10 + 10 * (16 - 8) / 24 = 13.33 pJ, 16 latent and 512 input/mean accesses at 10 pJ each."""
+    enc = (4096 * 4.6 + 256 * 0.9 + 272 * 0.1) + (4096 * (10 + 10 * 8 / 24) + 528 * 10.0)
+    got = pca_energy_nj(256, 16)
+    failures = []
+    if abs(got["encoder"] * 1000.0 - enc) > 1e-6 or abs(got["total"] - 2 * got["encoder"]) > 1e-9:
+        failures.append(f"PCA price: {got}, by hand encoder {enc} pJ")
+    if pca_energy_nj(256, 16, 8.0 * 1024)["total"] >= got["total"]:
+        failures.append("PCA at one 8 KB SRAM should cost less than at its own 16 KB weights")
+    return failures
+
+
 def self_test() -> int:
     tmp_root = pathlib.Path(tempfile.mkdtemp(prefix="loso_paper_data_selftest_"))
+    # The fixtures predate DESIGN_INFORMED_FOLDS and use fold 1 as a headline fold; what that
+    # table does is checked on its own in meeting01_results' tests of is_headline_fold.
+    design = dict(DESIGN_INFORMED_FOLDS)
+    DESIGN_INFORMED_FOLDS.clear()
     try:
-        failures = _self_test_checks(tmp_root)
+        failures = _self_test_checks(tmp_root) + _pca_checks()
     finally:
+        DESIGN_INFORMED_FOLDS.update(design)
         shutil.rmtree(tmp_root, ignore_errors=True)
+    if is_headline_fold("fsdd", 1) or is_headline_fold("eegmmidb", 0) \
+            or not is_headline_fold("fsdd", 2) or not is_headline_fold("siena", 1):
+        failures.append("is_headline_fold: folds 0 and 1 of FSDD/EEGMMIDB out, the rest in")
     if failures:
         for f in failures:
             print(f"[self-test] FAIL: {f}", file=sys.stderr)

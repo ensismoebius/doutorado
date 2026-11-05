@@ -47,8 +47,11 @@ import tempfile
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
-from meeting01_results import RESULTS_FORMAT, ResultsError  # noqa: E402
+from meeting01_results import ResultsError  # noqa: E402
 
+#: The curves below were measured on format 10. Format 11 changes only which genome the GA picks
+#: and adds logged columns: windows and training are the same, so the calibration stands.
+CALIBRATED_FORMAT = 10
 PLATEAU_LAST_SKILL = 0.05
 PLATEAU_MAX_EPOCHS_ABOVE = 2
 CANDIDATES = (0.10, 0.15, 0.20, 0.25)
@@ -182,8 +185,8 @@ def collect(out_root: pathlib.Path) -> list[dict]:
         if not manifest.is_file():
             raise ResultsError(f"{f}: no split manifest next to it")
         got = json.loads(manifest.read_text(encoding="utf-8")).get("results_format")
-        if got != RESULTS_FORMAT:
-            raise ResultsError(f"{manifest}: results_format {got}, need {RESULTS_FORMAT}")
+        if got != CALIBRATED_FORMAT:
+            raise ResultsError(f"{manifest}: results_format {got}, need {CALIBRATED_FORMAT}")
         for t in read_events(f):
             rows.append({"dataset": dataset, "family": family, "config_id": t["config_id"],
                          "losses": t["losses"], **classify(float(t["trivial"]), t["losses"])})
@@ -277,7 +280,7 @@ def self_test() -> int:
         fam.mkdir()
         name = "t_fsdd_fold0"
         (fam / f"{name}_split_manifest.json").write_text(
-            json.dumps({"results_format": RESULTS_FORMAT}), encoding="utf-8")
+            json.dumps({"results_format": CALIBRATED_FORMAT}), encoding="utf-8")
         ev = [{"type": "config_begin", "config_id": "a", "trivial_val_loss": 1.0},
               {"type": "epoch", "config_id": "a", "val_loss": 0.99},
               {"type": "config_begin", "config_id": "b", "trivial_val_loss": 1.0},
@@ -288,7 +291,7 @@ def self_test() -> int:
         assert [r["kind"] for r in rows] == ["plateau", "learned"]
         assert rows[0]["dataset"] == "fsdd" and rows[0]["family"] == "gru-ae"
         (fam / f"{name}_split_manifest.json").write_text(
-            json.dumps({"results_format": RESULTS_FORMAT - 1}), encoding="utf-8")
+            json.dumps({"results_format": CALIBRATED_FORMAT - 1}), encoding="utf-8")
         try:
             collect(root)
         except ResultsError:

@@ -155,6 +155,7 @@ auto evaluate_ae(Model& model,
     // depend on the data, so the caller's analytic ledger is the per-window value.
     m.arith_energy_nj = arith_energy_nj(static_cast<double>(m.macs), 0.0);
     set_energy(m, cost.energy);
+    m.energy_nj_encoder = cost.encoder_nj;
 
     return m;
 }

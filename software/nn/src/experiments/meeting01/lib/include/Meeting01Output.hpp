@@ -82,7 +82,14 @@ namespace meeting01
 //           checkpoints are also stamped with the windows (checkpoint_hash). The split manifest
 //           records each part's composition. No production fold ran with format 9; the
 //           pre-validation job 5316016 and T1 did.
-inline constexpr int kResultsFormat = 10;
+//   11      2026-11-05. The GA's re-score of the Pareto front uses winner_seeds fresh seeds
+//           (format 10 averaged in the search's own score, which is the one that selected the
+//           member, so the reported val_mse stayed biased low and the pick could change).
+//           Rows gain energy_nj_encoder, hidden_silent_share, hidden_always_share,
+//           lif_v_th_mean, lif_v_th_min, lif_beta_mean and train_mse (RunMetrics). Windows and
+//           training are unchanged. No production fold ran with format 10; the stopping calibration
+//           did.
+inline constexpr int kResultsFormat = 11;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

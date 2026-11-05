@@ -599,6 +599,14 @@ void finalize_baseline_selection(const Meeting01Config& config,
     // finalize_snn_selection does). Without this every baseline test row said train_ms 0,
     // and 02_ bolded that 0 as the fastest training in the paper's cost table.
     test_metrics.train_ms = train_ms;
+    test_metrics.train_mse = mean_window_mse(per_window_errors_ae(model,
+        fit_samples,
+        fit_meta,
+        encoding,
+        run_seed,
+        config.model.lstm_frame_size,
+        config.model.recurrent_time_steps,
+        PerWindowError{}));
 
     all_rows.push_back(make_baseline_row(config,
         backend_name,
@@ -817,6 +825,17 @@ void finalize_snn_selection(const Meeting01Config& config,
         config_t.model.time_steps,
         snn_output_steps(config_t));
     test_metrics.train_ms = train_ms;
+    test_metrics.train_mse = mean_window_mse(per_window_errors_snn(snn_model,
+        fit_samples,
+        fit_meta,
+        encoding,
+        best.architecture,
+        best.alpha,
+        best.v_th,
+        run_seed,
+        config_t.model.time_steps,
+        snn_output_steps(config_t),
+        PerWindowError{}));
 
     ResultRow test_row{backend_name,
         config.experiment.run_tag,
@@ -1083,10 +1102,11 @@ void run_ann_twin(const Meeting01Config& config,
     ProtocolAutoencoder model(make_ann_twin_cfg(config, snn_winner.encoder_widths));
     // The ledger walks the network's own layers (one forward pass of a zero window: its cost
     // does not depend on the data); "direct" adds no encoder.
-    const ModelCost cost = frame_ae_cost(ann_config,
+    ModelCost cost = frame_ae_cost(ann_config,
         "direct",
         estimate_ann_macs(config.dataset.window_size, snn_winner.encoder_widths),
         ann_ae_energy(model, config.dataset.window_size));
+    cost.encoder_nj = ann_ae_encoder_energy(model, config.dataset.window_size).total_nj();
 
     const nlohmann::json selected_hyperparams{{"encoder_widths", snn_winner.encoder_widths},
         {"copied_from", "snn-ae winner of the same (dataset, fold, run)"},

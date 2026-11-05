@@ -50,6 +50,29 @@ struct RunMetrics
     // per window (Meeting01Energy.hpp). This is the memory-aware total with every step's rows
     // priced, as the code runs it: the check. Equal to energy_nj for every other model.
     double energy_nj_as_executed = std::numeric_limits<double>::quiet_NaN();
+    // results_format 11: the part of energy_nj a sensor pays when only the code leaves it: for
+    // the SNN-AE the input encoding, the input transform and the encoder network; for the
+    // ANN-AE its encoder network. NaN for the LSTM/GRU/Transformer-AE, whose ledgers are not
+    // split; the paper's energy claims do not use them.
+    double energy_nj_encoder = std::numeric_limits<double>::quiet_NaN();
+
+    // results_format 11: what the network inside looks like, so a gap can be split into "it did
+    // not fit" and "it fits but does not generalize", and a bounded unit can be seen pinned.
+    // NaN means "not measured or not applicable": a non-spiking model has no rate or threshold,
+    // and train_mse is filled only on a final fit's test row (not on GA evaluations).
+    //
+    // hidden_silent_share / hidden_always_share: shares of the (hidden LIF neuron, window) pairs
+    // whose firing rate over T steps is <= 0.01 / >= 0.99, kept apart because the two ends mean
+    // different things (no information vs. a constant). Over the evaluated windows.
+    float hidden_silent_share = std::numeric_limits<float>::quiet_NaN();
+    float hidden_always_share = std::numeric_limits<float>::quiet_NaN();
+    // Trained LIF parameters over the spiking layers: V_th has no bound in the code, so its
+    // minimum is what shows a threshold reaching 0.
+    float lif_v_th_mean = std::numeric_limits<float>::quiet_NaN();
+    float lif_v_th_min = std::numeric_limits<float>::quiet_NaN();
+    float lif_beta_mean = std::numeric_limits<float>::quiet_NaN();
+    // Mean per-window MSE of the final network on the windows it was fitted on.
+    float train_mse = std::numeric_limits<float>::quiet_NaN();
 
     float train_ms = 0.0f;
     float infer_ms = 0.0f;

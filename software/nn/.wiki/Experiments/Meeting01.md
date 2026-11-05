@@ -929,7 +929,8 @@ results_format >= 11        ->  refused: "newer than the scripts (or the manifes
 | 7 | 2026-11-03 (pre-validation job 5315335 only) | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
 | 8 | 2026-11-03 to 2026-11-04 (T1 only) | a repeated input's first layer priced once; `energy_nj_as_executed` as a check |
 | 9 | 2026-11-04 (pre-validation job 5316016, T1) | the run seed reaches every training; the GA cost counts a repeated first layer once |
-| 10 | 2026-11-04 on | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
+| 10 | 2026-11-04 | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
+| 11 | 2026-11-05 on | the GA's front re-scored on fresh seeds only; rows log the network's insides and the encoder's energy — [why](#what-the-review-changed-results_format-11-2026-11-05) |
 
 ### The windows were wrong (results_format 10, 2026-11-04)
 
@@ -1741,7 +1742,7 @@ overwritten with results (`\cfgDataStatus` = `results`).
 | `paper_loso_<ds>_pareto.csv` | Figure "quality vs energy" (the configured families, then PCA) | `02_` `write_pareto` |
 | `paper_loso_pareto_series.tex` | the figure's series, legend and PCA row, one per configured family | `02_` `write_pareto_series` |
 | `paper_loso_snn_overview.tex` | Table "SNN-AE selected" (modal encoding, median T [range], ρ) | `02_` `write_snn_overview` |
-| `paper_loso_significance.tex` | Table "SNN-AE minus reference", recording level, Holm | `04_` `write_overview_tex` |
+| `paper_loso_significance.tex` | Table "SNN-AE minus reference", group level (format 11; recording level before), Holm | `04_` `write_overview_tex` |
 | `paper_loso_sensitivity.tex` | Table "with and without the development fold" | `04_` `write_sensitivity_tex` |
 | `paper_prevalidation.tex` | Table "Pre-validation" (development folds, every family) | `00_meeting01_prevalidation_report.py` `write_table` |
 | `paper_prevalidation_config.tex` | `\pre*` macros: budget, search ranges, generated verdicts | `00_meeting01_prevalidation_report.py` `write_macros` |
@@ -3374,6 +3375,91 @@ inherent to the scope change the user asked for (search every family's architect
 just the SNN's) combined with how expensive a truly sequential 512-step recurrent/
 attention unroll is at batch size 1, compounded by the deliberate choice to give the
 baselines the same search power as the SNN rather than a cheaper, smaller one.
+
+## What the review changed (results_format 11, 2026-11-05)
+
+A review can only reject what it can see. Three adversarial reviewers found that the paper's numbers
+could not answer the questions it asked, for reasons that had nothing to do with the windows. This is
+what changed, and what each change protects against. Windows and training are the same as format 10,
+so the stopping calibration stands (`CALIBRATED_FORMAT` in the script).
+
+### The winner's score was its own luck
+
+The GA scores each genome once, then re-scores the Pareto front to pick a winner. Take a front member
+that won with 0.60 on a lucky seed, and whose true mean is 0.66. With `winner_seeds = 3`, format 10
+averaged 0.60 with two fresh scores near 0.66, and reported 0.64. The number that selected the member
+was also a third of its estimate, so the bias shrank without leaving. Format 11 averages three fresh
+seeds and leaves the search's score out. Silent if wrong: the pick simply leans towards luck.
+
+| | format 10 | format 11 |
+|---|---|---|
+| Scores in the mean | search + 2 fresh | 3 fresh |
+| Extra trainings | `|front| x (winner_seeds - 1)` | `|front| x winner_seeds` |
+| Bias from selection | a third of it stays | gone from the estimate |
+
+### One number per person, not per recording
+
+A new user is a new speaker or subject. On EEG, recordings of one subject share an effect (intra-class
+correlation 0.33), so counting recordings as independent makes the interval far narrower than the
+evidence. The primary estimand is now `d_g`, one difference per held-out group, tested with a Student
+t interval. On 4 FSDD speakers a rank test cannot go below `2/2^4 = 0.125`, whatever the data, and a
+percentile bootstrap undercovers.
+
+```
+ FSDD, 4 groups        d_g:  .   .  .   .        mean, wide t interval, each dot printed
+ EEGMMIDB, ~70 groups  d_g:  ..:::||:::..        mean, narrow t interval
+```
+
+### Two folds leave the headline, not one
+
+Fold `f` tests on block `f` and validates on block `f + 1`. The design study used fold 0, so it read
+block 1's errors, and block 1 is what fold 1 tests on. `DESIGN_INFORMED_FOLDS` takes fold 1 of FSDD and
+EEGMMIDB out of the headline, leaving folds 2-5. It is a table of its own because the pre-validation
+and T1 run on `DEVELOPMENT_FOLDS` and must not start running on fold 1. Those two datasets are still
+design-informed, and the paper says so: fold 5 validates on block 0, and all six FSDD speakers took
+part in fold 0.
+
+### "Energy first" needs a number
+
+"The test does not separate them, so take the cheaper model" rewards a noisy comparison: with 4
+speakers almost nothing separates, so the rule would hand the verdict to energy. The rule now reads the
+interval: only when all of it lies inside `+-Delta` is the cheaper model recommended, and that must hold
+over groups AND over fold means, because the 18 subjects of a fold share one set of models. `Delta =
+0.02` (`EQUIVALENCE_MARGIN`) is 2% of the window's variance, treated as negligible (0.12 dB at error
+0.71, 0.46 dB at 0.18). It is a judgement of relevance, not a noise estimate, provisional until the
+paper's author confirms it, and it must be settled before format-11 test numbers are read. A wide
+interval centred on 0 is flagged as not equivalent. On 4 FSDD speakers the interval fits only if their
+sd is below 0.0126, so the rule will rarely fire there and the paper reports the trade.
+
+PCA now has a price (`pca_energy_nj`): 158 nJ at k = 16, 903 nJ at k = 64, half of it the encoder. It is
+in every energy table, because a cheaper, better linear code is the first thing a reader would ask about.
+`energy_nj_encoder` prices only what a sensor pays, and a "memory halved" column answers Horowitz's
+figures being 64-bit accesses applied to a 32-bit word.
+
+### What training did to the network
+
+Reading only the test error, "it did not fit" and "it does not generalize" look the same. Rows now
+carry `train_mse`, and for the SNN-AE `hidden_silent_share`, `hidden_always_share` (rate <= 0.01 and
+>= 0.99, kept apart because never firing and always firing are different failures), `lif_v_th_mean`,
+`lif_v_th_min` and `lif_beta_mean`. `V_th` has no bound in `LifBPTT`, and the project does not clamp a
+value silently, so the paper says it is unbounded and the minimum shows whether it reached 0.
+
+### The reset in the gradient
+
+`dvpost_dvpre = 1 - s` detaches the reset; `dvpost_dVth` keeps the surrogate through it. This is on
+purpose. Keeping the surrogate on the membrane path gives a factor multiplied once per step, whose size
+can pass 1. On the threshold path it is one term in a scalar's accumulator, and dropping it biased
+`V_th` (`layers_spiking_basic_gtest` pins it). Neither is an exact derivative, because a spike has none.
+
+### Not done yet
+
+The design table and T1 ran on defective windows, so their numbers left the paper until they rerun;
+the design rerun must be logged, with at least 4 seeds, crossed with decoder and pooling, and include a
+Poisson winner. Figures that need real winners (energy break-even with EEG widths and `recurrent`, the
+hidden-share panel, the design dots) wait for those runs. AudioMNIST and Siena raw files were read on
+the cluster and look like speech and EEG in microvolts; their windows through the real loader are
+checked from the split dumps of a short job. The quiet start of AudioMNIST files (first-window RMS 8
+against 49 overall) is amplified by the per-window z-score, a known property, not a defect.
 
 ## See Also
 

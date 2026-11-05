@@ -43,9 +43,11 @@ struct GaSearchConfigT
     // How many seeds each final Pareto-front member is scored on before the winner is
     // picked. The search itself scores one seed per genome (cheap), which means the best
     // of a noisy population is partly selected on seed luck — the winner's curse.
-    // Re-scoring only the front costs |front| * (winner_seeds - 1) extra trainings and
-    // makes the published architecture a mean over seeds rather than a lucky draw. 1
-    // disables it.
+    // Re-scoring only the front costs |front| * winner_seeds extra trainings and makes the
+    // published architecture a mean over seeds rather than a lucky draw. The search's own
+    // score is NOT in that mean: it is the score the front was selected on, so it is biased
+    // low, and averaging it in would keep part of the curse (results_format 11). 1 disables
+    // the re-score.
     int winner_seeds = 3;
     Bounds bounds{};
 
@@ -202,6 +204,35 @@ std::vector<Ind> select_next_generation(
     }
     return next;
 }
+
+// The re-score of the final front. A member's val_mse becomes the mean over `winner_seeds`
+// seeds, all different from `base_seed`, the one the search scored it with. winner_seeds <= 1
+// leaves the front as it is.
+template <typename Ind, typename OnEval>
+void rescore_front(std::vector<Ind>& front,
+    const meeting01::Meeting01Config& cfg,
+    const meeting01::DatasetSplit& split,
+    std::uint32_t base_seed,
+    int winner_seeds,
+    const OnEval& on_eval)
+{
+    if (winner_seeds <= 1) return;
+    for (auto& ind : front)
+    {
+        double mse_sum = 0.0;
+        for (int extra = 1; extra <= winner_seeds; ++extra)
+        {
+            Ind probe;
+            probe.genome = ind.genome;
+            evaluate_individual(
+                probe, cfg, split, base_seed + static_cast<std::uint32_t>(extra) * 7919u, 0, 0);
+            if (on_eval) on_eval(probe);
+            mse_sum += probe.val_mse;
+        }
+        ind.val_mse = static_cast<float>(mse_sum / winner_seeds);
+        if (!ind.objectives.empty()) ind.objectives[0] = ind.val_mse;
+    }
+}
 } // namespace detail
 
 // Runs NSGA-II (haploid — no diploid genetics; see Meeting01GaFitness.hpp for why no
@@ -323,27 +354,11 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
             if (parents[static_cast<std::size_t>(idx)].feasible)
                 result.pareto_front.push_back(parents[static_cast<std::size_t>(idx)]);
 
-    // Winner's-curse mitigation: re-score the front on extra seeds and replace each
-    // member's val_mse with the mean, so the pick reflects expected quality rather than
-    // the single luckiest evaluation. Only the front is re-scored, not the whole population.
-    if (ga_cfg.winner_seeds > 1)
-    {
-        for (auto& ind : result.pareto_front)
-        {
-            double mse_sum = ind.val_mse;
-            for (int extra = 1; extra < ga_cfg.winner_seeds; ++extra)
-            {
-                Ind probe;
-                probe.genome = ind.genome;
-                evaluate_individual(
-                    probe, cfg, split, base_seed + static_cast<std::uint32_t>(extra) * 7919u, 0, 0);
-                if (on_eval) on_eval(probe);
-                mse_sum += probe.val_mse;
-            }
-            ind.val_mse = static_cast<float>(mse_sum / ga_cfg.winner_seeds);
-            if (!ind.objectives.empty()) ind.objectives[0] = ind.val_mse;
-        }
-    }
+    // Winner's-curse mitigation: re-score the front on fresh seeds and replace each member's
+    // val_mse with their mean, so the pick reflects expected quality rather than the single
+    // luckiest evaluation. Every seed is new: the search's score selected this member, so it
+    // cannot also estimate it. Only the front is re-scored, not the whole population.
+    detail::rescore_front(result.pareto_front, cfg, split, base_seed, ga_cfg.winner_seeds, on_eval);
 
     std::sort(result.pareto_front.begin(),
         result.pareto_front.end(),

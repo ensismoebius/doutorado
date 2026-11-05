@@ -1,6 +1,7 @@
 #include "../include/Meeting01Metrics.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -218,6 +219,25 @@ auto count_sequential_ops(const nn::Sequential& seq,
                 ops.neuron_steps += out_values;
                 ops.spikes += static_cast<double>(out.sum());
                 out_is_spikes = true;
+
+                const nn::Index steps = lif->time_steps;
+                if (steps < 1 || out.rows() % steps != 0)
+                    throw std::logic_error(
+                        "count_snn_ops: layer " + std::to_string(i) + " (LifBPTT) has " +
+                        std::to_string(out.rows()) +
+                        " output rows for time_steps = " + std::to_string(lif->time_steps) +
+                        ". Check the model's T against the window's.");
+                const nn::Index samples = out.rows() / steps;
+                for (nn::Index s = 0; s < samples; ++s)
+                    for (nn::Index f = 0; f < out.cols(); ++f)
+                    {
+                        double fired = 0.0;
+                        for (nn::Index t = 0; t < steps; ++t) fired += out.at(t * samples + s, f);
+                        const double rate = fired / static_cast<double>(steps);
+                        ops.neuron_windows += 1.0;
+                        if (rate <= kSilentRate) ops.silent_neuron_windows += 1.0;
+                        if (rate >= kAlwaysRate) ops.always_neuron_windows += 1.0;
+                    }
             }
         }
         else if (dynamic_cast<const nn::TimeMeanPool*>(layer) != nullptr)
@@ -232,6 +252,38 @@ auto count_sequential_ops(const nn::Sequential& seq,
 }
 
 } // namespace
+
+auto summarize_lif_parameters(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model)
+    -> LifParameterSummary
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "summarize_lif_parameters: the dual-branch ProtocolSpikingAutoencoder is not walked "
+            "(meeting01 never builds it). Extend it over its six Sequentials before using it.");
+    constexpr float kMinPositiveParam = 1e-6F; // LifBPTTImpl::forward's clamp
+    LifParameterSummary out;
+    double v_th_sum = 0.0;
+    double beta_sum = 0.0;
+    for (const nn::Sequential* seq : {&model.encoder_, &model.decoder_})
+        for (const auto& layer : seq->layers)
+        {
+            const auto* lif = dynamic_cast<const nn::LifBPTT*>(layer.get());
+            if (lif == nullptr || lif->readout_mode) continue;
+            const float v_th = lif->voltage_threshold.at(0, 0);
+            const float tau = std::max(kMinPositiveParam, lif->resistance.at(0, 0)) *
+                              std::max(kMinPositiveParam, lif->capacitance.at(0, 0));
+            v_th_sum += v_th;
+            beta_sum += std::exp(-lif->delta_t / tau);
+            out.v_th_min = out.layers == 0 ? v_th : std::min(out.v_th_min, v_th);
+            ++out.layers;
+        }
+    if (out.layers > 0)
+    {
+        out.v_th_mean = static_cast<float>(v_th_sum / out.layers);
+        out.beta_mean = static_cast<float>(beta_sum / out.layers);
+    }
+    return out;
+}
 
 auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,

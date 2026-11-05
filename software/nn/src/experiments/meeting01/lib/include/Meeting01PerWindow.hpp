@@ -34,6 +34,10 @@ struct PerWindowError
     float mae = 0.0f;
 };
 
+// The mean of `rows`' mse: the reconstruction error of a set of windows, each window weighing
+// the same. Throws std::invalid_argument on no rows (there is no error to report).
+auto mean_window_mse(const std::vector<PerWindowError>& rows) -> float;
+
 // Writes `rows` -- every model, encoding and seed of one fold, collected over the whole
 // fold -- to `<path>` as CSV, REPLACING any file already there: the file is one fold
 // run's rows, never a mix of two runs. (03_meeting01_pca_mean_baselines.py then adds the

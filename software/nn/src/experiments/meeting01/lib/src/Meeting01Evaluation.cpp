@@ -134,6 +134,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     // The same with every step's rows priced, as the code runs it (the check; results_format
     // 8). It differs from `energy` only when the input repeats at every step.
     EnergyLedger energy_as_executed;
+    EnergyLedger energy_encoder; // what is left when the code leaves the sensor
     const bool input_is_spikes = snn_input_is_spikes(encoding, architecture);
     const bool repeats = snn_input_repeats_every_step(encoding, architecture);
     const int repeated_steps = repeats ? time_steps : 1;
@@ -159,6 +160,9 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         ops.acs += window_ops.acs;
         ops.spikes += window_ops.spikes;
         ops.neuron_steps += window_ops.neuron_steps;
+        ops.neuron_windows += window_ops.neuron_windows;
+        ops.silent_neuron_windows += window_ops.silent_neuron_windows;
+        ops.always_neuron_windows += window_ops.always_neuron_windows;
 
         // The memory-aware estimate: the encoder that made the spikes, the input transform,
         // then the network. Only the "dense" transform reads the encoder's output as events;
@@ -171,10 +175,14 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             /*event_driven=*/architecture == "dense");
         const double transform_spikes =
             architecture == "recurrent" ? static_cast<double>(encoded.sum()) : 0.0;
-        energy += encoder;
-        energy += architecture_transform_energy(
+        const EnergyLedger transform = architecture_transform_energy(
             architecture, values, repeats ? 1 : time_steps, transform_spikes);
+        energy += encoder;
+        energy += transform;
         energy += snn_ae_energy(model, input, input_is_spikes, repeated_steps);
+        energy_encoder += encoder;
+        energy_encoder += transform;
+        energy_encoder += snn_ae_encoder_energy(model, input, input_is_spikes, repeated_steps);
         energy_as_executed += encoder;
         energy_as_executed +=
             architecture_transform_energy(architecture, values, time_steps, transform_spikes);
@@ -241,8 +249,18 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         m.arith_energy_nj = arith_energy_nj(ops.macs / n, m.acs);
         set_energy(m, energy.scaled(1.0 / n));
         set_energy_as_executed(m, energy_as_executed.scaled(1.0 / n));
+        m.energy_nj_encoder = energy_encoder.scaled(1.0 / n).total_nj();
     }
     if (ops.neuron_steps > 0.0) m.spike_rate = static_cast<float>(ops.spikes / ops.neuron_steps);
+    if (ops.neuron_windows > 0.0)
+    {
+        m.hidden_silent_share = static_cast<float>(ops.silent_neuron_windows / ops.neuron_windows);
+        m.hidden_always_share = static_cast<float>(ops.always_neuron_windows / ops.neuron_windows);
+    }
+    const LifParameterSummary lif = summarize_lif_parameters(model);
+    m.lif_v_th_mean = lif.v_th_mean;
+    m.lif_v_th_min = lif.v_th_min;
+    m.lif_beta_mean = lif.beta_mean;
 
     return m;
 }

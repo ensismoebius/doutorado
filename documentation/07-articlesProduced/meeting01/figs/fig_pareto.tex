@@ -1,7 +1,7 @@
 % Test MSE against arithmetic energy per window, one panel per dataset (headline folds).
 % Reads data/paper_loso_<dataset>_pareto.csv (02_meeting01_build_loso_paper_data.py):
-% key, mse, mse_std, energy_nj; one row per family the run configured, then PCA. PCA has no
-% energy (it is not costed) and is drawn as the dashed line.
+% key, mse, mse_std, energy_nj; one row per family the run configured, then PCA, drawn as the
+% dashed line (its error) and a cross (its energy, 02_'s pca_energy_nj).
 % WHICH families are drawn comes from data/paper_loso_pareto_series.tex, generated from the
 % same list as the CSV rows (\paretoAllSeries, \paretoAllLegend, \paretoPcaRow,
 % \paretoLegendColumns): a family the run left out has no empty series and no legend entry.
@@ -32,6 +32,7 @@
   \nextgroupplot[title={#3}, #1]
   \pgfplotstableread[col sep=comma]{data/paper_loso_#2_pareto.csv}\pt
   \paretoAllSeries
+  \addplot[only marks, mark=x, mark size=2.5pt, gray, only key=pca] table[x=energy_nj, y=mse] {\pt};
   \pgfplotstablegetelem{\paretoPcaRow}{mse}\of\pt
   \edef\pcamse{\pgfplotsretval}
   \draw[dashed, gray] ({rel axis cs:0,0} |- {axis cs:1,\pcamse})

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -98,6 +99,26 @@ struct SnnOpCounts
     double acs = 0.0;
     double spikes = 0.0;
     double neuron_steps = 0.0;
+    // (spiking neuron, window) pairs, and those with a rate at each end (RunMetrics'
+    // hidden_silent_share / hidden_always_share).
+    double neuron_windows = 0.0;
+    double silent_neuron_windows = 0.0;
+    double always_neuron_windows = 0.0;
+};
+
+/// A firing rate at or past these counts as pinned to that end. T is at most 32 here, so one
+/// spike is a rate of 0.03: the two cuts mean "never fired" and "fired at every step".
+inline constexpr double kSilentRate = 0.01;
+inline constexpr double kAlwaysRate = 0.99;
+
+/// The trained parameters of a network's spiking (non-readout) LifBPTT layers, each layer
+/// weighing the same. beta is computed as forward() does, clamp included.
+struct LifParameterSummary
+{
+    int layers = 0;
+    float v_th_mean = std::numeric_limits<float>::quiet_NaN();
+    float v_th_min = std::numeric_limits<float>::quiet_NaN();
+    float beta_mean = std::numeric_limits<float>::quiet_NaN();
 };
 /// `repeated_steps` as in snn_ae_energy (Meeting01Energy.hpp): T counts the first Linear of a
 /// repeated analog input once per sample (results_format 8), 1 counts every row.
@@ -105,6 +126,11 @@ auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& mo
     const Tensor& input,
     bool input_is_spikes,
     int repeated_steps) -> SnnOpCounts;
+
+/// Reads the trained V_th, R and C of the encoder's and decoder's spiking layers. Throws
+/// std::logic_error on the dual-branch model, like count_snn_ops.
+auto summarize_lif_parameters(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model)
+    -> LifParameterSummary;
 
 /// Whether the tensor the SNN-AE receives is a spike train: `recurrent` emits the spikes of a
 /// LIF, `dense` passes the encoding through (poisson/latency spikes, direct analog), `conv1d`

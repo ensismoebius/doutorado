@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -384,6 +385,68 @@ TEST(SnnCost, CountsAnAnalogInputForwardByHand)
     EXPECT_DOUBLE_EQ(ops.acs, 4.0 * spikes + 16.0);
     EXPECT_DOUBLE_EQ(ops.spikes, spikes);
     EXPECT_DOUBLE_EQ(ops.neuron_steps, 32.0);
+}
+
+TEST(SnnCost, TheEncoderIsPartOfTheWholeAndTheDecoderIsTheRest)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16);
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d)
+            x.at(t, d) = 0.1F * static_cast<float>((t * 16 + d) % 7) - 0.25F;
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+
+    const double whole = meeting01::snn_ae_energy(model, input, false, 1).total_nj();
+    const double encoder = meeting01::snn_ae_encoder_energy(model, input, false, 1).total_nj();
+    EXPECT_GT(encoder, 0.0);
+    EXPECT_LT(encoder, whole);
+}
+
+TEST(SnnCost, EachEndOfTheRateIsCountedOnItsOwn)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    auto* lif = dynamic_cast<nn::LifBPTT*>(model.encoder_.layers[1].get());
+    ASSERT_NE(lif, nullptr);
+    nn::Tensor x(4, 16);
+    x.setZero();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    const auto count = [&](float threshold)
+    {
+        lif->voltage_threshold.at(0, 0) = threshold;
+        model.reset_state();
+        (void) model.forward(input, false);
+        return meeting01::count_snn_ops(model, input, /*input_is_spikes=*/false, 1);
+    };
+
+    const auto silent = count(1000.0F);
+    EXPECT_DOUBLE_EQ(silent.neuron_windows, 8.0) << "8 neurons, one window";
+    EXPECT_DOUBLE_EQ(silent.silent_neuron_windows, 8.0);
+    EXPECT_DOUBLE_EQ(silent.always_neuron_windows, 0.0);
+
+    const auto always = count(-1000.0F);
+    EXPECT_DOUBLE_EQ(always.silent_neuron_windows, 0.0);
+    EXPECT_DOUBLE_EQ(always.always_neuron_windows, 8.0);
+}
+
+TEST(SnnCost, TrainedLifParametersAreReadFromTheSpikingLayers)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    auto* lif = dynamic_cast<nn::LifBPTT*>(model.encoder_.layers[1].get());
+    ASSERT_NE(lif, nullptr);
+    lif->voltage_threshold.at(0, 0) = -0.25F; // nothing bounds V_th, so the minimum must show it
+    lif->resistance.at(0, 0) = 2.0F;
+    lif->capacitance.at(0, 0) = 1.0F;
+
+    const auto s = meeting01::summarize_lif_parameters(model);
+    EXPECT_EQ(s.layers, 1);
+    EXPECT_FLOAT_EQ(s.v_th_min, -0.25F);
+    EXPECT_FLOAT_EQ(s.v_th_mean, -0.25F);
+    EXPECT_FLOAT_EQ(s.beta_mean, std::exp(-1.0F / 2.0F));
 }
 
 TEST(SnnCost, CountsABinaryInputAsAccumulates)

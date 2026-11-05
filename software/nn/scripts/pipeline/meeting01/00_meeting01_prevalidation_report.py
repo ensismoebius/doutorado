@@ -321,6 +321,8 @@ def summarize(records, walls, pca, datasets) -> list[dict]:
                 "train_ms_per_window_epoch": _mean([r["train_ms_per_window_epoch"] for r in rs]),
                 "infer_ms_per_window": _mean([r["infer_ms_per_window"] for r in rs]),
                 **{f"{k}_per_window": _mean([r[k] for r in rs]) for k in ENERGY_COLUMNS},
+                "energy_nj_half_mem_per_window": _mean(
+                    [r["energy_ops_nj"] + 0.5 * r["energy_mem_nj"] for r in rs]),
                 "macs_per_window": _mean([r["macs"] for r in rs]),
                 "params": _mean([r["params"] for r in rs]),
                 "epochs_run": _mean([r["epochs_run"] for r in rs]),

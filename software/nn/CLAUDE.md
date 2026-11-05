@@ -375,7 +375,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 10)**: the paper reads only generated files in its
+**Paper data contract (results_format 11)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -414,6 +414,14 @@ rate and converted to the profile's `sample_rate` (`nn::utility::resample_bandli
 files included: no subject is excluded, because excluding one moves others across folds. GA
 checkpoints are stamped with `checkpoint_hash`, which covers the window values. Each split manifest
 records its `composition`.
+
+**Review conditions (results_format 11)**: the GA's front is re-scored on `winner_seeds` fresh seeds,
+the search's score left out. The primary estimand is group level (`group_level` in `04_`: Student t
+interval, Holm, each `d_g` printed); recording level is descriptive. Fold 1 of FSDD and EEGMMIDB leaves
+the headline too (`DESIGN_INFORMED_FOLDS`: it tests on fold 0's validation block). `EQUIVALENCE_MARGIN`
+(0.02) reads the two axes; PCA is priced (`pca_energy_nj`). Rows add `energy_nj_encoder`,
+`hidden_silent_share`, `hidden_always_share`, `lif_v_th_mean/min`, `lif_beta_mean`, `train_mse`.
+`data/paper_design.tex` is a placeholder until the logged twin reruns.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

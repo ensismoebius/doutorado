@@ -62,7 +62,9 @@ from collections import defaultdict
 #: every family's window order (format 8 fixed both for the sequence families and the order
 #: for all), and the SNN GA's cost objective counts a repeated first layer once.
 #: Format 10 corrects the windows themselves, for every dataset: see _OLDER_FORMATS[9].
-RESULTS_FORMAT = 10
+#: Format 11 re-scores the GA's front on fresh seeds only and records the network's insides:
+#: see _OLDER_FORMATS[10].
+RESULTS_FORMAT = 11
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -89,6 +91,9 @@ _OLDER_FORMATS = {
     9: "the windows were wrong: FSDD and AudioMNIST carried the WAV header as 22 samples, caps "
        "kept a sorted list's prefix (FSDD fold 0 trained on digits 0-4), the per-recording cap "
        "kept each recording's start, and 36 EEGMMIDB files at 128 Hz were treated as 160 Hz",
+    10: "the GA's re-score averaged in the search's own score, the one that selected the "
+        "member, so val_mse stayed biased low and the pick could differ, and the rows carry no "
+        "hidden-rate shares, trained V_th and beta, or training error",
 }
 
 PW_HEADER = [
@@ -121,11 +126,13 @@ ENERGY_CHECKS = (("energy_nj_sram8k", "with every memory access priced at an 8 K
                  ("arith_energy_nj", "with arithmetic alone"),
                  ("energy_nj_as_executed",
                   "with the first layer of a direct-coded input recomputed at every time step, "
-                  "as the code runs it"))
+                  "as the code runs it"),
+                 ("energy_nj_half_mem", "with every memory price halved"))
 #: How the generated text says a comparison survived every check in ENERGY_CHECKS.
 ENERGY_CHECKS_HOLD = ("with every memory access priced at one SRAM size, 8 KB, 32 KB or 1 MB, "
-                      "with arithmetic alone, and with the first layer of a direct-coded input "
-                      "recomputed at every time step, as the code runs it")
+                      "with every memory price halved, with arithmetic alone, and with the first "
+                      "layer of a direct-coded input recomputed at every time step, as the code "
+                      "runs it")
 #: 03_ writes every reference row with seed 0: a reference is fitted once,
 #: deterministically, so it HAS no seed -- 0 marks that, it is not a seed value.
 REFERENCE_SEED = "0"
@@ -274,10 +281,81 @@ DEVELOPMENT_FOLDS: dict[str, frozenset[int]] = {
     "eegmmidb": frozenset({0}),
 }
 
+#: Folds whose TEST block was the development fold's VALIDATION block (fold f validates on block
+#: f + 1), so the design study read those groups' errors. Leaving them in the headline would test
+#: on groups the design was tuned on; the review of 2026-11-04 sustained this (V005). They are out
+#: of the headline and back in the sensitivity analysis. Fold 5 only validates on the development
+#: test block, so it stays, and the paper says so. Kept apart from DEVELOPMENT_FOLDS because the
+#: pre-validation and T1 run on those, and must not start running here too.
+DESIGN_INFORMED_FOLDS: dict[str, frozenset[int]] = {
+    "fsdd": frozenset({1}),
+    "eegmmidb": frozenset({1}),
+}
+
+#: Half-width of the band inside which an SNN-AE minus ANN-AE error difference counts as "no
+#: quality to trade": 2% of the window's variance (windows are z-scored, so the no-model error is
+#: 1), a change treated as negligible; between 0.12 dB at an error of 0.71 and 0.46 dB at 0.18.
+#: It is a judgement about relevance, not a noise estimate. Proposed 2026-11-05, before any
+#: format-11 test number was read; the paper's author must confirm it or replace it before
+#: anyone reads them. With 4 FSDD speakers the interval fits only if their sd is below 0.0126,
+#: so there the rule will rarely fire and the paper reports the trade instead.
+EQUIVALENCE_MARGIN = 0.02
+
 
 def is_headline_fold(dataset: str, fold: int) -> bool:
-    """False for a development fold (DEVELOPMENT_FOLDS), True for every other fold."""
-    return fold not in DEVELOPMENT_FOLDS.get(dataset, frozenset())
+    """False for a fold left out of the headline numbers (DEVELOPMENT_FOLDS,
+    DESIGN_INFORMED_FOLDS), True for every other fold."""
+    return (fold not in DEVELOPMENT_FOLDS.get(dataset, frozenset())
+            and fold not in DESIGN_INFORMED_FOLDS.get(dataset, frozenset()))
+
+
+# ------------------------------------------------------------------- PCA's energy
+
+#: Meeting01Energy.hpp's prices, pJ. pca_energy_nj's self-test pins its total by hand.
+_PJ = {"fp_add": 0.9, "fp_mul": 3.7, "int_add": 0.1}
+_SRAM_POINTS = ((8.0 * 1024, 10.0), (32.0 * 1024, 20.0), (1024.0 * 1024, 100.0))
+_WORD_BYTES = 4.0
+
+
+def sram_access_pj(bytes_: float) -> float:
+    """sram_access_pj of Meeting01Energy.cpp: Horowitz's three points joined by straight lines,
+    10 pJ at or below 8 KB. Only sizes a PCA of these windows needs: 1 MB is refused."""
+    if bytes_ <= _SRAM_POINTS[0][0]:
+        return _SRAM_POINTS[0][1]
+    for (b0, p0), (b1, p1) in zip(_SRAM_POINTS, _SRAM_POINTS[1:]):
+        if bytes_ <= b1:
+            return p0 + (p1 - p0) * (bytes_ - b0) / (b1 - b0)
+    raise ResultsError(f"sram_access_pj: {bytes_} bytes is above 1 MB, outside this port.")
+
+
+def pca_energy_nj(window: int, k: int, sram_bytes: float | None = None) -> dict:
+    """{"total", "encoder", "arith", "ops", "mem"} in nJ per window of a PCA with k components priced by the
+    model of Meeting01Energy (add_dense_fc without the bias, which PCA has instead as its mean):
+    encode = subtract the mean (one add and one read of it per value), then the k x window
+    matrix product; decode = the same product transposed, then add the mean back. `sram_bytes`
+    prices every access at one memory size, as energy_nj_sram<size> does. The analog first layer
+    of a network pays the same reads, so PCA gets no favour the networks do not."""
+    if window < 1 or not 1 <= k <= window:
+        raise ResultsError(f"pca_energy_nj: need 1 <= k <= window, got k={k}, window={window}.")
+    weights = float(window * k)
+
+    def side(n_in: float, n_out: float) -> tuple[float, float, float]:
+        macs = n_in * n_out
+        ops = (macs * (_PJ["fp_add"] + _PJ["fp_mul"]) + window * _PJ["fp_add"]
+               + (n_in + n_out) * _PJ["int_add"])
+        def price(words: float) -> float:
+            return sram_access_pj(sram_bytes if sram_bytes else words * _WORD_BYTES)
+        mem = (n_in * price(n_in) + macs * price(weights) + n_out * price(n_out)
+               + window * price(float(window)))
+        arith = macs * (_PJ["fp_add"] + _PJ["fp_mul"])
+        return ops, mem, arith
+
+    enc, dec = side(float(window), float(k)), side(float(k), float(window))
+    return {"total": (sum(enc[:2]) + sum(dec[:2])) / 1000.0,
+            "encoder": sum(enc[:2]) / 1000.0,
+            "arith": (enc[2] + dec[2]) / 1000.0,
+            "ops": (enc[0] + dec[0]) / 1000.0,
+            "mem": (enc[1] + dec[1]) / 1000.0}
 
 
 # --------------------------------------------------------- the run's configuration
