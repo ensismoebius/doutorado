@@ -295,9 +295,8 @@ DESIGN_INFORMED_FOLDS: dict[str, frozenset[int]] = {
 #: Half-width of the band inside which an SNN-AE minus ANN-AE error difference counts as "no
 #: quality to trade": 2% of the window's variance (windows are z-scored, so the no-model error is
 #: 1), a change treated as negligible; between 0.12 dB at an error of 0.71 and 0.46 dB at 0.18.
-#: It is a judgement about relevance, not a noise estimate. Proposed 2026-11-05, before any
-#: format-11 test number was read; the paper's author must confirm it or replace it before
-#: anyone reads them. With 4 FSDD speakers the interval fits only if their sd is below 0.0126,
+#: It is a judgement about relevance, not a noise estimate. Proposed 2026-11-05 and confirmed by
+#: the paper's author on 2026-11-06, before any format-11 test number was read. With 4 FSDD speakers the interval fits only if their sd is below 0.0126,
 #: so there the rule will rarely fire and the paper reports the trade instead.
 EQUIVALENCE_MARGIN = 0.02
 

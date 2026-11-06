@@ -3426,8 +3426,8 @@ speakers almost nothing separates, so the rule would hand the verdict to energy.
 interval: only when all of it lies inside `+-Delta` is the cheaper model recommended, and that must hold
 over groups AND over fold means, because the 18 subjects of a fold share one set of models. `Delta =
 0.02` (`EQUIVALENCE_MARGIN`) is 2% of the window's variance, treated as negligible (0.12 dB at error
-0.71, 0.46 dB at 0.18). It is a judgement of relevance, not a noise estimate, provisional until the
-paper's author confirms it, and it must be settled before format-11 test numbers are read. A wide
+0.71, 0.46 dB at 0.18). It is a judgement of relevance, not a noise estimate, confirmed by the paper's
+author on 2026-11-06, before any format-11 test number was read. A wide
 interval centred on 0 is flagged as not equivalent. On 4 FSDD speakers the interval fits only if their
 sd is below 0.0126, so the rule will rarely fire there and the paper reports the trade.
 
