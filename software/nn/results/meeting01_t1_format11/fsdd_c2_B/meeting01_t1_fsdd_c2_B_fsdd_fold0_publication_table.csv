@@ -1,0 +1,2 @@
+Model,Codificacao,Camadas,MSE,MAE,R2,F1,SpikeRate,EnergiaAritNj,TempoTreinoMs
+transformer-ae,direct,1,0.92758,0.751435,0.0647641,0,nan,5232.08,439847
