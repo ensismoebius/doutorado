@@ -42,13 +42,6 @@ git-stash-and-rebuild diff for confirming a pure refactor changed nothing else.
 
 ---
 
-## Caveman mode
-
-Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
-`/caveman lite|full|ultra` to change.
-
----
-
 ## Build & test
 
 **Always use presets** — never invent raw cmake flags:

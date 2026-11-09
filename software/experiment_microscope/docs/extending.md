@@ -96,5 +96,3 @@ An "experiment" is just an adapter plus, usually, new binding functions.
   engine's opinion, not this project's — do not act on them.
 - No fallbacks. A missing dependency, artifact or `.so` raises an exception
   naming the cause **and** the remedy.
-- Caveman-terse docstrings; didactic (`problem → concrete example → drawn
-  structure`) for anything explaining *why*.
