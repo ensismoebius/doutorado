@@ -1,0 +1,25 @@
+{"type": "start", "name": "eegmmidb_w65x64_clamp_xavier_s45", "trivial_loss": 0.9996989648693367, "arm_below": 0.8997290683824031, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.7452450786232948, "monitor": 0.61217200756073, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.5531515213698148, "monitor": 0.5471951961517334, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.49789441004395485, "monitor": 0.5321911573410034, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.462945727288723, "monitor": 0.4992070496082306, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.44231386014074087, "monitor": 0.49546360969543457, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.42872086168825624, "monitor": 0.4808482229709625, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.41771781699359417, "monitor": 0.4760372042655945, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.4068624227643013, "monitor": 0.4766571521759033, "armed": true, "best_epoch": 7, "bad": 1}
+{"type": "epoch", "epoch": 9, "train_loss": 0.4010767408385873, "monitor": 0.4656907618045807, "armed": true, "best_epoch": 9, "bad": 0}
+{"type": "epoch", "epoch": 10, "train_loss": 0.39346139726787804, "monitor": 0.4669511914253235, "armed": true, "best_epoch": 9, "bad": 1}
+{"type": "epoch", "epoch": 11, "train_loss": 0.3900322935059667, "monitor": 0.4632531702518463, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.38360148590803145, "monitor": 0.464643657207489, "armed": true, "best_epoch": 11, "bad": 1}
+{"type": "epoch", "epoch": 13, "train_loss": 0.38145132149010896, "monitor": 0.46365341544151306, "armed": true, "best_epoch": 11, "bad": 2}
+{"type": "epoch", "epoch": 14, "train_loss": 0.3771464758440852, "monitor": 0.45893505215644836, "armed": true, "best_epoch": 14, "bad": 0}
+{"type": "epoch", "epoch": 15, "train_loss": 0.37274271741509435, "monitor": 0.46177977323532104, "armed": true, "best_epoch": 14, "bad": 1}
+{"type": "epoch", "epoch": 16, "train_loss": 0.37153653432428835, "monitor": 0.4626086950302124, "armed": true, "best_epoch": 14, "bad": 2}
+{"type": "epoch", "epoch": 17, "train_loss": 0.36643055334687236, "monitor": 0.44920796155929565, "armed": true, "best_epoch": 17, "bad": 0}
+{"type": "epoch", "epoch": 18, "train_loss": 0.3671442057788372, "monitor": 0.4455708861351013, "armed": true, "best_epoch": 18, "bad": 0}
+{"type": "epoch", "epoch": 19, "train_loss": 0.3627261429578066, "monitor": 0.4529144763946533, "armed": true, "best_epoch": 18, "bad": 1}
+{"type": "epoch", "epoch": 20, "train_loss": 0.3607987588793039, "monitor": 0.45166879892349243, "armed": true, "best_epoch": 18, "bad": 2}
+{"type": "epoch", "epoch": 21, "train_loss": 0.3595851946175098, "monitor": 0.4463755190372467, "armed": true, "best_epoch": 18, "bad": 3}
+{"type": "epoch", "epoch": 22, "train_loss": 0.3563275955915451, "monitor": 0.4542790651321411, "armed": true, "best_epoch": 18, "bad": 4}
+{"type": "epoch", "epoch": 23, "train_loss": 0.3561523035168648, "monitor": 0.4526428282260895, "armed": true, "best_epoch": 18, "bad": 5}
+{"type": "end", "name": "eegmmidb_w65x64_clamp_xavier_s45", "dataset": "eegmmidb", "run": 1, "widths": "65x64", "encoding": "direct", "time_steps": 1, "neuron": "clamp", "readout": "lat_mean", "decoder": "lrelu", "init": "xavier", "seed": 45, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 23, "best_epoch": 18, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 0.9996989648693367, "best_monitor": 0.4455708861351013, "test_mse": 0.4908134639263153, "test_mse_per_step": NaN, "val_mse": 0.4455708861351013, "train_mse": 0.3431158661842346, "enc_low_share": 0.49480000138282776, "enc_high_share": 0.40198975801467896, "enc_mean_code": 0.4531438648700714, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 81.8349301815033}

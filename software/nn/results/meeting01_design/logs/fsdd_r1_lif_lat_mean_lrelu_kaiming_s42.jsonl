@@ -1,0 +1,25 @@
+{"type": "start", "name": "fsdd_r1_lif_lat_mean_lrelu_kaiming_s42", "trivial_loss": 1.0013324600413032, "arm_below": 0.9011992140371728, "steps": 28, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 1.11853592813015, "monitor": 0.9840399026870728, "armed": false, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.9297131553888321, "monitor": 0.8920650482177734, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.827034051015973, "monitor": 0.8067954778671265, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.7587002700269222, "monitor": 0.7477723956108093, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.7121252704411745, "monitor": 0.7133661508560181, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6872780727744102, "monitor": 0.6982284784317017, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6682385691031814, "monitor": 0.67938631772995, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6548463977612555, "monitor": 0.677422285079956, "armed": true, "best_epoch": 8, "bad": 0}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6438122657760977, "monitor": 0.6707956194877625, "armed": true, "best_epoch": 9, "bad": 0}
+{"type": "epoch", "epoch": 10, "train_loss": 0.636459933027625, "monitor": 0.6729105710983276, "armed": true, "best_epoch": 9, "bad": 1}
+{"type": "epoch", "epoch": 11, "train_loss": 0.6276770159155131, "monitor": 0.6683422327041626, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.6218958608061075, "monitor": 0.665681004524231, "armed": true, "best_epoch": 12, "bad": 0}
+{"type": "epoch", "epoch": 13, "train_loss": 0.616330656901002, "monitor": 0.6659772396087646, "armed": true, "best_epoch": 12, "bad": 1}
+{"type": "epoch", "epoch": 14, "train_loss": 0.6100818690806628, "monitor": 0.6621395945549011, "armed": true, "best_epoch": 14, "bad": 0}
+{"type": "epoch", "epoch": 15, "train_loss": 0.6047641954533756, "monitor": 0.6615276336669922, "armed": true, "best_epoch": 15, "bad": 0}
+{"type": "epoch", "epoch": 16, "train_loss": 0.6017090435549617, "monitor": 0.671941339969635, "armed": true, "best_epoch": 15, "bad": 1}
+{"type": "epoch", "epoch": 17, "train_loss": 0.5981399823389948, "monitor": 0.6677824258804321, "armed": true, "best_epoch": 15, "bad": 2}
+{"type": "epoch", "epoch": 18, "train_loss": 0.5939425702914596, "monitor": 0.6614927649497986, "armed": true, "best_epoch": 18, "bad": 0}
+{"type": "epoch", "epoch": 19, "train_loss": 0.592322745449841, "monitor": 0.6723082065582275, "armed": true, "best_epoch": 18, "bad": 1}
+{"type": "epoch", "epoch": 20, "train_loss": 0.5897272360622883, "monitor": 0.6689978837966919, "armed": true, "best_epoch": 18, "bad": 2}
+{"type": "epoch", "epoch": 21, "train_loss": 0.5849197612553835, "monitor": 0.6763104200363159, "armed": true, "best_epoch": 18, "bad": 3}
+{"type": "epoch", "epoch": 22, "train_loss": 0.5838490673117339, "monitor": 0.6685732007026672, "armed": true, "best_epoch": 18, "bad": 4}
+{"type": "epoch", "epoch": 23, "train_loss": 0.5794258308783173, "monitor": 0.6812673807144165, "armed": true, "best_epoch": 18, "bad": 5}
+{"type": "end", "name": "fsdd_r1_lif_lat_mean_lrelu_kaiming_s42", "dataset": "fsdd", "run": 1, "widths": "59x16", "encoding": "direct", "time_steps": 28, "neuron": "lif", "readout": "lat_mean", "decoder": "lrelu", "init": "kaiming", "seed": 42, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 23, "best_epoch": 18, "armed_epoch": 2, "stop_reason": "patience", "trivial_loss": 1.0013324600413032, "best_monitor": 0.6614927649497986, "test_mse": 0.8012422919273376, "test_mse_per_step": NaN, "val_mse": 0.6614927649497986, "train_mse": 0.577744722366333, "enc_low_share": 0.46829378604888916, "enc_high_share": 0.3864745795726776, "enc_mean_code": 0.43865740299224854, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": 1.1513923406600952, "lif_beta_mean": 0.9223657846450806, "wall_s": 321.28761410713196}

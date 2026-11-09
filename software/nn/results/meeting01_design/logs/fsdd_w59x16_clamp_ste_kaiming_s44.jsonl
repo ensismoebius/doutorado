@@ -1,0 +1,18 @@
+{"type": "start", "name": "fsdd_w59x16_clamp_ste_kaiming_s44", "trivial_loss": 1.0013324600413032, "arm_below": 0.9011992140371728, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 1.0734878513216972, "monitor": 0.9774121046066284, "armed": false, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.9181149089932442, "monitor": 0.8689583539962769, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.8151298528835177, "monitor": 0.7779214978218079, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.7459326164349913, "monitor": 0.7257733941078186, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.709216601073742, "monitor": 0.6994838714599609, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6896249788627028, "monitor": 0.6924390196800232, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6778425877839327, "monitor": 0.682167649269104, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6703626509159804, "monitor": 0.6801611185073853, "armed": true, "best_epoch": 8, "bad": 0}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6646383892297745, "monitor": 0.6766836643218994, "armed": true, "best_epoch": 9, "bad": 0}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6590861212164164, "monitor": 0.6788532733917236, "armed": true, "best_epoch": 9, "bad": 1}
+{"type": "epoch", "epoch": 11, "train_loss": 0.65393624638021, "monitor": 0.6754831075668335, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.6512265004701913, "monitor": 0.6829825639724731, "armed": true, "best_epoch": 11, "bad": 1}
+{"type": "epoch", "epoch": 13, "train_loss": 0.6476150905042887, "monitor": 0.6811057329177856, "armed": true, "best_epoch": 11, "bad": 2}
+{"type": "epoch", "epoch": 14, "train_loss": 0.6446665828675031, "monitor": 0.6780985593795776, "armed": true, "best_epoch": 11, "bad": 3}
+{"type": "epoch", "epoch": 15, "train_loss": 0.6421601326838136, "monitor": 0.6836592555046082, "armed": true, "best_epoch": 11, "bad": 4}
+{"type": "epoch", "epoch": 16, "train_loss": 0.6398614400774241, "monitor": 0.6844642162322998, "armed": true, "best_epoch": 11, "bad": 5}
+{"type": "end", "name": "fsdd_w59x16_clamp_ste_kaiming_s44", "dataset": "fsdd", "run": 1, "widths": "59x16", "encoding": "direct", "time_steps": 1, "neuron": "clamp_ste", "readout": "lat_mean", "decoder": "lrelu", "init": "kaiming", "seed": 44, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 16, "best_epoch": 11, "armed_epoch": 2, "stop_reason": "patience", "trivial_loss": 1.0013324600413032, "best_monitor": 0.6754831075668335, "test_mse": 0.8268198370933533, "test_mse_per_step": NaN, "val_mse": 0.6754831075668335, "train_mse": 0.6385653614997864, "enc_low_share": 0.5033107399940491, "enc_high_share": 0.45589831471443176, "enc_mean_code": 0.47621577978134155, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 52.32066106796265}

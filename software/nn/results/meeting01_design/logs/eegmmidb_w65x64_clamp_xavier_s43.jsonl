@@ -1,0 +1,26 @@
+{"type": "start", "name": "eegmmidb_w65x64_clamp_xavier_s43", "trivial_loss": 0.9996989648693367, "arm_below": 0.8997290683824031, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.7333161680698395, "monitor": 0.5987430810928345, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.5457745489925147, "monitor": 0.5466030836105347, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.4940938167721033, "monitor": 0.5248093008995056, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.4628487019240856, "monitor": 0.5080087780952454, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.4474541984051466, "monitor": 0.496127724647522, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.43165852610766886, "monitor": 0.4823983311653137, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.4210929279625416, "monitor": 0.4881705641746521, "armed": true, "best_epoch": 6, "bad": 1}
+{"type": "epoch", "epoch": 8, "train_loss": 0.41119778180867433, "monitor": 0.47605377435684204, "armed": true, "best_epoch": 8, "bad": 0}
+{"type": "epoch", "epoch": 9, "train_loss": 0.40294850039482116, "monitor": 0.4787421226501465, "armed": true, "best_epoch": 8, "bad": 1}
+{"type": "epoch", "epoch": 10, "train_loss": 0.39651709634810683, "monitor": 0.47976943850517273, "armed": true, "best_epoch": 8, "bad": 2}
+{"type": "epoch", "epoch": 11, "train_loss": 0.3911756201907992, "monitor": 0.47212275862693787, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.3881302820816636, "monitor": 0.4619532823562622, "armed": true, "best_epoch": 12, "bad": 0}
+{"type": "epoch", "epoch": 13, "train_loss": 0.38289482809603215, "monitor": 0.4664103090763092, "armed": true, "best_epoch": 12, "bad": 1}
+{"type": "epoch", "epoch": 14, "train_loss": 0.37883821289241315, "monitor": 0.45691636204719543, "armed": true, "best_epoch": 14, "bad": 0}
+{"type": "epoch", "epoch": 15, "train_loss": 0.3775159469917417, "monitor": 0.46523427963256836, "armed": true, "best_epoch": 14, "bad": 1}
+{"type": "epoch", "epoch": 16, "train_loss": 0.3745004447102547, "monitor": 0.4551706910133362, "armed": true, "best_epoch": 16, "bad": 0}
+{"type": "epoch", "epoch": 17, "train_loss": 0.36952301940321924, "monitor": 0.45446574687957764, "armed": true, "best_epoch": 17, "bad": 0}
+{"type": "epoch", "epoch": 18, "train_loss": 0.3670291387736797, "monitor": 0.4521985352039337, "armed": true, "best_epoch": 18, "bad": 0}
+{"type": "epoch", "epoch": 19, "train_loss": 0.3657635930776596, "monitor": 0.4505578577518463, "armed": true, "best_epoch": 19, "bad": 0}
+{"type": "epoch", "epoch": 20, "train_loss": 0.363496816188097, "monitor": 0.4546208679676056, "armed": true, "best_epoch": 19, "bad": 1}
+{"type": "epoch", "epoch": 21, "train_loss": 0.3577391498610377, "monitor": 0.4509159326553345, "armed": true, "best_epoch": 19, "bad": 2}
+{"type": "epoch", "epoch": 22, "train_loss": 0.3580233660340309, "monitor": 0.4541510045528412, "armed": true, "best_epoch": 19, "bad": 3}
+{"type": "epoch", "epoch": 23, "train_loss": 0.35778920049220325, "monitor": 0.4557493031024933, "armed": true, "best_epoch": 19, "bad": 4}
+{"type": "epoch", "epoch": 24, "train_loss": 0.3540604170933366, "monitor": 0.4537023901939392, "armed": true, "best_epoch": 19, "bad": 5}
+{"type": "end", "name": "eegmmidb_w65x64_clamp_xavier_s43", "dataset": "eegmmidb", "run": 1, "widths": "65x64", "encoding": "direct", "time_steps": 1, "neuron": "clamp", "readout": "lat_mean", "decoder": "lrelu", "init": "xavier", "seed": 43, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 24, "best_epoch": 19, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 0.9996989648693367, "best_monitor": 0.4505578577518463, "test_mse": 0.49568119645118713, "test_mse_per_step": NaN, "val_mse": 0.4505578577518463, "train_mse": 0.3481111526489258, "enc_low_share": 0.5003281831741333, "enc_high_share": 0.3986051380634308, "enc_mean_code": 0.4492475688457489, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 86.33888626098633}

@@ -1,0 +1,14 @@
+{"type": "start", "name": "fsdd_r1_lif_out_mean_lrelu_xavier_s44", "trivial_loss": 1.0013324600413032, "arm_below": 0.9011992140371728, "steps": 28, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8981895343959332, "monitor": 0.7868028879165649, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7511345014572144, "monitor": 0.7168633937835693, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.7003215036690235, "monitor": 0.691737949848175, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6751475543789566, "monitor": 0.6848663091659546, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6594911346882582, "monitor": 0.6735899448394775, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6494284558147192, "monitor": 0.6719066500663757, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6393553571477533, "monitor": 0.6676130890846252, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6325852361917496, "monitor": 0.6725453734397888, "armed": true, "best_epoch": 7, "bad": 1}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6251982827745378, "monitor": 0.6713445782661438, "armed": true, "best_epoch": 7, "bad": 2}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6197042548805475, "monitor": 0.6808559894561768, "armed": true, "best_epoch": 7, "bad": 3}
+{"type": "epoch", "epoch": 11, "train_loss": 0.6147150893546641, "monitor": 0.6830689907073975, "armed": true, "best_epoch": 7, "bad": 4}
+{"type": "epoch", "epoch": 12, "train_loss": 0.6101573498584331, "monitor": 0.6826406121253967, "armed": true, "best_epoch": 7, "bad": 5}
+{"type": "end", "name": "fsdd_r1_lif_out_mean_lrelu_xavier_s44", "dataset": "fsdd", "run": 1, "widths": "59x16", "encoding": "direct", "time_steps": 28, "neuron": "lif", "readout": "out_mean", "decoder": "lrelu", "init": "xavier", "seed": 44, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 12, "best_epoch": 7, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 1.0013324600413032, "best_monitor": 0.6676130890846252, "test_mse": 0.7937445640563965, "test_mse_per_step": NaN, "val_mse": 0.6676130890846252, "train_mse": 0.6180906891822815, "enc_low_share": 0.4772542417049408, "enc_high_share": 0.39129942655563354, "enc_mean_code": 0.43887609243392944, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": 0.8602848052978516, "lif_beta_mean": 0.9070214629173279, "wall_s": 177.0557758808136}
