@@ -2,8 +2,9 @@
 """05_meeting01_t1_transformer.py -- T1: does warm-up or pre-norm get the Transformer-AE off the
 mean-predictor plateau?
 
-Why it exists. In the pre-validation (GridUnesp job 5315335) the Transformer-AE never left the
-plateau of the mean predictor in 55 trainings. Xiong et al. (ICML 2020) give an explanation that
+Why it exists. In the results_format 7 pre-validation (GridUnesp job 5315335) the Transformer-AE
+never left the plateau of the mean predictor in 55 trainings; in the results_format 11 one (job
+5317827) 5 of 57 did, all on EEGMMIDB (FSDD: 0 of 30). Xiong et al. (ICML 2020) give an explanation that
 is not "the architecture cannot do it": a post-norm Transformer at a fixed Adam rate needs a
 learning-rate warm-up, and a pre-norm one does not. The paper removes the Transformer-AE from the
 grid, so it must test that explanation before leaning on the removal. This script is that test.
@@ -16,7 +17,7 @@ Design, fixed before the first run (src/experiments/meeting01/questionsAndTasks.
                       epochs at 1000 steps/epoch), then 1e-3
     C    pre-norm     Adam 1e-3 constant                     model.transformer_norm_first = true
 
-    configurations  the two Transformer-AE winners of job 5315335 on each development fold
+    configurations  the two Transformer-AE winners of job 5317827 on each development fold
                     (WINNERS below), every other setting the pre-validation profile's
     seeds           the profile's (42, 43); since results_format 9 a seed reaches the weights and
                     the window order, so each process trains 4 distinct networks (a GA evaluation
@@ -64,13 +65,16 @@ from meeting01_results import (  # noqa: E402
     split_manifest,
 )
 
-#: The Transformer-AE winners of GridUnesp job 5315335 (results_format 7, code fd4ed177), one per
-#: seed and development fold: (config label, genome, the seed whose search picked it). Typed here,
-#: not read, because T1 tests THOSE networks and the job's files are not kept in the tree.
+#: The Transformer-AE winners of GridUnesp job 5317827 (results_format 11, code 3dd32028), one per
+#: seed and development fold: (config label, genome, the seed whose search picked it), copied from
+#: results/meeting01_prevalidation/transformer-ae/*_model_selection_manifest.json ("selected").
+#: Typed here, not read, because T1 tests THOSE networks and the job's files are not kept in the
+#: tree. (The results_format 7 winners of job 5315335 were tested before format 11 existed; only
+#: eegmmidb c2 is the same genome in both.)
 WINNERS = {
-    "fsdd": [("c1", {"d_model": 27, "d_ff": 135, "n_heads": 1, "n_layers": 1}, 42),
-             ("c2", {"d_model": 24, "d_ff": 101, "n_heads": 4, "n_layers": 3}, 43)],
-    "eegmmidb": [("c1", {"d_model": 96, "d_ff": 135, "n_heads": 8, "n_layers": 1}, 42),
+    "fsdd": [("c1", {"d_model": 27, "d_ff": 73, "n_heads": 1, "n_layers": 1}, 42),
+             ("c2", {"d_model": 24, "d_ff": 42, "n_heads": 8, "n_layers": 3}, 43)],
+    "eegmmidb": [("c1", {"d_model": 102, "d_ff": 191, "n_heads": 2, "n_layers": 1}, 42),
                  ("c2", {"d_model": 79, "d_ff": 105, "n_heads": 1, "n_layers": 1}, 43)],
 }
 WARMUP_STEPS = 4000
@@ -107,7 +111,7 @@ def build_profiles(base: dict) -> list[tuple[str, str, int, dict]]:
                 p["_comment"] = (
                     f"T1 (05_meeting01_t1_transformer.py), arm {arm} ({arm_label}), {ds} fold "
                     f"{folds[0]}, config {cfg_label} = {json.dumps(genome)}: the Transformer-AE "
-                    f"winner of GridUnesp job 5315335 for seed {picked_by}. The pre-validation "
+                    f"winner of GridUnesp job 5317827 for seed {picked_by}. The pre-validation "
                     "profile with the NSGA-II pinned to this genome (population 1, 0 generations, "
                     "winner_seeds 1), one dataset, the direct code, the arm's switch.")
                 p["experiment"]["run_tag"] = name
