@@ -125,7 +125,13 @@ cat > "$STAGE/start.sh" <<'START'
 set -euo pipefail
 [[ "$1" == */.job-input-"$SLURM_JOB_ID" ]] || { echo "start.sh: refusing to delete '$1'" >&2; exit 1; }
 rm -rf -- "$1"
-exec setsid -w bash -c 'echo "$$" > "$1"; exec bash "$2"' start "$2" "$3"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+rc=0
+setsid -w bash -c 'echo "$$" > "$1"; exec bash "$2"' start "$2" "$3" || rc=$?
+# The files the run left, for the sbatch's reconcile (_job_nanny_reconcile.sh); a stopped run too.
+source "$here/scripts/pipeline/meeting01/_job_nanny_reconcile.sh"
+job_nanny_write_listing "$here/results" "$SLURM_JOB_ID" || echo "start.sh: no final file listing written" >&2
+exit "$rc"
 START
 
 export INPUT="$STAGE"
@@ -143,6 +149,11 @@ while :; do
   wait "$NANNY_PID" && RC=0 || RC=$?
   kill -0 "$NANNY_PID" 2>/dev/null || break
 done
+
+# job-nanny's copies never delete: remove from $RES the files the run itself deleted (finished GA
+# searches' checkpoints and caches) that a periodic copy had brought home. One job owns all of $RES.
+source scripts/pipeline/meeting01/_job_nanny_reconcile.sh
+job_nanny_reconcile results "$RES" "$SLURM_JOB_ID" || true
 
 if [[ "$STOPPED" == "1" ]]; then
   echo "[gridunesp] STOPPED before the run finished (time limit or scancel; run exit code $RC)." \

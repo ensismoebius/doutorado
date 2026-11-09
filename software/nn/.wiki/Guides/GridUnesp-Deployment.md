@@ -519,7 +519,7 @@ script now runs `module load gridunesp` first.
 | work dir | `/store/$USER/$SLURM_JOB_ID/` when `SHARED_FS=true`, else node-local `/tmp/…` | `/store`: no automatic cleanup, survives a node failure |
 | copy in | `rsync -a -u $INPUT $WORK_DIR`, **no `-R`** | `out/build/…/meeting01` would arrive as plain `meeting01`, so `INPUT` is one directory already laid out like the tree |
 | run | `cd $WORK_DIR`, then the command | the run's root is the copy, not `~/software/nn` |
-| during | every `WAIT_CHECKPOINT` s: `rsync -a -u $OUTPUT <submit dir>` | results appear in `~/software/nn/results` every 30 min (set to 1800 s) |
+| during | every `WAIT_CHECKPOINT` s: `rsync -a -u $OUTPUT <submit dir>` | results appear in `~/software/nn/results` every 30 min (set to 1800 s); nothing is ever deleted there, so a file the run deletes later stays ([stale copies](#files-the-run-deletes-come-back-the-stale-copy-hazard-2026-11-09)) |
 | end | copies `OUTPUT` back, deletes the work dir, exits with the command's own code — only when the command returns | a failed run is a failed job |
 | killed | no signal handling at all: no final copy, no cleanup | `~/software/nn` has the last periodic copy; the newest state stays in `/store/$USER/<jobid>/`. The sbatch script makes sure the command *returns* first — see [Stopping](#stopping-a-run-the-30-day-limit-scancel-and-why-slurms-own-signal-never-reaches-it-2026-10-13) |
 
@@ -637,13 +637,74 @@ stopping the run at any moment is routine. It now goes through `.tmp` + rename a
 - Any SIGKILL before the final copy finishes (a node failure; a plain `scancel` whose final
   copy takes over 120 s) leaves the same two things behind.
 
-Recovery in both cases: `rsync -a /store/$USER/<id>/.job-input-<id>/results ~/software/nn/`,
-then `rm -rf /store/$USER/<id> ~/software/nn/.job-input-<id>` and `RESUME=1 sbatch …`.
+Recovery in both cases (from `~/software/nn`; the listing step is the
+[reconcile](#files-the-run-deletes-come-back-the-stale-copy-hazard-2026-11-09) done by hand, because
+this `rsync` does not delete either):
+
+```bash
+source scripts/pipeline/meeting01/_job_nanny_reconcile.sh
+job_nanny_write_listing /store/$USER/<id>/.job-input-<id>/results <id>
+rsync -a /store/$USER/<id>/.job-input-<id>/results ~/software/nn/
+job_nanny_reconcile results results/meeting01 <id>          # an array task: add its two globs, as the sbatch does
+rm -rf /store/$USER/<id> ~/software/nn/.job-input-<id>      # then RESUME=1 sbatch …
+```
 
 **A fresh run refuses a non-empty `results/meeting01`.** Before job-nanny the run script deleted
 old checkpoints in place. Now it deletes them inside the work dir, and the copy back never deletes
 anything, so old checkpoints would sit next to the new rows. Move the old directory aside, or
 continue it with `RESUME=1`.
+
+#### Files the run deletes come back: the stale-copy hazard (2026-11-09)
+
+**The problem.** A GA search writes two resume files while it runs,
+`meeting01_ga_<tag>_checkpoint.json` (the population after each generation) and `_cache.jsonl`
+(every genome scored so far), and deletes both when it finishes: a finished search has nothing to
+resume. job-nanny's copies use `rsync -a -u` without `--delete`, so a copy made *while* the
+search ran puts the two files in `~/software/nn`, and nothing ever takes them away:
+
+```
+time ─►        gen 1 saved      periodic copy     gen 2, search done      final copy
+/store         ckpt(gen 1)      ──────────────►   ckpt deleted            ──────────────►  (no ckpt)
+~/software/nn                   ckpt(gen 1)                                                ckpt(gen 1)   ← stale
+```
+
+Measured: pre-validation job 5317827 (2026-11-07, exit 0, every search finished) left 13
+checkpoints and 13 caches at home. Each checkpoint is older than its own search's selection
+manifest; four stopped at generation 0 or 1 of 2.
+
+**Why it matters, and why nobody would notice.** `RESUME=1` stages `results/` *from home*. In a
+fold that is rerun, 01_meeting01_run_loso.sh promises that every finished run is recomputed and
+only the search that was cut mid-way continues from its checkpoint. With a stale checkpoint a
+search that had *finished* is "continued" from generation 1 instead:
+
+| | the search was cut mid-way | the search had finished (stale copy) |
+|---|---|---|
+| checkpoint at home | the newest state, from the final copy | an old generation, from a periodic copy |
+| what RESUME does | continues it — intended | continues it — not intended: it should start over |
+| stamp check (config hash, results_format) | passes | **passes too**: same configuration |
+| what the events say | "resumed" — true | "resumed" — false; the earlier attempt's events stay beside the new ones |
+
+Silent: nothing fails, and with a deterministic search the final number may even come out the
+same, but the run's record says a search was interrupted that never was.
+
+**The fix** (`scripts/pipeline/meeting01/_job_nanny_reconcile.sh`, used by both sbatch files):
+
+1. `start.sh` no longer `exec`s the run. It waits for it — a run ended by `stop_run` included —
+   and writes `results/.job-final-files-<id>.txt`: every file the run left, nothing it deleted.
+   job-nanny's final copy brings that list home.
+2. After job-nanny returns, the sbatch removes from `$RES` every file the list does not name and
+   that is not newer than the list (every stale copy is older: `rsync -a` keeps the run's
+   mtimes), prints each removal, and deletes the list. An array task looks only at its own fold's
+   names (`meeting01_loso_<ds>_fold<f>_*`, `meeting01_ga_meeting01_loso_<ds>_fold<f>_*`): the 24
+   tasks share `results/meeting01`, and one task's list says nothing about the others' files.
+3. No list (job-nanny SIGKILLed before its final copy): nothing is removed and the `.err` says
+   `NOT RECONCILED`. Recover from `/store` as above.
+
+Tests: `bash scripts/pipeline/meeting01/_job_nanny_reconcile.sh --self-test` (scope, globs, a
+spaced name, a file newer than the list, a missing or foreign list); the two `start.sh` heredocs
+were run in a fake work dir (exit code passed through, list written also after a TERM to the run's
+process group). Not yet run on the cluster: the next smoke job should end with
+`[reconcile] job <id>: N stale file(s) removed`.
 
 **What still touches `/home` during the run** (the docs say jobs doing heavy `/home` I/O may be
 cancelled): the datasets, read from their absolute paths in the profile once per fold; the
