@@ -760,6 +760,35 @@ TEST(MemoryAwareEnergy, EncodersCostWhatTheyCompute)
         (void) meeting01::architecture_transform_energy("cnn", 4.0, 2, 0.0), std::invalid_argument);
 }
 
+// The paper's break-even figure is drawn by a Python port of these building blocks
+// (first_stage_energy_nj in scripts/pipeline/meeting01/meeting01_results.py). Its self-test
+// (09_meeting01_energy_breakeven.py --self-test) pins the SAME three numbers, so a change to
+// either side breaks one of the two tests instead of the figure drifting from the harness.
+TEST(MemoryAwareEnergy, FirstStageOfTheBreakEvenFigure)
+{
+    using meeting01::EnergyLedger;
+    // The ANN-AE's first layer, 256 -> 59, once: Linear (output written) + leaky ReLU.
+    EnergyLedger ann;
+    meeting01::add_dense_fc(ann, 1.0, 256.0, 59.0, /*writes_output=*/true);
+    meeting01::add_nonlinearity(ann, 59.0, meeting01::Nonlinearity::ComparisonAndMultiply);
+    EXPECT_NEAR(ann.total_nj(), 409.5424320690525, 1e-9);
+
+    // A Poisson window, 300 spikes over T = 4, into the dense transform and the same Linear,
+    // then its LIF (no output spike charged).
+    EnergyLedger poisson = meeting01::encoding_energy("poisson", 256.0, 4, 300.0, true);
+    poisson += meeting01::architecture_transform_energy("dense", 256.0, 4, 0.0);
+    meeting01::add_spiking_fc(poisson, 300.0, 4.0, 256.0, 59.0, /*writes_output=*/false);
+    meeting01::add_lif(poisson, 4.0, 59.0, 0.0, /*readout=*/false, /*dense_input=*/false);
+    EXPECT_NEAR(poisson.total_nj(), 796.4763554435484, 1e-9);
+
+    // The direct code through the recurrent transform, which emits the same 300 spikes.
+    EnergyLedger recurrent = meeting01::encoding_energy("direct", 256.0, 4, 0.0, false);
+    recurrent += meeting01::architecture_transform_energy("recurrent", 256.0, 4, 300.0);
+    meeting01::add_spiking_fc(recurrent, 300.0, 4.0, 256.0, 59.0, /*writes_output=*/false);
+    meeting01::add_lif(recurrent, 4.0, 59.0, 0.0, /*readout=*/false, /*dense_input=*/false);
+    EXPECT_NEAR(recurrent.total_nj(), 818.6599554435484, 1e-9);
+}
+
 TEST(MemoryAwareEnergy, SetEnergySplitsOpsAndMemory)
 {
     meeting01::EnergyLedger e;

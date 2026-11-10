@@ -387,6 +387,132 @@ def pca_energy_nj(window: int, k: int, sram_bytes: float | None = None) -> dict:
             "mem": (enc[1] + dec[1]) / 1000.0}
 
 
+# ------------------------------------------------- the first stage, for the break-even figure
+
+class _Ledger:
+    """Meeting01Energy.cpp's EnergyLedger, priced as total_nj(): every access at its own
+    memory's size. Only what first_stage_energy_nj needs."""
+
+    def __init__(self) -> None:
+        self.fp_macs = self.fp_adds = self.fp_muls = self.int_adds = self.int_muls = 0.0
+        self.mem_pj = 0.0
+
+    def access(self, n: float, words: float) -> None:
+        if n:
+            self.mem_pj += n * sram_access_pj(words * _WORD_BYTES)
+
+    def total_nj(self) -> float:
+        ops = (self.fp_macs * (_PJ["fp_mul"] + _PJ["fp_add"]) + self.fp_adds * _PJ["fp_add"]
+               + self.fp_muls * _PJ["fp_mul"] + self.int_adds * _PJ["int_add"]
+               + self.int_muls * _INT_MUL_PJ)
+        return (ops + self.mem_pj) / 1000.0
+
+
+#: kIntMulPj, the Poisson generator's LCG step.
+_INT_MUL_PJ = 3.1
+
+
+def _dense_fc(e: _Ledger, rows: float, n_in: float, n_out: float, writes_output: bool) -> None:
+    """add_dense_fc (add_matmul + the bias)."""
+    weight_words = (n_in + 1.0) * n_out
+    e.fp_macs += rows * n_in * n_out
+    e.int_adds += rows * (n_in + n_out)
+    e.access(rows * n_in, n_in)
+    e.access(rows * n_in * n_out, weight_words)
+    if writes_output:
+        e.access(rows * n_out, n_out)
+    e.fp_adds += rows * n_out
+    e.access(rows * n_out, weight_words)
+
+
+def _spiking_fc(e: _Ledger, spikes_in: float, rows: float, n_in: float, n_out: float) -> None:
+    """add_spiking_fc with writes_output = false (an LIF follows)."""
+    events = spikes_in * n_out
+    weight_words = (n_in + 1.0) * n_out
+    e.fp_adds += events + rows * n_out
+    e.int_adds += events
+    e.access(spikes_in, n_in)
+    e.access(events + rows * n_out, weight_words)
+    e.access(events + rows * n_out, n_out)  # potential reads
+    e.access(events + rows * n_out, n_out)  # potential writes
+
+
+def _lif(e: _Ledger, rows: float, n: float, spikes_out: float, dense_input: bool) -> None:
+    """add_lif, not a readout."""
+    e.fp_macs += rows * n
+    if dense_input:
+        e.access(rows * n, n)
+        e.access(rows * n, n)
+    e.fp_adds += rows * n + spikes_out
+    e.access(spikes_out, n)
+
+
+#: The first stages first_stage_energy_nj prices, each as the harness composes it
+#: (Meeting01Evaluation.cpp: encoder + input transform + the network's walk).
+FIRST_STAGES = ("ann", "poisson_dense", "direct_recurrent")
+
+
+def first_stage_energy_nj(stage: str, window: int, width: int, time_steps: int = 1,
+                          spikes_in: float = 0.0) -> float:
+    """nJ per window from the analog window to the first hidden code of `width` units, by the
+    model of Meeting01Energy (pinned against it: MemoryAwareEnergy.FirstStageOfTheBreakEvenFigure
+    in parameter_count_gtest.cpp, and 09_'s self-test, with the same numbers).
+
+        ann               Linear(window -> width) once, its output written, a leaky ReLU
+                          (comparison and multiply) per unit: the ANN-AE's first layer.
+        poisson_dense     the Poisson generator (a read, an LCG step and a comparison per
+                          (sample, step); `spikes_in` events written), Linear on spike input over
+                          `time_steps` rows, then the LIF on that layer's potentials.
+        direct_recurrent  the direct code (free) through the recurrent input transform (one LIF
+                          per sample, the analog window read at every step, `spikes_in` = its
+                          output spikes), then the same spike-fed Linear and LIF.
+
+    The first hidden LIF's own output spikes are NOT charged (spikes_out = 0): each would add a
+    reset and an event write, so a spike-fed stage is priced at its cheapest and a break-even
+    computed from this is an upper bound on the input spikes at which a spike saves energy."""
+    if stage not in FIRST_STAGES:
+        raise ResultsError(f"first_stage_energy_nj: unknown stage {stage!r}, expected {FIRST_STAGES}")
+    if window < 1 or width < 1 or time_steps < 1 or spikes_in < 0:
+        raise ResultsError(f"first_stage_energy_nj: window {window}, width {width}, "
+                           f"time_steps {time_steps}, spikes_in {spikes_in} is not a stage")
+    m, w, t = float(window), float(width), float(time_steps)
+    e = _Ledger()
+    if stage == "ann":
+        if time_steps != 1 or spikes_in:
+            raise ResultsError("first_stage_energy_nj: the ann stage runs once on the analog window")
+        _dense_fc(e, 1.0, m, w, True)
+        e.fp_adds += w
+        e.fp_muls += w
+        return e.total_nj()
+    if spikes_in > m * t:
+        raise ResultsError(f"first_stage_energy_nj: {spikes_in} spikes from {window} samples over "
+                           f"{time_steps} steps; at most one per sample and step")
+    if stage == "poisson_dense":
+        e.access(m * t, m)
+        e.int_muls += m * t
+        e.int_adds += m * t
+        e.fp_adds += m * t
+        e.access(spikes_in, m)  # event-driven: the dense layer reads events
+    else:
+        e.access(m * t, m)
+        _lif(e, t, m, spikes_in, dense_input=True)
+    _spiking_fc(e, spikes_in, t, m, w)
+    _lif(e, t, w, 0.0, dense_input=False)
+    return e.total_nj()
+
+
+def break_even_spikes(stage: str, window: int, width: int, time_steps: int) -> float:
+    """Input spikes per window at which the spike-fed `stage` costs what the ANN-AE's first
+    layer costs (first_stage_energy_nj is affine in spikes_in). Below it the spike stage is
+    cheaper. 0.0 when it is dearer even with no spike at all."""
+    ref = first_stage_energy_nj("ann", window, width)
+    a = first_stage_energy_nj(stage, window, width, time_steps, 0.0)
+    b = first_stage_energy_nj(stage, window, width, time_steps, 1.0) - a
+    if b <= 0:
+        raise ResultsError(f"break_even_spikes: a spike costs {b} nJ in {stage}; the model is broken")
+    return max(0.0, (ref - a) / b)
+
+
 # --------------------------------------------------------- the run's configuration
 
 # Fields of a fold's recorded config that legitimately differ between the folds of ONE run:

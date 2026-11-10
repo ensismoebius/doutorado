@@ -340,6 +340,7 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Transformer warm-up / pre-norm test (T1) | `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `05_meeting01_t1_transformer.py` |
 | Stopping threshold calibration | `scripts/pipeline/meeting01/06_meeting01_stopping_calibration.py` |
 | Design study (PyTorch twin) / budget test | `scripts/pipeline/meeting01/07_meeting01_design_study.{py,sh}`, `08_meeting01_budget_test.{py,sh}` |
+| Spike break-even figure (port of the first-layer energy, pinned to the C++) | `scripts/pipeline/meeting01/09_meeting01_energy_breakeven.py`, `first_stage_energy_nj` in `meeting01_results.py` |
 | Band-limited resampling | `include/utility/Resample.hpp` |
 
 ---
@@ -374,8 +375,9 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
 `paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`,
-`paper_t1.tex`, `paper_design.tex`, `paper_design_shares.tex`, `paper_design_stats.tex`,
-`paper_budget.tex`);
+`paper_t1.tex`, `paper_t1_figure.tex`, `paper_design.tex`, `paper_design_shares.tex`, `paper_design_stats.tex`,
+`paper_design_figure.tex`, `paper_design_lif_figure.tex`, `paper_budget.tex`, `paper_breakeven.tex`,
+`paper_breakeven_figure.tex`);
 never type a configuration number or a result into `paper.tex` -- not in a sentence either: a number
 a sentence states is a macro, and the script that writes it checks the claims around it and refuses
 when one fails (`findings()` in `07_`, `budget_findings()` in `08_`; a bound like "within" rounds UP). Before the run they are

@@ -1749,7 +1749,11 @@ overwritten with results (`\cfgDataStatus` = `results`).
 | `paper_prevalidation.tex` | Table "Pre-validation" (development folds, every family) | `00_meeting01_prevalidation_report.py` `write_table` |
 | `paper_prevalidation_config.tex` | `\pre*` macros: budget, search ranges, generated verdicts | `00_meeting01_prevalidation_report.py` `write_macros` |
 | `paper_t1.tex` | the warm-up / pre-norm test (T1) | `05_meeting01_t1_transformer.py` |
-| `paper_design.tex`, `paper_design_shares.tex` | Table "Design study" and its spike-share table | `07_meeting01_design_study.py` `design_table` / `shares_table` |
+| `paper_t1_figure.tex` | Figure "Transformer-AE check": every final fit per arm, armed filled (review F5) | `05_` `strip_figure` |
+| `paper_design.tex`, `paper_design_shares.tex` | the design study's cell table and share table: released, no longer printed (the figure below replaced the table) | `07_meeting01_design_study.py` `design_table` / `shares_table` |
+| `paper_design_figure.tex` | Figure "Design study": every cell and seed, one panel per winner, harness rows (review F5) | `07_` `dots_figure` |
+| `paper_design_lif_figure.tex` | Figure "LIF ladder and code shares" (review F1) | `07_` `lif_figure` |
+| `paper_breakeven.tex`, `paper_breakeven_figure.tex` | `\be*` macros and Figure "spike break-even" (review F3, curve part) | `09_meeting01_energy_breakeven.py` |
 | `paper_design_stats.tex` | `\design*` macros: the study's size AND every number its prose states | `07_` `write_tex` + `findings` |
 | `paper_budget.tex` | `\budget*` macros: the budget paragraph (v) and limitation (vii) | `08_meeting01_budget_test.py` `budget_findings` |
 
@@ -3666,6 +3670,83 @@ nothing to do with the nets.
   there and the z-score turns it into zeros).
 - Building one Siena fold's split takes ~26 min (job 5321565: 00:49 → 01:15), about 2.6 h over
   the six folds.
+
+## The review's figures F1, F3 and F5 (2026-11-10)
+
+### The problem: three claims the paper argued in words
+
+The visual reviewer (`review/review_visual.md`, rulings `ruling_visual.md` and
+`ruling_visual_round4.md`) asked for three things to be **drawn**, because prose let a reader
+take them on trust:
+
+| Figure | The claim it has to show | What the ruling required |
+|---|---|---|
+| F1 | a LIF under constant current is a staircase, not a clip, and how often codes sit at 0 or 1 | each end (0 and 1) separately, both datasets |
+| F3 | when a spike-fed first layer can be cheaper at all | the *corrected* curve (Poisson generator included), the recurrent transform marked, EEG widths too |
+| F5 | the design study with its dispersion, and the T1 check | per-seed spread, T1 regenerated on clean windows |
+
+### F3 in one example: why a spike is not cheaper here
+
+Take the FSDD winner's first layer, 256 samples into $w_1 = 59$ units.
+
+```
+ANN-AE first layer, once:   256 x 59 MACs + weight reads + bias + leaky ReLU   = 409.5 nJ
+spike-fed, per input spike: 59 targets x (add 0.9 + int add 0.1
+                             + weight read ~26 pJ + potential read 10 + write 10) ~ 2.8 nJ
+```
+
+So the spike stage wins only below ~409.5 / 2.8 ≈ 150 spikes per window, i.e. about
+**0.6 spikes per sample** (less once the Poisson generator and the LIF's per-step leak are
+charged, and less at larger $T$, because those per-step costs grow with $T$):
+
+```
+theta/M at break-even   T=2    T=4    T=8    T=16   T=28   T=32
+Poisson, FSDD w1=59     0.60   0.58   0.54   0.47   0.35   0.31
+recurrent, FSDD w1=59   0.59   0.55   0.48   0.33   0.11   0.04
+Poisson code emits      p_bar x T with p_bar = 0.50 (FSDD), 0.44 (EEGMMIDB) -> 0.87 already at T=2
+latency code emits      exactly 1
+```
+
+The min–max scaling of every z-scored window puts the mean firing probability near one half,
+so a Poisson code is never sparse enough and a latency code never is. Only the recurrent
+transform, whose own threshold and decay set its spike count, can land below the curve.
+
+**How the numbers stay tied to the harness.** The curve is drawn in Python
+(`first_stage_energy_nj` / `break_even_spikes` in `meeting01_results.py`), a port of
+`add_dense_fc`, `add_spiking_fc`, `add_lif`, `encoding_energy` and
+`architecture_transform_energy`. Two tests pin the **same three totals** (409.5424…, 796.4763…,
+818.6599… nJ): `MemoryAwareEnergy.FirstStageOfTheBreakEvenFigure` in `parameter_count_gtest.cpp`
+and `09_meeting01_energy_breakeven.py --self-test`. Change either side and one of them fails
+(loud); without the pair the figure would drift from the harness silently.
+
+The hidden LIF's own output spikes are not charged, so each break-even is an **upper bound**:
+the claim "a spike only wins below this" can only get stronger.
+
+### F1: the ladder, and a bug the self-test caught
+
+Under a constant current $I$ a hard-reset LIF ($v \leftarrow \beta v + I$, spike if $v > V_{th}$)
+fires every $k$ steps, so its time mean takes the values $1, 1/2, 1/3, \dots$ and **nothing
+between 1/2 and 1**: $I > V_{th}$ fires at every step, and any smaller current needs at least
+two steps. The panel draws it at the direct winner's trained $V_{th}=0.85$, $\beta=0.91$
+(FSDD D28, mean over 4 seeds), beside the clamp and the sigmoid of the design study.
+
+The first version of `lif_rate(…, steps=None)` looped "until $v > V_{th}$". At the boundary
+current $I = V_{th}(1-\beta)$ (plus rounding), the potential converges to a floating-point value
+equal to $V_{th}$, never above it, so the loop never ended. The self-test's sweep hit exactly
+that point and hung (silent: no error, just no return). The loop now stops when $v$ stops
+rising, which in the same arithmetic means the neuron never fires.
+
+### Where they come from
+
+| Figure | Generator | Inputs |
+|---|---|---|
+| F1 `paper_design_lif_figure.tex` | `07_ --report` `lif_figure` | `results/meeting01_design` rows (trained $V_{th}$, $\beta$, shares) |
+| F5 `paper_design_figure.tex` | `07_ --report` `dots_figure` | the same rows + the harness's test MSE from the pre-validation |
+| F5 `paper_t1_figure.tex` | `05_ --report --out-root results/meeting01_t1_format11` | the format-11 T1 (`results/meeting01_t1` is the stale format-9 run and is refused) |
+| F3 `paper_breakeven*.tex` | `09_ --report` | the pre-validation's T range, winners' first widths, test windows ($\bar p$) |
+
+Still to come after the grid: F3's left panel (energy by block for the real winners), F6
+(learning curves per arm) and F7 is already in (forest plot).
 
 ## See Also
 
