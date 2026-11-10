@@ -89,7 +89,13 @@ namespace meeting01
 //           lif_v_th_mean, lif_v_th_min, lif_beta_mean and train_mse (RunMetrics). Windows and
 //           training are unchanged. No production fold ran with format 10; the stopping calibration
 //           did.
-inline constexpr int kResultsFormat = 11;
+//   12      2026-11-09. ann-ae rows carry hidden_silent_share: the share of (encoder leaky-ReLU
+//           unit, window) pairs with output <= 0.01 (count_ann_hidden), the control row the round-4
+//           review asked for (R3); format 11 left it NaN. hidden_always_share stays NaN for the
+//           ann-ae (a leaky ReLU has no upper end). Nothing else changed: readers that do not read
+//           the control's share accept 11 too (READS_WITHOUT_ANN_SHARE in meeting01_results.py).
+//           No production fold ran with format 11; the pre-validation job 5317827 did.
+inline constexpr int kResultsFormat = 12;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

@@ -253,6 +253,45 @@ auto count_sequential_ops(const nn::Sequential& seq,
 
 } // namespace
 
+auto count_ann_hidden(const nn::models::autoencoder::ProtocolAutoencoder& model) -> AnnHiddenCounts
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "count_ann_hidden: the dual-branch ProtocolAutoencoder is not counted (meeting01 never "
+            "builds it). Extend count_ann_hidden over its encoders before using it.");
+    const nn::Sequential& seq = model.encoder_;
+    if (seq.outputs.size() != seq.layers.size())
+        throw std::logic_error("count_ann_hidden: the encoder cached " +
+                               std::to_string(seq.outputs.size()) + " outputs for " +
+                               std::to_string(seq.layers.size()) +
+                               " layers. Call it right after model.forward() on the window whose "
+                               "hidden units it should count.");
+    AnnHiddenCounts out;
+    for (std::size_t i = 0; i < seq.layers.size(); ++i)
+    {
+        if (dynamic_cast<const nn::LeakyReLU*>(seq.layers[i].get()) == nullptr) continue;
+        const Tensor& o = seq.outputs[i];
+        if (o.rows() != 1)
+            throw std::logic_error(
+                "count_ann_hidden: encoder layer " + std::to_string(i) + " (LeakyReLU) holds " +
+                std::to_string(o.rows()) +
+                " rows; the ann-ae reads one window as one frame (lstm_frame_size = window_size, "
+                "T = 1), so one forward pass must be one window. Forward one window at a time, or "
+                "extend the count to frames.");
+        for (nn::Index k = 0; k < o.size(); ++k)
+        {
+            out.unit_windows += 1.0;
+            if (o.at(k) <= kSilentRate) out.silent_unit_windows += 1.0;
+        }
+    }
+    if (out.unit_windows == 0.0)
+        throw std::logic_error(
+            "count_ann_hidden: the encoder has no LeakyReLU layer, so there is no hidden unit to "
+            "count. The ann-ae control has one per hidden width (make_ann_twin_cfg); a different "
+            "network needs its own definition of a silent unit.");
+    return out;
+}
+
 auto summarize_lif_parameters(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model)
     -> LifParameterSummary
 {

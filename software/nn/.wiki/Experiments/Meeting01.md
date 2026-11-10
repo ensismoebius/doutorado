@@ -930,7 +930,8 @@ results_format >= 11        ->  refused: "newer than the scripts (or the manifes
 | 8 | 2026-11-03 to 2026-11-04 (T1 only) | a repeated input's first layer priced once; `energy_nj_as_executed` as a check |
 | 9 | 2026-11-04 (pre-validation job 5316016, T1) | the run seed reaches every training; the GA cost counts a repeated first layer once |
 | 10 | 2026-11-04 | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
-| 11 | 2026-11-05 on | the GA's front re-scored on fresh seeds only; rows log the network's insides and the encoder's energy — [why](#what-the-review-changed-results_format-11-2026-11-05) |
+| 11 | 2026-11-05 | the GA's front re-scored on fresh seeds only; rows log the network's insides and the encoder's energy — [why](#what-the-review-changed-results_format-11-2026-11-05) |
+| 12 | 2026-11-09 on | ann-ae rows carry `hidden_silent_share` (the control's share row); readers that never read it accept 11 too — [why](#a-share-row-for-the-control-results_format-12-2026-11-09) |
 
 ### The windows were wrong (results_format 10, 2026-11-04)
 
@@ -3553,6 +3554,54 @@ sentence uses `\cfgSnnWidthMin` and `\cfgWidthFloorShare<Ds>` from `02_` (the sh
 
 Both scripts' report code changed afterwards (the macros); training code did not, and the `.used`
 copies are what ran. Regenerating the reports reproduces every committed CSV byte for byte.
+
+## A share row for the control (results_format 12, 2026-11-09)
+
+### The problem: a share with nothing beside it
+
+The SNN-AE's selection table prints how many (hidden neuron, window) pairs never fired. On the
+direct-coded FSDD winner of the design study that was 48%. Is 48% a lot? The round-4 review (R3)
+noticed that the leaky-ReLU replica had 49% of its values at or below 0.01, so the same number can
+describe a perfectly ordinary analog layer. A share with no control beside it cannot be read.
+
+### The rule
+
+The ANN-AE has a leaky ReLU exactly where the SNN-AE has a hidden LIF layer (both are built from
+the `linear:W:leaky` token). `count_ann_hidden` (`Meeting01Metrics.cpp`) counts, after each test
+window's forward pass, the encoder's leaky-ReLU outputs at or below `kSilentRate` (0.01), the cut
+the SNN-AE's rate uses:
+
+```
+encoder:  Linear(W -> h) -> LeakyReLU (counted) -> Linear(h -> d), identity (not counted)
+pair:     (unit j, window i)   silent  <=>  LReLU(z_ij) <= 0.01
+table:    silent  "0.48 / 0.49"  = SNN-AE never fired / ANN-AE output <= 0.01
+          always  "0.39"         = SNN-AE only: a leaky ReLU has no upper end
+```
+
+| | SNN-AE silent | ANN-AE silent |
+|---|---|---|
+| what is counted | rate over T steps <= 0.01, i.e. no spike at T <= 32 | one output <= 0.01 |
+| what it means | the neuron sent nothing for that window | the unit sent a negative leak (1% of its input) or about 0 |
+| "always" | fired at every step | undefined (NaN), not 0 |
+
+The two are not the same quantity: a silent LIF neuron sends nothing, while a "silent" leaky-ReLU
+unit still sends 1% of a negative input. Read the pair as "how much of each code sits at its low
+end", and beside T.
+
+### Failure modes, all loud
+
+- `count_ann_hidden` before a forward pass, with more than one row per pass (two windows counted as
+  one), or with no LeakyReLU in the encoder: `std::logic_error`.
+- An ANN-AE row without the share in `02_`: `ResultsError` naming the dataset. A format-11 row
+  would otherwise print the SNN-AE's share beside "--".
+
+### Why the format moved, and who still reads 11
+
+Format 11 rows carry NaN for the control's share and format 12 rows carry a number, so the stamp
+moved (the CLAUDE.md rule: fix and bump before any grid). Nothing else changed. Readers that never
+read that field declare it, `split_manifest(..., accept=READS_WITHOUT_ANN_SHARE)`: `00_`'s report,
+and `07_`/`08_` reading the pre-validation's winners. Their outputs on the format-11 pre-validation
+are byte-identical before and after. `02_`, `03_` and `04_` accept 12 only.
 
 ## See Also
 

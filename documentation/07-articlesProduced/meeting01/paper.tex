@@ -647,7 +647,9 @@ transform ($k/n$ agreeing, if not all), median $T$ [range], median initial thres
 median depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows; then the trained
 $V_{th}$ (mean, and the lowest layer's, which nothing bounds), the trained $\beta$, the shares of
 (neuron, window) pairs that never fired and that fired at every step, and the final network's
-training error.}
+training error. After the slash, the ANN-AE control: its share of (hidden unit, window) pairs
+with a leaky-ReLU output at most 0.01, and its training error; a leaky ReLU has no upper end, so
+it has no ``always'' share. Read the shares beside $T$: one spike moves a rate by $1/T$.}
 \centering\footnotesize
 \setlength{\tabcolsep}{3pt}
 \input{data/paper_loso_snn_overview.tex}

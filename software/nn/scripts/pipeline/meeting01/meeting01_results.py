@@ -16,7 +16,8 @@ Three questions every reader has to answer the same way:
 
 2. Was it written by a binary whose numbers can be compared with today's?
    Every fold's <run_tag>_<dataset>_fold<f>_split_manifest.json records "results_format"
-   (kResultsFormat in Meeting01Output.hpp). Readers accept exactly RESULTS_FORMAT.
+   (kResultsFormat in Meeting01Output.hpp). Readers accept exactly RESULTS_FORMAT, or a set
+   they declare they read identically (READS_WITHOUT_ANN_SHARE).
 
 3. Is a per-window file ONE run's rows, whole?
    One row per (model, seed, window). A second copy means two runs of the fold were mixed
@@ -64,7 +65,13 @@ from collections import defaultdict
 #: Format 10 corrects the windows themselves, for every dataset: see _OLDER_FORMATS[9].
 #: Format 11 re-scores the GA's front on fresh seeds only and records the network's insides:
 #: see _OLDER_FORMATS[10].
-RESULTS_FORMAT = 11
+#: Format 12 fills the ann-ae rows' hidden_silent_share (NaN in 11): see _OLDER_FORMATS[11].
+RESULTS_FORMAT = 12
+#: The formats a reader that never reads the ann-ae's hidden_silent_share may accept: 12 changed
+#: nothing else, so the format-11 pre-validation (job 5317827) stays readable by its report (00_)
+#: and by the scripts that take its winners (07_, 08_). A reader passes it as `accept`; every
+#: other reader, 02_ above all (it prints the control's share), accepts RESULTS_FORMAT alone.
+READS_WITHOUT_ANN_SHARE = frozenset({11, 12})
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -94,6 +101,8 @@ _OLDER_FORMATS = {
     10: "the GA's re-score averaged in the search's own score, the one that selected the "
         "member, so val_mse stayed biased low and the pick could differ, and the rows carry no "
         "hidden-rate shares, trained V_th and beta, or training error",
+    11: "the ann-ae rows carry no hidden_silent_share, so the control has no share row to set "
+        "beside the SNN-AE's",
 }
 
 PW_HEADER = [
@@ -168,9 +177,14 @@ def fold_files(results_dir: pathlib.Path, run_tag: str, suffix_re: str) -> list:
     return found
 
 
-def check_results_format(manifest: dict, where: str) -> None:
+def check_results_format(manifest: dict, where: str, accept: frozenset | None = None) -> None:
+    """Refuses a fold of another format. `accept` widens RESULTS_FORMAT to formats whose rows
+    the caller reads identically (READS_WITHOUT_ANN_SHARE); it must contain RESULTS_FORMAT."""
+    if accept is not None and RESULTS_FORMAT not in accept:
+        raise ResultsError(f"check_results_format: accept={sorted(accept)} leaves out the current "
+                           f"format {RESULTS_FORMAT}; a reader must read what the binary writes.")
     got = manifest.get("results_format")
-    if got == RESULTS_FORMAT:
+    if got == RESULTS_FORMAT or (accept is not None and got in accept):
         return
     if got is None:
         raise ResultsError(
@@ -191,8 +205,10 @@ def check_results_format(manifest: dict, where: str) -> None:
         "kResultsFormat in Meeting01Output.hpp).")
 
 
-def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int) -> dict:
-    """The fold's split manifest, checked to be this fold's and in RESULTS_FORMAT."""
+def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int,
+                   accept: frozenset | None = None) -> dict:
+    """The fold's split manifest, checked to be this fold's and in RESULTS_FORMAT (or in
+    `accept`, see check_results_format)."""
     path = results_dir / f"{run_tag}_{dataset}_fold{fold}_split_manifest.json"
     if not path.exists():
         raise ResultsError(
@@ -204,7 +220,7 @@ def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: 
         raise ResultsError(
             f"{path.name} says dataset={manifest.get('dataset')!r} "
             f"fold={manifest.get('cv_fold')!r}: it was renamed or copied from another fold.")
-    check_results_format(manifest, path.name)
+    check_results_format(manifest, path.name, accept)
     return manifest
 
 

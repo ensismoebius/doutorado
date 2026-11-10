@@ -117,7 +117,7 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
-    RESULTS_FORMAT,
+    READS_WITHOUT_ANN_SHARE,
     ResultsError,
     split_manifest,
 )
@@ -175,7 +175,9 @@ def read_winners(prevalidation: pathlib.Path) -> list[dict]:
         if len(folds) != 1:
             raise ResultsError(f"{ds}: the design study runs on the one development fold, found {folds}")
         fold = folds[0]
-        split_manifest(d, RUN_TAG, ds, fold)  # checks results_format
+        # checks results_format: the format-11 pre-validation is read like a format-12 one (12 only
+        # filled the ann-ae's hidden_silent_share, which the design study never reads)
+        split_manifest(d, RUN_TAG, ds, fold, accept=READS_WITHOUT_ANN_SHARE)
         with (d / f"{RUN_TAG}_{ds}_fold{fold}_comparative_metrics.csv").open(encoding="utf-8") as f:
             metrics = [r for r in csv.DictReader(f) if r["split"] == "test"]
         for run in RUNS:
@@ -185,9 +187,9 @@ def read_winners(prevalidation: pathlib.Path) -> list[dict]:
                 raise ResultsError(f"{ds} fold {fold} run {run}: {len(found)} SNN-AE selection manifests "
                                    f"in {d}, expected 1: {[p.name for p in found]}")
             man = json.loads(found[0].read_text(encoding="utf-8"))
-            if man.get("results_format") != RESULTS_FORMAT:
+            if man.get("results_format") not in READS_WITHOUT_ANN_SHARE:
                 raise ResultsError(f"{found[0].name}: results_format {man.get('results_format')}, "
-                                   f"this script reads {RESULTS_FORMAT}")
+                                   f"this script reads {sorted(READS_WITHOUT_ANN_SHARE)}")
             sel = man.get("selected") or {}
             need = ("encoder_widths", "encoding", "time_steps", "v_th", "alpha")
             if any(k not in sel for k in need) or sel.get("architecture") != "dense":

@@ -662,6 +662,41 @@ TEST(MemoryAwareEnergy, AnnAeWalkMatchesAHandCount)
     EXPECT_DOUBLE_EQ(e.wr_out, 36.0);
 }
 
+// results_format 12 (R3 of the round-4 review): the control's silent share counts the ENCODER's
+// leaky-ReLU outputs <= 0.01, per (unit, window). Zero weights make each unit's pre-activation
+// its bias: {-1, 0, 0.005, 0.01, 0.02, 1, -0.5, 2} -> leaky ReLU -> {-0.01, 0, 0.005, 0.01, 0.02,
+// 1, -0.005, 2}, five of them <= 0.01. The latent layer is identity, so it is not counted.
+TEST(AnnHiddenShare, CountsEncoderLeakyReluOutputsAtOrBelowTheSilentCut)
+{
+    nn::models::autoencoder::ProtocolAutoencoder model(
+        meeting01::make_ann_twin_cfg(tiny_snn_config("latent", "analog"), {8, 4}));
+    auto* first = dynamic_cast<nn::Linear*>(model.encoder_.layers.at(0).get());
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(dynamic_cast<const nn::LeakyReLU*>(model.encoder_.layers.at(1).get()), nullptr);
+    first->weight.setZero();
+    const std::vector<float> biases{-1.0F, 0.0F, 0.005F, 0.01F, 0.02F, 1.0F, -0.5F, 2.0F};
+    for (int j = 0; j < 8; ++j) first->bias.at(j, 0) = biases[static_cast<std::size_t>(j)];
+    nn::Tensor x(1, 16);
+    for (int d = 0; d < 16; ++d) x.at(0, d) = 0.1F * static_cast<float>(d);
+    (void) model.forward(nn::models::autoencoder::ProtocolAutoencoder::Tensor(x), false);
+    const auto c = meeting01::count_ann_hidden(model);
+    EXPECT_DOUBLE_EQ(c.unit_windows, 8.0);
+    EXPECT_DOUBLE_EQ(c.silent_unit_windows, 5.0);
+}
+
+// Loud, not a wrong share: before any forward pass there is nothing to count, and two rows
+// would be two windows (or frames) counted as one.
+TEST(AnnHiddenShare, RefusesACallBeforeForwardAndMoreThanOneWindowPerPass)
+{
+    nn::models::autoencoder::ProtocolAutoencoder model(
+        meeting01::make_ann_twin_cfg(tiny_snn_config("latent", "analog"), {8, 4}));
+    EXPECT_THROW((void) meeting01::count_ann_hidden(model), std::logic_error);
+    nn::Tensor x(2, 16);
+    x.setZero();
+    (void) model.forward(nn::models::autoencoder::ProtocolAutoencoder::Tensor(x), false);
+    EXPECT_THROW((void) meeting01::count_ann_hidden(model), std::logic_error);
+}
+
 // The sequence baselines' products are the ones their MAC estimates count (the energy model
 // adds the elementwise cell/attention work on top, as multiplies and adds, never as MACs);
 // the Transformer adds only the 1/S of its mean over positions.

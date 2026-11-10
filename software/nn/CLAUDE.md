@@ -369,7 +369,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 11)**: the paper reads only generated files in its
+**Paper data contract (results_format 12)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -421,6 +421,12 @@ the headline too (`DESIGN_INFORMED_FOLDS`: it tests on fold 0's validation block
 The design study (`07_meeting01_design_study.{py,sh}`, a logged PyTorch twin, 208 trainings) and the
 budget test (`08_meeting01_budget_test.{py,sh}`, control width on EEG + 60-epoch cap, 36 trainings)
 ran 2026-11-09 on the development folds; `--placeholders --data-dir` for each before a run.
+
+**Control share (results_format 12)**: ann-ae rows carry `hidden_silent_share` (encoder leaky-ReLU
+(unit, window) outputs <= 0.01, `count_ann_hidden`); `hidden_always_share` stays NaN for it. The
+SNN-AE selection table prints the silent share as "SNN / ANN". Readers that never read that field
+(`00_` report, `07_`/`08_` reading the format-11 pre-validation) pass
+`accept=READS_WITHOUT_ANN_SHARE`; every other reader accepts RESULTS_FORMAT only.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

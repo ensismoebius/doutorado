@@ -62,6 +62,7 @@ from meeting01_results import (  # noqa: E402
     ENERGY_CHECKS_HOLD,
     ENERGY_COLUMNS,
     PW_HEADER,
+    READS_WITHOUT_ANN_SHARE,
     REFERENCE_SEED,
     RESULTS_FORMAT,
     ResultsError,
@@ -227,7 +228,8 @@ def collect(profile: dict, out_root: pathlib.Path) -> tuple[list[dict], dict, di
                                    "it (RESUME=1) before reporting.")
             walls[(ds, fam)] = (_fold_seconds(d / f"{tag}_{ds}_fold{fold}_events.jsonl", where),
                                 float(proc["wall_s"]))
-            man = split_manifest(d, tag, ds, fold)
+            # 11 or 12: the report never reads the ann-ae's hidden_silent_share (format 12)
+            man = split_manifest(d, tag, ds, fold, accept=READS_WITHOUT_ANN_SHARE)
             common = _without(man["config"], _PER_FAMILY_FIELDS)
             if reference_config is None:
                 reference_config, reference_from = common, where
@@ -674,7 +676,8 @@ def _self_test_checks(tmp: pathlib.Path) -> list[str]:
                     "125 times the SNN-AE's time to reconstruct a window, each winner "
                     "needed at least 145 times the SNN-AE's energy per window (operations and "
                     "memory accesses), and that energy comparison holds with every memory access "
-                    "priced at one SRAM size, 8 KB, 32 KB or 1 MB, with arithmetic alone, and with the "
+                    "priced at one SRAM size, 8 KB, 32 KB or 1 MB, with every memory price halved, "
+                    "with arithmetic alone, and with the "
                     "first layer of a direct-coded input recomputed at every time step, as the "
                     "code runs it}"),
                    "\\newcommand{\\preQualityVerdict}{none of the three reached",

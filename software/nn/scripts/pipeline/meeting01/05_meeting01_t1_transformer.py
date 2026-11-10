@@ -61,6 +61,7 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
+    READS_WITHOUT_ANN_SHARE,
     ResultsError,
     split_manifest,
 )
@@ -178,7 +179,8 @@ def collect(out_root: pathlib.Path) -> list[dict]:
                 if proc.get("exit") != 0:
                     raise ResultsError(f"{name} exited {proc.get('exit')}: see {out_root}/{name}.log")
                 d = out_root / f"{ds}_{cfg_label}_{arm}"
-                split_manifest(d, name, ds, fold)  # checks the fold's results_format
+                # checks the fold's results_format; 11 or 12 (T1 never reads the ann-ae's share)
+                split_manifest(d, name, ds, fold, accept=READS_WITHOUT_ANN_SHARE)
                 events = [json.loads(line) for line in (d / f"{name}_{ds}_fold{fold}_events.jsonl")
                           .read_text(encoding="utf-8").splitlines() if line.strip()]
                 ends = [e for e in events if e.get("type") == "train_end"]
