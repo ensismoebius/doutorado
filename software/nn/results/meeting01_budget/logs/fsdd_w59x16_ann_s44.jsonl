@@ -1,0 +1,14 @@
+{"type": "start", "name": "fsdd_w59x16_ann_s44", "trivial_loss": 1.0013324600413032, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.890264342546463, "monitor": 0.7574328780174255, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7089125490486622, "monitor": 0.6656566858291626, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6486702999025583, "monitor": 0.6385936141014099, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6214844370484353, "monitor": 0.6331315636634827, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6078830928131937, "monitor": 0.6209893226623535, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.5976027706190944, "monitor": 0.6231882572174072, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 7, "train_loss": 0.5889786122515798, "monitor": 0.6191712617874146, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.5812536133006215, "monitor": 0.6223769783973694, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 9, "train_loss": 0.5760693659186363, "monitor": 0.6275379657745361, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 10, "train_loss": 0.5689371111690998, "monitor": 0.6313876509666443, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 11, "train_loss": 0.5649076952114701, "monitor": 0.6300643682479858, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 12, "train_loss": 0.5592883907929063, "monitor": 0.6356832981109619, "armed": true, "best_epoch": 7}
+{"type": "end", "rows": [{"name": "fsdd_w59x16_ann_s44", "part": "E", "dataset": "fsdd", "run": 1, "family": "ann", "widths": "59x16", "encoding": "direct", "time_steps": 1, "seed": 44, "budget": "e30", "best_epoch": 7, "armed_epoch": 1, "epochs_run": 12, "stop_reason": "patience", "test_mse": 0.7476757168769836, "val_mse": 0.6191712617874146, "train_mse": 0.5674402117729187, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 42.3785674571991}, {"name": "fsdd_w59x16_ann_s44", "part": "E", "dataset": "fsdd", "run": 1, "family": "ann", "widths": "59x16", "encoding": "direct", "time_steps": 1, "seed": 44, "budget": "e60", "best_epoch": 7, "armed_epoch": 1, "epochs_run": 12, "stop_reason": "patience", "test_mse": 0.7476757168769836, "val_mse": 0.6191712617874146, "train_mse": 0.5674402117729187, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 42.40748858451843}]}

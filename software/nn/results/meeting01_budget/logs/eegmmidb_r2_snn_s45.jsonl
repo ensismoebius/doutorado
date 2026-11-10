@@ -1,0 +1,31 @@
+{"type": "start", "name": "eegmmidb_r2_snn_s45", "trivial_loss": 0.9996989648693367, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8420787813365459, "monitor": 0.7374948263168335, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.6532482262551784, "monitor": 0.6077266335487366, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.5781599128693342, "monitor": 0.5664758086204529, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.5360241748616099, "monitor": 0.5411518812179565, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.5100061641857028, "monitor": 0.5225792527198792, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.49078809589147565, "monitor": 0.5089659094810486, "armed": true, "best_epoch": 6}
+{"type": "epoch", "epoch": 7, "train_loss": 0.4727046263664961, "monitor": 0.4937305152416229, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.45553132630884646, "monitor": 0.5030251741409302, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 9, "train_loss": 0.43902753343433143, "monitor": 0.4945851266384125, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 10, "train_loss": 0.42609911685436963, "monitor": 0.46203362941741943, "armed": true, "best_epoch": 10}
+{"type": "epoch", "epoch": 11, "train_loss": 0.4131602727994323, "monitor": 0.45916855335235596, "armed": true, "best_epoch": 11}
+{"type": "epoch", "epoch": 12, "train_loss": 0.402416006706655, "monitor": 0.470915824174881, "armed": true, "best_epoch": 11}
+{"type": "epoch", "epoch": 13, "train_loss": 0.39307011883705856, "monitor": 0.45232823491096497, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 14, "train_loss": 0.3830255026817322, "monitor": 0.43403875827789307, "armed": true, "best_epoch": 14}
+{"type": "epoch", "epoch": 15, "train_loss": 0.3758543582484126, "monitor": 0.43290457129478455, "armed": true, "best_epoch": 15}
+{"type": "epoch", "epoch": 16, "train_loss": 0.36816984857618806, "monitor": 0.43369588255882263, "armed": true, "best_epoch": 15}
+{"type": "epoch", "epoch": 17, "train_loss": 0.3614519071429968, "monitor": 0.4271821975708008, "armed": true, "best_epoch": 17}
+{"type": "epoch", "epoch": 18, "train_loss": 0.3566401405408978, "monitor": 0.4343551695346832, "armed": true, "best_epoch": 17}
+{"type": "epoch", "epoch": 19, "train_loss": 0.3514440722540021, "monitor": 0.41449418663978577, "armed": true, "best_epoch": 19}
+{"type": "epoch", "epoch": 20, "train_loss": 0.3466511142477393, "monitor": 0.4113203287124634, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 21, "train_loss": 0.34378717943280934, "monitor": 0.4170588552951813, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 22, "train_loss": 0.33793896048516037, "monitor": 0.40947070717811584, "armed": true, "best_epoch": 22}
+{"type": "epoch", "epoch": 23, "train_loss": 0.3341014611646533, "monitor": 0.3999672532081604, "armed": true, "best_epoch": 23}
+{"type": "epoch", "epoch": 24, "train_loss": 0.3295602197125554, "monitor": 0.3929137587547302, "armed": true, "best_epoch": 24}
+{"type": "epoch", "epoch": 25, "train_loss": 0.32761856459081173, "monitor": 0.39891624450683594, "armed": true, "best_epoch": 24}
+{"type": "epoch", "epoch": 26, "train_loss": 0.32395203652977944, "monitor": 0.4214659035205841, "armed": true, "best_epoch": 24}
+{"type": "epoch", "epoch": 27, "train_loss": 0.3209861716106534, "monitor": 0.3971201181411743, "armed": true, "best_epoch": 24}
+{"type": "epoch", "epoch": 28, "train_loss": 0.3195296127013862, "monitor": 0.40544548630714417, "armed": true, "best_epoch": 24}
+{"type": "epoch", "epoch": 29, "train_loss": 0.31634934750944377, "monitor": 0.39890527725219727, "armed": true, "best_epoch": 24}
+{"type": "end", "rows": [{"name": "eegmmidb_r2_snn_s45", "part": "E", "dataset": "eegmmidb", "run": 2, "family": "snn", "widths": "65x64", "encoding": "poisson", "time_steps": 19, "seed": 45, "budget": "e30", "best_epoch": 24, "armed_epoch": 1, "epochs_run": 29, "stop_reason": "patience", "test_mse": 0.4384862780570984, "val_mse": 0.3929137587547302, "train_mse": 0.30821502208709717, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 335.70389795303345}, {"name": "eegmmidb_r2_snn_s45", "part": "E", "dataset": "eegmmidb", "run": 2, "family": "snn", "widths": "65x64", "encoding": "poisson", "time_steps": 19, "seed": 45, "budget": "e60", "best_epoch": 24, "armed_epoch": 1, "epochs_run": 29, "stop_reason": "patience", "test_mse": 0.4384862780570984, "val_mse": 0.3929137587547302, "train_mse": 0.30821502208709717, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 335.89941239356995}]}

@@ -1,0 +1,12 @@
+{"type": "start", "name": "fsdd_r1_snn_s44", "trivial_loss": 1.0013324600413032, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8995558319985867, "monitor": 0.7996296882629395, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7517449147999287, "monitor": 0.7172062993049622, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.7005021129474044, "monitor": 0.6879989504814148, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6745697447136044, "monitor": 0.6828808784484863, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6600310038849712, "monitor": 0.6697146892547607, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6493063292354345, "monitor": 0.6711314916610718, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6397783710211515, "monitor": 0.673325777053833, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6329197740629315, "monitor": 0.6753954887390137, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 9, "train_loss": 0.626799946770072, "monitor": 0.6745989322662354, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6199285211116076, "monitor": 0.6759283542633057, "armed": true, "best_epoch": 5}
+{"type": "end", "rows": [{"name": "fsdd_r1_snn_s44", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 44, "budget": "e30", "best_epoch": 5, "armed_epoch": 1, "epochs_run": 10, "stop_reason": "patience", "test_mse": 0.80934739112854, "val_mse": 0.6697146892547607, "train_mse": 0.6358526945114136, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 151.13944721221924}, {"name": "fsdd_r1_snn_s44", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 44, "budget": "e60", "best_epoch": 5, "armed_epoch": 1, "epochs_run": 10, "stop_reason": "patience", "test_mse": 0.80934739112854, "val_mse": 0.6697146892547607, "train_mse": 0.6358526945114136, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 151.23250555992126}]}

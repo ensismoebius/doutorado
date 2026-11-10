@@ -1,0 +1,16 @@
+{"type": "start", "name": "eegmmidb_w256x64_ann_s43", "trivial_loss": 0.9996989648693367, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.6263816334754229, "monitor": 0.48497888445854187, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.4081642575711012, "monitor": 0.4200197458267212, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.34629691059142353, "monitor": 0.4098946750164032, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.3158406737521291, "monitor": 0.3736264109611511, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.2943604224771261, "monitor": 0.3653084337711334, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.28446731162071226, "monitor": 0.36659902334213257, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 7, "train_loss": 0.276585510879755, "monitor": 0.36217284202575684, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.2619057036861777, "monitor": 0.3694951832294464, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 9, "train_loss": 0.2593065691962838, "monitor": 0.3521956503391266, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 10, "train_loss": 0.2540847606509924, "monitor": 0.35700613260269165, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 11, "train_loss": 0.24924113587290048, "monitor": 0.36972010135650635, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 12, "train_loss": 0.24290887724608182, "monitor": 0.3683692514896393, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 13, "train_loss": 0.23969514921307564, "monitor": 0.36053183674812317, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 14, "train_loss": 0.2384734744653106, "monitor": 0.35378316044807434, "armed": true, "best_epoch": 9}
+{"type": "end", "rows": [{"name": "eegmmidb_w256x64_ann_s43", "part": "W", "dataset": "eegmmidb", "run": 1, "family": "ann", "widths": "256x64", "encoding": "direct", "time_steps": 1, "seed": 43, "budget": "e30", "best_epoch": 9, "armed_epoch": 1, "epochs_run": 14, "stop_reason": "patience", "test_mse": 0.3977035582065582, "val_mse": 0.3521956503391266, "train_mse": 0.23634231090545654, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 81.90619492530823}, {"name": "eegmmidb_w256x64_ann_s43", "part": "W", "dataset": "eegmmidb", "run": 1, "family": "ann", "widths": "256x64", "encoding": "direct", "time_steps": 1, "seed": 43, "budget": "e60", "best_epoch": 9, "armed_epoch": 1, "epochs_run": 14, "stop_reason": "patience", "test_mse": 0.3977035582065582, "val_mse": 0.3521956503391266, "train_mse": 0.23634231090545654, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 81.96326327323914}]}
