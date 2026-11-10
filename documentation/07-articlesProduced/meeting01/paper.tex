@@ -352,9 +352,12 @@ AudioMNIST \cite{becker2024audiomnist} are spoken digits, the latter resampled o
 to 8\,kHz; EEGMMIDB \cite{schalk2004bci2000,goldberger2000physiobank}
 (motor movement/imagery) and Siena \cite{detti2020siena} (epilepsy) are scalp EEG, read from
 the first channel of each recording (Fc5 and Fp1 in the file headers), band-passed to
-0.5--40\,Hz with a mains notch (60\,Hz EEGMMIDB, 50\,Hz Siena) at each file's own rate. The 36 EEGMMIDB files recorded at
-128\,Hz are then converted to 160\,Hz by band-limited interpolation, so a window lasts the same
-time in every recording. The group is the speaker or subject. Windows do not overlap; a long
+0.5--40\,Hz with a mains notch (60\,Hz EEGMMIDB, 50\,Hz Siena) at each file's own rate, then
+converted to \cfgRateEegmmidb\,Hz by band-limited interpolation: the 36 EEGMMIDB files recorded at
+128\,Hz and every Siena file (512\,Hz). A window thus lasts the same time in every EEG
+recording. At Siena's native rate it would be too short to hold more independent values than its
+latent carries (twice the band times the duration), and a linear projection would reconstruct it
+exactly. The group is the speaker or subject. Windows do not overlap; a long
 recording keeps a number of windows drawn uniformly across it, and each fold keeps at most
 \cfgTrainWindows{} training, \cfgValWindows{} validation and \cfgTestWindows{} test windows,
 balanced by speaker or subject, then digit, then recording. The composition of every fold is

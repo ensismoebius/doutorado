@@ -39,7 +39,7 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 | `fsdd` | spoken digits, 8 kHz | speaker | 6 / 6 | none | `.../databases/fsdDataset` |
 | `audiomnist` | spoken digits, offline-resampled 48→8 kHz | speaker | 60 / 6 | 2 | `.../databases/audioMNIST_8k` |
 | `eegmmidb` | EEG, 64 ch (signal 0 read), 160 Hz, EDF+ | subject (parent dir) | 109 / 6 | 40 | `.../databases/eegmmidb` |
-| `siena` | EEG, up to 35 ch (signal 0 read), 512 Hz, EDF | subject (parent dir) | 14 / 6 | 40 | `.../databases/siena` |
+| `siena` | EEG, up to 35 ch (signal 0 read), 512 Hz, EDF; filtered at 512, windows cut at 160 Hz (format 13, [why](#siena-at-160-hz-results_format-13-2026-11-10)) | subject (parent dir) | 14 / 6 | 40 | `.../databases/siena` |
 
 **Why a new loader, not the existing `EEGLoader`.** The codebase already has an
 EEG loader (`nn::dataLoaders::EEGLoader`), but it reads a MAT-file/sqlite
@@ -931,7 +931,8 @@ results_format >= 11        ->  refused: "newer than the scripts (or the manifes
 | 9 | 2026-11-04 (pre-validation job 5316016, T1) | the run seed reaches every training; the GA cost counts a repeated first layer once |
 | 10 | 2026-11-04 | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
 | 11 | 2026-11-05 | the GA's front re-scored on fresh seeds only; rows log the network's insides and the encoder's energy — [why](#what-the-review-changed-results_format-11-2026-11-05) |
-| 12 | 2026-11-09 on | ann-ae rows carry `hidden_silent_share` (the control's share row); readers that never read it accept 11 too — [why](#a-share-row-for-the-control-results_format-12-2026-11-09) |
+| 12 | 2026-11-09 | ann-ae rows carry `hidden_silent_share` (the control's share row); readers that never read it accept 11 too — [why](#a-share-row-for-the-control-results_format-12-2026-11-09) |
+| 13 | 2026-11-10 on | Siena's windows cut at 160 Hz, not 512; `validate()` refuses an EEG window its latent carries whole — [why](#siena-at-160-hz-results_format-13-2026-11-10) |
 
 ### The windows were wrong (results_format 10, 2026-11-04)
 
@@ -3602,6 +3603,69 @@ moved (the CLAUDE.md rule: fix and bump before any grid). Nothing else changed. 
 read that field declare it, `split_manifest(..., accept=READS_WITHOUT_ANN_SHARE)`: `00_`'s report,
 and `07_`/`08_` reading the pre-validation's winners. Their outputs on the format-11 pre-validation
 are byte-identical before and after. `02_`, `03_` and `04_` accept 12 only.
+
+## Siena at 160 Hz (results_format 13, 2026-11-10)
+
+### The problem: a window the bottleneck holds whole
+
+An autoencoder is tested only if its window holds MORE than the latent can carry. If it holds
+less, a plain linear projection copies the window through without loss, and the comparison
+measures how close each optimizer gets to zero instead of what each family keeps.
+
+How much can a window hold? A signal with nothing outside a band of B Hz, watched for T seconds,
+has about 2·B·T independent values (the time-bandwidth product). Every EEG window here is
+band-passed to 0.5–40 Hz (B = 39.5) and is 256 samples long, so T depends on the rate the
+windows are cut at:
+
+```
+                      window      2·B·T      latent 64 is ...
+eegmmidb  160 Hz      1.6 s       126.4      a real bottleneck
+siena     512 Hz      0.5 s        39.5      wider than the signal          <- until format 12
+siena     160 Hz      1.6 s       126.4      a real bottleneck              <- format 13
+```
+
+### What was measured (smoke job 5321565, fold 0, 512 Hz windows)
+
+| | EEGMMIDB (160 Hz) | Siena (512 Hz) |
+|---|---|---|
+| training variance in the top 40 / 64 PCs | 0.805 / 0.897 | 0.9988 / **1.0000** |
+| PCA k=64 test MSE (fit on train) | 0.1924 (the paper's .192) | **0.0000** |
+| median lag-1 autocorrelation | 0.89–0.92 | 0.987–0.991 |
+
+The decision rests on the training-split number alone (100% of the variance in 64 components); the
+test MSE was computed as a data property, before any model result on Siena existed.
+
+### Why it was silent
+
+Nothing throws. The grid would run for weeks and the Siena column would read "PCA 0.000, every
+network above it", which looks like more evidence that PCA beats the nets, for a reason that has
+nothing to do with the nets.
+
+### The fix, and the guard
+
+- Both profiles: `siena.sample_rate` 512 → 160. The loader already filtered each file at its own
+  rate and converted afterwards (`nn::utility::resample_bandlimited`, anti-aliased; its test
+  `resample_gtest` checks 512 → 160 drops a 100 Hz tone and keeps a 30 Hz one), so the change is
+  configuration only. A Siena window now lasts 1.6 s, as an eegmmidb one does.
+- `Meeting01EegBand.hpp` holds the band and `eeg_window_degrees_of_freedom`;
+  `Meeting01Config::validate()` (`check_eeg_windows`) refuses any EEG dataset in
+  `evaluation.datasets` whose window holds no more than its latent, and one with no
+  `sample_rate`. **Loud**, at start-up, before the ~26 min a Siena fold spends reading its EDF
+  files. Tests: `EegWindowCapacity.*`, `Meeting01ConfigValidation.RefusesAnEegWindowTheLatentCanCarryWhole`
+  and its neighbours, `ProductionProfiles.EveryEegWindowLastsAsLongAndHoldsMoreThanItsLatent`.
+- `meeting01_results.py`: `RESULTS_FORMAT = 13`. `READS_WITHOUT_ANN_SHARE` = {11, 12, 13}, because
+  FSDD, AudioMNIST and eegmmidb did not change, but `check_results_format` refuses a Siena fold
+  older than `SIENA_WINDOWS_FROM` (13) even through `accept`.
+
+### Smaller things the same smoke showed (not changed)
+
+- Siena fold 0 has 320 test windows, not 1500: the per-recording cap (40) times its 8 test
+  recordings binds first. The paper says "at most"; the primary statistic is per subject, so 200
+  windows for one subject and 40 for another do not change the weights.
+- 2 of 1000 fold-0 training windows are flat (subject 7, recording 25: the raw signal is constant
+  there and the z-score turns it into zeros).
+- Building one Siena fold's split takes ~26 min (job 5321565: 00:49 → 01:15), about 2.6 h over
+  the six folds.
 
 ## See Also
 

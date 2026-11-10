@@ -369,7 +369,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 12)**: the paper reads only generated files in its
+**Paper data contract (results_format 13)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -427,6 +427,13 @@ ran 2026-11-09 on the development folds; `--placeholders --data-dir` for each be
 SNN-AE selection table prints the silent share as "SNN / ANN". Readers that never read that field
 (`00_` report, `07_`/`08_` reading the format-11 pre-validation) pass
 `accept=READS_WITHOUT_ANN_SHARE`; every other reader accepts RESULTS_FORMAT only.
+
+**EEG window capacity (results_format 13)**: an EEG window must hold more independent values than
+its latent (2 x 39.5 Hz x window duration > latent_dim), or PCA reconstructs it exactly and the
+comparison is void. Siena is therefore filtered at its native 512 Hz and cut at 160 Hz like
+eegmmidb (1.6 s windows; at 512 Hz: 0.5 s, ~39.5 values for latent 64, PCA test MSE 0.0000).
+`Meeting01Config::validate()` refuses a violation (`check_eeg_windows`, `Meeting01EegBand.hpp`);
+`check_results_format` refuses a Siena fold older than 13 even through `accept`.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

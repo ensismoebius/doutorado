@@ -98,6 +98,7 @@ from meeting01_results import (  # noqa: E402
     PW_HEADER,
     REFERENCE_MODELS,
     REFERENCE_SEED,
+    READS_WITHOUT_ANN_SHARE,
     RESULTS_FORMAT,
     TRAINED_MODELS,
     ResultsError,
@@ -1609,6 +1610,18 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     before = rewrite(comp0, lambda s: s.replace("fsdd,snn-ae", "siena,snn-ae", 1))
     expect_refusal(lambda: build(d, "t", out), "renamed or concatenated", "row of another dataset")
     (d / comp0).write_text(before)
+
+    # A Siena fold older than format 13 holds the 512 Hz windows a latent of 64 carries whole: it
+    # is refused even by a reader that widens `accept` to older formats, while the other datasets'
+    # older folds still pass through it.
+    for old in sorted(READS_WITHOUT_ANN_SHARE - {RESULTS_FORMAT}):
+        expect_refusal(lambda old=old: check_results_format(
+            {"dataset": "siena", "results_format": old}, "a Siena fold",
+            accept=READS_WITHOUT_ANN_SHARE), "native 512 Hz", f"format-{old} Siena via accept")
+        check_results_format({"dataset": "eegmmidb", "results_format": old}, "an eegmmidb fold",
+                             accept=READS_WITHOUT_ANN_SHARE)
+    check_results_format({"dataset": "siena", "results_format": RESULTS_FORMAT}, "a Siena fold",
+                         accept=READS_WITHOUT_ANN_SHARE)
 
     pw1 = d / "t_fsdd_fold1_per_window_errors.csv"
     kept = pw1.read_text()

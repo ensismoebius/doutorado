@@ -16,6 +16,7 @@
 
 #include "../lib/include/Meeting01Cli.hpp"
 #include "../lib/include/Meeting01Config.hpp"
+#include "../lib/include/Meeting01EegBand.hpp"
 #include "../lib/include/Meeting01Training.hpp"
 #include "nlohmann/json.hpp"
 
@@ -1009,4 +1010,66 @@ TEST(Meeting01ConfigHash, ResolvedConfigJsonCarriesThePaperFields)
              "/experiment/repeats"})
         EXPECT_TRUE(j.contains(nlohmann::json::json_pointer(path))) << path;
     EXPECT_FALSE(j["dataset"].contains("latex_data_dir"));
+}
+
+// An EEG window must hold more than the bottleneck can carry, or PCA copies it through whole and
+// every family is scored on how close its optimizer gets to zero. Siena was read at its native
+// 512 Hz until results_format 13: a 256-sample window lasted 0.5 s and, band-limited to 0.5-40 Hz,
+// held ~39.5 independent values for a latent of 64 -- PCA k=64 reconstructed fold 0's test windows
+// with MSE 0.0000 (measured 2026-11-10). Nothing threw. Meeting01EegBand.hpp has the arithmetic.
+TEST(EegWindowCapacity, CountsTwiceTheBandTimesTheDuration)
+{
+    EXPECT_DOUBLE_EQ(meeting01::eeg_window_degrees_of_freedom(256, 512.0), 39.5);  // 0.5 s
+    EXPECT_DOUBLE_EQ(meeting01::eeg_window_degrees_of_freedom(256, 160.0), 126.4); // 1.6 s
+    EXPECT_TRUE(meeting01::is_eeg_dataset("siena"));
+    EXPECT_TRUE(meeting01::is_eeg_dataset("eegmmidb"));
+    EXPECT_FALSE(meeting01::is_eeg_dataset("fsdd"));
+    EXPECT_FALSE(meeting01::is_eeg_dataset("audiomnist"));
+}
+
+TEST(ProductionProfiles, EveryEegWindowLastsAsLongAndHoldsMoreThanItsLatent)
+{
+    auto cfg = load("meeting01-loso.json");
+    const auto eeg = cfg.dataset.resolve("eegmmidb");
+    const auto siena = cfg.dataset.resolve("siena");
+    // One duration across the EEG datasets, as within each one (Meeting01Eeg.hpp).
+    EXPECT_EQ(siena.sample_rate, eeg.sample_rate);
+    EXPECT_EQ(siena.window_size, eeg.window_size);
+    for (const auto& src : {eeg, siena})
+        EXPECT_GT(meeting01::eeg_window_degrees_of_freedom(src.window_size, src.sample_rate),
+            static_cast<double>(src.latent_dim))
+            << src.name;
+}
+
+TEST(Meeting01ConfigValidation, RefusesAnEegWindowTheLatentCanCarryWhole)
+{
+    auto cfg = valid_config();
+    for (auto& s : cfg.dataset.sources)
+        if (s.name == "siena") s.sample_rate = 512; // the pre-format-13 profile
+    const std::string msg = validation_error(cfg);
+    EXPECT_NE(msg.find("dataset.sources[siena]"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("39.5"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("latent_dim 64"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("Remedy"), std::string::npos) << msg;
+    EXPECT_EQ(msg.find("eegmmidb"), std::string::npos) << "eegmmidb at 160 Hz is fine: " << msg;
+}
+
+TEST(Meeting01ConfigValidation, RefusesAnEegDatasetWithNoSampleRate)
+{
+    auto cfg = valid_config();
+    for (auto& s : cfg.dataset.sources)
+        if (s.name == "siena") s.sample_rate = 0;
+    EXPECT_NE(validation_error(cfg).find("dataset.sources[siena].sample_rate must be set"),
+        std::string::npos);
+}
+
+TEST(Meeting01ConfigValidation, IgnoresAnEegSourceTheProfileDoesNotRun)
+{
+    // The pre-validation profile lists every source but runs fsdd and eegmmidb only.
+    auto cfg = valid_config();
+    for (auto& s : cfg.dataset.sources)
+        if (s.name == "siena") s.sample_rate = 512;
+    auto& ds = cfg.evaluation.datasets;
+    ds.erase(std::remove(ds.begin(), ds.end(), "siena"), ds.end());
+    EXPECT_EQ(validation_error(cfg), "");
 }

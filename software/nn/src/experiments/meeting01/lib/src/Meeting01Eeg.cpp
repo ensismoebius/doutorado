@@ -26,6 +26,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "../include/Meeting01EegBand.hpp"
 #include "logging/Logger.hpp"
 #include "utility/BandpassNotchFilter.hpp"
 #include "utility/Resample.hpp"
@@ -169,11 +170,8 @@ EdfSignal read_signal0(const std::filesystem::path& edf)
     return {std::move(out), static_cast<double>(s0_per_record) / h.record_seconds};
 }
 
-// Standard EEG analysis band (see .wiki/Core/DataLoaders.md "Transforms" section for the
-// literature this is based on -- 0.5-40 Hz bandpass is the practice found for both Siena and
-// general EEG deep-learning preprocessing).
-constexpr double kEegBandLowHz = 0.5;
-constexpr double kEegBandHighHz = 40.0;
+// The band itself (kEegBandLowHz, kEegBandHighHz) is in Meeting01EegBand.hpp, shared with
+// Meeting01Config::validate(), which checks a window holds more than the latent can carry.
 constexpr double kNotchWidthHz = 2.0;
 
 } // namespace

@@ -95,7 +95,15 @@ namespace meeting01
 //           ann-ae (a leaky ReLU has no upper end). Nothing else changed: readers that do not read
 //           the control's share accept 11 too (READS_WITHOUT_ANN_SHARE in meeting01_results.py).
 //           No production fold ran with format 11; the pre-validation job 5317827 did.
-inline constexpr int kResultsFormat = 12;
+//   13      2026-11-10. Siena's windows are cut at 160 Hz (profile sample_rate), not its native
+//           512: each file is still band-passed 0.5-40 Hz at 512 Hz, then converted, so a
+//           256-sample window lasts 1.6 s, as in eegmmidb. At 512 Hz it lasted 0.5 s and held ~39.5
+//           independent values for a latent of 64, so PCA k=64 reconstructed fold 0's test windows
+//           exactly (MSE 0.0000; Meeting01EegBand.hpp). Meeting01Config::validate() now refuses an
+//           EEG window that holds no more than its latent. FSDD, AudioMNIST and eegmmidb are
+//           unchanged: readers that read only those (READS_WITHOUT_ANN_SHARE) accept 11 and 12 too.
+//           No production fold ran with format 12; the smoke jobs 5321563/5321565 did.
+inline constexpr int kResultsFormat = 13;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

@@ -66,12 +66,17 @@ from collections import defaultdict
 #: Format 11 re-scores the GA's front on fresh seeds only and records the network's insides:
 #: see _OLDER_FORMATS[10].
 #: Format 12 fills the ann-ae rows' hidden_silent_share (NaN in 11): see _OLDER_FORMATS[11].
-RESULTS_FORMAT = 12
-#: The formats a reader that never reads the ann-ae's hidden_silent_share may accept: 12 changed
-#: nothing else, so the format-11 pre-validation (job 5317827) stays readable by its report (00_)
-#: and by the scripts that take its winners (07_, 08_). A reader passes it as `accept`; every
-#: other reader, 02_ above all (it prints the control's share), accepts RESULTS_FORMAT alone.
-READS_WITHOUT_ANN_SHARE = frozenset({11, 12})
+#: Format 13 cuts Siena's windows at 160 Hz instead of 512: see _OLDER_FORMATS[12].
+RESULTS_FORMAT = 13
+#: The formats a reader that never reads the ann-ae's hidden_silent_share may accept: 12 and 13
+#: changed nothing else outside Siena, so the format-11 pre-validation (job 5317827) stays readable
+#: by its report (00_) and by the scripts that take its winners (05_, 07_, 08_). A reader passes it
+#: as `accept`; every other reader, 02_ above all (it prints the control's share), accepts
+#: RESULTS_FORMAT alone. A Siena fold older than SIENA_WINDOWS_FROM is refused even through
+#: `accept` (check_results_format): those windows are the degenerate 512 Hz ones.
+READS_WITHOUT_ANN_SHARE = frozenset({11, 12, 13})
+#: The first format whose Siena windows a latent of 64 cannot carry whole (_OLDER_FORMATS[12]).
+SIENA_WINDOWS_FROM = 13
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -103,6 +108,10 @@ _OLDER_FORMATS = {
         "hidden-rate shares, trained V_th and beta, or training error",
     11: "the ann-ae rows carry no hidden_silent_share, so the control has no share row to set "
         "beside the SNN-AE's",
+    12: "Siena's windows were cut at its native 512 Hz, so a 256-sample window lasted 0.5 s and "
+        "held ~39.5 independent values (0.5-40 Hz band) for a latent of 64: PCA k=64 "
+        "reconstructed them exactly (test MSE 0.0000 on fold 0) and every family was scored on "
+        "how close its optimizer got to zero",
 }
 
 PW_HEADER = [
@@ -184,6 +193,11 @@ def check_results_format(manifest: dict, where: str, accept: frozenset | None = 
         raise ResultsError(f"check_results_format: accept={sorted(accept)} leaves out the current "
                            f"format {RESULTS_FORMAT}; a reader must read what the binary writes.")
     got = manifest.get("results_format")
+    if (accept is not None and got != RESULTS_FORMAT and got in accept
+            and manifest.get("dataset") == "siena" and got < SIENA_WINDOWS_FROM):
+        raise ResultsError(
+            f"{where} is a Siena fold of results_format {got}: {_OLDER_FORMATS[12]}. No reader "
+            f"accepts Siena windows older than format {SIENA_WINDOWS_FROM}; {_RERUN}.")
     if got == RESULTS_FORMAT or (accept is not None and got in accept):
         return
     if got is None:
