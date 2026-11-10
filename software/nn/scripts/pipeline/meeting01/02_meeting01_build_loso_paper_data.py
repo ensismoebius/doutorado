@@ -1143,6 +1143,7 @@ def write_config_tex(config: dict, datasets_info: dict, status: str,
         "cfgSnnDepth": _interval(ga["snn"]["min_layers"], ga["snn"]["max_layers"]),
         # repair_widths always keeps one hidden layer, and at most max_layers - 1 of them.
         "cfgSnnHidden": _interval(1, ga["snn"]["max_layers"] - 1),
+        "cfgSnnWidthMin": str(ga["snn"]["min_width"]),
         "cfgSnnWidthMax": str(ga["snn"]["max_width"]),
         "cfgGaPop": str(pop),
         "cfgGaGen": str(gens),
@@ -1176,6 +1177,13 @@ def write_config_tex(config: dict, datasets_info: dict, status: str,
         src = info["source"]
         cap = src["max_windows_per_recording"]
         macros[f"cfgLatent{tag}"] = str(info["latent_dim"])
+        # repair_widths (Meeting01GaGenome.cpp) raises a hidden width drawn below d + 1 to
+        # d + 1: the share of uniform draws in [min_width, max_width] that end at that floor.
+        lo_w, hi_w, floor = ga["snn"]["min_width"], ga["snn"]["max_width"], info["latent_dim"] + 1
+        if not lo_w <= floor <= hi_w:
+            raise ResultsError(f"{ds}: the hidden-width floor d + 1 = {floor} is outside the GA's "
+                               f"[{lo_w}, {hi_w}]; the paper's width sentence assumes it is inside.")
+        macros[f"cfgWidthFloorShare{tag}"] = f"{100.0 * (floor - lo_w + 1) / (hi_w - lo_w + 1):.0f}"
         macros[f"cfgCap{tag}"] = str(cap) if cap > 0 else _NONE
         macros[f"cfgRate{tag}"] = str(src["sample_rate"])
         dev = sorted(DEVELOPMENT_FOLDS.get(ds, frozenset()))

@@ -1746,6 +1746,13 @@ overwritten with results (`\cfgDataStatus` = `results`).
 | `paper_loso_sensitivity.tex` | Table "with and without the development fold" | `04_` `write_sensitivity_tex` |
 | `paper_prevalidation.tex` | Table "Pre-validation" (development folds, every family) | `00_meeting01_prevalidation_report.py` `write_table` |
 | `paper_prevalidation_config.tex` | `\pre*` macros: budget, search ranges, generated verdicts | `00_meeting01_prevalidation_report.py` `write_macros` |
+| `paper_t1.tex` | the warm-up / pre-norm test (T1) | `05_meeting01_t1_transformer.py` |
+| `paper_design.tex`, `paper_design_shares.tex` | Table "Design study" and its spike-share table | `07_meeting01_design_study.py` `design_table` / `shares_table` |
+| `paper_design_stats.tex` | `\design*` macros: the study's size AND every number its prose states | `07_` `write_tex` + `findings` |
+| `paper_budget.tex` | `\budget*` macros: the budget paragraph (v) and limitation (vii) | `08_meeting01_budget_test.py` `budget_findings` |
+
+The last two hold numbers that sit inside sentences, so they carry a second contract: see
+[numbers in prose](#numbers-in-prose-come-from-the-data-too-2026-11-09).
 
 Placeholders, before any fold has run:
 
@@ -1760,6 +1767,10 @@ out/build/max-performance/src/experiments/meeting01/meeting01 --comparative \
   --placeholders /tmp/resolved.json --out-dir ../../documentation/07-articlesProduced/meeting01/data
 .venv/bin/python scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --placeholders \
   --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/07_meeting01_design_study.py --placeholders \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/08_meeting01_budget_test.py --placeholders \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
 ```
 
@@ -3453,13 +3464,95 @@ can pass 1. On the threshold path it is one term in a scalar's accumulator, and 
 
 ### Not done yet
 
-The design table and T1 ran on defective windows, so their numbers left the paper until they rerun;
-the design rerun must be logged, with at least 4 seeds, crossed with decoder and pooling, and include a
-Poisson winner. Figures that need real winners (energy break-even with EEG widths and `recurrent`, the
+T1 and the design study reran on the format-11 windows on 2026-11-09 (next section). Figures that need
+real winners (energy break-even with EEG widths and `recurrent`, the
 hidden-share panel, the design dots) wait for those runs. AudioMNIST and Siena raw files were read on
 the cluster and look like speech and EEG in microvolts; their windows through the real loader are
 checked from the split dumps of a short job. The quiet start of AudioMNIST files (first-window RMS 8
 against 49 overall) is amplified by the per-window z-score, a known property, not a defect.
+
+## Design study, budget test, and the framing (2026-11-09)
+
+### The question the pre-validation left
+
+On both development folds PCA beat both networks (test MSE, fold 0, job 5317827):
+
+| | FSDD test | EEGMMIDB test | FSDD train | EEGMMIDB train |
+|---|---|---|---|---|
+| PCA, k = d | 0.675 | 0.192 | 0.568 | 0.105 |
+| ANN-AE (control) | 0.713 | 0.303 | 0.53 | 0.19 |
+| SNN-AE | 0.773 | 0.425 | | |
+
+So the paper had to decide what it is about. The author chose **framing A** (2026-11-09): the question
+stays "what does the spike cost against the matched control"; PCA is an explicit reference in every
+table and in the abstract; the search space does not change. The rule was fixed before any grid
+number exists: where PCA errs less than both networks on a modality, the paper says that first, and
+the gap is read as the price of spiking among models that both lose to a linear projection.
+
+Two things could have made that gap an artefact of the budget, not of the model. The design study
+(`07_`) and the budget test (`08_`) check them, on a PyTorch twin of the network with the harness's
+code, neuron, gradient, initializers, optimizer, batch size, stopping rule and best-epoch weights
+(it matches the C++ numbers within 0.034).
+
+### What was measured (development folds, 4 seeds, seed-paired 95% t intervals)
+
+| Question | Answer | Where |
+|---|---|---|
+| Loss on every step instead of the time mean? | +0.06 to +0.12 on the 3 Poisson winners, not significant on the direct one | `results/meeting01_design` |
+| LIF decoder instead of leaky ReLU? | up to +0.07, significant on EEG only | same |
+| Kaiming instead of Xavier? | the control gets 0.20 worse on EEG and the SNN-AE "wins" (0.43 / 0.46 vs 0.50); Xavier is better for both arms, so they share it | same |
+| Is it the bound, not the spike? | sigmoid = leaky ReLU (within 0.012); clamp [0,1] costs 0.05-0.09 FSDD, 0.19 EEG; Poisson codes are not near binary yet the gap stays | same |
+| Is the control too narrow for PCA's solution? (the GA raises widths below d+1 to d+1: 50% of EEG draws) | **no**: at 2d / 4d hidden units it errs MORE (+0.06 / +0.10), validation stops improving by epoch 9-28 while training error still falls | `results/meeting01_budget` |
+| Does the 30-epoch cap bias the gap? (58% of LIF trainings had their best epoch in the last 3, 38% of leaky-ReLU) | 60 epochs move the gap by at most 0.009, no interval excludes 0, but the widest reaches 0.028 > Delta = 0.02: an EEG effect of that size is not excluded | same |
+
+The 30-epoch snapshots of the budget test reproduce the design study's 28 matching trainings exactly
+(the twin is deterministic).
+
+### Numbers in prose come from the data too (2026-11-09)
+
+**The problem.** Tables were generated; sentences were not. The design section's sentences carried
+about 25 numbers typed from the reports, and when they were checked against the data, three were
+already wrong, and nothing would ever have flagged them (LaTeX compiles either way, a **silent**
+failure):
+
+| Sentence as typed | Data | What went wrong |
+|---|---|---|
+| "0.10 to 0.14 on EEGMMIDB" | 0.0967, 0.1349 | 0.1349 rounds to 0.13 |
+| "the replica is within 0.03" | max 0.0336 | a bound must not be below the data |
+| "the control improved at least as much" | FSDD r2: SNN -0.0027, control 0.000 | a claim true on EEG, written for all |
+
+**The rule.** The number and every claim its sentence makes come from one function:
+`findings()` in `07_` and `budget_findings()` in `08_`. Each returns the macros and checks the claims;
+a claim that stops holding **refuses** the report (loud), naming the sentence to rewrite, before any
+paper file is written.
+
+```
+sentence:  "...raised the test error by \designLossStep{} ..., every interval excluding zero"
+macro:     designLossStep = span of the Poisson winners' per-step contrasts  -> "0.06 to 0.12"
+check:     every one of those intervals has lo > 0, else ResultsError("(i) ...")
+```
+
+Rounding has two kinds, and confusing them is the second silent failure:
+
+| Kind | Used for | Rule | Example |
+|---|---|---|---|
+| value | "raised it by 0.13" | nearest | 0.1349 -> 0.13 |
+| bound | "within", "at most" | **up** | 0.0113 -> 0.012, 0.0080x -> 0.009 |
+| span | "0.04 to 0.06" | nearest, both ends; one number when they agree | 0.1911, 0.1911 -> 0.19 |
+
+`--placeholders` defines every macro as `$-$`, so the paper compiles before a run. The GA width
+sentence uses `\cfgSnnWidthMin` and `\cfgWidthFloorShare<Ds>` from `02_` (the share of uniform draws in
+`[min_width, max_width]` that `repair_widths` raises to `d + 1`).
+
+### Provenance of the two runs
+
+| Run | Provenance label | Code |
+|---|---|---|
+| design study, 208 trainings | `49aa9524+dirty/503d7ee88edc` matches no commit: `results/` is not ignored, so the tree hash covered T1 outputs written at that moment | 117e5100 + `results/meeting01_design/07_meeting01_design_study.py.used` |
+| budget test, 36 trainings | `8d2dafd1+dirty/6f3c8c8dbdc7` | the tree of 4f1dfb2d (verified) |
+
+Both scripts' report code changed afterwards (the macros); training code did not, and the `.used`
+copies are what ran. Regenerating the reports reproduces every committed CSV byte for byte.
 
 ## See Also
 

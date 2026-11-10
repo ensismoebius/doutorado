@@ -50,8 +50,14 @@ FSDD train 0.568, test 0.675; EEGMMIDB train 0.105, test 0.192.
 Usage (from software/nn; 08_meeting01_budget_test.sh calls --run and --report):
     08_meeting01_budget_test.py --plan
     08_meeting01_budget_test.py --run --out-root O [--jobs N]
-    08_meeting01_budget_test.py --report --out-root O [--design-root results/meeting01_design]
+    08_meeting01_budget_test.py --report --out-root O --data-dir P [--design-root results/meeting01_design]
+    08_meeting01_budget_test.py --placeholders --data-dir P
     08_meeting01_budget_test.py --self-test
+
+--report also writes P/paper_budget.tex: the numbers the paper's budget paragraph states, after
+checking every claim its sentences make about them (budget_findings; refused when one fails).
+Added 2026-11-09 after the run, report code only: the training code is the run's
+(results/meeting01_budget/08_meeting01_budget_test.py.used).
 """
 
 from __future__ import annotations
@@ -77,12 +83,15 @@ sys.modules["design07"] = D
 _spec.loader.exec_module(D)
 ResultsError = D.ResultsError
 
+# the headline's Delta (meeting01_results); this script used to keep a copy, 0.02
+sys.path.insert(0, str(_SCRIPT_DIR))
+from meeting01_results import EQUIVALENCE_MARGIN
+
 MAX_EPOCHS = 60
 PROTOCOL_EPOCHS = 30
 W_DATASET = "eegmmidb"
 W_WIDTHS = ([65, 64], [128, 64], [256, 64])
-EQUIVALENCE_MARGIN = 0.02
-PCA = {"fsdd": {"train": 0.568, "test": 0.675}, "eegmmidb": {"train": 0.105, "test": 0.192}}
+PCA ={"fsdd": {"train": 0.568, "test": 0.675}, "eegmmidb": {"train": 0.105, "test": 0.192}}
 BUDGETS = ("e30", "e60")
 ROW_FIELDS = ["name", "part", "dataset", "run", "family", "widths", "encoding", "time_steps", "seed",
               "budget", "best_epoch", "armed_epoch", "epochs_run", "stop_reason", "test_mse",
@@ -281,10 +290,12 @@ def by_seed(rows, **match) -> dict:
     return got
 
 
-def determinism_check(rows: list[dict], design_root: pathlib.Path, winners: list[dict]) -> list[str]:
-    """The e30 snapshot must reproduce the design study's row of the same cell and seed."""
+def determinism_check(rows: list[dict], design_root: pathlib.Path, winners: list[dict]) -> tuple[list[str], int]:
+    """The e30 snapshot must reproduce the design study's row of the same cell and seed.
+    Returns (report lines, snapshots compared); refuses when any differs or none can be compared."""
     if not (design_root / "design_trainings.csv").is_file():
-        return [f"no {design_root}/design_trainings.csv: determinism not checked"]
+        raise ResultsError(f"no {design_root}/design_trainings.csv: the 30-epoch snapshots cannot be checked "
+                           "against the design study; run its report first (or pass --design-root)")
     with (design_root / "design_trainings.csv").open(encoding="utf-8") as f:
         design = {r["name"]: r for r in csv.DictReader(f)}
     issues, checked = [], 0
@@ -305,12 +316,89 @@ def determinism_check(rows: list[dict], design_root: pathlib.Path, winners: list
         if abs(float(d["test_mse"]) - r["test_mse"]) > 1e-6 or int(d["best_epoch"]) != r["best_epoch"]:
             issues.append(f"{name}: design test {float(d['test_mse']):.6f} best@{d['best_epoch']}, "
                           f"budget e30 {r['test_mse']:.6f} best@{r['best_epoch']}")
-    issues.append(f"determinism: {checked} e30 snapshots compared with the design study, "
-                  f"{sum(1 for i in issues if ': design test' in i)} differ")
-    return issues
+    differ = sum(1 for i in issues if ": design test" in i)
+    issues.append(f"determinism: {checked} e30 snapshots compared with the design study, {differ} differ")
+    if differ or checked == 0 or len(issues) > 1:
+        raise ResultsError("the twin is not deterministic against the design study:\n  " + "\n  ".join(issues))
+    return issues, checked
 
 
-def report(prevalidation: pathlib.Path, out_root: pathlib.Path, design_root: pathlib.Path) -> None:
+# ------------------------------------------------------------------------- the prose's numbers
+# The design section's budget paragraph (v) and limitation (vii) state these numbers and claims;
+# like 07_'s findings(), a claim the data no longer support is refused, naming the sentence.
+BUDGET_MACROS = ("budgetDataStatus", "budgetEpochs", "budgetProtocolEpochs", "budgetArmGainMax",
+                 "budgetGapShiftMax", "budgetGapShiftWidest", "budgetWideTwo", "budgetWideFour",
+                 "budgetWideTwoLong", "budgetWideFourLong", "budgetWideBest", "budgetSnapshots")
+
+
+def _train_fell_after_best(out_root: pathlib.Path, name: str, best_epoch: int) -> bool:
+    log = out_root / "logs" / f"{name}.jsonl"
+    ep = {e["epoch"]: e["train_loss"] for e in map(json.loads, log.read_text(encoding="utf-8").splitlines())
+          if e.get("type") == "epoch"}
+    if best_epoch not in ep:
+        raise ResultsError(f"{log}: epoch {best_epoch} (the best) is not logged")
+    return ep[max(ep)] < ep[best_epoch]
+
+
+def budget_findings(rows, winners, con, out_root: pathlib.Path, snapshots: int) -> dict[str, str]:
+    L = {(c["contrast"], c["field"]): c for c in con}
+    d = next(w for w in winners if w["dataset"] == W_DATASET)["widths"][-1]
+    if [list(x) for x in W_WIDTHS] != [[d + 1, d], [2 * d, d], [4 * d, d]]:
+        raise ResultsError(f"the paper calls W's widths d+1, 2d and 4d (d = {d}); they are {W_WIDTHS}")
+    keys = [D.winner_key(w) for w in winners]
+    broken = []
+
+    def claim(ok: bool, sentence: str) -> None:
+        if not ok:
+            broken.append(sentence)
+
+    m = {"budgetEpochs": str(MAX_EPOCHS), "budgetProtocolEpochs": str(PROTOCOL_EPOCHS),
+         "budgetSnapshots": str(snapshots)}
+    arms = [L[(f"{k} {a} 60 - 30", "test_mse")] for k in keys for a in ("SNN", "ANN")]
+    m["budgetArmGainMax"] = D._up(max(-a["mean"] for a in arms), 3)
+    claim(all(a["mean"] <= 0 for a in arms), "(v) the longer budget lowered, never raised, either arm's mean error")
+    shift = {k: L[(f"{k} gap(60) - gap(30)", "test_mse")] for k in keys}
+    m["budgetGapShiftMax"] = D._up(max(abs(s["mean"]) for s in shift.values()), 3)
+    claim(not any(D._excludes_zero(s) for s in shift.values()), "(v) no interval of the gap's change excludes zero")
+    reach = {k: max(abs(s["lo"]), abs(s["hi"])) for k, s in shift.items()}
+    m["budgetGapShiftWidest"] = D._up(max(reach.values()), 3)
+    beyond = [k for k, v in reach.items() if v > EQUIVALENCE_MARGIN]
+    claim(bool(beyond) and all(k.startswith(f"{W_DATASET}_") for k in beyond),
+          f"(v) the widest interval reaches beyond the margin {EQUIVALENCE_MARGIN:g}, and only on EEGMMIDB")
+    wide = {(wd, b): L[(f"{b} width {wd} - 65x64", "test_mse")] for wd in ("128x64", "256x64") for b in BUDGETS}
+    m["budgetWideTwo"] = D._r(wide[("128x64", "e30")]["mean"])
+    m["budgetWideFour"] = D._r(wide[("256x64", "e30")]["mean"])
+    m["budgetWideTwoLong"] = D._r(wide[("128x64", "e60")]["mean"])
+    m["budgetWideFourLong"] = D._r(wide[("256x64", "e60")]["mean"])
+    claim(all(x["lo"] > 0 for x in wide.values()), "(v) the wider controls err more, every interval excluding zero")
+    wide_rows = [r for r in rows if r["part"] == "W" and r["widths"] in ("128x64", "256x64") and r["budget"] == "e60"]
+    m["budgetWideBest"] = D._span([r["best_epoch"] for r in wide_rows], 0)
+    claim(all(_train_fell_after_best(out_root, r["name"], r["best_epoch"]) for r in wide_rows),
+          "(v) the wider controls' training error still fell after their best validation epoch")
+    if broken:
+        raise ResultsError("the budget paragraph's prose no longer matches the data, rewrite: " + "; ".join(broken))
+    m["budgetDataStatus"] = "results"
+    if set(m) != set(BUDGET_MACROS):
+        raise ResultsError(f"budget macros {sorted(set(m) ^ set(BUDGET_MACROS))} out of sync with BUDGET_MACROS")
+    return m
+
+
+def write_budget_tex(data_dir: pathlib.Path, macros: dict[str, str]) -> pathlib.Path:
+    data_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["% auto-generated by 08_meeting01_budget_test.py -- do not edit"]
+    lines += [f"\\newcommand{{\\{k}}}{{{macros[k]}}}" for k in BUDGET_MACROS]
+    out = data_dir / "paper_budget.tex"
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return out
+
+
+def write_placeholders(data_dir: pathlib.Path) -> pathlib.Path:
+    return write_budget_tex(data_dir, {k: "placeholder" if k == "budgetDataStatus" else "$-$"
+                                       for k in BUDGET_MACROS})
+
+
+def report(prevalidation: pathlib.Path, out_root: pathlib.Path, design_root: pathlib.Path,
+           data_dir: pathlib.Path) -> None:
     winners = D.read_winners(prevalidation)
     rows = load_rows(out_root)
     n_tasks = len(build_tasks(winners))
@@ -361,7 +449,8 @@ def report(prevalidation: pathlib.Path, out_root: pathlib.Path, design_root: pat
         contrast(f"{k} SNN 60 - 30", snn["e60"], snn["e30"])
         contrast(f"{k} ANN 60 - 30", ann["e60"], ann["e30"])
         contrast(f"{k} SNN - ANN at 60", snn["e60"], ann["e60"])
-    lines += [""] + determinism_check(rows, design_root, winners)
+    det_lines, snapshots = determinism_check(rows, design_root, winners)
+    lines += [""] + det_lines
     with (out_root / "budget_contrasts.csv").open("w", newline="", encoding="utf-8") as f:
         wr = csv.DictWriter(f, fieldnames=["contrast", "field", "n", "mean", "lo", "hi"], lineterminator="\n")
         wr.writeheader()
@@ -369,6 +458,8 @@ def report(prevalidation: pathlib.Path, out_root: pathlib.Path, design_root: pat
     text = "\n".join(lines) + "\n"
     (out_root / "budget_report.txt").write_text(text, encoding="utf-8")
     print(text, end="")
+    out = write_budget_tex(data_dir, budget_findings(rows, winners, con, out_root, snapshots))
+    print(f"[budget] wrote {out}")
 
 
 
@@ -413,6 +504,21 @@ def self_test() -> int:
             break
     if snap != 30 or st.best_epoch != len(curve):
         failures.append(f"snapshot best epoch {snap} (want 30), final {st.best_epoch} (want {len(curve)})")
+    # the paper's macros: placeholders define every one; the log reader sees a still-falling train loss
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = pathlib.Path(tmp)
+        txt = write_placeholders(tmp).read_text(encoding="utf-8")
+        missing = [k for k in BUDGET_MACROS if f"\\newcommand{{\\{k}}}" not in txt]
+        if missing or "{placeholder}" not in txt:
+            failures.append(f"placeholders: missing {missing}")
+        (tmp / "logs").mkdir()
+        (tmp / "logs" / "x.jsonl").write_text("\n".join(json.dumps(e) for e in (
+            {"type": "start"}, {"type": "epoch", "epoch": 1, "train_loss": 0.30},
+            {"type": "epoch", "epoch": 2, "train_loss": 0.25}, {"type": "epoch", "epoch": 3, "train_loss": 0.24})),
+            encoding="utf-8")
+        if not _train_fell_after_best(tmp, "x", 2) or _train_fell_after_best(tmp, "x", 3):
+            failures.append("_train_fell_after_best")
     for f in failures:
         print("[self-test] FAIL:", f)
     if not failures:
@@ -423,16 +529,22 @@ def self_test() -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     mode = ap.add_mutually_exclusive_group(required=True)
-    for m in ("--plan", "--run", "--report", "--self-test"):
+    for m in ("--plan", "--run", "--report", "--placeholders", "--self-test"):
         mode.add_argument(m, action="store_true")
     ap.add_argument("--prevalidation", default=D.DEFAULT_PREVALIDATION)
     ap.add_argument("--out-root")
     ap.add_argument("--design-root", default="results/meeting01_design")
+    ap.add_argument("--data-dir", help="the paper's data/ (paper_budget.tex); --report and --placeholders")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     a = ap.parse_args(argv)
     try:
         if a.self_test:
             return self_test()
+        if a.placeholders:
+            if not a.data_dir:
+                ap.error("--placeholders needs --data-dir")
+            print(f"[budget] wrote {write_placeholders(pathlib.Path(a.data_dir))}")
+            return 0
         pre = pathlib.Path(a.prevalidation)
         if a.plan:
             tasks = build_tasks(D.read_winners(pre))
@@ -444,7 +556,9 @@ def main(argv=None) -> int:
             ap.error("--run and --report need --out-root")
         if a.run:
             return run(pre, pathlib.Path(a.out_root), a.jobs)
-        report(pre, pathlib.Path(a.out_root), pathlib.Path(a.design_root))
+        if not a.data_dir:
+            ap.error("--report needs --data-dir")
+        report(pre, pathlib.Path(a.out_root), pathlib.Path(a.design_root), pathlib.Path(a.data_dir))
         return 0
     except ResultsError as exc:
         print(f"[budget] REFUSED: {exc}", file=sys.stderr)

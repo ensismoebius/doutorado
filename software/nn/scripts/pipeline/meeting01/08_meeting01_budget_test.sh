@@ -6,7 +6,8 @@
 #   36 trainings, at most 60 epochs each, on the pre-validation's saved fold-0 windows, with the
 #   design study's twin (07_meeting01_design_study.py, imported unchanged)
 #   then  08_meeting01_budget_test.py --report  ->  <OUT_ROOT>/budget_{trainings,contrasts}.csv,
-#         budget_report.txt (includes the determinism check against results/meeting01_design)
+#         budget_report.txt (includes the determinism check against results/meeting01_design),
+#         and <PAPER_DATA>/paper_budget.tex (the numbers of the paper's budget paragraph)
 #
 # COST: from the design study's measured epochs (2026-11-09): SNN-AE 11-16 s, ANN-AE ~3 s per
 #   epoch (more at width 256); about 5-6 CPU-hours, 30-45 min on 11 processes. Refuses to start
@@ -15,12 +16,14 @@
 # Usage (from software/nn):
 #   EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/08_meeting01_budget_test.sh
 #   JOBS=N  BUDGET_DIR (default results/meeting01_budget; refused unless empty)  RESUME=1
+#   PAPER_DATA (where paper_budget.tex goes; default: the paper's data/)
 set -euo pipefail
 export LC_ALL=C
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 SCRIPTS="scripts/pipeline/meeting01"
 OUT_ROOT="${BUDGET_DIR:-results/meeting01_budget}"
+PAPER_DATA="${PAPER_DATA:-$ROOT_DIR/../../documentation/07-articlesProduced/meeting01/data}"
 JOBS="${JOBS:-$(( $(nproc) > 2 ? $(nproc) - 1 : 1 ))}"
 RESUME="${RESUME:-0}"
 
@@ -52,5 +55,5 @@ echo "$(date '+%F %T') ${MEETING01_GIT_COMMIT} JOBS=${JOBS} threads=1 RESUME=${R
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 
 "$PY" "$SCRIPTS/08_meeting01_budget_test.py" --run --out-root "$OUT_ROOT" --jobs "$JOBS"
-"$PY" "$SCRIPTS/08_meeting01_budget_test.py" --report --out-root "$OUT_ROOT"
+"$PY" "$SCRIPTS/08_meeting01_budget_test.py" --report --out-root "$OUT_ROOT" --data-dir "$PAPER_DATA"
 echo "[budget] done"

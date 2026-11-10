@@ -848,13 +848,140 @@ def contrasts(winners, cv) -> list[dict]:
     return out
 
 
-def write_tex(data_dir: pathlib.Path, design: str, shares: str, status: str, n_trainings: str) -> None:
+# ------------------------------------------------------------------------- the prose's numbers
+# The design section's sentences state numbers ("raised the test error by 0.06 to 0.12") and
+# claims about them ("every interval excluding zero"). Both come from here: the numbers as
+# macros, the claims as checks. Typed by hand, two numbers were already off by a rounding
+# (0.1349 printed as 0.14) or a bound (0.0336 read as "within 0.03").
+CAP_LAST = 3  # "near the cap": best epoch within the last CAP_LAST of the EPOCHS
+_WORDS = {0: "none", 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+FINDINGS_MACROS = (
+    "designPoissonWinners", "designTwinWithin", "designLossStep", "designDecoderMax",
+    "designAdoptedGap", "designKaimingCtrl", "designKaimingSnnEeg", "designKaimingCtrlEeg",
+    "designKaimingReverseSig", "designKaimingSnnMax", "designLifCostFsdd", "designLifCostEeg",
+    "designSigmoidWithin", "designClampFsdd", "designClampEeg", "designDirectSilent",
+    "designDirectAlways", "designPoissonSilent", "designPoissonAlwaysMax", "designPoissonGap",
+    "designCapWindow", "designCapLif", "designCapLrelu",
+)
+
+
+def _r(x: float, nd: int = 2) -> str:
+    """A value, rounded for prose."""
+    return f"{x:.{nd}f}"
+
+
+def _up(x: float, nd: int) -> str:
+    """A bound ("within", "at most"), rounded UP: 0.0113 reads 0.012, never a bound the data exceed."""
+    q = 10 ** nd
+    return f"{math.ceil(x * q - 1e-9) / q:.{nd}f}"
+
+
+def _span(vals, nd: int = 2) -> str:
+    """'0.04 to 0.06', or one number when both ends round alike."""
+    lo, hi = _r(min(vals), nd), _r(max(vals), nd)
+    return lo if lo == hi else f"{lo} to {hi}"
+
+
+def _excludes_zero(c: dict) -> bool:
+    return c["lo"] > 0 or c["hi"] < 0
+
+
+def findings(winners, cv, con, rows) -> dict[str, str]:
+    """The design section's numbers (macros design*) and a check of every claim its sentences make
+    about them. A claim the data no longer support is REFUSED, naming the sentence to rewrite: a
+    regenerated number must not silently contradict the words around it."""
+    C = {(c["winner"], c["contrast"]): c for c in con}
+    keys = [winner_key(w) for w in winners]
+    by = lambda pred: [winner_key(w) for w in winners if pred(w)]
+    fsdd, eeg = by(lambda w: w["dataset"] == "fsdd"), by(lambda w: w["dataset"] == "eegmmidb")
+    poisson, direct = by(lambda w: w["encoding"] == "poisson"), by(lambda w: w["encoding"] == "direct")
+    if not fsdd or not eeg or len(direct) != 1:
+        raise ResultsError(f"the design section speaks of FSDD and EEGMMIDB winners and of THE direct-coded "
+                           f"one; these winners are {keys} with direct {direct}: rewrite it")
+    mean_of = lambda k, cell, f="test_mse": float(np.mean([r[f] for r in cv[(k, cell)].values()]))
+    c = lambda k, name: C[(k, name)]
+    broken = []
+
+    def claim(ok: bool, sentence: str) -> None:
+        if not ok:
+            broken.append(sentence)
+
+    m = {"designPoissonWinners": _WORDS.get(len(poisson), str(len(poisson)))}
+    m["designTwinWithin"] = _up(max(abs(c(k, n)["mean"]) for k in keys for n in (
+        "twin adopted - harness SNN-AE", "twin lrelu xavier - harness ANN-AE")), 3)
+    # (i) the loss
+    step = [c(k, f"loss step - out_mean | {d} dec") for k in poisson for d in DECODERS]
+    m["designLossStep"] = _span([x["mean"] for x in step])
+    claim(all(x["lo"] > 0 for x in step),
+          "(i) on the Poisson-coded winners the per-step loss raised the error, every interval excluding zero")
+    claim(not any(_excludes_zero(c(k, f"loss step - out_mean | {d} dec")) for k in direct for d in DECODERS),
+          "(i) on the direct-coded winner no interval excluded zero")
+    # (ii) the decoder, behind the latent's time mean
+    dec = {k: c(k, "decoder lif - lrelu | lat_mean") for k in keys}
+    m["designDecoderMax"] = _up(max(x["mean"] for x in dec.values()), 2)
+    claim(all(dec[k]["lo"] > 0 for k in eeg) and not any(_excludes_zero(dec[k]) for k in fsdd),
+          "(ii) the LIF decoder's cost is significant on EEGMMIDB only")
+    block_a = [("lif", r, d, "xavier") for r in READOUTS for d in DECODERS]
+    m["designAdoptedGap"] = _up(max(mean_of(k, ADOPTED) - min(mean_of(k, cell) for cell in block_a)
+                                    for k in keys), 3)
+    # (iii) the initializer
+    kai_ctrl = [c(k, "kaiming - xavier | lrelu") for k in eeg]
+    m["designKaimingCtrl"] = _span([x["mean"] for x in kai_ctrl])
+    claim(all(x["lo"] > 0 for x in kai_ctrl), "(iii) fan-in scaling made the EEGMMIDB control worse")
+    snn_k = [mean_of(k, ("lif", "lat_mean", "lrelu", "kaiming")) for k in eeg]
+    ctrl_k = [mean_of(k, ("lrelu", "lat_mean", "lrelu", "kaiming")) for k in eeg]
+    m["designKaimingSnnEeg"] = " and ".join(_r(v) for v in snn_k)
+    m["designKaimingCtrlEeg"] = _span(ctrl_k)
+    claim(all(s < a for s, a in zip(snn_k, ctrl_k)),
+          "(iii) under fan-in scaling the SNN-AE beats the control on EEGMMIDB")
+    n_sig = sum(1 for k in eeg if c(k, "lif - lrelu | kaiming")["hi"] < 0)
+    m["designKaimingReverseSig"] = _WORDS.get(n_sig, str(n_sig))
+    claim(n_sig >= 1, "(iii) the reversed difference's interval excludes zero for at least one EEGMMIDB winner")
+    m["designKaimingSnnMax"] = _up(max(abs(c(k, "kaiming - xavier | lif")["mean"]) for k in keys), 2)
+    claim(all(c(k, f"kaiming - xavier | {n}")["mean"] > 0 for k in keys for n in ("lif", "lrelu")),
+          "(iii) Xavier's mean error is the lower for both arms at every winner")
+    # (iv) bounded codes, all with Xavier
+    lif = {k: c(k, "lif - lrelu | xavier") for k in keys}
+    m["designLifCostFsdd"] = _span([lif[k]["mean"] for k in fsdd])
+    m["designLifCostEeg"] = _span([lif[k]["mean"] for k in eeg])
+    claim(all(x["lo"] > 0 for x in lif.values()), "(iv) the LIF encoder costs at every winner")
+    sig = [c(k, "sigmoid - lrelu | xavier") for k in keys]
+    m["designSigmoidWithin"] = _up(max(abs(x["mean"]) for x in sig), 3)
+    claim(not any(_excludes_zero(x) for x in sig), "(iv) the sigmoid: no interval excluding zero")
+    clamp = {k: c(k, "clamp - lrelu | xavier") for k in keys}
+    m["designClampFsdd"] = _span([clamp[k]["mean"] for k in fsdd])
+    m["designClampEeg"] = _span([clamp[k]["mean"] for k in eeg])
+    claim(all(x["lo"] > 0 for x in clamp.values()), "(iv) the clamp costs at every winner")
+    claim(all(c(k, "clamp_ste - lrelu | xavier")["mean"] > clamp[k]["mean"] for k in keys),
+          "(iv) an identity gradient through the clamp cost more than the clamp")
+    m["designDirectSilent"] = _r(100.0 * mean_of(direct[0], ADOPTED, "enc_low_share"), 0)
+    m["designDirectAlways"] = _r(100.0 * mean_of(direct[0], ADOPTED, "enc_high_share"), 0)
+    m["designPoissonSilent"] = _span([100.0 * mean_of(k, ADOPTED, "enc_low_share") for k in poisson], 0)
+    m["designPoissonAlwaysMax"] = _up(max(100.0 * mean_of(k, ADOPTED, "enc_high_share") for k in poisson), 0)
+    m["designPoissonGap"] = _span([lif[k]["mean"] for k in poisson])
+    # (v) the cap: trainings whose best epoch is among the last CAP_LAST
+    late = lambda g: sum(1 for r in g if r["best_epoch"] > EPOCHS - CAP_LAST) / len(g)
+    lif_rows = [r for r in rows if r["neuron"] == "lif"]
+    lrelu_rows = [r for r in rows if r["neuron"] == "lrelu"]
+    m["designCapWindow"] = _WORDS[CAP_LAST]
+    m["designCapLif"] = _r(100.0 * late(lif_rows), 0)
+    m["designCapLrelu"] = _r(100.0 * late(lrelu_rows), 0)
+    claim(late(lif_rows) > late(lrelu_rows), "(v)/(vii) more LIF than leaky-ReLU trainings end near the cap")
+    if broken:
+        raise ResultsError("the design section's prose no longer matches the data, rewrite: " + "; ".join(broken))
+    if set(m) != set(FINDINGS_MACROS):
+        raise ResultsError(f"findings macros {sorted(set(m) ^ set(FINDINGS_MACROS))} out of sync with FINDINGS_MACROS")
+    return m
+
+
+def write_tex(data_dir: pathlib.Path, design: str, shares: str, status: str, n_trainings: str,
+              prose: dict[str, str]) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "paper_design.tex").write_text(design, encoding="utf-8")
     (data_dir / "paper_design_shares.tex").write_text(shares, encoding="utf-8")
     macros = {"designDataStatus": status, "designSeeds": str(len(SEEDS)),
               "designTrainings": n_trainings, "designEpochs": str(EPOCHS),
-              "designMinSkill": f"{MIN_SKILL:.2f}"}
+              "designMinSkill": f"{MIN_SKILL:.2f}", **prose}
     lines = ["% auto-generated by 07_meeting01_design_study.py -- do not edit"]
     lines += [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
     (data_dir / "paper_design_stats.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -879,7 +1006,7 @@ def write_placeholders(data_dir: pathlib.Path) -> None:
                                                 "enc_high_share": float("nan")} for s in SEEDS}
     design = design_table(ws, empty).replace("nan", "$-$")
     shares = shares_table(ws, empty).replace("nan/nan", "$-$")
-    write_tex(data_dir, design, shares, "placeholder", "$-$")
+    write_tex(data_dir, design, shares, "placeholder", "$-$", {k: "$-$" for k in FINDINGS_MACROS})
 
 
 def report(prevalidation: pathlib.Path, out_root: pathlib.Path, data_dir: pathlib.Path) -> None:
@@ -917,7 +1044,8 @@ def report(prevalidation: pathlib.Path, out_root: pathlib.Path, data_dir: pathli
                            lineterminator="\n")
         wr.writeheader()
         wr.writerows(con)
-    write_tex(data_dir, design_table(winners, cv), shares_table(winners, cv), "results", str(len(rows)))
+    prose = findings(winners, cv, con, rows)  # refuses before any paper file is written
+    write_tex(data_dir, design_table(winners, cv), shares_table(winners, cv), "results", str(len(rows)), prose)
     for c in con:
         flag = "" if c["lo"] <= 0 <= c["hi"] else "  *"
         print(f"{c['winner']:12s} {c['contrast']:40s} {c['mean']:+.4f} [{c['lo']:+.4f}, {c['hi']:+.4f}]{flag}")
@@ -1102,8 +1230,20 @@ def self_test() -> int:
         ptxt = (tmp / "paper_design.tex").read_text(encoding="utf-8")
         if "nan" in ptxt or "$-$" not in ptxt:
             failures.append("placeholder table shows nan or no dashes")
-        if "\\newcommand{\\designDataStatus}{placeholder}" not in (tmp / "paper_design_stats.tex").read_text():
+        stats = (tmp / "paper_design_stats.tex").read_text()
+        if "\\newcommand{\\designDataStatus}{placeholder}" not in stats:
             failures.append("placeholder status macro")
+        missing = [k for k in FINDINGS_MACROS if f"\\newcommand{{\\{k}}}{{$-$}}" not in stats]
+        if missing:
+            failures.append(f"placeholders do not define the prose macros {missing}")
+
+    # 11. prose rounding: a value rounds, a bound rounds up, a span collapses when both ends agree
+    for got, want in ((_r(0.1349), "0.13"), (_up(0.0113, 3), "0.012"), (_up(0.0336, 3), "0.034"),
+                      (_up(0.0274, 2), "0.03"), (_up(0.008, 3), "0.008"), (_up(2.6, 0), "3"),
+                      (_span([0.0376, 0.0571]), "0.04 to 0.06"), (_span([0.1911, 0.1911]), "0.19"),
+                      (_span([24.9, 30.2], 0), "25 to 30")):
+        if got != want:
+            failures.append(f"prose rounding: {got!r}, want {want!r}")
 
     for f in failures:
         print("[self-test] FAIL:", f)

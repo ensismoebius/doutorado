@@ -5,7 +5,10 @@
 % software/nn/scripts/pipeline/meeting01/02_ and 04_ (placeholders before the grid run);
 % the pre-validation's (Section sec:prevalidation) from data/paper_prevalidation*.tex,
 % written by 00_meeting01_prevalidation_report.py, and its warm-up / pre-norm test from
-% data/paper_t1.tex, written by 05_meeting01_t1_transformer.py.
+% data/paper_t1.tex, written by 05_meeting01_t1_transformer.py; the design study's table and
+% macros (its prose's numbers too) from data/paper_design*.tex, written by
+% 07_meeting01_design_study.py, and its budget paragraph's from data/paper_budget.tex, written by
+% 08_meeting01_budget_test.py. Both refuse to write when a claim their sentences make stops holding.
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{microtype}
@@ -23,6 +26,8 @@
 \input{data/paper_config.tex}
 \input{data/paper_prevalidation_config.tex}
 \input{data/paper_t1.tex}
+\input{data/paper_design_stats.tex}
+\input{data/paper_budget.tex}
 \input{data/paper_loso_energy_verdict.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
@@ -61,6 +66,8 @@ those folds, which leave the headline numbers together with the fold that tests 
 validation groups, examines the loss, the decoder and the initializer the adopted design
 inherited.
 % TODO(after the grid run): one sentence with the headline SNN-AE vs ANN-AE result per modality.
+% Fixed 2026-11-09, before any headline number (framing A): if PCA errs less than both
+% autoencoders on a modality's headline folds, the abstract says so first, then the gap.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -232,7 +239,10 @@ is the best linear code through the same bottleneck, and is priced like the netw
 \cfgGaPop{} for \cfgGaGen{} generations (\cfgGaEvals{} candidates), minimizing validation
 MSE and an analytic inference cost. The final front is re-scored over \cfgGaWinnerSeeds{}
 fresh seeds, the search's own score left out, and the member with the lowest re-scored validation MSE wins (ties: lower cost). Genes:
-$L-1\in[\cfgSnnHidden]$ hidden layers and widths in $(d,\cfgSnnWidthMax]$, $T\in[\cfgTmin,\cfgTmax]$ (an
+$L-1\in[\cfgSnnHidden]$ hidden layers and widths in $(d,\cfgSnnWidthMax]$ (a width is drawn
+from $[\cfgSnnWidthMin,\cfgSnnWidthMax]$ and raised to $d+1$ when below it, so on EEGMMIDB
+\cfgWidthFloorShareEegmmidb\% of the draws sit at $d+1$; Section~\ref{sec:design} tests wider
+controls), $T\in[\cfgTmin,\cfgTmax]$ (an
 integer drawn uniformly), $V_{th}^{(0)}\in[\cfgVth]$, $\beta^{(0)}\in[\cfgAlpha]$, encoding and
 input transform. The cost objective is a
 spike-blind MAC count in which $T$ multiplies every encoder layer that runs at every step (a
@@ -426,40 +436,76 @@ their standard deviation is below 0.0126, so on FSDD we expect to report the tra
 \section{Design Study on the Development Folds}
 \label{sec:design}
 
-\ifplaceholder
-\par \fbox{\parbox{0.92\columnwidth}{\emph{Draft:} Table~\ref{tab:design} is being regenerated on
-the corrected windows, with the variants crossed, at least four seeds and a Poisson-coded winner.
-Its earlier numbers carried the defects below and have been removed.}}
-\fi
+\par Before the main run we asked what the design inherited. Earlier versions of this study ran
+on windows with four defects that the pipeline no longer has: the 44 bytes of each WAV header were
+decoded as 22 samples, so window 0 of every speech recording was mostly header; window caps kept a
+prefix of a sorted list (FSDD fold 0 trained on digits 0--4); a per-recording cap kept each
+recording's start; and 36 EEGMMIDB files at 128\,Hz were treated as 160\,Hz. No earlier number is
+reported here.
 
-\par Before the main run we asked what the design inherited, varying one factor at a time on the
-development folds. Earlier versions of this study ran on windows with four defects that the
-pipeline no longer has: the 44 bytes of each WAV header were decoded as 22 samples, so window 0
-of every speech recording was mostly header; window caps kept a prefix of a sorted list (FSDD
-fold 0 trained on digits 0--4); a per-recording cap kept each recording's start; and 36 EEGMMIDB
-files at 128\,Hz were treated as 160\,Hz. No earlier number is reported here. The variants are
-implemented in a PyTorch replica of the network, whose error is compared with the C++ harness at
-the points in Table~\ref{tab:design}.
+\par The study runs on a PyTorch replica of the network with the harness's code, neuron and
+gradient, initializers, optimizer, batch size, stopping rule and best-epoch weights, at the four
+SNN-AE winners of the pre-validation (Section~\ref{sec:prevalidation}; \designPoissonWinners{} are
+Poisson-coded),
+\designSeeds{} seeds each, in two crossed blocks (\designTrainings{} trainings): the read-out
+(loss on every step, loss on the time mean, or the latent's time mean) crossed with the decoder's
+neuron, and the encoder's hidden neuron crossed with the initializer. Seeds pair the cells: a seed
+fixes the initial weights, the window order and the Poisson draws. Table~\ref{tab:design} gives
+every cell and the harness's own error at the two points both ran; the replica is within
+\designTwinWithin{} of them. Intervals below are seed-paired Student-$t$ 95\% intervals: they
+describe training noise on fixed windows, not variation over speakers or subjects.
 
 \begin{table}[!t]
-\caption{Design study, development folds, test MSE.}
-\centering\footnotesize
+\caption{Design study, development folds, test MSE: mean over \designSeeds{} seeds, standard
+deviation in the last digits in parentheses. Columns: the four SNN-AE winners, by code (D direct,
+P Poisson) and $T$. $^\dagger$: the adopted design. Last rows: the C++ harness, one seed.}
+\centering\scriptsize
 \setlength{\tabcolsep}{2pt}
 \input{data/paper_design.tex}
 \label{tab:design}
 \end{table}
 
-\par The study asks three questions. \emph{(i) The loss.} Scoring the reconstruction of every
-simulation step asks each step, carrying at most one binary event per neuron, to reproduce the
-analog window alone; the alternative scores the time mean. \emph{(ii) The decoder.} A spiking
-decoder runs $T$ times and leaky ReLUs once, so the choice is a cost choice in any case, and the
-table reports what it does to the error. \emph{(iii) The initializer.} Neither Xavier nor fan-in
-scaling was designed for LIF neurons, so the table compares them and nothing more is claimed. We
-claim no cause for a gap between the SNN-AE and its control. A hypothesis, argued rather than
-measured: under direct input an LIF neuron sees the same current $I$ at every step, so with a
-hard reset it never fires for $I\leq V_{th}(1-\beta)$ and fires at every step for $I>V_{th}$;
-between them its time mean is a staircase with levels near $1, 1/2, 1/3, \dots$, with no level
-between $1/2$ and $1$ at any $T$. The argument covers direct input, not Poisson winners.
+\par \emph{(i) The loss.} Scoring the reconstruction of every simulation step asks each step,
+carrying at most one binary event per neuron, to reproduce the analog window alone. On the
+Poisson-coded winners it raised the test error by \designLossStep{} over scoring the time mean,
+every interval excluding zero; on the direct-coded winner no interval excluded zero.
+\emph{(ii) The decoder.} A spiking decoder runs $T$ times and leaky ReLUs once, so it is a cost
+choice in any case; behind the latent's time mean it added up to \designDecoderMax{}, significant
+on EEGMMIDB only. The adopted design is at most \designAdoptedGap{} above the best cell of block A
+at every winner. \emph{(iii) The initializer.} Fan-in scaling made the leaky-ReLU control
+\designKaimingCtrl{} worse on EEGMMIDB, enough to reverse the comparison there (SNN-AE
+\designKaimingSnnEeg{} against \designKaimingCtrlEeg{}; the difference's interval excludes zero
+for \designKaimingReverseSig{} of them), and changed the SNN-AE by at most \designKaimingSnnMax{}.
+Xavier's mean error is the lower for both arms at every winner, which is why they share it: the
+comparison is not won by handicapping the control, but on EEGMMIDB its sign depends on that choice.
+
+\par \emph{(iv) Bounded codes.} With Xavier, the LIF encoder cost \designLifCostFsdd{} over the
+leaky ReLU on FSDD and \designLifCostEeg{} on EEGMMIDB. A sigmoid, bounded but smooth, stayed
+within \designSigmoidWithin{} of the leaky ReLU, no interval excluding zero; a hard clamp to
+$[0,1]$ cost \designClampFsdd{} on FSDD and \designClampEeg{} on EEGMMIDB, and an identity
+gradient through the clamp cost more, so a dead gradient is not what hurts. The direct-coded
+winner's code is near binary (\designDirectSilent\% of (neuron, window) pairs never fire and
+\designDirectAlways\% fire at every step), and an argument explains why: under direct input a neuron
+sees the same current $I$ at every step, so with a hard reset it never fires for
+$I\leq V_{th}(1-\beta)$ and fires at every step for $I>V_{th}$, and between them its time mean is
+a staircase with levels near $1, 1/2, 1/3, \dots$. The Poisson-coded winners' codes are not near
+binary (\designPoissonSilent\% silent, at most \designPoissonAlwaysMax\% always firing), yet their
+gaps (\designPoissonGap{}) are of the same order, so saturation does not account for them. We
+claim no cause for the gap.
+
+\par \emph{(v) The budget.} In this study \designCapLif\% of the LIF trainings had their best epoch
+among the last \designCapWindow{} of the \designEpochs, against \designCapLrelu\% of the leaky-ReLU
+ones. Training the adopted SNN-AE and its control for \budgetEpochs{} epochs instead lowered
+either's error by at most \budgetArmGainMax{} and moved their gap by at most
+\budgetGapShiftMax{}, no interval excluding zero; but the widest reaches
+\budgetGapShiftWidest{}, beyond $\Delta=\cfgMargin$, so a cap effect of that size on EEGMMIDB is not
+excluded. (These runs' \budgetProtocolEpochs-epoch snapshots reproduce the \budgetSnapshots{}
+matching trainings above exactly.) On EEGMMIDB, where PCA errs less than the control
+(Section~\ref{sec:prevalidation}), a control with $2d$ or $4d$ hidden units instead of $d+1$ erred
+more, by \budgetWideTwo{} and \budgetWideFour{} (\budgetWideTwoLong{} and \budgetWideFourLong{} at
+\budgetEpochs{} epochs): its validation error stopped improving by epoch \budgetWideBest{} while
+its training error still fell, so under this training the narrow layers the search picks do not
+explain PCA's lead.
 
 \subsection{Pre-validation of sequence baselines}
 \label{sec:prevalidation}
@@ -625,7 +671,10 @@ survives every column of Table~\ref{tab:energy}, read together with the selected
 $T$ in Table~\ref{tab:snnsel}: binary inputs turn the first layer's MACs into adds, but every
 step adds a read and a write of every potential. The third
 places both against PCA, on error and on energy; a model that does not beat PCA has not
-shown that its nonlinearity helps on that dataset. Orderings are asserted only where the
+shown that its nonlinearity helps on that dataset. Fixed before the grid run: where PCA errs less
+than both autoencoders on a modality, as it did on both development folds
+(Section~\ref{sec:prevalidation}), that is reported first, and the gap between the SNN-AE and its
+control is read as the price of spiking among models that both lose to a linear projection. Orderings are asserted only where the
 Holm-corrected $p$ is below 0.05 and the interval excludes zero, and a finding that holds on one modality only is
 reported as such.
 
@@ -634,9 +683,11 @@ reported as such.
 \label{sec:discussion}
 
 % TODO(after the grid run): discussion of the measured gap and cost.
-\par The design study does not separate the spike's discreteness from saturation: a hidden code
-that sits near 0 and 1 would be both, so Table~\ref{tab:snnsel} reports each end on its own, to be
-read beside $T$, since one spike moves the rate by $1/T$. Remedies
+\par The design study does not separate the spike's discreteness from saturation on direct input,
+where the code sits near 0 and 1 and is both; a smooth bound (the sigmoid) cost nothing and a hard
+one (the clamp) cost as much or more, and on Poisson input the code is not near binary and the gap
+remains. Table~\ref{tab:snnsel} reports each end on its own, to be read beside $T$, since one
+spike moves the rate by $1/T$. Remedies
 that move the code off those values -- a membrane read out instead of spikes in some layers,
 adaptive thresholds -- are candidates to test. On energy, a synaptic event is not simply cheaper
 than a multiply--accumulate once memory is priced, so whether the SNN-AE ends up cheaper than its
@@ -657,7 +708,10 @@ over its control; a larger budget could change the winner. (v) \emph{Different i
 the analog window, whereas the SNN-AE may read spikes; a stochastic or latency code also loses
 part of the window's information, which is included in the measured gap. (vi) \emph{Fixed latent width.} $d$ follows prior autoencoder practice for
 each domain, not a sweep on these datasets. (vii) \emph{Training cap.} At most \cfgEpochs{}
-epochs; the training error in Table~\ref{tab:snnsel} shows what the cap leaves.
+epochs, which binds more on LIF than on leaky-ReLU trainings; on the development folds raising it
+to \budgetEpochs{} moved the gap by at most \budgetGapShiftMax{}, without excluding an effect of
+\budgetGapShiftWidest{} (Section~\ref{sec:design}), and the training error in
+Table~\ref{tab:snnsel} shows what the cap leaves on the headline folds.
 (viii) \emph{Sequence models pre-validated, not compared.} The LSTM-, GRU- and Transformer-AE
 were searched with \preGaEvals{} candidates on two development folds only, so the conclusions
 concern spiking against its control, not against sequence models. (ix) \emph{Rate read-out.} The

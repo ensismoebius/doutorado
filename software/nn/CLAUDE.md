@@ -339,6 +339,7 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |
 | Transformer warm-up / pre-norm test (T1) | `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `05_meeting01_t1_transformer.py` |
 | Stopping threshold calibration | `scripts/pipeline/meeting01/06_meeting01_stopping_calibration.py` |
+| Design study (PyTorch twin) / budget test | `scripts/pipeline/meeting01/07_meeting01_design_study.{py,sh}`, `08_meeting01_budget_test.{py,sh}` |
 | Band-limited resampling | `include/utility/Resample.hpp` |
 
 ---
@@ -373,8 +374,11 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
 `paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`,
-`paper_t1.tex`);
-never type a configuration number or a result into `paper.tex`. Before the run they are
+`paper_t1.tex`, `paper_design.tex`, `paper_design_shares.tex`, `paper_design_stats.tex`,
+`paper_budget.tex`);
+never type a configuration number or a result into `paper.tex` -- not in a sentence either: a number
+a sentence states is a macro, and the script that writes it checks the claims around it and refuses
+when one fails (`findings()` in `07_`, `budget_findings()` in `08_`; a bound like "within" rounds UP). Before the run they are
 placeholders: `meeting01 --comparative --comparative-config <profile> --print-resolved-config >
 cfg.json`, then `02_ --placeholders cfg.json --data-dir <paper>/data`,
 `04_ --placeholders cfg.json --out-dir <paper>/data` and
@@ -414,7 +418,9 @@ interval, Holm, each `d_g` printed); recording level is descriptive. Fold 1 of F
 the headline too (`DESIGN_INFORMED_FOLDS`: it tests on fold 0's validation block). `EQUIVALENCE_MARGIN`
 (0.02) reads the two axes; PCA is priced (`pca_energy_nj`). Rows add `energy_nj_encoder`,
 `hidden_silent_share`, `hidden_always_share`, `lif_v_th_mean/min`, `lif_beta_mean`, `train_mse`.
-`data/paper_design.tex` is a placeholder until the logged twin reruns.
+The design study (`07_meeting01_design_study.{py,sh}`, a logged PyTorch twin, 208 trainings) and the
+budget test (`08_meeting01_budget_test.{py,sh}`, control width on EEG + 60-epoch cap, 36 trainings)
+ran 2026-11-09 on the development folds; `--placeholders --data-dir` for each before a run.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's
