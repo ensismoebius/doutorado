@@ -171,22 +171,32 @@ def compare(ref, cur, pairing):
         c = np.asarray([cur[k] for k in keys], float)
         d, note = cohens_d(c, r)
         if np.array_equal(r, c):
-            return "wilcoxon(paired)", None, d, "no test: identical paired values"
+            return "wilcoxon(paired)", None, d, join_notes(note, "no test: identical paired values")
         _, p = stats.wilcoxon(c, r)
-        return ("wilcoxon(paired)",) + defined_p(p, d, note)
+        return "wilcoxon(paired)", finite_p(p, "wilcoxon"), d, note
     r = np.asarray(list(ref.values()), float)
     c = np.asarray(list(cur.values()), float)
     d, note = cohens_d(c, r)
+    # Decided on the data, not on scipy's answer: with every pooled value tied the rank
+    # statistic has zero variance, and scipy versions disagree on what to return for it
+    # (1.18 gives NaN, Ubuntu's 1.11 gives p = 1.0, a stand-in that would pass as a result).
+    if np.ptp(np.concatenate([c, r])) == 0.0:
+        return "mannwhitneyu(indep)", None, d, join_notes(note, "no test: all values tied")
     _, p = stats.mannwhitneyu(c, r, alternative="two-sided")
-    return ("mannwhitneyu(indep)",) + defined_p(p, d, note)
+    return "mannwhitneyu(indep)", finite_p(p, "mannwhitneyu"), d, note
 
 
-def defined_p(p, d, note):
-    """scipy returns NaN when every value is tied; say so instead of carrying a NaN."""
+def join_notes(*notes):
+    return "; ".join(x for x in notes if x)
+
+
+def finite_p(p, test):
+    """The p-value as a float; a non-finite one is refused, since the undefined cases are
+    caught before the test runs and anything left is unexplained."""
     p = float(p)
-    if math.isfinite(p):
-        return p, d, note
-    return None, d, "; ".join(x for x in (note, "no test: all values tied") if x)
+    if not math.isfinite(p):
+        sys.exit(f"error: {test} returned p = {p} on data the script considered testable")
+    return p
 
 
 def main() -> int:
