@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "eegmmidb",
+  "families": [
+    {
+      "family": "gru-ae",
+      "inference_cost": 4675968,
+      "val_mse": 0.555091381072998
+    }
+  ],
+  "overall_winner": "gru-ae",
+  "results_format": 11,
+  "run_id": 1,
+  "seed": 42,
+  "selection_metric": "val_mse"
+}

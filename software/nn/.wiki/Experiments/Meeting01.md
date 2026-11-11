@@ -3743,10 +3743,55 @@ rising, which in the same arithmetic means the neuron never fires.
 | F1 `paper_design_lif_figure.tex` | `07_ --report` `lif_figure` | `results/meeting01_design` rows (trained $V_{th}$, $\beta$, shares) |
 | F5 `paper_design_figure.tex` | `07_ --report` `dots_figure` | the same rows + the harness's test MSE from the pre-validation |
 | F5 `paper_t1_figure.tex` | `05_ --report --out-root results/meeting01_t1_format11` | the format-11 T1 (`results/meeting01_t1` is the stale format-9 run and is refused) |
-| F3 `paper_breakeven*.tex` | `09_ --report` | the pre-validation's T range, winners' first widths, test windows ($\bar p$) |
+| F3 `paper_breakeven*.tex` | `09_ --report` | the grid's T range, SNN-AE winners' first widths, training windows ($\bar p$) |
+| F3 bars `paper_loso_energy_bars.tex` | `02_` `write_energy_bars` | the grid's comparative rows: $E$ and `energy_nj_encoder` (Table energy's means) |
+| F6 `paper_loso_learning_figure.tex` | `10_ --report` | the grid's events (final fits' per-epoch training loss) and `train_mse` |
 
-Still to come after the grid: F3's left panel (energy by block for the real winners), F6
-(learning curves per arm) and F7 is already in (forest plot).
+F7 (forest plot) is in. The reviewer's F3 mock-up split the bill into five blocks (first layer,
+LIF, to latent, time mean, decoder); the harness logs only two sides (`energy_nj_encoder` and the
+rest), so the panel draws those two rather than re-deriving five in Python, which a second port
+of the energy model would let drift from the C++ silently.
+
+### F3 bars and F6 from the grid of record (2026-11-11)
+
+**Where the energy goes.** On every dataset the SNN-AE's decoder side costs what its control's
+does (ratio 1.00: the decoder is the same analog network), and its encoder side 7.9 to 14 times.
+So all of the SNN-AE's extra energy, to the nearest percent, is spent before the latent:
+
+```
+                 E (nJ)   encoder side   decoder side        (headline folds, mean over winners)
+FSDD   SNN-AE     5551        4922            629
+       ANN-AE     1252         623            629
+Siena  SNN-AE     8484        7895            589
+       ANN-AE     1173         584            589
+```
+
+`\energySplit` states this; `energy_split()` in `02_` says "all" only when the share rounds
+to 100 % on every dataset, adds no share at all when the SNN-AE is the cheaper one, and waits
+("$-$") until every paper dataset has rows, as `\energyVsControl` does.
+
+**Fit gap, not generalization gap (V004).** The question: the SNN-AE errs more on held-out
+groups, but does it already err more on the windows it trained on? Paired by (fold, run) on
+the headline folds, `train_mse` (final network, eval mode, training windows) against test MSE:
+
+| Dataset | Pairs | Train gap | Test gap | Share | Pairs with train gap > 0 |
+|---|---|---|---|---|---|
+| FSDD | 20 | 0.056 | 0.051 | 109 % | 20 |
+| AudioMNIST | 30 | 0.034 | 0.039 | 88 % | 28 |
+| EEGMMIDB | 20 | 0.088 | 0.110 | 80 % | 20 |
+| Siena | 30 | 0.092 | 0.102 | 90 % | 30 |
+
+80 to 109 % of the held-out gap is already there on the training set: the SNN-AE fits worse,
+and the test gap is mostly that fit gap carried over. What the curves cannot say is why --
+whether the spike code cannot represent a better fit or surrogate training does not find it;
+the paper says so. `10_` refuses (asks for the paragraph to be rewritten, not softened) if the
+train or test gap is not positive on some dataset.
+
+The curves need the events (`*_events.jsonl`), which are not committed (size); the figure file
+in the paper's `data/` is. The final fits are `config_end` events with role `snn_final` /
+`ann_final`; `10_` refuses a final fit trained twice (a resumed task), an epoch hole, or a
+count that is not one per run. GA genomes do repeat config ids (the same genome drawn twice in
+a search); they are not final fits and are ignored.
 
 ## Grid 5321956 superseded: one candidate pool per seed, and a cap that ended the control (results_format 14, 2026-11-11)
 
@@ -3810,6 +3855,52 @@ everywhere (group level, Holm, all intervals excluding zero: +0.027 FSDD, +0.030
 Poisson coding was selected almost everywhere. The archive keeps every fold file and, in
 `paper_data/`, the tables `02_`/`04_` made from it, so the two runs can be compared once the
 format-14 grid is in.
+
+## The grid of record: array 5322464 (results_format 14, 2026-11-11)
+
+24/24 tasks `COMPLETED 0:0`, all at revision `5c1eacc4/3c7cd364f8df`, 3h08 to 5h43 each,
+reconciled, nothing left in `/store`. Synced to `results/meeting01/`, then `03_` -> `02_` ->
+`04_`.
+
+### Did the two fixes take?
+
+| Check | format 13 (5321956) | format 14 (5322464) |
+|---|---|---|
+| candidates shared by two searches of one seed, same modality (660 pairs) | median 19, max 47 | **0**, max 0 |
+| final fits that ran to the epoch cap (of 240) | 148 (at 30) | **3** (at 60) |
+
+### What it found (headline folds)
+
+| | FSDD | AudioMNIST | EEGMMIDB | Siena |
+|---|---|---|---|---|
+| SNN-AE − control, test MSE (group level, Holm) | +0.051 | +0.039 | +0.110 | +0.103 |
+| its 95% interval | [0.018, 0.084] | [0.035, 0.042] | [0.104, 0.116] | [0.097, 0.109] |
+| control − PCA | +0.054 | +0.045 | +0.112 | +0.103 |
+| SNN-AE energy / control's | 4.4 | 6.8 | 7.0 | 7.2 |
+
+PCA erred least everywhere; the SNN-AE erred more than its control everywhere and needed more
+energy under every repricing. Same orderings as the superseded run; the gap grew on every
+dataset, most on Siena (+0.080 -> +0.103), as expected once the control was no longer cut at
+30 epochs.
+
+### Every sentence about it is generated
+
+The abstract, Results and conclusion state these numbers only through macros whose generator
+first checks the claim around them, and refuses (loud) if the data do not support it:
+
+| Macro file | Generator | Refuses when |
+|---|---|---|
+| `paper_loso_findings.tex` (`\sig*`) | `04_` `findings()` | a gap is not significant on some dataset; PCA does not beat both autoencoders on some dataset; the gap stops being significant with the development folds in |
+| `paper_loso_energy_verdict.tex` (`\energyVsControl`) | `02_` `energy_vs_control()` | never: it writes whichever ordering holds, and says when it is not the same on every dataset and repricing |
+
+### F3 now reads the grid
+
+`09_meeting01_energy_breakeven.py --report` reads `results/meeting01` (was the format-11
+pre-validation): every SNN-AE winner's first width on the headline folds of all four datasets,
+and p_bar on their **training** windows (the author's choice: no test statistic in the figure).
+It draws each dataset's median width and checks its claims over every width. New: on the
+narrowest winner (w1 = 17) at T = 32 even the Poisson stage is dearer than the analog layer with
+zero input spikes, so its break-even is "none" there, like the recurrent transform's.
 
 ## See Also
 

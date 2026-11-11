@@ -73,6 +73,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 from meeting01_results import (  # noqa: E402
+    DATASET_MODALITY,
     DATASET_ORDER,
     DATASET_SHORT,
     DESIGN_INFORMED_FOLDS,
@@ -492,6 +493,98 @@ def write_forest(combined: dict, datasets: list[str], data_dir: pathlib.Path) ->
                                                           encoding="utf-8")
 
 
+FINDINGS_MACROS = ("sigGapVerdict", "sigGapSpeech", "sigGapEeg", "sigGapMargin", "sigPcaVerdict",
+                   "sigAnnPcaSpeech", "sigAnnPcaEeg", "sigSensShift")
+
+
+def _d3(x: float) -> str:
+    return f"{x:.3f}"
+
+
+def _up3(x: float) -> str:
+    """A bound ("at most") rounds up, so the printed number never understates it."""
+    return f"{math.ceil(x * 1000 - 1e-9) / 1000:.3f}"
+
+
+def _span3(values: list[float]) -> str:
+    lo, hi = _d3(min(values)), _d3(max(values))
+    return lo if lo == hi else f"{lo} to {hi}"
+
+
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _significant(g: dict) -> bool:
+    return g["mean_d"] > 0 and g["ci95"][0] > 0 and g["t_p_holm"] < 0.05
+
+
+def findings(combined: dict, datasets: list[str]) -> dict[str, str]:
+    """Every number and ordering the Results, abstract and conclusion state about quality, each
+    checked here first. A claim the data do not support raises: the sentence around its macro
+    would then be false, and a human has to rewrite it, not this script."""
+    g_ctrl = {ds: _group(combined.get(ds), "snn-ae", "ann-ae") for ds in datasets}
+    if any(g is None for g in g_ctrl.values()):
+        missing = [ds for ds, g in g_ctrl.items() if g is None]
+        raise ResultsError(f"findings: no SNN-AE vs ANN-AE comparison for {missing}.")
+    not_sig = [ds for ds, g in g_ctrl.items() if not _significant(g)]
+    if not_sig:
+        raise ResultsError(f"findings: the SNN-AE does not err significantly more than its "
+                           f"control on {not_sig}; the paper's gap sentence says it does on every "
+                           "dataset and must be rewritten.")
+    by_mod: dict[str, list[str]] = defaultdict(list)
+    for ds in datasets:
+        by_mod[DATASET_MODALITY[ds]].append(ds)
+    if set(by_mod) != {"speech", "eeg"}:
+        raise ResultsError(f"findings: the text reads speech and EEG, the run has {sorted(by_mod)}.")
+    m = {"sigGapVerdict": ("the SNN-AE erred more than its control on every dataset, every "
+                           "Holm-corrected $p$ below 0.05 and every interval excluding zero"),
+         "sigGapSpeech": _span3([g_ctrl[ds]["mean_d"] for ds in by_mod["speech"]]),
+         "sigGapEeg": _span3([g_ctrl[ds]["mean_d"] for ds in by_mod["eeg"]])}
+    beyond = [ds for ds in datasets if g_ctrl[ds]["ci95"][0] > EQUIVALENCE_MARGIN]
+    near = [ds for ds in datasets if ds not in beyond]
+    if not near:
+        m["sigGapMargin"] = "every interval lies wholly above $\\Delta$"
+    elif not beyond:
+        m["sigGapMargin"] = "no interval lies wholly above $\\Delta$"
+    else:
+        m["sigGapMargin"] = (f"every interval lies wholly above $\\Delta$ except on "
+                             f"{_and([DATASET_SHORT[d] for d in near])}, where it starts at "
+                             f"{_and([_d3(g_ctrl[d]['ci95'][0]) for d in near])}")
+    g_pca = {(ds, mod): _group(combined.get(ds), mod, "pca")
+             for ds in datasets for mod in ("snn-ae", "ann-ae")}
+    pca_fails = [f"{mod} on {ds}" for (ds, mod), g in g_pca.items() if g is None or not _significant(g)]
+    if pca_fails:
+        raise ResultsError(f"findings: PCA does not err significantly less than {pca_fails}; the "
+                           "paper reports PCA's lead first (framing A) and must be rewritten.")
+    m["sigPcaVerdict"] = ("PCA erred less than both autoencoders on every dataset, every "
+                          "Holm-corrected $p$ below 0.05")
+    m["sigAnnPcaSpeech"] = _span3([g_pca[(ds, "ann-ae")]["mean_d"] for ds in by_mod["speech"]])
+    m["sigAnnPcaEeg"] = _span3([g_pca[(ds, "ann-ae")]["mean_d"] for ds in by_mod["eeg"]])
+    shifts = []
+    for ds in datasets:
+        sens = (combined.get(ds) or {}).get("sensitivity_all_folds")
+        g_all = _group(sens, "snn-ae", "ann-ae") if sens else None
+        if g_all is not None:
+            if not _significant(g_all):
+                raise ResultsError(f"findings: with the development folds in, the gap on {ds} is "
+                                   "no longer significant; the sensitivity sentence must change.")
+            shifts.append(abs(g_all["mean_d"] - g_ctrl[ds]["mean_d"]))
+    if not shifts:
+        raise ResultsError("findings: no dataset has development folds to put back in.")
+    m["sigSensShift"] = _up3(max(shifts))
+    return m
+
+
+def write_findings(macros: dict[str, str] | None, path: pathlib.Path) -> None:
+    status = "results" if macros else "placeholder"
+    lines = ["% auto-generated by 04_meeting01_significance_tests.py -- do not edit",
+             f"\\newcommand{{\\sigDataStatus}}{{{status}}}"]
+    for k in FINDINGS_MACROS:
+        lines.append(f"\\newcommand{{\\{k}}}{{{macros[k] if macros else '$-$'}}}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def run(results_dir: pathlib.Path, run_tag: str, out_dir: pathlib.Path) -> list[str]:
     """Analyses each dataset on its headline folds (development folds left out) and, where
     it has development folds, again with them in (`sensitivity_all_folds` in the JSON)."""
@@ -525,6 +618,10 @@ def run(results_dir: pathlib.Path, run_tag: str, out_dir: pathlib.Path) -> list[
     write_sensitivity_tex(combined, refs, paper_datasets(config),
                           out_dir / "paper_loso_sensitivity.tex")
     write_forest(combined, paper_datasets(config), out_dir)
+    if datasets == paper_datasets(config):
+        write_findings(findings(combined, datasets), out_dir / "paper_loso_findings.tex")
+    else:
+        write_findings(None, out_dir / "paper_loso_findings.tex")
     return datasets
 
 
@@ -537,6 +634,7 @@ def run_placeholders(printed_config: pathlib.Path, out_dir: pathlib.Path) -> lis
     write_overview_tex({}, refs, datasets, out_dir / "paper_loso_significance.tex")
     write_sensitivity_tex({}, refs, datasets, out_dir / "paper_loso_sensitivity.tex")
     write_forest({}, datasets, out_dir)
+    write_findings(None, out_dir / "paper_loso_findings.tex")
     return datasets
 
 
@@ -824,13 +922,48 @@ def _group_checks() -> list:
     return failures
 
 
+def _findings_checks() -> list:
+    """The findings refuse what the data do not support and print what they do."""
+    def g(d, lo, p=1e-6):
+        return {"group_level": {"mean_d": d, "ci95": [lo, 2 * d - lo], "t_p_holm": p}}
+
+    def run(ctrl, pca_snn=0.2, pca_ann=0.1, sens=None):
+        out = {}
+        for ds, (d, lo) in ctrl.items():
+            out[ds] = {"comparisons": {"snn-ae": {"ann-ae": g(d, lo), "pca": g(pca_snn, pca_snn / 2)},
+                                       "ann-ae": {"pca": g(pca_ann, pca_ann / 2)}}}
+        out["fsdd"]["sensitivity_all_folds"] = {
+            "comparisons": {"snn-ae": {"ann-ae": g(sens if sens is not None else 0.0512, 0.03)}}}
+        return out
+
+    dss = ["fsdd", "audiomnist", "eegmmidb", "siena"]
+    good = {"fsdd": (0.051, 0.018), "audiomnist": (0.039, 0.035), "eegmmidb": (0.110, 0.104),
+            "siena": (0.103, 0.097)}
+    failures = []
+    m = findings(run(good), dss)
+    want = {"sigGapSpeech": "0.039 to 0.051", "sigGapEeg": "0.103 to 0.110", "sigSensShift": "0.001",
+            "sigGapMargin": ("every interval lies wholly above $\\Delta$ except on FSDD, where it "
+                             "starts at 0.018")}
+    for k, v in want.items():
+        if m[k] != v:
+            failures.append(f"findings {k}: {m[k]!r}, want {v!r}")
+    for name, bad in (("a gap whose interval reaches 0", {**good, "siena": (0.01, -0.002)}),
+                      ("PCA losing on one dataset", None)):
+        try:
+            findings(run(bad) if bad else run(good, pca_ann=-0.05), dss)
+            failures.append(f"findings accepted {name}")
+        except ResultsError:
+            pass
+    return failures
+
+
 def self_test() -> int:
     tmp_root = pathlib.Path(tempfile.mkdtemp(prefix="significance_selftest_"))
     # The fixtures use fold 1 as a headline fold (02_'s self-test checks the real table).
     design = dict(DESIGN_INFORMED_FOLDS)
     DESIGN_INFORMED_FOLDS.clear()
     try:
-        failures = _self_test_checks(tmp_root) + _group_checks()
+        failures = _self_test_checks(tmp_root) + _group_checks() + _findings_checks()
     finally:
         DESIGN_INFORMED_FOLDS.update(design)
         shutil.rmtree(tmp_root, ignore_errors=True)

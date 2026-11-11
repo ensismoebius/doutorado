@@ -1,0 +1,124 @@
+{
+  "candidates": [
+    {
+      "d_ff": 73,
+      "d_model": 106,
+      "encoding": "direct",
+      "n_heads": 2,
+      "n_layers": 4,
+      "val_mse": 0.999996542930603
+    },
+    {
+      "d_ff": 67,
+      "d_model": 80,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 3,
+      "val_mse": 1.0000005960464478
+    },
+    {
+      "d_ff": 135,
+      "d_model": 27,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9112147092819214
+    },
+    {
+      "d_ff": 191,
+      "d_model": 82,
+      "encoding": "direct",
+      "n_heads": 2,
+      "n_layers": 1,
+      "val_mse": 0.9983868598937988
+    },
+    {
+      "d_ff": 129,
+      "d_model": 106,
+      "encoding": "direct",
+      "n_heads": 2,
+      "n_layers": 4,
+      "val_mse": 1.000002384185791
+    },
+    {
+      "d_ff": 135,
+      "d_model": 113,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 3,
+      "val_mse": 1.000003457069397
+    },
+    {
+      "d_ff": 135,
+      "d_model": 80,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 1,
+      "val_mse": 0.987882673740387
+    },
+    {
+      "d_ff": 73,
+      "d_model": 27,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 4,
+      "val_mse": 0.9999911785125732
+    },
+    {
+      "d_ff": 73,
+      "d_model": 27,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9486013054847717
+    },
+    {
+      "d_ff": 115,
+      "d_model": 80,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 1,
+      "val_mse": 0.9939681887626648
+    },
+    {
+      "d_ff": 73,
+      "d_model": 80,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 3,
+      "val_mse": 1.0000011920928955
+    },
+    {
+      "d_ff": 135,
+      "d_model": 83,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9997610449790955
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 42.72818374633789,
+    "monitor_windows": 150,
+    "train_ms": 56977.32421875
+  },
+  "results_format": 11,
+  "run_id": 1,
+  "seed": 42,
+  "selected": {
+    "d_ff": 73,
+    "d_model": 27,
+    "encoding": "direct",
+    "n_heads": 1,
+    "n_layers": 1,
+    "val_mse": 0.9350833892822266
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george"
+}

@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "eegmmidb",
+  "families": [
+    {
+      "family": "lstm-ae",
+      "inference_cost": 6747904,
+      "val_mse": 0.5410578846931458
+    }
+  ],
+  "overall_winner": "lstm-ae",
+  "results_format": 10,
+  "run_id": 2,
+  "seed": 43,
+  "selection_metric": "val_mse"
+}

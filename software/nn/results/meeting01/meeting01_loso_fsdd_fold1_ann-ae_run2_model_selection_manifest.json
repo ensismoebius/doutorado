@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 1,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 11,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 11.168469429016113,
+    "monitor_windows": 150,
+    "train_ms": 9601.0185546875
+  },
+  "results_format": 14,
+  "run_id": 2,
+  "seed": 43,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      105,
+      16
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker lucas)",
+  "test_speaker": "jackson"
+}

@@ -47,6 +47,10 @@ __pycache__/
 # untracked and existed on one machine only.
 !software/nn/src/experiments/meeting01/profiles/
 !software/nn/src/experiments/meeting01/profiles/**/*.json
+# Meeting01 result manifests (split, model selection with every candidate, winners, summaries):
+# 02_/03_/04_/09_ read them, and without them a committed run cannot be post-processed again.
+# The *.json rule above silently kept every one of them out until 2026-11-11.
+!software/nn/results/meeting01*/**/*.json
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).

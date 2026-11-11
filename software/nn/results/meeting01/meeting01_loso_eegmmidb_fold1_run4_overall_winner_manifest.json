@@ -1,0 +1,16 @@
+{
+  "cv_fold": 1,
+  "dataset": "eegmmidb",
+  "families": [
+    {
+      "family": "snn-ae",
+      "inference_cost": 151424,
+      "val_mse": 0.36120209097862244
+    }
+  ],
+  "overall_winner": "snn-ae",
+  "results_format": 14,
+  "run_id": 4,
+  "seed": 45,
+  "selection_metric": "val_mse"
+}

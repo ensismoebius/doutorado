@@ -1,0 +1,108 @@
+{
+  "candidates": [
+    {
+      "d_ff": 55,
+      "d_model": 72,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 3,
+      "val_mse": 1.0000076293945313
+    },
+    {
+      "d_ff": 105,
+      "d_model": 43,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9996213912963867
+    },
+    {
+      "d_ff": 42,
+      "d_model": 24,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 3,
+      "val_mse": 0.914121687412262
+    },
+    {
+      "d_ff": 197,
+      "d_model": 16,
+      "encoding": "direct",
+      "n_heads": 4,
+      "n_layers": 3,
+      "val_mse": 0.9999526739120483
+    },
+    {
+      "d_ff": 42,
+      "d_model": 24,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 4,
+      "val_mse": 0.9591021537780762
+    },
+    {
+      "d_ff": 197,
+      "d_model": 24,
+      "encoding": "direct",
+      "n_heads": 4,
+      "n_layers": 3,
+      "val_mse": 1.0000156164169312
+    },
+    {
+      "d_ff": 233,
+      "d_model": 40,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 3,
+      "val_mse": 0.9991748332977295
+    },
+    {
+      "d_ff": 105,
+      "d_model": 24,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 4,
+      "val_mse": 1.0000079870224
+    },
+    {
+      "d_ff": 143,
+      "d_model": 120,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 3,
+      "val_mse": 1.0000336170196533
+    },
+    {
+      "d_ff": 42,
+      "d_model": 24,
+      "encoding": "direct",
+      "n_heads": 4,
+      "n_layers": 4,
+      "val_mse": 0.9995651245117188
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 274.2815246582031,
+    "monitor_windows": 150,
+    "train_ms": 231318.625
+  },
+  "results_format": 11,
+  "run_id": 2,
+  "seed": 43,
+  "selected": {
+    "d_ff": 42,
+    "d_model": 24,
+    "encoding": "direct",
+    "n_heads": 8,
+    "n_layers": 3,
+    "val_mse": 0.9237586259841919
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george"
+}

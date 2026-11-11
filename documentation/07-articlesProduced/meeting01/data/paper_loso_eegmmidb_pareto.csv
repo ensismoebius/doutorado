@@ -1,4 +1,4 @@
 key,mse,mse_std,energy_nj
-snn,nan,nan,nan
-ann,nan,nan,nan
-pca,nan,nan,nan
+snn,0.360137,0.017087,8630.84
+ann,0.250279,0.0100961,1235.14
+pca,0.138433,0,902.7

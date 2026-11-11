@@ -1,0 +1,5 @@
+Model,Codificacao,Camadas,MSE,MAE,R2,F1,SpikeRate,EnergiaAritNj,TempoTreinoMs
+ann-ae,direct,1,0.566875,0.574232,0.433127,0,nan,191.36,31422.7
+snn-ae,poisson,2,0.67816,0.630429,0.32184,0,0.442061,2558.63,38808.2
+snn-ae,poisson,2,0.669925,0.628359,0.330079,0,0.396204,339.312,47653.6
+snn-ae,poisson,2,0.680144,0.634387,0.319859,0,0.409481,318.245,41367.6

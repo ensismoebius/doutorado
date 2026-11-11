@@ -1,0 +1,36 @@
+{
+  "candidates": [
+    {
+      "d_ff": 135,
+      "d_model": 96,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 1,
+      "val_mse": 0.993868887424469
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "eegmmidb",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 320.7648620605469,
+    "monitor_windows": 150,
+    "train_ms": 286035.15625
+  },
+  "results_format": 9,
+  "run_id": 1,
+  "seed": 42,
+  "selected": {
+    "d_ff": 135,
+    "d_model": 96,
+    "encoding": "direct",
+    "n_heads": 8,
+    "n_layers": 1,
+    "val_mse": 0.993868887424469
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker S020,S021,S022,S023,S024,S025,S026,S027,S028,S029,S030,S031,S032,S033,S034,S035,S036,S037)",
+  "test_speaker": "S001,S002,S003,S004,S005,S006,S007,S008,S009,S010,S011,S012,S013,S014,S015,S016,S017,S018,S019"
+}

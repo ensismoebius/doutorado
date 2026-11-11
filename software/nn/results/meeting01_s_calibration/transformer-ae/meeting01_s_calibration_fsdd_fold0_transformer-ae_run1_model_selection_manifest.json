@@ -1,0 +1,60 @@
+{
+  "candidates": [
+    {
+      "d_ff": 73,
+      "d_model": 106,
+      "encoding": "direct",
+      "n_heads": 2,
+      "n_layers": 4,
+      "val_mse": 1.0000102519989014
+    },
+    {
+      "d_ff": 67,
+      "d_model": 80,
+      "encoding": "direct",
+      "n_heads": 8,
+      "n_layers": 3,
+      "val_mse": 0.9999916553497314
+    },
+    {
+      "d_ff": 135,
+      "d_model": 27,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9062857031822205
+    },
+    {
+      "d_ff": 191,
+      "d_model": 82,
+      "encoding": "direct",
+      "n_heads": 2,
+      "n_layers": 1,
+      "val_mse": 0.981890082359314
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 48.35824966430664,
+    "monitor_windows": 150,
+    "train_ms": 82031.1484375
+  },
+  "results_format": 10,
+  "run_id": 1,
+  "seed": 42,
+  "selected": {
+    "d_ff": 135,
+    "d_model": 27,
+    "encoding": "direct",
+    "n_heads": 1,
+    "n_layers": 1,
+    "val_mse": 0.9062857031822205
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george"
+}

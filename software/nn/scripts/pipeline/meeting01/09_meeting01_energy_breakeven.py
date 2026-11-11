@@ -13,8 +13,9 @@ grow as 0.45 x T. The reviewers (review/review_visual.md V006, ruling_visual.md:
 with the corrected curve, recurrent marked, and EEG widths shown") asked for this to be drawn,
 not argued.
 
-What it computes, at each T of the SNN-AE search's range and each first hidden width the
-pre-validation selected (FSDD and EEGMMIDB winners, development folds):
+What it computes, at each T of the SNN-AE search's range and each first hidden width the grid's
+SNN-AE winners have on the headline folds (every dataset; the figure draws each dataset's median
+width, the checked claims cover every width):
 
     ref(w)        the ANN-AE's first layer, Linear(256 -> w) once + leaky ReLU
     poisson(w,T)  Poisson generator + Linear on spikes over T steps + the LIF's leak/threshold
@@ -23,8 +24,9 @@ pre-validation selected (FSDD and EEGMMIDB winners, development folds):
     break-even    the input spikes per sample and window, theta/M, at which a spike-fed stage
                   costs ref(w); below it the spike-fed stage is cheaper
     codes         where the codes put theta/M: latency exactly 1 (one spike per sample);
-                  Poisson p_bar x T, p_bar measured on the fold's test windows as the encoder
-                  scales them; the recurrent transform anywhere, set by its own genes
+                  Poisson p_bar x T, p_bar measured on the headline folds' TRAINING windows as
+                  the encoder scales them (no test statistic enters the figure); the recurrent
+                  transform anywhere, set by its own genes
 
 first_stage_energy_nj (meeting01_results.py) is a port of the C++ building blocks, pinned to
 them: MemoryAwareEnergy.FirstStageOfTheBreakEvenFigure (parameter_count_gtest.cpp) and this
@@ -32,21 +34,23 @@ script's --self-test assert the same three totals. The first hidden LIF's own sp
 charged, so every break-even here is an upper bound (a spike-fed stage priced at its cheapest).
 
 Usage (from software/nn):
-    09_meeting01_energy_breakeven.py --report --data-dir X [--prevalidation D]
+    09_meeting01_energy_breakeven.py --report --data-dir X [--results-dir R]   (R: the grid,
+        default results/meeting01; run tag meeting01_loso)
         X/paper_breakeven.tex          macros the paper's sentence states (claims checked)
         X/paper_breakeven_figure.tex   the figure (pgfplots), generated
     09_meeting01_energy_breakeven.py --placeholders --data-dir X
     09_meeting01_energy_breakeven.py --self-test
 
-Refuses (no fallbacks): a pre-validation of a results_format it does not read, a winner it
-cannot read (07_'s read_winners), configurations that disagree between the two folds on the
-window or the T range, and any claim of the paper's sentence that the numbers do not support.
+Refuses (no fallbacks): a fold of another results_format, a headline fold without its SNN-AE
+winner for every run, folds that disagree on the window or the T range, and any claim of the
+paper's sentence that the numbers do not support. (Until 2026-11-11 it read the format-11
+pre-validation's winners and test windows; the author moved it to the grid.)
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib.util
+import json
 import itertools
 import pathlib
 import sys
@@ -54,50 +58,66 @@ import sys
 import numpy as np
 
 _SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location("design07", _SCRIPT_DIR / "07_meeting01_design_study.py")
-D = importlib.util.module_from_spec(_spec)
-sys.modules["design07"] = D
-_spec.loader.exec_module(D)
 
 sys.path.insert(0, str(_SCRIPT_DIR))
 from meeting01_results import (
     DATASET_SHORT,
-    DEVELOPMENT_FOLDS,
-    READS_WITHOUT_ANN_SHARE,
     ResultsError,
     break_even_spikes,
+    check_results_format,
     first_stage_energy_nj,
+    is_headline_fold,
+    paper_datasets,
+    run_configuration,
     split_manifest,
 )
+
+RUN_TAG = "meeting01_loso"
+DEFAULT_RESULTS = pathlib.Path(__file__).resolve().parents[3] / "results" / "meeting01"
 
 STAGES = (("poisson_dense", "Poisson"), ("direct_recurrent", "recurrent"))
 MACROS = ("beDataStatus", "beTmin", "beTmax", "beRef", "bePoissonHigh", "bePoissonLow",
           "beRecurrentHigh", "beRecurrentLow", "bePbar", "bePoissonAtTmin")
 
 
-def read_inputs(prevalidation: pathlib.Path) -> dict:
-    """Window, T range, the winners' first widths per dataset, and the measured Poisson p_bar."""
-    d = prevalidation / "snn-ae"
-    winners = D.read_winners(prevalidation)
-    windows, tranges, pbar = set(), set(), {}
-    for ds in D.DATASETS:
-        fold = min(DEVELOPMENT_FOLDS[ds])
-        man = split_manifest(d, D.RUN_TAG, ds, fold, accept=READS_WITHOUT_ANN_SHARE)
-        cfg = man["config"]
-        windows.add(int(man["source"]["window_size"]))
-        ga = cfg["evaluation"]["ga"]["snn"]
-        tranges.add((int(ga["time_steps_min"]), int(ga["time_steps_max"])))
-        x = np.load(d / f"{D.RUN_TAG}_{ds}_fold{fold}_target_test_windows.npy").astype(np.float64)
-        lo = x.min(axis=1, keepdims=True)
-        span = np.maximum(x.max(axis=1, keepdims=True) - lo, 1e-6)  # encode_sample's guard
-        pbar[ds] = float(np.clip((x - lo) / span, 0.0, 1.0).mean())
+def read_inputs(results: pathlib.Path) -> dict:
+    """Window, T range, every SNN-AE winner's first hidden width per dataset (headline folds),
+    each dataset's median of them (the figure's curve), and the Poisson p_bar on the training
+    windows of those folds."""
+    config, _ = run_configuration(results, RUN_TAG)
+    windows, tranges, widths, pbar = set(), set(), {}, {}
+    runs = int(config["experiment"]["repeats"])
+    for ds in paper_datasets(config):
+        folds = sorted({int(p.name.split("_fold")[1].split("_")[0])
+                        for p in results.glob(f"{RUN_TAG}_{ds}_fold*_split_manifest.json")})
+        head = [f for f in folds if is_headline_fold(ds, f)]
+        if not head:
+            raise ResultsError(f"{ds}: no headline fold under {results}")
+        scaled = []
+        for fold in head:
+            man = split_manifest(results, RUN_TAG, ds, fold)
+            windows.add(int(man["source"]["window_size"]))
+            ga = man["config"]["evaluation"]["ga"]["snn"]
+            tranges.add((int(ga["time_steps_min"]), int(ga["time_steps_max"])))
+            sel = [p for p in results.glob(f"{RUN_TAG}_{ds}_fold{fold}_*_run*_model_selection_manifest.json")
+                   if "_ann-ae_" not in p.name]
+            if len(sel) != runs:
+                raise ResultsError(f"{ds} fold {fold}: {len(sel)} SNN-AE selection manifests, "
+                                   f"{runs} runs configured")
+            for p in sel:
+                m = json.loads(p.read_text(encoding="utf-8"))
+                check_results_format(m, str(p))
+                widths.setdefault(ds, []).append(int(m["selected"]["encoder_widths"][0]))
+            x = np.load(results / f"{RUN_TAG}_{ds}_fold{fold}_target_train_windows.npy").astype(np.float64)
+            lo = x.min(axis=1, keepdims=True)
+            span = np.maximum(x.max(axis=1, keepdims=True) - lo, 1e-6)  # encode_sample's guard
+            scaled.append(np.clip((x - lo) / span, 0.0, 1.0).ravel())
+        pbar[ds] = float(np.concatenate(scaled).mean())
     if len(windows) != 1 or len(tranges) != 1:
-        raise ResultsError(f"the development folds disagree: windows {windows}, T ranges {tranges}")
-    widths = {}
-    for w in winners:
-        widths.setdefault(w["dataset"], set()).add(int(w["widths"][0]))
+        raise ResultsError(f"the headline folds disagree: windows {windows}, T ranges {tranges}")
     return {"window": windows.pop(), "trange": tranges.pop(),
-            "widths": {ds: sorted(v) for ds, v in widths.items()}, "pbar": pbar}
+            "widths": {ds: sorted(set(v)) for ds, v in widths.items()},
+            "plot": {ds: int(np.median(v)) for ds, v in widths.items()}, "pbar": pbar}
 
 
 def curves(inp: dict) -> dict:
@@ -107,7 +127,7 @@ def curves(inp: dict) -> dict:
     out = {}
     for stage, _ in STAGES:
         for ds, ws in inp["widths"].items():
-            for w in ws:
+            for w in sorted(set(ws) | {inp["plot"][ds]}):
                 out[(stage, ds, w)] = [(t, break_even_spikes(stage, m, w, t) / m) for t in range(t0, t1 + 1)]
     return out
 
@@ -148,14 +168,16 @@ def findings(inp: dict, cv: dict) -> dict:
         if max(v for c in cs.values() for t, v in c if t == t0) != hi or \
                 min(v for c in cs.values() for t, v in c if t == t1) != lo:
             raise ResultsError(f"{name}: the break-even extremes are not at T={t0} and T={t1}")
-    if r_lo == 0.0:
-        rec_low = (f"to none at $T={t1}$, where for the narrowest winner the transform alone costs "
-                   "more than the analog layer")
-    else:
-        rec_low = f"to {_r(r_lo)} at $T={t1}$"
+    def low(x: float, what: str, verb: str = "costs") -> str:
+        # 0 = the stage is dearer than the analog layer even with no input spike.
+        if x == 0.0:
+            return (f"to none at $T={t1}$ (for the narrowest winner, {what} alone {verb} more "
+                    "than the analog layer)")
+        return f"to {_r(x)} at $T={t1}$"
+    rec_low = low(r_lo, "the transform")
     m = {"beDataStatus": "results", "beTmin": str(t0), "beTmax": str(t1),
          "beRef": f"{ref[0]:.0f}--{ref[-1]:.0f}" if len(ref) > 1 else f"{ref[0]:.0f}",
-         "bePoissonHigh": _r(p_hi), "bePoissonLow": _r(p_lo),
+         "bePoissonHigh": _r(p_hi), "bePoissonLow": low(p_lo, "the LIF's leak and threshold", "cost"),
          "beRecurrentHigh": _r(r_hi), "beRecurrentLow": rec_low,
          "bePbar": f"{_r(pb[0])}--{_r(pb[-1])}" if len(pb) > 1 else _r(pb[0]),
          "bePoissonAtTmin": _r(pb[0] * t0)}
@@ -164,8 +186,9 @@ def findings(inp: dict, cv: dict) -> dict:
     return m
 
 
-_COLORS = {"fsdd": "red!75!black", "eegmmidb": "blue!70!black"}
-_MARKS = ("*", "square*", "triangle*")
+_COLORS = {"fsdd": "red!75!black", "audiomnist": "orange!85!black", "eegmmidb": "blue!70!black",
+           "siena": "teal!70!black"}
+_MARKS = {"fsdd": "*", "audiomnist": "square*", "eegmmidb": "triangle*", "siena": "diamond*"}
 
 
 def figure(inp: dict, cv: dict) -> str:
@@ -184,12 +207,11 @@ def figure(inp: dict, cv: dict) -> str:
               " legend columns=2, legend cell align=left, ymajorgrids, yminorgrids=false]")]
     for stage, label in STAGES:
         dash = "solid" if stage == "poisson_dense" else "dashed"
-        for ds, ws in inp["widths"].items():
-            for i, w in enumerate(ws):
-                pts = " ".join(f"({t},{v:.4f})" for t, v in cv[(stage, ds, w)] if v > 0)
-                lines.append(f"\\addplot[{dash}, thick, color={_COLORS[ds]}, mark={_MARKS[i]}, mark size=1pt,"
-                             f" mark repeat=6] coordinates {{{pts}}};")
-                lines.append(f"\\addlegendentry{{{label}, {DATASET_SHORT[ds]} $w_1{{=}}{w}$}}")
+        for ds, w in inp["plot"].items():
+            pts = " ".join(f"({t},{v:.4f})" for t, v in cv[(stage, ds, w)] if v > 0)
+            lines.append(f"\\addplot[{dash}, thick, color={_COLORS[ds]}, mark={_MARKS[ds]}, mark size=1pt,"
+                         f" mark repeat=6] coordinates {{{pts}}};")
+            lines.append(f"\\addlegendentry{{{label}, {DATASET_SHORT[ds]} $w_1{{=}}{w}$}}")
     for ds, pb in inp["pbar"].items():
         lines.append(f"\\addplot[dotted, thick, color={_COLORS[ds]}, domain={t0}:{t1}, samples=2] {{{pb:.4f}*x}};")
         lines.append(f"\\addlegendentry{{$\\bar p\\,T$, {DATASET_SHORT[ds]}, $\\bar p={pb:.2f}$}}")
@@ -213,8 +235,8 @@ def placeholder_figure() -> str:
             "run 09\\_meeting01\\_energy\\_breakeven.py --report]}}\n")
 
 
-def report(prevalidation: pathlib.Path, data_dir: pathlib.Path) -> None:
-    inp = read_inputs(prevalidation)
+def report(results: pathlib.Path, data_dir: pathlib.Path) -> None:
+    inp = read_inputs(results)
     cv = curves(inp)
     macros = findings(inp, cv)  # refuses before any paper file is written
     write(data_dir, macros, figure(inp, cv))
@@ -255,7 +277,8 @@ def self_test() -> int:
         except ResultsError:
             pass
     # findings refuses a Poisson code below its break-even.
-    inp = {"window": 256, "trange": (2, 4), "widths": {"fsdd": [59]}, "pbar": {"fsdd": 0.1}}
+    inp = {"window": 256, "trange": (2, 4), "widths": {"fsdd": [59]}, "plot": {"fsdd": 59},
+           "pbar": {"fsdd": 0.1}}
     try:
         findings(inp, curves(inp))
         failures.append("findings accepted a Poisson code below break-even")
@@ -279,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
     mode = ap.add_mutually_exclusive_group(required=True)
     for m in ("--report", "--placeholders", "--self-test"):
         mode.add_argument(m, action="store_true")
-    ap.add_argument("--prevalidation", default=D.DEFAULT_PREVALIDATION)
+    ap.add_argument("--results-dir", default=str(DEFAULT_RESULTS))
     ap.add_argument("--data-dir")
     a = ap.parse_args(argv)
     try:
@@ -291,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
             write(pathlib.Path(a.data_dir), {k: "$-$" for k in MACROS} | {"beDataStatus": "placeholder"},
                   placeholder_figure())
             return 0
-        report(pathlib.Path(a.prevalidation), pathlib.Path(a.data_dir))
+        report(pathlib.Path(a.results_dir), pathlib.Path(a.data_dir))
         return 0
     except ResultsError as exc:
         print(f"[breakeven] REFUSED: {exc}", file=sys.stderr)

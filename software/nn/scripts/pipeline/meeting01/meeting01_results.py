@@ -579,6 +579,8 @@ DATASET_ORDER = ["fsdd", "audiomnist", "eegmmidb", "siena", "chbmit", "mitbih"]
 # Short names for the side-by-side tables.
 DATASET_SHORT = {"fsdd": "FSDD", "audiomnist": "AudioMNIST", "eegmmidb": "EEGMMIDB",
                  "siena": "Siena"}
+#: The two signal domains the paper reads its findings by.
+DATASET_MODALITY = {"fsdd": "speech", "audiomnist": "speech", "eegmmidb": "eeg", "siena": "eeg"}
 
 def paper_datasets(config: dict) -> list[str]:
     """The run's datasets, in paper order: every dataset.sources entry (an array task narrows
