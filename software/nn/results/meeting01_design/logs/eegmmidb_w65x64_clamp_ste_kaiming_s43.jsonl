@@ -1,0 +1,24 @@
+{"type": "start", "name": "eegmmidb_w65x64_clamp_ste_kaiming_s43", "trivial_loss": 0.9996989648693367, "arm_below": 0.8997290683824031, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.9882179724574089, "monitor": 0.8475611209869385, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.726217142239213, "monitor": 0.6457074284553528, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6019571405798196, "monitor": 0.5981915593147278, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.5569995511025191, "monitor": 0.5738130807876587, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.5329937103688717, "monitor": 0.5624327659606934, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.5171478522568941, "monitor": 0.5526748895645142, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.5046862692087889, "monitor": 0.5463224053382874, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.4966930137127638, "monitor": 0.5404244661331177, "armed": true, "best_epoch": 8, "bad": 0}
+{"type": "epoch", "epoch": 9, "train_loss": 0.4878921658694744, "monitor": 0.5382351875305176, "armed": true, "best_epoch": 9, "bad": 0}
+{"type": "epoch", "epoch": 10, "train_loss": 0.48229181964695456, "monitor": 0.5374656915664673, "armed": true, "best_epoch": 10, "bad": 0}
+{"type": "epoch", "epoch": 11, "train_loss": 0.47564205472171306, "monitor": 0.536771833896637, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.47056520280241965, "monitor": 0.531616747379303, "armed": true, "best_epoch": 12, "bad": 0}
+{"type": "epoch", "epoch": 13, "train_loss": 0.4656107473224401, "monitor": 0.5340162515640259, "armed": true, "best_epoch": 12, "bad": 1}
+{"type": "epoch", "epoch": 14, "train_loss": 0.46162644685804843, "monitor": 0.5396716594696045, "armed": true, "best_epoch": 12, "bad": 2}
+{"type": "epoch", "epoch": 15, "train_loss": 0.45768575978279114, "monitor": 0.5386728644371033, "armed": true, "best_epoch": 12, "bad": 3}
+{"type": "epoch", "epoch": 16, "train_loss": 0.4538655554652214, "monitor": 0.5338618159294128, "armed": true, "best_epoch": 12, "bad": 4}
+{"type": "epoch", "epoch": 17, "train_loss": 0.44957706923037766, "monitor": 0.5283313393592834, "armed": true, "best_epoch": 17, "bad": 0}
+{"type": "epoch", "epoch": 18, "train_loss": 0.4485877911001444, "monitor": 0.5295523405075073, "armed": true, "best_epoch": 17, "bad": 1}
+{"type": "epoch", "epoch": 19, "train_loss": 0.44597134279459716, "monitor": 0.534438967704773, "armed": true, "best_epoch": 17, "bad": 2}
+{"type": "epoch", "epoch": 20, "train_loss": 0.44257083119452, "monitor": 0.5428696870803833, "armed": true, "best_epoch": 17, "bad": 3}
+{"type": "epoch", "epoch": 21, "train_loss": 0.4401206853091717, "monitor": 0.5351512432098389, "armed": true, "best_epoch": 17, "bad": 4}
+{"type": "epoch", "epoch": 22, "train_loss": 0.43850140359252693, "monitor": 0.5341259241104126, "armed": true, "best_epoch": 17, "bad": 5}
+{"type": "end", "name": "eegmmidb_w65x64_clamp_ste_kaiming_s43", "dataset": "eegmmidb", "run": 1, "widths": "65x64", "encoding": "direct", "time_steps": 1, "neuron": "clamp_ste", "readout": "lat_mean", "decoder": "lrelu", "init": "kaiming", "seed": 43, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 22, "best_epoch": 17, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 0.9996989648693367, "best_monitor": 0.5283313393592834, "test_mse": 0.5553580522537231, "test_mse_per_step": NaN, "val_mse": 0.5283313393592834, "train_mse": 0.4348593056201935, "enc_low_share": 0.5062666535377502, "enc_high_share": 0.4815794825553894, "enc_mean_code": 0.48760485649108887, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 59.87736368179321}

@@ -8,12 +8,18 @@ the meeting01 binary, with the mean / pca reference rows added by
 model at four levels of aggregation, from the paper's primary estimand down to the
 descriptive:
 
-  recording-level  (PRIMARY)  d_r = E_{m,r} - E_{b,r},  E_{m,r} = mean_{i in r} MSE
-                              report mean(d_r), bootstrap-over-recordings 95% CI,
-                              Wilcoxon signed-rank on {d_r}, Holm-Bonferroni across b.
-  speaker-level     (robustness) paired Wilcoxon / sign test on per-group mean errors, one
-                              group = one held-out speaker or subject. NOT population
-                              inference.
+  group-level      (PRIMARY)  d_g = mean error of model m minus reference b on held-out
+                              speaker or subject g, seeds averaged: mean(d_g), 95% Student t
+                              interval over groups, one-sample t p, Holm across b, each d_g
+                              printed. Groups, not recordings, are what a new user samples:
+                              recordings of one subject share an effect (EEG ICC 0.33), so
+                              recording-level precision is inflated. The t interval, not a
+                              bootstrap: a percentile bootstrap undercovers at the 4 FSDD
+                              speakers, and a rank test cannot reach 0.05 there (floor 2/2^n).
+                              Subjects of one fold share their models, so the same interval is
+                              also computed over FOLD means; that one has few points and is
+                              wide, and the margin rule needs both inside.
+  recording-level  (descriptive) d_r on recordings: bootstrap CI, Wilcoxon, Holm.
   window-level      (descriptive) paired bootstrap — explicitly pseudoreplicated.
   seed-level        (optimization robustness) one mean error per seed, paired by seed.
 
@@ -69,7 +75,9 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_ORDER,
     DATASET_SHORT,
+    DESIGN_INFORMED_FOLDS,
     DEVELOPMENT_FOLDS,
+    EQUIVALENCE_MARGIN,
     PW_HEADER,
     REFERENCE_MODELS,
     REFERENCE_SEED,
@@ -238,6 +246,45 @@ def recording_level(rows, model, ref):
     }
 
 
+def group_level(rows, model, ref):
+    """The primary estimand: one difference per held-out group. Needs two groups, because a
+    single group has no spread to build an interval from."""
+    m, b, keys = _paired_by_key(rows, model, ref, ("cv_fold", "speaker_id"))
+    d = m - b
+    n = len(keys)
+    if n < 2:
+        raise ResultsError(f"{model} vs {ref}: {n} group(s). A group-level interval needs at "
+                           "least two; check the folds selected for this table.")
+    mean = float(np.mean(d))
+    se = float(np.std(d, ddof=1)) / math.sqrt(n)
+    half = float(stats.t.ppf(0.975, n - 1)) * se
+    p = 1.0 if se == 0.0 and mean == 0.0 else (
+        0.0 if se == 0.0 else float(2.0 * stats.t.sf(abs(mean) / se, n - 1)))
+    lo, hi = mean - half, mean + half
+    by_fold: dict = defaultdict(list)
+    for k, v in zip(keys, d):
+        by_fold[k[0]].append(float(v))
+    fold_means = np.array([np.mean(v) for _, v in sorted(by_fold.items())])
+    k_folds = fold_means.size
+    # One fold has no between-fold spread, so nothing can be claimed from it.
+    fold_half = (float(stats.t.ppf(0.975, k_folds - 1)) * float(np.std(fold_means, ddof=1))
+                 / math.sqrt(k_folds) if k_folds > 1 else math.inf)
+    fold_lo = float(np.mean(fold_means)) - fold_half
+    fold_hi = float(np.mean(fold_means)) + fold_half
+    return {
+        "n_groups": n,
+        "n_folds": int(k_folds),
+        "mean_d": mean,
+        "ci95": [lo, hi],
+        "fold_ci95": [fold_lo, fold_hi],
+        "t_p": p,
+        "inside_margin": bool(-EQUIVALENCE_MARGIN < lo and hi < EQUIVALENCE_MARGIN
+                              and -EQUIVALENCE_MARGIN < fold_lo
+                              and fold_hi < EQUIVALENCE_MARGIN),
+        "d_per_group": [{"fold": k[0], "group": k[1], "d": float(v)} for k, v in zip(keys, d)],
+    }
+
+
 def speaker_level(rows, model, ref):
     m, b, keys = _paired_by_key(rows, model, ref, ("cv_fold", "speaker_id"))
     d = m - b
@@ -292,6 +339,7 @@ def analyse(rows, families: list[str], references=REFERENCE_MODELS) -> dict:
     refs = [m for m in families if m != "snn-ae"] + list(references)
     for model in families:
         rec_p: dict[str, float] = {}
+        group_p: dict[str, float] = {}
         per_ref: dict[str, dict] = {}
         for ref in refs:
             if ref == model:
@@ -299,7 +347,10 @@ def analyse(rows, families: list[str], references=REFERENCE_MODELS) -> dict:
             check_coverage(rows, model, ref)
             rec = recording_level(rows, model, ref)
             rec_p[ref] = rec["wilcoxon_p"]
+            group = group_level(rows, model, ref)
+            group_p[ref] = group["t_p"]
             per_ref[ref] = {
+                "group_level": group,
                 "recording_level": rec,
                 "speaker_level": speaker_level(rows, model, ref),
                 "window_level": window_level(rows, model, ref),
@@ -308,6 +359,8 @@ def analyse(rows, families: list[str], references=REFERENCE_MODELS) -> dict:
         holm = _holm(rec_p) if rec_p else {}
         for ref, adj in holm.items():
             per_ref[ref]["recording_level"]["wilcoxon_p_holm"] = adj
+        for ref, adj in (_holm(group_p) if group_p else {}).items():
+            per_ref[ref]["group_level"]["t_p_holm"] = adj
         out["comparisons"][model] = per_ref
     return out
 
@@ -353,34 +406,34 @@ def significance_references(config: dict) -> list[tuple[str, str]]:
     return [(m, _SIG_LABEL[m]) for m in families[1:] + ["pca", "mean"]]
 
 
-def _recording(analysis: dict | None, model: str, ref: str) -> dict | None:
+def _group(analysis: dict | None, model: str, ref: str) -> dict | None:
     if not analysis:
         return None
     blk = analysis["comparisons"].get(model, {}).get(ref)
-    return blk["recording_level"] if blk else None
+    return blk["group_level"] if blk else None
 
 
 def write_overview_tex(combined: dict, refs: list[tuple[str, str]], datasets: list[str],
                        path: pathlib.Path) -> None:
-    """SNN-AE minus each reference of `refs` (significance_references), recording level: mean
-    d_r (* where the Holm-corrected Wilcoxon p < 0.05) over its 95% bootstrap CI. Positive =
-    the SNN-AE errs more."""
+    """SNN-AE minus each reference of `refs` (significance_references), group level: mean d_g
+    (* where the Holm-corrected t p < 0.05; a dagger where the whole interval lies inside the
+    margin EQUIVALENCE_MARGIN) over its 95% t interval. Positive = the SNN-AE errs more."""
     cols = "c" * len(refs)
     lines = [r"% auto-generated by 04_meeting01_significance_tests.py",
              r"\begin{tabular}{lr" + cols + "}", r"\toprule",
-             r"Dataset & $n_{\text{rec}}$ & " + " & ".join(n for _, n in refs)
+             r"Dataset & $n_{\text{groups}}$ & " + " & ".join(n for _, n in refs)
              + r" \\", r"\midrule"]
     for ds in datasets:
-        recs = [_recording(combined.get(ds), "snn-ae", ref) for ref, _ in refs]
-        n = next((r["n_recordings"] for r in recs if r), None)
+        recs = [_group(combined.get(ds), "snn-ae", ref) for ref, _ in refs]
+        n = next((r["n_groups"] for r in recs if r), None)
         top, ci = [], []
         for r in recs:
             if r is None:
                 top.append(_NONE)
                 ci.append("")
                 continue
-            p = r.get("wilcoxon_p_holm", r["wilcoxon_p"])
-            top.append(f"${r['mean_d']:+.3f}$" + ("$^{*}$" if p < 0.05 else ""))
+            top.append(f"${r['mean_d']:+.3f}$" + ("$^{*}$" if r["t_p_holm"] < 0.05 else "")
+                       + (r"$^{\dagger}$" if r["inside_margin"] else ""))
             ci.append(r"{\scriptsize $[" + f"{r['ci95'][0]:+.3f}, {r['ci95'][1]:+.3f}" + r"]$}")
         lines.append(f"{DATASET_SHORT.get(ds, ds)} & {_NONE if n is None else n} & "
                      + " & ".join(top) + r" \\")
@@ -391,30 +444,52 @@ def write_overview_tex(combined: dict, refs: list[tuple[str, str]], datasets: li
 
 def write_sensitivity_tex(combined: dict, refs: list[tuple[str, str]], datasets: list[str],
                           path: pathlib.Path) -> None:
-    """SNN-AE minus ANN-AE on the headline folds and with the development folds in, for
-    each dataset that has development folds."""
+    """SNN-AE minus ANN-AE, group level, on the headline folds and with the development and
+    design-informed folds in, for each dataset that has them."""
     if "ann-ae" not in dict(refs):
         raise ResultsError("the sensitivity table compares the SNN-AE with its matched "
                            "control, but evaluation.baselines has no ann-ae.")
     lines = [r"% auto-generated by 04_meeting01_significance_tests.py",
              r"\begin{tabular}{llrrcr}", r"\toprule",
-             (r"Dataset & Folds & $n_{\text{rec}}$ & $\overline{d_r}$ & 95\% CI & "
+             (r"Dataset & Folds & $n_{\text{groups}}$ & $\overline{d_g}$ & 95\% CI & "
               r"$p_{\text{Holm}}$ \\"), r"\midrule"]
-    for ds in [d for d in datasets if DEVELOPMENT_FOLDS.get(d)]:
+    for ds in [d for d in datasets if DEVELOPMENT_FOLDS.get(d) or DESIGN_INFORMED_FOLDS.get(d)]:
         head = combined.get(ds)
         scopes = [head, head.get("sensitivity_all_folds") if head else None]
         for i, analysis in enumerate(scopes):
-            r = _recording(analysis, "snn-ae", "ann-ae")
+            r = _group(analysis, "snn-ae", "ann-ae")
             name = DATASET_SHORT.get(ds, ds) if i == 0 else ""
             folds = folds_text(analysis["folds"]) if analysis else _NONE
             if r is None:
                 lines.append(f"{name} & {folds} & {_NONE} & {_NONE} & {_NONE} & {_NONE} " + r"\\")
                 continue
-            p = r.get("wilcoxon_p_holm", r["wilcoxon_p"])
-            lines.append(f"{name} & {folds} & {r['n_recordings']} & ${r['mean_d']:+.3f}$ & "
-                         f"$[{r['ci95'][0]:+.3f}, {r['ci95'][1]:+.3f}]$ & {p:.2g} " + r"\\")
+            lines.append(f"{name} & {folds} & {r['n_groups']} & ${r['mean_d']:+.3f}$ & "
+                         f"$[{r['ci95'][0]:+.3f}, {r['ci95'][1]:+.3f}]$ & {r['t_p_holm']:.2g} "
+                         + r"\\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_forest(combined: dict, datasets: list[str], data_dir: pathlib.Path) -> None:
+    """The forest figure's data: paper_loso_forest_groups.csv (one row per group: row, the
+    dataset's line in the figure, a fixed vertical offset so groups do not overlap, and d) and
+    paper_loso_forest_means.csv (row, mean, the interval's half-widths). SNN-AE minus ANN-AE,
+    headline folds. Both are written with the header alone before any result."""
+    groups = ["row,y,d"]
+    means = ["row,mean,minus,plus"]
+    for row, ds in enumerate(reversed(datasets)):
+        g = _group(combined.get(ds), "snn-ae", "ann-ae")
+        if g is None:
+            continue
+        n = g["n_groups"]
+        for i, item in enumerate(sorted(g["d_per_group"], key=lambda x: x["d"])):
+            groups.append(f"{row},{row + 0.25 * (2 * i / max(1, n - 1) - 1):.4f},{item['d']:.6f}")
+        lo, hi = g["ci95"]
+        means.append(f"{row},{g['mean_d']:.6f},{g['mean_d'] - lo:.6f},{hi - g['mean_d']:.6f}")
+    (data_dir / "paper_loso_forest_groups.csv").write_text("\n".join(groups) + "\n",
+                                                           encoding="utf-8")
+    (data_dir / "paper_loso_forest_means.csv").write_text("\n".join(means) + "\n",
+                                                          encoding="utf-8")
 
 
 def run(results_dir: pathlib.Path, run_tag: str, out_dir: pathlib.Path) -> list[str]:
@@ -449,6 +524,7 @@ def run(results_dir: pathlib.Path, run_tag: str, out_dir: pathlib.Path) -> list[
                        out_dir / "paper_loso_significance.tex")
     write_sensitivity_tex(combined, refs, paper_datasets(config),
                           out_dir / "paper_loso_sensitivity.tex")
+    write_forest(combined, paper_datasets(config), out_dir)
     return datasets
 
 
@@ -460,6 +536,7 @@ def run_placeholders(printed_config: pathlib.Path, out_dir: pathlib.Path) -> lis
     datasets = paper_datasets(config)
     write_overview_tex({}, refs, datasets, out_dir / "paper_loso_significance.tex")
     write_sensitivity_tex({}, refs, datasets, out_dir / "paper_loso_sensitivity.tex")
+    write_forest({}, datasets, out_dir)
     return datasets
 
 
@@ -638,13 +715,13 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list[str]:
            and abs(sens["recording_level"]["mean_d"] - (2 * 1.0 + 4 * 0.1) / 6) < 1e-9,
            f"sensitivity with the development fold: {sens['recording_level']}")
     overview = (out / "paper_loso_significance.tex").read_text()
-    expect("FSDD & 4 & $+0.100$" in overview and "Siena & -- & --" in overview,
+    expect("FSDD & 2 & $+0.100$" in overview and "Siena & -- & --" in overview,
            f"overview table: {overview}")
     # Columns of the configured references only (baselines: ann-ae): no LSTM/GRU/Transformer.
-    expect(r"Dataset & $n_{\text{rec}}$ & ANN-AE & PCA & Mean \\" in overview
+    expect(r"Dataset & $n_{\text{groups}}$ & ANN-AE & PCA & Mean \\" in overview
            and r"\begin{tabular}{lrccc}" in overview, f"overview columns: {overview}")
     sensitivity = (out / "paper_loso_sensitivity.tex").read_text()
-    expect("FSDD & 1--2 & 4 & $+0.100$" in sensitivity and " & 0--2 & 6 & $+0.400$" in
+    expect("FSDD & 1--2 & 2 & $+0.100$" in sensitivity and " & 0--2 & 3 & $+0.400$" in
            sensitivity, f"sensitivity table: {sensitivity}")
     printed = tmp_root / "printed.json"
     printed.write_text(json.dumps({"results_format": RESULTS_FORMAT,
@@ -705,11 +782,57 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list[str]:
     return failures
 
 
+def _group_checks() -> list:
+    """Known answer for the primary estimand: d = 1, 2, 3 on three groups gives mean 2, s = 1,
+    SE 1/sqrt(3), t(2, 0.975) = 4.3027, so half-width 2.4842 and p = 0.0742; a tight difference
+    inside the margin is flagged, a wide one with the same mean is not."""
+    def rows(ds):
+        out = []
+        for i, d in enumerate(ds):
+            base = {"seed": 42, "cv_fold": i, "speaker_id": i, "recording_id": 0, "window_id": 0}
+            out.append({**base, "model": "snn-ae", "mse": 1.0 + d})
+            out.append({**base, "model": "ann-ae", "mse": 1.0})
+        return out
+
+    failures = []
+    g = group_level(rows([1.0, 2.0, 3.0]), "snn-ae", "ann-ae")
+    if (abs(g["mean_d"] - 2.0) > 1e-12 or abs(g["ci95"][1] - 4.4842) > 1e-3
+            or abs(g["t_p"] - 0.0742) > 1e-3 or g["n_groups"] != 3 or len(g["d_per_group"]) != 3):
+        failures.append(f"group level: {g}")
+    if not group_level(rows([0.001, 0.002, 0.003]), "snn-ae", "ann-ae")["inside_margin"]:
+        failures.append("a tight difference near 0 should be inside the margin")
+    if group_level(rows([-0.5, 0.0, 0.5]), "snn-ae", "ann-ae")["inside_margin"]:
+        failures.append("a wide difference with mean 0 must not count as inside the margin")
+    # Two subjects in each of three folds: tight within a fold, folds apart. The subject
+    # interval passes only if the fold interval is ignored.
+    clustered = rows([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    for r in clustered:
+        r["speaker_id"] = r["cv_fold"]
+        r["cv_fold"] //= 2
+        if r["model"] == "snn-ae":
+            r["mse"] += {0: -0.012, 1: 0.0, 2: 0.012}[r["cv_fold"]]
+    c = group_level(clustered, "snn-ae", "ann-ae")
+    half = c["ci95"][1] - c["mean_d"]
+    if not (0.0 < half < 0.02 and c["n_folds"] == 3 and c["fold_ci95"][1] > 0.02
+            and not c["inside_margin"]):
+        failures.append(f"a fold effect must not pass the margin on subject counts: {c}")
+    try:
+        group_level(rows([1.0]), "snn-ae", "ann-ae")
+        failures.append("one group was not refused")
+    except ResultsError:
+        pass
+    return failures
+
+
 def self_test() -> int:
     tmp_root = pathlib.Path(tempfile.mkdtemp(prefix="significance_selftest_"))
+    # The fixtures use fold 1 as a headline fold (02_'s self-test checks the real table).
+    design = dict(DESIGN_INFORMED_FOLDS)
+    DESIGN_INFORMED_FOLDS.clear()
     try:
-        failures = _self_test_checks(tmp_root)
+        failures = _self_test_checks(tmp_root) + _group_checks()
     finally:
+        DESIGN_INFORMED_FOLDS.update(design)
         shutil.rmtree(tmp_root, ignore_errors=True)
     if failures:
         for f in failures:

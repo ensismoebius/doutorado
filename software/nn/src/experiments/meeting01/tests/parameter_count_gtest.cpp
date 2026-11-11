@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -386,6 +387,68 @@ TEST(SnnCost, CountsAnAnalogInputForwardByHand)
     EXPECT_DOUBLE_EQ(ops.neuron_steps, 32.0);
 }
 
+TEST(SnnCost, TheEncoderIsPartOfTheWholeAndTheDecoderIsTheRest)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    nn::Tensor x(4, 16);
+    for (int t = 0; t < 4; ++t)
+        for (int d = 0; d < 16; ++d)
+            x.at(t, d) = 0.1F * static_cast<float>((t * 16 + d) % 7) - 0.25F;
+    model.reset_state();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    (void) model.forward(input, false);
+
+    const double whole = meeting01::snn_ae_energy(model, input, false, 1).total_nj();
+    const double encoder = meeting01::snn_ae_encoder_energy(model, input, false, 1).total_nj();
+    EXPECT_GT(encoder, 0.0);
+    EXPECT_LT(encoder, whole);
+}
+
+TEST(SnnCost, EachEndOfTheRateIsCountedOnItsOwn)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    auto* lif = dynamic_cast<nn::LifBPTT*>(model.encoder_.layers[1].get());
+    ASSERT_NE(lif, nullptr);
+    nn::Tensor x(4, 16);
+    x.setZero();
+    const ProtocolSpikingAutoencoder::Tensor input(x);
+    const auto count = [&](float threshold)
+    {
+        lif->voltage_threshold.at(0, 0) = threshold;
+        model.reset_state();
+        (void) model.forward(input, false);
+        return meeting01::count_snn_ops(model, input, /*input_is_spikes=*/false, 1);
+    };
+
+    const auto silent = count(1000.0F);
+    EXPECT_DOUBLE_EQ(silent.neuron_windows, 8.0) << "8 neurons, one window";
+    EXPECT_DOUBLE_EQ(silent.silent_neuron_windows, 8.0);
+    EXPECT_DOUBLE_EQ(silent.always_neuron_windows, 0.0);
+
+    const auto always = count(-1000.0F);
+    EXPECT_DOUBLE_EQ(always.silent_neuron_windows, 0.0);
+    EXPECT_DOUBLE_EQ(always.always_neuron_windows, 8.0);
+}
+
+TEST(SnnCost, TrainedLifParametersAreReadFromTheSpikingLayers)
+{
+    ProtocolSpikingAutoencoder model(
+        meeting01::make_snn_cfg(tiny_snn_config("latent", "analog"), 0.9F, 0.5F, {8, 4}));
+    auto* lif = dynamic_cast<nn::LifBPTT*>(model.encoder_.layers[1].get());
+    ASSERT_NE(lif, nullptr);
+    lif->voltage_threshold.at(0, 0) = -0.25F; // nothing bounds V_th, so the minimum must show it
+    lif->resistance.at(0, 0) = 2.0F;
+    lif->capacitance.at(0, 0) = 1.0F;
+
+    const auto s = meeting01::summarize_lif_parameters(model);
+    EXPECT_EQ(s.layers, 1);
+    EXPECT_FLOAT_EQ(s.v_th_min, -0.25F);
+    EXPECT_FLOAT_EQ(s.v_th_mean, -0.25F);
+    EXPECT_FLOAT_EQ(s.beta_mean, std::exp(-1.0F / 2.0F));
+}
+
 TEST(SnnCost, CountsABinaryInputAsAccumulates)
 {
     ProtocolSpikingAutoencoder model(
@@ -599,6 +662,41 @@ TEST(MemoryAwareEnergy, AnnAeWalkMatchesAHandCount)
     EXPECT_DOUBLE_EQ(e.wr_out, 36.0);
 }
 
+// results_format 12 (R3 of the round-4 review): the control's silent share counts the ENCODER's
+// leaky-ReLU outputs <= 0.01, per (unit, window). Zero weights make each unit's pre-activation
+// its bias: {-1, 0, 0.005, 0.01, 0.02, 1, -0.5, 2} -> leaky ReLU -> {-0.01, 0, 0.005, 0.01, 0.02,
+// 1, -0.005, 2}, five of them <= 0.01. The latent layer is identity, so it is not counted.
+TEST(AnnHiddenShare, CountsEncoderLeakyReluOutputsAtOrBelowTheSilentCut)
+{
+    nn::models::autoencoder::ProtocolAutoencoder model(
+        meeting01::make_ann_twin_cfg(tiny_snn_config("latent", "analog"), {8, 4}));
+    auto* first = dynamic_cast<nn::Linear*>(model.encoder_.layers.at(0).get());
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(dynamic_cast<const nn::LeakyReLU*>(model.encoder_.layers.at(1).get()), nullptr);
+    first->weight.setZero();
+    const std::vector<float> biases{-1.0F, 0.0F, 0.005F, 0.01F, 0.02F, 1.0F, -0.5F, 2.0F};
+    for (int j = 0; j < 8; ++j) first->bias.at(j, 0) = biases[static_cast<std::size_t>(j)];
+    nn::Tensor x(1, 16);
+    for (int d = 0; d < 16; ++d) x.at(0, d) = 0.1F * static_cast<float>(d);
+    (void) model.forward(nn::models::autoencoder::ProtocolAutoencoder::Tensor(x), false);
+    const auto c = meeting01::count_ann_hidden(model);
+    EXPECT_DOUBLE_EQ(c.unit_windows, 8.0);
+    EXPECT_DOUBLE_EQ(c.silent_unit_windows, 5.0);
+}
+
+// Loud, not a wrong share: before any forward pass there is nothing to count, and two rows
+// would be two windows (or frames) counted as one.
+TEST(AnnHiddenShare, RefusesACallBeforeForwardAndMoreThanOneWindowPerPass)
+{
+    nn::models::autoencoder::ProtocolAutoencoder model(
+        meeting01::make_ann_twin_cfg(tiny_snn_config("latent", "analog"), {8, 4}));
+    EXPECT_THROW((void) meeting01::count_ann_hidden(model), std::logic_error);
+    nn::Tensor x(2, 16);
+    x.setZero();
+    (void) model.forward(nn::models::autoencoder::ProtocolAutoencoder::Tensor(x), false);
+    EXPECT_THROW((void) meeting01::count_ann_hidden(model), std::logic_error);
+}
+
 // The sequence baselines' products are the ones their MAC estimates count (the energy model
 // adds the elementwise cell/attention work on top, as multiplies and adds, never as MACs);
 // the Transformer adds only the 1/S of its mean over positions.
@@ -660,6 +758,35 @@ TEST(MemoryAwareEnergy, EncodersCostWhatTheyCompute)
         (void) meeting01::encoding_energy("rate", 4.0, 2, 0.0, true), std::invalid_argument);
     EXPECT_THROW(
         (void) meeting01::architecture_transform_energy("cnn", 4.0, 2, 0.0), std::invalid_argument);
+}
+
+// The paper's break-even figure is drawn by a Python port of these building blocks
+// (first_stage_energy_nj in scripts/pipeline/meeting01/meeting01_results.py). Its self-test
+// (09_meeting01_energy_breakeven.py --self-test) pins the SAME three numbers, so a change to
+// either side breaks one of the two tests instead of the figure drifting from the harness.
+TEST(MemoryAwareEnergy, FirstStageOfTheBreakEvenFigure)
+{
+    using meeting01::EnergyLedger;
+    // The ANN-AE's first layer, 256 -> 59, once: Linear (output written) + leaky ReLU.
+    EnergyLedger ann;
+    meeting01::add_dense_fc(ann, 1.0, 256.0, 59.0, /*writes_output=*/true);
+    meeting01::add_nonlinearity(ann, 59.0, meeting01::Nonlinearity::ComparisonAndMultiply);
+    EXPECT_NEAR(ann.total_nj(), 409.5424320690525, 1e-9);
+
+    // A Poisson window, 300 spikes over T = 4, into the dense transform and the same Linear,
+    // then its LIF (no output spike charged).
+    EnergyLedger poisson = meeting01::encoding_energy("poisson", 256.0, 4, 300.0, true);
+    poisson += meeting01::architecture_transform_energy("dense", 256.0, 4, 0.0);
+    meeting01::add_spiking_fc(poisson, 300.0, 4.0, 256.0, 59.0, /*writes_output=*/false);
+    meeting01::add_lif(poisson, 4.0, 59.0, 0.0, /*readout=*/false, /*dense_input=*/false);
+    EXPECT_NEAR(poisson.total_nj(), 796.4763554435484, 1e-9);
+
+    // The direct code through the recurrent transform, which emits the same 300 spikes.
+    EnergyLedger recurrent = meeting01::encoding_energy("direct", 256.0, 4, 0.0, false);
+    recurrent += meeting01::architecture_transform_energy("recurrent", 256.0, 4, 300.0);
+    meeting01::add_spiking_fc(recurrent, 300.0, 4.0, 256.0, 59.0, /*writes_output=*/false);
+    meeting01::add_lif(recurrent, 4.0, 59.0, 0.0, /*readout=*/false, /*dense_input=*/false);
+    EXPECT_NEAR(recurrent.total_nj(), 818.6599554435484, 1e-9);
 }
 
 TEST(MemoryAwareEnergy, SetEnergySplitsOpsAndMemory)

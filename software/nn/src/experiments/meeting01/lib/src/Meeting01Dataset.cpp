@@ -1,7 +1,9 @@
 #include "../include/Meeting01Dataset.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <numeric>
 #include <random>
@@ -93,36 +95,40 @@ auto assign_speaker_fold(std::span<const WindowMetadata> meta, int cv_fold, int 
     return out;
 }
 
-// Deterministic stratified subsample to <= cap windows, round-robin across recordings
-// (grouped by WindowMetadata::recording_id) so every recording keeps representation and
-// per-recording counts stay as even as the cap allows. cap <= 0 or already under cap → no-op.
+// Deterministic stratified subsample to <= cap windows.
 //
-// Each recording's own candidate windows are shuffled (seeded, deterministic) before the
-// round-robin picks its "next" one -- fixes the "AudioMNIST window degeneracy" bug (see
-// .wiki/Experiments/Meeting01.md): the round-robin always took idxs.front() = the LOWEST
-// source_window_index, and whenever a corpus has more recordings than the cap needs (true
-// for AudioMNIST here), the loop hits `cap` and stops during its FIRST pass over `by_rec` --
-// every recording contributes only its index 0, never reaching index 1+. For AudioMNIST that
-// index-0 window is a near-silent recording lead-in on essentially every file, so the model
-// was training/testing on 32ms of near-silence, not the spoken digit. Shuffling each
-// recording's own window list breaks the "always index 0" bias while leaving the outer
-// round-robin's per-recording/per-speaker fairness guarantee untouched.
+// THE PROBLEM. A cap keeps a sample of a larger pool, and the pool is sorted: FSDD's files run
+// 0_george_0, 0_george_1, ... 9_yweweler_49. Until 2026-11-04 this function walked the
+// recordings in that order, one window each, and stopped at the cap. On FSDD fold 0 that was
+//
+//   train: digits 0 1 2 3 4              (1000 windows, cap reached in the middle of the list)
+//   val:   digits 0 1 2                  (150 windows)
+//   test:  digits 0 1 2 3 4 5 6 7 8 9    (1500 windows, above its 500 recordings: the walk wrapped)
+//
+// EEGMMIDB's validation saw 11 of its 18 subjects, and AudioMNIST's training would have seen 2
+// of 40 speakers. Nothing failed: the count was exactly the cap, and the docstring said
+// "stratified".
+//
+// THE RULE. Who appears is balanced level by level, from the unit that generalizes outwards:
+//
+//   speaker -> digit -> recording -> window
+//
+// Each pass visits every speaker once, in an order drawn anew per pass (the speakers cut off by
+// the cap in the last pass are therefore a random few, not the last of the list). A speaker
+// gives its next digit in rotation, the digit its next recording in rotation, the recording its
+// next window. Digits, recordings and windows rotate in shuffled orders, so the start of a
+// sorted list has no advantage at any level. A dataset with no digit (EEG, digit -1) has one
+// digit per subject, and the subject simply rotates through its recordings.
+//
+// `seed` fixes the draw. build_loso_split passes the profile's experiment.seed, not the run
+// seed: every repeat of a fold sees the same windows, which is why the PCA and mean references,
+// fitted once, score the same test set as the networks. The draw's own variance is therefore
+// not sampled by the repeats. Measured on FSDD fold 0: PCA k=16 moved 0.047 between two balanced
+// draws.
 //
 // Defined here (in meeting01:: proper, not the anonymous namespace below) because the header
-// declares it with external linkage so it's directly unit-testable on synthetic metadata
-// without a WAV corpus (see split_audit_gtest.cpp) -- a stray anonymous-namespace placement
-// here previously gave it internal linkage, silently diverging from the header declaration;
-// callers inside this TU (build_loso_split) still resolved fine via unqualified lookup, which
-// is exactly why the mismatch went unnoticed until an out-of-TU caller needed the symbol.
-//
-// The per-recording shuffle below is nn::transforms::RandomIndexCrop (utility/
-// RandomIndexCrop.hpp) -- the discrete analogue of torchvision-style RandomCrop for a corpus
-// that pre-slices every candidate window up front, used here instead of a continuous-signal
-// crop because window_id/source_window_index provenance (needed by leakage-safe splitting)
-// must stay stable across the whole pipeline. Factoring it out this way keeps the exact same
-// std::mt19937 + std::shuffle draw sequence as before (same seed -> byte-identical output,
-// covered by StratifiedWindowCap.* in split_audit_gtest.cpp), just as a reusable component
-// instead of inline logic.
+// declares it with external linkage, so it is unit-testable on synthetic metadata
+// (split_audit_gtest.cpp).
 void stratified_window_cap(std::vector<Tensor>& samples,
     std::vector<WindowMetadata>& meta,
     std::vector<int>* labels,
@@ -131,23 +137,94 @@ void stratified_window_cap(std::vector<Tensor>& samples,
 {
     if (cap <= 0 || static_cast<int>(samples.size()) <= cap) return;
 
-    std::map<int, std::vector<std::size_t>> by_rec;
-    for (std::size_t i = 0; i < meta.size(); ++i) by_rec[meta[i].recording_id].push_back(i);
+    // One rotation: `items` in a shuffled order, `next` the one whose turn it is.
+    struct Recording
+    {
+        std::vector<std::size_t> windows;
+    };
+    struct Digit
+    {
+        std::vector<Recording> recordings;
+        std::size_t next = 0;
+    };
+    struct Speaker
+    {
+        std::vector<Digit> digits;
+        std::size_t next = 0;
+    };
+
+    std::map<int, std::map<int, std::map<int, std::vector<std::size_t>>>> tree;
+    for (std::size_t i = 0; i < meta.size(); ++i)
+        tree[meta[i].speaker_id][meta[i].digit][meta[i].recording_id].push_back(i);
 
     const nn::transforms::RandomIndexCrop crop(seed);
-    for (auto& [rid, idxs] : by_rec) idxs = crop(idxs);
+    std::mt19937 rng(seed);
+    std::vector<Speaker> speakers;
+    speakers.reserve(tree.size());
+    for (auto& [speaker_id, by_digit] : tree)
+    {
+        Speaker speaker;
+        for (auto& [digit, by_recording] : by_digit)
+        {
+            Digit d;
+            for (auto& [recording_id, windows] : by_recording)
+                d.recordings.push_back(Recording{crop(std::move(windows))});
+            std::shuffle(d.recordings.begin(), d.recordings.end(), rng);
+            speaker.digits.push_back(std::move(d));
+        }
+        std::shuffle(speaker.digits.begin(), speaker.digits.end(), rng);
+        speakers.push_back(std::move(speaker));
+    }
+
+    // The next window of the entry whose turn it is, or false when `list` has none left. An
+    // emptied entry leaves the rotation, so the others keep their turns evenly.
+    const auto take_recording = [](Digit& d, std::size_t& out) -> bool
+    {
+        while (!d.recordings.empty())
+        {
+            d.next %= d.recordings.size();
+            Recording& r = d.recordings[d.next];
+            if (r.windows.empty())
+            {
+                d.recordings.erase(d.recordings.begin() + static_cast<std::ptrdiff_t>(d.next));
+                continue;
+            }
+            out = r.windows.back();
+            r.windows.pop_back();
+            ++d.next;
+            return true;
+        }
+        return false;
+    };
+    const auto take_digit = [&take_recording](Speaker& s, std::size_t& out) -> bool
+    {
+        while (!s.digits.empty())
+        {
+            s.next %= s.digits.size();
+            if (take_recording(s.digits[s.next], out))
+            {
+                ++s.next;
+                return true;
+            }
+            s.digits.erase(s.digits.begin() + static_cast<std::ptrdiff_t>(s.next));
+        }
+        return false;
+    };
 
     std::vector<std::size_t> keep;
     keep.reserve(static_cast<std::size_t>(cap));
+    std::vector<std::size_t> order(speakers.size());
+    std::iota(order.begin(), order.end(), std::size_t{0});
     bool progress = true;
     while (static_cast<int>(keep.size()) < cap && progress)
     {
         progress = false;
-        for (auto& [rid, idxs] : by_rec)
+        std::shuffle(order.begin(), order.end(), rng);
+        for (std::size_t s : order)
         {
-            if (idxs.empty()) continue;
-            keep.push_back(idxs.front());
-            idxs.erase(idxs.begin());
+            std::size_t window = 0;
+            if (!take_digit(speakers[s], window)) continue;
+            keep.push_back(window);
             progress = true;
             if (static_cast<int>(keep.size()) >= cap) break;
         }
@@ -170,6 +247,46 @@ void stratified_window_cap(std::vector<Tensor>& samples,
     if (labels != nullptr) *labels = std::move(l);
 }
 
+// Keeps at most `cap` windows of each recording, drawn across the whole recording.
+//
+// The rule used to be "the first cap windows": EEGMMIDB's first 64 s of each run (with 40 windows
+// of 1.6 s), Siena's first 20 s of each file, AudioMNIST's windows 0 and 1. A recording's start
+// is not a sample of it: an EEG run's task, a Siena file's content and a spoken digit's voiced
+// part all lie elsewhere. The draw is uniform and does not look at the signal: choosing windows
+// by their content (voice activity, say) would be a selection the protocol would have to defend.
+void cap_windows_per_recording(
+    std::vector<Tensor>& windows, std::vector<WindowMetadata>& meta, int cap, unsigned int seed)
+{
+    if (cap <= 0) return;
+
+    std::map<int, std::vector<std::size_t>> by_recording;
+    for (std::size_t i = 0; i < meta.size(); ++i) by_recording[meta[i].recording_id].push_back(i);
+
+    const nn::transforms::RandomIndexCrop crop(seed);
+    std::vector<std::size_t> keep;
+    keep.reserve(by_recording.size() * static_cast<std::size_t>(cap));
+    for (auto& [recording_id, idxs] : by_recording)
+    {
+        std::vector<std::size_t> drawn = crop(std::move(idxs));
+        if (drawn.size() > static_cast<std::size_t>(cap))
+            drawn.resize(static_cast<std::size_t>(cap));
+        keep.insert(keep.end(), drawn.begin(), drawn.end());
+    }
+    std::sort(keep.begin(), keep.end());
+
+    std::vector<Tensor> w;
+    std::vector<WindowMetadata> m;
+    w.reserve(keep.size());
+    m.reserve(keep.size());
+    for (std::size_t k : keep)
+    {
+        w.push_back(std::move(windows[k]));
+        m.push_back(meta[k]);
+    }
+    windows = std::move(w);
+    meta = std::move(m);
+}
+
 namespace
 {
 
@@ -183,8 +300,10 @@ struct GroupedWindows
 // (offline-resampled, 8 kHz) AudioMNIST corpus share the FSDD WAV loader; MIT-BIH
 // uses the format-212 WFDB reader. A per-recording window cap keeps long
 // recordings (ECG, silence-padded speech) from dominating the pooled counts;
-// cap 0 = keep all (FSDD).
-auto load_grouped_windows(const std::string& dataset, const Meeting01Config::DatasetSource& src)
+// cap 0 = keep all (FSDD). `seed` draws which windows; the draw happens before the fold is
+// assigned, so a recording keeps the same windows in every fold.
+auto load_grouped_windows(
+    const std::string& dataset, const Meeting01Config::DatasetSource& src, unsigned int seed)
     -> GroupedWindows
 {
     GroupedWindows g;
@@ -216,19 +335,7 @@ auto load_grouped_windows(const std::string& dataset, const Meeting01Config::Dat
                                  "' (expected fsdd | audiomnist | mitbih | eegmmidb | siena)");
     }
 
-    if (src.max_windows_per_recording > 0)
-    {
-        std::vector<Tensor> w;
-        std::vector<WindowMetadata> m;
-        for (std::size_t i = 0; i < g.meta.size(); ++i)
-        {
-            if (g.meta[i].source_window_index >= src.max_windows_per_recording) continue;
-            w.push_back(std::move(g.windows[i]));
-            m.push_back(g.meta[i]);
-        }
-        g.windows = std::move(w);
-        g.meta = std::move(m);
-    }
+    cap_windows_per_recording(g.windows, g.meta, src.max_windows_per_recording, seed);
     return g;
 }
 
@@ -240,7 +347,10 @@ auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, in
     -> DatasetSplit
 {
     const Meeting01Config::DatasetSource src = cfg.dataset.resolve(dataset);
-    const GroupedWindows loaded = load_grouped_windows(dataset, src);
+    // Distinct +0/+1/+2/+3 seed offsets so the draws of test/val/train and of the per-recording
+    // cap don't repeat one another.
+    const unsigned int base_seed = cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u;
+    const GroupedWindows loaded = load_grouped_windows(dataset, src, base_seed + 3);
     const auto& windows = loaded.windows;
     const auto& meta = loaded.meta;
     if (windows.empty())
@@ -272,10 +382,7 @@ auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, in
         split.train_meta.push_back(meta[i]);
     }
 
-    // Per-fold stratified window caps (bound training cost; 0 = unlimited). Distinct
-    // +0/+1/+2 seed offsets so test/val/train don't all shuffle each recording's
-    // candidate windows identically.
-    const unsigned int base_seed = cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u;
+    // Per-fold stratified window caps (bound training cost; 0 = unlimited).
     stratified_window_cap(split.test_samples,
         split.test_meta,
         &split.test_labels,
@@ -317,6 +424,50 @@ auto build_loso_split(const Meeting01Config& cfg, const std::string& dataset, in
 }
 
 } // namespace
+
+auto split_composition_json(const std::vector<WindowMetadata>& meta) -> nlohmann::json
+{
+    std::map<std::string, int> speakers;
+    std::map<std::string, int> digits;
+    std::map<std::string, int> window_indices;
+    for (const auto& m : meta)
+    {
+        ++speakers[m.speaker];
+        ++digits[std::to_string(m.digit)];
+        ++window_indices[std::to_string(m.source_window_index)];
+    }
+    return {{"speakers", speakers}, {"digits", digits}, {"source_window_index", window_indices}};
+}
+
+auto checkpoint_hash(std::size_t config_hash, const DatasetSplit& split) -> std::size_t
+{
+    // FNV-1a over the id and the bytes of every value, starting from config_hash.
+    constexpr std::uint64_t kPrime = 1099511628211ULL;
+    auto hash = static_cast<std::uint64_t>(config_hash) ^ 14695981039346656037ULL;
+    const auto mix = [&hash](std::uint32_t word)
+    {
+        for (int shift = 0; shift < 32; shift += 8)
+        {
+            hash ^= (word >> shift) & 0xFFU;
+            hash *= kPrime;
+        }
+    };
+    const auto mix_part =
+        [&mix](const std::vector<Tensor>& samples, const std::vector<WindowMetadata>& meta)
+    {
+        mix(static_cast<std::uint32_t>(samples.size()));
+        for (std::size_t i = 0; i < samples.size(); ++i)
+        {
+            mix(static_cast<std::uint32_t>(meta[i].window_id));
+            for (nn::Index k = 0; k < static_cast<nn::Index>(samples[i].size()); ++k)
+                mix(std::bit_cast<std::uint32_t>(samples[i].at(k)));
+        }
+    };
+    mix_part(split.train_samples, split.train_meta);
+    mix_part(split.val_samples, split.val_meta);
+    mix_part(split.test_samples, split.test_meta);
+    return static_cast<std::size_t>(hash);
+}
 
 auto build_split(const Meeting01Config& cfg, const std::string& dataset, int cv_fold)
     -> DatasetSplit

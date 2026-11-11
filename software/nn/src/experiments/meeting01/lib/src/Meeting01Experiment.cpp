@@ -599,6 +599,14 @@ void finalize_baseline_selection(const Meeting01Config& config,
     // finalize_snn_selection does). Without this every baseline test row said train_ms 0,
     // and 02_ bolded that 0 as the fastest training in the paper's cost table.
     test_metrics.train_ms = train_ms;
+    test_metrics.train_mse = mean_window_mse(per_window_errors_ae(model,
+        fit_samples,
+        fit_meta,
+        encoding,
+        run_seed,
+        config.model.lstm_frame_size,
+        config.model.recurrent_time_steps,
+        PerWindowError{}));
 
     all_rows.push_back(make_baseline_row(config,
         backend_name,
@@ -817,6 +825,17 @@ void finalize_snn_selection(const Meeting01Config& config,
         config_t.model.time_steps,
         snn_output_steps(config_t));
     test_metrics.train_ms = train_ms;
+    test_metrics.train_mse = mean_window_mse(per_window_errors_snn(snn_model,
+        fit_samples,
+        fit_meta,
+        encoding,
+        best.architecture,
+        best.alpha,
+        best.v_th,
+        run_seed,
+        config_t.model.time_steps,
+        snn_output_steps(config_t),
+        PerWindowError{}));
 
     ResultRow test_row{backend_name,
         config.experiment.run_tag,
@@ -973,13 +992,14 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1);
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     // `Ind` is given explicitly: it cannot be deduced from the callback argument alone
     // (a raw lambda converting to std::function<void(const Ind&)> is a non-deduced
@@ -1083,10 +1103,11 @@ void run_ann_twin(const Meeting01Config& config,
     ProtocolAutoencoder model(make_ann_twin_cfg(config, snn_winner.encoder_widths));
     // The ledger walks the network's own layers (one forward pass of a zero window: its cost
     // does not depend on the data); "direct" adds no encoder.
-    const ModelCost cost = frame_ae_cost(ann_config,
+    ModelCost cost = frame_ae_cost(ann_config,
         "direct",
         estimate_ann_macs(config.dataset.window_size, snn_winner.encoder_widths),
         ann_ae_energy(model, config.dataset.window_size));
+    cost.encoder_nj = ann_ae_encoder_energy(model, config.dataset.window_size).total_nj();
 
     const nlohmann::json selected_hyperparams{{"encoder_widths", snn_winner.encoder_widths},
         {"copied_from", "snn-ae winner of the same (dataset, fold, run)"},
@@ -1157,13 +1178,14 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_lstm";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::LstmGaIndividual>(config,
         split,
@@ -1250,13 +1272,14 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_gru";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result = meeting01::ga::run_ga_search<meeting01::ga::GruGaIndividual>(config,
         split,
@@ -1350,13 +1373,14 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
                          std::to_string(config.dataset.cv_fold) + "_run" +
                          std::to_string(run_id + 1) + "_transformer";
     search_cfg.checkpoint_every_generations = ga_cfg.checkpoint_every_generations;
-    search_cfg.config_hash = cfg_hash;
+    search_cfg.config_hash = checkpoint_hash(cfg_hash, split);
 
     const auto ga_result =
         meeting01::ga::run_ga_search<meeting01::ga::TransformerGaIndividual>(config,
@@ -1499,6 +1523,9 @@ void assert_split_disjoint_and_manifest(
     man["recordings"]["train"] = rec_list(split.train_meta);
     man["recordings"]["val"] = rec_list(split.val_meta);
     man["recordings"]["test"] = rec_list(split.test_meta);
+    man["composition"]["train"] = split_composition_json(split.train_meta);
+    man["composition"]["val"] = split_composition_json(split.val_meta);
+    man["composition"]["test"] = split_composition_json(split.test_meta);
 
     const std::filesystem::path man_path =
         std::filesystem::path(config.dataset.results_dir) /

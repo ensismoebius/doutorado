@@ -31,6 +31,28 @@ namespace meeting01::ga
 // `Bounds`/`Ind` types at each instantiation — the same idiom `std::swap` relies on,
 // and the reason this file never needs to name "SNN" or "LSTM" anywhere in its body.
 
+// The seed of a search's gene draws. Grid 5321956 (results_format 13) seeded them with the
+// run seed alone, so within a modality the six searches of one seed evaluated 28-47 of the
+// same ~46 genomes on every fold and dataset: one candidate pool, re-ranked per fold, not
+// independent searches. The stream names the (dataset, fold); trainings keep the run seed.
+inline auto search_stream_seed(std::uint32_t seed, const std::string& stream) -> std::uint32_t
+{
+    if (stream.empty())
+        throw std::invalid_argument(
+            "search_stream_seed: empty stream. Set GaSearchConfigT::stream to "
+            "\"<dataset>_fold<k>\", or every fold of a run seed draws the same genomes.");
+    std::uint32_t h = 2166136261u; // FNV-1a: fixed by its definition, unlike std::hash
+    for (const unsigned char c : stream)
+    {
+        h ^= c;
+        h *= 16777619u;
+    }
+    std::seed_seq seq{seed, h};
+    std::uint32_t out = 0;
+    seq.generate(&out, &out + 1);
+    return out;
+}
+
 template <typename Bounds>
 struct GaSearchConfigT
 {
@@ -40,12 +62,18 @@ struct GaSearchConfigT
     double mutation_prob = 0.2;
     int tournament_k = 2;
     unsigned int seed = 0; // 0 -> derive from base_seed passed to run_ga_search
+    // Which search this is, "<dataset>_fold<k>": REQUIRED, mixed into the gene-draw seed
+    // (search_stream_seed). Without it every fold and dataset of one run seed drew the same
+    // genomes (results_format 14).
+    std::string stream;
     // How many seeds each final Pareto-front member is scored on before the winner is
     // picked. The search itself scores one seed per genome (cheap), which means the best
     // of a noisy population is partly selected on seed luck — the winner's curse.
-    // Re-scoring only the front costs |front| * (winner_seeds - 1) extra trainings and
-    // makes the published architecture a mean over seeds rather than a lucky draw. 1
-    // disables it.
+    // Re-scoring only the front costs |front| * winner_seeds extra trainings and makes the
+    // published architecture a mean over seeds rather than a lucky draw. The search's own
+    // score is NOT in that mean: it is the score the front was selected on, so it is biased
+    // low, and averaging it in would keep part of the curse (results_format 11). 1 disables
+    // the re-score.
     int winner_seeds = 3;
     Bounds bounds{};
 
@@ -202,6 +230,35 @@ std::vector<Ind> select_next_generation(
     }
     return next;
 }
+
+// The re-score of the final front. A member's val_mse becomes the mean over `winner_seeds`
+// seeds, all different from `base_seed`, the one the search scored it with. winner_seeds <= 1
+// leaves the front as it is.
+template <typename Ind, typename OnEval>
+void rescore_front(std::vector<Ind>& front,
+    const meeting01::Meeting01Config& cfg,
+    const meeting01::DatasetSplit& split,
+    std::uint32_t base_seed,
+    int winner_seeds,
+    const OnEval& on_eval)
+{
+    if (winner_seeds <= 1) return;
+    for (auto& ind : front)
+    {
+        double mse_sum = 0.0;
+        for (int extra = 1; extra <= winner_seeds; ++extra)
+        {
+            Ind probe;
+            probe.genome = ind.genome;
+            evaluate_individual(
+                probe, cfg, split, base_seed + static_cast<std::uint32_t>(extra) * 7919u, 0, 0);
+            if (on_eval) on_eval(probe);
+            mse_sum += probe.val_mse;
+        }
+        ind.val_mse = static_cast<float>(mse_sum / winner_seeds);
+        if (!ind.objectives.empty()) ind.objectives[0] = ind.val_mse;
+    }
+}
 } // namespace detail
 
 // Runs NSGA-II (haploid — no diploid genetics; see Meeting01GaFitness.hpp for why no
@@ -215,7 +272,8 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
     std::uint32_t base_seed,
     const EvalCallback<Ind>& on_eval = nullptr) -> GaSearchResultT<Ind>
 {
-    std::mt19937 rng(ga_cfg.seed != 0u ? ga_cfg.seed : base_seed);
+    std::mt19937 rng(
+        search_stream_seed(ga_cfg.seed != 0u ? ga_cfg.seed : base_seed, ga_cfg.stream));
     const int N = ga_cfg.population_size;
 
     detail::EvalCache<Ind, Bounds> cache;
@@ -323,27 +381,11 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
             if (parents[static_cast<std::size_t>(idx)].feasible)
                 result.pareto_front.push_back(parents[static_cast<std::size_t>(idx)]);
 
-    // Winner's-curse mitigation: re-score the front on extra seeds and replace each
-    // member's val_mse with the mean, so the pick reflects expected quality rather than
-    // the single luckiest evaluation. Only the front is re-scored, not the whole population.
-    if (ga_cfg.winner_seeds > 1)
-    {
-        for (auto& ind : result.pareto_front)
-        {
-            double mse_sum = ind.val_mse;
-            for (int extra = 1; extra < ga_cfg.winner_seeds; ++extra)
-            {
-                Ind probe;
-                probe.genome = ind.genome;
-                evaluate_individual(
-                    probe, cfg, split, base_seed + static_cast<std::uint32_t>(extra) * 7919u, 0, 0);
-                if (on_eval) on_eval(probe);
-                mse_sum += probe.val_mse;
-            }
-            ind.val_mse = static_cast<float>(mse_sum / ga_cfg.winner_seeds);
-            if (!ind.objectives.empty()) ind.objectives[0] = ind.val_mse;
-        }
-    }
+    // Winner's-curse mitigation: re-score the front on fresh seeds and replace each member's
+    // val_mse with their mean, so the pick reflects expected quality rather than the single
+    // luckiest evaluation. Every seed is new: the search's score selected this member, so it
+    // cannot also estimate it. Only the front is re-scored, not the whole population.
+    detail::rescore_front(result.pareto_front, cfg, split, base_seed, ga_cfg.winner_seeds, on_eval);
 
     std::sort(result.pareto_front.begin(),
         result.pareto_front.end(),

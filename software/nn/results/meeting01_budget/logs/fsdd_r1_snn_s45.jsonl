@@ -1,0 +1,14 @@
+{"type": "start", "name": "fsdd_r1_snn_s45", "trivial_loss": 1.0013324600413032, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8913993470221758, "monitor": 0.7948145270347595, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7437410722523927, "monitor": 0.7173845171928406, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6956075111851097, "monitor": 0.6814172863960266, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6713780830353498, "monitor": 0.673723042011261, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.655942985482514, "monitor": 0.6694049835205078, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6445239560604096, "monitor": 0.6653106808662415, "armed": true, "best_epoch": 6}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6370270534679293, "monitor": 0.6599840521812439, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6292100312784314, "monitor": 0.6635761260986328, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6230966223105788, "monitor": 0.6761701703071594, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6173237103670836, "monitor": 0.6754422187805176, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 11, "train_loss": 0.6118985833562911, "monitor": 0.6751834154129028, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 12, "train_loss": 0.6068298560753465, "monitor": 0.6755841374397278, "armed": true, "best_epoch": 7}
+{"type": "end", "rows": [{"name": "fsdd_r1_snn_s45", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 45, "budget": "e30", "best_epoch": 7, "armed_epoch": 1, "epochs_run": 12, "stop_reason": "patience", "test_mse": 0.8091611862182617, "val_mse": 0.6599840521812439, "train_mse": 0.6110197901725769, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 180.32125663757324}, {"name": "fsdd_r1_snn_s45", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 45, "budget": "e60", "best_epoch": 7, "armed_epoch": 1, "epochs_run": 12, "stop_reason": "patience", "test_mse": 0.8091611862182617, "val_mse": 0.6599840521812439, "train_mse": 0.6110197901725769, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 180.43263459205627}]}

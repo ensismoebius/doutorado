@@ -30,14 +30,19 @@
 //   2. The network kept is the one of the best monitor epoch (nn::training::
 //      BestWeightsCallback), not the last one, which is `patience` epochs past it.
 //
-// Why s = 0.10 in the production profiles (measured on the pre-validation's 216 trainings,
-// development folds only): 87 of them ended on the plateau (last monitor MSE >= 0.95; FSDD's
-// plateau sits at ~0.962, EEG's at ~1.0). The deepest excursion of a run that never left it
-// was a skill of 0.066 (GRU-AE, FSDD: 0.937 at epoch 2, back to 0.999 at epoch 3), so 0.10
-// is not reached by plateau noise. Two others reached 0.092 and 0.15 and then jumped back to
-// ~1.0 -- they learned, then collapsed -- which part 2 handles: their best epoch is kept.
-// The price of a high s is compute, not bias: a run that learns only a little (skill < s)
-// trains all its epochs instead of stopping.
+// Why s = 0.10 in the production profiles. Measured on the corrected windows (results_format 10,
+// 06_meeting01_stopping_calibration.py): 84 trainings of all five families on fold 0 of FSDD and
+// EEGMMIDB, monitor losses only. 29 ended on the plateau, and none of them passed a skill of
+// 0.0505, so 0.10 is about twice what plateau noise reaches.
+//
+// The price of s is compute, not bias: a run below s never arms, so it trains all its epochs and
+// keeps its best one. 14 of the 54 runs that learned are such runs (all on FSDD, LSTM/GRU/
+// Transformer-AE, peaks 0.052-0.095), and every one ended within 0.01 of its peak, so patience
+// had little to cut. Replaying the recorded curves, s = 0.05 saves 13 of 2349 epochs, lowers two
+// runs' results, and changes no SNN-AE or ANN-AE training. The script's automatic rule refused
+// 0.10 because of those 14; keeping it was the author's decision (2026-11-05), on these numbers.
+//
+// So "armed" does not mean "learned": on FSDD a run can learn a little without ever arming.
 
 #include <algorithm>
 #include <cmath>

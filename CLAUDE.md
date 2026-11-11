@@ -1,10 +1,5 @@
 # doutorado — Claude Code instructions
 
-## Caveman mode
-
-Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
-`/caveman lite|full|ultra` to change.
-
 ## Code intelligence MCP (default, not skill-gated)
 
 `code_intelligence` (auto-loaded skill at `.claude/skills/code-intelligence/`) is

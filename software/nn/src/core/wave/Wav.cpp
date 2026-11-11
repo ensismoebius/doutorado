@@ -16,8 +16,11 @@
  */
 #include "wave/Wav.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -316,7 +319,7 @@ void Wav::set_callback_function(     //
         std::vector<double>& signal, //
         size_t& signalLength,        //
         uint32_t samplingRate,       //
-    const std::string& path      //
+        const std::string& path      //
         )                            // callback function
 )
 {
@@ -353,26 +356,118 @@ void Wav::read_wave_data(std::ifstream& ifs)
     }
 }
 
+// Walks the RIFF chunks and leaves the stream on the first audio sample. A WAV file is
+//
+//   "RIFF" size "WAVE" | "fmt " size <format> | [other chunks] | "data" size <samples>
+//
+// and the samples start wherever the "data" chunk says: byte 44 only when "fmt " is the
+// 16-byte PCM form and nothing sits between it and "data". Until 2026-11-04 this function ended
+// with a seek to byte 0, so the 44 header bytes were decoded as 22 samples of every 16-bit mono
+// file and the last 22 real samples were lost. Nothing failed: the file's length is right and
+// the "audio" is finite. Every FSDD and AudioMNIST window 0 carried it (meeting01 results_format
+// 10 is the first without).
 void Wav::read_wave_headers(std::ifstream& ifs)
 {
+    ifs.seekg(0, std::ios::end);
+    const std::streamoff fileSize = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
-    Wav::read_binary(ifs, this->header);
+
+    constexpr std::size_t kIdBytes = 4;
+    const auto id_is = [](const std::array<std::uint8_t, kIdBytes>& id, const char* expected)
+    { return std::equal(id.begin(), id.end(), expected); };
+
+    std::array<std::uint8_t, kIdBytes> riffId{};
+    std::uint32_t riffSize = 0;
+    std::array<std::uint8_t, kIdBytes> waveId{};
+    Wav::read_binary(ifs, riffId);
+    Wav::read_binary(ifs, riffSize);
+    Wav::read_binary(ifs, waveId);
+    if (!ifs || !id_is(riffId, "RIFF") || !id_is(waveId, "WAVE"))
+    {
+        throw std::runtime_error(this->path + " is not a RIFF/WAVE file");
+    }
+    this->header.riffChunkId = riffId;
+    this->header.riffChunkSize = riffSize;
+    this->header.waveFormat = waveId;
+
+    bool haveFormat = false;
+    while (true)
+    {
+        std::array<std::uint8_t, kIdBytes> chunkId{};
+        std::uint32_t chunkSize = 0;
+        Wav::read_binary(ifs, chunkId);
+        Wav::read_binary(ifs, chunkSize);
+        if (!ifs)
+        {
+            throw std::runtime_error(this->path + " has no data chunk");
+        }
+
+        if (id_is(chunkId, "fmt "))
+        {
+            constexpr std::uint32_t kPcmFormatBytes = 16;
+            if (chunkSize < kPcmFormatBytes)
+            {
+                throw std::runtime_error(this->path + " has a fmt chunk of " +
+                                         std::to_string(chunkSize) + " bytes, below the " +
+                                         std::to_string(kPcmFormatBytes) + " of PCM");
+            }
+            std::uint16_t audioFormat = 0;
+            std::uint16_t channels = 0;
+            std::uint32_t sampleRate = 0;
+            std::uint32_t byteRate = 0;
+            std::uint16_t blockAlign = 0;
+            std::uint16_t bitsPerSample = 0;
+            Wav::read_binary(ifs, audioFormat);
+            Wav::read_binary(ifs, channels);
+            Wav::read_binary(ifs, sampleRate);
+            Wav::read_binary(ifs, byteRate);
+            Wav::read_binary(ifs, blockAlign);
+            Wav::read_binary(ifs, bitsPerSample);
+            this->header.fmtSubchunkId = chunkId;
+            // The in-memory header always describes the 44-byte form write() emits.
+            this->header.fmtSubchunkSize = kPcmFormatBytes;
+            this->header.audioFormat = audioFormat;
+            this->header.numberOfChannels = channels;
+            this->header.sampleRate = sampleRate;
+            this->header.byteRate = byteRate;
+            this->header.blockAlign = blockAlign;
+            this->header.bitsPerSample = bitsPerSample;
+            ifs.seekg(chunkSize - kPcmFormatBytes + (chunkSize & 1U), std::ios::cur);
+            haveFormat = true;
+        }
+        else if (id_is(chunkId, "data"))
+        {
+            if (!haveFormat)
+            {
+                throw std::runtime_error(this->path + " has its data chunk before the fmt chunk");
+            }
+            this->header.dataSubchunkId = chunkId;
+            this->header.dataSubchunkSize = chunkSize;
+            break;
+        }
+        else
+        {
+            ifs.seekg(chunkSize + (chunkSize & 1U), std::ios::cur); // chunks are word-aligned
+        }
+    }
 
     if (this->header.audioFormat != 1)
     {
         throw std::runtime_error(this->path + " not in PCM format!");
+    }
+    if (this->header.numberOfChannels == 0 || this->header.sampleRate == 0 ||
+        this->header.blockAlign == 0)
+    {
+        throw std::runtime_error(this->path + " has a zero channel count, rate or block align");
     }
 
     waveResolution = static_cast<int>((this->header.byteRate * BITS_PER_BYTE) /
                                       (this->header.numberOfChannels * this->header.sampleRate));
     amountOfData = this->header.dataSubchunkSize / this->header.blockAlign;
 
-    // Validate that the file is large enough to contain the expected data
-    ifs.seekg(0, std::ios::end);
-    std::streamsize fileSize = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-
-    if (fileSize < static_cast<std::streamsize>(44 + this->header.dataSubchunkSize))
+    // The stream is on the first sample: the file must hold everything the data chunk declares.
+    const std::streamoff dataStart = ifs.tellg();
+    if (fileSize < dataStart + static_cast<std::streamoff>(this->header.dataSubchunkSize))
     {
         throw std::runtime_error("File is too small to contain the expected audio data");
     }

@@ -42,13 +42,6 @@ git-stash-and-rebuild diff for confirming a pure refactor changed nothing else.
 
 ---
 
-## Caveman mode
-
-Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
-`/caveman lite|full|ultra` to change.
-
----
-
 ## Build & test
 
 **Always use presets** — never invent raw cmake flags:
@@ -345,6 +338,10 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
 | Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |
 | Transformer warm-up / pre-norm test (T1) | `scripts/pipeline/meeting01/05_meeting01_t1_transformer.sh`, `05_meeting01_t1_transformer.py` |
+| Stopping threshold calibration | `scripts/pipeline/meeting01/06_meeting01_stopping_calibration.py` |
+| Design study (PyTorch twin) / budget test | `scripts/pipeline/meeting01/07_meeting01_design_study.{py,sh}`, `08_meeting01_budget_test.{py,sh}` |
+| Spike break-even figure (port of the first-layer energy, pinned to the C++) | `scripts/pipeline/meeting01/09_meeting01_energy_breakeven.py`, `first_stage_energy_nj` in `meeting01_results.py` |
+| Band-limited resampling | `include/utility/Resample.hpp` |
 
 ---
 
@@ -373,13 +370,17 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 9)**: the paper reads only generated files in its
+**Paper data contract (results_format 14)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
 `paper_loso_sensitivity.tex`, `paper_prevalidation.tex`, `paper_prevalidation_config.tex`,
-`paper_t1.tex`);
-never type a configuration number or a result into `paper.tex`. Before the run they are
+`paper_t1.tex`, `paper_t1_figure.tex`, `paper_design.tex`, `paper_design_shares.tex`, `paper_design_stats.tex`,
+`paper_design_figure.tex`, `paper_design_lif_figure.tex`, `paper_budget.tex`, `paper_breakeven.tex`,
+`paper_breakeven_figure.tex`);
+never type a configuration number or a result into `paper.tex` -- not in a sentence either: a number
+a sentence states is a macro, and the script that writes it checks the claims around it and refuses
+when one fails (`findings()` in `07_`, `budget_findings()` in `08_`; a bound like "within" rounds UP). Before the run they are
 placeholders: `meeting01 --comparative --comparative-config <profile> --print-resolved-config >
 cfg.json`, then `02_ --placeholders cfg.json --data-dir <paper>/data`,
 `04_ --placeholders cfg.json --out-dir <paper>/data` and
@@ -404,6 +405,45 @@ objective (`estimate_snn_macs(..., first_layer_steps)`) counts it once as well.
 carry `init_seed` (set by `to_*_cfg`, seed argument required; unset = the old fixed weights), and
 `TrainerConfig::sampler_shuffle_seed = seed` for every family. Before, the three sequence models
 started every seed from the same weights and every family saw one window order.
+
+**Windows (results_format 10)**: `Wav::read` walks the RIFF chunks (it used to decode the header as
+22 samples); `stratified_window_cap` balances speaker -> digit -> recording; a per-recording cap
+draws across the recording (`cap_windows_per_recording`); each EDF is filtered at its own header
+rate and converted to the profile's `sample_rate` (`nn::utility::resample_bandlimited`), the 128 Hz
+files included: no subject is excluded, because excluding one moves others across folds. GA
+checkpoints are stamped with `checkpoint_hash`, which covers the window values. Each split manifest
+records its `composition`.
+
+**Review conditions (results_format 11)**: the GA's front is re-scored on `winner_seeds` fresh seeds,
+the search's score left out. The primary estimand is group level (`group_level` in `04_`: Student t
+interval, Holm, each `d_g` printed); recording level is descriptive. Fold 1 of FSDD and EEGMMIDB leaves
+the headline too (`DESIGN_INFORMED_FOLDS`: it tests on fold 0's validation block). `EQUIVALENCE_MARGIN`
+(0.02) reads the two axes; PCA is priced (`pca_energy_nj`). Rows add `energy_nj_encoder`,
+`hidden_silent_share`, `hidden_always_share`, `lif_v_th_mean/min`, `lif_beta_mean`, `train_mse`.
+The design study (`07_meeting01_design_study.{py,sh}`, a logged PyTorch twin, 208 trainings) and the
+budget test (`08_meeting01_budget_test.{py,sh}`, control width on EEG + 60-epoch cap, 36 trainings)
+ran 2026-11-09 on the development folds; `--placeholders --data-dir` for each before a run.
+
+**Control share (results_format 12)**: ann-ae rows carry `hidden_silent_share` (encoder leaky-ReLU
+(unit, window) outputs <= 0.01, `count_ann_hidden`); `hidden_always_share` stays NaN for it. The
+SNN-AE selection table prints the silent share as "SNN / ANN". Readers that never read that field
+(`00_` report, `07_`/`08_` reading the format-11 pre-validation) pass
+`accept=READS_WITHOUT_ANN_SHARE`; every other reader accepts RESULTS_FORMAT only.
+
+**EEG window capacity (results_format 13)**: an EEG window must hold more independent values than
+its latent (2 x 39.5 Hz x window duration > latent_dim), or PCA reconstructs it exactly and the
+comparison is void. Siena is therefore filtered at its native 512 Hz and cut at 160 Hz like
+eegmmidb (1.6 s windows; at 512 Hz: 0.5 s, ~39.5 values for latent 64, PCA test MSE 0.0000).
+`Meeting01Config::validate()` refuses a violation (`check_eeg_windows`, `Meeting01EegBand.hpp`);
+`check_results_format` refuses a Siena fold older than 13 even through `accept`.
+
+**GA streams and 60 epochs (results_format 14)**: the GA draws its genomes from
+`search_stream_seed(run seed, "<dataset>_fold<k>")` (`Meeting01GaSearch.hpp`; `GaSearchConfigT::stream`
+is REQUIRED, empty throws); trainings keep the run seed. Grid 5321956 (format 13) seeded the draws with
+the run seed alone: within a modality the searches of one seed shared 28-47 of ~46 candidates across
+folds and datasets. `training.epochs` 30 -> 60 in `meeting01-loso.json` (at 30, 60/60 ann-ae EEG final
+fits ran to the cap); the pre-validation profile keeps 30 (declared difference). Grid 5321956 is
+archived in `results/meeting01_grid5321956_format13/` (with the paper data it produced) and superseded.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

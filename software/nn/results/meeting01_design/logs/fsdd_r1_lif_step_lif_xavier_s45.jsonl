@@ -1,0 +1,24 @@
+{"type": "start", "name": "fsdd_r1_lif_step_lif_xavier_s45", "trivial_loss": 1.0013324600413032, "arm_below": 0.9011992140371728, "steps": 28, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.9296716362535954, "monitor": 0.8478865623474121, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.798403527006507, "monitor": 0.7729917764663696, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.7547278540730477, "monitor": 0.7410993576049805, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.7346010563075542, "monitor": 0.730636477470398, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.7205788884162903, "monitor": 0.7185743451118469, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.7107501212954521, "monitor": 0.7092990875244141, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.7030158371627331, "monitor": 0.7058596611022949, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6973064780533313, "monitor": 0.7083718776702881, "armed": true, "best_epoch": 7, "bad": 1}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6918267804831266, "monitor": 0.7067668437957764, "armed": true, "best_epoch": 7, "bad": 2}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6875871227234602, "monitor": 0.707439124584198, "armed": true, "best_epoch": 7, "bad": 3}
+{"type": "epoch", "epoch": 11, "train_loss": 0.683376473903656, "monitor": 0.7055357098579407, "armed": true, "best_epoch": 11, "bad": 0}
+{"type": "epoch", "epoch": 12, "train_loss": 0.680064781114459, "monitor": 0.7007498145103455, "armed": true, "best_epoch": 12, "bad": 0}
+{"type": "epoch", "epoch": 13, "train_loss": 0.6765601913556456, "monitor": 0.7015003561973572, "armed": true, "best_epoch": 12, "bad": 1}
+{"type": "epoch", "epoch": 14, "train_loss": 0.6760106534957886, "monitor": 0.7021914720535278, "armed": true, "best_epoch": 12, "bad": 2}
+{"type": "epoch", "epoch": 15, "train_loss": 0.6706614656969905, "monitor": 0.7011367678642273, "armed": true, "best_epoch": 12, "bad": 3}
+{"type": "epoch", "epoch": 16, "train_loss": 0.6685472237095237, "monitor": 0.7076501250267029, "armed": true, "best_epoch": 12, "bad": 4}
+{"type": "epoch", "epoch": 17, "train_loss": 0.6656944227963686, "monitor": 0.7007477879524231, "armed": true, "best_epoch": 17, "bad": 0}
+{"type": "epoch", "epoch": 18, "train_loss": 0.6623967565000057, "monitor": 0.7021080255508423, "armed": true, "best_epoch": 17, "bad": 1}
+{"type": "epoch", "epoch": 19, "train_loss": 0.6608407331109047, "monitor": 0.7008575201034546, "armed": true, "best_epoch": 17, "bad": 2}
+{"type": "epoch", "epoch": 20, "train_loss": 0.6612070318311453, "monitor": 0.7062468528747559, "armed": true, "best_epoch": 17, "bad": 3}
+{"type": "epoch", "epoch": 21, "train_loss": 0.6571755308061838, "monitor": 0.7024221420288086, "armed": true, "best_epoch": 17, "bad": 4}
+{"type": "epoch", "epoch": 22, "train_loss": 0.6565395855754614, "monitor": 0.7067976593971252, "armed": true, "best_epoch": 17, "bad": 5}
+{"type": "end", "name": "fsdd_r1_lif_step_lif_xavier_s45", "dataset": "fsdd", "run": 1, "widths": "59x16", "encoding": "direct", "time_steps": 28, "neuron": "lif", "readout": "step", "decoder": "lif", "init": "xavier", "seed": 45, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 22, "best_epoch": 17, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 1.0013324600413032, "best_monitor": 0.7007477879524231, "test_mse": 0.823091447353363, "test_mse_per_step": 0.8534525036811829, "val_mse": 0.6731359958648682, "train_mse": 0.6220226883888245, "enc_low_share": 0.4866892695426941, "enc_high_share": 0.41085875034332275, "enc_mean_code": 0.44812265038490295, "dec_low_share": 0.4864293932914734, "dec_high_share": 0.317751407623291, "lif_v_th_mean": 0.5456210970878601, "lif_beta_mean": 0.8947224318981171, "wall_s": 562.797988653183}

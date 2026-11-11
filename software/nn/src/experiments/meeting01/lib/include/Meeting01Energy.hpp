@@ -73,6 +73,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <string>
 
 #include "Meeting01RunMetrics.hpp"
@@ -153,6 +154,7 @@ struct ModelCost
 {
     std::size_t macs = 0;
     EnergyLedger energy;
+    double encoder_nj = std::numeric_limits<double>::quiet_NaN(); // RunMetrics::energy_nj_encoder
 };
 
 /// Fills RunMetrics' energy fields from one window's ledger (a mean over windows is a ledger
@@ -210,9 +212,17 @@ auto snn_ae_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& mo
     const Tensor& input,
     bool input_is_spikes,
     int repeated_steps) -> EnergyLedger;
+/// The encoder network alone, on the same pass: snn_ae_energy without the decoder.
+auto snn_ae_encoder_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
+    const Tensor& input,
+    bool input_is_spikes,
+    int repeated_steps) -> EnergyLedger;
 /// The ANN-AE: one forward pass of a zero window of `window_size` values, then the same walk
 /// (its cost does not depend on the data). Throws like snn_ae_energy.
 auto ann_ae_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int window_size)
+    -> EnergyLedger;
+/// The ANN-AE's encoder network alone. Throws like ann_ae_energy.
+auto ann_ae_encoder_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int window_size)
     -> EnergyLedger;
 auto lstm_ae_energy(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> EnergyLedger;
 auto gru_ae_energy(const nn::models::gru::GRUAutoencoderConfig& cfg) -> EnergyLedger;

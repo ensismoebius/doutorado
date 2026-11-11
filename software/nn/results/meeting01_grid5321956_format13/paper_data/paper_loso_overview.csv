@@ -1,0 +1,5 @@
+model;fsddmse;fsddenergy;audiomnistmse;audiomnistenergy;eegmmidbmse;eegmmidbenergy;sienamse;sienaenergy
+Mean;1.000;--;1.001;--;1.001;--;1.001;--
+PCA;\textbf{0.634};158;\textbf{0.359};158;\textbf{0.138};903;\textbf{0.165};903
+SNN-AE;0.717$\pm$0.017;11840;0.432$\pm$0.026;11491;0.371$\pm$0.024;11359;0.363$\pm$0.012;12830
+ANN-AE (control);0.689$\pm$0.001;1024;0.402$\pm$0.002;1022;0.263$\pm$0.013;1270;0.285$\pm$0.002;1133

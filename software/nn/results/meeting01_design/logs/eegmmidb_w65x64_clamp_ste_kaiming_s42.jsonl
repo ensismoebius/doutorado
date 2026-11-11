@@ -1,0 +1,27 @@
+{"type": "start", "name": "eegmmidb_w65x64_clamp_ste_kaiming_s42", "trivial_loss": 0.9996989648693367, "arm_below": 0.8997290683824031, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 1.0008647305369378, "monitor": 0.8801679611206055, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7636799802184104, "monitor": 0.6657557487487793, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.619276984885335, "monitor": 0.6055640578269958, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.5707435384839773, "monitor": 0.5891809463500977, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.5467031985968351, "monitor": 0.5668441653251648, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.5345712802261114, "monitor": 0.569901168346405, "armed": true, "best_epoch": 5, "bad": 1}
+{"type": "epoch", "epoch": 7, "train_loss": 0.5224152815192938, "monitor": 0.5628167986869812, "armed": true, "best_epoch": 7, "bad": 0}
+{"type": "epoch", "epoch": 8, "train_loss": 0.5170099537596107, "monitor": 0.5596576929092407, "armed": true, "best_epoch": 8, "bad": 0}
+{"type": "epoch", "epoch": 9, "train_loss": 0.510824004381895, "monitor": 0.5536969304084778, "armed": true, "best_epoch": 9, "bad": 0}
+{"type": "epoch", "epoch": 10, "train_loss": 0.5045188854187727, "monitor": 0.5546689629554749, "armed": true, "best_epoch": 9, "bad": 1}
+{"type": "epoch", "epoch": 11, "train_loss": 0.4985672345533967, "monitor": 0.5539179444313049, "armed": true, "best_epoch": 9, "bad": 2}
+{"type": "epoch", "epoch": 12, "train_loss": 0.49422604379057883, "monitor": 0.554002046585083, "armed": true, "best_epoch": 9, "bad": 3}
+{"type": "epoch", "epoch": 13, "train_loss": 0.48860155218839646, "monitor": 0.5485376715660095, "armed": true, "best_epoch": 13, "bad": 0}
+{"type": "epoch", "epoch": 14, "train_loss": 0.4846196605861187, "monitor": 0.5494228005409241, "armed": true, "best_epoch": 13, "bad": 1}
+{"type": "epoch", "epoch": 15, "train_loss": 0.48028740407526493, "monitor": 0.5481293797492981, "armed": true, "best_epoch": 15, "bad": 0}
+{"type": "epoch", "epoch": 16, "train_loss": 0.4763384891152382, "monitor": 0.5448117852210999, "armed": true, "best_epoch": 16, "bad": 0}
+{"type": "epoch", "epoch": 17, "train_loss": 0.4722795206010342, "monitor": 0.546841561794281, "armed": true, "best_epoch": 16, "bad": 1}
+{"type": "epoch", "epoch": 18, "train_loss": 0.46880313133448365, "monitor": 0.5456833243370056, "armed": true, "best_epoch": 16, "bad": 2}
+{"type": "epoch", "epoch": 19, "train_loss": 0.4651208557486534, "monitor": 0.5492067933082581, "armed": true, "best_epoch": 16, "bad": 3}
+{"type": "epoch", "epoch": 20, "train_loss": 0.4633779528588057, "monitor": 0.5406096577644348, "armed": true, "best_epoch": 20, "bad": 0}
+{"type": "epoch", "epoch": 21, "train_loss": 0.46052676837146284, "monitor": 0.5520796775817871, "armed": true, "best_epoch": 20, "bad": 1}
+{"type": "epoch", "epoch": 22, "train_loss": 0.4578731167912483, "monitor": 0.5457347631454468, "armed": true, "best_epoch": 20, "bad": 2}
+{"type": "epoch", "epoch": 23, "train_loss": 0.45525000286102296, "monitor": 0.5428197979927063, "armed": true, "best_epoch": 20, "bad": 3}
+{"type": "epoch", "epoch": 24, "train_loss": 0.4549061794281006, "monitor": 0.5438343286514282, "armed": true, "best_epoch": 20, "bad": 4}
+{"type": "epoch", "epoch": 25, "train_loss": 0.4512342652529478, "monitor": 0.5438165068626404, "armed": true, "best_epoch": 20, "bad": 5}
+{"type": "end", "name": "eegmmidb_w65x64_clamp_ste_kaiming_s42", "dataset": "eegmmidb", "run": 1, "widths": "65x64", "encoding": "direct", "time_steps": 1, "neuron": "clamp_ste", "readout": "lat_mean", "decoder": "lrelu", "init": "kaiming", "seed": 42, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 25, "best_epoch": 20, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 0.9996989648693367, "best_monitor": 0.5406096577644348, "test_mse": 0.5718965530395508, "test_mse_per_step": NaN, "val_mse": 0.5406096577644348, "train_mse": 0.44786107540130615, "enc_low_share": 0.5047589540481567, "enc_high_share": 0.48558974266052246, "enc_mean_code": 0.49034348130226135, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 69.23629212379456}

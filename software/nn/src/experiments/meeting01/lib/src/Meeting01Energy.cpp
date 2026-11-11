@@ -374,6 +374,38 @@ auto snn_ae_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& mo
     return e;
 }
 
+auto snn_ae_encoder_energy(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
+    const Tensor& input,
+    bool input_is_spikes,
+    int repeated_steps) -> EnergyLedger
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "snn_ae_encoder_energy: the dual-branch ProtocolSpikingAutoencoder is not "
+            "counted (meeting01 never builds it).");
+    EnergyLedger e;
+    walk_sequential(
+        model.encoder_, input, input_is_spikes, e, "snn_ae_encoder_energy", repeated_steps);
+    return e;
+}
+
+auto ann_ae_encoder_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int window_size)
+    -> EnergyLedger
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "ann_ae_encoder_energy: the dual-branch ProtocolAutoencoder is not "
+            "counted (meeting01 never builds it).");
+    if (window_size < 1)
+        throw std::invalid_argument("ann_ae_encoder_energy: window_size must be >= 1 (got " +
+                                    std::to_string(window_size) + ")");
+    const Tensor zeros = Tensor::zeros(1, window_size);
+    (void) model.forward(zeros, false);
+    EnergyLedger e;
+    walk_sequential(model.encoder_, zeros, false, e, "ann_ae_encoder_energy", 1);
+    return e;
+}
+
 auto ann_ae_energy(nn::models::autoencoder::ProtocolAutoencoder& model, int window_size)
     -> EnergyLedger
 {

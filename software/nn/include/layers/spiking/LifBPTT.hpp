@@ -408,9 +408,15 @@ struct LifBPTTImpl : public Module<Backend>
 
         if (reset_zero)
         {
-            // Exact local derivative for v_post = v_pre + s*(V_reset - v_pre)
+            // v_post = v_pre + s*(V_reset - v_pre). s has no derivative, so neither line below
+            // is exact; each is a choice, and they differ on purpose:
+            // - Membrane path: the reset is detached (s is a constant here). Keeping the
+            //   surrogate would give 1 - s - surr*(v_pre - V_reset), a factor multiplied once
+            //   per step through time, whose size can pass 1.
+            // - Threshold path: the surrogate stays (ds/dVth = -surr). This is one term added
+            //   to a scalar's accumulator, so nothing multiplies it, and dropping it biased
+            //   V_th's updates (layers_spiking_basic_gtest pins it).
             dvpost_dvpre = 1.0F - spike;
-            // ds/dVth = -surr
             dvpost_dVth = surr * (v_pre - reset_potential);
         }
         else

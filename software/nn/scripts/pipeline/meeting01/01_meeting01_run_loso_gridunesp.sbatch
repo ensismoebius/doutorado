@@ -213,7 +213,14 @@ cat > "$STAGE/start.sh" <<'START'
 set -euo pipefail
 [[ "$1" == */.job-input-"$SLURM_JOB_ID" ]] || { echo "start.sh: refusing to delete '$1'" >&2; exit 1; }
 rm -rf -- "$1"
-exec setsid -w bash -c 'echo "$$" > "$1"; exec bash "$2"' start "$2" "$3"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+rc=0
+setsid -w bash -c 'echo "$$" > "$1"; exec bash "$2"' start "$2" "$3" || rc=$?
+# The files the run left, for the sbatch's reconcile (_job_nanny_reconcile.sh); a stopped run too.
+# start.sh is not in the run's process group (setsid), so stop_run's TERM does not reach it.
+source "$here/scripts/pipeline/meeting01/_job_nanny_reconcile.sh"
+job_nanny_write_listing "$here/results" "$SLURM_JOB_ID" || echo "start.sh: no final file listing written" >&2
+exit "$rc"
 START
 
 # OUTPUT is relative to WORK_DIR; rsync copies the directory `results` into the submit
@@ -236,6 +243,19 @@ while :; do
   # A trap ends `wait` early (status > 128) while job-nanny is still running -- wait again.
   kill -0 "$NANNY_PID" 2>/dev/null || break
 done
+
+# job-nanny's copies never delete, so a file the run deleted -- a finished GA search's
+# meeting01_ga_*_checkpoint.json / _cache.jsonl -- stays in ~/software/nn as the last periodic copy,
+# and a later RESUME=1 would "resume" that finished search from it (_job_nanny_reconcile.sh says
+# how, with job 5317827's 13 stale pairs). Remove those, against the listing start.sh wrote after
+# the run. An array task touches only its own fold's names: the other tasks share $RES.
+source scripts/pipeline/meeting01/_job_nanny_reconcile.sh
+if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+  job_nanny_reconcile results "$RES" "$SLURM_JOB_ID" \
+    "meeting01_loso_${DATASETS}_fold${FOLDS}_*" "meeting01_ga_meeting01_loso_${DATASETS}_fold${FOLDS}_*" || true
+else
+  job_nanny_reconcile results "$RES" "$SLURM_JOB_ID" || true
+fi
 
 if [[ "$STOPPED" == "1" ]]; then
   echo "[gridunesp] STOPPED before the run finished (time limit or scancel; run exit code $RC)." \

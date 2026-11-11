@@ -51,11 +51,11 @@ struct Meeting01Config
         std::string root;     // REQUIRED
         int window_size = 0;  // 0 → inherit Dataset::window_size
         int cv_num_folds = 0; // 0 → inherit Dataset::cv_num_folds
-        int sample_rate = 0;  // native rate to resample from (0 → loader default)
+        int sample_rate = 0;  // the rate windows are cut at; EEG files at another are converted
         int max_windows_per_recording = 0; // 0 → unlimited (FSDD); >0 caps long recordings
         // Per-fold stratified window caps (0 → inherit Dataset value; still 0 → unlimited).
-        // Applied after the LOSO split, round-robin across recordings, so every recording
-        // and speaker stays represented. Bounds per-epoch training cost (batch_size 1).
+        // Applied after the LOSO split, balanced by speaker, digit and recording
+        // (stratified_window_cap). Bounds per-epoch training cost (batch_size 1).
         int loso_max_train_windows = 0;
         int loso_max_val_windows = 0;
         int loso_max_test_windows = 0;

@@ -10,6 +10,7 @@ add_executable(util_gtest
     transforms_gtest.cpp
     progress_gtest.cpp
     bandpass_notch_filter_gtest.cpp
+    resample_gtest.cpp
 )
 target_link_libraries(util_gtest 
     PRIVATE 

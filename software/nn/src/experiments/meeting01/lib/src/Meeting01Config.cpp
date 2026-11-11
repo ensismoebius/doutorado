@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "../include/Meeting01EegBand.hpp"
+
 namespace meeting01
 {
 
@@ -91,6 +93,41 @@ void check_dataset(const Meeting01Config& config, std::ostringstream& errors)
     if (dataset.cv_num_folds < 2)
     {
         errors << "  - dataset.cv_num_folds must be >= 2 (got " << dataset.cv_num_folds << ")\n";
+    }
+}
+
+/// Every EEG dataset the profile runs must cut windows that hold more than its latent can carry
+/// (Meeting01EegBand.hpp says why, with the Siena numbers). Only the datasets in
+/// evaluation.datasets: a source listed but never run loads nothing.
+void check_eeg_windows(const Meeting01Config& config, std::ostringstream& errors)
+{
+    for (const auto& name : config.evaluation.datasets)
+    {
+        if (!is_eeg_dataset(name)) continue;
+        const auto src = config.dataset.resolve(name);
+        if (src.sample_rate <= 0)
+        {
+            errors << "  - dataset.sources[" << name
+                   << "].sample_rate must be set: it is the rate every EEG recording is "
+                      "converted to, so it fixes how long a window lasts\n";
+            continue;
+        }
+        const int latent = src.latent_dim > 0 ? src.latent_dim : config.model.latent_dim;
+        if (latent <= 0 || src.window_size <= 0)
+            continue; // derived latent / bad size: reported elsewhere
+        const double dof = eeg_window_degrees_of_freedom(src.window_size, src.sample_rate);
+        if (dof <= static_cast<double>(latent))
+        {
+            errors << "  - dataset.sources[" << name << "]: a " << src.window_size
+                   << "-sample window at " << src.sample_rate << " Hz, band-limited to "
+                   << kEegBandLowHz << "-" << kEegBandHighHz << " Hz, holds about " << dof
+                   << " independent values, not more than latent_dim " << latent
+                   << ", so the bottleneck can pass it whole (PCA reconstructs it exactly). "
+                      "Remedy: a lower sample_rate, which makes the window last longer (160 Hz "
+                      "gives 1.6 s and "
+                   << eeg_window_degrees_of_freedom(src.window_size, 160.0)
+                   << " values), or a smaller latent_dim\n";
+        }
     }
 }
 
@@ -464,6 +501,7 @@ void Meeting01Config::validate() const
 
     check_experiment(experiment, errors);
     check_dataset(*this, errors);
+    check_eeg_windows(*this, errors);
     check_training(*this, errors);
     check_model(model, errors);
     check_evaluation(evaluation, errors);

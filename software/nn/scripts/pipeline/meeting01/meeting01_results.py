@@ -16,7 +16,8 @@ Three questions every reader has to answer the same way:
 
 2. Was it written by a binary whose numbers can be compared with today's?
    Every fold's <run_tag>_<dataset>_fold<f>_split_manifest.json records "results_format"
-   (kResultsFormat in Meeting01Output.hpp). Readers accept exactly RESULTS_FORMAT.
+   (kResultsFormat in Meeting01Output.hpp). Readers accept exactly RESULTS_FORMAT, or a set
+   they declare they read identically (READS_WITHOUT_ANN_SHARE).
 
 3. Is a per-window file ONE run's rows, whole?
    One row per (model, seed, window). A second copy means two runs of the fold were mixed
@@ -61,7 +62,23 @@ from collections import defaultdict
 #: Format 9 seeds every training from its run seed: the LSTM/GRU/Transformer-AE weights and
 #: every family's window order (format 8 fixed both for the sequence families and the order
 #: for all), and the SNN GA's cost objective counts a repeated first layer once.
-RESULTS_FORMAT = 9
+#: Format 10 corrects the windows themselves, for every dataset: see _OLDER_FORMATS[9].
+#: Format 11 re-scores the GA's front on fresh seeds only and records the network's insides:
+#: see _OLDER_FORMATS[10].
+#: Format 12 fills the ann-ae rows' hidden_silent_share (NaN in 11): see _OLDER_FORMATS[11].
+#: Format 13 cuts Siena's windows at 160 Hz instead of 512: see _OLDER_FORMATS[12].
+#: Format 14 gives each (dataset, fold) its own GA gene draws and trains up to 60 epochs:
+#: see _OLDER_FORMATS[13].
+RESULTS_FORMAT = 14
+#: The formats a reader that never reads the ann-ae's hidden_silent_share may accept: 12 and 13
+#: changed nothing else outside Siena, 14 changed only the grid's search and epoch cap, so the format-11 pre-validation (job 5317827) stays readable
+#: by its report (00_) and by the scripts that take its winners (05_, 07_, 08_). A reader passes it
+#: as `accept`; every other reader, 02_ above all (it prints the control's share), accepts
+#: RESULTS_FORMAT alone. A Siena fold older than SIENA_WINDOWS_FROM is refused even through
+#: `accept` (check_results_format): those windows are the degenerate 512 Hz ones.
+READS_WITHOUT_ANN_SHARE = frozenset({11, 12, 13, 14})
+#: The first format whose Siena windows a latent of 64 cannot carry whole (_OLDER_FORMATS[12]).
+SIENA_WINDOWS_FROM = 13
 _OLDER_FORMATS = {
     2: "the LSTM/GRU/Transformer-AE frames were a strided gather (one window sample at "
        "alternate steps per frame) instead of consecutive samples of one step, and the "
@@ -85,6 +102,21 @@ _OLDER_FORMATS = {
     8: "the LSTM/GRU/Transformer-AE started every seed from the same weights and every family "
        "saw one window order whatever the seed, so its seeds sampled neither, and the SNN GA's "
        "cost objective charged a direct-coded first layer T times",
+    9: "the windows were wrong: FSDD and AudioMNIST carried the WAV header as 22 samples, caps "
+       "kept a sorted list's prefix (FSDD fold 0 trained on digits 0-4), the per-recording cap "
+       "kept each recording's start, and 36 EEGMMIDB files at 128 Hz were treated as 160 Hz",
+    10: "the GA's re-score averaged in the search's own score, the one that selected the "
+        "member, so val_mse stayed biased low and the pick could differ, and the rows carry no "
+        "hidden-rate shares, trained V_th and beta, or training error",
+    11: "the ann-ae rows carry no hidden_silent_share, so the control has no share row to set "
+        "beside the SNN-AE's",
+    12: "Siena's windows were cut at its native 512 Hz, so a 256-sample window lasted 0.5 s and "
+        "held ~39.5 independent values (0.5-40 Hz band) for a latent of 64: PCA k=64 "
+        "reconstructed them exactly (test MSE 0.0000 on fold 0) and every family was scored on "
+        "how close its optimizer got to zero",
+    13: "the GA drew its genomes from the run seed alone, so the searches of one seed shared "
+        "28-47 of ~46 candidates across the folds and datasets of a modality (grid 5321956), "
+        "and the 30-epoch cap stopped every ann-ae final fit on eegmmidb and Siena",
 }
 
 PW_HEADER = [
@@ -117,11 +149,13 @@ ENERGY_CHECKS = (("energy_nj_sram8k", "with every memory access priced at an 8 K
                  ("arith_energy_nj", "with arithmetic alone"),
                  ("energy_nj_as_executed",
                   "with the first layer of a direct-coded input recomputed at every time step, "
-                  "as the code runs it"))
+                  "as the code runs it"),
+                 ("energy_nj_half_mem", "with every memory price halved"))
 #: How the generated text says a comparison survived every check in ENERGY_CHECKS.
 ENERGY_CHECKS_HOLD = ("with every memory access priced at one SRAM size, 8 KB, 32 KB or 1 MB, "
-                      "with arithmetic alone, and with the first layer of a direct-coded input "
-                      "recomputed at every time step, as the code runs it")
+                      "with every memory price halved, with arithmetic alone, and with the first "
+                      "layer of a direct-coded input recomputed at every time step, as the code "
+                      "runs it")
 #: 03_ writes every reference row with seed 0: a reference is fitted once,
 #: deterministically, so it HAS no seed -- 0 marks that, it is not a seed value.
 REFERENCE_SEED = "0"
@@ -157,9 +191,19 @@ def fold_files(results_dir: pathlib.Path, run_tag: str, suffix_re: str) -> list:
     return found
 
 
-def check_results_format(manifest: dict, where: str) -> None:
+def check_results_format(manifest: dict, where: str, accept: frozenset | None = None) -> None:
+    """Refuses a fold of another format. `accept` widens RESULTS_FORMAT to formats whose rows
+    the caller reads identically (READS_WITHOUT_ANN_SHARE); it must contain RESULTS_FORMAT."""
+    if accept is not None and RESULTS_FORMAT not in accept:
+        raise ResultsError(f"check_results_format: accept={sorted(accept)} leaves out the current "
+                           f"format {RESULTS_FORMAT}; a reader must read what the binary writes.")
     got = manifest.get("results_format")
-    if got == RESULTS_FORMAT:
+    if (accept is not None and got != RESULTS_FORMAT and got in accept
+            and manifest.get("dataset") == "siena" and got < SIENA_WINDOWS_FROM):
+        raise ResultsError(
+            f"{where} is a Siena fold of results_format {got}: {_OLDER_FORMATS[12]}. No reader "
+            f"accepts Siena windows older than format {SIENA_WINDOWS_FROM}; {_RERUN}.")
+    if got == RESULTS_FORMAT or (accept is not None and got in accept):
         return
     if got is None:
         raise ResultsError(
@@ -180,8 +224,10 @@ def check_results_format(manifest: dict, where: str) -> None:
         "kResultsFormat in Meeting01Output.hpp).")
 
 
-def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int) -> dict:
-    """The fold's split manifest, checked to be this fold's and in RESULTS_FORMAT."""
+def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: int,
+                   accept: frozenset | None = None) -> dict:
+    """The fold's split manifest, checked to be this fold's and in RESULTS_FORMAT (or in
+    `accept`, see check_results_format)."""
     path = results_dir / f"{run_tag}_{dataset}_fold{fold}_split_manifest.json"
     if not path.exists():
         raise ResultsError(
@@ -193,7 +239,7 @@ def split_manifest(results_dir: pathlib.Path, run_tag: str, dataset: str, fold: 
         raise ResultsError(
             f"{path.name} says dataset={manifest.get('dataset')!r} "
             f"fold={manifest.get('cv_fold')!r}: it was renamed or copied from another fold.")
-    check_results_format(manifest, path.name)
+    check_results_format(manifest, path.name, accept)
     return manifest
 
 
@@ -270,10 +316,206 @@ DEVELOPMENT_FOLDS: dict[str, frozenset[int]] = {
     "eegmmidb": frozenset({0}),
 }
 
+#: Folds whose TEST block was the development fold's VALIDATION block (fold f validates on block
+#: f + 1), so the design study read those groups' errors. Leaving them in the headline would test
+#: on groups the design was tuned on; the review of 2026-11-04 sustained this (V005). They are out
+#: of the headline and back in the sensitivity analysis. Fold 5 only validates on the development
+#: test block, so it stays, and the paper says so. Kept apart from DEVELOPMENT_FOLDS because the
+#: pre-validation and T1 run on those, and must not start running here too.
+DESIGN_INFORMED_FOLDS: dict[str, frozenset[int]] = {
+    "fsdd": frozenset({1}),
+    "eegmmidb": frozenset({1}),
+}
+
+#: Half-width of the band inside which an SNN-AE minus ANN-AE error difference counts as "no
+#: quality to trade": 2% of the window's variance (windows are z-scored, so the no-model error is
+#: 1), a change treated as negligible; between 0.12 dB at an error of 0.71 and 0.46 dB at 0.18.
+#: It is a judgement about relevance, not a noise estimate. Proposed 2026-11-05 and confirmed by
+#: the paper's author on 2026-11-06, before any format-11 test number was read. With 4 FSDD speakers the interval fits only if their sd is below 0.0126,
+#: so there the rule will rarely fire and the paper reports the trade instead.
+EQUIVALENCE_MARGIN = 0.02
+
 
 def is_headline_fold(dataset: str, fold: int) -> bool:
-    """False for a development fold (DEVELOPMENT_FOLDS), True for every other fold."""
-    return fold not in DEVELOPMENT_FOLDS.get(dataset, frozenset())
+    """False for a fold left out of the headline numbers (DEVELOPMENT_FOLDS,
+    DESIGN_INFORMED_FOLDS), True for every other fold."""
+    return (fold not in DEVELOPMENT_FOLDS.get(dataset, frozenset())
+            and fold not in DESIGN_INFORMED_FOLDS.get(dataset, frozenset()))
+
+
+# ------------------------------------------------------------------- PCA's energy
+
+#: Meeting01Energy.hpp's prices, pJ. pca_energy_nj's self-test pins its total by hand.
+_PJ = {"fp_add": 0.9, "fp_mul": 3.7, "int_add": 0.1}
+_SRAM_POINTS = ((8.0 * 1024, 10.0), (32.0 * 1024, 20.0), (1024.0 * 1024, 100.0))
+_WORD_BYTES = 4.0
+
+
+def sram_access_pj(bytes_: float) -> float:
+    """sram_access_pj of Meeting01Energy.cpp: Horowitz's three points joined by straight lines,
+    10 pJ at or below 8 KB. Only sizes a PCA of these windows needs: 1 MB is refused."""
+    if bytes_ <= _SRAM_POINTS[0][0]:
+        return _SRAM_POINTS[0][1]
+    for (b0, p0), (b1, p1) in zip(_SRAM_POINTS, _SRAM_POINTS[1:]):
+        if bytes_ <= b1:
+            return p0 + (p1 - p0) * (bytes_ - b0) / (b1 - b0)
+    raise ResultsError(f"sram_access_pj: {bytes_} bytes is above 1 MB, outside this port.")
+
+
+def pca_energy_nj(window: int, k: int, sram_bytes: float | None = None) -> dict:
+    """{"total", "encoder", "arith", "ops", "mem"} in nJ per window of a PCA with k components priced by the
+    model of Meeting01Energy (add_dense_fc without the bias, which PCA has instead as its mean):
+    encode = subtract the mean (one add and one read of it per value), then the k x window
+    matrix product; decode = the same product transposed, then add the mean back. `sram_bytes`
+    prices every access at one memory size, as energy_nj_sram<size> does. The analog first layer
+    of a network pays the same reads, so PCA gets no favour the networks do not."""
+    if window < 1 or not 1 <= k <= window:
+        raise ResultsError(f"pca_energy_nj: need 1 <= k <= window, got k={k}, window={window}.")
+    weights = float(window * k)
+
+    def side(n_in: float, n_out: float) -> tuple[float, float, float]:
+        macs = n_in * n_out
+        ops = (macs * (_PJ["fp_add"] + _PJ["fp_mul"]) + window * _PJ["fp_add"]
+               + (n_in + n_out) * _PJ["int_add"])
+        def price(words: float) -> float:
+            return sram_access_pj(sram_bytes if sram_bytes else words * _WORD_BYTES)
+        mem = (n_in * price(n_in) + macs * price(weights) + n_out * price(n_out)
+               + window * price(float(window)))
+        arith = macs * (_PJ["fp_add"] + _PJ["fp_mul"])
+        return ops, mem, arith
+
+    enc, dec = side(float(window), float(k)), side(float(k), float(window))
+    return {"total": (sum(enc[:2]) + sum(dec[:2])) / 1000.0,
+            "encoder": sum(enc[:2]) / 1000.0,
+            "arith": (enc[2] + dec[2]) / 1000.0,
+            "ops": (enc[0] + dec[0]) / 1000.0,
+            "mem": (enc[1] + dec[1]) / 1000.0}
+
+
+# ------------------------------------------------- the first stage, for the break-even figure
+
+class _Ledger:
+    """Meeting01Energy.cpp's EnergyLedger, priced as total_nj(): every access at its own
+    memory's size. Only what first_stage_energy_nj needs."""
+
+    def __init__(self) -> None:
+        self.fp_macs = self.fp_adds = self.fp_muls = self.int_adds = self.int_muls = 0.0
+        self.mem_pj = 0.0
+
+    def access(self, n: float, words: float) -> None:
+        if n:
+            self.mem_pj += n * sram_access_pj(words * _WORD_BYTES)
+
+    def total_nj(self) -> float:
+        ops = (self.fp_macs * (_PJ["fp_mul"] + _PJ["fp_add"]) + self.fp_adds * _PJ["fp_add"]
+               + self.fp_muls * _PJ["fp_mul"] + self.int_adds * _PJ["int_add"]
+               + self.int_muls * _INT_MUL_PJ)
+        return (ops + self.mem_pj) / 1000.0
+
+
+#: kIntMulPj, the Poisson generator's LCG step.
+_INT_MUL_PJ = 3.1
+
+
+def _dense_fc(e: _Ledger, rows: float, n_in: float, n_out: float, writes_output: bool) -> None:
+    """add_dense_fc (add_matmul + the bias)."""
+    weight_words = (n_in + 1.0) * n_out
+    e.fp_macs += rows * n_in * n_out
+    e.int_adds += rows * (n_in + n_out)
+    e.access(rows * n_in, n_in)
+    e.access(rows * n_in * n_out, weight_words)
+    if writes_output:
+        e.access(rows * n_out, n_out)
+    e.fp_adds += rows * n_out
+    e.access(rows * n_out, weight_words)
+
+
+def _spiking_fc(e: _Ledger, spikes_in: float, rows: float, n_in: float, n_out: float) -> None:
+    """add_spiking_fc with writes_output = false (an LIF follows)."""
+    events = spikes_in * n_out
+    weight_words = (n_in + 1.0) * n_out
+    e.fp_adds += events + rows * n_out
+    e.int_adds += events
+    e.access(spikes_in, n_in)
+    e.access(events + rows * n_out, weight_words)
+    e.access(events + rows * n_out, n_out)  # potential reads
+    e.access(events + rows * n_out, n_out)  # potential writes
+
+
+def _lif(e: _Ledger, rows: float, n: float, spikes_out: float, dense_input: bool) -> None:
+    """add_lif, not a readout."""
+    e.fp_macs += rows * n
+    if dense_input:
+        e.access(rows * n, n)
+        e.access(rows * n, n)
+    e.fp_adds += rows * n + spikes_out
+    e.access(spikes_out, n)
+
+
+#: The first stages first_stage_energy_nj prices, each as the harness composes it
+#: (Meeting01Evaluation.cpp: encoder + input transform + the network's walk).
+FIRST_STAGES = ("ann", "poisson_dense", "direct_recurrent")
+
+
+def first_stage_energy_nj(stage: str, window: int, width: int, time_steps: int = 1,
+                          spikes_in: float = 0.0) -> float:
+    """nJ per window from the analog window to the first hidden code of `width` units, by the
+    model of Meeting01Energy (pinned against it: MemoryAwareEnergy.FirstStageOfTheBreakEvenFigure
+    in parameter_count_gtest.cpp, and 09_'s self-test, with the same numbers).
+
+        ann               Linear(window -> width) once, its output written, a leaky ReLU
+                          (comparison and multiply) per unit: the ANN-AE's first layer.
+        poisson_dense     the Poisson generator (a read, an LCG step and a comparison per
+                          (sample, step); `spikes_in` events written), Linear on spike input over
+                          `time_steps` rows, then the LIF on that layer's potentials.
+        direct_recurrent  the direct code (free) through the recurrent input transform (one LIF
+                          per sample, the analog window read at every step, `spikes_in` = its
+                          output spikes), then the same spike-fed Linear and LIF.
+
+    The first hidden LIF's own output spikes are NOT charged (spikes_out = 0): each would add a
+    reset and an event write, so a spike-fed stage is priced at its cheapest and a break-even
+    computed from this is an upper bound on the input spikes at which a spike saves energy."""
+    if stage not in FIRST_STAGES:
+        raise ResultsError(f"first_stage_energy_nj: unknown stage {stage!r}, expected {FIRST_STAGES}")
+    if window < 1 or width < 1 or time_steps < 1 or spikes_in < 0:
+        raise ResultsError(f"first_stage_energy_nj: window {window}, width {width}, "
+                           f"time_steps {time_steps}, spikes_in {spikes_in} is not a stage")
+    m, w, t = float(window), float(width), float(time_steps)
+    e = _Ledger()
+    if stage == "ann":
+        if time_steps != 1 or spikes_in:
+            raise ResultsError("first_stage_energy_nj: the ann stage runs once on the analog window")
+        _dense_fc(e, 1.0, m, w, True)
+        e.fp_adds += w
+        e.fp_muls += w
+        return e.total_nj()
+    if spikes_in > m * t:
+        raise ResultsError(f"first_stage_energy_nj: {spikes_in} spikes from {window} samples over "
+                           f"{time_steps} steps; at most one per sample and step")
+    if stage == "poisson_dense":
+        e.access(m * t, m)
+        e.int_muls += m * t
+        e.int_adds += m * t
+        e.fp_adds += m * t
+        e.access(spikes_in, m)  # event-driven: the dense layer reads events
+    else:
+        e.access(m * t, m)
+        _lif(e, t, m, spikes_in, dense_input=True)
+    _spiking_fc(e, spikes_in, t, m, w)
+    _lif(e, t, w, 0.0, dense_input=False)
+    return e.total_nj()
+
+
+def break_even_spikes(stage: str, window: int, width: int, time_steps: int) -> float:
+    """Input spikes per window at which the spike-fed `stage` costs what the ANN-AE's first
+    layer costs (first_stage_energy_nj is affine in spikes_in). Below it the spike stage is
+    cheaper. 0.0 when it is dearer even with no spike at all."""
+    ref = first_stage_energy_nj("ann", window, width)
+    a = first_stage_energy_nj(stage, window, width, time_steps, 0.0)
+    b = first_stage_energy_nj(stage, window, width, time_steps, 1.0) - a
+    if b <= 0:
+        raise ResultsError(f"break_even_spikes: a spike costs {b} nJ in {stage}; the model is broken")
+    return max(0.0, (ref - a) / b)
 
 
 # --------------------------------------------------------- the run's configuration

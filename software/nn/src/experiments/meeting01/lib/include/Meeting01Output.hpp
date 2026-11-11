@@ -69,7 +69,48 @@ namespace meeting01
 //           seed). The SNN GA's cost objective counts a repeated input's first layer once,
 //           as energy_nj does (format 8 charged it T times there), so the search changes.
 //           No production fold ran with format 8; T1 (results/meeting01_t1) did, locally.
-inline constexpr int kResultsFormat = 9;
+//   10      2026-11-04. The data changed, for every dataset. (1) Speech: Wav::read decoded the
+//           44 header bytes as 22 samples, so window 0 of every FSDD and AudioMNIST recording
+//           was mostly header and the last 22 real samples were lost; the networks could score
+//           by memorizing it (T1, FSDD: error 0.113 on window 0, 1.000 on the others in a
+//           replica). (2) stratified_window_cap walked the sorted recordings and stopped at the
+//           cap (FSDD fold 0 trained on digits 0-4); it now balances speaker, digit, recording.
+//           (3) max_windows_per_recording kept each recording's first windows; it now draws
+//           across the recording. (4) The 36 EEGMMIDB files at 128 Hz were filtered and windowed
+//           as 160 Hz; each file is now filtered at its own rate and converted to the dataset's.
+//           Blocks are still assigned on all 109 subjects, so no subject moved fold. GA
+//           checkpoints are also stamped with the windows (checkpoint_hash). The split manifest
+//           records each part's composition. No production fold ran with format 9; the
+//           pre-validation job 5316016 and T1 did.
+//   11      2026-11-05. The GA's re-score of the Pareto front uses winner_seeds fresh seeds
+//           (format 10 averaged in the search's own score, which is the one that selected the
+//           member, so the reported val_mse stayed biased low and the pick could change).
+//           Rows gain energy_nj_encoder, hidden_silent_share, hidden_always_share,
+//           lif_v_th_mean, lif_v_th_min, lif_beta_mean and train_mse (RunMetrics). Windows and
+//           training are unchanged. No production fold ran with format 10; the stopping calibration
+//           did.
+//   12      2026-11-09. ann-ae rows carry hidden_silent_share: the share of (encoder leaky-ReLU
+//           unit, window) pairs with output <= 0.01 (count_ann_hidden), the control row the round-4
+//           review asked for (R3); format 11 left it NaN. hidden_always_share stays NaN for the
+//           ann-ae (a leaky ReLU has no upper end). Nothing else changed: readers that do not read
+//           the control's share accept 11 too (READS_WITHOUT_ANN_SHARE in meeting01_results.py).
+//           No production fold ran with format 11; the pre-validation job 5317827 did.
+//   13      2026-11-10. Siena's windows are cut at 160 Hz (profile sample_rate), not its native
+//           512: each file is still band-passed 0.5-40 Hz at 512 Hz, then converted, so a
+//           256-sample window lasts 1.6 s, as in eegmmidb. At 512 Hz it lasted 0.5 s and held ~39.5
+//           independent values for a latent of 64, so PCA k=64 reconstructed fold 0's test windows
+//           exactly (MSE 0.0000; Meeting01EegBand.hpp). Meeting01Config::validate() now refuses an
+//           EEG window that holds no more than its latent. FSDD, AudioMNIST and eegmmidb are
+//           unchanged: readers that read only those (READS_WITHOUT_ANN_SHARE) accept 11 and 12 too.
+//           No production fold ran with format 12; the smoke jobs 5321563/5321565 did.
+//   14      2026-11-11. (1) The GA draws its genomes from search_stream_seed(run seed,
+//           "<dataset>_fold<k>"), not from the run seed alone: in grid 5321956 (format 13) the
+//           searches of one seed shared 28-47 of ~46 candidates across the folds and datasets of
+//           a modality. Trainings keep the run seed. (2) training.epochs 30 -> 60 in the grid
+//           profile: at 30 every ann-ae final fit on eegmmidb and Siena (60 of 60) and 45 of 60
+//           SNN-AE ones ran to the cap; in the budget test no training reached 60. Windows and
+//           rows are unchanged. Grid 5321956 ran with format 13 and is superseded.
+inline constexpr int kResultsFormat = 14;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

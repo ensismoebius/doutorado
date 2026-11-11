@@ -38,17 +38,20 @@ class EegWindowDataset
     // non-overlapping windows of window_size.
     //
     // notch_hz is the recording site's mains frequency (50 Hz for Siena/Italy, 60 Hz for
-    // eegmmidb/US) -- pass <= 0 to disable the notch. sampling_rate must be the EDF's real
-    // native rate (Siena 512 Hz, eegmmidb 160 Hz); it is NOT read from the EDF header itself
-    // (the header's own per-signal rate isn't parsed by this loader), so a wrong value here
-    // silently mis-targets the filter's cutoffs without any way for this constructor to catch
-    // it -- verify against Meeting01Config::DatasetSource::sample_rate for the dataset in use.
+    // eegmmidb/US) -- pass <= 0 to disable the notch.
     //
-    // Throws std::invalid_argument if window_size <= 0 or if sampling_rate/notch_hz don't form
-    // a valid filter configuration (see nn::utility::bandpass_notch).
-    // Throws std::runtime_error if no .edf files are found, a header fails to
-    // parse (including a header-size self-check against the parsed field
-    // widths), or a signal's digital_max == digital_min (division by zero).
+    // sampling_rate is the rate every recording ends up at, so that a window lasts one duration
+    // and a frequency means one thing across the dataset. Each file's own rate comes from its
+    // header (samples per data record / record duration): the filter runs at that rate, and a
+    // file at another one is converted afterwards (nn::utility::resample_bandlimited). This is
+    // not a formality: 36 of eegmmidb's 1526 files (S088, S092, S100) are at 128 Hz. Until
+    // 2026-11-04 the profile's rate was assumed for every file, so their 40 Hz edge fell at
+    // 32 Hz, their 60 Hz notch at 48 Hz and their windows lasted 2.0 s, with no error. Throws
+    // std::invalid_argument when window_size <= 0, or when sampling_rate cannot hold the band or
+    // sampling_rate/notch_hz form no valid filter (see nn::utility::bandpass_notch), and
+    // std::runtime_error when no .edf file is found, a header fails to parse (including its
+    // size self-check, or a non-positive record duration) or a signal's digital_max ==
+    // digital_min.
     EegWindowDataset(const std::filesystem::path& dataset_root,
         int window_size,
         double sampling_rate,
@@ -70,9 +73,15 @@ class EegWindowDataset
     {
         return windows_.size();
     }
+    // How many recordings arrived at another rate and were converted to sampling_rate.
+    [[nodiscard]] auto resampled_recordings() const -> int
+    {
+        return resampled_recordings_;
+    }
 
    private:
     std::vector<nn::Tensor> windows_;
+    int resampled_recordings_ = 0;
     std::vector<int> labels_;
     std::vector<WindowMetadata> metadata_;
 };

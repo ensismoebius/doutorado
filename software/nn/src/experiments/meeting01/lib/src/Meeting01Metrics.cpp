@@ -1,6 +1,7 @@
 #include "../include/Meeting01Metrics.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -218,6 +219,25 @@ auto count_sequential_ops(const nn::Sequential& seq,
                 ops.neuron_steps += out_values;
                 ops.spikes += static_cast<double>(out.sum());
                 out_is_spikes = true;
+
+                const nn::Index steps = lif->time_steps;
+                if (steps < 1 || out.rows() % steps != 0)
+                    throw std::logic_error(
+                        "count_snn_ops: layer " + std::to_string(i) + " (LifBPTT) has " +
+                        std::to_string(out.rows()) +
+                        " output rows for time_steps = " + std::to_string(lif->time_steps) +
+                        ". Check the model's T against the window's.");
+                const nn::Index samples = out.rows() / steps;
+                for (nn::Index s = 0; s < samples; ++s)
+                    for (nn::Index f = 0; f < out.cols(); ++f)
+                    {
+                        double fired = 0.0;
+                        for (nn::Index t = 0; t < steps; ++t) fired += out.at(t * samples + s, f);
+                        const double rate = fired / static_cast<double>(steps);
+                        ops.neuron_windows += 1.0;
+                        if (rate <= kSilentRate) ops.silent_neuron_windows += 1.0;
+                        if (rate >= kAlwaysRate) ops.always_neuron_windows += 1.0;
+                    }
             }
         }
         else if (dynamic_cast<const nn::TimeMeanPool*>(layer) != nullptr)
@@ -232,6 +252,77 @@ auto count_sequential_ops(const nn::Sequential& seq,
 }
 
 } // namespace
+
+auto count_ann_hidden(const nn::models::autoencoder::ProtocolAutoencoder& model) -> AnnHiddenCounts
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "count_ann_hidden: the dual-branch ProtocolAutoencoder is not counted (meeting01 never "
+            "builds it). Extend count_ann_hidden over its encoders before using it.");
+    const nn::Sequential& seq = model.encoder_;
+    if (seq.outputs.size() != seq.layers.size())
+        throw std::logic_error("count_ann_hidden: the encoder cached " +
+                               std::to_string(seq.outputs.size()) + " outputs for " +
+                               std::to_string(seq.layers.size()) +
+                               " layers. Call it right after model.forward() on the window whose "
+                               "hidden units it should count.");
+    AnnHiddenCounts out;
+    for (std::size_t i = 0; i < seq.layers.size(); ++i)
+    {
+        if (dynamic_cast<const nn::LeakyReLU*>(seq.layers[i].get()) == nullptr) continue;
+        const Tensor& o = seq.outputs[i];
+        if (o.rows() != 1)
+            throw std::logic_error(
+                "count_ann_hidden: encoder layer " + std::to_string(i) + " (LeakyReLU) holds " +
+                std::to_string(o.rows()) +
+                " rows; the ann-ae reads one window as one frame (lstm_frame_size = window_size, "
+                "T = 1), so one forward pass must be one window. Forward one window at a time, or "
+                "extend the count to frames.");
+        for (nn::Index k = 0; k < o.size(); ++k)
+        {
+            out.unit_windows += 1.0;
+            if (o.at(k) <= kSilentRate) out.silent_unit_windows += 1.0;
+        }
+    }
+    if (out.unit_windows == 0.0)
+        throw std::logic_error(
+            "count_ann_hidden: the encoder has no LeakyReLU layer, so there is no hidden unit to "
+            "count. The ann-ae control has one per hidden width (make_ann_twin_cfg); a different "
+            "network needs its own definition of a silent unit.");
+    return out;
+}
+
+auto summarize_lif_parameters(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model)
+    -> LifParameterSummary
+{
+    if (model.use_dual_branch_)
+        throw std::logic_error(
+            "summarize_lif_parameters: the dual-branch ProtocolSpikingAutoencoder is not walked "
+            "(meeting01 never builds it). Extend it over its six Sequentials before using it.");
+    constexpr float kMinPositiveParam = 1e-6F; // LifBPTTImpl::forward's clamp
+    LifParameterSummary out;
+    double v_th_sum = 0.0;
+    double beta_sum = 0.0;
+    for (const nn::Sequential* seq : {&model.encoder_, &model.decoder_})
+        for (const auto& layer : seq->layers)
+        {
+            const auto* lif = dynamic_cast<const nn::LifBPTT*>(layer.get());
+            if (lif == nullptr || lif->readout_mode) continue;
+            const float v_th = lif->voltage_threshold.at(0, 0);
+            const float tau = std::max(kMinPositiveParam, lif->resistance.at(0, 0)) *
+                              std::max(kMinPositiveParam, lif->capacitance.at(0, 0));
+            v_th_sum += v_th;
+            beta_sum += std::exp(-lif->delta_t / tau);
+            out.v_th_min = out.layers == 0 ? v_th : std::min(out.v_th_min, v_th);
+            ++out.layers;
+        }
+    if (out.layers > 0)
+    {
+        out.v_th_mean = static_cast<float>(v_th_sum / out.layers);
+        out.beta_mean = static_cast<float>(beta_sum / out.layers);
+    }
+    return out;
+}
 
 auto count_snn_ops(const nn::models::autoencoder::ProtocolSpikingAutoencoder& model,
     const Tensor& input,

@@ -1,0 +1,15 @@
+% SNN-AE minus ANN-AE per held-out group, with the mean and its 95% t interval. Reads
+% data/paper_loso_forest_{groups,means}.csv (04_meeting01_significance_tests.py).
+\begin{tikzpicture}[font=\scriptsize]
+  \begin{axis}[width=0.95\columnwidth, height=3.4cm,
+      xlabel={$d_g$ = SNN-AE $-$ ANN-AE (test MSE)},
+      ytick={0,1,2,3}, yticklabels={Siena,EEGMMIDB,AudioMNIST,FSDD},
+      ymin=-0.6, ymax=3.6, xmajorgrids]
+    \fill[gray!20] (axis cs:-\cfgMargin,-0.6) rectangle (axis cs:\cfgMargin,3.6);
+    \addplot[only marks, mark=*, mark size=0.7pt, gray] table[x=d, y=y, col sep=comma]
+      {data/paper_loso_forest_groups.csv};
+    \addplot[only marks, mark=|, mark size=3pt, thick, red!75!black,
+      error bars/.cd, x dir=both, x explicit] table[x=mean, y=row, x error plus=plus,
+      x error minus=minus, col sep=comma] {data/paper_loso_forest_means.csv};
+  \end{axis}
+\end{tikzpicture}

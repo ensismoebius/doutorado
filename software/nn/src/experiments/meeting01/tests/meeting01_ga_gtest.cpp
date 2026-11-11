@@ -7,12 +7,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <random>
 #include <set>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 #include "Meeting01Config.hpp"
 #include "Meeting01GaCheckpoint.hpp"
@@ -516,6 +519,87 @@ meeting01::ga::Meeting01GaIndividual make_ind(double mse, double cost, bool feas
     return ind;
 }
 } // namespace
+
+namespace rescore
+{
+// Scores a member with its seed, so the mean shows exactly which seeds were averaged.
+struct Ind
+{
+    int genome = 0;
+    float val_mse = 0.0f;
+    std::vector<double> objectives;
+};
+void evaluate_individual(Ind& ind,
+    const meeting01::Meeting01Config&,
+    const meeting01::DatasetSplit&,
+    std::uint32_t seed,
+    int,
+    int)
+{
+    ind.val_mse = static_cast<float>(seed);
+}
+} // namespace rescore
+
+TEST(Meeting01GaSearch, RescoreAveragesFreshSeedsOnlyNeverTheSearchScore)
+{
+    const meeting01::Meeting01Config cfg;
+    const meeting01::DatasetSplit split;
+    constexpr float kLuckySearchScore = -1000.0f; // would pull a mean that included it far down
+    std::vector<rescore::Ind> front{{1, kLuckySearchScore, {kLuckySearchScore, 5.0}}};
+    std::vector<std::uint32_t> seeds;
+    const std::function<void(const rescore::Ind&)> on_eval = [&](const rescore::Ind& probe)
+    { seeds.push_back(static_cast<std::uint32_t>(probe.val_mse)); };
+
+    meeting01::ga::detail::rescore_front(front, cfg, split, 100u, 3, on_eval);
+
+    EXPECT_EQ(
+        seeds, (std::vector<std::uint32_t>{100u + 7919u, 100u + 2u * 7919u, 100u + 3u * 7919u}))
+        << "three trainings, none on the search's seed";
+    EXPECT_FLOAT_EQ(front[0].val_mse, 100.0f + 2.0f * 7919.0f);
+    EXPECT_FLOAT_EQ(static_cast<float>(front[0].objectives[0]), front[0].val_mse);
+}
+
+// Grid 5321956 seeded the gene draws with the run seed alone: the searches of seed 42 on
+// FSDD fold 0 and AudioMNIST fold 2 evaluated the same 47 genomes. Each (dataset, fold) now
+// draws its own population; the same stream reproduces it, and an unnamed stream is refused.
+TEST(Meeting01GaSearch, EachFoldDrawsItsOwnPopulation)
+{
+    const auto bounds = make_bounds();
+    const auto population = [&](std::uint32_t seed, const std::string& stream)
+    {
+        std::mt19937 rng(meeting01::ga::search_stream_seed(seed, stream));
+        std::vector<std::string> keys;
+        for (int i = 0; i < 8; ++i)
+            keys.push_back(meeting01::ga::genome_key(meeting01::ga::random_genome(rng, bounds)));
+        return keys;
+    };
+    const auto fsdd0 = population(42u, "fsdd_fold0");
+    EXPECT_EQ(fsdd0, population(42u, "fsdd_fold0"));
+    for (const auto& [seed, stream] : std::vector<std::pair<std::uint32_t, std::string>>{
+             {42u, "fsdd_fold1"}, {42u, "audiomnist_fold0"}, {43u, "fsdd_fold0"}})
+    {
+        const auto other = population(seed, stream);
+        int shared = 0;
+        for (const auto& k : other)
+            shared += static_cast<int>(std::count(fsdd0.begin(), fsdd0.end(), k));
+        EXPECT_EQ(shared, 0) << seed << " " << stream << " repeats fsdd_fold0's genomes";
+    }
+    // Pinned: a change of the derivation would silently change every search.
+    EXPECT_EQ(meeting01::ga::search_stream_seed(42u, "fsdd_fold0"), 318140021u);
+    EXPECT_THROW(meeting01::ga::search_stream_seed(42u, ""), std::invalid_argument);
+}
+
+TEST(Meeting01GaSearch, OneWinnerSeedLeavesTheFrontAsItIs)
+{
+    const meeting01::Meeting01Config cfg;
+    const meeting01::DatasetSplit split;
+    std::vector<rescore::Ind> front{{1, 0.5f, {0.5, 5.0}}};
+    int calls = 0;
+    const std::function<void(const rescore::Ind&)> on_eval = [&](const rescore::Ind&) { ++calls; };
+    meeting01::ga::detail::rescore_front(front, cfg, split, 100u, 1, on_eval);
+    EXPECT_EQ(calls, 0);
+    EXPECT_FLOAT_EQ(front[0].val_mse, 0.5f);
+}
 
 TEST(Meeting01GaSearch, PickWinnerTakesLowestMseThenLowestCost)
 {

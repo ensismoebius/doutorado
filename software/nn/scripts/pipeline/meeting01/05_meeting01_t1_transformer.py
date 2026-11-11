@@ -2,8 +2,9 @@
 """05_meeting01_t1_transformer.py -- T1: does warm-up or pre-norm get the Transformer-AE off the
 mean-predictor plateau?
 
-Why it exists. In the pre-validation (GridUnesp job 5315335) the Transformer-AE never left the
-plateau of the mean predictor in 55 trainings. Xiong et al. (ICML 2020) give an explanation that
+Why it exists. In the results_format 7 pre-validation (GridUnesp job 5315335) the Transformer-AE
+never left the plateau of the mean predictor in 55 trainings; in the results_format 11 one (job
+5317827) 5 of 57 did, all on EEGMMIDB (FSDD: 0 of 30). Xiong et al. (ICML 2020) give an explanation that
 is not "the architecture cannot do it": a post-norm Transformer at a fixed Adam rate needs a
 learning-rate warm-up, and a pre-norm one does not. The paper removes the Transformer-AE from the
 grid, so it must test that explanation before leaning on the removal. This script is that test.
@@ -16,7 +17,7 @@ Design, fixed before the first run (src/experiments/meeting01/questionsAndTasks.
                       epochs at 1000 steps/epoch), then 1e-3
     C    pre-norm     Adam 1e-3 constant                     model.transformer_norm_first = true
 
-    configurations  the two Transformer-AE winners of job 5315335 on each development fold
+    configurations  the two Transformer-AE winners of job 5317827 on each development fold
                     (WINNERS below), every other setting the pre-validation profile's
     seeds           the profile's (42, 43); since results_format 9 a seed reaches the weights and
                     the window order, so each process trains 4 distinct networks (a GA evaluation
@@ -60,17 +61,21 @@ if _SCRIPT_DIR not in sys.path:
 from meeting01_results import (  # noqa: E402
     DATASET_SHORT,
     DEVELOPMENT_FOLDS,
+    READS_WITHOUT_ANN_SHARE,
     ResultsError,
     split_manifest,
 )
 
-#: The Transformer-AE winners of GridUnesp job 5315335 (results_format 7, code fd4ed177), one per
-#: seed and development fold: (config label, genome, the seed whose search picked it). Typed here,
-#: not read, because T1 tests THOSE networks and the job's files are not kept in the tree.
+#: The Transformer-AE winners of GridUnesp job 5317827 (results_format 11, code 3dd32028), one per
+#: seed and development fold: (config label, genome, the seed whose search picked it), copied from
+#: results/meeting01_prevalidation/transformer-ae/*_model_selection_manifest.json ("selected").
+#: Typed here, not read, because T1 tests THOSE networks and the job's files are not kept in the
+#: tree. (The results_format 7 winners of job 5315335 were tested before format 11 existed; only
+#: eegmmidb c2 is the same genome in both.)
 WINNERS = {
-    "fsdd": [("c1", {"d_model": 27, "d_ff": 135, "n_heads": 1, "n_layers": 1}, 42),
-             ("c2", {"d_model": 24, "d_ff": 101, "n_heads": 4, "n_layers": 3}, 43)],
-    "eegmmidb": [("c1", {"d_model": 96, "d_ff": 135, "n_heads": 8, "n_layers": 1}, 42),
+    "fsdd": [("c1", {"d_model": 27, "d_ff": 73, "n_heads": 1, "n_layers": 1}, 42),
+             ("c2", {"d_model": 24, "d_ff": 42, "n_heads": 8, "n_layers": 3}, 43)],
+    "eegmmidb": [("c1", {"d_model": 102, "d_ff": 191, "n_heads": 2, "n_layers": 1}, 42),
                  ("c2", {"d_model": 79, "d_ff": 105, "n_heads": 1, "n_layers": 1}, 43)],
 }
 WARMUP_STEPS = 4000
@@ -107,7 +112,7 @@ def build_profiles(base: dict) -> list[tuple[str, str, int, dict]]:
                 p["_comment"] = (
                     f"T1 (05_meeting01_t1_transformer.py), arm {arm} ({arm_label}), {ds} fold "
                     f"{folds[0]}, config {cfg_label} = {json.dumps(genome)}: the Transformer-AE "
-                    f"winner of GridUnesp job 5315335 for seed {picked_by}. The pre-validation "
+                    f"winner of GridUnesp job 5317827 for seed {picked_by}. The pre-validation "
                     "profile with the NSGA-II pinned to this genome (population 1, 0 generations, "
                     "winner_seeds 1), one dataset, the direct code, the arm's switch.")
                 p["experiment"]["run_tag"] = name
@@ -174,7 +179,8 @@ def collect(out_root: pathlib.Path) -> list[dict]:
                 if proc.get("exit") != 0:
                     raise ResultsError(f"{name} exited {proc.get('exit')}: see {out_root}/{name}.log")
                 d = out_root / f"{ds}_{cfg_label}_{arm}"
-                split_manifest(d, name, ds, fold)  # checks the fold's results_format
+                # checks the fold's results_format; 11 or 12 (T1 never reads the ann-ae's share)
+                split_manifest(d, name, ds, fold, accept=READS_WITHOUT_ANN_SHARE)
                 events = [json.loads(line) for line in (d / f"{name}_{ds}_fold{fold}_events.jsonl")
                           .read_text(encoding="utf-8").splitlines() if line.strip()]
                 ends = [e for e in events if e.get("type") == "train_end"]
@@ -254,6 +260,48 @@ def write_macros(rows: list[dict] | None, data_dir: pathlib.Path) -> None:
     lines += [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "paper_t1.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (data_dir / "paper_t1_figure.tex").write_text(strip_figure(rows) if rows else (
+        "% auto-generated by 05_meeting01_t1_transformer.py -- do not edit\n"
+        "\\fbox{\\parbox[c][2.5cm][c]{0.9\\columnwidth}{\\centering [T1 strip: run "
+        "05\\_meeting01\\_t1\\_transformer.py --report]}}\n"), encoding="utf-8")
+
+
+def strip_figure(rows: list[dict]) -> str:
+    """The T1 strip (review F5): every final fit's test MSE per arm and dataset, filled when its
+    training left the plateau (armed), against the mean predictor's test MSE and 10% below it."""
+    order = ("A", "B", "C")  # control, warm-up, pre-norm; drawn top to bottom
+    lines = ["% auto-generated by 05_meeting01_t1_transformer.py -- do not edit",
+             "\\begin{tikzpicture}[font=\\scriptsize]",
+             f"\\begin{{groupplot}}[group style={{group size=1 by {len(WINNERS)}, vertical sep=1.5cm}},"
+             " width=0.95\\columnwidth, height=2.6cm, ymin=-0.6, ymax=2.6, ytick={0,1,2},"
+             " yticklabels={" + ",".join("{" + ARMS[a][0] + "}" for a in reversed(order)) + "},"
+             " xmajorgrids]"]
+    for k, ds in enumerate(WINNERS):
+        r = [x for x in rows if x["dataset"] == ds and x["training"] == "final"]
+        if not r:
+            raise ResultsError(f"no T1 final fits for {ds}")
+        l0 = float(np.mean([x["mean_predictor_test_mse"] for x in r]))
+        lo = min(min(x["test_mse"] for x in r), 0.9 * l0)
+        opts = (f"title={{{DATASET_SHORT.get(ds, ds)} fold {sorted(DEVELOPMENT_FOLDS[ds])[0]}}},"
+                f" xmin={lo - 0.01:.3f}, xmax={l0 + 0.01:.3f}")
+        if k == len(WINNERS) - 1:
+            opts += ", xlabel={test MSE of the final fits (filled: left the plateau)}"
+        lines.append(f"\\nextgroupplot[{opts}]")
+        for filled in (False, True):
+            pts = []
+            for x in r:
+                if (x["armed_epoch"] > 0) != filled:
+                    continue
+                y = 2 - order.index(x["arm"])
+                pts.append(f"({x['test_mse']:.4f},{y})")
+            if pts:
+                mark = "*" if filled else "o"
+                lines.append(f"\\addplot[only marks, mark={mark}, mark size=1.5pt, orange!85!black] "
+                             f"coordinates {{{' '.join(pts)}}};")
+        lines.append(f"\\draw[black] (axis cs:{l0:.4f},-0.6) -- (axis cs:{l0:.4f},2.6);")
+        lines.append(f"\\draw[densely dashed, black] (axis cs:{0.9 * l0:.4f},-0.6) -- (axis cs:{0.9 * l0:.4f},2.6);")
+    lines += ["\\end{groupplot}", "\\end{tikzpicture}"]
+    return "\n".join(lines) + "\n"
 
 
 def report(out_root: pathlib.Path, data_dir: pathlib.Path) -> list[dict]:

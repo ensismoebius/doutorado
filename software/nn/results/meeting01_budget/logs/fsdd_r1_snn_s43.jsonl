@@ -1,0 +1,15 @@
+{"type": "start", "name": "fsdd_r1_snn_s43", "trivial_loss": 1.0013324600413032, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8962006631493569, "monitor": 0.7793228030204773, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7450069266334176, "monitor": 0.7071418166160583, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6969582835361362, "monitor": 0.6940136551856995, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6717626362144947, "monitor": 0.6742275357246399, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6565443310327828, "monitor": 0.6662222146987915, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6444726651981473, "monitor": 0.6728730797767639, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6373366023004055, "monitor": 0.6620408296585083, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6316647019200027, "monitor": 0.661990225315094, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6245431787669659, "monitor": 0.6631649732589722, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6195714845843613, "monitor": 0.6697975397109985, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 11, "train_loss": 0.6149711011983454, "monitor": 0.6633322238922119, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 12, "train_loss": 0.6109833365194499, "monitor": 0.672340989112854, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 13, "train_loss": 0.6049022839926184, "monitor": 0.6657520532608032, "armed": true, "best_epoch": 8}
+{"type": "end", "rows": [{"name": "fsdd_r1_snn_s43", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 43, "budget": "e30", "best_epoch": 8, "armed_epoch": 1, "epochs_run": 13, "stop_reason": "patience", "test_mse": 0.8010474443435669, "val_mse": 0.661990225315094, "train_mse": 0.6105859279632568, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 193.09617567062378}, {"name": "fsdd_r1_snn_s43", "part": "E", "dataset": "fsdd", "run": 1, "family": "snn", "widths": "59x16", "encoding": "direct", "time_steps": 28, "seed": 43, "budget": "e60", "best_epoch": 8, "armed_epoch": 1, "epochs_run": 13, "stop_reason": "patience", "test_mse": 0.8010474443435669, "val_mse": 0.661990225315094, "train_mse": 0.6105859279632568, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 193.21807503700256}]}

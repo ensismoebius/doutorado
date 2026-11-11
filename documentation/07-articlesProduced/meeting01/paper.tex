@@ -5,7 +5,10 @@
 % software/nn/scripts/pipeline/meeting01/02_ and 04_ (placeholders before the grid run);
 % the pre-validation's (Section sec:prevalidation) from data/paper_prevalidation*.tex,
 % written by 00_meeting01_prevalidation_report.py, and its warm-up / pre-norm test from
-% data/paper_t1.tex, written by 05_meeting01_t1_transformer.py.
+% data/paper_t1.tex, written by 05_meeting01_t1_transformer.py; the design study's table and
+% macros (its prose's numbers too) from data/paper_design*.tex, written by
+% 07_meeting01_design_study.py, and its budget paragraph's from data/paper_budget.tex, written by
+% 08_meeting01_budget_test.py. Both refuse to write when a claim their sentences make stops holding.
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{microtype}
@@ -23,14 +26,17 @@
 \input{data/paper_config.tex}
 \input{data/paper_prevalidation_config.tex}
 \input{data/paper_t1.tex}
+\input{data/paper_design_stats.tex}
+\input{data/paper_budget.tex}
 \input{data/paper_loso_energy_verdict.tex}
+\input{data/paper_breakeven.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
 \newif\ifplaceholder
 \ifx\curStatus\phStatus\placeholdertrue\fi
 
-\title{What Does Spiking Cost an Autoencoder? A Leakage-Controlled Comparison
-with a Matched Non-Spiking Control on Speech and EEG}
+\title{What Does Spiking Cost an Autoencoder? A Group-Disjoint Comparison
+with a Non-Spiking Control on Speech and EEG}
 
 \author{André Furlan\\Instituto de Biociências, Letras e Ciências Exatas -- UNESP\\
 andre.furlan@unesp.br}
@@ -40,84 +46,85 @@ andre.furlan@unesp.br}
 \sloppy
 
 \begin{abstract}
-Spiking autoencoders are usually compared with non-spiking networks that differ from them in
-more than the neuron, and mostly on images. We ask how much reconstruction quality the spike
-costs, and what it returns in energy, for short speech and single-channel EEG windows.
-The spiking autoencoder (SNN-AE) is compared with a matched control (ANN-AE) that copies its
-selected widths, initializer and training and replaces only the leaky integrate-and-fire
-neuron by a leaky ReLU, and with PCA. The SNN-AE selects its architecture, the number of
-simulation steps, the initial threshold and decay, the spike encoding and an input transform
-by multi-objective search inside nested leave-one-group-out cross-validation on four datasets,
-and differences are tested at the recording level. The target is a low-power device, so
-energy is the cost we put first: it is estimated per window with a published analytical model
-that counts memory accesses and address arithmetic as well as operations, at published 45\,nm
-prices, and every energy comparison is repeated under each of three memory sizes, with
-arithmetic alone, and with a direct-coded input's first layer recomputed at every step.
-Searched LSTM, GRU and Transformer autoencoders,
-which differ from the SNN-AE in more than the neuron, were measured once, under one reduced
-search budget on development folds, for their training and inference cost and their quality,
-and left out of the main comparison. A design study on a development fold, excluded from
-the headline numbers, shows that two avoidable choices -- scoring every simulation step and a
-spiking decoder -- enlarged the gap, that the initializer decided the EEG comparison (with
-fan-in scaling in both arms the control was handicapped and the gap vanished), and that what
-remains is reproduced by a non-spiking network with a hard-clipped activation: the cost is
-the saturation of the neuron's transfer function, not the spike.
+Spiking autoencoders have been compared with non-spiking networks of matching size mostly on
+images. We ask how much reconstruction quality a selected spiking pipeline costs, and what it
+returns in energy, for short speech and single-channel EEG windows.
+The spiking autoencoder (SNN-AE) is compared with PCA and with a control (ANN-AE) that copies
+its selected widths, initializer and training, replaces the leaky integrate-and-fire neuron by
+a leaky ReLU, and reads the analog window once, without a spike code, input transform or time
+axis. The SNN-AE selects its architecture, the number of simulation steps, the initial
+threshold and decay, the spike encoding and an input transform by multi-objective search inside
+nested group-disjoint \cfgFolds-fold cross-validation on four datasets, and differences are
+tested across held-out speakers and subjects. The target is a low-power device, so energy is
+estimated per window with an analytical model after Lemaire et al.\ that counts memory accesses
+and address arithmetic as well as operations, at published 45\,nm prices, for the whole model
+and for its encoder alone. Every energy comparison is repeated under three memory sizes, at half
+the memory price, with arithmetic alone, and with a direct-coded input's first layer recomputed
+at every step.
+Searched LSTM, GRU and Transformer autoencoders, which differ from the SNN-AE in more than the
+neuron, are reported under one reduced search budget on development folds, for their training
+and inference cost and their quality, and left out of the main comparison. A design study on those folds examines three choices the adopted design inherited: the
+loss, the decoder and the initializer. Those folds, and the fold that tests on their validation
+groups, are kept out of the headline numbers.
 % TODO(after the grid run): one sentence with the headline SNN-AE vs ANN-AE result per modality.
+% Fixed 2026-11-09, before any headline number (framing A): if PCA errs less than both
+% autoencoders on a modality's headline folds, the abstract says so first, then the gap.
 \end{abstract}
 
 \begin{IEEEkeywords}
-spiking neural networks, autoencoder, matched control, energy estimate, nested
+spiking neural networks, autoencoder, non-spiking control, energy estimate, nested
 cross-validation, speech, EEG
 \end{IEEEkeywords}
 
 % ─────────────────────────────────────────────────────────────
 \section{Introduction}
 
-\par Spiking neural networks (SNNs) communicate with binary events, so a synapse whose input
-did not spike does no work, and a synapse whose input did spike adds a weight instead of
-multiplying by it \cite{maass1997networks,pfeiffer2018deep}. Surrogate gradients
+\par Spiking neural networks (SNNs) communicate with binary events. A synapse whose input did
+not spike does no work, which saves energy only when the input is sparse, and a synapse whose
+input did spike adds a weight instead of multiplying by it \cite{lemaire2022analytical}. Surrogate gradients
 \cite{neftci2019surrogate,zenke2018superspike,zenke2021remarkable} made such networks
 trainable end to end, and autoencoders are an obvious use: compress a signal window to a
 small code on a low-power device and reconstruct it elsewhere.
 
-\par Whether that trade is worth it is a question about two numbers measured on the
-\emph{same} network: how much reconstruction error the spike adds, and how much energy it
+\par Whether that trade is worth it is a question about two numbers measured on networks of
+the same widths: how much reconstruction error a spiking pipeline adds, and how much energy it
 saves. The second must count what spiking adds as well as what it removes: a spike turns a
 multiply--accumulate into an add, but every operand must also be fetched, at a higher price
 than the arithmetic, and a spiking layer reads and writes its membrane potentials at every
-simulation step \cite{horowitz2014computing,dampfhoffer2023snns}. Published comparisons
+simulation step \cite{lemaire2022analytical}. Published comparisons
 answer a different question. Spiking autoencoders have been
 reported as comparable to conventional ones on MNIST-type images, against baselines of
 similar size \cite{comsa2021spiking} or the same architecture \cite{kamata2022fully}; when
 the comparison is against recurrent or attention models, those differ in recurrence, sequence
 length and capacity at once, so a quality difference cannot be attributed to the neuron. We
-are not aware of a matched comparison for the reconstruction of speech or EEG.
+are not aware of a comparison against a non-spiking network of the same widths for the
+reconstruction of speech or EEG.
 
 \par Two further confounds are easy to miss. First, evaluation: windows of one recording and
 one speaker are near-duplicates, so pooling windows before splitting measures memorization,
 and selecting hyperparameters on the test speaker biases every number \cite{cawley2010overfitting}.
-Second, the comparison can be skewed by design choices that are not the spike, and in our
-case were: Section~\ref{sec:design} documents a per-step loss and a spiking decoder that
-inflated the gap, and an initializer that, applied to both arms, handicapped the control
-enough to make the gap vanish on EEG.
+Second, design choices that are not the spike can skew the comparison:
+Section~\ref{sec:design} examines three of them, a per-step loss, a spiking decoder and the
+initializer.
 
 \par This paper makes four contributions.
 \begin{enumerate}
-  \item A \emph{matched non-spiking control}: the ANN-AE copies the selected SNN-AE's widths,
-        initializer, optimizer and data, and differs from it only in the encoder's hidden
-        neuron, so the gap between them is the cost of spiking.
-  \item A leakage-controlled protocol: nested \cfgFolds-fold leave-one-group-out
-        cross-validation on two speech and two EEG datasets, with the SNN-AE's architecture
-        selected on inner validation groups only, and recording-level paired statistics.
+  \item A \emph{non-spiking control}: the ANN-AE copies the selected SNN-AE's widths,
+        initializer, optimizer and data, and differs from it in the encoder's hidden neuron and
+        in everything spiking requires around it (the time axis, the spike code and the input
+        transform), so the gap between them is the cost of the selected spiking pipeline.
+  \item A group-disjoint protocol: nested \cfgFolds-fold cross-validation (leave-one-speaker-out
+        on FSDD) on two speech and two EEG datasets, with the SNN-AE's architecture selected on
+        inner validation groups only, and paired statistics across held-out groups.
   \item A quality--energy accounting that counts memory accesses and address arithmetic as
-        well as operations, with the analytical model of \cite{lemaire2022analytical} at the
-        45\,nm prices of \cite{horowitz2014computing}, applied unchanged to every model, the
-        SNN's counts taken from its executed forward pass, and every comparison checked
-        under three memory sizes, under arithmetic alone, and with a repeated input
-        recomputed at every step.
-  \item A design study, on a development fold kept out of the headline numbers, that locates
-        where the SNN-AE's reconstruction error comes from, and a pre-validation on the same
-        folds that measures what searched sequence autoencoders cost to train and to run.
+        well as operations, after the analytical model of \cite{lemaire2022analytical} at the
+        45\,nm prices of \cite{horowitz2014computing}, applied alike to every model and to PCA,
+        the SNN's spike counts taken from its executed forward pass, and every comparison checked
+        under three memory sizes, at half the memory price, under arithmetic alone, and with a
+        repeated input recomputed at every step.
+  \item A design study, on development folds kept out of the headline numbers, of three choices
+        that are not the spike, and a pre-validation on the same folds that reports what searched
+        sequence autoencoders cost to train and to run.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────
@@ -127,8 +134,7 @@ enough to make the gap vanish on EEG.
 autoencoders with temporal coding and found reconstruction errors comparable to
 conventional autoencoders of similar size on MNIST and Fashion-MNIST. The fully spiking VAE
 \cite{kamata2022fully} compared against a non-spiking VAE of the same architecture on image
-datasets. Both support the matched design we adopt; neither addresses temporal signals or a
-group-disjoint protocol.
+datasets. Neither addresses temporal signals or a group-disjoint protocol.
 
 \par \textbf{Training and coding.} We train with surrogate gradients and backpropagation
 through time \cite{neftci2019surrogate,eshraghian2023training,werbos1990backpropagation}, and
@@ -152,9 +158,9 @@ the memory model (Section~\ref{sec:cost}).
 \par \textbf{Sequence autoencoders and protocol.} LSTM \cite{hochreiter1997long,sutskever2014sequence},
 GRU \cite{cho2014gru,chung2014gru} and self-attention \cite{vaswani2017attention,ba2016layernorm}
 autoencoders are the usual non-spiking baselines for sequences; because they differ from an
-SNN-AE in more than the neuron, we measure them in a pre-validation only
-(Section~\ref{sec:prevalidation}). Group-disjoint, nested
-evaluation is the standard remedy for leakage in model selection \cite{cawley2010overfitting}.
+SNN-AE in more than the neuron, we report them in a pre-validation only
+(Section~\ref{sec:prevalidation}). Nested evaluation is the standard remedy for selection bias
+in model selection \cite{cawley2010overfitting}; we also keep groups disjoint across splits.
 
 % ─────────────────────────────────────────────────────────────
 \section{Methods}
@@ -177,65 +183,74 @@ normalization, every loss and every reported error.
 \end{equation}
 and $V[t]\leftarrow 0$ after a spike (hard reset),
 with $\beta=e^{-\Delta t/(RC)}$ and $\Delta t=1$. $R$, $C$ and $V_{th}$ are trained per layer
-(clamped above $10^{-6}$) from initial values $R=1$, $C=-1/\ln\beta^{(0)}$ and
+($R$ and $C$ clamped above $10^{-6}$; nothing bounds $V_{th}$, and its trained values are in
+Table~\ref{tab:snnsel}) from initial values $R=1$, $C=-1/\ln\beta^{(0)}$ and
 $V_{th}^{(0)}$, so the searched $\beta^{(0)}$ is the initial decay. The spike's zero gradient
 is replaced in the backward pass by the arctan surrogate \cite{eshraghian2023training}
 $\hat\sigma'(V)=\alpha/\big(2(1+(\tfrac{\pi}{2}\alpha(V-V_{th}))^2)\big)$, $\alpha=2$, and the
 error is propagated through time as
 \begin{equation}
   \delta_l[t] = \hat\sigma'(V_l[t])\odot\big(W_{l+1}^{\top}\delta_{l+1}[t]\big)
-                + \beta\,\delta_l[t+1].
+                + \beta\,(1-s_l[t])\odot\delta_l[t+1],
 \end{equation}
+where the reset is detached, so no error flows through a step that fired. The gradient of
+$V_{th}$ keeps the surrogate through the reset, a term summed once and not multiplied through
+time.
 
 \par \textbf{Network.} The encoder is $\mathrm{Lin}(M{\to}w_1)\to\mathrm{LIF}\to\dots\to
 \mathrm{Lin}(w_{L-1}{\to}d)$ with $w_1>\dots>w_{L-1}>d$; the latent layer is analog. The
 latent is averaged over the $T$ steps and decoded \emph{once} by the mirror image of the
 encoder with leaky ReLUs (slope $0.01$) and a linear output (Fig.~\ref{fig:matched}). The loss
-is computed on that single reconstruction. Section~\ref{sec:design} shows why: the earlier
-design, which scored the reconstruction of every step and spiked in the decoder too, was
-measurably worse for reasons unrelated to spiking.
+is computed on that single reconstruction; Section~\ref{sec:design} compares this with an
+earlier design that scored the reconstruction of every step and spiked in the decoder too.
 
 \par \textbf{Input.} The window is presented for $T$ steps as a constant current
 (\emph{direct}), as Bernoulli spikes with probability proportional to the min--max-scaled
 sample (\emph{Poisson}), or as one spike per sample at a time that decreases with its value
 (\emph{latency}). An optional input transform is applied before the network: none
 (\emph{dense}), a fixed 3-tap smoothing along the window (\emph{conv1d}), or one LIF cell
-per sample with the network's threshold and decay (\emph{recurrent}), which turns any code
-into spikes.
+per sample with the searched initial threshold and decay, untrained and with a soft reset
+(\emph{recurrent}), which turns any code into spikes.
 
 \begin{figure}[!t]
   \centering
   \input{figs/fig_matched.tex}
-  \caption{The SNN-AE and its matched control. Shared blocks have identical widths, initializer
-  and training; only the encoder's hidden neuron differs (red: the parts that exist only in the
-  spiking network).}
+  \caption{The SNN-AE and its control. Shared blocks have identical widths, initializer and
+  training. Red: the parts that exist only in the spiking network, which is what the gap
+  measures. The mean over $T$ discards when each neuron fired.}
   \label{fig:matched}
 \end{figure}
 
-\subsection{Matched control (ANN-AE)}
+\subsection{Control (ANN-AE)}
 \par For every dataset, fold and run, the ANN-AE takes the widths of that run's selected
 SNN-AE and replaces each hidden LIF by a leaky ReLU applied once to the analog window; it is
 trained with the same initializer, optimizer, data and stopping rule. It is \emph{not}
-searched. The SNN-AE therefore receives the larger search budget, which favours it, and a gap
-in the ANN-AE's favour is conservative.
+searched, so the SNN-AE receives the larger search budget: a gap in the ANN-AE's favour
+understates what a searched control could reach. The control is not otherwise matched to the
+code, $T$ or transform the search selects.
 
 \subsection{References}
-\par PCA with $k=d$ components, fitted on all non-test windows of the fold, is the best
-linear code through the same bottleneck; a mean-window predictor fixes the scale of ``no
-model''.
+\par PCA with $k=d$ components, fitted on the fold's capped training and validation windows,
+is the best linear code through the same bottleneck, and is priced like the networks
+(Section~\ref{sec:cost}); a mean-window predictor fixes the scale of ``no model''.
 
 \subsection{Architecture search}
 \label{sec:search}
 \par The SNN-AE's architecture is selected by NSGA-II \cite{deb2002fast} with population
-\cfgGaPop{} for \cfgGaGen{} generations (\cfgGaEvals{} evaluations), minimizing validation
+\cfgGaPop{} for \cfgGaGen{} generations (\cfgGaEvals{} candidates), minimizing validation
 MSE and an analytic inference cost. The final front is re-scored over \cfgGaWinnerSeeds{}
-seeds and the member with the lowest re-scored validation MSE wins (ties: lower cost). Genes:
-depth $L\in[\cfgSnnDepth]$ and widths in $(d,\cfgSnnWidthMax]$, $T\in[\cfgTmin,\cfgTmax]$ (an
-integer drawn uniformly), $V_{th}^{(0)}\in[\cfgVth]$, $\beta^{(0)}\in[\cfgAlpha]$, encoding and
-input transform. The cost objective is a
-spike-blind MAC count in which $T$ multiplies every encoder layer; it keeps cheaper genomes on
-the front, but the winner is chosen by validation MSE alone, so a longer simulation is selected
-only when it validates better.
+fresh seeds, the search's own score left out, and the member with the lowest re-scored
+validation MSE wins (ties: lower cost). Each dataset and fold draws its own candidates; the
+trainings that score them use the run's seed. The genes are the number of hidden layers,
+$L-1\in[\cfgSnnHidden]$; their widths, in $(d,\cfgSnnWidthMax]$; $T\in[\cfgTmin,\cfgTmax]$ (an
+integer drawn uniformly); $V_{th}^{(0)}\in[\cfgVth]$; $\beta^{(0)}\in[\cfgAlpha]$; the encoding;
+and the input transform. A width is drawn from $[\cfgSnnWidthMin,\cfgSnnWidthMax]$ and raised to
+$d+1$ when it falls below, which on EEGMMIDB happens to \cfgWidthFloorShareEegmmidb\% of the
+draws; Section~\ref{sec:design} tests wider controls. The cost objective is a spike-blind MAC
+count in which $T$ multiplies every encoder layer that runs at every step (a direct-coded first
+layer counts once, as in Section~\ref{sec:cost}). It keeps cheaper genomes on the front, but the
+winner is chosen by validation MSE alone, so a longer simulation is selected only when it
+validates better.
 
 \subsection{Training}
 \label{sec:training}
@@ -243,24 +258,27 @@ only when it validates better.
 $C$, $V_{th}$), batch size \cfgBatch{} and at most \cfgEpochs{} epochs. Early stopping
 \cite{prechelt1998early} has patience \cfgPatience, counted only once the monitored loss is
 \cfgMinSkill\% below that of the mean predictor (the mean training window, scored on the same
-monitor windows). On z-scored windows every network starts on that plateau, and in an earlier
-run of the pre-validation (Section~\ref{sec:prevalidation}) plain patience stopped networks
-that had not left it yet, which then entered the comparison as the mean predictor under
-another name. A run that never reaches that level trains all \cfgEpochs{} epochs, and every
-run keeps the weights of its best monitored epoch \cite[Alg.~7.1]{goodfellow2016deep}. The
-SNN-AE and the ANN-AE are both initialized with \cfgInit{}
-\cite{glorot2010understanding}. Left to their builders, the two arms had different defaults
-(fan-in scaling \cite{he2015delving} for the SNN), and Section~\ref{sec:design} shows that the
-initializer decides the EEG comparison, so it is fixed and shared. Within a fold the selected architecture is retrained on training $\cup$ validation
-groups, early-stopped on a recording-disjoint slice of the training groups, and evaluated once
-on the test group. Each fold is repeated \cfgRuns{} times (seeds \cfgSeeds), each repeat with
-its own search.
+monitor windows). On z-scored windows a network can start on that plateau. In an earlier run
+of the pre-validation (Section~\ref{sec:prevalidation}) plain patience stopped networks that had
+not left it yet, and they entered the comparison as the mean predictor under another name. The
+level was set on the monitored loss curves of the development folds; no test number enters it.
+A pre-set automatic rule did not endorse it, because some sequence models learn a little without
+reaching it; we kept it because replaying the curves showed that a lower level saves under 1\%
+of the epochs. A run that never reaches it trains all \cfgEpochs{} epochs, and every run keeps
+the weights of its best monitored epoch \cite[Alg.~7.1]{goodfellow2016deep}. The SNN-AE and the
+ANN-AE are both initialized with \cfgInit{} \cite{glorot2010understanding}. Left to their
+builders, the two arms had different defaults (fan-in scaling \cite{he2015delving} for the SNN);
+Section~\ref{sec:design} examines what that does, so the initializer is fixed and shared. Within
+a fold, the selected architecture is retrained on the training and validation groups, except for
+a recording-disjoint slice of the training groups that is held out for early stopping, and
+evaluated once on the test group. Each fold is repeated \cfgRuns{} times (seeds \cfgSeeds), each
+repeat with its own search.
 
 \subsection{Energy}
 \label{sec:cost}
 \par $E$ is the energy of one window's forward pass, after training. It must count what
-spiking adds as well as what it removes, so it is the analytical model of Lemaire et al.\
-\cite{lemaire2022analytical}, applied unchanged to every model:
+spiking adds as well as what it removes, so it follows the analytical model of Lemaire et al.\
+\cite{lemaire2022analytical}, extended as listed below and applied alike to every model:
 \begin{equation}
   E = E_{\mathrm{ops}} + E_{\mathrm{addr}} + E_{\mathrm{mem}},
 \end{equation}
@@ -268,26 +286,31 @@ the arithmetic, the integer additions that compute memory addresses, and the mem
 with the counts of Table~\ref{tab:cost}. The prices are Horowitz's for 45\,nm at 0.9\,V
 \cite{horowitz2014computing}: 32-bit float add 0.9\,pJ and multiply 3.7\,pJ (a MAC
 4.6\,pJ), 32-bit integer add 0.1\,pJ, and one SRAM access 10, 20 and 100\,pJ at 8\,KB,
-32\,KB and 1\,MB. As in \cite{lemaire2022analytical}, each layer holds its weights, its
+32\,KB and 1\,MB. These are Horowitz's figures for a 64-bit cache access; we apply them to one
+32-bit word, which overprices every access, so Table~\ref{tab:energy} also halves them. Lemaire
+et al.\ price operations with 32-bit integer figures; we use the floating-point ones, since the
+weights are 32-bit floats. As in \cite{lemaire2022analytical}, each layer holds its weights, its
 potentials and its input and output buffers in local SRAMs, each priced at its own size on the
 straight lines through those three points, and one access moves one 32-bit word. The SNN-AE's
 counts come from its forward pass on each test window, with that window's spikes; the
-ANN-AE's follow from its architecture.
+ANN-AE's follow from its architecture. A column reports the encoder alone (spike code, input
+transform and encoder network), which is what a sensor pays if the code is decoded elsewhere.
+PCA is priced by the same model as a linear encoder and decoder, its mean included.
 
-\par Where the model leaves a choice, we take the one that works against the conclusion it
-could support. Memories below 8\,KB, the SNN's potentials among them, are priced at
-8\,KB's 10\,pJ. The LIF's threshold test costs one add per neuron and step, which
-\cite{lemaire2022analytical} do not count. The spike encoder is charged to the SNN-AE (Poisson:
+\par The model leaves several choices, and we state the direction of each so that a conclusion
+can be read against it. Against the SNN-AE: memories at or below 8\,KB, its potentials among
+them, are priced at 8\,KB's 10\,pJ; the LIF's threshold test costs one add per neuron and step,
+which \cite{lemaire2022analytical} do not count; the spike encoder is charged to it (Poisson:
 a pseudo-random draw and a comparison per sample and step; latency: one spike time per
-sample and a comparison per sample and step); the ANN-AE has none. Leaky ReLU costs a comparison and a multiply. Reading the window
-from off-chip memory is left out for every model, since all start from the same buffer.
-Direct coding presents the same window at every step, so the SNN-AE's first layer (and the
-smoothing filter of the conv1d input transform in front of it) computes the same current $T$
-times; $E$ counts it once per window, plus one write of that current and its read at every
-step, as an accelerator that reuses a constant input would. This choice favours the SNN-AE.
+sample and a comparison per sample and step), and the ANN-AE has none. In its favour: leaky
+ReLU costs a comparison and a multiply; and direct coding presents the same window at every
+step, so the first layer (and the smoothing filter of the conv1d input transform in front of
+it) computes the same current $T$ times, while $E$ counts it once per window, plus one write of
+that current and its read at every step, as an accelerator that reuses a constant input would.
+Reading the window from off-chip memory is left out for every model.
 Because estimates of this kind turn on the memory model \cite{dampfhoffer2023snns,yan2024reconsidering},
 every energy comparison is repeated with every access priced at one SRAM size (8\,KB, 32\,KB,
-1\,MB), with arithmetic alone ($4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} +
+1\,MB), with every memory price halved, with arithmetic alone ($4.6\,\mathrm{pJ}\cdot N_{\mathrm{MAC}} +
 0.9\,\mathrm{pJ}\cdot N_{\mathrm{AC}}$, the convention of \cite{zhou2023spikformer}), and with
 that first layer recomputed at every step, as our implementation runs it;
 Table~\ref{tab:energy} reports all of them. $E$ estimates a modeled accelerator; it is not a
@@ -309,28 +332,67 @@ Address add (integer) & $R(n_{\mathrm{in}}+n_{\mathrm{out}})$ & $\theta\,n_{\mat
 Read input & $R\,n_{\mathrm{in}}$ & $\theta$ \\
 Read weight, bias & $R(n_{\mathrm{in}}+1)\,n_{\mathrm{out}}$ & $(\theta+R)\,n_{\mathrm{out}}$ \\
 Read, write potential & -- & $(\theta+R)\,n_{\mathrm{out}}$ each \\
-Write output & $R\,n_{\mathrm{out}}$ & -- \\
+Write output & $R\,n_{\mathrm{out}}$ & $R\,n_{\mathrm{out}}$ if no LIF follows \\
+Stored first layer (direct) & write $n_{\mathrm{out}}$, read $T\,n_{\mathrm{out}}$ & -- \\
 \midrule
 \multicolumn{3}{p{0.93\columnwidth}}{LIF, per neuron and step: the leak (MAC) and the threshold
 test (add), and after an analog-input layer a read and a write of the potential; per output
 spike: the reset (add) and one write of the event. A layer that feeds an LIF writes no output
-of its own. Mean over $T$: one add per input spike, one multiply per output.} \\
+of its own, except the stored current above. Mean over $T$ of the analog latent: an add and a
+read per value, a MAC and a write per output.} \\
 \bottomrule
 \end{tabular}
 \label{tab:cost}
 \end{table}
+
+\par When can a spike-fed first layer cost less than an analog one at all?
+Fig.~\ref{fig:breakeven} applies these counts to the first stage, from the window to the first
+hidden code, at the first hidden widths the pre-validation selected
+(Section~\ref{sec:prevalidation}). Fed with spikes, that stage costs less than the ANN-AE's first
+layer (\beRef\,nJ) only when the input is sparse: fewer spikes per sample and window than a
+break-even that falls with $T$. For a Poisson code the break-even runs from \bePoissonHigh{} at
+$T=\beTmin$ to \bePoissonLow{} at $T=\beTmax$; through the recurrent transform, whose own neurons
+are priced too, from \beRecurrentHigh{} \beRecurrentLow. The codes do not get there. A latency
+code emits exactly one spike per sample, above every break-even. A Poisson code emits $\bar p\,T$
+spikes per sample, and because each window is min--max scaled, $\bar p=\bePbar$ on the
+development folds: the code already carries \bePoissonAtTmin{} spikes per sample at $T=\beTmin$
+and stays above its break-even at every $T$. Only the recurrent transform, whose spike count is
+set by its own threshold and decay, can feed the network sparsely enough. The first hidden
+layer's own spikes are not charged here, so each break-even is an upper bound.
+
+\begin{figure}[!t]
+  \centering
+  \input{data/paper_breakeven_figure.tex}
+  \caption{When a spike-fed first stage costs less than the ANN-AE's first layer: below its
+  break-even curve (solid: Poisson code; dashed: direct code through the recurrent transform), at
+  each first hidden width $w_1$ the pre-validation selected. Dotted: the spikes a Poisson code
+  emits, $\bar p\,T$, with $\bar p$ measured on the development folds' test windows; grey: a
+  latency code. Logarithmic axis: a curve that ends before $T=\beTmax$ has reached zero, where the
+  stage costs more than the analog layer even without a spike. The model of Table~\ref{tab:cost},
+  without the hidden layer's own spikes.}
+  \label{fig:breakeven}
+\end{figure}
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
 \label{sec:setup}
 
 \par \textbf{Datasets} (Table~\ref{tab:datasets}). FSDD \cite{jackson2018fsdd} and
-AudioMNIST are spoken digits at 8\,kHz; EEGMMIDB \cite{schalk2004bci2000,goldberger2000physiobank}
+AudioMNIST \cite{becker2024audiomnist} are spoken digits, the latter resampled offline from 48
+to 8\,kHz; EEGMMIDB \cite{schalk2004bci2000,goldberger2000physiobank}
 (motor movement/imagery) and Siena \cite{detti2020siena} (epilepsy) are scalp EEG, read from
-the first channel of each recording (Fc5 and Fp1 in the file headers). The group is the
-speaker or subject. Windows do not overlap; long recordings are capped to a number of windows,
-and each fold keeps at most \cfgTrainWindows{} training, \cfgValWindows{} validation and
-\cfgTestWindows{} test windows, sampled round-robin across recordings.
+the first channel of each recording (Fc5 and Fp1 in the file headers), band-passed to
+0.5--40\,Hz with a mains notch (60\,Hz EEGMMIDB, 50\,Hz Siena) at each file's own rate, then
+converted to \cfgRateEegmmidb\,Hz by band-limited interpolation: the 36 EEGMMIDB files recorded at
+128\,Hz and every Siena file (512\,Hz). A window thus lasts the same time in every EEG
+recording. At Siena's native rate a window would be too short: it would hold fewer independent
+values (twice the band times the duration) than its latent has entries, and a linear projection
+would reconstruct it exactly. The group is the speaker or subject. Windows do not overlap; a long
+recording keeps a number of windows drawn uniformly across it, and each fold keeps at most
+\cfgTrainWindows{} training, \cfgValWindows{} validation and \cfgTestWindows{} test windows,
+balanced by speaker or subject, then digit, then recording. The composition of every fold is
+in the released manifests. The draw is fixed per fold, so every seed sees the same windows and
+the seeds do not sample it.
 
 % Group counts: hand-authored from the datasets; the other columns are generated.
 \begin{table}[!t]
@@ -349,98 +411,160 @@ Siena      & EEG, \cfgRateSiena\,Hz         & subject & 14  & \cfgCapSiena      
 \label{tab:datasets}
 \end{table}
 
-\par \textbf{Nested leave-one-group-out.} Groups are sorted and split into \cfgFolds{}
+\par \textbf{Nested group-disjoint cross-validation.} Groups are sorted and split into \cfgFolds{}
 contiguous blocks. In fold $f$ block $f$ is the test set, block $f{+}1$ (mod \cfgFolds) the
-validation set, and the rest train; for FSDD this is leave-one-speaker-out. Every window is
-assigned by its group before any pooling, and the harness aborts if a recording or group
-appears in two splits. All selection uses the validation block only.
+validation set, and the rest train (Fig.~\ref{fig:folds}); for FSDD this is
+leave-one-speaker-out. Every window is assigned by its group before any pooling, and the harness
+aborts if a recording or group appears in two splits. All selection uses the validation block
+only.
 
-\par \textbf{Development fold.} The design study (Section~\ref{sec:design}) compared variants
-on fold \cfgDevFoldsFsdd{} of FSDD and of EEGMMIDB, including their test windows. Those folds
-are therefore excluded from every headline number: FSDD and EEGMMIDB are reported on folds
-\cfgHeadlineFoldsFsdd, AudioMNIST and Siena on folds \cfgHeadlineFoldsSiena. Including them is
-reported as a sensitivity analysis (Table~\ref{tab:sensitivity}).
+\begin{figure}[!t]
+  \centering
+  \input{figs/fig_folds.tex}
+  \caption{Which block plays which role in each fold, and what the design study touched. Folds
+  \cfgDevFoldsFsdd{} and \cfgDesignFoldsFsdd{} of FSDD and EEGMMIDB leave the headline numbers;
+  fold 5 stays, although it validates on the block the design study tested on.}
+  \label{fig:folds}
+\end{figure}
 
-\par \textbf{Statistics.} Every model reconstructs the same test windows. The primary
-estimand is the recording-level paired difference $d_r=E_{m,r}-E_{b,r}$, the SNN-AE's mean
-window error on recording $r$ minus a reference model's: we report $\overline{d_r}$, a 95\%
-bootstrap interval over recordings, and the Wilcoxon signed-rank $p$, Holm-corrected across
-the \cfgHolmRefs{} references \cite{holm1979simple}. Group-level and seed-level tests are reported
-as robustness only; window-level statistics are pseudoreplicated and descriptive.
+\par \textbf{Development folds.} The design study (Section~\ref{sec:design}) compared variants
+on fold \cfgDevFoldsFsdd{} of FSDD and of EEGMMIDB, including their test windows, and read the
+errors on that fold's validation block, which is the test block of fold \cfgDesignFoldsFsdd.
+Both folds are therefore excluded from every headline number: FSDD and EEGMMIDB are reported on
+folds \cfgHeadlineFoldsFsdd, AudioMNIST and Siena on folds \cfgHeadlineFoldsSiena. Including them
+is reported as a sensitivity analysis (Table~\ref{tab:sensitivity}). This does not make those
+two datasets untouched: fold 5 validates on the development test block, and every FSDD speaker
+entered the development fold as test, validation or training, so FSDD and EEGMMIDB results are
+design-informed. AudioMNIST and Siena were not used in the design study. Also chosen on the
+development folds: the stopping level, the cap of \cfgTrainWindows{} training windows, the range
+of $T$ and the surrogate's sharpness.
 
-\par \textbf{Energy first.} The application is a low-power device, so we fixed in advance how
-the two axes are read. Where the recording-level test does not separate the SNN-AE from a
-reference (interval including zero or Holm-corrected $p\geq0.05$), the model with the lower
-$E$ is the one we recommend; where it does, we report what the lower-energy model gives up --
-its error difference against its energy ratio -- instead of ranking on either axis alone.
-Selection inside the search is unchanged by this rule (Section~\ref{sec:search}).
+\par \textbf{Statistics.} Every model reconstructs the same test windows. A new user is a new
+speaker or subject, so the primary estimand is the group-level paired difference $d_g$, the
+SNN-AE's mean window error on held-out group $g$ minus a reference model's, seeds averaged. We
+report $\overline{d_g}$, a 95\% Student-$t$ interval over groups, and the one-sample $t$-test
+$p$, Holm-corrected across the \cfgHolmRefs{} references within each dataset
+\cite{holm1979simple}; datasets are not pooled or corrected against each other. Each $d_g$ is
+drawn (Fig.~\ref{fig:forest}). We use $t$ rather than a rank test because with 4 FSDD speakers
+the exact Wilcoxon $p$ cannot fall below 0.125, and rather than a bootstrap because a percentile
+interval undercovers at that $n$. The $t$ interval rests on approximate normality, which 4 points
+cannot check, and on independent groups, which holds only in part: subjects of one fold share
+their models, and folds share training groups. We therefore also compute the interval over fold
+means. Recording-, seed- and window-level results are in the released output and are
+descriptive: recordings of one subject share an effect, and windows are pseudoreplicated.
+
+\par \textbf{Reading the two axes.} The application is a low-power device, so we fixed, after
+seeing the development folds and before the main run, how the two axes are read. For the SNN-AE
+against the ANN-AE and against PCA: where the whole interval for the mean difference lies inside
+$\pm\Delta$, with $\Delta=\cfgMargin$, both over groups and over fold means, we recommend the
+model with the lower $E$. Otherwise we report what the lower-energy model gives up, its error
+difference against its energy ratio, instead of ranking on either axis alone. $\Delta$ is 2\% of the window's
+variance, a change we treat as negligible, between 0.12\,dB at an error of 0.71 and 0.46\,dB at
+0.18; it is a judgement of relevance, not an estimate of noise. An interval too wide to fit inside
+$\pm\Delta$ supports no equivalence, whatever its centre: with 4 FSDD speakers it fits only if
+their standard deviation is below 0.0126, so on FSDD we expect to report the trade. Selection inside the search is unchanged by this rule
+(Section~\ref{sec:search}).
 
 % ─────────────────────────────────────────────────────────────
-\section{Design Study on the Development Fold}
+\section{Design Study on the Development Folds}
 \label{sec:design}
 
-\par Before the main run we asked where the gap between an earlier SNN-AE design and the
-matched control came from, varying one factor at a time on the development fold (1000
-training windows, the search's most frequent winner, three seeds). The variants were
-implemented in a PyTorch replica of the network, validated against the C++ harness (EEGMMIDB:
-earlier SNN-AE 0.592 vs.\ 0.593; FSDD: ANN-AE 0.667 vs.\ 0.662). Table~\ref{tab:design} lists
-the test MSE.
+\par Before the main run we asked what the design inherited. Earlier versions of this study ran
+on windows with four defects that the pipeline no longer has: the 44 bytes of each WAV header were
+decoded as 22 samples, so window 0 of every speech recording was mostly header; window caps kept a
+prefix of a sorted list (FSDD fold 0 trained on digits 0--4); a per-recording cap kept each
+recording's start; and 36 EEGMMIDB files at 128\,Hz were treated as 160\,Hz. No earlier number is
+reported here.
 
-\begin{table}[!t]
-\caption{Design study, development fold, test MSE (mean of 3 seeds; $-$: not run). Kaiming /
-Xavier: the initializer of every variant in the column.}
-\centering\footnotesize
-\setlength{\tabcolsep}{2pt}
-\begin{tabular}{lcccc}
-\toprule
- & \multicolumn{2}{c}{FSDD} & \multicolumn{2}{c}{EEGMMIDB} \\
-Variant & Kaiming & Xavier & Kaiming & Xavier \\
-\midrule
-ANN, leaky ReLU (control)          & 0.667 & 0.654 & 0.489 & 0.293 \\
-ANN, sigmoid                       & 0.685 & $-$   & 0.308 & $-$ \\
-ANN, clamp to $[0,1]$              & 0.743 & $-$   & 0.547 & $-$ \\
-\midrule
-SNN, per-step loss, LIF dec., $T{=}16$ & 0.780 & $-$ & 0.592 & 0.589 \\
-SNN, loss on time mean, $T{=}16$       & 0.734 & $-$ & 0.454 & $-$ \\
-SNN, latent mean, LReLU dec., $T{=}4$  & 0.724 & 0.729 & 0.484 & 0.449 \\
-SNN, latent mean, LReLU dec., $T{=}16$ & 0.729 & $-$ & 0.457 & 0.396 \\
-\bottomrule
-\end{tabular}
-\label{tab:design}
-\end{table}
+\par The study runs on a PyTorch replica of the network that keeps the harness's code, neuron
+and gradient, initializers, optimizer, batch size, stopping rule and best-epoch weights. It takes
+the four SNN-AE winners of the pre-validation (Section~\ref{sec:prevalidation};
+\designPoissonWinners{} are Poisson-coded) and trains each with \designSeeds{} seeds in two
+crossed blocks (\designTrainings{} trainings in all): the read-out (loss on every step, loss on
+the time mean, or the latent's time mean) crossed with the decoder's neuron, and the encoder's
+hidden neuron crossed with the initializer. Seeds pair the cells: a seed fixes the initial
+weights, the window order and the Poisson draws. Fig.~\ref{fig:design} draws every cell and seed,
+and the harness's own error at the two points both ran; the replica is within
+\designTwinWithin{} of them. Intervals below are seed-paired Student-$t$ 95\% intervals: they
+describe training noise on fixed windows, not variation over speakers or subjects.
 
-\par Three findings shaped the method. \emph{(i) Two costs were not the spike.} Scoring the
-reconstruction of every simulation step asks each step, carrying at most one binary event per
-neuron, to reproduce the analog window alone; scoring the time mean removed $0.046$ on FSDD.
-A spiking decoder added error on top of the encoder's; averaging the latent and decoding once
-with leaky ReLUs is as good and runs the decoder once instead of $T$ times. \emph{(ii) The
-initializer decided the EEG comparison.} With fan-in scaling in both arms the control stopped
-at 0.489 (0.479 with a 200-epoch cap, so not for lack of epochs) and the SNN-AE looked equal
-to it (0.484); with Xavier in both arms the control reaches 0.293 and the SNN-AE 0.449.
-Xavier is the better or equal choice for each arm on both datasets, so the matched comparison
-is also a best-against-best one. \emph{(iii) What remains is saturation.} A non-spiking network
-with a hard clamp lands among the spiking variants (FSDD 0.743, against 0.734 for the SNN
-trained on the time mean; EEG 0.547, against 0.592 for the per-step SNN), while a sigmoid,
-bounded but smooth, stays near the control (FSDD 0.685 vs.\ 0.667; EEG 0.308, near the
-Xavier control's 0.293). A reason, argued rather than measured: under direct
-input an LIF neuron sees the same current $I$ at every step, so with a hard reset it never
-fires for $I<V_{th}(1-\beta)$ and fires at every step for $I\geq V_{th}$ -- a clipped transfer
-function.
+\begin{figure*}[!t]
+  \centering
+  \input{data/paper_design_figure.tex}
+  \caption{Design study, development folds: test MSE of every cell, one circle per seed
+  (\designSeeds{} seeds) and a bar at their mean; red and $^\dagger$: the adopted design. Panels:
+  the four SNN-AE winners of the pre-validation, by code (D direct, P Poisson) and $T$. Upper
+  block: read-out $\times$ decoder, LIF encoder, Xavier. Middle block: the encoder's hidden neuron
+  $\times$ initializer, latent mean, leaky-ReLU decoder (the leaky-ReLU, Xavier row is the
+  control). Diamonds: the C++ harness, one seed. The values are released with the code.}
+  \label{fig:design}
+\end{figure*}
 
-\par $T$ mattered on EEG (0.449 at $T{=}4$, 0.396 at $T{=}16$) but not on FSDD (0.717 to 0.729
-for $T$ from 1 to 16), which is why $T$ is searched rather than fixed. Every choice above came
-out the same on the fold's validation windows (e.g.\ EEG, Xavier: 0.425 vs.\ 0.372 for $T=4$
-vs.\ 16), but the test windows were seen, hence the development-fold rule of
-Section~\ref{sec:setup}. A check of the adopted design in the C++ harness on the same fold
-(two runs, small search) moved the SNN-AE from 0.827 to 0.768 on FSDD and from 0.593 to 0.532
-on EEG, against controls of 0.652 and 0.302.
+\par \emph{(i) The loss.} Scoring the reconstruction of every simulation step asks each step,
+carrying at most one binary event per neuron, to reproduce the analog window alone. On the
+Poisson-coded winners it raised the test error by \designLossStep{} over scoring the time mean,
+every interval excluding zero; on the direct-coded winner no interval excluded zero.
+\emph{(ii) The decoder.} A spiking decoder runs $T$ times and leaky ReLUs once, so it is a cost
+choice in any case; behind the latent's time mean it added up to \designDecoderMax{}, significant
+on EEGMMIDB only. The adopted design is at most \designAdoptedGap{} above the best cell of block A
+at every winner. \emph{(iii) The initializer.} Fan-in scaling made the leaky-ReLU control
+\designKaimingCtrl{} worse on EEGMMIDB, enough to reverse the comparison there (SNN-AE
+\designKaimingSnnEeg{} against \designKaimingCtrlEeg{}; the difference's interval excludes zero
+for \designKaimingReverseSig{} of them), and changed the SNN-AE by at most \designKaimingSnnMax{}.
+Xavier's mean error is the lower for both arms at every winner, which is why they share it: the
+comparison is not won by handicapping the control, but on EEGMMIDB its sign depends on that choice.
+
+\par \emph{(iv) Bounded codes.} With Xavier, the LIF encoder cost \designLifCostFsdd{} over the
+leaky ReLU on FSDD and \designLifCostEeg{} on EEGMMIDB. A sigmoid, bounded but smooth, stayed
+within \designSigmoidWithin{} of the leaky ReLU, no interval excluding zero; a hard clamp to
+$[0,1]$ cost \designClampFsdd{} on FSDD and \designClampEeg{} on EEGMMIDB, and an identity
+gradient through the clamp cost more, so a dead gradient is not what hurts. The direct-coded
+winner's code is near binary (\designDirectSilent\% of (neuron, window) pairs never fire and
+\designDirectAlways\% fire at every step), and the reason is simple. Under direct input a neuron
+sees the same current $I$ at every step, so with a hard reset it never fires for
+$I\leq V_{th}(1-\beta)$ and fires at every step for $I>V_{th}$. Between them its time mean is a
+staircase with levels near $1, 1/2, 1/3, \dots$, and no level between $1/2$ and $1$ at any $T$
+(Fig.~\ref{fig:lif}a). The Poisson-coded winners' codes are not near
+binary (\designPoissonSilent\% silent, at most \designPoissonAlwaysMax\% always firing;
+Fig.~\ref{fig:lif}b,c), yet their
+gaps (\designPoissonGap{}) are of the same order, so saturation does not account for them. We
+claim no cause for the gap.
+
+\begin{figure*}[!t]
+  \centering
+  \input{data/paper_design_lif_figure.tex}
+  \caption{(a) The hidden code of the direct-coded winner as a function of a constant input
+  current: the LIF's time mean with hard reset at that winner's $T$ and in the limit
+  $T\to\infty$, at its trained $V_{th}$ and $\beta$ (mean over seeds), beside the clamp and the
+  sigmoid the design study put in its place. Grey: currents that never make it fire,
+  $I\leq V_{th}(1-\beta)$; dotted: $1/2$. (b), (c) The share of (test window, hidden unit) codes
+  at each end, per seed, for each bounded encoder neuron (Xavier, latent mean, leaky-ReLU
+  decoder) and winner; a LIF's code is its firing rate over $T$, so at $T=19$ the high end means
+  19 spikes in 19 steps.}
+  \label{fig:lif}
+\end{figure*}
+
+\par \emph{(v) The budget.} In this study \designCapLif\% of the LIF trainings had their best epoch
+among the last \designCapWindow{} of the \designEpochs, against \designCapLrelu\% of the leaky-ReLU
+ones. Training the adopted SNN-AE and its control for \budgetEpochs{} epochs instead of
+\budgetProtocolEpochs{} lowered either's error by at most \budgetArmGainMax{} and moved their gap
+by at most \budgetGapShiftMax{}, no interval excluding zero; but the widest reaches
+\budgetGapShiftWidest{}, beyond $\Delta=\cfgMargin$, so a cap effect of that size on EEGMMIDB is not
+excluded. (These runs' \budgetProtocolEpochs-epoch snapshots reproduce the \budgetSnapshots{}
+matching trainings above exactly.) None of them reached \budgetEpochs{} epochs; the grid trains for
+at most \cfgEpochs{} (Section~\ref{sec:training}). On EEGMMIDB, where PCA errs less than the control
+(Section~\ref{sec:prevalidation}), a control with $2d$ or $4d$ hidden units instead of $d+1$ erred
+more, by \budgetWideTwo{} and \budgetWideFour{} (\budgetWideTwoLong{} and \budgetWideFourLong{} at
+\budgetEpochs{} epochs): its validation error stopped improving by epoch \budgetWideBest{} while
+its training error still fell, so under this training the narrow layers the search picks do not
+explain PCA's lead.
 
 \subsection{Pre-validation of sequence baselines}
 \label{sec:prevalidation}
-\par The submitted version also searched LSTM, GRU and Transformer autoencoders. They differ
-from the SNN-AE in recurrence, sequence length and capacity at once, so they cannot isolate
-what the spike costs, and their searches dominated the grid's compute. Before leaving them out
-we measured them once, on the development folds (\preFolds). LSTM-AE and GRU-AE stack
+\par LSTM, GRU and Transformer autoencoders differ from the SNN-AE in recurrence, sequence
+length and capacity at once, so they cannot isolate what the spike costs, and their searches
+dominated the grid's compute. We left them out of the main run and report what they cost under
+one reduced budget on the development folds (\preFolds). LSTM-AE and GRU-AE stack
 $L\in[\preRnnLayers]$ recurrent layers of width $H\in[\preRnnHidden]$ (floored at $d$),
 project the last state to $d$ and decode by repeating a projection of $z$ over time. The
 Transformer-AE embeds frames to $d_{\mathrm{model}}\in[\preTfDmodel]$, adds sinusoidal
@@ -449,7 +573,7 @@ feed-forward width $\in[\preTfDff]$), mean-pools to $d$ and decodes with $N$ fur
 no cross-attention, so all information passes through $z$. All three read the window as
 $S=\preSeqLen$ frames of $\preFrame$ samples, so only the direct code is defined for them.
 Every family, the SNN-AE included, ran one NSGA-II of population \preGaPop{} for \preGaGen{}
-generations (\preGaEvals{} evaluations, front re-scored over \preGaWinnerSeeds{} seeds),
+generations (\preGaEvals{} candidates, front re-scored over \preGaWinnerSeeds{} fresh seeds),
 \preRuns{} runs (seeds \preSeeds), with the windows, training and selection of
 Sections~\ref{sec:search}--\ref{sec:training}, each family in its own process on one CPU
 thread. Their $E$ applies the counts of Table~\ref{tab:cost} to every matrix product of a cell
@@ -464,10 +588,23 @@ winner, and with it both its error and its per-window cost; the table describes 
 found here, not the families' best.
 \par A Transformer whose layer normalization follows each residual sum, as ours does, can
 need a learning-rate warm-up to train at a fixed Adam rate; one that normalizes before each
-sub-layer does not~\cite{xiong2020layer}. We therefore retrained the Transformer-AE winners of
-both development folds, \preRuns{} seeds each, with a linear warm-up over \tOneWarmupSteps{}
-steps and, separately, with pre-norm blocks closed by a final layer normalization:
-\tOneVerdict.
+sub-layer may not, as Xiong et al.\ show for deep translation models~\cite{xiong2020layer}. In a
+post-hoc check we retrained two Transformer-AE winners of each development fold, \preRuns{} seeds
+each, with a linear warm-up over \tOneWarmupSteps{} steps and, separately, with pre-norm blocks
+closed by a final layer normalization: \tOneVerdict{} (Fig.~\ref{fig:t1}). Leaving the plateau
+means reaching \cfgMinSkill\% below the mean predictor on the monitor, which a run on FSDD can
+miss while still learning a little. Batch size and the shared learning rate were not varied, so
+the check does not show that a Transformer cannot learn this task.
+
+\begin{figure}[!t]
+  \centering
+  \input{data/paper_t1_figure.tex}
+  \caption{The Transformer-AE check: test MSE of every final fit (two winners, \preRuns{} seeds)
+  per arm, filled when its training left the mean-predictor plateau on the monitor. Solid: the
+  mean predictor's test MSE; dashed: \cfgMinSkill\% below it, the level that arms early
+  stopping.}
+  \label{fig:t1}
+\end{figure}
 
 \begin{table}[!t]
 \caption{Pre-validation, development folds, \preRuns{} runs. Fold: wall time of the family's
@@ -490,26 +627,27 @@ epoch. Infer.: one window reconstructed after training. One CPU thread each.}
 \fi
 
 \par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
-folds, Table~\ref{tab:sig} the recording-level differences between the SNN-AE and each
-reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane,
+folds, Table~\ref{tab:sig} and Fig.~\ref{fig:forest} the group-level differences between the
+SNN-AE and each reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane,
 Table~\ref{tab:energy} the energy under each repricing, and Table~\ref{tab:snnsel} what the
 SNN-AE's search selected. On energy per window, \energyVerdict.
 
-\begin{table}[!t]
+\begin{table*}[!t]
 \caption{Energy per window (nJ), headline folds, mean over every winner: $E$
-(Section~\ref{sec:cost}), its share spent on memory accesses, $E$ with every access priced at
-one SRAM size, arithmetic alone, and $E$ as executed (a direct-coded first layer recomputed at
-every step). Last row of each dataset: the SNN-AE's energy over the ANN-AE's, per column.}
+(Section~\ref{sec:cost}), the encoder alone, the share of $E$ spent on memory accesses, $E$ with
+every access priced at one SRAM size, with every memory price halved, arithmetic alone, and $E$ as
+executed (a direct-coded first layer recomputed at every step). Last rows of each dataset: the
+SNN-AE's energy over each reference's, per column.}
 \centering\scriptsize
 \setlength{\tabcolsep}{2.5pt}
 \input{data/paper_loso_energy.tex}
 \label{tab:energy}
-\end{table}
+\end{table*}
 
 \begin{table*}[!t]
 \caption{Test MSE (mean $\pm$ std over \cfgRuns{} seeds; lowest per dataset in bold) and
 energy per window $E$ (nJ, memory-aware, Section~\ref{sec:cost}) on the headline folds. PCA and
-Mean are fitted once (no seeds, no std) and are not costed.}
+Mean are fitted once (no seeds, no std); Mean is a stored vector and is not costed.}
 \centering\footnotesize
 \pgfplotstabletypeset[
   col sep=semicolon, string type,
@@ -531,9 +669,9 @@ Mean are fitted once (no seeds, no std) and are not costed.}
 \end{table*}
 
 \begin{table*}[!t]
-\caption{SNN-AE minus reference, recording level, headline folds: $\overline{d_r}$ (positive:
-the SNN-AE errs more; $^{*}$: Holm-corrected Wilcoxon $p<0.05$) and its 95\% bootstrap
-interval.}
+\caption{SNN-AE minus reference, group level, headline folds: $\overline{d_g}$ (positive: the
+SNN-AE errs more; $^{*}$: Holm-corrected $t$-test $p<0.05$; $^{\dagger}$: the whole interval lies
+inside $\pm\cfgMargin$, over groups and over fold means) and its 95\% $t$ interval.}
 \centering\footnotesize
 \input{data/paper_loso_significance.tex}
 \label{tab:sig}
@@ -548,23 +686,41 @@ interval.}
     \input{figs/fig_pareto.tex}
   \fi
   \caption{Test MSE (mean $\pm$ std over seeds) against energy per window $E$, headline
-  folds. Down and left is better; the dashed line is PCA with $k=d$.}
+  folds. Down and left is better; the dashed line and the cross are PCA with $k=d$.}
   \label{fig:pareto}
 \end{figure*}
 
-\begin{table}[!t]
+\begin{figure}[!t]
+  \centering
+  \ifplaceholder
+    \fbox{\parbox[c][2.2cm][c]{0.9\columnwidth}{\centering Per-group SNN-AE minus ANN-AE:
+    generated from data/paper\_loso\_forest\_*.csv after the grid run.}}
+  \else
+    \input{figs/fig_forest.tex}
+  \fi
+  \caption{SNN-AE minus ANN-AE on each held-out group (dots), with the mean and its 95\% $t$
+  interval (bar), headline folds. The band is $\pm\cfgMargin$.}
+  \label{fig:forest}
+\end{figure}
+
+\begin{table*}[!t]
 \caption{SNN-AE selected per dataset over every (fold, run): modal encoding and input
-transform ($k/n$ agreeing, if not all), median $T$ [range], median initial threshold and decay, median
-depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows.}
+transform ($k/n$ agreeing, if not all), median $T$ [range], median initial threshold and decay,
+median depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows; then the trained
+$V_{th}$ (mean, and the lowest layer's, which nothing bounds), the trained $\beta$, the shares of
+(neuron, window) pairs that never fired and that fired at every step, and the final network's
+training error. After the slash, the ANN-AE control: its share of (hidden unit, window) pairs
+with a leaky-ReLU output at most 0.01, and its training error; a leaky ReLU has no upper end, so
+it has no ``always'' share. Read the shares beside $T$: one spike moves a rate by $1/T$.}
 \centering\footnotesize
 \setlength{\tabcolsep}{3pt}
 \input{data/paper_loso_snn_overview.tex}
 \label{tab:snnsel}
-\end{table}
+\end{table*}
 
 \begin{table}[!t]
-\caption{Sensitivity to the development fold: SNN-AE minus ANN-AE, recording level, without
-(headline) and with it.}
+\caption{Sensitivity to the development folds: SNN-AE minus ANN-AE, group level, without
+(headline) and with them.}
 \centering\footnotesize
 \setlength{\tabcolsep}{3pt}
 \input{data/paper_loso_sensitivity.tex}
@@ -572,67 +728,72 @@ depth $L$, and the hidden neurons' spike fraction $\rho$ on test windows.}
 \end{table}
 
 % TODO(after the grid run): replace the reading guide below by the findings.
-\par \textbf{Reading guide.} The first question is the gap between the SNN-AE and its matched
-control, per dataset and modality, and whether its interval excludes zero. The second is
+\par \textbf{Reading guide.} The first question is the gap between the SNN-AE and its control,
+per dataset and modality, and whether its interval excludes zero or lies inside $\pm\Delta$. The second is
 whether the SNN-AE saves energy for it: its $E$ against the ANN-AE's, and whether that ordering
 survives every column of Table~\ref{tab:energy}, read together with the selected encoding and
 $T$ in Table~\ref{tab:snnsel}: binary inputs turn the first layer's MACs into adds, but every
 step adds a read and a write of every potential. The third
-places both against PCA; a model that does not beat PCA has not
-shown that its nonlinearity helps on that dataset. Orderings are asserted only where the
-Holm-corrected $p$ is below 0.05 and the interval excludes zero, and a finding that holds on one modality only is
-reported as such.
+places both against PCA, on error and on energy; a model that does not beat PCA has not
+shown that its nonlinearity helps on that dataset. One rule was fixed before the grid run: where
+PCA errs less than both autoencoders on a modality, as it did on both development folds
+(Section~\ref{sec:prevalidation}), that is reported first, and the gap between the SNN-AE and its
+control is then read as the price of spiking among models that both lose to a linear projection.
+An ordering is asserted only where the Holm-corrected $p$ is below 0.05 and the interval excludes
+zero, and a finding that holds on one modality only is reported as such.
 
 % ─────────────────────────────────────────────────────────────
 \section{Discussion}
 \label{sec:discussion}
 
 % TODO(after the grid run): discussion of the measured gap and cost.
-\par The design study already constrains what the main run can show. The spike's cost in this
-autoencoder is not a property of discrete events as such: a non-spiking network with the same
-clipped transfer function pays it, and a smooth bounded one does not. Remedies that act on the
-transfer function -- a membrane read out instead of spikes in some layers, adaptive thresholds,
-or soft resets, which made things worse here -- are therefore the levers to test. Longer
-simulations helped on EEG only (Table~\ref{tab:design}) and cost arithmetic in proportion to
-$T$ and in memory traffic. On energy, binary inputs save the first layer's multiplies while
-every step pays for the potentials, so whether the SNN-AE ends up cheaper than its control
-depends on the encoding, $T$ and spike rate the search selects, not on spiking alone.
+\par The design study does not separate the spike's discreteness from saturation. On direct
+input the code sits near 0 and 1, so it is both at once; a smooth bound (the sigmoid) cost
+nothing and a hard one (the clamp) cost as much or more; and on Poisson input the code is not
+near binary, yet the gap remains. Table~\ref{tab:snnsel} reports each end on its own, to be read
+beside $T$, since one spike moves the rate by $1/T$. Remedies that move the code off those values
+-- a membrane read out instead of spikes in some layers, adaptive thresholds -- are candidates to
+test. On energy, a synaptic event is not simply cheaper than a multiply--accumulate once memory
+is priced, so whether the SNN-AE ends up cheaper than its control depends on the encoding, $T$,
+input transform and spike rate the search selects. Per-window normalization makes silence as
+dense as signal for rate and latency codes, which keeps both above the break-even of
+Fig.~\ref{fig:breakeven} at every $T$.
 
 \par \textbf{Limitations.}
-(i) \emph{Groups.} Recordings are nested in 6, 60, 109 and 14 groups (5 FSDD speakers on the
-headline folds). The recording-level test treats recordings as independent, so it speaks to new
-recordings of these speakers and subjects, not to new ones; the group-level tests that would are
-reported as robustness only, and with 5 speakers the exact Wilcoxon $p$ cannot fall below
-0.0625. (ii) \emph{One channel, short windows.} EEG is
+(i) \emph{Groups.} Headline results rest on 4 of the 6 FSDD speakers, about 72 of the 109
+EEGMMIDB subjects, and all of AudioMNIST's 60 and Siena's 14 groups, from at most \cfgFolds{} sets
+of models; the FSDD interval is wide by construction. (ii) \emph{One channel, short windows.} EEG is
 read from one channel and every window has \cfgWindow{} samples; results may not transfer to
 multichannel or longer contexts. (iii) \emph{Estimated, not measured energy.} $E$ models an
 accelerator with local SRAMs at 45\,nm and leaves out off-chip traffic, leakage and control;
 a real chip's consumption, and whether it can exploit sparsity, decide the final number. The
-repricings bound how much the conclusion depends on the memory model, not on the chip. (iv) \emph{Search budget.} The SNN-AE evaluates \cfgGaEvals{} candidates per
+repricings probe how much the conclusion depends on the memory model; they do not bound it. (iv) \emph{Search budget.} The SNN-AE draws \cfgGaEvals{} candidates per
 fold and run, and the control none (it inherits the SNN-AE's widths), which favours the SNN-AE
-over its control; a larger budget could change the winner. (v) \emph{Matched, not identical inputs.} The ANN-AE always reads
-the analog window, whereas the SNN-AE may read spikes; the information available is the same,
-its code is not. (vi) \emph{Fixed latent width.} $d$ follows prior autoencoder practice for
+over its control; a larger budget could change the winner. (v) \emph{Different inputs.} The ANN-AE always reads
+the analog window, whereas the SNN-AE may read spikes; a stochastic or latency code also loses
+part of the window's information, which is included in the measured gap. (vi) \emph{Fixed latent width.} $d$ follows prior autoencoder practice for
 each domain, not a sweep on these datasets. (vii) \emph{Training cap.} At most \cfgEpochs{}
-epochs; on the development fold most EEG runs were still improving at the cap.
+epochs. No training of the budget test reached that many (Section~\ref{sec:design}); the training
+error in Table~\ref{tab:snnsel} shows what the cap leaves on the headline folds.
 (viii) \emph{Sequence models pre-validated, not compared.} The LSTM-, GRU- and Transformer-AE
-were searched with \preGaEvals{} evaluations on two development folds only, so the conclusions
-concern spiking against its matched control, not against sequence models.
+were searched with \preGaEvals{} candidates on two development folds only, so the conclusions
+concern spiking against its control, not against sequence models. (ix) \emph{Rate read-out.} The
+latent is a time mean, so the timing of spikes carries nothing here; conclusions concern
+rate-read spiking. (x) \emph{One window draw.} Each fold's windows are one draw, so the seeds' standard
+deviations leave out that sampling noise.
 
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 \label{sec:conclusion}
 
 % TODO(after the grid run): one sentence with the headline result.
-\par We compared a spiking autoencoder with a matched non-spiking control and PCA on two
-speech and two EEG datasets, under nested leave-one-group-out cross-validation with every
-choice made on validation groups and the development fold kept out of the headline numbers;
-searched sequence autoencoders were measured in a pre-validation on the same folds for what
-they cost to train and to run. Matching the control exposed two
-confounds that would have changed the conclusion -- a per-step loss and a spiking decoder
-that inflated the gap, and an initializer that, shared but poorly chosen, made it vanish on
-EEG -- and located the remaining cost in the saturation of the LIF transfer function. The harness, profile and analysis scripts
-are released \cite{furlan2026doi}.
+\par We compared a spiking autoencoder with a non-spiking control and PCA on two speech and two
+EEG datasets, under nested group-disjoint cross-validation with every architecture chosen on
+validation groups and design choices made on development folds. Those folds, and the fold that
+tests on their validation groups, are out of the headline numbers; one further fold validates on
+a development test group, so two datasets remain design-informed. Searched sequence autoencoders
+were reported on the development folds for what they cost to train and to run. We claim no cause for any gap
+found. The harness, profile and analysis scripts are released \cite{furlan2026doi}.
 
 \bibliographystyle{IEEEtran}
 \bibliography{paper}

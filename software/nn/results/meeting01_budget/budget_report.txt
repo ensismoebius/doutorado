@@ -1,0 +1,50 @@
+W: EEGMMIDB ANN-AE by hidden width (PCA train 0.105, test 0.192)
+  e30 width 65x64   train 0.1930 test 0.3022 best epochs [26, 30, 29, 30]
+  e30 width 128x64  train 0.1959 test 0.3622 best epochs [28, 27, 26, 20]
+  e30 width 256x64  train 0.2319 test 0.3976 best epochs [9, 9, 10, 10]
+  e30 width 128x64 - 65x64                                   train_mse +0.0029 [-0.0078, +0.0135]
+      closes  -3.2% of the 65-wide ANN's train lead lost to PCA (0.0880)
+  e30 width 128x64 - 65x64                                   test_mse  +0.0600 [+0.0456, +0.0745]  *
+      closes -54.5% of the 65-wide ANN's test lead lost to PCA (0.1102)
+  e30 width 256x64 - 65x64                                   train_mse +0.0388 [+0.0272, +0.0505]  *
+      closes -44.1% of the 65-wide ANN's train lead lost to PCA (0.0880)
+  e30 width 256x64 - 65x64                                   test_mse  +0.0955 [+0.0867, +0.1042]  *
+      closes -86.7% of the 65-wide ANN's test lead lost to PCA (0.1102)
+  e60 width 65x64   train 0.1790 test 0.2881 best epochs [32, 39, 43, 33]
+  e60 width 128x64  train 0.1959 test 0.3622 best epochs [28, 27, 26, 20]
+  e60 width 256x64  train 0.2319 test 0.3976 best epochs [9, 9, 10, 10]
+  e60 width 128x64 - 65x64                                   train_mse +0.0169 [+0.0083, +0.0255]  *
+      closes -22.8% of the 65-wide ANN's train lead lost to PCA (0.0740)
+  e60 width 128x64 - 65x64                                   test_mse  +0.0741 [+0.0673, +0.0808]  *
+      closes -77.0% of the 65-wide ANN's test lead lost to PCA (0.0961)
+  e60 width 256x64 - 65x64                                   train_mse +0.0529 [+0.0444, +0.0613]  *
+      closes -71.5% of the 65-wide ANN's train lead lost to PCA (0.0740)
+  e60 width 256x64 - 65x64                                   test_mse  +0.1095 [+0.1069, +0.1121]  *
+      closes -113.9% of the 65-wide ANN's test lead lost to PCA (0.0961)
+E: SNN-AE minus ANN-AE control, 30 vs 60 epochs, per winner
+  fsdd_r1 e30: SNN 0.8005 (best epochs [7, 8, 5, 7]), ANN 0.7434 (best epochs [5, 5, 7, 8])
+  fsdd_r1 e60: SNN 0.8005 (best epochs [7, 8, 5, 7]), ANN 0.7434 (best epochs [5, 5, 7, 8])
+  fsdd_r1 gap(60) - gap(30)                                  test_mse  +0.0000 [+0.0000, +0.0000]
+  fsdd_r1 SNN 60 - 30                                        test_mse  +0.0000 [+0.0000, +0.0000]
+  fsdd_r1 ANN 60 - 30                                        test_mse  +0.0000 [+0.0000, +0.0000]
+  fsdd_r1 SNN - ANN at 60                                    test_mse  +0.0571 [+0.0457, +0.0684]  *
+  fsdd_r2 e30: SNN 0.7800 (best epochs [30, 22, 30, 30]), ANN 0.7424 (best epochs [13, 18, 16, 21])
+  fsdd_r2 e60: SNN 0.7774 (best epochs [30, 22, 38, 31]), ANN 0.7424 (best epochs [13, 18, 16, 21])
+  fsdd_r2 gap(60) - gap(30)                                  test_mse  -0.0027 [-0.0103, +0.0050]
+  fsdd_r2 SNN 60 - 30                                        test_mse  -0.0027 [-0.0103, +0.0050]
+  fsdd_r2 ANN 60 - 30                                        test_mse  +0.0000 [+0.0000, +0.0000]
+  fsdd_r2 SNN - ANN at 60                                    test_mse  +0.0349 [+0.0225, +0.0473]  *
+  eegmmidb_r1 e30: SNN 0.3988 (best epochs [30, 29, 26, 30]), ANN 0.3022 (best epochs [26, 30, 29, 30])
+  eegmmidb_r1 e60: SNN 0.3928 (best epochs [38, 45, 26, 34]), ANN 0.2881 (best epochs [32, 39, 43, 33])
+  eegmmidb_r1 gap(60) - gap(30)                              test_mse  +0.0080 [-0.0116, +0.0277]
+  eegmmidb_r1 SNN 60 - 30                                    test_mse  -0.0060 [-0.0193, +0.0073]
+  eegmmidb_r1 ANN 60 - 30                                    test_mse  -0.0140 [-0.0232, -0.0049]  *
+  eegmmidb_r1 SNN - ANN at 60                                test_mse  +0.1047 [+0.0911, +0.1182]  *
+  eegmmidb_r2 e30: SNN 0.4371 (best epochs [30, 29, 28, 24]), ANN 0.3022 (best epochs [26, 30, 29, 30])
+  eegmmidb_r2 e60: SNN 0.4294 (best epochs [36, 39, 31, 24]), ANN 0.2881 (best epochs [32, 39, 43, 33])
+  eegmmidb_r2 gap(60) - gap(30)                              test_mse  +0.0064 [-0.0079, +0.0207]
+  eegmmidb_r2 SNN 60 - 30                                    test_mse  -0.0077 [-0.0172, +0.0019]
+  eegmmidb_r2 ANN 60 - 30                                    test_mse  -0.0140 [-0.0232, -0.0049]  *
+  eegmmidb_r2 SNN - ANN at 60                                test_mse  +0.1413 [+0.1255, +0.1571]  *
+
+determinism: 28 e30 snapshots compared with the design study, 0 differ

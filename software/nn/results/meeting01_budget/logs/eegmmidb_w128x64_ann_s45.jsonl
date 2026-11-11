@@ -1,0 +1,27 @@
+{"type": "start", "name": "eegmmidb_w128x64_ann_s45", "trivial_loss": 0.9996989648693367, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.6886454452723265, "monitor": 0.5375884175300598, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.4469123170003295, "monitor": 0.44277435541152954, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.3709867420718074, "monitor": 0.40333107113838196, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.3364842006117105, "monitor": 0.3872096836566925, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.3133960320726037, "monitor": 0.37714385986328125, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.2984687086120248, "monitor": 0.36481785774230957, "armed": true, "best_epoch": 6}
+{"type": "epoch", "epoch": 7, "train_loss": 0.28219195031374694, "monitor": 0.35489577054977417, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.27429745412617923, "monitor": 0.3599497377872467, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 9, "train_loss": 0.2671290321722627, "monitor": 0.3482649624347687, "armed": true, "best_epoch": 9}
+{"type": "epoch", "epoch": 10, "train_loss": 0.25939168240129945, "monitor": 0.3390016257762909, "armed": true, "best_epoch": 10}
+{"type": "epoch", "epoch": 11, "train_loss": 0.25469967590272424, "monitor": 0.34320831298828125, "armed": true, "best_epoch": 10}
+{"type": "epoch", "epoch": 12, "train_loss": 0.24937236703932286, "monitor": 0.3382595479488373, "armed": true, "best_epoch": 12}
+{"type": "epoch", "epoch": 13, "train_loss": 0.2456284417361021, "monitor": 0.33233895897865295, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 14, "train_loss": 0.23810369196534156, "monitor": 0.3316996395587921, "armed": true, "best_epoch": 14}
+{"type": "epoch", "epoch": 15, "train_loss": 0.23676479741185905, "monitor": 0.33125966787338257, "armed": true, "best_epoch": 15}
+{"type": "epoch", "epoch": 16, "train_loss": 0.2346897072568536, "monitor": 0.32675600051879883, "armed": true, "best_epoch": 16}
+{"type": "epoch", "epoch": 17, "train_loss": 0.23026437395066024, "monitor": 0.32892662286758423, "armed": true, "best_epoch": 16}
+{"type": "epoch", "epoch": 18, "train_loss": 0.22742996690794826, "monitor": 0.32266971468925476, "armed": true, "best_epoch": 18}
+{"type": "epoch", "epoch": 19, "train_loss": 0.22510807621479034, "monitor": 0.32936814427375793, "armed": true, "best_epoch": 18}
+{"type": "epoch", "epoch": 20, "train_loss": 0.22154890020936727, "monitor": 0.3136118948459625, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 21, "train_loss": 0.22115931632369756, "monitor": 0.3260316550731659, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 22, "train_loss": 0.21716294288635254, "monitor": 0.3163328170776367, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 23, "train_loss": 0.21848302356898786, "monitor": 0.3174077868461609, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 24, "train_loss": 0.21560409121215343, "monitor": 0.33187469840049744, "armed": true, "best_epoch": 20}
+{"type": "epoch", "epoch": 25, "train_loss": 0.21226378661394119, "monitor": 0.3166346251964569, "armed": true, "best_epoch": 20}
+{"type": "end", "rows": [{"name": "eegmmidb_w128x64_ann_s45", "part": "W", "dataset": "eegmmidb", "run": 1, "family": "ann", "widths": "128x64", "encoding": "direct", "time_steps": 1, "seed": 45, "budget": "e30", "best_epoch": 20, "armed_epoch": 1, "epochs_run": 25, "stop_reason": "patience", "test_mse": 0.3610233664512634, "val_mse": 0.3136118948459625, "train_mse": 0.19914735853672028, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 109.25058054924011}, {"name": "eegmmidb_w128x64_ann_s45", "part": "W", "dataset": "eegmmidb", "run": 1, "family": "ann", "widths": "128x64", "encoding": "direct", "time_steps": 1, "seed": 45, "budget": "e60", "best_epoch": 20, "armed_epoch": 1, "epochs_run": 25, "stop_reason": "patience", "test_mse": 0.3610233664512634, "val_mse": 0.3136118948459625, "train_mse": 0.19914735853672028, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 109.34409999847412}]}

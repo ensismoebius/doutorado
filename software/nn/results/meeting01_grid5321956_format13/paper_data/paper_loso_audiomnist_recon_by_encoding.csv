@@ -1,0 +1,9 @@
+model;encoding;mse;mae;r2
+Mean;direct;1.0009$\pm$0.0000;0.8138$\pm$0.0000;
+Mean;poisson;1.0009$\pm$0.0000;0.8138$\pm$0.0000;
+Mean;latency;1.0009$\pm$0.0000;0.8138$\pm$0.0000;
+PCA;direct;0.3585$\pm$0.0000;0.4243$\pm$0.0000;
+PCA;poisson;0.3585$\pm$0.0000;0.4243$\pm$0.0000;
+PCA;latency;0.3585$\pm$0.0000;0.4243$\pm$0.0000;
+SNN-AE;poisson;0.4318$\pm$0.0257;0.4845$\pm$0.0173;0.5677$\pm$0.0258
+ANN-AE (control);direct;0.4016$\pm$0.0016;0.4642$\pm$0.0017;0.5978$\pm$0.0019

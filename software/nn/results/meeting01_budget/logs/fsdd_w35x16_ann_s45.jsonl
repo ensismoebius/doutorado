@@ -1,0 +1,28 @@
+{"type": "start", "name": "fsdd_w35x16_ann_s45", "trivial_loss": 1.0013324600413032, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.9256929733455181, "monitor": 0.8271927833557129, "armed": true, "best_epoch": 1}
+{"type": "epoch", "epoch": 2, "train_loss": 0.7589506167471409, "monitor": 0.728945255279541, "armed": true, "best_epoch": 2}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6970692283511162, "monitor": 0.6783671379089355, "armed": true, "best_epoch": 3}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6645812021270394, "monitor": 0.6599724292755127, "armed": true, "best_epoch": 4}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6440061955191195, "monitor": 0.6420133709907532, "armed": true, "best_epoch": 5}
+{"type": "epoch", "epoch": 6, "train_loss": 0.6284129088744521, "monitor": 0.6323421001434326, "armed": true, "best_epoch": 6}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6199514050558209, "monitor": 0.6203684210777283, "armed": true, "best_epoch": 7}
+{"type": "epoch", "epoch": 8, "train_loss": 0.6122202315628529, "monitor": 0.6155529618263245, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 9, "train_loss": 0.6062607009485363, "monitor": 0.6227945685386658, "armed": true, "best_epoch": 8}
+{"type": "epoch", "epoch": 10, "train_loss": 0.6010933742262423, "monitor": 0.6104274988174438, "armed": true, "best_epoch": 10}
+{"type": "epoch", "epoch": 11, "train_loss": 0.5962136298958212, "monitor": 0.6045525670051575, "armed": true, "best_epoch": 11}
+{"type": "epoch", "epoch": 12, "train_loss": 0.5926716463007032, "monitor": 0.604337215423584, "armed": true, "best_epoch": 12}
+{"type": "epoch", "epoch": 13, "train_loss": 0.5900334934778512, "monitor": 0.600550651550293, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 14, "train_loss": 0.5868174968361854, "monitor": 0.6041967868804932, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 15, "train_loss": 0.5847098811082542, "monitor": 0.6032427549362183, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 16, "train_loss": 0.5818958190456033, "monitor": 0.6006703972816467, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 17, "train_loss": 0.5790403119660914, "monitor": 0.6018600463867188, "armed": true, "best_epoch": 13}
+{"type": "epoch", "epoch": 18, "train_loss": 0.5770339806266129, "monitor": 0.5997796654701233, "armed": true, "best_epoch": 18}
+{"type": "epoch", "epoch": 19, "train_loss": 0.5741534466333688, "monitor": 0.5997610688209534, "armed": true, "best_epoch": 19}
+{"type": "epoch", "epoch": 20, "train_loss": 0.5728590659685433, "monitor": 0.603024423122406, "armed": true, "best_epoch": 19}
+{"type": "epoch", "epoch": 21, "train_loss": 0.5710162236504257, "monitor": 0.5971063375473022, "armed": true, "best_epoch": 21}
+{"type": "epoch", "epoch": 22, "train_loss": 0.5690140057951212, "monitor": 0.6032246351242065, "armed": true, "best_epoch": 21}
+{"type": "epoch", "epoch": 23, "train_loss": 0.5674828761219979, "monitor": 0.6064655780792236, "armed": true, "best_epoch": 21}
+{"type": "epoch", "epoch": 24, "train_loss": 0.5661103639826178, "monitor": 0.6050660014152527, "armed": true, "best_epoch": 21}
+{"type": "epoch", "epoch": 25, "train_loss": 0.5644120411239565, "monitor": 0.606641411781311, "armed": true, "best_epoch": 21}
+{"type": "epoch", "epoch": 26, "train_loss": 0.5635296026840806, "monitor": 0.6125466227531433, "armed": true, "best_epoch": 21}
+{"type": "end", "rows": [{"name": "fsdd_w35x16_ann_s45", "part": "E", "dataset": "fsdd", "run": 2, "family": "ann", "widths": "35x16", "encoding": "direct", "time_steps": 1, "seed": 45, "budget": "e30", "best_epoch": 21, "armed_epoch": 1, "epochs_run": 26, "stop_reason": "patience", "test_mse": 0.7356237173080444, "val_mse": 0.5971063375473022, "train_mse": 0.5541336536407471, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 63.88603472709656}, {"name": "fsdd_w35x16_ann_s45", "part": "E", "dataset": "fsdd", "run": 2, "family": "ann", "widths": "35x16", "encoding": "direct", "time_steps": 1, "seed": 45, "budget": "e60", "best_epoch": 21, "armed_epoch": 1, "epochs_run": 26, "stop_reason": "patience", "test_mse": 0.7356237173080444, "val_mse": 0.5971063375473022, "train_mse": 0.5541336536407471, "source_revision": "8d2dafd1+dirty/6f3c8c8dbdc7", "wall_s": 63.89737343788147}]}

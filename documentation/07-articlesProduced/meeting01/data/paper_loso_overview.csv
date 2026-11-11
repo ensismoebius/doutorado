@@ -2,4 +2,4 @@ model;fsddmse;fsddenergy;audiomnistmse;audiomnistenergy;eegmmidbmse;eegmmidbener
 Mean;--;--;--;--;--;--;--;--
 PCA;--;--;--;--;--;--;--;--
 SNN-AE;--;--;--;--;--;--;--;--
-ANN-AE (matched);--;--;--;--;--;--;--;--
+ANN-AE (control);--;--;--;--;--;--;--;--

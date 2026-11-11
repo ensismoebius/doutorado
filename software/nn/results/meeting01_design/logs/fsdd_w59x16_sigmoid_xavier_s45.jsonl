@@ -1,0 +1,13 @@
+{"type": "start", "name": "fsdd_w59x16_sigmoid_xavier_s45", "trivial_loss": 1.0013324600413032, "arm_below": 0.9011992140371728, "steps": 1, "encoding": "direct", "source_revision": "49aa9524+dirty/503d7ee88edc"}
+{"type": "epoch", "epoch": 1, "train_loss": 0.8529966978132725, "monitor": 0.7224500775337219, "armed": true, "best_epoch": 1, "bad": 0}
+{"type": "epoch", "epoch": 2, "train_loss": 0.686797043979168, "monitor": 0.6460911631584167, "armed": true, "best_epoch": 2, "bad": 0}
+{"type": "epoch", "epoch": 3, "train_loss": 0.6435607684403658, "monitor": 0.6187952756881714, "armed": true, "best_epoch": 3, "bad": 0}
+{"type": "epoch", "epoch": 4, "train_loss": 0.6247222123593092, "monitor": 0.6101551055908203, "armed": true, "best_epoch": 4, "bad": 0}
+{"type": "epoch", "epoch": 5, "train_loss": 0.6145160501375795, "monitor": 0.6065898537635803, "armed": true, "best_epoch": 5, "bad": 0}
+{"type": "epoch", "epoch": 6, "train_loss": 0.606239892296493, "monitor": 0.6014450788497925, "armed": true, "best_epoch": 6, "bad": 0}
+{"type": "epoch", "epoch": 7, "train_loss": 0.6011855331920087, "monitor": 0.6036123037338257, "armed": true, "best_epoch": 6, "bad": 1}
+{"type": "epoch", "epoch": 8, "train_loss": 0.5953998004496097, "monitor": 0.6074541807174683, "armed": true, "best_epoch": 6, "bad": 2}
+{"type": "epoch", "epoch": 9, "train_loss": 0.5899433387368918, "monitor": 0.6151642799377441, "armed": true, "best_epoch": 6, "bad": 3}
+{"type": "epoch", "epoch": 10, "train_loss": 0.5857103808261455, "monitor": 0.6137891411781311, "armed": true, "best_epoch": 6, "bad": 4}
+{"type": "epoch", "epoch": 11, "train_loss": 0.5814302486348897, "monitor": 0.6202162504196167, "armed": true, "best_epoch": 6, "bad": 5}
+{"type": "end", "name": "fsdd_w59x16_sigmoid_xavier_s45", "dataset": "fsdd", "run": 1, "widths": "59x16", "encoding": "direct", "time_steps": 1, "neuron": "sigmoid", "readout": "lat_mean", "decoder": "lrelu", "init": "xavier", "seed": 45, "source_revision": "49aa9524+dirty/503d7ee88edc", "epochs_run": 11, "best_epoch": 6, "armed_epoch": 1, "stop_reason": "patience", "trivial_loss": 1.0013324600413032, "best_monitor": 0.6014450788497925, "test_mse": 0.7456400394439697, "test_mse_per_step": NaN, "val_mse": 0.6014450788497925, "train_mse": 0.5884759426116943, "enc_low_share": 0.023875705897808075, "enc_high_share": 0.019265536218881607, "enc_mean_code": 0.4890274405479431, "dec_low_share": NaN, "dec_high_share": NaN, "lif_v_th_mean": NaN, "lif_beta_mean": NaN, "wall_s": 34.96349310874939}

@@ -39,7 +39,7 @@ Experiment04 implements a comparative study between Spiking Neural Networks (SNN
 | `fsdd` | spoken digits, 8 kHz | speaker | 6 / 6 | none | `.../databases/fsdDataset` |
 | `audiomnist` | spoken digits, offline-resampled 48→8 kHz | speaker | 60 / 6 | 2 | `.../databases/audioMNIST_8k` |
 | `eegmmidb` | EEG, 64 ch (signal 0 read), 160 Hz, EDF+ | subject (parent dir) | 109 / 6 | 40 | `.../databases/eegmmidb` |
-| `siena` | EEG, up to 35 ch (signal 0 read), 512 Hz, EDF | subject (parent dir) | 14 / 6 | 40 | `.../databases/siena` |
+| `siena` | EEG, up to 35 ch (signal 0 read), 512 Hz, EDF; filtered at 512, windows cut at 160 Hz (format 13, [why](#siena-at-160-hz-results_format-13-2026-11-10)) | subject (parent dir) | 14 / 6 | 40 | `.../databases/siena` |
 
 **Why a new loader, not the existing `EEGLoader`.** The codebase already has an
 EEG loader (`nn::dataLoaders::EEGLoader`), but it reads a MAT-file/sqlite
@@ -71,9 +71,9 @@ grouping — only *where the loader reads the group from* differs.
   does the merge.
 - **Stratified per-fold window caps** (`loso_max_train_windows` 1200, `loso_max_val_windows`
   300, `loso_max_test_windows` 1500 in `meeting01-loso.json`): after the LOSO split,
-  `stratified_window_cap` subsamples each partition round-robin across recordings (ordered
-  by `recording_id`), so every recording and speaker keeps representation and per-recording
-  counts stay as even as the cap allows. Full pooled FSDD is ~27k train windows/fold —
+  `stratified_window_cap` subsamples each partition balanced by speaker, digit and recording
+  ([since format 10](#the-windows-were-wrong-results_format-10-2026-11-04); before, it walked a
+  sorted list and stopped at the cap). Full pooled FSDD is ~27k train windows/fold —
   intractable at batch-size 1 across the GA's population(10)×(1+generations(8))=90 SNN
   trainings × 5 seeds × 18 (dataset, fold) processes. The caps do **not** touch the leave-one-group-out structure
   or the recording-level statistical unit; they bound per-epoch cost. `cap <= 0` = unlimited.
@@ -897,7 +897,7 @@ a reference returned nothing, and only the recording level (`d_r`) produced a nu
 
 ### One stamp per fold: `results_format`
 
-The binary writes `"results_format": 7` into every JSON manifest of a fold
+The binary writes `"results_format": 10` into every JSON manifest of a fold
 (`kResultsFormat`, `Meeting01Output.hpp`); every reader accepts exactly that value
 (`RESULTS_FORMAT`, `scripts/pipeline/meeting01/meeting01_results.py`). The stamp was 2 when this
 section was first written (second pass, commit `b434792e`) and became 3 on 2026-10-07, when two more silent changes
@@ -911,8 +911,11 @@ results_format == 3         ->  refused: "the baselines read the window repeated
 results_format == 4         ->  refused: "the SNN-AE was scored at every step, its spike_rate counted outputs > 0 ... rerun"
 results_format == 5         ->  refused: "the SNN-AE's T was one fixed value for every genome ... rerun"
 results_format == 6         ->  refused: "patience stopped networks still on the mean-predictor plateau ... arithmetic-only energy ... rerun"
-results_format == 7         ->  read
-results_format >= 8         ->  refused: "newer than the scripts (or the manifest was edited)"
+results_format == 7         ->  refused: "a direct-coded first layer was priced at every step ... rerun"
+results_format == 8         ->  refused: "every seed started from the same weights ... rerun"
+results_format == 9         ->  refused: "the windows were wrong: WAV header, sorted caps, 128 Hz files ... rerun"
+results_format == 10        ->  read
+results_format >= 11        ->  refused: "newer than the scripts (or the manifest was edited)"
 ```
 
 | `results_format` | Written by | What its rows contain |
@@ -923,7 +926,88 @@ results_format >= 8         ->  refused: "newer than the scripts (or the manifes
 | 4 | 2026-10-24 to 2026-11-01 (**no production fold ran with it**) | the baselines read the window at `model.recurrent_time_steps` (1: 32 frames), encoding `direct` only — [why](#why-the-recurrent-baselines-read-the-window-once-found--fixed-2026-10-24) |
 | 5 | 2026-11-01 to 2026-11-02 | the SNN-AE averages its latent over T = 4 steps and decodes once with an analog decoder (`model.snn_time_pool` / `snn_decoder_neuron`); `spike_rate` counts hidden LIF spikes (NaN for non-spiking models); `energy` replaced by `acs` + `arith_energy_nj`; the SNN's `macs` is counted — [why](#the-snn-ae-after-the-diagnosis-results_format-5-2026-11-01) |
 | 6 | 2026-11-02 to 2026-11-03 (pre-validation job 5314513 only) | T is an SNN-AE GA gene, recorded per winner — [why](#ready-for-the-grid-run-results_format-6-2026-11-02) |
-| 7 | 2026-11-03 on | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
+| 7 | 2026-11-03 (pre-validation job 5315335 only) | patience armed only below the mean predictor, best epoch's weights kept; memory-aware energy columns (`energy_nj` and its checks) — [why](#stopping-rule-and-memory-aware-energy-results_format-7-2026-11-03) |
+| 8 | 2026-11-03 to 2026-11-04 (T1 only) | a repeated input's first layer priced once; `energy_nj_as_executed` as a check |
+| 9 | 2026-11-04 (pre-validation job 5316016, T1) | the run seed reaches every training; the GA cost counts a repeated first layer once |
+| 10 | 2026-11-04 | the windows themselves corrected, every dataset — [why](#the-windows-were-wrong-results_format-10-2026-11-04) |
+| 11 | 2026-11-05 | the GA's front re-scored on fresh seeds only; rows log the network's insides and the encoder's energy — [why](#what-the-review-changed-results_format-11-2026-11-05) |
+| 12 | 2026-11-09 | ann-ae rows carry `hidden_silent_share` (the control's share row); readers that never read it accept 11 too — [why](#a-share-row-for-the-control-results_format-12-2026-11-09) |
+| 13 | 2026-11-10 on | Siena's windows cut at 160 Hz, not 512; `validate()` refuses an EEG window its latent carries whole — [why](#siena-at-160-hz-results_format-13-2026-11-10) |
+
+### The windows were wrong (results_format 10, 2026-11-04)
+
+Found by the adversarial review of the paper (`documentation/07-articlesProduced/meeting01/review/`).
+All four defects share one property, and it is why they lasted: **nothing failed.** Every count
+was right, every loss finite, every test green. Only the content of the windows was wrong.
+
+| Defect | What the network received | What it broke | Loud? |
+|---|---|---|---|
+| WAV header read as audio | 22 samples of header at the start of each recording; the last 22 real ones lost | every FSDD and AudioMNIST recording | silent |
+| Caps walk a sorted list | FSDD fold 0: train digits 0-4, validation 0-2, test 0-9; EEGMMIDB validation 11 of 18 subjects | who is in the sample | silent |
+| Per-recording cap keeps the start | EEGMMIDB's first 64 s of each run, Siena's first 20 s of each file, AudioMNIST's windows 0 and 1 | what is in the sample | silent |
+| 36 EDF files at 128 Hz treated as 160 Hz | the 40 Hz edge at 32 Hz, the 60 Hz notch at 48 Hz, windows of 2.0 s | S088, S092, S100 | silent |
+
+**The header, drawn.** The file is `[44 bytes of header][samples]`, and the reader seeked back to
+byte 0 after parsing the header:
+
+```
+expected:  -369  -431  -475  -543  -571 ...
+read:     18770 17990 10332     0 16727 ... (22 values) -369 -431 ...
+```
+
+Speech is in the hundreds and those values are in the tens of thousands, so after the per-window
+z-score window 0 is nearly the same pattern in every recording (mean pairwise correlation 0.98,
+86% of its energy in those 22 samples). About 8% of the windows could be memorized. In a
+replica, the T1 control erred 0.113 on window 0 and 1.000 on the others:
+
+```
+0.08 x 0.113 + 0.92 x 1.000 = 0.93     the T1 control's 0.935: not a network that learned a little
+```
+
+Measured effect on absolute errors: PCA k=16 goes from 0.649 to 0.707, the mean predictor from 0.995
+to 1.001. Measured effect on the SNN-AE / ANN-AE gap, in the replica: 0.060 to 0.064-0.066. Both arms
+memorize the header, so a difference between them barely moves. Absolute numbers were wrong; that
+comparison was not.
+
+**The caps.** `stratified_window_cap` now balances speaker -> digit -> recording -> window, and a
+per-recording cap draws across the recording, uniformly and without looking at the signal
+(voice-activity selection was rejected: it is a selection the protocol would have to defend).
+The draw is fixed per dataset and fold, from `experiment.seed`, so every repeat sees the same
+windows and PCA and the mean predictor, fitted once, score the same test set. The cost of that
+choice: the repeats do not sample the draw, and PCA k=16 moved 0.047 between two balanced draws
+on FSDD fold 0. Every split manifest now records its `composition`, because a cap's bias cannot be
+seen in a window count.
+
+**The 128 Hz files are kept, not excluded.** Each file's rate comes from its own header. The filter
+runs at that rate, because its cut-offs are in Hz, and then `nn::utility::resample_bandlimited`
+converts the signal to the profile's `sample_rate`, so a window lasts 1.6 s and a frequency means one
+thing in every recording. Nothing is lost: after the 0.5-40 Hz band, the signal holds nothing near
+either Nyquist (64 and 80 Hz). Excluding the three subjects would also have moved seven others
+across the folds, one of them (S019) from the development test block into a headline test block,
+because blocks follow the sorted subject list. Converting leaves all 109 where they were.
+
+| Rejected fix | Why |
+|---|---|
+| Exclude S088, S092, S100 | moves 7 subjects between blocks; loses data that is fine |
+| Filter at 128 Hz, keep 128 Hz windows | one window, two durations: the frequency axis still differs |
+| Select voiced windows | a content-based selection, the kind this protocol avoids |
+
+**Checkpoints.** The GA stamp was already refusing another `results_format`, which covers this
+change. It now also carries `checkpoint_hash`: `config_hash` extended by the split's window ids and
+values. A code fix that alters the windows changes neither the profile nor, unless someone remembers,
+the format; the hash notices either way, and the resume stops with an error.
+
+Verified on the real files (2026-11-04, every header on GridUnesp): FSDD 3000 and AudioMNIST 30000
+files, data at byte 44, 16-bit mono 8 kHz; EEGMMIDB 1490 files at 160 Hz and 36 at 128 Hz, signal 0
+`Fc5.`; Siena 41 files at 512 Hz, signal 0 `EEG Fp1`. Known-answer tests: `WavFileTest.*`,
+`ResampleBandlimited.*`, `StratifiedWindowCap.*`, `CapWindowsPerRecording.*`, `CheckpointHash.*`,
+`Meeting01Loaders.FsddFirstSampleIsAudioNotTheHeader`,
+`Meeting01Loaders.FsddCapsKeepEveryDigitOnTheRealCorpus`,
+`Meeting01Loaders.EegFilesAtAnotherRateBecomeTheDatasetRate`.
+
+Everything before format 10 carries these defects: T1, jobs 5314513, 5315335 and 5316016, the
+design-study tables, and probably the speech numbers of submission 71 (the seek is old; inferred
+from `Wav.cpp`'s history, not measured).
 
 A format-2 fold is refused with its reason, not with "unknown version": the message tells the
 reader which of the two changes makes those rows incomparable.
@@ -1660,10 +1744,21 @@ overwritten with results (`\cfgDataStatus` = `results`).
 | `paper_loso_<ds>_pareto.csv` | Figure "quality vs energy" (the configured families, then PCA) | `02_` `write_pareto` |
 | `paper_loso_pareto_series.tex` | the figure's series, legend and PCA row, one per configured family | `02_` `write_pareto_series` |
 | `paper_loso_snn_overview.tex` | Table "SNN-AE selected" (modal encoding, median T [range], ρ) | `02_` `write_snn_overview` |
-| `paper_loso_significance.tex` | Table "SNN-AE minus reference", recording level, Holm | `04_` `write_overview_tex` |
+| `paper_loso_significance.tex` | Table "SNN-AE minus reference", group level (format 11; recording level before), Holm | `04_` `write_overview_tex` |
 | `paper_loso_sensitivity.tex` | Table "with and without the development fold" | `04_` `write_sensitivity_tex` |
 | `paper_prevalidation.tex` | Table "Pre-validation" (development folds, every family) | `00_meeting01_prevalidation_report.py` `write_table` |
 | `paper_prevalidation_config.tex` | `\pre*` macros: budget, search ranges, generated verdicts | `00_meeting01_prevalidation_report.py` `write_macros` |
+| `paper_t1.tex` | the warm-up / pre-norm test (T1) | `05_meeting01_t1_transformer.py` |
+| `paper_t1_figure.tex` | Figure "Transformer-AE check": every final fit per arm, armed filled (review F5) | `05_` `strip_figure` |
+| `paper_design.tex`, `paper_design_shares.tex` | the design study's cell table and share table: released, no longer printed (the figure below replaced the table) | `07_meeting01_design_study.py` `design_table` / `shares_table` |
+| `paper_design_figure.tex` | Figure "Design study": every cell and seed, one panel per winner, harness rows (review F5) | `07_` `dots_figure` |
+| `paper_design_lif_figure.tex` | Figure "LIF ladder and code shares" (review F1) | `07_` `lif_figure` |
+| `paper_breakeven.tex`, `paper_breakeven_figure.tex` | `\be*` macros and Figure "spike break-even" (review F3, curve part) | `09_meeting01_energy_breakeven.py` |
+| `paper_design_stats.tex` | `\design*` macros: the study's size AND every number its prose states | `07_` `write_tex` + `findings` |
+| `paper_budget.tex` | `\budget*` macros: the budget paragraph (v) and limitation (vii) | `08_meeting01_budget_test.py` `budget_findings` |
+
+The last two hold numbers that sit inside sentences, so they carry a second contract: see
+[numbers in prose](#numbers-in-prose-come-from-the-data-too-2026-11-09).
 
 Placeholders, before any fold has run:
 
@@ -1678,6 +1773,10 @@ out/build/max-performance/src/experiments/meeting01/meeting01 --comparative \
   --placeholders /tmp/resolved.json --out-dir ../../documentation/07-articlesProduced/meeting01/data
 .venv/bin/python scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --placeholders \
   --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/07_meeting01_design_study.py --placeholders \
+  --data-dir ../../documentation/07-articlesProduced/meeting01/data
+.venv/bin/python scripts/pipeline/meeting01/08_meeting01_budget_test.py --placeholders \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
 ```
 
@@ -2007,12 +2106,46 @@ Recorded per training in the events log (`config_begin`: `trivial_val_loss`, `ar
 `early_stop_min_skill`; `train_end`: `armed_epoch`, null when never armed). Smoke
 (2026-11-03, 2-epoch tiny profile): $L_0$ = 1.008, `arm_below` = 0.907, 7 of 99 trainings armed.
 
-**Why s = 0.10** (`training.early_stop_min_skill`, required, in [0, 1)): of job 5314513's 216
-trainings, 87 ended on the plateau (last monitor MSE ≥ 0.95). The deepest dip of a
-run that **never left** it was a skill of 0.066 (GRU-AE, FSDD: 0.937 at epoch 2, back to
-0.999), so 0.10 is not armed by noise on the plateau. Two runs went past it (0.092 and 0.15)
-and then fell back; the best-weight restore keeps their good epoch. References: patience
-criteria [82]; the best-parameters meta-algorithm, Alg. 7.1 of [83].
+**Why s = 0.10** (`training.early_stop_min_skill`, required, in [0, 1)).
+
+The threshold has one job: a run sitting on the plateau must not arm, or patience stops it and the
+mean predictor enters the results as a trained model. So s must sit above what plateau noise
+reaches. The first value came from format-7 runs (deepest excursion 0.066), whose FSDD plateau
+was shaped by the WAV header, so it was measured again on the corrected windows
+(`06_meeting01_stopping_calibration.py`, the pre-validation profile cut to 4 random genomes per
+family, `results/meeting01_s_calibration/`): 84 trainings of the five families, fold 0 of FSDD and
+EEGMMIDB, monitor losses only.
+
+| dataset | trainings | plateau | collapsed | learned | deepest plateau excursion | lowest learned peak | learned below 0.10 |
+|---|---|---|---|---|---|---|---|
+| EEGMMIDB | 42 | 16 | 0 | 26 | 0.0505 (GRU-AE) | 0.1004 (GRU-AE) | 0 |
+| FSDD | 42 | 13 | 1 | 28 | 0.0487 (Transformer-AE) | 0.0519 (GRU-AE) | 14 |
+
+No plateau run passed 0.0505, so 0.10 is about twice what noise reaches. EEGMMIDB shows a clean
+gap around it. FSDD does not: 14 runs of LSTM/GRU/Transformer-AE learned a little (peaks 0.052 to
+0.095) and never armed.
+
+The rule fixed before the run (`choose`) refused 0.10 because of those 14: s must not exceed the
+lowest learned peak. That condition treats a run that cannot arm as a harmed run, so it was
+measured. Replaying each recorded curve through `EarlyStoppingCallback`'s rule (`replay`; exact for
+a lower s, since arming sooner only cuts a curve earlier):
+
+| s | epochs, of 2349 | runs stopping sooner | runs with a worse best monitor loss | SNN-AE and ANN-AE runs changed |
+|---|---|---|---|---|
+| 0.08 | 2345 | 2 | 0 | 0 |
+| 0.06 | 2340 | 3 | 1 | 0 |
+| 0.05 | 2336 | 4 | 2 | 0 |
+
+All 14 ended within 0.01 of their peak, so patience had almost nothing to cut. **Decision (author,
+2026-11-05): keep 0.10**, overriding the automatic refusal, which remains in the script as its
+output. A lower s would save 0.6% of the epochs at best, and leave the grid's two families
+unchanged.
+
+**"Armed" does not mean "learned", silently.** On FSDD a run can reach 0.09 without arming, so a
+report that counts armed runs as "left the plateau" (T1's verdict, the pre-validation) undercounts
+the sequence models there. Read their monitor curves, or their test error, instead.
+
+References: patience criteria [82]; the best-parameters meta-algorithm, Alg. 7.1 of [83].
 
 ### The problem: the energy counted arithmetic only
 
@@ -3259,6 +3392,424 @@ inherent to the scope change the user asked for (search every family's architect
 just the SNN's) combined with how expensive a truly sequential 512-step recurrent/
 attention unroll is at batch size 1, compounded by the deliberate choice to give the
 baselines the same search power as the SNN rather than a cheaper, smaller one.
+
+## What the review changed (results_format 11, 2026-11-05)
+
+A review can only reject what it can see. Three adversarial reviewers found that the paper's numbers
+could not answer the questions it asked, for reasons that had nothing to do with the windows. This is
+what changed, and what each change protects against. Windows and training are the same as format 10,
+so the stopping calibration stands (`CALIBRATED_FORMAT` in the script).
+
+### The winner's score was its own luck
+
+The GA scores each genome once, then re-scores the Pareto front to pick a winner. Take a front member
+that won with 0.60 on a lucky seed, and whose true mean is 0.66. With `winner_seeds = 3`, format 10
+averaged 0.60 with two fresh scores near 0.66, and reported 0.64. The number that selected the member
+was also a third of its estimate, so the bias shrank without leaving. Format 11 averages three fresh
+seeds and leaves the search's score out. Silent if wrong: the pick simply leans towards luck.
+
+| | format 10 | format 11 |
+|---|---|---|
+| Scores in the mean | search + 2 fresh | 3 fresh |
+| Extra trainings | `|front| x (winner_seeds - 1)` | `|front| x winner_seeds` |
+| Bias from selection | a third of it stays | gone from the estimate |
+
+### One number per person, not per recording
+
+A new user is a new speaker or subject. On EEG, recordings of one subject share an effect (intra-class
+correlation 0.33), so counting recordings as independent makes the interval far narrower than the
+evidence. The primary estimand is now `d_g`, one difference per held-out group, tested with a Student
+t interval. On 4 FSDD speakers a rank test cannot go below `2/2^4 = 0.125`, whatever the data, and a
+percentile bootstrap undercovers.
+
+```
+ FSDD, 4 groups        d_g:  .   .  .   .        mean, wide t interval, each dot printed
+ EEGMMIDB, ~70 groups  d_g:  ..:::||:::..        mean, narrow t interval
+```
+
+### Two folds leave the headline, not one
+
+Fold `f` tests on block `f` and validates on block `f + 1`. The design study used fold 0, so it read
+block 1's errors, and block 1 is what fold 1 tests on. `DESIGN_INFORMED_FOLDS` takes fold 1 of FSDD and
+EEGMMIDB out of the headline, leaving folds 2-5. It is a table of its own because the pre-validation
+and T1 run on `DEVELOPMENT_FOLDS` and must not start running on fold 1. Those two datasets are still
+design-informed, and the paper says so: fold 5 validates on block 0, and all six FSDD speakers took
+part in fold 0.
+
+### "Energy first" needs a number
+
+"The test does not separate them, so take the cheaper model" rewards a noisy comparison: with 4
+speakers almost nothing separates, so the rule would hand the verdict to energy. The rule now reads the
+interval: only when all of it lies inside `+-Delta` is the cheaper model recommended, and that must hold
+over groups AND over fold means, because the 18 subjects of a fold share one set of models. `Delta =
+0.02` (`EQUIVALENCE_MARGIN`) is 2% of the window's variance, treated as negligible (0.12 dB at error
+0.71, 0.46 dB at 0.18). It is a judgement of relevance, not a noise estimate, confirmed by the paper's
+author on 2026-11-06, before any format-11 test number was read. A wide
+interval centred on 0 is flagged as not equivalent. On 4 FSDD speakers the interval fits only if their
+sd is below 0.0126, so the rule will rarely fire there and the paper reports the trade.
+
+PCA now has a price (`pca_energy_nj`): 158 nJ at k = 16, 903 nJ at k = 64, half of it the encoder. It is
+in every energy table, because a cheaper, better linear code is the first thing a reader would ask about.
+`energy_nj_encoder` prices only what a sensor pays, and a "memory halved" column answers Horowitz's
+figures being 64-bit accesses applied to a 32-bit word.
+
+### What training did to the network
+
+Reading only the test error, "it did not fit" and "it does not generalize" look the same. Rows now
+carry `train_mse`, and for the SNN-AE `hidden_silent_share`, `hidden_always_share` (rate <= 0.01 and
+>= 0.99, kept apart because never firing and always firing are different failures), `lif_v_th_mean`,
+`lif_v_th_min` and `lif_beta_mean`. `V_th` has no bound in `LifBPTT`, and the project does not clamp a
+value silently, so the paper says it is unbounded and the minimum shows whether it reached 0.
+
+### The reset in the gradient
+
+`dvpost_dvpre = 1 - s` detaches the reset; `dvpost_dVth` keeps the surrogate through it. This is on
+purpose. Keeping the surrogate on the membrane path gives a factor multiplied once per step, whose size
+can pass 1. On the threshold path it is one term in a scalar's accumulator, and dropping it biased
+`V_th` (`layers_spiking_basic_gtest` pins it). Neither is an exact derivative, because a spike has none.
+
+### Not done yet
+
+T1 and the design study reran on the format-11 windows on 2026-11-09 (next section). Figures that need
+real winners (energy break-even with EEG widths and `recurrent`, the
+hidden-share panel, the design dots) wait for those runs. AudioMNIST and Siena raw files were read on
+the cluster and look like speech and EEG in microvolts; their windows through the real loader are
+checked from the split dumps of a short job. The quiet start of AudioMNIST files (first-window RMS 8
+against 49 overall) is amplified by the per-window z-score, a known property, not a defect.
+
+## Design study, budget test, and the framing (2026-11-09)
+
+### The question the pre-validation left
+
+On both development folds PCA beat both networks (test MSE, fold 0, job 5317827):
+
+| | FSDD test | EEGMMIDB test | FSDD train | EEGMMIDB train |
+|---|---|---|---|---|
+| PCA, k = d | 0.675 | 0.192 | 0.568 | 0.105 |
+| ANN-AE (control) | 0.713 | 0.303 | 0.53 | 0.19 |
+| SNN-AE | 0.773 | 0.425 | | |
+
+So the paper had to decide what it is about. The author chose **framing A** (2026-11-09): the question
+stays "what does the spike cost against the matched control"; PCA is an explicit reference in every
+table and in the abstract; the search space does not change. The rule was fixed before any grid
+number exists: where PCA errs less than both networks on a modality, the paper says that first, and
+the gap is read as the price of spiking among models that both lose to a linear projection.
+
+Two things could have made that gap an artefact of the budget, not of the model. The design study
+(`07_`) and the budget test (`08_`) check them, on a PyTorch twin of the network with the harness's
+code, neuron, gradient, initializers, optimizer, batch size, stopping rule and best-epoch weights
+(it matches the C++ numbers within 0.034).
+
+### What was measured (development folds, 4 seeds, seed-paired 95% t intervals)
+
+| Question | Answer | Where |
+|---|---|---|
+| Loss on every step instead of the time mean? | +0.06 to +0.12 on the 3 Poisson winners, not significant on the direct one | `results/meeting01_design` |
+| LIF decoder instead of leaky ReLU? | up to +0.07, significant on EEG only | same |
+| Kaiming instead of Xavier? | the control gets 0.20 worse on EEG and the SNN-AE "wins" (0.43 / 0.46 vs 0.50); Xavier is better for both arms, so they share it | same |
+| Is it the bound, not the spike? | sigmoid = leaky ReLU (within 0.012); clamp [0,1] costs 0.05-0.09 FSDD, 0.19 EEG; Poisson codes are not near binary yet the gap stays | same |
+| Is the control too narrow for PCA's solution? (the GA raises widths below d+1 to d+1: 50% of EEG draws) | **no**: at 2d / 4d hidden units it errs MORE (+0.06 / +0.10), validation stops improving by epoch 9-28 while training error still falls | `results/meeting01_budget` |
+| Does the 30-epoch cap bias the gap? (58% of LIF trainings had their best epoch in the last 3, 38% of leaky-ReLU) | 60 epochs move the gap by at most 0.009, no interval excludes 0, but the widest reaches 0.028 > Delta = 0.02: an EEG effect of that size is not excluded | same |
+
+The 30-epoch snapshots of the budget test reproduce the design study's 28 matching trainings exactly
+(the twin is deterministic).
+
+### Numbers in prose come from the data too (2026-11-09)
+
+**The problem.** Tables were generated; sentences were not. The design section's sentences carried
+about 25 numbers typed from the reports, and when they were checked against the data, three were
+already wrong, and nothing would ever have flagged them (LaTeX compiles either way, a **silent**
+failure):
+
+| Sentence as typed | Data | What went wrong |
+|---|---|---|
+| "0.10 to 0.14 on EEGMMIDB" | 0.0967, 0.1349 | 0.1349 rounds to 0.13 |
+| "the replica is within 0.03" | max 0.0336 | a bound must not be below the data |
+| "the control improved at least as much" | FSDD r2: SNN -0.0027, control 0.000 | a claim true on EEG, written for all |
+
+**The rule.** The number and every claim its sentence makes come from one function:
+`findings()` in `07_` and `budget_findings()` in `08_`. Each returns the macros and checks the claims;
+a claim that stops holding **refuses** the report (loud), naming the sentence to rewrite, before any
+paper file is written.
+
+```
+sentence:  "...raised the test error by \designLossStep{} ..., every interval excluding zero"
+macro:     designLossStep = span of the Poisson winners' per-step contrasts  -> "0.06 to 0.12"
+check:     every one of those intervals has lo > 0, else ResultsError("(i) ...")
+```
+
+Rounding has two kinds, and confusing them is the second silent failure:
+
+| Kind | Used for | Rule | Example |
+|---|---|---|---|
+| value | "raised it by 0.13" | nearest | 0.1349 -> 0.13 |
+| bound | "within", "at most" | **up** | 0.0113 -> 0.012, 0.0080x -> 0.009 |
+| span | "0.04 to 0.06" | nearest, both ends; one number when they agree | 0.1911, 0.1911 -> 0.19 |
+
+`--placeholders` defines every macro as `$-$`, so the paper compiles before a run. The GA width
+sentence uses `\cfgSnnWidthMin` and `\cfgWidthFloorShare<Ds>` from `02_` (the share of uniform draws in
+`[min_width, max_width]` that `repair_widths` raises to `d + 1`).
+
+### Provenance of the two runs
+
+| Run | Provenance label | Code |
+|---|---|---|
+| design study, 208 trainings | `49aa9524+dirty/503d7ee88edc` matches no commit: `results/` is not ignored, so the tree hash covered T1 outputs written at that moment | 117e5100 + `results/meeting01_design/07_meeting01_design_study.py.used` |
+| budget test, 36 trainings | `8d2dafd1+dirty/6f3c8c8dbdc7` | the tree of 4f1dfb2d (verified) |
+
+Both scripts' report code changed afterwards (the macros); training code did not, and the `.used`
+copies are what ran. Regenerating the reports reproduces every committed CSV byte for byte.
+
+## A share row for the control (results_format 12, 2026-11-09)
+
+### The problem: a share with nothing beside it
+
+The SNN-AE's selection table prints how many (hidden neuron, window) pairs never fired. On the
+direct-coded FSDD winner of the design study that was 48%. Is 48% a lot? The round-4 review (R3)
+noticed that the leaky-ReLU replica had 49% of its values at or below 0.01, so the same number can
+describe a perfectly ordinary analog layer. A share with no control beside it cannot be read.
+
+### The rule
+
+The ANN-AE has a leaky ReLU exactly where the SNN-AE has a hidden LIF layer (both are built from
+the `linear:W:leaky` token). `count_ann_hidden` (`Meeting01Metrics.cpp`) counts, after each test
+window's forward pass, the encoder's leaky-ReLU outputs at or below `kSilentRate` (0.01), the cut
+the SNN-AE's rate uses:
+
+```
+encoder:  Linear(W -> h) -> LeakyReLU (counted) -> Linear(h -> d), identity (not counted)
+pair:     (unit j, window i)   silent  <=>  LReLU(z_ij) <= 0.01
+table:    silent  "0.48 / 0.49"  = SNN-AE never fired / ANN-AE output <= 0.01
+          always  "0.39"         = SNN-AE only: a leaky ReLU has no upper end
+```
+
+| | SNN-AE silent | ANN-AE silent |
+|---|---|---|
+| what is counted | rate over T steps <= 0.01, i.e. no spike at T <= 32 | one output <= 0.01 |
+| what it means | the neuron sent nothing for that window | the unit sent a negative leak (1% of its input) or about 0 |
+| "always" | fired at every step | undefined (NaN), not 0 |
+
+The two are not the same quantity: a silent LIF neuron sends nothing, while a "silent" leaky-ReLU
+unit still sends 1% of a negative input. Read the pair as "how much of each code sits at its low
+end", and beside T.
+
+### Failure modes, all loud
+
+- `count_ann_hidden` before a forward pass, with more than one row per pass (two windows counted as
+  one), or with no LeakyReLU in the encoder: `std::logic_error`.
+- An ANN-AE row without the share in `02_`: `ResultsError` naming the dataset. A format-11 row
+  would otherwise print the SNN-AE's share beside "--".
+
+### Why the format moved, and who still reads 11
+
+Format 11 rows carry NaN for the control's share and format 12 rows carry a number, so the stamp
+moved (the CLAUDE.md rule: fix and bump before any grid). Nothing else changed. Readers that never
+read that field declare it, `split_manifest(..., accept=READS_WITHOUT_ANN_SHARE)`: `00_`'s report,
+and `07_`/`08_` reading the pre-validation's winners. Their outputs on the format-11 pre-validation
+are byte-identical before and after. `02_`, `03_` and `04_` accept 12 only.
+
+## Siena at 160 Hz (results_format 13, 2026-11-10)
+
+### The problem: a window the bottleneck holds whole
+
+An autoencoder is tested only if its window holds MORE than the latent can carry. If it holds
+less, a plain linear projection copies the window through without loss, and the comparison
+measures how close each optimizer gets to zero instead of what each family keeps.
+
+How much can a window hold? A signal with nothing outside a band of B Hz, watched for T seconds,
+has about 2·B·T independent values (the time-bandwidth product). Every EEG window here is
+band-passed to 0.5–40 Hz (B = 39.5) and is 256 samples long, so T depends on the rate the
+windows are cut at:
+
+```
+                      window      2·B·T      latent 64 is ...
+eegmmidb  160 Hz      1.6 s       126.4      a real bottleneck
+siena     512 Hz      0.5 s        39.5      wider than the signal          <- until format 12
+siena     160 Hz      1.6 s       126.4      a real bottleneck              <- format 13
+```
+
+### What was measured (smoke job 5321565, fold 0, 512 Hz windows)
+
+| | EEGMMIDB (160 Hz) | Siena (512 Hz) |
+|---|---|---|
+| training variance in the top 40 / 64 PCs | 0.805 / 0.897 | 0.9988 / **1.0000** |
+| PCA k=64 test MSE (fit on train) | 0.1924 (the paper's .192) | **0.0000** |
+| median lag-1 autocorrelation | 0.89–0.92 | 0.987–0.991 |
+
+The decision rests on the training-split number alone (100% of the variance in 64 components); the
+test MSE was computed as a data property, before any model result on Siena existed.
+
+### Why it was silent
+
+Nothing throws. The grid would run for weeks and the Siena column would read "PCA 0.000, every
+network above it", which looks like more evidence that PCA beats the nets, for a reason that has
+nothing to do with the nets.
+
+### The fix, and the guard
+
+- Both profiles: `siena.sample_rate` 512 → 160. The loader already filtered each file at its own
+  rate and converted afterwards (`nn::utility::resample_bandlimited`, anti-aliased; its test
+  `resample_gtest` checks 512 → 160 drops a 100 Hz tone and keeps a 30 Hz one), so the change is
+  configuration only. A Siena window now lasts 1.6 s, as an eegmmidb one does.
+- `Meeting01EegBand.hpp` holds the band and `eeg_window_degrees_of_freedom`;
+  `Meeting01Config::validate()` (`check_eeg_windows`) refuses any EEG dataset in
+  `evaluation.datasets` whose window holds no more than its latent, and one with no
+  `sample_rate`. **Loud**, at start-up, before the ~26 min a Siena fold spends reading its EDF
+  files. Tests: `EegWindowCapacity.*`, `Meeting01ConfigValidation.RefusesAnEegWindowTheLatentCanCarryWhole`
+  and its neighbours, `ProductionProfiles.EveryEegWindowLastsAsLongAndHoldsMoreThanItsLatent`.
+- `meeting01_results.py`: `RESULTS_FORMAT = 13`. `READS_WITHOUT_ANN_SHARE` = {11, 12, 13}, because
+  FSDD, AudioMNIST and eegmmidb did not change, but `check_results_format` refuses a Siena fold
+  older than `SIENA_WINDOWS_FROM` (13) even through `accept`.
+
+### Smaller things the same smoke showed (not changed)
+
+- Siena fold 0 has 320 test windows, not 1500: the per-recording cap (40) times its 8 test
+  recordings binds first. The paper says "at most"; the primary statistic is per subject, so 200
+  windows for one subject and 40 for another do not change the weights.
+- 2 of 1000 fold-0 training windows are flat (subject 7, recording 25: the raw signal is constant
+  there and the z-score turns it into zeros).
+- Building one Siena fold's split takes ~26 min (job 5321565: 00:49 → 01:15), about 2.6 h over
+  the six folds.
+
+## The review's figures F1, F3 and F5 (2026-11-10)
+
+### The problem: three claims the paper argued in words
+
+The visual reviewer (`review/review_visual.md`, rulings `ruling_visual.md` and
+`ruling_visual_round4.md`) asked for three things to be **drawn**, because prose let a reader
+take them on trust:
+
+| Figure | The claim it has to show | What the ruling required |
+|---|---|---|
+| F1 | a LIF under constant current is a staircase, not a clip, and how often codes sit at 0 or 1 | each end (0 and 1) separately, both datasets |
+| F3 | when a spike-fed first layer can be cheaper at all | the *corrected* curve (Poisson generator included), the recurrent transform marked, EEG widths too |
+| F5 | the design study with its dispersion, and the T1 check | per-seed spread, T1 regenerated on clean windows |
+
+### F3 in one example: why a spike is not cheaper here
+
+Take the FSDD winner's first layer, 256 samples into $w_1 = 59$ units.
+
+```
+ANN-AE first layer, once:   256 x 59 MACs + weight reads + bias + leaky ReLU   = 409.5 nJ
+spike-fed, per input spike: 59 targets x (add 0.9 + int add 0.1
+                             + weight read ~26 pJ + potential read 10 + write 10) ~ 2.8 nJ
+```
+
+So the spike stage wins only below ~409.5 / 2.8 ≈ 150 spikes per window, i.e. about
+**0.6 spikes per sample** (less once the Poisson generator and the LIF's per-step leak are
+charged, and less at larger $T$, because those per-step costs grow with $T$):
+
+```
+theta/M at break-even   T=2    T=4    T=8    T=16   T=28   T=32
+Poisson, FSDD w1=59     0.60   0.58   0.54   0.47   0.35   0.31
+recurrent, FSDD w1=59   0.59   0.55   0.48   0.33   0.11   0.04
+Poisson code emits      p_bar x T with p_bar = 0.50 (FSDD), 0.44 (EEGMMIDB) -> 0.87 already at T=2
+latency code emits      exactly 1
+```
+
+The min–max scaling of every z-scored window puts the mean firing probability near one half,
+so a Poisson code is never sparse enough and a latency code never is. Only the recurrent
+transform, whose own threshold and decay set its spike count, can land below the curve.
+
+**How the numbers stay tied to the harness.** The curve is drawn in Python
+(`first_stage_energy_nj` / `break_even_spikes` in `meeting01_results.py`), a port of
+`add_dense_fc`, `add_spiking_fc`, `add_lif`, `encoding_energy` and
+`architecture_transform_energy`. Two tests pin the **same three totals** (409.5424…, 796.4763…,
+818.6599… nJ): `MemoryAwareEnergy.FirstStageOfTheBreakEvenFigure` in `parameter_count_gtest.cpp`
+and `09_meeting01_energy_breakeven.py --self-test`. Change either side and one of them fails
+(loud); without the pair the figure would drift from the harness silently.
+
+The hidden LIF's own output spikes are not charged, so each break-even is an **upper bound**:
+the claim "a spike only wins below this" can only get stronger.
+
+### F1: the ladder, and a bug the self-test caught
+
+Under a constant current $I$ a hard-reset LIF ($v \leftarrow \beta v + I$, spike if $v > V_{th}$)
+fires every $k$ steps, so its time mean takes the values $1, 1/2, 1/3, \dots$ and **nothing
+between 1/2 and 1**: $I > V_{th}$ fires at every step, and any smaller current needs at least
+two steps. The panel draws it at the direct winner's trained $V_{th}=0.85$, $\beta=0.91$
+(FSDD D28, mean over 4 seeds), beside the clamp and the sigmoid of the design study.
+
+The first version of `lif_rate(…, steps=None)` looped "until $v > V_{th}$". At the boundary
+current $I = V_{th}(1-\beta)$ (plus rounding), the potential converges to a floating-point value
+equal to $V_{th}$, never above it, so the loop never ended. The self-test's sweep hit exactly
+that point and hung (silent: no error, just no return). The loop now stops when $v$ stops
+rising, which in the same arithmetic means the neuron never fires.
+
+### Where they come from
+
+| Figure | Generator | Inputs |
+|---|---|---|
+| F1 `paper_design_lif_figure.tex` | `07_ --report` `lif_figure` | `results/meeting01_design` rows (trained $V_{th}$, $\beta$, shares) |
+| F5 `paper_design_figure.tex` | `07_ --report` `dots_figure` | the same rows + the harness's test MSE from the pre-validation |
+| F5 `paper_t1_figure.tex` | `05_ --report --out-root results/meeting01_t1_format11` | the format-11 T1 (`results/meeting01_t1` is the stale format-9 run and is refused) |
+| F3 `paper_breakeven*.tex` | `09_ --report` | the pre-validation's T range, winners' first widths, test windows ($\bar p$) |
+
+Still to come after the grid: F3's left panel (energy by block for the real winners), F6
+(learning curves per arm) and F7 is already in (forest plot).
+
+## Grid 5321956 superseded: one candidate pool per seed, and a cap that ended the control (results_format 14, 2026-11-11)
+
+### The problem: six "searches" that were one
+
+The grid ran 24 (dataset, fold) tasks, each with 5 seeds, and each (fold, seed) runs its own
+NSGA-II search. The paper reads that as 120 searches, one per fold and seed. They were not:
+the GA's random generator was seeded with the **run seed alone** (`std::mt19937 rng(base_seed)`
+in `run_ga_search`), so seed 42 drew the same initial population on every fold of every dataset.
+The offspring only diverge when the folds rank the parents differently. Measured in the archived
+grid (`results/meeting01_grid5321956_format13/`, the `candidates` of each model-selection
+manifest), seed 42, shared genomes out of ~46:
+
+```
+             fsdd f0  audiomnist f0  audiomnist f2  eegmmidb f0  siena f0
+fsdd f0        47          42             47             0          0
+eegmmidb f0     0           0              0            45         29
+```
+
+Speech and EEG share nothing only because the width floor (`d+1`: 17 vs 65) differs. Within a
+modality one seed evaluated one candidate pool and each fold re-ranked it on its own validation
+group. That is **not leakage**: no fold saw another's validation or test data. But the folds'
+selections were not independent draws of "the search". The same winner genome came back over
+and over (seed 42: 18 of 24 tasks picked one genome, 6 distinct winners in all). This failure
+is **silent**: every manifest looked right, and only comparing candidate lists across folds
+shows it.
+
+### The second problem: the cap, not the data, ended the control
+
+| | final fits that ran to 30 epochs |
+|---|---|
+| ANN-AE, EEGMMIDB | 30 of 30 |
+| ANN-AE, Siena | 30 of 30 |
+| SNN-AE, EEGMMIDB / Siena | 24 / 21 of 30 |
+| ANN-AE, FSDD / AudioMNIST | 5 / 8 of 30 |
+
+So on EEG, limitation (vii) ("the cap binds more on LIF") was false. The control was the one
+cut short, so the gap was probably *understated*. The budget test had already run up to 60
+epochs on the development folds, and **no** training there reached 60 (latest best epoch: 45).
+
+### The fix
+
+| Change | Where | What stays |
+|---|---|---|
+| gene draws from `search_stream_seed(run seed, "<dataset>_fold<k>")` (FNV-1a of the stream, then `std::seed_seq`; both fixed by definition, unlike `std::hash`) | `Meeting01GaSearch.hpp`; `GaSearchConfigT::stream` set at all 4 call sites in `Meeting01Experiment.cpp` | every training still uses the run seed |
+| an empty stream **throws** | `search_stream_seed` | — |
+| `training.epochs` 30 -> 60 | `meeting01-loso.json` | the pre-validation profile keeps 30, the run it records (declared in `PrevalidationDiffersFromTheGridOnlyWhereDeclared`) |
+
+`Meeting01GaSearch.EachFoldDrawsItsOwnPopulation` checks three things. Another fold, another
+dataset or another seed shares none of `fsdd_fold0`'s 8 initial genomes. The same stream
+reproduces them. And `search_stream_seed(42, "fsdd_fold0") == 318140021` is pinned, so a change
+of the derivation fails loudly instead of quietly changing every search.
+
+### What the superseded run said, and why it is kept
+
+Read before the rerun was decided, so the rerun is *not* blind. The author chose
+(2026-11-11) not to report the first run in the paper; this page and the archive are its
+record. PCA erred least on all four datasets; the SNN-AE erred more than its control
+everywhere (group level, Holm, all intervals excluding zero: +0.027 FSDD, +0.030 AudioMNIST,
++0.108 EEGMMIDB, +0.080 Siena); it needed 9-12x the control's energy, under every repricing;
+Poisson coding was selected almost everywhere. The archive keeps every fold file and, in
+`paper_data/`, the tables `02_`/`04_` made from it, so the two runs can be compared once the
+format-14 grid is in.
 
 ## See Also
 

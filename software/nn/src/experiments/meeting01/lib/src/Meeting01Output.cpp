@@ -268,7 +268,10 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
                "config_hash,split,cv_fold,";
         out << "mse,mae,r2,precision,recall,f1,spike_rate,arith_energy_nj,train_ms,infer_ms,"
                "param_count,macs,acs,energy_nj,energy_ops_nj,energy_mem_nj,mem_accesses,"
-               "energy_nj_sram8k,energy_nj_sram32k,energy_nj_sram1m,energy_nj_as_executed\n";
+               "energy_nj_sram8k,energy_nj_sram32k,energy_nj_sram1m,energy_nj_as_executed,"
+               "energy_nj_encoder,hidden_silent_share,hidden_always_share,lif_v_th_mean,lif_v_th_"
+               "min,lif_beta_mean,"
+               "train_mse\n";
 
         out << std::fixed << std::setprecision(6);
         for (const auto& row : rows)
@@ -285,7 +288,11 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
                 << ',' << row.metrics.energy_nj << ',' << row.metrics.energy_ops_nj << ','
                 << row.metrics.energy_mem_nj << ',' << row.metrics.mem_accesses << ','
                 << row.metrics.energy_nj_sram8k << ',' << row.metrics.energy_nj_sram32k << ','
-                << row.metrics.energy_nj_sram1m << ',' << row.metrics.energy_nj_as_executed << '\n';
+                << row.metrics.energy_nj_sram1m << ',' << row.metrics.energy_nj_as_executed << ','
+                << row.metrics.energy_nj_encoder << ',' << row.metrics.hidden_silent_share << ','
+                << row.metrics.hidden_always_share << ',' << row.metrics.lif_v_th_mean << ','
+                << row.metrics.lif_v_th_min << ',' << row.metrics.lif_beta_mean << ','
+                << row.metrics.train_mse << '\n';
         }
         out.close();
         if (!out)
@@ -528,6 +535,16 @@ void write_batch_convergence_dat(const std::filesystem::path& path,
         out << i << ' ' << static_cast<int>(history.batch_epochs[i]) << ' '
             << history.batch_losses[i] << '\n';
     }
+}
+
+auto mean_window_mse(const std::vector<PerWindowError>& rows) -> float
+{
+    if (rows.empty())
+        throw std::invalid_argument(
+            "mean_window_mse: no windows. A final fit always has fit windows; check the carve.");
+    double sum = 0.0;
+    for (const auto& row : rows) sum += row.mse;
+    return static_cast<float>(sum / static_cast<double>(rows.size()));
 }
 
 void write_per_window_errors_csv(

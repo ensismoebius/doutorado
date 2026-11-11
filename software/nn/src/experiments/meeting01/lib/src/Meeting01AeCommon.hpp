@@ -19,6 +19,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../include/Meeting01BatchLossCollector.hpp"
@@ -81,6 +82,10 @@ auto evaluate_ae(Model& model,
     float mae_acc = 0.0f;
     float y_mean_acc = 0.0f;
     std::size_t n_values = 0;
+    // The ann-ae control's silent hidden units (results_format 12, count_ann_hidden); the
+    // sequence models have no counterpart of a hidden LIF layer and keep NaN.
+    constexpr bool kIsAnnAe = std::is_same_v<Model, nn::models::autoencoder::ProtocolAutoencoder>;
+    AnnHiddenCounts hidden;
 
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
@@ -96,6 +101,12 @@ auto evaluate_ae(Model& model,
             frame_size);
         model.reset_state();
         const Tensor recon = Tensor(model.forward(ModelTensor(encoded), false));
+        if constexpr (kIsAnnAe)
+        {
+            const AnnHiddenCounts c = count_ann_hidden(model);
+            hidden.unit_windows += c.unit_windows;
+            hidden.silent_unit_windows += c.silent_unit_windows;
+        }
 
         mse_acc += mse_between_masked(target, recon, mask);
         mae_acc += mae_between_masked(target, recon, mask);
@@ -120,6 +131,12 @@ auto evaluate_ae(Model& model,
 
     m.mse = val_samples.empty() ? 0.0f : mse_acc / static_cast<float>(val_samples.size());
     m.mae = val_samples.empty() ? 0.0f : mae_acc / static_cast<float>(val_samples.size());
+    if constexpr (kIsAnnAe)
+    {
+        if (hidden.unit_windows > 0.0)
+            m.hidden_silent_share =
+                static_cast<float>(hidden.silent_unit_windows / hidden.unit_windows);
+    }
 
     float ss_tot = 0.0f;
     float ss_res = 0.0f;
@@ -155,6 +172,7 @@ auto evaluate_ae(Model& model,
     // depend on the data, so the caller's analytic ledger is the per-window value.
     m.arith_energy_nj = arith_energy_nj(static_cast<double>(m.macs), 0.0);
     set_energy(m, cost.energy);
+    m.energy_nj_encoder = cost.encoder_nj;
 
     return m;
 }
