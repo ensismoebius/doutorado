@@ -12,7 +12,7 @@ Experiment05 implements the full speaker-authentication pipeline for individuals
 
 The experiment consists of two stages:
 
-- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE)
+- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE) and PCA, a classic linear feature extractor used as the reference the learned ones must beat (implemented 2026-11-11, not yet run; LSTM-AE pre-validated and dropped, see `Research-Context.md`)
 - **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested or flat 5-fold cross-validation
 
 > **Status (2026-07-19): both phases have completed a full run** — 208/208 Phase 00
@@ -102,22 +102,22 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 **SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. The raw signal is average-pooled to 256 bins and **min-max normalized to `[0,1]`**.
 
-*Temporal coding (required for a meaningful SNN).* A LIF autoencoder only carries information through spikes, so each normalized sample is expanded into `time_steps` (default 16) spike frames using `autoencoder.encoding`:
+*Temporal coding (required for a meaningful SNN).* A LIF autoencoder only carries information through spikes, so each normalized sample is expanded into `time_steps` spike frames (16 in every Phase 00 profile) using `autoencoder.encoding`:
 - `poisson` — each entry spikes with Bernoulli probability = its value (rate code);
 - `latency` — stronger inputs fire earlier (`t_spike = round((1−v)(T−1))`, matches the Experiment04 encoder);
-- `direct` — analog pass-through, no spikes (used by ANN-AE; also an SNN fallback).
+- `direct` — analog pass-through, no spikes (the non-temporal SNN-AE baseline; takes no `time_steps`). Any other value throws.
 
 The AE is trained (batched, MSE reconstruction) to reconstruct the spike frames. At readout the membrane state is **reset once per sample** and then **integrates across the T frames** (no reset between frames) — the temporal integration that lets weak, sub-threshold per-step current accumulate into spikes. The **per-sample feature is the mean latent over the T frames**.
 
 Two knobs make this work and both are profile-configurable:
-- `autoencoder.time_steps` (default 16) — integration window.
-- `autoencoder.voltage_threshold` (default **0.2**, vs the LIF default 1.0) — the encoder LIF threshold. Normalized spike frames are low-amplitude, so at `V_th=1` no encoder neuron fires and the latent collapses to all-zeros. That collapse (plus the old single-analog-vector, one-forward presentation) is why the raw-vector SNN-AE ranked poorly. (Audit m-2: this note previously glossed `α≈0.5` as "coin-flip separability" — that reading came from the inverted convention. Under the correct one, `α≈0.5` is mid-range, and the best-ranked configs of the whole grid sit at `α≈0.64–0.67`; see the corrected table below.)
+- `autoencoder.time_steps` (16 in the profiles; required for `poisson`/`latency`, refused for `direct`) — integration window.
+- `autoencoder.voltage_threshold` (**0.2** in the profiles, vs the LIF layer's own 1.0; required for `snn-ae`) — the encoder LIF threshold. Normalized spike frames are low-amplitude, so at `V_th=1` no encoder neuron fires and the latent collapses to all-zeros. That collapse (plus the old single-analog-vector, one-forward presentation) is why the raw-vector SNN-AE ranked poorly. (Audit m-2: this note previously glossed `α≈0.5` as "coin-flip separability" — that reading came from the inverted convention. Under the correct one, `α≈0.5` is mid-range, and the best-ranked configs of the whole grid sit at `α≈0.64–0.67`; see the corrected table below.)
 
 Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `ThesisSnnAe.*` tests (latent non-degenerate + varies across samples; encoding changes the feature).
 
-> **Dead-latent guard: encoder firing-rate regularization (2026-07-16).** A collapsed encoder (constant output regardless of input) lands exactly on the paraconsistent *Ambiguity* vertex (`α=β=1`) and used to score deceptively well under `D_truth` alone — see [Core/Paraconsistent.md](../Core/Paraconsistent.md) for the `D_penalized` metric that closed that ranking exploit, and [Spike-Rate-Regularization](../Concepts/Spike-Rate-Regularization.md) for why a starved LIF encoder collapses in the first place (root cause: at He/Kaiming init the single spiking stage of `linear:16:leaky, linear:8:identity` fires at only ~8.3%, and the `identity` second stage adds no further nonlinearity, so a starved first stage starves the whole latent). `feature_extraction.autoencoder.{firing_rate_reg_lambda, firing_rate_min, firing_rate_max}` push each encoder `Lif` layer's mean firing rate into `[firing_rate_min, firing_rate_max]`, mirroring the DSNN classifier's mechanism (same math, see below) but implemented separately in `ProtocolSpikingAutoencoder::backward` — the AE's encoder is a generically-built `Sequential` (from `encoder_layer_spec`), not the classifier's named layers, so the Lif layers are located once at construction via `dynamic_cast`, and the regularization gradient is injected by a manual reversed-order backward loop rather than `Sequential::backward`. All 18 real `snn-ae` Phase 00 profiles (and their 18 `smoke` mirrors) now set `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80` — `0.10` sits above the measured native init rate (8.3%) so the penalty actually engages; `0.5` was validated on `direct` at the profile's real learning rate (baseline `α=0.5` → `α=0.375` with regularization on). Default is `0.0` (inert) when unset. Guarded by `AutoencoderRunnerRedesignTest.ProtocolSnnFiringRateRegularization*` (inject-when-enabled / inert-when-zero).
+> **Dead-latent guard: encoder firing-rate regularization (2026-07-16).** A collapsed encoder (constant output regardless of input) lands exactly on the paraconsistent *Ambiguity* vertex (`α=β=1`) and used to score deceptively well under `D_truth` alone — see [Core/Paraconsistent.md](../Core/Paraconsistent.md) for the `D_penalized` metric that closed that ranking exploit, and [Spike-Rate-Regularization](../Concepts/Spike-Rate-Regularization.md) for why a starved LIF encoder collapses in the first place (root cause: at He/Kaiming init the single spiking stage of `linear:16:leaky, linear:8:identity` fires at only ~8.3%, and the `identity` second stage adds no further nonlinearity, so a starved first stage starves the whole latent). `feature_extraction.autoencoder.{firing_rate_reg_lambda, firing_rate_min, firing_rate_max}` push each encoder `Lif` layer's mean firing rate into `[firing_rate_min, firing_rate_max]`, mirroring the DSNN classifier's mechanism (same math, see below) but implemented separately in `ProtocolSpikingAutoencoder::backward` — the AE's encoder is a generically-built `Sequential` (from `encoder_layer_spec`), not the classifier's named layers, so the Lif layers are located once at construction via `dynamic_cast`, and the regularization gradient is injected by a manual reversed-order backward loop rather than `Sequential::backward`. All 18 real `snn-ae` Phase 00 profiles (and their 18 `smoke` mirrors) now set `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80` — `0.10` sits above the measured native init rate (8.3%) so the penalty actually engages; `0.5` was validated on `direct` at the profile's real learning rate (baseline `α=0.5` → `α=0.375` with regularization on). `firing_rate_reg_lambda` is required for every `snn-ae` (0 = off); the band keys are required exactly when it is > 0. Guarded by `AutoencoderRunnerRedesignTest.ProtocolSnnFiringRateRegularization*` (inject-when-enabled / inert-when-zero).
 >
-> The 300 stored Phase 00 results predate this change and do not yet reflect it — re-running the 18 `snn-ae` profiles to regenerate results under the new default is a real cost (the `poisson`/`latency` encodings, T=16, took over 2h for a single run in testing) and has not been done.
+> The 300 stored Phase 00 results predate this change and do not yet reflect it — re-running the 18 `snn-ae` profiles to regenerate results under the new setting is a real cost (the `poisson`/`latency` encodings, T=16, took over 2h for a single run in testing) and has not been done.
 
 **Encoding sweep (thesis comparison).** Phase 00 ships all three SNN-AE encodings — `poisson`, `latency`, `direct` — × the 3 compact sizes × 2 sources = 18 profiles (`p00_ae_snn_<encoding>_<size>_<source>.json`), so the thesis can directly compare rate coding, first-spike-time coding, and the (expected-degenerate) non-temporal baseline through the same paraconsistent ranking.
 
@@ -203,13 +203,13 @@ where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speak
 
 ### Regularization & Normalization
 
-Three techniques guard generalisation / trainability on the small dysphonic-speaker dataset, all off by default and enabled per profile:
+Three techniques guard generalisation / trainability on the small dysphonic-speaker dataset, each declared per profile (no key has a default since 2026-11-11):
 
 - **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw--sgdw).
-- **Firing-rate regularization** (`training.firing_rate_reg_lambda` for the DSNN classifier; `feature_extraction.autoencoder.firing_rate_reg_lambda` for the SNN-AE encoder): pushes each spiking layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same math as `SpikeCountLossImpl`, but two independent gradient-injection implementations: `ThesisDsnnClassifier::add_firing_rate_grad` (classifier, named layers) and `ProtocolSpikingAutoencoder`'s `backward_with_firing_rate_reg` (AE encoder, `Sequential`-based, Lif layers located via `dynamic_cast`; see the SNN-AE section above). Inert when `λ = 0` (the RNN classifier and the ANN-AE have no spiking layers to regularize either way).
-- **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, default 1), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
+- **Firing-rate regularization** (`training.firing_rate_reg_lambda` for the DSNN classifier; `feature_extraction.autoencoder.firing_rate_reg_lambda` for the SNN-AE encoder): pushes each spiking layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (both bounds required when the penalty is on), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same math as `SpikeCountLossImpl`, but two independent gradient-injection implementations: `ThesisDsnnClassifier::add_firing_rate_grad` (classifier, named layers) and `ProtocolSpikingAutoencoder`'s `backward_with_firing_rate_reg` (AE encoder, `Sequential`-based, Lif layers located via `dynamic_cast`; see the SNN-AE section above). Inert when `λ = 0` (the RNN classifier and the ANN-AE have no spiking layers to regularize either way).
+- **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, required when tdBN is on), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
 
-**Input feature standardization** (`training.standardize_features`, default **on**): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `ThesisClassifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
+**Input feature standardization** (`training.standardize_features`, required whenever the classifier runs): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `ThesisClassifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -242,12 +242,12 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 - Audio: 44100 Hz, single channel (present only for pronounced trials)
 - EEG: 1024 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system; each 4 s trial = 4096 samples/channel
 
-> The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. Fusion is not a third recorded signal; it combines the two existing signals, and *when* the combination happens is a second axis, `fusion_mode` (only consulted for `modality=fused`):
+> The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. Fusion is not a third recorded signal; it combines the two existing signals, and *when* the combination happens is a second axis, `fusion_mode` (required for `modality=fused`, refused otherwise):
 >
 > | `fusion_mode` | Where combination happens | Extractor runs | Result vector |
 > |---|---|---|---|
 > | `early` | Raw voice+EEG samples concatenated **before** extraction | one pass over the joined signal | features of the joined signal |
-> | `late` (default) | Voice and EEG extracted **independently**, feature vectors concatenated **after** | two passes (one per signal) | `[voice-features ‖ eeg-features]` |
+> | `late` | Voice and EEG extracted **independently**, feature vectors concatenated **after** | two passes (one per signal) | `[voice-features ‖ eeg-features]` |
 >
 > Early fusion lets the extractor model cross-modal interactions but forces one sample rate onto both halves (the voice rate, since audio dominates the sample count); late fusion keeps each signal at its native rate and its own extractor, at the cost of never seeing the two jointly. Both are worth comparing as an experimental axis. Implemented in `ThesisFeatureExtraction.cpp::extract_features` (audit C12).
 
@@ -286,9 +286,11 @@ src/experiments/thesis/
 │   │   │       (eeg drops bark/mel: cochlear scales, no basis for EEG — see D6 note below)
 │   │   ├── p00_ae_ann_<size>_<source>.json           ANN-AE, size ∈ {tiny,small,base}
 │   │   │                                              (latent 8/16/32, 2:1 hidden) × source(2) = 6
-│   │   └── p00_ae_snn_<encoding>_<size>_<source>.json SNN-AE, encoding ∈ {poisson,latency,direct}
-│   │                                                × size ∈ {tiny,small,base} × source(2) = 18
-│   │                                                (6 ann + 18 snn = 24 AE)   → 208 total
+│   │   ├── p00_ae_snn_<encoding>_<size>_<source>.json SNN-AE, encoding ∈ {poisson,latency,direct}
+│   │   │                                            × size ∈ {tiny,small,base} × source(2) = 18
+│   │   │                                            (6 ann + 18 snn = 24 AE)
+│   │   └── p00_pca_k<k>_<source>.json               PCA, k ∈ {8,16,32} × source(2) = 6
+│   │                                                → 184 + 24 + 6 = 214 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
@@ -299,80 +301,98 @@ src/experiments/thesis/
   └── thesis_classifiers_gtest.cpp          batch evaluate() + aggregate stats + DSNN smoke path
 ```
 
-### Profile schema
+### Profile schema — every key declared, no defaults (2026-11-11)
+
+**The problem this solves.** Until 2026-11-11 a profile could omit a key and the config struct
+filled it in. The worst case: `autoencoder.model` defaulted to `lstm-ae`, so a profile with
+`strategy = "autoencoder"` and no `model` ran the LSTM-AE — an extractor the thesis had dropped —
+and its result looked like any other. A census of the 495 profiles then in the tree found 49
+that relied on the implicit `ae_loss_type = "mse"`, and 1 000+ keys the run never read (e.g.
+`early_stop_patience` in runs with no classifier) that looked like settings but changed nothing.
+
+**The rule.** A key is either *read by this run* or *not*. Read ⇒ the profile must declare it;
+not read ⇒ the profile must not contain it. Unknown keys and wrong JSON types (`"epochs": 50.0`,
+`"seed": -1`) are refused. There is no default anywhere: `ThesisConfig` holds every value in a
+`thesis::Required<T>`, and reading one that was never declared throws (in code-built configs
+too — tests use `tests/ThesisTestConfig.hpp`).
+
+**Which keys a run reads** (one table, `for_each_field` in `ThesisConfig.cpp`, feeds the parser,
+the declaration check and the summary's `config` block):
+
+| Block | Key | Read when |
+|---|---|---|
+| `experiment` | `run_tag`, `seed`, `repeats` | always |
+| | `seed_deterministic` | `repeats > 1` |
+| `dataset` | `root`, `results_dir`, `modality`, `max_samples` | always |
+| | `fusion_mode` | `modality = "fused"` |
+| `feature_extraction` | `strategy` | always: `handcrafted` \| `autoencoder` \| `pca` |
+| `…handcrafted` | `transform`, `scale`, `wavelet`, `cepstral`, `descriptors`, `dtwpt_level` | strategy handcrafted |
+| `…autoencoder` | `model`, `encoder_layer_spec`, `ae_loss_type` | strategy autoencoder |
+| | `decoder_layer_spec` | model `snn-ae` or `ann-ae` (not `lstm-ae`) |
+| | `encoding`, `voltage_threshold`, `firing_rate_reg_lambda` | model `snn-ae` |
+| | `time_steps` | `snn-ae` with encoding ≠ `direct` |
+| | `firing_rate_min`, `firing_rate_max` | `snn-ae` with `firing_rate_reg_lambda > 0` |
+| `…pca` | `n_components` (1–256, and ≤ samples − 1 at fit) | strategy pca |
+| `paraconsistent` | `enabled` | always |
+| `classifier` | `enabled` | always |
+| | `type`, `layer_spec`, `text_mode` | classifier enabled |
+| `training` | `epochs`, `learning_rate`, `optimizer_type`, `gradient_clip_norm`, `samples_per_batch` | strategy autoencoder, or classifier enabled |
+| | `optimizer_momentum` | optimizer `sgd` |
+| | `k_folds`, `nested_cv`, `standardize_features`, `weight_decay` | classifier enabled |
+| | `early_stop_patience` | classifier enabled and `nested_cv` |
+| | `firing_rate_reg_lambda`, `batch_normalization` | classifier `dsnn` |
+| | `firing_rate_min`, `firing_rate_max` | `dsnn` with `firing_rate_reg_lambda > 0` |
+| | `tdbn_alpha` | `batch_normalization = "threshold-dependent"` |
+
+So a handcrafted Phase 00 run has **no `training` block at all** (nothing trains), and a PCA
+run has none either. Three real profiles, one per strategy:
 
 ```jsonc
-{
-  "experiment": {
-    "run_tag": "e05_handcrafted_eeg",
-    "seed": 42,
-    "repeats": 3,
-    "seed_deterministic": false
-  },
-  "dataset": {
-    "root": "/path/to/10.1117/",
-    "results_dir": "results/",
-    "modality": "eeg",         // "voice" | "eeg" | "fused"
-    "fusion_mode": "late"      // "early" | "late"  — only used when modality=fused
-  },
-  "feature_extraction": {
-    "strategy": "handcrafted",  // "handcrafted" | "autoencoder"
-    "handcrafted": {
-      "transform": "dtwpt",     // only value accepted in current Experiment05 baseline
-      "scale": "lfcc",          // "bark" | "mel" | "lfcc"
-      "descriptors": ["energy", "zcr", "entropy", "teager", "jitter", "shimmer"]
-    },
-    "autoencoder": {
-      "model": "snn-ae",        // snn-ae | ann-ae (thesis Phase 00); lstm-ae accepted but unused
-      "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
-      "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"],
-      "encoding": "poisson",    // snn-ae temporal code: poisson | latency | direct
-      "time_steps": 16,         // snn-ae integration window
-      "voltage_threshold": 0.2, // snn-ae encoder LIF threshold (below LIF default 1.0)
-      "firing_rate_reg_lambda": 0.5,  // snn-ae encoder band penalty; 0 = off (default)
-      "firing_rate_min": 0.10,
-      "firing_rate_max": 0.80
-    }
-  },
-  "numerics": {
-    // false = FastActivations' softsign gates (~2x faster LSTM, provably NOT torch:
-    // |tanh - tanh_fast| reaches 0.306). PyTorch/snnTorch is this project's correctness
-    // reference, so exact is the default and the approximation is an explicit opt-in.
-    "exact_activations": true
-  },
-  "paraconsistent": {
-    "enabled": true
-  },
-  "classifier": {
-    "type": "rnn",              // "rnn" | "dsnn"
-    "layer_spec": ["linear:128:relu", "residual:2", "linear:N_speakers:identity"],
-    "text_mode": "dependent"    // "dependent" | "independent"
-  },
-  "training": {
-    "epochs": 50,
-    "learning_rate": 1e-3,
-    "samples_per_batch": 32,
-    "early_stop_patience": 10,
-    "k_folds": 5,
-    "nested_cv": true,
-    "optimizer_type": "adam",        // adam | sgd | lion | schedule-free-adamw
-    "optimizer_momentum": 0.0,       // sgd only
-    "gradient_clip_norm": 0.0,       // 0 = OFF (default), matching PyTorch. The ONLY
-                                     // clipping knob: MSELoss/MAELoss used to also clip
-                                     // themselves at norm 1.0, silently, overriding this.
-    // learning_rate is OPTIONAL: omit it and each optimizer gets its own reference
-    // default (adam 1e-3, sgd 1e-2, lion 1e-4, schedule-free-adamw 2.5e-3). Set it
-    // explicitly only to sweep. Either way the resolved value + its source land in
-    // the run summary's "training" block. See Core/Optimizers.md.
-    "weight_decay": 1e-4,            // decoupled L2 (rnn + dsnn); 0 = off
-    "firing_rate_reg_lambda": 0.01,  // dsnn-only band penalty; 0 = off
-    "firing_rate_min": 0.05,
-    "firing_rate_max": 0.80,
-    "batch_normalization": "threshold-dependent",  // dsnn-only tdBN; "none" = off
-    "tdbn_alpha": 1.0                // α: target std = α·V_th
-  }
-}
+// phase00/p00_hc_haar_bark_c1_voice.json — handcrafted, no training block
+{ "experiment": {"run_tag": "e05_p00_hc_haar_bark_c1_voice", "seed": 42, "repeats": 3,
+                 "seed_deterministic": false},
+  "dataset": {"root": "~/database.sqlite", "results_dir": "results/thesis/phase00",
+              "modality": "voice", "max_samples": 0},
+  "feature_extraction": {"strategy": "handcrafted",
+    "handcrafted": {"transform": "dtwpt", "scale": "bark", "wavelet": "haar", "cepstral": false,
+                    "descriptors": ["energy","zcr","entropy","teager","jitter","shimmer"],
+                    "dtwpt_level": 4}},
+  "paraconsistent": {"enabled": true},
+  "classifier": {"enabled": false} }
+
+// phase00/p00_ae_snn_latency_small_eeg.json — the AE trains, so training is read
+  "feature_extraction": {"strategy": "autoencoder", "autoencoder": {
+      "model": "snn-ae", "encoder_layer_spec": ["linear:32:leaky", "linear:16:identity"],
+      "decoder_layer_spec": ["linear:32:leaky", "linear:output:identity"],
+      "encoding": "latency", "time_steps": 16, "voltage_threshold": 0.2,
+      "firing_rate_reg_lambda": 0.5, "firing_rate_min": 0.1, "firing_rate_max": 0.8,
+      "ae_loss_type": "mse"}},
+  "training": {"epochs": 100, "learning_rate": 0.001, "samples_per_batch": 32,
+               "optimizer_type": "adam", "gradient_clip_norm": 0.0}
+
+// phase00/p00_pca_k16_voice.json — closed form, no training
+  "feature_extraction": {"strategy": "pca", "pca": {"n_components": 16}}
 ```
+
+**Same mistake, before and after:**
+
+| Profile slip | Before 2026-11-11 | Now |
+|---|---|---|
+| `strategy: "autoencoder"`, `model` omitted | ran `lstm-ae` silently | refused: `feature_extraction.autoencoder.model` is required |
+| `learning_rate` omitted | resolved from the optimizer (adam 1e-3, …) | refused |
+| `early_stop_patience` in a run with no classifier | ignored silently | refused: the run never reads it |
+| `"epochs": 50.5` | truncated to 50 | refused: wrong JSON type |
+
+Every failure is **loud** (the run stops at parse time with the key's path and the remedy);
+there is no silent path left. The run summary records `config` = exactly the declared keys,
+so the value that ran is the value written in the profile. Contract tests:
+`thesis_strict_config_gtest.cpp`; every shipped profile: `thesis_profile_audit_gtest`.
+
+**paraconsistentGA** embeds this config (`GaConfig::embedding()`): the genome sets
+`encoder_layer_spec`, `decoder_layer_spec`, `encoding`, `time_steps`, `voltage_threshold`, so
+GA profiles must *not* declare them; the GA validates (instead of forcing) `strategy =
+autoencoder`, `classifier.enabled = false`, `paraconsistent.enabled = true`, and probes each
+encoding choice it may produce against the same rules.
 
 ### Progress bars (three levels)
 
@@ -420,7 +440,7 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
 EER computation is pluggable via `statistics::IEERScorer`:
 
 ```cpp
-// Pass to run_classifier(); nullptr → GenuineImpostorEERScorer (default)
+// Pass to run_classifier(); nullptr → GenuineImpostorEERScorer
 statistics::GenuineImpostorEERScorer sota_scorer(/*n_enroll=*/1);
 auto result = thesis::run_classifier(view, fvs, label, cfg, &sota_scorer);
 
@@ -486,40 +506,43 @@ The experiment is split into two profile sets, gated by `classifier.enabled`:
 
 **Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
 (since 2026-07-18) `run_thesis_profiles.sh phase00`/`all` chains all three itself once every
-phase00 profile passes (fails closed on any failure; `THESIS_FORCE_POST`/`THESIS_SKIP_POST`
-override — see [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md)
+phase00 profile passes (fails closed on any failure, with no override; `THESIS_SKIP_POST`
+disables it — see [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md)
 for the full gating rules and the `scope=all` ordering caveat). Shown here for manual re-runs:
 
 ```bash
-# Rank Phase 00 results, pick the min-D_truth winner per signal:
+# Rank Phase 00 results, pick the min-D_penalized winner per signal (refuses a partial set):
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --profiles-dir src/experiments/thesis/profiles/phase00 \
   --results-dir  results/thesis/phase00 \
   --out          results/thesis/phase00/winners.json
 
-# Inject the winners into the 32 Phase 01 profiles (fused uses the voice winner by default):
+# Inject the winners into the 32 Phase 01 profiles (--fused is required: no default):
 python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
   --winners      results/thesis/phase00/winners.json \
-  --profiles-dir src/experiments/thesis/profiles/phase01
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --fused        voice
 
 # Regenerate the thesis Phase 00 tables from the ranked results:
 python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
-  --results-dir results/thesis/phase00 \
-  --tables-dir  ../../documentation/00-thesis/monography/tables
+  --profiles-dir src/experiments/thesis/profiles/phase00 \
+  --results-dir  results/thesis/phase00 \
+  --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-`01_thesis_phase00_rank.py` collates every `results/thesis/phase00/*_paraconsistent.csv`, selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables — it defaults `--tables-dir` to that directory, so pointing it at anything but complete phase00 results overwrites what the thesis compiles from. It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across both the handcrafted and autoencoder families) with a dagger — see pitfall 12 below for why this matters.
+`01_thesis_phase00_rank.py` reads exactly the `e05_<run_tag>[_rep<k>]_paraconsistent.csv` files each profile declares (refusing a missing one, a CSV with more than one row, or one without `d_penalized`), selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables from the profile set (every argument required; a missing summary or an empty `{ae, hc, pca} × {eeg, voice}` group is refused, and a result with no profile is never read). It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across the handcrafted, autoencoder and PCA families) with a dagger — see pitfall 12 below for why this matters.
 
 A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 01 results once that phase has run:
 
 ```bash
 # Regenerate the thesis Phase 01 authentication table (32 configs, ranked by mean EER):
 python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
-  --results-dir results/thesis/phase01 \
-  --tables-dir  ../../documentation/00-thesis/monography/tables
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --results-dir  results/thesis/phase01 \
+  --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-`thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above.
+`thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above. Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
 
 ---
 
@@ -617,7 +640,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 4. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
 
-5. **Autoencoder path wires `snn-ae` and `ann-ae`.** `feature_extraction.autoencoder.model` accepts `snn-ae`, `ann-ae`, or `lstm-ae`; the thesis Phase 00 profiles use `snn-ae`/`ann-ae` (`lstm-ae` is the legacy Meeting01 extractor, unused by any profile).
+5. **Autoencoder path wires `snn-ae` and `ann-ae`.** `feature_extraction.autoencoder.model` is required and accepts `snn-ae`, `ann-ae`, or `lstm-ae`; the thesis Phase 00 profiles use `snn-ae`/`ann-ae` (`lstm-ae` is the legacy Meeting01 extractor, unused by any profile, and no longer the silent default it was until 2026-11-11).
 
 6. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
 

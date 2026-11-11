@@ -138,6 +138,16 @@ mapping, config validation).
    comparable across technologies; `tau_rec` and latent activity are not — keep per-population.
 5. **Mixing modalities in one run.** `model` and `modality` are fixed per profile; run separate
    configs for eeg / voice / fused ([Design §5.3/§5.4](ParaconsistentGA-Design.md)).
+6. **Expecting a key to have a default.** Since 2026-11-11 no GA or thesis key has one. A GA
+   profile declares its own `run_tag`, `results_dir`, `ga` (with `bounds`), `constraints` and
+   `checkpoint`, plus the embedded thesis config minus what the genome sets
+   (`encoder_layer_spec`, `decoder_layer_spec`, `encoding`, `time_steps`, `voltage_threshold`)
+   and minus what the GA never reads (`experiment.run_tag`, `experiment.repeats`,
+   `experiment.seed_deterministic`, `dataset.results_dir`). A missing key, an unread one and an
+   unknown one are all refused at parse time (`GaConfig::from_json`, `GaConfig::embedding()`);
+   the old silent fallbacks (`run_tag` taken from `experiment.run_tag`, `hidden_choices` /
+   `latent_choices` accepted and ignored) are gone. The rules of the embedded block are the
+   thesis ones: [Thesis § Profile schema](Thesis.md#profile-schema--every-key-declared-no-defaults-2026-11-11).
 
 ## See Also
 

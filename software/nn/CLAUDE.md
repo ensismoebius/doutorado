@@ -75,7 +75,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
 | `thesis_spike_loss_e2e_gtest` | SpikeCount/SpikeTime AE training smoke (encoding<->loss invariant, time-major layout) |
-| `thesis_profile_audit_gtest` | 2335 tests verifying all 333 Thesis profiles (276 handcrafted [wavelet×scale×category] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] phase00 + 32 phase01 + debug) parse + validate |
+| `thesis_profile_audit_gtest` | 1986 tests: every thesis profile (phase00 214 = 184 handcrafted [wavelet×scale×category; EEG lfcc only] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] + 6 PCA [k 8/16/32 × voice/eeg]; 32 phase01; debug; smoke mirrors) parses + validates under the strict config |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
@@ -129,6 +129,14 @@ Exceptions must name the cause AND the remedy — see
 
 Genuine *defaults* in a config struct are fine (a documented initial value). What is
 banned is recovering from an error by guessing.
+
+**Thesis / paraconsistentGA config: no defaults at all (2026-11-11).** `ThesisConfig`
+holds every value in `thesis::Required<T>` (`Required.hpp`): reading one that was never
+declared throws. The parser (`ThesisConfig.cpp`, one applicability table `for_each_field`)
+refuses a missing key the run reads, a key it does not read, an unknown key and a wrong
+JSON type. `declared_json()` is what the summary records as `config`. Tests build configs
+with `tests/ThesisTestConfig.hpp`. The GA embeds the thesis config (`GaConfig::embedding()`):
+the genome sets the architecture keys, and the GA validates the fixed ones instead of forcing them.
 
 ---
 
