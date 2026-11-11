@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 5,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 27,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 5.744403839111328,
+    "monitor_windows": 150,
+    "train_ms": 12452.0732421875
+  },
+  "results_format": 13,
+  "run_id": 2,
+  "seed": 43,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      35,
+      16
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker george)",
+  "test_speaker": "yweweler"
+}

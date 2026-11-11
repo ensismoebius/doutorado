@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 1,
+  "dataset": "eegmmidb",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 46,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 11.478821754455566,
+    "monitor_windows": 150,
+    "train_ms": 43650.625
+  },
+  "results_format": 14,
+  "run_id": 4,
+  "seed": 45,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      91,
+      64
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker S038,S039,S040,S041,S042,S043,S044,S045,S046,S047,S048,S049,S050,S051,S052,S053,S054,S055)",
+  "test_speaker": "S020,S021,S022,S023,S024,S025,S026,S027,S028,S029,S030,S031,S032,S033,S034,S035,S036,S037"
+}

@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "families": [
+    {
+      "family": "snn-ae",
+      "inference_cost": 57584,
+      "val_mse": 0.6563020944595337
+    }
+  ],
+  "overall_winner": "snn-ae",
+  "results_format": 11,
+  "run_id": 1,
+  "seed": 42,
+  "selection_metric": "val_mse"
+}

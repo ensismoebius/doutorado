@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 3,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 40,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 4.143980026245117,
+    "monitor_windows": 150,
+    "train_ms": 14291.09765625
+  },
+  "results_format": 14,
+  "run_id": 5,
+  "seed": 46,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      17,
+      16
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker theo)",
+  "test_speaker": "nicolas"
+}

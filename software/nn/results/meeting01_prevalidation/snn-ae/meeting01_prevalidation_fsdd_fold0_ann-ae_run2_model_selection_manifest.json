@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 6.090043067932129,
+    "monitor_windows": 150,
+    "train_ms": 14520.99609375
+  },
+  "results_format": 11,
+  "run_id": 2,
+  "seed": 43,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      35,
+      16
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george"
+}

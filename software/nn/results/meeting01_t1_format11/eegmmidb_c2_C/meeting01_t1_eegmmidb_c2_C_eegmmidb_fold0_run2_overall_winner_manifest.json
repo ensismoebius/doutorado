@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "eegmmidb",
+  "families": [
+    {
+      "family": "transformer-ae",
+      "inference_cost": 3033600,
+      "val_mse": 0.6978597640991211
+    }
+  ],
+  "overall_winner": "transformer-ae",
+  "results_format": 11,
+  "run_id": 2,
+  "seed": 43,
+  "selection_metric": "val_mse"
+}

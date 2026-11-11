@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "families": [
+    {
+      "family": "lstm-ae",
+      "inference_cost": 5970912,
+      "val_mse": 0.9335006475448608
+    }
+  ],
+  "overall_winner": "lstm-ae",
+  "results_format": 11,
+  "run_id": 1,
+  "seed": 42,
+  "selection_metric": "val_mse"
+}

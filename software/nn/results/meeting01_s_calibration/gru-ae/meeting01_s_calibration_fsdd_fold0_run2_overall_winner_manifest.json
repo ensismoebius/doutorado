@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "families": [
+    {
+      "family": "gru-ae",
+      "inference_cost": 1287936,
+      "val_mse": 0.8536828756332397
+    }
+  ],
+  "overall_winner": "gru-ae",
+  "results_format": 10,
+  "run_id": 2,
+  "seed": 43,
+  "selection_metric": "val_mse"
+}

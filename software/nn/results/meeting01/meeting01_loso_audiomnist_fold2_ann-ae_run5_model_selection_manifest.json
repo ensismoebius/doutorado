@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 2,
+  "dataset": "audiomnist",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 15,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 12.13995361328125,
+    "monitor_windows": 150,
+    "train_ms": 15150.9873046875
+  },
+  "results_format": 14,
+  "run_id": 5,
+  "seed": 46,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      119,
+      16
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker 31,32,33,34,35,36,37,38,39,40)",
+  "test_speaker": "21,22,23,24,25,26,27,28,29,30"
+}

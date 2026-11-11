@@ -1,0 +1,36 @@
+{
+  "candidates": [
+    {
+      "d_ff": 73,
+      "d_model": 27,
+      "encoding": "direct",
+      "n_heads": 1,
+      "n_layers": 1,
+      "val_mse": 0.9748247265815735
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 30,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 67.16802978515625,
+    "monitor_windows": 150,
+    "train_ms": 107316.1484375
+  },
+  "results_format": 11,
+  "run_id": 2,
+  "seed": 43,
+  "selected": {
+    "d_ff": 73,
+    "d_model": 27,
+    "encoding": "direct",
+    "n_heads": 1,
+    "n_layers": 1,
+    "val_mse": 0.9748247265815735
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george"
+}

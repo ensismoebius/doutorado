@@ -1,0 +1,16 @@
+{
+  "cv_fold": 4,
+  "dataset": "audiomnist",
+  "families": [
+    {
+      "family": "snn-ae",
+      "inference_cost": 77792,
+      "val_mse": 0.44924524426460266
+    }
+  ],
+  "overall_winner": "snn-ae",
+  "results_format": 13,
+  "run_id": 5,
+  "seed": 46,
+  "selection_metric": "val_mse"
+}

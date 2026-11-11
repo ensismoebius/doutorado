@@ -1,0 +1,16 @@
+{
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "families": [
+    {
+      "family": "transformer-ae",
+      "inference_cost": 1681152,
+      "val_mse": 0.9612809419631958
+    }
+  ],
+  "overall_winner": "transformer-ae",
+  "results_format": 9,
+  "run_id": 1,
+  "seed": 42,
+  "selection_metric": "val_mse"
+}

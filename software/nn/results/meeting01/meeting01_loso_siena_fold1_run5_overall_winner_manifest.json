@@ -1,0 +1,16 @@
+{
+  "cv_fold": 1,
+  "dataset": "siena",
+  "families": [
+    {
+      "family": "snn-ae",
+      "inference_cost": 240064,
+      "val_mse": 0.6415555477142334
+    }
+  ],
+  "overall_winner": "snn-ae",
+  "results_format": 14,
+  "run_id": 5,
+  "seed": 46,
+  "selection_metric": "val_mse"
+}

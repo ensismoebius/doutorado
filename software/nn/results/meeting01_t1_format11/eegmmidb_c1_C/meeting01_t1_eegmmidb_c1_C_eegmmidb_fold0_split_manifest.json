@@ -1,0 +1,6332 @@
+{
+  "composition": {
+    "test": {
+      "digits": {
+        "-1": 1500
+      },
+      "source_window_index": {
+        "0": 19,
+        "1": 20,
+        "10": 26,
+        "11": 20,
+        "12": 25,
+        "13": 21,
+        "14": 22,
+        "15": 19,
+        "16": 23,
+        "17": 20,
+        "18": 16,
+        "19": 23,
+        "2": 23,
+        "20": 24,
+        "21": 20,
+        "22": 23,
+        "23": 23,
+        "24": 26,
+        "25": 26,
+        "26": 17,
+        "27": 23,
+        "28": 20,
+        "29": 26,
+        "3": 26,
+        "30": 24,
+        "31": 26,
+        "32": 22,
+        "33": 21,
+        "34": 28,
+        "35": 27,
+        "36": 27,
+        "37": 17,
+        "38": 9,
+        "39": 17,
+        "4": 22,
+        "40": 17,
+        "41": 20,
+        "42": 26,
+        "43": 15,
+        "44": 19,
+        "45": 17,
+        "46": 22,
+        "47": 18,
+        "48": 20,
+        "49": 15,
+        "5": 20,
+        "50": 15,
+        "51": 23,
+        "52": 27,
+        "53": 18,
+        "54": 16,
+        "55": 15,
+        "56": 13,
+        "57": 11,
+        "58": 18,
+        "59": 12,
+        "6": 26,
+        "60": 21,
+        "61": 16,
+        "62": 16,
+        "63": 16,
+        "64": 22,
+        "65": 16,
+        "66": 21,
+        "67": 15,
+        "68": 12,
+        "69": 17,
+        "7": 23,
+        "70": 19,
+        "71": 16,
+        "72": 16,
+        "73": 14,
+        "74": 14,
+        "75": 15,
+        "76": 3,
+        "77": 1,
+        "8": 14,
+        "9": 19
+      },
+      "speakers": {
+        "S001": 79,
+        "S002": 79,
+        "S003": 79,
+        "S004": 79,
+        "S005": 78,
+        "S006": 79,
+        "S007": 79,
+        "S008": 79,
+        "S009": 79,
+        "S010": 79,
+        "S011": 79,
+        "S012": 79,
+        "S013": 79,
+        "S014": 79,
+        "S015": 79,
+        "S016": 79,
+        "S017": 79,
+        "S018": 79,
+        "S019": 79
+      }
+    },
+    "train": {
+      "digits": {
+        "-1": 1000
+      },
+      "source_window_index": {
+        "0": 14,
+        "1": 20,
+        "10": 11,
+        "11": 18,
+        "12": 8,
+        "13": 15,
+        "14": 15,
+        "15": 25,
+        "16": 12,
+        "17": 16,
+        "18": 11,
+        "19": 19,
+        "2": 13,
+        "20": 15,
+        "21": 19,
+        "22": 14,
+        "23": 15,
+        "24": 21,
+        "25": 13,
+        "26": 16,
+        "27": 14,
+        "28": 8,
+        "29": 11,
+        "3": 8,
+        "30": 13,
+        "31": 11,
+        "32": 16,
+        "33": 10,
+        "34": 13,
+        "35": 17,
+        "36": 17,
+        "37": 18,
+        "38": 8,
+        "39": 20,
+        "4": 17,
+        "40": 18,
+        "41": 12,
+        "42": 7,
+        "43": 15,
+        "44": 12,
+        "45": 9,
+        "46": 15,
+        "47": 9,
+        "48": 15,
+        "49": 8,
+        "5": 20,
+        "50": 13,
+        "51": 14,
+        "52": 10,
+        "53": 8,
+        "54": 14,
+        "55": 7,
+        "56": 11,
+        "57": 11,
+        "58": 12,
+        "59": 9,
+        "6": 18,
+        "60": 7,
+        "61": 7,
+        "62": 13,
+        "63": 15,
+        "64": 13,
+        "65": 6,
+        "66": 16,
+        "67": 8,
+        "68": 11,
+        "69": 12,
+        "7": 14,
+        "70": 11,
+        "71": 12,
+        "72": 14,
+        "73": 10,
+        "74": 13,
+        "75": 4,
+        "76": 4,
+        "77": 1,
+        "8": 15,
+        "9": 16
+      },
+      "speakers": {
+        "S038": 14,
+        "S039": 14,
+        "S040": 14,
+        "S041": 14,
+        "S042": 14,
+        "S043": 14,
+        "S044": 14,
+        "S045": 14,
+        "S046": 14,
+        "S047": 14,
+        "S048": 14,
+        "S049": 14,
+        "S050": 14,
+        "S051": 14,
+        "S052": 13,
+        "S053": 14,
+        "S054": 14,
+        "S055": 14,
+        "S056": 14,
+        "S057": 13,
+        "S058": 14,
+        "S059": 14,
+        "S060": 13,
+        "S061": 14,
+        "S062": 14,
+        "S063": 14,
+        "S064": 14,
+        "S065": 14,
+        "S066": 14,
+        "S067": 14,
+        "S068": 14,
+        "S069": 14,
+        "S070": 13,
+        "S071": 14,
+        "S072": 14,
+        "S073": 14,
+        "S074": 13,
+        "S075": 14,
+        "S076": 14,
+        "S077": 14,
+        "S078": 14,
+        "S079": 14,
+        "S080": 14,
+        "S081": 14,
+        "S082": 14,
+        "S083": 14,
+        "S084": 14,
+        "S085": 14,
+        "S086": 14,
+        "S087": 14,
+        "S088": 13,
+        "S089": 14,
+        "S090": 14,
+        "S091": 14,
+        "S092": 14,
+        "S093": 14,
+        "S094": 14,
+        "S095": 14,
+        "S096": 14,
+        "S097": 14,
+        "S098": 14,
+        "S099": 13,
+        "S100": 14,
+        "S101": 14,
+        "S102": 14,
+        "S103": 13,
+        "S104": 14,
+        "S105": 14,
+        "S106": 14,
+        "S107": 14,
+        "S108": 14,
+        "S109": 14
+      }
+    },
+    "val": {
+      "digits": {
+        "-1": 150
+      },
+      "source_window_index": {
+        "0": 2,
+        "1": 1,
+        "10": 3,
+        "11": 2,
+        "12": 1,
+        "13": 3,
+        "15": 4,
+        "17": 4,
+        "18": 2,
+        "19": 2,
+        "2": 2,
+        "20": 1,
+        "21": 3,
+        "22": 1,
+        "23": 2,
+        "25": 1,
+        "26": 2,
+        "27": 2,
+        "28": 5,
+        "29": 2,
+        "3": 3,
+        "30": 2,
+        "31": 2,
+        "32": 4,
+        "33": 2,
+        "34": 1,
+        "35": 1,
+        "36": 1,
+        "37": 2,
+        "38": 4,
+        "39": 2,
+        "4": 3,
+        "41": 4,
+        "42": 3,
+        "43": 3,
+        "44": 2,
+        "46": 2,
+        "47": 5,
+        "48": 1,
+        "49": 1,
+        "5": 3,
+        "50": 1,
+        "52": 1,
+        "53": 1,
+        "54": 1,
+        "55": 3,
+        "56": 2,
+        "57": 2,
+        "58": 1,
+        "6": 4,
+        "60": 2,
+        "61": 2,
+        "63": 1,
+        "64": 2,
+        "65": 1,
+        "66": 2,
+        "67": 3,
+        "68": 3,
+        "69": 4,
+        "7": 1,
+        "71": 1,
+        "72": 5,
+        "73": 2,
+        "75": 3,
+        "76": 1,
+        "8": 1,
+        "9": 4
+      },
+      "speakers": {
+        "S020": 9,
+        "S021": 8,
+        "S022": 8,
+        "S023": 8,
+        "S024": 9,
+        "S025": 8,
+        "S026": 9,
+        "S027": 9,
+        "S028": 8,
+        "S029": 8,
+        "S030": 9,
+        "S031": 8,
+        "S032": 8,
+        "S033": 8,
+        "S034": 8,
+        "S035": 8,
+        "S036": 8,
+        "S037": 9
+      }
+    }
+  },
+  "config": {
+    "dataset": {
+      "cv_fold": 0,
+      "cv_num_folds": 6,
+      "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
+      "latent_dim": 0,
+      "loso_max_test_windows": 1500,
+      "loso_max_train_windows": 1000,
+      "loso_max_val_windows": 150,
+      "max_loaded_train_samples": 0,
+      "max_validation_samples": 0,
+      "max_windows_per_recording": 0,
+      "results_dir": "results/meeting01_t1_format11/eegmmidb_c1_C",
+      "sources": [
+        {
+          "cv_num_folds": 6,
+          "latent_dim": 16,
+          "loso_max_test_windows": 0,
+          "loso_max_train_windows": 0,
+          "loso_max_val_windows": 0,
+          "max_windows_per_recording": 0,
+          "name": "fsdd",
+          "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
+          "sample_rate": 8000,
+          "window_size": 0
+        },
+        {
+          "cv_num_folds": 6,
+          "latent_dim": 16,
+          "loso_max_test_windows": 0,
+          "loso_max_train_windows": 0,
+          "loso_max_val_windows": 0,
+          "max_windows_per_recording": 2,
+          "name": "audiomnist",
+          "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/audioMNIST_8k",
+          "sample_rate": 8000,
+          "window_size": 0
+        },
+        {
+          "cv_num_folds": 6,
+          "latent_dim": 64,
+          "loso_max_test_windows": 0,
+          "loso_max_train_windows": 0,
+          "loso_max_val_windows": 0,
+          "max_windows_per_recording": 40,
+          "name": "eegmmidb",
+          "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/eegmmidb",
+          "sample_rate": 160,
+          "window_size": 0
+        },
+        {
+          "cv_num_folds": 6,
+          "latent_dim": 64,
+          "loso_max_test_windows": 0,
+          "loso_max_train_windows": 0,
+          "loso_max_val_windows": 0,
+          "max_windows_per_recording": 40,
+          "name": "siena",
+          "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/siena",
+          "sample_rate": 512,
+          "window_size": 0
+        }
+      ],
+      "window_size": 256
+    },
+    "evaluation": {
+      "baselines": [
+        "transformer-ae"
+      ],
+      "datasets": [
+        "eegmmidb"
+      ],
+      "encodings": [
+        "direct"
+      ],
+      "ga": {
+        "gru": {
+          "crossover_prob": 0.9,
+          "generations": 2,
+          "max_hidden": 256,
+          "max_layers": 3,
+          "min_hidden": 8,
+          "min_layers": 1,
+          "mutation_prob": 0.2,
+          "population_size": 4,
+          "seed": 0,
+          "tournament_k": 2,
+          "winner_seeds": 2
+        },
+        "lstm": {
+          "crossover_prob": 0.9,
+          "generations": 2,
+          "max_hidden": 256,
+          "max_layers": 3,
+          "min_hidden": 8,
+          "min_layers": 1,
+          "mutation_prob": 0.2,
+          "population_size": 4,
+          "seed": 0,
+          "tournament_k": 2,
+          "winner_seeds": 2
+        },
+        "snn": {
+          "alpha_max": 0.9900000095367432,
+          "alpha_min": 0.800000011920929,
+          "crossover_prob": 0.9,
+          "generations": 2,
+          "max_layers": 4,
+          "max_width": 128,
+          "min_layers": 1,
+          "min_width": 4,
+          "mutation_prob": 0.2,
+          "population_size": 4,
+          "seed": 0,
+          "time_steps_max": 32,
+          "time_steps_min": 2,
+          "tournament_k": 2,
+          "voltage_threshold_max": 1.5,
+          "voltage_threshold_min": 0.5,
+          "winner_seeds": 2
+        },
+        "transformer": {
+          "crossover_prob": 0.9,
+          "generations": 0,
+          "head_choices": [
+            2
+          ],
+          "max_d_ff": 191,
+          "max_d_model": 102,
+          "max_layers": 1,
+          "min_d_ff": 191,
+          "min_d_model": 102,
+          "min_layers": 1,
+          "mutation_prob": 0.2,
+          "population_size": 1,
+          "seed": 0,
+          "tournament_k": 2,
+          "winner_seeds": 1
+        }
+      },
+      "snn_architectures": []
+    },
+    "experiment": {
+      "check_determinism": false,
+      "repeats": 2,
+      "run_tag": "meeting01_t1_eegmmidb_c1_C",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "model": {
+      "branch_decoder_layer_spec": [],
+      "branch_encoder_layer_spec": [],
+      "branch_hidden_size": 0,
+      "decoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:output:identity"
+      ],
+      "denoising_noise_std": 0.0,
+      "encoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:32:identity"
+      ],
+      "fusion_decoder_layer_spec": [],
+      "fusion_encoder_layer_spec": [],
+      "fusion_hidden_size": 0,
+      "initializer": "xavier",
+      "latent_dim": 64,
+      "loss_type": "mse",
+      "lstm_frame_size": 8,
+      "lstm_hidden_size": 64,
+      "recurrent_time_steps": 1,
+      "snn_decoder_neuron": "analog",
+      "snn_time_pool": "latent",
+      "time_steps": 16,
+      "transformer_d_ff": 128,
+      "transformer_d_model": 64,
+      "transformer_heads": 4,
+      "transformer_layers": 2,
+      "transformer_norm_first": true
+    },
+    "training": {
+      "batches_per_epoch": 0,
+      "beta1": 0.8999999761581421,
+      "beta2": 0.9990000128746033,
+      "early_stop_min_skill": 0.10000000149011612,
+      "early_stop_patience": 5,
+      "epochs": 30,
+      "epsilon": 9.99999993922529e-09,
+      "learning_rate": 0.0010000000474974513,
+      "learning_rate_biophysical": 9.999999747378752e-05,
+      "lr_warmup_steps": 0,
+      "max_reconstruct_mean_deviation": 0.25,
+      "samples_per_batch": 1
+    }
+  },
+  "cv_fold": 0,
+  "cv_num_folds": 6,
+  "dataset": "eegmmidb",
+  "latent_dim": 64,
+  "recordings": {
+    "test": [
+      {
+        "recording_id": 0,
+        "window_count": 6
+      },
+      {
+        "recording_id": 1,
+        "window_count": 6
+      },
+      {
+        "recording_id": 2,
+        "window_count": 5
+      },
+      {
+        "recording_id": 3,
+        "window_count": 5
+      },
+      {
+        "recording_id": 4,
+        "window_count": 5
+      },
+      {
+        "recording_id": 5,
+        "window_count": 6
+      },
+      {
+        "recording_id": 6,
+        "window_count": 6
+      },
+      {
+        "recording_id": 7,
+        "window_count": 6
+      },
+      {
+        "recording_id": 8,
+        "window_count": 5
+      },
+      {
+        "recording_id": 9,
+        "window_count": 6
+      },
+      {
+        "recording_id": 10,
+        "window_count": 6
+      },
+      {
+        "recording_id": 11,
+        "window_count": 6
+      },
+      {
+        "recording_id": 12,
+        "window_count": 6
+      },
+      {
+        "recording_id": 13,
+        "window_count": 5
+      },
+      {
+        "recording_id": 14,
+        "window_count": 6
+      },
+      {
+        "recording_id": 15,
+        "window_count": 6
+      },
+      {
+        "recording_id": 16,
+        "window_count": 5
+      },
+      {
+        "recording_id": 17,
+        "window_count": 5
+      },
+      {
+        "recording_id": 18,
+        "window_count": 6
+      },
+      {
+        "recording_id": 19,
+        "window_count": 6
+      },
+      {
+        "recording_id": 20,
+        "window_count": 6
+      },
+      {
+        "recording_id": 21,
+        "window_count": 5
+      },
+      {
+        "recording_id": 22,
+        "window_count": 5
+      },
+      {
+        "recording_id": 23,
+        "window_count": 6
+      },
+      {
+        "recording_id": 24,
+        "window_count": 6
+      },
+      {
+        "recording_id": 25,
+        "window_count": 6
+      },
+      {
+        "recording_id": 26,
+        "window_count": 6
+      },
+      {
+        "recording_id": 27,
+        "window_count": 5
+      },
+      {
+        "recording_id": 28,
+        "window_count": 6
+      },
+      {
+        "recording_id": 29,
+        "window_count": 6
+      },
+      {
+        "recording_id": 30,
+        "window_count": 6
+      },
+      {
+        "recording_id": 31,
+        "window_count": 6
+      },
+      {
+        "recording_id": 32,
+        "window_count": 5
+      },
+      {
+        "recording_id": 33,
+        "window_count": 5
+      },
+      {
+        "recording_id": 34,
+        "window_count": 5
+      },
+      {
+        "recording_id": 35,
+        "window_count": 5
+      },
+      {
+        "recording_id": 36,
+        "window_count": 6
+      },
+      {
+        "recording_id": 37,
+        "window_count": 5
+      },
+      {
+        "recording_id": 38,
+        "window_count": 6
+      },
+      {
+        "recording_id": 39,
+        "window_count": 6
+      },
+      {
+        "recording_id": 40,
+        "window_count": 6
+      },
+      {
+        "recording_id": 41,
+        "window_count": 6
+      },
+      {
+        "recording_id": 42,
+        "window_count": 6
+      },
+      {
+        "recording_id": 43,
+        "window_count": 5
+      },
+      {
+        "recording_id": 44,
+        "window_count": 5
+      },
+      {
+        "recording_id": 45,
+        "window_count": 5
+      },
+      {
+        "recording_id": 46,
+        "window_count": 6
+      },
+      {
+        "recording_id": 47,
+        "window_count": 6
+      },
+      {
+        "recording_id": 48,
+        "window_count": 6
+      },
+      {
+        "recording_id": 49,
+        "window_count": 6
+      },
+      {
+        "recording_id": 50,
+        "window_count": 6
+      },
+      {
+        "recording_id": 51,
+        "window_count": 5
+      },
+      {
+        "recording_id": 52,
+        "window_count": 6
+      },
+      {
+        "recording_id": 53,
+        "window_count": 6
+      },
+      {
+        "recording_id": 54,
+        "window_count": 5
+      },
+      {
+        "recording_id": 55,
+        "window_count": 6
+      },
+      {
+        "recording_id": 56,
+        "window_count": 6
+      },
+      {
+        "recording_id": 57,
+        "window_count": 5
+      },
+      {
+        "recording_id": 58,
+        "window_count": 5
+      },
+      {
+        "recording_id": 59,
+        "window_count": 6
+      },
+      {
+        "recording_id": 60,
+        "window_count": 6
+      },
+      {
+        "recording_id": 61,
+        "window_count": 6
+      },
+      {
+        "recording_id": 62,
+        "window_count": 6
+      },
+      {
+        "recording_id": 63,
+        "window_count": 5
+      },
+      {
+        "recording_id": 64,
+        "window_count": 6
+      },
+      {
+        "recording_id": 65,
+        "window_count": 6
+      },
+      {
+        "recording_id": 66,
+        "window_count": 5
+      },
+      {
+        "recording_id": 67,
+        "window_count": 5
+      },
+      {
+        "recording_id": 68,
+        "window_count": 6
+      },
+      {
+        "recording_id": 69,
+        "window_count": 5
+      },
+      {
+        "recording_id": 70,
+        "window_count": 5
+      },
+      {
+        "recording_id": 71,
+        "window_count": 5
+      },
+      {
+        "recording_id": 72,
+        "window_count": 6
+      },
+      {
+        "recording_id": 73,
+        "window_count": 6
+      },
+      {
+        "recording_id": 74,
+        "window_count": 5
+      },
+      {
+        "recording_id": 75,
+        "window_count": 5
+      },
+      {
+        "recording_id": 76,
+        "window_count": 5
+      },
+      {
+        "recording_id": 77,
+        "window_count": 6
+      },
+      {
+        "recording_id": 78,
+        "window_count": 6
+      },
+      {
+        "recording_id": 79,
+        "window_count": 6
+      },
+      {
+        "recording_id": 80,
+        "window_count": 6
+      },
+      {
+        "recording_id": 81,
+        "window_count": 6
+      },
+      {
+        "recording_id": 82,
+        "window_count": 6
+      },
+      {
+        "recording_id": 83,
+        "window_count": 6
+      },
+      {
+        "recording_id": 84,
+        "window_count": 6
+      },
+      {
+        "recording_id": 85,
+        "window_count": 5
+      },
+      {
+        "recording_id": 86,
+        "window_count": 6
+      },
+      {
+        "recording_id": 87,
+        "window_count": 6
+      },
+      {
+        "recording_id": 88,
+        "window_count": 6
+      },
+      {
+        "recording_id": 89,
+        "window_count": 5
+      },
+      {
+        "recording_id": 90,
+        "window_count": 6
+      },
+      {
+        "recording_id": 91,
+        "window_count": 5
+      },
+      {
+        "recording_id": 92,
+        "window_count": 6
+      },
+      {
+        "recording_id": 93,
+        "window_count": 5
+      },
+      {
+        "recording_id": 94,
+        "window_count": 6
+      },
+      {
+        "recording_id": 95,
+        "window_count": 6
+      },
+      {
+        "recording_id": 96,
+        "window_count": 6
+      },
+      {
+        "recording_id": 97,
+        "window_count": 5
+      },
+      {
+        "recording_id": 98,
+        "window_count": 5
+      },
+      {
+        "recording_id": 99,
+        "window_count": 5
+      },
+      {
+        "recording_id": 100,
+        "window_count": 6
+      },
+      {
+        "recording_id": 101,
+        "window_count": 6
+      },
+      {
+        "recording_id": 102,
+        "window_count": 5
+      },
+      {
+        "recording_id": 103,
+        "window_count": 6
+      },
+      {
+        "recording_id": 104,
+        "window_count": 6
+      },
+      {
+        "recording_id": 105,
+        "window_count": 6
+      },
+      {
+        "recording_id": 106,
+        "window_count": 6
+      },
+      {
+        "recording_id": 107,
+        "window_count": 6
+      },
+      {
+        "recording_id": 108,
+        "window_count": 6
+      },
+      {
+        "recording_id": 109,
+        "window_count": 6
+      },
+      {
+        "recording_id": 110,
+        "window_count": 5
+      },
+      {
+        "recording_id": 111,
+        "window_count": 5
+      },
+      {
+        "recording_id": 112,
+        "window_count": 5
+      },
+      {
+        "recording_id": 113,
+        "window_count": 5
+      },
+      {
+        "recording_id": 114,
+        "window_count": 5
+      },
+      {
+        "recording_id": 115,
+        "window_count": 6
+      },
+      {
+        "recording_id": 116,
+        "window_count": 5
+      },
+      {
+        "recording_id": 117,
+        "window_count": 6
+      },
+      {
+        "recording_id": 118,
+        "window_count": 6
+      },
+      {
+        "recording_id": 119,
+        "window_count": 6
+      },
+      {
+        "recording_id": 120,
+        "window_count": 5
+      },
+      {
+        "recording_id": 121,
+        "window_count": 6
+      },
+      {
+        "recording_id": 122,
+        "window_count": 6
+      },
+      {
+        "recording_id": 123,
+        "window_count": 6
+      },
+      {
+        "recording_id": 124,
+        "window_count": 6
+      },
+      {
+        "recording_id": 125,
+        "window_count": 6
+      },
+      {
+        "recording_id": 126,
+        "window_count": 6
+      },
+      {
+        "recording_id": 127,
+        "window_count": 6
+      },
+      {
+        "recording_id": 128,
+        "window_count": 6
+      },
+      {
+        "recording_id": 129,
+        "window_count": 5
+      },
+      {
+        "recording_id": 130,
+        "window_count": 5
+      },
+      {
+        "recording_id": 131,
+        "window_count": 6
+      },
+      {
+        "recording_id": 132,
+        "window_count": 6
+      },
+      {
+        "recording_id": 133,
+        "window_count": 6
+      },
+      {
+        "recording_id": 134,
+        "window_count": 6
+      },
+      {
+        "recording_id": 135,
+        "window_count": 5
+      },
+      {
+        "recording_id": 136,
+        "window_count": 5
+      },
+      {
+        "recording_id": 137,
+        "window_count": 5
+      },
+      {
+        "recording_id": 138,
+        "window_count": 6
+      },
+      {
+        "recording_id": 139,
+        "window_count": 6
+      },
+      {
+        "recording_id": 140,
+        "window_count": 6
+      },
+      {
+        "recording_id": 141,
+        "window_count": 5
+      },
+      {
+        "recording_id": 142,
+        "window_count": 6
+      },
+      {
+        "recording_id": 143,
+        "window_count": 5
+      },
+      {
+        "recording_id": 144,
+        "window_count": 6
+      },
+      {
+        "recording_id": 145,
+        "window_count": 6
+      },
+      {
+        "recording_id": 146,
+        "window_count": 6
+      },
+      {
+        "recording_id": 147,
+        "window_count": 5
+      },
+      {
+        "recording_id": 148,
+        "window_count": 6
+      },
+      {
+        "recording_id": 149,
+        "window_count": 5
+      },
+      {
+        "recording_id": 150,
+        "window_count": 6
+      },
+      {
+        "recording_id": 151,
+        "window_count": 6
+      },
+      {
+        "recording_id": 152,
+        "window_count": 6
+      },
+      {
+        "recording_id": 153,
+        "window_count": 5
+      },
+      {
+        "recording_id": 154,
+        "window_count": 6
+      },
+      {
+        "recording_id": 155,
+        "window_count": 6
+      },
+      {
+        "recording_id": 156,
+        "window_count": 5
+      },
+      {
+        "recording_id": 157,
+        "window_count": 6
+      },
+      {
+        "recording_id": 158,
+        "window_count": 6
+      },
+      {
+        "recording_id": 159,
+        "window_count": 6
+      },
+      {
+        "recording_id": 160,
+        "window_count": 6
+      },
+      {
+        "recording_id": 161,
+        "window_count": 6
+      },
+      {
+        "recording_id": 162,
+        "window_count": 5
+      },
+      {
+        "recording_id": 163,
+        "window_count": 6
+      },
+      {
+        "recording_id": 164,
+        "window_count": 5
+      },
+      {
+        "recording_id": 165,
+        "window_count": 6
+      },
+      {
+        "recording_id": 166,
+        "window_count": 5
+      },
+      {
+        "recording_id": 167,
+        "window_count": 5
+      },
+      {
+        "recording_id": 168,
+        "window_count": 6
+      },
+      {
+        "recording_id": 169,
+        "window_count": 6
+      },
+      {
+        "recording_id": 170,
+        "window_count": 5
+      },
+      {
+        "recording_id": 171,
+        "window_count": 6
+      },
+      {
+        "recording_id": 172,
+        "window_count": 6
+      },
+      {
+        "recording_id": 173,
+        "window_count": 5
+      },
+      {
+        "recording_id": 174,
+        "window_count": 5
+      },
+      {
+        "recording_id": 175,
+        "window_count": 6
+      },
+      {
+        "recording_id": 176,
+        "window_count": 5
+      },
+      {
+        "recording_id": 177,
+        "window_count": 6
+      },
+      {
+        "recording_id": 178,
+        "window_count": 6
+      },
+      {
+        "recording_id": 179,
+        "window_count": 6
+      },
+      {
+        "recording_id": 180,
+        "window_count": 5
+      },
+      {
+        "recording_id": 181,
+        "window_count": 6
+      },
+      {
+        "recording_id": 182,
+        "window_count": 6
+      },
+      {
+        "recording_id": 183,
+        "window_count": 5
+      },
+      {
+        "recording_id": 184,
+        "window_count": 5
+      },
+      {
+        "recording_id": 185,
+        "window_count": 5
+      },
+      {
+        "recording_id": 186,
+        "window_count": 6
+      },
+      {
+        "recording_id": 187,
+        "window_count": 5
+      },
+      {
+        "recording_id": 188,
+        "window_count": 6
+      },
+      {
+        "recording_id": 189,
+        "window_count": 5
+      },
+      {
+        "recording_id": 190,
+        "window_count": 6
+      },
+      {
+        "recording_id": 191,
+        "window_count": 6
+      },
+      {
+        "recording_id": 192,
+        "window_count": 6
+      },
+      {
+        "recording_id": 193,
+        "window_count": 6
+      },
+      {
+        "recording_id": 194,
+        "window_count": 6
+      },
+      {
+        "recording_id": 195,
+        "window_count": 6
+      },
+      {
+        "recording_id": 196,
+        "window_count": 6
+      },
+      {
+        "recording_id": 197,
+        "window_count": 5
+      },
+      {
+        "recording_id": 198,
+        "window_count": 6
+      },
+      {
+        "recording_id": 199,
+        "window_count": 6
+      },
+      {
+        "recording_id": 200,
+        "window_count": 5
+      },
+      {
+        "recording_id": 201,
+        "window_count": 6
+      },
+      {
+        "recording_id": 202,
+        "window_count": 6
+      },
+      {
+        "recording_id": 203,
+        "window_count": 6
+      },
+      {
+        "recording_id": 204,
+        "window_count": 6
+      },
+      {
+        "recording_id": 205,
+        "window_count": 5
+      },
+      {
+        "recording_id": 206,
+        "window_count": 6
+      },
+      {
+        "recording_id": 207,
+        "window_count": 5
+      },
+      {
+        "recording_id": 208,
+        "window_count": 5
+      },
+      {
+        "recording_id": 209,
+        "window_count": 6
+      },
+      {
+        "recording_id": 210,
+        "window_count": 6
+      },
+      {
+        "recording_id": 211,
+        "window_count": 6
+      },
+      {
+        "recording_id": 212,
+        "window_count": 5
+      },
+      {
+        "recording_id": 213,
+        "window_count": 6
+      },
+      {
+        "recording_id": 214,
+        "window_count": 6
+      },
+      {
+        "recording_id": 215,
+        "window_count": 5
+      },
+      {
+        "recording_id": 216,
+        "window_count": 5
+      },
+      {
+        "recording_id": 217,
+        "window_count": 5
+      },
+      {
+        "recording_id": 218,
+        "window_count": 6
+      },
+      {
+        "recording_id": 219,
+        "window_count": 6
+      },
+      {
+        "recording_id": 220,
+        "window_count": 5
+      },
+      {
+        "recording_id": 221,
+        "window_count": 6
+      },
+      {
+        "recording_id": 222,
+        "window_count": 6
+      },
+      {
+        "recording_id": 223,
+        "window_count": 6
+      },
+      {
+        "recording_id": 224,
+        "window_count": 5
+      },
+      {
+        "recording_id": 225,
+        "window_count": 5
+      },
+      {
+        "recording_id": 226,
+        "window_count": 6
+      },
+      {
+        "recording_id": 227,
+        "window_count": 6
+      },
+      {
+        "recording_id": 228,
+        "window_count": 6
+      },
+      {
+        "recording_id": 229,
+        "window_count": 6
+      },
+      {
+        "recording_id": 230,
+        "window_count": 5
+      },
+      {
+        "recording_id": 231,
+        "window_count": 6
+      },
+      {
+        "recording_id": 232,
+        "window_count": 6
+      },
+      {
+        "recording_id": 233,
+        "window_count": 5
+      },
+      {
+        "recording_id": 234,
+        "window_count": 5
+      },
+      {
+        "recording_id": 235,
+        "window_count": 6
+      },
+      {
+        "recording_id": 236,
+        "window_count": 6
+      },
+      {
+        "recording_id": 237,
+        "window_count": 6
+      },
+      {
+        "recording_id": 238,
+        "window_count": 6
+      },
+      {
+        "recording_id": 239,
+        "window_count": 6
+      },
+      {
+        "recording_id": 240,
+        "window_count": 6
+      },
+      {
+        "recording_id": 241,
+        "window_count": 6
+      },
+      {
+        "recording_id": 242,
+        "window_count": 6
+      },
+      {
+        "recording_id": 243,
+        "window_count": 5
+      },
+      {
+        "recording_id": 244,
+        "window_count": 5
+      },
+      {
+        "recording_id": 245,
+        "window_count": 5
+      },
+      {
+        "recording_id": 246,
+        "window_count": 6
+      },
+      {
+        "recording_id": 247,
+        "window_count": 5
+      },
+      {
+        "recording_id": 248,
+        "window_count": 5
+      },
+      {
+        "recording_id": 249,
+        "window_count": 6
+      },
+      {
+        "recording_id": 250,
+        "window_count": 6
+      },
+      {
+        "recording_id": 251,
+        "window_count": 6
+      },
+      {
+        "recording_id": 252,
+        "window_count": 6
+      },
+      {
+        "recording_id": 253,
+        "window_count": 5
+      },
+      {
+        "recording_id": 254,
+        "window_count": 6
+      },
+      {
+        "recording_id": 255,
+        "window_count": 5
+      },
+      {
+        "recording_id": 256,
+        "window_count": 6
+      },
+      {
+        "recording_id": 257,
+        "window_count": 6
+      },
+      {
+        "recording_id": 258,
+        "window_count": 5
+      },
+      {
+        "recording_id": 259,
+        "window_count": 5
+      },
+      {
+        "recording_id": 260,
+        "window_count": 6
+      },
+      {
+        "recording_id": 261,
+        "window_count": 6
+      },
+      {
+        "recording_id": 262,
+        "window_count": 6
+      },
+      {
+        "recording_id": 263,
+        "window_count": 6
+      },
+      {
+        "recording_id": 264,
+        "window_count": 6
+      },
+      {
+        "recording_id": 265,
+        "window_count": 5
+      }
+    ],
+    "train": [
+      {
+        "recording_id": 518,
+        "window_count": 1
+      },
+      {
+        "recording_id": 519,
+        "window_count": 1
+      },
+      {
+        "recording_id": 520,
+        "window_count": 1
+      },
+      {
+        "recording_id": 521,
+        "window_count": 1
+      },
+      {
+        "recording_id": 522,
+        "window_count": 1
+      },
+      {
+        "recording_id": 523,
+        "window_count": 1
+      },
+      {
+        "recording_id": 524,
+        "window_count": 1
+      },
+      {
+        "recording_id": 525,
+        "window_count": 1
+      },
+      {
+        "recording_id": 526,
+        "window_count": 1
+      },
+      {
+        "recording_id": 527,
+        "window_count": 1
+      },
+      {
+        "recording_id": 528,
+        "window_count": 1
+      },
+      {
+        "recording_id": 529,
+        "window_count": 1
+      },
+      {
+        "recording_id": 530,
+        "window_count": 1
+      },
+      {
+        "recording_id": 531,
+        "window_count": 1
+      },
+      {
+        "recording_id": 532,
+        "window_count": 1
+      },
+      {
+        "recording_id": 533,
+        "window_count": 1
+      },
+      {
+        "recording_id": 534,
+        "window_count": 1
+      },
+      {
+        "recording_id": 535,
+        "window_count": 1
+      },
+      {
+        "recording_id": 536,
+        "window_count": 1
+      },
+      {
+        "recording_id": 537,
+        "window_count": 1
+      },
+      {
+        "recording_id": 538,
+        "window_count": 1
+      },
+      {
+        "recording_id": 539,
+        "window_count": 1
+      },
+      {
+        "recording_id": 540,
+        "window_count": 1
+      },
+      {
+        "recording_id": 541,
+        "window_count": 1
+      },
+      {
+        "recording_id": 542,
+        "window_count": 1
+      },
+      {
+        "recording_id": 543,
+        "window_count": 1
+      },
+      {
+        "recording_id": 544,
+        "window_count": 1
+      },
+      {
+        "recording_id": 545,
+        "window_count": 1
+      },
+      {
+        "recording_id": 546,
+        "window_count": 1
+      },
+      {
+        "recording_id": 547,
+        "window_count": 1
+      },
+      {
+        "recording_id": 548,
+        "window_count": 1
+      },
+      {
+        "recording_id": 549,
+        "window_count": 1
+      },
+      {
+        "recording_id": 550,
+        "window_count": 1
+      },
+      {
+        "recording_id": 551,
+        "window_count": 1
+      },
+      {
+        "recording_id": 552,
+        "window_count": 1
+      },
+      {
+        "recording_id": 553,
+        "window_count": 1
+      },
+      {
+        "recording_id": 554,
+        "window_count": 1
+      },
+      {
+        "recording_id": 555,
+        "window_count": 1
+      },
+      {
+        "recording_id": 556,
+        "window_count": 1
+      },
+      {
+        "recording_id": 557,
+        "window_count": 1
+      },
+      {
+        "recording_id": 558,
+        "window_count": 1
+      },
+      {
+        "recording_id": 559,
+        "window_count": 1
+      },
+      {
+        "recording_id": 560,
+        "window_count": 1
+      },
+      {
+        "recording_id": 561,
+        "window_count": 1
+      },
+      {
+        "recording_id": 562,
+        "window_count": 1
+      },
+      {
+        "recording_id": 563,
+        "window_count": 1
+      },
+      {
+        "recording_id": 564,
+        "window_count": 1
+      },
+      {
+        "recording_id": 565,
+        "window_count": 1
+      },
+      {
+        "recording_id": 566,
+        "window_count": 1
+      },
+      {
+        "recording_id": 567,
+        "window_count": 1
+      },
+      {
+        "recording_id": 568,
+        "window_count": 1
+      },
+      {
+        "recording_id": 569,
+        "window_count": 1
+      },
+      {
+        "recording_id": 570,
+        "window_count": 1
+      },
+      {
+        "recording_id": 571,
+        "window_count": 1
+      },
+      {
+        "recording_id": 572,
+        "window_count": 1
+      },
+      {
+        "recording_id": 573,
+        "window_count": 1
+      },
+      {
+        "recording_id": 574,
+        "window_count": 1
+      },
+      {
+        "recording_id": 575,
+        "window_count": 1
+      },
+      {
+        "recording_id": 576,
+        "window_count": 1
+      },
+      {
+        "recording_id": 577,
+        "window_count": 1
+      },
+      {
+        "recording_id": 578,
+        "window_count": 1
+      },
+      {
+        "recording_id": 579,
+        "window_count": 1
+      },
+      {
+        "recording_id": 580,
+        "window_count": 1
+      },
+      {
+        "recording_id": 581,
+        "window_count": 1
+      },
+      {
+        "recording_id": 582,
+        "window_count": 1
+      },
+      {
+        "recording_id": 583,
+        "window_count": 1
+      },
+      {
+        "recording_id": 584,
+        "window_count": 1
+      },
+      {
+        "recording_id": 585,
+        "window_count": 1
+      },
+      {
+        "recording_id": 586,
+        "window_count": 1
+      },
+      {
+        "recording_id": 587,
+        "window_count": 1
+      },
+      {
+        "recording_id": 588,
+        "window_count": 1
+      },
+      {
+        "recording_id": 589,
+        "window_count": 1
+      },
+      {
+        "recording_id": 590,
+        "window_count": 1
+      },
+      {
+        "recording_id": 591,
+        "window_count": 1
+      },
+      {
+        "recording_id": 592,
+        "window_count": 1
+      },
+      {
+        "recording_id": 593,
+        "window_count": 1
+      },
+      {
+        "recording_id": 594,
+        "window_count": 1
+      },
+      {
+        "recording_id": 595,
+        "window_count": 1
+      },
+      {
+        "recording_id": 596,
+        "window_count": 1
+      },
+      {
+        "recording_id": 597,
+        "window_count": 1
+      },
+      {
+        "recording_id": 598,
+        "window_count": 1
+      },
+      {
+        "recording_id": 599,
+        "window_count": 1
+      },
+      {
+        "recording_id": 600,
+        "window_count": 1
+      },
+      {
+        "recording_id": 601,
+        "window_count": 1
+      },
+      {
+        "recording_id": 602,
+        "window_count": 1
+      },
+      {
+        "recording_id": 603,
+        "window_count": 1
+      },
+      {
+        "recording_id": 604,
+        "window_count": 1
+      },
+      {
+        "recording_id": 605,
+        "window_count": 1
+      },
+      {
+        "recording_id": 606,
+        "window_count": 1
+      },
+      {
+        "recording_id": 607,
+        "window_count": 1
+      },
+      {
+        "recording_id": 608,
+        "window_count": 1
+      },
+      {
+        "recording_id": 609,
+        "window_count": 1
+      },
+      {
+        "recording_id": 610,
+        "window_count": 1
+      },
+      {
+        "recording_id": 611,
+        "window_count": 1
+      },
+      {
+        "recording_id": 612,
+        "window_count": 1
+      },
+      {
+        "recording_id": 613,
+        "window_count": 1
+      },
+      {
+        "recording_id": 614,
+        "window_count": 1
+      },
+      {
+        "recording_id": 615,
+        "window_count": 1
+      },
+      {
+        "recording_id": 616,
+        "window_count": 1
+      },
+      {
+        "recording_id": 617,
+        "window_count": 1
+      },
+      {
+        "recording_id": 618,
+        "window_count": 1
+      },
+      {
+        "recording_id": 619,
+        "window_count": 1
+      },
+      {
+        "recording_id": 620,
+        "window_count": 1
+      },
+      {
+        "recording_id": 621,
+        "window_count": 1
+      },
+      {
+        "recording_id": 622,
+        "window_count": 1
+      },
+      {
+        "recording_id": 623,
+        "window_count": 1
+      },
+      {
+        "recording_id": 624,
+        "window_count": 1
+      },
+      {
+        "recording_id": 625,
+        "window_count": 1
+      },
+      {
+        "recording_id": 626,
+        "window_count": 1
+      },
+      {
+        "recording_id": 627,
+        "window_count": 1
+      },
+      {
+        "recording_id": 628,
+        "window_count": 1
+      },
+      {
+        "recording_id": 629,
+        "window_count": 1
+      },
+      {
+        "recording_id": 630,
+        "window_count": 1
+      },
+      {
+        "recording_id": 631,
+        "window_count": 1
+      },
+      {
+        "recording_id": 632,
+        "window_count": 1
+      },
+      {
+        "recording_id": 633,
+        "window_count": 1
+      },
+      {
+        "recording_id": 634,
+        "window_count": 1
+      },
+      {
+        "recording_id": 635,
+        "window_count": 1
+      },
+      {
+        "recording_id": 636,
+        "window_count": 1
+      },
+      {
+        "recording_id": 637,
+        "window_count": 1
+      },
+      {
+        "recording_id": 638,
+        "window_count": 1
+      },
+      {
+        "recording_id": 639,
+        "window_count": 1
+      },
+      {
+        "recording_id": 640,
+        "window_count": 1
+      },
+      {
+        "recording_id": 641,
+        "window_count": 1
+      },
+      {
+        "recording_id": 642,
+        "window_count": 1
+      },
+      {
+        "recording_id": 643,
+        "window_count": 1
+      },
+      {
+        "recording_id": 644,
+        "window_count": 1
+      },
+      {
+        "recording_id": 645,
+        "window_count": 1
+      },
+      {
+        "recording_id": 646,
+        "window_count": 1
+      },
+      {
+        "recording_id": 647,
+        "window_count": 1
+      },
+      {
+        "recording_id": 648,
+        "window_count": 1
+      },
+      {
+        "recording_id": 649,
+        "window_count": 1
+      },
+      {
+        "recording_id": 650,
+        "window_count": 1
+      },
+      {
+        "recording_id": 651,
+        "window_count": 1
+      },
+      {
+        "recording_id": 652,
+        "window_count": 1
+      },
+      {
+        "recording_id": 653,
+        "window_count": 1
+      },
+      {
+        "recording_id": 654,
+        "window_count": 1
+      },
+      {
+        "recording_id": 655,
+        "window_count": 1
+      },
+      {
+        "recording_id": 656,
+        "window_count": 1
+      },
+      {
+        "recording_id": 657,
+        "window_count": 1
+      },
+      {
+        "recording_id": 658,
+        "window_count": 1
+      },
+      {
+        "recording_id": 659,
+        "window_count": 1
+      },
+      {
+        "recording_id": 660,
+        "window_count": 1
+      },
+      {
+        "recording_id": 661,
+        "window_count": 1
+      },
+      {
+        "recording_id": 662,
+        "window_count": 1
+      },
+      {
+        "recording_id": 663,
+        "window_count": 1
+      },
+      {
+        "recording_id": 664,
+        "window_count": 1
+      },
+      {
+        "recording_id": 665,
+        "window_count": 1
+      },
+      {
+        "recording_id": 666,
+        "window_count": 1
+      },
+      {
+        "recording_id": 667,
+        "window_count": 1
+      },
+      {
+        "recording_id": 668,
+        "window_count": 1
+      },
+      {
+        "recording_id": 669,
+        "window_count": 1
+      },
+      {
+        "recording_id": 670,
+        "window_count": 1
+      },
+      {
+        "recording_id": 671,
+        "window_count": 1
+      },
+      {
+        "recording_id": 672,
+        "window_count": 1
+      },
+      {
+        "recording_id": 673,
+        "window_count": 1
+      },
+      {
+        "recording_id": 674,
+        "window_count": 1
+      },
+      {
+        "recording_id": 675,
+        "window_count": 1
+      },
+      {
+        "recording_id": 676,
+        "window_count": 1
+      },
+      {
+        "recording_id": 677,
+        "window_count": 1
+      },
+      {
+        "recording_id": 678,
+        "window_count": 1
+      },
+      {
+        "recording_id": 679,
+        "window_count": 1
+      },
+      {
+        "recording_id": 680,
+        "window_count": 1
+      },
+      {
+        "recording_id": 681,
+        "window_count": 1
+      },
+      {
+        "recording_id": 682,
+        "window_count": 1
+      },
+      {
+        "recording_id": 683,
+        "window_count": 1
+      },
+      {
+        "recording_id": 684,
+        "window_count": 1
+      },
+      {
+        "recording_id": 685,
+        "window_count": 1
+      },
+      {
+        "recording_id": 686,
+        "window_count": 1
+      },
+      {
+        "recording_id": 687,
+        "window_count": 1
+      },
+      {
+        "recording_id": 688,
+        "window_count": 1
+      },
+      {
+        "recording_id": 689,
+        "window_count": 1
+      },
+      {
+        "recording_id": 690,
+        "window_count": 1
+      },
+      {
+        "recording_id": 691,
+        "window_count": 1
+      },
+      {
+        "recording_id": 692,
+        "window_count": 1
+      },
+      {
+        "recording_id": 693,
+        "window_count": 1
+      },
+      {
+        "recording_id": 694,
+        "window_count": 1
+      },
+      {
+        "recording_id": 695,
+        "window_count": 1
+      },
+      {
+        "recording_id": 696,
+        "window_count": 1
+      },
+      {
+        "recording_id": 697,
+        "window_count": 1
+      },
+      {
+        "recording_id": 698,
+        "window_count": 1
+      },
+      {
+        "recording_id": 699,
+        "window_count": 1
+      },
+      {
+        "recording_id": 700,
+        "window_count": 1
+      },
+      {
+        "recording_id": 701,
+        "window_count": 1
+      },
+      {
+        "recording_id": 702,
+        "window_count": 1
+      },
+      {
+        "recording_id": 703,
+        "window_count": 1
+      },
+      {
+        "recording_id": 704,
+        "window_count": 1
+      },
+      {
+        "recording_id": 705,
+        "window_count": 1
+      },
+      {
+        "recording_id": 706,
+        "window_count": 1
+      },
+      {
+        "recording_id": 707,
+        "window_count": 1
+      },
+      {
+        "recording_id": 708,
+        "window_count": 1
+      },
+      {
+        "recording_id": 709,
+        "window_count": 1
+      },
+      {
+        "recording_id": 710,
+        "window_count": 1
+      },
+      {
+        "recording_id": 711,
+        "window_count": 1
+      },
+      {
+        "recording_id": 712,
+        "window_count": 1
+      },
+      {
+        "recording_id": 713,
+        "window_count": 1
+      },
+      {
+        "recording_id": 714,
+        "window_count": 1
+      },
+      {
+        "recording_id": 715,
+        "window_count": 1
+      },
+      {
+        "recording_id": 716,
+        "window_count": 1
+      },
+      {
+        "recording_id": 717,
+        "window_count": 1
+      },
+      {
+        "recording_id": 718,
+        "window_count": 1
+      },
+      {
+        "recording_id": 719,
+        "window_count": 1
+      },
+      {
+        "recording_id": 720,
+        "window_count": 1
+      },
+      {
+        "recording_id": 722,
+        "window_count": 1
+      },
+      {
+        "recording_id": 723,
+        "window_count": 1
+      },
+      {
+        "recording_id": 724,
+        "window_count": 1
+      },
+      {
+        "recording_id": 725,
+        "window_count": 1
+      },
+      {
+        "recording_id": 726,
+        "window_count": 1
+      },
+      {
+        "recording_id": 727,
+        "window_count": 1
+      },
+      {
+        "recording_id": 728,
+        "window_count": 1
+      },
+      {
+        "recording_id": 729,
+        "window_count": 1
+      },
+      {
+        "recording_id": 730,
+        "window_count": 1
+      },
+      {
+        "recording_id": 731,
+        "window_count": 1
+      },
+      {
+        "recording_id": 732,
+        "window_count": 1
+      },
+      {
+        "recording_id": 733,
+        "window_count": 1
+      },
+      {
+        "recording_id": 734,
+        "window_count": 1
+      },
+      {
+        "recording_id": 735,
+        "window_count": 1
+      },
+      {
+        "recording_id": 736,
+        "window_count": 1
+      },
+      {
+        "recording_id": 737,
+        "window_count": 1
+      },
+      {
+        "recording_id": 738,
+        "window_count": 1
+      },
+      {
+        "recording_id": 739,
+        "window_count": 1
+      },
+      {
+        "recording_id": 740,
+        "window_count": 1
+      },
+      {
+        "recording_id": 741,
+        "window_count": 1
+      },
+      {
+        "recording_id": 742,
+        "window_count": 1
+      },
+      {
+        "recording_id": 743,
+        "window_count": 1
+      },
+      {
+        "recording_id": 744,
+        "window_count": 1
+      },
+      {
+        "recording_id": 745,
+        "window_count": 1
+      },
+      {
+        "recording_id": 746,
+        "window_count": 1
+      },
+      {
+        "recording_id": 747,
+        "window_count": 1
+      },
+      {
+        "recording_id": 748,
+        "window_count": 1
+      },
+      {
+        "recording_id": 749,
+        "window_count": 1
+      },
+      {
+        "recording_id": 750,
+        "window_count": 1
+      },
+      {
+        "recording_id": 751,
+        "window_count": 1
+      },
+      {
+        "recording_id": 752,
+        "window_count": 1
+      },
+      {
+        "recording_id": 753,
+        "window_count": 1
+      },
+      {
+        "recording_id": 754,
+        "window_count": 1
+      },
+      {
+        "recording_id": 755,
+        "window_count": 1
+      },
+      {
+        "recording_id": 756,
+        "window_count": 1
+      },
+      {
+        "recording_id": 757,
+        "window_count": 1
+      },
+      {
+        "recording_id": 758,
+        "window_count": 1
+      },
+      {
+        "recording_id": 759,
+        "window_count": 1
+      },
+      {
+        "recording_id": 760,
+        "window_count": 1
+      },
+      {
+        "recording_id": 761,
+        "window_count": 1
+      },
+      {
+        "recording_id": 762,
+        "window_count": 1
+      },
+      {
+        "recording_id": 763,
+        "window_count": 1
+      },
+      {
+        "recording_id": 764,
+        "window_count": 1
+      },
+      {
+        "recording_id": 765,
+        "window_count": 1
+      },
+      {
+        "recording_id": 766,
+        "window_count": 1
+      },
+      {
+        "recording_id": 767,
+        "window_count": 1
+      },
+      {
+        "recording_id": 768,
+        "window_count": 1
+      },
+      {
+        "recording_id": 769,
+        "window_count": 1
+      },
+      {
+        "recording_id": 770,
+        "window_count": 1
+      },
+      {
+        "recording_id": 771,
+        "window_count": 1
+      },
+      {
+        "recording_id": 772,
+        "window_count": 1
+      },
+      {
+        "recording_id": 773,
+        "window_count": 1
+      },
+      {
+        "recording_id": 774,
+        "window_count": 1
+      },
+      {
+        "recording_id": 775,
+        "window_count": 1
+      },
+      {
+        "recording_id": 776,
+        "window_count": 1
+      },
+      {
+        "recording_id": 777,
+        "window_count": 1
+      },
+      {
+        "recording_id": 778,
+        "window_count": 1
+      },
+      {
+        "recording_id": 779,
+        "window_count": 1
+      },
+      {
+        "recording_id": 780,
+        "window_count": 1
+      },
+      {
+        "recording_id": 781,
+        "window_count": 1
+      },
+      {
+        "recording_id": 782,
+        "window_count": 1
+      },
+      {
+        "recording_id": 783,
+        "window_count": 1
+      },
+      {
+        "recording_id": 784,
+        "window_count": 1
+      },
+      {
+        "recording_id": 785,
+        "window_count": 1
+      },
+      {
+        "recording_id": 786,
+        "window_count": 1
+      },
+      {
+        "recording_id": 787,
+        "window_count": 1
+      },
+      {
+        "recording_id": 788,
+        "window_count": 1
+      },
+      {
+        "recording_id": 789,
+        "window_count": 1
+      },
+      {
+        "recording_id": 790,
+        "window_count": 1
+      },
+      {
+        "recording_id": 791,
+        "window_count": 1
+      },
+      {
+        "recording_id": 792,
+        "window_count": 1
+      },
+      {
+        "recording_id": 793,
+        "window_count": 1
+      },
+      {
+        "recording_id": 794,
+        "window_count": 1
+      },
+      {
+        "recording_id": 796,
+        "window_count": 1
+      },
+      {
+        "recording_id": 797,
+        "window_count": 1
+      },
+      {
+        "recording_id": 798,
+        "window_count": 1
+      },
+      {
+        "recording_id": 799,
+        "window_count": 1
+      },
+      {
+        "recording_id": 800,
+        "window_count": 1
+      },
+      {
+        "recording_id": 801,
+        "window_count": 1
+      },
+      {
+        "recording_id": 802,
+        "window_count": 1
+      },
+      {
+        "recording_id": 803,
+        "window_count": 1
+      },
+      {
+        "recording_id": 804,
+        "window_count": 1
+      },
+      {
+        "recording_id": 805,
+        "window_count": 1
+      },
+      {
+        "recording_id": 806,
+        "window_count": 1
+      },
+      {
+        "recording_id": 807,
+        "window_count": 1
+      },
+      {
+        "recording_id": 808,
+        "window_count": 1
+      },
+      {
+        "recording_id": 809,
+        "window_count": 1
+      },
+      {
+        "recording_id": 810,
+        "window_count": 1
+      },
+      {
+        "recording_id": 811,
+        "window_count": 1
+      },
+      {
+        "recording_id": 812,
+        "window_count": 1
+      },
+      {
+        "recording_id": 813,
+        "window_count": 1
+      },
+      {
+        "recording_id": 814,
+        "window_count": 1
+      },
+      {
+        "recording_id": 815,
+        "window_count": 1
+      },
+      {
+        "recording_id": 816,
+        "window_count": 1
+      },
+      {
+        "recording_id": 817,
+        "window_count": 1
+      },
+      {
+        "recording_id": 818,
+        "window_count": 1
+      },
+      {
+        "recording_id": 819,
+        "window_count": 1
+      },
+      {
+        "recording_id": 820,
+        "window_count": 1
+      },
+      {
+        "recording_id": 821,
+        "window_count": 1
+      },
+      {
+        "recording_id": 822,
+        "window_count": 1
+      },
+      {
+        "recording_id": 823,
+        "window_count": 1
+      },
+      {
+        "recording_id": 824,
+        "window_count": 1
+      },
+      {
+        "recording_id": 825,
+        "window_count": 1
+      },
+      {
+        "recording_id": 826,
+        "window_count": 1
+      },
+      {
+        "recording_id": 827,
+        "window_count": 1
+      },
+      {
+        "recording_id": 828,
+        "window_count": 1
+      },
+      {
+        "recording_id": 829,
+        "window_count": 1
+      },
+      {
+        "recording_id": 830,
+        "window_count": 1
+      },
+      {
+        "recording_id": 831,
+        "window_count": 1
+      },
+      {
+        "recording_id": 832,
+        "window_count": 1
+      },
+      {
+        "recording_id": 833,
+        "window_count": 1
+      },
+      {
+        "recording_id": 834,
+        "window_count": 1
+      },
+      {
+        "recording_id": 835,
+        "window_count": 1
+      },
+      {
+        "recording_id": 836,
+        "window_count": 1
+      },
+      {
+        "recording_id": 837,
+        "window_count": 1
+      },
+      {
+        "recording_id": 839,
+        "window_count": 1
+      },
+      {
+        "recording_id": 840,
+        "window_count": 1
+      },
+      {
+        "recording_id": 841,
+        "window_count": 1
+      },
+      {
+        "recording_id": 842,
+        "window_count": 1
+      },
+      {
+        "recording_id": 843,
+        "window_count": 1
+      },
+      {
+        "recording_id": 844,
+        "window_count": 1
+      },
+      {
+        "recording_id": 845,
+        "window_count": 1
+      },
+      {
+        "recording_id": 846,
+        "window_count": 1
+      },
+      {
+        "recording_id": 847,
+        "window_count": 1
+      },
+      {
+        "recording_id": 848,
+        "window_count": 1
+      },
+      {
+        "recording_id": 849,
+        "window_count": 1
+      },
+      {
+        "recording_id": 850,
+        "window_count": 1
+      },
+      {
+        "recording_id": 851,
+        "window_count": 1
+      },
+      {
+        "recording_id": 852,
+        "window_count": 1
+      },
+      {
+        "recording_id": 853,
+        "window_count": 1
+      },
+      {
+        "recording_id": 854,
+        "window_count": 1
+      },
+      {
+        "recording_id": 855,
+        "window_count": 1
+      },
+      {
+        "recording_id": 856,
+        "window_count": 1
+      },
+      {
+        "recording_id": 857,
+        "window_count": 1
+      },
+      {
+        "recording_id": 858,
+        "window_count": 1
+      },
+      {
+        "recording_id": 859,
+        "window_count": 1
+      },
+      {
+        "recording_id": 860,
+        "window_count": 1
+      },
+      {
+        "recording_id": 861,
+        "window_count": 1
+      },
+      {
+        "recording_id": 862,
+        "window_count": 1
+      },
+      {
+        "recording_id": 863,
+        "window_count": 1
+      },
+      {
+        "recording_id": 864,
+        "window_count": 1
+      },
+      {
+        "recording_id": 865,
+        "window_count": 1
+      },
+      {
+        "recording_id": 866,
+        "window_count": 1
+      },
+      {
+        "recording_id": 867,
+        "window_count": 1
+      },
+      {
+        "recording_id": 868,
+        "window_count": 1
+      },
+      {
+        "recording_id": 869,
+        "window_count": 1
+      },
+      {
+        "recording_id": 870,
+        "window_count": 1
+      },
+      {
+        "recording_id": 871,
+        "window_count": 1
+      },
+      {
+        "recording_id": 872,
+        "window_count": 1
+      },
+      {
+        "recording_id": 873,
+        "window_count": 1
+      },
+      {
+        "recording_id": 874,
+        "window_count": 1
+      },
+      {
+        "recording_id": 875,
+        "window_count": 1
+      },
+      {
+        "recording_id": 876,
+        "window_count": 1
+      },
+      {
+        "recording_id": 877,
+        "window_count": 1
+      },
+      {
+        "recording_id": 878,
+        "window_count": 1
+      },
+      {
+        "recording_id": 879,
+        "window_count": 1
+      },
+      {
+        "recording_id": 880,
+        "window_count": 1
+      },
+      {
+        "recording_id": 881,
+        "window_count": 1
+      },
+      {
+        "recording_id": 882,
+        "window_count": 1
+      },
+      {
+        "recording_id": 883,
+        "window_count": 1
+      },
+      {
+        "recording_id": 884,
+        "window_count": 1
+      },
+      {
+        "recording_id": 885,
+        "window_count": 1
+      },
+      {
+        "recording_id": 886,
+        "window_count": 1
+      },
+      {
+        "recording_id": 887,
+        "window_count": 1
+      },
+      {
+        "recording_id": 888,
+        "window_count": 1
+      },
+      {
+        "recording_id": 889,
+        "window_count": 1
+      },
+      {
+        "recording_id": 890,
+        "window_count": 1
+      },
+      {
+        "recording_id": 891,
+        "window_count": 1
+      },
+      {
+        "recording_id": 892,
+        "window_count": 1
+      },
+      {
+        "recording_id": 893,
+        "window_count": 1
+      },
+      {
+        "recording_id": 894,
+        "window_count": 1
+      },
+      {
+        "recording_id": 895,
+        "window_count": 1
+      },
+      {
+        "recording_id": 896,
+        "window_count": 1
+      },
+      {
+        "recording_id": 897,
+        "window_count": 1
+      },
+      {
+        "recording_id": 898,
+        "window_count": 1
+      },
+      {
+        "recording_id": 899,
+        "window_count": 1
+      },
+      {
+        "recording_id": 900,
+        "window_count": 1
+      },
+      {
+        "recording_id": 901,
+        "window_count": 1
+      },
+      {
+        "recording_id": 902,
+        "window_count": 1
+      },
+      {
+        "recording_id": 903,
+        "window_count": 1
+      },
+      {
+        "recording_id": 904,
+        "window_count": 1
+      },
+      {
+        "recording_id": 905,
+        "window_count": 1
+      },
+      {
+        "recording_id": 906,
+        "window_count": 1
+      },
+      {
+        "recording_id": 907,
+        "window_count": 1
+      },
+      {
+        "recording_id": 908,
+        "window_count": 1
+      },
+      {
+        "recording_id": 909,
+        "window_count": 1
+      },
+      {
+        "recording_id": 910,
+        "window_count": 1
+      },
+      {
+        "recording_id": 911,
+        "window_count": 1
+      },
+      {
+        "recording_id": 912,
+        "window_count": 1
+      },
+      {
+        "recording_id": 913,
+        "window_count": 1
+      },
+      {
+        "recording_id": 914,
+        "window_count": 1
+      },
+      {
+        "recording_id": 915,
+        "window_count": 1
+      },
+      {
+        "recording_id": 916,
+        "window_count": 1
+      },
+      {
+        "recording_id": 917,
+        "window_count": 1
+      },
+      {
+        "recording_id": 918,
+        "window_count": 1
+      },
+      {
+        "recording_id": 919,
+        "window_count": 1
+      },
+      {
+        "recording_id": 920,
+        "window_count": 1
+      },
+      {
+        "recording_id": 921,
+        "window_count": 1
+      },
+      {
+        "recording_id": 922,
+        "window_count": 1
+      },
+      {
+        "recording_id": 923,
+        "window_count": 1
+      },
+      {
+        "recording_id": 924,
+        "window_count": 1
+      },
+      {
+        "recording_id": 925,
+        "window_count": 1
+      },
+      {
+        "recording_id": 926,
+        "window_count": 1
+      },
+      {
+        "recording_id": 927,
+        "window_count": 1
+      },
+      {
+        "recording_id": 928,
+        "window_count": 1
+      },
+      {
+        "recording_id": 929,
+        "window_count": 1
+      },
+      {
+        "recording_id": 930,
+        "window_count": 1
+      },
+      {
+        "recording_id": 931,
+        "window_count": 1
+      },
+      {
+        "recording_id": 932,
+        "window_count": 1
+      },
+      {
+        "recording_id": 933,
+        "window_count": 1
+      },
+      {
+        "recording_id": 934,
+        "window_count": 1
+      },
+      {
+        "recording_id": 935,
+        "window_count": 1
+      },
+      {
+        "recording_id": 936,
+        "window_count": 1
+      },
+      {
+        "recording_id": 937,
+        "window_count": 1
+      },
+      {
+        "recording_id": 938,
+        "window_count": 1
+      },
+      {
+        "recording_id": 939,
+        "window_count": 1
+      },
+      {
+        "recording_id": 940,
+        "window_count": 1
+      },
+      {
+        "recording_id": 941,
+        "window_count": 1
+      },
+      {
+        "recording_id": 942,
+        "window_count": 1
+      },
+      {
+        "recording_id": 943,
+        "window_count": 1
+      },
+      {
+        "recording_id": 944,
+        "window_count": 1
+      },
+      {
+        "recording_id": 945,
+        "window_count": 1
+      },
+      {
+        "recording_id": 946,
+        "window_count": 1
+      },
+      {
+        "recording_id": 947,
+        "window_count": 1
+      },
+      {
+        "recording_id": 948,
+        "window_count": 1
+      },
+      {
+        "recording_id": 949,
+        "window_count": 1
+      },
+      {
+        "recording_id": 950,
+        "window_count": 1
+      },
+      {
+        "recording_id": 951,
+        "window_count": 1
+      },
+      {
+        "recording_id": 952,
+        "window_count": 1
+      },
+      {
+        "recording_id": 953,
+        "window_count": 1
+      },
+      {
+        "recording_id": 954,
+        "window_count": 1
+      },
+      {
+        "recording_id": 955,
+        "window_count": 1
+      },
+      {
+        "recording_id": 956,
+        "window_count": 1
+      },
+      {
+        "recording_id": 957,
+        "window_count": 1
+      },
+      {
+        "recording_id": 958,
+        "window_count": 1
+      },
+      {
+        "recording_id": 959,
+        "window_count": 1
+      },
+      {
+        "recording_id": 960,
+        "window_count": 1
+      },
+      {
+        "recording_id": 961,
+        "window_count": 1
+      },
+      {
+        "recording_id": 962,
+        "window_count": 1
+      },
+      {
+        "recording_id": 963,
+        "window_count": 1
+      },
+      {
+        "recording_id": 964,
+        "window_count": 1
+      },
+      {
+        "recording_id": 965,
+        "window_count": 1
+      },
+      {
+        "recording_id": 966,
+        "window_count": 1
+      },
+      {
+        "recording_id": 967,
+        "window_count": 1
+      },
+      {
+        "recording_id": 968,
+        "window_count": 1
+      },
+      {
+        "recording_id": 969,
+        "window_count": 1
+      },
+      {
+        "recording_id": 970,
+        "window_count": 1
+      },
+      {
+        "recording_id": 972,
+        "window_count": 1
+      },
+      {
+        "recording_id": 973,
+        "window_count": 1
+      },
+      {
+        "recording_id": 974,
+        "window_count": 1
+      },
+      {
+        "recording_id": 975,
+        "window_count": 1
+      },
+      {
+        "recording_id": 976,
+        "window_count": 1
+      },
+      {
+        "recording_id": 977,
+        "window_count": 1
+      },
+      {
+        "recording_id": 978,
+        "window_count": 1
+      },
+      {
+        "recording_id": 979,
+        "window_count": 1
+      },
+      {
+        "recording_id": 980,
+        "window_count": 1
+      },
+      {
+        "recording_id": 981,
+        "window_count": 1
+      },
+      {
+        "recording_id": 982,
+        "window_count": 1
+      },
+      {
+        "recording_id": 983,
+        "window_count": 1
+      },
+      {
+        "recording_id": 984,
+        "window_count": 1
+      },
+      {
+        "recording_id": 985,
+        "window_count": 1
+      },
+      {
+        "recording_id": 986,
+        "window_count": 1
+      },
+      {
+        "recording_id": 987,
+        "window_count": 1
+      },
+      {
+        "recording_id": 988,
+        "window_count": 1
+      },
+      {
+        "recording_id": 989,
+        "window_count": 1
+      },
+      {
+        "recording_id": 990,
+        "window_count": 1
+      },
+      {
+        "recording_id": 991,
+        "window_count": 1
+      },
+      {
+        "recording_id": 992,
+        "window_count": 1
+      },
+      {
+        "recording_id": 993,
+        "window_count": 1
+      },
+      {
+        "recording_id": 994,
+        "window_count": 1
+      },
+      {
+        "recording_id": 995,
+        "window_count": 1
+      },
+      {
+        "recording_id": 996,
+        "window_count": 1
+      },
+      {
+        "recording_id": 997,
+        "window_count": 1
+      },
+      {
+        "recording_id": 998,
+        "window_count": 1
+      },
+      {
+        "recording_id": 999,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1000,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1001,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1002,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1003,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1004,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1005,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1006,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1007,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1008,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1009,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1010,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1011,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1012,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1013,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1014,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1015,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1016,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1017,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1018,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1019,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1020,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1021,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1022,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1023,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1024,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1025,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1026,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1027,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1029,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1030,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1031,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1032,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1033,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1034,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1035,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1036,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1037,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1038,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1039,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1040,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1041,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1042,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1043,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1044,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1045,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1046,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1047,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1048,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1049,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1050,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1051,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1052,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1053,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1054,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1055,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1056,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1057,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1058,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1059,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1060,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1061,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1062,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1063,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1064,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1065,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1066,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1067,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1068,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1069,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1070,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1071,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1072,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1073,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1074,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1075,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1076,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1077,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1078,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1079,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1080,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1081,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1082,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1083,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1084,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1085,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1086,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1087,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1088,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1089,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1090,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1091,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1092,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1093,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1094,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1095,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1096,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1097,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1098,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1099,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1100,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1101,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1102,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1103,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1104,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1105,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1106,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1107,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1108,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1109,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1110,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1111,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1112,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1113,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1114,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1115,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1116,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1117,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1118,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1119,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1120,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1121,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1122,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1123,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1124,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1125,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1126,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1127,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1128,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1129,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1130,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1131,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1132,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1133,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1134,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1135,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1136,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1137,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1138,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1139,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1140,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1141,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1142,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1143,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1144,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1145,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1146,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1147,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1148,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1149,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1150,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1151,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1152,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1153,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1154,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1155,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1156,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1157,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1158,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1159,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1160,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1161,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1162,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1163,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1164,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1165,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1166,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1167,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1168,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1169,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1170,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1171,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1172,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1173,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1174,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1175,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1176,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1177,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1178,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1179,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1180,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1181,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1182,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1183,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1184,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1185,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1186,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1187,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1188,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1189,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1190,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1191,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1192,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1193,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1194,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1195,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1196,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1197,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1198,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1199,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1200,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1201,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1202,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1203,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1204,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1205,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1206,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1207,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1208,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1209,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1210,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1211,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1212,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1213,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1214,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1215,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1216,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1217,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1218,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1219,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1220,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1222,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1223,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1224,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1225,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1226,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1227,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1228,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1229,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1230,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1231,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1232,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1233,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1234,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1235,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1236,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1237,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1238,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1239,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1240,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1241,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1242,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1243,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1244,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1245,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1246,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1247,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1248,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1249,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1250,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1251,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1252,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1253,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1254,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1255,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1256,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1257,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1258,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1259,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1260,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1261,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1262,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1263,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1264,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1265,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1266,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1267,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1268,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1269,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1270,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1271,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1272,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1273,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1274,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1275,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1276,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1277,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1278,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1279,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1280,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1281,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1282,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1283,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1284,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1285,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1286,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1287,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1288,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1289,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1290,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1291,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1292,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1293,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1294,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1295,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1296,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1297,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1298,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1299,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1300,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1301,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1302,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1303,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1304,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1305,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1306,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1307,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1308,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1309,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1310,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1311,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1312,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1313,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1314,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1315,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1316,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1317,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1318,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1319,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1320,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1321,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1322,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1323,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1324,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1325,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1326,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1327,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1328,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1329,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1330,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1331,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1332,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1333,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1334,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1335,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1336,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1337,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1338,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1339,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1340,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1341,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1342,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1343,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1344,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1345,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1346,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1347,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1348,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1349,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1350,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1351,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1352,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1353,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1354,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1355,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1356,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1357,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1358,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1359,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1360,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1361,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1362,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1363,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1364,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1365,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1366,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1367,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1368,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1369,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1370,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1371,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1372,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1373,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1375,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1376,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1377,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1378,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1379,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1380,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1381,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1382,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1383,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1384,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1385,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1386,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1387,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1388,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1389,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1390,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1391,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1392,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1393,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1394,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1395,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1396,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1397,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1398,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1399,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1400,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1401,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1402,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1403,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1404,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1405,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1406,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1407,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1408,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1409,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1410,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1411,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1412,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1413,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1414,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1415,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1416,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1417,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1418,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1419,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1420,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1421,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1422,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1423,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1424,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1425,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1426,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1427,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1429,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1430,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1431,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1432,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1433,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1434,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1435,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1436,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1437,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1438,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1439,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1440,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1441,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1442,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1443,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1444,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1445,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1446,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1447,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1448,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1449,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1450,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1451,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1452,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1453,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1454,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1455,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1456,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1457,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1458,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1459,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1460,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1461,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1462,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1463,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1464,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1465,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1466,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1467,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1468,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1469,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1470,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1471,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1472,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1473,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1474,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1475,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1476,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1477,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1478,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1479,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1480,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1481,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1482,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1483,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1484,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1485,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1486,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1487,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1488,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1489,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1490,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1491,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1492,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1493,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1494,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1495,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1496,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1497,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1498,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1499,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1500,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1501,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1502,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1503,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1504,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1505,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1506,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1507,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1508,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1509,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1510,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1511,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1512,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1513,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1514,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1515,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1516,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1517,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1518,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1519,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1520,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1521,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1522,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1523,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1524,
+        "window_count": 1
+      },
+      {
+        "recording_id": 1525,
+        "window_count": 1
+      }
+    ],
+    "val": [
+      {
+        "recording_id": 268,
+        "window_count": 1
+      },
+      {
+        "recording_id": 269,
+        "window_count": 1
+      },
+      {
+        "recording_id": 271,
+        "window_count": 1
+      },
+      {
+        "recording_id": 272,
+        "window_count": 1
+      },
+      {
+        "recording_id": 273,
+        "window_count": 1
+      },
+      {
+        "recording_id": 275,
+        "window_count": 1
+      },
+      {
+        "recording_id": 277,
+        "window_count": 1
+      },
+      {
+        "recording_id": 278,
+        "window_count": 1
+      },
+      {
+        "recording_id": 279,
+        "window_count": 1
+      },
+      {
+        "recording_id": 280,
+        "window_count": 1
+      },
+      {
+        "recording_id": 281,
+        "window_count": 1
+      },
+      {
+        "recording_id": 282,
+        "window_count": 1
+      },
+      {
+        "recording_id": 284,
+        "window_count": 1
+      },
+      {
+        "recording_id": 289,
+        "window_count": 1
+      },
+      {
+        "recording_id": 290,
+        "window_count": 1
+      },
+      {
+        "recording_id": 291,
+        "window_count": 1
+      },
+      {
+        "recording_id": 292,
+        "window_count": 1
+      },
+      {
+        "recording_id": 296,
+        "window_count": 1
+      },
+      {
+        "recording_id": 297,
+        "window_count": 1
+      },
+      {
+        "recording_id": 299,
+        "window_count": 1
+      },
+      {
+        "recording_id": 300,
+        "window_count": 1
+      },
+      {
+        "recording_id": 303,
+        "window_count": 1
+      },
+      {
+        "recording_id": 304,
+        "window_count": 1
+      },
+      {
+        "recording_id": 306,
+        "window_count": 1
+      },
+      {
+        "recording_id": 307,
+        "window_count": 1
+      },
+      {
+        "recording_id": 308,
+        "window_count": 1
+      },
+      {
+        "recording_id": 314,
+        "window_count": 1
+      },
+      {
+        "recording_id": 315,
+        "window_count": 1
+      },
+      {
+        "recording_id": 316,
+        "window_count": 1
+      },
+      {
+        "recording_id": 317,
+        "window_count": 1
+      },
+      {
+        "recording_id": 318,
+        "window_count": 1
+      },
+      {
+        "recording_id": 319,
+        "window_count": 1
+      },
+      {
+        "recording_id": 321,
+        "window_count": 1
+      },
+      {
+        "recording_id": 322,
+        "window_count": 1
+      },
+      {
+        "recording_id": 323,
+        "window_count": 1
+      },
+      {
+        "recording_id": 325,
+        "window_count": 1
+      },
+      {
+        "recording_id": 327,
+        "window_count": 1
+      },
+      {
+        "recording_id": 328,
+        "window_count": 1
+      },
+      {
+        "recording_id": 330,
+        "window_count": 1
+      },
+      {
+        "recording_id": 332,
+        "window_count": 1
+      },
+      {
+        "recording_id": 334,
+        "window_count": 1
+      },
+      {
+        "recording_id": 335,
+        "window_count": 1
+      },
+      {
+        "recording_id": 336,
+        "window_count": 1
+      },
+      {
+        "recording_id": 338,
+        "window_count": 1
+      },
+      {
+        "recording_id": 339,
+        "window_count": 1
+      },
+      {
+        "recording_id": 340,
+        "window_count": 1
+      },
+      {
+        "recording_id": 343,
+        "window_count": 1
+      },
+      {
+        "recording_id": 344,
+        "window_count": 1
+      },
+      {
+        "recording_id": 347,
+        "window_count": 1
+      },
+      {
+        "recording_id": 349,
+        "window_count": 1
+      },
+      {
+        "recording_id": 350,
+        "window_count": 1
+      },
+      {
+        "recording_id": 351,
+        "window_count": 1
+      },
+      {
+        "recording_id": 352,
+        "window_count": 1
+      },
+      {
+        "recording_id": 353,
+        "window_count": 1
+      },
+      {
+        "recording_id": 357,
+        "window_count": 1
+      },
+      {
+        "recording_id": 358,
+        "window_count": 1
+      },
+      {
+        "recording_id": 360,
+        "window_count": 1
+      },
+      {
+        "recording_id": 361,
+        "window_count": 1
+      },
+      {
+        "recording_id": 362,
+        "window_count": 1
+      },
+      {
+        "recording_id": 364,
+        "window_count": 1
+      },
+      {
+        "recording_id": 365,
+        "window_count": 1
+      },
+      {
+        "recording_id": 366,
+        "window_count": 1
+      },
+      {
+        "recording_id": 367,
+        "window_count": 1
+      },
+      {
+        "recording_id": 368,
+        "window_count": 1
+      },
+      {
+        "recording_id": 371,
+        "window_count": 1
+      },
+      {
+        "recording_id": 373,
+        "window_count": 1
+      },
+      {
+        "recording_id": 376,
+        "window_count": 1
+      },
+      {
+        "recording_id": 377,
+        "window_count": 1
+      },
+      {
+        "recording_id": 378,
+        "window_count": 1
+      },
+      {
+        "recording_id": 380,
+        "window_count": 1
+      },
+      {
+        "recording_id": 382,
+        "window_count": 1
+      },
+      {
+        "recording_id": 383,
+        "window_count": 1
+      },
+      {
+        "recording_id": 385,
+        "window_count": 1
+      },
+      {
+        "recording_id": 388,
+        "window_count": 1
+      },
+      {
+        "recording_id": 390,
+        "window_count": 1
+      },
+      {
+        "recording_id": 391,
+        "window_count": 1
+      },
+      {
+        "recording_id": 394,
+        "window_count": 1
+      },
+      {
+        "recording_id": 396,
+        "window_count": 1
+      },
+      {
+        "recording_id": 397,
+        "window_count": 1
+      },
+      {
+        "recording_id": 399,
+        "window_count": 1
+      },
+      {
+        "recording_id": 400,
+        "window_count": 1
+      },
+      {
+        "recording_id": 401,
+        "window_count": 1
+      },
+      {
+        "recording_id": 404,
+        "window_count": 1
+      },
+      {
+        "recording_id": 405,
+        "window_count": 1
+      },
+      {
+        "recording_id": 406,
+        "window_count": 1
+      },
+      {
+        "recording_id": 409,
+        "window_count": 1
+      },
+      {
+        "recording_id": 411,
+        "window_count": 1
+      },
+      {
+        "recording_id": 412,
+        "window_count": 1
+      },
+      {
+        "recording_id": 413,
+        "window_count": 1
+      },
+      {
+        "recording_id": 415,
+        "window_count": 1
+      },
+      {
+        "recording_id": 417,
+        "window_count": 1
+      },
+      {
+        "recording_id": 418,
+        "window_count": 1
+      },
+      {
+        "recording_id": 419,
+        "window_count": 1
+      },
+      {
+        "recording_id": 422,
+        "window_count": 1
+      },
+      {
+        "recording_id": 424,
+        "window_count": 1
+      },
+      {
+        "recording_id": 427,
+        "window_count": 1
+      },
+      {
+        "recording_id": 428,
+        "window_count": 1
+      },
+      {
+        "recording_id": 429,
+        "window_count": 1
+      },
+      {
+        "recording_id": 430,
+        "window_count": 1
+      },
+      {
+        "recording_id": 432,
+        "window_count": 1
+      },
+      {
+        "recording_id": 433,
+        "window_count": 1
+      },
+      {
+        "recording_id": 434,
+        "window_count": 1
+      },
+      {
+        "recording_id": 436,
+        "window_count": 1
+      },
+      {
+        "recording_id": 437,
+        "window_count": 1
+      },
+      {
+        "recording_id": 439,
+        "window_count": 1
+      },
+      {
+        "recording_id": 442,
+        "window_count": 1
+      },
+      {
+        "recording_id": 443,
+        "window_count": 1
+      },
+      {
+        "recording_id": 445,
+        "window_count": 1
+      },
+      {
+        "recording_id": 446,
+        "window_count": 1
+      },
+      {
+        "recording_id": 449,
+        "window_count": 1
+      },
+      {
+        "recording_id": 452,
+        "window_count": 1
+      },
+      {
+        "recording_id": 454,
+        "window_count": 1
+      },
+      {
+        "recording_id": 455,
+        "window_count": 1
+      },
+      {
+        "recording_id": 456,
+        "window_count": 1
+      },
+      {
+        "recording_id": 457,
+        "window_count": 1
+      },
+      {
+        "recording_id": 458,
+        "window_count": 1
+      },
+      {
+        "recording_id": 459,
+        "window_count": 1
+      },
+      {
+        "recording_id": 463,
+        "window_count": 1
+      },
+      {
+        "recording_id": 466,
+        "window_count": 1
+      },
+      {
+        "recording_id": 468,
+        "window_count": 1
+      },
+      {
+        "recording_id": 469,
+        "window_count": 1
+      },
+      {
+        "recording_id": 471,
+        "window_count": 1
+      },
+      {
+        "recording_id": 472,
+        "window_count": 1
+      },
+      {
+        "recording_id": 474,
+        "window_count": 1
+      },
+      {
+        "recording_id": 475,
+        "window_count": 1
+      },
+      {
+        "recording_id": 476,
+        "window_count": 1
+      },
+      {
+        "recording_id": 477,
+        "window_count": 1
+      },
+      {
+        "recording_id": 479,
+        "window_count": 1
+      },
+      {
+        "recording_id": 480,
+        "window_count": 1
+      },
+      {
+        "recording_id": 481,
+        "window_count": 1
+      },
+      {
+        "recording_id": 484,
+        "window_count": 1
+      },
+      {
+        "recording_id": 487,
+        "window_count": 1
+      },
+      {
+        "recording_id": 488,
+        "window_count": 1
+      },
+      {
+        "recording_id": 491,
+        "window_count": 1
+      },
+      {
+        "recording_id": 493,
+        "window_count": 1
+      },
+      {
+        "recording_id": 494,
+        "window_count": 1
+      },
+      {
+        "recording_id": 497,
+        "window_count": 1
+      },
+      {
+        "recording_id": 498,
+        "window_count": 1
+      },
+      {
+        "recording_id": 499,
+        "window_count": 1
+      },
+      {
+        "recording_id": 502,
+        "window_count": 1
+      },
+      {
+        "recording_id": 503,
+        "window_count": 1
+      },
+      {
+        "recording_id": 504,
+        "window_count": 1
+      },
+      {
+        "recording_id": 506,
+        "window_count": 1
+      },
+      {
+        "recording_id": 507,
+        "window_count": 1
+      },
+      {
+        "recording_id": 508,
+        "window_count": 1
+      },
+      {
+        "recording_id": 510,
+        "window_count": 1
+      },
+      {
+        "recording_id": 511,
+        "window_count": 1
+      },
+      {
+        "recording_id": 513,
+        "window_count": 1
+      },
+      {
+        "recording_id": 514,
+        "window_count": 1
+      },
+      {
+        "recording_id": 516,
+        "window_count": 1
+      }
+    ]
+  },
+  "results_format": 11,
+  "seed": 42,
+  "source": {
+    "cv_num_folds": 6,
+    "latent_dim": 64,
+    "loso_max_test_windows": 1500,
+    "loso_max_train_windows": 1000,
+    "loso_max_val_windows": 150,
+    "max_windows_per_recording": 40,
+    "name": "eegmmidb",
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/eegmmidb",
+    "sample_rate": 160,
+    "window_size": 256
+  },
+  "speakers": {
+    "test": "S001,S002,S003,S004,S005,S006,S007,S008,S009,S010,S011,S012,S013,S014,S015,S016,S017,S018,S019",
+    "train": [
+      "S038",
+      "S039",
+      "S040",
+      "S041",
+      "S042",
+      "S043",
+      "S044",
+      "S045",
+      "S046",
+      "S047",
+      "S048",
+      "S049",
+      "S050",
+      "S051",
+      "S052",
+      "S053",
+      "S054",
+      "S055",
+      "S056",
+      "S057",
+      "S058",
+      "S059",
+      "S060",
+      "S061",
+      "S062",
+      "S063",
+      "S064",
+      "S065",
+      "S066",
+      "S067",
+      "S068",
+      "S069",
+      "S070",
+      "S071",
+      "S072",
+      "S073",
+      "S074",
+      "S075",
+      "S076",
+      "S077",
+      "S078",
+      "S079",
+      "S080",
+      "S081",
+      "S082",
+      "S083",
+      "S084",
+      "S085",
+      "S086",
+      "S087",
+      "S088",
+      "S089",
+      "S090",
+      "S091",
+      "S092",
+      "S093",
+      "S094",
+      "S095",
+      "S096",
+      "S097",
+      "S098",
+      "S099",
+      "S100",
+      "S101",
+      "S102",
+      "S103",
+      "S104",
+      "S105",
+      "S106",
+      "S107",
+      "S108",
+      "S109"
+    ],
+    "val": "S020,S021,S022,S023,S024,S025,S026,S027,S028,S029,S030,S031,S032,S033,S034,S035,S036,S037"
+  },
+  "window_counts": {
+    "test": 1500,
+    "train": 1000,
+    "val": 150
+  },
+  "window_size": 256
+}

@@ -1,0 +1,4 @@
+encoding,mean,pca,snn_ae,ann_ae
+direct,1.000949,0.358535,0.464232,0.403213
+poisson,1.000949,0.358535,0.436513,nan
+latency,1.000949,0.358535,0.445453,nan

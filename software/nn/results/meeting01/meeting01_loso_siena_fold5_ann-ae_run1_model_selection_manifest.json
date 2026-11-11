@@ -1,0 +1,29 @@
+{
+  "candidates": [],
+  "cv_fold": 5,
+  "dataset": "siena",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 49,
+    "fit_windows": 979,
+    "monitor_infer_ms": 16.196924209594727,
+    "monitor_windows": 171,
+    "train_ms": 50942.73046875
+  },
+  "results_format": 14,
+  "run_id": 1,
+  "seed": 42,
+  "selected": {
+    "copied_from": "snn-ae winner of the same (dataset, fold, run)",
+    "encoder_widths": [
+      115,
+      64
+    ],
+    "encoding": "direct",
+    "selection": "none: not searched, so there is no val_mse of its own",
+    "val_mse": null
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker PN00,PN01,PN03)",
+  "test_speaker": "PN16,PN17"
+}

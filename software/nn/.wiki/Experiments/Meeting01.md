@@ -3811,6 +3811,52 @@ Poisson coding was selected almost everywhere. The archive keeps every fold file
 `paper_data/`, the tables `02_`/`04_` made from it, so the two runs can be compared once the
 format-14 grid is in.
 
+## The grid of record: array 5322464 (results_format 14, 2026-11-11)
+
+24/24 tasks `COMPLETED 0:0`, all at revision `5c1eacc4/3c7cd364f8df`, 3h08 to 5h43 each,
+reconciled, nothing left in `/store`. Synced to `results/meeting01/`, then `03_` -> `02_` ->
+`04_`.
+
+### Did the two fixes take?
+
+| Check | format 13 (5321956) | format 14 (5322464) |
+|---|---|---|
+| candidates shared by two searches of one seed, same modality (660 pairs) | median 19, max 47 | **0**, max 0 |
+| final fits that ran to the epoch cap (of 240) | 148 (at 30) | **3** (at 60) |
+
+### What it found (headline folds)
+
+| | FSDD | AudioMNIST | EEGMMIDB | Siena |
+|---|---|---|---|---|
+| SNN-AE − control, test MSE (group level, Holm) | +0.051 | +0.039 | +0.110 | +0.103 |
+| its 95% interval | [0.018, 0.084] | [0.035, 0.042] | [0.104, 0.116] | [0.097, 0.109] |
+| control − PCA | +0.054 | +0.045 | +0.112 | +0.103 |
+| SNN-AE energy / control's | 4.4 | 6.8 | 7.0 | 7.2 |
+
+PCA erred least everywhere; the SNN-AE erred more than its control everywhere and needed more
+energy under every repricing. Same orderings as the superseded run; the gap grew on every
+dataset, most on Siena (+0.080 -> +0.103), as expected once the control was no longer cut at
+30 epochs.
+
+### Every sentence about it is generated
+
+The abstract, Results and conclusion state these numbers only through macros whose generator
+first checks the claim around them, and refuses (loud) if the data do not support it:
+
+| Macro file | Generator | Refuses when |
+|---|---|---|
+| `paper_loso_findings.tex` (`\sig*`) | `04_` `findings()` | a gap is not significant on some dataset; PCA does not beat both autoencoders on some dataset; the gap stops being significant with the development folds in |
+| `paper_loso_energy_verdict.tex` (`\energyVsControl`) | `02_` `energy_vs_control()` | never: it writes whichever ordering holds, and says when it is not the same on every dataset and repricing |
+
+### F3 now reads the grid
+
+`09_meeting01_energy_breakeven.py --report` reads `results/meeting01` (was the format-11
+pre-validation): every SNN-AE winner's first width on the headline folds of all four datasets,
+and p_bar on their **training** windows (the author's choice: no test statistic in the figure).
+It draws each dataset's median width and checks its claims over every width. New: on the
+narrowest winner (w1 = 17) at T = 32 even the Poisson stage is dearer than the analog layer with
+zero input spikes, so its break-even is "none" there, like the recurrent transform's.
+
 ## See Also
 
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md) - Theory

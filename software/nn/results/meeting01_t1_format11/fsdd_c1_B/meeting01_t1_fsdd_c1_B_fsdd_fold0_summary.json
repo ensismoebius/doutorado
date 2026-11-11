@@ -1,0 +1,30 @@
+{
+  "config_hash": 14282424690685429596,
+  "dataset": {
+    "window_size": 256
+  },
+  "experiment": {
+    "repeats": 2,
+    "seed": 42
+  },
+  "limitation_notes": [
+    "Surrogate gradient in spiking model is an approximation.",
+    "Latency encoding can reduce information throughput.",
+    "arith_energy_nj is an arithmetic-only estimate (4.6 pJ/MAC, 0.9 pJ/AC, Horowitz ISSCC 2014, 45 nm fp32) from counted operations; memory traffic is not included.",
+    "spike_rate is the spiking fraction of the hidden LIF (neuron, step) pairs; NaN for models without spiking neurons.",
+    "Evaluation depends on available FSDD/PhysioNet files under dataset_root."
+  ],
+  "seed": 42,
+  "statistics": {
+    "mse": {
+      "cohens_d": 0.0,
+      "t_test_p": 1.0,
+      "wilcoxon_p": 1.0
+    }
+  },
+  "training": {
+    "batches_per_epoch": 0,
+    "epochs": 30,
+    "samples_per_batch": 1
+  }
+}

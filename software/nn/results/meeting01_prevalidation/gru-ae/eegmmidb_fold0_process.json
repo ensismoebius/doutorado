@@ -1,0 +1,1 @@
+{"family": "gru-ae", "dataset": "eegmmidb", "fold": 0, "exit": 0, "wall_s": 43017.002, "log": "results/meeting01_prevalidation/gru-ae/eegmmidb_fold0.log", "source_revision": "3dd32028/a0ecf420463f", "omp_threads": "1", "openblas_threads": "1"}

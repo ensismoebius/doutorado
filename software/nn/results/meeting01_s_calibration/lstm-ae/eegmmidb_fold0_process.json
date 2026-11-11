@@ -1,0 +1,1 @@
+{"family": "lstm-ae", "dataset": "eegmmidb", "fold": 0, "exit": 0, "wall_s": 32908.234, "log": "results/meeting01_s_calibration/lstm-ae/eegmmidb_fold0.log", "source_revision": "cd3d9a1a+dirty/cbed15ddc30e", "omp_threads": "1", "openblas_threads": "1"}

@@ -30,6 +30,7 @@
 \input{data/paper_budget.tex}
 \input{data/paper_loso_energy_verdict.tex}
 \input{data/paper_breakeven.tex}
+\input{data/paper_loso_findings.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
 \newif\ifplaceholder
@@ -66,9 +67,9 @@ neuron, are reported under one reduced search budget on development folds, for t
 and inference cost and their quality, and left out of the main comparison. A design study on those folds examines three choices the adopted design inherited: the
 loss, the decoder and the initializer. Those folds, and the fold that tests on their validation
 groups, are kept out of the headline numbers.
-% TODO(after the grid run): one sentence with the headline SNN-AE vs ANN-AE result per modality.
-% Fixed 2026-11-09, before any headline number (framing A): if PCA errs less than both
-% autoencoders on a modality's headline folds, the abstract says so first, then the gap.
+% Framing A, fixed 2026-11-09 before any headline number: PCA's lead first, then the gap.
+\sigPcaVerdict. Between the two autoencoders, the SNN-AE's test MSE exceeded its control's by
+\sigGapSpeech{} on speech and \sigGapEeg{} on EEG, and the SNN-AE \energyVsControl.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -347,15 +348,15 @@ read per value, a MAC and a write per output.} \\
 
 \par When can a spike-fed first layer cost less than an analog one at all?
 Fig.~\ref{fig:breakeven} applies these counts to the first stage, from the window to the first
-hidden code, at the first hidden widths the pre-validation selected
-(Section~\ref{sec:prevalidation}). Fed with spikes, that stage costs less than the ANN-AE's first
-layer (\beRef\,nJ) only when the input is sparse: fewer spikes per sample and window than a
-break-even that falls with $T$. For a Poisson code the break-even runs from \bePoissonHigh{} at
-$T=\beTmin$ to \bePoissonLow{} at $T=\beTmax$; through the recurrent transform, whose own neurons
+hidden code, at every first hidden width the search selected on the headline folds
+(Section~\ref{sec:results}). Fed with spikes, that stage costs less than the ANN-AE's first
+layer (\beRef\,nJ, by width) only when the input is sparse: fewer spikes per sample and window
+than a break-even that falls with $T$. For a Poisson code the break-even runs from
+\bePoissonHigh{} at $T=\beTmin$ \bePoissonLow; through the recurrent transform, whose own neurons
 are priced too, from \beRecurrentHigh{} \beRecurrentLow. The codes do not get there. A latency
 code emits exactly one spike per sample, above every break-even. A Poisson code emits $\bar p\,T$
-spikes per sample, and because each window is min--max scaled, $\bar p=\bePbar$ on the
-development folds: the code already carries \bePoissonAtTmin{} spikes per sample at $T=\beTmin$
+spikes per sample, and because each window is min--max scaled, $\bar p$ is \bePbar{} on the
+training windows of the headline folds: the code already carries \bePoissonAtTmin{} spikes per sample at $T=\beTmin$
 and stays above its break-even at every $T$. Only the recurrent transform, whose spike count is
 set by its own threshold and decay, can feed the network sparsely enough. The first hidden
 layer's own spikes are not charged here, so each break-even is an upper bound.
@@ -365,9 +366,10 @@ layer's own spikes are not charged here, so each break-even is an upper bound.
   \input{data/paper_breakeven_figure.tex}
   \caption{When a spike-fed first stage costs less than the ANN-AE's first layer: below its
   break-even curve (solid: Poisson code; dashed: direct code through the recurrent transform), at
-  each first hidden width $w_1$ the pre-validation selected. Dotted: the spikes a Poisson code
-  emits, $\bar p\,T$, with $\bar p$ measured on the development folds' test windows; grey: a
-  latency code. Logarithmic axis: a curve that ends before $T=\beTmax$ has reached zero, where the
+  each dataset's median first hidden width $w_1$ among the search's winners on the headline folds
+  (the text's ranges cover every winner's width). Dotted: the spikes a Poisson code emits,
+  $\bar p\,T$, with $\bar p$ measured on the training windows of those folds; grey: a latency
+  code. Logarithmic axis: a curve that ends before $T=\beTmax$ has reached zero, where the
   stage costs more than the analog layer even without a spike. The model of Table~\ref{tab:cost},
   without the hidden layer's own spikes.}
   \label{fig:breakeven}
@@ -727,26 +729,37 @@ it has no ``always'' share. Read the shares beside $T$: one spike moves a rate b
 \label{tab:sensitivity}
 \end{table}
 
-% TODO(after the grid run): replace the reading guide below by the findings.
-\par \textbf{Reading guide.} The first question is the gap between the SNN-AE and its control,
-per dataset and modality, and whether its interval excludes zero or lies inside $\pm\Delta$. The second is
-whether the SNN-AE saves energy for it: its $E$ against the ANN-AE's, and whether that ordering
-survives every column of Table~\ref{tab:energy}, read together with the selected encoding and
-$T$ in Table~\ref{tab:snnsel}: binary inputs turn the first layer's MACs into adds, but every
-step adds a read and a write of every potential. The third
-places both against PCA, on error and on energy; a model that does not beat PCA has not
-shown that its nonlinearity helps on that dataset. One rule was fixed before the grid run: where
-PCA errs less than both autoencoders on a modality, as it did on both development folds
-(Section~\ref{sec:prevalidation}), that is reported first, and the gap between the SNN-AE and its
-control is then read as the price of spiking among models that both lose to a linear projection.
-An ordering is asserted only where the Holm-corrected $p$ is below 0.05 and the interval excludes
-zero, and a finding that holds on one modality only is reported as such.
+\par An ordering is asserted only where the Holm-corrected $p$ is below 0.05 and the interval
+excludes zero. One rule was fixed before the grid run: where PCA errs less than both
+autoencoders, as it did on both development folds (Section~\ref{sec:prevalidation}), that is
+reported first, and the gap between the SNN-AE and its control is then read as the price of
+spiking among models that both lose to a linear projection.
+
+\par \textbf{PCA.} \sigPcaVerdict{} (Tables~\ref{tab:overview} and~\ref{tab:sig}). The control,
+the better of the two autoencoders, erred more than PCA by \sigAnnPcaSpeech{} on speech and
+\sigAnnPcaEeg{} on EEG, so on these short windows neither nonlinear model has shown that its
+nonlinearity helps reconstruction.
+
+\par \textbf{The price of spiking.} Between the two autoencoders, \sigGapVerdict{}: the SNN-AE's
+test MSE exceeded its control's by \sigGapSpeech{} on speech and \sigGapEeg{} on EEG
+(Table~\ref{tab:sig}, Fig.~\ref{fig:forest}). The margin $\Delta=\cfgMargin$ does not change the
+reading: \sigGapMargin, and FSDD has four groups. Putting the development folds back moved the gap
+by at most \sigSensShift{} (Table~\ref{tab:sensitivity}).
+
+\par \textbf{Energy.} The SNN-AE \energyVsControl{} (Table~\ref{tab:energy}): spiking cost both
+error and energy here. Table~\ref{tab:snnsel} lists what the search selected; binary inputs turn
+the first layer's MACs into adds, but every step adds a read and a write of every potential.
 
 % ─────────────────────────────────────────────────────────────
 \section{Discussion}
 \label{sec:discussion}
 
-% TODO(after the grid run): discussion of the measured gap and cost.
+\par Under this protocol, spiking bought nothing: the SNN-AE erred more than a control that
+differs from it in the encoder's neuron and what spiking requires around it, and needed more
+energy. Neither autoencoder reached PCA. On EEG the SNN-AE's distance from its control
+(\sigGapEeg) adds to a control already \sigAnnPcaEeg{} above PCA. We claim no cause; two
+mechanisms are candidates, the code's saturation and its sparsity.
+
 \par The design study does not separate the spike's discreteness from saturation. On direct
 input the code sits near 0 and 1, so it is both at once; a smooth bound (the sigmoid) cost
 nothing and a hard one (the clamp) cost as much or more; and on Poisson input the code is not
@@ -786,14 +799,14 @@ deviations leave out that sampling noise.
 \section{Conclusion}
 \label{sec:conclusion}
 
-% TODO(after the grid run): one sentence with the headline result.
 \par We compared a spiking autoencoder with a non-spiking control and PCA on two speech and two
 EEG datasets, under nested group-disjoint cross-validation with every architecture chosen on
 validation groups and design choices made on development folds. Those folds, and the fold that
 tests on their validation groups, are out of the headline numbers; one further fold validates on
 a development test group, so two datasets remain design-informed. Searched sequence autoencoders
-were reported on the development folds for what they cost to train and to run. We claim no cause for any gap
-found. The harness, profile and analysis scripts are released \cite{furlan2026doi}.
+were reported on the development folds for what they cost to train and to run. \sigPcaVerdict;
+between the two autoencoders, the SNN-AE erred more than its control by \sigGapSpeech{} on speech
+and \sigGapEeg{} on EEG and \energyVsControl. We claim no cause for that gap. The harness, profile and analysis scripts are released \cite{furlan2026doi}.
 
 \bibliographystyle{IEEEtran}
 \bibliography{paper}

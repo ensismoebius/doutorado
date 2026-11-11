@@ -1,0 +1,5 @@
+# Grid of record 5322464 (results_format 14). Tracked: everything the paper's tables and figures
+# are regenerated from (metrics, per-window errors, selection manifests, split manifests,
+# summaries, revisions). Kept on disk and on the cluster only: the window arrays (reproducible
+# from the datasets and the code) and the event logs (the root .gitignore already drops those).
+*.npy

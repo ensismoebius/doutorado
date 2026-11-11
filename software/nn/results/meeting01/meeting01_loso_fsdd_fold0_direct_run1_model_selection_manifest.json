@@ -1,0 +1,673 @@
+{
+  "candidates": [
+    {
+      "alpha": 0.8461132049560547,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        90,
+        65,
+        49,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 8,
+      "v_th": 1.2483611106872559,
+      "val_mse": 0.8801132440567017
+    },
+    {
+      "alpha": 0.8723973631858826,
+      "architecture": "dense",
+      "encoder_widths": [
+        122,
+        110,
+        70,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 2,
+      "v_th": 0.6401006579399109,
+      "val_mse": 0.9548524022102356
+    },
+    {
+      "alpha": 0.850619912147522,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        122,
+        93,
+        56,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 27,
+      "v_th": 0.8193889260292053,
+      "val_mse": 1.0003540515899658
+    },
+    {
+      "alpha": 0.8740689158439636,
+      "architecture": "dense",
+      "encoder_widths": [
+        52,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2332820892333984,
+      "val_mse": 0.7164842486381531
+    },
+    {
+      "alpha": 0.9228186011314392,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        119,
+        78,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 32,
+      "v_th": 1.2897794246673584,
+      "val_mse": 0.7831241488456726
+    },
+    {
+      "alpha": 0.8480860590934753,
+      "architecture": "dense",
+      "encoder_widths": [
+        117,
+        75,
+        61,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 1.3010261058807373,
+      "val_mse": 0.9496190547943115
+    },
+    {
+      "alpha": 0.9720051288604736,
+      "architecture": "dense",
+      "encoder_widths": [
+        115,
+        105,
+        36,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 2,
+      "v_th": 0.943539559841156,
+      "val_mse": 0.8361359238624573
+    },
+    {
+      "alpha": 0.9313718676567078,
+      "architecture": "dense",
+      "encoder_widths": [
+        28,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 0.9151484966278076,
+      "val_mse": 0.7898687720298767
+    },
+    {
+      "alpha": 0.8600910902023315,
+      "architecture": "dense",
+      "encoder_widths": [
+        90,
+        65,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 8,
+      "v_th": 1.2408215999603271,
+      "val_mse": 0.8497621417045593
+    },
+    {
+      "alpha": 0.9027203917503357,
+      "architecture": "dense",
+      "encoder_widths": [
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 18,
+      "v_th": 1.074215292930603,
+      "val_mse": 1.0003145933151245
+    },
+    {
+      "alpha": 0.9652519822120667,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        115,
+        36,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.013927936553955,
+      "val_mse": 1.0002673864364624
+    },
+    {
+      "alpha": 0.8600910902023315,
+      "architecture": "dense",
+      "encoder_widths": [
+        90,
+        65,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 8,
+      "v_th": 1.2408215999603271,
+      "val_mse": 1.000288724899292
+    },
+    {
+      "alpha": 0.8887425661087036,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        95,
+        17,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 3,
+      "v_th": 1.0817548036575317,
+      "val_mse": 1.0003738403320313
+    },
+    {
+      "alpha": 0.9156540036201477,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        52,
+        51,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2408215999603271,
+      "val_mse": 1.0003210306167603
+    },
+    {
+      "alpha": 0.9027203917503357,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        124,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.074215292930603,
+      "val_mse": 1.0003231763839722
+    },
+    {
+      "alpha": 0.9474118947982788,
+      "architecture": "dense",
+      "encoder_widths": [
+        115,
+        78,
+        36,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 32,
+      "v_th": 1.1166595220565796,
+      "val_mse": 0.8713153004646301
+    },
+    {
+      "alpha": 0.9653322696685791,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        78,
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 32,
+      "v_th": 1.102463960647583,
+      "val_mse": 1.000288963317871
+    },
+    {
+      "alpha": 0.8948614597320557,
+      "architecture": "dense",
+      "encoder_widths": [
+        83,
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2370518445968628,
+      "val_mse": 1.0002816915512085
+    },
+    {
+      "alpha": 0.9228186011314392,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        119,
+        78,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 32,
+      "v_th": 1.2897794246673584,
+      "val_mse": 0.9008870720863342
+    },
+    {
+      "alpha": 0.9131016731262207,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        95,
+        17,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 3,
+      "v_th": 1.4249221086502075,
+      "val_mse": 0.9380055665969849
+    },
+    {
+      "alpha": 0.8948614597320557,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2370518445968628,
+      "val_mse": 1.000288486480713
+    },
+    {
+      "alpha": 0.8948614597320557,
+      "architecture": "dense",
+      "encoder_widths": [
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2370518445968628,
+      "val_mse": 0.8935113549232483
+    },
+    {
+      "alpha": 0.9100571870803833,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 3,
+      "v_th": 0.9984516501426697,
+      "val_mse": 0.905139148235321
+    },
+    {
+      "alpha": 0.8656478524208069,
+      "architecture": "dense",
+      "encoder_widths": [
+        119,
+        78,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 32,
+      "v_th": 1.0540478229522705,
+      "val_mse": 0.8524715900421143
+    },
+    {
+      "alpha": 0.9207144975662231,
+      "architecture": "dense",
+      "encoder_widths": [
+        35,
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 0.956800103187561,
+      "val_mse": 1.0003093481063843
+    },
+    {
+      "alpha": 0.9131166934967041,
+      "architecture": "dense",
+      "encoder_widths": [
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.0761001110076904,
+      "val_mse": 0.8905794024467468
+    },
+    {
+      "alpha": 0.9024593234062195,
+      "architecture": "dense",
+      "encoder_widths": [
+        52,
+        49,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.1177517175674438,
+      "val_mse": 1.0008327960968018
+    },
+    {
+      "alpha": 0.923037052154541,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        116,
+        105,
+        52,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 5,
+      "v_th": 1.0884108543395996,
+      "val_mse": 0.890060305595398
+    },
+    {
+      "alpha": 0.9270952343940735,
+      "architecture": "dense",
+      "encoder_widths": [
+        78,
+        28,
+        17,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 32,
+      "v_th": 0.991533100605011,
+      "val_mse": 1.0002236366271973
+    },
+    {
+      "alpha": 0.8670799732208252,
+      "architecture": "dense",
+      "encoder_widths": [
+        90,
+        17,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 8,
+      "v_th": 0.9079205989837646,
+      "val_mse": 0.8538556694984436
+    },
+    {
+      "alpha": 0.8948614597320557,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        52,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.2370518445968628,
+      "val_mse": 0.887289822101593
+    },
+    {
+      "alpha": 0.9151325821876526,
+      "architecture": "dense",
+      "encoder_widths": [
+        28,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 0.9151484966278076,
+      "val_mse": 0.7888892889022827
+    },
+    {
+      "alpha": 0.88377845287323,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 3,
+      "v_th": 1.1441155672073364,
+      "val_mse": 0.8311653733253479
+    },
+    {
+      "alpha": 0.9189755916595459,
+      "architecture": "dense",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 1.102463960647583,
+      "val_mse": 0.9145828485488892
+    },
+    {
+      "alpha": 0.9207144975662231,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 3,
+      "v_th": 0.956800103187561,
+      "val_mse": 0.8986362814903259
+    },
+    {
+      "alpha": 0.8600910902023315,
+      "architecture": "dense",
+      "encoder_widths": [
+        104,
+        90,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 17,
+      "v_th": 0.8393039703369141,
+      "val_mse": 0.7068833708763123
+    },
+    {
+      "alpha": 0.9474118947982788,
+      "architecture": "dense",
+      "encoder_widths": [
+        115,
+        105,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 23,
+      "v_th": 1.1166595220565796,
+      "val_mse": 0.8493368625640869
+    },
+    {
+      "alpha": 0.9232522249221802,
+      "architecture": "dense",
+      "encoder_widths": [
+        97,
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 0.9151484966278076,
+      "val_mse": 1.0003342628479004
+    },
+    {
+      "alpha": 0.9410311579704285,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        36,
+        28,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 22,
+      "v_th": 0.9709956049919128,
+      "val_mse": 0.8883602023124695
+    },
+    {
+      "alpha": 0.9027203917503357,
+      "architecture": "dense",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 5,
+      "v_th": 1.074215292930603,
+      "val_mse": 0.8670975565910339
+    },
+    {
+      "alpha": 0.8994555473327637,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 16,
+      "v_th": 1.0296320915222168,
+      "val_mse": 0.7823778986930847
+    },
+    {
+      "alpha": 0.8994555473327637,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "poisson",
+      "time_steps": 3,
+      "v_th": 1.0296320915222168,
+      "val_mse": 0.9304274320602417
+    },
+    {
+      "alpha": 0.8670799732208252,
+      "architecture": "dense",
+      "encoder_widths": [
+        17,
+        16
+      ],
+      "encoding": "latency",
+      "time_steps": 17,
+      "v_th": 1.0362930297851563,
+      "val_mse": 0.7863680720329285
+    },
+    {
+      "alpha": 0.8134253025054932,
+      "architecture": "dense",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 14,
+      "v_th": 0.9359742999076843,
+      "val_mse": 0.8339846134185791
+    },
+    {
+      "alpha": 0.9075751304626465,
+      "architecture": "conv1d",
+      "encoder_widths": [
+        28,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 3,
+      "v_th": 0.8640717267990112,
+      "val_mse": 0.8400625586509705
+    },
+    {
+      "alpha": 0.8600910902023315,
+      "architecture": "dense",
+      "encoder_widths": [
+        104,
+        90,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 17,
+      "v_th": 1.2154905796051025,
+      "val_mse": 0.8374713063240051
+    },
+    {
+      "alpha": 0.9042702317237854,
+      "architecture": "dense",
+      "encoder_widths": [
+        104,
+        90,
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 17,
+      "v_th": 0.8772262334823608,
+      "val_mse": 0.8508558869361877
+    },
+    {
+      "alpha": 0.8270752429962158,
+      "architecture": "recurrent",
+      "encoder_widths": [
+        17,
+        16
+      ],
+      "encoding": "direct",
+      "time_steps": 3,
+      "v_th": 1.1886987686157227,
+      "val_mse": 0.8240495920181274
+    }
+  ],
+  "cv_fold": 0,
+  "dataset": "fsdd",
+  "encoding": "direct",
+  "final_fit": {
+    "epochs_run": 18,
+    "fit_windows": 1000,
+    "monitor_infer_ms": 30.26017189025879,
+    "monitor_windows": 150,
+    "train_ms": 29137.8984375
+  },
+  "results_format": 14,
+  "run_id": 1,
+  "seed": 42,
+  "selected": {
+    "alpha": 0.8600910902023315,
+    "architecture": "dense",
+    "encoder_widths": [
+      104,
+      90,
+      16
+    ],
+    "encoding": "direct",
+    "time_steps": 17,
+    "v_th": 0.8393039703369141,
+    "val_mse": 0.7032100558280945
+  },
+  "selection_metric": "val_mse",
+  "selection_split": "val (speaker jackson)",
+  "test_speaker": "george",
+  "time_steps": 17
+}
