@@ -15,9 +15,9 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PIPELINE_E05_DIR = os.path.join(os.path.dirname(HERE), "pipeline", "e05")
-RANK = os.path.join(PIPELINE_E05_DIR, "01_thesis_phase00_rank.py")
-APPLY = os.path.join(PIPELINE_E05_DIR, "02_thesis_apply_winner.py")
+PIPELINE_THESIS_DIR = os.path.join(os.path.dirname(HERE), "pipeline", "thesis")
+RANK = os.path.join(PIPELINE_THESIS_DIR, "01_thesis_phase00_rank.py")
+APPLY = os.path.join(PIPELINE_THESIS_DIR, "02_thesis_apply_winner.py")
 
 
 def hc_profile(tag, signal, wavelet, scale):
