@@ -56,11 +56,15 @@ Full chain: `run_thesis_profiles.sh phase00` (scripts/testing/) → `01_thesis_p
 
 | Script | Role |
 |---|---|
-| `01_thesis_phase00_rank.py` | Read `results/thesis/phase00/*_summary.json`, pick the per-signal paraconsistent winner, write `winners.json` |
+| `01_thesis_phase00_rank.py` | Read the `*_paraconsistent.csv` each phase00 profile declares, pick the per-signal winner by `d_penalized`, write `winners.json` |
 | `02_thesis_apply_winner.py` | Inject `winners.json`'s winning `feature_extraction` block into the phase01 profiles' placeholder |
 | `thesis_build_phase00_paraconsistent_tables.py` | Standalone: generate the thesis's ranked phase00 comparison tables (`tables/phase00_*.csv`) from `results/thesis/phase00/*_summary.json`, consumed by `chapters/09-testsAndResults.tex` — branches off the same phase00 results as step 01 but isn't part of the rank→apply sequence |
+| `thesis_build_phase01_auth_tables.py` | Generate `tables/phase01_auth.csv` (the 32 phase01 configurations ranked by mean EER) from the summaries each phase01 profile declares |
+| `thesis_cross_profile_significance.py` | Cohen's d + Wilcoxon (paired) or Mann-Whitney (independent) of each phase01 condition against a declared reference, on per-fold metrics; Holm-adjusted over the family |
 
-Tests for the numbered pair live in `scripts/testing/test_thesis_phase_scripts.py` (see below) — kept out of `pipeline/` since it's a test, not a pipeline step.
+All five take every argument explicitly (no defaults) and refuse an incomplete or unreadable result set instead of skipping it.
+
+Tests for all five live in `scripts/testing/test_thesis_phase_scripts.py` (see below) — kept out of `pipeline/` since it's a test, not a pipeline step.
 
 ---
 
@@ -146,7 +150,7 @@ Full docs for the PyTorch/PyWavelets parity fixtures: `testing/README.md`.
 | `thesis_make_smoke_profiles.py` | Mirror every Experiment05 profile into `profiles/smoke/` with tiny run parameters, same code paths |
 | `run_thesis_smoke.sh` | Smoke-run every profile under `profiles/smoke/` — fast, surfaces runtime errors compilation can't catch |
 | `run_thesis_profiles.sh` | Run the REAL Experiment05 profiles (`phase00`/`phase01`/`all`) — the actual experiment, resumable, checkpointed |
-| `test_thesis_phase_scripts.py` | Stdlib-unittest coverage for `pipeline/thesis/01_thesis_phase00_rank.py` + `pipeline/thesis/02_thesis_apply_winner.py`; also run in CI |
+| `test_thesis_phase_scripts.py` | Stdlib-unittest coverage for the five `pipeline/thesis/` scripts (rank, apply, phase00 tables, phase01 tables, significance; the last needs scipy); also run in CI |
 
 ```bash
 cd software/nn

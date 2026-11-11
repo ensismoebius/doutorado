@@ -19,7 +19,7 @@ jobs:
         # sqlite, zlib, cmake, ninja, autotools, python3)
         # are installed by cmake/UbuntuDependencies.cmake at Configure time.
         # Only CI-specific tooling is installed here.
-        sudo apt-get install -y clang clang-tidy clang-tools cppcheck ccache python3-dev python3-venv python3-numpy
+        sudo apt-get install -y clang clang-tidy clang-tools cppcheck ccache python3-dev python3-venv python3-numpy python3-scipy
         if [ ! -e /usr/lib/libgomp.so ] && [ -e /usr/lib/x86_64-linux-gnu/libgomp.so.1 ]; then
           sudo ln -s /usr/lib/x86_64-linux-gnu/libgomp.so.1 /usr/lib/libgomp.so
         fi
