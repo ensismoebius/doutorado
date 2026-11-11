@@ -12,7 +12,9 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -57,32 +59,43 @@ constexpr float kSnnVth = 1.0f;
 //   reg = λ · Σ_layers (max(0, fr_min - r)² + max(0, r - fr_max)²)
 // is differentiated as d_reg/d_spike = 2λ(r - clamp(r, fr_min, fr_max)) / n and
 // injected into the incoming gradient at each LIF spike output during backward,
-// mirroring SpikeCountLossImpl. Inert when fr_lambda == 0.
+// mirroring SpikeCountLossImpl. Off when constructed with rate_reg = nullopt.
 class ThesisDsnnClassifier : public Module<nn::Backend>
 {
    public:
     using Tensor = nn::Tensor;
 
+    /// Firing-rate regularization: weight and target band (see the class comment).
+    struct FiringRateBand
+    {
+        float lambda; ///< > 0
+        float min;
+        float max;
+    };
+
+    /// rate_reg: nullopt = no firing-rate regularization.
+    /// tdbn_alpha: nullopt = no tdBN; a value = tdBN with that alpha.
+    /// No argument has a default: "off" is spelled nullopt by the caller, so a call can
+    /// never inherit a band or an alpha it did not choose.
     ThesisDsnnClassifier(int input_dim,
         int hidden_dim,
         int output_dim,
         int depth,
         std::uint32_t seed,
-        float fr_lambda = 0.0f,
-        float fr_min = 0.05f,
-        float fr_max = 0.80f,
-        bool use_tdbn = false,
-        float tdbn_alpha = 1.0f)
+        std::optional<FiringRateBand> rate_reg,
+        std::optional<float> tdbn_alpha)
         : fc_in_(std::make_shared<LinearImpl<nn::Backend>>(input_dim, hidden_dim)),
           lif_in_(std::make_shared<LifBPTTImpl<nn::Backend>>(kSnnTimeSteps)),
           fc_out_(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, output_dim)),
           hidden_dim_(hidden_dim),
           out_dim_(output_dim),
-          fr_lambda_(fr_lambda),
-          fr_min_(fr_min),
-          fr_max_(fr_max),
-          use_tdbn_(use_tdbn)
+          rate_reg_(rate_reg),
+          use_tdbn_(tdbn_alpha.has_value())
     {
+        if (rate_reg_ && rate_reg_->lambda <= 0.0f)
+            throw std::invalid_argument(
+                "ThesisDsnnClassifier: a firing-rate band needs lambda > 0; pass nullopt to "
+                "turn the regularization off");
         const int n_blocks = std::max(0, depth - 1);
         hidden_fc_.reserve(static_cast<size_t>(n_blocks));
         hidden_lif_.reserve(static_cast<size_t>(n_blocks));
@@ -100,12 +113,12 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
         if (use_tdbn_)
         {
             tdbn_in_ = std::make_shared<ThresholdDependentBatchNormImpl<nn::Backend>>(
-                static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, tdbn_alpha);
+                static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, *tdbn_alpha);
             tdbn_hidden_.reserve(static_cast<size_t>(n_blocks));
             for (int i = 0; i < n_blocks; ++i)
                 tdbn_hidden_.push_back(
                     std::make_shared<ThresholdDependentBatchNormImpl<nn::Backend>>(
-                        static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, tdbn_alpha));
+                        static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, *tdbn_alpha));
         }
 
         kaimingSNNInitializer(fc_in_, seed + 1U, "e05_dsnn");
@@ -133,7 +146,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
                         input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d));
 
         // Cache spike trains on every training forward. Needed by the firing-rate
-        // regularizer (fr_lambda_ > 0) AND by mean_spike_rate()/sops() so the run
+        // regularizer (rate_reg_ set) AND by mean_spike_rate()/sops() so the run
         // diagnostics are populated even when regularization is off. Eval passes
         // (requires_grad == false) don't cache — the last cached train stays the
         // last training batch, matching a spike-loss's last_mean_rate() semantics.
@@ -355,15 +368,15 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
     // Add the firing-rate band-penalty gradient of one spiking layer to the
     // incoming gradient g (same shape as the cached spike train). No-op when
     // regularization is disabled or the spike cache is empty (eval pass).
-    // d_reg/d_spike = 2λ(r - clamp(r, fr_min_, fr_max_)) / n, broadcast to all
+    // d_reg/d_spike = 2λ(r - clamp(r, min, max)) / n, broadcast to all
     // elements (mirrors SpikeCountLossImpl). r = mean firing rate of the layer.
     void add_firing_rate_grad(Tensor& g, const Tensor& spikes) const
     {
-        if (fr_lambda_ <= 0.0f || spikes.size() == 0) return;
+        if (!rate_reg_ || spikes.size() == 0) return;
         const float n = static_cast<float>(spikes.size());
         const float r = spikes.sum() / n;
-        const float clamped = std::clamp(r, fr_min_, fr_max_);
-        const float d_reg = 2.0f * fr_lambda_ * (r - clamped) / n;
+        const float clamped = std::clamp(r, rate_reg_->min, rate_reg_->max);
+        const float d_reg = 2.0f * rate_reg_->lambda * (r - clamped) / n;
         if (d_reg != 0.0f) g.add_scalar_inplace(d_reg);
     }
 
@@ -377,10 +390,8 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
     int hidden_dim_ = 0; // widths, used to weight SOPs by each layer's fan-out
     int out_dim_ = 0;
 
-    // Firing-rate regularization (band [fr_min_, fr_max_], weight fr_lambda_).
-    float fr_lambda_ = 0.0f;
-    float fr_min_ = 0.05f;
-    float fr_max_ = 0.80f;
+    // Firing-rate regularization (band [min, max], weight lambda); nullopt = off.
+    std::optional<FiringRateBand> rate_reg_;
     Tensor spikes_in_;                  // cached input-LIF spike train (training only)
     std::vector<Tensor> spikes_hidden_; // cached hidden-LIF spike trains
 

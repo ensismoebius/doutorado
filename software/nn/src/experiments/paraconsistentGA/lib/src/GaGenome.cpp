@@ -28,10 +28,10 @@ void repair_widths(Genome& g, const GenomeBounds& bounds)
 {
     auto& w = g.encoder_widths;
 
-    if (w.empty()) w.push_back(bounds.max_width); // seed; the strict-decrease pass fixes it
+    if (w.empty()) w.push_back(bounds.max_width.get()); // seed; the strict-decrease pass fixes it
 
     // Clamp each width into [min_width, max_width].
-    for (int& x : w) x = std::clamp(x, bounds.min_width, bounds.max_width);
+    for (int& x : w) x = std::clamp(x, bounds.min_width.get(), bounds.max_width.get());
 
     // Strictly decreasing: sort descending, then walk down forcing each entry below
     // its predecessor. When there is no integer room left (would drop below
@@ -47,7 +47,7 @@ void repair_widths(Genome& g, const GenomeBounds& bounds)
         fixed.push_back(v);
         ceiling = v;
     }
-    if (fixed.empty()) fixed.push_back(bounds.min_width);
+    if (fixed.empty()) fixed.push_back(bounds.min_width.get());
 
     // Respect max_layers (min_layers is guaranteed reachable by validate()).
     if (static_cast<int>(fixed.size()) > bounds.max_layers)
@@ -83,10 +83,10 @@ Genome random_genome(std::mt19937& rng, const GenomeBounds& bounds, bool is_snn)
 
     if (is_snn)
     {
-        g.encoding = pick(rng, bounds.encoding_choices);
+        g.encoding = pick(rng, bounds.encoding_choices.get());
         if (bounds.evolve_temporal)
         {
-            g.time_steps = pick(rng, bounds.time_steps_choices);
+            g.time_steps = pick(rng, bounds.time_steps_choices.get());
             std::uniform_real_distribution<float> vd(
                 bounds.voltage_threshold_min, bounds.voltage_threshold_max);
             g.voltage_threshold = vd(rng);
@@ -176,10 +176,10 @@ void mutate(Genome& g, std::mt19937& rng, const GenomeBounds& bounds, double pro
         return;
     }
 
-    if (hit(rng)) g.encoding = pick(rng, bounds.encoding_choices);
+    if (hit(rng)) g.encoding = pick(rng, bounds.encoding_choices.get());
     if (bounds.evolve_temporal)
     {
-        if (hit(rng)) g.time_steps = pick(rng, bounds.time_steps_choices);
+        if (hit(rng)) g.time_steps = pick(rng, bounds.time_steps_choices.get());
         if (hit(rng))
         {
             std::uniform_real_distribution<float> vd(
@@ -246,36 +246,37 @@ DiploidGenome fuse(const Gamete& g1, const Gamete& g2)
 thesis::ThesisConfig::AutoencoderConfig to_ae_config(
     const Genome& g, const thesis::ThesisConfig::AutoencoderConfig& base)
 {
-    // Copy the profile's config, then override only what the genome owns. Never build
-    // from scratch: anything not re-set here would silently revert to a struct default
-    // (this is how `ae_loss_type` was previously lost — see the header comment).
+    // Copy the profile's config, then set only what the genome owns (the keys
+    // GaConfig::embedding() lists as set_by_program). The profile owns everything else
+    // (model, ae_loss_type, firing_rate_*); building from scratch would leave those
+    // undeclared, and reading them would throw.
     thesis::ThesisConfig::AutoencoderConfig ae = base;
 
     // Encoder: every width is a leaky Linear except the latent (last), which is
     // identity. Decoder mirrors the hidden widths in reverse, then projects to output.
     const auto& w = g.encoder_widths;
-    ae.encoder_layer_spec.clear();
+    std::vector<std::string> encoder;
     for (size_t i = 0; i + 1 < w.size(); ++i)
-        ae.encoder_layer_spec.push_back("linear:" + std::to_string(w[i]) + ":leaky");
-    ae.encoder_layer_spec.push_back("linear:" + std::to_string(w.back()) + ":identity");
+        encoder.push_back("linear:" + std::to_string(w[i]) + ":leaky");
+    encoder.push_back("linear:" + std::to_string(w.back()) + ":identity");
+    ae.encoder_layer_spec = encoder;
 
-    ae.decoder_layer_spec.clear();
+    std::vector<std::string> decoder;
     for (size_t i = w.size() - 1; i-- > 0;)
-        ae.decoder_layer_spec.push_back("linear:" + std::to_string(w[i]) + ":leaky");
-    ae.decoder_layer_spec.push_back("linear:output:identity");
+        decoder.push_back("linear:" + std::to_string(w[i]) + ":leaky");
+    decoder.push_back("linear:output:identity");
+    ae.decoder_layer_spec = decoder;
 
+    // The temporal genes become the SNN-AE's keys — exactly the ones the thesis config
+    // reads for that encoding: T only for a temporal code (direct has one analog frame).
+    // The ANN-AE reads none of them (it is analog by construction), so none is set:
+    // ThesisConfig::validate() would refuse a declared key the model never reads.
     if (ae.model == "snn-ae")
     {
         ae.encoding = g.encoding;
-        ae.time_steps = g.time_steps;
+        if (g.encoding != "direct") ae.time_steps = g.time_steps;
         ae.voltage_threshold = g.voltage_threshold;
         // firing_rate_* deliberately NOT overridden — the profile owns them.
-    }
-    else // ann-ae: non-spiking, always analog/direct single frame.
-    {
-        ae.encoding = "direct";
-        ae.time_steps = 1;
-        ae.voltage_threshold = 1.0f;
     }
     return ae;
 }

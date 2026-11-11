@@ -2,14 +2,10 @@
   "run_tag": "pga_snn_fused_late",
   "results_dir": "results/paraconsistentGA",
   "experiment": {
-    "run_tag": "pga_snn_fused_late",
-    "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": false
+    "seed": 42
   },
   "dataset": {
     "root": "~/database.sqlite",
-    "results_dir": "results/paraconsistentGA",
     "modality": "fused",
     "fusion_mode": "late",
     "max_samples": 550
@@ -18,17 +14,6 @@
     "strategy": "autoencoder",
     "autoencoder": {
       "model": "snn-ae",
-      "encoder_layer_spec": [
-        "linear:64:leaky",
-        "linear:32:identity"
-      ],
-      "decoder_layer_spec": [
-        "linear:64:leaky",
-        "linear:output:identity"
-      ],
-      "encoding": "direct",
-      "time_steps": 1,
-      "voltage_threshold": 1.0,
       "firing_rate_reg_lambda": 0.5,
       "firing_rate_min": 0.1,
       "firing_rate_max": 0.8,
@@ -45,9 +30,8 @@
     "epochs": 100,
     "learning_rate": 0.001,
     "samples_per_batch": 32,
-    "early_stop_patience": 15,
-    "k_folds": 5,
-    "nested_cv": true
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0
   },
   "ga": {
     "population_size": 32,
@@ -77,5 +61,9 @@
     "latency_calibrated": false,
     "ns_per_mac": 2.0,
     "tau_rec": 0.0001
+  },
+  "checkpoint": {
+    "enabled": true,
+    "every_generations": 1
   }
 }

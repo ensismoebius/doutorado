@@ -266,7 +266,7 @@ auto extract_handcrafted(const std::vector<double>& signal,
     // Group sub-bands according to the perceptual frequency scale.
     auto groups = group_by_scale(result, n_parts, cfg.scale, sample_rate);
 
-    const auto& descs = cfg.descriptors;
+    const std::vector<std::string>& descs = cfg.descriptors;
     bool want_energy = std::find(descs.begin(), descs.end(), "energy") != descs.end();
     bool want_zcr = std::find(descs.begin(), descs.end(), "zcr") != descs.end();
     bool want_entropy = std::find(descs.begin(), descs.end(), "entropy") != descs.end();

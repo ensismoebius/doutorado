@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ThesisFeatureExtractionInternal.hpp"
+#include "ThesisPca.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "training/ProgressCallback.hpp"
@@ -59,7 +60,7 @@ FeatureSet extract_handcrafted_feature_set(const ThesisDatasetView& view,
         "Feature extraction", static_cast<float>(n_samples));
     nn::progress::ProgressManager::instance().set_description(feat_bar,
         "DTWPT | scale=" + cfg.handcrafted.scale +
-            "  descriptors=" + std::to_string(cfg.handcrafted.descriptors.size()));
+            "  descriptors=" + std::to_string(cfg.handcrafted.descriptors->size()));
 
     fs.vectors.resize(static_cast<size_t>(n_samples));
     long feat_done = 0;
@@ -127,6 +128,11 @@ FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& ra
     const std::string& part_tag,
     const ModelSnapshotFn& on_model_trained)
 {
+    // The direct code presents ONE analog frame: there is no T to read (the profile is
+    // refused if it declares one), so the frame count is 1 by definition, not by default.
+    const std::string& encoding = cfg.autoencoder.encoding;
+    const int frames = encoding == "direct" ? 1 : cfg.autoencoder.time_steps.get();
+
     FeatureSet fs;
     fs.label = "autoencoder-snn" + label_suffix;
     fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(raw_signals,
@@ -135,8 +141,8 @@ FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& ra
         label_suffix,
         "SNN-AE",
         training.samples_per_batch,
-        cfg.autoencoder.encoding,
-        cfg.autoencoder.time_steps,
+        encoding,
+        frames,
         seed,
         cfg.autoencoder.voltage_threshold,
         cfg.autoencoder.ae_loss_type,
@@ -145,7 +151,9 @@ FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& ra
     return fs;
 }
 
-// ANN-AE is non-spiking: always analog ("direct"), single frame.
+// ANN-AE is non-spiking: analog ("direct") by construction, one frame, no threshold. These
+// constants define the model; they are not values a profile could choose (the ANN-AE
+// profile is refused if it declares encoding/time_steps/voltage_threshold).
 FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
@@ -192,23 +200,19 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
         train_samples.push_back(vec_to_frame_tensor(sig, T_frames, frame_len));
     }
 
+    const std::vector<std::string>& spec = cfg.autoencoder.encoder_layer_spec;
     nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
     ae_cfg.input_size = frame_len;
     ae_cfg.seq_len = T_frames;
-    ae_cfg.hidden_size = first_encoder_dim(cfg.autoencoder.encoder_layer_spec, 64);
-    ae_cfg.latent_size = last_encoder_dim(cfg.autoencoder.encoder_layer_spec, 16);
-    ae_cfg.num_layers =
-        std::max<int>(1, static_cast<int>(cfg.autoencoder.encoder_layer_spec.size() / 2));
+    ae_cfg.hidden_size = first_encoder_dim(spec);
+    ae_cfg.latent_size = last_encoder_dim(spec);
+    ae_cfg.num_layers = std::max<int>(1, static_cast<int>(spec.size() / 2));
 
     nn::models::lstm::LSTMAutoencoder model(ae_cfg);
 
-    nn::training::TrainerConfig trainer_cfg;
-    trainer_cfg.epochs = training.epochs;
-    trainer_cfg.learning_rate = training.effective_learning_rate();
-    trainer_cfg.optimizer_type = training.optimizer_type;
-    trainer_cfg.optimizer_momentum = training.optimizer_momentum;
-    trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
-    trainer_cfg.batch_size = training.samples_per_batch;
+    // validate() pins ae_loss_type to mse for lstm-ae: this Trainer's loss is MSE.
+    const nn::training::TrainerConfig trainer_cfg =
+        build_trainer_config(training, training.samples_per_batch, /*time_major=*/false);
 
     nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
     // Same enrichment as the SNN/ANN AE path: label the bar with the model + loss so
@@ -247,43 +251,74 @@ FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>
         return extract_ann_ae_feature_set(
             raw_signals, cfg, training, label_suffix, seed, part_tag, on_model_trained);
 
-    // "lstm-ae"
-    return extract_lstm_ae_feature_set(raw_signals, max_len, cfg, training, label_suffix);
+    if (ae_model == "lstm-ae")
+        return extract_lstm_ae_feature_set(raw_signals, max_len, cfg, training, label_suffix);
+
+    throw std::invalid_argument("ThesisFeatureExtraction: unknown autoencoder.model \"" + ae_model +
+                                "\" (expected snn-ae, ann-ae or lstm-ae)");
 }
 
-// Runs the configured strategy (handcrafted or autoencoder) against whatever
+// PCA on the autoencoders' exact input (normalize_signals: 256 pooled bins, min-max per
+// sample), fitted on every sample — the same unsupervised, transductive protocol as the
+// autoencoders, so the comparison differs only in the extractor.
+FeatureSet extract_pca_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const ThesisConfig::PcaConfig& cfg,
+    const std::string& label_suffix)
+{
+    const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
+    const PcaProjection pca = fit_pca(normed, cfg.n_components);
+
+    FeatureSet fs;
+    fs.label = "pca" + label_suffix;
+    fs.vectors.reserve(normed.size());
+    for (const auto& row : normed) fs.vectors.push_back(project_pca(pca, row));
+    return fs;
+}
+
+// Runs the configured strategy (handcrafted, autoencoder or pca) against whatever
 // single signal get_signal() returns per sample. Used directly for "voice"
 // and "eeg" modality, and reused twice by late fusion (once per signal) and
 // once by early fusion (on the pre-concatenated signal). label_suffix tags
 // the resulting FeatureSet so voice-part/EEG-part/fused variants stay
-// distinguishable in results output.
+// distinguishable in results output. part_tag names the model for the snapshot
+// callback ("" = the only model; "voice"/"eeg" = late fusion's two models).
 auto extract_features_core(const ThesisDatasetView& view,
-    const ThesisConfig::FeatureExtraction& cfg,
-    const ThesisConfig::Training& training,
+    const ThesisConfig& cfg,
     const SignalGetter& get_signal,
     double sample_rate,
     const std::string& label_suffix,
-    std::uint32_t seed,
-    const std::string& part_tag = "",
-    const ModelSnapshotFn& on_model_trained = nullptr) -> std::vector<FeatureSet>
+    const std::string& part_tag,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
 {
+    const ThesisConfig::FeatureExtraction& fe = cfg.feature_extraction;
     std::vector<FeatureSet> result;
 
-    if (cfg.strategy == "handcrafted")
+    if (fe.strategy == "handcrafted")
     {
         result.push_back(
-            extract_handcrafted_feature_set(view, cfg, get_signal, sample_rate, label_suffix));
+            extract_handcrafted_feature_set(view, fe, get_signal, sample_rate, label_suffix));
     }
-    else if (cfg.strategy == "autoencoder")
+    else if (fe.strategy == "autoencoder")
     {
         auto [raw_signals, max_len] = collect_raw_signals(view, get_signal);
-        result.push_back(extract_autoencoder_feature_set(
-            raw_signals, max_len, cfg, training, label_suffix, seed, part_tag, on_model_trained));
+        result.push_back(extract_autoencoder_feature_set(raw_signals,
+            max_len,
+            fe,
+            cfg.training,
+            label_suffix,
+            cfg.experiment.seed,
+            part_tag,
+            on_model_trained));
+    }
+    else if (fe.strategy == "pca")
+    {
+        auto raw = collect_raw_signals(view, get_signal);
+        result.push_back(extract_pca_feature_set(raw.first, fe.pca, label_suffix));
     }
     else
     {
         throw std::invalid_argument(
-            "ThesisFeatureExtraction: unknown strategy \"" + cfg.strategy + "\"");
+            "ThesisFeatureExtraction: unknown strategy \"" + fe.strategy + "\"");
     }
 
     return result;
@@ -291,37 +326,28 @@ auto extract_features_core(const ThesisDatasetView& view,
 
 } // namespace
 
-auto extract_features(const ThesisDatasetView& view,
-    const ThesisConfig::FeatureExtraction& cfg,
-    const ThesisConfig::Training& training,
-    const std::string& modality,
-    const std::string& fusion_mode,
-    std::uint32_t seed,
-    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
+auto extract_features(
+    const ThesisDatasetView& view, const ThesisConfig& cfg, const ModelSnapshotFn& on_model_trained)
+    -> std::vector<FeatureSet>
 {
+    const std::string& modality = cfg.dataset.modality;
     if (modality == "voice")
         return extract_features_core(
-            view, cfg, training, voice_signal, kVoiceSampleRate, "", seed, "", on_model_trained);
+            view, cfg, voice_signal, kVoiceSampleRate, "", "", on_model_trained);
 
     if (modality == "eeg")
         return extract_features_core(
-            view, cfg, training, eeg_signal, kEegSampleRate, "", seed, "", on_model_trained);
+            view, cfg, eeg_signal, kEegSampleRate, "", "", on_model_trained);
 
     if (modality != "fused")
         throw std::invalid_argument(
             "ThesisFeatureExtraction: unknown modality \"" + modality + "\"");
 
+    const std::string& fusion_mode = cfg.dataset.fusion_mode;
     if (fusion_mode == "early")
     {
-        return extract_features_core(view,
-            cfg,
-            training,
-            fused_early_signal,
-            kVoiceSampleRate,
-            "-fused-early",
-            seed,
-            "",
-            on_model_trained);
+        return extract_features_core(
+            view, cfg, fused_early_signal, kVoiceSampleRate, "-fused-early", "", on_model_trained);
     }
 
     if (fusion_mode != "late")
@@ -330,12 +356,12 @@ auto extract_features(const ThesisDatasetView& view,
 
     // Late fusion: extract independently per signal, then concatenate the
     // resulting feature vectors sample-by-sample (audit C12). Two INDEPENDENT models
-    // train here (voice AE + EEG AE) — tag each snapshot so a caller merging them
+    // train (or, for PCA, are fitted) here — tag each snapshot so a caller merging them
     // (e.g. paraconsistentGA's weight-snapshot capture) can tell them apart.
     auto voice_sets = extract_features_core(
-        view, cfg, training, voice_signal, kVoiceSampleRate, "", seed, "voice", on_model_trained);
-    auto eeg_sets = extract_features_core(
-        view, cfg, training, eeg_signal, kEegSampleRate, "", seed, "eeg", on_model_trained);
+        view, cfg, voice_signal, kVoiceSampleRate, "", "voice", on_model_trained);
+    auto eeg_sets =
+        extract_features_core(view, cfg, eeg_signal, kEegSampleRate, "", "eeg", on_model_trained);
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(

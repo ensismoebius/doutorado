@@ -92,8 +92,10 @@ void write_pareto_front_json(const std::string& results_dir,
     nlohmann::json j;
     j["run_tag"] = run_tag;
     j["population"] = {{"model", cfg.base.feature_extraction.autoencoder.model},
-        {"modality", cfg.base.dataset.modality},
-        {"fusion_mode", cfg.base.dataset.fusion_mode}};
+        {"modality", cfg.base.dataset.modality}};
+    // fusion_mode exists for the fused modality only (the profile declares it exactly then).
+    if (cfg.base.dataset.modality == "fused")
+        j["population"]["fusion_mode"] = cfg.base.dataset.fusion_mode;
     j["ga"] = {{"population_size", cfg.ga.population_size},
         {"generations", cfg.ga.generations},
         {"generations_run", result.generations_run},

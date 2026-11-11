@@ -9,6 +9,7 @@
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisDataset.hpp"
 #include "../lib/include/ThesisFeatureExtraction.hpp"
+#include "ThesisTestConfig.hpp"
 #include "layers/losses/SpikeTimeLoss.hpp"
 
 using namespace thesis;
@@ -57,16 +58,31 @@ ThesisConfig::Training fast_training()
     ThesisConfig::Training t;
     t.epochs = 2;
     t.learning_rate = 0.001f;
+    t.optimizer_type = "adam";
+    t.gradient_clip_norm = 0.0f;
     t.samples_per_batch = 8;
     return t;
+}
+
+// An EEG run of `fe` trained with `training` at `seed` (extract_features reads the
+// strategy, the training keys, the seed and the modality from one ThesisConfig).
+std::vector<FeatureSet> run_fe(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& fe,
+    const ThesisConfig::Training& training,
+    std::uint32_t seed)
+{
+    ThesisConfig cfg = test::phase00("eeg");
+    cfg.experiment.seed = seed;
+    cfg.feature_extraction = fe;
+    cfg.training = training;
+    return extract_features(view, cfg, nullptr);
 }
 } // namespace
 
 TEST(ThesisSpikeLossE2E, SpikeCountTrainsOnPoisson)
 {
     auto view = synthetic_view(3, 4, 128);
-    auto sets = extract_features(
-        view, snn_fe("poisson", "spikecount", 4), fast_training(), "eeg", "late", 42u);
+    auto sets = run_fe(view, snn_fe("poisson", "spikecount", 4), fast_training(), 42u);
     ASSERT_FALSE(sets.empty());
     ASSERT_EQ(sets[0].vectors.size(), view.samples.size());
     EXPECT_EQ(sets[0].vectors[0].size(), 8u) << "latent dim should be 8";
@@ -75,8 +91,7 @@ TEST(ThesisSpikeLossE2E, SpikeCountTrainsOnPoisson)
 TEST(ThesisSpikeLossE2E, SpikeTimeTrainsOnLatencyTimeMajor)
 {
     auto view = synthetic_view(3, 4, 128);
-    auto sets = extract_features(
-        view, snn_fe("latency", "spiketime", 4), fast_training(), "eeg", "late", 42u);
+    auto sets = run_fe(view, snn_fe("latency", "spiketime", 4), fast_training(), 42u);
     ASSERT_FALSE(sets.empty());
     ASSERT_EQ(sets[0].vectors.size(), view.samples.size());
     EXPECT_EQ(sets[0].vectors[0].size(), 8u) << "latent dim should be 8";
@@ -89,7 +104,7 @@ TEST(ThesisSpikeLossE2E, SpikeTimeHonoursBatchSizeGreaterThanOne)
     auto view = synthetic_view(3, 4, 128); // 12 samples
     auto tr = fast_training();
     tr.samples_per_batch = 5; // 12 = 5 + 5 + 2 -> exercises a trailing partial group
-    auto sets = extract_features(view, snn_fe("latency", "spiketime", 4), tr, "eeg", "late", 42u);
+    auto sets = run_fe(view, snn_fe("latency", "spiketime", 4), tr, 42u);
     ASSERT_FALSE(sets.empty());
     EXPECT_EQ(sets[0].vectors.size(), view.samples.size());
     EXPECT_EQ(sets[0].vectors[0].size(), 8u);
@@ -109,8 +124,7 @@ TEST(ThesisSpikeLossE2E, SpikeTimeIsNeverSilentlyWrongAcrossBatchSizes)
         tr.samples_per_batch = bs;
         try
         {
-            auto sets =
-                extract_features(view, snn_fe("latency", "spiketime", 3), tr, "eeg", "late", 7u);
+            auto sets = run_fe(view, snn_fe("latency", "spiketime", 3), tr, 7u);
             // Returned => the guard verified the gradient was live. Features must be sane.
             ASSERT_FALSE(sets.empty()) << "bs=" << bs;
             EXPECT_EQ(sets[0].vectors.size(), view.samples.size()) << "bs=" << bs;
@@ -218,8 +232,8 @@ double learning_delta(const char* model, const char* enc, const char* loss, int 
     ThesisConfig::Training many = few;
     many.epochs = 40;
 
-    auto a = extract_features(view, fe, few, "eeg", "late", 42u);
-    auto b = extract_features(view, fe, many, "eeg", "late", 42u);
+    auto a = run_fe(view, fe, few, 42u);
+    auto b = run_fe(view, fe, many, 42u);
     EXPECT_FALSE(a.empty());
     EXPECT_FALSE(b.empty());
     return max_abs_diff(a[0].vectors, b[0].vectors);
@@ -288,7 +302,7 @@ TEST(ThesisGradientLiveness, SpikeLossesPassTheRuntimeGuard)
             auto fe = snn_fe(enc, loss, T);
             fe.autoencoder.firing_rate_reg_lambda = lam;
             EXPECT_NO_THROW({
-                auto sets = extract_features(view, fe, fast_training(), "eeg", "late", 42u);
+                auto sets = run_fe(view, fe, fast_training(), 42u);
                 EXPECT_FALSE(sets.empty());
             }) << "guard tripped for "
                << loss << " lam=" << lam;

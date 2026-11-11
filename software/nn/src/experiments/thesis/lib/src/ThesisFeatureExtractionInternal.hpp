@@ -52,31 +52,35 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
 // before feature extraction. Applied to audio only, never to EEG.
 constexpr double kPreEmphasisAlpha = 0.97;
 
-// Raw-signal accessors, one per recorded modality. Each returns 256 zeros when
-// the requested tensor is absent, so downstream transforms always receive a
-// non-empty signal. Pre-emphasis is audio-only (see kPreEmphasisAlpha above).
+// Raw-signal accessors, one per recorded modality. A sample without the requested
+// signal is refused: the dataset loader keeps only trials with BOTH audio and EEG, so an
+// empty tensor here is a loader bug. (These accessors used to substitute 256 zeros — a
+// silent sample of silence that every extractor would then encode as a real trial.)
+// Pre-emphasis is audio-only (see kPreEmphasisAlpha above).
 using SignalGetter = std::function<std::vector<double>(const ThesisSample&)>;
+
+inline void require_signal(const nn::Tensor& t, const char* what, const ThesisSample& sample)
+{
+    if (t.rows() > 0 && t.cols() > 0) return;
+    throw std::runtime_error(std::string("ThesisFeatureExtraction: sample of subject ") +
+                             std::to_string(sample.subject_id) + ", stimulus " +
+                             std::to_string(sample.stimulus) + " has no " + what +
+                             " signal. The loader pairs audio with EEG and must never emit "
+                             "a sample missing either; check ThesisDataset.");
+}
 
 std::vector<double> voice_signal(const ThesisSample& sample)
 {
-    auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
-    std::vector<double> sig;
-    if (present(sample.audio))
-    {
-        sig = tensor_to_vec(sample.audio);
-        apply_preemphasis(sig, kPreEmphasisAlpha);
-    }
-    if (sig.empty()) sig.assign(256, 0.0);
+    require_signal(sample.audio, "audio", sample);
+    std::vector<double> sig = tensor_to_vec(sample.audio);
+    apply_preemphasis(sig, kPreEmphasisAlpha);
     return sig;
 }
 
 std::vector<double> eeg_signal(const ThesisSample& sample)
 {
-    auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
-    std::vector<double> sig;
-    if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
-    if (sig.empty()) sig.assign(256, 0.0);
-    return sig;
+    require_signal(sample.eeg, "EEG", sample);
+    return tensor_to_vec(sample.eeg);
 }
 
 // Early fusion: one signal = voice samples followed by EEG samples, extracted
@@ -99,46 +103,41 @@ std::vector<double> fused_early_signal(const ThesisSample& sample)
 constexpr double kVoiceSampleRate = 44100.0;
 constexpr double kEegSampleRate = 1024.0;
 
-bool is_linear_spec(const std::string& s)
+// Width of one encoder layer item "linear:<width>[:activation]". Anything else is refused:
+// these helpers used to skip unreadable items and, when none was readable, return a
+// caller-supplied width (64 hidden / 16 latent for the LSTM-AE) — a network the profile
+// never described.
+int linear_width(const std::string& item)
 {
-    return s.rfind("linear:", 0) == 0;
+    const auto refuse = [&]()
+    {
+        return std::invalid_argument(
+            "ThesisFeatureExtraction: autoencoder.encoder_layer_spec item \"" + item +
+            "\" is not linear:<width>[:activation] with a positive integer width");
+    };
+    if (item.rfind("linear:", 0) != 0) throw refuse();
+    const auto first_colon = item.find(':');
+    const auto second_colon = item.find(':', first_colon + 1);
+    const std::string token = item.substr(first_colon + 1, second_colon - first_colon - 1);
+    if (token.empty() || token.find_first_not_of("0123456789") != std::string::npos) throw refuse();
+    const int width = std::stoi(token);
+    if (width < 1) throw refuse();
+    return width;
 }
 
-int extract_linear_dim(const std::string& spec, int fallback)
+// Hidden width = the first encoder layer; latent width = the last one.
+int first_encoder_dim(const std::vector<std::string>& spec)
 {
-    if (!is_linear_spec(spec)) return fallback;
-    const auto first_colon = spec.find(':');
-    const auto second_colon = spec.find(':', first_colon + 1);
-    const std::string token = spec.substr(first_colon + 1, second_colon - first_colon - 1);
-    if (token == "output" || token == "N_speakers") return fallback;
-    try
-    {
-        return std::stoi(token);
-    }
-    catch (...)
-    {
-        return fallback;
-    }
+    if (spec.empty())
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: autoencoder.encoder_layer_spec is empty");
+    return linear_width(spec.front());
 }
 
-int first_encoder_dim(const std::vector<std::string>& spec, int fallback)
+int last_encoder_dim(const std::vector<std::string>& spec)
 {
-    for (const auto& s : spec)
-    {
-        const int dim = extract_linear_dim(s, fallback);
-        if (dim != fallback) return dim;
-    }
-    return fallback;
-}
-
-int last_encoder_dim(const std::vector<std::string>& spec, int fallback)
-{
-    for (auto it = spec.rbegin(); it != spec.rend(); ++it)
-    {
-        const int dim = extract_linear_dim(*it, fallback);
-        if (dim != fallback) return dim;
-    }
-    return fallback;
+    for (const auto& item : spec) (void) linear_width(item); // every item must be readable
+    return linear_width(spec.back());
 }
 
 // Frame a 1-D signal into a (T_frames × frame_len) matrix for the sequence AE:
@@ -168,8 +167,9 @@ constexpr int kAeInputFeatures = 256;
 // Average-pool a 1-D signal into `out_dim` contiguous bins.
 std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
 {
+    if (sig.empty())
+        throw std::invalid_argument("ThesisFeatureExtraction: pool_signal got an empty signal");
     std::vector<double> out(static_cast<size_t>(out_dim), 0.0);
-    if (sig.empty()) return out;
     for (int b = 0; b < out_dim; ++b)
     {
         const size_t lo = static_cast<size_t>(b) * sig.size() / static_cast<size_t>(out_dim);
@@ -207,8 +207,9 @@ std::vector<float> normalize01(const std::vector<double>& v)
 //   poisson — Bernoulli(value): rate code, value ≈ mean firing rate over T.
 //   latency — spike from t_spike = round((1-value)(T-1)) onward: stronger inputs
 //             fire earlier (matches the Experiment04 latency encoder).
-//   direct  — pass the analog value through unchanged (non-spiking; used for
-//             ANN-AE and as an SNN fallback).
+//   direct  — pass the analog value through unchanged (non-spiking; the ANN-AE
+//             and the direct-coded SNN-AE).
+// Any other token is refused (it used to be treated as "direct").
 nn::Tensor spike_frame(const std::vector<float>& norm,
     const std::string& encoding,
     int t,
@@ -233,9 +234,14 @@ nn::Tensor spike_frame(const std::vector<float>& norm,
             frame.at(0, d) = (t >= t_spike) ? 1.0f : 0.0f;
         }
     }
-    else // "direct"
+    else if (encoding == "direct")
     {
         for (nn::Index d = 0; d < D; ++d) frame.at(0, d) = norm[static_cast<size_t>(d)];
+    }
+    else
+    {
+        throw std::invalid_argument("ThesisFeatureExtraction: unknown encoding \"" + encoding +
+                                    "\" (expected poisson, latency or direct)");
     }
     return frame;
 }
@@ -418,16 +424,10 @@ auto build_ae_config(const ThesisConfig::AutoencoderConfig& spec,
     const int T = time_count;
     AutoencoderConfig ae_cfg;
     ae_cfg.input_features = kAeInputFeatures;
-    // No silent architecture defaults: an unparseable spec must fail, not quietly
-    // build a 64/16 network the profile never asked for.
-    constexpr int kNoDim = -1;
-    ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec, kNoDim);
-    ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, kNoDim);
-    if (ae_cfg.hidden_size == kNoDim || ae_cfg.latent_size == kNoDim)
-        throw std::invalid_argument(
-            "ThesisFeatureExtraction: could not read hidden/latent widths from "
-            "autoencoder.encoder_layer_spec — every entry must be linear:<width>[:act]");
-    ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
+    // No silent architecture defaults: an unparseable spec throws (linear_width).
+    ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec);
+    ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec);
+    ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec->size()) - 1);
     // Forward the FULL per-layer specs so the builder honours the exact widths of every
     // layer (build_{snn,ann}_encoder take the spec branch when these are non-empty).
     // Without this the builder falls back to a uniform-width taper derived from
@@ -445,9 +445,18 @@ auto build_ae_config(const ThesisConfig::AutoencoderConfig& spec,
     // Sequence length for the BPTT unroll. Leaving this at its default of 1 would make
     // LifBPTT behave like a single-step Lif — a silent downgrade, not an error.
     ae_cfg.time_steps = spiking ? T : 1;
-    ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
-    ae_cfg.firing_rate_min = spec.firing_rate_min;
-    ae_cfg.firing_rate_max = spec.firing_rate_max;
+    // Firing-rate regularization exists only for the spiking encoder, and its band only
+    // when it is on; the profile declares exactly those (ThesisConfig refuses the rest).
+    // The non-spiking model has no firing rate: AutoencoderConfig's own fields stay unread.
+    if (spiking)
+    {
+        ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
+        if (spec.firing_rate_reg_lambda > 0.0f)
+        {
+            ae_cfg.firing_rate_min = spec.firing_rate_min;
+            ae_cfg.firing_rate_max = spec.firing_rate_max;
+        }
+    }
     // Seed weight initialisation from the experiment seed. Without this the initializers
     // fall back to std::random_device (see include/initializers/{xavier,kaiming_snn}.hpp),
     // so the SAME profile with the SAME seed produced DIFFERENT features on every run:
@@ -468,9 +477,11 @@ auto build_trainer_config(const ThesisConfig::Training& training, int batch_size
 {
     nn::training::TrainerConfig trainer_cfg;
     trainer_cfg.epochs = training.epochs;
-    trainer_cfg.learning_rate = training.effective_learning_rate();
+    trainer_cfg.learning_rate = training.learning_rate;
     trainer_cfg.optimizer_type = training.optimizer_type;
-    trainer_cfg.optimizer_momentum = training.optimizer_momentum;
+    // Momentum exists for sgd only; the profile declares it exactly then.
+    if (training.optimizer_type == "sgd")
+        trainer_cfg.optimizer_momentum = training.optimizer_momentum;
     trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
     // For spiketime each training "sample" is ALREADY an interleaved (T*g, D) batch of
     // g inputs (see the grouping above), so the Trainer feeds exactly one group per
@@ -535,8 +546,11 @@ void train_autoencoder(AEType& model,
         // and the encoder regularizer pull toward the same target rate.
         SpikeCountLossImpl<nn::Backend> inner;
         inner.rate_reg_lambda = spec.firing_rate_reg_lambda;
-        inner.min_rate = spec.firing_rate_min;
-        inner.max_rate = spec.firing_rate_max;
+        if (spec.firing_rate_reg_lambda > 0.0f) // the band exists only when the penalty does
+        {
+            inner.min_rate = spec.firing_rate_min;
+            inner.max_rate = spec.firing_rate_max;
+        }
         GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>> loss(std::move(inner));
         auto stats = loss.stats;
         nn::training::Trainer<AEType, GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>>>
@@ -672,10 +686,14 @@ std::vector<std::vector<double>> run_protocol_ae(
     float voltage_threshold,
     const std::string& ae_loss_type,
     bool spiking,
-    const std::function<void(const std::map<std::string, nn::Tensor>&)>& on_trained = nullptr)
+    const std::function<void(const std::map<std::string, nn::Tensor>&)>& on_trained)
 {
-    const bool temporal = (encoding != "direct");
-    const int T = temporal ? std::max(1, time_steps) : 1;
+    // `time_steps` is the frame count the caller resolved: the profile's T for a temporal
+    // code, 1 for the direct code (which has one analog frame by definition).
+    const int T = time_steps;
+    if (T < 1)
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: frame count must be >= 1, got " + std::to_string(T));
 
     const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
 

@@ -2,8 +2,7 @@
   "experiment": {
     "run_tag": "e05_debug",
     "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": true
+    "repeats": 1
   },
   "dataset": {
     "root": "~/database.sqlite",
@@ -16,8 +15,13 @@
     "handcrafted": {
       "transform": "dtwpt",
       "scale": "lfcc",
-      "descriptors": ["energy", "zcr"],
-      "dtwpt_level": 3
+      "descriptors": [
+        "energy",
+        "zcr"
+      ],
+      "dtwpt_level": 3,
+      "wavelet": "daub4",
+      "cepstral": false
     }
   },
   "paraconsistent": {
@@ -25,19 +29,24 @@
   },
   "classifier": {
     "type": "rnn",
-    "layer_spec": ["linear:64:relu", "residual:1", "linear:N_speakers:identity"],
-    "text_mode": "dependent"
+    "layer_spec": [
+      "linear:64:relu",
+      "residual:1",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "dependent",
+    "enabled": true
   },
   "training": {
     "epochs": 3,
-    "learning_rate": 1e-3,
+    "learning_rate": 0.001,
     "samples_per_batch": 8,
     "early_stop_patience": 2,
     "k_folds": 2,
     "nested_cv": true,
-    "weight_decay": 1e-4,
-    "firing_rate_reg_lambda": 0.01,
-    "firing_rate_min": 0.05,
-    "firing_rate_max": 0.80
+    "weight_decay": 0.0001,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "standardize_features": true
   }
 }

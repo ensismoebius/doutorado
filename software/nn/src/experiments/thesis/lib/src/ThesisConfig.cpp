@@ -1,67 +1,274 @@
 #include "ThesisConfig.hpp"
 
 #include <algorithm>
-#include <concepts>
+#include <cstdint>
 #include <fstream>
-#include <optional>
+#include <set>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <vector>
 
-#include "optimizers/OptimizerFactory.hpp"
+#include "StrictJson.hpp"
 
 namespace thesis
 {
 
-auto ThesisConfig::Training::effective_learning_rate() const -> float
-{
-    // Explicit profile value wins; otherwise fall back to the chosen optimizer's own
-    // reference default, so a profile that names an optimizer without naming an lr still
-    // trains at a rate that makes sense FOR THAT optimizer (they differ by ~10x).
-    return learning_rate.value_or(nn::optimizers::reference_learning_rate(optimizer_type));
-}
-
 namespace
 {
 
-// One checker per config section. They were one 241-line `validate()` with a
-// cyclomatic complexity of 47 -- a single function nobody could hold in their
-// head, in which a missing check was invisible. Each function below fails
-// exactly as the original did, in the original order, with the original
-// message: callers (and the 1937 profile-audit tests) cannot tell the
-// difference. File-local on purpose, so the public header stays untouched.
+using K = const ThesisConfig&;
+
+// ─── Who reads what ──────────────────────────────────────────────────────────
+//
+// One row per profile key: the field, and the condition under which the run READS it, in
+// words (quoted in error messages) and as code. This table is the single statement of the
+// rules; the parser, check_declarations() and declared_json() all walk it.
+//
+// A condition may read other fields. Rows are ordered so that every field a condition
+// reads comes earlier and has already been checked, and conditions short-circuit, so they
+// never read a field that does not apply (`trains_ae(k) && model == ...` reads `model` only
+// for an autoencoder run).
+//
+//   strategy      handcrafted       autoencoder               pca
+//                 -----------       -----------               ---
+//   reads         handcrafted.*     autoencoder.* (by model)  pca.n_components
+//   trains        nothing           the AE (training: epochs, lr, optimizer, clip, batch)
+//
+//   classifier.enabled = true additionally reads classifier.* and the classifier's
+//   training keys (folds, CV, standardization, weight decay; dsnn: firing rate, tdBN).
+
+auto trains_ae(K k) -> bool
+{
+    return k.feature_extraction.strategy == "autoencoder";
+}
+auto is_snn_ae(K k) -> bool
+{
+    return trains_ae(k) && k.feature_extraction.autoencoder.model == "snn-ae";
+}
+auto trains_classifier(K k) -> bool
+{
+    return k.classifier.enabled;
+}
+auto trains_anything(K k) -> bool
+{
+    return trains_ae(k) || trains_classifier(k);
+}
+auto is_dsnn(K k) -> bool
+{
+    return trains_classifier(k) && k.classifier.type == "dsnn";
+}
+
+constexpr const char* kAlways = "always";
+auto always(K /*unused*/) -> bool
+{
+    return true;
+}
+
+template <typename Cfg, typename Row>
+void for_each_field(Cfg& c, Row&& row)
+{
+    auto& e = c.experiment;
+    row(e.run_tag, kAlways, always);
+    row(e.seed, kAlways, always);
+    row(e.repeats, kAlways, always);
+    row(e.seed_deterministic,
+        "experiment.repeats > 1",
+        [](K k) { return k.experiment.repeats > 1; });
+
+    auto& d = c.dataset;
+    row(d.root, kAlways, always);
+    row(d.results_dir, kAlways, always);
+    row(d.modality, kAlways, always);
+    row(d.max_samples, kAlways, always);
+    row(d.fusion_mode,
+        "dataset.modality is \"fused\"",
+        [](K k) { return k.dataset.modality == "fused"; });
+
+    auto& fe = c.feature_extraction;
+    row(fe.strategy, kAlways, always);
+
+    constexpr const char* kHandcrafted = "feature_extraction.strategy is \"handcrafted\"";
+    const auto handcrafted = [](K k) { return k.feature_extraction.strategy == "handcrafted"; };
+    auto& hc = fe.handcrafted;
+    row(hc.transform, kHandcrafted, handcrafted);
+    row(hc.scale, kHandcrafted, handcrafted);
+    row(hc.descriptors, kHandcrafted, handcrafted);
+    row(hc.dtwpt_level, kHandcrafted, handcrafted);
+    row(hc.wavelet, kHandcrafted, handcrafted);
+    row(hc.cepstral, kHandcrafted, handcrafted);
+
+    constexpr const char* kAe = "feature_extraction.strategy is \"autoencoder\"";
+    constexpr const char* kSnn = "the autoencoder model is \"snn-ae\"";
+    auto& ae = fe.autoencoder;
+    row(ae.model, kAe, trains_ae);
+    row(ae.encoder_layer_spec, kAe, trains_ae);
+    row(ae.decoder_layer_spec,
+        "the autoencoder model is \"snn-ae\" or \"ann-ae\"",
+        [](K k) { return trains_ae(k) && k.feature_extraction.autoencoder.model != "lstm-ae"; });
+    row(ae.ae_loss_type, kAe, trains_ae);
+    row(ae.encoding, kSnn, is_snn_ae);
+    row(ae.time_steps,
+        "the autoencoder is \"snn-ae\" with a temporal encoding (poisson, latency)",
+        [](K k) { return is_snn_ae(k) && k.feature_extraction.autoencoder.encoding != "direct"; });
+    row(ae.voltage_threshold, kSnn, is_snn_ae);
+    row(ae.firing_rate_reg_lambda, kSnn, is_snn_ae);
+    constexpr const char* kAeBand = "the autoencoder is \"snn-ae\" with firing_rate_reg_lambda > 0";
+    const auto ae_band = [](K k)
+    { return is_snn_ae(k) && k.feature_extraction.autoencoder.firing_rate_reg_lambda > 0.0f; };
+    row(ae.firing_rate_min, kAeBand, ae_band);
+    row(ae.firing_rate_max, kAeBand, ae_band);
+
+    row(fe.pca.n_components,
+        "feature_extraction.strategy is \"pca\"",
+        [](K k) { return k.feature_extraction.strategy == "pca"; });
+
+    row(c.paraconsistent.enabled, kAlways, always);
+
+    constexpr const char* kClf = "classifier.enabled is true";
+    auto& cl = c.classifier;
+    row(cl.enabled, kAlways, always);
+    row(cl.type, kClf, trains_classifier);
+    row(cl.layer_spec, kClf, trains_classifier);
+    row(cl.text_mode, kClf, trains_classifier);
+
+    constexpr const char* kTrains =
+        "a training runs (strategy \"autoencoder\" or classifier.enabled)";
+    auto& t = c.training;
+    row(t.epochs, kTrains, trains_anything);
+    row(t.learning_rate, kTrains, trains_anything);
+    row(t.optimizer_type, kTrains, trains_anything);
+    row(t.optimizer_momentum,
+        "a training runs with training.optimizer_type \"sgd\"",
+        [](K k) { return trains_anything(k) && k.training.optimizer_type == "sgd"; });
+    row(t.gradient_clip_norm, kTrains, trains_anything);
+    row(t.samples_per_batch, kTrains, trains_anything);
+    row(t.k_folds, kClf, trains_classifier);
+    row(t.nested_cv, kClf, trains_classifier);
+    row(t.early_stop_patience,
+        "classifier.enabled and training.nested_cv are true",
+        [](K k) { return trains_classifier(k) && k.training.nested_cv; });
+    row(t.standardize_features, kClf, trains_classifier);
+    row(t.weight_decay, kClf, trains_classifier);
+    constexpr const char* kDsnn = "the classifier is enabled with classifier.type \"dsnn\"";
+    row(t.firing_rate_reg_lambda, kDsnn, is_dsnn);
+    constexpr const char* kDsnnBand =
+        "the classifier is \"dsnn\" with training.firing_rate_reg_lambda > 0";
+    const auto dsnn_band = [](K k)
+    { return is_dsnn(k) && k.training.firing_rate_reg_lambda > 0.0f; };
+    row(t.firing_rate_min, kDsnnBand, dsnn_band);
+    row(t.firing_rate_max, kDsnnBand, dsnn_band);
+    row(t.batch_normalization, kDsnn, is_dsnn);
+    row(t.tdbn_alpha,
+        "the classifier is \"dsnn\" with training.batch_normalization "
+        "\"threshold-dependent\"",
+        [](K k) { return is_dsnn(k) && k.training.batch_normalization == "threshold-dependent"; });
+}
+
+auto find_key(const std::vector<ThesisConfig::Embedding::Key>& keys, std::string_view path)
+    -> const ThesisConfig::Embedding::Key*
+{
+    const auto it =
+        std::find_if(keys.begin(), keys.end(), [&](const auto& key) { return key.path == path; });
+    return it == keys.end() ? nullptr : &*it;
+}
+
+// ─── JSON -> fields ──────────────────────────────────────────────────────────
+
+const std::string kOwner = "ThesisConfig";
+
+auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) -> ThesisConfig
+{
+    ThesisConfig cfg;
+    if (embedding != nullptr) cfg.embedded_in = *embedding;
+
+    std::set<std::string> fields;
+    for_each_field(cfg,
+        [&](auto& field, const char* /*when*/, auto /*applies*/) { fields.insert(field.path()); });
+
+    const std::string owner =
+        embedding != nullptr ? kOwner + " (embedded in " + embedding->program + ")" : kOwner;
+    strict::refuse_unknown_keys(j,
+        "",
+        fields,
+        strict::sections_of(fields),
+        embedding != nullptr ? embedding->own_sections : std::vector<std::string>{},
+        owner);
+
+    if (embedding != nullptr)
+    {
+        const auto refuse = [&](const std::vector<ThesisConfig::Embedding::Key>& keys)
+        {
+            for (const auto& key : keys)
+                if (strict::find_path(j, key.path) != nullptr)
+                    throw std::invalid_argument("ThesisConfig: the profile declares \"" + key.path +
+                                                "\", but " + embedding->program + " " + key.reason +
+                                                ". Remove the key.");
+        };
+        refuse(embedding->set_by_program);
+        refuse(embedding->not_read);
+    }
+
+    for_each_field(cfg,
+        [&](auto& field, const char* /*when*/, auto /*applies*/)
+        {
+            using T = typename std::remove_cvref_t<decltype(field)>::value_type;
+            if (const auto* v = strict::find_path(j, field.path()))
+                field = strict::read_exact<T>(*v, kOwner, field.path());
+        });
+
+    cfg.check_declarations();
+    return cfg;
+}
+
+// ─── Value checks ────────────────────────────────────────────────────────────
+//
+// They run after check_declarations(), which has proven that a field is declared exactly
+// when the run reads it. So below, `x.declared()` MEANS "x applies to this run" — it is
+// not an "optional field" test. (The one exception is a field an embedding program sets
+// itself, e.g. the GA's genome-owned autoencoder keys: undeclared in the GA's base config,
+// declared in the configs it builds per genome, which are validated again.)
 
 void validate_experiment(const ThesisConfig::Experiment& experiment)
 {
-    if (experiment.run_tag.empty())
-        throw std::invalid_argument("ThesisConfig: experiment.run_tag is required");
+    // run_tag and repeats are undeclared in a GA-embedded config (the GA does not read them).
+    if (experiment.run_tag.declared() && experiment.run_tag->empty())
+        throw std::invalid_argument("ThesisConfig: experiment.run_tag must not be empty");
     if (experiment.seed == 0u)
         throw std::invalid_argument("ThesisConfig: experiment.seed must be non-zero");
-    if (experiment.repeats <= 0)
+    if (experiment.repeats.declared() && experiment.repeats <= 0)
         throw std::invalid_argument("ThesisConfig: experiment.repeats must be > 0");
 }
 
 void validate_dataset(const ThesisConfig::Dataset& dataset)
 {
-    if (dataset.root.empty()) throw std::invalid_argument("ThesisConfig: dataset.root is required");
+    if (dataset.root->empty())
+        throw std::invalid_argument("ThesisConfig: dataset.root must not be empty");
+    if (dataset.results_dir.declared() && dataset.results_dir->empty())
+        throw std::invalid_argument("ThesisConfig: dataset.results_dir must not be empty");
 
-    auto valid_modality =
+    const bool valid_modality =
         dataset.modality == "voice" || dataset.modality == "eeg" || dataset.modality == "fused";
     if (!valid_modality)
         throw std::invalid_argument("ThesisConfig: dataset.modality must be voice/eeg/fused");
+    if (dataset.max_samples < 0)
+        throw std::invalid_argument(
+            "ThesisConfig: dataset.max_samples must be >= 0 (0 = every sample)");
 
-    auto valid_fusion_mode = dataset.fusion_mode == "early" || dataset.fusion_mode == "late";
-    if (!valid_fusion_mode)
+    if (dataset.fusion_mode.declared() && dataset.fusion_mode != "early" &&
+        dataset.fusion_mode != "late")
         throw std::invalid_argument("ThesisConfig: dataset.fusion_mode must be early/late");
 }
 
 void validate_handcrafted(
-    const ThesisConfig::FeatureExtraction& feature_extraction, const ThesisConfig::Dataset& dataset)
+    const ThesisConfig::HandcraftedConfig& handcrafted, const ThesisConfig::Dataset& dataset)
 {
-    if (feature_extraction.handcrafted.transform != "dtwpt")
+    if (handcrafted.transform != "dtwpt")
         throw std::invalid_argument("ThesisConfig: handcrafted.transform must be dtwpt");
 
-    const auto valid_scale = feature_extraction.handcrafted.scale == "bark" ||
-                             feature_extraction.handcrafted.scale == "mel" ||
-                             feature_extraction.handcrafted.scale == "lfcc";
+    const bool valid_scale =
+        handcrafted.scale == "bark" || handcrafted.scale == "mel" || handcrafted.scale == "lfcc";
     if (!valid_scale)
         throw std::invalid_argument("ThesisConfig: handcrafted.scale must be bark/mel/lfcc");
 
@@ -71,24 +278,15 @@ void validate_handcrafted(
     // (.wiki/Guides/Engineering-Fixes-Log.md D6).
     //
     // Empirically they were also inert here, which is what exposed the problem: for EEG
-    // all three scales produced bit-identical d_truth in 46/46 wavelet x category groups
-    // (the only apparent exceptions were daub32 at ~1e-6, i.e. float noise from that
-    // profile's individual re-run). The mechanism is group_by_scale()'s normalization by
-    // the signal's own Nyquist: Bark spans ~24 Barks over the audible range and n_bands
-    // is 24, so for voice the factor is ~0.97 (a no-op — the bin IS the Bark number),
-    // but for EEG's 512 Hz Nyquist it is ~4.96, stretching the curve 5x. That stretch
-    // makes the mapping injective, so each sub-band lands in its own bin and the
-    // grouping degenerates to exactly lfcc's one-group-per-sub-band. "Bark" for EEG was
-    // therefore never Bark — just a linearly rescaled pseudo-scale identical to linear.
+    // all three scales produced bit-identical d_truth in 46/46 wavelet x category groups.
+    // The mechanism is group_by_scale()'s normalization by the signal's own Nyquist: for
+    // EEG's 512 Hz Nyquist the Bark curve is stretched ~5x, the mapping becomes injective,
+    // and the grouping degenerates to exactly lfcc's one-group-per-sub-band.
     //
-    // Note this makes the grid deliberately asymmetric: voice sweeps all three scales
-    // (where they genuinely differ), EEG uses lfcc only. Phase 00 handcrafted is thus
-    // 138 voice + 46 eeg, not 138 x 2.
-    //
-    // modality=fused is intentionally NOT covered: its voice half legitimately uses
-    // bark/mel. In late fusion the EEG half degenerates to lfcc as above (harmless but
-    // mislabeled); in early fusion the concatenated signal runs at the voice rate.
-    if (dataset.modality == "eeg" && feature_extraction.handcrafted.scale != "lfcc")
+    // The grid is therefore deliberately asymmetric: voice sweeps all three scales, EEG
+    // uses lfcc only. modality=fused is intentionally NOT covered: its voice half
+    // legitimately uses bark/mel.
+    if (dataset.modality == "eeg" && handcrafted.scale != "lfcc")
         throw std::invalid_argument(
             "ThesisConfig: handcrafted.scale must be lfcc for modality=eeg — bark/mel are "
             "cochlear (hearing) scales with no physiological basis for EEG, and are "
@@ -118,333 +316,249 @@ void validate_handcrafted(
         "daub42",
         "daub44",
         "daub46"};
-    if (std::find(valid_wavelets.begin(),
-            valid_wavelets.end(),
-            feature_extraction.handcrafted.wavelet) == valid_wavelets.end())
+    if (std::find(valid_wavelets.begin(), valid_wavelets.end(), handcrafted.wavelet.get()) ==
+        valid_wavelets.end())
         throw std::invalid_argument(
             "ThesisConfig: handcrafted.wavelet must be haar or daubN (even N in [4,46])");
 
-    if (feature_extraction.handcrafted.descriptors.empty())
+    if (handcrafted.descriptors->empty())
         throw std::invalid_argument("ThesisConfig: handcrafted.descriptors must not be empty");
 
-    if (feature_extraction.handcrafted.dtwpt_level < 1)
+    if (handcrafted.dtwpt_level < 1)
         throw std::invalid_argument("ThesisConfig: handcrafted.dtwpt_level must be >= 1");
 }
 
-void validate_autoencoder(const ThesisConfig::FeatureExtraction& feature_extraction)
+void validate_encoding_and_loss(const ThesisConfig::AutoencoderConfig& ae)
 {
-    const auto& ae_model = feature_extraction.autoencoder.model;
-    if (ae_model != "snn-ae" && ae_model != "ann-ae" && ae_model != "lstm-ae")
+    const std::string& model = ae.model;
+    const std::string& loss = ae.ae_loss_type;
+    const bool spike_loss = (loss == "spikecount" || loss == "spiketime");
+
+    // Spike losses need spikes: only the spiking model produces them.
+    if (spike_loss && model != "snn-ae")
         throw std::invalid_argument(
-            "ThesisConfig: autoencoder.model must be snn-ae, ann-ae, or lstm-ae");
-    if (feature_extraction.autoencoder.encoder_layer_spec.empty())
-        throw std::invalid_argument("ThesisConfig: autoencoder.encoder_layer_spec is required");
-    if (feature_extraction.autoencoder.decoder_layer_spec.empty())
-        throw std::invalid_argument("ThesisConfig: autoencoder.decoder_layer_spec is required");
-    const auto& ae_enc = feature_extraction.autoencoder.encoding;
-    if (ae_enc != "poisson" && ae_enc != "latency" && ae_enc != "direct")
+            "ThesisConfig: autoencoder.ae_loss_type=" + loss +
+            " requires model=snn-ae (ann-ae/lstm-ae emit continuous values, not spikes)");
+
+    // The LSTM-AE path trains with MSE and nothing else; any other token would be ignored.
+    if (model == "lstm-ae" && loss != "mse")
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.ae_loss_type must be mse for model=lstm-ae — its "
+            "training path is MSE only; got " +
+            loss);
+
+    if (!ae.encoding.declared()) return; // ann-ae / lstm-ae, or set later by a GA genome
+    const std::string& encoding = ae.encoding;
+    if (encoding != "poisson" && encoding != "latency" && encoding != "direct")
         throw std::invalid_argument(
             "ThesisConfig: autoencoder.encoding must be poisson, latency, or direct");
 
-    // Reconstruction losses the AE training path can instantiate. CrossEntropy is
-    // classification and is deliberately absent.
-    const auto& ae_loss = feature_extraction.autoencoder.ae_loss_type;
+    if (spike_loss && encoding == "direct")
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.ae_loss_type=" + loss +
+            " is invalid for encoding=direct — direct is analog (no spikes); use mse or mae");
+
+    // Encoding<->loss invariant (.wiki/Concepts/Spike-Encoding.md): the wrong spike loss
+    // does not merely underperform, it destroys the gradient signal.
+    //   SpikeTimeLoss sees only the FIRST spike -> blind to rate/count information.
+    //   SpikeCountLoss treats absent spikes as count 0 -> wrong gradient for late spikes.
+    if (loss == "spiketime" && encoding != "latency")
+        throw std::invalid_argument(
+            "ThesisConfig: ae_loss_type=spiketime requires encoding=latency "
+            "(first-spike timing carries the information); got encoding=" +
+            encoding);
+    if (loss == "spikecount" && encoding != "poisson")
+        throw std::invalid_argument(
+            "ThesisConfig: ae_loss_type=spikecount requires encoding=poisson "
+            "(rate/count carries the information); got encoding=" +
+            encoding);
+}
+
+void validate_autoencoder(const ThesisConfig::AutoencoderConfig& ae)
+{
+    if (ae.model != "snn-ae" && ae.model != "ann-ae" && ae.model != "lstm-ae")
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.model must be snn-ae, ann-ae, or lstm-ae");
+    if (ae.encoder_layer_spec.declared() && ae.encoder_layer_spec->empty())
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.encoder_layer_spec must not be empty");
+    if (ae.decoder_layer_spec.declared() && ae.decoder_layer_spec->empty())
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.decoder_layer_spec must not be empty");
+
+    const std::string& loss = ae.ae_loss_type;
     const bool known_loss =
-        ae_loss == "mse" || ae_loss == "mae" || ae_loss == "spikecount" || ae_loss == "spiketime";
+        loss == "mse" || loss == "mae" || loss == "spikecount" || loss == "spiketime";
     if (!known_loss)
         throw std::invalid_argument(
             "ThesisConfig: autoencoder.ae_loss_type must be mse, mae, spikecount, or "
             "spiketime");
+    validate_encoding_and_loss(ae);
 
-    const bool spike_loss = (ae_loss == "spikecount" || ae_loss == "spiketime");
-
-    // Spike losses need spikes: only the spiking model produces them, and only a
-    // spiking encoding puts information in them.
-    if (spike_loss && ae_model != "snn-ae")
-        throw std::invalid_argument(
-            "ThesisConfig: autoencoder.ae_loss_type=" + ae_loss +
-            " requires model=snn-ae (ann-ae/lstm-ae emit continuous values, not spikes)");
-    if (spike_loss && ae_enc == "direct")
-        throw std::invalid_argument(
-            "ThesisConfig: autoencoder.ae_loss_type=" + ae_loss +
-            " is invalid for encoding=direct — direct is analog (no spikes); use mse or mae");
-
-    // Encoding<->loss invariant (.wiki/Concepts/Spike-Encoding.md): the wrong spike
-    // loss does not merely underperform, it destroys the gradient signal.
-    //   SpikeTimeLoss sees only the FIRST spike -> blind to rate/count information.
-    //   SpikeCountLoss treats absent spikes as count 0 -> wrong gradient for late spikes.
-    if (ae_loss == "spiketime" && ae_enc != "latency")
-        throw std::invalid_argument(
-            "ThesisConfig: ae_loss_type=spiketime requires encoding=latency "
-            "(first-spike timing carries the information); got encoding=" +
-            ae_enc);
-    if (ae_loss == "spikecount" && ae_enc != "poisson")
-        throw std::invalid_argument(
-            "ThesisConfig: ae_loss_type=spikecount requires encoding=poisson "
-            "(rate/count carries the information); got encoding=" +
-            ae_enc);
-    if (feature_extraction.autoencoder.time_steps < 1)
+    if (ae.time_steps.declared() && ae.time_steps < 1)
         throw std::invalid_argument("ThesisConfig: autoencoder.time_steps must be >= 1");
-    if (feature_extraction.autoencoder.firing_rate_reg_lambda < 0.0f)
+    if (ae.voltage_threshold.declared() && ae.voltage_threshold <= 0.0f)
+        throw std::invalid_argument("ThesisConfig: autoencoder.voltage_threshold must be > 0");
+    if (ae.firing_rate_reg_lambda.declared() && ae.firing_rate_reg_lambda < 0.0f)
         throw std::invalid_argument(
-            "ThesisConfig: autoencoder.firing_rate_reg_lambda must be >= 0");
-    if (feature_extraction.autoencoder.firing_rate_min < 0.0f ||
-        feature_extraction.autoencoder.firing_rate_max > 1.0f ||
-        feature_extraction.autoencoder.firing_rate_min >
-            feature_extraction.autoencoder.firing_rate_max)
+            "ThesisConfig: autoencoder.firing_rate_reg_lambda must be >= 0 (0 = off)");
+    if (ae.firing_rate_min.declared() && (ae.firing_rate_min < 0.0f || ae.firing_rate_max > 1.0f ||
+                                             ae.firing_rate_min > ae.firing_rate_max))
         throw std::invalid_argument(
             "ThesisConfig: require 0 <= autoencoder.firing_rate_min <= "
             "autoencoder.firing_rate_max <= 1");
 }
 
+void validate_pca(const ThesisConfig::PcaConfig& pca)
+{
+    // 256 = the pooled input width shared with the autoencoders (kAeInputFeatures). The
+    // other bound, n_samples - 1, depends on the data and is checked when PCA is fitted.
+    constexpr int kInputWidth = 256;
+    if (pca.n_components < 1 || pca.n_components > kInputWidth)
+        throw std::invalid_argument(
+            "ThesisConfig: feature_extraction.pca.n_components must be in [1, 256] (the "
+            "pooled input has 256 values); got " +
+            std::to_string(pca.n_components.get()));
+}
+
 void validate_classifier(const ThesisConfig::Classifier& classifier)
 {
+    if (!classifier.enabled) return; // Phase 00: check_declarations refused the other keys
+
     if (classifier.type != "rnn" && classifier.type != "dsnn")
         throw std::invalid_argument("ThesisConfig: classifier.type must be rnn or dsnn");
 
-    auto valid_text_mode =
+    const bool valid_text_mode =
         classifier.text_mode == "dependent" || classifier.text_mode == "independent";
     if (!valid_text_mode)
         throw std::invalid_argument(
             "ThesisConfig: classifier.text_mode must be dependent/independent");
 
-    // layer_spec is only meaningful when the classifier actually runs (Phase 01).
-    // Phase 00 profiles (classifier.enabled=false) stop after paraconsistent
-    // ranking and may omit it.
-    if (classifier.enabled)
-    {
-        if (classifier.layer_spec.size() < 3)
-            throw std::invalid_argument(
-                "ThesisConfig: classifier.layer_spec must have at least 3 items: "
-                "linear:H:act, residual:D, linear:N_speakers:identity");
+    const std::vector<std::string>& spec = classifier.layer_spec;
+    if (spec.size() < 3)
+        throw std::invalid_argument(
+            "ThesisConfig: classifier.layer_spec must have at least 3 items: "
+            "linear:H:act, residual:D, linear:N_speakers:identity");
 
-        const auto starts_with = [](const std::string& s, const std::string& p)
-        { return s.rfind(p, 0) == 0; };
+    const auto starts_with = [](const std::string& s, const std::string& p)
+    { return s.rfind(p, 0) == 0; };
 
-        if (!starts_with(classifier.layer_spec.front(), "linear:"))
-            throw std::invalid_argument(
-                "ThesisConfig: first classifier.layer_spec item must start with linear:");
+    if (!starts_with(spec.front(), "linear:"))
+        throw std::invalid_argument(
+            "ThesisConfig: first classifier.layer_spec item must start with linear:");
 
-        const bool has_residual = std::any_of(classifier.layer_spec.begin(),
-            classifier.layer_spec.end(),
-            [&](const std::string& s) { return starts_with(s, "residual:"); });
-        if (!has_residual)
-            throw std::invalid_argument(
-                "ThesisConfig: classifier.layer_spec must include residual:D item");
+    const bool has_residual = std::any_of(spec.begin(),
+        spec.end(),
+        [&](const std::string& s) { return starts_with(s, "residual:"); });
+    if (!has_residual)
+        throw std::invalid_argument(
+            "ThesisConfig: classifier.layer_spec must include residual:D item");
 
-        if (!starts_with(classifier.layer_spec.back(), "linear:N_speakers:"))
-            throw std::invalid_argument(
-                "ThesisConfig: last classifier.layer_spec item must start with linear:N_speakers:");
-    }
+    if (!starts_with(spec.back(), "linear:N_speakers:"))
+        throw std::invalid_argument(
+            "ThesisConfig: last classifier.layer_spec item must start with linear:N_speakers:");
 }
 
 void validate_training(const ThesisConfig::Training& training)
 {
+    if (!training.epochs.declared()) return; // no training runs (check_declarations)
+
     if (training.epochs <= 0)
         throw std::invalid_argument("ThesisConfig: training.epochs must be > 0");
-    if (training.learning_rate.has_value() && *training.learning_rate <= 0.0f)
+    if (training.learning_rate <= 0.0f)
         throw std::invalid_argument("ThesisConfig: training.learning_rate must be > 0");
     if (training.samples_per_batch <= 0)
         throw std::invalid_argument("ThesisConfig: training.samples_per_batch must be > 0");
-    if (training.early_stop_patience < 0)
-        throw std::invalid_argument("ThesisConfig: training.early_stop_patience must be >= 0");
-    if (training.k_folds < 2)
-        throw std::invalid_argument("ThesisConfig: training.k_folds must be >= 2");
     if (training.optimizer_type != "adam" && training.optimizer_type != "sgd" &&
         training.optimizer_type != "lion" && training.optimizer_type != "schedule-free-adamw")
         throw std::invalid_argument(
             "ThesisConfig: training.optimizer_type must be one of "
             "adam, sgd, lion, schedule-free-adamw");
-    if (training.optimizer_momentum < 0.0f || training.optimizer_momentum >= 1.0f)
+    if (training.optimizer_momentum.declared() &&
+        (training.optimizer_momentum < 0.0f || training.optimizer_momentum >= 1.0f))
         throw std::invalid_argument("ThesisConfig: require 0 <= training.optimizer_momentum < 1");
     if (training.gradient_clip_norm < 0.0f)
         throw std::invalid_argument(
-            "ThesisConfig: training.gradient_clip_norm must be >= 0 "
-            "(0 = off, the default)");
-    if (training.weight_decay < 0.0f)
+            "ThesisConfig: training.gradient_clip_norm must be >= 0 (0 = off)");
+
+    if (training.k_folds.declared() && training.k_folds < 2)
+        throw std::invalid_argument("ThesisConfig: training.k_folds must be >= 2");
+    if (training.early_stop_patience.declared() && training.early_stop_patience < 0)
+        throw std::invalid_argument("ThesisConfig: training.early_stop_patience must be >= 0");
+    if (training.weight_decay.declared() && training.weight_decay < 0.0f)
         throw std::invalid_argument("ThesisConfig: training.weight_decay must be >= 0");
-    if (training.firing_rate_reg_lambda < 0.0f)
-        throw std::invalid_argument("ThesisConfig: training.firing_rate_reg_lambda must be >= 0");
-    if (training.firing_rate_min < 0.0f || training.firing_rate_max > 1.0f ||
-        training.firing_rate_min > training.firing_rate_max)
+    if (training.firing_rate_reg_lambda.declared() && training.firing_rate_reg_lambda < 0.0f)
         throw std::invalid_argument(
-            "ThesisConfig: require 0 <= firing_rate_min <= firing_rate_max <= 1");
-    if (training.batch_normalization != "none" &&
+            "ThesisConfig: training.firing_rate_reg_lambda must be >= 0 (0 = off)");
+    if (training.firing_rate_min.declared() &&
+        (training.firing_rate_min < 0.0f || training.firing_rate_max > 1.0f ||
+            training.firing_rate_min > training.firing_rate_max))
+        throw std::invalid_argument(
+            "ThesisConfig: require 0 <= training.firing_rate_min <= training.firing_rate_max "
+            "<= 1");
+    if (training.batch_normalization.declared() && training.batch_normalization != "none" &&
         training.batch_normalization != "threshold-dependent")
         throw std::invalid_argument(
             "ThesisConfig: training.batch_normalization must be none or threshold-dependent");
-    if (training.tdbn_alpha <= 0.0f)
+    if (training.tdbn_alpha.declared() && training.tdbn_alpha <= 0.0f)
         throw std::invalid_argument("ThesisConfig: training.tdbn_alpha must be > 0");
 }
 
 } // namespace
 
+void ThesisConfig::check_declarations() const
+{
+    const Embedding* emb = embedded_in ? &*embedded_in : nullptr;
+    for_each_field(*this,
+        [&](const auto& field, const char* when, auto applies)
+        {
+            const std::string path = field.path();
+            if (emb != nullptr && find_key(emb->set_by_program, path) != nullptr)
+                return; // the program fills it in before use
+            if (const auto* ignored = emb != nullptr ? find_key(emb->not_read, path) : nullptr)
+            {
+                if (field.declared())
+                    throw std::invalid_argument(kOwner + ": the profile declares \"" + path +
+                                                "\", which this run never reads (" + emb->program +
+                                                " " + ignored->reason + "). Remove it.");
+                return;
+            }
+            strict::check_declared(field, applies(*this), when, kOwner);
+        });
+}
+
 void ThesisConfig::validate() const
 {
+    check_declarations();
+
     validate_experiment(experiment);
     validate_dataset(dataset);
 
-    const bool valid_strategy = feature_extraction.strategy == "handcrafted" ||
-                                feature_extraction.strategy == "autoencoder";
-    if (!valid_strategy)
-        throw std::invalid_argument(
-            "ThesisConfig: feature_extraction.strategy must be handcrafted or autoencoder");
-
-    if (feature_extraction.strategy == "handcrafted")
-        validate_handcrafted(feature_extraction, dataset);
+    const std::string& strategy = feature_extraction.strategy;
+    if (strategy == "handcrafted")
+        validate_handcrafted(feature_extraction.handcrafted, dataset);
+    else if (strategy == "autoencoder")
+        validate_autoencoder(feature_extraction.autoencoder);
+    else if (strategy == "pca")
+        validate_pca(feature_extraction.pca);
     else
-        validate_autoencoder(feature_extraction);
+        throw std::invalid_argument(
+            "ThesisConfig: feature_extraction.strategy must be handcrafted, autoencoder, or pca; "
+            "got \"" +
+            strategy + "\"");
 
     validate_classifier(classifier);
     validate_training(training);
 }
 
-namespace
-{
-
-// Every parser below is the same sentence repeated: "if the key is there,
-// read it into this member". Written out per key it was 57 near-identical
-// lines whose only variable content -- key and destination -- was buried in
-// the boilerplate, and whose eight functions the duplication detector saw
-// as one function copied eight times. Said once, the parsers become what
-// they are: a table mapping JSON keys to members.
-//
-// An absent key leaves the member at the struct's own initializer, which is
-// what the hand-written version did too. That is a documented default, not
-// a fallback: nothing here recovers from an error by guessing (CLAUDE.md).
-template <typename T>
-concept OptionalMember = std::same_as<T, std::optional<typename T::value_type>>;
-
-template <typename T>
-void assign_if_present(const nlohmann::json& j, const char* key, T& out)
-{
-    if (!j.contains(key)) return;
-    // An `std::optional` member holds "unset" as a distinct state, so its
-    // value is read as the UNDERLYING type and wrapped. Reading it as an
-    // optional would make a JSON null indistinguishable from an absent key,
-    // and this function's whole contract is that those differ.
-    if constexpr (OptionalMember<T>)
-        out = j.at(key).template get<typename T::value_type>();
-    else
-        out = j.at(key).template get<T>();
-}
-
-// One parser per config section, mirroring the validators above: parse the
-// section, then check it. They were one 138-line `from_json` whose
-// cyclomatic complexity was 58 -- one branch per optional key, all in a
-// single function, where a key assigned to the wrong member was invisible.
-//
-// Absent keys still leave the member at its declared default (the struct's
-// own initializer), exactly as before: that is a documented default, not a
-// fallback (CLAUDE.md's no-fallback rule bans *recovering from an error* by
-// guessing, which nothing here does).
-
-void parse_experiment(const nlohmann::json& e, ThesisConfig& cfg)
-{
-    assign_if_present(e, "run_tag", cfg.experiment.run_tag);
-    assign_if_present(e, "seed", cfg.experiment.seed);
-    assign_if_present(e, "repeats", cfg.experiment.repeats);
-    assign_if_present(e, "seed_deterministic", cfg.experiment.seed_deterministic);
-}
-
-void parse_numerics(const nlohmann::json& n, ThesisConfig& cfg)
-{
-    assign_if_present(n, "exact_activations", cfg.numerics.exact_activations);
-}
-
-void parse_dataset(const nlohmann::json& d, ThesisConfig& cfg)
-{
-    assign_if_present(d, "root", cfg.dataset.root);
-    assign_if_present(d, "results_dir", cfg.dataset.results_dir);
-    assign_if_present(d, "modality", cfg.dataset.modality);
-    assign_if_present(d, "fusion_mode", cfg.dataset.fusion_mode);
-    assign_if_present(d, "max_samples", cfg.dataset.max_samples);
-}
-
-void parse_handcrafted(const nlohmann::json& hc, ThesisConfig& cfg)
-{
-    assign_if_present(hc, "transform", cfg.feature_extraction.handcrafted.transform);
-    assign_if_present(hc, "scale", cfg.feature_extraction.handcrafted.scale);
-    assign_if_present(hc, "descriptors", cfg.feature_extraction.handcrafted.descriptors);
-    assign_if_present(hc, "dtwpt_level", cfg.feature_extraction.handcrafted.dtwpt_level);
-    assign_if_present(hc, "wavelet", cfg.feature_extraction.handcrafted.wavelet);
-    assign_if_present(hc, "cepstral", cfg.feature_extraction.handcrafted.cepstral);
-}
-
-void parse_autoencoder(const nlohmann::json& ae, ThesisConfig& cfg)
-{
-    assign_if_present(ae, "model", cfg.feature_extraction.autoencoder.model);
-    assign_if_present(
-        ae, "encoder_layer_spec", cfg.feature_extraction.autoencoder.encoder_layer_spec);
-    assign_if_present(
-        ae, "decoder_layer_spec", cfg.feature_extraction.autoencoder.decoder_layer_spec);
-    assign_if_present(ae, "encoding", cfg.feature_extraction.autoencoder.encoding);
-    assign_if_present(ae, "ae_loss_type", cfg.feature_extraction.autoencoder.ae_loss_type);
-    assign_if_present(ae, "time_steps", cfg.feature_extraction.autoencoder.time_steps);
-    assign_if_present(
-        ae, "voltage_threshold", cfg.feature_extraction.autoencoder.voltage_threshold);
-    assign_if_present(
-        ae, "firing_rate_reg_lambda", cfg.feature_extraction.autoencoder.firing_rate_reg_lambda);
-    assign_if_present(ae, "firing_rate_min", cfg.feature_extraction.autoencoder.firing_rate_min);
-    assign_if_present(ae, "firing_rate_max", cfg.feature_extraction.autoencoder.firing_rate_max);
-}
-
-void parse_feature_extraction(const nlohmann::json& fe, ThesisConfig& cfg)
-{
-    assign_if_present(fe, "strategy", cfg.feature_extraction.strategy);
-
-    if (fe.contains("handcrafted")) parse_handcrafted(fe["handcrafted"], cfg);
-    if (fe.contains("autoencoder")) parse_autoencoder(fe["autoencoder"], cfg);
-}
-
-void parse_paraconsistent(const nlohmann::json& p, ThesisConfig& cfg)
-{
-    assign_if_present(p, "enabled", cfg.paraconsistent.enabled);
-}
-
-void parse_classifier(const nlohmann::json& c, ThesisConfig& cfg)
-{
-    assign_if_present(c, "type", cfg.classifier.type);
-    assign_if_present(c, "layer_spec", cfg.classifier.layer_spec);
-    assign_if_present(c, "text_mode", cfg.classifier.text_mode);
-    assign_if_present(c, "enabled", cfg.classifier.enabled);
-}
-
-void parse_training(const nlohmann::json& t, ThesisConfig& cfg)
-{
-    assign_if_present(t, "epochs", cfg.training.epochs);
-    assign_if_present(t, "learning_rate", cfg.training.learning_rate);
-    assign_if_present(t, "samples_per_batch", cfg.training.samples_per_batch);
-    assign_if_present(t, "early_stop_patience", cfg.training.early_stop_patience);
-    assign_if_present(t, "k_folds", cfg.training.k_folds);
-    assign_if_present(t, "nested_cv", cfg.training.nested_cv);
-    assign_if_present(t, "standardize_features", cfg.training.standardize_features);
-    assign_if_present(t, "optimizer_type", cfg.training.optimizer_type);
-    assign_if_present(t, "optimizer_momentum", cfg.training.optimizer_momentum);
-    assign_if_present(t, "gradient_clip_norm", cfg.training.gradient_clip_norm);
-    assign_if_present(t, "weight_decay", cfg.training.weight_decay);
-    assign_if_present(t, "firing_rate_reg_lambda", cfg.training.firing_rate_reg_lambda);
-    assign_if_present(t, "firing_rate_min", cfg.training.firing_rate_min);
-    assign_if_present(t, "firing_rate_max", cfg.training.firing_rate_max);
-    assign_if_present(t, "batch_normalization", cfg.training.batch_normalization);
-    assign_if_present(t, "tdbn_alpha", cfg.training.tdbn_alpha);
-}
-
-} // namespace
-
 ThesisConfig ThesisConfig::from_json(const nlohmann::json& j)
 {
-    ThesisConfig cfg;
+    return parse(j, nullptr);
+}
 
-    if (j.contains("experiment")) parse_experiment(j["experiment"], cfg);
-    if (j.contains("numerics")) parse_numerics(j["numerics"], cfg);
-    if (j.contains("dataset")) parse_dataset(j["dataset"], cfg);
-    if (j.contains("feature_extraction")) parse_feature_extraction(j["feature_extraction"], cfg);
-    if (j.contains("paraconsistent")) parse_paraconsistent(j["paraconsistent"], cfg);
-    if (j.contains("classifier")) parse_classifier(j["classifier"], cfg);
-    if (j.contains("training")) parse_training(j["training"], cfg);
-
-    return cfg;
+ThesisConfig ThesisConfig::from_json(const nlohmann::json& j, const Embedding& embedding)
+{
+    return parse(j, &embedding);
 }
 
 ThesisConfig ThesisConfig::from_file(const std::string& path)
@@ -454,6 +568,20 @@ ThesisConfig ThesisConfig::from_file(const std::string& path)
     nlohmann::json j;
     f >> j;
     return from_json(j);
+}
+
+auto ThesisConfig::declared_json() const -> nlohmann::json
+{
+    nlohmann::json j = nlohmann::json::object();
+    for_each_field(*this,
+        [&](const auto& field, const char* /*when*/, auto /*applies*/)
+        {
+            if (!field.declared()) return;
+            std::string pointer = std::string("/") + field.path();
+            std::replace(pointer.begin(), pointer.end(), '.', '/');
+            j[nlohmann::json::json_pointer(pointer)] = field.get();
+        });
+    return j;
 }
 
 } // namespace thesis

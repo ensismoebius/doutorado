@@ -42,23 +42,20 @@ auto extract_handcrafted(const std::vector<double>& signal,
     const ThesisConfig::HandcraftedConfig& cfg,
     double sample_rate) -> std::vector<double>;
 
-// Extract features from all samples using the configured strategy.
-// modality:     "voice" | "eeg" | "fused" — determines which signal(s) feed extraction.
-// fusion_mode:  only consulted when modality == "fused":
-//                 "early" → voice+EEG raw signals concatenated, extracted once.
-//                 "late"  → voice and EEG extracted independently, feature
-//                           vectors concatenated afterward.
-//               Ignored for modality != "fused".
+// Extract features from all samples with cfg.feature_extraction's strategy
+// (handcrafted | autoencoder | pca). Reads, from `cfg`, only what that strategy uses:
+//   dataset.modality   "voice" | "eeg" | "fused" — which signal(s) feed extraction;
+//   dataset.fusion_mode (fused only) "early" → voice+EEG raw signals concatenated,
+//                       extracted once; "late" → each signal extracted on its own,
+//                       feature vectors concatenated afterward;
+//   training.*, experiment.seed   autoencoder strategy only (the AE trains with them).
+// A config built in code therefore needs exactly those fields declared.
 // Returns one FeatureSet per strategy evaluated.
-// on_model_trained: optional, fired once per trained model (see ModelSnapshotFn above).
-// nullptr (default) — every existing caller is unaffected.
-auto extract_features(const ThesisDatasetView& view,
-    const ThesisConfig::FeatureExtraction& cfg,
-    const ThesisConfig::Training& training,
-    const std::string& modality,
-    const std::string& fusion_mode = "late",
-    std::uint32_t seed = 42u,
-    const ModelSnapshotFn& on_model_trained = nullptr) -> std::vector<FeatureSet>;
+// on_model_trained: fired once per trained model (see ModelSnapshotFn above); pass an
+// empty function when no caller wants the weights.
+auto extract_features(
+    const ThesisDatasetView& view, const ThesisConfig& cfg, const ModelSnapshotFn& on_model_trained)
+    -> std::vector<FeatureSet>;
 
 // Fatal check for the one failure mode a spike loss can hit SILENTLY: if EVERY
 // training batch produced an all-zero gradient, the autoencoder trained on nothing and

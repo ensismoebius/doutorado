@@ -289,11 +289,19 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> ThesisDat
         {
             auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row);
 
-            // eeg_index is 1-based in the dataset; convert to 0-based.
-            const size_t eeg_row = (eeg_index > 0) ? static_cast<size_t>(eeg_index - 1)
-                                                   : row; // fallback: same-row pairing
-
-            if (eeg_row >= n_eeg) continue; // eeg_index out of range — drop trial
+            // eeg_index is 1-based in the dataset; convert to 0-based. A missing (<= 0) or
+            // out-of-range index is refused: it used to fall back to pairing by row
+            // position, or to drop the trial without a word — either way a voice sample
+            // could be paired with another trial's EEG, or the speaker lose trials, and
+            // nothing in the results would show it.
+            if (eeg_index <= 0 || static_cast<size_t>(eeg_index) > n_eeg)
+                throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
+                                         ", audio row " + std::to_string(row) + " has eeg_index " +
+                                         std::to_string(eeg_index) + ", outside [1, " +
+                                         std::to_string(n_eeg) +
+                                         "] (the subject's EEG rows). The audio/EEG pairing is "
+                                         "broken for this subject; fix the source data.");
+            const auto eeg_row = static_cast<size_t>(eeg_index - 1);
 
             auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
 

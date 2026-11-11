@@ -9,7 +9,8 @@
     "root": "~/database.sqlite",
     "results_dir": "results/thesis/phase01",
     "modality": "fused",
-    "fusion_mode": "late"
+    "fusion_mode": "late",
+    "max_samples": 0
   },
   "feature_extraction": {
     "strategy": "handcrafted",
@@ -46,9 +47,13 @@
     "epochs": 50,
     "learning_rate": 0.001,
     "samples_per_batch": 32,
-    "early_stop_patience": 10,
     "k_folds": 5,
     "nested_cv": false,
-    "standardize_features": false
+    "standardize_features": false,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "weight_decay": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
   }
 }

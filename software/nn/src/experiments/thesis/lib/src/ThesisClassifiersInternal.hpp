@@ -19,6 +19,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -213,45 +214,51 @@ inline MetricAgg aggregate_metric(const std::vector<double>& values)
     return a;
 }
 
-// Parse layer_spec to extract hidden_dim and residual depth.
-// Expected format: ["linear:H:relu", "residual:D", "linear:N_speakers:identity"]
-// Falls back to defaults on parse failure.
-void parse_layer_spec(const std::vector<std::string>& spec, int& hidden_dim, int& depth)
+struct ClassifierShape
 {
-    hidden_dim = 128;
-    depth = 2;
+    int hidden_dim;
+    int depth;
+};
+
+// Hidden width and residual depth from layer_spec, e.g.
+//   ["linear:128:relu", "residual:2", "linear:N_speakers:identity"]  ->  {128, 2}
+// hidden_dim = the width of the first linear item; depth = the residual item's count.
+// Both must be positive integers and each must appear: an unreadable spec used to become
+// {128, 2} — a network the profile never described.
+ClassifierShape parse_layer_spec(const std::vector<std::string>& spec)
+{
+    const auto positive_int = [](const std::string& token, const std::string& item)
+    {
+        if (token.empty() || token.find_first_not_of("0123456789") != std::string::npos ||
+            std::stoi(token) < 1)
+            throw std::invalid_argument("ThesisClassifiers: classifier.layer_spec item \"" + item +
+                                        "\" needs a positive integer, got \"" + token + "\"");
+        return std::stoi(token);
+    };
+
+    std::optional<int> hidden_dim;
+    std::optional<int> depth;
     for (const auto& s : spec)
     {
-        if (s.rfind("linear:", 0) == 0)
+        if (s.rfind("linear:", 0) == 0 && !hidden_dim)
         {
-            // linear:H:activation — take first occurrence as hidden_dim
-            auto p1 = s.find(':', 7);
-            if (p1 != std::string::npos)
-            {
-                auto token = s.substr(7, p1 - 7);
-                if (token != "N_speakers")
-                {
-                    try
-                    {
-                        hidden_dim = std::stoi(token);
-                    }
-                    catch (...)
-                    {
-                    }
-                }
-            }
+            // linear:H:activation — the first linear item is the hidden width.
+            const auto p1 = s.find(':', 7);
+            hidden_dim = positive_int(s.substr(7, p1 == std::string::npos ? p1 : p1 - 7), s);
         }
         else if (s.rfind("residual:", 0) == 0)
         {
-            try
-            {
-                depth = std::stoi(s.substr(9));
-            }
-            catch (...)
-            {
-            }
+            if (depth)
+                throw std::invalid_argument(
+                    "ThesisClassifiers: classifier.layer_spec has more than one residual: item");
+            depth = positive_int(s.substr(9), s);
         }
     }
+    if (!hidden_dim || !depth)
+        throw std::invalid_argument(
+            "ThesisClassifiers: classifier.layer_spec must contain linear:<H>:<act> and "
+            "residual:<D>");
+    return {*hidden_dim, *depth};
 }
 
 // Updates the global progress bar at each epoch end so the bar advances
@@ -329,16 +336,22 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
             ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth, ctx.cfg.experiment.seed);
         return fn(model);
     }
+    // The profile declares the band only when lambda > 0 and alpha only with tdBN on
+    // (ThesisConfig refuses the rest), so "off" reaches the model as nullopt.
+    const auto& t = ctx.cfg.training;
+    std::optional<ThesisDsnnClassifier::FiringRateBand> rate_reg;
+    if (t.firing_rate_reg_lambda > 0.0f)
+        rate_reg = ThesisDsnnClassifier::FiringRateBand{
+            t.firing_rate_reg_lambda, t.firing_rate_min, t.firing_rate_max};
+    std::optional<float> tdbn_alpha;
+    if (t.batch_normalization == "threshold-dependent") tdbn_alpha = t.tdbn_alpha.get();
     ThesisDsnnClassifier model(ctx.feat_dim,
         ctx.hidden_dim,
         ctx.n_speakers,
         ctx.depth,
         ctx.cfg.experiment.seed,
-        ctx.cfg.training.firing_rate_reg_lambda,
-        ctx.cfg.training.firing_rate_min,
-        ctx.cfg.training.firing_rate_max,
-        ctx.cfg.training.batch_normalization == "threshold-dependent",
-        ctx.cfg.training.tdbn_alpha);
+        rate_reg,
+        tdbn_alpha);
     return fn(model);
 }
 

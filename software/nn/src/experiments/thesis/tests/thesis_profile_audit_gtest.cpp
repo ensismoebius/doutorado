@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "../lib/include/ThesisConfig.hpp"
+#include "ThesisTestConfig.hpp"
 #include "nlohmann/json.hpp"
-#include "optimizers/OptimizerFactory.hpp"
 
 namespace fs = std::filesystem;
 using thesis::ThesisConfig;
@@ -47,6 +47,12 @@ const std::vector<std::string>& all_profiles()
         "phase00/p00_ae_snn_poisson_small_voice.json",
         "phase00/p00_ae_snn_poisson_tiny_eeg.json",
         "phase00/p00_ae_snn_poisson_tiny_voice.json",
+        "phase00/p00_pca_k16_eeg.json",
+        "phase00/p00_pca_k16_voice.json",
+        "phase00/p00_pca_k32_eeg.json",
+        "phase00/p00_pca_k32_voice.json",
+        "phase00/p00_pca_k8_eeg.json",
+        "phase00/p00_pca_k8_voice.json",
         "phase00/p00_hc_daub10_bark_c1_voice.json",
         "phase00/p00_hc_daub10_bark_c2_voice.json",
         "phase00/p00_hc_daub10_lfcc_c1_eeg.json",
@@ -337,12 +343,13 @@ class ThesisProfileAuditTest : public ::testing::TestWithParam<std::string>
 
 TEST_P(ThesisProfileAuditTest, ParsesCleanly)
 {
+    // from_json already refused any missing, unread, unknown or mistyped key.
     auto cfg = load(GetParam());
     cfg.validate();
-    EXPECT_FALSE(cfg.experiment.run_tag.empty());
+    EXPECT_FALSE(cfg.experiment.run_tag->empty());
     EXPECT_NE(cfg.experiment.seed, 0u);
     EXPECT_GT(cfg.experiment.repeats, 0);
-    EXPECT_FALSE(cfg.dataset.root.empty());
+    EXPECT_FALSE(cfg.dataset.root->empty());
 }
 
 TEST_P(ThesisProfileAuditTest, DatasetModalityValid)
@@ -357,20 +364,18 @@ TEST_P(ThesisProfileAuditTest, StrategyValid)
 {
     auto cfg = load(GetParam());
     EXPECT_TRUE(cfg.feature_extraction.strategy == "handcrafted" ||
-                cfg.feature_extraction.strategy == "autoencoder")
+                cfg.feature_extraction.strategy == "autoencoder" ||
+                cfg.feature_extraction.strategy == "pca")
         << "unexpected strategy: " << cfg.feature_extraction.strategy;
 }
 
 TEST_P(ThesisProfileAuditTest, ClassifierValid)
 {
     auto cfg = load(GetParam());
+    if (!cfg.classifier.enabled) return; // Phase 00: no other classifier key exists
     EXPECT_TRUE(cfg.classifier.type == "rnn" || cfg.classifier.type == "dsnn")
         << "unexpected classifier type: " << cfg.classifier.type;
-    // layer_spec is only required when the classifier runs (Phase 01).
-    if (cfg.classifier.enabled)
-    {
-        EXPECT_FALSE(cfg.classifier.layer_spec.empty());
-    }
+    EXPECT_FALSE(cfg.classifier.layer_spec->empty());
     EXPECT_TRUE(
         cfg.classifier.text_mode == "dependent" || cfg.classifier.text_mode == "independent")
         << "unexpected text_mode: " << cfg.classifier.text_mode;
@@ -379,54 +384,49 @@ TEST_P(ThesisProfileAuditTest, ClassifierValid)
 TEST_P(ThesisProfileAuditTest, TrainingParamsPositive)
 {
     auto cfg = load(GetParam());
+    if (!cfg.training.epochs.declared()) return; // nothing trains (handcrafted/PCA Phase 00)
     EXPECT_GT(cfg.training.epochs, 0);
-    // Check the lr the run will ACTUALLY use: resolved from the optimizer's reference
-    // default when the profile omits it, so this holds for every profile either way.
-    EXPECT_GT(cfg.training.effective_learning_rate(), 0.0f);
-
-    // The resolved lr must be right FOR THIS PROFILE'S OPTIMIZER. When the profile declares
-    // one, that value must survive verbatim (regression guard: making learning_rate optional
-    // must not have changed any already-published run). When it omits one, it must inherit
-    // its own optimizer's reference default -- never another optimizer's.
-    if (cfg.training.learning_rate.has_value())
-    {
-        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), *cfg.training.learning_rate);
-    }
-    else
-    {
-        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(),
-            nn::optimizers::reference_learning_rate(cfg.training.optimizer_type));
-    }
+    EXPECT_GT(cfg.training.learning_rate, 0.0f); // declared: what ran is what is written
     EXPECT_GT(cfg.training.samples_per_batch, 0);
-    EXPECT_GE(cfg.training.early_stop_patience, 0);
-    EXPECT_GE(cfg.training.k_folds, 2);
+    if (cfg.training.early_stop_patience.declared()) EXPECT_GE(cfg.training.early_stop_patience, 0);
+    if (cfg.training.k_folds.declared()) EXPECT_GE(cfg.training.k_folds, 2);
 }
 
-// PyTorch/snnTorch is this project's correctness reference, so the defaults must BE the
-// reference: exact activations on, gradient clipping off. A profile can trade either away,
-// but only explicitly.
-TEST(ThesisFidelity, DefaultsMatchTheReferenceAndAreOverridable)
+// No field has a default. A config nobody filled in declares nothing, cannot be read, and
+// is refused by validate() naming the first key it lacks. (The old defaults included the
+// model "lstm-ae" — the extractor the thesis dropped — and an lr resolved from the
+// optimizer; both were values no profile had chosen.)
+TEST(ThesisNoDefaults, AnEmptyConfigDeclaresNothing)
 {
-    ThesisConfig c;
-    c.experiment.run_tag = "t";
-    c.dataset.root = "/tmp/x";
-    c.classifier.enabled = false;
+    const ThesisConfig c;
+    EXPECT_EQ(c.declared_json(), nlohmann::json::object());
+    EXPECT_THROW((void) c.feature_extraction.autoencoder.model.get(), std::logic_error);
+    EXPECT_THROW((void) c.training.learning_rate.get(), std::logic_error);
+    try
+    {
+        c.validate();
+        FAIL() << "an empty config validated";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        EXPECT_NE(std::string(e.what()).find("experiment.run_tag"), std::string::npos) << e.what();
+    }
+}
 
-    // Exact sigmoid/tanh by default -> our LSTM equals torch.nn.LSTM. The fast softsign
-    // gates are ~2x quicker but provably not torch (|tanh - tanh_fast| reaches 0.306).
-    EXPECT_TRUE(c.numerics.exact_activations);
-
-    // No clipping by default, like PyTorch. This is the ONLY clipping knob: MSELoss/MAELoss
-    // used to clip themselves at norm 1.0 unconditionally, overriding this very field.
-    EXPECT_FLOAT_EQ(c.training.gradient_clip_norm, 0.0f);
+// Gradient clipping is a declared knob: 0 = off (what PyTorch does unless the caller clips),
+// any positive norm is honoured, a negative one is refused rather than silently used.
+TEST(ThesisFidelity, GradientClipIsDeclaredAndChecked)
+{
+    ThesisConfig c = thesis::test::phase00("eeg");
+    thesis::test::set_training(c, 5, 1e-3f, 8);
+    thesis::test::set_autoencoder(c,
+        "ann-ae",
+        {"linear:64:leaky", "linear:16:identity"},
+        {"linear:64:leaky", "linear:output:identity"},
+        "mse");
     EXPECT_NO_THROW(c.validate());
-
-    // Both are overridable...
-    c.numerics.exact_activations = false;
     c.training.gradient_clip_norm = 0.5f;
     EXPECT_NO_THROW(c.validate());
-
-    // ...but a negative clip is meaningless and must be rejected rather than silently used.
     c.training.gradient_clip_norm = -1.0f;
     EXPECT_THROW(c.validate(), std::invalid_argument);
 }
@@ -439,13 +439,9 @@ TEST(ThesisEegScaleAxis, BarkAndMelAreRejectedForEeg)
 {
     auto make = [](const std::string& modality, const std::string& scale)
     {
-        ThesisConfig c;
-        c.experiment.run_tag = "t";
-        c.dataset.root = "/tmp/x";
-        c.dataset.modality = modality;
-        c.feature_extraction.strategy = "handcrafted";
+        ThesisConfig c = thesis::test::phase00(modality);
+        thesis::test::set_handcrafted(c);
         c.feature_extraction.handcrafted.scale = scale;
-        c.classifier.enabled = false;
         return c;
     };
 
@@ -462,39 +458,29 @@ TEST(ThesisEegScaleAxis, BarkAndMelAreRejectedForEeg)
     for (const auto* s : {"lfcc", "bark", "mel"}) EXPECT_NO_THROW(make("fused", s).validate());
 }
 
-// Each optimizer must resolve to ITS OWN reference lr, not another's. Their usable rates
-// differ by ~10x (Lion steps +/-lr on every coordinate), so a profile that names an
-// optimizer but inherits a foreign lr would measure the learning rate, not the optimizer.
-TEST(ThesisOptimizerLearningRate, EachOptimizerResolvesToItsOwnReferenceLr)
+// The learning rate is required for every optimizer. It used to be optional and resolve to
+// the optimizer's reference value (adam 1e-3, sgd 1e-2, lion 1e-4, schedule-free-adamw
+// 2.5e-3); every shipped profile declared it anyway, so making it required changed no run.
+TEST(ThesisOptimizerLearningRate, RequiredForEveryOptimizerAndReadVerbatim)
 {
-    ThesisConfig cfg;
-    const std::vector<std::pair<std::string, float>> expected = {
-        {"adam", 1e-3f},
-        {"sgd", 1e-2f},
-        {"lion", 1e-4f},
-        {"schedule-free-adamw", 2.5e-3f},
-    };
-    for (const auto& [opt, lr] : expected)
+    for (const char* opt : {"adam", "sgd", "lion", "schedule-free-adamw"})
     {
-        cfg.training.optimizer_type = opt;
-        cfg.training.learning_rate = std::nullopt; // profile omits it
-        EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), lr) << "optimizer: " << opt;
+        ThesisConfig c = thesis::test::phase00("eeg");
+        thesis::test::set_training(c, 5, 5e-5f, 8);
+        c.training.optimizer_type = opt;
+        if (std::string(opt) == "sgd") c.training.optimizer_momentum = 0.9f;
+        thesis::test::set_autoencoder(c,
+            "ann-ae",
+            {"linear:64:leaky", "linear:16:identity"},
+            {"linear:64:leaky", "linear:output:identity"},
+            "mse");
+        EXPECT_NO_THROW(c.validate()) << opt;
+        EXPECT_FLOAT_EQ(c.training.learning_rate, 5e-5f) << opt;
+
+        nlohmann::json j = c.declared_json();
+        j["training"].erase("learning_rate");
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << opt;
     }
-
-    // No two of them share a default -- otherwise the whole mechanism would be pointless.
-    std::set<float> distinct;
-    for (const auto& [opt, lr] : expected) distinct.insert(lr);
-    EXPECT_EQ(distinct.size(), expected.size());
-}
-
-// An explicit profile lr still wins: sweeping lr per optimizer must remain possible.
-TEST(ThesisOptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
-{
-    ThesisConfig cfg;
-    cfg.training.optimizer_type = "lion";
-    EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), 1e-4f); // inherited
-    cfg.training.learning_rate = 5e-5f;
-    EXPECT_FLOAT_EQ(cfg.training.effective_learning_rate(), 5e-5f); // explicit wins
 }
 
 // Every profile must name an optimizer the OptimizerFactory can actually build; a typo
@@ -502,21 +488,29 @@ TEST(ThesisOptimizerLearningRate, ExplicitProfileValueOverridesTheDefault)
 TEST_P(ThesisProfileAuditTest, OptimizerTypeIsSupported)
 {
     auto cfg = load(GetParam());
-    const auto& t = cfg.training.optimizer_type;
+    if (!cfg.training.optimizer_type.declared()) return; // nothing trains
+    const std::string& t = cfg.training.optimizer_type;
     const bool known = (t == "adam" || t == "sgd" || t == "lion" || t == "schedule-free-adamw");
     EXPECT_TRUE(known) << "unsupported training.optimizer_type: " << t;
-    EXPECT_GE(cfg.training.optimizer_momentum, 0.0f);
-    EXPECT_LT(cfg.training.optimizer_momentum, 1.0f);
+    if (cfg.training.optimizer_momentum.declared()) // sgd only
+    {
+        EXPECT_GE(cfg.training.optimizer_momentum, 0.0f);
+        EXPECT_LT(cfg.training.optimizer_momentum, 1.0f);
+    }
 }
 
 TEST_P(ThesisProfileAuditTest, RegularizationParamsValid)
 {
     auto cfg = load(GetParam());
-    EXPECT_GE(cfg.training.weight_decay, 0.0f);
-    EXPECT_GE(cfg.training.firing_rate_reg_lambda, 0.0f);
-    EXPECT_GE(cfg.training.firing_rate_min, 0.0f);
-    EXPECT_LE(cfg.training.firing_rate_max, 1.0f);
-    EXPECT_LE(cfg.training.firing_rate_min, cfg.training.firing_rate_max);
+    const auto& t = cfg.training;
+    if (t.weight_decay.declared()) EXPECT_GE(t.weight_decay, 0.0f);
+    if (t.firing_rate_reg_lambda.declared()) EXPECT_GE(t.firing_rate_reg_lambda, 0.0f);
+    if (t.firing_rate_min.declared())
+    {
+        EXPECT_GE(t.firing_rate_min, 0.0f);
+        EXPECT_LE(t.firing_rate_max, 1.0f);
+        EXPECT_LE(t.firing_rate_min, t.firing_rate_max);
+    }
 }
 
 TEST_P(ThesisProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
@@ -524,6 +518,7 @@ TEST_P(ThesisProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
     const std::string name = GetParam();
     if (name == "debug.json") return; // debug profile uses deterministic mode
     auto cfg = load(name);
+    if (!cfg.experiment.seed_deterministic.declared()) return; // one repeat: nothing to decide
     EXPECT_FALSE(cfg.experiment.seed_deterministic)
         << name << " should have seed_deterministic=false for reproducible sweeps";
 }
@@ -534,49 +529,83 @@ TEST_P(ThesisProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
 
 namespace
 {
-// Minimal config that validates: handcrafted, phase-01 style (classifier runs).
+// A complete Phase-01 handcrafted dsnn profile: exactly the keys that run reads.
 nlohmann::json base_config()
 {
     return nlohmann::json{
-        {"experiment", {{"run_tag", "t"}, {"seed", 42}}},
-        {"dataset", {{"root", "/x"}, {"modality", "voice"}}},
+        {"experiment", {{"run_tag", "t"}, {"seed", 42}, {"repeats", 1}}},
+        {"dataset",
+            {{"root", "/x"},
+                {"results_dir", "results/thesis"},
+                {"modality", "voice"},
+                {"max_samples", 0}}},
         {"feature_extraction",
             {{"strategy", "handcrafted"},
                 {"handcrafted",
-                    {{"scale", "lfcc"}, {"wavelet", "daub4"}, {"descriptors", {"energy"}}}}}},
+                    {{"transform", "dtwpt"},
+                        {"scale", "lfcc"},
+                        {"wavelet", "daub4"},
+                        {"descriptors", {"energy"}},
+                        {"dtwpt_level", 4},
+                        {"cepstral", false}}}}},
+        {"paraconsistent", {{"enabled", true}}},
         {"classifier",
             {{"type", "dsnn"},
                 {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
                 {"text_mode", "independent"},
                 {"enabled", true}}},
+        {"training",
+            {{"epochs", 5},
+                {"learning_rate", 0.001},
+                {"optimizer_type", "adam"},
+                {"gradient_clip_norm", 0.0},
+                {"samples_per_batch", 8},
+                {"k_folds", 2},
+                {"nested_cv", false},
+                {"standardize_features", true},
+                {"weight_decay", 0.0},
+                {"firing_rate_reg_lambda", 0.0},
+                {"batch_normalization", "none"}}},
     };
 }
 } // namespace
 
-TEST(ThesisConfigGate, Phase00OmitsLayerSpec)
+TEST(ThesisConfigGate, CompletePhase01ProfileValidates)
 {
-    // classifier.enabled=false (Phase 00): layer_spec not required.
+    EXPECT_NO_THROW(ThesisConfig::from_json(base_config()).validate());
+}
+
+TEST(ThesisConfigGate, Phase00HasNoClassifierOrTrainingKeys)
+{
+    // classifier.enabled=false (Phase 00) with handcrafted features: nothing trains, so the
+    // classifier keys and the whole training block are refused, not merely ignored.
     auto j = base_config();
     j["classifier"] = nlohmann::json{{"enabled", false}};
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
+    j.erase("training");
     auto cfg = ThesisConfig::from_json(j);
     EXPECT_FALSE(cfg.classifier.enabled);
     EXPECT_NO_THROW(cfg.validate());
 }
 
-TEST(ThesisConfigGate, Phase01RequiresLayerSpec)
+TEST(ThesisConfigGate, Phase01RequiresEnabledAndLayerSpec)
 {
-    // classifier.enabled defaults true (Phase 01): missing layer_spec must throw.
+    // classifier.enabled has no default (it used to default to true)...
     auto j = base_config();
-    j["classifier"] = nlohmann::json{{"type", "dsnn"}, {"text_mode", "independent"}};
-    auto cfg = ThesisConfig::from_json(j);
-    EXPECT_TRUE(cfg.classifier.enabled); // default
-    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+    j["classifier"].erase("enabled");
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
+    // ...and a running classifier needs its layer_spec.
+    j = base_config();
+    j["classifier"].erase("layer_spec");
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
 }
 
 TEST(ThesisConfigGate, FusionModeValidated)
 {
     auto j = base_config();
-    j["dataset"] = {{"root", "/x"}, {"modality", "fused"}, {"fusion_mode", "early"}};
+    j["dataset"]["modality"] = "fused";
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "fused needs fusion_mode";
+    j["dataset"]["fusion_mode"] = "early";
     EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
     j["dataset"]["fusion_mode"] = "bogus";
     EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);

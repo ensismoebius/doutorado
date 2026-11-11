@@ -9,6 +9,7 @@
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisDataset.hpp"
 #include "../lib/include/ThesisFeatureExtraction.hpp"
+#include "ThesisTestConfig.hpp"
 using namespace thesis;
 namespace
 {
@@ -30,30 +31,16 @@ ThesisDatasetView V(int ns, int per, int len)
     v.n_stimuli = per;
     return v;
 }
-ThesisConfig::FeatureExtraction fe(
-    const char* model, std::vector<std::string> enc, std::vector<std::string> dec)
+// An EEG autoencoder run with the genome-shaped spec; SNN keys only for snn-ae (direct code:
+// no time_steps).
+ThesisConfig fe(const char* model, std::vector<std::string> enc, std::vector<std::string> dec)
 {
-    ThesisConfig::FeatureExtraction f;
-    f.strategy = "autoencoder";
-    f.autoencoder.model = model;
-    f.autoencoder.encoder_layer_spec = std::move(enc);
-    f.autoencoder.decoder_layer_spec = std::move(dec);
-    f.autoencoder.encoding = "direct";
-    f.autoencoder.ae_loss_type = "mse";
-    f.autoencoder.time_steps = 1;
-    f.autoencoder.voltage_threshold = 1.0f;
-    f.autoencoder.firing_rate_reg_lambda = 0.5f;
-    f.autoencoder.firing_rate_min = 0.1f;
-    f.autoencoder.firing_rate_max = 0.8f;
-    return f;
-}
-ThesisConfig::Training tr()
-{
-    ThesisConfig::Training t;
-    t.epochs = 2;
-    t.learning_rate = 0.01f;
-    t.samples_per_batch = 8;
-    return t;
+    ThesisConfig c = test::phase00("eeg");
+    test::set_training(c, 2, 0.01f, 8);
+    test::set_autoencoder(c, model, std::move(enc), std::move(dec), "mse");
+    if (std::string(model) == "snn-ae") test::set_snn(c, "direct", 1, 1.0f, 0.5f, 0.1f, 0.8f);
+    c.validate();
+    return c;
 }
 } // namespace
 // Two different depths -> two different latent dims. If the builder ignored the spec
@@ -65,10 +52,7 @@ TEST(ThesisFreeArch, DepthThreeLatentOne)
         fe("ann-ae",
             {"linear:3:leaky", "linear:2:leaky", "linear:1:identity"},
             {"linear:2:leaky", "linear:3:leaky", "linear:output:identity"}),
-        tr(),
-        "eeg",
-        "late",
-        42u);
+        nullptr);
     ASSERT_FALSE(sets.empty());
     EXPECT_EQ(sets[0].vectors.size(), v.samples.size());
     EXPECT_EQ(sets[0].vectors[0].size(), 1u) << "latent must be the genome bottleneck = 1";
@@ -80,10 +64,7 @@ TEST(ThesisFreeArch, DepthFourLatentTwo)
         fe("snn-ae",
             {"linear:10:leaky", "linear:5:leaky", "linear:4:leaky", "linear:2:identity"},
             {"linear:4:leaky", "linear:5:leaky", "linear:10:leaky", "linear:output:identity"}),
-        tr(),
-        "eeg",
-        "late",
-        42u);
+        nullptr);
     ASSERT_FALSE(sets.empty());
     EXPECT_EQ(sets[0].vectors[0].size(), 2u) << "latent must be the genome bottleneck = 2";
 }

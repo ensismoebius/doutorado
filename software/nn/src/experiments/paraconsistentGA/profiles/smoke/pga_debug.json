@@ -2,14 +2,10 @@
   "run_tag": "pga_debug",
   "results_dir": "results/paraconsistentGA/smoke",
   "experiment": {
-    "run_tag": "pga_debug",
-    "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": true
+    "seed": 42
   },
   "dataset": {
     "root": "~/database.sqlite",
-    "results_dir": "results/paraconsistentGA/smoke",
     "modality": "eeg",
     "max_samples": 40
   },
@@ -17,19 +13,21 @@
     "strategy": "autoencoder",
     "autoencoder": {
       "model": "ann-ae",
-      "encoder_layer_spec": ["linear:32:leaky", "linear:16:identity"],
-      "decoder_layer_spec": ["linear:32:leaky", "linear:output:identity"]
+      "ae_loss_type": "mse"
     }
   },
-  "paraconsistent": { "enabled": true },
-  "classifier": { "enabled": false },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
   "training": {
     "epochs": 3,
     "learning_rate": 0.001,
     "samples_per_batch": 16,
-    "early_stop_patience": 2,
-    "k_folds": 2,
-    "nested_cv": false
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0
   },
   "ga": {
     "population_size": 6,
@@ -40,15 +38,22 @@
     "seed": 42,
     "tournament_k": 2,
     "bounds": {
-      "hidden_choices": [16, 32],
-      "latent_choices": [8, 16]
-    }
+      "min_layers": 1,
+      "max_layers": 6,
+      "min_width": 1,
+      "max_width": 128
+    },
+    "n_losers": 2
   },
   "constraints": {
     "latency_ceiling_ms": 1000.0,
     "fixed_pipeline_cost_ms": 0.0,
     "latency_calibrated": false,
     "ns_per_mac": 2.0,
-    "tau_rec": 1e-4
+    "tau_rec": 0.0001
+  },
+  "checkpoint": {
+    "enabled": true,
+    "every_generations": 1
   }
 }

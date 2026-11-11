@@ -37,7 +37,7 @@ void write_summary_json(const std::string& results_dir,
     int n_subjects,
     int n_stimuli,
     size_t n_samples,
-    std::size_t config_hash = 0);
+    std::size_t config_hash);
 
 // Write pgfplots DAT file for thesis figures.
 // Path: results_dir/e05_{run_tag}_comparison.dat

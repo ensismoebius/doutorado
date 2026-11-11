@@ -23,6 +23,8 @@ configure_xtensor_parallel_target(thesis_profile_audit_gtest)
 # ── Feature extraction unit tests ────────────────────────────────────────────
 add_executable(thesis_feature_extraction_gtest
     thesis_feature_extraction_gtest.cpp
+    thesis_strict_config_gtest.cpp
+    thesis_pca_gtest.cpp
 )
 
 target_include_directories(thesis_feature_extraction_gtest
