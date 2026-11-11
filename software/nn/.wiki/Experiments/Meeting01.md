@@ -3743,10 +3743,55 @@ rising, which in the same arithmetic means the neuron never fires.
 | F1 `paper_design_lif_figure.tex` | `07_ --report` `lif_figure` | `results/meeting01_design` rows (trained $V_{th}$, $\beta$, shares) |
 | F5 `paper_design_figure.tex` | `07_ --report` `dots_figure` | the same rows + the harness's test MSE from the pre-validation |
 | F5 `paper_t1_figure.tex` | `05_ --report --out-root results/meeting01_t1_format11` | the format-11 T1 (`results/meeting01_t1` is the stale format-9 run and is refused) |
-| F3 `paper_breakeven*.tex` | `09_ --report` | the pre-validation's T range, winners' first widths, test windows ($\bar p$) |
+| F3 `paper_breakeven*.tex` | `09_ --report` | the grid's T range, SNN-AE winners' first widths, training windows ($\bar p$) |
+| F3 bars `paper_loso_energy_bars.tex` | `02_` `write_energy_bars` | the grid's comparative rows: $E$ and `energy_nj_encoder` (Table energy's means) |
+| F6 `paper_loso_learning_figure.tex` | `10_ --report` | the grid's events (final fits' per-epoch training loss) and `train_mse` |
 
-Still to come after the grid: F3's left panel (energy by block for the real winners), F6
-(learning curves per arm) and F7 is already in (forest plot).
+F7 (forest plot) is in. The reviewer's F3 mock-up split the bill into five blocks (first layer,
+LIF, to latent, time mean, decoder); the harness logs only two sides (`energy_nj_encoder` and the
+rest), so the panel draws those two rather than re-deriving five in Python, which a second port
+of the energy model would let drift from the C++ silently.
+
+### F3 bars and F6 from the grid of record (2026-11-11)
+
+**Where the energy goes.** On every dataset the SNN-AE's decoder side costs what its control's
+does (ratio 1.00: the decoder is the same analog network), and its encoder side 7.9 to 14 times.
+So all of the SNN-AE's extra energy, to the nearest percent, is spent before the latent:
+
+```
+                 E (nJ)   encoder side   decoder side        (headline folds, mean over winners)
+FSDD   SNN-AE     5551        4922            629
+       ANN-AE     1252         623            629
+Siena  SNN-AE     8484        7895            589
+       ANN-AE     1173         584            589
+```
+
+`\energySplit` states this; `energy_split()` in `02_` says "all" only when the share rounds
+to 100 % on every dataset, adds no share at all when the SNN-AE is the cheaper one, and waits
+("$-$") until every paper dataset has rows, as `\energyVsControl` does.
+
+**Fit gap, not generalization gap (V004).** The question: the SNN-AE errs more on held-out
+groups, but does it already err more on the windows it trained on? Paired by (fold, run) on
+the headline folds, `train_mse` (final network, eval mode, training windows) against test MSE:
+
+| Dataset | Pairs | Train gap | Test gap | Share | Pairs with train gap > 0 |
+|---|---|---|---|---|---|
+| FSDD | 20 | 0.056 | 0.051 | 109 % | 20 |
+| AudioMNIST | 30 | 0.034 | 0.039 | 88 % | 28 |
+| EEGMMIDB | 20 | 0.088 | 0.110 | 80 % | 20 |
+| Siena | 30 | 0.092 | 0.102 | 90 % | 30 |
+
+80 to 109 % of the held-out gap is already there on the training set: the SNN-AE fits worse,
+and the test gap is mostly that fit gap carried over. What the curves cannot say is why --
+whether the spike code cannot represent a better fit or surrogate training does not find it;
+the paper says so. `10_` refuses (asks for the paragraph to be rewritten, not softened) if the
+train or test gap is not positive on some dataset.
+
+The curves need the events (`*_events.jsonl`), which are not committed (size); the figure file
+in the paper's `data/` is. The final fits are `config_end` events with role `snn_final` /
+`ann_final`; `10_` refuses a final fit trained twice (a resumed task), an epoch hole, or a
+count that is not one per run. GA genomes do repeat config ids (the same genome drawn twice in
+a search); they are not final fits and are ignored.
 
 ## Grid 5321956 superseded: one candidate pool per seed, and a cap that ended the control (results_format 14, 2026-11-11)
 

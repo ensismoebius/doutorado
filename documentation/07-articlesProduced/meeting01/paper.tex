@@ -31,6 +31,7 @@
 \input{data/paper_loso_energy_verdict.tex}
 \input{data/paper_breakeven.tex}
 \input{data/paper_loso_findings.tex}
+\input{data/paper_loso_learning.tex}
 % Placeholder tables (before the grid run) print a banner instead of the results figure.
 \def\phStatus{placeholder}\edef\curStatus{\cfgDataStatus}
 \newif\ifplaceholder
@@ -630,9 +631,10 @@ epoch. Infer.: one window reconstructed after training. One CPU thread each.}
 
 \par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
 folds, Table~\ref{tab:sig} and Fig.~\ref{fig:forest} the group-level differences between the
-SNN-AE and each reference, Fig.~\ref{fig:pareto} the same models in the quality--energy plane,
-Table~\ref{tab:energy} the energy under each repricing, and Table~\ref{tab:snnsel} what the
-SNN-AE's search selected. On energy per window, \energyVerdict.
+SNN-AE and each reference, Fig.~\ref{fig:learning} the final fits' training curves,
+Fig.~\ref{fig:pareto} the same models in the quality--energy plane, Table~\ref{tab:energy} and
+Fig.~\ref{fig:energybars} the energy under each repricing and where it goes, and
+Table~\ref{tab:snnsel} what the SNN-AE's search selected. On energy per window, \energyVerdict.
 
 \begin{table*}[!t]
 \caption{Energy per window (nJ), headline folds, mean over every winner: $E$
@@ -705,6 +707,24 @@ inside $\pm\cfgMargin$, over groups and over fold means) and its 95\% $t$ interv
   \label{fig:forest}
 \end{figure}
 
+\begin{figure}[!t]
+  \centering
+  \input{data/paper_loso_learning_figure.tex}
+  \caption{Training MSE per epoch of every final fit on the headline folds (one line per fold
+  and run), SNN-AE and its ANN-AE control. Each line ends where early stopping on the validation
+  group ended it.}
+  \label{fig:learning}
+\end{figure}
+
+\begin{figure}[!t]
+  \centering
+  \input{data/paper_loso_energy_bars.tex}
+  \caption{Where the energy per window goes, headline folds, mean over every winner (the
+  numbers of Table~\ref{tab:energy}): the encoder side (input code, input transform and layers
+  up to the latent) and the decoder side. Labels: $E$ in nJ, and $E$ over the ANN-AE control's.}
+  \label{fig:energybars}
+\end{figure}
+
 \begin{table*}[!t]
 \caption{SNN-AE selected per dataset over every (fold, run): modal encoding and input
 transform ($k/n$ agreeing, if not all), median $T$ [range], median initial threshold and decay,
@@ -746,9 +766,19 @@ test MSE exceeded its control's by \sigGapSpeech{} on speech and \sigGapEeg{} on
 reading: \sigGapMargin, and FSDD has four groups. Putting the development folds back moved the gap
 by at most \sigSensShift{} (Table~\ref{tab:sensitivity}).
 
+\par The gap is already there on the windows each network was trained on. The SNN-AE's final
+training error exceeded its control's by \learnGapSpeech{} on speech and \learnGapEeg{} on EEG,
+in \learnPairs{} (fold, run) pairs, which is \learnShare\,\% of the same pairs' test gap
+(Fig.~\ref{fig:learning}). So the SNN-AE fits its own training windows worse, and the held-out
+gap is mostly that fit gap carried over, not a failure to generalize. These curves do not tell
+whether the spiking code cannot represent a better fit or surrogate-gradient training does not
+find it.
+
 \par \textbf{Energy.} The SNN-AE \energyVsControl{} (Table~\ref{tab:energy}): spiking cost both
-error and energy here. Table~\ref{tab:snnsel} lists what the search selected; binary inputs turn
-the first layer's MACs into adds, but every step adds a read and a write of every potential.
+error and energy here. Its \energySplit{} (Fig.~\ref{fig:energybars}), the encoder side being the
+input code, the input transform and the layers up to the latent. Table~\ref{tab:snnsel} lists
+what the search selected; binary inputs turn the first layer's MACs into adds, but every step
+adds a read and a write of every potential.
 
 % ─────────────────────────────────────────────────────────────
 \section{Discussion}
