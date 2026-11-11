@@ -55,6 +55,7 @@ __pycache__/
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).
 !software/nn/src/core/tensor/tests/fixtures/pytorch_refs.npz
+!software/nn/src/core/models/lstm/tests/fixtures/lstm_ae_refs.npz
 !software/nn/src/core/wavelet/tests/fixtures/pywt_refs.npz
 !software/nn/src/core/optimizers/tests/fixtures/optimizer_refs.npz
 !software/nn/src/core/layers/tests/fixtures/micro_network_refs.npz
