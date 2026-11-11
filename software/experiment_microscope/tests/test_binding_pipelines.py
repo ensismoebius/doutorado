@@ -59,6 +59,15 @@ def test_thesis_extract_handcrafted_is_finite():
     from experiment_microscope.processing import paraconsistent as p
 
     sig = np.sin(np.linspace(0, 40, 4096)) + 0.01 * np.random.default_rng(4).standard_normal(4096)
-    feat = p.extract_handcrafted(sig, 1024.0, wavelet="daub4", dtwpt_level=4)
+    feat = p.extract_handcrafted(
+        sig,
+        1024.0,
+        transform="dtwpt",
+        scale="lfcc",
+        descriptors=["energy", "zcr", "entropy", "teager"],
+        dtwpt_level=4,
+        wavelet="daub4",
+        cepstral=False,
+    )
     assert len(feat) > 0
     assert np.all(np.isfinite(feat))

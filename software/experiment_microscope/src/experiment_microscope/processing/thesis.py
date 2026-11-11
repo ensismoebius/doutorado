@@ -11,47 +11,74 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from experiment_microscope.core.integrity import Origin, Value
-from experiment_microscope.paths import THESIS_DEFAULT_DB
 from experiment_microscope.processing._binding import load_binding
-
-# Handcrafted config parsed out of a phase00 run_tag stem, e.g.
-#   hc_daub10_lfcc_c1_eeg  ->  wavelet=daub10 scale=lfcc cepstral=False modality=eeg
-_SCALES = ("lfcc", "bark", "mel")
 
 
 @dataclass(frozen=True)
 class HandcraftedSpec:
-    wavelet: str = "daub4"
-    scale: str = "lfcc"
-    cepstral: bool = False
-    modality: str = "eeg"
-    dtwpt_level: int = 4
-    descriptors: tuple[str, ...] = ("energy", "zcr", "entropy", "teager", "jitter", "shimmer")
+    """A handcrafted Phase-00 extractor, every field declared.
+
+    No field has a default: a spec built from a guess (a tag that did not mention the
+    scale, a summary that did not record the descriptors) would recompute a different
+    extractor than the run used and show it as that run's numbers. ``fusion_mode`` is
+    required for ``modality == "fused"`` and must be None otherwise.
+    """
+
+    transform: str
+    wavelet: str
+    scale: str
+    cepstral: bool
+    modality: str
+    dtwpt_level: int
+    descriptors: tuple[str, ...]
+    fusion_mode: str | None
+
+    def __post_init__(self):
+        if (self.modality == "fused") != (self.fusion_mode is not None):
+            raise ValueError(
+                f"fusion_mode is declared exactly when modality is 'fused' "
+                f"(modality={self.modality!r}, fusion_mode={self.fusion_mode!r})")
 
     @classmethod
-    def from_run_tag(cls, run_tag: str) -> "HandcraftedSpec":
-        parts = run_tag.split("_")
-        wavelet = next((p for p in parts if p.startswith("daub") or p == "haar"), "daub4")
-        scale = next((p for p in parts if p in _SCALES), "lfcc")
-        cepstral = "c2" in parts
-        modality = next((p for p in parts if p in ("eeg", "voice", "fused")), "eeg")
-        return cls(wavelet=wavelet, scale=scale, cepstral=cepstral, modality=modality)
+    def from_config(cls, config: dict) -> HandcraftedSpec:
+        """From a run's declared config: a profile, or a summary's ``config`` block.
+
+        Raises KeyError on any key the run must have declared, and ValueError for a
+        non-handcrafted strategy.
+        """
+        fe = config["feature_extraction"]
+        if fe["strategy"] != "handcrafted":
+            raise ValueError(f"strategy is {fe['strategy']!r}, not 'handcrafted'")
+        hc = fe["handcrafted"]
+        ds = config["dataset"]
+        modality = ds["modality"]
+        return cls(
+            transform=hc["transform"],
+            wavelet=hc["wavelet"],
+            scale=hc["scale"],
+            cepstral=bool(hc["cepstral"]),
+            modality=modality,
+            dtwpt_level=int(hc["dtwpt_level"]),
+            descriptors=tuple(hc["descriptors"]),
+            fusion_mode=ds["fusion_mode"] if modality == "fused" else None,
+        )
 
 
-def rank_handcrafted(spec: HandcraftedSpec, *, root: str | None = None, seed: int = 42):
+def rank_handcrafted(spec: HandcraftedSpec, *, root: str, max_samples: int):
     """Return ``[(label, {alpha..d_penalized: Value})]`` recomputed live."""
     nm = load_binding()
-    view = nm.thesis.load_dataset(str(root or THESIS_DEFAULT_DB), spec.modality, 0)
+    view = nm.thesis.load_dataset(str(root), max_samples)
+    # Handcrafted features are deterministic: the binding takes no seed.
     feature_sets = nm.thesis.extract_handcrafted_features(
         view,
         modality=spec.modality,
-        transform="dtwpt",
+        transform=spec.transform,
         scale=spec.scale,
         descriptors=list(spec.descriptors),
         dtwpt_level=spec.dtwpt_level,
         wavelet=spec.wavelet,
         cepstral=spec.cepstral,
-        seed=seed,
+        fusion_mode=spec.fusion_mode,
     )
     out = []
     for s in nm.thesis.rank_feature_sets(view, feature_sets):

@@ -275,22 +275,13 @@ class TriangleView(QWidget):
 
     # -- helpers -----------------------------------------------------
     def _spec(self):
-        from experiment_microscope.processing.thesis import HandcraftedSpec
-
         h = self._run_node.handle
-        s = self.repo.adapter("thesis")._summary(h["phase"], h["run_tag"])
-        hc = s.get("handcrafted") or {}
-        return HandcraftedSpec(
-            wavelet=hc.get("wavelet", "daub4"),
-            scale=hc.get("scale", "lfcc"),
-            cepstral=bool(hc.get("cepstral", False)),
-            modality=s.get("modality", "eeg"),
-            dtwpt_level=int(hc.get("dtwpt_level", 4)),
-        )
+        return self.repo.adapter("thesis").handcrafted_spec(h["phase"], h["run_tag"])
 
     def _sample_signal(self, i: int) -> np.ndarray:
         adapter = self.repo.adapter("thesis")
-        view = adapter._view(self._spec().modality)
+        h = self._run_node.handle
+        view = adapter._run_view(h["phase"], h["run_tag"])
         s = view.sample(i)
         eeg = np.asarray(s["eeg"])
         return eeg[0] if eeg.ndim == 2 else np.asarray(s["audio"]).reshape(-1)

@@ -11,13 +11,16 @@ the persisted phase00 CSV; skipped otherwise. Run explicitly with:
 """
 
 import csv
+import json
 
 import pytest
-
-from experiment_microscope.paths import THESIS_DEFAULT_DB, THESIS_RESULTS
+from experiment_microscope.paths import NN_DIR, THESIS_DEFAULT_DB, THESIS_RESULTS
 from experiment_microscope.processing._binding import is_available
 
 _REF = THESIS_RESULTS / "phase00" / "e05_e05_p00_hc_daub10_lfcc_c1_eeg_rep0_paraconsistent.csv"
+# The profile that produced _REF: the spec is read from it, never inferred from the tag.
+_PROFILE = (NN_DIR / "src" / "experiments" / "thesis" / "profiles" / "phase00"
+            / "p00_hc_daub10_lfcc_c1_eeg.json")
 
 pytestmark = [
     pytest.mark.slow,
@@ -28,13 +31,18 @@ pytestmark = [
 
 
 def test_live_recompute_matches_persisted_phase00_row():
-    from experiment_microscope.processing.thesis import HandcraftedSpec, rank_handcrafted
+    from experiment_microscope.processing.thesis import (
+        HandcraftedSpec,
+        rank_handcrafted,
+    )
 
     with _REF.open(newline="") as fh:
         ref = next(csv.DictReader(fh))
 
-    spec = HandcraftedSpec.from_run_tag("hc_daub10_lfcc_c1_eeg")
-    results = dict(rank_handcrafted(spec, seed=42))
+    profile = json.loads(_PROFILE.read_text())
+    spec = HandcraftedSpec.from_config(profile)
+    results = dict(rank_handcrafted(spec, root=str(THESIS_DEFAULT_DB),
+                                    max_samples=profile["dataset"]["max_samples"]))
     values = results[ref["label"]]
 
     for field in ("alpha", "beta", "g1", "g2", "d_truth", "d_penalized"):
