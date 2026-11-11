@@ -3802,8 +3802,9 @@ of the derivation fails loudly instead of quietly changing every search.
 
 ### What the superseded run said, and why it is kept
 
-Read before the rerun was decided (so the rerun is *not* blind, and the paper says so in
-limitation (xi)): PCA erred least on all four datasets; the SNN-AE erred more than its control
+Read before the rerun was decided, so the rerun is *not* blind. The author chose
+(2026-11-11) not to report the first run in the paper; this page and the archive are its
+record. PCA erred least on all four datasets; the SNN-AE erred more than its control
 everywhere (group level, Holm, all intervals excluding zero: +0.027 FSDD, +0.030 AudioMNIST,
 +0.108 EEGMMIDB, +0.080 Siena); it needed 9-12x the control's energy, under every repricing;
 Poisson coding was selected almost everywhere. The archive keeps every fold file and, in

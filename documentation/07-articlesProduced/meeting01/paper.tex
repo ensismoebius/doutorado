@@ -780,13 +780,7 @@ were searched with \preGaEvals{} candidates on two development folds only, so th
 concern spiking against its control, not against sequence models. (ix) \emph{Rate read-out.} The
 latent is a time mean, so the timing of spikes carries nothing here; conclusions concern
 rate-read spiking. (x) \emph{One window draw.} Each fold's windows are one draw, so the seeds' standard
-deviations leave out that sampling noise. (xi) \emph{A first run.} A first run of the grid
-trained for at most \budgetProtocolEpochs{} epochs and drew every fold's candidates from the run's seed alone, so the
-searches of one seed shared most of their candidates across the folds and datasets of a
-modality, and the cap ended every control training on the EEG folds. We found both after its
-results had been read, and reran the grid with the two changes of Sections~\ref{sec:search}
-and~\ref{sec:training}; the first run is released with the code.
-% TODO(after the grid run): say whether the first run's orderings agree with these.
+deviations leave out that sampling noise.
 
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}
