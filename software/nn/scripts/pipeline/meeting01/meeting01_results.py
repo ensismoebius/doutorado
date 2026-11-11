@@ -67,14 +67,16 @@ from collections import defaultdict
 #: see _OLDER_FORMATS[10].
 #: Format 12 fills the ann-ae rows' hidden_silent_share (NaN in 11): see _OLDER_FORMATS[11].
 #: Format 13 cuts Siena's windows at 160 Hz instead of 512: see _OLDER_FORMATS[12].
-RESULTS_FORMAT = 13
+#: Format 14 gives each (dataset, fold) its own GA gene draws and trains up to 60 epochs:
+#: see _OLDER_FORMATS[13].
+RESULTS_FORMAT = 14
 #: The formats a reader that never reads the ann-ae's hidden_silent_share may accept: 12 and 13
-#: changed nothing else outside Siena, so the format-11 pre-validation (job 5317827) stays readable
+#: changed nothing else outside Siena, 14 changed only the grid's search and epoch cap, so the format-11 pre-validation (job 5317827) stays readable
 #: by its report (00_) and by the scripts that take its winners (05_, 07_, 08_). A reader passes it
 #: as `accept`; every other reader, 02_ above all (it prints the control's share), accepts
 #: RESULTS_FORMAT alone. A Siena fold older than SIENA_WINDOWS_FROM is refused even through
 #: `accept` (check_results_format): those windows are the degenerate 512 Hz ones.
-READS_WITHOUT_ANN_SHARE = frozenset({11, 12, 13})
+READS_WITHOUT_ANN_SHARE = frozenset({11, 12, 13, 14})
 #: The first format whose Siena windows a latent of 64 cannot carry whole (_OLDER_FORMATS[12]).
 SIENA_WINDOWS_FROM = 13
 _OLDER_FORMATS = {
@@ -112,6 +114,9 @@ _OLDER_FORMATS = {
         "held ~39.5 independent values (0.5-40 Hz band) for a latent of 64: PCA k=64 "
         "reconstructed them exactly (test MSE 0.0000 on fold 0) and every family was scored on "
         "how close its optimizer got to zero",
+    13: "the GA drew its genomes from the run seed alone, so the searches of one seed shared "
+        "28-47 of ~46 candidates across the folds and datasets of a modality (grid 5321956), "
+        "and the 30-epoch cap stopped every ann-ae final fit on eegmmidb and Siena",
 }
 
 PW_HEADER = [

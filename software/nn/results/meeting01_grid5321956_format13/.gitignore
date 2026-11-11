@@ -1,0 +1,7 @@
+# Superseded grid 5321956 (results_format 13). Tracked: the evidence the wiki and paper cite
+# (metrics, selection manifests with their candidate lists, summaries, revisions, paper_data/).
+# Kept on disk and on the cluster only (~170 MB): windows, per-window errors, event logs.
+*.npy
+*_windows_meta.csv
+*_per_window_errors.csv
+*_events.jsonl

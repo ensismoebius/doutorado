@@ -31,6 +31,28 @@ namespace meeting01::ga
 // `Bounds`/`Ind` types at each instantiation — the same idiom `std::swap` relies on,
 // and the reason this file never needs to name "SNN" or "LSTM" anywhere in its body.
 
+// The seed of a search's gene draws. Grid 5321956 (results_format 13) seeded them with the
+// run seed alone, so within a modality the six searches of one seed evaluated 28-47 of the
+// same ~46 genomes on every fold and dataset: one candidate pool, re-ranked per fold, not
+// independent searches. The stream names the (dataset, fold); trainings keep the run seed.
+inline auto search_stream_seed(std::uint32_t seed, const std::string& stream) -> std::uint32_t
+{
+    if (stream.empty())
+        throw std::invalid_argument(
+            "search_stream_seed: empty stream. Set GaSearchConfigT::stream to "
+            "\"<dataset>_fold<k>\", or every fold of a run seed draws the same genomes.");
+    std::uint32_t h = 2166136261u; // FNV-1a: fixed by its definition, unlike std::hash
+    for (const unsigned char c : stream)
+    {
+        h ^= c;
+        h *= 16777619u;
+    }
+    std::seed_seq seq{seed, h};
+    std::uint32_t out = 0;
+    seq.generate(&out, &out + 1);
+    return out;
+}
+
 template <typename Bounds>
 struct GaSearchConfigT
 {
@@ -40,6 +62,10 @@ struct GaSearchConfigT
     double mutation_prob = 0.2;
     int tournament_k = 2;
     unsigned int seed = 0; // 0 -> derive from base_seed passed to run_ga_search
+    // Which search this is, "<dataset>_fold<k>": REQUIRED, mixed into the gene-draw seed
+    // (search_stream_seed). Without it every fold and dataset of one run seed drew the same
+    // genomes (results_format 14).
+    std::string stream;
     // How many seeds each final Pareto-front member is scored on before the winner is
     // picked. The search itself scores one seed per genome (cheap), which means the best
     // of a noisy population is partly selected on seed luck — the winner's curse.
@@ -246,7 +272,8 @@ auto run_ga_search(const meeting01::Meeting01Config& cfg,
     std::uint32_t base_seed,
     const EvalCallback<Ind>& on_eval = nullptr) -> GaSearchResultT<Ind>
 {
-    std::mt19937 rng(ga_cfg.seed != 0u ? ga_cfg.seed : base_seed);
+    std::mt19937 rng(
+        search_stream_seed(ga_cfg.seed != 0u ? ga_cfg.seed : base_seed, ga_cfg.stream));
     const int N = ga_cfg.population_size;
 
     detail::EvalCache<Ind, Bounds> cache;

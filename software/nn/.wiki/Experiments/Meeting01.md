@@ -3748,6 +3748,68 @@ rising, which in the same arithmetic means the neuron never fires.
 Still to come after the grid: F3's left panel (energy by block for the real winners), F6
 (learning curves per arm) and F7 is already in (forest plot).
 
+## Grid 5321956 superseded: one candidate pool per seed, and a cap that ended the control (results_format 14, 2026-11-11)
+
+### The problem: six "searches" that were one
+
+The grid ran 24 (dataset, fold) tasks, each with 5 seeds, and each (fold, seed) runs its own
+NSGA-II search. The paper reads that as 120 searches, one per fold and seed. They were not:
+the GA's random generator was seeded with the **run seed alone** (`std::mt19937 rng(base_seed)`
+in `run_ga_search`), so seed 42 drew the same initial population on every fold of every dataset.
+The offspring only diverge when the folds rank the parents differently. Measured in the archived
+grid (`results/meeting01_grid5321956_format13/`, the `candidates` of each model-selection
+manifest), seed 42, shared genomes out of ~46:
+
+```
+             fsdd f0  audiomnist f0  audiomnist f2  eegmmidb f0  siena f0
+fsdd f0        47          42             47             0          0
+eegmmidb f0     0           0              0            45         29
+```
+
+Speech and EEG share nothing only because the width floor (`d+1`: 17 vs 65) differs. Within a
+modality one seed evaluated one candidate pool and each fold re-ranked it on its own validation
+group. That is **not leakage**: no fold saw another's validation or test data. But the folds'
+selections were not independent draws of "the search". The same winner genome came back over
+and over (seed 42: 18 of 24 tasks picked one genome, 6 distinct winners in all). This failure
+is **silent**: every manifest looked right, and only comparing candidate lists across folds
+shows it.
+
+### The second problem: the cap, not the data, ended the control
+
+| | final fits that ran to 30 epochs |
+|---|---|
+| ANN-AE, EEGMMIDB | 30 of 30 |
+| ANN-AE, Siena | 30 of 30 |
+| SNN-AE, EEGMMIDB / Siena | 24 / 21 of 30 |
+| ANN-AE, FSDD / AudioMNIST | 5 / 8 of 30 |
+
+So on EEG, limitation (vii) ("the cap binds more on LIF") was false. The control was the one
+cut short, so the gap was probably *understated*. The budget test had already run up to 60
+epochs on the development folds, and **no** training there reached 60 (latest best epoch: 45).
+
+### The fix
+
+| Change | Where | What stays |
+|---|---|---|
+| gene draws from `search_stream_seed(run seed, "<dataset>_fold<k>")` (FNV-1a of the stream, then `std::seed_seq`; both fixed by definition, unlike `std::hash`) | `Meeting01GaSearch.hpp`; `GaSearchConfigT::stream` set at all 4 call sites in `Meeting01Experiment.cpp` | every training still uses the run seed |
+| an empty stream **throws** | `search_stream_seed` | — |
+| `training.epochs` 30 -> 60 | `meeting01-loso.json` | the pre-validation profile keeps 30, the run it records (declared in `PrevalidationDiffersFromTheGridOnlyWhereDeclared`) |
+
+`Meeting01GaSearch.EachFoldDrawsItsOwnPopulation` checks three things. Another fold, another
+dataset or another seed shares none of `fsdd_fold0`'s 8 initial genomes. The same stream
+reproduces them. And `search_stream_seed(42, "fsdd_fold0") == 318140021` is pinned, so a change
+of the derivation fails loudly instead of quietly changing every search.
+
+### What the superseded run said, and why it is kept
+
+Read before the rerun was decided (so the rerun is *not* blind, and the paper says so in
+limitation (xi)): PCA erred least on all four datasets; the SNN-AE erred more than its control
+everywhere (group level, Holm, all intervals excluding zero: +0.027 FSDD, +0.030 AudioMNIST,
++0.108 EEGMMIDB, +0.080 Siena); it needed 9-12x the control's energy, under every repricing;
+Poisson coding was selected almost everywhere. The archive keeps every fold file and, in
+`paper_data/`, the tables `02_`/`04_` made from it, so the two runs can be compared once the
+format-14 grid is in.
+
 ## See Also
 
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md) - Theory

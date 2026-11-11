@@ -559,6 +559,36 @@ TEST(Meeting01GaSearch, RescoreAveragesFreshSeedsOnlyNeverTheSearchScore)
     EXPECT_FLOAT_EQ(static_cast<float>(front[0].objectives[0]), front[0].val_mse);
 }
 
+// Grid 5321956 seeded the gene draws with the run seed alone: the searches of seed 42 on
+// FSDD fold 0 and AudioMNIST fold 2 evaluated the same 47 genomes. Each (dataset, fold) now
+// draws its own population; the same stream reproduces it, and an unnamed stream is refused.
+TEST(Meeting01GaSearch, EachFoldDrawsItsOwnPopulation)
+{
+    const auto bounds = make_bounds();
+    const auto population = [&](std::uint32_t seed, const std::string& stream)
+    {
+        std::mt19937 rng(meeting01::ga::search_stream_seed(seed, stream));
+        std::vector<std::string> keys;
+        for (int i = 0; i < 8; ++i)
+            keys.push_back(meeting01::ga::genome_key(meeting01::ga::random_genome(rng, bounds)));
+        return keys;
+    };
+    const auto fsdd0 = population(42u, "fsdd_fold0");
+    EXPECT_EQ(fsdd0, population(42u, "fsdd_fold0"));
+    for (const auto& [seed, stream] : std::vector<std::pair<std::uint32_t, std::string>>{
+             {42u, "fsdd_fold1"}, {42u, "audiomnist_fold0"}, {43u, "fsdd_fold0"}})
+    {
+        const auto other = population(seed, stream);
+        int shared = 0;
+        for (const auto& k : other)
+            shared += static_cast<int>(std::count(fsdd0.begin(), fsdd0.end(), k));
+        EXPECT_EQ(shared, 0) << seed << " " << stream << " repeats fsdd_fold0's genomes";
+    }
+    // Pinned: a change of the derivation would silently change every search.
+    EXPECT_EQ(meeting01::ga::search_stream_seed(42u, "fsdd_fold0"), 318140021u);
+    EXPECT_THROW(meeting01::ga::search_stream_seed(42u, ""), std::invalid_argument);
+}
+
 TEST(Meeting01GaSearch, OneWinnerSeedLeavesTheFrontAsItIs)
 {
     const meeting01::Meeting01Config cfg;

@@ -100,6 +100,7 @@ from meeting01_results import (  # noqa: E402
     REFERENCE_SEED,
     READS_WITHOUT_ANN_SHARE,
     RESULTS_FORMAT,
+    SIENA_WINDOWS_FROM,
     TRAINED_MODELS,
     ResultsError,
     check_results_format,
@@ -1615,9 +1616,13 @@ def _self_test_checks(tmp_root: pathlib.Path) -> list:
     # is refused even by a reader that widens `accept` to older formats, while the other datasets'
     # older folds still pass through it.
     for old in sorted(READS_WITHOUT_ANN_SHARE - {RESULTS_FORMAT}):
-        expect_refusal(lambda old=old: check_results_format(
-            {"dataset": "siena", "results_format": old}, "a Siena fold",
-            accept=READS_WITHOUT_ANN_SHARE), "native 512 Hz", f"format-{old} Siena via accept")
+        if old < SIENA_WINDOWS_FROM:
+            expect_refusal(lambda old=old: check_results_format(
+                {"dataset": "siena", "results_format": old}, "a Siena fold",
+                accept=READS_WITHOUT_ANN_SHARE), "native 512 Hz", f"format-{old} Siena via accept")
+        else:
+            check_results_format({"dataset": "siena", "results_format": old}, "a Siena fold",
+                                 accept=READS_WITHOUT_ANN_SHARE)
         check_results_format({"dataset": "eegmmidb", "results_format": old}, "an eegmmidb fold",
                              accept=READS_WITHOUT_ANN_SHARE)
     check_results_format({"dataset": "siena", "results_format": RESULTS_FORMAT}, "a Siena fold",

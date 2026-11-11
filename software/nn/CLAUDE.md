@@ -370,7 +370,7 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Paper data contract (results_format 13)**: the paper reads only generated files in its
+**Paper data contract (results_format 14)**: the paper reads only generated files in its
 `data/` (`paper_config.tex` macros, `paper_loso_overview.csv`, `paper_loso_<ds>_pareto.csv`,
 `paper_loso_pareto_series.tex`, `paper_loso_snn_overview.tex`, `paper_loso_energy.tex`,
 `paper_loso_energy_verdict.tex`, `paper_loso_significance.tex`,
@@ -436,6 +436,14 @@ comparison is void. Siena is therefore filtered at its native 512 Hz and cut at 
 eegmmidb (1.6 s windows; at 512 Hz: 0.5 s, ~39.5 values for latent 64, PCA test MSE 0.0000).
 `Meeting01Config::validate()` refuses a violation (`check_eeg_windows`, `Meeting01EegBand.hpp`);
 `check_results_format` refuses a Siena fold older than 13 even through `accept`.
+
+**GA streams and 60 epochs (results_format 14)**: the GA draws its genomes from
+`search_stream_seed(run seed, "<dataset>_fold<k>")` (`Meeting01GaSearch.hpp`; `GaSearchConfigT::stream`
+is REQUIRED, empty throws); trainings keep the run seed. Grid 5321956 (format 13) seeded the draws with
+the run seed alone: within a modality the searches of one seed shared 28-47 of ~46 candidates across
+folds and datasets. `training.epochs` 30 -> 60 in `meeting01-loso.json` (at 30, 60/60 ann-ae EEG final
+fits ran to the cap); the pre-validation profile keeps 30 (declared difference). Grid 5321956 is
+archived in `results/meeting01_grid5321956_format13/` (with the paper data it produced) and superseded.
 
 **Stopping (results_format 7, unchanged in 8)**: patience counts only once the monitor loss is
 `training.early_stop_min_skill` (0.10, REQUIRED) below the mean predictor's

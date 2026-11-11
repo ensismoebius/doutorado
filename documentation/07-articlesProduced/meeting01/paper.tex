@@ -240,7 +240,8 @@ is the best linear code through the same bottleneck, and is priced like the netw
 \cfgGaPop{} for \cfgGaGen{} generations (\cfgGaEvals{} candidates), minimizing validation
 MSE and an analytic inference cost. The final front is re-scored over \cfgGaWinnerSeeds{}
 fresh seeds, the search's own score left out, and the member with the lowest re-scored
-validation MSE wins (ties: lower cost). The genes are the number of hidden layers,
+validation MSE wins (ties: lower cost). Each dataset and fold draws its own candidates; the
+trainings that score them use the run's seed. The genes are the number of hidden layers,
 $L-1\in[\cfgSnnHidden]$; their widths, in $(d,\cfgSnnWidthMax]$; $T\in[\cfgTmin,\cfgTmax]$ (an
 integer drawn uniformly); $V_{th}^{(0)}\in[\cfgVth]$; $\beta^{(0)}\in[\cfgAlpha]$; the encoding;
 and the input transform. A width is drawn from $[\cfgSnnWidthMin,\cfgSnnWidthMax]$ and raised to
@@ -545,12 +546,13 @@ claim no cause for the gap.
 
 \par \emph{(v) The budget.} In this study \designCapLif\% of the LIF trainings had their best epoch
 among the last \designCapWindow{} of the \designEpochs, against \designCapLrelu\% of the leaky-ReLU
-ones. Training the adopted SNN-AE and its control for \budgetEpochs{} epochs instead lowered
-either's error by at most \budgetArmGainMax{} and moved their gap by at most
-\budgetGapShiftMax{}, no interval excluding zero; but the widest reaches
+ones. Training the adopted SNN-AE and its control for \budgetEpochs{} epochs instead of
+\budgetProtocolEpochs{} lowered either's error by at most \budgetArmGainMax{} and moved their gap
+by at most \budgetGapShiftMax{}, no interval excluding zero; but the widest reaches
 \budgetGapShiftWidest{}, beyond $\Delta=\cfgMargin$, so a cap effect of that size on EEGMMIDB is not
 excluded. (These runs' \budgetProtocolEpochs-epoch snapshots reproduce the \budgetSnapshots{}
-matching trainings above exactly.) On EEGMMIDB, where PCA errs less than the control
+matching trainings above exactly.) None of them reached \budgetEpochs{} epochs; the grid trains for
+at most \cfgEpochs{} (Section~\ref{sec:training}). On EEGMMIDB, where PCA errs less than the control
 (Section~\ref{sec:prevalidation}), a control with $2d$ or $4d$ hidden units instead of $d+1$ erred
 more, by \budgetWideTwo{} and \budgetWideFour{} (\budgetWideTwoLong{} and \budgetWideFourLong{} at
 \budgetEpochs{} epochs): its validation error stopped improving by epoch \budgetWideBest{} while
@@ -771,16 +773,20 @@ over its control; a larger budget could change the winner. (v) \emph{Different i
 the analog window, whereas the SNN-AE may read spikes; a stochastic or latency code also loses
 part of the window's information, which is included in the measured gap. (vi) \emph{Fixed latent width.} $d$ follows prior autoencoder practice for
 each domain, not a sweep on these datasets. (vii) \emph{Training cap.} At most \cfgEpochs{}
-epochs, which binds more on LIF than on leaky-ReLU trainings; on the development folds raising it
-to \budgetEpochs{} moved the gap by at most \budgetGapShiftMax{}, without excluding an effect of
-\budgetGapShiftWidest{} (Section~\ref{sec:design}), and the training error in
-Table~\ref{tab:snnsel} shows what the cap leaves on the headline folds.
+epochs. No training of the budget test reached that many (Section~\ref{sec:design}); the training
+error in Table~\ref{tab:snnsel} shows what the cap leaves on the headline folds.
 (viii) \emph{Sequence models pre-validated, not compared.} The LSTM-, GRU- and Transformer-AE
 were searched with \preGaEvals{} candidates on two development folds only, so the conclusions
 concern spiking against its control, not against sequence models. (ix) \emph{Rate read-out.} The
 latent is a time mean, so the timing of spikes carries nothing here; conclusions concern
 rate-read spiking. (x) \emph{One window draw.} Each fold's windows are one draw, so the seeds' standard
-deviations leave out that sampling noise.
+deviations leave out that sampling noise. (xi) \emph{A first run.} A first run of the grid
+trained for at most \budgetProtocolEpochs{} epochs and drew every fold's candidates from the run's seed alone, so the
+searches of one seed shared most of their candidates across the folds and datasets of a
+modality, and the cap ended every control training on the EEG folds. We found both after its
+results had been read, and reran the grid with the two changes of Sections~\ref{sec:search}
+and~\ref{sec:training}; the first run is released with the code.
+% TODO(after the grid run): say whether the first run's orderings agree with these.
 
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}

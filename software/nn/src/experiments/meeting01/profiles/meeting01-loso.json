@@ -74,7 +74,8 @@
     "training": {
         "samples_per_batch": 1,
         "batches_per_epoch": 0,
-        "epochs": 30,
+        "_epochs_comment": "60 (results_format 14, 2026-11-11), was 30: in grid 5321956 every ann-ae final fit on eegmmidb and Siena (60 of 60) and 45 of 60 SNN-AE ones ran to 30, so the cap, not the data, ended them, and the control more than the SNN-AE. In the budget test (development folds, results/meeting01_budget) no training reached 60; the latest best epoch was 45. GA evaluations read the same cap.",
+        "epochs": 60,
         "early_stop_patience": 5,
         "early_stop_min_skill": 0.10,
         "_early_stop_min_skill_comment": "Patience (early_stop_patience) only counts once the monitor loss is at most (1 - this) x the loss of the mean-target predictor; until then the run cannot stop early, and the best monitor epoch's network is kept (results_format 7). 0.10: the deepest plateau excursion in the pre-validation's 216 trainings was a skill of 0.066. Rationale: lib/include/Meeting01Stopping.hpp.",

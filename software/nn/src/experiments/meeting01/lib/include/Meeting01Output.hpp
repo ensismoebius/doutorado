@@ -103,7 +103,14 @@ namespace meeting01
 //           EEG window that holds no more than its latent. FSDD, AudioMNIST and eegmmidb are
 //           unchanged: readers that read only those (READS_WITHOUT_ANN_SHARE) accept 11 and 12 too.
 //           No production fold ran with format 12; the smoke jobs 5321563/5321565 did.
-inline constexpr int kResultsFormat = 13;
+//   14      2026-11-11. (1) The GA draws its genomes from search_stream_seed(run seed,
+//           "<dataset>_fold<k>"), not from the run seed alone: in grid 5321956 (format 13) the
+//           searches of one seed shared 28-47 of ~46 candidates across the folds and datasets of
+//           a modality. Trainings keep the run seed. (2) training.epochs 30 -> 60 in the grid
+//           profile: at 30 every ann-ae final fit on eegmmidb and Siena (60 of 60) and 45 of 60
+//           SNN-AE ones ran to the cap; in the budget test no training reached 60. Windows and
+//           rows are unchanged. Grid 5321956 ran with format 13 and is superseded.
+inline constexpr int kResultsFormat = 14;
 
 // Writes the inputs of the PCA / mean-frame reference baselines
 // (scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py) for one fold, per split

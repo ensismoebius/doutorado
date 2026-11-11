@@ -571,7 +571,10 @@ TEST(ProductionProfiles, PrevalidationDiffersFromTheGridOnlyWhereDeclared)
         "/evaluation/ga/transformer",
         "/model/recurrent_time_steps",
         "/model/lstm_frame_size",
-        "/model/lstm_hidden_size"};
+        "/model/lstm_hidden_size",
+        // The pre-validation ran at 30 (format 11, job 5317827) and its profile records that
+        // run; the grid moved to 60 in results_format 14 (Meeting01Output.hpp).
+        "/training/epochs"};
     for (const auto& ptr : declared)
     {
         const nlohmann::json::json_pointer p(ptr);

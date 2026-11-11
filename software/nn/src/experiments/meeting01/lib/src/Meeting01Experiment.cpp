@@ -992,6 +992,7 @@ FamilyWinnerSummary run_snn_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
@@ -1177,6 +1178,7 @@ FamilyWinnerSummary run_lstm_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
@@ -1270,6 +1272,7 @@ FamilyWinnerSummary run_gru_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
@@ -1370,6 +1373,7 @@ FamilyWinnerSummary run_transformer_ga_search(const Meeting01Config& config,
     search_cfg.tournament_k = ga_cfg.tournament_k;
     search_cfg.winner_seeds = ga_cfg.winner_seeds;
     search_cfg.seed = ga_cfg.seed;
+    search_cfg.stream = dataset_name + "_fold" + std::to_string(config.dataset.cv_fold);
     search_cfg.bounds = bounds;
     search_cfg.results_dir = config.dataset.results_dir;
     search_cfg.run_tag = config.experiment.run_tag + "_" + dataset_name + "_fold" +
