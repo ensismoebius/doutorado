@@ -210,7 +210,7 @@ def figure(inp: dict) -> str:
              r"\begin{tikzpicture}[font=\scriptsize]",
              (rf"\begin{{groupplot}}[group style={{group size=2 by {(len(datasets) + 1) // 2}, "
               r"horizontal sep=1.1cm, vertical sep=1.7cm},"),
-             (rf"  width=0.56\columnwidth, height=3.6cm, xmin=1, xmax={xmax}, "
+             (rf"  width=0.53\columnwidth, height=3.6cm, xmin=1, xmax={xmax}, "
               r"xlabel={epoch}, ylabel={training MSE},"),
              (r"  title style={yshift=-1ex}, ymajorgrids,"
               r" every axis plot/.append style={line width=0.3pt}]")]

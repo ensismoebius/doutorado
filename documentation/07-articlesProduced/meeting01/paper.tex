@@ -18,6 +18,17 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{groupplots}
+\usepackage{placeins}
+% Results has nine floats for about one and a half pages of text: let a page carry more of them,
+% so they stay near the text instead of queuing behind the references.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\dbltopfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.75}
+\renewcommand{\dblfloatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{dbltopnumber}{3}
+\setcounter{totalnumber}{5}
 \usepackage{pgfplotstable}
 \usepackage{cite}
 \usepackage{booktabs}
@@ -323,7 +334,7 @@ measurement on a chip.
 steps for the SNN-AE, but 1 for the first layer of a direct-coded input; 1 for the ANN-AE),
 after \cite{lemaire2022analytical}; $\theta$: input spikes.}
 \centering\footnotesize
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{1.2pt}
 \begin{tabular}{lll}
 \toprule
  & Analog input & Spike input \\
@@ -335,7 +346,7 @@ Read input & $R\,n_{\mathrm{in}}$ & $\theta$ \\
 Read weight, bias & $R(n_{\mathrm{in}}+1)\,n_{\mathrm{out}}$ & $(\theta+R)\,n_{\mathrm{out}}$ \\
 Read, write potential & -- & $(\theta+R)\,n_{\mathrm{out}}$ each \\
 Write output & $R\,n_{\mathrm{out}}$ & $R\,n_{\mathrm{out}}$ if no LIF follows \\
-Stored first layer (direct) & write $n_{\mathrm{out}}$, read $T\,n_{\mathrm{out}}$ & -- \\
+Stored 1st layer (direct) & write $n_{\mathrm{out}}$, read $T\,n_{\mathrm{out}}$ & -- \\
 \midrule
 \multicolumn{3}{p{0.93\columnwidth}}{LIF, per neuron and step: the leak (MAC) and the threshold
 test (add), and after an analog-input layer a read and a write of the potential; per output
@@ -620,34 +631,8 @@ epoch. Infer.: one window reconstructed after training. One CPU thread each.}
 \label{tab:prevalidation}
 \end{table}
 
-% ─────────────────────────────────────────────────────────────
-\section{Results}
-\label{sec:results}
-
-\ifplaceholder
-\par \fbox{\parbox{0.92\columnwidth}{\emph{Draft:} the tables of this section are placeholders
-($-$) until the nested-LOSO grid has run; they are regenerated from the harness's outputs.}}
-\fi
-
-\par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
-folds, Table~\ref{tab:sig} and Fig.~\ref{fig:forest} the group-level differences between the
-SNN-AE and each reference, Fig.~\ref{fig:learning} the final fits' training curves,
-Fig.~\ref{fig:pareto} the same models in the quality--energy plane, Table~\ref{tab:energy} and
-Fig.~\ref{fig:energybars} the energy under each repricing and where it goes, and
-Table~\ref{tab:snnsel} what the SNN-AE's search selected. On energy per window, \energyVerdict.
-
-\begin{table*}[!t]
-\caption{Energy per window (nJ), headline folds, mean over every winner: $E$
-(Section~\ref{sec:cost}), the encoder alone, the share of $E$ spent on memory accesses, $E$ with
-every access priced at one SRAM size, with every memory price halved, arithmetic alone, and $E$ as
-executed (a direct-coded first layer recomputed at every step). Last rows of each dataset: the
-SNN-AE's energy over each reference's, per column.}
-\centering\scriptsize
-\setlength{\tabcolsep}{2.5pt}
-\input{data/paper_loso_energy.tex}
-\label{tab:energy}
-\end{table*}
-
+% The Results floats sit before the section heading so they can be placed from the
+% page where Results starts; in the order the text first cites them.
 \begin{table*}[!t]
 \caption{Test MSE (mean $\pm$ std over \cfgRuns{} seeds; lowest per dataset in bold) and
 energy per window $E$ (nJ, memory-aware, Section~\ref{sec:cost}) on the headline folds. PCA and
@@ -672,27 +657,15 @@ Mean are fitted once (no seeds, no std); Mean is a stored vector and is not cost
 \label{tab:overview}
 \end{table*}
 
-\begin{table*}[!t]
+\begin{table}[!t]
 \caption{SNN-AE minus reference, group level, headline folds: $\overline{d_g}$ (positive: the
 SNN-AE errs more; $^{*}$: Holm-corrected $t$-test $p<0.05$; $^{\dagger}$: the whole interval lies
 inside $\pm\cfgMargin$, over groups and over fold means) and its 95\% $t$ interval.}
-\centering\footnotesize
+\centering\scriptsize
+\setlength{\tabcolsep}{1.8pt}
 \input{data/paper_loso_significance.tex}
 \label{tab:sig}
-\end{table*}
-
-\begin{figure*}[!t]
-  \centering
-  \ifplaceholder
-    \fbox{\parbox[c][2.6cm][c]{0.9\textwidth}{\centering Quality--energy plane:
-    generated from data/paper\_loso\_$\langle$dataset$\rangle$\_pareto.csv after the grid run.}}
-  \else
-    \input{figs/fig_pareto.tex}
-  \fi
-  \caption{Test MSE (mean $\pm$ std over seeds) against energy per window $E$, headline
-  folds. Down and left is better; the dashed line and the cross are PCA with $k=d$.}
-  \label{fig:pareto}
-\end{figure*}
+\end{table}
 
 \begin{figure}[!t]
   \centering
@@ -716,6 +689,18 @@ inside $\pm\cfgMargin$, over groups and over fold means) and its 95\% $t$ interv
   \label{fig:learning}
 \end{figure}
 
+\begin{table*}[!t]
+\caption{Energy per window (nJ), headline folds, mean over every winner: $E$
+(Section~\ref{sec:cost}), the encoder alone, the share of $E$ spent on memory accesses, $E$ with
+every access priced at one SRAM size, with every memory price halved, arithmetic alone, and $E$ as
+executed (a direct-coded first layer recomputed at every step). Last rows of each dataset: the
+SNN-AE's energy over each reference's, per column.}
+\centering\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\input{data/paper_loso_energy.tex}
+\label{tab:energy}
+\end{table*}
+
 \begin{figure}[!t]
   \centering
   \input{data/paper_loso_energy_bars.tex}
@@ -724,6 +709,19 @@ inside $\pm\cfgMargin$, over groups and over fold means) and its 95\% $t$ interv
   up to the latent) and the decoder side. Labels: $E$ in nJ, and $E$ over the ANN-AE control's.}
   \label{fig:energybars}
 \end{figure}
+
+\begin{figure*}[!t]
+  \centering
+  \ifplaceholder
+    \fbox{\parbox[c][2.6cm][c]{0.9\textwidth}{\centering Quality--energy plane:
+    generated from data/paper\_loso\_$\langle$dataset$\rangle$\_pareto.csv after the grid run.}}
+  \else
+    \input{figs/fig_pareto.tex}
+  \fi
+  \caption{Test MSE (mean $\pm$ std over seeds) against energy per window $E$, headline
+  folds. Down and left is better; the dashed line and the cross are PCA with $k=d$.}
+  \label{fig:pareto}
+\end{figure*}
 
 \begin{table*}[!t]
 \caption{SNN-AE selected per dataset over every (fold, run): modal encoding and input
@@ -748,6 +746,22 @@ it has no ``always'' share. Read the shares beside $T$: one spike moves a rate b
 \input{data/paper_loso_sensitivity.tex}
 \label{tab:sensitivity}
 \end{table}
+
+% ─────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+
+\ifplaceholder
+\par \fbox{\parbox{0.92\columnwidth}{\emph{Draft:} the tables of this section are placeholders
+($-$) until the nested-LOSO grid has run; they are regenerated from the harness's outputs.}}
+\fi
+
+\par Table~\ref{tab:overview} gives the test MSE and energy of every model on the headline
+folds, Table~\ref{tab:sig} and Fig.~\ref{fig:forest} the group-level differences between the
+SNN-AE and each reference, Fig.~\ref{fig:learning} the final fits' training curves,
+Table~\ref{tab:energy} and Fig.~\ref{fig:energybars} the energy under each repricing and where it
+goes, Fig.~\ref{fig:pareto} the same models in the quality--energy plane, and
+Table~\ref{tab:snnsel} what the SNN-AE's search selected. On energy per window, \energyVerdict.
 
 \par An ordering is asserted only where the Holm-corrected $p$ is below 0.05 and the interval
 excludes zero. One rule was fixed before the grid run: where PCA errs less than both
@@ -838,6 +852,8 @@ were reported on the development folds for what they cost to train and to run. \
 between the two autoencoders, the SNN-AE erred more than its control by \sigGapSpeech{} on speech
 and \sigGapEeg{} on EEG and \energyVsControl. We claim no cause for that gap. The harness, profile and analysis scripts are released \cite{furlan2026doi}.
 
+% No float after the references.
+\FloatBarrier
 \bibliographystyle{IEEEtran}
 \bibliography{paper}
 
