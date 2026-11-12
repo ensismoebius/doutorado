@@ -235,6 +235,10 @@ on_compute_node() {   # on_compute_node NAME CPUS TIME 'script'
         --job-name="meeting01-${name}" --output="$log" "$file"
   then
     echo "[gridunesp-deploy:remote] ERROR: the ${name} job failed; last lines of ${log}:" >&2
+    # The compute node wrote the log over NFS; the login node may not see it for a few seconds
+    # (the first failed thesis build, 2026-11-12, printed "cannot open" and hid the error).
+    local _
+    for _ in {1..30}; do [[ -s "$log" ]] && break; sleep 1; done
     tail -n 40 "$log" >&2 || true
     return 1
   fi
