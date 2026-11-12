@@ -25,6 +25,7 @@ add_executable(thesis_feature_extraction_gtest
     thesis_feature_extraction_gtest.cpp
     thesis_strict_config_gtest.cpp
     thesis_pca_gtest.cpp
+    thesis_cli_gtest.cpp
 )
 
 target_include_directories(thesis_feature_extraction_gtest

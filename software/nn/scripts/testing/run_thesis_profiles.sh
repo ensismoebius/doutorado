@@ -75,17 +75,32 @@ if [ -z "${BIN:-}" ] || [ ! -x "$BIN" ]; then
 fi
 echo "using binary: $BIN"
 
-# ── Parallelism (memory-gated) ───────────────────────────────────────────────
+# ── Parallelism: processes, one thread each (memory-gated) ──────────────────
 # Run several profiles at once when RAM allows. Each profile is an independent
 # run (own result file by run_tag), so phase00/phase01 parallelise safely.
-# Job count = min(free_RAM / per-job, nproc), capped at 4 to avoid GPU
-# oversubscription. Override with THESIS_JOBS; tune per-job budget with
-# THESIS_JOB_MEM_MB (default 5120 — measured snn-ae/poisson voice profiles peak
-# ~4.4GB RSS+swap each, EEG profiles ~2.1GB; the old 2048 default let 4 voice
-# jobs oversubscribe a 17GB box into heavy swap). JOBS=1 keeps the live
-# progress-bar UX.
-avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
-[ -z "${avail_mb:-}" ] && avail_mb=2048
+#
+# One thread per process (THESIS_THREADS, default 1), more processes instead:
+# the program splits each small multiply between threads and loses (GridUnesp
+# job 5322998: one Phase 01 epoch 2 s at 1 thread, 53 s at 4), and the thread
+# count changes the numbers (EER 0.4176 / 0.4083 / 0.4201 at 1 / 2 / 4 threads
+# after 3 epochs). Until 2026-11-12 nothing was set and every process took all
+# cores: 4 jobs x 12 threads on a 12-core desktop.
+#
+# Job count = min(free_RAM / per-job, nproc); a GPU build (max-performance-device)
+# is capped at 4 to avoid oversubscribing the device. Override with THESIS_JOBS;
+# tune per-job budget with THESIS_JOB_MEM_MB (default 5120 — measured snn-ae/poisson
+# voice profiles peak ~4.4GB RSS+swap each, EEG profiles ~2.1GB; the old 2048
+# default let 4 voice jobs oversubscribe a 17GB box into heavy swap). JOBS=1 keeps
+# the live progress-bar UX.
+export OMP_NUM_THREADS="${THESIS_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="$OMP_NUM_THREADS"
+avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo)
+# Unreadable meminfo used to become "2048 MB free" and size the run on a guess.
+if ! [[ "${avail_mb:-}" =~ ^[0-9]+$ ]]; then
+    echo "cannot read MemAvailable from /proc/meminfo; set THESIS_JOBS explicitly" >&2
+    [ -n "${THESIS_JOBS:-}" ] || exit 1
+    avail_mb=0
+fi
 per_mb=${THESIS_JOB_MEM_MB:-5120}
 jobs_mem=$(( avail_mb / per_mb )); [ "$jobs_mem" -lt 1 ] && jobs_mem=1
 cpus=$(nproc)
@@ -93,10 +108,12 @@ if [ -n "${THESIS_JOBS:-}" ]; then
     JOBS=$THESIS_JOBS
 else
     JOBS=$(( jobs_mem < cpus ? jobs_mem : cpus ))
-    [ "$JOBS" -gt 4 ] && JOBS=4
+    case "$BIN" in
+        */max-performance-device/*) [ "$JOBS" -gt 4 ] && JOBS=4 ;;
+    esac
 fi
 [ "$JOBS" -lt 1 ] && JOBS=1
-echo "parallelism: JOBS=$JOBS  (avail ${avail_mb}MB / ${per_mb}MB per job, ${cpus} cpus)"
+echo "parallelism: JOBS=$JOBS x ${OMP_NUM_THREADS} thread(s)  (avail ${avail_mb}MB / ${per_mb}MB per job, ${cpus} cpus)"
 auto_jobs=$JOBS   # computed default, offered as the reset value in the menu
 
 # ── What to run ──────────────────────────────────────────────────────────────

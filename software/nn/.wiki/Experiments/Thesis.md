@@ -491,6 +491,12 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 ./out/build/max-performance/src/experiments/thesis/thesis \
   --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested_std.json
 
+# Only repetition 1 of a profile: same seed and output names as in the full run. This is the
+# unit the GridUnesp array runs. Any other argument is refused: the old parser ignored unknown
+# ones, so "--repat 1" ran every repetition.
+OMP_NUM_THREADS=1 ./out/build/max-performance/src/experiments/thesis/thesis \
+  --config src/experiments/thesis/profiles/phase01/p01_dsnn_eeg_indep_nested_std.json --repeat 1
+
 # Full article run (all real profiles: phase00 then phase01)
 ./scripts/testing/run_thesis_profiles.sh all
 ```
@@ -552,19 +558,43 @@ fold-intersection fix every fold trains on all of its training speakers, not abo
 them.
 
 **What runs where.** `scripts/pipeline/thesis/thesis_gridunesp.sbatch` runs one phase as a Slurm
-array of **one-CPU** tasks. Task `t` of `N` runs the profiles at positions `t, t+N, t+2N, …` of
-the sorted list, one after another:
+array of **one-CPU** tasks. The work is cut into *units*: independent pieces that one process
+runs from start to finish.
+
+| Phase | Unit | Units | Array | Why this cut |
+|---|---|---|---|---|
+| 00 | one profile (all its repetitions) | 214 | `--array=0-63`, ~3–4 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
+| 01 | one (profile, repetition) | 32 × 3 = 96 | `--array=0-95`, one unit per task | Repetitions are whole trainings with their own seeds. As separate processes, the phase takes as long as one repetition instead of three. |
+
+Task `t` of `N` runs units `t, t+N, t+2N, …` of the sorted list, one after another:
 
 ```
 phase00, N = 64          sorted position:  0   1   2  ...  63   64   65  ...  213
                          task:             0   1   2  ...  63    0    1  ...   21
 -> task 0 runs positions 0, 64, 128, 192 (4 profiles); the 24 autoencoder profiles
    (positions 0-23) land on 24 different tasks instead of all in one
+
+phase01, N = 96          units: p01_dsnn_eeg_dep_flat_raw.rep0, .rep1, .rep2, p01_..._std.rep0, ...
+                         task t runs unit t:  thesis --config <profile> --repeat <k>
 ```
 
-Why batches and not one task per profile: every profile first loads the decoded dataset,
-`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Profiles that run in a row on one node
-read it once from `/home` and then from that node's page cache.
+`thesis --config P --repeat k` runs repetition `k` exactly as the full run would: the seed, and
+the `e05_<tag>_rep<k>_*` names. This was checked on 2026-11-12 with a 2-repetition, 2-epoch copy
+of `p01_dsnn_voice_dep_flat_raw` at 1 thread. Repetition 1 run alone and repetition 1 of the
+full run were compared, and every file was byte-identical except wall-clock fields (`train_ms`,
+`infer_ms`, `epoch_ms`): EER/AUC, learning curves, spike counts and all 5 saved fold models.
+Finer cuts were considered and not adopted:
+- one process per outer fold would need a step that merges fold results into a summary, which
+  the program does in memory today; not worth it for units that already take minutes;
+- the inner-CV candidates of a nested fold still run one after another in a one-CPU process.
+
+Why several units per task in Phase 00: every unit first loads the decoded dataset,
+`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Units that run in a row on one node read
+it once from `/home` and then from that node's page cache.
+
+The local runner (`scripts/testing/run_thesis_profiles.sh`) follows the same rule. Each process
+gets `THESIS_THREADS` threads (default 1; before 2026-11-12 every process took all the cores),
+and as many processes run as memory allows.
 
 **Why processes and not threads (measured 2026-11-12).** The program parallelises at three
 levels. Two of them are coarse: whole inner-CV candidates, and the handcrafted extraction of
@@ -615,6 +645,8 @@ default threads.
 THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # local, when every task is done: bring the phase home, then the hand-off above
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
+# after the hand-off is committed and deployed: Phase 01, one (profile, repetition) per task
+THESIS_PHASE=phase01 sbatch --array=0-95 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```
 
 **What it refuses, and what it records.** Each line below is a loud stop. None of these cases
@@ -622,8 +654,9 @@ is skipped or worked around.
 
 | Situation | Behaviour |
 |---|---|
-| Profile exits non-zero, or a summary / paraconsistent CSV that its repeats must write is missing | That task stops at once with exit 1. `results/thesis/<phase>/.failed/<profile>.failed` holds the exit code, the missing files and the log path, and the task's later profiles do not run. |
-| Profile finished and every expected file exists | `.done/<profile>.done` is written with the revision label. A resubmitted array skips that profile. |
+| A unit exits non-zero, or a summary / paraconsistent CSV that its repetition(s) must write is missing | That task stops at once with exit 1. `results/thesis/<phase>/.failed/<unit>.failed` holds the exit code, the missing files and the log path, and the task's later units do not run. |
+| A unit finished and every expected file exists | `.done/<unit>.done` is written with the revision label and thread count. `<unit>` is `<profile>` in Phase 00 and `<profile>.rep<k>` in Phase 01. A resubmitted array skips that unit. |
+| More tasks than units | The task is refused, because some tasks would have nothing to run. |
 | A `.done` marker made by another revision anywhere in the phase directory | The task is refused. One phase directory must never hold two binaries' results, and nothing downstream could tell them apart. Move the directory aside. |
 | The array is not `0..N-1` without gaps (`--array=3,7`) | The task is refused, because the profile-to-task mapping depends on `N`. Resubmit the whole array; finished tasks exit in seconds. |
 | The binary was not built from the sources on disk (`SOURCE_REVISION.thesis.built` ≠ `SOURCE_REVISION`) | The task is refused. Rerun the deploy. |

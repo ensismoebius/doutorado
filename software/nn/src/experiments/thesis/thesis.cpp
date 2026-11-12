@@ -3,7 +3,10 @@
  * @brief Experiment05 entry point: biometric authentication of severely dysphonic speakers.
  *
  * Usage:
- *   thesis --config <profile.json>
+ *   thesis --config <profile.json> [--repeat <k>]
+ *
+ * --repeat k runs only repetition k, exactly as the full run would (seed, output names); the
+ * GridUnesp array runs Phase 01 as one such process per (profile, repetition). ThesisCli.hpp.
  */
 
 #include <cstdlib>
@@ -13,6 +16,7 @@
 #include <string>
 
 #include "lib/include/ThesisClassifiers.hpp"
+#include "lib/include/ThesisCli.hpp"
 #include "lib/include/ThesisConfig.hpp"
 #include "lib/include/ThesisDataset.hpp"
 #include "lib/include/ThesisFeatureExtraction.hpp"
@@ -24,21 +28,6 @@
 
 namespace
 {
-void print_usage(const char* prog)
-{
-    std::cerr << "Usage: " << prog << " --config <profile.json>\n";
-}
-
-std::string parse_config_path(int argc, char* argv[])
-{
-    for (int i = 1; i < argc - 1; ++i)
-    {
-        std::string arg(argv[i]);
-        if (arg == "--config") return std::string(argv[i + 1]);
-    }
-    return {};
-}
-
 // Provenance/determinism fingerprint of the run: a hash of every declared key (the
 // Meeting01 config_hash analog). ThesisConfig refuses undeclared keys the run reads and
 // declared keys it ignores, so the declared keys are exactly the run's configuration —
@@ -160,16 +149,12 @@ auto main(int argc, char* argv[]) -> int
 {
     try
     {
-        std::string config_path = parse_config_path(argc, argv);
-        if (config_path.empty())
-        {
-            print_usage(argv[0]);
-            return EXIT_FAILURE;
-        }
+        const thesis::ThesisCli cli = thesis::parse_cli(argc, argv);
 
         // ── 1. Load and validate profile ─────────────────────────────────────
-        auto cfg = thesis::ThesisConfig::from_file(config_path);
+        auto cfg = thesis::ThesisConfig::from_file(cli.config_path);
         cfg.validate();
+        const thesis::RepeatRange repeats = thesis::repeat_range(cli, cfg.experiment.repeats);
 
         // Overall multi-profile banner. Each profile is a separate process and cannot know the
         // whole-run progress on its own, so the runner (run_thesis_profiles.sh) computes it and
@@ -185,7 +170,8 @@ auto main(int argc, char* argv[]) -> int
         std::cout << "[Thesis] run_tag=" << cfg.experiment.run_tag
                   << " modality=" << cfg.dataset.modality
                   << " strategy=" << cfg.feature_extraction.strategy
-                  << " repeats=" << cfg.experiment.repeats << "\n";
+                  << " repeats=" << cfg.experiment.repeats << " running=[" << repeats.first << ","
+                  << repeats.last << ")\n";
 
         // ── 2. Load dataset (once — identical across repeats) ────────────────
         auto view = thesis::load_dataset(cfg.dataset);
@@ -205,7 +191,7 @@ auto main(int argc, char* argv[]) -> int
             shared_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
 
         // ── Repeat loop ───────────────────────────────────────────────────────
-        for (int rep = 0; rep < cfg.experiment.repeats; ++rep)
+        for (int rep = repeats.first; rep < repeats.last; ++rep)
         {
             thesis::ThesisConfig rep_cfg = cfg;
 

@@ -6,40 +6,52 @@
 #
 # Usage (from ~/software/nn on GridUnesp, after the deploy):
 #   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
-#   THESIS_PHASE=phase01 sbatch --array=0-31 scripts/pipeline/thesis/thesis_gridunesp.sbatch
-# (one 1-CPU process per task: see --cpus-per-task below for why not threads)
+#   THESIS_PHASE=phase01 sbatch --array=0-95 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
-# ── Why an array of BATCHES of profiles ─────────────────────────────────────────────────────
-# Phase 00 is 214 profiles that each take seconds to ~15 minutes; Phase 01 is 32 that take hours.
-# Every profile first loads the decoded dataset (~/database.sqlite.e05dscache, 1.6 GB) from /home.
-# One Slurm task per Phase 00 profile would read it 214 times from /home, the heavy /home I/O the
-# job-nanny page warns about; a task that runs several profiles in a row reads it once and serves
-# the rest from that node's page cache. So task t of an N-task array runs the profiles whose
-# position in the sorted list is t, t+N, t+2N, ... (interleaved, so the 24 slow autoencoder
-# profiles of Phase 00 spread over the tasks instead of piling into one):
+# ── The unit of work: a profile in Phase 00, a (profile, repetition) in Phase 01 ───────────────
+# The program is fastest on ONE thread, so more CPUs help only as more processes, and the work
+# has to be cut into independent pieces. The repetitions of a profile are such pieces: each is a
+# whole training with its own seed. `thesis --config P --repeat k` runs repetition k exactly as
+# the full run would (seed, e05_<tag>_rep<k>_* names; ThesisCli.hpp), so:
 #
-#   sorted phase00 list   p00_ae_ann_base_eeg  p00_ae_ann_base_voice  ...  p00_pca_k8_voice
+#   phase01  32 profiles x 3 repetitions = 96 units  -> --array=0-95, one unit per task;
+#            the phase takes as long as one repetition instead of three
+#   phase00  214 units, one per profile               -> --array=0-63, ~3-4 units per task
+#
+# Phase 00 keeps whole profiles: a handcrafted profile extracts its features ONCE for all
+# repetitions (they do not depend on the seed), and split it would extract them three times; its
+# slowest profile took 230 s at one thread (array 5323006). Finer than a repetition -- one process
+# per outer fold -- would need a step that merges fold results into a summary, which the program
+# does in memory today; not worth it for units that already take minutes.
+#
+# Units are interleaved over the tasks: task t of N runs units t, t+N, t+2N, ... of the sorted
+# list, in a row. Every unit first loads the decoded dataset (~/database.sqlite.e05dscache, 1.6 GB)
+# from /home; units that run in a row on one node read it from that node's page cache.
+#
+#   sorted phase00 units  p00_ae_ann_base_eeg  p00_ae_ann_base_voice  ...  p00_pca_k8_voice
 #   position              0                    1                      ...  213
-#   task (N = 16)         0                    1                      ...  213 % 16 = 5
+#   task (N = 64)         0                    1                      ...  213 % 64 = 21
 #
 # The array must be 0..N-1 with nothing left out (checked): the mapping is a function of N, so a
-# partial resubmission (--array=3,7) would hand task 3 another task's profiles. Resubmit the whole
-# array instead -- a task whose profiles are all done exits in seconds.
+# partial resubmission (--array=3,7) would hand task 3 another task's units. Resubmit the whole
+# array instead -- a task whose units are all done exits in seconds.
 #
 # ── Done markers, and why a marker carries the code revision ─────────────────────────────────
-# A profile is done when the binary exited 0 AND every summary its repeats should write exists;
-# then results/thesis/<phase>/.done/<profile>.done is written, holding the deploy's revision
-# label (commit/tree hash, see scripts/pipeline/meeting01/_provenance.sh). A resubmitted task
-# skips its profiles that are done. A marker of ANOTHER revision anywhere in that directory
-# refuses the task: the phase would otherwise mix results of two binaries -- what happened to the
-# July run, whose Phase 01 numbers came from code later found defective -- and nothing
-# downstream could tell them apart. Move the old directory aside to run a new revision.
+# A unit is done when the binary exited 0 AND every file its repetition(s) must write exists;
+# then results/thesis/<phase>/.done/<unit>.done is written (<unit> = <profile> in Phase 00,
+# <profile>.rep<k> in Phase 01), holding the deploy's revision label (commit/tree hash, see
+# scripts/pipeline/meeting01/_provenance.sh) and the thread count. A resubmitted task skips its
+# units that are done. A marker of ANOTHER label anywhere in that directory refuses the task: the
+# phase would otherwise mix results of two binaries -- what happened to the July run, whose
+# Phase 01 numbers came from code later found defective -- and nothing downstream could tell
+# them apart. Move the old directory aside to run a new revision.
 #
 # ── Failures are not skipped ─────────────────────────────────────────────────────────────────
-# A profile that fails (non-zero exit, or a summary missing afterwards) stops its task at once:
-# the task exits non-zero, results/thesis/<phase>/.failed/<profile>.failed holds the exit code and
-# the log path, and the remaining profiles of that task do not run. Nothing is retried, nothing
+# A unit that fails (non-zero exit, or an expected file missing afterwards) stops its task at once:
+# the task exits non-zero, results/thesis/<phase>/.failed/<unit>.failed holds the exit code and
+# the log path, and the remaining units of that task do not run. Nothing is retried, nothing
 # is passed over. Fix the cause, redeploy if the code changed (then move the phase aside: see
 # above), and resubmit the array.
 #
@@ -139,8 +151,36 @@ REVISION="$(provenance_label SOURCE_REVISION) threads=${OMP_NUM_THREADS}"
 PROFILE_DIR="src/experiments/thesis/profiles/${PHASE}"
 mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sort)
 (( ${#ALL_PROFILES[@]} > 0 )) || refuse "no profiles in $PWD/$PROFILE_DIR"
-(( NTASKS <= ${#ALL_PROFILES[@]} )) ||
-  refuse "$NTASKS tasks for ${#ALL_PROFILES[@]} profiles: some tasks would have nothing to run"
+
+# The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
+case "$PHASE" in
+  phase00) SPLIT_REPEATS=0 ;;
+  phase01) SPLIT_REPEATS=1 ;;
+esac
+UNITS_FILE="$(mktemp)"
+# Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,
+# and a profile the listing refuses would silently drop its units.
+python3 - "$SPLIT_REPEATS" "${ALL_PROFILES[@]}" > "$UNITS_FILE" <<'PY' ||
+import json, sys
+split = sys.argv[1] == "1"
+for path in sys.argv[2:]:
+    reps = json.load(open(path))["experiment"]["repeats"]
+    if not isinstance(reps, int) or isinstance(reps, bool) or reps < 1:
+        sys.exit(f"{path}: experiment.repeats must be a positive integer, got {reps!r}")
+    for k in (range(reps) if split else ["-"]):
+        print(f"{path}\t{k}")
+PY
+  { rm -f "$UNITS_FILE"; refuse "could not list the units of $PWD/$PROFILE_DIR (above)"; }
+mapfile -t ALL_UNITS < "$UNITS_FILE"
+rm -f "$UNITS_FILE"
+(( NTASKS <= ${#ALL_UNITS[@]} )) ||
+  refuse "$NTASKS tasks for ${#ALL_UNITS[@]} units: some tasks would have nothing to run"
+# A unit's name in markers and logs: <profile stem>, or <profile stem>.rep<k>.
+unit_id() {
+  local stem
+  stem="$(basename "$1" .json)"
+  if [[ "$2" == "-" ]]; then echo "$stem"; else echo "${stem}.rep$2"; fi
+}
 
 RES="results/thesis/${PHASE}"
 DONE_DIR="${RES}/.done"
@@ -158,17 +198,20 @@ if [[ -d "$DONE_DIR" ]]; then
 fi
 
 MINE=()
-for (( i = TASK; i < ${#ALL_PROFILES[@]}; i += NTASKS )); do
-  stem="$(basename "${ALL_PROFILES[$i]}" .json)"
-  [[ -f "${DONE_DIR}/${stem}.done" ]] && continue
-  MINE+=("${ALL_PROFILES[$i]}")
+for (( i = TASK; i < ${#ALL_UNITS[@]}; i += NTASKS )); do
+  IFS=$'\t' read -r unit_profile unit_rep <<< "${ALL_UNITS[$i]}"
+  [[ -f "${DONE_DIR}/$(unit_id "$unit_profile" "$unit_rep").done" ]] && continue
+  MINE+=("${ALL_UNITS[$i]}")
 done
 echo "[thesis-grid] ${PHASE} task ${TASK}/${NTASKS}, revision ${REVISION}:" \
-     "${#MINE[@]} profile(s) to run"
-(( ${#MINE[@]} > 0 )) || { echo "[thesis-grid] every profile of this task is done"; exit 0; }
-# A failure marker of one of MY profiles is from an earlier attempt of this task: this attempt
-# reruns that profile, so it no longer describes the state.
-for p in "${MINE[@]}"; do rm -f "${FAILED_DIR}/$(basename "$p" .json).failed"; done
+     "${#MINE[@]} unit(s) to run"
+(( ${#MINE[@]} > 0 )) || { echo "[thesis-grid] every unit of this task is done"; exit 0; }
+# A failure marker of one of MY units is from an earlier attempt of this task: this attempt
+# reruns that unit, so it no longer describes the state.
+for u in "${MINE[@]}"; do
+  IFS=$'\t' read -r unit_profile unit_rep <<< "$u"
+  rm -f "${FAILED_DIR}/$(unit_id "$unit_profile" "$unit_rep").failed"
+done
 
 # ── Stage (INPUT for job-nanny): exactly what run.sh reads, in the same layout ────────────────
 # The dataset is NOT staged: the profiles read ~/database.sqlite (+ its cache) from /home, once
@@ -182,11 +225,11 @@ mkdir -p "$STAGE/${PROFILE_DIR}" "$STAGE/${BUILD_DIR}/src/experiments/thesis" \
          "$STAGE/${DONE_DIR}" "$STAGE/${FAILED_DIR}" "$STAGE/${RES}/logs"
 cp -a SOURCE_REVISION "$STAGE/"
 cp -a "$BIN" "$STAGE/${BIN}"
-for p in "${MINE[@]}"; do cp -a "$p" "$STAGE/${PROFILE_DIR}/"; done
-printf '%s\n' "${MINE[@]}" > "$STAGE/profiles.txt"
+for u in "${MINE[@]}"; do cp -a "${u%%$'\t'*}" "$STAGE/${PROFILE_DIR}/"; done
+printf '%s\n' "${MINE[@]}" > "$STAGE/units.txt"
 printf '%s\n' "$REVISION" > "$STAGE/revision.txt"
 
-# run.sh: runs this task's profiles in order, from WORK_DIR, stopping at the first failure.
+# run.sh: runs this task's units in order, from WORK_DIR, stopping at the first failure.
 cat > "$STAGE/run.sh" <<'RUN'
 #!/bin/bash
 # run.sh -- written by thesis_gridunesp.sbatch for job-nanny; not meant to be run by hand.
@@ -194,38 +237,40 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 BIN="out/build/max-performance/src/experiments/thesis/thesis"
 REVISION="$(<revision.txt)"
-while IFS= read -r profile; do
+while IFS=$'\t' read -r profile rep; do
   stem="$(basename "$profile" .json)"
+  if [[ "$rep" == "-" ]]; then unit="$stem"; args=(); else unit="${stem}.rep${rep}"; args=(--repeat "$rep"); fi
   res="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dataset"]["results_dir"])' "$profile")"
-  log="${res}/logs/${stem}.log"
+  log="${res}/logs/${unit}.log"
   mkdir -p "${res}/logs" "${res}/.done" "${res}/.failed"
-  echo "[thesis-grid] $(date '+%F %T') start ${stem}"
+  echo "[thesis-grid] $(date '+%F %T') start ${unit}"
   start=$SECONDS
   rc=0
-  "$BIN" --config "$profile" > "$log" 2>&1 || rc=$?
-  # Every file the repeats always write (thesis.cpp: summary and paraconsistent CSV, whatever
-  # the phase): e05_<run_tag>_<kind> for one repeat, e05_<run_tag>_rep<k>_<kind> for k < repeats
-  # otherwise -- the writers add "e05_" to a run_tag that already starts with it, the same rule
-  # 01_thesis_phase00_rank.py's expected_csvs() builds its names from.
-  missing="$(python3 - "$profile" "$res" <<'PY'
+  "$BIN" --config "$profile" "${args[@]}" > "$log" 2>&1 || rc=$?
+  # Every file the unit's repetitions always write (thesis.cpp: summary and paraconsistent CSV,
+  # whatever the phase): e05_<run_tag>_<kind> when the profile has one repetition,
+  # e05_<run_tag>_rep<k>_<kind> otherwise -- the writers add "e05_" to a run_tag that already
+  # starts with it, the rule 01_thesis_phase00_rank.py's expected_csvs() builds its names from.
+  missing="$(python3 - "$profile" "$res" "$rep" <<'PY'
 import json, os, sys
 p = json.load(open(sys.argv[1]))
 tag, reps = p["experiment"]["run_tag"], p["experiment"]["repeats"]
-tags = [tag] if reps == 1 else [f"{tag}_rep{k}" for k in range(reps)]
+ks = range(reps) if sys.argv[3] == "-" else [int(sys.argv[3])]
+tags = [tag] if reps == 1 else [f"{tag}_rep{k}" for k in ks]
 names = [f"e05_{t}_{kind}" for t in tags for kind in ("summary.json", "paraconsistent.csv")]
 print(" ".join(n for n in names if not os.path.isfile(os.path.join(sys.argv[2], n))))
 PY
 )"
   if [[ "$rc" != 0 || -n "$missing" ]]; then
     printf 'exit=%s\nmissing=%s\nlog=%s\nrevision=%s\n' "$rc" "$missing" "$log" "$REVISION" \
-      > "${res}/.failed/${stem}.failed"
-    echo "[thesis-grid] FAILED ${stem}: exit ${rc}${missing:+, missing ${missing}}; last lines of ${log}:" >&2
+      > "${res}/.failed/${unit}.failed"
+    echo "[thesis-grid] FAILED ${unit}: exit ${rc}${missing:+, missing ${missing}}; last lines of ${log}:" >&2
     tail -c 4000 "$log" | tr '\r' '\n' | tail -n 30 >&2
     exit 1
   fi
-  printf '%s\n' "$REVISION" > "${res}/.done/${stem}.done"
-  echo "[thesis-grid] $(date '+%F %T') done ${stem} ($(( SECONDS - start )) s)"
-done < profiles.txt
+  printf '%s\n' "$REVISION" > "${res}/.done/${unit}.done"
+  echo "[thesis-grid] $(date '+%F %T') done ${unit} ($(( SECONDS - start )) s)"
+done < units.txt
 RUN
 
 # start.sh: deletes the stage in the submit directory (WORK_DIR has its copy now) and runs run.sh
