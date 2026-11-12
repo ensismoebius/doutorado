@@ -18,14 +18,14 @@ nlohmann::json handcrafted_eeg()
 {
     return nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg",
+        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "handcrafted",
             "handcrafted": {"transform": "dtwpt", "scale": "lfcc", "descriptors": ["energy"],
                             "dtwpt_level": 4, "wavelet": "daub4", "cepstral": false}
         },
-        "paraconsistent": {"enabled": true},
+        "paraconsistent": {"enabled": true, "speaker_subsets": false},
         "classifier": {"enabled": false}
     })");
 }
@@ -35,7 +35,7 @@ nlohmann::json snn_ae_eeg()
 {
     return nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg",
+        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "autoencoder",
@@ -48,7 +48,7 @@ nlohmann::json snn_ae_eeg()
                 "firing_rate_reg_lambda": 0.5, "firing_rate_min": 0.1, "firing_rate_max": 0.8
             }
         },
-        "paraconsistent": {"enabled": true},
+        "paraconsistent": {"enabled": true, "speaker_subsets": false},
         "classifier": {"enabled": false},
         "training": {"epochs": 5, "learning_rate": 0.001, "optimizer_type": "adam",
                      "gradient_clip_norm": 0.0, "samples_per_batch": 8}

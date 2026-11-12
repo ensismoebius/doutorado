@@ -213,7 +213,12 @@ trains on the placeholder extractor rather than the Phase 00 winner. If you ran 
 step 2's post-processing came too late for that same pass's phase01 — re-run phase01 alone
 after it.
 
-> **Status:** Phase 00 and Phase 01 both completed a full run on 2026-07-19 (208/208 and 32/32
+> **Superseded (2026-11-12).** The counts and results on this page predate the protocol
+> revision (275 Phase 00 / 142 Phase 01 profiles, two EEG conditions, the EEG pairing fix):
+> every earlier thesis number is void. See
+> [Experiment05 › Protocol revision](../Experiments/Thesis.md#protocol-revision-2026-11-12).
+>
+> Earlier status: Phase 00 and Phase 01 both completed a full run on 2026-07-19 (208/208 and 32/32
 > profiles, 0 failures). Results live in `results/thesis/{phase00,phase01}`; the thesis's
 > §Fase 00/§Fase 01 tables reflect that run — see [Experiment05](../Experiments/Thesis.md#overview)
 > for the headline numbers.

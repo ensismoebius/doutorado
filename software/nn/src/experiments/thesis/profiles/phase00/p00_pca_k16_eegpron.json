@@ -1,0 +1,31 @@
+{
+  "experiment": {
+    "run_tag": "e05_p00_pca_k16_eegpron",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/phase00",
+    "modality": "eeg",
+    "eeg_condition": "pronounced",
+    "max_samples": 0
+  },
+  "feature_extraction": {
+    "strategy": "pca",
+    "pca": {
+      "n_components": 16
+    }
+  },
+  "paraconsistent": {
+    "enabled": true,
+    "speaker_subsets": true,
+    "fold_k": 5,
+    "fold_seed": 42,
+    "fold_repeats": 3
+  },
+  "classifier": {
+    "enabled": false
+  }
+}

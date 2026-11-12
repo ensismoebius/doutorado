@@ -8,6 +8,7 @@
     "root": "~/database.sqlite",
     "results_dir": "results/thesis/debug",
     "modality": "eeg",
+    "eeg_condition": "pronounced",
     "max_samples": 60
   },
   "feature_extraction": {
@@ -25,10 +26,11 @@
     }
   },
   "paraconsistent": {
-    "enabled": true
+    "enabled": true,
+    "speaker_subsets": false
   },
   "classifier": {
-    "type": "rnn",
+    "type": "ann",
     "layer_spec": [
       "linear:64:relu",
       "residual:1",

@@ -42,13 +42,16 @@
     "text_mode": "dependent",
     "enabled": true
   },
+  "degradation": {
+    "enabled": false
+  },
   "training": {
-    "epochs": 50,
-    "learning_rate": 0.001,
-    "samples_per_batch": 32,
     "k_folds": 5,
     "nested_cv": false,
     "standardize_features": false,
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
     "optimizer_type": "adam",
     "gradient_clip_norm": 0.0,
     "weight_decay": 0.0,

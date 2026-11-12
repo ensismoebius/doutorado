@@ -1,0 +1,48 @@
+{
+  "experiment": {
+    "run_tag": "e05_p00_ae_ann_small_eegimag",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/phase00",
+    "modality": "eeg",
+    "eeg_condition": "imagined",
+    "eeg_pairing_seed": 2026,
+    "max_samples": 0
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "ann-ae",
+      "encoder_layer_spec": [
+        "linear:32:leaky",
+        "linear:16:identity"
+      ],
+      "decoder_layer_spec": [
+        "linear:32:leaky",
+        "linear:output:identity"
+      ],
+      "ae_loss_type": "mse"
+    }
+  },
+  "paraconsistent": {
+    "enabled": true,
+    "speaker_subsets": true,
+    "fold_k": 5,
+    "fold_seed": 42,
+    "fold_repeats": 3
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0
+  }
+}

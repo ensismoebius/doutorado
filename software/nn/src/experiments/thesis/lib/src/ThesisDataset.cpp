@@ -1,5 +1,6 @@
 #include "ThesisDataset.hpp"
 
+#include <sqlite3.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -14,6 +15,8 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#include "EegPairing.hpp"
+#include "data_loaders/10.1117/schema/SqliteDataset.hpp"
 #include "data_loaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "logging/Logger.hpp"
 #include "progress/ProgressManager.hpp"
@@ -40,7 +43,9 @@ namespace
 // the cache rewritten. A cache whose header matches but whose body cannot be read is
 // corrupt and throws (it used to be decoded around in silence), as does a failed write.
 // Version 2 (2026-11-12): text phrases come from the dataset's stimulus table.
-constexpr char kCacheMagic[8] = {'E', '0', '5', 'D', 'S', 'C', '\0', '\2'}; // last byte = version
+// Version 3 (2026-11-12): EEG paired by trial identity (EegPairing.hpp). A version-2 cache
+// holds every voice trial with the PREVIOUS trial's EEG; it must never load again.
+constexpr char kCacheMagic[8] = {'E', '0', '5', 'D', 'S', 'C', '\0', '\3'}; // last byte = version
 
 bool cache_disabled()
 {
@@ -48,9 +53,81 @@ bool cache_disabled()
     return v != nullptr && v[0] != '\0' && v[0] != '0';
 }
 
-std::string cache_path_for(const std::string& root)
+// One file per pairing: the two conditions hold different EEG, and runs of both read their
+// caches concurrently on the cluster, so they must not take turns overwriting one file.
+std::string cache_path_for(const std::string& root, EegCondition condition, std::uint32_t seed)
 {
-    return root + ".e05dscache";
+    return condition == EegCondition::Pronounced
+               ? root + ".pronounced.e05dscache"
+               : root + ".imagined-" + std::to_string(seed) + ".e05dscache";
+}
+
+// ── Trial metadata (SQLite) ──────────────────────────────────────────────────
+struct SqliteDb
+{
+    sqlite3* db = nullptr;
+    explicit SqliteDb(const std::string& path)
+        : db(nn::dataLoaders::openSqliteDatasetReadOnly(path))
+    {
+    }
+    ~SqliteDb()
+    {
+        sqlite3_close(db);
+    }
+    SqliteDb(const SqliteDb&) = delete;
+    SqliteDb& operator=(const SqliteDb&) = delete;
+};
+
+struct Statement
+{
+    sqlite3_stmt* stmt = nullptr;
+    Statement(sqlite3* db, const char* sql)
+    {
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+            throw std::runtime_error(std::string("ThesisDataset: cannot prepare \"") + sql +
+                                     "\": " + sqlite3_errmsg(db));
+    }
+    ~Statement()
+    {
+        sqlite3_finalize(stmt);
+    }
+    Statement(const Statement&) = delete;
+    Statement& operator=(const Statement&) = delete;
+};
+
+auto read_modality_ids(sqlite3* db) -> ModalityIds
+{
+    Statement q(db, "SELECT id, name FROM modalities");
+    std::map<std::string, int> ids;
+    while (nn::dataLoaders::sqliteStepRow(db, q.stmt, "ThesisDataset: reading modalities"))
+        ids[reinterpret_cast<const char*>(sqlite3_column_text(q.stmt, 1))] =
+            sqlite3_column_int(q.stmt, 0);
+    if (!ids.count("Pronounced") || !ids.count("Imagined"))
+        throw std::runtime_error(
+            "ThesisDataset: the modalities table lacks \"Pronounced\" or \"Imagined\"");
+    return {ids.at("Pronounced"), ids.at("Imagined")};
+}
+
+auto read_eeg_trials(sqlite3* db, int subject_id) -> std::vector<EegTrialMeta>
+{
+    Statement q(db,
+        "SELECT t.original_row, t.modality_id, t.stimulus_id FROM trial t JOIN eeg_samples e "
+        "ON e.trial_id = t.id WHERE t.subject_id = ? ORDER BY t.original_row");
+    if (sqlite3_bind_int(q.stmt, 1, subject_id) != SQLITE_OK)
+        throw std::runtime_error("ThesisDataset: cannot bind the subject id");
+    std::vector<EegTrialMeta> trials;
+    while (nn::dataLoaders::sqliteStepRow(db, q.stmt, "ThesisDataset: reading EEG trials"))
+    {
+        for (int c = 0; c < 3; ++c)
+            if (sqlite3_column_type(q.stmt, c) == SQLITE_NULL)
+                throw std::runtime_error("ThesisDataset: subject " + std::to_string(subject_id) +
+                                         " has an EEG trial with a NULL original_row, "
+                                         "modality or stimulus");
+        trials.push_back({sqlite3_column_int64(q.stmt, 0),
+            sqlite3_column_int(q.stmt, 1),
+            sqlite3_column_int(q.stmt, 2)});
+    }
+    return trials;
 }
 
 // Structural fingerprint of the source, cheap to compute (no row decode): the
@@ -275,10 +352,12 @@ std::string stimulus_to_phrase(const std::map<int, std::string>& names, int stim
     return it->second;
 }
 
-// Full decode from source .mat files, ignoring max_samples (applied by the
-// caller). Returns the complete decoded set — the unit the cache stores.
+// Full decode from the SQLite source, ignoring max_samples (applied by the caller).
+// Returns the complete decoded set — the unit the cache stores.
 auto decode_full_dataset(const std::vector<SubjectFiles>& subjects,
-    const std::map<int, std::string>& stimulus_names) -> ThesisDatasetView
+    const std::map<int, std::string>& stimulus_names,
+    EegCondition condition,
+    std::uint32_t pairing_seed) -> ThesisDatasetView
 {
     ThesisDatasetView view;
     view.subject_files = subjects;
@@ -305,45 +384,71 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects,
             throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
                                      " (" + sf.subject_name + ") has no " +
                                      (sf.audio_path.empty() ? "audio" : "EEG") + " file");
+        // The pairing reads the trial table, which only the SQLite source has.
+        if (std::filesystem::path(sf.eeg_path).extension() != ".sqlite")
+            throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
+                                     " is read from " + sf.eeg_path +
+                                     "; the thesis pairs voice and EEG through the SQLite trial "
+                                     "table and does not read MAT sources");
 
         nn::dataLoaders::AudioSession audio_session(sf.audio_path, sf.subject_id);
         nn::dataLoaders::EEGSession eeg_session(sf.eeg_path, sf.subject_id);
 
         const size_t n_audio = audio_session.rowCount();
-        const size_t n_eeg = eeg_session.rowCount();
-        if (n_audio == 0 || n_eeg == 0)
-            throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
-                                     " has " + std::to_string(n_audio) + " audio and " +
-                                     std::to_string(n_eeg) + " EEG rows");
+        if (n_audio == 0)
+            throw std::runtime_error(
+                "ThesisDataset: subject " + std::to_string(sf.subject_id) + " has no audio rows");
 
-        int paired = 0;
+        // Voice trials first: their own original_row is the EEG of the same trial.
+        std::vector<nn::Tensor> audio_tensors;
+        std::vector<VoiceTrialMeta> voice;
+        audio_tensors.reserve(n_audio);
+        voice.reserve(n_audio);
         for (size_t row = 0; row < n_audio; ++row)
         {
-            auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row);
-
-            // eeg_index is 1-based in the dataset; convert to 0-based. A missing (<= 0) or
-            // out-of-range index is refused: it used to fall back to pairing by row
-            // position, or to drop the trial without a word — either way a voice sample
-            // could be paired with another trial's EEG, or the speaker lose trials, and
-            // nothing in the results would show it.
-            if (eeg_index <= 0 || static_cast<size_t>(eeg_index) > n_eeg)
+            auto [audio_tensor, stimulus, original_row] = audio_session.readRow(row);
+            // -1 is the loader's "NULL original_row": an audio-only trial, with no EEG.
+            if (original_row < 0)
                 throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
-                                         ", audio row " + std::to_string(row) + " has eeg_index " +
-                                         std::to_string(eeg_index) + ", outside [1, " +
-                                         std::to_string(n_eeg) +
-                                         "] (the subject's EEG rows). The audio/EEG pairing is "
-                                         "broken for this subject; fix the source data.");
-            const auto eeg_row = static_cast<size_t>(eeg_index - 1);
+                                         ", audio row " + std::to_string(row) +
+                                         " has no EEG trial (NULL original_row)");
+            audio_tensors.push_back(std::move(audio_tensor));
+            voice.push_back({original_row, stimulus});
+        }
 
-            auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
+        ModalityIds modality;
+        std::vector<EegTrialMeta> eeg_trials;
+        {
+            const SqliteDb db(sf.eeg_path);
+            modality = read_modality_ids(db.db);
+            eeg_trials = read_eeg_trials(db.db, sf.subject_id);
+        }
+        const std::vector<long long> eeg_rows =
+            pair_eeg_trials(voice, eeg_trials, modality, condition, pairing_seed, sf.subject_id);
+        const int expected_modality =
+            condition == EegCondition::Pronounced ? modality.pronounced : modality.imagined;
+
+        int paired = 0;
+        for (size_t i = 0; i < voice.size(); ++i)
+        {
+            auto [eeg_tensor, eeg_labels] = eeg_session.readRow(static_cast<size_t>(eeg_rows[i]));
+            // What was read must be what was paired. Until 2026-11-12 the row read was
+            // original_row - 1, the previous trial, and nothing checked it.
+            if (eeg_labels[0] != expected_modality || eeg_labels[1] != voice[i].stimulus_id)
+                throw std::runtime_error(
+                    "ThesisDataset: subject " + std::to_string(sf.subject_id) + ", EEG row " +
+                    std::to_string(eeg_rows[i]) + " is modality " + std::to_string(eeg_labels[0]) +
+                    ", stimulus " + std::to_string(eeg_labels[1]) + "; expected modality " +
+                    std::to_string(expected_modality) + ", stimulus " +
+                    std::to_string(voice[i].stimulus_id));
 
             ThesisSample sample;
-            sample.audio = std::move(audio_tensor);
+            sample.audio = std::move(audio_tensors[i]);
             sample.eeg = std::move(eeg_tensor);
-            sample.stimulus = stimulus;
+            sample.stimulus = voice[i].stimulus_id;
             sample.subject_id = sf.subject_id;
-            sample.text_phrase = stimulus_to_phrase(stimulus_names, stimulus);
-            stimuli_seen.insert(stimulus);
+            sample.text_phrase = stimulus_to_phrase(stimulus_names, voice[i].stimulus_id);
+            stimuli_seen.insert(voice[i].stimulus_id);
             view.samples.push_back(std::move(sample));
             ++paired;
         }
@@ -411,14 +516,24 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     auto subjects = discoverSubjects(root, "^S(\\d+)$");
     if (subjects.empty()) throw std::runtime_error("ThesisDataset: no subjects found in " + root);
 
+    // A voice run reads no EEG, but the view always pairs (every modality runs on the
+    // same trials): it loads the same-trial EEG and never looks at it.
+    const bool reads_eeg = dataset_cfg.modality != "voice";
+    const EegCondition condition =
+        reads_eeg ? parse_eeg_condition(dataset_cfg.eeg_condition) : EegCondition::Pronounced;
+    const std::uint32_t pairing_seed =
+        condition == EegCondition::Imagined ? dataset_cfg.eeg_pairing_seed.get() : 0u;
+
     ThesisDatasetView view;
     bool from_cache = false;
 
     // Try the decoded-dataset cache: signature is derived from the (cheap)
     // subject discovery above, so a changed source invalidates it without a
-    // content re-read.
-    const std::string cache_file = cache_path_for(root);
-    const std::uint64_t signature = source_signature(subjects);
+    // content re-read. The pairing is part of the file name and of the signature.
+    const std::string cache_file = cache_path_for(root, condition, pairing_seed);
+    std::uint64_t signature = source_signature(subjects);
+    signature ^= (static_cast<std::uint64_t>(condition == EegCondition::Imagined) << 63) ^
+                 (static_cast<std::uint64_t>(pairing_seed) << 17);
     if (!cache_disabled() && try_load_cache(cache_file, signature, view))
     {
         from_cache = true;
@@ -427,11 +542,9 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     }
     else
     {
-        view = decode_full_dataset(subjects, discoverStimulusNames(root));
+        view = decode_full_dataset(subjects, discoverStimulusNames(root), condition, pairing_seed);
         if (view.samples.empty())
-            throw std::runtime_error(
-                "ThesisDataset: no paired audio+EEG samples found. "
-                "Check that each subject has both audio and EEG .mat files.");
+            throw std::runtime_error("ThesisDataset: no paired audio+EEG samples found in " + root);
         if (!cache_disabled())
         {
             write_cache(cache_file, signature, view);
@@ -449,47 +562,34 @@ auto make_text_split(
     const std::vector<ThesisSample>& samples, const std::string& text_mode, uint32_t seed)
     -> TextSplit
 {
-    if (text_mode == "dependent")
+    if (text_mode != "dependent" && text_mode != "independent")
+        throw std::invalid_argument("ThesisDataset: unknown text_mode " + text_mode);
+
+    // The phrases, in a seeded order: the first half trains, the next half of the same size
+    // is the "unseen" test set; with an odd count the last phrase is used by neither mode.
+    std::vector<std::string> phrases;
+    for (const auto& s : samples)
+        if (std::find(phrases.begin(), phrases.end(), s.text_phrase) == phrases.end())
+            phrases.push_back(s.text_phrase);
+    if (phrases.size() < 2)
+        throw std::invalid_argument("ThesisDataset: the text split needs at least 2 phrases, got " +
+                                    std::to_string(phrases.size()));
+    std::sort(phrases.begin(), phrases.end()); // order of first appearance must not matter
+    std::mt19937 rng(seed);
+    std::shuffle(phrases.begin(), phrases.end(), rng);
+    const auto half = static_cast<ptrdiff_t>(phrases.size() / 2);
+    const std::unordered_set<std::string> seen(phrases.begin(), phrases.begin() + half);
+    const std::unordered_set<std::string> unseen(
+        phrases.begin() + half, phrases.begin() + 2 * half);
+    const auto& test_phrases = (text_mode == "dependent") ? seen : unseen;
+
+    TextSplit ts;
+    for (size_t i = 0; i < samples.size(); ++i)
     {
-        // All phrases available at both train and test; split by utterance index.
-        std::vector<size_t> indices(samples.size());
-        std::iota(indices.begin(), indices.end(), 0);
-        std::mt19937 rng(seed);
-        std::shuffle(indices.begin(), indices.end(), rng);
-        size_t split_point = indices.size() * 8 / 10; // 80/20
-        TextSplit ts;
-        ts.train_indices = {indices.begin(), indices.begin() + static_cast<ptrdiff_t>(split_point)};
-        ts.test_indices = {indices.begin() + static_cast<ptrdiff_t>(split_point), indices.end()};
-        return ts;
+        if (seen.count(samples[i].text_phrase)) ts.train_indices.push_back(i);
+        if (test_phrases.count(samples[i].text_phrase)) ts.test_indices.push_back(i);
     }
-
-    if (text_mode == "independent")
-    {
-        // Collect unique phrases, split phrases into train-set and test-set halves.
-        std::vector<std::string> phrases;
-        for (const auto& s : samples)
-        {
-            if (std::find(phrases.begin(), phrases.end(), s.text_phrase) == phrases.end())
-                phrases.push_back(s.text_phrase);
-        }
-        std::mt19937 rng(seed);
-        std::shuffle(phrases.begin(), phrases.end(), rng);
-        size_t phrase_split = phrases.size() / 2;
-        std::unordered_set<std::string> train_phrases(
-            phrases.begin(), phrases.begin() + static_cast<ptrdiff_t>(phrase_split));
-
-        TextSplit ts;
-        for (size_t i = 0; i < samples.size(); ++i)
-        {
-            if (train_phrases.count(samples[i].text_phrase))
-                ts.train_indices.push_back(i);
-            else
-                ts.test_indices.push_back(i);
-        }
-        return ts;
-    }
-
-    throw std::invalid_argument("ThesisDataset: unknown text_mode " + text_mode);
+    return ts;
 }
 
 auto build_speaker_map(const std::vector<ThesisSample>& samples,

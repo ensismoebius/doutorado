@@ -21,7 +21,23 @@ Every choice is declared — nothing has a default:
                             experiment.seed_deterministic, training.k_folds,
                             training.nested_cv and classifier.text_mode, so those must
                             be equal (nested_cv is included conservatively).
+                corrected   Nadeau-Bengio corrected repeated k-fold t-test on the same
+                            matched values (paired-split conditions as above). The r x k
+                            fold differences are not independent -- the folds of one
+                            repetition share their training data and the repetitions
+                            reuse every sample -- so the plain t (or Wilcoxon) treats 15
+                            correlated values as 15 independent ones and its p is too
+                            small. The correction inflates the variance:
+                                t = mean(d) / sqrt((1/n + n_test/n_train) * var(d)),
+                            n = r*k, df = n - 1 (Nadeau & Bengio, Mach. Learn. 52, 2003;
+                            Bouckaert & Frank, PAKDD 2004), with n_test/n_train =
+                            1/(k - 1), the speaker share of a k-fold split (both text modes
+                            keep the same number of phrases on each side).
                 independent Mann-Whitney U, valid for any pair.
+  --select      a regular expression the run_tag must match (search, not full match):
+                the family of conditions compared. "." takes every profile in the
+                directory. Phase 01 holds several experimental sets (grid, controls,
+                dysphonia, extractor comparison); each test family is declared.
 
 Refused rather than skipped: a missing metrics file, a file without the metric column, a
 non-numeric or non-finite value (closed-set metrics such as accuracy are NaN under the
@@ -43,7 +59,8 @@ Usage:
     python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py \
         --profiles-dir src/experiments/thesis/profiles/phase01 \
         --results-dir  results/thesis/phase01 \
-        --metric eer --reference best --pairing independent \
+        --select '^e05_p01_dsnn_.*_flat_std$' \
+        --metric eer --reference e05_p01_dsnn_eegpron_dep_flat_std --pairing corrected \
         --out results/thesis/phase01/cross_profile_significance.csv
 """
 import argparse
@@ -52,6 +69,7 @@ import glob
 import json
 import math
 import os
+import re
 import sys
 
 try:
@@ -163,8 +181,26 @@ def holm(pvals):
     return adjusted
 
 
-def compare(ref, cur, pairing):
+def corrected_t(c, r, k):
+    """Nadeau-Bengio corrected repeated k-fold t-test of c - r (matched arrays)."""
+    d = c - r
+    n = d.size
+    var = float(np.var(d, ddof=1))
+    if var == 0.0:
+        return None, "no test: the fold differences have zero variance"
+    t = float(np.mean(d)) / math.sqrt((1.0 / n + 1.0 / (k - 1)) * var)
+    return finite_p(2.0 * stats.t.sf(abs(t), df=n - 1), "corrected t"), ""
+
+
+def compare(ref, cur, pairing, k_folds):
     """(test, p or None, d or None, note) for cur vs ref, both {(rep, fold): value}."""
+    if pairing == "corrected":
+        keys = sorted(ref)
+        r = np.asarray([ref[k] for k in keys], float)
+        c = np.asarray([cur[k] for k in keys], float)
+        d, note = cohens_d(c, r)
+        p, why = corrected_t(c, r, k_folds)
+        return "corrected-t(paired)", p, d, join_notes(note, why)
     if pairing == "paired":
         keys = sorted(ref)
         r = np.asarray([ref[k] for k in keys], float)
@@ -207,7 +243,9 @@ def main() -> int:
     ap.add_argument("--metric", required=True, choices=METRICS)
     ap.add_argument("--reference", required=True,
                     help="'best' (best mean of --metric) or the run_tag of one profile.")
-    ap.add_argument("--pairing", required=True, choices=["paired", "independent"])
+    ap.add_argument("--pairing", required=True, choices=["paired", "corrected", "independent"])
+    ap.add_argument("--select", required=True,
+                    help="Regex the run_tag must match: the family compared ('.' = all).")
     ap.add_argument("--out", help="Also write the comparison table to this CSV.")
     args = ap.parse_args()
 
@@ -221,7 +259,10 @@ def main() -> int:
         tag = prof["experiment"]["run_tag"]
         if tag in profiles:
             fail(f"run_tag {tag!r} is declared by two profiles")
-        profiles[tag] = prof
+        if re.search(args.select, tag):
+            profiles[tag] = prof
+    if len(profiles) < 2:
+        fail(f"--select {args.select!r} keeps {len(profiles)} profile(s); a comparison needs 2")
     conds = {tag: read_condition(args.results_dir, prof, args.metric)
              for tag, prof in profiles.items()}
 
@@ -239,17 +280,17 @@ def main() -> int:
         fail(f"--reference {args.reference!r} is neither 'best' nor a profile run_tag: "
              f"{sorted(conds)}")
 
-    if args.pairing == "paired":
+    if args.pairing in ("paired", "corrected"):
         ref_sig = split_signature(profiles[ref])
         for c in ranked:
             diff = {k: (ref_sig[k], v) for k, v in split_signature(profiles[c]).items()
                     if ref_sig[k] != v}
             if diff:
-                fail(f"--pairing paired: {c} and the reference {ref} do not hold out the same "
+                fail(f"--pairing {args.pairing}: {c} and the reference {ref} do not hold out the same "
                      f"folds ({', '.join(f'{k}: {a!r} vs {b!r}' for k, (a, b) in diff.items())}). "
                      f"Use --pairing independent, or compare profiles that share the split.")
             if set(conds[c]) != set(conds[ref]):
-                fail(f"--pairing paired: {c} and {ref} have different (repetition, fold) sets")
+                fail(f"--pairing {args.pairing}: {c} and {ref} have different (repetition, fold) sets")
 
     arrow = "lower=better" if lower else "higher=better"
     print(f"\n=== Thesis cross-profile significance on '{args.metric}' ({arrow}) ===")
@@ -265,7 +306,8 @@ def main() -> int:
     def fmt(x, spec):
         return "—" if x is None else format(x, spec)
 
-    tested = {c: compare(conds[ref], conds[c], args.pairing) for c in ranked if c != ref}
+    k_folds = profiles[ref]["training"]["k_folds"]
+    tested = {c: compare(conds[ref], conds[c], args.pairing, k_folds) for c in ranked if c != ref}
     p_holm = holm({c: p for c, (_, p, _, _) in tested.items() if p is not None})
 
     rows = []

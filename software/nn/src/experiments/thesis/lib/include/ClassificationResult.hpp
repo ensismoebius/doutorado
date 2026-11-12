@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,8 @@ struct ClassificationResult
     double mean_infer_ms = 0.0;   // mean per-fold inference wall-clock
     double mean_spike_rate = 0.0; // SNN: mean firing rate at last epoch (NaN→skipped)
     long long final_sops = 0LL;   // SNN: synaptic ops/forward pass at last epoch
+    // Mean over the outer folds of FoldResult::energy; nullopt for the cosine control.
+    std::optional<InferenceEnergy> mean_energy;
 };
 
 } // namespace thesis

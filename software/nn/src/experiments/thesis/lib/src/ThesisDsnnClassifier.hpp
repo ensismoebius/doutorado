@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "Backend.hpp"
+#include "Meeting01Energy.hpp"
 #include "initializers/kaiming_snn.hpp"
 #include "layers/dense/Linear.hpp"
 #include "layers/spiking/LifBPTT.hpp"
@@ -156,8 +157,13 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
         if (use_tdbn_) h = tdbn_in_->forward(h, requires_grad); // normalize pre-spike current
         h = lif_in_->forward(h, requires_grad);
         if (cache_spikes) spikes_in_ = h; // (T*B, hidden) spike train of input LIF
+        // Event counts of THIS pass (training or evaluation), read by inference_ledger().
+        events_ = Events{};
+        events_.batch = static_cast<double>(B);
+        events_.lif_in_spikes = static_cast<double>(h.sum());
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
+            events_.block_in.push_back(static_cast<double>(h.sum()));
             // Residual block: identity skip around Linear→(tdBN)→LIF. Both the skip
             // and the block output are (T*B, hidden_dim), so the add is elementwise.
             // The spike train regularized/back-propagated is the LIF output `b`
@@ -167,8 +173,10 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
             if (use_tdbn_) b = tdbn_hidden_[i]->forward(b, requires_grad);
             b = hidden_lif_[i]->forward(b, requires_grad);
             if (cache_spikes) spikes_hidden_[i] = b; // spike train of hidden LIF i
-            h = b.add(skip);                         // residual connection
+            events_.block_spikes.push_back(static_cast<double>(b.sum()));
+            h = b.add(skip); // residual connection
         }
+        events_.out_in = static_cast<double>(h.sum());
         Tensor logits_t = fc_out_->forward(h, requires_grad); // (T*B, C)
 
         const int C = static_cast<int>(logits_t.cols());
@@ -364,7 +372,87 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
         return static_cast<long long>(total / static_cast<double>(batch));
     }
 
+    /// The inference energy of ONE sample, from the event counts of the last forward (call it
+    /// right after the evaluation forward): Meeting01Energy's ledger (Lemaire et al. 2022 at
+    /// Horowitz 2014 prices), the same model the meeting01 paper uses.
+    ///
+    /// What is counted, layer by layer (R = T rows per sample):
+    ///   fc_in   analog input. `repeated_once` true: the input is the same at every step, so
+    ///           the current is computed once, written, and read back by the LIF at each step
+    ///           (the primary count, as in meeting01); false: computed at every step (the code
+    ///           as it runs, a check).
+    ///   LIFs    leak + threshold per (neuron, step), reset + one event write per spike.
+    ///   block i / fc_out  a spiking Linear fed by the residual sum h. h holds the spike
+    ///           trains of every earlier LIF (the skips add them), and W(a + b) = Wa + Wb, so
+    ///           the layer is priced on sum(h) events: an event-driven core routes each earlier
+    ///           spike to it again, which the count includes, and no add is needed for the skip.
+    ///   readout the mean over the T steps (T adds and one scaling per output).
+    ///   tdBN    (when on) inference is an affine map per (neuron, step) with the running
+    ///           statistics folded into gamma/beta: the Linear writes its current, tdBN reads it
+    ///           and the two parameters, one MAC, and the LIF then integrates a dense current.
+    [[nodiscard]] auto inference_ledger(bool repeated_once) const -> meeting01::EnergyLedger
+    {
+        if (events_.batch <= 0.0)
+            throw std::logic_error("ThesisDsnnClassifier: inference_ledger() before any forward");
+        using meeting01::add_dense_fc;
+        using meeting01::add_lif;
+        using meeting01::add_spiking_fc;
+        const double B = events_.batch;
+        const double T = kSnnTimeSteps;
+        const double D = static_cast<double>(fc_in_->in_features);
+        const double H = hidden_dim_, C = out_dim_;
+        const double rows = T * B;
+        meeting01::EnergyLedger e;
+        auto tdbn = [&]()
+        {
+            e.fp_macs += rows * H;
+            e.access(e.rd_in, rows * H, H);
+            e.access(e.rd_param, 2.0 * rows * H, 2.0 * H);
+        };
+        if (repeated_once)
+        {
+            add_dense_fc(e, B, D, H, /*writes_output=*/true);
+            e.access(e.rd_in, rows * H, H);
+        }
+        else
+            add_dense_fc(e, rows, D, H, /*writes_output=*/use_tdbn_);
+        if (use_tdbn_) tdbn();
+        add_lif(e, rows, H, events_.lif_in_spikes, false, /*dense_input=*/true);
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            add_spiking_fc(e, events_.block_in[i], rows, H, H, /*writes_output=*/use_tdbn_);
+            if (use_tdbn_) tdbn();
+            add_lif(e, rows, H, events_.block_spikes[i], false, /*dense_input=*/use_tdbn_);
+        }
+        add_spiking_fc(e, events_.out_in, rows, H, C, /*writes_output=*/true);
+        e.fp_adds += rows * C; // the mean over T
+        e.fp_macs += B * C;
+        e.access(e.rd_in, rows * C, C);
+        e.access(e.wr_out, B * C, C);
+        return e.scaled(1.0 / B);
+    }
+
+    /// Spikes per sample in the last forward, all LIF layers.
+    [[nodiscard]] auto spikes_per_sample() const -> double
+    {
+        if (events_.batch <= 0.0)
+            throw std::logic_error("ThesisDsnnClassifier: spikes_per_sample() before any forward");
+        double s = events_.lif_in_spikes;
+        for (double b : events_.block_spikes) s += b;
+        return s / events_.batch;
+    }
+
    private:
+    struct Events
+    {
+        double batch = 0.0;
+        double lif_in_spikes = 0.0;
+        std::vector<double> block_in;     // sum(h) entering hidden block i
+        std::vector<double> block_spikes; // spikes of hidden LIF i
+        double out_in = 0.0;              // sum(h) entering fc_out
+    };
+    Events events_;
+
     // Add the firing-rate band-penalty gradient of one spiking layer to the
     // incoming gradient g (same shape as the cached spike train). No-op when
     // regularization is disabled or the spike cache is empty (eval pass).

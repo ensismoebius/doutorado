@@ -870,13 +870,14 @@ fi
 # every run, which is how the thesis tables ended up frozen on stale (pre-deletion)
 # data — so they now run automatically here.
 #
-#   1. 01_thesis_phase00_rank.py   → winners.json. Selects on d_penalized, NOT raw
-#      d_truth (a collapsed latent can game d_truth), and reports exact ties.
-#   2. 02_thesis_apply_winner.py   → injects the real winner into the 32 phase01
-#      profiles, replacing the daub4/lfcc placeholder they ship with.
+#   1. 01_thesis_phase00_rank.py   → winners.json (+ winner_stability.csv). Selects on
+#      d_penalized, NOT raw d_truth (a collapsed latent can game d_truth), reports exact ties,
+#      and how often the winner survives on the speaker subsets.
+#   2. 02_thesis_apply_winner.py   → injects the winners into the 142 phase01
+#      profiles, replacing the haar/lfcc/c1 placeholder they ship with.
 #   3. thesis_build_phase00_paraconsistent_tables.py → regenerates the thesis tables.
 #
-# NOTE: step 2 REWRITES 32 git-tracked files under
+# NOTE: step 2 REWRITES up to 142 git-tracked files under
 # src/experiments/thesis/profiles/phase01/. Expect a git diff there after a phase00 run;
 # that diff is the point (it is what phase01 then trains on), but review it before
 # committing. THESIS_SKIP_POST=1 skips this whole block.
@@ -894,7 +895,8 @@ post_process_phase00() {
     "$py" scripts/pipeline/thesis/01_thesis_phase00_rank.py \
         --profiles-dir src/experiments/thesis/profiles/phase00 \
         --results-dir  results/thesis/phase00 \
-        --out          results/thesis/phase00/winners.json || { rc=$?; return $rc; }
+        --out          results/thesis/phase00/winners.json \
+        --stability-out results/thesis/phase00/winner_stability.csv || { rc=$?; return $rc; }
 
     echo "[post] injecting winner into the phase01 profiles"
     # --fused is a design choice with no default: the fused (voice+EEG) runs inherit the

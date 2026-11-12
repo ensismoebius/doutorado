@@ -1,0 +1,55 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p01_cmp-ae_eegpron_dep",
+    "seed": 42,
+    "repeats": 1
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "eeg",
+    "eeg_condition": "pronounced",
+    "max_samples": 120
+  },
+  "feature_extraction": {
+    "strategy": "autoencoder",
+    "autoencoder": {
+      "model": "ann-ae",
+      "encoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:32:identity"
+      ],
+      "decoder_layer_spec": [
+        "linear:64:leaky",
+        "linear:output:identity"
+      ],
+      "ae_loss_type": "mse"
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "layer_spec": [
+      "linear:128:relu",
+      "residual:2",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "dependent",
+    "enabled": true
+  },
+  "training": {
+    "k_folds": 2,
+    "nested_cv": false,
+    "standardize_features": true,
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "samples_per_batch": 4,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "weight_decay": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
+  }
+}

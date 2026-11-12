@@ -17,7 +17,8 @@
     }
   },
   "paraconsistent": {
-    "enabled": true
+    "enabled": true,
+    "speaker_subsets": false
   },
   "classifier": {
     "enabled": false

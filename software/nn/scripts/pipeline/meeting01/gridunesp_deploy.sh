@@ -33,10 +33,13 @@
 #
 # thesis: its profiles read ~/database.sqlite (dataset.root), so with `thesis` in the targets
 # the local ~/database.sqlite (2.3 GB) is sent to the same path on the cluster, with its
-# decoded-dataset cache ~/database.sqlite.e05dscache when there is one (rsync -a keeps the
-# mtime the cache's signature is computed from). The smoke for `thesis` is a real Phase 00
-# profile (PCA, EEG, k = 8) on a compute node: it proves the binary, the database and the
-# cache in one go, and leaves a valid cache behind before an array starts. The jobs are
+# decoded-dataset caches when there are some: one per EEG condition,
+# ~/database.sqlite.pronounced.e05dscache and ~/database.sqlite.imagined-<seed>.e05dscache
+# (ThesisDataset.cpp; rsync -a keeps the mtime the caches' signature is computed from). The
+# pre-2026-11-12 ~/database.sqlite.e05dscache, decoded with the previous-trial EEG, is never
+# read again and is not sent. The smoke for `thesis` is two real Phase 00 profiles (PCA, k = 8,
+# EEG of pronounced and of imagined speech) on a compute node: they prove the binary, the
+# database and both caches, and leave valid caches behind before an array starts. The jobs are
 # submitted with scripts/pipeline/thesis/thesis_gridunesp.sbatch (named thesis-run-*).
 #
 # What gets synced: everything under this checkout EXCEPT out/ (local build
@@ -173,7 +176,9 @@ rsync -a -e "ssh -o ControlPath=${CTRL_PATH}" "$REV_FILE" \
 
 if has_target thesis; then
   thesis_files=("$THESIS_DB")
-  [[ -f "${THESIS_DB}.e05dscache" ]] && thesis_files+=("${THESIS_DB}.e05dscache")
+  for cache in "${THESIS_DB}".pronounced.e05dscache "${THESIS_DB}".imagined-*.e05dscache; do
+    [[ -f "$cache" ]] && thesis_files+=("$cache")
+  done
   echo "[gridunesp-deploy] thesis dataset -> ~/ on the cluster: ${thesis_files[*]}"
   rsync -a --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" "${thesis_files[@]}" \
     "${GRIDUNESP_USER}@${HOST}:"
@@ -275,13 +280,16 @@ if has_target thesis; then
   # the database or its cache as much as the binary. Its results go to a scratch directory (the
   # profile's results_dir is relative), never into results/thesis.
   SMOKE_DIR="$PWD/out/build/max-performance/thesis-smoke"
-  SMOKE_PROFILE="$PWD/src/experiments/thesis/profiles/phase00/p00_pca_k8_eeg.json"
+  SMOKE_PROFILES="$PWD/src/experiments/thesis/profiles/phase00/p00_pca_k8_eegpron.json"
+  SMOKE_PROFILES+=" $PWD/src/experiments/thesis/profiles/phase00/p00_pca_k8_eegimag.json"
   rm -rf "$SMOKE_DIR"
-  echo "[gridunesp-deploy:remote] smoke check: thesis (${SMOKE_PROFILE##*/})"
+  echo "[gridunesp-deploy:remote] smoke check: thesis (PCA k = 8, eegpron + eegimag)"
   on_compute_node thesis-smoke 4 00:30:00 "
     mkdir -p '$SMOKE_DIR' && cd '$SMOKE_DIR'
-    OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 '$TBIN' --config '$SMOKE_PROFILE'
-    ls results/thesis/phase00/*_summary.json >/dev/null
+    for prof in $SMOKE_PROFILES; do
+      OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 '$TBIN' --config \"\$prof\" || exit 1
+    done
+    ls results/thesis/phase00/*eegpron*_summary.json results/thesis/phase00/*eegimag*_summary.json >/dev/null
   "
   cp SOURCE_REVISION out/build/max-performance/SOURCE_REVISION.thesis.built
 fi

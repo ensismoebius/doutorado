@@ -844,7 +844,7 @@ TEST(ThesisAeLoss, ParsedFromProfileJson)
 {
     const auto j = nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg",
+        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "autoencoder",
@@ -855,7 +855,7 @@ TEST(ThesisAeLoss, ParsedFromProfileJson)
                 "ae_loss_type": "mae"
             }
         },
-        "paraconsistent": {"enabled": true},
+        "paraconsistent": {"enabled": true, "speaker_subsets": false},
         "classifier": {"enabled": false},
         "training": {"epochs": 5, "learning_rate": 0.001, "optimizer_type": "adam",
                      "gradient_clip_norm": 0.0, "samples_per_batch": 8}

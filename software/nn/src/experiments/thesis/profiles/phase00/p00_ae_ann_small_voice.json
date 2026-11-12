@@ -27,7 +27,11 @@
     }
   },
   "paraconsistent": {
-    "enabled": true
+    "enabled": true,
+    "speaker_subsets": true,
+    "fold_k": 5,
+    "fold_seed": 42,
+    "fold_repeats": 3
   },
   "classifier": {
     "enabled": false

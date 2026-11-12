@@ -1149,8 +1149,11 @@ own `sqlite3` connection, but all resolve the path the same way, via
 
 **`thesis` runs on the grid since 2026-11-12.** `gridunesp_deploy.sh` builds it by default
 (`GRIDUNESP_TARGETS="meeting01 thesis"`). With `thesis` among the targets, the deploy also
-sends `~/database.sqlite` and its decoded cache `~/database.sqlite.e05dscache` to the same
-paths on the cluster, and runs a real Phase 00 profile on a compute node as the smoke test.
+sends `~/database.sqlite` and its decoded caches, one per EEG condition
+(`~/database.sqlite.pronounced.e05dscache`, `~/database.sqlite.imagined-<seed>.e05dscache`), to
+the same paths on the cluster, and runs two real Phase 00 profiles (PCA k = 8, `eegpron` and
+`eegimag`) on a compute node as the smoke test. The pre-2026-11-12 `~/database.sqlite.e05dscache`
+holds the previous-trial EEG pairing; nothing reads it and it is not sent.
 Each target has its own stamp: `SOURCE_REVISION.built` for meeting01 and
 `SOURCE_REVISION.thesis.built` for thesis. The deploy deletes both before it builds, so a
 target left out of a deploy is unstamped afterwards and its runner refuses to start. The runs

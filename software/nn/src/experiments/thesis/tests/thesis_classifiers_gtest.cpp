@@ -43,12 +43,14 @@ TEST(ThesisIndexIntersection, DisjointIsEmpty)
 
 namespace
 {
-// A trained fold: compute_aggregate_stats refuses a fold without a training history.
+// A trained fold: compute_aggregate_stats refuses a fold without a training history
+// (or, for a network, without a measured energy).
 // The one epoch carries the default (NaN) firing rate of a non-spiking classifier.
 FoldResult fold(int i, double accuracy, double eer)
 {
     FoldResult f{i, accuracy, eer, 0.0};
     f.history.emplace_back();
+    f.energy = InferenceEnergy{}; // a network fold always measures its test pass
     return f;
 }
 } // namespace
@@ -90,7 +92,7 @@ TEST(ThesisAggregateStats, MetricNanInEveryFoldIsNotApplicable)
     EXPECT_TRUE(std::isnan(r.std_accuracy));
     EXPECT_TRUE(std::isnan(r.ci95_accuracy));
     EXPECT_NEAR(r.mean_eer, 0.2, 1e-12);
-    EXPECT_TRUE(std::isnan(r.mean_spike_rate)); // rnn: no firing rate in any fold
+    EXPECT_TRUE(std::isnan(r.mean_spike_rate)); // ann: no firing rate in any fold
 }
 
 TEST(ThesisAggregateStats, FoldWithoutHistoryThrows)
@@ -145,9 +147,10 @@ ThesisConfig make_fast_cfg()
     test::set_handcrafted(cfg);
     cfg.dataset.root = "/dev/null"; // never accessed in unit test
     cfg.dataset.results_dir = "/tmp/";
+    cfg.paraconsistent = ThesisConfig::Paraconsistent{};
     cfg.paraconsistent.enabled = false;
 
-    test::set_classifier(cfg, "rnn");
+    test::set_classifier(cfg, "ann");
     cfg.classifier.layer_spec =
         std::vector<std::string>{"linear:128:relu", "residual:2", "linear:N_speakers:identity"};
     cfg.classifier.text_mode = "independent";
@@ -327,7 +330,7 @@ TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 
-// Weight decay on the rnn path must also train cleanly (firing-rate reg is inert
+// Weight decay on the ann path must also train cleanly (firing-rate reg is inert
 // for the non-spiking ResNet classifier).
 TEST(ThesisRunClassifier, RnnWithWeightDecayRuns)
 {
@@ -337,7 +340,7 @@ TEST(ThesisRunClassifier, RnnWithWeightDecayRuns)
     cfg.training.weight_decay = 1e-3f;
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth-rnn-wd", cfg, scorer);
+    auto result = run_classifier(view, fvs, "synth-ann-wd", cfg, scorer);
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 

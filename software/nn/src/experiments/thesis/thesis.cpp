@@ -9,12 +9,15 @@
  * GridUnesp array runs Phase 01 as one such process per (profile, repetition). ThesisCli.hpp.
  */
 
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 
+#include "lib/include/ParaconsistentSubsets.hpp"
 #include "lib/include/ThesisClassifiers.hpp"
 #include "lib/include/ThesisCli.hpp"
 #include "lib/include/ThesisConfig.hpp"
@@ -22,6 +25,7 @@
 #include "lib/include/ThesisFeatureExtraction.hpp"
 #include "lib/include/ThesisOutput.hpp"
 #include "lib/include/ThesisParaconsistent.hpp"
+#include "lib/include/VoiceDegradation.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/GenuineImpostorEERScorer.hpp"
 #include "utility/progress.hpp"
@@ -43,9 +47,33 @@ std::size_t config_fingerprint(const thesis::ThesisConfig& cfg)
 // repeats share it. `cached_features` is non-null when feature extraction is also
 // seed-independent (handcrafted strategy); AE strategies pass null and re-extract
 // per repeat because AE training depends on the repeat's seed.
+// Verification protocol: per test speaker, the first utterance is the enrolment
+// template and the rest are probes scored against every template (cosine).
+constexpr std::size_t kEnrolUtterancesPerSpeaker = 1;
+
+// The voice of every sample whispered by degradation.level (VoiceDegradation.hpp), in place.
+// One random stream per sample (seed mixed with its index), so the result does not depend
+// on the thread schedule.
+void degrade_voices(thesis::ThesisDatasetView& view, const thesis::ThesisConfig::Degradation& dg)
+{
+    constexpr double kVoiceRateHz = 44100.0; // 10.1117 voice: 176400 samples in 4 s
+    const auto n = static_cast<long>(view.samples.size());
+#pragma omp parallel for schedule(dynamic, 8)
+    for (long i = 0; i < n; ++i)
+    {
+        nn::Tensor& audio = view.samples[static_cast<std::size_t>(i)].audio;
+        const float* src = audio.data_ptr();
+        const std::vector<float> x(src, src + audio.size());
+        const std::uint32_t seed = dg.seed.get() ^ (static_cast<std::uint32_t>(i) * 2654435761U);
+        const std::vector<float> y = thesis::degrade_voice(x, kVoiceRateHz, dg.level, seed);
+        std::copy(y.begin(), y.end(), audio.mutable_data_ptr());
+    }
+}
+
 void run_once(const thesis::ThesisConfig& cfg,
     const thesis::ThesisDatasetView& view,
-    const std::vector<thesis::FeatureSet>* cached_features)
+    const std::vector<thesis::FeatureSet>* cached_features,
+    const std::vector<thesis::FeatureSet>* degraded_features)
 {
     auto& pm = nn::progress::ProgressManager::instance();
 
@@ -71,6 +99,14 @@ void run_once(const thesis::ThesisConfig& cfg,
                 << " D_truth=" << s.d_truth;
             pm.log(oss.str());
         }
+        if (cfg.paraconsistent.speaker_subsets)
+            thesis::write_subsets_csv(cfg.dataset.results_dir,
+                cfg.experiment.run_tag,
+                thesis::score_speaker_subsets(view.samples,
+                    feature_sets,
+                    cfg.paraconsistent.fold_k,
+                    cfg.paraconsistent.fold_seed,
+                    cfg.paraconsistent.fold_repeats));
     }
 
     // ── 5. Classification (Phase 01 only) ────────────────────────────────────
@@ -86,10 +122,9 @@ void run_once(const thesis::ThesisConfig& cfg,
             cfg.classifier.type + " | " + cfg.classifier.text_mode + " | " +
                 std::to_string(cfg.training.k_folds) + "-fold CV");
 
-        // Verification protocol: per test speaker, the first utterance is the enrolment
-        // template and the rest are probes scored against every template (cosine).
-        constexpr std::size_t kEnrolUtterancesPerSpeaker = 1;
         const statistics::GenuineImpostorEERScorer scorer(kEnrolUtterancesPerSpeaker);
+        if (degraded_features != nullptr && degraded_features->size() != feature_sets.size())
+            throw std::logic_error("thesis: degraded and clean feature sets differ in number");
 
         int global_completed = 0;
         for (const auto& fs : feature_sets)
@@ -99,8 +134,26 @@ void run_once(const thesis::ThesisConfig& cfg,
             if (fs.vectors.empty())
                 throw std::runtime_error(
                     "thesis: feature set \"" + fs.label + "\" has no vectors; nothing to classify");
-            auto result = thesis::run_classifier(
-                view, fs.vectors, fs.label, cfg, scorer, global_bar, &global_completed);
+            const std::size_t fs_index = static_cast<std::size_t>(&fs - feature_sets.data());
+            std::optional<thesis::DegradedTestFeatures> degraded;
+            if (degraded_features != nullptr)
+            {
+                const auto& dfs = (*degraded_features)[fs_index];
+                if (dfs.label != fs.label)
+                    throw std::logic_error("thesis: degraded feature set \"" + dfs.label +
+                                           "\" is not the twin of \"" + fs.label + "\"");
+                degraded = thesis::DegradedTestFeatures{&dfs.vectors,
+                    cfg.degradation.scope.get() == "probes",
+                    kEnrolUtterancesPerSpeaker};
+            }
+            auto result = thesis::run_classifier(view,
+                fs.vectors,
+                fs.label,
+                cfg,
+                scorer,
+                global_bar,
+                &global_completed,
+                degraded ? &*degraded : nullptr);
             results.push_back(std::move(result));
         }
 
@@ -190,6 +243,16 @@ auto main(int argc, char* argv[]) -> int
         if (features_seed_independent)
             shared_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
 
+        // Simulated dysphonia: the same extractor over the degraded voices. The clean
+        // features are taken first; the view's audio is then replaced (nothing after this
+        // reads the clean audio). ThesisConfig refuses degradation with an autoencoder.
+        std::optional<std::vector<thesis::FeatureSet>> degraded_features;
+        if (cfg.degradation.enabled.declared() && cfg.degradation.enabled)
+        {
+            degrade_voices(view, cfg.degradation);
+            degraded_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
+        }
+
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = repeats.first; rep < repeats.last; ++rep)
         {
@@ -212,7 +275,10 @@ auto main(int argc, char* argv[]) -> int
                 nn::progress::ProgressManager::instance().log(oss.str());
             }
 
-            run_once(rep_cfg, view, features_seed_independent ? &shared_features : nullptr);
+            run_once(rep_cfg,
+                view,
+                features_seed_independent ? &shared_features : nullptr,
+                degraded_features ? &*degraded_features : nullptr);
         }
 
         nn::progress::ProgressManager::instance().shutdown();

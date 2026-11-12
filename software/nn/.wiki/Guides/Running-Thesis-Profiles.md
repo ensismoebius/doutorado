@@ -290,10 +290,10 @@ Averages `mean_eer`/`mean_auc` over each configuration's 3 repeats and
 writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better).
 Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
 
-> **Status (2026-07-19):** both phases have completed a full run — 208/208
-> phase00 and 32/32 phase01 profiles, 0 failures. See
-> [Experiment05](../Experiments/Thesis.md#overview) for the headline
-> numbers and the thesis chapter 09 for full tables and discussion.
+> **Superseded (2026-11-12).** The counts and results on this page predate the protocol
+> revision (275 Phase 00 / 142 Phase 01 profiles, two EEG conditions, the EEG pairing fix):
+> every earlier thesis number is void. See
+> [Experiment05 › Protocol revision](../Experiments/Thesis.md#protocol-revision-2026-11-12).
 
 ## Decoded-dataset cache
 
@@ -301,7 +301,8 @@ The first profile of a run decodes every subject's audio+EEG from source
 (`load_dataset` → `.mat`/sqlite), which dominates startup and is identical for
 every profile and repeat since the raw set never changes. `ThesisDataset.cpp`
 caches the fully-decoded sample set to a flat binary sidecar next to the
-dataset root (`<root>.e05dscache`) on the first run and reloads it directly
+dataset root, one per EEG condition (`<root>.pronounced.e05dscache`,
+`<root>.imagined-<seed>.e05dscache`), on the first run and reloads it directly
 afterwards — no re-decode. Measured on the 1974-sample set: **~27 s cold →
 ~1.5 s warm** (the load phase itself drops from ~25 s to sub-second). The OS
 page cache keeps the file resident across the runner's parallel workers.

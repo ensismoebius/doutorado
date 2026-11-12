@@ -1,0 +1,42 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p00_hc_daub6_lfcc_c2_eegimag",
+    "seed": 42,
+    "repeats": 1
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "eeg",
+    "eeg_condition": "imagined",
+    "eeg_pairing_seed": 2026,
+    "max_samples": 60
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "daub6",
+      "cepstral": true,
+      "descriptors": [
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": true,
+    "speaker_subsets": true,
+    "fold_k": 5,
+    "fold_seed": 42,
+    "fold_repeats": 3
+  },
+  "classifier": {
+    "enabled": false
+  }
+}

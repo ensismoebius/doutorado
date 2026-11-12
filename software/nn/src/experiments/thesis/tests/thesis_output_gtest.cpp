@@ -46,6 +46,7 @@ TEST(ThesisOutput, HandcraftedSummaryRecordsExtractionConfig)
 {
     auto cfg = base_cfg("t_hc");
     cfg.dataset.modality = "voice"; // bark is refused for EEG
+    cfg.dataset.eeg_condition = thesis::Required<std::string>{"dataset.eeg_condition"};
     thesis::test::set_handcrafted(cfg);
     cfg.feature_extraction.handcrafted.wavelet = "daub12";
     cfg.feature_extraction.handcrafted.scale = "bark";

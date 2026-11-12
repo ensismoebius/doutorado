@@ -1,0 +1,45 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p01_cosine_eegpron_indep_flat_std",
+    "seed": 42,
+    "repeats": 1
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "eeg",
+    "eeg_condition": "pronounced",
+    "max_samples": 120
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "haar",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "cosine",
+    "text_mode": "independent",
+    "enabled": true
+  },
+  "training": {
+    "k_folds": 2,
+    "nested_cv": false,
+    "standardize_features": true
+  }
+}

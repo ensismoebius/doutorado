@@ -27,7 +27,9 @@ inline ThesisConfig phase00(const std::string& modality)
     c.dataset.modality = modality;
     c.dataset.max_samples = 0;
     if (modality == "fused") c.dataset.fusion_mode = "late";
+    if (modality != "voice") c.dataset.eeg_condition = "pronounced";
     c.paraconsistent.enabled = true;
+    c.paraconsistent.speaker_subsets = false;
     c.classifier.enabled = false;
     return c;
 }
@@ -93,17 +95,19 @@ inline void set_handcrafted(ThesisConfig& c)
     hc.cepstral = false;
 }
 
-/// Phase-01-shaped classifier (rnn, nested CV), with every classifier training key.
+/// Phase-01-shaped classifier (flat CV), with every classifier training key.
 inline void set_classifier(ThesisConfig& c, const std::string& type)
 {
     c.classifier.enabled = true;
     c.classifier.type = type;
-    c.classifier.layer_spec =
-        std::vector<std::string>{"linear:16:relu", "residual:2", "linear:N_speakers:identity"};
     c.classifier.text_mode = "dependent";
     c.training.k_folds = 3;
     c.training.nested_cv = false;
     c.training.standardize_features = true;
+    if (c.dataset.modality.get() != "eeg") c.degradation.enabled = false;
+    if (type == "cosine") return; // no network: no layer_spec, no training keys
+    c.classifier.layer_spec =
+        std::vector<std::string>{"linear:16:relu", "residual:2", "linear:N_speakers:identity"};
     c.training.weight_decay = 0.0f;
     if (type == "dsnn")
     {

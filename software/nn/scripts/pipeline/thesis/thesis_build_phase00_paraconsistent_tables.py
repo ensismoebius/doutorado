@@ -5,8 +5,8 @@ configs by d_penalized.
 For every Phase 00 profile, reads exactly the summaries it declares
 (e05_<run_tag>[_rep<k>]_summary.json, from its own run_tag and repeats), averages
 best_d_penalized/best_d_truth/best_alpha/best_beta across the repetitions, and writes
-ranked CSV data files (one per {autoencoder, handcrafted, pca} x {eeg, voice} group,
-sorted ASCENDING by mean d_penalized). The profile set, not whatever is in results/,
+ranked CSV data files (one per {autoencoder, handcrafted, pca} x {voice, eegpron, eegimag}
+group, sorted ASCENDING by mean d_penalized). The profile set, not whatever is in results/,
 defines the tables: a result file with no profile is never read, and a profile with a
 missing repetition or an empty group is refused (a stale table would otherwise stay in
 the thesis looking current). The thesis LaTeX
@@ -32,6 +32,19 @@ two tables for that signal; the other table's rank 1 is merely the best of its o
 family. That distinction matters here: ranked by d_truth alone the best EEG
 autoencoder (1.4944) would appear to beat the handcrafted winner (1.5143), and it
 is only the contradiction penalty that reverses them.
+
+UNCERTAINTY (issue 8). A handcrafted or PCA extractor is deterministic: its repetitions are
+the same number, so their spread is not printed ("—"). What is printed instead comes from the
+speaker subsets every profile scores (e05_<tag>_paraconsistent_subsets.csv):
+  loso_sd    the standard deviation of d_penalized over the 15 leave-one-speaker-out sets --
+             how much the score moves when one speaker is missing;
+  fold_wins  in how many of the 15 Phase 01 training-fold subsets (k = 5 x 3 repetitions)
+             this configuration has the best d_penalized of its signal, ties included --
+             how often a selection made on the training speakers alone picks it.
+
+LABELS (issue 17). c1 is the band energies grouped on a frequency scale, c2 their cepstrum
+(log + DCT-II). Only c2 is cepstral, so c1 is named by its scale ("Linear", "Bark", "Mel") and
+c2 by the cepstral coefficient name ("LFCC", "BFCC", "MFCC").
 
 Usage:
     python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \\
@@ -64,6 +77,19 @@ def wavelet_label(tag: str) -> str:
     raise ValueError(f"no table label for wavelet {tag!r}; add it to WAVELET_LABELS")
 
 
+C1_SCALE = {"lfcc": "Linear", "bark": "Bark", "mel": "Mel"}
+C2_SCALE = {"lfcc": "LFCC", "bark": "BFCC", "mel": "MFCC"}
+SIGNALS = ("voice", "eegpron", "eegimag")
+DETERMINISTIC = {"hc", "pca"}
+
+
+def signal_of(prof: dict) -> str:
+    ds = prof["dataset"]
+    if ds["modality"] == "voice":
+        return "voice"
+    return {"pronounced": "eegpron", "imagined": "eegimag"}[ds["eeg_condition"]]
+
+
 def parse_profile(name: str, modality: str) -> Dict[str, str]:
     """name is the profile stem, e.g. 'p00_ae_snn_direct_base_eeg' or
     'p00_hc_daub10_bark_c1_voice' or 'p00_pca_k16_eeg'.
@@ -89,10 +115,8 @@ def parse_profile(name: str, modality: str) -> Dict[str, str]:
     m = re.match(r"^hc_(.+)_(bark|lfcc|mel)_(c\d)$", body)
     if m:
         wavelet, feature, category = m.group(1), m.group(2), m.group(3)
-        return {
-            "group": "hc",
-            "label": f"{wavelet_label(wavelet)} + {feature.upper()} ({category})",
-        }
+        scale = (C1_SCALE if category == "c1" else C2_SCALE)[feature]
+        return {"group": "hc", "label": f"{wavelet_label(wavelet)} + {scale} ({category})"}
 
     raise ValueError(f"Unrecognized phase00 profile stem: {name}")
 
@@ -112,15 +136,28 @@ def collect(profiles_dir: pathlib.Path,
     if not profiles:
         raise SystemExit(f"[phase00-tables] no profiles in {profiles_dir}")
     by_profile: Dict[str, List[dict]] = {}
+    subsets_of: Dict[str, Dict[str, float]] = {}
+    signal_by: Dict[str, str] = {}
     missing: List[pathlib.Path] = []
     for prof_path in profiles:
         prof = json.loads(prof_path.read_text(encoding="utf-8"))
         files = expected_summaries(results_dir, prof)
-        absent = [f for f in files if not f.is_file()]
+        subs = [f.with_name(f.name.replace("_summary.json", "_paraconsistent_subsets.csv"))
+                for f in files]
+        absent = [f for f in files + subs if not f.is_file()]
         if absent:
             missing.extend(absent)
             continue
         by_profile[prof_path.stem] = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+        signal_by[prof_path.stem] = signal_of(prof)
+        per_rep = []
+        for f in subs:
+            with f.open(newline="", encoding="utf-8") as fh:
+                per_rep.append({r["subset"]: float(r["d_penalized"]) for r in csv.DictReader(fh)})
+        if any(set(x) != set(per_rep[0]) for x in per_rep):
+            raise SystemExit(f"[phase00-tables] {prof_path}: repetitions scored different subsets")
+        subsets_of[prof_path.stem] = {k: statistics.mean(x[k] for x in per_rep)
+                                      for k in per_rep[0]}
     if missing:
         listed = "\n  ".join(str(m) for m in missing[:20])
         more = f"\n  ... and {len(missing) - 20} more" if len(missing) > 20 else ""
@@ -129,7 +166,7 @@ def collect(profiles_dir: pathlib.Path,
 
     tables: Dict[str, List[dict]] = defaultdict(list)
     for profile, runs in by_profile.items():
-        modality = runs[0]["modality"]
+        modality = signal_by[profile]
         parsed = parse_profile(profile, modality)
         d_truths = [float(r["best_d_truth"]) for r in runs]
         alphas = [float(r["best_alpha"]) for r in runs]
@@ -146,8 +183,14 @@ def collect(profiles_dir: pathlib.Path,
             "n_reps": len(runs),
             "mean_d_penalized": statistics.mean(d_pens),
             "mean_d_truth": statistics.mean(d_truths),
-            # One repetition has no spread: None prints as an explicit "—", never as 0.
-            "std_d_truth": statistics.pstdev(d_truths) if len(d_truths) > 1 else None,
+            # A deterministic extractor's repetitions are one measurement, and one
+            # repetition has no spread: None prints as an explicit "—", never as 0.
+            "std_d_penalized": (statistics.pstdev(d_pens)
+                                if len(d_pens) > 1 and parsed["group"] not in DETERMINISTIC
+                                else None),
+            "subsets": subsets_of[profile],
+            "loso_sd": statistics.stdev(v for k, v in subsets_of[profile].items()
+                                        if k.startswith("loso:")),
             "mean_alpha": statistics.mean(alphas),
             "mean_beta": statistics.mean(betas),
         }
@@ -156,6 +199,22 @@ def collect(profiles_dir: pathlib.Path,
     # Ascending: d_penalized is a distance to the Truth vertex, so rank 1 is the best.
     for key in tables:
         tables[key].sort(key=lambda r: r["mean_d_penalized"])
+
+    # fold_wins: per Phase 01 training-fold subset, the best d_penalized of the signal.
+    TIE_EPS = 1e-5  # as 01_thesis_phase00_rank.py
+    for modality in {r["modality"] for rows in tables.values() for r in rows}:
+        cands = [r for rows in tables.values() for r in rows if r["modality"] == modality]
+        folds = sorted(k for k in cands[0]["subsets"] if k.startswith("fold:"))
+        if any(set(r["subsets"]) != set(cands[0]["subsets"]) for r in cands):
+            raise SystemExit(f"[phase00-tables] {modality}: the profiles scored different subsets")
+        for r in cands:
+            r["fold_wins"] = 0
+            r["n_folds"] = len(folds)
+        for k in folds:
+            best = min(r["subsets"][k] for r in cands)
+            for r in cands:
+                if r["subsets"][k] - best <= TIE_EPS:
+                    r["fold_wins"] += 1
 
     # Mark each signal's winner, chosen across BOTH groups (the selection in
     # 01_thesis_phase00_rank.py is per signal, not per family), so exactly one row per
@@ -171,8 +230,8 @@ def write_table(key: str, rows: List[dict], out_dir: pathlib.Path) -> None:
     out_path = out_dir / f"phase00_{key}.csv"
     with out_path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["rank", "configuration", "mean_d_penalized", "mean_d_truth",
-                    "std_d_truth", "mean_alpha", "mean_beta"])
+        w.writerow(["rank", "configuration", "mean_d_penalized", "std_d_penalized",
+                    "loso_sd", "fold_wins", "mean_d_truth", "mean_alpha", "mean_beta"])
         for i, row in enumerate(rows, start=1):
             # The dagger is emitted as a LaTeX macro, not a literal "†": the CSV is read by
             # csvsimple straight into a tabular cell, so the marker has to survive as markup.
@@ -183,8 +242,10 @@ def write_table(key: str, rows: List[dict], out_dir: pathlib.Path) -> None:
                 rank,
                 row["label"],
                 f"{row['mean_d_penalized']:.4f}",
+                "—" if row["std_d_penalized"] is None else f"{row['std_d_penalized']:.4f}",
+                f"{row['loso_sd']:.4f}",
+                f"{row['fold_wins']}/{row['n_folds']}",
                 f"{row['mean_d_truth']:.4f}",
-                "—" if row["std_d_truth"] is None else f"{row['std_d_truth']:.4f}",
                 f"{row['mean_alpha']:.4f}",
                 f"{row['mean_beta']:.4f}",
             ])
@@ -205,7 +266,7 @@ def main() -> int:
     tables_dir.mkdir(parents=True, exist_ok=True)
 
     tables = collect(pathlib.Path(args.profiles_dir), results_dir)
-    keys = ("ae_eeg", "ae_voice", "hc_eeg", "hc_voice", "pca_eeg", "pca_voice")
+    keys = tuple(f"{g}_{s}" for g in ("ae", "hc", "pca") for s in SIGNALS)
     empty = [k for k in keys if k not in tables]
     if empty:
         print(f"[phase00-tables] no profile in groups {empty}: every group the thesis typesets "

@@ -1,0 +1,67 @@
+{
+  "experiment": {
+    "run_tag": "e05_p01_dysph_earlyimag_probes_l100",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/phase01",
+    "modality": "fused",
+    "fusion_mode": "early",
+    "eeg_condition": "imagined",
+    "eeg_pairing_seed": 2026,
+    "max_samples": 0
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "haar",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "layer_spec": [
+      "linear:128:relu",
+      "residual:2",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "dependent",
+    "enabled": true
+  },
+  "degradation": {
+    "enabled": true,
+    "level": 1.0,
+    "scope": "probes",
+    "seed": 7
+  },
+  "training": {
+    "k_folds": 5,
+    "nested_cv": false,
+    "standardize_features": true,
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "weight_decay": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
+  }
+}

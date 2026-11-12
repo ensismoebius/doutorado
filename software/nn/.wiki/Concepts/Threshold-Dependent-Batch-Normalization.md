@@ -203,7 +203,7 @@ These exact numbers are asserted in `TdBNTest.PoolsStatisticsOverBatchAndTime` (
 }
 ```
 
-When enabled, the Thesis deep spiking classifier inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). The flag is ignored by the non-spiking `rnn` classifier. See [Experiment05](../Experiments/Thesis.md).
+When enabled, the Thesis deep spiking classifier inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). The non-spiking `ann` twin has no LIF layers and refuses nothing here: the flag is DSNN-only. See [Experiment05](../Experiments/Thesis.md).
 
 ---
 

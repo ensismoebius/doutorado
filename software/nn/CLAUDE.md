@@ -75,7 +75,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
 | `thesis_spike_loss_e2e_gtest` | SpikeCount/SpikeTime AE training smoke (encoding<->loss invariant, time-major layout) |
-| `thesis_profile_audit_gtest` | 1986 tests: every thesis profile (phase00 214 = 184 handcrafted [wavelet×scale×category; EEG lfcc only] + 24 AE [ann-ae ×3 sizes + snn-ae ×3 encodings ×3 sizes] + 6 PCA [k 8/16/32 × voice/eeg]; 32 phase01; debug; smoke mirrors) parses + validates under the strict config |
+| `thesis_profile_audit_gtest` | 3354 tests: every profile in `profiles/profiles.manifest` (written by `scripts/pipeline/thesis/00_thesis_generate_profiles.py`: phase00 275 = 153 voice + 61 x 2 EEG conditions; phase01 142 = grid 56 + controls 28 + dysphonia 40 + extractor comparison 18; debug) parses + validates under the strict config; a profile on disk the manifest does not name fails |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |

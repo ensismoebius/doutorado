@@ -228,7 +228,7 @@ independentemente do ranking.
 
 ### E4 — Autenticação
 
-**Arquitetura do classificador** (`cfg.classifier.type = "rnn"` — Residual Neural Network):
+**Arquitetura do classificador** (`cfg.classifier.type = "ann"` — o grafo da DSNN com ReLU no lugar de LIF; o antigo `"rnn"`/SimpleResNet foi removido em 2026-11-12):
 
 ```
 Entrada (feat_dim)
@@ -349,7 +349,7 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "enabled": true             // calcula D_verdade antes da classificação
   },
   "classifier": {
-    "type": "rnn",              // "rnn" | "dsnn" implementados
+    "type": "dsnn",             // "dsnn" | "ann" | "cosine" implementados
     "layer_spec": [],            // validado (primeiro linear, residual presente, último linear:N_speakers)
     "text_mode": "independent"  // "dependent" | "independent"
   },

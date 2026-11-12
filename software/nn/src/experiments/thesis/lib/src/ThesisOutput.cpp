@@ -85,6 +85,22 @@ auto build_run_metadata_json(const ThesisConfig& cfg) -> nlohmann::json
     return j;
 }
 
+// Inference energy per test sample (nJ), FoldResult.hpp. Absent for the cosine control.
+auto energy_json(const InferenceEnergy& e) -> nlohmann::json
+{
+    return {{"nj", e.nj},
+        {"ops_nj", e.ops_nj},
+        {"mem_nj", e.mem_nj},
+        {"nj_as_executed", e.nj_as_executed},
+        {"nj_sram8k", e.nj_sram8k},
+        {"nj_sram32k", e.nj_sram32k},
+        {"nj_sram1m", e.nj_sram1m},
+        {"fp_macs", e.fp_macs},
+        {"fp_adds", e.fp_adds},
+        {"accesses", e.accesses},
+        {"spikes", e.spikes}};
+}
+
 auto build_fold_entry_json(const FoldResult& fold) -> nlohmann::json
 {
     nlohmann::json fj;
@@ -99,6 +115,7 @@ auto build_fold_entry_json(const FoldResult& fold) -> nlohmann::json
         fj["final_train_loss"] = last.train_loss;
         if (!std::isnan(last.val_loss)) fj["final_val_loss"] = last.val_loss;
     }
+    if (fold.energy) fj["energy"] = energy_json(*fold.energy);
     return fj;
 }
 
@@ -137,6 +154,7 @@ auto build_result_entry_json(const ClassificationResult& r) -> nlohmann::json
         folds_arr.push_back(build_fold_entry_json(fold));
     }
     rj["fold_models"] = folds_arr;
+    if (r.mean_energy) rj["energy"] = energy_json(*r.mean_energy);
     return rj;
 }
 

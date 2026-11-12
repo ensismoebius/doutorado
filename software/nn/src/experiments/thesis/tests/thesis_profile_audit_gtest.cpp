@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -19,272 +20,38 @@ using thesis::ThesisConfig;
 namespace
 {
 
-const std::vector<std::string>& all_profiles()
-{
-    static const std::vector<std::string> profiles = {
-        "debug.json",
-        "phase00/p00_ae_ann_base_eeg.json",
-        "phase00/p00_ae_ann_base_voice.json",
-        "phase00/p00_ae_ann_small_eeg.json",
-        "phase00/p00_ae_ann_small_voice.json",
-        "phase00/p00_ae_ann_tiny_eeg.json",
-        "phase00/p00_ae_ann_tiny_voice.json",
-        "phase00/p00_ae_snn_direct_base_eeg.json",
-        "phase00/p00_ae_snn_direct_base_voice.json",
-        "phase00/p00_ae_snn_direct_small_eeg.json",
-        "phase00/p00_ae_snn_direct_small_voice.json",
-        "phase00/p00_ae_snn_direct_tiny_eeg.json",
-        "phase00/p00_ae_snn_direct_tiny_voice.json",
-        "phase00/p00_ae_snn_latency_base_eeg.json",
-        "phase00/p00_ae_snn_latency_base_voice.json",
-        "phase00/p00_ae_snn_latency_small_eeg.json",
-        "phase00/p00_ae_snn_latency_small_voice.json",
-        "phase00/p00_ae_snn_latency_tiny_eeg.json",
-        "phase00/p00_ae_snn_latency_tiny_voice.json",
-        "phase00/p00_ae_snn_poisson_base_eeg.json",
-        "phase00/p00_ae_snn_poisson_base_voice.json",
-        "phase00/p00_ae_snn_poisson_small_eeg.json",
-        "phase00/p00_ae_snn_poisson_small_voice.json",
-        "phase00/p00_ae_snn_poisson_tiny_eeg.json",
-        "phase00/p00_ae_snn_poisson_tiny_voice.json",
-        "phase00/p00_pca_k16_eeg.json",
-        "phase00/p00_pca_k16_voice.json",
-        "phase00/p00_pca_k32_eeg.json",
-        "phase00/p00_pca_k32_voice.json",
-        "phase00/p00_pca_k8_eeg.json",
-        "phase00/p00_pca_k8_voice.json",
-        "phase00/p00_hc_daub10_bark_c1_voice.json",
-        "phase00/p00_hc_daub10_bark_c2_voice.json",
-        "phase00/p00_hc_daub10_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub10_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub10_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub10_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub10_mel_c1_voice.json",
-        "phase00/p00_hc_daub10_mel_c2_voice.json",
-        "phase00/p00_hc_daub12_bark_c1_voice.json",
-        "phase00/p00_hc_daub12_bark_c2_voice.json",
-        "phase00/p00_hc_daub12_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub12_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub12_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub12_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub12_mel_c1_voice.json",
-        "phase00/p00_hc_daub12_mel_c2_voice.json",
-        "phase00/p00_hc_daub14_bark_c1_voice.json",
-        "phase00/p00_hc_daub14_bark_c2_voice.json",
-        "phase00/p00_hc_daub14_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub14_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub14_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub14_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub14_mel_c1_voice.json",
-        "phase00/p00_hc_daub14_mel_c2_voice.json",
-        "phase00/p00_hc_daub16_bark_c1_voice.json",
-        "phase00/p00_hc_daub16_bark_c2_voice.json",
-        "phase00/p00_hc_daub16_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub16_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub16_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub16_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub16_mel_c1_voice.json",
-        "phase00/p00_hc_daub16_mel_c2_voice.json",
-        "phase00/p00_hc_daub18_bark_c1_voice.json",
-        "phase00/p00_hc_daub18_bark_c2_voice.json",
-        "phase00/p00_hc_daub18_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub18_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub18_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub18_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub18_mel_c1_voice.json",
-        "phase00/p00_hc_daub18_mel_c2_voice.json",
-        "phase00/p00_hc_daub20_bark_c1_voice.json",
-        "phase00/p00_hc_daub20_bark_c2_voice.json",
-        "phase00/p00_hc_daub20_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub20_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub20_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub20_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub20_mel_c1_voice.json",
-        "phase00/p00_hc_daub20_mel_c2_voice.json",
-        "phase00/p00_hc_daub22_bark_c1_voice.json",
-        "phase00/p00_hc_daub22_bark_c2_voice.json",
-        "phase00/p00_hc_daub22_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub22_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub22_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub22_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub22_mel_c1_voice.json",
-        "phase00/p00_hc_daub22_mel_c2_voice.json",
-        "phase00/p00_hc_daub24_bark_c1_voice.json",
-        "phase00/p00_hc_daub24_bark_c2_voice.json",
-        "phase00/p00_hc_daub24_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub24_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub24_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub24_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub24_mel_c1_voice.json",
-        "phase00/p00_hc_daub24_mel_c2_voice.json",
-        "phase00/p00_hc_daub26_bark_c1_voice.json",
-        "phase00/p00_hc_daub26_bark_c2_voice.json",
-        "phase00/p00_hc_daub26_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub26_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub26_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub26_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub26_mel_c1_voice.json",
-        "phase00/p00_hc_daub26_mel_c2_voice.json",
-        "phase00/p00_hc_daub28_bark_c1_voice.json",
-        "phase00/p00_hc_daub28_bark_c2_voice.json",
-        "phase00/p00_hc_daub28_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub28_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub28_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub28_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub28_mel_c1_voice.json",
-        "phase00/p00_hc_daub28_mel_c2_voice.json",
-        "phase00/p00_hc_daub30_bark_c1_voice.json",
-        "phase00/p00_hc_daub30_bark_c2_voice.json",
-        "phase00/p00_hc_daub30_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub30_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub30_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub30_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub30_mel_c1_voice.json",
-        "phase00/p00_hc_daub30_mel_c2_voice.json",
-        "phase00/p00_hc_daub32_bark_c1_voice.json",
-        "phase00/p00_hc_daub32_bark_c2_voice.json",
-        "phase00/p00_hc_daub32_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub32_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub32_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub32_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub32_mel_c1_voice.json",
-        "phase00/p00_hc_daub32_mel_c2_voice.json",
-        "phase00/p00_hc_daub34_bark_c1_voice.json",
-        "phase00/p00_hc_daub34_bark_c2_voice.json",
-        "phase00/p00_hc_daub34_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub34_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub34_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub34_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub34_mel_c1_voice.json",
-        "phase00/p00_hc_daub34_mel_c2_voice.json",
-        "phase00/p00_hc_daub36_bark_c1_voice.json",
-        "phase00/p00_hc_daub36_bark_c2_voice.json",
-        "phase00/p00_hc_daub36_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub36_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub36_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub36_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub36_mel_c1_voice.json",
-        "phase00/p00_hc_daub36_mel_c2_voice.json",
-        "phase00/p00_hc_daub38_bark_c1_voice.json",
-        "phase00/p00_hc_daub38_bark_c2_voice.json",
-        "phase00/p00_hc_daub38_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub38_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub38_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub38_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub38_mel_c1_voice.json",
-        "phase00/p00_hc_daub38_mel_c2_voice.json",
-        "phase00/p00_hc_daub40_bark_c1_voice.json",
-        "phase00/p00_hc_daub40_bark_c2_voice.json",
-        "phase00/p00_hc_daub40_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub40_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub40_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub40_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub40_mel_c1_voice.json",
-        "phase00/p00_hc_daub40_mel_c2_voice.json",
-        "phase00/p00_hc_daub42_bark_c1_voice.json",
-        "phase00/p00_hc_daub42_bark_c2_voice.json",
-        "phase00/p00_hc_daub42_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub42_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub42_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub42_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub42_mel_c1_voice.json",
-        "phase00/p00_hc_daub42_mel_c2_voice.json",
-        "phase00/p00_hc_daub44_bark_c1_voice.json",
-        "phase00/p00_hc_daub44_bark_c2_voice.json",
-        "phase00/p00_hc_daub44_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub44_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub44_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub44_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub44_mel_c1_voice.json",
-        "phase00/p00_hc_daub44_mel_c2_voice.json",
-        "phase00/p00_hc_daub46_bark_c1_voice.json",
-        "phase00/p00_hc_daub46_bark_c2_voice.json",
-        "phase00/p00_hc_daub46_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub46_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub46_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub46_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub46_mel_c1_voice.json",
-        "phase00/p00_hc_daub46_mel_c2_voice.json",
-        "phase00/p00_hc_daub4_bark_c1_voice.json",
-        "phase00/p00_hc_daub4_bark_c2_voice.json",
-        "phase00/p00_hc_daub4_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub4_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub4_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub4_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub4_mel_c1_voice.json",
-        "phase00/p00_hc_daub4_mel_c2_voice.json",
-        "phase00/p00_hc_daub6_bark_c1_voice.json",
-        "phase00/p00_hc_daub6_bark_c2_voice.json",
-        "phase00/p00_hc_daub6_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub6_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub6_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub6_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub6_mel_c1_voice.json",
-        "phase00/p00_hc_daub6_mel_c2_voice.json",
-        "phase00/p00_hc_daub8_bark_c1_voice.json",
-        "phase00/p00_hc_daub8_bark_c2_voice.json",
-        "phase00/p00_hc_daub8_lfcc_c1_eeg.json",
-        "phase00/p00_hc_daub8_lfcc_c1_voice.json",
-        "phase00/p00_hc_daub8_lfcc_c2_eeg.json",
-        "phase00/p00_hc_daub8_lfcc_c2_voice.json",
-        "phase00/p00_hc_daub8_mel_c1_voice.json",
-        "phase00/p00_hc_daub8_mel_c2_voice.json",
-        "phase00/p00_hc_haar_bark_c1_voice.json",
-        "phase00/p00_hc_haar_bark_c2_voice.json",
-        "phase00/p00_hc_haar_lfcc_c1_eeg.json",
-        "phase00/p00_hc_haar_lfcc_c1_voice.json",
-        "phase00/p00_hc_haar_lfcc_c2_eeg.json",
-        "phase00/p00_hc_haar_lfcc_c2_voice.json",
-        "phase00/p00_hc_haar_mel_c1_voice.json",
-        "phase00/p00_hc_haar_mel_c2_voice.json",
-        "phase01/p01_dsnn_eeg_dep_flat_raw.json",
-        "phase01/p01_dsnn_eeg_dep_flat_std.json",
-        "phase01/p01_dsnn_eeg_dep_nested_raw.json",
-        "phase01/p01_dsnn_eeg_dep_nested_std.json",
-        "phase01/p01_dsnn_eeg_indep_flat_raw.json",
-        "phase01/p01_dsnn_eeg_indep_flat_std.json",
-        "phase01/p01_dsnn_eeg_indep_nested_raw.json",
-        "phase01/p01_dsnn_eeg_indep_nested_std.json",
-        "phase01/p01_dsnn_fused-early_dep_flat_raw.json",
-        "phase01/p01_dsnn_fused-early_dep_flat_std.json",
-        "phase01/p01_dsnn_fused-early_dep_nested_raw.json",
-        "phase01/p01_dsnn_fused-early_dep_nested_std.json",
-        "phase01/p01_dsnn_fused-early_indep_flat_raw.json",
-        "phase01/p01_dsnn_fused-early_indep_flat_std.json",
-        "phase01/p01_dsnn_fused-early_indep_nested_raw.json",
-        "phase01/p01_dsnn_fused-early_indep_nested_std.json",
-        "phase01/p01_dsnn_fused-late_dep_flat_raw.json",
-        "phase01/p01_dsnn_fused-late_dep_flat_std.json",
-        "phase01/p01_dsnn_fused-late_dep_nested_raw.json",
-        "phase01/p01_dsnn_fused-late_dep_nested_std.json",
-        "phase01/p01_dsnn_fused-late_indep_flat_raw.json",
-        "phase01/p01_dsnn_fused-late_indep_flat_std.json",
-        "phase01/p01_dsnn_fused-late_indep_nested_raw.json",
-        "phase01/p01_dsnn_fused-late_indep_nested_std.json",
-        "phase01/p01_dsnn_voice_dep_flat_raw.json",
-        "phase01/p01_dsnn_voice_dep_flat_std.json",
-        "phase01/p01_dsnn_voice_dep_nested_raw.json",
-        "phase01/p01_dsnn_voice_dep_nested_std.json",
-        "phase01/p01_dsnn_voice_indep_flat_raw.json",
-        "phase01/p01_dsnn_voice_indep_flat_std.json",
-        "phase01/p01_dsnn_voice_indep_nested_raw.json",
-        "phase01/p01_dsnn_voice_indep_nested_std.json",
-    };
-    return profiles;
-}
-
 fs::path profiles_dir()
 {
     fs::path here = fs::path(__FILE__).parent_path();
     return here.parent_path() / "profiles";
 }
 
+// The profiles are generated (scripts/pipeline/thesis/00_thesis_generate_profiles.py), and
+// the generator writes profiles.manifest: every profile it wrote, plus the hand-written
+// debug.json. The audit runs on that list; EveryProfileOnDiskIsAudited closes the other
+// direction (a file on disk the manifest does not name, e.g. a hand-added profile).
+const std::vector<std::string>& all_profiles()
+{
+    static const std::vector<std::string> profiles = []
+    {
+        const fs::path path = profiles_dir() / "profiles.manifest";
+        std::ifstream f(path);
+        if (!f.is_open())
+            throw std::runtime_error(
+                "missing " + path.string() +
+                ": run scripts/pipeline/thesis/00_thesis_generate_profiles.py");
+        std::vector<std::string> out;
+        for (std::string line; std::getline(f, line);)
+            if (!line.empty() && line[0] != '#') out.push_back(line);
+        if (out.empty()) throw std::runtime_error(path.string() + " lists no profile");
+        return out;
+    }();
+    return profiles;
+}
+
 // Anti-drift guard: every profile shipped on disk (outside the generated smoke/
-// mirror) must be in the hardcoded list above. If a new profile is added without
-// being registered in all_profiles(), it silently escapes the audit — and because
-// the .gitignore only whitelists this directory, an unregistered profile would also
-// be the first thing to fall out of git tracking. Failing here keeps the test, the
-// directory, and git in lock-step.
+// mirror) must be in the manifest. A profile added by hand would otherwise escape the
+// audit and be overwritten by the next generator run.
 std::vector<std::string> profiles_on_disk()
 {
     std::vector<std::string> out;
@@ -329,7 +96,7 @@ TEST(ThesisProfileAudit, EveryProfileOnDiskIsAudited)
         std::back_inserter(missing_from_list));
 
     EXPECT_TRUE(missing_from_list.empty())
-        << "profiles on disk but not in all_profiles(): " << [&]()
+        << "profiles on disk but not in profiles.manifest: " << [&]()
     {
         std::string s;
         for (const auto& p : missing_from_list) s += p + " ";
@@ -373,9 +140,13 @@ TEST_P(ThesisProfileAuditTest, ClassifierValid)
 {
     auto cfg = load(GetParam());
     if (!cfg.classifier.enabled) return; // Phase 00: no other classifier key exists
-    EXPECT_TRUE(cfg.classifier.type == "rnn" || cfg.classifier.type == "dsnn")
+    EXPECT_TRUE(cfg.classifier.type == "ann" || cfg.classifier.type == "dsnn" ||
+                cfg.classifier.type == "cosine")
         << "unexpected classifier type: " << cfg.classifier.type;
-    EXPECT_FALSE(cfg.classifier.layer_spec->empty());
+    if (cfg.classifier.type != "cosine")
+    {
+        EXPECT_FALSE(cfg.classifier.layer_spec->empty());
+    }
     EXPECT_TRUE(
         cfg.classifier.text_mode == "dependent" || cfg.classifier.text_mode == "independent")
         << "unexpected text_mode: " << cfg.classifier.text_mode;
@@ -388,8 +159,14 @@ TEST_P(ThesisProfileAuditTest, TrainingParamsPositive)
     EXPECT_GT(cfg.training.epochs, 0);
     EXPECT_GT(cfg.training.learning_rate, 0.0f); // declared: what ran is what is written
     EXPECT_GT(cfg.training.samples_per_batch, 0);
-    if (cfg.training.early_stop_patience.declared()) EXPECT_GE(cfg.training.early_stop_patience, 0);
-    if (cfg.training.k_folds.declared()) EXPECT_GE(cfg.training.k_folds, 2);
+    if (cfg.training.early_stop_patience.declared())
+    {
+        EXPECT_GE(cfg.training.early_stop_patience, 0);
+    }
+    if (cfg.training.k_folds.declared())
+    {
+        EXPECT_GE(cfg.training.k_folds, 2);
+    }
 }
 
 // No field has a default. A config nobody filled in declares nothing, cannot be read, and
@@ -503,8 +280,14 @@ TEST_P(ThesisProfileAuditTest, RegularizationParamsValid)
 {
     auto cfg = load(GetParam());
     const auto& t = cfg.training;
-    if (t.weight_decay.declared()) EXPECT_GE(t.weight_decay, 0.0f);
-    if (t.firing_rate_reg_lambda.declared()) EXPECT_GE(t.firing_rate_reg_lambda, 0.0f);
+    if (t.weight_decay.declared())
+    {
+        EXPECT_GE(t.weight_decay, 0.0f);
+    }
+    if (t.firing_rate_reg_lambda.declared())
+    {
+        EXPECT_GE(t.firing_rate_reg_lambda, 0.0f);
+    }
     if (t.firing_rate_min.declared())
     {
         EXPECT_GE(t.firing_rate_min, 0.0f);
@@ -548,7 +331,8 @@ nlohmann::json base_config()
                         {"descriptors", {"energy"}},
                         {"dtwpt_level", 4},
                         {"cepstral", false}}}}},
-        {"paraconsistent", {{"enabled", true}}},
+        {"paraconsistent", {{"enabled", true}, {"speaker_subsets", false}}},
+        {"degradation", {{"enabled", false}}},
         {"classifier",
             {{"type", "dsnn"},
                 {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
@@ -581,6 +365,7 @@ TEST(ThesisConfigGate, Phase00HasNoClassifierOrTrainingKeys)
     // classifier keys and the whole training block are refused, not merely ignored.
     auto j = base_config();
     j["classifier"] = nlohmann::json{{"enabled", false}};
+    j.erase("degradation"); // read only when a classifier runs
     EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
     j.erase("training");
     auto cfg = ThesisConfig::from_json(j);
@@ -604,6 +389,7 @@ TEST(ThesisConfigGate, FusionModeValidated)
 {
     auto j = base_config();
     j["dataset"]["modality"] = "fused";
+    j["dataset"]["eeg_condition"] = "pronounced";
     EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "fused needs fusion_mode";
     j["dataset"]["fusion_mode"] = "early";
     EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());

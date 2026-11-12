@@ -149,6 +149,11 @@ void GaConfig::validate() const
     if (!base.paraconsistent.enabled)
         throw std::invalid_argument(
             "GaConfig: paraconsistent.enabled must be true — d_penalized is the GA's objective");
+    if (base.paraconsistent.speaker_subsets)
+        throw std::invalid_argument(
+            "GaConfig: paraconsistent.speaker_subsets must be false — the GA scores each "
+            "candidate on the whole set and never writes the per-subset table; score the "
+            "winner's subsets with a thesis Phase 00 profile instead");
 
     const auto& model = base.feature_extraction.autoencoder.model;
     if (model != "snn-ae" && model != "ann-ae")

@@ -52,6 +52,33 @@ struct ThesisConfig
         ///   "early" -> concatenate the raw voice+EEG signals, one extractor run;
         ///   "late"  -> one extractor run per signal, feature vectors concatenated.
         Required<std::string> fusion_mode{"dataset.fusion_mode"};
+
+        /// Only when the run reads EEG (modality "eeg" or "fused"): which EEG trial goes
+        /// with each voice trial (EegPairing.hpp).
+        ///   "pronounced" -> the EEG of the same trial, recorded while the voice was produced;
+        ///   "imagined"   -> an Imagined trial of the same (subject, stimulus), drawn without
+        ///                   replacement.
+        Required<std::string> eeg_condition{"dataset.eeg_condition"};
+        /// Only when eeg_condition == "imagined": the seed of that draw (non-zero). Fixed per
+        /// profile, not per repetition: the repetitions vary the training, not the data.
+        Required<std::uint32_t> eeg_pairing_seed{"dataset.eeg_pairing_seed"};
+    };
+
+    /// Simulated dysphonia (Phase 01, runs that read the voice). The voice of the TEST
+    /// speakers is replaced, in a fraction `level` of its power, by a whispered version of
+    /// itself: LPC envelope kept, voicing removed (VoiceDegradation.hpp). The training
+    /// speakers stay clean: the system is trained on healthy voices and meets a dysphonic one.
+    struct Degradation
+    {
+        Required<bool> enabled{"degradation.enabled"};
+        /// enabled only: 0 < level <= 1 (1 = fully whispered, i.e. aphonic).
+        Required<float> level{"degradation.level"};
+        /// enabled only: "probes" -> enrolled with the clean voice, verified with the degraded
+        ///                           one (the voice was lost after enrolment);
+        ///               "test"   -> enrolment and probes both degraded (dysphonic throughout).
+        Required<std::string> scope{"degradation.scope"};
+        /// enabled only: seed of the whisper excitation (non-zero).
+        Required<std::uint32_t> seed{"degradation.seed"};
     };
 
     /// Only when feature_extraction.strategy == "handcrafted".
@@ -142,6 +169,15 @@ struct ThesisConfig
     struct Paraconsistent
     {
         Required<bool> enabled{"paraconsistent.enabled"};
+        /// enabled only: also score every feature set on speaker subsets — leaving each
+        /// speaker out once, and keeping only the TRAINING speakers of each Phase 01 fold —
+        /// to show whether the selection depends on the speakers Phase 01 tests on.
+        Required<bool> speaker_subsets{"paraconsistent.speaker_subsets"};
+        /// speaker_subsets only: the Phase 01 folds to reproduce (k, base seed, repeats;
+        /// repetition r uses seed + r, as Phase 01 does).
+        Required<int> fold_k{"paraconsistent.fold_k"};
+        Required<std::uint32_t> fold_seed{"paraconsistent.fold_seed"};
+        Required<int> fold_repeats{"paraconsistent.fold_repeats"};
     };
 
     struct Classifier
@@ -151,7 +187,13 @@ struct ThesisConfig
         Required<bool> enabled{"classifier.enabled"};
 
         /// enabled only:
-        Required<std::string> type{"classifier.type"}; ///< "rnn" (ResNet) | "dsnn"
+        /// "dsnn"   -> the spiking residual network (the thesis's classifier);
+        /// "ann"    -> the DSNN's graph with ReLU for LIF, same initial weights (non-spiking
+        /// control); "cosine" -> no network: the standardized features ARE the embedding (the floor
+        /// any
+        ///             trained classifier must beat).
+        Required<std::string> type{"classifier.type"};
+        /// dsnn / ann only.
         Required<std::vector<std::string>> layer_spec{"classifier.layer_spec"};
         Required<std::string> text_mode{"classifier.text_mode"}; ///< "dependent" | "independent"
     };
@@ -221,6 +263,7 @@ struct ThesisConfig
     FeatureExtraction feature_extraction;
     Paraconsistent paraconsistent;
     Classifier classifier;
+    Degradation degradation;
     Training training;
 
     /// nullopt = the thesis binary itself; set = parsed for that embedding program.

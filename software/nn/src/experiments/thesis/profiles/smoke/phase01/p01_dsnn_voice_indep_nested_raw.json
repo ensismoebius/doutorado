@@ -41,17 +41,20 @@
     "text_mode": "independent",
     "enabled": true
   },
+  "degradation": {
+    "enabled": false
+  },
   "training": {
-    "epochs": 2,
-    "learning_rate": 0.001,
-    "samples_per_batch": 4,
-    "early_stop_patience": 1,
     "k_folds": 2,
     "nested_cv": true,
     "standardize_features": false,
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "samples_per_batch": 4,
     "optimizer_type": "adam",
     "gradient_clip_norm": 0.0,
     "weight_decay": 0.0,
+    "early_stop_patience": 1,
     "firing_rate_reg_lambda": 0.0,
     "batch_normalization": "none"
   }

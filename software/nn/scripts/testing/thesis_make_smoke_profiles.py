@@ -45,9 +45,10 @@ def smoke_overrides(prof):
 
     tr = prof.get("training")
     if tr is not None:  # absent when nothing trains (handcrafted / PCA Phase 00)
-        tr["epochs"] = 2
-        tr["samples_per_batch"] = 4
-        for key, value in (("k_folds", 2), ("early_stop_patience", 1)):
+        # The cosine control has a training block without epochs or batches: only shrink
+        # what the profile declares.
+        for key, value in (("epochs", 2), ("samples_per_batch", 4), ("k_folds", 2),
+                           ("early_stop_patience", 1)):
             if key in tr:
                 tr[key] = value
     return prof

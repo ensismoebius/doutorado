@@ -51,9 +51,18 @@ auto trains_classifier(K k) -> bool
 {
     return k.classifier.enabled;
 }
+/// A classifier that trains a network (dsnn, ann). The "cosine" control trains nothing.
+auto trains_network_classifier(K k) -> bool
+{
+    return trains_classifier(k) && k.classifier.type != "cosine";
+}
 auto trains_anything(K k) -> bool
 {
-    return trains_ae(k) || trains_classifier(k);
+    return trains_ae(k) || trains_network_classifier(k);
+}
+auto reads_eeg(K k) -> bool
+{
+    return k.dataset.modality != "voice";
 }
 auto is_dsnn(K k) -> bool
 {
@@ -85,6 +94,10 @@ void for_each_field(Cfg& c, Row&& row)
     row(d.fusion_mode,
         "dataset.modality is \"fused\"",
         [](K k) { return k.dataset.modality == "fused"; });
+    row(d.eeg_condition, "dataset.modality is \"eeg\" or \"fused\"", reads_eeg);
+    row(d.eeg_pairing_seed,
+        "dataset.eeg_condition is \"imagined\"",
+        [](K k) { return reads_eeg(k) && k.dataset.eeg_condition == "imagined"; });
 
     auto& fe = c.feature_extraction;
     row(fe.strategy, kAlways, always);
@@ -124,17 +137,39 @@ void for_each_field(Cfg& c, Row&& row)
         "feature_extraction.strategy is \"pca\"",
         [](K k) { return k.feature_extraction.strategy == "pca"; });
 
-    row(c.paraconsistent.enabled, kAlways, always);
+    auto& pc = c.paraconsistent;
+    row(pc.enabled, kAlways, always);
+    row(pc.speaker_subsets,
+        "paraconsistent.enabled is true",
+        [](K k) { return k.paraconsistent.enabled; });
+    constexpr const char* kSubsets = "paraconsistent.speaker_subsets is true";
+    const auto subsets = [](K k)
+    { return k.paraconsistent.enabled && k.paraconsistent.speaker_subsets; };
+    row(pc.fold_k, kSubsets, subsets);
+    row(pc.fold_seed, kSubsets, subsets);
+    row(pc.fold_repeats, kSubsets, subsets);
 
     constexpr const char* kClf = "classifier.enabled is true";
+    constexpr const char* kNetClf = "classifier.enabled with classifier.type \"dsnn\" or \"ann\"";
     auto& cl = c.classifier;
     row(cl.enabled, kAlways, always);
     row(cl.type, kClf, trains_classifier);
-    row(cl.layer_spec, kClf, trains_classifier);
+    row(cl.layer_spec, kNetClf, trains_network_classifier);
     row(cl.text_mode, kClf, trains_classifier);
 
+    auto& dg = c.degradation;
+    row(dg.enabled,
+        "classifier.enabled with dataset.modality \"voice\" or \"fused\"",
+        [](K k) { return trains_classifier(k) && k.dataset.modality != "eeg"; });
+    constexpr const char* kDegraded = "degradation.enabled is true";
+    const auto degraded = [](K k)
+    { return trains_classifier(k) && k.dataset.modality != "eeg" && k.degradation.enabled; };
+    row(dg.level, kDegraded, degraded);
+    row(dg.scope, kDegraded, degraded);
+    row(dg.seed, kDegraded, degraded);
+
     constexpr const char* kTrains =
-        "a training runs (strategy \"autoencoder\" or classifier.enabled)";
+        "a training runs (strategy \"autoencoder\", or a dsnn/ann classifier)";
     auto& t = c.training;
     row(t.epochs, kTrains, trains_anything);
     row(t.learning_rate, kTrains, trains_anything);
@@ -150,7 +185,7 @@ void for_each_field(Cfg& c, Row&& row)
         "classifier.enabled and training.nested_cv are true",
         [](K k) { return trains_classifier(k) && k.training.nested_cv; });
     row(t.standardize_features, kClf, trains_classifier);
-    row(t.weight_decay, kClf, trains_classifier);
+    row(t.weight_decay, kNetClf, trains_network_classifier);
     constexpr const char* kDsnn = "the classifier is enabled with classifier.type \"dsnn\"";
     row(t.firing_rate_reg_lambda, kDsnn, is_dsnn);
     constexpr const char* kDsnnBand =
@@ -259,6 +294,42 @@ void validate_dataset(const ThesisConfig::Dataset& dataset)
     if (dataset.fusion_mode.declared() && dataset.fusion_mode != "early" &&
         dataset.fusion_mode != "late")
         throw std::invalid_argument("ThesisConfig: dataset.fusion_mode must be early/late");
+
+    if (dataset.eeg_condition.declared() && dataset.eeg_condition != "pronounced" &&
+        dataset.eeg_condition != "imagined")
+        throw std::invalid_argument(
+            "ThesisConfig: dataset.eeg_condition must be pronounced or imagined");
+    if (dataset.eeg_pairing_seed.declared() && dataset.eeg_pairing_seed == 0u)
+        throw std::invalid_argument("ThesisConfig: dataset.eeg_pairing_seed must be non-zero");
+}
+
+void validate_paraconsistent(const ThesisConfig::Paraconsistent& pc)
+{
+    if (!pc.fold_k.declared()) return; // no speaker subsets (check_declarations)
+    if (pc.fold_k < 2)
+        throw std::invalid_argument("ThesisConfig: paraconsistent.fold_k must be >= 2");
+    if (pc.fold_seed == 0u)
+        throw std::invalid_argument("ThesisConfig: paraconsistent.fold_seed must be non-zero");
+    if (pc.fold_repeats < 1)
+        throw std::invalid_argument("ThesisConfig: paraconsistent.fold_repeats must be >= 1");
+}
+
+void validate_degradation(const ThesisConfig& cfg)
+{
+    const auto& dg = cfg.degradation;
+    if (!dg.level.declared()) return; // not degraded (check_declarations)
+    if (!(dg.level > 0.0f && dg.level <= 1.0f))
+        throw std::invalid_argument("ThesisConfig: degradation.level must be in (0, 1]");
+    if (dg.scope != "probes" && dg.scope != "test")
+        throw std::invalid_argument("ThesisConfig: degradation.scope must be probes or test");
+    if (dg.seed == 0u)
+        throw std::invalid_argument("ThesisConfig: degradation.seed must be non-zero");
+    // The degraded features are extracted once, beside the clean ones. An autoencoder is
+    // trained per repetition on the clean signals, so it has no single "degraded" twin.
+    if (cfg.feature_extraction.strategy == "autoencoder")
+        throw std::invalid_argument(
+            "ThesisConfig: degradation needs a fixed extractor (handcrafted or pca); an "
+            "autoencoder is retrained per repetition");
 }
 
 void validate_handcrafted(
@@ -451,14 +522,16 @@ void validate_classifier(const ThesisConfig::Classifier& classifier)
 {
     if (!classifier.enabled) return; // Phase 00: check_declarations refused the other keys
 
-    if (classifier.type != "rnn" && classifier.type != "dsnn")
-        throw std::invalid_argument("ThesisConfig: classifier.type must be rnn or dsnn");
+    if (classifier.type != "ann" && classifier.type != "dsnn" && classifier.type != "cosine")
+        throw std::invalid_argument("ThesisConfig: classifier.type must be dsnn, ann or cosine");
 
     const bool valid_text_mode =
         classifier.text_mode == "dependent" || classifier.text_mode == "independent";
     if (!valid_text_mode)
         throw std::invalid_argument(
             "ThesisConfig: classifier.text_mode must be dependent/independent");
+
+    if (!classifier.layer_spec.declared()) return; // cosine: no network
 
     const std::vector<std::string>& spec = classifier.layer_spec;
     if (spec.size() < 3)
@@ -573,8 +646,17 @@ void ThesisConfig::validate() const
             "got \"" +
             strategy + "\"");
 
+    validate_paraconsistent(paraconsistent);
     validate_classifier(classifier);
+    validate_degradation(*this);
     validate_training(training);
+
+    // The cosine control has no model to select, so a nested split would only repeat the
+    // flat one under another name.
+    if (classifier.enabled && classifier.type == "cosine" && training.nested_cv)
+        throw std::invalid_argument(
+            "ThesisConfig: classifier.type cosine trains nothing; training.nested_cv must be "
+            "false");
 }
 
 ThesisConfig ThesisConfig::from_json(const nlohmann::json& j)

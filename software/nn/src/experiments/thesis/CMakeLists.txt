@@ -7,6 +7,9 @@ set(THESIS_LIB_SOURCES
     lib/src/ThesisClassifiers.cpp
     lib/src/ThesisOutput.cpp
     lib/src/ThesisPca.cpp
+    lib/src/EegPairing.cpp
+    lib/src/VoiceDegradation.cpp
+    lib/src/ParaconsistentSubsets.cpp
 )
 
 add_library(thesis_lib STATIC ${THESIS_LIB_SOURCES})
@@ -36,11 +39,13 @@ target_link_libraries(thesis_lib
         nn_progress
         lstm_models
         autoencoderRunner_lib   # ProtocolAutoencoder (ANN-AE) + ProtocolSpikingAutoencoder (SNN-AE)
+        meeting01_lib           # Meeting01Energy: the inference-energy ledger (Lemaire 2022)
         nlohmann_json_wrapper
         matioCpp
         cnpy-static
         xtensor xtensor-blas
         Eigen3::Eigen   # ThesisPca.cpp
+        SQLite3::SQLite3   # ThesisDataset.cpp: trial metadata for the EEG pairing
 )
 
 configure_xtensor_parallel_target(thesis_lib)

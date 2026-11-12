@@ -6,7 +6,7 @@
 #
 # Usage (from ~/software/nn on GridUnesp, after the deploy):
 #   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
-#   THESIS_PHASE=phase01 sbatch --array=0-95 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -16,9 +16,10 @@
 # whole training with its own seed. `thesis --config P --repeat k` runs repetition k exactly as
 # the full run would (seed, e05_<tag>_rep<k>_* names; ThesisCli.hpp), so:
 #
-#   phase01  32 profiles x 3 repetitions = 96 units  -> --array=0-95, one unit per task;
-#            the phase takes as long as one repetition instead of three
-#   phase00  214 units, one per profile               -> --array=0-63, ~3-4 units per task
+#   phase01  142 profiles x 3 repetitions = 426 units -> --array=0-141, 3 units per task
+#            (00_thesis_generate_profiles.py: grid 56, controls 28, dysphonia 40, extractor
+#            comparison 18)
+#   phase00  275 units, one per profile               -> --array=0-63, ~4-5 units per task
 #
 # Phase 00 keeps whole profiles: a handcrafted profile extracts its features ONCE for all
 # repetitions (they do not depend on the seed), and split it would extract them three times; its
@@ -27,12 +28,13 @@
 # does in memory today; not worth it for units that already take minutes.
 #
 # Units are interleaved over the tasks: task t of N runs units t, t+N, t+2N, ... of the sorted
-# list, in a row. Every unit first loads the decoded dataset (~/database.sqlite.e05dscache, 1.6 GB)
-# from /home; units that run in a row on one node read it from that node's page cache.
+# list, in a row. Every unit first loads the decoded dataset of its EEG condition
+# (~/database.sqlite.pronounced.e05dscache or ~/database.sqlite.imagined-<seed>.e05dscache,
+# 1.6 GB each) from /home; units that run in a row on one node read it from the page cache.
 #
-#   sorted phase00 units  p00_ae_ann_base_eeg  p00_ae_ann_base_voice  ...  p00_pca_k8_voice
-#   position              0                    1                      ...  213
-#   task (N = 64)         0                    1                      ...  213 % 64 = 21
+#   sorted phase00 units  p00_ae_ann_base_eegimag  p00_ae_ann_base_eegpron  ...  p00_pca_k8_voice
+#   position              0                        1                        ...  274
+#   task (N = 64)         0                        1                        ...  274 % 64 = 18
 #
 # The array must be 0..N-1 with nothing left out (checked): the mapping is a function of N, so a
 # partial resubmission (--array=3,7) would hand task 3 another task's units. Resubmit the whole
@@ -257,7 +259,10 @@ p = json.load(open(sys.argv[1]))
 tag, reps = p["experiment"]["run_tag"], p["experiment"]["repeats"]
 ks = range(reps) if sys.argv[3] == "-" else [int(sys.argv[3])]
 tags = [tag] if reps == 1 else [f"{tag}_rep{k}" for k in ks]
-names = [f"e05_{t}_{kind}" for t in tags for kind in ("summary.json", "paraconsistent.csv")]
+kinds = ["summary.json", "paraconsistent.csv"]
+if p["paraconsistent"]["enabled"] and p["paraconsistent"]["speaker_subsets"]:
+    kinds.append("paraconsistent_subsets.csv")  # Phase 00: the ranking-stability input
+names = [f"e05_{t}_{kind}" for t in tags for kind in kinds]
 print(" ".join(n for n in names if not os.path.isfile(os.path.join(sys.argv[2], n))))
 PY
 )"

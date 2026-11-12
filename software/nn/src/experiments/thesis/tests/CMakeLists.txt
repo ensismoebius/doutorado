@@ -48,6 +48,7 @@ configure_xtensor_parallel_target(thesis_feature_extraction_gtest)
 # ── Classifier unit tests ────────────────────────────────────────────────────
 add_executable(thesis_classifiers_gtest
     thesis_classifiers_gtest.cpp
+    thesis_protocol_gtest.cpp
 )
 
 target_include_directories(thesis_classifiers_gtest

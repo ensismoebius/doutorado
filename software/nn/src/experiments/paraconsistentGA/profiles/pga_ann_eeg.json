@@ -7,6 +7,7 @@
   "dataset": {
     "root": "~/database.sqlite",
     "modality": "eeg",
+    "eeg_condition": "pronounced",
     "max_samples": 550
   },
   "feature_extraction": {
@@ -17,7 +18,8 @@
     }
   },
   "paraconsistent": {
-    "enabled": true
+    "enabled": true,
+    "speaker_subsets": false
   },
   "classifier": {
     "enabled": false

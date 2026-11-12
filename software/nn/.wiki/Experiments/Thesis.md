@@ -13,24 +13,150 @@ Experiment05 implements the full speaker-authentication pipeline for individuals
 The experiment consists of two stages:
 
 - **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE) and PCA, a classic linear feature extractor used as the reference the learned ones must beat (implemented 2026-11-11, not yet run; LSTM-AE pre-validated and dropped, see `Research-Context.md`)
-- **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested or flat 5-fold cross-validation
+- **E4 — Authentication**: the DSNN classifier, against two controls on the same features and folds (its non-spiking twin `ann`, and `cosine`, no network); test phrases seen or unseen in training; nested or flat 5-fold cross-validation; simulated dysphonia; measured inference energy (see [Protocol revision](#protocol-revision-2026-11-12))
 
-> **Status (2026-07-19): both phases have completed a full run** — 208/208 Phase 00
-> profiles and 32/32 Phase 01 profiles, 0 failures. The Phase-00 winner is the
-> **same handcrafted extractor for both signals** — Haar wavelet, linear scale
-> (LFCC), Category 1 — beating every one of the 24 autoencoder variants by a wide
-> margin on `D_penalized` in both modalities. Phase 01's best configuration
-> (early fusion, text-dependent, flat CV, unstandardized features) reaches
-> **EER = 0.4534, AUC = 0.5452** — close to the chance level of a random
-> classifier (EER=AUC=0.5), so authentication performance under the evaluated
-> conditions does not yet support practical use. Full tables and discussion are
-> in the thesis (`documentation/00-thesis/monography/chapters/09-testsAndResults.tex`,
-> §Fase 00/§Fase 01/§Retomada das questões de pesquisa) and its Conclusões chapter.
+> **Status (2026-11-12): every thesis number so far is void; the revised protocol below is
+> implemented and tested, and both phases must run again.** The July run had four defects
+> (`base` = `small`, an inverted EER, a fold intersection that dropped 62% of the training
+> rows, a nested text leak; fixed b22f07c1). The re-run of 2026-11-12 fixed those, but its EEG
+> was the *previous* trial's EEG ([below](#1-the-eeg-was-the-previous-trials-eeg)), so its EEG
+> and fusion numbers are void too; only its voice numbers stand, and they are superseded by the
+> new text split.
 
 > **Follow-up search:** because the 24 hand-picked autoencoder profiles lost to
 > handcrafted features on `D_penalized`, the [paraconsistentGA](ParaconsistentGA.md)
 > experiment searches the same architecture axes automatically with NSGA-II, to test
 > whether a better autoencoder exists than those fixed phase00 tiers.
+
+---
+
+## Protocol revision (2026-11-12)
+
+A review of the thesis (`documentation/00-thesis/monography/issues.md`, 21 items) found that
+the experiment could not answer several of the questions the text asks. Each change below
+starts from the question it lets the experiment answer.
+
+### 1. The EEG was the previous trial's EEG
+
+**Problem.** Fusion and the EEG results rest on one assumption: the EEG row paired with a voice
+row is *the same trial* — same speaker, same word, same moment. The loader read
+`eeg_samples` at `original_row - 1`, believing the rows 1-based. They are 0-based, so every
+voice trial was paired with the trial recorded **before** it:
+
+```
+ voice row (original_row)   EEG the old loader read      what that EEG trial was
+ ------------------------   ------------------------     -----------------------------------
+ subject 3, row 120 "/a/"   subject 3, row 119           often an IMAGINED trial, another word
+```
+
+Over the 1974 voice trials: 1833 EEG rows came from *pronounced* trials and 141 from
+*imagined* ones, and only 193 of 1974 had the voice trial's word. **Silent:** every row had
+EEG of the right shape and the right speaker, so nothing failed; the speaker information in the
+EEG survived (same subject), the word did not.
+
+**Fix (`EegPairing.hpp`, `ThesisDataset.cpp`).** Pairing is by trial identity: the EEG row
+must have the voice trial's `original_row` and modality *Pronounced*, or the load throws.
+Identity is right, not another guess: the trials that carry audio are exactly the 1974
+Pronounced trials and none of the Imagined ones, which a one-row shift would break (the
+shared core loaders had the same shift and were fixed too, see
+[DataLoaders](../Core/DataLoaders.md#audio--eeg-pairing-the-label-is-the-0-based-eeg-row-of-the-same-trial-fixed-2026-11-12)). The 10.1117 corpus also has 7341 *imagined* trials (EEG only, ~3.7 per voice
+trial, every (speaker, word) covered), so the EEG condition became an experimental factor:
+
+| `dataset.eeg_condition` | EEG row of voice trial (speaker s, word w) | Question it answers |
+|---|---|---|
+| `pronounced` | the same trial (spoken aloud, recorded together) | EEG of overt speech |
+| `imagined` | an imagined trial of (s, w), drawn without replacement with `eeg_pairing_seed` | the thesis title: imagined speech |
+
+The cache name carries both (`~/database.sqlite.pronounced.e05dscache`,
+`~/database.sqlite.imagined-2026.e05dscache`, format version 3); the old
+`~/database.sqlite.e05dscache` holds the defective pairing and is read by nothing.
+Tests: `ThesisDatasetPairing.*` build a SQLite with the real schema whose EEG value encodes
+`1000·subject + original_row`, so the test reads *which* trial arrived.
+
+### 2. Seen and unseen phrases on the same training set
+
+**Problem.** "Text-dependent" trained on 80% of the phrases and "text-independent" on ~45%, so
+the difference between the modes mixed *seeing the phrase* with *having twice the training
+data* (issue 4), and the thesis used two definitions of the term (issue 9).
+
+**Fix (`make_text_split`).** The 11 phrases are shuffled with the seed; the first 5 train in
+**both** modes; the test phrases are the same 5 (seen) or the next 5 (unseen):
+
+```
+ phrases (shuffled)   P1 P2 P3 P4 P5 | P6 P7 P8 P9 P10 | P11
+ training, both modes ############## |                 |
+ test, "dependent"    ############## |                 |       seen phrases
+ test, "independent"                 | ############### |       unseen phrases
+```
+
+Speakers stay disjoint across folds (GroupKFold) in both. The table labels are "frases
+vistas" / "frases não vistas", the only definition the thesis uses now.
+
+### 3. Controls: what does spiking buy, what does a network buy?
+
+**Problem.** An EER alone cannot say whether the DSNN contributes anything (issue 6). The old
+non-spiking control (`rnn` = `SimpleResNet`) was not a twin: for `residual:2` it built 4 hidden
+128×128 matrices where the DSNN builds 1.
+
+| `classifier.type` | network | answers |
+|---|---|---|
+| `dsnn` | Linear → LIF → (Linear → LIF + skip) × (D − 1) → Linear, T = 16 | the thesis classifier |
+| `ann` | the same graph, ReLU for LIF, no time steps, **the same initial weights** | what spiking costs/buys |
+| `cosine` | none: the standardized features are the embedding (flat CV only) | what any network buys |
+
+`AnnTwin.StartsFromTheDsnnWeights` checks the shared initialization.
+
+### 4. Simulated dysphonia
+
+**Problem.** The title promises authentication of dysphonic speakers; no dysphonic voice was
+ever tested (issue 1). **Fix (`VoiceDegradation.hpp`, `degradation` block).** A whispered
+version of each voice is synthesized (LPC order 2 + fs/1000, 25 ms frames: the vocal-tract
+filter of each frame driven by white noise instead of the glottal pulses) and mixed in:
+`y = √(1−m)·x + √m·w`, energy-preserving, `m = degradation.level ∈ (0, 1]`. `scope`:
+`probes` keeps each test speaker's enrolment utterance clean (a speaker enrolled before the
+illness), `test` degrades every test utterance. Training is always clean, and the scaler is
+fitted on clean rows. Tests check the power (±20%), that periodicity drops from > 0.8 to < 0.3,
+and that the effect grows with `m`. It is a model of breathy/aphonic voice, not of every
+dysphonia: the thesis says so.
+
+### 5. How stable is the Phase 00 winner?
+
+**Problem.** The extractor was chosen with every speaker's labels, the same speakers Phase 01
+tests on (issue 5), and a deterministic extractor's three repetitions are one number, so
+σ = 0 said nothing (issue 8). **Fix (`ParaconsistentSubsets.hpp`).** Every Phase 00 profile
+also scores its extractor on 30 speaker subsets: the 15 leave-one-speaker-out sets and the
+training speakers of each of the 15 Phase 01 outer folds (k = 5, seeds 42–44). The ranking
+script reports, per signal, in how many fold subsets the full-set winner is still the winner
+(`winner_stability.csv`), and the tables print `loso_sd` and `fold_wins`.
+
+### 6. Measured inference energy
+
+**Problem.** The thesis argues for an SNN on energy and never measured it (issue 11). **Fix.**
+Each network fold counts its **test pass**: spikes per layer, and from them Meeting01's
+memory-aware ledger (Lemaire et al. 2022 at Horowitz 2014 prices, `Meeting01Energy.hpp`, the
+same model as the meeting01 paper). Written per fold and as a mean under `energy` in the
+summary: `nj` (primary: the repeated input's first layer computed once), `nj_as_executed`
+(computed at every step), `nj_sram8k/32k/1m` and `ops_nj` (checks). The extractor is not
+included: it is the same for every classifier of one feature set. The residual sums are priced
+as event routing: `W(a + b) = Wa + Wb`, so a layer fed by `h = Σ spike trains` costs `sum(h)`
+events, each earlier spike routed again. Before, `final_sops` came from the last *training*
+batch and ignored the skips.
+
+### 7. Statistics
+
+`thesis_cross_profile_significance.py --pairing corrected` is the Nadeau–Bengio corrected
+repeated k-fold t-test: 3 repetitions × 5 folds are 15 correlated values, not 15 independent
+ones. On the (void) 2026-11-12 EEG/fusion numbers it moved late fusion vs EEG from
+p = 0.035 (Wilcoxon) to p = 0.27. `--select` (required) declares the family compared, and the
+reference should be fixed in advance (`--reference <run_tag>`).
+
+### 8. The profiles are generated
+
+`scripts/pipeline/thesis/00_thesis_generate_profiles.py` writes every profile (275 Phase 00 =
+153 voice + 61 × 2 EEG conditions; 142 Phase 01 = grid 56 + controls 28 + dysphonia 40 +
+extractor comparison 18) and `profiles/profiles.manifest`, which
+`thesis_profile_audit_gtest` audits; a profile on disk that the manifest does not name fails.
+It reproduced the 246 earlier profiles exactly (checked, apart from the new keys).
 
 ---
 
@@ -188,16 +314,13 @@ The latent layer *is* the feature vector, so a smaller bottleneck yields a small
 
 Autoencoder training in Experiment05 is unsupervised (no speaker labels), and latent vectors feed paraconsistent ranking and downstream classifier.
 
-### Authentication: Residual Network (RNN) and Deep SNN (DSNN)
+### Authentication: Deep SNN (DSNN) and its controls
 
-> **Scope note.** The non-spiking **RNN** classifier was built for the Meeting01 congress paper. The **thesis** uses only the spiking classifier (**DSNN**). The RNN is documented here because both share the Experiment05 code path.
-
-**RNN** (here: Residual Neural Network, not recurrent):  
-Skip connections prevent vanishing gradients in deep classifiers. Residual block:
-
-$$\text{out} = F(x) + x$$
-
-where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss. Implemented in `SimpleResNet.hpp`.
+The thesis classifier is the **DSNN**. Two controls run on the same features and folds
+(see [Protocol revision §3](#3-controls-what-does-spiking-buy-what-does-a-network-buy)):
+**`ann`** (`ThesisAnnClassifier.hpp`), the DSNN's graph with ReLU for LIF and the DSNN's
+initial weights, and **`cosine`**, no network. The type `rnn` (`SimpleResNet`, a different and
+larger graph) was removed on 2026-11-12.
 
 **DSNN**: temporal deep **residual** spiking classifier (audit M-4). Each hidden block (`Linear → (tdBN) → LIF`, all `hidden_dim` wide) is wrapped in an identity skip connection `h_out = block(h) + h`; `residual:D` in the layer spec sets the number of such blocks. Skips are parameter-free (no added serialization state) and sit only around the equal-width hidden blocks — the input stage (`input_dim → hidden_dim`) and output stage carry none. This matches the deep-residual-SNN design that tdBN was introduced to train (Zheng et al., AAAI 2021). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
@@ -211,14 +334,10 @@ Three techniques guard generalisation / trainability on the small dysphonic-spea
 
 **Input feature standardization** (`training.standardize_features`, required whenever the classifier runs): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `ThesisClassifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
 
-### Text-Dependent vs Text-Independent Evaluation
+### Seen vs unseen test phrases (`classifier.text_mode`)
 
-| Mode | Train phrases | Test phrases | Difficulty |
-|---|---|---|---|
-| Text-dependent | fixed set | same fixed set | Easier; high overlap |
-| Text-independent | arbitrary | different arbitrary | Harder; tests generalisation |
-
-Both modes use the same architecture; only the data split changes. Text-independent is the primary scientific contribution mode.
+Both modes train on the same 5 phrases; `dependent` tests on those 5 (seen), `independent` on
+5 others (unseen). See [Protocol revision §2](#2-seen-and-unseen-phrases-on-the-same-training-set).
 
 ### Nested 5-Fold Cross-Validation
 
@@ -507,8 +626,8 @@ OMP_NUM_THREADS=1 ./out/build/max-performance/src/experiments/thesis/thesis \
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, for **208** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
-- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eegpron`, `eegimag`: the EEG under each condition, [§1](#1-the-eeg-was-the-previous-trials-eeg)), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, plus PCA k = 8/16/32: 153 voice + 61 per EEG condition = **275** rankings, and score every combination with the paraconsistent metric, on the whole set and on 30 speaker subsets ([§5](#5-how-stable-is-the-phase-00-winner)). The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. The lowest-`D_penalized` combination per signal wins; each family's best is kept too, for the comparison set.
+- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). The `feature_extraction` block is a placeholder until `02_thesis_apply_winner.py` writes the winners. Five sets (all generated): `p01_dsnn_*` the grid, 7 sources (voice, eegpron, eegimag, early/late fusion × condition) × text mode × CV scheme × raw/std = 56; `p01_ann_*` and `p01_cosine_*`, the controls, 7 × 2 text modes, flat, std = 28; `p01_dysph_*`, simulated dysphonia, the 5 voice-reading sources × scope × 4 levels = 40; `p01_cmp-<family>_*`, the best of each extractor family through the DSNN at the autoencoders' 100 epochs, 3 families × 3 signals × 2 text modes = 18. Total 142.
 
 **Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
 (since 2026-07-18) `run_thesis_profiles.sh phase00`/`all` chains all three itself once every
@@ -521,9 +640,10 @@ for the full gating rules and the `scope=all` ordering caveat). Shown here for m
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --profiles-dir src/experiments/thesis/profiles/phase00 \
   --results-dir  results/thesis/phase00 \
-  --out          results/thesis/phase00/winners.json
+  --out          results/thesis/phase00/winners.json \
+  --stability-out results/thesis/phase00/winner_stability.csv
 
-# Inject the winners into the 32 Phase 01 profiles (--fused is required: no default):
+# Inject the winners into the 142 Phase 01 profiles (--fused is required: no default):
 python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
   --winners      results/thesis/phase00/winners.json \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
@@ -536,24 +656,24 @@ python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
   --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-`01_thesis_phase00_rank.py` reads exactly the `e05_<run_tag>[_rep<k>]_paraconsistent.csv` files each profile declares (refusing a missing one, a CSV with more than one row, or one without `d_penalized`), selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables from the profile set (every argument required; a missing summary or an empty `{ae, hc, pca} × {eeg, voice}` group is refused, and a result with no profile is never read). It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across the handcrafted, autoencoder and PCA families) with a dagger — see pitfall 12 below for why this matters.
+`01_thesis_phase00_rank.py` reads exactly the `e05_<run_tag>[_rep<k>]_paraconsistent.csv` files each profile declares (refusing a missing one, a CSV with more than one row, or one without `d_penalized`), selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg` → the winner of its condition, `fused` → `--fused voice`, or with `--fused eeg` the winner of its condition; `p01_cmp-<family>_<signal>_*` → that family's winner); it refuses an autoencoder winner for a profile whose `training.epochs` is not the Phase 00 budget (100), before writing anything; it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables from the profile set (every argument required; a missing summary or an empty `{ae, hc, pca} × {voice, eegpron, eegimag}` group is refused, and a result with no profile is never read). It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across the handcrafted, autoencoder and PCA families) with a dagger — see pitfall 12 below for why this matters.
 
 A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 01 results once that phase has run:
 
 ```bash
-# Regenerate the thesis Phase 01 authentication table (32 configs, ranked by mean EER):
+# Regenerate the thesis Phase 01 tables (grid, controls, dysphonia, extractors, energy):
 python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
   --results-dir  results/thesis/phase01 \
   --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-`thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above. Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
+`thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` (and the networks' measured energy) across each configuration's 3 repeats and writes one CSV per set: `phase01_auth.csv` (the grid, ascending EER), `phase01_controls.csv`, `phase01_dysphonia.csv` (level 0 = the grid's clean cell), `phase01_extractors.csv` and `phase01_energy.csv` (with a `holds` column: whether the DSNN/ANN energy order survives every check). A profile whose name is in none of the five sets is refused, and each name is checked against its declared config. Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
 
 ### Running on GridUnesp (2026-11-12)
 
 **Why.** Both phases run on the cluster, from the same binary and revision. Phase 01 carries
-most of the work: 32 profiles × 3 repeats × 5 folds × 50 epochs, and since the
+most of the work: 142 profiles × 3 repeats × 5 folds (cosine trains nothing), and since the
 fold-intersection fix every fold trains on all of its training speakers, not about a third of
 them.
 
@@ -563,8 +683,8 @@ runs from start to finish.
 
 | Phase | Unit | Units | Array | Why this cut |
 |---|---|---|---|---|
-| 00 | one profile (all its repetitions) | 214 | `--array=0-63`, ~3–4 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
-| 01 | one (profile, repetition) | 32 × 3 = 96 | `--array=0-95`, one unit per task | Repetitions are whole trainings with their own seeds. As separate processes, the phase takes as long as one repetition instead of three. |
+| 00 | one profile (all its repetitions) | 275 | `--array=0-63`, ~4–5 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
+| 01 | one (profile, repetition) | 142 × 3 = 426 | `--array=0-141`, 3 units per task | Repetitions are whole trainings with their own seeds. |
 
 Task `t` of `N` runs units `t, t+N, t+2N, …` of the sorted list, one after another:
 
@@ -574,8 +694,8 @@ phase00, N = 64          sorted position:  0   1   2  ...  63   64   65  ...  21
 -> task 0 runs positions 0, 64, 128, 192 (4 profiles); the 24 autoencoder profiles
    (positions 0-23) land on 24 different tasks instead of all in one
 
-phase01, N = 96          units: p01_dsnn_eeg_dep_flat_raw.rep0, .rep1, .rep2, p01_..._std.rep0, ...
-                         task t runs unit t:  thesis --config <profile> --repeat <k>
+phase01, N = 142         units: p01_ann_earlyimag_dep_flat_std.rep0, .rep1, .rep2, ...
+                         task t runs units t, t+142, t+284:  thesis --config <profile> --repeat <k>
 ```
 
 `thesis --config P --repeat k` runs repetition `k` exactly as the full run would: the seed, and
@@ -589,7 +709,8 @@ Finer cuts were considered and not adopted:
 - the inner-CV candidates of a nested fold still run one after another in a one-CPU process.
 
 Why several units per task in Phase 00: every unit first loads the decoded dataset,
-`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Units that run in a row on one node read
+cache of its EEG condition (`~/database.sqlite.pronounced.e05dscache` or
+`~/database.sqlite.imagined-2026.e05dscache`, 1.6 GB each), from `/home`. Units that run in a row on one node read
 it once from `/home` and then from that node's page cache.
 
 The local runner (`scripts/testing/run_thesis_profiles.sh`) follows the same rule. Each process
@@ -639,14 +760,14 @@ default threads.
 
 ```bash
 # local: sync the tree, build meeting01 + thesis on a compute node, send ~/database.sqlite
-# (+ its cache), and smoke thesis with a real profile (p00_pca_k8_eeg) on a compute node
+# (+ its two caches), and smoke thesis with p00_pca_k8_eegpron + _eegimag on a compute node
 ./scripts/pipeline/meeting01/gridunesp_deploy.sh            # GRIDUNESP_TARGETS="meeting01 thesis"
 # cluster: one array per phase (# CONFIRMED -- the expensive-experiment guard)
 THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # local, when every task is done: bring the phase home, then the hand-off above
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
 # after the hand-off is committed and deployed: Phase 01, one (profile, repetition) per task
-THESIS_PHASE=phase01 sbatch --array=0-95 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```
 
 **What it refuses, and what it records.** Each line below is a loud stop. None of these cases
@@ -723,13 +844,13 @@ This closes the gap where all 18 SNN-AE profiles previously shared the identical
 
 ### Model checkpoints
 
-After each outer fold, `run_classifier()` serializes the trained classifier state dict (RNN or DSNN) via `nn::io::save_state_dict(model.state_dict(), path)`. To reload a RNN checkpoint:
+After each outer fold, `run_classifier()` serializes the trained classifier state dict (DSNN or ANN; the cosine control has none) via `nn::io::save_state_dict(model.state_dict(), path)`. To reload an ANN checkpoint (`residual:2`, H = 128):
 
 ```cpp
 #include "io/StateIO.hpp"
-#include "layers/residual/SimpleResNet.hpp"
+#include "ThesisAnnClassifier.hpp" // lib/src
 
-SimpleResNetImpl<nn::Backend> model(feat_dim, 128, n_speakers, 2);
+thesis::ThesisAnnClassifier model(feat_dim, 128, n_speakers, /*depth=*/2, /*seed=*/42);
 auto sd = nn::io::load_state_dict("results/meeting01/models/run/feat/fold_0.bin");
 model.load_state_dict(sd);
 ```

@@ -26,6 +26,7 @@
 
 #include "Backend.hpp"
 #include "IndexIntersection.hpp"
+#include "ThesisAnnClassifier.hpp"
 #include "ThesisClassifiers.hpp"
 #include "ThesisDsnnClassifier.hpp"
 #include "core/training/Trainer.hpp"
@@ -67,7 +68,47 @@ struct EvalMetrics
     double specificity = 0.0;
     double eer = 0.0;
     double auc = 0.0;
+    std::optional<InferenceEnergy> energy; // set by evaluate() for a network
 };
+
+inline auto to_inference_energy(const meeting01::EnergyLedger& primary,
+    const meeting01::EnergyLedger& as_executed,
+    double spikes) -> InferenceEnergy
+{
+    namespace en = meeting01::energy;
+    InferenceEnergy r;
+    r.nj = primary.total_nj();
+    r.ops_nj = primary.ops_pj() / 1000.0;
+    r.mem_nj = primary.mem_pj / 1000.0;
+    r.nj_as_executed = as_executed.total_nj();
+    r.nj_sram8k = primary.total_nj_at(en::kSramPoints[0].bytes);
+    r.nj_sram32k = primary.total_nj_at(en::kSramPoints[1].bytes);
+    r.nj_sram1m = primary.total_nj_at(en::kSramPoints[2].bytes);
+    r.fp_macs = primary.fp_macs;
+    r.fp_adds = primary.fp_adds;
+    r.accesses = primary.accesses();
+    r.spikes = spikes;
+    return r;
+}
+
+// The energy of the last forward's samples (call right after the evaluation forward).
+inline auto measure_energy(const ThesisDsnnClassifier& m) -> InferenceEnergy
+{
+    return to_inference_energy(m.inference_ledger(/*repeated_once=*/true),
+        m.inference_ledger(false),
+        m.spikes_per_sample());
+}
+inline auto measure_energy(const ThesisAnnClassifier& m) -> InferenceEnergy
+{
+    const auto e = m.inference_ledger();
+    return to_inference_energy(e, e, 0.0);
+}
+
+EvalMetrics score_embeddings(const std::vector<std::vector<float>>& embeddings,
+    const std::vector<int>& labels,
+    int n_classes,
+    const statistics::IEERScorer& eer_scorer,
+    const std::string& where);
 
 // Single batched forward on (N, D); computes all metrics.
 template <typename ModelType>
@@ -93,6 +134,28 @@ EvalMetrics evaluate(ModelType& model,
     }
 
     nn::Tensor all_logits = model.forward(batch, false);
+    const InferenceEnergy energy = measure_energy(model); // this pass's events
+    std::vector<std::vector<float>> embeddings(static_cast<size_t>(N));
+    for (size_t i = 0; i < static_cast<size_t>(N); ++i)
+    {
+        embeddings[i].resize(static_cast<size_t>(n_classes));
+        for (int j = 0; j < n_classes; ++j)
+            embeddings[i][static_cast<size_t>(j)] = all_logits.at(static_cast<nn::Index>(i), j);
+    }
+    EvalMetrics m = score_embeddings(embeddings, labels, n_classes, eer_scorer, where);
+    m.energy = energy;
+    return m;
+}
+
+// EER and AUC of one set of embeddings (the model's logits, or the features themselves for
+// the cosine control).
+EvalMetrics score_embeddings(const std::vector<std::vector<float>>& embeddings,
+    const std::vector<int>& labels,
+    int n_classes,
+    const statistics::IEERScorer& eer_scorer,
+    const std::string& where)
+{
+    const auto N = static_cast<nn::Index>(embeddings.size());
 
     // Verification-only protocol (audit C-1): folds are speaker-disjoint
     // (GroupKFold), so test speakers are never seen in training. Closed-set
@@ -101,14 +164,6 @@ EvalMetrics evaluate(ModelType& model,
     // output is used purely as an embedding for genuine/impostor EER/AUC, i.e.
     // an x-vector-style verification protocol (train on background speakers,
     // enrol unseen test speakers at evaluation time).
-    std::vector<std::vector<float>> embeddings(static_cast<size_t>(N));
-    for (size_t i = 0; i < static_cast<size_t>(N); ++i)
-    {
-        embeddings[i].resize(static_cast<size_t>(n_classes));
-        for (int j = 0; j < n_classes; ++j)
-            embeddings[i][static_cast<size_t>(j)] = all_logits.at(static_cast<nn::Index>(i), j);
-    }
-
     const double kNaN = std::numeric_limits<double>::quiet_NaN();
 
     EvalMetrics m;
@@ -236,9 +291,9 @@ struct ClassifierShape
 
 // Hidden width and residual depth from layer_spec, which must be exactly
 //   ["linear:<H>:relu", "residual:<D>", "linear:N_speakers:identity"]  ->  {H, D}
-// — the one network both classifiers build (SimpleResNet: Linear -> ReLU -> D residual
-// blocks -> Linear to the speakers; the DSNN puts LIF where the ReLU is). Anything else
-// is refused: an unreadable spec used to become {128, 2}, and items the code does not
+// — the one graph both classifiers build (Linear -> nonlinearity -> D - 1 residual blocks
+// Linear -> nonlinearity + skip -> Linear to the speakers; LIF in the DSNN, ReLU in the ANN).
+// Anything else is refused: an unreadable spec used to become {128, 2}, and items the code does not
 // build (a second hidden layer, another activation) used to be passed over in silence.
 ClassifierShape parse_layer_spec(const std::vector<std::string>& spec)
 {
@@ -304,9 +359,9 @@ class GlobalBarFractionalCallback : public nn::training::ITrainingCallback
 // Cross-validation helpers
 //
 // run_classifier supports two CV strategies (nested and flat) and two classifier
-// types (rnn = SimpleResNet, dsnn = spiking). Naively that is a 2×2 matrix of
-// near-identical training code. The helpers below factor out everything the four
-// cases share, so each CV loop reads as plain control flow:
+// types (ann = ThesisAnnClassifier, dsnn = spiking; the cosine control has no network). Naively
+// that is a 2×2 matrix of near-identical training code. The helpers below factor out everything the
+// four cases share, so each CV loop reads as plain control flow:
 //   build model → train → evaluate → record fold.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -331,6 +386,12 @@ struct FoldContext
     int n_speakers;
     uint32_t global_bar_id;
     int* global_completed;
+    // Simulated dysphonia: the degraded twin of all_inputs (nullptr = clean run), and
+    // whether each test speaker's first enrol_per_speaker rows (the scorer's enrolment
+    // template) stay clean.
+    const nn::Tensor* degraded_inputs;
+    bool enrol_clean;
+    std::size_t enrol_per_speaker;
 };
 
 // Construct the classifier selected by cfg.classifier.type and invoke fn(model).
@@ -339,10 +400,10 @@ struct FoldContext
 template <typename Fn>
 auto with_classifier(const FoldContext& ctx, Fn&& fn)
 {
-    if (ctx.cfg.classifier.type == "rnn")
+    if (ctx.cfg.classifier.type == "ann")
     {
-        // Seed the Kaiming init so the ResNet is reproducible like the dsnn path.
-        SimpleResNetImpl<nn::Backend> model(
+        // The DSNN's graph with ReLU for LIF and the DSNN's initial weights.
+        ThesisAnnClassifier model(
             ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth, ctx.cfg.experiment.seed);
         return fn(model);
     }
@@ -420,6 +481,7 @@ void set_fold_metrics(FoldResult& fr, const EvalMetrics& em)
     fr.specificity = em.specificity;
     fr.eer = em.eer;
     fr.auc = em.auc;
+    fr.energy = em.energy;
 }
 
 // Persist a trained model to <results_dir>/models/<run_tag>/<feature>/fold_<i>.bin
@@ -529,6 +591,31 @@ void gather_subset_std(const nn::Tensor& Xn,
             row[j] = Xn.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j));
         feats.push_back(std::move(row));
         labs.push_back(all_labels[i]);
+    }
+}
+
+// The test rows of one outer fold. Clean run: the standardized clean rows. Degraded run:
+// the degraded rows, standardized with the SAME scaler (fitted on clean training rows);
+// with enrol_clean, the first enrol_per_speaker rows of each speaker — the ones the scorer
+// averages into the enrolment template, in this same order — keep the clean features.
+void gather_test_rows(const FoldContext& ctx,
+    const nn::Tensor& Xn,
+    const FeatureScaler& scaler,
+    const std::vector<size_t>& test_idx,
+    std::vector<std::vector<double>>& feats,
+    std::vector<int>& labs)
+{
+    gather_subset_std(Xn, ctx.labels, test_idx, feats, labs);
+    if (ctx.degraded_inputs == nullptr) return;
+    const nn::Tensor Xd = apply_scaler(*ctx.degraded_inputs, scaler);
+    std::map<int, std::size_t> taken;
+    const auto D = static_cast<size_t>(Xd.cols());
+    for (size_t k = 0; k < test_idx.size(); ++k)
+    {
+        const bool enrolment = ctx.enrol_clean && taken[labs[k]]++ < ctx.enrol_per_speaker;
+        if (enrolment) continue;
+        for (size_t j = 0; j < D; ++j)
+            feats[k][j] = Xd.at(static_cast<nn::Index>(test_idx[k]), static_cast<nn::Index>(j));
     }
 }
 
@@ -688,7 +775,7 @@ void run_one_outer_fold(const FoldContext& ctx,
 
     std::vector<std::vector<double>> test_feats;
     std::vector<int> test_labels;
-    gather_subset_std(Xn, ctx.labels, outer_test_indices, test_feats, test_labels);
+    gather_test_rows(ctx, Xn, scaler, outer_test_indices, test_feats, test_labels);
 
     // ── Inner loop: train one candidate per inner fold, keep the best ──
     const auto train_t0 = std::chrono::steady_clock::now();
@@ -783,11 +870,33 @@ void run_flat_cv(const FoldContext& ctx,
 
         std::vector<std::vector<double>> test_feats;
         std::vector<int> test_labels;
-        gather_subset_std(Xn, ctx.labels, test_indices, test_feats, test_labels);
-        const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, train_indices);
+        gather_test_rows(ctx, Xn, scaler, test_indices, test_feats, test_labels);
 
         FoldResult fr;
         fr.fold = static_cast<int>(outer_idx);
+        if (ctx.cfg.classifier.type == "cosine")
+        {
+            // No network: the standardized features are the embedding. The training rows
+            // serve only the scaler above.
+            const auto infer_t0 = std::chrono::steady_clock::now();
+            std::vector<std::vector<float>> emb(test_feats.size());
+            for (size_t i = 0; i < test_feats.size(); ++i)
+                emb[i].assign(test_feats[i].begin(), test_feats[i].end());
+            const EvalMetrics em = score_embeddings(emb,
+                test_labels,
+                ctx.n_speakers,
+                ctx.scorer,
+                "flat test fold " + std::to_string(outer_idx) + " (cosine)");
+            fr.train_ms = 0.0;
+            fr.infer_ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - infer_t0)
+                              .count();
+            set_fold_metrics(fr, em);
+            result.outer_folds.push_back(fr);
+            advance_global_bar(ctx);
+            continue;
+        }
+        const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, train_indices);
         const EvalMetrics em = with_classifier(ctx,
             [&](auto& model)
             {
