@@ -1,0 +1,60 @@
+{
+  "best_alpha": 0.36956994627886663,
+  "best_beta": 0.7921756526301981,
+  "best_d_penalized": 1.5265195311682187,
+  "best_d_truth": 1.4317711529814474,
+  "best_feature_set": "handcrafted-mel",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_hc_daub12_mel_c1_voice_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "mel",
+        "transform": "dtwpt",
+        "wavelet": "daub12"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": true,
+      "fold_k": 5,
+      "fold_repeats": 3,
+      "fold_seed": 42,
+      "speaker_subsets": true
+    }
+  },
+  "config_hash": 10709039256204544066,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [],
+  "run_tag": "e05_p00_hc_daub12_mel_c1_voice_rep1",
+  "seed": 43,
+  "strategy": "handcrafted"
+}

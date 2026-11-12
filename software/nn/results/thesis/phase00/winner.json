@@ -1,0 +1,263 @@
+{
+  "eegimag": {
+    "by_family": {
+      "hc": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_eegimag.json",
+        "label": "handcrafted/haar/lfcc/c1",
+        "d_penalized": 1.51281567,
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        },
+        "tie_count": 1
+      },
+      "ae": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_ae_ann_base_eegimag.json",
+        "label": "autoencoder/ann-ae/latent32",
+        "d_penalized": 1.8870913833333331,
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "tie_count": 1
+      },
+      "pca": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_pca_k32_eegimag.json",
+        "label": "pca/k32",
+        "d_penalized": 1.88599023,
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 32
+          }
+        },
+        "tie_count": 1
+      }
+    },
+    "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_eegimag.json",
+    "label": "handcrafted/haar/lfcc/c1",
+    "d_penalized": 1.51281567,
+    "d_truth": 1.4698069699999998,
+    "feature_extraction": {
+      "strategy": "handcrafted",
+      "handcrafted": {
+        "transform": "dtwpt",
+        "scale": "lfcc",
+        "wavelet": "haar",
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4
+      }
+    },
+    "tie_count": 1,
+    "tied_with": []
+  },
+  "eegpron": {
+    "by_family": {
+      "hc": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_eegpron.json",
+        "label": "handcrafted/haar/lfcc/c1",
+        "d_penalized": 1.57876874,
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        },
+        "tie_count": 1
+      },
+      "ae": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_ae_ann_base_eegpron.json",
+        "label": "autoencoder/ann-ae/latent32",
+        "d_penalized": 1.8834015133333333,
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "tie_count": 1
+      },
+      "pca": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_pca_k32_eegpron.json",
+        "label": "pca/k32",
+        "d_penalized": 1.8790550799999999,
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 32
+          }
+        },
+        "tie_count": 1
+      }
+    },
+    "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_eegpron.json",
+    "label": "handcrafted/haar/lfcc/c1",
+    "d_penalized": 1.57876874,
+    "d_truth": 1.52848722,
+    "feature_extraction": {
+      "strategy": "handcrafted",
+      "handcrafted": {
+        "transform": "dtwpt",
+        "scale": "lfcc",
+        "wavelet": "haar",
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4
+      }
+    },
+    "tie_count": 1,
+    "tied_with": []
+  },
+  "voice": {
+    "by_family": {
+      "hc": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_voice.json",
+        "label": "handcrafted/haar/lfcc/c1",
+        "d_penalized": 1.48363125,
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        },
+        "tie_count": 1
+      },
+      "ae": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_ae_snn_latency_tiny_voice.json",
+        "label": "autoencoder/snn-ae/latency/latent8",
+        "d_penalized": 1.85098996,
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "tie_count": 1
+      },
+      "pca": {
+        "profile": "src/experiments/thesis/profiles/phase00/p00_pca_k8_voice.json",
+        "label": "pca/k8",
+        "d_penalized": 1.83922508,
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 8
+          }
+        },
+        "tie_count": 1
+      }
+    },
+    "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_voice.json",
+    "label": "handcrafted/haar/lfcc/c1",
+    "d_penalized": 1.48363125,
+    "d_truth": 1.40553726,
+    "feature_extraction": {
+      "strategy": "handcrafted",
+      "handcrafted": {
+        "transform": "dtwpt",
+        "scale": "lfcc",
+        "wavelet": "haar",
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4
+      }
+    },
+    "tie_count": 1,
+    "tied_with": []
+  }
+}

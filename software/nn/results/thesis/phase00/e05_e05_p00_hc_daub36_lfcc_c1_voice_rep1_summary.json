@@ -1,0 +1,60 @@
+{
+  "best_alpha": 0.38888192823463347,
+  "best_beta": 0.7809726731601732,
+  "best_d_penalized": 1.5019133063435508,
+  "best_d_truth": 1.402414784477949,
+  "best_feature_set": "handcrafted-lfcc",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_hc_daub36_lfcc_c1_voice_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "daub36"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": true,
+      "fold_k": 5,
+      "fold_repeats": 3,
+      "fold_seed": 42,
+      "speaker_subsets": true
+    }
+  },
+  "config_hash": 7668552805708180859,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [],
+  "run_tag": "e05_p00_hc_daub36_lfcc_c1_voice_rep1",
+  "seed": 43,
+  "strategy": "handcrafted"
+}

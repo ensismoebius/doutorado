@@ -1,0 +1,61 @@
+{
+  "best_alpha": 0.26274267485550384,
+  "best_beta": 0.9336309523809524,
+  "best_d_penalized": 1.7974212616166585,
+  "best_d_truth": 1.682388254073941,
+  "best_feature_set": "handcrafted-lfcc",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "eeg_condition": "imagined",
+      "eeg_pairing_seed": 2026,
+      "max_samples": 0,
+      "modality": "eeg",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_hc_daub46_lfcc_c2_eegimag_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": true,
+        "descriptors": [
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "daub46"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": true,
+      "fold_k": 5,
+      "fold_repeats": 3,
+      "fold_seed": 42,
+      "speaker_subsets": true
+    }
+  },
+  "config_hash": 12334480024926309077,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "eeg",
+  "results": [],
+  "run_tag": "e05_p00_hc_daub46_lfcc_c2_eegimag_rep2",
+  "seed": 44,
+  "strategy": "handcrafted"
+}
