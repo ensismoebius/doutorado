@@ -546,28 +546,64 @@ python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
 
 ### Running on GridUnesp (2026-11-12)
 
-**Why.** Phase 01 is the expensive phase: 32 profiles × 3 repeats × 5 folds × 50 epochs, and
-since the fold-intersection fix every fold trains on all of its training speakers, not about
-a third of them. One voice profile at 1 epoch and 1 repeat took 482 s locally. Phase 00 is
-small by comparison (measured 2026-11-12 at 4 threads: an autoencoder epoch takes 3–6 s, and
-the whole phase is about 8 h in series), but it runs on the cluster too, from the same binary
-and revision as Phase 01.
+**Why.** Both phases run on the cluster, from the same binary and revision. Phase 01 carries
+most of the work: 32 profiles × 3 repeats × 5 folds × 50 epochs, and since the
+fold-intersection fix every fold trains on all of its training speakers, not about a third of
+them.
 
 **What runs where.** `scripts/pipeline/thesis/thesis_gridunesp.sbatch` runs one phase as a Slurm
-array. Task `t` of `N` runs the profiles at positions `t, t+N, t+2N, …` of the sorted list, one
-after another:
+array of **one-CPU** tasks. Task `t` of `N` runs the profiles at positions `t, t+N, t+2N, …` of
+the sorted list, one after another:
 
 ```
-phase00, N = 16          sorted position:  0   1   2  ...  15   16   17  ...  213
-                         task:             0   1   2  ...  15    0    1  ...    5
--> task 0 runs positions 0, 16, 32, ... (14 profiles); the 24 autoencoder profiles
-   (positions 0-23) land on 16 different tasks instead of all in one
+phase00, N = 64          sorted position:  0   1   2  ...  63   64   65  ...  213
+                         task:             0   1   2  ...  63    0    1  ...   21
+-> task 0 runs positions 0, 64, 128, 192 (4 profiles); the 24 autoencoder profiles
+   (positions 0-23) land on 24 different tasks instead of all in one
 ```
 
 Why batches and not one task per profile: every profile first loads the decoded dataset,
-`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Fourteen profiles in a row on one node
-read it once from `/home` and then from that node's page cache. One task per profile would read
-it 214 times from `/home`.
+`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Profiles that run in a row on one node
+read it once from `/home` and then from that node's page cache.
+
+**Why processes and not threads (measured 2026-11-12).** The program parallelises at three
+levels. Two of them are coarse: whole inner-CV candidates, and the handcrafted extraction of
+whole samples. The third is fine: xtensor's OpenMP and OpenBLAS split each multiply between
+threads. The fine level dominates training, and on these small networks it loses. Job 5322998
+ran one profile at each thread count on one node, at 1 and 3 epochs. The difference between
+the two is the cost of 2 epochs, so loading and extraction are left out:
+
+| Profile | 1 thread | 2 threads | 4 threads | per |
+|---|---|---|---|---|
+| `p01_dsnn_voice_dep_flat_raw` | 2 s | 2.5 s | 53 s | epoch (5 folds) |
+| `p01_dsnn_eeg_dep_nested_raw` | 10.5 s | — | 14.5 s | epoch (5 outer folds, inner CV) |
+
+node019 was also running four Phase 00 tasks of 4 CPUs each at the time. That is the situation an
+array creates, and it is where the 4-thread penalty is largest: on that node, 4 CPUs are 2 cores ×
+2 hyperthreads. On an idle 12-core desktop the same 3-epoch run took 30 s at 4 threads and 34 s at
+1 thread, so the gain is small at best and is never worth a different result (below).
+
+Phase 00 at 4 threads (array 5322982) showed the same effect from another angle. The 64-wide
+`base` autoencoders needed minutes per repeat, while the 32-wide `small` ones finished all three
+repeats in 20–38 s. A likely reading, not verified: xtensor parallelises only above a size
+threshold, and only the 64-wide layers cross it.
+
+**The thread count is part of the result.** That profile, after 3 epochs, gave EER 0.4176 /
+0.4083 / 0.4201 at 1 / 2 / 4 threads. A parallel reduction adds in a different order, and
+training amplifies the difference. The `.done` marker therefore records `threads=N` next to the
+revision, and a phase directory holding another thread count is refused like one from another
+revision.
+
+The result is repeatable at a fixed thread count. On the desktop, two runs at 1 thread both gave
+EER `0.42392311392251136`, and two at 4 threads both gave `0.4260507734969794`. The machine is
+part of the result too: at 1 thread the same profile gave 0.4176 on node019 and 0.4239 on the
+desktop. The two machines use a different CPU, and each was built with `-march=native` against
+its own BLAS. So a phase runs entirely on the cluster, from one build, and its numbers are not
+compared bit for bit with a local run.
+
+This is the same lesson as meeting01 ([GridUnesp § Threads](../Guides/GridUnesp-Deployment.md#threads-why-20-cpus-made-the-run-about-1000-slower-2026-10-23)).
+It also explains an earlier number: the "482 s for 1 epoch" measured locally ran at the 12
+default threads.
 
 **Commands.**
 
@@ -576,7 +612,7 @@ it 214 times from `/home`.
 # (+ its cache), and smoke thesis with a real profile (p00_pca_k8_eeg) on a compute node
 ./scripts/pipeline/meeting01/gridunesp_deploy.sh            # GRIDUNESP_TARGETS="meeting01 thesis"
 # cluster: one array per phase (# CONFIRMED -- the expensive-experiment guard)
-THESIS_PHASE=phase00 sbatch --array=0-15 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # local, when every task is done: bring the phase home, then the hand-off above
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
 ```

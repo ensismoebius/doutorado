@@ -319,8 +319,8 @@ EOF
 if has_target thesis; then
   cat <<EOF
 
-thesis (built and smoked): one array per phase, e.g. Phase 00 in 16 tasks --
-  ssh ${GRIDUNESP_USER}@${HOST} 'cd ${REMOTE_DIR} && THESIS_PHASE=phase00 sbatch --array=0-15 scripts/pipeline/thesis/thesis_gridunesp.sbatch'
+thesis (built and smoked): one array of 1-CPU tasks per phase, e.g. Phase 00 in 64 tasks --
+  ssh ${GRIDUNESP_USER}@${HOST} 'cd ${REMOTE_DIR} && THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch'
 (scripts/pipeline/thesis/thesis_gridunesp.sbatch says how tasks, resubmission and revisions work)
 EOF
 fi

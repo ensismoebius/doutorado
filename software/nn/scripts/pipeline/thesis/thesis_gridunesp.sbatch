@@ -5,8 +5,9 @@
 # and sends ~/database.sqlite, the profiles' dataset.root.
 #
 # Usage (from ~/software/nn on GridUnesp, after the deploy):
-#   THESIS_PHASE=phase00 sbatch --array=0-15 scripts/pipeline/thesis/thesis_gridunesp.sbatch
-#   THESIS_PHASE=phase01 sbatch --array=0-31 -p medium -t 5-00:00:00 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=phase01 sbatch --array=0-31 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# (one 1-CPU process per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
 # ── Why an array of BATCHES of profiles ─────────────────────────────────────────────────────
@@ -51,12 +52,23 @@
 # USR1 to this shell 15 min before the limit, for the same reason as the meeting01 sbatch: Slurm
 # signals only this shell, and its children only get the SIGKILL (see that file's comment).
 #SBATCH --signal=B:USR1@900
-# 4 CPUs: the handcrafted extractor is OpenMP-parallel over samples; measured locally
-# (2026-11-12) one autoencoder epoch takes 3-6 s at 4 threads, the whole of Phase 00 ~8 h serial.
-#SBATCH --cpus-per-task=4
+# ONE CPU, and the parallelism comes from the array instead. Measured on node019, 2026-11-12
+# (job 5322998: one Phase 01 profile at 1/2/4 threads, 1 and 3 epochs, the slope being the cost of
+# an epoch without loading and extraction):
+#
+#   p01_dsnn_voice_dep_flat_raw    per epoch  1 thread 2 s    2 threads 2.5 s   4 threads 53 s
+#   p01_dsnn_eeg_dep_nested_raw    per epoch  1 thread 10.5 s                   4 threads 14.5 s
+#
+# The threads split each small multiply (xtensor's OpenMP, OpenBLAS) and pay more in coordination
+# than they save -- meeting01's finding (.wiki/Guides/GridUnesp-Deployment.md, "Threads"). Phase 00
+# at 4 threads showed it too: the 64-wide "base" autoencoders took minutes per repeat where the
+# 32-wide ones took seconds. And the thread count CHANGES THE RESULT: the same profile gave EER
+# 0.4176 / 0.4083 / 0.4201 at 1 / 2 / 4 threads after 3 epochs (summation order). So it is part of
+# the run's identity: the .done marker records it, and one phase never mixes two thread counts.
+#SBATCH --cpus-per-task=1
 # The decoded dataset alone is 1.6 GB in memory; the voice SNN-AE profiles peaked at ~4.4 GB RSS
 # locally. Out of memory is a loud failure (the task is killed and has no marker).
-#SBATCH --mem=12G
+#SBATCH --mem=8G
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=thesis_run_%A_%a.out
@@ -98,7 +110,7 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 PHASE="${THESIS_PHASE:-}"
 case "$PHASE" in
   phase00|phase01) ;;
-  *) refuse "THESIS_PHASE must be phase00 or phase01 (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-15 $0" ;;
+  *) refuse "THESIS_PHASE must be phase00 or phase01 (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
 esac
 [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] ||
   refuse "submit as an array (sbatch --array=0-<N-1> ...); see the header of this file"
@@ -120,7 +132,9 @@ cmp -s SOURCE_REVISION "${BUILD_DIR}/SOURCE_REVISION.thesis.built" ||
          "from ${BUILD_DIR}/SOURCE_REVISION.thesis.built): a deploy synced and then did not build" \
          "it. Rerun gridunesp_deploy.sh."
 source scripts/pipeline/meeting01/_provenance.sh
-REVISION="$(provenance_label SOURCE_REVISION)"
+# The label a .done marker carries: the code AND the thread count, which changes the numbers
+# (see the --cpus-per-task comment above).
+REVISION="$(provenance_label SOURCE_REVISION) threads=${OMP_NUM_THREADS}"
 
 PROFILE_DIR="src/experiments/thesis/profiles/${PHASE}"
 mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sort)
@@ -136,8 +150,8 @@ FAILED_DIR="${RES}/.failed"
 if [[ -d "$DONE_DIR" ]]; then
   while IFS= read -r -d '' marker; do
     if [[ "$(<"$marker")" != "$REVISION" ]]; then
-      refuse "$PWD/$marker was made by revision $(<"$marker"); this deploy is $REVISION. One" \
-             "phase directory must not mix two binaries' results: move $PWD/$RES aside" \
+      refuse "$PWD/$marker was made by '$(<"$marker")'; this task is '$REVISION'. One" \
+             "phase directory must not mix two binaries' or two thread counts' results: move $PWD/$RES aside" \
              "(mv $RES ${RES}_$(date +%Y%m%d)) and resubmit the whole array."
     fi
   done < <(find "$DONE_DIR" -type f -name '*.done' -print0)   # -type f: ".done" itself matches
