@@ -42,25 +42,33 @@ constexpr auto columnMajorIndex(std::size_t column, std::size_t row, std::size_t
     return (column * rowCount) + row;
 }
 
+/// The EEG row of an audio row's label. The label IS the 0-based EEG row, in both sources:
+/// the SQLite stores it as trial.original_row (the trial's own row; EEGSession::readRow(r)
+/// reads original_row = r), and the MAT column holds the same value -- the importer used it
+/// unchanged as a 0-based key, and on the real database the trials that received audio are
+/// exactly the 1974 Pronounced ones and none of the 7341 Imagined (checked 2026-11-12).
+/// This function used to map a label k >= 1 to k - 1 and 0 to 0, so every pair except row 0
+/// read the PREVIOUS trial (.wiki/Core/DataLoaders.md, "Audio -> EEG pairing").
+/// Throws for -1 (an audio-only trial: no EEG was recorded) and for a label past the rows.
 inline auto resolveEegRowIndex(int eeg_index_label, std::size_t eeg_rows) -> std::size_t
 {
     if (eeg_rows == 0)
     {
         throw std::runtime_error("Invalid EEG row count: 0");
     }
-
-    if (eeg_index_label >= 1 && static_cast<std::size_t>(eeg_index_label) <= eeg_rows)
+    if (eeg_index_label < 0)
     {
-        return static_cast<std::size_t>(eeg_index_label - 1);
+        throw std::runtime_error("Audio->EEG index label " + std::to_string(eeg_index_label) +
+                                 ": the audio trial has no EEG (audio-only); a paired reader "
+                                 "cannot use it");
     }
-
-    if (eeg_index_label >= 0 && static_cast<std::size_t>(eeg_index_label) < eeg_rows)
+    if (static_cast<std::size_t>(eeg_index_label) >= eeg_rows)
     {
-        return static_cast<std::size_t>(eeg_index_label);
+        throw std::runtime_error("Audio->EEG index label " + std::to_string(eeg_index_label) +
+                                 " is past the subject's " + std::to_string(eeg_rows) +
+                                 " EEG rows (labels are 0-based EEG rows)");
     }
-
-    throw std::runtime_error(
-        "Audio->EEG index label is out of range: " + std::to_string(eeg_index_label));
+    return static_cast<std::size_t>(eeg_index_label);
 }
 
 } // namespace nn::dataLoaders::schema101117

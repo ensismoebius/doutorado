@@ -669,8 +669,40 @@ guarded:
 | A NULL `stimulus_id`, `modality_id` or `blink` was read as 0 | Throws (the real DB has none). |
 
 A NULL `original_row` on an audio row still yields `eeg_index = -1`. That is not a missing
-value: it is the schema saying the trial is audio-only. A consumer that needs the pair refuses
-it (`ThesisDataset`: `eeg_index <= 0` throws).
+value: it is the schema saying the trial is audio-only.
+
+#### Audio → EEG pairing: the label is the 0-based EEG row of the same trial (fixed 2026-11-12)
+
+**Problem.** A voice row and its EEG must be the same trial. `AudioSession` returns each audio
+row's EEG label; `EEGSession::readRow(r)` reads the EEG trial whose `original_row = r` (SQLite)
+or row `r` (MAT). Until 2026-11-12 `resolveEegRowIndex()` mapped a label `k >= 1` to `k - 1`
+(and 0 to 0), a 1-based convention neither source uses, so every pair but the first read the
+**previous** trial:
+
+```
+ audio row, label 120 ──resolveEegRowIndex (old)──▶ 119 ──▶ the trial BEFORE it
+                      ──resolveEegRowIndex (now)──▶ 120 ──▶ the same trial
+```
+
+**Why identity is right.** The importer (`scripts/data/import_mat_dataset_to_sqlite.py`) used
+the MAT label unchanged as a 0-based key to attach each audio row to its EEG trial. On the real
+database the trials that received audio are exactly the 1974 *Pronounced* trials and none of
+the 7341 *Imagined* ones; a one-row shift would put ~141 voices on imagined trials (the old
+reading did: 1833 pronounced, 141 imagined, the voice's word in 193 of 1974). A stimulus check
+on one SQLite trial row is not evidence — the row holds one stimulus — so the modality is what
+tells the readings apart.
+
+| Consumer | Before 2026-11-12 | Now |
+|---|---|---|
+| `ThesisDataset` (thesis) | read `original_row - 1` itself: **silent**, all thesis EEG/fusion results before that date are void | pairs by identity, checks modality (`EegPairing.hpp`) |
+| `Dataset101117` | via the old mapping: **loud**, its stimulus check threw on ~90% of real rows | identity |
+| `FusedWindowDataset`, `SynchronizedBatchAssembler` | via the old mapping: wrong pairs | identity |
+
+`resolveEegRowIndex` now throws for `-1` (an audio-only trial) and for a label past the rows
+(`DatasetSchemaArticleSpecTest.AudioLabelIsTheZeroBasedEegRowOfTheSameTrial`). The SQLite test
+fixture (`include/test_utils/SqliteTestHelpers.hpp`) gives trials B and C different stimuli, so
+a reader that fetched the previous row fails its stimulus check there; before, both shared one
+stimulus and the shift passed every test. The MAT protocol test writes 0-based labels.
 
 See [Imagined Speech and EEG](../Concepts/Imagined-Speech-and-EEG.md) for the
 neuroscience context and [Research-Context](../Research-Context.md) for how

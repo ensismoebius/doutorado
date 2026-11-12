@@ -204,9 +204,10 @@ inline std::vector<int> insert_three_trials_and_return_ids(sqlite3* db, int subj
     }
 
     // Every trial carries a modality and a stimulus, as in the real dataset (no NULL there,
-    // checked 2026-11-12); the SQL readers refuse a NULL label since that date. One stimulus
-    // for all three: the paired readers match audio row 11 (trial C, eeg_index 1) with the EEG
-    // row of original_row 0 (trial B), and a pair must agree on its stimulus.
+    // checked 2026-11-12); the SQL readers refuse a NULL label since that date. B and C have
+    // DIFFERENT stimuli: audio row 11 (trial C, eeg_index 1) must pair with C's own EEG
+    // (original_row 1), and a reader that read the previous row (trial B) would now fail its
+    // stimulus check instead of passing on a shared label (it did, until 2026-11-12).
     // Trial A: audio-only (original_row NULL)
     ensure_ok(db, sqlite3_bind_int(ins, 1, subject_id), "bind trial A subject_id");
     ensure_ok(db, sqlite3_bind_null(ins, 2), "bind trial A original_row");
@@ -227,7 +228,7 @@ inline std::vector<int> insert_three_trials_and_return_ids(sqlite3* db, int subj
     ensure_ok(db, sqlite3_bind_int(ins, 1, subject_id), "bind trial C subject_id");
     ensure_ok(db, sqlite3_bind_int(ins, 2, 1), "bind trial C original_row");
     ensure_ok(db, sqlite3_bind_int(ins, 3, 1), "bind trial C modality_id");
-    ensure_ok(db, sqlite3_bind_int(ins, 4, 1), "bind trial C stimulus_id");
+    ensure_ok(db, sqlite3_bind_int(ins, 4, 2), "bind trial C stimulus_id");
     ensure_done(db, sqlite3_step(ins), "step trial C");
     sqlite3_finalize(ins);
 

@@ -289,8 +289,9 @@ auto AudioSession::readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Te
         }
         stimulus = sqlite3_column_int(stmt, 1);
         // original_row is NULL for an audio-only trial (the schema's "no EEG recorded"): the
-        // returned -1 is that statement, the same value the MAT reader's column holds, and a
-        // consumer that needs the pair refuses it (ThesisDataset: eeg_index <= 0 throws).
+        // returned -1 is that statement, the same value the MAT reader's column holds.
+        // original_row is the trial's own 0-based EEG row (EEGSession::readRow(r) reads
+        // original_row = r): resolveEegRowIndex() returns it unchanged.
         if (sqlite3_column_type(stmt, 2) != SQLITE_NULL)
             eegIndex = static_cast<int>(sqlite3_column_int(stmt, 2));
     }

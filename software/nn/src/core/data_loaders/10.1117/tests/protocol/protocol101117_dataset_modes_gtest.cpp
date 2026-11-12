@@ -93,9 +93,8 @@ class Dataset101117ModesTest : public ::testing::Test
             }
 
             audio_data[(schema.audioStimulusColumn() * audio_rows) + r] = stimulus;
-            // 1-based mapping to avoid any 0-based/1-based ambiguity in tests.
-            audio_data[(schema.audioEEGIndexColumn() * audio_rows) + r] =
-                static_cast<double>(r + 1U);
+            // The label is the 0-based EEG row of the same trial (resolveEegRowIndex).
+            audio_data[(schema.audioEEGIndexColumn() * audio_rows) + r] = static_cast<double>(r);
         }
 
         matioCpp::File eeg_file = matioCpp::File::Create((subject_dir / "S99_EEG.mat").string());
@@ -138,7 +137,7 @@ class Dataset101117ModesTest : public ::testing::Test
 
         // Intentionally mismatch audio stimulus label against EEG stimulus label.
         audio_data[schema.audioStimulusColumn() * audio_rows] = 2.0;
-        audio_data[schema.audioEEGIndexColumn() * audio_rows] = 1.0;
+        audio_data[schema.audioEEGIndexColumn() * audio_rows] = 0.0; // EEG row 0: the same trial
 
         matioCpp::File eeg_file = matioCpp::File::Create((subject_dir / "S77_EEG.mat").string());
         matioCpp::MultiDimensionalArray<double> eeg_matrix(
@@ -320,7 +319,7 @@ TEST_F(Dataset101117ModesTest,
     EXPECT_FLOAT_EQ(sample.targets.at(0, 1), 1.0f);  // modality
     EXPECT_FLOAT_EQ(sample.targets.at(0, 2), 2.0f);  // stimulus for row index 1
     EXPECT_FLOAT_EQ(sample.targets.at(0, 3), 1.0f);  // artifact
-    EXPECT_FLOAT_EQ(sample.targets.at(0, 4), 2.0f);  // eeg index label (1-based)
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 4), 1.0f);  // eeg index label: 0-based EEG row
 
     const auto expected_audio_resampled = [&](std::size_t target_idx)
     { return sample.audio.at(target_idx, 0); };
@@ -393,7 +392,7 @@ TEST_F(Dataset101117ModesTest, CollateConcatenatedModePreservesStackOrderAndLine
     EXPECT_FLOAT_EQ(batch.targets.at(1, 1), 1.0f);
     EXPECT_FLOAT_EQ(batch.targets.at(1, 2), 2.0f);
     EXPECT_FLOAT_EQ(batch.targets.at(1, 3), 1.0f);
-    EXPECT_FLOAT_EQ(batch.targets.at(1, 4), 2.0f);
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 4), 1.0f); // 0-based EEG row of audio row 1
 
     const std::array<std::size_t, 3> probe_indices = {
         0UL,
