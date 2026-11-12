@@ -89,7 +89,7 @@ today either way, so this is not acted on here.
 
 Fix: `scripts/pipeline/meeting01/gridunesp_setup_env.sh` — a conda env
 (`meeting01-build`) with `openblas pkg-config ninja git cmake ccache zlib hdf5
-fftw sqlite make` and a pinned GCC 13 (`gxx_linux-64`/`gcc_linux-64`), so nothing
+fftw sqlite eigen make` and a pinned GCC 13 (`gxx_linux-64`/`gcc_linux-64`), so nothing
 in `PackageChecking.cmake` needs a cluster-specific carve-out and the build stays
 identical to the local one. `zlib` is defensive — `find_package(ZLIB REQUIRED)`
 in `src/core/data_loaders/CMakeLists.txt` has no vendored fallback — most Linux
@@ -97,7 +97,12 @@ base images already have it, but it costs nothing to guarantee. `hdf5` is
 **not** defensive — vendored `matio` (`cmake/VendorMatio.cmake`) hard-requires it
 for MAT73 support with no fallback, and its absence is a fatal configure error,
 not a warning. `fftw` avoids an unnecessary from-source vendored FFTW3 build
-(`cmake/VendorFFTW.cmake` falls back to it automatically, just slower). `sqlite`
+(`cmake/VendorFFTW.cmake` falls back to it automatically, just slower). `eigen` (added
+2026-11-12) is required by `PackageChecking.cmake`. Before that date, nothing declared Eigen:
+the 10.1117 loaders' headers and the thesis PCA reached it only through matio-cpp's optional
+`find_package(Eigen3 QUIET)`. The first thesis build on the cluster therefore stopped at
+`fatal error: Eigen/Dense: No such file or directory`, while meeting01, which never includes
+Eigen, had built fine. `sqlite`
 matters for a subtler reason: `cmake/VendorSqlite.cmake` prefers
 `find_package(SQLite3 QUIET)` and only falls back to downloading a vendored
 amalgamation from hardcoded, **non-year-prefixed** sqlite.org URLs if that fails

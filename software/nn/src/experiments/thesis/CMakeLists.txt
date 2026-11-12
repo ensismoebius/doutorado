@@ -40,6 +40,7 @@ target_link_libraries(thesis_lib
         matioCpp
         cnpy-static
         xtensor xtensor-blas
+        Eigen3::Eigen   # ThesisPca.cpp
 )
 
 configure_xtensor_parallel_target(thesis_lib)

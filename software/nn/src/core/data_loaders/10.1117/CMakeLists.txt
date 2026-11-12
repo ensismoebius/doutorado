@@ -19,6 +19,8 @@ target_include_directories(dataLoaders_10_1117
 )
 
 target_link_libraries(dataLoaders_10_1117
+    PUBLIC
+        Eigen3::Eigen   # loaders/EEGData.hpp and AudioData.hpp include <Eigen/Dense>
     PRIVATE
         xtensor xtensor-blas
         ${ZLIB_LIBRARIES}

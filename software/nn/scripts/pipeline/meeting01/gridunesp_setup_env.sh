@@ -98,6 +98,8 @@ set -euo pipefail
 
 ENV_NAME="${ENV_NAME:-meeting01-build}"
 
+# eigen (added 2026-11-12): the thesis and the 10.1117 loaders include <Eigen/Dense>, and
+# PackageChecking.cmake now requires Eigen3 -- without it every configure fails, meeting01's too.
 if ! command -v conda >/dev/null 2>&1; then
   echo "gridunesp_setup_env.sh: no 'conda' in PATH -- run 'module load miniconda/24.4.0-libmamba' first" >&2
   exit 1
@@ -107,12 +109,12 @@ if conda env list | grep -qE "^\s*${ENV_NAME}\s"; then
   echo "[gridunesp-setup] env '${ENV_NAME}' already exists -- updating packages"
   conda install -n "$ENV_NAME" -y --override-channels -c conda-forge \
     openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
-    zlib hdf5 fftw sqlite make sox "python=3.11"
+    zlib hdf5 fftw sqlite eigen make sox "python=3.11"
 else
   echo "[gridunesp-setup] creating env '${ENV_NAME}'"
   conda create -n "$ENV_NAME" -y --override-channels -c conda-forge \
     openblas pkg-config ninja git cmake ccache "gxx_linux-64=13" "gcc_linux-64=13" \
-    zlib hdf5 fftw sqlite make sox "python=3.11"
+    zlib hdf5 fftw sqlite eigen make sox "python=3.11"
 fi
 
 cat <<'EOF'
