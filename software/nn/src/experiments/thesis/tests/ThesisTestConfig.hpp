@@ -6,6 +6,7 @@
 // is about. Each helper declares exactly the keys of one kind of run, so a config that
 // passes through validate() stays valid.
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -114,6 +115,25 @@ inline void set_classifier(ThesisConfig& c, const std::string& type)
         c.training.firing_rate_reg_lambda = 0.0f;
         c.training.batch_normalization = "none";
     }
+}
+
+/// One value of a synthetic test signal: a sine of `cycles_per_sample` plus a small
+/// deterministic broadband noise.
+///
+/// The autoencoders and PCA read a signal's power spectrum, so a fixture has to differ where
+/// a spectrum can see it. Two sines of one frequency and different PHASE have the same
+/// spectrum (that is the point of the spectrum), and a pure sine leaves most frequency bins
+/// with no power at all, which the extractor refuses (zero has no logarithm). Hence: a
+/// frequency per sample, and noise in every bin.
+inline float synthetic_value(int i, double cycles_per_sample, std::uint32_t noise_seed)
+{
+    std::uint32_t h = (static_cast<std::uint32_t>(i) + 1U) * 2654435761U ^ (noise_seed * 40503U);
+    h ^= h >> 15;
+    h *= 2246822519U;
+    h ^= h >> 13;
+    const double noise = (static_cast<double>(h % 20001U) / 10000.0 - 1.0) * 0.05; // +-0.05
+    return static_cast<float>(
+        0.5 + 0.4 * std::sin(2.0 * 3.14159265358979323846 * cycles_per_sample * i) + noise);
 }
 
 } // namespace thesis::test

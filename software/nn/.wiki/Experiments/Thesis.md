@@ -158,6 +158,66 @@ extractor comparison 18) and `profiles/profiles.manifest`, which
 `thesis_profile_audit_gtest` audits; a profile on disk that the manifest does not name fails.
 It reproduced the 246 earlier profiles exactly (checked, apart from the new keys).
 
+### 9. What the autoencoders and PCA read: a spectrum, not the waveform
+
+**The problem.** An extractor can only pass on what its input holds. Until 2026-11-12 the
+autoencoders and PCA were fed the waveform **averaged in 256 blocks**, and averaging a
+waveform over a block is a low-pass filter:
+
+```
+voice  176400 samples (4 s, 44.1 kHz) ─ 256 blocks of ~689 samples (15.6 ms) ─► nothing above ~32 Hz
+                                                                               (pitch: 85–255 Hz, formants: 300–3500 Hz)
+EEG    6 × 4096 samples (4 s, 1024 Hz) ─ 256 blocks of 96 samples (94 ms) ───► nothing above ~5 Hz
+                                                                               (alpha 8–13 Hz, beta 13–30 Hz: gone)
+```
+
+What made a speaker recognisable was removed before any extractor ran.
+
+**The evidence.** `scripts/analysis/thesis_ae_input_reference.py` (scipy + PyTorch, none of
+the C++) rebuilds both inputs from the database for the 1974 trials and asks a linear
+classifier for the speaker (15 speakers, chance 0.067, 5 folds):
+
+| Input, 256 values | Voice | EEG (pronounced) | Early fusion |
+|---|---|---|---|
+| Block-averaged waveform (old) | 0.129 | 0.264 | 0.172 |
+| Log power spectrum (new) | **0.854** | **0.618** | **0.652** |
+
+**The failure was silent.** Every autoencoder trained, every Phase 01 classifier converged
+on its training folds (loss 0.02), and the only symptom was a test EER of 0.48–0.52 for
+every autoencoder and PCA profile, which reads as "these extractors are poor". The
+Phase 00/01 runs of 2026-11-12 (commits `524da1fd`, `c0607e33`) carry that defect in every
+`ae` and `pca` row; their handcrafted rows are unaffected.
+
+**The fix.** `thesis::spectral_input` (`ThesisFeatureExtraction.hpp`): Welch's power
+spectrum of the same signal the handcrafted extractor reads.
+
+| Step | Value | Why |
+|---|---|---|
+| Frame | 512 samples, hop 256 | 257 FFT bins; the 256 above DC are the input |
+| Window | symmetric Hann | tapers the frame ends |
+| Average | power over all frames | a frame's position (phase) stops mattering |
+| `log10`, then min-max per sample | `[0, 1]^256` | the spike encoders read each value as a rate or a spike time |
+
+Samples after the last whole frame (at most 255) are not read. A signal shorter than 512
+samples, a non-finite sample, a bin of zero power and a flat spectrum are refused.
+
+**Confusable pair.**
+
+| | Block average (old) | Power spectrum (new) |
+|---|---|---|
+| Answers | "what was the mean amplitude in this 16 ms?" | "how much energy at this frequency, anywhere in the 4 s?" |
+| Same utterance, started 3 ms later | every value changes | (almost) nothing changes |
+| Speaker information | below 32 Hz only | the whole band |
+
+**Ground truth.** `thesis_spectrum_parity_gtest` holds `spectral_input` against
+`scipy.signal.welch` (worst difference 3e-6 on values in `[0, 1]`) and the PCA of those
+vectors against `torch.linalg.svd`; the fixture comes from
+`scripts/testing/gen_thesis_spectrum_refs.py`. `ThesisPcaStrategy.
+InputKeepsFrequencyAndIgnoresTimeShift` is the regression test for the defect itself.
+
+**Not changed.** The LSTM-AE (`lstm-ae`, in no generated profile) still reads frames of the
+raw waveform.
+
 ---
 
 ## Theoretical Background
@@ -226,7 +286,7 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 > **Scope note.** The **thesis** Phase 00 compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder, `ProtocolSpikingAutoencoder`), and **ANN-AE** (non-spiking dense autoencoder, `ProtocolAutoencoder`). Both AE families are wired into the Experiment05 executable and shipped as Phase 00 profiles. The **LSTM-AE** remains in the code (built for the Meeting01 congress paper) but no thesis profile uses it.
 
-**SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. The raw signal is average-pooled to 256 bins and **min-max normalized to `[0,1]`**.
+**SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. Its input is the signal's 256-bin log power spectrum, **min-max normalized to `[0,1]`** (`spectral_input`, [Protocol revision §9](#9-what-the-autoencoders-and-pca-read-a-spectrum-not-the-waveform); until 2026-11-12 it was the waveform averaged in 256 blocks, which held no speaker information).
 
 *Temporal coding (required for a meaningful SNN).* A LIF autoencoder only carries information through spikes, so each normalized sample is expanded into `time_steps` spike frames (16 in every Phase 00 profile) using `autoencoder.encoding`:
 - `poisson` — each entry spikes with Bernoulli probability = its value (rate code);
@@ -296,7 +356,7 @@ Each profile is identical except `feature_extraction.autoencoder.{encoding, time
 > re-running `poisson` at larger `T` (T=64 shrinks the variance 4×). That test has **not** been run.
 > See fixme.md **D2** for the decision and the derivation.
 
-**ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
+**ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-value spectral input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
 **LSTM-AE (legacy, Meeting01 paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
@@ -824,8 +884,8 @@ Every profile pulls from the **same** paired audio+EEG trial set (`load_dataset`
 | Profile family | Input signal(s) | Preprocessing | Shape fed to the extractor | Sample rate used |
 |---|---|---|---|---|
 | Handcrafted (`p00_hc_*`) | `sample.audio` or `sample.eeg` per `dataset.modality` | Voice: pre-emphasis (`α=0.97`). EEG: none. Zero-padded to next power of two for DTWPT. | Flat 1-D signal (voice: 176400 samples; EEG: 6 ch × 4096 = 24576, **channel-major flattened** — all of ch0, then ch1, …) | Voice 44100 Hz, EEG 1024 Hz (nominal, per Pressel Coretto et al. 2017) |
-| ANN-AE (`p00_ae_ann_*`) | same as handcrafted, single signal | Average-pooled to 256 bins, **no normalization** (ReLU tolerates raw scale) | `(1, 256)` per sample, one forward pass | n/a (pooled, rate-agnostic) |
-| SNN-AE (`p00_ae_snn_*`) | same as handcrafted, single signal | Average-pooled to 256 bins, **min-max normalized to `[0,1]`**, then spike-encoded into `time_steps` frames (`poisson`/`latency`/`direct`) | `(1, 256)` **× T frames**, membrane state reset once per sample and integrated across all T frames | n/a (pooled) |
+| ANN-AE (`p00_ae_ann_*`) | same as handcrafted, single signal | Log power spectrum, 256 bins (Welch, 512/256, Hann), **min-max normalized to `[0,1]`** (`spectral_input`, the same vector the SNN-AE and PCA read) | `(1, 256)` per sample, one forward pass | bins span 0 to Nyquist of the signal's own rate |
+| SNN-AE (`p00_ae_snn_*`) | same as handcrafted, single signal | Log power spectrum, 256 bins, **min-max normalized to `[0,1]`** (`spectral_input`), then spike-encoded into `time_steps` frames (`poisson`/`latency`/`direct`) | `(1, 256)` **× T frames**, membrane state reset once per sample and integrated across all T frames | as ANN-AE |
 | Fused-early (`*-fused-early`) | `sample.audio` ++ `sample.eeg` concatenated | Voice preprocessing applied to the whole concatenation (approximation — documented in code, not a physical resample) | Flat 1-D, voice length + EEG length | 44100 Hz applied to the whole signal |
 | Fused-late (`*-fused-late`) | both signals, extracted independently | Each signal's own preprocessing above | Two independent extractions, vectors concatenated **after** | each signal's own rate |
 | Phase 01 (`p01_dsnn_*`) | the Phase-00 winner's vectors (already extracted) | z-score standardization (`training.standardize_features`), fit on train folds only | `(N_samples, feature_dim)` | n/a — operates on feature vectors, not raw signal |
@@ -927,7 +987,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
     | stimulus outside the table → phrase `"unknown"` | `stimulus_to_phrase` |
     | subject missing a modality, or with 0 rows, dropped | `decode_full_dataset`, `SubjectDiscovery` |
     | corrupt dataset cache decoded around; failed cache write ignored | `ThesisDataset` cache |
-    | signal shorter than 256 stretched; constant signal → all zeros | `pool_signal`, `normalize01` |
+    | signal shorter than 256 stretched; constant signal → all zeros | `pool_signal` (replaced 2026-11-12 by `log_power_spectrum`, which refuses a signal under 512 samples and a zero-power bin), `normalize01` |
     | latency code with 1 step clamped; batch < 1 clamped | `spike_frame`, trainer config |
     | `layer_spec` items the code does not build ignored | `parse_layer_spec`, `AutoencoderBuilders` (pool1d / lstm / any SNN conv→residual) |
     | EER scorer: zero embedding → cosine 0; short speaker dropped; NaN | `eer_scorer.cpp` |
@@ -947,6 +1007,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 Beyond the unit tests (`e05_*_gtest`), two extra layers guard this experiment:
 
 - **Per-profile smoke runs** — `profiles/smoke/` mirrors all 241 profiles (208 phase00 + 32 phase01 + debug) with tiny run parameters; `scripts/testing/run_thesis_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `thesis_smoke_profiles` target when any source profile changes.
+- **scipy / PyTorch parity of the autoencoder and PCA input** — `thesis_spectrum_parity_gtest` (fixture from `scripts/testing/gen_thesis_spectrum_refs.py`): `spectral_input` against `scipy.signal.welch`, PCA against `torch.linalg.svd`.
 - **PyTorch / snnTorch parity** — layer-level numerical ground truth (Linear, activations, MSE/CE losses, LSTM, LifBPTT, Conv1d/2d, MaxPool).
 
 Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).

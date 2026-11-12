@@ -508,13 +508,13 @@ void validate_autoencoder(const ThesisConfig::AutoencoderConfig& ae)
 
 void validate_pca(const ThesisConfig::PcaConfig& pca)
 {
-    // 256 = the pooled input width shared with the autoencoders (kAeInputFeatures). The
+    // 256 = the spectral input width shared with the autoencoders (kAeInputFeatures). The
     // other bound, n_samples - 1, depends on the data and is checked when PCA is fitted.
     constexpr int kInputWidth = 256;
     if (pca.n_components < 1 || pca.n_components > kInputWidth)
         throw std::invalid_argument(
             "ThesisConfig: feature_extraction.pca.n_components must be in [1, 256] (the "
-            "pooled input has 256 values); got " +
+            "spectral input has 256 values); got " +
             std::to_string(pca.n_components.get()));
 }
 

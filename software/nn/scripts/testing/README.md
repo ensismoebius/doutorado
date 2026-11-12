@@ -7,6 +7,7 @@ top-level `scripts/README.md` for the full file table; summary:
 | Script | Role |
 |---|---|
 | `gen_pytorch_refs.py` | PyTorch parity fixtures (documented below) |
+| `gen_thesis_spectrum_refs.py` | scipy (`signal.welch`) + PyTorch (`linalg.svd`) ground truth for the thesis autoencoder/PCA input (`thesis::spectral_input`) and its PCA; writes `src/experiments/thesis/tests/fixtures/thesis_spectrum_refs.npz`, read by `thesis_spectrum_parity_gtest` (needs `scipy`, `torch`) |
 | `gen_pywt_refs.py` | PyWavelets ground-truth fixtures for the C++ wavelet ops (needs `pywt`); see header comment for the periodization/DaubN conventions mapped from `waveletOperations.cpp` |
 | `thesis_make_smoke_profiles.py` + `run_thesis_smoke.sh` | Fast smoke pass over every Experiment05 profile (tiny params, same code paths) |
 | `run_thesis_profiles.sh` | The real (heavy) Experiment05 phase00/phase01 runner — resumable, checkpointed |

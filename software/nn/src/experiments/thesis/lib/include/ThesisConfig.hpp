@@ -145,8 +145,8 @@ struct ThesisConfig
 
     /// Only when feature_extraction.strategy == "pca".
     ///
-    /// Principal component analysis on the same input the autoencoders see (the signal
-    /// average-pooled to 256 bins, min-max normalized per sample), fitted on every sample
+    /// Principal component analysis on the same input the autoencoders see (the signal's
+    /// 256-bin log power spectrum, min-max normalized per sample), fitted on every sample
     /// like the autoencoders are trained on every sample: the unsupervised, transductive
     /// protocol of Phase 00. The feature vector is the projection on the first
     /// `n_components` principal axes. It is the linear, training-free reference extractor

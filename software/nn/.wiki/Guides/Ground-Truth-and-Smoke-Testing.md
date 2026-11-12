@@ -177,6 +177,14 @@ these two layers is invisible to every test category above: unit tests
 written by the same person who wrote the layer tend to encode the same
 misunderstanding twice.
 
+**A third kind: an experiment's own transform against scipy/PyTorch.** The thesis
+autoencoders and PCA read `thesis::spectral_input` (a Welch log power spectrum). Its
+predecessor fed them a block-averaged waveform with no speaker information in it, and no
+test noticed, because the tests asked only for 256 finite values. `thesis_spectrum_parity_gtest`
+now compares it with `scipy.signal.welch` and the PCA of its output with
+`torch.linalg.svd` (fixture: `scripts/testing/gen_thesis_spectrum_refs.py`); the story is in
+[Thesis, Protocol revision §9](../Experiments/Thesis.md#9-what-the-autoencoders-and-pca-read-a-spectrum-not-the-waveform).
+
 **What this is, and what it explicitly is not.** A second, independently
 written implementation of the layer's own documented formula, in plain NumPy,
 living in `scripts/testing/gen_independent_refs.py` /

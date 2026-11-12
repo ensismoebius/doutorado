@@ -134,7 +134,7 @@ std::pair<std::vector<std::vector<double>>, size_t> collect_raw_signals(
     {
         std::vector<double> sig = get_signal(sample);
         // One empty signal used to pass as long as another was not: it then went through
-        // pooling and normalisation as if it held data.
+        // the input transform and normalisation as if it held data.
         if (sig.empty())
             throw std::runtime_error("ThesisFeatureExtraction: subject " +
                                      std::to_string(sample.subject_id) + ", stimulus " +
@@ -304,8 +304,8 @@ FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>
                                 "\" (expected snn-ae, ann-ae or lstm-ae)");
 }
 
-// PCA on the autoencoders' exact input (normalize_signals: 256 pooled bins, min-max per
-// sample), fitted on every sample — the same unsupervised, transductive protocol as the
+// PCA on the autoencoders' exact input (normalize_signals: the 256-bin log power spectrum, min-max
+// per sample), fitted on every sample — the same unsupervised, transductive protocol as the
 // autoencoders, so the comparison differs only in the extractor.
 FeatureSet extract_pca_feature_set(const std::vector<std::vector<double>>& raw_signals,
     const ThesisConfig::PcaConfig& cfg,
@@ -435,6 +435,11 @@ auto extract_features(
         result.push_back(std::move(fused));
     }
     return result;
+}
+
+auto spectral_input(const std::vector<double>& signal) -> std::vector<float>
+{
+    return normalize01(log_power_spectrum(signal));
 }
 
 } // namespace thesis

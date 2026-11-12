@@ -10,6 +10,7 @@
 // .cpp -- no linkage change, no ODR risk, pure code motion.
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -27,6 +28,7 @@
 #include "models/autoencoder/ProtocolAutoencoder.hpp"        // ANN-AE (non-spiking)
 #include "models/autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "training/ProgressCallback.hpp"
+#include "wave/audioFeatureExtraction.hpp" // rfft_power, hanning_window
 
 namespace thesis
 {
@@ -159,36 +161,88 @@ nn::Tensor vec_to_frame_tensor(const std::vector<double>& sig, int T_frames, int
 // frames, so seq_len stays small regardless of raw signal length.
 constexpr int kAeMaxFrames = 64;
 
-// Fixed flat input dimension for the Protocol (SNN-AE / ANN-AE) autoencoders,
-// which consume a single vector per sample (not a sequence). The raw signal is
-// average-pooled into this many contiguous bins.
+// The flat input width of the Protocol (SNN-AE / ANN-AE) autoencoders and of PCA: one
+// vector of this many values per sample (not a sequence).
 constexpr int kAeInputFeatures = 256;
 
-// Average-pool a 1-D signal into `out_dim` contiguous bins.
-std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
+// Welch framing of that input: frames of 512 samples give 257 FFT bins, of which the 256
+// above DC are kept; consecutive frames overlap by half.
+constexpr int kSpectrumFrame = 2 * kAeInputFeatures;
+constexpr int kSpectrumHop = kAeInputFeatures;
+
+// What the autoencoders and PCA read: the log power spectrum of the signal, 256 values.
+//
+// WHY NOT THE WAVEFORM. The extractor must hand the classifier something that tells
+// speakers apart, and a waveform does that through its frequency content, not through the
+// value of any one sample. Until 2026-11-12 this input was the waveform averaged in 256
+// blocks, and the averaging removed exactly that content:
+//
+//   signal                          one block         what survives the average
+//   voice, 176400 samples (4 s)     689 samples       below ~32 Hz  (pitch is 85-255 Hz)
+//   EEG, 6 x 4096 samples (4 s)      96 samples       below ~5 Hz   (alpha, beta gone)
+//
+// Measured on the 1974 trials (15 speakers, chance 0.067; linear classifier, 5 folds;
+// scripts/analysis/thesis_ae_input_reference.py, scipy + PyTorch, none of this C++):
+//
+//   input, 256 values               voice    EEG
+//   block-averaged waveform (old)   0.129    0.264
+//   log power spectrum (this)       0.854    0.618
+//
+// The failure was SILENT: every autoencoder trained, every classifier converged on its
+// training set, and only the test EER (0.48-0.52, chance) showed that the input held
+// nothing. It read as "autoencoders and PCA are poor extractors" when it was the input.
+//
+// WHAT IT IS. Welch's estimate: cut the signal in half-overlapping frames of 512 samples,
+// taper each with a Hann window, take the power of its FFT, average over the frames, drop
+// the DC bin and take log10. A frame's position (its phase) no longer matters, so two
+// utterances of one speaker give close vectors. The signal is the same one the handcrafted
+// extractor reads (the SignalGetter's), so both families see the same data; samples after
+// the last whole frame (at most 255) are not read.
+//
+// Nothing is substituted: a signal shorter than one frame, a non-finite sample and a bin
+// of zero power (which has no logarithm) are refused.
+std::vector<double> log_power_spectrum(const std::vector<double>& sig)
 {
-    // A signal shorter than out_dim used to be stretched (a bin of 0 samples borrowed the
-    // next sample), so the autoencoder saw repeated values as if they were measured.
-    if (out_dim < 1 || sig.size() < static_cast<size_t>(out_dim))
-        throw std::invalid_argument("ThesisFeatureExtraction: cannot average-pool a signal of " +
-                                    std::to_string(sig.size()) + " samples into " +
-                                    std::to_string(out_dim) + " bins");
-    std::vector<double> out(static_cast<size_t>(out_dim), 0.0);
-    for (int b = 0; b < out_dim; ++b)
+    const auto frame = static_cast<size_t>(kSpectrumFrame);
+    const auto hop = static_cast<size_t>(kSpectrumHop);
+    if (sig.size() < frame)
+        throw std::invalid_argument("ThesisFeatureExtraction: a signal of " +
+                                    std::to_string(sig.size()) +
+                                    " samples has no power spectrum of " +
+                                    std::to_string(kSpectrumFrame) + "-sample frames");
+    for (double x : sig)
+        if (!std::isfinite(x))
+            throw std::invalid_argument("ThesisFeatureExtraction: non-finite value in a signal");
+
+    const std::vector<double> window = nn::core::wave::hanning_window(kSpectrumFrame);
+    const size_t n_frames = (sig.size() - frame) / hop + 1;
+    std::vector<std::vector<float>> frames(n_frames, std::vector<float>(frame));
+    for (size_t f = 0; f < n_frames; ++f)
+        for (size_t i = 0; i < frame; ++i)
+            frames[f][i] = static_cast<float>(sig[f * hop + i] * window[i]);
+
+    // (n_frames, 257): bin 0 is DC, bins 1..256 go up to the Nyquist frequency.
+    const nn::Tensor power = nn::core::wave::rfft_power(frames, kSpectrumFrame);
+
+    std::vector<double> out(static_cast<size_t>(kAeInputFeatures), 0.0);
+    for (int b = 0; b < kAeInputFeatures; ++b)
     {
-        // sig.size() >= out_dim, so every bin holds at least one sample.
-        const size_t lo = static_cast<size_t>(b) * sig.size() / static_cast<size_t>(out_dim);
-        const size_t hi = static_cast<size_t>(b + 1) * sig.size() / static_cast<size_t>(out_dim);
-        double s = 0.0;
-        for (size_t i = lo; i < hi; ++i) s += sig[i];
-        out[static_cast<size_t>(b)] = s / static_cast<double>(hi - lo);
+        double sum = 0.0;
+        for (size_t f = 0; f < n_frames; ++f)
+            sum += static_cast<double>(power.at(static_cast<long>(f), b + 1));
+        const double mean = sum / static_cast<double>(n_frames);
+        if (!(mean > 0.0) || !std::isfinite(mean))
+            throw std::invalid_argument("ThesisFeatureExtraction: frequency bin " +
+                                        std::to_string(b + 1) + " has mean power " +
+                                        std::to_string(mean) + ", which has no logarithm");
+        out[static_cast<size_t>(b)] = std::log10(mean);
     }
     return out;
 }
 
-// Min-max normalize a pooled vector into [0, 1]. Spike encoders (poisson,
+// Min-max normalize a log power spectrum into [0, 1]. Spike encoders (poisson,
 // latency) interpret each entry as a firing probability / spike-time fraction,
-// so raw amplitudes (EEG µV, wav in [-1, 1]) must be scaled first — otherwise
+// so log powers (any real number) must be scaled first — otherwise
 // almost no encoder neuron reaches the LIF threshold and the SNN latent is all
 // zeros. A constant or non-finite vector has no [0, 1] scaling and is refused: a
 // constant one used to become all zeros (a flat-lined trial passed as a signal), and a
@@ -203,9 +257,8 @@ std::vector<float> normalize01(const std::vector<double>& v)
     const double lo = *lo_it;
     const double range = *hi_it - lo;
     if (!(range > 0.0))
-        throw std::invalid_argument(
-            "ThesisFeatureExtraction: constant signal (every pooled bin is " + std::to_string(lo) +
-            "); it has no [0, 1] scaling");
+        throw std::invalid_argument("ThesisFeatureExtraction: flat spectrum (every bin is " +
+                                    std::to_string(lo) + "); it has no [0, 1] scaling");
     std::vector<float> out(v.size(), 0.0f);
     for (size_t i = 0; i < v.size(); ++i) out[i] = static_cast<float>((v[i] - lo) / range);
     return out;
@@ -339,14 +392,14 @@ inline auto frame_seed(std::uint32_t seed, size_t sample, int step) -> std::uint
     return seed + static_cast<std::uint32_t>(sample) * 1009u + static_cast<std::uint32_t>(step);
 }
 
-/// Pool every raw signal to the AE's input width, then min-max normalize it.
+/// The autoencoders' and PCA's input: every signal's log power spectrum (kAeInputFeatures
+/// values, see log_power_spectrum), min-max normalized per sample.
 auto normalize_signals(const std::vector<std::vector<double>>& raw_signals)
     -> std::vector<std::vector<float>>
 {
     std::vector<std::vector<float>> normed;
     normed.reserve(raw_signals.size());
-    for (const auto& sig : raw_signals)
-        normed.push_back(normalize01(pool_signal(sig, kAeInputFeatures)));
+    for (const auto& sig : raw_signals) normed.push_back(spectral_input(sig));
     return normed;
 }
 
@@ -680,7 +733,7 @@ auto encode_mean_latents(AEType& model,
     return vectors;
 }
 
-// Train a Protocol autoencoder (SNN-AE or ANN-AE) on pooled+normalized input
+// Train a Protocol autoencoder (SNN-AE or ANN-AE) on the normalized log power spectrum
 // vectors and return the latent (bottleneck) vector per sample. AEType is a
 // Module with an AutoencoderConfig constructor and an encode() method
 // (ProtocolAutoencoder or ProtocolSpikingAutoencoder).

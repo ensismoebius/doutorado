@@ -159,3 +159,61 @@ TEST(ThesisPcaStrategy, IsDeterministic)
     const auto b = extract_features(view, pca_cfg("eeg", 4), nullptr);
     EXPECT_EQ(a[0].vectors, b[0].vectors);
 }
+
+// The input of PCA (and of the autoencoders) is the signal's power spectrum, so it must
+// tell two FREQUENCIES apart and must NOT tell two time shifts of one signal apart.
+//
+//   sample   frequency (cycles/sample)   starts at sample
+//   a0       0.05                        0
+//   a1       0.05                        137      <- a0 shifted: same "speaker"
+//   b0       0.11                        0
+//   b1       0.11                        137
+//
+// Until 2026-11-12 the input was the waveform averaged in 256 blocks: a shift moved every
+// value, so a0 and a1 were as far apart as a0 and b0, and a classifier fed those features
+// stayed at chance on the real data (EER 0.48-0.52) with no error anywhere.
+TEST(ThesisPcaStrategy, InputKeepsFrequencyAndIgnoresTimeShift)
+{
+    ThesisDatasetView view;
+    const double freq[2] = {0.05, 0.11};
+    const int shift[2] = {0, 137};
+    for (int speaker = 0; speaker < 2; ++speaker)
+        for (int take = 0; take < 2; ++take)
+        {
+            ThesisSample m;
+            m.subject_id = speaker;
+            m.stimulus = take;
+            m.eeg = nn::Tensor(1, 4096);
+            for (int i = 0; i < 4096; ++i)
+                m.eeg.at(0, i) = test::synthetic_value(i + shift[take], freq[speaker], 7U);
+            view.samples.push_back(std::move(m));
+        }
+    view.n_subjects = 2;
+    view.n_stimuli = 2;
+
+    const auto sets = extract_features(view, pca_cfg("eeg", 1), nullptr);
+    const auto& v = sets[0].vectors; // a0, a1, b0, b1
+    const double within_a = std::abs(v[0][0] - v[1][0]);
+    const double within_b = std::abs(v[2][0] - v[3][0]);
+    const double between = std::abs(v[0][0] - v[2][0]);
+    EXPECT_GT(between, 0.5) << "two frequencies must land apart";
+    EXPECT_LT(within_a, 0.05 * between) << "a time shift must not move the feature";
+    EXPECT_LT(within_b, 0.05 * between) << "a time shift must not move the feature";
+}
+
+TEST(ThesisPcaStrategy, RefusesASignalShorterThanOneSpectrumFrame)
+{
+    ThesisDatasetView view;
+    for (int s = 0; s < 3; ++s)
+    {
+        ThesisSample m;
+        m.subject_id = s;
+        m.stimulus = s;
+        m.eeg = nn::Tensor(1, 511); // one sample short of a 512-sample frame
+        for (int i = 0; i < 511; ++i) m.eeg.at(0, i) = test::synthetic_value(i, 0.05, 1U);
+        view.samples.push_back(std::move(m));
+    }
+    view.n_subjects = 3;
+    view.n_stimuli = 3;
+    EXPECT_THROW((void) extract_features(view, pca_cfg("eeg", 1), nullptr), std::invalid_argument);
+}

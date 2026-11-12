@@ -11,8 +11,8 @@
  * what the nonlinear model contributes. It is the reference the learned extractors are
  * measured against (Jolliffe & Cadima 2016, doi:10.1098/rsta.2015.0202).
  *
- * WHAT. Rows are samples (here: 256 pooled, min-max normalized values each, exactly the
- * autoencoders' input). Fitting centers the rows by their mean, diagonalizes the D x D
+ * WHAT. Rows are samples (here: the 256 min-max normalized log-power-spectrum values each, exactly
+ * the autoencoders' input). Fitting centers the rows by their mean, diagonalizes the D x D
  * covariance and keeps the eigenvectors of the k largest eigenvalues:
  *
  *     rows (n x 256)  --center-->  X  --cov = X^T X / (n-1)-->  eigenvectors v1..v256

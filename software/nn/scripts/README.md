@@ -146,6 +146,7 @@ Full docs for the PyTorch/PyWavelets parity fixtures: `testing/README.md`.
 | Script | Role |
 |---|---|
 | `gen_pytorch_refs.py` | Regenerate `pytorch_refs.npz` fixtures consumed by `pytorch_parity_gtest` (needs `torch`) |
+| `gen_thesis_spectrum_refs.py` | Regenerate the scipy + PyTorch ground truth for the thesis autoencoder/PCA input (needs `scipy`, `torch`) |
 | `gen_pywt_refs.py` | Regenerate PyWavelets ground-truth fixtures for the C++ wavelet ops (needs `pywt`) |
 | `thesis_make_smoke_profiles.py` | Mirror every Experiment05 profile into `profiles/smoke/` with tiny run parameters, same code paths |
 | `run_thesis_smoke.sh` | Smoke-run every profile under `profiles/smoke/` — fast, surfaces runtime errors compilation can't catch |

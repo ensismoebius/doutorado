@@ -38,7 +38,7 @@ flow backwards along that chain of $V_t \leftarrow V_{t-1}$ dependencies
 
 ### Turning one sample into a movie
 
-One EEG or voice sample is pooled to 256 numbers, then expanded into `T` frames by a
+One EEG or voice sample is reduced to 256 numbers (its log power spectrum), then expanded into `T` frames by a
 [spike encoding](Spike-Encoding.md). With **latency** coding the *value* becomes *when* the
 neuron fires:
 
@@ -130,7 +130,7 @@ set `time_steps = 1` deliberately, with a comment saying why.
 
 ```mermaid
 flowchart TD
-    S["one sample<br/>256 pooled features"] -->|spike encoding| F["T frames<br/>(T=16 for latency/poisson)"]
+    S["one sample<br/>256 spectral features"] -->|spike encoding| F["T frames<br/>(T=16 for latency/poisson)"]
     F -->|stack B samples, row = t*B + b| M["2-D tensor (T*B, F)<br/>no sample boundaries visible"]
     M --> L["LifBPTT.forward"]
     TS["time_steps = 16"] --> L

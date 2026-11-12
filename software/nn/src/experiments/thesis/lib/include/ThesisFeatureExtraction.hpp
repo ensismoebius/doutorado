@@ -42,6 +42,15 @@ auto extract_handcrafted(const std::vector<double>& signal,
     const ThesisConfig::HandcraftedConfig& cfg,
     double sample_rate) -> std::vector<double>;
 
+// The input the autoencoders and PCA read for ONE signal: its Welch log power spectrum
+// (frames of 512 samples, hop 256, symmetric Hann window, bins 1..256, log10), min-max
+// normalized to [0, 1]: 256 values. Why a spectrum and not the waveform is told where it
+// is computed (log_power_spectrum, ThesisFeatureExtractionInternal.hpp). Public so that
+// thesis_spectrum_parity_gtest can hold it against scipy.signal.welch
+// (scripts/testing/gen_thesis_spectrum_refs.py). Refuses a signal shorter than 512
+// samples, a non-finite sample, a bin of zero power and a flat spectrum.
+auto spectral_input(const std::vector<double>& signal) -> std::vector<float>;
+
 // Extract features from all samples with cfg.feature_extraction's strategy
 // (handcrafted | autoencoder | pca). Reads, from `cfg`, only what that strategy uses:
 //   dataset.modality   "voice" | "eeg" | "fused" — which signal(s) feed extraction;

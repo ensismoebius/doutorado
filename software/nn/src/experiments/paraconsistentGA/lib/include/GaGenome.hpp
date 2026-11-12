@@ -11,8 +11,8 @@ namespace pga
 {
 
 // Fixed flat input dimension of the Protocol (SNN-AE / ANN-AE) autoencoders.
-// Mirrors thesis kAeInputFeatures (ThesisFeatureExtraction.cpp): the raw signal is
-// average-pooled into this many bins before the AE. Used here only for the
+// Mirrors thesis kAeInputFeatures (ThesisFeatureExtraction.cpp): the AE reads the
+// signal's log power spectrum in this many bins. Used here only for the
 // structural parameter/MAC proxies — it is NOT re-plumbed into the AE build, which
 // still owns the real value.
 inline constexpr int kAeInputFeatures = 256;

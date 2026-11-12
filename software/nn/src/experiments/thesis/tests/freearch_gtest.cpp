@@ -24,7 +24,9 @@ ThesisDatasetView V(int ns, int per, int len)
             m.stimulus = k;
             m.eeg = nn::Tensor(1, (nn::Index) len);
             for (int i = 0; i < len; ++i)
-                m.eeg.at(0, i) = (float) (0.5 + 0.4 * std::sin(0.05 * i + s) + 0.02 * k);
+                // A frequency per (subject, stimulus): see test::synthetic_value.
+                m.eeg.at(0, i) = test::synthetic_value(
+                    i, 0.02 + 0.03 * s + 0.004 * k, static_cast<std::uint32_t>(97 * s + k));
             v.samples.push_back(std::move(m));
         }
     v.n_subjects = ns;
@@ -47,7 +49,7 @@ ThesisConfig fe(const char* model, std::vector<std::string> enc, std::vector<std
 // and used a uniform taper, these would not match the requested bottleneck.
 TEST(ThesisFreeArch, DepthThreeLatentOne)
 {
-    auto v = V(3, 4, 256);
+    auto v = V(3, 4, 1024);
     auto sets = extract_features(v,
         fe("ann-ae",
             {"linear:3:leaky", "linear:2:leaky", "linear:1:identity"},
@@ -59,7 +61,7 @@ TEST(ThesisFreeArch, DepthThreeLatentOne)
 }
 TEST(ThesisFreeArch, DepthFourLatentTwo)
 {
-    auto v = V(3, 4, 256);
+    auto v = V(3, 4, 1024);
     auto sets = extract_features(v,
         fe("snn-ae",
             {"linear:10:leaky", "linear:5:leaky", "linear:4:leaky", "linear:2:identity"},

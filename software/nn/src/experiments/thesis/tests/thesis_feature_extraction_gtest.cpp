@@ -381,7 +381,7 @@ nn::Tensor make_column_tensor(int n, double freq, double sr)
 {
     nn::Tensor t(static_cast<nn::Index>(n), 1);
     for (int i = 0; i < n; ++i)
-        t.at(i, 0) = static_cast<float>(std::sin(2.0 * M_PI * freq * i / sr));
+        t.at(i, 0) = test::synthetic_value(i, freq / sr, static_cast<std::uint32_t>(freq));
     return t;
 }
 
