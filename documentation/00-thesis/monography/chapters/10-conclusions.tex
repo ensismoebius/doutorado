@@ -29,9 +29,11 @@
 		\autoref{chap:testsResults:sec:Fase01}). O ``resultado negativo'' não
 		pode ser afirmado nem negado antes da reexecução; a divergência
 		\ac{EER}--\ac{AUC} sob padronização era efeito da varredura invertida.
-		A frase sobre as 24 variantes de \textit{autoencoder} acima também
-		aguarda a reexecução da Fase~00 (\texttt{base} e \texttt{small} eram a
-		mesma rede).}
+		A frase sobre as 24 variantes de \textit{autoencoder} acima continua
+		valendo na reexecução da Fase~00 de 2026-11-12. O melhor
+		\textit{autoencoder} tem $1{,}8873$ no EEG e $1{,}8510$ na voz, contra
+		$1{,}5883$ e $1{,}4836$ do manual. A Fase~00 agora tem 214 execuções,
+		e não 208: entraram 6 de \ac{PCA}.}
 
 		\par \textbf{O desempenho de autenticação, porém, permaneceu próximo do
 		acaso.} A melhor das 32 configurações da Fase~01 --- fusão precoce,
@@ -108,6 +110,12 @@
 			$0{,}97$ em todas as configurações, indicando latentes próximos do
 			colapso; não se pode distinguir, com os dados disponíveis, ``pior
 			extrator'' de ``treino insuficiente'';
+			\pendenteNota{Este item deixou de valer na reexecução de 2026-11-12.
+			Na voz, só 8 das 12 configurações passam de $0{,}97$. Além disso, a
+			\ac{PCA}, que não tem treino, chega a $\bar\beta$ igualmente alto e
+			não fica atrás de nenhum \textit{autoencoder} de mesma dimensão.
+			Ver a nota ao final da Questão~3 em
+			\autoref{sec:respostasQuestoes}.}
 			\item a Questão~4 (dependência de texto) foi avaliada sobre um sistema
 			que opera no nível do acaso, o que torna a ausência de diferença entre
 			os modos pouco informativa.

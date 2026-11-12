@@ -1,0 +1,4 @@
+rank,configuration,mean_d_penalized,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+1,PCA (k = 8),1.8392,1.7583,0.0000,0.1927,0.9455
+2,PCA (k = 16),1.8424,1.7633,0.0000,0.1885,0.9466
+3,PCA (k = 32),1.8576,1.7846,0.0000,0.1723,0.9525

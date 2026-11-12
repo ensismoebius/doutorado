@@ -45,6 +45,16 @@
 	desses \textit{autoencoders}, com $\bar\beta$ acima de $0{,}98$ --- inverte a
 	comparação. Por isso as duas colunas são exibidas lado a lado.
 
+	\pendenteNota{Os números deste parágrafo são da execução de 2026-07-20. Na
+	reexecução de 2026-11-12, a parte sobre o EEG deixou de valer. O melhor
+	\textit{autoencoder} do EEG tem agora $\bar{d} = 1{,}7698$ (SNN-AE
+	\textit{poisson}, \texttt{base}), acima do $1{,}5143$ do vencedor manual,
+	de modo que o $\bar{d}$ isolado já não inverte a comparação. Os
+	$\bar\beta$ desses \textit{autoencoders} ficam entre $0{,}9729$ e
+	$0{,}9807$, e só dois passam de $0{,}98$. A parte sobre a voz continua
+	valendo: a \textit{Daubechies}~22 + LFCC (c1) tem $\bar{d} = 1{,}3929$,
+	contra $1{,}4055$ da Haar.}
+
 	\par O vencedor de cada sinal, marcado com $\dagger$, é escolhido
 	\emph{entre as duas famílias} (manual e \textit{autoencoder}), e não dentro
 	de cada tabela: para ambos os sinais venceu a extração manual com Haar +
@@ -86,15 +96,17 @@
 		\end{longtable}%
 	}
 
-	\pendenteNota{As linhas \texttt{base} e \texttt{small} das duas tabelas de
-	\textit{autoencoder} a seguir vêm da \emph{mesma} rede. Na execução de
-	2026-07-20, a leitura das larguras de camada tomava uma largura igual ao seu
-	valor reserva (64 na camada oculta, 16 no latente) como ``não encontrada'' e
-	passava à camada seguinte: o \texttt{base} (declarado 64/32) e o
-	\texttt{small} (32/16) rodaram ambos como 32/32 --- daí a coincidência até a
-	oitava casa nos seis pares. O latente de dimensão 16 nunca foi testado. O
-	defeito foi corrigido em 2026-07-23; as tabelas aguardam a reexecução da
-	Fase~00.}
+	\pendenteNota{As tabelas a seguir vêm da reexecução da Fase~00 de
+	2026-11-12: 214 execuções no GridUnesp, revisão \texttt{620ca751}, um
+	\textit{thread} por processo. Na execução de 2026-07-20, \texttt{base} e
+	\texttt{small} eram a mesma rede (32/32), porque a leitura das larguras de
+	camada tratava uma largura igual ao seu valor reserva como ``não
+	encontrada''. Agora \texttt{tiny}, \texttt{small} e \texttt{base} são três
+	redes distintas, com camada oculta/latente de 16/8, 32/16 e 64/32. As
+	Tabelas~\ref{tab:phase00pca_eeg} e~\ref{tab:phase00pca_voice} são novas e
+	trazem a \ac{PCA} com $k = 8, 16, 32$. Os parágrafos acima ainda não as
+	apresentam, e ainda falam do vencedor ``entre as duas famílias''. O
+	vencedor dos dois sinais continua sendo Haar + LFCC (c1).}
 
 	\Phasezerotable{tables/phase00_ae_eeg.csv}%
 		{Configurações de autoencoder (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
@@ -102,6 +114,12 @@
 	\Phasezerotable{tables/phase00_ae_voice.csv}%
 		{Configurações de autoencoder (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
 		{tab:phase00ae_voice}
+	\Phasezerotable{tables/phase00_pca_eeg.csv}%
+		{Configurações de PCA (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00pca_eeg}
+	\Phasezerotable{tables/phase00_pca_voice.csv}%
+		{Configurações de PCA (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00pca_voice}
 	\Phasezerotable{tables/phase00_hc_eeg.csv}%
 		{Configurações de características manuais (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
 		{tab:phase00hc_eeg}
@@ -245,12 +263,18 @@
 	venceu a seleção para os dois. Nenhuma variante de \textit{autoencoder}, em
 	nenhum dos três tamanhos ou três codificações, chegou perto.
 
-	\pendenteNota{Os valores de \textit{autoencoder} desta subseção (inclusive
-	os $\bar\beta$ abaixo) vêm das tabelas da Fase~00 em que \texttt{base} e
-	\texttt{small} são a mesma rede (ver a nota antes da
-	Tabela~\ref{tab:phase00ae_eeg}): só dois dos três tamanhos foram de fato
-	testados, e as 24 configurações são 16 redes distintas. Aguarda a
-	reexecução.}
+	\pendenteNota{Os números desta subseção são da execução de 2026-07-20. Na
+	reexecução de 2026-11-12, o manual tem $1{,}5883$ no EEG e $1{,}4836$ na
+	voz. O melhor \textit{autoencoder} tem $1{,}8873$ no EEG (SNN-AE
+	\textit{poisson}, \texttt{base}) e $1{,}8510$ na voz (SNN-AE
+	\textit{latency}, \texttt{tiny}). A conclusão do parágrafo acima continua
+	valendo. A frase sobre $\bar\beta$ mais abaixo (``acima de $0{,}97$ nas 24
+	configurações, e acima de $0{,}99$ em metade delas'') deixou de valer. No
+	EEG, $\bar\beta$ vai de $0{,}9729$ a $0{,}9807$: as 12 configurações passam
+	de $0{,}97$ e nenhuma passa de $0{,}99$. Na voz, vai de $0{,}9553$ a
+	$0{,}9793$: 8 das 12 passam de $0{,}97$ e nenhuma passa de $0{,}99$. A voz
+	Haar dá $1{,}4836$ no GridUnesp e $1{,}48355$ localmente com o mesmo
+	código: a diferença na quarta casa vem da máquina.}
 
 	\par A ressalva é de desenho experimental, e é importante o bastante para ser
 	registrada como limitação. A Questão~3 fora formulada supondo que as três
@@ -281,8 +305,22 @@
 	sinais; se a \ac{PCA} separar as classes, a falha é do treino dos
 	\textit{autoencoders}.
 
-	\pendenteNota{A \ac{PCA} já está no pipeline da Fase~00, mas ainda não foi
-	executada; este teste aguarda esses resultados.}
+	\pendenteNota{A \ac{PCA} rodou na reexecução de 2026-11-12
+	(Tabelas~\ref{tab:phase00pca_eeg} e~\ref{tab:phase00pca_voice}). Ela foi
+	comparada ao melhor \textit{autoencoder} de mesma dimensão: $k = 8, 16, 32$
+	contra os latentes \texttt{tiny}, \texttt{small} e \texttt{base}. A
+	\ac{PCA} tem o menor $\bar{d}_{\text{pen}}$ nos seis pares. No EEG:
+	$1{,}8900$, $1{,}8822$ e $1{,}8774$, contra $1{,}8995$, $1{,}8920$ e
+	$1{,}8873$. Na voz: $1{,}8392$, $1{,}8424$ e $1{,}8576$, contra
+	$1{,}8510$, $1{,}8657$ e $1{,}8726$. Os $\bar\beta$ da \ac{PCA} também
+	ficam próximos de~1: $0{,}9763$ a $0{,}9783$ no EEG e $0{,}9455$ a
+	$0{,}9525$ na voz. Pelo critério enunciado acima, isso aponta para a
+	representação de dimensão $k$, e não para o treino dos
+	\textit{autoencoders}. Ressalva: as diferenças são de cerca de $0{,}01$,
+	da ordem do $\sigma_d$ dos \textit{autoencoders}. ``A \ac{PCA} não é pior''
+	é, portanto, mais seguro do que ``a \ac{PCA} é melhor''. Falta redigir
+	isso no texto e atualizar a limitação correspondente no
+	\autoref{chap:conclusions}.}
 
 	\subsection*{\pendenteMarca{Questão 4 --- O desempenho é afetado pela dependência de texto?}}
 
