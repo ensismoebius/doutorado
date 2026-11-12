@@ -19,6 +19,7 @@
 #define NN_MODELS_AUTOENCODER_AUTOENCODER_BUILDERS_HPP
 
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -69,6 +70,12 @@ struct ParsedLayerSpec
 
 namespace nn::models::autoencoder
 {
+
+// A layer-spec item this builder cannot build is refused, never dropped or substituted.
+[[noreturn]] inline void refuse_layer_item(const std::string& item, const std::string& why)
+{
+    throw std::invalid_argument("AutoencoderBuilders: layer spec item \"" + item + "\": " + why);
+}
 
 inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int hidden_size)
     -> Sequential
@@ -122,17 +129,8 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
             }
             else if (stage.kind == LayerSpecKind::Pool1d)
             {
-                // Format: "kernel:stride"
-                std::stringstream ss(stage.width_token);
-                int kernel, stride;
-                char colon;
-                ss >> kernel >> colon >> stride;
-                if (!(ss >> colon >> stride)) stride = kernel;
-
-                // MaxPool1d would need to be implemented - for now use fallback
-                // encoder.add_module(std::make_shared<MaxPool1d>(kernel, stride));
-                (void) kernel;
-                (void) stride; // Placeholder
+                // There is no MaxPool1d; this item used to be parsed and then dropped.
+                refuse_layer_item(entry, "pool1d is not implemented (no MaxPool1d layer)");
             }
             else if (stage.kind == LayerSpecKind::Pool2d)
             {
@@ -153,11 +151,18 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
             }
             else if (stage.kind == LayerSpecKind::LSTM)
             {
-                // LSTM is handled externally by LSTMAutoencoder; skip in Sequential builder.
+                // Built by LSTMAutoencoder, not here; this item used to be skipped.
+                refuse_layer_item(
+                    entry, "lstm items are built by LSTMAutoencoder, not this builder");
+            }
+            else if (stage.kind == LayerSpecKind::Residual)
+            {
+                append_residual_blocks(encoder, current, stage.repeat);
             }
             else
             {
-                append_residual_blocks(encoder, current, stage.repeat);
+                // Every other kind used to fall through to here and become residual blocks.
+                refuse_layer_item(entry, "this layer kind is not supported by this builder");
             }
         }
         return encoder;
@@ -232,13 +237,8 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
             }
             else if (stage.kind == LayerSpecKind::Pool1d)
             {
-                std::stringstream ss(stage.width_token);
-                int kernel, stride;
-                char colon;
-                ss >> kernel >> colon >> stride;
-                if (!(ss >> colon >> stride)) stride = kernel;
-                (void) kernel;
-                (void) stride; // Placeholder
+                // There is no MaxPool1d; this item used to be parsed and then dropped.
+                refuse_layer_item(entry, "pool1d is not implemented (no MaxPool1d layer)");
             }
             else if (stage.kind == LayerSpecKind::Pool2d)
             {
@@ -257,11 +257,18 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
             }
             else if (stage.kind == LayerSpecKind::LSTM)
             {
-                // LSTM is handled externally by LSTMAutoencoder; skip in Sequential builder.
+                // Built by LSTMAutoencoder, not here; this item used to be skipped.
+                refuse_layer_item(
+                    entry, "lstm items are built by LSTMAutoencoder, not this builder");
+            }
+            else if (stage.kind == LayerSpecKind::Residual)
+            {
+                append_residual_blocks(decoder, current, stage.repeat);
             }
             else
             {
-                append_residual_blocks(decoder, current, stage.repeat);
+                // Every other kind used to fall through to here and become residual blocks.
+                refuse_layer_item(entry, "this layer kind is not supported by this builder");
             }
         }
         return decoder;
@@ -310,11 +317,18 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
             }
             else if (stage.kind == LayerSpecKind::LSTM)
             {
-                // LSTM is handled externally; skip in Sequential builder.
+                // Built by LSTMAutoencoder, not here; this item used to be skipped.
+                refuse_layer_item(
+                    entry, "lstm items are built by LSTMAutoencoder, not this builder");
+            }
+            else if (stage.kind == LayerSpecKind::Residual)
+            {
+                append_residual_blocks(encoder, current, stage.repeat);
             }
             else
             {
-                append_residual_blocks(encoder, current, stage.repeat);
+                // Every other kind used to fall through to here and become residual blocks.
+                refuse_layer_item(entry, "this layer kind is not supported by this builder");
             }
         }
         return encoder;
@@ -367,11 +381,18 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
             }
             else if (stage.kind == LayerSpecKind::LSTM)
             {
-                // LSTM is handled externally; skip in Sequential builder.
+                // Built by LSTMAutoencoder, not here; this item used to be skipped.
+                refuse_layer_item(
+                    entry, "lstm items are built by LSTMAutoencoder, not this builder");
+            }
+            else if (stage.kind == LayerSpecKind::Residual)
+            {
+                append_residual_blocks(decoder, current, stage.repeat);
             }
             else
             {
-                append_residual_blocks(decoder, current, stage.repeat);
+                // Every other kind used to fall through to here and become residual blocks.
+                refuse_layer_item(entry, "this layer kind is not supported by this builder");
             }
         }
         return decoder;

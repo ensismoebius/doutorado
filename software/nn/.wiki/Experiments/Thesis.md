@@ -646,11 +646,40 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 7. **Nested CV inner fold must not see test fold.** Hyperparameter selection must use inner-loop validation only.
 
-8. **EER is NaN with grouped CV + degenerate fold.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or only one speaker in fold. This is correct behaviour.
+8. **An unscorable fold throws; it used to be NaN.** `GenuineImpostorEERScorer` needs every speaker in the set to have a probe and at least two speakers. Until 2026-11-12 it returned NaN otherwise, the aggregate averaged over the folds that were not NaN, and an inner fold with one speaker scored −∞ and was never selected. Now the run stops and names the fold, its sample count and its speaker count (e.g. `outer fold 0, inner validation fold 2 (138 samples, 1 speakers)`).
 
 9. **`max_samples` truncation round-robins across subjects.** Samples are stored subject-contiguous (~130 trials/speaker), so a first-N truncation would keep only 2–3 speakers and break speaker-disjoint (GroupKFold) folds — especially nested CV, whose inner fold would then have fewer groups than splits (`GroupKFoldPolicy: number of unique groups is less than n_splits`). `load_dataset()` therefore selects the capped subset round-robin across subjects so every speaker is represented. Found by the smoke suite — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
 12. **A ranking table's sort direction is not self-evident from the data — verify it against the actual winner.** `thesis_build_phase00_paraconsistent_tables.py` sorted `reverse=True` (descending by mean `d_truth`) for a long time before this was caught, on the reasoning that a ranked table "starts at the top". But `d_truth`/`d_penalized` are *distances* to the paraconsistent Truth vertex — lower is better — so descending order silently put each signal's actual winner **last**: the real EEG winner sat at rank 46 of 46. It also ranked on `d_truth`, not `d_penalized`, the metric `01_thesis_phase00_rank.py` actually selects on — the two orders genuinely diverge (see [Core/Paraconsistent.md](../Core/Paraconsistent.md#selection-metric-contradiction-penalized-truth-distance)). The fix: sort ascending by `d_penalized`, emit both `d_penalized` and `d_truth` columns, and mark the true winner (cross-checked against `winners.json`) with a dagger rather than trusting rank 1. When any script writes a "ranked" table, check its sort direction and key against an independent source of truth — do not assume rank 1 is the winner just because the column is populated.
+
+
+13. **No fallbacks and no skips on the thesis path (2026-11-12).** Anything that cannot be computed stops the run with a message naming what and where; nothing is substituted or passed over. What used to be substituted or skipped, and now throws:
+
+    | Was | Where |
+    |---|---|
+    | empty fold skipped (fewer folds than `k_folds`, run looked complete) | `require_fold_rows`, inner folds |
+    | metric NaN in some folds averaged over the rest; 1 fold → SD 0 | `aggregate_metric` |
+    | `t` quantile 1.96 outside the df 1–30 table | `t_crit_95` |
+    | jitter/shimmer undefined → 0; ZCR/entropy/Teager on too-short or all-zero bands → 0 | `ThesisHandcraftedFeatures` |
+    | `"energy"` declared with `cepstral = true` silently replaced | `ThesisConfig` (184 profiles migrated) |
+    | unknown or repeated descriptor names ignored | `ThesisConfig` |
+    | stimulus outside the table → phrase `"unknown"` | `stimulus_to_phrase` |
+    | subject missing a modality, or with 0 rows, dropped | `decode_full_dataset`, `SubjectDiscovery` |
+    | corrupt dataset cache decoded around; failed cache write ignored | `ThesisDataset` cache |
+    | signal shorter than 256 stretched; constant signal → all zeros | `pool_signal`, `normalize01` |
+    | latency code with 1 step clamped; batch < 1 clamped | `spike_frame`, trainer config |
+    | `layer_spec` items the code does not build ignored | `parse_layer_spec`, `AutoencoderBuilders` (pool1d / lstm / any SNN conv→residual) |
+    | EER scorer: zero embedding → cosine 0; short speaker dropped; NaN | `eer_scorer.cpp` |
+
+14. **`intersect_indices` silently lost training data (fixed 2026-11-12).** It was `std::set_intersection`, which requires both inputs sorted; a fold's train indices are other folds' buckets concatenated, not sorted. Flat-CV training sets lost 62 % of their samples on average (simulated on the dataset's real per-speaker sizes; 15–78 %), often keeping 3 of 12 training speakers; nested inner folds lost samples too. Every Phase 01 number before this date (EER **and** AUC) is from crippled training. Guarded by `ThesisIndexIntersection.*`.
+
+15. **The EER sweep was inverted until 2026-11-12** — see [Core/Statistics.md](../Core/Statistics.md#sweep-direction-defect-fixed-2026-11-12--silent). The "standardization worsens EER while raising AUC" pattern of the 2026-07-20 Phase 01 was this defect: EER is threshold-free, so no calibration can make the two disagree.
+
+16. **"base" and "small" autoencoders were the same network in the 2026-07-20 Phase 00.** The width helpers of that time took a width equal to their fallback (64 hidden, 16 latent) as "not found": base (64/32) and small (32/16) both ran as 32/32, identical to 8 decimals in all 6 pairs. Fixed 2026-07-23; guarded by `ThesisAeArchitecture.LatentWidthIsTheDeclaredLastEncoderWidth`.
+
+17. **Nested CV now applies the text split to training.** It used to train on every non-test sample, including the phrases `text_mode = independent` holds out (pitfall 6), so its "independent" was not the flat path's. Outer train = (not outer test) ∩ text-train, as in flat CV.
+
+18. **Stimulus names come from the database.** The `stimulus` table numbers 11 stimuli alphabetically (1 A, 2 Abajo, 3 Adelante, 4 Arriba, 5 Atras, 6 Derecha, 7 E, 8 I, 9 Izquierda, 10 O, 11 U). A hard-coded table assumed 10 (vowels 1–5, five words 6–10, no "atras") and named stimulus 11 `"unknown"`. The split only needs distinct groups, which it had; the names were wrong. Cache format bumped to version 2.
 
 ## Testing
 

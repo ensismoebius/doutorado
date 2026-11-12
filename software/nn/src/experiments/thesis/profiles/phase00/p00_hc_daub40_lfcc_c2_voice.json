@@ -19,7 +19,6 @@
       "wavelet": "daub40",
       "cepstral": true,
       "descriptors": [
-        "energy",
         "zcr",
         "entropy",
         "teager",

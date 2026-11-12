@@ -4,6 +4,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <random>
+#include <stdexcept>
 #include <vector>
 
 #include "../lib/include/ThesisConfig.hpp"
@@ -34,10 +36,12 @@ TEST(ThesisEnergy, UnitImpulse)
 
 // ─── compute_zcr ─────────────────────────────────────────────────────────────
 
-TEST(ThesisZCR, EmptyOrSingleReturnsZero)
+// Undefined descriptors throw (they returned 0, or NaN that the caller turned into 0,
+// until 2026-11-12 — indistinguishable from a measured 0).
+TEST(ThesisZCR, EmptyOrSingleIsUndefined)
 {
-    EXPECT_DOUBLE_EQ(compute_zcr({}), 0.0);
-    EXPECT_DOUBLE_EQ(compute_zcr({1.0}), 0.0);
+    EXPECT_THROW((void) compute_zcr({}), std::domain_error);
+    EXPECT_THROW((void) compute_zcr({1.0}), std::domain_error);
 }
 
 TEST(ThesisZCR, AlternatingSignal)
@@ -65,14 +69,14 @@ TEST(ThesisZCR, RateInRange)
 
 // ─── compute_entropy ─────────────────────────────────────────────────────────
 
-TEST(ThesisEntropy, EmptyReturnsZero)
+TEST(ThesisEntropy, EmptyIsUndefined)
 {
-    EXPECT_DOUBLE_EQ(compute_entropy({}), 0.0);
+    EXPECT_THROW((void) compute_entropy({}), std::domain_error);
 }
 
-TEST(ThesisEntropy, AllZeroesReturnsZero)
+TEST(ThesisEntropy, AllZeroesIsUndefined)
 {
-    EXPECT_DOUBLE_EQ(compute_entropy({0.0, 0.0, 0.0}), 0.0);
+    EXPECT_THROW((void) compute_entropy({0.0, 0.0, 0.0}), std::domain_error);
 }
 
 TEST(ThesisEntropy, UniformSignalMaxEntropy)
@@ -93,9 +97,9 @@ TEST(ThesisEntropy, ImpulseLowEntropy)
 
 // ─── compute_teager ──────────────────────────────────────────────────────────
 
-TEST(ThesisTeager, TooShortReturnsZero)
+TEST(ThesisTeager, TooShortIsUndefined)
 {
-    EXPECT_DOUBLE_EQ(compute_teager({1.0, 2.0}), 0.0);
+    EXPECT_THROW((void) compute_teager({1.0, 2.0}), std::domain_error);
 }
 
 TEST(ThesisTeager, ConstantSignalZero)
@@ -116,11 +120,11 @@ TEST(ThesisTeager, PureSinePositive)
 
 // ─── compute_jitter ──────────────────────────────────────────────────────────
 
-TEST(ThesisJitter, TooFewPeaksReturnsNaN)
+TEST(ThesisJitter, TooFewPeaksIsUndefined)
 {
     // Flat signal → no peaks
     std::vector<double> sig(32, 0.5);
-    EXPECT_TRUE(std::isnan(compute_jitter(sig, 44100.0)));
+    EXPECT_THROW((void) compute_jitter(sig, 44100.0), std::domain_error);
 }
 
 TEST(ThesisJitter, RegularSineNearZeroJitter)
@@ -132,19 +136,15 @@ TEST(ThesisJitter, RegularSineNearZeroJitter)
     std::vector<double> sig(N);
     for (int i = 0; i < N; ++i) sig[i] = std::sin(2.0 * M_PI * freq * i / sr);
 
-    double j = compute_jitter(sig, sr);
-    if (!std::isnan(j))
-    {
-        EXPECT_LT(j, 0.05); // < 5% jitter for regular sine
-    }
+    EXPECT_LT(compute_jitter(sig, sr), 0.05); // < 5% jitter for regular sine
 }
 
 // ─── compute_shimmer ─────────────────────────────────────────────────────────
 
-TEST(ThesisShimmer, TooFewPeaksReturnsNaN)
+TEST(ThesisShimmer, TooFewPeaksIsUndefined)
 {
     std::vector<double> sig(32, 0.5);
-    EXPECT_TRUE(std::isnan(compute_shimmer(sig, 44100.0)));
+    EXPECT_THROW((void) compute_shimmer(sig, 44100.0), std::domain_error);
 }
 
 TEST(ThesisShimmer, RegularSineNearZeroShimmer)
@@ -155,11 +155,7 @@ TEST(ThesisShimmer, RegularSineNearZeroShimmer)
     std::vector<double> sig(N);
     for (int i = 0; i < N; ++i) sig[i] = std::sin(2.0 * M_PI * freq * i / sr);
 
-    double s = compute_shimmer(sig, sr);
-    if (!std::isnan(s))
-    {
-        EXPECT_LT(s, 0.05);
-    }
+    EXPECT_LT(compute_shimmer(sig, sr), 0.05);
 }
 
 // ─── extract_handcrafted ─────────────────────────────────────────────────────
@@ -206,14 +202,27 @@ TEST(ThesisHandcrafteExtract, MultipleDescriptorsDimAdditive)
     EXPECT_EQ(fv.size(), 12u);
 }
 
-TEST(ThesisHandcrafteExtract, AllDescriptors_NonEmpty)
+TEST(ThesisHandcrafteExtract, AllDescriptors_FiniteOnABroadbandSignal)
 {
+    // Seeded white noise: every sub-band carries enough peaks for jitter and shimmer.
     auto cfg = make_hc_cfg({"energy", "zcr", "entropy", "teager", "jitter", "shimmer"}, 2);
-    auto sig = make_sine(256, 100.0, 44100.0);
+    std::mt19937 rng(7u);
+    std::normal_distribution<double> noise(0.0, 1.0);
+    std::vector<double> sig(4096);
+    for (double& x : sig) x = noise(rng);
     auto fv = extract_handcrafted(sig, cfg, 44100.0);
-    // 4 MEL bins × 6 descriptors = 24; no NaN (jitter/shimmer replaced by 0 when undefined)
+    // 4 MEL bins × 6 descriptors = 24
     EXPECT_EQ(fv.size(), 24u);
-    for (size_t i = 0; i < fv.size(); ++i) EXPECT_FALSE(std::isnan(fv[i])) << "NaN at index " << i;
+    for (size_t i = 0; i < fv.size(); ++i) EXPECT_TRUE(std::isfinite(fv[i])) << "index " << i;
+}
+
+TEST(ThesisHandcrafteExtract, UndefinedJitterThrowsInsteadOfZero)
+{
+    // 256 samples of a 100 Hz sine at 44.1 kHz is 0.58 of a period: no band has 3 peaks.
+    // The extractor used to write jitter = shimmer = 0 here.
+    auto cfg = make_hc_cfg({"energy", "zcr", "entropy", "teager", "jitter", "shimmer"}, 2);
+    EXPECT_THROW((void) extract_handcrafted(make_sine(256, 100.0, 44100.0), cfg, 44100.0),
+        std::domain_error);
 }
 
 TEST(ThesisHandcrafteExtract, Level3GivesMoreBands)
@@ -578,6 +587,36 @@ TEST(ThesisSnnAe, PoissonLatentIsNonDegenerate)
     latent_stats(vecs, max_abs, max_var);
     EXPECT_GT(max_abs, 0.0) << "SNN-AE latent is all zeros — spikes never reached threshold";
     EXPECT_GT(max_var, 0.0) << "SNN-AE latent identical across samples — no discriminative info";
+}
+
+// Regression guard, not a hypothetical. The 2026-07-20 Phase 00 run built "base" (declared
+// 64 hidden / 32 latent) and "small" (32 / 16) as the SAME 32 / 32 network: the width helpers
+// of that time took a width equal to their fallback (64 hidden, 16 latent) as "not found" and
+// moved on to the next layer. Every base/small pair of the thesis tables came out identical to
+// 8 decimals; nothing failed. The widths below are the Phase 00 profiles' own. The latent
+// width is the feature width, so it is checked here; the hidden width is not observable
+// through extract_features().
+TEST(ThesisAeArchitecture, LatentWidthIsTheDeclaredLastEncoderWidth)
+{
+    auto view = make_multi_view(6);
+    auto tr = make_ae_training();
+    tr.epochs = 1; // only the shape is under test
+    const std::vector<std::pair<std::vector<std::string>, size_t>> cases = {
+        {{"linear:64:leaky", "linear:32:identity"}, 32u}, // base
+        {{"linear:32:leaky", "linear:16:identity"}, 16u}, // small (the July run used 32)
+        {{"linear:16:leaky", "linear:8:identity"}, 8u},   // tiny
+    };
+    for (const auto& [encoder, latent] : cases)
+    {
+        auto fe = make_ae_fe("ann-ae", "direct", 0);
+        fe.autoencoder.encoder_layer_spec = encoder;
+        fe.autoencoder.decoder_layer_spec =
+            std::vector<std::string>{encoder.front(), "linear:output:identity"};
+        auto sets = run_ae(view, fe, tr, 7u);
+        ASSERT_EQ(sets.size(), 1u);
+        ASSERT_FALSE(sets[0].vectors.empty());
+        EXPECT_EQ(sets[0].vectors[0].size(), latent) << encoder.front() << ", " << encoder.back();
+    }
 }
 
 // ─── reproducibility ─────────────────────────────────────────────────────────

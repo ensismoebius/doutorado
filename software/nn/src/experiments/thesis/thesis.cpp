@@ -19,6 +19,7 @@
 #include "lib/include/ThesisOutput.hpp"
 #include "lib/include/ThesisParaconsistent.hpp"
 #include "progress/ProgressManager.hpp"
+#include "statistics/GenuineImpostorEERScorer.hpp"
 #include "utility/progress.hpp"
 
 namespace
@@ -89,23 +90,28 @@ void run_once(const thesis::ThesisConfig& cfg,
     std::vector<thesis::ClassificationResult> results;
     if (cfg.classifier.enabled)
     {
-        int n_usable_fs = 0;
-        for (const auto& fs : feature_sets)
-            if (!fs.vectors.empty()) ++n_usable_fs;
-
-        const int total_outer_folds = n_usable_fs * cfg.training.k_folds;
+        const int total_outer_folds = static_cast<int>(feature_sets.size()) * cfg.training.k_folds;
         const uint32_t global_bar = pm.create_bar(
             "Thesis | " + cfg.experiment.run_tag, static_cast<float>(total_outer_folds));
         pm.set_description(global_bar,
             cfg.classifier.type + " | " + cfg.classifier.text_mode + " | " +
                 std::to_string(cfg.training.k_folds) + "-fold CV");
 
+        // Verification protocol: per test speaker, the first utterance is the enrolment
+        // template and the rest are probes scored against every template (cosine).
+        constexpr std::size_t kEnrolUtterancesPerSpeaker = 1;
+        const statistics::GenuineImpostorEERScorer scorer(kEnrolUtterancesPerSpeaker);
+
         int global_completed = 0;
         for (const auto& fs : feature_sets)
         {
-            if (fs.vectors.empty()) continue;
+            // An extractor that produced nothing used to be skipped here, leaving the
+            // run one feature set short with no sign of it.
+            if (fs.vectors.empty())
+                throw std::runtime_error(
+                    "thesis: feature set \"" + fs.label + "\" has no vectors; nothing to classify");
             auto result = thesis::run_classifier(
-                view, fs.vectors, fs.label, cfg, nullptr, global_bar, &global_completed);
+                view, fs.vectors, fs.label, cfg, scorer, global_bar, &global_completed);
             results.push_back(std::move(result));
         }
 

@@ -323,6 +323,27 @@ void validate_handcrafted(
 
     if (handcrafted.descriptors->empty())
         throw std::invalid_argument("ThesisConfig: handcrafted.descriptors must not be empty");
+    // The extractor looks each known name up and computes it; a name it does not know, or
+    // a repeated one, used to be passed over without a word. With cepstral = true the
+    // band energies become the cepstral coefficients, so a declared "energy" was dropped.
+    const std::vector<std::string> known = {
+        "energy", "zcr", "entropy", "teager", "jitter", "shimmer"};
+    std::vector<std::string> seen;
+    for (const auto& d : *handcrafted.descriptors)
+    {
+        if (std::find(known.begin(), known.end(), d) == known.end())
+            throw std::invalid_argument("ThesisConfig: handcrafted.descriptors has \"" + d +
+                                        "\"; known: energy, zcr, entropy, teager, jitter, "
+                                        "shimmer");
+        if (std::find(seen.begin(), seen.end(), d) != seen.end())
+            throw std::invalid_argument(
+                "ThesisConfig: handcrafted.descriptors lists \"" + d + "\" twice");
+        seen.push_back(d);
+    }
+    if (handcrafted.cepstral && std::find(seen.begin(), seen.end(), "energy") != seen.end())
+        throw std::invalid_argument(
+            "ThesisConfig: handcrafted.cepstral = true replaces the band energies with their "
+            "cepstral coefficients; \"energy\" in descriptors would be ignored — remove it");
 
     if (handcrafted.dtwpt_level < 1)
         throw std::invalid_argument("ThesisConfig: handcrafted.dtwpt_level must be >= 1");
@@ -397,6 +418,11 @@ void validate_autoencoder(const ThesisConfig::AutoencoderConfig& ae)
 
     if (ae.time_steps.declared() && ae.time_steps < 1)
         throw std::invalid_argument("ThesisConfig: autoencoder.time_steps must be >= 1");
+    // Latency code puts each input's spike at a time step: one step has nowhere to put it.
+    if (ae.encoding.declared() && ae.encoding.get() == "latency" && ae.time_steps.declared() &&
+        ae.time_steps < 2)
+        throw std::invalid_argument(
+            "ThesisConfig: autoencoder.encoding=latency needs time_steps >= 2");
     if (ae.voltage_threshold.declared() && ae.voltage_threshold <= 0.0f)
         throw std::invalid_argument("ThesisConfig: autoencoder.voltage_threshold must be > 0");
     if (ae.firing_rate_reg_lambda.declared() && ae.firing_rate_reg_lambda < 0.0f)

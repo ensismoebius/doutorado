@@ -47,7 +47,7 @@ ThesisConfig fe(const char* model, std::vector<std::string> enc, std::vector<std
 // and used a uniform taper, these would not match the requested bottleneck.
 TEST(ThesisFreeArch, DepthThreeLatentOne)
 {
-    auto v = V(3, 4, 128);
+    auto v = V(3, 4, 256);
     auto sets = extract_features(v,
         fe("ann-ae",
             {"linear:3:leaky", "linear:2:leaky", "linear:1:identity"},
@@ -59,7 +59,7 @@ TEST(ThesisFreeArch, DepthThreeLatentOne)
 }
 TEST(ThesisFreeArch, DepthFourLatentTwo)
 {
-    auto v = V(3, 4, 128);
+    auto v = V(3, 4, 256);
     auto sets = extract_features(v,
         fe("snn-ae",
             {"linear:10:leaky", "linear:5:leaky", "linear:4:leaky", "linear:2:identity"},

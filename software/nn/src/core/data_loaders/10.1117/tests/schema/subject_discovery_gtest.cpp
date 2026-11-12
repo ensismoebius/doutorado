@@ -58,6 +58,17 @@ class SubjectDiscoveryTest : public ::testing::Test
         }
         return db;
     }
+
+    // The trial/audio_samples tables the per-subject row counts are read from.
+    static void createCountTables(sqlite3* db)
+    {
+        execOrThrow(db,
+            "CREATE TABLE trial(id INTEGER PRIMARY KEY, subject_id INTEGER, stimulus_id INTEGER, "
+            "original_row INTEGER);");
+        execOrThrow(db,
+            "CREATE TABLE audio_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, samples BLOB, "
+            "audio_row INTEGER);");
+    }
 };
 } // namespace
 
@@ -104,21 +115,86 @@ TEST_F(SubjectDiscoveryTest, SqliteThrowsWhenNoSubjectsArePresent)
     EXPECT_THROW((void) discoverSubjects(db_path.string(), "^S(\\d+)$"), std::runtime_error);
 }
 
-TEST_F(SubjectDiscoveryTest, SqliteAllowsNullSubjectNameAndMissingCountTables)
+// The cases below were all accepted until 2026-11-12: a NULL name became the id, a
+// count query that could not run left the count at 0, and the subject pattern was never
+// applied to a database's subjects.
+TEST_F(SubjectDiscoveryTest, SqliteRefusesNullSubjectName)
 {
     const auto db_path = tmp_root_ / "dataset.sqlite";
     sqlite3* db = createSqliteDb(db_path);
     execOrThrow(db, "CREATE TABLE subject(id INTEGER PRIMARY KEY, subject_name TEXT);");
     execOrThrow(db, "INSERT INTO subject(id, subject_name) VALUES (42, NULL);");
+    createCountTables(db);
+    sqlite3_close(db);
+
+    EXPECT_THROW((void) discoverSubjects(db_path.string(), "^S(\\d+)$"), std::runtime_error);
+}
+
+TEST_F(SubjectDiscoveryTest, SqliteRefusesMissingCountTables)
+{
+    const auto db_path = tmp_root_ / "dataset.sqlite";
+    sqlite3* db = createSqliteDb(db_path);
+    execOrThrow(db, "CREATE TABLE subject(id INTEGER PRIMARY KEY, subject_name TEXT);");
+    execOrThrow(db, "INSERT INTO subject(id, subject_name) VALUES (1, 'S01');");
+    sqlite3_close(db);
+
+    EXPECT_THROW((void) discoverSubjects(db_path.string(), "^S(\\d+)$"), std::runtime_error);
+}
+
+TEST_F(SubjectDiscoveryTest, SqliteRefusesSubjectOutsideThePattern)
+{
+    const auto db_path = tmp_root_ / "dataset.sqlite";
+    sqlite3* db = createSqliteDb(db_path);
+    execOrThrow(db, "CREATE TABLE subject(id INTEGER PRIMARY KEY, subject_name TEXT);");
+    execOrThrow(db, "INSERT INTO subject(id, subject_name) VALUES (1, 'subject-one');");
+    createCountTables(db);
+    sqlite3_close(db);
+
+    EXPECT_THROW((void) discoverSubjects(db_path.string(), "^S(\\d+)$"), std::runtime_error);
+}
+
+TEST_F(SubjectDiscoveryTest, SqliteCountsRowsPerSubject)
+{
+    const auto db_path = tmp_root_ / "dataset.sqlite";
+    sqlite3* db = createSqliteDb(db_path);
+    execOrThrow(db, "CREATE TABLE subject(id INTEGER PRIMARY KEY, subject_name TEXT);");
+    execOrThrow(db, "INSERT INTO subject(id, subject_name) VALUES (1, 'S01');");
+    createCountTables(db);
+    execOrThrow(db,
+        "INSERT INTO trial(id, subject_id, stimulus_id, original_row) VALUES (1, 1, 1, 1), "
+        "(2, 1, 2, 2), (3, 1, 2, NULL);");
+    execOrThrow(db, "INSERT INTO audio_samples(trial_id, audio_row) VALUES (1, 0);");
     sqlite3_close(db);
 
     const auto subjects = discoverSubjects(db_path.string(), "^S(\\d+)$");
-
     ASSERT_EQ(subjects.size(), 1U);
-    EXPECT_EQ(subjects[0].subject_id, 42);
-    EXPECT_EQ(subjects[0].subject_name, "42");
-    EXPECT_EQ(subjects[0].eeg_path, db_path.string());
-    EXPECT_EQ(subjects[0].audio_path, db_path.string());
-    EXPECT_EQ(subjects[0].eeg_rows, 0U);
-    EXPECT_EQ(subjects[0].audio_rows, 0U);
+    EXPECT_EQ(subjects[0].subject_name, "S01");
+    EXPECT_EQ(subjects[0].eeg_rows, 2U);
+    EXPECT_EQ(subjects[0].audio_rows, 1U);
+}
+
+TEST_F(SubjectDiscoveryTest, StimulusNamesComeFromTheStimulusTable)
+{
+    const auto db_path = tmp_root_ / "dataset.sqlite";
+    sqlite3* db = createSqliteDb(db_path);
+    execOrThrow(db, "CREATE TABLE stimulus(id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
+    execOrThrow(db, "INSERT INTO stimulus(id, name) VALUES (1, 'A'), (5, 'Atras'), (11, 'U');");
+    sqlite3_close(db);
+
+    const auto names = discoverStimulusNames(db_path.string());
+    ASSERT_EQ(names.size(), 3U);
+    EXPECT_EQ(names.at(5), "Atras");
+    EXPECT_EQ(names.at(11), "U");
+}
+
+TEST_F(SubjectDiscoveryTest, StimulusNamesRefuseNullNameAndNonSqliteRoot)
+{
+    const auto db_path = tmp_root_ / "dataset.sqlite";
+    sqlite3* db = createSqliteDb(db_path);
+    execOrThrow(db, "CREATE TABLE stimulus(id INTEGER PRIMARY KEY, name TEXT);");
+    execOrThrow(db, "INSERT INTO stimulus(id, name) VALUES (1, NULL);");
+    sqlite3_close(db);
+
+    EXPECT_THROW((void) discoverStimulusNames(db_path.string()), std::runtime_error);
+    EXPECT_THROW((void) discoverStimulusNames(tmp_root_.string()), std::runtime_error);
 }

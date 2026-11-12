@@ -167,22 +167,21 @@ constexpr int kAeInputFeatures = 256;
 // Average-pool a 1-D signal into `out_dim` contiguous bins.
 std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
 {
-    if (sig.empty())
-        throw std::invalid_argument("ThesisFeatureExtraction: pool_signal got an empty signal");
+    // A signal shorter than out_dim used to be stretched (a bin of 0 samples borrowed the
+    // next sample), so the autoencoder saw repeated values as if they were measured.
+    if (out_dim < 1 || sig.size() < static_cast<size_t>(out_dim))
+        throw std::invalid_argument("ThesisFeatureExtraction: cannot average-pool a signal of " +
+                                    std::to_string(sig.size()) + " samples into " +
+                                    std::to_string(out_dim) + " bins");
     std::vector<double> out(static_cast<size_t>(out_dim), 0.0);
     for (int b = 0; b < out_dim; ++b)
     {
+        // sig.size() >= out_dim, so every bin holds at least one sample.
         const size_t lo = static_cast<size_t>(b) * sig.size() / static_cast<size_t>(out_dim);
-        size_t hi = static_cast<size_t>(b + 1) * sig.size() / static_cast<size_t>(out_dim);
-        if (hi <= lo) hi = lo + 1;
+        const size_t hi = static_cast<size_t>(b + 1) * sig.size() / static_cast<size_t>(out_dim);
         double s = 0.0;
-        size_t n = 0;
-        for (size_t i = lo; i < hi && i < sig.size(); ++i)
-        {
-            s += sig[i];
-            ++n;
-        }
-        out[static_cast<size_t>(b)] = (n > 0) ? s / static_cast<double>(n) : 0.0;
+        for (size_t i = lo; i < hi; ++i) s += sig[i];
+        out[static_cast<size_t>(b)] = s / static_cast<double>(hi - lo);
     }
     return out;
 }
@@ -191,14 +190,23 @@ std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
 // latency) interpret each entry as a firing probability / spike-time fraction,
 // so raw amplitudes (EEG µV, wav in [-1, 1]) must be scaled first — otherwise
 // almost no encoder neuron reaches the LIF threshold and the SNN latent is all
-// zeros. Constant signals map to 0.
+// zeros. A constant or non-finite vector has no [0, 1] scaling and is refused: a
+// constant one used to become all zeros (a flat-lined trial passed as a signal), and a
+// NaN fell through min/max untouched.
 std::vector<float> normalize01(const std::vector<double>& v)
 {
-    std::vector<float> out(v.size(), 0.0f);
-    if (v.empty()) return out;
+    if (v.empty()) throw std::invalid_argument("ThesisFeatureExtraction: normalize01 of nothing");
+    for (double x : v)
+        if (!std::isfinite(x))
+            throw std::invalid_argument("ThesisFeatureExtraction: non-finite value in a signal");
     const auto [lo_it, hi_it] = std::minmax_element(v.begin(), v.end());
     const double lo = *lo_it;
-    const double range = std::max(*hi_it - lo, 1e-12);
+    const double range = *hi_it - lo;
+    if (!(range > 0.0))
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: constant signal (every pooled bin is " + std::to_string(lo) +
+            "); it has no [0, 1] scaling");
+    std::vector<float> out(v.size(), 0.0f);
     for (size_t i = 0; i < v.size(); ++i) out[i] = static_cast<float>((v[i] - lo) / range);
     return out;
 }
@@ -226,7 +234,12 @@ nn::Tensor spike_frame(const std::vector<float>& norm,
     }
     else if (encoding == "latency")
     {
-        const int last = std::max(1, time_steps - 1);
+        // With 1 step this used to clamp to max(1, 0) and spike half the inputs at t=0.
+        if (time_steps < 2)
+            throw std::invalid_argument(
+                "ThesisFeatureExtraction: latency encoding needs time_steps >= 2, got " +
+                std::to_string(time_steps));
+        const int last = time_steps - 1;
         for (nn::Index d = 0; d < D; ++d)
         {
             const int t_spike =
@@ -374,7 +387,10 @@ auto to_time_major_groups(
     const int T = time_count;
     // Re-lay the per-(sample, t) frames above into time-major groups:
     // group k holds inputs [k*G, k*G+g) as a (T*g, D) tensor with row = t*g + b.
-    const int G = std::max(1, batch_size);
+    if (batch_size < 1)
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: batch size must be >= 1, got " + std::to_string(batch_size));
+    const int G = batch_size;
     const auto D = static_cast<nn::Index>(kAeInputFeatures);
     std::vector<nn::Tensor> grouped;
     grouped.reserve((sample_count + static_cast<size_t>(G) - 1) / static_cast<size_t>(G));
@@ -487,7 +503,10 @@ auto build_trainer_config(const ThesisConfig::Training& training, int batch_size
     // g inputs (see the grouping above), so the Trainer feeds exactly one group per
     // step. Real batch size is still `batch_size` — it just lives in the sample layout
     // instead of in create_batch(), which cannot produce the required time-major order.
-    trainer_cfg.batch_size = time_major ? 1 : std::max(1, batch_size);
+    if (batch_size < 1)
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: batch size must be >= 1, got " + std::to_string(batch_size));
+    trainer_cfg.batch_size = time_major ? 1 : batch_size;
 
     return trainer_cfg;
 }

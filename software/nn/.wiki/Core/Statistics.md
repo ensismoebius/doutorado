@@ -129,16 +129,16 @@ EER and AUC computation is pluggable via `statistics::IEERScorer`:
 ```cpp
 // File: include/statistics/eer_scorer.hpp
 struct IEERScorer {
-    // Required: Equal Error Rate in [0,1] or NaN when degenerate.
+    // Equal Error Rate in [0,1]; throws when the set cannot be scored.
     virtual auto compute_eer(const std::vector<std::vector<float>>& embeddings,
                              const std::vector<int>& labels,
                              int n_classes) const -> double = 0;
 
-    // Optional: AUC = P(genuine_score > impostor_score) via Wilcoxon-Mann-Whitney.
-    // Default returns NaN.  Override in strategies with genuine/impostor distributions.
+    // AUC = P(genuine_score > impostor_score) via Wilcoxon-Mann-Whitney. Required too:
+    // the default used to return NaN, an AUC never computed.
     virtual auto compute_auc(const std::vector<std::vector<float>>& embeddings,
                              const std::vector<int>& labels,
-                             int n_classes) const -> double;
+                             int n_classes) const -> double = 0;
 };
 ```
 
@@ -156,10 +156,22 @@ Two concrete implementations (each in its own file — `ClassificationEERScorer.
 1. Per speaker: first `n_enroll` utterances → L2-normalised mean = enrollment template.  
 2. Remaining utterances = probes.  
 3. Each probe vs. all templates: cosine similarity → genuine or impostor trial.  
-4. **EER**: sort trials descending; sweep threshold → FAR/FRR curve; linear-interpolate crossing.
+4. **EER**: a trial is *accepted* when its score is at or above the threshold (higher cosine = more alike). Sort trials descending and lower the threshold one tied group at a time, starting above every score (nothing accepted: FAR = 0, FRR = 1). Each accepted genuine trial lowers FRR, each accepted impostor raises FAR; EER is where the two meet, linearly interpolated between the last two operating points.
 5. **AUC**: Wilcoxon-Mann-Whitney — sort impostor scores; for each genuine score count impostors below it (ties = 0.5); `AUC = wins / (n_genuine × n_impostor)`.
 
-Returns `NaN` when a speaker has ≤ `n_enroll` samples (no probes) or fewer than 2 speakers have templates (no impostor trials).
+Throws `std::invalid_argument` when the set cannot be scored — a speaker with ≤ `n_enroll` samples (no probe), fewer than 2 speakers (no impostor trial), a zero or non-finite embedding (no cosine), or embeddings/labels of different lengths. Until 2026-11-12 these returned `NaN`, or (the short speaker) were left out of the trials, and the cosine of a zero vector was 0. `n_enroll` has no default: the caller states it (the thesis passes 1).
+
+#### Sweep-direction defect (fixed 2026-11-12) — silent
+
+Until 2026-11-12 step 4 started at FAR = 1, FRR = 0 and moved the other way, which accepts **low** scores. AUC was computed correctly, so the two metrics described opposite systems:
+
+| Trials (genuine / impostor scores) | Old EER | Correct EER | AUC |
+|---|---|---|---|
+| {.9 .8 .7 .6} / {.4 .3 .2 .1} — perfect | 0.75 | 0 | 1.0 |
+| {.4 .3 .2 .1} / {.9 .8 .7 .6} — inverted | 0 | 1 | 0.0 |
+| {1 1 1 1} / {0 0 0 0} — tied | 0 | 0 | 1.0 |
+
+Nothing failed: the unit tests used the tied case, the one input on which both directions agree. The tell is an EER above 0.5 next to an AUC above 0.5 for the same fold — no single ROC allows it, because the ROC passes through (FAR, TPR) = (EER, 1 − EER), so AUC ≤ 1 − EER². Thesis Phase 01 (2026-07-20) had fold EER 0.724 with AUC 0.518. Every EER the thesis reported before this fix is invalid; its AUCs stand, and model selection (`selection_score`, AUC first) was unaffected. Guarded by `*SeparatedUntiedScoresHaveZeroEer` / `InvertedUntiedScoresHaveEerOne` in `eer_scorer_gtest.cpp`.
 
 Internal implementation reuses `build_gi_trials()` for both `compute_eer()` and `compute_auc()` — template construction and cosine scoring run once.
 

@@ -6,9 +6,11 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
+#include "../lib/include/IndexIntersection.hpp"
 #include "../lib/include/ThesisClassifiers.hpp"
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisDataset.hpp"
@@ -18,32 +20,92 @@
 
 using namespace thesis;
 
-// ─── compute_aggregate_stats ─────────────────────────────────────────────────
+// ─── intersect_indices ───────────────────────────────────────────────────────
 
-TEST(ThesisAggregateStats, EmptyFoldsNoOp)
+// A fold's train indices are the other folds' buckets concatenated: ascending within a
+// bucket, not across them. std::set_intersection on that input (the old implementation)
+// returns {8, 9} here and drops 0, 1, 2, 4 and 5 without a word.
+TEST(ThesisIndexIntersection, UnsortedInputKeepsEveryCommonIndex)
 {
-    ClassificationResult r;
-    compute_aggregate_stats(r);
-    EXPECT_DOUBLE_EQ(r.mean_accuracy, 0.0);
-    EXPECT_DOUBLE_EQ(r.mean_eer, 0.0);
-    EXPECT_DOUBLE_EQ(r.std_accuracy, 0.0);
+    const std::vector<std::size_t> concatenated_buckets = {8, 9, 0, 1, 2, 4, 5};
+    const std::vector<std::size_t> text_split = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    const std::vector<std::size_t> expected = {0, 1, 2, 4, 5, 8, 9};
+    EXPECT_EQ(intersect_indices(concatenated_buckets, text_split), expected);
+    EXPECT_EQ(intersect_indices(text_split, concatenated_buckets), expected);
 }
 
-TEST(ThesisAggregateStats, SingleFold)
+TEST(ThesisIndexIntersection, DisjointIsEmpty)
+{
+    EXPECT_TRUE(intersect_indices({5, 1, 3}, {4, 2, 0}).empty());
+}
+
+// ─── compute_aggregate_stats ─────────────────────────────────────────────────
+
+namespace
+{
+// A trained fold: compute_aggregate_stats refuses a fold without a training history.
+// The one epoch carries the default (NaN) firing rate of a non-spiking classifier.
+FoldResult fold(int i, double accuracy, double eer)
+{
+    FoldResult f{i, accuracy, eer, 0.0};
+    f.history.emplace_back();
+    return f;
+}
+} // namespace
+
+// No folds used to be a no-op that left every statistic at 0, as if aggregated.
+TEST(ThesisAggregateStats, EmptyFoldsThrow)
 {
     ClassificationResult r;
-    r.outer_folds.push_back({0, 0.8, 0.2, 0.0});
+    EXPECT_THROW(compute_aggregate_stats(r), std::logic_error);
+}
+
+// One fold has no SD; it used to be reported as 0.
+TEST(ThesisAggregateStats, SingleFoldThrows)
+{
+    ClassificationResult r;
+    r.outer_folds.push_back(fold(0, 0.8, 0.2));
+    EXPECT_THROW(compute_aggregate_stats(r), std::logic_error);
+}
+
+// A metric missing in some folds used to be averaged over the rest.
+TEST(ThesisAggregateStats, MetricNanInSomeFoldsThrows)
+{
+    ClassificationResult r;
+    r.outer_folds.push_back(fold(0, 0.6, 0.1));
+    r.outer_folds.push_back(fold(1, 0.8, std::numeric_limits<double>::quiet_NaN()));
+    EXPECT_THROW(compute_aggregate_stats(r), std::logic_error);
+}
+
+// NaN in every fold is a metric not measured (closed-set under verification-only):
+// mean, SD and CI are all NaN, never a spread of 0.
+TEST(ThesisAggregateStats, MetricNanInEveryFoldIsNotApplicable)
+{
+    ClassificationResult r;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    r.outer_folds.push_back(fold(0, nan, 0.1));
+    r.outer_folds.push_back(fold(1, nan, 0.3));
     compute_aggregate_stats(r);
-    EXPECT_DOUBLE_EQ(r.mean_accuracy, 0.8);
-    EXPECT_DOUBLE_EQ(r.mean_eer, 0.2);
-    EXPECT_NEAR(r.std_accuracy, 0.0, 1e-12);
+    EXPECT_TRUE(std::isnan(r.mean_accuracy));
+    EXPECT_TRUE(std::isnan(r.std_accuracy));
+    EXPECT_TRUE(std::isnan(r.ci95_accuracy));
+    EXPECT_NEAR(r.mean_eer, 0.2, 1e-12);
+    EXPECT_TRUE(std::isnan(r.mean_spike_rate)); // rnn: no firing rate in any fold
+}
+
+TEST(ThesisAggregateStats, FoldWithoutHistoryThrows)
+{
+    ClassificationResult r;
+    r.outer_folds.push_back(fold(0, 0.6, 0.1));
+    r.outer_folds.push_back({1, 0.8, 0.3, 0.0});
+    EXPECT_THROW(compute_aggregate_stats(r), std::logic_error);
 }
 
 TEST(ThesisAggregateStats, TwoFoldsMean)
 {
     ClassificationResult r;
-    r.outer_folds.push_back({0, 0.6, 0.1, 0.0});
-    r.outer_folds.push_back({1, 0.8, 0.3, 0.0});
+    r.outer_folds.push_back(fold(0, 0.6, 0.1));
+    r.outer_folds.push_back(fold(1, 0.8, 0.3));
     compute_aggregate_stats(r);
     EXPECT_NEAR(r.mean_accuracy, 0.7, 1e-12);
     EXPECT_NEAR(r.mean_eer, 0.2, 1e-12);
@@ -52,8 +114,8 @@ TEST(ThesisAggregateStats, TwoFoldsMean)
 TEST(ThesisAggregateStats, TwoFoldsStd)
 {
     ClassificationResult r;
-    r.outer_folds.push_back({0, 0.6, 0.0, 0.0});
-    r.outer_folds.push_back({1, 0.8, 0.0, 0.0});
+    r.outer_folds.push_back(fold(0, 0.6, 0.0));
+    r.outer_folds.push_back(fold(1, 0.8, 0.0));
     compute_aggregate_stats(r);
     // mean = 0.7; sample variance = ((0.6-0.7)^2 + (0.8-0.7)^2) / (2-1) = 0.02
     // sample SD = sqrt(0.02) ≈ 0.141421356 (audit M-3: sample SD, not population).
@@ -63,7 +125,7 @@ TEST(ThesisAggregateStats, TwoFoldsStd)
 TEST(ThesisAggregateStats, AllSameMeanAndZeroStd)
 {
     ClassificationResult r;
-    for (int i = 0; i < 5; ++i) r.outer_folds.push_back({i, 0.9, 0.05, 0.0});
+    for (int i = 0; i < 5; ++i) r.outer_folds.push_back(fold(i, 0.9, 0.05));
     compute_aggregate_stats(r);
     EXPECT_NEAR(r.mean_accuracy, 0.9, 1e-12);
     EXPECT_NEAR(r.std_accuracy, 0.0, 1e-12);
@@ -125,7 +187,11 @@ ThesisDatasetView make_view(int n_subjects, int samples_per_subject)
             ThesisSample sam;
             sam.subject_id = id;
             sam.stimulus = k % 5; // vowel index 0-4
-            sam.text_phrase = "a";
+            // Four phrases, so text_mode=independent can hold two out: with one phrase for
+            // every sample its train half was empty, which the nested path used to hide by
+            // ignoring the text split for training.
+            static const char* const kPhrases[] = {"a", "e", "i", "o"};
+            sam.text_phrase = kPhrases[k % 4];
             // eeg/audio left default (0-dim scalar) — feature_vectors supplied externally
             view.samples.push_back(sam);
         }
@@ -159,7 +225,8 @@ TEST(ThesisRunClassifier, ThrowsOnEmptyFeatures)
 {
     auto view = make_view(2, 4);
     ThesisConfig cfg = make_fast_cfg();
-    EXPECT_THROW(run_classifier(view, {}, "test", cfg), std::invalid_argument);
+    EXPECT_THROW(run_classifier(view, {}, "test", cfg, statistics::ClassificationEERScorer{}),
+        std::invalid_argument);
 }
 
 TEST(ThesisRunClassifier, ThrowsOnSizeMismatch)
@@ -167,27 +234,24 @@ TEST(ThesisRunClassifier, ThrowsOnSizeMismatch)
     auto view = make_view(2, 4);
     ThesisConfig cfg = make_fast_cfg();
     std::vector<std::vector<double>> fvs(3, std::vector<double>(8, 0.0));
-    EXPECT_THROW(run_classifier(view, fvs, "test", cfg), std::invalid_argument);
+    EXPECT_THROW(run_classifier(view, fvs, "test", cfg, statistics::ClassificationEERScorer{}),
+        std::invalid_argument);
 }
 
-// GroupKFoldPolicy with k=2 needs >= 4 subjects:
-//   round-robin outer: {1,3}→fold0, {2,4}→fold1
-//   inner training per outer fold has exactly 2 groups → inner 2-fold valid.
-//
-// Use ClassificationEERScorer in unit tests: GenuineImpostorEERScorer requires
-// each test speaker to have been seen during training for non-NaN EER, which
-// grouped CV deliberately prevents (that is the correct real-world behaviour,
-// but makes unit-test assertions fragile).
+// GroupKFoldPolicy with k=2 on 8 subjects: each outer fold trains on 4 speakers, so
+// each inner validation fold holds 2 — the fewest a verification score needs (genuine
+// AND impostor trials). With the 4 subjects these tests used before, an inner fold held
+// 1 speaker; its AUC was NaN and model selection quietly fell back to the first candidate.
 TEST(ThesisRunClassifier, ReturnsFoldCountMatchingKFolds)
 {
-    const int n_subjects = 4;
+    const int n_subjects = 8;
     const int sps = 6;
     auto view = make_view(n_subjects, sps);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth", cfg, scorer);
 
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
@@ -197,12 +261,12 @@ TEST(ThesisRunClassifier, VerificationOnlyAccuracyIsNaN)
     // Verification-only protocol (audit C-1): closed-set accuracy is not reported
     // (speaker-disjoint folds), so mean_accuracy aggregates to NaN. The run must
     // still produce one result per outer fold.
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth", cfg, scorer);
 
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
     EXPECT_TRUE(std::isnan(result.mean_accuracy));
@@ -210,35 +274,35 @@ TEST(ThesisRunClassifier, VerificationOnlyAccuracyIsNaN)
 
 TEST(ThesisRunClassifier, FeatureLabelPropagated)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "my-label", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "my-label", cfg, scorer);
     EXPECT_EQ(result.feature_set_label, "my-label");
 }
 
 TEST(ThesisRunClassifier, FoldIndicesAreSequential)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_fast_cfg();
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth", cfg, scorer);
     for (int i = 0; i < static_cast<int>(result.outer_folds.size()); ++i)
         EXPECT_EQ(result.outer_folds[static_cast<size_t>(i)].fold, i);
 }
 
 TEST(ThesisRunClassifier, DsnnPathRuns)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_dsnn_cfg();
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth-dsnn", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth-dsnn", cfg, scorer);
     EXPECT_EQ(result.classifier_type, "dsnn");
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
     // Verification-only: closed-set accuracy not reported (audit C-1).
@@ -250,7 +314,7 @@ TEST(ThesisRunClassifier, DsnnPathRuns)
 // throwing — exercises Adam::weight_decay and ThesisDsnnClassifier::add_firing_rate_grad.
 TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_dsnn_cfg();
     cfg.training.weight_decay = 1e-3f;
@@ -259,7 +323,7 @@ TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
     cfg.training.firing_rate_max = 0.80f;
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth-dsnn-reg", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth-dsnn-reg", cfg, scorer);
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 
@@ -267,13 +331,13 @@ TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
 // for the non-spiking ResNet classifier).
 TEST(ThesisRunClassifier, RnnWithWeightDecayRuns)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_fast_cfg();
     cfg.training.weight_decay = 1e-3f;
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth-rnn-wd", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth-rnn-wd", cfg, scorer);
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 
@@ -281,14 +345,14 @@ TEST(ThesisRunClassifier, RnnWithWeightDecayRuns)
 // without throwing — exercises the tdBN forward/backward wired into the DSNN.
 TEST(ThesisRunClassifier, DsnnWithTdbnRuns)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     ThesisConfig cfg = make_dsnn_cfg();
     cfg.training.batch_normalization = "threshold-dependent";
     cfg.training.tdbn_alpha = 1.0f;
     statistics::ClassificationEERScorer scorer;
 
-    auto result = run_classifier(view, fvs, "synth-dsnn-tdbn", cfg, &scorer);
+    auto result = run_classifier(view, fvs, "synth-dsnn-tdbn", cfg, scorer);
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
     EXPECT_FALSE(std::isnan(result.mean_eer)); // EER is the verification-protocol metric
 }
@@ -301,7 +365,7 @@ TEST(ThesisRunClassifier, DsnnWithTdbnRuns)
 // NaN by design under the verification-only protocol, so EER/AUC are reported.
 TEST(ThesisRunClassifier, TdbnComparativeBenchmark)
 {
-    auto view = make_view(4, 6);
+    auto view = make_view(8, 6);
     auto fvs = make_features(view);
     statistics::ClassificationEERScorer scorer;
 
@@ -325,7 +389,7 @@ TEST(ThesisRunClassifier, TdbnComparativeBenchmark)
         if (std::string(v.bn) == "threshold-dependent") cfg.training.tdbn_alpha = v.alpha;
         cfg.validate();
 
-        auto result = run_classifier(view, fvs, std::string("synth-bench-") + v.name, cfg, &scorer);
+        auto result = run_classifier(view, fvs, std::string("synth-bench-") + v.name, cfg, scorer);
 
         EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds) << v.name;
         EXPECT_FALSE(std::isnan(result.mean_eer)) << v.name;

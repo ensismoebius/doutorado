@@ -50,6 +50,9 @@ TEST(ThesisOutput, HandcraftedSummaryRecordsExtractionConfig)
     cfg.feature_extraction.handcrafted.wavelet = "daub12";
     cfg.feature_extraction.handcrafted.scale = "bark";
     cfg.feature_extraction.handcrafted.cepstral = true;
+    // Cepstral coefficients replace the band energies; "energy" would be refused.
+    cfg.feature_extraction.handcrafted.descriptors =
+        std::vector<std::string>{"zcr", "entropy", "teager"};
 
     const auto j = write_and_read(cfg, "t_hc");
     const auto& fe = j["config"]["feature_extraction"];

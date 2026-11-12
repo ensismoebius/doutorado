@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -15,9 +17,21 @@ namespace statistics
 namespace
 {
 
-// Cosine similarity between two equal-length vectors; returns 0 for zero vectors.
+// Every scoring precondition below throws instead of substituting a value. Until
+// 2026-11-12 a zero vector scored cosine 0 against everything, a speaker with too few
+// samples was left out of the trials, and an unscorable set came back as NaN — each of
+// them a number, or an absence, that looked like a result.
+[[noreturn]] void refuse(const std::string& why)
+{
+    throw std::invalid_argument("EER scorer: " + why);
+}
+
+// Cosine similarity between two equal-length, nonzero, finite vectors.
 float cosine_sim(const std::vector<float>& a, const std::vector<float>& b)
 {
+    if (a.size() != b.size())
+        refuse("cosine of vectors of length " + std::to_string(a.size()) + " and " +
+               std::to_string(b.size()));
     float dot = 0.0f, na = 0.0f, nb = 0.0f;
     for (std::size_t i = 0; i < a.size(); ++i)
     {
@@ -26,27 +40,33 @@ float cosine_sim(const std::vector<float>& a, const std::vector<float>& b)
         nb += b[i] * b[i];
     }
     const float denom = std::sqrt(na * nb);
-    return (denom > 0.0f) ? (dot / denom) : 0.0f;
+    if (!(denom > 0.0f) || !std::isfinite(dot / denom))
+        refuse("cosine is undefined for a zero or non-finite embedding");
+    return dot / denom;
 }
 
-// L2-normalise a vector in-place.  No-op for zero vectors.
+// L2-normalise a vector in-place; a zero or non-finite vector has no direction.
 void l2_normalize(std::vector<float>& v)
 {
     float norm = 0.0f;
     for (float x : v) norm += x * x;
     norm = std::sqrt(norm);
-    if (norm > 0.0f)
-        for (float& x : v) x /= norm;
+    if (!(norm > 0.0f) || !std::isfinite(norm))
+        refuse("cannot L2-normalise a zero or non-finite embedding");
+    for (float& x : v) x /= norm;
 }
 
-// Mean of a set of vectors.  All vectors must be the same length.
+// Mean of a non-empty set of equal-length vectors.
 std::vector<float> mean_vec(const std::vector<std::vector<float>>& vecs)
 {
-    if (vecs.empty()) return {};
+    if (vecs.empty()) refuse("mean of no vectors");
     const std::size_t D = vecs[0].size();
     std::vector<float> m(D, 0.0f);
     for (const auto& v : vecs)
+    {
+        if (v.size() != D) refuse("enrolment vectors of different lengths");
         for (std::size_t i = 0; i < D; ++i) m[i] += v[i];
+    }
     const float n = static_cast<float>(vecs.size());
     for (float& x : m) x /= n;
     return m;
@@ -54,11 +74,9 @@ std::vector<float> mean_vec(const std::vector<std::vector<float>>& vecs)
 
 // Compute EER from a list of (score, is_genuine) pairs via threshold sweep.
 // Trials are sorted descending by score; FAR and FRR are swept until they cross.
-// Returns NaN if no genuine or no impostor trials are present.
+// build_gi_trials guarantees both genuine and impostor trials.
 double eer_from_trials(std::vector<std::pair<float, bool>> trials)
 {
-    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
-
     std::sort(trials.begin(),
         trials.end(),
         [](const auto& a, const auto& b) { return a.first > b.first; });
@@ -72,13 +90,24 @@ double eer_from_trials(std::vector<std::pair<float, bool>> trials)
         else
             ++n_imp;
     }
-    if (n_gen == 0 || n_imp == 0) return std::numeric_limits<double>::quiet_NaN();
+    if (n_gen == 0 || n_imp == 0)
+        refuse(std::to_string(n_gen) + " genuine and " + std::to_string(n_imp) +
+               " impostor trials; an EER needs both");
 
-    // Start: threshold above all scores → accept all → FA=n_imp, FR=0
-    int fa = n_imp;
-    int fr = 0;
-    double prev_far = 1.0;
-    double prev_frr = 0.0;
+    // A trial is accepted when its score is at or above the threshold (higher score = more
+    // alike). The threshold starts above every score, so nothing is accepted: FA = 0,
+    // FR = n_gen. Lowering it past each tied group of scores (descending) accepts that group:
+    // a genuine trial stops being a false reject, an impostor becomes a false accept.
+    //
+    // Regression note: until 2026-11-12 this sweep started at FA = n_imp, FR = 0 and moved
+    // the other way, i.e. it accepted LOW scores. A perfect system (every genuine above every
+    // impostor) got EER 0.75 on four trials per side and a fully inverted one got 0, while
+    // compute_auc (P(genuine > impostor)) was right. The unit tests used tied scores, the one
+    // input on which both sweeps agree.
+    int fa = 0;
+    int fr = n_gen;
+    double prev_far = 0.0;
+    double prev_frr = 1.0;
 
     std::size_t i = 0;
     while (i < trials.size())
@@ -88,28 +117,30 @@ double eer_from_trials(std::vector<std::pair<float, bool>> trials)
         while (i < trials.size() && trials[i].first == thr)
         {
             if (trials[i].second)
-                ++fr;
+                --fr;
             else
-                --fa;
+                ++fa;
             ++i;
         }
 
         const double far = static_cast<double>(fa) / static_cast<double>(n_imp);
         const double frr = static_cast<double>(fr) / static_cast<double>(n_gen);
 
-        if (far <= frr)
+        if (far >= frr)
         {
-            // Linear interpolation between previous and current (far, frr).
-            const double d_far = prev_far - far;
-            const double d_frr = frr - prev_frr;
+            // FAR rose and FRR fell along the segment from the previous operating point;
+            // EER is where the two lines meet on it.
+            const double d_far = far - prev_far;
+            const double d_frr = prev_frr - frr;
             const double denom = d_far + d_frr;
-            if (denom > 0.0) return prev_frr + d_frr * d_far / denom;
+            if (denom > 0.0) return prev_far + d_far * (prev_frr - prev_far) / denom;
             return (far + frr) / 2.0;
         }
         prev_far = far;
         prev_frr = frr;
     }
-    return std::numeric_limits<double>::quiet_NaN();
+    // Unreachable: after the last group FAR = 1 >= FRR = 0.
+    throw std::logic_error("EER scorer: the FAR/FRR sweep ended without crossing");
 }
 
 // AUC via Wilcoxon-Mann-Whitney statistic: P(genuine_score > impostor_score).
@@ -120,7 +151,9 @@ double mann_whitney_auc(const std::vector<std::pair<float, bool>>& trials)
     std::vector<float> impostor;
     for (const auto& [s, g] : trials) (g ? genuine : impostor).push_back(s);
 
-    if (genuine.empty() || impostor.empty()) return std::numeric_limits<double>::quiet_NaN();
+    if (genuine.empty() || impostor.empty())
+        refuse(std::to_string(genuine.size()) + " genuine and " + std::to_string(impostor.size()) +
+               " impostor trials; an AUC needs both");
 
     std::sort(impostor.begin(), impostor.end());
 
@@ -140,13 +173,18 @@ double mann_whitney_auc(const std::vector<std::pair<float, bool>>& trials)
 }
 
 // Build genuine/impostor cosine-similarity trial list for GenuineImpostorEERScorer.
-// Returns empty vector when too few samples or speakers.
+// Every speaker in the set must have more than n_enroll samples (enrolment + at least
+// one probe), and there must be at least two speakers, or there is nothing to score.
 std::vector<std::pair<float, bool>> build_gi_trials(
     const std::vector<std::vector<float>>& embeddings,
     const std::vector<int>& labels,
     std::size_t n_enroll)
 {
-    if (embeddings.empty()) return {};
+    if (n_enroll < 1) refuse("n_enroll must be at least 1");
+    if (embeddings.empty()) refuse("no embeddings to score");
+    if (embeddings.size() != labels.size())
+        refuse(std::to_string(embeddings.size()) + " embeddings but " +
+               std::to_string(labels.size()) + " labels");
 
     // Group sample indices by speaker (stable insertion order).
     std::vector<int> speaker_order;
@@ -165,7 +203,12 @@ std::vector<std::pair<float, bool>> build_gi_trials(
     for (int spk : speaker_order)
     {
         const auto& idxs = spk_to_indices.at(spk);
-        if (idxs.size() <= n_enroll) continue;
+        // This speaker used to be left out of the trials without a word: the EER was then
+        // over fewer speakers than the evaluation set held.
+        if (idxs.size() <= n_enroll)
+            refuse("speaker " + std::to_string(spk) + " has " + std::to_string(idxs.size()) +
+                   " sample(s), but " + std::to_string(n_enroll) +
+                   " enrolment + at least 1 probe are needed");
 
         std::vector<std::vector<float>> enroll_vecs;
         enroll_vecs.reserve(n_enroll);
@@ -179,22 +222,21 @@ std::vector<std::pair<float, bool>> build_gi_trials(
             std::vector<std::size_t>(idxs.begin() + static_cast<ptrdiff_t>(n_enroll), idxs.end());
     }
 
-    if (templates.size() < 2U) return {};
+    if (templates.size() < 2U)
+        refuse(std::to_string(templates.size()) +
+               " speaker(s) in the set; impostor trials need at least 2");
 
-    // Score all probes against all templates.
+    // Score all probes against all templates. Every speaker is enrolled (or the loop
+    // above threw), so .at() cannot miss.
     std::vector<std::pair<float, bool>> trials;
     for (int spk : speaker_order)
     {
-        if (probe_indices.find(spk) == probe_indices.end()) continue;
         for (std::size_t probe_idx : probe_indices.at(spk))
         {
             auto probe = embeddings[probe_idx];
             l2_normalize(probe);
             for (int tmpl_spk : speaker_order)
-            {
-                if (templates.find(tmpl_spk) == templates.end()) continue;
                 trials.emplace_back(cosine_sim(probe, templates.at(tmpl_spk)), tmpl_spk == spk);
-            }
         }
     }
     return trials;
@@ -212,7 +254,6 @@ auto ClassificationEERScorer::compute_eer(const std::vector<std::vector<float>>&
     int /*n_classes*/) const -> double
 {
     auto trials = build_gi_trials(embeddings, labels, 1U);
-    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
     return eer_from_trials(std::move(trials));
 }
 
@@ -221,7 +262,6 @@ auto ClassificationEERScorer::compute_auc(const std::vector<std::vector<float>>&
     int /*n_classes*/) const -> double
 {
     const auto trials = build_gi_trials(embeddings, labels, 1U);
-    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
     return mann_whitney_auc(trials);
 }
 
@@ -237,7 +277,6 @@ auto GenuineImpostorEERScorer::compute_eer(const std::vector<std::vector<float>>
     int /*n_classes*/) const -> double
 {
     auto trials = build_gi_trials(embeddings, labels, n_enroll_);
-    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
     return eer_from_trials(std::move(trials));
 }
 
@@ -246,7 +285,6 @@ auto GenuineImpostorEERScorer::compute_auc(const std::vector<std::vector<float>>
     int /*n_classes*/) const -> double
 {
     const auto trials = build_gi_trials(embeddings, labels, n_enroll_);
-    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
     return mann_whitney_auc(trials);
 }
 

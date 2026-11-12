@@ -81,7 +81,7 @@ std::vector<FeatureSet> run_fe(const ThesisDatasetView& view,
 
 TEST(ThesisSpikeLossE2E, SpikeCountTrainsOnPoisson)
 {
-    auto view = synthetic_view(3, 4, 128);
+    auto view = synthetic_view(3, 4, 256);
     auto sets = run_fe(view, snn_fe("poisson", "spikecount", 4), fast_training(), 42u);
     ASSERT_FALSE(sets.empty());
     ASSERT_EQ(sets[0].vectors.size(), view.samples.size());
@@ -90,7 +90,7 @@ TEST(ThesisSpikeLossE2E, SpikeCountTrainsOnPoisson)
 
 TEST(ThesisSpikeLossE2E, SpikeTimeTrainsOnLatencyTimeMajor)
 {
-    auto view = synthetic_view(3, 4, 128);
+    auto view = synthetic_view(3, 4, 256);
     auto sets = run_fe(view, snn_fe("latency", "spiketime", 4), fast_training(), 42u);
     ASSERT_FALSE(sets.empty());
     ASSERT_EQ(sets[0].vectors.size(), view.samples.size());
@@ -101,7 +101,7 @@ TEST(ThesisSpikeLossE2E, SpikeTimeTrainsOnLatencyTimeMajor)
 // row = t*g + b, so real batching works despite SpikeTimeLoss's fixed layout.
 TEST(ThesisSpikeLossE2E, SpikeTimeHonoursBatchSizeGreaterThanOne)
 {
-    auto view = synthetic_view(3, 4, 128); // 12 samples
+    auto view = synthetic_view(3, 4, 256); // 12 samples
     auto tr = fast_training();
     tr.samples_per_batch = 5; // 12 = 5 + 5 + 2 -> exercises a trailing partial group
     auto sets = run_fe(view, snn_fe("latency", "spiketime", 4), tr, 42u);
@@ -117,7 +117,7 @@ TEST(ThesisSpikeLossE2E, SpikeTimeHonoursBatchSizeGreaterThanOne)
 // is that landing there is loud, not silent.)
 TEST(ThesisSpikeLossE2E, SpikeTimeIsNeverSilentlyWrongAcrossBatchSizes)
 {
-    auto view = synthetic_view(2, 3, 128); // 6 samples
+    auto view = synthetic_view(2, 3, 256); // 6 samples
     for (int bs : {1, 2, 4, 6, 8})
     {
         auto tr = fast_training();
@@ -221,7 +221,7 @@ double max_abs_diff(
 // learned => the gradient was dead.
 double learning_delta(const char* model, const char* enc, const char* loss, int T, float lam)
 {
-    auto view = synthetic_view(3, 4, 128);
+    auto view = synthetic_view(3, 4, 256);
     auto fe = snn_fe(enc, loss, T);
     fe.autoencoder.model = model;
     fe.autoencoder.firing_rate_reg_lambda = lam;
@@ -298,7 +298,7 @@ TEST(ThesisGradientLiveness, SpikeLossesPassTheRuntimeGuard)
         for (auto [enc, loss, T] :
             {std::tuple{"poisson", "spikecount", 4}, std::tuple{"latency", "spiketime", 4}})
         {
-            auto view = synthetic_view(3, 4, 128);
+            auto view = synthetic_view(3, 4, 256);
             auto fe = snn_fe(enc, loss, T);
             fe.autoencoder.firing_rate_reg_lambda = lam;
             EXPECT_NO_THROW({

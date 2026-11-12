@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "ThesisClassifiersInternal.hpp"
-#include "statistics/GenuineImpostorEERScorer.hpp"
 #include "statistics/eer_scorer.hpp"
 
 namespace thesis
@@ -18,7 +17,7 @@ auto run_classifier(const ThesisDatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
     const ThesisConfig& cfg,
-    const statistics::IEERScorer* eer_scorer,
+    const statistics::IEERScorer& eer_scorer,
     uint32_t global_bar_id,
     int* global_completed) -> ClassificationResult
 {
@@ -100,11 +99,9 @@ auto run_classifier(const ThesisDatasetView& view,
     std::sort(text_train_indices.begin(), text_train_indices.end());
     std::sort(text_test_indices.begin(), text_test_indices.end());
 
-    // Genuine/impostor EER scorer used both for inner-fold model selection and for
-    // reporting. Created once (default when the caller passes none) and shared by
-    // every fold via FoldContext.
-    statistics::GenuineImpostorEERScorer default_scorer;
-    const statistics::IEERScorer& scorer = (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
+    // The caller's EER scorer, used both for inner-fold model selection and for
+    // reporting, shared by every fold via FoldContext.
+    const statistics::IEERScorer& scorer = eer_scorer;
 
     const FoldContext ctx{view,
         feature_vectors,
@@ -128,7 +125,7 @@ auto run_classifier(const ThesisDatasetView& view,
     with_classifier(ctx, [&](auto& model) { result.param_count = count_trainable_params(model); });
 
     if (cfg.training.nested_cv)
-        run_nested_cv(ctx, result, text_test_indices, k);
+        run_nested_cv(ctx, result, text_train_indices, text_test_indices, k);
     else
         run_flat_cv(ctx, result, text_train_indices, text_test_indices, k);
 
@@ -138,11 +135,15 @@ auto run_classifier(const ThesisDatasetView& view,
 
 void compute_aggregate_stats(ClassificationResult& result)
 {
-    if (result.outer_folds.empty()) return;
+    // A result with no folds used to come back with every statistic at its initial
+    // value, as if it had been aggregated.
+    if (result.outer_folds.empty())
+        throw std::logic_error("ThesisClassifiers: \"" + result.feature_set_label +
+                               "\" has no outer folds to aggregate");
 
-    // Collect per-fold values, then aggregate each metric over its non-NaN folds
-    // with sample SD and a t-based 95% CI (audit M-3). Under verification-only
-    // (audit C-1) the closed-set metrics are NaN and aggregate to NaN.
+    // Collect per-fold values, then aggregate each metric with sample SD and a t-based
+    // 95% CI (audit M-3). Under verification-only (audit C-1) the closed-set metrics are
+    // NaN in every fold and aggregate to NaN; any other NaN throws (aggregate_metric).
     std::vector<double> acc, f1, prec, rec, spec, eer, auc;
     acc.reserve(result.outer_folds.size());
     f1.reserve(result.outer_folds.size());
@@ -188,28 +189,33 @@ void compute_aggregate_stats(ClassificationResult& result)
     // Run-cost stats: mean per-fold train/infer wall-clock, and (SNN) the last-epoch
     // firing rate + synaptic-op count of each fold's final model. SOPs are ~constant
     // across folds (same architecture), so the last fold's value is representative.
-    double sum_train = 0.0, sum_infer = 0.0, sum_rate = 0.0;
-    int n_rate = 0;
+    //
+    // Every fold trained, so every fold has a history. The firing rate is NaN in every
+    // fold of a non-spiking classifier (rnn: not applicable) and finite in every fold of
+    // the DSNN; a mix used to be averaged over the folds that had it.
+    double sum_train = 0.0, sum_infer = 0.0;
+    std::vector<double> rates;
+    rates.reserve(result.outer_folds.size());
     for (const auto& f : result.outer_folds)
     {
+        if (f.history.empty())
+            throw std::logic_error("ThesisClassifiers: \"" + result.feature_set_label + "\" fold " +
+                                   std::to_string(f.fold) + " has no training history");
         sum_train += f.train_ms;
         sum_infer += f.infer_ms;
-        if (!f.history.empty())
-        {
-            const auto& last = f.history.back();
-            if (!std::isnan(last.mean_spike_rate))
-            {
-                sum_rate += static_cast<double>(last.mean_spike_rate);
-                ++n_rate;
-            }
-            result.final_sops = last.sops;
-        }
+        const auto& last = f.history.back();
+        rates.push_back(static_cast<double>(last.mean_spike_rate));
+        result.final_sops = last.sops;
     }
     const auto n_folds = static_cast<double>(result.outer_folds.size());
     result.mean_train_ms = sum_train / n_folds;
     result.mean_infer_ms = sum_infer / n_folds;
-    result.mean_spike_rate =
-        n_rate > 0 ? sum_rate / n_rate : std::numeric_limits<double>::quiet_NaN();
+    result.mean_spike_rate = aggregate_metric(rates).mean;
+    // The DSNN records a firing rate every epoch; NaN in every fold would otherwise pass as
+    // "not applicable", which is only true of the non-spiking rnn.
+    if (result.classifier_type == "dsnn" && std::isnan(result.mean_spike_rate))
+        throw std::logic_error("ThesisClassifiers: \"" + result.feature_set_label +
+                               "\" is a dsnn run without a recorded firing rate");
 }
 
 } // namespace thesis

@@ -5,6 +5,7 @@
 #include <limits>
 #include <map>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "paraconsistent/paraconsistent.hpp"
@@ -22,15 +23,40 @@ namespace
 // descriptors (e.g. Teager) outside [0,1], breaking the α domain. Scaling each
 // dimension independently across samples keeps every component in [0,1] and
 // gives each descriptor comparable influence on the range-based metric.
-std::vector<std::vector<double>> min_max_per_dim(const std::vector<std::vector<double>>& vectors)
+//
+// Refused: no vectors, vectors of different lengths (the extra components used to be
+// ignored and the missing ones scaled as 0) and non-finite values (NaN compares false,
+// so it never moved the min/max and came out of the scaling as NaN). A dimension that
+// is constant over all samples carries no information and is scaled to 0 — a property
+// of the data, defined here, not an error.
+std::vector<std::vector<double>> min_max_per_dim(
+    const std::vector<std::vector<double>>& vectors, const std::string& label)
 {
-    if (vectors.empty()) return {};
+    if (vectors.empty())
+        throw std::invalid_argument("ThesisParaconsistent: feature set \"" + label + "\" is empty");
     const size_t dim = vectors[0].size();
+    if (dim == 0)
+        throw std::invalid_argument(
+            "ThesisParaconsistent: feature set \"" + label + "\" has 0-length vectors");
+    for (size_t i = 0; i < vectors.size(); ++i)
+    {
+        if (vectors[i].size() != dim)
+            throw std::invalid_argument("ThesisParaconsistent: feature set \"" + label +
+                                        "\": vector " + std::to_string(i) + " has " +
+                                        std::to_string(vectors[i].size()) +
+                                        " components, vector 0 has " + std::to_string(dim));
+        for (size_t d = 0; d < dim; ++d)
+            if (!std::isfinite(vectors[i][d]))
+                throw std::invalid_argument("ThesisParaconsistent: feature set \"" + label +
+                                            "\": vector " + std::to_string(i) + ", component " +
+                                            std::to_string(d) + " is " +
+                                            std::to_string(vectors[i][d]));
+    }
 
     std::vector<double> mn(dim, std::numeric_limits<double>::max());
     std::vector<double> mx(dim, std::numeric_limits<double>::lowest());
     for (const auto& v : vectors)
-        for (size_t d = 0; d < dim && d < v.size(); ++d)
+        for (size_t d = 0; d < dim; ++d)
         {
             mn[d] = std::min(mn[d], v[d]);
             mx[d] = std::max(mx[d], v[d]);
@@ -38,7 +64,7 @@ std::vector<std::vector<double>> min_max_per_dim(const std::vector<std::vector<d
 
     std::vector<std::vector<double>> scaled(vectors.size(), std::vector<double>(dim, 0.0));
     for (size_t i = 0; i < vectors.size(); ++i)
-        for (size_t d = 0; d < dim && d < vectors[i].size(); ++d)
+        for (size_t d = 0; d < dim; ++d)
         {
             const double range = mx[d] - mn[d];
             scaled[i][d] = (range > 0.0) ? (vectors[i][d] - mn[d]) / range : 0.0;
@@ -54,7 +80,7 @@ auto score_feature_set(const std::vector<ThesisSample>& samples, const FeatureSe
         throw std::invalid_argument("ThesisParaconsistent: empty or mismatched feature set");
 
     // Scale features per-dimension to [0,1] before building class groups.
-    const auto scaled_vectors = min_max_per_dim(fs.vectors);
+    const auto scaled_vectors = min_max_per_dim(fs.vectors, fs.label);
 
     // Build speaker-keyed map: "subject_N" -> [ [feat_vec], ... ]
     std::map<std::string, std::vector<std::vector<double>>> class_map;
@@ -108,7 +134,7 @@ auto rank_feature_sets(const std::vector<ThesisSample>& samples,
     int ranked = 0;
     for (const auto& fs : feature_sets)
     {
-        if (!fs.vectors.empty()) scores.push_back(score_feature_set(samples, fs));
+        scores.push_back(score_feature_set(samples, fs)); // an empty set throws there
         nn::progress::ProgressManager::instance().update_bar(
             rank_bar, static_cast<float>(++ranked));
     }

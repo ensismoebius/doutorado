@@ -204,19 +204,15 @@ inline auto resolve_width_token(
     if (width_token == "branch_hidden") return resolved_branch_hidden_size(cfg);
     if (width_token == "fusion_hidden") return resolved_fusion_hidden_size(cfg);
 
-    try
-    {
-        const int width = std::stoi(width_token);
-        if (width < 1)
-        {
-            throw std::invalid_argument("Layer width token must resolve to a positive integer");
-        }
-        return width;
-    }
-    catch (const std::exception&)
-    {
-        throw std::invalid_argument("Unsupported width token in layer spec: " + width_token);
-    }
+    // The whole token must be digits: std::stoi alone read "32abc" as 32 and "16.5" as 16.
+    if (width_token.empty() || width_token.size() > 9 ||
+        width_token.find_first_not_of("0123456789") != std::string::npos ||
+        std::stoi(width_token) < 1)
+        throw std::invalid_argument(
+            "Unsupported width token in layer spec (not hidden/latent/output/branch_hidden/"
+            "fusion_hidden or a positive integer): " +
+            width_token);
+    return std::stoi(width_token);
 }
 
 } // namespace nn::models::autoencoder

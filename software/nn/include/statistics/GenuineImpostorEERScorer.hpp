@@ -28,15 +28,18 @@ namespace statistics
  * 4. Sort all trials by score; sweep threshold (descending) to build FAR/FRR
  *    curve; linearly interpolate the crossing point → EER.
  *
- * Returns NaN when no valid trials exist (e.g. every speaker has too few samples).
+ * Throws std::invalid_argument when the set cannot be scored: a speaker with
+ * n_enroll_per_speaker or fewer samples (no probe), fewer than two speakers (no
+ * impostor), or a zero / non-finite embedding (no cosine). It used to return NaN,
+ * or leave the short speaker out of the trials.
  *
  * @param n_enroll_per_speaker Utterances used per speaker as the enrollment
- *        template (default 1).  Increase for more stable templates.
+ *        template; required, at least 1.
  */
 class GenuineImpostorEERScorer : public IEERScorer
 {
    public:
-    explicit GenuineImpostorEERScorer(std::size_t n_enroll_per_speaker = 1U);
+    explicit GenuineImpostorEERScorer(std::size_t n_enroll_per_speaker);
 
     [[nodiscard]] auto compute_eer(const std::vector<std::vector<float>>& embeddings,
         const std::vector<int>& labels,
@@ -45,8 +48,7 @@ class GenuineImpostorEERScorer : public IEERScorer
     /**
      * @brief AUC via Wilcoxon-Mann-Whitney: P(genuine_score > impostor_score).
      *
-     * Ties contribute 0.5.  Returns NaN when fewer than 2 speakers have valid
-     * templates (same degeneracy condition as compute_eer).
+     * Ties contribute 0.5.  Throws on the same unscorable sets as compute_eer.
      */
     [[nodiscard]] auto compute_auc(const std::vector<std::vector<float>>& embeddings,
         const std::vector<int>& labels,

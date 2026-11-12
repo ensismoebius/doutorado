@@ -1,6 +1,7 @@
 #include "ThesisFeatureExtraction.hpp"
 
 #include <cstdint>
+#include <exception>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -64,24 +65,57 @@ FeatureSet extract_handcrafted_feature_set(const ThesisDatasetView& view,
 
     fs.vectors.resize(static_cast<size_t>(n_samples));
     long feat_done = 0;
+    // An exception may not leave an OpenMP region (it would std::terminate the run);
+    // the first one is kept, with the sample it came from, and rethrown after the loop.
+    std::exception_ptr first_error;
+    long first_error_sample = -1;
 
 #pragma omp parallel for schedule(dynamic, 4) shared(feat_done)
     for (long i = 0; i < n_samples; ++i)
     {
-        const auto& sample = view.samples[static_cast<size_t>(i)];
-        std::vector<double> sig = get_signal(sample);
+        try
+        {
+            const auto& sample = view.samples[static_cast<size_t>(i)];
+            std::vector<double> sig = get_signal(sample);
+            if (sig.empty()) throw std::runtime_error("ThesisFeatureExtraction: empty signal");
 
-        // Zero-pad to next power of two for DTWPT.
-        size_t n = 1;
-        while (n < sig.size()) n <<= 1;
-        sig.resize(n, 0.0);
+            // Zero-pad to next power of two for DTWPT.
+            size_t n = 1;
+            while (n < sig.size()) n <<= 1;
+            sig.resize(n, 0.0);
 
-        fs.vectors[static_cast<size_t>(i)] = extract_handcrafted(sig, cfg.handcrafted, sample_rate);
+            fs.vectors[static_cast<size_t>(i)] =
+                extract_handcrafted(sig, cfg.handcrafted, sample_rate);
+        }
+        catch (...)
+        {
+#pragma omp critical(thesis_handcrafted_error)
+            if (!first_error || i < first_error_sample)
+            {
+                first_error = std::current_exception();
+                first_error_sample = i;
+            }
+        }
 
         long done = 0;
 #pragma omp atomic capture
         done = ++feat_done;
         nn::progress::ProgressManager::instance().update_bar(feat_bar, static_cast<float>(done));
+    }
+    if (first_error)
+    {
+        const auto& sample = view.samples[static_cast<size_t>(first_error_sample)];
+        try
+        {
+            std::rethrow_exception(first_error);
+        }
+        catch (const std::exception& e)
+        {
+            throw std::runtime_error("ThesisFeatureExtraction: " + fs.label + ", sample " +
+                                     std::to_string(first_error_sample) + " (subject " +
+                                     std::to_string(sample.subject_id) + ", stimulus " +
+                                     std::to_string(sample.stimulus) + "): " + e.what());
+        }
     }
     nn::progress::ProgressManager::instance().complete_bar(feat_bar);
     return fs;
@@ -99,11 +133,17 @@ std::pair<std::vector<std::vector<double>>, size_t> collect_raw_signals(
     for (const auto& sample : view.samples)
     {
         std::vector<double> sig = get_signal(sample);
+        // One empty signal used to pass as long as another was not: it then went through
+        // pooling and normalisation as if it held data.
+        if (sig.empty())
+            throw std::runtime_error("ThesisFeatureExtraction: subject " +
+                                     std::to_string(sample.subject_id) + ", stimulus " +
+                                     std::to_string(sample.stimulus) + " has an empty signal");
         max_len = std::max(max_len, sig.size());
         raw_signals.push_back(std::move(sig));
     }
     if (max_len == 0)
-        throw std::runtime_error("ThesisFeatureExtraction: no valid raw signals for autoencoder");
+        throw std::runtime_error("ThesisFeatureExtraction: no samples for the autoencoder");
 
     return {std::move(raw_signals), max_len};
 }
@@ -187,8 +227,8 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
     const ThesisConfig::Training& training,
     const std::string& label_suffix)
 {
-    const int frame_len =
-        std::max<int>(1, static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
+    // max_len >= 1 (collect_raw_signals refuses empty signals), so frame_len >= 1.
+    const int frame_len = static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames);
     const int T_frames = kAeMaxFrames;
     const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
 
@@ -206,7 +246,13 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
     ae_cfg.seq_len = T_frames;
     ae_cfg.hidden_size = first_encoder_dim(spec);
     ae_cfg.latent_size = last_encoder_dim(spec);
-    ae_cfg.num_layers = std::max<int>(1, static_cast<int>(spec.size() / 2));
+    // One LSTM layer per two encoder items; a 1-item spec used to be clamped to 1 layer.
+    if (spec.size() < 2)
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: lstm-ae needs at least 2 encoder_layer_spec items (one "
+            "LSTM layer per two), got " +
+            std::to_string(spec.size()));
+    ae_cfg.num_layers = static_cast<int>(spec.size() / 2);
 
     nn::models::lstm::LSTMAutoencoder model(ae_cfg);
 

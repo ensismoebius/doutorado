@@ -19,7 +19,6 @@
       "wavelet": "haar",
       "cepstral": true,
       "descriptors": [
-        "energy",
         "zcr",
         "entropy",
         "teager",

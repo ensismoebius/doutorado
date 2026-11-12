@@ -34,9 +34,12 @@ namespace
 //
 // The cache stores the FULL set (before max_samples truncation), so one file
 // serves every max_samples value; truncation is always applied after loading.
-// Set THESIS_NO_DATASET_CACHE=1 to bypass entirely. Any mismatch/read error falls
-// back to a normal decode, so a stale or truncated cache is never fatal.
-constexpr char kCacheMagic[8] = {'E', '0', '5', 'D', 'S', 'C', '\0', '\1'}; // last byte = version
+// Set THESIS_NO_DATASET_CACHE=1 to bypass entirely. A missing cache, another cache
+// format version or another source signature is a cache miss: the source is decoded and
+// the cache rewritten. A cache whose header matches but whose body cannot be read is
+// corrupt and throws (it used to be decoded around in silence), as does a failed write.
+// Version 2 (2026-11-12): text phrases come from the dataset's stimulus table.
+constexpr char kCacheMagic[8] = {'E', '0', '5', 'D', 'S', 'C', '\0', '\2'}; // last byte = version
 
 bool cache_disabled()
 {
@@ -146,11 +149,18 @@ bool try_load_cache(const std::string& path, std::uint64_t signature, ThesisData
     std::uint64_t sig = 0;
     if (!read_pod(is, sig) || sig != signature) return false;
 
+    // Header matches this source: from here on a short read is a corrupt cache.
+    const auto corrupt = [&path]()
+    {
+        return std::runtime_error("ThesisDataset: the decoded-dataset cache " + path +
+                                  " matches this source but its body is unreadable; "
+                                  "delete it to rebuild");
+    };
     std::int32_t n_subjects = 0;
     std::int32_t n_stimuli = 0;
     std::uint64_t n_samples = 0;
     if (!read_pod(is, n_subjects) || !read_pod(is, n_stimuli) || !read_pod(is, n_samples))
-        return false;
+        throw corrupt();
 
     ThesisDatasetView loaded;
     loaded.n_subjects = n_subjects;
@@ -161,12 +171,12 @@ bool try_load_cache(const std::string& path, std::uint64_t signature, ThesisData
         ThesisSample s;
         if (!read_pod(is, s.stimulus) || !read_pod(is, s.subject_id) ||
             !read_string(is, s.text_phrase) || !read_tensor(is, s.audio) || !read_tensor(is, s.eeg))
-            return false;
+            throw corrupt();
         loaded.samples.push_back(std::move(s));
     }
 
     std::uint64_t n_files = 0;
-    if (!read_pod(is, n_files)) return false;
+    if (!read_pod(is, n_files)) throw corrupt();
     loaded.subject_files.reserve(n_files);
     for (std::uint64_t i = 0; i < n_files; ++i)
     {
@@ -176,7 +186,7 @@ bool try_load_cache(const std::string& path, std::uint64_t signature, ThesisData
         if (!read_pod(is, sf.subject_id) || !read_string(is, sf.subject_name) ||
             !read_string(is, sf.eeg_path) || !read_string(is, sf.audio_path) ||
             !read_pod(is, eeg_rows) || !read_pod(is, audio_rows))
-            return false;
+            throw corrupt();
         sf.eeg_rows = static_cast<std::size_t>(eeg_rows);
         sf.audio_rows = static_cast<std::size_t>(audio_rows);
         loaded.subject_files.push_back(std::move(sf));
@@ -197,7 +207,8 @@ void write_cache(const std::string& path, std::uint64_t signature, const ThesisD
     const std::string tmp = path + ".tmp." + std::to_string(::getpid());
     {
         std::ofstream os(tmp, std::ios::binary | std::ios::trunc);
-        if (!os) return;
+        if (!os)
+            throw std::runtime_error("ThesisDataset: cannot open " + tmp + " to write the cache");
         os.write(kCacheMagic, sizeof(kCacheMagic));
         write_pod(os, signature);
         write_pod(os, static_cast<std::int32_t>(view.n_subjects));
@@ -221,38 +232,44 @@ void write_cache(const std::string& path, std::uint64_t signature, const ThesisD
             write_pod(os, static_cast<std::uint64_t>(sf.eeg_rows));
             write_pod(os, static_cast<std::uint64_t>(sf.audio_rows));
         }
-        if (!os) return; // write failed — leave no cache rather than a bad one
+        if (!os)
+        {
+            os.close();
+            std::error_code rm_ec;
+            std::filesystem::remove(tmp, rm_ec);
+            throw std::runtime_error("ThesisDataset: writing the cache " + tmp + " failed");
+        }
     }
     std::error_code ec;
     std::filesystem::rename(tmp, path, ec);
-    if (ec) std::filesystem::remove(tmp, ec);
+    if (ec)
+    {
+        std::error_code rm_ec;
+        std::filesystem::remove(tmp, rm_ec);
+        throw std::runtime_error(
+            "ThesisDataset: cannot move the cache into place at " + path + ": " + ec.message());
+    }
 }
 
-// Stimulus → text phrase mapping for the 10.1117 dataset.
-// Stimuli 1-5: vowels /a/ /e/ /i/ /o/ /u/
-// Stimuli 6-10: directional words
-static const std::vector<std::string> kStimulToPhrase = {"", // index 0 unused
-    "a",
-    "e",
-    "i",
-    "o",
-    "u",
-    "arriba",
-    "abajo",
-    "izquierda",
-    "derecha",
-    "adelante"};
-
-std::string stimulus_to_phrase(int stim)
+// Stimulus id → text phrase, from the dataset's own `stimulus` table (the one
+// trial.stimulus_id references): 11 stimuli, the vowels A E I O U and the words Abajo,
+// Adelante, Arriba, Atras, Derecha, Izquierda, numbered alphabetically. Until 2026-11-12
+// this was a hard-coded table of 10 stimuli in another order (1-5 vowels, 6-10 words, no
+// "atras"), so most phrases carried the wrong name and stimulus 11 became "unknown". The
+// text split only needs the 11 groups to be distinct, which they were; the names were not.
+std::string stimulus_to_phrase(const std::map<int, std::string>& names, int stim)
 {
-    if (stim >= 1 && stim < static_cast<int>(kStimulToPhrase.size()))
-        return kStimulToPhrase[static_cast<size_t>(stim)];
-    return "unknown";
+    const auto it = names.find(stim);
+    if (it == names.end())
+        throw std::runtime_error("ThesisDataset: stimulus " + std::to_string(stim) +
+                                 " is not in the dataset's stimulus table");
+    return it->second;
 }
 
 // Full decode from source .mat files, ignoring max_samples (applied by the
 // caller). Returns the complete decoded set — the unit the cache stores.
-auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> ThesisDatasetView
+auto decode_full_dataset(const std::vector<SubjectFiles>& subjects,
+    const std::map<int, std::string>& stimulus_names) -> ThesisDatasetView
 {
     ThesisDatasetView view;
     view.subject_files = subjects;
@@ -270,19 +287,25 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> ThesisDat
 
     // Always load paired audio+EEG so every modality run operates on the
     // same set of trials. The modality field controls feature extraction, not
-    // which samples are included. Samples where either audio or EEG data is
-    // absent are dropped to guarantee comparability across modality runs.
+    // which samples are included. A subject missing either modality, or with an
+    // empty one, is refused: it used to be dropped without a word, so a run could
+    // hold fewer speakers than the dataset and nothing in its output said so.
     for (const auto& sf : subjects)
     {
         if (sf.audio_path.empty() || sf.eeg_path.empty())
-            continue; // skip subjects missing either modality
+            throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
+                                     " (" + sf.subject_name + ") has no " +
+                                     (sf.audio_path.empty() ? "audio" : "EEG") + " file");
 
         nn::dataLoaders::AudioSession audio_session(sf.audio_path, sf.subject_id);
         nn::dataLoaders::EEGSession eeg_session(sf.eeg_path, sf.subject_id);
 
         const size_t n_audio = audio_session.rowCount();
         const size_t n_eeg = eeg_session.rowCount();
-        if (n_audio == 0 || n_eeg == 0) continue;
+        if (n_audio == 0 || n_eeg == 0)
+            throw std::runtime_error("ThesisDataset: subject " + std::to_string(sf.subject_id) +
+                                     " has " + std::to_string(n_audio) + " audio and " +
+                                     std::to_string(n_eeg) + " EEG rows");
 
         int paired = 0;
         for (size_t row = 0; row < n_audio; ++row)
@@ -310,7 +333,7 @@ auto decode_full_dataset(const std::vector<SubjectFiles>& subjects) -> ThesisDat
             sample.eeg = std::move(eeg_tensor);
             sample.stimulus = stimulus;
             sample.subject_id = sf.subject_id;
-            sample.text_phrase = stimulus_to_phrase(stimulus);
+            sample.text_phrase = stimulus_to_phrase(stimulus_names, stimulus);
             stimuli_seen.insert(stimulus);
             view.samples.push_back(std::move(sample));
             ++paired;
@@ -395,7 +418,7 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     }
     else
     {
-        view = decode_full_dataset(subjects);
+        view = decode_full_dataset(subjects, discoverStimulusNames(root));
         if (view.samples.empty())
             throw std::runtime_error(
                 "ThesisDataset: no paired audio+EEG samples found. "

@@ -16,10 +16,23 @@ namespace thesis
 {
 
 // ─── scalar descriptors ────────────────────────────────────────────────────
+//
+// Each descriptor is defined only on enough of a band: ZCR on 2+ samples, Teager on 3+,
+// spectral entropy on a band that is not all zeros, jitter/shimmer on 3+ positive peaks
+// with a nonzero mean period/amplitude. Outside that they used to return 0 — and jitter
+// and shimmer NaN, then turned into 0 by the caller — a value no different from a real
+// measurement of 0. They throw now; the caller names the sample and band.
+
+[[noreturn]] void undefined_descriptor(const char* name, const std::string& why)
+{
+    throw std::domain_error(
+        std::string("ThesisHandcraftedFeatures: ") + name + " is undefined for this band: " + why);
+}
 
 auto compute_zcr(const std::vector<double>& signal) -> double
 {
-    if (signal.size() < 2) return 0.0;
+    if (signal.size() < 2)
+        undefined_descriptor("zcr", std::to_string(signal.size()) + " sample(s), needs 2");
     int crossings = 0;
     for (size_t i = 1; i < signal.size(); ++i)
     {
@@ -30,10 +43,10 @@ auto compute_zcr(const std::vector<double>& signal) -> double
 
 auto compute_entropy(const std::vector<double>& signal) -> double
 {
-    if (signal.empty()) return 0.0;
+    if (signal.empty()) undefined_descriptor("entropy", "empty band");
     double total = 0.0;
     for (double v : signal) total += std::abs(v);
-    if (total == 0.0) return 0.0;
+    if (total == 0.0) undefined_descriptor("entropy", "every sample is 0");
 
     double ent = 0.0;
     for (double v : signal)
@@ -46,7 +59,8 @@ auto compute_entropy(const std::vector<double>& signal) -> double
 
 auto compute_teager(const std::vector<double>& signal) -> double
 {
-    if (signal.size() < 3) return 0.0;
+    if (signal.size() < 3)
+        undefined_descriptor("teager", std::to_string(signal.size()) + " sample(s), needs 3");
     double sum = 0.0;
     for (size_t i = 1; i + 1 < signal.size(); ++i)
         sum += signal[i] * signal[i] - signal[i - 1] * signal[i + 1];
@@ -68,7 +82,8 @@ auto compute_jitter(const std::vector<double>& signal, double sample_rate) -> do
         if (signal[i] > signal[i - 1] && signal[i] >= signal[i + 1] && signal[i] > 0.0)
             peaks.push_back(i);
     }
-    if (peaks.size() < 3) return std::numeric_limits<double>::quiet_NaN();
+    if (peaks.size() < 3)
+        undefined_descriptor("jitter", std::to_string(peaks.size()) + " positive peak(s), needs 3");
 
     double period_sum = 0.0;
     double diff_sum = 0.0;
@@ -83,7 +98,7 @@ auto compute_jitter(const std::vector<double>& signal, double sample_rate) -> do
         }
     }
     double mean_T = period_sum / static_cast<double>(peaks.size() - 1);
-    if (mean_T == 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (mean_T == 0.0) undefined_descriptor("jitter", "mean period is 0");
     return diff_sum / (static_cast<double>(peaks.size() - 2) * mean_T);
 }
 
@@ -95,7 +110,9 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
         if (signal[i] > signal[i - 1] && signal[i] >= signal[i + 1] && signal[i] > 0.0)
             peaks.push_back(i);
     }
-    if (peaks.size() < 3) return std::numeric_limits<double>::quiet_NaN();
+    if (peaks.size() < 3)
+        undefined_descriptor(
+            "shimmer", std::to_string(peaks.size()) + " positive peak(s), needs 3");
 
     double amp_sum = 0.0;
     double diff_sum = 0.0;
@@ -105,7 +122,7 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
         if (k > 0) diff_sum += std::abs(signal[peaks[k]] - signal[peaks[k - 1]]);
     }
     double mean_A = amp_sum / static_cast<double>(peaks.size());
-    if (mean_A == 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (mean_A == 0.0) undefined_descriptor("shimmer", "mean peak amplitude is 0");
     return diff_sum / (static_cast<double>(peaks.size() - 1) * mean_A);
 }
 
@@ -294,16 +311,8 @@ auto extract_handcrafted(const std::vector<double>& signal,
         if (want_zcr) features.push_back(compute_zcr(group));
         if (want_entropy) features.push_back(compute_entropy(group));
         if (want_teager) features.push_back(compute_teager(group));
-        if (want_jitter)
-        {
-            double j = compute_jitter(group, sample_rate);
-            features.push_back(std::isnan(j) ? 0.0 : j);
-        }
-        if (want_shimmer)
-        {
-            double s = compute_shimmer(group, sample_rate);
-            features.push_back(std::isnan(s) ? 0.0 : s);
-        }
+        if (want_jitter) features.push_back(compute_jitter(group, sample_rate));
+        if (want_shimmer) features.push_back(compute_shimmer(group, sample_rate));
     }
 
     return features;

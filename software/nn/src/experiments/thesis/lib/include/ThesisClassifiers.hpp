@@ -16,13 +16,13 @@ namespace thesis
 
 // Train and evaluate the configured classifier using nested k-fold CV.
 // feature_vectors: one vector per sample (aligned with view.samples).
-// eer_scorer:      pluggable EER strategy; nullptr → GenuineImpostorEERScorer (SOTA default).
+// eer_scorer:      the EER/AUC strategy, required (there is no default scorer).
 // global_bar_id / global_completed: optional ProgressManager bar updated after each outer fold.
 auto run_classifier(const ThesisDatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
     const ThesisConfig& cfg,
-    const statistics::IEERScorer* eer_scorer = nullptr,
+    const statistics::IEERScorer& eer_scorer,
     uint32_t global_bar_id = 0,
     int* global_completed = nullptr) -> ClassificationResult;
 

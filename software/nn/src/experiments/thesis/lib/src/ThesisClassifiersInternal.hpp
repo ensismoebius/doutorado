@@ -20,10 +20,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 
 #include "Backend.hpp"
+#include "IndexIntersection.hpp"
 #include "ThesisClassifiers.hpp"
 #include "ThesisDsnnClassifier.hpp"
 #include "core/training/Trainer.hpp"
@@ -43,15 +45,6 @@ namespace thesis
 
 namespace
 {
-
-static auto intersect_indices(const std::vector<size_t>& a, const std::vector<size_t>& b)
-    -> std::vector<size_t>
-{
-    std::vector<size_t> out;
-    out.reserve(std::min(a.size(), b.size()));
-    std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), std::back_inserter(out));
-    return out;
-}
 
 static auto make_pairs_from_indices(
     const nn::Tensor& inputs, const nn::Tensor& targets, const std::vector<size_t>& indices)
@@ -82,9 +75,11 @@ EvalMetrics evaluate(ModelType& model,
     const std::vector<std::vector<double>>& inputs,
     const std::vector<int>& labels,
     int n_classes,
-    const statistics::IEERScorer& eer_scorer)
+    const statistics::IEERScorer& eer_scorer,
+    const std::string& where)
 {
-    if (inputs.empty()) return {};
+    if (inputs.empty())
+        throw std::logic_error("ThesisClassifiers: " + where + " has no evaluation rows");
 
     const auto N = static_cast<nn::Index>(inputs.size());
     const auto D = static_cast<nn::Index>(inputs[0].size());
@@ -122,18 +117,32 @@ EvalMetrics evaluate(ModelType& model,
     m.recall = kNaN;
     m.specificity = kNaN;
     m.f1 = kNaN;
-    m.eer = eer_scorer.compute_eer(embeddings, labels, n_classes);
-    m.auc = eer_scorer.compute_auc(embeddings, labels, n_classes);
+    // The scorers refuse a set they cannot score (a speaker without probes, fewer than two
+    // enrolled speakers), so a NaN here is not an expected outcome.
+    try
+    {
+        m.eer = eer_scorer.compute_eer(embeddings, labels, n_classes);
+        m.auc = eer_scorer.compute_auc(embeddings, labels, n_classes);
+    }
+    catch (const std::exception& e)
+    {
+        const std::set<int> speakers(labels.begin(), labels.end());
+        throw std::runtime_error("ThesisClassifiers: " + where + " (" + std::to_string(N) +
+                                 " samples, " + std::to_string(speakers.size()) +
+                                 " speakers) cannot be scored: " + e.what());
+    }
+    if (!std::isfinite(m.eer) || !std::isfinite(m.auc))
+        throw std::logic_error("ThesisClassifiers: " + where +
+                               ": EER/AUC came out non-finite (EER " + std::to_string(m.eer) +
+                               ", AUC " + std::to_string(m.auc) + ")");
     return m;
 }
 
-// Verification-only model-selection score: higher is better. Prefers AUC; falls
-// back to (1 - EER) when AUC is unavailable; -inf when neither is defined.
+// Verification-only model-selection score: higher is better. The AUC, which evaluate()
+// guarantees is finite; there is no second-choice score.
 inline double selection_score(const EvalMetrics& m)
 {
-    if (!std::isnan(m.auc)) return m.auc;
-    if (!std::isnan(m.eer)) return 1.0 - m.eer;
-    return -std::numeric_limits<double>::infinity();
+    return m.auc;
 }
 
 // Two-sided t critical value at 95% confidence (t_{0.975, df}). Small lookup
@@ -171,46 +180,51 @@ inline double t_crit_95(int df)
         2.048,
         2.045,
         2.042};
-    if (df < 1) return 1.96;
-    if (df <= 30) return kTable[df - 1];
-    return 1.96;
+    // Outside the table there is no value to give: 1.96 (the normal quantile) is what this
+    // used to return, which understates the interval at df 31-120 and is meaningless at df 0.
+    if (df < 1 || df > 30)
+        throw std::invalid_argument("ThesisClassifiers: no t_{0.975} for df " + std::to_string(df) +
+                                    " (table covers 1..30, i.e. 2..31 folds); extend kTable");
+    return kTable[df - 1];
 }
 
 // Aggregate one metric across folds: mean, sample SD (÷(count-1)) and 95% CI
-// (t_{0.975,count-1}·SD/√count) over the non-NaN fold values. NaN metrics
-// (e.g. closed-set accuracy under verification-only) yield NaN mean and 0 spread.
+// (t_{0.975,count-1}·SD/√count).
+//
+// A metric is either measured in every fold or in none. "None" is the closed-set
+// metrics under verification-only (audit C-1): NaN in every fold by design, so mean, SD
+// and CI are all NaN (not applicable), never a spread of 0. A metric missing in SOME
+// folds used to be averaged over the folds that had it, which silently changes what
+// the mean is over; it is refused, as is a single fold (no SD exists for it).
 struct MetricAgg
 {
     double mean = std::numeric_limits<double>::quiet_NaN();
-    double std = 0.0;
-    double ci95 = 0.0;
+    double std = std::numeric_limits<double>::quiet_NaN();
+    double ci95 = std::numeric_limits<double>::quiet_NaN();
 };
 
 inline MetricAgg aggregate_metric(const std::vector<double>& values)
 {
-    double sum = 0.0;
-    int count = 0;
-    for (double v : values)
-        if (!std::isnan(v))
-        {
-            sum += v;
-            ++count;
-        }
-
+    const auto n_nan =
+        std::count_if(values.begin(), values.end(), [](double v) { return std::isnan(v); });
     MetricAgg a;
-    if (count == 0) return a; // mean stays NaN, spread 0
-    a.mean = sum / count;
+    if (!values.empty() && static_cast<size_t>(n_nan) == values.size()) return a; // not applicable
+    if (n_nan != 0)
+        throw std::logic_error("ThesisClassifiers: a metric is NaN in " + std::to_string(n_nan) +
+                               " of " + std::to_string(values.size()) +
+                               " folds; it must be measured in every fold or in none");
+    if (values.size() < 2)
+        throw std::logic_error("ThesisClassifiers: " + std::to_string(values.size()) +
+                               " fold(s) to aggregate; SD and CI need at least 2");
 
-    if (count < 2) return a; // SD/CI undefined for a single value → 0
+    const auto count = static_cast<double>(values.size());
+    double sum = 0.0;
+    for (double v : values) sum += v;
+    a.mean = sum / count;
     double var = 0.0;
-    for (double v : values)
-        if (!std::isnan(v))
-        {
-            const double d = v - a.mean;
-            var += d * d;
-        }
-    a.std = std::sqrt(var / (count - 1));
-    a.ci95 = t_crit_95(count - 1) * a.std / std::sqrt(static_cast<double>(count));
+    for (double v : values) var += (v - a.mean) * (v - a.mean);
+    a.std = std::sqrt(var / (count - 1.0));
+    a.ci95 = t_crit_95(static_cast<int>(values.size()) - 1) * a.std / std::sqrt(count);
     return a;
 }
 
@@ -220,45 +234,41 @@ struct ClassifierShape
     int depth;
 };
 
-// Hidden width and residual depth from layer_spec, e.g.
-//   ["linear:128:relu", "residual:2", "linear:N_speakers:identity"]  ->  {128, 2}
-// hidden_dim = the width of the first linear item; depth = the residual item's count.
-// Both must be positive integers and each must appear: an unreadable spec used to become
-// {128, 2} — a network the profile never described.
+// Hidden width and residual depth from layer_spec, which must be exactly
+//   ["linear:<H>:relu", "residual:<D>", "linear:N_speakers:identity"]  ->  {H, D}
+// — the one network both classifiers build (SimpleResNet: Linear -> ReLU -> D residual
+// blocks -> Linear to the speakers; the DSNN puts LIF where the ReLU is). Anything else
+// is refused: an unreadable spec used to become {128, 2}, and items the code does not
+// build (a second hidden layer, another activation) used to be passed over in silence.
 ClassifierShape parse_layer_spec(const std::vector<std::string>& spec)
 {
-    const auto positive_int = [](const std::string& token, const std::string& item)
+    const auto refuse = [&](const std::string& why)
     {
-        if (token.empty() || token.find_first_not_of("0123456789") != std::string::npos ||
-            std::stoi(token) < 1)
-            throw std::invalid_argument("ThesisClassifiers: classifier.layer_spec item \"" + item +
-                                        "\" needs a positive integer, got \"" + token + "\"");
+        std::string got;
+        for (const auto& s : spec) got += (got.empty() ? "\"" : ", \"") + s + "\"";
+        return std::invalid_argument("ThesisClassifiers: classifier.layer_spec [" + got + "] " +
+                                     why +
+                                     "; it must be [\"linear:<H>:relu\", \"residual:<D>\", "
+                                     "\"linear:N_speakers:identity\"] with H, D positive integers");
+    };
+    const auto positive_int = [&](const std::string& token)
+    {
+        if (token.empty() || token.size() > 9 ||
+            token.find_first_not_of("0123456789") != std::string::npos || std::stoi(token) < 1)
+            throw refuse("has \"" + token + "\" where a positive integer belongs");
         return std::stoi(token);
     };
 
-    std::optional<int> hidden_dim;
-    std::optional<int> depth;
-    for (const auto& s : spec)
-    {
-        if (s.rfind("linear:", 0) == 0 && !hidden_dim)
-        {
-            // linear:H:activation — the first linear item is the hidden width.
-            const auto p1 = s.find(':', 7);
-            hidden_dim = positive_int(s.substr(7, p1 == std::string::npos ? p1 : p1 - 7), s);
-        }
-        else if (s.rfind("residual:", 0) == 0)
-        {
-            if (depth)
-                throw std::invalid_argument(
-                    "ThesisClassifiers: classifier.layer_spec has more than one residual: item");
-            depth = positive_int(s.substr(9), s);
-        }
-    }
-    if (!hidden_dim || !depth)
-        throw std::invalid_argument(
-            "ThesisClassifiers: classifier.layer_spec must contain linear:<H>:<act> and "
-            "residual:<D>");
-    return {*hidden_dim, *depth};
+    if (spec.size() != 3) throw refuse("has " + std::to_string(spec.size()) + " items, not 3");
+    const std::string& hidden = spec[0];
+    const auto colon = hidden.find(':', 7);
+    if (hidden.rfind("linear:", 0) != 0 || colon == std::string::npos ||
+        hidden.substr(colon + 1) != "relu")
+        throw refuse("does not start with linear:<H>:relu");
+    if (spec[1].rfind("residual:", 0) != 0) throw refuse("has no residual:<D> second item");
+    if (spec[2] != "linear:N_speakers:identity")
+        throw refuse("does not end with linear:N_speakers:identity");
+    return {positive_int(hidden.substr(7, colon - 7)), positive_int(spec[1].substr(9))};
 }
 
 // Updates the global progress bar at each epoch end so the bar advances
@@ -449,11 +459,10 @@ FeatureScaler fit_scaler(const nn::Tensor& X, const std::vector<size_t>& idx)
 {
     const auto D = static_cast<size_t>(X.cols());
     FeatureScaler s{std::vector<double>(D, 0.0), std::vector<double>(D, 0.0)};
+    // No training rows used to yield the identity scaler: the fold then trained on
+    // unstandardized features while its profile declared standardize_features = true.
     if (idx.empty())
-    {
-        std::fill(s.inv_std.begin(), s.inv_std.end(), 1.0);
-        return s;
-    }
+        throw std::logic_error("ThesisClassifiers: cannot fit the feature scaler on 0 rows");
     for (size_t i : idx)
         for (size_t j = 0; j < D; ++j)
             s.mean[j] += X.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j));
@@ -558,7 +567,13 @@ std::vector<InnerCandidate> train_inner_candidates(const FoldContext& ctx,
             const auto inner_train =
                 intersect_indices(inner_ref.train_indices, outer_train_indices);
             const auto inner_val = intersect_indices(inner_ref.test_indices, outer_train_indices);
-            if (inner_train.empty() || inner_val.empty()) continue;
+            // An empty inner fold used to be skipped, so model selection ran on fewer
+            // candidates than the k_folds the profile declared, and nothing said so.
+            if (inner_train.empty() || inner_val.empty())
+                throw std::runtime_error(
+                    "ThesisClassifiers: outer fold " + std::to_string(outer_idx) + ", inner fold " +
+                    std::to_string(ii) + " has " + std::to_string(inner_train.size()) +
+                    " train and " + std::to_string(inner_val.size()) + " validation rows");
 
             const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_train);
             const auto val_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_val);
@@ -576,8 +591,13 @@ std::vector<InnerCandidate> train_inner_candidates(const FoldContext& ctx,
                         outer_idx,
                         total_outer,
                         ctx.cfg.training.early_stop_patience);
-                    const EvalMetrics m =
-                        evaluate(model, val_feats, val_labels, ctx.n_speakers, ctx.scorer);
+                    const EvalMetrics m = evaluate(model,
+                        val_feats,
+                        val_labels,
+                        ctx.n_speakers,
+                        ctx.scorer,
+                        "outer fold " + std::to_string(outer_idx) + ", inner validation fold " +
+                            std::to_string(ii));
                     auto& cand = candidates[static_cast<size_t>(ii)];
                     cand.score = selection_score(m);
                     cand.state = model.state_dict();
@@ -597,45 +617,68 @@ std::vector<InnerCandidate> train_inner_candidates(const FoldContext& ctx,
 }
 
 // Reduces the per-inner-fold candidates to the single best (highest validation score),
-// first-wins on ties, matching the original serial-loop selection order.
-const InnerCandidate* select_best_candidate(const std::vector<InnerCandidate>& candidates)
+// first-wins on ties, matching the original serial-loop selection order. Every inner
+// fold either trains a candidate or throws (train_inner_candidates), so an untrained
+// one here is a bug, not a fold to pass over.
+const InnerCandidate& select_best_candidate(const std::vector<InnerCandidate>& candidates)
 {
+    if (candidates.empty())
+        throw std::logic_error("ThesisClassifiers: no inner-CV candidates to select from");
     double best_val_score = -std::numeric_limits<double>::infinity();
     const InnerCandidate* best_cand = nullptr;
     for (const auto& cand : candidates)
     {
-        if (!cand.valid) continue;
+        if (!cand.valid)
+            throw std::logic_error("ThesisClassifiers: an inner-CV candidate was never trained");
         if (best_cand == nullptr || cand.score > best_val_score)
         {
             best_val_score = cand.score;
             best_cand = &cand;
         }
     }
-    return best_cand;
+    return *best_cand;
+}
+
+// A fold with no train or no test rows used to be skipped without a word, so a run could
+// report fewer folds than its profile's k_folds and still look complete.
+void require_fold_rows(const char* cv, size_t outer_idx, size_t n_train, size_t n_test)
+{
+    if (n_train == 0 || n_test == 0)
+        throw std::runtime_error(std::string("ThesisClassifiers: ") + cv + " outer fold " +
+                                 std::to_string(outer_idx) + " has " + std::to_string(n_train) +
+                                 " train and " + std::to_string(n_test) +
+                                 " test rows after the text split");
 }
 
 // Processes a single outer fold: trains the inner-CV candidates, selects the best by
 // validation score, then scores it once on the held-out outer test fold, appending the
-// resulting FoldResult to `result.outer_folds`. Silently skips this fold (same as the
-// original serial loop) when it has no outer-train/test rows, or no inner candidate
-// trained successfully.
+// resulting FoldResult to `result.outer_folds`. A fold without train or test rows throws.
 void run_one_outer_fold(const FoldContext& ctx,
     ClassificationResult& result,
+    const std::vector<size_t>& text_train_indices,
     const std::vector<size_t>& text_test_indices,
     const statistics::NestedFoldSplit& outer,
     size_t outer_idx,
     int total_outer)
 {
-    // Outer-train = every sample not held out as outer test.
-    std::vector<size_t> outer_train_indices;
-    outer_train_indices.reserve(ctx.view.samples.size() - outer.test_indices.size());
+    // Outer-train = every sample not held out as outer test, AND in the text-split train
+    // set — the same rule as flat CV. Until 2026-11-12 the nested path skipped the text
+    // filter, so under text_mode=independent its models trained on the very phrases the
+    // test set holds out (pitfall: train and test must use disjoint phrase sets), and the
+    // nested and flat columns of the Phase 01 grid did not mean the same condition.
+    // A mask, not a binary search: the latter would silently depend on the policy
+    // returning the test bucket sorted.
+    std::vector<bool> in_outer_test(ctx.view.samples.size(), false);
+    for (size_t i : outer.test_indices) in_outer_test.at(i) = true;
+    std::vector<size_t> not_outer_test;
+    not_outer_test.reserve(ctx.view.samples.size() - outer.test_indices.size());
     for (size_t i = 0; i < ctx.view.samples.size(); ++i)
-        if (!std::binary_search(outer.test_indices.begin(), outer.test_indices.end(), i))
-            outer_train_indices.push_back(i);
+        if (!in_outer_test[i]) not_outer_test.push_back(i);
+    const auto outer_train_indices = intersect_indices(not_outer_test, text_train_indices);
 
     // Keep only test samples whose phrase belongs to the text-split test set.
     const auto outer_test_indices = intersect_indices(outer.test_indices, text_test_indices);
-    if (outer_train_indices.empty() || outer_test_indices.empty()) return;
+    require_fold_rows("nested", outer_idx, outer_train_indices.size(), outer_test_indices.size());
 
     // Standardize features with statistics fit on the outer-train rows only,
     // so the outer test fold never leaks into the scaler (audit G1). One
@@ -651,9 +694,7 @@ void run_one_outer_fold(const FoldContext& ctx,
     const auto train_t0 = std::chrono::steady_clock::now();
     const std::vector<InnerCandidate> candidates =
         train_inner_candidates(ctx, outer, outer_train_indices, Xn, outer_idx, total_outer);
-    const InnerCandidate* best_cand = select_best_candidate(candidates);
-
-    if (best_cand == nullptr) return;
+    const InnerCandidate* best_cand = &select_best_candidate(candidates);
 
     FoldResult fr;
     fr.fold = static_cast<int>(outer_idx);
@@ -670,8 +711,12 @@ void run_one_outer_fold(const FoldContext& ctx,
         [&](auto& model)
         {
             model.load_state_dict(best_cand->state);
-            const EvalMetrics m =
-                evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
+            const EvalMetrics m = evaluate(model,
+                test_feats,
+                test_labels,
+                ctx.n_speakers,
+                ctx.scorer,
+                "nested outer test fold " + std::to_string(outer_idx));
             save_fold_model(model.state_dict(), ctx, fr);
             return m;
         });
@@ -688,6 +733,7 @@ void run_one_outer_fold(const FoldContext& ctx,
 // unbiased performance estimate when hyperparameters are tuned on the inner folds.
 void run_nested_cv(const FoldContext& ctx,
     ClassificationResult& result,
+    const std::vector<size_t>& text_train_indices,
     const std::vector<size_t>& text_test_indices,
     std::size_t k)
 {
@@ -701,8 +747,13 @@ void run_nested_cv(const FoldContext& ctx,
 
     for (size_t outer_idx = 0; outer_idx < nested_splits.size(); ++outer_idx)
     {
-        run_one_outer_fold(
-            ctx, result, text_test_indices, nested_splits[outer_idx], outer_idx, total_outer);
+        run_one_outer_fold(ctx,
+            result,
+            text_train_indices,
+            text_test_indices,
+            nested_splits[outer_idx],
+            outer_idx,
+            total_outer);
     }
 }
 
@@ -724,7 +775,7 @@ void run_flat_cv(const FoldContext& ctx,
         const auto& split = flat_splits[outer_idx];
         const auto train_indices = intersect_indices(split.train_indices, text_train_indices);
         const auto test_indices = intersect_indices(split.test_indices, text_test_indices);
-        if (train_indices.empty() || test_indices.empty()) continue;
+        require_fold_rows("flat", outer_idx, train_indices.size(), test_indices.size());
 
         // Fit the scaler on this fold's train rows only (audit G1).
         const FeatureScaler scaler = make_fold_scaler(ctx, train_indices);
@@ -747,8 +798,12 @@ void run_flat_cv(const FoldContext& ctx,
                     std::chrono::steady_clock::now() - train_t0)
                                   .count();
                 const auto infer_t0 = std::chrono::steady_clock::now();
-                const EvalMetrics m =
-                    evaluate(model, test_feats, test_labels, ctx.n_speakers, ctx.scorer);
+                const EvalMetrics m = evaluate(model,
+                    test_feats,
+                    test_labels,
+                    ctx.n_speakers,
+                    ctx.scorer,
+                    "flat test fold " + std::to_string(outer_idx));
                 fr.infer_ms = std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - infer_t0)
                                   .count();
