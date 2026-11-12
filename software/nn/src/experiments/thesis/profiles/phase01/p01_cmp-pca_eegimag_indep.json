@@ -16,7 +16,7 @@
   "feature_extraction": {
     "strategy": "pca",
     "pca": {
-      "n_components": 32
+      "n_components": 8
     }
   },
   "paraconsistent": {

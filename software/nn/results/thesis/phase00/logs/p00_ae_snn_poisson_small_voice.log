@@ -1,0 +1,21 @@
+2026-11-12 18:12:08 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/database.sqlite.pronounced.e05dscache)
+[Thesis] run_tag=e05_p00_ae_snn_poisson_small_voice modality=voice strategy=autoencoder repeats=3 running=[0,3)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 1/3 (seed=42) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.196432 beta=0.924581 D_truth=1.73238
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00
+[Thesis] === Repeat 2/3 (seed=43) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.22344 beta=0.915265 D_truth=1.6975
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00
+[Thesis] === Repeat 3/3 (seed=44) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.230129 beta=0.91632 D_truth=1.69254
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00

@@ -23,12 +23,17 @@ fold, standardize on the training rows, optionally project on the first k princi
 (torch.linalg.svd of the training rows), then ridge regression on one-hot speakers
 (torch.linalg.solve), argmax. Stratified 5 folds, seed 42. Chance is 1/15 = 0.067.
 
+--out receives the table as CSV (signal, input, classifier, accuracy, sd); the thesis quotes
+it through thesis_build_text_numbers.py (keys aeinput.*), so the text follows this script.
+
 Run (needs numpy, scipy, torch; reads ~/database.sqlite, about one minute):
-    ~/.venv/bin/python software/nn/scripts/analysis/thesis_ae_input_reference.py --db ~/database.sqlite
+    ~/.venv/bin/python software/nn/scripts/analysis/thesis_ae_input_reference.py \
+        --db ~/database.sqlite --out software/nn/results/thesis/ae_input_reference.csv
 """
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import sqlite3
 
@@ -78,6 +83,7 @@ def accuracy(x: np.ndarray, y: np.ndarray, folds: np.ndarray, k: int) -> tuple[f
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", required=True, help="the dataset's SQLite file")
+    ap.add_argument("--out", required=True, help="CSV to write the accuracies to")
     args = ap.parse_args()
 
     db = sqlite3.connect(os.path.expanduser(args.db))
@@ -108,10 +114,20 @@ def main() -> None:
     print(f"numpy {np.__version__}, scipy {scipy.__version__}, torch {torch.__version__}")
     print(f"{len(y)} trials, {len(np.unique(y))} speakers, chance {1 / len(np.unique(y)):.3f}\n")
     print(f"{'input':12s} {'PCA 8':>14s} {'PCA 32':>14s} {'all 256':>14s}")
+    table = [["signal", "input", "classifier", "accuracy", "sd"]]
     for name, v in feats.items():
         x = np.array(v)
-        cells = ["%.3f ± %.3f" % accuracy(x, y, folds, k) for k in (8, 32, 0)]
+        scores = [accuracy(x, y, folds, k) for k in (8, 32, 0)]
+        cells = ["%.3f ± %.3f" % s for s in scores]
         print(f"{name:12s} {cells[0]:>14s} {cells[1]:>14s} {cells[2]:>14s}")
+        signal, kind = name.split()
+        for tag, (acc, sd) in zip(("pca8", "pca32", "all"), scores):
+            table.append([signal, kind, tag, f"{acc:.6f}", f"{sd:.6f}"])
+    table.append(["chance", "none", "none", f"{1 / len(np.unique(y)):.6f}", "0"])
+    table.append(["trials", "none", "none", str(len(y)), "0"])
+    with open(os.path.expanduser(args.out), "w", newline="", encoding="utf-8") as fh:
+        csv.writer(fh).writerows(table)
+    print(f"\nwrote {args.out}")
 
 
 if __name__ == "__main__":

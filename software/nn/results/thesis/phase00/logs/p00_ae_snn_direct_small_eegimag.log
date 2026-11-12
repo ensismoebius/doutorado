@@ -1,0 +1,21 @@
+2026-11-12 18:12:05 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/database.sqlite.imagined-2026.e05dscache)
+[Thesis] run_tag=e05_p00_ae_snn_direct_small_eegimag modality=eeg strategy=autoencoder repeats=3 running=[0,3)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 1/3 (seed=42) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.0469025 beta=0.957857 D_truth=1.91096
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00
+[Thesis] === Repeat 2/3 (seed=43) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.136356 beta=0.954499 D_truth=1.82041
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00
+[Thesis] === Repeat 3/3 (seed=44) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] Paraconsistent ranking:
+  autoencoder-snn alpha=0.167974 beta=0.95355 D_truth=1.78971
+[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.
+[Thesis] Done. Results written to results/thesis/phase00
