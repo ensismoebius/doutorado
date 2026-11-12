@@ -51,6 +51,12 @@ __pycache__/
 # 02_/03_/04_/09_ read them, and without them a committed run cannot be post-processed again.
 # The *.json rule above silently kept every one of them out until 2026-11-11.
 !software/nn/results/meeting01*/**/*.json
+# Thesis results (per-repetition summaries, winners.json, per-unit logs): the thesis tables are
+# generated from them, so every committed table must be re-derivable from committed results.
+# The *.json and *.log rules would otherwise keep the summaries and logs out without a word
+# while the .csv and .done files beside them went in.
+!software/nn/results/thesis/**/*.json
+!software/nn/results/thesis/**/*.log
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).

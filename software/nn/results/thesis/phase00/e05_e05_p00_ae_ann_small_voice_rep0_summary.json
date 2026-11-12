@@ -1,0 +1,60 @@
+{
+  "best_alpha": 0.15880807621057133,
+  "best_beta": 0.9580275974025974,
+  "best_d_penalized": 1.87144975469363,
+  "best_d_truth": 1.8030090016600322,
+  "best_feature_set": "autoencoder-ann",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_ae_ann_small_voice_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "autoencoder": {
+        "ae_loss_type": "mse",
+        "decoder_layer_spec": [
+          "linear:32:leaky",
+          "linear:output:identity"
+        ],
+        "encoder_layer_spec": [
+          "linear:32:leaky",
+          "linear:16:identity"
+        ],
+        "model": "ann-ae"
+      },
+      "strategy": "autoencoder"
+    },
+    "paraconsistent": {
+      "enabled": true
+    },
+    "training": {
+      "epochs": 100,
+      "gradient_clip_norm": 0.0,
+      "learning_rate": 0.0010000000474974513,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32
+    }
+  },
+  "config_hash": 1186390932772679601,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [],
+  "run_tag": "e05_p00_ae_ann_small_voice_rep0",
+  "seed": 42,
+  "strategy": "autoencoder"
+}

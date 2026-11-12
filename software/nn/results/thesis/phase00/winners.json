@@ -1,0 +1,54 @@
+{
+  "eeg": {
+    "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_eeg.json",
+    "label": "handcrafted/haar/lfcc/c1",
+    "d_penalized": 1.58826668,
+    "d_truth": 1.5142638899999998,
+    "feature_extraction": {
+      "strategy": "handcrafted",
+      "handcrafted": {
+        "transform": "dtwpt",
+        "scale": "lfcc",
+        "wavelet": "haar",
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4
+      }
+    },
+    "tie_count": 1,
+    "tied_with": []
+  },
+  "voice": {
+    "profile": "src/experiments/thesis/profiles/phase00/p00_hc_haar_lfcc_c1_voice.json",
+    "label": "handcrafted/haar/lfcc/c1",
+    "d_penalized": 1.48363125,
+    "d_truth": 1.40553726,
+    "feature_extraction": {
+      "strategy": "handcrafted",
+      "handcrafted": {
+        "transform": "dtwpt",
+        "scale": "lfcc",
+        "wavelet": "haar",
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4
+      }
+    },
+    "tie_count": 1,
+    "tied_with": []
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "best_alpha": 0.3620345216964434,
+  "best_beta": 0.8008008658008658,
+  "best_d_penalized": 1.5433384031398456,
+  "best_d_truth": 1.4479516415782,
+  "best_feature_set": "handcrafted-bark",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_hc_daub42_bark_c1_voice_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "bark",
+        "transform": "dtwpt",
+        "wavelet": "daub42"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": true
+    }
+  },
+  "config_hash": 12674854869499696520,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [],
+  "run_tag": "e05_p00_hc_daub42_bark_c1_voice_rep1",
+  "seed": 43,
+  "strategy": "handcrafted"
+}

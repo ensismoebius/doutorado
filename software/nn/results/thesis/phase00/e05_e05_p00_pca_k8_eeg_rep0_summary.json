@@ -1,0 +1,44 @@
+{
+  "best_alpha": 0.19435776772842037,
+  "best_beta": 0.9762608225108225,
+  "best_d_penalized": 1.8899989045449055,
+  "best_d_truth": 1.790052848375735,
+  "best_feature_set": "pca",
+  "config": {
+    "classifier": {
+      "enabled": false
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "eeg",
+      "results_dir": "results/thesis/phase00",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p00_pca_k8_eeg_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "pca": {
+        "n_components": 8
+      },
+      "strategy": "pca"
+    },
+    "paraconsistent": {
+      "enabled": true
+    }
+  },
+  "config_hash": 13461385736799459175,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "eeg",
+  "results": [],
+  "run_tag": "e05_p00_pca_k8_eeg_rep0",
+  "seed": 42,
+  "strategy": "pca"
+}
