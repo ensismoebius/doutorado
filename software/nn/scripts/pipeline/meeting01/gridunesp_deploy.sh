@@ -74,6 +74,11 @@ for t in "${TARGET_LIST[@]}"; do
   esac
 done
 has_target() { [[ " ${TARGET_LIST[*]} " == *" $1 "* ]]; }
+# ssh joins its arguments into ONE command line that the remote shell splits again, so a
+# space-separated list arrives as several arguments (the first thesis deploy, 2026-11-12, built
+# meeting01 alone and still printed "thesis (built and smoked)"). The list travels as one
+# comma-joined word instead, and the remote side checks it got exactly the four it expects.
+TARGET_CSV="$(IFS=,; echo "${TARGET_LIST[*]}")"
 THESIS_DB="${HOME}/database.sqlite"
 if has_target thesis && [[ ! -f "$THESIS_DB" ]]; then
   echo "gridunesp_deploy.sh: target 'thesis' needs ${THESIS_DB} (the thesis profiles'" \
@@ -173,12 +178,14 @@ if has_target thesis; then
 fi
 
 echo "[gridunesp-deploy] remote environment + datasets + configure + build (reusing the same connection)"
-ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" bash -s -- "$REMOTE_DIR" "$BUILD_CPUS" "${SKIP_DATASETS:-0}" "$TARGETS" <<'REMOTE'
+ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" bash -s -- "$REMOTE_DIR" "$BUILD_CPUS" "${SKIP_DATASETS:-0}" "${TARGET_CSV}" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 BUILD_CPUS="$2"
 SKIP_DATASETS="$3"
-read -r -a TARGET_LIST <<< "$4"
+IFS=, read -r -a TARGET_LIST <<< "$4"
+[[ $# -eq 4 && ${#TARGET_LIST[@]} -gt 0 ]] ||
+  { echo "[gridunesp-deploy:remote] ERROR: expected 4 arguments, the last a comma-separated target list; got $# ($*)" >&2; exit 1; }
 has_target() { [[ " ${TARGET_LIST[*]} " == *" $1 "* ]]; }
 
 echo "[gridunesp-deploy:remote] toolchain env (module load + conda create/update)"
