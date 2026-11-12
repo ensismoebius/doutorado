@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.416667,0.621429,24426.771,7.798,results/thesis/phase01/models/e05_p01_dsnn_fused_early_dep_flat_raw_rep2/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.425837,0.596875,23600.949,9.313,results/thesis/phase01/models/e05_p01_dsnn_fused_early_dep_flat_raw_rep2/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.448276,0.562500,23706.615,7.768,results/thesis/phase01/models/e05_p01_dsnn_fused_early_dep_flat_raw_rep2/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.500000,0.500000,24254.659,8.997,results/thesis/phase01/models/e05_p01_dsnn_fused_early_dep_flat_raw_rep2/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.500000,0.500000,23597.848,7.920,results/thesis/phase01/models/e05_p01_dsnn_fused_early_dep_flat_raw_rep2/handcrafted-lfcc-fused-early/fold_4.bin

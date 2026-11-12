@@ -1,0 +1,144 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "eeg",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_eeg_dep_nested_raw_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "early_stop_patience": 10,
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": true,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 2928098900297015291,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "eeg",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.10915496874628958,
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 129791,
+      "fold_models": [
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.193384885787964,
+          "final_val_loss": 9.049695014953613,
+          "fold": 0,
+          "infer_ms": 11.760241,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_dep_nested_raw_rep1/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 21912.395628
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.0649590492248535,
+          "final_val_loss": 9.369671821594238,
+          "fold": 1,
+          "infer_ms": 10.110862,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_dep_nested_raw_rep1/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 21968.969455
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.0511584281921387,
+          "final_val_loss": 9.288914680480957,
+          "fold": 2,
+          "infer_ms": 9.45216,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_dep_nested_raw_rep1/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 21700.224792
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.023022174835205,
+          "final_val_loss": 9.193873405456543,
+          "fold": 3,
+          "infer_ms": 8.50976,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_dep_nested_raw_rep1/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 21516.997448
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.0491719245910645,
+          "final_val_loss": 9.124236106872559,
+          "fold": 4,
+          "infer_ms": 10.405087,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_dep_nested_raw_rep1/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 22339.450999
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.5925100817451803,
+      "mean_eer": 0.41773718279910704,
+      "mean_f1": null,
+      "mean_infer_ms": 10.047622,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.369086092710495,
+      "mean_train_ms": 21887.607664400002,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.1018620649830668,
+      "std_eer": 0.08792432644040653,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_eeg_dep_nested_raw_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

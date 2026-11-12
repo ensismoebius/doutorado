@@ -1,0 +1,139 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_fused_late_dep_flat_raw_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 6333472960849946416,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.029255997534529864,
+      "feature_set": "handcrafted-lfcc-fused-late",
+      "final_sops": 130710,
+      "fold_models": [
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.361259937286377,
+          "fold": 0,
+          "infer_ms": 8.05849,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_raw_rep0/handcrafted-lfcc-fused-late/fold_0.bin",
+          "train_ms": 25688.228748
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.366725206375122,
+          "fold": 1,
+          "infer_ms": 11.395588,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_raw_rep0/handcrafted-lfcc-fused-late/fold_1.bin",
+          "train_ms": 25605.16753
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.3407142162323,
+          "fold": 2,
+          "infer_ms": 11.479282,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_raw_rep0/handcrafted-lfcc-fused-late/fold_2.bin",
+          "train_ms": 24757.451552
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.3637218475341797,
+          "fold": 3,
+          "infer_ms": 8.484414,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_raw_rep0/handcrafted-lfcc-fused-late/fold_3.bin",
+          "train_ms": 24724.826752
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.4144277572631836,
+          "fold": 4,
+          "infer_ms": 9.410045,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_late_dep_flat_raw_rep0/handcrafted-lfcc-fused-late/fold_4.bin",
+          "train_ms": 24699.997484
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.5217980324402761,
+      "mean_eer": 0.4888778140213013,
+      "mean_f1": null,
+      "mean_infer_ms": 9.7655638,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3346500635147095,
+      "mean_train_ms": 25095.1344132,
+      "param_count": 43157,
+      "std_accuracy": null,
+      "std_auc": 0.04312127622399204,
+      "std_eer": 0.023565705776936254,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_fused_late_dep_flat_raw_rep0",
+  "seed": 42,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

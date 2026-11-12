@@ -1,0 +1,138 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "independent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_voice_indep_flat_std_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 46500659082726805,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.06985837316468543,
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 96570,
+      "fold_models": [
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.005506299436092377,
+          "fold": 0,
+          "infer_ms": 30.706047,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_std_rep1/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 14659.197282
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.006318343337625265,
+          "fold": 1,
+          "infer_ms": 32.209174,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_std_rep1/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 15271.225774
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.006457495968788862,
+          "fold": 2,
+          "infer_ms": 32.633989,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_std_rep1/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 14439.835559
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.005669913254678249,
+          "fold": 3,
+          "infer_ms": 31.441471,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_std_rep1/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 14953.056316
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.004786364268511534,
+          "fold": 4,
+          "infer_ms": 30.172596,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_std_rep1/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 15185.32719
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7199044148685904,
+      "mean_eer": 0.3521542138524927,
+      "mean_f1": null,
+      "mean_infer_ms": 31.432655399999998,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3586320996284485,
+      "mean_train_ms": 14901.728424199999,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.07856023714948127,
+      "std_eer": 0.05627091901793363,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_voice_indep_flat_std_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

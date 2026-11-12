@@ -57,6 +57,9 @@ __pycache__/
 # while the .csv and .done files beside them went in.
 !software/nn/results/thesis/**/*.json
 !software/nn/results/thesis/**/*.log
+# ...and the trained weights (Phase 01 models/**/fold_<k>.bin), versioned at the user's request
+# (2026-11-12) so a thesis number can be re-scored from the exact network that produced it.
+!software/nn/results/thesis/**/*.bin
 *.next
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).

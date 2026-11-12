@@ -1,0 +1,138 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "independent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "eeg",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_eeg_indep_flat_raw_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 11718037956699002071,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "eeg",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.036868529317548096,
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 157389,
+      "fold_models": [
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.4080891609191895,
+          "fold": 0,
+          "infer_ms": 26.57588,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_flat_raw_rep2/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 13573.492455
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.4917805194854736,
+          "fold": 1,
+          "infer_ms": 29.10952,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_flat_raw_rep2/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 12993.867913
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.395995616912842,
+          "fold": 2,
+          "infer_ms": 25.7614,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_flat_raw_rep2/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 13251.929073
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.389777421951294,
+          "fold": 3,
+          "infer_ms": 25.107898,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_flat_raw_rep2/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 13446.445623
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 2.4066619873046875,
+          "fold": 4,
+          "infer_ms": 26.495796,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_eeg_indep_flat_raw_rep2/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 13116.240616
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.5347281927497478,
+      "mean_eer": 0.47845365530573203,
+      "mean_f1": null,
+      "mean_infer_ms": 26.610098800000003,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.39787028431892396,
+      "mean_train_ms": 13276.395136000001,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.0478329299114803,
+      "std_eer": 0.029697600066455863,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_eeg_indep_flat_raw_rep2",
+  "seed": 44,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

@@ -1,0 +1,138 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "independent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_voice_indep_flat_raw_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 11102703298712857110,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.1690646865169303,
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 111606,
+      "fold_models": [
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.9619309902191162,
+          "fold": 0,
+          "infer_ms": 26.207996,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 13754.562267
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.8891134262084961,
+          "fold": 1,
+          "infer_ms": 29.041961,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 14181.111384
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 0.8922872543334961,
+          "fold": 2,
+          "infer_ms": 26.804558,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 13820.981687
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 1.018142580986023,
+          "fold": 3,
+          "infer_ms": 26.476053,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 13681.989285
+        },
+        {
+          "epochs_run": 50,
+          "final_train_loss": 1.0355594158172607,
+          "fold": 4,
+          "infer_ms": 25.811744,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_flat_raw_rep1/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 14041.637027
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7796353931082464,
+      "mean_eer": 0.27390081173343817,
+      "mean_f1": null,
+      "mean_infer_ms": 26.868462400000006,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3480029344558716,
+      "mean_train_ms": 13896.056330000001,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.1481662669228469,
+      "std_eer": 0.1361816036190736,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_voice_indep_flat_raw_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

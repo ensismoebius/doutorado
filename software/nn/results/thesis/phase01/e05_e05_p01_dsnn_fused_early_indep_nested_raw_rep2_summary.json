@@ -1,0 +1,145 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "independent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "fusion_mode": "early",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_fused_early_indep_nested_raw_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "early_stop_patience": 10,
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": true,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 4163772046698784120,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.103693151910302,
+      "feature_set": "handcrafted-lfcc-fused-early",
+      "final_sops": 158550,
+      "fold_models": [
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.1645193099975586,
+          "final_val_loss": 8.00561237335205,
+          "fold": 0,
+          "infer_ms": 26.395093,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_0.bin",
+          "train_ms": 12681.351717
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.071592330932617,
+          "final_val_loss": 7.835892677307129,
+          "fold": 1,
+          "infer_ms": 28.099626,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_1.bin",
+          "train_ms": 12440.355668
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.080038547515869,
+          "final_val_loss": 7.47537899017334,
+          "fold": 2,
+          "infer_ms": 25.841244,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_2.bin",
+          "train_ms": 12792.553265
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.1272222995758057,
+          "final_val_loss": 9.047085762023926,
+          "fold": 3,
+          "infer_ms": 24.594212,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_3.bin",
+          "train_ms": 13031.70281
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 2.1943206787109375,
+          "final_val_loss": 8.17451286315918,
+          "fold": 4,
+          "infer_ms": 28.618075,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_fused_early_indep_nested_raw_rep2/handcrafted-lfcc-fused-early/fold_4.bin",
+          "train_ms": 12547.026076
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.6226636506398832,
+      "mean_eer": 0.39796816412100605,
+      "mean_f1": null,
+      "mean_infer_ms": 26.70965,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.41470822095870974,
+      "mean_train_ms": 12698.597907200001,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.10231741755992488,
+      "std_eer": 0.08352483302328799,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_fused_early_indep_nested_raw_rep2",
+  "seed": 44,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

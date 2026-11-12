@@ -1,0 +1,144 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "independent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_voice_indep_nested_std_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "early_stop_patience": 10,
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": true,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 1916068027163340660,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.09925259218705165,
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 81100,
+      "fold_models": [
+        {
+          "epochs_run": 11,
+          "final_train_loss": 0.16721396148204803,
+          "final_val_loss": 7.793005466461182,
+          "fold": 0,
+          "infer_ms": 32.781197,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_nested_std_rep1/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 12889.499159
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 0.1890200525522232,
+          "final_val_loss": 9.313013076782227,
+          "fold": 1,
+          "infer_ms": 31.416268,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_nested_std_rep1/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 13304.315761
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 0.18219421803951263,
+          "final_val_loss": 7.859806060791016,
+          "fold": 2,
+          "infer_ms": 29.867867,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_nested_std_rep1/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 13149.717884
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 0.1700703203678131,
+          "final_val_loss": 8.842887878417969,
+          "fold": 3,
+          "infer_ms": 32.335533,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_nested_std_rep1/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 12981.977865
+        },
+        {
+          "epochs_run": 11,
+          "final_train_loss": 0.16481459140777588,
+          "final_val_loss": 8.998762130737305,
+          "fold": 4,
+          "infer_ms": 27.226029,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_indep_nested_std_rep1/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 13397.44262
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7205518935953471,
+      "mean_eer": 0.34498479905653084,
+      "mean_f1": null,
+      "mean_infer_ms": 30.725378799999998,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.29879754185676577,
+      "mean_train_ms": 13144.5906578,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.10643365162112584,
+      "std_eer": 0.07994796220220175,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_voice_indep_nested_std_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}
