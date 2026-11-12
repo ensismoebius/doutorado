@@ -21,6 +21,7 @@
 #include "data_loaders/10.1117/schema/Metadata.hpp"
 #include "data_loaders/10.1117/schema/Names.hpp"
 #include "data_loaders/10.1117/schema/SchemaIndexing.hpp"
+#include "data_loaders/10.1117/schema/SqliteDataset.hpp"
 #include "tensor/Tensor.hpp"
 
 /*
@@ -172,26 +173,12 @@ EEGSession::EEGSession(const std::string& filePath, int subject_id)
     impl_->filePath = filePath;
     impl_->subject_id = subject_id;
 
-    // Detect sqlite DB path by extension and try opening read-only.
-    try
+    // A .sqlite path is the SQLite dataset and nothing else. One that cannot be opened throws,
+    // naming the file and SQLite's reason; it used to fall through, silently, to the MAT reader.
+    if (filePath.size() > 7 && filePath.substr(filePath.size() - 7) == ".sqlite")
     {
-        if (!filePath.empty() && filePath.size() > 7 &&
-            filePath.substr(filePath.size() - 7) == ".sqlite")
-        {
-            if (sqlite3_open_v2(filePath.c_str(), &impl_->db, SQLITE_OPEN_READONLY, nullptr) ==
-                SQLITE_OK)
-            {
-                impl_->is_sqlite = true;
-            }
-            else if (impl_->db)
-            {
-                sqlite3_close(impl_->db);
-                impl_->db = nullptr;
-            }
-        }
-    }
-    catch (...)
-    { /* fall back to MAT below */
+        impl_->db = openSqliteDatasetReadOnly(filePath);
+        impl_->is_sqlite = true;
     }
 
     if (!impl_->is_sqlite)
@@ -287,7 +274,17 @@ auto EEGSession::readRowFromSqlite(size_t rowIndex) const
     int stimulus = 0;
     int artifact = 0;
 
-    if (sqlite3_step(stmt) == SQLITE_ROW)
+    bool has_row = false;
+    try
+    {
+        has_row = sqliteStepRow(impl_->db, stmt, "EEGLoader(SQL): reading an EEG row");
+    }
+    catch (...)
+    {
+        sqlite3_finalize(stmt);
+        throw;
+    }
+    if (has_row)
     {
         // For each channel column (0..5) read blob (float32 in DB).
         for (int ch = 0; ch < 6; ++ch)
@@ -317,9 +314,19 @@ auto EEGSession::readRowFromSqlite(size_t rowIndex) const
             }
         }
 
+        // A NULL label used to become 0 and travel on as if it were data.
+        if (sqlite3_column_type(stmt, 6) == SQLITE_NULL ||
+            sqlite3_column_type(stmt, 7) == SQLITE_NULL ||
+            sqlite3_column_type(stmt, 8) == SQLITE_NULL)
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("EEGLoader(SQL): EEG row " + std::to_string(rowIndex) +
+                                     " of subject " + std::to_string(impl_->subject_id) +
+                                     " has a NULL blink, modality_id or stimulus_id");
+        }
         artifact = sqlite3_column_int(stmt, 6);
-        if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) modality = sqlite3_column_int(stmt, 7);
-        if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) stimulus = sqlite3_column_int(stmt, 8);
+        modality = sqlite3_column_int(stmt, 7);
+        stimulus = sqlite3_column_int(stmt, 8);
     }
     else
     {
@@ -512,17 +519,34 @@ auto EEGSession::rowCount() const -> size_t
 {
     if (impl_->is_sqlite)
     {
-        if (!impl_->db || impl_->subject_id < 0) return 0;
+        if (!impl_->db || impl_->subject_id < 0)
+            throw std::logic_error(
+                "EEGLoader(SQL): rowCount on a SQLite session without a subject id (it used to "
+                "return 0)");
         const char* sql =
             "SELECT COUNT(*) FROM trial WHERE subject_id = ? AND original_row IS NOT NULL";
         sqlite3_stmt* stmt = nullptr;
-        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+            throw std::runtime_error(
+                std::string("EEGLoader(SQL): cannot count the rows of subject ") +
+                std::to_string(impl_->subject_id) + ": " + sqlite3_errmsg(impl_->db));
         sqlite3_bind_int(stmt, 1, impl_->subject_id);
-        size_t count = 0;
-        if (sqlite3_step(stmt) == SQLITE_ROW)
+        bool has_row = false;
+        try
         {
-            count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
+            has_row = sqliteStepRow(impl_->db, stmt, sql);
         }
+        catch (...)
+        {
+            sqlite3_finalize(stmt);
+            throw;
+        }
+        if (!has_row)
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("EEGLoader(SQL): COUNT(*) returned no row");
+        }
+        const auto count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
         sqlite3_finalize(stmt);
         return count;
     }

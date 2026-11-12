@@ -22,6 +22,7 @@
 #include "data_loaders/10.1117/schema/Metadata.hpp"
 #include "data_loaders/10.1117/schema/Names.hpp"
 #include "data_loaders/10.1117/schema/SchemaIndexing.hpp"
+#include "data_loaders/10.1117/schema/SqliteDataset.hpp"
 #include "tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
@@ -149,27 +150,13 @@ AudioSession::AudioSession(const std::string& filePath, int subject_id)
 {
     impl_->filePath = filePath;
 
-    // Quick check: if filePath looks like a sqlite DB, try opening it.
-    try
+    // A .sqlite path is the SQLite dataset and nothing else. One that cannot be opened throws,
+    // naming the file and SQLite's reason; it used to fall through, silently, to the MAT reader.
+    if (filePath.size() > 7 && filePath.substr(filePath.size() - 7) == ".sqlite")
     {
-        if (!filePath.empty() && filePath.size() > 7 &&
-            filePath.substr(filePath.size() - 7) == ".sqlite")
-        {
-            if (sqlite3_open_v2(filePath.c_str(), &impl_->db, SQLITE_OPEN_READONLY, nullptr) ==
-                SQLITE_OK)
-            {
-                impl_->is_sqlite = true;
-                impl_->subject_id = subject_id;
-            }
-            else if (impl_->db)
-            {
-                sqlite3_close(impl_->db);
-                impl_->db = nullptr;
-            }
-        }
-    }
-    catch (...)
-    { /* fall back to MAT path below */
+        impl_->db = openSqliteDatasetReadOnly(filePath);
+        impl_->is_sqlite = true;
+        impl_->subject_id = subject_id;
     }
     if (!impl_->is_sqlite)
     {
@@ -243,7 +230,8 @@ auto AudioSession::readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Te
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     {
-        throw std::runtime_error("AudioLoader(SQL): failed to prepare statement");
+        throw std::runtime_error(std::string("AudioLoader(SQL): failed to prepare statement: ") +
+                                 sqlite3_errmsg(impl_->db));
     }
 
     if (sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK ||
@@ -257,7 +245,17 @@ auto AudioSession::readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Te
     int stimulus = 0;
     int eegIndex = -1;
 
-    if (sqlite3_step(stmt) == SQLITE_ROW)
+    bool has_row = false;
+    try
+    {
+        has_row = sqliteStepRow(impl_->db, stmt, "AudioLoader(SQL): reading an audio row");
+    }
+    catch (...)
+    {
+        sqlite3_finalize(stmt);
+        throw;
+    }
+    if (has_row)
     {
         const void* blob = sqlite3_column_blob(stmt, 0);
         int bytes = sqlite3_column_bytes(stmt, 0);
@@ -281,15 +279,20 @@ auto AudioSession::readRowFromSqlite(size_t rowIndex) const -> std::tuple<nn::Te
             throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
         }
 
-        // stimulus_id may be NULL
-        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL)
+        // A NULL stimulus used to become 0 and travel on as if it were a label.
+        if (sqlite3_column_type(stmt, 1) == SQLITE_NULL)
         {
-            stimulus = sqlite3_column_int(stmt, 1);
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("AudioLoader(SQL): audio row " + std::to_string(rowIndex) +
+                                     " of subject " + std::to_string(impl_->subject_id) +
+                                     " has a NULL stimulus_id");
         }
+        stimulus = sqlite3_column_int(stmt, 1);
+        // original_row is NULL for an audio-only trial (the schema's "no EEG recorded"): the
+        // returned -1 is that statement, the same value the MAT reader's column holds, and a
+        // consumer that needs the pair refuses it (ThesisDataset: eeg_index <= 0 throws).
         if (sqlite3_column_type(stmt, 2) != SQLITE_NULL)
-        {
             eegIndex = static_cast<int>(sqlite3_column_int(stmt, 2));
-        }
     }
     else
     {
@@ -475,18 +478,35 @@ auto AudioSession::rowCount() const -> size_t
 {
     if (impl_->is_sqlite)
     {
-        if (!impl_->db || impl_->subject_id < 0) return 0;
+        if (!impl_->db || impl_->subject_id < 0)
+            throw std::logic_error(
+                "AudioLoader(SQL): rowCount on a SQLite session without a subject id (it used to "
+                "return 0)");
         const char* sql =
             "SELECT COUNT(*) FROM audio_samples a JOIN trial t ON a.trial_id = t.id WHERE "
             "t.subject_id = ?";
         sqlite3_stmt* stmt = nullptr;
-        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+            throw std::runtime_error(
+                std::string("AudioLoader(SQL): cannot count the rows of subject ") +
+                std::to_string(impl_->subject_id) + ": " + sqlite3_errmsg(impl_->db));
         sqlite3_bind_int(stmt, 1, impl_->subject_id);
-        size_t count = 0;
-        if (sqlite3_step(stmt) == SQLITE_ROW)
+        bool has_row = false;
+        try
         {
-            count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
+            has_row = sqliteStepRow(impl_->db, stmt, sql);
         }
+        catch (...)
+        {
+            sqlite3_finalize(stmt);
+            throw;
+        }
+        if (!has_row)
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("AudioLoader(SQL): COUNT(*) returned no row");
+        }
+        const auto count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
         sqlite3_finalize(stmt);
         return count;
     }

@@ -627,6 +627,51 @@ original database throws `"unexpected audio blob size"`, because a real blob
 is 705,600 bytes — which is $176{,}400 \times 4$ (float32), not
 $176{,}400 \times 8$ (float64) as you might otherwise expect.
 
+#### Opening the database: immutable, because of WAL on NFS (2026-11-12)
+
+**The problem.** `~/database.sqlite` uses the WAL journal mode (`PRAGMA journal_mode` → `wal`).
+In WAL mode every reader shares a small memory-mapped index, the `-shm` file, with all the
+other readers. Processes on one machine can share that memory. Processes on different machines
+cannot, and SQLite says so plainly: "WAL does not work over a network filesystem"
+([sqlite.org/wal.html](https://www.sqlite.org/wal.html)). On GridUnesp this is exactly the
+setup: 16 array tasks on 9 nodes read the same file from `/home` over NFS. On 2026-11-12, six of
+them failed within 3 s with `Failed to prepare subject query`. The first task on each node got
+through and the next ones on that node failed.
+
+```
+plain SQLITE_OPEN_READONLY          openSqliteDatasetReadOnly (immutable=1)
+  node A: task 0 ─┐                   node A: task 0 ─┐
+  node A: task 5 ─┼─ db.sqlite-shm    node A: task 5 ─┼─ db.sqlite   (no -shm, no locks)
+  node B: task 8 ─┘   (shared memory  node B: task 8 ─┘
+                       across hosts:
+                       breaks)
+```
+
+**The fix.** Every 10.1117 SQLite reader opens the file through
+`nn::dataLoaders::openSqliteDatasetReadOnly` (`schema/SqliteDataset.hpp`). The readers are
+subject discovery, the stimulus names, `AudioSession` and `EEGSession`. The helper opens
+`file:<path>?immutable=1`, which skips locking, the `-shm` index and change detection
+([sqlite.org/uri.html](https://www.sqlite.org/uri.html)). Immutable has two costs, and both are
+guarded:
+
+| Cost | Guard |
+|---|---|
+| The file must not change while it is open (otherwise there may be wrong results or `SQLITE_CORRUPT`) | The thesis never writes it. `gridunesp_deploy.sh` refuses to replace it while a `thesis-run` job runs. |
+| Transactions still in a `-wal` file are not seen | A non-empty `<db>-wal` throws, and the message says how to checkpoint it. |
+
+**Silent failures removed with it.** These were all quiet before; each one now throws:
+
+| Before | Now |
+|---|---|
+| A `.sqlite` path that could not be opened fell through to the MAT reader | Throws, with SQLite's own message. |
+| `rowCount()` returned 0 on a query error or a missing subject id | Throws. |
+| `while (sqlite3_step(...) == SQLITE_ROW)` read an error as the end of the table | `sqliteStepRow` returns a row, the end of the table, or an exception. |
+| A NULL `stimulus_id`, `modality_id` or `blink` was read as 0 | Throws (the real DB has none). |
+
+A NULL `original_row` on an audio row still yields `eeg_index = -1`. That is not a missing
+value: it is the schema saying the trial is audio-only. A consumer that needs the pair refuses
+it (`ThesisDataset`: `eeg_index <= 0` throws).
+
 See [Imagined Speech and EEG](../Concepts/Imagined-Speech-and-EEG.md) for the
 neuroscience context and [Research-Context](../Research-Context.md) for how
 this dataset fits into the thesis as a whole.

@@ -5,6 +5,7 @@ add_library(dataLoaders_10_1117
     loaders/AudioLoader.cpp
     loaders/EEGLoader.cpp
     schema/SubjectDiscovery.cpp
+    schema/SqliteDataset.cpp
     codec/InputModeCodec.cpp
     codec/BatchTargetFormatter.cpp
     ${PROTOCOL_SRCS}

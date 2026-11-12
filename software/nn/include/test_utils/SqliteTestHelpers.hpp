@@ -192,29 +192,42 @@ inline int insert_two_subjects_and_return_first_id(sqlite3* db)
 inline std::vector<int> insert_three_trials_and_return_ids(sqlite3* db, int subject_id)
 {
     sqlite3_stmt* ins = nullptr;
-    int rc = sqlite3_prepare_v2(
-        db, "INSERT INTO trial(subject_id, original_row) VALUES(?, ?)", -1, &ins, nullptr);
+    int rc = sqlite3_prepare_v2(db,
+        "INSERT INTO trial(subject_id, original_row, modality_id, stimulus_id) VALUES(?, ?, ?, ?)",
+        -1,
+        &ins,
+        nullptr);
     if (rc != SQLITE_OK)
     {
         sqlite3_close(db);
         throw std::runtime_error("prepare failed");
     }
 
+    // Every trial carries a modality and a stimulus, as in the real dataset (no NULL there,
+    // checked 2026-11-12); the SQL readers refuse a NULL label since that date. One stimulus
+    // for all three: the paired readers match audio row 11 (trial C, eeg_index 1) with the EEG
+    // row of original_row 0 (trial B), and a pair must agree on its stimulus.
     // Trial A: audio-only (original_row NULL)
     ensure_ok(db, sqlite3_bind_int(ins, 1, subject_id), "bind trial A subject_id");
     ensure_ok(db, sqlite3_bind_null(ins, 2), "bind trial A original_row");
+    ensure_ok(db, sqlite3_bind_int(ins, 3, 1), "bind trial A modality_id");
+    ensure_ok(db, sqlite3_bind_int(ins, 4, 1), "bind trial A stimulus_id");
     ensure_done(db, sqlite3_step(ins), "step trial A");
     sqlite3_reset(ins);
 
     // Trial B: eeg-only (original_row = 0)
     ensure_ok(db, sqlite3_bind_int(ins, 1, subject_id), "bind trial B subject_id");
     ensure_ok(db, sqlite3_bind_int(ins, 2, 0), "bind trial B original_row");
+    ensure_ok(db, sqlite3_bind_int(ins, 3, 1), "bind trial B modality_id");
+    ensure_ok(db, sqlite3_bind_int(ins, 4, 1), "bind trial B stimulus_id");
     ensure_done(db, sqlite3_step(ins), "step trial B");
     sqlite3_reset(ins);
 
     // Trial C: both (original_row = 1)
     ensure_ok(db, sqlite3_bind_int(ins, 1, subject_id), "bind trial C subject_id");
     ensure_ok(db, sqlite3_bind_int(ins, 2, 1), "bind trial C original_row");
+    ensure_ok(db, sqlite3_bind_int(ins, 3, 1), "bind trial C modality_id");
+    ensure_ok(db, sqlite3_bind_int(ins, 4, 1), "bind trial C stimulus_id");
     ensure_done(db, sqlite3_step(ins), "step trial C");
     sqlite3_finalize(ins);
 

@@ -606,6 +606,15 @@ and a USR1 sent during an autoencoder profile.
 The cache's temp file is now named `<cache>.tmp.<host>.<pid>`. The pid alone was unique on one
 machine only, and array tasks on different nodes share `/home`.
 
+**The first submission (array 5322956, 2026-11-12) failed on the database itself.** Six of 16
+tasks stopped within 3 s with `Failed to prepare subject query`. `~/database.sqlite` is in WAL
+mode, and WAL needs every reader on one host: its `-shm` index is shared memory. Every 10.1117
+reader now opens the file immutable
+([DataLoaders § Opening the database](../Core/DataLoaders.md#opening-the-database-immutable-because-of-wal-on-nfs-2026-11-12)).
+This one failed loudly because the subject-list query already threw. The same failure one step
+later, in a subject's row count, would have been read as zero rows until that morning's
+no-fallback sweep. A subject would then have looked empty.
+
 ---
 
 ## Outputs

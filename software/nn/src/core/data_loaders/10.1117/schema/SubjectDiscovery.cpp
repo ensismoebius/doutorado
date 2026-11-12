@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "data_loaders/10.1117/schema/Names.hpp"
+#include "data_loaders/10.1117/schema/SqliteDataset.hpp"
 #include "data_loaders/mat_io/mat_file_utils.hpp"
 #include "utility/path_expand.hpp"
 
@@ -33,6 +34,8 @@ using nn::dataLoaders::kAudioMatFileSuffix;
 using nn::dataLoaders::kAudioMatVariableName;
 using nn::dataLoaders::kEegMatFileSuffix;
 using nn::dataLoaders::kEegMatVariableName;
+using nn::dataLoaders::openSqliteDatasetReadOnly;
+using nn::dataLoaders::sqliteStepRow;
 
 namespace
 {
@@ -46,12 +49,20 @@ std::size_t countForSubject(sqlite3* db, const char* sql, int subject_id)
         throw std::runtime_error(
             std::string("SubjectDiscovery: cannot prepare \"") + sql + "\": " + sqlite3_errmsg(db));
     sqlite3_bind_int(stmt, 1, subject_id);
-    if (sqlite3_step(stmt) != SQLITE_ROW)
+    bool has_row = false;
+    try
     {
-        const std::string err = sqlite3_errmsg(db);
+        has_row = sqliteStepRow(db, stmt, sql);
+    }
+    catch (...)
+    {
         sqlite3_finalize(stmt);
-        throw std::runtime_error(
-            std::string("SubjectDiscovery: \"") + sql + "\" returned no row: " + err);
+        throw;
+    }
+    if (!has_row)
+    {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error(std::string("SubjectDiscovery: \"") + sql + "\" returned no row");
     }
     const auto n = static_cast<std::size_t>(sqlite3_column_int64(stmt, 0));
     sqlite3_finalize(stmt);
@@ -76,24 +87,35 @@ auto discoverSubjectsFromSqlite(const std::string& root_dir,
     const std::filesystem::path& root_path,
     const regex& selection_pattern) -> vector<SubjectFiles>
 {
-    sqlite3* db = nullptr;
-    if (sqlite3_open_v2(root_path.string().c_str(), &db, SQLITE_OPEN_READONLY, nullptr) !=
-        SQLITE_OK)
-    {
-        if (db) sqlite3_close(db);
-        throw std::runtime_error("Failed to open sqlite DB: " + root_dir);
-    }
+    sqlite3* db = openSqliteDatasetReadOnly(root_path);
 
     const char* q = "SELECT id, subject_name FROM subject ORDER BY id ASC";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db, q, -1, &stmt, nullptr) != SQLITE_OK)
     {
+        const std::string err = sqlite3_errmsg(db);
         sqlite3_close(db);
-        throw std::runtime_error("Failed to prepare subject query");
+        throw std::runtime_error(
+            "SubjectDiscovery: cannot read the subject table of " + root_dir + ": " + err);
     }
 
     vector<SubjectFiles> subjects;
-    while (sqlite3_step(stmt) == SQLITE_ROW)
+    // sqliteStepRow, not `== SQLITE_ROW`: an error mid-table used to end the loop like the
+    // last row did, and the run went on with the subjects read so far.
+    auto next_row = [&]()
+    {
+        try
+        {
+            return sqliteStepRow(db, stmt, q);
+        }
+        catch (...)
+        {
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+            throw;
+        }
+    };
+    while (next_row())
     {
         SubjectFiles info{};
         info.subject_id = sqlite3_column_int(stmt, 0);
@@ -290,13 +312,7 @@ auto discoverStimulusNames(const std::string& root_dir) -> std::map<int, std::st
             "a .sqlite dataset; " +
             root_dir + " is not one");
 
-    sqlite3* db = nullptr;
-    if (sqlite3_open_v2(root_path.string().c_str(), &db, SQLITE_OPEN_READONLY, nullptr) !=
-        SQLITE_OK)
-    {
-        if (db) sqlite3_close(db);
-        throw std::runtime_error("SubjectDiscovery: cannot open " + root_dir);
-    }
+    sqlite3* db = openSqliteDatasetReadOnly(root_path);
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db, "SELECT id, name FROM stimulus ORDER BY id", -1, &stmt, nullptr) !=
         SQLITE_OK)

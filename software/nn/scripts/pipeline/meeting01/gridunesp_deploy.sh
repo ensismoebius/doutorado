@@ -42,7 +42,8 @@
 # What gets synced: everything under this checkout EXCEPT out/ (local build
 # artifacts -- the remote builds its own, compiled for its own CPU) and results/
 # (in-progress or completed run output), the job logs and job-nanny staging directories the
-# sbatch script leaves in the tree root (meeting01_loso_<id>.out/.err, .job-input-<id>/), which
+# sbatch scripts leave in the tree root (meeting01_loso_<id>.out/.err, thesis_run_<id>_<t>.out/.err,
+# .job-input-<id>/), which
 # --delete would otherwise wipe on every deploy, and scripts/pipeline/meeting01/.env (your
 # GridUnesp password, which nothing on the cluster reads; it used to be copied too). rsync's
 # --delete keeps the remote source tree an exact mirror of this one, but --delete never
@@ -160,6 +161,7 @@ rsync -avz --delete --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" \
   --exclude out/ --exclude results/ --exclude '*.o' --exclude '__pycache__/' \
   --exclude '.venv/' --exclude /scripts/pipeline/meeting01/.env \
   --exclude '/meeting01_loso_*.out' --exclude '/meeting01_loso_*.err' --exclude '/.job-input-*/' \
+  --exclude '/thesis_run_*.out' --exclude '/thesis_run_*.err' \
   "$ROOT_DIR/" "${GRIDUNESP_USER}@${HOST}:${REMOTE_DIR}/"
 
 # The revision goes AFTER the tree on purpose: the --delete above removed any older copy (it

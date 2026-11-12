@@ -12,12 +12,14 @@
 #include <sqlite3.h>
 
 #include <filesystem>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "data_loaders/10.1117/loaders/AudioLoader.hpp"
 #include "data_loaders/10.1117/loaders/EEGLoader.hpp"
 #include "data_loaders/10.1117/schema/Metadata.hpp"
+#include "data_loaders/10.1117/schema/SqliteDataset.hpp"
 #include "test_utils/SqliteTestHelpers.hpp"
 
 using namespace nn::dataLoaders;
@@ -159,4 +161,133 @@ TEST(SqliteSession, EEGSessionMatchesBlobs)
     sqlite3_close(db);
     sqlite3_shutdown();
     std::filesystem::remove(db_path);
+}
+
+// ── openSqliteDatasetReadOnly: the immutable open used by every 10.1117 SQLite reader ──────────
+// Why immutable, and why a non-empty -wal is refused: SqliteDataset.hpp.
+
+namespace
+{
+// A WAL-mode database with one table and `rows` rows, written through `writer` (left open by
+// the caller when it wants the transactions to stay in the -wal file).
+void write_wal_db(sqlite3*& writer, const std::string& path, int rows)
+{
+    ASSERT_EQ(SQLITE_OK, sqlite3_open(path.c_str(), &writer));
+    ASSERT_EQ(
+        SQLITE_OK, sqlite3_exec(writer, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr));
+    ASSERT_EQ(
+        SQLITE_OK, sqlite3_exec(writer, "PRAGMA wal_autocheckpoint=0;", nullptr, nullptr, nullptr));
+    ASSERT_EQ(
+        SQLITE_OK, sqlite3_exec(writer, "CREATE TABLE t(x INTEGER);", nullptr, nullptr, nullptr));
+    for (int i = 0; i < rows; ++i)
+        ASSERT_EQ(SQLITE_OK,
+            sqlite3_exec(writer, "INSERT INTO t VALUES (1);", nullptr, nullptr, nullptr));
+}
+
+auto count_rows(sqlite3* db) -> int
+{
+    sqlite3_stmt* q = nullptr;
+    EXPECT_EQ(SQLITE_OK, sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM t", -1, &q, nullptr));
+    EXPECT_TRUE(sqliteStepRow(db, q, "count"));
+    const int n = sqlite3_column_int(q, 0);
+    sqlite3_finalize(q);
+    return n;
+}
+} // namespace
+
+TEST(SqliteDatasetOpen, RefusesTransactionsStillInTheWriteAheadLog)
+{
+    const auto dir = std::filesystem::temp_directory_path() / "nn_sqlite_dataset_wal";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "db.sqlite").string();
+
+    sqlite3* writer = nullptr;
+    write_wal_db(writer, path, 3);
+    ASSERT_GT(std::filesystem::file_size(path + "-wal"), 0U);
+    try
+    {
+        sqlite3* db = openSqliteDatasetReadOnly(path);
+        sqlite3_close(db);
+        ADD_FAILURE() << "a non-empty -wal was opened immutable; its 3 rows would be invisible";
+    }
+    catch (const std::runtime_error& e)
+    {
+        EXPECT_NE(std::string(e.what()).find("wal_checkpoint"), std::string::npos) << e.what();
+    }
+
+    // Closing the last connection checkpoints the log into the file: now it opens, and the
+    // rows are there.
+    ASSERT_EQ(SQLITE_OK, sqlite3_close(writer));
+    sqlite3* db = openSqliteDatasetReadOnly(path);
+    EXPECT_EQ(3, count_rows(db));
+    sqlite3_close(db);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SqliteDatasetOpen, FileNameWithUriCharactersIsReadLiterally)
+{
+    // '?', '#' and '%' mean something inside a file: URI; the name must still be this file.
+    const auto dir = std::filesystem::temp_directory_path() / "nn sqlite?dataset#50%";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "db.sqlite").string();
+    sqlite3* writer = nullptr;
+    write_wal_db(writer, path, 2);
+    ASSERT_EQ(SQLITE_OK, sqlite3_close(writer));
+
+    sqlite3* db = openSqliteDatasetReadOnly(path);
+    EXPECT_EQ(2, count_rows(db));
+    sqlite3_close(db);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SqliteDatasetOpen, MissingFileThrowsNamingIt)
+{
+    const std::string path = "/nonexistent_dir_for_nn_tests/db.sqlite";
+    try
+    {
+        sqlite3_close(openSqliteDatasetReadOnly(path));
+        ADD_FAILURE() << "a missing dataset file was opened";
+    }
+    catch (const std::runtime_error& e)
+    {
+        EXPECT_NE(std::string(e.what()).find(path), std::string::npos) << e.what();
+    }
+}
+
+TEST(SqliteDatasetOpen, StepErrorIsAnExceptionNotTheEndOfTheRows)
+{
+    // A write on an immutable (read-only) handle fails in sqlite3_step. A `== SQLITE_ROW` loop
+    // would read that failure as "no more rows".
+    const auto dir = std::filesystem::temp_directory_path() / "nn_sqlite_dataset_step";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "db.sqlite").string();
+    sqlite3* writer = nullptr;
+    write_wal_db(writer, path, 1);
+    ASSERT_EQ(SQLITE_OK, sqlite3_close(writer));
+
+    sqlite3* db = openSqliteDatasetReadOnly(path);
+    sqlite3_stmt* q = nullptr;
+    ASSERT_EQ(SQLITE_OK, sqlite3_prepare_v2(db, "INSERT INTO t VALUES (2)", -1, &q, nullptr));
+    EXPECT_THROW(sqliteStepRow(db, q, "insert"), std::runtime_error);
+    sqlite3_finalize(q);
+    sqlite3_close(db);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SqliteDatasetOpen, SqliteSessionOnAMissingDatabaseThrowsInsteadOfTryingMat)
+{
+    // A .sqlite path used to fall through to the MAT reader when it could not be opened.
+    EXPECT_THROW(AudioSession("/nonexistent_dir_for_nn_tests/db.sqlite", 1), std::runtime_error);
+    EXPECT_THROW(EEGSession("/nonexistent_dir_for_nn_tests/db.sqlite", 1), std::runtime_error);
+    try
+    {
+        AudioSession s("/nonexistent_dir_for_nn_tests/db.sqlite", 1);
+    }
+    catch (const std::runtime_error& e)
+    {
+        EXPECT_NE(std::string(e.what()).find("SQLite dataset"), std::string::npos) << e.what();
+    }
 }
