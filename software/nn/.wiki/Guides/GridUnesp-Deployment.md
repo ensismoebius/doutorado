@@ -1140,11 +1140,18 @@ exactly why §3 above fetches into the *same absolute path* under the grid accou
 a single `~/database.sqlite` file (three independent call sites —
 `ThesisDataset::load_dataset`, `SqliteBatchSource`, `TrialFoldSelector` — each opens its
 own `sqlite3` connection, but all resolve the path the same way, via
-`nn::utility::expand_home("~/database.sqlite")`). None of these are part of the current
-GridUnesp plan. If one of them is submitted to the grid later, the fix is one line, not a
-code change: `scp` the local `database.sqlite` to `~/database.sqlite` on
-`access.grid.unesp.br` once, and `expand_home()` picks it up automatically on every
-later run, the same as any other `~`-relative path on that account.
+`nn::utility::expand_home("~/database.sqlite")`).
+
+**`thesis` runs on the grid since 2026-11-12.** `gridunesp_deploy.sh` builds it by default
+(`GRIDUNESP_TARGETS="meeting01 thesis"`). With `thesis` among the targets, the deploy also
+sends `~/database.sqlite` and its decoded cache `~/database.sqlite.e05dscache` to the same
+paths on the cluster, and runs a real Phase 00 profile on a compute node as the smoke test.
+Each target has its own stamp: `SOURCE_REVISION.built` for meeting01 and
+`SOURCE_REVISION.thesis.built` for thesis. The deploy deletes both before it builds, so a
+target left out of a deploy is unstamped afterwards and its runner refuses to start. The runs
+themselves are described in
+[Experiment05 § Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12).
+`paraconsistentGA` and `autoencoderRunner` are still not part of the plan.
 
 ## Open questions to confirm with `support.ncc@unesp.br`
 

@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -204,7 +205,15 @@ void write_cache(const std::string& path, std::uint64_t signature, const ThesisD
     // parallel, so a shared "<path>.tmp" would be written by multiple workers
     // at once and corrupt. Each writes its own temp, then atomically renames
     // onto the final path (last writer wins; all payloads are identical).
-    const std::string tmp = path + ".tmp." + std::to_string(::getpid());
+    // The host name is part of it because a pid is unique only on one machine:
+    // GridUnesp array tasks on different nodes share the same /home, so two of
+    // them can hold the same pid and would write one temp file together.
+    std::array<char, 256> host{};
+    if (::gethostname(host.data(), host.size() - 1) != 0)
+        throw std::runtime_error(
+            "ThesisDataset: gethostname failed; cannot name the cache temp file");
+    const std::string tmp =
+        path + ".tmp." + std::string(host.data()) + "." + std::to_string(::getpid());
     {
         std::ofstream os(tmp, std::ios::binary | std::ios::trunc);
         if (!os)

@@ -544,6 +544,68 @@ python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
 
 `thesis_build_phase01_auth_tables.py` averages `mean_eer`/`mean_auc` across each configuration's 3 repeats and writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better) — the source of the §Fase 01 table and the headline numbers in the status note above. Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
 
+### Running on GridUnesp (2026-11-12)
+
+**Why.** Phase 01 is the expensive phase: 32 profiles × 3 repeats × 5 folds × 50 epochs, and
+since the fold-intersection fix every fold trains on all of its training speakers, not about
+a third of them. One voice profile at 1 epoch and 1 repeat took 482 s locally. Phase 00 is
+small by comparison (measured 2026-11-12 at 4 threads: an autoencoder epoch takes 3–6 s, and
+the whole phase is about 8 h in series), but it runs on the cluster too, from the same binary
+and revision as Phase 01.
+
+**What runs where.** `scripts/pipeline/thesis/thesis_gridunesp.sbatch` runs one phase as a Slurm
+array. Task `t` of `N` runs the profiles at positions `t, t+N, t+2N, …` of the sorted list, one
+after another:
+
+```
+phase00, N = 16          sorted position:  0   1   2  ...  15   16   17  ...  213
+                         task:             0   1   2  ...  15    0    1  ...    5
+-> task 0 runs positions 0, 16, 32, ... (14 profiles); the 24 autoencoder profiles
+   (positions 0-23) land on 16 different tasks instead of all in one
+```
+
+Why batches and not one task per profile: every profile first loads the decoded dataset,
+`~/database.sqlite.e05dscache` (1.6 GB), from `/home`. Fourteen profiles in a row on one node
+read it once from `/home` and then from that node's page cache. One task per profile would read
+it 214 times from `/home`.
+
+**Commands.**
+
+```bash
+# local: sync the tree, build meeting01 + thesis on a compute node, send ~/database.sqlite
+# (+ its cache), and smoke thesis with a real profile (p00_pca_k8_eeg) on a compute node
+./scripts/pipeline/meeting01/gridunesp_deploy.sh            # GRIDUNESP_TARGETS="meeting01 thesis"
+# cluster: one array per phase (# CONFIRMED -- the expensive-experiment guard)
+THESIS_PHASE=phase00 sbatch --array=0-15 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# local, when every task is done: bring the phase home, then the hand-off above
+rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
+```
+
+**What it refuses, and what it records.** Each line below is a loud stop. None of these cases
+is skipped or worked around.
+
+| Situation | Behaviour |
+|---|---|
+| Profile exits non-zero, or a summary / paraconsistent CSV that its repeats must write is missing | That task stops at once with exit 1. `results/thesis/<phase>/.failed/<profile>.failed` holds the exit code, the missing files and the log path, and the task's later profiles do not run. |
+| Profile finished and every expected file exists | `.done/<profile>.done` is written with the revision label. A resubmitted array skips that profile. |
+| A `.done` marker made by another revision anywhere in the phase directory | The task is refused. One phase directory must never hold two binaries' results, and nothing downstream could tell them apart. Move the directory aside. |
+| The array is not `0..N-1` without gaps (`--array=3,7`) | The task is refused, because the profile-to-task mapping depends on `N`. Resubmit the whole array; finished tasks exit in seconds. |
+| The binary was not built from the sources on disk (`SOURCE_REVISION.thesis.built` ≠ `SOURCE_REVISION`) | The task is refused. Rerun the deploy. |
+| Time limit or `scancel --batch --signal=USR1` | The run is stopped and job-nanny copies the results back. The interrupted profile has no marker and reruns. |
+
+The deploy stamps each binary separately and deletes every stamp before it builds, so a binary
+it did not rebuild ends up unstamped and refuses to run. It also refuses to deploy while a
+`thesis-run*` job is running: those jobs load this project's shared libraries from the build
+tree (RPATH), and they read `~/database.sqlite`, which the deploy may replace.
+
+All of the above was exercised locally on 2026-11-12, with stubs for `module`, `conda` and
+job-nanny, using the real binary and 3 real profiles: a fresh task, a resubmission, a gap in
+the array, a foreign revision, a failing profile, a call that is not an array, a stale stamp,
+and a USR1 sent during an autoencoder profile.
+
+The cache's temp file is now named `<cache>.tmp.<host>.<pid>`. The pid alone was unique on one
+machine only, and array tasks on different nodes share `/home`.
+
 ---
 
 ## Outputs
