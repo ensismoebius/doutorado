@@ -2,8 +2,7 @@
   "experiment": {
     "run_tag": "smoke_e05_debug",
     "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": true
+    "repeats": 1
   },
   "dataset": {
     "root": "~/database.sqlite",
@@ -20,7 +19,9 @@
         "energy",
         "zcr"
       ],
-      "dtwpt_level": 3
+      "dtwpt_level": 3,
+      "wavelet": "daub4",
+      "cepstral": false
     }
   },
   "paraconsistent": {
@@ -33,7 +34,8 @@
       "residual:1",
       "linear:N_speakers:identity"
     ],
-    "text_mode": "dependent"
+    "text_mode": "dependent",
+    "enabled": true
   },
   "training": {
     "epochs": 2,
@@ -43,8 +45,8 @@
     "k_folds": 2,
     "nested_cv": true,
     "weight_decay": 0.0001,
-    "firing_rate_reg_lambda": 0.01,
-    "firing_rate_min": 0.05,
-    "firing_rate_max": 0.8
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "standardize_features": true
   }
 }

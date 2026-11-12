@@ -44,14 +44,14 @@ double mean_latent_std(const std::vector<std::vector<double>>& vectors)
     return acc_std / static_cast<double>(dim);
 }
 
-// Build a thesis FeatureExtraction that runs this genome's AE.
-thesis::ThesisConfig::FeatureExtraction make_feature_extraction(
-    const Genome& g, const GaConfig& cfg)
+// The thesis config that runs this genome's AE: the profile's base with the genome-owned
+// autoencoder keys filled in (strategy is "autoencoder" in the profile — GaConfig::validate
+// refuses anything else, rather than overwriting it here).
+thesis::ThesisConfig make_genome_config(const Genome& g, const GaConfig& cfg)
 {
-    thesis::ThesisConfig::FeatureExtraction fe = cfg.base.feature_extraction;
-    fe.strategy = "autoencoder";
-    fe.autoencoder = to_ae_config(g, cfg.base.feature_extraction.autoencoder);
-    return fe;
+    thesis::ThesisConfig run = cfg.base;
+    run.feature_extraction.autoencoder = to_ae_config(g, cfg.base.feature_extraction.autoencoder);
+    return run;
 }
 
 // Winning (lowest d_penalized) representation found across the n_seeds training/scoring
@@ -69,11 +69,10 @@ struct SeedSweepResult
 // (.wiki/Experiments/ParaconsistentGA-Design.md §5.5), keeping the best (lowest d_penalized)
 // feature set/model snapshot seen across all seeds.
 SeedSweepResult run_seed_sweep(const thesis::ThesisDatasetView& view,
-    const thesis::ThesisConfig::FeatureExtraction& fe,
-    const std::string& modality,
-    const std::string& fusion_mode,
+    const thesis::ThesisConfig& genome_cfg,
     const GaConfig& cfg)
 {
+    thesis::ThesisConfig run_cfg = genome_cfg;
     SeedSweepResult result;
     result.d_pen_per_seed.reserve(static_cast<size_t>(cfg.ga.n_seeds));
     double best_d_pen = std::numeric_limits<double>::max();
@@ -81,6 +80,7 @@ SeedSweepResult run_seed_sweep(const thesis::ThesisDatasetView& view,
     for (int s = 0; s < cfg.ga.n_seeds; ++s)
     {
         const std::uint32_t seed = cfg.base.experiment.seed + static_cast<std::uint32_t>(s);
+        run_cfg.experiment.seed = seed;
 
         // Captures every model this seed trains (one, or two for late fusion — see
         // ModelSnapshotFn), prefixed by part_tag so late fusion's voice+eeg models don't
@@ -93,8 +93,7 @@ SeedSweepResult run_seed_sweep(const thesis::ThesisDatasetView& view,
             for (const auto& [k, v] : sd) captured_this_seed[prefix + k] = v;
         };
 
-        auto feature_sets = thesis::extract_features(
-            view, fe, cfg.base.training, modality, fusion_mode, seed, on_model_trained);
+        auto feature_sets = thesis::extract_features(view, run_cfg, on_model_trained);
 
         // Score every non-empty feature set this genome produced; the individual's
         // value for the seed is the best (lowest d_penalized) representation.
@@ -147,12 +146,12 @@ void apply_feasibility_constraints(Individual& ind, const GaConfig& cfg)
     {
         ind.feasible = false;
         ind.constraint_violation += (ind.est_latency_ms - cfg.constraints.latency_ceiling_ms) /
-                                    std::max(1.0, cfg.constraints.latency_ceiling_ms);
+                                    std::max(1.0, cfg.constraints.latency_ceiling_ms.get());
     }
     if (ind.latent_activity < cfg.constraints.tau_rec)
     {
         ind.feasible = false;
-        const double denom = std::max(cfg.constraints.tau_rec, 1e-12);
+        const double denom = std::max(cfg.constraints.tau_rec.get(), 1e-12);
         ind.constraint_violation += (cfg.constraints.tau_rec - ind.latent_activity) / denom;
     }
 }
@@ -185,7 +184,7 @@ void evaluate_individual(
         ind.d_penalized_std = 0.0;
         ind.feasible = false;
         ind.constraint_violation = (ind.est_latency_ms - cfg.constraints.latency_ceiling_ms) /
-                                   std::max(1.0, cfg.constraints.latency_ceiling_ms);
+                                   std::max(1.0, cfg.constraints.latency_ceiling_ms.get());
         ind.objectives = {ind.d_penalized_mean, static_cast<double>(ind.inference_cost)};
         ind.evaluated = true;
         return;
@@ -193,11 +192,7 @@ void evaluate_individual(
 
     // ── Train + score across n_seeds (.wiki/Experiments/ParaconsistentGA-Design.md §5.5)
     // ────────────────────────────
-    const thesis::ThesisConfig::FeatureExtraction fe = make_feature_extraction(g, cfg);
-    const std::string& modality = cfg.base.dataset.modality;
-    const std::string& fusion_mode = cfg.base.dataset.fusion_mode;
-
-    SeedSweepResult sweep = run_seed_sweep(view, fe, modality, fusion_mode, cfg);
+    SeedSweepResult sweep = run_seed_sweep(view, make_genome_config(g, cfg), cfg);
 
     if (sweep.d_pen_per_seed.empty())
         throw std::runtime_error(

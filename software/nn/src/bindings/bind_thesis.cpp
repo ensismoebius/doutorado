@@ -10,6 +10,7 @@
 #include <pybind11/stl.h>
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -83,12 +84,12 @@ void bind_thesis(py::module_& parent)
         },
         py::arg("signal"),
         py::arg("sample_rate"),
-        py::arg("transform") = "dtwpt",
-        py::arg("scale") = "lfcc",
-        py::arg("descriptors") = std::vector<std::string>{"energy", "zcr", "entropy", "teager"},
-        py::arg("dtwpt_level") = 4,
-        py::arg("wavelet") = "daub4",
-        py::arg("cepstral") = false,
+        py::arg("transform"),
+        py::arg("scale"),
+        py::arg("descriptors"),
+        py::arg("dtwpt_level"),
+        py::arg("wavelet"),
+        py::arg("cepstral"),
         "DTWPT (or cepstral) handcrafted feature vector for one signal — "
         "thesis::extract_handcrafted.");
 
@@ -116,7 +117,7 @@ void bind_thesis(py::module_& parent)
         },
         py::arg("feature_vectors"),
         py::arg("subject_ids"),
-        py::arg("label") = "adhoc",
+        py::arg("label"),
         "alpha/beta/G1/G2/D_truth/D_penalized for a feature set — thesis::score_feature_set. "
         "Grouping is by subject_id; d_penalized = d_truth + (2 - sqrt(2)) * |g2|.");
 
@@ -176,19 +177,19 @@ void bind_thesis(py::module_& parent)
 
     m.def(
         "load_dataset",
-        [](const std::string& root, const std::string& modality, int max_samples)
+        [](const std::string& root, int max_samples)
         {
             thesis::ThesisConfig::Dataset d;
             d.root = root;
-            d.modality = modality;
             d.max_samples = max_samples;
             return std::make_shared<thesis::ThesisDatasetView>(thesis::load_dataset(d));
         },
         py::arg("root"),
-        py::arg("modality") = "eeg",
-        py::arg("max_samples") = 0,
+        py::arg("max_samples"),
         "thesis::load_dataset — root may be a subject directory or a .sqlite file "
-        "('~' is expanded). modality: voice | eeg | fused.");
+        "('~' is expanded). max_samples: round-robin cap across speakers, 0 = every sample. "
+        "Every modality loads the same paired audio+EEG trials; the modality is chosen at "
+        "feature extraction.");
 
     m.def(
         "extract_handcrafted_features",
@@ -200,28 +201,45 @@ void bind_thesis(py::module_& parent)
             int dtwpt_level,
             const std::string& wavelet,
             bool cepstral,
-            const std::string& fusion_mode,
-            std::uint32_t seed)
+            const std::optional<std::string>& fusion_mode)
         {
-            thesis::ThesisConfig::FeatureExtraction fx;
-            fx.strategy = "handcrafted";
-            fx.handcrafted =
+            // Only what the handcrafted strategy reads is declared: no training, no seed
+            // (DTWPT features are deterministic). fusion_mode exists for "fused" only.
+            thesis::ThesisConfig cfg;
+            cfg.dataset.modality = modality;
+            if (modality == "fused")
+            {
+                if (!fusion_mode)
+                    throw std::invalid_argument(
+                        "extract_handcrafted_features: modality \"fused\" needs fusion_mode "
+                        "(\"early\" or \"late\")");
+                cfg.dataset.fusion_mode = *fusion_mode;
+            }
+            else if (fusion_mode)
+            {
+                throw std::invalid_argument(
+                    "extract_handcrafted_features: fusion_mode applies to modality \"fused\" "
+                    "only; got modality \"" +
+                    modality + "\"");
+            }
+            cfg.feature_extraction.strategy = "handcrafted";
+            cfg.feature_extraction.handcrafted =
                 make_handcrafted_cfg(transform, scale, descriptors, dtwpt_level, wavelet, cepstral);
-            const thesis::ThesisConfig::Training training{};
-            return thesis::extract_features(*view, fx, training, modality, fusion_mode, seed);
+            return thesis::extract_features(*view, cfg, /*on_model_trained=*/nullptr);
         },
         py::arg("view"),
-        py::arg("modality") = "eeg",
-        py::arg("transform") = "dtwpt",
-        py::arg("scale") = "lfcc",
-        py::arg("descriptors") = std::vector<std::string>{"energy", "zcr", "entropy", "teager"},
-        py::arg("dtwpt_level") = 4,
-        py::arg("wavelet") = "daub4",
-        py::arg("cepstral") = false,
-        py::arg("fusion_mode") = "late",
-        py::arg("seed") = 42U,
+        py::arg("modality"),
+        py::arg("transform"),
+        py::arg("scale"),
+        py::arg("descriptors"),
+        py::arg("dtwpt_level"),
+        py::arg("wavelet"),
+        py::arg("cepstral"),
+        py::arg("fusion_mode"),
         "thesis::extract_features with the handcrafted strategy — one FeatureSet per "
-        "modality/config, vectors aligned with view.samples.");
+        "modality/config, vectors aligned with view.samples. Every argument is required; "
+        "fusion_mode is a string for modality \"fused\" and None otherwise (refused if "
+        "mismatched).");
 
     m.def(
         "rank_feature_sets",

@@ -8,6 +8,7 @@
 
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisFeatureExtraction.hpp"
+#include "ThesisTestConfig.hpp"
 
 using namespace thesis;
 
@@ -169,9 +170,12 @@ ThesisConfig::HandcraftedConfig make_hc_cfg(
     const std::vector<std::string>& descs, int dtwpt_level = 2)
 {
     ThesisConfig::HandcraftedConfig cfg;
+    cfg.transform = "dtwpt";
     cfg.descriptors = descs;
     cfg.dtwpt_level = dtwpt_level;
     cfg.scale = "mel";
+    cfg.wavelet = "daub4";
+    cfg.cepstral = false;
     return cfg;
 }
 
@@ -398,17 +402,29 @@ ThesisConfig::FeatureExtraction make_hc_fe(const std::vector<std::string>& descs
     fe.handcrafted = make_hc_cfg(descs, level);
     return fe;
 }
+
+// Handcrafted extraction reads only the strategy and the modality (+ fusion_mode when
+// fused): no training block, no seed.
+std::vector<FeatureSet> run_hc(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& fe,
+    const std::string& modality,
+    const std::string& fusion_mode = "")
+{
+    ThesisConfig cfg;
+    cfg.dataset.modality = modality;
+    if (!fusion_mode.empty()) cfg.dataset.fusion_mode = fusion_mode;
+    cfg.feature_extraction = fe;
+    return extract_features(view, cfg, nullptr);
+}
 } // namespace
 
 TEST(ThesisFusion, LateFusionDimIsVoicePlusEeg)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    ThesisConfig::Training tr; // defaults unused by handcrafted path
-
-    auto voice = extract_features(view, fe, tr, "voice");
-    auto eeg = extract_features(view, fe, tr, "eeg");
-    auto late = extract_features(view, fe, tr, "fused", "late");
+    auto voice = run_hc(view, fe, "voice");
+    auto eeg = run_hc(view, fe, "eeg");
+    auto late = run_hc(view, fe, "fused", "late");
 
     ASSERT_EQ(voice.size(), 1u);
     ASSERT_EQ(eeg.size(), 1u);
@@ -426,10 +442,8 @@ TEST(ThesisFusion, EarlyFusionSingleExtractionDiffersFromLate)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    ThesisConfig::Training tr;
-
-    auto early = extract_features(view, fe, tr, "fused", "early");
-    auto late = extract_features(view, fe, tr, "fused", "late");
+    auto early = run_hc(view, fe, "fused", "early");
+    auto late = run_hc(view, fe, "fused", "late");
 
     ASSERT_EQ(early.size(), 1u);
     ASSERT_EQ(late.size(), 1u);
@@ -445,8 +459,7 @@ TEST(ThesisFusion, UnknownFusionModeThrows)
 {
     auto view = make_paired_view();
     auto fe = make_hc_fe({"energy"});
-    ThesisConfig::Training tr;
-    EXPECT_THROW(extract_features(view, fe, tr, "fused", "bogus"), std::invalid_argument);
+    EXPECT_THROW(run_hc(view, fe, "fused", "bogus"), std::invalid_argument);
 }
 
 // ─── SNN-AE temporal encoding (poisson/latency rate coding) ───────────────────
@@ -478,16 +491,27 @@ ThesisDatasetView make_multi_view(int n_samples)
     return view;
 }
 
+// The keys the old struct defaults supplied are declared at those values: mse, and for the
+// SNN-AE a 0.2 threshold with the firing-rate regularizer off. time_steps only for a
+// temporal code (direct has one analog frame).
 ThesisConfig::FeatureExtraction make_ae_fe(
     const std::string& model, const std::string& encoding, int time_steps)
 {
     ThesisConfig::FeatureExtraction fe;
     fe.strategy = "autoencoder";
     fe.autoencoder.model = model;
-    fe.autoencoder.encoder_layer_spec = {"linear:16:leaky", "linear:8:identity"};
-    fe.autoencoder.decoder_layer_spec = {"linear:16:leaky", "linear:output:identity"};
-    fe.autoencoder.encoding = encoding;
-    fe.autoencoder.time_steps = time_steps;
+    fe.autoencoder.encoder_layer_spec =
+        std::vector<std::string>{"linear:16:leaky", "linear:8:identity"};
+    fe.autoencoder.decoder_layer_spec =
+        std::vector<std::string>{"linear:16:leaky", "linear:output:identity"};
+    fe.autoencoder.ae_loss_type = "mse";
+    if (model == "snn-ae")
+    {
+        fe.autoencoder.encoding = encoding;
+        if (encoding != "direct") fe.autoencoder.time_steps = time_steps;
+        fe.autoencoder.voltage_threshold = 0.2f;
+        fe.autoencoder.firing_rate_reg_lambda = 0.0f;
+    }
     return fe;
 }
 
@@ -495,8 +519,25 @@ ThesisConfig::Training make_ae_training()
 {
     ThesisConfig::Training tr;
     tr.epochs = 5; // fast; enough to move off the zero init
+    tr.learning_rate = 1e-3f;
+    tr.optimizer_type = "adam";
+    tr.gradient_clip_norm = 0.0f;
     tr.samples_per_batch = 8;
     return tr;
+}
+
+// An EEG autoencoder run of `fe` at `seed`.
+std::vector<FeatureSet> run_ae(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& fe,
+    const ThesisConfig::Training& training,
+    std::uint32_t seed)
+{
+    ThesisConfig cfg = test::phase00("eeg");
+    cfg.experiment.seed = seed;
+    cfg.feature_extraction = fe;
+    cfg.training = training;
+    cfg.validate();
+    return extract_features(view, cfg, nullptr);
 }
 
 // Max |value| and cross-sample variance of the latent vectors.
@@ -527,7 +568,7 @@ TEST(ThesisSnnAe, PoissonLatentIsNonDegenerate)
     auto fe = make_ae_fe("snn-ae", "poisson", 8);
     auto tr = make_ae_training();
 
-    auto sets = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
+    auto sets = run_ae(view, fe, tr, 7u);
     ASSERT_EQ(sets.size(), 1u);
     const auto& vecs = sets[0].vectors;
     ASSERT_EQ(vecs.size(), view.samples.size());
@@ -560,8 +601,8 @@ TEST(ThesisReproducibility, AutoencoderFeaturesAreIdenticalAcrossRuns)
     for (const char* encoding : {"direct", "latency", "poisson"})
     {
         auto fe = make_ae_fe("snn-ae", encoding, 8);
-        const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
-        const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
+        const auto a = run_ae(view, fe, tr, 7u);
+        const auto b = run_ae(view, fe, tr, 7u);
 
         ASSERT_EQ(a.size(), b.size()) << "encoding=" << encoding;
         ASSERT_EQ(a[0].vectors.size(), b[0].vectors.size()) << "encoding=" << encoding;
@@ -585,8 +626,8 @@ TEST(ThesisReproducibility, AnnAutoencoderFeaturesAreIdenticalAcrossRuns)
     auto tr = make_ae_training();
     auto fe = make_ae_fe("ann-ae", "direct", 1);
 
-    const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/11u);
-    const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/11u);
+    const auto a = run_ae(view, fe, tr, 11u);
+    const auto b = run_ae(view, fe, tr, 11u);
 
     ASSERT_EQ(a[0].vectors.size(), b[0].vectors.size());
     for (size_t i = 0; i < a[0].vectors.size(); ++i)
@@ -607,8 +648,8 @@ TEST(ThesisReproducibility, DifferentSeedChangesAutoencoderFeatures)
     // autoencoder has no threshold, so its output must move when the weights move.
     auto fe = make_ae_fe("ann-ae", "direct", 1);
 
-    const auto a = extract_features(view, fe, tr, "eeg", "late", /*seed=*/7u);
-    const auto b = extract_features(view, fe, tr, "eeg", "late", /*seed=*/8u);
+    const auto a = run_ae(view, fe, tr, 7u);
+    const auto b = run_ae(view, fe, tr, 8u);
 
     bool any_diff = false;
     for (size_t i = 0; i < a[0].vectors.size() && !any_diff; ++i)
@@ -629,9 +670,8 @@ TEST(ThesisSnnAe, EncodingChangesTheFeature)
     auto view = make_multi_view(4);
     auto tr = make_ae_training();
 
-    auto poisson =
-        extract_features(view, make_ae_fe("snn-ae", "poisson", 8), tr, "eeg", "late", 7u);
-    auto direct = extract_features(view, make_ae_fe("snn-ae", "direct", 1), tr, "eeg", "late", 7u);
+    auto poisson = run_ae(view, make_ae_fe("snn-ae", "poisson", 8), tr, 7u);
+    auto direct = run_ae(view, make_ae_fe("snn-ae", "direct", 1), tr, 7u);
 
     ASSERT_EQ(poisson.size(), 1u);
     ASSERT_EQ(direct.size(), 1u);
@@ -655,27 +695,28 @@ TEST(ThesisSnnAe, EncodingChangesTheFeature)
 
 namespace
 {
+// A Phase-00 EEG ann-ae run, every key it reads declared.
 ThesisConfig make_min_ae_config()
 {
-    ThesisConfig cfg;
-    cfg.experiment.run_tag = "t";
-    cfg.dataset.root = "/x";
-    cfg.dataset.modality = "eeg";
-    cfg.feature_extraction.strategy = "autoencoder";
-    cfg.feature_extraction.autoencoder.model = "ann-ae";
-    cfg.feature_extraction.autoencoder.encoder_layer_spec = {
-        "linear:64:leaky", "linear:32:identity"};
-    cfg.feature_extraction.autoencoder.decoder_layer_spec = {
-        "linear:64:leaky", "linear:output:identity"};
-    cfg.classifier.enabled = false;
+    ThesisConfig cfg = test::phase00("eeg");
+    test::set_training(cfg, 5, 1e-3f, 8);
+    test::set_autoencoder(cfg,
+        "ann-ae",
+        {"linear:64:leaky", "linear:32:identity"},
+        {"linear:64:leaky", "linear:output:identity"},
+        "mse");
     return cfg;
 }
 } // namespace
 
-TEST(ThesisAeLoss, DefaultsToMse)
+TEST(ThesisAeLoss, HasNoDefault)
 {
+    // It used to default to "mse" (and the model to "lstm-ae"): a profile that forgot the
+    // key trained with a loss nobody chose. Now an undeclared value cannot be read.
     ThesisConfig cfg;
-    EXPECT_EQ(cfg.feature_extraction.autoencoder.ae_loss_type, "mse");
+    EXPECT_FALSE(cfg.feature_extraction.autoencoder.ae_loss_type.declared());
+    EXPECT_THROW((void) cfg.feature_extraction.autoencoder.ae_loss_type.get(), std::logic_error);
+    EXPECT_THROW((void) cfg.feature_extraction.autoencoder.model.get(), std::logic_error);
 }
 
 TEST(ThesisAeLoss, AcceptsMseAndMae)
@@ -704,19 +745,10 @@ namespace
 {
 ThesisConfig make_snn_ae_config(const char* encoding, const char* loss)
 {
-    ThesisConfig cfg;
-    cfg.experiment.run_tag = "t";
-    cfg.dataset.root = "/x";
-    cfg.dataset.modality = "eeg";
-    cfg.feature_extraction.strategy = "autoencoder";
+    ThesisConfig cfg = make_min_ae_config();
     cfg.feature_extraction.autoencoder.model = "snn-ae";
-    cfg.feature_extraction.autoencoder.encoder_layer_spec = {
-        "linear:64:leaky", "linear:32:identity"};
-    cfg.feature_extraction.autoencoder.decoder_layer_spec = {
-        "linear:64:leaky", "linear:output:identity"};
-    cfg.feature_extraction.autoencoder.encoding = encoding;
     cfg.feature_extraction.autoencoder.ae_loss_type = loss;
-    cfg.classifier.enabled = false;
+    test::set_snn(cfg, encoding, 16, 0.2f, 0.0f, 0.0f, 0.0f);
     return cfg;
 }
 } // namespace
@@ -746,8 +778,8 @@ TEST(ThesisSpikeLoss, RejectedForDirectEncoding)
 TEST(ThesisSpikeLoss, RejectedForNonSpikingModel)
 {
     // ann-ae emits continuous values, never spikes.
-    auto cfg = make_snn_ae_config("poisson", "spikecount");
-    cfg.feature_extraction.autoencoder.model = "ann-ae";
+    auto cfg = make_min_ae_config();
+    cfg.feature_extraction.autoencoder.ae_loss_type = "spikecount";
     EXPECT_THROW(cfg.validate(), std::invalid_argument);
 }
 
@@ -758,11 +790,23 @@ TEST(ThesisSpikeLoss, ContinuousLossesRemainAvailableAsBaseline)
     EXPECT_NO_THROW(make_snn_ae_config("latency", "mae").validate());
 }
 
+TEST(ThesisAeLoss, LstmAeTrainsWithMseOnly)
+{
+    // The LSTM-AE path is MSE only; another token would be silently ignored, so it is refused.
+    ThesisConfig cfg = test::phase00("eeg");
+    test::set_training(cfg, 5, 1e-3f, 8);
+    test::set_autoencoder(cfg, "lstm-ae", {"linear:64:leaky", "linear:32:identity"}, {}, "mse");
+    EXPECT_NO_THROW(cfg.validate());
+    cfg.feature_extraction.autoencoder.ae_loss_type = "mae";
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+}
+
 TEST(ThesisAeLoss, ParsedFromProfileJson)
 {
     const auto j = nlohmann::json::parse(R"({
-        "experiment": {"run_tag": "t"},
-        "dataset": {"root": "/x", "modality": "eeg"},
+        "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
+        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg",
+                    "max_samples": 0},
         "feature_extraction": {
             "strategy": "autoencoder",
             "autoencoder": {
@@ -772,7 +816,10 @@ TEST(ThesisAeLoss, ParsedFromProfileJson)
                 "ae_loss_type": "mae"
             }
         },
-        "classifier": {"enabled": false}
+        "paraconsistent": {"enabled": true},
+        "classifier": {"enabled": false},
+        "training": {"epochs": 5, "learning_rate": 0.001, "optimizer_type": "adam",
+                     "gradient_clip_norm": 0.0, "samples_per_batch": 8}
     })");
     const auto cfg = ThesisConfig::from_json(j);
     EXPECT_EQ(cfg.feature_extraction.autoencoder.ae_loss_type, "mae");

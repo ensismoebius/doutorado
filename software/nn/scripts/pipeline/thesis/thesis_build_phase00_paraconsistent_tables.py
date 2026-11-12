@@ -2,10 +2,14 @@
 """thesis_build_phase00_paraconsistent_tables.py — Rank Experiment 05 phase00
 configs by d_penalized.
 
-Reads every e05_e05_p00_*_rep{0,1,2}_summary.json under results/thesis/phase00,
-averages best_d_penalized/best_d_truth/best_alpha/best_beta across the 3 repeats
-per profile, and writes ranked CSV data files (one per {autoencoder, handcrafted}
-x {eeg, voice} group, sorted ASCENDING by mean d_penalized). The thesis LaTeX
+For every Phase 00 profile, reads exactly the summaries it declares
+(e05_<run_tag>[_rep<k>]_summary.json, from its own run_tag and repeats), averages
+best_d_penalized/best_d_truth/best_alpha/best_beta across the repetitions, and writes
+ranked CSV data files (one per {autoencoder, handcrafted, pca} x {eeg, voice} group,
+sorted ASCENDING by mean d_penalized). The profile set, not whatever is in results/,
+defines the tables: a result file with no profile is never read, and a profile with a
+missing repetition or an empty group is refused (a stale table would otherwise stay in
+the thesis looking current). The thesis LaTeX
 typesets these directly via csvsimple — this script only produces data,
 never hand-edited .tex, so the tables stay a clean generate/typeset split.
 
@@ -31,6 +35,7 @@ is only the contradiction penalty that reverses them.
 
 Usage:
     python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \\
+        --profiles-dir src/experiments/thesis/profiles/phase00 \\
         --results-dir results/thesis/phase00 \\
         --tables-dir ../../documentation/00-thesis/monography/tables
 """
@@ -47,8 +52,6 @@ import statistics
 from collections import defaultdict
 from typing import Dict, List
 
-RUN_RE = re.compile(r"^e05_e05_(p00_.+)_rep(\d+)_summary\.json$")
-
 WAVELET_LABELS = {"haar": "Haar"}
 
 
@@ -58,12 +61,13 @@ def wavelet_label(tag: str) -> str:
     m = re.match(r"daub(\d+)$", tag)
     if m:
         return f"Daubechies {m.group(1)}"
-    return tag
+    raise ValueError(f"no table label for wavelet {tag!r}; add it to WAVELET_LABELS")
 
 
 def parse_profile(name: str, modality: str) -> Dict[str, str]:
     """name is the profile stem, e.g. 'p00_ae_snn_direct_base_eeg' or
-    'p00_hc_daub10_bark_c1_voice'. Returns {'group': 'ae'|'hc', 'label': str}."""
+    'p00_hc_daub10_bark_c1_voice' or 'p00_pca_k16_eeg'.
+    Returns {'group': 'ae'|'hc'|'pca', 'label': str}."""
     body = name[len("p00_"):]
     suffix = f"_{modality}"
     assert body.endswith(suffix), f"{body} does not end with {suffix}"
@@ -78,6 +82,10 @@ def parse_profile(name: str, modality: str) -> Dict[str, str]:
         encoding, size = m.group(1), m.group(2)
         return {"group": "ae", "label": f"SNN-AE {encoding} ({size})"}
 
+    m = re.match(r"^pca_k(\d+)$", body)
+    if m:
+        return {"group": "pca", "label": f"PCA (k = {m.group(1)})"}
+
     m = re.match(r"^hc_(.+)_(bark|lfcc|mel)_(c\d)$", body)
     if m:
         wavelet, feature, category = m.group(1), m.group(2), m.group(3)
@@ -89,40 +97,35 @@ def parse_profile(name: str, modality: str) -> Dict[str, str]:
     raise ValueError(f"Unrecognized phase00 profile stem: {name}")
 
 
-# EEG results for the bark/mel scales, produced before those profiles were retired.
-# The tables are built from whatever is in results/, not from the current profile set, so
-# without this filter the retired runs would still emit bark/mel rows for EEG -- and they
-# are bit-identical duplicates of the lfcc rows (.wiki/Guides/Engineering-Fixes-Log.md D6: on EEG the Nyquist
-# normalization stretches the curve ~5x, the mapping becomes injective and the grouping
-# degenerates to exactly lfcc's). Printing them as if they were distinct results is exactly
-# the misreading D6 exists to prevent. The result files themselves are deliberately left on
-# disk -- they are long-run data, and they are not wrong, merely redundant.
-RETIRED_EEG_SCALES = ("bark", "mel")
+def expected_summaries(results_dir: pathlib.Path, prof: dict) -> List[pathlib.Path]:
+    """The summaries a profile writes: thesis.cpp appends _rep<k> to the run_tag only when
+    repeats > 1, and the output file adds the e05_ prefix."""
+    tag = prof["experiment"]["run_tag"]
+    repeats = prof["experiment"]["repeats"]
+    tags = [tag] if repeats == 1 else [f"{tag}_rep{k}" for k in range(repeats)]
+    return [results_dir / f"e05_{t}_summary.json" for t in tags]
 
 
-def is_retired_eeg_scale_run(profile: str, modality: str) -> bool:
-    if modality != "eeg":
-        return False
-    m = re.match(r"^p00_hc_.+_(bark|lfcc|mel)_c\d$", profile[: -len("_eeg")])
-    return bool(m) and m.group(1) in RETIRED_EEG_SCALES
-
-
-def collect(results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
-    by_profile: Dict[str, List[dict]] = defaultdict(list)
-    skipped = 0
-    for f in results_dir.glob("e05_e05_p00_*_rep*_summary.json"):
-        m = RUN_RE.match(f.name)
-        if not m:
+def collect(profiles_dir: pathlib.Path,
+            results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
+    profiles = sorted(profiles_dir.glob("*.json"))
+    if not profiles:
+        raise SystemExit(f"[phase00-tables] no profiles in {profiles_dir}")
+    by_profile: Dict[str, List[dict]] = {}
+    missing: List[pathlib.Path] = []
+    for prof_path in profiles:
+        prof = json.loads(prof_path.read_text(encoding="utf-8"))
+        files = expected_summaries(results_dir, prof)
+        absent = [f for f in files if not f.is_file()]
+        if absent:
+            missing.extend(absent)
             continue
-        profile = m.group(1)
-        if profile.endswith("_eeg") and is_retired_eeg_scale_run(profile, "eeg"):
-            skipped += 1
-            continue
-        data = json.loads(f.read_text(encoding="utf-8"))
-        by_profile[profile].append(data)
-    if skipped:
-        print(f"[info] skipped {skipped} retired EEG bark/mel run(s) — duplicates of lfcc "
-              f"(.wiki/Guides/Engineering-Fixes-Log.md D6); result files left on disk", file=sys.stderr)
+        by_profile[prof_path.stem] = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+    if missing:
+        listed = "\n  ".join(str(m) for m in missing[:20])
+        more = f"\n  ... and {len(missing) - 20} more" if len(missing) > 20 else ""
+        raise SystemExit(f"[phase00-tables] {len(missing)} expected summary file(s) missing:"
+                         f"\n  {listed}{more}\nRun those Phase 00 profiles first.")
 
     tables: Dict[str, List[dict]] = defaultdict(list)
     for profile, runs in by_profile.items():
@@ -143,7 +146,8 @@ def collect(results_dir: pathlib.Path) -> Dict[str, List[Dict[str, object]]]:
             "n_reps": len(runs),
             "mean_d_penalized": statistics.mean(d_pens),
             "mean_d_truth": statistics.mean(d_truths),
-            "std_d_truth": statistics.pstdev(d_truths) if len(d_truths) > 1 else 0.0,
+            # One repetition has no spread: None prints as an explicit "—", never as 0.
+            "std_d_truth": statistics.pstdev(d_truths) if len(d_truths) > 1 else None,
             "mean_alpha": statistics.mean(alphas),
             "mean_beta": statistics.mean(betas),
         }
@@ -180,7 +184,7 @@ def write_table(key: str, rows: List[dict], out_dir: pathlib.Path) -> None:
                 row["label"],
                 f"{row['mean_d_penalized']:.4f}",
                 f"{row['mean_d_truth']:.4f}",
-                f"{row['std_d_truth']:.4f}",
+                "—" if row["std_d_truth"] is None else f"{row['std_d_truth']:.4f}",
                 f"{row['mean_alpha']:.4f}",
                 f"{row['mean_beta']:.4f}",
             ])
@@ -191,27 +195,24 @@ def write_table(key: str, rows: List[dict], out_dir: pathlib.Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build ranked phase00 d_truth CSV tables.")
-    parser.add_argument("--results-dir", default="results/thesis/phase00")
-    parser.add_argument(
-        "--tables-dir",
-        default="/home/ensismoebius/Repos/doutorado/documentation/00-thesis/monography/tables",
-    )
+    parser.add_argument("--profiles-dir", required=True)
+    parser.add_argument("--results-dir", required=True)
+    parser.add_argument("--tables-dir", required=True)
     args = parser.parse_args()
 
     results_dir = pathlib.Path(args.results_dir)
     tables_dir = pathlib.Path(args.tables_dir)
     tables_dir.mkdir(parents=True, exist_ok=True)
 
-    tables = collect(results_dir)
-    if not tables:
-        print("[phase00-tables] no phase00 summary.json files found")
+    tables = collect(pathlib.Path(args.profiles_dir), results_dir)
+    keys = ("ae_eeg", "ae_voice", "hc_eeg", "hc_voice", "pca_eeg", "pca_voice")
+    empty = [k for k in keys if k not in tables]
+    if empty:
+        print(f"[phase00-tables] no profile in groups {empty}: every group the thesis typesets "
+              f"must be produced, or its table would stay stale", file=sys.stderr)
         return 1
-
-    for key in ("ae_eeg", "ae_voice", "hc_eeg", "hc_voice"):
-        if key in tables:
-            write_table(key, tables[key], tables_dir)
-        else:
-            print(f"[phase00-tables] WARNING: no rows for {key}")
+    for key in keys:
+        write_table(key, tables[key], tables_dir)
 
     return 0
 

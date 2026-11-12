@@ -8,7 +8,8 @@
   "dataset": {
     "root": "~/database.sqlite",
     "results_dir": "results/thesis/phase00",
-    "modality": "eeg"
+    "modality": "eeg",
+    "max_samples": 0
   },
   "feature_extraction": {
     "strategy": "handcrafted",
@@ -33,13 +34,5 @@
   },
   "classifier": {
     "enabled": false
-  },
-  "training": {
-    "epochs": 50,
-    "learning_rate": 0.001,
-    "samples_per_batch": 32,
-    "early_stop_patience": 10,
-    "k_folds": 5,
-    "nested_cv": true
   }
 }

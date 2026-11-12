@@ -6,6 +6,7 @@ set(THESIS_LIB_SOURCES
     lib/src/ThesisParaconsistent.cpp
     lib/src/ThesisClassifiers.cpp
     lib/src/ThesisOutput.cpp
+    lib/src/ThesisPca.cpp
 )
 
 add_library(thesis_lib STATIC ${THESIS_LIB_SOURCES})

@@ -17,19 +17,22 @@ namespace pga
 // evolves ONE population, defined by base.feature_extraction.autoencoder.model ∈ {snn-ae, ann-ae}
 // and base.dataset.modality ∈ {eeg, voice, fused} (.wiki/Experiments/ParaconsistentGA-Design.md
 // §5.3/§5.4).
+//
+// NO FIELD HAS A DEFAULT (thesis::Required, as in ThesisConfig): from_json refuses a profile
+// that omits a key the run reads, declares one it ignores, or contains an unknown key.
 struct GaConfig
 {
     thesis::ThesisConfig base;
 
     struct Ga
     {
-        int population_size = 32;
-        int generations = 64;
+        thesis::Required<int> population_size{"ga.population_size"}; ///< >= 4
+        thesis::Required<int> generations{"ga.generations"};         ///< >= 1
 
         // Each individual is trained under n_seeds distinct seeds; its d_penalized is
         // the mean, and the std is recorded as the stability measure
         // (.wiki/Experiments/ParaconsistentGA-Design.md §5.5).
-        int n_seeds = 3;
+        thesis::Required<int> n_seeds{"ga.n_seeds"};
 
         // Survivor selection reserves this many slots for deliberately-kept LOSERS —
         // the worst-ranked, most distinct non-survivors — instead of filling the whole
@@ -37,16 +40,17 @@ struct GaConfig
         // premature convergence to a local optimum: it can recombine into something good
         // generations later. 0 recovers textbook NSGA-II. Must be < population_size so
         // at least one elite slot remains.
-        int n_losers = 2;
+        thesis::Required<int> n_losers{"ga.n_losers"};
 
         // Meiotic recombination probability. Reused as the per-meiosis chance that a
         // gamete is a crossover of the parent's two haplotypes rather than a straight
         // copy of one (see GaGenome meiosis()).
-        double crossover_prob = 0.9;
-        double mutation_prob = 0.2;
-        std::uint32_t seed = 42u; // GA-level RNG seed (init/selection/variation).
+        thesis::Required<double> crossover_prob{"ga.crossover_prob"};
+        thesis::Required<double> mutation_prob{"ga.mutation_prob"};
+        thesis::Required<std::uint32_t> seed{
+            "ga.seed"}; ///< GA-level RNG (init/selection/variation)
 
-        int tournament_k = 2; // binary tournament (standard NSGA-II).
+        thesis::Required<int> tournament_k{"ga.tournament_k"}; ///< 2 = binary tournament
 
         GenomeBounds bounds;
     } ga;
@@ -55,28 +59,27 @@ struct GaConfig
     {
         // End-to-end ceiling on the target hardware (.wiki/Experiments/ParaconsistentGA-Design.md
         // §4). NEW requirement — not a previously established project constraint.
-        double latency_ceiling_ms = 1000.0;
+        thesis::Required<double> latency_ceiling_ms{"constraints.latency_ceiling_ms"};
 
         // Constant, genome-independent cost of the rest of the chain (acquisition,
         // preprocessing, feature assembly, response). autoencoder_budget =
         // latency_ceiling_ms - fixed_pipeline_cost_ms.
-        double fixed_pipeline_cost_ms = 0.0;
+        thesis::Required<double> fixed_pipeline_cost_ms{"constraints.fixed_pipeline_cost_ms"};
 
         // False → fixed_pipeline_cost_ms and ns_per_mac are uncalibrated estimates;
-        // logged as such (.wiki/Experiments/ParaconsistentGA-Design.md §4). A real calibration
-        // utility would set true.
-        bool latency_calibrated = false;
+        // logged as such (.wiki/Experiments/ParaconsistentGA-Design.md §4).
+        thesis::Required<bool> latency_calibrated{"constraints.latency_calibrated"};
 
-        // Uncalibrated MAC→time conversion for the structural latency proxy.
+        // MAC→time conversion for the structural latency proxy.
         // est_autoencoder_ms = inference_cost_proxy · ns_per_mac / 1e6.
-        double ns_per_mac = 2.0;
+        thesis::Required<double> ns_per_mac{"constraints.ns_per_mac"};
 
         // §3.3 sanity filter, implemented as a latent-collapse guard (see PHASE0.md):
         // an individual is infeasible if the mean per-dimension std of its latent
         // vectors is below this. Defends against the α=β=1 constant-latent degeneracy.
         // Separate value per population; never compared across ANN/SNN
         // (.wiki/Experiments/ParaconsistentGA-Design.md §5.3).
-        double tau_rec = 1e-4;
+        thesis::Required<double> tau_rec{"constraints.tau_rec"};
     } constraints;
 
     // Crash-resilient checkpointing (results/paraconsistentGA/pga_<tag>_{checkpoint.json,
@@ -87,15 +90,16 @@ struct GaConfig
     // deleted on successful completion — the results (CSV + Pareto JSON) are what remain.
     struct Checkpoint
     {
-        bool enabled = true;
-        // Write the generation-state file every N generations. The per-individual cache
-        // is always appended live regardless of this. 1 = safest (default).
-        int every_generations = 1;
+        thesis::Required<bool> enabled{"checkpoint.enabled"};
+        // enabled only: write the generation-state file every N generations. The
+        // per-individual cache is always appended live regardless of this.
+        thesis::Required<int> every_generations{"checkpoint.every_generations"};
     } checkpoint;
 
-    // Where per-individual logs and the Pareto front are written.
-    std::string results_dir = "results/paraconsistentGA";
-    std::string run_tag = "pga_run";
+    // Where per-individual logs and the Pareto front are written, and their name. The
+    // GA's own keys: the embedded experiment.run_tag / dataset.results_dir are refused.
+    thesis::Required<std::string> results_dir{"results_dir"};
+    thesis::Required<std::string> run_tag{"run_tag"};
 
     [[nodiscard]] bool is_snn_population() const
     {
@@ -104,6 +108,9 @@ struct GaConfig
 
     // Budget the autoencoder actually has (ms). Clamped at 0.
     [[nodiscard]] double autoencoder_budget_ms() const;
+
+    /// The thesis keys this program owns or ignores (see thesis::ThesisConfig::Embedding).
+    static auto embedding() -> thesis::ThesisConfig::Embedding;
 
     void validate() const;
 

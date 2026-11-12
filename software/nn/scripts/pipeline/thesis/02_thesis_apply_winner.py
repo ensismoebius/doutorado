@@ -9,11 +9,12 @@ profile's signal source:
     source          -> winner used
     voice           -> winners["voice"]
     eeg             -> winners["eeg"]
-    fused-early/late -> winners[--fused]   (default: voice)
+    fused-early/late -> winners[--fused]
 
-Fused runs extract both signals through the same handcrafted config, so a single
-winner is applied to both halves; --fused chooses whether that is the voice or
-the eeg winner (the audio-dominant voice winner is the default).
+Fused runs extract both signals through the same config, so a single winner is
+applied to both halves; --fused declares whether that is the voice or the eeg
+winner. It has no default: which signal's extractor the fused runs inherit is a
+design choice, so the caller states it.
 
 Usage:
     python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
@@ -43,9 +44,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--winners", required=True, help="winners.json from 01_thesis_phase00_rank.py")
-    ap.add_argument("--profiles-dir", default="src/experiments/thesis/profiles/phase01")
-    ap.add_argument("--fused", choices=["voice", "eeg"], default="voice",
-                    help="Which signal's winner to use for fused sources (default voice).")
+    ap.add_argument("--profiles-dir", required=True)
+    ap.add_argument("--fused", choices=["voice", "eeg"], required=True,
+                    help="Which signal's winner the fused sources use.")
     ap.add_argument("--dry-run", action="store_true", help="Report changes without writing.")
     args = ap.parse_args()
 
@@ -70,12 +71,12 @@ def main():
         winner = winners[winner_key]
         fe = winner["feature_extraction"]
 
-        if prof.get("feature_extraction") == fe:
+        if prof["feature_extraction"] == fe:
             continue  # already applied
 
         prof["feature_extraction"] = fe
         changed += 1
-        dpen = winner.get("d_penalized", winner.get("d_truth"))
+        dpen = winner["d_penalized"]
         print(f"{os.path.basename(prof_path):45s}  <- {winner_key}: {winner['label']} "
               f"(D_penalized={dpen:.6f})")
         if not args.dry_run:

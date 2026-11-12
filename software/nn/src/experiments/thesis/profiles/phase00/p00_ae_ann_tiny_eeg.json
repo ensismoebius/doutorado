@@ -8,7 +8,8 @@
   "dataset": {
     "root": "~/database.sqlite",
     "results_dir": "results/thesis/phase00",
-    "modality": "eeg"
+    "modality": "eeg",
+    "max_samples": 0
   },
   "feature_extraction": {
     "strategy": "autoencoder",
@@ -21,7 +22,8 @@
       "decoder_layer_spec": [
         "linear:16:leaky",
         "linear:output:identity"
-      ]
+      ],
+      "ae_loss_type": "mse"
     }
   },
   "paraconsistent": {
@@ -34,8 +36,7 @@
     "epochs": 100,
     "learning_rate": 0.001,
     "samples_per_batch": 32,
-    "early_stop_patience": 15,
-    "k_folds": 5,
-    "nested_cv": true
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0
   }
 }

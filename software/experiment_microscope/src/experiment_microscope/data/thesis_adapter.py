@@ -73,17 +73,42 @@ class ThesisAdapter(ExperimentAdapter):
     def __init__(self, results_dir: Path | None = None, db_path: Path | None = None) -> None:
         self.results_dir = Path(results_dir) if results_dir else THESIS_RESULTS
         self.db_path = Path(db_path) if db_path else THESIS_DEFAULT_DB
-        self._view_cache: dict[str, Any] = {}  # modality -> nn_microscope DatasetView
+        self._view_cache: dict[int, Any] = {}  # max_samples -> nn_microscope DatasetView
         self._feat_cache: dict[str, FeatureMatrix] = {}  # run_tag -> recomputed matrix
 
     # -- live dataset (recomputed via nn_microscope.thesis) ---------------
-    def _view(self, modality: str):
-        v = self._view_cache.get(modality)
+    def _view(self, max_samples: int):
+        """The dataset a run saw: ``load_dataset`` with the run's declared max_samples, so
+        row i of a recomputed feature matrix is sample i of this view."""
+        v = self._view_cache.get(max_samples)
         if v is None:
             nm = load_binding()
-            v = nm.thesis.load_dataset(str(self.db_path), modality, 0)
-            self._view_cache[modality] = v
+            v = nm.thesis.load_dataset(str(self.db_path), max_samples)
+            self._view_cache[max_samples] = v
         return v
+
+    def _run_config(self, phase: str, run_tag: str) -> dict[str, Any]:
+        """The run's declared config (summary ``config``): every key the run read.
+
+        Raises instead of guessing: a run without a summary, or with one written before the
+        summary recorded its config, has no declared values to recompute from.
+        """
+        s = self._summary(phase, run_tag)
+        if not s:
+            raise NotImplementedError(f"no summary.json for {phase}/{run_tag}")
+        if "config" not in s:
+            raise NotImplementedError(
+                f"{phase}/{run_tag}: the summary predates the recorded config (strict-config "
+                f"change); re-run the profile to recompute it live")
+        return s["config"]
+
+    def handcrafted_spec(self, phase: str, run_tag: str):
+        from experiment_microscope.processing.thesis import HandcraftedSpec
+
+        return HandcraftedSpec.from_config(self._run_config(phase, run_tag))
+
+    def _run_view(self, phase: str, run_tag: str):
+        return self._view(int(self._run_config(phase, run_tag)["dataset"]["max_samples"]))
 
     # -- discovery ------------------------------------------------
     def _phase_dir(self, phase: str) -> Path:
@@ -138,8 +163,10 @@ class ThesisAdapter(ExperimentAdapter):
                 )
                 for r in rows
             ]
-            modality = (self._run_metadata(phase, tag) or {}).get("modality")
-            if modality in ("eeg", "voice", "fused"):
+            s = self._summary(phase, tag)
+            modality = s.get("modality")
+            # The live samples are the run's own dataset, which only a recorded config names.
+            if modality in ("eeg", "voice", "fused") and "config" in s:
                 out.append(
                     TreeNode(
                         "dataset",
@@ -150,7 +177,7 @@ class ThesisAdapter(ExperimentAdapter):
             return out
         if level == "samples":
             try:
-                view = self._view(h["modality"])
+                view = self._run_view(h["phase"], h["run_tag"])
             except BindingUnavailableError:
                 return []
             subj = view.subject_ids
@@ -160,7 +187,8 @@ class ThesisAdapter(ExperimentAdapter):
                 TreeNode(
                     "sample",
                     f"#{i}  subj {subj[i]}  stim {stim[i]}",
-                    {"level": "sample", "modality": h["modality"], "index": i},
+                    {"level": "sample", "modality": h["modality"], "index": i,
+                     "phase": h["phase"], "run_tag": h["run_tag"]},
                     metadata={"subject_id": subj[i], "stimulus": stim[i]},
                     has_children=False,
                 )
@@ -181,25 +209,26 @@ class ThesisAdapter(ExperimentAdapter):
         if not tag:
             raise NotImplementedError("select a Phase-00 run")
         s = self._summary(phase, tag)
-        hc = s.get("handcrafted") or {}
-        modality = s.get("modality") or "eeg"
-        if s.get("strategy") != "handcrafted":
+        if not s:
+            raise NotImplementedError(f"no summary.json for {phase}/{tag}")
+        if s["strategy"] != "handcrafted":
             raise NotImplementedError("live feature matrix is only wired for handcrafted runs")
+        spec = self.handcrafted_spec(phase, tag)
         cached = self._feat_cache.get(tag)
         if cached is not None:
             return cached
         nm = load_binding()
-        view = self._view(modality)
+        view = self._run_view(phase, tag)
         sets = nm.thesis.extract_handcrafted_features(
             view,
-            modality=modality,
-            transform=hc.get("transform", "dtwpt"),
-            scale=hc.get("scale", "lfcc"),
-            descriptors=list(hc.get("descriptors", ["energy", "zcr", "entropy", "teager"])),
-            dtwpt_level=int(hc.get("dtwpt_level", 4)),
-            wavelet=hc.get("wavelet", "daub4"),
-            cepstral=bool(hc.get("cepstral", False)),
-            seed=int(s.get("seed", 42)),
+            modality=spec.modality,
+            transform=spec.transform,
+            scale=spec.scale,
+            descriptors=list(spec.descriptors),
+            dtwpt_level=spec.dtwpt_level,
+            wavelet=spec.wavelet,
+            cepstral=spec.cepstral,
+            fusion_mode=spec.fusion_mode,
         )
         fs = sets[0]
         values = np.asarray(fs.vectors, dtype=float)
@@ -220,7 +249,7 @@ class ThesisAdapter(ExperimentAdapter):
         if h.get("level") != "sample":
             raise NotImplementedError("select an individual thesis sample")
         modality = h["modality"]
-        view = self._view(modality)
+        view = self._run_view(h["phase"], h["run_tag"])
         s = view.sample(h["index"])
         if modality == "voice":
             data = np.asarray(s["audio"]).reshape(-1)
@@ -254,10 +283,9 @@ class ThesisAdapter(ExperimentAdapter):
         path = self._phase_dir(phase) / f"e05_{run_tag}{_SUMMARY_SUFFIX}"
         if not path.is_file():
             return {}
-        try:
-            return json.loads(path.read_text())
-        except json.JSONDecodeError:
-            return {}
+        # A corrupt summary is an error, not "no summary": reading it as {} would show the
+        # run as having no results.
+        return json.loads(path.read_text())
 
     def _run_metadata(self, phase: str, run_tag: str) -> dict[str, Any]:
         s = self._summary(phase, run_tag)

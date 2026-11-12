@@ -2,251 +2,246 @@
 
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "Required.hpp"
 #include "nlohmann/json.hpp"
 
 namespace thesis
 {
 
+/// The thesis profile (Experiment05). NO FIELD HAS A DEFAULT.
+///
+/// Every member is a `Required<T>` (Required.hpp): it holds what the profile declared, or
+/// nothing, and reading nothing throws. The parser enforces the other half of the contract:
+///
+///   a key the run READS     must be declared   (absent  -> refused, naming the key)
+///   a key the run IGNORES   must be absent     (present -> refused, naming why it is ignored)
+///   a key nobody knows      must be absent     (typo    -> refused)
+///
+/// Which keys a run reads depends on other keys (momentum only for sgd, fusion_mode only for
+/// fused, time_steps only for a temporal SNN code, ...). Those rules are written ONCE, as a
+/// table, in ThesisConfig.cpp (`for_each_field`); the comments below repeat them for the
+/// reader. Why refuse an ignored key: a profile that says `"encoding": "poisson"` for an
+/// ANN-AE reads as a poisson run, while the ANN-AE always runs "direct". A declared value
+/// that changes nothing is a silent fallback with extra steps.
 struct ThesisConfig
 {
     struct Experiment
     {
-        std::string run_tag;
-        std::uint32_t seed = 42u;
-        int repeats = 1;
-        bool seed_deterministic = false;
+        Required<std::string> run_tag{"experiment.run_tag"};
+        Required<std::uint32_t> seed{"experiment.seed"}; ///< non-zero
+        Required<int> repeats{"experiment.repeats"};     ///< > 0
+
+        /// Only when repeats > 1: true = every repeat reuses `seed`; false = repeat r uses
+        /// seed + r. With one repeat there is nothing to decide, so the key is refused.
+        Required<bool> seed_deterministic{"experiment.seed_deterministic"};
     };
 
     struct Dataset
     {
-        std::string root;
-        std::string results_dir = "results/thesis"; // Thesis = thesis experiment
-        std::string modality = "fused";             // "voice" | "eeg" | "fused"
-        int max_samples = 0; // 0 = unlimited (for debug: set to small number)
+        Required<std::string> root{"dataset.root"};
+        Required<std::string> results_dir{"dataset.results_dir"};
+        Required<std::string> modality{"dataset.modality"}; ///< "voice" | "eeg" | "fused"
 
-        /// Only meaningful when modality == "fused". Ignored otherwise.
-        ///   "early" → concatenate the raw voice+EEG signals into one signal
-        ///             before feature extraction (single extractor run).
-        ///   "late"  → run feature extraction independently per signal, then
-        ///             concatenate the resulting feature vectors.
-        std::string fusion_mode = "late"; // "early" | "late"
+        /// Round-robin cap across speakers; 0 = every sample (an explicit choice, not "unset").
+        Required<int> max_samples{"dataset.max_samples"};
+
+        /// Only when modality == "fused":
+        ///   "early" -> concatenate the raw voice+EEG signals, one extractor run;
+        ///   "late"  -> one extractor run per signal, feature vectors concatenated.
+        Required<std::string> fusion_mode{"dataset.fusion_mode"};
     };
 
+    /// Only when feature_extraction.strategy == "handcrafted".
     struct HandcraftedConfig
     {
-        std::string transform = "dtwpt"; // "dtwpt" | "lfcc" | "mfcc"
-        std::string scale = "lfcc";      // "bark" | "mel" | "lfcc"
-        std::vector<std::string> descriptors = {"energy", "zcr", "entropy", "teager"};
-        int dtwpt_level = 4;
+        Required<std::string> transform{"feature_extraction.handcrafted.transform"}; ///< "dtwpt"
+        Required<std::string> scale{
+            "feature_extraction.handcrafted.scale"}; ///< "bark" | "mel" | "lfcc"
+        Required<std::vector<std::string>> descriptors{
+            "feature_extraction.handcrafted.descriptors"};
+        Required<int> dtwpt_level{"feature_extraction.handcrafted.dtwpt_level"};
 
-        /// Mother wavelet for the DTWPT filter. One of the tags with coefficient
-        /// traits in include/wavelet/Types.hpp: "haar" or "daubN" for even
-        /// N in [4, 46]. Swept in Phase 00 (feature-vector selection).
-        std::string wavelet = "daub4";
+        /// Mother wavelet: "haar" or "daubN", even N in [4, 46] (traits in wavelet/Types.hpp).
+        Required<std::string> wavelet{"feature_extraction.handcrafted.wavelet"};
 
-        /// Category 2 (cepstral) features. When false, per-band energies are used
-        /// directly (Category 1: linear/mel/bark-band energies). When true, a
-        /// log + DCT-II is applied across the band energies, yielding cepstral
-        /// coefficients (LFCC/MFCC/BFCC for scale = lfcc/mel/bark).
-        bool cepstral = false;
+        /// false = Category 1 (per-band energies); true = Category 2 (log + DCT-II across the
+        /// band energies: LFCC/MFCC/BFCC for scale = lfcc/mel/bark).
+        Required<bool> cepstral{"feature_extraction.handcrafted.cepstral"};
     };
 
+    /// Only when feature_extraction.strategy == "autoencoder".
     struct AutoencoderConfig
     {
-        std::string model = "lstm-ae"; // "lstm-ae" | "snn-ae" | "ann-ae"
-        std::vector<std::string> encoder_layer_spec;
-        std::vector<std::string> decoder_layer_spec;
+        /// "snn-ae" | "ann-ae" | "lstm-ae". lstm-ae is kept for the record (meeting01 paper)
+        /// and is used by no thesis profile.
+        Required<std::string> model{"feature_extraction.autoencoder.model"};
+        Required<std::vector<std::string>> encoder_layer_spec{
+            "feature_extraction.autoencoder.encoder_layer_spec"};
 
-        /// Temporal spike code for snn-ae (ignored by ann-ae / lstm-ae):
-        /// "poisson" (rate), "latency" (first-spike time), or "direct" (analog,
-        /// no spikes). Each sample is expanded into `time_steps` frames and the
-        /// per-sample feature is the mean latent spike-rate over them.
-        std::string encoding = "poisson";
-        int time_steps = 16;
+        /// snn-ae and ann-ae. The lstm-ae decoder mirrors its encoder, so it has none.
+        Required<std::vector<std::string>> decoder_layer_spec{
+            "feature_extraction.autoencoder.decoder_layer_spec"};
 
-        /// Encoder LIF firing threshold (snn-ae). Spike frames are low-amplitude,
-        /// so the default is well below the LIF default (1.0) to ensure the
-        /// encoder neurons actually fire; otherwise the latent collapses to zero.
-        float voltage_threshold = 0.2f;
+        /// snn-ae only: "poisson" (rate), "latency" (first-spike time) or "direct" (analog).
+        /// The ANN-AE is analog by construction and never reads it.
+        Required<std::string> encoding{"feature_extraction.autoencoder.encoding"};
 
-        /// Reconstruction loss used to TRAIN the autoencoder:
-        ///   "mse" | "mae"        — continuous reconstruction (any model)
-        ///   "spikecount"         — rate-coded SNN (elementwise MSE + firing-rate reg)
-        ///   "spiketime"          — latency-coded SNN (first-spike-time MSE)
-        ///
-        /// The encoding<->loss pairing is an INVARIANT, not a preference
-        /// (.wiki/Concepts/Spike-Encoding.md): using the wrong loss for the encoding
-        /// reverses/blanks the gradient. validate() enforces it:
-        ///   direct  -> mse | mae         (continuous; spike losses see analog values)
-        ///   poisson -> spikecount        (rate information lives in the counts)
-        ///   latency -> spiketime         (information lives in first-spike timing)
-        /// mse/mae remain selectable for poisson/latency as an explicit opt-out
-        /// baseline, but the matched loss is the correct default.
-        ///
-        /// `spiketime` additionally requires a TIME-MAJOR (T*B, F) batch, because
-        /// SpikeTimeLossImpl indexes rows as `t*B + b`. The AE trainer therefore
-        /// switches to one (T, D) sequence per sample with batch_size forced to 1
-        /// (so B == 1 and the layout is exactly (T, F)). See ThesisFeatureExtraction.
-        ///
-        /// This selects the Trainer's LossType, which is a compile-time template
-        /// parameter (Trainer<ModelType, LossType>), so the string is dispatched to a
-        /// concrete instantiation in ThesisFeatureExtraction. Before this field existed
-        /// the AE path was hard-wired to MSE and the old AutoencoderConfig::loss_type
-        /// string was never read, making MAE unreachable from a thesis/GA profile.
-        ///
-        /// Note the SNN encoding<->loss invariant (.wiki/Concepts/Spike-Encoding.md):
-        /// mse/mae are correct for `direct`; rate/latency coding would properly want
-        /// SpikeCountLoss/SpikeTimeLoss, which the AE reconstruction path does not yet
-        /// support. Keep loss fixed per population rather than confounding it with
-        /// architecture (.wiki/Experiments/ParaconsistentGA-Design.md 5.1).
-        std::string ae_loss_type = "mse"; // "mse" | "mae"
+        /// snn-ae with a temporal code (poisson, latency) only: frames per sample. The
+        /// direct code presents one analog frame, so T does not exist there.
+        Required<int> time_steps{"feature_extraction.autoencoder.time_steps"};
 
-        /// Firing-rate regularization for the snn-ae encoder. 0 = disabled.
-        /// Pushes each encoder Lif layer's mean firing rate into
-        /// [firing_rate_min, firing_rate_max], preventing dead-latent collapse
-        /// (rate->0) as documented in .wiki/Guides/Engineering-Fixes-Log.md D1. Mirrors the dsnn
-        /// classifier's Training::firing_rate_reg_lambda mechanism. Ignored by ann-ae/lstm-ae.
-        float firing_rate_reg_lambda = 0.0f;
-        float firing_rate_min = 0.05f;
-        float firing_rate_max = 0.80f;
+        /// snn-ae only: encoder LIF firing threshold.
+        Required<float> voltage_threshold{"feature_extraction.autoencoder.voltage_threshold"};
+
+        /// Reconstruction loss that TRAINS the autoencoder:
+        ///   "mse" | "mae"   continuous reconstruction (lstm-ae: mse only — its path is MSE)
+        ///   "spikecount"    rate-coded SNN (elementwise MSE + firing-rate band)
+        ///   "spiketime"     latency-coded SNN (first-spike-time MSE)
+        /// The encoding<->loss pairing is an INVARIANT (.wiki/Concepts/Spike-Encoding.md):
+        /// direct -> mse|mae, poisson -> spikecount (or mse/mae as an explicit baseline),
+        /// latency -> spiketime (likewise). validate() enforces it. `spiketime` needs a
+        /// TIME-MAJOR (T*B, F) batch; the AE trainer builds it (ThesisFeatureExtraction).
+        Required<std::string> ae_loss_type{"feature_extraction.autoencoder.ae_loss_type"};
+
+        /// snn-ae only: firing-rate regularization of the encoder (0 = off), against the
+        /// dead-latent collapse of .wiki/Guides/Engineering-Fixes-Log.md D1.
+        Required<float> firing_rate_reg_lambda{
+            "feature_extraction.autoencoder.firing_rate_reg_lambda"};
+        /// snn-ae with firing_rate_reg_lambda > 0 only: the target rate band. With the
+        /// regularizer off nothing reads them.
+        Required<float> firing_rate_min{"feature_extraction.autoencoder.firing_rate_min"};
+        Required<float> firing_rate_max{"feature_extraction.autoencoder.firing_rate_max"};
     };
 
-    /// Numerical fidelity of activation functions.
+    /// Only when feature_extraction.strategy == "pca".
     ///
-    /// The LSTM uses rational approximations from FastActivations.hpp by default in this
-    /// codebase's history — rat_sig(x)=0.5+x/(2(1+|x|)) and rat_tanh(x)=x/(1+|x|), i.e.
-    /// softsign-based gates chosen for speed. They are NOT close to the real thing:
-    /// |tanh - rat_tanh| reaches 0.306 on [-4,4] (at x=2, tanh=0.964 vs approx 0.667), which
-    /// makes our LSTM a *softsign-gated* LSTM that cannot match torch.nn.LSTM.
-    ///
-    /// Since PyTorch/snnTorch is this project's reference for correctness, `true` (exact
-    /// sigmoid/tanh, matching torch) is the DEFAULT. Set false only to trade fidelity for
-    /// speed, and expect divergence from the reference.
-    struct Numerics
+    /// Principal component analysis on the same input the autoencoders see (the signal
+    /// average-pooled to 256 bins, min-max normalized per sample), fitted on every sample
+    /// like the autoencoders are trained on every sample: the unsupervised, transductive
+    /// protocol of Phase 00. The feature vector is the projection on the first
+    /// `n_components` principal axes. It is the linear, training-free reference extractor
+    /// of the thesis (ThesisPca.hpp).
+    struct PcaConfig
     {
-        bool exact_activations = true;
+        /// 1 <= n_components <= min(256, n_samples - 1).
+        Required<int> n_components{"feature_extraction.pca.n_components"};
     };
 
     struct FeatureExtraction
     {
-        std::string strategy = "handcrafted"; // "handcrafted" | "autoencoder"
+        Required<std::string> strategy{
+            "feature_extraction.strategy"}; ///< "handcrafted" | "autoencoder" | "pca"
         HandcraftedConfig handcrafted;
         AutoencoderConfig autoencoder;
+        PcaConfig pca;
     };
 
     struct Paraconsistent
     {
-        bool enabled = true;
+        Required<bool> enabled{"paraconsistent.enabled"};
     };
 
     struct Classifier
     {
-        std::string type = "rnn"; // "rnn" | "dsnn"
-        std::vector<std::string> layer_spec;
-        std::string text_mode = "dependent"; // "dependent" | "independent"
+        /// Phase gate. false = Phase 00 (stop after the paraconsistent ranking; the other
+        /// classifier keys are then refused). true = Phase 01 (authentication).
+        Required<bool> enabled{"classifier.enabled"};
 
-        /// Phase gate. When false, the pipeline stops after paraconsistent
-        /// ranking (Phase 00: feature-vector construction / EPC selection) and
-        /// never trains a classifier; layer_spec is then not required. When true
-        /// (Phase 01: authentication) the classifier runs as usual.
-        bool enabled = true;
+        /// enabled only:
+        Required<std::string> type{"classifier.type"}; ///< "rnn" (ResNet) | "dsnn"
+        Required<std::vector<std::string>> layer_spec{"classifier.layer_spec"};
+        Required<std::string> text_mode{"classifier.text_mode"}; ///< "dependent" | "independent"
     };
 
+    /// One training block serves two trainings: the autoencoder's (strategy autoencoder)
+    /// and the classifier's (classifier.enabled). A key is required when a training that
+    /// runs reads it; a run with neither (handcrafted or PCA, Phase 00) has no training.
     struct Training
     {
-        int epochs = 50;
+        /// Both trainings:
+        Required<int> epochs{"training.epochs"};
+        Required<float> learning_rate{"training.learning_rate"};
+        Required<std::string> optimizer_type{
+            "training.optimizer_type"}; ///< "adam" | "sgd" | "lion" | "schedule-free-adamw"
+        /// sgd only (Polyak momentum); every other optimizer ignores it.
+        Required<float> optimizer_momentum{"training.optimizer_momentum"};
+        /// Gradient-norm clipping applied by the Trainer; 0 = off (what PyTorch does unless
+        /// the caller clips). The only clipping knob: MSELoss/MAELoss no longer clip.
+        Required<float> gradient_clip_norm{"training.gradient_clip_norm"};
+        Required<int> samples_per_batch{"training.samples_per_batch"};
 
-        /// Learning rate. **Optional in the profile JSON**: when omitted it resolves to the
-        /// chosen optimizer's own reference default via
-        /// nn::optimizers::reference_learning_rate(optimizer_type) — 1e-3 for adam, 1e-4 for
-        /// lion, 2.5e-3 for schedule-free-adamw, 1e-2 for sgd.
-        ///
-        /// Why optional: these defaults differ by up to an order of magnitude because each
-        /// optimizer forms its update differently (Lion steps ±lr on every coordinate). A
-        /// profile that switches optimizer_type but keeps another optimizer's lr silently
-        /// measures the learning rate instead of the optimizer. Omitting the field makes
-        /// "every profile gets its respective lr" true by construction; setting it
-        /// explicitly (e.g. to sweep lr) still overrides, and either way the value actually
-        /// used is recorded in the run summary.
-        ///
-        /// Use effective_learning_rate() rather than reading this directly.
-        std::optional<float> learning_rate = std::nullopt;
+        /// Classifier only:
+        Required<int> k_folds{"training.k_folds"}; ///< >= 2, GroupKFold by speaker
+        Required<bool> nested_cv{"training.nested_cv"};
+        /// nested_cv only: the inner split is what early stopping watches.
+        Required<int> early_stop_patience{"training.early_stop_patience"};
+        /// Per-feature z-score fitted on each fold's TRAINING rows only.
+        Required<bool> standardize_features{"training.standardize_features"};
+        /// Decoupled L2 (AdamW-style); only 2-D weights are decayed. 0 = off.
+        Required<float> weight_decay{"training.weight_decay"};
 
-        /// Optimizer used to train the classifier AND the autoencoder feature
-        /// extractors. Forwarded to nn::training::TrainerConfig::optimizer_type,
-        /// which builds it via OptimizerFactory. One of: "adam" (default),
-        /// "sgd", "lion", "schedule-free-adamw".
-        /// Default "adam" reproduces every result published before this field existed.
-        std::string optimizer_type = "adam";
+        /// dsnn classifier only: firing-rate regularization (0 = off) ...
+        Required<float> firing_rate_reg_lambda{"training.firing_rate_reg_lambda"};
+        /// ... and its band, only when that regularization is on.
+        Required<float> firing_rate_min{"training.firing_rate_min"};
+        Required<float> firing_rate_max{"training.firing_rate_max"};
 
-        /// Momentum for optimizer_type="sgd" (Polyak). Ignored by the others.
-        float optimizer_momentum = 0.0f;
+        /// dsnn classifier only: "none" | "threshold-dependent" (tdBN, Zheng et al., AAAI
+        /// 2021: normalizes the pre-spike current over batch+time to N(0, (alpha*V_th)^2)).
+        Required<std::string> batch_normalization{"training.batch_normalization"};
+        /// tdBN only: alpha (target std = alpha * V_th).
+        Required<float> tdbn_alpha{"training.tdbn_alpha"};
+    };
 
-        /// Gradient-norm clipping, applied by Trainer to the model's parameter gradients
-        /// after backward. **0 = OFF (default)**, which is what PyTorch does unless the
-        /// caller explicitly clips, and what keeps our training numerically comparable to
-        /// the reference.
-        ///
-        /// Historically MSELoss/MAELoss ALSO clipped their own gradient, unconditionally, at
-        /// norm 1.0 — silently, non-configurably, and overriding this field. That is now
-        /// off by default too (see MSELoss::max_gradient_norm); this is the single, honest,
-        /// profile-visible clipping knob.
-        float gradient_clip_norm = 0.0f;
-
-        /// The lr this run will actually train with: the explicit `learning_rate` when the
-        /// profile sets one, otherwise `optimizer_type`'s reference default. Single accessor
-        /// so no caller can accidentally read an unresolved nullopt or hard-code 1e-3.
-        [[nodiscard]] auto effective_learning_rate() const -> float;
-        int samples_per_batch = 32;
-        int early_stop_patience = 10;
-        int k_folds = 5;
-        bool nested_cv = true;
-
-        /// Per-feature z-score standardization of the classifier input. Statistics
-        /// (mean, std per dimension) are fit on the TRAINING rows of each fold only
-        /// and applied to train and test, preventing test-set leakage. Default on.
-        bool standardize_features = true;
-
-        // ── Regularization ───────────────────────────────────────────────────
-        /// Decoupled L2 weight decay (AdamW). 0 = disabled. Applies to both the
-        /// rnn (ResNet) and dsnn classifiers; only 2-D weight matrices are
-        /// decayed (biases and SNN R/C/V_th scalars are excluded by the optimizer).
-        float weight_decay = 0.0f;
-
-        /// Firing-rate regularization weight for the dsnn classifier. 0 = disabled.
-        /// Pushes each spiking layer's mean firing rate into [firing_rate_min,
-        /// firing_rate_max], preventing dead (rate→0) and bursting (rate→1)
-        /// neurons. Ignored by the rnn classifier (no spiking layers).
-        float firing_rate_reg_lambda = 0.0f;
-        float firing_rate_min = 0.05f; ///< Lower band edge (dead-neuron guard).
-        float firing_rate_max = 0.80f; ///< Upper band edge (burst guard).
-
-        /// Batch normalization for the dsnn classifier:
-        ///   "none"                → no normalization
-        ///   "threshold-dependent" → tdBN (Zheng et al., AAAI 2021): a tdBN layer
-        ///        is inserted after each Linear and before each LIF, normalizing the
-        ///        pre-spike current over batch+time and rescaling to N(0,(α·V_th)²).
-        /// Ignored by the rnn classifier (no spiking layers).
-        std::string batch_normalization = "none";
-        float tdbn_alpha = 1.0f; ///< α for tdBN (target std = α·V_th; paper default 1).
+    /// A program that embeds this config in its own profile and owns part of it — the
+    /// paraconsistent GA, which evolves the autoencoder architecture and has its own
+    /// run_tag/results_dir. Its profile must not declare what it overrides or never reads,
+    /// for the same reason a standalone profile must not declare an ignored key.
+    struct Embedding
+    {
+        struct Key
+        {
+            std::string path;   ///< profile path, e.g. "feature_extraction.autoencoder.encoding"
+            std::string reason; ///< why the program owns or ignores it (quoted in the refusal)
+        };
+        std::string program;                   ///< named in error messages
+        std::vector<std::string> own_sections; ///< its top-level keys, parsed by the program
+        /// Filled by the program before use (e.g. by the genome): refused in the profile;
+        /// may be declared or not in the config the program holds.
+        std::vector<Key> set_by_program;
+        /// Never read by the program: refused in the profile, never declared.
+        std::vector<Key> not_read;
     };
 
     Experiment experiment;
-    Numerics numerics;
     Dataset dataset;
     FeatureExtraction feature_extraction;
     Paraconsistent paraconsistent;
     Classifier classifier;
     Training training;
 
+    /// nullopt = the thesis binary itself; set = parsed for that embedding program.
+    std::optional<Embedding> embedded_in;
+
+    /// Every key the run reads is declared, every key it does not read is not; throws
+    /// naming the first violation. Run by from_json and by validate().
+    void check_declarations() const;
+
+    /// check_declarations() plus every value check (ranges, enums, cross-field invariants).
     void validate() const;
 
+    /// Parse a thesis profile. Refuses unknown keys, missing keys the run reads, and
+    /// declared keys it ignores. Does not run the value checks — call validate().
     static ThesisConfig from_json(const nlohmann::json& j);
+    /// The same, for a program that embeds this config (see Embedding).
+    static ThesisConfig from_json(const nlohmann::json& j, const Embedding& embedding);
     static ThesisConfig from_file(const std::string& path);
+
+    /// Every declared key, as profile JSON (what the run was configured with).
+    [[nodiscard]] auto declared_json() const -> nlohmann::json;
 };
 
 } // namespace thesis

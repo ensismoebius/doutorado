@@ -33,7 +33,7 @@ Use esta sequencia como plano de execucao. Cada etapa tem entregavel e criterio 
 
 - [ ] Definir pergunta final, hipoteses H1/H2/H3 e contribuicoes declaradas da tese.
 - [x] Escopo atual de classificadores executaveis: `RNN + DSNN`.
-- [ ] Decidir escopo final de E3 automatico: implementar `LSTM-AE/SNN-AE` ou registrar como trabalho futuro.
+- [x] Escopo final de E3 (decidido 2026-11-11): **PCA, ANN-AE, SNN-AE e DTWPT handcrafted**. O `LSTM-AE` foi pre-validado no meeting01 e descartado (perdeu para o PCA, ficou perto do preditor da media, 257-338x a energia do ANN-AE); continua aceito pelo codigo de proposito. Justificativa no texto da tese, `08-proposedApproach.tex`, e em `.wiki/Research-Context.md`.
 
 **Entregavel:** secao de escopo final no capitulo de metodologia + lista de contribuicoes.
 
@@ -52,7 +52,9 @@ Use esta sequencia como plano de execucao. Cada etapa tem entregavel e criterio 
 ### 3) Fechar implementacao do Experimento 05
 
 - [ ] Garantir que todos os perfis JSON usados no artigo/tese parseiam e validam.
-- [ ] Se escopo incluir E3 automatico: implementar treino e extracao latente real (hoje ainda marcador).
+- [x] E3 automatico: `snn-ae` e `ann-ae` com treino real (`Trainer::fit_autoencoder`) e extracao do latente, varridos na Fase 00.
+- [x] Extrator **PCA** (referencia linear, $k$ = dimensao latente dos autoencoders: 8/16/32) e seus 6 perfis da Fase 00 (`p00_pca_k{8,16,32}_{voice,eeg}`), implementado em 2026-11-11 (`ThesisPca.{hpp,cpp}`, `thesis_pca_gtest.cpp`). Falta executa-lo: ele responde se o colapso dos latentes ($\bar\beta > 0{,}97$) e da representacao ou do treino.
+- [x] Padrao `autoencoder.model = "lstm-ae"` removido (2026-11-11), junto com todos os outros: o `ThesisConfig` nao tem mais valores padrao. Toda chave que a execucao le precisa estar declarada no perfil, toda chave que ela nao le e recusada, e uma chave lida sem ter sido declarada lanca excecao (`Required<T>`, `thesis_strict_config_gtest.cpp`).
 - [x] Caminho `cfg.classifier.type = "dsnn"` implementado e coberto por teste.
 - [ ] Manter testes de regressao para feature extraction, classifier e agregacao de metricas.
 
@@ -202,7 +204,7 @@ paralelizada por OpenMP (`schedule(dynamic,4)`) sobre as amostras.
 
 **Método automatizado (*feature learning*)**
 
-Implementado com **SNN-AE** (`ProtocolSpikingAutoencoder`) e **ANN-AE** (`ProtocolAutoencoder`); `lstm-ae` ainda aceito mas não usado nos perfis. Entrada = sinal reduzido por pooling a um vetor plano de 256 dims; SNN-AE treina com `batch_size=1` (estado LIF por amostra).
+Implementado com **SNN-AE** (`ProtocolSpikingAutoencoder`) e **ANN-AE** (`ProtocolAutoencoder`). A **PCA** entra como referência linear (decidido em 2026-11-11, implementação pendente). `lstm-ae` continua aceito, mas foi descartado da tese (pré-validação do meeting01) e nenhum perfil o usa; atenção: ele ainda é o valor padrão de `autoencoder.model`. Entrada = sinal reduzido por pooling a um vetor plano de 256 dims; SNN-AE treina com `batch_size=1` (estado LIF por amostra).
 Cada amostra é padronizada para comprimento fixo por zero-padding, o autoencoder é treinado
 com MSE via `Trainer::fit_autoencoder`, e o vetor latente de `encode()` é usado como VsC.
 `snn-ae` (spiking) e `ann-ae` (denso) são os extratores automáticos comparados na Fase 00.
@@ -466,9 +468,9 @@ Base pública 10.1117/12.2255697
 ```
 
 **Duas fases** (`classifier.enabled` controla o gate):
-- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × categoria × sinal (276 perfis), mais um sweep de **autoencoders compactos SNN-AE + ANN-AE** (12 perfis). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
+- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × categoria × sinal (276 perfis), mais um sweep de **autoencoders compactos SNN-AE + ANN-AE** (24 perfis: ANN-AE e SNN-AE nas codificações `direct`, `latency` e `poisson`, × 3 tamanhos × 2 sinais). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
 
-  **Autoencoders compactos (SOTA para dispositivos de baixo poder).** Três tamanhos por sinal, todos `lstm-ae` de uma camada (raso, adequado a borda), com razão de compressão 2:1 entre a camada oculta e o gargalo latente. O latente é o próprio vetor de características, então um gargalo menor gera vetor menor → classificador a jusante mais barato e melhor generalização:
+  **Autoencoders compactos (SOTA para dispositivos de baixo poder).** Três tamanhos por sinal, em `ann-ae` e `snn-ae` (rasos, adequados a borda), com razão de compressão 2:1 entre a camada oculta e o gargalo latente. O latente é o próprio vetor de características, então um gargalo menor gera vetor menor → classificador a jusante mais barato e melhor generalização:
 
   | tamanho | oculto | latente (= dim. do vetor) |
   |---|---|---|
@@ -476,7 +478,7 @@ Base pública 10.1117/12.2255697
   | `small` | 32 | 16 |
   | `base`  | 64 | 32 |
 
-  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. A escolha do modelo é limitada pelo código (apenas `lstm-ae`); variantes esparsas/quantizadas exigiriam extensão do `ThesisFeatureExtraction`.
+  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. Variantes esparsas/quantizadas exigiriam extensão do `ThesisFeatureExtraction`. O `lstm-ae` não entra no sweep: foi descartado da tese (ver o item de escopo no passo 1).
 - **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é um placeholder — substitua pela wavelet/escala (ou `strategy=autoencoder`) vencedora antes de rodar. Cruza fonte × modo de texto × esquema de CV.
 
 **Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
@@ -484,22 +486,28 @@ Base pública 10.1117/12.2255697
 ```bash
 # 1. Rode todos os perfis phase00/ (grava results/thesis/phase00/*_paraconsistent.csv)
 
-# 2. Ranqueie e escolha o vencedor por sinal (menor D_truth):
+# 2. Ranqueie e escolha o vencedor por sinal (menor D_penalized; recusa conjunto incompleto):
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
     --profiles-dir src/experiments/thesis/profiles/phase00 \
     --results-dir  results/thesis/phase00 \
     --out          results/thesis/phase00/winners.json
 
-# 3. Injete o vencedor nos 16 perfis phase01/ (fused usa o vencedor da voz por padrão):
+# 3. Injete o vencedor nos 32 perfis phase01/ (--fused é obrigatório, sem padrão):
 python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
     --winners      results/thesis/phase00/winners.json \
     --profiles-dir src/experiments/thesis/profiles/phase01 \
     --fused        voice      # ou: eeg
 
+# 3b. Regere as tabelas da Fase 00 da tese:
+python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
+    --profiles-dir src/experiments/thesis/profiles/phase00 \
+    --results-dir  results/thesis/phase00 \
+    --tables-dir   ../../documentation/00-thesis/monography/tables
+
 # 4. Rode os perfis phase01/ (já com o extrator vencedor).
 ```
 
-O `rank` agrega os CSV por (wavelet × escala × sinal), faz média das repetições e reporta a tabela ordenada + o vencedor. O `apply` é idempotente: `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`. Use `--dry-run` no `apply` para revisar sem gravar.
+O `rank` lê exatamente os CSV que cada perfil declara (`run_tag` + `_rep<k>` para `repeats > 1`), faz média das repetições e reporta a tabela ordenada + o vencedor. Todos os argumentos são obrigatórios, e um arquivo faltando, um CSV com mais de uma linha ou sem `d_penalized` é recusado. O `apply` é idempotente: `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`. Use `--dry-run` no `apply` para revisar sem gravar.
 
 ---
 

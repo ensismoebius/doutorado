@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Rank Experiment05 Phase 00 feature extractors by paraconsistent D_truth.
+"""Rank the thesis Phase 00 feature extractors by paraconsistent D_penalized.
 
-Phase 00 runs one profile per (wavelet x scale x signal) plus the autoencoder,
-each writing results/thesis/phase00/e05_<run_tag>[_repK]_paraconsistent.csv with a
-single D_truth. This script collates all of them, averages D_truth across the
-repeat runs, ranks per signal (voice, eeg), and reports the winning extractor.
+Phase 00 runs one profile per extractor and signal (handcrafted wavelet x scale x
+category, ANN-AE, SNN-AE, PCA), each writing
+results/thesis/phase00/e05_<run_tag>[_rep<k>]_paraconsistent.csv with one scored row.
+This script reads exactly the files each profile declares (its run_tag and repeats),
+averages D_penalized across the repetitions, ranks per signal (voice, eeg) and writes
+the winner of each.
 
-The winner per signal is the combination with the smallest mean D_truth (closest
-to the paraconsistent "Truth" corner -> best speaker separability before any
-classifier is trained).
+The winner per signal is the extractor with the smallest mean D_penalized: the distance
+to the paraconsistent "Truth" corner plus a penalty on |G_ct|, so a collapsed latent
+cannot win on D_truth alone.
+
+Nothing is optional: every argument is required, and a missing or incomplete result set
+is refused -- a winner picked from a partial set is not the Phase 00 winner.
 
 Usage:
     python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
@@ -23,46 +28,47 @@ import argparse
 import csv
 import glob
 import json
-import math
 import os
-import re
 import sys
 
 
-# Contradiction penalty weight (must match kContradictionPenalty in
-# ThesisParaconsistent.hpp): 2 - sqrt(2), so the three non-Truth vertices are
-# penalized equally.
-CONTRADICTION_PENALTY = 2.0 - math.sqrt(2.0)
-
-
 def load_scores(csv_path):
-    """Return (d_truth, d_penalized) of the first data row, or None.
+    """Return (d_truth, d_penalized) of the one data row of a Phase 00 paraconsistent CSV.
 
-    d_penalized is the primary selection metric. Newer CSVs carry it as a
-    column; for older CSVs (written before the column existed) we recompute it
-    from d_truth and g2 — d_penalized = d_truth + PENALTY*|g2| is a pure
-    function of values already stored, so no re-run is needed to re-rank.
+    A Phase 00 profile scores exactly one feature set (one signal, one extractor), so the
+    file must hold exactly one data row: with more, picking rows[0] would silently rank
+    whichever set happened to be written first. d_penalized is the selection metric and is
+    read, never recomputed -- a CSV without the column predates it and must be re-run, not
+    patched up from d_truth and g2.
     """
-    try:
-        with open(csv_path, newline="") as f:
-            rows = list(csv.DictReader(f))
-    except OSError:
-        return None
-    if not rows:
-        return None
-    try:
-        d_truth = float(rows[0]["d_truth"])
-    except (KeyError, ValueError):
-        return None
-    try:
-        d_penalized = float(rows[0]["d_penalized"])
-    except (KeyError, ValueError):
-        try:
-            g2 = float(rows[0]["g2"])
-            d_penalized = d_truth + CONTRADICTION_PENALTY * abs(g2)
-        except (KeyError, ValueError):
-            d_penalized = d_truth  # neither column present: degrade gracefully
-    return d_truth, d_penalized
+    with open(csv_path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    if len(rows) != 1:
+        raise ValueError(f"{csv_path}: {len(rows)} data rows; a Phase 00 run scores exactly one "
+                         f"feature set. Re-run the profile.")
+    row = rows[0]
+    for col in ("d_truth", "d_penalized"):
+        if col not in row:
+            raise ValueError(f"{csv_path}: no {col!r} column (the file predates it). Re-run the "
+                             f"profile with the current thesis binary.")
+    return float(row["d_truth"]), float(row["d_penalized"])
+
+
+def expected_csvs(results_dir, prof):
+    """The paraconsistent CSVs a profile writes, from its own declared run_tag and repeats.
+
+    thesis.cpp appends _rep<k> to the run_tag only when repeats > 1; the output file adds
+    the e05_ prefix. Building the exact names (instead of globbing e05_<tag>*) means a tag
+    that is a prefix of another (..._k8_voice vs ..._k8_voice_x) can never borrow its
+    neighbour's results, and a missing repetition is detected instead of averaged around.
+    """
+    tag = prof["experiment"]["run_tag"]
+    repeats = prof["experiment"]["repeats"]
+    if repeats == 1:
+        tags = [tag]
+    else:
+        tags = [f"{tag}_rep{k}" for k in range(repeats)]
+    return [os.path.join(results_dir, f"e05_{t}_paraconsistent.csv") for t in tags]
 
 
 def extractor_label(fe):
@@ -75,57 +81,52 @@ def extractor_label(fe):
     and haar/lfcc/c2 both printed as "handcrafted/haar/lfcc" and appeared to be duplicate
     rows with different scores.
     """
-    if fe.get("strategy") == "handcrafted":
-        hc = fe.get("handcrafted", {})
-        cat = "c2" if hc.get("cepstral") else "c1"
-        return f"handcrafted/{hc.get('wavelet', '?')}/{hc.get('scale', '?')}/{cat}"
-    if fe.get("strategy") == "autoencoder":
-        ae = fe.get("autoencoder", {})
-        model = ae.get("model", "?")
-        parts = [f"autoencoder/{model}"]
-        if model == "snn-ae":
-            parts.append(ae.get("encoding", "?"))
-        spec = ae.get("encoder_layer_spec") or []
-        if spec:
-            # last encoder stage width == latent size (tiny/small/base = 8/16/32)
-            try:
-                parts.append(f"latent{spec[-1].split(':')[1]}")
-            except (IndexError, ValueError):
-                pass
+    strategy = fe["strategy"]
+    if strategy == "handcrafted":
+        hc = fe["handcrafted"]
+        cat = "c2" if hc["cepstral"] else "c1"
+        return f"handcrafted/{hc['wavelet']}/{hc['scale']}/{cat}"
+    if strategy == "autoencoder":
+        ae = fe["autoencoder"]
+        parts = [f"autoencoder/{ae['model']}"]
+        if ae["model"] == "snn-ae":
+            parts.append(ae["encoding"])
+        # last encoder stage width == latent size (tiny/small/base = 8/16/32)
+        parts.append(f"latent{ae['encoder_layer_spec'][-1].split(':')[1]}")
         return "/".join(parts)
-    return fe.get("strategy", "?")
+    if strategy == "pca":
+        # k == the AE latent sizes it is compared against (8/16/32)
+        return f"pca/k{fe['pca']['n_components']}"
+    raise ValueError(f"unknown feature_extraction.strategy {strategy!r}")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--profiles-dir", default="src/experiments/thesis/profiles/phase00")
-    ap.add_argument("--results-dir", default="results/thesis/phase00")
-    ap.add_argument("--out", default=None, help="Write winners JSON here.")
-    ap.add_argument("--top", type=int, default=5, help="Rows to print per signal.")
+    ap.add_argument("--profiles-dir", required=True)
+    ap.add_argument("--results-dir", required=True)
+    ap.add_argument("--out", required=True, help="Write winners JSON here.")
     args = ap.parse_args()
 
     profiles = sorted(glob.glob(os.path.join(args.profiles_dir, "*.json")))
     if not profiles:
         sys.exit(f"No profiles found in {args.profiles_dir}")
 
-    # signal -> list of {label, signal, d_truth, n_reps, feature_extraction, profile}
+    # signal -> list of {label, signal, d_truth, d_penalized, n_reps, feature_extraction, profile}
     per_signal = {}
     missing = []
     for prof_path in profiles:
         with open(prof_path) as f:
             prof = json.load(f)
-        tag = prof["experiment"]["run_tag"]
         signal = prof["dataset"]["modality"]
         fe = prof["feature_extraction"]
 
-        # Match both the no-repeat file and the _repK variants.
-        pattern = os.path.join(args.results_dir, f"e05_{tag}*_paraconsistent.csv")
-        csvs = sorted(glob.glob(pattern))
-        scored = [s for s in (load_scores(c) for c in csvs) if s is not None]
-        if not scored:
-            missing.append(tag)
+        csvs = expected_csvs(args.results_dir, prof)
+        absent = [c for c in csvs if not os.path.isfile(c)]
+        if absent:
+            missing.extend(absent)
             continue
+        scored = [load_scores(c) for c in csvs]
 
         n = len(scored)
         per_signal.setdefault(signal, []).append({
@@ -138,9 +139,14 @@ def main():
             "profile": os.path.relpath(prof_path),
         })
 
-    if not per_signal:
-        sys.exit(f"No paraconsistent results found under {args.results_dir}. "
-                 f"Run the Phase 00 profiles first. Missing tags: {len(missing)}")
+    # A winner picked from a partial set is not the Phase 00 winner, and 02_ would write it
+    # into every Phase 01 profile. Refuse rather than rank what happens to be there.
+    if missing:
+        listed = "\n  ".join(missing[:20])
+        more = f"\n  ... and {len(missing) - 20} more" if len(missing) > 20 else ""
+        sys.exit(f"{len(missing)} expected result file(s) are missing under {args.results_dir}:"
+                 f"\n  {listed}{more}\nRun those Phase 00 profiles first; the ranking is only "
+                 f"defined over the complete set.")
 
     # Two combinations whose d_penalized agree to within this are treated as tied.
     # They are not "almost equal" -- in practice they came out bit-identical because the
@@ -175,7 +181,7 @@ def main():
         }
         print(f"\n=== {signal}  ({len(ranked)} combinations ranked) ===")
         print(f"{'rank':>4}  {'D_penalized':>12}  {'D_truth':>12}  {'reps':>4}  extractor")
-        for i, e in enumerate(ranked[:args.top]):
+        for i, e in enumerate(ranked):
             mark = "  <-- winner" if i == 0 else ""
             if i > 0 and abs(e["d_penalized"] - best) <= TIE_EPS:
                 mark = "  <-- TIED with winner"
@@ -191,18 +197,13 @@ def main():
                   "better.\n       Do not attribute the result to any property that only "
                   "the chosen label has.")
 
-    if missing:
-        print(f"\n[warn] {len(missing)} profile(s) had no results yet "
-              f"(skipped): {', '.join(missing[:5])}{' ...' if len(missing) > 5 else ''}")
-
-    if args.out:
-        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-        with open(args.out, "w") as f:
-            json.dump(winners, f, indent=2)
-            f.write("\n")
-        print(f"\nWinners written to {args.out}")
-        print("Next: python3 scripts/pipeline/thesis/02_thesis_apply_winner.py "
-              f"--winners {args.out}")
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w") as f:
+        json.dump(winners, f, indent=2)
+        f.write("\n")
+    print(f"\nWinners written to {args.out}")
+    print("Next: python3 scripts/pipeline/thesis/02_thesis_apply_winner.py "
+          f"--winners {args.out} --profiles-dir <phase01 dir> --fused <voice|eeg>")
 
 
 if __name__ == "__main__":

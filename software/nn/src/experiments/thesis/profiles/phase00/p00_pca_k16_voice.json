@@ -1,0 +1,26 @@
+{
+  "experiment": {
+    "run_tag": "e05_p00_pca_k16_voice",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/phase00",
+    "modality": "voice",
+    "max_samples": 0
+  },
+  "feature_extraction": {
+    "strategy": "pca",
+    "pca": {
+      "n_components": 16
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  }
+}

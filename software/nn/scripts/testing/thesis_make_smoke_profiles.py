@@ -22,27 +22,34 @@ SMOKE = os.path.join(PROFILES, "smoke")
 
 
 def smoke_overrides(prof):
-    """Shrink run parameters; keep every code-path-selecting field intact."""
-    exp = prof.setdefault("experiment", {})
+    """Shrink run parameters; keep every code-path-selecting field intact.
+
+    Profiles are strict (ThesisConfig refuses a key the run does not read), so a value is
+    only shrunk where the source profile declares it — e.g. a handcrafted Phase 00 profile
+    has no training block, and one repeat has no seed_deterministic.
+    """
+    exp = prof["experiment"]
     exp["repeats"] = 1
-    exp["seed_deterministic"] = True
-    exp["run_tag"] = "smoke_" + exp.get("run_tag", "e05")
+    exp.pop("seed_deterministic", None)  # read only when repeats > 1
+    exp["run_tag"] = "smoke_" + exp["run_tag"]
 
     # Phase 01 trains a classifier with speaker-disjoint (GroupKFold) folds and a
     # text split, so its subsets need enough distinct speakers to form 2 folds;
-    # Phase 00 only ranks features and can use a tiny cap.
+    # Phase 00 only ranks features and can use a tiny cap (60 > 32 + 1, the largest PCA k).
     # Truncation is round-robin across subjects (see ThesisDataset), so a small cap
     # still spans every speaker — enough for speaker-disjoint nested folds.
-    runs_classifier = prof.get("classifier", {}).get("enabled", True)
-    ds = prof.setdefault("dataset", {})
+    runs_classifier = prof["classifier"]["enabled"]
+    ds = prof["dataset"]
     ds["max_samples"] = 120 if runs_classifier else 60
     ds["results_dir"] = "results/thesis/smoke"
 
-    tr = prof.setdefault("training", {})
-    tr["epochs"] = 2
-    tr["k_folds"] = 2
-    tr["samples_per_batch"] = 4
-    tr["early_stop_patience"] = 1
+    tr = prof.get("training")
+    if tr is not None:  # absent when nothing trains (handcrafted / PCA Phase 00)
+        tr["epochs"] = 2
+        tr["samples_per_batch"] = 4
+        for key, value in (("k_folds", 2), ("early_stop_patience", 1)):
+            if key in tr:
+                tr[key] = value
     return prof
 
 

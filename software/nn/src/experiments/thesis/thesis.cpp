@@ -38,26 +38,14 @@ std::string parse_config_path(int argc, char* argv[])
     return {};
 }
 
-// Provenance/determinism fingerprint of the run — the reproducibility-defining
-// fields hashed to one value (the Meeting01 config_hash analog). Two runs with the same
-// hash trained the same model on the same data pipeline with the same seed.
+// Provenance/determinism fingerprint of the run: a hash of every declared key (the
+// Meeting01 config_hash analog). ThesisConfig refuses undeclared keys the run reads and
+// declared keys it ignores, so the declared keys are exactly the run's configuration —
+// two runs with the same hash trained the same model on the same pipeline with the same
+// seed, and a key that changes nothing cannot change the hash.
 std::size_t config_fingerprint(const thesis::ThesisConfig& cfg)
 {
-    std::ostringstream s;
-    s << cfg.experiment.run_tag << '|' << cfg.experiment.seed << '|' << cfg.experiment.repeats
-      << '|' << cfg.dataset.modality << '|' << cfg.dataset.fusion_mode << '|'
-      << cfg.feature_extraction.strategy << '|' << cfg.classifier.enabled << '|'
-      << cfg.classifier.type << '|' << cfg.classifier.text_mode << "|layers:";
-    for (const auto& l : cfg.classifier.layer_spec) s << l << ',';
-    s << '|' << cfg.training.optimizer_type << '|' << cfg.training.effective_learning_rate() << '|'
-      << cfg.training.epochs << '|' << cfg.training.samples_per_batch << '|'
-      << cfg.training.weight_decay << '|' << cfg.training.k_folds << '|' << cfg.training.nested_cv;
-    const auto& hc = cfg.feature_extraction.handcrafted;
-    s << "|hc:" << hc.wavelet << ',' << hc.scale << ',' << hc.cepstral << ',' << hc.dtwpt_level;
-    const auto& ae = cfg.feature_extraction.autoencoder;
-    s << "|ae:" << ae.model << ',' << ae.encoding << ',' << ae.time_steps << ','
-      << ae.voltage_threshold;
-    return std::hash<std::string>{}(s.str());
+    return std::hash<std::string>{}(cfg.declared_json().dump());
 }
 
 // Run one full pipeline iteration with the given config (seed + run_tag already set).
@@ -75,12 +63,7 @@ void run_once(const thesis::ThesisConfig& cfg,
     std::vector<thesis::FeatureSet> extracted;
     if (cached_features == nullptr)
     {
-        extracted = thesis::extract_features(view,
-            cfg.feature_extraction,
-            cfg.training,
-            cfg.dataset.modality,
-            cfg.dataset.fusion_mode,
-            cfg.experiment.seed);
+        extracted = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
     }
     const auto& feature_sets = (cached_features != nullptr) ? *cached_features : extracted;
     pm.log("[Thesis] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
@@ -207,27 +190,23 @@ auto main(int argc, char* argv[]) -> int
             nn::progress::ProgressManager::instance().log(oss.str());
         }
 
-        // Handcrafted features are deterministic (no seed involved), so extract
+        // Handcrafted and PCA features are deterministic (no seed involved), so extract
         // once and share across repeats. AE-based extraction trains a network per
         // repeat seed and must stay inside the repeat loop.
         std::vector<thesis::FeatureSet> shared_features;
-        const bool features_seed_independent = (cfg.feature_extraction.strategy == "handcrafted");
+        const bool features_seed_independent = (cfg.feature_extraction.strategy != "autoencoder");
         if (features_seed_independent)
-            shared_features = thesis::extract_features(view,
-                cfg.feature_extraction,
-                cfg.training,
-                cfg.dataset.modality,
-                cfg.dataset.fusion_mode,
-                cfg.experiment.seed);
+            shared_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
 
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = 0; rep < cfg.experiment.repeats; ++rep)
         {
             thesis::ThesisConfig rep_cfg = cfg;
 
-            // Each repeat uses a different seed unless seed_deterministic=true.
-            if (!rep_cfg.experiment.seed_deterministic)
-                rep_cfg.experiment.seed += static_cast<uint32_t>(rep);
+            // Each repeat uses a different seed unless seed_deterministic=true. The key
+            // exists only for repeats > 1 (one run has nothing to decide).
+            if (cfg.experiment.repeats > 1 && !rep_cfg.experiment.seed_deterministic)
+                rep_cfg.experiment.seed = rep_cfg.experiment.seed + static_cast<uint32_t>(rep);
 
             // Append repeat index to run_tag so output files don't overwrite.
             if (cfg.experiment.repeats > 1)

@@ -16,10 +16,11 @@
 # Step 1's post-processing REWRITES tracked files under
 # src/experiments/thesis/profiles/phase01/ — review that diff before committing.
 # It is skipped when any profile failed (the ranking would be computed over an
-# incomplete set); THESIS_FORCE_POST=1 overrides, THESIS_SKIP_POST=1 disables it entirely.
+# incomplete set, and 01_thesis_phase00_rank.py refuses one anyway); THESIS_SKIP_POST=1
+# disables it entirely.
 #
 # Requires: thesis built, and the dataset (dataset.root) present.
-# HEAVY: phase00 = 208 profiles, phase01 = 32, each with experiment.repeats runs.
+# HEAVY: phase00 = 214 profiles, phase01 = 32, each with experiment.repeats runs.
 # Run in the background / overnight.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
@@ -113,7 +114,7 @@ binary      : $BIN
 parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per job)
 
 What do you want to do?
-  1) phase00 — feature construction + paraconsistent ranking  (208 profiles)
+  1) phase00 — feature construction + paraconsistent ranking  (214 profiles)
   2) phase01 — DSNN authentication                            (32 profiles)
   3) all     — phase00 + phase01 + debug, in ONE pass
                (phase01 uses the placeholder extractor — see 4)
@@ -203,8 +204,9 @@ if [ "$SCOPE" = start-over-all ]; then
         echo "    Review 'git diff src/experiments/thesis/profiles/phase01' (the winner injection)"
         echo "    and regenerate the thesis phase01 table:"
         echo "      python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \\"
-        echo "        --results-dir results/thesis/phase01 \\"
-        echo "        --tables-dir  ../../documentation/00-thesis/monography/tables"
+        echo "        --profiles-dir src/experiments/thesis/profiles/phase01 \\"
+        echo "        --results-dir  results/thesis/phase01 \\"
+        echo "        --tables-dir   ../../documentation/00-thesis/monography/tables"
     else
         echo "=== start over all: phase00 succeeded, phase01 FAILED (exit $rc) ==="
     fi
@@ -878,12 +880,16 @@ post_process_phase00() {
         --out          results/thesis/phase00/winners.json || { rc=$?; return $rc; }
 
     echo "[post] injecting winner into the phase01 profiles"
+    # --fused is a design choice with no default: the fused (voice+EEG) runs inherit the
+    # voice winner, the audio-dominant source -- the choice the thesis makes.
     "$py" scripts/pipeline/thesis/02_thesis_apply_winner.py \
         --winners      results/thesis/phase00/winners.json \
-        --profiles-dir src/experiments/thesis/profiles/phase01 || { rc=$?; return $rc; }
+        --profiles-dir src/experiments/thesis/profiles/phase01 \
+        --fused        voice || { rc=$?; return $rc; }
 
     echo "[post] regenerating the thesis phase00 tables"
     "$py" scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
+        --profiles-dir src/experiments/thesis/profiles/phase00 \
         --results-dir results/thesis/phase00 \
         --tables-dir  ../../documentation/00-thesis/monography/tables || { rc=$?; return $rc; }
 
@@ -894,17 +900,17 @@ post_process_phase00() {
 # Gated on scope AND on a clean run: ranking over a partial result set can pick the
 # wrong winner, and step 2 would then bake that wrong winner into 32 tracked profiles.
 # Failing closed keeps that mistake out of the tree — fix the failures and re-run
-# (resume skips everything that already passed). THESIS_FORCE_POST=1 overrides.
+# (resume skips everything that already passed). There is no override: the rank and
+# tables scripts refuse an incomplete result set themselves.
 if [ -n "${THESIS_SKIP_POST:-}" ]; then
     [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ] && echo "(THESIS_SKIP_POST set — skipping phase00 post-processing)"
 elif [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ]; then
-    if [ "$fail" -gt 0 ] && [ -z "${THESIS_FORCE_POST:-}" ]; then
+    if [ "$fail" -gt 0 ]; then
         echo
         echo "!! skipping phase00 post-processing: $fail profile(s) failed, so the ranking"
         echo "!! would be computed over an incomplete result set and could select the wrong"
         echo "!! winner — which step 2 would then write into 32 tracked phase01 profiles."
-        echo "!! Fix the failures and re-run (completed profiles are skipped), or set"
-        echo "!! THESIS_FORCE_POST=1 to run it anyway."
+        echo "!! Fix the failures and re-run (completed profiles are skipped)."
     else
         if [ "$SCOPE" = all ]; then
             echo
@@ -912,7 +918,9 @@ elif [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ]; then
             echo "!! placeholder extractor, not the winner injected below. Re-run phase01"
             echo "!! (./scripts/testing/run_thesis_profiles.sh phase01) for it to take effect."
         fi
-        post_process_phase00 || echo "!! phase00 post-processing FAILED (exit $?) — artefacts may be stale"
+        # A failed post-processing fails the script: the run is not done until the
+        # winners, the phase01 profiles and the thesis tables agree with the results.
+        post_process_phase00 || { echo "!! phase00 post-processing FAILED (exit $?)"; fail=$((fail + 1)); }
     fi
 fi
 

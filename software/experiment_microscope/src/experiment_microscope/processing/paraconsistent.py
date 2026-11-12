@@ -30,7 +30,7 @@ class Score:
         }
 
 
-def score(feature_vectors, subject_ids, label: str = "adhoc") -> Score:
+def score(feature_vectors, subject_ids, label: str) -> Score:
     nm = load_binding()
     s = nm.thesis.paraconsistent_score(
         [list(map(float, v)) for v in feature_vectors],

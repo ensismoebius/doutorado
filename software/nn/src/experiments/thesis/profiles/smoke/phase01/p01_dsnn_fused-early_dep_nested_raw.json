@@ -2,8 +2,7 @@
   "experiment": {
     "run_tag": "smoke_e05_p01_dsnn_fused_early_dep_nested_raw",
     "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": true
+    "repeats": 1
   },
   "dataset": {
     "root": "~/database.sqlite",
@@ -50,6 +49,11 @@
     "early_stop_patience": 1,
     "k_folds": 2,
     "nested_cv": true,
-    "standardize_features": false
+    "standardize_features": false,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "weight_decay": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
   }
 }

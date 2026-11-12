@@ -12,6 +12,7 @@
 #include "../lib/include/ThesisClassifiers.hpp"
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisDataset.hpp"
+#include "ThesisTestConfig.hpp"
 #include "statistics/ClassificationEERScorer.hpp"
 #include "statistics/eer_scorer.hpp"
 
@@ -72,36 +73,44 @@ TEST(ThesisAggregateStats, AllSameMeanAndZeroStd)
 
 namespace
 {
-// Build a minimal ThesisConfig for a quick run: 2-fold CV, 5 epochs, batch=4.
+// Build a minimal ThesisConfig for a quick run: 2-fold nested CV, 5 epochs, batch=4.
+// Every key the classifier reads is declared — including the ones this test used to
+// inherit from struct defaults (adam, nested_cv=true, standardize=true, and a layer_spec
+// that was EMPTY and silently became 128 hidden / depth 2 in parse_layer_spec).
 ThesisConfig make_fast_cfg()
 {
-    ThesisConfig cfg;
-    cfg.experiment.run_tag = "test";
-    cfg.experiment.seed = 42;
-
-    cfg.dataset.modality = "eeg";
+    ThesisConfig cfg = test::phase00("eeg");
+    test::set_handcrafted(cfg);
     cfg.dataset.root = "/dev/null"; // never accessed in unit test
     cfg.dataset.results_dir = "/tmp/";
+    cfg.paraconsistent.enabled = false;
 
-    cfg.feature_extraction.strategy = "handcrafted";
-
-    cfg.classifier.type = "rnn";
+    test::set_classifier(cfg, "rnn");
+    cfg.classifier.layer_spec =
+        std::vector<std::string>{"linear:128:relu", "residual:2", "linear:N_speakers:identity"};
     cfg.classifier.text_mode = "independent";
 
-    cfg.training.epochs = 5;
-    cfg.training.learning_rate = 1e-3f;
-    cfg.training.samples_per_batch = 4;
-    cfg.training.early_stop_patience = 0; // disabled
+    test::set_training(cfg, 5, 1e-3f, 4);
     cfg.training.k_folds = 2;
+    cfg.training.nested_cv = true;
+    cfg.training.early_stop_patience = 0; // disabled
+    cfg.validate();
+    return cfg;
+}
 
-    cfg.paraconsistent.enabled = false;
+// The dsnn classifier reads its own keys: firing-rate regularization (off) and batch
+// normalization (none). A test that turns either on declares the dependent keys.
+ThesisConfig make_dsnn_cfg()
+{
+    ThesisConfig cfg = make_fast_cfg();
+    cfg.classifier.type = "dsnn";
+    cfg.training.firing_rate_reg_lambda = 0.0f;
+    cfg.training.batch_normalization = "none";
     return cfg;
 }
 
 // Build a synthetic ThesisDatasetView: n_subjects classes, samples_per_subject
-// samples each.  Audio tensor is a 1×D row of zeros (non-empty so feature
-// extraction doesn't fall back to the 256-zero placeholder in ThesisDataset, but
-// here we bypass extraction entirely and supply feature_vectors directly).
+// samples each. Feature extraction is bypassed: feature_vectors are supplied directly.
 ThesisDatasetView make_view(int n_subjects, int samples_per_subject)
 {
     ThesisDatasetView view;
@@ -226,8 +235,7 @@ TEST(ThesisRunClassifier, DsnnPathRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    ThesisConfig cfg = make_fast_cfg();
-    cfg.classifier.type = "dsnn";
+    ThesisConfig cfg = make_dsnn_cfg();
     statistics::ClassificationEERScorer scorer;
 
     auto result = run_classifier(view, fvs, "synth-dsnn", cfg, &scorer);
@@ -244,8 +252,7 @@ TEST(ThesisRunClassifier, DsnnWithRegularizationRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    ThesisConfig cfg = make_fast_cfg();
-    cfg.classifier.type = "dsnn";
+    ThesisConfig cfg = make_dsnn_cfg();
     cfg.training.weight_decay = 1e-3f;
     cfg.training.firing_rate_reg_lambda = 0.05f;
     cfg.training.firing_rate_min = 0.05f;
@@ -276,8 +283,7 @@ TEST(ThesisRunClassifier, DsnnWithTdbnRuns)
 {
     auto view = make_view(4, 6);
     auto fvs = make_features(view);
-    ThesisConfig cfg = make_fast_cfg();
-    cfg.classifier.type = "dsnn";
+    ThesisConfig cfg = make_dsnn_cfg();
     cfg.training.batch_normalization = "threshold-dependent";
     cfg.training.tdbn_alpha = 1.0f;
     statistics::ClassificationEERScorer scorer;
@@ -314,10 +320,10 @@ TEST(ThesisRunClassifier, TdbnComparativeBenchmark)
     std::cout << "\n[tdBN benchmark] variant     folds  mean_EER  mean_AUC\n";
     for (const auto& v : variants)
     {
-        ThesisConfig cfg = make_fast_cfg();
-        cfg.classifier.type = "dsnn";
+        ThesisConfig cfg = make_dsnn_cfg();
         cfg.training.batch_normalization = v.bn;
-        cfg.training.tdbn_alpha = v.alpha;
+        if (std::string(v.bn) == "threshold-dependent") cfg.training.tdbn_alpha = v.alpha;
+        cfg.validate();
 
         auto result = run_classifier(view, fvs, std::string("synth-bench-") + v.name, cfg, &scorer);
 

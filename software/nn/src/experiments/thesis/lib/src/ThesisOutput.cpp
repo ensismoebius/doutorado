@@ -60,8 +60,15 @@ void write_paraconsistent_csv(const std::string& results_dir,
 namespace
 {
 
-// Run identity/config metadata (run tag, seed, modality, resolved training config, and the
-// feature-extraction config actually used) — recorded so a summary file is self-describing.
+// Run identity plus the configuration the run actually used — recorded so a summary file
+// is self-describing and reproducible from itself.
+//
+// `config` is every key the profile declared, which (ThesisConfig refuses the rest) is
+// exactly every key the run read. It replaces a hand-picked subset that had to be kept in
+// step with the config by hand and once printed a learning rate the profile never stated:
+// the lr used to be optional and resolved from the optimizer, so the summary recorded the
+// resolved value and a `learning_rate_source` flag (.wiki/Guides/Engineering-Fixes-Log.md
+// D3). With every key required, the declared value IS the value that ran.
 auto build_run_metadata_json(const ThesisConfig& cfg) -> nlohmann::json
 {
     nlohmann::json j;
@@ -69,63 +76,12 @@ auto build_run_metadata_json(const ThesisConfig& cfg) -> nlohmann::json
     j["seed"] = cfg.experiment.seed;
     j["modality"] = cfg.dataset.modality;
     j["strategy"] = cfg.feature_extraction.strategy;
-    j["classifier"] = cfg.classifier.type;
-    j["text_mode"] = cfg.classifier.text_mode;
-
-    // Training config actually used, recorded so a result file is self-describing and
-    // reproducible from itself. `learning_rate` is the RESOLVED value
-    // (Training::effective_learning_rate()): profiles may omit the field and inherit the
-    // optimizer's reference default, which differs ~10x between optimizers, so the declared
-    // profile is not always enough to know what ran. `learning_rate_source` says which it
-    // was. This exists because of .wiki/Guides/Engineering-Fixes-Log.md D3, where the published
-    // numbers had been produced at an effective lr 10x below the one the profiles declared, with
-    // nothing on disk recording the discrepancy.
-    j["training"] = {
-        {"optimizer_type", cfg.training.optimizer_type},
-        {"learning_rate", cfg.training.effective_learning_rate()},
-        {"learning_rate_source",
-            cfg.training.learning_rate.has_value() ? "profile" : "optimizer_default"},
-        {"epochs", cfg.training.epochs},
-        {"samples_per_batch", cfg.training.samples_per_batch},
-        {"weight_decay", cfg.training.weight_decay},
-    };
-    if (cfg.training.optimizer_type == "sgd")
+    if (cfg.classifier.enabled)
     {
-        j["training"]["optimizer_momentum"] = cfg.training.optimizer_momentum;
+        j["classifier"] = cfg.classifier.type;
+        j["text_mode"] = cfg.classifier.text_mode;
     }
-
-    // Feature-extraction config actually used to produce this run's vectors —
-    // recorded so a result file is self-describing without cross-referencing
-    // the source profile (e.g. distinguishing the 18 SNN-AE poisson/latency/
-    // direct × tiny/small/base variants, which otherwise share the same
-    // "autoencoder-snn" FeatureSet label in the paraconsistent CSV).
-    if (cfg.feature_extraction.strategy == "handcrafted")
-    {
-        const auto& hc = cfg.feature_extraction.handcrafted;
-        j["handcrafted"] = {
-            {"wavelet", hc.wavelet},
-            {"scale", hc.scale},
-            {"cepstral", hc.cepstral},
-            {"dtwpt_level", hc.dtwpt_level},
-            {"descriptors", hc.descriptors},
-        };
-    }
-    else if (cfg.feature_extraction.strategy == "autoencoder")
-    {
-        const auto& ae = cfg.feature_extraction.autoencoder;
-        j["autoencoder"] = {
-            {"model", ae.model},
-            {"encoder_layer_spec", ae.encoder_layer_spec},
-            {"decoder_layer_spec", ae.decoder_layer_spec},
-        };
-        if (ae.model == "snn-ae")
-        {
-            j["autoencoder"]["encoding"] = ae.encoding;
-            j["autoencoder"]["time_steps"] = ae.encoding == "direct" ? 1 : ae.time_steps;
-            j["autoencoder"]["voltage_threshold"] = ae.voltage_threshold;
-        }
-    }
-
+    j["config"] = cfg.declared_json();
     return j;
 }
 

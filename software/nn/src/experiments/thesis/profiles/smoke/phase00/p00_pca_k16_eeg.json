@@ -1,0 +1,25 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p00_pca_k16_eeg",
+    "seed": 42,
+    "repeats": 1
+  },
+  "dataset": {
+    "root": "~/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "eeg",
+    "max_samples": 60
+  },
+  "feature_extraction": {
+    "strategy": "pca",
+    "pca": {
+      "n_components": 16
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  }
+}

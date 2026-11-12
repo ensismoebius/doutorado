@@ -195,7 +195,9 @@ Gating on the automatic path:
   ranking step selects on `d_penalized`, and computing it over an incomplete
   result set risks writing the wrong winner into all 32 tracked phase01
   profiles (step 3). Fix the failures and re-run (resume skips what already
-  passed), or set `THESIS_FORCE_POST=1` to force it anyway.
+  passed). There is no override: `01_thesis_phase00_rank.py` and the tables
+  script refuse an incomplete result set themselves (every repetition each
+  profile declares must exist), and a failed post-processing fails the run.
 - `THESIS_SKIP_POST=1` disables the automatic post-processing entirely.
 - With `scope=all`, phase01 runs in the *same* pass as phase00, so it trains
   on the placeholder extractor — the winner injected by step 3 comes too late
@@ -218,9 +220,12 @@ Selects on `d_penalized` (not raw `d_truth`, which a collapsed latent can
 game) and reports exact ties explicitly — watch for a printed `[TIE]`
 warning, which means the winner was chosen by sort tie-break rather than
 merit. Writes `winners.json` (carries each winner's full
-`feature_extraction` block). `--profiles-dir`/`--results-dir` default to the
-real phase00 paths shown above; redirect both together when ranking a
-smoke/partial run — see the destructive-path warning in `run.md` §2a.
+`feature_extraction` block). Every argument is required. It reads exactly the
+files each profile declares (`e05_<run_tag>[_rep<k>]_paraconsistent.csv`, from the
+profile's own `run_tag` and `repeats`) and **refuses** when any is missing, when a
+CSV has more than one scored row, or when it lacks the `d_penalized` column —
+a winner taken from a partial set is not the Phase 00 winner. To rank a smoke
+run, redirect `--profiles-dir`/`--results-dir` together.
 
 ### 3. Inject the winner into the Phase 01 profiles
 
@@ -229,11 +234,12 @@ The shipped phase01 profiles carry a **placeholder** extractor until this runs.
 ```bash
 .venv/bin/python scripts/pipeline/thesis/02_thesis_apply_winner.py \
   --winners      results/thesis/phase00/winners.json \
-  --profiles-dir src/experiments/thesis/profiles/phase01
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --fused        voice
 ```
 
-`--fused voice|eeg` (default `voice`, the audio-dominant signal) selects
-which winner backs the fused profiles; `voice`/`eeg`-only profiles always get
+`--fused voice|eeg` (required, no default; the driver declares `voice`, the
+audio-dominant signal) selects which winner backs the fused profiles; `voice`/`eeg`-only profiles always get
 their own signal's winner. Idempotent; supports `--dry-run`. **Rewrites the
 32 tracked phase01 profiles in place** — pointing `--winners` at a
 smoke/partial-run JSON silently overwrites the real profiles' extractor.
@@ -242,13 +248,15 @@ smoke/partial-run JSON silently overwrites the real profiles' extractor.
 
 ```bash
 .venv/bin/python scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
-  --results-dir results/thesis/phase00 \
-  --tables-dir  ../../documentation/00-thesis/monography/tables
+  --profiles-dir src/experiments/thesis/profiles/phase00 \
+  --results-dir  results/thesis/phase00 \
+  --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-Defaults `--tables-dir` to the committed thesis tables directory — run it
-with anything other than complete phase00 results and it overwrites the
-tables the thesis compiles from. Ranks **ascending** by `d_penalized` (rank 1
+Every argument is required. The profile set defines the tables: each
+profile's summaries must all exist (else it refuses), a result file with no
+profile is never read, and a group the thesis typesets (`{ae, hc, pca} ×
+{eeg, voice}`) with no profile is refused rather than left stale. Ranks **ascending** by `d_penalized` (rank 1
 is the best configuration) and marks each signal's winner with a dagger —
 an earlier version of this script sorted descending, which put the actual
 winner last instead of first; see
@@ -273,12 +281,14 @@ results:
 
 ```bash
 .venv/bin/python scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
-  --results-dir results/thesis/phase01 \
-  --tables-dir  ../../documentation/00-thesis/monography/tables
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --results-dir  results/thesis/phase01 \
+  --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
 Averages `mean_eer`/`mean_auc` over each configuration's 3 repeats and
 writes `tables/phase01_auth.csv`, sorted ascending by EER (lower is better).
+Every argument is required. The profile set defines the table: each profile's summaries must all exist and hold one result with a finite EER and AUC (else it refuses), the row label is built from the declared config (source, text mode, CV, standardization) and two profiles with one label are refused; with a single repetition the std columns print `—`, never 0.
 
 > **Status (2026-07-19):** both phases have completed a full run — 208/208
 > phase00 and 32/32 phase01 profiles, 0 failures. See
@@ -331,10 +341,19 @@ class of run diagnostics the Meeting01/Meeting01 pipeline stores:
 **Cross-profile significance** (the Meeting01 SNN-vs-LSTM analog). An Thesis run scores one feature
 set, so the significance comparison is *across* profiles, not within a run:
 `scripts/pipeline/thesis/thesis_cross_profile_significance.py` collates every profile's per-fold
-`*_metrics.csv`, ranks them by a metric (`--metric eer|accuracy|auc|f1`), and tests each
-condition against the best — Cohen's d plus a paired Wilcoxon (same CV seed/splits) or an
+`*_metrics.csv` (exactly the files each profile declares), ranks them by a metric, and tests
+each condition against a declared reference — Cohen's d plus a paired Wilcoxon or an
 independent Mann-Whitney U. Needs `python3` (system scipy). Example:
-`python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py --results-dir results/thesis/phase01 --metric eer`.
+
+```bash
+python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py \
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --results-dir  results/thesis/phase01 \
+  --metric eer --reference best --pairing independent \
+  --out results/thesis/phase01/cross_profile_significance.csv
+```
+
+Every choice is required: `--metric eer|auc|accuracy|f1`, `--reference best|<run_tag>`, `--pairing paired|independent`. `paired` (Wilcoxon on (repetition, fold)-matched values) is refused for any pair that does not hold out the same folds (same `dataset.root`, `max_samples`, `seed`, `repeats`, `seed_deterministic`, `k_folds`, `nested_cv`, `text_mode`) — so across the whole Phase 01 grid, whose text modes differ, use `independent` (Mann-Whitney U). A missing metrics file, a NaN fold (closed-set metrics under verification: use eer/auc) or an unparseable value is refused, not dropped; an undefined statistic (tied values, zero variance) is an empty cell with a `note`, never p = 1 or d = 0. The comparisons share the reference, so they are one family: `p_holm` is Holm-Bonferroni over the tested comparisons and `significant_0.05` reads it. Holm does not undo selection — `--reference best` picks the reference from the same data; name a reference fixed in advance for a confirmatory reading.
 
 ## Notes
 

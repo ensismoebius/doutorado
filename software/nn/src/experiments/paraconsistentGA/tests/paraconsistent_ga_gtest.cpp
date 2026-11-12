@@ -186,6 +186,19 @@ thesis::ThesisConfig::AutoencoderConfig base_ae(const char* model, const char* l
     ae.firing_rate_max = 0.8f;
     return ae;
 }
+
+// The search space the GA profiles declare (the values GenomeBounds used to default to).
+pga::GenomeBounds phase00_bounds()
+{
+    pga::GenomeBounds b;
+    b.min_layers = 1;
+    b.max_layers = 6;
+    b.min_width = 1;
+    b.max_width = 128;
+    b.encoding_choices = std::vector<std::string>{"direct", "latency", "poisson"};
+    b.evolve_temporal = false;
+    return b;
+}
 } // namespace
 
 // ── Genome → AE config mapping (.wiki/Experiments/ParaconsistentGA-Design.md §5.1)
@@ -204,30 +217,32 @@ TEST(PgaGenome, SnnMappingCouplesTemporalToEncoding)
     auto ae = pga::to_ae_config(g, base_ae("snn-ae", "mse"));
     EXPECT_EQ(ae.model, "snn-ae");
     // encoder: every width leaky except the latent (identity)
-    ASSERT_EQ(ae.encoder_layer_spec.size(), 4u);
-    EXPECT_EQ(ae.encoder_layer_spec[0], "linear:10:leaky");
-    EXPECT_EQ(ae.encoder_layer_spec[1], "linear:5:leaky");
-    EXPECT_EQ(ae.encoder_layer_spec[2], "linear:4:leaky");
-    EXPECT_EQ(ae.encoder_layer_spec[3], "linear:2:identity");
+    ASSERT_EQ(ae.encoder_layer_spec->size(), 4u);
+    EXPECT_EQ((*ae.encoder_layer_spec)[0], "linear:10:leaky");
+    EXPECT_EQ((*ae.encoder_layer_spec)[1], "linear:5:leaky");
+    EXPECT_EQ((*ae.encoder_layer_spec)[2], "linear:4:leaky");
+    EXPECT_EQ((*ae.encoder_layer_spec)[3], "linear:2:identity");
     // decoder mirrors the hidden widths back up, then projects to output
-    ASSERT_EQ(ae.decoder_layer_spec.size(), 4u);
-    EXPECT_EQ(ae.decoder_layer_spec[0], "linear:4:leaky");
-    EXPECT_EQ(ae.decoder_layer_spec[1], "linear:5:leaky");
-    EXPECT_EQ(ae.decoder_layer_spec[2], "linear:10:leaky");
-    EXPECT_EQ(ae.decoder_layer_spec[3], "linear:output:identity");
+    ASSERT_EQ(ae.decoder_layer_spec->size(), 4u);
+    EXPECT_EQ((*ae.decoder_layer_spec)[0], "linear:4:leaky");
+    EXPECT_EQ((*ae.decoder_layer_spec)[1], "linear:5:leaky");
+    EXPECT_EQ((*ae.decoder_layer_spec)[2], "linear:10:leaky");
+    EXPECT_EQ((*ae.decoder_layer_spec)[3], "linear:output:identity");
     EXPECT_EQ(ae.encoding, "latency");
     EXPECT_FLOAT_EQ(ae.firing_rate_reg_lambda, 0.5f);
 }
 
-TEST(PgaGenome, AnnMappingForcesDirect)
+TEST(PgaGenome, AnnMappingCarriesNoTemporalKeys)
 {
     Genome g;
     g.encoder_widths = {32, 16};
-    g.encoding = "poisson"; // must be ignored for ann-ae
+    g.encoding = "poisson"; // must not reach an ann-ae
     auto ae = pga::to_ae_config(g, base_ae("ann-ae", "mse"));
-    EXPECT_EQ(ae.encoding, "direct");
-    EXPECT_EQ(ae.time_steps, 1);
-    EXPECT_FLOAT_EQ(ae.voltage_threshold, 1.0f);
+    // The ANN-AE is analog with one frame by construction; it reads none of these, so the
+    // mapping declares none (it used to write direct/1/1.0 that nothing read).
+    EXPECT_FALSE(ae.encoding.declared());
+    EXPECT_FALSE(ae.time_steps.declared());
+    EXPECT_FALSE(ae.voltage_threshold.declared());
 }
 
 TEST(PgaGenome, ProxiesMonotonic)
@@ -243,7 +258,7 @@ TEST(PgaGenome, ProxiesMonotonic)
 TEST(PgaGenome, RandomGenomeKeepsBottleneck)
 {
     std::mt19937 rng(123);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     for (int i = 0; i < 500; ++i)
     {
         Genome g = pga::random_genome(rng, bounds, /*is_snn=*/true);
@@ -284,8 +299,8 @@ TEST(PgaGenome, ToAeConfigPreservesProfileFields)
         EXPECT_FLOAT_EQ(ae.firing_rate_max, 0.8f);
         // genome-owned fields still applied
         EXPECT_EQ(ae.encoding, "latency");
-        EXPECT_EQ(ae.encoder_layer_spec.front(), "linear:32:leaky");
-        EXPECT_EQ(ae.encoder_layer_spec.back(), "linear:16:identity");
+        EXPECT_EQ(ae.encoder_layer_spec->front(), "linear:32:leaky");
+        EXPECT_EQ(ae.encoder_layer_spec->back(), "linear:16:identity");
     }
 }
 
@@ -295,13 +310,17 @@ TEST(PgaGenome, ToAeConfigPreservesLossForAnnToo)
     g.encoder_widths = {8, 4};
     auto ae = pga::to_ae_config(g, base_ae("ann-ae", "mae"));
     EXPECT_EQ(ae.ae_loss_type, "mae");
-    EXPECT_EQ(ae.encoding, "direct"); // model-implied override still wins
+    // The ANN-AE is analog by construction and reads no encoding/T/threshold, so the
+    // genome declares none (a declared key the model never reads is refused).
+    EXPECT_FALSE(ae.encoding.declared());
+    EXPECT_FALSE(ae.time_steps.declared());
+    EXPECT_FALSE(ae.voltage_threshold.declared());
 }
 
 // ── Free architecture: depth + width both vary, repaired to a legal shape ────
 TEST(PgaGenome, RepairForcesStrictlyDecreasing)
 {
-    pga::GenomeBounds bounds; // min_width=1, max_width=128
+    pga::GenomeBounds bounds = phase00_bounds(); // min_width=1, max_width=128
     Genome g;
     g.encoder_widths = {3, 3, 5, 1, 5}; // unsorted, duplicates, rising
     pga::repair_widths(g, bounds);
@@ -318,7 +337,7 @@ TEST(PgaGenome, RepairForcesStrictlyDecreasing)
 TEST(PgaGenome, MutationCanChangeDepthAndStaysLegal)
 {
     std::mt19937 rng(7);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     bounds.min_layers = 1;
     bounds.max_layers = 6;
     Genome g = pga::random_genome(rng, bounds, /*is_snn=*/true);
@@ -342,7 +361,7 @@ TEST(PgaGenome, MutationCanChangeDepthAndStaysLegal)
 TEST(PgaGenome, CrossoverOfDifferentDepthsIsLegal)
 {
     std::mt19937 rng(11);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     Genome a;
     a.encoder_widths = {3, 2, 1};
     Genome b;
@@ -360,7 +379,7 @@ TEST(PgaGenome, CrossoverOfDifferentDepthsIsLegal)
 TEST(PgaDiploid, RandomDiploidBothHaplotypesLegal)
 {
     std::mt19937 rng(321);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     for (int i = 0; i < 300; ++i)
     {
         pga::DiploidGenome d = pga::random_diploid(rng, bounds, /*is_snn=*/true);
@@ -397,7 +416,7 @@ TEST(PgaDiploid, ExpressedIsHigherDominanceHaplotype)
 TEST(PgaDiploid, MeiosisProducesLegalGameteAndBoundedDominance)
 {
     std::mt19937 rng(99);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     pga::DiploidGenome d = pga::random_diploid(rng, bounds, /*is_snn=*/true);
     for (int i = 0; i < 300; ++i)
     {
@@ -434,7 +453,7 @@ TEST(PgaDiploid, FuseMapsGametesToHaplotypes)
 TEST(PgaDiploid, RecessiveAlleleCanResurface)
 {
     std::mt19937 rng(2024);
-    pga::GenomeBounds bounds;
+    pga::GenomeBounds bounds = phase00_bounds();
     pga::DiploidGenome parent;
     parent.hap_a.encoder_widths = {120};     // dominant, expressed
     parent.hap_b.encoder_widths = {3, 2, 1}; // recessive, hidden
@@ -692,30 +711,118 @@ TEST(PgaFitness, LatencyPreScreenRejectsOverBudget)
 }
 
 // ── Config validation ────────────────────────────────────────────────────────
-TEST(PgaConfig, RejectsHandcraftedStrategy)
+namespace
 {
-    pga::GaConfig cfg;
-    cfg.base.experiment.run_tag = "t";
-    cfg.base.dataset.root = "/x";
-    cfg.base.feature_extraction.strategy = "handcrafted";
-    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+// A complete SNN GA profile: the thesis keys the GA reads (no genome-owned ones), plus the
+// GA's own sections.
+nlohmann::json ga_profile()
+{
+    return nlohmann::json::parse(R"({
+        "run_tag": "t", "results_dir": "results/paraconsistentGA",
+        "experiment": {"seed": 42},
+        "dataset": {"root": "/x", "modality": "eeg", "max_samples": 0},
+        "feature_extraction": {"strategy": "autoencoder",
+            "autoencoder": {"model": "snn-ae", "ae_loss_type": "mse",
+                            "firing_rate_reg_lambda": 0.0}},
+        "paraconsistent": {"enabled": true},
+        "classifier": {"enabled": false},
+        "training": {"epochs": 2, "learning_rate": 0.001, "optimizer_type": "adam",
+                     "gradient_clip_norm": 0.0, "samples_per_batch": 8},
+        "ga": {"population_size": 4, "generations": 1, "n_seeds": 1, "n_losers": 0,
+               "crossover_prob": 0.9, "mutation_prob": 0.2, "seed": 42, "tournament_k": 2,
+               "bounds": {"min_layers": 1, "max_layers": 2, "min_width": 2, "max_width": 16,
+                          "encoding_choices": ["direct", "poisson"], "evolve_temporal": false}},
+        "constraints": {"latency_ceiling_ms": 1000.0, "fixed_pipeline_cost_ms": 0.0,
+                        "latency_calibrated": false, "ns_per_mac": 2.0, "tau_rec": 0.0001},
+        "checkpoint": {"enabled": true, "every_generations": 1}
+    })");
 }
 
-TEST(PgaConfig, AcceptsValidAutoencoderConfig)
+std::string ga_refusal(const nlohmann::json& j)
 {
-    pga::GaConfig cfg;
-    cfg.base.experiment.run_tag = "t";
-    cfg.base.dataset.root = "/x";
-    cfg.base.dataset.modality = "eeg";
-    cfg.base.feature_extraction.strategy = "autoencoder";
-    cfg.base.feature_extraction.autoencoder.model = "snn-ae";
-    cfg.base.feature_extraction.autoencoder.encoder_layer_spec = {
-        "linear:64:leaky", "linear:32:identity"};
-    cfg.base.feature_extraction.autoencoder.decoder_layer_spec = {
-        "linear:64:leaky", "linear:output:identity"};
-    cfg.base.classifier.enabled = false; // as GaConfig::from_json forces (Phase-00-like run)
-    cfg.run_tag = "t";
-    EXPECT_NO_THROW(cfg.validate());
+    try
+    {
+        pga::GaConfig::from_json(j).validate();
+    }
+    catch (const std::exception& e)
+    {
+        return e.what();
+    }
+    return "";
+}
+} // namespace
+
+TEST(PgaConfig, AcceptsCompleteProfile)
+{
+    EXPECT_EQ(ga_refusal(ga_profile()), "");
+}
+
+TEST(PgaConfig, RejectsHandcraftedStrategy)
+{
+    auto j = ga_profile();
+    j["feature_extraction"] = {{"strategy", "handcrafted"},
+        {"handcrafted",
+            {{"transform", "dtwpt"},
+                {"scale", "lfcc"},
+                {"descriptors", {"energy"}},
+                {"dtwpt_level", 4},
+                {"wavelet", "daub4"},
+                {"cepstral", false}}}};
+    j.erase("training");
+    EXPECT_NE(ga_refusal(j).find("strategy"), std::string::npos);
+}
+
+TEST(PgaConfig, ProfileStatesWhatTheGaUsedToForce)
+{
+    // classifier.enabled / paraconsistent.enabled used to be overwritten after parsing, so a
+    // profile could say the opposite of what ran. Now the profile must say it.
+    auto j = ga_profile();
+    j["classifier"]["enabled"] = true;
+    EXPECT_NE(ga_refusal(j), "");
+    j = ga_profile();
+    j["paraconsistent"]["enabled"] = false;
+    EXPECT_NE(ga_refusal(j).find("paraconsistent.enabled"), std::string::npos);
+}
+
+TEST(PgaConfig, RefusesGenomeOwnedAndUnreadThesisKeys)
+{
+    auto j = ga_profile();
+    j["feature_extraction"]["autoencoder"]["encoding"] = "poisson"; // the genome sets it
+    EXPECT_NE(ga_refusal(j).find("sets it from each genome"), std::string::npos);
+
+    j = ga_profile();
+    j["experiment"]["run_tag"] = "t"; // the GA names outputs with the top-level run_tag
+    EXPECT_NE(ga_refusal(j).find("experiment.run_tag"), std::string::npos);
+
+    j = ga_profile();
+    j["dataset"]["results_dir"] = "x"; // the GA writes to the top-level results_dir
+    EXPECT_NE(ga_refusal(j).find("dataset.results_dir"), std::string::npos);
+}
+
+TEST(PgaConfig, RefusesMissingAndUnknownGaKeys)
+{
+    auto j = ga_profile();
+    j.erase("checkpoint"); // used to default to enabled/every 1
+    EXPECT_NE(ga_refusal(j).find("checkpoint.enabled"), std::string::npos);
+
+    j = ga_profile();
+    j["ga"]["bounds"]["hidden_choices"] = {64, 32}; // was silently ignored
+    EXPECT_NE(ga_refusal(j).find("ga.bounds.hidden_choices"), std::string::npos);
+
+    j = ga_profile();
+    j.erase("run_tag"); // used to fall back to experiment.run_tag
+    EXPECT_NE(ga_refusal(j).find("run_tag"), std::string::npos);
+}
+
+TEST(PgaConfig, EveryEncodingChoiceMustSuitTheLoss)
+{
+    // spikecount needs poisson; "direct" among the choices would train some genomes with a
+    // spike loss on analog frames. validate() probes each choice, before the search starts.
+    auto j = ga_profile();
+    j["feature_extraction"]["autoencoder"]["ae_loss_type"] = "spikecount";
+    EXPECT_NE(ga_refusal(j).find("direct"), std::string::npos);
+    j["ga"]["bounds"]["encoding_choices"] = {"poisson"};
+    EXPECT_EQ(ga_refusal(j), "");
 }
 
 // ── Profile audit ────────────────────────────────────────────────────────────

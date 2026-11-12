@@ -65,16 +65,25 @@ python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
 
 cp -r src/experiments/thesis/profiles/phase01 /tmp/phase01_copy    # apply_winner rewrites IN PLACE
 python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
-  --winners /tmp/smoke_winners.json --profiles-dir /tmp/phase01_copy
+  --winners /tmp/smoke_winners.json --profiles-dir /tmp/phase01_copy --fused voice
+
+python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
+  --profiles-dir src/experiments/thesis/profiles/smoke/phase00 \
+  --results-dir  results/thesis/smoke \
+  --tables-dir   /tmp/smoke_tables                                  # NOT the thesis tables
 ```
+
+Every argument of the three scripts is required (no default paths), and each refuses an
+incomplete result set: the files each profile declares (its `run_tag`, plus `_rep<k>` for
+`repeats > 1`) must all exist.
 
 Smoke *numbers* are meaningless (2 epochs on 60 samples) — only the plumbing is being tested.
 Clean up with `rm -rf results/thesis/smoke` afterwards.
 
-> **The tables script cannot be smoke-tested.** Smoke run tags are prefixed `smoke_` and carry
-> no `_repN`, so they never match its `^e05_e05_(p00_.+)_rep(\d+)_summary\.json$` glob — it is
-> real-phase00-only by design. It prints `no phase00 summary.json files found` and exits
-> cleanly; that is expected, not a failure.
+> **The tables script reads the profiles, not the results directory** (since 2026-11-11). It
+> used to glob `^e05_e05_(p00_.+)_rep(\d+)_summary\.json$`, so smoke runs (tag `smoke_…`,
+> `repeats` 1) never matched and it printed a warning and exited 0. It now derives each file
+> name from the profile, so the smoke set works — point `--tables-dir` away from the thesis.
 
 ---
 
@@ -166,7 +175,7 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 
 This automatically chains rank → winner → tables (§2a below) once all 208 profiles finish with
 zero failures — see [Running Experiment05 Profiles](./Running-Thesis-Profiles.md) for the
-full gating rules (`THESIS_FORCE_POST`/`THESIS_SKIP_POST`) and the `scope=all` ordering caveat. You do
+full gating rules (`THESIS_SKIP_POST`; no force override) and the `scope=all` ordering caveat. You do
 not need to run the commands in §2a by hand for a normal phase00 pass; they remain useful for
 manual re-runs (e.g. after fixing a partial failure without re-running the whole phase, or
 against `results/thesis/smoke`).
@@ -191,9 +200,9 @@ autoencoder bar, `run fold/total` + live loss on the classifier bar) plus a pers
 
 See [Running Experiment05 Profiles §2a](./Running-Thesis-Profiles.md) for the full
 command sequence, the destructive-path warnings (`02_thesis_apply_winner.py` rewrites the 32
-phase01 profiles **in place**; `thesis_build_phase00_paraconsistent_tables.py` defaults its
-`--tables-dir` to the committed thesis tables directory), and the automatic-post-processing
-gating flags.
+phase01 profiles **in place**; `thesis_build_phase00_paraconsistent_tables.py` writes wherever
+`--tables-dir` points, the committed thesis tables included), and the automatic
+post-processing gating.
 
 ---
 
@@ -222,12 +231,13 @@ against the best (Cohen's d + Wilcoxon/Mann-Whitney):
 
 ```bash
 python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py \
-  --results-dir results/thesis/phase01 --metric eer \
+  --profiles-dir src/experiments/thesis/profiles/phase01 \
+  --results-dir  results/thesis/phase01 \
+  --metric eer --reference best --pairing independent \
   --out results/thesis/phase01/cross_profile_significance.csv
 ```
 
-Paired tests assume the compared runs share CV seed/splits (they do, by default). Use
-`--metric accuracy|auc|f1`, `--reference <run_tag>`, or `--pairing paired|independent` to vary it.
+Every choice is required: `--metric eer|auc|accuracy|f1`, `--reference best|<run_tag>`, `--pairing paired|independent`. `paired` (Wilcoxon on (repetition, fold)-matched values) is refused for any pair that does not hold out the same folds (same `dataset.root`, `max_samples`, `seed`, `repeats`, `seed_deterministic`, `k_folds`, `nested_cv`, `text_mode`) — so across the whole Phase 01 grid, whose text modes differ, use `independent` (Mann-Whitney U). A missing metrics file, a NaN fold (closed-set metrics under verification: use eer/auc) or an unparseable value is refused, not dropped; an undefined statistic (tied values, zero variance) is an empty cell with a `note`, never p = 1 or d = 0. The comparisons share the reference, so they are one family: `p_holm` is Holm-Bonferroni over the tested comparisons and `significant_0.05` reads it. Holm does not undo selection — `--reference best` picks the reference from the same data; name a reference fixed in advance for a confirmatory reading.
 
 ### 3b. Thesis authentication table
 

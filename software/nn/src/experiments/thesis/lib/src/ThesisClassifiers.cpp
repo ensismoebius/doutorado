@@ -28,14 +28,14 @@ auto run_classifier(const ThesisDatasetView& view,
         throw std::invalid_argument("ThesisClassifiers: features/samples size mismatch");
 
     if (cfg.classifier.type != "rnn" && cfg.classifier.type != "dsnn")
-        throw std::invalid_argument("ThesisClassifiers: classifier type \"" + cfg.classifier.type +
+        throw std::invalid_argument("ThesisClassifiers: classifier type \"" +
+                                    cfg.classifier.type.get() +
                                     "\" is not implemented. Supported: \"rnn\", \"dsnn\".");
 
     const int n_speakers = view.n_subjects;
     const int feat_dim = static_cast<int>(feature_vectors[0].size());
 
-    int hidden_dim = 0, depth = 0;
-    parse_layer_spec(cfg.classifier.layer_spec, hidden_dim, depth);
+    const auto [hidden_dim, depth] = parse_layer_spec(cfg.classifier.layer_spec);
 
     // Map subject_id → sequential class index.
     std::map<int, int> id_to_class;
@@ -54,9 +54,11 @@ auto run_classifier(const ThesisDatasetView& view,
 
     nn::training::TrainerConfig trainer_cfg;
     trainer_cfg.epochs = cfg.training.epochs;
-    trainer_cfg.learning_rate = cfg.training.effective_learning_rate();
+    trainer_cfg.learning_rate = cfg.training.learning_rate;
     trainer_cfg.optimizer_type = cfg.training.optimizer_type;
-    trainer_cfg.optimizer_momentum = cfg.training.optimizer_momentum;
+    // Momentum exists for sgd only; the profile declares it exactly then.
+    if (cfg.training.optimizer_type == "sgd")
+        trainer_cfg.optimizer_momentum = cfg.training.optimizer_momentum;
     trainer_cfg.grad_clip_norm = cfg.training.gradient_clip_norm;
     trainer_cfg.batch_size = cfg.training.samples_per_batch;
     trainer_cfg.weight_decay = cfg.training.weight_decay; // decoupled L2 (rnn + dsnn)
