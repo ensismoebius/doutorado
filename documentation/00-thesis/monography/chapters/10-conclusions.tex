@@ -21,14 +21,17 @@
 		superou 22 famílias \textit{Daubechies} e dois esquemas cocleares.
 
 		\pendenteNota{Os números de autenticação deste parágrafo e do seguinte
-		vêm da Fase~01 de 2026-07-20 e são inválidos: três defeitos, corrigidos
-		em 2026-11-12, os afetaram --- o treino de cada dobra perdia amostras em
-		silêncio (62\% em média), a varredura do \ac{EER} estava invertida e a
-		validação aninhada treinava com as frases reservadas ao teste no modo
-		independente de texto (ver a nota da
-		\autoref{chap:testsResults:sec:Fase01}). O ``resultado negativo'' não
-		pode ser afirmado nem negado antes da reexecução; a divergência
-		\ac{EER}--\ac{AUC} sob padronização era efeito da varredura invertida.
+		vêm da Fase~01 de 2026-07-20 e são inválidos (ver a nota da
+		\autoref{chap:testsResults:sec:Fase01}). Na reexecução de 2026-11-12, o
+		``resultado negativo'' deixou de valer. A melhor configuração (fusão
+		tardia, dependente de texto, $k$-fold plano, padronizado) atinge
+		$\text{EER} = 0{,}1823$ e $\text{AUC} = 0{,}8936$, longe do acaso, mas
+		ainda longe de uma autenticação prática. Ela não difere
+		significativamente do EEG sozinho padronizado ($0{,}2360$), e toda a voz
+		fica atrás ($0{,}2940$ a $0{,}3927$). A padronização melhora o \ac{EER}
+		em 14 das 16 combinações, e sem ela EEG e fusões ficam perto do acaso.
+		A divergência \ac{EER}--\ac{AUC} sob padronização era efeito da
+		varredura invertida e não existe na reexecução.
 		A frase sobre as 24 variantes de \textit{autoencoder} acima continua
 		valendo na reexecução da Fase~00 de 2026-11-12. O melhor
 		\textit{autoencoder} tem $1{,}8873$ no EEG e $1{,}8510$ na voz, contra
@@ -98,6 +101,12 @@
 		suficiente para generalizar é alto --- hipótese compatível com o
 		desempenho próximo do acaso observado.
 
+		\pendenteNota{Na reexecução de 2026-11-12, o desempenho já não fica
+		próximo do acaso (melhor $\text{EER} = 0{,}1823$). O tamanho da base
+		continua sendo a limitação dominante, mas o argumento precisa ser
+		reescrito: a base é pequena demais para chegar a uma autenticação
+		prática, e não pequena demais para haver algum sinal.}
+
 		\par Três limitações de desenho devem acompanhar qualquer leitura dos
 		resultados:
 
@@ -119,6 +128,10 @@
 			\item a Questão~4 (dependência de texto) foi avaliada sobre um sistema
 			que opera no nível do acaso, o que torna a ausência de diferença entre
 			os modos pouco informativa.
+			\pendenteNota{Este item deixou de valer na reexecução de 2026-11-12.
+			O modo dependente de texto tem \ac{EER} menor em todas as 10
+			combinações acima do acaso. Ver a nota da Questão~4 em
+			\autoref{sec:respostasQuestoes}.}
 		\end{itemize}
 
 	\section{Trabalhos futuros}

@@ -145,22 +145,42 @@
 	a partir dos arquivos \texttt{results/thesis/phase01/*\_summary.json}, e
 	devem ser regenerados sempre que a fase 01 for reexecutada.
 
-	\pendenteNota{Todos os números desta seção e da
-	Tabela~\ref{tab:phase01auth} são inválidos e aguardam a reexecução da
-	Fase~01. Três defeitos, corrigidos em 2026-11-12, os afetaram.
-	(i)~A interseção de índices que monta cada dobra exigia entradas ordenadas
-	e recebia o treino como concatenação de blocos por dobra, fora de ordem;
-	descartava, sem aviso, parte do conjunto de treino --- em simulação com os
-	tamanhos reais por locutor, 62\% das amostras em média (de 15\% a 78\%),
-	frequentemente restando 3 dos 12 locutores de treino. Isso afeta \ac{EER}
-	\emph{e} \ac{AUC}. (ii)~A varredura de limiar do \ac{EER} estava invertida:
-	aceitava pontuações \emph{baixas}, de modo que um sistema perfeito teria
-	$\text{EER} = 0{,}75$; nas 480 dobras, 237 pares (\ac{EER}, \ac{AUC}) são
-	impossíveis para uma mesma curva ROC ($\text{AUC} \le 1 - \text{EER}^2$).
-	(iii)~A validação aninhada treinava com as frases que o modo independente
-	de texto reserva ao teste. A divergência \ac{EER}--\ac{AUC} sob
-	padronização descrita abaixo é efeito de~(ii), não de calibração de limiar:
-	o \ac{EER} não depende de um limiar escolhido.}
+	\pendenteNota{A Tabela~\ref{tab:phase01auth} vem da reexecução da
+	Fase~01 de 2026-11-12: 96 de 96 processos no GridUnesp, revisão
+	\texttt{d74d44d0}, um processo de um \textit{thread} por configuração e
+	repetição. O parágrafo abaixo ainda traz os números de 2026-07-20. Esses
+	números são inválidos por três defeitos, corrigidos em 2026-11-12.
+	(i)~A interseção de índices que monta cada dobra descartava, sem aviso,
+	62\% do treino em média. (ii)~A varredura de limiar do \ac{EER} estava
+	invertida: 237 das 480 dobras tinham pares (\ac{EER}, \ac{AUC})
+	impossíveis para uma mesma curva ROC. (iii)~A validação aninhada treinava
+	com as frases que o modo independente de texto reserva ao teste. Na
+	reexecução, as 480 dobras satisfazem
+	$(1-\text{EER})^2 \le \text{AUC} \le 1 - \text{EER}^2$. As ordens por
+	\ac{EER} e por \ac{AUC} concordam em 486 dos 496 pares de configurações.
+	Para a reescrita: \textbf{melhor configuração} --- fusão tardia, dependente
+	de texto, $k$-fold plano, padronizado, com $\text{EER} = 0{,}1823$ e
+	$\text{AUC} = 0{,}8936$; longe do acaso, mas ainda longe de uma
+	autenticação prática. \textbf{Padrão~(i)} se mantém: as 12 primeiras
+	posições são EEG ou fusão padronizados, e a voz ocupa as posições 13 a 20
+	($\text{EER}$ de $0{,}2940$ a $0{,}3927$). \textbf{Padrão~(ii)} deixou de
+	valer: o $k$-fold plano supera o aninhado em 11 das 16 combinações.
+	\textbf{Padrão~(iii)} se inverteu: a padronização \emph{melhora} o
+	\ac{EER} em 14 das 16 combinações (média $0{,}2687$ contra $0{,}4343$ das
+	brutas). EEG e fusões brutos ficam perto do acaso ($0{,}43$ a $0{,}49$).
+	Na voz, a padronização quase não muda o resultado: as duas exceções
+	diferem em cerca de $0{,}005$. Não há divergência \ac{EER}--\ac{AUC} a
+	explicar. \textbf{Significância}: teste de Mann--Whitney, com correção de
+	Holm sobre 31 comparações, contra a melhor configuração (escolhida nos
+	mesmos dados), em
+	\texttt{results/thesis/phase01/cross\_profile\_significance\_\{eer,auc\}.csv}.
+	A melhor não difere significativamente de 9 das outras 11 configurações
+	EEG/fusão padronizadas, entre elas o EEG sozinho ($0{,}2360$). A vantagem
+	da fusão sobre o EEG isolado, portanto, não está estabelecida. As 8
+	configurações de voz diferem da melhor. Ressalva: as 15 dobras de cada
+	configuração (3 repetições $\times$ 5 dobras) reutilizam os mesmos dados e
+	não são independentes. Os $p$-valores são, por isso, otimistas: a
+	não-significância é robusta, e a significância, menos.}
 
 	A melhor configuração (fusão precoce, dependente de texto, $k$-fold plano,
 	características brutas) atinge $\text{EER} = 0{,}4534$ e
@@ -324,11 +344,21 @@
 
 	\subsection*{\pendenteMarca{Questão 4 --- O desempenho é afetado pela dependência de texto?}}
 
-	\pendenteNota{Esta resposta se apoia nos \ac{EER} da Fase~01 de 2026-07-20,
-	inválidos (ver a nota da \autoref{chap:testsResults:sec:Fase01}); além disso,
-	no modo independente de texto, a validação aninhada treinava com as frases
-	reservadas ao teste, de modo que ``independente'' não tinha o mesmo
-	significado nos dois esquemas de validação. Aguarda a reexecução.}
+	\pendenteNota{Esta resposta se apoia nos \ac{EER} da Fase~01 de
+	2026-07-20, que são inválidos (ver a nota da
+	\autoref{chap:testsResults:sec:Fase01}). A conclusão ``não de forma
+	perceptível'' deixou de valer na reexecução de 2026-11-12. Sobre as 16
+	configurações de cada modo, o \ac{EER} médio é $0{,}3406$ no dependente e
+	$0{,}3624$ no independente. Nas padronizadas, é $0{,}2481$ contra
+	$0{,}2893$. O modo dependente tem \ac{EER} menor em todas as 10
+	combinações que operam acima do acaso: as 8 padronizadas e as 2 de voz
+	bruta. A vantagem vai de $0{,}004$ a $0{,}066$. Nas 6 combinações brutas de
+	EEG e fusão, perto do acaso, o sinal se divide em 3 a 3. Entre as melhores
+	de cada modo ($0{,}1823$ contra $0{,}2482$, ambas fusão tardia, $k$-fold
+	plano e padronizadas), $d = 0{,}85$ e $p = 0{,}042$, mas
+	$p_{\text{Holm}} = 0{,}25$. Os dois modos não têm as mesmas dobras de
+	teste, de modo que não se pode usar um teste pareado. A ressalva de
+	pseudorreplicação da nota da Fase~01 vale aqui também.}
 
 	\par \textbf{Não de forma perceptível.} Sobre as 16 configurações de cada
 	nível, o \ac{EER} médio é $0{,}5923$ no modo dependente de texto e $0{,}5913$
