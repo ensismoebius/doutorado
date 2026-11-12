@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.176829,0.920862,14535.028,26.518,results/thesis/phase01/models/e05_p01_dsnn_eegimag_indep_nested_std_rep0/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.160714,0.910236,14293.580,25.825,results/thesis/phase01/models/e05_p01_dsnn_eegimag_indep_nested_std_rep0/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.243523,0.839620,13595.569,31.318,results/thesis/phase01/models/e05_p01_dsnn_eegimag_indep_nested_std_rep0/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.267045,0.833210,13974.170,25.583,results/thesis/phase01/models/e05_p01_dsnn_eegimag_indep_nested_std_rep0/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.274286,0.775657,13241.197,27.035,results/thesis/phase01/models/e05_p01_dsnn_eegimag_indep_nested_std_rep0/handcrafted-lfcc/fold_4.bin

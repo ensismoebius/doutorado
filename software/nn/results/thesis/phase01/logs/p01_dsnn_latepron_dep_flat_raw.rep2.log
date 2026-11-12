@@ -1,0 +1,7 @@
+2026-11-12 14:47:48 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/database.sqlite.pronounced.e05dscache)
+[Thesis] run_tag=e05_p01_dsnn_latepron_dep_flat_raw modality=fused strategy=handcrafted repeats=3 running=[2,3)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 3/3 (seed=44) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc-fused-late  acc=nan ±nan  EER=0.437393  spec=nan
+[Thesis] Done. Results written to results/thesis/phase01

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,dependent,0,nan,nan,nan,nan,nan,0.204545,0.870222,14920.290,26.710,results/thesis/phase01/models/e05_p01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,dependent,1,nan,nan,nan,nan,nan,0.257310,0.829554,15036.673,25.529,results/thesis/phase01/models/e05_p01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,dependent,2,nan,nan,nan,nan,nan,0.497222,0.520525,14839.093,26.891,results/thesis/phase01/models/e05_p01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,dependent,3,nan,nan,nan,nan,nan,0.213889,0.856728,14768.983,26.761,results/thesis/phase01/models/e05_p01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,dependent,4,nan,nan,nan,nan,nan,0.303571,0.807345,14596.450,25.133,results/thesis/phase01/models/e05_p01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_4.bin

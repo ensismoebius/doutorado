@@ -1,0 +1,2 @@
+x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall specificity std_specificity eer std_eer ci95_eer auc std_auc
+0 autoencoder-ann nan nan nan nan nan nan nan nan nan 0.513596 0.019393 0.024075 0.484378 0.015242

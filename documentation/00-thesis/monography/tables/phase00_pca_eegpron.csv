@@ -1,0 +1,4 @@
+rank,configuration,mean_d_penalized,std_d_penalized,loso_sd,fold_wins,mean_d_truth,mean_alpha,mean_beta
+1,PCA (k = 32),1.8791,—,0.0011,0/15,1.7523,0.2388,0.9776
+2,PCA (k = 16),1.8868,—,0.0027,0/15,1.7745,0.2138,0.9779
+3,PCA (k = 8),1.8942,—,0.0022,0/15,1.8021,0.1810,0.9763

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+pca,dsnn,dependent,0,nan,nan,nan,nan,nan,0.556818,0.429090,27808.973,22.933,results/thesis/phase01/models/e05_p01_cmp-pca_eegimag_dep_rep1/pca/fold_0.bin
+pca,dsnn,dependent,1,nan,nan,nan,nan,nan,0.500000,0.485431,27866.990,24.345,results/thesis/phase01/models/e05_p01_cmp-pca_eegimag_dep_rep1/pca/fold_1.bin
+pca,dsnn,dependent,2,nan,nan,nan,nan,nan,0.491667,0.506003,26885.223,24.864,results/thesis/phase01/models/e05_p01_cmp-pca_eegimag_dep_rep1/pca/fold_2.bin
+pca,dsnn,dependent,3,nan,nan,nan,nan,nan,0.516667,0.473889,27278.968,23.870,results/thesis/phase01/models/e05_p01_cmp-pca_eegimag_dep_rep1/pca/fold_3.bin
+pca,dsnn,dependent,4,nan,nan,nan,nan,nan,0.571429,0.417464,27533.136,21.796,results/thesis/phase01/models/e05_p01_cmp-pca_eegimag_dep_rep1/pca/fold_4.bin

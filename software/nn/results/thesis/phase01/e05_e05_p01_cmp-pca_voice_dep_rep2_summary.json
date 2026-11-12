@@ -1,0 +1,207 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_cmp-pca_voice_dep_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "pca": {
+        "n_components": 8
+      },
+      "strategy": "pca"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 100,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 148151617769863406,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.12144041386770149,
+      "energy": {
+        "accesses": 244373.2415280677,
+        "fp_adds": 83474.99668294641,
+        "fp_macs": 5135.0,
+        "mem_nj": 3224.987374769505,
+        "nj": 3331.3163361695756,
+        "nj_as_executed": 3556.1443361695756,
+        "nj_sram1m": 24543.65311420684,
+        "nj_sram32k": 4993.793791961424,
+        "nj_sram8k": 2550.0613766807473,
+        "ops_nj": 106.32896140007024,
+        "spikes": 1054.3528287618399
+      },
+      "feature_set": "pca",
+      "final_sops": 62130,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 300430.4597701149,
+            "fp_adds": 102189.6091954023,
+            "fp_macs": 5135.0,
+            "mem_nj": 3979.9640118650345,
+            "nj": 4104.986890025954,
+            "nj_as_executed": 4329.814890025955,
+            "nj_sram1m": 30168.06885517241,
+            "nj_sram32k": 6133.632073563218,
+            "nj_sram8k": 3129.3274758620687,
+            "ops_nj": 125.02287816091955,
+            "spikes": 1261.3103448275863
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.34663182497024536,
+          "fold": 0,
+          "infer_ms": 22.977606,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-pca_voice_dep_rep2/pca/fold_0.bin",
+          "train_ms": 26417.865319
+        },
+        {
+          "energy": {
+            "accesses": 270504.7157894737,
+            "fp_adds": 92195.78947368421,
+            "fp_macs": 5135.0,
+            "mem_nj": 3578.590302207131,
+            "nj": 3693.6312532597626,
+            "nj_as_executed": 3918.4592532597626,
+            "nj_sram1m": 27165.512529999996,
+            "nj_sram32k": 5525.135266842105,
+            "nj_sram8k": 2820.0881089473683,
+            "ops_nj": 115.04095105263158,
+            "spikes": 1142.3842105263159
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.38020604848861694,
+          "fold": 1,
+          "infer_ms": 23.79515,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-pca_voice_dep_rep2/pca/fold_1.bin",
+          "train_ms": 26148.524686
+        },
+        {
+          "energy": {
+            "accesses": 237719.39106145254,
+            "fp_adds": 81253.89944134078,
+            "fp_macs": 5135.0,
+            "mem_nj": 3135.2258731302936,
+            "nj": 3239.336118940349,
+            "nj_as_executed": 3464.1641189403495,
+            "nj_sram1m": 23876.04935195531,
+            "nj_sram32k": 4858.498067039107,
+            "nj_sram8k": 2481.304156424581,
+            "ops_nj": 104.11024581005586,
+            "spikes": 1030.536312849162
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.3691384196281433,
+          "fold": 2,
+          "infer_ms": 22.354,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-pca_voice_dep_rep2/pca/fold_2.bin",
+          "train_ms": 27338.011175
+        },
+        {
+          "energy": {
+            "accesses": 193672.90697674418,
+            "fp_adds": 66541.30232558139,
+            "fp_macs": 5135.0,
+            "mem_nj": 2546.095221305326,
+            "nj": 2635.5112032820703,
+            "nj_as_executed": 2860.3392032820702,
+            "nj_sram1m": 19456.706679651164,
+            "nj_sram32k": 3962.874121511628,
+            "nj_sram8k": 2026.145051744186,
+            "ops_nj": 89.41598197674418,
+            "spikes": 847.203488372093
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.3855285346508026,
+          "fold": 3,
+          "infer_ms": 20.461279,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-pca_voice_dep_rep2/pca/fold_3.bin",
+          "train_ms": 26984.625024
+        },
+        {
+          "energy": {
+            "accesses": 219538.7340425532,
+            "fp_adds": 75194.3829787234,
+            "fp_macs": 5135.0,
+            "mem_nj": 2885.0614653397392,
+            "nj": 2983.1162153397395,
+            "nj_as_executed": 3207.9442153397395,
+            "nj_sram1m": 22051.928154255318,
+            "nj_sram32k": 4488.829430851064,
+            "nj_sram8k": 2293.4420904255317,
+            "ops_nj": 98.05474999999998,
+            "spikes": 990.3297872340426
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.3862350285053253,
+          "fold": 4,
+          "infer_ms": 23.333297,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-pca_voice_dep_rep2/pca/fold_4.bin",
+          "train_ms": 26449.638919
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.5178138901533756,
+      "mean_eer": 0.4978477514956439,
+      "mean_f1": null,
+      "mean_infer_ms": 22.5842664,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.2519175887107849,
+      "mean_train_ms": 26667.7330246,
+      "param_count": 19605,
+      "std_accuracy": null,
+      "std_auc": 0.12745941746548517,
+      "std_eer": 0.09782025238612706,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_cmp-pca_voice_dep_rep2",
+  "seed": 44,
+  "strategy": "pca",
+  "text_mode": "dependent"
+}

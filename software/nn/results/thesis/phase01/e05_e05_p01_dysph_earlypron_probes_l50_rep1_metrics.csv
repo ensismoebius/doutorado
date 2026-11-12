@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.176136,0.896145,14826.637,26.228,results/thesis/phase01/models/e05_p01_dysph_earlypron_probes_l50_rep1/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.269006,0.815926,14891.553,25.687,results/thesis/phase01/models/e05_p01_dysph_earlypron_probes_l50_rep1/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.244444,0.863580,14629.712,25.681,results/thesis/phase01/models/e05_p01_dysph_earlypron_probes_l50_rep1/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.205556,0.885926,14162.545,26.458,results/thesis/phase01/models/e05_p01_dysph_earlypron_probes_l50_rep1/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.125000,0.957988,14269.073,23.652,results/thesis/phase01/models/e05_p01_dysph_earlypron_probes_l50_rep1/handcrafted-lfcc-fused-early/fold_4.bin
