@@ -20,6 +20,19 @@
 		do conjunto avaliado, com o particionamento espectral mais simples,
 		superou 22 famílias \textit{Daubechies} e dois esquemas cocleares.
 
+		\pendenteNota{Os números de autenticação deste parágrafo e do seguinte
+		vêm da Fase~01 de 2026-07-20 e são inválidos: três defeitos, corrigidos
+		em 2026-11-12, os afetaram --- o treino de cada dobra perdia amostras em
+		silêncio (62\% em média), a varredura do \ac{EER} estava invertida e a
+		validação aninhada treinava com as frases reservadas ao teste no modo
+		independente de texto (ver a nota da
+		\autoref{chap:testsResults:sec:Fase01}). O ``resultado negativo'' não
+		pode ser afirmado nem negado antes da reexecução; a divergência
+		\ac{EER}--\ac{AUC} sob padronização era efeito da varredura invertida.
+		A frase sobre as 24 variantes de \textit{autoencoder} acima também
+		aguarda a reexecução da Fase~00 (\texttt{base} e \texttt{small} eram a
+		mesma rede).}
+
 		\par \textbf{O desempenho de autenticação, porém, permaneceu próximo do
 		acaso.} A melhor das 32 configurações da Fase~01 --- fusão precoce,
 		dependente de texto, $k$-fold plano, características brutas --- atingiu
@@ -121,7 +134,9 @@
 			estendendo a Fase~01 para além da combinação vencedora, de modo a
 			responder à Questão~3 na forma originalmente pretendida.
 
-			\item \textbf{Investigar a divergência EER--AUC sob padronização},
+			\item \pendenteMarca{Item a remover:} a divergência foi explicada
+			pela varredura invertida do \ac{EER}, corrigida em 2026-11-12.
+			\textbf{Investigar a divergência EER--AUC sob padronização},
 			verificando a hipótese de calibração de limiar --- se confirmada, a
 			padronização passaria de prejudicial a benéfica mediante ajuste do
 			limiar de decisão.
