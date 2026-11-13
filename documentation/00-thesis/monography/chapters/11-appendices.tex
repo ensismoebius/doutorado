@@ -14,15 +14,12 @@
 		número produzido antes dela é usado no texto.
 
 		{\small
-		\begin{longtable}{@{}p{0.04\textwidth}p{0.13\textwidth}p{0.36\textwidth}p{0.39\textwidth}@{}}
+		\tableZebraStripe
+		\begin{longtable}{@{}Y{0.04\textwidth}Y{0.13\textwidth}Y{0.36\textwidth}Y{0.39\textwidth}@{}}
 			\caption[Defeitos silenciosos encontrados durante o desenvolvimento]{Defeitos silenciosos encontrados durante o desenvolvimento, em ordem de descoberta} \label{tab:defeitos} \\
-			\toprule
-			\textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
-			\midrule
+			\tableHeaderRow \textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
 			\endfirsthead
-			\toprule
-			\textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
-			\midrule
+			\tableHeaderRow \textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
 			\endhead
 			\bottomrule
 			\endlastfoot
@@ -75,15 +72,12 @@
 		execução e os resultados brutos.
 
 		{\small
-		\begin{longtable}{@{}p{0.30\textwidth}p{0.64\textwidth}@{}}
+		\tableZebraStripe
+		\begin{longtable}{@{}Y{0.30\textwidth}Y{0.64\textwidth}@{}}
 			\caption[Arquivos e programas do experimento]{Arquivos e programas do experimento, na ordem em que são usados} \label{tab:reprodutibilidade} \\
-			\toprule
-			\textbf{Item} & \textbf{O que faz} \\
-			\midrule
+			\tableHeaderRow \textbf{Item} & \textbf{O que faz} \\
 			\endfirsthead
-			\toprule
-			\textbf{Item} & \textbf{O que faz} \\
-			\midrule
+			\tableHeaderRow \textbf{Item} & \textbf{O que faz} \\
 			\endhead
 			\bottomrule
 			\endlastfoot

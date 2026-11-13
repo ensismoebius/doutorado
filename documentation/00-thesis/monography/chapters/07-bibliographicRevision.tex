@@ -159,17 +159,16 @@
 				\caption[Particionamento espectral da DTWPT por sinal]{Particionamento espectral da DTWPT ($2^4=16$ sub-bandas uniformes) para cada sinal. A faixa de frequências do EEG (até a frequência de Nyquist) é cerca de 43 vezes mais estreita que a da voz.}
 				\label{tab:particaoEspectral}
 				\small
-				\begin{tabular}{lcc}
-					\hline
-					& \textbf{EEG} & \textbf{Voz} \\
-					\hline
+				\tableZebraStripe
+				\begin{tabular}{@{}lcc@{}}
+					\tableHeaderRow & \textbf{EEG} & \textbf{Voz} \\
 					Taxa de amostragem $f_s$        & $1024$~Hz  & $44100$~Hz \\
 					Frequência de Nyquist $f_{Nyq}$ & $512$~Hz   & $22050$~Hz \\
 					Número de sub-bandas            & $16$       & $16$ \\
 					Largura de cada sub-banda $\Delta f$ & $32$~Hz & $1378{,}125$~Hz \\
 					Sub-banda $0$ (faixa / centro)  & $0$--$32$~Hz / $16$~Hz & $0$--$1378{,}1$~Hz / $689{,}06$~Hz \\
 					Sub-banda $15$ (faixa / centro) & $480$--$512$~Hz / $496$~Hz & $20671{,}9$--$22050$~Hz / $21360{,}9$~Hz \\
-					\hline
+					\bottomrule
 				\end{tabular}
 				\legend{Fonte: Elaborado pelo autor, 2026.}
 			\end{table}
@@ -190,18 +189,16 @@
 				\centering
 				\caption[Valores das escalas nos extremos e agrupamento resultante]{Valores das escalas nos centros das sub-bandas extremas, grau de linearidade sobre a faixa usada, e número de grupos resultante. Para o EEG o mapeamento é injetor (16 sub-bandas $\to$ 16 grupos), degenerando exatamente na escala linear; para a voz há fusão real de sub-bandas.}
 				\label{tab:escalaValores}
-				\begin{tabular}{llccccc}
-					\hline
-					\textbf{Sinal} & \textbf{Escala} & $\mathcal{S}(f_{Nyq})$ & $\mathcal{S}$(centro$_0$) & $\mathcal{S}$(centro$_{15}$) & \textbf{Linearidade} & \textbf{Grupos} \\
-					\hline
+				\tableZebraStripe
+				\begin{tabular}{@{}llccccc@{}}
+					\tableHeaderRow \textbf{Sinal} & \textbf{Escala} & $\mathcal{S}(f_{Nyq})$ & $\mathcal{S}$(centro$_0$) & $\mathcal{S}$(centro$_{15}$) & \textbf{Linearidade} & \textbf{Grupos} \\
 					EEG & Bark & $4{,}84$    & $0{,}158$  & $4{,}702$   & $95{,}9\%$ & $\mathbf{16}$ \\
 					EEG & Mel  & $618{,}66$  & $25{,}47$  & $603{,}68$  & $76{,}5\%$ & $\mathbf{16}$ \\
 					EEG & \textit{lfcc} & --- & --- & --- & (linear) & $\mathbf{16}$ \\
-					\hline
 					Voz & Bark & $24{,}74$   & $6{,}301$  & $24{,}689$  & $12{,}6\%$ & $9$ \\
 					Voz & Mel  & $3923{,}34$ & $772{,}33$ & $3888{,}68$ & $16{,}2\%$ & $11$ \\
 					Voz & \textit{lfcc} & --- & --- & --- & (linear) & $16$ \\
-					\hline
+					\bottomrule
 				\end{tabular}
 				\legend{Fonte: Elaborado pelo autor, 2026.}
 			\end{table}
@@ -1262,12 +1259,10 @@
 				\par \textbf{Por que o codificador nasce quase mudo.} Na menor configuração usada nesta tese, o codificador é uma camada Linear de 256 entradas para 16 neurônios LIF, seguida de uma Linear para um latente de 8 valores. Com a codificação direta ($T=1$), o neurônio LIF não acumula carga entre passos e se reduz a um teste de limiar sobre a saída da primeira Linear: todo o poder de discriminação do codificador depende de quantos desses 16 neurônios disparam. Um teste sobre essa camada, com pesos inicializados por He/Kaiming (\autoref{sec:init}) e entradas uniformes em $[0,1]$, mediu a taxa de disparo em função da escala dos pesos:
 
 				\begin{center}
-					\begin{tabular}{lccccc}
-						\hline
-						Escala dos pesos & $1\times$ & $2\times$ & $5\times$ & $10\times$ & $20\times$ \\
-						\hline
+					\begin{tabular}{@{}lccccc@{}}
+						\tableHeaderRow \textbf{Escala dos pesos} & $1\times$ & $2\times$ & $5\times$ & $10\times$ & $20\times$ \\
 						Taxa de disparo & $8{,}30\%$ & $24{,}51\%$ & $35{,}45\%$ & $37{,}11\%$ & $39{,}06\%$ \\
-						\hline
+						\bottomrule
 					\end{tabular}
 				\end{center}
 
@@ -1395,7 +1390,7 @@
 				\item \textit{speaker verification} \textit{AND} (\textit{dysphonia} \textit{OR} \textit{dysarthria} \textit{OR} \textit{pathological voice} \textit{OR} \textit{pathological speech}) --- 10;
 				\item \textit{spiking neural network} \textit{AND} (\textit{energy efficiency} \textit{OR} \textit{energy consumption}) \textit{AND} (\textit{ANN} \textit{OR} \textit{artificial neural network}) --- 157.
 			\end{itemize}
-			\par Os critérios de inclusão foram os da \autoref{sec:inclusaoCrit}, com o período estendido; dos resultados, foram lidos os títulos dos 40 primeiros de cada combinação, ordenados por relevância, e os resumos dos selecionados. A atualização não foi repetida no Web of Science. Os trabalhos que ela acrescenta estão na \autoref{sec:atualizacao2026}.
+			\par Os critérios de inclusão foram os da \autoref{sec:inclusaoCrit}, com o período estendido; dos resultados, foram lidos os títulos dos 40 primeiros de cada combinação, ordenados por relevância, e os resumos dos selecionados. A atualização foi repetida no Web of Science \pendenteMarca{[PENDENTE: registrar data, combinações, contagens e trabalhos novos]}. Os trabalhos que ela acrescenta estão na \autoref{sec:atualizacao2026}.
 
 		\subsection{Trabalhos da busca original}
 
@@ -1458,15 +1453,12 @@
 			\par A \autoref{tab:estadoDaArte} reúne os trabalhos que identificam ou autenticam pessoas e que informam o número de sujeitos e o resultado.
 
 			{\footnotesize
-			\begin{longtable}{@{}p{0.14\textwidth}p{0.15\textwidth}p{0.09\textwidth}p{0.26\textwidth}p{0.24\textwidth}@{}}
+			\tableZebraStripe
+			\begin{longtable}{@{}Y{0.14\textwidth}Y{0.15\textwidth}Y{0.09\textwidth}Y{0.26\textwidth}Y{0.24\textwidth}@{}}
 				\caption[Trabalhos de identificação e autenticação por voz e por EEG]{Trabalhos de identificação e autenticação por voz e por \ac{EEG}. ``Identificação'' escolhe o sujeito entre os vistos no treino (conjunto fechado); ``verificação'' aceita ou recusa uma identidade declarada} \label{tab:estadoDaArte} \\
-				\toprule
-				\textbf{Trabalho} & \textbf{Sinal} & \textbf{Sujeitos} & \textbf{Tarefa e método} & \textbf{Resultado} \\
-				\midrule
+				\tableHeaderRow \textbf{Trabalho} & \textbf{Sinal} & \textbf{Sujeitos} & \textbf{Tarefa e método} & \textbf{Resultado} \\
 				\endfirsthead
-				\toprule
-				\textbf{Trabalho} & \textbf{Sinal} & \textbf{Sujeitos} & \textbf{Tarefa e método} & \textbf{Resultado} \\
-				\midrule
+				\tableHeaderRow \textbf{Trabalho} & \textbf{Sinal} & \textbf{Sujeitos} & \textbf{Tarefa e método} & \textbf{Resultado} \\
 				\endhead
 				\bottomrule
 				\endlastfoot
@@ -1504,10 +1496,9 @@
 				\centering
 				\caption[Distribuição da potência do EEG da base]{Distribuição da potência do \ac{EEG} da base (já filtrado pelos autores entre 2 e 40\,Hz), média das 9315 tentativas e dos seis canais, e nível em algumas frequências em relação ao da faixa $\alpha$ (8--12\,Hz). Cada faixa da esquerda corresponde a uma sub-banda da \ac{DTWPT} de nível~4}
 				\label{tab:potenciaEeg}
-				\begin{tabular}{lrclr}
-					\toprule
-					\textbf{Faixa} & \textbf{Potência} & \quad & \textbf{Frequência} & \textbf{Nível} \\
-					\midrule
+				\tableZebraStripe
+				\begin{tabular}{@{}lrclr@{}}
+					\tableHeaderRow \textbf{Faixa} & \textbf{Potência} & \quad & \textbf{Frequência} & \textbf{Nível} \\
 					0--32\,Hz (sub-banda 0) & 98,1\% && 10\,Hz & 0,9\,dB \\
 					32--64\,Hz (sub-banda 1) & 1,9\% && 30\,Hz & $-12{,}0$\,dB \\
 					64--512\,Hz (sub-bandas 2 a 15) & 0,0\% && 46\,Hz & $-29{,}4$\,dB \\

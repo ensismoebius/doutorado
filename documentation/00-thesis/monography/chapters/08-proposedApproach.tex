@@ -149,7 +149,7 @@ O estado de membrana é \emph{reiniciado uma única vez por amostra} e depois \e
 
 \begin{figure}[htb]
 	\centering
-	\caption[As três codificações temporais do SNN-AE]{As três codificações temporais do SNN-AE aplicadas ao mesmo vetor de entrada, de oito componentes com valores $v$ igualmente espaçados entre 0 e 1 (uma linha por componente). Cada coluna é um quadro apresentado ao codificador; preto é pulso (1), branco é ausência de pulso (0), e em (c) o tom de cinza é o próprio valor analógico. À direita de cada painel, a média sobre os quadros, que é o que o neurônio LIF integra. (a) \texttt{poisson}: cada quadro é um sorteio independente, e a média só se aproxima de $v$ --- neste sorteio, as linhas de $v = 0{,}71$ e $v = 0{,}57$ trocam de ordem. (b) \texttt{latency}: o componente começa a disparar no instante marcado em vermelho e não para mais; a média, $(T - t_{\text{disparo}})/T$, é determinística e cresce com $v$ (preserva a ordem entre os componentes), mas é quantizada e não é o próprio $v$: mesmo $v = 0$ dispara no último passo. (c) \texttt{direct}: um único quadro analógico, sem pulsos e sem integração temporal.}
+	\caption[As três codificações temporais do SNN-AE]{As três codificações temporais do SNN-AE aplicadas ao mesmo vetor de entrada, de oito componentes com valores $v$ igualmente espaçados entre 0 e 1 (uma linha por componente). Cada coluna é um quadro apresentado ao codificador; azul é pulso (1), branco é ausência de pulso (0), e em (c) a intensidade do azul é o próprio valor analógico. À direita de cada painel, a média sobre os quadros, que é o que o neurônio LIF integra. (a) \texttt{poisson}: cada quadro é um sorteio independente, e a média só se aproxima de $v$ --- neste sorteio, as linhas de $v = 0{,}71$ e $v = 0{,}57$ trocam de ordem. (b) \texttt{latency}: o componente começa a disparar no instante marcado em vermelho-alaranjado e não para mais; a média, $(T - t_{\text{disparo}})/T$, é determinística e cresce com $v$ (preserva a ordem entre os componentes), mas é quantizada e não é o próprio $v$: mesmo $v = 0$ dispara no último passo. (c) \texttt{direct}: um único quadro analógico, sem pulsos e sem integração temporal.}
 	\includegraphics[width=\linewidth]{images/spikeEncodings}
 	\legend{Fonte: Elaborado pelo autor, 2026, com as regras de \texttt{spike\_frame()} do \textit{framework} (\texttt{images/generate\_encoding\_figure.py}); o sorteio de (a) é ilustrativo, não o de uma execução.}
 	\label{fig:codificacoesTemporais}
@@ -241,18 +241,17 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 				\par A voz degradada é a mistura $y = \sqrt{1-m}\,x + \sqrt{m}\,w$, em que $m$ é o nível de degradação. Como $x$ e $w$ não são correlacionados, a potência de $y$ é, em valor esperado, a de $x$ para qualquer $m$, e $m$ é a fração dessa potência que deixa de ser voz e passa a ser sopro:
 				\begin{center}
-					\begin{tabular}{lccccc}
-						\hline
-						nível $m$ & 0 & 0,25 & 0,5 & 0,75 & 1 \\
+					\begin{tabular}{@{}lccccc@{}}
+						\tableHeaderRow \textbf{Nível $m$} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} \\
 						potência que ainda é voz & 100\,\% & 75\,\% & 50\,\% & 25\,\% & 0\,\% (sussurro: afonia) \\
-						\hline
+						\bottomrule
 					\end{tabular}
 				\end{center}
 				Preservar a potência não é um detalhe: se a voz degradada ficasse mais fraca ou mais forte, uma variação do \ac{EER} poderia vir do volume, e não da perda da vibração. A \autoref{fig:disfoniaSimulada} mostra o efeito numa locução da base: os harmônicos --- as listras horizontais do espectrograma, o pente do espectro --- desaparecem, e o envelope, com os formantes, permanece.
 
 				\begin{figure}[htb]
 					\centering
-					\caption[Disfonia simulada numa locução da base]{Disfonia simulada numa tentativa de fala pronunciada da base de \citeonline{10.1117/12.2255697} (locutor S01, estímulo \textit{Arriba}). (a)--(c) Espectrogramas da voz nos níveis 0 (voz limpa), 0,5 e 1 (sussurro), até 5\,kHz; mais escuro é mais energia. (d) Espectro do quadro de 25\,ms marcado em vermelho, o mais periódico da locução: a voz limpa tem o pente de harmônicos da vibração das pregas vocais; o sussurro segue o mesmo envelope, sem o pente.}
+					\caption[Disfonia simulada numa locução da base]{Disfonia simulada numa tentativa de fala pronunciada da base de \citeonline{10.1117/12.2255697} (locutor S01, estímulo \textit{Arriba}). (a)--(c) Espectrogramas da voz nos níveis 0 (voz limpa), 0,5 e 1 (sussurro), até 5\,kHz; azul mais escuro é mais energia. (d) Espectro do quadro de 25\,ms marcado em vermelho-alaranjado, o mais periódico da locução: a voz limpa (azul) tem o pente de harmônicos da vibração das pregas vocais; o sussurro (vermelho-alaranjado) segue o mesmo envelope, sem o pente.}
 					\includegraphics[width=\linewidth]{images/simulatedDysphonia}
 					\legend{Fonte: Elaborado pelo autor, 2026, com a própria implementação usada no experimento (\texttt{VoiceDegradation.cpp}, chamada por \texttt{images/generate\_dysphonia\_figure.py}); a semente do ruído é fixa, e não a de uma execução.}
 					\label{fig:disfoniaSimulada}

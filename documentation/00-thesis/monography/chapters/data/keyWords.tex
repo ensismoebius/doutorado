@@ -1,11 +1,7 @@
-\newcommand{\enUSkeyWords}{
-	{paraconsistent analysis}, 
-	{imagined speech}, 
-	{wavelet}, {wavelet-packet}, {SNN}, {spiking neural networks}, {EEG}
-}
-
-\newcommand{\ptBRkeyWords}{
-	{análise paraconsistente}, 
-	{imagined speech}, 
-	{wavelet}, {wavelet-packet}, {SNN}, {redes neurais de pulso}, {EEG}
-}
+% Palavras-chave: uma lista por idioma, escrita uma vez e usada em dois lugares.
+%   \ptBRkeyWordList{<separador>}: impressa sob o resumo com "; " (ABNT NBR 6028:
+%   separadas por ponto e vírgula, terminadas por ponto) e nos metadados do PDF com ", ".
+\newcommand{\ptBRkeyWordList}[1]{biometria#1 autenticação de locutor#1 disfonia#1 análise paraconsistente#1 \textit{imagined speech}#1 \textit{wavelet}#1 \textit{wavelet-packet}#1 redes neurais de pulso#1 EEG}
+\newcommand{\enUSkeyWordList}[1]{biometrics#1 speaker authentication#1 dysphonia#1 paraconsistent analysis#1 imagined speech#1 wavelet#1 wavelet-packet#1 spiking neural networks#1 EEG}
+\newcommand{\enUSkeyWords}{\enUSkeyWordList{,}}
+\newcommand{\ptBRkeyWords}{\ptBRkeyWordList{,}}

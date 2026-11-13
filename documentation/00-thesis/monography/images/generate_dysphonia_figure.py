@@ -43,6 +43,14 @@ SUBJECT, STIMULUS = "S01", "Arriba"   # uma palavra, com vogais e consoantes
 LEVELS = (0.0, 0.5, 1.0)
 SEED = 7                              # DEGRADATION_SEED dos perfis
 FMAX = 5000.0                         # Hz dos espectrogramas: os primeiros formantes
+# Paleta Okabe-Ito, a mesma de chapters/data/visualStyle.tex (cbBlue, cbVermillion, ...).
+CB_BLUE = (0 / 255, 114 / 255, 178 / 255)
+CB_SKYBLUE = (86 / 255, 180 / 255, 233 / 255)
+CB_VERMILLION = (213 / 255, 94 / 255, 0 / 255)
+CB_GREY = (166 / 255, 166 / 255, 166 / 255)
+# Espectrograma: branco -> azul-celeste -> azul -> azul-escuro (claridade monotonica).
+BLUES = matplotlib.colors.LinearSegmentedColormap.from_list(
+    "okabe_blues", [(1, 1, 1), CB_SKYBLUE, CB_BLUE, (0, 57 / 255, 89 / 255)])
 FMAX_FRAME = 2500.0                   # Hz do espectro do quadro: onde os harmonicos se separam
 
 WRAPPER = r"""
@@ -151,9 +159,9 @@ def main():
         keep = f <= FMAX
         db = 10 * np.log10(S[keep] + 1e-12)
         vmax = db.max() if vmax is None else vmax
-        ax.pcolormesh(t, f[keep] / 1000, db, shading="auto", cmap="Greys",
-                      vmin=vmax - 70, vmax=vmax, rasterized=True)
-        ax.axvline((c - a) / fs, color="tab:red", linewidth=0.8)
+        ax.pcolormesh(t, f[keep] / 1000, db, shading="auto", cmap=BLUES,
+                      vmin=vmax - 55, vmax=vmax, rasterized=True)
+        ax.axvline((c - a) / fs, color=CB_VERMILLION, linewidth=1.0)
         ax.set_title(title, fontsize=8.5)
         ax.set_xlabel("tempo (s)", fontsize=7.5)
         if i == 0:
@@ -167,8 +175,8 @@ def main():
 
     ax = fig.add_subplot(gs[1, :])
     win = np.hanning(frame)
-    for y, lab, sty in ((ys[0], "voz limpa (nível 0)", dict(color="black", linewidth=0.8)),
-                        (ys[2], "sussurro (nível 1)", dict(color="tab:red", linewidth=0.8))):
+    for y, lab, sty in ((ys[0], "voz limpa (nível 0)", dict(color=CB_BLUE, linewidth=1.0)),
+                        (ys[2], "sussurro (nível 1)", dict(color=CB_VERMILLION, linewidth=1.0))):
         spec = np.abs(np.fft.rfft(y[q].astype(float) * win)) ** 2
         freqs = np.fft.rfftfreq(frame, 1 / fs)
         keep = freqs <= FMAX_FRAME
@@ -176,7 +184,7 @@ def main():
     ax.set_xlim(0, FMAX_FRAME / 1000)
     ax.set_xlabel("frequência (kHz)", fontsize=7.5)
     ax.set_ylabel("potência (dB)", fontsize=7.5)
-    ax.set_title("(d) espectro do quadro de 25 ms marcado em vermelho", fontsize=8.5)
+    ax.set_title("(d) espectro do quadro de 25 ms marcado em vermelho-alaranjado", fontsize=8.5)
     ax.legend(fontsize=7, frameon=False)
     ax.tick_params(labelsize=7)
     ax.xaxis.set_major_formatter(COMMA)

@@ -39,6 +39,12 @@ T = 16                      # time_steps dos perfis (00_thesis_generate_profiles
 VALUES = np.linspace(0.0, 1.0, 8)[::-1]   # de cima para baixo: do maior ao menor
 SEED = 3
 
+# Paleta Okabe-Ito, a mesma de chapters/data/visualStyle.tex (cbBlue, cbVermillion, ...).
+CB_BLUE = (0 / 255, 114 / 255, 178 / 255)
+CB_SKYBLUE = (86 / 255, 180 / 255, 233 / 255)
+CB_VERMILLION = (213 / 255, 94 / 255, 0 / 255)
+CB_GREY = (166 / 255, 166 / 255, 166 / 255)
+
 
 def poisson(v, rng):
     return (rng.random((len(v), T)) < v[:, None]).astype(float)
@@ -56,9 +62,10 @@ def block(ax, x0, frames, title, last_label):
     rows, cols = frames.shape
     for r in range(rows):
         for c in range(cols):
-            g = 1.0 - frames[r, c]
-            ax.add_patch(Rectangle((x0 + c, r), 1, 1, facecolor=(g, g, g),
-                                   edgecolor="0.7", linewidth=0.4))
+            v = frames[r, c]   # 0 -> branco, 1 -> azul da paleta (no direct, o tom e o valor)
+            face = tuple(1.0 - v * (1.0 - ch) for ch in CB_BLUE)
+            ax.add_patch(Rectangle((x0 + c, r), 1, 1, facecolor=face,
+                                   edgecolor=CB_GREY, linewidth=0.4))
     ax.add_patch(Rectangle((x0, 0), cols, rows, fill=False, edgecolor="black", linewidth=0.8))
     ax.text(x0 + cols / 2, -1.4, title, ha="center", va="bottom", fontsize=8.5)
     ax.text(x0 + cols + 0.4, -0.3, "média", ha="left", va="bottom", fontsize=7)
@@ -91,7 +98,7 @@ def main(out_dir):
     block(ax, x_p, p, "(a) poisson: taxa", str(T - 1))
     block(ax, x_l, lat, "(b) latency: instante", str(T - 1))
     for r, ts in enumerate(t_spike):
-        ax.plot([x_l + ts + 0.08] * 2, [r + 0.1, r + 0.9], color="tab:red", linewidth=1.4)
+        ax.plot([x_l + ts + 0.08] * 2, [r + 0.1, r + 0.9], color=CB_VERMILLION, linewidth=1.8)
     block(ax, x_d, direct, "(c) direct", "")
     ax.set_xlim(-3.2, x_d + 4.2)
     ax.set_ylim(rows + 2.2, -2.0)

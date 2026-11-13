@@ -741,9 +741,14 @@ Falta, e depende do autor:
 
 | Item | Situação |
 |---|---|
-| Web of Science | o cap. 7 ainda diz "A atualização não foi repetida no Web of Science"; a busca foi feita à mão e falta o registro (data, combinações, contagens, trabalhos novos) |
-| Ficha catalográfica | provisória ("ficha catalografica"); é emitida pela biblioteca |
-| Dedicatória, agradecimentos, epígrafe | texto provisório ("Haha...", "Agradece", "Citação") |
-| Data do documento | `chapters/data/date.tex`: 16 de agosto de 2024 (aparece na capa) |
-| Banca | folha de aprovação com orientador e dois membros |
-| Palavras-chave | não incluem biometria, autenticação de locutor nem disfonia |
+| Web of Science | busca feita à mão pelo autor; marcada no cap. 7 com `\pendenteMarca` até o registro (data, combinações, contagens, trabalhos novos), na revisão integral |
+| Ficha catalográfica | a definir (provisória; é emitida pela biblioteca) |
+| Dedicatória, agradecimentos, epígrafe | a definir (texto provisório) |
+| Data do documento | data corrente (13/11/2026) por ora; trocar pela da defesa |
+| Banca | a definir |
+| Palavras-chave | feito: biometria, autenticação de locutor e disfonia incluídas, e impressas sob o resumo e o *abstract* (NBR 6028), de uma única lista em `chapters/data/keyWords.tex` |
+
+Também em 2026-11-13: as tabelas sem estilo (particionamento espectral, valores das escalas,
+taxa de disparo × escala dos pesos, potência do EEG, estado da arte, níveis de disfonia,
+apêndices A e B) passaram ao cabeçalho azul com listras da paleta Okabe-Ito; as figuras de
+codificação temporal e de disfonia simulada usam a mesma paleta.
