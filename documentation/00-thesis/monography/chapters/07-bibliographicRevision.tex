@@ -946,7 +946,6 @@
 			\end{equation}
 			\par \textbf{Exemplo numérico.} Com $R=5$, $\tau=5$, $I_{\text{in}}=1$, $\Delta t=1$ e partindo de $V_{\text{mem}}(0)=0$: $V_{\text{mem}}(1) = 0 + \frac{1}{5}(5\times1 - 0) = 1{,}0$. Este é exatamente o passo de Euler já calculado ao final da seção anterior --- a \autoref{eq:membraneDerivative} é a regra geral por trás daquela iteração, e do \autoref{lst:membranepotentialfull}.
 
-			% TODO - Revisar
 			\par \textbf{Nota de implementação.} A \autoref{eq:membraneDerivative} e o \autoref{lst:membranepotentialfull} têm propósito didático: expõem o circuito RC subjacente e sua discretização por Euler explícito, na qual a corrente de entrada é escalada por $R$. A implementação do neurônio LIF de fato usada para gerar todos os resultados experimentais deste trabalho --- tanto na forma de passo único quanto na variante desenrolada no tempo usada para BPTT (próxima seção) --- adota, em vez disso, a recorrência exata do decaimento exponencial por passo:
 			\begin{equation}
 				\label{eq:lifExactRecurrence}

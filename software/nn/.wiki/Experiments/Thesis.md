@@ -270,6 +270,11 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
 verifiers' stamps (`<db>.verified`, `<db>.mirror-verified`; refused when a stamp is for another
 version of its base): the `base.*` keys chapter 8 quotes.
 
+Both checks are tested on small bases in the real schemas (`scripts/testing/test_thesis_base_checks.py`, run by CI): the mirror check must fail on a value
+beyond float32 rounding, a label, a missing row, and must remove an old stamp when it fails; the
+facts must refuse a base changed after its check, a stamp without its counts, counts the verifier
+did not pass, and dropped pairs the base does not name.
+
 It needs the significance files first: `scripts/pipeline/thesis/03_thesis_phase01_significance.sh`
 writes one `significance_<family>_*.csv` per declared family (`vsvoice`, `fusion`, `ctrl`,
 `dysph`, `cmp`, `text`, `cond`) into `results/thesis/phase01/`.

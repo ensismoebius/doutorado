@@ -44,3 +44,6 @@ jobs:
 
     - name: Run BIOMEX-DB converter tests
       run: python3 scripts/testing/test_biomex_convert.py
+
+    - name: Run base check tests (Coretto mirror, base facts)
+      run: python3 scripts/testing/test_thesis_base_checks.py
