@@ -231,7 +231,38 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				\end{itemize}
 				Os controles, a disfonia e a comparação de extratores usam validação plana e características padronizadas.
 
-				\paragraph{Disfonia simulada.}\label{sec:disfoniaSimulada} A base não tem locutores disfônicos, e a motivação deste trabalho é justamente a voz degradada. Para testá-la, sintetiza-se uma versão \emph{sussurrada} de cada locução por predição linear (\ac{LPC}): em quadros de 25\,ms, estima-se o filtro do trato vocal (ordem $2 + f_s/1000$) e ele é excitado por ruído branco no lugar dos pulsos glotais, o que preserva os formantes e remove a periodicidade. A voz degradada é a mistura $y = \sqrt{1-m}\,x + \sqrt{m}\,w$ da voz original $x$ com o sussurro $w$, que preserva a energia; $m$ é o nível de degradação ($0{,}25$, $0{,}5$, $0{,}75$ e $1$). O treino usa sempre voz limpa. No teste, há dois cenários: \textit{só sondas}, em que o cadastro de cada locutor permanece limpo (alguém cadastrado antes de adoecer), e \textit{cadastro e sondas}, em que toda a voz de teste é degradada. O \ac{EEG} nunca é alterado. É um modelo de voz soprosa ou afônica, e não de toda disfonia: rouquidão, aspereza e tremor não são simulados.
+				\paragraph{Disfonia simulada.}\label{sec:disfoniaSimulada} As duas bases têm apenas vozes saudáveis, e a motivação deste trabalho é justamente a voz que falha. A disfonia é, por isso, \textbf{simulada} sobre a voz de teste; nenhum locutor disfônico real foi avaliado. O modelo parte da descrição fonte--filtro da fala. As pregas vocais produzem a \emph{fonte}: uma sequência de pulsos de ar periódicos, que dá à voz a sua altura e os seus harmônicos. O trato vocal --- faringe, boca, lábios --- age como um \emph{filtro}, que realça algumas faixas de frequência, os formantes, que determinam qual vogal se diz e carregam parte da identidade de quem fala. A disfonia é sobretudo uma falha da fonte: as pregas vibram de modo irregular ou incompleto, o ar escapa e a voz fica soprosa; no extremo, a afonia, não há vibração alguma e resta o sussurro --- o mesmo filtro, excitado por ruído de ar em vez de pulsos. A simulação troca a fonte e preserva o filtro.
+
+				\par Para cada locução $x$, gravada a 44,1\,kHz, o sussurro $w$ é sintetizado em quatro passos:
+				\begin{enumerate}
+					\item o sinal é dividido em quadros de 25\,ms (1102 amostras), com passo de meio quadro (551 amostras), cada um ponderado por uma janela de Hann;
+					\item em cada quadro, estima-se por predição linear (\ac{LPC}) o filtro só de polos $1/A(z)$ que melhor prevê cada amostra a partir das anteriores --- o envelope espectral do quadro, isto é, os seus formantes ---, pelo método da autocorrelação e pela recursão de Levinson--Durbin \cite{makhoul1975linear}, com ordem $2 + f_s/1000$, a regra usual para o trato vocal \cite{rabiner2011theory}, que dá 46 a 44,1\,kHz;
+					\item um ruído branco gaussiano passa por esse filtro, o que produz um sinal com o mesmo envelope e sem periodicidade, e é escalado para ter a energia do quadro original;
+					\item os quadros sintetizados são sobrepostos e somados com a raiz quadrada da janela de Hann, de modo que a potência esperada do sussurro é a da voz original. Um quadro sem energia (silêncio) continua silencioso.
+				\end{enumerate}
+
+				\par A voz degradada é a mistura $y = \sqrt{1-m}\,x + \sqrt{m}\,w$, em que $m$ é o nível de degradação. Como $x$ e $w$ não são correlacionados, a potência de $y$ é, em valor esperado, a de $x$ para qualquer $m$, e $m$ é a fração dessa potência que deixa de ser voz e passa a ser sopro:
+				\begin{center}
+					\begin{tabular}{lccccc}
+						\hline
+						nível $m$ & 0 & 0,25 & 0,5 & 0,75 & 1 \\
+						potência que ainda é voz & 100\,\% & 75\,\% & 50\,\% & 25\,\% & 0\,\% (sussurro: afonia) \\
+						\hline
+					\end{tabular}
+				\end{center}
+				Preservar a potência não é um detalhe: se a voz degradada ficasse mais fraca ou mais forte, uma variação do \ac{EER} poderia vir do volume, e não da perda da vibração. A \autoref{fig:disfoniaSimulada} mostra o efeito numa locução da base: os harmônicos --- as listras horizontais do espectrograma, o pente do espectro --- desaparecem, e o envelope, com os formantes, permanece.
+
+				\begin{figure}[htb]
+					\centering
+					\caption[Disfonia simulada numa locução da base]{Disfonia simulada numa tentativa de fala pronunciada da base de \citeonline{10.1117/12.2255697} (locutor S01, estímulo \textit{Arriba}). (a)--(c) Espectrogramas da voz nos níveis 0 (voz limpa), 0,5 e 1 (sussurro), até 5\,kHz; mais escuro é mais energia. (d) Espectro do quadro de 25\,ms marcado em vermelho, o mais periódico da locução: a voz limpa tem o pente de harmônicos da vibração das pregas vocais; o sussurro segue o mesmo envelope, sem o pente.}
+					\includegraphics[width=\linewidth]{images/simulatedDysphonia}
+					\legend{Fonte: Elaborado pelo autor, 2026, com a própria implementação usada no experimento (\texttt{VoiceDegradation.cpp}, chamada por \texttt{images/generate\_dysphonia\_figure.py}); a semente do ruído é fixa, e não a de uma execução.}
+					\label{fig:disfoniaSimulada}
+				\end{figure}
+
+				\par \textbf{Onde a degradação entra no protocolo.} Ela é aplicada à forma de onda armazenada, antes da pré-ênfase e da extração, e as características da voz degradada são extraídas pelo mesmo extrator que as da voz limpa. O treino usa sempre voz limpa: o sistema é treinado com vozes saudáveis e encontra, no teste, uma voz que falha. As características de teste degradadas são padronizadas com as médias e os desvios do treino limpo. Nos locutores de teste há dois cenários: \textit{só sondas}, em que o cadastro de cada locutor --- a sua primeira locução de teste --- permanece limpo (alguém cadastrado antes de adoecer), e \textit{cadastro e sondas}, em que toda a voz de teste é degradada. Nas fusões, apenas a metade de voz é degradada; o \ac{EEG} nunca é alterado. Os níveis avaliados são 0,25, 0,5, 0,75 e 1, e o nível 0 é a execução com voz limpa. Cada locução recebe uma semente de ruído própria, derivada da semente do perfil, de modo que o resultado não depende da ordem de execução.
+
+				\par \textbf{O que o modelo não cobre.} É um modelo de voz soprosa ou afônica, e não de toda disfonia: a rouquidão (irregularidade de ciclo a ciclo da vibração), a aspereza, o tremor e as quebras de sonoridade não são simulados; o ruído de excitação é branco, e não o ruído turbulento real da glote; e o esforço compensatório de quem tenta falar com a voz comprometida também não. Os resultados sob disfonia simulada medem, portanto, a perda da vibração das pregas vocais, e não a voz de pacientes.
 
 				\paragraph{Comparação de extratores pelo classificador.} O melhor extrator de cada família na Fase~00 (manual, \textit{autoencoder}, \ac{PCA}) alimenta a mesma \ac{DSNN}, para cada um dos três sinais e cada modo de texto, com 100 épocas de treino nas três famílias.
 
