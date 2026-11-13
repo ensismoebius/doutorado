@@ -309,7 +309,7 @@
 	favorável --- o \ac{EEG} de fala imaginada, que não exige fonação, autentica
 	tão bem quanto o de fala pronunciada ---, mas ele também é o que se esperaria
 	se o classificador estivesse reconhecendo características do registro de
-	\ac{EEG} que não dependem do que o sujeito faz. A
+	\ac{EEG} que não dependem do que o locutor faz. A
 	\autoref{sec:respostasQuestoes} retoma esse ponto.
 
 	% Colunas lidas pela posição: rank,configuration,mean_eer,std_eer,mean_auc,std_auc
@@ -681,18 +681,18 @@
 
 	\par Em um registro de \ac{EEG}, a impedância de cada eletrodo, a posição da
 	touca e o ruído do ambiente são fixos durante uma sessão e mudam entre
-	sessões. A base não distingue sessões de gravação por sujeito; se todas as
-	tentativas de um sujeito vêm de uma única sessão, essas características identificam a sessão
+	sessões. A base não distingue sessões de gravação por locutor; se todas as
+	tentativas de um locutor vêm de uma única sessão, essas características identificam a sessão
 	tão bem quanto identificariam a pessoa, e nenhuma divisão dos dados em
 	treino e teste as separa. Dois resultados deste trabalho são compatíveis com
-	essa leitura: um classificador linear identifica o sujeito a partir do
+	essa leitura: um classificador linear identifica o locutor a partir do
 	espectro bruto do \ac{EEG} com acurácia de $\tn{aeinput.eeg.new.all}$
 	(\autoref{tab:aeInput}), sem nenhum aprendizado de representação; e o
-	\ac{EER} é praticamente o mesmo quer o sujeito fale, quer imagine. Na voz, o
+	\ac{EER} é praticamente o mesmo quer o locutor fale, quer imagine. Na voz, o
 	problema equivalente é menor, porque a gravação de áudio de um locutor
 	depende menos da montagem.
 
-	\par Distinguir as duas explicações exige gravações do mesmo sujeito em dias
+	\par Distinguir as duas explicações exige gravações do mesmo locutor em dias
 	diferentes, que a base não tem. Os resultados de \ac{EEG} e de fusão deste
 	capítulo devem ser lidos, portanto, como um \textbf{limite superior} do que
 	se obteria entre sessões.

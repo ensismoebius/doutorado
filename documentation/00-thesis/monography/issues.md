@@ -517,16 +517,26 @@ de valer nos dados.
 | 18 números | resolvido pelo `\tn` |
 | 20 compilação | compila sem referência indefinida (entrada duplicada do `.bib` removida) |
 | 12 diário de depuração | cap. 7 mantém só os conceitos (lr por grupo, colapso do latente, $D_{\text{penalizado}}$); a história foi para o Apêndice A (`apend:defeitos`, oito defeitos, datados, com o que cada um invalidou); menção ao artigo removida |
-| 13 estado da arte | busca atualizada até 12/11/2026 (termos de biometria por EEG, fala imaginada, fusão, redes de pulso, voz patológica), 13 referências novas conferidas na Crossref/arXiv; "Protocolo de busca"; tabela comparativa; "Implicações" com o pré-processamento não adotado (CAR, ICA, filtro de rede, ritmos) e por quê. **Ressalva:** a atualização não foi repetida no Web of Science nem no Athena |
+| 13 estado da arte | busca atualizada até 12/11/2026 (termos de biometria por EEG, fala imaginada, fusão, redes de pulso, voz patológica), 13 referências novas conferidas na Crossref/arXiv; "Protocolo de busca"; tabela comparativa; "Implicações" com o pré-processamento não adotado (CAR, ICA, filtro de rede, ritmos) e por quê. Atualização refeita também no Athena; **ressalva:** não repetida no Web of Science |
 | 14 Introdução | reestruturada: contexto e problema → lacuna e hipótese → objetivos geral e específicos → questões → contribuições → estrutura; base movida para o cap. 8; frase da fonação corrigida; custo prático do EEG citado; cap. 10 retoma as hipóteses |
 | 19 jargão | nomes de scripts, caminhos e chaves saíram do corpo (caps. 7–9); Apêndice B (`apend:reprodutibilidade`) os reúne |
-| 21 terminologia | só a contradição da codificação `direct` foi corrigida; RNP/SNN/DSNN, EQM/MSE, dobra/fold, locutor/sujeito **não padronizados** |
+| 21 terminologia | padronizada: locutor (esta tese) / sujeito (trabalhos de EEG citados), fala pronunciada, dobra, rede neural de pulsos (RNP; DSNN, SNN-AE e ANN-AE como nomes de modelos), EQM |
 | 15 fusão precoce / nível 4 | ressalva no capítulo 8 |
 
 **Resolvido depois.** Vírgula decimal nas tabelas por `\dec{}` (os CSV continuam com ponto);
 as cinco referências de método (Horowitz 2014, Lemaire 2022, Nadeau e Bengio 2003, Holm 1979,
 Welch 1967) conferidas na Crossref/JSTOR.
 
-**Achado novo (limitação, não defeito).** Com a DTWPT de nível 4 a 1024 Hz, cada sub-banda do
-EEG tem 32 Hz: os ritmos δ, θ, α e β caem todos na primeira, e os 50 Hz da rede elétrica, na
-segunda. Registrado no cap. 7 (Implicações) e no cap. 10 (limitações e trabalhos futuros).
+**Achado novo (limitação, não defeito), medido.** O EEG da base já vem filtrado em passa-baixas
+perto de 45 Hz (−58,5 dB em 50 Hz em relação a α; `scripts/analysis/thesis_eeg_band_power.py`):
+98,1% da potência abaixo de 32 Hz, 1,9% entre 32 e 64 Hz, ~0 acima. Com a DTWPT de nível 4 a
+1024 Hz (sub-bandas de 32 Hz), os ritmos δ–β ficam juntos na sub-banda 0 e as sub-bandas 2–15
+quase não têm sinal; a interferência de 50 Hz não é questão nesta base. 2653 das 9315 tentativas
+têm a marca de piscada e não são excluídas. Registrado no cap. 7 (tab:potenciaEeg) e no cap. 10.
+
+**Atualização (fim do dia).** Item 13: busca repetida no Athena pela VPN (6 combinações, contagens
+no cap. 7); 10 referências novas, entre elas a BIOMEX-DB (voz + EEG síncronos, identificação
+bimodal 97,6%), que estreitou a lacuna para "verificação com locutores fora do treino e sob
+degradação". O Web of Science não foi consultado: o acesso automatizado por sessão foi bloqueado
+pela política de permissões desta sessão. Item 21: terminologia padronizada (seção "Terminologia"
+na Introdução). LSTM-AE alinhado à entrada espectral (924deede).

@@ -6,7 +6,7 @@
 		\ac{EEG}, comparando extração manual de características (\ac{DTWPT} com
 		agrupamento energético) e extração automatizada (\textit{autoencoders}
 		e \ac{PCA}), com seleção conduzida pela engenharia paraconsistente de
-		características e classificação por uma rede neural de pulso residual
+		características e classificação por uma rede neural de pulsos residual
 		(\ac{DSNN}). O experimento foi organizado em duas fases:
 		\tn{p00.n.total} configurações de \textit{ranking} na Fase~00 e
 		\tn{p01.n.total} de autenticação na Fase~01, cada uma repetida três
@@ -136,7 +136,7 @@
 
 		\par A limitação dominante é o \textbf{tamanho da base}: 15 locutores e
 		\tn{aeinput.trials} tentativas com voz. Sob protocolo de verificação, com
-		partições disjuntas por locutor, cada dobra testa três locutores. A
+		dobras disjuntas por locutor, cada dobra testa três locutores. A
 		consequência mais direta está nos testes de significância: diferenças de
 		\ac{EER} de até dez pontos percentuais, com tamanho de efeito grande,
 		não atingem significância. Quase todas as conclusões comparativas desta
@@ -147,10 +147,10 @@
 
 		\begin{itemize}
 			\item \textbf{Sessão única de \ac{EEG}.} A base não tem gravações do
-			mesmo sujeito em dias diferentes. Os resultados de \ac{EEG} e de fusão
+			mesmo locutor em dias diferentes. Os resultados de \ac{EEG} e de fusão
 			podem refletir características da gravação --- impedância dos
 			eletrodos, posição da touca, ruído do ambiente --- e não apenas do
-			sujeito, e devem ser lidos como limite superior do desempenho entre
+			locutor, e devem ser lidos como limite superior do desempenho entre
 			sessões (\autoref{sec:respostasQuestoes});
 			\item \textbf{O \ac{EEG} de fala imaginada não é simultâneo à voz.} Ele
 			vem de outra tentativa do mesmo locutor e do mesmo enunciado. A fusão
@@ -168,10 +168,13 @@
 			amostras, provavelmente domina o do classificador --- não foi medido;
 			\item \textbf{As características manuais do \ac{EEG} têm resolução
 			espectral grossa.} Com a \ac{DTWPT} de nível~4 a 1024\,Hz, cada
-			sub-banda tem 32\,Hz: os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$
-			caem todos na primeira, e a interferência de 50\,Hz da rede elétrica, na
-			segunda. O \ac{EEG} não passa por filtro de rede, referência pela média
-			comum nem análise de componentes independentes
+			sub-banda tem 32\,Hz. Como a base já distribui o \ac{EEG} filtrado
+			perto de 45\,Hz, 98,1\% da potência cai na primeira sub-banda, que
+			contém juntos os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$, e as
+			sub-bandas 2 a 15 ficam praticamente sem sinal
+			(\autoref{tab:potenciaEeg}). O \ac{EEG} também não passa por
+			referência pela média comum nem por análise de componentes
+			independentes, e as tentativas com piscada não são excluídas
 			(\autoref{sec:trabalhosMaisRecentes});
 			\item \textbf{O vocabulário é pequeno}: onze enunciados, entre vogais e
 			palavras isoladas. ``Frases não vistas'' significa outros itens desse
@@ -188,22 +191,26 @@
 
 		\begin{enumerate}
 			\item \textbf{Avaliar entre sessões.} Uma base com gravações do mesmo
-			sujeito em dias diferentes é o único modo de separar o que identifica a
+			locutor em dias diferentes é o único modo de separar o que identifica a
 			pessoa do que identifica a gravação, e é a condição para qualquer
 			afirmação sobre o \ac{EEG} como biometria;
 
 			\item \textbf{Ampliar o número de locutores}, antes do número de
 			amostras por locutor: é a contagem de identidades que limita tanto o
-			que o classificador aprende quanto o poder dos testes estatísticos;
+			que o classificador aprende quanto o poder dos testes estatísticos. A
+			BIOMEX-DB \cite{morenorodriguez2021biomex}, com voz e \ac{EEG}
+			síncronos de 51 sujeitos, permitiria repetir o protocolo de
+			verificação com mais que o triplo de locutores;
 
 			\item \textbf{Avaliar locutores disfônicos reais}, ou, na falta deles,
 			modelos de degradação que cubram rouquidão, aspereza e tremor, além da
 			voz soprosa;
 
-			\item \textbf{Refinar a decomposição do \ac{EEG}}, com níveis de
-			\ac{DTWPT} que separem os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$
-			(o nível~7 dá sub-bandas de 4\,Hz), e medir o efeito do filtro de rede e
-			da exclusão das tentativas com piscada sobre o \ac{EER};
+			\item \textbf{Refinar a decomposição do \ac{EEG}}: reamostrá-lo para
+			128\,Hz antes da \ac{DTWPT}, o que a filtragem da base permite sem perda,
+			daria sub-bandas de 4\,Hz que separam os ritmos $\delta$, $\theta$,
+			$\alpha$ e $\beta$; e medir o efeito da exclusão das tentativas com
+			piscada sobre o \ac{EER};
 
 			\item \textbf{Testar a hipótese sobre as codificações temporais},
 			variando o número de passos $T$ e o limiar de disparo do \ac{SNN}-AE

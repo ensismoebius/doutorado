@@ -27,7 +27,7 @@
 			\bottomrule
 			\endlastfoot
 			1 & 16/07/2026 & A taxa de aprendizado reduzida dos parâmetros biofísicos (\autoref{sec:snnLrScale}) era aplicada a \emph{todos} os parâmetros da rede: um divisor por 10 da taxa global, e não uma taxa por grupo. & Ao investigar o latente colapsado do item~2: a taxa efetiva dos pesos era dez vezes menor que a declarada. \\
-			2 & 16/07/2026 & Um \textit{autoencoder} de pulso com latente constante atingia $\alpha=\beta=1$ e $D_{1,0}=\sqrt2$, valor que o punha à frente do extrator manual vencedor no \ac{EEG}. & O vencedor era uma rede cuja saída não variava entre amostras. Deu origem a $D_{\text{penalizado}}$ (\autoref{sec:dPenalizado}) e à regularização da taxa de disparo no codificador (\autoref{sec:snnAeFrReg}). \\
+			2 & 16/07/2026 & Um \textit{autoencoder} de pulsos com latente constante atingia $\alpha=\beta=1$ e $D_{1,0}=\sqrt2$, valor que o punha à frente do extrator manual vencedor no \ac{EEG}. & O vencedor era uma rede cuja saída não variava entre amostras. Deu origem a $D_{\text{penalizado}}$ (\autoref{sec:dPenalizado}) e à regularização da taxa de disparo no codificador (\autoref{sec:snnAeFrReg}). \\
 			3 & 12/11/2026 & Os \textit{autoencoders} ``base'' e ``small'' eram construídos como a mesma rede: uma largura igual ao valor de reserva do leitor de configuração era tratada como ``não informada''. O código fora corrigido em 23/07/2026 por outro motivo, mas as tabelas de julho não haviam sido refeitas. & Nas tabelas da Fase~00, os seis pares ``base''/``small'' tinham resultados idênticos até a oitava casa decimal. \\
 			4 & 12/11/2026 & A varredura de limiar do \ac{EER} estava invertida: aceitava as pontuações \emph{baixas}, e um sistema perfeito obtinha $\text{EER}=0{,}75$. & Em 237 de 480 dobras, o par (\ac{EER}, \ac{AUC}) relatado era impossível: toda curva \ac{ROC} com aquele \ac{EER} tem $\text{AUC} \le 1-\text{EER}^2$, e a \ac{AUC} relatada era maior. \\
 			5 & 12/11/2026 & A montagem das dobras intersectava listas de índices não ordenadas com um algoritmo que exige listas ordenadas. Os conjuntos de treino perdiam, em média, 62\% das amostras (de 15\% a 78\%), muitas vezes restando 3 dos 12 locutores. & Auditoria do código da validação cruzada; a perda foi então medida sobre os tamanhos reais da base. \\
@@ -96,6 +96,7 @@
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak phase00\_\allowbreak paraconsistent\_\allowbreak tables.py}, \texttt{thesis\_build\_\allowbreak phase01\_\allowbreak auth\_\allowbreak tables.py} & Geram as tabelas do \autoref{chap:testsResults} a partir dos resultados. \\
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak text\_\allowbreak numbers.py} & Gera cada número citado no texto e verifica as afirmações qualitativas que dependem deles; uma afirmação que deixa de valer impede a geração. \\
 			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_ae\_\allowbreak input\_\allowbreak reference.py} & Calcula, com SciPy e PyTorch, a \autoref{tab:aeInput}. \\
+			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_eeg\_\allowbreak band\_\allowbreak power.py} & Mede, com SciPy, a distribuição da potência do \ac{EEG} da base (\autoref{tab:potenciaEeg}). \\
 			\raggedright\texttt{results/\allowbreak thesis/\allowbreak phase00/}, \texttt{phase01/} & Resultados brutos de cada execução, os modelos treinados e os testes de significância. \\
 		\end{longtable}
 		}
@@ -538,7 +539,7 @@
 		\end{equation}
 		\par Durante o treinamento, a penalidade de esparsidade incentiva a rede a ter ativações esparsas, focando em características importantes dos dados.
 
-	\section{Regularização da Taxa de Disparo em Redes Neurais de Pulso}
+	\section{Regularização da Taxa de Disparo em Redes Neurais de Pulsos}
 		\label{Apend:firingRateReg}
 		\par A penalidade de taxa de disparo descrita nesta seção é uma técnica \textbf{proposta neste trabalho} para o treinamento das RNPs do \autoref{ch:revisao} --- não é uma reprodução de uma técnica publicada, mas uma adaptação da ideia geral de penalidade de esparsidade (seção anterior) ao caráter binário e temporal dos neurônios de pulso.
 

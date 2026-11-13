@@ -8,11 +8,11 @@
 
 		\par O eletroencefalograma (\ac{EEG}) registrado durante a fala oferece uma segunda fonte de identidade que não passa pelas pregas vocais. Ele carrega informação sobre quem fala \cite{MOCTEZUMA2019201} e também sobre quem apenas \emph{imagina} falar --- a fala imaginada, em que nada é vocalizado \cite{brigham2010subject,derakhshesh2025cueless}. Uma assinatura que existe sem fonação é, em princípio, imune à degradação da voz. O \ac{EEG} também é considerado difícil de falsificar \cite{albaiati2025deep}. Os custos são práticos: exige touca e eletrodos, tempo de preparo, e sua assinatura muda entre sessões de gravação --- em uma base com 345 sujeitos, o \ac{EER} de verificação passa de 6,7\% com um dia entre cadastro e teste a 14,3\% com um ano \cite{fallahi2025advancing}.
 
-		\par Um sistema que acompanhe o usuário, como o que este problema pede, precisa ainda de pouco consumo de energia. As redes neurais de pulso são candidatas por processarem eventos esparsos em vez de valores contínuos; a vantagem, porém, depende da esparsidade da atividade e do modo como a energia é contada \cite{dampfhoffer2023snns}, e precisa ser medida em vez de presumida.
+		\par Um sistema que acompanhe o usuário, como o que este problema pede, precisa ainda de pouco consumo de energia. As redes neurais de pulsos são candidatas por processarem eventos esparsos em vez de valores contínuos; a vantagem, porém, depende da esparsidade da atividade e do modo como a energia é contada \cite{dampfhoffer2023snns}, e precisa ser medida em vez de presumida.
 
 	\section{Lacuna e hipótese}
 
-		\par As duas buscas bibliográficas desta tese (\autoref{sec:trabalhosMaisRecentes}) encontraram autenticação pela voz, pela voz patológica e pelo \ac{EEG}, inclusive pelo \ac{EEG} da fala imaginada, mas nenhum trabalho que autentique pela combinação de voz e \ac{EEG}, nem que avalie o efeito de uma degradação da voz de teste sobre essa combinação.
+		\par As duas buscas bibliográficas desta tese (\autoref{sec:trabalhosMaisRecentes}) encontraram autenticação pela voz, pela voz patológica e pelo \ac{EEG}, inclusive pelo \ac{EEG} da fala imaginada. A combinação de voz e \ac{EEG} aparece em uma base gravada para biometria, avaliada em identificação de conjunto fechado \cite{morenorodriguez2021biomex}. Nenhum trabalho encontrado avalia essa combinação em verificação com locutores que o sistema não viu no treino, nem o efeito de uma degradação da voz de teste sobre ela.
 
 		\par A \textbf{hipótese principal} é que o \ac{EEG} registrado durante a fala, pronunciada ou imaginada, carrega informação de identidade que não depende da qualidade da voz, e que, combinado a ela, mantém a autenticação quando a voz de teste se degrada. Duas hipóteses secundárias acompanham as escolhas de método:
 		\begin{itemize}
@@ -27,7 +27,7 @@
 		\par Os \textbf{objetivos específicos} são:
 		\begin{enumerate}
 			\item comparar a extração manual de características (Transformada \textit{Wavelet-Packet} de Tempo Discreto com agrupamentos energéticos) com a extração automatizada (\textit{autoencoders} convencionais e de pulsos, e a \ac{PCA} como referência linear), selecionando-as pela engenharia paraconsistente de características;
-			\item medir a autenticação pela voz, pelo \ac{EEG} de fala pronunciada, pelo de fala imaginada e por suas fusões, sob um protocolo de verificação em que os locutores de teste não participam do treino;
+			\item medir a autenticação pela voz, pelo \ac{EEG} de fala pronunciada, pelo de fala imaginada e por suas fusões, sob um protocolo de verificação em que os locutores de teste não participam do treino. A voz e o \ac{EEG} de fala pronunciada são gravados na mesma tentativa, ao mesmo tempo; o \ac{EEG} de fala imaginada vem de outra tentativa do mesmo locutor e do mesmo enunciado, porque a base não tem fala imaginada com som (\autoref{sec:baseDeSinais});
 			\item medir o efeito de uma disfonia simulada na voz de teste;
 			\item comparar a rede de pulsos com controles que isolem o que ela acrescenta --- uma gêmea não pulsante e um classificador sem rede --- em erro e em energia estimada.
 		\end{enumerate}
@@ -53,6 +53,17 @@
 			\item a medida da incerteza da seleção paraconsistente, pontuando cada extrator em subconjuntos de locutores;
 			\item o registro dos defeitos silenciosos encontrados durante o desenvolvimento, de como foram detectados e do que invalidaram (\autoref{apend:defeitos}).
 		\end{enumerate}
+
+	\section{Terminologia}
+
+		\par Para que um mesmo conceito tenha sempre o mesmo nome, o texto adota:
+		\begin{itemize}
+			\item \textbf{locutor}, para cada pessoa da base usada nesta tese, seja qual for o sinal analisado; \textbf{sujeito}, para as pessoas dos trabalhos de \ac{EEG} citados;
+			\item \textbf{fala pronunciada}, a fala vocalizada, e \textbf{fala imaginada}, a fala apenas imaginada, sem som;
+			\item \textbf{dobra}, cada uma das partes da validação cruzada; ``$k$-fold'' só aparece no nome do esquema de validação;
+			\item \textbf{rede neural de pulsos} (\ac{RNP}), o conceito; DSNN, \ac{SNN}-AE e \ac{ANN}-AE são nomes de modelos desta tese;
+			\item \textbf{erro quadrático médio} (EQM), a perda de reconstrução dos \textit{autoencoders}.
+		\end{itemize}
 
 	\section{Estrutura do trabalho}
 			\par O \autoref{ch:revisao} reúne a fundamentação: a definição dos conceitos utilizados está na \autoref{sec:conceitos} --- incluindo a engenharia paraconsistente de características e a métrica $D_{\text{penalizado}}$ adotada como critério de seleção (\autoref{sec:dPenalizado}) --- e a revisão do estado da arte, com a tabela comparativa dos trabalhos de identificação e autenticação por voz e por \ac{EEG}, na \autoref{sec:trabalhosMaisRecentes}.
