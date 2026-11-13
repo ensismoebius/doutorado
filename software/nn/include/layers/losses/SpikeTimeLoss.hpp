@@ -57,7 +57,7 @@ class SpikeTimeLossImpl : public Module<Backend>
                 float fst = static_cast<float>(T); // default: no spike → penalty = T
                 for (int t = 0; t < T; ++t)
                 {
-                    if (spikes.at(static_cast<size_t>(t * B + b), static_cast<size_t>(f)) > 0.5f)
+                    if (spikes.at((static_cast<size_t>(t) * B) + b, static_cast<size_t>(f)) > 0.5f)
                     {
                         fst = static_cast<float>(t);
                         break;
@@ -141,11 +141,11 @@ class SpikeTimeLossImpl : public Module<Backend>
             {
                 float pt = pred_times.at(static_cast<size_t>(b), static_cast<size_t>(f));
                 float tt = tgt_times.at(static_cast<size_t>(b), static_cast<size_t>(f));
-                float g = scale * (pt - tt);
                 int t = static_cast<int>(pt);
                 if (t < T) // only assign gradient at the actual spike time
                 {
-                    grad.at(static_cast<size_t>(t * B + b), static_cast<size_t>(f)) = g;
+                    grad.at((static_cast<size_t>(t) * B) + b, static_cast<size_t>(f)) =
+                        scale * (pt - tt);
                 }
             }
         }

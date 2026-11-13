@@ -11,9 +11,9 @@ namespace nn::utility
 /**
  * @brief Read numeric values from a CSV/TXT signal file into a column tensor.
  *
- * Non-numeric tokens are ignored so mixed-content rows can still be consumed.
- * The returned tensor has shape `(N, 1)`, where `N` is the count of parsed
- * numeric tokens.
+ * Every comma-separated field must be a number; an empty or non-numeric field
+ * throws `std::runtime_error` naming the line and field. The returned tensor has
+ * shape `(N, 1)`, where `N` is the number of fields.
  */
 auto read_csv_signal(const std::filesystem::path& path) -> nn::Tensor;
 

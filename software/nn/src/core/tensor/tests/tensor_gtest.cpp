@@ -584,8 +584,7 @@ TEST(TensorTest, ThreeDRandDeterminism)
     ASSERT_EQ(a.size(), 24u);
     for (size_t i = 0; i < 2; ++i)
         for (size_t j = 0; j < 3; ++j)
-            for (size_t k = 0; k < 4; ++k)
-                EXPECT_FLOAT_EQ(a.at(i, j, k), b.at(i, j, k));
+            for (size_t k = 0; k < 4; ++k) EXPECT_FLOAT_EQ(a.at(i, j, k), b.at(i, j, k));
 }
 
 TEST(TensorTest, ThreeDRandNonDeterministic)
@@ -616,8 +615,7 @@ TEST(TensorTest, ThreeDReshapeToAndFrom)
     // 2D → 3D reshape (total size preserved)
     nn::Tensor t2(4, 6);
     for (size_t i = 0; i < 4; ++i)
-        for (size_t j = 0; j < 6; ++j)
-            t2.at(i, j) = static_cast<float>(i * 6 + j);
+        for (size_t j = 0; j < 6; ++j) t2.at(i, j) = static_cast<float>(i * 6 + j);
 
     t2.reshape({4, 3, 2});
     ASSERT_EQ(t2.get_shape(), (std::vector<size_t>{4, 3, 2}));

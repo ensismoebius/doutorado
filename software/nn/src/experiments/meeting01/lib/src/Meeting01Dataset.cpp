@@ -448,7 +448,7 @@ auto checkpoint_hash(std::size_t config_hash, const DatasetSplit& split) -> std:
     {
         for (int shift = 0; shift < 32; shift += 8)
         {
-            hash ^= (word >> shift) & 0xFFU;
+            hash ^= (word >> static_cast<unsigned>(shift)) & 0xFFU;
             hash *= kPrime;
         }
     };

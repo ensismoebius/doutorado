@@ -55,8 +55,8 @@ class MaxPool2dImpl : public Module<Backend>
 
         if (requires_grad)
         {
-            argmax_h_.assign(static_cast<size_t>(B * C * H_out * W_out), 0);
-            argmax_w_.assign(static_cast<size_t>(B * C * H_out * W_out), 0);
+            argmax_h_.assign(static_cast<size_t>(B) * C * H_out * W_out, 0);
+            argmax_w_.assign(static_cast<size_t>(B) * C * H_out * W_out, 0);
             input_B_ = B;
             input_C_ = C;
             input_H_ = H;
@@ -103,8 +103,8 @@ class MaxPool2dImpl : public Module<Backend>
 
                         if (requires_grad)
                         {
-                            size_t idx = static_cast<size_t>(
-                                b * C * H_out * W_out + c * H_out * W_out + ho * W_out + wo);
+                            const size_t idx =
+                                (((static_cast<size_t>(b) * C + c) * H_out + ho) * W_out) + wo;
                             argmax_h_[idx] = max_hi;
                             argmax_w_[idx] = max_wi;
                         }
@@ -131,9 +131,10 @@ class MaxPool2dImpl : public Module<Backend>
                 {
                     for (int wo = 0; wo < input_W_out_; ++wo)
                     {
-                        size_t idx = static_cast<size_t>(
-                            b * input_C_ * input_H_out_ * input_W_out_ +
-                            c * input_H_out_ * input_W_out_ + ho * input_W_out_ + wo);
+                        const size_t idx =
+                            (((static_cast<size_t>(b) * input_C_ + c) * input_H_out_ + ho) *
+                                input_W_out_) +
+                            wo;
                         int hi = argmax_h_[idx];
                         int wi = argmax_w_[idx];
                         dx.at(static_cast<nn::Index>(b),

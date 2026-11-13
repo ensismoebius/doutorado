@@ -25,7 +25,7 @@ struct ResultRow
     std::uint32_t seed = 0u;
     std::size_t config_hash = 0u;
 
-    RunMetrics metrics;
+    RunMetrics metrics{};
 
     // Nested-LOSO provenance. `split` is the partition this row's metrics were
     // measured on: "val" (inner validation speaker — used for model selection and

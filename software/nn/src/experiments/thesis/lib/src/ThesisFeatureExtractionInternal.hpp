@@ -294,8 +294,8 @@ nn::Tensor spike_frame(const std::vector<float>& norm,
         const int last = time_steps - 1;
         for (nn::Index d = 0; d < D; ++d)
         {
-            const int t_spike =
-                static_cast<int>(std::lround((1.0f - norm[static_cast<size_t>(d)]) * last));
+            const int t_spike = static_cast<int>(
+                std::lround((1.0f - norm[static_cast<size_t>(d)]) * static_cast<float>(last)));
             frame.at(0, d) = (t >= t_spike) ? 1.0f : 0.0f;
         }
     }
@@ -338,7 +338,7 @@ struct GradientLivenessGuard
     std::shared_ptr<Stats> stats = std::make_shared<Stats>();
 
     GradientLivenessGuard() = default;
-    explicit GradientLivenessGuard(Inner in) : inner(std::move(in)) {}
+    explicit GradientLivenessGuard(const Inner& in) : inner(in) {}
 
     void train(bool on)
     {
@@ -622,7 +622,7 @@ void train_autoencoder(AEType& model,
             inner.min_rate = spec.firing_rate_min;
             inner.max_rate = spec.firing_rate_max;
         }
-        GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>> loss(std::move(inner));
+        GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>> loss(inner);
         auto stats = loss.stats;
         nn::training::Trainer<AEType, GradientLivenessGuard<SpikeCountLossImpl<nn::Backend>>>
             trainer(model, trainer_cfg, std::move(loss));
@@ -639,7 +639,7 @@ void train_autoencoder(AEType& model,
         // Latency-coded reconstruction: MSE over first-spike times. Requires the
         // time-major (T*B, F) layout built above with batch_size forced to 1 (B == 1).
         SpikeTimeLossImpl<nn::Backend> inner(T);
-        GradientLivenessGuard<SpikeTimeLossImpl<nn::Backend>> loss(std::move(inner));
+        GradientLivenessGuard<SpikeTimeLossImpl<nn::Backend>> loss(inner);
         auto stats = loss.stats;
         nn::training::Trainer<AEType, GradientLivenessGuard<SpikeTimeLossImpl<nn::Backend>>>
             trainer(model, trainer_cfg, std::move(loss));

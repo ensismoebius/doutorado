@@ -43,7 +43,7 @@ struct TripleHash
         std::size_t h1 = std::hash<T>()(std::get<0>(t));
         std::size_t h2 = std::hash<U>()(std::get<1>(t));
         std::size_t h3 = std::hash<V>()(std::get<2>(t));
-        return h1 ^ (h2 << 1) ^ (h3 << 2);
+        return h1 ^ (h2 << 1U) ^ (h3 << 2U);
     }
 };
 

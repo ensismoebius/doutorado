@@ -160,7 +160,6 @@ Called from `.github/workflows/ci.yml`; renaming one needs the workflow changed 
 
 | Script | Role |
 |---|---|
-| `validate_static_analysis.py` | cppcheck XML against the approved suppressions (`--list-approved` lists them) |
 | `check_core_coverage_gate.sh` | fail if core line coverage is below the gate |
 | `run_ci_docker.sh` | the CI pipeline inside Docker (`Dockerfile.ci`) |
 | `collect_external_logs.sh` | gather logs from external build steps |

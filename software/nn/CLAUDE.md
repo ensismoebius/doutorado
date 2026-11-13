@@ -485,7 +485,7 @@ minutes locally → `results/meeting01_t1/`, `data/paper_t1.tex`), not by the pr
 2026-11-02). Every paper element follows `configured_families(config)` in
 `meeting01_results.py` — a family not configured leaves no row, column, series, legend entry
 or macro, and a `\cfg*` macro of an absent family is an undefined control sequence (loud).
-`dataset.latex_data_dir` is `""` in the production profiles (its exports were read by nothing).
+`dataset.latex_data_dir` must be `""` (`validate()` refuses anything else): its exports were read by nothing and were removed 2026-11-13.
 
 **Pre-validation of the removed families**: `profiles/meeting01-prevalidation.json` (the grid
 profile + the three families, one reduced budget, development folds only; its difference from

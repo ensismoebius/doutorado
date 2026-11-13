@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "data_loaders/datasets/Dataset.hpp"
 #include "data_loaders/interfaces/IBatchSource.hpp"
 
@@ -138,8 +140,8 @@ TEST(DatasetInterface, DefaultPrintCallsGenericPrinter)
 TEST(DatasetInterface, PrinterPolymorphicDeleteRunsDestructor)
 {
     bool destroyed = false;
-    IDatasetPrinter* printer = new TrackingPrinter(&destroyed);
-    delete printer;
+    std::unique_ptr<IDatasetPrinter> printer = std::make_unique<TrackingPrinter>(&destroyed);
+    printer.reset(); // destroyed through the base pointer: the destructor must be virtual
     EXPECT_TRUE(destroyed);
 }
 

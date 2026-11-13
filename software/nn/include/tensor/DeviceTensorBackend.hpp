@@ -2,6 +2,7 @@
 #define DEVICE_TENSOR_BACKEND_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <random>
 
 #include "tensor/xtensor/XTensorBackend.hpp"
@@ -561,7 +562,7 @@ class DeviceTensorBackend
         // Copy device->host. No-op if device buffer absent.
         if (!m_on_device) return;
         std::copy(m_device.begin(),
-            m_device.begin() + static_cast<size_t>(size()),
+            m_device.begin() + static_cast<std::ptrdiff_t>(size()),
             m_host.mutable_data_ptr());
         // Keep device buffer allocated for potential reuse.
     }
@@ -596,7 +597,7 @@ class DeviceTensorBackend
         if (!m_grad_on_device) return;
         auto& host_grad_ref = m_host.grad_ref();
         std::copy(m_device_grad.begin(),
-            m_device_grad.begin() + static_cast<size_t>(size()),
+            m_device_grad.begin() + static_cast<std::ptrdiff_t>(size()),
             host_grad_ref.mutable_data_ptr());
         // Keep XTensorBackend canonical gradient storage in sync with grad_ref().
         m_host.set_grad(host_grad_ref);

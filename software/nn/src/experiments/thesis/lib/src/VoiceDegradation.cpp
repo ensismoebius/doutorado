@@ -20,7 +20,7 @@ void levinson(const std::vector<double>& r, std::vector<double>& a)
     a.assign(p + 1, 0.0);
     a[0] = 1.0;
     double err = r[0];
-    std::vector<double> prev(p + 1);
+    std::vector<double> prev;
     for (std::size_t i = 1; i <= p; ++i)
     {
         double acc = r[i];

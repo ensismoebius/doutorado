@@ -138,7 +138,7 @@ nn::models::lstm::LSTMAutoencoderConfig batch_cfg()
 // (B*T, D) random reshaped to a 3-D (B, T, D) batch.
 nn::Tensor make_batch(int B, int T, int D)
 {
-    nn::Tensor flat = nn::Tensor::rand(static_cast<nn::Index>(B * T), static_cast<nn::Index>(D));
+    nn::Tensor flat = nn::Tensor::rand(static_cast<nn::Index>(B) * T, static_cast<nn::Index>(D));
     return std::as_const(flat).reshape(
         {static_cast<nn::Index>(B), static_cast<nn::Index>(T), static_cast<nn::Index>(D)});
 }

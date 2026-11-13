@@ -281,8 +281,11 @@ TEST(Meeting01Encoding, FrameSizeOneUnrollsTheWholeEncodedWindow)
     ASSERT_EQ(frames.rows(), kT * kM);
     ASSERT_EQ(frames.cols(), 1);
     for (nn::Index k = 0; k < frames.rows(); ++k)
-        EXPECT_FLOAT_EQ(frames.at(k, 0), static_cast<float>(100 * (k / kM) + k % kM))
-            << "frame " << k;
+    {
+        const nn::Index t = k / kM; // integer division on purpose: frame k is step t, sample m
+        const nn::Index m = k % kM;
+        EXPECT_FLOAT_EQ(frames.at(k, 0), static_cast<float>((100 * t) + m)) << "frame " << k;
+    }
 }
 
 TEST(Meeting01Encoding, FramingRefusesAnUnevenSplit)
@@ -302,11 +305,11 @@ TEST(Meeting01Encoding, TargetVarianceIsIdenticalAcrossEncodings)
 
     double sum = 0.0;
     for (nn::Index i = 0; i < target.size(); ++i) sum += target.at(i);
-    const double mean = sum / target.size();
+    const double mean = sum / static_cast<double>(target.size());
     double var = 0.0;
     for (nn::Index i = 0; i < target.size(); ++i)
         var += (target.at(i) - mean) * (target.at(i) - mean);
-    var /= target.size();
+    var /= static_cast<double>(target.size());
 
     // A z-scored window repeated across steps keeps unit variance regardless of which
     // encoding feeds the network.
@@ -317,7 +320,8 @@ TEST(Meeting01Encoding, ReduceTimeMajorOutputAveragesOverSteps)
 {
     meeting01::Tensor out(kSteps, 3); // B = 1
     for (nn::Index t = 0; t < kSteps; ++t)
-        for (nn::Index f = 0; f < 3; ++f) out.at(t, f) = static_cast<float>(t) + f;
+        for (nn::Index f = 0; f < 3; ++f)
+            out.at(t, f) = static_cast<float>(t) + static_cast<float>(f);
 
     const auto reduced = meeting01::reduce_time_major_output(out, kSteps);
     ASSERT_EQ(reduced.rows(), 1);

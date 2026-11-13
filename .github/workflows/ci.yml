@@ -34,7 +34,8 @@ jobs:
       run: cmake --build --preset=max-performance --target analysis-cppcheck -j$(nproc)
 
     - name: Run clang-tidy
-      run: run-clang-tidy -p out/build/max-performance
+      # project sources only: the compile database also lists the vendored _deps sources
+      run: run-clang-tidy -quiet -p out/build/max-performance 'software/nn/src/'
 
     - name: Run tests
       run: ctest --test-dir out/build/max-performance --output-on-failure -j4

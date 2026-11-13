@@ -66,7 +66,7 @@ class ResNetBlockImpl : public Module<Backend>
         Tensor grad = relu2_.backward(grad_output);
 
         // 2. Flows to both residual branch and skip path
-        Tensor grad_skip = grad;
+        const Tensor& grad_skip = grad;
 
         // 3. Through Conv2
         Tensor grad_conv2 = conv2_.backward(grad);

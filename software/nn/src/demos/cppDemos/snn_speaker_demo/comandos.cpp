@@ -81,9 +81,9 @@ auto extract_feature_windows(
     loading_params.audio_params.target_sampling_rate = sample_rate;
     loading_params.audio_params.preemphasis_coefficient = 0.97f;
     loading_params.audio_params.frame_duration_ms =
-        static_cast<float>(window_size) * 1000.0f / sample_rate;
+        static_cast<float>(window_size) * 1000.0f / static_cast<float>(sample_rate);
     loading_params.audio_params.frame_shift_ms =
-        static_cast<float>(hop_size) * 1000.0f / sample_rate;
+        static_cast<float>(hop_size) * 1000.0f / static_cast<float>(sample_rate);
     loading_params.audio_params.number_of_filters = num_bands;
     loading_params.audio_params.number_of_cepstrals = num_bands;
     loading_params.audio_params.delta_window_span = 2;
@@ -166,7 +166,7 @@ void write_demo_outputs(const std::string& outpath,
     int fs)
 {
     std::ofstream fout(outpath);
-    int in_dim = spike_frames.empty() ? 0 : spike_frames[0].cols();
+    int in_dim = spike_frames.empty() ? 0 : static_cast<int>(spike_frames[0].cols());
     fout << "frame,";
     for (int j = 0; j < in_dim; ++j)
     {
@@ -227,7 +227,8 @@ void cmd_demo(                      //
     std::vector<float> audio(total_samples);
     for (size_t i = 0; i < total_samples; ++i)
     {
-        audio[i] = 0.1f * std::sin(2.0 * M_PI * 440.0 * static_cast<double>(i) / sample_rate);
+        audio[i] = static_cast<float>(
+            0.1 * std::sin(2.0 * M_PI * 440.0 * static_cast<double>(i) / sample_rate));
     }
 
     auto features = extract_feature_windows(audio, sample_rate, window_size, hop_size, num_bands);

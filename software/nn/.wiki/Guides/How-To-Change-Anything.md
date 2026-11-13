@@ -85,7 +85,7 @@ Map of the folder: [`src/experiments/thesis/README.md`](../../src/experiments/th
 |---|---|---|---|
 | change CI | `.github/workflows/ci.yml` (repository root; runs in `software/nn`) | the run on GitHub (`gh run list`) | [Static Analysis](./Static-Analysis.md) |
 | add a Python test to CI | a step in `ci.yml` (stdlib suites: `python3 file.py`; pytest suites: `python3 -m pytest`) | locally first; CI uses Ubuntu's apt Python packages, so pin nothing newer | `scripts/README.md` › testing |
-| silence a cppcheck/clang-tidy finding | fix it; an approved suppression goes through `scripts/ci/validate_static_analysis.py` | `cmake --build --preset=max-performance --target analysis-cppcheck` | [Static Analysis](./Static-Analysis.md) |
+| silence a cppcheck/clang-tidy finding | fix it; a proven false positive gets a one-line `NOLINT(<check>)` / `cppcheck-suppress <id>` with its reason | `run-clang-tidy -p out/build/max-performance 'software/nn/src/'` and `--target analysis-cppcheck` (both must report 0) | [Static Analysis](./Static-Analysis.md) |
 | run on the cluster | `scripts/pipeline/meeting01/gridunesp_deploy.sh`, the `.sbatch` of the experiment | `run_gridunesp_docker_sim.sh` rehearses the toolchain locally | [GridUnesp Deployment](./GridUnesp-Deployment.md) |
 | add a wiki page | `.wiki/<Section>/Page.md`, linked from `Home.md` | no broken links, no orphan page | follow `/didactic-explanation` (problem first, one real example, the failure mode) — [Time Steps](../Concepts/Time-Steps.md) is the model |
 | add a script | the right `scripts/` folder, every argument required | a test in `scripts/testing/` if a pipeline reads its output | a row in `scripts/README.md` |

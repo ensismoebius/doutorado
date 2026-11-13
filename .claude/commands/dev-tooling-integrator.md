@@ -52,7 +52,6 @@ Project Context (nn framework)
 
 **Static analysis:**
 - `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy (C++-specific; the MCP's own `get_violations`/`summarize_violations` are a separate, cross-language, structural pass — naming/docs/LOC/duplication — run both, they catch different things)
-- `python3 scripts/ci/validate_static_analysis.py --list-approved` — show suppression allowlist
 
 Common Invocations
 

@@ -6,7 +6,8 @@
 
 #include "tensor/Tensor.hpp"
 
-namespace nn::utils {
+namespace nn::utils
+{
 
 // Global-norm gradient clipping (PyTorch-style).
 // Computes ||g|| over all parameters; if it exceeds max_norm, scales every

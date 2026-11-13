@@ -136,13 +136,15 @@ auto make_reconstruction_mask(int valid_length, int window_size, int time_steps)
 
 auto reduce_time_major_output(const Tensor& output, int time_steps) -> Tensor
 {
-    const nn::Index T = static_cast<nn::Index>(time_steps);
-    if (T <= 0 || output.rows() % T != 0)
+    // Checked before the cast: a negative time_steps becomes a huge unsigned T, which the
+    // old `T <= 0` test (on the unsigned value) could never catch.
+    if (time_steps <= 0 || output.rows() % static_cast<nn::Index>(time_steps) != 0)
     {
         throw std::invalid_argument(
             "reduce_time_major_output: output rows (" + std::to_string(output.rows()) +
             ") is not a multiple of time_steps (" + std::to_string(time_steps) + ")");
     }
+    const auto T = static_cast<nn::Index>(time_steps);
     const nn::Index B = output.rows() / T;
     const nn::Index F = output.cols();
 

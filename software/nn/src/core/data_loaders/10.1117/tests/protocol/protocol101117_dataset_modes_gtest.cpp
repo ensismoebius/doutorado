@@ -99,14 +99,14 @@ class Dataset101117ModesTest : public ::testing::Test
 
         matioCpp::File eeg_file = matioCpp::File::Create((subject_dir / "S99_EEG.mat").string());
         matioCpp::MultiDimensionalArray<double> eeg_matrix(
-            nn::dataLoaders::kEegMatVariableName, {eeg_rows, eeg_cols}, eeg_data.data());
+            nn::dataLoaders::kEegMatVariableName(), {eeg_rows, eeg_cols}, eeg_data.data());
         eeg_file.write(eeg_matrix);
         eeg_file.close();
 
         matioCpp::File audio_file =
             matioCpp::File::Create((subject_dir / "S99_Audio.mat").string());
         matioCpp::MultiDimensionalArray<double> audio_matrix(
-            nn::dataLoaders::kAudioMatVariableName, {audio_rows, audio_cols}, audio_data.data());
+            nn::dataLoaders::kAudioMatVariableName(), {audio_rows, audio_cols}, audio_data.data());
         audio_file.write(audio_matrix);
         audio_file.close();
     }
@@ -141,14 +141,14 @@ class Dataset101117ModesTest : public ::testing::Test
 
         matioCpp::File eeg_file = matioCpp::File::Create((subject_dir / "S77_EEG.mat").string());
         matioCpp::MultiDimensionalArray<double> eeg_matrix(
-            nn::dataLoaders::kEegMatVariableName, {eeg_rows, eeg_cols}, eeg_data.data());
+            nn::dataLoaders::kEegMatVariableName(), {eeg_rows, eeg_cols}, eeg_data.data());
         eeg_file.write(eeg_matrix);
         eeg_file.close();
 
         matioCpp::File audio_file =
             matioCpp::File::Create((subject_dir / "S77_Audio.mat").string());
         matioCpp::MultiDimensionalArray<double> audio_matrix(
-            nn::dataLoaders::kAudioMatVariableName, {audio_rows, audio_cols}, audio_data.data());
+            nn::dataLoaders::kAudioMatVariableName(), {audio_rows, audio_cols}, audio_data.data());
         audio_file.write(audio_matrix);
         audio_file.close();
     }

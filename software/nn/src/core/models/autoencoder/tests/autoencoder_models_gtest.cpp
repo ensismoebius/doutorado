@@ -1,6 +1,7 @@
 /**
  * @file autoencoder_models_gtest.cpp
- * @brief Tests for the core autoencoder models (fused-window and the protocol ANN/SNN autoencoders the thesis uses).
+ * @brief Tests for the core autoencoder models (fused-window and the protocol ANN/SNN autoencoders
+ * the thesis uses).
  */
 
 #include <gtest/gtest.h>

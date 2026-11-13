@@ -21,7 +21,7 @@ using argparse::ArgumentParser;
 using std::string;
 
 template <typename T>
-T arg_to(argparse::ArgumentParser& p, const std::string& name)
+T arg_to(const argparse::ArgumentParser& p, const std::string& name)
 {
     try
     {
@@ -223,7 +223,7 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("demo"))
         {
-            auto& demo_parser = program.at<ArgumentParser>("demo");
+            const auto& demo_parser = program.at<ArgumentParser>("demo");
             double duration = arg_to<double>(demo_parser, "--duracao");
             int sample_rate = arg_to<int>(demo_parser, "--taxa-amostragem");
             int window_size = arg_to<int>(demo_parser, "--tamanho-janela");
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("treinar"))
         {
-            auto& train_parser = program.at<ArgumentParser>("treinar");
+            const auto& train_parser = program.at<ArgumentParser>("treinar");
             std::string data_dir = arg_to<std::string>(train_parser, "--diretorio-dados");
             int epochs = static_cast<int>(arg_to<int>(train_parser, "--epocas"));
             NN_LOG_INFO("treinar: dados=" + data_dir + " epocas=" + std::to_string(epochs));
@@ -276,7 +276,7 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("identificar"))
         {
-            auto& identify_parser = program.at<ArgumentParser>("identificar");
+            const auto& identify_parser = program.at<ArgumentParser>("identificar");
             std::string model_path = arg_to<std::string>(identify_parser, "--modelo");
             NN_LOG_INFO("identificar: modelo=" + model_path);
             return 0;
@@ -284,7 +284,7 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("verificar"))
         {
-            auto& verify_parser = program.at<ArgumentParser>("verificar");
+            const auto& verify_parser = program.at<ArgumentParser>("verificar");
             std::string model_path = arg_to<std::string>(verify_parser, "--modelo");
             double threshold = arg_to<double>(verify_parser, "--limiar");
             NN_LOG_INFO("verificar: modelo=" + model_path + " limiar=" + std::to_string(threshold));
@@ -293,7 +293,7 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("avaliar"))
         {
-            auto& evaluate_parser = program.at<ArgumentParser>("avaliar");
+            const auto& evaluate_parser = program.at<ArgumentParser>("avaliar");
             bool verbose = arg_to<bool>(evaluate_parser, "--verbose");
             NN_LOG_INFO("avaliar: verbose=" + std::string(verbose ? "true" : "false"));
             return 0;

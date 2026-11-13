@@ -7,7 +7,7 @@ namespace nn::progress
 
 class ProgressBar
 {
-public:
+   public:
     ProgressBar(const std::string& label, float target)
     {
         id_ = ProgressManager::instance().create_bar(label, target);
@@ -15,7 +15,7 @@ public:
 
     ~ProgressBar()
     {
-        // We don't automatically remove bars on destruction to avoid 
+        // We don't automatically remove bars on destruction to avoid
         // flickering if handles are short-lived. Call remove_bar explicitly if needed.
     }
 
@@ -29,9 +29,12 @@ public:
         ProgressManager::instance().complete_bar(id_);
     }
 
-    uint32_t id() const { return id_; }
+    uint32_t id() const
+    {
+        return id_;
+    }
 
-private:
+   private:
     uint32_t id_;
 };
 

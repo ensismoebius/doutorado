@@ -30,10 +30,10 @@ using nn::SpikeCountLoss;
 // Teste para Lif (LIF)
 TEST(LeakyLayerTest, ForwardSpikeAndReset)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/5.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/2.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/5.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/2.0F,
         /*reset_zero=*/true,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -49,10 +49,10 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
 // Teste para Lif sem reset para zero
 TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/5.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/2.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/5.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/2.0F,
         /*reset_zero=*/false,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -67,10 +67,10 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 
 TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/5.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/2.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/5.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/2.0F,
         /*reset_zero=*/false,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -81,7 +81,7 @@ TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
 
     const float beta = std::exp(-1.0F / (5.0F * 1.0F));
     const float expected_v1_pre = 0.0F * beta + 1.5F;
-    const float expected_s1 = (expected_v1_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_s1 = 0.0F; // 1.5 stays below V_th = 2.0: no spike, no reset
     const float expected_v1_post = expected_v1_pre - expected_s1 * 2.0F;
 
     EXPECT_NEAR(out1.at(0, 0), expected_s1, 1e-6F);
@@ -92,7 +92,7 @@ TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
     nn::Tensor out2{leaky.forward(step2, true)};
 
     const float expected_v2_pre = expected_v1_post * beta + 1.0F;
-    const float expected_s2 = (expected_v2_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_s2 = 1.0F; // 1.5 * 0.819 + 1.0 = 2.23 crosses V_th = 2.0: spike
     const float expected_v2_post = expected_v2_pre - expected_s2 * 2.0F;
 
     EXPECT_NEAR(out2.at(0, 0), expected_s2, 1e-6F);
@@ -101,10 +101,10 @@ TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
 
 TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/5.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/2.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/5.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/2.0F,
         /*reset_zero=*/true,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -118,10 +118,10 @@ TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
 
 TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/5.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/1.1F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/5.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/1.1F,
         /*reset_zero=*/true,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -156,10 +156,10 @@ TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
 
 TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/-2.0F,
-        /*C=*/1.0F,
-        /*V_thresh=*/100.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/-2.0F,
+        /*capacitance_=*/1.0F,
+        /*voltage_threshold_=*/100.0F,
         /*reset_zero=*/true,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -181,10 +181,10 @@ TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
 
 TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    Lif leaky(/*dt=*/1.0F,
-        /*R=*/-2.0F,
-        /*C=*/-3.0F,
-        /*V_thresh=*/100.0F,
+    Lif leaky(/*delta_t_=*/1.0F,
+        /*resistance_=*/-2.0F,
+        /*capacitance_=*/-3.0F,
+        /*voltage_threshold_=*/100.0F,
         /*reset_zero=*/true,
         0.0F,
         std::make_shared<ExponentialSurrogate>());
@@ -207,7 +207,7 @@ TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 
 TEST(LifIntegratorLayerTest, BackwardComputesCapacitanceGradient)
 {
-    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/2.0F, /*C=*/3.0F);
+    LifIntegrator integrator(/*dt_=*/1.0F, /*R_=*/2.0F, /*C_=*/3.0F);
 
     nn::Tensor first_input(1, 1);
     first_input.at(0, 0) = 2.0F;
@@ -237,7 +237,7 @@ TEST(LifIntegratorLayerTest, BackwardComputesCapacitanceGradient)
 
 TEST(LifIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
 {
-    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/3.0F);
+    LifIntegrator integrator(/*dt_=*/1.0F, /*R_=*/-2.0F, /*C_=*/3.0F);
 
     nn::Tensor input(1, 1);
     input.at(0, 0) = 2.0F;
@@ -254,7 +254,7 @@ TEST(LifIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
 
 TEST(LifIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/-3.0F);
+    LifIntegrator integrator(/*dt_=*/1.0F, /*R_=*/-2.0F, /*C_=*/-3.0F);
 
     nn::Tensor first_input(1, 1);
     first_input.at(0, 0) = 2.0F;
@@ -607,7 +607,7 @@ TEST(TimeMeanPoolTest, RejectsRowsThatAreNotAMultipleOfTimeSteps)
     nn::Tensor x(3, 2);
     x.setZero();
     EXPECT_THROW((void) pool.forward(x, true), std::invalid_argument);
-    EXPECT_THROW(nn::TimeMeanPool(0), std::invalid_argument);
+    EXPECT_THROW({ [[maybe_unused]] const nn::TimeMeanPool object(0); }, std::invalid_argument);
 }
 
 TEST(TimeMeanPoolTest, BackwardWithoutForwardIsRefused)

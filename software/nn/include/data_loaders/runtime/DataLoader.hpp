@@ -13,15 +13,15 @@
 class DataLoader
 {
    public:
-     using DefaultSamplerType = nn::dataLoaders::DefaultSamplerType;
-     using DefaultSamplerOptions = nn::dataLoaders::DefaultSamplerOptions;
+    using DefaultSamplerType = nn::dataLoaders::DefaultSamplerType;
+    using DefaultSamplerOptions = nn::dataLoaders::DefaultSamplerOptions;
 
-    DataLoader(std::shared_ptr<Dataset> dataset,
+    DataLoader(const std::shared_ptr<Dataset>& dataset,
         std::size_t batch_size,
         bool do_shuffle = true,
         std::optional<unsigned int> seed = std::nullopt);
 
-    DataLoader(std::shared_ptr<Dataset> dataset,
+    DataLoader(const std::shared_ptr<Dataset>& dataset,
         std::size_t batch_size,
         const DefaultSamplerOptions& options);
 

@@ -314,8 +314,9 @@ namespace
 {
 void append_u16(std::string& out, uint16_t v)
 {
-    out.push_back(static_cast<char>(v & 0xFFU));
-    out.push_back(static_cast<char>((v >> 8U) & 0xFFU));
+    const auto bits = static_cast<unsigned>(v);
+    out.push_back(static_cast<char>(bits & 0xFFU));
+    out.push_back(static_cast<char>((bits >> 8U) & 0xFFU));
 }
 
 void append_u32(std::string& out, uint32_t v)

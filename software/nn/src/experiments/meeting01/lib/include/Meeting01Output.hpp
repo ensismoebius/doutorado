@@ -145,35 +145,6 @@ void write_summary_json(const std::filesystem::path& path,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& rows);
 
-void write_latex_exports(const std::filesystem::path& dir,
-    const std::string& run_tag,
-    const Meeting01Config& cfg,
-    const std::vector<ResultRow>& rows);
-
 void validate_repeat_determinism(const Meeting01Config& cfg, const std::vector<ResultRow>& rows);
-
-void write_pgfplots_summary_dat(
-    const std::filesystem::path& path, const std::vector<ResultRow>& rows);
-
-void write_pgfplots_sweep_dat(
-    const std::filesystem::path& path, const std::vector<ResultRow>& rows);
-
-void write_epoch_history_dat(const std::filesystem::path& path,
-    const std::string& model,
-    const std::string& encoding,
-    const std::string& architecture,
-    float v_th,
-    float alpha,
-    int run_id,
-    const EpochHistory& history);
-
-void write_batch_convergence_dat(const std::filesystem::path& path,
-    const std::string& model,
-    const std::string& encoding,
-    const std::string& architecture,
-    float v_th,
-    float alpha,
-    int run_id,
-    const EpochHistory& history);
 
 } // namespace meeting01

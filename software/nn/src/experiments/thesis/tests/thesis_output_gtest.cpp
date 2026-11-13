@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
+#include <filesystem>
 #include <fstream>
-#include <sstream>
+#include <stdexcept>
 
 #include "../lib/include/ThesisConfig.hpp"
 #include "../lib/include/ThesisOutput.hpp"
@@ -20,7 +20,12 @@ namespace
 {
 nlohmann::json read_summary(const std::string& dir, const std::string& tag)
 {
-    std::ifstream f(dir + "/e05_" + tag + "_summary.json");
+    const std::string path = dir + "/e05_" + tag + "_summary.json";
+    std::ifstream f(path);
+    if (!f)
+    {
+        throw std::runtime_error("summary not written: " + path);
+    }
     nlohmann::json j;
     f >> j;
     return j;
@@ -34,11 +39,19 @@ ThesisConfig base_cfg(const std::string& tag)
     return cfg;
 }
 
+// Written under the test framework's temporary directory and removed after reading, so a run
+// leaves nothing behind (a relative "./e05_output_test" used to appear in whatever directory
+// the binary was started from).
 nlohmann::json write_and_read(const ThesisConfig& cfg, const std::string& tag)
 {
     cfg.validate(); // the config is one a real profile could declare
-    thesis::write_summary_json("./e05_output_test", tag, cfg, {}, {}, 15, 11, 1974, 0u);
-    return read_summary("./e05_output_test", tag);
+    const std::filesystem::path dir =
+        std::filesystem::path(::testing::TempDir()) / ("thesis_output_gtest_" + tag);
+    std::filesystem::create_directories(dir);
+    thesis::write_summary_json(dir.string(), tag, cfg, {}, {}, 15, 11, 1974, 0u);
+    auto j = read_summary(dir.string(), tag);
+    std::filesystem::remove_all(dir);
+    return j;
 }
 } // namespace
 

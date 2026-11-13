@@ -94,7 +94,7 @@ auto with_snn_time_steps(const Meeting01Config& cfg, int time_steps) -> Meeting0
 
 struct TrainResult
 {
-    RunMetrics metrics;
+    RunMetrics metrics{};
     EpochHistory history;
 };
 

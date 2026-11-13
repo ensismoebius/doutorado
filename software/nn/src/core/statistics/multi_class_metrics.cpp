@@ -35,7 +35,7 @@ ClassificationMetrics compute_classification_metrics(
         throw std::runtime_error("Label vectors must be non-empty");
     }
 
-    int n_samples = true_labels.size();
+    const int n_samples = static_cast<int>(true_labels.size());
     const int n_classes = *std::max_element(true_labels.begin(), true_labels.end()) + 1;
 
     // Confusion matrix - using float for now (consider IntTensor for integer precision)
@@ -83,7 +83,10 @@ ClassificationMetrics compute_classification_metrics(
     // Simplified MCC calculation (for binary case, extend for multi-class)
     if (n_classes == 2)
     {
-        int tp = cm.at(0, 0), tn = cm.at(1, 1), fp = cm.at(1, 0), fn = cm.at(0, 1);
+        const int tp = static_cast<int>(cm.at(0, 0));
+        const int tn = static_cast<int>(cm.at(1, 1));
+        const int fp = static_cast<int>(cm.at(1, 0));
+        const int fn = static_cast<int>(cm.at(0, 1));
         double numerator = static_cast<double>(tp * tn - fp * fn);
         double denominator =
             std::sqrt(static_cast<double>((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)));

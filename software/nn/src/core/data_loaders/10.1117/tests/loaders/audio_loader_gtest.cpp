@@ -68,7 +68,7 @@ class AudioLoaderTest : public ::testing::Test
 
         // Create the variable and write it to the file
         matioCpp::MultiDimensionalArray<double> audio_data(
-            nn::dataLoaders::kAudioMatVariableName, {kNumRows, kNumCols}, data.data());
+            nn::dataLoaders::kAudioMatVariableName(), {kNumRows, kNumCols}, data.data());
         file.write(audio_data);
         file.close();
     }
@@ -140,7 +140,8 @@ TEST_F(AudioLoaderTest, SessionHandlesCacheAndRangeValidation)
 
     auto first = session.readRows(0, 2);
     auto second = session.readRows(0, 2);
-    ASSERT_EQ(first.size(), second.size());
+    ASSERT_EQ(first.size(), 2U);
+    ASSERT_EQ(second.size(), 2U);
 
     auto [s1, stimulus1, eeg1] = first[1];
     auto [s2, stimulus2, eeg2] = second[1];
@@ -187,7 +188,7 @@ TEST(AudioLoaderStandaloneTest, SessionConstructorRejectsWrongDimensions)
 
     matioCpp::File file = matioCpp::File::Create(path);
     matioCpp::MultiDimensionalArray<double> audio_data(
-        nn::dataLoaders::kAudioMatVariableName, {rows, cols}, data.data());
+        nn::dataLoaders::kAudioMatVariableName(), {rows, cols}, data.data());
     file.write(audio_data);
     file.close();
 
@@ -206,7 +207,7 @@ TEST(AudioLoaderStandaloneTest, SessionConstructorRejectsWrongType)
 
     matioCpp::File file = matioCpp::File::Create(path);
     matioCpp::MultiDimensionalArray<float> audio_data(
-        nn::dataLoaders::kAudioMatVariableName, {rows, cols}, data.data());
+        nn::dataLoaders::kAudioMatVariableName(), {rows, cols}, data.data());
     file.write(audio_data);
     file.close();
 
@@ -235,7 +236,7 @@ TEST(AudioLoaderStandaloneTest, SessionCacheEvictionPath)
 
     matioCpp::File file = matioCpp::File::Create(path);
     matioCpp::MultiDimensionalArray<double> audio_data(
-        nn::dataLoaders::kAudioMatVariableName, {rows, cols}, data.data());
+        nn::dataLoaders::kAudioMatVariableName(), {rows, cols}, data.data());
     file.write(audio_data);
     file.close();
 

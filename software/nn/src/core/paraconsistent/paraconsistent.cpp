@@ -230,6 +230,8 @@ auto calculate_beta(unsigned int amountOfClasses,
     }
 
     // Return beta overlap ratio.
-    return R / (double) (amountOfClasses * (amountOfClasses - 1.0) * featureVectorsPerClass *
-                         featureVectorSize);
+    const auto classes = static_cast<double>(amountOfClasses);
+    return static_cast<double>(R) /
+           (classes * (classes - 1.0) * static_cast<double>(featureVectorsPerClass) *
+               static_cast<double>(featureVectorSize));
 }

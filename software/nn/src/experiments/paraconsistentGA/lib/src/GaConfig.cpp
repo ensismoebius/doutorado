@@ -79,7 +79,13 @@ void for_each_field(Cfg& c, Row&& row)
         [](C x) { return x.checkpoint.enabled.get(); });
 }
 
-const std::string kOwner = "GaConfig";
+// The name every config error starts with (a function-local static: a namespace-scope
+// std::string may throw during static initialisation, where nothing can catch it).
+auto kOwner() -> const std::string&
+{
+    static const std::string owner = "GaConfig";
+    return owner;
+}
 
 // The thesis config as one genome would run it: the genome-owned autoencoder keys filled in
 // by the same to_ae_config the fitness uses.
@@ -137,7 +143,7 @@ void GaConfig::validate() const
     require_autoencoder(base);
     for_each_field(*this,
         [&](const auto& field, const char* when, auto applies)
-        { thesis::strict::check_declared(field, applies(*this), when, kOwner); });
+        { thesis::strict::check_declared(field, applies(*this), when, kOwner()); });
 
     // The GA ranks autoencoder features before any classifier exists (Phase-00-like). The
     // profile states this rather than having it overwritten: an override would make a
@@ -282,19 +288,19 @@ GaConfig GaConfig::from_json(const nlohmann::json& j)
     const std::vector<std::string> thesis_sections = {
         "experiment", "dataset", "feature_extraction", "paraconsistent", "classifier", "training"};
     thesis::strict::refuse_unknown_keys(
-        j, "", fields, thesis::strict::sections_of(fields), thesis_sections, kOwner);
+        j, "", fields, thesis::strict::sections_of(fields), thesis_sections, kOwner());
 
     for_each_field(cfg,
         [&](auto& field, const char* /*when*/, auto /*applies*/)
         {
             using T = typename std::remove_cvref_t<decltype(field)>::value_type;
             if (const auto* v = thesis::strict::find_path(j, field.path()))
-                field = thesis::strict::read_exact<T>(*v, kOwner, field.path());
+                field = thesis::strict::read_exact<T>(*v, kOwner(), field.path());
         });
 
     for_each_field(cfg,
         [&](const auto& field, const char* when, auto applies)
-        { thesis::strict::check_declared(field, applies(cfg), when, kOwner); });
+        { thesis::strict::check_declared(field, applies(cfg), when, kOwner()); });
     return cfg;
 }
 

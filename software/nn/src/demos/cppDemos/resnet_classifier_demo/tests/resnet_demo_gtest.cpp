@@ -6,12 +6,12 @@
  * Tests: forward shape, loss decrease over several steps, output distribution, gradient flow.
  */
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <memory>
 #include <numeric>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Layers.hpp"
@@ -53,6 +53,7 @@ class ResNetDemoTest : public ::testing::Test
     static constexpr int kFeatures = 8;
     static constexpr int kHidden = 16;
     static constexpr int kClasses = 4;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr int kBatch = 6;
 
     std::shared_ptr<Linear> fc_in;

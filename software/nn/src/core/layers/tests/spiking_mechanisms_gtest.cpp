@@ -422,9 +422,10 @@ TEST(SurrogateGradientMechanismTest, BoxcarSurrogateSymmetric)
 
 TEST(SurrogateGradientMechanismTest, InvalidHyperparametersThrow)
 {
-    EXPECT_THROW(BoxcarSurrogate(0.0F), std::invalid_argument);
-    EXPECT_THROW(ExponentialSurrogate(0.0F), std::invalid_argument);
-    EXPECT_THROW(ArcTanSurrogate(0.0F), std::invalid_argument);
+    EXPECT_THROW({ [[maybe_unused]] const BoxcarSurrogate object(0.0F); }, std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const ExponentialSurrogate object(0.0F); }, std::invalid_argument);
+    EXPECT_THROW({ [[maybe_unused]] const ArcTanSurrogate object(0.0F); }, std::invalid_argument);
 }
 
 TEST(SurrogateGradientMechanismTest, ArcTanSurrogateMonotonicallyDecreasesAwayFromThreshold)

@@ -81,8 +81,7 @@ auto betai(double a, double b, double x) -> double
     const double ln_beta = std::lgamma(a + b) - std::lgamma(a) - std::lgamma(b);
     const double front = std::exp(ln_beta + a * std::log(x) + b * std::log(1.0 - x));
 
-    if (x < (a + 1.0) / (a + b + 2.0))
-        return front * betacf(a, b, x) / a;
+    if (x < (a + 1.0) / (a + b + 2.0)) return front * betacf(a, b, x) / a;
     return 1.0 - front * betacf(b, a, 1.0 - x) / b;
 }
 
@@ -129,11 +128,13 @@ auto t_test_pvalue_approx(const std::vector<float>& a, const std::vector<float>&
     const double mean_b = std::accumulate(b.begin(), b.end(), 0.0) / nb;
 
     double var_a = 0.0;
-    for (float v : a) var_a += (static_cast<double>(v) - mean_a) * (static_cast<double>(v) - mean_a);
+    for (float v : a)
+        var_a += (static_cast<double>(v) - mean_a) * (static_cast<double>(v) - mean_a);
     var_a /= (na - 1.0);
 
     double var_b = 0.0;
-    for (float v : b) var_b += (static_cast<double>(v) - mean_b) * (static_cast<double>(v) - mean_b);
+    for (float v : b)
+        var_b += (static_cast<double>(v) - mean_b) * (static_cast<double>(v) - mean_b);
     var_b /= (nb - 1.0);
 
     const double sa = var_a / na;
@@ -171,7 +172,8 @@ auto wilcoxon_signed_rank_pvalue_approx(const std::vector<float>& a, const std::
     }
     if (diffs.empty()) return 1.0f;
 
-    std::sort(diffs.begin(), diffs.end(),
+    std::sort(diffs.begin(),
+        diffs.end(),
         [](const DiffItem& lhs, const DiffItem& rhs) { return lhs.abs_diff < rhs.abs_diff; });
 
     const std::size_t n = diffs.size();
@@ -185,7 +187,7 @@ auto wilcoxon_signed_rank_pvalue_approx(const std::vector<float>& a, const std::
     {
         std::size_t j = i + 1;
         while (j < n && std::fabs(diffs[j].abs_diff - diffs[i].abs_diff) <= 1e-12) ++j;
-        const std::size_t group = j - i;                       // tie-group size
+        const std::size_t group = j - i; // tie-group size
         const double avg_rank = (static_cast<double>(i + 1) + static_cast<double>(j)) / 2.0;
         for (std::size_t k = i; k < j; ++k) ranks[k] = avg_rank;
         const double tg = static_cast<double>(group);
@@ -197,8 +199,10 @@ auto wilcoxon_signed_rank_pvalue_approx(const std::vector<float>& a, const std::
     double w_neg = 0.0;
     for (std::size_t k = 0; k < n; ++k)
     {
-        if (diffs[k].sign > 0.0) w_pos += ranks[k];
-        else                     w_neg += ranks[k];
+        if (diffs[k].sign > 0.0)
+            w_pos += ranks[k];
+        else
+            w_neg += ranks[k];
     }
 
     const double w = std::min(w_pos, w_neg);

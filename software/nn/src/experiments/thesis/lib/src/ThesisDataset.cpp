@@ -693,8 +693,8 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     // content re-read. The pairing is part of the file name and of the signature.
     const std::string cache_file = cache_path_for(root, condition, pairing_seed);
     std::uint64_t signature = source_signature(subjects);
-    signature ^= (static_cast<std::uint64_t>(condition == EegCondition::Imagined) << 63) ^
-                 (static_cast<std::uint64_t>(pairing_seed) << 17);
+    signature ^= (static_cast<std::uint64_t>(condition == EegCondition::Imagined) << 63U) ^
+                 (static_cast<std::uint64_t>(pairing_seed) << 17U);
     if (!cache_disabled() && try_load_cache(cache_file, signature, view))
     {
         from_cache = true;

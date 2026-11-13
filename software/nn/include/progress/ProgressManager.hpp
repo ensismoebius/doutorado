@@ -100,7 +100,7 @@ class ProgressManager
     // with `manager_mutex_` already held (as render_loop() does); internally locks
     // `entry.metrics_mutex` then `entry.metadata_mutex`, same nesting order as before this
     // was extracted out of render_loop().
-    void render_entry(const ProgressEntry& entry) const;
+    static void render_entry(const ProgressEntry& entry);
 
     std::atomic<bool> running_{true};
     std::atomic<bool> screen_cleared_{false};

@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <vector>
 
@@ -19,12 +20,13 @@ namespace
 //   s = (0.5, -0.5, -0.5, 0.5) sum 0, variance along u2 = (4 * 0.25)/3 = 1/3
 // and sum t_i s_i = 0, so u1, u2 ARE the principal axes, with eigenvalues 20/3 and 1/3.
 const double kR5 = std::sqrt(5.0);
-const std::vector<double> kT = {-3.0, -1.0, 1.0, 3.0};
-const std::vector<double> kS = {0.5, -0.5, -0.5, 0.5};
+constexpr std::array<double, 4> kT = {-3.0, -1.0, 1.0, 3.0};
+constexpr std::array<double, 4> kS = {0.5, -0.5, -0.5, 0.5};
 
 std::vector<std::vector<float>> known_rows()
 {
     std::vector<std::vector<float>> rows;
+    rows.reserve(kT.size());
     for (size_t i = 0; i < kT.size(); ++i)
         rows.push_back({static_cast<float>((kT[i] * 1.0 + kS[i] * -2.0) / kR5),
             static_cast<float>((kT[i] * 2.0 + kS[i] * 1.0) / kR5)});
@@ -74,6 +76,7 @@ TEST(ThesisPca, RefusesMoreComponentsThanTheDataHas)
 
     // Rank 1 (every point on u1): a second axis would be arbitrary.
     std::vector<std::vector<float>> line;
+    line.reserve(kT.size());
     for (double t : kT)
         line.push_back({static_cast<float>(t / kR5), static_cast<float>(2.0 * t / kR5)});
     EXPECT_NO_THROW(fit_pca(line, 1));

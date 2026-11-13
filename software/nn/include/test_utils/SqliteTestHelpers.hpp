@@ -248,6 +248,12 @@ inline std::vector<int> insert_three_trials_and_return_ids(sqlite3* db, int subj
         trial_ids.push_back(sqlite3_column_int(q, 0));
     }
     sqlite3_finalize(q);
+    if (rc != SQLITE_DONE)
+    {
+        // An error mid-iteration used to end the loop like the last row did.
+        sqlite3_close(db);
+        throw std::runtime_error("trial query stopped with sqlite error " + std::to_string(rc));
+    }
     return trial_ids;
 }
 

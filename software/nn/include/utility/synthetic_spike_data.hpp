@@ -1,6 +1,7 @@
 #ifndef SYNTHETIC_SPIKE_DATA_HPP
 #define SYNTHETIC_SPIKE_DATA_HPP
 
+#include <cstdint>
 #include <vector>
 
 #include "tensor/Tensor.hpp"
@@ -33,10 +34,11 @@ using std::vector;
  * @param n_steps Number of time steps for spike train (T).
  * @param max_rate Maximum firing rate scaling for the [0,1] real-valued base signal.
  * @param timeStep Time step size used to convert rate into a per-step spike probability.
+ * @param seed Seed of the generator: the same arguments always give the same spike trains.
  * @return {inputs_over_time, targets_over_time} where each is a length-T vector of (B,F) tensors.
  */
 auto generate_autoencoder_spike_data(
-    int n_samples, int input_dim, int n_steps, float max_rate, float timeStep)
+    int n_samples, int input_dim, int n_steps, float max_rate, float timeStep, std::uint32_t seed)
     -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>;
 
 /**

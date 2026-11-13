@@ -28,7 +28,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 **Static analysis:**
 - `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy
-- `python3 scripts/ci/validate_static_analysis.py --list-approved` — show suppression allowlist
 
 ## Rules
 

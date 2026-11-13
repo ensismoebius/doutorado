@@ -6,11 +6,18 @@
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace nn::activation {
+namespace nn::activation
+{
 
 // Scalar overload — used by layers that compute sigmoid element-wise in loops.
-inline float sigmoid(float x) { return 1.0f / (1.0f + std::exp(-x)); }
-inline float sigmoid_grad(float sigmoid_out) { return sigmoid_out * (1.0f - sigmoid_out); }
+inline float sigmoid(float x)
+{
+    return 1.0f / (1.0f + std::exp(-x));
+}
+inline float sigmoid_grad(float sigmoid_out)
+{
+    return sigmoid_out * (1.0f - sigmoid_out);
+}
 
 // Tensor overloads — used by LSTM and any layer with xtensor-only internal compute.
 inline auto sigmoid(const nn::Tensor& x) -> nn::Tensor
@@ -39,8 +46,7 @@ struct SigmoidImpl : public Module<Backend>
     {
         const Tensor ones = Tensor::ones(input.rows(), input.cols());
         Tensor out = ones.divide(ones + (input * -1.0f).exp());
-        if (requires_grad)
-            sigmoid_out_ = out;
+        if (requires_grad) sigmoid_out_ = out;
         return out;
     }
 

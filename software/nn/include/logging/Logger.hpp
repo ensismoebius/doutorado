@@ -76,7 +76,7 @@ class Logger
                 oss << "DEBUG: ";
                 break;
         }
-        oss << msg << std::endl;
+        oss << msg << '\n';
         const std::string formatted = oss.str();
         // Write to configured stream (file/err) and also keep a recent in-memory copy
         if (!suppress_console_output_)

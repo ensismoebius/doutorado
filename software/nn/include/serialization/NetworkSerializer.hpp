@@ -515,6 +515,8 @@ inline void NetworkSerializer::_loadLeakyParams(
     }
 }
 
+// cppcheck-suppress constParameterReference ; the loaded values are written into the model's
+// layers through its shared_ptrs, so the model is changed even though no member is reassigned
 inline auto NetworkSerializer::loadParametersInto(Sequential& model, const string& safe_filepath)
     -> bool
 {
@@ -532,29 +534,18 @@ inline auto NetworkSerializer::loadParametersInto(Sequential& model, const strin
             }
             else if (auto leaky = dynamic_pointer_cast<Lif>(layer))
             {
-                // Lif / LifIntegrator. Params optional — a metadata-poor legacy
-                // checkpoint may not carry them; keep the constructed values.
-                try
-                {
-                    size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
-                    _loadLeakyParams(leaky, pi, data);
-                    param_cursor = pi + 1;
-                }
-                catch (const exception&)
-                {
-                }
+                // Lif / LifIntegrator: the neuron parameters are required. A checkpoint
+                // without them used to be loaded with the constructed values kept, which
+                // is a different network from the one that was saved.
+                size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                _loadLeakyParams(leaky, pi, data);
+                param_cursor = pi + 1;
             }
             else if (auto lif_bptt = dynamic_pointer_cast<LifBPTT>(layer))
             {
-                try
-                {
-                    size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
-                    _loadLifBPTTParams(lif_bptt, pi, data);
-                    param_cursor = pi + 1;
-                }
-                catch (const exception&)
-                {
-                }
+                size_t pi = _nextParamIndex(param_cursor, data, ".resistance");
+                _loadLifBPTTParams(lif_bptt, pi, data);
+                param_cursor = pi + 1;
             }
         }
         return true;

@@ -120,8 +120,8 @@ TEST(MultiHeadAttention, FiniteDifferenceGradients)
 
 TEST(MultiHeadAttention, RejectsBadHeadCount)
 {
-    EXPECT_THROW(MHA(4, 3), std::invalid_argument);
-    EXPECT_THROW(MHA(4, 0), std::invalid_argument);
+    EXPECT_THROW({ [[maybe_unused]] const MHA object(4, 3); }, std::invalid_argument);
+    EXPECT_THROW({ [[maybe_unused]] const MHA object(4, 0); }, std::invalid_argument);
 }
 
 TEST(MultiHeadAttention, ForwardShapeAndContract)

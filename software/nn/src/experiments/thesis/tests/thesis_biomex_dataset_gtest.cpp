@@ -79,8 +79,9 @@ struct BiomexFile
             for (int stim : {1, 10, 1})
             {
                 // Every value names its pair: voice = speaker + stim/100, EEG = channel.
-                std::vector<float> voice(kVoice, static_cast<float>(speaker) + stim / 100.0f);
-                std::vector<float> eeg(kChannels * kEpoch);
+                std::vector<float> voice(
+                    kVoice, static_cast<float>(speaker) + (static_cast<float>(stim) / 100.0f));
+                std::vector<float> eeg(static_cast<std::size_t>(kChannels) * kEpoch);
                 for (int c = 0; c < kChannels; ++c)
                     for (int s = 0; s < kEpoch; ++s) eeg[c * kEpoch + s] = static_cast<float>(c);
                 sqlite3_bind_int(st, 1, speaker);

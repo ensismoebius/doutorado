@@ -151,6 +151,7 @@ TEST(LayerThreadSafetyTest, ConcurrentForwardPasses)
 
     // Create multiple inputs
     std::vector<nn::Tensor> inputs;
+    inputs.reserve(10);
     for (int i = 0; i < 10; ++i)
     {
         inputs.push_back(test_helpers::make_random_tensor(1, 10));

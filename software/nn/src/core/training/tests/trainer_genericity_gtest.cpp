@@ -94,7 +94,7 @@ struct MixedParamModel
             for (std::size_t j = 0; j < 2; ++j) matrix_.at(i, j) = 0.0F;
     }
 
-    nn::Tensor forward(const nn::Tensor& input, bool /*requires_grad*/)
+    static nn::Tensor forward(const nn::Tensor& input, bool /*requires_grad*/)
     {
         return input;
     }

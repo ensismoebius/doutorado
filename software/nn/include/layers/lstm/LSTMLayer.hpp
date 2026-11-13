@@ -369,7 +369,7 @@ class LSTMLayerImpl : public Module<Backend>
             Tensor dpre_g = dg_gate * tanh_grad_from_output(step.g);
 
             // Opt: block writes instead of scalar scatter.
-            dpre.setBlock(0, 0 * H, dpre_i);
+            dpre.setBlock(0, 0, dpre_i); // gate i starts at column 0 * H
             dpre.setBlock(0, 1 * H, dpre_f);
             dpre.setBlock(0, 2 * H, dpre_o);
             dpre.setBlock(0, 3 * H, dpre_g);

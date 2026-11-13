@@ -70,20 +70,22 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
         int actual_batch_size = std::min(batch_size, n_samples - i);
 
         // Get input and target dimensions from first sample
-        int input_rows = inputSamples[0].rows();
-        int input_cols = inputSamples[0].cols();
-        int target_rows = targets[0].rows();
-        int target_cols = targets[0].cols();
+        const nn::Index input_rows = inputSamples[0].rows();
+        const nn::Index input_cols = inputSamples[0].cols();
+        const nn::Index target_rows = targets[0].rows();
+        const nn::Index target_cols = targets[0].cols();
 
         // Create batch tensors with proper dimensions
-        nn::Tensor x_batch(input_rows * actual_batch_size, input_cols);
-        nn::Tensor y_batch(target_rows * actual_batch_size, target_cols);
+        const auto batch_rows = static_cast<nn::Index>(actual_batch_size);
+        nn::Tensor x_batch(input_rows * batch_rows, input_cols);
+        nn::Tensor y_batch(target_rows * batch_rows, target_cols);
 
         for (int j = 0; j < actual_batch_size; ++j)
         {
             int idx = indices[i + j];
-            x_batch.setBlock(j * input_rows, 0, inputSamples[idx]);
-            y_batch.setBlock(j * target_rows, 0, targets[idx]);
+            const auto row = static_cast<nn::Index>(j);
+            x_batch.setBlock(row * input_rows, 0, inputSamples[idx]);
+            y_batch.setBlock(row * target_rows, 0, targets[idx]);
         }
 
         batches.push_back({x_batch, y_batch});
@@ -95,10 +97,10 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
 auto batch_to_string(const Batch& batch) -> std::string
 {
     std::ostringstream oss;
-    const int input_samples = batch.inputs.rows();
-    const int input_sample_size = batch.inputs.cols();
-    const int target_samples = batch.targets.rows();
-    const int target_sample_size = batch.targets.cols();
+    const nn::Index input_samples = batch.inputs.rows();
+    const nn::Index input_sample_size = batch.inputs.cols();
+    const nn::Index target_samples = batch.targets.rows();
+    const nn::Index target_sample_size = batch.targets.cols();
 
     oss << "Batch(inputs: samples=" << input_samples << ", sample_size=" << input_sample_size
         << "; targets: samples=" << target_samples << ", sample_size=" << target_sample_size << ")";

@@ -159,9 +159,14 @@ auto load_cache_entries(const std::string& cache_path, std::size_t config_hash) 
                 std::ofstream g(tmp, std::ios::trunc);
                 for (std::size_t k = 0; k < i; ++k) g << lines[k] << '\n';
                 if (!g)
-                    throw std::runtime_error("Meeting01GaCheckpoint: cannot rewrite " + cache_path +
-                                             " without its torn last line (writing " + tmp +
-                                             " failed).");
+                {
+                    std::string msg = "Meeting01GaCheckpoint: cannot rewrite ";
+                    msg += cache_path;
+                    msg += " without its torn last line (writing ";
+                    msg += tmp;
+                    msg += " failed).";
+                    throw std::runtime_error(msg);
+                }
             }
             std::filesystem::rename(tmp, cache_path);
             break;

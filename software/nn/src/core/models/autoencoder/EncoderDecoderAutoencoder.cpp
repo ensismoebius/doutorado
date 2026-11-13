@@ -12,8 +12,9 @@
 namespace nn::models::autoencoder
 {
 
-EncoderDecoderAutoencoder::EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder)
-    : encoder_(std::move(encoder)), decoder_(std::move(decoder))
+EncoderDecoderAutoencoder::EncoderDecoderAutoencoder(
+    const nn::Sequential& encoder, const nn::Sequential& decoder)
+    : encoder_(encoder), decoder_(decoder)
 {
 }
 

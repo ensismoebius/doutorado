@@ -12,11 +12,11 @@
 namespace nn::dataLoaders::fsdd
 {
 
-constexpr int    kDigitCount              = 10;    // digits 0–9
-constexpr int    kSpeakerCount            = 6;
-constexpr int    kTrialsPerSpeakerDigit   = 50;
-constexpr int    kTotalFiles              = kDigitCount * kSpeakerCount * kTrialsPerSpeakerDigit; // 3000
-constexpr int    kSampleRate              = 8000;  // Hz
-constexpr int    kChannels                = 1;     // mono
+constexpr int kDigitCount = 10; // digits 0–9
+constexpr int kSpeakerCount = 6;
+constexpr int kTrialsPerSpeakerDigit = 50;
+constexpr int kTotalFiles = kDigitCount * kSpeakerCount * kTrialsPerSpeakerDigit; // 3000
+constexpr int kSampleRate = 8000;                                                 // Hz
+constexpr int kChannels = 1;                                                      // mono
 
 } // namespace nn::dataLoaders::fsdd

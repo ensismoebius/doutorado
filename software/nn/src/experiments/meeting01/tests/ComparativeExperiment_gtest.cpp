@@ -53,7 +53,7 @@ TEST(LSTMLayerTest, Params)
     lstm::LSTMLayer lstm(8, 16);
     auto params = lstm.params();
     EXPECT_EQ(params.size(), 3u);
-    for (auto* p : params)
+    for (const auto* p : params)
     {
         EXPECT_NE(p, nullptr);
     }
@@ -172,7 +172,7 @@ TEST(MetricsTest, MSEComputation)
     Tensor orig = Tensor::ones(4, 8);
     Tensor recon = Tensor::ones(4, 8) * 1.1f;
     Tensor diff = recon - orig; // 0.1 * ones(4,8)
-    float mse = (diff * diff).sum() / orig.size();
+    float mse = (diff * diff).sum() / static_cast<float>(orig.size());
     // diff^2 = 0.01 for all 32 elements; sum/32 = 0.01
     EXPECT_NEAR(mse, 0.01f, 1e-6f);
 }
@@ -182,7 +182,7 @@ TEST(MetricsTest, MAEComputation)
     Tensor orig = Tensor::ones(4, 8);
     Tensor recon = Tensor::ones(4, 8) * 0.9f;
     Tensor diff = (recon - orig).abs(); // 0.1 * ones(4,8)
-    float mae = diff.sum() / orig.size();
+    float mae = diff.sum() / static_cast<float>(orig.size());
     // |0.9 - 1.0| = 0.1 for all 32 elements; sum/32 = 0.1
     EXPECT_NEAR(mae, 0.1f, 1e-6f);
 }
@@ -194,9 +194,9 @@ TEST(MetricsTest, R2Score)
     Tensor y_true = Tensor::ones(10, 8) * 0.5f;
     Tensor y_pred = y_true * 0.95f;
 
-    float mean = y_true.sum() / y_true.size(); // = 0.5
-    Tensor diff_true = y_true - mean;          // all zeros: ss_tot = 0
-    Tensor diff_pred = y_pred - y_true;        // -0.025 * ones
+    float mean = y_true.sum() / static_cast<float>(y_true.size()); // = 0.5
+    Tensor diff_true = y_true - mean;                              // all zeros: ss_tot = 0
+    Tensor diff_pred = y_pred - y_true;                            // -0.025 * ones
 
     float ss_tot = (diff_true * diff_true).sum();
     float ss_res = (diff_pred * diff_pred).sum();

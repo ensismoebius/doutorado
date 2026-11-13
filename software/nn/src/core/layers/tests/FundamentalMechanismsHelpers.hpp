@@ -19,8 +19,8 @@ namespace
 // f : input → scalar loss
 // df: input → gradient tensor (same shape as x0)
 // eps: perturbation size (1e-3 is safe for float32)
-inline float finite_diff_max_err(std::function<float(const nn::Tensor&)> f,
-    std::function<nn::Tensor(const nn::Tensor&)> df,
+inline float finite_diff_max_err(const std::function<float(const nn::Tensor&)>& f,
+    const std::function<nn::Tensor(const nn::Tensor&)>& df,
     const nn::Tensor& x0,
     float eps = 1e-3f)
 {

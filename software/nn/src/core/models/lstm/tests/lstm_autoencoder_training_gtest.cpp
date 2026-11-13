@@ -67,7 +67,7 @@ TEST(LSTMLayerTest, ParamsReturnsThreePointers)
     lstm::LSTMLayer lstm(4, 8);
     auto p = lstm.params();
     EXPECT_EQ(p.size(), 3u);
-    for (nn::Tensor* ptr : p) EXPECT_NE(ptr, nullptr);
+    for (const nn::Tensor* ptr : p) EXPECT_NE(ptr, nullptr);
 }
 
 TEST(LSTMLayerTest, StateDictRoundTrip)

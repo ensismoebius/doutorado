@@ -398,10 +398,11 @@ struct LifBPTTImpl : public Module<Backend>
             return GradStep{grad_out + grad_from_next * beta, 0.0F};
         }
 
-        float dvpost_dvpre = 1.0f;
         // Surrogate dS/dv
         float surr = surrogate_gradient->calculate_scalar(v_pre, threshold_val);
         float spike = (v_pre > threshold_val) ? 1.0F : 0.0F;
+        // Both are set by the branch below (one per reset mode).
+        float dvpost_dvpre = 0.0F;
         float dvpost_dVth = 0.0F;
 
         // Term 2: From Next State v[t+1] (Recurrent)

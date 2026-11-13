@@ -8,6 +8,7 @@
 #include "data_loaders/sources/SqliteBatchSource.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -138,8 +139,8 @@ void append_window(const std::vector<float>& src,
     if (start + win <= length)
     {
         out.insert(out.end(),
-            src.begin() + static_cast<size_t>(base + start),
-            src.begin() + static_cast<size_t>(base + start + win));
+            src.begin() + static_cast<std::ptrdiff_t>(base) + start,
+            src.begin() + static_cast<std::ptrdiff_t>(base) + start + win);
         return;
     }
 
@@ -151,8 +152,8 @@ void append_window(const std::vector<float>& src,
     }
 
     out.insert(out.end(),
-        src.begin() + static_cast<size_t>(base + start),
-        src.begin() + static_cast<size_t>(base + start + available));
+        src.begin() + static_cast<std::ptrdiff_t>(base) + start,
+        src.begin() + static_cast<std::ptrdiff_t>(base) + start + available);
     const float last = src[static_cast<size_t>(base + start + available - 1)];
     out.insert(out.end(), static_cast<size_t>(win - available), last);
 }

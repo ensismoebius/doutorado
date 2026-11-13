@@ -104,7 +104,7 @@ auto apply_windowing(const std::vector<double>& signal, const ExtractionConfig& 
         for (int i = 0; i < cfg.window_size; ++i)
         {
             segment[static_cast<size_t>(i)] =
-                signal[static_cast<size_t>(start + i)] * window[static_cast<size_t>(i)];
+                signal[static_cast<size_t>(start) + i] * window[static_cast<size_t>(i)];
         }
         windows.push_back(std::move(segment));
     }

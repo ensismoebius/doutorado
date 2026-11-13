@@ -20,22 +20,20 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 ## Project Context (nn framework)
 
-**Script location (after reorg):** `scripts/ci/validate_static_analysis.py`
+**Gates:** clang-tidy (`.clang-tidy`, `WarningsAsErrors: "*"`) and cppcheck (`analysis-cppcheck`, `--error-exitcode=1`) both fail on any finding; a false positive gets a one-line `NOLINT(<check>)` / `cppcheck-suppress <id>` with its reason. See `.wiki/Guides/Static-Analysis.md`.
 
 **Config files:**
-- `.cppcheck` — cppcheck configuration at repo root
 - `.clang-tidy` — clang-tidy checks at repo root
 
-**CI integration:** `.github/workflows/ci.yml:126` — runs `validate_static_analysis.py` on cppcheck XML output
 
 **CMake targets:**
 - `analysis-cppcheck` — run cppcheck only
 - `analysis-clang-tidy` — run clang-tidy only
-- `analysis-all` — run both
+- `analysis-all` — cppcheck + flawfinder + clang-tidy (fails if one is not installed)
 
-**Suppressions allowlist:** `scripts/ci/validate_static_analysis.py::APPROVED_SUPPRESSIONS`
 ```bash
-python3 scripts/ci/validate_static_analysis.py --list-approved
+run-clang-tidy -p out/build/max-performance 'software/nn/src/'   # must report nothing
+cmake --build --preset=max-performance --target analysis-cppcheck # fails on any finding
 ```
 
 ## Rules

@@ -6,18 +6,18 @@
  * The matplotlib plotting functions are NOT called from tests.
  */
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "wavelet/Types.hpp"
 #include "wavelet/WaveletTransformResults.hpp"
 #include "wavelet/waveletOperations.hpp"
 
 // Replicated from wavelet_demo.cpp (no external linkage — only in the demo main())
-static auto generateSignal(
-    double freq1, double freq2, size_t sample_rate, size_t duration_seconds) -> std::vector<double>
+static auto generateSignal(double freq1, double freq2, size_t sample_rate, size_t duration_seconds)
+    -> std::vector<double>
 {
     int signal_length = static_cast<int>(duration_seconds * sample_rate);
     std::vector<double> signal(static_cast<size_t>(signal_length));
@@ -110,7 +110,7 @@ TEST_F(WaveletDemoTest, DWT_LevelsUpToFour_EachLevelNonEmpty)
 TEST_F(WaveletDemoTest, DWT_CoefficientsAreFinite)
 {
     auto result = wavelets::malat(signal, db8_filter, wavelets::REGULAR_WAVELET, 3);
-    for (unsigned int i = 0; i <= 3; ++i)
+    for (int i = 0; i <= 3; ++i)
     {
         for (double v : result.get_wavelet_transforms(i))
         {

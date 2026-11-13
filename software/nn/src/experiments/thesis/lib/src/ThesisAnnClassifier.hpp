@@ -142,8 +142,6 @@ class ThesisAnnClassifier : public Module<nn::Backend>
         fc_out_->train(on);
     }
 
-    void reset_state() override {} // stateless
-
     /// The inference energy of ONE sample (Meeting01Energy's ledger: Lemaire et al. 2022 at
     /// Horowitz 2014 prices). A dense network's cost does not depend on the data, but the
     /// ledger is read after a forward like the DSNN's, so both are measured the same way.

@@ -718,7 +718,7 @@ process loads from the build tree (the binary's RPATH is absolute; only the exec
 staged) — the reason `gridunesp_deploy.sh` refuses to run while a `meeting01-loso*` job does.
 (`latex_data_dir` used to write a few small files per fold under
 `~/Repos/doutorado/documentation/…` too — files nothing read, the paper's data all coming from
-`02_`/`04_`, run locally (§5). It is empty since 2026-11-02.)
+`02_`/`04_`, run locally (§5). It is empty since 2026-11-02, and the exports were removed from the code on 2026-11-13.)
 
 **Smoke test — run it after any change to this path** (~6 min in `short`; it stops itself
 before its limit on purpose — that is the ending the real job will have):

@@ -91,7 +91,7 @@ auto Conv1dImpl<Backend>::forward(const typename Conv1dImpl<Backend>::Tensor& in
                                                         static_cast<nn::Index>(ic),
                                                         static_cast<nn::Index>(li))
                                                   : 0.0f;
-                    col.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(ic * K + k)) = v;
+                    col.at(static_cast<nn::Index>(lo), (static_cast<nn::Index>(ic) * K) + k) = v;
                 }
             }
         }
@@ -151,7 +151,7 @@ auto Conv1dImpl<Backend>::backward(const typename Conv1dImpl<Backend>::Tensor& g
                                                         static_cast<nn::Index>(ic),
                                                         static_cast<nn::Index>(li))
                                                   : 0.0f;
-                    col.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(ic * K + k)) = v;
+                    col.at(static_cast<nn::Index>(lo), (static_cast<nn::Index>(ic) * K) + k) = v;
                 }
 
         // Gather d_out: (L_out, C_out) from grad_output[b, oc, lo]
@@ -188,7 +188,7 @@ auto Conv1dImpl<Backend>::backward(const typename Conv1dImpl<Backend>::Tensor& g
                         dx.at(static_cast<nn::Index>(b),
                             static_cast<nn::Index>(ic),
                             static_cast<nn::Index>(li)) += d_col.at(static_cast<nn::Index>(lo),
-                            static_cast<nn::Index>(ic * K + k));
+                            (static_cast<nn::Index>(ic) * K) + k);
                 }
     }
 

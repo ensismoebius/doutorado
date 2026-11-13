@@ -499,6 +499,12 @@ void Meeting01Config::validate() const
 {
     std::ostringstream errors;
 
+    // The per-fold LaTeX exports this key enabled were read by nothing and were removed on
+    // 2026-11-13; the key stays only so the existing profiles (which set it empty) still parse.
+    if (!dataset.latex_data_dir.empty())
+        errors << "  - dataset.latex_data_dir must be empty: the per-fold LaTeX exports were "
+                  "removed (the paper's data come from 02_/04_/00_ only)\n";
+
     check_experiment(experiment, errors);
     check_dataset(*this, errors);
     check_eeg_windows(*this, errors);

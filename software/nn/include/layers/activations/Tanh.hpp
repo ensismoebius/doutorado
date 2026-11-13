@@ -5,7 +5,8 @@
 #include "layers/base/Module.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace nn::activation {
+namespace nn::activation
+{
 
 // Free functions on CPU-resident nn::Tensor.
 
@@ -34,11 +35,10 @@ struct TanhImpl : public Module<Backend>
     {
         // tanh(x) = 2*sigmoid(2x) - 1
         const Tensor ones = Tensor::ones(input.rows(), input.cols());
-        const Tensor two  = ones + ones;
-        const Tensor sig  = ones.divide(ones + (input * -2.0f).exp());
+        const Tensor two = ones + ones;
+        const Tensor sig = ones.divide(ones + (input * -2.0f).exp());
         Tensor out = sig * two - ones;
-        if (requires_grad)
-            tanh_out_ = out;
+        if (requires_grad) tanh_out_ = out;
         return out;
     }
 

@@ -112,7 +112,9 @@ struct FramingConfig
 struct FilterbankConfig
 {
     nn::Tensor& filterbank;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     std::vector<float>& center_frequencies;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const LoadingAndProcessingParameters& loading_params;
 };
 
@@ -123,6 +125,7 @@ struct FilterbankConfig
 struct PowerFilterbankConfig
 {
     const nn::Tensor& filterbank;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const LoadingAndProcessingParameters& loading_params;
 };
 

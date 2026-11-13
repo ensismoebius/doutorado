@@ -127,7 +127,8 @@ TEST(Conv2dTest, MultipleBatches)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Simple weights and bias
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     weights.set_ones();
     conv.set_weights(weights);
 
@@ -181,7 +182,8 @@ TEST(Conv2dTest, MultiChannelForward)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Initialize weights with known pattern
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     weights.setZero();
 
     // First output channel: use only first input channel (all 1s)
@@ -344,7 +346,8 @@ TEST(Conv2dTest, ParallelExecution)
     ASSERT_FALSE(conv_sequential.is_parallel_enabled());
 
     // Initialize with same weights and bias
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     weights.set_ones();
     conv_parallel.set_weights(weights);
     conv_sequential.set_weights(weights);
@@ -399,7 +402,8 @@ TEST(Conv2dTest, GradientComputationExact)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Simple weights
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     weights.at(0, 0) = 0.5F;
     weights.at(1, 0) = 1.0F;
     weights.at(2, 0) = 1.5F;
@@ -455,7 +459,8 @@ TEST(Conv2dTest, SmallInputSize)
 
     Conv2d conv(in_channels, out_channels, kernel_size);
 
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     weights.set_ones();
     conv.set_weights(weights);
 
@@ -504,7 +509,8 @@ TEST(Conv2dTest, LargeBatchSize)
 
     Conv2d conv(in_channels, out_channels, kernel_size, batch_size);
 
-    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
+    nn::Tensor weights(
+        static_cast<nn::Index>(kernel_size) * kernel_size * in_channels, out_channels);
     test_helpers::rand_fill(weights, -0.5F, 0.5F, 42U);
     conv.set_weights(weights);
 

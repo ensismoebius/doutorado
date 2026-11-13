@@ -216,7 +216,7 @@ std::vector<double> dct_ii(const std::vector<double>& x)
 //
 // Returns a vector of groups; each group is the concatenated coefficients
 // of one frequency bin — ready for descriptor computation.
-std::vector<std::vector<double>> group_by_scale(wavelets::WaveletTransformResults& result,
+std::vector<std::vector<double>> group_by_scale(const wavelets::WaveletTransformResults& result,
     long n_parts,
     const std::string& scale,
     double sample_rate)
@@ -243,7 +243,7 @@ std::vector<std::vector<double>> group_by_scale(wavelets::WaveletTransformResult
     for (long p = 0; p < n_parts; ++p)
     {
         // Center frequency of sub-band p (uniform partition of Nyquist).
-        double center_hz = (p + 0.5) * nyquist / static_cast<double>(n_parts);
+        double center_hz = (static_cast<double>(p) + 0.5) * nyquist / static_cast<double>(n_parts);
         double sv = (scale == "bark") ? hz_to_bark(center_hz) : hz_to_mel(center_hz);
         int band = static_cast<int>(sv / max_sv * n_bands);
         band = std::clamp(band, 0, n_bands - 1);

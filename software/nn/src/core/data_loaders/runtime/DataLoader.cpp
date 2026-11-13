@@ -71,11 +71,11 @@ auto make_default_sampler(                           //
 
 } // namespace
 
-DataLoader::DataLoader(          //
-    shared_ptr<Dataset> dataset, //
-    size_t batch_size,           //
-    bool do_shuffle,             //
-    optional<unsigned int> seed  //
+DataLoader::DataLoader(                 //
+    const shared_ptr<Dataset>& dataset, //
+    size_t batch_size,                  //
+    bool do_shuffle,                    //
+    optional<unsigned int> seed         //
     )
     : DataLoader(dataset,
           batch_size,
@@ -86,7 +86,7 @@ DataLoader::DataLoader(          //
 }
 
 DataLoader::DataLoader(                  //
-    shared_ptr<Dataset> dataset,         //
+    const shared_ptr<Dataset>& dataset,  //
     size_t batch_size,                   //
     const DefaultSamplerOptions& options //
     )

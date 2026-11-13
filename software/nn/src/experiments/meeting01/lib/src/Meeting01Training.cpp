@@ -34,6 +34,32 @@ using SnnTensor = ProtocolSpikingAutoencoder::Tensor;
 // Config helpers (unchanged)
 // ---------------------------------------------------------------------------
 
+namespace
+{
+// The width field of a layer spec ("linear:64:leaky" -> 64). A field that is not a whole
+// positive integer is an error naming the spec (it used to be skipped, silently dropping the
+// layer from the derived sizes).
+auto parse_spec_width(const std::string& spec, const std::string& field) -> int
+{
+    std::size_t used = 0;
+    int width = 0;
+    try
+    {
+        width = std::stoi(field, &used);
+    }
+    catch (const std::exception&)
+    {
+        used = 0;
+    }
+    if (used == 0 || used != field.size() || width <= 0)
+    {
+        throw std::invalid_argument(
+            "layer spec '" + spec + "': width '" + field + "' is not a positive integer");
+    }
+    return width;
+}
+} // namespace
+
 auto extract_layer_sizes(const std::vector<std::string>& specs) -> std::vector<int>
 {
     std::vector<int> sizes;
@@ -45,13 +71,7 @@ auto extract_layer_sizes(const std::vector<std::string>& specs) -> std::vector<i
         while (std::getline(ss, token, ':')) parts.push_back(token);
         if (parts.size() >= 2 && parts[0] == "linear")
         {
-            try
-            {
-                sizes.push_back(std::stoi(parts[1]));
-            }
-            catch (...)
-            {
-            }
+            sizes.push_back(parse_spec_width(spec, parts[1]));
         }
     }
     return sizes;
@@ -66,17 +86,8 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
         std::string token;
         std::vector<std::string> parts;
         while (std::getline(ss, token, ':')) parts.push_back(token);
-        if (parts.size() >= 2)
-        {
-            try
-            {
-                return std::stoi(parts[1]);
-            }
-            catch (...)
-            {
-            }
-        }
-        return -1;
+        // A bare token (`time_mean`, `residual`) has no width: -1 sends the search on.
+        return (parts.size() >= 2) ? parse_spec_width(spec, parts[1]) : -1;
     };
 
     if (!encoder_specs.empty())
@@ -89,7 +100,10 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
         int s = get_size(decoder_specs.front());
         if (s != -1) return s;
     }
-    return 16;
+    // No width in either spec: refuse instead of inventing one (this returned 16).
+    throw std::invalid_argument(
+        "cannot derive the latent size: neither the last encoder spec nor the first decoder "
+        "spec declares a width (e.g. linear:16:identity); set model.latent_dim");
 }
 
 auto make_lstm_cfg(const Meeting01Config& cfg, int hidden_size_override, int num_layers_override)
@@ -643,7 +657,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     }
 
     const int batches_per_epoch =
-        train_samples.size() / std::max(1, cfg.training.samples_per_batch);
+        static_cast<int>(train_samples.size()) / std::max(1, cfg.training.samples_per_batch);
     int batch_idx = 0;
     for (const auto& batch_loss : batch_collector->batch_losses)
     {

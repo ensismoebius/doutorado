@@ -440,7 +440,7 @@ auto compute_deltas(
     const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
 {
     // Number of input frames.
-    const long number_of_frames = features.rows();
+    const auto number_of_frames = static_cast<long>(features.rows());
     if (number_of_frames == 0)
     {
         // Return an explicitly empty tensor (0x0)
@@ -478,21 +478,18 @@ auto compute_deltas(
             float numerator = 0.0F;
 
             // Build numerator for current feature delta.
-            for (size_t delta_span = 1; delta_span <= delta_window_span_u;
-                ++delta_span)
+            for (size_t delta_span = 1; delta_span <= delta_window_span_u; ++delta_span)
             {
                 // Determine indices for c_{t+n} and c_{t-n} with boundary handling
                 size_t index_plus_n = frame_index + delta_span;
-                long index_minus_n = frame_index - delta_span;
+                // c_{t-n}, clamped at the first frame.
+                const size_t index_minus_n =
+                    (frame_index >= delta_span) ? frame_index - delta_span : 0;
 
                 // Clamp indices to valid range
                 if (index_plus_n >= number_of_frames)
                 {
                     index_plus_n = number_of_frames - 1;
-                }
-                if (index_minus_n < 0)
-                {
-                    index_minus_n = 0;
                 }
 
                 // Temporal difference weighted by span distance.

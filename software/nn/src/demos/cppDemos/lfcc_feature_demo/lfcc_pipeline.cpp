@@ -28,11 +28,11 @@ static void perform(const std::string& base_path)
             string subject_path = entry.path().string();
             string subject_name = entry.path().filename().string();
             string audio_file_path = subject_path;
-            audio_file_path += "/";
+            audio_file_path += '/';
             audio_file_path += subject_name;
             audio_file_path += "_Audio.mat";
             string eeg_file_path = subject_path;
-            eeg_file_path += "/";
+            eeg_file_path += '/';
             eeg_file_path += subject_name;
             eeg_file_path += "_EEG.mat";
 

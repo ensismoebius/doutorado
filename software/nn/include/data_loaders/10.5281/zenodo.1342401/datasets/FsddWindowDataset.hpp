@@ -45,12 +45,12 @@ namespace nn::dataLoaders::fsdd
 struct WindowMetadata
 {
     std::string speaker;
-    int speaker_id;
-    int recording_id;
-    int window_id;
-    int source_window_index;
-    int digit;
-    int valid_length;
+    int speaker_id = 0;
+    int recording_id = 0;
+    int window_id = 0;
+    int source_window_index = 0;
+    int digit = 0;
+    int valid_length = 0;
 };
 
 class FsddWindowDataset

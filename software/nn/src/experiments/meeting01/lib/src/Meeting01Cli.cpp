@@ -130,7 +130,7 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     const std::string profile_name = opts.comparative_config.empty()
                                          ? std::string(kDefaultComparativeProfileStem)
                                          : opts.comparative_config;
-    const fs::path raw = fs::path(profile_name);
+    fs::path raw = fs::path(profile_name);
 
     if ((raw.has_parent_path() || raw.extension() == ".json") && fs::exists(raw))
     {
@@ -140,7 +140,7 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     const std::string stem = raw.stem().string().empty()
                                  ? std::string(kDefaultComparativeProfileStem)
                                  : raw.stem().string();
-    const fs::path source_candidate = source_dir / (stem + ".json");
+    fs::path source_candidate = source_dir / (stem + ".json");
     if (fs::exists(source_candidate)) return source_candidate;
 
     const fs::path runtime_candidate = runtime_dir / (stem + ".json");

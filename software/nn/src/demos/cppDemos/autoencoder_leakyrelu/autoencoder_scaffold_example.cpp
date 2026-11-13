@@ -9,6 +9,7 @@
  * Build target: autoencoder_scaffold_test (links autoencoder_models).
  */
 
+#include <exception>
 #include <iostream>
 
 #include "models/autoencoder/AudioWindowAutoencoder.hpp"
@@ -185,7 +186,9 @@ void demo_fused_window_spiking_autoencoder(const AutoencoderConfig& cfg,
 
 } // namespace
 
-int main()
+namespace
+{
+auto run() -> int
 {
     constexpr int kBatch = 4;
     constexpr int kEegFeatures = 64;
@@ -223,4 +226,19 @@ int main()
         cfg, kBatch, kEegFeatures, kAudioFeatures, kFusedFeatures);
 
     return 0;
+}
+} // namespace
+
+// Every failure reaches the user as a message and a non-zero exit status.
+int main()
+{
+    try
+    {
+        return run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "error: " << e.what() << '\n';
+        return 1;
+    }
 }

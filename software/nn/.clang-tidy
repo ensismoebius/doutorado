@@ -1,44 +1,27 @@
-Checks: >
-  # =====================================================
-  # REMOVE ALL CONFIGURATIONS
-  # =====================================================
-  -*,
+# clang-tidy configuration (CI: `run-clang-tidy -p out/build/max-performance`).
+#
+# The set is the checks that find DEFECTS: undefined behaviour, wrong arithmetic, lost
+# exceptions, needless copies. Style-only families (readability-*, most of modernize-* and
+# cppcoreguidelines-*) are off: on this code they report hundreds of warnings per file
+# (braces, trailing return types, literal suffixes, `.at()` instead of `[]` in numeric loops)
+# and drown the few real findings.
+#
+# Comments must stay OUTSIDE the `Checks` string. The previous file put `#` lines inside a
+# folded `>` block, where YAML keeps them as text: every glob after a comment became
+# "# ... bugprone-*", which matches nothing, so only clang-analyzer-* ever ran, silently.
+#
+# Disabled on purpose:
+#   bugprone-easily-swappable-parameters  numeric APIs take several floats/ints by design
+#   bugprone-random-generator-seed        constant seeds are required here: every run must be
+#                                         reproducible (a security check, cert-msc51-cpp)
+#   performance-enum-size                 saving 3 bytes per enum buys nothing and changes the
+#                                         underlying type of enums that are written to files
+#   clang-diagnostic-ignored-gch          the GCC build's precompiled headers, which clang skips
+Checks: "-*,clang-analyzer-*,bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-random-generator-seed,performance-*,-performance-enum-size,modernize-use-override,modernize-use-nullptr,cppcoreguidelines-slicing,cppcoreguidelines-virtual-class-destructor,readability-misleading-indentation,readability-duplicate-include,-clang-diagnostic-ignored-gch"
 
-  # =====================================================
-  # CORE SAFETY (ALTO VALOR, BAIXO RUÍDO)
-  # =====================================================
-  bugprone-*,
-  clang-analyzer-*,
+# Every finding fails the run: the code is kept at zero.
+WarningsAsErrors: "*"
 
-  # =====================================================
-  # MODERN C++ (SEGURO PARA HPC)
-  # =====================================================
-  modernize-*,
-
-  # =====================================================
-  # READABILITY (COM EXCLUSÕES NUMÉRICAS)
-  # =====================================================
-  readability-*,
-
-  # =====================================================
-  # PERFORMANCE NUMÉRICA (ALTO IMPACTO)
-  # =====================================================
-  performance-*,
-
-  # =====================================================
-  # CPP CORE GUIDELINES — SEGUROS EM PESQUISA
-  # =====================================================
-  cppcoreguidelines-*,
-
-  # =====================================================
-  # EXCLUSÕES PARA EVITAR FALSO POSITIVOS
-  # =====================================================
-  -misc-*,
-  -cppcoreguidelines-non-private-member-variables-in-classes,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -bugprone-easily-swappable-parameters
-
-WarningsAsErrors: ""
-HeaderFilterRegex: "^(?!.*\\/build\\/).*/(src|include)/.*"
+# Project headers only (vendored headers live under out/build/.../_deps).
+HeaderFilterRegex: ".*/software/nn/(src|include)/.*"
 FormatStyle: file

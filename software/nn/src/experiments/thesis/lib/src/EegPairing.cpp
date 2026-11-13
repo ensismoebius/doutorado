@@ -32,7 +32,7 @@ auto stream_seed(std::uint32_t seed, int subject_id, int stimulus_id) -> std::ui
         h ^= x;
         h *= 1099511628211ULL;
     }
-    return static_cast<std::uint32_t>(h ^ (h >> 32));
+    return static_cast<std::uint32_t>(h ^ (h >> 32U));
 }
 
 auto where(int subject_id) -> std::string

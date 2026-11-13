@@ -71,7 +71,7 @@ struct EncoderDecoderAutoencoder : Module<nn::Backend>
     nn::Sequential encoder_;
     nn::Sequential decoder_;
 
-    EncoderDecoderAutoencoder(nn::Sequential encoder, nn::Sequential decoder);
+    EncoderDecoderAutoencoder(const nn::Sequential& encoder, const nn::Sequential& decoder);
 
     auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
     auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;

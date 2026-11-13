@@ -10,6 +10,8 @@
 
 #include <cmath>
 #include <cstddef>
+#include <exception>
+#include <iostream>
 #include <memory> // For std::unique_ptr
 #include <vector>
 
@@ -127,7 +129,9 @@ void plotSignal(const nn::Tensor& signal_tensor, const std::string& title, bool 
     plt::show(show_blocking);
 }
 
-auto main() -> int
+namespace
+{
+auto run() -> int
 {
     // Signal Generation
     const size_t duration_seconds = 4;
@@ -172,4 +176,19 @@ auto main() -> int
     // Cleanup
     fftw_destroy_plan(p);
     return 0;
+}
+} // namespace
+
+// Every failure reaches the user as a message and a non-zero exit status.
+int main()
+{
+    try
+    {
+        return run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "error: " << e.what() << '\n';
+        return 1;
+    }
 }

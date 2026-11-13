@@ -154,13 +154,13 @@ void EEGWindowDataset::collate_into(const std::vector<std::size_t>& indices, Bat
 {
     if (indices.empty())
     {
-        batch.inputs = nn::Tensor(0, kEegChannels * spec_.window_size);
+        batch.inputs = nn::Tensor(0, static_cast<nn::Index>(kEegChannels) * spec_.window_size);
         batch.targets = nn::Tensor(0, 3);
         return;
     }
 
     const auto batch_size = static_cast<nn::Index>(indices.size());
-    const auto input_cols = static_cast<nn::Index>(kEegChannels * spec_.window_size);
+    const auto input_cols = static_cast<nn::Index>(kEegChannels) * spec_.window_size;
     constexpr nn::Index target_cols = 3;
 
     // Resize output tensors only when dimensions change (avoids malloc on

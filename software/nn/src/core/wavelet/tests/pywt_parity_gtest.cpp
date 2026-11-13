@@ -26,7 +26,7 @@
 namespace
 {
 
-const std::string kFixture = std::string(TEST_FIXTURE_DIR) + "/pywt_refs.npz";
+constexpr const char* kFixture = TEST_FIXTURE_DIR "/pywt_refs.npz";
 constexpr int kLevel = 3;
 // Filter tables are stored at full double precision (synced from pywt), so
 // band norms agree to ~1e-10 relative.
@@ -37,9 +37,7 @@ std::vector<double> load_doubles(const std::string& key)
     cnpy::npz_t npz = cnpy::npz_load(kFixture);
     auto it = npz.find(key);
     if (it == npz.end()) throw std::runtime_error("fixture key missing: " + key);
-    const cnpy::NpyArray& arr = it->second;
-    const double* p = arr.data<double>();
-    return {p, p + arr.num_vals};
+    return it->second.as_vec<double>(); // a copy: npz is freed on return
 }
 
 void expect_energies_match(

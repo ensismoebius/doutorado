@@ -76,7 +76,8 @@ TEST(TransformerAutoencoder, RejectsBadConfig)
 {
     auto c = small_cfg();
     c.n_heads = 3; // does not divide d_model=4
-    EXPECT_THROW(TransformerAutoencoder{c}, std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const TransformerAutoencoder object{c}; }, std::invalid_argument);
 }
 
 TEST(TransformerAutoencoder, StateDictRoundTrip)

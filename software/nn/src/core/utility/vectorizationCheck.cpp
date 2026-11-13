@@ -11,8 +11,8 @@ void printVectorizationSupport()
 {
     std::string info = "xtensor SIMD: ";
 #ifdef XSIMD_VERSION_MAJOR
-    info += "xsimd " + std::to_string(XSIMD_VERSION_MAJOR) + "."
-          + std::to_string(XSIMD_VERSION_MINOR) + " ";
+    info += "xsimd " + std::to_string(XSIMD_VERSION_MAJOR) + "." +
+            std::to_string(XSIMD_VERSION_MINOR) + " ";
 #endif
 #ifdef _OPENMP
     info += "OpenMP " + std::to_string(_OPENMP) + " ";

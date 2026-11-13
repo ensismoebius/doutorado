@@ -143,7 +143,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
         for (int t = 0; t < T; ++t)
             for (int b = 0; b < B; ++b)
                 for (int d = 0; d < D; ++d)
-                    x_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(d)) =
+                    x_t.at((static_cast<nn::Index>(t) * B) + b, static_cast<nn::Index>(d)) =
                         input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d));
 
         // Cache spike trains on every training forward. Needed by the firing-rate
@@ -187,7 +187,8 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
             {
                 float s = 0.0f;
                 for (int t = 0; t < T; ++t)
-                    s += logits_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(c));
+                    s +=
+                        logits_t.at((static_cast<nn::Index>(t) * B) + b, static_cast<nn::Index>(c));
                 logits.at(static_cast<nn::Index>(b), static_cast<nn::Index>(c)) = s * inv_T;
             }
         return logits;
@@ -206,7 +207,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
         for (int t = 0; t < T; ++t)
             for (int b = 0; b < B; ++b)
                 for (int c = 0; c < C; ++c)
-                    grad_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(c)) =
+                    grad_t.at((static_cast<nn::Index>(t) * B) + b, static_cast<nn::Index>(c)) =
                         grad_output.at(static_cast<nn::Index>(b), static_cast<nn::Index>(c)) *
                         inv_T;
 
@@ -236,7 +237,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
             {
                 float s = 0.0f;
                 for (int t = 0; t < T; ++t)
-                    s += g.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(d));
+                    s += g.at((static_cast<nn::Index>(t) * B) + b, static_cast<nn::Index>(d));
                 grad_input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d)) = s;
             }
         return grad_input;

@@ -284,7 +284,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
         // Generate synthetic spike data
         tie(inputs, targets) =
-            generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, delta_t);
+            generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, delta_t, 42U);
 
         // ==== Model Definition ====
         Sequential encoders = build_encoder(input_dim,
@@ -355,12 +355,12 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << '\n';
         return 1;
     }
     catch (...)
     {
-        std::cerr << "Unknown error occurred." << std::endl;
+        std::cerr << "Unknown error occurred." << '\n';
         return 1;
     }
 }

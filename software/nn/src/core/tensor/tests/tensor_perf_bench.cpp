@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -35,7 +36,14 @@ auto env_to_int(const char* name, int fallback) -> int
     {
         return fallback;
     }
-    return std::max(1, std::atoi(value));
+    char* end = nullptr;
+    const long parsed = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0' || parsed < 1 || parsed > 1000000)
+    {
+        throw std::invalid_argument(
+            std::string(name) + "='" + value + "' is not a positive integer");
+    }
+    return static_cast<int>(parsed);
 }
 
 template <typename Fn>
@@ -103,7 +111,8 @@ auto bench_fill_zero_1024x1024(const std::string& backend_name, int iterations) 
 }
 
 template <typename Backend>
-auto bench_matmul_256(const std::string& backend_name, int iterations, Backend& lhs, Backend& rhs)
+auto bench_matmul_256(
+    const std::string& backend_name, int iterations, Backend& lhs, const Backend& rhs)
     -> BenchResult
 {
     return measure(backend_name,
@@ -121,9 +130,11 @@ auto bench_matmul_256(const std::string& backend_name, int iterations, Backend& 
 }
 
 template <typename Backend>
-auto bench_linear_chain(
-    const std::string& backend_name, int iterations, Backend& input, Backend& weight, Backend& bias)
-    -> BenchResult
+auto bench_linear_chain(const std::string& backend_name,
+    int iterations,
+    Backend& input,
+    const Backend& weight,
+    const Backend& bias) -> BenchResult
 {
     return measure(backend_name,
         "linear_chain_1024x256x512",
@@ -144,8 +155,8 @@ template <typename Backend>
 auto bench_linear_backward_chain(const std::string& backend_name,
     int iterations,
     Backend& grad_output,
-    Backend& input,
-    Backend& weight) -> BenchResult
+    const Backend& input,
+    const Backend& weight) -> BenchResult
 {
     return measure(backend_name,
         "linear_backward_chain_1024x256x512",
@@ -184,7 +195,7 @@ auto bench_transpose(const std::string& backend_name, int iterations, Backend& g
 
 template <typename Backend>
 auto bench_grad_weight_matmul(
-    const std::string& backend_name, int iterations, Backend& grad_output, Backend& input)
+    const std::string& backend_name, int iterations, Backend& grad_output, const Backend& input)
     -> BenchResult
 {
     return measure(backend_name,
@@ -294,9 +305,17 @@ void print_results_csv(const std::vector<BenchResult>& results)
 
 int main()
 {
-    const int iterations = env_to_int("NN_TENSOR_BENCH_ITERS", 5);
-    std::vector<BenchResult> results = benchmark_backend<nn::XTensorBackend>("xtensor", iterations);
-
-    print_results_csv(results);
-    return 0;
+    try
+    {
+        const int iterations = env_to_int("NN_TENSOR_BENCH_ITERS", 5);
+        std::vector<BenchResult> results =
+            benchmark_backend<nn::XTensorBackend>("xtensor", iterations);
+        print_results_csv(results);
+        return 0;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "tensor_perf_bench: " << e.what() << '\n';
+        return 1;
+    }
 }

@@ -201,7 +201,7 @@ struct LinearImpl : public Module<Backend>
         Tensor grad_input_flat = grad_flat.matmul(Tensor(weight));
 
         // Restore original leading dimensions for the input gradient
-        std::vector<nn::Index> input_out_shape = input_shape;
+        const std::vector<nn::Index>& input_out_shape = input_shape;
         // No change to last dim because it's already in_features //
         if (input_shape.size() == 1) //
         {

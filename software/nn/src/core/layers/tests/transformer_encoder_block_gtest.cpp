@@ -182,7 +182,10 @@ TEST(TransformerEncoderBlock, ShapeAndContract)
 
 TEST(TransformerEncoderBlock, RejectsBadDims)
 {
-    EXPECT_THROW(Block(0, kHeads, kDFF), std::invalid_argument);
-    EXPECT_THROW(Block(kDModel, kHeads, 0), std::invalid_argument);
-    EXPECT_THROW(Block(kDModel, 3, kDFF), std::invalid_argument); // 3 does not divide 4
+    EXPECT_THROW({ [[maybe_unused]] const Block object(0, kHeads, kDFF); }, std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const Block object(kDModel, kHeads, 0); }, std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const Block object(kDModel, 3, kDFF); },
+        std::invalid_argument); // 3 does not divide 4
 }

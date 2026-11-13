@@ -136,7 +136,7 @@ class TransformerEncoderBlockImpl : public Module<Backend>
         // out = LayerNorm2(n1 + f)
         const Tensor d_res2 = ln2_->backward(grad_output);
         // res2 = n1 + f  → gradient splits equally
-        const Tensor d_f = d_res2;
+        const Tensor& d_f = d_res2;
         Tensor d_n1 = d_res2;
 
         // f = ff2(relu(ff1(n1)))

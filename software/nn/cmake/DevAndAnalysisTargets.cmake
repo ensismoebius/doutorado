@@ -7,7 +7,8 @@
  # - `cmake --build build --target analysis-all`
 #
 # Notes:
-# - These targets are *optional* (they exist only when tools are found).
+# - analysis-cppcheck / -flawfinder / -clang-tidy exist when their tool is found;
+#   analysis-all always exists and fails when any of the three is missing.
 # - They should never affect normal builds of the library/executables.
 #+#+#+#+-----------------------------------------------------------------------
 
@@ -53,34 +54,41 @@ endif()
 
 
 if(CPPCHECK_EXECUTABLE)
-    # Define SRC_DIR if not already defined (assuming project's main src directory)
-    if(NOT DEFINED SRC_DIR)
-        set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+    include(ProcessorCount)
+    ProcessorCount(NN_CPPCHECK_JOBS)
+    if(NN_CPPCHECK_JOBS EQUAL 0)
+        message(FATAL_ERROR "Cannot determine the processor count for cppcheck -j")
     endif()
-
-    file(GLOB_RECURSE CPPCHECK_FILES
-        "${SRC_DIR}/*.cpp"
-        "${SRC_DIR}/*.c"
-        "${SRC_DIR}/*.hpp"
-        "${SRC_DIR}/*.h"
-    )
-    # Filter out files from _deps directories that might have been included
-    list(FILTER CPPCHECK_FILES EXCLUDE REGEX "build/_deps")
-
+    # cppcheck reads the compile database, so every translation unit is analysed with its real
+    # include paths and definitions (a bare glob of files, as before, analysed each header on
+    # its own and reported members used elsewhere as unused). Only project code is reported:
+    # build-tree and vendored (_deps) headers are suppressed. Any finding fails the target, so
+    # the code is kept at zero; a justified exception is an inline
+    # `// cppcheck-suppress <id>` with its reason. Two checks are off on purpose, as a
+    # decision about the whole code base (the same status as a check left out of .clang-tidy):
+    #   useStlAlgorithm - "this loop could be std::transform/accumulate": a style preference,
+    #                     and the loops it names (138 when measured) are clearer as loops;
+    #   shadowFunction  - a local named like a member function (`size`, `rows`): legal,
+    #                     unambiguous at the use site, and renaming 52 locals changes nothing.
     add_custom_target(analysis-cppcheck
         COMMAND ${CPPCHECK_EXECUTABLE}
-            ${CPPCHECK_FILES}
-            --enable=warning,style,performance,portability,information
+            --project=${CMAKE_BINARY_DIR}/compile_commands.json
+            --enable=warning,style,performance,portability
+            --inline-suppr
+            --library=googletest
             --suppress=missingIncludeSystem
             --suppress=unmatchedSuppression
-            --suppress=syntaxError
-            --suppress=internalAstError
-            --suppress=containerOutOfBounds
+            --suppress=useStlAlgorithm
+            --suppress=shadowFunction
+            --suppress=*:*/_deps/*
+            --suppress=*:${CMAKE_BINARY_DIR}/*
+            -i${CMAKE_BINARY_DIR}
             --std=c++20
+            -j ${NN_CPPCHECK_JOBS}
             --xml
             --output-file=${CMAKE_BINARY_DIR}/cppcheck-report.xml
-            --error-exitcode=0
-        COMMENT "Running cppcheck static analysis on project sources..."
+            --error-exitcode=1
+        COMMENT "Running cppcheck on the compile database (fails on any finding)..."
         USES_TERMINAL
     )
 endif()
@@ -126,19 +134,27 @@ if(CLANG_TIDY_EXECUTABLE)
 endif()
 
 
-if(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE AND CLANG_TIDY_EXECUTABLE)
-    add_custom_target(analysis-all
-        COMMENT "Running all analysis tools (cppcheck, flawfinder, clang-tidy)..."
+# analysis-all runs every analyser. A missing one makes the target FAIL with its name; it used
+# to fall back silently to the tools that were installed (no clang-tidy: no clang-tidy run,
+# and "analysis-all" still passed).
+add_custom_target(analysis-all
+    COMMENT "Running all analysis tools (cppcheck, flawfinder, clang-tidy)..."
+)
+set(_nn_missing_analysers "")
+foreach(_tool cppcheck flawfinder clang-tidy)
+    string(TOUPPER "${_tool}" _var)
+    string(REPLACE "-" "_" _var "${_var}")
+    if(${_var}_EXECUTABLE)
+        add_dependencies(analysis-all analysis-${_tool})
+    else()
+        list(APPEND _nn_missing_analysers ${_tool})
+    endif()
+endforeach()
+if(_nn_missing_analysers)
+    add_custom_command(TARGET analysis-all PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "analysis-all: not installed: ${_nn_missing_analysers}"
+        COMMAND ${CMAKE_COMMAND} -E false
     )
-    # Using DEPENDS ensures that both targets are triggered.
-    # If one fails, the overall build command will fail, but CMake
-    # may still attempt to run the other target in parallel.
-    add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder analysis-clang-tidy)
-elseif(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
-    add_custom_target(analysis-all
-        COMMENT "Running all analysis tools (cppcheck, flawfinder)..."
-    )
-    add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder)
 endif()
 
 if(NN_ENABLE_COVERAGE AND Python3_Interpreter_FOUND AND LCOV_EXECUTABLE)

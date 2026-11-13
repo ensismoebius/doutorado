@@ -1,4 +1,5 @@
 #include <chrono>
+#include <exception>
 #include <iomanip>
 #include <iostream>
 
@@ -88,9 +89,12 @@ Timing bench_4gates_block(const Tensor& pre, int B, int H, int iters)
     for (int r = 0; r < iters; ++r)
     {
         auto i_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 0, B, H));
-        auto f_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 1 * H, B, H));
-        auto o_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 2 * H, B, H));
-        auto g_g = nn::activations::tanh_fast_tensor(pre.block(0, 3 * H, B, H));
+        auto f_g =
+            nn::activations::sigmoid_fast_tensor(pre.block(0, static_cast<nn::Index>(1) * H, B, H));
+        auto o_g =
+            nn::activations::sigmoid_fast_tensor(pre.block(0, static_cast<nn::Index>(2) * H, B, H));
+        auto g_g =
+            nn::activations::tanh_fast_tensor(pre.block(0, static_cast<nn::Index>(3) * H, B, H));
         (void) i_g;
         (void) f_g;
         (void) o_g;
@@ -106,10 +110,10 @@ Timing bench_4gates_fused(const Tensor& pre, int H, int iters)
     auto start = Clock::now();
     for (int r = 0; r < iters; ++r)
     {
-        auto i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
-        auto f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
-        auto o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
-        auto g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
+        auto i_g = nn::activations::sigmoid_fast_block(pre, static_cast<nn::Index>(0) * H, H);
+        auto f_g = nn::activations::sigmoid_fast_block(pre, static_cast<nn::Index>(1) * H, H);
+        auto o_g = nn::activations::sigmoid_fast_block(pre, static_cast<nn::Index>(2) * H, H);
+        auto g_g = nn::activations::tanh_fast_block(pre, static_cast<nn::Index>(3) * H, H);
         (void) i_g;
         (void) f_g;
         (void) o_g;
@@ -129,9 +133,12 @@ Timing bench_full_timestep_old(
     {
         auto pre_sum = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
         auto i_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 0, B, H));
-        auto f_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 1 * H, B, H));
-        auto o_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 2 * H, B, H));
-        auto g_g = nn::activations::tanh_fast_tensor(pre_sum.block(0, 3 * H, B, H));
+        auto f_g = nn::activations::sigmoid_fast_tensor(
+            pre_sum.block(0, static_cast<nn::Index>(1) * H, B, H));
+        auto o_g = nn::activations::sigmoid_fast_tensor(
+            pre_sum.block(0, static_cast<nn::Index>(2) * H, B, H));
+        auto g_g = nn::activations::tanh_fast_tensor(
+            pre_sum.block(0, static_cast<nn::Index>(3) * H, B, H));
         auto c_new = (f_g * c).add(i_g * g_g);
         auto tc = nn::activations::tanh_fast_tensor(c_new);
         auto h_new = o_g * tc;
@@ -150,10 +157,10 @@ Timing bench_full_timestep_fused(
     for (int r = 0; r < reps; ++r)
     {
         auto pre_sum = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
-        auto i_g = nn::activations::sigmoid_fast_block(pre_sum, 0 * H, H);
-        auto f_g = nn::activations::sigmoid_fast_block(pre_sum, 1 * H, H);
-        auto o_g = nn::activations::sigmoid_fast_block(pre_sum, 2 * H, H);
-        auto g_g = nn::activations::tanh_fast_block(pre_sum, 3 * H, H);
+        auto i_g = nn::activations::sigmoid_fast_block(pre_sum, static_cast<nn::Index>(0) * H, H);
+        auto f_g = nn::activations::sigmoid_fast_block(pre_sum, static_cast<nn::Index>(1) * H, H);
+        auto o_g = nn::activations::sigmoid_fast_block(pre_sum, static_cast<nn::Index>(2) * H, H);
+        auto g_g = nn::activations::tanh_fast_block(pre_sum, static_cast<nn::Index>(3) * H, H);
         auto c_new = (f_g * c).add(i_g * g_g);
         auto tc = nn::activations::tanh_fast_tensor(c_new);
         auto h_new = o_g * tc;
@@ -194,7 +201,9 @@ void print_report(const std::vector<Timing>& results)
 
 } // namespace
 
-int main()
+namespace
+{
+auto run() -> int
 {
     // LSTM-bench config: B=1, D=128 (audio features), H=32 (hidden)
     const int B = 1;
@@ -204,11 +213,11 @@ int main()
     const int reps = 100;
 
     // Matrices
-    Tensor W(4 * H, D);   // (128, 128)
-    Tensor U(4 * H, H);   // (128, 32)
-    Tensor x_t(B, D);     // (1, 128)
-    Tensor h(B, H);       // (1, 32)
-    Tensor pre(B, 4 * H); // (1, 128) — stacked 4 gates
+    Tensor W(static_cast<nn::Index>(4) * H, D);   // (128, 128)
+    Tensor U(static_cast<nn::Index>(4) * H, H);   // (128, 32)
+    Tensor x_t(B, D);                             // (1, 128)
+    Tensor h(B, H);                               // (1, 32)
+    Tensor pre(B, static_cast<nn::Index>(4) * H); // (1, 128) — stacked 4 gates
 
     init_matrices(W, U, x_t, h);
 
@@ -224,4 +233,19 @@ int main()
 
     print_report(results);
     return 0;
+}
+} // namespace
+
+// Every failure reaches the user as a message and a non-zero exit status.
+int main()
+{
+    try
+    {
+        return run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "error: " << e.what() << '\n';
+        return 1;
+    }
 }

@@ -10,8 +10,7 @@
 namespace nn::dataLoaders::fsdd
 {
 
-auto FsddLoader::discover(const std::filesystem::path& root)
-    -> std::vector<std::filesystem::path>
+auto FsddLoader::discover(const std::filesystem::path& root) -> std::vector<std::filesystem::path>
 {
     if (!std::filesystem::exists(root))
         throw std::runtime_error("FSDD root does not exist: " + root.string());
@@ -33,14 +32,14 @@ auto FsddLoader::parse_filename(const std::string& stem) -> std::optional<FsddFi
     if (first == std::string::npos) return std::nullopt;
 
     const auto last = stem.rfind('_');
-    if (last == first) return std::nullopt;  // only one underscore
+    if (last == first) return std::nullopt; // only one underscore
 
     FsddFileInfo info;
     try
     {
-        info.digit   = std::stoi(stem.substr(0, first));
+        info.digit = std::stoi(stem.substr(0, first));
         info.speaker = stem.substr(first + 1, last - first - 1);
-        info.trial   = std::stoi(stem.substr(last + 1));
+        info.trial = std::stoi(stem.substr(last + 1));
     }
     catch (...)
     {
@@ -58,8 +57,7 @@ auto FsddLoader::load_signal(const std::filesystem::path& wav_path) -> nn::Tenso
     Wav wav;
     wav.read(wav_path.string());
     const auto& raw = wav.get_data();
-    if (raw.empty())
-        throw std::runtime_error("Empty WAV file: " + wav_path.string());
+    if (raw.empty()) throw std::runtime_error("Empty WAV file: " + wav_path.string());
 
     nn::Tensor signal(static_cast<nn::Index>(raw.size()), 1);
     for (std::size_t i = 0; i < raw.size(); ++i)

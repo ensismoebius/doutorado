@@ -2028,7 +2028,9 @@ the last to finish overwrote the others: files in the paper's directory that loo
 fold's results and held one family's — **silent**. `latex_data_dir` is now `""` in both
 profiles (`ProductionProfiles.LeaveNoExportsNothingReads`); it is output-only, outside
 `config_hash`, so no checkpoint is invalidated. On the cluster this also removes the per-fold
-`/home` writes the GridUnesp guide used to list.
+`/home` writes the GridUnesp guide used to list. Since 2026-11-13 the exports themselves are
+gone (`write_latex_exports` and the `.dat`/plot-CSV writers), and `validate()` refuses a
+non-empty `latex_data_dir`.
 
 ### The pipeline without ghosts
 

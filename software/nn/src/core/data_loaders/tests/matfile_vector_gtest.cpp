@@ -27,7 +27,7 @@ TEST(MatFileVectorTest, LoadColumnVector)
 
     auto opt = matioCpp::utils::load_named_variable_as_matrix(mat_path.string(), "vcol");
     ASSERT_TRUE(opt.has_value());
-    auto m = opt.value();
+    const auto& m = opt.value();
     EXPECT_EQ(m.rows(), 4);
     EXPECT_EQ(m.cols(), 1);
     EXPECT_FLOAT_EQ(m.at(0, 0), 10.0F);

@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-13 — static analysis at zero
+
+### Fixed
+
+- `.clang-tidy` ran 131 of the intended ~400 checks: its `Checks` string was a folded block with
+  `#` comments inside, which YAML keeps as text, so every glob after a comment matched nothing
+  and only `clang-analyzer-*` ran. Rewritten (comments outside the string); `WarningsAsErrors: "*"`.
+- Defects the full check set found:
+  - the tensor comma initializer (`Tensor t; t << 1, 2, 3;`) silently accepted too few or too
+    many values; it now throws `std::invalid_argument` (and stays quiet during unwinding);
+  - `countShardRows` (`mat_file_utils.cpp`) ran a shell python command through `popen` and read a
+    missing `count` as 0; it now parses the JSON with nlohmann and requires each count;
+  - `read_csv_signal` read an empty or non-numeric field as 0; it now throws;
+  - `generate_autoencoder_spike_data` drew from a global `random_device` engine; it takes a seed;
+  - `NetworkSerializer::loadParametersInto` swallowed a missing LIF parameter (`try {} catch {}`)
+    and kept the constructed value: a different network from the one saved. Now required;
+  - meeting01: `extract_latent_size` fell back to 16 and the layer-width parsers swallowed a bad
+    width; both throw, naming the key to set;
+  - `reduce_time_major_output` tested `time_steps <= 0` after a cast to unsigned (never true);
+  - the SQLite test helper ignored a failing step; `analysis-all` passed when a tool was absent.
+- `thesis_output_gtest` wrote `e05_output_test/` into the source tree; it now uses a temp dir.
+
+### Removed
+
+- meeting01's LaTeX/pgfplots exports (`write_latex_exports`, the `.dat` writers, five CSV writers
+  that wrote 0.0 for a missing family) and their tests: nothing read them.
+  `dataset.latex_data_dir` must now be empty.
+- `scripts/ci/validate_static_analysis.py`, the unread `.cppcheck` file and the never-run
+  `software/nn/.github/workflows/` (GitHub runs only the repository-root workflows).
+
+### Changed
+
+- `analysis-cppcheck` reads `compile_commands.json` (each file with its real include paths) and
+  fails on any finding. `useStlAlgorithm` and `shadowFunction` are off on purpose; false
+  positives carry an inline `cppcheck-suppress` with the reason. See
+  `.wiki/Guides/Static-Analysis.md`.
+
 ## 2026-11-13 — legacy experiments removed
 
 ### Removed

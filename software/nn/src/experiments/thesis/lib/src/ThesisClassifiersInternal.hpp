@@ -371,27 +371,31 @@ class GlobalBarFractionalCallback : public nn::training::ITrainingCallback
 struct FoldContext
 {
     const ThesisDatasetView& view;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const std::vector<std::vector<double>>& feature_vectors;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const std::vector<int>& labels;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const std::vector<int>& groups; // subject_id per sample (for GroupKFold)
     const nn::Tensor& all_inputs;   // (N, feat_dim) feature matrix
     const nn::Tensor& all_targets;  // (N, n_speakers) one-hot labels
     const ThesisConfig& cfg;
     const nn::training::TrainerConfig& trainer_cfg;
     const statistics::IEERScorer& scorer;
+    // cppcheck-suppress uninitMemberVarNoCtor ; a reference member is bound by aggregate init
     const std::string& feature_label;
-    int feat_dim;
-    int hidden_dim;
-    int depth;
-    int n_speakers;
-    uint32_t global_bar_id;
-    int* global_completed;
+    int feat_dim = 0;
+    int hidden_dim = 0;
+    int depth = 0;
+    int n_speakers = 0;
+    uint32_t global_bar_id = 0;
+    int* global_completed = nullptr;
     // Simulated dysphonia: the degraded twin of all_inputs (nullptr = clean run), and
     // whether each test speaker's first enrol_per_speaker rows (the scorer's enrolment
     // template) stay clean.
-    const nn::Tensor* degraded_inputs;
-    bool enrol_clean;
-    std::size_t enrol_per_speaker;
+    const nn::Tensor* degraded_inputs = nullptr;
+    bool enrol_clean = false;
+    std::size_t enrol_per_speaker = 0;
 };
 
 // Construct the classifier selected by cfg.classifier.type and invoke fn(model).

@@ -127,16 +127,20 @@ inline void refuse_unknown_keys(const nlohmann::json& node,
     for (const auto& [key, value] : node.items())
     {
         if (prefix.empty() && std::find(skip.begin(), skip.end(), key) != skip.end()) continue;
-        const std::string path = prefix.empty() ? key : prefix + "." + key;
+        std::string path = prefix;
+        if (!path.empty()) path += '.';
+        path += key;
         if (fields.count(path) != 0) continue;
         if (sections.count(path) != 0)
         {
             refuse_unknown_keys(value, path, fields, sections, skip, owner);
             continue;
         }
-        throw std::invalid_argument(owner + ": unknown key \"" + path +
-                                    "\" in the profile — no parameter has this name. Fix the "
-                                    "name or remove the key.");
+        std::string msg = owner;
+        msg += ": unknown key \"";
+        msg += path;
+        msg += "\" in the profile — no parameter has this name. Fix the name or remove the key.";
+        throw std::invalid_argument(msg);
     }
 }
 

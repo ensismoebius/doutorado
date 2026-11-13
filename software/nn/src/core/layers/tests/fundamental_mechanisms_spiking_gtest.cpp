@@ -52,12 +52,12 @@ TEST(TdBNTest, ZeroMean)
     ThresholdDependentBatchNormImpl<Backend> tdbn(F, vth, T);
 
     // (T*B, F) input with B=2, ±1 per feature → pooled mean 0, var 1.
-    Tensor x(T * 2, F);
+    Tensor x(static_cast<nn::Index>(T) * 2, F);
     for (int t = 0; t < T; ++t)
     {
         for (int f = 0; f < F; ++f)
         {
-            x.at(t * 2, f) = 1.0f;
+            x.at(static_cast<nn::Index>(t) * 2, f) = 1.0f;
             x.at(t * 2 + 1, f) = -1.0f;
         }
     }
@@ -70,7 +70,7 @@ TEST(TdBNTest, ZeroMean)
     {
         for (int f = 0; f < F; ++f)
         {
-            float a = out.at(t * 2, f);
+            float a = out.at(static_cast<nn::Index>(t) * 2, f);
             float b = out.at(t * 2 + 1, f);
             EXPECT_NEAR(a + b, 0.0f, 1e-4f); // zero mean preserved
             EXPECT_NEAR(std::abs(a), expected_abs, 1e-5f);
@@ -138,8 +138,8 @@ TEST(TdBNTest, TimeStepsDoNotChangeScale)
     Tensor x4(8, F);
     for (int t = 0; t < 4; ++t)
     {
-        x4.at(t * 2, 0) = 1.f;
-        x4.at(t * 2, 1) = 2.f;
+        x4.at(static_cast<nn::Index>(t) * 2, 0) = 1.f;
+        x4.at(static_cast<nn::Index>(t) * 2, 1) = 2.f;
         x4.at(t * 2 + 1, 0) = -1.f;
         x4.at(t * 2 + 1, 1) = -2.f;
     }

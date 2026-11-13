@@ -32,7 +32,7 @@ namespace
 {
 namespace fs = std::filesystem;
 
-const std::string kDbRoot = "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases";
+constexpr const char* kDbRoot = "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases";
 
 meeting01::Meeting01Config base_config()
 {
@@ -122,7 +122,7 @@ void expect_drawn_across_recordings(const std::vector<meeting01::WindowMetadata>
 // 2026-11-04 Wav::read gave 18770 here, the letters "RI" of the header.
 TEST(Meeting01Loaders, FsddFirstSampleIsAudioNotTheHeader)
 {
-    const fs::path file = kDbRoot + "/fsdDataset/recordings/0_jackson_0.wav";
+    const fs::path file = std::string(kDbRoot) + "/fsdDataset/recordings/0_jackson_0.wav";
     if (!fs::exists(file)) GTEST_SKIP() << "no FSDD root";
     Wav reader;
     reader.read(file.string());
@@ -133,7 +133,7 @@ TEST(Meeting01Loaders, FsddFirstSampleIsAudioNotTheHeader)
 // The production caps on the real corpus: FSDD fold 0 kept digits 0-4 in train and 0-2 in val.
 TEST(Meeting01Loaders, FsddCapsKeepEveryDigitOnTheRealCorpus)
 {
-    const std::string root = kDbRoot + "/fsdDataset";
+    const std::string root = std::string(kDbRoot) + "/fsdDataset";
     if (!fs::exists(root)) GTEST_SKIP() << "no FSDD root";
 
     auto cfg = base_config();
@@ -161,7 +161,7 @@ TEST(Meeting01Loaders, FsddCapsKeepEveryDigitOnTheRealCorpus)
 
 TEST(Meeting01Loaders, FsddGroupedFoldIsSpeakerDisjoint)
 {
-    const std::string root = kDbRoot + "/fsdDataset";
+    const std::string root = std::string(kDbRoot) + "/fsdDataset";
     if (!fs::exists(root)) GTEST_SKIP() << "no FSDD root";
 
     auto cfg = base_config();
@@ -184,7 +184,7 @@ TEST(Meeting01Loaders, FsddGroupedFoldIsSpeakerDisjoint)
 
 TEST(Meeting01Loaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
 {
-    const std::string root = kDbRoot + "/audioMNIST_8k";
+    const std::string root = std::string(kDbRoot) + "/audioMNIST_8k";
     if (!fs::exists(root)) GTEST_SKIP() << "no AudioMNIST 8k root";
 
     nn::dataLoaders::fsdd::FsddWindowDataset ds(root, 256);
@@ -210,7 +210,7 @@ TEST(Meeting01Loaders, AudioMnistResampledCorpusLoadsAndGroupsBySpeaker)
 
 TEST(Meeting01Loaders, MitBihFormat212DecodesAndWindows)
 {
-    const std::string root = kDbRoot + "/mitbih";
+    const std::string root = std::string(kDbRoot) + "/mitbih";
     if (!fs::exists(root)) GTEST_SKIP() << "no MIT-BIH root";
 
     meeting01::MitBihWindowDataset ds(root, 256);
@@ -330,14 +330,18 @@ TEST(Meeting01Loaders, EegRefusesARecordOfNoDurationAndARateBelowTheBand)
     fs::create_directories(root / "S001");
     const std::vector<std::int16_t> samples(320, 1);
     write_synthetic_edf(root / "S001" / "S001R01.edf", samples, 160, "0");
-    EXPECT_THROW(meeting01::EegWindowDataset(root, 256, 160.0, 60.0), std::runtime_error);
-    EXPECT_THROW(meeting01::EegWindowDataset(root, 256, 64.0, 60.0), std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const meeting01::EegWindowDataset object(root, 256, 160.0, 60.0); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] const meeting01::EegWindowDataset object(root, 256, 64.0, 60.0); },
+        std::invalid_argument);
     fs::remove_all(root);
 }
 
 TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
 {
-    const std::string root = kDbRoot + "/eegmmidb";
+    const std::string root = std::string(kDbRoot) + "/eegmmidb";
     if (!fs::exists(root)) GTEST_SKIP() << "no PhysioNet eegmmidb root";
 
     meeting01::EegWindowDataset ds(root, 256, /*sampling_rate=*/160.0, /*notch_hz=*/60.0);
@@ -357,7 +361,7 @@ TEST(Meeting01Loaders, EegmmidbRealCorpusLoadsAndGroupsBySubject)
 
 TEST(Meeting01Loaders, SienaRealCorpusLoadsAndGroupsBySubject)
 {
-    const std::string root = kDbRoot + "/siena";
+    const std::string root = std::string(kDbRoot) + "/siena";
     if (!fs::exists(root)) GTEST_SKIP() << "no Siena root";
 
     meeting01::EegWindowDataset ds(root, 256, /*sampling_rate=*/512.0, /*notch_hz=*/50.0);

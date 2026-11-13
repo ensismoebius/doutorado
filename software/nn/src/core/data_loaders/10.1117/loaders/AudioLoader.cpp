@@ -172,7 +172,8 @@ AudioSession::AudioSession(const std::string& filePath, int subject_id)
             throw std::runtime_error("AudioLoader: failed to open MAT file: " + filePath);
         }
 
-        impl_->audioVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kAudioMatVariableName.c_str()));
+        impl_->audioVar.reset(
+            Mat_VarReadInfo(impl_->matFile.get(), kAudioMatVariableName().c_str()));
         if (!impl_->audioVar)
         {
             throw std::runtime_error(

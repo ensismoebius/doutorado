@@ -48,7 +48,7 @@ class MaxPool1dImpl : public Module<Backend>
         if (requires_grad)
         {
             // Argmax stored as flat input indices (cast to float for Tensor storage)
-            argmax_flat_.assign(static_cast<size_t>(B * C * L_out), 0);
+            argmax_flat_.assign(static_cast<size_t>(B) * C * L_out, 0);
             input_B_ = B;
             input_C_ = C;
             input_L_ = L;
@@ -85,7 +85,7 @@ class MaxPool1dImpl : public Module<Backend>
                     if (requires_grad)
                     {
                         // Flat index: b * (C * L_out) + c * L_out + lo
-                        argmax_flat_[static_cast<size_t>(b * C * L_out + c * L_out + lo)] = max_li;
+                        argmax_flat_[((static_cast<size_t>(b) * C + c) * L_out) + lo] = max_li;
                     }
                 }
             }
@@ -106,8 +106,8 @@ class MaxPool1dImpl : public Module<Backend>
             {
                 for (int lo = 0; lo < input_L_out_; ++lo)
                 {
-                    int li = argmax_flat_[static_cast<size_t>(
-                        b * input_C_ * input_L_out_ + c * input_L_out_ + lo)];
+                    int li =
+                        argmax_flat_[((static_cast<size_t>(b) * input_C_ + c) * input_L_out_) + lo];
                     dx.at(static_cast<nn::Index>(b),
                         static_cast<nn::Index>(c),
                         static_cast<nn::Index>(li)) += grad_output.at(static_cast<nn::Index>(b),

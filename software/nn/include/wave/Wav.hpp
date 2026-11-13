@@ -51,24 +51,24 @@ class Wav
     struct WaveHeader
     {
         /* RIFF Chunk Descriptor */
-        std::array<std::uint8_t, 4> riffChunkId; // "RIFF" Header, contains the letters "RIFF"
-        std::uint32_t riffChunkSize;             // Size of the overall file - 8 bytes
-        std::array<std::uint8_t, 4> waveFormat;  // "WAVE" Format, contains the letters "WAVE"
+        std::array<std::uint8_t, 4> riffChunkId{}; // "RIFF" Header, contains the letters "RIFF"
+        std::uint32_t riffChunkSize = 0;           // Size of the overall file - 8 bytes
+        std::array<std::uint8_t, 4> waveFormat{};  // "WAVE" Format, contains the letters "WAVE"
 
         /* "fmt" sub-chunk */
-        std::array<std::uint8_t, 4> fmtSubchunkId; // "fmt" header, contains the letters "fmt "
-        std::uint32_t fmtSubchunkSize;             // Size of the fmt chunk (16 for PCM)
-        std::uint16_t audioFormat;      // Audio format 1=PCM,6=mulaw,7=alaw,257=IBM Mu-Law, 258=IBM
-                                        // A-Law, 259=ADPCM
-        std::uint16_t numberOfChannels; // Number of channels 1=Mono 2=Stereo
-        std::uint32_t sampleRate;       // Sampling Frequency in Hz
-        std::uint32_t byteRate;         // bytes per second
-        std::uint16_t blockAlign;       // 2=16-bit mono, 4=16-bit stereo
-        std::uint16_t bitsPerSample;    // Number of bits per sample
+        std::array<std::uint8_t, 4> fmtSubchunkId{}; // "fmt" header, contains the letters "fmt "
+        std::uint32_t fmtSubchunkSize = 0;           // Size of the fmt chunk (16 for PCM)
+        std::uint16_t audioFormat = 0; // Audio format 1=PCM,6=mulaw,7=alaw,257=IBM Mu-Law, 258=IBM
+                                       // A-Law, 259=ADPCM
+        std::uint16_t numberOfChannels = 0; // Number of channels 1=Mono 2=Stereo
+        std::uint32_t sampleRate = 0;       // Sampling Frequency in Hz
+        std::uint32_t byteRate = 0;         // bytes per second
+        std::uint16_t blockAlign = 0;       // 2=16-bit mono, 4=16-bit stereo
+        std::uint16_t bitsPerSample = 0;    // Number of bits per sample
 
         /* "data" sub-chunk */
-        std::array<std::uint8_t, 4> dataSubchunkId; // "data" header, contains the letters "data"
-        std::uint32_t dataSubchunkSize;             // Size of the data section in bytes
+        std::array<std::uint8_t, 4> dataSubchunkId{}; // "data" header, contains the letters "data"
+        std::uint32_t dataSubchunkSize = 0;           // Size of the data section in bytes
     } header;
 #pragma pack(pop)
 

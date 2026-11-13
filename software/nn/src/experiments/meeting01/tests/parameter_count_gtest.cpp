@@ -899,7 +899,7 @@ TEST(RepeatedInput, RefusesWhatItCannotPriceOnce)
 namespace
 {
 using Triple = std::tuple<nn::Tensor, nn::Tensor, nn::Tensor>;
-Triple window(std::vector<float> target, std::vector<float> mask)
+Triple window(const std::vector<float>& target, const std::vector<float>& mask)
 {
     nn::Tensor t(1, static_cast<nn::Index>(target.size()));
     nn::Tensor m(1, static_cast<nn::Index>(mask.size()));

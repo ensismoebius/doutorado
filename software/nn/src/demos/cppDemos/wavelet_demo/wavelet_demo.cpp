@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <exception>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -150,7 +151,9 @@ void plot_dwpt_decomposition_single_plot(
     }
 }
 
-auto main() -> int
+namespace
+{
+auto run() -> int
 {
 #ifndef NDEBWUG
     // Use the Agg backend for non-interactive plotting when debugging
@@ -240,4 +243,19 @@ auto main() -> int
     }
 
     return 0;
+}
+} // namespace
+
+// Every failure reaches the user as a message and a non-zero exit status.
+int main()
+{
+    try
+    {
+        return run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "error: " << e.what() << '\n';
+        return 1;
+    }
 }

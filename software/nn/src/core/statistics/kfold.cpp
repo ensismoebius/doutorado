@@ -157,14 +157,13 @@ auto StratifiedKFold::split(const std::vector<int>& labels) const -> std::vector
 
 // ── SampleKFoldPolicy ────────────────────────────────────────────────────────
 
-SampleKFoldPolicy::SampleKFoldPolicy(
-    std::size_t n_splits, bool shuffle, std::uint32_t seed)
+SampleKFoldPolicy::SampleKFoldPolicy(std::size_t n_splits, bool shuffle, std::uint32_t seed)
     : n_splits_(n_splits), shuffle_(shuffle), seed_(seed)
 {
 }
 
-auto SampleKFoldPolicy::make_splits(
-    std::size_t n_samples, const std::vector<int>& /*groups*/) const -> std::vector<FoldSplit>
+auto SampleKFoldPolicy::make_splits(std::size_t n_samples, const std::vector<int>& /*groups*/) const
+    -> std::vector<FoldSplit>
 {
     KFold kf(n_splits_, shuffle_, seed_);
     return kf.split(n_samples);
@@ -172,17 +171,15 @@ auto SampleKFoldPolicy::make_splits(
 
 // ── GroupKFoldPolicy ─────────────────────────────────────────────────────────
 
-GroupKFoldPolicy::GroupKFoldPolicy(
-    std::size_t n_splits, bool shuffle, std::uint32_t seed)
+GroupKFoldPolicy::GroupKFoldPolicy(std::size_t n_splits, bool shuffle, std::uint32_t seed)
     : n_splits_(n_splits), shuffle_(shuffle), seed_(seed)
 {
 }
 
-auto GroupKFoldPolicy::make_splits(
-    std::size_t n_samples, const std::vector<int>& groups) const -> std::vector<FoldSplit>
+auto GroupKFoldPolicy::make_splits(std::size_t n_samples, const std::vector<int>& groups) const
+    -> std::vector<FoldSplit>
 {
-    if (groups.empty())
-        throw std::invalid_argument("GroupKFoldPolicy: groups must not be empty");
+    if (groups.empty()) throw std::invalid_argument("GroupKFoldPolicy: groups must not be empty");
     if (groups.size() != n_samples)
         throw std::invalid_argument("GroupKFoldPolicy: groups.size() != n_samples");
 
@@ -191,8 +188,7 @@ auto GroupKFoldPolicy::make_splits(
     std::unordered_set<int> seen;
     for (int g : groups)
     {
-        if (seen.insert(g).second)
-            unique_groups.push_back(g);
+        if (seen.insert(g).second) unique_groups.push_back(g);
     }
 
     if (unique_groups.size() < n_splits_)
@@ -228,8 +224,7 @@ auto GroupKFoldPolicy::make_splits(
         {
             if (fj != fi)
             {
-                for (std::size_t idx : fold_buckets[fj])
-                    fs.train_indices.push_back(idx);
+                for (std::size_t idx : fold_buckets[fj]) fs.train_indices.push_back(idx);
             }
         }
         splits.push_back(std::move(fs));
@@ -239,10 +234,8 @@ auto GroupKFoldPolicy::make_splits(
 
 // ── NestedKFold ──────────────────────────────────────────────────────────────
 
-NestedKFold::NestedKFold(std::size_t n_outer_splits,
-    std::size_t n_inner_splits,
-    bool shuffle,
-    std::uint32_t random_seed)
+NestedKFold::NestedKFold(
+    std::size_t n_outer_splits, std::size_t n_inner_splits, bool shuffle, std::uint32_t random_seed)
     : n_outer_splits_(n_outer_splits),
       n_inner_splits_(n_inner_splits),
       shuffle_(shuffle),
@@ -274,7 +267,7 @@ auto NestedKFold::split(std::size_t n_samples) const -> std::vector<NestedFoldSp
     std::vector<NestedFoldSplit> nested;
     nested.reserve(n_outer_splits_);
 
-    for (auto& outer : outer_folds)
+    for (const auto& outer : outer_folds)
     {
         NestedFoldSplit nfs;
         nfs.test_indices = outer.test_indices;
@@ -289,7 +282,7 @@ auto NestedKFold::split(std::size_t n_samples) const -> std::vector<NestedFoldSp
         KFold inner_kf(n_inner_splits_, shuffle_, inner_seed);
         auto inner_splits_local = inner_kf.split(inner_n);
 
-        for (auto& inner : inner_splits_local)
+        for (const auto& inner : inner_splits_local)
         {
             FoldSplit mapped;
             mapped.train_indices.reserve(inner.train_indices.size());
@@ -305,19 +298,18 @@ auto NestedKFold::split(std::size_t n_samples) const -> std::vector<NestedFoldSp
     return nested;
 }
 
-auto NestedKFold::split(
-    std::size_t n_samples, const std::vector<int>& groups) const -> std::vector<NestedFoldSplit>
+auto NestedKFold::split(std::size_t n_samples, const std::vector<int>& groups) const
+    -> std::vector<NestedFoldSplit>
 {
     if (!outer_policy_)
-        throw std::logic_error(
-            "NestedKFold::split(groups) requires the policy constructor");
+        throw std::logic_error("NestedKFold::split(groups) requires the policy constructor");
 
     auto outer_folds = outer_policy_->make_splits(n_samples, groups);
 
     std::vector<NestedFoldSplit> nested;
     nested.reserve(n_outer_splits_);
 
-    for (auto& outer : outer_folds)
+    for (const auto& outer : outer_folds)
     {
         NestedFoldSplit nfs;
         nfs.test_indices = outer.test_indices;
@@ -336,7 +328,7 @@ auto NestedKFold::split(
         auto inner_folds_local = inner_policy_->make_splits(inner_n, inner_groups);
 
         // Map local inner indices → global sample indices.
-        for (auto& inner : inner_folds_local)
+        for (const auto& inner : inner_folds_local)
         {
             FoldSplit mapped;
             mapped.train_indices.reserve(inner.train_indices.size());

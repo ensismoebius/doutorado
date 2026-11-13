@@ -915,6 +915,9 @@ auto parse_args(std::vector<std::string> args) -> meeting01::CliOptions
 {
     args.insert(args.begin(), "meeting01");
     std::vector<char*> argv;
+    argv.reserve(args.size());
+    // argv needs char*, which only a non-const std::string's data() gives.
+    // cppcheck-suppress constVariableReference
     for (auto& a : args) argv.push_back(a.data());
     return meeting01::parse_cli(static_cast<int>(argv.size()), argv.data());
 }

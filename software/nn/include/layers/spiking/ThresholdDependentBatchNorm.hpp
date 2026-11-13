@@ -66,7 +66,7 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
     Tensor running_var;  ///< Inference variance buffer (1,F)
 
     // Cached for backward (populated when forward(requires_grad=true)).
-    Tensor x_norm_cache_; ///< normalized values x̂ (T·B, F)
+    Tensor x_norm_cache_;  ///< normalized values x̂ (T·B, F)
     Tensor inv_std_cache_; ///< per-feature 1/sqrt(var+eps) used in forward (1,F)
 
     bool training_ = true;
@@ -78,19 +78,27 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    void train(bool on) override { training_ = on; }
-
-    explicit ThresholdDependentBatchNormImpl(size_t num_features, float vth = 1.0F,
-        int T = 1, float alpha_ = 1.0F, float eps_ = 1e-5F, float momentum_ = 0.1F)
-        : alpha(alpha_), voltage_threshold(vth), time_steps(T), eps(eps_), momentum(momentum_)
+    void train(bool on) override
     {
-        const auto F = static_cast<size_t>(num_features);
-        gamma = Tensor::ones(1, F);
-        beta = Tensor(1, F);
-        beta.setZero();
-        running_mean = Tensor(1, F);
-        running_mean.setZero();
-        running_var = Tensor::ones(1, F);
+        training_ = on;
+    }
+
+    explicit ThresholdDependentBatchNormImpl(size_t num_features,
+        float vth = 1.0F,
+        int T = 1,
+        float alpha_ = 1.0F,
+        float eps_ = 1e-5F,
+        float momentum_ = 0.1F)
+        : alpha(alpha_),
+          voltage_threshold(vth),
+          time_steps(T),
+          eps(eps_),
+          momentum(momentum_),
+          gamma(Tensor::ones(1, num_features)),
+          beta(Tensor::zeros(1, num_features)),
+          running_mean(Tensor::zeros(1, num_features)),
+          running_var(Tensor::ones(1, num_features))
+    {
     }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
@@ -101,8 +109,7 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
 
         if (T == 0 || total_rows % T != 0)
             throw std::invalid_argument("tdBN: input rows must be divisible by time_steps");
-        if (total_rows == 0)
-            throw std::invalid_argument("tdBN: empty input");
+        if (total_rows == 0) throw std::invalid_argument("tdBN: empty input");
 
         // N pools batch AND time: statistics are taken over every row of a column.
         const float N = static_cast<float>(total_rows);
@@ -136,8 +143,10 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
                 use_var = var_sum / N; // biased variance, consistent with normalization
 
                 // Update running statistics for inference (standard BN EMA).
-                running_mean.at(0, f) = (1.0f - momentum) * running_mean.at(0, f) + momentum * use_mean;
-                running_var.at(0, f) = (1.0f - momentum) * running_var.at(0, f) + momentum * use_var;
+                running_mean.at(0, f) =
+                    (1.0f - momentum) * running_mean.at(0, f) + momentum * use_mean;
+                running_var.at(0, f) =
+                    (1.0f - momentum) * running_var.at(0, f) + momentum * use_var;
             }
             else
             {
@@ -178,11 +187,12 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
         for (size_t f = 0; f < F; ++f)
         {
             const float g = gamma.at(0, f);
-            const float inv_std = inv_std_cache_.at(0, f); // training-time stat (backward only runs in training)
+            const float inv_std =
+                inv_std_cache_.at(0, f); // training-time stat (backward only runs in training)
 
             // dL/dγ, dL/dβ and the reductions needed for the BN input gradient.
-            float sum_dxn = 0.0f;     // Σ (dL/dx̂)
-            float sum_dxn_xn = 0.0f;  // Σ (dL/dx̂)·x̂
+            float sum_dxn = 0.0f;    // Σ (dL/dx̂)
+            float sum_dxn_xn = 0.0f; // Σ (dL/dx̂)·x̂
             for (size_t r = 0; r < total_rows; ++r)
             {
                 const float dout = grad_output.at(r, f);

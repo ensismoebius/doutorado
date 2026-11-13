@@ -167,11 +167,11 @@ TEST(ThesisSpikeTimeGradient, ZeroWhenPredictionNeverCrossesThreshold)
 {
     const int T = 4, B = 2, F = 3;
     SpikeTimeLossImpl<nn::Backend> loss(T);
-    nn::Tensor tgt(T * B, F);
+    nn::Tensor tgt(static_cast<nn::Index>(T) * B, F);
     tgt.setZero();
     for (int b = 0; b < B; ++b) tgt.at(1 * B + b, 0) = 1.0f; // target spikes at t=1
 
-    nn::Tensor pred(T * B, F);
+    nn::Tensor pred(static_cast<nn::Index>(T) * B, F);
     pred.setZero();
     for (size_t i = 0; i < pred.rows(); ++i)
         for (size_t j = 0; j < pred.cols(); ++j) pred.at(i, j) = 0.49f; // just below threshold
@@ -186,11 +186,11 @@ TEST(ThesisSpikeTimeGradient, NonZeroWhenPredictionSpikes)
 {
     const int T = 4, B = 2, F = 3;
     SpikeTimeLossImpl<nn::Backend> loss(T);
-    nn::Tensor tgt(T * B, F);
+    nn::Tensor tgt(static_cast<nn::Index>(T) * B, F);
     tgt.setZero();
     for (int b = 0; b < B; ++b) tgt.at(1 * B + b, 0) = 1.0f;
 
-    nn::Tensor pred(T * B, F);
+    nn::Tensor pred(static_cast<nn::Index>(T) * B, F);
     pred.setZero();
     for (int b = 0; b < B; ++b) pred.at(3 * B + b, 0) = 1.0f; // spikes late -> real error
 

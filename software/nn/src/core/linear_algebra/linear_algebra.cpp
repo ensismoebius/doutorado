@@ -163,10 +163,13 @@ void discrete_cosine_transform(std::span<double> vector)
         double sum = 0;
         for (size_t n = 0; n < N; ++n)
         {
-            sum += vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
+            sum += vector[n] *
+                   std::cos(((2.0 * static_cast<double>(n) + 1.0) * M_PI * static_cast<double>(k)) /
+                            (2.0 * static_cast<double>(N)));
         }
 
-        double alpha = (k == 0) ? std::sqrt(1.0 / N) : std::sqrt(2.0 / N);
+        const auto n_d = static_cast<double>(N);
+        double alpha = (k == 0) ? std::sqrt(1.0 / n_d) : std::sqrt(2.0 / n_d);
         res[k] = alpha * sum;
     }
 

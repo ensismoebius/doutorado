@@ -109,12 +109,16 @@ TEST(SamplerThrowTest, WeightedRandomSamplerSpanMismatch)
 
 TEST(SamplerThrowTest, DistributedSamplerZeroReplicas)
 {
-    EXPECT_THROW((DistributedSampler(10, 0, 0, false, false, 1u)), std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const DistributedSampler object(10, 0, 0, false, false, 1u); },
+        std::invalid_argument);
 }
 
 TEST(SamplerThrowTest, DistributedSamplerRankTooLarge)
 {
-    EXPECT_THROW((DistributedSampler(10, 2, 2, false, false, 1u)), std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const DistributedSampler object(10, 2, 2, false, false, 1u); },
+        std::invalid_argument);
 }
 
 TEST(SamplerTest, DistributedSamplerDropLast)

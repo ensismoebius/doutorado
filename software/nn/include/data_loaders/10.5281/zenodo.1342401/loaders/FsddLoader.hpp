@@ -11,29 +11,26 @@
 #include <string>
 #include <vector>
 
-#include "tensor/Tensor.hpp"
 #include "data_loaders/10.5281/zenodo.1342401/loaders/FsddSample.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace nn::dataLoaders::fsdd
 {
 
 class FsddLoader
 {
-public:
+   public:
     // Returns sorted list of all .wav paths under root (recursive).
     // Throws std::runtime_error if root does not exist.
-    static auto discover(const std::filesystem::path& root)
-        -> std::vector<std::filesystem::path>;
+    static auto discover(const std::filesystem::path& root) -> std::vector<std::filesystem::path>;
 
     // Parses a filename stem (no extension) into FsddFileInfo.
     // Returns std::nullopt for any stem that does not match {digit}_{speaker}_{trial}.
-    static auto parse_filename(const std::string& stem)
-        -> std::optional<FsddFileInfo>;
+    static auto parse_filename(const std::string& stem) -> std::optional<FsddFileInfo>;
 
     // Reads a WAV file and returns a (N, 1) column-vector tensor of float32 samples.
     // Throws std::runtime_error on read failure.
-    static auto load_signal(const std::filesystem::path& wav_path)
-        -> nn::Tensor;
+    static auto load_signal(const std::filesystem::path& wav_path) -> nn::Tensor;
 };
 
 } // namespace nn::dataLoaders::fsdd

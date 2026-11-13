@@ -7,20 +7,23 @@
  * The plotting helpers are intentionally excluded from these tests.
  */
 
+#include <fftw3.h>
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <memory>
 #include <numbers>
 #include <vector>
-
-#include <fftw3.h>
-#include <gtest/gtest.h>
 
 #include "tensor/Tensor.hpp"
 
 // ---- replicate the deleter and functions under test ----
 struct FFTWFreeDeleter
 {
-    void operator()(void* ptr) const { fftw_free(ptr); }
+    void operator()(void* ptr) const
+    {
+        fftw_free(ptr);
+    }
 };
 
 auto generateSignal(
@@ -39,9 +42,9 @@ auto generateSignal(
     return std::unique_ptr<double, FFTWFreeDeleter>(in_raw);
 }
 
-auto executeFFT(int signal_length,
-    double* in_raw,
-    std::unique_ptr<fftw_complex, FFTWFreeDeleter>& out_fftw_ptr) -> fftw_plan
+auto executeFFT(
+    int signal_length, double* in_raw, std::unique_ptr<fftw_complex, FFTWFreeDeleter>& out_fftw_ptr)
+    -> fftw_plan
 {
     auto* out_raw =
         static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * (signal_length / 2 + 1)));
@@ -69,9 +72,13 @@ auto calculateFFTMagnitude(int signal_length, const fftw_complex* out_fftw_raw) 
 class FftDemoTest : public ::testing::Test
 {
    protected:
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr size_t kSampleRate = 1024;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr size_t kDuration = 4;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr double kFreq1 = 10.0;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr double kFreq2 = 40.0;
 };
 

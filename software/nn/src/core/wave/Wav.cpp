@@ -651,7 +651,7 @@ auto Wav::combine_8bit_to_16bit(unsigned char lsb, unsigned char msb) -> short
     // 8 bits to the left (to occupy the upper 8 bits of the short) and then
     // performing a bitwise OR with the lsb (which occupies the lower 8 bits).
     // This assumes a little-endian system where the lsb comes first.
-    return static_cast<short>((static_cast<short>(msb) << 8) | lsb);
+    return static_cast<short>((static_cast<unsigned>(msb) << 8U) | static_cast<unsigned>(lsb));
 }
 
 void Wav::split_16bit_to_8bit(short sample, unsigned char* lsb, unsigned char* msb)
@@ -659,13 +659,14 @@ void Wav::split_16bit_to_8bit(short sample, unsigned char* lsb, unsigned char* m
     // Extract the least significant byte (lsb) from the 16-bit sample.
     // This is done by applying a bitwise AND with a mask of 0xFF, which
     // isolates the lower 8 bits of the sample.
-    *lsb = sample & 0xFF;
+    const auto bits = static_cast<unsigned>(static_cast<unsigned short>(sample));
+    *lsb = static_cast<unsigned char>(bits & 0xFFU);
 
     // Extract the most significant byte (msb) from the 16-bit sample.
     // This is done by shifting the sample 8 bits to the right, which moves
     // the upper 8 bits into the lower 8 bits position, and then applying a
     // bitwise AND with a mask of 0xFF to isolate them.
-    *msb = (sample >> 8) & 0xFF;
+    *msb = static_cast<unsigned char>((bits >> 8U) & 0xFFU);
 }
 
 void Wav::clear_vectors()

@@ -22,8 +22,11 @@
 
 #include <algorithm>
 #include <concepts>
+#include <exception>
 #include <random>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "Backend.hpp"
@@ -789,24 +792,35 @@ class TensorImpl<Backend>::CommaInitializer
         return *this;
     }
 
-    ~CommaInitializer() noexcept(false)
+    // Throwing here is how a wrong value count reaches the caller (Eigen asserts instead);
+    // it never throws while another exception is unwinding the stack.
+    ~CommaInitializer() noexcept(false) // NOLINT(bugprone-unsafe-to-allow-exceptions)
     {
-        // Comma-initialization copies the provided values into the underlying buffer.
-        // To maintain compatibility with Eigen-style column-major filling:
-        // Populate column by column.
-        if (m_values.size() <= static_cast<size_t>(m_tensor.size()))
+        // Comma-initialization copies the provided values into the underlying buffer,
+        // column by column (Eigen-style column-major filling). Like Eigen, the number of
+        // values must equal the tensor's size: extra values used to be dropped and missing
+        // ones left whatever was there, both without a word.
+        if (std::uncaught_exceptions() > 0)
         {
-            Index rows = m_tensor.rows();
-            Index cols = m_tensor.cols();
-            for (size_t i = 0; i < m_values.size(); ++i)
-            {
-                Index r = i % rows;
-                Index c = i / rows;
-                if (r < rows && c < cols)
-                {
-                    m_tensor.at(r, c) = m_values[i];
-                }
-            }
+            return; // already unwinding: throwing here would terminate
+        }
+        const auto expected = static_cast<size_t>(m_tensor.size());
+        if (m_values.size() != expected)
+        {
+            throw std::invalid_argument(
+                "Tensor comma initializer: got " + std::to_string(m_values.size()) +
+                " values for a " + std::to_string(m_tensor.rows()) + "x" +
+                std::to_string(m_tensor.cols()) + " tensor; give exactly rows*cols values");
+        }
+        const Index rows = m_tensor.rows();
+        if (rows == 0)
+        {
+            return; // unreachable: a 0-row tensor has size 0, and one value is always given
+        }
+        for (size_t i = 0; i < m_values.size(); ++i)
+        {
+            const auto idx = static_cast<Index>(i);
+            m_tensor.at(idx % rows, idx / rows) = m_values[i];
         }
     }
 

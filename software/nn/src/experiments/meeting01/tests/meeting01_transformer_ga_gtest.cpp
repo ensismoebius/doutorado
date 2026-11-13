@@ -144,7 +144,7 @@ TEST(Meeting01TransformerGaGenome, MutationCanChangeEveryFieldAndStaysDivisible)
 TEST(Meeting01TransformerGaGenome, GenomeKeyIsStableAndDiscriminating)
 {
     const TransformerGenome a{64, 4, 2, 128, "direct"};
-    const TransformerGenome b = a;
+    const TransformerGenome& b = a;
     TransformerGenome c = a;
     c.d_ff = 129;
     EXPECT_EQ(meeting01::ga::genome_key(a), meeting01::ga::genome_key(b));

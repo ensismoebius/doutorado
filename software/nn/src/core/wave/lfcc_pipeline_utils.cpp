@@ -12,9 +12,8 @@
 #include <cstddef>
 #include <vector>
 
-#include "logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
-
 #include "data_loaders/10.1117/loaders/AudioLoader.hpp"
+#include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "wave/audioFeatureExtraction.hpp"
 
 using nn::dataLoaders::loadAudioFromMat;

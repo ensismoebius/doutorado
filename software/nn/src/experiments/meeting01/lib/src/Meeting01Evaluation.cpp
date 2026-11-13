@@ -150,7 +150,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             output_steps);
 
         model.reset_state();
-        const SnnTensor input(encoded);
+        const SnnTensor& input(encoded);
         const Tensor recon = Tensor(model.forward(input, false));
         // A repeated input's transform (conv1d) and first Linear are counted once per window.
         const SnnOpCounts window_ops = count_snn_ops(model, input, input_is_spikes, repeated_steps);
@@ -275,7 +275,7 @@ auto per_window_errors_snn(ProtocolSpikingAutoencoder& model,
     std::uint32_t seed,
     int time_steps,
     int output_steps,
-    PerWindowError proto) -> std::vector<PerWindowError>
+    const PerWindowError& proto) -> std::vector<PerWindowError>
 {
     std::vector<PerWindowError> out;
     out.reserve(samples.size());

@@ -7,11 +7,11 @@
 #include <iterator>
 #include <numeric>
 
-#include "gtest/gtest.h"
 #include "data_loaders/datasets/TensorDataset.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"
 #include "data_loaders/samplers/DistributedSampler.hpp"
 #include "data_loaders/samplers/SequentialSampler.hpp"
+#include "gtest/gtest.h"
 
 // Helper to build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
@@ -116,7 +116,7 @@ TEST(DataLoaderTest, EmptyDataset)
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
     DataLoader loader(dataset, 4, false);
-    int count = std::distance(loader.begin(), loader.end());
+    const auto count = static_cast<int>(std::distance(loader.begin(), loader.end()));
     EXPECT_EQ(count, 0);
 }
 

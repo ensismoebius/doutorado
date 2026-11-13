@@ -62,13 +62,23 @@ auto extract_layer_sizes(const std::vector<std::string>& specs)
         }
         if (parts.size() >= 2 && parts[0] == "linear")
         {
+            // Not a whole positive integer: refuse (it used to be skipped silently).
+            std::size_t used = 0;
+            int width = 0;
             try
             {
-                sizes.push_back(std::stoi(parts[1]));
+                width = std::stoi(parts[1], &used);
             }
-            catch (...)
+            catch (const std::exception&)
             {
+                used = 0;
             }
+            if (used == 0 || used != parts[1].size() || width <= 0)
+            {
+                throw std::invalid_argument("layer spec '" + spec + "': width '" + parts[1] +
+                                            "' is not a positive integer");
+            }
+            sizes.push_back(width);
         }
     }
     return sizes;
@@ -361,8 +371,8 @@ auto make_baseline_row(const Meeting01Config& config,
 struct FamilyWinnerSummary
 {
     std::string family_token; // "snn-ae" | "lstm-ae" | "gru-ae" | "transformer-ae"
-    float val_mse;
-    std::size_t inference_cost;
+    float val_mse = 0.0F;
+    std::size_t inference_cost = 0;
     // The winning genome's layer widths (the last one is the latent). Filled by the SNN search
     // only: the matched ANN control copies it.
     std::vector<int> encoder_widths = {};
@@ -696,11 +706,11 @@ struct SnnSelection
     // GA's encoding-selection frequency — the SNN-side replacement for the old
     // per-encoding comparison — impossible to audit.
     std::string encoding;
-    float v_th;
-    float alpha;
-    float val_mse;
+    float v_th = 0.0F;
+    float alpha = 0.0F;
+    float val_mse = 0.0F;
     std::vector<int> encoder_widths;
-    int time_steps; // the genome's T, a gene like the others
+    int time_steps = 0; // the genome's T, a gene like the others
 };
 
 // Nested-LOSO final fit for the GA-selected SNN-AE: retrain `best` on
@@ -1591,15 +1601,6 @@ void write_experiment_outputs(const Meeting01Config& config,
 
     const std::filesystem::path summary_json = out_dir / (tag + "_summary.json");
     write_summary_json(summary_json, config, cfg_hash, all_rows);
-
-    if (!config.dataset.latex_data_dir.empty())
-    {
-        const std::filesystem::path latex_dir =
-            std::filesystem::path(config.dataset.latex_data_dir);
-        write_latex_exports(latex_dir, tag, config, all_rows);
-        write_pgfplots_summary_dat(latex_dir / (tag + "_summary.dat"), all_rows);
-        write_pgfplots_sweep_dat(latex_dir / (tag + "_sweep.dat"), all_rows);
-    }
 
     // LAST, after every other output of the fold: 01_meeting01_run_loso.sh's RESUME=1 skips a
     // fold as soon as this file exists, so a process killed between two of the writes above

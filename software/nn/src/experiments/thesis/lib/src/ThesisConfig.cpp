@@ -212,7 +212,13 @@ auto find_key(const std::vector<ThesisConfig::Embedding::Key>& keys, std::string
 
 // ─── JSON -> fields ──────────────────────────────────────────────────────────
 
-const std::string kOwner = "ThesisConfig";
+// The name every config error starts with (a function-local static: a namespace-scope
+// std::string may throw during static initialisation, where nothing can catch it).
+auto kOwner() -> const std::string&
+{
+    static const std::string owner = "ThesisConfig";
+    return owner;
+}
 
 auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) -> ThesisConfig
 {
@@ -224,7 +230,7 @@ auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) ->
         [&](auto& field, const char* /*when*/, auto /*applies*/) { fields.insert(field.path()); });
 
     const std::string owner =
-        embedding != nullptr ? kOwner + " (embedded in " + embedding->program + ")" : kOwner;
+        embedding != nullptr ? kOwner() + " (embedded in " + embedding->program + ")" : kOwner();
     strict::refuse_unknown_keys(j,
         "",
         fields,
@@ -251,7 +257,7 @@ auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) ->
         {
             using T = typename std::remove_cvref_t<decltype(field)>::value_type;
             if (const auto* v = strict::find_path(j, field.path()))
-                field = strict::read_exact<T>(*v, kOwner, field.path());
+                field = strict::read_exact<T>(*v, kOwner(), field.path());
         });
 
     cfg.check_declarations();
@@ -629,12 +635,12 @@ void ThesisConfig::check_declarations() const
             if (const auto* ignored = emb != nullptr ? find_key(emb->not_read, path) : nullptr)
             {
                 if (field.declared())
-                    throw std::invalid_argument(kOwner + ": the profile declares \"" + path +
+                    throw std::invalid_argument(kOwner() + ": the profile declares \"" + path +
                                                 "\", which this run never reads (" + emb->program +
                                                 " " + ignored->reason + "). Remove it.");
                 return;
             }
-            strict::check_declared(field, applies(*this), when, kOwner);
+            strict::check_declared(field, applies(*this), when, kOwner());
         });
 }
 

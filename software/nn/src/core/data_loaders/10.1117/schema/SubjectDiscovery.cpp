@@ -191,8 +191,8 @@ auto discoverSubjectFromDirEntry(const std::filesystem::directory_entry& entry,
 
     const int subject_id = std::stoi(regex_groups_matches[1].str());
 
-    const fs::path eeg_mat = entry.path() / (dir_name + kEegMatFileSuffix);
-    const fs::path audio_mat = entry.path() / (dir_name + kAudioMatFileSuffix);
+    const fs::path eeg_mat = entry.path() / (dir_name + kEegMatFileSuffix());
+    const fs::path audio_mat = entry.path() / (dir_name + kAudioMatFileSuffix());
     const fs::path shard_index = entry.path() / (dir_name + std::string("_shards.json"));
 
     bool eeg_ok = fs::exists(eeg_mat);
@@ -235,9 +235,9 @@ auto discoverSubjectFromDirEntry(const std::filesystem::directory_entry& entry,
     try
     {
         info.eeg_rows = eeg_is_shard ? matioCpp::utils::countShardRows(info.eeg_path, "eeg")
-                                     : countMatRows(info.eeg_path, kEegMatVariableName);
+                                     : countMatRows(info.eeg_path, kEegMatVariableName());
         info.audio_rows = audio_is_shard ? matioCpp::utils::countShardRows(info.audio_path, "audio")
-                                         : countMatRows(info.audio_path, kAudioMatVariableName);
+                                         : countMatRows(info.audio_path, kAudioMatVariableName());
     }
     catch (const std::exception& e)
     {

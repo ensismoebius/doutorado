@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -22,6 +23,7 @@ namespace
 std::vector<std::vector<float>> perfect_embeddings(int n_per_class)
 {
     std::vector<std::vector<float>> emb;
+    emb.reserve(n_per_class);
     for (int i = 0; i < n_per_class; ++i) emb.push_back({10.0f, 0.0f}); // class 0
     for (int i = 0; i < n_per_class; ++i) emb.push_back({0.0f, 10.0f}); // class 1
     return emb;
@@ -30,6 +32,7 @@ std::vector<std::vector<float>> perfect_embeddings(int n_per_class)
 std::vector<int> perfect_labels(int n_per_class)
 {
     std::vector<int> lbl;
+    lbl.reserve(n_per_class);
     for (int i = 0; i < n_per_class; ++i) lbl.push_back(0);
     for (int i = 0; i < n_per_class; ++i) lbl.push_back(1);
     return lbl;
@@ -44,18 +47,31 @@ std::vector<std::vector<float>> at_degrees(const std::vector<double>& deg)
 {
     constexpr double kPi = 3.14159265358979323846;
     std::vector<std::vector<float>> emb;
+    emb.reserve(deg.size());
     for (double d : deg)
         emb.push_back({static_cast<float>(std::cos(d * kPi / 180.0)),
             static_cast<float>(std::sin(d * kPi / 180.0))});
     return emb;
 }
 
-const std::vector<int> kTwoSpeakers{0, 0, 0, 0, 1, 1, 1, 1};
+constexpr std::array<int, 8> kTwoSpeakersIds{0, 0, 0, 0, 1, 1, 1, 1};
+auto two_speakers() -> std::vector<int>
+{
+    return {kTwoSpeakersIds.begin(), kTwoSpeakersIds.end()};
+}
 
 // Probes 10/20/30 deg from their own template, 60/70/80 deg from the other one.
-const std::vector<double> kSeparated{0, 10, 20, 30, 90, 80, 70, 60};
+constexpr std::array<double, 8> kSeparatedDeg{0, 10, 20, 30, 90, 80, 70, 60};
+auto separated() -> std::vector<double>
+{
+    return {kSeparatedDeg.begin(), kSeparatedDeg.end()};
+}
 // Probes 60/70/80 deg from their own template, 10/20/30 deg from the other one.
-const std::vector<double> kInverted{0, 80, 70, 60, 90, 10, 20, 30};
+constexpr std::array<double, 8> kInvertedDeg{0, 80, 70, 60, 90, 10, 20, 30};
+auto inverted() -> std::vector<double>
+{
+    return {kInvertedDeg.begin(), kInvertedDeg.end()};
+}
 
 } // namespace
 
@@ -68,23 +84,23 @@ const std::vector<double> kInverted{0, 80, 70, 60, 90, 10, 20, 30};
 TEST(GenuineImpostorEERScorerTest, SeparatedUntiedScoresHaveZeroEer)
 {
     GenuineImpostorEERScorer s(1U);
-    const auto emb = at_degrees(kSeparated);
-    EXPECT_DOUBLE_EQ(s.compute_auc(emb, kTwoSpeakers, 2), 1.0);
-    EXPECT_DOUBLE_EQ(s.compute_eer(emb, kTwoSpeakers, 2), 0.0);
+    const auto emb = at_degrees(separated());
+    EXPECT_DOUBLE_EQ(s.compute_auc(emb, two_speakers(), 2), 1.0);
+    EXPECT_DOUBLE_EQ(s.compute_eer(emb, two_speakers(), 2), 0.0);
 }
 
 TEST(GenuineImpostorEERScorerTest, InvertedUntiedScoresHaveEerOne)
 {
     GenuineImpostorEERScorer s(1U);
-    const auto emb = at_degrees(kInverted);
-    EXPECT_DOUBLE_EQ(s.compute_auc(emb, kTwoSpeakers, 2), 0.0);
-    EXPECT_DOUBLE_EQ(s.compute_eer(emb, kTwoSpeakers, 2), 1.0);
+    const auto emb = at_degrees(inverted());
+    EXPECT_DOUBLE_EQ(s.compute_auc(emb, two_speakers(), 2), 0.0);
+    EXPECT_DOUBLE_EQ(s.compute_eer(emb, two_speakers(), 2), 1.0);
 }
 
 TEST(ClassificationEERScorerTest, SeparatedUntiedScoresHaveZeroEer)
 {
     ClassificationEERScorer s;
-    EXPECT_DOUBLE_EQ(s.compute_eer(at_degrees(kSeparated), kTwoSpeakers, 2), 0.0);
+    EXPECT_DOUBLE_EQ(s.compute_eer(at_degrees(separated()), two_speakers(), 2), 0.0);
 }
 
 // ── Unscorable sets throw (they returned NaN, or dropped a speaker, until 2026-11-12) ──

@@ -94,7 +94,7 @@ struct Meeting01Config
         int loso_max_val_windows = 0;       // optional (0 = unlimited)
         int loso_max_test_windows = 0;      // optional (0 = unlimited)
         int latent_dim = 0;                 // optional (0 = per-source, else model.latent_dim)
-        std::string latex_data_dir = "";    // optional
+        std::string latex_data_dir = "";    // must be empty: the LaTeX exports were removed
         bool save_models = false;           // optional
         std::vector<DatasetSource> sources; // optional per-dataset overrides
 

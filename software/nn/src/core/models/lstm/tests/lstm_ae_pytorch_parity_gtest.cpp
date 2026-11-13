@@ -113,7 +113,7 @@ auto param_names(int layers) -> std::vector<std::string>
 
 struct Case
 {
-    int d, h, z, layers, s;
+    int d = 0, h = 0, z = 0, layers = 0, s = 0;
     std::string prefix;
 };
 

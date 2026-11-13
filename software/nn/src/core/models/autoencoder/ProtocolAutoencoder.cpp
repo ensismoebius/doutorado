@@ -63,7 +63,7 @@ auto ProtocolAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Te
     }
 
     auto fused = fusion_decoder_.forward(latent, requires_grad);
-    const int branch_cols = fused.cols() / 2;
+    const int branch_cols = static_cast<int>(fused.cols() / 2);
     auto eeg_branch = slice_columns(fused, 0, branch_cols);
     auto audio_branch = slice_columns(fused, branch_cols, fused.cols() - branch_cols);
     auto eeg_reconstruction = eeg_decoder_.forward(eeg_branch, requires_grad);

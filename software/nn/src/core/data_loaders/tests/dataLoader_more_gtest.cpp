@@ -6,9 +6,9 @@
 #include <numeric>
 #include <random>
 
-#include "gtest/gtest.h"
 #include "data_loaders/datasets/TensorDataset.hpp"
 #include "data_loaders/runtime/DataLoader.hpp"
+#include "gtest/gtest.h"
 
 // Reuse helper from existing tests: build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
@@ -190,7 +190,7 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)
     int weighted_rows = 0;
     for (const auto& b : weighted_loader)
     {
-        weighted_rows += b.inputs.rows();
+        weighted_rows += static_cast<int>(b.inputs.rows());
         for (int r = 0; r < b.inputs.rows(); ++r)
         {
             EXPECT_EQ(static_cast<int>(b.inputs.at(r, 0) / 2), 2);

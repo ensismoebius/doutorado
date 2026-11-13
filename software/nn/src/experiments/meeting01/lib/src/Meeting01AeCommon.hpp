@@ -189,7 +189,7 @@ auto per_window_errors_ae(Model& model,
     std::uint32_t seed,
     int frame_size,
     int time_steps,
-    PerWindowError proto) -> std::vector<PerWindowError>
+    const PerWindowError& proto) -> std::vector<PerWindowError>
 {
     using ModelTensor = typename Model::Tensor;
     std::vector<PerWindowError> out;

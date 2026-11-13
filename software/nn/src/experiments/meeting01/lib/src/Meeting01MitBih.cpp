@@ -105,11 +105,11 @@ auto decode_212(const std::filesystem::path& dat) -> std::vector<int>
     out.reserve(bytes.size() / 3 * 2);
     for (std::size_t i = 0; i + 2 < bytes.size(); i += 3)
     {
-        const int b0 = bytes[i];
-        const int b1 = bytes[i + 1];
-        const int b2 = bytes[i + 2];
-        int first = ((b1 & 0x0F) << 8) | b0;
-        int second = (b2 << 4) | ((b1 >> 4) & 0x0F);
+        const auto b0 = static_cast<unsigned>(bytes[i]);
+        const auto b1 = static_cast<unsigned>(bytes[i + 1]);
+        const auto b2 = static_cast<unsigned>(bytes[i + 2]);
+        int first = static_cast<int>(((b1 & 0x0FU) << 8U) | b0);
+        int second = static_cast<int>((b2 << 4U) | ((b1 >> 4U) & 0x0FU));
         if (first >= 2048) first -= 4096;
         if (second >= 2048) second -= 4096;
         out.push_back(first);

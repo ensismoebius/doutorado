@@ -10,23 +10,16 @@
 
 #include "tensor/Tensor.hpp"
 
-// Global random engine and distribution
-// Note on determinism:
-// - This uses a process-global RNG seeded from std::random_device.
-// - That means results are non-deterministic across runs unless you change this to a fixed seed.
-
-// Note on reproducibility:
-// - This translation unit uses a global RNG seeded from std::random_device.
-// - That makes generated spike trains non-deterministic across runs by default.
-// - For fully reproducible experiments, consider switching to an explicit seed/config.
-// - It is also not thread-safe: concurrent calls would race on `gen`.
-static std::mt19937 gen(std::random_device{}());
-static std::uniform_real_distribution<float> dist(0.0F, 1.0F);
-
+// The engine is local and seeded by the caller: the same arguments give the same spike trains,
+// and concurrent calls share nothing. (It used to be a process-global engine seeded from
+// std::random_device, so no two runs saw the same data and concurrent calls raced on it.)
 auto generate_autoencoder_spike_data(
-    int n_samples, int input_dim, int n_steps, float max_rate, float timeStep)
+    int n_samples, int input_dim, int n_steps, float max_rate, float timeStep, std::uint32_t seed)
     -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>
 {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(0.0F, 1.0F);
+
     if (n_samples <= 0 || input_dim <= 0 || n_steps <= 0)
     {
         throw std::invalid_argument("n_samples, input_dim, and n_steps must be positive");

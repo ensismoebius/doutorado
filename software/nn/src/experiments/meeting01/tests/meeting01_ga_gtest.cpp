@@ -183,7 +183,7 @@ TEST(Meeting01GaGenome, MutationCanChangeDepthAndStaysLegal)
 TEST(Meeting01GaGenome, GenomeKeyIsStableAndDiscriminating)
 {
     const Genome a{{64, 32}, "direct", "dense", 1.0f, 0.9f};
-    const Genome b = a;
+    const Genome& b = a;
     Genome c = a;
     c.alpha = 0.8f;
     Genome d = a;
@@ -569,6 +569,7 @@ TEST(Meeting01GaSearch, EachFoldDrawsItsOwnPopulation)
     {
         std::mt19937 rng(meeting01::ga::search_stream_seed(seed, stream));
         std::vector<std::string> keys;
+        keys.reserve(8);
         for (int i = 0; i < 8; ++i)
             keys.push_back(meeting01::ga::genome_key(meeting01::ga::random_genome(rng, bounds)));
         return keys;

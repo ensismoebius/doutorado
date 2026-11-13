@@ -38,7 +38,10 @@ class SimpleResNetImpl : public Module<Backend>
     // (each with a distinct per-layer offset of the base seed) so runs are
     // reproducible. When nullopt (default), the initializer seeds itself from
     // std::random_device, preserving the original non-deterministic behavior.
-    SimpleResNetImpl(int input_dim, int hidden_dim, int output_dim, int depth = 3,
+    SimpleResNetImpl(int input_dim,
+        int hidden_dim,
+        int output_dim,
+        int depth = 3,
         std::optional<unsigned int> seed = std::nullopt)
     {
         // Build model: input -> Linear -> ReLU -> ResidualBlocks -> Linear(output)
@@ -59,9 +62,7 @@ class SimpleResNetImpl : public Module<Backend>
 
         // Per-layer seed = base seed + offset (nullopt → non-deterministic).
         auto layer_seed = [&seed](unsigned int offset) -> std::optional<unsigned int>
-        {
-            return seed.has_value() ? std::optional<unsigned int>(*seed + offset) : std::nullopt;
-        };
+        { return seed.has_value() ? std::optional<unsigned int>(*seed + offset) : std::nullopt; };
 
         // Initialize weights
         kaimingSNNInitializer(fc_in, layer_seed(1U), "simple_resnet");

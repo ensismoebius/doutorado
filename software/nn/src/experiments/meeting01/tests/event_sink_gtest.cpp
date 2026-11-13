@@ -135,13 +135,14 @@ TEST(EventSink, ATrainingWithoutAContextThrowsWhileTheSinkIsOpen)
     meeting01::EventContext ctx;
     ctx.config_id = "snn-ae_ga_k_seed42";
     ev.set_pending_context(ctx);
-    EXPECT_NO_THROW(meeting01::Meeting01EventCallback{});
+    EXPECT_NO_THROW({ [[maybe_unused]] const meeting01::Meeting01EventCallback object{}; });
     // The first callback took the context, so a second training that declared none must not
     // run under that identity.
-    EXPECT_THROW(meeting01::Meeting01EventCallback{}, std::logic_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] const meeting01::Meeting01EventCallback object{}; }, std::logic_error);
 
     ev.close();
     std::filesystem::remove(path);
     // A closed sink writes nothing, so no identity is needed.
-    EXPECT_NO_THROW(meeting01::Meeting01EventCallback{});
+    EXPECT_NO_THROW({ [[maybe_unused]] const meeting01::Meeting01EventCallback object{}; });
 }

@@ -18,240 +18,6 @@
 namespace meeting01
 {
 
-namespace
-{
-
-template <typename T>
-auto join_values(const std::vector<T>& values, const char* sep = ";") -> std::string
-{
-    std::ostringstream oss;
-    for (std::size_t i = 0; i < values.size(); ++i)
-    {
-        if (i > 0) oss << sep;
-        oss << values[i];
-    }
-    return oss.str();
-}
-
-auto model_label(const ResultRow& row) -> std::string
-{
-    if (row.model == "lstm-ae") return "LSTM-AE";
-    if (row.architecture == "dense") return "SNN-dense";
-    if (row.architecture == "conv1d") return "SNN-conv1d";
-    if (row.architecture == "recurrent") return "SNN-recurrent";
-    return row.model;
-}
-
-struct Aggregated
-{
-    double mse = 0.0;
-    double mae = 0.0;
-    double r2 = 0.0;
-    double precision = 0.0;
-    double recall = 0.0;
-    double f1 = 0.0;
-    double spike_rate = 0.0;
-    double acs = 0.0;
-    double arith_energy_nj = 0.0;
-    double train_ms = 0.0;
-    double infer_ms = 0.0;
-    double param_count = 0.0;
-    double macs = 0.0;
-    int count = 0;
-
-    void add(const ResultRow& row)
-    {
-        mse += row.metrics.mse;
-        mae += row.metrics.mae;
-        r2 += row.metrics.r2;
-        precision += row.metrics.precision;
-        recall += row.metrics.recall;
-        f1 += row.metrics.f1;
-        spike_rate += row.metrics.spike_rate; // NaN for a non-spiking model: its mean is NaN too
-        acs += row.metrics.acs;
-        arith_energy_nj += row.metrics.arith_energy_nj;
-        train_ms += row.metrics.train_ms;
-        infer_ms += row.metrics.infer_ms;
-        param_count += static_cast<double>(row.metrics.parameter_count);
-        macs += static_cast<double>(row.metrics.macs);
-        ++count;
-    }
-};
-
-template <typename Getter>
-auto avg(const Aggregated& a, Getter getter) -> double
-{
-    if (a.count == 0) return 0.0;
-    return getter(a) / static_cast<double>(a.count);
-}
-
-void write_summary_by_model_csv(
-    const std::filesystem::path& summary_path, const std::vector<ResultRow>& rows)
-{
-    std::map<std::string, Aggregated> by_model;
-    for (const auto& row : rows)
-    {
-        by_model[model_label(row)].add(row);
-    }
-
-    std::ofstream out(summary_path);
-    out << "model,mse,mae,r2,spike_rate,arith_energy_nj,infer_ms,train_ms,param_count,macs,acs\n";
-    out << std::fixed << std::setprecision(6);
-    for (const auto& [model, agg] : by_model)
-    {
-        out << model << ',' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.macs; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.acs; }) << '\n';
-    }
-}
-
-void write_recon_and_efficiency_by_encoding_csv(const std::filesystem::path& recon_path,
-    const std::filesystem::path& eff_path,
-    const std::vector<ResultRow>& rows)
-{
-    std::map<std::string, Aggregated> by_model_encoding;
-    for (const auto& row : rows)
-    {
-        const std::string key = model_label(row) + "|" + row.encoding;
-        by_model_encoding[key].add(row);
-    }
-
-    std::ofstream recon(recon_path);
-    std::ofstream eff(eff_path);
-    recon << "model,encoding,mse,mae,r2,f1\n";
-    eff << "model,encoding,spike_rate,arith_energy_nj,param_count,macs,acs\n";
-
-    recon << std::fixed << std::setprecision(6);
-    eff << std::fixed << std::setprecision(6);
-
-    for (const auto& [key, agg] : by_model_encoding)
-    {
-        const std::size_t pos = key.find('|');
-        const std::string model = key.substr(0, pos);
-        const std::string encoding = key.substr(pos + 1);
-        recon << model << ',' << encoding << ','
-              << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
-              << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
-              << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
-              << avg(agg, [](const Aggregated& a) { return a.f1; }) << '\n';
-
-        eff << model << ',' << encoding << ','
-            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.macs; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.acs; }) << '\n';
-    }
-}
-
-void write_mse_plot_csv(
-    const std::filesystem::path& mse_plot_path, const std::vector<ResultRow>& rows)
-{
-    std::map<std::string, Aggregated> by_encoding;
-    for (const auto& row : rows)
-    {
-        const std::string model = model_label(row);
-        by_encoding[row.encoding + "|" + model].add(row);
-    }
-
-    std::ofstream out(mse_plot_path);
-    out << "encoding,lstm_ae,snn_dense,snn_conv1d,snn_recurrent\n";
-    out << std::fixed << std::setprecision(6);
-    const std::vector<std::string> encodings = {"direct", "poisson", "latency"};
-    for (const auto& encoding : encodings)
-    {
-        auto get_mse = [&](const std::string& model_key)
-        {
-            const auto it = by_encoding.find(encoding + "|" + model_key);
-            if (it == by_encoding.end()) return 0.0;
-            return avg(it->second, [](const Aggregated& a) { return a.mse; });
-        };
-        out << encoding << ',' << get_mse("LSTM-AE") << ',' << get_mse("SNN-dense") << ','
-            << get_mse("SNN-conv1d") << ',' << get_mse("SNN-recurrent") << '\n';
-    }
-}
-
-void write_sweep_alpha_csv(
-    const std::filesystem::path& sweep_path, const std::vector<ResultRow>& rows)
-{
-    std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
-    for (const auto& row : rows)
-    {
-        if (row.model != "snn-ae") continue;
-        if (row.encoding != "direct") continue;
-        if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
-        by_alpha_arch[row.alpha][row.architecture].add(row);
-    }
-
-    std::ofstream out(sweep_path);
-    out << "alpha,dense,conv1d,recurrent\n";
-    out << std::fixed << std::setprecision(6);
-    for (const auto& [alpha, arch_map] : by_alpha_arch)
-    {
-        auto get_mse = [&](const std::string& arch)
-        {
-            const auto it = arch_map.find(arch);
-            if (it == arch_map.end()) return 0.0;
-            return avg(it->second, [](const Aggregated& a) { return a.mse; });
-        };
-        out << alpha << ',' << get_mse("dense") << ',' << get_mse("conv1d") << ','
-            << get_mse("recurrent") << '\n';
-    }
-}
-
-void write_backend_timing_csv(
-    const std::filesystem::path& backend_path, const std::vector<ResultRow>& rows)
-{
-    std::map<std::string, Aggregated> by_backend_model;
-    for (const auto& row : rows)
-    {
-        const std::string key = row.backend + "|" + model_label(row);
-        by_backend_model[key].add(row);
-    }
-
-    std::ofstream out(backend_path);
-    out << "backend,model,train_ms,infer_ms\n";
-    out << std::fixed << std::setprecision(6);
-    for (const auto& [key, agg] : by_backend_model)
-    {
-        const std::size_t pos = key.find('|');
-        const std::string backend = key.substr(0, pos);
-        const std::string model = key.substr(pos + 1);
-        out << backend << ',' << model << ','
-            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
-            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << '\n';
-    }
-}
-
-void write_profile_manifest_csv(const std::filesystem::path& profile_manifest_path,
-    const std::string& run_tag,
-    const Meeting01Config& cfg,
-    const std::vector<ResultRow>& rows)
-{
-    std::ofstream out(profile_manifest_path);
-    out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,ga_voltage_threshold_range,"
-           "ga_alpha_range,window_size,train_samples,val_samples,backend\n";
-    out << run_tag << ',' << cfg.experiment.seed << ',' << cfg.experiment.repeats << ',' << '"'
-        << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
-        << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
-        << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
-        << cfg.evaluation.ga.snn.voltage_threshold_min << ';'
-        << cfg.evaluation.ga.snn.voltage_threshold_max << '"' << ',' << '"'
-        << cfg.evaluation.ga.snn.alpha_min << ';' << cfg.evaluation.ga.snn.alpha_max << '"' << ','
-        << cfg.dataset.window_size << ',' << cfg.dataset.max_loaded_train_samples << ','
-        << cfg.dataset.max_validation_samples << ','
-        << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
-}
-
-} // namespace
-
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
 {
     // Through <path>.tmp + rename, like checkpoint_save: this file is the RESUME=1 "fold
@@ -321,6 +87,7 @@ void write_summary_json(const std::filesystem::path& path,
     j["limitation_notes"] = {
         "Surrogate gradient in spiking model is an approximation.",
         "Latency encoding can reduce information throughput.",
+        // NOLINTNEXTLINE(bugprone-suspicious-missing-comma): one note split over two lines
         "arith_energy_nj is an arithmetic-only estimate (4.6 pJ/MAC, 0.9 pJ/AC, Horowitz "
         "ISSCC 2014, 45 nm fp32) from counted operations; memory traffic is not included.",
         "spike_rate is the spiking fraction of the hidden LIF (neuron, step) pairs; NaN for "
@@ -389,154 +156,6 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
     }
 }
 
-void write_latex_exports(const std::filesystem::path& dir,
-    const std::string& run_tag,
-    const Meeting01Config& cfg,
-    const std::vector<ResultRow>& rows)
-{
-    namespace fs = std::filesystem;
-    fs::create_directories(dir);
-
-    const fs::path summary_path = dir / (run_tag + "_summary_by_model.csv");
-    const fs::path recon_path = dir / (run_tag + "_recon_by_encoding.csv");
-    const fs::path eff_path = dir / (run_tag + "_efficiency_by_encoding.csv");
-    const fs::path mse_plot_path = dir / (run_tag + "_mse_plot.csv");
-    const fs::path sweep_path = dir / (run_tag + "_sweep_alpha.csv");
-    const fs::path backend_path = dir / (run_tag + "_backend_timing.csv");
-    const fs::path profile_manifest_path = dir / (run_tag + "_profile_manifest.csv");
-
-    write_summary_by_model_csv(summary_path, rows);
-    write_recon_and_efficiency_by_encoding_csv(recon_path, eff_path, rows);
-    write_mse_plot_csv(mse_plot_path, rows);
-    write_sweep_alpha_csv(sweep_path, rows);
-    write_backend_timing_csv(backend_path, rows);
-    write_profile_manifest_csv(profile_manifest_path, run_tag, cfg, rows);
-}
-
-void write_pgfplots_summary_dat(
-    const std::filesystem::path& path, const std::vector<ResultRow>& rows)
-{
-    std::map<std::string, Aggregated> by_config;
-    for (const auto& row : rows)
-    {
-        const std::string key = row.model + "|" + row.encoding + "|" + row.architecture + "|" +
-                                std::to_string(row.v_th) + "|" + std::to_string(row.alpha);
-        by_config[key].add(row);
-    }
-
-    std::ofstream out(path);
-    out << "model encoding architecture v_th alpha mse mae r2 f1 spike_rate arith_energy_nj "
-           "infer_ms train_ms param_count macs\n";
-    out << std::fixed << std::setprecision(4);
-
-    for (const auto& [key, agg] : by_config)
-    {
-        const std::size_t pos1 = key.find('|');
-        const std::size_t pos2 = key.find('|', pos1 + 1);
-        const std::size_t pos3 = key.find('|', pos2 + 1);
-        const std::size_t pos4 = key.find('|', pos3 + 1);
-
-        const std::string model = key.substr(0, pos1);
-        const std::string encoding = key.substr(pos1 + 1, pos2 - pos1 - 1);
-        const std::string architecture = key.substr(pos2 + 1, pos3 - pos2 - 1);
-        const std::string v_th_str = key.substr(pos3 + 1, pos4 - pos3 - 1);
-        const std::string alpha_str = key.substr(pos4 + 1);
-
-        out << model << ' ' << encoding << ' ' << architecture << ' ' << v_th_str << ' '
-            << alpha_str << ' ' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.mae; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.r2; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.f1; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.arith_energy_nj; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ' '
-            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
-    }
-}
-
-void write_pgfplots_sweep_dat(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
-{
-    std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
-    for (const auto& row : rows)
-    {
-        if (row.model != "snn-ae") continue;
-        if (row.encoding != "direct") continue;
-        if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
-        by_alpha_arch[row.alpha][row.architecture].add(row);
-    }
-
-    std::ofstream out(path);
-    out << "alpha mse_dense mse_conv1d mse_recurrent energy_dense energy_conv1d energy_recurrent\n";
-    out << std::fixed << std::setprecision(4);
-
-    for (const auto& [alpha, arch_map] : by_alpha_arch)
-    {
-        auto get_mse = [&](const std::string& arch)
-        {
-            const auto it = arch_map.find(arch);
-            if (it == arch_map.end()) return 0.0;
-            return avg(it->second, [](const Aggregated& a) { return a.mse; });
-        };
-        auto get_energy = [&](const std::string& arch)
-        {
-            const auto it = arch_map.find(arch);
-            if (it == arch_map.end()) return 0.0;
-            return avg(it->second, [](const Aggregated& a) { return a.arith_energy_nj; });
-        };
-
-        out << alpha << ' ' << get_mse("dense") << ' ' << get_mse("conv1d") << ' '
-            << get_mse("recurrent") << ' ' << get_energy("dense") << ' ' << get_energy("conv1d")
-            << ' ' << get_energy("recurrent") << '\n';
-    }
-}
-
-void write_epoch_history_dat(const std::filesystem::path& path,
-    const std::string& model,
-    const std::string& encoding,
-    const std::string& architecture,
-    float v_th,
-    float alpha,
-    int run_id,
-    const EpochHistory& history)
-{
-    std::ofstream out(path);
-    out << "# model=" << model << " encoding=" << encoding << " architecture=" << architecture
-        << " v_th=" << v_th << " alpha=" << alpha << " run=" << run_id << '\n';
-    out << "epoch train_loss val_loss\n";
-    out << std::fixed << std::setprecision(6);
-
-    for (std::size_t i = 0; i < history.epoch_nums.size(); ++i)
-    {
-        out << static_cast<int>(history.epoch_nums[i]) << ' ' << history.train_losses[i] << ' '
-            << history.val_losses[i] << '\n';
-    }
-}
-
-void write_batch_convergence_dat(const std::filesystem::path& path,
-    const std::string& model,
-    const std::string& encoding,
-    const std::string& architecture,
-    float v_th,
-    float alpha,
-    int run_id,
-    const EpochHistory& history)
-{
-    std::ofstream out(path);
-    out << "# Batch convergence for: model=" << model << " encoding=" << encoding
-        << " architecture=" << architecture << " v_th=" << v_th << " alpha=" << alpha
-        << " run=" << run_id << '\n';
-    out << "batch_num epoch batch_loss\n";
-    out << std::fixed << std::setprecision(6);
-
-    for (std::size_t i = 0; i < history.batch_losses.size(); ++i)
-    {
-        out << i << ' ' << static_cast<int>(history.batch_epochs[i]) << ' '
-            << history.batch_losses[i] << '\n';
-    }
-}
-
 auto mean_window_mse(const std::vector<PerWindowError>& rows) -> float
 {
     if (rows.empty())
@@ -599,19 +218,26 @@ void write_reference_inputs(
         {
             if (samples[i].size() != width)
             {
-                throw std::runtime_error("write_reference_inputs: " + stem + " " + part +
-                                         " window " + std::to_string(i) + " has " +
-                                         std::to_string(samples[i].size()) + " samples, expected " +
-                                         std::to_string(width) +
-                                         "; every window of a dataset must share window_size.");
+                std::string msg = "write_reference_inputs: ";
+                msg += stem;
+                msg += ' ';
+                msg += part;
+                msg += " window " + std::to_string(i);
+                msg += " has " + std::to_string(samples[i].size());
+                msg += " samples, expected " + std::to_string(width);
+                msg += "; every window of a dataset must share window_size.";
+                throw std::runtime_error(msg);
             }
             if (meta[i].valid_length < 0 || meta[i].valid_length > width)
             {
-                throw std::runtime_error("write_reference_inputs: " + stem + " " + part +
-                                         " window " + std::to_string(i) + " has valid_length " +
-                                         std::to_string(meta[i].valid_length) + " outside [0, " +
-                                         std::to_string(width) +
-                                         "]; the loader's WindowMetadata is corrupt.");
+                std::string msg = "write_reference_inputs: ";
+                msg += stem;
+                msg += ' ';
+                msg += part;
+                msg += " window " + std::to_string(i);
+                msg += " has valid_length " + std::to_string(meta[i].valid_length);
+                msg += " outside [0, " + std::to_string(width);
+                throw std::runtime_error(msg + "]; the loader's WindowMetadata is corrupt.");
             }
             for (nn::Index k = 0; k < width; ++k) flat.push_back(samples[i].at(k));
         }

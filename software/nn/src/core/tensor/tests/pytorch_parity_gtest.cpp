@@ -514,7 +514,7 @@ TYPED_TEST(PyTorchParityTyped, LifBPTTvsSnnTorch)
         // then t1 batch, …) — exactly what LifBPTT expects.
         const auto& in = arr(p + "input");
         Tensor x = make_2d_flat<Tensor>(
-            in.data<float>(), static_cast<nn::Index>(T * B_), static_cast<nn::Index>(F));
+            in.data<float>(), (static_cast<nn::Index>(T) * B_), static_cast<nn::Index>(F));
 
         lif.reset_state();
         Tensor y = lif.forward(x, false);
@@ -548,23 +548,23 @@ TYPED_TEST(PyTorchParityTyped, LifBPTTReadoutBackward)
             prm[0],
             prm[1],
             prm[2],
-            /*V_th=*/1.0F,
+            /*voltage_threshold_=*/1.0F,
             /*reset_zero=*/false,
             /*reset_potential=*/0.0F,
             /*readout_mode=*/true);
 
         // Arbitrary input; only the gradient path is checked (dL/dinput of a linear
         // integrator is input-independent). Fill via the structured accessor.
-        Tensor x(static_cast<nn::Index>(T * B_), static_cast<nn::Index>(F));
-        for (nn::Index r = 0; r < static_cast<nn::Index>(T * B_); ++r)
+        Tensor x((static_cast<nn::Index>(T) * B_), static_cast<nn::Index>(F));
+        for (nn::Index r = 0; r < (static_cast<nn::Index>(T) * B_); ++r)
             for (nn::Index c = 0; c < static_cast<nn::Index>(F); ++c)
                 x.at(r, c) = 0.1F * static_cast<float>(((r * F + c) % 7) - 3);
 
         lif.reset_state();
         (void) lif.forward(x, true);
         // loss = sum(all membranes) → dL/d(membrane)=1 everywhere.
-        Tensor grad_out(static_cast<nn::Index>(T * B_), static_cast<nn::Index>(F));
-        for (nn::Index r = 0; r < static_cast<nn::Index>(T * B_); ++r)
+        Tensor grad_out((static_cast<nn::Index>(T) * B_), static_cast<nn::Index>(F));
+        for (nn::Index r = 0; r < (static_cast<nn::Index>(T) * B_); ++r)
             for (nn::Index c = 0; c < static_cast<nn::Index>(F); ++c) grad_out.at(r, c) = 1.0F;
 
         Tensor grad_in = lif.backward(grad_out);
@@ -717,7 +717,7 @@ TYPED_TEST(PyTorchParityTyped, ThresholdDependentBatchNorm)
         fill_from(tdbn.beta, arr(p + "beta"));
 
         Tensor x = make_from<Tensor>(arr(p + "input")); // (T*B, F)
-        ASSERT_EQ(x.rows(), static_cast<nn::Index>(T * B_));
+        ASSERT_EQ(x.rows(), (static_cast<nn::Index>(T) * B_));
         Tensor y = tdbn.forward(x, true);
         expect_close(y, arr(p + "output"), p + "output", tol);
 

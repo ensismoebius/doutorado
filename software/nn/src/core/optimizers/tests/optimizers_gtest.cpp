@@ -519,7 +519,7 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     }
 
     // SGD(0.1) with grad=param each step: p_n = p_0 * (1 - lr)^n = 10 * 0.9^10
-    const float p10 = 10.0F * std::pow(0.9F, 10); // ≈ 3.4868
+    const auto p10 = static_cast<float>(10.0F * std::pow(0.9F, 10)); // ≈ 3.4868
     // 2x2 tensor norm = 2 * p10 ≈ 6.9736
     EXPECT_NEAR(test_helpers::tensor_norm(param), 2.0F * p10, 1e-3F);
     // Each element equals p10

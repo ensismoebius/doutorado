@@ -396,6 +396,7 @@ TEST(RandomCrop, DiversifiesOffsetAcrossCalls)
     const auto input = sequential_tensor(200, 1);
 
     std::vector<float> first_values;
+    first_values.reserve(30);
     for (int i = 0; i < 30; ++i) first_values.push_back(crop(input).at(0, 0));
 
     const bool all_same = std::all_of(first_values.begin(),
@@ -437,6 +438,7 @@ TEST(RandomIndexCrop, DiversifiesOrderAcrossCalls)
     const std::vector<std::size_t> input = {0, 1, 2, 3, 4, 5, 6, 7};
 
     std::vector<std::size_t> first_elements;
+    first_elements.reserve(30);
     for (int i = 0; i < 30; ++i) first_elements.push_back(crop(input).front());
 
     const bool all_same = std::all_of(first_elements.begin(),
@@ -491,7 +493,7 @@ TEST(WindowZScore, DoesNotMutateInput)
     // callers that only hold `const Tensor&` must see it unchanged after the call.
     nn::transforms::WindowZScore zscore;
     const auto input = sequential_tensor(10, 1, 5.0F);
-    const auto before = input;
+    const auto& before = input;
     (void) zscore(input);
     for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(input.at(i, 0), before.at(i, 0));
 }
@@ -500,7 +502,9 @@ TEST(WindowZScore, DoesNotMutateInput)
 
 TEST(GaussianNoise, NegativeStdThrows)
 {
-    EXPECT_THROW(nn::transforms::GaussianNoise(-1.0F, /*seed=*/1), std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const nn::transforms::GaussianNoise object(-1.0F, /*seed=*/1); },
+        std::invalid_argument);
 }
 
 TEST(GaussianNoise, ZeroStdIsExactPassThrough)
@@ -528,7 +532,7 @@ TEST(GaussianNoise, DoesNotMutateInput)
 {
     nn::transforms::GaussianNoise noise(0.5F, /*seed=*/1);
     const auto input = sequential_tensor(10, 1, 5.0F);
-    const auto before = input;
+    const auto& before = input;
     (void) noise(input);
     for (nn::Index i = 0; i < input.rows(); ++i) EXPECT_EQ(input.at(i, 0), before.at(i, 0));
 }

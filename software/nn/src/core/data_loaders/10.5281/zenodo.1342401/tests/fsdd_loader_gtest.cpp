@@ -101,12 +101,16 @@ TEST(FsddMetadata, DigitNamesSize)
 
 TEST(FsddWindowDataset, ThrowsOnMissingRoot)
 {
-    EXPECT_THROW(FsddWindowDataset("/nonexistent/path/to/fsdd", 512), std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] const FsddWindowDataset object("/nonexistent/path/to/fsdd", 512); },
+        std::runtime_error);
 }
 
 TEST(FsddWindowDataset, ThrowsOnZeroWindowSize)
 {
-    EXPECT_THROW(FsddWindowDataset("/nonexistent/path/to/fsdd", 0), std::invalid_argument);
+    EXPECT_THROW(
+        { [[maybe_unused]] const FsddWindowDataset object("/nonexistent/path/to/fsdd", 0); },
+        std::invalid_argument);
 }
 
 namespace

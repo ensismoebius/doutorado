@@ -19,23 +19,38 @@ auto read_csv_signal(const std::filesystem::path& path) -> nn::Tensor
         throw std::runtime_error("Cannot open CSV signal file: " + path.string());
     }
 
+    // Every comma-separated field must be a number. An empty or non-numeric field is an
+    // error naming the line and field (they used to be skipped, so a header or a missing
+    // value silently shifted every later sample by one).
     std::vector<float> values;
     std::string line;
+    std::size_t line_number = 0;
     while (std::getline(in, line))
     {
+        ++line_number;
         std::stringstream ss(line);
         std::string token;
+        std::size_t field = 0;
         while (std::getline(ss, token, ','))
         {
-            if (token.empty()) continue;
+            ++field;
+            std::size_t used = 0;
+            float value = 0.0F;
             try
             {
-                values.push_back(std::stof(token));
+                value = std::stof(token, &used);
             }
             catch (const std::exception&)
             {
-                // Ignore non-numeric tokens by design.
+                used = 0;
             }
+            if (token.empty() || used != token.size())
+            {
+                throw std::runtime_error(
+                    "CSV signal " + path.string() + ", line " + std::to_string(line_number) +
+                    ", field " + std::to_string(field) + ": '" + token + "' is not a number");
+            }
+            values.push_back(value);
         }
     }
 
@@ -64,8 +79,7 @@ void zscore_inplace(nn::Tensor& signal)
     const float variance = sq_sum / static_cast<float>(signal.size());
     const float stddev = std::sqrt(std::max(variance, 1e-8F));
 
-    for (nn::Index i = 0; i < signal.size(); ++i)
-        signal.at(i) = (signal.at(i) - mean) / stddev;
+    for (nn::Index i = 0; i < signal.size(); ++i) signal.at(i) = (signal.at(i) - mean) / stddev;
 }
 
 } // namespace nn::utility

@@ -115,6 +115,7 @@ TEST(ThesisSpectrumParity, PcaOfSpectralInputMatchesTorchSvd)
 
     const PcaProjection pca = fit_pca(rows, static_cast<int>(k));
     std::vector<std::vector<double>> got;
+    got.reserve(rows.size());
     for (const auto& r : rows) got.push_back(project_pca(pca, r));
 
     for (size_t c = 0; c < k; ++c)

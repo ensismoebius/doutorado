@@ -83,12 +83,8 @@ class Conv2dImpl : public Module<Backend>
      * @param padding Padding for the convolution
      * @param dilation Dilation for the convolution
      */
-    Conv2dImpl(int in_channels,
-        int out_channels,
-        int kernel_size,
-        int stride,
-        int padding,
-        int dilation);
+    Conv2dImpl(
+        int in_channels, int out_channels, int kernel_size, int stride, int padding, int dilation);
 
     /**
      * @brief Constructor for Conv2d layer

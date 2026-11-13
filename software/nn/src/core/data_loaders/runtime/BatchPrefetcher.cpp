@@ -111,7 +111,10 @@ void BatchPrefetcher::pushPrefetchedOrRelease(PrefetchedBatch prefetched, std::s
     if (!pushed)
     {
         inflight_prefetch_bytes_.fetch_sub(batch_bytes, std::memory_order_relaxed);
-        if (prefetched.batch.inputs.size() > 0 || prefetched.batch.targets.size() > 0)
+        // try_push moves from its argument only when it returns true; every push failed, so
+        // `prefetched` still holds the batch.
+        if (prefetched.batch.inputs.size() > 0 || // NOLINT(bugprone-use-after-move)
+            prefetched.batch.targets.size() > 0)
         {
             prefetched_pool_->release(std::move(prefetched.batch));
         }
@@ -285,7 +288,6 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
         return std::nullopt;
     }
 
-    (void) 0;
     inflight_prefetch_bytes_.fetch_sub(prefetched.bytes, std::memory_order_relaxed);
 
     // Move the stored batch out and return an empty buffer to the pool.

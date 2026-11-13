@@ -79,7 +79,7 @@ TEST(UtilTest, SyntheticSpikeData)
     float timeStep = 1.0F;
 
     auto result =
-        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep, 42U);
     auto spike_trains = std::get<0>(result);
     // auto _ = std::get<1>(result); // unused
 
@@ -239,16 +239,32 @@ TEST(UtilTest, BatchingSeededShufflePreservesEverySampleExactlyOnce)
     for (int i = 0; i < 10; ++i) EXPECT_EQ(seen[static_cast<size_t>(i)], i);
 }
 
-TEST(UtilSignalPreprocessingTest, ReadCsvSignalReturnsColumnTensorAndSkipsInvalidTokens)
+TEST(UtilSignalPreprocessingTest, ReadCsvSignalRefusesNonNumericAndEmptyFields)
+{
+    const auto tmp =
+        std::filesystem::temp_directory_path() / "nn_signal_preprocessing_bad_test.csv";
+    for (const char* body : {"1.0,2.5,hello\n", "3.0\n,,4.5\n", "2.5abc\n"})
+    {
+        {
+            std::ofstream out(tmp);
+            ASSERT_TRUE(out.is_open());
+            out << body;
+        }
+        EXPECT_THROW((void) nn::utility::read_csv_signal(tmp), std::runtime_error) << body;
+    }
+    std::filesystem::remove(tmp);
+}
+
+TEST(UtilSignalPreprocessingTest, ReadCsvSignalReturnsColumnTensor)
 {
     const auto tmp =
         std::filesystem::temp_directory_path() / "nn_signal_preprocessing_read_test.csv";
     {
         std::ofstream out(tmp);
         ASSERT_TRUE(out.is_open());
-        out << "1.0,2.5,hello\n";
+        out << "1.0,2.5\n";
         out << "3.0\n";
-        out << ",,4.5\n";
+        out << "4.5\n";
     }
 
     const nn::Tensor signal = nn::utility::read_csv_signal(tmp);
@@ -324,11 +340,11 @@ TEST(UtilExceptionTest, InvalidBatchParameters)
 TEST(UtilExceptionTest, SyntheticSpikeDataInvalidParams)
 {
     // Invalid parameters for synthetic spike data generation
-    ASSERT_THROW(generate_autoencoder_spike_data(0, 3, 4, 1.0F, 1.0F), std::invalid_argument);
-    ASSERT_THROW(generate_autoencoder_spike_data(5, 0, 4, 1.0F, 1.0F), std::invalid_argument);
-    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 0, 1.0F, 1.0F), std::invalid_argument);
-    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 4, -1.0F, 1.0F), std::invalid_argument);
-    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 4, 1.0F, 0.0F), std::invalid_argument);
+    ASSERT_THROW(generate_autoencoder_spike_data(0, 3, 4, 1.0F, 1.0F, 42U), std::invalid_argument);
+    ASSERT_THROW(generate_autoencoder_spike_data(5, 0, 4, 1.0F, 1.0F, 42U), std::invalid_argument);
+    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 0, 1.0F, 1.0F, 42U), std::invalid_argument);
+    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 4, -1.0F, 1.0F, 42U), std::invalid_argument);
+    ASSERT_THROW(generate_autoencoder_spike_data(5, 3, 4, 1.0F, 0.0F, 42U), std::invalid_argument);
 }
 
 // Memory Stress Testing for Utilities
@@ -371,7 +387,8 @@ TEST(UtilMemoryStressTest, LargeSyntheticSpikeData)
     const int n_steps = 50;
 
     EXPECT_NO_THROW({
-        auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 0.1F);
+        auto result =
+            generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 0.1F, 42U);
         auto spike_trains = std::get<0>(result);
         // auto _ = std::get<1>(result); // unused
 
@@ -414,7 +431,7 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
 
     // Test with very low firing rate
     auto low_rate_result =
-        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F);
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F, 42U);
     auto low_rate_spikes = std::get<0>(low_rate_result);
     // auto _ = std::get<1>(low_rate_result); // unused
     const int total_low_spikes = std::accumulate(low_rate_spikes.begin(),
@@ -426,7 +443,7 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
 
     // Test with very high firing rate
     auto high_rate_result =
-        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F);
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F, 42U);
     auto high_rate_spikes = std::get<0>(high_rate_result);
     // auto _ = std::get<1>(high_rate_result); // unused
     const int total_high_spikes = std::accumulate(high_rate_spikes.begin(),
@@ -512,7 +529,7 @@ TEST(UtilThreadSafetyTest, ConcurrentSpikeGeneration)
     {
         EXPECT_NO_THROW({
             auto result =
-                generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 1.0F);
+                generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 1.0F, 42U);
             auto spike_trains = std::get<0>(result);
             // auto _ = std::get<1>(result); // unused
 
@@ -535,7 +552,8 @@ TEST(UtilComprehensiveTest, BatchContentVerification)
     // Create samples with known values
     for (int i = 0; i < 6; ++i)
     {
-        input_samples.emplace_back(make_tensor_from_values(1, 2, {i * 2.0F, i * 2.0F + 1.0F}));
+        input_samples.emplace_back(make_tensor_from_values(
+            1, 2, {static_cast<float>(i) * 2.0F, (static_cast<float>(i) * 2.0F) + 1.0F}));
 
         target_samples.emplace_back(make_tensor_from_values(1, 1, {static_cast<float>(i)}));
     }
@@ -603,7 +621,7 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
     const int n_steps = 20;
     const float rate = 0.2F;
 
-    auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, rate, 1.0F);
+    auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, rate, 1.0F, 42U);
     auto spike_trains = std::get<0>(result);
     // auto _ = std::get<1>(result); // unused
 
@@ -614,7 +632,7 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
         [](int acc, const auto& spikes) { return acc + static_cast<int>(spikes.sum()); });
     int total_possible = n_samples * input_dim * n_steps;
 
-    float actual_rate = static_cast<float>(total_spikes) / total_possible;
+    float actual_rate = static_cast<float>(total_spikes) / static_cast<float>(total_possible);
 
     // Should be close to target rate (within statistical variation)
     // Using 0.08F tolerance for statistical variation with n=1000*10*20=200k samples
@@ -655,9 +673,9 @@ TEST(UtilBatchingTest, BatchToStringFormat)
     batch.targets = nn::Tensor(3, 2);
     const auto s = batch_to_string(batch);
     EXPECT_FALSE(s.empty());
-    EXPECT_NE(s.find("3"), std::string::npos);
-    EXPECT_NE(s.find("4"), std::string::npos);
-    EXPECT_NE(s.find("2"), std::string::npos);
+    EXPECT_NE(s.find('3'), std::string::npos);
+    EXPECT_NE(s.find('4'), std::string::npos);
+    EXPECT_NE(s.find('2'), std::string::npos);
 }
 
 TEST(UtilSpikeDataTest, GenerateOnesProducesAllSpikes)

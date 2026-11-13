@@ -16,10 +16,10 @@
  * - Backward gradient shape matches forward input shape
  */
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <memory>
-
-#include <gtest/gtest.h>
 
 #include "layers/Layers.hpp"
 #include "layers/spiking/ExponentialSurrogate.hpp"
@@ -30,8 +30,7 @@ static nn::Tensor make_const(size_t rows, size_t cols, float val)
 {
     nn::Tensor t(rows, cols);
     for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            t.at(i, j) = val;
+        for (size_t j = 0; j < cols; ++j) t.at(i, j) = val;
     return t;
 }
 
@@ -40,14 +39,19 @@ static nn::Tensor make_const(size_t rows, size_t cols, float val)
 class LifBasicBehaviorTest : public ::testing::Test
 {
    protected:
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr size_t kBatch = 4;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr size_t kFeatures = 8;
 
     // Standard neuron: dt=1, R=1, C=1, V_th=1
-    nn::Lif neuron{1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F,
-                   std::make_shared<ExponentialSurrogate>(0.5F)};
+    nn::Lif neuron{
+        1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>(0.5F)};
 
-    void SetUp() override { neuron.reset_state(); }
+    void SetUp() override
+    {
+        neuron.reset_state();
+    }
 };
 
 // ---- output shape ----
@@ -71,8 +75,7 @@ TEST_F(LifBasicBehaviorTest, ForwardOutput_IsBinary)
         for (size_t j = 0; j < out.cols(); ++j)
         {
             float v = out.at(i, j);
-            EXPECT_TRUE(v == 0.0F || v == 1.0F)
-                << "Non-binary at (" << i << "," << j << "): " << v;
+            EXPECT_TRUE(v == 0.0F || v == 1.0F) << "Non-binary at (" << i << "," << j << "): " << v;
         }
 }
 
@@ -121,8 +124,7 @@ TEST_F(LifBasicBehaviorTest, ResetState_ClearsMemPotential)
 
     // After reset v_mem is zero; sub-threshold input for 1 step should give same
     // result as a fresh neuron
-    nn::Lif fresh{1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F,
-                  std::make_shared<ExponentialSurrogate>(0.5F)};
+    nn::Lif fresh{1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>(0.5F)};
     nn::Tensor same_input = make_const(1, 1, 0.3F);
     nn::Tensor out_reset = neuron.forward(same_input, false);
     nn::Tensor out_fresh = fresh.forward(same_input, false);
@@ -141,8 +143,7 @@ TEST_F(LifBasicBehaviorTest, ResetBetweenSequences_StateDoesNotLeak)
     neuron.reset_state();
 
     // Sequence 2: identical to Sequence 1 on a fresh neuron → same output
-    nn::Lif fresh{1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F,
-                  std::make_shared<ExponentialSurrogate>(0.5F)};
+    nn::Lif fresh{1.0F, 1.0F, 1.0F, 1.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>(0.5F)};
     nn::Tensor check = make_const(1, 1, 0.05F);
     float out_reset = neuron.forward(check, false).at(0, 0);
     float out_fresh = fresh.forward(check, false).at(0, 0);

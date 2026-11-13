@@ -27,7 +27,7 @@ TEST(MatFileUtilsTest, LoadExistingDoubleMatrix)
 
     auto mat_opt = utils::load_named_variable_as_matrix(mat_path.string(), "dmat");
     ASSERT_TRUE(mat_opt.has_value());
-    auto mat = mat_opt.value();
+    const auto& mat = mat_opt.value();
     EXPECT_EQ(mat.rows(), 2);
     EXPECT_EQ(mat.cols(), 2);
     EXPECT_FLOAT_EQ(mat.at(0, 0), 1.0F);

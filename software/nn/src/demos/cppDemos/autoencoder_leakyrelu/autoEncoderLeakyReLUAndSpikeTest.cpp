@@ -157,7 +157,7 @@ class SpikeAutoEncoder : public ModuleXTensor
     }
 
     // Reset internal states (membrane potentials)
-    void reset_states()
+    void reset_membranes()
     {
         nn::utility::reset(encoder);
         nn::utility::reset(decoder);
@@ -195,7 +195,7 @@ class SpikeAutoEncoder : public ModuleXTensor
         (void) seq;
         (void) file;
         std::cerr << "NPZ weight loading disabled in this build; using Kaiming init instead."
-                  << std::endl;
+                  << '\n';
         return false;
     }
 };
@@ -248,7 +248,7 @@ auto main(int, char*[]) -> int
         auto [input_seq, _] =
             generate_autoencoder_spike_data_of_ones(n_samples, config.input_dim, config.steps);
 
-        nn::Tensor inputs(n_samples * config.steps, config.input_dim);
+        nn::Tensor inputs(static_cast<nn::Index>(n_samples) * config.steps, config.input_dim);
 
         // C++20 Ranges: Nested loops for data flattening
         for (int t : std::views::iota(0, config.steps))
@@ -278,7 +278,7 @@ auto main(int, char*[]) -> int
 
             // Zero Grad
             optimizer.zero_grad(params);
-            model.reset_states();
+            model.reset_membranes();
 
             // Forward
             // Autoencoder target = input: learn to reconstruct the spike train.
@@ -308,12 +308,12 @@ auto main(int, char*[]) -> int
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << '\n';
         return 1;
     }
     catch (...)
     {
-        std::cerr << "Unknown error occurred." << std::endl;
+        std::cerr << "Unknown error occurred." << '\n';
         return 1;
     }
 }

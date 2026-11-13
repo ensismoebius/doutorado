@@ -77,6 +77,7 @@ struct RunMetrics
     float train_ms = 0.0f;
     float infer_ms = 0.0f;
 
+    // cppcheck-suppress uninitMemberVarNoCtor ; it has an initializer (cppcheck 2.22 misreads it)
     std::size_t parameter_count = 0;
     // Dense multiply-accumulates per window. Analytic for the non-spiking families; for the
     // SNN, counted from the forward passes of the evaluated windows (count_snn_ops).

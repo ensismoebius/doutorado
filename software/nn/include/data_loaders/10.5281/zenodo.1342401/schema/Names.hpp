@@ -9,14 +9,11 @@ namespace nn::dataLoaders::fsdd
 
 // All speakers present in the dataset (alphabetical order matches repo).
 inline constexpr std::array<std::string_view, 6> kSpeakers = {
-    "george", "jackson", "lucas", "nicolas", "theo", "yweweler"
-};
+    "george", "jackson", "lucas", "nicolas", "theo", "yweweler"};
 
 // Digit index → English word label.
 inline constexpr std::array<std::string_view, 10> kDigitNames = {
-    "zero", "one", "two", "three", "four",
-    "five", "six", "seven", "eight", "nine"
-};
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
 
 // WAV filename pattern: {digit}_{speaker}_{trial}.wav
 // e.g. "0_jackson_0.wav", "9_yweweler_49.wav"

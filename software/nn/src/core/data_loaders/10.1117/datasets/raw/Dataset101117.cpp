@@ -82,8 +82,8 @@ auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
                                  std::to_string(audio_row));
     }
 
-    return {.audio_tensor = std::move(audio_tensor),
-        .eeg_tensor = std::move(eeg_tensor),
+    return {.audio_tensor = audio_tensor,
+        .eeg_tensor = eeg_tensor,
         .eeg_labels = eeg_labels,
         .eeg_index_label = eeg_index_label,
         .subject = &subject};

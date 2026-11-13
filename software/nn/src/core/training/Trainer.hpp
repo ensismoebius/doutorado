@@ -135,10 +135,10 @@ class Trainer
     {
     }
 
-    explicit Trainer(ModelType& model, const TrainerConfig& cfg, LossType loss)
+    explicit Trainer(ModelType& model, const TrainerConfig& cfg, const LossType& loss)
         : model_(model),
           cfg_(cfg),
-          loss_(std::move(loss)),
+          loss_(loss),
           optimizer_(nn::optimizers::OptimizerFactory::create(cfg.optimizer_type,
               cfg.learning_rate,
               cfg.optimizer_momentum,

@@ -298,7 +298,7 @@ TEST_P(ThesisProfileAuditTest, RegularizationParamsValid)
 
 TEST_P(ThesisProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
 {
-    const std::string name = GetParam();
+    const std::string& name = GetParam();
     if (name == "debug.json") return; // debug profile uses deterministic mode
     auto cfg = load(name);
     if (!cfg.experiment.seed_deterministic.declared()) return; // one repeat: nothing to decide

@@ -53,12 +53,8 @@ class Conv1dImpl : public Module<Backend>
      * @param padding Padding for the convolution (default: 0)
      * @param dilation Dilation for the convolution (default: 1)
      */
-    Conv1dImpl(int in_channels,
-        int out_channels,
-        int kernel_size,
-        int stride,
-        int padding,
-        int dilation);
+    Conv1dImpl(
+        int in_channels, int out_channels, int kernel_size, int stride, int padding, int dilation);
 
     /**
      * @brief Forward pass: compute convolution output

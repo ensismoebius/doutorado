@@ -11,9 +11,12 @@
 #include <matioCpp/Vector.h>
 
 #include <algorithm>
+#include <fstream>
 #include <stdexcept>
+#include <string>
 
 #include "data_loaders/mat_io/mat_file.hpp"
+#include "nlohmann/json.hpp"
 
 // Implementation strategy:
 // - matio-cpp reads variables and can convert them to raw data pointers.
@@ -158,40 +161,43 @@ auto countMatRows(const std::string& matPath, const std::string& varName) -> std
 
 auto countShardRows(const std::string& shardIndexPath, const std::string& section) -> std::size_t
 {
-    std::string cmd = "python3 -c \"import json,sys; j=json.load(open('" + shardIndexPath +
-                      "')); s=0;\n"
-                      "for e in j.get('" +
-                      section + "', []): s += int(e.get('count',0)); print(s)\"";
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe)
+    // The shard index is JSON: {"<section>": [{"count": <rows>, ...}, ...]}. Every entry must
+    // carry an integer count; a missing one is an error, not zero rows. (This used to run a
+    // shell command with the path pasted into it and treat a missing count as 0.)
+    std::ifstream in(shardIndexPath);
+    if (!in)
     {
-        throw std::runtime_error("Failed to spawn python to read shard index: " + shardIndexPath);
+        throw std::runtime_error("Cannot open shard index: " + shardIndexPath);
     }
-
-    char buffer[128];
-    std::string result;
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
-    {
-        result += buffer;
-    }
-    int rc = pclose(pipe);
-    if (rc != 0 || result.empty())
-    {
-        throw std::runtime_error(
-            "Failed to read shard index '" + section + "' from: " + shardIndexPath);
-    }
-
+    nlohmann::json index;
     try
     {
-        size_t rows = static_cast<size_t>(std::stoul(result));
-        return rows;
+        in >> index;
     }
-    catch (const std::exception&)
+    catch (const nlohmann::json::exception& e)
     {
         throw std::runtime_error(
-            "Invalid output when reading shard index '" + section + "' from " + shardIndexPath);
+            "Shard index is not valid JSON (" + std::string(e.what()) + "): " + shardIndexPath);
     }
+    if (!index.is_object() || !index.contains(section) || !index.at(section).is_array())
+    {
+        throw std::runtime_error("Shard index has no '" + section + "' array: " + shardIndexPath);
+    }
+    std::size_t rows = 0;
+    for (const auto& entry : index.at(section))
+    {
+        if (!entry.is_object() || !entry.contains("count") ||
+            !entry.at("count").is_number_integer() || entry.at("count").get<long long>() < 0)
+        {
+            std::string msg = "Shard index entry in '";
+            msg += section;
+            msg += "' lacks a non-negative integer 'count': ";
+            msg += shardIndexPath;
+            throw std::runtime_error(msg);
+        }
+        rows += entry.at("count").get<std::size_t>();
+    }
+    return rows;
 }
 
 auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)

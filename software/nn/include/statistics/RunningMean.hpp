@@ -9,12 +9,12 @@ namespace nn::statistics
 
 class RunningMean : public IStatistic
 {
-public:
+   public:
     explicit RunningMean(std::string name) : name_(std::move(name)) {}
 
     void reset() override
     {
-        sum_   = 0.0F;
+        sum_ = 0.0F;
         count_ = 0;
     }
 
@@ -29,12 +29,15 @@ public:
         return count_ > 0 ? sum_ / static_cast<float>(count_) : 0.0F;
     }
 
-    std::string name() const override { return name_; }
+    std::string name() const override
+    {
+        return name_;
+    }
 
-private:
+   private:
     std::string name_;
-    float       sum_   = 0.0F;
-    int         count_ = 0;
+    float sum_ = 0.0F;
+    int count_ = 0;
 };
 
 } // namespace nn::statistics

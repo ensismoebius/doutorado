@@ -417,7 +417,7 @@ std::vector<std::vector<double>> speaker_features(const ThesisDatasetView& v, do
     auto next = [&]()
     {
         state = state * 1664525u + 1013904223u;
-        return (static_cast<double>(state >> 8) / 16777216.0) - 0.5;
+        return (static_cast<double>(state >> 8U) / 16777216.0) - 0.5;
     };
     for (const auto& s : v.samples)
     {
@@ -475,7 +475,7 @@ TEST(DegradedTestFeatures, ReplaceOnlyTestRowsAndKeepEnrolmentWhenAsked)
         for (auto& x : row)
         {
             st = st * 1664525u + 1013904223u;
-            x = static_cast<double>(st >> 8) / 16777216.0;
+            x = static_cast<double>(st >> 8U) / 16777216.0;
         }
     const statistics::GenuineImpostorEERScorer scorer(1);
     const ThesisConfig cfg = cosine_cfg();

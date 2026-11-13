@@ -35,8 +35,8 @@ auto rms(const std::vector<float>& x, std::size_t skip) -> double
 // that of the kernel, not of the rate.
 TEST(ResampleBandlimited, A128HzToneBecomesThe160HzTone)
 {
-    constexpr std::size_t kInput = 128U * 30U;
-    constexpr std::size_t kSkip = 160U * 2U;
+    constexpr std::size_t kInput = std::size_t{128} * 30U;
+    constexpr std::size_t kSkip = std::size_t{160} * 2U;
     for (const double hz : {1.0, 10.0, 25.0, 40.0})
     {
         const auto y = nn::utility::resample_bandlimited(tone(hz, 128.0, kInput), 128.0, 160.0);
@@ -51,8 +51,8 @@ TEST(ResampleBandlimited, A128HzToneBecomesThe160HzTone)
 
 TEST(ResampleBandlimited, ADownsampleDoesNotAlias)
 {
-    constexpr std::size_t kInput = 512U * 30U;
-    constexpr std::size_t kSkip = 160U * 2U;
+    constexpr std::size_t kInput = std::size_t{512} * 30U;
+    constexpr std::size_t kSkip = std::size_t{160} * 2U;
     // 100 Hz is above the 80 Hz Nyquist of 160 Hz: it must vanish, not fold down to 60 Hz.
     const auto gone = nn::utility::resample_bandlimited(tone(100.0, 512.0, kInput), 512.0, 160.0);
     EXPECT_LT(rms(gone, kSkip), 1e-2);

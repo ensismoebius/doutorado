@@ -123,7 +123,7 @@ TEST(Meeting01RecurrentGaGenome, MutationCanChangeEveryFieldAndStaysLegal)
 TEST(Meeting01RecurrentGaGenome, GenomeKeyIsStableAndDiscriminating)
 {
     const RecurrentGenome a{64, 2, "direct"};
-    const RecurrentGenome b = a;
+    const RecurrentGenome& b = a;
     RecurrentGenome c = a;
     c.hidden_size = 65;
     EXPECT_EQ(meeting01::ga::genome_key(a), meeting01::ga::genome_key(b));

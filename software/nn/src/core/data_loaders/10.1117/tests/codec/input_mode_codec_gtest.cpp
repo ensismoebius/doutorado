@@ -43,6 +43,9 @@ TEST(InputModeCodecTest, UnknownTokenThrows)
 
 TEST(InputModeCodecTest, InvalidEnumToTokenThrows)
 {
+    // A scoped enum has a fixed underlying type, so 999 is a valid (unnamed) value: the test
+    // checks that the codec refuses a value no enumerator names.
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     const auto invalid = static_cast<Protocol101117InputMode>(999);
     EXPECT_THROW((void) protocol101117InputModeToToken(invalid), std::runtime_error);
 }

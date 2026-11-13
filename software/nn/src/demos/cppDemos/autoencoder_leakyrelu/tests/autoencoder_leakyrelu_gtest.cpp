@@ -9,13 +9,13 @@
  * Synthetic data only.  No filesystem access.
  */
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <memory>
 #include <numeric>
 #include <tuple>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Layers.hpp"
@@ -39,8 +39,7 @@ static nn::Tensor make_random_input(size_t rows, size_t cols, unsigned int seed 
     std::uniform_real_distribution<float> dist(0.0F, 1.0F);
     nn::Tensor t(rows, cols);
     for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            t.at(i, j) = dist(rng);
+        for (size_t j = 0; j < cols; ++j) t.at(i, j) = dist(rng);
     return t;
 }
 
@@ -54,6 +53,7 @@ class DenseAutoencoderTest : public ::testing::Test
     static constexpr int kInputDim = 16;
     static constexpr int kHidden = 8;
     static constexpr int kLatent = 4;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr int kBatch = 8;
 
     // Encoder: input → hidden → latent
@@ -104,8 +104,7 @@ TEST_F(DenseAutoencoderTest, ForwardOutputIsFinite)
     nn::Tensor x = make_random_input(kBatch, kInputDim);
     nn::Tensor recon = decoder.forward(encoder.forward(x, false), false);
     for (size_t i = 0; i < recon.rows(); ++i)
-        for (size_t j = 0; j < recon.cols(); ++j)
-            EXPECT_TRUE(std::isfinite(recon.at(i, j)));
+        for (size_t j = 0; j < recon.cols(); ++j) EXPECT_TRUE(std::isfinite(recon.at(i, j)));
 }
 
 TEST_F(DenseAutoencoderTest, MSELoss_PositiveBeforeTraining)
@@ -143,7 +142,7 @@ TEST_F(DenseAutoencoderTest, MSELoss_DecreasesOverTenEpochs)
         nn::Tensor loss_t = loss_fn.forward(recon);
         nn::Tensor grad = loss_fn.backward(recon);
         decoder.backward(grad);
-        nn::Tensor latent_grad = encoder.backward(latent);  // unused but exercises backprop
+        nn::Tensor latent_grad = encoder.backward(latent); // unused but exercises backprop
         optimizer.step(all_params);
 
         if (epoch == 0) first_loss = loss_t.at(0, 0);
@@ -170,6 +169,7 @@ class SpikeAutoencoderTest : public ::testing::Test
    protected:
     static constexpr int kInputDim = 8;
     static constexpr int kHidden = 4;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr int kBatch = 2;
     static constexpr int kSteps = 5;
 
@@ -206,7 +206,7 @@ TEST_F(SpikeAutoencoderTest, SpikeOutputShape_TimeMajor)
     for (int t = 0; t < kSteps; ++t)
         for (int b = 0; b < kBatch; ++b)
             for (int f = 0; f < kInputDim; ++f)
-                flat.at(static_cast<size_t>(t * kBatch + b), static_cast<size_t>(f)) =
+                flat.at((static_cast<size_t>(t) * kBatch) + b, static_cast<size_t>(f)) =
                     inp_seq[static_cast<size_t>(t)].at(
                         static_cast<size_t>(b), static_cast<size_t>(f));
 
@@ -226,7 +226,7 @@ TEST_F(SpikeAutoencoderTest, SpikeOutputIsBinary)
     for (int t = 0; t < kSteps; ++t)
         for (int b = 0; b < kBatch; ++b)
             for (int f = 0; f < kInputDim; ++f)
-                flat.at(static_cast<size_t>(t * kBatch + b), static_cast<size_t>(f)) =
+                flat.at((static_cast<size_t>(t) * kBatch) + b, static_cast<size_t>(f)) =
                     inp_seq[static_cast<size_t>(t)].at(
                         static_cast<size_t>(b), static_cast<size_t>(f));
 

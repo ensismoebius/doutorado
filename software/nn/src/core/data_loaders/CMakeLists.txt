@@ -29,6 +29,7 @@ target_link_libraries(data_loaders
         xtensor xtensor-blas
     matioCpp
         tensor
+        nlohmann_json_wrapper   # io/mat_file_utils.cpp: the shard index
 )
 
 add_subdirectory(tests)

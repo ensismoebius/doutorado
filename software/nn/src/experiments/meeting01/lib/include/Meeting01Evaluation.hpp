@@ -61,6 +61,6 @@ auto per_window_errors_snn(nn::models::autoencoder::ProtocolSpikingAutoencoder& 
     std::uint32_t seed,
     int time_steps,
     int output_steps,
-    PerWindowError proto) -> std::vector<PerWindowError>;
+    const PerWindowError& proto) -> std::vector<PerWindowError>;
 
 } // namespace meeting01

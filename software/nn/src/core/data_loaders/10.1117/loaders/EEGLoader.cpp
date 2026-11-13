@@ -195,7 +195,7 @@ EEGSession::EEGSession(const std::string& filePath, int subject_id)
             throw std::runtime_error("EEGLoader: failed to open MAT file: " + filePath);
         }
 
-        impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName.c_str()));
+        impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName().c_str()));
         if (!impl_->eegVar)
         {
             throw std::runtime_error(

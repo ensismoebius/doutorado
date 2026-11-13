@@ -56,7 +56,7 @@ enum class LayerSpecKind
 
 struct ParsedLayerSpec
 {
-    LayerSpecKind kind;
+    LayerSpecKind kind{};
     std::string width_token;
     std::string activation_type;
     int repeat = 1;

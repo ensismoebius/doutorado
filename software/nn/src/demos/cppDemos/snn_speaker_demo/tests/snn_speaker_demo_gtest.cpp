@@ -6,11 +6,11 @@
  * encode_poisson output shape: (time_steps, n_features) — 2D.
  */
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <random>
 #include <stdexcept>
-
-#include <gtest/gtest.h>
 
 #include "codificacao.hpp"
 #include "tensor/Tensor.hpp"
@@ -30,7 +30,9 @@ static nn::Tensor make_uniform_frame(size_t n_cols, float v)
 class CodificacaoTest : public ::testing::Test
 {
    protected:
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr size_t kFeatures = 16;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr int kSteps = 20;
     std::mt19937 rng{42};
 };
@@ -125,8 +127,7 @@ TEST_F(CodificacaoTest, EncodePoisson_ZeroInput_NoSpikes)
     nn::Tensor spikes = codificacao::encode_poisson(frame, kSteps, rng, 0.0f, false);
     float sum = 0.0f;
     for (size_t i = 0; i < spikes.rows(); ++i)
-        for (size_t j = 0; j < spikes.cols(); ++j)
-            sum += spikes.at(i, j);
+        for (size_t j = 0; j < spikes.cols(); ++j) sum += spikes.at(i, j);
     EXPECT_FLOAT_EQ(sum, 0.0f);
 }
 
@@ -140,8 +141,7 @@ TEST_F(CodificacaoTest, EncodePoisson_AdaptiveRate_SpikeDensityNearExpected)
 
     float total = 0.0f;
     for (size_t i = 0; i < spikes.rows(); ++i)
-        for (size_t j = 0; j < spikes.cols(); ++j)
-            total += spikes.at(i, j);
+        for (size_t j = 0; j < spikes.cols(); ++j) total += spikes.at(i, j);
 
     float density = total / static_cast<float>(kLargeSteps * static_cast<int>(kFeatures));
     // Expected density ≈ 0.10, allow ±40%
@@ -154,13 +154,12 @@ TEST_F(CodificacaoTest, EncodePoisson_FixedRate_IgnoresAdaptive)
     // adaptive_rate=false, max_rate=0.5 → p = clamp(0.5*0.5, 0,1) = 0.25 per feature/step
     constexpr int kLargeSteps = 500;
     nn::Tensor frame = make_uniform_frame(kFeatures, 0.5f);
-    nn::Tensor spikes =
-        codificacao::encode_poisson(frame, kLargeSteps, rng, /*max_rate=*/0.5f, /*adaptive=*/false);
+    nn::Tensor spikes = codificacao::encode_poisson(
+        frame, kLargeSteps, rng, /*max_rate=*/0.5f, /*adaptive_rate=*/false);
 
     float total = 0.0f;
     for (size_t i = 0; i < spikes.rows(); ++i)
-        for (size_t j = 0; j < spikes.cols(); ++j)
-            total += spikes.at(i, j);
+        for (size_t j = 0; j < spikes.cols(); ++j) total += spikes.at(i, j);
 
     float density = total / static_cast<float>(kLargeSteps * static_cast<int>(kFeatures));
     // Expected ≈ 0.25, allow ±40%

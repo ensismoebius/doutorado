@@ -17,8 +17,7 @@ TEST(ProgressTest, SingleBarUpdate)
     bar.update(10.0f, {{"metric", 1.23f}});
 
     // Verify internal state via Manager (since ProgressBar is just a handle)
-    uint32_t id = bar.id();
-    EXPECT_GE(id, 0U);
+    [[maybe_unused]] const uint32_t id = bar.id(); // an id exists; its value is not specified
     // We can't easily check the state of ProgressManager private members without a friend class
     // but we can verify that calling update doesn't crash and the thread is running.
     SUCCEED();

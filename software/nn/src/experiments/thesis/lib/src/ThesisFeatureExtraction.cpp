@@ -81,7 +81,7 @@ FeatureSet extract_handcrafted_feature_set(const ThesisDatasetView& view,
 
             // Zero-pad to next power of two for DTWPT.
             size_t n = 1;
-            while (n < sig.size()) n <<= 1;
+            while (n < sig.size()) n <<= 1U;
             sig.resize(n, 0.0);
 
             fs.vectors[static_cast<size_t>(i)] =
@@ -410,7 +410,7 @@ auto extract_features(
     result.reserve(voice_sets.size());
     for (size_t k = 0; k < voice_sets.size(); ++k)
     {
-        auto& vfs = voice_sets[k];
+        const auto& vfs = voice_sets[k];
         auto& efs = eeg_sets[k];
         if (vfs.vectors.size() != efs.vectors.size())
             throw std::runtime_error(

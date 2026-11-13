@@ -82,7 +82,7 @@ TEST(GRULayer, FiniteDifferenceGradients)
     layer.reset_state();
     const Tensor out = layer.forward(x, true);
     ASSERT_EQ(out.get_shape().size(), 3u);
-    Tensor grad_out = out; // dL/dout for the quadratic loss
+    const Tensor& grad_out = out; // dL/dout for the quadratic loss
     const Tensor dx = layer.backward(grad_out);
 
     const Tensor dW = layer.W_.grad();

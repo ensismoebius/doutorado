@@ -4,10 +4,10 @@
  * @brief Unit tests for basic statistics and multi-class metric helpers.
  */
 
+#include <gtest/gtest.h>
+
 #include <array>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "statistics/inference_tests.hpp"
 #include "statistics/multi_class_metrics.hpp"
@@ -148,7 +148,7 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
                 int pred = static_cast<int>(test_feat[i][0]) % 3;
                 if (pred == test_lab[i]) ++correct;
             }
-            return static_cast<double>(correct) / test_lab.size();
+            return static_cast<double>(correct) / static_cast<double>(test_lab.size());
         });
 
     EXPECT_EQ(results.size(), static_cast<size_t>(k));
@@ -255,6 +255,7 @@ TEST(StatisticsMemoryStressTest, LargeDatasetVariance)
     std::vector<double> large_data;
 
     // Create large dataset with known variance
+    large_data.reserve(large_size);
     for (int i = 0; i < large_size; ++i)
     {
         large_data.push_back(static_cast<double>(i % 100)); // Values 0-99 repeating
@@ -415,6 +416,7 @@ TEST(StatisticsThreadSafetyTest, ConcurrentVarianceCalculations)
     for (int t = 0; t < num_threads; ++t)
     {
         std::vector<double> data;
+        data.reserve(data_size);
         for (int i = 0; i < data_size; ++i)
         {
             data.push_back(static_cast<double>(i + t * data_size));

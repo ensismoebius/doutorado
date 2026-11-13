@@ -23,13 +23,15 @@
 // - Minimal memory ordering: acquire on loads that synchronize with release stores.
 
 template <typename T>
-class HighPerfSpscQueue
+// The 64-byte alignment of head_/tail_ is the point (one cache line each, no false sharing);
+// the analyzer's "excessive padding" is that alignment.
+class HighPerfSpscQueue // NOLINT(clang-analyzer-optin.performance.Padding)
 {
    public:
     explicit HighPerfSpscQueue(std::size_t capacity)
     {
         std::size_t cap = 1;
-        while (cap < capacity) cap <<= 1;
+        while (cap < capacity) cap <<= 1U;
         capacity_ = cap;
         mask_ = capacity_ - 1;
 

@@ -129,9 +129,9 @@ inline void set_classifier(ThesisConfig& c, const std::string& type)
 inline float synthetic_value(int i, double cycles_per_sample, std::uint32_t noise_seed)
 {
     std::uint32_t h = (static_cast<std::uint32_t>(i) + 1U) * 2654435761U ^ (noise_seed * 40503U);
-    h ^= h >> 15;
+    h ^= h >> 15U;
     h *= 2246822519U;
-    h ^= h >> 13;
+    h ^= h >> 13U;
     const double noise = (static_cast<double>(h % 20001U) / 10000.0 - 1.0) * 0.05; // +-0.05
     return static_cast<float>(
         0.5 + 0.4 * std::sin(2.0 * 3.14159265358979323846 * cycles_per_sample * i) + noise);

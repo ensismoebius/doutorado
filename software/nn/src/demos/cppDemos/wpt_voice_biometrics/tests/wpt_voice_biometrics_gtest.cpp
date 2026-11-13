@@ -9,13 +9,13 @@
  * Synthetic data only — no filesystem access.
  */
 
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <random>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "codificacao.hpp"
 #include "tensor/Tensor.hpp"
@@ -27,10 +27,8 @@
 
 struct ExtractionConfig
 {
-    int sample_rate{44100};
     int window_size{512};
     int hop_size{256};
-    int num_bands{32};
     int wpt_level{5};
 };
 
@@ -48,8 +46,8 @@ static auto generate_hann_window(int size) -> std::vector<double>
     {
         constexpr double pi = std::numbers::pi;
         w[static_cast<size_t>(i)] =
-            0.5 * (1.0 - std::cos(2.0 * pi * static_cast<double>(i) /
-                                      static_cast<double>(size - 1)));
+            0.5 *
+            (1.0 - std::cos(2.0 * pi * static_cast<double>(i) / static_cast<double>(size - 1)));
     }
     return w;
 }
@@ -61,23 +59,21 @@ static auto apply_windowing(const std::vector<double>& signal, const ExtractionC
     if (signal.size() < static_cast<size_t>(cfg.window_size)) return windows;
     const auto window = generate_hann_window(cfg.window_size);
     for (int start = 0; start + cfg.window_size <= static_cast<int>(signal.size());
-         start += cfg.hop_size)
+        start += cfg.hop_size)
     {
         std::vector<double> seg(static_cast<size_t>(cfg.window_size));
         for (int i = 0; i < cfg.window_size; ++i)
             seg[static_cast<size_t>(i)] =
-                signal[static_cast<size_t>(start + i)] * window[static_cast<size_t>(i)];
+                signal[static_cast<size_t>(start) + i] * window[static_cast<size_t>(i)];
         windows.push_back(std::move(seg));
     }
     return windows;
 }
 
-static auto interpolate_to_size(const std::vector<double>& src, int dst_size)
-    -> std::vector<float>
+static auto interpolate_to_size(const std::vector<double>& src, int dst_size) -> std::vector<float>
 {
     if (dst_size <= 0) return {};
-    if (static_cast<int>(src.size()) == dst_size)
-        return std::vector<float>(src.begin(), src.end());
+    if (static_cast<int>(src.size()) == dst_size) return std::vector<float>(src.begin(), src.end());
     std::vector<float> out(static_cast<size_t>(dst_size));
     for (int i = 0; i < dst_size; ++i)
     {
@@ -100,8 +96,9 @@ static auto compute_wpt_energy(const std::vector<double>& window, int num_bands,
     int target_size = wavelets::get_next_power_of_two(static_cast<double>(window.size()));
     std::vector<double> padded(window.begin(), window.end());
     padded.resize(static_cast<size_t>(target_size), 0.0);
-    auto transform = wavelets::malat(
-        padded, std::span<const double>(haar), wavelets::PACKET_WAVELET,
+    auto transform = wavelets::malat(padded,
+        std::span<const double>(haar),
+        wavelets::PACKET_WAVELET,
         static_cast<unsigned int>(wpt_level));
     auto energies = wavelets::extract_subband_energies(transform, wpt_level);
     return interpolate_to_size(energies, num_bands);
@@ -117,8 +114,14 @@ static auto preprocess_energy(const std::vector<float>& energy) -> std::vector<f
         out[i] = v;
         max_value = std::max(max_value, v);
     }
-    if (max_value < 1e-8F) { std::fill(out.begin(), out.end(), 0.0F); return out; }
-    std::transform(out.begin(), out.end(), out.begin(),
+    if (max_value < 1e-8F)
+    {
+        std::fill(out.begin(), out.end(), 0.0F);
+        return out;
+    }
+    std::transform(out.begin(),
+        out.end(),
+        out.begin(),
         [max_value](float v) { return std::clamp(v / max_value, 0.0F, 1.0F); });
     return out;
 }
@@ -133,9 +136,11 @@ class WptVoiceBioTest : public ::testing::Test
     static constexpr int kSampleRate = 8000;
     static constexpr int kWindowSize = 512;
     static constexpr int kHopSize = 256;
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
     static constexpr int kNumBands = 32;
 
-    ExtractionConfig cfg{kSampleRate, kWindowSize, kHopSize, kNumBands, 5};
+    // cppcheck-suppress unusedStructMember ; used inside TEST_F bodies, which cppcheck does not see
+    ExtractionConfig cfg{kWindowSize, kHopSize, 5};
 
     // 1-second synthetic sine
     std::vector<double> audio;
@@ -211,16 +216,14 @@ TEST_F(WptVoiceBioTest, ApplyWindowing_NumberOfWindows)
 {
     auto wins = apply_windowing(audio, cfg);
     // Expected: floor((n - window_size) / hop_size) + 1
-    int expected =
-        static_cast<int>((static_cast<int>(audio.size()) - kWindowSize) / kHopSize) + 1;
+    int expected = static_cast<int>((static_cast<int>(audio.size()) - kWindowSize) / kHopSize) + 1;
     EXPECT_EQ(static_cast<int>(wins.size()), expected);
 }
 
 TEST_F(WptVoiceBioTest, ApplyWindowing_EachWindowCorrectSize)
 {
     auto wins = apply_windowing(audio, cfg);
-    for (const auto& w : wins)
-        EXPECT_EQ(static_cast<int>(w.size()), kWindowSize);
+    for (const auto& w : wins) EXPECT_EQ(static_cast<int>(w.size()), kWindowSize);
 }
 
 TEST_F(WptVoiceBioTest, ApplyWindowing_ShortSignal_ReturnsEmpty)
@@ -239,8 +242,7 @@ TEST(InterpolateToSize, SameSize_ReturnsSameValues)
     std::vector<double> src = {1.0, 2.0, 3.0, 4.0};
     auto out = interpolate_to_size(src, 4);
     ASSERT_EQ(out.size(), 4u);
-    for (size_t i = 0; i < 4; ++i)
-        EXPECT_NEAR(out[i], static_cast<float>(src[i]), 1e-5F);
+    for (size_t i = 0; i < 4; ++i) EXPECT_NEAR(out[i], static_cast<float>(src[i]), 1e-5F);
 }
 
 TEST(InterpolateToSize, ExpandSize_OutputLengthMatches)
@@ -276,8 +278,7 @@ TEST_F(WptVoiceBioTest, WptEnergy_AllFinite)
     auto w = apply_windowing(audio, cfg);
     ASSERT_FALSE(w.empty());
     auto energy = compute_wpt_energy(w[0], kNumBands, wpt_lvl);
-    for (float v : energy)
-        EXPECT_TRUE(std::isfinite(v)) << "Non-finite energy value: " << v;
+    for (float v : energy) EXPECT_TRUE(std::isfinite(v)) << "Non-finite energy value: " << v;
 }
 
 TEST_F(WptVoiceBioTest, WptEnergy_NonNegative)
@@ -286,8 +287,7 @@ TEST_F(WptVoiceBioTest, WptEnergy_NonNegative)
     auto w = apply_windowing(audio, cfg);
     ASSERT_FALSE(w.empty());
     auto energy = compute_wpt_energy(w[0], kNumBands, wpt_lvl);
-    for (float v : energy)
-        EXPECT_GE(v, 0.0F);
+    for (float v : energy) EXPECT_GE(v, 0.0F);
 }
 
 // ============================================================
@@ -336,11 +336,10 @@ TEST_F(WptVoiceBioTest, Pipeline_EncodePoisson_SpikesAreBinary)
 
     // Pack into a 1×num_bands Tensor
     nn::Tensor frame(1, static_cast<size_t>(kNumBands));
-    for (size_t j = 0; j < static_cast<size_t>(kNumBands); ++j)
-        frame.at(0, j) = normed[j];
+    for (size_t j = 0; j < static_cast<size_t>(kNumBands); ++j) frame.at(0, j) = normed[j];
 
     std::mt19937 rng(42);
-    nn::Tensor spikes = codificacao::encode_poisson(frame, /*steps=*/10, rng);
+    nn::Tensor spikes = codificacao::encode_poisson(frame, /*time_steps=*/10, rng);
 
     for (size_t i = 0; i < spikes.rows(); ++i)
         for (size_t j = 0; j < spikes.cols(); ++j)

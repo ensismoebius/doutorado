@@ -156,7 +156,7 @@ TEST(ModuleBaseTest, DefaultMethodsAreSafe)
     EXPECT_NO_THROW(m.load_state_dict(empty_sd));
 
     nn::Device cpu = nn::Device::from_string("cpu");
-    auto& returned = m.to(cpu);
+    const auto& returned = m.to(cpu);
     EXPECT_EQ(&returned, &m);
 }
 

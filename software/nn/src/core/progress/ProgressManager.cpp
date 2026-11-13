@@ -30,12 +30,12 @@ void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t wid
     {
         if (width <= 3) //
         {
-            os.write(text.data(), static_cast<std::streamsize>(width)); //
-            return;                                                     //
+            os << text.substr(0, width); //
+            return;                      //
         }
-        os.write(text.data(), static_cast<std::streamsize>(width - 3)); //
-        os << "...";                                                    //
-        return;                                                         //
+        os << text.substr(0, width - 3); //
+        os << "...";                     //
+        return;                          //
     }
     os.write(text.data(), static_cast<std::streamsize>(text.size()));
     for (std::size_t i = text.size(); i < width; ++i) os.put(' ');
@@ -131,7 +131,7 @@ void append_bold_cell(std::ostream& os, std::string_view text, std::size_t width
 {
     const std::size_t vis = std::min(text.size(), width);
     os << "\033[1;36m"; // bold cyan — label column, always the leftmost eye-catcher
-    os.write(text.data(), static_cast<std::streamsize>(vis));
+    os << text.substr(0, vis);
     os << "\033[0m";
     for (std::size_t i = vis; i < width; ++i) os.put(' ');
 }
@@ -228,7 +228,7 @@ void ProgressManager::update_bar(
 void ProgressManager::set_target(uint32_t id, float target)
 {
     std::lock_guard<std::mutex> lock(manager_mutex_);
-    for (auto& entry : entries_)
+    for (const auto& entry : entries_)
     {
         if (entry->id == id)
         {
@@ -246,7 +246,7 @@ void ProgressManager::reset_for_epoch(uint32_t id, float target)
     // together with the still-stale (larger, previous-epoch) current_value —
     // producing nonsense like "16/6" for one frame.
     std::lock_guard<std::mutex> lock(manager_mutex_);
-    for (auto& entry : entries_)
+    for (const auto& entry : entries_)
     {
         if (entry->id == id)
         {
@@ -374,7 +374,7 @@ void ProgressManager::set_phases(
 void ProgressManager::begin_active_work(uint32_t id)
 {
     std::lock_guard<std::mutex> lock(manager_mutex_);
-    for (auto& entry : entries_)
+    for (const auto& entry : entries_)
     {
         if (entry->id == id)
         {
@@ -403,7 +403,7 @@ void ProgressManager::end_active_work(uint32_t id)
     }
 }
 
-void ProgressManager::render_entry(const ProgressEntry& entry) const
+void ProgressManager::render_entry(const ProgressEntry& entry)
 {
     const float cv = entry.current_value.load();
     const float tv = std::max(entry.target_value, 1.0f);
