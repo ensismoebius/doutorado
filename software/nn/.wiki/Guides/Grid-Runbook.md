@@ -1,88 +1,67 @@
-# SNN Grid Tests Comprehensive Runbook
+# autoencoderRunner Grid Runbook
 
-This document is the canonical guide for running, monitoring, analyzing, and archiving SNN grid tests.
+How to sweep the [autoencoderRunner](../Experiments/AutoencoderRunner.md) SNN autoencoders over a
+hyperparameter grid, and rank the results. This is the old "Experiment03" grid. It is not
+part of the thesis or the paper (they have their own pipelines), and it is large, so read
+§ Size before starting it.
 
-<!-- STALE: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/ does not exist
-     anywhere in the workspace (confirmed absent 2026-09-07). The current grid-sweep mechanism
-     is src/experiments/autoencoderRunner/scripts/run_full_grid_and_analyze.sh, which generates
-     profiles on the fly via create_test_profiles.py into a --profiles-output-dir rather than
-     reading from a committed directory. The commands below (referencing snnAutoEncodersProfiles/*.json)
-     will not work as written; analyze_grid_results.py does exist and still matches its listed path. -->
+## The one command
 
-## Quickstart (5 Commands)
+The wrapper does all three steps: it generates the profiles, runs them in parallel (GNU
+`parallel`, one process per profile, with a joblog), and analyses the results. Every path is
+required:
 
 ```bash
-cd <path_to_nn_project_root>
+cd software/nn
+cmake --build out/build/max-performance --target autoencoderRunner -j$(nproc)
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NN_AUTOENCODERRUNNER_LOG_LEVEL=warn
-run_id="$(date +%Y%m%d_%H%M%S)" && mkdir -p logs/grid_runs
-parallel -j 12 --timeout 600 --joblog "logs/grid_runs/${run_id}_joblog.tsv" "./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/autoencoderRunner/autoencoderRunner --profile {}" ::: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/*.json && touch "logs/grid_runs/${run_id}_DONE"
-python3 src/experiments/autoencoderRunner/scripts/analyze_grid_results.py
+bash src/experiments/autoencoderRunner/scripts/run_full_grid_and_analyze.sh \
+  --project-root "$PWD" \
+  --bin out/build/max-performance/src/experiments/autoencoderRunner/autoencoderRunner \
+  --profiles-output-dir /scratch/grid/profiles \
+  --results-dir "$PWD/results" \
+  --analysis-output-dir /scratch/grid/analysis \
+  --jobs 12 --timeout 600
 ```
 
-## 1. Scope and Goal
+Each profile reads `~/database.sqlite` (the Coretto base, see [Data Bases](./Data-Bases.md)).
+The runner writes each summary (`<timestamp>_<profile>.json`) to `results/` under its working
+directory, which the wrapper sets to `--project-root`. So `--results-dir` must be
+`<project-root>/results`, and the wrapper refuses anything else. Summaries accumulate there,
+and the analyzer reads every `*grid_*.json` at the top of that folder, earlier sweeps
+included. Move those away before a new sweep. The thesis results sit in subfolders
+(`results/thesis/`) and are not read. The joblog and the `…_DONE` marker go to
+`logs/grid_runs/`.
 
-- Re-run profiles with more time per profile (600s timeout)
-- Generate comprehensive comparison tables for all tested configurations
+## The steps, one by one
 
-## 2. Grid Definition
+| Step | Command | Writes |
+|---|---|---|
+| 1. profiles | `python3 src/experiments/autoencoderRunner/scripts/create_test_profiles.py --output-dir <dir>` | one JSON per grid point (`<type>_grid_<n>_lr…_bs…_hs…_ls…_<loss>_mb…_ep…_lp….json`) |
+| 2. runs | `parallel -j 12 --timeout 600 --joblog <log> "<bin> --profile {}" ::: <dir>/*.json` | `results/<timestamp>_<profile>.json`, under the working directory |
+| 3. analysis | `python3 src/experiments/autoencoderRunner/scripts/analyze_grid_results.py --results-dir <results> --output-dir <analysis>` | `master_comparison.csv`, `comparison_<modality>.csv`, `sensitivity_<modality>_<loss>.csv`, `summary_statistics.csv` |
 
-Total profiles: 402
-- audio-window: 288
-- fused-window: 96
-- eeg-window: 18
+Both Python scripts take every directory explicitly and refuse a mistyped option. The analyzer
+exits non-zero when the results directory is missing or holds no `*grid_*.json`, so an
+empty analysis cannot pass for a finished one.
 
-### Hyperparameters Tested
-- Learning rate: 0.0001, 0.0005, 0.001
-- Batch size: 4, 8, 16, 32, 64
-- Hidden size: 32, 64, 128
-- Latent size: 16, 32, 64
+## Size
 
-## 3. Environment
+The grid is the full cross product of the axes in `param_grids` at the top of
+`create_test_profiles.py` (learning rates, batch sizes, hidden and latent sizes, losses,
+depths, …, per model type). As written it generates **97,280 profiles**: 30,720 audio-window,
+30,720 EEG-window and 35,840 fused-window (counted on 2026-11-13). At a 600 s timeout and 12
+parallel jobs that is weeks of machine time. Narrow `param_grids` before running, and count
+with `ls <dir> | wc -l` after step 1.
 
-```bash
-export OMP_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
-export MKL_NUM_THREADS=1
-export NN_AUTOENCODERRUNNER_LOG_LEVEL=warn
-```
+## Troubleshooting
 
-## 4. Run Commands
-
-### Parallel (Recommended)
-```bash
-cd <path_to_nn_project_root>
-bin="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/autoencoderRunner/autoencoderRunner"
-mkdir -p logs/grid_runs
-run_id="$(date +%Y%m%d_%H%M%S)"
-
-parallel -j 12 \
-  --timeout 600 \
-  --joblog "logs/grid_runs/${run_id}_joblog.tsv" \
-  "$bin --profile {}" \
-  ::: src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles/*.json
-```
-
-## 5. Analysis
-
-```bash
-python3 src/experiments/autoencoderRunner/scripts/analyze_grid_results.py
-```
-
-Output:
-- `analysis/master_comparison.csv` - Full ranked results
-- `analysis/comparison_<modality>.csv` - Per-modality breakdowns
-- `analysis/sensitivity_<modality>_<loss>.csv` - Hyperparameter sensitivity
-- `analysis/summary_statistics.csv` - Aggregate statistics
-
-## 6. Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| No results | Check JSON outputs in `src/experiments/autoencoderRunner/results/` |
-| Stalled batch | Check process count and joblog |
-| Script failure | Verify Python 3.8+, validate JSON with `python3 -m json.tool` |
+| Symptom | Check |
+|---|---|
+| the analyzer stops with "no *grid_*.json results" | the runs wrote somewhere else, or all failed: read the joblog's `Exitval` column |
+| a run stalls | the `--timeout`, and the process count against the cores (`OMP_NUM_THREADS=1` per process) |
+| a profile is refused | `python3 -m json.tool <profile>`; the runner refuses unknown keys |
 
 ## See Also
 
 - [AutoencoderRunner](../Experiments/AutoencoderRunner.md)
-- [Architecture](../Architecture.md)

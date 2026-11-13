@@ -1,20 +1,32 @@
 # wave
 
-Purpose
-- Audio processing helpers and feature extraction utilities used by demos and preprocessing pipelines.
+WAV input/output and audio feature helpers (FFT, filter banks, LFCC).
 
-Usage
-- Feature extraction functions and signal processing pipelines are implemented here; call them from preprocessing code before feeding tensors to models.
+**Full documentation:** [`.wiki/Core/Wave.md`](../../../.wiki/Core/Wave.md). This README only says where things are and how to change them.
 
-Tests
-- See `src/core/wave/tests/` for examples and expected outputs.
+| What | Where |
+|---|---|
+| Public headers | [`include/wave`](../../../include/wave) |
+| Implementation (`.cpp`) | 6 file(s) in this folder |
+| CMake library target | `waveCoreLib` |
+| Test executables | `create_wav_demo`, `wave_gtest` |
 
-Recent updates
-- WAV write open-file failures now use `NN_LOG_ERROR` instead of direct stdout writes, keeping error reporting consistent with centralized logging.
+## Header map
 
-Optimization techniques and references
-- Centralized logging channel for failure paths: standardizes observability and reduces output-routing divergence across CLI, tests, and redirected streams (see [1], [2]).
+- `include/wave/`: `Wav.hpp`, `audioFeatureExtraction.hpp`, `audioTypes.hpp`, `filter_operations.hpp`, `lfcc_pipeline_utils.hpp`, `signal_operations.hpp`
 
-Bibliographic references
-- [1] Martin Kleppmann. Designing Data-Intensive Applications. O'Reilly, 2017.
-- [2] Martin Fowler. Refactoring: Improving the Design of Existing Code (2nd ed.). Addison-Wesley, 2018.
+## Changing it
+
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
+
+  ```bash
+  cmake --build --preset=max-performance --target wave_gtest
+  ctest --test-dir out/build/max-performance -R 'SimpleSignalOperationsTest' --output-on-failure
+  ```
+
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R wave_gtest` silently matches nothing.
+
+  Suites here: `SimpleSignalOperationsTest`, `FilterOperationsTest`, `WavFileTest`, `AudioFeatureExtractionTest`.
+- After a behaviour change, update [`.wiki/Core/Wave.md`](../../../.wiki/Core/Wave.md) (and `.wiki/References.md` if a paper is involved).

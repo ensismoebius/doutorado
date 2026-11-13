@@ -161,7 +161,7 @@ mapping, config validation).
 
 ## References
 
-[1] R. C. Guido et al., "Paraconsistent feature engineering for EEG-based imagined speech classification," *Proceedings of SPIE*, vol. 10160, 2017. [Online]. Available: https://doi.org/10.1117/12.2255697 — with N. C. A. da Costa, "On the theory of inconsistent formal systems," *Notre Dame Journal of Formal Logic*, vol. 15, no. 4, pp. 497–510, 1974, for the underlying logic. See [Paraconsistent Logic](../Core/Paraconsistent.md) for the $\lambda = 2-\sqrt2$ contradiction-penalty derivation.
+[1] R. C. Guido, "Paraconsistent feature engineering [Lecture Notes]," *IEEE Signal Processing Magazine*, vol. 36, no. 1, pp. 154–158, Jan. 2019. DOI: 10.1109/MSP.2018.2874549. — with N. C. A. da Costa, "On the theory of inconsistent formal systems," *Notre Dame Journal of Formal Logic*, vol. 15, no. 4, pp. 497–510, 1974, for the underlying logic. See [Paraconsistent Logic](../Core/Paraconsistent.md) for the $\lambda = 2-\sqrt2$ contradiction-penalty derivation.
 
 [2] K. Deb, A. Pratap, S. Agarwal, and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," *IEEE Transactions on Evolutionary Computation*, vol. 6, no. 2, pp. 182–197, Apr. 2002. [Online]. Available: https://doi.org/10.1109/4235.996017
 

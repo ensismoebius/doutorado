@@ -34,16 +34,15 @@ Long-running commands (full pipeline, `timeout 600+`, `01_meeting01_run_loso.sh`
 ```
 software/nn/         C++20 SNN/ML framework — primary codebase
   CLAUDE.md          Full technical rules (build, layers, SNN, tests, wiki)
-  AGENTS.md          OpenCode guidance (build commands, conventions)
   .wiki/             Documentation wiki
   include/           Backend-agnostic public headers
-  src/               Implementation + experiments (00–05)
-  results/           Experiment outputs (JSON, CSV, .npy)
+  src/               Implementation (core/) + named experiments (thesis, meeting01, paraconsistentGA, ...)
+  results/           Experiment outputs (the only results folder; results/thesis/ is the thesis of record)
   scripts/           Python + bash analysis scripts
-notebooks/           Jupyter notebooks (EEG/signal processing, prototyping)
-documentation/       Research papers, books, project proposal
-hardware/            Hardware-related files
-results/             Top-level experiment results
+AGENTS.md            OpenCode guidance (build commands, conventions)
+notebooks/           Jupyter notebooks (audio features, neuron maths prototypes)
+documentation/       Thesis, papers, presentations, reading library (see documentation/README.md)
+software/experiment_microscope/, software/efficient_nn_lab/   inspection GUI; lecture demos
 .claude/
   commands/          33 slash commands (ML, C++, SNN, research skills)
   hooks/             PreToolUse: expensive-experiment-guard

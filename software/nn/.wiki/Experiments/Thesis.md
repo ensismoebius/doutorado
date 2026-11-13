@@ -15,16 +15,17 @@ The experiment consists of two stages:
 - **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE) and PCA, a classic linear feature extractor used as the reference the learned ones must beat (implemented 2026-11-11, not yet run; LSTM-AE pre-validated and dropped, see `Research-Context.md`)
 - **E4 — Authentication**: the DSNN classifier, against two controls on the same features and folds (its non-spiking twin `ann`, and `cosine`, no network); test phrases seen or unseen in training; nested or flat 5-fold cross-validation; simulated dysphonia; measured inference energy (see [Protocol revision](#protocol-revision-2026-11-12))
 
-> **Status (2026-11-12): every thesis number so far is void; the revised protocol below is
-> implemented and tested, and both phases must run again.** The July run had four defects
-> (`base` = `small`, an inverted EER, a fold intersection that dropped 62% of the training
-> rows, a nested text leak; fixed b22f07c1). The re-run of 2026-11-12 fixed those, but its EEG
-> was the *previous* trial's EEG ([below](#1-the-eeg-was-the-previous-trials-eeg)), so its EEG
-> and fusion numbers are void too; only its voice numbers stand, and they are superseded by the
-> new text split.
+> **Status (2026-11-13): Phase 00, Phase 01 and the BIOMEX-DB replication have all run under
+> the revised protocol below**, and their results are committed (`results/thesis/{phase00,phase01,biomex}/`,
+> with model weights). Everything earlier is void: the July run had four defects (`base` = `small`,
+> an inverted EER, a fold intersection that dropped 62% of the training rows, a nested text leak;
+> fixed b22f07c1), and the first re-run of 2026-11-12 read the *previous* trial's EEG
+> ([below](#1-the-eeg-was-the-previous-trials-eeg)). The thesis text takes every number from
+> the committed results through generated tables and `\tn{}` keys (§10); the Phase 00 winners
+> are in `results/thesis/phase00/winners.json`.
 
-> **Follow-up search:** because the 24 hand-picked autoencoder profiles lost to
-> handcrafted features on `D_penalized`, the [paraconsistentGA](ParaconsistentGA.md)
+> **Follow-up search:** because the hand-picked autoencoder profiles lose to handcrafted
+> features on `D_penalized` (the winner of every signal in `winners.json` is handcrafted), the [paraconsistentGA](ParaconsistentGA.md)
 > experiment searches the same architecture axes automatically with NSGA-II, to test
 > whether a better autoencoder exists than those fixed phase00 tiers.
 
@@ -625,7 +626,7 @@ At each leaf node (sub-band), the following descriptors are computed:
 
 Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/LFCC.md)).
 
-> **The `scale` axis is voice-only (fixme.md D6).** Bark and Mel are **cochlear** scales — they model the frequency resolution of human *hearing*. There is no physiological basis for applying them to EEG, which is not sound, so `ThesisConfig::validate()` rejects `scale != lfcc` when `modality=eeg`.
+> **The `scale` axis is voice-only ([Engineering Fixes Log D6](../Guides/Engineering-Fixes-Log.md#d6--the-eeg-scale-axis-is-inert)).** Bark and Mel are **cochlear** scales — they model the frequency resolution of human *hearing*. There is no physiological basis for applying them to EEG, which is not sound, so `ThesisConfig::validate()` rejects `scale != lfcc` when `modality=eeg`.
 >
 > They were also provably inert there, which is what exposed the problem. `group_by_scale()` normalizes the perceptual curve by the signal's **own Nyquist**. Bark spans ~24 Barks over the audible range and `n_bands=24`, so for voice the factor is ~0.97 — a no-op, the bin *is* the Bark number, and the curve's compression at high frequency genuinely merges sub-bands (bark→9 groups, mel→11, vs lfcc's 16). For EEG (Nyquist 512 Hz) the factor is ~4.96: the curve is stretched 5× to fill 24 bins. Bark/Mel are ~linear over that range, so the mapping becomes injective — each sub-band lands in its own bin and the grouping degenerates to *exactly* lfcc's one-group-per-sub-band. "Bark" for EEG was never Bark; it was a linearly rescaled pseudo-scale identical to linear. Verified on the stored results: all three scales gave bit-identical `D_truth` in **46/46** EEG wavelet×category groups (the only apparent exceptions, `daub32`, differed by ~1e-6 — float noise from that profile's individual re-run).
 >
@@ -652,60 +653,54 @@ Two knobs make this work and both are profile-configurable:
 
 Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `ThesisSnnAe.*` tests (latent non-degenerate + varies across samples; encoding changes the feature).
 
-> **Dead-latent guard: encoder firing-rate regularization (2026-07-16).** A collapsed encoder (constant output regardless of input) lands exactly on the paraconsistent *Ambiguity* vertex (`α=β=1`) and used to score deceptively well under `D_truth` alone — see [Core/Paraconsistent.md](../Core/Paraconsistent.md) for the `D_penalized` metric that closed that ranking exploit, and [Spike-Rate-Regularization](../Concepts/Spike-Rate-Regularization.md) for why a starved LIF encoder collapses in the first place (root cause: at He/Kaiming init the single spiking stage of `linear:16:leaky, linear:8:identity` fires at only ~8.3%, and the `identity` second stage adds no further nonlinearity, so a starved first stage starves the whole latent). `feature_extraction.autoencoder.{firing_rate_reg_lambda, firing_rate_min, firing_rate_max}` push each encoder `Lif` layer's mean firing rate into `[firing_rate_min, firing_rate_max]`, mirroring the DSNN classifier's mechanism (same math, see below) but implemented separately in `ProtocolSpikingAutoencoder::backward` — the AE's encoder is a generically-built `Sequential` (from `encoder_layer_spec`), not the classifier's named layers, so the Lif layers are located once at construction via `dynamic_cast`, and the regularization gradient is injected by a manual reversed-order backward loop rather than `Sequential::backward`. All 18 real `snn-ae` Phase 00 profiles (and their 18 `smoke` mirrors) now set `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80` — `0.10` sits above the measured native init rate (8.3%) so the penalty actually engages; `0.5` was validated on `direct` at the profile's real learning rate (baseline `α=0.5` → `α=0.375` with regularization on). `firing_rate_reg_lambda` is required for every `snn-ae` (0 = off); the band keys are required exactly when it is > 0. Guarded by `AutoencoderRunnerRedesignTest.ProtocolSnnFiringRateRegularization*` (inject-when-enabled / inert-when-zero).
+> **Dead-latent guard: encoder firing-rate regularization (2026-07-16).** A collapsed encoder (constant output regardless of input) lands exactly on the paraconsistent *Ambiguity* vertex (`α=β=1`) and used to score deceptively well under `D_truth` alone — see [Core/Paraconsistent.md](../Core/Paraconsistent.md) for the `D_penalized` metric that closed that ranking exploit, and [Spike-Rate-Regularization](../Concepts/Spike-Rate-Regularization.md) for why a starved LIF encoder collapses in the first place (root cause: at He/Kaiming init the single spiking stage of `linear:16:leaky, linear:8:identity` fires at only ~8.3%, and the `identity` second stage adds no further nonlinearity, so a starved first stage starves the whole latent). `feature_extraction.autoencoder.{firing_rate_reg_lambda, firing_rate_min, firing_rate_max}` push each encoder `Lif` layer's mean firing rate into `[firing_rate_min, firing_rate_max]`, mirroring the DSNN classifier's mechanism (same math, see below) but implemented separately in `ProtocolSpikingAutoencoder::backward` — the AE's encoder is a generically-built `Sequential` (from `encoder_layer_spec`), not the classifier's named layers, so the Lif layers are located once at construction via `dynamic_cast`, and the regularization gradient is injected by a manual reversed-order backward loop rather than `Sequential::backward`. All 27 real `snn-ae` Phase 00 profiles (and their `smoke` mirrors) set `firing_rate_reg_lambda=0.5`, `firing_rate_min=0.10`, `firing_rate_max=0.80` — `0.10` sits above the measured native init rate (8.3%) so the penalty actually engages; `0.5` was validated on `direct` at the profile's real learning rate (baseline `α=0.5` → `α=0.375` with regularization on). `firing_rate_reg_lambda` is required for every `snn-ae` (0 = off); the band keys are required exactly when it is > 0. Guarded by `AutoencoderRunnerRedesignTest.ProtocolSnnFiringRateRegularization*` (inject-when-enabled / inert-when-zero).
 >
-> The 300 stored Phase 00 results predate this change and do not yet reflect it — re-running the 18 `snn-ae` profiles to regenerate results under the new setting is a real cost (the `poisson`/`latency` encodings, T=16, took over 2h for a single run in testing) and has not been done.
+> Every Phase 00 result in `results/thesis/phase00/` (the re-run of 2026-11-12, three repetitions per profile) was produced with this regularization on.
 
-**Encoding sweep (thesis comparison).** Phase 00 ships all three SNN-AE encodings — `poisson`, `latency`, `direct` — × the 3 compact sizes × 2 sources = 18 profiles (`p00_ae_snn_<encoding>_<size>_<source>.json`), so the thesis can directly compare rate coding, first-spike-time coding, and the (expected-degenerate) non-temporal baseline through the same paraconsistent ranking.
+**Encoding sweep (thesis comparison).** Phase 00 ships all three SNN-AE encodings — `poisson`, `latency`, `direct` — × the 3 compact sizes × 3 signals (`voice`, `eegpron`, `eegimag`) = 27 profiles (`p00_ae_snn_<encoding>_<size>_<signal>.json`), so the thesis can directly compare rate coding, first-spike-time coding, and the (expected-degenerate) non-temporal baseline through the same paraconsistent ranking.
 
-All 18 profile names (`profiles/phase00/`):
+The 27 profile names (`profiles/phase00/`), `<signal>` ∈ {`voice`, `eegpron`, `eegimag`}:
 
 | encoding | tiny | small | base |
 |---|---|---|---|
-| `poisson` | `p00_ae_snn_poisson_tiny_eeg.json`, `..._voice.json` | `p00_ae_snn_poisson_small_eeg.json`, `..._voice.json` | `p00_ae_snn_poisson_base_eeg.json`, `..._voice.json` |
-| `latency` | `p00_ae_snn_latency_tiny_eeg.json`, `..._voice.json` | `p00_ae_snn_latency_small_eeg.json`, `..._voice.json` | `p00_ae_snn_latency_base_eeg.json`, `..._voice.json` |
-| `direct`  | `p00_ae_snn_direct_tiny_eeg.json`, `..._voice.json`  | `p00_ae_snn_direct_small_eeg.json`, `..._voice.json`  | `p00_ae_snn_direct_base_eeg.json`, `..._voice.json`  |
+| `poisson` | `p00_ae_snn_poisson_tiny_<signal>.json` | `p00_ae_snn_poisson_small_<signal>.json` | `p00_ae_snn_poisson_base_<signal>.json` |
+| `latency` | `p00_ae_snn_latency_tiny_<signal>.json` | `p00_ae_snn_latency_small_<signal>.json` | `p00_ae_snn_latency_base_<signal>.json` |
+| `direct`  | `p00_ae_snn_direct_tiny_<signal>.json`  | `p00_ae_snn_direct_small_<signal>.json`  | `p00_ae_snn_direct_base_<signal>.json`  |
 
 Each profile is identical except `feature_extraction.autoencoder.{encoding, time_steps, voltage_threshold}` and `encoder_layer_spec`/`decoder_layer_spec` widths (per size, see table below). `direct` profiles use `time_steps: 1` (ignored by the encoder anyway — a single analog frame) and `voltage_threshold: 1.0` (the LIF default — appropriate since `direct` is meant to reproduce the *un-encoded* baseline, not a tuned spiking regime); `poisson`/`latency` use `time_steps: 16`, `voltage_threshold: 0.2`.
 
-> ### ⚠️ Encoding comparison: withdrawn pending re-run (fixme.md D2/F4)
+> ### Encoding comparison: history and where the numbers are now
 >
-> A table used to sit here reporting measured `α`/`D_truth` per SNN-AE encoding (`direct` best,
-> `poisson` last) over the Phase 00 grid. **It has been removed rather than corrected**, because
-> every one of its numbers is unsupported and none can be recomputed:
+> A table of measured `α`/`D_truth` per SNN-AE encoding sat here until 2026-07 and was removed:
+> it was produced under the `snn_lr_scale` bug (D3: every AE trained at an effective lr of 1e-4
+> while the profiles declared 1e-3) and its ranks no longer matched the grid. The comparison of
+> record is the re-run of 2026-11-12 with the spectral input (§9): per-profile results in
+> `results/thesis/phase00/`, ranked tables in `documentation/00-thesis/monography/tables/phase00_ae_*.csv`
+> (written by `thesis_build_phase00_paraconsistent_tables.py`), discussed in thesis chapter 9.
+> Never copy a number from there into this page: cite the table.
 >
-> 1. **Produced under the `snn_lr_scale` bug (D3).** Every AE weight trained at an effective
->    lr of 1e-4 while the profiles declared 1e-3. The numbers describe a run nobody configured.
-> 2. **Its ranks are arithmetically impossible now.** It said "rank (of 150, eeg)"; after D6
->    retired the degenerate EEG bark/mel axis, EEG has **58** combinations (46 handcrafted + 12 AE).
-> 3. **The source data is gone.** All Phase 00 results were deleted (see `results/thesis/phase00/README.md`);
->    the re-run is postponed, so the table cannot be regenerated.
->
-> Correcting the figures was not an option — there are no figures to correct. Restating them with a
-> caveat would have kept three-decimal precision on numbers with no run behind them, which is how
-> the *previous* revision of this table (a 20-epoch/2-fold preliminary run, reported as if final and
-> with the direction backwards) survived long enough to reach the thesis.
->
-> **What still stands** is the mechanism, which is theory rather than measurement, and which
-> predicts the ordering independently of any run:
+> **The prediction, and what the re-run showed.** Before the re-run, a noise-floor argument
+> predicted an ordering independently of any training:
 >
 > - `α` is built from the intraclass **min–max range**, so it is maximally outlier-sensitive: a few
 >   extreme samples per class widen the range to the whole normalised interval and drive `α→0`.
 > - Each encoding injects a different, *quantifiable* amount of noise **before any learning happens**.
 >   `poisson` redraws an independent Bernoulli per time step, so the mean over `T=16` frames carries
->   variance `v(1-v)/T` — at `v=0.5` that is a standard deviation of **≈0.125, i.e. ~12.5% of the
->   feature's full [0,1] range**, added per sample regardless of how well the encoder trained.
->   `latency` is deterministic: the same `v` always yields the same spike time, and its quantisation
->   error is at most `½·1/(T−1) ≈ 0.033`. `direct` injects none.
-> - That ladder (none / small-deterministic / large-random) predicts the observed ordering, and
->   predicts it as an artifact of the **metric plus the encoder's noise floor**, not as evidence that
->   temporal codes carry less speaker information.
+>   variance `v(1-v)/T` — at `v=0.5` a standard deviation of **≈0.125, ~12.5% of the feature's
+>   [0,1] range**. `latency` is deterministic, with quantisation error at most `½·1/(T−1) ≈ 0.033`.
+>   `direct` injects none.
+> - That ladder (none / small-deterministic / large-random) predicts **`direct` best, then
+>   `latency`, then `poisson`**.
 >
-> So the earlier framing — "a negative result for temporal coding" — **is not established**, and is
-> not merely uncertain: `α` cannot separate "the encoder failed to learn" from "this encoding has an
-> irreducible statistical floor at T=16". Since the floor scales as `1/T`, the claim is testable by
-> re-running `poisson` at larger `T` (T=64 shrinks the variance 4×). That test has **not** been run.
-> See fixme.md **D2** for the decision and the derivation.
+> **The re-run of 2026-11-12 contradicts it.** On all three signals the mean `d_penalized` ranks
+> `latency` first, `poisson` second and `direct` **last** (a CLAIM in
+> `thesis_build_text_numbers.py` checks this order, so the text fails to build if a re-run
+> changes it). Thesis ch. 8 reports the contradiction and its simplest reading, a hypothesis: `direct` shows
+> the vector once, with no temporal integration, so most latent neurons never fire (its smaller
+> sizes have the lowest `α` and, on EEG, the highest `β` — a near-collapsed latent). The test
+> that would settle it (vary `T` and the firing threshold, everything else fixed) has **not**
+> been run. Decision history:
+> [Engineering Fixes Log D2](../Guides/Engineering-Fixes-Log.md#d2--the-08-conclusion-about-temporal-encoding-was-confounded-by-d1).
 
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-value spectral input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
@@ -1388,9 +1383,9 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — nested CV
 - [Data Loaders](../Core/DataLoaders.md) — 10.1117 loader API
 - [Research Context](../Research-Context.md) — thesis goals and full pipeline
-- [Experiment04](./Meeting01.md) — prior congress paper experiment
+- [Meeting01](./Meeting01.md) — prior congress paper experiment (was "Experiment04")
 - [Re-run Runbook](../Guides/Re-run-Runbook.md) — commands to regenerate every result
-- [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the current `d_penalized` metric, 208-profile grid, and re-run
+- [Engineering Fixes Log](../Guides/Engineering-Fixes-Log.md) — the D1-D6 decision log behind the `d_penalized` metric, the EEG grid and the re-run
 - [Experiment Microscope](../Guides/Experiment-Microscope.md) — inspect a Phase-00 run down to
   per-sample EEG channels and wavelet leaves; the GUI recomputes `load_dataset → extract_features
   → rank_feature_sets` via `nn_microscope.thesis`
@@ -1399,9 +1394,9 @@ Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-a
 
 ## References
 
-[A] R. C. Guido, "Paraconsistent feature engineering," *Knowledge-Based Systems*, 2018.
+[A] R. C. Guido, "Paraconsistent feature engineering [Lecture Notes]," *IEEE Signal Processing Magazine*, vol. 36, no. 1, pp. 154–158, Jan. 2019. DOI: 10.1109/MSP.2018.2874549.
 
-[B] S. Zhao et al., "EEG-based imagined speech recognition using deep learning," *IEEE Trans. Neural Syst. Rehabil. Eng.*, 2021.
+[B] G. A. Pressel Coretto, I. E. Gareis and H. L. Rufiner, "Open access database of EEG signals recorded during imagined speech," in *Proc. SPIE 10160, 12th Int. Symp. Medical Information Processing and Analysis*, 1016002, 2017. DOI: 10.1117/12.2255697.
 
 [C] Dataset 10.1117/12.2255697: G. A. Pressel Coretto, I. E. Gareis, and H. L. Rufiner, "Open access database of EEG signals recorded during imagined speech," in *Proc. SPIE 10160, 12th Int. Symp. Medical Information Processing and Analysis*, 2017. [Online]. Available: https://doi.org/10.1117/12.2255697
 

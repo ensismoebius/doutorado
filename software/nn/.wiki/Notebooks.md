@@ -4,13 +4,12 @@ Python Jupyter notebooks used for rapid prototyping, algorithm validation, and v
 
 ## Theoretical Background
 
-Notebooks serve as executable scratch-pads that validate signal-processing theory before it is hardened into the C++ framework. Three domains are covered:
+Notebooks serve as executable scratch-pads that validate signal-processing theory before it is hardened into the C++ framework. Two domains are covered:
 
 **Audio / speech features** — Linear Frequency Cepstral Coefficients (LFCC) and Modified Group Delay Function (MGDF) are computed from scratch to verify the filterbank + DCT pipeline [Davis & Mermelstein, 1980] and the group-delay-based spectral representation [Murty & Yegnanarayana, 2011].
 
 **Neural-network math** — Activation functions, their derivatives, and single-neuron gradient descent are visualised interactively to build intuition for the backpropagation chain used throughout the C++ layers [Rumelhart et al., 1986].
 
-**EEG reference** — The International 10–20 electrode placement diagram is kept alongside the preprocessing pipeline as a spatial reference [Jasper, 1958].
 
 ## Directory Layout
 
@@ -21,13 +20,9 @@ notebooks/
 │   ├── lfcc_mgdf_feature_extraction.ipynb
 │   ├── mgdf_phase_voice_biometrics.ipynb
 │   ├── lfcc_feats.npy              ← cached LFCC features (output of pipeline nb)
-│   ├── voice01.wav                 ← sample utterance 1
-│   └── oi_lindo.wav                ← sample utterance 2
-<!-- STALE: notebooks/audio/outputs/ (gd_mgdf_images.png, magnitude_and_phase_slice.png,
-     mgdf_gd_slices.png, voz1_*.wav / voz2_*.wav) does not exist on disk -- only present
-     after actually running the notebook, or removed. -->
-<!-- STALE: notebooks/eeg/ (with 21_electrodes_of_International_10-20_system_for_EEG.png)
-     does not exist on disk. -->
+│   ├── voice01.wav                 ← sample utterance 1  (NOT in git: *.wav is ignored)
+│   ├── oi_lindo.wav                ← sample utterance 2  (NOT in git)
+│   └── outputs/                    ← written when mgdf_phase_voice_biometrics runs (not in git)
 │
 └── ml/                             ← neural-network math visualisations
     ├── activation_functions_derivative_interactive.ipynb
@@ -46,8 +41,6 @@ notebooks/
 | `lfcc_mgdf_feature_extraction.ipynb` | Implements LFCC and MGDF from first principles (no librosa). Verifies the linear filterbank shape `(F, n_filters)` and the DCT matrix. Unresolved shape bug in `dct_type2` documented in cell output. |
 | `mgdf_phase_voice_biometrics.ipynb` | Two-part notebook. **Part 1**: compares magnitude, wrapped/unwrapped phase, group delay, and MGDF on two voice signals; saves PNGs and WAVs to `outputs/`. **Part 2**: MGDF + mel-pooling → LogisticRegression speaker biometrics pipeline with ROC/AUC/EER. Validates the MGDF approach before any C++ port. |
 
-<!-- STALE: eeg/ subsection describes notebooks/eeg/21_electrodes_of_International_10-20_system_for_EEG.png,
-     which does not exist on disk. -->
 
 ### ml/
 
@@ -93,7 +86,7 @@ feats = np.load("lfcc_feats.npy")  # shape: (n_frames, 57) = 19 + 19Δ + 19ΔΔ
 
 ## Common Pitfalls
 
-1. **Relative paths to WAV files** — All audio notebooks expect `voice01.wav` and `oi_lindo.wav` in the same directory (`notebooks/audio/`). Running from a different working directory causes `FileNotFoundError`. Always launch Jupyter with the kernel cwd set to `notebooks/audio/`.
+1. **The WAV files are not in the repository** (`.gitignore` excludes `*.wav`): on a fresh clone, put two short mono recordings named `voice01.wav` and `oi_lindo.wav` in `notebooks/audio/` first. All audio notebooks expect them in that directory. Running from a different working directory causes `FileNotFoundError`. Always launch Jupyter with the kernel cwd set to `notebooks/audio/`.
 
 2. **DCT matrix shape bug in `lfcc_mgdf_feature_extraction.ipynb`** — The `dct_type2` function builds a `(N, 1)` matrix `k` and multiplies against a `(N,)` vector, causing a `ValueError: shapes (32,1) and (32,) not aligned`. The pipeline notebook uses `scipy.fftpack.dct` instead and is bug-free.
 

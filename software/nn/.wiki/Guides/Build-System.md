@@ -55,11 +55,16 @@ include/             ← public headers for all core modules
 
 ### System Dependencies (via `cmake/PackageChecking.cmake`)
 
-Required at configure time:
+Required at configure time (xtensor itself is vendored, see above):
 
-- **xtensor** — linear algebra
 - **OpenMP** — parallel loops
-- **BLAS / LAPACK / OpenBLAS** — linear algebra acceleration
+- **BLAS / LAPACK / OpenBLAS** (found through pkg-config) — linear algebra acceleration
+- **Eigen3** — needed by xtensor-blas and matio-cpp
+
+On Ubuntu/Debian, Arch and macOS the configure step installs whatever is missing before these
+checks run (`cmake/UbuntuDependencies.cmake`, `ArchLinuxDependencies.cmake`,
+`MacOSXDependencies.cmake`; `apt-get`/`pacman` go through `sudo` when you are not root). On any
+other system, install them yourself.
 
 ---
 
@@ -126,7 +131,7 @@ cmake --build --preset=max-performance -j$(nproc)
 
 # Run a targeted test.
 # IMPORTANT: -R filters on the GoogleTest name (SuiteName.TestName), NOT the CMake target
-# name. nn_gtest_discover_tests() registers each test individually with no prefix, so
+# name. gtest_discover_tests() registers each test individually with no prefix, so
 # `-R tensor_gtest` matches nothing ("No tests were found!!!"). Use the suite name:
 ctest --test-dir out/build/max-performance -R TensorOpsTest
 
@@ -252,7 +257,7 @@ Two rules make every command on this page work, and both were silently wrong her
 1. **Use `--test-dir`, not `--preset`.** `CMakePresets.json` has no `testPresets` section, so
    `ctest --preset=<name>` fails outright with *"No such test preset"*.
 2. **`-R` matches the GoogleTest name (`SuiteName.TestName`), not the CMake target name.**
-   `nn_gtest_discover_tests()` registers each test individually with no prefix, so filters
+   `gtest_discover_tests()` registers each test individually with no prefix, so filters
    like `-R tensor_gtest` or `-R optimizers_gtest` match **nothing** and ctest reports
    *"No tests were found!!!"* — which looks like a pass if you are not reading closely.
 
@@ -312,7 +317,7 @@ cmake --build out/build/max-performance --target clean-cache
 
 ### CMake version too old
 ```bash
-cmake --version  # Requires ≥ 3.10 (3.28+ recommended for full preset support)
+cmake --version  # needs ≥ 3.28: CMakePresets.json is schema version 8
 ```
 
 ### Compiler not found / wrong compiler

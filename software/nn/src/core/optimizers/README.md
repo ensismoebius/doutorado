@@ -1,29 +1,32 @@
 # optimizers
 
-Purpose
-- Optimizer implementations and helper utilities (e.g. Adam, SGD conventions, parameter state management).
+Optimisers (Adam, SGD, ...) and `OptimizerFactory`, which builds one from a configuration token such as `"adam"`. Header-only; this folder holds the tests and the CMake target.
 
-Usage
-- Attach optimizers to model parameter spans, call `zero_grad()` and `step()` in your training loop.
-- Use provided `state_dict()` / `load_state_dict()` helpers to checkpoint and restore optimizer state.
-- Use `nn::optimizers::OptimizerFactory` (`include/nn/optimizers/OptimizerFactory.hpp`) to create
-	optimizers from runtime configuration tokens (for example `adam` or `sgd`) without duplicating
-	selection logic in experiments.
+**Full documentation:** [`.wiki/Core/Optimizers.md`](../../../.wiki/Core/Optimizers.md). This README only says where things are and how to change them.
 
-CMake Target
-- `optimizers`
+| What | Where |
+|---|---|
+| Public headers | [`include/optimizers`](../../../include/optimizers) |
+| Implementation (`.cpp`) | none — header-only; this folder holds the tests and the CMake target |
+| CMake library target | `optimizers` |
+| Test executables | `optimizer_parity_gtest`, `optimizers_gtest` |
 
-Tests
-- See `src/core/optimizers/tests/` for examples of saving/loading state and expected numeric behavior.
+## Header map
 
-Recent updates
-- Optimizer thread-safety tests now use RAII (`std::unique_ptr`) for temporary parameter tensors while passing non-owning raw pointers to optimizer APIs.
-- Added core `OptimizerFactory` to centralize runtime optimizer construction and reuse across
-	experiment drivers.
+- `include/optimizers/`: `Adam.hpp`, `Lion.hpp`, `Optimizer.hpp`, `OptimizerEvalScope.hpp`, `OptimizerFactory.hpp`, `OptimizerFactoryConfig.hpp`, `SGD.hpp`, `SGDMinimal.hpp`, `ScheduleFreeAdamW.hpp`
 
-Optimization techniques and references
-- RAII-based temporary ownership in tests: deterministic cleanup and lower leak risk in exceptional paths, while preserving optimizer API contract on non-owning parameter spans (see [1], [2]).
+## Changing it
 
-Bibliographic references
-- [1] Bjarne Stroustrup and Herb Sutter (eds.). C++ Core Guidelines (Resource Management and Ownership rules), ongoing.
-- [2] Scott Meyers. Effective Modern C++. O'Reilly, 2014.
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
+
+  ```bash
+  cmake --build --preset=max-performance --target optimizer_parity_gtest
+  ctest --test-dir out/build/max-performance -R 'OptimizerParity' --output-on-failure
+  ```
+
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R optimizer_parity_gtest` silently matches nothing.
+
+  Suites here: `AdamModelState`, `OptimizerParity`, `OptimizerTest`, `OptimizerEdgeCases`, `OptimizerExceptionTest`, `OptimizerFactoryTest`, `OptimizerNumericalEdgeTest`, `OptimizerThreadSafetyTest`, `OptimizerComprehensiveTest`, `SGDNullParamTest`, `SGDMinimalTest`, `OptimizerBaseTest` (and 4 more).
+- After a behaviour change, update [`.wiki/Core/Optimizers.md`](../../../.wiki/Core/Optimizers.md) (and `.wiki/References.md` if a paper is involved).

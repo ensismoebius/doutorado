@@ -1,27 +1,34 @@
-# Core Library Overview
+# src/core — the framework's implementation
 
-This directory contains the project's core C++ components: data loaders, tensor operations, layers, optimizers, utilities, and related helpers used by experiments and demos.
+One folder per module. Each folder's `README.md` gives the location of its public headers
+(almost always `include/<module>/`), its CMake target, its tests and how to run them. It also
+links the module's wiki page in [`.wiki/Core/`](../../.wiki/Core/).
 
-Structure
-- `data_loaders/` – Dataset and DB-backed batch sources (mat, sqlite, windowing).
-- `tensor/` – Tensor and linear algebra abstractions.
-- `layers/` – Neural network layers and layer utilities.
-- `optimizers/` – Optimizer implementations (Adam, SGD helpers).
-- `saver/` & `serialization/` – Model/optimizer state save/load helpers.
-- `utility/`, `tools/` – Misc utilities and helper programs.
+| Module | What |
+|---|---|
+| [`tensor/`](tensor/README.md) | `nn::Tensor` and the backends |
+| [`layers/`](layers/README.md) | layers, losses, spiking neurons |
+| [`models/`](models/README.md) | ready-made autoencoders (dense, spiking, LSTM, GRU, Transformer) |
+| [`optimizers/`](optimizers/README.md) | Adam, SGD, …, `OptimizerFactory` |
+| [`training/`](training/README.md) | `Trainer` and its callbacks |
+| [`initializers/`](initializers/README.md) | weight initialisation |
+| [`data_loaders/`](data_loaders/README.md) | datasets, samplers, `DataLoader`, per-base loaders |
+| [`statistics/`](statistics/README.md) | metrics, EER, k-fold, inference tests |
+| [`paraconsistent/`](paraconsistent/README.md) | the paraconsistent feature score |
+| [`wavelet/`](wavelet/README.md), [`wave/`](wave/README.md) | wavelet transforms; WAV and audio features |
+| [`linear_algebra/`](linear_algebra/README.md) | BLAS/LAPACK helpers |
+| [`serialization/`](serialization/README.md) | saving and loading models |
+| [`progress/`](progress/README.md), [`utility/`](utility/README.md) | progress bars; shared helpers and transforms |
 
-Usage
-- Include public headers from `include/nn/...` (e.g. `include/nn/tensor/...`, `include/nn/layers/...`).
-- Link against the appropriate CMake target (matching the folder name, e.g. `data_loaders`, `layers`, `optimizers`).
+Include public headers relative to `include/` with no prefix (`#include "tensor/Tensor.hpp"`).
+Headers that live here take a `core/` prefix (`#include "core/training/Trainer.hpp"`).
 
-Building and Tests
-- The project uses CMake. From the repo root:
+Build everything and run all tests (from `software/nn`):
 
-  ```bash
-  cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-  cmake --build build -j$(nproc)
-  ctest --test-dir build --output-on-failure -j4
-  ```
+```bash
+cmake --preset=max-performance
+cmake --build --preset=max-performance -j$(nproc)
+ctest --test-dir out/build/max-performance --output-on-failure -j4
+```
 
-Where to look
-- For documentation and usage examples, see the `src/core/*/tests/` GTest files which illustrate typical API usage.
+The `src/core/*/tests/*_gtest.cpp` files are also the best usage examples of each API.

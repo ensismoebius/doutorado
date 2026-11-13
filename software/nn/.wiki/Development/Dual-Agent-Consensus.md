@@ -23,12 +23,18 @@ Any mismatch blocks implementation.
 
 ## Report Format
 
-Use template at:
-- `docs/consensus/TEMPLATE.report.md`
+There is no template file in the repository: a report is any Markdown file holding these three
+lines (the gate script reads exactly them; anything else in the file is free text):
 
-Create files per task:
-- `docs/consensus/TASK_XXX.proposer.md`
-- `docs/consensus/TASK_XXX.antagonist.md`
+```
+TASK_ID: TASK_001
+SOLUTION_SHA256: <sha256 of the agreed canonical solution text>
+AGREE: yes
+```
+
+Write one report per side and task, wherever you keep them (the examples below use
+`docs/consensus/TASK_001.proposer.md` and `.antagonist.md`; create the folder first, it is not
+tracked).
 
 ## Canonical Solution Hash
 
@@ -49,7 +55,7 @@ bash scripts/dev/dual_agent_consensus.sh \
   --task-id TASK_001 \
   --proposer docs/consensus/TASK_001.proposer.md \
   --antagonist docs/consensus/TASK_001.antagonist.md \
-  --checks "cmake --build --preset=max-performance -j4;;ctest --test-dir out/build/max-performance --output-on-failure -R "Thesis.*""
+  --checks "cmake --build --preset=max-performance -j4;;ctest --test-dir out/build/max-performance --output-on-failure -R 'Thesis'"
 ```
 
 If command fails, no merge.

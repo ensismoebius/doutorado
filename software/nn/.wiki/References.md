@@ -68,6 +68,8 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [25] N. C. A. Da Costa, "On the theory of inconsistent formal systems," Notre Dame Journal of Formal Logic, vol. 15, no. 4, pp. 497–510, 1974.
 
+[25a] R. C. Guido, "Paraconsistent feature engineering [Lecture Notes]," *IEEE Signal Processing Magazine*, vol. 36, no. 1, pp. 154–158, Jan. 2019. DOI: 10.1109/MSP.2018.2874549. (The paraconsistent feature-evaluation method of `include/paraconsistent/` and thesis Phase 00.)
+
 ## SNN Frameworks and Benchmarks
 
 [26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," Science Advances, vol. 9, no. 40, eadi1480, Oct. 2023. [Online]. Available: https://doi.org/10.1126/sciadv.adi1480

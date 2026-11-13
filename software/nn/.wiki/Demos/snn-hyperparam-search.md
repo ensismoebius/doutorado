@@ -109,7 +109,8 @@ python -m pytest tests/ -v
 ```
 
 For an end-to-end sanity check, run `run_hyper_search.py` and confirm
-`experiments/hp_results.csv` contains 24 rows (`lr×hidden×loss_mode×num_passes`
+`experiments/hp_results.csv` (relative to the working directory; the committed
+`hp_results.csv` beside the script is an earlier run) contains 24 rows (`lr×hidden×loss_mode×num_passes`
 = 2×2×3×2) and that `final_loss` trends down across the 3 training epochs for
 most configurations.
 

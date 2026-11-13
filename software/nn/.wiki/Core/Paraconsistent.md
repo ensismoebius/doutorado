@@ -4,7 +4,7 @@
 
 Paraconsistent feature engineering quantifies the quality of extracted feature vectors using da Costa paraconsistent logic [1]. It measures intraclass similarity (α) and interclass overlap (β) to determine whether features are naturally separable *before* any classifier is trained.
 
-This is the **primary novel contribution** of the thesis "Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela Imagined Speech" (A. Furlan, UNESP). The original method is published in [2].
+The method was published by Guido [2]. The thesis "Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela Imagined Speech" (A. Furlan, UNESP) uses it in Phase 00 to rank feature extractors without training a classifier.
 
 ## Theoretical Background
 
@@ -248,4 +248,4 @@ flowchart LR
 
 [1] N. C. A. da Costa, "On the theory of inconsistent formal systems," *Notre Dame Journal of Formal Logic*, vol. 15, no. 4, pp. 497–510, 1974.
 
-[2] R. C. Guido et al., "Paraconsistent feature engineering for EEG-based imagined speech classification," *Proceedings of SPIE*, vol. 10160, 2017. DOI: 10.1117/12.2255697.
+[2] R. C. Guido, "Paraconsistent feature engineering [Lecture Notes]," *IEEE Signal Processing Magazine*, vol. 36, no. 1, pp. 154–158, Jan. 2019. DOI: 10.1109/MSP.2018.2874549.

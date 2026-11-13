@@ -29,16 +29,16 @@ clang-format --check src/**/*.cpp src/**/*.hpp include/**/*.hpp
 | Path | Purpose |
 |------|---------|
 | `src/core/` | Core library (layers, tensor, optimizers, dataLoaders) |
-| `src/experiments/<N>/` | Each experiment has `lib/include` and `lib/src` |
+| `src/experiments/<name>/` | One binary per experiment (`thesis`, `meeting01`, `paraconsistentGA`, …), each with `lib/include`, `lib/src`, `profiles/`, `tests/` |
 | `src/demos/` | Standalone demo applications |
-| `include/nn/` | Public headers |
+| `include/` | Public headers, included without prefix (`"tensor/Tensor.hpp"`); there is no `include/nn/` |
 
 ## Important Gotchas
 
 1. **Logging**: Use `nn::logging::Logger` (`NN_LOG_INFO`, `NN_LOG_ERROR`, etc.). Avoid `std::cout`/`std::cerr` in core code.
 2. **MAT I/O**: All direct `matio` reads must be serialized. Use `BatchPrefetcher` to avoid concurrent reads.
 3. **Header guards**: Some files use `#pragma once`, others use `#ifndef`. Don't change existing style.
-4. **Duplicate files**: Two `StateIO.hpp` exist (`nn/serialization/` and `nn/io/`) — they're different implementations.
+4. **State I/O**: `include/io/StateIO.hpp` saves/loads state dicts; `include/serialization/` holds `NnSaver` and `NetworkSerializer` (`.npz`).
 
 ## Key APIs
 

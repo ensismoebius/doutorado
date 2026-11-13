@@ -1,13 +1,8 @@
-# Samplers
+# samplers
 
-Purpose
-- Sampling strategies used by `DataLoader` such as `SequentialSampler`, `RandomSampler`, `WeightedRandomSampler`, and `DistributedSampler`.
+The sampling policies `DataLoader` asks for each epoch's indices: `SequentialSampler`,
+`RandomSampler`, `FoldSampler`, `WeightedRandomSampler`, `DistributedSampler`. Headers in
+[`include/data_loaders/samplers/`](../../../../include/data_loaders/samplers/); tests in `tests/`.
 
-Usage
-- Create a sampler and pass it to your dataset/DataLoader configuration to control iteration order.
-
-Key classes
-- `SequentialSampler`, `RandomSampler`, `WeightedRandomSampler`, `DistributedSampler`.
-
-Tests
-- See `src/core/data_loaders/samplers/tests/` for examples and expected semantics.
+How they fit together, and how to add one:
+[`../README.md` › Sampling architecture](../README.md#sampling-architecture).

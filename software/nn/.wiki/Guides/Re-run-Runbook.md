@@ -5,6 +5,11 @@ Commands to regenerate every experimental result, in dependency order. Everythin
 agent from launching these without explicit confirmation, by design. Run them yourself.
 Commands run from `software/nn/` unless a `cd` is shown.
 
+> **Current state (2026-11-13).** The thesis results of record are the runs of 2026-11-12/13
+> under the revised protocol ([Experiment05 › Status](../Experiments/Thesis.md#overview)): Phase 00,
+> Phase 01 and BIOMEX-DB, committed in `results/thesis/`. The table below is *why the July re-run
+> happened*; its counts are July's (the grid has changed since).
+>
 > This page is the permanent home of the former repo-root `run.md`. See
 > [Engineering Fixes Log](./Engineering-Fixes-Log.md) for *why* a re-run was needed at
 > all — the short version: the previously stored results were invalidated by fixes
@@ -35,8 +40,9 @@ Sanity-check before burning hours — all of these should already pass:
 ctest --test-dir out/build/max-performance -R "Micro|PyTorchParity|Optim|Trainer|Thesis" -j4
 ```
 
-The dataset must exist at the `dataset.root` in the profiles
-(`.../baseDeDatosHablaImaginada/database.sqlite`).
+The bases must exist where the profiles point: `~/database.sqlite` (Coretto) for Phase 00/01
+and `~/biomex.sqlite` for the replication. How to build and verify them:
+[Data Bases](./Data-Bases.md).
 
 ---
 
@@ -48,14 +54,13 @@ so a plumbing bug surfaces before you commit a night to it. Smoke profiles write
 `results/thesis/smoke` — **never** to `results/thesis/phase00`.
 
 ```bash
-./scripts/testing/run_thesis_smoke.sh phase00     # 208 profiles, ~7 min
-./scripts/testing/run_thesis_smoke.sh phase01     # 32 profiles,  ~1.5 min
+./scripts/testing/run_thesis_smoke.sh phase00
+./scripts/testing/run_thesis_smoke.sh phase01
+./scripts/testing/run_thesis_smoke.sh biomex
 ```
 
-Last verified 2026-07-16: **208/208 and 32/32 passed, 0 failed**.
-
 You can dry-run the rank + winner steps on the smoke results too, but **redirect the two
-destructive arguments** (see the warnings in [Running Experiment05 Profiles §2a](./Running-Thesis-Profiles.md)):
+destructive arguments** (see the warnings in [Running Experiment05 Profiles › Full pipeline](./Running-Thesis-Profiles.md#full-pipeline)):
 
 ```bash
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
@@ -163,91 +168,34 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 
 ---
 
-## 2. Thesis Phase 00 — 208 profiles
+## 2. Thesis — Phase 00, Phase 01, BIOMEX-DB
+
+The commands, their order and their gating are in one place,
+[Running Experiment05 Profiles › Full pipeline](./Running-Thesis-Profiles.md#full-pipeline);
+this section only says what a complete re-run is:
 
 ```bash
 cmake --build out/build/max-performance --target thesis -j$(nproc)
-
-# HEAVY — run overnight. 208 profiles x experiment.repeats.
-./scripts/testing/run_thesis_profiles.sh phase00
+./scripts/testing/run_thesis_profiles.sh start-over-all   # phase00 → winners → phase01 → biomex, from scratch
 ```
 
-This automatically chains rank → winner → tables (§2a below) once all 208 profiles finish with
-zero failures — see [Running Experiment05 Profiles](./Running-Thesis-Profiles.md) for the
-full gating rules (`THESIS_SKIP_POST`; no force override) and the `scope=all` ordering caveat. You do
-not need to run the commands in §2a by hand for a normal phase00 pass; they remain useful for
-manual re-runs (e.g. after fixing a partial failure without re-running the whole phase, or
-against `results/thesis/smoke`).
+Then, by hand: the Phase 01 and BIOMEX tables and significance tests (steps 6 and 8 of that
+page), and the thesis numbers and PDF ([Thesis Document › Results to text](./Thesis-Document.md#results-to-text)).
+On the cluster each phase is one Slurm array instead
+([Experiment05 › Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12)).
 
-Resumable: every completed profile is checkpointed to `results/thesis/run_profiles_phase00.state`.
-On restart it offers resume vs. start-over (non-interactive default = resume);
-`RESUME=1` forces resume, `FRESH=1` forces start-over.
+Resumable: every completed profile is checkpointed to
+`results/thesis/run_profiles_<scope>.state`; on restart the runner offers resume or start-over
+(`RESUME=1` forces resume, `FRESH=1` start-over; `start-over-all` sets `FRESH=1` on each leg).
 
-Background it if you prefer:
-
-```bash
-nohup ./scripts/testing/run_thesis_profiles.sh phase00 > phase00_run.log 2>&1 &
-```
-
-Each profile's TUI shows the same rich bars as the Meeting01 paper (model + loss on the
-autoencoder bar, `run fold/total` + live loss on the classifier bar) plus a persistent
-**`Overall [i/N] … ETA`** top line, work-weighted + EMA-smoothed the same way as Meeting01. See
-[Running Experiment05 Profiles](./Running-Thesis-Profiles.md) for binary selection
-(`THESIS_BUILD`, `THESIS_BIN`), the live dashboard, and failure triage.
-
-### 2a. Rank → winner → tables
-
-See [Running Experiment05 Profiles §2a](./Running-Thesis-Profiles.md) for the full
-command sequence, the destructive-path warnings (`00_thesis_generate_profiles.py --winners` rewrites the
-phase01 and biomex profiles **in place**; `thesis_build_phase00_paraconsistent_tables.py` writes wherever
-`--tables-dir` points, the committed thesis tables included), and the automatic
-post-processing gating.
-
----
-
-## 3. Thesis Phase 01 — the thesis's actual experiment
-
-**Only after step 2** (which now runs 2a automatically on a clean phase00 pass), or the DSNN
-trains on the previous winners rather than this Phase 00's. If you ran `scope=all`,
-step 2's post-processing came too late for that same pass's phase01 — re-run phase01 alone
-after it.
-
-> **Superseded (2026-11-12).** The counts and results on this page predate the protocol
-> revision (275 Phase 00 / 142 Phase 01 profiles, two EEG conditions, the EEG pairing fix):
-> every earlier thesis number is void. See
-> [Experiment05 › Protocol revision](../Experiments/Thesis.md#protocol-revision-2026-11-12).
->
-> Earlier status: Phase 00 and Phase 01 both completed a full run on 2026-07-19 (208/208 and 32/32
-> profiles, 0 failures). Results live in `results/thesis/{phase00,phase01}`; the thesis's
-> §Fase 00/§Fase 01 tables reflect that run — see [Experiment05](../Experiments/Thesis.md#overview)
-> for the headline numbers.
-
-```bash
-./scripts/testing/run_thesis_profiles.sh phase01     # 32 DSNN profiles → EER/AUC in results/thesis/phase01
-```
-
-### 3a. Cross-profile significance (the Meeting01 SNN-vs-LSTM analog)
-
-Once ≥2 phase01 profiles have run, compare them the way the Meeting01 paper compares its two
-models — except across profiles, since each Thesis run scores one feature set. It reads every
-profile's per-fold `*_metrics.csv`, ranks by the chosen metric, and tests each condition
-against the best (Cohen's d + Wilcoxon/Mann-Whitney):
-
-```bash
-python3 scripts/pipeline/thesis/thesis_cross_profile_significance.py \
-  --profiles-dir src/experiments/thesis/profiles/phase01 \
-  --results-dir  results/thesis/phase01 \
-  --metric eer --reference best --pairing independent \
-  --out results/thesis/phase01/cross_profile_significance.csv
-```
-
-Every choice is required: `--metric eer|auc|accuracy|f1`, `--reference best|<run_tag>`, `--pairing paired|independent`. `paired` (Wilcoxon on (repetition, fold)-matched values) is refused for any pair that does not hold out the same folds (same `dataset.root`, `max_samples`, `seed`, `repeats`, `seed_deterministic`, `k_folds`, `nested_cv`, `text_mode`) — so across the whole Phase 01 grid, whose text modes differ, use `independent` (Mann-Whitney U). A missing metrics file, a NaN fold (closed-set metrics under verification: use eer/auc) or an unparseable value is refused, not dropped; an undefined statistic (tied values, zero variance) is an empty cell with a `note`, never p = 1 or d = 0. The comparisons share the reference, so they are one family: `p_holm` is Holm-Bonferroni over the tested comparisons and `significant_0.05` reads it. Holm does not undo selection — `--reference best` picks the reference from the same data; name a reference fixed in advance for a confirmatory reading.
-
-### 3b. Thesis authentication table
-
-Regenerates the §Fase 01 table (`tables/phase01_auth.csv`) the thesis compiles from — see
-[Running Experiment05 Profiles §6](./Running-Thesis-Profiles.md) for the command. Not
-chained into `run_thesis_profiles.sh` (unlike §2a) — run by hand after a phase01 pass.
+**Significance tests are declared, not explored.** `03_thesis_phase01_significance.sh` and
+`04_thesis_biomex_significance.sh` hold the only tests the thesis quotes, each a family with a
+reference fixed in advance, Holm within the family. The underlying tool,
+`thesis_cross_profile_significance.py`, takes every choice explicitly
+(`--metric`, `--reference best|<run_tag>`, `--pairing paired|corrected|independent`, `--select <regex>`);
+`corrected` (Nadeau–Bengio) is the one for fold-matched conditions, `independent`
+(Mann–Whitney) for conditions whose test sets differ (seen vs unseen phrases). Its docstring
+explains each refusal.
 
 ---
 
@@ -290,18 +238,18 @@ A new `*_learning_curves.dat` holds per-epoch train/val loss curves plus, for th
 per-epoch `spike_rate` and `sops` (the Meeting01 epoch-history + SNN-efficiency analog); `*_metrics.csv`
 gains `train_ms`/`infer_ms` columns, and the summary carries run-level `mean_spike_rate`/`final_sops`.
 (Meeting01's in-run SNN-vs-LSTM significance test has no per-run analog here — an Thesis run scores one
-feature set — so that comparison is a post-hoc step, §3a above.)
+feature set — so that comparison is a post-hoc step, §2 above.)
 
 ---
 
 ## After the re-runs
 
-- [Engineering Fixes Log](./Engineering-Fixes-Log.md) — D3 and D5 are blocked on this; item 51's
-  optimizer ablation needs a **per-optimizer** lr grid (a single lr is not comparable: reference
-  defaults span adam 1e-3 → lion 1e-4).
-- Phase 00 and Phase 01 both completed 2026-07-19 (208/208, 32/32, 0 failures) — the §09 phase00
-  and phase01 thesis tables reflect that run (§2a, §3b above). Re-run both table scripts after
-  any future re-run.
+- Review `git diff src/experiments/thesis/profiles` (the winners written in) and the new
+  `results/thesis/` files, then commit results, tables and `thesis_numbers.tex` together, so the
+  text never cites a number its results do not hold.
+- [Engineering Fixes Log](./Engineering-Fixes-Log.md) — D3 and D5: the optimizer ablation (item
+  51) needs a **per-optimizer** lr grid (a single lr is not comparable: reference defaults span
+  adam 1e-3 → lion 1e-4).
 
 ## Related
 

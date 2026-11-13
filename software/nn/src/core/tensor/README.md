@@ -1,59 +1,35 @@
 # tensor
 
-Purpose
-- Core tensor abstraction and xtensor-backed implementations used across the codebase.
+The `nn::Tensor` type every other module computes with. `Tensor` is an alias chosen in `include/Backend.hpp`; the default backend is XTensor (CPU, BLAS). `DeviceTensorBackend` is a documented skeleton for adding a new backend: it delegates all maths to XTensor. A CMake guard (`cmake/BackendImplementationGuard.cmake`) fails the build if code outside `include/Backend.hpp` and the backend folders names a concrete backend.
 
-Source layout
-- `src/core/tensor/eigen/`: Eigen-specific implementation files (reserved for backend-scoped code).
-- `src/core/tensor/tests/`: Unit tests for tensor backends and tensor-level behavior.
+**Full documentation:** [`.wiki/Core/Tensor.md`](../../../.wiki/Core/Tensor.md). This README only says where things are and how to change them.
 
-Concrete backends: XTensor (default, CPU/BLAS) and Device (documentation skeleton for
-implementing a new backend, always delegates to XTensor host math). The OpenCL and SYCL
-backends that used to live under `src/core/tensor/opencl/` and `include/tensor/sycl/` were
-removed as ineffective for this project's workloads on this hardware — see the "Recent
-updates" history below for what they used to do.
+| What | Where |
+|---|---|
+| Public headers | [`include/tensor`](../../../include/tensor), [`include/Backend.hpp`](../../../include/Backend.hpp), [`include/device`](../../../include/device) |
+| Implementation (`.cpp`) | 1 file(s) in this folder |
+| CMake library target | `tensor` |
+| Test executables | `device_backend_gtest`, `pytorch_parity_gtest`, `tensor_all_backends_gtest`, `tensor_backend_switchability_gtest`, `tensor_gtest`, `tensor_mock_gtest`, `tensor_perf_bench` |
 
-Usage
-- Use `nn::Tensor` for numeric data and call high-level operations from the `tensor` API. Prefer high-level helpers instead of dealing with raw Eigen matrices directly.
+## Header map
 
-Integration
-- The tensor module is a foundational dependency for layers, optimizers, and serialization. Link against the `tensor`/`linear_algebra` targets as required.
+- `include/`: `Backend.hpp`
+- `include/device/`: `Device.hpp`, `DeviceRuntime.hpp`, `DeviceType.hpp`
+- `include/tensor/`: `DeviceTensorBackend.hpp`, `Tensor.hpp`
+- `include/tensor/xtensor/`: `XTensorBackend.hpp`
 
-Tests
-- See `src/core/tensor/tests/` for construction, operations, and gradient examples.
+## Changing it
 
-Recent updates
-- Added CMake backend-reference guard (`cmake/BackendImplementationGuard.cmake`) that scans source files and generates a compile-time guard unit; any concrete backend token usage outside `include/nn/Backend.hpp` and backend implementation directories now fails compilation with: `Backend implementation must only be refereced inside include/nn/Backend.hpp !`.
-- Tensor frontend contract decoupling: `include/nn/tensor/Tensor.hpp` no longer declares or includes concrete backend implementations directly, and the active `nn::Tensor` alias now resolves through central backend selection (`nn::Backend`).
-- Added backend switchability enforcement tests in `src/core/tensor/tests/tensor_backend_switchability_gtest.cpp`, including a custom backend conformance check and source-contract assertions that forbid concrete-backend leakage in `Tensor.hpp`.
-- OpenCL verification probe API now accepts `OpenCLTensorBackend` arguments directly, removing its prior dependency on the global `nn::Tensor` alias.
-- Fixed layer aggregator template substitution by correcting placeholder tokens in [cmake/Layers.hpp.in], then regenerating [include/nn/layers/Layers.hpp] during CMake configure to remove unresolved `@...@` build breakers.
-- Added SIMD-assisted bulk fill paths in `XTensorBackend` for random initialization and constant fills (`fill`, `set_zero`, `set_ones`) through xsimd batch stores.
-- Replaced `XTensorBackend::matmul_transposed` with a direct CBLAS `sgemm` path so CPU affine-style workloads no longer pay transpose-expression overhead before GEMM.
-- Refactored `OpenCLTensorBackend` queue synchronization to a centralized `finish_queue_if_not_batching(...)` helper and replaced direct `clFinish(ctx.get_queue())` calls in kernel paths, so batch mode can amortize GPU synchronization overhead.
-- Added RAII `OpenCLContext::BatchScope` and wired dense `Linear` forward/backward chains to batch OpenCL tensor operations through a single synchronization boundary.
-- Extended `OpenCLTensorBackend` GPU-resident execution so `matmul` outputs can stay on device across dense affine chains, `add_col_vector_to_rows_inplace` can update resident buffers in place, and host storage is synchronized lazily on first CPU access.
-- Added `matmul_rhs_transposed_kernel` in the OpenCL linear algebra program and routed `OpenCLTensorBackend::matmul_transposed` to this direct path, removing the extra transpose materialization previously used by dense and recurrent affine chains.
-- Added `matmul_lhs_transposed_kernel` and `OpenCLTensorBackend::matmul_lhs_transposed(...)` to compute `A^T * B` directly on OpenCL, and wired Linear backward weight-gradient (`dL/dW`) to use this tuned path with dedicated unit-test and benchmark probe coverage.
-- Added GPU-resident execution path for `OpenCLTensorBackend::rowwise_sum`, allowing reduction outputs to remain on device through chained gradient computations before lazy host synchronization.
-- Reduced resident-path synchronization by removing explicit queue finishes in selected OpenCL affine/reduction resident fast paths (`matmul_transposed`, `add_col_vector_to_rows_inplace`, `rowwise_sum`) so same-queue kernel chains can progress without forced host-side barriers.
-- Added standalone benchmark executable [src/core/tensor/tests/tensor_perf_bench.cpp](src/core/tensor/tests/tensor_perf_bench.cpp) to emit CSV timing for xtensor and OpenCL tensor workloads without making performance checks part of CTest.
-- Rebuilt affected targets (`autoencoderRunner_lib`, `core_gtest`) and re-ran full CTest: 680/680 passed after these changes.
-- Added backend primitive for rowwise addition of a `(cols, 1)` bias vector across all rows (`add_col_vector_to_rows_inplace`), exposed through `nn::Tensor`.
-- Added OpenCL execution path in `OpenCLTensorBackend` for hot operations (`matmul`, `transpose`, `add`, `multiply`, `exp`, scalar add/multiply), with explicit runtime CPU fallback on kernel/context errors.
-- Added ASan-safe runtime guard: OpenCL execution is disabled under AddressSanitizer builds to avoid third-party OpenCL runtime leak noise while preserving functional CPU fallback.
-- Added OpenCL backend unit coverage in `src/core/tensor/tests/opencl_tensor_backend_gtest.cpp` for correctness invariants independent of device availability.
-- OpenCL backend startup checks were centralized in `OpenCLTensorBackend::initialize_runtime_or_throw(bool)`, making sanitizer/runtime availability validation and profiling setup backend-owned rather than experiment-owned.
-- Reorganized tensor backend source files into backend-specific folders under
-	`src/core/tensor/opencl/` and `src/core/tensor/eigen/` for clearer ownership.
-- OpenCL usage activity verification probe (`gpu_busy_percent` + reconstruction-MSE workload) was moved into `OpenCLTensorBackend::verify_runtime_activity_or_throw(...)`, removing probe-specific logic from experiment drivers.
-- OpenCL runtime lifecycle now offers backend-owned RAII via
-	`OpenCLTensorBackend::start_runtime_scope_or_throw(...)` and `RuntimeScope`,
-	so experiment code no longer manages OpenCL buffer-pool shutdown directly.
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
 
-Optimization techniques and references
-- Backend-level fused rowwise update: move broadcast-add into the xtensor-backed kernel path to leverage vectorized matrix expressions and avoid per-element scalar loops at call sites (see [1], [2]).
+  ```bash
+  cmake --build --preset=max-performance --target device_backend_gtest
+  ctest --test-dir out/build/max-performance -R 'DeviceBackendTest' --output-on-failure
+  ```
 
-Bibliographic references
-- [1] Gene H. Golub and Charles F. Van Loan. Matrix Computations (4th ed.). Johns Hopkins University Press, 2013.
-- [2] Intel 64 and IA-32 Architectures Optimization Reference Manual. Intel Corporation, current edition.
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R device_backend_gtest` silently matches nothing.
+
+  Suites here: `DeviceBackendTest`, `TensorBackendSwitchability`, `TensorTest`.
+- After a behaviour change, update [`.wiki/Core/Tensor.md`](../../../.wiki/Core/Tensor.md) (and `.wiki/References.md` if a paper is involved).

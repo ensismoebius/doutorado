@@ -237,12 +237,12 @@ Gradient shape always matches forward input shape.
 
 1. Header in `include/layers/<category>/MyLayer.hpp`
 2. Inherit `Module<Backend>`, implement `forward`, `backward`, `params` (if trainable), `reset_state` (if stateful), `state_dict`/`load_state_dict` (if serialisable)
-3. Add to `include/layers/Layers.hpp` convenience alias if needed
-4. Add gtest in nearest `tests/` directory, named `mylayer_gtest.cpp`
-5. Wire test into `CMakeLists.txt` under `core_gtest` or relevant experiment test target
+3. Name the class `MyLayerImpl<Backend>`: `include/layers/Layers.hpp` is generated (gitignored) by `cmake/GenerateLayers.cmake` on every configure — never edit it; a header without a `FooImpl<Backend>` goes in that script's `_exclude_patterns`
+4. Add a gtest in `src/core/layers/tests/` (or the nearest `tests/`), named `*_gtest.cpp`, with a numerical gradient check
+5. Register it in that `tests/CMakeLists.txt`: `add_executable` + link `google_test` + `gtest_discover_tests(<exe>)` (`core_gtest` is the serialization suite, not a catch-all)
 6. Update `.wiki/Core/Layers.md` with new entry
-7. Build: `cmake --build out/build/max-performance --target core_gtest -j$(nproc)`
-8. Test: `ctest --test-dir out/build/max-performance -R mylayer --output-on-failure`
+7. Build: `cmake --build out/build/max-performance --target <exe> -j$(nproc)`
+8. Test by **suite** name: `ctest --test-dir out/build/max-performance -R '<Suite>' --output-on-failure` (`-R <exe>` silently matches nothing)
 
 ---
 
@@ -368,7 +368,7 @@ When adding/changing any layer, loss, optimizer, or training feature:
 
 ---
 
-## Experiment04 paper pipeline
+## Meeting01 paper pipeline (was Experiment04)
 
 The `article-*.json` profiles and their pipeline (`01_meeting01_run_article_profiles.sh`
 + `02_meeting01_build_lstm_vs_snn_paper_data.py`) were **deleted 2026-09-23**: they never

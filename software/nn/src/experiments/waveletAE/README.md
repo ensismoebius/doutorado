@@ -6,7 +6,7 @@ encoder rather than a hand-crafted paraconsistent classifier.
 
 ## What it does
 
-1. Loads EEG and audio signals from `.mat` files (paths in `spec.json`)
+1. Loads EEG and audio signals from the `.mat` files the spec names (`data.eeg_path`, `data.audio_path`); a file that cannot be read stops the run
 2. Applies wavelet packet decomposition
 3. Trains a wavelet autoencoder (encoder + decoder layers)
 4. Evaluates reconstruction quality and writes reporting artifacts
@@ -21,28 +21,22 @@ cmake --build out/build/max-performance --target waveletAE -j$(nproc)
 ## Run
 
 ```bash
-# Default spec path (spec.json in src/experiments/waveletAE/)
-./out/build/max-performance/src/experiments/waveletAE/waveletAE
-
-# Custom spec
-./out/build/max-performance/src/experiments/waveletAE/waveletAE path/to/spec.json
+cp src/experiments/waveletAE/spec.example.json my_spec.json   # set the two data paths
+./out/build/max-performance/src/experiments/waveletAE/waveletAE my_spec.json   # the spec is required
 ```
 
 ## Config
 
-`spec.json` / `spec.yaml` — experiment specification. Key fields:
-
-- Dataset paths (EEG `.mat`, audio `.mat`)
-- Wavelet parameters
-- Autoencoder architecture
-- Training hyperparameters (epochs, batch size, learning rate)
+A JSON spec, the binary's only argument. Every key it reads is in
+[`spec.example.json`](spec.example.json) and described in
+[`.wiki/Experiments/WaveletAE.md` › Config](../../../.wiki/Experiments/WaveletAE.md#config).
 
 ## Key source files
 
 | File | Role |
 |---|---|
 | `waveletAE.cpp` | Thin entry point |
-| `WaveletAEConfig.cpp` | Spec JSON/YAML loading |
+| `WaveletAEConfig.cpp` | Spec JSON loading |
 | `WaveletAEData.cpp` | EEG/audio data loading |
 | `WaveletAEWavelets.cpp` | Wavelet decomposition |
 | `WaveletAEPipeline.cpp` | Top-level orchestration |
@@ -54,5 +48,5 @@ cmake --build out/build/max-performance --target waveletAE -j$(nproc)
 
 ```bash
 cmake --build out/build/max-performance --target waveletAE -j$(nproc)
-ctest --test-dir out/build/max-performance -R waveletAE --output-on-failure
+ctest --test-dir out/build/max-performance -R WaveletAE --output-on-failure   # suites are WaveletAE*Test
 ```

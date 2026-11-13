@@ -1,6 +1,32 @@
-# Experiment04: SNN vs LSTM Comparative
+# Meeting01: what does spiking cost an autoencoder? (was "Experiment04")
 
-Experiment04 implements a comparative study between Spiking Neural Networks (SNNs) and LSTM autoencoders on time-series data, with support for the Free Spoken Digit Dataset (FSDD).
+## Start here (state on 2026-11-13)
+
+**The question.** A spiking autoencoder (SNN-AE) is often presented as the cheap one. Is it,
+once it is compared fairly? The paper *What Does Spiking Cost an Autoencoder?*
+(`documentation/07-articlesProduced/meeting01/paper.tex`) answers on four bases: FSDD and
+AudioMNIST (spoken digits), EEGMMIDB and Siena (EEG). Each SNN-AE is compared with its
+**matched control** `ann-ae` (the same network with a leaky ReLU instead of the LIF neuron), PCA,
+and the mean frame, under **nested leave-one-group-out** cross-validation. Architectures are
+chosen by a small GA inside the training groups only.
+
+**What is current.**
+
+| Item | Where |
+|---|---|
+| the profile of record | `src/experiments/meeting01/profiles/meeting01-loso.json` (results_format 14) |
+| the run of record | GridUnesp array 5322464, synced to `results/meeting01/` — [§ The grid of record](#the-grid-of-record-array-5322464-results_format-14-2026-11-11) |
+| results → paper data | `scripts/pipeline/meeting01/03_` → `02_` → `04_` (then `05_`–`10_` for the studies), writing `documentation/07-articlesProduced/meeting01/data/` — [`scripts/README.md`](../../scripts/README.md#pipelinemeeting01--the-conference-paper-and-the-cluster) |
+| running it (weeks) | [GridUnesp Deployment](../Guides/GridUnesp-Deployment.md) |
+| the code | `src/experiments/meeting01/` ([README](../../src/experiments/meeting01/README.md)) |
+
+**How to read the rest of this page.** It is a log, oldest first. Each section records one
+defect or decision, why it was made, and the `results_format` it introduced. The LSTM, GRU and
+Transformer autoencoders of the early sections were **removed from the grid** on 2026-11-02
+([§ Sequence baselines removed](#sequence-baselines-removed-and-measured-once-2026-11-02)), and
+the `article-*.json` profiles were deleted on 2026-09-23. Sections that describe them are
+history, not instructions.
+
 
 ## Reviewer-driven revision (`meeting01-loso.json`)
 

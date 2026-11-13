@@ -32,7 +32,7 @@ auto history = trainer.fit_autoencoder(training_data, validation_data);
 The `nn` library is organized into several key components:
 
 - **Core Library** (`src/core/`) - Tensor operations, layers, optimizers
-- **Data Loaders** (`include/data_loaders/`) - EEG, audio, and multimodal datasets
+- **Data Loaders** (`include/data_loaders/`, `src/core/data_loaders/`) - EEG, audio, and multimodal datasets
 - **Experiments** (`src/experiments/`) - Research experiments with trained models
 
 ## New here? Start with the tutorials
@@ -51,7 +51,9 @@ Then follow one of these reading paths depending on what you came for:
 | **Understand the research** | [Research Context](./Research-Context.md) → [Imagined Speech and EEG](./Concepts/Plain/Imagined-Speech-and-EEG.md) → [Experiment05](./Experiments/Thesis.md) |
 | **Understand spiking networks** | [SNN and Surrogate Gradients (plain)](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) → [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) → [Time-Major Layout](./Concepts/Time-Major-Layout.md) |
 | **Work on the framework** | [Getting Started](./Tutorials/Getting-Started.md) → [Architecture](./Architecture.md) → [Tensor](./Core/Tensor.md) → [Layers](./Core/Layers.md) |
-| **Re-run the experiments** | [Re-run Runbook](./Guides/Re-run-Runbook.md) → [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) |
+| **Find where a change goes** | [How to Change Anything](./Guides/How-To-Change-Anything.md) — task → files → test → docs |
+| **Re-run the experiments** | [Data Bases](./Guides/Data-Bases.md) → [Running Thesis Profiles](./Guides/Running-Thesis-Profiles.md) → [Re-run Runbook](./Guides/Re-run-Runbook.md) |
+| **Edit the thesis** | [Thesis Document](./Guides/Thesis-Document.md) |
 | **Know why the code is like this** | [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) |
 
 > **"Plain" pages exist for most topics.** They explain the same idea without heavy maths and
@@ -117,7 +119,7 @@ number. The old numeric names still appear inside stored result files (run tags 
 | `paraconsistentBaseline` | 00 | Frozen wavelet + paraconsistent baseline |
 | `waveletAE` | 02 | Wavelet autoencoder pipeline |
 | `autoencoderRunner` | 03 | Autoencoder training runner |
-| `meeting01` | 04 | SNN vs LSTM comparative — the conference paper |
+| `meeting01` | 04 | SNN-AE vs its matched ANN control, PCA and the mean (nested LOSO) — the conference paper |
 | `thesis` | 05 | **Thesis primary** — biometric authentication via imagined speech |
 | `paraconsistentGA` | — | NSGA-II autoencoder architecture search ranked by `d_penalized` (extends thesis phase00) |
 
@@ -126,7 +128,7 @@ Run in order; `thesis` is the primary experiment.
 - [ParaconsistentBaseline](./Experiments/ParaconsistentBaseline.md) — wavelet + paraconsistent baseline
 - [WaveletAE](./Experiments/WaveletAE.md) — wavelet autoencoder pipeline
 - [AutoencoderRunner](./Experiments/AutoencoderRunner.md) — autoencoders (audio, EEG, fused)
-- [Meeting01](./Experiments/Meeting01.md) — SNN vs LSTM comparative (conference paper)
+- [Meeting01](./Experiments/Meeting01.md) — what spiking costs an autoencoder (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
 - [paraconsistentGA](./Experiments/ParaconsistentGA.md) — NSGA-II search over autoencoder
@@ -147,9 +149,18 @@ Run in order; `thesis` is the primary experiment.
 - [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md)
 - [Static Analysis](./Guides/Static-Analysis.md)
 
-**Running experiments**
+**Finding your way**
+- [How to Change Anything](./Guides/How-To-Change-Anything.md) — for every kind of change: the
+  files to edit, the test that checks it, and what must follow (profiles, results, text, docs)
+
+**Data, experiments and the thesis text**
+- [Data Bases](./Guides/Data-Bases.md) — obtaining, converting and verifying the Coretto and
+  BIOMEX-DB SQLite files; the verification stamps the thesis quotes
+- [Running Thesis Profiles](./Guides/Running-Thesis-Profiles.md) — the thesis runner and the
+  full Phase 00 → Phase 01 → BIOMEX-DB pipeline
+- [Thesis Document](./Guides/Thesis-Document.md) — the monograph: structure, generated tables
+  and numbers (`\tn`), figures, building the PDF
 - [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order
-- [Running Experiment05 Profiles](./Guides/Running-Thesis-Profiles.md) — the Thesis runner
 - [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
 - [GridUnesp Deployment](./Guides/GridUnesp-Deployment.md) — running Meeting01's LOSO
   training loop on UNESP's free HPC cluster instead of a local machine
@@ -216,9 +227,16 @@ quantization and SNN mechanics, opened live from the lecture slides
 
 ## Requirements
 
-- C++20 compatible compiler
-- CMake 3.16+
-- xtensor
+- A C++20 compiler. The `max-performance` preset does not pin one, so CMake takes the system
+  default (`c++`/`$CXX`); both GCC and Clang build it, and CI builds on GitHub's `ubuntu-latest`.
+- **CMake ≥ 3.28** — `CMakePresets.json` is schema version 8, which older CMake rejects
+  (the `cmake_minimum_required(3.10)` in `CMakeLists.txt` is not the real floor), and Ninja.
+- System libraries: OpenMP, BLAS/LAPACK/OpenBLAS, Eigen3, pkg-config. **The configure step
+  installs missing ones itself** on Ubuntu/Debian (`apt-get`, through `sudo`), Arch
+  (`pacman`/`yay`) and macOS (Homebrew) — see `cmake/{Ubuntu,ArchLinux,MacOSX}Dependencies.cmake`.
+- Everything else (xtensor, xsimd, GoogleTest, nlohmann/json, CLI11, matio, sqlite, FFTW, …)
+  is fetched and built by CMake (`cmake/Vendor*.cmake`); there is nothing to install by hand.
+- Python ≥ 3.10 with `scripts/requirements.txt` for the analysis and pipeline scripts.
 
 ## Building
 

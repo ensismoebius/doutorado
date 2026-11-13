@@ -1,568 +1,106 @@
-# Experiment 05 — Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela *Imagined Speech*
-
-**Tese de doutorado — experimento principal.**
-
-Auditoria de aderencia implementacao vs documentos: [GAP_ANALYSIS.md](./GAP_ANALYSIS.md).
-
-- **Tese:** Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela *Imagined Speech*
-- **Autor:** André Furlan — UNESP
-- **Orientador:** Prof. Dr. Eng. Rodrigo Capobianco Guido
-- **Financiamento:** FAPESP 2021/12407-4
-
----
-
-## Objetivo
-
-Projetar e implementar algoritmos biométricos capazes de autenticar, em princípio por meio da
-fala, indivíduos que sejam capazes de produzir somente locuções severamente degradadas
-(disfonias laríngeas severas — DLSs), adicionando informações extraídas dos sinais cerebrais
-durante a fonação, isto é, da *imagined speech*, ao conjunto daquelas que são acústicas e
-oriundas da voz prejudicada.
-
-Esta implementação cobre os experimentos **E3** (extração de características) e **E4**
-(autenticação) do projeto de pesquisa, operando sobre a base de dados pública
-`10.1117/12.2255697`.
-
----
-
-## Passo a passo para concluir a tese
-
-Use esta sequencia como plano de execucao. Cada etapa tem entregavel e criterio de pronto.
-
-### 1) Congelar escopo cientifico
-
-- [ ] Definir pergunta final, hipoteses H1/H2/H3 e contribuicoes declaradas da tese.
-- [x] Escopo atual de classificadores executaveis: `RNN + DSNN`.
-- [x] Escopo final de E3 (decidido 2026-11-11): **PCA, ANN-AE, SNN-AE e DTWPT handcrafted**. O `LSTM-AE` foi pre-validado no meeting01 e descartado (perdeu para o PCA, ficou perto do preditor da media, 257-338x a energia do ANN-AE); continua aceito pelo codigo de proposito. Justificativa no texto da tese, `08-proposedApproach.tex`, e em `.wiki/Research-Context.md`.
-
-**Entregavel:** secao de escopo final no capitulo de metodologia + lista de contribuicoes.
-
-**Pronto quando:** nao existir item "talvez" no escopo experimental.
-
-### 2) Fechar base de dados e protocolo
-
-- [ ] Consolidar inventario da base publica usada (`10.1117/12.2255697`): sujeitos, modalidades, filtros, exclusoes.
-- [ ] Registrar claramente no texto se base propria com DLS entrou ou nao nos resultados desta versao.
-- [ ] Congelar regras de split: `text-dependent` e `text-independent`.
-
-**Entregavel:** tabela de dados no capitulo de resultados + subsecao de protocolo replicavel.
-
-**Pronto quando:** qualquer leitor consegue reproduzir o mesmo conjunto de amostras.
-
-### 3) Fechar implementacao do Experimento 05
-
-- [ ] Garantir que todos os perfis JSON usados no artigo/tese parseiam e validam.
-- [x] E3 automatico: `snn-ae` e `ann-ae` com treino real (`Trainer::fit_autoencoder`) e extracao do latente, varridos na Fase 00.
-- [x] Extrator **PCA** (referencia linear, $k$ = dimensao latente dos autoencoders: 8/16/32) e seus 6 perfis da Fase 00 (`p00_pca_k{8,16,32}_{voice,eeg}`), implementado em 2026-11-11 (`ThesisPca.{hpp,cpp}`, `thesis_pca_gtest.cpp`). Falta executa-lo: ele responde se o colapso dos latentes ($\bar\beta > 0{,}97$) e da representacao ou do treino.
-- [x] Padrao `autoencoder.model = "lstm-ae"` removido (2026-11-11), junto com todos os outros: o `ThesisConfig` nao tem mais valores padrao. Toda chave que a execucao le precisa estar declarada no perfil, toda chave que ela nao le e recusada, e uma chave lida sem ter sido declarada lanca excecao (`Required<T>`, `thesis_strict_config_gtest.cpp`).
-- [x] Caminho `cfg.classifier.type = "dsnn"` implementado e coberto por teste.
-- [ ] Manter testes de regressao para feature extraction, classifier e agregacao de metricas.
-
-**Entregavel:** codigo compilando + testes `e05_*` passando.
-
-**Pronto quando:** `ctest -R e05 --output-on-failure` sem falhas.
-
-### 4) Rodar matriz experimental completa
-
-- [ ] Definir matriz minima: `voice`, `eeg`, `fused` x `dependent`, `independent` x estrategias de features escolhidas.
-- [ ] Rodar com `k_folds=5`, sementes fixas e `repeats` definido no escopo.
-- [ ] Salvar todos os artefatos em `results/` (CSV, JSON, DAT, modelos por dobra).
-
-**Entregavel:** pacote de resultados finais por `run_tag`.
-
-**Pronto quando:** nenhuma combinacao da matriz faltar.
-
-### 5) Fazer auditoria de qualidade dos resultados
-
-- [ ] Verificar consistencia entre `metrics.csv`, `summary.json` e `comparison.dat`.
-- [ ] Confirmar medias, desvios e IC95 para acuracia e EER.
-- [ ] Revisar sinais de vazamento de dados (split por locutor, frases disjuntas no modo independente).
-
-**Entregavel:** checklist de validacao assinado no repositorio (arquivo markdown em `results/`).
-
-**Pronto quando:** sem inconsistencias numericas entre arquivos.
-
-### 6) Gerar figuras e tabelas finais da tese
-
-- [ ] Tabela principal: comparacao por modalidade (voice/eeg/fused) e por modo de texto.
-- [ ] Figura principal: barras de `accuracy`, `F1`, `EER`, `AUC` com erro (dp ou IC95).
-- [ ] Tabela de ranking EPC: `alpha`, `beta`, `g1`, `g2`, `d_truth`.
-
-**Entregavel:** figuras e tabelas prontas em `documentation/00-thesis/monography/`.
-
-**Pronto quando:** todas as figuras citadas no texto estao geradas e versionadas.
-
-### 7) Escrever capitulo 9 (Testes e Resultados)
-
-- [ ] Descrever protocolo experimental completo (dados, preprocessamento, modelos, metricas).
-- [ ] Inserir resultados por dobra e agregados, com interpretacao critica.
-- [ ] Incluir comparacao com estado da arte e limites do estudo.
-
-**Entregavel:** `chapters/09-testsAndResults.tex` completo.
-
-**Pronto quando:** capitulo compila sem TODO/FIXME e sem referencias quebradas.
-
-### 8) Escrever capitulo 10 (Conclusoes)
-
-- [ ] Responder explicitamente cada objetivo especifico da tese.
-- [ ] Declarar contribuicoes tecnicas e cientificas validadas por dados.
-- [ ] Listar ameacas a validade e trabalhos futuros concretos.
-
-**Entregavel:** `chapters/10-conclusions.tex` completo.
-
-**Pronto quando:** conclusoes batem 1:1 com resultados apresentados.
-
-### 9) Fechar bibliografia e citacoes
-
-- [ ] Revisar `bibliography.bib` para DOI, ano, venue e duplicatas.
-- [ ] Garantir que toda afirmacao tecnica relevante tenha citacao.
-- [ ] Remover referencias nao usadas.
-
-**Entregavel:** bibliografia final limpa.
-
-**Pronto quando:** build LaTeX sem avisos graves de citacao.
-
-### 10) Atualizar arquivo principal da monografia
-
-- [ ] Descomentar inclusoes finais em `monografia.tex`:
-  - `\include{chapters/09-testsAndResults}`
-  - `\include{chapters/10-conclusions}`
-- [ ] Validar sumario, lista de figuras/tabelas e apendices.
-
-**Entregavel:** PDF final completo da tese.
-
-**Pronto quando:** `monografia.pdf` compila do inicio ao fim sem erro.
-
-### 11) Preparar pacote de reproducibilidade
-
-- [ ] Incluir comandos de build/run exatos e perfis usados.
-- [ ] Congelar seeds, versoes e hash de commit da rodada final.
-- [ ] Organizar resultados finais por pasta de submissao/defesa.
-
-**Entregavel:** pacote replicavel para banca e publicacoes.
-
-**Pronto quando:** terceiro reproduz resultados principais com instrucoes do repositorio.
-
-### 12) Preparar defesa e submissao
-
-- [ ] Gerar narrativa de defesa: problema, metodo, resultados, contribuicoes.
-- [ ] Criar 3 blocos de evidencias: tecnica, estatistica, impacto pratico.
-- [ ] Preparar versao curta (artigo) e versao longa (tese).
-
-**Entregavel:** slide deck + roteiro + tese final.
-
-**Pronto quando:** historia cientifica fecha sem lacunas entre objetivo, metodo e resultado.
-
----
-
-## Ordem minima recomendada (execucao rapida)
-
-1. Fechar escopo (Passos 1-3).
-2. Rodar matriz final e auditoria (Passos 4-5).
-3. Gerar tabelas/figuras (Passo 6).
-4. Escrever capitulos 9 e 10 (Passos 7-8).
-5. Fechar bibliografia + build final (Passos 9-10).
-6. Empacotar reproducibilidade e defesa (Passos 11-12).
-
----
-
-## O que o experimento implementa
-
-### E3 — Extração de Características (EC)
-
-As características dos sinais de voz e de EEG são extraídas de duas maneiras:
-
-**Método manual (*handcrafted extraction*)**
-
-Aplica a Transformada *Wavelet-Packet* de Tempo Discreto (DTWPT) com filtro Daubechies-4 em
-`handcrafted.dtwpt_level` níveis. Em cada sub-banda são calculados os descritores selecionados
-em `handcrafted.descriptors`:
-
-| Descritor | Fórmula |
-|---|---|
-| Energia (`energy`) | $E_k = \sum_n c_k[n]^2$ |
-| Taxa de cruzamentos por zero (`zcr`) | $\frac{1}{N}\sum_n \mathbb{1}[\text{sinal}(x[n]) \neq \text{sinal}(x[n-1])]$ |
-| Entropia (`entropy`) | $-\sum_k p_k \log_2 p_k$ (coeficientes normalizados) |
-| Teager–Kaiser (`teager`) | $\Psi[x(n)] = x^2(n) - x(n+1)\cdot x(n-1)$ |
-| Jitter (`jitter`) | $\frac{\overline{|T_i - T_{i+1}|}}{\bar{T}}$ (período a período, baseado em picos) |
-| Shimmer (`shimmer`) | $\frac{\overline{|A_i - A_{i+1}|}}{\bar{A}}$ (amplitude a amplitude, baseado em picos) |
-
-O campo `handcrafted.scale` é armazenado como sufixo no rótulo do conjunto de características
-(`"handcrafted-<scale>"`). As escalas Bark/MEL/LFCC **alteram o agrupamento espectral das
-sub-bandas DTWPT** antes do cálculo dos descritores, e também identificam a rodada no
-CSV/JSON/DAT de saída.
-
-O sinal processado por amostra é determinado por `dataset.modality`:
-- `"voice"` → tensor de áudio da amostra (`sample.audio`), com pré-ênfase
-- `"eeg"` → tensor de EEG da amostra (`sample.eeg`)
-- `"fused"` → combina voz + EEG; *quando* combina depende de `dataset.fusion_mode`:
-  - `"early"` → sinais brutos concatenados (voz seguida de EEG) e extraídos numa única passagem
-  - `"late"` (padrão) → voz e EEG extraídos independentemente; os vetores de características resultantes são concatenados por amostra (`[voz ‖ eeg]`)
-
-O sinal é completado com zeros até a próxima potência de dois antes da DTWPT. A extração é
-paralelizada por OpenMP (`schedule(dynamic,4)`) sobre as amostras.
-
-**Método automatizado (*feature learning*)**
-
-Implementado com **SNN-AE** (`ProtocolSpikingAutoencoder`) e **ANN-AE** (`ProtocolAutoencoder`). A **PCA** entra como referência linear (decidido em 2026-11-11, implementação pendente). `lstm-ae` continua aceito, mas foi descartado da tese (pré-validação do meeting01) e nenhum perfil o usa; atenção: ele ainda é o valor padrão de `autoencoder.model`. Entrada = sinal reduzido por pooling a um vetor plano de 256 dims; SNN-AE treina com `batch_size=1` (estado LIF por amostra).
-Cada amostra é padronizada para comprimento fixo por zero-padding, o autoencoder é treinado
-com MSE via `Trainer::fit_autoencoder`, e o vetor latente de `encode()` é usado como VsC.
-`snn-ae` (spiking) e `ann-ae` (denso) são os extratores automáticos comparados na Fase 00.
-
-### EPC — Engenharia Paraconsistente de Características
-
-Se `paraconsistent.enabled = true`, todos os conjuntos de características não-vazios são
-avaliados pela lógica paraconsistente antes de qualquer classificador ser treinado:
-
-1. Agrupamento das amostras por `subject_id` → mapa de classes.
-2. Truncamento para tamanho uniforme (mínimo entre classes).
-3. Normalização dos vetores de características em [0, 1] por componente.
-4. Cálculo de **α** (similaridade intraclasse) e **β** (sobreposição interclasse) via
-   `include/paraconsistent/`.
-5. Mapeamento no plano paraconsistente: G₁ = α − β, G₂ = α + β − 1.
-6. **D_verdade** = √((G₁ − 1)² + G₂²) — distância ao vértice "Verdade" (1, 0).
-
-D_verdade menor indica maior separabilidade natural dos VsCs. O ranking é escrito no CSV de
-saída e impresso no stdout. Todos os conjuntos não-vazios são passados à classificação
-independentemente do ranking.
-
-### E4 — Autenticação
-
-**Arquitetura do classificador** (`cfg.classifier.type = "ann"` — o grafo da DSNN com ReLU no lugar de LIF; o antigo `"rnn"`/SimpleResNet foi removido em 2026-11-12):
+# thesis — the thesis experiment (was "Experiment05")
+
+Biometric authentication of severely dysphonic speakers, helped by EEG of imagined and
+pronounced speech. One C++ binary, `thesis`, runs one **profile** (a JSON file that declares
+every setting; nothing has a default). The thesis is three sets of profiles run in order:
 
 ```
-Entrada (feat_dim)
-  → Linear(feat_dim, 128) → ReLU
-  → BlocoResidual(128) × 2   [Linear→ReLU→Linear + ligação direta]
-  → Linear(128, n_locutores)
+Phase 00  rank feature extractors, no classifier        profiles/phase00/  275 profiles
+   │      (handcrafted DTWPT, ANN-AE, SNN-AE, PCA; per signal: voice, EEG pronounced, EEG imagined)
+   ▼      winner per signal = lowest d_penalized  ──►  results/thesis/phase00/winners.json
+Phase 01  authenticate with the winners             profiles/phase01/  142 profiles
+   │      (DSNN vs its ANN twin vs cosine; voice, EEG, fusions; simulated dysphonia; ...)
+   ▼
+BIOMEX    replicate the Phase 01 cells on a second base  profiles/biomex/   48 profiles
 ```
 
-Implementado como `SimpleResNetImpl<nn::Backend>` com `hidden_dim=128`, `depth=2`.
-Perda: entropia cruzada (`CrossEntropyLossImpl`). Otimizador: Adam via `Trainer`.
+**The protocol, its rationale and its history are in the wiki:
+[`.wiki/Experiments/Thesis.md`](../../../.wiki/Experiments/Thesis.md).** How to run the
+profiles: [Running Thesis Profiles](../../../.wiki/Guides/Running-Thesis-Profiles.md). How results
+become thesis text: [Thesis Document](../../../.wiki/Guides/Thesis-Document.md). This README is
+the map of this folder.
 
-> **DSNN (Deep Spiking Neural Network)** implementado como classificador alternativo
-> (`cfg.classifier.type = "dsnn"`) no mesmo pipeline de validacao cruzada.
-
-**Validação cruzada**
-
-`GroupKFoldPolicy` com `k_folds` dobras garante que todas as locuções de um mesmo locutor
-fiquem na mesma dobra, evitando vazamento de dados entre treino e teste. No modo `nested_cv`,
-todas as dobras internas da dobra externa são percorridas; o modelo com melhor acurácia de
-validação interna é selecionado para avaliação na dobra externa.
-
-Divisão de texto dentro de cada dobra:
-- `"dependent"` — 80 % das locuções para treino, 20 % para teste (embaralhado).
-- `"independent"` — frases divididas ~50/50 por identidade da frase; treino e teste usam
-  conjuntos de frases disjuntos.
-
-**Métricas avaliadas por dobra** (avaliação em lote, um único `forward`):
-
-| Métrica | Implementada | Fórmula |
-|---|---|---|
-| Acurácia | ✓ | Acertos argmax / N |
-| F1 macro | ✓ | Média não-ponderada de 2PR/(P+R) por classe |
-| Precisão macro | ✓ | Média de TP/(TP+FP) por classe |
-| Recall / Sensibilidade | ✓ | Média de TP/(TP+FN) por classe |
-| Especificidade | ✓ | Média de TN/(TN+FP) por classe |
-| EER | ✓ | Cruzamento FAR=FRR (`GenuineImpostorEERScorer`: similaridade cosseno genuíno/impostor) |
-| AUC-ROC | ✓ | P(score_genuíno > score_impostor) — estimador Wilcoxon–Mann–Whitney |
-| MSE | ✓ (somente E3 autoencoder) | Função de reconstrução no treino do autoencoder (SNN-AE/ANN-AE) |
-
-Agregação sobre dobras externas: média, desvio padrão populacional, IC95 % (1,96 × dp / √n)
-para acurácia e EER; média e dp para F1, precisão, recall e AUC.
-
-**Protocolo de EER** (`GenuineImpostorEERScorer`):
-1. Por locutor: primeira locução → template normalizado L2.
-2. Locuções restantes → sondas (*probes*).
-3. Cada sonda pontuada contra todos os templates por similaridade cosseno.
-4. Distribuição de pontuações genuínas vs. impostoras → varredura de limiar → cruzamento FAR/FRR = EER.
-
-**Salvamento de modelos**: após cada dobra externa, o `state_dict` do modelo treinado é
-gravado em `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin` via
-`nn::io::save_state_dict`.
-
----
-
-## Base de dados utilizada
-
-**`10.1117/12.2255697`** (validação pública):
-
-- 15 locutores falantes de espanhol
-- Estímulos: vogais (/a/ /e/ /i/ /o/ /u/) e 6 comandos direcionais (arriba / abajo / adelante / atras / derecha / izquierda)
-- Duas condições de fala: fonada (áudio + EEG simultâneos) e imaginada (apenas EEG)
-- Áudio: 44 100 Hz, canal único (presente apenas nos trials de fala fonada)
-- EEG: 1024 Hz, 6 canais (F3, F4, C3, C4, P3, P4), sistema 10-20; trial de 4 s = 4096 amostras/canal
-- Fonte: Pressel Coretto, Gareis, Rufiner, "Open access database of EEG signals recorded during imagined speech", Proc. SPIE 10160, 2017 (DOI 10.1117/12.2255697)
-
-> **Base de dados própria** (locutores com DLS, protocolo de coleta do Capítulo 3 da monografia)
-> **não está disponível ainda**. Este experimento opera exclusivamente sobre a base pública.
-
-### Carregamento dos dados
-
-`load_dataset()` sempre carrega **ambos** os sinais (áudio e EEG) para cada ensaio, usando o
-campo `eeg_index` da sessão de áudio (índice 1-base) para identificar a linha EEG
-correspondente. Locutores sem ambos os arquivos MAT e ensaios com índice EEG fora do intervalo
-são descartados silenciosamente. O campo `dataset.modality` não afeta o carregamento — apenas
-a extração de características.
-
-Isso garante que rodadas voz-somente, EEG-somente e fusão operem sobre o **conjunto idêntico**
-de locutores e ensaios, tornando os resultados diretamente comparáveis.
-
----
-
-## Perfil JSON
-
-```jsonc
-{
-  "experiment": {
-    "run_tag": "e05_handcrafted_voice",  // prefixo dos arquivos de saída
-    "seed": 42,
-    "repeats": 1,
-    "seed_deterministic": false
-  },
-  "dataset": {
-    "root": "/caminho/para/10.1117/",
-    "results_dir": "results/",
-    "modality": "voice",        // "voice" | "eeg" | "fused"
-                                // determina qual tensor é passado para a extração;
-                                // áudio e EEG são SEMPRE carregados e pareados
-    "fusion_mode": "late",      // "early" | "late" — só usado quando modality=fused
-    "max_samples": 0            // 0 = ilimitado; valor pequeno (ex.: 20) para depuração
-  },
-  "feature_extraction": {
-    "strategy": "handcrafted",  // "handcrafted" | "autoencoder"
-    "handcrafted": {
-      "transform": "dtwpt",     // único valor implementado
-      "scale": "bark",          // "bark" | "mel" | "lfcc" — altera agrupamento das sub-bandas
-      "wavelet": "daub4",       // "haar" | "daubN" (N par em [4,46]) — wavelet-mãe da DTWPT
-      "cepstral": false,        // false = Categoria 1 (energias); true = Categoria 2 (log+DCT → LFCC/MFCC/BFCC)
-      "descriptors": ["energy", "zcr", "entropy", "teager"]
-                                // opcionais: "jitter", "shimmer"
-    },
-    "autoencoder": {
-      "model": "snn-ae",        // "snn-ae" (spiking) | "ann-ae" (denso) | "lstm-ae"
-      "encoder_layer_spec": [],
-      "decoder_layer_spec": []
-    }
-  },
-  "paraconsistent": {
-    "enabled": true             // calcula D_verdade antes da classificação
-  },
-  "classifier": {
-    "type": "dsnn",             // "dsnn" | "ann" | "cosine" implementados
-    "layer_spec": [],            // validado (primeiro linear, residual presente, último linear:N_speakers)
-    "text_mode": "independent"  // "dependent" | "independent"
-  },
-  "training": {
-    "epochs": 50,
-    "learning_rate": 1e-3,
-    "samples_per_batch": 32,
-    "early_stop_patience": 10,  // 0 = desativado
-    "k_folds": 5,
-    "nested_cv": true,          // parseado; usa nested CV quando true, flat K-fold quando false
-    "standardize_features": true // z-score por característica, ajustado só no treino de cada fold (anti-vazamento)
-  }
-}
-```
-
----
-
-## Pipeline completo
-
-```
-Base pública 10.1117/12.2255697
-  │
-  ├── Fala fonada (44 100 Hz, canal único) ← carregada quando há áudio
-  └── EEG imagined speech (1024 Hz, 6 ch)   ← sempre carregada e pareada por eeg_index
-          │
-          ▼   dataset.modality → seleciona qual sinal vai para a EC
-  ┌────────────────────────────────────────┐
-  │  E3 — Extração de Características (EC) │
-  │  DTWPT + descritores (handcrafted)      │
-  │  OU autoencoder latente (SNN-AE / ANN-AE)│
-  └────────────────────┬───────────────────┘
-                       │  VsCs por amostra
-          ▼
-  ┌────────────────────────────────────────┐
-  │  EPC — Engenharia Paraconsistente      │
-  │  α (intraclasse) + β (interclasse)     │
-  │  → D_verdade ranks os conjuntos de VsC │
-  └────────────────────┬───────────────────┘
-                       │  ranking impresso + salvo em CSV
-          ▼
-  ┌────────────────────────────────────────┐
-  │  E4 — Autenticação                     │
-  │  Classificador RNN (ResNet) ou DSNN*   │
-  │  Validação cruzada aninhada k=5        │
-  │  Modos: text-dependent / independent   │
-  └────────────────────┬───────────────────┘
-                       │
-          Saída: locutor autêntico ou inautêntico
-          Métricas: acurácia, F1, precisão, recall,
-                    EER, AUC-ROC por dobra + agregados
-
-* DSNN implementado junto do baseline RNN.
-```
-
----
-
-## Saídas
-
-| Arquivo | Conteúdo |
-|---|---|
-| `results/e05_<tag>_metrics.csv` | Por dobra: `feature_set, classifier, text_mode, fold, accuracy, f1, precision, recall, eer, auc, model_path` |
-| `results/e05_<tag>_paraconsistent.csv` | Por conjunto: `label, alpha, beta, g1, g2, d_truth` |
-| `results/e05_<tag>_summary.json` | Configuração + média/dp/IC95 de todas as métricas + caminhos dos modelos por dobra |
-| `results/e05_<tag>_comparison.dat` | DAT pgfplots: `x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall eer std_eer ci95_eer auc std_auc` |
-| `results/meeting01/models/<tag>/<feature_label>/fold_<N>.bin` | State dict binário do modelo por dobra externa |
-
----
-
-## Layout do diretório
-
-```
-05/
-├── README.md                             ← este arquivo
-├── CMakeLists.txt
-├── thesis.cpp                      ← ponto de entrada CLI (pipeline de 6 etapas)
-├── lib/
-│   ├── include/
-│   │   ├── ThesisConfig.hpp                 ← parser JSON + validate()
-│   │   ├── ThesisDataset.hpp                ← ThesisSample, ThesisDatasetView, load_dataset()
-│   │   ├── ThesisFeatureExtraction.hpp      ← extract_features(), extract_handcrafted()
-│   │   ├── ThesisParaconsistent.hpp         ← score_feature_set(), rank_feature_sets()
-│   │   ├── ThesisClassifiers.hpp            ← FoldResult, ClassificationResult, run_classifier()
-│   │   └── ThesisOutput.hpp                 ← escritores CSV, JSON, DAT
-│   └── src/
-│       ├── ThesisConfig.cpp
-│       ├── ThesisDataset.cpp                ← carregamento pareado via eeg_index
-│       ├── ThesisFeatureExtraction.cpp      ← DTWPT + loop OpenMP paralelo
-│       ├── ThesisParaconsistent.cpp         ← cálculo α/β/D_verdade
-│       ├── ThesisClassifiers.cpp            ← SimpleResNet + GroupKFold + EER/AUC
-│       └── ThesisOutput.cpp
-├── profiles/
-│   ├── debug.json                        ← teste rápido (RNN, 3 épocas, poucas amostras)
-│   ├── phase00/                          ← FASE 00: construção do vetor + ranking paraconsistente
-│   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<fonte>.json   varredura handcrafted
-│   │   │     wavelet ∈ {haar, daub4, ..., daub46} (23);  scale ∈ {bark, mel, lfcc}
-│   │   │     cat ∈ {c1, c2}  (c1 = energias / Categoria 1; c2 = cepstral LFCC/MFCC/BFCC)
-│   │   │     fonte ∈ {voice, eeg};  23 × 3 × 2 × 2 = 276 perfis
-│   │   ├── p00_ae_ann_<tam>_<fonte>.json             ANN-AE denso → 6 perfis
-│   │   │     tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
-│   │   └── p00_ae_snn_<encoding>_<tam>_<fonte>.json  SNN-AE spiking → 18 perfis
-│   │         encoding ∈ {poisson, latency, direct}  (comparação de codificação temporal)
-│   │         tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
-│   │       (6 ann + 18 snn = 24 AE; classifier.enabled=false; para após o ranking. 300 perfis no total)
-│   │       (fundido é construído DEPOIS, do vencedor de cada lado)
-│   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
-│       └── p01_dsnn_<fonte>_<texto>_<cv>_<std>.json   (todos classifier=dsnn)
-│           fonte ∈ {voice, eeg, fused-early, fused-late}
-│           texto ∈ {dep, indep}, cv ∈ {nested, flat}
-│           std ∈ {std, raw}  (ablação: standardize_features on/off)
-│           4 × 2 × 2 × 2 = 32 perfis
-│           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
-└── tests/
-    ├── thesis_profile_audit_gtest.cpp       ← 2335 testes: 333 perfis (300 fase00 + 32 fase01 + debug) parseiam e validam
-    ├── thesis_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
-    └── thesis_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
-```
-
-**Duas fases** (`classifier.enabled` controla o gate):
-- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × categoria × sinal (276 perfis), mais um sweep de **autoencoders compactos SNN-AE + ANN-AE** (24 perfis: ANN-AE e SNN-AE nas codificações `direct`, `latency` e `poisson`, × 3 tamanhos × 2 sinais). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
-
-  **Autoencoders compactos (SOTA para dispositivos de baixo poder).** Três tamanhos por sinal, em `ann-ae` e `snn-ae` (rasos, adequados a borda), com razão de compressão 2:1 entre a camada oculta e o gargalo latente. O latente é o próprio vetor de características, então um gargalo menor gera vetor menor → classificador a jusante mais barato e melhor generalização:
-
-  | tamanho | oculto | latente (= dim. do vetor) |
-  |---|---|---|
-  | `tiny`  | 16 | 8  |
-  | `small` | 32 | 16 |
-  | `base`  | 64 | 32 |
-
-  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. Variantes esparsas/quantizadas exigiriam extensão do `ThesisFeatureExtraction`. O `lstm-ae` não entra no sweep: foi descartado da tese (ver o item de escopo no passo 1).
-- **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é o vencedor da Fase 00, escrito pelo gerador (`00_thesis_generate_profiles.py --winners`); não há placeholder. Cruza fonte × modo de texto × esquema de CV.
-
-**Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
+## Build and run (from `software/nn`)
 
 ```bash
-# 1. Rode todos os perfis phase00/ (grava results/thesis/phase00/*_paraconsistent.csv)
-
-# 2. Ranqueie e escolha o vencedor por sinal (menor D_penalized; recusa conjunto incompleto):
-python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
-    --profiles-dir src/experiments/thesis/profiles/phase00 \
-    --results-dir  results/thesis/phase00 \
-    --out          results/thesis/phase00/winners.json
-
-# 3. Regere os perfis phase01/ e biomex/ com os vencedores (--fused é obrigatório, sem padrão):
-python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
-    --winners      results/thesis/phase00/winners.json \
-    --fused        voice      # ou: eeg
-
-# 3b. Regere as tabelas da Fase 00 da tese:
-python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
-    --profiles-dir src/experiments/thesis/profiles/phase00 \
-    --results-dir  results/thesis/phase00 \
-    --tables-dir   ../../documentation/00-thesis/monography/tables
-
-# 4. Rode os perfis phase01/ (já com o extrator vencedor).
-```
-
-O `rank` lê exatamente os CSV que cada perfil declara (`run_tag` + `_rep<k>` para `repeats > 1`), faz média das repetições e reporta a tabela ordenada + o vencedor. Todos os argumentos são obrigatórios, e um arquivo faltando, um CSV com mais de uma linha ou sem `d_penalized` é recusado. O gerador escreve `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`, e o manifesto registra o sha256 do `winners.json`; `test_thesis_phase_scripts.py` (`GeneratedTree`) recusa uma árvore que não seja a saída do gerador.
-
----
-
-## Build e execução
-
-```bash
-# Configurar (uma vez)
-cmake --preset=max-performance
-
-# Compilar
+cmake --preset=max-performance                      # once
 cmake --build out/build/max-performance --target thesis -j$(nproc)
-
-# Rodar perfil único
 ./out/build/max-performance/src/experiments/thesis/thesis \
-  --config src/experiments/thesis/profiles/handcrafted-voice.json
-
-# Rodar todos os testes
-cmake --build out/build/max-performance --target thesis_profile_audit_gtest -j$(nproc)
-ctest --test-dir out/build/max-performance -R e05 --output-on-failure
+    --config src/experiments/thesis/profiles/phase00/p00_pca_k8_voice.json   # every repetition
+./out/build/max-performance/src/experiments/thesis/thesis \
+    --config <profile.json> --repeat 1               # only repetition 1 (what the cluster runs)
 ```
 
----
+The binary accepts exactly `--config` and `--repeat`; anything else is refused. It reads the
+base named by the profile's `dataset.root` (`~/database.sqlite` for Coretto,
+`~/biomex.sqlite` for BIOMEX-DB — see [Data Bases](../../../.wiki/Guides/Data-Bases.md)).
 
-## Recarregar modelo salvo
+Never write a profile by hand: they are generated (§ "Changing it" below).
 
-```cpp
-#include "io/StateIO.hpp"
-#include "layers/residual/SimpleResNet.hpp"
+## Folder map
 
-SimpleResNetImpl<nn::Backend> model(feat_dim, /*hidden=*/128, n_locutores, /*depth=*/2);
-auto sd = nn::io::load_state_dict("results/meeting01/models/<run_tag>/<feature_label>/fold_0.bin");
-model.load_state_dict(sd);
+| Path | Role |
+|---|---|
+| `thesis.cpp` | entry point: reads the CLI and the profile, runs Phase 00 or Phase 01, writes the outputs |
+| `lib/include/ThesisConfig.hpp`, `lib/src/ThesisConfig.cpp` | the profile schema; every field is `Required<T>` (`Required.hpp`, `StrictJson.hpp`); the table at the top of the `.cpp` says which key is read under which condition |
+| `lib/include/ThesisCli.hpp` | the command line (`--config`, `--repeat`) |
+| `lib/*/ThesisDataset.*`, `ThesisSample.hpp`, `TextSplit.hpp` | loading the base into per-speaker samples (with the decoded-dataset binary cache), and the seen/unseen phrase split |
+| `lib/*/EegPairing.*` | which EEG trial goes with each voice trial (the same trial, or an imagined one) |
+| `lib/*/ThesisFeatureExtraction.*`, `ThesisHandcraftedFeatures.cpp`, `ThesisFeatureExtractionInternal.hpp` | the extractors: handcrafted DTWPT descriptors, ANN-AE, SNN-AE (spectral input) |
+| `lib/*/ThesisPca.*` | PCA, the training-free linear extractor |
+| `lib/*/ThesisParaconsistent.*`, `ParaconsistentSubsets.*` | the Phase 00 score (`α`, `β`, `d_truth`, `d_penalized`) and its recomputation on speaker subsets |
+| `lib/*/ThesisClassifiers.*`, `ThesisDsnnClassifier.hpp`, `ThesisAnnClassifier.hpp`, `ThesisClassifiersInternal.hpp` | Phase 01: the DSNN, its non-spiking twin `ann`, the `cosine` control, EER scoring, nested/flat cross-validation |
+| `lib/*/VoiceDegradation.*` | the simulated dysphonia (LPC whisper mix; described step by step in thesis ch. 8) |
+| `lib/*/ThesisOutput.*`, `ClassificationResult.hpp`, `FoldResult.hpp` | the result files |
+| `lib/include/IndexIntersection.hpp` | order-independent intersection of index lists (the July fold bug) |
+| `profiles/` | generated profiles: `phase00/`, `phase01/`, `biomex/`, `smoke/`, `profiles.manifest`; `debug.json` is a hand-kept quick-run profile |
+| `tests/` | 12 GoogleTest files built into 6 executables (below) |
+
+## Outputs
+
+Each run writes into the profile's `dataset.results_dir` (`results/thesis/<phase>/`), with
+`<tag>` = `e05_<profile name>_rep<k>`:
+
+| File | Content |
+|---|---|
+| `e05_<tag>_summary.json` | the configuration the run used + mean/sd/CI95 of every metric |
+| `e05_<tag>_metrics.csv` | one row per fold: accuracy, F1, precision, recall, EER, AUC, model path (Phase 01) |
+| `e05_<tag>_paraconsistent.csv`, `..._subsets.csv` | the Phase 00 score per feature set, and on speaker subsets |
+| `e05_<tag>_comparison.dat`, `..._learning_curves.dat` | pgfplots data |
+| `models/<tag>/<feature label>/fold_<N>.bin` | the trained Phase 01 model of each outer fold (committed) |
+| `logs/`, `.done/`, `.failed/` | written by `scripts/testing/run_thesis_profiles.sh` (per-profile log, completion markers) |
+
+## Changing it
+
+| I want to… | Do this |
+|---|---|
+| add or change a profile key | add the `Required<T>` field to `ThesisConfig.hpp`, read and validate it in `ThesisConfig.cpp` (also its row in the "who reads what" table), write it in `scripts/pipeline/thesis/00_thesis_generate_profiles.py`, regenerate the tree, run `thesis_feature_extraction_gtest` (it holds the strict-config tests) and `thesis_profile_audit_gtest` |
+| add, remove or change profiles | edit `00_thesis_generate_profiles.py` and run it (`--phase00-only`, or `--winners results/thesis/phase00/winners.json --fused voice`); never edit a JSON under `profiles/`: `GeneratedTree` in `scripts/testing/test_thesis_phase_scripts.py` (CI) refuses a tree the generator did not write |
+| add an extractor | `ThesisFeatureExtraction.cpp` (+ a family in `FAMILIES` of the generator and in `01_thesis_phase00_rank.py`); test it in `thesis_feature_extraction_gtest` |
+| add a classifier or control | `ThesisClassifiers.cpp` (+ the classifier type in `ThesisConfig`); test in `thesis_classifiers_gtest` |
+| change the dysphonia simulation | `VoiceDegradation.cpp`; then regenerate `documentation/00-thesis/monography/images/simulatedDysphonia.pdf` (its script compiles this very file) and re-check ch. 8 §"disfonia simulada" |
+| change an output file | `ThesisOutput.cpp`; then the readers: `scripts/pipeline/thesis/thesis_build_*` and their tests |
+| run it on the cluster | [`.wiki/Experiments/Thesis.md` → Running on GridUnesp](../../../.wiki/Experiments/Thesis.md#running-on-gridunesp-2026-11-12) |
+
+After any change that alters results, the profiles of record must run again; see
+[Re-run Runbook](../../../.wiki/Guides/Re-run-Runbook.md).
+
+## Tests
+
+```bash
+cmake --build out/build/max-performance -j$(nproc) --target thesis_profile_audit_gtest \
+    thesis_feature_extraction_gtest thesis_classifiers_gtest thesis_output_gtest \
+    thesis_spike_loss_e2e_gtest thesis_freearch_gtest
+for t in profile_audit feature_extraction classifiers output spike_loss_e2e freearch; do
+    ./out/build/max-performance/src/experiments/thesis/tests/thesis_${t}_gtest || break
+done
 ```
 
----
+Running the six executables directly is the simplest complete run: `ctest -R` filters by
+GoogleTest suite name, and the suites here do not share a prefix (`Thesis*`, `AnnTwin`,
+`CosineControl`, `EegPairing`, `VoiceDegradation`, …), so `ctest -R Thesis` silently skips some.
+To run one suite: `ctest --test-dir out/build/max-performance -R 'VoiceDegradation' --output-on-failure`.
 
-## Diferenças em relação ao Experimento 04
-
-| Aspecto | Experimento 04 | Experimento 05 |
-|---|---|---|
-| Objetivo | Artigo de congresso (reconstrução SNN vs LSTM) | Experimento principal da tese |
-| Base de dados | FSDD (dígitos, 8 kHz, áudio) | 10.1117/12.2255697 (EEG 1024 Hz + voz 44 100 Hz) |
-| Tarefa | Reconstrução autoencoder (MSE) | Autenticação de locutores (acurácia, EER, AUC) |
-| Sinais | Somente áudio | Voz + EEG, sempre carregados como ensaios pareados |
-| Seleção de características | Varredura de arquitetura fixa | Ranking paraconsistente EPC (α/β) antes de qualquer classificador |
-| Classificador | Perda de reconstrução | ResNet densa (SimpleResNet) + entropia cruzada |
-| Modalidades de texto | N/A | Text-dependent + text-independent |
-| Estratégia de CV | KFold estratificado | GroupKFold (agrupado por locutor, sem vazamento) |
-| Modelos salvos | Não | State dict binário por dobra |
-
----
-
-## Veja também
-
-- [Wiki Experimento 05](./../../../.wiki/Experiments/Thesis.md) — teoria completa, fórmulas, armadilhas
-- [Contexto de Pesquisa](./../../../.wiki/Research-Context.md) — objetivos da tese e pipeline
-- [Core/Paraconsistente](./../../../.wiki/Core/Paraconsistent.md) — derivação de α/β/D_verdade
-- [Conceitos/Imagined-Speech-and-EEG](./../../../.wiki/Concepts/Imagined-Speech-and-EEG.md)
-- [Conceitos/LFCC](./../../../.wiki/Concepts/LFCC.md)
+`thesis_profile_audit_gtest` checks every generated profile against
+`profiles.manifest` and the schema. The Python side of the pipeline is tested by
+`scripts/testing/test_thesis_phase_scripts.py` (see [`scripts/README.md`](../../../scripts/README.md)).

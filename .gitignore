@@ -35,6 +35,8 @@ __pycache__/
 *.png
 *.pt
 *.json
+# The waveletAE example spec documents every key the binary reads (its README points to it).
+!software/nn/src/experiments/waveletAE/spec.example.json
 # Thesis experiment profiles must be committed (the profile audit test runs on every checkout).
 !software/nn/src/experiments/thesis/profiles/
 !software/nn/src/experiments/thesis/profiles/**/*.json

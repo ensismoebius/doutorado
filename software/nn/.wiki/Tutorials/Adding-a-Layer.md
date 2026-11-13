@@ -115,14 +115,29 @@ struct SwishImpl : public Module<Backend>
 > (XTensor, Device) — the parity contract will not let you add it to just one.
 > See [Tensor](../Core/Tensor.md).
 
-## Step 2 — Register the convenience alias
+## Step 2 — The convenience alias is generated, not written
 
-Add to `include/layers/Layers.hpp`, next to the other activations:
+`include/layers/Layers.hpp` is **not a source file**: it is gitignored and rewritten on every
+CMake configure by [`cmake/GenerateLayers.cmake`](../../cmake/GenerateLayers.cmake) from the
+template `cmake/Layers.hpp.in`. The script globs `include/layers/**/*.hpp` and, for each header
+`Foo.hpp`, emits
 
 ```cpp
 #include "layers/activations/Swish.hpp"
-namespace nn { using Swish = SwishImpl<Backend>; }
+namespace nn { using Swish = SwishImpl<Backend>; }   // derived from the file name
 ```
+
+So the only rule is the naming convention: **`Swish.hpp` must define `SwishImpl<Backend>`**.
+Re-run the configure step (`cmake --preset=max-performance`) after adding the header and
+`nn::Swish` exists.
+
+| Your header… | What to do |
+|---|---|
+| defines `FooImpl<Backend>` in `Foo.hpp` | nothing — the alias appears on the next configure |
+| is a helper with no `FooImpl<Backend>` (free functions, structs, a non-templated class) | add its path to `_exclude_patterns` in `cmake/GenerateLayers.cmake`, or the generated `using Foo = FooImpl<Backend>;` fails to compile |
+
+Editing `Layers.hpp` by hand fails **silently**: the edit compiles, then disappears at the
+next configure.
 
 ## Step 3 — Write the test
 
@@ -159,12 +174,15 @@ Wire it into the nearest `tests/CMakeLists.txt`, following the existing pattern:
 
 ```cmake
 add_executable(swish_gtest swish_gtest.cpp)
-target_link_libraries(swish_gtest PRIVATE layers GTest::gtest_main)
-nn_gtest_discover_tests(swish_gtest)   # always this wrapper, never gtest_discover_tests directly
+target_link_libraries(swish_gtest PRIVATE google_test layers tensor)
+target_include_directories(swish_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+include(GoogleTest)
+gtest_discover_tests(swish_gtest)
 ```
 
-> Use `nn_gtest_discover_tests()`, not `gtest_discover_tests()`. The wrapper adds a resource
-> lock so GPU-touching tests can never run concurrently under `ctest -jN`.
+`google_test` is the vendored GoogleTest target (`cmake/VendorGTest.cmake`, with `main`
+included). `gtest_discover_tests` registers every `TEST(...)` as its own ctest entry, named
+`Suite.Test` — which is why `ctest -R` filters by suite name, not by executable (Step 4).
 
 ## Step 4 — Build and run
 
@@ -189,9 +207,9 @@ The wiki is kept in sync with the code by policy, and a hook reminds you after s
 1. Header in `include/layers/<category>/MyLayer.hpp`
 2. Inherit `Module<Backend>`; implement `forward` + `backward` (+ `params`, `reset_state`,
    `state_dict` only if the layer needs them)
-3. Alias in `include/layers/Layers.hpp`
+3. Re-run the CMake configure: `Layers.hpp` gains the alias automatically (name the class `MyLayerImpl<Backend>`)
 4. Test in the nearest `tests/`, named `*_gtest.cpp`, with a numerical gradient check
-5. Register with `nn_gtest_discover_tests()`
+5. Register with `gtest_discover_tests(<exe>)` in that `tests/CMakeLists.txt`
 6. Build the target, run it by **suite** name
 7. Update `Core/Layers.md` (+ a `Concepts/` page if it is a new idea)
 

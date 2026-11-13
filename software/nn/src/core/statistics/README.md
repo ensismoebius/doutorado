@@ -1,25 +1,32 @@
 # statistics
 
-Purpose
-- Statistical utilities and metrics (confusion matrices, multi-class metrics, and helpers used by evaluations).
-- Deterministic cross-validation splitters (`KFold` and `StratifiedKFold`) for reusable train/validation index generation.
+Metrics and statistical tools: confusion matrices, classification metrics, EER scoring, (stratified) k-fold splitters, effect sizes and the approximate inference tests.
 
-Usage
-- Include headers from `include/nn/statistics` and call provided functions on prediction/label arrays.
-- For fold generation, include `nn/statistics/kfold.hpp`.
+**Full documentation:** [`.wiki/Core/Statistics.md`](../../../.wiki/Core/Statistics.md). This README only says where things are and how to change them.
 
-K-Fold API
-- `statistics::KFold(n_splits, shuffle, random_seed)`:
-	creates deterministic fold train/test index splits over sample indices.
-- `statistics::StratifiedKFold(n_splits, shuffle, random_seed)`:
-	creates deterministic fold splits while balancing class labels.
-- Legacy `statistics::k_fold_cross_validation(...)` remains available and now delegates fold creation to `KFold` internally.
+| What | Where |
+|---|---|
+| Public headers | [`include/statistics`](../../../include/statistics) |
+| Implementation (`.cpp`) | 6 file(s) in this folder |
+| CMake library target | `statistics` |
+| Test executables | `confusionMatrix_gtest`, `eer_scorer_gtest`, `kfold_gtest`, `statistics_gtest` |
 
-Tests
-- See unit tests under `src/core/statistics/tests/` for usage and expected outputs.
+## Header map
 
-Recent behavior notes
-- `variance(...)` now validates inputs and throws on empty data (or zero-length raw arrays).
-- `compute_classification_metrics(...)` now throws `std::invalid_argument` for mismatched label vector sizes and `std::runtime_error` for empty label vectors.
-- Inference helpers were added in `include/nn/statistics/inference_tests.hpp` and implemented in `src/core/statistics/inference_tests.cpp`:
-	`cohens_d(...)`, `t_test_pvalue_approx(...)`, and `wilcoxon_signed_rank_pvalue_approx(...)`.
+- `include/statistics/`: `ClassificationEERScorer.hpp`, `GenuineImpostorEERScorer.hpp`, `GroupKFoldPolicy.hpp`, `IStatistic.hpp`, `NestedKFold.hpp`, `RunningMean.hpp`, `SampleKFoldPolicy.hpp`, `StratifiedKFold.hpp`, `binary_classification_metrics.hpp`, `confusion_matrix.hpp`, `eer_scorer.hpp`, `inference_tests.hpp`, `kfold.hpp`, `multi_class_metrics.hpp`, `reconstruction_metrics.hpp`, `statistics.hpp`
+
+## Changing it
+
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
+
+  ```bash
+  cmake --build --preset=max-performance --target confusionMatrix_gtest
+  ctest --test-dir out/build/max-performance -R 'ConfusionMatrixTest' --output-on-failure
+  ```
+
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R confusionMatrix_gtest` silently matches nothing.
+
+  Suites here: `ConfusionMatrixTest`, `GenuineImpostorEERScorerTest`, `ClassificationEERScorerTest`, `KFoldTest`, `StratifiedKFoldTest`, `KFoldCompatibilityTest`, `NestedKFoldTest`, `SampleKFoldPolicyTest`, `GroupKFoldPolicyTest`, `NestedKFoldPolicyTest`, `StatisticsTest`, `MultiClassMetricsTest` (and 6 more).
+- After a behaviour change, update [`.wiki/Core/Statistics.md`](../../../.wiki/Core/Statistics.md) (and `.wiki/References.md` if a paper is involved).

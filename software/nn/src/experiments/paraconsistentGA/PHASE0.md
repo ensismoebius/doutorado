@@ -11,7 +11,7 @@ reimplemented — the GA only assembles and orchestrates.**
 | Paraconsistent α/β/G1/G2 | `calculate_alpha/beta/certainty_degree_g1/contradiction_degree_g2` | `include/paraconsistent/paraconsistent.hpp` | code |
 | `d_penalized` ranking | `thesis::score_feature_set`, `ParaconsistentScore{alpha,beta,g1,g2,d_truth,d_penalized}`, `kContradictionPenalty = 2-√2` | `thesis/lib/include/ThesisParaconsistent.hpp` | code |
 | AE train + latent extraction | `thesis::extract_features(view, feature_extraction, training, modality, fusion_mode, seed)` → `vector<FeatureSet>` | `thesis/lib/include/ThesisFeatureExtraction.hpp` | code |
-| ANN-AE / SNN-AE networks | `ProtocolAutoencoder` / `ProtocolSpikingAutoencoder` (driven via `AutoencoderConfig`) | `autoencoderRunner/lib/include/autoencoder/` (linked through `thesis_lib`) | code |
+| ANN-AE / SNN-AE networks | `ProtocolAutoencoder` / `ProtocolSpikingAutoencoder` (driven via `AutoencoderConfig`) | `include/models/autoencoder/` (linked through `thesis_lib`) | code |
 | Config schema + JSON parse | `thesis::ThesisConfig::from_json` incl. `AutoencoderConfig{model,encoder_layer_spec,decoder_layer_spec,encoding,time_steps,voltage_threshold,firing_rate_*}` | `thesis/lib/include/ThesisConfig.hpp` | code |
 | Dataset load | `thesis::load_dataset(dataset_cfg)` → `ThesisDatasetView{samples,...}` | `thesis/lib/include/ThesisDataset.hpp` | code |
 | Output dir helper | `thesis::ensure_dir` | `thesis/lib/include/ThesisOutput.hpp` | code |

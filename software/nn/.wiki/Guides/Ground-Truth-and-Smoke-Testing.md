@@ -13,7 +13,7 @@ Testing layers added to catch classes of bugs that unit tests and compilation mi
    (true only for reset="zero", which is what production uses — subtract diverges ~2-3%, and
    the per-layer fixture missed it by spiking only 3/36 times); and that our LSTM uses
    softsign gates, not sigmoid/tanh (|tanh − rat_tanh| reaches 0.306), so it can never match
-   torch.nn.LSTM. See fixme.md for the full write-up.
+   torch.nn.LSTM. See the [Engineering Fixes Log](./Engineering-Fixes-Log.md#network-level-parity-testing-vs-pytorchsnntorch) for the full write-up.
 2. **PyWavelets parity** — ground-truth for the wavelet transforms (see
    [Wavelet](../Core/Wavelet.md#ground-truth-vs-pywavelets-2026-07-15)); it
    caught a `malat` DWT buffer-corruption bug and three corrupted Daubechies

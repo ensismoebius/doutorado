@@ -1,20 +1,32 @@
 # wavelet
 
-Purpose
-- Wavelet transform utilities and helpers used by experiments for time-frequency analysis.
+Discrete wavelet transform and wavelet packet transform (DWT, DTWPT), checked against PyWavelets by `pywt_parity_gtest`.
 
-Usage
-- Use the provided transforms and result containers when implementing wavelet-based preprocessing or analysis.
+**Full documentation:** [`.wiki/Core/Wavelet.md`](../../../.wiki/Core/Wavelet.md). This README only says where things are and how to change them.
 
-Tests
-- See tests under `src/core/wavelet/tests/` for examples.
+| What | Where |
+|---|---|
+| Public headers | [`include/wavelet`](../../../include/wavelet) |
+| Implementation (`.cpp`) | 2 file(s) in this folder |
+| CMake library target | `wavelet` |
+| Test executables | `pywt_parity_gtest`, `wavelet_gtest` |
 
-Recent updates
-- Iterative decomposition now pre-reserves `tasks_for_next_level` capacity per mode (`2 * tasks.size()` for packet mode and `tasks.size()` for regular DWT mode) to reduce per-level allocation churn.
+## Header map
 
-Optimization techniques and references
-- Mode-aware task-vector reservation: capacity is derived from decomposition branching factor, reducing repeated growth/reallocation costs across levels (see [1], [2]).
+- `include/wavelet/`: `Types.hpp`, `WaveletCoefficients.hpp`, `WaveletTraits.hpp`, `WaveletTransformResults.hpp`, `waveletOperations.hpp`
 
-Bibliographic references
-- [1] Ulrich Drepper. What Every Programmer Should Know About Memory. Red Hat, 2007.
-- [2] Paul R. Wilson, Mark S. Johnstone, Michael Neely, and David Boles. Dynamic Storage Allocation: A Survey and Critical Review. IWMM, 1995.
+## Changing it
+
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
+
+  ```bash
+  cmake --build --preset=max-performance --target pywt_parity_gtest
+  ctest --test-dir out/build/max-performance -R 'PyWtParity' --output-on-failure
+  ```
+
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R pywt_parity_gtest` silently matches nothing.
+
+  Suites here: `PyWtParity`, `WaveletTypesTest`, `WaveletOperationsTest`, `WaveletTransformResultsTest`.
+- After a behaviour change, update [`.wiki/Core/Wavelet.md`](../../../.wiki/Core/Wavelet.md) (and `.wiki/References.md` if a paper is involved).

@@ -1,207 +1,85 @@
 # data_loaders
 
-Purpose
-- Implement dataset backends and batch sources used by experiments: MAT file loaders, SQLite-backed sources, windowing logic, and prefetching.
+Datasets, samplers and the `DataLoader` that batches them; MAT-file and SQLite readers; the dataset-specific loaders, each in a folder named after the dataset's DOI: `10.1117/` is the Coretto imagined-speech base (audio + EEG), `10.5281/zenodo.1342401/` is the Free Spoken Digit Dataset.
 
-Layout
-- Public headers under `include/nn/data_loaders/` are organized by category:
-	- `runtime/`: orchestration and iteration (`DataLoader`, `DataLoaderIterator`, `BatchPrefetcher`)
-	- `interfaces/`: abstract contracts (`IBatchSource`, `IDatasetPrinter`, `IMatLoader`)
-	- `datasets/`: generic dataset models (`Dataset`, `TensorDataset`, `MatFileDataset`)
-	- `io/`: MAT-file I/O utilities and flags (`mat_file`, `mat_file_utils`, `MatFileFlags`)
-	- `options/`: sampler and shard option helpers (`SamplerOptionResolution`, `ShardIndex`)
-	- `sources/`: concrete batch sources (`SqliteBatchSource`)
-	- Existing specialized modules remain in place: `samplers/` and `10.1117/`.
-- Core source files under `src/core/data_loaders/` are now organized by category:
-	- `runtime/DataLoader.cpp`
-	- `runtime/DataLoaderIterator.cpp`
-	- `runtime/BatchPrefetcher.cpp`
-	- `io/mat_file.cpp`
-	- `io/mat_file_utils.cpp`
-	- `options/SamplerOptionResolution.cpp`
-	- `sources/SqliteBatchSource.cpp`
+**Full documentation:** [`.wiki/Core/DataLoaders.md`](../../../.wiki/Core/DataLoaders.md). This README only says where things are and how to change them.
 
-Key Components
-- `DataLoader` / `BatchPrefetcher` — iteration and background prefetching primitives.
-- `SqliteBatchSource` — DB-backed sample provider (used for reproducible/ASan-clean tests).
-- `mat_file.*` — MAT file reading and helpers.
+| What | Where |
+|---|---|
+| Public headers | [`include/data_loaders`](../../../include/data_loaders), [`include/windowing`](../../../include/windowing) |
+| Implementation (`.cpp`) | 29 file(s) in this folder |
+| CMake library target | `MatTestUtilsLib`, `dataLoaders_10_1117`, `dataLoaders_10_1117_windowing`, `dataLoaders_samplers`, `data_loaders`, `data_loaders_fsdd` |
+| Test executables | `dataLoaders_10_1117_gtest`, `dataLoaders_gtest`, `dataLoaders_samplers_gtest`, `fsdd_loader_gtest`, `windowing_gtest` |
 
-How to use
-- Include the headers from `include/nn/data_loaders`.
-- Construct a `DataLoader` with a dataset object and iterate to obtain batches.
+## Header map
 
-CMake
-- Target: `data_loaders`
+- `include/data_loaders/10.1117/codec/`: `BatchTargetFormatter.hpp`, `InputModeCodec.hpp`
+- `include/data_loaders/10.1117/datasets/raw/`: `Dataset101117.hpp`, `Dataset101117Printer.hpp`, `RowRequest.hpp`, `SamplePacking.hpp`, `SynchronizedBatchAssembler.hpp`
+- `include/data_loaders/10.1117/datasets/windowed/`: `AudioWindowDataset.hpp`, `EEGWindowDataset.hpp`, `FusedWindowDataset.hpp`, `WindowingDatasetPrinter.hpp`
+- `include/data_loaders/10.1117/loaders/`: `AudioData.hpp`, `AudioLoader.hpp`, `EEGData.hpp`, `EEGLoader.hpp`
+- `include/data_loaders/10.1117/schema/`: `Metadata.hpp`, `Names.hpp`, `SchemaIndexing.hpp`, `SqliteDataset.hpp`, `SubjectDiscovery.hpp`
+- `include/data_loaders/10.5281/zenodo.1342401/datasets/`: `FsddWindowDataset.hpp`
+- `include/data_loaders/10.5281/zenodo.1342401/loaders/`: `FsddLoader.hpp`, `FsddSample.hpp`
+- `include/data_loaders/10.5281/zenodo.1342401/schema/`: `Metadata.hpp`, `Names.hpp`
+- `include/data_loaders/datasets/`: `Dataset.hpp`, `MatFileDataset.hpp`, `TensorDataset.hpp`
+- `include/data_loaders/interfaces/`: `IBatchSource.hpp`, `IDatasetPrinter.hpp`, `IMatLoader.hpp`
+- `include/data_loaders/mat_io/`: `MatFileFlags.hpp`, `mat_file.hpp`, `mat_file_utils.hpp`
+- `include/data_loaders/options/`: `SamplerOptionResolution.hpp`, `ShardIndex.hpp`
+- `include/data_loaders/runtime/`: `BatchPrefetcher.hpp`, `DataLoader.hpp`, `DataLoaderIterator.hpp`, `DefaultSamplerType.hpp`
+- `include/data_loaders/samplers/`: `DistributedSampler.hpp`, `FoldSampler.hpp`, `ISampler.hpp`, `RandomSampler.hpp`, `SequentialSampler.hpp`, `SubsetSampler.hpp`, `WeightedRandomSampler.hpp`
+- `include/data_loaders/sources/`: `SqliteBatchSource.hpp`
+- `include/windowing/`: `WindowInfo.hpp`, `WindowSpec.hpp`, `WindowingEngine.hpp`
 
-Tests and Examples
-- Unit tests are under `src/core/data_loaders/tests/` (GTest). Use them as usage examples.
+## Sampling architecture
 
-Recent updates
-- `SqliteBatchSource` now supports optional selected trial-id filtering and deterministic trial cursor iteration, enabling fold-specific fast prefetch pipelines.
-- Windowed `SqliteBatchSource` batches now stream all generated windows across successive `next()` calls instead of collapsing one trial into a single repeated batch; this keeps the SQLite fast path aligned with windowed dataset sample semantics.
-- `SqliteBatchSource::next()` no longer runs per-trial reserve-size SQL probes in the hot path; this reduces query overhead during training.
-- Window sample assembly now reserves per-window output capacity based on active window mode (`EegWindow`, `AudioWindow`, `FusedWindow`) to reduce hot-loop allocations.
-- `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.
-- `SqliteBatchSource::open_db()` failure diagnostics now use `NN_LOG_ERROR` instead of direct stderr writes.
-- Added `FoldSampler` (`include/nn/data_loaders/samplers/FoldSampler.hpp`) to expose train/validation indices from one `statistics::FoldSplit` through the standard `ISampler` interface.
-- Windowed datasets now implement type-specific `print(IDatasetPrinter&)` dispatch and `WindowingDatasetPrinter` outputs detailed modality-aware summaries (window specs, hop/overlap, per-row window factors, and feature counts) instead of only generic totals.
-- Printer implementations were split from `src/core/data_loaders/10.1117/dataset_info.cpp` into dedicated translation units: `datasets/raw/Dataset101117Printer.cpp` and `datasets/windowed/WindowingDatasetPrinter.cpp`.
+`DataLoader` only batches and collates. *Which* indices an epoch visits is the job of a sampler,
+so a new sampling policy never touches `DataLoader`.
 
-Optimization techniques and references
-- Trial buffer pre-reservation (`eeg_accum`, `audio_accum`): capacity planning from SQLite blob-size metadata to avoid geometric reallocation/copy churn in hot decode loops (see [1], [2]).
-- Per-window `samp.reserve(...)`: branch-aware preallocation to reduce allocator pressure and improve cache locality while assembling windows (see [1], [2]).
-- Iterator deduplication (`operator*` uses `fetch_batch`): remove redundant index-vector construction to reduce unnecessary per-batch work and memory traffic (see [3]).
-- Unified logger channel (`NN_LOG_ERROR`): consolidate diagnostics path for deterministic output capture and lower observability drift across runtime modes (see [4]).
+```
+Dataset ──(size)──► ISampler ──(indices for one epoch)──► DataLoader ──► batches
+                    set_epoch(e), sample_into(span)
+```
 
-Bibliographic references
-- [1] Ulrich Drepper. What Every Programmer Should Know About Memory. Red Hat, 2007.
-- [2] Paul R. Wilson, Mark S. Johnstone, Michael Neely, and David Boles. Dynamic Storage Allocation: A Survey and Critical Review. IWMM, 1995.
-- [3] Robert C. Martin. Clean Code: A Handbook of Agile Software Craftsmanship. Prentice Hall, 2008.
-- [4] Martin Kleppmann. Designing Data-Intensive Applications. O'Reilly, 2017.
-# DataLoader Sampling Architecture
-
-This module uses a sampler-driven architecture inspired by large ML frameworks while keeping a small C++20 core API.
-
-## Goals
-
-- Keep `DataLoader` focused on batching and collation only.
-- Move index selection policy to interchangeable sampler components.
-- Allow deterministic epoch-aware sampling when needed.
-
-## Core Contracts
-
-- `Dataset` provides sample access and collation.
-- `ISampler` produces index sequences, not data.
-- `DataLoader` asks the sampler for one epoch of indices and forms mini-batches from those indices.
-
-### `ISampler`
-
-Declared in `include/nn/data_loaders/samplers/ISampler.hpp`:
-
-- `index_count()`: number of indices produced per epoch.
-- `set_epoch(std::size_t)`: hook for stateful samplers.
-- `sample_into(std::span<std::size_t>)`: fills caller-provided buffer.
-
-Using `sample_into(std::span<...>)` avoids hidden allocations inside samplers and keeps the data path explicit.
-
-## File Layout
-
-- Interface: `include/nn/data_loaders/samplers/ISampler.hpp`
-- Built-in sampler headers:
-	- `include/nn/data_loaders/samplers/SequentialSampler.hpp`
-	- `include/nn/data_loaders/samplers/RandomSampler.hpp`
-	- `include/nn/data_loaders/samplers/FoldSampler.hpp`
-	- `include/nn/data_loaders/samplers/WeightedRandomSampler.hpp`
-	- `include/nn/data_loaders/samplers/DistributedSampler.hpp`
-- Implementations:
-	- `src/core/data_loaders/samplers/SequentialSampler.cpp`
-	- `src/core/data_loaders/samplers/RandomSampler.cpp`
-	- `src/core/data_loaders/samplers/FoldSampler.cpp`
-	- `src/core/data_loaders/samplers/WeightedRandomSampler.cpp`
-	- `src/core/data_loaders/samplers/DistributedSampler.cpp`
-
-## Built-in Samplers
-
-- `SequentialSampler(dataset_size)`: emits `[0, 1, ..., N-1]`.
-- `RandomSampler(dataset_size, seed)`: emits a full permutation, deterministic per epoch when seeded.
-- `FoldSampler(split, partition)`: emits either train or validation indices from a single fold split.
-- `WeightedRandomSampler(weights, num_samples, seed)`: draws with replacement using `std::discrete_distribution`.
-- `DistributedSampler(dataset_size, num_replicas, rank, shuffle, drop_last, seed)`: shard-aware sampler for multi-worker training.
-
-## DataLoader Usage
-
-### Backward-compatible API
+| Sampler | Emits |
+|---|---|
+| `SequentialSampler(n)` | `0, 1, ..., n-1` |
+| `RandomSampler(n, seed)` | a permutation, deterministic per (seed, epoch) |
+| `FoldSampler(split, partition)` | the train or validation indices of one `statistics::FoldSplit` |
+| `WeightedRandomSampler(weights, k, seed)` | `k` draws with replacement |
+| `DistributedSampler(n, replicas, rank, shuffle, drop_last, seed)` | one shard per worker |
 
 ```cpp
-DataLoader loader(dataset, batch_size, true, 42U);
+DataLoader loader(dataset, batch_size, /*shuffle=*/true, 42U);          // Sequential/Random
+DataLoader loader(dataset, batch_size, std::make_unique<FoldSampler>(split, part));
 ```
 
-- `do_shuffle=false` maps to `SequentialSampler`.
-- `do_shuffle=true` maps to `RandomSampler(seed)`.
+On every `begin()` the loader calls `set_epoch(epoch)` and then `sample_into(...)`, so a seeded
+sampler is reproducible and still changes order between epochs. To add a policy: implement
+`ISampler` (headers in [`include/data_loaders/samplers/`](../../../include/data_loaders/samplers/)),
+keep all state inside it, and inject it through the constructor above. Sampler sources and tests: [`samplers/`](samplers/README.md).
 
-### Preferred sampler-injected API
+## Adding a new dataset
 
-```cpp
-auto sampler = std::make_unique<WeightedRandomSampler>(weights, num_samples, 42U);
-DataLoader loader(dataset, batch_size, std::move(sampler));
-```
+1. Put its loader in a folder named after the dataset's DOI, as `10.1117/` and
+   `10.5281/zenodo.1342401/` are, with the same subfolders (`loaders/`, `schema/`, `datasets/`).
+   Headers go under `include/data_loaders/<doi>/`, sources under `src/core/data_loaders/<doi>/`.
+2. Give it its own `CMakeLists.txt` and add it with `add_subdirectory` in this folder's
+   `CMakeLists.txt`; add a `tests/` folder registered with `gtest_discover_tests(<exe>)`.
+3. Document it in [`.wiki/Core/DataLoaders.md`](../../../.wiki/Core/DataLoaders.md) and, if an
+   experiment uses it, in that experiment's wiki page.
 
-## Epoch Semantics
+## Changing it
 
-- On each `begin()` call, `DataLoader` calls `sampler->set_epoch(epoch_)` then `sample_into(...)`.
-- This allows deterministic epoch-varying behavior (for example `seed + epoch`).
-- Iterator independence is preserved because each iterator owns its index snapshot.
+- A new header in `include/...` needs nothing else unless it has a `.cpp`; a new `.cpp` must be added to this folder's `CMakeLists.txt`.
+- A new test goes in `tests/`, named `*_gtest.cpp`, and is registered in `tests/CMakeLists.txt` (`add_executable` + `target_link_libraries(... google_test ...)` + `gtest_discover_tests(<exe>)`; copy a neighbour) ([Build System](../../../.wiki/Guides/Build-System.md#running-tests)).
+- Build and run (from `software/nn`):
 
-## Extension Guide
+  ```bash
+  cmake --build --preset=max-performance --target dataLoaders_10_1117_gtest
+  ctest --test-dir out/build/max-performance -R 'BatchTargetFormatterTest' --output-on-failure
+  ```
 
-To add a custom strategy:
+  `ctest -R` matches the GoogleTest **suite** name, not the executable: `-R dataLoaders_10_1117_gtest` silently matches nothing.
 
-1. Implement `ISampler`.
-2. Keep `sample_into` O(k) for `k=index_count()` and validate output span size.
-3. Keep all policy/state inside the sampler.
-4. Inject it through `DataLoader(std::shared_ptr<Dataset>, std::size_t, std::unique_ptr<ISampler>)`.
-
-No `DataLoader` modification is needed for new sampling policies.
-
-## 10.1117 module layout (dataset code organization)
-
-The repository contains a dataset module for the 10.1117 paper. Sources and public headers were reorganized into focused subfolders to improve discoverability.
-
-- Source tree: `src/core/data_loaders/10.1117/`
-	- `loaders/` — dataset-specific loaders (`AudioLoader.cpp`, `EEGLoader.cpp`)
-	- `schema/` — metadata and discovery helpers (`SubjectDiscovery.cpp`, `METADATA` helpers)
-	- `codec/` — codecs and formatters (`InputModeCodec.cpp`, `BatchTargetFormatter.cpp`)
-	- `datasets/raw/` — protocol/raw dataset and raw batching helpers (`Dataset101117.cpp`, `SamplePacking.cpp`, `SynchronizedBatchAssembler.cpp`, `Dataset101117Printer.cpp`)
-	- `datasets/windowed/` — windowed datasets and printer (`AudioWindowDataset.cpp`, `EEGWindowDataset.cpp`, `FusedWindowDataset.cpp`, `WindowingDatasetPrinter.cpp`)
-
-- Public headers: `include/nn/data_loaders/10.1117/` mirrors this layout:
-	- `loaders/`, `schema/`, `codec/`, `datasets/raw/`, `datasets/windowed/`
-
-The current public headers present in the repository include (examples):
-
-- [include/nn/data_loaders/10.1117/datasets/raw/Dataset101117.hpp](include/nn/data_loaders/10.1117/datasets/raw/Dataset101117.hpp)
-- [include/nn/data_loaders/10.1117/datasets/raw/Dataset101117Printer.hpp](include/nn/data_loaders/10.1117/datasets/raw/Dataset101117Printer.hpp)
-- [include/nn/data_loaders/10.1117/datasets/windowed/AudioWindowDataset.hpp](include/nn/data_loaders/10.1117/datasets/windowed/AudioWindowDataset.hpp)
-- [include/nn/data_loaders/10.1117/datasets/windowed/EEGWindowDataset.hpp](include/nn/data_loaders/10.1117/datasets/windowed/EEGWindowDataset.hpp)
-- [include/nn/data_loaders/10.1117/datasets/windowed/FusedWindowDataset.hpp](include/nn/data_loaders/10.1117/datasets/windowed/FusedWindowDataset.hpp)
-- [include/nn/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp](include/nn/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp)
-
-Note: legacy `WindowedDatasetPrinter.hpp` has been removed; use `WindowingDatasetPrinter.hpp` for modality-aware summaries.
-
-Public headers reorganization
-- Recently the protocol and windowing public headers were moved under a
-	`datasets/` subfolder to better group dataset variants and dataset-specific
-	utilities. New public header paths include, for example:
-
-	- `nn/data_loaders/10.1117/datasets/raw/Dataset101117.hpp`
-	- `nn/data_loaders/10.1117/datasets/raw/Dataset101117Printer.hpp`
-	- `nn/data_loaders/10.1117/datasets/windowed/AudioWindowDataset.hpp`
-	- `nn/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp`
-
-	Dataset printer classes were extracted into dedicated headers under the
-	same `datasets/` tree (e.g. `Dataset101117Printer.hpp`,
-	`WindowingDatasetPrinter.hpp`) and now compile from dedicated translation
-	units (`datasets/raw/Dataset101117Printer.cpp` and
-	`datasets/windowed/WindowingDatasetPrinter.cpp`).
-
-Migration notes
- - The repository's sources and tests have been updated to reference the new
-	`datasets/` locations (now using `raw` and `windowed` subtrees). Old
-	forwarding headers were removed and the header contents moved in-place;
-	if you maintain external code that included the older paths, update
-	includes accordingly to `nn/data_loaders/10.1117/datasets/raw/...` or
-	`nn/data_loaders/10.1117/datasets/windowed/...`.
-
-If you add new dataset files, place sources under the appropriate subfolder in `src/core/data_loaders/10.1117/` and update `src/core/data_loaders/10.1117/CMakeLists.txt` to reference the new paths.
-
-## Quick build & test
-
-After changes, reconfigure and build, then run tests:
-
-```bash
-cmake -S . -B build
-cmake --build build -j$(nproc)
-ctest --test-dir build -j4 --output-on-failure
-```
-
-All dataset-related tests live under `src/core/data_loaders/10.1117/tests/` and should pass after moves/edits.
+  Suites here: `BatchTargetFormatterTest`, `InputModeCodecTest`, `MockDatasetGeneratorTest`, `AudioLoaderArticleSpecTest`, `AudioLoaderTest`, `AudioLoaderStandaloneTest`, `EEGLoaderArticleSpecTest`, `EEGLoaderEdgeTest`, `EEGLoaderTest`, `SqliteSession`, `SqliteDatasetOpen`, `Dataset101117ModesTest` (and 33 more).
+- After a behaviour change, update [`.wiki/Core/DataLoaders.md`](../../../.wiki/Core/DataLoaders.md) (and `.wiki/References.md` if a paper is involved).

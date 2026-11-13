@@ -41,11 +41,10 @@ Integrated LSTM architecture
 The integrated LSTM path is now hosted under `src/experiments/meeting01` and dispatched by `autoencoderRunner`:
 
 - `src/experiments/autoencoderRunner/autoencoderRunner.cpp`: top-level launcher and dispatch to standard AutoencoderRunner or LSTM mode.
-- `src/experiments/meeting01/meeting01.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
-- `src/experiments/meeting01/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the AutoencoderRunner LSTM tests.
-- `src/experiments/meeting01/lib/include/meeting01/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
-- `src/experiments/meeting01/lib/include/meeting01/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
-- `src/experiments/meeting01/lib/include/meeting01/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
+- `src/experiments/meeting01/meeting01.cpp` + `lib/`: the Meeting01 CLI parsing, comparative runner and standalone entry point.
+- `include/layers/lstm/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
+- `include/models/lstm/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
+- `src/core/training/Trainer.hpp`: the generic epoch loop (optimizer, optional validation pass, gradient clipping).
 - `src/experiments/autoencoderRunner/tests/LSTMAutoencoder_gtest.cpp`: regression coverage for the integrated LSTM components.
 
 Current integrated runner behavior:
@@ -316,7 +315,7 @@ When tuning autoencoders on multimodal EEG+Audio data:
 
 Set `"training_normalize_inputs": false` in a profile to disable normalization.
 
-Implementation lives in `include/nn/utility/Transforms.hpp` (`nn::transforms` namespace):
+Implementation lives in `include/utility/Transforms.hpp` (`nn::transforms` namespace):
 - `AudioMeanStdNormalize` — two-stage: accumulate → finalize → apply.
 - `EEGWindowZScore` — stateless per-row z-score.
 - `FusedModalityTransform` — dispatches to per-modality transforms by column range.

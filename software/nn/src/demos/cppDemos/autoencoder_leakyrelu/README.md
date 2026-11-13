@@ -1,6 +1,6 @@
 # Spiking Autoencoder (LifBPTT) — Experiment Guide
 
-This document explains the experiment implemented in `src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp`.
+This document explains the experiment implemented in `src/demos/cppDemos/autoencoder_leakyrelu/autoEncoderLeakyReLUAndSpikeTest.cpp`.
 
 It is designed to stand alone as educational technical documentation: you should be able to understand what the demo does, why it is structured this way, what behavior to expect, and which parameters you can safely change.
 
@@ -244,7 +244,7 @@ This matches the common “scalar beta/threshold” setup in snnTorch examples. 
 
 ### 8. Weight loading and initialization (reproducibility)
 
-Runtime NPZ weight loading is disabled in this build. At runtime the demo will not attempt to load `.npz` weight artifacts and will instead initialize weights deterministically using the Kaiming initializer. If you need to produce or consume offline NPZ artifacts for compatibility with other toolchains, use the conversion scripts in `scripts/` (for example `scripts/mat_to_npz.py`) to generate NPZ files outside of the runtime and treat them as offline artifacts.
+Runtime NPZ weight loading is disabled in this build. At runtime the demo will not attempt to load `.npz` weight artifacts and will instead initialize weights deterministically using the Kaiming initializer. If you need to produce or consume offline NPZ artifacts for compatibility with other toolchains, generate them outside the runtime (there is no converter in `scripts/` for this demo; `scripts/data/npz_to_pytorch.py` goes the other way, `.npz` → PyTorch) and treat them as offline artifacts.
 
 The demo initializes Linear layers using Kaiming initialization and then scales weights by `0.01` to reduce the risk of immediate saturation in deep SNN stacks.
 

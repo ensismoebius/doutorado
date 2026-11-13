@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-13 — documentation overhaul
+
+### Fixed
+
+- `waveletAE` no longer falls back to synthetic samples when its data cannot be read (its
+  hard-coded placeholder paths meant it always did), and no longer skips a wavelet that
+  yields no window: both are errors. The data paths are the required spec keys
+  `data.eeg_path` / `data.audio_path` (`src/experiments/waveletAE/spec.example.json`); the
+  spec path is a required argument.
+- `waveletAE` and `paraconsistentBaseline` printed nothing, errors included: their
+  `StreamRedirector` suppresses the Logger's console output until a progress printer drains
+  it, and neither has one. Removed.
+- `run_thesis_profiles.sh`: new `biomex` scope; `start-over-all` runs phase00 → phase01 →
+  biomex; `all` no longer includes the BIOMEX-DB profiles (sorted first, they ran before
+  Phase 00); with no argument in a pipe it refuses instead of defaulting to `all`.
+  `run_thesis_smoke.sh` gains `biomex`.
+- `progress_gtest` is registered with `gtest_discover_tests` like every other suite (it was
+  one opaque `add_test`).
+- Removed two dangling symlinks (`src/protocols/`) and the unused thesis draft `backup.tex`.
+
+### Documentation
+
+- New entry points: repository `README.md`, `software/nn/README.md`, `documentation/README.md`,
+  `notebooks/README.md`, `src/experiments/paraconsistentGA/README.md`; new wiki guides
+  `How-To-Change-Anything`, `Data-Bases`, `Thesis-Document`; every `src/core/*/README.md`
+  rewritten from the tree; `scripts/README.md` and the thesis experiment README rewritten.
+- Stale paths (`include/nn/…`, `docs/…`, deleted scripts), a merged citation (Guido 2019 was
+  given the Coretto DOI), the non-existent `nn_gtest_discover_tests` wrapper, and the
+  hand-edited `Layers.hpp` instructions were corrected.
+- CI runs the five Meeting01 pytest suites.
+
 ## Unreleased (2026-05-02)
 
 ### Changed

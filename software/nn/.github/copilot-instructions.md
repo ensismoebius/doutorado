@@ -31,15 +31,15 @@ Where key code lives
 * Core library: `src/core/` (layers, tensor, optimizers, data_loaders).
 * Experiments & CLI: `src/experiments/` (each experiment has a `lib/include` and `lib/src` for reusable components).
 * Demos: `src/demos/`.
-* CMake helpers and vendored patches: `cmake/`, `build/` subprojects.
+* CMake helpers and vendored patches: `cmake/` (dependencies are fetched by `cmake/Vendor*.cmake`).
 
-Highlights from `docs/` (authoritative):
+The documentation is the wiki (authoritative):
 
-* The project documents methodology and reproducibility in `docs/docs.md` and naming rules in `docs/naming-conventions.md`. Follow those when adding experiments or refactoring.
+* Start at `.wiki/Home.md`; `.wiki/Guides/How-To-Change-Anything.md` maps every kind of change to its files, tests and docs; naming rules are in `.wiki/Development/Naming-Conventions.md`. Follow those when adding experiments or refactoring.
 
 Recent notable refactors (keep in mind)
 
-* `Experiment04` — pipeline moved into `src/experiments/autoencoderRunner/lib/include/meeting01.hpp` and `src/experiments/autoencoderRunner/lib/src/meeting01.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
+* Experiments are named, not numbered: `src/experiments/{thesis,meeting01,paraconsistentGA,autoencoderRunner,waveletAE,paraconsistentBaseline}/` (stored run tags keep the old numbers, `e05_` = thesis). Reuse their `lib/` code instead of duplicating pipeline code in new mains.
 * `BatchPrefetcher` — reworked to a single-producer, bounded-queue design to serialize `matio` reads. Always construct with a `DataLoader&` and ensure the `DataLoader` outlives the prefetcher.
 * `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate;
   add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).
@@ -48,9 +48,9 @@ Recent notable refactors (keep in mind)
 
 Current project state
 
-* Recent additions: `include/nn/testing/tempfile.hpp` (TempFile RAII helper), `include/nn/logging/Logger.hpp`, and a consolidated `include/nn/io/StateIO.hpp`.
+* Helpers: `include/test_utils/tempfile.hpp` (TempFile RAII helper), `include/logging/Logger.hpp`, `include/io/StateIO.hpp`.
 * Tests & fixes: Added `src/core/serialization/tests/StateIO_gtest.cpp`;
-  updated tests to be DB - independent and AddressSanitizer - clean; fixed `src/core/data_loaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
+  updated tests to be DB - independent and AddressSanitizer - clean; fixed `src/core/data_loaders/sources/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
 * API ergonomics: Introduced PyTorch-like ergonomics (e.g., `model.to(device)`, `optimizer.step()` / `optimizer.zero_grad()`, `state_dict()` / `load_state_dict()`), plus Adam + model state roundtrip tests.
 * Coverage & CI notes: An instrumented coverage build (`build-coverage`) is used for HTML reports. We observed `lcov/geninfo` "inconsistent: mismatched end line" errors caused by mismatches between gtest `TEST()` macro declaration lines and the compiled `TestBody()` DWARF ranges; the current pragmatic workflow is to perform a clean instrumented rebuild, run tests to regenerate `.gcda`, and use `lcov --ignore-errors inconsistent` plus selective `lcov --remove` filtering (e.g., `/usr/*`, `*/_deps/*`) when strict capture fails. Per-TU diagnostics are available for stricter investigations.
 
@@ -89,7 +89,7 @@ Testing guidance
 Commit, changelog and release
 
 * Include a `CHANGELOG.md` entry for any public API change or meaningful behavior change.
-* For API-breaking changes: provide a migration guide in `docs/` and include tests demonstrating the migration where feasible.
+* For API-breaking changes: write the migration in the module's `.wiki/Core/` page and include tests demonstrating the migration where feasible.
 
 Quick commands
 
@@ -105,7 +105,7 @@ ctest --test-dir build --output-on-failure -j4
 git ls-files '*.cpp' '*.hpp' '*.h' | xargs -r clang-format -i
 ```
 
-Naming conventions (summary from `docs/naming-conventions.md`)
+Naming conventions (summary from `.wiki/Development/Naming-Conventions.md`)
 
 * Types (`class`, `struct`, `enum`): `PascalCase`.
 * Functions and methods: `snake_case`.
@@ -138,7 +138,7 @@ Experiment04-specific editing guidance
 Adopt `include/tensor/xtensor/XTensorBackend.hpp` as the canonical header style for all public and semi-public headers. Requirements:
 
 * File prologue: short description, PHASE notes (if applicable), hardware/assumption bullets when relevant.
-* Includes: minimal, ordered, and use workspace-style path (e.g., `nn/tensor/...`).
+* Includes: minimal, ordered, relative to `include/` with no prefix (e.g., `tensor/Tensor.hpp`).
 * Public API grouping: group constructors, static factories, shape/accessors, operations, gradient management, and lifecycle sections with clear separators.
 * Per-method contract: one-line brief describing behavior, inputs, outputs, and thrown exceptions for public APIs.
 * RAII & lifecycle: explicitly document RAII resource types (e.g., `RuntimeScope`) and prefer RAII over explicit start/stop where possible.
