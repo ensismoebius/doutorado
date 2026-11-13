@@ -1,0 +1,216 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_cmp-ae_voice_dep_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "autoencoder": {
+        "ae_loss_type": "mse",
+        "decoder_layer_spec": [
+          "linear:64:leaky",
+          "linear:output:identity"
+        ],
+        "encoder_layer_spec": [
+          "linear:64:leaky",
+          "linear:32:identity"
+        ],
+        "model": "ann-ae"
+      },
+      "strategy": "autoencoder"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 100,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 8400754778312407189,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.13686063684252844,
+      "energy": {
+        "accesses": 317477.7869602951,
+        "fp_adds": 106887.55599781773,
+        "fp_macs": 8207.0,
+        "mem_nj": 4192.520981189367,
+        "nj": 4336.359475848128,
+        "nj_as_executed": 5461.991475848128,
+        "nj_sram1m": 31891.617190688266,
+        "nj_sram32k": 6493.394233864663,
+        "nj_sram8k": 3318.616364261711,
+        "ops_nj": 143.8384946587608,
+        "spikes": 1420.6133905698523
+      },
+      "feature_set": "autoencoder-ann",
+      "final_sops": 85325,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 319609.6149425287,
+            "fp_adds": 107596.22988505747,
+            "fp_macs": 8207.0,
+            "mem_nj": 4222.831840934371,
+            "nj": 4367.379033463107,
+            "nj_as_executed": 5493.011033463106,
+            "nj_sram1m": 32105.508686781606,
+            "nj_sram32k": 6536.7394913793105,
+            "nj_sram8k": 3340.6433419540226,
+            "ops_nj": 144.54719252873565,
+            "spikes": 1420.3735632183907
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.0032447585836052895,
+          "fold": 0,
+          "infer_ms": 25.189583,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-ae_voice_dep_rep2/autoencoder-ann/fold_0.bin",
+          "train_ms": 32291.117214
+        },
+        {
+          "energy": {
+            "accesses": 313275.1473684211,
+            "fp_adds": 105479.91578947369,
+            "fp_macs": 8207.0,
+            "mem_nj": 4138.343188455008,
+            "nj": 4280.776823191851,
+            "nj_as_executed": 5406.40882319185,
+            "nj_sram1m": 31469.94837157895,
+            "nj_sram32k": 6407.936582105264,
+            "nj_sram8k": 3275.185108421053,
+            "ops_nj": 142.43363473684212,
+            "spikes": 1392.8105263157895
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.0035599996335804462,
+          "fold": 1,
+          "infer_ms": 35.590001,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-ae_voice_dep_rep2/autoencoder-ann/fold_1.bin",
+          "train_ms": 31329.882249
+        },
+        {
+          "energy": {
+            "accesses": 308192.7039106146,
+            "fp_adds": 103787.44134078213,
+            "fp_macs": 8207.0,
+            "mem_nj": 4067.6303946657054,
+            "nj": 4208.372284051181,
+            "nj_as_executed": 5334.004284051181,
+            "nj_sram1m": 30960.012280446936,
+            "nj_sram32k": 6304.5959675977665,
+            "nj_sram8k": 3222.6689284916206,
+            "ops_nj": 140.74188938547488,
+            "spikes": 1385.5195530726257
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.0033923035953193903,
+          "fold": 2,
+          "infer_ms": 30.111363,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-ae_voice_dep_rep2/autoencoder-ann/fold_2.bin",
+          "train_ms": 33188.012555
+        },
+        {
+          "energy": {
+            "accesses": 343972.50581395347,
+            "fp_adds": 115733.76744186046,
+            "fp_macs": 8207.0,
+            "mem_nj": 4548.82786384096,
+            "nj": 4701.5025231432855,
+            "nj_as_executed": 5827.134523143286,
+            "nj_sram1m": 34549.925240697674,
+            "nj_sram32k": 7032.124775581396,
+            "nj_sram8k": 3592.39971744186,
+            "ops_nj": 152.6746593023256,
+            "spikes": 1521.0813953488373
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.003642039140686393,
+          "fold": 3,
+          "infer_ms": 26.164594,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-ae_voice_dep_rep2/autoencoder-ann/fold_3.bin",
+          "train_ms": 31445.624181
+        },
+        {
+          "energy": {
+            "accesses": 302338.96276595746,
+            "fp_adds": 101840.4255319149,
+            "fp_macs": 8207.0,
+            "mem_nj": 3984.9716180507894,
+            "nj": 4123.766715391215,
+            "nj_as_executed": 5249.398715391215,
+            "nj_sram1m": 30372.691373936173,
+            "nj_sram32k": 6185.574352659574,
+            "nj_sram8k": 3162.184725,
+            "ops_nj": 138.79509734042557,
+            "spikes": 1383.281914893617
+          },
+          "epochs_run": 100,
+          "final_train_loss": 0.0036760966759175062,
+          "fold": 4,
+          "infer_ms": 28.945491,
+          "model_path": "results/thesis/phase01/models/e05_p01_cmp-ae_voice_dep_rep2/autoencoder-ann/fold_4.bin",
+          "train_ms": 31733.670859
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7310813360771219,
+      "mean_eer": 0.34347733644500733,
+      "mean_f1": null,
+      "mean_infer_ms": 29.200206400000003,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3484136164188385,
+      "mean_train_ms": 31997.661411600002,
+      "param_count": 22677,
+      "std_accuracy": null,
+      "std_auc": 0.12729553710907368,
+      "std_eer": 0.11024124186736523,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_cmp-ae_voice_dep_rep2",
+  "seed": 44,
+  "strategy": "autoencoder",
+  "text_mode": "dependent"
+}

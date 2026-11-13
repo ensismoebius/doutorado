@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.229885,0.835414,29740.730,26.456,results/thesis/phase01/models/e05_p01_cmp-hc_voice_indep_rep2/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.315789,0.736413,29344.898,28.743,results/thesis/phase01/models/e05_p01_cmp-hc_voice_indep_rep2/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.473684,0.575699,29574.245,26.558,results/thesis/phase01/models/e05_p01_cmp-hc_voice_indep_rep2/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.436364,0.622241,29765.402,25.659,results/thesis/phase01/models/e05_p01_cmp-hc_voice_indep_rep2/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.322404,0.796754,29535.008,28.335,results/thesis/phase01/models/e05_p01_cmp-hc_voice_indep_rep2/handcrafted-lfcc/fold_4.bin

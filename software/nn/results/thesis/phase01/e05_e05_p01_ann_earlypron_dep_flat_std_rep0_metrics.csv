@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,ann,dependent,0,nan,nan,nan,nan,nan,0.323529,0.702820,922.462,0.560,results/thesis/phase01/models/e05_p01_ann_earlypron_dep_flat_std_rep0/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,ann,dependent,1,nan,nan,nan,nan,nan,0.233728,0.854207,914.525,0.692,results/thesis/phase01/models/e05_p01_ann_earlypron_dep_flat_std_rep0/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,ann,dependent,2,nan,nan,nan,nan,nan,0.195312,0.892944,915.490,0.645,results/thesis/phase01/models/e05_p01_ann_earlypron_dep_flat_std_rep0/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,ann,dependent,3,nan,nan,nan,nan,nan,0.529070,0.529830,935.999,0.564,results/thesis/phase01/models/e05_p01_ann_earlypron_dep_flat_std_rep0/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,ann,dependent,4,nan,nan,nan,nan,nan,0.267568,0.828970,905.580,0.606,results/thesis/phase01/models/e05_p01_ann_earlypron_dep_flat_std_rep0/handcrafted-lfcc-fused-early/fold_4.bin

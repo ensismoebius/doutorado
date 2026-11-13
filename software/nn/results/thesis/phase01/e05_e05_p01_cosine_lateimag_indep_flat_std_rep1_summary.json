@@ -1,0 +1,124 @@
+{
+  "classifier": "cosine",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "text_mode": "independent",
+      "type": "cosine"
+    },
+    "dataset": {
+      "eeg_condition": "imagined",
+      "eeg_pairing_seed": 2026,
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_cosine_lateimag_indep_flat_std_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "k_folds": 5,
+      "nested_cv": false,
+      "standardize_features": true
+    }
+  },
+  "config_hash": 5313165783875215535,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.15664575720773335,
+      "feature_set": "handcrafted-lfcc-fused-late",
+      "fold_models": [
+        {
+          "epochs_run": 0,
+          "fold": 0,
+          "infer_ms": 0.605664,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 1,
+          "infer_ms": 0.590452,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 2,
+          "infer_ms": 0.581289,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 3,
+          "infer_ms": 0.579608,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 4,
+          "infer_ms": 0.516134,
+          "model_path": "",
+          "train_ms": 0.0
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.8322179293900362,
+      "mean_eer": 0.23717746630693445,
+      "mean_f1": null,
+      "mean_infer_ms": 0.5746294,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_train_ms": 0.0,
+      "param_count": 0,
+      "std_accuracy": null,
+      "std_auc": 0.13946438509118858,
+      "std_eer": 0.12617815616117417,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_cosine_lateimag_indep_flat_std_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

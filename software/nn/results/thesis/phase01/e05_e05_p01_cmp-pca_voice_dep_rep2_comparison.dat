@@ -1,0 +1,2 @@
+x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall specificity std_specificity eer std_eer ci95_eer auc std_auc
+0 pca nan nan nan nan nan nan nan nan nan 0.322830 0.035758 0.044392 0.744427 0.042752

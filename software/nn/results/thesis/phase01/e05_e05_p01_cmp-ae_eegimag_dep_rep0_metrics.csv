@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+autoencoder-ann,dsnn,dependent,0,nan,nan,nan,nan,nan,0.276471,0.821298,28176.072,27.687,results/thesis/phase01/models/e05_p01_cmp-ae_eegimag_dep_rep0/autoencoder-ann/fold_0.bin
+autoencoder-ann,dsnn,dependent,1,nan,nan,nan,nan,nan,0.165680,0.898953,28317.639,24.913,results/thesis/phase01/models/e05_p01_cmp-ae_eegimag_dep_rep0/autoencoder-ann/fold_1.bin
+autoencoder-ann,dsnn,dependent,2,nan,nan,nan,nan,nan,0.411458,0.589342,27338.208,26.183,results/thesis/phase01/models/e05_p01_cmp-ae_eegimag_dep_rep0/autoencoder-ann/fold_2.bin
+autoencoder-ann,dsnn,dependent,3,nan,nan,nan,nan,nan,0.299419,0.779239,27905.823,26.083,results/thesis/phase01/models/e05_p01_cmp-ae_eegimag_dep_rep0/autoencoder-ann/fold_3.bin
+autoencoder-ann,dsnn,dependent,4,nan,nan,nan,nan,nan,0.194595,0.886954,27418.973,25.784,results/thesis/phase01/models/e05_p01_cmp-ae_eegimag_dep_rep0/autoencoder-ann/fold_4.bin

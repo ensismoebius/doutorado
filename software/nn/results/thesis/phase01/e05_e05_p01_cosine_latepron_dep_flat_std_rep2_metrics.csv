@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,cosine,dependent,0,nan,nan,nan,nan,nan,0.280702,0.810095,0.000,0.595,
+handcrafted-lfcc-fused-late,cosine,dependent,1,nan,nan,nan,nan,nan,0.227273,0.838786,0.000,0.646,
+handcrafted-lfcc-fused-late,cosine,dependent,2,nan,nan,nan,nan,nan,0.329545,0.733084,0.000,0.600,
+handcrafted-lfcc-fused-late,cosine,dependent,3,nan,nan,nan,nan,nan,0.393491,0.632523,0.000,0.554,
+handcrafted-lfcc-fused-late,cosine,dependent,4,nan,nan,nan,nan,nan,0.237838,0.877429,0.000,0.633,

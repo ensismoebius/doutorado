@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_p01_dsnn_lateimag_dep_flat_std,e05_p01_dysph_lateimag_probes_l100,eer,corrected,15,15,0.22051699999999996,0.23172146666666663,0.011204466666666663,0.13876413643834448,0.41453843020915354,0.6646756891166905,2,corrected-t(paired),0,
+e05_p01_dsnn_lateimag_dep_flat_std,e05_p01_dysph_lateimag_test_l100,eer,corrected,15,15,0.22051699999999996,0.25546879999999994,0.03495179999999998,0.369446968183243,0.33233784455834525,0.6646756891166905,2,corrected-t(paired),0,

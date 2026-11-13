@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_p01_dsnn_earlyimag_dep_flat_std,e05_p01_ann_earlyimag_dep_flat_std,eer,corrected,15,15,0.23532,0.2566108666666667,0.021290866666666713,0.2588133749879891,0.2644646727858552,0.2644646727858552,2,corrected-t(paired),0,
+e05_p01_dsnn_earlyimag_dep_flat_std,e05_p01_cosine_earlyimag_dep_flat_std,eer,corrected,15,15,0.23532,0.3066034000000001,0.07128340000000008,0.8975320621064519,0.1236382853667518,0.2472765707335036,2,corrected-t(paired),0,

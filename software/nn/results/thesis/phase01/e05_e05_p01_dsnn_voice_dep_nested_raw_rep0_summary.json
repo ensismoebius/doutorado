@@ -1,0 +1,225 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_dsnn_voice_dep_nested_raw_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "early_stop_patience": 10,
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": true,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": false,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 3223303978378108927,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.1106385959895457,
+      "energy": {
+        "accesses": 439058.7997335004,
+        "fp_adds": 144570.91703161798,
+        "fp_macs": 16399.0,
+        "mem_nj": 6006.157768418794,
+        "nj": 6225.367493303688,
+        "nj_as_executed": 11040.5628481424,
+        "nj_sram1m": 44125.08969823494,
+        "nj_sram32k": 9000.3857195549,
+        "nj_sram8k": 4609.797722219897,
+        "ops_nj": 219.20972488489244,
+        "spikes": 1437.9214672560738
+      },
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 126001,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 442454.55491329473,
+            "fp_adds": 145696.2774566474,
+            "fp_macs": 16399.0,
+            "mem_nj": 6056.271762073466,
+            "nj": 6276.607814674621,
+            "nj_as_executed": 11091.803169513332,
+            "nj_sram1m": 44465.79154393063,
+            "nj_sram32k": 9069.42715086705,
+            "nj_sram8k": 4644.881601734103,
+            "ops_nj": 220.3360526011561,
+            "spikes": 1428.2485549132948
+          },
+          "epochs_run": 11,
+          "final_train_loss": 1.7416383028030396,
+          "final_val_loss": 8.878254890441895,
+          "fold": 0,
+          "infer_ms": 29.921474,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_dep_nested_raw_rep0/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 14657.370398
+        },
+        {
+          "energy": {
+            "accesses": 451028.3488372093,
+            "fp_adds": 148559.81395348837,
+            "fp_macs": 16399.0,
+            "mem_nj": 6171.116316579145,
+            "nj": 6394.312422393098,
+            "nj_as_executed": 11209.507777231809,
+            "nj_sram1m": 45326.030989534884,
+            "nj_sram32k": 9243.763082558138,
+            "nj_sram8k": 4733.479594186047,
+            "ops_nj": 223.19610581395352,
+            "spikes": 1463.0813953488373
+          },
+          "epochs_run": 11,
+          "final_train_loss": 1.716040015220642,
+          "final_val_loss": 8.11458969116211,
+          "fold": 1,
+          "infer_ms": 22.320441,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_dep_nested_raw_rep0/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 15103.650812
+        },
+        {
+          "energy": {
+            "accesses": 410419.076923077,
+            "fp_adds": 135025.23076923078,
+            "fp_macs": 16399.0,
+            "mem_nj": 5612.192754342431,
+            "nj": 5821.8631851116625,
+            "nj_as_executed": 10637.058539950373,
+            "nj_sram1m": 41251.57812307693,
+            "nj_sram32k": 8418.051969230772,
+            "nj_sram8k": 4313.861200000001,
+            "ops_nj": 209.67043076923082,
+            "spikes": 1374.0
+          },
+          "epochs_run": 11,
+          "final_train_loss": 1.6746137142181396,
+          "final_val_loss": 7.621885299682617,
+          "fold": 2,
+          "infer_ms": 26.905622,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_dep_nested_raw_rep0/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 13960.931337
+        },
+        {
+          "energy": {
+            "accesses": 441657.33714285714,
+            "fp_adds": 145434.88,
+            "fp_macs": 16399.0,
+            "mem_nj": 6043.029024884793,
+            "nj": 6263.102703741936,
+            "nj_as_executed": 11078.298058580644,
+            "nj_sram1m": 44385.80739314286,
+            "nj_sram32k": 9053.220421714286,
+            "nj_sram8k": 4636.647050285715,
+            "ops_nj": 220.07367885714285,
+            "spikes": 1438.0114285714285
+          },
+          "epochs_run": 11,
+          "final_train_loss": 1.7639232873916626,
+          "final_val_loss": 8.20330810546875,
+          "fold": 3,
+          "infer_ms": 22.844888,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_dep_nested_raw_rep0/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 14561.208311
+        },
+        {
+          "energy": {
+            "accesses": 449734.6808510638,
+            "fp_adds": 148138.3829787234,
+            "fp_macs": 16399.0,
+            "mem_nj": 6148.178984214138,
+            "nj": 6370.951340597117,
+            "nj_as_executed": 11186.146695435827,
+            "nj_sram1m": 45196.24044148936,
+            "nj_sram32k": 9217.465973404254,
+            "nj_sram8k": 4720.1191648936165,
+            "ops_nj": 222.77235638297876,
+            "spikes": 1486.2659574468084
+          },
+          "epochs_run": 11,
+          "final_train_loss": 1.5638494491577148,
+          "final_val_loss": 8.437576293945313,
+          "fold": 4,
+          "infer_ms": 32.280436,
+          "model_path": "results/thesis/phase01/models/e05_p01_dsnn_voice_dep_nested_raw_rep0/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 14702.941505
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.6544586399719405,
+      "mean_eer": 0.38656488567658065,
+      "mean_f1": null,
+      "mean_infer_ms": 26.8545722,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3514541745185852,
+      "mean_train_ms": 14597.2204726,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.09071480252684397,
+      "std_eer": 0.08911938817282415,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_dsnn_voice_dep_nested_raw_rep0",
+  "seed": 42,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

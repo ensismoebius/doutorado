@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.102273,0.972285,16461.344,28.904,results/thesis/phase01/models/e05_p01_dysph_lateimag_probes_l100_rep1/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.169591,0.889812,16016.212,28.064,results/thesis/phase01/models/e05_p01_dysph_lateimag_probes_l100_rep1/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.233333,0.852392,15693.525,29.455,results/thesis/phase01/models/e05_p01_dysph_lateimag_probes_l100_rep1/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.188889,0.906096,15685.706,30.032,results/thesis/phase01/models/e05_p01_dysph_lateimag_probes_l100_rep1/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.190476,0.902742,15955.353,28.192,results/thesis/phase01/models/e05_p01_dysph_lateimag_probes_l100_rep1/handcrafted-lfcc-fused-late/fold_4.bin

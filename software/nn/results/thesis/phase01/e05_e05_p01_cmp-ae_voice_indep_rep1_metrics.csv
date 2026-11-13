@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+autoencoder-ann,dsnn,independent,0,nan,nan,nan,nan,nan,0.354054,0.678773,27442.034,29.116,results/thesis/phase01/models/e05_p01_cmp-ae_voice_indep_rep1/autoencoder-ann/fold_0.bin
+autoencoder-ann,dsnn,independent,1,nan,nan,nan,nan,nan,0.251429,0.793861,27524.180,25.332,results/thesis/phase01/models/e05_p01_cmp-ae_voice_indep_rep1/autoencoder-ann/fold_1.bin
+autoencoder-ann,dsnn,independent,2,nan,nan,nan,nan,nan,0.265193,0.827569,27084.807,26.883,results/thesis/phase01/models/e05_p01_cmp-ae_voice_indep_rep1/autoencoder-ann/fold_2.bin
+autoencoder-ann,dsnn,independent,3,nan,nan,nan,nan,nan,0.197802,0.893023,27213.289,26.229,results/thesis/phase01/models/e05_p01_cmp-ae_voice_indep_rep1/autoencoder-ann/fold_3.bin
+autoencoder-ann,dsnn,independent,4,nan,nan,nan,nan,nan,0.391566,0.690158,27584.097,23.607,results/thesis/phase01/models/e05_p01_cmp-ae_voice_indep_rep1/autoencoder-ann/fold_4.bin

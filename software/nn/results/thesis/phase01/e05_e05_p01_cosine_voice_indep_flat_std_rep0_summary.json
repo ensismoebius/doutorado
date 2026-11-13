@@ -1,0 +1,121 @@
+{
+  "classifier": "cosine",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "text_mode": "independent",
+      "type": "cosine"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/phase01",
+      "root": "~/database.sqlite"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01_cosine_voice_indep_flat_std_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "k_folds": 5,
+      "nested_cv": false,
+      "standardize_features": true
+    }
+  },
+  "config_hash": 14949755368884142875,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.057357353553356985,
+      "feature_set": "handcrafted-lfcc",
+      "fold_models": [
+        {
+          "epochs_run": 0,
+          "fold": 0,
+          "infer_ms": 0.339409,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 1,
+          "infer_ms": 0.349333,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 2,
+          "infer_ms": 0.401483,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 3,
+          "infer_ms": 0.364693,
+          "model_path": "",
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 4,
+          "infer_ms": 0.365518,
+          "model_path": "",
+          "train_ms": 0.0
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.6789147141712294,
+      "mean_eer": 0.39039284524397627,
+      "mean_f1": null,
+      "mean_infer_ms": 0.3640872,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_train_ms": 0.0,
+      "param_count": 0,
+      "std_accuracy": null,
+      "std_auc": 0.05859382778937508,
+      "std_eer": 0.046201347822332615,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01_cosine_voice_indep_flat_std_rep0",
+  "seed": 42,
+  "strategy": "handcrafted",
+  "text_mode": "independent"
+}

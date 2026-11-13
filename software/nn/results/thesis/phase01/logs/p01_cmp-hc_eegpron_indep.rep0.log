@@ -1,0 +1,7 @@
+2026-11-12 18:36:16 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/database.sqlite.pronounced.e05dscache)
+[Thesis] run_tag=e05_p01_cmp-hc_eegpron_indep modality=eeg strategy=handcrafted repeats=3 running=[0,1)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 1/3 (seed=42) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc  acc=nan ±nan  EER=0.258057  spec=nan
+[Thesis] Done. Results written to results/thesis/phase01
