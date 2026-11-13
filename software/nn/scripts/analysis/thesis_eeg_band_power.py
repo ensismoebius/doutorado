@@ -11,7 +11,8 @@ trials; prints the level at chosen frequencies relative to the 8-12 Hz (alpha) l
 share of power per range, and the number of trials the database flags with a blink.
 
 Measured 2026-11-12 on the 9315 trials: -30 dB at 46 Hz, -58 dB at 50 Hz, -87 dB at 54 Hz
-(the data is distributed already low-pass filtered near 45 Hz); 98.1% of the power below
+(consistent with the FIR band-pass of 2-40 Hz the database authors apply,
+Pressel Coretto et al., SPIE 2017); 98.1% of the power below
 32 Hz (sub-band 0), 1.9% in 32-64 Hz (sub-band 1), ~0 above 64 Hz; 2653 trials flagged
 with a blink.
 """

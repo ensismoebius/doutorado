@@ -169,7 +169,7 @@
 			\item \textbf{As características manuais do \ac{EEG} têm resolução
 			espectral grossa.} Com a \ac{DTWPT} de nível~4 a 1024\,Hz, cada
 			sub-banda tem 32\,Hz. Como a base já distribui o \ac{EEG} filtrado
-			perto de 45\,Hz, 98,1\% da potência cai na primeira sub-banda, que
+			entre 2 e 40\,Hz, 98,1\% da potência cai na primeira sub-banda, que
 			contém juntos os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$, e as
 			sub-bandas 2 a 15 ficam praticamente sem sinal
 			(\autoref{tab:potenciaEeg}). O \ac{EEG} também não passa por
@@ -208,7 +208,7 @@
 			voz soprosa;
 
 			\item \textbf{Refinar a decomposição do \ac{EEG}}: reamostrá-lo para
-			128\,Hz antes da \ac{DTWPT}, o que a filtragem da base permite sem perda,
+			128\,Hz antes da \ac{DTWPT}, o que o filtro de 2 a 40\,Hz da base permite sem perda,
 			daria sub-bandas de 4\,Hz que separam os ritmos $\delta$, $\theta$,
 			$\alpha$ e $\beta$; e medir o efeito da exclusão das tentativas com
 			piscada sobre o \ac{EER};

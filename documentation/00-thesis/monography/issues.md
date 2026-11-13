@@ -527,8 +527,8 @@ de valer nos dados.
 as cinco referências de método (Horowitz 2014, Lemaire 2022, Nadeau e Bengio 2003, Holm 1979,
 Welch 1967) conferidas na Crossref/JSTOR.
 
-**Achado novo (limitação, não defeito), medido.** O EEG da base já vem filtrado em passa-baixas
-perto de 45 Hz (−58,5 dB em 50 Hz em relação a α; `scripts/analysis/thesis_eeg_band_power.py`):
+**Achado novo (limitação, não defeito), medido.** O EEG da base já vem filtrado pelos autores (FIR
+passa-faixa de 2 a 40 Hz, declarado no artigo da base; a medição confirma) (−58,5 dB em 50 Hz em relação a α; `scripts/analysis/thesis_eeg_band_power.py`):
 98,1% da potência abaixo de 32 Hz, 1,9% entre 32 e 64 Hz, ~0 acima. Com a DTWPT de nível 4 a
 1024 Hz (sub-bandas de 32 Hz), os ritmos δ–β ficam juntos na sub-banda 0 e as sub-bandas 2–15
 quase não têm sinal; a interferência de 50 Hz não é questão nesta base. 2653 das 9315 tentativas
