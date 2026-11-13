@@ -22,13 +22,23 @@ using SpeakerFeatureMap = std::map<std::string, std::vector<std::vector<double>>
 struct ThesisDatasetView
 {
     std::vector<ThesisSample> samples;
-    std::vector<SubjectFiles> subject_files;
+    std::vector<SubjectFiles> subject_files; ///< coretto2017 only (one entry per speaker)
     int n_subjects = 0;
     int n_stimuli = 0;
+    /// The rates the signals were recorded at, set by the loader from the base (Hz). The
+    /// extractors read them (frequency scales, jitter, the simulated whisper); 0 means "not
+    /// loaded" and every reader refuses it. Until 2026-11-13 they were constants
+    /// (44100 / 1024, the Coretto base), wrong for any other base without an error.
+    double voice_sample_rate = 0.0;
+    double eeg_sample_rate = 0.0;
 };
 
-// Load all subjects under dataset.root, return raw samples.
-// Modality controls which signals are loaded ("voice", "eeg", "fused").
+/// The rate a reader of `view` needs, refused when the loader never set it.
+auto require_rate(double rate_hz, const char* which) -> double;
+
+// Load the base dataset.source names from dataset.root, return raw samples.
+// coretto2017: voice + EEG of the condition asked (pronounced: same trial; imagined: drawn);
+// biomex2021: the pairs written by scripts/data/biomex_to_sqlite.py (pronounced only).
 auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView;
 
 auto make_text_split(

@@ -2,11 +2,12 @@
 # thesis_gridunesp.sbatch -- one phase of the thesis experiment (Experiment05) on GridUnesp, as a
 # job array under job-nanny. The binary must already be BUILT and stamped on the cluster:
 # scripts/pipeline/meeting01/gridunesp_deploy.sh does both (its default targets include thesis)
-# and sends ~/database.sqlite, the profiles' dataset.root.
+# and sends ~/database.sqlite (and ~/biomex.sqlite, when it exists), the profiles' dataset.root.
 #
 # Usage (from ~/software/nn on GridUnesp, after the deploy):
 #   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=biomex  sbatch --array=0-47  scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -19,6 +20,9 @@
 #   phase01  142 profiles x 3 repetitions = 426 units -> --array=0-141, 3 units per task
 #            (00_thesis_generate_profiles.py: grid 56, controls 28, dysphonia 40, extractor
 #            comparison 18)
+#   biomex    48 profiles x 3 repetitions = 144 units -> --array=0-47, 3 units per task
+#            (the BIOMEX-DB replication: 24 grid + controls, 24 dysphonia; ~/biomex.sqlite,
+#            read directly, no decoded cache)
 #   phase00  275 units, one per profile               -> --array=0-63, ~4-5 units per task
 #
 # Phase 00 keeps whole profiles: a handcrafted profile extracts its features ONCE for all
@@ -123,8 +127,8 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 # ── What this task runs ───────────────────────────────────────────────────────────────────────
 PHASE="${THESIS_PHASE:-}"
 case "$PHASE" in
-  phase00|phase01) ;;
-  *) refuse "THESIS_PHASE must be phase00 or phase01 (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
+  phase00|phase01|biomex) ;;
+  *) refuse "THESIS_PHASE must be phase00, phase01 or biomex (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
 esac
 [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] ||
   refuse "submit as an array (sbatch --array=0-<N-1> ...); see the header of this file"
@@ -157,7 +161,7 @@ mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sor
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
   phase00) SPLIT_REPEATS=0 ;;
-  phase01) SPLIT_REPEATS=1 ;;
+  phase01|biomex) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,

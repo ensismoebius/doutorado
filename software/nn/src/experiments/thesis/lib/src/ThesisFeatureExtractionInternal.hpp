@@ -87,11 +87,11 @@ std::vector<double> eeg_signal(const ThesisSample& sample)
 
 // Early fusion: one signal = voice samples followed by EEG samples, extracted
 // through a single DTWPT/autoencoder pass (audit C12). The two halves have
-// different native sample rates (44100 Hz voice vs 1024 Hz EEG); the caller
-// applies the voice rate to the whole concatenation for frequency-scale mapping
-// since voice dominates the sample count (176400 vs 24576 per trial). This is
-// an approximation, not a resampling — documented here so it isn't mistaken for
-// a physically exact rate.
+// different native sample rates (Coretto: 44100 Hz voice vs 1024 Hz EEG; BIOMEX-DB:
+// 16000 vs 128); the caller applies the voice rate to the whole concatenation for
+// frequency-scale mapping since voice dominates the sample count (Coretto: 176400 vs
+// 24576 per trial; BIOMEX-DB: 16000 vs 3584). This is an approximation, not a
+// resampling — documented here so it isn't mistaken for a physically exact rate.
 std::vector<double> fused_early_signal(const ThesisSample& sample)
 {
     std::vector<double> sig = voice_signal(sample);
@@ -99,11 +99,6 @@ std::vector<double> fused_early_signal(const ThesisSample& sample)
     sig.insert(sig.end(), eeg.begin(), eeg.end());
     return sig;
 }
-
-// Nominal sample rates by modality (Hz), per the dataset protocol
-// (Pressel Coretto et al., SPIE 2017 / 10.1117/12.2255697).
-constexpr double kVoiceSampleRate = 44100.0;
-constexpr double kEegSampleRate = 1024.0;
 
 // Width of one encoder layer item "linear:<width>[:activation]". Anything else is refused:
 // these helpers used to skip unreadable items and, when none was readable, return a

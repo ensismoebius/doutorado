@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""Tests for scripts/data/biomex_to_sqlite.py on a synthetic BIOMEX-DB volunteer.
+
+The synthetic volunteer has the real layout (EDF at 128 Hz with COUNTER, INTERPOLATED, the
+14 channels and MARKER; one WAV + .lab per series) and a signature in every digit: in the
+EEG, a 10 Hz burst of amplitude 10 x code uV after the digit's marker; in the voice, a
+200 Hz tone of amplitude code/20 at the word's onset. A pair is right only if both
+signatures carry the same code, so these tests check the pairing itself, not just counts.
+
+Run:  python3 scripts/testing/test_biomex_convert.py
+"""
+import os
+import sqlite3
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+import wave
+
+import numpy as np
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+CONVERT = os.path.join(os.path.dirname(HERE), "data", "biomex_to_sqlite.py")
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "data"))
+import biomex_to_sqlite as bx  # noqa: E402
+
+FS = 128
+VFS = 16000
+DIGIT_GAP_S = 2.6     # EEG clock
+WORD_GAP_S = 2.0      # voice clock (deliberately different, as in the real base)
+WORD_ON_S = 1.1
+WORD_LEN_S = 0.35
+RNG = np.random.default_rng(3)
+
+
+def series_codes(per_series):
+    return [list(RNG.permutation(np.arange(1, 11))[:per_series]) for _ in range(10)]
+
+
+def write_edf(path, signals, labels, phys, dig):
+    ns, n = len(labels), signals.shape[1]
+    n_rec = n // FS
+    h = b"0       " + b" " * 80 + b" " * 80 + b"18.07.18" + b"12.29.06"
+    h += f"{256 * (ns + 1):<8}".encode() + b" " * 44 + f"{n_rec:<8}".encode()
+    h += f"{1:<8}".encode() + f"{ns:<4}".encode()
+    h += b"".join(f"{lb:<16}".encode() for lb in labels) + b" " * 80 * ns + b"uV      " * ns
+    h += b"".join(f"{p[0]:<8}".encode() for p in phys)
+    h += b"".join(f"{p[1]:<8}".encode() for p in phys)
+    h += b"".join(f"{d[0]:<8}".encode() for d in dig)
+    h += b"".join(f"{d[1]:<8}".encode() for d in dig)
+    h += b" " * 80 * ns + f"{FS:<8}".encode() * ns + b" " * 32 * ns
+    gain = np.array([(p[1] - p[0]) / (d[1] - d[0]) for p, d in zip(phys, dig)])
+    digital = np.round((signals - np.array([p[0] for p in phys])[:, None]) / gain[:, None]
+                       + np.array([d[0] for d in dig])[:, None]).astype("<i2")
+    body = digital[:, :n_rec * FS].reshape(ns, n_rec, FS).transpose(1, 0, 2).tobytes()
+    with open(path, "wb") as f:
+        f.write(h + body)
+
+
+def make_volunteer(root, vid="F999", typo=True, break_series=None, bad_marker=False,
+                   word_len_s=WORD_LEN_S):
+    for sub in ("EEG", "Voice"):
+        os.makedirs(os.path.join(root, vid, sub))
+    truth = []
+    for session, per in bx.SESSIONS.items():
+        codes = series_codes(per)
+        n = int((25 + 10 * (per * DIGIT_GAP_S + 5)) * FS)
+        eeg = np.zeros((14, n)) + 4200.0  # the Emotiv DC offset the filter must remove
+        marker = np.zeros(n)
+        t = 22.0
+        marker[int(1 * FS)] = 99
+        marker[int(10 * FS)] = 89
+        for k, series in enumerate(codes, 1):
+            for j, c in enumerate(series):
+                m = int((t + j * DIGIT_GAP_S) * FS)
+                marker[m] = c
+                tt = np.arange(int(2.0 * FS)) / FS
+                eeg[:, m:m + len(tt)] += 10.0 * c * np.sin(2 * np.pi * 10 * tt)
+                truth.append((session, k, j + 1, c))
+            t += per * DIGIT_GAP_S
+            marker[int(t * FS)] = 69
+            t += 5
+        if bad_marker and session == "01G10":
+            marker[int(5 * FS)] = 42
+        labels = ["COUNTER", "INTERPOLATED"] + list(bx.EEG_CHANNELS) + ["MARKER"]
+        sig = np.vstack([np.arange(n) % 128, np.zeros(n), eeg, marker])
+        phys = [(0, 16000)] * len(labels)
+        dig = [(0, 31200)] * (len(labels) - 1) + [(0, 16000)]
+        write_edf(os.path.join(root, vid, "EEG", f"{vid}-{session}-18.07.18.12.29.05.edf"),
+                  sig, labels, phys, dig)
+        for k, series in enumerate(codes, 1):
+            vn = int((WORD_ON_S + per * WORD_GAP_S + 0.5) * VFS)
+            v = np.zeros(vn)
+            lab, prev = [], 0
+            words = [bx.DIGIT_WORDS[c] for c in series]
+            if break_series == (session, k):
+                words = words[1:] + words[:1]
+            for j, (c, w) in enumerate(zip(series, words)):
+                on = int((WORD_ON_S + j * WORD_GAP_S) * VFS)
+                end = on + int(word_len_s * VFS)
+                tt = np.arange(end - on) / VFS
+                v[on:end] = (c / 20) * np.sin(2 * np.pi * 200 * tt)
+                spelled = "UN0" if (typo and w == "UNO") else w
+                lab += [(prev, on - 1, "SILENCIO"), (on, end, spelled)]
+                prev = end + 1
+            lab.append((prev, vn - 1, "SILENCIO"))
+            stem = os.path.join(root, vid, "Voice", f"{vid}_{session}_{k}")
+            with wave.open(stem + ".wav", "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(VFS)
+                w.writeframes((np.clip(v, -1, 1) * 32767).astype("<i2").tobytes())
+            with open(stem + ".lab", "w") as f:
+                for a, b, word in lab:
+                    # 100 ns units; one line in scientific notation, as in the real labels
+                    a_txt = f"{a / VFS * 1e7:.6e}" if word == "SILENCIO" else str(int(a / VFS * 1e7))
+                    f.write(f"{a_txt} {int(b / VFS * 1e7)} {word}\n")
+    return truth
+
+
+def read(path):
+    with open(path) as f:
+        return f.read()
+
+
+def write(path, text):
+    with open(path, "w") as f:
+        f.write(text)
+
+
+def run(src, out):
+    return subprocess.run([sys.executable, CONVERT, "--src", src, "--out", out],
+                          capture_output=True, text=True)
+
+
+class BiomexConvert(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.src = os.path.join(self.tmp.name, "src")
+        self.out = os.path.join(self.tmp.name, "b.sqlite")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_pairs_carry_the_same_digit_in_eeg_and_voice(self):
+        truth = make_volunteer(self.src)
+        r = run(self.src, self.out)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        con = sqlite3.connect(self.out)
+        rows = con.execute("SELECT session, series, position, stimulus_id, voice, eeg "
+                           "FROM pair ORDER BY session DESC, series, position").fetchall()
+        self.assertEqual(len(rows), 140)
+        self.assertEqual(sorted((s, k, j, c) for s, k, j, c, _, _ in rows), sorted(truth))
+        for s, k, j, c, voice, eeg in rows:
+            v = np.frombuffer(voice, dtype=np.float32)
+            e = np.frombuffer(eeg, dtype=np.float32).reshape(14, 256)
+            self.assertEqual(v.size, VFS)
+            # voice: the tone of this code fills the first WORD_LEN_S of the window
+            rms_v = np.sqrt(np.mean(v[:int(0.3 * VFS)] ** 2))
+            self.assertAlmostEqual(rms_v, (c / 20) / np.sqrt(2), delta=0.01)
+            # EEG: the burst of this code, DC removed by the band-pass
+            mid = e[:, 64:192]
+            self.assertAlmostEqual(float(np.sqrt(np.mean(mid ** 2))), 10 * c / np.sqrt(2),
+                                   delta=0.1 * 10 * c)
+            self.assertLess(abs(float(e.mean())), 1.0)
+        info = dict(con.execute("SELECT key, value FROM recording"))
+        con.close()
+        self.assertEqual(info["source"], "biomex2021")
+        self.assertEqual(info["eeg_sample_rate"], "128")
+        self.assertEqual(info["voice_sample_rate"], "16000")
+
+    def test_a_series_whose_words_differ_from_its_markers_is_refused(self):
+        make_volunteer(self.src, break_series=("01G04", 3))
+        r = run(self.src, self.out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("01G04 series 3", r.stderr)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_an_unknown_marker_is_refused(self):
+        make_volunteer(self.src, bad_marker=True)
+        r = run(self.src, self.out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("unknown MARKER code 42", r.stderr)
+
+    def test_an_unknown_label_is_refused_and_the_known_typo_is_not(self):
+        # Every 01G10 series holds all ten digits, so its .lab spells "UN0"; the pairing test
+        # above converts that volunteer, so the typo map is exercised there.
+        make_volunteer(self.src, typo=True)
+        lab = os.path.join(self.src, "F999", "Voice", "F999_01G10_1.lab")
+        text = read(lab)
+        self.assertIn("UN0", text)
+        write(lab, text.replace("SILENCIO", "SILENSIO", 1))
+        r = run(self.src, self.out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("unknown label 'SILENSIO'", r.stderr)
+
+    def _move_words(self, series, word1, word2):
+        """Relabel the first two words of a 01G10 series to (onset, end) in seconds. Only the
+        .lab moves: the window is cut where the label says, which is what is under test."""
+        lab = os.path.join(self.src, "F999", "Voice", f"F999_01G10_{series}.lab")
+        lines = read(lab).splitlines()
+        for i, (a, b) in ((1, word1), (3, word2)):
+            lines[i] = f"{int(a * 1e7)} {int(b * 1e7)} {lines[i].split()[2]}"
+        write(lab, "\n".join(lines) + "\n")
+
+    def test_a_voice_window_that_reaches_the_next_word_moves_earlier(self):
+        make_volunteer(self.src)
+        # Word 2 relabelled to start 0.5 s after word 1 (1.1 s): word 1's 1 s window must end
+        # at 1.6 s, so it starts at 0.6 s and holds word 1's tone from 0.5 s on.
+        self._move_words(2, (WORD_ON_S, WORD_ON_S + WORD_LEN_S), (1.6, 1.9))
+        r = run(self.src, self.out)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        con = sqlite3.connect(self.out)
+        rows = con.execute("SELECT stimulus_id, voice, voice_shift_s, voice_cut FROM pair "
+                           "WHERE session='01G10' AND series=2 ORDER BY position").fetchall()
+        info = dict(con.execute("SELECT key, value FROM recording"))
+        con.close()
+        code, voice, shift, cut = rows[0]
+        self.assertAlmostEqual(shift, 0.5, places=3)
+        self.assertEqual(cut, 0)
+        v = np.frombuffer(voice, dtype=np.float32)
+        self.assertLess(float(np.abs(v[:int(0.45 * VFS)]).max()), 1e-3)  # silence before
+        rms = np.sqrt(np.mean(v[int(0.5 * VFS):int(0.8 * VFS)] ** 2))
+        self.assertAlmostEqual(rms, (code / 20) / np.sqrt(2), delta=0.01)  # word 1's own tone
+        self.assertEqual([r[2] for r in rows[1:]], [0.0] * 9)
+        self.assertEqual(info["voice_windows_shifted"], "1")
+
+    def test_a_voice_window_with_no_room_is_refused(self):
+        make_volunteer(self.src)
+        # Word 1 at 0.2 s, word 2 at 0.7 s: a 1 s window ending at 0.7 s would start before
+        # the WAV does.
+        self._move_words(2, (0.2, 0.4), (0.7, 0.9))
+        r = run(self.src, self.out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("01G10 series 2 digit 1: no 1.0 s voice window fits", r.stderr)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_an_existing_output_is_never_overwritten(self):
+        make_volunteer(self.src)
+        write(self.out, "")
+        r = run(self.src, self.out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("exists", r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

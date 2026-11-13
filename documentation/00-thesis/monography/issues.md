@@ -540,3 +540,87 @@ bimodal 97,6%), que estreitou a lacuna para "verificação com locutores fora do
 degradação". O Web of Science não foi consultado: o acesso automatizado por sessão foi bloqueado
 pela política de permissões desta sessão. Item 21: terminologia padronizada (seção "Terminologia"
 na Introdução). LSTM-AE alinhado à entrada espectral (924deede).
+
+---
+
+## Inclusão da BIOMEX-DB: replicação confirmatória (decidido em 2026-11-13)
+
+**Decisão.** Incluir a BIOMEX-DB (Moreno-Rodriguez et al., IEEE Access 9:111267, 2021; dados
+em 10.17632/s7chktmb6x.1, CC BY 4.0) como **replicação confirmatória**: os vencedores da
+Coretto (extrator, hiperparâmetros, tipo de fusão) são fixados antes e rodados **uma vez** na
+BIOMEX-DB, sem nova seleção. Só entram voz, EEG pronunciado e fusão de pronunciado. O grid
+completo na BIOMEX-DB, se for feito, é exploratório e rotulado assim.
+
+**O que a BIOMEX-DB cobre, e o que não cobre.** Só fala pronunciada, em que o EEG e o áudio são
+gravados juntos. **Não tem fala imaginada**, então não replica o resultado central da tese.
+
+### Medido no voluntário F001 (7,5 MB, baixado em 2026-11-13)
+
+| | Coretto (base atual) | BIOMEX-DB |
+|---|---|---|
+| Locutores | 15 | 51 (25 F) |
+| Condições | imaginada (só EEG) e pronunciada (EEG e áudio) | **só pronunciada** (EEG e áudio) |
+| Estímulos | 5 vogais e 6 comandos | dígitos 0–9 em espanhol, 140 por locutor (14 por dígito): sessão `01G10` = 10 séries de 10 dígitos, `01G04` = 10 séries de 4 |
+| EEG | 6 canais, 1024 Hz, FIR 2–40 Hz dos autores | Emotiv Epoc, **14 canais (AF3 F7 F3 FC5 T7 P7 O1 O2 P8 T8 FC6 F4 F8 AF4), 128 Hz**; EDF (36 sinais: + COUNTER, INTERPOLATED, qualidade de contato, giroscópio, MARKER) e CSV; rejeita-faixa visível em 50/60 Hz (−33 dB re α), 40 Hz só −7 dB |
+| Voz | 44,1 kHz | 16 kHz mono 16 bits, um WAV por série, `.LAB` por palavra em unidades de 100 ns |
+| Download | — | 51 `.rar` em uma pasta `BIOMEX` do Mendeley, **8,1 GB** (quase tudo vídeo; os 12 sem vídeo têm ~8 MB) |
+
+Arquivos de dados: API pública do Mendeley, `public-api/datasets/s7chktmb6x/folders/1` → pasta
+`BIOMEX` → `files?folder_id=<id>&version=1` (a raiz da versão está vazia, por isso a página
+mostra "Files" vazio e `size` 0).
+
+**Pareamento voz–EEG.** O canal MARKER do EDF tem um código por dígito (1–9, e 10 = "cero"),
+99 no início, 89 nos olhos abertos, 69 no descanso entre séries. A ordem dos marcadores bate
+com a ordem dos dígitos no `.LAB` (série 1 do F001: 7 9 0 2 1 5 8 6 4 3 nos dois). O par é
+pela ordem dentro da série, conferindo a identidade do dígito.
+
+### Três cuidados
+
+1. **As "duas sessões" não são dias diferentes** (F001: 12h29 e 12h36 do mesmo dia). A base não
+   testa reconhecimento em outro dia; não apresentar isso como vantagem.
+2. **Voz e EEG não compartilham relógio.** Dígitos a ~2,0 s no WAV e ~2,6 s no EEG; uma série
+   dura 20 s no WAV e 26,3 s no EEG. A janela de EEG sai do marcador do EEG, nunca do tempo do
+   WAV (a janela errada não dá erro, só fica deslocada).
+3. **EEG durante a fala tem EMG.** F001, 2 s após cada marcador ÷ repouso de olhos abertos:
+   1–4 Hz 11,8×, 4–8 Hz 7,3×, 8–13 Hz 4,1×, 13–30 Hz 2,3×, 30–64 Hz 2,3×; em 30–64 Hz os
+   maiores são T7 4,4× e F7 3,8× (mais perto da mandíbula). Parte do aumento em baixa
+   frequência pode ser movimento ocular de leitura. Vale também para a condição pronunciada
+   da Coretto: o texto deve dizer que "EEG pronunciado" carrega atividade muscular.
+
+### Trabalho
+
+- Conversor Python BIOMEX → mesmo esquema SQLite da Coretto, em arquivo separado: 2 s de EEG
+  após cada marcador (256 amostras × 14 canais), voz pelo `.LAB` do dígito; tabela explícita
+  de rótulos (há erros de digitação, como `UN0`), rótulo desconhecido é erro.
+- C++: taxa do EEG fixa em `kEegSampleRate = 1024.0` (`ThesisFeatureExtractionInternal.hpp`) e
+  comentários 6×4096 → taxa, canais e duração declarados na configuração (sem padrão). A 128 Hz
+  a DTWPT de nível 4 dá sub-bandas de 4 Hz (separa δ/θ/α/β; dizer no texto).
+- Perfis da replicação no gerador, auditoria de perfis, testes do conversor.
+- Download dos 8,1 GB só depois que o conversor passar nos testes com o F001; vídeo descartado.
+
+### Implementado (2026-11-13)
+
+- `scripts/data/biomex_download.py` (API do Mendeley, confere o tamanho de cada `.rar`, extrai só
+  EEG e Voice, retoma onde parou) e `scripts/data/biomex_to_sqlite.py` (pareamento acima,
+  filtro 2–40 Hz FIR de fase zero na sessão inteira, voz de 1 s a partir do início da palavra,
+  tudo que não pareia com certeza é recusado). A janela de voz é recuada, o mínimo necessário,
+  quando alcançaria a palavra seguinte ou o fim do WAV (F004 diz UNO e DOS com 0,526 s de
+  intervalo; o WAV de F006 termina 0,996 s após a última palavra). O recuo de cada par fica em
+  `pair.voice_shift_s`. Se não houver espaço sem invadir a palavra anterior, o voluntário é recusado.
+  Encolher a janela de todos cortaria as palavras longas; descartar os pares seria uma seleção
+  silenciosa. Testes: `scripts/testing/test_biomex_convert.py`
+  (voluntário sintético com assinatura do dígito no EEG e na voz; na CI).
+- `dataset.source` obrigatório (`coretto2017` | `biomex2021`); BIOMEX-DB com condição imaginada
+  é recusada. As taxas de amostragem saem da base (`ThesisDatasetView`), não de constantes.
+- 48 perfis em `profiles/biomex/` (`bx01_*`): DSNN, `ann` e `cosine` × voz, EEG pronunciado,
+  fusão precoce e tardia de pronunciado × frases vistas/não vistas (24) e a disfonia simulada
+  nas fontes que leem a voz (24). Nada é selecionado na BIOMEX-DB.
+- Vencedores congelados antes de qualquer resultado da BIOMEX-DB:
+  `results/thesis/biomex/coretto_phase00_winners_frozen.json` (voz e EEG pronunciado:
+  Haar + bandas lineares c1, DTWPT nível 4).
+- GridUnesp: `THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch`;
+  o deploy envia `~/biomex.sqlite` quando ele existe.
+
+**Achado lateral.** O passo da CI `test_thesis_phase_scripts.py` já falha no `main` (25 de 29):
+os scripts de ranking e significância ganharam argumentos obrigatórios em 12/11 (13fafd0b) e o
+teste ficou com a interface de 11/11. Não é efeito da BIOMEX-DB.

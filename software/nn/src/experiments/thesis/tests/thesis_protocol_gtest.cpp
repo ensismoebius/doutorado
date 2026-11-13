@@ -206,6 +206,7 @@ std::string make_mock_db()
 ThesisConfig::Dataset mock_dataset(const std::string& root, const std::string& condition)
 {
     ThesisConfig::Dataset d;
+    d.source = "coretto2017";
     d.root = root;
     d.results_dir = "results/thesis";
     d.modality = "eeg";
@@ -393,6 +394,8 @@ namespace
 ThesisDatasetView speakers_view()
 {
     ThesisDatasetView v;
+    v.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    v.eeg_sample_rate = 1024.0;
     v.n_subjects = 8;
     v.n_stimuli = 2;
     for (int s = 1; s <= 8; ++s)

@@ -23,6 +23,7 @@ inline ThesisConfig phase00(const std::string& modality)
     c.experiment.run_tag = "test";
     c.experiment.seed = 42u;
     c.experiment.repeats = 1;
+    c.dataset.source = "coretto2017";
     c.dataset.root = "/nonexistent";
     c.dataset.results_dir = "results/thesis";
     c.dataset.modality = modality;

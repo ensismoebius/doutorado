@@ -179,6 +179,8 @@ ThesisConfig make_dsnn_cfg()
 ThesisDatasetView make_view(int n_subjects, int samples_per_subject)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     view.n_subjects = n_subjects;
     view.n_stimuli = 1;
 

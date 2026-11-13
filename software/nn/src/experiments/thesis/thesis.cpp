@@ -56,7 +56,7 @@ constexpr std::size_t kEnrolUtterancesPerSpeaker = 1;
 // on the thread schedule.
 void degrade_voices(thesis::ThesisDatasetView& view, const thesis::ThesisConfig::Degradation& dg)
 {
-    constexpr double kVoiceRateHz = 44100.0; // 10.1117 voice: 176400 samples in 4 s
+    const double voice_rate_hz = thesis::require_rate(view.voice_sample_rate, "voice");
     const auto n = static_cast<long>(view.samples.size());
 #pragma omp parallel for schedule(dynamic, 8)
     for (long i = 0; i < n; ++i)
@@ -65,7 +65,7 @@ void degrade_voices(thesis::ThesisDatasetView& view, const thesis::ThesisConfig:
         const float* src = audio.data_ptr();
         const std::vector<float> x(src, src + audio.size());
         const std::uint32_t seed = dg.seed.get() ^ (static_cast<std::uint32_t>(i) * 2654435761U);
-        const std::vector<float> y = thesis::degrade_voice(x, kVoiceRateHz, dg.level, seed);
+        const std::vector<float> y = thesis::degrade_voice(x, voice_rate_hz, dg.level, seed);
         std::copy(y.begin(), y.end(), audio.mutable_data_ptr());
     }
 }

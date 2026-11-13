@@ -268,6 +268,95 @@ It needs the significance files first: `scripts/pipeline/thesis/03_thesis_phase0
 writes one `significance_<family>_*.csv` per declared family (`vsvoice`, `fusion`, `ctrl`,
 `dysph`, `cmp`, `text`, `cond`) into `results/thesis/phase01/`.
 
+### 11. A second base: the BIOMEX-DB replication (2026-11-13)
+
+**Problem.** Every thesis number comes from one base of 15 speakers, and the extractor was
+chosen on that base (Phase 00). A result that holds there may hold only there. A second,
+independent base answers that, but only if nothing is chosen on it: run a search on the new
+base and its best cell is a selection again, not a test.
+
+**Design: confirmatory.** The Coretto Phase 00 winners are frozen *before* any BIOMEX-DB
+result exists (`results/thesis/biomex/coretto_phase00_winners_frozen.json`: voice and
+pronounced EEG both `handcrafted/haar/lfcc/c1`, DTWPT level 4) and the Phase 01 cells the
+thesis concludes on run once on BIOMEX-DB:
+
+| Profiles (`profiles/biomex/`) | Cells | Count |
+|---|---|---|
+| `bx01_{dsnn,ann,cosine}_<src>_<text>_flat_std` | sources voice, eegpron, earlypron, latepron × dep/indep | 24 |
+| `bx01_dysph_<src>_<scope>_l<level>` | sources that read the voice × probes/test × 0.25-1.0 | 24 |
+
+No Phase 00, no nested CV, no raw (unstandardized) runs on BIOMEX-DB. It has **no imagined
+speech**, so `eegimag` and the imagined fusions do not exist there (`ThesisConfig` refuses
+`dataset.source biomex2021` with `eeg_condition imagined`).
+
+**The base, measured on volunteer F001.**
+
+| | Coretto (`coretto2017`) | BIOMEX-DB (`biomex2021`) |
+|---|---|---|
+| Speakers | 15 | 51 (25 F) |
+| Conditions | imagined (EEG only), pronounced (EEG + voice) | pronounced only (EEG + voice) |
+| Stimuli | 5 vowels, 6 commands | digits 0-9 (Spanish), 14 per digit per speaker |
+| EEG | 6 ch, 1024 Hz, 4 s, 2-40 Hz by the authors | Emotiv Epoc, 14 ch, 128 Hz; 2 s after the digit marker, 2-40 Hz by the converter |
+| Voice | 44.1 kHz, 4 s window | 16 kHz, 1 s from the labelled word onset (moved earlier when it would reach the next word) |
+
+**How a pair is made** (`scripts/data/biomex_to_sqlite.py`). The EEG and the voice of a series
+are on two clocks that disagree (a series lasts 26.3 s in the EEG, 20.0 s in the WAV), so each
+is cut on its own clock and the two are matched by order:
+
+```
+EEG MARKER channel   99 89 | 7  9  10 2 ... 3 | 69 | 1 7 10 ... | 69 ...
+                           |<-- series 1 ---->|    |<- series 2
+voice series 1 .lab        SIETE NUEVE CERO DOS ... TRES
+pair j of series k  =  (j-th digit marker of run k, j-th word of WAV k); digits must agree
+```
+
+**The voice window, and the speakers who talk faster than it.** Each voice sample is 1 s of
+the series WAV starting at the word's labelled onset: the word (p99 0.74 s over F001-F006)
+plus the silence after it. Most speakers leave ≥ 1.4 s between digits, but not all:
+
+```
+F004 01G04 series 1   UNO at 1.476 s, DOS at 2.002 s  (0.526 s apart)
+                      |UNO|..|DOS|.................
+1 s from UNO's onset   [1.476 ------------- 2.476)   holds the start of DOS  -> wrong pair content
+moved earlier          [1.002 ------- 2.002)          ends where DOS begins; silence before UNO
+```
+
+Three ways out, and why the converter takes the third:
+
+| Option | What it costs | Fails how |
+|---|---|---|
+| shrink the window for everyone to the shortest gap (0.5 s) | cuts every long word (p99 0.74 s) to fit one fast speaker | silently: worse features for all 51 |
+| drop the pairs that do not fit | a selection nobody chose; differs per speaker | silently: fewer probes for the fast speakers |
+| **move that window earlier, just enough to end at the next onset** | the word sits later in its window (0.47 s for UNO above) | stored per pair (`voice_shift_s`); refused loudly if the moved window would reach the previous word |
+
+The same rule covers a WAV that ends less than 1 s after its last word (F006: 0.996 s). A
+labelled word longer than the window is kept from its onset and counted (`voice_cut`; one in
+F001-F006, F006's "TRES" labelled 1.676 s). Totals are in the base's `recording` table
+(`voice_windows_shifted`, `voice_words_cut`).
+
+**Why the converter filters the EEG.** The Emotiv EEG sits on a DC offset of ~4000 uV that
+differs per electrode and per headset fit. Unfiltered, energy and spectrum features would
+read the fit of the headset and identify speakers by it — a silent confound that looks like
+a good EER. The same 2-40 Hz band the Coretto authors applied removes it and keeps the two
+bases comparable (after the filter: mean -0.01 uV, -64 dB at 45 Hz re alpha).
+
+**Rates come from the base.** Until this change the extractors used constants (44100 / 1024
+Hz). `ThesisDatasetView` now carries `voice_sample_rate` / `eeg_sample_rate`, set by the
+loader (Coretto: its documented rates; BIOMEX-DB: the `recording` table); a view without them
+is refused (`require_rate`). On BIOMEX-DB the DTWPT level 4 gives 16 sub-bands of 4 Hz on the
+EEG (δ, θ, α, β separate) and of 500 Hz on the voice.
+
+**Cautions (measured, F001).** (1) The two "sessions" are 7 minutes apart on the same day,
+not two days. (2) EEG while speaking carries muscle activity: 2 s after a digit marker vs
+eyes-open rest, power 30-64 Hz ×2.3 (T7 ×4.4, F7 ×3.8), 1-4 Hz ×11.8 — "pronounced EEG"
+identification can be partly jaw and eyes, on both bases.
+
+```bash
+python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice
+python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
+THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+```
+
 ---
 
 ## Theoretical Background
@@ -470,6 +559,13 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 - Two speech conditions: **pronounced** (audio + EEG recorded simultaneously) and **imagined** (EEG only — no audio was recorded in the imagined condition)
 - Audio: 44100 Hz, single channel (present only for pronounced trials)
 - EEG: 1024 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system; each 4 s trial = 4096 samples/channel
+- Profiles: `dataset.source "coretto2017"`, `dataset.root "~/database.sqlite"`
+
+**BIOMEX-DB** (Moreno-Rodriguez et al., IEEE Access 2021; data 10.17632/s7chktmb6x.1, CC BY 4.0)
+— the confirmatory replication of the pronounced-speech results (section 11 above):
+`dataset.source "biomex2021"`, `dataset.root "~/biomex.sqlite"` (the paired SQLite written by
+`scripts/data/biomex_to_sqlite.py`; table `recording` declares its format, rates, channels and
+lengths, and the loader refuses a file whose blobs do not match them).
 
 > The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. Fusion is not a third recorded signal; it combines the two existing signals, and *when* the combination happens is a second axis, `fusion_mode` (required for `modality=fused`, refused otherwise):
 >

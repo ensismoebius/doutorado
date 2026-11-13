@@ -368,13 +368,15 @@ auto extract_features(
     -> std::vector<FeatureSet>
 {
     const std::string& modality = cfg.dataset.modality;
+    // The rates come from the base (ThesisDataset); a signal the run reads must have one.
+    const auto voice_rate = [&view]() { return require_rate(view.voice_sample_rate, "voice"); };
+    const auto eeg_rate = [&view]() { return require_rate(view.eeg_sample_rate, "EEG"); };
     if (modality == "voice")
         return extract_features_core(
-            view, cfg, voice_signal, kVoiceSampleRate, "", "", on_model_trained);
+            view, cfg, voice_signal, voice_rate(), "", "", on_model_trained);
 
     if (modality == "eeg")
-        return extract_features_core(
-            view, cfg, eeg_signal, kEegSampleRate, "", "", on_model_trained);
+        return extract_features_core(view, cfg, eeg_signal, eeg_rate(), "", "", on_model_trained);
 
     if (modality != "fused")
         throw std::invalid_argument(
@@ -384,7 +386,7 @@ auto extract_features(
     if (fusion_mode == "early")
     {
         return extract_features_core(
-            view, cfg, fused_early_signal, kVoiceSampleRate, "-fused-early", "", on_model_trained);
+            view, cfg, fused_early_signal, voice_rate(), "-fused-early", "", on_model_trained);
     }
 
     if (fusion_mode != "late")
@@ -395,10 +397,10 @@ auto extract_features(
     // resulting feature vectors sample-by-sample (audit C12). Two INDEPENDENT models
     // train (or, for PCA, are fitted) here — tag each snapshot so a caller merging them
     // (e.g. paraconsistentGA's weight-snapshot capture) can tell them apart.
-    auto voice_sets = extract_features_core(
-        view, cfg, voice_signal, kVoiceSampleRate, "", "voice", on_model_trained);
+    auto voice_sets =
+        extract_features_core(view, cfg, voice_signal, voice_rate(), "", "voice", on_model_trained);
     auto eeg_sets =
-        extract_features_core(view, cfg, eeg_signal, kEegSampleRate, "", "eeg", on_model_trained);
+        extract_features_core(view, cfg, eeg_signal, eeg_rate(), "", "eeg", on_model_trained);
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(

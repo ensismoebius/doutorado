@@ -87,6 +87,7 @@ void for_each_field(Cfg& c, Row&& row)
         [](K k) { return k.experiment.repeats > 1; });
 
     auto& d = c.dataset;
+    row(d.source, kAlways, always);
     row(d.root, kAlways, always);
     row(d.results_dir, kAlways, always);
     row(d.modality, kAlways, always);
@@ -301,6 +302,17 @@ void validate_dataset(const ThesisConfig::Dataset& dataset)
             "ThesisConfig: dataset.eeg_condition must be pronounced or imagined");
     if (dataset.eeg_pairing_seed.declared() && dataset.eeg_pairing_seed == 0u)
         throw std::invalid_argument("ThesisConfig: dataset.eeg_pairing_seed must be non-zero");
+
+    if (dataset.source != "coretto2017" && dataset.source != "biomex2021")
+        throw std::invalid_argument(
+            "ThesisConfig: dataset.source must be coretto2017 or "
+            "biomex2021, got \"" +
+            *dataset.source + "\"");
+    if (dataset.source == "biomex2021" && dataset.eeg_condition.declared() &&
+        dataset.eeg_condition == "imagined")
+        throw std::invalid_argument(
+            "ThesisConfig: dataset.source biomex2021 has no imagined speech; its EEG is "
+            "recorded while the digit is spoken (dataset.eeg_condition \"pronounced\")");
 }
 
 void validate_paraconsistent(const ThesisConfig::Paraconsistent& pc)

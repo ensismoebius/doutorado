@@ -16,6 +16,8 @@ namespace
 ThesisDatasetView V(int ns, int per, int len)
 {
     ThesisDatasetView v;
+    v.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    v.eeg_sample_rate = 1024.0;
     for (int s = 0; s < ns; ++s)
         for (int k = 0; k < per; ++k)
         {

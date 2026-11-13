@@ -115,6 +115,8 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [43] V. Mnih et al., "ADMM-based training for spiking neural networks," arXiv preprint arXiv:2505.05527, 2025. [Online]. Available: https://arxiv.org/abs/2505.05527
 
+[85] J. C. Moreno-Rodriguez, J. C. Atenco-Vazquez, J. M. Ramirez-Cortes, R. Arechiga-Martinez, P. Gomez-Gil, and R. Fonseca-Delgado, "BIOMEX-DB: A cognitive audiovisual dataset for unimodal and multimodal biometric systems," IEEE Access, vol. 9, pp. 111267-111276, 2021. doi: 10.1109/ACCESS.2021.3100035. Data: J. C. Moreno Rodríguez, "BIOMEX-DB," Mendeley Data, v1, 2021, doi: 10.17632/s7chktmb6x.1 (CC BY 4.0). Used by the thesis BIOMEX-DB replication (`scripts/data/biomex_to_sqlite.py`).
+
 ## Software Testing and Test Quality
 
 [44] L. Inozemtseva and R. Holmes, "Coverage is not strongly correlated with test suite effectiveness," in Proc. 36th International Conference on Software Engineering (ICSE), 2014.

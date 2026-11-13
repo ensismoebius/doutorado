@@ -41,6 +41,14 @@ struct ThesisConfig
 
     struct Dataset
     {
+        /// Which base `root` holds, and so how it is read (ThesisDataset.cpp):
+        ///   "coretto2017" -> 10.1117/12.2255697: 15 speakers, imagined + pronounced EEG
+        ///                    (6 ch, 1024 Hz), voice 44.1 kHz; the trial-table SQLite.
+        ///   "biomex2021"  -> BIOMEX-DB: 51 speakers, pronounced digits only, EEG 14 ch at
+        ///                    128 Hz, voice 16 kHz; the paired SQLite written by
+        ///                    scripts/data/biomex_to_sqlite.py. It has no imagined speech.
+        /// Declared, never inferred from the file: the loader checks that the file is that base.
+        Required<std::string> source{"dataset.source"};
         Required<std::string> root{"dataset.root"};
         Required<std::string> results_dir{"dataset.results_dir"};
         Required<std::string> modality{"dataset.modality"}; ///< "voice" | "eeg" | "fused"

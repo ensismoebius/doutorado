@@ -6,6 +6,7 @@
     "seed_deterministic": false
   },
   "dataset": {
+    "source": "coretto2017",
     "root": "~/database.sqlite",
     "results_dir": "results/thesis/phase00",
     "modality": "voice",

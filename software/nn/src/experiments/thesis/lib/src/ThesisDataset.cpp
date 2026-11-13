@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -510,9 +511,157 @@ void apply_max_samples(ThesisDatasetView& view, int max_samples)
 }
 } // namespace
 
+auto require_rate(double rate_hz, const char* which) -> double
+{
+    if (!(rate_hz > 0.0) || !std::isfinite(rate_hz))
+        throw std::invalid_argument(std::string("ThesisDataset: the ") + which +
+                                    " sample rate of this dataset view is " +
+                                    std::to_string(rate_hz) +
+                                    "; load_dataset sets it from the base, a hand-built view "
+                                    "must set it too");
+    return rate_hz;
+}
+
+namespace
+{
+// The Coretto base's rates (Pressel Coretto et al., SPIE 2017, 10.1117/12.2255697): voice
+// 176400 samples in 4 s, EEG 4096 samples in 4 s. Its SQLite does not store them.
+constexpr double kCorettoVoiceRateHz = 44100.0;
+constexpr double kCorettoEegRateHz = 1024.0;
+
+// ── biomex2021: the paired SQLite of scripts/data/biomex_to_sqlite.py ──────────────────
+//
+//   recording(key, value)   format, source, rates, channels, epoch and window lengths
+//   speaker(id, name)       F001 ... M026
+//   stimulus(id, name)      1..9 = uno..nueve, 10 = cero
+//   pair(..., voice, eeg)   one spoken digit: float32 voice window, float32 EEG
+//                           (channels x samples, channel-major)
+//
+// The pairing was done (and checked) by the converter; here every blob is checked against
+// the lengths the file declares, so a truncated or foreign file is refused, not read.
+constexpr const char* kPairedFormat = "thesis-paired-v1";
+
+auto recording_info(sqlite3* db) -> std::map<std::string, std::string>
+{
+    Statement q(db, "SELECT key, value FROM recording");
+    std::map<std::string, std::string> info;
+    while (nn::dataLoaders::sqliteStepRow(db, q.stmt, "ThesisDataset: reading recording"))
+        info[reinterpret_cast<const char*>(sqlite3_column_text(q.stmt, 0))] =
+            reinterpret_cast<const char*>(sqlite3_column_text(q.stmt, 1));
+    return info;
+}
+
+auto info_value(
+    const std::map<std::string, std::string>& info, const std::string& key, const std::string& path)
+    -> const std::string&
+{
+    const auto it = info.find(key);
+    if (it == info.end())
+        throw std::runtime_error("ThesisDataset: " + path + " has no recording." + key +
+                                 "; it was not written by scripts/data/biomex_to_sqlite.py");
+    return it->second;
+}
+
+auto positive_count(const std::string& text, const std::string& what) -> std::size_t
+{
+    std::size_t used = 0;
+    const long long v = std::stoll(text, &used);
+    if (used != text.size() || v <= 0)
+        throw std::runtime_error(
+            "ThesisDataset: recording." + what + " is \"" + text + "\", not a positive integer");
+    return static_cast<std::size_t>(v);
+}
+
+auto blob_floats(sqlite3_stmt* stmt, int col, std::size_t expected, const char* what, long long id)
+    -> std::vector<float>
+{
+    const auto bytes = static_cast<std::size_t>(sqlite3_column_bytes(stmt, col));
+    if (bytes != expected * sizeof(float))
+        throw std::runtime_error("ThesisDataset: pair " + std::to_string(id) + " has a " + what +
+                                 " of " + std::to_string(bytes) + " bytes; the base declares " +
+                                 std::to_string(expected) + " float32 values");
+    std::vector<float> v(expected);
+    std::memcpy(v.data(), sqlite3_column_blob(stmt, col), bytes);
+    return v;
+}
+
+auto load_paired(const std::string& path) -> ThesisDatasetView
+{
+    if (!std::filesystem::is_regular_file(path))
+        throw std::runtime_error("ThesisDataset: " + path + " is not a file");
+    const SqliteDb db(path);
+    const auto info = recording_info(db.db);
+    if (info_value(info, "format", path) != kPairedFormat ||
+        info_value(info, "source", path) != "biomex2021")
+        throw std::runtime_error("ThesisDataset: " + path + " is format \"" +
+                                 info_value(info, "format", path) + "\", source \"" +
+                                 info_value(info, "source", path) + "\"; dataset.source " +
+                                 "biomex2021 needs " + kPairedFormat + " / biomex2021");
+
+    ThesisDatasetView view;
+    view.voice_sample_rate = std::stod(info_value(info, "voice_sample_rate", path));
+    view.eeg_sample_rate = std::stod(info_value(info, "eeg_sample_rate", path));
+    (void) require_rate(view.voice_sample_rate, "voice");
+    (void) require_rate(view.eeg_sample_rate, "EEG");
+    const std::size_t voice_len =
+        positive_count(info_value(info, "voice_window_samples", path), "voice_window_samples");
+    const std::size_t eeg_len =
+        positive_count(info_value(info, "eeg_epoch_samples", path), "eeg_epoch_samples");
+    const std::string& channel_list = info_value(info, "eeg_channels", path);
+    const auto n_channels =
+        static_cast<std::size_t>(std::count(channel_list.begin(), channel_list.end(), ',') + 1);
+
+    std::map<int, std::string> names;
+    {
+        Statement q(db.db, "SELECT id, name FROM stimulus");
+        while (nn::dataLoaders::sqliteStepRow(db.db, q.stmt, "ThesisDataset: reading stimuli"))
+            names[sqlite3_column_int(q.stmt, 0)] =
+                reinterpret_cast<const char*>(sqlite3_column_text(q.stmt, 1));
+    }
+
+    Statement q(db.db, "SELECT id, speaker_id, stimulus_id, voice, eeg FROM pair ORDER BY id");
+    std::unordered_set<int> speakers;
+    std::unordered_set<int> stimuli;
+    while (nn::dataLoaders::sqliteStepRow(db.db, q.stmt, "ThesisDataset: reading pairs"))
+    {
+        const long long id = sqlite3_column_int64(q.stmt, 0);
+        ThesisSample s;
+        s.subject_id = sqlite3_column_int(q.stmt, 1);
+        s.stimulus = sqlite3_column_int(q.stmt, 2);
+        s.text_phrase = stimulus_to_phrase(names, s.stimulus);
+        const auto voice = blob_floats(q.stmt, 3, voice_len, "voice", id);
+        const auto eeg = blob_floats(q.stmt, 4, n_channels * eeg_len, "EEG", id);
+        s.audio = nn::Tensor(static_cast<nn::Index>(voice_len), 1);
+        std::copy(voice.begin(), voice.end(), s.audio.mutable_data_ptr());
+        s.eeg = nn::Tensor(static_cast<nn::Index>(n_channels), static_cast<nn::Index>(eeg_len));
+        std::copy(eeg.begin(), eeg.end(), s.eeg.mutable_data_ptr());
+        speakers.insert(s.subject_id);
+        stimuli.insert(s.stimulus);
+        view.samples.push_back(std::move(s));
+    }
+    if (view.samples.empty()) throw std::runtime_error("ThesisDataset: " + path + " has no pairs");
+    view.n_subjects = static_cast<int>(speakers.size());
+    view.n_stimuli = static_cast<int>(stimuli.size());
+    return view;
+}
+} // namespace
+
 auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
 {
     const std::string root = nn::utility::expand_home(dataset_cfg.root);
+    if (dataset_cfg.source == "biomex2021")
+    {
+        // ThesisConfig::validate refuses an imagined condition for this base.
+        ThesisDatasetView view = load_paired(root);
+        NN_LOG_INFO("ThesisDataset: loaded " + std::to_string(view.samples.size()) +
+                    " BIOMEX-DB pairs from " + root);
+        apply_max_samples(view, dataset_cfg.max_samples);
+        return view;
+    }
+    if (dataset_cfg.source != "coretto2017")
+        throw std::invalid_argument(
+            "ThesisDataset: unknown dataset.source \"" + *dataset_cfg.source + "\"");
+
     auto subjects = discoverSubjects(root, "^S(\\d+)$");
     if (subjects.empty()) throw std::runtime_error("ThesisDataset: no subjects found in " + root);
 
@@ -554,6 +703,8 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     }
     (void) from_cache;
 
+    view.voice_sample_rate = kCorettoVoiceRateHz;
+    view.eeg_sample_rate = kCorettoEegRateHz;
     apply_max_samples(view, dataset_cfg.max_samples);
     return view;
 }

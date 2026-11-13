@@ -24,6 +24,7 @@ configure_xtensor_parallel_target(thesis_profile_audit_gtest)
 add_executable(thesis_feature_extraction_gtest
     thesis_feature_extraction_gtest.cpp
     thesis_strict_config_gtest.cpp
+    thesis_biomex_dataset_gtest.cpp
     thesis_pca_gtest.cpp
     thesis_spectrum_parity_gtest.cpp
     thesis_cli_gtest.cpp

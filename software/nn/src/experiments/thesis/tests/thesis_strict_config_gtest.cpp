@@ -18,7 +18,7 @@ nlohmann::json handcrafted_eeg()
 {
     return nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
+        "dataset": {"source": "coretto2017", "root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "handcrafted",
@@ -35,7 +35,7 @@ nlohmann::json snn_ae_eeg()
 {
     return nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
+        "dataset": {"source": "coretto2017", "root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "autoencoder",
@@ -81,6 +81,26 @@ TEST(ThesisStrictConfig, CompleteProfilesAreAccepted)
 {
     EXPECT_EQ(refusal(handcrafted_eeg()), "");
     EXPECT_EQ(refusal(snn_ae_eeg()), "");
+}
+
+// The base is declared, never inferred: a profile without dataset.source, with an unknown
+// one, or asking BIOMEX-DB (pronounced digits only) for imagined EEG is refused.
+TEST(ThesisStrictConfig, DatasetSourceIsDeclaredAndChecked)
+{
+    auto j = handcrafted_eeg();
+    j["dataset"].erase("source");
+    expect_refused(j, "dataset.source", "does not declare");
+
+    j = handcrafted_eeg();
+    j["dataset"]["source"] = "coretto";
+    expect_refused(j, "dataset.source", "coretto2017 or biomex2021");
+
+    j = handcrafted_eeg();
+    j["dataset"]["source"] = "biomex2021";
+    EXPECT_EQ(refusal(j), "");
+    j["dataset"]["eeg_condition"] = "imagined";
+    j["dataset"]["eeg_pairing_seed"] = 2026;
+    expect_refused(j, "biomex2021", "no imagined speech");
 }
 
 TEST(ThesisStrictConfig, MissingKeyIsRefusedNamingIt)

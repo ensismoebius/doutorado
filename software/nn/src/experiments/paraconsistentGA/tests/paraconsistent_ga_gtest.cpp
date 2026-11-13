@@ -720,7 +720,7 @@ nlohmann::json ga_profile()
     return nlohmann::json::parse(R"({
         "run_tag": "t", "results_dir": "results/paraconsistentGA",
         "experiment": {"seed": 42},
-        "dataset": {"root": "/x", "modality": "eeg", "eeg_condition": "pronounced",
+        "dataset": {"source": "coretto2017", "root": "/x", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {"strategy": "autoencoder",
             "autoencoder": {"model": "snn-ae", "ae_loss_type": "mse",

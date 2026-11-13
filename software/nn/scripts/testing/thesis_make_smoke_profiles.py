@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """thesis_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
 
-Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*} into
+Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*,biomex/*} into
 src/experiments/thesis/profiles/smoke/ with the SAME code-path-selecting fields
 (strategy, wavelet, scale, cepstral, modality, fusion_mode, classifier.type,
 nested_cv, standardize_features, …) but tiny run parameters, so a run exercises
@@ -41,6 +41,9 @@ def smoke_overrides(prof):
     runs_classifier = prof["classifier"]["enabled"]
     ds = prof["dataset"]
     ds["max_samples"] = 120 if runs_classifier else 60
+    if ds["source"] == "biomex2021":
+        # 51 speakers: the same ~8 samples per speaker as 120 gives the 15 Coretto speakers.
+        ds["max_samples"] = 8 * 51
     ds["results_dir"] = "results/thesis/smoke"
 
     tr = prof.get("training")
@@ -68,6 +71,7 @@ def main():
         sources.append(debug_profile)
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase00", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase01", "*.json")))
+    sources += sorted(glob.glob(os.path.join(PROFILES, "biomex", "*.json")))
 
     n = 0
     for src in sources:

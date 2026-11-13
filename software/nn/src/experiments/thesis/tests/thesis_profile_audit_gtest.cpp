@@ -318,7 +318,8 @@ nlohmann::json base_config()
     return nlohmann::json{
         {"experiment", {{"run_tag", "t"}, {"seed", 42}, {"repeats", 1}}},
         {"dataset",
-            {{"root", "/x"},
+            {{"source", "coretto2017"},
+                {"root", "/x"},
                 {"results_dir", "results/thesis"},
                 {"modality", "voice"},
                 {"max_samples", 0}}},

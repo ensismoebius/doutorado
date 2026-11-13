@@ -32,6 +32,14 @@ until 02_thesis_apply_winner.py injects the Phase 00 winners.
                 hc / ae / pca x signals (voice, eegpron, eegimag) x text; DSNN, flat, std,
                 100 epochs (the autoencoders' Phase 00 budget, so the AE is the one ranked)
 
+BIOMEX-DB replication (confirmatory, decided 2026-11-13; documentation/00-thesis/monography/
+issues.md). The Phase 01 cells the thesis concludes on, rerun ONCE on a second base with the
+Coretto Phase 00 winners, chosen before any BIOMEX-DB result exists (02_thesis_apply_winner.py
+on this directory too). BIOMEX-DB has no imagined speech, so only the pronounced sources:
+  bx01_<kind>_*   dsnn / ann / cosine x (voice, eegpron, earlypron, latepron) x text; flat, std
+  bx01_dysph_*    the simulated dysphonia of p01_dysph_*, on the sources that read the voice
+Nothing is selected on BIOMEX-DB: no Phase 00, no nested CV, no raw (unstandardized) runs.
+
 Run from software/nn:
     python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py
 then regenerate the smoke mirror (scripts/testing/thesis_make_smoke_profiles.py).
@@ -79,13 +87,18 @@ PLACEHOLDER_EXTRACTOR = {
 }
 
 
+# Which base each profile reads (ThesisConfig: dataset.source, declared, never inferred).
+BASES = {"coretto2017": "~/database.sqlite", "biomex2021": "~/biomex.sqlite"}
+BIOMEX_SOURCES = ("voice", "eegpron", "earlypron", "latepron")
+
+
 def experiment(name):
     return {"run_tag": "e05_" + name, "seed": SEED, "repeats": REPEATS,
             "seed_deterministic": False}
 
 
-def dataset(source, phase):
-    return {"root": "~/database.sqlite", "results_dir": f"results/thesis/{phase}",
+def dataset(source, phase, base="coretto2017"):
+    return {"source": base, "root": BASES[base], "results_dir": f"results/thesis/{phase}",
             **SOURCES[source], "max_samples": 0}
 
 
@@ -169,8 +182,8 @@ def training(kind, nested, std, epochs=50):
 
 
 def phase01_profile(name, source, kind, text, nested, std, fe=None, degradation=None,
-                    epochs=50):
-    prof = {"experiment": experiment(name), "dataset": dataset(source, "phase01"),
+                    epochs=50, base="coretto2017", phase="phase01"):
+    prof = {"experiment": experiment(name), "dataset": dataset(source, phase, base),
             "feature_extraction": fe or PLACEHOLDER_EXTRACTOR,
             "paraconsistent": {"enabled": False},
             "classifier": classifier(kind, text)}
@@ -180,7 +193,7 @@ def phase01_profile(name, source, kind, text, nested, std, fe=None, degradation=
     if (fe or PLACEHOLDER_EXTRACTOR)["strategy"] == "autoencoder":
         # One training block drives both trainings; the AE keeps its Phase 00 budget.
         assert epochs == AE_TRAINING["epochs"]
-    return f"phase01/{name}.json", prof
+    return f"{phase}/{name}.json", prof
 
 
 def phase01():
@@ -212,12 +225,32 @@ def phase01():
                                       True, fe=fe, epochs=AE_TRAINING["epochs"])
 
 
+def biomex():
+    """The confirmatory replication on BIOMEX-DB (see the module docstring)."""
+    kw = {"base": "biomex2021", "phase": "biomex"}
+    for src in BIOMEX_SOURCES:
+        assert SOURCES[src].get("eeg_condition", "pronounced") == "pronounced", src
+        for text in ("dep", "indep"):
+            for kind in ("dsnn", "ann", "cosine"):
+                yield phase01_profile(f"bx01_{kind}_{src}_{text}_flat_std", src, kind, text,
+                                      False, True, **kw)
+    for src in BIOMEX_SOURCES:
+        if SOURCES[src]["modality"] == "eeg":
+            continue
+        for scope in ("probes", "test"):
+            for level in (0.25, 0.5, 0.75, 1.0):
+                deg = {"enabled": True, "level": level, "scope": scope,
+                       "seed": DEGRADATION_SEED}
+                yield phase01_profile(f"bx01_dysph_{src}_{scope}_l{int(level * 100)}", src,
+                                      "dsnn", "dep", False, True, degradation=deg, **kw)
+
+
 def main():
-    for sub in ("phase00", "phase01"):
+    for sub in ("phase00", "phase01", "biomex"):
         shutil.rmtree(os.path.join(PROFILES, sub), ignore_errors=True)
         os.makedirs(os.path.join(PROFILES, sub))
     written = ["debug.json"]  # hand-written, outside the grid
-    for rel, prof in list(phase00()) + list(phase01()):
+    for rel, prof in list(phase00()) + list(phase01()) + list(biomex()):
         path = os.path.join(PROFILES, rel)
         if os.path.exists(path):
             raise SystemExit(f"[generate] {rel} would be written twice")
@@ -232,7 +265,8 @@ def main():
             f.write(rel + "\n")
     n00 = sum(r.startswith("phase00/") for r in written)
     n01 = sum(r.startswith("phase01/") for r in written)
-    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 profiles -> {PROFILES}")
+    nbx = sum(r.startswith("biomex/") for r in written)
+    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB profiles -> {PROFILES}")
 
 
 if __name__ == "__main__":

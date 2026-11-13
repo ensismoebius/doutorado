@@ -5,6 +5,7 @@
     "seed": 42
   },
   "dataset": {
+    "source": "coretto2017",
     "root": "~/database.sqlite",
     "modality": "fused",
     "fusion_mode": "late",

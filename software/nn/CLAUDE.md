@@ -75,7 +75,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
 | `thesis_spike_loss_e2e_gtest` | SpikeCount/SpikeTime AE training smoke (encoding<->loss invariant, time-major layout) |
-| `thesis_profile_audit_gtest` | 3354 tests: every profile in `profiles/profiles.manifest` (written by `scripts/pipeline/thesis/00_thesis_generate_profiles.py`: phase00 275 = 153 voice + 61 x 2 EEG conditions; phase01 142 = grid 56 + controls 28 + dysphonia 40 + extractor comparison 18; debug) parses + validates under the strict config; a profile on disk the manifest does not name fails |
+| `thesis_profile_audit_gtest` | 3738 tests: every profile in `profiles/profiles.manifest` (written by `scripts/pipeline/thesis/00_thesis_generate_profiles.py`: phase00 275 = 153 voice + 61 x 2 EEG conditions; phase01 142 = grid 56 + controls 28 + dysphonia 40 + extractor comparison 18; biomex 48 = BIOMEX-DB confirmatory replication, grid + controls 24 + dysphonia 24; debug) parses + validates under the strict config; a profile on disk the manifest does not name fails |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
@@ -129,6 +129,12 @@ Exceptions must name the cause AND the remedy — see
 
 Genuine *defaults* in a config struct are fine (a documented initial value). What is
 banned is recovering from an error by guessing.
+
+**Thesis bases (2026-11-13).** `dataset.source` is required: `coretto2017` (`~/database.sqlite`)
+or `biomex2021` (`~/biomex.sqlite`, written by `scripts/data/biomex_to_sqlite.py`; pronounced
+digits only, so `eeg_condition imagined` is refused). Sample rates come from the base
+(`ThesisDatasetView::voice_sample_rate` / `eeg_sample_rate`, `require_rate`), never from
+constants: a hand-built view in a test must set them.
 
 **Thesis / paraconsistentGA config: no defaults at all (2026-11-11).** `ThesisConfig`
 holds every value in `thesis::Required<T>` (`Required.hpp`): reading one that was never

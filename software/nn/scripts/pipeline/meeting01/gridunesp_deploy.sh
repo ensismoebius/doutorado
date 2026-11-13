@@ -179,6 +179,14 @@ if has_target thesis; then
   for cache in "${THESIS_DB}".pronounced.e05dscache "${THESIS_DB}".imagined-*.e05dscache; do
     [[ -f "$cache" ]] && thesis_files+=("$cache")
   done
+  # BIOMEX-DB (the profiles under profiles/biomex, dataset.source biomex2021) is a separate
+  # base, written by scripts/data/biomex_to_sqlite.py. Sent when it exists; when it does not,
+  # say so: a biomex array on the cluster would then refuse to open it, not run without it.
+  if [[ -f "${HOME}/biomex.sqlite" ]]; then
+    thesis_files+=("${HOME}/biomex.sqlite")
+  else
+    echo "[gridunesp-deploy] ${HOME}/biomex.sqlite does not exist here: NOT sent (THESIS_PHASE=biomex will refuse on the cluster)"
+  fi
   echo "[gridunesp-deploy] thesis dataset -> ~/ on the cluster: ${thesis_files[*]}"
   rsync -a --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" "${thesis_files[@]}" \
     "${GRIDUNESP_USER}@${HOST}:"

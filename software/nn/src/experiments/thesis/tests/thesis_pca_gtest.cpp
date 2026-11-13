@@ -94,6 +94,8 @@ namespace
 ThesisDatasetView sine_view(int n)
 {
     ThesisDatasetView v;
+    v.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    v.eeg_sample_rate = 1024.0;
     for (int s = 0; s < n; ++s)
     {
         ThesisSample m;
@@ -175,6 +177,8 @@ TEST(ThesisPcaStrategy, IsDeterministic)
 TEST(ThesisPcaStrategy, InputKeepsFrequencyAndIgnoresTimeShift)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     const double freq[2] = {0.05, 0.11};
     const int shift[2] = {0, 137};
     for (int speaker = 0; speaker < 2; ++speaker)
@@ -204,6 +208,8 @@ TEST(ThesisPcaStrategy, InputKeepsFrequencyAndIgnoresTimeShift)
 TEST(ThesisPcaStrategy, RefusesASignalShorterThanOneSpectrumFrame)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     for (int s = 0; s < 3; ++s)
     {
         ThesisSample m;

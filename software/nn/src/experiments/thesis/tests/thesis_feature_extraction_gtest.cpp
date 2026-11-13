@@ -389,6 +389,8 @@ nn::Tensor make_column_tensor(int n, double freq, double sr)
 ThesisDatasetView make_paired_view()
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     for (int s = 0; s < 2; ++s)
     {
         ThesisSample sample;
@@ -485,6 +487,8 @@ namespace
 ThesisDatasetView make_multi_view(int n_samples)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     for (int s = 0; s < n_samples; ++s)
     {
         ThesisSample sample;
@@ -858,6 +862,8 @@ ThesisConfig lstm_ae_config()
 ThesisDatasetView two_speakers_two_shifts(int length)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     const double freq[2] = {0.05, 0.11};
     const int shift[2] = {0, 137};
     for (int speaker = 0; speaker < 2; ++speaker)
@@ -890,6 +896,8 @@ TEST(ThesisLstmAe, RefusesASignalShorterThanOneSpectrumFrame)
 TEST(ThesisLstmAe, ReadsTheSpectrumNotTheWaveform)
 {
     ThesisDatasetView view;
+    view.voice_sample_rate = 44100.0; // the Coretto rates these signals assume
+    view.eeg_sample_rate = 1024.0;
     const double freq[2] = {0.05, 0.11};
     for (int speaker = 0; speaker < 2; ++speaker)
         for (int take = 0; take < 2; ++take)
@@ -919,7 +927,7 @@ TEST(ThesisAeLoss, ParsedFromProfileJson)
 {
     const auto j = nlohmann::json::parse(R"({
         "experiment": {"run_tag": "t", "seed": 42, "repeats": 1},
-        "dataset": {"root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
+        "dataset": {"source": "coretto2017", "root": "/x", "results_dir": "results/thesis", "modality": "eeg", "eeg_condition": "pronounced",
                     "max_samples": 0},
         "feature_extraction": {
             "strategy": "autoencoder",
