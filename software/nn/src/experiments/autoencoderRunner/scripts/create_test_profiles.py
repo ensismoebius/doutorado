@@ -9,7 +9,6 @@ import os
 import argparse
 
 
-DEFAULT_OUTPUT_DIR = "src/experiments/autoencoderRunner/profiles/snnAutoEncodersProfiles"
 
 # Base template - audio-window-snn (most stable variant)
 BASE_PROFILE = {
@@ -235,11 +234,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate SNN autoencoder test profiles")
     parser.add_argument(
         "--output-dir",
-        default=DEFAULT_OUTPUT_DIR,
-        help=f"Directory where generated JSON profiles are written (default: {DEFAULT_OUTPUT_DIR})",
+        required=True,
+        help="Directory where generated JSON profiles are written",
     )
-    args, _unknown = parser.parse_known_args()
-    return args
+    # parse_args, not parse_known_args: a mistyped option must be refused, not ignored.
+    return parser.parse_args()
 
 
 if __name__ == "__main__":

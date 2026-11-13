@@ -46,8 +46,9 @@ SCOPE="${1:-all}"
 case "$SCOPE" in
     phase00) ROOT="src/experiments/thesis/profiles/smoke/phase00" ;;
     phase01) ROOT="src/experiments/thesis/profiles/smoke/phase01" ;;
-    all)     ROOT="src/experiments/thesis/profiles/smoke" ;;
-    *) echo "usage: $0 [phase00|phase01|all]"; exit 1 ;;
+    biomex)  ROOT="src/experiments/thesis/profiles/smoke/biomex" ;;
+    all)     ROOT="src/experiments/thesis/profiles/smoke" ;;   # phase00 + phase01 + biomex + debug
+    *) echo "usage: $0 [phase00|phase01|biomex|all]"; exit 1 ;;
 esac
 
 TMP=$(mktemp -d)

@@ -23,6 +23,9 @@ struct ExperimentConfig
     bool allow_parallelism = true;
     double numerical_tolerance = 1e-9;
 
+    std::string eeg_path;   ///< data.eeg_path: the EEG .mat file (required)
+    std::string audio_path; ///< data.audio_path: the audio .mat file (required)
+
     std::vector<std::string> modalities = {"EEG", "Audio"};
     int eeg_sampling_rate = 1000;
     int audio_sampling_rate = 44100;

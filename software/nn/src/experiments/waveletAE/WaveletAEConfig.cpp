@@ -67,6 +67,9 @@ auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
 
     exp_config.random_seed = config.at("experiment").at("determinism").at("random_seed").get<int>();
 
+    exp_config.eeg_path = config.at("data").at("eeg_path").get<std::string>();
+    exp_config.audio_path = config.at("data").at("audio_path").get<std::string>();
+
     exp_config.eeg_sampling_rate = config.at("data").at("sampling_rate").at("EEG").get<int>();
     exp_config.audio_sampling_rate = config.at("data").at("sampling_rate").at("Audio").get<int>();
 

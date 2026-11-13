@@ -23,16 +23,5 @@ target_link_libraries(progress_gtest
         GTest::gtest_main
         GTest::gtest
 )
-add_test(NAME progress_gtest COMMAND progress_gtest)
-
-
-target_include_directories(nn_progress
-    PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
-)
-
-
-target_link_libraries(nn_progress
-    PUBLIC
-    Threads::Threads
-)
+include(GoogleTest)
+gtest_discover_tests(progress_gtest)

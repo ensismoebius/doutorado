@@ -12,16 +12,16 @@
 
 #include <filesystem>
 
-#include "logging/Logger.hpp"
 #include "Config.hpp"
-#include "logging/StreamRedirector.hpp"
+#include "logging/Logger.hpp"
 #include "phase00_data.hpp"
 #include "phase00_features.hpp"
 #include "phase00_training.hpp"
 
 auto main(int argc, const char* argv[]) -> int
 {
-    nn::logging::StreamRedirector redirect(true, true);
+    // No StreamRedirector here: it suppresses the Logger's console output until a progress
+    // printer drains it, and this binary has none, so every message (errors included) vanished.
     std::filesystem::path config_path;
     if (argc == 1)
     {

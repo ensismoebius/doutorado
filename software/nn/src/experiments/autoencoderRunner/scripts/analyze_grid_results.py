@@ -195,8 +195,7 @@ def load_all_results(results_dir: Path) -> List[GridResult]:
     results = []
     
     if not results_dir.exists():
-        print(f"Results directory not found: {results_dir}")
-        return results
+        raise SystemExit(f"results directory not found: {results_dir}")
     
     json_files = sorted(results_dir.glob('*grid_*.json'))
     print(f"Found {len(json_files)} result files")
@@ -386,13 +385,13 @@ def main():
     )
     parser.add_argument(
         '--results-dir',
-        default='results',
-        help='Directory containing result JSON files (default: results)',
+        required=True,
+        help='Directory containing the *grid_*.json result files',
     )
     parser.add_argument(
         '--output-dir',
-        default='analysis',
-        help='Directory where analysis CSV files are written (default: analysis)',
+        required=True,
+        help='Directory where analysis CSV files are written',
     )
     args = parser.parse_args()
 
@@ -404,8 +403,8 @@ def main():
     results = load_all_results(results_dir)
     
     if not results:
-        print("No results found. Exiting.")
-        return
+        # An empty analysis must not look like a finished one: exit non-zero.
+        raise SystemExit(f"no *grid_*.json results in {results_dir}")
     
     print(f"Loaded {len(results)} results. Generating analysis tables...")
     

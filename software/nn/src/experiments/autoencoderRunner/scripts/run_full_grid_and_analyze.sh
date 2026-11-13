@@ -115,6 +115,15 @@ fi
 
 cd "${PROJECT_ROOT}"
 
+# The runner writes every summary to results/ under its working directory (ResultsWriter.cpp),
+# which is --project-root here. Analysing any other directory would read results these runs did
+# not write, so refuse it.
+mkdir -p "${RESULTS_DIR}" results
+if [[ "$(cd "${RESULTS_DIR}" && pwd -P)" != "$(cd results && pwd -P)" ]]; then
+  echo "error: --results-dir must be ${PROJECT_ROOT}/results, where autoencoderRunner writes" >&2
+  exit 1
+fi
+
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1

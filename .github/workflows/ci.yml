@@ -19,7 +19,7 @@ jobs:
         # sqlite, zlib, cmake, ninja, autotools, python3)
         # are installed by cmake/UbuntuDependencies.cmake at Configure time.
         # Only CI-specific tooling is installed here.
-        sudo apt-get install -y clang clang-tidy clang-tools cppcheck ccache python3-dev python3-venv python3-numpy python3-scipy
+        sudo apt-get install -y clang clang-tidy clang-tools cppcheck ccache python3-dev python3-venv python3-numpy python3-scipy python3-pytest python3-fastapi
         if [ ! -e /usr/lib/libgomp.so ] && [ -e /usr/lib/x86_64-linux-gnu/libgomp.so.1 ]; then
           sudo ln -s /usr/lib/x86_64-linux-gnu/libgomp.so.1 /usr/lib/libgomp.so
         fi
@@ -47,3 +47,10 @@ jobs:
 
     - name: Run base check tests (Coretto mirror, base facts)
       run: python3 scripts/testing/test_thesis_base_checks.py
+
+    - name: Run Meeting01 monitoring tool tests (pytest)
+      run: >-
+        python3 -m pytest -q
+        scripts/testing/test_downsample.py scripts/testing/test_ga_cache.py
+        scripts/testing/test_sweep_state.py scripts/testing/test_meeting01_dashboard_data.py
+        scripts/testing/test_remote_ga_collect.py

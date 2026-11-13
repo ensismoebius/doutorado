@@ -1,4 +1,3 @@
-#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -9,22 +8,19 @@
  */
 
 #include "WaveletAEPipeline.hpp"
-#include "logging/StreamRedirector.hpp"
 
 auto main(int argc, char const* const* argv) -> int
 {
-    nn::logging::StreamRedirector redirect(true, true);
+    // No StreamRedirector here: it suppresses the Logger's console output until a progress
+    // printer drains it, and this binary has none, so every message (errors included) vanished.
     try
     {
-        std::string spec_path = "../src/experiments/waveletAE/spec.json";
-        if (!std::filesystem::exists(spec_path))
+        if (argc != 2)
         {
-            spec_path = "src/experiments/waveletAE/spec.json";
+            std::cerr << "usage: " << argv[0] << " <spec.json>  (see spec.example.json)\n";
+            return 2;
         }
-        if (argc > 1)
-        {
-            spec_path = argv[1];
-        }
+        const std::string spec_path = argv[1];
 
         ExperimentConfig config = load_experiment_config(spec_path);
         run_wavelet_baseline_experiment(config);

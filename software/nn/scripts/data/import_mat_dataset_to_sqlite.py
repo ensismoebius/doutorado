@@ -6,7 +6,7 @@ Import EEG and Audio data from the Imagined Speech dataset into SQLite
 according to the requested schema (per-channel EEG BLOBs, audio BLOBs).
 
 Usage:
-    python scripts/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>
+    python3 scripts/data/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>
 
 This script expects the .mat files organized per-subject under folders
 S01..S15 with files named `SXX_EEG.mat` and `SXX_Audio.mat`.
@@ -14,7 +14,7 @@ S01..S15 with files named `SXX_EEG.mat` and `SXX_Audio.mat`.
 Notes:
 - Uses METADATA constants: 6 channels, 4096 EEG samples per channel,
   audio 176400 samples per trial.
-- Stores per-channel arrays as raw float64 BLOBs (no compression).
+- Stores per-channel arrays as raw float32 BLOBs (the .mat holds float64; C++ reads `float`), no compression.
 """
 import os
 import sys

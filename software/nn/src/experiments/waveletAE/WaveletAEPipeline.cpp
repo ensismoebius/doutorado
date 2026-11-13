@@ -8,6 +8,7 @@
 #include "WaveletAEPipeline.hpp"
 
 #include <filesystem>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -24,9 +25,6 @@ namespace fs = std::filesystem;
 
 namespace
 {
-constexpr int kSyntheticSampleCount = 100;
-constexpr const char* kDefaultEegPath = "/path/to/S01_EEG.mat";
-constexpr const char* kDefaultAudioPath = "/path/to/S01_Audio.mat";
 } // namespace
 
 // Normalization (using core implementation)
@@ -45,26 +43,13 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
     {
         NN_LOG_INFO(std::string("Processing wavelet: ") + wavelet_name);
 
-        std::vector<EEGSample> eeg_samples;
-        std::vector<AudioSample> audio_samples;
-
-        try
-        {
-            std::string eeg_path = kDefaultEegPath;
-            std::string audio_path = kDefaultAudioPath;
-            eeg_samples = load_eeg_data(eeg_path);
-            audio_samples = load_audio_data(audio_path);
-            NN_LOG_INFO("Loaded " + std::to_string(eeg_samples.size()) + " EEG samples and " +
-                        std::to_string(audio_samples.size()) + " audio samples");
-        }
-        catch (const std::exception& e)
-        {
-            NN_LOG_WARN(std::string("Data loading failed: ") + e.what());
-            NN_LOG_INFO("Using synthetic data for demonstration");
-
-            generate_synthetic_samples(
-                eeg_samples, audio_samples, kSyntheticSampleCount, config.random_seed);
-        }
+        // The data paths come from the spec. A load failure is an error: this experiment used
+        // to fall back to synthetic samples (with placeholder paths, it always did) and report
+        // their metrics as if they were the data's.
+        const std::vector<EEGSample> eeg_samples = load_eeg_data(config.eeg_path);
+        const std::vector<AudioSample> audio_samples = load_audio_data(config.audio_path);
+        NN_LOG_INFO("Loaded " + std::to_string(eeg_samples.size()) + " EEG samples and " +
+                    std::to_string(audio_samples.size()) + " audio samples");
 
         auto windows = extract_windows(eeg_samples,
             audio_samples,
@@ -76,8 +61,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         if (windows.empty())
         {
-            NN_LOG_WARN("No valid windows for " + wavelet_name + "; skipping this wavelet.");
-            continue;
+            throw std::runtime_error("no valid windows for " + wavelet_name +
+                                     ": check data.segmentation against the signal lengths");
         }
 
         std::vector<std::vector<double>> features;
@@ -100,8 +85,7 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         if (features.empty() || labels.empty())
         {
-            NN_LOG_WARN("No features produced for " + wavelet_name + "; skipping this wavelet.");
-            continue;
+            throw std::runtime_error("no features produced for " + wavelet_name);
         }
 
         min_max_normalize(features, config.normalization_range);

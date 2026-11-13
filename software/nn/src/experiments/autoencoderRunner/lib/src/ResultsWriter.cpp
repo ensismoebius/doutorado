@@ -32,14 +32,11 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
 {
     namespace fs = std::filesystem;
 
-    const fs::path source_results_dir =
-        fs::path(__FILE__).parent_path().parent_path().parent_path() / "results";
-
-    fs::path results_dir = source_results_dir;
-    if (!fs::exists(results_dir))
-    {
-        results_dir = fs::path("results");
-    }
+    // One rule: results/ under the working directory. The folder used to be
+    // src/experiments/autoencoderRunner/results when that existed at run time (a path fixed
+    // at compile time through __FILE__) and ./results otherwise, so where a run wrote
+    // depended on a directory nobody had created on purpose.
+    const fs::path results_dir = fs::path("results");
 
     std::error_code ec;
     fs::create_directories(results_dir, ec);

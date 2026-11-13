@@ -13,6 +13,9 @@
 #                                        thesis_build_phase00_paraconsistent_tables.py
 #                                                                → regenerates the thesis tables
 #   2) run_thesis_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
+#   3) run_thesis_profiles.sh biomex    → the BIOMEX-DB replication (reads ~/biomex.sqlite), in
+#                                         results/thesis/biomex; its profiles carry the Coretto
+#                                         Phase 00 winners, so it must run after step 1
 #
 # Step 1's post-processing REWRITES tracked files under
 # src/experiments/thesis/profiles/ — review that diff before committing.
@@ -21,7 +24,7 @@
 # disables it entirely.
 #
 # Requires: thesis built, and the dataset (dataset.root) present.
-# HEAVY: phase00 = 214 profiles, phase01 = 32, each with experiment.repeats runs.
+# HEAVY: every profile runs experiment.repeats times (counts: ls the profile folders).
 # Run in the background / overnight.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
@@ -31,17 +34,17 @@
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
-# Usage:  ./scripts/testing/run_thesis_profiles.sh [phase00|phase01|all|start-over-all]
+# Usage:  ./scripts/testing/run_thesis_profiles.sh [phase00|phase01|biomex|all|start-over-all]
 #         No argument on a terminal → interactive menu. No argument in a
-#         pipe/CI → defaults to `all`.
+#         pipe/CI → refused (there is no default scope).
 #
-#   all            phase00 + phase01 + debug in ONE pass. phase01 therefore runs
+#   all            phase00 + phase01 + debug.json in ONE pass (not biomex). phase01 therefore runs
 #                  BEFORE the new winners are written and uses the extractor the
 #                  profiles held before this ranking (the previous winners) — good for
 #                  a plumbing check, wrong for real results.
-#   start-over-all phase00 → winner injection → phase01, run SEQUENTIALLY and both
-#                  from scratch (each leg forces FRESH=1, discarding saved progress).
-#                  Stops before phase01 if phase00 did not finish cleanly. This is the
+#   start-over-all phase00 → winner injection → phase01 → biomex, run SEQUENTIALLY and
+#                  all from scratch (each leg forces FRESH=1, discarding saved progress).
+#                  Stops at the first leg that does not finish cleanly. This is the
 #                  option you want for a real end-to-end regeneration.
 # Binary selection (any CMake profile):
 #   auto: most recently built out/build/*/…/thesis
@@ -119,10 +122,12 @@ echo "parallelism: JOBS=$JOBS x ${OMP_NUM_THREADS} thread(s)  (avail ${avail_mb}
 auto_jobs=$JOBS   # computed default, offered as the reset value in the menu
 
 # ── What to run ──────────────────────────────────────────────────────────────
-# Scope may be passed as $1 (phase00|phase01|all) for automation/CI. With no
-# argument on a terminal, an interactive menu asks instead; in a pipe/CI with
-# no argument it defaults to `all` (unchanged non-interactive behaviour).
+# Scope may be passed as $1 (phase00|phase01|biomex|all|start-over-all) for automation.
+# With no argument on a terminal, an interactive menu asks instead; in a pipe/CI with
+# no argument the run is refused: a silent default used to pick `all`, whose phase01
+# trains on the previous winners.
 SCOPE="${1:-}"
+n_profiles() { find "src/experiments/thesis/profiles/$1" -name '*.json' | wc -l; }
 if [ -z "$SCOPE" ]; then
     if [ -t 0 ] && [ -t 1 ]; then
         while :; do
@@ -133,21 +138,23 @@ binary      : $BIN
 parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per job)
 
 What do you want to do?
-  1) phase00 — feature construction + paraconsistent ranking  (214 profiles)
-  2) phase01 — DSNN authentication                            (32 profiles)
-  3) all     — phase00 + phase01 + debug, in ONE pass
+  1) phase00 — feature construction + paraconsistent ranking  ($(n_profiles phase00) profiles)
+  2) phase01 — DSNN authentication                            ($(n_profiles phase01) profiles)
+  5) biomex  — BIOMEX-DB replication (needs ~/biomex.sqlite)  ($(n_profiles biomex) profiles)
+  3) all     — phase00 + phase01 + debug, in ONE pass (no biomex)
                (phase01 uses the previous winners — see 4)
-  4) start over all — phase00 + phase01, from scratch, in order
+  4) start over all — phase00, phase01, biomex, from scratch, in order
                discards saved progress, runs phase00, injects the winner,
-               THEN runs phase01 on it. This is the correct full pipeline.
+               THEN runs phase01 and biomex on it. This is the correct full pipeline.
   j) set parallel job count (currently $JOBS; auto-detected default $auto_jobs)
   b) (re)build the thesis binary first
   q) quit
 MENU
-            read -r -p "choice [1/2/3/4/j/b/q]: " ans
+            read -r -p "choice [1/2/5/3/4/j/b/q]: " ans
             case "$ans" in
                 1) SCOPE=phase00; break ;;
                 2) SCOPE=phase01; break ;;
+                5) SCOPE=biomex;  break ;;
                 3) SCOPE=all;     break ;;
                 4) SCOPE=start-over-all; break ;;
                 j|J)
@@ -168,11 +175,12 @@ MENU
                         echo "build FAILED — fix errors, then choose again"
                     fi ;;
                 q|Q) echo "aborted"; exit 0 ;;
-                *)   echo "pick 1, 2, 3, 4, j, b, or q" ;;
+                *)   echo "pick 1, 2, 5, 3, 4, j, b, or q" ;;
             esac
         done
     else
-        SCOPE=all   # non-interactive default
+        echo "usage: $0 [phase00|phase01|biomex|all|start-over-all]  (no default scope)" >&2
+        exit 2
     fi
 fi
 
@@ -199,11 +207,11 @@ if [ "$SCOPE" = start-over-all ]; then
     export THESIS_JOBS="$JOBS"
 
     echo
-    echo "=== start over all: phase00 → (winner injection) → phase01 ==="
+    echo "=== start over all: phase00 → (winner injection) → phase01 → biomex ==="
     echo "    both phases start from scratch (FRESH=1); saved progress is discarded."
     echo
 
-    echo "--- leg 1/2: phase00 ---"
+    echo "--- leg 1/3: phase00 ---"
     if ! FRESH=1 "$SELF" phase00; then
         echo
         echo "!! phase00 did not finish cleanly — STOPPING before phase01."
@@ -214,20 +222,25 @@ if [ "$SCOPE" = start-over-all ]; then
     fi
 
     echo
-    echo "--- leg 2/2: phase01 (on the winner just injected) ---"
-    FRESH=1 "$SELF" phase01
+    echo "--- leg 2/3: phase01 (on the winner just injected) ---"
+    if ! FRESH=1 "$SELF" phase01; then
+        echo
+        echo "!! phase01 did not finish cleanly — STOPPING before biomex."
+        exit 1
+    fi
+
+    echo
+    echo "--- leg 3/3: biomex (the replication, same winners) ---"
+    FRESH=1 "$SELF" biomex
     rc=$?
     echo
     if [ "$rc" -eq 0 ]; then
-        echo "=== start over all: COMPLETE — both phases finished cleanly ==="
-        echo "    Review 'git diff src/experiments/thesis/profiles/phase01' (the winner injection)"
-        echo "    and regenerate the thesis phase01 table:"
-        echo "      python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \\"
-        echo "        --profiles-dir src/experiments/thesis/profiles/phase01 \\"
-        echo "        --results-dir  results/thesis/phase01 \\"
-        echo "        --tables-dir   ../../documentation/00-thesis/monography/tables"
+        echo "=== start over all: COMPLETE — all three legs finished cleanly ==="
+        echo "    Review 'git diff src/experiments/thesis/profiles' (the winner injection), then"
+        echo "    regenerate the thesis tables, tests and numbers in the order of"
+        echo "    .wiki/Guides/Thesis-Document.md (\"Results to text\")."
     else
-        echo "=== start over all: phase00 succeeded, phase01 FAILED (exit $rc) ==="
+        echo "=== start over all: phase00 and phase01 succeeded, biomex FAILED (exit $rc) ==="
     fi
     exit "$rc"
 fi
@@ -235,8 +248,9 @@ fi
 case "$SCOPE" in
     phase00) ROOT="src/experiments/thesis/profiles/phase00" ;;
     phase01) ROOT="src/experiments/thesis/profiles/phase01" ;;
-    all)     ROOT="src/experiments/thesis/profiles" ;;   # phase00 + phase01 + debug.json
-    *) echo "usage: $0 [phase00|phase01|all|start-over-all]"; exit 1 ;;
+    biomex)  ROOT="src/experiments/thesis/profiles/biomex" ;;
+    all)     ROOT="src/experiments/thesis/profiles" ;;   # phase00 + phase01 + debug.json (find below excludes smoke/ and biomex/)
+    *) echo "usage: $0 [phase00|phase01|biomex|all|start-over-all]"; exit 1 ;;
 esac
 
 TMP=$(mktemp -d)
@@ -249,7 +263,12 @@ i=0
 : > "$TMP/failures"
 
 # Exclude the smoke mirror; run only real profiles.
-mapfile -t PROFILES < <(find "$ROOT" -name '*.json' -not -path '*/smoke/*' | sort)
+# Exclude the BIOMEX replication from `all`: sorted first, it would run before Phase 00.
+if [ "$SCOPE" = all ]; then
+    mapfile -t PROFILES < <(find "$ROOT" -name '*.json' -not -path '*/smoke/*' -not -path '*/biomex/*' | sort)
+else
+    mapfile -t PROFILES < <(find "$ROOT" -name '*.json' -not -path '*/smoke/*' | sort)
+fi
 total=${#PROFILES[@]}
 if [ "$total" -eq 0 ]; then
     echo "no profiles under $ROOT"
