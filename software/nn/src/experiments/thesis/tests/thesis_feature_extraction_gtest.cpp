@@ -840,6 +840,81 @@ TEST(ThesisAeLoss, LstmAeTrainsWithMseOnly)
     EXPECT_THROW(cfg.validate(), std::invalid_argument);
 }
 
+// The LSTM-AE reads the same spectral input as the other autoencoders and PCA, not the
+// waveform. Two checks through the public API: a signal shorter than one 512-sample spectrum
+// frame is refused (the old waveform framing accepted any length), and samples the spectrum
+// does not read do not change the code.
+namespace
+{
+ThesisConfig lstm_ae_config()
+{
+    ThesisConfig cfg = test::phase00("eeg");
+    test::set_training(cfg, 2, 1e-3f, 4);
+    test::set_autoencoder(cfg, "lstm-ae", {"linear:16:leaky", "linear:8:identity"}, {}, "mse");
+    cfg.validate();
+    return cfg;
+}
+
+ThesisDatasetView two_speakers_two_shifts(int length)
+{
+    ThesisDatasetView view;
+    const double freq[2] = {0.05, 0.11};
+    const int shift[2] = {0, 137};
+    for (int speaker = 0; speaker < 2; ++speaker)
+        for (int take = 0; take < 2; ++take)
+        {
+            ThesisSample m;
+            m.subject_id = speaker;
+            m.stimulus = take;
+            m.eeg = nn::Tensor(1, length);
+            for (int i = 0; i < length; ++i)
+                m.eeg.at(0, i) = test::synthetic_value(i + shift[take], freq[speaker], 7U);
+            view.samples.push_back(std::move(m));
+        }
+    view.n_subjects = 2;
+    view.n_stimuli = 2;
+    return view;
+}
+} // namespace
+
+TEST(ThesisLstmAe, RefusesASignalShorterThanOneSpectrumFrame)
+{
+    EXPECT_THROW((void) extract_features(two_speakers_two_shifts(511), lstm_ae_config(), nullptr),
+        std::invalid_argument);
+}
+
+// Welch reads whole 512-sample frames with a 256 hop: of 4196 samples it reads the first
+// 4096 (15 frames) and never the last 100. Two takes that differ ONLY there have the same
+// spectral input, so the LSTM-AE must give them bit-identical codes; the old waveform
+// framing read every sample and would not.
+TEST(ThesisLstmAe, ReadsTheSpectrumNotTheWaveform)
+{
+    ThesisDatasetView view;
+    const double freq[2] = {0.05, 0.11};
+    for (int speaker = 0; speaker < 2; ++speaker)
+        for (int take = 0; take < 2; ++take)
+        {
+            ThesisSample m;
+            m.subject_id = speaker;
+            m.stimulus = take;
+            m.eeg = nn::Tensor(1, 4196);
+            for (int i = 0; i < 4196; ++i)
+                m.eeg.at(0, i) = test::synthetic_value(i, freq[speaker], 7U) +
+                                 (i >= 4096 && take == 1 ? 5.0f : 0.0f); // unread tail
+            view.samples.push_back(std::move(m));
+        }
+    view.n_subjects = 2;
+    view.n_stimuli = 2;
+
+    const auto sets = extract_features(view, lstm_ae_config(), nullptr);
+    const auto& v = sets[0].vectors; // a0, a1, b0, b1
+    ASSERT_EQ(v.size(), 4U);
+    ASSERT_EQ(v[0].size(), 8U);
+    EXPECT_EQ(v[0], v[1]) << "an unread tail must not change the code";
+    EXPECT_EQ(v[2], v[3]) << "an unread tail must not change the code";
+    EXPECT_NE(v[0], v[2]) << "two frequencies must not share a code";
+}
+
 TEST(ThesisAeLoss, ParsedFromProfileJson)
 {
     const auto j = nlohmann::json::parse(R"({

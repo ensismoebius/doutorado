@@ -121,15 +121,13 @@ FeatureSet extract_handcrafted_feature_set(const ThesisDatasetView& view,
     return fs;
 }
 
-// Collects the raw per-sample signal (via get_signal) for every sample in `view`, and the
-// longest one seen — used to size the autoencoder input and (for the LSTM path) the frame
-// length. Throws if every signal came back empty.
-std::pair<std::vector<std::vector<double>>, size_t> collect_raw_signals(
+// Collects the raw per-sample signal (via get_signal) for every sample in `view`. Throws on
+// an empty signal or an empty view.
+std::vector<std::vector<double>> collect_raw_signals(
     const ThesisDatasetView& view, const SignalGetter& get_signal)
 {
     std::vector<std::vector<double>> raw_signals;
     raw_signals.reserve(view.samples.size());
-    size_t max_len = 0;
     for (const auto& sample : view.samples)
     {
         std::vector<double> sig = get_signal(sample);
@@ -139,13 +137,12 @@ std::pair<std::vector<std::vector<double>>, size_t> collect_raw_signals(
             throw std::runtime_error("ThesisFeatureExtraction: subject " +
                                      std::to_string(sample.subject_id) + ", stimulus " +
                                      std::to_string(sample.stimulus) + " has an empty signal");
-        max_len = std::max(max_len, sig.size());
         raw_signals.push_back(std::move(sig));
     }
-    if (max_len == 0)
+    if (raw_signals.empty())
         throw std::runtime_error("ThesisFeatureExtraction: no samples for the autoencoder");
 
-    return {std::move(raw_signals), max_len};
+    return raw_signals;
 }
 
 // Wraps `on_model_trained` (tagged with `part_tag`) into the plain state-dict callback that
@@ -220,30 +217,26 @@ FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& ra
     return fs;
 }
 
-// Sequence AE on windowed frames (Meeting01-paper extractor).
+// Sequence AE (Meeting01-paper extractor) on the SAME input as the other autoencoders and
+// PCA: the 256-value log power spectrum (normalize_signals), read as a sequence of
+// kLstmSteps steps of kLstmStepWidth adjacent bins, low frequency first. Until 2026-11-12
+// it read 64 frames of the raw waveform instead, so a profile choosing lstm-ae would have
+// compared a different input, not a different extractor.
 FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
-    size_t max_len,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix)
 {
-    // max_len >= 1 (collect_raw_signals refuses empty signals), so frame_len >= 1.
-    const int frame_len = static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames);
-    const int T_frames = kAeMaxFrames;
-    const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
-
+    const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
     std::vector<nn::Tensor> train_samples;
-    train_samples.reserve(raw_signals.size());
-    for (auto sig : raw_signals)
-    {
-        sig.resize(padded, 0.0);
-        train_samples.push_back(vec_to_frame_tensor(sig, T_frames, frame_len));
-    }
+    train_samples.reserve(normed.size());
+    for (const auto& row : normed)
+        train_samples.push_back(spectrum_to_sequence(row, kLstmSteps, kLstmStepWidth));
 
     const std::vector<std::string>& spec = cfg.autoencoder.encoder_layer_spec;
     nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
-    ae_cfg.input_size = frame_len;
-    ae_cfg.seq_len = T_frames;
+    ae_cfg.input_size = kLstmStepWidth;
+    ae_cfg.seq_len = kLstmSteps;
     ae_cfg.hidden_size = first_encoder_dim(spec);
     ae_cfg.latent_size = last_encoder_dim(spec);
     // One LSTM layer per two encoder items; a 1-item spec used to be clamped to 1 layer.
@@ -279,7 +272,6 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
 
 // Dispatches to the right autoencoder family by cfg.autoencoder.model.
 FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>>& raw_signals,
-    size_t max_len,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix,
@@ -298,7 +290,7 @@ FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>
             raw_signals, cfg, training, label_suffix, seed, part_tag, on_model_trained);
 
     if (ae_model == "lstm-ae")
-        return extract_lstm_ae_feature_set(raw_signals, max_len, cfg, training, label_suffix);
+        return extract_lstm_ae_feature_set(raw_signals, cfg, training, label_suffix);
 
     throw std::invalid_argument("ThesisFeatureExtraction: unknown autoencoder.model \"" + ae_model +
                                 "\" (expected snn-ae, ann-ae or lstm-ae)");
@@ -346,9 +338,8 @@ auto extract_features_core(const ThesisDatasetView& view,
     }
     else if (fe.strategy == "autoencoder")
     {
-        auto [raw_signals, max_len] = collect_raw_signals(view, get_signal);
+        const std::vector<std::vector<double>> raw_signals = collect_raw_signals(view, get_signal);
         result.push_back(extract_autoencoder_feature_set(raw_signals,
-            max_len,
             fe,
             cfg.training,
             label_suffix,
@@ -358,8 +349,8 @@ auto extract_features_core(const ThesisDatasetView& view,
     }
     else if (fe.strategy == "pca")
     {
-        auto raw = collect_raw_signals(view, get_signal);
-        result.push_back(extract_pca_feature_set(raw.first, fe.pca, label_suffix));
+        result.push_back(
+            extract_pca_feature_set(collect_raw_signals(view, get_signal), fe.pca, label_suffix));
     }
     else
     {

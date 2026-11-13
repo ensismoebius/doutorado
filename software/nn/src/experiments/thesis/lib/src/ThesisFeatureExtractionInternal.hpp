@@ -142,28 +142,32 @@ int last_encoder_dim(const std::vector<std::string>& spec)
     return linear_width(spec.back());
 }
 
-// Frame a 1-D signal into a (T_frames × frame_len) matrix for the sequence AE:
-// row t, column w = sig[t*frame_len + w]. sig must have length >= T_frames*frame_len.
-// Windowing keeps the LSTM sequence short (T_frames steps of frame_len features)
-// instead of one step-per-sample sequence that is too long to unroll.
-nn::Tensor vec_to_frame_tensor(const std::vector<double>& sig, int T_frames, int frame_len)
-{
-    nn::Tensor t(static_cast<nn::Index>(T_frames), static_cast<nn::Index>(frame_len));
-    for (int f = 0; f < T_frames; ++f)
-        for (int w = 0; w < frame_len; ++w)
-            t.at(static_cast<nn::Index>(f), static_cast<nn::Index>(w)) =
-                static_cast<float>(sig[static_cast<size_t>(f) * static_cast<size_t>(frame_len) +
-                                       static_cast<size_t>(w)]);
-    return t;
-}
-
-// Cap on the AE sequence length: signals are windowed into at most this many
-// frames, so seq_len stays small regardless of raw signal length.
-constexpr int kAeMaxFrames = 64;
-
 // The flat input width of the Protocol (SNN-AE / ANN-AE) autoencoders and of PCA: one
 // vector of this many values per sample (not a sequence).
 constexpr int kAeInputFeatures = 256;
+
+// The LSTM-AE reads the same kAeInputFeatures values as a sequence: kLstmSteps steps of
+// kLstmStepWidth adjacent spectrum bins, lowest frequencies first.
+constexpr int kLstmSteps = 16;
+constexpr int kLstmStepWidth = 16;
+static_assert(kLstmSteps * kLstmStepWidth == kAeInputFeatures,
+    "the LSTM-AE sequence must cover the autoencoders' input exactly");
+
+// One spectral input row as a (steps x width) sequence: row t, column w = row[t*width + w].
+// A row of another length is refused (it would be cut or padded silently).
+nn::Tensor spectrum_to_sequence(const std::vector<float>& row, int steps, int width)
+{
+    if (row.size() != static_cast<size_t>(steps) * static_cast<size_t>(width))
+        throw std::invalid_argument("ThesisFeatureExtraction: an LSTM-AE input of " +
+                                    std::to_string(row.size()) + " values cannot be read as " +
+                                    std::to_string(steps) + " steps of " + std::to_string(width));
+    nn::Tensor t(static_cast<nn::Index>(steps), static_cast<nn::Index>(width));
+    for (int f = 0; f < steps; ++f)
+        for (int w = 0; w < width; ++w)
+            t.at(static_cast<nn::Index>(f), static_cast<nn::Index>(w)) =
+                row[static_cast<size_t>(f) * static_cast<size_t>(width) + static_cast<size_t>(w)];
+    return t;
+}
 
 // Welch framing of that input: frames of 512 samples give 257 FFT bins, of which the 256
 // above DC are kept; consecutive frames overlap by half.

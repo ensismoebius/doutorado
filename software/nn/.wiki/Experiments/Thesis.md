@@ -215,8 +215,13 @@ vectors against `torch.linalg.svd`; the fixture comes from
 `scripts/testing/gen_thesis_spectrum_refs.py`. `ThesisPcaStrategy.
 InputKeepsFrequencyAndIgnoresTimeShift` is the regression test for the defect itself.
 
-**Not changed.** The LSTM-AE (`lstm-ae`, in no generated profile) still reads frames of the
-raw waveform.
+**LSTM-AE aligned too (2026-11-12, later).** The LSTM-AE (`lstm-ae`, in no generated
+profile) read 64 frames of the raw waveform. A profile choosing it would have compared a
+different *input*, not a different extractor, and nothing would have said so (silent). It now
+reads the same 256 spectral values, as a sequence of `kLstmSteps` = 16 steps of
+`kLstmStepWidth` = 16 adjacent bins, low frequency first (`spectrum_to_sequence`). Regression
+test: `ThesisLstmAe.ReadsTheSpectrumNotTheWaveform` (two takes differing only in the 100
+samples Welch never reads get bit-identical codes).
 
 **What the re-run showed (Phase 00 job 5323830, Phase 01 job 5323900, 2026-11-12).**
 
@@ -403,9 +408,9 @@ Each profile is identical except `feature_extraction.autoencoder.{encoding, time
 
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-value spectral input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
-**LSTM-AE (legacy, Meeting01 paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
+**LSTM-AE (legacy, Meeting01 paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder on the same 256-value spectral input as the others, read as 16 steps of 16 bins. Encoder LSTM processes the steps, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
-> **Windowing + batching (AE-on-EEG fix).** The raw signal is *framed* into at most `kAeMaxFrames` (64) windows of `frame_len` samples each → AE input `(T_frames, frame_len)` with `input_size = frame_len`, `seq_len ≤ 64`. This replaced the earlier `input_size=1, seq_len=24576` wiring, which fed the whole flattened multi-channel EEG as one length-24576 sequence — both semantically wrong and far too long to unroll (and it crashed once the `LSTMAutoencoder` met the trainer's batched 3-D tensor). `LSTMAutoencoder` now handles both 2-D `(T,D)` and 3-D `(B,T,D)` inputs (`LSTMLayer` already did the batched BPTT; the projections/last-step/replicate were made batch-aware). Verified against snnTorch/PyTorch — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
+> **Windowing + batching (AE-on-EEG fix, superseded 2026-11-12 by the spectral input above).** The raw signal used to be *framed* into at most 64 windows of `frame_len` samples each → AE input `(T_frames, frame_len)`. This replaced the earlier `input_size=1, seq_len=24576` wiring, which fed the whole flattened multi-channel EEG as one length-24576 sequence — both semantically wrong and far too long to unroll (and it crashed once the `LSTMAutoencoder` met the trainer's batched 3-D tensor). `LSTMAutoencoder` now handles both 2-D `(T,D)` and 3-D `(B,T,D)` inputs (`LSTMLayer` already did the batched BPTT; the projections/last-step/replicate were made batch-aware). Verified against snnTorch/PyTorch — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
 **Compact-AE capacity sweep (low-power design).** Phase 00 ships two AE families (SNN-AE, ANN-AE) × three compact sizes per signal, all single-layer (shallow, edge-friendly) with a 2:1 hidden→latent compression ratio:
 
