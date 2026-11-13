@@ -7,14 +7,15 @@
 #   1) run_thesis_profiles.sh phase00   → paraconsistent ranking CSVs in results/thesis/phase00,
 #                                      then AUTOMATICALLY (see "Phase 00 post-processing"):
 #                                        01_thesis_phase00_rank.py  → winners.json
-#                                        02_thesis_apply_winner.py  → injects the winner into
-#                                                                  the 32 phase01 profiles
+#                                        00_thesis_generate_profiles.py --winners
+#                                                                → rewrites the phase01 and biomex
+#                                                                  profiles with the winners
 #                                        thesis_build_phase00_paraconsistent_tables.py
 #                                                                → regenerates the thesis tables
 #   2) run_thesis_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
 #
 # Step 1's post-processing REWRITES tracked files under
-# src/experiments/thesis/profiles/phase01/ — review that diff before committing.
+# src/experiments/thesis/profiles/ — review that diff before committing.
 # It is skipped when any profile failed (the ranking would be computed over an
 # incomplete set, and 01_thesis_phase00_rank.py refuses one anyway); THESIS_SKIP_POST=1
 # disables it entirely.
@@ -35,8 +36,9 @@
 #         pipe/CI → defaults to `all`.
 #
 #   all            phase00 + phase01 + debug in ONE pass. phase01 therefore runs
-#                  BEFORE the winner is injected and uses the placeholder extractor —
-#                  good for a plumbing check, wrong for real results.
+#                  BEFORE the new winners are written and uses the extractor the
+#                  profiles held before this ranking (the previous winners) — good for
+#                  a plumbing check, wrong for real results.
 #   start-over-all phase00 → winner injection → phase01, run SEQUENTIALLY and both
 #                  from scratch (each leg forces FRESH=1, discarding saved progress).
 #                  Stops before phase01 if phase00 did not finish cleanly. This is the
@@ -134,7 +136,7 @@ What do you want to do?
   1) phase00 — feature construction + paraconsistent ranking  (214 profiles)
   2) phase01 — DSNN authentication                            (32 profiles)
   3) all     — phase00 + phase01 + debug, in ONE pass
-               (phase01 uses the placeholder extractor — see 4)
+               (phase01 uses the previous winners — see 4)
   4) start over all — phase00 + phase01, from scratch, in order
                discards saved progress, runs phase00, injects the winner,
                THEN runs phase01 on it. This is the correct full pipeline.
@@ -176,7 +178,7 @@ fi
 
 # ── start-over-all: the full pipeline, from scratch, in dependency order ─────
 # `all` runs phase00 and phase01 in ONE pass over a combined profile list, so phase01
-# trains before the winner exists and silently uses the placeholder extractor. That is
+# trains before the new winner exists and silently uses the previous one. That is
 # fine for a smoke/plumbing check and wrong for real results.
 #
 # This scope instead drives the two phases SEQUENTIALLY by re-invoking this same script:
@@ -205,8 +207,8 @@ if [ "$SCOPE" = start-over-all ]; then
     if ! FRESH=1 "$SELF" phase00; then
         echo
         echo "!! phase00 did not finish cleanly — STOPPING before phase01."
-        echo "!! Running phase01 now would train on the placeholder extractor rather than"
-        echo "!! the Phase 00 winner, producing results that look valid but are not."
+        echo "!! Running phase01 now would train on the previous winners rather than"
+        echo "!! this Phase 00's, producing results that look valid but are not."
         echo "!! Fix the failures, then re-run (or use option 2 once phase00 is green)."
         exit 1
     fi
@@ -873,12 +875,12 @@ fi
 #   1. 01_thesis_phase00_rank.py   → winners.json (+ winner_stability.csv). Selects on
 #      d_penalized, NOT raw d_truth (a collapsed latent can game d_truth), reports exact ties,
 #      and how often the winner survives on the speaker subsets.
-#   2. 02_thesis_apply_winner.py   → injects the winners into the 142 phase01
-#      profiles, replacing the haar/lfcc/c1 placeholder they ship with.
+#   2. 00_thesis_generate_profiles.py --winners → regenerates every profile with the
+#      winners written in (the 142 phase01 and 48 biomex profiles; there is no placeholder).
 #   3. thesis_build_phase00_paraconsistent_tables.py → regenerates the thesis tables.
 #
-# NOTE: step 2 REWRITES up to 142 git-tracked files under
-# src/experiments/thesis/profiles/phase01/. Expect a git diff there after a phase00 run;
+# NOTE: step 2 REWRITES git-tracked files under
+# src/experiments/thesis/profiles/ (phase01/, biomex/, profiles.manifest). Expect a git diff there after a phase00 run;
 # that diff is the point (it is what phase01 then trains on), but review it before
 # committing. THESIS_SKIP_POST=1 skips this whole block.
 post_process_phase00() {
@@ -898,12 +900,11 @@ post_process_phase00() {
         --out          results/thesis/phase00/winners.json \
         --stability-out results/thesis/phase00/winner_stability.csv || { rc=$?; return $rc; }
 
-    echo "[post] injecting winner into the phase01 profiles"
+    echo "[post] regenerating the phase01 and biomex profiles with the winners"
     # --fused is a design choice with no default: the fused (voice+EEG) runs inherit the
     # voice winner, the audio-dominant source -- the choice the thesis makes.
-    "$py" scripts/pipeline/thesis/02_thesis_apply_winner.py \
+    "$py" scripts/pipeline/thesis/00_thesis_generate_profiles.py \
         --winners      results/thesis/phase00/winners.json \
-        --profiles-dir src/experiments/thesis/profiles/phase01 \
         --fused        voice || { rc=$?; return $rc; }
 
     echo "[post] regenerating the thesis phase00 tables"
@@ -912,7 +913,7 @@ post_process_phase00() {
         --results-dir results/thesis/phase00 \
         --tables-dir  ../../documentation/00-thesis/monography/tables || { rc=$?; return $rc; }
 
-    echo "[post] done — review 'git diff src/experiments/thesis/profiles/phase01' before committing"
+    echo "[post] done — review 'git diff src/experiments/thesis/profiles' before committing"
     return 0
 }
 
@@ -928,13 +929,13 @@ elif [ "$SCOPE" = phase00 ] || [ "$SCOPE" = all ]; then
         echo
         echo "!! skipping phase00 post-processing: $fail profile(s) failed, so the ranking"
         echo "!! would be computed over an incomplete result set and could select the wrong"
-        echo "!! winner — which step 2 would then write into 32 tracked phase01 profiles."
+        echo "!! winner — which step 2 would then write into the tracked phase01 and biomex profiles."
         echo "!! Fix the failures and re-run (completed profiles are skipped)."
     else
         if [ "$SCOPE" = all ]; then
             echo
             echo "!! scope 'all' ran phase01 in the SAME pass as phase00, so phase01 used the"
-            echo "!! placeholder extractor, not the winner injected below. Re-run phase01"
+            echo "!! previous winners, not the ones written below. Re-run phase01"
             echo "!! (./scripts/testing/run_thesis_profiles.sh phase01) for it to take effect."
         fi
         # A failed post-processing fails the script: the run is not done until the

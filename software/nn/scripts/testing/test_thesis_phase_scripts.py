@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Tests for the thesis pipeline scripts: 01_thesis_phase00_rank.py,
-02_thesis_apply_winner.py, thesis_build_phase00_paraconsistent_tables.py,
-thesis_build_phase01_auth_tables.py and thesis_cross_profile_significance.py.
+"""Tests for the thesis pipeline scripts: 00_thesis_generate_profiles.py,
+01_thesis_phase00_rank.py, thesis_build_phase00_paraconsistent_tables.py,
+thesis_build_phase01_auth_tables.py, thesis_build_biomex_tables.py and
+thesis_cross_profile_significance.py.
 
 Stdlib unittest (no pytest needed). Drives the scripts end-to-end on the profiles
-00_thesis_generate_profiles.py generates (into a temporary directory, never the tree) and
-synthetic results in the format thesis writes: winner selection, ranking stability, the
-injection into Phase 01 profiles, both table builders and the significance tests.
+00_thesis_generate_profiles.py generates (in memory or into a temporary directory, never the
+tree) and synthetic results in the format thesis writes: winner selection, ranking stability,
+the winners written into the Phase 01 profiles, both table builders and the significance
+tests. GeneratedTree also checks the tracked profiles are exactly what the generator writes
+from the tracked winners.json.
 
 Run:  python3 scripts/testing/test_thesis_phase_scripts.py
 """
@@ -23,13 +26,14 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 PIPELINE_DIR = os.path.join(os.path.dirname(HERE), "pipeline", "thesis")
 RANK = os.path.join(PIPELINE_DIR, "01_thesis_phase00_rank.py")
-APPLY = os.path.join(PIPELINE_DIR, "02_thesis_apply_winner.py")
 TABLES = os.path.join(PIPELINE_DIR, "thesis_build_phase00_paraconsistent_tables.py")
 AUTH_TABLES = os.path.join(PIPELINE_DIR, "thesis_build_phase01_auth_tables.py")
 SIGNIFICANCE = os.path.join(PIPELINE_DIR, "thesis_cross_profile_significance.py")
 BIOMEX_TABLES = os.path.join(PIPELINE_DIR, "thesis_build_biomex_tables.py")
 
 GENERATE = os.path.join(PIPELINE_DIR, "00_thesis_generate_profiles.py")
+NN = os.path.dirname(os.path.dirname(HERE))
+TRACKED_WINNERS = os.path.join(NN, "results", "thesis", "phase00", "winners.json")
 SIGNALS = ("voice", "eegpron", "eegimag")
 
 
@@ -43,11 +47,16 @@ def _load(path, name):
 GEN = _load(GENERATE, "thesis_generate_profiles")
 
 
-def generated(phase):
+def generated(phase, winners=None, fused="voice"):
     """{stem: profile} exactly as 00_thesis_generate_profiles.py writes them, so the fixtures
     carry the real names and the real schema (a hand-written fixture drifted from both and
-    left 25 of these tests failing against scripts that were right)."""
-    rows = {"phase00": GEN.phase00, "phase01": GEN.phase01, "biomex": GEN.biomex}[phase]()
+    left 25 of these tests failing against scripts that were right). Phase 01 and BIOMEX-DB
+    carry the tracked winners unless the test passes its own."""
+    if phase == "phase00":
+        rows = GEN.phase00()
+    else:
+        winners = winners or GEN.load_winners(TRACKED_WINNERS)
+        rows = {"phase01": GEN.phase01, "biomex": GEN.biomex}[phase](winners, fused)
     return {os.path.basename(rel)[:-len(".json")]: prof for rel, prof in rows}
 
 
@@ -86,7 +95,7 @@ def write_para(res, prof, d, subset_d=None, label="x"):
 # families (the ranking needs one per family). D_penalized: lower is better.
 PHASE00_FIXTURE = {"p00_hc_haar_lfcc_c1": 0.20, "p00_hc_daub10_lfcc_c1": 0.35,
                    "p00_ae_ann_tiny": 0.50, "p00_pca_k8": 0.45}
-# Different winners per signal, so the apply test can tell which winner went where.
+# Different winners per signal, so the generator test can tell which winner went where.
 WINNER = {"voice": "p00_hc_haar_lfcc_c1", "eegpron": "p00_hc_daub10_lfcc_c1",
           "eegimag": "p00_hc_haar_lfcc_c1"}
 
@@ -107,14 +116,8 @@ class PhaseScripts(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.p00 = os.path.join(self.tmp, "phase00")
-        self.p01 = os.path.join(self.tmp, "phase01")
         self.res = os.path.join(self.tmp, "results")
         self.all00 = phase00_fixture(self.p00, self.res)
-        all01 = generated("phase01")
-        for name in ("p01_dsnn_voice_indep_flat_std", "p01_dsnn_eegpron_indep_flat_std",
-                     "p01_dsnn_eegimag_indep_flat_std", "p01_dsnn_earlypron_indep_flat_std",
-                     "p01_cmp-pca_voice_dep"):
-            write_json(os.path.join(self.p01, f"{name}.json"), all01[name])
         self.winners = os.path.join(self.tmp, "winners.json")
         self.stability = os.path.join(self.tmp, "winner_stability.csv")
 
@@ -203,54 +206,106 @@ class PhaseScripts(unittest.TestCase):
                          sorted((s, sub) for s in SIGNALS for sub in SUBSETS))
         self.assertTrue(all(r["full_winner_rank"] == "1" for r in rows))
 
-    def test_apply_requires_the_fused_choice(self):
+    def generate(self, *args):
+        """The generator's CLI, only for calls that must refuse: a success would write the
+        real tree."""
+        return subprocess.run([sys.executable, GENERATE, *args], check=False,
+                              capture_output=True, text=True)
+
+    def test_generate_requires_the_fused_choice(self):
         self.run_rank()
-        r = subprocess.run([sys.executable, APPLY, "--winners", self.winners,
-                            "--profiles-dir", self.p01],
-                           check=False, capture_output=True, text=True)
+        r = self.generate("--winners", self.winners)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("--fused", r.stderr)
 
-    def fe(self, name):
-        with open(os.path.join(self.p01, f"{name}.json")) as f:
-            return json.load(f)["feature_extraction"]
+    def test_generate_requires_winners_or_phase00_only(self):
+        r = self.generate()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("--winners", r.stderr)
+        r = self.generate("--phase00-only", "--fused", "voice")
+        self.assertNotEqual(r.returncode, 0)
 
-    def test_apply_injects_winner_per_source(self):
+    def test_help_writes_nothing(self):
+        # Running the old generator with --help regenerated the tree (it took no arguments).
+        manifest = os.path.join(GEN.PROFILES, "profiles.manifest")
+        before = os.stat(manifest).st_mtime_ns
+        self.assertEqual(self.generate("--help").returncode, 0)
+        self.assertEqual(os.stat(manifest).st_mtime_ns, before)
+
+    def test_winners_reach_each_source(self):
         winners = self.run_rank()
-        subprocess.run([sys.executable, APPLY, "--winners", self.winners,
-                        "--profiles-dir", self.p01, "--fused", "voice"],
-                       check=True, capture_output=True, text=True)
+        p01 = generated("phase01", GEN.load_winners(self.winners))
         for sig in SIGNALS:
-            self.assertEqual(self.fe(f"p01_dsnn_{sig}_indep_flat_std"),
+            self.assertEqual(p01[f"p01_dsnn_{sig}_indep_flat_std"]["feature_extraction"],
                              winners[sig]["feature_extraction"], sig)
         # fused <- the declared --fused voice; a comparison profile <- its family's best
-        self.assertEqual(self.fe("p01_dsnn_earlypron_indep_flat_std"),
+        self.assertEqual(p01["p01_dsnn_earlypron_indep_flat_std"]["feature_extraction"],
                          winners["voice"]["feature_extraction"])
-        self.assertEqual(self.fe("p01_cmp-pca_voice_dep"),
-                         winners["voice"]["by_family"]["pca"]["feature_extraction"])
+        for sig in SIGNALS:
+            for fam in ("hc", "ae", "pca"):
+                self.assertEqual(p01[f"p01_cmp-{fam}_{sig}_dep"]["feature_extraction"],
+                                 winners[sig]["by_family"][fam]["feature_extraction"])
+        bx = generated("biomex", GEN.load_winners(self.winners))
+        self.assertEqual(bx["bx01_dsnn_eegpron_dep_flat_std"]["feature_extraction"],
+                         winners["eegpron"]["feature_extraction"])
 
-    def test_apply_is_idempotent(self):
-        self.run_rank()
-        for _ in range(2):
-            out = subprocess.run(
-                [sys.executable, APPLY, "--winners", self.winners,
-                 "--profiles-dir", self.p01, "--fused", "voice"],
-                check=True, capture_output=True, text=True)
-        self.assertIn("updated 0/", out.stdout)
-
-    def test_apply_fused_eeg_option(self):
+    def test_fused_eeg_option(self):
         winners = self.run_rank()
-        subprocess.run([sys.executable, APPLY, "--winners", self.winners,
-                        "--profiles-dir", self.p01, "--fused", "eeg"],
-                       check=True, capture_output=True, text=True)
+        p01 = generated("phase01", GEN.load_winners(self.winners), fused="eeg")
         # early fusion of pronounced EEG <- the pronounced-EEG winner, not the voice one
-        self.assertEqual(self.fe("p01_dsnn_earlypron_indep_flat_std"),
+        self.assertEqual(p01["p01_dsnn_earlypron_indep_flat_std"]["feature_extraction"],
                          winners["eegpron"]["feature_extraction"])
         self.assertNotEqual(winners["eegpron"]["feature_extraction"],
                             winners["voice"]["feature_extraction"])
 
+    def test_an_autoencoder_winner_outside_its_budget_is_refused(self):
+        self.run_rank()
+        winners = GEN.load_winners(self.winners)
+        winners["voice"] = winners["voice"]["by_family"]["ae"] | {
+            "by_family": winners["voice"]["by_family"]}
+        with self.assertRaises(SystemExit) as e:
+            list(GEN.phase01(winners, "voice"))   # the grid trains 50 epochs, the AE 100
+        self.assertIn("ranked at 100 epochs", str(e.exception))
+
+    def test_a_winners_file_missing_a_family_is_refused(self):
+        winners = self.run_rank()
+        del winners["eegimag"]["by_family"]["pca"]
+        write_json(self.winners, winners)
+        with self.assertRaises(SystemExit) as e:
+            GEN.load_winners(self.winners)
+        self.assertIn("'eegimag' has no best ['pca']", str(e.exception))
+
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+class GeneratedTree(unittest.TestCase):
+    """The tracked profiles are the generator's output from the tracked winners.json.
+
+    Catches the silent failure the placeholder design had: a tree regenerated without its
+    winners, a winners.json re-ranked without regenerating, or a hand edit to a profile."""
+
+    def test_the_manifest_names_the_tracked_winners(self):
+        rel, sha, fused = GEN.manifest_winners()
+        self.assertEqual(os.path.join(NN, rel), TRACKED_WINNERS)
+        self.assertEqual(sha, GEN.sha256(TRACKED_WINNERS),
+                         "winners.json changed after the profiles were generated: run "
+                         "00_thesis_generate_profiles.py --winners ... --fused " + fused)
+
+    def test_every_tracked_profile_is_what_the_generator_writes(self):
+        _, _, fused = GEN.manifest_winners()
+        winners = GEN.load_winners(TRACKED_WINNERS)
+        rows = list(GEN.phase00()) + list(GEN.phase01(winners, fused)) + \
+            list(GEN.biomex(winners, fused))
+        differ = []
+        for rel, prof in rows:
+            with open(os.path.join(GEN.PROFILES, rel), encoding="utf-8") as f:
+                if json.load(f) != prof:
+                    differ.append(rel)
+        self.assertEqual(differ, [], "profiles that are not the generator's output")
+        with open(os.path.join(GEN.PROFILES, "profiles.manifest"), encoding="utf-8") as f:
+            listed = sorted(l.strip() for l in f if l.strip() and not l.startswith("#"))
+        self.assertEqual(listed, sorted(["debug.json"] + [rel for rel, _ in rows]))
 
 
 class Phase00Tables(unittest.TestCase):

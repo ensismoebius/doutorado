@@ -75,7 +75,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |
 | `thesis_spike_loss_e2e_gtest` | SpikeCount/SpikeTime AE training smoke (encoding<->loss invariant, time-major layout) |
-| `thesis_profile_audit_gtest` | 3738 tests: every profile in `profiles/profiles.manifest` (written by `scripts/pipeline/thesis/00_thesis_generate_profiles.py`: phase00 275 = 153 voice + 61 x 2 EEG conditions; phase01 142 = grid 56 + controls 28 + dysphonia 40 + extractor comparison 18; biomex 48 = BIOMEX-DB confirmatory replication, grid + controls 24 + dysphonia 24; debug) parses + validates under the strict config; a profile on disk the manifest does not name fails |
+| `thesis_profile_audit_gtest` | 3738 tests: every profile in `profiles/profiles.manifest` (written by `scripts/pipeline/thesis/00_thesis_generate_profiles.py --winners results/thesis/phase00/winners.json --fused voice`, which writes the Phase 00 winners in (no placeholder; `GeneratedTree` in `test_thesis_phase_scripts.py` refuses a tree that is not its output): phase00 275 = 153 voice + 61 x 2 EEG conditions; phase01 142 = grid 56 + controls 28 + dysphonia 40 + extractor comparison 18; biomex 48 = BIOMEX-DB confirmatory replication, grid + controls 24 + dysphonia 24; debug) parses + validates under the strict config; a profile on disk the manifest does not name fails |
 | `waveletAE` | Wavelet autoencoder pipeline binary (was experiment_02) |
 | `paraconsistentBaseline` | Frozen wavelet + paraconsistent baseline binary (was Phase00) |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |

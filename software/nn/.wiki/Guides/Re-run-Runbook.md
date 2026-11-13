@@ -63,9 +63,8 @@ python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --results-dir  results/thesis/smoke \
   --out          /tmp/smoke_winners.json
 
-cp -r src/experiments/thesis/profiles/phase01 /tmp/phase01_copy    # apply_winner rewrites IN PLACE
-python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
-  --winners /tmp/smoke_winners.json --profiles-dir /tmp/phase01_copy --fused voice
+# Do NOT pass a smoke winners file to 00_thesis_generate_profiles.py: it writes the real tree.
+# (GeneratedTree in test_thesis_phase_scripts.py would then fail: the manifest names another file.)
 
 python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
   --profiles-dir src/experiments/thesis/profiles/smoke/phase00 \
@@ -199,8 +198,8 @@ autoencoder bar, `run fold/total` + live loss on the classifier bar) plus a pers
 ### 2a. Rank → winner → tables
 
 See [Running Experiment05 Profiles §2a](./Running-Thesis-Profiles.md) for the full
-command sequence, the destructive-path warnings (`02_thesis_apply_winner.py` rewrites the 32
-phase01 profiles **in place**; `thesis_build_phase00_paraconsistent_tables.py` writes wherever
+command sequence, the destructive-path warnings (`00_thesis_generate_profiles.py --winners` rewrites the
+phase01 and biomex profiles **in place**; `thesis_build_phase00_paraconsistent_tables.py` writes wherever
 `--tables-dir` points, the committed thesis tables included), and the automatic
 post-processing gating.
 
@@ -209,7 +208,7 @@ post-processing gating.
 ## 3. Thesis Phase 01 — the thesis's actual experiment
 
 **Only after step 2** (which now runs 2a automatically on a clean phase00 pass), or the DSNN
-trains on the placeholder extractor rather than the Phase 00 winner. If you ran `scope=all`,
+trains on the previous winners rather than this Phase 00's. If you ran `scope=all`,
 step 2's post-processing came too late for that same pass's phase01 — re-run phase01 alone
 after it.
 

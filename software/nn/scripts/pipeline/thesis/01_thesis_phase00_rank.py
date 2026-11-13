@@ -31,8 +31,8 @@ Usage:
         --out          results/thesis/phase00/winners.json \
         --stability-out results/thesis/phase00/winner_stability.csv
 
-The --out JSON feeds 02_thesis_apply_winner.py, which injects each winner into the
-Phase 01 profiles.
+The --out JSON feeds 00_thesis_generate_profiles.py --winners, which writes each winner into
+the Phase 01 and BIOMEX-DB profiles.
 """
 import argparse
 import csv
@@ -306,8 +306,8 @@ def main():
         json.dump(winners, f, indent=2)
         f.write("\n")
     print(f"\nWinners written to {args.out}")
-    print("Next: python3 scripts/pipeline/thesis/02_thesis_apply_winner.py "
-          f"--winners {args.out} --profiles-dir <phase01 dir> --fused <voice|eeg>")
+    print("Next: python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py "
+          f"--winners {args.out} --fused <voice|eeg>")
 
 
 if __name__ == "__main__":

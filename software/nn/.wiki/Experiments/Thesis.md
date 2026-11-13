@@ -158,6 +158,25 @@ extractor comparison 18) and `profiles/profiles.manifest`, which
 `thesis_profile_audit_gtest` audits; a profile on disk that the manifest does not name fails.
 It reproduced the 246 earlier profiles exactly (checked, apart from the new keys).
 
+**No placeholder (2026-11-13).** The Phase 01 and BIOMEX-DB profiles used to ship a placeholder
+extractor that `02_thesis_apply_winner.py` then replaced. Regenerating the tree without
+re-applying put every profile back on the placeholder, and the failure was silent: the
+placeholder (haar/lfcc/c1, the ANN-AE base) equals the winner for every set except the PCA
+comparison, which went back to k = 32 while the winner is k = 8, and k = 32 is a valid profile
+the audit accepts. The generator now takes the winners itself:
+
+| call | writes |
+|---|---|
+| `--winners results/thesis/phase00/winners.json --fused voice` | every profile, winners written in; the manifest records the winners' path, sha256 and `--fused` |
+| `--phase00-only` | Phase 00 only, and removes `phase01/` and `biomex/`: before the ranking no Phase 01 profile can exist |
+| no argument, or `--winners` without `--fused` | nothing (refused); `--help` writes nothing either |
+
+`GeneratedTree` in `test_thesis_phase_scripts.py` (run by CI) regenerates the tree in memory from
+the tracked `winners.json` and the manifest's `--fused` and refuses any profile that differs, so
+a stale tree, a re-ranked `winners.json` nobody applied, or a hand edit fails loudly (checked:
+the k = 32 profile fails it). The run of record's file was `winner.json`, which no script read;
+it is now `winners.json`, the name every script writes.
+
 ### 9. What the autoencoders and PCA read: a spectrum, not the waveform
 
 **The problem.** An extractor can only pass on what its input holds. Until 2026-11-12 the
@@ -812,7 +831,7 @@ src/experiments/thesis/
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
-│           (feature_extraction = placeholder; set the Phase-00 winner before running)
+│           (feature_extraction = the Phase-00 winner, written by the generator)
   └── tests/
   ├── thesis_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
   ├── thesis_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
@@ -1026,7 +1045,7 @@ OMP_NUM_THREADS=1 ./out/build/max-performance/src/experiments/thesis/thesis \
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
 - **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eegpron`, `eegimag`: the EEG under each condition, [§1](#1-the-eeg-was-the-previous-trials-eeg)), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, plus PCA k = 8/16/32: 153 voice + 61 per EEG condition = **275** rankings, and score every combination with the paraconsistent metric, on the whole set and on 30 speaker subsets ([§5](#5-how-stable-is-the-phase-00-winner)). The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. The lowest-`D_penalized` combination per signal wins; each family's best is kept too, for the comparison set.
-- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). The `feature_extraction` block is a placeholder until `02_thesis_apply_winner.py` writes the winners. Five sets (all generated): `p01_dsnn_*` the grid, 7 sources (voice, eegpron, eegimag, early/late fusion × condition) × text mode × CV scheme × raw/std = 56; `p01_ann_*` and `p01_cosine_*`, the controls, 7 × 2 text modes, flat, std = 28; `p01_dysph_*`, simulated dysphonia, the 5 voice-reading sources × scope × 4 levels = 40; `p01_cmp-<family>_*`, the best of each extractor family through the DSNN at the autoencoders' 100 epochs, 3 families × 3 signals × 2 text modes = 18. Total 142.
+- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). The `feature_extraction` block is the Phase 00 winner, written by the generator from `--winners` (there is no placeholder; see [§8](#8-the-profiles-are-generated)). Five sets (all generated): `p01_dsnn_*` the grid, 7 sources (voice, eegpron, eegimag, early/late fusion × condition) × text mode × CV scheme × raw/std = 56; `p01_ann_*` and `p01_cosine_*`, the controls, 7 × 2 text modes, flat, std = 28; `p01_dysph_*`, simulated dysphonia, the 5 voice-reading sources × scope × 4 levels = 40; `p01_cmp-<family>_*`, the best of each extractor family through the DSNN at the autoencoders' 100 epochs, 3 families × 3 signals × 2 text modes = 18. Total 142.
 
 **Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
 (since 2026-07-18) `run_thesis_profiles.sh phase00`/`all` chains all three itself once every
@@ -1042,10 +1061,9 @@ python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --out          results/thesis/phase00/winners.json \
   --stability-out results/thesis/phase00/winner_stability.csv
 
-# Inject the winners into the 142 Phase 01 profiles (--fused is required: no default):
-python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
+# Regenerate the Phase 01 and BIOMEX-DB profiles with the winners (--fused required: no default):
+python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
   --winners      results/thesis/phase00/winners.json \
-  --profiles-dir src/experiments/thesis/profiles/phase01 \
   --fused        voice
 
 # Regenerate the thesis Phase 00 tables from the ranked results:
@@ -1055,7 +1073,7 @@ python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
   --tables-dir   ../../documentation/00-thesis/monography/tables
 ```
 
-`01_thesis_phase00_rank.py` reads exactly the `e05_<run_tag>[_rep<k>]_paraconsistent.csv` files each profile declares (refusing a missing one, a CSV with more than one row, or one without `d_penalized`), selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_thesis_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg` → the winner of its condition, `fused` → `--fused voice`, or with `--fused eeg` the winner of its condition; `p01_cmp-<family>_<signal>_*` → that family's winner); it refuses an autoencoder winner for a profile whose `training.epochs` is not the Phase 00 budget (100), before writing anything; it is idempotent and supports `--dry-run`. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables from the profile set (every argument required; a missing summary or an empty `{ae, hc, pca} × {voice, eegpron, eegimag}` group is refused, and a result with no profile is never read). It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across the handcrafted, autoencoder and PCA families) with a dagger — see pitfall 12 below for why this matters.
+`01_thesis_phase00_rank.py` reads exactly the `e05_<run_tag>[_rep<k>]_paraconsistent.csv` files each profile declares (refusing a missing one, a CSV with more than one row, or one without `d_penalized`), selects on `d_penalized` (not raw `D_truth`, which a collapsed latent can game) per signal, reports exact ties explicitly, and writes `winners.json` (each winner carries its full `feature_extraction` block). `00_thesis_generate_profiles.py --winners` writes each Phase 01 and BIOMEX-DB profile's `feature_extraction` as its source's winner (`voice→voice`, `eeg` → the winner of its condition, `fused` → `--fused voice`, or with `--fused eeg` the winner of its condition; `p01_cmp-<family>_<signal>_*` → that family's winner); it refuses a winners file missing a signal or family, and an autoencoder winner for a profile whose `training.epochs` is not the Phase 00 budget (100), before writing anything. `thesis_build_phase00_paraconsistent_tables.py` regenerates the committed thesis tables from the profile set (every argument required; a missing summary or an empty `{ae, hc, pca} × {voice, eegpron, eegimag}` group is refused, and a result with no profile is never read). It ranks **ascending** by `d_penalized` (rank 1 = best) and marks each signal's overall winner (chosen across the handcrafted, autoencoder and PCA families) with a dagger — see pitfall 12 below for why this matters.
 
 A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 01 results once that phase has run:
 

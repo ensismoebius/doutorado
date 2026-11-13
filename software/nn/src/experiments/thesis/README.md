@@ -479,7 +479,7 @@ Base pública 10.1117/12.2255697
   | `base`  | 64 | 32 |
 
   Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. Variantes esparsas/quantizadas exigiriam extensão do `ThesisFeatureExtraction`. O `lstm-ae` não entra no sweep: foi descartado da tese (ver o item de escopo no passo 1).
-- **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é um placeholder — substitua pela wavelet/escala (ou `strategy=autoencoder`) vencedora antes de rodar. Cruza fonte × modo de texto × esquema de CV.
+- **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é o vencedor da Fase 00, escrito pelo gerador (`00_thesis_generate_profiles.py --winners`); não há placeholder. Cruza fonte × modo de texto × esquema de CV.
 
 **Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
 
@@ -492,10 +492,9 @@ python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
     --results-dir  results/thesis/phase00 \
     --out          results/thesis/phase00/winners.json
 
-# 3. Injete o vencedor nos 32 perfis phase01/ (--fused é obrigatório, sem padrão):
-python3 scripts/pipeline/thesis/02_thesis_apply_winner.py \
+# 3. Regere os perfis phase01/ e biomex/ com os vencedores (--fused é obrigatório, sem padrão):
+python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
     --winners      results/thesis/phase00/winners.json \
-    --profiles-dir src/experiments/thesis/profiles/phase01 \
     --fused        voice      # ou: eeg
 
 # 3b. Regere as tabelas da Fase 00 da tese:
@@ -507,7 +506,7 @@ python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
 # 4. Rode os perfis phase01/ (já com o extrator vencedor).
 ```
 
-O `rank` lê exatamente os CSV que cada perfil declara (`run_tag` + `_rep<k>` para `repeats > 1`), faz média das repetições e reporta a tabela ordenada + o vencedor. Todos os argumentos são obrigatórios, e um arquivo faltando, um CSV com mais de uma linha ou sem `d_penalized` é recusado. O `apply` é idempotente: `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`. Use `--dry-run` no `apply` para revisar sem gravar.
+O `rank` lê exatamente os CSV que cada perfil declara (`run_tag` + `_rep<k>` para `repeats > 1`), faz média das repetições e reporta a tabela ordenada + o vencedor. Todos os argumentos são obrigatórios, e um arquivo faltando, um CSV com mais de uma linha ou sem `d_penalized` é recusado. O gerador escreve `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`, e o manifesto registra o sha256 do `winners.json`; `test_thesis_phase_scripts.py` (`GeneratedTree`) recusa uma árvore que não seja a saída do gerador.
 
 ---
 

@@ -200,10 +200,10 @@ Gating on the automatic path:
   profile declares must exist), and a failed post-processing fails the run.
 - `THESIS_SKIP_POST=1` disables the automatic post-processing entirely.
 - With `scope=all`, phase01 runs in the *same* pass as phase00, so it trains
-  on the placeholder extractor — the winner injected by step 3 comes too late
+  on the previous winners — the winners written by step 3 come too late
   for that pass. The script prints this warning; run phase01 alone afterward
   (§4) for the injected winner to take effect.
-- Step 3 still **rewrites the 32 phase01 profiles in place** whether it ran
+- Step 3 still **rewrites the tracked phase01 and biomex profiles in place** whether it ran
   automatically or by hand — review `git diff src/experiments/thesis/profiles/phase01`
   before committing.
 
@@ -227,22 +227,23 @@ CSV has more than one scored row, or when it lacks the `d_penalized` column —
 a winner taken from a partial set is not the Phase 00 winner. To rank a smoke
 run, redirect `--profiles-dir`/`--results-dir` together.
 
-### 3. Inject the winner into the Phase 01 profiles
+### 3. Write the winners into the Phase 01 profiles
 
-The shipped phase01 profiles carry a **placeholder** extractor until this runs.
+There is no placeholder: the generator writes every profile with its winner.
 
 ```bash
-.venv/bin/python scripts/pipeline/thesis/02_thesis_apply_winner.py \
+.venv/bin/python scripts/pipeline/thesis/00_thesis_generate_profiles.py \
   --winners      results/thesis/phase00/winners.json \
-  --profiles-dir src/experiments/thesis/profiles/phase01 \
   --fused        voice
 ```
 
 `--fused voice|eeg` (required, no default; the driver declares `voice`, the
-audio-dominant signal) selects which winner backs the fused profiles; `voice`/`eeg`-only profiles always get
-their own signal's winner. Idempotent; supports `--dry-run`. **Rewrites the
-32 tracked phase01 profiles in place** — pointing `--winners` at a
-smoke/partial-run JSON silently overwrites the real profiles' extractor.
+audio-dominant signal) selects which winner backs the fused profiles; `voice`/`eeg`-only
+profiles always get their own signal's winner, and `p01_cmp-<family>_<signal>_*` its family's
+best. It **rewrites the tracked phase01 and biomex profiles in place** and records the winners'
+sha256 in `profiles.manifest`; pointing `--winners` at a smoke/partial-run JSON is caught by
+`GeneratedTree` in `test_thesis_phase_scripts.py` (the manifest names another file), but the
+tree is already overwritten: `git checkout src/experiments/thesis/profiles` restores it.
 
 ### 4. Regenerate the thesis tables
 
@@ -268,7 +269,7 @@ before trusting a "rank 1" row in any table this pipeline produces.
 Runs the 32 phase01 profiles (`classifier.enabled=true`, `paraconsistent.enabled=false`).
 Writes EER/AUC to `results/thesis/phase01/`. Must run **after** step 1 (which
 now runs steps 2-4 automatically on a clean pass) — otherwise it trains on
-the placeholder extractor rather than the phase00 winner.
+the previous winners rather than this phase00's.
 
 ```bash
 ./scripts/testing/run_thesis_profiles.sh phase01
@@ -360,7 +361,7 @@ Every choice is required: `--metric eer|auc|accuracy|f1`, `--reference best|<run
 
 - **`run_thesis_profiles.sh all`** runs phase00 + phase01 + debug in one pass, and
   (since 2026-07-18) still auto-runs the phase00 post-processing on a clean
-  pass — but phase01 in that *same* pass trains on the placeholder extractor,
+  pass — but phase01 in that *same* pass trains on the previous winners,
   since it ran before the winner was injected. For real phase01 results after
   an `all` run, run phase01 alone again (§5). Running the phases separately
   (`phase00` then `phase01`) avoids the caveat entirely.

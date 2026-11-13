@@ -1,4 +1,5 @@
 # Written by scripts/pipeline/thesis/00_thesis_generate_profiles.py; do not edit.
+# winners: results/thesis/phase00/winners.json sha256 e653951ebbc4058e93a28d5e0bc7b6f9fe987070dd7a7a4f85e984d2558c078b voice
 biomex/bx01_ann_earlypron_dep_flat_std.json
 biomex/bx01_ann_earlypron_indep_flat_std.json
 biomex/bx01_ann_eegpron_dep_flat_std.json

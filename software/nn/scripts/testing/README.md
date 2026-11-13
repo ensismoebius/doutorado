@@ -11,7 +11,7 @@ top-level `scripts/README.md` for the full file table; summary:
 | `gen_pywt_refs.py` | PyWavelets ground-truth fixtures for the C++ wavelet ops (needs `pywt`); see header comment for the periodization/DaubN conventions mapped from `waveletOperations.cpp` |
 | `thesis_make_smoke_profiles.py` + `run_thesis_smoke.sh` | Fast smoke pass over every Experiment05 profile (tiny params, same code paths) |
 | `run_thesis_profiles.sh` | The real (heavy) Experiment05 phase00/phase01 runner — resumable, checkpointed |
-| `test_thesis_phase_scripts.py` | Unit tests for `../pipeline/thesis/01_thesis_phase00_rank.py` + `../pipeline/thesis/02_thesis_apply_winner.py` |
+| `test_thesis_phase_scripts.py` | Unit tests for the thesis pipeline (`00_thesis_generate_profiles.py`, `01_thesis_phase00_rank.py`, the table builders, the significance tests); `GeneratedTree` checks the tracked profiles are the generator's output from the tracked `winners.json` |
 
 ---
 

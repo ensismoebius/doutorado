@@ -52,12 +52,12 @@ EXPERIMENT_CONFIRMED=1 ./scripts/pipeline/meeting01/01_meeting01_run_loso.sh
 
 ### e05/ — Thesis phase00 → phase01 chain
 
-Full chain: `run_thesis_profiles.sh phase00` (scripts/testing/) → `01_thesis_phase00_rank.py` → `winners.json` → `02_thesis_apply_winner.py` → `run_thesis_profiles.sh phase01`
+Full chain: `run_thesis_profiles.sh phase00` (scripts/testing/) → `01_thesis_phase00_rank.py` → `winners.json` → `00_thesis_generate_profiles.py --winners … --fused voice` → `run_thesis_profiles.sh phase01`
 
 | Script | Role |
 |---|---|
 | `01_thesis_phase00_rank.py` | Read the `*_paraconsistent.csv` each phase00 profile declares, pick the per-signal winner by `d_penalized`, write `winners.json` |
-| `02_thesis_apply_winner.py` | Inject `winners.json`'s winning `feature_extraction` block into the phase01 profiles' placeholder |
+| `00_thesis_generate_profiles.py` | Write every profile; Phase 01 and BIOMEX-DB carry the winners of `--winners` (`--phase00-only` before the ranking: no Phase 01 profile exists without a winner). The manifest records the winners' sha256, and `test_thesis_phase_scripts.py` refuses a tree that is not the generator's output |
 | `thesis_build_phase00_paraconsistent_tables.py` | Standalone: generate the thesis's ranked phase00 comparison tables (`tables/phase00_*.csv`) from `results/thesis/phase00/*_summary.json`, consumed by `chapters/09-testsAndResults.tex` — branches off the same phase00 results as step 01 but isn't part of the rank→apply sequence |
 | `thesis_build_phase01_auth_tables.py` | Generate `tables/phase01_auth.csv` (the 32 phase01 configurations ranked by mean EER) from the summaries each phase01 profile declares |
 | `thesis_cross_profile_significance.py` | Cohen's d + Wilcoxon (paired) or Mann-Whitney (independent) of each phase01 condition against a declared reference, on per-fold metrics; Holm-adjusted over the family |
