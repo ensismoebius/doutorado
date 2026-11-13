@@ -10,6 +10,7 @@ signatures carry the same code, so these tests check the pairing itself, not jus
 Run:  python3 scripts/testing/test_biomex_convert.py
 """
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -24,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONVERT = os.path.join(os.path.dirname(HERE), "data", "biomex_to_sqlite.py")
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "data"))
 import biomex_to_sqlite as bx  # noqa: E402
+import biomex_verify as bv  # noqa: E402
 
 FS = 128
 VFS = 16000
@@ -258,64 +260,127 @@ class BiomexConvert(unittest.TestCase):
         self.assertIn("01G10 series 2 digit 1: no 1.0 s voice window fits", r.stderr)
         self.assertFalse(os.path.exists(self.out))
 
-    # ── errata: applied only to a file exactly as described, refused otherwise ──────────
+    # ── exclusions: applied only to files exactly as described, refused otherwise ───────
     def _convert_in_process(self):
-        return bx.convert_volunteer(os.path.join(self.src, "F999"), "F999", bx.band_pass())
+        return bx.convert_volunteer(os.path.join(self.src, "F999"), "F999", bx.coretto_filters())
 
-    def test_a_missing_lab_word_is_inserted_only_into_a_free_gap(self):
+    def test_an_unlabelled_digit_is_left_out_only_if_its_span_is_free(self):
         truth = make_volunteer(self.src)
         lab = os.path.join(self.src, "F999", "Voice", "F999_01G10_1.lab")
         lines = read(lab).splitlines()
-        a, b, word = lines[5].split()          # the third word of series 1
+        a, b, _ = lines[5].split()          # the third word of series 1
         write(lab, "\n".join(lines[:5] + lines[6:]) + "\n")
         with self.assertRaises(bx.ConversionError) as e:
             self._convert_in_process()
         self.assertIn("01G10 series 1", str(e.exception))
-        word = bx.LABEL_TYPOS.get(word, word)
-        with mock.patch.dict(bx.LAB_MISSING_WORDS, {("F999", "01G10", 1): (int(a), int(b), word)}):
+        with mock.patch.dict(bx.UNLABELLED_DIGITS, {("F999", "01G10", 1): (3, int(a), int(b))}):
             pairs = self._convert_in_process()
-        self.assertEqual(sorted((p["session"], p["series"], p["position"], p["code"])
-                                for p in pairs), sorted(truth))
-        # An erratum that overlaps a line the file has is not the file it describes.
+        got = sorted((p["session"], p["series"], p["position"], p["code"]) for p in pairs)
+        self.assertEqual(got, sorted(t for t in truth if t[:3] != ("01G10", 1, 3)))
+        self.assertEqual(len(pairs), 139)
+        # The window of word 2 must not reach the unlabelled word 3, which is still spoken.
+        w2 = [p for p in pairs if p["session"] == "01G10" and p["series"] == 1
+              and p["position"] == 2][0]
+        self.assertEqual(w2["voice_shift_s"], 0.0)
+        # A span that a line of the file covers is not the file the entry describes.
         prev_word_end = int(lines[3].split()[1])
-        with mock.patch.dict(bx.LAB_MISSING_WORDS,
-                             {("F999", "01G10", 1): (prev_word_end - 10, int(b), word)}):
+        with mock.patch.dict(bx.UNLABELLED_DIGITS,
+                             {("F999", "01G10", 1): (3, prev_word_end - 10, int(b))}):
             with self.assertRaises(bx.ConversionError) as e:
                 self._convert_in_process()
-        self.assertIn("overlaps", str(e.exception))
+        self.assertIn("UNLABELLED_DIGITS", str(e.exception))
 
-    def test_a_misnamed_edf_is_used_only_through_its_erratum(self):
-        make_volunteer(self.src)
-        eeg_dir = os.path.join(self.src, "F999", "EEG")
-        old = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G04-")][0]
-        os.rename(os.path.join(eeg_dir, old), os.path.join(eeg_dir, "F998" + old[4:]))
-        with self.assertRaises(bx.ConversionError) as e:
-            self._convert_in_process()
-        self.assertIn("expected one EDF, found 0", str(e.exception))
-        with mock.patch.dict(bx.EDF_FILE_ERRATA, {("F999", "01G04"): "F998" + old[4:]}):
-            self.assertEqual(len(self._convert_in_process()), 140)
-
-    def test_an_aborted_edf_is_set_aside_only_if_it_holds_no_digit(self):
-        make_volunteer(self.src)
-        eeg_dir = os.path.join(self.src, "F999", "EEG")
-        n = 6 * FS                                   # a few seconds, start marker only
+    # ── the strict rule: one complete 01G10 and one complete 01G04, under the own name ──
+    def _short_edf(self, name, codes):
+        """An EDF of a few seconds: the start marker, then these digit markers (none = an
+        aborted start)."""
+        n = (6 + len(codes)) * FS
         labels = ["COUNTER", "INTERPOLATED"] + list(bx.EEG_CHANNELS) + ["MARKER"]
         sig = np.zeros((len(labels), n))
         sig[-1, FS] = 99
-        aborted = "F999-01G10-18.07.18.12.00.00.edf"
-        write_edf(os.path.join(eeg_dir, aborted), sig, labels, [(0, 16000)] * len(labels),
-                  [(0, 31200)] * (len(labels) - 1) + [(0, 16000)])
-        with self.assertRaises(bx.ConversionError) as e:
-            self._convert_in_process()
-        self.assertIn("expected one EDF, found 2", str(e.exception))
-        with mock.patch.dict(bx.EDF_ABORTED, {("F999", "01G10"): aborted}):
-            self.assertEqual(len(self._convert_in_process()), 140)
-        # Named as aborted but holding digits: refused.
-        real = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G10-18.07.18.12.29")][0]
-        with mock.patch.dict(bx.EDF_ABORTED, {("F999", "01G10"): real}):
-            with self.assertRaises(bx.ConversionError) as e:
-                self._convert_in_process()
-        self.assertIn("holds digit markers", str(e.exception))
+        for j, c in enumerate(codes):
+            sig[-1, (3 + j) * FS] = c
+        write_edf(os.path.join(self.src, "F999", "EEG", name), sig, labels,
+                  [(0, 16000)] * len(labels), [(0, 31200)] * (len(labels) - 1) + [(0, 16000)])
+
+    def _convert_all(self):
+        """main() over the source, then (speaker names, excluded_volunteers); also checks that
+        the verifier's own re-implementation of the rule reaches the same verdicts."""
+        with mock.patch.object(sys, "argv", ["x", "--src", self.src, "--out", self.out]):
+            bx.main()
+        con = sqlite3.connect(self.out)
+        names = [n for (n,) in con.execute("SELECT name FROM speaker ORDER BY name")]
+        info = dict(con.execute("SELECT key, value FROM recording"))
+        con.close()
+        for vid in sorted(os.listdir(self.src)):
+            chosen, _ = bv.strict_rule(os.path.join(self.src, vid), vid)
+            self.assertEqual(chosen is not None, vid in names, vid)
+        return names, info["excluded_volunteers"]
+
+    def test_a_session_filed_under_another_name_excludes_the_volunteer(self):
+        make_volunteer(self.src)
+        make_volunteer(self.src, vid="F998")
+        eeg_dir = os.path.join(self.src, "F999", "EEG")
+        old = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G04-")][0]
+        os.rename(os.path.join(eeg_dir, old), os.path.join(eeg_dir, "F997" + old[4:]))
+        names, excluded = self._convert_all()
+        self.assertEqual(names, ["F998"])
+        self.assertIn("F999: 01G04: 0 complete recordings", excluded)
+        self.assertIn("F997-01G04-", excluded)       # what the folder held instead
+        self.assertNotIn("F998", excluded)
+
+    def test_two_complete_recordings_of_one_session_exclude_the_volunteer(self):
+        # Which of the two the voice was recorded with cannot be told.
+        make_volunteer(self.src)
+        make_volunteer(self.src, vid="F998")
+        eeg_dir = os.path.join(self.src, "F999", "EEG")
+        first = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G10-")][0]
+        shutil.copy(os.path.join(eeg_dir, first),
+                    os.path.join(eeg_dir, "F999-01G10-18.07.18.13.00.00.edf"))
+        names, excluded = self._convert_all()
+        self.assertEqual(names, ["F998"])
+        self.assertIn("F999: 01G10: 2 complete recordings", excluded)
+
+    def test_an_aborted_recording_with_no_digit_is_ignored(self):
+        make_volunteer(self.src)
+        self._short_edf("F999-01G10-18.07.18.12.00.00.edf", [])
+        names, excluded = self._convert_all()
+        self.assertEqual((names, excluded), (["F999"], "none"))
+        self.assertEqual(len(self._convert_in_process()), 140)
+
+    def test_an_incomplete_recording_with_digits_excludes_the_volunteer(self):
+        # Even beside a complete one: the volunteer saw part of the protocol twice.
+        make_volunteer(self.src)
+        make_volunteer(self.src, vid="F998")
+        self._short_edf("F999-01G10-18.07.18.12.00.00.edf", series_codes(10)[0][:3])
+        names, excluded = self._convert_all()
+        self.assertEqual(names, ["F998"])
+        self.assertIn("F999: 01G10: an incomplete recording with digits in it", excluded)
+
+    def test_the_eeg_filter_is_the_one_the_coretto_paper_gives(self):
+        # Pressel Coretto et al. (SPIE 10160, 2017): FIR low-pass of order 372 and high-pass
+        # of order 1204 at 1024 Hz, 2-40 Hz, a 788-sample group delay removed by shifting.
+        from scipy.signal import freqz
+        lp, hp = bx.coretto_filters()
+        self.assertEqual((len(lp) - 1, len(hp) - 1), (372, 1204))
+        self.assertEqual(bx.FILTER_EDGE, 788)
+        w, h = freqz(np.convolve(lp, hp), worN=1 << 16, fs=bx.OUT_EEG_RATE)
+        gain = lambda f: 20 * np.log10(abs(h[np.argmin(abs(w - f))]))  # noqa: E731
+        self.assertAlmostEqual(gain(2.0), -6.0, delta=0.2)
+        self.assertAlmostEqual(gain(40.0), -6.0, delta=0.2)
+        for f in (5.0, 10.0, 20.0, 30.0):
+            self.assertLess(abs(gain(f)), 0.1)
+        self.assertLess(gain(0.0), -50.0)
+        # Applied once with the delay removed: a 10 Hz tone keeps its phase, and the
+        # Emotiv's ADC offset leaves no constant behind (it would identify the headset fit).
+        t = np.arange(60 * FS) / FS
+        native = 4200.0 + 10.0 * np.sin(2 * np.pi * 10 * t)
+        out = bx.eeg_chain(native[None, :], (lp, hp))[0]
+        mid = slice(20 * bx.OUT_EEG_RATE, 40 * bx.OUT_EEG_RATE)
+        t_up = np.arange(out.size) / bx.OUT_EEG_RATE
+        ref = 10.0 * np.sin(2 * np.pi * 10 * t_up)
+        self.assertLess(np.abs(out[mid] - ref[mid]).max(), 0.05)
+        self.assertLess(abs(out[mid].mean()), 0.01)
 
     def test_an_existing_output_is_never_overwritten(self):
         make_volunteer(self.src)

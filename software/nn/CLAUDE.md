@@ -137,7 +137,12 @@ digits only, so `eeg_condition imagined` is refused). Sample rates come from the
 constants: a hand-built view in a test must set them. BIOMEX-DB is written at the Coretto rates
 (44.1 kHz / 1024 Hz, upsampled from 16 kHz / 128 Hz) and `load_paired` refuses any other rate:
 the DTWPT sub-bands are fractions of Nyquist, so a feature column is the same Hz on both bases
-only at the same rate (`.wiki/Experiments/Thesis.md` §11).
+only at the same rate (`.wiki/Experiments/Thesis.md` §11). The converter applies the Coretto
+authors' own EEG filter (FIR LP 372 / HP 1204 at 1024 Hz, after per-channel offset removal) and
+the strict rule: a volunteer is kept only with exactly one complete 01G10 and one complete 01G04
+EDF under its own name (no per-file exceptions; `biomex_verify.py` re-implements the rule and
+must reach the same excluded list). `biomex_verify.py` stamps `<db>.verified`; the deploy refuses
+a base without it.
 
 **Thesis / paraconsistentGA config: no defaults at all (2026-11-11).** `ThesisConfig`
 holds every value in `thesis::Required<T>` (`Required.hpp`): reading one that was never

@@ -334,12 +334,29 @@ labelled word longer than the window is kept from its onset and counted (`voice_
 F001-F006, F006's "TRES" labelled 1.676 s). Totals are in the base's `recording` table
 (`voice_windows_shifted`, `voice_words_cut`).
 
-**Why the converter filters the EEG.** The Emotiv EEG sits on a DC offset of ~4000 uV that
-differs per electrode and per headset fit. Unfiltered, energy and spectrum features would
-read the fit of the headset and identify speakers by it — a silent confound that looks like
-a good EER. The same 2-40 Hz band the Coretto authors applied removes it and keeps the two
-bases comparable (after the filter: mean -0.01 uV, -64 dB at 45 Hz re alpha). Both bases
-reach the loader in uV (RMS 15.3 Coretto / 14.5 BIOMEX) and the voice as float PCM in [-1, 1].
+**Why the converter filters the EEG, and with the Coretto authors' own filter.** The Emotiv
+EEG sits on a DC offset of ~4200 uV that differs per electrode and per headset fit.
+Unfiltered, energy and spectrum features would read the fit of the headset and identify
+speakers by it — a silent confound that looks like a good EER. The converter applies the
+filter the Coretto paper publishes (Pressel Coretto et al. 2017, sec. 2.3), not a filter of
+its own, so the two bases differ in recording only:
+
+```
+EDF, 128 Hz, ~4200 uV offset
+  | 1. subtract each channel's session mean      (the FIR's DC stopband is -53 dB: 4200 uV -> ~9 uV left without this)
+  | 2. resample_poly x8 -> 1024 Hz                (the Coretto rate, see below)
+  | 3. FIR low-pass, order 372, 40 Hz, Hamming    (Coretto's)
+  | 4. FIR high-pass, order 1204, 2 Hz, Hamming   (Coretto's)
+  |    both odd-length and symmetric: applied "same" = the 788-sample group delay removed
+  v
+epoch: 2 s after the marker, >= 788 samples from either end of the session (else refused)
+```
+
+`test_the_eeg_filter_is_the_one_the_coretto_paper_gives` pins the orders, -6 dB at 2 and 40
+Hz, flatness at 5-30 Hz, the DC rejection, the 10 Hz phase and the offset removal. Both bases
+reach the loader in uV and the voice as float PCM in [-1, 1]. The Coretto voice also went
+through a 4th-order Butterworth low-pass at 10 kHz; it is not applied to BIOMEX-DB, whose 16
+kHz recording holds nothing above 8 kHz, where that filter's loss is ≤ 0.7 dB.
 
 **Rates come from the base.** Until this change the extractors used constants (44100 / 1024
 Hz). `ThesisDatasetView` now carries `voice_sample_rate` / `eeg_sample_rate`, set by the
@@ -384,7 +401,7 @@ any other rate, so a native-rate file cannot reach the extractors.
 | duration | 4 s voice, 4 s EEG | 1 s voice, 2 s EEG | per-column constants (energy, padding share), removed by the per-fold z-score |
 | EEG channels | 6 (F3 F4 C3 C4 P3 P4) | 14 (Emotiv) | the same 96 columns: channels are concatenated into one signal before the DTWPT |
 | zero padding to 2^n | voice 33%, EEG 25% | voice 33%, EEG 12.5% | per-column constants, removed by the z-score |
-| EEG power below 2 Hz | 19.5% (measured; the authors' high-pass is an FIR of order 1204 at 1024 Hz, a transition band of a few Hz around 2 Hz, after an analog 0.3-35 Hz amplifier band) | 0.4% (the converter's FIR) | content: sub-band 0 holds it on both; not removable without refiltering Coretto |
+| EEG power below 2 Hz | 19.2% | 3.3% | content: sub-band 0 holds it on both. Both now went through the same digital filter (Coretto's order-1204 high-pass, a transition band of a few Hz around 2 Hz), so the gap is the recordings' (Coretto's analog 0.3-35 Hz amplifier band vs the Emotiv's), not the processing; 80 random pronounced epochs per base, same code, each at its own epoch length |
 | voice power below 300 Hz | 77.7% | 28.3% | content of the recordings (room, microphone) |
 
 `ThesisBiomexDataset.BothBasesReachTheClassifierInTheSameFormat` runs both shapes through the
@@ -408,23 +425,60 @@ a stamp that matches. Two facts it surfaced: the CSV exports stop at a round row
 (22000 / 43000), so the EDF is the complete recording (markers exist after the CSV ends);
 and the EDF records past the CSV are real signal, not padding.
 
-**Errata of the distributed files.** Three files break the base's own rules. Each correction
-is a named entry in `biomex_to_sqlite.py`, applied only if the file still looks exactly as
-described (else refused), and covered by a test that shows both outcomes:
+**Which recording is a volunteer's: the strict rule (decided 2026-11-13).** The paper
+describes one 01G10 and one 01G04 recording per volunteer. Several folders do not look like
+that (`scripts/data/biomex_inventory.py` lists every EDF of every folder):
 
-| Volunteer | What is wrong | Evidence | Correction |
-|---|---|---|---|
-| F007 01G04 | the EDF is named `F006-01G04-23.07.18.11.17.32.edf` | header and CSV: "subject F006, 11.17.32", 9 min after F007's 01G10, in F007's folder; F006's own 01G04 is 10.57.41, another size | `EDF_FILE_ERRATA`: that file is F007's 01G04 |
-| F008 01G10 | two 01G10 EDFs | `…11.07.56.edf` is 64768 bytes (a few seconds), no digit marker (checked), 36 s before F007's 01G10 started | `EDF_ABORTED`: set aside; the session is 11.26.35 |
-| F017 01G10 s8 | the .lab has 9 words for 10 markers | no line covers 126715626-131048750 (100 ns); speech there; EEG marker and Table 1 both say 0 | `LAB_MISSING_WORDS`: CERO inserted into that free span |
+```
+F007/EEG   F007-01G10-…edf   F006-01G04-…edf        <- 01G04 carries F006's name (header and CSV too)
+M001/EEG   M001-01G10-… x2 complete, + 02G10, 02G04 <- which 01G10 went with the voice?
+M007/EEG   M007-1G10-…edf                           <- not a session name the protocol has
+M010/EEG   M10-01G10-…edf                           <- another volunteer id
+F008/EEG   F008-01G10-11.07.56.edf  (64 KB, no digit marker) + the real one   <- an aborted start
+```
+
+Reading each of these as "obviously" one thing is a guess per file, and a guess that is wrong
+pairs one person's EEG with another's voice: the run completes and reports an EER, so the
+failure is **silent**. The rule is therefore mechanical and has no per-file exceptions:
+
+| A folder's `EEG/`, per session (01G10, 01G04) | Verdict |
+|---|---|
+| exactly one recording named `<vid>-<session>-*.edf` holding the complete protocol (10 runs of 10 or of 4 digits) | kept |
+| a recording with no digit marker at all (an aborted start) | ignored: it holds no data |
+| a recording with some digits but not the whole protocol | volunteer excluded |
+| zero or two+ complete recordings under its own name | volunteer excluded |
+| 02G10 / 02G04 (a second day, M001, M003, M004) | not part of the protocol, ignored |
+
+`own_recordings` applies it in the converter; `strict_rule` in the verifier is a separate
+re-implementation (by file name and marker content), and the verifier refuses unless both reach
+the same excluded list, which the base records (`recording.excluded_volunteers`, with reasons).
+Four tests build each case (`test_biomex_convert.py`).
+
+One pair is left out by name, not by rule: F017 01G10 series 8 has 9 `.lab` words for 10 markers.
+No line covers 126715626-131048750 (100 ns), there is speech there, and the EEG marker and
+Table 1 both say 0. Its position is dropped (`UNLABELLED_DIGITS`), applied only if no `.lab`
+line overlaps that span (else refused), and the span still counts as spoken for the windows
+next to it.
 
 **Cautions (measured, F001).** (1) The two "sessions" are 7 minutes apart on the same day,
 not two days. (2) EEG while speaking carries muscle activity: 2 s after a digit marker vs
 eyes-open rest, power 30-64 Hz ×2.3 (T7 ×4.4, F7 ×3.8), 1-4 Hz ×11.8 — "pronounced EEG"
 identification can be partly jaw and eyes, on both bases.
 
+**And the Coretto base?** Its counts match Tables 3 and 4 of its paper in every cell but one:
+S01 /o/ pronounced has 11 trials in `~/database.sqlite`, 10 in the paper (whose column sums to
+175, consistent with 10). The 11 are distinct trials from distinct rows of the original matrix,
+so the difference is between the paper and the distributed data, not the import. The authors'
+Google Drive folder now requires a sign-in (`gdown` fails), so the blobs are compared with the
+only other copy: an EEG-only re-host on Zenodo (record 19502780, uploaded for MOABB by a third
+party, files renamed `sub-NN_eeg.mat`). `scripts/data/coretto_verify_mirror.py` checks every
+row of it against the trial with that `original_row`: six channels exactly, modality, stimulus,
+blink, and every row present once. Agreement there means two independent derivations agree, not
+that either is certified; the audio has no second copy and stays unverified.
+
 ```bash
 python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked
+python3 scripts/data/biomex_inventory.py --src ~/biomex/extracted  # every EDF of every folder; the irregular ones
 python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
 python3 scripts/data/biomex_verify.py --src ~/biomex/extracted --db ~/biomex.sqlite  # stamp
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch

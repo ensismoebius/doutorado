@@ -644,9 +644,9 @@ sub-banda 0, e a Coretto e seus vencedores congelados continuam válidos.
   de EEG), canais (6 vs 14, concatenados num só sinal antes da DTWPT) e a fração de zeros do
   preenchimento até 2^n. Todas são constantes por coluna dentro de uma base, e o z-score as
   remove. Duas são de conteúdo e não somem:
-  - **O EEG da Coretto tem 19,5% da potência abaixo de 2 Hz**, apesar do filtro "2–40 Hz" dos
-    autores. A BIOMEX, com o FIR do conversor, tem 0,4%. Igualar exigiria refiltrar a Coretto e
-    refazer as Phases 00/01. **Aberto:** decidir se isso entra como limitação ou se refiltramos.
+  - **O EEG da Coretto tem 19,2% da potência abaixo de 2 Hz**, apesar do filtro "2–40 Hz" dos
+    autores. A BIOMEX, agora com o mesmo filtro dos autores (seção seguinte), tem 3,3%. Como o
+    filtro digital é o mesmo, a diferença vem das gravações; entra como limitação.
   - A voz da Coretto concentra 77,7% da potência abaixo de 300 Hz; a BIOMEX, 28,3%. É
     característica das gravações (sala, microfone).
 
@@ -665,14 +665,28 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   `scipy.io.wavfile`, regra da janela reimplementada). Teste de mutação: três corrupções numa
   cópia, todas acusadas.
 - Selo `~/biomex.sqlite.verified` (sha256); o deploy recusa uma base sem selo válido.
-- Parcial, 22 voluntários: 3080 pares iguais, 0 diferenças. **Pendente: os 51.**
-- Três erratas dos arquivos distribuídos, corrigidas explicitamente (wiki, seção 11):
-  F007 01G04 (EDF com o nome do F006), F008 01G10 (início de gravação abortado, sem dígitos) e
-  F017 01G10 série 8 (`.lab` sem a linha do CERO, que foi falado).
-  **Decisão do usuário:** confirmar as correções (alternativa: excluir os pares afetados, 140 do
-  F007, 0 do F008, 1 do F017).
+- **Decisão do usuário (2026-11-13): excluir os dados afetados, pela regra estrita.** Um
+  voluntário fica só se a pasta `EEG/` tiver exatamente uma gravação completa de 01G10 e uma de
+  01G04 com o próprio nome. Gravações sem nenhum dígito (inícios abortados) e as sessões 02 são
+  ignoradas; uma gravação parcial com dígitos exclui o voluntário. Sem exceção por arquivo: cada
+  "correção óbvia" era um palpite, e um palpite errado junta o EEG de uma pessoa com a voz de
+  outra sem nenhum erro visível. O conversor (`own_recordings`) e o verificador (`strict_rule`,
+  reimplementação separada) precisam chegar à mesma lista, que fica gravada na base
+  (`recording.excluded_volunteers`). O inventário de todas as pastas fica em
+  `scripts/data/biomex_inventory.py`.
+- Excluídos (37 primeiros voluntários): F007 (01G04 com o nome do F006), M001 (duas 01G10
+  completas, além de uma sessão 02), M007 (arquivo `M007-1G10`) e M010 (arquivo `M10-01G04`).
+  F008 e M006 têm um início abortado sem dígitos, que é ignorado; M003 e M004 têm sessões 02,
+  ignoradas. Um único par sai por nome: F017 01G10 série 8 posição 7, cujo `.lab` não tem a
+  linha do CERO falado (`UNLABELLED_DIGITS`).
+- Filtro do EEG: o mesmo publicado pela Coretto (FIR passa-baixa de ordem 372 a 40 Hz e
+  passa-alta de ordem 1204 a 2 Hz, a 1024 Hz, atraso de 788 amostras compensado). Antes do filtro
+  é subtraída a média de cada canal na sessão (o offset de ~4200 µV do Emotiv). Sem isso, a
+  rejeição de −53 dB do FIR em DC deixaria ~9 µV. Mesmo com o filtro idêntico, a Coretto tem
+  19,2% da potência abaixo de 2 Hz e a BIOMEX 3,3%: a diferença é das gravações, não do
+  processamento.
 - F022 fala devagar: 14 palavras rotuladas com mais de 1 s ficam cortadas no fim da janela
-  (25 em 3080 até agora; `pair.voice_cut`).
+  (27 em 4619 nos 33 voluntários mantidos até agora; `pair.voice_cut`).
 
 **Coretto** (contagens contra as Tabelas 3 e 4 do artigo):
 - Imaginada: 7341 tentativas, igual ao artigo em todas as células.
@@ -680,12 +694,18 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   11 no `.sqlite` e 10 no artigo (a coluna do artigo soma 175, coerente com 10). As 11 são
   tentativas distintas (nenhum blob repetido na base inteira) e vêm de linhas diferentes da
   matriz original. É diferença entre o artigo e os dados distribuídos, não da importação.
-- **Pendente: comparar os blobs com os `.mat` originais.** Não estão nesta máquina; o link
-  dos autores leva a uma pasta do Google Drive, e instalar o `gdown` para baixá-la (2,48 GB)
-  foi negado pela permissão desta sessão.
+- Comparação com os `.mat` originais: o `gdown` foi instalado (autorizado pelo usuário), mas a
+  pasta do Google Drive dos autores agora exige login, então o download falhou. Há uma cópia só do
+  EEG no Zenodo (registro 19502780), enviada por terceiros para o MOABB, com os arquivos
+  renomeados (`sub-NN_eeg.mat`). `scripts/data/coretto_verify_mirror.py` compara cada linha
+  desses `.mat` com a tentativa da base (`original_row`): os seis canais exatamente, e também a
+  modalidade, o estímulo e o piscar. Como a cópia não é dos autores, concordância quer dizer
+  "duas derivações independentes concordam", não certificação. **O áudio continua sem
+  conferência** enquanto a pasta dos autores pedir login.
 - Pelo artigo, o filtro dos autores é FIR passa-baixa de ordem 372 e passa-alta de ordem 1204
-  a 1024 Hz, depois de uma banda analógica de 0,3–35 Hz no amplificador. Isso explica os 19,5%
-  de potência abaixo de 2 Hz (seção anterior).
+  a 1024 Hz, depois de uma banda analógica de 0,3–35 Hz no amplificador. A voz passa por um
+  Butterworth de 4ª ordem a 10 kHz. Esse filtro não é aplicado à BIOMEX: a gravação de 16 kHz
+  não tem nada acima de 8 kHz, onde a perda do Butterworth é ≤ 0,7 dB.
 
 **Achado lateral.** O passo da CI `test_thesis_phase_scripts.py` já falha no `main` (25 de 29):
 os scripts de ranking e significância ganharam argumentos obrigatórios em 12/11 (13fafd0b) e o

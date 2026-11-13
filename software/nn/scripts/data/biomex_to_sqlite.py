@@ -34,12 +34,11 @@ HOW A PAIR IS MADE.
   Both are written at the Coretto base's rates, 44.1 kHz voice and 1024 Hz EEG (see
   OUT_VOICE_RATE below for why), resampled whole before the windows are cut.
 
-  EEG   EEG_EPOCH_S after the marker, the 14 channels, after a zero-phase FIR band-pass of
-        2-40 Hz on the whole session. Why the filter: the Emotiv EEG carries a DC offset of
-        ~4000 uV that differs per electrode and per headset fit; unfiltered, energy and
-        spectrum features would read the fit of the headset, not the person, and identify
-        speakers by it. The Coretto base used for the rest of the thesis is distributed
-        already filtered 2-40 Hz by its authors, so the same band keeps the two comparable.
+  EEG   EEG_EPOCH_S after the marker, the 14 channels, through the Coretto base's own EEG
+        filter (see eeg_chain): the same treatment the rest of the thesis's EEG had. First
+        the Emotiv's ADC offset (~4200 uV, different per electrode and per headset fit) is
+        removed; left in, energy and spectrum features would read the fit of the headset,
+        not the person, and identify speakers by it.
   voice VOICE_WINDOW_S from the word's onset (the word plus the silence after it; the
         Coretto voice trials are fixed 4 s windows that also hold silence). Some speakers
         say the first digits of a series faster than the window (F004: UNO then DOS 0.526 s
@@ -69,7 +68,7 @@ import sys
 import wave
 
 import numpy as np
-from scipy.signal import filtfilt, firwin, resample_poly
+from scipy.signal import fftconvolve, firwin, resample_poly
 
 FORMAT = "thesis-paired-v1"
 SOURCE = "biomex2021"
@@ -92,8 +91,16 @@ OUT_VOICE_RATE = 44100      # 16000 * 441 / 160
 OUT_EEG_RATE = 1024         # 128 * 8
 VOICE_UP, VOICE_DOWN = 441, 160
 EEG_UP = 8
+# The EEG filter of the Coretto base as its paper gives it (Pressel Coretto et al., SPIE
+# 10160, 2017, sec. 2.3): a 2-40 Hz band-pass made of a low-pass FIR of order 372 and a
+# high-pass FIR of order 1204 at 1024 Hz, applied once to the whole recording, its 788-sample
+# group delay removed by shifting. The window is not stated; Hamming is MATLAB fir1's default
+# (and firwin's). Designed so, the group delay is (372 + 1204) / 2 = 788 samples, as the
+# paper states; -6 dB at 2 and 40 Hz, flat 4-30 Hz, ~ -53 dB stopband.
 BAND_HZ = (2.0, 40.0)
-FIR_TAPS = 423              # Hamming, ~1 Hz transition at 128 Hz (3.3 x 128 / 1)
+CORETTO_LP_ORDER = 372
+CORETTO_HP_ORDER = 1204
+FILTER_EDGE = (CORETTO_LP_ORDER + CORETTO_HP_ORDER) // 2   # 788 samples at 1024 Hz
 SESSIONS = {"01G10": 10, "01G04": 4}  # digits per series
 SERIES_PER_SESSION = 10
 
@@ -107,28 +114,34 @@ LABEL_TYPOS = {"UN0": "UNO"}
 SILENCE = "SILENCIO"
 VOLUNTEER = re.compile(r"^[FM]\d{3}$")
 
-# ── errata of the distributed files ───────────────────────────────────────────────────
+# ── what the distributed files get wrong, and what is done about it ───────────────────
 # Found by checking the base against itself, its CSV exports and Table 1 of the paper
-# (2026-11-13). Each is applied only if the file still looks exactly as described (checked
-# below); anything not listed that breaks a rule is refused.
+# (2026-11-13). Affected data are EXCLUDED, not corrected (the user's decisions, 2026-11-13).
 #
-# F007's 01G04 session was saved with the previous volunteer's subject field: the EDF (and
-# its CSV export F007-01G04.CSV) say "subject:F006, recorded 23.07.18 11.17.32" - 9 min after
-# F007's 01G10 (11.08.32), in F007's folder. F006's own 01G04 is another recording
-# (10.57.41, a different size).
-EDF_FILE_ERRATA = {("F007", "01G04"): "F006-01G04-23.07.18.11.17.32.edf"}
-# A recording started under F008's name and stopped after a few seconds (64768 bytes), 36 s
-# before F007's 01G10 began; it must hold no digit marker. F008's 01G10 is 11.26.35.
-EDF_ABORTED = {("F008", "01G10"): "F008-01G10-23.07.18.11.07.56.edf"}
-# F017 01G10 series 8: the .lab skips the span 126715626..131048750 (its SILENCIO ends at
-# 126715625, the next starts at 131048751); there is speech in it (12.7-13.2 s), and the EEG
-# marker and the paper's Table 1 both put "0" (CERO) there. The word is inserted into that
-# gap, which must be free.
-LAB_MISSING_WORDS = {("F017", "01G10", 8): (126715626, 131048750, "CERO")}
+# THE STRICT RULE (own_recordings). The paper describes one 10-digit (01G10) and one 4-digit
+# (01G04) EEG recording per volunteer. A volunteer is kept only if its folder holds exactly
+# one COMPLETE recording of each (10 runs of 10 / of 4 digits) named "<id>-<session>-...".
+# The folders that break it, over the first 36 volunteers: F007 (its 01G04 is filed under
+# F006's name), M007 ("M007-1G10"), M010 ("M10-01G04"), M001 (two complete 01G10 and two
+# 01G04 the same day; which one its voice was recorded with cannot be told). Excluded whole,
+# so every kept speaker has the same design: one session, 140 pairs. Not breaking it:
+#   - recordings that hold no digit marker at all (starts aborted after a few seconds:
+#     F008, M006, and M004's "M1G10"): no data, set aside;
+#   - second sessions on another day (02G10 / 02G04: M001, M003, M004), which the paper does
+#     not describe: not read.
+# F017 01G10 series 8: the .lab has no line for the 7th digit (0, CERO): no line covers
+# 126715626..131048750 (100 ns), where there is speech and where the EEG marker and Table 1
+# put the 0. That one pair is left out; the other 9 digits of the series pair as usual.
+# (Listed by name: a word missing from a .lab is otherwise refused.)
+UNLABELLED_DIGITS = {("F017", "01G10", 8): (7, 126715626, 131048750)}
 
 
 class ConversionError(Exception):
     pass
+
+
+class Excluded(Exception):
+    """A volunteer the strict rule leaves out; the message is the reason."""
 
 
 # ── EDF ────────────────────────────────────────────────────────────────────────────────
@@ -201,11 +214,8 @@ def read_wav(path):
     return x.astype(np.float32) / 32768.0
 
 
-def read_lab(path, missing=None):
-    """The spoken words of a series, in order, as (onset sample, end sample, word).
-
-    `missing` is an erratum (start, end, word) in the .lab's 100 ns units: a word whose line
-    the file lacks. It is inserted only into a span no line of the file covers."""
+def lab_entries(path):
+    """Every line of a .lab as (start, end, label), in its 100 ns units."""
     entries = []
     with open(path, encoding="ascii") as f:
         lines = f.read().splitlines()
@@ -220,68 +230,100 @@ def read_lab(path, missing=None):
         if label != SILENCE and label not in DIGIT_WORDS.values():
             raise ConversionError(f"{path}:{n}: unknown label {parts[2]!r}")
         entries.append((a, b, label))
-    if missing is not None:
-        a, b, label = missing
-        overlap = [e for e in entries if e[0] <= b and a <= e[1]]
-        if overlap:
-            raise ConversionError(f"{path}: the erratum {missing} overlaps {overlap}; the "
-                                  f"file is not the one the erratum describes")
-        entries = sorted(entries + [(float(a), float(b), label)])
-    # 100 ns units -> samples
-    return [(int(round(a * 1e-7 * VOICE_RATE)), int(round(b * 1e-7 * VOICE_RATE)), label)
-            for a, b, label in entries if label != SILENCE]
+    return entries
 
 
-def find_edf(folder, vid, session):
-    """The EDF of one session, after the errata above; refused unless exactly one."""
-    where = f"{vid} {session}"
-    edfs = sorted(glob.glob(os.path.join(folder, "EEG", f"{vid}-{session}-*.edf")))
-    if (vid, session) in EDF_ABORTED:
-        aborted = os.path.join(folder, "EEG", EDF_ABORTED[(vid, session)])
-        if aborted not in edfs:
-            raise ConversionError(f"{where}: the aborted file {aborted} the errata name is gone")
-        labels, _, _, _, raw = read_edf(aborted)
-        if any(int(c) in DIGIT_WORDS for c in np.unique(raw[labels.index("MARKER")])):
-            raise ConversionError(f"{where}: {aborted} holds digit markers; it is not the "
-                                  f"aborted start the errata describe")
-        edfs.remove(aborted)
-    if (vid, session) in EDF_FILE_ERRATA:
-        if edfs:
-            raise ConversionError(f"{where}: an EDF named for it exists ({edfs}); the "
-                                  f"erratum no longer applies")
-        named = os.path.join(folder, "EEG", EDF_FILE_ERRATA[(vid, session)])
-        if not os.path.isfile(named):
-            raise ConversionError(f"{where}: the erratum's file {named} is missing")
-        edfs = [named]
-    if len(edfs) != 1:
-        raise ConversionError(f"{where}: expected one EDF, found {len(edfs)}")
-    return edfs[0]
+def lab_samples(t):
+    """A .lab time (100 ns units) in voice samples."""
+    return int(round(t * 1e-7 * VOICE_RATE))
+
+
+def read_lab(path):
+    """The spoken words of a series, in order, as (onset sample, end sample, word)."""
+    return [(lab_samples(a), lab_samples(b), label)
+            for a, b, label in lab_entries(path) if label != SILENCE]
+
+
+def unlabelled_span(path, a, b):
+    """(start, end) in samples of a span no line of the .lab covers; refused otherwise."""
+    overlap = [e for e in lab_entries(path) if e[0] <= b and a <= e[1]]
+    if overlap:
+        raise ConversionError(f"{path}: lines {overlap} cover {a}..{b}; the file is not the "
+                              f"one UNLABELLED_DIGITS describes")
+    return lab_samples(a), lab_samples(b)
+
+
+def own_recordings(folder, vid):
+    """{session: EDF path} under the strict rule (see the comment above UNLABELLED_DIGITS);
+    Excluded, with the reason, when the folder breaks it."""
+    chosen = {}
+    for session, per in SESSIONS.items():
+        complete, partial = [], []
+        for path in sorted(glob.glob(os.path.join(folder, "EEG", f"{vid}-{session}-*.edf"))):
+            labels, _, _, _, raw = read_edf(path)
+            runs = digit_runs(raw[labels.index("MARKER")], path)
+            if not runs:
+                continue                     # an aborted start: no digit, no data
+            if len(runs) == SERIES_PER_SESSION and all(len(r) == per for r in runs):
+                complete.append(path)
+            else:
+                partial.append(path)
+        if partial:
+            raise Excluded(f"{session}: an incomplete recording with digits in it "
+                           f"({', '.join(os.path.basename(p) for p in partial)})")
+        if len(complete) != 1:
+            held = sorted(os.listdir(os.path.join(folder, "EEG")))
+            raise Excluded(f"{session}: {len(complete)} complete recordings named "
+                           f"{vid}-{session}-*.edf (EEG/ holds {', '.join(held)})")
+        chosen[session] = complete[0]
+    return chosen
 
 
 # ── one volunteer ──────────────────────────────────────────────────────────────────────
-def band_pass():
-    return firwin(FIR_TAPS, BAND_HZ, pass_zero=False, fs=EEG_RATE, window="hamming")
+def coretto_filters():
+    """The Coretto paper's low-pass (order 372, 40 Hz) and high-pass (order 1204, 2 Hz)."""
+    lp = firwin(CORETTO_LP_ORDER + 1, BAND_HZ[1], fs=OUT_EEG_RATE, window="hamming")
+    hp = firwin(CORETTO_HP_ORDER + 1, BAND_HZ[0], pass_zero=False, fs=OUT_EEG_RATE,
+                window="hamming")
+    return lp, hp
 
 
-def convert_volunteer(folder, vid, taps):
+def eeg_chain(eeg_native, filters):
+    """A session's EEG (channels, samples at 128 Hz) -> the 1024 Hz signal epochs are cut from.
+
+    1. The Emotiv's ADC offset, one constant per channel (the session mean), is removed. The
+       Coretto amplifier was AC-coupled (analog 0.3-35 Hz), so its FIR never saw an offset;
+       on the Emotiv's ~4200 uV, the FIR's -53 dB stopband alone would leave ~9 uV per
+       electrode (measured: epoch means -12..-7 uV; with the offset removed, -2.8..2.7 uV,
+       as on Coretto, -3.1..2.3 uV).
+    2. Upsampled x8 to 1024 Hz, the rate the Coretto filter was designed for.
+    3. The Coretto filter, applied once: mode="same" with an odd, symmetric kernel is the
+       convolution shifted left by its group delay, as the paper did ("left-shifting")."""
+    lp, hp = filters
+    x = eeg_native - eeg_native.mean(axis=1, keepdims=True)
+    x = resample_poly(x, EEG_UP, 1, axis=-1)
+    x = fftconvolve(x, lp[None, :], mode="same", axes=-1)
+    return fftconvolve(x, hp[None, :], mode="same", axes=-1)
+
+
+def convert_volunteer(folder, vid, filters):
     """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer."""
     epoch = int(round(EEG_EPOCH_S * EEG_RATE))
     win = int(round(VOICE_WINDOW_S * VOICE_RATE))
     out_epoch = epoch * EEG_UP
     out_win = int(round(VOICE_WINDOW_S * OUT_VOICE_RATE))
     pairs = []
+    recordings = own_recordings(folder, vid)
     for session, per_series in SESSIONS.items():
         where = f"{vid} {session}"
-        labels, phys, rate, start, raw = read_edf(find_edf(folder, vid, session))
+        labels, phys, rate, start, raw = read_edf(recordings[session])
         if rate != EEG_RATE:
             raise ConversionError(f"{where}: EEG at {rate} Hz, expected {EEG_RATE}")
         missing = [c for c in EEG_CHANNELS + ("MARKER", "INTERPOLATED") if c not in labels]
         if missing:
             raise ConversionError(f"{where}: EDF lacks {missing}")
-        eeg = np.stack([phys[labels.index(c)] for c in EEG_CHANNELS])
-        eeg = filtfilt(taps, [1.0], eeg, axis=-1)
-        # The whole session at once, so no epoch has a resampling edge of its own.
-        eeg_out = resample_poly(eeg, EEG_UP, 1, axis=-1)
+        # The whole session at once, so no epoch has a filter or resampling edge of its own.
+        eeg_out = eeg_chain(np.stack([phys[labels.index(c)] for c in EEG_CHANNELS]), filters)
         interp = raw[labels.index("INTERPOLATED")] != 0
         runs = digit_runs(raw[labels.index("MARKER")], where)
         if len(runs) != SERIES_PER_SESSION or any(len(r) != per_series for r in runs):
@@ -291,38 +333,48 @@ def convert_volunteer(folder, vid, taps):
             stem = os.path.join(folder, "Voice", f"{vid}_{session}_{k}")
             if not (os.path.isfile(stem + ".wav") and os.path.isfile(stem + ".lab")):
                 raise ConversionError(f"{where} series {k}: {stem}.wav/.lab missing")
+            for i in range(len(run) - 1):
+                if run[i + 1][0] - run[i][0] < epoch:
+                    raise ConversionError(
+                        f"{where} series {k} digit {i + 1}: next marker after "
+                        f"{(run[i + 1][0] - run[i][0]) / EEG_RATE:.2f} s < {EEG_EPOCH_S} s")
             voice = read_wav(stem + ".wav")
             voice_out = resample_poly(voice, VOICE_UP, VOICE_DOWN)  # the whole series WAV
-            words = read_lab(stem + ".lab", LAB_MISSING_WORDS.get((vid, session, k)))
-            shown = [DIGIT_WORDS[c] for _, c in run]
+            words = read_lab(stem + ".lab")
+            positions = list(range(1, len(run) + 1))
+            kept = list(run)
+            # Spans a voice window must not reach: every labelled word, and an unlabelled one.
+            spoken = [(on, end) for on, end, _ in words]
+            if (vid, session, k) in UNLABELLED_DIGITS:
+                pos, a, b = UNLABELLED_DIGITS[(vid, session, k)]
+                spoken = sorted(spoken + [unlabelled_span(stem + ".lab", a, b)])
+                del kept[pos - 1]
+                del positions[pos - 1]
+            shown = [DIGIT_WORDS[c] for _, c in kept]
             said = [w for _, _, w in words]
             if shown != said:
                 raise ConversionError(f"{where} series {k}: EEG markers {shown}, "
                                       f".lab words {said}")
-            prev_end = 0
-            for j, ((m, code), (on, end, word)) in enumerate(zip(run, words), 1):
-                if j < len(run) and run[j][0] - m < epoch:
-                    raise ConversionError(f"{where} series {k} digit {j}: next marker after "
-                                          f"{(run[j][0] - m) / EEG_RATE:.2f} s < {EEG_EPOCH_S} s")
-                if m + epoch > eeg.shape[1]:
-                    raise ConversionError(f"{where} series {k} digit {j}: EEG ends")
-                nxt = words[j][0] if j < len(words) else len(voice)
+            for j, (m, code), (on, end, word) in zip(positions, kept, words):
+                nxt = min([s for s, _ in spoken if s > on] + [len(voice)])
+                prev_end = max([e for _, e in spoken if e < on] + [0])
                 begin = min(on, nxt - win)
                 if begin < prev_end:
                     raise ConversionError(
                         f"{where} series {k} digit {j}: no {VOICE_WINDOW_S} s voice window fits "
-                        f"between {'the previous word' if j > 1 else 'the start'} "
-                        f"({prev_end / VOICE_RATE:.3f} s) and "
-                        f"{'the next word' if j < len(words) else 'the end'} "
-                        f"({nxt / VOICE_RATE:.3f} s)")
-                prev_end = end
+                        f"between {prev_end / VOICE_RATE:.3f} s (the previous word or the "
+                        f"start) and {nxt / VOICE_RATE:.3f} s (the next word or the end)")
                 # The window is chosen on the native clock (the .lab and markers are in
                 # native samples) and cut from the upsampled signal at the same instant.
                 v0 = int(round(begin * VOICE_UP / VOICE_DOWN))
                 e0 = m * EEG_UP
-                if v0 + out_win > len(voice_out) or e0 + out_epoch > eeg_out.shape[1]:
+                if v0 + out_win > len(voice_out):
                     raise ConversionError(f"{where} series {k} digit {j}: the upsampled "
-                                          f"window passes the end of its signal")
+                                          f"voice window passes the end of its WAV")
+                if e0 < FILTER_EDGE or e0 + out_epoch + FILTER_EDGE > eeg_out.shape[1]:
+                    raise ConversionError(f"{where} series {k} digit {j}: the epoch lies within "
+                                          f"{FILTER_EDGE} samples of the session's edge, where "
+                                          f"the filter has no signal on one side")
                 pairs.append({"session": session, "series": k, "position": j, "code": code,
                               "voice": voice_out[v0:v0 + out_win].astype(np.float32),
                               "eeg": eeg_out[:, e0:e0 + out_epoch].astype(np.float32),
@@ -362,15 +414,20 @@ def recording_info():
             str(int(round(VOICE_WINDOW_S * OUT_VOICE_RATE))),
         "voice_native_rate": str(VOICE_RATE), "eeg_native_rate": str(EEG_RATE),
         "resampling": f"scipy resample_poly of the whole series WAV ({VOICE_UP}/{VOICE_DOWN}) "
-                      f"and of the whole filtered EEG session (x{EEG_UP}), to the Coretto rates "
+                      f"and of the whole EEG session (x{EEG_UP}), to the Coretto rates "
                       f"{OUT_VOICE_RATE} / {OUT_EEG_RATE} Hz, before cutting",
         "voice_window": f"{VOICE_WINDOW_S:g} s from the word's onset; moved earlier to end at "
-                        f"the next word's onset or the WAV's end when it would reach them "
-                        f"(pair.voice_shift_s)",
+                        f"the next spoken word's onset or the WAV's end when it would reach "
+                        f"them (pair.voice_shift_s)",
         "eeg_sample_rate": str(OUT_EEG_RATE), "eeg_channels": ",".join(EEG_CHANNELS),
         "eeg_epoch_samples": str(int(round(EEG_EPOCH_S * EEG_RATE)) * EEG_UP),
-        "eeg_filter": f"FIR band-pass {BAND_HZ[0]:g}-{BAND_HZ[1]:g} Hz, {FIR_TAPS} taps, "
-                      f"Hamming, zero-phase (filtfilt), whole session",
+        "eeg_filter": f"Emotiv ADC offset removed (per channel, session mean); upsampled to "
+                      f"{OUT_EEG_RATE} Hz; the Coretto paper's filter: FIR low-pass order "
+                      f"{CORETTO_LP_ORDER} ({BAND_HZ[1]:g} Hz) and high-pass order "
+                      f"{CORETTO_HP_ORDER} ({BAND_HZ[0]:g} Hz), Hamming, applied once, "
+                      f"{FILTER_EDGE}-sample group delay removed, whole session",
+        "excluded_pairs": "; ".join(f"{v} {s} series {k} digit {p}: no .lab line"
+                                    for (v, s, k), (p, _, _) in sorted(UNLABELLED_DIGITS.items())),
         "citation": "Moreno-Rodriguez et al., IEEE Access 9:111267 (2021); "
                     "data 10.17632/s7chktmb6x.1, CC BY 4.0",
     }
@@ -389,7 +446,7 @@ def main():
                         and os.path.isdir(os.path.join(src, d)))
     if not volunteers:
         sys.exit(f"no volunteer folders (F001, M001, ...) in {src}")
-    taps = band_pass()
+    filters = coretto_filters()
     tmp = out + ".partial"
     if os.path.exists(tmp):
         os.remove(tmp)
@@ -399,9 +456,24 @@ def main():
     for code, word in sorted(DIGIT_WORDS.items()):
         con.execute("INSERT INTO stimulus VALUES (?, ?)", (code, word.lower()))
     total = shifted = cut = 0
-    for sid, vid in enumerate(volunteers, 1):
+    kept, excluded = [], []
+    for vid in volunteers:
         try:
-            pairs = convert_volunteer(os.path.join(src, vid), vid, taps)
+            own_recordings(os.path.join(src, vid), vid)
+        except Excluded as e:
+            excluded.append(f"{vid}: {e}")
+            print(f"[biomex] {vid}: EXCLUDED by the strict rule - {e}")
+            continue
+        except ConversionError as e:
+            con.close()
+            os.remove(tmp)
+            sys.exit(f"[biomex] refused: {e}")
+        kept.append(vid)
+    con.execute("INSERT INTO recording VALUES (?, ?)",
+                ("excluded_volunteers", " | ".join(excluded) or "none"))
+    for sid, vid in enumerate(kept, 1):
+        try:
+            pairs = convert_volunteer(os.path.join(src, vid), vid, filters)
         except ConversionError as e:
             con.close()
             os.remove(tmp)
@@ -428,8 +500,9 @@ def main():
     con.commit()
     con.close()
     os.replace(tmp, out)
-    print(f"[biomex] {len(volunteers)} volunteers, {total} pairs ({shifted} voice windows "
-          f"moved earlier, {cut} words longer than the window) -> {out}")
+    print(f"[biomex] {len(kept)} volunteers ({len(volunteers) - len(kept)} excluded), "
+          f"{total} pairs ({shifted} voice windows moved earlier, {cut} words longer than "
+          f"the window) -> {out}")
 
 
 if __name__ == "__main__":

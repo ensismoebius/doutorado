@@ -26,13 +26,14 @@ Usage (from software/nn):
 import argparse
 import hashlib
 import os
+import re
 import sqlite3
 import sys
 from collections import Counter
 
 import numpy as np
 from scipy.io import wavfile
-from scipy.signal import filtfilt, resample_poly
+from scipy.signal import firwin, resample_poly
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import biomex_to_sqlite as bx  # noqa: E402
@@ -73,17 +74,56 @@ def read_csv(path):
     return fields, vals.reshape(-1, ncol)
 
 
-def voice_windows(words, n_samples, win):
+def strict_rule(folder, vid):
+    """The strict rule, re-implemented: ({session: path}, None) for a volunteer with exactly
+    one complete recording per session named for it (recordings with no digit ignored), or
+    (None, reason). Reads every .edf in EEG/ and classifies it by name and content."""
+    name = re.compile(rf"^{re.escape(vid)}-(01G10|01G04)-[\d.]+\.edf$")
+    found = {"01G10": [], "01G04": []}
+    for f in sorted(os.listdir(os.path.join(folder, "EEG"))):
+        m = name.match(f)
+        if not m:
+            continue
+        labels, _, _, _, raw = bx.read_edf(os.path.join(folder, "EEG", f))
+        lens = [len(r) for r in bx.digit_runs(raw[labels.index("MARKER")], f)]
+        if lens:
+            found[m[1]].append((f, lens == [bx.SESSIONS[m[1]]] * 10))
+    chosen = {}
+    for session, files in found.items():
+        if any(not full for _, full in files):
+            return None, f"{session}: incomplete recording with digits"
+        if len(files) != 1:
+            return None, f"{session}: {len(files)} complete recordings"
+        chosen[session] = os.path.join(folder, "EEG", files[0][0])
+    return chosen, None
+
+
+def voice_windows(words, spoken, n_samples, win):
     """Window starts by the rule, re-implemented: at the onset, or earlier so as to end at the
-    next onset (or the WAV's end); None where no window fits after the previous word."""
+    next spoken onset (or the WAV's end); None where no window fits after the previous one.
+    `spoken` holds every (start, end) a window must not reach, labelled or not."""
     starts = []
-    prev_end = 0
-    for j, (on, end, _) in enumerate(words):
-        nxt = words[j + 1][0] if j + 1 < len(words) else n_samples
+    for on, _, _ in words:
+        later = [s for s, _ in spoken if s > on]
+        nxt = later[0] if later else n_samples
+        earlier = [e for _, e in spoken if e < on]
+        prev_end = earlier[-1] if earlier else 0
         b = on if on + win <= nxt else nxt - win
         starts.append(b if b >= prev_end else None)
-        prev_end = end
     return starts
+
+
+def rebuild_eeg(eeg_native, up):
+    """The EEG chain re-implemented by direct convolution (the converter uses FFT, mode
+    "same"): offset removed, x`up`, the Coretto low-pass and high-pass as one kernel, the
+    full convolution cut at the kernel's centre. Equal away from the session's edges, which
+    the converter keeps epochs out of."""
+    lp = firwin(bx.CORETTO_LP_ORDER + 1, bx.BAND_HZ[1], fs=bx.OUT_EEG_RATE)
+    hp = firwin(bx.CORETTO_HP_ORDER + 1, bx.BAND_HZ[0], pass_zero=False, fs=bx.OUT_EEG_RATE)
+    kernel = np.convolve(lp, hp)
+    delay = (len(kernel) - 1) // 2
+    x = resample_poly(eeg_native - eeg_native.mean(axis=1, keepdims=True), up, 1, axis=-1)
+    return np.stack([np.convolve(ch, kernel)[delay:delay + x.shape[1]] for ch in x])
 
 
 def main():
@@ -98,7 +138,9 @@ def main():
         fails.append(msg)
         print(f"  DIFF {msg}", flush=True)
 
-    con = sqlite3.connect(db)
+    if not os.path.isfile(db):
+        sys.exit(f"{db} does not exist")
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     info = dict(con.execute("SELECT key, value FROM recording"))
     want_info = {"format": bx.FORMAT, "source": bx.SOURCE,
                  "voice_sample_rate": str(bx.OUT_VOICE_RATE),
@@ -110,11 +152,21 @@ def main():
         if info.get(k) != v:
             fail(f"recording.{k} = {info.get(k)!r}, expected {v!r}")
 
-    volunteers = sorted(d for d in os.listdir(src) if bx.VOLUNTEER.match(d))
+    folders = sorted(d for d in os.listdir(src) if bx.VOLUNTEER.match(d))
+    chosen = {v: strict_rule(os.path.join(src, v), v) for v in folders}
+    volunteers = [v for v in folders if chosen[v][0] is not None]
+    excluded = [v for v in folders if chosen[v][0] is None]
+    stored_excluded = sorted(e.split(":", 1)[0] for e in
+                             info.get("excluded_volunteers", "").split(" | ") if ":" in e)
+    if stored_excluded != excluded:
+        fail(f"excluded volunteers: SQLite {stored_excluded}, the rule here {excluded}")
+    for v in excluded:
+        print(f"[verify] {v}: excluded by the strict rule ({chosen[v][1]})")
     speakers = con.execute("SELECT id, name FROM speaker ORDER BY id").fetchall()
     if [n for _, n in speakers] != volunteers or [i for i, _ in speakers] != list(
             range(1, len(volunteers) + 1)):
-        fail(f"speakers {speakers[:3]}... do not number the folders {volunteers[:3]}... in order")
+        fail(f"speakers {speakers[:3]}... do not number the kept folders {volunteers[:3]}... "
+             f"in order")
     stimuli = dict(con.execute("SELECT id, name FROM stimulus"))
     if stimuli != {c: w.lower() for c, w in bx.DIGIT_WORDS.items()}:
         fail(f"stimulus table {stimuli}")
@@ -124,46 +176,62 @@ def main():
             "SELECT s.name, p.stimulus_id, p.session, p.series, p.position, p.voice, p.eeg, "
             "p.voice_onset_s, p.voice_shift_s FROM pair p JOIN speaker s ON s.id = p.speaker_id"):
         stored[(name, ses, k, j)] = (stim, v, e, on_s, shift_s)
-    print(f"[verify] {len(volunteers)} volunteers in {src}; {len(stored)} pairs in {db}")
+    print(f"[verify] {len(volunteers)} volunteers in {src} "
+          f"({len(folders) - len(volunteers)} excluded); {len(stored)} pairs in {db}")
 
-    taps = bx.band_pass()
     win, out_win = bx.VOICE_RATE, bx.OUT_VOICE_RATE
     epoch, up = 2 * bx.EEG_RATE, bx.EEG_UP
     per_digit = Counter(d for rows in TABLE1.values() for r in rows for d in r)
     checked = 0
+    no_csv = []
     for vid in volunteers:
         folder = os.path.join(src, vid)
         digits = Counter()
         n_pairs = 0
+        expected = Counter(per_digit)
+        for (v, s, k), (pos, _, _) in bx.UNLABELLED_DIGITS.items():
+            if v == vid:
+                expected[TABLE1[s][k - 1][pos - 1]] -= 1
         for session, rows in TABLE1.items():
             where = f"{vid} {session}"
-            edf = bx.find_edf(folder, vid, session)
-            labels, phys, rate, start, raw = bx.read_edf(edf)
+            labels, phys, rate, start, raw = bx.read_edf(chosen[vid][0][session])
             # (1) the EDF against its CSV export
-            fields, csv = read_csv(os.path.join(folder, "EEG", f"{vid}-{session}.CSV"))
-            if fields.get("recorded") != start:
-                fail(f"{where}: EDF recorded {start!r}, CSV {fields.get('recorded')!r}")
-            n = min(csv.shape[0], phys.shape[1])
-            csv_labels = fields.get("labels", "").split()
-            for ch in bx.EEG_CHANNELS + ("MARKER",):
-                d = np.abs(csv[:n, csv_labels.index(ch)] - phys[labels.index(ch), :n]).max()
-                if d > (0 if ch == "MARKER" else CSV_TOL_UV):
-                    fail(f"{where}: {ch} differs from the CSV by up to {d:.4g}")
+            csv_path = os.path.join(folder, "EEG", f"{vid}-{session}.CSV")
+            if not os.path.isfile(csv_path):
+                # Not every session was exported (the paper does not say which); the EDF
+                # reader is then checked by the sessions that were. Counted and reported.
+                no_csv.append(where)
+            else:
+                fields, csv = read_csv(csv_path)
+                if fields.get("recorded") != start:
+                    fail(f"{where}: EDF recorded {start!r}, CSV {fields.get('recorded')!r}")
+                n = min(csv.shape[0], phys.shape[1])
+                csv_labels = fields.get("labels", "").split()
+                for ch in bx.EEG_CHANNELS + ("MARKER",):
+                    d = np.abs(csv[:n, csv_labels.index(ch)] - phys[labels.index(ch), :n]).max()
+                    if d > (0 if ch == "MARKER" else CSV_TOL_UV):
+                        fail(f"{where}: {ch} differs from the CSV by up to {d:.4g}")
             # (2) the series against Table 1
             runs = bx.digit_runs(raw[labels.index("MARKER")], where)
             if len(runs) != len(rows):
                 fail(f"{where}: {len(runs)} digit runs, Table 1 has {len(rows)}")
                 continue
-            eeg = filtfilt(taps, [1.0], np.stack([phys[labels.index(c)]
-                                                  for c in bx.EEG_CHANNELS]), axis=-1)
-            eeg_up = resample_poly(eeg, up, 1, axis=-1)
+            eeg_up = rebuild_eeg(np.stack([phys[labels.index(c)] for c in bx.EEG_CHANNELS]), up)
             for k, (row, run) in enumerate(zip(rows, runs), 1):
                 stem = os.path.join(folder, "Voice", f"{vid}_{session}_{k}")
-                words = bx.read_lab(stem + ".lab", bx.LAB_MISSING_WORDS.get((vid, session, k)))
+                words = bx.read_lab(stem + ".lab")
                 said = [0 if w == "CERO" else [c for c, x in bx.DIGIT_WORDS.items()
                                                if x == w][0] for _, _, w in words]
                 shown = [0 if c == 10 else c for _, c in run]
-                if shown != row or said != row:
+                positions = list(range(1, len(run) + 1))
+                kept_run = list(run)
+                spoken = [(on, end) for on, end, _ in words]
+                row_said = list(row)
+                if (vid, session, k) in bx.UNLABELLED_DIGITS:
+                    pos, a, b = bx.UNLABELLED_DIGITS[(vid, session, k)]
+                    spoken = sorted(spoken + [bx.unlabelled_span(stem + ".lab", a, b)])
+                    del positions[pos - 1], kept_run[pos - 1], row_said[pos - 1]
+                if shown != row or said != row_said:
                     fail(f"{where} series {k}: Table 1 {row}, markers {shown}, .lab {said}")
                     continue
                 rate_w, pcm = wavfile.read(stem + ".wav")
@@ -172,9 +240,9 @@ def main():
                     continue
                 voice_up = resample_poly(pcm.astype(np.float32) / 32768.0,
                                          bx.VOICE_UP, bx.VOICE_DOWN)
-                starts = voice_windows(words, len(pcm), win)
+                starts = voice_windows(words, spoken, len(pcm), win)
                 # (3) every pair against the one rebuilt here
-                for j, ((m, code), (on, _, _), b) in enumerate(zip(run, words, starts), 1):
+                for j, (m, code), (on, _, _), b in zip(positions, kept_run, words, starts):
                     key = (vid, session, k, j)
                     if key not in stored:
                         fail(f"{key}: missing from the SQLite")
@@ -202,16 +270,18 @@ def main():
                         fail(f"{key}: onset/shift {on_s}/{shift_s} differ from the .lab")
                     checked += len(fails) == fails_before
         # (4) counts per volunteer
-        if n_pairs != 140:
-            fail(f"{vid}: {n_pairs} pairs, expected 140")
-        if digits != per_digit:
+        if n_pairs != sum(expected.values()):
+            fail(f"{vid}: {n_pairs} pairs, expected {sum(expected.values())}")
+        if digits != expected:
             fail(f"{vid}: per-digit counts {dict(sorted(digits.items()))}, Table 1 implies "
-                 f"{dict(sorted(per_digit.items()))}")
+                 f"{dict(sorted(expected.items()))}")
         print(f"[verify] {vid}: {n_pairs} pairs checked", flush=True)
     for key in stored:
         fail(f"{key}: in the SQLite but not in the originals")
     con.close()
     print(f"[verify] {checked} pairs equal to the originals; {len(fails)} difference(s)")
+    print(f"[verify] sessions with no CSV export to compare the EDF with: {len(no_csv)}"
+          f"{': ' + ', '.join(no_csv) if no_csv else ''}")
     stamp = db + ".verified"
     if os.path.exists(stamp):
         os.remove(stamp)
@@ -225,7 +295,8 @@ def main():
             h.update(block)
     with open(stamp, "w") as f:
         f.write(f"{h.hexdigest()}\n{len(volunteers)} volunteers, {checked} pairs equal to "
-                f"{src} (EDF = CSV export, series = Table 1 of the paper)\n")
+                f"{src} (EDF = CSV export where one exists, {len(no_csv)} sessions without; "
+                f"series = Table 1 of the paper)\n")
     print(f"[verify] stamp written: {stamp}")
     return 0
 
