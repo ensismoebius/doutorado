@@ -374,7 +374,7 @@ nor the gradient, however large its residual. `Trainer::fit_supervised_masked()`
 (`src/core/training/Trainer.hpp`) threads a per-sample mask through the training loop
 alongside input/target; it is purely additive (a new method, a new `SampleTriple` type,
 SFINAE-detected `set_mask` support) so every existing `Trainer`/`MSELossImpl` caller in the
-framework — `thesis`, `autoencoderRunner`, core tests — is unaffected unless it opts in.
+framework — `thesis`, core tests — is unaffected unless it opts in.
 `mse_between_masked`/`mae_between_masked` (`include/statistics/reconstruction_metrics.hpp`)
 apply the identical masked formula to evaluation and per-window-error reporting, so a
 model's reported test-set MSE is computed the same way its training loss was — without

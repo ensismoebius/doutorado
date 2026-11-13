@@ -36,7 +36,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 ## Key Files to Fix
 
-- [src/experiments/waveletAE/WaveletAEConfig.hpp](src/experiments/waveletAE/WaveletAEConfig.hpp) — `stratified = true` field that needs enforcement
 - [include/data_loaders/samplers/](include/data_loaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
 - [include/statistics/kfold.hpp](include/statistics/kfold.hpp) — stratified split implementation needed
 - [include/statistics/multi_class_metrics.hpp](include/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants

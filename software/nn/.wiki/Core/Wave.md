@@ -217,7 +217,6 @@ auto mfcc_with_deltas = compute_deltas(mfcc, loading_params);
 
 - [DataLoaders](./DataLoaders.md) - Audio dataset loading
 - [Windowing](./Windowing.md) - Window functions
-- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Audio autoencoder
 
 ## References
 

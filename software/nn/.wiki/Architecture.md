@@ -21,7 +21,6 @@ flowchart TB
     end
 
     subgraph "Experiments"
-        Exp03[AutoencoderRunner]
         Exp04[Meeting01]
         Exp05[Thesis]
     end
@@ -224,7 +223,6 @@ out/
 │       ├── src/
 │       │   ├── core/              # Core library
 │       │   ├── experiments/
-│       │   │   ├── autoencoderRunner/
 │       │   │   ├── meeting01/
 │       │   │   └── thesis/
 │       │   └── demos/
@@ -245,6 +243,5 @@ out/
 ## See Also
 
 - [Build System](./Guides/Build-System.md) - CMake configuration and workflows
-- [Grid Runbook](./Guides/Grid-Runbook.md) - Running experiment grid
 - [PGO](./Guides/PGO.md) - Profile-guided optimization
 - [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools

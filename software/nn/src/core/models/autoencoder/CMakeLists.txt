@@ -1,12 +1,7 @@
 # Core autoencoder models library
 # Headers live in include/models/autoencoder/; implementation here.
-#
-# These models were physically inside src/experiments/autoencoderRunner/lib
-# while THREE experiments consumed them (autoencoderRunner, meeting01,
-# thesis), so meeting01 and thesis had to depend on another experiment's
-# include directories to build. They are core models; this is where they
-# belong. The dead parallel design that used to sit here -- headers no
-# translation unit ever read -- was deleted in the same change.
+# The thesis uses ProtocolAutoencoder (ANN-AE) and ProtocolSpikingAutoencoder (SNN-AE);
+# meeting01 uses AutoencoderConfig and the builders.
 
 add_library(autoencoder_models STATIC
     EncoderDecoderAutoencoder.cpp

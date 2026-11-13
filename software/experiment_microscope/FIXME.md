@@ -134,9 +134,7 @@ Do NOT parse human-readable logs if structured data already exists.
 Study the thesis experiment documentation, particularly:
 
 * `Experiments/Thesis.md`
-* `Experiments/ParaconsistentBaseline.md`
 * `Experiments/ParaconsistentGA.md`
-* `Experiments/WaveletAE.md`
 * `Core/Paraconsistent.md`
 * `Core/Wavelet.md`
 * `Core/DataLoaders.md`

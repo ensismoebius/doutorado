@@ -22,8 +22,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 **Main CLI entry points:**
 - `meeting01 --comparative-config <profile.json>` — primary paper pipeline entry point
 - `meeting01 --help` — must list all flags, exit 0, no side effects
-- `autoencoderRunner --help` — same requirement
-- `paraconsistentBaseline [config.json]` — optional positional arg for config path
 
 **Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
 

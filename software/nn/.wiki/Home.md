@@ -116,18 +116,12 @@ number. The old numeric names still appear inside stored result files (run tags 
 
 | Name | Was | What it is |
 |---|---|---|
-| `paraconsistentBaseline` | 00 | Frozen wavelet + paraconsistent baseline |
-| `waveletAE` | 02 | Wavelet autoencoder pipeline |
-| `autoencoderRunner` | 03 | Autoencoder training runner |
 | `meeting01` | 04 | SNN-AE vs its matched ANN control, PCA and the mean (nested LOSO) — the conference paper |
 | `thesis` | 05 | **Thesis primary** — biometric authentication via imagined speech |
 | `paraconsistentGA` | — | NSGA-II autoencoder architecture search ranked by `d_penalized` (extends thesis phase00) |
 
 Run in order; `thesis` is the primary experiment.
 
-- [ParaconsistentBaseline](./Experiments/ParaconsistentBaseline.md) — wavelet + paraconsistent baseline
-- [WaveletAE](./Experiments/WaveletAE.md) — wavelet autoencoder pipeline
-- [AutoencoderRunner](./Experiments/AutoencoderRunner.md) — autoencoders (audio, EEG, fused)
 - [Meeting01](./Experiments/Meeting01.md) — what spiking costs an autoencoder (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
@@ -161,7 +155,6 @@ Run in order; `thesis` is the primary experiment.
 - [Thesis Document](./Guides/Thesis-Document.md) — the monograph: structure, generated tables
   and numbers (`\tn`), figures, building the PDF
 - [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order
-- [Grid Runbook](./Guides/Grid-Runbook.md) — SNN grid tests
 - [GridUnesp Deployment](./Guides/GridUnesp-Deployment.md) — running Meeting01's LOSO
   training loop on UNESP's free HPC cluster instead of a local machine
 

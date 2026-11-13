@@ -1,6 +1,6 @@
 /**
- * @file LSTMAutoencoder_gtest.cpp
- * @brief Unit tests for integrated Experiment04 LSTM autoencoder components.
+ * @file lstm_autoencoder_training_gtest.cpp
+ * @brief LSTM layer and LSTM autoencoder tests, including training through the core Trainer.
  */
 
 #include <gtest/gtest.h>
@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-#include "../../core/training/Trainer.hpp"
+#include "core/training/Trainer.hpp"
 #include "layers/lstm/LSTMLayer.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"

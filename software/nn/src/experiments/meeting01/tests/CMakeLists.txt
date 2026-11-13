@@ -11,7 +11,6 @@ target_include_directories(meeting01_comparative_gtest
 target_link_libraries(meeting01_comparative_gtest
     PRIVATE
         google_test
-        autoencoderRunner_lib
         tensor
         layers
         data_loaders
@@ -43,7 +42,6 @@ target_link_libraries(dat_writer_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         layers
         xtensor xtensor-blas
@@ -69,7 +67,6 @@ target_link_libraries(profile_audit_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         xtensor xtensor-blas
         cnpy-static
 )
@@ -94,7 +91,6 @@ target_link_libraries(loaders_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         data_loaders_fsdd
         xtensor xtensor-blas
         cnpy-static
@@ -120,7 +116,6 @@ target_link_libraries(event_sink_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         xtensor xtensor-blas
         cnpy-static
 )
@@ -144,7 +139,6 @@ target_link_libraries(parameter_count_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         gru_models
         transformer_models
         tensor
@@ -174,7 +168,6 @@ target_link_libraries(meeting01_encoding_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         xtensor xtensor-blas
         cnpy-static
@@ -198,7 +191,6 @@ target_link_libraries(meeting01_split_audit_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         layers
         data_loaders
@@ -227,7 +219,6 @@ target_link_libraries(meeting01_ga_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         layers
         xtensor xtensor-blas
@@ -255,7 +246,6 @@ target_link_libraries(meeting01_recurrent_ga_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         layers
         xtensor xtensor-blas
@@ -284,7 +274,6 @@ target_link_libraries(meeting01_transformer_ga_gtest
     PRIVATE
         google_test
         meeting01_lib
-        autoencoderRunner_lib
         tensor
         layers
         xtensor xtensor-blas

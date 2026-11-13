@@ -16,8 +16,6 @@ CompileFlags:
     - -std=gnu++20
     - -Iinclude
     - -Isrc
-    - -Isrc/experiments/autoencoderRunner/lib/include
-    - -Isrc/experiments/autoencoderRunner/lib/include/autoencoder
     - -Isrc/experiments/meeting01/lib/include
     - -isystem
     - /usr/include/eigen3

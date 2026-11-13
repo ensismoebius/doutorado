@@ -12,8 +12,7 @@ Modern ML systems support multiple compute devices:
 
 This project's `Device`/`DeviceType` descriptor is CPU-only. It is a separate,
 smaller abstraction from the `NN_BACKEND` tensor backend selection (see
-[Tensor](./Tensor.md)) — it is what `Module::to(device)` and
-`autoencoderRunner`'s `--device` CLI flag consume, not what dispatches tensor
+[Tensor](./Tensor.md)) — it is what `Module::to(device)` consumes, not what dispatches tensor
 math.
 
 ## How It Is Implemented Here

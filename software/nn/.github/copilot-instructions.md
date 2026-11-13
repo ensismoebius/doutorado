@@ -39,7 +39,7 @@ The documentation is the wiki (authoritative):
 
 Recent notable refactors (keep in mind)
 
-* Experiments are named, not numbered: `src/experiments/{thesis,meeting01,paraconsistentGA,autoencoderRunner,waveletAE,paraconsistentBaseline}/` (stored run tags keep the old numbers, `e05_` = thesis). Reuse their `lib/` code instead of duplicating pipeline code in new mains.
+* Experiments are named, not numbered: `src/experiments/{thesis,meeting01,paraconsistentGA}/` (stored run tags keep the old numbers, `e05_` = thesis). Reuse their `lib/` code instead of duplicating pipeline code in new mains.
 * `BatchPrefetcher` — reworked to a single-producer, bounded-queue design to serialize `matio` reads. Always construct with a `DataLoader&` and ensure the `DataLoader` outlives the prefetcher.
 * `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate;
   add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).
@@ -115,7 +115,7 @@ Naming conventions (summary from `.wiki/Development/Naming-Conventions.md`)
 
 Experiment04-specific editing guidance
 
-* Extend `Experiment04` rather than copying its pipeline into new mains; if you need new runtime options add them to `src/experiments/autoencoderRunner/lib/include/cli.hpp` and read them through the `Config` object.
+* Extend an existing experiment's `lib/` rather than copying its pipeline into new mains; new runtime options go in that experiment's CLI/config parser (`Meeting01Cli`, `ThesisConfig`), never as unvalidated defaults.
 * Keep `dataset_info`'s default fast estimate behavior; implement an explicit `--exact-summary` switch if exact row counts are required.
 
 ## Additional coding directives

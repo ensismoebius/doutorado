@@ -19,7 +19,6 @@ target_include_directories(thesis_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/include
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/src/experiments/autoencoderRunner/lib/include  # Protocol (SNN/ANN) autoencoders
 )
 
 target_link_libraries(thesis_lib
@@ -38,7 +37,7 @@ target_link_libraries(thesis_lib
         serialization
         nn_progress
         lstm_models
-        autoencoderRunner_lib   # ProtocolAutoencoder (ANN-AE) + ProtocolSpikingAutoencoder (SNN-AE)
+        autoencoder_models      # ProtocolAutoencoder (ANN-AE) + ProtocolSpikingAutoencoder (SNN-AE)
         meeting01_lib           # Meeting01Energy: the inference-energy ledger (Lemaire 2022)
         nlohmann_json_wrapper
         matioCpp

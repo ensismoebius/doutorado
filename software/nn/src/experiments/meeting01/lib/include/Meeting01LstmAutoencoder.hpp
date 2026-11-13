@@ -1,6 +1,6 @@
 #pragma once
 
-// Public Experiment04 runner used by autoencoderRunner/meeting01 mains.
+// Public meeting01 runner used by the meeting01 main.
 
 class LstmAutoencoderExperiment
 {

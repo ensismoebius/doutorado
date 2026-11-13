@@ -33,7 +33,7 @@ target_link_libraries(nn_microscope
         # Mirrors the `meeting01` executable's link line + the tensor backend.
         meeting01_lib
         thesis_lib
-        autoencoderRunner_lib
+        autoencoder_models
         tensor
         xsimd
         dataLoaders_10_1117_windowing

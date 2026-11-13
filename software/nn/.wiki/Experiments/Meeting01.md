@@ -2753,17 +2753,6 @@ cd documentation/07-articlesProduced/meeting01
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-## Key Differences from AutoencoderRunner
-
-| Feature | AutoencoderRunner | Experiment04 |
-|---------|-------------|--------------|
-| Model | Feedforward AE | LSTM + SNN comparative |
-| Input | Fixed-dim vectors | Variable-length sequences |
-| Latent | Vector | Final hidden state |
-| BPTT | Not used | LSTM uses BPTT |
-| Dataset | 10.1117 EEG/Audio | FSDD (spoken digits) |
-| Progress | Legacy async | nn::progress (ANSI) |
-
 ## Common Pitfalls
 
 1. **SNN spec with non-linear entries throws at startup.** `parse_layer_module_spec` in SNN mode only handles `linear:width[:activation]`. Any `conv1d:`, `pool1d:`, `residual`, or `spiking_neuron:` entry throws `std::invalid_argument` before training begins.
@@ -3935,7 +3924,6 @@ zero input spikes, so its break-even is "none" there, like the recurrent transfo
 - [Autoencoders](../Concepts/Autoencoders.md)
 - [Wave Processing](../Core/Wave.md)
 - [Training](../Core/Training.md) - Progress bars
-- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Feedforward autoencoder
 
 ## References
 

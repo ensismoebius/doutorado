@@ -191,6 +191,7 @@ rewritten. That made the row order of the feature/label vectors machine-dependen
 **not** affect the paraconsistent scores (α/β are per-class min/max/overlap, so order-invariant)
 nor the label mapping (`build_label_index` sorts), but it **does** affect training — sample
 order is the order SGD sees. Now collected into a vector and `std::sort`ed first.
+(`paraconsistentBaseline` was removed on 2026-11-13; the rule stands for any new directory walk.)
 
 The other three `directory_iterator` sites were already safe: `SubjectDiscovery.cpp` sorts by
 `subject_id` (and its sqlite branch uses `ORDER BY id ASC`), `Meeting01Dataset.cpp` and
@@ -223,8 +224,8 @@ create_batches(inputs, targets, batch_size, /*seed=*/42); // reproducible
 ```
 
 The default stays unseeded so all 16 existing call sites keep compiling and behaving as before;
-**any path whose results must be reproducible has to pass a seed.** `WaveletAETraining` now
-passes `random_seed + epoch` — the epoch offset keeps each epoch's order distinct (a fixed seed
+**any path whose results must be reproducible has to pass a seed.** `WaveletAETraining` (removed
+with the waveletAE experiment on 2026-11-13) passed `random_seed + epoch` — the epoch offset keeps each epoch's order distinct (a fixed seed
 would replay the same order every epoch and defeat shuffling) while making the whole schedule a
 pure function of the run seed.
 

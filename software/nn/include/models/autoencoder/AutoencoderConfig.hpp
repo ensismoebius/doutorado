@@ -13,11 +13,10 @@ namespace nn::models::autoencoder
 
 /**
  * @file AutoencoderConfig.hpp
- * @brief Shared configuration struct for autoencoderRunner autoencoders.
+ * @brief Shared configuration struct for the core autoencoder models.
  *
- * The initial autoencoderRunner models were scaffold-like symmetric MLP stacks.
- * This config now carries enough information for modality-aware redesigns,
- * including multimodal branch hints and architecture-family selection.
+ * Carries the layer sizes plus the information the modality-aware models need:
+ * multimodal branch hints and architecture-family selection.
  */
 enum class AutoencoderArchitecture
 {

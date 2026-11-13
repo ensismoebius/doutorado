@@ -53,10 +53,8 @@ APPROVED_SUPPRESSIONS = {
     
     # Cross-translation-unit symbol collisions (acceptable for classes with internal linkage)
     ("src/demos/cppdemos/rede_snn.cpp", "ctuOneDefinitionRuleViolation"): "Local class definition acceptable in demo",
-    ("src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerConfig.hpp", "ctuOneDefinitionRuleViolation"): "Config struct in experiment header",
     
     # Other acceptable patterns
-    ("src/autoencoderRunner.cpp", "clarifyCalculation"): "Ternary operator with modulo (acceptable precedence)",
 }
 
 

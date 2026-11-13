@@ -92,36 +92,10 @@ factory pair. `include/models/autoencoder/AutoencoderBuilders.hpp` actually
 declares free functions (`build_ann_encoder`, `build_ann_decoder`,
 `build_snn_encoder`, `build_snn_decoder`) that assemble a `Sequential` from an
 `AutoencoderConfig` — used internally by each concrete autoencoder's
-constructor, not exposed as a type-selecting factory. The real per-type
-dispatch lives in the autoencoderRunner experiment, selecting among the
-concrete classes by an actual enum:
-
-```cpp
-// File: src/experiments/autoencoderRunner/lib/include/AutoencoderRunnerAutoencoderType.hpp
-enum class AutoencoderRunnerAutoencoderType
-{
-    ProtocolAnn, EegWindowAnn, AudioWindowAnn, FusedWindowAnn,
-    ProtocolSnn, EegWindowSnn, AudioWindowSnn, FusedWindowSnn,
-};
-```
-
-```cpp
-// File: src/experiments/autoencoderRunner/lib/src/autoencoderRunner_helpers.cpp
-auto build_autoencoder_model(const Config& config, nn::Index input_features)
-    -> std::unique_ptr<Module<nn::Backend>>
-{
-    AutoencoderConfig model_cfg{ /* populated from config fields */ };
-    switch (config.autoencoder_type)
-    {
-        case AutoencoderRunnerAutoencoderType::ProtocolAnn:
-            return std::make_unique<ProtocolAutoencoder>(model_cfg);
-        case AutoencoderRunnerAutoencoderType::EegWindowAnn:
-            return std::make_unique<EegWindowAutoencoder>(model_cfg);
-        // ... AudioWindowAnn, FusedWindowAnn, and the four *Snn cases
-    }
-    throw std::runtime_error("Unsupported autoencoder type");
-}
-```
+constructor, not exposed as a type-selecting factory. There is no per-type dispatch
+either: each experiment constructs the concrete class it needs. The thesis, for example,
+instantiates `ProtocolSpikingAutoencoder` (SNN-AE) or `ProtocolAutoencoder` (ANN-AE) through
+`run_protocol_ae<Model>` in `src/experiments/thesis/lib/src/ThesisFeatureExtraction.cpp`.
 
 ### Sequence autoencoders: LSTM-AE, GRU-AE, Transformer-AE
 
@@ -242,14 +216,11 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: src/experiments/autoencoderRunner/lib/src/autoencoderRunner.cpp
-#include "AutoencoderRunnerAutoencoderType.hpp"
 #include "models/autoencoder/AutoencoderConfig.hpp"
+#include "models/autoencoder/ProtocolSpikingAutoencoder.hpp"
 
-// autoencoderRunner's Config (JSON profile) selects the concrete class via
-// config.autoencoder_type; build_autoencoder_model() does the dispatch —
-// see autoencoderRunner_helpers.cpp above.
-auto model = build_autoencoder_model(config, input_features);
+nn::models::autoencoder::AutoencoderConfig cfg{ /* sizes, layer specs, ... */ };
+auto model = std::make_unique<nn::models::autoencoder::ProtocolSpikingAutoencoder>(cfg);
 
 // Training
 nn::Tensor output = model->forward(input, true);
@@ -277,7 +248,6 @@ model->backward(grad_output);
 - [Autoencoders](../Concepts/Autoencoders.md) - Theory
 - [Tensor](./Tensor.md) - Data structure
 - [Layers](./Layers.md) - Building blocks
-- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) - Usage
 
 ## References
 

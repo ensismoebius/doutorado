@@ -176,10 +176,10 @@ cmake --preset=pgo-generate
 cmake --build --preset=pgo-generate -j$(nproc)
 
 # 2. Run a representative workload to collect profiles
-# --profile takes a profile-name stem (resolved under src/experiments/autoencoderRunner/profiles/),
-# not a path — this file doesn't need to exist as "sample.json"
-./out/build/pgo-generate/src/experiments/autoencoderRunner/autoencoderRunner \
-    --profile sample-training-flow
+# (the thesis debug profile: data loading, feature extraction, AE training, classifiers;
+#  it reads ~/database.sqlite, see Data Bases)
+./out/build/pgo-generate/src/experiments/thesis/thesis \
+    --config src/experiments/thesis/profiles/debug.json
 
 # 3. Final optimized build using collected profiles
 cmake --preset=pgo-use
@@ -219,17 +219,15 @@ Top-level `scripts/` (pipeline, data, CI, dev scripts) is a separate directory, 
 All core modules are included from `src/core/CMakeLists.txt` via `add_subdirectory`.  
 Sanitizer flags (`SanitizerFlags.cmake`) are applied at the `src/core/` level.
 
-### `src/experiments/` — Numbered Experiments
+### `src/experiments/` — Experiments
 
-Shared config library `experiments_config` (JSON-backed) is built at the `src/experiments/` level and linked by each numbered experiment.
+Each experiment parses its own profile (there is no shared config library). `meeting01` is added
+first because `thesis_lib` links `meeting01_lib`.
 
 | Experiment | Directory |
 |-----------|-----------|
-| 00 | `src/experiments/paraconsistentBaseline/` |
-| 02 | `src/experiments/waveletAE/` |
-| 03 | `src/experiments/autoencoderRunner/` (Autoencoder / SNN) |
-| 04 | `src/experiments/meeting01/` (LSTM comparative) |
-| 05 | `src/experiments/thesis/` (thesis primary experiment) |
+| meeting01 (was 04) | `src/experiments/meeting01/` (the conference paper) |
+| thesis (was 05) | `src/experiments/thesis/` (thesis primary experiment) |
 | — | `src/experiments/paraconsistentGA/` (NSGA-II AE architecture search, reuses `thesis_lib`) |
 
 Each experiment may contain a `lib/` subdirectory for reusable components and a `tests/` subdirectory with GTest targets.
@@ -343,8 +341,7 @@ ctest --test-dir build-asan --output-on-failure -j1
 ```
 
 ### lcov "inconsistent" errors (coverage builds)
-Use `--ignore-errors inconsistent` — caused by gtest `TEST()` macro DWARF line mismatch.  
-See [GRID_TESTS_COMPREHENSIVE_RUNBOOK](./Grid-Runbook.md) for the full coverage workflow.
+Use `--ignore-errors inconsistent` — caused by gtest `TEST()` macro DWARF line mismatch.
 (lldb) run --gtest_filter=TensorGtest.test_name
 
 ## See Also

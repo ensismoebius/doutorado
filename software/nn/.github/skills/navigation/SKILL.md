@@ -38,9 +38,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 - `R_min`, `C_min` — biophysical parameter clamp sites
 
 **Experiment paths:**
-- `src/experiments/paraconsistentBaseline/` — wavelet + paraconsistent baseline
-- `src/experiments/waveletAE/` — wavelet autoencoder
-- `src/experiments/autoencoderRunner/` — multimodal autoencoder
 - `src/experiments/meeting01/` — LSTM vs SNN comparative
 
 **Article pipeline chain:**

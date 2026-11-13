@@ -75,9 +75,6 @@ Project Context (nn framework)
 - `R_min`, `C_min` — biophysical parameter clamp sites
 
 **Experiment paths:**
-- `src/experiments/paraconsistentBaseline/` — wavelet + paraconsistent baseline
-- `src/experiments/waveletAE/` — wavelet autoencoder
-- `src/experiments/autoencoderRunner/` — multimodal autoencoder
 - `src/experiments/guayaquil/` — LSTM vs SNN comparative
 
 **Article pipeline chain:**

@@ -388,5 +388,4 @@ Every choice is required: `--metric eer|auc|accuracy|f1`, `--reference best|<run
 - [Re-run Runbook](./Re-run-Runbook.md) — the full re-run sequence this runner is one step of
 - [Engineering Fixes Log](./Engineering-Fixes-Log.md) — why the automatic post-processing and the `d_penalized` ranking exist
 - [Ground-Truth and Smoke Testing](./Ground-Truth-and-Smoke-Testing.md)
-- [Grid Runbook](./Grid-Runbook.md)
 - [Memory Diagnostics](./Memory-Diagnostics.md)

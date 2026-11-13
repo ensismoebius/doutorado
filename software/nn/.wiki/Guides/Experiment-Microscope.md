@@ -69,7 +69,7 @@ the binding.
                          │
                          │  links the real static libs
                          ▼
-     wavelet · meeting01_lib · autoencoderRunner_lib · thesis_lib · tensor
+     wavelet · meeting01_lib · autoencoder_models · thesis_lib · tensor
 ```
 
 Two data routes, one per adapter:

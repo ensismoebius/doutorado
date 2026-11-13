@@ -155,7 +155,6 @@ mapping, config validation).
 - [Multi-Objective Optimisation (NSGA-II)](../Concepts/Multi-Objective-Optimisation.md) — the search algorithm
 - [Paraconsistent Logic](../Core/Paraconsistent.md) — the `d_penalized` objective
 - [Autoencoders](../Concepts/Autoencoders.md) — what each genome builds
-- [AutoencoderRunner](AutoencoderRunner.md) — the ANN-AE / SNN-AE networks reused here
 - [Thesis](Thesis.md) — phase00 baseline this search extends
 - [Spike Encoding](../Concepts/Spike-Encoding.md) — the SNN `encoding` gene (direct/latency/poisson)
 

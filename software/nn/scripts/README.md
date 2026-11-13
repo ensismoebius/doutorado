@@ -118,7 +118,6 @@ Full procedure: [Data Bases](../.wiki/Guides/Data-Bases.md).
 | `biomex_verify.py --src --db` | the converted SQLite re-derived by a second path → stamp `<db>.verified` |
 | `sqlite_reader.py`, `verify_sqlite_roundtrip.py`, `verify_sqlite_full.py` | inspect a SQLite base; older MAT → SQLite fidelity checks |
 | `npz_to_pytorch.py` | convert `.npz` model files to PyTorch `.pt` |
-| `e03_dedup_master_table.py` | remove duplicate rows from the autoencoderRunner master table |
 
 ## testing/
 

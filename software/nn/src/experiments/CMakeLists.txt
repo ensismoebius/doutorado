@@ -1,37 +1,8 @@
-# Add sanitizer flags
+# Sanitizer flags for Debug builds (NN_ENABLE_ASAN), applied to every experiment below.
 include(../../cmake/SanitizerFlags.cmake)
 
-add_library(experiments_config
-    Config.cpp
-)
-
-target_sources(experiments_config
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/Config.hpp
-)
-
-target_include_directories(experiments_config
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json CONFIG REQUIRED)
-endif()
-
-target_link_libraries(experiments_config
-    PUBLIC
-        nlohmann_json_wrapper
-)
-
-
-add_subdirectory(tests)
-
-# Add subdirectories for all experiments
-add_subdirectory(paraconsistentBaseline)
-add_subdirectory(waveletAE)
-add_subdirectory(autoencoderRunner)
+# One folder per experiment; each defines its library, executable, tests and profiles.
+# meeting01 comes first: thesis_lib links meeting01_lib.
 add_subdirectory(meeting01)
 add_subdirectory(thesis)
 add_subdirectory(paraconsistentGA)

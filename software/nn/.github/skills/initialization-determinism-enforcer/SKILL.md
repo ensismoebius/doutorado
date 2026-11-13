@@ -44,7 +44,6 @@ Prefer over grep/manual git/cmake for anything about the code itself:
 
 - [include/initializers/xavier.hpp](include/initializers/xavier.hpp) — two branches: with/without seed
 - [include/initializers/kaiming_snn.hpp](include/initializers/kaiming_snn.hpp) — `std::random_device` default
-- [src/experiments/waveletAE/WaveletAEConfig.hpp](src/experiments/waveletAE/WaveletAEConfig.hpp) — `random_seed` declared but unused in init
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — seed must be threaded into layer init
 
 ## Propagation Pattern

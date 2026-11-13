@@ -87,7 +87,4 @@ jq '.random_seed, .classifier_paradigm, .normalization_method' spec.json
 
 Key Files
 
-- [src/experiments/waveletAE/spec.yaml](src/experiments/waveletAE/spec.yaml) — reference config to derive schema from
-- [src/experiments/waveletAE/spec.json](src/experiments/waveletAE/spec.json) — JSON variant (check equivalence)
-- [src/experiments/waveletAE/WaveletAEConfig.cpp](src/experiments/waveletAE/WaveletAEConfig.cpp) — add schema validation call at load time
-- [src/experiments/guayaquil/profiles/](src/experiments/guayaquil/profiles/) — each profile needs schema validation
+- [src/experiments/thesis/profiles/](src/experiments/thesis/profiles/), [src/experiments/meeting01/profiles/](src/experiments/meeting01/profiles/) — every profile is validated by its strict parser (ThesisConfig / Meeting01Config) and the profile audit tests

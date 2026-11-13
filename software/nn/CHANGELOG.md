@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-13 — legacy experiments removed
+
+### Removed
+
+- The legacy experiments `autoencoderRunner` (was 03, with its grid scripts and profiles),
+  `waveletAE` (was 02) and `paraconsistentBaseline` (was 00), the shared `experiments_config`
+  library they used, `scripts/data/e03_dedup_master_table.py`, and their wiki pages
+  (`Experiments/AutoencoderRunner.md`, `WaveletAE.md`, `ParaconsistentBaseline.md`,
+  `Guides/Grid-Runbook.md`). None of them feeds the thesis or the paper; git history keeps them.
+
+### Changed
+
+- `meeting01_lib` is defined in `src/experiments/meeting01/CMakeLists.txt` (it was inside the
+  autoencoderRunner build file) and links the core libraries directly. `thesis_lib`, the
+  `nn_microscope` bindings and the autoencoder demo link `autoencoder_models` instead of
+  `autoencoderRunner_lib`.
+- The tests of core models that lived with autoencoderRunner moved to the core:
+  `src/core/models/autoencoder/tests/autoencoder_models_gtest.cpp` (suite
+  `AutoencoderModelsTest`, was `AutoencoderRunnerRedesignTest`; it guards the thesis SNN-AE
+  firing-rate regularization) and `src/core/models/lstm/tests/lstm_autoencoder_training_gtest.cpp`.
+- The PGO example workload is the thesis `debug.json` profile.
+
 ## 2026-11-13 — documentation overhaul
 
 ### Fixed

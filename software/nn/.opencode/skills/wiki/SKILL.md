@@ -22,7 +22,6 @@ Create this structure under `.wiki/`:
 │   ├── DataLoaders.md
 │   └── ...one file per src/core module
 ├── Experiments/
-│   ├── AutoencoderRunner.md
 │   ├── Meeting01.md
 │   └── ...one file per experiment
 ├── Concepts/
@@ -81,7 +80,7 @@ Collect canonical citations for: LSTM, BPTT, SNNs + surrogate gradients, Autoenc
 3. `.wiki/Architecture.md` — system-wide diagram
 4. Core articles (Tensor, Layers, Optimizers, DataLoaders, ...)
 5. Concept articles (Autoencoders, LSTM-and-BPTT, SNN-and-Surrogate-Gradients, ...)
-6. Experiment articles (AutoencoderRunner, Experiment04, ...)
+6. Experiment articles (Thesis, Meeting01, ParaconsistentGA)
 7. `.wiki/Home.md` — final pass to add all links
 
 ### STEP 4 — CROSS-LINK

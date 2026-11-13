@@ -226,7 +226,6 @@ for (auto& outer : outer_folds)
 - [Statistics](../Core/Statistics.md) — KFold/NestedKFold implementation reference
 - [Autoencoders](./Autoencoders.md) — Models being validated
 - [Training](../Core/Training.md) — `nested_cv_*` fields in `TrainerConfig`
-- [AutoencoderRunner](../Experiments/AutoencoderRunner.md) — Experiments using k-fold
 
 ---
 

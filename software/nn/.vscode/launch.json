@@ -21,51 +21,6 @@
             }
         },
         // ─────────────────────────────────────────────────────────────────
-        // Experiment 03
-        // ─────────────────────────────────────────────────────────────────
-        {
-            "name": "autoencoderRunner (lldb-dap)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/autoencoderRunner/autoencoderRunner",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "initCommands": [
-                "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "env": {
-                "ASAN_OPTIONS": "detect_leaks=0"
-            }
-        },
-        // ─────────────────────────────────────────────────────────────────
-        // Experiment 02
-        // ─────────────────────────────────────────────────────────────────
-        {
-            "name": "waveletAE (lldb-dap)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/waveletAE/waveletAE",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "initCommands": [
-                "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ]
-        },
-        // ─────────────────────────────────────────────────────────────────
-        // Experiment 00 (paraconsistentBaseline)
-        // ─────────────────────────────────────────────────────────────────
-        {
-            "name": "paraconsistentBaseline (lldb-dap)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/paraconsistentBaseline/paraconsistentBaseline",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "initCommands": [
-                "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ]
-        },
-        // ─────────────────────────────────────────────────────────────────
         // Demos
         // ─────────────────────────────────────────────────────────────────
         {

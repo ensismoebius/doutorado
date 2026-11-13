@@ -88,3 +88,33 @@ set_target_properties(lstm_ae_pytorch_parity_gtest PROPERTIES CXX_CLANG_TIDY "")
 
 gtest_discover_tests(lstm_ae_pytorch_parity_gtest)
 configure_xtensor_parallel_target(lstm_ae_pytorch_parity_gtest)
+
+
+##
+## lstm_autoencoder_training_gtest: LSTMLayer shapes and gradients, and an LSTM autoencoder
+## trained through the core Trainer
+##
+add_executable(lstm_autoencoder_training_gtest
+    lstm_autoencoder_training_gtest.cpp
+)
+
+target_link_libraries(lstm_autoencoder_training_gtest
+    PRIVATE
+        google_test
+        lstm_models
+        tensor
+        layers
+        optimizers
+        util
+        nn_progress
+        xtensor xtensor-blas
+)
+
+target_include_directories(lstm_autoencoder_training_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+gtest_discover_tests(lstm_autoencoder_training_gtest)
+configure_xtensor_parallel_target(lstm_autoencoder_training_gtest)

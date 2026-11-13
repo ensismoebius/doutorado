@@ -1141,11 +1141,9 @@ This runbook covers `meeting01` only, and `meeting01` never touches SQLite — i
 exactly why §3 above fetches into the *same absolute path* under the grid account's
 `$HOME` rather than doing anything sqlite-specific.
 
-`thesis`, `paraconsistentGA`, and `autoencoderRunner` are a different story: they all read
-a single `~/database.sqlite` file (three independent call sites —
-`ThesisDataset::load_dataset`, `SqliteBatchSource`, `TrialFoldSelector` — each opens its
-own `sqlite3` connection, but all resolve the path the same way, via
-`nn::utility::expand_home("~/database.sqlite")`).
+`thesis` and `paraconsistentGA` are a different story: they read a single sqlite base
+(`~/database.sqlite`, or `~/biomex.sqlite` for the BIOMEX-DB profiles), opened by
+`ThesisDataset::load_dataset` with the path resolved by `nn::utility::expand_home`.
 
 **`thesis` runs on the grid since 2026-11-12.** `gridunesp_deploy.sh` builds it by default
 (`GRIDUNESP_TARGETS="meeting01 thesis"`). With `thesis` among the targets, the deploy also
@@ -1159,7 +1157,7 @@ Each target has its own stamp: `SOURCE_REVISION.built` for meeting01 and
 target left out of a deploy is unstamped afterwards and its runner refuses to start. The runs
 themselves are described in
 [Experiment05 § Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12).
-`paraconsistentGA` and `autoencoderRunner` are still not part of the plan.
+`paraconsistentGA` is still not part of the plan.
 
 ## Open questions to confirm with `support.ncc@unesp.br`
 
