@@ -134,7 +134,10 @@ banned is recovering from an error by guessing.
 or `biomex2021` (`~/biomex.sqlite`, written by `scripts/data/biomex_to_sqlite.py`; pronounced
 digits only, so `eeg_condition imagined` is refused). Sample rates come from the base
 (`ThesisDatasetView::voice_sample_rate` / `eeg_sample_rate`, `require_rate`), never from
-constants: a hand-built view in a test must set them.
+constants: a hand-built view in a test must set them. BIOMEX-DB is written at the Coretto rates
+(44.1 kHz / 1024 Hz, upsampled from 16 kHz / 128 Hz) and `load_paired` refuses any other rate:
+the DTWPT sub-bands are fractions of Nyquist, so a feature column is the same Hz on both bases
+only at the same rate (`.wiki/Experiments/Thesis.md` §11).
 
 **Thesis / paraconsistentGA config: no defaults at all (2026-11-11).** `ThesisConfig`
 holds every value in `thesis::Required<T>` (`Required.hpp`): reading one that was never

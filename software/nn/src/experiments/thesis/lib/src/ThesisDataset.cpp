@@ -603,6 +603,18 @@ auto load_paired(const std::string& path) -> ThesisDatasetView
     view.eeg_sample_rate = std::stod(info_value(info, "eeg_sample_rate", path));
     (void) require_rate(view.voice_sample_rate, "voice");
     (void) require_rate(view.eeg_sample_rate, "EEG");
+    // The frozen pipeline splits 0..Nyquist into 2^level equal DTWPT sub-bands, so a feature
+    // column is the same band in Hz on both bases only at the same rate. At its native
+    // 16 kHz / 128 Hz, BIOMEX-DB spread over 9-10 of 16 sub-bands where Coretto holds 97-99%
+    // of its power in sub-band 0 (measured 2026-11-13). The converter writes the Coretto
+    // rates; a file at any other rate would feed the classifier columns that mean other Hz.
+    if (view.voice_sample_rate != kCorettoVoiceRateHz || view.eeg_sample_rate != kCorettoEegRateHz)
+        throw std::runtime_error("ThesisDataset: " + path + " is at " +
+                                 info_value(info, "voice_sample_rate", path) + " Hz voice / " +
+                                 info_value(info, "eeg_sample_rate", path) +
+                                 " Hz EEG; both bases must reach the extractors at the Coretto "
+                                 "rates (44100 / 1024 Hz) so the DTWPT sub-bands are the same Hz. "
+                                 "Reconvert with scripts/data/biomex_to_sqlite.py");
     const std::size_t voice_len =
         positive_count(info_value(info, "voice_window_samples", path), "voice_window_samples");
     const std::size_t eeg_len =

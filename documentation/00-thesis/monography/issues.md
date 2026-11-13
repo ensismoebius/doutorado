@@ -600,7 +600,8 @@ pela ordem dentro da série, conferindo a identidade do dígito.
 
 ### Implementado (2026-11-13)
 
-- `scripts/data/biomex_download.py` (API do Mendeley, confere o tamanho de cada `.rar`, extrai só
+- `scripts/data/biomex_download.py` (API do Mendeley, confere o SHA-256 de cada `.rar`, baixa em
+  blocos de 4 MB por 8 conexões, porque uma conexão longa caía para ~85 KB/s; extrai só
   EEG e Voice, retoma onde parou) e `scripts/data/biomex_to_sqlite.py` (pareamento acima,
   filtro 2–40 Hz FIR de fase zero na sessão inteira, voz de 1 s a partir do início da palavra,
   tudo que não pareia com certeza é recusado). A janela de voz é recuada, o mínimo necessário,
@@ -620,6 +621,34 @@ pela ordem dentro da série, conferindo a identidade do dígito.
   Haar + bandas lineares c1, DTWPT nível 4).
 - GridUnesp: `THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch`;
   o deploy envia `~/biomex.sqlite` quando ele existe.
+
+### Mesmo formato nas duas bases (auditoria de 2026-11-13)
+
+O classificador recebe, nas duas bases, uma linha de 96 números por amostra (192 na fusão
+tardia), padronizada por z-score ajustado no treino de cada fold. A DTWPT nível 4 divide
+0..Nyquist em 16 sub-bandas iguais, então cada coluna só mede a mesma faixa de Hz se a taxa for
+a mesma. Na taxa nativa da BIOMEX (16 kHz / 128 Hz) isso não acontecia: a voz da Coretto tem 99,2%
+da potência na sub-banda 0 (0–1378 Hz) e o EEG 97,2% (0–32 Hz), enquanto a BIOMEX se espalhava
+por 9–10 sub-bandas de 500 Hz / 4 Hz. **Decisão (usuário): a BIOMEX é gravada nas taxas da
+Coretto (44,1 kHz / 1024 Hz).** Depois disso, a BIOMEX fica com 89,0% (voz) e 96,8% (EEG) na
+sub-banda 0, e a Coretto e seus vencedores congelados continuam válidos.
+
+- Conversor: `resample_poly` do WAV inteiro (441/160) e da sessão de EEG filtrada inteira (×8),
+  antes do corte. Teste: nada acima do Nyquist nativo (< −50 dB).
+- Leitor (`load_paired`): recusa um arquivo BIOMEX em qualquer outra taxa.
+- Teste `ThesisBiomexDataset.BothBasesReachTheClassifierInTheSameFormat`: as duas formas
+  passam pelo vencedor congelado e precisam dar 96 colunas (192 na tardia), todas finitas.
+- Conferido: voz em PCM float [−1, 1] nas duas; EEG em µV nas duas (RMS 15,3 vs 14,5); tensores
+  `(N, 1)` e `(canais, amostras)` canal-major nas duas.
+- Diferenças que restam (registradas no wiki, seção 11): duração (4 s vs 1 s de voz; 4 s vs 2 s
+  de EEG), canais (6 vs 14, concatenados num só sinal antes da DTWPT) e a fração de zeros do
+  preenchimento até 2^n. Todas são constantes por coluna dentro de uma base, e o z-score as
+  remove. Duas são de conteúdo e não somem:
+  - **O EEG da Coretto tem 19,5% da potência abaixo de 2 Hz**, apesar do filtro "2–40 Hz" dos
+    autores. A BIOMEX, com o FIR do conversor, tem 0,4%. Igualar exigiria refiltrar a Coretto e
+    refazer as Phases 00/01. **Aberto:** decidir se isso entra como limitação ou se refiltramos.
+  - A voz da Coretto concentra 77,7% da potência abaixo de 300 Hz; a BIOMEX, 28,3%. É
+    característica das gravações (sala, microfone).
 
 **Achado lateral.** O passo da CI `test_thesis_phase_scripts.py` já falha no `main` (25 de 29):
 os scripts de ranking e significância ganharam argumentos obrigatórios em 12/11 (13fafd0b) e o

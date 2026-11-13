@@ -8,21 +8,24 @@
 #include <gtest/gtest.h>
 #include <sqlite3.h>
 
+#include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <string>
 #include <vector>
 
 #include "ThesisDataset.hpp"
+#include "ThesisFeatureExtraction.hpp"
 #include "ThesisTestConfig.hpp"
 
 namespace
 {
 namespace fs = std::filesystem;
 
-constexpr int kVoice = 1600; // samples per voice window (a short stand-in for 16000)
+constexpr int kVoice = 1600; // samples per voice window (a short stand-in for 44100)
 constexpr int kChannels = 14;
-constexpr int kEpoch = 256;
+constexpr int kEpoch = 256; // (a short stand-in for 2048)
 
 void exec(sqlite3* db, const std::string& sql)
 {
@@ -38,8 +41,10 @@ void exec(sqlite3* db, const std::string& sql)
 struct BiomexFile
 {
     fs::path path;
-    explicit BiomexFile(
-        const std::string& name, const std::string& source = "biomex2021", int voice_bytes_cut = 0)
+    explicit BiomexFile(const std::string& name,
+        const std::string& source = "biomex2021",
+        int voice_bytes_cut = 0,
+        const std::string& voice_rate = "44100")
         : path(fs::temp_directory_path() / name)
     {
         fs::remove(path);
@@ -54,10 +59,11 @@ struct BiomexFile
             " eeg_interpolated INTEGER, voice_onset_s REAL, eeg_onset_s REAL);");
         exec(db,
             "INSERT INTO recording VALUES ('format','thesis-paired-v1'),('source','" + source +
-                "'),('voice_sample_rate','16000'),('eeg_sample_rate','128'),"
+                "'),('voice_sample_rate','" + voice_rate +
+                "'),('eeg_sample_rate','1024'),"
                 "('voice_window_samples','" +
-                std::to_string(kVoice) +
-                "'),('eeg_epoch_samples','256'),"
+                std::to_string(kVoice) + "'),('eeg_epoch_samples','" + std::to_string(kEpoch) +
+                "'),"
                 "('eeg_channels','AF3,F7,F3,FC5,T7,P7,O1,O2,P8,T8,FC6,F4,F8,AF4');"
                 "INSERT INTO speaker VALUES (1,'F001'),(2,'M001');"
                 "INSERT INTO stimulus VALUES (1,'uno'),(10,'cero');");
@@ -134,8 +140,8 @@ TEST(ThesisBiomexDataset, TheViewHoldsWhatTheFileDeclares)
     ASSERT_EQ(v.samples.size(), 6u);
     EXPECT_EQ(v.n_subjects, 2);
     EXPECT_EQ(v.n_stimuli, 2);
-    EXPECT_DOUBLE_EQ(v.voice_sample_rate, 16000.0);
-    EXPECT_DOUBLE_EQ(v.eeg_sample_rate, 128.0);
+    EXPECT_DOUBLE_EQ(v.voice_sample_rate, 44100.0);
+    EXPECT_DOUBLE_EQ(v.eeg_sample_rate, 1024.0);
     EXPECT_TRUE(v.subject_files.empty());
     for (const auto& s : v.samples)
     {
@@ -159,6 +165,15 @@ TEST(ThesisBiomexDataset, ATruncatedBlobIsRefused)
     EXPECT_NE(msg.find("voice of 6396 bytes"), std::string::npos) << msg;
 }
 
+// The base's native 16 kHz: the same DTWPT level would cut other Hz than on Coretto.
+TEST(ThesisBiomexDataset, AFileNotAtTheCorettoRatesIsRefused)
+{
+    const BiomexFile f("thesis_biomex_native.sqlite", "biomex2021", 0, "16000");
+    const std::string msg = refusal(biomex_dataset(f.path));
+    EXPECT_NE(msg.find("16000 Hz voice / 1024 Hz EEG"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("Coretto rates (44100 / 1024 Hz)"), std::string::npos) << msg;
+}
+
 TEST(ThesisBiomexDataset, AnotherSourceIsRefused)
 {
     const BiomexFile f("thesis_biomex_other.sqlite", "someother");
@@ -177,6 +192,84 @@ TEST(ThesisBiomexDataset, ACorettoFileIsNotReadAsBiomex)
     const std::string msg = refusal(biomex_dataset(p));
     fs::remove(p);
     EXPECT_NE(msg.find("recording"), std::string::npos) << msg;
+}
+
+// ── Both bases reach the classifier in one format ──────────────────────────────────────
+//
+// The classifier sees one row per sample. For the replication to compare like with like,
+// the row must have the same columns on both bases for every source. The two bases differ in
+// what they record (Coretto: 4 s of voice, 6 EEG channels x 4 s; BIOMEX-DB as converted:
+// 1 s of voice, 14 channels x 2 s), not in rate (both 44.1 kHz / 1024 Hz, enforced above).
+// Here both shapes go through the frozen Coretto winner (Haar, lfcc, DTWPT level 4, six
+// descriptors): 16 sub-bands x 6 = 96 columns for voice, EEG and early fusion, 192 for late
+// fusion, all finite. (Scale, gain and length differences inside a base are per-column
+// constants that the per-fold z-score removes; they do not change the format.)
+namespace
+{
+thesis::ThesisDatasetView synthetic_view(nn::Index voice_len, nn::Index channels, nn::Index epoch)
+{
+    thesis::ThesisDatasetView v;
+    v.voice_sample_rate = 44100.0;
+    v.eeg_sample_rate = 1024.0;
+    v.n_subjects = 2;
+    v.n_stimuli = 2;
+    for (int s = 0; s < 4; ++s)
+    {
+        thesis::ThesisSample x;
+        x.subject_id = 1 + s % 2;
+        x.stimulus = 1 + s / 2;
+        x.text_phrase = s / 2 == 0 ? "uno" : "dos";
+        x.audio = nn::Tensor(voice_len, 1);
+        for (nn::Index i = 0; i < voice_len; ++i)
+            x.audio.at(i, 0) = thesis::test::synthetic_value(
+                static_cast<int>(i), 0.003 + 0.001 * s, static_cast<std::uint32_t>(s));
+        x.eeg = nn::Tensor(channels, epoch);
+        for (nn::Index c = 0; c < channels; ++c)
+            for (nn::Index t = 0; t < epoch; ++t)
+                x.eeg.at(c, t) =
+                    20.0f * thesis::test::synthetic_value(static_cast<int>(c * epoch + t),
+                                0.01 + 0.002 * s,
+                                static_cast<std::uint32_t>(100 + s));
+        v.samples.push_back(std::move(x));
+    }
+    return v;
+}
+} // namespace
+
+TEST(ThesisBiomexDataset, BothBasesReachTheClassifierInTheSameFormat)
+{
+    const thesis::ThesisDatasetView coretto = synthetic_view(176400, 6, 4096);
+    const thesis::ThesisDatasetView biomex = synthetic_view(44100, 14, 2048);
+    struct Source
+    {
+        const char* modality;
+        const char* fusion;
+        std::size_t columns;
+    };
+    for (const Source src : {Source{"voice", "", 96},
+             Source{"eeg", "", 96},
+             Source{"fused", "early", 96},
+             Source{"fused", "late", 192}})
+    {
+        SCOPED_TRACE(std::string(src.modality) + " " + src.fusion);
+        thesis::ThesisConfig cfg = thesis::test::phase00(src.modality);
+        if (std::string(src.fusion).size() > 0) cfg.dataset.fusion_mode = src.fusion;
+        thesis::test::set_handcrafted(cfg);
+        cfg.feature_extraction.handcrafted.wavelet = "haar";
+        cfg.feature_extraction.handcrafted.descriptors =
+            std::vector<std::string>{"energy", "zcr", "entropy", "teager", "jitter", "shimmer"};
+        for (const auto* view : {&coretto, &biomex})
+        {
+            const auto sets = thesis::extract_features(*view, cfg, nullptr);
+            ASSERT_EQ(sets.size(), 1u);
+            ASSERT_EQ(sets[0].vectors.size(), view->samples.size());
+            for (const auto& row : sets[0].vectors)
+            {
+                EXPECT_EQ(row.size(), src.columns);
+                for (double x : row) EXPECT_TRUE(std::isfinite(x));
+            }
+        }
+    }
 }
 
 TEST(ThesisBiomexDataset, AViewWithoutRatesIsRefusedByItsReaders)

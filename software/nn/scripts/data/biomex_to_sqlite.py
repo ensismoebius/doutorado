@@ -31,6 +31,9 @@ HOW A PAIR IS MADE.
   series lasts 26.3 s in the EEG and 20.0 s in the WAV), so each signal is cut on its own
   clock: the EEG from the digit's marker, the voice from the word's onset in the .lab.
 
+  Both are written at the Coretto base's rates, 44.1 kHz voice and 1024 Hz EEG (see
+  OUT_VOICE_RATE below for why), resampled whole before the windows are cut.
+
   EEG   EEG_EPOCH_S after the marker, the 14 channels, after a zero-phase FIR band-pass of
         2-40 Hz on the whole session. Why the filter: the Emotiv EEG carries a DC offset of
         ~4000 uV that differs per electrode and per headset fit; unfiltered, energy and
@@ -66,7 +69,7 @@ import sys
 import wave
 
 import numpy as np
-from scipy.signal import filtfilt, firwin
+from scipy.signal import filtfilt, firwin, resample_poly
 
 FORMAT = "thesis-paired-v1"
 SOURCE = "biomex2021"
@@ -76,6 +79,19 @@ EEG_CHANNELS = ("AF3", "F7", "F3", "FC5", "T7", "P7", "O1", "O2", "P8", "T8", "F
 EEG_EPOCH_S = 2.0           # shortest gap between two digit markers in F001: 2.42 s
 VOICE_RATE = 16000
 VOICE_WINDOW_S = 1.0        # F001-F006: word p99 0.74 s; 7 of 840 onset gaps/tails < 1 s
+# The rates the pairs are WRITTEN at: the Coretto base's (44.1 kHz voice, 1024 Hz EEG). The
+# frozen Coretto pipeline splits 0..Nyquist into 2^level equal DTWPT sub-bands, so a column of
+# its feature vector is a band in Hz only at the rate it was selected at. Measured at the
+# native rates (2026-11-13): Coretto voice holds 99.2% of its power in sub-band 0 of 16 and
+# Coretto EEG 97.2%, while BIOMEX at 16 kHz / 128 Hz spreads over 9-10 sub-bands; the same
+# column measured different Hz in the two bases. Upsampled to the Coretto rates, BIOMEX puts
+# ~90-95% in sub-band 0 too. Upsampling adds no content above the native Nyquist (8 kHz /
+# 64 Hz); Coretto holds 0.1% of its voice power above 8 kHz and 0.0% of its EEG above 64 Hz.
+# resample_poly low-passes at the native Nyquist, so no images are added.
+OUT_VOICE_RATE = 44100      # 16000 * 441 / 160
+OUT_EEG_RATE = 1024         # 128 * 8
+VOICE_UP, VOICE_DOWN = 441, 160
+EEG_UP = 8
 BAND_HZ = (2.0, 40.0)
 FIR_TAPS = 423              # Hamming, ~1 Hz transition at 128 Hz (3.3 x 128 / 1)
 SESSIONS = {"01G10": 10, "01G04": 4}  # digits per series
@@ -197,6 +213,8 @@ def convert_volunteer(folder, vid, taps):
     """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer."""
     epoch = int(round(EEG_EPOCH_S * EEG_RATE))
     win = int(round(VOICE_WINDOW_S * VOICE_RATE))
+    out_epoch = epoch * EEG_UP
+    out_win = int(round(VOICE_WINDOW_S * OUT_VOICE_RATE))
     pairs = []
     for session, per_series in SESSIONS.items():
         where = f"{vid} {session}"
@@ -211,6 +229,8 @@ def convert_volunteer(folder, vid, taps):
             raise ConversionError(f"{where}: EDF lacks {missing}")
         eeg = np.stack([phys[labels.index(c)] for c in EEG_CHANNELS])
         eeg = filtfilt(taps, [1.0], eeg, axis=-1)
+        # The whole session at once, so no epoch has a resampling edge of its own.
+        eeg_out = resample_poly(eeg, EEG_UP, 1, axis=-1)
         interp = raw[labels.index("INTERPOLATED")] != 0
         runs = digit_runs(raw[labels.index("MARKER")], where)
         if len(runs) != SERIES_PER_SESSION or any(len(r) != per_series for r in runs):
@@ -221,6 +241,7 @@ def convert_volunteer(folder, vid, taps):
             if not (os.path.isfile(stem + ".wav") and os.path.isfile(stem + ".lab")):
                 raise ConversionError(f"{where} series {k}: {stem}.wav/.lab missing")
             voice = read_wav(stem + ".wav")
+            voice_out = resample_poly(voice, VOICE_UP, VOICE_DOWN)  # the whole series WAV
             words = read_lab(stem + ".lab")
             shown = [DIGIT_WORDS[c] for _, c in run]
             said = [w for _, _, w in words]
@@ -244,9 +265,16 @@ def convert_volunteer(folder, vid, taps):
                         f"{'the next word' if j < len(words) else 'the end'} "
                         f"({nxt / VOICE_RATE:.3f} s)")
                 prev_end = end
+                # The window is chosen on the native clock (the .lab and markers are in
+                # native samples) and cut from the upsampled signal at the same instant.
+                v0 = int(round(begin * VOICE_UP / VOICE_DOWN))
+                e0 = m * EEG_UP
+                if v0 + out_win > len(voice_out) or e0 + out_epoch > eeg_out.shape[1]:
+                    raise ConversionError(f"{where} series {k} digit {j}: the upsampled "
+                                          f"window passes the end of its signal")
                 pairs.append({"session": session, "series": k, "position": j, "code": code,
-                              "voice": voice[begin:begin + win].astype(np.float32),
-                              "eeg": eeg[:, m:m + epoch].astype(np.float32),
+                              "voice": voice_out[v0:v0 + out_win].astype(np.float32),
+                              "eeg": eeg_out[:, e0:e0 + out_epoch].astype(np.float32),
                               "interpolated": int(interp[m:m + epoch].sum()),
                               "voice_onset_s": on / VOICE_RATE,
                               "voice_shift_s": (on - begin) / VOICE_RATE,
@@ -279,13 +307,17 @@ CREATE TABLE pair (
 def recording_info():
     return {
         "format": FORMAT, "source": SOURCE,
-        "voice_sample_rate": str(VOICE_RATE), "voice_window_samples":
-            str(int(round(VOICE_WINDOW_S * VOICE_RATE))),
+        "voice_sample_rate": str(OUT_VOICE_RATE), "voice_window_samples":
+            str(int(round(VOICE_WINDOW_S * OUT_VOICE_RATE))),
+        "voice_native_rate": str(VOICE_RATE), "eeg_native_rate": str(EEG_RATE),
+        "resampling": f"scipy resample_poly of the whole series WAV ({VOICE_UP}/{VOICE_DOWN}) "
+                      f"and of the whole filtered EEG session (x{EEG_UP}), to the Coretto rates "
+                      f"{OUT_VOICE_RATE} / {OUT_EEG_RATE} Hz, before cutting",
         "voice_window": f"{VOICE_WINDOW_S:g} s from the word's onset; moved earlier to end at "
                         f"the next word's onset or the WAV's end when it would reach them "
                         f"(pair.voice_shift_s)",
-        "eeg_sample_rate": str(EEG_RATE), "eeg_channels": ",".join(EEG_CHANNELS),
-        "eeg_epoch_samples": str(int(round(EEG_EPOCH_S * EEG_RATE))),
+        "eeg_sample_rate": str(OUT_EEG_RATE), "eeg_channels": ",".join(EEG_CHANNELS),
+        "eeg_epoch_samples": str(int(round(EEG_EPOCH_S * EEG_RATE)) * EEG_UP),
         "eeg_filter": f"FIR band-pass {BAND_HZ[0]:g}-{BAND_HZ[1]:g} Hz, {FIR_TAPS} taps, "
                       f"Hamming, zero-phase (filtfilt), whole session",
         "citation": "Moreno-Rodriguez et al., IEEE Access 9:111267 (2021); "

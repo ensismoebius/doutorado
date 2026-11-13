@@ -296,8 +296,8 @@ speech**, so `eegimag` and the imagined fusions do not exist there (`ThesisConfi
 | Speakers | 15 | 51 (25 F) |
 | Conditions | imagined (EEG only), pronounced (EEG + voice) | pronounced only (EEG + voice) |
 | Stimuli | 5 vowels, 6 commands | digits 0-9 (Spanish), 14 per digit per speaker |
-| EEG | 6 ch, 1024 Hz, 4 s, 2-40 Hz by the authors | Emotiv Epoc, 14 ch, 128 Hz; 2 s after the digit marker, 2-40 Hz by the converter |
-| Voice | 44.1 kHz, 4 s window | 16 kHz, 1 s from the labelled word onset (moved earlier when it would reach the next word) |
+| EEG | 6 ch, 1024 Hz, 4 s, 2-40 Hz by the authors | Emotiv Epoc, 14 ch, recorded at 128 Hz, **written at 1024 Hz**; 2 s after the digit marker, 2-40 Hz by the converter |
+| Voice | 44.1 kHz, 4 s window | recorded at 16 kHz, **written at 44.1 kHz**; 1 s from the labelled word onset (moved earlier when it would reach the next word) |
 
 **How a pair is made** (`scripts/data/biomex_to_sqlite.py`). The EEG and the voice of a series
 are on two clocks that disagree (a series lasts 26.3 s in the EEG, 20.0 s in the WAV), so each
@@ -338,13 +338,57 @@ F001-F006, F006's "TRES" labelled 1.676 s). Totals are in the base's `recording`
 differs per electrode and per headset fit. Unfiltered, energy and spectrum features would
 read the fit of the headset and identify speakers by it — a silent confound that looks like
 a good EER. The same 2-40 Hz band the Coretto authors applied removes it and keeps the two
-bases comparable (after the filter: mean -0.01 uV, -64 dB at 45 Hz re alpha).
+bases comparable (after the filter: mean -0.01 uV, -64 dB at 45 Hz re alpha). Both bases
+reach the loader in uV (RMS 15.3 Coretto / 14.5 BIOMEX) and the voice as float PCM in [-1, 1].
 
 **Rates come from the base.** Until this change the extractors used constants (44100 / 1024
 Hz). `ThesisDatasetView` now carries `voice_sample_rate` / `eeg_sample_rate`, set by the
 loader (Coretto: its documented rates; BIOMEX-DB: the `recording` table); a view without them
-is refused (`require_rate`). On BIOMEX-DB the DTWPT level 4 gives 16 sub-bands of 4 Hz on the
-EEG (δ, θ, α, β separate) and of 500 Hz on the voice.
+is refused (`require_rate`).
+
+**Why BIOMEX-DB is written at the Coretto rates (decided 2026-11-13).** The problem: the
+classifier receives the same *shape* from both bases (one row of 96 numbers), but a column only
+means the same thing if it measures the same band of Hz. The frozen winner cuts 0..Nyquist into
+2^4 = 16 equal DTWPT sub-bands, so the width of a sub-band is set by the rate:
+
+```
+                    rate      Nyquist   sub-band width   power in the 16 sub-bands (%)
+Coretto voice       44.1 kHz  22050 Hz  1378 Hz          99.2  0.4  0.1  0.1  0.1  0 ...
+BIOMEX voice, 16k   16 kHz     8000 Hz   500 Hz          59.9 27.0  2.1  1.2  2.8  2.5 ... (9 bands hold 99%)
+BIOMEX voice, 44.1k 44.1 kHz  22050 Hz  1378 Hz          89.0  5.5  3.2  2.0  0.2  0 ...
+Coretto EEG         1024 Hz     512 Hz    32 Hz          97.2  2.8  0 ...
+BIOMEX EEG, 128     128 Hz       64 Hz     4 Hz          46.3 32.5  6.8  3.1  2.7 ... (10 bands hold 99%)
+BIOMEX EEG, 1024    1024 Hz     512 Hz    32 Hz          96.8  3.2  0 ...
+```
+
+(80 random samples per base; BIOMEX from F001-F006.) At its native rates, column "sub-band 0
+energy" was 0-1378 Hz of voice on Coretto and 0-500 Hz on BIOMEX-DB, and the EEG columns were
+0-32 Hz on one base and 0-4 Hz on the other: the same number for different things. That fails
+**silently** — every run completes and reports an EER.
+
+| Option | Same Hz per column | Cost |
+|---|---|---|
+| keep native rates | no | none; a limitation to report |
+| Coretto down to 16 kHz / 128 Hz | yes | redo Phase 00 + 01, new winners, rewrite the numbers |
+| **BIOMEX up to 44.1 kHz / 1024 Hz** | yes | a 2 GB base; Coretto results and frozen winners stay valid |
+
+The converter resamples the whole series WAV (`resample_poly` 441/160) and the whole filtered
+EEG session (×8) before cutting; the low-pass at the native Nyquist adds no content above 8
+kHz / 64 Hz (Coretto itself has 0.1% / 0.0% there). `load_paired` refuses a BIOMEX file at
+any other rate, so a native-rate file cannot reach the extractors.
+
+**What still differs, and why it is not a format difference.**
+
+| Difference | Coretto | BIOMEX-DB | Reaches the classifier as |
+|---|---|---|---|
+| duration | 4 s voice, 4 s EEG | 1 s voice, 2 s EEG | per-column constants (energy, padding share), removed by the per-fold z-score |
+| EEG channels | 6 (F3 F4 C3 C4 P3 P4) | 14 (Emotiv) | the same 96 columns: channels are concatenated into one signal before the DTWPT |
+| zero padding to 2^n | voice 33%, EEG 25% | voice 33%, EEG 12.5% | per-column constants, removed by the z-score |
+| EEG power below 2 Hz | 19.5% (measured; the filter the authors describe as 2-40 Hz leaves it, its design is not published) | 0.4% (the converter's FIR) | content: sub-band 0 holds it on both; not removable without refiltering Coretto |
+| voice power below 300 Hz | 77.7% | 28.3% | content of the recordings (room, microphone) |
+
+`ThesisBiomexDataset.BothBasesReachTheClassifierInTheSameFormat` runs both shapes through the
+frozen winner and requires 96 columns (192 for late fusion), finite, for every source.
 
 **Cautions (measured, F001).** (1) The two "sessions" are 7 minutes apart on the same day,
 not two days. (2) EEG while speaking carries muscle activity: 2 s after a digit marker vs
@@ -352,7 +396,7 @@ eyes-open rest, power 30-64 Hz ×2.3 (T7 ×4.4, F7 ×3.8), 1-4 Hz ×11.8 — "pr
 identification can be partly jaw and eyes, on both bases.
 
 ```bash
-python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice
+python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked
 python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```

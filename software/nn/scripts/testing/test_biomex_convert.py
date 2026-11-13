@@ -27,6 +27,8 @@ import biomex_to_sqlite as bx  # noqa: E402
 
 FS = 128
 VFS = 16000
+OUT_FS = bx.OUT_EEG_RATE      # the rates the converter writes (the Coretto base's)
+OUT_VFS = bx.OUT_VOICE_RATE
 DIGIT_GAP_S = 2.6     # EEG clock
 WORD_GAP_S = 2.0      # voice clock (deliberately different, as in the real base)
 WORD_ON_S = 1.1
@@ -154,21 +156,41 @@ class BiomexConvert(unittest.TestCase):
         self.assertEqual(sorted((s, k, j, c) for s, k, j, c, _, _ in rows), sorted(truth))
         for s, k, j, c, voice, eeg in rows:
             v = np.frombuffer(voice, dtype=np.float32)
-            e = np.frombuffer(eeg, dtype=np.float32).reshape(14, 256)
-            self.assertEqual(v.size, VFS)
+            e = np.frombuffer(eeg, dtype=np.float32).reshape(14, 2 * OUT_FS)
+            self.assertEqual(v.size, OUT_VFS)  # 1 s, written at the Coretto rate
             # voice: the tone of this code fills the first WORD_LEN_S of the window
-            rms_v = np.sqrt(np.mean(v[:int(0.3 * VFS)] ** 2))
+            rms_v = np.sqrt(np.mean(v[int(0.01 * OUT_VFS):int(0.3 * OUT_VFS)] ** 2))
             self.assertAlmostEqual(rms_v, (c / 20) / np.sqrt(2), delta=0.01)
-            # EEG: the burst of this code, DC removed by the band-pass
-            mid = e[:, 64:192]
+            # EEG: the burst of this code, DC removed by the band-pass (0.5-1.5 s)
+            mid = e[:, OUT_FS // 2:3 * OUT_FS // 2]
             self.assertAlmostEqual(float(np.sqrt(np.mean(mid ** 2))), 10 * c / np.sqrt(2),
                                    delta=0.1 * 10 * c)
             self.assertLess(abs(float(e.mean())), 1.0)
         info = dict(con.execute("SELECT key, value FROM recording"))
         con.close()
         self.assertEqual(info["source"], "biomex2021")
-        self.assertEqual(info["eeg_sample_rate"], "128")
-        self.assertEqual(info["voice_sample_rate"], "16000")
+        self.assertEqual(info["eeg_sample_rate"], "1024")
+        self.assertEqual(info["voice_sample_rate"], "44100")
+        self.assertEqual(info["eeg_epoch_samples"], "2048")
+        self.assertEqual(info["voice_window_samples"], "44100")
+        self.assertEqual((info["voice_native_rate"], info["eeg_native_rate"]), ("16000", "128"))
+
+    def test_the_upsampled_signals_hold_nothing_above_the_native_nyquist(self):
+        # Upsampling must not invent content: the band a 16 kHz / 128 Hz recording cannot
+        # hold (above 8 kHz / 64 Hz) stays empty at the Coretto rates.
+        make_volunteer(self.src)
+        r = run(self.src, self.out)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        con = sqlite3.connect(self.out)
+        voice, eeg = con.execute("SELECT voice, eeg FROM pair LIMIT 1").fetchone()
+        con.close()
+        for x, fs, nyq in ((np.frombuffer(voice, np.float32), OUT_VFS, VFS / 2),
+                           (np.frombuffer(eeg, np.float32).reshape(14, -1)[0], OUT_FS, FS / 2)):
+            # Hann-tapered so the cut edges of the window do not leak across the spectrum;
+            # -50 dB is far below any band the extractor reads (Coretto: 0.1% voice > 8 kHz).
+            p = np.abs(np.fft.rfft(x * np.hanning(x.size))) ** 2
+            f = np.fft.rfftfreq(x.size, 1 / fs)
+            self.assertLess(p[f > 1.05 * nyq].sum() / p.sum(), 1e-5)
 
     def test_a_series_whose_words_differ_from_its_markers_is_refused(self):
         make_volunteer(self.src, break_series=("01G04", 3))
@@ -220,8 +242,8 @@ class BiomexConvert(unittest.TestCase):
         self.assertAlmostEqual(shift, 0.5, places=3)
         self.assertEqual(cut, 0)
         v = np.frombuffer(voice, dtype=np.float32)
-        self.assertLess(float(np.abs(v[:int(0.45 * VFS)]).max()), 1e-3)  # silence before
-        rms = np.sqrt(np.mean(v[int(0.5 * VFS):int(0.8 * VFS)] ** 2))
+        self.assertLess(float(np.abs(v[:int(0.45 * OUT_VFS)]).max()), 1e-3)  # silence before
+        rms = np.sqrt(np.mean(v[int(0.51 * OUT_VFS):int(0.8 * OUT_VFS)] ** 2))
         self.assertAlmostEqual(rms, (code / 20) / np.sqrt(2), delta=0.01)  # word 1's own tone
         self.assertEqual([r[2] for r in rows[1:]], [0.0] * 9)
         self.assertEqual(info["voice_windows_shifted"], "1")
