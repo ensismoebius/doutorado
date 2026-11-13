@@ -88,11 +88,11 @@ The EEG signal also provides an anti-coercion property: a person under duress ca
 
 ## Data collection for the thesis
 
-For each speaker, the thesis protocol collects three types of signals simultaneously:
+For each speaker, the planned protocol collected three types of recording, each in its own block (removed from scope on 2026-05-12):
 
 1. **Phonated speech** — microphone only
 2. **Imagined speech** — EEG only, the person just thinks the phrase silently
-3. **Mixed** — both microphone and EEG at the same time
+3. **Mixed** — pronounced speech, with EEG and audio recorded together
 
 Collection is done in two noise conditions: silent room and noisy (crowd noise played back), to test robustness.
 

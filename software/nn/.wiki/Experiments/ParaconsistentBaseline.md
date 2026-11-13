@@ -12,7 +12,7 @@ to classification decisions — the novel contribution unique to this thesis.
 
 ## Dataset
 
-10.1117 database: simultaneous EEG and audio recordings of imagined speech.
+10.1117 database: EEG of imagined speech (no audio) and, in the pronounced-speech blocks, EEG and audio recorded together.
 Loaded via `data_loaders_10_1117`. Config selects subject, session, and trial windows.
 
 ## Pipeline

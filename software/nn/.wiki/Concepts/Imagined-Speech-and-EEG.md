@@ -102,10 +102,13 @@ Two collection cycles per speaker:
 
 Sentences collected (Portuguese): first name, directional commands (cima/baixo/esquerda/direita), invented password, common phrases (e.g., "Estou com fome", "Sinto dor", "Entrar no sistema").
 
-Three modalities recorded simultaneously:
+Three recording conditions, each its own block (not three signals recorded at once):
 1. Phonated speech (microphone)
 2. Imagined speech (EEG only, no microphone)
-3. Mixed (simultaneous phonation + EEG)
+3. Mixed: pronounced speech, with EEG and audio recorded together
+
+Imagined speech is, by definition, silent: no condition records imagining and speaking at
+the same instant. (This own-collection protocol was removed from scope on 2026-05-12.)
 
 ### 10.1117/12.2255697 Public Dataset
 

@@ -124,7 +124,7 @@ Journals: *IEEE Signal Processing Magazine*, *IEEE TPAMI*, *Neurocomputing*, *Co
 
 - **15 Spanish-speaking subjects**
 - Vowels (/a/, /e/, /i/, /o/, /u/) and directional commands
-- Three modalities: phonated speech, imagined speech (EEG only), mixed
+- Two conditions: imagined speech (EEG only, no sound) and pronounced speech, with EEG and audio recorded together (recorded for comparison, in fewer blocks)
 - Used for reproducibility and comparison with prior work
 - Loader: `include/data_loaders/10.1117/`
 
