@@ -24,7 +24,9 @@ Usage (from software/nn):
     python3 scripts/data/coretto_verify_mirror.py --db ~/database.sqlite --mirror ~/coretto_zenodo
 """
 import argparse
+import hashlib
 import io
+import json
 import os
 import sqlite3
 import sys
@@ -80,6 +82,7 @@ def main():
         print(f"  DIFF {msg}", flush=True)
 
     total = equal = 0
+    per_subject = {}
     for sid, subject in con.execute("SELECT id, subject_name FROM subject ORDER BY id").fetchall():
         name, m = mat_matrix(os.path.join(mirror, f"{subject}.zip"))
         stored = {}
@@ -114,11 +117,29 @@ def main():
             equal += ok
         for r in stored:
             fail(f"{subject}: SQLite row {r} has no .mat row")
+        per_subject[subject] = int(m.shape[0])
         print(f"[coretto] {subject} ({name}): {m.shape[0]} rows", flush=True)
     con.close()
     print(f"[coretto] {equal} of {total} trials equal to the mirror (EEG and labels); "
           f"{len(fails)} difference(s)")
-    return 1 if fails else 0
+    stamp = db + ".mirror-verified"
+    if os.path.exists(stamp):
+        os.remove(stamp)
+    if fails:
+        return 1
+    # Line 1: the sha256 of the base checked; line 2: the counts, as JSON, for
+    # scripts/analysis/thesis_base_facts.py (the thesis quotes them, never by hand).
+    h = hashlib.sha256()
+    with open(db, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    with open(stamp, "w") as f:
+        f.write(h.hexdigest() + "\n" + json.dumps({
+            "trials_equal": equal, "differences": 0, "subjects": len(per_subject),
+            "per_subject": per_subject, "mirror": "zenodo.org/records/19502780",
+            "compared": "EEG at the stored float32 precision, modality, stimulus, blink"}) + "\n")
+    print(f"[coretto] stamp written: {stamp}")
+    return 0
 
 
 if __name__ == "__main__":

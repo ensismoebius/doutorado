@@ -261,8 +261,13 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --phase00-profiles src/experiments/thesis/profiles/phase00 --phase00-results results/thesis/phase00 \
   --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
   --ae-input-reference results/thesis/ae_input_reference.csv \
+  --base-facts results/thesis/base_facts.csv \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
+
+`--base-facts` is written by `scripts/analysis/thesis_base_facts.py` from both bases and the
+verifiers' stamps (`<db>.verified`, `<db>.mirror-verified`; refused when a stamp is for another
+version of its base): the `base.*` keys chapter 8 quotes.
 
 It needs the significance files first: `scripts/pipeline/thesis/03_thesis_phase01_significance.sh`
 writes one `significance_<family>_*.csv` per declared family (`vsvoice`, `fusion`, `ctrl`,
@@ -401,7 +406,7 @@ any other rate, so a native-rate file cannot reach the extractors.
 | duration | 4 s voice, 4 s EEG | 1 s voice, 2 s EEG | per-column constants (energy, padding share), removed by the per-fold z-score |
 | EEG channels | 6 (F3 F4 C3 C4 P3 P4) | 14 (Emotiv) | the same 96 columns: channels are concatenated into one signal before the DTWPT |
 | zero padding to 2^n | voice 33%, EEG 25% | voice 33%, EEG 12.5% | per-column constants, removed by the z-score |
-| EEG power below 2 Hz | 19.2% | 3.3% | content: sub-band 0 holds it on both. Both now went through the same digital filter (Coretto's order-1204 high-pass, a transition band of a few Hz around 2 Hz), so the gap is the recordings' (Coretto's analog 0.3-35 Hz amplifier band vs the Emotiv's), not the processing; 80 random pronounced epochs per base, same code, each at its own epoch length |
+| EEG power below 2 Hz | 19.0% | 3.1% | content: sub-band 0 holds it on both. Both now went through the same digital filter (Coretto's order-1204 high-pass, a transition band of a few Hz around 2 Hz), so the gap is the recordings' (Coretto's analog 0.3-35 Hz amplifier band vs the Emotiv's), not the processing; every pronounced epoch of both bases, same code, each at its own epoch length (`thesis_base_facts.py`; an 80-epoch draw moved BIOMEX between 2.5% and 3.3%) |
 | voice power below 300 Hz | 77.7% | 28.3% | content of the recordings (room, microphone) |
 
 `ThesisBiomexDataset.BothBasesReachTheClassifierInTheSameFormat` runs both shapes through the

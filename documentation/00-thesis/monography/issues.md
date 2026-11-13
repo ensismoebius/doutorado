@@ -644,8 +644,8 @@ sub-banda 0, e a Coretto e seus vencedores congelados continuam válidos.
   de EEG), canais (6 vs 14, concatenados num só sinal antes da DTWPT) e a fração de zeros do
   preenchimento até 2^n. Todas são constantes por coluna dentro de uma base, e o z-score as
   remove. Duas são de conteúdo e não somem:
-  - **O EEG da Coretto tem 19,2% da potência abaixo de 2 Hz**, apesar do filtro "2–40 Hz" dos
-    autores. A BIOMEX, agora com o mesmo filtro dos autores (seção seguinte), tem 3,3%. Como o
+  - **O EEG da Coretto tem 19,0% da potência abaixo de 2 Hz**, apesar do filtro "2–40 Hz" dos
+    autores. A BIOMEX, agora com o mesmo filtro dos autores (seção seguinte), tem 3,1% (todas as épocas pronunciadas das duas bases). Como o
     filtro digital é o mesmo, a diferença vem das gravações; entra como limitação.
   - A voz da Coretto concentra 77,7% da potência abaixo de 300 Hz; a BIOMEX, 28,3%. É
     característica das gravações (sala, microfone).
@@ -692,7 +692,7 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   passa-alta de ordem 1204 a 2 Hz, a 1024 Hz, atraso de 788 amostras compensado). Antes do filtro
   é subtraída a média de cada canal na sessão (o offset de ~4200 µV do Emotiv). Sem isso, a
   rejeição de −53 dB do FIR em DC deixaria ~9 µV. Mesmo com o filtro idêntico, a Coretto tem
-  19,2% da potência abaixo de 2 Hz e a BIOMEX 3,3%: a diferença é das gravações, não do
+  19,0% da potência abaixo de 2 Hz e a BIOMEX 3,1%: a diferença é das gravações, não do
   processamento.
 - F022 fala devagar: 14 palavras rotuladas com mais de 1 s ficam cortadas no fim da janela
   (49 em 6297 na base inteira; `pair.voice_cut`). 15 janelas de voz foram antecipadas para não

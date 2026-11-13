@@ -97,7 +97,14 @@
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak text\_\allowbreak numbers.py} & Gera cada número citado no texto e verifica as afirmações qualitativas que dependem deles; uma afirmação que deixa de valer impede a geração. \\
 			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_ae\_\allowbreak input\_\allowbreak reference.py} & Calcula, com SciPy e PyTorch, a \autoref{tab:aeInput}. \\
 			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_eeg\_\allowbreak band\_\allowbreak power.py} & Mede, com SciPy, a distribuição da potência do \ac{EEG} da base (\autoref{tab:potenciaEeg}). \\
-			\raggedright\texttt{results/\allowbreak thesis/\allowbreak phase00/}, \texttt{phase01/} & Resultados brutos de cada execução, os modelos treinados e os testes de significância. \\
+			\raggedright\texttt{scripts/\allowbreak data/\allowbreak coretto\_verify\_\allowbreak mirror.py} & Compara cada tentativa da base de \citeonline{10.1117/12.2255697} com a cópia independente do Zenodo (\autoref{sec:conferenciaCoretto}) e, se não houver diferença, grava um selo com as contagens. \\
+			\raggedright\texttt{scripts/\allowbreak data/\allowbreak biomex\_\allowbreak download.py} & Baixa a BIOMEX-DB do Mendeley Data e confere o SHA-256 de cada arquivo. \\
+			\raggedright\texttt{scripts/\allowbreak data/\allowbreak biomex\_\allowbreak inventory.py} & Lista cada gravação de cada pasta da BIOMEX-DB e aponta as que não seguem o protocolo. \\
+			\raggedright\texttt{scripts/\allowbreak data/\allowbreak biomex\_\allowbreak to\_\allowbreak sqlite.py} & Converte a BIOMEX-DB (\autoref{sec:biomex}): regra de inclusão, filtro, reamostragem para as taxas da outra base e pareamento. \\
+			\raggedright\texttt{scripts/\allowbreak data/\allowbreak biomex\_\allowbreak verify.py} & Confere a base convertida contra as exportações CSV, a Tabela~1 de \citeonline{morenorodriguez2021biomex} e os arquivos originais, reimplementando as regras de inclusão e de margem; grava o selo sem o qual a base não é enviada para execução. \\
+			\raggedright\texttt{src/\allowbreak experiments/\allowbreak thesis/\allowbreak profiles/\allowbreak biomex/} & Os perfis da replicação na BIOMEX-DB, com os vencedores da Fase~00 congelados em \texttt{results/\allowbreak thesis/\allowbreak biomex/\allowbreak coretto\_\allowbreak phase00\_\allowbreak winners\_\allowbreak frozen.json}. \\
+			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_base\_\allowbreak facts.py} & Lê das duas bases e dos dois selos os números da \autoref{sec:conferenciaCoretto} e da \autoref{sec:biomex}. \\
+			\raggedright\texttt{results/\allowbreak thesis/\allowbreak phase00/}, \texttt{phase01/}, \texttt{biomex/} & Resultados brutos de cada execução, os modelos treinados e os testes de significância. \\
 		\end{longtable}
 		}
 		% packages.tex sets \LTpost to -30pt; without this the next element overlaps the last row.

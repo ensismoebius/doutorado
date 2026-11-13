@@ -25,6 +25,7 @@ Usage (from software/nn):
 """
 import argparse
 import hashlib
+import json
 import os
 import re
 import sqlite3
@@ -309,10 +310,13 @@ def main():
     with open(db, "rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
+    # Line 1: the sha256 (all the deploy reads). Line 2: what was checked, as JSON, for
+    # scripts/analysis/thesis_base_facts.py (the thesis quotes these counts, never by hand).
     with open(stamp, "w") as f:
-        f.write(f"{h.hexdigest()}\n{len(volunteers)} volunteers, {checked} pairs equal to "
-                f"{src} (EDF = CSV export where one exists, {len(no_csv)} sessions without; "
-                f"series = Table 1 of the paper)\n")
+        f.write(h.hexdigest() + "\n" + json.dumps({
+            "volunteers": len(volunteers), "excluded": excluded, "pairs_equal": checked,
+            "differences": 0, "sessions_without_csv": no_csv, "edge_dropped": edge_here,
+            "src": src}) + "\n")
     print(f"[verify] stamp written: {stamp}")
     return 0
 

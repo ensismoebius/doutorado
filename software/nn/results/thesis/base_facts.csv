@@ -1,0 +1,32 @@
+key,kind,value
+base.biomex.recorded,count,51
+base.biomex.recorded.f,count,25
+base.biomex.recorded.m,count,26
+base.biomex.kept,count,45
+base.biomex.kept.f,count,24
+base.biomex.kept.m,count,21
+base.biomex.excluded,count,6
+base.biomex.excluded.list,text,"F007, M001, M007, M010, M018, M024"
+base.biomex.pairs,count,6297
+base.biomex.pairs.protocol,count,140
+base.biomex.pairs.dropped,count,3
+base.biomex.pairs.edge,count,2
+base.biomex.pairs.edge.list,text,"M015, M019"
+base.biomex.pairs.unlabelled,count,1
+base.biomex.voice.shifted,count,15
+base.biomex.voice.cut,count,49
+base.biomex.csv.missing,count,5
+base.biomex.voice.native.rate,count,16000
+base.biomex.eeg.native.rate,count,128
+base.biomex.voice.sample.rate,count,44100
+base.biomex.eeg.sample.rate,count,1024
+base.coretto.subjects,count,15
+base.coretto.trials.imagined,count,7341
+base.coretto.trials.pronounced,count,1974
+base.coretto.trials,count,9315
+base.coretto.mirror.equal,count,9315
+base.coretto.s01o.base,count,11
+base.coretto.s01o.paper,count,10
+base.coretto.below2hz.pct,num1,19.0
+base.biomex.below2hz.pct,num1,3.1
+base.biomex.vs.coretto.speakers,num1,3.0
