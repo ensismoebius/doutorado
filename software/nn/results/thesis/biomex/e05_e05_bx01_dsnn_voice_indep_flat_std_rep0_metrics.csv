@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.360317,0.691385,53738.119,98.988,results/thesis/biomex/models/e05_bx01_dsnn_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.260119,0.824049,53909.912,101.434,results/thesis/biomex/models/e05_bx01_dsnn_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.362103,0.706842,53397.144,98.584,results/thesis/biomex/models/e05_bx01_dsnn_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.320635,0.743896,53867.445,112.610,results/thesis/biomex/models/e05_bx01_dsnn_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.350794,0.729776,53440.947,99.471,results/thesis/biomex/models/e05_bx01_dsnn_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_4.bin

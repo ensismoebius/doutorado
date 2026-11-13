@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_bx01_dsnn_voice_dep_flat_std,e05_bx01_dysph_voice_probes_l100,eer,corrected,15,15,0.285398,0.3076800666666667,0.02228206666666671,0.4644377298359422,0.034248547050112536,0.06849709410022507,2,corrected-t(paired),0,
+e05_bx01_dsnn_voice_dep_flat_std,e05_bx01_dysph_voice_test_l100,eer,corrected,15,15,0.285398,0.30914106666666663,0.023743066666666646,0.4661847329854648,0.1358537593541412,0.1358537593541412,2,corrected-t(paired),0,

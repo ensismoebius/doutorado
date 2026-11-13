@@ -1,0 +1,225 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "eeg_condition": "pronounced",
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/biomex",
+      "root": "~/biomex.sqlite",
+      "source": "biomex2021"
+    },
+    "degradation": {
+      "enabled": true,
+      "level": 0.25,
+      "scope": "test",
+      "seed": 7
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_bx01_dysph_latepron_test_l25_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 1484434141611546743,
+  "dataset": {
+    "n_samples": 6297,
+    "n_stimuli": 10,
+    "n_subjects": 45
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.08872453159684683,
+      "energy": {
+        "accesses": 568190.0726134585,
+        "fp_adds": 183775.7095461659,
+        "fp_macs": 28717.0,
+        "mem_nj": 7785.5361875867675,
+        "nj": 8100.499233408363,
+        "nj_as_executed": 19144.200910827716,
+        "nj_sram1m": 57133.970307167445,
+        "nj_sram32k": 11678.764498090766,
+        "nj_sram8k": 5996.863771956181,
+        "ops_nj": 314.9630458215963,
+        "spikes": 1716.637245696401
+      },
+      "feature_set": "handcrafted-lfcc-fused-late",
+      "final_sops": 139123,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 574138.8748043819,
+            "fp_adds": 185758.07824726135,
+            "fp_macs": 28717.0,
+            "mem_nj": 7866.945333374646,
+            "nj": 8183.889733374646,
+            "nj_as_executed": 19227.591410793997,
+            "nj_sram1m": 57730.831880438185,
+            "nj_sram32k": 11799.721896087638,
+            "nj_sram8k": 6058.333148043819,
+            "ops_nj": 316.94440000000003,
+            "spikes": 1726.7824726134586
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0033981583546847105,
+          "fold": 0,
+          "infer_ms": 115.468786,
+          "model_path": "results/thesis/biomex/models/e05_bx01_dysph_latepron_test_l25_rep1/handcrafted-lfcc-fused-late/fold_0.bin",
+          "train_ms": 58994.340969
+        },
+        {
+          "energy": {
+            "accesses": 558321.9327073552,
+            "fp_adds": 180483.24569640064,
+            "fp_macs": 28717.0,
+            "mem_nj": 7653.157879305719,
+            "nj": 7964.831034078801,
+            "nj_as_executed": 19008.532711498156,
+            "nj_sram1m": 56143.866425508604,
+            "nj_sram32k": 11478.111808920188,
+            "nj_sram8k": 5894.892481846635,
+            "ops_nj": 311.673154773083,
+            "spikes": 1690.9092331768388
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.004197200294584036,
+          "fold": 1,
+          "infer_ms": 110.977427,
+          "model_path": "results/thesis/biomex/models/e05_bx01_dysph_latepron_test_l25_rep1/handcrafted-lfcc-fused-late/fold_1.bin",
+          "train_ms": 58958.008103
+        },
+        {
+          "energy": {
+            "accesses": 578161.9139280125,
+            "fp_adds": 187106.6635367762,
+            "fp_macs": 28717.0,
+            "mem_nj": 7916.725741558694,
+            "nj": 8235.016280682325,
+            "nj_as_executed": 19278.71795810168,
+            "nj_sram1m": 58134.48193192488,
+            "nj_sram32k": 11881.52881768388,
+            "nj_sram8k": 6099.909678403756,
+            "ops_nj": 318.2905391236307,
+            "spikes": 1751.2441314553992
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.00398804247379303,
+          "fold": 2,
+          "infer_ms": 113.009999,
+          "model_path": "results/thesis/biomex/models/e05_bx01_dysph_latepron_test_l25_rep1/handcrafted-lfcc-fused-late/fold_2.bin",
+          "train_ms": 59181.348812
+        },
+        {
+          "energy": {
+            "accesses": 545501.9358372458,
+            "fp_adds": 176207.4021909233,
+            "fp_macs": 28717.0,
+            "mem_nj": 7480.189802580217,
+            "nj": 7787.590125428418,
+            "nj_as_executed": 18831.291802847772,
+            "nj_sram1m": 54857.59390657278,
+            "nj_sram32k": 11217.439039593115,
+            "nj_sram8k": 5762.419681220658,
+            "ops_nj": 307.40032284820035,
+            "spikes": 1660.793427230047
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0030948068015277386,
+          "fold": 3,
+          "infer_ms": 109.752572,
+          "model_path": "results/thesis/biomex/models/e05_bx01_dysph_latepron_test_l25_rep1/handcrafted-lfcc-fused-late/fold_3.bin",
+          "train_ms": 58273.76946
+        },
+        {
+          "energy": {
+            "accesses": 584825.7057902974,
+            "fp_adds": 189323.1580594679,
+            "fp_macs": 28717.0,
+            "mem_nj": 8010.662181114556,
+            "nj": 8331.168993477624,
+            "nj_as_executed": 19374.870670896977,
+            "nj_sram1m": 58803.077391392806,
+            "nj_sram32k": 12017.020928169013,
+            "nj_sram8k": 6168.763870266041,
+            "ops_nj": 320.50681236306735,
+            "spikes": 1753.4569640062598
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003498811973258853,
+          "fold": 4,
+          "infer_ms": 121.970749,
+          "model_path": "results/thesis/biomex/models/e05_bx01_dysph_latepron_test_l25_rep1/handcrafted-lfcc-fused-late/fold_4.bin",
+          "train_ms": 58660.792305
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.8626029226505418,
+      "mean_eer": 0.2217857142857143,
+      "mean_f1": null,
+      "mean_infer_ms": 114.23590659999999,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.4310250461101532,
+      "mean_train_ms": 58813.651929800006,
+      "param_count": 47027,
+      "std_accuracy": null,
+      "std_auc": 0.08099478045051636,
+      "std_eer": 0.07146760948212445,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_bx01_dysph_latepron_test_l25_rep1",
+  "seed": 43,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

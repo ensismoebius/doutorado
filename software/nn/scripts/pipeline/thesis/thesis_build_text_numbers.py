@@ -44,6 +44,9 @@ The keys (printed with --list):
                                             (scripts/analysis/thesis_ae_input_reference.py):
                                             old = block-averaged waveform, new = power spectrum;
                                             clf pca8|pca32|all; aeinput.chance, aeinput.trials
+    bx.<kind>.<source>.<text>.<m>           the BIOMEX-DB replication (kind dsnn|ann|cosine|dysph),
+    bx.vs.coretto.*, bx.best.*, bx.energy.*  its comparison with the same Coretto cell
+    bxsig.*, bxsiggroup.*                   its significance (04_thesis_biomex_significance.sh)
     base.biomex.*, base.coretto.*           the two bases: volunteers kept and excluded, pairs,
                                             verification counts, power below 2 Hz
                                             (scripts/analysis/thesis_base_facts.py, read from the
@@ -67,6 +70,8 @@ Usage:
         --phase01-results  results/thesis/phase01 \\
         --ae-input-reference results/thesis/ae_input_reference.csv \\
         --base-facts results/thesis/base_facts.csv \\
+        --biomex-profiles src/experiments/thesis/profiles/biomex \\
+        --biomex-results results/thesis/biomex \\
         --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex [--list]
 """
 
@@ -93,6 +98,7 @@ def load(name: str):
 
 P00 = load("thesis_build_phase00_paraconsistent_tables")
 P01 = load("thesis_build_phase01_auth_tables")
+BX = load("thesis_build_biomex_tables")
 
 SIGNALS = ("voice", "eegpron", "eegimag")
 FAMILIES = ("hc", "ae", "pca")
@@ -375,10 +381,15 @@ def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
                 if sets["cmp"][c + ("pca",)]["mean_eer"] < sets["cmp"][c + ("ae",)]["mean_eer"]))
 
 
-def significance(n: Numbers, results: pathlib.Path) -> None:
+def significance(n: Numbers, results: pathlib.Path, sig: str = "sig", group_key: str = "siggroup",
+                 tag: str = "p01", splits: tuple = (("ctrl", ("ann", "cosine")),
+                                                     ("cmp", ("cmp-ae", "cmp-pca"))),
+                 script: str = "03_thesis_phase01_significance.sh") -> None:
+    """Keys of every significance_*.csv in `results`: <sig>.<file stem>.<condition>.<col> and
+    <group_key>.<family>.*. Coretto: sig / siggroup / p01; BIOMEX-DB: bxsig / bxsiggroup / bx01."""
     files = sorted(results.glob("significance_*.csv"))
     if not files:
-        fail(f"no significance_*.csv in {results}; run 03_thesis_phase01_significance.sh first")
+        fail(f"no significance_*.csv in {results}; run {script} first")
     groups: dict[str, list[dict]] = {}
     for path in files:
         stem = path.stem[len("significance_"):]
@@ -389,18 +400,18 @@ def significance(n: Numbers, results: pathlib.Path) -> None:
         # The family is the stem up to its first "_" (03_thesis_phase01_significance.sh).
         groups.setdefault(stem.split("_")[0], []).extend(rows)
         for r in rows:
-            cond = r["condition"].replace("e05_p01_", "")
-            prefix = f"sig.{stem}.{cond}"
+            cond = r["condition"].replace(f"e05_{tag}_", "")
+            prefix = f"{sig}.{stem}.{cond}"
             n.num(f"{prefix}.delta", float(r["delta_mean"]))
             n.num(f"{prefix}.d", float(r["cohens_d"]), 2)
             n.num(f"{prefix}.p", float(r["p_value"]), 3)
             n.num(f"{prefix}.pholm", float(r["p_holm"]), 3)
-        n.count(f"sig.{stem}.n", len(rows))
-        n.count(f"sig.{stem}.significant", sum(1 for r in rows if float(r["p_holm"]) < 0.05))
-        n.num(f"sig.{stem}.pholm.min", min(float(r["p_holm"]) for r in rows), 3)
-        n.num(f"sig.{stem}.p.min", min(float(r["p_value"]) for r in rows), 3)
-        n.num(f"sig.{stem}.d.min", min(float(r["cohens_d"]) for r in rows), 2)
-        n.num(f"sig.{stem}.d.max", max(float(r["cohens_d"]) for r in rows), 2)
+        n.count(f"{sig}.{stem}.n", len(rows))
+        n.count(f"{sig}.{stem}.significant", sum(1 for r in rows if float(r["p_holm"]) < 0.05))
+        n.num(f"{sig}.{stem}.pholm.min", min(float(r["p_holm"]) for r in rows), 3)
+        n.num(f"{sig}.{stem}.p.min", min(float(r["p_value"]) for r in rows), 3)
+        n.num(f"{sig}.{stem}.d.min", min(float(r["cohens_d"]) for r in rows), 2)
+        n.num(f"{sig}.{stem}.d.max", max(float(r["cohens_d"]) for r in rows), 2)
 
     def summary(prefix: str, rows: list[dict]) -> None:
         n.count(f"{prefix}.n", len(rows))
@@ -411,16 +422,80 @@ def significance(n: Numbers, results: pathlib.Path) -> None:
         n.num(f"{prefix}.p.max", max(float(r["p_value"]) for r in rows), 3)
 
     for group, rows in groups.items():
-        summary(f"siggroup.{group}", rows)
+        summary(f"{group_key}.{group}", rows)
     # Within the controls and the extractor comparison, the two kinds of contrast apart.
-    for group, kinds in (("ctrl", ("ann", "cosine")), ("cmp", ("cmp-ae", "cmp-pca"))):
+    for group, kinds in splits:
         if group not in groups:
             fail(f"no significance family {group!r}")
         for kind in kinds:
-            rows = [r for r in groups[group] if f"_p01_{kind}_" in r["condition"]]
+            rows = [r for r in groups[group] if f"_{tag}_{kind}_" in r["condition"]]
             if not rows:
                 fail(f"no {kind} rows in the {group} significance family")
-            summary(f"siggroup.{group}.{kind.replace('cmp-', '')}", rows)
+            summary(f"{group_key}.{group}.{kind.replace('cmp-', '')}", rows)
+            # Which way the significant ones go: a positive delta is the condition's EER
+            # above the reference's (the reference better).
+            n.count(f"{group_key}.{group}.{kind.replace('cmp-', '')}.significant_ref_better",
+                    sum(1 for r in rows if float(r["p_holm"]) < 0.05
+                        and float(r["delta_mean"]) > 0))
+
+
+def biomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
+           co_profiles: pathlib.Path, co_results: pathlib.Path) -> None:
+    """The BIOMEX-DB replication: bx.<kind>.<source>.<text>.<m>, its comparison with the same
+    Coretto cell (bx.vs.*), and its significance families (bxsig.*, bxsiggroup.*)."""
+    sets = BX.collect(profiles, results)
+    co = P01.collect(co_profiles, co_results)
+
+    def metrics(prefix: str, run: dict) -> None:
+        n.num(f"{prefix}.eer", run["mean_eer"])
+        n.num(f"{prefix}.auc", run["mean_auc"])
+        n.num(f"{prefix}.eersd", run["std_eer"])
+
+    for kind in ("grid", "ann", "cosine"):
+        for (src, text), run in sets[kind].items():
+            metrics(f"bx.{'dsnn' if kind == 'grid' else kind}.{src}.{text}", run)
+    for (src, scope, level), run in sets["dysph"].items():
+        metrics(f"bx.dysph.{src}.{scope}.{level}", run)
+    for kind, runs in sets.items():
+        n.count(f"bx.n.{kind}", len(runs))
+    n.count("bx.n.total", sum(len(r) for r in sets.values()))
+    n.count("bx.n.units", sum(r["n_reps"] for runs in sets.values() for r in runs.values()))
+
+    grid = sets["grid"]
+    cells = [(s, t) for s in BX.SOURCES for t in ("dep", "indep")]
+    n.count("bx.cells", len(cells))
+    order = sorted(cells, key=lambda c: grid[c]["mean_eer"])
+    n.text("bx.best.label", f"{P01.SOURCE_LABELS[order[0][0]]}, {P01.TEXT_LABELS[order[0][1]]}")
+    metrics("bx.best", grid[order[0]])
+    n.text("bx.worst.label", f"{P01.SOURCE_LABELS[order[-1][0]]}, {P01.TEXT_LABELS[order[-1][1]]}")
+    metrics("bx.worst", grid[order[-1]])
+    co_order = sorted(cells, key=lambda c: co["grid"][c + ("flat", "std")]["mean_eer"])
+    n.count("bx.same_best_as_coretto", int(order[0] == co_order[0]))
+    n.count("bx.same_worst_as_coretto", int(order[-1] == co_order[-1]))
+    diffs = [grid[c]["mean_eer"] - co["grid"][c + ("flat", "std")]["mean_eer"] for c in cells]
+    n.num("bx.vs.coretto.diff.min", min(diffs))
+    n.num("bx.vs.coretto.diff.max", max(diffs))
+    n.num("bx.vs.coretto.absdiff.mean", statistics.mean(abs(d) for d in diffs))
+    n.count("bx.vs.coretto.lower", sum(1 for d in diffs if d < 0))
+    n.num("bx.mean.dsnn", statistics.mean(grid[c]["mean_eer"] for c in cells))
+    n.num("bx.coretto.mean.dsnn", statistics.mean(co["grid"][c + ("flat", "std")]["mean_eer"]
+                                                  for c in cells))
+    n.num("bx.mean.ann", statistics.mean(sets["ann"][c]["mean_eer"] for c in cells))
+    n.num("bx.mean.cosine", statistics.mean(sets["cosine"][c]["mean_eer"] for c in cells))
+    n.count("bx.ctrl.dsnn_better_cosine",
+            sum(1 for c in cells if grid[c]["mean_eer"] < sets["cosine"][c]["mean_eer"]))
+    voice = [c for c in order if c[0] == "voice"]
+    n.count("bx.voice.first_rank", order.index(voice[0]) + 1)
+    ratios = [grid[c]["nj"] / sets["ann"][c]["nj"] for c in cells]
+    n.num("bx.energy.ratio.min", min(ratios), 2)
+    n.num("bx.energy.ratio.max", max(ratios), 2)
+    n.count("bx.energy.dsnn_cheaper", sum(1 for r in ratios if r < 1))
+    for (src, scope) in sorted({(k[0], k[1]) for k in sets["dysph"]}):
+        n.num(f"bx.dysph.{src}.{scope}.rise",
+              sets["dysph"][(src, scope, 100)]["mean_eer"] - grid[(src, "dep")]["mean_eer"])
+    significance(n, results, sig="bxsig", group_key="bxsiggroup", tag="bx01",
+                 splits=(("ctrl", ("ann", "cosine")),),
+                 script="04_thesis_biomex_significance.sh")
 
 
 def ae_input(n: Numbers, path: pathlib.Path) -> None:
@@ -551,6 +626,56 @@ CLAIMS = [
     ("ch8: BIOMEX-DB is upsampled to the Coretto rates (written at 44.1 kHz / 1024 Hz)",
      lambda v, t: v("base.biomex.voice.sample.rate") == 44100
      and v("base.biomex.eeg.sample.rate") == 1024),
+    ("ch9 bx: the best and the worst cell are the same on both bases",
+     lambda v, t: v("bx.same_best_as_coretto") == 1 and v("bx.same_worst_as_coretto") == 1),
+    ("ch9 bx: every EEG/fusion cell ranks before both voice cells",
+     lambda v, t: v("bx.voice.first_rank") == v("bx.cells") - 1),
+    ("ch9 bx: late fusion beats voice significantly in both text modes; EEG alone does not",
+     lambda v, t: all(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.pholm") < 0.05
+                      and v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
+                      and v(f"bxsig.vsvoice_{x}.dsnn_eegpron_{x}_flat_std.pholm") >= 0.05
+                      for x in ("dep", "indep"))),
+    ("ch9 bx: on Coretto the same late-fusion-vs-voice difference was of the same order "
+     "(same sign, at least half the BIOMEX size), so the change is one of power",
+     lambda v, t: all(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
+                      and abs(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
+                      >= 0.5 * abs(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
+                      for x in ("dep", "indep"))),
+    ("ch9 bx: no fusion differs significantly from its EEG",
+     lambda v, t: v("bxsiggroup.fusion.significant") == 0),
+    ("ch9 bx: the DSNN differs from its ANN twin in no cell, not even nominally",
+     lambda v, t: v("bxsiggroup.ctrl.ann.significant") == 0
+     and v("bxsiggroup.ctrl.ann.nominal") == 0),
+    ("ch9 bx: cosine is behind the DSNN in every cell, significantly in some, all in the "
+     "DSNN's favour",
+     lambda v, t: v("bx.ctrl.dsnn_better_cosine") == v("bx.cells")
+     and v("bxsiggroup.ctrl.cosine.significant") > 0
+     and v("bxsiggroup.ctrl.cosine.significant")
+     == v("bxsiggroup.ctrl.cosine.significant_ref_better")),
+    ("ch9 bx: the DSNN is never the cheaper network",
+     lambda v, t: v("bx.energy.dsnn_cheaper") == 0),
+    ("ch9 bx: under full whisper voice rises more than any fusion; no degradation effect is "
+     "significant",
+     lambda v, t: min(v("bx.dysph.voice.probes.rise"), v("bx.dysph.voice.test.rise"))
+     > max(v(f"bx.dysph.{s}.{sc}.rise") for s in ("earlypron", "latepron")
+           for sc in ("probes", "test"))
+     and v("bxsiggroup.dysph.significant") == 0),
+    ("ch9 bx: unseen phrases give the higher EER in every source, none significantly",
+     lambda v, t: all(v(f"bxsig.text_{s}.dsnn_{s}_indep_flat_std.delta") > 0
+                      for s in ("voice", "eegpron", "earlypron", "latepron"))
+     and v("bxsiggroup.text.significant") == 0),
+    ("ch9/ch10/abstract bx: of the Coretto conclusions BIOMEX-DB can test, five repeat (fusion "
+     "vs EEG, DSNN vs ANN, energy, dysphonia, text mode) and exactly two change (late fusion vs "
+     "voice, network vs cosine), each from not significant to significant",
+     lambda v, t: [v("bxsiggroup.fusion.significant") == 0 and v("siggroup.fusion.significant") == 0,
+                   v("bxsiggroup.ctrl.ann.significant") == 0 and v("siggroup.ctrl.ann.significant") == 0,
+                   v("bx.energy.dsnn_cheaper") == 0 and v("p01.energy.dsnn_cheaper") == 0,
+                   v("bxsiggroup.dysph.significant") == 0 and v("siggroup.dysph.significant") == 0,
+                   v("bxsiggroup.text.significant") == 0 and v("siggroup.text.significant") == 0,
+                   ].count(True) == 5
+     and v("siggroup.vsvoice.significant") == 0 and v("bxsiggroup.vsvoice.significant") > 0
+     and v("siggroup.ctrl.cosine.significant") == 0
+     and v("bxsiggroup.ctrl.cosine.significant") > 0),
     ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
      lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
      and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
@@ -577,7 +702,8 @@ def check_claims(n: Numbers) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Write the numbers the thesis prose quotes.")
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
-                "--phase01-results", "--ae-input-reference", "--base-facts", "--out"):
+                "--phase01-results", "--biomex-profiles", "--biomex-results",
+                "--ae-input-reference", "--base-facts", "--out"):
         ap.add_argument(arg, required=True)
     ap.add_argument("--list", action="store_true", help="also print every key and value")
     args = ap.parse_args()
@@ -588,6 +714,8 @@ def main() -> int:
     significance(n, pathlib.Path(args.phase01_results))
     ae_input(n, pathlib.Path(args.ae_input_reference))
     base_facts(n, pathlib.Path(args.base_facts))
+    biomex(n, pathlib.Path(args.biomex_profiles), pathlib.Path(args.biomex_results),
+           pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
     check_claims(n)
 
     lines = ["% GENERATED by software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py.",

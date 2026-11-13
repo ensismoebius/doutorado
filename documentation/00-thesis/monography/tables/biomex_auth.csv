@@ -1,0 +1,9 @@
+source,text,coretto_dsnn_eer,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,dsnn_nj,ann_nj,dsnn_over_ann
+Voz,frases vistas,0.3180,0.2854,0.0123,0.2826,0.0090,0.3135,7391.61,901.34,8.20
+Voz,frases não vistas,0.3356,0.3167,0.0108,0.3116,0.0034,0.3433,7542.24,901.34,8.37
+EEG (fala pronunciada),frases vistas,0.2665,0.2521,0.0214,0.2563,0.0238,0.3355,6970.90,901.34,7.73
+EEG (fala pronunciada),frases não vistas,0.2451,0.2727,0.0156,0.2730,0.0103,0.3371,6961.69,901.34,7.72
+Fusão precoce (pronunciada),frases vistas,0.2367,0.2325,0.0150,0.2282,0.0081,0.2847,7279.04,901.34,8.08
+Fusão precoce (pronunciada),frases não vistas,0.2529,0.2532,0.0184,0.2527,0.0112,0.3065,7297.02,901.34,8.10
+Fusão tardia (pronunciada),frases vistas,0.2220,0.2190,0.0007,0.2211,0.0028,0.2598,8228.64,1316.58,6.25
+Fusão tardia (pronunciada),frases não vistas,0.2645,0.2323,0.0137,0.2353,0.0125,0.2778,8280.96,1316.58,6.29

@@ -262,6 +262,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
   --ae-input-reference results/thesis/ae_input_reference.csv \
   --base-facts results/thesis/base_facts.csv \
+  --biomex-profiles src/experiments/thesis/profiles/biomex --biomex-results results/thesis/biomex \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
 
@@ -515,7 +516,34 @@ python3 scripts/data/biomex_inventory.py --src ~/biomex/extracted  # every EDF o
 python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
 python3 scripts/data/biomex_verify.py --src ~/biomex/extracted --db ~/biomex.sqlite  # stamp
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# after the array: results/thesis/biomex/ back from the cluster (rsync, no --delete), then
+scripts/pipeline/thesis/04_thesis_biomex_significance.sh src/experiments/thesis/profiles/biomex results/thesis/biomex
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --profiles-dir src/experiments/thesis/profiles/biomex \
+  --results-dir results/thesis/biomex --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
+  --coretto-results-dir results/thesis/phase01 --tables-dir ../../documentation/00-thesis/monography/tables
 ```
+
+**The tests are the Coretto ones (decided before reading any BIOMEX number).**
+`04_thesis_biomex_significance.sh` re-runs `03_`'s families with the same reference, pairing and
+Holm correction, restricted to the sources BIOMEX-DB has (no `cond`, no `cmp`). A test chosen after
+seeing a table is not a test; a confirmatory replication that picks its own tests is not one.
+
+**Result (job 5324274, binary ba7e7424, 48 profiles × 3 repetitions, 2026-11-13).** Chapter 9
+§"Replicação na BIOMEX-DB" (`tables/biomex_auth.csv`, `biomex_dysphonia.csv`, keys `bx.*`,
+`bxsig.*`, 12 CLAIMS):
+
+| Coretto conclusion (15 speakers) | BIOMEX-DB (45) |
+|---|---|
+| mean DSNN EER over the 8 shared cells 0.2677 | 0.2580; same best (late fusion, seen) and worst (voice, unseen) cell |
+| no source significantly beats voice | **changes**: late fusion does, both text modes (Holm 0.007 / 0.005); EEG alone does not. Coretto's Δ was as large (−0.096 seen) but not significant: power |
+| no fusion differs from its EEG | repeats |
+| DSNN ≡ its ANN twin | repeats (not even nominal) |
+| DSNN vs cosine not significant | **changes**: DSNN ahead in 8/8 cells, significant (Holm) in 4 |
+| DSNN never cheaper | repeats (6.25-8.37× the ANN) |
+| dysphonia, text mode: no significant effect | repeats |
+
+No conclusion inverts. The late-fusion gain is voice + EEG recorded while speaking, which carries
+muscle activity (caution above): a biometric of the act of speaking, not necessarily of the brain.
 
 ---
 

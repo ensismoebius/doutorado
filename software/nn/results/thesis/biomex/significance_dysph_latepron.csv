@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_bx01_dsnn_latepron_dep_flat_std,e05_bx01_dysph_latepron_test_l100,eer,corrected,15,15,0.21896373333333333,0.22666786666666666,0.007704133333333335,0.16820427475447575,0.4473513125808026,0.4473513125808026,2,corrected-t(paired),0,
+e05_bx01_dsnn_latepron_dep_flat_std,e05_bx01_dysph_latepron_probes_l100,eer,corrected,15,15,0.21896373333333333,0.23243346666666667,0.013469733333333345,0.281490822020166,0.1889912759557549,0.3779825519115098,2,corrected-t(paired),0,

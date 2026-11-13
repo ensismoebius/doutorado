@@ -1,0 +1,7 @@
+source,scope,eer_l0,eer_l25,eer_l50,eer_l75,eer_l100,rise,coretto_rise
+Voz,só sondas,0.2854,0.2899,0.2986,0.3049,0.3077,0.0223,0.0409
+Voz,cadastro e sondas,0.2854,0.2946,0.2940,0.3007,0.3091,0.0237,0.0273
+Fusão precoce (pronunciada),só sondas,0.2325,0.2331,0.2326,0.2346,0.2340,0.0016,0.0101
+Fusão precoce (pronunciada),cadastro e sondas,0.2325,0.2349,0.2324,0.2359,0.2320,-0.0005,0.0066
+Fusão tardia (pronunciada),só sondas,0.2190,0.2231,0.2273,0.2307,0.2324,0.0135,0.0110
+Fusão tardia (pronunciada),cadastro e sondas,0.2190,0.2194,0.2208,0.2268,0.2267,0.0077,0.0117

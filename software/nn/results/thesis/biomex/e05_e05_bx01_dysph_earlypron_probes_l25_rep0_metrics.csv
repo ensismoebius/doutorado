@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.252046,0.830781,54436.827,104.040,results/thesis/biomex/models/e05_bx01_dysph_earlypron_probes_l25_rep0/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.222951,0.856379,54509.097,103.730,results/thesis/biomex/models/e05_bx01_dysph_earlypron_probes_l25_rep0/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.168301,0.915424,54556.495,104.516,results/thesis/biomex/models/e05_bx01_dysph_earlypron_probes_l25_rep0/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.240809,0.839769,54446.164,104.435,results/thesis/biomex/models/e05_bx01_dysph_earlypron_probes_l25_rep0/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.189747,0.880920,54360.407,104.766,results/thesis/biomex/models/e05_bx01_dysph_earlypron_probes_l25_rep0/handcrafted-lfcc-fused-early/fold_4.bin

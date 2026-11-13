@@ -1,0 +1,7 @@
+2026-11-13 09:45:04 INFO:  ThesisDataset: loaded 6297 BIOMEX-DB pairs from /home/ensismoebius/biomex.sqlite
+[Thesis] run_tag=e05_bx01_dysph_latepron_test_l100 modality=fused strategy=handcrafted repeats=3 running=[1,2)
+[Thesis] Loaded 6297 samples from 45 subjects, 10 stimuli.
+[Thesis] === Repeat 2/3 (seed=43) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc-fused-late  acc=nan ±nan  EER=0.220992  spec=nan
+[Thesis] Done. Results written to results/thesis/biomex

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,ann,independent,0,nan,nan,nan,nan,nan,0.246528,0.828328,3861.601,3.798,results/thesis/biomex/models/e05_bx01_ann_eegpron_indep_flat_std_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,ann,independent,1,nan,nan,nan,nan,nan,0.265931,0.825277,3873.117,3.734,results/thesis/biomex/models/e05_bx01_ann_eegpron_indep_flat_std_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,ann,independent,2,nan,nan,nan,nan,nan,0.207856,0.881778,3837.191,3.518,results/thesis/biomex/models/e05_bx01_ann_eegpron_indep_flat_std_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,ann,independent,3,nan,nan,nan,nan,nan,0.328431,0.731083,3514.215,3.961,results/thesis/biomex/models/e05_bx01_ann_eegpron_indep_flat_std_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,ann,independent,4,nan,nan,nan,nan,nan,0.266803,0.809013,3693.198,3.488,results/thesis/biomex/models/e05_bx01_ann_eegpron_indep_flat_std_rep1/handcrafted-lfcc/fold_4.bin

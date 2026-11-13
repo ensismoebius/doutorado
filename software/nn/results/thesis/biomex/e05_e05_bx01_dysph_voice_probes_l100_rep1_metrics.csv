@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,dependent,0,nan,nan,nan,nan,nan,0.266667,0.795678,56616.489,109.818,results/thesis/biomex/models/e05_bx01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,dependent,1,nan,nan,nan,nan,nan,0.317460,0.759895,56804.520,104.785,results/thesis/biomex/models/e05_bx01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,dependent,2,nan,nan,nan,nan,nan,0.243254,0.845171,56808.091,104.738,results/thesis/biomex/models/e05_bx01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,dependent,3,nan,nan,nan,nan,nan,0.338095,0.709693,56921.570,104.289,results/thesis/biomex/models/e05_bx01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,dependent,4,nan,nan,nan,nan,nan,0.290873,0.794763,56671.157,105.120,results/thesis/biomex/models/e05_bx01_dysph_voice_probes_l100_rep1/handcrafted-lfcc/fold_4.bin

@@ -46,6 +46,17 @@
 		\ac{EEG} não se distingue do \ac{EEG} sozinho, e o \ac{EEG} de fala
 		imaginada não se distingue do de fala pronunciada.
 
+		\par \textbf{Os resultados se repetem numa segunda base.} Executadas uma
+		vez na BIOMEX-DB, com os vencedores congelados e \tn{base.biomex.kept}
+		locutores (\autoref{sec:resultadosBiomex}), as mesmas configurações dão
+		\ac{EER} médio de $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$ nas
+		mesmas células da outra base, com a mesma melhor e a mesma pior célula. Das
+		conclusões que ela permite testar, cinco se repetem e duas mudam, ambas na
+		direção de um efeito que \tn{base.coretto.subjects} locutores não tinham
+		poder para detectar: a fusão tardia passa a superar a voz com
+		significância, nos dois modos de texto, e a rede treinada passa a superar o
+		cosseno direto. Nenhuma conclusão se inverte.
+
 		\par \textbf{A rede de pulsos não se justificou, nem por desempenho nem
 		por energia.} Sua gêmea não pulsante, com o mesmo grafo e os mesmos
 		pesos iniciais, atinge \ac{EER} que não se distingue do dela, e gasta de
@@ -54,7 +65,9 @@
 		hipóteses de custo avaliadas a rede de pulsos é a mais econômica. Um
 		classificador sem rede alguma --- o cosseno direto sobre as
 		características --- fica a poucos pontos percentuais das duas redes,
-		diferença que também não é significativa. A maior parte do desempenho
+		diferença que não é significativa nesta base e passa a ser, em
+		\tn{bxsiggroup.ctrl.cosine.significant} das \tn{bx.cells} células, na
+		BIOMEX-DB; a rede de pulsos e a gêmea continuam indistinguíveis lá. A maior parte do desempenho
 		medido vem do extrator e da padronização das características, sem a qual
 		o \ac{EEG} e as fusões ficam perto do acaso.
 
@@ -141,7 +154,10 @@
 		\ac{EER} de até dez pontos percentuais, com tamanho de efeito grande,
 		não atingem significância. Quase todas as conclusões comparativas desta
 		tese são, por isso, da forma ``os dados não permitem distinguir'', e não
-		``não há diferença''.
+		``não há diferença''. A replicação na BIOMEX-DB, com
+		\tn{base.biomex.kept} locutores, mostra o que isso significa na prática:
+		duas dessas comparações passaram a ser significativas, e nenhuma
+		inverteu de sentido.
 
 		\par Outras limitações devem acompanhar qualquer leitura dos resultados:
 

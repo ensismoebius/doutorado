@@ -545,6 +545,124 @@
 	}
 	\vspace{\TableGap}
 
+	\section{Replicação na BIOMEX-DB}
+		\label{sec:resultadosBiomex}
+
+	\par Esta seção responde a uma única pergunta: o que a Fase~01 concluiu na
+	base de \citeonline{10.1117/12.2255697} vale numa segunda base? O desenho está
+	na \autoref{sec:biomex}: os vencedores da Fase~00 foram congelados, e as
+	\tn{bx.n.total} configurações foram executadas uma vez na BIOMEX-DB, com
+	\tn{base.biomex.kept} locutores, três repetições cada (\tn{bx.n.units}
+	execuções). Os testes de significância são os mesmos da Fase~01 (mesma
+	referência, mesmo pareamento, mesma correção de Holm dentro de cada família),
+	restritos às fontes que a BIOMEX-DB tem, e foram declarados antes de qualquer
+	número da replicação ser lido. A Tabela~\ref{tab:biomexAuth} põe cada célula
+	ao lado da mesma célula da outra base.
+
+	\par \textbf{Os números se repetem.} O \ac{EER} médio da \ac{DSNN} nas
+	\tn{bx.cells} células é $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$
+	nas mesmas células da outra base; célula a célula, a diferença vai de
+	$\tn{bx.vs.coretto.diff.min}$ a $\tn{bx.vs.coretto.diff.max}$, e a BIOMEX-DB
+	tem o \ac{EER} menor em \tn{bx.vs.coretto.lower} das \tn{bx.cells}. A melhor
+	célula é a mesma nas duas bases (\tn{bx.best.label}, $\ac{EER} =
+	\tn{bx.best.eer}$), e a pior também (\tn{bx.worst.label}). Como na outra base,
+	toda célula de \ac{EEG} ou de fusão fica à frente das duas células de voz.
+
+	\par \textbf{A fusão tardia passa a superar a voz.} Na outra base, nenhuma
+	fonte era significativamente melhor que a voz. Na BIOMEX-DB, a fusão tardia é,
+	nos dois modos de texto: frases vistas, $\Delta =
+	\tn{bxsig.vsvoice_dep.dsnn_latepron_dep_flat_std.delta}$, $p_{\text{Holm}} =
+	\tn{bxsig.vsvoice_dep.dsnn_latepron_dep_flat_std.pholm}$; frases não vistas,
+	$\Delta = \tn{bxsig.vsvoice_indep.dsnn_latepron_indep_flat_std.delta}$,
+	$p_{\text{Holm}} = \tn{bxsig.vsvoice_indep.dsnn_latepron_indep_flat_std.pholm}$.
+	O \ac{EEG} sozinho não é ($p_{\text{Holm}} \ge
+	\tn{bxsig.vsvoice_dep.dsnn_eegpron_dep_flat_std.pholm}$ com frases vistas e
+	$\tn{bxsig.vsvoice_indep.dsnn_eegpron_indep_flat_std.pholm}$ com não vistas).
+	A leitura que os dados permitem é a de poder estatístico, e não a de
+	contradição: na outra base, a mesma comparação tinha
+	$\Delta = \tn{sig.vsvoice_dep.dsnn_latepron_dep_flat_std.delta}$ com frases
+	vistas, com \tn{base.coretto.subjects} locutores; com
+	\tn{base.biomex.kept}, uma diferença dessa ordem passa a ser detectável. A
+	ressalva da \autoref{sec:biomex} vale aqui com força: o \ac{EEG} de fala
+	pronunciada carrega atividade muscular, de modo que o ganho da fusão é o de
+	somar à voz um registro do ato de falar, e não necessariamente atividade
+	cerebral.
+
+	\par \textbf{A fusão não supera o \ac{EEG} sozinho}, como na outra base:
+	nenhuma das \tn{bxsiggroup.fusion.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{bxsiggroup.fusion.pholm.min}$).
+
+	\par \textbf{A rede de pulsos continua indistinguível da gêmea, e a rede
+	passa a superar o cosseno.} Nenhuma das \tn{bxsiggroup.ctrl.ann.n}
+	comparações entre a \ac{DSNN} e a \ac{ANN} é significativa, nem sem correção
+	($p \ge \tn{bxsiggroup.ctrl.ann.p.min}$); o \ac{EER} médio das duas é
+	$\tn{bx.mean.dsnn}$ e $\tn{bx.mean.ann}$. Já o cosseno direto ($\ac{EER}$
+	médio $\tn{bx.mean.cosine}$) fica atrás da \ac{DSNN} em todas as
+	\tn{bx.cells} células, e a diferença é significativa em
+	\tn{bxsiggroup.ctrl.cosine.significant} delas. Na outra base, nenhuma era: o
+	que lá era ``uma melhora de alguns pontos percentuais que os dados não
+	permitem confirmar'' se confirma com três vezes mais locutores. A energia
+	repete a outra base: a \ac{DSNN} gasta de $\tn{bx.energy.ratio.min}$ a
+	$\tn{bx.energy.ratio.max}$ vezes a energia da gêmea, e em nenhuma célula é a
+	mais econômica.
+
+	\par \textbf{A disfonia simulada e o modo de texto não têm efeito
+	significativo}, como na outra base. A Tabela~\ref{tab:biomexDysphonia}
+	mostra a mesma forma: do nível 0 ao 1, o \ac{EER} da voz sobe
+	$\tn{bx.dysph.voice.probes.rise}$ (só sondas) e
+	$\tn{bx.dysph.voice.test.rise}$ (cadastro e sondas), mais que o de qualquer
+	fusão, mas nenhuma das \tn{bxsiggroup.dysph.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{bxsiggroup.dysph.pholm.min}$). Frases não vistas
+	dão \ac{EER} maior em todas as fontes, sem significância em nenhuma
+	($p_{\text{Holm}} \ge \tn{bxsiggroup.text.pholm.min}$).
+
+	% Colunas: source,text,coretto_dsnn_eer,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,dsnn_nj,ann_nj,dsnn_over_ann
+	\par\medskip
+	{\footnotesize\setlength{\tabcolsep}{3pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}llrrrrrrr@{}}
+		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na outra base (vencedores da Fase~00 congelados; validação plana, características padronizadas). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:biomexAuth} \\
+		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/biomex_auth.csv}{}%
+			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} & \dec{\csvcolviii} & \dec{\csvcolxi} \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	% Colunas: source,scope,eer_l0,eer_l25,eer_l50,eer_l75,eer_l100,rise,coretto_rise
+	\par\medskip
+	{\footnotesize\setlength{\tabcolsep}{3pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}llrrrrrrr@{}}
+		\caption[Disfonia simulada na BIOMEX-DB]{EER na BIOMEX-DB sob disfonia simulada, por nível de degradação da voz de teste (frases vistas, validação plana, características padronizadas); as duas últimas colunas são a subida do \ac{EER} do nível 0 ao 1, nesta base (``Subida'') e na outra (``Coretto'', Tabela~\ref{tab:phase01dysphonia})} \label{tab:biomexDysphonia} \\
+		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} & \textbf{Subida} & \textbf{Coretto} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} & \textbf{Subida} & \textbf{Coretto} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/biomex_dysphonia.csv}{}%
+			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} & \dec{\csvcolviii} & \dec{\csvcolix} \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	\par \textbf{Em resumo}, das conclusões da Fase~01 que a BIOMEX-DB permite
+	testar, cinco se repetem (fusão não supera o \ac{EEG}; rede de pulsos
+	indistinguível da gêmea e mais cara que ela; disfonia e modo de texto sem
+	efeito significativo) e duas mudam, ambas na direção de um efeito que a outra
+	base não tinha poder para detectar: a fusão tardia supera a voz, e a rede
+	treinada supera o cosseno direto. Nenhuma conclusão se inverte. A replicação
+	não testa o que depende de fala imaginada, nem a comparação de extratores, que
+	não foi executada nela.
+
 	\section{Retomada das questões de pesquisa}
 	\label{sec:respostasQuestoes}
 
