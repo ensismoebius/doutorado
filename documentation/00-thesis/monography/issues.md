@@ -725,3 +725,25 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
 **Achado lateral.** O passo da CI `test_thesis_phase_scripts.py` já falha no `main` (25 de 29):
 os scripts de ranking e significância ganharam argumentos obrigatórios em 12/11 (13fafd0b) e o
 teste ficou com a interface de 11/11. Não é efeito da BIOMEX-DB.
+
+## Situação em 2026-11-13 (fim do dia)
+
+Resolvido hoje: a disfonia é declarada simulada já no resumo e na Introdução, e o capítulo 8
+descreve a simulação passo a passo, com figura gerada pelo próprio código do experimento; figura
+das três codificações temporais; Figuras 42 e 43 redesenhadas para o método atual (três famílias
+pela análise paraconsistente, seleção por $D_{\text{penalizado}}$, sem nomes de *scripts*,
+contagens por `\tn`); legenda da Tabela de particionamento espectral corrigida (o EEG é ~43 vezes
+mais estreito que a voz, e não "três ordens de grandeza"); Pz → Fz no lobo frontal da tabela de
+regiões cerebrais; nenhuma caixa estoura a margem em mais de 4 pt; três entradas do `.bib` em tipos
+que o estilo ABNT reconhece; CI verde.
+
+Falta, e depende do autor:
+
+| Item | Situação |
+|---|---|
+| Web of Science | o cap. 7 ainda diz "A atualização não foi repetida no Web of Science"; a busca foi feita à mão e falta o registro (data, combinações, contagens, trabalhos novos) |
+| Ficha catalográfica | provisória ("ficha catalografica"); é emitida pela biblioteca |
+| Dedicatória, agradecimentos, epígrafe | texto provisório ("Haha...", "Agradece", "Citação") |
+| Data do documento | `chapters/data/date.tex`: 16 de agosto de 2024 (aparece na capa) |
+| Banca | folha de aprovação com orientador e dois membros |
+| Palavras-chave | não incluem biometria, autenticação de locutor nem disfonia |

@@ -1,79 +1,42 @@
-
 		\begin{tikzpicture}
-			
-			% Estilos das setas
-			\tikzstyle{seta} = [thick,->,>=stealth, draw=flowArrowColor, line width=1.5mm]
-			
-			% Estilos do processo
-			\tikzstyle{processo} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=flowProcessColor, font=\sffamily\bfseries, inner sep=0.4cm]
-			
-			% Estilos Início / Fim
-			\tikzstyle{iniFim} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=flowStartEndColor, text=black, font=\sffamily\bfseries]
-			
-			% Sinal de entrada
-			\node (entrada)[iniFim]{\shortstack{Sinal de entrada\\ sob análise}}; 
-			
-			% Pré processamento wavelet
-			\node (wavelet)[processo, right=3cm of entrada]{
-				\shortstack{pré-processamento \\ e extração de \\ características no \\ domínio \textit{wavelet}}
-			}; 
-			
-			% Pré processamento auto-encoder
-			\node (encoder)[processo, right=3cm of entrada, below=.5cm of wavelet]{
-				\shortstack{pré-processamento \\ auto-encoders}
-			}; 	
-			
-			
-			% Agrupamentos energéticos
-			\node (barkMel)[processo, right=1.5cm of wavelet]{
-				\shortstack{agrupamento energético \\ nas bandas Bark / Mel}
-			}; 	
-			
-			% Análise paraconsistente
-			\node (paraco)[processo, below=1cm of barkMel]{
-				\shortstack{análise paraconsistente \\ de características}
-			}; 
-			
-			% Seleção da melhor combinação
-			\node (selecao)[processo, below=1cm of paraco]{
-				\shortstack{seleção da melhor combinação \\ agrupamento energético + wavelet}
-			}; 
+			% Estilos
+			\tikzstyle{seta} = [thick,->,>=stealth, draw=flowArrowColor, line width=1.2mm]
+			\tikzstyle{processo} = [rectangle, rounded corners, minimum width=4.4cm, minimum height=1.3cm, align=center, fill=flowProcessColor, font=\sffamily\bfseries, inner sep=0.25cm]
+			\tikzstyle{iniFim} = [circle, align=center, fill=flowStartEndColor, text=black, font=\sffamily\bfseries, inner sep=0.15cm]
+			\tikzstyle{fase} = [draw=flowArrowColor, dashed, line width=0.5mm, rounded corners, inner sep=0.35cm]
+			\tikzstyle{rotulo} = [font=\sffamily\bfseries\large, text=flowArrowColor]
 
-			% Classificador
-			\node (classificador)[processo, below=1.2cm of encoder]{
-				\shortstack{Classificador \\ ResNet-SNN}
-			};
-			
-			% Resultados
-			\node (resultado)[iniFim, left=2.8cm of classificador] {
-				\textbf{Resultados}
-			};
-			
-			\draw[seta] ([yshift=.5cm]entrada.east)  |- ([yshift=.5cm]wavelet.west) node[near end, above] {Sinal de Voz};
-			\draw[seta] ([yshift=-.5cm]entrada.east) |- ([yshift=-.5cm]wavelet.west) node[near end, above] {Sinal de EEG};
-			
-			\draw[seta] ([xshift=.5cm]entrada.south)  |- ([yshift=.3cm]encoder.west) node[near end, above] {Sinal de Voz};
-			\draw[seta] ([xshift=-.5cm]entrada.south) |- ([yshift=-.3cm]encoder.west) node[near end, above] {Sinal de EEG};
-			
-			
-			\draw[seta] ([yshift=.3cm]wavelet.east)  |- ([yshift=.3cm]barkMel.west) node[near end, above] {Voz};
-			\draw[seta] ([yshift=-.3cm]wavelet.east) |- ([yshift=-.3cm]barkMel.west) node[near end, above] {EEG};
-			
-			\draw[seta] ([yshift=.3cm]barkMel.east)  -- ++(1.5cm, 0) |- ([yshift=-.3cm]paraco.east) node[near end, above] {Voz};
-			\draw[seta] ([yshift=-.3cm]barkMel.east) -- ++(.8cm, 0) |- ([yshift=.3cm]paraco.east) node[near end, above] {EEG};
-			
-			
-			\draw[seta] ([xshift=.5cm]paraco.south)  -- ([xshift=.5cm]selecao.north) node[midway, right] {Voz};
-			\draw[seta] ([xshift=-.5cm]paraco.south) -- ([xshift=-.5cm]selecao.north) node[midway, right] {EEG};
-			
+			% Fase 00: tres familias de extratores, uma selecao sem classificador
+			\node (entrada)[iniFim]{Sinais:\\voz, EEG de\\fala pronunciada\\e imaginada};
+			\node (ae)[processo, right=2.2cm of entrada]{\textit{autoencoders}\\(ANN-AE e SNN-AE)\\sobre o espectro};
+			\node (hc)[processo, above=0.5cm of ae]{extração manual: DTWPT\\e agrupamento energético\\(voz: linear, Bark, Mel;\\EEG: linear)};
+			\node (pca)[processo, below=0.5cm of ae]{PCA\\sobre o espectro};
+			\node (paraco)[processo, right=2.2cm of ae]{análise paraconsistente\\($D_{\text{penalizado}}$),\\sem classificador};
+			\node (selecao)[processo, right=1.6cm of paraco]{vencedor por sinal\\e melhor extrator\\de cada família};
 
-			\draw[seta] ([yshift=.3cm]selecao.west)  -- ([yshift=.3cm]classificador.east) node[midway, above] {EEG};
-			\draw[seta] ([yshift=-.3cm]selecao.west) -- ([yshift=-.3cm]classificador.east) node[midway, above] {Voz};
+			% Fase 01: autenticacao com o extrator escolhido
+			\node (classif)[processo, below=3.2cm of selecao]{autenticação por DSNN\\e controles (ANN gêmea,\\cosseno); voz, EEG,\\fusões, disfonia simulada};
+			\node (resultado)[iniFim, left=2.6cm of classif]{EER,\\AUC e\\energia};
 
+			\coordinate (split) at ($(entrada.east)+(1.0,0)$);
+			\draw[seta] (entrada.east) -- (ae.west);
+			\draw[seta] (entrada.east) -- (split) |- (hc.west);
+			\draw[seta] (entrada.east) -- (split) |- (pca.west);
 
-			\draw[seta] ([xshift=.5cm]encoder.south)  -- ([xshift=.5cm]classificador.north) node[midway, right] {EEG};
-			\draw[seta] ([xshift=-.5cm]encoder.south) -- ([xshift=-.5cm]classificador.north) node[midway, right] {Voz};
-			
-			
-			\draw[seta] (classificador.west) -- (resultado.east);
+			\coordinate (join) at ($(paraco.west)+(-1.0,0)$);
+			\draw[seta] (ae.east) -- (paraco.west);
+			\draw[seta] (hc.east) -| (join) -- (paraco.west);
+			\draw[seta] (pca.east) -| (join) -- (paraco.west);
+
+			\draw[seta] (paraco.east) -- (selecao.west);
+			\draw[seta] (selecao.south) -- (classif.north);
+			\draw[seta] (classif.west) -- (resultado.east);
+
+			% Molduras das fases
+			\begin{scope}[on background layer]
+				\node (f00)[fase, fit=(hc)(pca)(paraco)(selecao)] {};
+				\node (f01)[fase, fit=(classif)(resultado)] {};
+			\end{scope}
+			\node[rotulo, anchor=south west] at (f00.north west) {Fase 00: seleção do extrator};
+			\node[rotulo, anchor=north west] at (f01.south west) {Fase 01: autenticação};
 		\end{tikzpicture}

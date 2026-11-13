@@ -18,20 +18,23 @@
     node distance=0.55cm
 ]
 
-\node[startstop] (start) {Base de sinais (voz + EEG pareados)};
+\node[startstop] (start) {Base de sinais (voz e EEG pareados)};
 \node[proc, below=of start] (p00)
-    {\textbf{Fase 00} --- varrer $23$ wavelets $\times$ $3$ escalas $\times$ $2$ categorias $\times$ $2$ sinais\\ ($+$ 24 autoencoders compactos --- SNN-AE $\times$3 codificações e ANN-AE): $300$ execuções, \texttt{classifier.enabled=false}};
+    {\textbf{Fase 00} --- \tn{p00.n.total} configurações de extração (\tn{p00.n.voice} na voz e\\ \tn{p00.n.eegpron} em cada condição do EEG: manuais, \textit{autoencoders} e PCA),\\ pontuadas pela análise paraconsistente, sem classificador};
 \node[script, below=of p00] (rank)
-    {\texttt{thesis\_phase00\_rank.py}\\ menor $D_{\text{verdade}}$ por sinal $\rightarrow$ \texttt{winners.json}};
-\node[script, below=of rank] (apply)
-    {\texttt{thesis\_apply\_winner.py}\\ injeta o vencedor nos $32$ perfis da Fase 01};
-\node[proc, below=of apply] (p01)
-    {\textbf{Fase 01} --- DSNN sobre $4$ fontes $\times$ $2$ textos $\times$ $2$ CV\\ $\times$ $2$ padronização: $32$ execuções, \texttt{classifier.enabled=true}};
-\node[startstop, below=of p01] (stop) {Métricas de verificação (EER, AUC)};
+    {Seleção: menor $D_{\text{penalizado}}$ por sinal e melhor extrator de cada família,\\ com a estabilidade da escolha nos subconjuntos de locutores};
+\node[script, below=of rank] (gen)
+    {Os vencedores são escritos nas configurações da Fase 01 e da replicação};
+\node[proc, below=of gen] (p01)
+    {\textbf{Fase 01} --- \tn{p01.n.total} configurações: DSNN, controles, disfonia simulada\\ e comparação de extratores, sob verificação com locutores fora do treino};
+\node[proc, below=of p01] (bx)
+    {\textbf{Replicação na BIOMEX-DB} --- \tn{bx.n.total} configurações,\\ com os vencedores da Fase 00 congelados};
+\node[startstop, below=of bx] (stop) {EER, AUC, energia de inferência e testes de significância};
 
 \draw[arr] (start) -- (p00);
 \draw[arr] (p00)   -- (rank);
-\draw[arr] (rank)  -- (apply);
-\draw[arr] (apply) -- (p01);
-\draw[arr] (p01)   -- (stop);
+\draw[arr] (rank)  -- (gen);
+\draw[arr] (gen)   -- (p01);
+\draw[arr] (p01)   -- (bx);
+\draw[arr] (bx)    -- (stop);
 \end{tikzpicture}

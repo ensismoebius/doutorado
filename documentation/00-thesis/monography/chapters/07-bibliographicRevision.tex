@@ -156,8 +156,9 @@
 
 			\begin{table}[H]
 				\centering
-				\caption[Particionamento espectral da DTWPT por sinal]{Particionamento espectral da DTWPT ($2^4=16$ sub-bandas uniformes) para cada sinal. A faixa útil do EEG é três ordens de grandeza mais estreita que a da voz.}
+				\caption[Particionamento espectral da DTWPT por sinal]{Particionamento espectral da DTWPT ($2^4=16$ sub-bandas uniformes) para cada sinal. A faixa de frequências do EEG (até a frequência de Nyquist) é cerca de 43 vezes mais estreita que a da voz.}
 				\label{tab:particaoEspectral}
+				\small
 				\begin{tabular}{lcc}
 					\hline
 					& \textbf{EEG} & \textbf{Voz} \\
@@ -257,9 +258,10 @@
 			
 			\par Considerando $h[\cdot]$ como sendo o vetor do filtro passa-baixas e $g[\cdot]$ seu correspondente ortogonal, tem-se que $h[\cdot] \cdot g[\cdot] = 0 \qquad .$
 			\par Portanto, se $h[\cdot]=[a, b, c, d]$ então seu ortogonal será $g[\cdot]=[d, -c, b, -a]$ pois:
-			$$
-			h[\cdot] \cdot g[\cdot]  =  [a, b, c, d] \cdot [d, -c, b, -a] = (a \cdot d) + (b \cdot (-c)) + (c \cdot b) + (d \cdot (-a)) = ad - ad + bc - bc = 0 \qquad.
-			$$
+			\begin{align*}
+				h[\cdot] \cdot g[\cdot] &= [a, b, c, d] \cdot [d, -c, b, -a] = (a \cdot d) + (b \cdot (-c)) + (c \cdot b) + (d \cdot (-a)) \\
+				&= ad - ad + bc - bc = 0 \qquad.
+			\end{align*}
 	
 			\par A título de exemplo, considera-se:
 			\begin{itemize}
@@ -545,9 +547,9 @@
 				\begin{center}
 					\caption{Tarefas cerebrais e suas regiões correspondentes}
 					\tableZebraStripe
-					\begin{tabular}{@{}ccY{0.4\textwidth}@{}}
+					\begin{tabular}{@{}lY{0.22\textwidth}Y{0.40\textwidth}@{}}
 						\tableHeaderRow \textbf{Região} & \textbf{Canais} & \textbf{Tarefas}\\
-						Lobo frontal & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
+						Lobo frontal & Fp1, Fp2, Fpz, Fz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
 						Lobo parietal & P3, P4, Pz & Resolução de problemas, atenção, sentido do tato. \\
 						Lobo temporal & T3, T5, T4, T6 & Memória, reconhecimento de faces, audição, palavras e percepção social. \\
 						Lobo occipital & O1, O2, Oz & Leitura, visão.\\
@@ -1456,7 +1458,7 @@
 			\par A \autoref{tab:estadoDaArte} reúne os trabalhos que identificam ou autenticam pessoas e que informam o número de sujeitos e o resultado.
 
 			{\footnotesize
-			\begin{longtable}{@{}p{0.15\textwidth}p{0.16\textwidth}p{0.10\textwidth}p{0.27\textwidth}p{0.24\textwidth}@{}}
+			\begin{longtable}{@{}p{0.14\textwidth}p{0.15\textwidth}p{0.09\textwidth}p{0.26\textwidth}p{0.24\textwidth}@{}}
 				\caption[Trabalhos de identificação e autenticação por voz e por EEG]{Trabalhos de identificação e autenticação por voz e por \ac{EEG}. ``Identificação'' escolhe o sujeito entre os vistos no treino (conjunto fechado); ``verificação'' aceita ou recusa uma identidade declarada} \label{tab:estadoDaArte} \\
 				\toprule
 				\textbf{Trabalho} & \textbf{Sinal} & \textbf{Sujeitos} & \textbf{Tarefa e método} & \textbf{Resultado} \\

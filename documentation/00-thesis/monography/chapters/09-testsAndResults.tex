@@ -175,7 +175,7 @@
 	% ou o número de colunas do CSV, este cabeçalho tem de mudar junto: uma
 	% tabela com colunas trocadas compila sem erro algum.
 	\newcommand{\Phasezerotable}[3]{%
-		{\small
+		{\small\setlength{\tabcolsep}{5pt}
 		\tableZebraStripe
 		\begin{longtable}{@{}rlrrrrrrr@{}}
 			\caption{#2} \label{#3} \\
@@ -620,7 +620,7 @@
 	\par\medskip
 	{\footnotesize\setlength{\tabcolsep}{3pt}
 	\tableZebraStripe
-	\begin{longtable}{@{}llrrrrrrr@{}}
+	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.11\textwidth}rrrrrrr@{}}
 		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na outra base (vencedores da Fase~00 congelados; validação plana, características padronizadas). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:biomexAuth} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
 		\endfirsthead
@@ -639,7 +639,7 @@
 	\par\medskip
 	{\footnotesize\setlength{\tabcolsep}{3pt}
 	\tableZebraStripe
-	\begin{longtable}{@{}llrrrrrrr@{}}
+	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.17\textwidth}>{\raggedright\arraybackslash}p{0.13\textwidth}rrrrrrr@{}}
 		\caption[Disfonia simulada na BIOMEX-DB]{EER na BIOMEX-DB sob disfonia simulada, por nível de degradação da voz de teste (frases vistas, validação plana, características padronizadas); as duas últimas colunas são a subida do \ac{EER} do nível 0 ao 1, nesta base (``Subida'') e na outra (``Coretto'', Tabela~\ref{tab:phase01dysphonia})} \label{tab:biomexDysphonia} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} & \textbf{Subida} & \textbf{Coretto} \\
 		\endfirsthead
