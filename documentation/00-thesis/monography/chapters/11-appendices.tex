@@ -1,4 +1,107 @@
 \begin{apendicesenv}
+	\chapter{Defeitos encontrados e corrigidos durante o desenvolvimento}
+	\label{apend:defeitos}
+
+		\par Um defeito de software que derruba o programa é encontrado na primeira
+		execução. Os defeitos registrados aqui eram de outro tipo: o \textit{pipeline}
+		rodava até o fim, os modelos convergiam e os números tinham a ordem de grandeza
+		esperada. Nenhum deles teria sido notado só pela inspeção dos resultados. Por
+		isso cada um vem com a forma como foi detectado, e com o efeito que teve sobre
+		os números apresentados nesta tese.
+
+		\par Todos os resultados do \autoref{chap:testsResults} vêm de execuções
+		posteriores à última correção desta lista (12 de novembro de 2026). Nenhum
+		número produzido antes dela é usado no texto.
+
+		{\small
+		\begin{longtable}{@{}p{0.04\textwidth}p{0.13\textwidth}p{0.36\textwidth}p{0.39\textwidth}@{}}
+			\caption[Defeitos silenciosos encontrados durante o desenvolvimento]{Defeitos silenciosos encontrados durante o desenvolvimento, em ordem de descoberta} \label{tab:defeitos} \\
+			\toprule
+			\textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
+			\midrule
+			\endfirsthead
+			\toprule
+			\textbf{\#} & \textbf{Encontrado} & \textbf{Defeito} & \textbf{Como foi detectado} \\
+			\midrule
+			\endhead
+			\bottomrule
+			\endlastfoot
+			1 & 16/07/2026 & A taxa de aprendizado reduzida dos parâmetros biofísicos (\autoref{sec:snnLrScale}) era aplicada a \emph{todos} os parâmetros da rede: um divisor por 10 da taxa global, e não uma taxa por grupo. & Ao investigar o latente colapsado do item~2: a taxa efetiva dos pesos era dez vezes menor que a declarada. \\
+			2 & 16/07/2026 & Um \textit{autoencoder} de pulso com latente constante atingia $\alpha=\beta=1$ e $D_{1,0}=\sqrt2$, valor que o punha à frente do extrator manual vencedor no \ac{EEG}. & O vencedor era uma rede cuja saída não variava entre amostras. Deu origem a $D_{\text{penalizado}}$ (\autoref{sec:dPenalizado}) e à regularização da taxa de disparo no codificador (\autoref{sec:snnAeFrReg}). \\
+			3 & 12/11/2026 & Os \textit{autoencoders} ``base'' e ``small'' eram construídos como a mesma rede: uma largura igual ao valor de reserva do leitor de configuração era tratada como ``não informada''. O código fora corrigido em 23/07/2026 por outro motivo, mas as tabelas de julho não haviam sido refeitas. & Nas tabelas da Fase~00, os seis pares ``base''/``small'' tinham resultados idênticos até a oitava casa decimal. \\
+			4 & 12/11/2026 & A varredura de limiar do \ac{EER} estava invertida: aceitava as pontuações \emph{baixas}, e um sistema perfeito obtinha $\text{EER}=0{,}75$. & Em 237 de 480 dobras, o par (\ac{EER}, \ac{AUC}) relatado era impossível: toda curva \ac{ROC} com aquele \ac{EER} tem $\text{AUC} \le 1-\text{EER}^2$, e a \ac{AUC} relatada era maior. \\
+			5 & 12/11/2026 & A montagem das dobras intersectava listas de índices não ordenadas com um algoritmo que exige listas ordenadas. Os conjuntos de treino perdiam, em média, 62\% das amostras (de 15\% a 78\%), muitas vezes restando 3 dos 12 locutores. & Auditoria do código da validação cruzada; a perda foi então medida sobre os tamanhos reais da base. \\
+			6 & 12/11/2026 & Na validação aninhada com frases não vistas, o treino externo incluía as frases reservadas para o teste. & Auditoria do código da validação aninhada, na mesma revisão dos itens 4 e 5. \\
+			7 & 12/11/2026 & Cada voz recebia o \ac{EEG} da tentativa \emph{anterior} (índice lido como se começasse em 1; começa em 0; \autoref{sec:baseDeSinais}). & Contagem de tentativas por modalidade: as tentativas com áudio são exatamente as de fala pronunciada, e o \ac{EEG} entregue era, em 141 casos, de fala imaginada. \\
+			8 & 12/11/2026 & Os \textit{autoencoders} e a \ac{PCA} recebiam a forma de onda promediada em 256 blocos, que não contém informação de locutor (\autoref{sec:protocoloDuasFases}). & Todo extrator automatizado tinha \ac{EER} entre $0{,}48$ e $0{,}52$. Um classificador linear sobre a própria entrada, sem extrator, identificava o locutor quase ao acaso (\autoref{tab:aeInput}). \\
+		\end{longtable}
+		}
+		% packages.tex sets \LTpost to -30pt; without this the next paragraph overlaps the last row.
+		\vspace{36pt}
+
+		\par \textbf{O que cada defeito invalidou.} Os itens 1 a 3 afetaram
+		resultados da Fase~00 anteriores à respectiva correção, todos de julho de 2026; os itens 4 a 6, todos os
+		resultados da Fase~01 de julho de 2026, \ac{EER} e \ac{AUC}; o item 7, todo
+		resultado de \ac{EEG} e de fusão anterior a 12 de novembro de 2026; o item 8,
+		todo resultado de \textit{autoencoder} e de \ac{PCA} anterior à mesma data.
+		As duas fases foram executadas de novo depois da última correção.
+
+		\par \textbf{Uma previsão ``confirmada'' por dados que não mediam nada.}
+		Enquanto o item~8 estava ativo, a ordem prevista para as codificações temporais
+		do \ac{SNN}-AE (\autoref{sec:protocoloDuasFases}) aparecia confirmada nos
+		resultados. Com a entrada sem informação de locutor, a única diferença entre as
+		codificações era o ruído que cada uma injeta, que é exatamente o que a previsão
+		descrevia. Com a entrada corrigida, a ordem se inverte. Uma concordância entre
+		teoria e medição pode, portanto, significar só que o experimento perdeu a
+		capacidade de medir qualquer outra coisa.
+
+		\par \textbf{O que mudou no método.} Três práticas resultaram desses episódios.
+		A entrada dos extratores automatizados é comparada, em testes automatizados,
+		com bibliotecas de referência (SciPy e PyTorch). O programa recusa executar
+		quando falta um valor de configuração, em vez de assumir um valor padrão --- a
+		origem do item~3. E cada número citado nos Capítulos~\ref{chap:propApproach}
+		a~\ref{chap:conclusions} é lido dos resultados no momento da compilação do
+		texto, junto com a verificação de que cada afirmação qualitativa (``não é
+		significativo'', ``é o menor'') ainda vale para os números.
+
+	\chapter{Reprodutibilidade}
+	\label{apend:reprodutibilidade}
+
+		\par O texto descreve o procedimento em palavras. Este apêndice dá os nomes
+		concretos --- arquivos de configuração, programas e diretórios --- para quem
+		quiser repetir as execuções. Todos os caminhos são relativos ao diretório
+		\texttt{software/nn/} do repositório \url{https://github.com/ensismoebius/doutorado},
+		que guarda, na mesma revisão deste texto, o código, a configuração de cada
+		execução e os resultados brutos.
+
+		{\small
+		\begin{longtable}{@{}p{0.30\textwidth}p{0.64\textwidth}@{}}
+			\caption[Arquivos e programas do experimento]{Arquivos e programas do experimento, na ordem em que são usados} \label{tab:reprodutibilidade} \\
+			\toprule
+			\textbf{Item} & \textbf{O que faz} \\
+			\midrule
+			\endfirsthead
+			\toprule
+			\textbf{Item} & \textbf{O que faz} \\
+			\midrule
+			\endhead
+			\bottomrule
+			\endlastfoot
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak 00\_thesis\_\allowbreak generate\_\allowbreak profiles.py} & Escreve os arquivos de configuração (``perfis'', em \ac{JSON}) das duas fases e a lista que os declara; um teste automatizado recusa um perfil que a lista não declare. \\
+			\raggedright\texttt{src/\allowbreak experiments/\allowbreak thesis/\allowbreak profiles/\allowbreak phase00/}, \texttt{phase01/} & Os perfis: um por execução da Fase~00, um por configuração da Fase~01. \\
+			\raggedright\texttt{thesis} (programa C++) & Executa um perfil: carrega a base, extrai as características, pontua pela engenharia paraconsistente (Fase~00) ou treina e avalia o classificador (Fase~01). \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak 01\_thesis\_\allowbreak phase00\_\allowbreak rank.py} & Ordena os extratores da Fase~00 por $D_{\text{penalizado}}$, escreve o vencedor de cada sinal e o melhor de cada família, e a posição do vencedor em cada subconjunto de locutores; recusa um conjunto de resultados incompleto e sinaliza empates exatos. \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak 02\_thesis\_\allowbreak apply\_\allowbreak winner.py} & Escreve cada vencedor nos perfis da Fase~01. \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak 03\_thesis\_\allowbreak phase01\_\allowbreak significance.sh} & Executa os testes de significância de cada família de comparações declarada. \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak phase00\_\allowbreak paraconsistent\_\allowbreak tables.py}, \texttt{thesis\_build\_\allowbreak phase01\_\allowbreak auth\_\allowbreak tables.py} & Geram as tabelas do \autoref{chap:testsResults} a partir dos resultados. \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak text\_\allowbreak numbers.py} & Gera cada número citado no texto e verifica as afirmações qualitativas que dependem deles; uma afirmação que deixa de valer impede a geração. \\
+			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_ae\_\allowbreak input\_\allowbreak reference.py} & Calcula, com SciPy e PyTorch, a \autoref{tab:aeInput}. \\
+			\raggedright\texttt{results/\allowbreak thesis/\allowbreak phase00/}, \texttt{phase01/} & Resultados brutos de cada execução, os modelos treinados e os testes de significância. \\
+		\end{longtable}
+		}
+		% packages.tex sets \LTpost to -30pt; without this the next element overlaps the last row.
+		\vspace{36pt}
+
 %	\chapter{A inferência bayesiana}
 %	\label{ch:bayesInfer}
 %	

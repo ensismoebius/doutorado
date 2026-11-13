@@ -1,20 +1,41 @@
 \chapter{Introdução}
 	\label{chap:intro}
-	\section{Considerações Iniciais e Objetivos}
+	\section{Contexto e problema}
 
-		% \par Talvez eu use essa também \cite{Nguyen_2018}
-	
-		\par Os experimentos realizados neste trabalho utilizam a base pública de \ac{EEG} para fala imaginada disponibilizada em \cite{10.1117/12.2255697}, composta por registros de 15 voluntários falantes de espanhol que imaginaram vogais e comandos direcionais. Tal base permite a avaliação e a comparação das técnicas propostas com estudos anteriores.
+		\par A autenticação biométrica confere a identidade de uma pessoa por uma característica do próprio corpo ou do comportamento, em vez de algo que ela sabe ou possui. A voz é uma dessas características, com a vantagem de ser captada por um microfone comum \cite{hansen2015speaker}. Ela tem, porém, uma fragilidade que as outras biometrias compartilham em graus diferentes: o sistema compara a amostra de teste com a de cadastro e pressupõe que a característica não mudou entre as duas. Quando muda, o sistema falha com quem mais depende dele. Biometrias que funcionam pior para certos grupos já foram documentadas, como o reconhecimento facial em pessoas de pele mais escura \cite{grother2019frvt}.
 
-		\par A autenticação baseada em biometria vem despertando um interesse crescente, uma vez que se aproveita de características biométricas altamente correlacionadas com o indivíduo, resultando em um nível mais elevado de segurança. Algumas biometrias mostraram-se discriminatórias em relação a certos grupos, como indivíduos com pele mais escura \cite{grother2019frvt}, ou aqueles com deficiências físicas, que podem enfrentar dificuldades ao utilizá-las. Esse é o caso de boa parte dos tipos de biometrias utilizadas, incluindo a fala, que é um dos focos desse estudo. Por outro lado, o EEG evita tais problemas, ao mesmo tempo em que acrescenta algumas características únicas, como a exploração das variações neurais do usuário, criando, assim, uma contramedida às pressões externas e complementando eventuais falhas ou faltas de outros métodos.
-	
-		\subsection{Objetivos}
-			\par Comparar o desempenho das estratégias de \textit{feature learning} baseadas em \textit{autoencoders} com técnicas de análise manuais como as \textit{Wavelet-Packet} de Tempo Discreto e agrupamentos energéticos usando a engenharia paraconsistente de características.
+		\par A disfonia é um caso extremo dessa mudança. Uma pessoa cadastrada com a voz saudável que passa a ter a voz soprosa, rouca ou quase sem som apresenta, no teste, um sinal acusticamente diferente do cadastrado. A patologia, por si só, não impede a verificação: quando cadastro e teste são da mesma condição, falantes disfônicos são verificados pelo menos tão bem quanto os de controle \cite{tayebiarasteh2023effect}. O problema é o descasamento entre a voz do cadastro e a do teste.
 
-			\par O problema-alvo deste projeto é conceber algoritmos biométricos para autenticar, em princípio por meio da fala,  indivíduos com locuções severamente degradadas complementando tais informações com aquelas provenientes dos sinais cerebrais extraídos durante a fonação (\textit{imagined speech}).
-			
-			\par Para guiar a avaliação dos métodos de extração de características, este trabalho investiga algumas questões:
-			\begin{description}
+		\par O eletroencefalograma (\ac{EEG}) registrado durante a fala oferece uma segunda fonte de identidade que não passa pelas pregas vocais. Ele carrega informação sobre quem fala \cite{MOCTEZUMA2019201} e também sobre quem apenas \emph{imagina} falar --- a fala imaginada, em que nada é vocalizado \cite{brigham2010subject,derakhshesh2025cueless}. Uma assinatura que existe sem fonação é, em princípio, imune à degradação da voz. O \ac{EEG} também é considerado difícil de falsificar \cite{albaiati2025deep}. Os custos são práticos: exige touca e eletrodos, tempo de preparo, e sua assinatura muda entre sessões de gravação --- em uma base com 345 sujeitos, o \ac{EER} de verificação passa de 6,7\% com um dia entre cadastro e teste a 14,3\% com um ano \cite{fallahi2025advancing}.
+
+		\par Um sistema que acompanhe o usuário, como o que este problema pede, precisa ainda de pouco consumo de energia. As redes neurais de pulso são candidatas por processarem eventos esparsos em vez de valores contínuos; a vantagem, porém, depende da esparsidade da atividade e do modo como a energia é contada \cite{dampfhoffer2023snns}, e precisa ser medida em vez de presumida.
+
+	\section{Lacuna e hipótese}
+
+		\par As duas buscas bibliográficas desta tese (\autoref{sec:trabalhosMaisRecentes}) encontraram autenticação pela voz, pela voz patológica e pelo \ac{EEG}, inclusive pelo \ac{EEG} da fala imaginada, mas nenhum trabalho que autentique pela combinação de voz e \ac{EEG}, nem que avalie o efeito de uma degradação da voz de teste sobre essa combinação.
+
+		\par A \textbf{hipótese principal} é que o \ac{EEG} registrado durante a fala, pronunciada ou imaginada, carrega informação de identidade que não depende da qualidade da voz, e que, combinado a ela, mantém a autenticação quando a voz de teste se degrada. Duas hipóteses secundárias acompanham as escolhas de método:
+		\begin{itemize}
+			\item o critério da engenharia paraconsistente de características, que mede a separabilidade das classes sem treinar classificador, escolhe os extratores que levam ao menor erro de autenticação;
+			\item uma rede neural de pulsos atinge o mesmo erro de autenticação que uma rede convencional de mesmo grafo, com menor consumo de energia.
+		\end{itemize}
+
+	\section{Objetivos}
+
+		\par O \textbf{objetivo geral} é avaliar se a combinação da voz com o \ac{EEG} registrado durante a fala mantém a autenticação de locutores sob degradação da voz, e com quais extratores de características e classificador.
+
+		\par Os \textbf{objetivos específicos} são:
+		\begin{enumerate}
+			\item comparar a extração manual de características (Transformada \textit{Wavelet-Packet} de Tempo Discreto com agrupamentos energéticos) com a extração automatizada (\textit{autoencoders} convencionais e de pulsos, e a \ac{PCA} como referência linear), selecionando-as pela engenharia paraconsistente de características;
+			\item medir a autenticação pela voz, pelo \ac{EEG} de fala pronunciada, pelo de fala imaginada e por suas fusões, sob um protocolo de verificação em que os locutores de teste não participam do treino;
+			\item medir o efeito de uma disfonia simulada na voz de teste;
+			\item comparar a rede de pulsos com controles que isolem o que ela acrescenta --- uma gêmea não pulsante e um classificador sem rede --- em erro e em energia estimada.
+		\end{enumerate}
+
+	\section{Questões de pesquisa}
+
+		\par As escolhas de extração e de protocolo são guiadas por quatro questões:
+		\begin{description}
 				\item[Questão 1 --- Agrupamento espectral:] o esquema de particionamento espectral influencia a qualidade da representação dos sinais? Para responder a essa questão, comparam-se três representações de Categoria~1 --- \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies} --- que diferem segundo o critério de agrupamento das bandas de frequência sobre a representação wavelet. A comparação é conduzida apenas para o sinal de \textbf{voz}: as escalas Mel e Bark são cocleares, modelam a resolução em frequência da audição humana e, aplicadas ao EEG, degeneram no mesmo particionamento da escala linear (\autoref{sec:escalaEeg}).
 				
 				\item[Questão 2 --- Transformação cepstral:] a aplicação do logaritmo e da \ac{DCT} sobre as energias por banda melhora a representação dos sinais? Para responder a essa questão, cada representação de Categoria~1 é comparada com seu correspondente cepstral de Categoria~2: \textit{Linear-band energies} versus \ac{LFCC}, \textit{Mel-band energies} versus \ac{MFCC} e \textit{Bark-band energies} versus \ac{BFCC}. Em todos os pares, a única diferença entre as representações é a presença ou ausência da etapa cepstral.
@@ -24,9 +45,18 @@
 				\item[Questão 4 --- Dependência de texto:] o desempenho de autenticação é afetado por o enunciado de teste ter sido visto no treino? Para responder a essa questão, o classificador é treinado com um mesmo conjunto de enunciados e testado, com outros locutores, em dois cenários: com esses mesmos enunciados (o cenário que a literatura chama de dependente de texto) e com enunciados que não participaram do treino (independente de texto). Como o conjunto de treino é idêntico nos dois, a diferença entre eles mede apenas o efeito de o enunciado ser conhecido.
 			\end{description}
 
+	\section{Contribuições}
+
+		\par As contribuições desta tese são de dois tipos. As \textbf{experimentais} são a avaliação da autenticação por voz, por \ac{EEG} de fala pronunciada e imaginada e por suas fusões, sob verificação com locutores fora do treino e sob disfonia simulada, com testes estatísticos corrigidos para validação cruzada; e a comparação da rede de pulsos com dois controles, em erro e em energia medida na passagem de teste. As \textbf{de método} são:
+		\begin{enumerate}
+			\item a métrica $D_{\text{penalizado}}$ (\autoref{sec:dPenalizado}), que corrige o critério paraconsistente para não premiar extratores que emitem o mesmo vetor para toda entrada;
+			\item a medida da incerteza da seleção paraconsistente, pontuando cada extrator em subconjuntos de locutores;
+			\item o registro dos defeitos silenciosos encontrados durante o desenvolvimento, de como foram detectados e do que invalidaram (\autoref{apend:defeitos}).
+		\end{enumerate}
+
 	\section{Estrutura do trabalho}
-			\par O \autoref{ch:revisao} reúne a fundamentação: a definição dos conceitos utilizados está na \autoref{sec:conceitos} --- incluindo a engenharia paraconsistente de características e a métrica $D_{\text{penalizado}}$ adotada como critério de seleção (\autoref{sec:dPenalizado}) --- e uma revisão do estado-da-arte, na \autoref{sec:trabalhosMaisRecentes}.
+			\par O \autoref{ch:revisao} reúne a fundamentação: a definição dos conceitos utilizados está na \autoref{sec:conceitos} --- incluindo a engenharia paraconsistente de características e a métrica $D_{\text{penalizado}}$ adotada como critério de seleção (\autoref{sec:dPenalizado}) --- e a revisão do estado da arte, com a tabela comparativa dos trabalhos de identificação e autenticação por voz e por \ac{EEG}, na \autoref{sec:trabalhosMaisRecentes}.
 
 			\par O \autoref{chap:propApproach} define a abordagem proposta: a organização da base de sinais (\autoref{sec:baseDeSinais}), a estrutura da estratégia (\autoref{sec:estruturaDaEstrategiaProposta}) e, dentro dela, o protocolo experimental em duas fases (\autoref{sec:protocoloDuasFases}) --- a Fase~00, que constrói e seleciona o vetor de características, e a Fase~01 (\autoref{sec:fase01}), que treina o classificador de autenticação e onde estão descritos a arquitetura da \ac{DSNN}, seus controles, o protocolo de verificação, os eixos experimentais, a disfonia simulada e a medida de energia. O capítulo encerra com as métricas adotadas.
 
-			\par O \autoref{chap:testsResults} apresenta os resultados das duas fases e retoma, à luz deles, as quatro questões formuladas acima (\autoref{sec:respostasQuestoes}). O \autoref{chap:conclusions} discute as conclusões e os trabalhos futuros. Os apêndices detalham as técnicas de regularização empregadas (\autoref{chap:regularizacao}).
+			\par O \autoref{chap:testsResults} apresenta os resultados das duas fases e retoma, à luz deles, as quatro questões formuladas acima (\autoref{sec:respostasQuestoes}). O \autoref{chap:conclusions} retoma as hipóteses e discute as conclusões, as limitações e os trabalhos futuros. Os apêndices registram os defeitos encontrados e corrigidos durante o desenvolvimento (\autoref{apend:defeitos}) e detalham as técnicas de regularização (\autoref{chap:regularizacao}).

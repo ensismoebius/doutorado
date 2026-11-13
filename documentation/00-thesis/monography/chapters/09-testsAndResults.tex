@@ -159,17 +159,14 @@
 	do espectro desses sinais.
 
 
-	\par Os dados das tabelas são gerados pelo \textit{script}
-	\texttt{thesis\_build\_\allowbreak phase00\_\allowbreak paraconsistent\_\allowbreak tables.py}, em \texttt{software/nn/\allowbreak scripts/\allowbreak pipeline/\allowbreak thesis/},
-	a partir dos arquivos de resultado da Fase~00.
+	\par Os dados das tabelas são gerados automaticamente a partir dos arquivos
+	de resultado da Fase~00 (\autoref{apend:reprodutibilidade}).
 
 	% Espaço após cada longtable deste capítulo. chapters/data/packages.tex fixa
 	% \LTpost em -30pt; sem esta compensação, uma tabela seguida de outra tabela
 	% (ou de uma legenda) é impressa por cima dela.
 	\newlength{\TableGap}
 	\setlength{\TableGap}{42pt}
-	% packages.tex sets \LTpre to 0pt, which glues a caption to the paragraph above.
-	\setlength{\LTpre}{\baselineskip}
 
 	% Longtable a partir de um CSV com colunas:
 	% rank,configuration,mean_d_penalized,std_d_penalized,loso_sd,fold_wins,
@@ -190,7 +187,7 @@
 			\bottomrule
 			\endlastfoot
 			\csvreader{#1}{}%
-				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii & \csvcolix \\}%
+				{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \csvcolvi & \dec{\csvcolvii} & \dec{\csvcolviii} & \dec{\csvcolix} \\}%
 		\end{longtable}%
 		}%
 		\vspace{\TableGap}%
@@ -230,9 +227,8 @@
 	\par A Fase~01 treina o classificador sobre o extrator vencedor da Fase~00 e
 	mede \ac{EER} e \ac{AUC} por dobra de validação cruzada, em quatro conjuntos
 	de execuções (\autoref{sec:fase01}): a grade principal, os controles, a
-	disfonia simulada e a comparação de extratores. As tabelas são geradas pelo
-	\textit{script}
-	\texttt{thesis\_build\_\allowbreak phase01\_\allowbreak auth\_\allowbreak tables.py}, do mesmo diretório.
+	disfonia simulada e a comparação de extratores. As tabelas são geradas
+	automaticamente a partir dos resultados (\autoref{apend:reprodutibilidade}).
 	Em todas, o \ac{EER} é a média das três repetições, e $\sigma$ é o desvio
 	padrão entre elas. Um \ac{EER} de $0{,}5$ e uma \ac{AUC} de $0{,}5$
 	correspondem a um classificador que decide ao acaso.
@@ -330,7 +326,7 @@
 			\bottomrule
 			\endlastfoot
 			\csvreader{#1}{}%
-				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
+				{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} \\}%
 		\end{longtable}%
 		}%
 		\vspace{\TableGap}%
@@ -382,7 +378,7 @@
 		\bottomrule
 		\endlastfoot
 		\csvreader{tables/phase01_controls.csv}{}%
-			{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
+			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
@@ -434,7 +430,7 @@
 		\bottomrule
 		\endlastfoot
 		\csvreader{tables/phase01_energy.csv}{}%
-			{\csvcoli & \csvcolii & \csvcoliii & \csvcolix & \csvcolxv & \csvcolxvi & \csvcolxvii & \csvcolxviii & \csvcolxix & \csvcolxx \\}%
+			{\csvcoli & \dec{\csvcolii} & \dec{\csvcoliii} & \dec{\csvcolix} & \dec{\csvcolxv} & \dec{\csvcolxvi} & \dec{\csvcolxvii} & \dec{\csvcolxviii} & \dec{\csvcolxix} & \dec{\csvcolxx} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
@@ -479,7 +475,7 @@
 		\bottomrule
 		\endlastfoot
 		\csvreader{tables/phase01_dysphonia.csv}{}%
-			{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
+			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
@@ -544,7 +540,7 @@
 		\bottomrule
 		\endlastfoot
 		\csvreader{tables/phase01_extractors.csv}{}%
-			{\csvcoli & \csvcolii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii & \csvcolix & \csvcolx & \csvcolxi \\}%
+			{\csvcoli & \csvcolii & \dec{\csvcoliv} & \dec{\csvcolv} & \csvcolvi & \dec{\csvcolvii} & \dec{\csvcolviii} & \csvcolix & \dec{\csvcolx} & \dec{\csvcolxi} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
@@ -700,5 +696,3 @@
 	diferentes, que a base não tem. Os resultados de \ac{EEG} e de fusão deste
 	capítulo devem ser lidos, portanto, como um \textbf{limite superior} do que
 	se obteria entre sessões.
-
-	\setlength{\LTpre}{0pt}

@@ -69,6 +69,16 @@
 		$\tn{p01.text.mean.unseen}$ (frases não vistas), sem diferença
 		significativa em nenhuma fonte.
 
+		\par \textbf{As hipóteses do \autoref{chap:intro}.} A hipótese principal
+		--- o \ac{EEG} mantém a autenticação quando a voz de teste se degrada ---
+		é apoiada apenas na direção dos resultados: sob disfonia simulada, a voz
+		piora e as fusões se mantêm, mas nenhuma das diferenças é significativa.
+		A primeira hipótese secundária não se confirmou: o critério
+		paraconsistente ordena extratores de uma mesma família, mas não antecipou
+		o desempenho entre famílias. A segunda foi refutada nesta tarefa: a rede
+		de pulsos não se distingue da gêmea não pulsante no erro e gasta mais
+		energia.
+
 	\section{Contribuições}
 
 		\par Além dos resultados experimentais, as contribuições deste trabalho
@@ -105,7 +115,8 @@
 			sozinho, não revelaria.
 
 			\item \textbf{O registro de três defeitos silenciosos e de como foram
-			detectados.} O \ac{EEG} lido da tentativa anterior
+			detectados} (os oito defeitos desse tipo encontrados durante o
+			desenvolvimento estão no \autoref{apend:defeitos}). O \ac{EEG} lido da tentativa anterior
 			(\autoref{sec:baseDeSinais}), a entrada sem informação de locutor dos
 			extratores automatizados (\autoref{sec:protocoloDuasFases}) e a
 			previsão do piso de ruído das codificações temporais, ``confirmada''
@@ -155,6 +166,13 @@
 			\textit{hardware} neuromórfico foi avaliado, e o custo do extrator de
 			características --- que, para a \ac{DTWPT} de um sinal de 176400
 			amostras, provavelmente domina o do classificador --- não foi medido;
+			\item \textbf{As características manuais do \ac{EEG} têm resolução
+			espectral grossa.} Com a \ac{DTWPT} de nível~4 a 1024\,Hz, cada
+			sub-banda tem 32\,Hz: os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$
+			caem todos na primeira, e a interferência de 50\,Hz da rede elétrica, na
+			segunda. O \ac{EEG} não passa por filtro de rede, referência pela média
+			comum nem análise de componentes independentes
+			(\autoref{sec:trabalhosMaisRecentes});
 			\item \textbf{O vocabulário é pequeno}: onze enunciados, entre vogais e
 			palavras isoladas. ``Frases não vistas'' significa outros itens desse
 			mesmo vocabulário;
@@ -181,6 +199,11 @@
 			\item \textbf{Avaliar locutores disfônicos reais}, ou, na falta deles,
 			modelos de degradação que cubram rouquidão, aspereza e tremor, além da
 			voz soprosa;
+
+			\item \textbf{Refinar a decomposição do \ac{EEG}}, com níveis de
+			\ac{DTWPT} que separem os ritmos $\delta$, $\theta$, $\alpha$ e $\beta$
+			(o nível~7 dá sub-bandas de 4\,Hz), e medir o efeito do filtro de rede e
+			da exclusão das tentativas com piscada sobre o \ac{EER};
 
 			\item \textbf{Testar a hipótese sobre as codificações temporais},
 			variando o número de passos $T$ e o limiar de disparo do \ac{SNN}-AE

@@ -508,7 +508,7 @@ de valer nos dados.
 | 3 piso de ruído | previsão não confirmada (latência < Poisson < direta); o texto diz isso |
 | 4, 9 modo de texto | rodado; uma só definição; sem diferença significativa |
 | 5, 8 seleção e incerteza | rodado; estabilidade 15/15 no EEG, 10/15 na voz; no texto |
-| 6 linha de base | controles `ann` e `cosine` rodados; **falta** a tabela de trabalhos publicados |
+| 6 linha de base | controles `ann` e `cosine` rodados; tabela de trabalhos publicados no cap. 7 (`tab:estadoDaArte`), com o que é e não é comparável |
 | 7 fusão | não se distingue do EEG sozinho; no texto |
 | 10 padronização | no texto, com a explicação de escala declarada como não testada |
 | 11 energia | medida; a DSNN gasta 4,37 a 6,18 vezes a gêmea não pulsante |
@@ -516,9 +516,17 @@ de valer nos dados.
 | 17 rótulos | tabelas regeneradas |
 | 18 números | resolvido pelo `\tn` |
 | 20 compilação | compila sem referência indefinida (entrada duplicada do `.bib` removida) |
-| 12, 13, 14, 19, 21 | **não tratados**: capítulo de revisão, estado da arte, Introdução (só as questões e a estrutura foram ajustadas), jargão, terminologia |
+| 12 diário de depuração | cap. 7 mantém só os conceitos (lr por grupo, colapso do latente, $D_{\text{penalizado}}$); a história foi para o Apêndice A (`apend:defeitos`, oito defeitos, datados, com o que cada um invalidou); menção ao artigo removida |
+| 13 estado da arte | busca atualizada até 12/11/2026 (termos de biometria por EEG, fala imaginada, fusão, redes de pulso, voz patológica), 13 referências novas conferidas na Crossref/arXiv; "Protocolo de busca"; tabela comparativa; "Implicações" com o pré-processamento não adotado (CAR, ICA, filtro de rede, ritmos) e por quê. **Ressalva:** a atualização não foi repetida no Web of Science nem no Athena |
+| 14 Introdução | reestruturada: contexto e problema → lacuna e hipótese → objetivos geral e específicos → questões → contribuições → estrutura; base movida para o cap. 8; frase da fonação corrigida; custo prático do EEG citado; cap. 10 retoma as hipóteses |
+| 19 jargão | nomes de scripts, caminhos e chaves saíram do corpo (caps. 7–9); Apêndice B (`apend:reprodutibilidade`) os reúne |
+| 21 terminologia | só a contradição da codificação `direct` foi corrigida; RNP/SNN/DSNN, EQM/MSE, dobra/fold, locutor/sujeito **não padronizados** |
 | 15 fusão precoce / nível 4 | ressalva no capítulo 8 |
 
-**Pendências novas.** As tabelas usam ponto decimal (vêm dos CSV); a prosa usa vírgula. As
-cinco referências acrescentadas ao `.bib` (Horowitz 2014, Lemaire 2022, Nadeau e Bengio 2003,
-Holm 1979, Welch 1967) foram escritas de memória e precisam de conferência.
+**Resolvido depois.** Vírgula decimal nas tabelas por `\dec{}` (os CSV continuam com ponto);
+as cinco referências de método (Horowitz 2014, Lemaire 2022, Nadeau e Bengio 2003, Holm 1979,
+Welch 1967) conferidas na Crossref/JSTOR.
+
+**Achado novo (limitação, não defeito).** Com a DTWPT de nível 4 a 1024 Hz, cada sub-banda do
+EEG tem 32 Hz: os ritmos δ, θ, α e β caem todos na primeira, e os 50 Hz da rede elétrica, na
+segunda. Registrado no cap. 7 (Implicações) e no cap. 10 (limitações e trabalhos futuros).

@@ -158,3 +158,20 @@
 \newcommand{\tnen}[1]{\tn@get{tnen}{#1}}
 \makeatother
 \input{tables/thesis_numbers.tex}
+
+% Vírgula decimal nas tabelas lidas de CSV. Os CSV guardam ponto decimal (são
+% lidos também por scripts); a tabela converte ao imprimir:
+%
+%   \dec{\csvcoliii}   com \csvcoliii = 0.2205   ->  0{,}2205
+%
+% Só se aplica a colunas numéricas: um rótulo de texto com ponto ("p.ex.")
+% viraria vírgula sem erro algum. Uma célula sem ponto ("—", "10/15") passa
+% inalterada.
+\ExplSyntaxOn
+\NewDocumentCommand{\dec}{m}{
+	\tl_set:No \l_tmpa_tl {#1}
+	\tl_replace_all:Nnn \l_tmpa_tl {.} {{,}}
+	\tl_use:N \l_tmpa_tl
+}
+\ExplSyntaxOff
+
