@@ -11,12 +11,12 @@ Run:  python3 scripts/testing/test_biomex_convert.py
 """
 import os
 import sqlite3
-import struct
 import subprocess
 import sys
 import tempfile
 import unittest
 import wave
+from unittest import mock
 
 import numpy as np
 
@@ -257,6 +257,65 @@ class BiomexConvert(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("01G10 series 2 digit 1: no 1.0 s voice window fits", r.stderr)
         self.assertFalse(os.path.exists(self.out))
+
+    # ── errata: applied only to a file exactly as described, refused otherwise ──────────
+    def _convert_in_process(self):
+        return bx.convert_volunteer(os.path.join(self.src, "F999"), "F999", bx.band_pass())
+
+    def test_a_missing_lab_word_is_inserted_only_into_a_free_gap(self):
+        truth = make_volunteer(self.src)
+        lab = os.path.join(self.src, "F999", "Voice", "F999_01G10_1.lab")
+        lines = read(lab).splitlines()
+        a, b, word = lines[5].split()          # the third word of series 1
+        write(lab, "\n".join(lines[:5] + lines[6:]) + "\n")
+        with self.assertRaises(bx.ConversionError) as e:
+            self._convert_in_process()
+        self.assertIn("01G10 series 1", str(e.exception))
+        word = bx.LABEL_TYPOS.get(word, word)
+        with mock.patch.dict(bx.LAB_MISSING_WORDS, {("F999", "01G10", 1): (int(a), int(b), word)}):
+            pairs = self._convert_in_process()
+        self.assertEqual(sorted((p["session"], p["series"], p["position"], p["code"])
+                                for p in pairs), sorted(truth))
+        # An erratum that overlaps a line the file has is not the file it describes.
+        prev_word_end = int(lines[3].split()[1])
+        with mock.patch.dict(bx.LAB_MISSING_WORDS,
+                             {("F999", "01G10", 1): (prev_word_end - 10, int(b), word)}):
+            with self.assertRaises(bx.ConversionError) as e:
+                self._convert_in_process()
+        self.assertIn("overlaps", str(e.exception))
+
+    def test_a_misnamed_edf_is_used_only_through_its_erratum(self):
+        make_volunteer(self.src)
+        eeg_dir = os.path.join(self.src, "F999", "EEG")
+        old = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G04-")][0]
+        os.rename(os.path.join(eeg_dir, old), os.path.join(eeg_dir, "F998" + old[4:]))
+        with self.assertRaises(bx.ConversionError) as e:
+            self._convert_in_process()
+        self.assertIn("expected one EDF, found 0", str(e.exception))
+        with mock.patch.dict(bx.EDF_FILE_ERRATA, {("F999", "01G04"): "F998" + old[4:]}):
+            self.assertEqual(len(self._convert_in_process()), 140)
+
+    def test_an_aborted_edf_is_set_aside_only_if_it_holds_no_digit(self):
+        make_volunteer(self.src)
+        eeg_dir = os.path.join(self.src, "F999", "EEG")
+        n = 6 * FS                                   # a few seconds, start marker only
+        labels = ["COUNTER", "INTERPOLATED"] + list(bx.EEG_CHANNELS) + ["MARKER"]
+        sig = np.zeros((len(labels), n))
+        sig[-1, FS] = 99
+        aborted = "F999-01G10-18.07.18.12.00.00.edf"
+        write_edf(os.path.join(eeg_dir, aborted), sig, labels, [(0, 16000)] * len(labels),
+                  [(0, 31200)] * (len(labels) - 1) + [(0, 16000)])
+        with self.assertRaises(bx.ConversionError) as e:
+            self._convert_in_process()
+        self.assertIn("expected one EDF, found 2", str(e.exception))
+        with mock.patch.dict(bx.EDF_ABORTED, {("F999", "01G10"): aborted}):
+            self.assertEqual(len(self._convert_in_process()), 140)
+        # Named as aborted but holding digits: refused.
+        real = [f for f in os.listdir(eeg_dir) if f.startswith("F999-01G10-18.07.18.12.29")][0]
+        with mock.patch.dict(bx.EDF_ABORTED, {("F999", "01G10"): real}):
+            with self.assertRaises(bx.ConversionError) as e:
+                self._convert_in_process()
+        self.assertIn("holds digit markers", str(e.exception))
 
     def test_an_existing_output_is_never_overwritten(self):
         make_volunteer(self.src)

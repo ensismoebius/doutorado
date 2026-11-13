@@ -182,7 +182,19 @@ if has_target thesis; then
   # BIOMEX-DB (the profiles under profiles/biomex, dataset.source biomex2021) is a separate
   # base, written by scripts/data/biomex_to_sqlite.py. Sent when it exists; when it does not,
   # say so: a biomex array on the cluster would then refuse to open it, not run without it.
+  # Only a base that scripts/data/biomex_verify.py passed is sent: its stamp holds the sha256
+  # of the file it checked, so a base rewritten after the check is refused here.
   if [[ -f "${HOME}/biomex.sqlite" ]]; then
+    stamp="${HOME}/biomex.sqlite.verified"
+    if [[ ! -f "$stamp" ]]; then
+      echo "[gridunesp-deploy] ${HOME}/biomex.sqlite was never verified: run scripts/data/biomex_verify.py first" >&2
+      exit 1
+    fi
+    have=$(sha256sum "${HOME}/biomex.sqlite" | cut -d' ' -f1)
+    if [[ "$(head -1 "$stamp")" != "$have" ]]; then
+      echo "[gridunesp-deploy] ${HOME}/biomex.sqlite changed after its verification ($stamp): verify it again" >&2
+      exit 1
+    fi
     thesis_files+=("${HOME}/biomex.sqlite")
   else
     echo "[gridunesp-deploy] ${HOME}/biomex.sqlite does not exist here: NOT sent (THESIS_PHASE=biomex will refuse on the cluster)"

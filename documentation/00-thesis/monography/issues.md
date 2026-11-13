@@ -650,6 +650,43 @@ sub-banda 0, e a Coretto e seus vencedores congelados continuam válidos.
   - A voz da Coretto concentra 77,7% da potência abaixo de 300 Hz; a BIOMEX, 28,3%. É
     característica das gravações (sala, microfone).
 
+### Verificação das bases contra os originais e os artigos (2026-11-13)
+
+Artigos lidos: Pressel Coretto et al., SPIE 10160 (2017), `03-articlesToRead/.../1016002.pdf`, e
+Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesma pasta.
+
+**BIOMEX-DB** (`scripts/data/biomex_verify.py`, roda contra fontes que o conversor não lê):
+- O EDF que o conversor lê é igual ao CSV exportado da mesma sessão (≤ 2e-4 µV; MARKER exato).
+  Os CSV param num número redondo de linhas (22000 / 43000), então o EDF é a gravação completa.
+- Toda série (marcadores do EEG e palavras do `.lab`) é igual à Tabela 1 do artigo.
+  Consequência: por voluntário são 15 amostras do dígito 3 e 13 do 8 (14 dos demais), não 14 de
+  cada.
+- Todo par do `.sqlite` é igual ao reconstruído dos originais por outro caminho (WAV via
+  `scipy.io.wavfile`, regra da janela reimplementada). Teste de mutação: três corrupções numa
+  cópia, todas acusadas.
+- Selo `~/biomex.sqlite.verified` (sha256); o deploy recusa uma base sem selo válido.
+- Parcial, 22 voluntários: 3080 pares iguais, 0 diferenças. **Pendente: os 51.**
+- Três erratas dos arquivos distribuídos, corrigidas explicitamente (wiki, seção 11):
+  F007 01G04 (EDF com o nome do F006), F008 01G10 (início de gravação abortado, sem dígitos) e
+  F017 01G10 série 8 (`.lab` sem a linha do CERO, que foi falado).
+  **Decisão do usuário:** confirmar as correções (alternativa: excluir os pares afetados, 140 do
+  F007, 0 do F008, 1 do F017).
+- F022 fala devagar: 14 palavras rotuladas com mais de 1 s ficam cortadas no fim da janela
+  (25 em 3080 até agora; `pair.voice_cut`).
+
+**Coretto** (contagens contra as Tabelas 3 e 4 do artigo):
+- Imaginada: 7341 tentativas, igual ao artigo em todas as células.
+- Pronunciada: 1974 no `.sqlite`, 1973 no artigo. A única diferença é S01, /o/, pronunciada:
+  11 no `.sqlite` e 10 no artigo (a coluna do artigo soma 175, coerente com 10). As 11 são
+  tentativas distintas (nenhum blob repetido na base inteira) e vêm de linhas diferentes da
+  matriz original. É diferença entre o artigo e os dados distribuídos, não da importação.
+- **Pendente: comparar os blobs com os `.mat` originais.** Não estão nesta máquina; o link
+  dos autores leva a uma pasta do Google Drive, e instalar o `gdown` para baixá-la (2,48 GB)
+  foi negado pela permissão desta sessão.
+- Pelo artigo, o filtro dos autores é FIR passa-baixa de ordem 372 e passa-alta de ordem 1204
+  a 1024 Hz, depois de uma banda analógica de 0,3–35 Hz no amplificador. Isso explica os 19,5%
+  de potência abaixo de 2 Hz (seção anterior).
+
 **Achado lateral.** O passo da CI `test_thesis_phase_scripts.py` já falha no `main` (25 de 29):
 os scripts de ranking e significância ganharam argumentos obrigatórios em 12/11 (13fafd0b) e o
 teste ficou com a interface de 11/11. Não é efeito da BIOMEX-DB.

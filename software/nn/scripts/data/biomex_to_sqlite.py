@@ -107,6 +107,25 @@ LABEL_TYPOS = {"UN0": "UNO"}
 SILENCE = "SILENCIO"
 VOLUNTEER = re.compile(r"^[FM]\d{3}$")
 
+# ── errata of the distributed files ───────────────────────────────────────────────────
+# Found by checking the base against itself, its CSV exports and Table 1 of the paper
+# (2026-11-13). Each is applied only if the file still looks exactly as described (checked
+# below); anything not listed that breaks a rule is refused.
+#
+# F007's 01G04 session was saved with the previous volunteer's subject field: the EDF (and
+# its CSV export F007-01G04.CSV) say "subject:F006, recorded 23.07.18 11.17.32" - 9 min after
+# F007's 01G10 (11.08.32), in F007's folder. F006's own 01G04 is another recording
+# (10.57.41, a different size).
+EDF_FILE_ERRATA = {("F007", "01G04"): "F006-01G04-23.07.18.11.17.32.edf"}
+# A recording started under F008's name and stopped after a few seconds (64768 bytes), 36 s
+# before F007's 01G10 began; it must hold no digit marker. F008's 01G10 is 11.26.35.
+EDF_ABORTED = {("F008", "01G10"): "F008-01G10-23.07.18.11.07.56.edf"}
+# F017 01G10 series 8: the .lab skips the span 126715626..131048750 (its SILENCIO ends at
+# 126715625, the next starts at 131048751); there is speech in it (12.7-13.2 s), and the EEG
+# marker and the paper's Table 1 both put "0" (CERO) there. The word is inserted into that
+# gap, which must be free.
+LAB_MISSING_WORDS = {("F017", "01G10", 8): (126715626, 131048750, "CERO")}
+
 
 class ConversionError(Exception):
     pass
@@ -182,9 +201,12 @@ def read_wav(path):
     return x.astype(np.float32) / 32768.0
 
 
-def read_lab(path):
-    """The spoken words of a series, in order, as (onset sample, end sample, word)."""
-    words = []
+def read_lab(path, missing=None):
+    """The spoken words of a series, in order, as (onset sample, end sample, word).
+
+    `missing` is an erratum (start, end, word) in the .lab's 100 ns units: a word whose line
+    the file lacks. It is inserted only into a span no line of the file covers."""
+    entries = []
     with open(path, encoding="ascii") as f:
         lines = f.read().splitlines()
     for n, line in enumerate(lines, 1):
@@ -195,13 +217,45 @@ def read_lab(path):
             raise ConversionError(f"{path}:{n}: expected '<start> <end> <label>', got {line!r}")
         a, b, label = float(parts[0]), float(parts[1]), parts[2]
         label = LABEL_TYPOS.get(label, label)
-        if label == SILENCE:
-            continue
-        if label not in DIGIT_WORDS.values():
+        if label != SILENCE and label not in DIGIT_WORDS.values():
             raise ConversionError(f"{path}:{n}: unknown label {parts[2]!r}")
-        # 100 ns units -> samples
-        words.append((int(round(a * 1e-7 * VOICE_RATE)), int(round(b * 1e-7 * VOICE_RATE)), label))
-    return words
+        entries.append((a, b, label))
+    if missing is not None:
+        a, b, label = missing
+        overlap = [e for e in entries if e[0] <= b and a <= e[1]]
+        if overlap:
+            raise ConversionError(f"{path}: the erratum {missing} overlaps {overlap}; the "
+                                  f"file is not the one the erratum describes")
+        entries = sorted(entries + [(float(a), float(b), label)])
+    # 100 ns units -> samples
+    return [(int(round(a * 1e-7 * VOICE_RATE)), int(round(b * 1e-7 * VOICE_RATE)), label)
+            for a, b, label in entries if label != SILENCE]
+
+
+def find_edf(folder, vid, session):
+    """The EDF of one session, after the errata above; refused unless exactly one."""
+    where = f"{vid} {session}"
+    edfs = sorted(glob.glob(os.path.join(folder, "EEG", f"{vid}-{session}-*.edf")))
+    if (vid, session) in EDF_ABORTED:
+        aborted = os.path.join(folder, "EEG", EDF_ABORTED[(vid, session)])
+        if aborted not in edfs:
+            raise ConversionError(f"{where}: the aborted file {aborted} the errata name is gone")
+        labels, _, _, _, raw = read_edf(aborted)
+        if any(int(c) in DIGIT_WORDS for c in np.unique(raw[labels.index("MARKER")])):
+            raise ConversionError(f"{where}: {aborted} holds digit markers; it is not the "
+                                  f"aborted start the errata describe")
+        edfs.remove(aborted)
+    if (vid, session) in EDF_FILE_ERRATA:
+        if edfs:
+            raise ConversionError(f"{where}: an EDF named for it exists ({edfs}); the "
+                                  f"erratum no longer applies")
+        named = os.path.join(folder, "EEG", EDF_FILE_ERRATA[(vid, session)])
+        if not os.path.isfile(named):
+            raise ConversionError(f"{where}: the erratum's file {named} is missing")
+        edfs = [named]
+    if len(edfs) != 1:
+        raise ConversionError(f"{where}: expected one EDF, found {len(edfs)}")
+    return edfs[0]
 
 
 # ── one volunteer ──────────────────────────────────────────────────────────────────────
@@ -218,10 +272,7 @@ def convert_volunteer(folder, vid, taps):
     pairs = []
     for session, per_series in SESSIONS.items():
         where = f"{vid} {session}"
-        edfs = glob.glob(os.path.join(folder, "EEG", f"{vid}-{session}-*.edf"))
-        if len(edfs) != 1:
-            raise ConversionError(f"{where}: expected one EDF, found {len(edfs)}")
-        labels, phys, rate, start, raw = read_edf(edfs[0])
+        labels, phys, rate, start, raw = read_edf(find_edf(folder, vid, session))
         if rate != EEG_RATE:
             raise ConversionError(f"{where}: EEG at {rate} Hz, expected {EEG_RATE}")
         missing = [c for c in EEG_CHANNELS + ("MARKER", "INTERPOLATED") if c not in labels]
@@ -242,7 +293,7 @@ def convert_volunteer(folder, vid, taps):
                 raise ConversionError(f"{where} series {k}: {stem}.wav/.lab missing")
             voice = read_wav(stem + ".wav")
             voice_out = resample_poly(voice, VOICE_UP, VOICE_DOWN)  # the whole series WAV
-            words = read_lab(stem + ".lab")
+            words = read_lab(stem + ".lab", LAB_MISSING_WORDS.get((vid, session, k)))
             shown = [DIGIT_WORDS[c] for _, c in run]
             said = [w for _, _, w in words]
             if shown != said:

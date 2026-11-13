@@ -295,7 +295,7 @@ speech**, so `eegimag` and the imagined fusions do not exist there (`ThesisConfi
 |---|---|---|
 | Speakers | 15 | 51 (25 F) |
 | Conditions | imagined (EEG only), pronounced (EEG + voice) | pronounced only (EEG + voice) |
-| Stimuli | 5 vowels, 6 commands | digits 0-9 (Spanish), 14 per digit per speaker |
+| Stimuli | 5 vowels, 6 commands | digits 0-9 (Spanish), 140 per speaker: 14 per digit except 3 (15) and 8 (13), as the paper's Table 1 sequences imply |
 | EEG | 6 ch, 1024 Hz, 4 s, 2-40 Hz by the authors | Emotiv Epoc, 14 ch, recorded at 128 Hz, **written at 1024 Hz**; 2 s after the digit marker, 2-40 Hz by the converter |
 | Voice | 44.1 kHz, 4 s window | recorded at 16 kHz, **written at 44.1 kHz**; 1 s from the labelled word onset (moved earlier when it would reach the next word) |
 
@@ -384,11 +384,39 @@ any other rate, so a native-rate file cannot reach the extractors.
 | duration | 4 s voice, 4 s EEG | 1 s voice, 2 s EEG | per-column constants (energy, padding share), removed by the per-fold z-score |
 | EEG channels | 6 (F3 F4 C3 C4 P3 P4) | 14 (Emotiv) | the same 96 columns: channels are concatenated into one signal before the DTWPT |
 | zero padding to 2^n | voice 33%, EEG 25% | voice 33%, EEG 12.5% | per-column constants, removed by the z-score |
-| EEG power below 2 Hz | 19.5% (measured; the filter the authors describe as 2-40 Hz leaves it, its design is not published) | 0.4% (the converter's FIR) | content: sub-band 0 holds it on both; not removable without refiltering Coretto |
+| EEG power below 2 Hz | 19.5% (measured; the authors' high-pass is an FIR of order 1204 at 1024 Hz, a transition band of a few Hz around 2 Hz, after an analog 0.3-35 Hz amplifier band) | 0.4% (the converter's FIR) | content: sub-band 0 holds it on both; not removable without refiltering Coretto |
 | voice power below 300 Hz | 77.7% | 28.3% | content of the recordings (room, microphone) |
 
 `ThesisBiomexDataset.BothBasesReachTheClassifierInTheSameFormat` runs both shapes through the
 frozen winner and requires 96 columns (192 for late fusion), finite, for every source.
+
+**Is the SQLite the base? (`scripts/data/biomex_verify.py`, 2026-11-13).** A converter
+cannot see its own mistakes (a wrong EDF offset, a series cut one off, speakers numbered in
+another order), so the check uses sources the converter never reads:
+
+| Check | Against | Why it is independent |
+|---|---|---|
+| every EDF value the converter reads | the session's CSV export (Emotiv TestBench) | another file, written by another exporter; equal to ≤ 2e-4 uV, MARKER exact |
+| every series' digits (EEG markers and .lab words) | Table 1 of the paper | the protocol as published, the same 10 + 10 sequences for every volunteer |
+| every stored pair | the pair rebuilt from the originals | WAV via `scipy.io.wavfile`, the window rule re-implemented |
+| counts | 140 per volunteer; per digit 14, except 3 (15) and 8 (13) | Table 1 |
+
+A mutation test proves it can fail: one swapped voice, one changed label and one swapped
+EEG epoch in a copy were all reported, exit status 1. On success it writes
+`<db>.verified` (the base's sha256); `gridunesp_deploy.sh` refuses to send a base without
+a stamp that matches. Two facts it surfaced: the CSV exports stop at a round row count
+(22000 / 43000), so the EDF is the complete recording (markers exist after the CSV ends);
+and the EDF records past the CSV are real signal, not padding.
+
+**Errata of the distributed files.** Three files break the base's own rules. Each correction
+is a named entry in `biomex_to_sqlite.py`, applied only if the file still looks exactly as
+described (else refused), and covered by a test that shows both outcomes:
+
+| Volunteer | What is wrong | Evidence | Correction |
+|---|---|---|---|
+| F007 01G04 | the EDF is named `F006-01G04-23.07.18.11.17.32.edf` | header and CSV: "subject F006, 11.17.32", 9 min after F007's 01G10, in F007's folder; F006's own 01G04 is 10.57.41, another size | `EDF_FILE_ERRATA`: that file is F007's 01G04 |
+| F008 01G10 | two 01G10 EDFs | `…11.07.56.edf` is 64768 bytes (a few seconds), no digit marker (checked), 36 s before F007's 01G10 started | `EDF_ABORTED`: set aside; the session is 11.26.35 |
+| F017 01G10 s8 | the .lab has 9 words for 10 markers | no line covers 126715626-131048750 (100 ns); speech there; EEG marker and Table 1 both say 0 | `LAB_MISSING_WORDS`: CERO inserted into that free span |
 
 **Cautions (measured, F001).** (1) The two "sessions" are 7 minutes apart on the same day,
 not two days. (2) EEG while speaking carries muscle activity: 2 s after a digit marker vs
@@ -398,6 +426,7 @@ identification can be partly jaw and eyes, on both bases.
 ```bash
 python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked
 python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
+python3 scripts/data/biomex_verify.py --src ~/biomex/extracted --db ~/biomex.sqlite  # stamp
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```
 
