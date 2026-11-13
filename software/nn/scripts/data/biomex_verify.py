@@ -123,7 +123,7 @@ def rebuild_eeg(eeg_native, up):
     kernel = np.convolve(lp, hp)
     delay = (len(kernel) - 1) // 2
     x = resample_poly(eeg_native - eeg_native.mean(axis=1, keepdims=True), up, 1, axis=-1)
-    return np.stack([np.convolve(ch, kernel)[delay:delay + x.shape[1]] for ch in x])
+    return np.stack([np.convolve(ch, kernel)[delay:delay + x.shape[1]] for ch in x]), delay
 
 
 def main():
@@ -184,6 +184,7 @@ def main():
     per_digit = Counter(d for rows in TABLE1.values() for r in rows for d in r)
     checked = 0
     no_csv = []
+    edge_here = []
     for vid in volunteers:
         folder = os.path.join(src, vid)
         digits = Counter()
@@ -216,7 +217,7 @@ def main():
             if len(runs) != len(rows):
                 fail(f"{where}: {len(runs)} digit runs, Table 1 has {len(rows)}")
                 continue
-            eeg_up = rebuild_eeg(np.stack([phys[labels.index(c)] for c in bx.EEG_CHANNELS]), up)
+            eeg_up, half = rebuild_eeg(np.stack([phys[labels.index(c)] for c in bx.EEG_CHANNELS]), up)
             for k, (row, run) in enumerate(zip(rows, runs), 1):
                 stem = os.path.join(folder, "Voice", f"{vid}_{session}_{k}")
                 words = bx.read_lab(stem + ".lab")
@@ -244,6 +245,16 @@ def main():
                 # (3) every pair against the one rebuilt here
                 for j, (m, code), (on, _, _), b in zip(positions, kept_run, words, starts):
                     key = (vid, session, k, j)
+                    # An epoch the filter's half-kernel does not fit around on both sides
+                    # must be absent (the rule, re-derived from the kernel built here).
+                    if m * up < half or (m + epoch) * up + half > eeg_up.shape[1]:
+                        edge_here.append(f"{vid} {session} series {k} digit {j}")
+                        expected[0 if code == 10 else code] -= 1
+                        if key in stored:
+                            fail(f"{key}: its epoch is within {half} samples of the session's "
+                                 f"edge, yet the pair is stored")
+                            stored.pop(key)
+                        continue
                     if key not in stored:
                         fail(f"{key}: missing from the SQLite")
                         continue
@@ -278,6 +289,11 @@ def main():
         print(f"[verify] {vid}: {n_pairs} pairs checked", flush=True)
     for key in stored:
         fail(f"{key}: in the SQLite but not in the originals")
+    edge_stored = info.get("edge_dropped_pairs", "")
+    if edge_stored != (" | ".join(edge_here) or "none"):
+        fail(f"edge-dropped pairs: SQLite {edge_stored!r}, the rule here {edge_here}")
+    for d in edge_here:
+        print(f"[verify] {d}: absent, as its epoch is within the filter's edge")
     con.close()
     print(f"[verify] {checked} pairs equal to the originals; {len(fails)} difference(s)")
     print(f"[verify] sessions with no CSV export to compare the EDF with: {len(no_csv)}"

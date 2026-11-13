@@ -306,8 +306,14 @@ def eeg_chain(eeg_native, filters):
     return fftconvolve(x, hp[None, :], mode="same", axes=-1)
 
 
-def convert_volunteer(folder, vid, filters):
-    """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer."""
+def convert_volunteer(folder, vid, filters, edge_dropped):
+    """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer.
+
+    A pair whose EEG epoch lies within FILTER_EDGE samples of either end of its session is
+    left out and named in `edge_dropped` (decided 2026-11-13): there the Coretto filter reads
+    zeros instead of EEG on one side, so the epoch would differ from every other one with
+    nothing in the result to show it. A rule, not a per-file exception: it applies to every
+    volunteer (M015 and M019 end their 01G04 60 and 220 samples short after the last digit)."""
     epoch = int(round(EEG_EPOCH_S * EEG_RATE))
     win = int(round(VOICE_WINDOW_S * VOICE_RATE))
     out_epoch = epoch * EEG_UP
@@ -372,9 +378,8 @@ def convert_volunteer(folder, vid, filters):
                     raise ConversionError(f"{where} series {k} digit {j}: the upsampled "
                                           f"voice window passes the end of its WAV")
                 if e0 < FILTER_EDGE or e0 + out_epoch + FILTER_EDGE > eeg_out.shape[1]:
-                    raise ConversionError(f"{where} series {k} digit {j}: the epoch lies within "
-                                          f"{FILTER_EDGE} samples of the session's edge, where "
-                                          f"the filter has no signal on one side")
+                    edge_dropped.append(f"{where} series {k} digit {j}")
+                    continue
                 pairs.append({"session": session, "series": k, "position": j, "code": code,
                               "voice": voice_out[v0:v0 + out_win].astype(np.float32),
                               "eeg": eeg_out[:, e0:e0 + out_epoch].astype(np.float32),
@@ -456,7 +461,7 @@ def main():
     for code, word in sorted(DIGIT_WORDS.items()):
         con.execute("INSERT INTO stimulus VALUES (?, ?)", (code, word.lower()))
     total = shifted = cut = 0
-    kept, excluded = [], []
+    kept, excluded, edge_dropped = [], [], []
     for vid in volunteers:
         try:
             own_recordings(os.path.join(src, vid), vid)
@@ -473,7 +478,7 @@ def main():
                 ("excluded_volunteers", " | ".join(excluded) or "none"))
     for sid, vid in enumerate(kept, 1):
         try:
-            pairs = convert_volunteer(os.path.join(src, vid), vid, filters)
+            pairs = convert_volunteer(os.path.join(src, vid), vid, filters, edge_dropped)
         except ConversionError as e:
             con.close()
             os.remove(tmp)
@@ -496,7 +501,11 @@ def main():
               f"{n_cut} words longer than the window "
               f"(EEG sessions start {sorted({p['eeg_start'] for p in pairs})})")
     con.executemany("INSERT INTO recording VALUES (?, ?)",
-                    [("voice_windows_shifted", str(shifted)), ("voice_words_cut", str(cut))])
+                    [("voice_windows_shifted", str(shifted)), ("voice_words_cut", str(cut)),
+                     ("edge_dropped_pairs", " | ".join(edge_dropped) or "none")])
+    for d in edge_dropped:
+        print(f"[biomex] {d}: left out, its EEG epoch is within {FILTER_EDGE} samples of the "
+              f"session's edge")
     con.commit()
     con.close()
     os.replace(tmp, out)

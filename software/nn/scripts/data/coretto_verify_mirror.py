@@ -41,8 +41,11 @@ STIMULUS = {1: "A", 2: "E", 3: "I", 4: "O", 5: "U", 6: "Arriba", 7: "Abajo", 8: 
 
 
 def blob(b):
+    """The stored channel in its own precision. The importer wrote the .mat's float64 values
+    as float32, so the comparison rounds the .mat to the stored precision and then requires
+    exact equality: any difference beyond float32 rounding is a different value."""
     if len(b) == 4 * N:
-        return np.frombuffer(b, np.float32).astype(np.float64)
+        return np.frombuffer(b, np.float32)
     if len(b) == 8 * N:
         return np.frombuffer(b, np.float64)
     raise ValueError(f"EEG blob of {len(b)} bytes")
@@ -96,9 +99,12 @@ def main():
             mod, stim, blink, *chans = stored.pop(r)
             ok = True
             for c, ch in enumerate(CHANNELS):
-                if not np.array_equal(blob(chans[c]), m[r, c * N:(c + 1) * N]):
-                    d = np.abs(blob(chans[c]) - m[r, c * N:(c + 1) * N]).max()
-                    fail(f"{subject} row {r}: {ch} differs (max {d:.3g})")
+                have = blob(chans[c])
+                want = m[r, c * N:(c + 1) * N].astype(have.dtype)
+                if not np.array_equal(have, want):
+                    d = np.abs(have.astype(np.float64) - want).max()
+                    fail(f"{subject} row {r}: {ch} differs beyond {have.dtype} rounding "
+                         f"(max {d:.3g})")
                     ok = False
             labels = (MODALITY.get(int(m[r, 6 * N])), STIMULUS.get(int(m[r, 6 * N + 1])),
                       int(m[r, 6 * N + 2]))

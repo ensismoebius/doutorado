@@ -674,11 +674,20 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   reimplementação separada) precisam chegar à mesma lista, que fica gravada na base
   (`recording.excluded_volunteers`). O inventário de todas as pastas fica em
   `scripts/data/biomex_inventory.py`.
-- Excluídos (37 primeiros voluntários): F007 (01G04 com o nome do F006), M001 (duas 01G10
-  completas, além de uma sessão 02), M007 (arquivo `M007-1G10`) e M010 (arquivo `M10-01G04`).
-  F008 e M006 têm um início abortado sem dígitos, que é ignorado; M003 e M004 têm sessões 02,
-  ignoradas. Um único par sai por nome: F017 01G10 série 8 posição 7, cujo `.lab` não tem a
-  linha do CERO falado (`UNLABELLED_DIGITS`).
+- **Base final (2026-11-13): 45 de 51 voluntários (24 F, 21 M), 6297 pares, todos iguais aos
+  originais (0 diferenças); selo gravado.** Excluídos (6): F007 (01G04 com o nome do F006),
+  M001 (duas 01G10 completas, além de uma sessão 02), M007 (arquivo `M007-1G10`), M010 (arquivo
+  `M10-01G04`), M018 (01G10 interrompida depois de 5 dígitos e regravada) e M024 (01G04 com o
+  nome F024). F008 e M006 têm um início abortado sem dígitos, que é ignorado; M003 e M004 têm
+  sessões 02, ignoradas; M008 tem 31 cópias "(1)" de arquivos de voz, idênticas byte a byte aos
+  originais. Cinco sessões não têm CSV exportado (M003 ×2, M004 ×2, M026 01G10); nelas o EDF não
+  pôde ser comparado com o CSV.
+- Pares que saem: F017 01G10 série 8 posição 7, por nome, porque o `.lab` não tem a linha do CERO
+  falado (`UNLABELLED_DIGITS`). M015 e M019, 01G04 série 10 dígito 4, por regra (**decisão do
+  usuário, 2026-11-13**): a gravação acaba 60 / 220 amostras antes da margem de 788 de que o
+  filtro da Coretto precisa depois da época. Todo par cuja época fica a menos de 788 amostras de
+  uma ponta da sessão sai e é registrado (`recording.edge_dropped_pairs`); o verificador
+  recalcula a regra e precisa chegar aos mesmos pares.
 - Filtro do EEG: o mesmo publicado pela Coretto (FIR passa-baixa de ordem 372 a 40 Hz e
   passa-alta de ordem 1204 a 2 Hz, a 1024 Hz, atraso de 788 amostras compensado). Antes do filtro
   é subtraída a média de cada canal na sessão (o offset de ~4200 µV do Emotiv). Sem isso, a
@@ -686,7 +695,8 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   19,2% da potência abaixo de 2 Hz e a BIOMEX 3,3%: a diferença é das gravações, não do
   processamento.
 - F022 fala devagar: 14 palavras rotuladas com mais de 1 s ficam cortadas no fim da janela
-  (27 em 4619 nos 33 voluntários mantidos até agora; `pair.voice_cut`).
+  (49 em 6297 na base inteira; `pair.voice_cut`). 15 janelas de voz foram antecipadas para não
+  alcançar a palavra seguinte (`pair.voice_shift_s`).
 
 **Coretto** (contagens contra as Tabelas 3 e 4 do artigo):
 - Imaginada: 7341 tentativas, igual ao artigo em todas as células.
@@ -700,7 +710,12 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
   renomeados (`sub-NN_eeg.mat`). `scripts/data/coretto_verify_mirror.py` compara cada linha
   desses `.mat` com a tentativa da base (`original_row`): os seis canais exatamente, e também a
   modalidade, o estímulo e o piscar. Como a cópia não é dos autores, concordância quer dizer
-  "duas derivações independentes concordam", não certificação. **O áudio continua sem
+  "duas derivações independentes concordam", não certificação. **Resultado (2026-11-13): 9315
+  de 9315 tentativas iguais (7341 imaginadas + 1974 pronunciadas), 0 diferenças.** O EEG é
+  igual bit a bit depois de arredondar o float64 do `.mat` para o float32 da base; uma primeira
+  comparação sem esse arredondamento acusou diferenças de ~2e-6 µV, o que mostra que o teste
+  enxerga até esse nível. O Zenodo limita cada conexão a ~50 kB/s, por isso o download foi
+  feito com os 15 arquivos em paralelo (MD5 de cada um conferido). **O áudio continua sem
   conferência** enquanto a pasta dos autores pedir login.
 - Pelo artigo, o filtro dos autores é FIR passa-baixa de ordem 372 e passa-alta de ordem 1204
   a 1024 Hz, depois de uma banda analógica de 0,3–35 Hz no amplificador. A voz passa por um

@@ -293,7 +293,7 @@ speech**, so `eegimag` and the imagined fusions do not exist there (`ThesisConfi
 
 | | Coretto (`coretto2017`) | BIOMEX-DB (`biomex2021`) |
 |---|---|---|
-| Speakers | 15 | 51 (25 F) |
+| Speakers | 15 | 51 recorded (25 F); **45 in the base** (24 F, 21 M) after the strict rule below |
 | Conditions | imagined (EEG only), pronounced (EEG + voice) | pronounced only (EEG + voice) |
 | Stimuli | 5 vowels, 6 commands | digits 0-9 (Spanish), 140 per speaker: 14 per digit except 3 (15) and 8 (13), as the paper's Table 1 sequences imply |
 | EEG | 6 ch, 1024 Hz, 4 s, 2-40 Hz by the authors | Emotiv Epoc, 14 ch, recorded at 128 Hz, **written at 1024 Hz**; 2 s after the digit marker, 2-40 Hz by the converter |
@@ -418,6 +418,11 @@ another order), so the check uses sources the converter never reads:
 | every stored pair | the pair rebuilt from the originals | WAV via `scipy.io.wavfile`, the window rule re-implemented |
 | counts | 140 per volunteer; per digit 14, except 3 (15) and 8 (13) | Table 1 |
 
+**Result on the whole base (2026-11-13): 45 volunteers, 6297 pairs, all equal to the originals
+(0 differences); stamp written.** 6297 = 45 × 140 − 3 (F017's unlabelled digit, M015's and
+M019's edge pairs). Five sessions have no CSV export (M003 ×2, M004 ×2, M026 01G10); their EDF
+is read by the same reader the other 85 sessions checked.
+
 A mutation test proves it can fail: one swapped voice, one changed label and one swapped
 EEG epoch in a copy were all reported, exit status 1. On success it writes
 `<db>.verified` (the base's sha256); `gridunesp_deploy.sh` refuses to send a base without
@@ -430,6 +435,8 @@ describes one 01G10 and one 01G04 recording per volunteer. Several folders do no
 that (`scripts/data/biomex_inventory.py` lists every EDF of every folder):
 
 ```
+M018/EEG   M018-01G10-12.58.07.edf (5 digits, stopped) + M018-01G10-12.59.57.edf (complete)
+M024/EEG   M024-01G10-…edf   F024-01G04-…edf        <- 01G04 carries F024's name
 F007/EEG   F007-01G10-…edf   F006-01G04-…edf        <- 01G04 carries F006's name (header and CSV too)
 M001/EEG   M001-01G10-… x2 complete, + 02G10, 02G04 <- which 01G10 went with the voice?
 M007/EEG   M007-1G10-…edf                           <- not a session name the protocol has
@@ -454,6 +461,24 @@ re-implementation (by file name and marker content), and the verifier refuses un
 the same excluded list, which the base records (`recording.excluded_volunteers`, with reasons).
 Four tests build each case (`test_biomex_convert.py`).
 
+**Pairs at the filter's edge (decided 2026-11-13).** The Coretto filter reaches 788 samples
+(0.770 s) to each side of the sample it computes. Two volunteers stop recording early after
+their last digit:
+
+```
+last 01G04 digit (series 10, digit 4)
+|<-------- 2 s epoch -------->|<--- 0.770 s the filter reads --->|   needs 2.770 s
+M015: the recording ends at 2.711 s  -> 60 samples of zeros read as EEG
+M019: the recording ends at 2.555 s  -> 220 samples
+F013, F015: 2.773 s                  -> fit, by 3 ms
+```
+
+Such an epoch would differ from every other one with nothing in the result showing it
+(**silent**). Rule: a pair whose EEG epoch lies within 788 samples of either end of its session
+is left out and named in `recording.edge_dropped_pairs`; the verifier re-derives the rule from
+its own kernel and refuses unless it names the same pairs. No session comes close at its start
+(the first digit is ≥ 30 s in).
+
 One pair is left out by name, not by rule: F017 01G10 series 8 has 9 `.lab` words for 10 markers.
 No line covers 126715626-131048750 (100 ns), there is speech there, and the EEG marker and
 Table 1 both say 0. Its position is dropped (`UNLABELLED_DIGITS`), applied only if no `.lab`
@@ -474,7 +499,10 @@ only other copy: an EEG-only re-host on Zenodo (record 19502780, uploaded for MO
 party, files renamed `sub-NN_eeg.mat`). `scripts/data/coretto_verify_mirror.py` checks every
 row of it against the trial with that `original_row`: six channels exactly, modality, stimulus,
 blink, and every row present once. Agreement there means two independent derivations agree, not
-that either is certified; the audio has no second copy and stays unverified.
+that either is certified; the audio has no second copy and stays unverified. Result
+(2026-11-13): **9315 of 9315 trials equal** (7341 imagined + 1974 pronounced), the EEG
+bit-identical once the `.mat`'s float64 is rounded to the base's float32 (compared without that
+rounding, every channel differed by ~2e-6 uV: the check sees that far).
 
 ```bash
 python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked

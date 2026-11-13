@@ -9,6 +9,8 @@ signatures carry the same code, so these tests check the pairing itself, not jus
 
 Run:  python3 scripts/testing/test_biomex_convert.py
 """
+import contextlib
+import io
 import os
 import shutil
 import sqlite3
@@ -63,13 +65,15 @@ def write_edf(path, signals, labels, phys, dig):
 
 
 def make_volunteer(root, vid="F999", typo=True, break_series=None, bad_marker=False,
-                   word_len_s=WORD_LEN_S):
+                   word_len_s=WORD_LEN_S, g04_cut_s=0.0):
     for sub in ("EEG", "Voice"):
         os.makedirs(os.path.join(root, vid, sub))
     truth = []
     for session, per in bx.SESSIONS.items():
         codes = series_codes(per)
         n = int((25 + 10 * (per * DIGIT_GAP_S + 5)) * FS)
+        if session == "01G04":
+            n -= int(g04_cut_s * FS)   # a recording stopped early after its last digit
         eeg = np.zeros((14, n)) + 4200.0  # the Emotiv DC offset the filter must remove
         marker = np.zeros(n)
         t = 22.0
@@ -262,7 +266,11 @@ class BiomexConvert(unittest.TestCase):
 
     # ── exclusions: applied only to files exactly as described, refused otherwise ───────
     def _convert_in_process(self):
-        return bx.convert_volunteer(os.path.join(self.src, "F999"), "F999", bx.coretto_filters())
+        dropped = []
+        pairs = bx.convert_volunteer(os.path.join(self.src, "F999"), "F999",
+                                     bx.coretto_filters(), dropped)
+        self.assertEqual(dropped, [])
+        return pairs
 
     def test_an_unlabelled_digit_is_left_out_only_if_its_span_is_free(self):
         truth = make_volunteer(self.src)
@@ -356,6 +364,31 @@ class BiomexConvert(unittest.TestCase):
         names, excluded = self._convert_all()
         self.assertEqual(names, ["F998"])
         self.assertIn("F999: 01G10: an incomplete recording with digits in it", excluded)
+
+    def test_an_epoch_within_the_filter_edge_is_left_out_and_named(self):
+        # The last 01G04 digit is 10.6 s before the session's end; cut 7.9 s and 2.7 s remain,
+        # short of the 2 s epoch + 788 samples (2.77 s) the filter needs (M015-like).
+        truth = make_volunteer(self.src, g04_cut_s=7.9)
+        r = run(self.src, self.out)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        con = sqlite3.connect(self.out)
+        keys = {(s, k, j) for s, k, j in con.execute("SELECT session, series, position FROM pair")}
+        info = dict(con.execute("SELECT key, value FROM recording"))
+        con.close()
+        self.assertEqual(len(keys), 139)
+        self.assertNotIn(("01G04", 10, 4), keys)
+        self.assertIn(("01G04", 10, 3), keys)       # 2.6 s earlier: room enough
+        self.assertEqual(info["edge_dropped_pairs"], "F999 01G04 series 10 digit 4")
+        # The verifier re-derives the rule from its own kernel and agrees. The synthetic
+        # series are not the paper's, so it is given them as its Table 1.
+        table = {s: [[0 if c == 10 else c for ss, kk, _, c in sorted(truth)
+                      if (ss, kk) == (s, k)] for k in range(1, 11)] for s in bx.SESSIONS}
+        out = io.StringIO()
+        with mock.patch.object(bv, "TABLE1", table), contextlib.redirect_stdout(out), \
+                mock.patch.object(sys, "argv", ["x", "--src", self.src, "--db", self.out]):
+            status = bv.main()
+        self.assertEqual(status, 0, out.getvalue())
+        self.assertIn("F999 01G04 series 10 digit 4: absent", out.getvalue())
 
     def test_the_eeg_filter_is_the_one_the_coretto_paper_gives(self):
         # Pressel Coretto et al. (SPIE 10160, 2017): FIR low-pass of order 372 and high-pass
