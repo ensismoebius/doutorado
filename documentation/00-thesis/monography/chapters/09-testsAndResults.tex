@@ -1,202 +1,324 @@
 \chapter{Testes e Resultados} \label{chap:testsResults}
 
-	\par Este capítulo apresenta os resultados das duas fases do Experimento~05,
-	na ordem em que foram executadas: a Fase~00, que constrói e ordena os vetores
-	de características segundo o critério paraconsistente
+	\par Este capítulo apresenta os resultados das duas fases do experimento, na
+	ordem em que foram executadas: a Fase~00, que constrói e ordena os vetores de
+	características segundo o critério paraconsistente
 	(\autoref{chap:testsResults:sec:Fase00}), e a Fase~01, que treina o
-	classificador de autenticação sobre a combinação vencedora e mede \ac{EER} e
-	\ac{AUC} (\autoref{chap:testsResults:sec:Fase01}). A
-	\autoref{sec:respostasQuestoes} retoma, à luz desses resultados, as quatro
-	questões de pesquisa formuladas no \autoref{chap:intro}. O protocolo
-	experimental --- eixos, arquitetura do classificador e forma de cálculo das
-	métricas --- está descrito no \autoref{chap:propApproach}.
+	classificador de autenticação e mede \ac{EER} e \ac{AUC}
+	(\autoref{chap:testsResults:sec:Fase01}). A \autoref{sec:respostasQuestoes}
+	retoma, à luz desses resultados, as quatro questões de pesquisa formuladas no
+	\autoref{chap:intro}. O protocolo experimental está descrito no
+	\autoref{chap:propApproach}.
+
+	\par \textbf{De onde vêm os números.} A Fase~00 tem \tn{p00.n.total}
+	configurações e a Fase~01, \tn{p01.n.total}; cada uma foi executada três
+	vezes, em um processo de um único \textit{thread}, no \textit{cluster}
+	GridUnesp, com o mesmo código de extração e de classificação nas duas fases. Os resultados
+	aqui apresentados substituem todos os anteriores, que foram descartados por
+	dois defeitos descritos no \autoref{chap:propApproach}: o \ac{EEG} lido da
+	tentativa errada (\autoref{sec:baseDeSinais}) e a entrada sem informação de
+	locutor dos \textit{autoencoders} e da \ac{PCA}
+	(\autoref{sec:protocoloDuasFases}). Tanto as tabelas quanto os números
+	citados nas frases são lidos por \textit{scripts} dos arquivos de resultado;
+	nenhum foi digitado.
 
 	\section{Fase 00 --- Ranking por grau de verdade paraconsistente}
 	\label{chap:testsResults:sec:Fase00}
 
-	As tabelas a seguir apresentam todas as configurações avaliadas na fase 00
-	do Experimento 05, ordenadas de forma \textbf{crescente} pelo grau de
-	verdade paraconsistente penalizado médio ($\bar{d}_{\text{pen}}$). Ambas as
-	grandezas tabeladas são \emph{distâncias} ao vértice \textit{Verdade} do
-	plano paraconsistente, de modo que \textbf{quanto menor, melhor}: a
-	posição~\#1 de cada tabela é a melhor configuração daquela família, e não a
-	pior.
+	\par As tabelas desta seção trazem todas as configurações avaliadas na
+	Fase~00, separadas por sinal (voz, \ac{EEG} de fala pronunciada, \ac{EEG} de
+	fala imaginada) e por família de extrator (manual, \textit{autoencoder},
+	\ac{PCA}), ordenadas de forma \textbf{crescente} por $\bar{d}_{\text{pen}}$.
+	As grandezas $d$ e $d_{\text{pen}}$ são \emph{distâncias} ao vértice
+	\textit{Verdade} do plano paraconsistente, de modo que \textbf{quanto menor,
+	melhor}: a posição~\#1 de cada tabela é a melhor configuração daquela
+	família.
 
-	Aqui, $d$ denota o grau de verdade paraconsistente de uma única repetição ---
-	a mesma grandeza chamada $D_{\text{verdade}}$ no
-	Capítulo~\ref{chap:propApproach} e $D_{1,0}$ na Seção~\ref{sec:conceitos} ---
-	calculado a partir dos valores de $\alpha$ (grau de crença) e $\beta$ (grau
-	de descrença) obtidos nas repetições de cada configuração;
-	$d_{\text{pen}} = d + \lambda|G_2|$ é a versão penalizada por contradição
-	definida na Seção~\ref{sec:dPenalizado} (com $\lambda = 2-\sqrt{2}$).
-	$\bar\alpha$ e $\bar\beta$ são as médias de $\alpha$ e $\beta$ nessas mesmas
-	repetições, e $\sigma_d$ é o desvio padrão populacional de $d$ entre as três
-	repetições, indicando a estabilidade da configuração.
+	\par As colunas são:
+	\begin{itemize}
+		\item $\bar{d}_{\text{pen}}$: média, sobre as três repetições, do grau de
+		verdade penalizado por contradição, $d_{\text{pen}} = d + \lambda|G_2|$,
+		com $\lambda = 2-\sqrt{2}$ (\autoref{sec:dPenalizado}). É o critério de
+		ordenação e de escolha do vencedor;
+		\item $\sigma_{\text{rep}}$: desvio padrão de $d_{\text{pen}}$ entre as
+		três repetições. Só existe para os \textit{autoencoders}, cujo treino
+		depende da semente. Os extratores manuais e a \ac{PCA} são
+		determinísticos: as três repetições dão o mesmo número, e a coluna traz
+		``---'' em vez de um zero que sugeriria uma precisão que não foi medida;
+		\item $\sigma_{\text{loc}}$: desvio padrão de $d_{\text{pen}}$ entre os
+		15 subconjuntos que deixam um locutor de fora. Mede o quanto a pontuação
+		depende de quais locutores foram observados;
+		\item \textit{dobras}: em quantas das 15 dobras da Fase~01 a configuração
+		teria o menor $d_{\text{pen}}$ do sinal se a seleção olhasse apenas os
+		locutores de treino daquela dobra;
+		\item $\bar{d}$: média do grau de verdade sem penalização --- a grandeza
+		chamada $D_{\text{verdade}}$ no \autoref{chap:propApproach} e $D_{1,0}$
+		na \autoref{sec:conceitos};
+		\item $\bar\alpha$ e $\bar\beta$: médias do grau de crença e do grau de
+		descrença.
+	\end{itemize}
 
-	\par \textbf{O critério de ordenação é $\bar{d}_{\text{pen}}$, e não $\bar{d}$.}
-	Essa escolha é a discutida na Seção~\ref{sec:dPenalizado} e não é uma
-	formalidade: as duas ordens de fato divergem. Para a voz, a configuração de
-	menor $\bar{d}$ é a \textit{Daubechies}~22 + LFCC (c1), mas o vencedor é a
-	Haar + LFCC (c1), porque o termo $\lambda|G_2|$ penaliza a primeira por
-	contradição. A divergência é ainda mais consequente entre famílias: pelo
-	$\bar{d}$ isolado, o melhor \textit{autoencoder} do EEG ($1{,}5046$)
-	\emph{superaria} o extrator manual vencedor ($1{,}5143$), e apenas a
-	penalização por contradição --- que reconhece o latente quase colapsado
-	desses \textit{autoencoders}, com $\bar\beta$ acima de $0{,}98$ --- inverte a
-	comparação. Por isso as duas colunas são exibidas lado a lado.
+	\par \textbf{O mesmo extrator vence nos três sinais.} O vencedor de cada
+	sinal, marcado com $\dagger$, é escolhido entre as três famílias, e não
+	dentro de cada tabela. Para a voz, para o \ac{EEG} de fala pronunciada e para
+	o de fala imaginada, venceu a extração manual com a \textit{wavelet} Haar e
+	energias de banda em escala linear, sem a etapa cepstral --- a configuração
+	``\tn{p00.voice.winner.label}'' das tabelas ---, com $\bar{d}_{\text{pen}}$
+	de $\tn{p00.voice.winner.dpen}$, $\tn{p00.eegpron.winner.dpen}$ e
+	$\tn{p00.eegimag.winner.dpen}$, respectivamente. A marca aparece, portanto,
+	apenas nas Tabelas~\ref{tab:phase00hc_voice}, \ref{tab:phase00hc_eegpron}
+	e~\ref{tab:phase00hc_eegimag}; a posição~\#1 das tabelas de
+	\textit{autoencoder} e de \ac{PCA} é o melhor extrator daquela família, não o
+	vencedor da fase.
 
-	\pendenteNota{Os números deste parágrafo são da execução de 2026-07-20. Na
-	reexecução de 2026-11-12, a parte sobre o EEG deixou de valer. O melhor
-	\textit{autoencoder} do EEG tem agora $\bar{d} = 1{,}7698$ (SNN-AE
-	\textit{poisson}, \texttt{base}), acima do $1{,}5143$ do vencedor manual,
-	de modo que o $\bar{d}$ isolado já não inverte a comparação. Os
-	$\bar\beta$ desses \textit{autoencoders} ficam entre $0{,}9729$ e
-	$0{,}9807$, e só dois passam de $0{,}98$. A parte sobre a voz continua
-	valendo: a \textit{Daubechies}~22 + LFCC (c1) tem $\bar{d} = 1{,}3929$,
-	contra $1{,}4055$ da Haar.}
+	\par \textbf{O critério de ordenação é $\bar{d}_{\text{pen}}$, e não
+	$\bar{d}$, e a diferença decide o vencedor da voz.} Pelo $\bar{d}$ isolado,
+	a melhor configuração da voz seria ``\tn{p00.voice.mind.label}''
+	($\bar{d} = \tn{p00.voice.mind.d}$, contra $\tn{p00.voice.winner.d}$ do
+	vencedor). O termo $\lambda|G_2|$ a penaliza por contradição e a leva a
+	$\bar{d}_{\text{pen}} = \tn{p00.voice.mind.dpen}$, acima dos
+	$\tn{p00.voice.winner.dpen}$ do vencedor. Por isso as duas colunas são
+	exibidas lado a lado.
 
-	\par O vencedor de cada sinal, marcado com $\dagger$, é escolhido
-	\emph{entre as duas famílias} (manual e \textit{autoencoder}), e não dentro
-	de cada tabela: para ambos os sinais venceu a extração manual com Haar +
-	LFCC (c1), de modo que a marca aparece apenas nas
-	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice}. A posição~\#1
-	das Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} é, portanto,
-	o melhor \textit{autoencoder}, não o vencedor da fase.
+	\par \textbf{Quão firme é a escolha.} A resposta difere entre os sinais, e a
+	diferença importa para a leitura de todo o resto.
+	\begin{itemize}
+		\item \textbf{No \ac{EEG}, a escolha é firme.} O vencedor tem o menor
+		$d_{\text{pen}}$ em \tn{p00.eegpron.stab.fold.wins} das
+		\tn{p00.eegpron.stab.fold.n} dobras na fala pronunciada e em
+		\tn{p00.eegimag.stab.fold.wins} das \tn{p00.eegimag.stab.fold.n} na
+		imaginada, e em todos os subconjuntos que deixam um locutor de fora. A
+		distância para o segundo colocado é de $\tn{p00.eegpron.margin}$ e
+		$\tn{p00.eegimag.margin}$.
+		\item \textbf{Na voz, a escolha é frágil.} A distância para o segundo
+		colocado é de apenas $\tn{p00.voice.margin}$, menor que o
+		$\sigma_{\text{loc}}$ do próprio vencedor ($\tn{p00.voice.winner.loso}$).
+		O vencedor tem o menor $d_{\text{pen}}$ em \tn{p00.voice.stab.fold.wins}
+		das \tn{p00.voice.stab.fold.n} dobras; nas outras
+		\tn{p00.voice.stab.fold.losses}, uma seleção feita só com os locutores de
+		treino teria escolhido outro extrator, e em uma delas o vencedor cai para
+		a \tn{p00.voice.stab.fold.worst}ª posição. Essa queda parece maior do que
+		é: as 55 melhores configurações da voz cabem em uma faixa de
+		$\tn{p00.voice.spread.top55}$ de $d_{\text{pen}}$, de modo que pequenas
+		variações trocam muitas posições.
+	\end{itemize}
+	\par O que varia entre as dobras, na voz, é a \textit{wavelet}. Os
+	\tn{p00.voice.stab.fold.alt} extratores que vencem alguma dobra no lugar do
+	vencedor são todos de Categoria~1 (sem a etapa cepstral), e
+	\tn{p00.voice.stab.fold.alt.linear} deles usam a escala linear. A afirmação
+	que os dados sustentam para a voz é, portanto, ``energias de banda sem etapa
+	cepstral, preferencialmente em escala linear'', e não ``a \textit{wavelet}
+	Haar é a melhor''. Como a Fase~01 usa o vencedor escolhido com todos os
+	locutores, há nela um viés de seleção otimista na voz; ele é pequeno diante
+	das diferenças discutidas adiante, mas existe e não foi removido.
 
-	As Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} comparam as
-	variantes de \textit{autoencoder} (ANN-AE e SNN-AE nas codificações direta,
-	de latência e de Poisson) para EEG e voz, respectivamente. As
-	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice} comparam as
-	configurações de características manuais (família \textit{wavelet}
-	$\times$ característica espectral $\times$ categoria) para EEG e voz.
-	Os dados das tabelas são gerados automaticamente pelo script
-	\texttt{software/nn/scripts/pipeline/thesis/\allowbreak thesis\_build\_phase00\_paraconsistent\_tables.py}
-	a partir dos arquivos \texttt{results/thesis/phase00/*\_summary.json}, e devem
-	ser regenerados sempre que a fase 00 for reexecutada; o script escreve apenas
-	os arquivos \texttt{.csv} em \texttt{tables/}.
+	\par \textbf{Os extratores automatizados ficam atrás do manual nos três
+	sinais.} O melhor \textit{autoencoder} é o \tn{p00.voice.best.ae.label} na
+	voz ($\bar{d}_{\text{pen}} = \tn{p00.voice.best.ae.dpen}$), o
+	\tn{p00.eegpron.best.ae.label} no \ac{EEG} de fala pronunciada
+	($\tn{p00.eegpron.best.ae.dpen}$) e o \tn{p00.eegimag.best.ae.label} no de
+	fala imaginada ($\tn{p00.eegimag.best.ae.dpen}$). A melhor \ac{PCA} é a de
+	$k = 8$ nos três, com $\tn{p00.voice.best.pca.dpen}$,
+	$\tn{p00.eegpron.best.pca.dpen}$ e $\tn{p00.eegimag.best.pca.dpen}$. O
+	extrator manual vencedor tem $\tn{p00.voice.winner.dpen}$,
+	$\tn{p00.eegpron.winner.dpen}$ e $\tn{p00.eegimag.winner.dpen}$. A distância
+	entre o manual e o melhor automatizado é de cerca de dez vezes o
+	$\sigma_{\text{loc}}$ de qualquer um deles: pelo critério paraconsistente, a
+	ordem entre as famílias não depende de quais locutores foram observados.
 
-	% Cria um longtable a partir de um CSV com colunas:
-	% rank,configuration,mean_d_penalized,mean_d_truth,std_d_truth,mean_alpha,mean_beta
-	% Ordenacao crescente por mean_d_penalized (menor = melhor); a linha vencedora
-	% do sinal traz \textsuperscript{$\dagger$} ja embutido na coluna rank pelo script.
-	% Cabeçalho e zebra striping vêm de chapters/data/visualStyle.tex (SSOT).
+	\par Dentro dos automatizados, três padrões se repetem nos três sinais.
+	\begin{itemize}
+		\item \textbf{A \ac{PCA} não fica atrás dos \textit{autoencoders}.} A
+		melhor \ac{PCA} tem $\bar{d}_{\text{pen}}$ menor que o melhor
+		\textit{autoencoder} nos três sinais, por margens da ordem do
+		$\sigma_{\text{rep}}$ dos \textit{autoencoders}. Comparando tamanho a
+		tamanho ($k = 8$, $16$ e $32$ contra os latentes \texttt{tiny},
+		\texttt{small} e \texttt{base}), a \ac{PCA} vence
+		\tn{p00.voice.size.pca_wins} das 3 comparações na voz,
+		\tn{p00.eegpron.size.pca_wins} no \ac{EEG} de fala pronunciada e
+		\tn{p00.eegimag.size.pca_wins} no de fala imaginada. O treino de um
+		modelo não linear não produziu, nesta dimensão e neste orçamento, uma
+		representação mais separável que uma projeção linear.
+		\item \textbf{O \textit{autoencoder} convencional fica à frente do de
+		pulsos.} As três variantes do \ac{ANN}-AE ocupam as três primeiras
+		posições das tabelas de \textit{autoencoder} nos três sinais.
+		\item \textbf{Entre as codificações do \ac{SNN}-AE, a de latência é a
+		melhor e a direta, a pior}, em média, nos três sinais --- o oposto do
+		que o ruído de cada codificação faria prever
+		(\autoref{sec:protocoloDuasFases}).
+	\end{itemize}
+
+	\par Os $\bar\beta$ dos extratores automatizados continuam altos --- de
+	$\tn{p00.voice.ae.beta.min}$ a $\tn{p00.voice.ae.beta.max}$ nos
+	\textit{autoencoders} da voz e de $\tn{p00.voice.pca.beta.min}$ a
+	$\tn{p00.voice.pca.beta.max}$ na \ac{PCA}, contra
+	$\tn{p00.voice.winner.beta}$ do manual ---, o que indica sobreposição
+	grande entre as classes. Como a \ac{PCA}, que não tem treino, chega a
+	valores iguais aos dos \textit{autoencoders}, essa sobreposição não pode ser
+	atribuída a um treino insuficiente: ela é da representação de dimensão $k$
+	do espectro desses sinais.
+
+
+	\par Os dados das tabelas são gerados pelo \textit{script}
+	\texttt{thesis\_build\_\allowbreak phase00\_\allowbreak paraconsistent\_\allowbreak tables.py}, em \texttt{software/nn/\allowbreak scripts/\allowbreak pipeline/\allowbreak thesis/},
+	a partir dos arquivos de resultado da Fase~00.
+
+	% Espaço após cada longtable deste capítulo. chapters/data/packages.tex fixa
+	% \LTpost em -30pt; sem esta compensação, uma tabela seguida de outra tabela
+	% (ou de uma legenda) é impressa por cima dela.
+	\newlength{\TableGap}
+	\setlength{\TableGap}{42pt}
+	% packages.tex sets \LTpre to 0pt, which glues a caption to the paragraph above.
+	\setlength{\LTpre}{\baselineskip}
+
+	% Longtable a partir de um CSV com colunas:
+	% rank,configuration,mean_d_penalized,std_d_penalized,loso_sd,fold_wins,
+	% mean_d_truth,mean_alpha,mean_beta
+	% As colunas são lidas PELA POSIÇÃO (\csvcoli ...). Se o script mudar a ordem
+	% ou o número de colunas do CSV, este cabeçalho tem de mudar junto: uma
+	% tabela com colunas trocadas compila sem erro algum.
 	\newcommand{\Phasezerotable}[3]{%
+		{\small
 		\tableZebraStripe
-		\begin{longtable}{@{}rlrrrrr@{}}
+		\begin{longtable}{@{}rlrrrrrrr@{}}
 			\caption{#2} \label{#3} \\
-			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\sigma_{\text{rep}}$} & \textbf{$\sigma_{\text{loc}}$} & \textbf{dobras} & \textbf{$\bar{d}$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\endfirsthead
-			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}_{\text{pen}}$} & \textbf{$\sigma_{\text{rep}}$} & \textbf{$\sigma_{\text{loc}}$} & \textbf{dobras} & \textbf{$\bar{d}$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\endhead
 			\endfoot
 			\bottomrule
 			\endlastfoot
 			\csvreader{#1}{}%
-				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
+				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii & \csvcolix \\}%
 		\end{longtable}%
+		}%
+		\vspace{\TableGap}%
 	}
 
-	\pendenteNota{As tabelas a seguir vêm da reexecução da Fase~00 de
-	2026-11-12: 214 execuções no GridUnesp, revisão \texttt{620ca751}, um
-	\textit{thread} por processo. Na execução de 2026-07-20, \texttt{base} e
-	\texttt{small} eram a mesma rede (32/32), porque a leitura das larguras de
-	camada tratava uma largura igual ao seu valor reserva como ``não
-	encontrada''. Agora \texttt{tiny}, \texttt{small} e \texttt{base} são três
-	redes distintas, com camada oculta/latente de 16/8, 32/16 e 64/32. As
-	Tabelas~\ref{tab:phase00pca_eeg} e~\ref{tab:phase00pca_voice} são novas e
-	trazem a \ac{PCA} com $k = 8, 16, 32$. Os parágrafos acima ainda não as
-	apresentam, e ainda falam do vencedor ``entre as duas famílias''. O
-	vencedor dos dois sinais continua sendo Haar + LFCC (c1).}
-
-	\Phasezerotable{tables/phase00_ae_eeg.csv}%
-		{Configurações de autoencoder (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
-		{tab:phase00ae_eeg}
 	\Phasezerotable{tables/phase00_ae_voice.csv}%
-		{Configurações de autoencoder (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{\textit{Autoencoders} (voz) ordenados por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
 		{tab:phase00ae_voice}
-	\Phasezerotable{tables/phase00_pca_eeg.csv}%
-		{Configurações de PCA (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
-		{tab:phase00pca_eeg}
+	\Phasezerotable{tables/phase00_ae_eegpron.csv}%
+		{\textit{Autoencoders} (EEG de fala pronunciada) ordenados por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00ae_eegpron}
+	\Phasezerotable{tables/phase00_ae_eegimag.csv}%
+		{\textit{Autoencoders} (EEG de fala imaginada) ordenados por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00ae_eegimag}
 	\Phasezerotable{tables/phase00_pca_voice.csv}%
-		{Configurações de PCA (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{PCA (voz) ordenada por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
 		{tab:phase00pca_voice}
-	\Phasezerotable{tables/phase00_hc_eeg.csv}%
-		{Configurações de características manuais (EEG) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
-		{tab:phase00hc_eeg}
+	\Phasezerotable{tables/phase00_pca_eegpron.csv}%
+		{PCA (EEG de fala pronunciada) ordenada por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00pca_eegpron}
+	\Phasezerotable{tables/phase00_pca_eegimag.csv}%
+		{PCA (EEG de fala imaginada) ordenada por $\bar{d}_{\text{pen}}$ crescente (menor = melhor)}%
+		{tab:phase00pca_eegimag}
 	\Phasezerotable{tables/phase00_hc_voice.csv}%
-		{Configurações de características manuais (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
+		{Características manuais (voz) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
 		{tab:phase00hc_voice}
+	\Phasezerotable{tables/phase00_hc_eegpron.csv}%
+		{Características manuais (EEG de fala pronunciada) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
+		{tab:phase00hc_eegpron}
+	\Phasezerotable{tables/phase00_hc_eegimag.csv}%
+		{Características manuais (EEG de fala imaginada) ordenadas por $\bar{d}_{\text{pen}}$ crescente (menor = melhor); $\dagger$ = vencedor do sinal}%
+		{tab:phase00hc_eegimag}
 
-	\section{Fase 01 --- Autenticação DSNN}
+	\section{Fase 01 --- Autenticação}
 	\label{chap:testsResults:sec:Fase01}
 
-	A Fase 01 treina a \ac{DSNN} de autenticação sobre a extração de
-	características vencedora da Fase 00 (Seção~\ref{chap:testsResults:sec:Fase00}:
-	\textit{handcrafted}, \textit{wavelet} Haar, LFCC, categoria c1, para EEG e
-	voz) e mede \ac{EER} e \ac{AUC} por dobra de validação cruzada. A Tabela~\ref{tab:phase01auth}
-	cobre as 32 configurações do experimento --- produto cartesiano de fonte
-	(EEG, voz, fusão precoce, fusão tardia) $\times$ modo de texto (dependente,
-	independente) $\times$ esquema de validação cruzada ($k$-fold plano,
-	$k$-fold aninhado) $\times$ padronização de características (bruto,
-	padronizado) --- ordenadas de forma crescente por \ac{EER} médio (menor é
-	melhor) sobre as três repetições de cada configuração. Os dados são gerados
-	automaticamente pelo script
-	\texttt{software/nn/scripts/pipeline/thesis/\allowbreak thesis\_build\_phase01\_auth\_tables.py}
-	a partir dos arquivos \texttt{results/thesis/phase01/*\_summary.json}, e
-	devem ser regenerados sempre que a fase 01 for reexecutada.
+	\par A Fase~01 treina o classificador sobre o extrator vencedor da Fase~00 e
+	mede \ac{EER} e \ac{AUC} por dobra de validação cruzada, em quatro conjuntos
+	de execuções (\autoref{sec:fase01}): a grade principal, os controles, a
+	disfonia simulada e a comparação de extratores. As tabelas são geradas pelo
+	\textit{script}
+	\texttt{thesis\_build\_\allowbreak phase01\_\allowbreak auth\_\allowbreak tables.py}, do mesmo diretório.
+	Em todas, o \ac{EER} é a média das três repetições, e $\sigma$ é o desvio
+	padrão entre elas. Um \ac{EER} de $0{,}5$ e uma \ac{AUC} de $0{,}5$
+	correspondem a um classificador que decide ao acaso.
 
-	\pendenteNota{A Tabela~\ref{tab:phase01auth} vem da reexecução da
-	Fase~01 de 2026-11-12: 96 de 96 processos no GridUnesp, revisão
-	\texttt{d74d44d0}, um processo de um \textit{thread} por configuração e
-	repetição. O parágrafo abaixo ainda traz os números de 2026-07-20. Esses
-	números são inválidos por três defeitos, corrigidos em 2026-11-12.
-	(i)~A interseção de índices que monta cada dobra descartava, sem aviso,
-	62\% do treino em média. (ii)~A varredura de limiar do \ac{EER} estava
-	invertida: 237 das 480 dobras tinham pares (\ac{EER}, \ac{AUC})
-	impossíveis para uma mesma curva ROC. (iii)~A validação aninhada treinava
-	com as frases que o modo independente de texto reserva ao teste. Na
-	reexecução, as 480 dobras satisfazem
-	$(1-\text{EER})^2 \le \text{AUC} \le 1 - \text{EER}^2$. As ordens por
-	\ac{EER} e por \ac{AUC} concordam em 486 dos 496 pares de configurações.
-	Para a reescrita: \textbf{melhor configuração} --- fusão tardia, dependente
-	de texto, $k$-fold plano, padronizado, com $\text{EER} = 0{,}1823$ e
-	$\text{AUC} = 0{,}8936$; longe do acaso, mas ainda longe de uma
-	autenticação prática. \textbf{Padrão~(i)} se mantém: as 12 primeiras
-	posições são EEG ou fusão padronizados, e a voz ocupa as posições 13 a 20
-	($\text{EER}$ de $0{,}2940$ a $0{,}3927$). \textbf{Padrão~(ii)} deixou de
-	valer: o $k$-fold plano supera o aninhado em 11 das 16 combinações.
-	\textbf{Padrão~(iii)} se inverteu: a padronização \emph{melhora} o
-	\ac{EER} em 14 das 16 combinações (média $0{,}2687$ contra $0{,}4343$ das
-	brutas). EEG e fusões brutos ficam perto do acaso ($0{,}43$ a $0{,}49$).
-	Na voz, a padronização quase não muda o resultado: as duas exceções
-	diferem em cerca de $0{,}005$. Não há divergência \ac{EER}--\ac{AUC} a
-	explicar. \textbf{Significância}: teste de Mann--Whitney, com correção de
-	Holm sobre 31 comparações, contra a melhor configuração (escolhida nos
-	mesmos dados), em
-	\texttt{results/thesis/phase01/cross\_profile\_significance\_\{eer,auc\}.csv}.
-	A melhor não difere significativamente de 9 das outras 11 configurações
-	EEG/fusão padronizadas, entre elas o EEG sozinho ($0{,}2360$). A vantagem
-	da fusão sobre o EEG isolado, portanto, não está estabelecida. As 8
-	configurações de voz diferem da melhor. Ressalva: as 15 dobras de cada
-	configuração (3 repetições $\times$ 5 dobras) reutilizam os mesmos dados e
-	não são independentes. Os $p$-valores são, por isso, otimistas: a
-	não-significância é robusta, e a significância, menos.}
+	\par \textbf{Como ler as comparações.} Cada configuração fornece 15 valores
+	de \ac{EER} (3 repetições $\times$ 5 dobras), que não são independentes entre
+	si. As comparações usam o teste $t$ corrigido para validação cruzada
+	repetida, com correção de Holm dentro de cada família de comparações, e as
+	famílias foram fixadas antes da execução (\autoref{sec:fase01}). Com 15
+	locutores, esse teste tem pouco poder: diferenças de \ac{EER} de vários
+	pontos percentuais podem não atingir significância. ``Não significativo''
+	deve ser lido, neste capítulo, como ``os dados não permitem afirmar'', e não
+	como ``não há diferença''.
 
-	A melhor configuração (fusão precoce, dependente de texto, $k$-fold plano,
-	características brutas) atinge $\text{EER} = 0{,}4534$ e
-	$\text{AUC} = 0{,}5452$ --- próximo do nível de acaso
-	($\text{EER} = 0{,}5$, $\text{AUC} = 0{,}5$ correspondem a um classificador
-	aleatório) e, portanto, ainda distante do desempenho necessário para uma
-	autenticação prática. Três padrões emergem da tabela completa: (i) EEG e as
-	fusões superam voz isoladamente nas configurações mais bem ranqueadas; (ii)
-	a validação cruzada em $k$-fold plano supera a aninhada dentro de cada
-	combinação de fonte/modo de texto; e (iii) a padronização de características
-	piora sistematicamente o \ac{EER} nesta fase, apesar de elevar o \ac{AUC} ---
-	uma divergência entre as duas métricas que sugere um limiar de decisão
-	inadequado sob padronização, e não necessariamente uma perda real de poder
-	discriminativo, ficando como investigação futura.
+	\subsection{Grade principal}
 
+	\par A Tabela~\ref{tab:phase01auth} traz as \tn{p01.n.grid} configurações da
+	grade --- fonte $\times$ modo de texto $\times$ esquema de validação cruzada
+	$\times$ padronização --- ordenadas por \ac{EER} crescente. A melhor
+	configuração da grade é ``\tn{p01.best.label}'', com
+	$\text{EER} = \tn{p01.best.eer}$ e $\text{AUC} = \tn{p01.best.auc}$: longe do
+	acaso, e ainda longe de uma autenticação utilizável na prática. Quatro
+	padrões emergem da tabela.
+
+	\par \textbf{(i) O \ac{EEG} e as fusões ficam à frente da voz.} A primeira
+	configuração de voz aparece na \tn{p01.voice.first_rank}ª posição
+	($\text{EER} = \tn{p01.voice.best.eer}$); todas as anteriores são de
+	\ac{EEG} ou de fusão com características padronizadas. A diferença é grande
+	em tamanho de efeito (o $d$ de Cohen das \tn{siggroup.vsvoice.n} comparações
+	com a voz vai de $\tn{sig.vsvoice_dep.d.max}$ a
+	$\tn{sig.vsvoice_indep.d.min}$), mas \emph{nenhuma} dessas comparações é
+	significativa após a correção ($p_{\text{Holm}} \ge
+	\tn{siggroup.vsvoice.pholm.min}$; o menor $p$ sem correção é
+	$\tn{siggroup.vsvoice.p.min}$). A vantagem do \ac{EEG} sobre a voz é,
+	portanto, uma tendência consistente, e não um resultado estabelecido. A
+	\autoref{sec:respostasQuestoes} discute por que ela pede cautela mesmo como
+	tendência.
+
+	\par \textbf{(ii) A fusão não se distingue do \ac{EEG} sozinho.} Com frases
+	vistas, a fusão tardia tem \ac{EER} de $\tn{p01.grid.lateimag.dep.flat.std.eer}$
+	(fala imaginada) e $\tn{p01.grid.latepron.dep.flat.std.eer}$ (pronunciada),
+	contra $\tn{p01.grid.eegimag.dep.flat.std.eer}$ e
+	$\tn{p01.grid.eegpron.dep.flat.std.eer}$ do \ac{EEG} sozinho. Nenhuma das
+	\tn{siggroup.fusion.n} comparações entre uma fusão e o \ac{EEG} da mesma
+	condição é significativa ($p_{\text{Holm}} \ge
+	\tn{siggroup.fusion.pholm.min}$), e com frases não vistas a ordem chega a se
+	inverter. A fusão supera a voz isolada na mesma medida em que o \ac{EEG} a
+	supera; os dados não mostram que somar a voz ao \ac{EEG} acrescente algo.
+
+	\par \textbf{(iii) A padronização é necessária.} As características
+	padronizadas têm \ac{EER} menor que as brutas em \tn{p01.std.better} das
+	\tn{p01.std.pairs} combinações de fonte, modo de texto e esquema de
+	validação. O efeito é pequeno na voz (média de $\tn{p01.std.voice.std}$
+	contra $\tn{p01.std.voice.raw}$) e decisivo no \ac{EEG} e nas fusões
+	($\tn{p01.std.eegfusion.std}$ contra $\tn{p01.std.eegfusion.raw}$): sem
+	padronização, essas fontes ficam entre $\tn{p01.std.eegfusion.raw.min}$ e
+	$\tn{p01.std.eegfusion.raw.max}$, perto do acaso. A explicação mais simples
+	é de escala: as energias de banda do \ac{EEG}, em unidades do amplificador,
+	têm ordens de grandeza muito diferentes entre si e das da voz, e sem
+	padronização as de maior valor dominam a entrada da rede. Essa explicação
+	não foi testada isoladamente.
+
+	\par \textbf{(iv) A validação plana dá \ac{EER} menor que a aninhada.} Isso
+	ocorre em \tn{p01.cv.flat_better} das \tn{p01.cv.pairs} combinações de fonte
+	e modo de texto com características padronizadas (média de
+	$\tn{p01.cv.mean.flat}$ contra $\tn{p01.cv.mean.nested}$). A direção é a
+	esperada: a aninhada reserva parte do treino para validação, e cada modelo
+	treina com menos dados. Como nenhum hiperparâmetro foi ajustado com os dados
+	de teste em nenhum dos dois esquemas, a validação plana não é, aqui, uma
+	estimativa otimista por seleção; a diferença mede o custo de reservar
+	dados.
+
+	\par \textbf{A condição do \ac{EEG} quase não muda o resultado.} O \ac{EEG}
+	de fala imaginada e o de fala pronunciada dão \ac{EER} próximos em todas as
+	fontes, e nenhuma das \tn{siggroup.cond.n} comparações entre as duas
+	condições é significativa ($p_{\text{Holm}} \ge
+	\tn{siggroup.cond.pholm.min}$). Para a proposta deste trabalho o achado é
+	favorável --- o \ac{EEG} de fala imaginada, que não exige fonação, autentica
+	tão bem quanto o de fala pronunciada ---, mas ele também é o que se esperaria
+	se o classificador estivesse reconhecendo características do registro de
+	\ac{EEG} que não dependem do que o sujeito faz. A
+	\autoref{sec:respostasQuestoes} retoma esse ponto.
+
+	% Colunas lidas pela posição: rank,configuration,mean_eer,std_eer,mean_auc,std_auc
 	\newcommand{\Phaseonetable}[3]{%
+		{\scriptsize\setlength{\tabcolsep}{2pt}
 		\tableZebraStripe
 		\begin{longtable}{@{}rlrrrr@{}}
 			\caption{#2} \label{#3} \\
@@ -210,166 +332,373 @@
 			\csvreader{#1}{}%
 				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
 		\end{longtable}%
+		}%
+		\vspace{\TableGap}%
 	}
 
 	\Phaseonetable{tables/phase01_auth.csv}%
-		{Configurações da Fase 01 (autenticação DSNN) ordenadas por EER médio}%
+		{Grade principal da Fase 01 (autenticação com a DSNN), ordenada por EER médio crescente}%
 		{tab:phase01auth}
+
+	\subsection{Controles: o que a rede de pulsos acrescenta}
+
+	\par A Tabela~\ref{tab:phase01controls} compara, para cada fonte e modo de
+	texto, a \ac{DSNN} com seus dois controles: a rede gêmea não pulsante
+	(\ac{ANN}), que difere dela apenas no neurônio, e o cosseno direto sobre as
+	características, sem rede alguma.
+
+	\par \textbf{A rede de pulsos não se distingue da rede gêmea.} A \ac{DSNN}
+	tem \ac{EER} menor que a \ac{ANN} em \tn{p01.ctrl.dsnn_better_ann} das
+	\tn{p01.ctrl.cells} combinações, com diferença média de
+	$\tn{p01.ctrl.dsnn_minus_ann.mean}$ (de $\tn{p01.ctrl.dsnn_minus_ann.min}$ a
+	$\tn{p01.ctrl.dsnn_minus_ann.max}$), e nenhuma das
+	\tn{siggroup.ctrl.ann.n} comparações é significativa ($p \ge
+	\tn{siggroup.ctrl.ann.p.min}$ mesmo sem correção). Trocar o neurônio de
+	pulso por uma ReLU não muda o desempenho de autenticação de forma
+	detectável.
+
+	\par \textbf{A rede acrescenta pouco ao extrator.} O cosseno direto tem
+	\ac{EER} médio de $\tn{p01.ctrl.mean.cosine}$, contra
+	$\tn{p01.ctrl.mean.dsnn}$ da \ac{DSNN} e $\tn{p01.ctrl.mean.ann}$ da
+	\ac{ANN}. A \ac{DSNN} é melhor em \tn{p01.ctrl.dsnn_better_cosine} das
+	\tn{p01.ctrl.cells} combinações, mas também aqui nenhuma das
+	\tn{siggroup.ctrl.cosine.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{siggroup.ctrl.cosine.pholm.min}$). A maior parte
+	do desempenho medido na Fase~01 já está nas características extraídas e
+	padronizadas; o classificador treinado contribui com uma melhora de alguns
+	pontos percentuais que os dados não permitem confirmar.
+
+	% Colunas: source,text,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,(energia: ver tab:phase01energy)
+	\par\medskip
+	{\footnotesize\setlength{\tabcolsep}{4pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}llrrrrr@{}}
+		\caption{EER da DSNN e dos dois controles, por fonte e modo de texto (validação plana, características padronizadas)} \label{tab:phase01controls} \\
+		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/phase01_controls.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	\subsection{Energia de inferência}
+
+	\par A Tabela~\ref{tab:phase01energy} traz a energia estimada por amostra de
+	teste para a \ac{DSNN} e para a rede gêmea, medida na passagem de teste
+	(\autoref{sec:fase01}), e a razão entre as duas sob a estimativa primária e
+	sob as cinco variações de hipótese.
+
+	\par \textbf{A rede de pulsos gasta mais energia que a gêmea, em todas as
+	hipóteses.} Na estimativa primária, a \ac{DSNN} gasta de
+	$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$ vezes a
+	energia da \ac{ANN} (na voz, $\tn{p01.energy.voice.dsnn.nj}$\,nJ contra
+	$\tn{p01.energy.voice.ann.nj}$\,nJ por amostra). A razão vai de
+	$\tn{p01.energy.ratio.all.min}$ a $\tn{p01.energy.ratio.all.max}$ conforme
+	a hipótese, e em nenhuma das combinações de fonte e hipótese a \ac{DSNN} é a
+	mais econômica. Contando apenas a aritmética, as duas redes quase empatam
+	(de $\tn{p01.energy.ratio.ops_nj.min}$ a $\tn{p01.energy.ratio.ops_nj.max}$
+	vezes); a diferença vem dos acessos à memória, que o modelo cobra a cada
+	evento de disparo.
+
+	\par A razão desse resultado é aritmética, e não um defeito da medição. A
+	rede gêmea faz uma única passagem; a \ac{DSNN} repete a sua por $T = 16$
+	passos de tempo, e só economiza onde os neurônios ficam em silêncio. Com
+	cerca de $\tn{p01.energy.voice.spikes}$ disparos por amostra em uma rede de
+	duas camadas de 128 neurônios, a atividade não é esparsa o bastante para
+	compensar os 16 passos. Como o \ac{EER} das duas redes não se distingue
+	(seção anterior), a escolha da rede de pulsos \textbf{não se justifica por
+	energia} nesta arquitetura e neste modelo de custo. O resultado vale para
+	uma estimativa analítica em tecnologia de 45\,nm, e não para um
+	\textit{hardware} neuromórfico específico, que não foi avaliado.
+
+	% Colunas: source,dsnn_spikes,dsnn_nj,dsnn_nj_as_executed,dsnn_nj_sram8k,
+	% dsnn_nj_sram32k,dsnn_nj_sram1m,dsnn_ops_nj,ann_nj,(5 colunas ANN),
+	% ratio_nj,ratio_nj_as_executed,ratio_nj_sram8k,ratio_nj_sram32k,
+	% ratio_nj_sram1m,ratio_ops_nj,holds
+	\par\medskip
+	{\scriptsize\setlength{\tabcolsep}{1.5pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}lrrrrrrrrr@{}}
+		\caption[Energia de inferência da DSNN e da rede gêmea]{Energia de inferência estimada por amostra (apenas o classificador; frases vistas, validação plana, características padronizadas). As seis últimas colunas são a razão DSNN/ANN sob cada hipótese: primária; primeira camada recalculada a cada passo; toda a memória em SRAM de 8\,KB, 32\,KB e 1\,MB; apenas aritmética} \label{tab:phase01energy} \\
+		\tableHeaderRow \textbf{Fonte} & \textbf{Disparos} & \textbf{DSNN (nJ)} & \textbf{ANN (nJ)} & \textbf{Prim.} & \textbf{Exec.} & \textbf{8\,KB} & \textbf{32\,KB} & \textbf{1\,MB} & \textbf{Aritm.} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Fonte} & \textbf{Disparos} & \textbf{DSNN (nJ)} & \textbf{ANN (nJ)} & \textbf{Prim.} & \textbf{Exec.} & \textbf{8\,KB} & \textbf{32\,KB} & \textbf{1\,MB} & \textbf{Aritm.} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/phase01_energy.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \csvcolix & \csvcolxv & \csvcolxvi & \csvcolxvii & \csvcolxviii & \csvcolxix & \csvcolxx \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	\subsection{Disfonia simulada}
+
+	\par A Tabela~\ref{tab:phase01dysphonia} mostra o \ac{EER} de cada fonte que
+	contém voz conforme a voz de teste é substituída pela sua versão sussurrada
+	(\autoref{sec:fase01}), do nível 0 (voz limpa) ao nível 1 (sussurro puro),
+	nos dois cenários: só as sondas degradadas, ou cadastro e sondas.
+
+	\par \textbf{A voz piora; as fusões quase não mudam.} Do nível 0 ao nível 1,
+	o \ac{EER} da voz sobe $\tn{p01.dysph.voice.probes.rise}$ quando só as sondas
+	são degradadas e $\tn{p01.dysph.voice.test.rise}$ quando o cadastro também é.
+	Nas fusões, a subida não passa de $\tn{p01.dysph.lateimag.test.rise}$. Esse
+	é o comportamento que motivou o trabalho: quando a voz se degrada, a fonte
+	que também tem \ac{EEG} se mantém.
+
+	\par Três ressalvas limitam essa leitura. Primeiro, nenhuma das
+	\tn{siggroup.dysph.n} comparações entre a voz limpa e o sussurro puro é
+	significativa ($p_{\text{Holm}} \ge \tn{siggroup.dysph.pholm.min}$): nem a
+	piora da voz está estabelecida. Segundo, a voz parte de um \ac{EER} já alto
+	($\tn{p01.grid.voice.dep.flat.std.eer}$), de modo que há pouco a perder; e
+	as fusões se mantêm porque seu desempenho já vinha quase todo do \ac{EEG}
+	(seção anterior), não porque as duas fontes se compensem. Terceiro, o
+	sussurro sintético remove a periodicidade e preserva os formantes; ele
+	modela uma voz soprosa ou afônica, e não a disfonia em geral. O experimento
+	mostra que o sistema não depende da periodicidade da voz; não mostra como
+	ele se comporta com locutores disfônicos reais.
+
+	% Colunas: source,scope,eer_l0,eer_l25,eer_l50,eer_l75,eer_l100
+	\par\medskip
+	{\small
+	\tableZebraStripe
+	\begin{longtable}{@{}llrrrrr@{}}
+		\caption{EER sob disfonia simulada, por nível de degradação da voz de teste (frases vistas, validação plana, características padronizadas)} \label{tab:phase01dysphonia} \\
+		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/phase01_dysphonia.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	\subsection{Extratores comparados pelo classificador}
+
+	\par A Fase~00 compara extratores sem treinar classificador algum. A
+	Tabela~\ref{tab:phase01extractors} faz a comparação que faltava: o melhor
+	extrator de cada família, segundo a Fase~00, alimenta a mesma \ac{DSNN},
+	para cada sinal e cada modo de texto.
+
+	\par \textbf{Pelo classificador, as três famílias não se distinguem.}
+	Nenhuma das \tn{siggroup.cmp.n} comparações entre o extrator manual e um
+	automatizado é significativa ($p_{\text{Holm}} \ge
+	\tn{siggroup.cmp.pholm.min}$; o menor $p$ sem correção é
+	$\tn{siggroup.cmp.p.min}$), e a direção da diferença muda de sinal para
+	sinal:
+	\begin{itemize}
+		\item na \textbf{voz}, os dois automatizados ficam a menos de três
+		pontos percentuais do manual, um de cada lado (com frases vistas,
+		$\tn{p01.cmp.voice.dep.hc.eer}$ para o manual,
+		$\tn{p01.cmp.voice.dep.ae.eer}$ para o \textit{autoencoder} e
+		$\tn{p01.cmp.voice.dep.pca.eer}$ para a \ac{PCA});
+		\item no \textbf{\ac{EEG} de fala pronunciada}, o manual fica à frente
+		($\tn{p01.cmp.eegpron.dep.hc.eer}$ contra
+		$\tn{p01.cmp.eegpron.dep.ae.eer}$ e $\tn{p01.cmp.eegpron.dep.pca.eer}$);
+		\item no \textbf{\ac{EEG} de fala imaginada}, os automatizados ficam à
+		frente ($\tn{p01.cmp.eegimag.dep.hc.eer}$ contra
+		$\tn{p01.cmp.eegimag.dep.ae.eer}$ e $\tn{p01.cmp.eegimag.dep.pca.eer}$).
+		O \ac{EER} da \ac{PCA} nessa condição é o menor de todo o experimento,
+		abaixo do da melhor configuração da grade principal
+		($\tn{p01.best.eer}$).
+	\end{itemize}
+
+	\par \textbf{O critério paraconsistente não antecipou esse resultado.} Na
+	Fase~00, o extrator manual ficou à frente do melhor automatizado por uma
+	margem cerca de dez vezes maior que a variação entre subconjuntos de
+	locutores, nos três sinais. Pelo \ac{EER}, essa vantagem não aparece na voz,
+	aparece no \ac{EEG} de fala pronunciada e se inverte no de fala imaginada. A
+	separabilidade medida por $D_{\text{penalizado}}$ e o desempenho de
+	verificação medido pelo \ac{EER} são, nestes dados, grandezas diferentes:
+	a primeira olha a amplitude e a sobreposição de cada característica entre
+	classes, uma a uma; a segunda, o que um classificador consegue combinar a
+	partir de todas elas. Um extrator pode ter características que
+	individualmente se sobrepõem muito e que, em conjunto, separam os locutores.
+	A consequência para o método é direta: o critério paraconsistente serviu
+	para escolher entre extratores de uma mesma família (as Questões~1 e~2), mas
+	não deve ser usado, sozinho, para comparar famílias diferentes.
+
+
+	% Colunas: signal,text,hc_extractor,hc_eer,hc_std,ae_extractor,ae_eer,ae_std,
+	% pca_extractor,pca_eer,pca_std
+	{\fontsize{7.4}{9}\selectfont\setlength{\tabcolsep}{2pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}ll@{\hspace{7pt}}rr@{\hspace{7pt}}lrr@{\hspace{7pt}}lrr@{}}
+		\caption[Extratores comparados pelo mesmo classificador]{EER do melhor extrator de cada família, pela mesma DSNN (validação plana, características padronizadas, 100 épocas). O extrator manual é o vencedor da Fase~00 (\tn{p00.voice.winner.label}) nos três sinais} \label{tab:phase01extractors} \\
+		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{EER manual} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{EER manual} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/phase01_extractors.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliv & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii & \csvcolix & \csvcolx & \csvcolxi \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
 
 	\section{Retomada das questões de pesquisa}
 	\label{sec:respostasQuestoes}
 
-	Esta seção confronta as quatro questões formuladas na
-	\autoref{chap:intro} com o que foi efetivamente medido. Duas delas são
-	respondidas pela Fase~00, uma pela Fase~01, e uma --- a Questão~3 --- só pode
-	ser respondida em parte, por uma limitação de desenho que se explicita adiante.
+	\par Esta seção confronta as quatro questões formuladas na
+	\autoref{chap:intro} com o que foi efetivamente medido. As duas primeiras são
+	respondidas pela Fase~00; a terceira, pelas duas fases; a quarta, pela
+	Fase~01. Ao final, discute-se uma ressalva que atravessa todos os resultados
+	de \ac{EEG}.
 
 	\subsection*{Questão 1 --- O agrupamento espectral influencia a representação?}
 
-	\par \textbf{Sim, mas fracamente, e apenas para a voz.} Restringindo a
-	comparação às representações de Categoria~1 do sinal de voz --- as únicas em
-	que o eixo é aplicável, pois no EEG as escalas Mel e Bark degeneram na linear
-	(\autoref{sec:escalaEeg}) --- a melhor configuração de cada escala é
-	$1{,}4835$ (LFCC, linear), $1{,}4972$ (Mel) e $1{,}5099$ (Bark) em
-	$\bar{d}_{\text{pen}}$. A ordem favorece consistentemente o particionamento
-	linear, mas a amplitude total entre as três escalas ($0{,}026$) é pequena
-	diante da diferença que separa as categorias (Questão~2) ou as famílias de
-	extrator (Questão~3). A leitura honesta é que a escala importa, e importa
-	menos do que se poderia supor: nenhuma das escalas cocleares compensou, na
-	voz, o custo de agrupar bandas de forma não uniforme.
+	\par \textbf{Sim, mas pouco, e a pergunta só se aplica à voz.} No \ac{EEG}
+	as escalas Mel e Bark degeneram na linear (\autoref{sec:escalaEeg}).
+	Restringindo a comparação às representações de Categoria~1 da voz, a melhor
+	configuração de cada escala tem $\bar{d}_{\text{pen}}$ de
+	$\tn{p00.voice.scale.linear.best}$ (linear),
+	$\tn{p00.voice.scale.mel.best}$ (Mel) e $\tn{p00.voice.scale.bark.best}$
+	(Bark). A ordem favorece o particionamento linear, mas a amplitude entre as
+	três escalas ($\tn{p00.voice.scale.spread}$) é da mesma ordem do
+	$\sigma_{\text{loc}}$ do vencedor ($\tn{p00.voice.winner.loso}$) e muito
+	menor que a diferença entre as categorias (Questão~2) ou entre as famílias
+	de extrator (Questão~3). A escala importa menos do que se poderia supor:
+	nenhuma das escalas cocleares compensou, na voz, o custo de agrupar bandas
+	de forma não uniforme, e a preferência pela linear não é firme o bastante
+	para ser afirmada como regra.
 
 	\subsection*{Questão 2 --- A transformação cepstral melhora a representação?}
 
-	\par \textbf{Não para a voz, onde ela degrada a representação de forma
-	inequívoca; para o EEG, o efeito é ambíguo.} Na voz, as 69 configurações de
-	Categoria~1 têm $\bar{d}_{\text{pen}}$ médio de $1{,}5247$ (melhor:
-	$1{,}4835$), contra $1{,}6285$ (melhor: $1{,}6068$) nas 69 configurações de
-	Categoria~2. A separação é \emph{total}, e não apenas de médias: a pior
-	configuração não cepstral ($1{,}5638$) ainda supera a melhor cepstral
-	($1{,}6068$), de modo que as duas categorias não se sobrepõem em nenhum ponto
-	do ranking. Como a única diferença entre cada par é a etapa de logaritmo mais
-	\ac{DCT}, o resultado é atribuível a ela.
+	\par \textbf{Não para a voz, onde ela piora a representação sem exceção; no
+	\ac{EEG}, o efeito é ambíguo.} Na voz, as \tn{p00.voice.c1.n} configurações
+	de Categoria~1 têm $\bar{d}_{\text{pen}}$ médio de $\tn{p00.voice.c1.mean}$
+	(melhor: $\tn{p00.voice.c1.best}$), contra $\tn{p00.voice.c2.mean}$ (melhor:
+	$\tn{p00.voice.c2.best}$) nas \tn{p00.voice.c2.n} de Categoria~2. A
+	separação é total, e não apenas de médias: a pior configuração não cepstral
+	($\tn{p00.voice.c1.worst}$) ainda supera a melhor cepstral, de modo que as
+	duas categorias não se sobrepõem em nenhum ponto do ranking. Como a única
+	diferença entre cada par é a etapa de logaritmo mais \ac{DCT}, o resultado é
+	atribuível a ela.
 
-	\par No EEG o quadro é distinto e não deve ser reportado como o mesmo achado:
-	a melhor configuração continua sendo de Categoria~1 ($1{,}5883$ contra
-	$1{,}6345$), mas na \emph{média} das 23 configurações de cada categoria as
-	duas praticamente empatam, com leve vantagem cepstral ($1{,}7921$ contra
-	$1{,}7980$). Ou seja, no EEG a etapa cepstral não custa desempenho de forma
-	sistemática --- ela apenas não produz o melhor extrator. A conclusão forte da
-	Questão~2 vale, portanto, para a voz, e não para ambos os sinais.
+	\par No \ac{EEG} o quadro é outro, nas duas condições. A melhor configuração
+	continua sendo de Categoria~1 ($\tn{p00.eegpron.c1.best}$ contra
+	$\tn{p00.eegpron.c2.best}$ na fala pronunciada; $\tn{p00.eegimag.c1.best}$
+	contra $\tn{p00.eegimag.c2.best}$ na imaginada), mas na \emph{média} das
+	\tn{p00.eegpron.c1.n} configurações de cada categoria as duas praticamente
+	empatam, com leve vantagem cepstral ($\tn{p00.eegpron.c2.mean}$ contra
+	$\tn{p00.eegpron.c1.mean}$, e $\tn{p00.eegimag.c2.mean}$ contra
+	$\tn{p00.eegimag.c1.mean}$). No \ac{EEG}, a etapa cepstral não custa
+	desempenho de forma sistemática; ela apenas não produz o melhor extrator. A
+	conclusão forte da Questão~2 vale para a voz, e não para os dois sinais.
 
-	\par Uma explicação plausível é que a \ac{DCT} concentra energia nos primeiros
-	coeficientes e descarta estrutura de banda fina que o critério paraconsistente
-	--- sensível à amplitude intraclasse --- justamente aproveita. Vale notar que
-	isso não contradiz a utilidade consagrada dos coeficientes cepstrais em
-	reconhecimento de fala: ali o objetivo é representar o \emph{conteúdo}
-	falado de forma robusta ao locutor, ao passo que aqui se busca exatamente o
-	oposto --- preservar o que distingue locutores. Uma etapa que normaliza
-	diferenças de trato vocal é benéfica no primeiro caso e prejudicial no segundo.
+	\par Uma explicação plausível é que a \ac{DCT} concentra energia nos
+	primeiros coeficientes e descarta estrutura de banda fina que o critério
+	paraconsistente --- sensível à amplitude intraclasse --- aproveita. Isso não
+	contradiz a utilidade dos coeficientes cepstrais em reconhecimento de fala:
+	ali o objetivo é representar o \emph{conteúdo} falado de forma robusta ao
+	locutor, ao passo que aqui se busca o oposto --- preservar o que distingue
+	locutores. Uma etapa que normaliza diferenças de trato vocal é benéfica no
+	primeiro caso e prejudicial no segundo. A explicação é uma hipótese; não foi
+	testada.
 
-	\subsection*{\pendenteMarca{Questão 3 --- Autoencoders superam as técnicas manuais?}}
+	\subsection*{Questão 3 --- Autoencoders superam as técnicas manuais?}
 
-	\pendenteNota{Questão ainda em aberto. O que segue responde apenas pelo
-	critério paraconsistente da Fase~00; a comparação das três categorias através
-	de um classificador comum --- a forma como a questão foi formulada no
-	\autoref{chap:intro} --- ainda precisa ser executada. Ver a limitação ao final
-	desta subseção e o encaminhamento no \autoref{chap:conclusions}.}
+	\par \textbf{Não superam; e, medidos pelo classificador, também não ficam
+	atrás.} A resposta depende de como se mede, e as duas medidas discordam.
 
-	\par \textbf{Não, segundo o critério paraconsistente --- mas a questão, como
-	originalmente formulada, não pôde ser respondida.} Pelo critério da Fase~00 a
-	resposta é inequívoca: a melhor configuração manual supera o melhor
-	\textit{autoencoder} com folga em ambos os sinais ($1{,}5883$ contra
-	$1{,}8491$ no EEG; $1{,}4835$ contra $1{,}8370$ na voz), e a extração manual
-	venceu a seleção para os dois. Nenhuma variante de \textit{autoencoder}, em
-	nenhum dos três tamanhos ou três codificações, chegou perto.
+	\par \emph{Pelo critério paraconsistente} (Fase~00), a extração manual vence
+	com folga nos três sinais: $\tn{p00.voice.winner.dpen}$ contra
+	$\tn{p00.voice.best.ae.dpen}$ do melhor \textit{autoencoder} na voz,
+	$\tn{p00.eegpron.winner.dpen}$ contra $\tn{p00.eegpron.best.ae.dpen}$ no
+	\ac{EEG} de fala pronunciada, e $\tn{p00.eegimag.winner.dpen}$ contra
+	$\tn{p00.eegimag.best.ae.dpen}$ no de fala imaginada. A \ac{PCA}, que não
+	tem treino, fica ligeiramente à frente do melhor \textit{autoencoder} nos
+	três.
 
-	\pendenteNota{Os números desta subseção são da execução de 2026-07-20. Na
-	reexecução de 2026-11-12, o manual tem $1{,}5883$ no EEG e $1{,}4836$ na
-	voz. O melhor \textit{autoencoder} tem $1{,}8873$ no EEG (SNN-AE
-	\textit{poisson}, \texttt{base}) e $1{,}8510$ na voz (SNN-AE
-	\textit{latency}, \texttt{tiny}). A conclusão do parágrafo acima continua
-	valendo. A frase sobre $\bar\beta$ mais abaixo (``acima de $0{,}97$ nas 24
-	configurações, e acima de $0{,}99$ em metade delas'') deixou de valer. No
-	EEG, $\bar\beta$ vai de $0{,}9729$ a $0{,}9807$: as 12 configurações passam
-	de $0{,}97$ e nenhuma passa de $0{,}99$. Na voz, vai de $0{,}9553$ a
-	$0{,}9793$: 8 das 12 passam de $0{,}97$ e nenhuma passa de $0{,}99$. A voz
-	Haar dá $1{,}4836$ no GridUnesp e $1{,}48355$ localmente com o mesmo
-	código: a diferença na quarta casa vem da máquina.}
+	\par \emph{Pelo desempenho de autenticação} (Fase~01,
+	Tabela~\ref{tab:phase01extractors}), as três famílias não se distinguem: o
+	manual tem \ac{EER} menor que o \textit{autoencoder} em
+	\tn{p01.cmp.hc_better_ae} das \tn{p01.cmp.cells} combinações de sinal e modo
+	de texto, e menor que a \ac{PCA} em \tn{p01.cmp.hc_better_pca}; nenhuma
+	diferença é significativa. A afirmação que os dados sustentam é que, nesta
+	base e com este classificador, \textbf{a extração automatizada atinge o
+	mesmo nível de autenticação que a manual}, com um vetor de 8 a 32
+	características.
 
-	\par A ressalva é de desenho experimental, e é importante o bastante para ser
-	registrada como limitação. A Questão~3 fora formulada supondo que as três
-	categorias seriam comparadas \emph{através de um mesmo classificador}. Não foi
-	o que ocorreu: a Fase~00 compara extratores sem treinar classificador algum, e
-	a Fase~01 treina apenas a combinação vencedora. As Categorias~1, 2 e 3 nunca
-	foram, portanto, confrontadas pelo desempenho de autenticação --- apenas pela
-	separabilidade paraconsistente. A conclusão acima é válida no escopo desse
-	critério e não deve ser lida como ``\textit{autoencoders} produzem pior
-	autenticação'', afirmação que este experimento não testou.
+	\par Duas observações completam a resposta. Primeiro, a \ac{PCA} acompanha
+	os \textit{autoencoders} nas duas medidas: tem \ac{EER} menor que o
+	\textit{autoencoder} em \tn{p01.cmp.pca_better_ae} das \tn{p01.cmp.cells}
+	combinações. O treino de um modelo não linear não se justificou diante de
+	uma projeção linear do mesmo espectro. Segundo, o \textit{autoencoder}
+	escolhido pela Fase~00 foi, nos três sinais, o convencional
+	(\tn{p00.voice.best.ae.label}), e não o de pulsos: o \ac{SNN}-AE não chegou
+	a ser levado ao classificador, e nada se pode afirmar sobre o seu desempenho
+	de autenticação.
 
-	\par Há ainda um agravante interpretativo. Os valores de $\bar\beta$ dos
-	\textit{autoencoders} são altíssimos --- acima de $0{,}97$ nas 24
-	configurações, e acima de $0{,}99$ em metade delas --- o que indica
-	sobreposição quase total entre classes, isto é, latentes próximos do colapso
-	discutido na \autoref{sec:dPenalizado}. O que a Fase~00 mediu pode ser menos
-	``\textit{autoencoders} são piores extratores'' e mais ``estes
-	\textit{autoencoders}, neste regime de treino, não aprenderam representações
-	discriminativas''. Distinguir as duas hipóteses exigiria variar orçamento de
-	treino e capacidade, o que não foi feito.
+	\par A comparação entre as duas medidas só existe porque a entrada dos
+	extratores automatizados foi corrigida (\autoref{sec:protocoloDuasFases}).
+	Com a entrada anterior, os automatizados ficavam no acaso nas duas medidas,
+	e a conclusão --- errada --- era que a extração manual os superava em
+	ambas.
 
-	\par Há um teste mais barato, e ele já faz parte do desenho: a \ac{PCA},
-	incluída como extrator linear de referência
-	(\autoref{sec:estruturaDaEstrategiaProposta}). Ela não tem regime de treino,
-	de modo que o resultado dela não pode ser atribuído a um treino insuficiente.
-	Se o latente da \ac{PCA}, na mesma dimensão, também apresentar $\bar\beta$
-	próximo de~1, a sobreposição é da representação de dimensão $k$ desses
-	sinais; se a \ac{PCA} separar as classes, a falha é do treino dos
-	\textit{autoencoders}.
 
-	\pendenteNota{A \ac{PCA} rodou na reexecução de 2026-11-12
-	(Tabelas~\ref{tab:phase00pca_eeg} e~\ref{tab:phase00pca_voice}). Ela foi
-	comparada ao melhor \textit{autoencoder} de mesma dimensão: $k = 8, 16, 32$
-	contra os latentes \texttt{tiny}, \texttt{small} e \texttt{base}. A
-	\ac{PCA} tem o menor $\bar{d}_{\text{pen}}$ nos seis pares. No EEG:
-	$1{,}8900$, $1{,}8822$ e $1{,}8774$, contra $1{,}8995$, $1{,}8920$ e
-	$1{,}8873$. Na voz: $1{,}8392$, $1{,}8424$ e $1{,}8576$, contra
-	$1{,}8510$, $1{,}8657$ e $1{,}8726$. Os $\bar\beta$ da \ac{PCA} também
-	ficam próximos de~1: $0{,}9763$ a $0{,}9783$ no EEG e $0{,}9455$ a
-	$0{,}9525$ na voz. Pelo critério enunciado acima, isso aponta para a
-	representação de dimensão $k$, e não para o treino dos
-	\textit{autoencoders}. Ressalva: as diferenças são de cerca de $0{,}01$,
-	da ordem do $\sigma_d$ dos \textit{autoencoders}. ``A \ac{PCA} não é pior''
-	é, portanto, mais seguro do que ``a \ac{PCA} é melhor''. Falta redigir
-	isso no texto e atualizar a limitação correspondente no
-	\autoref{chap:conclusions}.}
+	\subsection*{Questão 4 --- O desempenho é afetado pela dependência de texto?}
 
-	\subsection*{\pendenteMarca{Questão 4 --- O desempenho é afetado pela dependência de texto?}}
+	\par \textbf{Pouco, na direção esperada, e sem significância.} Os dois modos
+	treinam com as mesmas cinco frases e diferem apenas em o teste usar essas
+	frases ou outras cinco (\autoref{sec:fase01}). Com validação plana e
+	características padronizadas, o \ac{EER} médio das \tn{p01.text.sources}
+	fontes é de $\tn{p01.text.mean.seen}$ com frases vistas e
+	$\tn{p01.text.mean.unseen}$ com frases não vistas. As frases vistas dão
+	\ac{EER} menor em \tn{p01.text.seen_better} das \tn{p01.text.sources}
+	fontes; a diferença vai de $\tn{p01.text.delta.min}$ a
+	$\tn{p01.text.delta.max}$, e nenhuma das \tn{siggroup.text.n} comparações é
+	significativa ($p \ge \tn{siggroup.text.p.min}$). Como os conjuntos de teste
+	dos dois modos são diferentes, essas comparações não são pareadas e usam o
+	teste de Mann--Whitney, que trata as 15 dobras como independentes e é, por
+	isso, otimista: se nem ele encontra diferença, a ausência de efeito
+	detectável é robusta.
 
-	\pendenteNota{Esta resposta se apoia nos \ac{EER} da Fase~01 de
-	2026-07-20, que são inválidos (ver a nota da
-	\autoref{chap:testsResults:sec:Fase01}). A conclusão ``não de forma
-	perceptível'' deixou de valer na reexecução de 2026-11-12. Sobre as 16
-	configurações de cada modo, o \ac{EER} médio é $0{,}3406$ no dependente e
-	$0{,}3624$ no independente. Nas padronizadas, é $0{,}2481$ contra
-	$0{,}2893$. O modo dependente tem \ac{EER} menor em todas as 10
-	combinações que operam acima do acaso: as 8 padronizadas e as 2 de voz
-	bruta. A vantagem vai de $0{,}004$ a $0{,}066$. Nas 6 combinações brutas de
-	EEG e fusão, perto do acaso, o sinal se divide em 3 a 3. Entre as melhores
-	de cada modo ($0{,}1823$ contra $0{,}2482$, ambas fusão tardia, $k$-fold
-	plano e padronizadas), $d = 0{,}85$ e $p = 0{,}042$, mas
-	$p_{\text{Holm}} = 0{,}25$. Os dois modos não têm as mesmas dobras de
-	teste, de modo que não se pode usar um teste pareado. A ressalva de
-	pseudorreplicação da nota da Fase~01 vale aqui também.}
+	\par A leitura é que o sistema reconhece sobretudo o locutor, e não o
+	enunciado: testar com frases que a rede nunca viu custa, em média, pouco
+	mais de um ponto percentual de \ac{EER}. A ressalva é o alcance da
+	afirmação: os enunciados são vogais e palavras isoladas de um vocabulário de
+	onze itens, e ``frases não vistas'' significa, aqui, outros itens desse
+	mesmo vocabulário, ditos pelos mesmos locutores na mesma gravação.
 
-	\par \textbf{Não de forma perceptível.} Sobre as 16 configurações de cada
-	nível, o \ac{EER} médio é $0{,}5923$ no modo dependente de texto e $0{,}5913$
-	no independente --- uma diferença de $0{,}001$, muito menor que o desvio
-	padrão entre repetições de uma única configuração. As melhores configurações
-	de cada modo também praticamente empatam ($0{,}4534$ contra $0{,}4651$).
+	\subsection*{Uma ressalva sobre os resultados de EEG}
 
-	\par Esse resultado precisa ser lido com cautela, e a cautela é a mesma que
-	atravessa toda a Fase~01: com o desempenho global tão próximo do acaso
-	(\autoref{chap:testsResults}), a ausência de diferença entre os dois modos é
-	pouco informativa. Dois classificadores que não discriminam não se distinguem
-	entre si. A questão permanece, na prática, em aberto: só faria sentido
-	reavaliá-la sobre um sistema que primeiro demonstrasse desempenho de
-	autenticação acima do acaso.
+	\par O \ac{EEG} supera a voz em todas as comparações deste capítulo, e a
+	condição do \ac{EEG} --- fala pronunciada ou imaginada --- quase não importa.
+	Antes de ler isso como ``o \ac{EEG} é melhor biometria que a voz'', é preciso
+	considerar uma explicação mais simples, que este experimento não consegue
+	descartar: o classificador pode estar reconhecendo \textbf{a gravação}, e
+	não a pessoa.
+
+	\par Em um registro de \ac{EEG}, a impedância de cada eletrodo, a posição da
+	touca e o ruído do ambiente são fixos durante uma sessão e mudam entre
+	sessões. A base não distingue sessões de gravação por sujeito; se todas as
+	tentativas de um sujeito vêm de uma única sessão, essas características identificam a sessão
+	tão bem quanto identificariam a pessoa, e nenhuma divisão dos dados em
+	treino e teste as separa. Dois resultados deste trabalho são compatíveis com
+	essa leitura: um classificador linear identifica o sujeito a partir do
+	espectro bruto do \ac{EEG} com acurácia de $\tn{aeinput.eeg.new.all}$
+	(\autoref{tab:aeInput}), sem nenhum aprendizado de representação; e o
+	\ac{EER} é praticamente o mesmo quer o sujeito fale, quer imagine. Na voz, o
+	problema equivalente é menor, porque a gravação de áudio de um locutor
+	depende menos da montagem.
+
+	\par Distinguir as duas explicações exige gravações do mesmo sujeito em dias
+	diferentes, que a base não tem. Os resultados de \ac{EEG} e de fusão deste
+	capítulo devem ser lidos, portanto, como um \textbf{limite superior} do que
+	se obteria entre sessões.
+
+	\setlength{\LTpre}{0pt}

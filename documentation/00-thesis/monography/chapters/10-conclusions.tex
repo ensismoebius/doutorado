@@ -2,65 +2,78 @@
 
 	\section{Síntese dos resultados}
 
-		\par Esta tese investigou a autenticação biométrica combinando fala fonada
-		e fala imaginada, comparando extração manual de características
-		(\ac{DTWPT} com agrupamento energético) e extração automatizada
-		(\textit{autoencoders}), com seleção conduzida pela engenharia
-		paraconsistente de características e classificação por uma rede neural de
-		pulso residual profunda (\ac{DSNN}). O experimento foi organizado em duas
-		fases: 208 execuções de \textit{ranking} na Fase~00 e 32 execuções de
-		autenticação na Fase~01, cada uma repetida três vezes.
+		\par Esta tese investigou a autenticação biométrica combinando voz e
+		\ac{EEG}, comparando extração manual de características (\ac{DTWPT} com
+		agrupamento energético) e extração automatizada (\textit{autoencoders}
+		e \ac{PCA}), com seleção conduzida pela engenharia paraconsistente de
+		características e classificação por uma rede neural de pulso residual
+		(\ac{DSNN}). O experimento foi organizado em duas fases:
+		\tn{p00.n.total} configurações de \textit{ranking} na Fase~00 e
+		\tn{p01.n.total} de autenticação na Fase~01, cada uma repetida três
+		vezes.
 
-		\par \textbf{A extração manual venceu a seleção paraconsistente para os
-		dois sinais}, com a mesma configuração --- \textit{wavelet} Haar, escala
-		linear (\ac{LFCC}), Categoria~1 --- em voz e EEG. Nenhuma das 24 variantes
-		de \textit{autoencoder} se aproximou do melhor extrator manual
-		(\autoref{sec:respostasQuestoes}). A convergência dos dois sinais sobre a
-		mesma configuração é, em si, um resultado: a \textit{wavelet} mais simples
-		do conjunto avaliado, com o particionamento espectral mais simples,
-		superou 22 famílias \textit{Daubechies} e dois esquemas cocleares.
+		\par \textbf{A extração manual venceu a seleção paraconsistente nos três
+		sinais}, com a mesma configuração --- \textit{wavelet} Haar, energias de
+		banda em escala linear, sem etapa cepstral --- na voz, no \ac{EEG} de
+		fala pronunciada e no de fala imaginada. No \ac{EEG} a escolha é firme:
+		o vencedor é o mesmo em todos os subconjuntos de locutores avaliados. Na
+		voz ela é frágil quanto à \textit{wavelet} (o vencedor se mantém em
+		\tn{p00.voice.stab.fold.wins} das \tn{p00.voice.stab.fold.n} dobras) e
+		firme quanto à categoria: todo extrator que vence alguma dobra dispensa a
+		etapa cepstral.
 
-		\pendenteNota{Os números de autenticação deste parágrafo e do seguinte
-		vêm da Fase~01 de 2026-07-20 e são inválidos (ver a nota da
-		\autoref{chap:testsResults:sec:Fase01}). Na reexecução de 2026-11-12, o
-		``resultado negativo'' deixou de valer. A melhor configuração (fusão
-		tardia, dependente de texto, $k$-fold plano, padronizado) atinge
-		$\text{EER} = 0{,}1823$ e $\text{AUC} = 0{,}8936$, longe do acaso, mas
-		ainda longe de uma autenticação prática. Ela não difere
-		significativamente do EEG sozinho padronizado ($0{,}2360$), e toda a voz
-		fica atrás ($0{,}2940$ a $0{,}3927$). A padronização melhora o \ac{EER}
-		em 14 das 16 combinações, e sem ela EEG e fusões ficam perto do acaso.
-		A divergência \ac{EER}--\ac{AUC} sob padronização era efeito da
-		varredura invertida e não existe na reexecução.
-		A frase sobre as 24 variantes de \textit{autoencoder} acima continua
-		valendo na reexecução da Fase~00 de 2026-11-12. O melhor
-		\textit{autoencoder} tem $1{,}8873$ no EEG e $1{,}8510$ na voz, contra
-		$1{,}5883$ e $1{,}4836$ do manual. A Fase~00 agora tem 214 execuções,
-		e não 208: entraram 6 de \ac{PCA}.}
+		\par \textbf{Os extratores automatizados perdem pelo critério
+		paraconsistente e empatam pelo classificador.} Na Fase~00, nenhum
+		\textit{autoencoder} e nenhuma \ac{PCA} se aproximou do extrator manual.
+		Levados ao mesmo classificador, o melhor de cada família atinge \ac{EER}
+		que não se distingue do manual em nenhum dos três sinais, e no \ac{EEG}
+		de fala imaginada a \ac{PCA} com oito componentes tem o menor \ac{EER} de
+		todo o experimento ($\tn{p01.cmp.eegimag.dep.pca.eer}$). Duas
+		consequências: a \ac{PCA}, sem treino, acompanha os \textit{autoencoders}
+		nas duas medidas; e o critério paraconsistente, útil para ordenar
+		extratores de uma mesma família, não antecipou o desempenho relativo
+		entre famílias.
 
-		\par \textbf{O desempenho de autenticação, porém, permaneceu próximo do
-		acaso.} A melhor das 32 configurações da Fase~01 --- fusão precoce,
-		dependente de texto, $k$-fold plano, características brutas --- atingiu
-		$\text{EER} = 0{,}4534$ e $\text{AUC} = 0{,}5452$, contra $0{,}5$ e $0{,}5$
-		de um classificador aleatório. Nenhuma configuração ficou
-		substancialmente abaixo desse patamar. Trata-se, portanto, de um
-		\textbf{resultado negativo}: nas condições avaliadas, o sistema proposto
-		não sustenta autenticação prática, e as conclusões desta tese devem ser
-		lidas sob essa limitação central.
 
-		\par Registre-se, ainda assim, o que o experimento indicou dentro desse
-		regime: o EEG e as fusões superaram a voz isolada entre as configurações
-		mais bem colocadas, o que é consistente com a motivação original de
-		complementar a fala degradada com sinal cerebral; e a padronização das
-		características piorou sistematicamente o \ac{EER} enquanto elevava o
-		\ac{AUC}, divergência que sugere um problema de calibração de limiar e
-		não de poder discriminativo.
+		\par \textbf{A autenticação opera acima do acaso, e longe de um uso
+		prático.} A melhor configuração da grade principal da Fase~01 ---
+		\tn{p01.best.label} ---
+		atinge $\text{EER} = \tn{p01.best.eer}$ e
+		$\text{AUC} = \tn{p01.best.auc}$. O \ac{EEG} e as fusões ficam à frente
+		da voz ($\tn{p01.voice.best.eer}$ na melhor configuração de voz), com
+		tamanho de efeito grande, mas nenhuma dessas diferenças é
+		estatisticamente significativa com 15 locutores. A fusão de voz e
+		\ac{EEG} não se distingue do \ac{EEG} sozinho, e o \ac{EEG} de fala
+		imaginada não se distingue do de fala pronunciada.
+
+		\par \textbf{A rede de pulsos não se justificou, nem por desempenho nem
+		por energia.} Sua gêmea não pulsante, com o mesmo grafo e os mesmos
+		pesos iniciais, atinge \ac{EER} que não se distingue do dela, e gasta de
+		$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$ vezes
+		\emph{menos} energia por amostra na estimativa primária; em nenhuma das
+		hipóteses de custo avaliadas a rede de pulsos é a mais econômica. Um
+		classificador sem rede alguma --- o cosseno direto sobre as
+		características --- fica a poucos pontos percentuais das duas redes,
+		diferença que também não é significativa. A maior parte do desempenho
+		medido vem do extrator e da padronização das características, sem a qual
+		o \ac{EEG} e as fusões ficam perto do acaso.
+
+		\par \textbf{Sob disfonia simulada, a voz piora e as fusões se mantêm},
+		que é o comportamento que motivou o trabalho. A evidência é fraca: a
+		piora da voz não é significativa, as fusões se mantêm porque já dependiam
+		pouco da voz, e o sussurro sintético modela apenas a perda de
+		periodicidade.
+
+		\par \textbf{Ver ou não a frase no treino muda pouco}: o \ac{EER} médio
+		passa de $\tn{p01.text.mean.seen}$ (frases vistas) a
+		$\tn{p01.text.mean.unseen}$ (frases não vistas), sem diferença
+		significativa em nenhuma fonte.
 
 	\section{Contribuições}
 
-		\par Além dos resultados experimentais, três contribuições de natureza
-		metodológica emergiram do trabalho, todas motivadas por defeitos
-		detectados durante a própria execução:
+		\par Além dos resultados experimentais, as contribuições deste trabalho
+		são de método, e várias nasceram de defeitos detectados durante a
+		própria execução:
 
 		\begin{enumerate}
 			\item \textbf{A métrica $D_{\text{penalizado}}$}
@@ -70,68 +83,85 @@
 			extratores genuinamente separáveis. A correção proposta soma um termo
 			$\lambda|G_2|$ proporcional ao grau de contradição, com
 			$\lambda = 2-\sqrt{2}$ escolhido de modo que os três vértices
-			degenerados sejam penalizados igualmente. A métrica é função apenas de
-			$\alpha$ e $\beta$, e pôde ser aplicada retroativamente sem reexecutar
-			experimento algum.
+			degenerados sejam penalizados igualmente. Nos resultados desta tese, é
+			a penalização que decide o vencedor da voz
+			(\autoref{chap:testsResults:sec:Fase00}).
 
-			\item \textbf{O diagnóstico do piso de ruído das codificações
-			temporais} (\autoref{sec:protocoloDuasFases}). A ordem observada entre
-			as codificações --- \texttt{direct} $\succ$ \texttt{latency} $\succ$
-			\texttt{poisson} --- coincide exatamente com a ordem prevista pelo
-			ruído que cada codificação injeta \emph{antes} de qualquer aprendizado,
-			calculável em fechado ($\sigma_{\text{poisson}} = 0{,}125$ para
-			$T=16$). Como $\alpha$ é definido a partir da amplitude intraclasse, ele
-			é estruturalmente incapaz de separar ``o codificador não aprendeu'' de
-			``esta codificação tem piso estatístico irredutível''. A conclusão
-			metodológica é que a comparação entre codificações temporais sob este
-			critério exige controlar $T$, e não apenas medir.
+			\item \textbf{A medida da incerteza da seleção paraconsistente.} O
+			critério é determinístico para extratores determinísticos, e o desvio
+			entre repetições, nulo, nada informa. Pontuar cada extrator em
+			subconjuntos de locutores --- os que deixam um locutor de fora e os
+			conjuntos de treino de cada dobra da etapa seguinte --- mostra o quanto
+			a escolha depende dos locutores observados e expõe o viés de selecionar
+			o extrator com os mesmos locutores usados depois no teste.
 
-			\item \textbf{A aplicação da engenharia paraconsistente à seleção de
-			extratores}, com um protocolo em duas fases que separa a escolha da
-			representação da medição de desempenho, evitando que a seleção do
-			extrator seja contaminada pela capacidade do classificador.
+			\item \textbf{Um protocolo com controles que isolam o que cada
+			componente acrescenta}: a rede gêmea não pulsante, que difere da
+			\ac{DSNN} apenas no neurônio; o cosseno direto, que remove a rede; os
+			dois modos de texto com o mesmo conjunto de treino; e a energia de
+			inferência medida na passagem de teste em vez de presumida. Foram esses
+			controles que mostraram que a rede de pulsos não contribui de forma
+			detectável nesta tarefa --- um resultado que o \ac{EER} da \ac{DSNN},
+			sozinho, não revelaria.
+
+			\item \textbf{O registro de três defeitos silenciosos e de como foram
+			detectados.} O \ac{EEG} lido da tentativa anterior
+			(\autoref{sec:baseDeSinais}), a entrada sem informação de locutor dos
+			extratores automatizados (\autoref{sec:protocoloDuasFases}) e a
+			previsão do piso de ruído das codificações temporais, ``confirmada''
+			por dados que não mediam outra coisa (\autoref{sec:protocoloDuasFases}),
+			têm em comum não produzirem erro algum: todo o \textit{pipeline} roda,
+			converge e entrega números plausíveis. Os dois primeiros foram
+			confirmados por verificações externas ao \textit{pipeline} --- a
+			contagem de tentativas por modalidade na base e um classificador linear
+			sobre a entrada do extrator ---, e o terceiro só apareceu quando a
+			entrada foi corrigida. Desde então, a entrada dos extratores
+			automatizados é comparada com bibliotecas de referência em testes
+			automatizados, e as afirmações do \autoref{chap:testsResults} são
+			conferidas contra os resultados a cada geração do texto.
 		\end{enumerate}
 
 	\section{Limitações}
 
 		\par A limitação dominante é o \textbf{tamanho da base}: 15 locutores e
-		1974 amostras. Sob protocolo de verificação, com partições disjuntas por
-		locutor, cada dobra treina com um número de identidades muito aquém do
-		usual em biometria de voz, e o risco de o classificador não dispor de sinal
-		suficiente para generalizar é alto --- hipótese compatível com o
-		desempenho próximo do acaso observado.
+		\tn{aeinput.trials} tentativas com voz. Sob protocolo de verificação, com
+		partições disjuntas por locutor, cada dobra testa três locutores. A
+		consequência mais direta está nos testes de significância: diferenças de
+		\ac{EER} de até dez pontos percentuais, com tamanho de efeito grande,
+		não atingem significância. Quase todas as conclusões comparativas desta
+		tese são, por isso, da forma ``os dados não permitem distinguir'', e não
+		``não há diferença''.
 
-		\pendenteNota{Na reexecução de 2026-11-12, o desempenho já não fica
-		próximo do acaso (melhor $\text{EER} = 0{,}1823$). O tamanho da base
-		continua sendo a limitação dominante, mas o argumento precisa ser
-		reescrito: a base é pequena demais para chegar a uma autenticação
-		prática, e não pequena demais para haver algum sinal.}
-
-		\par Três limitações de desenho devem acompanhar qualquer leitura dos
-		resultados:
+		\par Outras limitações devem acompanhar qualquer leitura dos resultados:
 
 		\begin{itemize}
-			\item as três categorias de representação \textbf{não} foram
-			comparadas através de um classificador comum, apenas pelo critério
-			paraconsistente, de modo que a Questão~3 não foi respondida na forma em
-			que fora originalmente formulada (\autoref{sec:respostasQuestoes});
-			\item os \textit{autoencoders} apresentaram $\bar\beta$ acima de
-			$0{,}97$ em todas as configurações, indicando latentes próximos do
-			colapso; não se pode distinguir, com os dados disponíveis, ``pior
-			extrator'' de ``treino insuficiente'';
-			\pendenteNota{Este item deixou de valer na reexecução de 2026-11-12.
-			Na voz, só 8 das 12 configurações passam de $0{,}97$. Além disso, a
-			\ac{PCA}, que não tem treino, chega a $\bar\beta$ igualmente alto e
-			não fica atrás de nenhum \textit{autoencoder} de mesma dimensão.
-			Ver a nota ao final da Questão~3 em
-			\autoref{sec:respostasQuestoes}.}
-			\item a Questão~4 (dependência de texto) foi avaliada sobre um sistema
-			que opera no nível do acaso, o que torna a ausência de diferença entre
-			os modos pouco informativa.
-			\pendenteNota{Este item deixou de valer na reexecução de 2026-11-12.
-			O modo dependente de texto tem \ac{EER} menor em todas as 10
-			combinações acima do acaso. Ver a nota da Questão~4 em
-			\autoref{sec:respostasQuestoes}.}
+			\item \textbf{Sessão única de \ac{EEG}.} A base não tem gravações do
+			mesmo sujeito em dias diferentes. Os resultados de \ac{EEG} e de fusão
+			podem refletir características da gravação --- impedância dos
+			eletrodos, posição da touca, ruído do ambiente --- e não apenas do
+			sujeito, e devem ser lidos como limite superior do desempenho entre
+			sessões (\autoref{sec:respostasQuestoes});
+			\item \textbf{O \ac{EEG} de fala imaginada não é simultâneo à voz.} Ele
+			vem de outra tentativa do mesmo locutor e do mesmo enunciado. A fusão
+			com fala imaginada combina, portanto, dois momentos distintos;
+			\item \textbf{A disfonia é simulada}, por um modelo de voz sussurrada
+			que remove a periodicidade e preserva os formantes. Nenhum locutor
+			disfônico foi avaliado;
+			\item \textbf{O extrator é escolhido com todos os locutores}, inclusive
+			os de teste da Fase~01. O viés é nulo no \ac{EEG}, onde a escolha é a
+			mesma em todas as dobras, e existe na voz;
+			\item \textbf{A energia é estimada}, por um modelo analítico em
+			tecnologia de 45\,nm, e cobre apenas o classificador. Nenhum
+			\textit{hardware} neuromórfico foi avaliado, e o custo do extrator de
+			características --- que, para a \ac{DTWPT} de um sinal de 176400
+			amostras, provavelmente domina o do classificador --- não foi medido;
+			\item \textbf{O vocabulário é pequeno}: onze enunciados, entre vogais e
+			palavras isoladas. ``Frases não vistas'' significa outros itens desse
+			mesmo vocabulário;
+			\item \textbf{Os hiperparâmetros não foram ajustados.} A arquitetura e
+			o treino do classificador são os mesmos em todas as configurações, sem
+			regularização. Os resultados descrevem essa configuração, e não o
+			melhor que cada família de modelo poderia atingir.
 		\end{itemize}
 
 	\section{Trabalhos futuros}
@@ -139,30 +169,38 @@
 		\par O encaminhamento mais direto decorre das limitações acima:
 
 		\begin{enumerate}
-			\item \textbf{Ampliar a base}, em número de locutores antes que em
-			amostras por locutor: sob protocolo de verificação, é a contagem de
-			identidades que limita o que o classificador pode aprender a
-			discriminar.
+			\item \textbf{Avaliar entre sessões.} Uma base com gravações do mesmo
+			sujeito em dias diferentes é o único modo de separar o que identifica a
+			pessoa do que identifica a gravação, e é a condição para qualquer
+			afirmação sobre o \ac{EEG} como biometria;
 
-			\item \textbf{Testar o piso de ruído em $T=64$.} Como o piso decresce
-			com $1/T$, quadruplicar o número de passos reduz
-			$\sigma_{\text{poisson}}$ a $0{,}0625$. Se a desvantagem da codificação
-			\texttt{poisson} encolher proporcionalmente, ela era artefato de
-			medição; se persistir, é propriedade da codificação. O teste decide uma
-			questão que a Fase~00 deixou explicitamente em aberto.
+			\item \textbf{Ampliar o número de locutores}, antes do número de
+			amostras por locutor: é a contagem de identidades que limita tanto o
+			que o classificador aprende quanto o poder dos testes estatísticos;
 
-			\item \textbf{Comparar as três categorias através do classificador},
-			estendendo a Fase~01 para além da combinação vencedora, de modo a
-			responder à Questão~3 na forma originalmente pretendida.
+			\item \textbf{Avaliar locutores disfônicos reais}, ou, na falta deles,
+			modelos de degradação que cubram rouquidão, aspereza e tremor, além da
+			voz soprosa;
 
-			\item \pendenteMarca{Item a remover:} a divergência foi explicada
-			pela varredura invertida do \ac{EER}, corrigida em 2026-11-12.
-			\textbf{Investigar a divergência EER--AUC sob padronização},
-			verificando a hipótese de calibração de limiar --- se confirmada, a
-			padronização passaria de prejudicial a benéfica mediante ajuste do
-			limiar de decisão.
+			\item \textbf{Testar a hipótese sobre as codificações temporais},
+			variando o número de passos $T$ e o limiar de disparo do \ac{SNN}-AE
+			com o restante fixo, para decidir se a desvantagem da codificação
+			direta vem da falta de integração temporal
+			(\autoref{sec:protocoloDuasFases});
 
-			\item \textbf{Variar orçamento de treino e capacidade dos
-			\textit{autoencoders}}, para separar ``pior extrator'' de ``treino
-			insuficiente'' e permitir uma comparação justa com a extração manual.
+			\item \textbf{Medir a energia do sistema completo}, incluindo o
+			extrator, e em \textit{hardware} neuromórfico, onde o custo de um
+			disparo difere do estimado aqui; e avaliar redes de pulso com atividade
+			mais esparsa, condição em que a comparação com a rede convencional pode
+			se inverter;
+
+			\item \textbf{Entender a discordância entre o critério paraconsistente
+			e o \ac{EER}}, medindo, sobre muitos extratores, a correlação entre
+			$D_{\text{penalizado}}$ e o desempenho de verificação, e avaliando
+			variantes do critério que considerem as características em conjunto, e
+			não uma a uma;
+
+			\item \textbf{Levar o \ac{SNN}-AE ao classificador} e ajustar orçamento
+			de treino e capacidade dos \textit{autoencoders}, para decidir se algum
+			modelo não linear supera a \ac{PCA} sobre a mesma entrada.
 		\end{enumerate}

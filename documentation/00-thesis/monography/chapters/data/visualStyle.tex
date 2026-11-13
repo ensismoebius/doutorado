@@ -128,3 +128,33 @@
 \newcommand{\pendenteMarca}[1]{\colorbox{pendenteColor}{#1}}
 \newcommand{\pendenteNota}[1]{%
 	\par\noindent\colorbox{pendenteColor}{\textbf{[PENDENTE]}}\hspace{0.4em}\textit{#1}\par}
+
+% ── Números citados no texto ───────────────────────────────────────────────
+% PROBLEMA. As tabelas de resultados são lidas de CSVs e acompanham uma
+% reexecução; as frases em volta delas, não. Um número digitado à mão falha em
+% silêncio: o PDF compila e nada avisa que ele descreve um experimento que já
+% não existe (o resumo chegou a citar um EER de julho ao lado de tabelas de
+% novembro).
+%
+% SOLUÇÃO. tables/thesis_numbers.tex é GERADO por
+% software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py a partir
+% dos resultados, e define um valor por chave. O texto cita a chave:
+%
+%   \tn{p01.best.eer}     ->  0{,}2205   (vírgula decimal; texto em português)
+%   \tnen{p01.best.eer}   ->  0.2205     (ponto decimal; abstract em inglês)
+%
+% Uma chave inexistente é ERRO de compilação, e não um espaço em branco: uma
+% frase não sobrevive ao resultado que ela cita. Para ver as chaves, rode o
+% script com --list.
+\makeatletter
+\newcommand{\tn@get}[2]{%
+	\ifcsname #1@#2\endcsname
+		\csname #1@#2\endcsname
+	\else
+		\PackageError{tese}{O numero '#2' nao existe em tables/thesis_numbers.tex}%
+			{Rode thesis_build_text_numbers.py; a chave pode ter mudado de nome.}%
+	\fi}
+\newcommand{\tn}[1]{\tn@get{tn}{#1}}
+\newcommand{\tnen}[1]{\tn@get{tnen}{#1}}
+\makeatother
+\input{tables/thesis_numbers.tex}

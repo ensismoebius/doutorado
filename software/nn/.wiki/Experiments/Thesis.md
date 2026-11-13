@@ -218,6 +218,51 @@ InputKeepsFrequencyAndIgnoresTimeShift` is the regression test for the defect it
 **Not changed.** The LSTM-AE (`lstm-ae`, in no generated profile) still reads frames of the
 raw waveform.
 
+**What the re-run showed (Phase 00 job 5323830, Phase 01 job 5323900, 2026-11-12).**
+
+| | Block-average input (void) | Spectral input (run of record) |
+|---|---|---|
+| Phase 00 winner, all three signals | handcrafted `haar/lfcc/c1` | the same |
+| Best PCA / best ANN-AE `d_penalized` (voice) | far behind | 1.7230 / 1.7479, still behind the handcrafted winner |
+| EER through the DSNN, voice (hc / AE / PCA) | AE and PCA 0.48-0.52 (chance) | 0.3243 / 0.3053 / 0.3523 |
+| EER, pronounced EEG | same | 0.2688 / 0.3521 / 0.3757 |
+| EER, imagined EEG | same | 0.2504 / 0.2302 / 0.1934 |
+
+No extractor comparison is significant (corrected t + Holm). Two readings follow: the
+automated extractors are not worse than the handcrafted one through the classifier, and
+`d_penalized` did not predict the order across families (it ranks the handcrafted extractor
+far ahead in all three signals; the EER does not). The SNN-AE encodings rank
+latency < poisson < direct, the opposite of the noise-floor prediction. The void run is kept
+in `results/thesis_blockavg_input_20261112/`.
+
+### 10. No number is typed into the thesis
+
+**Problem.** Chapter 9 held 58 hand-typed results and the abstract 11; after a re-run they
+described a run that no longer existed, and nothing failed (silent).
+
+**Mechanism.** `scripts/pipeline/thesis/thesis_build_text_numbers.py` reads the two result
+sets and writes `documentation/00-thesis/monography/tables/thesis_numbers.tex`: one key per
+number. The text says `\tn{p01.best.eer}` (decimal comma) or `\tnen{...}` (decimal point, for
+the English abstract).
+
+| Mistake | What happens |
+|---|---|
+| A key that does not exist | LaTeX error (loud) |
+| A sentence whose claim stopped being true ("no comparison is significant", "the PCA has the lowest EER") | the generator's `CLAIMS` list refuses to write the file (loud) |
+| A number typed by hand | nothing (silent) - do not do it |
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
+  --phase00-profiles src/experiments/thesis/profiles/phase00 --phase00-results results/thesis/phase00 \
+  --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
+  --ae-input-reference results/thesis/ae_input_reference.csv \
+  --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
+```
+
+It needs the significance files first: `scripts/pipeline/thesis/03_thesis_phase01_significance.sh`
+writes one `significance_<family>_*.csv` per declared family (`vsvoice`, `fusion`, `ctrl`,
+`dysph`, `cmp`, `text`, `cond`) into `results/thesis/phase01/`.
+
 ---
 
 ## Theoretical Background

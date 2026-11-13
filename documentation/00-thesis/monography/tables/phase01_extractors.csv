@@ -1,7 +1,7 @@
 signal,text,hc_extractor,hc_eer,hc_std,ae_extractor,ae_eer,ae_std,pca_extractor,pca_eer,pca_std
-Voz,frases vistas,haar/lfcc/c1,0.3243,0.0620,snn-ae/latency/latente 8,0.4805,0.0101,k = 8,0.4883,0.0082
-Voz,frases não vistas,haar/lfcc/c1,0.3411,0.0206,snn-ae/latency/latente 8,0.4824,0.0182,k = 8,0.4545,0.0122
-EEG (fala pronunciada),frases vistas,haar/lfcc/c1,0.2688,0.0130,ann-ae/latente 32,0.4915,0.0064,k = 32,0.4855,0.0127
-EEG (fala pronunciada),frases não vistas,haar/lfcc/c1,0.2448,0.0322,ann-ae/latente 32,0.4916,0.0234,k = 32,0.4995,0.0194
-EEG (fala imaginada),frases vistas,haar/lfcc/c1,0.2504,0.0454,ann-ae/latente 32,0.5021,0.0082,k = 32,0.5180,0.0069
-EEG (fala imaginada),frases não vistas,haar/lfcc/c1,0.2474,0.0284,ann-ae/latente 32,0.5026,0.0062,k = 32,0.5052,0.0084
+Voz,frases vistas,haar/lfcc/c1,0.3243,0.0620,ann-ae/latente 32,0.3053,0.0391,k = 8,0.3523,0.0220
+Voz,frases não vistas,haar/lfcc/c1,0.3411,0.0206,ann-ae/latente 32,0.3367,0.0325,k = 8,0.3630,0.0012
+EEG (fala pronunciada),frases vistas,haar/lfcc/c1,0.2688,0.0130,ann-ae/latente 32,0.3521,0.0228,k = 8,0.3757,0.0164
+EEG (fala pronunciada),frases não vistas,haar/lfcc/c1,0.2448,0.0322,ann-ae/latente 32,0.3100,0.0089,k = 8,0.2983,0.0028
+EEG (fala imaginada),frases vistas,haar/lfcc/c1,0.2504,0.0454,ann-ae/latente 32,0.2302,0.0420,k = 8,0.1934,0.0425
+EEG (fala imaginada),frases não vistas,haar/lfcc/c1,0.2474,0.0284,ann-ae/latente 32,0.2198,0.0154,k = 8,0.2094,0.0282

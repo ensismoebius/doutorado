@@ -45,6 +45,13 @@ The keys (printed with --list):
                                             old = block-averaged waveform, new = power spectrum;
                                             clf pca8|pca32|all; aeinput.chance, aeinput.trials
 
+The sentences, not only the numbers. A number that follows the data is not enough: "the
+same extractor wins on the three signals" has no number in it, and a re-run can make it
+false while every \\tn in the paragraph still compiles. So each qualitative statement the
+prose makes is written in CLAIMS below as a condition on the keys, next to the sentence it
+protects, and a re-run that breaks one stops this script with the list of broken
+sentences. The chapter is then rewritten on purpose, not left wrong by accident.
+
 Nothing is guessed or skipped: every argument is required, an incomplete result set is
 refused (the collectors of the two table scripts do that), and a duplicate key is an error.
 
@@ -253,6 +260,7 @@ def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
                P01.extractor_label(run["profile"]["feature_extraction"]))
     for kind, runs in sets.items():
         n.count(f"p01.n.{kind}", len(runs))
+    n.num("p01.min.eer", min(r["mean_eer"] for runs in sets.values() for r in runs.values()))
     n.count("p01.n.total", sum(len(r) for r in sets.values()))
     n.count("p01.n.units", sum(r["n_reps"] for runs in sets.values() for r in runs.values()))
 
@@ -424,6 +432,116 @@ def ae_input(n: Numbers, path: pathlib.Path) -> None:
             n.num(f"aeinput.{r['signal']}.{r['input']}.{r['classifier']}", float(r["accuracy"]), 2)
 
 
+# What the prose of chapters 4 (abstract), 8, 9 and 10 states in words. Each entry: the
+# sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
+# number, t(key) as text. Keep the two in step: change a sentence, change its claim.
+S3 = ("voice", "eegpron", "eegimag")
+CLAIMS = [
+    ("ch9: the same extractor wins on the three signals",
+     lambda v, t: len({t(f"p00.{s}.winner.label") for s in S3}) == 1),
+    ("ch9: the winner is handcrafted (it carries the dagger in the hc tables only)",
+     lambda v, t: all(t(f"p00.{s}.winner.label") == t(f"p00.{s}.best.hc.label") for s in S3)),
+    ("ch9: for voice the smallest unpenalized d is not the winner",
+     lambda v, t: t("p00.voice.mind.label") != t("p00.voice.winner.label")),
+    ("ch9: on EEG the winner is rank 1 in every fold and leave-one-speaker-out subset",
+     lambda v, t: all(v(f"p00.{s}.stab.{k}.losses") == 0
+                      for s in ("eegpron", "eegimag") for k in ("fold", "loso"))),
+    ("ch9: for voice the margin to the runner-up is below the winner's sigma_loc, and the "
+     "winner loses some folds",
+     lambda v, t: v("p00.voice.margin") < v("p00.voice.winner.loso")
+     and v("p00.voice.stab.fold.losses") > 0),
+    ("ch9: every extractor that wins a voice fold instead of the winner is Category 1",
+     lambda v, t: v("p00.voice.stab.fold.alt.c1") == v("p00.voice.stab.fold.alt")),
+    ("ch9: the best PCA is k = 8 and beats the best autoencoder on the three signals",
+     lambda v, t: all(t(f"p00.{s}.best.pca.label") == "PCA (k = 8)"
+                      and v(f"p00.{s}.best.pca.dpen") < v(f"p00.{s}.best.ae.dpen") for s in S3)),
+    ("ch9: the handcrafted winner is ahead of the best automated extractor on the three signals",
+     lambda v, t: all(v(f"p00.{s}.winner.dpen") < v(f"p00.{s}.best.pca.dpen") for s in S3)),
+    ("ch9: the three ANN-AE are the first three autoencoders on the three signals",
+     lambda v, t: all(t(f"p00.{s}.ae.{r}.label").startswith("ANN-AE")
+                      for s in S3 for r in (1, 2, 3))),
+    ("ch8/ch9: SNN-AE encodings rank latency < poisson < direct (mean d_pen) on the three signals",
+     lambda v, t: all(v(f"p00.{s}.enc.latency.mean") < v(f"p00.{s}.enc.poisson.mean")
+                      < v(f"p00.{s}.enc.direct.mean") for s in S3)),
+    ("ch9 Q1: the scales rank linear < Mel < Bark for voice",
+     lambda v, t: v("p00.voice.scale.linear.best") < v("p00.voice.scale.mel.best")
+     < v("p00.voice.scale.bark.best")),
+    ("ch9 Q2: for voice no cepstral extractor beats the worst non-cepstral one",
+     lambda v, t: v("p00.voice.c2.better_than_worst_c1") == 0),
+    ("ch9 Q2: on EEG the best is non-cepstral but the cepstral mean is (slightly) lower",
+     lambda v, t: all(v(f"p00.{s}.c1.best") < v(f"p00.{s}.c2.best")
+                      and v(f"p00.{s}.c2.mean") < v(f"p00.{s}.c1.mean")
+                      for s in ("eegpron", "eegimag"))),
+    ("ch9: every standardized EEG/fusion cell of the grid ranks before the first voice cell",
+     lambda v, t: v("p01.voice.first_rank") == 25),
+    ("ch9: no comparison with voice is significant",
+     lambda v, t: v("siggroup.vsvoice.significant") == 0),
+    ("ch9: no fusion differs significantly from its EEG; with unseen phrases an EEG is ahead "
+     "of its late fusion",
+     lambda v, t: v("siggroup.fusion.significant") == 0
+     and v("p01.grid.eegpron.indep.flat.std.eer") < v("p01.grid.latepron.indep.flat.std.eer")),
+    ("ch9: standardization lowers the EER in every cell",
+     lambda v, t: v("p01.std.better") == v("p01.std.pairs")),
+    ("ch9: flat CV gives the lower EER in most cells",
+     lambda v, t: v("p01.cv.flat_better") >= 0.75 * v("p01.cv.pairs")),
+    ("ch9: the EEG condition makes no significant difference",
+     lambda v, t: v("siggroup.cond.significant") == 0),
+    ("ch9: the DSNN differs significantly from neither control",
+     lambda v, t: v("siggroup.ctrl.significant") == 0),
+    ("ch9: mean EER orders DSNN < ANN < cosine",
+     lambda v, t: v("p01.ctrl.mean.dsnn") < v("p01.ctrl.mean.ann") < v("p01.ctrl.mean.cosine")),
+    ("ch9: the DSNN is never the cheaper network, under any check",
+     lambda v, t: v("p01.energy.dsnn_cheaper") == 0),
+    ("ch9: under full whisper voice rises more than any fusion, whose largest rise is "
+     "late fusion (imagined), enrolment and probes",
+     lambda v, t: all(v("p01.dysph.lateimag.test.rise") >= v(f"p01.dysph.{s}.{sc}.rise")
+                      for s in ("earlypron", "earlyimag", "latepron", "lateimag")
+                      for sc in ("probes", "test"))
+     and v("p01.dysph.voice.probes.rise") > v("p01.dysph.lateimag.test.rise")),
+    ("ch9: no degradation effect is significant",
+     lambda v, t: v("siggroup.dysph.significant") == 0),
+    ("ch9/ch10/abstract: through the classifier no automated extractor differs "
+     "significantly from the handcrafted one",
+     lambda v, t: v("siggroup.cmp.significant") == 0),
+    ("ch9: voice, both automated extractors within 0.03 EER of the handcrafted one, one on "
+     "each side (seen phrases)",
+     lambda v, t: abs(v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
+     and abs(v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
+     and (v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer"))
+     * (v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0),
+    ("ch9: pronounced EEG, handcrafted ahead of both; imagined EEG, behind both (both text modes)",
+     lambda v, t: all(v(f"p01.cmp.eegpron.{x}.hc.eer") < v(f"p01.cmp.eegpron.{x}.{f}.eer")
+                      and v(f"p01.cmp.eegimag.{x}.hc.eer") > v(f"p01.cmp.eegimag.{x}.{f}.eer")
+                      for x in ("dep", "indep") for f in ("ae", "pca"))),
+    ("ch9/ch10: PCA on imagined EEG, seen phrases, is the lowest EER of the whole experiment",
+     lambda v, t: v("p01.cmp.eegimag.dep.pca.eer") == v("p01.min.eer")),
+    ("ch9 Q3: the autoencoder Phase 00 picked is the ANN-AE on the three signals",
+     lambda v, t: all(t(f"p00.{s}.best.ae.label").startswith("ANN-AE") for s in S3)),
+    ("abstract: the best cell of the main grid is late fusion with imagined-speech EEG",
+     lambda v, t: t("p01.best.label").startswith("Fusão tardia (imaginada)")),
+    ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
+     lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
+     and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
+]
+
+
+def check_claims(n: Numbers) -> None:
+    def text(key: str) -> str:
+        if key not in n.values:
+            fail(f"a claim reads the key {key}, which does not exist")
+        return n.values[key][1]
+
+    def value(key: str) -> float:
+        return float(text(key))
+
+    broken = [sentence for sentence, holds in CLAIMS if not holds(value, text)]
+    if broken:
+        listed = "\n  - ".join(broken)
+        fail(f"{len(broken)} statement(s) of the thesis prose no longer hold on these results:"
+             f"\n  - {listed}\nRewrite those passages (and their entries in CLAIMS), then re-run.")
+    print(f"[text-numbers] {len(CLAIMS)} prose statements checked against the results")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Write the numbers the thesis prose quotes.")
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
@@ -437,6 +555,7 @@ def main() -> int:
     phase01(n, pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
     significance(n, pathlib.Path(args.phase01_results))
     ae_input(n, pathlib.Path(args.ae_input_reference))
+    check_claims(n)
 
     lines = ["% GENERATED by software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py.",
              "% Do not edit: re-run the script. Read with \\tn{key} (decimal comma) and",

@@ -485,3 +485,40 @@ deslocamento e foram corrigidos também.
 | 20 compilação | — | texto |
 
 Detalhes de cada mudança: `software/nn/.wiki/Experiments/Thesis.md`, seção "Protocol revision".
+
+## Situação após a reexecução e a reescrita (2026-11-12, fim do dia)
+
+**Segundo achado silencioso.** Os *autoencoders* e a PCA recebiam a forma de onda promediada
+em 256 blocos (voz: 689 amostras por bloco, passa-baixas em ~32 Hz; EEG: 96 por bloco, ~5 Hz).
+A entrada não continha informação de locutor, e todos ficavam com EER entre 0,48 e 0,52.
+Corrigido: a entrada é o espectro de potência logarítmico de 256 valores (Welch), conferido
+contra `scipy.signal.welch` e `torch.linalg.svd` em teste automatizado. As duas fases foram
+reexecutadas (Fase 00: job 5323830; Fase 01: job 5323900).
+
+**O texto não tem mais números digitados.** Todo número de resultado nos capítulos 4 (resumo),
+6, 8, 9 e 10 é uma chave `\tn{...}` de `tables/thesis_numbers.tex`, gerado por
+`software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py`. Chave ausente é erro de
+compilação; a lista `CLAIMS` do gerador recusa a geração quando uma afirmação da prosa deixa
+de valer nos dados.
+
+| Item | Situação |
+|---|---|
+| 1 disfonia | rodado; texto reescrito com a ressalva (voz soprosa simulada; nada significativo) |
+| 2 prosa antiga | reescrita (capítulos 9 e 10, resumo e *abstract*) |
+| 3 piso de ruído | previsão não confirmada (latência < Poisson < direta); o texto diz isso |
+| 4, 9 modo de texto | rodado; uma só definição; sem diferença significativa |
+| 5, 8 seleção e incerteza | rodado; estabilidade 15/15 no EEG, 10/15 na voz; no texto |
+| 6 linha de base | controles `ann` e `cosine` rodados; **falta** a tabela de trabalhos publicados |
+| 7 fusão | não se distingue do EEG sozinho; no texto |
+| 10 padronização | no texto, com a explicação de escala declarada como não testada |
+| 11 energia | medida; a DSNN gasta 4,37 a 6,18 vezes a gêmea não pulsante |
+| 16 Questão 3 | respondida: pelo classificador as três famílias não se distinguem |
+| 17 rótulos | tabelas regeneradas |
+| 18 números | resolvido pelo `\tn` |
+| 20 compilação | compila sem referência indefinida (entrada duplicada do `.bib` removida) |
+| 12, 13, 14, 19, 21 | **não tratados**: capítulo de revisão, estado da arte, Introdução (só as questões e a estrutura foram ajustadas), jargão, terminologia |
+| 15 fusão precoce / nível 4 | ressalva no capítulo 8 |
+
+**Pendências novas.** As tabelas usam ponto decimal (vêm dos CSV); a prosa usa vírgula. As
+cinco referências acrescentadas ao `.bib` (Horowitz 2014, Lemaire 2022, Nadeau e Bengio 2003,
+Holm 1979, Welch 1967) foram escritas de memória e precisam de conferência.
