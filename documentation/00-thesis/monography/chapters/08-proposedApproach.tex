@@ -284,7 +284,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				\par Dois programas automatizam a transição, evitando edição manual (\autoref{fig:e05PipelineTwoPhase}):
 				\begin{itemize}
 					\item o \textbf{ordenador} lê os resultados paraconsistentes das \tn{p00.n.total} configurações --- exatamente os arquivos que cada configuração declara, recusando um conjunto incompleto ---, calcula a média de $D_{\text{penalizado}}$ sobre as três repetições, registra o vencedor de cada sinal, o melhor de cada família e a posição do vencedor em cada subconjunto de locutores, e sinaliza explicitamente eventuais empates exatos, para que uma escolha feita por desempate de ordenação não seja confundida com um resultado de mérito;
-					\item o \textbf{aplicador} escreve cada vencedor nas \tn{p01.n.total} configurações da Fase~01 --- a voz recebe o vencedor da voz, cada condição do EEG o da sua condição, as configurações de comparação o melhor da família que declaram, e as fontes fundidas recebem o vencedor do sinal declarado na chamada; o \textit{pipeline} declara a voz (sinal dominante em número de amostras).
+					\item o \textbf{gerador de configurações} escreve cada vencedor nas \tn{p01.n.total} configurações da Fase~01 e nas \tn{bx.n.total} da replicação na BIOMEX-DB, ao gerá-las (nenhuma configuração é editada depois) --- a voz recebe o vencedor da voz, cada condição do EEG o da sua condição, as configurações de comparação o melhor da família que declaram, e as fontes fundidas recebem o vencedor do sinal declarado na chamada; o \textit{pipeline} declara a voz (sinal dominante em número de amostras).
 				\end{itemize}
 
 		\subsection{Métricas}

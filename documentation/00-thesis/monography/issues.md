@@ -423,7 +423,7 @@ repositório e o commit.
 - A figura das três codificações temporais está como TODO no capítulo 8.
 - `furlan2026spiking` é `@unpublished` e aponta para caminhos do repositório; atualizar
   quando houver aceite, ou citar como "em revisão" sem os caminhos.
-- `backup.tex` e `texput.log` estão no diretório da tese.
+- ~~`backup.tex` e `texput.log` estão no diretório da tese.~~ Resolvido 2026-11-13: `backup.tex` (rascunho da coleta da base própria, fora do escopo) removido, recuperável pelo git (9b5f15a8); `texput.log` não é versionado.
 - `11-appendices.tex` tem cerca de 380 linhas comentadas de apêndices abandonados, e uma
   seção "Penalidade de Esparsidade" que o texto principal não usa (pela leitura: não achei
   referência a ela).
