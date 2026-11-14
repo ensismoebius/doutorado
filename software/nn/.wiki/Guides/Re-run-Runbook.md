@@ -40,8 +40,8 @@ Sanity-check before burning hours — all of these should already pass:
 ctest --test-dir out/build/max-performance -R "Micro|PyTorchParity|Optim|Trainer|Thesis" -j4
 ```
 
-The bases must exist where the profiles point: `~/database.sqlite` (Coretto) for Phase 00/01
-and `~/biomex.sqlite` for the replication. How to build and verify them:
+The bases must exist where the profiles point: `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` (Coretto) for Phase 00/01
+and `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite` for the replication. How to build and verify them:
 [Data Bases](./Data-Bases.md).
 
 ---

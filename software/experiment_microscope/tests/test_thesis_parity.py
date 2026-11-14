@@ -4,7 +4,7 @@ The GUI's live recompute of the thesis Phase-00 chain must reproduce a
 persisted result exactly — otherwise the "microscope" is showing different
 numbers than the experiment did.
 
-Slow (full EEG feature extraction, ~30 s) and needs ``~/database.sqlite`` +
+Slow (full EEG feature extraction, ~30 s) and needs ``~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`` +
 the persisted phase00 CSV; skipped otherwise. Run explicitly with:
 
     pytest -q tests/test_thesis_parity.py
@@ -25,7 +25,7 @@ _PROFILE = (NN_DIR / "src" / "experiments" / "thesis" / "profiles" / "phase00"
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not is_available(), reason="nn_microscope not built"),
-    pytest.mark.skipif(not THESIS_DEFAULT_DB.is_file(), reason="~/database.sqlite absent"),
+    pytest.mark.skipif(not THESIS_DEFAULT_DB.is_file(), reason="~/Documentos/academico/UNESP/doutorado/databases/database.sqlite absent"),
     pytest.mark.skipif(not _REF.is_file(), reason="reference phase00 CSV absent"),
 ]
 

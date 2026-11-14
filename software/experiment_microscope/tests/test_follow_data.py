@@ -29,7 +29,7 @@ def test_thesis_eeg_sample_signal_and_wavelet():
     from experiment_microscope.paths import THESIS_DEFAULT_DB
 
     if not THESIS_DEFAULT_DB.is_file():
-        pytest.skip("~/database.sqlite absent")
+        pytest.skip("~/Documentos/academico/UNESP/doutorado/databases/database.sqlite absent")
     a = ThesisAdapter()
     phases = a.children(a.root_nodes()[0])
     if not phases:
@@ -51,7 +51,7 @@ def test_thesis_run_feature_matrix_recompute():
     from experiment_microscope.paths import THESIS_DEFAULT_DB
 
     if not THESIS_DEFAULT_DB.is_file():
-        pytest.skip("~/database.sqlite absent")
+        pytest.skip("~/Documentos/academico/UNESP/doutorado/databases/database.sqlite absent")
     a = ThesisAdapter()
     phases = a.children(a.root_nodes()[0])
     if not phases:

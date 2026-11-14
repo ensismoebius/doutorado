@@ -126,8 +126,8 @@ Exceptions must name the cause AND the remedy — see
 Genuine *defaults* in a config struct are fine (a documented initial value). What is
 banned is recovering from an error by guessing.
 
-**Thesis bases (2026-11-13).** `dataset.source` is required: `coretto2017` (`~/database.sqlite`)
-or `biomex2021` (`~/biomex.sqlite`, written by `scripts/data/biomex_to_sqlite.py`; pronounced
+**Thesis bases (2026-11-13).** `dataset.source` is required: `coretto2017` (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`)
+or `biomex2021` (`~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite`, written by `scripts/data/biomex_to_sqlite.py`; pronounced
 digits only, so `eeg_condition imagined` is refused). Sample rates come from the base
 (`ThesisDatasetView::voice_sample_rate` / `eeg_sample_rate`, `require_rate`), never from
 constants: a hand-built view in a test must set them. BIOMEX-DB is written at the Coretto rates

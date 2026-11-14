@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the Coretto SQLite (~/database.sqlite) against an independent copy of the EEG .mat files.
+"""Check the Coretto SQLite (~/Documentos/academico/UNESP/doutorado/databases/database.sqlite) against an independent copy of the EEG .mat files.
 
 WHY. The SQLite the thesis reads was built from the authors' .mat files by
 scripts/data/import_mat_dataset_to_sqlite.py, and those files are no longer here; the authors'
@@ -21,7 +21,8 @@ The audio is not in the mirror and is not checked here.
 Exit status 1 on any difference.
 
 Usage (from software/nn):
-    python3 scripts/data/coretto_verify_mirror.py --db ~/database.sqlite --mirror ~/coretto_zenodo
+    python3 scripts/data/coretto_verify_mirror.py   # --db <databases>/database.sqlite --mirror <databases>/coretto_zenodo
+with <databases> = ~/Documentos/academico/UNESP/doutorado/databases.
 """
 import argparse
 import hashlib
@@ -34,6 +35,9 @@ import zipfile
 
 import numpy as np
 from scipy.io import loadmat
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from databases_dir import in_databases  # noqa: E402
 
 CHANNELS = ("F3", "F4", "C3", "C4", "P3", "P4")
 N = 4096
@@ -70,8 +74,9 @@ def mat_matrix(zip_path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--db", required=True)
-    ap.add_argument("--mirror", required=True, help="folder with S01.zip ... S15.zip")
+    ap.add_argument("--db", default=in_databases("database.sqlite"), help="(default: %(default)s)")
+    ap.add_argument("--mirror", default=in_databases("coretto_zenodo"),
+                    help="folder with S01.zip ... S15.zip (default: %(default)s)")
     args = ap.parse_args()
     db, mirror = os.path.expanduser(args.db), os.path.expanduser(args.mirror)
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)

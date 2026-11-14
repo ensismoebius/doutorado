@@ -8,8 +8,8 @@ for the design.
 
 ## Prerequisites
 
-- The bases at the paths the profiles name: `~/database.sqlite` (Coretto; Phase 00/01) and
-  `~/biomex.sqlite` (BIOMEX-DB). How to build both: [Data Bases](./Data-Bases.md).
+- The bases at the paths the profiles name: `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` (Coretto; Phase 00/01) and
+  `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite` (BIOMEX-DB). How to build both: [Data Bases](./Data-Bases.md).
 - The `thesis` binary built in any CMake profile:
 
 ```bash
@@ -291,7 +291,7 @@ the results.
 ```
 
 Runs `profiles/biomex/` (48: the Phase 01 cells on the second base, with the **Coretto** Phase 00
-winners — nothing is selected on BIOMEX-DB). Needs `~/biomex.sqlite`.
+winners — nothing is selected on BIOMEX-DB). Needs `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite`.
 
 ### 8. BIOMEX tables and significance
 

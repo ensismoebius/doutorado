@@ -865,6 +865,9 @@ TEST(PgaProfileAudit, EveryProfileOnDiskParsesAndValidates)
     {
         const auto cfg = pga::GaConfig::from_file((pga_profiles_dir() / name).string());
         EXPECT_NO_THROW(cfg.validate()) << "profile failed validation: " << name;
-        EXPECT_EQ(cfg.base.dataset.root, "~/database.sqlite") << "stale DB path in " << name;
+        // The Coretto base lives in the databases directory (scripts/data/databases_dir.py).
+        EXPECT_EQ(cfg.base.dataset.root,
+            "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite")
+            << "stale DB path in " << name;
     }
 }

@@ -21,7 +21,8 @@ path and compares, and checks the originals against two sources the converter ne
 Exit status 1 on any difference; every difference is printed.
 
 Usage (from software/nn):
-    python3 scripts/data/biomex_verify.py --src ~/biomex/extracted --db ~/biomex.sqlite
+    python3 scripts/data/biomex_verify.py   # --src <databases>/biomex/extracted --db <databases>/biomex.sqlite
+with <databases> = ~/Documentos/academico/UNESP/doutorado/databases.
 """
 import argparse
 import hashlib
@@ -38,6 +39,7 @@ from scipy.signal import firwin, resample_poly
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import biomex_to_sqlite as bx  # noqa: E402
+from databases_dir import in_databases  # noqa: E402
 
 # Table 1 of the paper: (a) the 10-digit series, (b) the 4-digit series.
 TABLE1 = {
@@ -129,8 +131,10 @@ def rebuild_eeg(eeg_native, up):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--src", required=True, help="the extracted base (F001/, M001/, ...)")
-    ap.add_argument("--db", required=True, help="the SQLite written by biomex_to_sqlite.py")
+    ap.add_argument("--src", default=in_databases(os.path.join("biomex", "extracted")),
+                    help="the extracted base, F001/, M001/, ... (default: %(default)s)")
+    ap.add_argument("--db", default=in_databases("biomex.sqlite"),
+                    help="the SQLite written by biomex_to_sqlite.py (default: %(default)s)")
     args = ap.parse_args()
     src, db = os.path.expanduser(args.src), os.path.expanduser(args.db)
     fails = []

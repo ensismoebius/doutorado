@@ -5,7 +5,7 @@
     "seed": 42
   },
   "dataset": {
-    "root": "~/database.sqlite",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
     "modality": "eeg",
     "eeg_condition": "pronounced",
     "max_samples": 40

@@ -11,7 +11,7 @@ semente: no experimento ela e a do perfil misturada ao indice da amostra
 (``degrade_voices`` em thesis.cpp); aqui e fixa.
 
 Uso:
-    python3 generate_dysphonia_figure.py --db ~/database.sqlite [--out-dir images]
+    python3 generate_dysphonia_figure.py --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite [--out-dir images]
 """
 
 from __future__ import annotations

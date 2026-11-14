@@ -15,10 +15,10 @@ files and its size as 0); the archives sit in one folder, BIOMEX:
 Licence: CC BY 4.0. Cite Moreno-Rodriguez et al., IEEE Access 9:111267 (2021) and the data
 DOI 10.17632/s7chktmb6x.1, and state the changes (scripts/data/biomex_to_sqlite.py).
 
-Usage (from software/nn):
-    python3 scripts/data/biomex_download.py --dest ~/biomex
+Usage (from software/nn; every path defaults to the databases directory, ~/Documentos/academico/UNESP/doutorado/databases):
+    python3 scripts/data/biomex_download.py            # -> <databases>/biomex/{archives,extracted}
 then
-    python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
+    python3 scripts/data/biomex_to_sqlite.py           # -> <databases>/biomex.sqlite
 """
 import argparse
 import hashlib
@@ -32,6 +32,9 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from databases_dir import in_databases  # noqa: E402
 
 API = "https://data.mendeley.com/public-api/datasets/s7chktmb6x"
 VERSION = 1
@@ -131,7 +134,8 @@ def download(url, path, size, sha256):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--dest", required=True, help="archives/ and extracted/ go here")
+    ap.add_argument("--dest", default=in_databases("biomex"),
+                    help="archives/ and extracted/ go here (default: %(default)s)")
     ap.add_argument("--keep-archives", action="store_true",
                     help="keep each RAR after extraction (8.1 GB in all)")
     args = ap.parse_args()

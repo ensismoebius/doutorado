@@ -18,11 +18,11 @@ namespace nn::dataLoaders
  * Why not a plain SQLITE_OPEN_READONLY. The dataset file is in WAL journal mode. A WAL reader
  * shares a memory-mapped index (the "-shm" file) with every other reader, which works only when
  * all of them run on one machine ("WAL does not work over a network filesystem",
- * sqlite.org/wal.html). On GridUnesp, array tasks on different nodes read ~/database.sqlite over
- * NFS at the same time: on 2026-11-12, 6 of 16 tasks failed within seconds of each other on
- * "Failed to prepare subject query". `immutable=1` (sqlite.org/uri.html) skips locking, the
- * -shm index and change detection, so any number of readers on any number of hosts can use the
- * file without coordinating.
+ * sqlite.org/wal.html). On GridUnesp, array tasks on different nodes read
+ * ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite over NFS at the same time: on
+ * 2026-11-12, 6 of 16 tasks failed within seconds of each other on "Failed to prepare subject
+ * query". `immutable=1` (sqlite.org/uri.html) skips locking, the -shm index and change detection,
+ * so any number of readers on any number of hosts can use the file without coordinating.
  *
  * What immutable costs, and how it is guarded:
  *  - the file must not change while it is open. The thesis never writes it, and

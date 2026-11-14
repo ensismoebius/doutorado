@@ -16,7 +16,8 @@ voice files per session code. A volunteer is "regular" if it holds exactly one c
 for 01G10 and one for 01G04, both named for it, and 20 voice series for those sessions only.
 
 Usage (from software/nn):
-    python3 scripts/data/biomex_inventory.py --src ~/biomex/extracted [--csv out.csv]
+    python3 scripts/data/biomex_inventory.py [--src <dir>] [--csv out.csv]
+(--src defaults to <databases>/biomex/extracted, <databases> = ~/Documentos/academico/UNESP/doutorado/databases)
 """
 import argparse
 import csv
@@ -28,6 +29,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import biomex_to_sqlite as bx  # noqa: E402
+from databases_dir import in_databases  # noqa: E402
 
 EDF_NAME = re.compile(r"^(?P<who>[FM]\d+)-(?P<session>\w+?)-(?P<stamp>[\d.]+)\.edf$")
 VOICE_NAME = re.compile(r"^(?P<who>[FM]\d+)_(?P<session>\w+?)_(?P<k>\d+)\.(?P<ext>wav|lab)$")
@@ -45,7 +47,8 @@ def csv_subject(folder, who, session):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--src", required=True)
+    ap.add_argument("--src", default=in_databases(os.path.join("biomex", "extracted")),
+                    help="(default: %(default)s)")
     ap.add_argument("--csv", help="also write one row per EDF here")
     args = ap.parse_args()
     src = os.path.expanduser(args.src)

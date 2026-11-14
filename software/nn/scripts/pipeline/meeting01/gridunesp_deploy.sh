@@ -31,12 +31,13 @@
 #                         not rebuild is left unstamped, so its runner refuses to start
 #                         instead of running old code under the new SOURCE_REVISION.
 #
-# thesis: its profiles read ~/database.sqlite (dataset.root), so with `thesis` in the targets
-# the local ~/database.sqlite (2.3 GB) is sent to the same path on the cluster, with its
-# decoded-dataset caches when there are some: one per EEG condition,
-# ~/database.sqlite.pronounced.e05dscache and ~/database.sqlite.imagined-<seed>.e05dscache
+# thesis: its profiles read <databases>/database.sqlite (dataset.root, <databases> being
+# ~/Documentos/academico/UNESP/doutorado/databases), so with `thesis` in the targets the local
+# database.sqlite (2.3 GB) is sent to the same path under the cluster's home (created when it
+# is missing), with its decoded-dataset caches when there are some: one per EEG condition,
+# database.sqlite.pronounced.e05dscache and database.sqlite.imagined-<seed>.e05dscache
 # (ThesisDataset.cpp; rsync -a keeps the mtime the caches' signature is computed from). The
-# pre-2026-11-12 ~/database.sqlite.e05dscache, decoded with the previous-trial EEG, is never
+# pre-2026-11-12 database.sqlite.e05dscache, decoded with the previous-trial EEG, is never
 # read again and is not sent. The smoke for `thesis` is two real Phase 00 profiles (PCA, k = 8,
 # EEG of pronounced and of imagined speech) on a compute node: they prove the binary, the
 # database and both caches, and leave valid caches behind before an array starts. The jobs are
@@ -83,7 +84,11 @@ has_target() { [[ " ${TARGET_LIST[*]} " == *" $1 "* ]]; }
 # meeting01 alone and still printed "thesis (built and smoked)"). The list travels as one
 # comma-joined word instead, and the remote side checks it got exactly the four it expects.
 TARGET_CSV="$(IFS=,; echo "${TARGET_LIST[*]}")"
-THESIS_DB="${HOME}/database.sqlite"
+# One directory for every base, the same relative path locally and on the cluster: the profiles
+# name it as ~/Documentos/academico/UNESP/doutorado/databases/<file> (scripts/data/databases_dir.py).
+DATABASES_REL="Documentos/academico/UNESP/doutorado/databases"
+DATABASES_DIR="${HOME}/${DATABASES_REL}"
+THESIS_DB="${DATABASES_DIR}/database.sqlite"
 if has_target thesis && [[ ! -f "$THESIS_DB" ]]; then
   echo "gridunesp_deploy.sh: target 'thesis' needs ${THESIS_DB} (the thesis profiles'" \
        "dataset.root), and it does not exist here" >&2
@@ -139,7 +144,7 @@ sshpass -e ssh -o ControlMaster=auto -o ControlPath="$CTRL_PATH" -o ControlPersi
 # deployed when it starts, and logs that revision. Jobs are recognised by the meeting01-loso
 # prefix of their name (the sbatch's --job-name; keep it in any override). thesis jobs
 # (thesis-run-*) load the same libraries the same way, one process per profile, and also read
-# ~/database.sqlite, which this deploy may replace: they block a deploy too.
+# <databases>/database.sqlite, which this deploy may replace: they block a deploy too.
 if ! RUNNING_JOBS="$(ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" \
       "set -o pipefail; squeue -u \"\$USER\" -h -t RUNNING,COMPLETING -o '%i %j %M' | awk '\$2 ~ /^(meeting01-loso|thesis-run)/'")"
 then
@@ -184,24 +189,26 @@ if has_target thesis; then
   # say so: a biomex array on the cluster would then refuse to open it, not run without it.
   # Only a base that scripts/data/biomex_verify.py passed is sent: its stamp holds the sha256
   # of the file it checked, so a base rewritten after the check is refused here.
-  if [[ -f "${HOME}/biomex.sqlite" ]]; then
-    stamp="${HOME}/biomex.sqlite.verified"
+  BIOMEX_DB="${DATABASES_DIR}/biomex.sqlite"
+  if [[ -f "$BIOMEX_DB" ]]; then
+    stamp="${BIOMEX_DB}.verified"
     if [[ ! -f "$stamp" ]]; then
-      echo "[gridunesp-deploy] ${HOME}/biomex.sqlite was never verified: run scripts/data/biomex_verify.py first" >&2
+      echo "[gridunesp-deploy] ${BIOMEX_DB} was never verified: run scripts/data/biomex_verify.py first" >&2
       exit 1
     fi
-    have=$(sha256sum "${HOME}/biomex.sqlite" | cut -d' ' -f1)
+    have=$(sha256sum "$BIOMEX_DB" | cut -d' ' -f1)
     if [[ "$(head -1 "$stamp")" != "$have" ]]; then
-      echo "[gridunesp-deploy] ${HOME}/biomex.sqlite changed after its verification ($stamp): verify it again" >&2
+      echo "[gridunesp-deploy] ${BIOMEX_DB} changed after its verification ($stamp): verify it again" >&2
       exit 1
     fi
-    thesis_files+=("${HOME}/biomex.sqlite")
+    thesis_files+=("$BIOMEX_DB")
   else
-    echo "[gridunesp-deploy] ${HOME}/biomex.sqlite does not exist here: NOT sent (THESIS_PHASE=biomex will refuse on the cluster)"
+    echo "[gridunesp-deploy] ${BIOMEX_DB} does not exist here: NOT sent (THESIS_PHASE=biomex will refuse on the cluster)"
   fi
-  echo "[gridunesp-deploy] thesis dataset -> ~/ on the cluster: ${thesis_files[*]}"
+  echo "[gridunesp-deploy] thesis dataset -> ~/${DATABASES_REL}/ on the cluster: ${thesis_files[*]}"
+  ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" "mkdir -p \"\$HOME/${DATABASES_REL}\""
   rsync -a --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" "${thesis_files[@]}" \
-    "${GRIDUNESP_USER}@${HOST}:"
+    "${GRIDUNESP_USER}@${HOST}:${DATABASES_REL}/"
 fi
 
 echo "[gridunesp-deploy] remote environment + datasets + configure + build (reusing the same connection)"

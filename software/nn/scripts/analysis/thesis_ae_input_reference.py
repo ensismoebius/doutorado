@@ -26,9 +26,10 @@ fold, standardize on the training rows, optionally project on the first k princi
 --out receives the table as CSV (signal, input, classifier, accuracy, sd); the thesis quotes
 it through thesis_build_text_numbers.py (keys aeinput.*), so the text follows this script.
 
-Run (needs numpy, scipy, torch; reads ~/database.sqlite, about one minute):
+Run (needs numpy, scipy, torch; reads the Coretto base, about one minute):
     ~/.venv/bin/python software/nn/scripts/analysis/thesis_ae_input_reference.py \
-        --db ~/database.sqlite --out software/nn/results/thesis/ae_input_reference.csv
+        --out software/nn/results/thesis/ae_input_reference.csv
+(--db defaults to database.sqlite in ~/Documentos/academico/UNESP/doutorado/databases)
 """
 from __future__ import annotations
 
@@ -36,11 +37,15 @@ import argparse
 import csv
 import os
 import sqlite3
+import sys
 
 import numpy as np
 import scipy
 import scipy.signal
 import torch
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
+from databases_dir import in_databases  # noqa: E402
 
 BINS, FRAME, HOP = 256, 512, 256
 
@@ -82,7 +87,8 @@ def accuracy(x: np.ndarray, y: np.ndarray, folds: np.ndarray, k: int) -> tuple[f
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--db", required=True, help="the dataset's SQLite file")
+    ap.add_argument("--db", default=in_databases("database.sqlite"),
+                    help="the dataset's SQLite file (default: %(default)s)")
     ap.add_argument("--out", required=True, help="CSV to write the accuracies to")
     args = ap.parse_args()
 

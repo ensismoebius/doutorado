@@ -32,8 +32,8 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
 ```
 
 The binary accepts exactly `--config` and `--repeat`; anything else is refused. It reads the
-base named by the profile's `dataset.root` (`~/database.sqlite` for Coretto,
-`~/biomex.sqlite` for BIOMEX-DB — see [Data Bases](../../../.wiki/Guides/Data-Bases.md)).
+base named by the profile's `dataset.root` (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` for Coretto,
+`~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite` for BIOMEX-DB — see [Data Bases](../../../.wiki/Guides/Data-Bases.md)).
 
 Never write a profile by hand: they are generated (§ "Changing it" below).
 

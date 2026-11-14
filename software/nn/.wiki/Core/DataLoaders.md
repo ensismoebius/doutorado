@@ -629,7 +629,7 @@ $176{,}400 \times 8$ (float64) as you might otherwise expect.
 
 #### Opening the database: immutable, because of WAL on NFS (2026-11-12)
 
-**The problem.** `~/database.sqlite` uses the WAL journal mode (`PRAGMA journal_mode` → `wal`).
+**The problem.** `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` uses the WAL journal mode (`PRAGMA journal_mode` → `wal`).
 In WAL mode every reader shares a small memory-mapped index, the `-shm` file, with all the
 other readers. Processes on one machine can share that memory. Processes on different machines
 cannot, and SQLite says so plainly: "WAL does not work over a network filesystem"

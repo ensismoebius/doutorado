@@ -31,8 +31,10 @@ NN_BINDING_SEARCH_DIRS = (
 )
 
 #: Default thesis dataset source (``~`` expansion mirrors the C++
-#: ``nn::utility::expand_home`` in ThesisDataset.cpp).
-THESIS_DEFAULT_DB = Path(os.path.expanduser("~")) / "database.sqlite"
+#: ``nn::utility::expand_home`` in ThesisDataset.cpp). The bases live in one directory,
+#: ``~/Documentos/academico/UNESP/doutorado/databases`` (software/nn/scripts/data/databases_dir.py).
+THESIS_DEFAULT_DB = (Path(os.path.expanduser("~")) / "Documentos" / "academico" / "UNESP" /
+                     "doutorado" / "databases" / "database.sqlite")
 
 NN_BINDING_BUILD_HINT = (
     "cd software/nn && cmake --preset=python-bindings && "

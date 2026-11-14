@@ -8,13 +8,14 @@ the next time a base is rebuilt (`.wiki/Experiments/Thesis.md` sec. 10). So they
 from the bases themselves and from the verifiers' stamps, and the thesis quotes them through
 thesis_build_text_numbers.py (keys base.*).
 
-Sources, and why each is trusted:
-  ~/biomex.sqlite            the converted base (scripts/data/biomex_to_sqlite.py)
-  ~/biomex.sqlite.verified   scripts/data/biomex_verify.py's stamp: line 1 the sha256 of the
+Sources, and why each is trusted (all in the databases directory,
+~/Documentos/academico/UNESP/doutorado/databases):
+  biomex.sqlite              the converted base (scripts/data/biomex_to_sqlite.py)
+  biomex.sqlite.verified     scripts/data/biomex_verify.py's stamp: line 1 the sha256 of the
                              base it passed, line 2 its counts. Refused unless the sha256 is
                              the current file's: a fact about a base nobody checked is not one.
-  ~/database.sqlite          the Coretto base
-  ~/database.sqlite.mirror-verified
+  database.sqlite            the Coretto base
+  database.sqlite.mirror-verified
                              scripts/data/coretto_verify_mirror.py's stamp (same layout)
 
 One constant is not read from a file: the paper's own count of S01's pronounced /o/ trials
@@ -25,8 +26,8 @@ BIOMEX value from 3.3% to 2.5% between two seeds), the periodogram of each chann
 epoch's own length, power below 2 Hz over the total, averaged over epochs.
 
 Usage (from software/nn; reads both bases, about a minute):
-    python3 scripts/analysis/thesis_base_facts.py --biomex ~/biomex.sqlite \\
-        --coretto ~/database.sqlite --out results/thesis/base_facts.csv
+    python3 scripts/analysis/thesis_base_facts.py --out results/thesis/base_facts.csv
+(--biomex and --coretto default to the two bases in the databases directory)
 """
 from __future__ import annotations
 
@@ -39,6 +40,9 @@ import sqlite3
 import sys
 
 import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
+from databases_dir import in_databases  # noqa: E402
 
 PAPER_S01_O_PRONOUNCED = 10    # Pressel Coretto et al. (2017), Table 4
 PROTOCOL_PAIRS = 140           # Moreno-Rodriguez et al. (2021), Table 1: 10x10 + 10x4 digits
@@ -86,8 +90,8 @@ def blob(b: bytes, n: int) -> np.ndarray:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--biomex", required=True)
-    ap.add_argument("--coretto", required=True)
+    ap.add_argument("--biomex", default=in_databases("biomex.sqlite"), help="(default: %(default)s)")
+    ap.add_argument("--coretto", default=in_databases("database.sqlite"), help="(default: %(default)s)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     bx_db, co_db = os.path.expanduser(args.biomex), os.path.expanduser(args.coretto)

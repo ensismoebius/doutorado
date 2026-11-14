@@ -2,8 +2,8 @@
 
 ## Why this page exists
 
-The thesis binary reads two SQLite files that are **not in the repository**: `~/database.sqlite`
-(Coretto *et al.*) and `~/biomex.sqlite` (BIOMEX-DB). They are large (gigabytes), and their
+The thesis binary reads two SQLite files that are **not in the repository**: `database.sqlite`
+(Coretto *et al.*) and `biomex.sqlite` (BIOMEX-DB), both in the databases directory (next section). They are large (gigabytes), and their
 licences ask you to obtain them from the source. On a new machine nothing runs until both
 exist, and a wrong file does not always fail loudly: a base built from other source files, or
 by an older converter, still loads and trains. That is the silent failure this page guards
@@ -14,13 +14,43 @@ too.
 ```
  source files                  converter                     SQLite                 verifier → stamp
  ─────────────                 ─────────                     ──────                 ────────────────
- Coretto .mat (S01..S15)  ──►  import_mat_dataset_to_sqlite ─► ~/database.sqlite  ──► coretto_verify_mirror  ─► ~/database.sqlite.mirror-verified
- BIOMEX RAR (51 vols.)    ──►  biomex_download + biomex_to_sqlite ─► ~/biomex.sqlite ──► biomex_verify ─► ~/biomex.sqlite.verified
+ Coretto .mat (S01..S15)  ──►  import_mat_dataset_to_sqlite ─► database.sqlite  ──► coretto_verify_mirror  ─► database.sqlite.mirror-verified
+ BIOMEX RAR (51 vols.)    ──►  biomex_download + biomex_to_sqlite ─► biomex.sqlite ──► biomex_verify ─► biomex.sqlite.verified
                                                                          │
                                        thesis_base_facts reads both bases + stamps
                                                                          ▼
                                                       results/thesis/base_facts.csv ─► \tn{base.*} in ch. 8
 ```
+
+## Where everything lives: one directory
+
+Every base, the thesis's and the Meeting01 paper's, is in one directory, written `<databases>` below:
+
+```
+<databases> = ~/Documentos/academico/UNESP/doutorado/databases
+
+<databases>/
+  database.sqlite                  Coretto et al.        (+ database.sqlite.mirror-verified, the stamp)
+  database.sqlite.pronounced.e05dscache, .imagined-<seed>.e05dscache      decoded caches, 1.6 GB each
+  coretto_zenodo/                  the Coretto EEG mirror, S01.zip ... S15.zip (verification only)
+  biomex.sqlite                    BIOMEX-DB             (+ biomex.sqlite.verified, the stamp)
+  biomex/{archives,extracted}      BIOMEX-DB as downloaded: the 51 volunteers, EEG + Voice
+  fsdDataset/  audioMNIST_8k/  eegmmidb/  siena/  mitbih/                  Meeting01 corpora
+```
+
+The thesis profiles name it in `dataset.root` (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, and
+`.../biomex.sqlite`), and every script that downloads, converts or verifies a base uses it **by
+default**, so none of the commands below needs a path. `~` is expanded on the machine that runs
+the profile, so the cluster holds the same layout under its own home (the deploy creates it).
+The directory is written in four places that `scripts/testing/test_databases_dir.py` keeps equal:
+`scripts/data/databases_dir.py`, the profile generator, `gridunesp_deploy.sh` and
+`ensure_datasets.sh`.
+
+**`biomex/` is kept even though `biomex.sqlite` exists.** The SQLite is not a copy of it: it holds
+45 of the 51 volunteers (the strict rule drops six, whose 140 voice and 17 EEG files exist only
+in `biomex/extracted`), only the pronounced-digit pairs, and the EEG and voice already filtered
+and resampled. `biomex_verify.py` checks the SQLite against `biomex/extracted`, and a changed
+rule is a re-conversion from it. Delete `biomex/` only if you accept losing both.
 
 All commands run from `software/nn/`. The scripts live in `scripts/data/` (conversion and
 verification) and `scripts/analysis/` (facts the thesis quotes).
@@ -38,9 +68,9 @@ verification) and `scripts/analysis/` (facts the thesis quotes).
 | SQLite schema | `subject`, `modalities`, `stimulus`, `trial` (9315), `eeg_samples` (9315), `audio_samples` (1974: pronounced trials only) | `speaker` (45), `stimulus` (10), `pair` (6297: one voice + one EEG epoch per spoken digit), `recording` (key/value provenance) |
 | Read by | `ThesisDataset.cpp`, `dataset.source = "coretto2017"` | `ThesisDataset.cpp`, `dataset.source = "biomex2021"` |
 
-The profile key `dataset.root` names the file (`~/database.sqlite` or `~/biomex.sqlite`).
+The profile key `dataset.root` names the file (`<databases>/database.sqlite` or `<databases>/biomex.sqlite`).
 
-## Coretto *et al.* (`~/database.sqlite`)
+## Coretto *et al.* (`<databases>/database.sqlite`)
 
 **Obtain.** The authors distribute 30 `.mat` files, `SXX_EEG.mat` and `SXX_Audio.mat` for
 S01..S15, through the link in their paper (a Google Drive folder that now asks for a sign-in).
@@ -50,32 +80,32 @@ only at the authors'.
 **Convert.**
 
 ```bash
-python3 scripts/data/import_mat_dataset_to_sqlite.py <folder with S01..S15> ~/database.sqlite
+python3 scripts/data/import_mat_dataset_to_sqlite.py <folder with S01..S15> ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite
 ```
 
 Each `.mat` row is one trial: the six channels of 4096 samples each, concatenated, then three
 labels (modality 1 = imagined / 2 = pronounced, stimulus 1–11, blink). The importer stores each
 channel as a float32 BLOB.
 
-**Verify** against the Zenodo EEG copy (download it to `~/coretto_zenodo` first):
+**Verify** against the Zenodo EEG copy (download it to `<databases>/coretto_zenodo` first):
 
 ```bash
-python3 scripts/data/coretto_verify_mirror.py --db ~/database.sqlite --mirror ~/coretto_zenodo
+python3 scripts/data/coretto_verify_mirror.py        # --db and --mirror default to <databases>
 ```
 
 It checks that every `.mat` row is in the SQLite exactly once, with equal channels, modality,
 stimulus and blink label. Exit status 1 on any difference. On success it writes the stamp
-`~/database.sqlite.mirror-verified`: line 1 is the sha256 of the SQLite, line 2 the counts as
+`<databases>/database.sqlite.mirror-verified`: line 1 is the sha256 of the SQLite, line 2 the counts as
 JSON (the run of record: 9315 / 9315 trials equal). **The audio cannot be checked this way**: it
 is not in the mirror. Thesis ch. 8 says so.
 
-## BIOMEX-DB (`~/biomex.sqlite`)
+## BIOMEX-DB (`<databases>/biomex.sqlite`)
 
 ```bash
-python3 scripts/data/biomex_download.py  --dest ~/biomex                # 51 RAR, keeps EEG + Voice only
-python3 scripts/data/biomex_inventory.py --src ~/biomex/extracted [--csv inventory.csv]
-python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
-python3 scripts/data/biomex_verify.py    --src ~/biomex/extracted --db ~/biomex.sqlite
+python3 scripts/data/biomex_download.py                         # 51 RAR -> <databases>/biomex, keeps EEG + Voice only
+python3 scripts/data/biomex_inventory.py [--csv inventory.csv]  # reads <databases>/biomex/extracted
+python3 scripts/data/biomex_to_sqlite.py                        # -> <databases>/biomex.sqlite
+python3 scripts/data/biomex_verify.py                           # checks it against <databases>/biomex/extracted
 ```
 
 | Step | What it does | Fails when |
@@ -83,7 +113,7 @@ python3 scripts/data/biomex_verify.py    --src ~/biomex/extracted --db ~/biomex.
 | download | fetches each volunteer's archive, checks its SHA-256 against the listing, extracts `EEG/` and `Voice/`, deletes the archive (`--keep-archives` keeps it); resumes | a hash differs |
 | inventory | lists, per volunteer, every EDF and voice file and whether it is the complete protocol | — (a report: read it before changing any rule) |
 | convert | pairs each spoken digit's voice window with the EEG epoch recorded while it was spoken; applies the rules below | it cannot pair a digit for certain |
-| verify | re-derives every pair by a second path and checks the EDF against the CSV export and the paper's Table 1 | any difference (exit 1); writes `~/biomex.sqlite.verified` |
+| verify | re-derives every pair by a second path and checks the EDF against the CSV export and the paper's Table 1 | any difference (exit 1); writes `<databases>/biomex.sqlite.verified` |
 
 **The rules of record (chosen on the whole base, before any result):**
 
@@ -105,16 +135,15 @@ update ch. 8 (which states these rules) — never patch the SQLite by hand.
 The stamp files are how a later step knows the SQLite it reads is the one that was verified:
 
 ```
-~/biomex.sqlite.verified
-  line 1: 7210c936…   sha256 of ~/biomex.sqlite when it passed
+<databases>/biomex.sqlite.verified
+  line 1: 7210c936…   sha256 of biomex.sqlite when it passed
   line 2: {"volunteers": 45, "excluded": [...], "pairs_equal": 6297, "differences": 0, ...}
 ```
 
 `scripts/analysis/thesis_base_facts.py` reads both bases **and** both stamps:
 
 ```bash
-python3 scripts/analysis/thesis_base_facts.py --biomex ~/biomex.sqlite --coretto ~/database.sqlite \
-    --out results/thesis/base_facts.csv
+python3 scripts/analysis/thesis_base_facts.py --out results/thesis/base_facts.csv   # both bases from <databases>
 ```
 
 It refuses a stamp whose sha256 is not the current file's, which is a **loud** failure. The
@@ -137,14 +166,16 @@ pronounced/imagined split and is no longer read.) Details:
 ## On the cluster
 
 `scripts/pipeline/meeting01/gridunesp_deploy.sh` (with the `thesis` target) sends
-`~/database.sqlite` and its two caches to the same paths on the cluster, and `~/biomex.sqlite`
+`database.sqlite` and its two caches to the same paths under the cluster's home
+(`~/Documentos/academico/UNESP/doutorado/databases/`, created if missing), and `biomex.sqlite`
 when it exists. It **refuses** to send a `biomex.sqlite` that has no stamp or whose sha256 is no
 longer the stamped one, so an unverified base cannot reach a cluster run. See [Experiment05 › Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12).
 
 ## Other bases in the repository
 
 The Meeting01 paper uses FSDD, AudioMNIST, EEGMMIDB and Siena, fetched by
-`scripts/pipeline/meeting01/ensure_datasets.sh` (see [Meeting01](../Experiments/Meeting01.md)).
+`scripts/pipeline/meeting01/ensure_datasets.sh` into the same `<databases>` directory (see
+[Meeting01](../Experiments/Meeting01.md)).
 They are unrelated to the thesis.
 
 ## Related

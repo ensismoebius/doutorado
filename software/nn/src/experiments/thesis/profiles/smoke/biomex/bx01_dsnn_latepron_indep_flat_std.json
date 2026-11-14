@@ -6,7 +6,7 @@
   },
   "dataset": {
     "source": "biomex2021",
-    "root": "~/biomex.sqlite",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
     "results_dir": "results/thesis/smoke",
     "modality": "fused",
     "fusion_mode": "late",

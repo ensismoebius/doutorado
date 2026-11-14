@@ -1142,15 +1142,15 @@ exactly why §3 above fetches into the *same absolute path* under the grid accou
 `$HOME` rather than doing anything sqlite-specific.
 
 `thesis` and `paraconsistentGA` are a different story: they read a single sqlite base
-(`~/database.sqlite`, or `~/biomex.sqlite` for the BIOMEX-DB profiles), opened by
+(`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, or `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite` for the BIOMEX-DB profiles), opened by
 `ThesisDataset::load_dataset` with the path resolved by `nn::utility::expand_home`.
 
 **`thesis` runs on the grid since 2026-11-12.** `gridunesp_deploy.sh` builds it by default
 (`GRIDUNESP_TARGETS="meeting01 thesis"`). With `thesis` among the targets, the deploy also
-sends `~/database.sqlite` and its decoded caches, one per EEG condition
-(`~/database.sqlite.pronounced.e05dscache`, `~/database.sqlite.imagined-<seed>.e05dscache`), to
+sends `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` and its decoded caches, one per EEG condition
+(`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.pronounced.e05dscache`, `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.imagined-<seed>.e05dscache`), to
 the same paths on the cluster, and runs two real Phase 00 profiles (PCA k = 8, `eegpron` and
-`eegimag`) on a compute node as the smoke test. The pre-2026-11-12 `~/database.sqlite.e05dscache`
+`eegimag`) on a compute node as the smoke test. The pre-2026-11-12 `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.e05dscache`
 holds the previous-trial EEG pairing; nothing reads it and it is not sent.
 Each target has its own stamp: `SOURCE_REVISION.built` for meeting01 and
 `SOURCE_REVISION.thesis.built` for thesis. The deploy deletes both before it builds, so a

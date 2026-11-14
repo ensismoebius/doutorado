@@ -178,7 +178,7 @@ exactly — see [Core/Saver](../Core/Saver.md)). Written only when
 cd software/experiment_microscope
 ./run.sh                       # bootstraps .venv (--system-site-packages), launches
 ./.venv/bin/pytest -q          # 27 offscreen tests
-./.venv/bin/pytest -q -m slow  # + the bit-exact thesis parity check (~needs ~/database.sqlite)
+./.venv/bin/pytest -q -m slow  # + the bit-exact thesis parity check (~needs ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite)
 ```
 
 Status (2026-09): foundation + wavelet/paraconsistent/signal views working for

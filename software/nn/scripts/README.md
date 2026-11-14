@@ -110,11 +110,11 @@ Full procedure: [Data Bases](../.wiki/Guides/Data-Bases.md).
 
 | Script | Role |
 |---|---|
-| `import_mat_dataset_to_sqlite.py <root> <db>` | Coretto `.mat` (S01..S15) → `~/database.sqlite` |
+| `import_mat_dataset_to_sqlite.py <root> <db>` | Coretto `.mat` (S01..S15) → `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` |
 | `coretto_verify_mirror.py --db --mirror` | the Coretto SQLite against the Zenodo EEG copy → stamp `<db>.mirror-verified` |
 | `biomex_download.py --dest` | BIOMEX-DB from Mendeley Data (SHA-256 checked; EEG + voice only) |
 | `biomex_inventory.py --src [--csv]` | what each BIOMEX volunteer folder holds (read before changing a rule) |
-| `biomex_to_sqlite.py --src --out` | the paired BIOMEX SQLite (`~/biomex.sqlite`) |
+| `biomex_to_sqlite.py --src --out` | the paired BIOMEX SQLite (`~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite`) |
 | `biomex_verify.py --src --db` | the converted SQLite re-derived by a second path → stamp `<db>.verified` |
 | `sqlite_reader.py`, `verify_sqlite_roundtrip.py`, `verify_sqlite_full.py` | inspect a SQLite base; older MAT → SQLite fidelity checks |
 | `npz_to_pytorch.py` | convert `.npz` model files to PyTorch `.pt` |

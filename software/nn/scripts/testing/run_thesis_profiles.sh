@@ -13,7 +13,7 @@
 #                                        thesis_build_phase00_paraconsistent_tables.py
 #                                                                → regenerates the thesis tables
 #   2) run_thesis_profiles.sh phase01   → DSNN authentication, EER/AUC in results/thesis/phase01
-#   3) run_thesis_profiles.sh biomex    → the BIOMEX-DB replication (reads ~/biomex.sqlite), in
+#   3) run_thesis_profiles.sh biomex    → the BIOMEX-DB replication (reads ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite), in
 #                                         results/thesis/biomex; its profiles carry the Coretto
 #                                         Phase 00 winners, so it must run after step 1
 #
@@ -140,7 +140,7 @@ parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per jo
 What do you want to do?
   1) phase00 — feature construction + paraconsistent ranking  ($(n_profiles phase00) profiles)
   2) phase01 — DSNN authentication                            ($(n_profiles phase01) profiles)
-  5) biomex  — BIOMEX-DB replication (needs ~/biomex.sqlite)  ($(n_profiles biomex) profiles)
+  5) biomex  — BIOMEX-DB replication (needs ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite)  ($(n_profiles biomex) profiles)
   3) all     — phase00 + phase01 + debug, in ONE pass (no biomex)
                (phase01 uses the previous winners — see 4)
   4) start over all — phase00, phase01, biomex, from scratch, in order

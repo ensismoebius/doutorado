@@ -4,7 +4,7 @@
 
 Fifteen views need the same signal, wavelet decomposition and feature matrix.
 If each view loaded its own copy, a wavelet decomposition would run fifteen
-times, the GUI thread would block on `~/database.sqlite`, and two views could
+times, the GUI thread would block on `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, and two views could
 disagree about the same number. So there is exactly one path from a view to
 data, and every derived array is computed once.
 
@@ -77,7 +77,7 @@ A payload that needs recompute and no `.so` raises `BindingUnavailableError`
   `root → dataset → fold → {test|val|train windows, snn-ae/arch/enc combos} →
   window`.
 - **`ThesisAdapter`** reads `results/thesis/{phase00,phase01}/*`. Every
-  per-sample number is recomputed from `~/database.sqlite` via
+  per-sample number is recomputed from `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` via
   `nn_microscope.thesis` / `.wavelet`. Tree:
   `root → phase → run → {feature-set results, "samples (modality, live)"} →
   sample`. Per-modality `DatasetView` and per-run `FeatureMatrix` are cached.

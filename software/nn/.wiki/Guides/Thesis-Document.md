@@ -107,9 +107,9 @@ scripts/pipeline/thesis/03_thesis_phase01_significance.sh src/experiments/thesis
 scripts/pipeline/thesis/04_thesis_biomex_significance.sh  src/experiments/thesis/profiles/biomex  results/thesis/biomex
 
 # 3. facts about the bases and the AE-input reference (only when a base or the AE input changed)
-python3 scripts/analysis/thesis_base_facts.py --biomex ~/biomex.sqlite --coretto ~/database.sqlite \
+python3 scripts/analysis/thesis_base_facts.py --biomex ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite --coretto ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \
   --out results/thesis/base_facts.csv
-python3 scripts/analysis/thesis_ae_input_reference.py --db ~/database.sqlite \
+python3 scripts/analysis/thesis_ae_input_reference.py --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \
   --out results/thesis/ae_input_reference.csv          # needs torch; about a minute
 
 # 4. every number and claim of the prose
@@ -132,7 +132,7 @@ loosen the claim. Then commit results, tables, `thesis_numbers.tex` and the text
 |---|---|---|
 | `spikeEncodings.pdf` (ch. 8, the three temporal encodings) | `generate_encoding_figure.py` | `python3 generate_encoding_figure.py .` |
 | `membranePotential{Full,Increase,Decay}.pdf` (ch. 7) | `generate_membrane_figures.py` | `python3 generate_membrane_figures.py .` |
-| `simulatedDysphonia.pdf` (ch. 8, a real utterance degraded by the thesis code) | `generate_dysphonia_figure.py` — compiles `software/nn/src/experiments/thesis/lib/src/VoiceDegradation.cpp` with `g++` and calls it, so the figure shows what the experiment does | `python3 generate_dysphonia_figure.py --db ~/database.sqlite --out-dir .` |
+| `simulatedDysphonia.pdf` (ch. 8, a real utterance degraded by the thesis code) | `generate_dysphonia_figure.py` — compiles `software/nn/src/experiments/thesis/lib/src/VoiceDegradation.cpp` with `g++` and calls it, so the figure shows what the experiment does | `python3 generate_dysphonia_figure.py --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite --out-dir .` |
 
 Run them from `images/`. The TikZ flowcharts (`strategicStructure.tex`, `e05PipelineTwoPhase.tex`,
 `e05Phase00Flow.tex`, `e05Phase01Flow.tex`, all in ch. 8) are compiled with the document.

@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-14 — every data base in one directory
+
+### Changed
+
+- The bases moved from `~` into `~/Documentos/academico/UNESP/doutorado/databases` (the directory the Meeting01 corpora were already
+  in): `database.sqlite` with its `.e05dscache` caches and `.mirror-verified` stamp,
+  `biomex.sqlite` with its `.verified` stamp (sha256 re-checked after the move), `coretto_zenodo/`
+  and `biomex/`.
+- All 945 thesis and paraconsistentGA profiles read `dataset.root` from there (only that line
+  changed in each; the profile generator and the smoke-profile maker produce the same tree, and
+  `profile_audit` still passes). `paraconsistent_ga_gtest` pins the new path.
+- Scripts that download, convert or verify a base default to that directory
+  (`scripts/data/databases_dir.py`): `biomex_download.py`, `biomex_to_sqlite.py`,
+  `biomex_verify.py`, `biomex_inventory.py`, `coretto_verify_mirror.py`, `thesis_base_facts.py`,
+  `thesis_ae_input_reference.py`; an explicit path on the command line still wins.
+  `ensure_datasets.sh` already used it.
+- `gridunesp_deploy.sh` sends the thesis bases to `~/Documentos/academico/UNESP/doutorado/databases/`
+  on the cluster (created if missing) instead of `~/`. **The next thesis deploy re-sends them**
+  (about 2.3 GB + two 1.6 GB caches + 1.8 GB), and the copies at the cluster's `~/` are no
+  longer read.
+- `scripts/testing/test_databases_dir.py` (run by CI) keeps the directory equal in the helper,
+  the generator, the deploy script and `ensure_datasets.sh`, and checks every tracked profile.
+- `biomex/` was **not** deleted: `biomex.sqlite` is a derivation (45 of the 51 volunteers, the
+  pronounced pairs only, filtered and resampled), so it does not hold what `biomex/extracted`
+  holds; the verifier and any re-conversion read it. See `.wiki/Guides/Data-Bases.md`.
+
 ## 2026-11-14 — loaders tests: no hard-coded path, no skip
 
 ### Changed

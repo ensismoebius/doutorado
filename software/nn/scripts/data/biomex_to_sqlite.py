@@ -56,8 +56,9 @@ words, a missing or duplicated file, another sample rate or channel set, a windo
 not fit, all raise and name the volunteer, session and series.
 
 Usage (from software/nn):
-    python3 scripts/data/biomex_to_sqlite.py --src <dir holding F001/, M001/, ...> \\
-        --out ~/biomex.sqlite
+    python3 scripts/data/biomex_to_sqlite.py     # --src <databases>/biomex/extracted --out <databases>/biomex.sqlite
+    python3 scripts/data/biomex_to_sqlite.py --src <dir holding F001/, M001/, ...> --out <file>
+with <databases> = ~/Documentos/academico/UNESP/doutorado/databases.
 """
 import argparse
 import glob
@@ -69,6 +70,9 @@ import wave
 
 import numpy as np
 from scipy.signal import fftconvolve, firwin, resample_poly
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from databases_dir import in_databases  # noqa: E402
 
 FORMAT = "thesis-paired-v1"
 SOURCE = "biomex2021"
@@ -440,8 +444,10 @@ def recording_info():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--src", required=True, help="directory holding one folder per volunteer")
-    ap.add_argument("--out", required=True, help="the SQLite file to write (must not exist)")
+    ap.add_argument("--src", default=in_databases(os.path.join("biomex", "extracted")),
+                    help="directory holding one folder per volunteer (default: %(default)s)")
+    ap.add_argument("--out", default=in_databases("biomex.sqlite"),
+                    help="the SQLite file to write, must not exist (default: %(default)s)")
     args = ap.parse_args()
     src = os.path.expanduser(args.src)
     out = os.path.expanduser(args.out)

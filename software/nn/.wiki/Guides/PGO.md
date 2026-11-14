@@ -39,7 +39,7 @@ Then run a **representative workload** — one that actually exercises the hot p
     --config src/experiments/thesis/profiles/debug.json
 ```
 
-`--config` takes a path. The profile reads `~/database.sqlite` (see [Data Bases](./Data-Bases.md)); without the base the run stops at load time and collects almost no counters, so build the base first. What matters for PGO is *which code executes*, so any profile that exercises the same paths will do.
+`--config` takes a path. The profile reads `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` (see [Data Bases](./Data-Bases.md)); without the base the run stops at load time and collects almost no counters, so build the base first. What matters for PGO is *which code executes*, so any profile that exercises the same paths will do.
 
 The compiler writes profiling counters (`.gcda` files, GCC format) into the build directory as the instrumented binary runs.
 

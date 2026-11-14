@@ -65,6 +65,6 @@ The experiment outputs live in `software/nn/results/` (the thesis's in
 `git ls-files` is the truth about what is tracked. These exist locally and are ignored:
 LaTeX build products (`*.aux`, `*.bbl`, `*.log`, …), `.ipynb_checkpoints/`, `*.wav`, and in
 `software/nn/`: `.venv/`, `out/` (build trees), `__pycache__/`, the generated
-`include/layers/Layers.hpp`. The data bases (`~/database.sqlite`, `~/biomex.sqlite`) are
+`include/layers/Layers.hpp`. The data bases (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite`) are
 outside the repository; [Data Bases](software/nn/.wiki/Guides/Data-Bases.md) says how to
 rebuild them.

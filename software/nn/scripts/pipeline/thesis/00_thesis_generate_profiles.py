@@ -104,7 +104,11 @@ EEG_SIGNAL = {"pronounced": "eegpron", "imagined": "eegimag"}
 
 
 # Which base each profile reads (ThesisConfig: dataset.source, declared, never inferred).
-BASES = {"coretto2017": "~/database.sqlite", "biomex2021": "~/biomex.sqlite"}
+# The bases live in one directory (the same one scripts/pipeline/meeting01/ensure_datasets.sh
+# fills); "~" is expanded on the machine that runs the profile, so the cluster needs the same
+# layout under its own home (gridunesp_deploy.sh creates it).
+DATABASES = "~/Documentos/academico/UNESP/doutorado/databases"
+BASES = {"coretto2017": f"{DATABASES}/database.sqlite", "biomex2021": f"{DATABASES}/biomex.sqlite"}
 BIOMEX_SOURCES = ("voice", "eegpron", "earlypron", "latepron")
 
 

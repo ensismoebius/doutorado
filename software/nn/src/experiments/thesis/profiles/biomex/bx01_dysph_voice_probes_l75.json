@@ -7,7 +7,7 @@
   },
   "dataset": {
     "source": "biomex2021",
-    "root": "~/biomex.sqlite",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
     "results_dir": "results/thesis/biomex",
     "modality": "voice",
     "max_samples": 0

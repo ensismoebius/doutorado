@@ -177,7 +177,7 @@ cmake --build --preset=pgo-generate -j$(nproc)
 
 # 2. Run a representative workload to collect profiles
 # (the thesis debug profile: data loading, feature extraction, AE training, classifiers;
-#  it reads ~/database.sqlite, see Data Bases)
+#  it reads ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite, see Data Bases)
 ./out/build/pgo-generate/src/experiments/thesis/thesis \
     --config src/experiments/thesis/profiles/debug.json
 

@@ -68,9 +68,9 @@ trial, every (speaker, word) covered), so the EEG condition became an experiment
 | `pronounced` | the same trial (spoken aloud, recorded together) | EEG of overt speech |
 | `imagined` | an imagined trial of (s, w), drawn without replacement with `eeg_pairing_seed` | the thesis title: imagined speech |
 
-The cache name carries both (`~/database.sqlite.pronounced.e05dscache`,
-`~/database.sqlite.imagined-2026.e05dscache`, format version 3); the old
-`~/database.sqlite.e05dscache` holds the defective pairing and is read by nothing.
+The cache name carries both (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.pronounced.e05dscache`,
+`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.imagined-2026.e05dscache`, format version 3); the old
+`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.e05dscache` holds the defective pairing and is read by nothing.
 Tests: `ThesisDatasetPairing.*` build a SQLite with the real schema whose EEG value encodes
 `1000·subject + original_row`, so the test reads *which* trial arrived.
 
@@ -522,7 +522,7 @@ eyes-open rest, power 30-64 Hz ×2.3 (T7 ×4.4, F7 ×3.8), 1-4 Hz ×11.8 — "pr
 identification can be partly jaw and eyes, on both bases.
 
 **And the Coretto base?** Its counts match Tables 3 and 4 of its paper in every cell but one:
-S01 /o/ pronounced has 11 trials in `~/database.sqlite`, 10 in the paper (whose column sums to
+S01 /o/ pronounced has 11 trials in `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, 10 in the paper (whose column sums to
 175, consistent with 10). The 11 are distinct trials from distinct rows of the original matrix,
 so the difference is between the paper and the distributed data, not the import. The authors'
 Google Drive folder now requires a sign-in (`gdown` fails), so the blobs are compared with the
@@ -536,10 +536,10 @@ bit-identical once the `.mat`'s float64 is rounded to the base's float32 (compar
 rounding, every channel differed by ~2e-6 uV: the check sees that far).
 
 ```bash
-python3 scripts/data/biomex_download.py --dest ~/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked
-python3 scripts/data/biomex_inventory.py --src ~/biomex/extracted  # every EDF of every folder; the irregular ones
-python3 scripts/data/biomex_to_sqlite.py --src ~/biomex/extracted --out ~/biomex.sqlite
-python3 scripts/data/biomex_verify.py --src ~/biomex/extracted --db ~/biomex.sqlite  # stamp
+python3 scripts/data/biomex_download.py --dest ~/Documentos/academico/UNESP/doutorado/databases/biomex            # 8.1 GB, keeps EEG + Voice, SHA-256 checked
+python3 scripts/data/biomex_inventory.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted  # every EDF of every folder; the irregular ones
+python3 scripts/data/biomex_to_sqlite.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted --out ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite
+python3 scripts/data/biomex_verify.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted --db ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite  # stamp
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # after the array: results/thesis/biomex/ back from the cluster (rsync, no --delete), then
 scripts/pipeline/thesis/04_thesis_biomex_significance.sh src/experiments/thesis/profiles/biomex results/thesis/biomex
@@ -766,11 +766,11 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 - Two speech conditions: **pronounced** (audio + EEG recorded simultaneously) and **imagined** (EEG only — no audio was recorded in the imagined condition)
 - Audio: 44100 Hz, single channel (present only for pronounced trials)
 - EEG: 1024 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system; each 4 s trial = 4096 samples/channel
-- Profiles: `dataset.source "coretto2017"`, `dataset.root "~/database.sqlite"`
+- Profiles: `dataset.source "coretto2017"`, `dataset.root "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite"`
 
 **BIOMEX-DB** (Moreno-Rodriguez et al., IEEE Access 2021; data 10.17632/s7chktmb6x.1, CC BY 4.0)
 — the confirmatory replication of the pronounced-speech results (section 11 above):
-`dataset.source "biomex2021"`, `dataset.root "~/biomex.sqlite"` (the paired SQLite written by
+`dataset.source "biomex2021"`, `dataset.root "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite"` (the paired SQLite written by
 `scripts/data/biomex_to_sqlite.py`; table `recording` declares its format, rates, channels and
 lengths, and the loader refuses a file whose blobs do not match them).
 
@@ -883,7 +883,7 @@ run has none either. Three real profiles, one per strategy:
 // phase00/p00_hc_haar_bark_c1_voice.json — handcrafted, no training block
 { "experiment": {"run_tag": "e05_p00_hc_haar_bark_c1_voice", "seed": 42, "repeats": 3,
                  "seed_deterministic": false},
-  "dataset": {"root": "~/database.sqlite", "results_dir": "results/thesis/phase00",
+  "dataset": {"root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite", "results_dir": "results/thesis/phase00",
               "modality": "voice", "max_samples": 0},
   "feature_extraction": {"strategy": "handcrafted",
     "handcrafted": {"transform": "dtwpt", "scale": "bark", "wavelet": "haar", "cepstral": false,
@@ -1121,8 +1121,8 @@ Finer cuts were considered and not adopted:
 - the inner-CV candidates of a nested fold still run one after another in a one-CPU process.
 
 Why several units per task in Phase 00: every unit first loads the decoded dataset,
-cache of its EEG condition (`~/database.sqlite.pronounced.e05dscache` or
-`~/database.sqlite.imagined-2026.e05dscache`, 1.6 GB each), from `/home`. Units that run in a row on one node read
+cache of its EEG condition (`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.pronounced.e05dscache` or
+`~/Documentos/academico/UNESP/doutorado/databases/database.sqlite.imagined-2026.e05dscache`, 1.6 GB each), from `/home`. Units that run in a row on one node read
 it once from `/home` and then from that node's page cache.
 
 The local runner (`scripts/testing/run_thesis_profiles.sh`) follows the same rule. Each process
@@ -1171,7 +1171,7 @@ default threads.
 **Commands.**
 
 ```bash
-# local: sync the tree, build meeting01 + thesis on a compute node, send ~/database.sqlite
+# local: sync the tree, build meeting01 + thesis on a compute node, send ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite
 # (+ its two caches), and smoke thesis with p00_pca_k8_eegpron + _eegimag on a compute node
 ./scripts/pipeline/meeting01/gridunesp_deploy.sh            # GRIDUNESP_TARGETS="meeting01 thesis"
 # cluster: one array per phase (# CONFIRMED -- the expensive-experiment guard)
@@ -1198,7 +1198,7 @@ is skipped or worked around.
 The deploy stamps each binary separately and deletes every stamp before it builds, so a binary
 it did not rebuild ends up unstamped and refuses to run. It also refuses to deploy while a
 `thesis-run*` job is running: those jobs load this project's shared libraries from the build
-tree (RPATH), and they read `~/database.sqlite`, which the deploy may replace.
+tree (RPATH), and they read `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`, which the deploy may replace.
 
 All of the above was exercised locally on 2026-11-12, with stubs for `module`, `conda` and
 job-nanny, using the real binary and 3 real profiles: a fresh task, a resubmission, a gap in
@@ -1209,7 +1209,7 @@ The cache's temp file is now named `<cache>.tmp.<host>.<pid>`. The pid alone was
 machine only, and array tasks on different nodes share `/home`.
 
 **The first submission (array 5322956, 2026-11-12) failed on the database itself.** Six of 16
-tasks stopped within 3 s with `Failed to prepare subject query`. `~/database.sqlite` is in WAL
+tasks stopped within 3 s with `Failed to prepare subject query`. `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite` is in WAL
 mode, and WAL needs every reader on one host: its `-shm` index is shared memory. Every 10.1117
 reader now opens the file immutable
 ([DataLoaders § Opening the database](../Core/DataLoaders.md#opening-the-database-immutable-because-of-wal-on-nfs-2026-11-12)).

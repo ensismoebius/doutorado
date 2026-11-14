@@ -48,6 +48,9 @@ jobs:
     - name: Run pipeline script tests
       run: python3 scripts/testing/test_thesis_phase_scripts.py
 
+    - name: Run databases-directory test (profiles, scripts and deploy name one directory)
+      run: python3 scripts/testing/test_databases_dir.py
+
     - name: Run BIOMEX-DB converter tests
       run: python3 scripts/testing/test_biomex_convert.py
 

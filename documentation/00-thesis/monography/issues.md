@@ -620,7 +620,7 @@ pela ordem dentro da série, conferindo a identidade do dígito.
   `results/thesis/biomex/coretto_phase00_winners_frozen.json` (voz e EEG pronunciado:
   Haar + bandas lineares c1, DTWPT nível 4).
 - GridUnesp: `THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch`;
-  o deploy envia `~/biomex.sqlite` quando ele existe.
+  o deploy envia `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite` quando ele existe.
 
 ### Mesmo formato nas duas bases (auditoria de 2026-11-13)
 
@@ -664,7 +664,7 @@ Moreno-Rodriguez et al., IEEE Access 9:111267 (2021), o PDF da BIOMEX-DB na mesm
 - Todo par do `.sqlite` é igual ao reconstruído dos originais por outro caminho (WAV via
   `scipy.io.wavfile`, regra da janela reimplementada). Teste de mutação: três corrupções numa
   cópia, todas acusadas.
-- Selo `~/biomex.sqlite.verified` (sha256); o deploy recusa uma base sem selo válido.
+- Selo `~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite.verified` (sha256); o deploy recusa uma base sem selo válido.
 - **Decisão do usuário (2026-11-13): excluir os dados afetados, pela regra estrita.** Um
   voluntário fica só se a pasta `EEG/` tiver exatamente uma gravação completa de 01G10 e uma de
   01G04 com o próprio nome. Gravações sem nenhum dígito (inícios abortados) e as sessões 02 são

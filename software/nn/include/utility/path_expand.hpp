@@ -11,9 +11,10 @@ namespace nn::utility
  * @file path_expand.hpp
  * @brief Expand a leading `~/` in a path to the current user's home directory.
  *
- * Profiles store the dataset root portably as `~/database.sqlite`; the sqlite
- * API and std::filesystem treat `~` literally, so any code that turns a
- * profile path into a filesystem location must expand it first.
+ * Profiles store the dataset root portably as
+ * `~/Documentos/academico/UNESP/doutorado/databases/database.sqlite`; the sqlite API and
+ * std::filesystem treat `~` literally, so any code that turns a profile path into a filesystem
+ * location must expand it first.
  *
  * Only a leading `~/` is rewritten. Paths without it, or already-absolute
  * paths, are returned unchanged. If HOME is unset, `~` is left as-is so the

@@ -2,7 +2,8 @@
 # thesis_gridunesp.sbatch -- one phase of the thesis experiment (Experiment05) on GridUnesp, as a
 # job array under job-nanny. The binary must already be BUILT and stamped on the cluster:
 # scripts/pipeline/meeting01/gridunesp_deploy.sh does both (its default targets include thesis)
-# and sends ~/database.sqlite (and ~/biomex.sqlite, when it exists), the profiles' dataset.root.
+# and sends database.sqlite (and biomex.sqlite, when it exists) into ~/Documentos/academico/UNESP/doutorado/databases
+# on the cluster, the profiles' dataset.root.
 #
 # Usage (from ~/software/nn on GridUnesp, after the deploy):
 #   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
@@ -21,7 +22,7 @@
 #            (00_thesis_generate_profiles.py: grid 56, controls 28, dysphonia 40, extractor
 #            comparison 18)
 #   biomex    48 profiles x 3 repetitions = 144 units -> --array=0-47, 3 units per task
-#            (the BIOMEX-DB replication: 24 grid + controls, 24 dysphonia; ~/biomex.sqlite,
+#            (the BIOMEX-DB replication: 24 grid + controls, 24 dysphonia; <databases>/biomex.sqlite,
 #            read directly, no decoded cache)
 #   phase00  275 units, one per profile               -> --array=0-63, ~4-5 units per task
 #
@@ -33,7 +34,7 @@
 #
 # Units are interleaved over the tasks: task t of N runs units t, t+N, t+2N, ... of the sorted
 # list, in a row. Every unit first loads the decoded dataset of its EEG condition
-# (~/database.sqlite.pronounced.e05dscache or ~/database.sqlite.imagined-<seed>.e05dscache,
+# (<databases>/database.sqlite.pronounced.e05dscache or ...imagined-<seed>.e05dscache,
 # 1.6 GB each) from /home; units that run in a row on one node read it from the page cache.
 #
 #   sorted phase00 units  p00_ae_ann_base_eegimag  p00_ae_ann_base_eegpron  ...  p00_pca_k8_voice
@@ -220,7 +221,7 @@ for u in "${MINE[@]}"; do
 done
 
 # ── Stage (INPUT for job-nanny): exactly what run.sh reads, in the same layout ────────────────
-# The dataset is NOT staged: the profiles read ~/database.sqlite (+ its cache) from /home, once
+# The dataset is NOT staged: the profiles read <databases>/database.sqlite (+ its cache) from /home, once
 # per profile, from the node's page cache after the first (see the header). The binary loads this
 # project's shared libraries from the build tree on /home (RPATH), which is why the deploy refuses
 # while a thesis-run job is RUNNING.

@@ -78,7 +78,7 @@ _ROWS: tuple[Row, ...] = (
         "speaker/subject authentication from EEG or voice", DIFFERENT,
         "meeting01 Experiment.cpp / thesis Phase-01 classifiers"),
     Row("Primary dataset", "FSDD (also AudioMNIST, MIT-BIH)",
-        "in-house EEG + voice corpus (~/database.sqlite)", DIFFERENT, "adapters"),
+        "in-house EEG + voice corpus (~/Documentos/academico/UNESP/doutorado/databases/database.sqlite)", DIFFERENT, "adapters"),
     Row("Signal", "1-D audio, z-scored 256-sample windows",
         "6-ch EEG @ 1024 Hz (4096) or voice @ 44.1 kHz", DIFFERENT,
         "Meeting01Dataset.hpp / ThesisDataset.hpp"),

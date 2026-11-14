@@ -10,7 +10,7 @@ On-disk artifacts (``software/nn/results/thesis/``):
 Nothing per-sample is persisted. Raw signals, wavelet decompositions, feature
 vectors and per-sample paraconsistent inputs are recomputed on demand through
 ``nn_microscope.thesis`` / ``nn_microscope.wavelet`` from the dataset at
-``~/database.sqlite``. Until that binding is built those payloads raise with
+``~/Documentos/academico/UNESP/doutorado/databases/database.sqlite``. Until that binding is built those payloads raise with
 the build command (no-fallback).
 """
 
