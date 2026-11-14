@@ -51,6 +51,20 @@ HOW A PAIR IS MADE.
         over F001-F006) to fit one fast speaker; dropping the pairs would be a silent
         selection.
 
+THE VOLUNTEERS THE STRICT RULE LEAVES OUT ARE STORED TOO, AND NEVER READ (2026-11-14).
+  Their rows are written with speaker.excluded = 1 and the reason in speaker.excluded_reason,
+  numbered AFTER the kept ones (ids 1..45 and pairs 1..6297 are exactly what they were before
+  these rows existed: the order is what the classifiers' groups and folds come from). Every
+  reader selects `speaker.excluded = 0` (ThesisDataset.cpp, biomex_verify.py,
+  thesis_base_facts.py), so the processing is unchanged. WHY they are not processed: the
+  strict rule below, which the data of record was chosen with before any result; a pair of
+  these volunteers rests on a file that is not named for them, or on a choice between two
+  recordings, and the converter pairs for certain or not at all.
+  What is stored for them is what the files allow: each session's EEG is the one COMPLETE
+  recording of it in the folder under any name (stored_recordings); a session with none, or
+  with two complete ones (M001: nothing tells which one its voice was recorded with), has no
+  pairs, and excluded_reason says so. These pairs are NOT verified by biomex_verify.py.
+
 Nothing is guessed: an unknown marker or label, a series whose digits differ from its
 words, a missing or duplicated file, another sample rate or channel set, a window that does
 not fit, all raise and name the volunteer, session and series.
@@ -74,7 +88,7 @@ from scipy.signal import fftconvolve, firwin, resample_poly
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from databases_dir import in_databases  # noqa: E402
 
-FORMAT = "thesis-paired-v1"
+FORMAT = "thesis-paired-v2"   # v2: speaker.excluded / excluded_reason (v1 had neither)
 SOURCE = "biomex2021"
 EEG_RATE = 128
 EEG_CHANNELS = ("AF3", "F7", "F3", "FC5", "T7", "P7", "O1", "O2", "P8", "T8", "FC6", "F4",
@@ -283,6 +297,42 @@ def own_recordings(folder, vid):
     return chosen
 
 
+# An EEG file of a volunteer the strict rule left out, under any id and either spelling of the
+# session: "F006-01G04-..." (in F007's folder), "M007-1G10-...", "M10-01G04-...".
+LENIENT_EDF = re.compile(r"^[FM]\d+-(?P<session>0?1G(?:10|04))-.*\.edf$")
+
+
+def stored_recordings(folder, vid):
+    """({session: EDF path}, [notes]) for a volunteer the strict rule excluded.
+
+    The one complete recording of each session found in the folder, whatever it is named. A
+    session with no complete recording, or with several, is left out and the note says why.
+    Only what the volunteer's own WAV/.lab files then confirm becomes a pair: convert_volunteer
+    still checks every series' digits against the words, and raises on a difference."""
+    complete = {session: [] for session in SESSIONS}
+    for path in sorted(glob.glob(os.path.join(folder, "EEG", "*.edf"))):
+        m = LENIENT_EDF.match(os.path.basename(path))
+        if not m:
+            continue
+        session = "0" + m.group("session")[-4:]            # "1G10" and "01G10" -> "01G10"
+        labels, _, _, _, raw = read_edf(path)
+        runs = digit_runs(raw[labels.index("MARKER")], path)
+        if len(runs) == SERIES_PER_SESSION and all(len(r) == SESSIONS[session] for r in runs):
+            complete[session].append(path)
+    chosen, notes = {}, []
+    for session, paths in complete.items():
+        names = ", ".join(os.path.basename(x) for x in paths)
+        if len(paths) == 1:
+            chosen[session] = paths[0]
+            notes.append(f"{session} paired from {names}")
+        elif not paths:
+            notes.append(f"{session}: no complete recording, no pairs")
+        else:
+            notes.append(f"{session}: {len(paths)} complete recordings ({names}); nothing tells "
+                         f"which one the voice was recorded with, no pairs")
+    return chosen, notes
+
+
 # ── one volunteer ──────────────────────────────────────────────────────────────────────
 def coretto_filters():
     """The Coretto paper's low-pass (order 372, 40 Hz) and high-pass (order 1204, 2 Hz)."""
@@ -310,7 +360,7 @@ def eeg_chain(eeg_native, filters):
     return fftconvolve(x, hp[None, :], mode="same", axes=-1)
 
 
-def convert_volunteer(folder, vid, filters, edge_dropped):
+def convert_volunteer(folder, vid, filters, edge_dropped, recordings=None):
     """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer.
 
     A pair whose EEG epoch lies within FILTER_EDGE samples of either end of its session is
@@ -323,8 +373,11 @@ def convert_volunteer(folder, vid, filters, edge_dropped):
     out_epoch = epoch * EEG_UP
     out_win = int(round(VOICE_WINDOW_S * OUT_VOICE_RATE))
     pairs = []
-    recordings = own_recordings(folder, vid)
+    if recordings is None:                  # a kept volunteer: the strict rule, or it raises
+        recordings = own_recordings(folder, vid)
     for session, per_series in SESSIONS.items():
+        if session not in recordings:       # only a volunteer the strict rule excluded
+            continue
         where = f"{vid} {session}"
         labels, phys, rate, start, raw = read_edf(recordings[session])
         if rate != EEG_RATE:
@@ -398,7 +451,14 @@ def convert_volunteer(folder, vid, filters, edge_dropped):
 # ── output ─────────────────────────────────────────────────────────────────────────────
 SCHEMA = """
 CREATE TABLE recording (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE speaker (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL);
+CREATE TABLE speaker (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    -- 1: left out of the processing by the strict rule (see biomex_to_sqlite.py); its rows are
+    -- stored for completeness and every reader must select excluded = 0.
+    excluded INTEGER NOT NULL CHECK (excluded IN (0, 1)),
+    excluded_reason TEXT,           -- why, and what is stored for it; NULL exactly when kept
+    CHECK ((excluded = 0) = (excluded_reason IS NULL)));
 CREATE TABLE stimulus (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL);
 CREATE TABLE pair (
     id INTEGER PRIMARY KEY,
@@ -435,6 +495,8 @@ def recording_info():
                       f"{CORETTO_LP_ORDER} ({BAND_HZ[1]:g} Hz) and high-pass order "
                       f"{CORETTO_HP_ORDER} ({BAND_HZ[0]:g} Hz), Hamming, applied once, "
                       f"{FILTER_EDGE}-sample group delay removed, whole session",
+        "excluded_rule": "speakers with excluded = 1 are stored for completeness and are never "
+                         "read: every reader selects excluded = 0 (their pairs are not verified)",
         "excluded_pairs": "; ".join(f"{v} {s} series {k} digit {p}: no .lab line"
                                     for (v, s, k), (p, _, _) in sorted(UNLABELLED_DIGITS.items())),
         "citation": "Moreno-Rodriguez et al., IEEE Access 9:111267 (2021); "
@@ -472,7 +534,7 @@ def main():
         try:
             own_recordings(os.path.join(src, vid), vid)
         except Excluded as e:
-            excluded.append(f"{vid}: {e}")
+            excluded.append((vid, str(e)))
             print(f"[biomex] {vid}: EXCLUDED by the strict rule - {e}")
             continue
         except ConversionError as e:
@@ -481,15 +543,9 @@ def main():
             sys.exit(f"[biomex] refused: {e}")
         kept.append(vid)
     con.execute("INSERT INTO recording VALUES (?, ?)",
-                ("excluded_volunteers", " | ".join(excluded) or "none"))
-    for sid, vid in enumerate(kept, 1):
-        try:
-            pairs = convert_volunteer(os.path.join(src, vid), vid, filters, edge_dropped)
-        except ConversionError as e:
-            con.close()
-            os.remove(tmp)
-            sys.exit(f"[biomex] refused: {e}")
-        con.execute("INSERT INTO speaker VALUES (?, ?)", (sid, vid))
+                ("excluded_volunteers", " | ".join(f"{v}: {r}" for v, r in excluded) or "none"))
+
+    def store_pairs(sid, pairs):
         con.executemany(
             "INSERT INTO pair (speaker_id, stimulus_id, session, series, position, voice, eeg, "
             "eeg_interpolated, voice_onset_s, voice_shift_s, voice_cut, eeg_onset_s) "
@@ -498,6 +554,18 @@ def main():
               p["eeg"].tobytes(), p["interpolated"], p["voice_onset_s"], p["voice_shift_s"],
               p["voice_cut"], p["eeg_onset_s"])
              for p in pairs])
+
+    # The kept volunteers FIRST: their speaker and pair ids are the ones the classifiers' groups
+    # and folds come from, so they must not move when excluded rows exist.
+    for sid, vid in enumerate(kept, 1):
+        try:
+            pairs = convert_volunteer(os.path.join(src, vid), vid, filters, edge_dropped)
+        except ConversionError as e:
+            con.close()
+            os.remove(tmp)
+            sys.exit(f"[biomex] refused: {e}")
+        con.execute("INSERT INTO speaker VALUES (?, ?, 0, NULL)", (sid, vid))
+        store_pairs(sid, pairs)
         n_shift = sum(p["voice_shift_s"] > 0 for p in pairs)
         n_cut = sum(p["voice_cut"] for p in pairs)
         total += len(pairs)
@@ -506,6 +574,22 @@ def main():
         print(f"[biomex] {vid}: {len(pairs)} pairs, {n_shift} voice windows moved earlier, "
               f"{n_cut} words longer than the window "
               f"(EEG sessions start {sorted({p['eeg_start'] for p in pairs})})")
+    # Then the excluded ones: stored, flagged, never read. A failure to pair one is not a
+    # refusal of the conversion (nothing reads it): it is written into its excluded_reason.
+    stored_excluded = 0
+    for sid, (vid, reason) in enumerate(excluded, len(kept) + 1):
+        folder = os.path.join(src, vid)
+        try:
+            recs, notes = stored_recordings(folder, vid)
+            pairs = convert_volunteer(folder, vid, filters, [], recs) if recs else []
+        except ConversionError as e:
+            pairs, notes = [], [f"could not be paired, no pairs: {e}"]
+        con.execute("INSERT INTO speaker VALUES (?, ?, 1, ?)",
+                    (sid, vid, f"{reason}. Stored: {'; '.join(notes)}"))
+        store_pairs(sid, pairs)
+        stored_excluded += len(pairs)
+        print(f"[biomex] {vid}: excluded, {len(pairs)} pairs stored but never read "
+              f"({'; '.join(notes)})")
     con.executemany("INSERT INTO recording VALUES (?, ?)",
                     [("voice_windows_shifted", str(shifted)), ("voice_words_cut", str(cut)),
                      ("edge_dropped_pairs", " | ".join(edge_dropped) or "none")])
@@ -515,7 +599,8 @@ def main():
     con.commit()
     con.close()
     os.replace(tmp, out)
-    print(f"[biomex] {len(kept)} volunteers ({len(volunteers) - len(kept)} excluded), "
+    print(f"[biomex] {len(kept)} volunteers ({len(volunteers) - len(kept)} excluded, "
+          f"{stored_excluded} of their pairs stored but never read), "
           f"{total} pairs ({shifted} voice windows moved earlier, {cut} words longer than "
           f"the window) -> {out}")
 

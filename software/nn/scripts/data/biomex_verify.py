@@ -167,11 +167,35 @@ def main():
         fail(f"excluded volunteers: SQLite {stored_excluded}, the rule here {excluded}")
     for v in excluded:
         print(f"[verify] {v}: excluded by the strict rule ({chosen[v][1]})")
-    speakers = con.execute("SELECT id, name FROM speaker ORDER BY id").fetchall()
+    # The base also stores the volunteers the strict rule excludes (speaker.excluded = 1), after
+    # the kept ones, and no reader processes them: this script checks the kept speakers' pairs
+    # against the originals and only checks that the excluded rows are the ones the rule here
+    # excludes, numbered after the kept ones, each with its reason. Their pairs are NOT
+    # verified (they rest on files the strict rule does not trust), and are never read.
+    speakers = con.execute(
+        "SELECT id, name FROM speaker WHERE excluded = 0 ORDER BY id").fetchall()
     if [n for _, n in speakers] != volunteers or [i for i, _ in speakers] != list(
             range(1, len(volunteers) + 1)):
         fail(f"speakers {speakers[:3]}... do not number the kept folders {volunteers[:3]}... "
              f"in order")
+    flagged = con.execute("SELECT id, name, excluded_reason FROM speaker WHERE excluded = 1 "
+                          "ORDER BY id").fetchall()
+    if [n for _, n, _ in flagged] != excluded or [i for i, _, _ in flagged] != list(
+            range(len(volunteers) + 1, len(volunteers) + 1 + len(excluded))):
+        fail(f"excluded speakers {[(i, n) for i, n, _ in flagged]}: the rule here excludes "
+             f"{excluded}, to be numbered after the {len(volunteers)} kept ones")
+    # The two scripts word a reason differently (the converter names the file; this one only the
+    # count), so only the session the rule failed on, the part before the first colon, is compared.
+    for _, name, reason in flagged:
+        session = chosen[name][1].split(":")[0]
+        if not reason or not reason.startswith(session + ":"):
+            fail(f"{name}: excluded_reason {reason!r} does not start with the session "
+                 f"{session!r} the rule here excluded it on ({chosen[name][1]!r})")
+    n_excluded_pairs = con.execute(
+        "SELECT count(*) FROM pair JOIN speaker ON speaker.id = pair.speaker_id "
+        "WHERE speaker.excluded = 1").fetchone()[0]
+    print(f"[verify] {len(flagged)} excluded speakers stored with {n_excluded_pairs} pairs "
+          f"(not verified, never read)")
     stimuli = dict(con.execute("SELECT id, name FROM stimulus"))
     if stimuli != {c: w.lower() for c, w in bx.DIGIT_WORDS.items()}:
         fail(f"stimulus table {stimuli}")
@@ -179,7 +203,8 @@ def main():
     stored = {}
     for name, stim, ses, k, j, v, e, on_s, shift_s in con.execute(
             "SELECT s.name, p.stimulus_id, p.session, p.series, p.position, p.voice, p.eeg, "
-            "p.voice_onset_s, p.voice_shift_s FROM pair p JOIN speaker s ON s.id = p.speaker_id"):
+            "p.voice_onset_s, p.voice_shift_s FROM pair p JOIN speaker s ON s.id = p.speaker_id "
+            "WHERE s.excluded = 0"):
         stored[(name, ses, k, j)] = (stim, v, e, on_s, shift_s)
     print(f"[verify] {len(volunteers)} volunteers in {src} "
           f"({len(folders) - len(volunteers)} excluded); {len(stored)} pairs in {db}")

@@ -44,6 +44,10 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
 from databases_dir import in_databases  # noqa: E402
 
+# The pairs the thesis processes: those of the kept volunteers (excluded = 0). The base stores
+# the excluded ones too, for completeness; see the comment where `kept` is read.
+KEPT_PAIRS = "FROM pair JOIN speaker ON speaker.id = pair.speaker_id WHERE speaker.excluded = 0"
+
 PAPER_S01_O_PRONOUNCED = 10    # Pressel Coretto et al. (2017), Table 4
 PROTOCOL_PAIRS = 140           # Moreno-Rodriguez et al. (2021), Table 1: 10x10 + 10x4 digits
 
@@ -106,12 +110,16 @@ def main() -> int:
     vf = stamp(bx_db, ".verified")
     con = sqlite3.connect(f"file:{bx_db}?mode=ro", uri=True)
     info = dict(con.execute("SELECT key, value FROM recording"))
-    kept = [n for (n,) in con.execute("SELECT name FROM speaker ORDER BY id")]
+    # The base also stores the volunteers its strict rule excludes (speaker.excluded = 1; see
+    # biomex_to_sqlite.py), and the thesis does not process them: their pairs rest on files
+    # that are not named for them or on a choice between two recordings. Neither do these
+    # facts, which describe the data the thesis used, so every read selects excluded = 0.
+    kept = [n for (n,) in con.execute("SELECT name FROM speaker WHERE excluded = 0 ORDER BY id")]
     excluded = sorted(e.split(":", 1)[0] for e in info["excluded_volunteers"].split(" | ")
                       if ":" in e)
     if excluded != sorted(vf["excluded"]):
         fail(f"excluded volunteers: base {excluded}, verifier {vf['excluded']}")
-    pairs = con.execute("SELECT count(*) FROM pair").fetchone()[0]
+    pairs = con.execute("SELECT count(*) " + KEPT_PAIRS).fetchone()[0]
     if pairs != vf["pairs_equal"] or len(kept) != vf["volunteers"]:
         fail(f"base holds {len(kept)} volunteers / {pairs} pairs; the verifier passed "
              f"{vf['volunteers']} / {vf['pairs_equal']}")
@@ -144,7 +152,7 @@ def main() -> int:
         put(f"base.biomex.{k.replace('_', '.')}", "count", int(info[k]))
     n_bx, fs_bx = int(info["eeg_epoch_samples"]), int(info["eeg_sample_rate"])
     bx_low = [below_2hz_share(np.frombuffer(e, np.float32).astype(np.float64).reshape(-1, n_bx),
-                              fs_bx) for (e,) in con.execute("SELECT eeg FROM pair")]
+                              fs_bx) for (e,) in con.execute("SELECT eeg " + KEPT_PAIRS)]
     if len(bx_low) != pairs:
         fail(f"read {len(bx_low)} BIOMEX epochs of {pairs}")
     con.close()

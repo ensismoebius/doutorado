@@ -24,9 +24,24 @@ All notable changes to this project will be documented in this file.
   longer read.
 - `scripts/testing/test_databases_dir.py` (run by CI) keeps the directory equal in the helper,
   the generator, the deploy script and `ensure_datasets.sh`, and checks every tracked profile.
-- `biomex/` was **not** deleted: `biomex.sqlite` is a derivation (45 of the 51 volunteers, the
-  pronounced pairs only, filtered and resampled), so it does not hold what `biomex/extracted`
-  holds; the verifier and any re-conversion read it. See `.wiki/Guides/Data-Bases.md`.
+- `biomex/` was deleted after the new base was verified (see below): `biomex.sqlite` plus its
+  stamp are all the thesis reads; to regenerate it, run `biomex_download.py` again.
+
+### Added — the six excluded BIOMEX volunteers are in the base, flagged, never processed
+
+- `biomex.sqlite` format `thesis-paired-v2`: `speaker.excluded` (0/1) and `speaker.excluded_reason`.
+  F007, M001, M007, M010, M018 and M024 are stored as speakers 46..51 with 560 pairs (M001 and
+  M007 get none: two complete recordings with nothing to choose between, and a 1.96 s digit
+  gap), each reason saying why the strict rule dropped them and what could still be paired.
+- Every reader selects `excluded = 0`, with a comment on why: `ThesisDataset.cpp` (`load_paired`),
+  `biomex_verify.py`, `thesis_base_facts.py`. The strict rule is unchanged, and so are the kept
+  ids (speakers 1..45, pairs 1..6297): the 6297 kept pairs are byte-identical to the previous
+  base (sha256 of every row compared), the stamped facts (`results/thesis/base_facts.csv`) are
+  byte-identical, and the verifier passes again (6297 equal, 0 differences; new stamp sha256
+  `2a4aaf29…`). **The next thesis deploy re-sends this `biomex.sqlite` to the cluster.**
+- Tests: C++ `ExcludedSpeakersAreNeverRead`; `test_biomex_convert.py` (excluded volunteers stored,
+  flagged, numbered after the kept, ambiguous session gets no pairs) and
+  `test_thesis_base_checks.py` (an excluded speaker's pair must not move any fact).
 
 ## 2026-11-14 — loaders tests: no hard-coded path, no skip
 

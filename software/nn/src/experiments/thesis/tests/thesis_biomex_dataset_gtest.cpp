@@ -52,20 +52,24 @@ struct BiomexFile
         sqlite3_open(path.c_str(), &db);
         exec(db,
             "CREATE TABLE recording (key TEXT PRIMARY KEY, value TEXT NOT NULL);"
-            "CREATE TABLE speaker (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL);"
+            "CREATE TABLE speaker (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL,"
+            " excluded INTEGER NOT NULL, excluded_reason TEXT);"
             "CREATE TABLE stimulus (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL);"
             "CREATE TABLE pair (id INTEGER PRIMARY KEY, speaker_id INTEGER, stimulus_id INTEGER,"
             " session TEXT, series INTEGER, position INTEGER, voice BLOB, eeg BLOB,"
             " eeg_interpolated INTEGER, voice_onset_s REAL, eeg_onset_s REAL);");
         exec(db,
-            "INSERT INTO recording VALUES ('format','thesis-paired-v1'),('source','" + source +
+            "INSERT INTO recording VALUES ('format','thesis-paired-v2'),('source','" + source +
                 "'),('voice_sample_rate','" + voice_rate +
                 "'),('eeg_sample_rate','1024'),"
                 "('voice_window_samples','" +
                 std::to_string(kVoice) + "'),('eeg_epoch_samples','" + std::to_string(kEpoch) +
                 "'),"
                 "('eeg_channels','AF3,F7,F3,FC5,T7,P7,O1,O2,P8,T8,FC6,F4,F8,AF4');"
-                "INSERT INTO speaker VALUES (1,'F001'),(2,'M001');"
+                // Speaker 3 is a volunteer the converter's strict rule leaves out: stored, never
+                // read.
+                "INSERT INTO speaker VALUES (1,'F001',0,NULL),(2,'M001',0,NULL),"
+                "(3,'F007',1,'01G04: no complete recording named F007-01G04-*.edf');"
                 "INSERT INTO stimulus VALUES (1,'uno'),(10,'cero');");
         sqlite3_stmt* st = nullptr;
         sqlite3_prepare_v2(db,
@@ -75,7 +79,7 @@ struct BiomexFile
             &st,
             nullptr);
         int position = 0;
-        for (int speaker : {1, 2})
+        for (int speaker : {1, 2, 3})
             for (int stim : {1, 10, 1})
             {
                 // Every value names its pair: voice = speaker + stim/100, EEG = channel.
@@ -90,7 +94,11 @@ struct BiomexFile
                 sqlite3_bind_blob(st,
                     4,
                     voice.data(),
-                    static_cast<int>(voice.size() * sizeof(float)) - voice_bytes_cut,
+                    // The excluded speaker's blob is deliberately wrong: were its pairs read,
+                    // the loader would refuse the file (blob length is checked), so a view
+                    // that loads proves they were never decoded.
+                    static_cast<int>(voice.size() * sizeof(float)) -
+                        (speaker == 3 ? 4 : voice_bytes_cut),
                     SQLITE_TRANSIENT);
                 sqlite3_bind_blob(st,
                     5,
@@ -157,6 +165,17 @@ TEST(ThesisBiomexDataset, TheViewHoldsWhatTheFileDeclares)
     // In the file's order: speaker 1's three pairs first.
     EXPECT_EQ(v.samples[0].subject_id, 1);
     EXPECT_EQ(v.samples[3].subject_id, 2);
+}
+
+// The file holds a third speaker with excluded = 1 and a corrupt blob. Left in, it would be
+// either a third subject or a refusal; the loader selects excluded = 0 and sees neither.
+TEST(ThesisBiomexDataset, ExcludedSpeakersAreNeverRead)
+{
+    const BiomexFile f("thesis_biomex_excluded.sqlite");
+    const thesis::ThesisDatasetView v = thesis::load_dataset(biomex_dataset(f.path));
+    EXPECT_EQ(v.samples.size(), 6u);
+    EXPECT_EQ(v.n_subjects, 2);
+    for (const auto& s : v.samples) EXPECT_NE(s.subject_id, 3);
 }
 
 TEST(ThesisBiomexDataset, ATruncatedBlobIsRefused)

@@ -312,12 +312,21 @@ class BiomexConvert(unittest.TestCase):
                   [(0, 16000)] * len(labels), [(0, 31200)] * (len(labels) - 1) + [(0, 16000)])
 
     def _convert_all(self):
-        """main() over the source, then (speaker names, excluded_volunteers); also checks that
-        the verifier's own re-implementation of the rule reaches the same verdicts."""
+        """main() over the source, then (kept speaker names, excluded_volunteers); the excluded
+        ones are in self.flagged. Also checks that the verifier's own re-implementation of the
+        rule reaches the same verdicts."""
         with mock.patch.object(sys, "argv", ["x", "--src", self.src, "--out", self.out]):
             bx.main()
         con = sqlite3.connect(self.out)
-        names = [n for (n,) in con.execute("SELECT name FROM speaker ORDER BY name")]
+        names = [n for (n,) in con.execute(
+            "SELECT name FROM speaker WHERE excluded = 0 ORDER BY name")]
+        # The excluded volunteers are in the base too, flagged: (id, name, reason, n pairs).
+        self.flagged = con.execute(
+            "SELECT s.id, s.name, s.excluded_reason, count(p.id) FROM speaker s "
+            "LEFT JOIN pair p ON p.speaker_id = s.id WHERE s.excluded = 1 "
+            "GROUP BY s.id ORDER BY s.id").fetchall()
+        self.kept_ids = [i for (i,) in con.execute(
+            "SELECT id FROM speaker WHERE excluded = 0 ORDER BY id")]
         info = dict(con.execute("SELECT key, value FROM recording"))
         con.close()
         for vid in sorted(os.listdir(self.src)):
@@ -336,6 +345,14 @@ class BiomexConvert(unittest.TestCase):
         self.assertIn("F999: 01G04: 0 complete recordings", excluded)
         self.assertIn("F997-01G04-", excluded)       # what the folder held instead
         self.assertNotIn("F998", excluded)
+        # F999 is stored, flagged, numbered after the kept volunteer, with the reason; the
+        # complete 01G04 the folder held under F997's name is paired for the record (the strict
+        # rule distrusts it, so it is never read): 140 pairs, 100 + 40 over the two sessions.
+        self.assertEqual(self.kept_ids, [1])
+        (sid, name, reason, n_pairs), = self.flagged
+        self.assertEqual((sid, name, n_pairs), (2, "F999", 140))
+        self.assertTrue(reason.startswith("01G04: 0 complete recordings"), reason)
+        self.assertIn("01G04 paired from F997-01G04-", reason)
 
     def test_two_complete_recordings_of_one_session_exclude_the_volunteer(self):
         # Which of the two the voice was recorded with cannot be told.
@@ -348,12 +365,18 @@ class BiomexConvert(unittest.TestCase):
         names, excluded = self._convert_all()
         self.assertEqual(names, ["F998"])
         self.assertIn("F999: 01G10: 2 complete recordings", excluded)
+        # Nothing tells which of the two 01G10 recordings the voice belongs to: no pairs for
+        # that session; the other session (01G04, 40 pairs) is stored.
+        (sid, name, reason, n_pairs), = self.flagged
+        self.assertEqual((name, n_pairs), ("F999", 40))
+        self.assertIn("nothing tells which one the voice was recorded with, no pairs", reason)
 
     def test_an_aborted_recording_with_no_digit_is_ignored(self):
         make_volunteer(self.src)
         self._short_edf("F999-01G10-18.07.18.12.00.00.edf", [])
         names, excluded = self._convert_all()
         self.assertEqual((names, excluded), (["F999"], "none"))
+        self.assertEqual(self.flagged, [])
         self.assertEqual(len(self._convert_in_process()), 140)
 
     def test_an_incomplete_recording_with_digits_excludes_the_volunteer(self):

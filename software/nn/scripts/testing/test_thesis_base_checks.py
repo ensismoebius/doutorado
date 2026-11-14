@@ -155,16 +155,27 @@ class CorettoMirror(unittest.TestCase):
 EPOCH = 256          # BIOMEX-DB epoch length in this fixture (the real base: 2048)
 
 
-def biomex_db(path, speakers, pairs, info):
+def biomex_db(path, speakers, pairs, info, excluded=()):
+    """`speakers` are the kept ones (pairs all belong to the first); `excluded` are stored too,
+    flagged and numbered after them, each with one pair that no reader may count."""
     con = sqlite3.connect(path)
     con.executescript("""
         CREATE TABLE recording (key TEXT PRIMARY KEY, value TEXT);
-        CREATE TABLE speaker (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE speaker (id INTEGER PRIMARY KEY, name TEXT,
+                              excluded INTEGER NOT NULL, excluded_reason TEXT);
         CREATE TABLE pair (speaker_id INT, eeg BLOB);""")
     con.executemany("INSERT INTO recording VALUES (?, ?)", info.items())
-    con.executemany("INSERT INTO speaker VALUES (?, ?)", list(enumerate(speakers, 1)))
+    con.executemany("INSERT INTO speaker VALUES (?, ?, 0, NULL)", list(enumerate(speakers, 1)))
+    con.executemany("INSERT INTO speaker VALUES (?, ?, 1, 'stored, never read')",
+                    list(enumerate(excluded, len(speakers) + 1)))
     con.executemany("INSERT INTO pair VALUES (?, ?)", [(1, e.astype(np.float32).tobytes())
                                                        for e in pairs])
+    # An excluded volunteer's pair, with an EEG that is not the kept ones' (white-ish noise
+    # at 400 Hz would move the below-2-Hz share and the pair count if it were read).
+    junk = np.sin(2 * np.pi * 400 * np.arange(EPOCH) / 1024).astype(np.float32)
+    con.executemany("INSERT INTO pair VALUES (?, ?)",
+                    [(len(speakers) + i, np.tile(junk, (14, 1)).tobytes())
+                     for i, _ in enumerate(excluded, 1)])
     con.commit()
     con.close()
 
@@ -196,7 +207,7 @@ class BaseFacts(unittest.TestCase):
         self.bx_facts = {"volunteers": 1, "excluded": ["F007", "M001"], "pairs_equal": 138,
                          "differences": 0, "sessions_without_csv": ["F001 01G10"],
                          "edge_dropped": ["F001 01G04 series 10 digit 4"]}
-        biomex_db(self.bx, ["F001"], self.pairs, self.info)
+        biomex_db(self.bx, ["F001"], self.pairs, self.info, excluded=["F007", "M001"])
         stamp(self.bx, self.bx_facts)
         # Coretto: 2 subjects, S01 with 2 pronounced /o/ trials; a slow drift in the EEG.
         slow = np.tile(np.sin(2 * np.pi * 0.5 * np.arange(N) / 1024), (6, 1))

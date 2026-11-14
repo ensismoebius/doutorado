@@ -532,14 +532,16 @@ constexpr double kCorettoEegRateHz = 1024.0;
 // ── biomex2021: the paired SQLite of scripts/data/biomex_to_sqlite.py ──────────────────
 //
 //   recording(key, value)   format, source, rates, channels, epoch and window lengths
-//   speaker(id, name)       F001 ... M026
+//   speaker(id, name, excluded, excluded_reason)
+//                           F001 ... M026; excluded = 1 for the volunteers the strict rule
+//                           leaves out, numbered after the kept ones (see load_paired)
 //   stimulus(id, name)      1..9 = uno..nueve, 10 = cero
 //   pair(..., voice, eeg)   one spoken digit: float32 voice window, float32 EEG
 //                           (channels x samples, channel-major)
 //
 // The pairing was done (and checked) by the converter; here every blob is checked against
 // the lengths the file declares, so a truncated or foreign file is refused, not read.
-constexpr const char* kPairedFormat = "thesis-paired-v1";
+constexpr const char* kPairedFormat = "thesis-paired-v2";
 
 auto recording_info(sqlite3* db) -> std::map<std::string, std::string>
 {
@@ -631,7 +633,19 @@ auto load_paired(const std::string& path) -> ThesisDatasetView
                 reinterpret_cast<const char*>(sqlite3_column_text(q.stmt, 1));
     }
 
-    Statement q(db.db, "SELECT id, speaker_id, stimulus_id, voice, eeg FROM pair ORDER BY id");
+    // The base also holds the volunteers that the converter's strict rule leaves out (F007,
+    // M001, M007, M010, M018, M024: an EEG file not named for them, two complete recordings of
+    // one session, or an aborted one beside the complete one). They are stored for
+    // completeness and are NOT processed: the data of record was chosen with that rule before
+    // any result, a pair of theirs rests on a file that is not named for them or on a choice
+    // between two recordings, and the converter pairs for certain or not at all. So every
+    // read of the pairs selects `excluded = 0`. The kept volunteers have the ids and the pair
+    // order they had before the excluded rows existed (the converter writes them first), so
+    // this query returns exactly the samples the earlier files held, in the same order.
+    Statement q(db.db,
+        "SELECT pair.id, pair.speaker_id, pair.stimulus_id, pair.voice, pair.eeg FROM pair "
+        "JOIN speaker ON speaker.id = pair.speaker_id WHERE speaker.excluded = 0 "
+        "ORDER BY pair.id");
     std::unordered_set<int> speakers;
     std::unordered_set<int> stimuli;
     while (nn::dataLoaders::sqliteStepRow(db.db, q.stmt, "ThesisDataset: reading pairs"))

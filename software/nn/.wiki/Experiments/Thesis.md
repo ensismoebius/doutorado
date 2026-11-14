@@ -540,6 +540,7 @@ python3 scripts/data/biomex_download.py --dest ~/Documentos/academico/UNESP/dout
 python3 scripts/data/biomex_inventory.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted  # every EDF of every folder; the irregular ones
 python3 scripts/data/biomex_to_sqlite.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted --out ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite
 python3 scripts/data/biomex_verify.py --src ~/Documentos/academico/UNESP/doutorado/databases/biomex/extracted --db ~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite  # stamp
+# then rm -r ~/Documentos/academico/UNESP/doutorado/databases/biomex: biomex.sqlite (+ stamp) is all the thesis reads; the six excluded volunteers are inside it, flagged excluded = 1, and never read
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # after the array: results/thesis/biomex/ back from the cluster (rsync, no --delete), then
 scripts/pipeline/thesis/04_thesis_biomex_significance.sh src/experiments/thesis/profiles/biomex results/thesis/biomex

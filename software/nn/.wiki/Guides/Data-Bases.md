@@ -34,7 +34,7 @@ Every base, the thesis's and the Meeting01 paper's, is in one directory, written
   database.sqlite.pronounced.e05dscache, .imagined-<seed>.e05dscache      decoded caches, 1.6 GB each
   coretto_zenodo/                  the Coretto EEG mirror, S01.zip ... S15.zip (verification only)
   biomex.sqlite                    BIOMEX-DB             (+ biomex.sqlite.verified, the stamp)
-  biomex/{archives,extracted}      BIOMEX-DB as downloaded: the 51 volunteers, EEG + Voice
+  biomex/extracted                 only while converting/verifying: the 51 volunteers, EEG + Voice (deleted afterwards)
   fsdDataset/  audioMNIST_8k/  eegmmidb/  siena/  mitbih/                  Meeting01 corpora
 ```
 
@@ -46,11 +46,40 @@ The directory is written in four places that `scripts/testing/test_databases_dir
 `scripts/data/databases_dir.py`, the profile generator, `gridunesp_deploy.sh` and
 `ensure_datasets.sh`.
 
-**`biomex/` is kept even though `biomex.sqlite` exists.** The SQLite is not a copy of it: it holds
-45 of the 51 volunteers (the strict rule drops six, whose 140 voice and 17 EEG files exist only
-in `biomex/extracted`), only the pronounced-digit pairs, and the EEG and voice already filtered
-and resampled. `biomex_verify.py` checks the SQLite against `biomex/extracted`, and a changed
-rule is a re-conversion from it. Delete `biomex/` only if you accept losing both.
+**`biomex/` is not kept once `biomex.sqlite` exists (decision 2026-11-14).** The download is a
+way to *regenerate* the SQLite, not something the thesis reads: the thesis binary opens only
+`biomex.sqlite`. If a rule changes, or the verifier has to run again, download the 51 archives
+again (`biomex_download.py`, 8.1 GB, SHA-256 checked) and convert from them. Every source file
+is verified by hash on download, so a re-download is the same input.
+
+```
+ biomex.sqlite, what it holds                       who reads it
+ ──────────────────────────────────────────────     ───────────────────────────────
+ speaker 1..45     excluded = 0   6297 pairs   ───► the thesis binary, base_facts, the verifier
+ speaker 46..51    excluded = 1    560 pairs   ───► nobody (kept for the record)
+```
+
+**Why the six excluded volunteers are in the base but never read.** The strict rule keeps a
+volunteer only if their EEG files can be matched to them with no guessing (see below). The six
+it drops (F007, M001, M007, M010, M018, M024) still have data on disk, and the user's decision
+was to *store* them so that nothing downloaded is lost, and to *not process* them so that the
+rule chosen before any result stays the rule. Example, M024: the folder holds `F024-01G04-*.edf`
+under a different volunteer's name, so which EEG belongs to M024's voice is a guess; the base
+stores 140 pairs built on that guess, flagged `excluded = 1`, and no reader selects them.
+
+| | `excluded = 0` (45 volunteers) | `excluded = 1` (6 volunteers) |
+|---|---|---|
+| ids | 1..45 (the order of the folders) | 46..51, after the kept ones |
+| pairs | 6297, verified against the originals | 560 (F007 140, M001 0, M007 0, M010 140, M018 140, M024 140), **not verified** |
+| `excluded_reason` | `NULL` | why the rule dropped them, then `Stored: ...` what could still be paired (M001: two complete recordings, nothing says which the voice used, so no pairs for that session; M007: a digit pair 1.96 s apart, shorter than the 2 s epoch, so none) |
+| read by | `ThesisDataset.cpp`, `thesis_base_facts.py`, `biomex_verify.py` | nobody: each reader's query has `WHERE speaker.excluded = 0`, with a comment saying why |
+
+**Failure mode: silent.** A new query on `pair` without the `excluded = 0` join would still
+run, and would add 560 pairs of unverified origin to the data (and 6 speakers to the group
+count, which changes folds). The kept ids 1..45 and pair ids 1..6297 are deliberately
+unchanged by the excluded rows (they come after), so the folds of every earlier result stay
+the same. Test: `ExcludedSpeakersAreNeverRead` (C++, a truncated voice blob on an excluded
+speaker would crash a reader that touched it) and `BaseFacts` in `test_thesis_base_checks.py`.
 
 All commands run from `software/nn/`. The scripts live in `scripts/data/` (conversion and
 verification) and `scripts/analysis/` (facts the thesis quotes).
@@ -60,12 +89,12 @@ verification) and `scripts/analysis/` (facts the thesis quotes).
 | | Coretto *et al.* 2017 | BIOMEX-DB (Moreno-Rodríguez *et al.* 2021) |
 |---|---|---|
 | Role in the thesis | Phase 00 and Phase 01 (all selection happens here) | confirmatory replication only: nothing is selected on it |
-| Speakers | 15 (S01..S15), Spanish | 51 volunteers, 45 kept (strict rule below) |
+| Speakers | 15 (S01..S15), Spanish | 51 volunteers, 45 kept and 6 stored but never read (strict rule below) |
 | Speech | pronounced **and imagined** vowels + 6 words | pronounced digits only |
 | EEG | 6 channels (F3 F4 C3 C4 P3 P4), 1024 Hz | Emotiv Epoc, 14 channels, 128 Hz, written at the Coretto rates |
 | Voice | 44.1 kHz | 16 kHz, written at 44.1 kHz |
 | Source | authors' `.mat` files (DOI 10.1117/12.2255697); EEG re-hosted on Zenodo, record 19502780 | Mendeley Data, DOI 10.17632/s7chktmb6x.1, CC BY 4.0 |
-| SQLite schema | `subject`, `modalities`, `stimulus`, `trial` (9315), `eeg_samples` (9315), `audio_samples` (1974: pronounced trials only) | `speaker` (45), `stimulus` (10), `pair` (6297: one voice + one EEG epoch per spoken digit), `recording` (key/value provenance) |
+| SQLite schema | `subject`, `modalities`, `stimulus`, `trial` (9315), `eeg_samples` (9315), `audio_samples` (1974: pronounced trials only) | `speaker` (51: 45 with `excluded = 0`, 6 flagged `excluded = 1`), `stimulus` (10), `pair` (6297 read + 560 stored for the excluded), `recording` (key/value provenance); format `thesis-paired-v2` |
 | Read by | `ThesisDataset.cpp`, `dataset.source = "coretto2017"` | `ThesisDataset.cpp`, `dataset.source = "biomex2021"` |
 
 The profile key `dataset.root` names the file (`<databases>/database.sqlite` or `<databases>/biomex.sqlite`).
@@ -102,10 +131,11 @@ is not in the mirror. Thesis ch. 8 says so.
 ## BIOMEX-DB (`<databases>/biomex.sqlite`)
 
 ```bash
-python3 scripts/data/biomex_download.py                         # 51 RAR -> <databases>/biomex, keeps EEG + Voice only
+python3 scripts/data/biomex_download.py                         # 51 RAR -> <databases>/biomex, keeps EEG + Voice only (needed only to regenerate)
 python3 scripts/data/biomex_inventory.py [--csv inventory.csv]  # reads <databases>/biomex/extracted
 python3 scripts/data/biomex_to_sqlite.py                        # -> <databases>/biomex.sqlite
 python3 scripts/data/biomex_verify.py                           # checks it against <databases>/biomex/extracted
+# then delete <databases>/biomex/: the SQLite and its stamp are what the thesis uses
 ```
 
 | Step | What it does | Fails when |
@@ -119,7 +149,8 @@ python3 scripts/data/biomex_verify.py                           # checks it agai
 
 - **Strict recording rule.** A volunteer is kept only with one complete `01G10` and one
   complete `01G04` session under their own name. No per-file exceptions. That excludes F007,
-  M001, M007, M010, M018 and M024, which leaves 45 volunteers.
+  M001, M007, M010, M018 and M024, which leaves 45 volunteers. The excluded six are written to
+  the base (`speaker.excluded = 1`) and never processed; see the table above.
 - **Edge pairs are dropped.** The EEG goes through the Coretto authors' own FIR filter. A pair
   whose EEG epoch lies within the filter's reach (788 samples) of a session edge cannot be
   filtered like the others, so it is dropped (M015 and M019, one digit each). Result:
@@ -136,7 +167,7 @@ The stamp files are how a later step knows the SQLite it reads is the one that w
 
 ```
 <databases>/biomex.sqlite.verified
-  line 1: 7210c936…   sha256 of biomex.sqlite when it passed
+  line 1: 2a4aaf29…   sha256 of biomex.sqlite when it passed
   line 2: {"volunteers": 45, "excluded": [...], "pairs_equal": 6297, "differences": 0, ...}
 ```
 
