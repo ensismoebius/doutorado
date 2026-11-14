@@ -38,8 +38,8 @@ Validation
 Project Context (nn framework)
 
 **Main CLI entry points:**
-- `guayaquil --comparative-config <profile.json>` — primary paper pipeline entry point
-- `guayaquil --help` — must list all flags, exit 0, no side effects
+- `meeting01 --comparative --comparative-config <profile.json>` — primary paper pipeline entry point
+- `meeting01 --help` — must list all flags, exit 0, no side effects
 
 **Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
 

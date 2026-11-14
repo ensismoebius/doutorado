@@ -45,16 +45,13 @@ Project Context (nn framework)
 - `v_mem_history` and `spike_history` pre-allocated in `LeakyBPTT::forward` **before** the time loop
 - Re-allocation inside the loop = major regression; grep `v_mem_history` to verify
 
-**Experiment baselines** (AMD Renoir APU, 5-fold CV):
-- LSTM autoencoder: ~10 min per article profile run
-- SNN autoencoder: ~45 min per article profile run (3 SNN profiles = ~2.25 h)
-- Full article pipeline: ~2.5 h via `scripts/pipeline/guayaquil/01_guayaquil_run_article_profiles.sh`
+**Experiment cost:** the paper grid (`scripts/pipeline/meeting01/01_meeting01_run_loso.sh`: nested leave-one-group-out, one GA per dataset and fold) takes days to weeks; the profile's `_total_runs_breakdown` counts the runs. It needs `EXPERIMENT_CONFIRMED=1`. Time a change on `src/experiments/meeting01/profiles/debug.json`, not on the grid.
 
-**`time_steps` field** — set per profile in `src/experiments/guayaquil/profiles/*.json`:
+**`time_steps` field** — set per profile in `src/experiments/meeting01/profiles/*.json` (in the paper grid it is a GA gene, `ga.snn.time_steps_min/max`):
 ```json
 "model": { "time_steps": 10 }
 ```
-Smaller `time_steps` = faster but may hurt accuracy. Article runs use profile-specified values.
+Smaller `time_steps` = faster but may hurt accuracy. A run uses the profile's value, or the GA's.
 
 **BatchScope** — outer `BatchScope` in `Trainer` (GPU builds only) batches all layer `clFinish` calls into one per mini-batch. Removing it restores 6× GPU stall overhead.
 

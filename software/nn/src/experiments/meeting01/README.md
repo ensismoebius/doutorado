@@ -52,7 +52,7 @@ submission 71, and it no longer exists.
 ## Tests
 
 Test executables: `meeting01_comparative_gtest`, `dat_writer_gtest`, `profile_audit_gtest`,
-`loaders_gtest`, `event_sink_gtest`, `parameter_count_gtest`, `meeting01_encoding_gtest`,
+`loaders_gtest`, `loaders_corpus_gtest` (real corpora, opt-in: `-DNN_TEST_DB_ROOT=<dir>`), `event_sink_gtest`, `parameter_count_gtest`, `meeting01_encoding_gtest`,
 `meeting01_split_audit_gtest`, `meeting01_ga_gtest`, `meeting01_recurrent_ga_gtest`,
 `meeting01_transformer_ga_gtest` (`lstm_ops_microbench` is a benchmark, not a test). Build them
 with `cmake --build --preset=max-performance -j"$(nproc)"` and run each binary from

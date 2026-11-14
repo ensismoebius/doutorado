@@ -74,7 +74,7 @@ target_link_libraries(profile_audit_gtest
 gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
-# Grouped-window dataset sources (FSDD / AudioMNIST / MIT-BIH): fast real-loader checks.
+# EDF-format EEG loader on hand-built fixtures (no corpus needed, always registered).
 add_executable(loaders_gtest
     loaders_gtest.cpp
 )
@@ -98,6 +98,74 @@ target_link_libraries(loaders_gtest
 
 gtest_discover_tests(loaders_gtest)
 configure_xtensor_parallel_target(loaders_gtest)
+
+# The real corpora through the real loaders (FSDD, AudioMNIST, MIT-BIH, eegmmidb, Siena).
+# They are large and not in the repository, so ctest registers them only on request:
+#   cmake --preset=max-performance -DNN_TEST_DB_ROOT=<directory holding the corpora>
+# Each suite is registered when its corpus directory exists under that root, and this file says
+# which ones it left out. A registered test never skips: a missing corpus fails it (see
+# loaders_corpus_gtest.cpp). The target itself is always built, so it cannot rot.
+add_executable(loaders_corpus_gtest
+    loaders_corpus_gtest.cpp
+)
+
+target_include_directories(loaders_corpus_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${CMAKE_SOURCE_DIR}/src/experiments/meeting01/lib/src
+)
+
+target_link_libraries(loaders_corpus_gtest
+    PRIVATE
+        google_test
+        meeting01_lib
+        data_loaders_fsdd
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+configure_xtensor_parallel_target(loaders_corpus_gtest)
+
+set(NN_TEST_DB_ROOT "" CACHE PATH
+    "Directory holding the real corpora for loaders_corpus_gtest (empty: those tests are not registered)")
+
+if(NN_TEST_DB_ROOT STREQUAL "")
+    message(STATUS "loaders_corpus_gtest: NN_TEST_DB_ROOT not set, its real-corpus tests are not "
+                   "registered with ctest (configure with -DNN_TEST_DB_ROOT=<dir> to run them)")
+else()
+    if(NOT IS_DIRECTORY "${NN_TEST_DB_ROOT}")
+        message(FATAL_ERROR "NN_TEST_DB_ROOT='${NN_TEST_DB_ROOT}' is not a directory. "
+                            "Point it at the directory that holds the corpora, or leave it empty.")
+    endif()
+    # suite name : corpus directory name
+    set(_nn_corpora
+        CorpusFsdd:fsdDataset
+        CorpusAudioMnist:audioMNIST_8k
+        CorpusMitBih:mitbih
+        CorpusEegmmidb:eegmmidb
+        CorpusSiena:siena)
+    set(_nn_corpus_filter "")
+    foreach(_pair IN LISTS _nn_corpora)
+        string(REPLACE ":" ";" _parts "${_pair}")
+        list(GET _parts 0 _suite)
+        list(GET _parts 1 _dir)
+        if(IS_DIRECTORY "${NN_TEST_DB_ROOT}/${_dir}")
+            list(APPEND _nn_corpus_filter "${_suite}.*")
+            message(STATUS "loaders_corpus_gtest: ${_suite} registered (${NN_TEST_DB_ROOT}/${_dir})")
+        else()
+            message(STATUS "loaders_corpus_gtest: ${_suite} NOT registered, no '${_dir}' under "
+                           "NN_TEST_DB_ROOT")
+        endif()
+    endforeach()
+    if(_nn_corpus_filter)
+        list(JOIN _nn_corpus_filter ":" _nn_corpus_filter)
+        gtest_discover_tests(loaders_corpus_gtest
+            TEST_FILTER "${_nn_corpus_filter}"
+            PROPERTIES ENVIRONMENT "NN_TEST_DB_ROOT=${NN_TEST_DB_ROOT}")
+    endif()
+endif()
 
 # Structured JSONL event sink for the live monitor (schema helpers + round-trip).
 add_executable(event_sink_gtest

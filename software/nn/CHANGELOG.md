@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-14 — loaders tests: no hard-coded path, no skip
+
+### Changed
+
+- `loaders_gtest` held seven tests of real corpora that read `/home/<user>/Documentos/...` and
+  called `GTEST_SKIP()` when it was absent, so in CI all seven "passed" as skipped. They moved to
+  `loaders_corpus_gtest` (suites `CorpusFsdd`, `CorpusAudioMnist`, `CorpusMitBih`,
+  `CorpusEegmmidb`, `CorpusSiena`): the data root is `NN_TEST_DB_ROOT`, a test whose corpus is
+  missing FAILS naming the directory, and ctest registers a suite only when configured with
+  `-DNN_TEST_DB_ROOT=<dir>` and that corpus exists under it (the configure log lists each). The
+  three synthetic-EDF tests stay in `loaders_gtest` and always run.
+- `.claude/commands` and `.github/skills`: removed the stale `guayaquil` references (the old name
+  of meeting01). Besides the names, the text described things that no longer exist (the deleted
+  `article-*.json` profiles and their pipeline, an `alpha_values` sweep, per-profile timings) and
+  now describes the LOSO pipeline, the GA search and the per-window normalization as they are.
+
 ## 2026-11-13 — static analysis at zero
 
 ### Fixed

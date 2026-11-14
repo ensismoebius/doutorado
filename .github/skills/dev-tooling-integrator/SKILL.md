@@ -64,7 +64,7 @@ Common Invocations
 # rg "class Tensor" include/ src/ only for what the MCP doesn't index
 
 # Query a JSON config field
-jq '.batch_size' results/guayaquil/config.json
+jq '.training.epochs' src/experiments/meeting01/profiles/meeting01-loso.json
 
 # Watch and rebuild on change
 find src/ include/ -name "*.cpp" -o -name "*.hpp" | entr cmake --build build --target nn -j4

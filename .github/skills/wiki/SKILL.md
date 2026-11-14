@@ -78,7 +78,7 @@ Create this structure under `.wiki/`:
 │   ├── DataLoaders.md
 │   └── ...one file per src/core module
 ├── Experiments/
-│   ├── Guayaquil.md
+│   ├── Meeting01.md
 │   └── ...one file per experiment
 ├── Concepts/
 │   ├── LSTM-and-BPTT.md

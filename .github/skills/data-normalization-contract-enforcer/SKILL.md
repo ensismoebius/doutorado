@@ -50,10 +50,10 @@ Validation
 Project Context (nn framework)
 
 **Normalization sites in Exp04:**
-- **z-score per window:** `src/experiments/guayaquil/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
-- **per-encoding min/max re-normalization:** `src/experiments/guayaquil/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
+- **z-score per window:** `nn::transforms::WindowZScore` / `EEGWindowZScore` (`include/utility/`), applied by the dataset loaders (`FsddWindowDataset.cpp`, `Meeting01MitBih.cpp`, ...) — each window is normalized with its OWN mean and std, so there is no fold statistic to leak ✓
+- **per-window min-max for spike codes:** `encode_sample` in `src/experiments/meeting01/lib/src/Meeting01Encoding.cpp` — the window's own min and max, applied for `poisson` and `latency` only (`direct` presents the analog window unchanged); also per window, so no cross-sample statistic
 
-**Leakage risk:** The encoding step in `ComparativeEncoding.cpp` must refit normalization stats on the training fold only. If the encoding transform changes the data distribution, verify that the re-normalization step uses only train-fold statistics.
+**Leakage risk:** both sites above are per window and need no fit. Any NEW normalization that uses a statistic shared across windows (a dataset mean/std, a global min/max) must be fitted on the training fold only and then applied to validation; keep per-window where possible.
 
 **Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
 - `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)

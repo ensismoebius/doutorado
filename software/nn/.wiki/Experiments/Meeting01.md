@@ -117,10 +117,19 @@ grouping — only *where the loader reads the group from* differs.
   EDF reader (recursive `.edf` scan, header self-check against its own declared byte size,
   reads data records until a short read rather than trusting `n_data_records`, digital→
   physical via the header's min/max, group = parent directory name).
-- Tests: `loaders_gtest` (real-loader checks, skipped when a root is absent — plus
-  `EegSyntheticEdfDecodesAndGroupsBySubject`, a hand-built-`.edf`-fixture test that runs
-  even without either real EEG corpus downloaded), `meeting01_split_audit_gtest`,
-  `profile_audit_gtest` (`DatasetSourceResolution…`).
+- Tests: `loaders_gtest` (the EDF loader on hand-built `.edf` fixtures, e.g.
+  `EegSyntheticEdfDecodesAndGroupsBySubject`: runs everywhere, no corpus needed),
+  `loaders_corpus_gtest` (the five real corpora through the real loaders; opt-in, see below),
+  `meeting01_split_audit_gtest`, `profile_audit_gtest` (`DatasetSourceResolution…`).
+
+  **Real-corpus tests are opt-in, and never skip.** The corpora are large and not in the
+  repository. `cmake --preset=max-performance -DNN_TEST_DB_ROOT=<dir>` registers, with ctest, the
+  suite of every corpus found under `<dir>` (`fsdDataset`, `audioMNIST_8k`, `mitbih`,
+  `eegmmidb`, `siena`) and prints which suite it left out. Without the variable none is
+  registered (CI is in that case). Run directly, `loaders_corpus_gtest` reads `NN_TEST_DB_ROOT`
+  from the environment, and a test whose corpus is missing FAILS naming the directory to provide:
+  these tests used to `GTEST_SKIP`, which a CI log reads as a pass, and hard-coded one
+  developer's path.
 
 ### Running it
 
@@ -1027,8 +1036,8 @@ Verified on the real files (2026-11-04, every header on GridUnesp): FSDD 3000 an
 files, data at byte 44, 16-bit mono 8 kHz; EEGMMIDB 1490 files at 160 Hz and 36 at 128 Hz, signal 0
 `Fc5.`; Siena 41 files at 512 Hz, signal 0 `EEG Fp1`. Known-answer tests: `WavFileTest.*`,
 `ResampleBandlimited.*`, `StratifiedWindowCap.*`, `CapWindowsPerRecording.*`, `CheckpointHash.*`,
-`Meeting01Loaders.FsddFirstSampleIsAudioNotTheHeader`,
-`Meeting01Loaders.FsddCapsKeepEveryDigitOnTheRealCorpus`,
+`CorpusFsdd.FirstSampleIsAudioNotTheHeader`,
+`CorpusFsdd.CapsKeepEveryDigit` (both need `NN_TEST_DB_ROOT`),
 `Meeting01Loaders.EegFilesAtAnotherRateBecomeTheDatasetRate`.
 
 Everything before format 10 carries these defects: T1, jobs 5314513, 5315335 and 5316016, the

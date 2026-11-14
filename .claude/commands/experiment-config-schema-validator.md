@@ -58,9 +58,9 @@ cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
 ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
 ```
 
-**5 article profiles:** `src/experiments/guayaquil/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
+**Profiles:** `src/experiments/meeting01/profiles/` (`meeting01-loso.json`, `meeting01-prevalidation.json`, `debug.json`, `lstm-bench.json`, `lstm-compare.json`); `ProfileDirectoryAudit` checks every file in the directory
 
-**Profile parser:** `src/experiments/guayaquil/lib/include/ComparativeConfig.hpp`
+**Profile parser:** `src/experiments/meeting01/lib/include/Meeting01Config.hpp`
 
 **Code intelligence (MCP `code_intelligence`) — prefer over grep/manual commands for anything about the code itself:**
 - `find_symbol` / `search_text` / `list_symbols` — resolve/search/enumerate symbols in indexed files, each hit tagged with its enclosing symbol (replaces `rg`/`grep`/`find` for anything already indexed)
