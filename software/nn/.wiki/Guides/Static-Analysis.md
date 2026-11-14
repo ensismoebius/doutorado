@@ -78,25 +78,43 @@ Before, the target handed cppcheck a bare list of every file under `src/`, heade
 header analysed on its own, without the file that uses it, made cppcheck report about a hundred
 struct members as "unused". Those false positives buried the real findings.
 
-### CI runs an older cppcheck
+### CI runs other versions of the analysers
 
-CI installs cppcheck from Ubuntu 24.04 (2.13); a local Arch install is newer (2.22). The two
-disagree: on 2026-11-13, 2.13 reported 15 findings that 2.22 did not. CI prints the findings when
-the cppcheck step fails. To reproduce them before pushing, run the CI version in a container that
-mounts the repository at the same absolute path (the compile database stores absolute paths):
+CI runs on `ubuntu-latest` and installs clang-tidy and cppcheck with `apt`, so their versions are
+whatever that image ships, and they move when GitHub moves the image. On 2026-11-14 that was
+Ubuntu 26.04: clang-tidy 21 and cppcheck 2.19, against 23 and 2.22 on a local Arch install. The
+versions disagree: a check one version reports, another may not. CI's log names the image under
+"Operating System" and the versions in its "Install dependencies" step; CI also prints the
+cppcheck findings when that step fails.
+
+| | Local (Arch) | CI (`ubuntu-latest`, 2026-11-14) |
+|---|---|---|
+| clang-tidy | 23 | 21 |
+| cppcheck | 2.22 | 2.19 |
+
+To reproduce CI before pushing, run its image in a container that mounts the repository at the
+same absolute path (the compile database stores absolute paths). Use the image CI's log names:
 
 ```bash
 B=$PWD/out/build/max-performance   # from software/nn, after a build
-docker run --rm -v "$HOME/Repos/doutorado:$HOME/Repos/doutorado" ubuntu:24.04 bash -c \
-  "apt-get update -qq && apt-get install -y -qq cppcheck && cd $B && cppcheck \
+docker run --rm -v "$HOME/Repos/doutorado:$HOME/Repos/doutorado" -w "$PWD" ubuntu:26.04 bash -c \
+  "apt-get update -qq && apt-get install -y -qq cppcheck clang clang-tidy clang-tools \
+     build-essential libopenblas-dev libomp-dev libfftw3-dev libhdf5-dev libeigen3-dev \
+     libsqlite3-dev zlib1g-dev python3-dev python3-numpy \
+   && run-clang-tidy -quiet -p out/build/max-performance 'software/nn/src/' \
+   && cd $B && cppcheck \
    --project=$B/compile_commands.json --enable=warning,style,performance,portability \
    --inline-suppr --library=googletest --suppress=missingIncludeSystem \
    --suppress=unmatchedSuppression --suppress=useStlAlgorithm --suppress=shadowFunction \
    '--suppress=*:*/_deps/*' '--suppress=*:$B/*' -i$B --std=c++20 -j \$(nproc) --error-exitcode=1"
 ```
 
-`--suppress=unmatchedSuppression` is what lets one inline suppression serve both versions: a
-suppression only 2.13 needs is not an error under 2.22.
+**Trap — reproduce with the wrong image and you fix the wrong findings.** On 2026-11-13 the
+reproduction used `ubuntu:24.04` (cppcheck 2.13, clang-tidy 18) while CI had moved to 26.04; the
+fixes were sound but did not match what CI reported. Read the image from CI's log first.
+
+`--suppress=unmatchedSuppression` is what lets one inline suppression serve several versions: a
+suppression only one version needs is not an error under the others.
 
 ### An optional in a test: `if (!x) GTEST_FAIL()`, not `ASSERT_TRUE(x.has_value())`
 

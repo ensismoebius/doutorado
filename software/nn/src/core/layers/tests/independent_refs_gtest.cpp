@@ -92,7 +92,7 @@ TEST(IndependentCrossCheck, SpikeTimeLoss)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "spiketime_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int T = static_cast<int>(dims[0]);
 
         nn::SpikeTimeLoss loss(T);

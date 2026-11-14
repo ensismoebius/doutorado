@@ -389,7 +389,7 @@ TYPED_TEST(PyTorchParityTyped, ResNetBlock)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "resnetblock_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int C =
             static_cast<int>(dims[1]); // K (dims[4]) is baked into the fixture's weight shape
 
@@ -440,7 +440,7 @@ TYPED_TEST(PyTorchParityTyped, LSTMLayerForward)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "lstm_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int D = static_cast<int>(dims[2]);
         const int H = static_cast<int>(dims[3]);
 
@@ -496,7 +496,7 @@ TYPED_TEST(PyTorchParityTyped, LifBPTTvsSnnTorch)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "lif_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int T = static_cast<int>(dims[0]);
         const int B_ = static_cast<int>(dims[1]);
         const int F = static_cast<int>(dims[2]);
@@ -538,7 +538,7 @@ TYPED_TEST(PyTorchParityTyped, LifBPTTReadoutBackward)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "lifbw_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int T = static_cast<int>(dims[0]);
         const int B_ = static_cast<int>(dims[1]);
         const int F = static_cast<int>(dims[2]);
@@ -583,7 +583,7 @@ TYPED_TEST(PyTorchParityTyped, Conv1d)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "conv1d_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int Cin = static_cast<int>(dims[1]);
         const int Cout = static_cast<int>(dims[2]);
         const int K = static_cast<int>(dims[4]);
@@ -609,7 +609,7 @@ TYPED_TEST(PyTorchParityTyped, Conv2d)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "conv2d_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int Cin = static_cast<int>(dims[1]);
         const int Cout = static_cast<int>(dims[2]);
         const int K = static_cast<int>(dims[5]);
@@ -703,7 +703,7 @@ TYPED_TEST(PyTorchParityTyped, ThresholdDependentBatchNorm)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "tdbn_" + std::to_string(i) + "_";
-        const auto dims = arr(p + "dims").data<int64_t>();
+        const auto* const dims = arr(p + "dims").data<int64_t>();
         const int T = static_cast<int>(dims[0]);
         const int B_ = static_cast<int>(dims[1]);
         const int F = static_cast<int>(dims[2]);
