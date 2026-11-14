@@ -235,7 +235,10 @@ TEST_F(MatFileDatasetTestFixture, LoadMinimalTargetsDirectly)
 
     auto loaded_targets_opt =
         matioCpp::utils::load_named_variable_as_matrix(test_filepath.string(), "targets");
-    ASSERT_TRUE(loaded_targets_opt.has_value());
+    if (!loaded_targets_opt.has_value())
+    {
+        GTEST_FAIL() << "loaded_targets_opt is empty";
+    }
     EXPECT_EQ(loaded_targets_opt->rows(), 2);
     EXPECT_EQ(loaded_targets_opt->cols(), 1);
     EXPECT_FLOAT_EQ(loaded_targets_opt->at(0, 0), 1.0F);
@@ -243,7 +246,10 @@ TEST_F(MatFileDatasetTestFixture, LoadMinimalTargetsDirectly)
 
     auto loaded_inputs_opt =
         matioCpp::utils::load_named_variable_as_matrix(test_filepath.string(), "inputs");
-    ASSERT_TRUE(loaded_inputs_opt.has_value());
+    if (!loaded_inputs_opt.has_value())
+    {
+        GTEST_FAIL() << "loaded_inputs_opt is empty";
+    }
     EXPECT_EQ(loaded_inputs_opt->rows(), 2);
     EXPECT_EQ(loaded_inputs_opt->cols(), 3);
 }

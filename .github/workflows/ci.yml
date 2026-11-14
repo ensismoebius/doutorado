@@ -33,6 +33,11 @@ jobs:
     - name: Run cppcheck
       run: cmake --build --preset=max-performance --target analysis-cppcheck -j$(nproc)
 
+    - name: Show the cppcheck findings
+      if: failure()
+      # the target writes its findings to XML only; without this a failure shows no finding
+      run: grep -E '<(error|location) ' out/build/max-performance/cppcheck-report.xml
+
     - name: Run clang-tidy
       # project sources only: the compile database also lists the vendored _deps sources
       run: run-clang-tidy -quiet -p out/build/max-performance 'software/nn/src/'

@@ -26,7 +26,10 @@ TEST(MatFileUtilsTest, LoadExistingDoubleMatrix)
     file.write(dmat);
 
     auto mat_opt = utils::load_named_variable_as_matrix(mat_path.string(), "dmat");
-    ASSERT_TRUE(mat_opt.has_value());
+    if (!mat_opt.has_value())
+    {
+        GTEST_FAIL() << "mat_opt is empty";
+    }
     const auto& mat = mat_opt.value();
     EXPECT_EQ(mat.rows(), 2);
     EXPECT_EQ(mat.cols(), 2);
@@ -59,7 +62,10 @@ TEST(MatFileUtilsTest, LoadVariousIntegerTypes)
     file.write(i32b);
 
     auto m1 = utils::load_named_variable_as_matrix(mat_path.string(), "i32");
-    ASSERT_TRUE(m1.has_value());
+    if (!m1.has_value())
+    {
+        GTEST_FAIL() << "m1 is empty";
+    }
     // Calculate sum manually: 1+3+2+4 = 10
     float sum = 0.0F;
     for (int r = 0; r < m1->rows(); ++r)
@@ -72,7 +78,10 @@ TEST(MatFileUtilsTest, LoadVariousIntegerTypes)
     EXPECT_FLOAT_EQ(sum, 10.0F);
 
     auto m2 = utils::load_named_variable_as_matrix(mat_path.string(), "i32b");
-    ASSERT_TRUE(m2.has_value());
+    if (!m2.has_value())
+    {
+        GTEST_FAIL() << "m2 is empty";
+    }
     EXPECT_FLOAT_EQ(m2->at(0, 0), -1.0F);
 }
 

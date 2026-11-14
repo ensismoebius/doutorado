@@ -656,7 +656,7 @@ TYPED_TEST(PyTorchParityTyped, MaxPool1d)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "maxpool1d_" + std::to_string(i) + "_";
-        const auto pr = arr(p + "params").data<int64_t>();
+        const auto* const pr = arr(p + "params").data<int64_t>();
         MaxPool1dImpl<B> pool(static_cast<int>(pr[0]), static_cast<int>(pr[1]));
         Tensor x = make_from<Tensor>(arr(p + "input")); // (N, C, L)
         Tensor y = pool.forward(x, false);
@@ -674,7 +674,7 @@ TYPED_TEST(PyTorchParityTyped, MaxPool2d)
     for (int i = 0; i < n; ++i)
     {
         const std::string p = "maxpool2d_" + std::to_string(i) + "_";
-        const auto pr = arr(p + "params").data<int64_t>();
+        const auto* const pr = arr(p + "params").data<int64_t>();
         MaxPool2dImpl<B> pool(static_cast<int>(pr[0]), static_cast<int>(pr[1]));
         Tensor x = make_from<Tensor>(arr(p + "input")); // (N, C, H, W)
         Tensor y = pool.forward(x, false);

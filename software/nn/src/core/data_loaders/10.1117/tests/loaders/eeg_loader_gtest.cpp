@@ -130,7 +130,10 @@ TEST(EEGLoaderTest, StatefulLoaderOpenReadVariableAndNumericProbe)
     EXPECT_EQ(eeg_var->rank, 2);
 
     auto numeric = loader.readFirstNumericVariable();
-    ASSERT_TRUE(numeric.has_value());
+    if (!numeric.has_value())
+    {
+        GTEST_FAIL() << "numeric is empty";
+    }
     ASSERT_NE(numeric->get(), nullptr);
 
     loader.close();

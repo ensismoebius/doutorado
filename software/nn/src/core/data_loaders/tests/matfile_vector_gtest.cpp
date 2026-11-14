@@ -26,7 +26,10 @@ TEST(MatFileVectorTest, LoadColumnVector)
     file.close();
 
     auto opt = matioCpp::utils::load_named_variable_as_matrix(mat_path.string(), "vcol");
-    ASSERT_TRUE(opt.has_value());
+    if (!opt.has_value())
+    {
+        GTEST_FAIL() << "opt is empty";
+    }
     const auto& m = opt.value();
     EXPECT_EQ(m.rows(), 4);
     EXPECT_EQ(m.cols(), 1);

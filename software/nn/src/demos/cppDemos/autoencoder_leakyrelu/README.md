@@ -288,7 +288,7 @@ Often false. In spiking systems, the more common causes are:
 Spiking layers are stateful because they keep `v_mem`.
 If you do SGD over multiple independent samples, you must reset state between samples/batches.
 
-**In this demo:** `model.reset_states()` is called each epoch before forward.
+**In this demo:** `model.reset_membranes()` is called each epoch before forward.
 
 ### 10.3 “batch_size” is not actually used
 
@@ -339,15 +339,14 @@ This section documents the major functions in the demo in “what it does / why 
     - Backpropagates through decoder then encoder.
 - `params()`
     - Concatenates encoder and decoder parameters for the optimizer.
-- `reset_states()`
+- `reset_membranes()`
     - Calls `nn::utility::reset(...)` on both sequentials to clear `v_mem` in each `LifBPTT`.
 
 ### 12.2 Weight init / load
 
-- `initialize_weights(enc_path, dec_path)`
-    - Tries to load weights from NPZ; otherwise falls back to Kaiming init + scale.
-- `load_weights_from_file(seq, file)`
-    - Loads only `Linear` weights/biases; ignores spiking layer parameters.
+- `initialize_weights()`
+    - Kaiming init + scale of every `Linear` layer. The demo always trains from scratch; it
+      loads no weights (it used to pretend to, printing "Weights not found").
 
 ### 12.3 Optimization helpers
 
@@ -361,7 +360,7 @@ This section documents the major functions in the demo in “what it does / why 
 - Builds synthetic time-series inputs, flattens to `(T*B, F)`.
 - Per epoch:
     - `optimizer.zero_grad(params)`
-    - `model.reset_states()`
+    - `model.reset_membranes()`
     - forward → loss → backward
     - clip → `optimizer.step(params)`
     - log to `cpp_loss_log.txt`

@@ -181,7 +181,6 @@ auto decompose_one_level(const std::vector<Task>& tasks,
     {
         size_t current_start = task.start_idx;
         size_t current_sz = task.size;
-        bool current_is_high_pass = task.is_high_pass;
 
         // If the segment size is too small for the filter, it cannot be decomposed further.
         // This segment will be carried over to the next level's tasks if it's part of
@@ -190,9 +189,8 @@ auto decompose_one_level(const std::vector<Task>& tasks,
         { // -1 because filter_len-1 is the minimum useful size
             // This segment cannot be transformed, but it still contributes to the overall
             // signal. We just pass it through to the next level's tasks if it's relevant.
-            tasks_for_next_level.push_back(
-                Task{current_start, current_sz, current_is_high_pass}); //
-            continue;                                                   //
+            tasks_for_next_level.push_back(Task{current_start, current_sz, task.is_high_pass}); //
+            continue;                                                                           //
         }
 
         // Perform convolution on the current segment

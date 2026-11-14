@@ -176,6 +176,7 @@ auto run_training_loop(Sequential& encoders,
     Sequential& decoders,
     const std::shared_ptr<MSELoss>& mse_loss,
     Adam& optimizer,
+    // cppcheck-suppress constParameterReference ; optimizer.step() takes a mutable span of it
     vector<nn::Tensor*>& params,
     const vector<nn::Tensor>& inputs,
     const vector<nn::Tensor>& targets,

@@ -65,9 +65,6 @@ auto make_small_windowed_source(const std::string& db_root, std::size_t batch_si
 
 TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
 {
-    auto inputs = make_sequential_tensor(4, 64);
-    auto targets = make_sequential_tensor(4, 16);
-    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
     nn::testing::create_simple_protocol_db(db_root, 4096, 176400);
     auto src = std::make_unique<SqliteBatchSource>(db_root, 4);
@@ -77,7 +74,10 @@ TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
         [&]() { return prefetcher.diagnostics().ring_size >= 1; }, std::chrono::milliseconds(500)));
 
     auto batch = prefetcher.next();
-    ASSERT_TRUE(batch.has_value());
+    if (!batch.has_value())
+    {
+        GTEST_FAIL() << "batch is empty";
+    }
     EXPECT_EQ(batch->inputs.rows(), 4);
     // Protocol+Concatenated now emits stacked-and-resampled rows at width 176400.
     EXPECT_EQ(batch->inputs.cols(), 176400);
@@ -96,9 +96,6 @@ TEST(BatchPrefetcherRamCapTest, WaitUntilReturnsFalseWhenPredicateNeverTrue)
 
 TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)
 {
-    auto inputs = make_sequential_tensor(4, 32);
-    auto targets = make_sequential_tensor(4, 8);
-    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root2 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
     nn::testing::create_simple_protocol_db(db_root2, 8, 8);
     const std::size_t one_batch_cap_bytes = (2U * 28U + 2U * 28U) * sizeof(float);
@@ -109,7 +106,10 @@ TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)
         [&]() { return prefetcher.diagnostics().ring_size >= 1; }, std::chrono::milliseconds(500)));
 
     auto first = prefetcher.next();
-    ASSERT_TRUE(first.has_value());
+    if (!first.has_value())
+    {
+        GTEST_FAIL() << "first is empty";
+    }
 
     ASSERT_TRUE(wait_until(
         [&]() { return prefetcher.seenBatches() >= 2; }, std::chrono::milliseconds(1000)));
@@ -118,15 +118,15 @@ TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)
         [&]() { return prefetcher.diagnostics().ring_size > 0; }, std::chrono::milliseconds(500)));
 
     auto second = prefetcher.next();
-    ASSERT_TRUE(second.has_value());
+    if (!second.has_value())
+    {
+        GTEST_FAIL() << "second is empty";
+    }
     EXPECT_EQ(prefetcher.seenBatches(), 2U);
 }
 
 TEST(BatchPrefetcherFastPathTest, BufferedBatchesHitFastPath)
 {
-    auto inputs = make_sequential_tensor(6, 24);
-    auto targets = make_sequential_tensor(6, 4);
-    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root3 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
     nn::testing::create_simple_protocol_db(db_root3, 12, 12);
     auto src3 = make_small_windowed_source(db_root3, 2);
@@ -136,7 +136,10 @@ TEST(BatchPrefetcherFastPathTest, BufferedBatchesHitFastPath)
         [&]() { return prefetcher.diagnostics().ring_size >= 2; }, std::chrono::milliseconds(500)));
 
     auto first = prefetcher.next();
-    ASSERT_TRUE(first.has_value());
+    if (!first.has_value())
+    {
+        GTEST_FAIL() << "first is empty";
+    }
 
     const auto d = prefetcher.diagnostics();
     EXPECT_GE(d.ring_size, 1U);

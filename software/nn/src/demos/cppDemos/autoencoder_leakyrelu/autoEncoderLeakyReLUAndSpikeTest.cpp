@@ -95,6 +95,8 @@ class SpikeAutoEncoder : public ModuleXTensor
 
         // --- Build Encoder ---
         // Layers: Input -> H1 -> H2 -> H3 -> H4 -> H5 -> Bottleneck
+        // Built from the lin/leaky helpers above, which exist only inside this body.
+        // cppcheck-suppress useInitializationList
         encoder = Sequential({
             lin(cfg.input_dim, cfg.hidden_dims[0]),
             leaky(),
@@ -163,13 +165,9 @@ class SpikeAutoEncoder : public ModuleXTensor
         nn::utility::reset(decoder);
     }
 
-    // Initialize or Load Weights
-    void initialize_weights(const string& enc_path, const string& dec_path)
+    // Kaiming initialization of every Linear layer (this demo always trains from scratch).
+    void initialize_weights()
     {
-        (void) load_weights_from_file(encoder, enc_path);
-        (void) load_weights_from_file(decoder, dec_path);
-
-        cout << "Weights not found. Using Kaiming initialization.\n";
         // Initialize Linear layers manually
         // Iterate and apply kaimingSNNInitializer
         auto init_seq = [](Sequential& seq)
@@ -187,16 +185,6 @@ class SpikeAutoEncoder : public ModuleXTensor
         };
         init_seq(encoder);
         init_seq(decoder);
-    }
-
-   private:
-    static bool load_weights_from_file(Sequential& seq, const string& file)
-    {
-        (void) seq;
-        (void) file;
-        std::cerr << "NPZ weight loading disabled in this build; using Kaiming init instead."
-                  << '\n';
-        return false;
     }
 };
 
@@ -225,9 +213,7 @@ auto main(int, char*[]) -> int
             .batch_size = 32};
 
         SpikeAutoEncoder model(config);
-        // Runtime NPZ weight loading is disabled in this build. Pass empty paths
-        // to avoid referring to .npz at runtime; the model will use Kaiming init.
-        model.initialize_weights("", "");
+        model.initialize_weights();
 
         auto params = model.params();
         Adam optimizer(config.lr);

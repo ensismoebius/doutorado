@@ -319,6 +319,7 @@ TEST(LayerComprehensiveTest, ReLUGradientFlow)
     linear.weight.at(0, 0) = -2.0F;
     linear.weight.at(0, 1) = -3.0F;
 
+    // cppcheck-suppress unreadVariable ; at() returns a reference into the tensor forward() reads
     linear.bias.at(0, 0) = 1.0F;
 
     nn::Tensor input_tensor(1, 2);

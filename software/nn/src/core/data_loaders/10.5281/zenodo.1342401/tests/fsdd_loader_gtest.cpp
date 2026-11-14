@@ -26,7 +26,10 @@ using nn::dataLoaders::fsdd::FsddWindowDataset;
 TEST(FsddLoader, ParseFilenameTypical)
 {
     const auto info = FsddLoader::parse_filename("0_jackson_0");
-    ASSERT_TRUE(info.has_value());
+    if (!info.has_value())
+    {
+        GTEST_FAIL() << "info is empty";
+    }
     EXPECT_EQ(info->digit, 0);
     EXPECT_EQ(info->speaker, "jackson");
     EXPECT_EQ(info->trial, 0);
@@ -35,7 +38,10 @@ TEST(FsddLoader, ParseFilenameTypical)
 TEST(FsddLoader, ParseFilenameMaxValues)
 {
     const auto info = FsddLoader::parse_filename("9_yweweler_49");
-    ASSERT_TRUE(info.has_value());
+    if (!info.has_value())
+    {
+        GTEST_FAIL() << "info is empty";
+    }
     EXPECT_EQ(info->digit, 9);
     EXPECT_EQ(info->speaker, "yweweler");
     EXPECT_EQ(info->trial, 49);
@@ -45,7 +51,10 @@ TEST(FsddLoader, ParseFilenameHyphenatedSpeaker)
 {
     // Hypothetical future speaker with underscore in name — last underscore = trial delimiter.
     const auto info = FsddLoader::parse_filename("3_some_speaker_5");
-    ASSERT_TRUE(info.has_value());
+    if (!info.has_value())
+    {
+        GTEST_FAIL() << "info is empty";
+    }
     EXPECT_EQ(info->digit, 3);
     EXPECT_EQ(info->speaker, "some_speaker");
     EXPECT_EQ(info->trial, 5);

@@ -807,6 +807,9 @@ class TensorImpl<Backend>::CommaInitializer
         const auto expected = static_cast<size_t>(m_tensor.size());
         if (m_values.size() != expected)
         {
+            // Deliberate, and safe: the unwinding case returned above, so this throw cannot
+            // terminate the program; it replaces a silent half-filled tensor.
+            // cppcheck-suppress exceptThrowInDestructor
             throw std::invalid_argument(
                 "Tensor comma initializer: got " + std::to_string(m_values.size()) +
                 " values for a " + std::to_string(m_tensor.rows()) + "x" +

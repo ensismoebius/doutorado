@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file.
     width; both throw, naming the key to set;
   - `reduce_time_major_output` tested `time_steps <= 0` after a cast to unsigned (never true);
   - the SQLite test helper ignored a failing step; `analysis-all` passed when a tool was absent.
+  - the `autoencoder_leakyrelu` spike demo pretended to load NPZ weights (a stub that printed
+    "Weights not found" and fell back to Kaiming init); it now just initializes, as documented.
 - `thesis_output_gtest` wrote `e05_output_test/` into the source tree; it now uses a temp dir.
 
 ### Removed
@@ -38,6 +40,12 @@ All notable changes to this project will be documented in this file.
   fails on any finding. `useStlAlgorithm` and `shadowFunction` are off on purpose; false
   positives carry an inline `cppcheck-suppress` with the reason. See
   `.wiki/Guides/Static-Analysis.md`.
+- CI runs clang-tidy on `software/nn/src/` only (not the vendored `_deps` sources) and prints the
+  cppcheck findings when that step fails. CI's cppcheck (2.13, Ubuntu 24.04) reports findings
+  2.22 does not; reproduce it with the `ubuntu:24.04` container (Static-Analysis.md).
+- Tests check an optional with `if (!x.has_value()) { GTEST_FAIL() << ...; }` instead of
+  `ASSERT_TRUE(x.has_value())`: CI's clang-tidy 18 does not model the macro and reported 32
+  unchecked accesses after it (same semantics; Static-Analysis.md).
 
 ## 2026-11-13 — legacy experiments removed
 

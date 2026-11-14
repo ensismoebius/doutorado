@@ -26,7 +26,10 @@ TEST(MatFileRowVectorTest, LoadRowVector)
     file.close();
 
     auto opt = matioCpp::utils::load_named_variable_as_matrix(mat_path.string(), "rvec");
-    ASSERT_TRUE(opt.has_value());
+    if (!opt.has_value())
+    {
+        GTEST_FAIL() << "opt is empty";
+    }
     auto m = opt.value();
 
     // If the loaded matrix is Nx1 (column vector) but was expected to be 1xN (row vector),

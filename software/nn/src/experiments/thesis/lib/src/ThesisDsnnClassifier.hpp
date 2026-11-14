@@ -132,6 +132,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
     // input: (B, D). Returns logits (B, output_dim) = mean spike rate over T steps.
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
+        // cppcheck-suppress duplInheritedMember ; reset_state() overrides Module's virtual
         reset_state();
 
         const int B = static_cast<int>(input.rows());

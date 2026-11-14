@@ -323,8 +323,8 @@ auto discoverStimulusNames(const std::string& root_dir) -> std::map<int, std::st
             "SubjectDiscovery: cannot read the stimulus table of " + root_dir + ": " + err);
     }
     std::map<int, std::string> names;
-    int rc = SQLITE_ROW;
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+    int rc = sqlite3_step(stmt);
+    for (; rc == SQLITE_ROW; rc = sqlite3_step(stmt))
     {
         const int id = sqlite3_column_int(stmt, 0);
         const unsigned char* name = sqlite3_column_text(stmt, 1);

@@ -78,6 +78,43 @@ Before, the target handed cppcheck a bare list of every file under `src/`, heade
 header analysed on its own, without the file that uses it, made cppcheck report about a hundred
 struct members as "unused". Those false positives buried the real findings.
 
+### CI runs an older cppcheck
+
+CI installs cppcheck from Ubuntu 24.04 (2.13); a local Arch install is newer (2.22). The two
+disagree: on 2026-11-13, 2.13 reported 15 findings that 2.22 did not. CI prints the findings when
+the cppcheck step fails. To reproduce them before pushing, run the CI version in a container that
+mounts the repository at the same absolute path (the compile database stores absolute paths):
+
+```bash
+B=$PWD/out/build/max-performance   # from software/nn, after a build
+docker run --rm -v "$HOME/Repos/doutorado:$HOME/Repos/doutorado" ubuntu:24.04 bash -c \
+  "apt-get update -qq && apt-get install -y -qq cppcheck && cd $B && cppcheck \
+   --project=$B/compile_commands.json --enable=warning,style,performance,portability \
+   --inline-suppr --library=googletest --suppress=missingIncludeSystem \
+   --suppress=unmatchedSuppression --suppress=useStlAlgorithm --suppress=shadowFunction \
+   '--suppress=*:*/_deps/*' '--suppress=*:$B/*' -i$B --std=c++20 -j \$(nproc) --error-exitcode=1"
+```
+
+`--suppress=unmatchedSuppression` is what lets one inline suppression serve both versions: a
+suppression only 2.13 needs is not an error under 2.22.
+
+### An optional in a test: `if (!x) GTEST_FAIL()`, not `ASSERT_TRUE(x.has_value())`
+
+CI's clang-tidy (18) cannot see through gtest's `ASSERT_TRUE` macro. After
+`ASSERT_TRUE(info.has_value());` it reports every later `info->digit` as
+`bugprone-unchecked-optional-access`, although the test has already returned when the value is
+missing. clang-tidy 20 does the same; 23 (local) does not, so the findings appear only in CI.
+Write the check as a plain `if`, which every version follows:
+
+```cpp
+const auto info = FsddLoader::parse_filename("0_jackson_0");
+if (!info.has_value())
+{
+    GTEST_FAIL() << "info is empty"; // fatal failure + return, exactly what ASSERT_TRUE does
+}
+EXPECT_EQ(info->digit, 0);
+```
+
 ## When a finding is wrong
 
 First check that it really is wrong: most findings that look wrong are real, as with the two

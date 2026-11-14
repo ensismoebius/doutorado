@@ -632,7 +632,10 @@ TEST(InferenceEnergy, RecordedPerFoldForNetworksOnly)
     for (const std::string type : {"dsnn", "ann"})
     {
         const auto r = run_classifier(view, fvs, "hc", network_cfg(type), scorer);
-        ASSERT_TRUE(r.mean_energy.has_value()) << type;
+        if (!r.mean_energy.has_value())
+        {
+            GTEST_FAIL() << "r.mean_energy is empty" << type;
+        }
         for (const auto& f : r.outer_folds) ASSERT_TRUE(f.energy.has_value()) << type;
         EXPECT_GT(r.mean_energy->nj, 0.0) << type;
         if (type == "ann")

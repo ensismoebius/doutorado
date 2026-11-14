@@ -2,7 +2,10 @@
  * @file wave_gtest.cpp
  * @brief Unit tests for wave utilities (WAV I/O, filtering, simple feature extraction).
  */
+// The callback's signature is fixed by Wav::set_callback_function, so its parameters cannot
+// change type to please the analyser.
 // cppcheck-suppress-file passedByValueCallback
+// cppcheck-suppress-file constParameterCallback
 
 #include <algorithm>
 #include <cmath>
