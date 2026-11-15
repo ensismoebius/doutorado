@@ -69,6 +69,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `meeting01_lib` | Meeting01 library only |
 | `thesis` | **Thesis primary** experiment binary (was experiment05) |
 | `thesis_lib` | Thesis library only |
+| `thesis_features` | `--config <profile> --out-dir <dir>`: writes the clean (and degraded) feature vectors of a non-AE thesis profile, one CSV row per sample; read by `scripts/pipeline/thesis/07_thesis_identity_margin.py` |
 | `paraconsistentGA` | NSGA-II AE architecture search ranked by paraconsistent `d_penalized` under a latency constraint (reuses `thesis_lib`) |
 | `paraconsistentGA_lib` | paraconsistentGA library only |
 | `paraconsistent_ga_gtest` | NSGA-II + genome + config unit tests (dominance, crowding, d_penalized refs) |

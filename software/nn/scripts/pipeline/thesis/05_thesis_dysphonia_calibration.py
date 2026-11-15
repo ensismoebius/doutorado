@@ -112,12 +112,13 @@ READ_BACK = {"jitter_pct": "jitter_pct", "shimmer_db": "shimmer_db",
              "f0_depth_pct": "tremor_depth_pct", "period_alt_pct": "alt_period_pct",
              "amp_alt_db": "alt_amp_db"}
 
-# Proposal 3.4.1 (provisional levels, measured targets).
+# Proposal 3.4.1 (levels, measured targets). Shimmer 1.5 dB, not 2 dB: Praat's standard
+# settings cannot read past ~1.95 dB (decision 7). No diplophonia level: not validated, out of
+# the thesis (decision 8); its sweep stays, as the evidence for that.
 LEVELS = (
     [("rough", {"jitter_pct": j, "shimmer_db": s}) for j, s in
-     ((0.5, 0.5), (1, 1), (2, 2), (4, 2), (7, 2))]
+     ((0.5, 0.5), (1, 1), (2, 1.5), (4, 1.5), (7, 1.5))]
     + [("tremor", {"f0_depth_pct": d}) for d in (2, 4, 10)]
-    + [("diplophonia", {"period_alt_pct": p, "amp_alt_db": a}) for p, a in ((6, 3), (12, 6))]
 )
 BREAK_LEVELS = [(kind, rate) for kind in ("pitch_jump", "aphonic") for rate in (0.5, 1, 2)]
 

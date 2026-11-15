@@ -10,6 +10,7 @@ set(THESIS_LIB_SOURCES
     lib/src/EegPairing.cpp
     lib/src/VoiceDegradation.cpp
     lib/src/VoiceDysphonia.cpp
+    lib/src/DegradeVoices.cpp
     lib/src/ParaconsistentSubsets.cpp
 )
 
@@ -74,6 +75,27 @@ target_link_libraries(thesis
 )
 
 configure_xtensor_parallel_target(thesis)
+
+# The feature vectors a profile computes, clean and degraded, one row per sample
+# (tools/thesis_features.cpp; read by scripts/pipeline/thesis/07_thesis_identity_margin.py).
+add_executable(thesis_features
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/thesis_features.cpp
+)
+target_include_directories(thesis_features
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(thesis_features
+    PRIVATE
+        thesis_lib
+        OpenMP::OpenMP_CXX
+        xtensor xtensor-blas
+        matioCpp
+        cnpy-static
+        z
+)
+configure_xtensor_parallel_target(thesis_features)
 
 # ── copy profiles to build dir ───────────────────────────────────────────────
 

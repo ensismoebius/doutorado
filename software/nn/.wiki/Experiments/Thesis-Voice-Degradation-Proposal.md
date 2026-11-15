@@ -144,7 +144,7 @@ Levels are chosen from three constraints: the measurable range (S10 realised jit
 | Profile | Levels (measured) | Basis | Open |
 |---|---|---|---|
 | `resynthesis_control` | 1 | no parameter | identity pilot (§ 4.3) |
-| `rough` | jitter 0.5 / 1 / 2 % with shimmer 0.5 / 1 / 2 dB, plus robustness 4 % and 7 % (shimmer 2 dB) | 0–2 % is the range Kreiman and Gerratt scale and where roughness still rose (Hillenbrand 1988, second hand); 4 % and 7 % were realised on S10 (nominal 6 and 10) | audibility below about 2 % was never isolated in our listening; shimmer realised on real vowels was not measured; 7 % may not be reachable on S03 |
+| `rough` | jitter 0.5 / 1 / 2 % with shimmer 0.5 / 1 / **1.5** dB, plus robustness 4 % and 7 % (shimmer **1.5** dB; was 2 dB, unreachable as measured, decision 7) | 0–2 % is the range Kreiman and Gerratt scale and where roughness still rose (Hillenbrand 1988, second hand); 4 % and 7 % were realised on S10 (nominal 6 and 10) | audibility below about 2 % was never isolated in our listening; shimmer realised on real vowels was not measured; 7 % may not be reachable on S03 |
 | `tremor` | F0 depth 2 / 4 / 10 %, rate 5 Hz | 4 % and 10 % heard and human in 3 of 3 trials; Kreiman and Gerratt's tremor rates averaged 6.45 Hz (median 6, range 2–10) | 2 % untested; the amplitude depth should follow from the F0 depth, not be a free knob: the same paper notes many "amplitude tremors" are artefacts of frequency modulation (Sundberg 1995; Kreiman 2003), so `am_depth_pct` becomes a fixed ratio, not a reported unit |
 | `voice_breaks`, `pitch_jump` | 0.5 / 1 / 2 jumps per second of voiced speech, factors ×1.5 and ×0.65, 80 ms | heard and human on S10 and S03 | utterance length differs by base, hence a rate, not a count per utterance |
 | `voice_breaks`, `aphonic` | same three rates, 80 ms gaps | heard, "human with defect" | the defect is unresolved; weakest evidence of the five |
@@ -273,6 +273,48 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    resynthesized feature vectors against the same-speaker spread, n = 1974 instead of 15); or
    accept a non-neutral control, keep "profile minus control" (§ 3.5) and state the control's
    own shift; or drop the WORLD profiles from the thesis.
+4. **Identity, powered (decision 6, 2026-11-15).** *Rule fixed and committed before any result
+   of this test.*
+
+   *Why the pilot could not decide.* An EER pools every utterance of a fold into one number,
+   so the pilot had 15 numbers per arm, all sharing speakers. This test keeps the utterance.
+
+   *The measure.* Features of the cosine pilot (the Phase 00 voice winner: DTWPT-LFCC, haar,
+   level 4, with energy, ZCR, entropy, Teager, jitter and shimmer descriptors), standardized
+   with the mean and sd of the clean features. For utterance u of speaker s saying word w:
+
+   ```
+   own(u)     centroid of s's OTHER clean utterances of w        (u left out)
+   other(s')  centroid of s''s clean utterances of w,  s' != s   (14 rivals)
+   margin(f)  cos(f, own(u)) - max over s' of cos(f, other(s'))
+              > 0: f lies nearer its own speaker than the closest impostor
+
+   d_control(u) = margin(control features of u)     - margin(clean features of u)
+   d_whisper(u) = margin(whisper l25 features of u) - margin(clean features of u)
+   ```
+
+   *The unit.* Each of the 15 speakers gives ~130 dependent utterances, so the inference is on
+   the 15 speaker means of d: Student t, df 14, 95 % interval. 1974 utterances as if independent
+   would be pseudoreplication.
+
+   *The yardstick and the margin.* Whisper l25 (`p01_dysph_voice_probes_l25`, the mildest
+   degradation of the grid). Its interval of mean d_whisper must lie below 0; if it does not,
+   the yardstick is void and there is **no verdict** (the script stops with an error, nothing is
+   tuned). Margin δ = |mean d_whisper| / 2, half the mildest whisper effect, the same reasoning
+   as the pilot's ±0.01.
+   - *Transparent:* the 95 % interval of mean d_control lies inside (−δ, +δ).
+   - *Not transparent:* the interval lies entirely outside (−δ, +δ).
+   - *Inconclusive:* anything else.
+
+   Features: `thesis_features --config <profile>` (`tools/thesis_features.cpp`, the same
+   `load_dataset` / `extract_features` / `degrade_voices` the thesis binary runs), on
+   `pilot/pil_cosine_voice_control_probes.json` and `phase01/p01_dysph_voice_probes_l25.json`;
+   their clean features must be identical (checked). Analysis:
+   `scripts/pipeline/thesis/07_thesis_identity_margin.py` →
+   `results/thesis/identity_margin/identity_margin_verdict.json`. What the verdict permits:
+   transparent → the WORLD profiles (without diplophonia) may enter a grid, with the user's
+   confirmation; not transparent → the control's own shift is reported and every WORLD profile is
+   read only as "profile minus control" (§ 3.5); inconclusive → no grid, the thesis says so.
 
 ## 5. Cost and risk (not measured)
 
@@ -324,6 +366,18 @@ Decided 2026-11-15 (nothing implemented yet):
    > indices of perceived vocal quality, apart from their contribution to the overall pattern
    > of spectrally shaped noise (Kreiman and Gerratt, 2005), so the profiles of Section X are
    > described by the acoustic quantities they produce, not by a perceived severity.
+
+Decided 2026-11-15, after the calibration (§ 3.4.2) and the identity pilot (§ 4.3):
+
+6. **The inconclusive pilot:** a test with power (the per-utterance verification margin, § 4.4),
+   its rule fixed and committed before it runs. Not chosen: accepting a non-neutral control,
+   dropping the WORLD profiles, more repeats of the same pilot (the 1/4 term of the correction
+   does not shrink with repeats).
+7. **The 2 dB shimmer levels** of `rough` (jitter 2, 4, 7 %) become **1.5 dB** measured (request
+   ≈1.7), readable by Praat's standard settings, so every level is described by a measured value.
+8. **Diplophonia:** out of the thesis. It stays in the code as "not validated" and enters no
+   grid; chapter 8 says so. (Investigating the S10 loss and removing it from the code were not
+   chosen.)
 
 ## References
 

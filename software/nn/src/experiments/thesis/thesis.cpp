@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "lib/include/DegradeVoices.hpp"
 #include "lib/include/ParaconsistentSubsets.hpp"
 #include "lib/include/ThesisClassifiers.hpp"
 #include "lib/include/ThesisCli.hpp"
@@ -27,8 +28,6 @@
 #include "lib/include/ThesisFeatureExtraction.hpp"
 #include "lib/include/ThesisOutput.hpp"
 #include "lib/include/ThesisParaconsistent.hpp"
-#include "lib/include/VoiceDegradation.hpp"
-#include "lib/include/VoiceDysphonia.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/GenuineImpostorEERScorer.hpp"
 #include "utility/progress.hpp"
@@ -53,73 +52,6 @@ std::size_t config_fingerprint(const thesis::ThesisConfig& cfg)
 // Verification protocol: per test speaker, the first utterance is the enrolment
 // template and the rest are probes scored against every template (cosine).
 constexpr std::size_t kEnrolUtterancesPerSpeaker = 1;
-
-// The voice of every sample replaced by its dysphonic version (degradation.profile), in place.
-// whisper_mix: VoiceDegradation.hpp; every other profile: VoiceDysphonia.hpp (WORLD). One random
-// stream per sample (seed mixed with its index), so the result does not depend on the thread
-// schedule. An exception cannot leave an OpenMP region, so the first one is kept and rethrown
-// after the loop, with the sample it came from: a voice that cannot carry the requested
-// dysphonia (no voiced frame) stops the run instead of passing through unchanged.
-void degrade_voices(thesis::ThesisDatasetView& view, const thesis::ThesisConfig::Degradation& dg)
-{
-    const double voice_rate_hz = thesis::require_rate(view.voice_sample_rate, "voice");
-    const bool whisper = dg.profile == "whisper_mix";
-    thesis::DysphoniaParams f0_params;
-    double native_rate_hz = 0.0;
-    if (!whisper)
-    {
-        f0_params = thesis::dysphonia_params(dg);
-        native_rate_hz = thesis::require_rate(view.voice_native_rate, "native voice");
-    }
-    const auto n = static_cast<long>(view.samples.size());
-    std::exception_ptr first_error;
-    long first_error_sample = -1;
-#pragma omp parallel for schedule(dynamic, 8)
-    for (long i = 0; i < n; ++i)
-    {
-        bool failed;
-#pragma omp critical(degrade_voices_error)
-        failed = first_error != nullptr;
-        if (failed) continue;
-        try
-        {
-            nn::Tensor& audio = view.samples[static_cast<std::size_t>(i)].audio;
-            const float* src = audio.data_ptr();
-            const std::vector<float> x(src, src + audio.size());
-            const std::uint32_t seed =
-                dg.seed.get() ^ (static_cast<std::uint32_t>(i) * 2654435761U);
-            const std::vector<float> y =
-                whisper
-                    ? thesis::degrade_voice(x, voice_rate_hz, dg.level, seed)
-                    : thesis::degrade_voice_f0(x, voice_rate_hz, native_rate_hz, f0_params, seed);
-            if (y.size() != x.size())
-                throw std::runtime_error("degradation returned " + std::to_string(y.size()) +
-                                         " samples for an input of " + std::to_string(x.size()));
-            std::copy(y.begin(), y.end(), audio.mutable_data_ptr());
-        }
-        catch (...)
-        {
-#pragma omp critical(degrade_voices_error)
-            if (first_error == nullptr)
-            {
-                first_error = std::current_exception();
-                first_error_sample = i;
-            }
-        }
-    }
-    if (first_error != nullptr)
-    {
-        try
-        {
-            std::rethrow_exception(first_error);
-        }
-        catch (const std::exception& e)
-        {
-            throw std::runtime_error("degradation of sample " + std::to_string(first_error_sample) +
-                                     " of " + std::to_string(n) + " failed: " + e.what());
-        }
-    }
-}
 
 void run_once(const thesis::ThesisConfig& cfg,
     const thesis::ThesisDatasetView& view,
@@ -300,7 +232,7 @@ auto main(int argc, char* argv[]) -> int
         std::optional<std::vector<thesis::FeatureSet>> degraded_features;
         if (cfg.degradation.enabled.declared() && cfg.degradation.enabled)
         {
-            degrade_voices(view, cfg.degradation);
+            thesis::degrade_voices(view, cfg.degradation);
             degraded_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
         }
 
