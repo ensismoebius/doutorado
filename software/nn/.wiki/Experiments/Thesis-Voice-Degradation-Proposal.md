@@ -149,11 +149,12 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    and the listening so far is one informal listener (the author), so the thesis makes no
    perceptual claim: it describes each profile by the measured jitter, shimmer or depth it
    produces. Literature checked for this decision: Lopes et al. 2017 (871 VoiceSim vowels, one
-   expert rater, intra-rater kappa 0.88, no external validation); a J Voice study in which
+   expert rater, intra-rater kappa 0.88, no external validation); Englert et al. 2017 (J Voice), in which
    listeners mis-separated human from synthesized voices 39.3 % of the time (abstract only,
-   listener count unconfirmed); no study found that joins simulated dysphonia, listening tests
-   and speaker verification. A jitter value is not a perceived severity, so the text must not
-   use "mild/moderate/severe" for it.
+   listener count unconfirmed); Kreiman and Gerratt 2005 (abstract and first page read: jitter
+   and shimmer are not useful as independent indices of perceived quality); no study found that
+   joins simulated dysphonia, listening tests and speaker verification. A jitter value is not a
+   perceived severity, so the text must not use "mild/moderate/severe" for it.
 3. **Identity (decisive; decision 4, 2026-11-15: pilot first):** does `resynthesis_control`
    change the speaker-verification EER on a base? After implementation: time one debug profile,
    report the cost, and run only with the user's explicit confirmation through the
@@ -201,9 +202,10 @@ Decided 2026-11-15 (nothing implemented yet):
    > power fraction, not a clinical severity unit. It was not perceptually validated. Studies
    > that simulate dysphonia report, at most, the reliability of a single rater on synthetic
    > stimuli (Lopes et al., 2017), and listeners may fail to separate synthetic from human
-   > dysphonic voices (*verify:* the J Voice study on human and synthesized voices), while
-   > jitter and shimmer alone do not determine perceived voice quality (*verify:* Kreiman and
-   > Gerratt's work on jitter, shimmer and noise). The profiles of Section X are therefore
+   > dysphonic voices (Englert et al., 2017; *verify:* abstract only), while jitter and
+   > shimmer are not useful as independent indices of perceived vocal quality, apart from their
+   > contribution to the overall pattern of spectrally shaped noise (Kreiman and Gerratt, 2005).
+   > The profiles of Section X are therefore
    > described by the acoustic quantities they produce, not by a perceived severity.
 
 ## References
@@ -216,5 +218,6 @@ Decided 2026-11-15 (nothing implemented yet):
 - Tayebi Arasteh et al. (2023) Sci. Rep. 13:20476, doi:10.1038/s41598-023-47711-7.
 - Jiao, Tu, Berisha, Liss (2018) arXiv:1804.10325.
 - Lopes, Freitas, Almeida, Silva, Alves (2017) Braz J Otorhinolaryngol 84(4):460–472, doi:10.1016/j.bjorl.2017.05.012 (read in full on PMC).
-- Read only as abstract or search snippet (verify before citing): the J Voice study "Perceptual Error Analysis of Human and Synthesized Voices" (Elsevier S0892199716304027); "Imitating dysphonic voice", Logoped Phoniatr Vocol 2019, doi:10.1080/14015439.2019.1659410; Gerratt, Kreiman (2001) analysis-by-synthesis, doi:10.1121/1.1409969; Shrivastav et al. (2012) J Speech Lang Hear Res 55(5):1407–1422; the jitter/shimmer/noise perception paper (ResearchGate 272315866).
-- Not read: Hillenbrand, Cleveland, Erickson (1994) JSHR 37:769, Hillenbrand, Houde (1996) JSHR 39:311, Maryn, De Bodt, Roy (2010) J. Commun. Disord. 43(3):161 (doi:10.1016/j.jcomdis.2009.12.004), Alku (1992) Speech Commun. 11(2–3):109 (doi:10.1016/0167-6393(92)90005-R), Fant, Liljencrants, Lin (1985) STL-QPSR 4/1985.
+- Kreiman, Gerratt (2005) Perception of aperiodicity in pathological voice, J. Acoust. Soc. Am. 117(4):2201–2211, doi:10.1121/1.1858351 (abstract and first page read; open copy at escholarship.org/uc/item/8dr06327).
+- Read only as abstract or search snippet (verify before citing): Englert, Madazio, Gielow, Lucero, Behlau (2017) Perceptual Error Analysis of Human and Synthesized Voices, J. Voice 31(4):516.e5–516.e18, doi:10.1016/j.jvoice.2016.12.015 (its companion Englert et al. 2016, J. Voice 30(5):639.e17–e23, doi:10.1016/j.jvoice.2015.07.017, may explain the 70 vs 269 listeners the searches gave; not checked); "Imitating dysphonic voice", Logoped Phoniatr Vocol 2019, doi:10.1080/14015439.2019.1659410; Gerratt, Kreiman (2001) analysis-by-synthesis, doi:10.1121/1.1409969; Shrivastav et al. (2012) J Speech Lang Hear Res 55(5):1407–1422, doi:10.1044/1092-4388(2012/11-0160). Not used: Kreiman, Gerratt, Gabelman (2002) J. Acoust. Soc. Am. 112:2446, doi:10.1121/1.4780067, a one-page meeting abstract, not a paper.
+- Not read (DOIs checked in Crossref 2026-11-15): Hillenbrand, Cleveland, Erickson (1994) JSHR 37(4):769–778, doi:10.1044/jshr.3704.769; Hillenbrand, Houde (1996) JSHR 39(2):311–321, doi:10.1044/jshr.3902.311; Maryn, De Bodt, Roy (2010) J. Commun. Disord. 43(3):161–174, doi:10.1016/j.jcomdis.2009.12.004; Alku (1992) Speech Commun. 11(2–3):109–118, doi:10.1016/0167-6393(92)90005-R; Fant, Liljencrants, Lin (1985) STL-QPSR 4/1985 (a KTH report; no DOI found).
