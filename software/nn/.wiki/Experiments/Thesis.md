@@ -118,7 +118,9 @@ filter of each frame driven by white noise instead of the glottal pulses) and mi
 illness), `test` degrades every test utterance. Training is always clean, and the scaler is
 fitted on clean rows. Tests check the power (±20%), that periodicity drops from > 0.8 to < 0.3,
 and that the effect grows with `m`. It is a model of breathy/aphonic voice, not of every
-dysphonia: the thesis says so.
+dysphonia: the thesis says so. A proposal to add rough, tremulous and
+broken-voice profiles and measured severity units, with the listening evidence behind it, is in
+[Thesis Voice Degradation Proposal](./Thesis-Voice-Degradation-Proposal.md).
 
 ### 5. How stable is the Phase 00 winner?
 
