@@ -208,14 +208,18 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    Phase 01 DSNN results: mean ΔEER +0.007 at `probes` l25, +0.013 to +0.041 elsewhere; per-pair
    sd 0.02-0.06), because a margin as wide as the effect would let a control that moves the EER
    as much as the mildest dysphonia pass as neutral.
-   - *Transparent:* the 95 % paired t-interval of the mean ΔEER over the 15 pairs lies inside
-     ±0.01 **and** each repeat's mean ΔEER does too, for both scopes, on `cosine`.
+   - *Transparent:* the 95 % interval of the mean ΔEER over the 15 pairs lies inside ±0.01
+     **and** each repeat's mean ΔEER does too, for both scopes, on `cosine`. The interval is the
+     corrected resampled t of Nadeau and Bengio (2003), variance × (1/15 + 1/4), df 14: the
+     test every other comparison of the thesis uses (ch. 8, "Protocolo de treino"). *Changed the
+     same day, before any pilot result:* the first version of this rule used the plain paired t,
+     about 2.2 times narrower, which the thesis does not use for 15 dependent pairs.
    - *Not transparent:* the interval lies entirely outside ±0.01 for a scope.
    - *Inconclusive:* anything else.
-   The 15 pairs share speakers and are not independent, so the interval is optimistic; that is
-   why each repeat must also pass. `dsnn` is reported with the same statistics but decides
-   nothing on its own: with per-pair sd ~0.04 its interval is about ±0.02 wide before any
-   effect. The voice winner reads jitter and shimmer descriptors, and resynthesis lowers the
+   The 15 pairs share speakers and training data and are not independent; the correction widens
+   the interval for that, and each repeat must also pass. `dsnn` is reported with the same statistics but decides
+   nothing on its own: with per-pair sd ~0.04 its corrected interval is about ±0.05 wide
+   before any effect. The voice winner reads jitter and shimmer descriptors, and resynthesis lowers the
    measured jitter (calibration: S10 0.42 → 0.25 % on one vowel), so a non-transparent
    result is plausible and is reported as such, not tuned away.
 
