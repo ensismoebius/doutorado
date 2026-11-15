@@ -198,8 +198,17 @@ corrected interval is ~4x the ±0.01 margin; the DSNN's EER rose by +0.047 under
 not significantly. Under the pre-registered rule the WORLD profiles stay **out of the grid**; the
 thesis (ch. 8) says so, and its dysphonia conclusions hold for the whisper model only.
 
-**Status.** Generators, key, tests, calibration and pilot exist; the six pilot profiles are
-`profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
+**Powered identity test (2026-11-15): NOT transparent** (proposal §4.4, rule committed before
+the run). Per-utterance verification margin (own leave-one-out centroid minus the closest
+impostor, same word; cosine features), inferred on the 15 speaker means: the control changes it
+by −0.0976 [−0.1523, −0.0429], 3.6x the whisper l25 yardstick (−0.0273), 14 of 15 speakers.
+Exploratory: the shift sits in the extractor's per-band jitter/shimmer descriptors. Features from
+`thesis_features` (target of the same name, `tools/thesis_features.cpp`), analysis
+`scripts/pipeline/thesis/07_thesis_identity_margin.py`, results `results/thesis/identity_margin/`.
+A WORLD profile could only be read as "profile minus control"; none is in the grid.
+
+**Status.** Generators, key, tests, calibration, pilot and powered test exist; the six pilot
+profiles are `profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
 
 ### 5. How stable is the Phase 00 winner?
 
@@ -366,6 +375,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --biomex-profiles src/experiments/thesis/profiles/biomex --biomex-results results/thesis/biomex \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
+  --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
 

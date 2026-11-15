@@ -120,6 +120,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --ae-input-reference results/thesis/ae_input_reference.csv --base-facts results/thesis/base_facts.csv \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
+  --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex
 
 # 5. the PDF (§ Building the PDF)

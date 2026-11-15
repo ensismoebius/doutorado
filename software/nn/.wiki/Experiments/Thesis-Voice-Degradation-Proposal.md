@@ -316,6 +316,31 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    confirmation; not transparent → the control's own shift is reported and every WORLD profile is
    read only as "profile minus control" (§ 3.5); inconclusive → no grid, the thesis says so.
 
+   **Result (run 2026-11-15 after the rule's commit 8ffdf9b93; features 490 s + 551 s locally;
+   `results/thesis/identity_margin/`): NOT TRANSPARENT.**
+
+   | | mean Δmargin (15 speaker means) | 95 % interval | speakers < 0 |
+   |---|---|---|---|
+   | whisper l25 (yardstick) | −0.0273 | [−0.0414, −0.0131] | — |
+   | `resynthesis_control` | **−0.0976** | [−0.1523, −0.0429] | 14 / 15 |
+
+   δ = 0.0136. The clean margin averages 0.127 (positive for 83.6 % of utterances). The control
+   lowers it **3.6 times as much as the mildest whisper**, and its whole interval lies below −δ.
+
+   *Exploratory, after the verdict (changes nothing in it; the `exploratory` block of the JSON):*
+   per descriptor, the mean signed shift in clean-sd units, control / whisper l25: shimmer
+   +0.92 / −0.32, entropy −0.28 / +0.06, jitter −0.21 / −0.05, ZCR +0.10 / +0.05, energy and
+   Teager ≈ ±0.02. Without the 32 jitter and shimmer columns, neither shift is distinguishable
+   from 0 (control −0.0088 [−0.0266, +0.0090]; whisper −0.0015 [−0.0073, +0.0044]). So the
+   speaker information resynthesis disturbs sits in the same per-band peak-irregularity
+   descriptors through which the whisper acts, and which the dysphonia profiles would edit (these
+   are the extractor's band descriptors, not Praat's jitter/shimmer).
+
+   Consequence (the rule): no WORLD profile enters a grid unless read as "profile minus
+   control"; the thesis (ch. 8) reports the control's own shift and keeps the dysphonia
+   conclusions of ch. 9 to the whisper model. A grid of "profile minus control" cells would be
+   a new, expensive run: the user's decision.
+
 ## 5. Cost and risk (not measured)
 
 - Runtime of WORLD analysis per utterance, and the memory of the 1 ms frame matrices on

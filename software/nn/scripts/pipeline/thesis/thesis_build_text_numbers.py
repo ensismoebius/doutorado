@@ -80,6 +80,7 @@ Usage:
         --biomex-results results/thesis/biomex \\
         --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \\
         --identity-pilot results/thesis/pilot/pilot_verdict.json \\
+        --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \\
         --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex [--list]
 """
 
@@ -633,6 +634,40 @@ def identity_pilot(n: Numbers, path: pathlib.Path) -> None:
             n.count(f"{k}.reps", len(d["per_repeat_mean_delta"]))
 
 
+def identity_margin(n: Numbers, path: pathlib.Path) -> None:
+    """The powered identity test's verdict (07_thesis_identity_margin.py)."""
+    import json
+    if not path.is_file():
+        fail(f"{path} is missing; run tools/thesis_features on the two profiles, then "
+             f"scripts/pipeline/thesis/07_thesis_identity_margin.py")
+    r = json.loads(path.read_text(encoding="utf-8"))
+    verdicts = {"transparent": "transparente", "not transparent": "não transparente",
+                "inconclusive": "inconclusivo"}
+    n.count("margin.utterances", r["utterances"])
+    n.count("margin.speakers", r["speakers"])
+    n.num("margin.clean.mean", r["clean_margin_mean"], 3)
+    n.num("margin.clean.positive", 100 * r["clean_margin_positive_share"], 1)
+    n.num("margin.whisper.mean", r["whisper_l25"]["mean"])
+    n.num("margin.whisper.lo", r["whisper_l25"]["ci95"][0])
+    n.num("margin.whisper.hi", r["whisper_l25"]["ci95"][1])
+    n.num("margin.delta", r["delta"])
+    n.num("margin.control.mean", r["control"]["mean"])
+    n.num("margin.control.lo", r["control"]["ci95"][0])
+    n.num("margin.control.hi", r["control"]["ci95"][1])
+    n.count("margin.control.below", r["control"]["speakers_below_zero"])
+    n.num("margin.control.times", r["control"]["ratio_to_whisper"], 1)
+    n.put("margin.verdict", verdicts[r["verdict"]], r["verdict"])
+    x = r["exploratory"]   # after the verdict, not part of the rule
+    for name, d in x["mean_signed_shift_in_clean_sd"].items():
+        n.num(f"margin.explore.shift.{name}.control", d["control"], 2)
+        n.num(f"margin.explore.shift.{name}.whisper", d["whisper_l25"], 2)
+    for arm, key in (("control", "control"), ("whisper_l25", "whisper")):
+        d = x["without_jitter_shimmer"][arm]
+        n.num(f"margin.explore.nojs.{key}.mean", d["mean"])
+        n.num(f"margin.explore.nojs.{key}.lo", d["ci95"][0])
+        n.num(f"margin.explore.nojs.{key}.hi", d["ci95"][1])
+
+
 # What the prose of chapters 4 (abstract), 8, 9 and 10 states in words. Each entry: the
 # sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
@@ -812,6 +847,25 @@ CLAIMS = [
                       for s in ("probes", "test"))
      and v("pilot.dsnn.probes.delta") > v("p01.dysph.voice.probes.100.eer")
      - v("p01.grid.voice.dep.flat.std.eer")),
+    ("ch8 margin: the yardstick holds (whisper l25 lowers the margin, interval below 0)",
+     lambda v, t: v("margin.whisper.hi") < 0),
+    ("ch8 margin: the control is not transparent; it lowers the margin by more than whisper l25, "
+     "its whole interval below -delta, in all but at most one speaker",
+     lambda v, t: t("margin.verdict") == "not transparent"
+     and v("margin.control.hi") < -v("margin.delta")
+     and v("margin.control.mean") < v("margin.whisper.mean")
+     and v("margin.control.times") > 1
+     and v("margin.control.below") >= v("margin.speakers") - 1),
+    ("ch8 margin (exploratory): shimmer is the descriptor the control moves most, upward, while "
+     "whisper l25 moves it downward",
+     lambda v, t: max(("energy", "zcr", "entropy", "teager", "jitter", "shimmer"),
+                      key=lambda d: abs(v(f"margin.explore.shift.{d}.control"))) == "shimmer"
+     and v("margin.explore.shift.shimmer.control") > 0
+     and v("margin.explore.shift.shimmer.whisper") < 0),
+    ("ch8 margin (exploratory): without the jitter and shimmer descriptors neither shift is "
+     "distinguishable from 0",
+     lambda v, t: all(v(f"margin.explore.nojs.{a}.lo") < 0 < v(f"margin.explore.nojs.{a}.hi")
+                      for a in ("control", "whisper"))),
     ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
      lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
      and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
@@ -840,7 +894,7 @@ def main() -> int:
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
                 "--phase01-results", "--biomex-profiles", "--biomex-results",
                 "--ae-input-reference", "--base-facts", "--dysphonia-calibration",
-                "--identity-pilot", "--out"):
+                "--identity-pilot", "--identity-margin", "--out"):
         ap.add_argument(arg, required=True)
     ap.add_argument("--list", action="store_true", help="also print every key and value")
     args = ap.parse_args()
@@ -855,6 +909,7 @@ def main() -> int:
            pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
     dysphonia_calibration(n, pathlib.Path(args.dysphonia_calibration))
     identity_pilot(n, pathlib.Path(args.identity_pilot))
+    identity_margin(n, pathlib.Path(args.identity_margin))
     check_claims(n)
 
     lines = ["% GENERATED by software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py.",

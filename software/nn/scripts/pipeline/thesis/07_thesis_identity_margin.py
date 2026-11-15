@@ -34,6 +34,10 @@ THE RULE (fixed before any result of this test; proposal section 4.4).
     inconclusive     anything else
 The clean features of the two input runs must be identical (same profile extractor): checked.
 
+RESULT (2026-11-15): not transparent; the control lowered the margin 3.6 times as much as whisper
+l25. The "exploratory" block of the output (where the shift lives) was added after that verdict
+and changes nothing in it.
+
 Inputs: the CSVs of tools/thesis_features (one run on pilot/pil_cosine_voice_control_probes.json,
 one on phase01/p01_dysph_voice_probes_l25.json). Run from software/nn:
     python3 scripts/pipeline/thesis/07_thesis_identity_margin.py \\
@@ -123,6 +127,44 @@ def interval(means):
     return m, m - half, m + half
 
 
+DESCRIPTORS = ("energy", "zcr", "entropy", "teager", "jitter", "shimmer")
+
+
+def exploratory(meta, clean, control, whisper):
+    """Where the shift lives. Added AFTER the verdict (2026-11-15) and not part of the rule:
+    it changes no verdict. Assumes the winner's layout, feature d = 6 * band + descriptor
+    (ThesisHandcraftedFeatures.cpp pushes the six descriptors band by band); refuses another
+    width. Reports (1) per descriptor, the mean signed shift in clean-sd units, and (2) the
+    two speaker-mean intervals recomputed without the jitter and shimmer descriptors."""
+    dims = len(clean[0])
+    if dims % len(DESCRIPTORS) != 0:
+        raise SystemExit(f"[identity-margin] {dims} features is not bands x 6 descriptors")
+    sd = [statistics.pstdev([v[d] for v in clean]) for d in range(dims)]
+    shift = {}
+    for k, name in enumerate(DESCRIPTORS):
+        cols = [d for d in range(k, dims, len(DESCRIPTORS)) if sd[d] > 0]
+
+        def mean_shift(deg, cols=cols):
+            return statistics.fmean((deg[i][d] - clean[i][d]) / sd[d]
+                                    for d in cols for i in range(len(clean)))
+        shift[name] = {"control": round(mean_shift(control), 3),
+                       "whisper_l25": round(mean_shift(whisper), 3)}
+    keep = [d for d in range(dims) if DESCRIPTORS[d % len(DESCRIPTORS)] not in ("jitter", "shimmer")]
+
+    def sub(vs):
+        return [[v[d] for d in keep] for v in vs]
+    cz, ctz, wz = standardize(sub(clean), sub(control), sub(whisper))
+    base = margins(meta, cz, cz)
+    out = {}
+    for name, probe in (("control", ctz), ("whisper_l25", wz)):
+        d = [a - b for a, b in zip(margins(meta, cz, probe), base)]
+        m, lo, hi = interval(speaker_means(meta, d))
+        out[name] = {"mean": round(m, 4), "ci95": [round(lo, 4), round(hi, 4)]}
+    return {"note": "exploratory, after the verdict; not part of the rule",
+            "mean_signed_shift_in_clean_sd": shift,
+            "without_jitter_shimmer": out}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -173,6 +215,7 @@ def main():
         "per_speaker": {str(s): {"control": round(sp_control[s], 4),
                                  "whisper_l25": round(sp_whisper[s], 4)} for s in sp_control},
         "verdict": verdict,
+        "exploratory": exploratory(meta, clean, control, whisper),
     }
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=1)

@@ -1,0 +1,131 @@
+{
+ "utterances": 1974,
+ "speakers": 15,
+ "clean_margin_mean": 0.1272,
+ "clean_margin_positive_share": 0.8364,
+ "whisper_l25": {
+  "mean": -0.0273,
+  "ci95": [
+   -0.0414,
+   -0.0131
+  ]
+ },
+ "delta": 0.0136,
+ "control": {
+  "mean": -0.0976,
+  "ci95": [
+   -0.1523,
+   -0.0429
+  ],
+  "speakers_below_zero": 14,
+  "ratio_to_whisper": 3.577
+ },
+ "per_speaker": {
+  "1": {
+   "control": -0.1164,
+   "whisper_l25": -0.02
+  },
+  "2": {
+   "control": -0.0432,
+   "whisper_l25": -0.0755
+  },
+  "3": {
+   "control": -0.0805,
+   "whisper_l25": 0.0078
+  },
+  "4": {
+   "control": 0.1658,
+   "whisper_l25": -0.0352
+  },
+  "5": {
+   "control": -0.2121,
+   "whisper_l25": -0.0543
+  },
+  "6": {
+   "control": -0.0583,
+   "whisper_l25": -0.0183
+  },
+  "7": {
+   "control": -0.1125,
+   "whisper_l25": 0.0077
+  },
+  "8": {
+   "control": -0.1123,
+   "whisper_l25": 0.0052
+  },
+  "9": {
+   "control": -0.0422,
+   "whisper_l25": -0.0407
+  },
+  "10": {
+   "control": -0.1556,
+   "whisper_l25": -0.0339
+  },
+  "11": {
+   "control": -0.1561,
+   "whisper_l25": -0.068
+  },
+  "12": {
+   "control": -0.138,
+   "whisper_l25": -0.0139
+  },
+  "13": {
+   "control": -0.0044,
+   "whisper_l25": -0.0365
+  },
+  "14": {
+   "control": -0.1368,
+   "whisper_l25": -0.0138
+  },
+  "15": {
+   "control": -0.2617,
+   "whisper_l25": -0.02
+  }
+ },
+ "verdict": "not transparent",
+ "exploratory": {
+  "note": "exploratory, after the verdict; not part of the rule",
+  "mean_signed_shift_in_clean_sd": {
+   "energy": {
+    "control": -0.016,
+    "whisper_l25": 0.014
+   },
+   "zcr": {
+    "control": 0.101,
+    "whisper_l25": 0.05
+   },
+   "entropy": {
+    "control": -0.283,
+    "whisper_l25": 0.057
+   },
+   "teager": {
+    "control": -0.016,
+    "whisper_l25": 0.014
+   },
+   "jitter": {
+    "control": -0.213,
+    "whisper_l25": -0.054
+   },
+   "shimmer": {
+    "control": 0.921,
+    "whisper_l25": -0.317
+   }
+  },
+  "without_jitter_shimmer": {
+   "control": {
+    "mean": -0.0088,
+    "ci95": [
+     -0.0266,
+     0.009
+    ]
+   },
+   "whisper_l25": {
+    "mean": -0.0015,
+    "ci95": [
+     -0.0073,
+     0.0044
+    ]
+   }
+  }
+ }
+}
