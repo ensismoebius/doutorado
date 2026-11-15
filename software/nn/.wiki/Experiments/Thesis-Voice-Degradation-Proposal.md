@@ -67,7 +67,7 @@ kept as the breathy/aphonic profile (`profile: whisper_mix`) and its limitation 
 not hidden. **Decision 1 (2026-11-15) changes one thing**: the new profiles are values of a new
 `degradation.profile` key, so every profile that declares `degradation` must now declare
 `profile: whisper_mix` (the no-defaults rule forbids leaving it out). `config_fingerprint`
-hashes the declared keys (`thesis.cpp`), so the fingerprints of the 128 enabled profiles change
+hashes the declared keys (`thesis.cpp`), so the fingerprints of the 128 enabled profiles (64 in the manifest + their 64 `smoke/` mirrors) change
 although their results do not. Consequences to handle when implementing: regenerate
 `profiles/profiles.manifest` and re-run the profile audit; keep an explicit old-to-new
 fingerprint table so results already on disk stay traceable; teach the parser's applicability
@@ -223,8 +223,9 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
 
 Decided 2026-11-15 (nothing implemented yet):
 
-1. **Where:** a `profile` key inside `degradation` (§ 3.1, § 3.3). The 128 enabled profiles get
-   a new fingerprint; an old-to-new table is needed.
+1. **Where:** a `profile` key inside `degradation` (§ 3.1, § 3.3). The 128 enabled profiles (64 in the manifest
+   + 64 smoke mirrors) got a new fingerprint; the old-to-new table of the 64 is
+   [Thesis Profile Fingerprints](./Thesis-Profile-Fingerprints.md) (done 2026-11-15).
 2. **Which profiles:** all five (`resynthesis_control`, `rough`, `tremor`, `voice_breaks`,
    `diplophonia`). Diplophonia was not told apart from jitter in listening and the aphonic
    gaps sounded defective: both rest on weak evidence. Levels: a provisional set of 17 is in

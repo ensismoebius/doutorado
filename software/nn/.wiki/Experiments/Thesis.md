@@ -176,9 +176,15 @@ analyses it at the native 16 kHz (`ThesisDatasetView::voice_native_rate`) and th
 resampled back.
 
 **Consequence for provenance.** `profile` is a declared key of every enabled-degradation
-profile, so the config fingerprint (hash of the declared keys) of the 128 enabled `whisper_mix`
-profiles changed on 2026-11-15; their results are unchanged in content but carry a new
+profile, so the config fingerprint (hash of the declared keys) of the 64 enabled `whisper_mix` (and their 64 smoke mirrors)
+profiles changed on 2026-11-15 (old to new: [Thesis Profile Fingerprints](./Thesis-Profile-Fingerprints.md)); their results are unchanged in content but carry a new
 `config_hash`. Profiles with `degradation.enabled = false` do not declare it and kept theirs.
+
+**Cost (measured 2026-11-15, 12 real Coretto voices of 4.0 s, one thread).** Every profile
+takes 1.2 s per voice (worst 1.37 s); none of the 12 was refused; the process peak (1.5 GB) is the
+decoded base, WORLD added nothing visible to it. By arithmetic, not measured: the 1974 voices of
+the pronounced base are ~40 min per profile and level on one thread, divided by the thread count
+under OpenMP (one random stream per sample, so the result does not depend on the schedule).
 
 **Status.** The generators, the key and the tests exist. No generated profile uses the new
 generators yet: the levels are provisional (proposal §3.4.1) and the identity pilot (raw vs
