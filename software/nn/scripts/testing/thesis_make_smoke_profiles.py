@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """thesis_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
 
-Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*,biomex/*} into
+Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*,biomex/*,pilot/*} into
 src/experiments/thesis/profiles/smoke/ with the SAME code-path-selecting fields
 (strategy, wavelet, scale, cepstral, modality, fusion_mode, classifier.type,
 nested_cv, standardize_features, …) but tiny run parameters, so a run exercises
@@ -72,6 +72,7 @@ def main():
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase00", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase01", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "biomex", "*.json")))
+    sources += sorted(glob.glob(os.path.join(PROFILES, "pilot", "*.json")))
 
     n = 0
     for src in sources:

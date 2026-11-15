@@ -296,7 +296,7 @@ class GeneratedTree(unittest.TestCase):
         _, _, fused = GEN.manifest_winners()
         winners = GEN.load_winners(TRACKED_WINNERS)
         rows = list(GEN.phase00()) + list(GEN.phase01(winners, fused)) + \
-            list(GEN.biomex(winners, fused))
+            list(GEN.biomex(winners, fused)) + list(GEN.pilot(winners, fused))
         differ = []
         for rel, prof in rows:
             with open(os.path.join(GEN.PROFILES, rel), encoding="utf-8") as f:

@@ -466,3 +466,9 @@ phase01/p01_dysph_voice_test_l100.json
 phase01/p01_dysph_voice_test_l25.json
 phase01/p01_dysph_voice_test_l50.json
 phase01/p01_dysph_voice_test_l75.json
+pilot/pil_cosine_voice_control_probes.json
+pilot/pil_cosine_voice_control_test.json
+pilot/pil_cosine_voice_raw.json
+pilot/pil_dsnn_voice_control_probes.json
+pilot/pil_dsnn_voice_control_test.json
+pilot/pil_dsnn_voice_raw.json

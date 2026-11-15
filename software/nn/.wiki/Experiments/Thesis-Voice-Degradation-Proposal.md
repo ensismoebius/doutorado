@@ -197,6 +197,28 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    `expensive-experiment-guard` hook (Coretto only, raw against control, smallest configuration).
    The full grid starts only if the control is transparent.
 
+   **Pilot design, fixed before any pilot result (2026-11-15; user confirmation the same day).**
+   Profiles `pilot/pil_<kind>_voice_{raw,control_probes,control_test}` (generated; results in
+   `results/thesis/pilot/`): Coretto voice, dependent text, flat 5-fold CV, standardized, 3
+   repeats (seeds 42-44), the Phase 00 voice winner. `kind` = `cosine` (no training: the
+   only thing that differs between arms is the test features, so it isolates what resynthesis
+   does to the speaker) and `dsnn` (the cell of `p01_dysph_*`, trained on clean voices in every
+   arm). Unit: the EER of one (repeat, fold); ΔEER = control − raw, paired on the same split.
+   Margin: **±0.01 EER**, half the smallest whisper-mix effect worth reporting (committed
+   Phase 01 DSNN results: mean ΔEER +0.007 at `probes` l25, +0.013 to +0.041 elsewhere; per-pair
+   sd 0.02-0.06), because a margin as wide as the effect would let a control that moves the EER
+   as much as the mildest dysphonia pass as neutral.
+   - *Transparent:* the 95 % paired t-interval of the mean ΔEER over the 15 pairs lies inside
+     ±0.01 **and** each repeat's mean ΔEER does too, for both scopes, on `cosine`.
+   - *Not transparent:* the interval lies entirely outside ±0.01 for a scope.
+   - *Inconclusive:* anything else.
+   The 15 pairs share speakers and are not independent, so the interval is optimistic; that is
+   why each repeat must also pass. `dsnn` is reported with the same statistics but decides
+   nothing on its own: with per-pair sd ~0.04 its interval is about ±0.02 wide before any
+   effect. The voice winner reads jitter and shimmer descriptors, and resynthesis lowers the
+   measured jitter (calibration: S10 0.42 → 0.25 % on one vowel), so a non-transparent
+   result is plausible and is reported as such, not tuned away.
+
 ## 5. Cost and risk (not measured)
 
 - Runtime of WORLD analysis per utterance, and the memory of the 1 ms frame matrices on

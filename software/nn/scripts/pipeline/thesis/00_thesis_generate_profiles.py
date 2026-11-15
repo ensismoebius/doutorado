@@ -51,6 +51,14 @@ Coretto Phase 00 winners, chosen before any BIOMEX-DB result exists (the same wi
   bx01_dysph_*    the simulated dysphonia of p01_dysph_*, on the sources that read the voice
 Nothing is selected on BIOMEX-DB: no Phase 00, no nested CV, no raw (unstandardized) runs.
 
+Identity pilot (proposal .wiki/Experiments/Thesis-Voice-Degradation-Proposal.md section 4.3,
+run once 2026-11-15 with the user's confirmation). Does WORLD's analysis + resynthesis alone
+(degradation.profile resynthesis_control) change the speaker-verification EER? Coretto, the
+voice, dependent text, flat CV, standardized; its own results_dir (results/thesis/pilot):
+  pil_<kind>_voice_raw              no degradation
+  pil_<kind>_voice_control_<scope>  resynthesis_control, scope probes or test
+  kind: dsnn (the cell of p01_dysph_*) and cosine (no training: the change of the features alone)
+
 Run from software/nn:
     python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
         --winners results/thesis/phase00/winners.json --fused voice
@@ -305,6 +313,20 @@ def biomex(winners, fused):
                                       **kw)
 
 
+def pilot(winners, fused):
+    """The identity pilot (see the module docstring)."""
+    kw = {"phase": "pilot"}
+    win = winner_for(winners, fused, "voice")
+    for kind in ("dsnn", "cosine"):
+        yield phase01_profile(f"pil_{kind}_voice_raw", "voice", kind, "dep", False, True, win,
+                              **kw)
+        for scope in ("probes", "test"):
+            deg = {"enabled": True, "profile": "resynthesis_control", "scope": scope,
+                   "seed": DEGRADATION_SEED}
+            yield phase01_profile(f"pil_{kind}_voice_control_{scope}", "voice", kind, "dep",
+                                  False, True, win, degradation=deg, **kw)
+
+
 def sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
@@ -328,8 +350,8 @@ def main(argv=None):
     what = ap.add_mutually_exclusive_group(required=True)
     what.add_argument("--winners", help="winners.json from 01_thesis_phase00_rank.py")
     what.add_argument("--phase00-only", action="store_true",
-                      help="Before the ranking: write Phase 00 and remove the Phase 01 and "
-                           "BIOMEX-DB profiles.")
+                      help="Before the ranking: write Phase 00 and remove the Phase 01, "
+                           "BIOMEX-DB and pilot profiles.")
     ap.add_argument("--fused", choices=("voice", "eeg"),
                     help="Which signal's winner the fused sources use (required with --winners).")
     args = ap.parse_args(argv)
@@ -343,7 +365,8 @@ def main(argv=None):
     header = ["# Written by scripts/pipeline/thesis/00_thesis_generate_profiles.py; do not edit."]
     if args.winners:
         winners = load_winners(args.winners)
-        rows += list(phase01(winners, args.fused)) + list(biomex(winners, args.fused))
+        rows += (list(phase01(winners, args.fused)) + list(biomex(winners, args.fused))
+                 + list(pilot(winners, args.fused)))
         rel = os.path.relpath(os.path.abspath(args.winners), NN)
         header.append(f"# winners: {rel} sha256 {sha256(args.winners)} {args.fused}")
     else:
@@ -354,7 +377,7 @@ def main(argv=None):
             raise SystemExit(f"[generate] {rel} would be written twice")
         seen.add(rel)
 
-    for sub in ("phase00", "phase01", "biomex"):
+    for sub in ("phase00", "phase01", "biomex", "pilot"):
         shutil.rmtree(os.path.join(PROFILES, sub), ignore_errors=True)
     for sub in sorted({rel.split("/")[0] for rel, _ in rows}):
         os.makedirs(os.path.join(PROFILES, sub))
@@ -371,7 +394,9 @@ def main(argv=None):
     n00 = sum(r.startswith("phase00/") for r in written)
     n01 = sum(r.startswith("phase01/") for r in written)
     nbx = sum(r.startswith("biomex/") for r in written)
-    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB profiles -> {PROFILES}")
+    npi = sum(r.startswith("pilot/") for r in written)
+    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB + {npi} pilot profiles "
+          f"-> {PROFILES}")
 
 
 if __name__ == "__main__":
