@@ -51,8 +51,9 @@ gave 0.9/2.0/4.3/6.9/10.7 %, S03 lower still (the 1 ms frame limits per-cycle co
 high F0). Any number in the thesis must therefore be the *measured* one.
 
 What the literature did and did not give (read in full: Morise 2016, Kreiman 2010, Klatt & Klatt
-1990, Tayebi Arasteh 2023, Jiao 2018, Skowronski 2015; **not obtainable**: Hillenbrand 1994/1996,
-Maryn 2010, Fant 1985, Alku 1992): Kreiman's synthesizer is vowel-only and manual; Jiao needs
+1990, Tayebi Arasteh 2023, Jiao 2018, Skowronski 2015, Lopes 2017 and, on 2026-11-15, Englert
+2017, Kreiman & Gerratt 2005, Hillenbrand 1994 and 1996, Maryn 2010, Alku 1992, Fant 1985):
+Kreiman's synthesizer is vowel-only and manual; Jiao needs
 parallel patient data; Tayebi Arasteh's dysphonia result is confounded (microphone, age, sex)
 and is not evidence either way; cepstral-peak values differ by about 15 dB between programs
 (Skowronski 2015), so a severity scale needs one reference program.
@@ -84,7 +85,7 @@ Same logic as today (the TEST speakers' voices are replaced; training stays clea
 | `rough` | `jitter_pct`, `shimmer_db` (local, as measured) | heard as rough, human |
 | `tremor` | `f0_depth_pct`, `am_depth_pct`, `rate_hz` | heard, human |
 | `voice_breaks` | `kind` = `pitch_jump` \| `aphonic`, `count`, `duration_ms` | pitch jump good; aphonic has a defect |
-| `diplophonia` | `period_alt_pct`, `amp_alt_db` | heard as rough, human |
+| `diplophonia` | `period_alt_pct`, `amp_alt_db` | heard as rough, human; jitter and shimmer are undefined for period-doubled signals (Kreiman and Gerratt 2005 excluded them for that reason), so report only the two alternation parameters |
 
 Not proposed: a WORLD breathy profile (§ 6).
 
@@ -120,8 +121,21 @@ requested jitter 3 %  ──► synthesis ──► measured 2.0 % (S10)   ─�
 
 Each profile states the *measured* jitter/shimmer/depth it produces on the real vowels of each
 base. The estimator (zero crossings of the low-passed signal, cross-checked by pulse-peak
-instants) is part of the test code. Cepstral peak prominence (CPPS) is a possible later axis,
-but only from **one** reference program applied to real and simulated voices alike.
+instants) is part of the test code. Cepstral peak prominence (CPPS) is **not** proposed as
+the severity axis of these profiles: Hillenbrand and Houde (1996) validated it for voices that
+depart from normal mainly towards *breathiness* (92 % of the variance for sustained vowels) and
+say it is not known whether it predicts roughness; Maryn et al. (2010) likewise describe
+cepstral measures as mainly associated with breathiness and less with roughness. Two further
+points from Kreiman and Gerratt (2005): listeners agreed on the overall noise-to-signal ratio
+(about 10.7 dB difference needed to be heard 75 % of the time) but not on jitter or shimmer
+(about 2.3 % jitter and 1.4 dB shimmer without noise; with noise, never reliably heard up to 3 %
+jitter), so every profile's output should also report its harmonics-to-noise ratio next to the
+jitter, shimmer or depth; and the same paper reports, second hand from Hillenbrand (1988) (not
+read), that perceived roughness stopped rising beyond about 2 % jitter and 2 dB shimmer, so
+jitter levels of 4–7 % test the verification system, not a perceived roughness (the thesis
+makes no perceptual claim, decision 3). If CPPS is ever used for a breathy profile, one program
+must measure real and simulated voices alike (Skowronski 2015: about 15 dB between programs;
+Maryn 2010 itself took CPPS from SpeechTool and the other five AVQI terms from Praat).
 
 ### 3.5 The control arm
 
@@ -149,12 +163,19 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    and the listening so far is one informal listener (the author), so the thesis makes no
    perceptual claim: it describes each profile by the measured jitter, shimmer or depth it
    produces. Literature checked for this decision: Lopes et al. 2017 (871 VoiceSim vowels, one
-   expert rater, intra-rater kappa 0.88, no external validation); Englert et al. 2017 (J Voice), in which
-   listeners mis-separated human from synthesized voices 39.3 % of the time (abstract only,
-   listener count unconfirmed); Kreiman and Gerratt 2005 (abstract and first page read: jitter
-   and shimmer are not useful as independent indices of perceived quality); no study found that
-   joins simulated dysphonia, listening tests and speaker verification. A jitter value is not a
-   perceived severity, so the text must not use "mild/moderate/severe" for it.
+   expert rater, intra-rater kappa 0.88, no external validation); Englert et al. 2017 (J Voice; 269
+   listeners invited, 99 dropped for answering the same way on fewer than 72.2 % of repeated
+   items, 170 analysed: 58 voice-specialist SLPs, 51 general SLPs, 61 naive; 18 human against 18
+   VoiceSim voices; 39.3 % misclassified overall, 42.3 % of the synthesized and 36.4 % of the human
+   voices, while the paper's Table 2 total reads 39.8 %); Kreiman and Gerratt 2005 (jitter and
+   shimmer are not useful as independent indices of perceived quality; 70 naive listeners in
+   experiment 1, 18 in experiment 2); no study found that joins simulated dysphonia, listening
+   tests and speaker verification. Two facts from Englert matter for the author's own listening:
+   real dysphonic voices were taken for synthetic 36.4 % of the time (52.1 % for the severe ones),
+   and the retained listeners agreed with themselves on 81.6 % of repeated items (kappa 0.58),
+   so one listener calling a voice "artificial" is weak evidence (the author's own repeat
+   agreement was 5 of 7). A jitter value is not a perceived severity, so the text must not use
+   "mild/moderate/severe" for it.
 3. **Identity (decisive; decision 4, 2026-11-15: pilot first):** does `resynthesis_control`
    change the speaker-verification EER on a base? After implementation: time one debug profile,
    report the cost, and run only with the user's explicit confirmation through the
@@ -168,8 +189,10 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
 - New grid cells (profile × level × scope × bases) need re-running; I did not estimate it.
 - The 1 ms resampling limits per-cycle jitter at high F0 (S03 realised the least); a finer
   frame period raises memory.
-- Perceptual evidence is thin (one listener); the missing papers (Hillenbrand, Maryn, Fant, Alku)
-  were not read, so claims drawn from them in other pages stand on abstracts and secondary text.
+- Perceptual evidence is thin (one listener). Seven papers that were missing (Englert 2017,
+  Kreiman and Gerratt 2005, Hillenbrand 1994 and 1996, Maryn 2010, Alku 1992, Fant 1985) were
+  read on 2026-11-15; still unread: the D4C paper, and four known only from abstracts or
+  snippets (see References). The Alku and Fant PDFs are scans; the Fant text is poor OCR.
 
 ## 6. Not proposed, and why
 
@@ -177,9 +200,9 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
 |---|---|
 | WORLD breathy profile (aperiodicity, pitch-synchronous noise) | no consistent winner against the whisper mix; both judged artificial in several presentations |
 | Klatt-style spectral tilt + H1 boost | heard as muffled and artificial |
-| Kreiman's synthesizer, glottal inverse filtering (Alku, LF model) | vowel-only / manual / not validated on irregular voices |
+| Kreiman's analysis-by-synthesis, Alku's inverse filtering, the LF model | Kreiman and Gerratt (2005) copy each voice by interactive inverse filtering and hand adjustment (cycle boundaries checked by the author); 20 listeners could not tell copies of 20 disordered voices from the originals, but voices with period doubling or biphonation were excluded and it is manual work per voice. Alku's PSIAIF (1992) is fully automatic but was shown only on synthetic vowels and healthy speakers, and fails for pressed phonation with a low first formant. Fant's LF model (1985, four parameters) describes glottal flow. None is a pipeline for thousands of automatically degraded utterances |
 | Neural voice conversion (Jiao) | needs paired patient recordings, which are out of scope |
-| AVQI as the severity scale | needs a sustained /a/ plus connected speech per speaker; the data are digits and words |
+| AVQI as the severity scale | Maryn et al. (2010) define it on the central 3 s of a sustained /a/ concatenated with the voiced parts of the first two sentences of a phonetically balanced text, from six terms (CPPS; HNR, two shimmer measures, spectral slope and tilt), cut-off 2.95, validated on Dutch clinical voices against five raters (single-rater ICC 0.70, mean 0.92). The data here are digits and words, so it is not computable as defined, and its HNR and shimmer terms rest on cycle detection that fails on rough voices (Hillenbrand 1994) |
 
 ## 7. Decisions needed
 
@@ -195,17 +218,17 @@ Decided 2026-11-15 (nothing implemented yet):
 4. **Identity check:** a minimal pilot before the grid, with a cost report and explicit
    confirmation (§ 4.3).
 5. **Wording of the whisper-mix limitation:** built from the literature, not from the
-   author's own listening. Draft (English, adjust to the thesis language; the two citations
-   marked *verify* were read only as abstracts or search snippets):
+   author's own listening. Draft (English, adjust to the thesis language; the three papers
+   cited were read in full: Englert and Kreiman on 2026-11-15 from the PDFs, Lopes earlier on PMC):
 
    > The noise-mixing degradation covers breathy and aphonic voice only, and its level is a
-   > power fraction, not a clinical severity unit. It was not perceptually validated. Studies
-   > that simulate dysphonia report, at most, the reliability of a single rater on synthetic
-   > stimuli (Lopes et al., 2017), and listeners may fail to separate synthetic from human
-   > dysphonic voices (Englert et al., 2017; *verify:* abstract only), while jitter and
-   > shimmer are not useful as independent indices of perceived vocal quality, apart from their
-   > contribution to the overall pattern of spectrally shaped noise (Kreiman and Gerratt, 2005).
-   > The profiles of Section X are therefore
+   > power fraction, not a clinical severity unit. It was not perceptually validated. Where a
+   > simulated dysphonia has been validated by listening, it took trained listener panels
+   > (Englert et al., 2017: 170 analysed listeners, who nevertheless took 36.4 % of real
+   > dysphonic voices for synthetic ones) or a single expert rater with repeated items (Lopes et
+   > al., 2017); neither was available here. Jitter and shimmer are not useful as independent
+   > indices of perceived vocal quality, apart from their contribution to the overall pattern
+   > of spectrally shaped noise (Kreiman and Gerratt, 2005), so the profiles of Section X are
    > described by the acoustic quantities they produce, not by a perceived severity.
 
 ## References
@@ -218,6 +241,5 @@ Decided 2026-11-15 (nothing implemented yet):
 - Tayebi Arasteh et al. (2023) Sci. Rep. 13:20476, doi:10.1038/s41598-023-47711-7.
 - Jiao, Tu, Berisha, Liss (2018) arXiv:1804.10325.
 - Lopes, Freitas, Almeida, Silva, Alves (2017) Braz J Otorhinolaryngol 84(4):460–472, doi:10.1016/j.bjorl.2017.05.012 (read in full on PMC).
-- Kreiman, Gerratt (2005) Perception of aperiodicity in pathological voice, J. Acoust. Soc. Am. 117(4):2201–2211, doi:10.1121/1.1858351 (abstract and first page read; open copy at escholarship.org/uc/item/8dr06327).
-- Read only as abstract or search snippet (verify before citing): Englert, Madazio, Gielow, Lucero, Behlau (2017) Perceptual Error Analysis of Human and Synthesized Voices, J. Voice 31(4):516.e5–516.e18, doi:10.1016/j.jvoice.2016.12.015 (its companion Englert et al. 2016, J. Voice 30(5):639.e17–e23, doi:10.1016/j.jvoice.2015.07.017, may explain the 70 vs 269 listeners the searches gave; not checked); "Imitating dysphonic voice", Logoped Phoniatr Vocol 2019, doi:10.1080/14015439.2019.1659410; Gerratt, Kreiman (2001) analysis-by-synthesis, doi:10.1121/1.1409969; Shrivastav et al. (2012) J Speech Lang Hear Res 55(5):1407–1422, doi:10.1044/1092-4388(2012/11-0160). Not used: Kreiman, Gerratt, Gabelman (2002) J. Acoust. Soc. Am. 112:2446, doi:10.1121/1.4780067, a one-page meeting abstract, not a paper.
-- Not read (DOIs checked in Crossref 2026-11-15): Hillenbrand, Cleveland, Erickson (1994) JSHR 37(4):769–778, doi:10.1044/jshr.3704.769; Hillenbrand, Houde (1996) JSHR 39(2):311–321, doi:10.1044/jshr.3902.311; Maryn, De Bodt, Roy (2010) J. Commun. Disord. 43(3):161–174, doi:10.1016/j.jcomdis.2009.12.004; Alku (1992) Speech Commun. 11(2–3):109–118, doi:10.1016/0167-6393(92)90005-R; Fant, Liljencrants, Lin (1985) STL-QPSR 4/1985 (a KTH report; no DOI found).
+- Read in full on 2026-11-15 (PDFs in `documentation/03-articlesToRead/forTesis/medicine/`): Kreiman, Gerratt (2005) Perception of aperiodicity in pathological voice, J. Acoust. Soc. Am. 117(4):2201–2211, doi:10.1121/1.1858351; Englert, Madazio, Gielow, Lucero, Behlau (2017) Perceptual Error Analysis of Human and Synthesized Voices, J. Voice 31(4):516.e5–516.e18, doi:10.1016/j.jvoice.2016.12.015; Hillenbrand, Cleveland, Erickson (1994) JSHR 37(4):769–778, doi:10.1044/jshr.3704.769; Hillenbrand, Houde (1996) JSHR 39(2):311–321, doi:10.1044/jshr.3902.311; Maryn, De Bodt, Roy (2010) J. Commun. Disord. 43(3):161–174, doi:10.1016/j.jcomdis.2009.12.004; Alku (1992) Speech Commun. 11(2–3):109–118, doi:10.1016/0167-6393(92)90005-R (scan); Fant, Liljencrants, Lin (1985) A four-parameter model of glottal flow, STL-QPSR 26(4):1–13, KTH (a report, no DOI; scan, poor OCR).
+- Not read; abstract or search snippet only (verify before citing): "Imitating dysphonic voice", Logoped Phoniatr Vocol 2019, doi:10.1080/14015439.2019.1659410; Gerratt, Kreiman (2001) analysis-by-synthesis, doi:10.1121/1.1409969; Shrivastav et al. (2012) J Speech Lang Hear Res 55(5):1407–1422, doi:10.1044/1092-4388(2012/11-0160); Englert et al. (2016) J. Voice 30(5):639.e17–e23, doi:10.1016/j.jvoice.2015.07.017 (the earlier study with fewer listeners that Englert 2017 builds on). Not used: Kreiman, Gerratt, Gabelman (2002) J. Acoust. Soc. Am. 112:2446, doi:10.1121/1.4780067, a one-page meeting abstract, not a paper.
