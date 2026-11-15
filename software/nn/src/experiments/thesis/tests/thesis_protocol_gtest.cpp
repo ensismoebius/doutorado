@@ -527,14 +527,102 @@ TEST(ThesisProtocolConfig, EegConditionAndDegradationKeysFollowTheRun)
     eeg.validate();
 
     ThesisConfig voice = cosine_cfg();
-    voice.degradation.enabled = true; // needs level, scope, seed
+    voice.degradation.enabled = true; // needs profile, scope, seed
     EXPECT_THROW(voice.validate(), std::invalid_argument);
-    voice.degradation.level = 0.5f;
+    voice.degradation.profile = "whisper_mix"; // and its own key, level
     voice.degradation.scope = "probes";
     voice.degradation.seed = 3u;
+    EXPECT_THROW(voice.validate(), std::invalid_argument);
+    voice.degradation.level = 0.5f;
     voice.validate();
     voice.degradation.scope = "everything";
     EXPECT_THROW(voice.validate(), std::invalid_argument);
+}
+
+namespace
+{
+/// A voice run with simulated dysphonia of `profile`, scope and seed declared, nothing else.
+ThesisConfig degraded_cfg(const std::string& profile)
+{
+    ThesisConfig c = cosine_cfg();
+    c.degradation.enabled = true;
+    c.degradation.profile = profile;
+    c.degradation.scope = "test";
+    c.degradation.seed = 7u;
+    return c;
+}
+} // namespace
+
+TEST(ThesisProtocolConfig, EachDegradationProfileReadsExactlyItsOwnKeys)
+{
+    // rough: jitter_pct and shimmer_db, nothing else.
+    ThesisConfig rough = degraded_cfg("rough");
+    EXPECT_THROW(rough.validate(), std::invalid_argument); // its keys are missing
+    rough.degradation.jitter_pct = 2.0f;
+    rough.degradation.shimmer_db = 1.0f;
+    rough.validate();
+    rough.degradation.level = 0.5f; // the whisper mix's key: not read by `rough`
+    EXPECT_THROW(rough.validate(), std::invalid_argument);
+
+    // The control reads none of them.
+    ThesisConfig control = degraded_cfg("resynthesis_control");
+    control.validate();
+    control.degradation.jitter_pct = 1.0f;
+    EXPECT_THROW(control.validate(), std::invalid_argument);
+
+    ThesisConfig tremor = degraded_cfg("tremor");
+    tremor.degradation.f0_depth_pct = 4.0f;
+    tremor.degradation.rate_hz = 5.0f;
+    tremor.validate();
+
+    ThesisConfig breaks = degraded_cfg("voice_breaks");
+    breaks.degradation.break_kind = "pitch_jump";
+    breaks.degradation.breaks_per_second = 1.0f;
+    breaks.degradation.break_ms = 80.0f;
+    breaks.validate();
+
+    ThesisConfig diplo = degraded_cfg("diplophonia");
+    diplo.degradation.period_alt_pct = 6.0f;
+    diplo.degradation.amp_alt_db = 3.0f;
+    diplo.validate();
+}
+
+TEST(ThesisProtocolConfig, DegradationValuesAreCheckedAndAnUnknownProfileNamesTheValidOnes)
+{
+    ThesisConfig rough = degraded_cfg("rough");
+    rough.degradation.jitter_pct = 40.0f; // above the 20 % limit
+    rough.degradation.shimmer_db = 1.0f;
+    EXPECT_THROW(rough.validate(), std::invalid_argument);
+    rough.degradation.jitter_pct = 0.0f; // 0 is the control, not a rough voice
+    EXPECT_THROW(rough.validate(), std::invalid_argument);
+
+    ThesisConfig breaks = degraded_cfg("voice_breaks");
+    breaks.degradation.break_kind = "stutter";
+    breaks.degradation.breaks_per_second = 1.0f;
+    breaks.degradation.break_ms = 80.0f;
+    EXPECT_THROW(breaks.validate(), std::invalid_argument);
+    breaks.degradation.break_kind = "aphonic";
+    breaks.degradation.breaks_per_second = 5.0f;
+    breaks.degradation.break_ms = 200.0f; // half of the voice would be a break
+    EXPECT_THROW(breaks.validate(), std::invalid_argument);
+
+    ThesisConfig unknown = degraded_cfg("hoarse");
+    try
+    {
+        unknown.validate();
+        FAIL() << "an unknown degradation profile must be refused";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what = e.what();
+        for (const char* valid : {"whisper_mix",
+                 "resynthesis_control",
+                 "rough",
+                 "tremor",
+                 "voice_breaks",
+                 "diplophonia"})
+            EXPECT_NE(what.find(valid), std::string::npos) << valid << " is not named in: " << what;
+    }
 }
 
 // ── The ANN twin and the inference energy ───────────────────────────────────────

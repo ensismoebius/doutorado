@@ -122,6 +122,69 @@ dysphonia: the thesis says so. A proposal to add rough, tremulous and
 broken-voice profiles and measured severity units, with the listening evidence behind it, is in
 [Thesis Voice Degradation Proposal](./Thesis-Voice-Degradation-Proposal.md).
 
+#### 4.1 The other dysphonia generators: `degradation.profile` (2026-11-15)
+
+**Problem.** A whisper has no pitch. A dysphonic voice usually does: the vocal folds still
+vibrate, but unevenly. Mixing noise into the voice (above) cannot make a 140 Hz voice wobble,
+because a wobble is a change in *when* each glottal cycle happens and *how loud* it is, not
+something added to the signal.
+
+**Method (`VoiceDysphonia.hpp`, WORLD, Morise et al. 2016).** The voice is taken apart,
+one part edited, and put back together:
+
+```
+voice ──Harvest──> F0 contour (1 value / 5 ms, resampled to 1 ms)  ← edited, cycle by cycle
+      ──CheapTrick─> spectral envelope (the vowel, the mouth)       ← kept
+      ──D4C────────> aperiodicity (noise per band)                  ← kept
+                                  Synthesis ──> same mouth, different larynx
+```
+
+One 140 Hz cycle is 7.1 ms, so the 5 ms analysis grid is too coarse to edit a single cycle; the
+contour is resampled to 1 ms and each cycle gets its own length. Loudness (shimmer, amplitude
+alternation) is applied afterwards, with each gain step placed between two real pulse peaks.
+
+`degradation.profile` picks the generator; the keys it declares depend on it (a key the profile
+does not read is refused, one it reads and is missing is refused: the usual strict config):
+
+| `profile` | what moves | keys it declares |
+|---|---|---|
+| `whisper_mix` | noise replaces the pulses (§4 above) | `level` |
+| `resynthesis_control` | nothing: analysis + resynthesis only | none |
+| `rough` | each cycle's length and loudness at random | `jitter_pct`, `shimmer_db` |
+| `tremor` | F0 sways slowly (amplitude follows at 2.5× the F0 depth) | `f0_depth_pct`, `rate_hz` |
+| `voice_breaks` | the pitch jumps (×1.5, ×0.65, alternating) or the voice drops out | `break_kind`, `breaks_per_second`, `break_ms` |
+| `diplophonia` | every second cycle longer and softer | `period_alt_pct`, `amp_alt_db` |
+
+**The numbers are measured, not requested.** `thesis_voice_dysphonia_gtest` builds a 140 Hz
+synthetic vowel and measures what comes out: `diplophonia` at ±6 % gives consecutive periods
+that differ by 12 % ± 3; `rough` at 1, 3 and 6 % jitter lands within 25 % + 0.3 of each;
+`voice_breaks` at 1.2 per second over 1.6 s places exactly two breaks, the first at about 1.5×
+the F0 and the second at about 0.65×. A first version that scaled the F0 of each frame by the
+factor of its *unedited* cycle smeared the alternation over two cycles and delivered a third of
+the diplophonia asked for; the edit is now made on the pulse instants.
+
+**Why `resynthesis_control` exists (the silent failure).** WORLD alone changes the signal.
+Comparing a dysphonic voice with the *raw* one would credit the dysphonia with the vocoder's
+own damage and nothing would flag it. The dysphonia effect is the difference between a profile
+and `resynthesis_control`, never between a profile and the raw voice.
+
+**What fails loudly.** A native analysis rate of 8 kHz or less (D4C then has no bands and
+returns aperiodicity 1: a whisper, silently), an utterance with no voiced frame, a break rate
+that places no break, an output whose length is not the input's, a value outside the limits
+`check_dysphonia_params` states. BIOMEX is stored at 44.1 kHz but recorded at 16 kHz, so WORLD
+analyses it at the native 16 kHz (`ThesisDatasetView::voice_native_rate`) and the result is
+resampled back.
+
+**Consequence for provenance.** `profile` is a declared key of every enabled-degradation
+profile, so the config fingerprint (hash of the declared keys) of the 128 enabled `whisper_mix`
+profiles changed on 2026-11-15; their results are unchanged in content but carry a new
+`config_hash`. Profiles with `degradation.enabled = false` do not declare it and kept theirs.
+
+**Status.** The generators, the key and the tests exist. No generated profile uses the new
+generators yet: the levels are provisional (proposal §3.4.1) and the identity pilot (raw vs
+`resynthesis_control`, proposal §4.3) must run first. Nothing here claims a perceptual
+validation: no listener panel was available, so the validation is objective only.
+
 ### 5. How stable is the Phase 00 winner?
 
 **Problem.** The extractor was chosen with every speaker's labels, the same speakers Phase 01

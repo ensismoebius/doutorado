@@ -51,6 +51,7 @@ Never write a profile by hand: they are generated (§ "Changing it" below).
 | `lib/*/ThesisParaconsistent.*`, `ParaconsistentSubsets.*` | the Phase 00 score (`α`, `β`, `d_truth`, `d_penalized`) and its recomputation on speaker subsets |
 | `lib/*/ThesisClassifiers.*`, `ThesisDsnnClassifier.hpp`, `ThesisAnnClassifier.hpp`, `ThesisClassifiersInternal.hpp` | Phase 01: the DSNN, its non-spiking twin `ann`, the `cosine` control, EER scoring, nested/flat cross-validation |
 | `lib/*/VoiceDegradation.*` | the simulated dysphonia (LPC whisper mix; described step by step in thesis ch. 8) |
+| `lib/*/VoiceDysphonia.*` | the other simulated dysphonias (WORLD: `resynthesis_control`, `rough`, `tremor`, `voice_breaks`, `diplophonia`; selected by `degradation.profile`) |
 | `lib/*/ThesisOutput.*`, `ClassificationResult.hpp`, `FoldResult.hpp` | the result files |
 | `lib/include/IndexIntersection.hpp` | order-independent intersection of index lists (the July fold bug) |
 | `profiles/` | generated profiles: `phase00/`, `phase01/`, `biomex/`, `smoke/`, `profiles.manifest`; `debug.json` is a hand-kept quick-run profile |
@@ -78,7 +79,7 @@ Each run writes into the profile's `dataset.results_dir` (`results/thesis/<phase
 | add, remove or change profiles | edit `00_thesis_generate_profiles.py` and run it (`--phase00-only`, or `--winners results/thesis/phase00/winners.json --fused voice`); never edit a JSON under `profiles/`: `GeneratedTree` in `scripts/testing/test_thesis_phase_scripts.py` (CI) refuses a tree the generator did not write |
 | add an extractor | `ThesisFeatureExtraction.cpp` (+ a family in `FAMILIES` of the generator and in `01_thesis_phase00_rank.py`); test it in `thesis_feature_extraction_gtest` |
 | add a classifier or control | `ThesisClassifiers.cpp` (+ the classifier type in `ThesisConfig`); test in `thesis_classifiers_gtest` |
-| change the dysphonia simulation | `VoiceDegradation.cpp`; then regenerate `documentation/00-thesis/monography/images/simulatedDysphonia.pdf` (its script compiles this very file) and re-check ch. 8 §"disfonia simulada" |
+| change the dysphonia simulation | `VoiceDegradation.cpp` (`whisper_mix`) or `VoiceDysphonia.cpp` (the WORLD profiles, calibrated by `thesis_voice_dysphonia_gtest`); then regenerate `documentation/00-thesis/monography/images/simulatedDysphonia.pdf` (its script compiles this very file) and re-check ch. 8 §"disfonia simulada" |
 | change an output file | `ThesisOutput.cpp`; then the readers: `scripts/pipeline/thesis/thesis_build_*` and their tests |
 | run it on the cluster | [`.wiki/Experiments/Thesis.md` → Running on GridUnesp](../../../.wiki/Experiments/Thesis.md#running-on-gridunesp-2026-11-12) |
 

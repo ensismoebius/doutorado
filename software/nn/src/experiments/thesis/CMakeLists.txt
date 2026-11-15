@@ -9,6 +9,7 @@ set(THESIS_LIB_SOURCES
     lib/src/ThesisPca.cpp
     lib/src/EegPairing.cpp
     lib/src/VoiceDegradation.cpp
+    lib/src/VoiceDysphonia.cpp
     lib/src/ParaconsistentSubsets.cpp
 )
 
@@ -42,6 +43,7 @@ target_link_libraries(thesis_lib
         nlohmann_json_wrapper
         matioCpp
         cnpy-static
+        world_vendor    # VoiceDysphonia.cpp: WORLD vocoder (cmake/VendorWorld.cmake)
         xtensor xtensor-blas
         Eigen3::Eigen   # ThesisPca.cpp
         SQLite3::SQLite3   # ThesisDataset.cpp: trial metadata for the EEG pairing

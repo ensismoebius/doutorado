@@ -528,6 +528,9 @@ namespace
 // 176400 samples in 4 s, EEG 4096 samples in 4 s. Its SQLite does not store them.
 constexpr double kCorettoVoiceRateHz = 44100.0;
 constexpr double kCorettoEegRateHz = 1024.0;
+// BIOMEX-DB's voice was recorded at 16 kHz and stored at 44.1 kHz (VOICE_RATE and
+// OUT_VOICE_RATE in scripts/data/biomex_to_sqlite.py); the base does not store the former.
+constexpr double kBiomexNativeVoiceRateHz = 16000.0;
 
 // ── biomex2021: the paired SQLite of scripts/data/biomex_to_sqlite.py ──────────────────
 //
@@ -603,6 +606,7 @@ auto load_paired(const std::string& path) -> ThesisDatasetView
     ThesisDatasetView view;
     view.voice_sample_rate = std::stod(info_value(info, "voice_sample_rate", path));
     view.eeg_sample_rate = std::stod(info_value(info, "eeg_sample_rate", path));
+    view.voice_native_rate = kBiomexNativeVoiceRateHz;
     (void) require_rate(view.voice_sample_rate, "voice");
     (void) require_rate(view.eeg_sample_rate, "EEG");
     // The frozen pipeline splits 0..Nyquist into 2^level equal DTWPT sub-bands, so a feature
@@ -730,6 +734,7 @@ auto load_dataset(const ThesisConfig::Dataset& dataset_cfg) -> ThesisDatasetView
     (void) from_cache;
 
     view.voice_sample_rate = kCorettoVoiceRateHz;
+    view.voice_native_rate = kCorettoVoiceRateHz; // recorded at the rate it is stored at
     view.eeg_sample_rate = kCorettoEegRateHz;
     apply_max_samples(view, dataset_cfg.max_samples);
     return view;

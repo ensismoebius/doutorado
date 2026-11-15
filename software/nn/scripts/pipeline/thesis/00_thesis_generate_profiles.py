@@ -268,7 +268,7 @@ def phase01(winners, fused):
             continue  # the degradation touches the voice only
         for scope in ("probes", "test"):
             for level in (0.25, 0.5, 0.75, 1.0):
-                deg = {"enabled": True, "level": level, "scope": scope,
+                deg = {"enabled": True, "profile": "whisper_mix", "level": level, "scope": scope,
                        "seed": DEGRADATION_SEED}
                 yield phase01_profile(f"p01_dysph_{src}_{scope}_l{int(level * 100)}", src,
                                       "dsnn", "dep", False, True, win(src), degradation=deg)
@@ -298,7 +298,7 @@ def biomex(winners, fused):
             continue
         for scope in ("probes", "test"):
             for level in (0.25, 0.5, 0.75, 1.0):
-                deg = {"enabled": True, "level": level, "scope": scope,
+                deg = {"enabled": True, "profile": "whisper_mix", "level": level, "scope": scope,
                        "seed": DEGRADATION_SEED}
                 yield phase01_profile(f"bx01_dysph_{src}_{scope}_l{int(level * 100)}", src,
                                       "dsnn", "dep", False, True, win(src), degradation=deg,

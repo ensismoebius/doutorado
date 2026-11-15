@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "StrictJson.hpp"
+#include "VoiceDysphonia.hpp"
 
 namespace thesis
 {
@@ -67,6 +68,11 @@ auto reads_eeg(K k) -> bool
 auto is_dsnn(K k) -> bool
 {
     return trains_classifier(k) && k.classifier.type == "dsnn";
+}
+/// A run that degrades the voice of its test speakers (voice or fused data, classifier on).
+auto degraded(K k) -> bool
+{
+    return trains_classifier(k) && k.dataset.modality != "eeg" && k.degradation.enabled;
 }
 
 constexpr const char* kAlways = "always";
@@ -163,11 +169,30 @@ void for_each_field(Cfg& c, Row&& row)
         "classifier.enabled with dataset.modality \"voice\" or \"fused\"",
         [](K k) { return trains_classifier(k) && k.dataset.modality != "eeg"; });
     constexpr const char* kDegraded = "degradation.enabled is true";
-    const auto degraded = [](K k)
-    { return trains_classifier(k) && k.dataset.modality != "eeg" && k.degradation.enabled; };
-    row(dg.level, kDegraded, degraded);
+    row(dg.profile, kDegraded, degraded);
     row(dg.scope, kDegraded, degraded);
     row(dg.seed, kDegraded, degraded);
+    // The keys each profile reads. `profile` comes first, so these conditions may read it.
+    constexpr const char* kWhisper = "degradation.profile is \"whisper_mix\"";
+    const auto whisper = [](K k) { return degraded(k) && k.degradation.profile == "whisper_mix"; };
+    row(dg.level, kWhisper, whisper);
+    constexpr const char* kRough = "degradation.profile is \"rough\"";
+    const auto rough = [](K k) { return degraded(k) && k.degradation.profile == "rough"; };
+    row(dg.jitter_pct, kRough, rough);
+    row(dg.shimmer_db, kRough, rough);
+    constexpr const char* kTremor = "degradation.profile is \"tremor\"";
+    const auto tremor = [](K k) { return degraded(k) && k.degradation.profile == "tremor"; };
+    row(dg.f0_depth_pct, kTremor, tremor);
+    row(dg.rate_hz, kTremor, tremor);
+    constexpr const char* kBreaks = "degradation.profile is \"voice_breaks\"";
+    const auto breaks = [](K k) { return degraded(k) && k.degradation.profile == "voice_breaks"; };
+    row(dg.break_kind, kBreaks, breaks);
+    row(dg.breaks_per_second, kBreaks, breaks);
+    row(dg.break_ms, kBreaks, breaks);
+    constexpr const char* kDiplo = "degradation.profile is \"diplophonia\"";
+    const auto diplo = [](K k) { return degraded(k) && k.degradation.profile == "diplophonia"; };
+    row(dg.period_alt_pct, kDiplo, diplo);
+    row(dg.amp_alt_db, kDiplo, diplo);
 
     constexpr const char* kTrains =
         "a training runs (strategy \"autoencoder\", or a dsnn/ann classifier)";
@@ -335,13 +360,22 @@ void validate_paraconsistent(const ThesisConfig::Paraconsistent& pc)
 void validate_degradation(const ThesisConfig& cfg)
 {
     const auto& dg = cfg.degradation;
-    if (!dg.level.declared()) return; // not degraded (check_declarations)
-    if (!(dg.level > 0.0f && dg.level <= 1.0f))
-        throw std::invalid_argument("ThesisConfig: degradation.level must be in (0, 1]");
+    if (!dg.profile.declared()) return; // not degraded (check_declarations)
     if (dg.scope != "probes" && dg.scope != "test")
         throw std::invalid_argument("ThesisConfig: degradation.scope must be probes or test");
     if (dg.seed == 0u)
         throw std::invalid_argument("ThesisConfig: degradation.seed must be non-zero");
+    if (dg.profile == "whisper_mix")
+    {
+        if (!(dg.level > 0.0f && dg.level <= 1.0f))
+            throw std::invalid_argument("ThesisConfig: degradation.level must be in (0, 1]");
+    }
+    else
+    {
+        // The F0 profiles: the limits of every value live in VoiceDysphonia (one place); an
+        // unknown profile name is refused there too, naming all the valid ones.
+        check_dysphonia_params(dysphonia_params(dg));
+    }
     // The degraded features are extracted once, beside the clean ones. An autoencoder is
     // trained per repetition on the clean signals, so it has no single "degraded" twin.
     if (cfg.feature_extraction.strategy == "autoencoder")

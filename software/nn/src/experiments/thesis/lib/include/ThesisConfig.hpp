@@ -73,20 +73,51 @@ struct ThesisConfig
     };
 
     /// Simulated dysphonia (Phase 01, runs that read the voice). The voice of the TEST
-    /// speakers is replaced, in a fraction `level` of its power, by a whispered version of
-    /// itself: LPC envelope kept, voicing removed (VoiceDegradation.hpp). The training
-    /// speakers stay clean: the system is trained on healthy voices and meets a dysphonic one.
+    /// speakers is replaced by a dysphonic version of itself; the training speakers stay
+    /// clean: the system is trained on healthy voices and meets a dysphonic one. Which
+    /// dysphonia is `profile`, and each profile reads its own keys (a key another profile
+    /// reads is refused, like any key the run does not read):
+    ///
+    ///   whisper_mix          level                       VoiceDegradation.hpp: breathy/aphonic
+    ///   resynthesis_control  (none)                      VoiceDysphonia.hpp: the F0 profiles
+    ///   rough                jitter_pct, shimmer_db
+    ///   tremor               f0_depth_pct, rate_hz
+    ///   voice_breaks         break_kind, breaks_per_second, break_ms
+    ///   diplophonia          period_alt_pct, amp_alt_db
     struct Degradation
     {
         Required<bool> enabled{"degradation.enabled"};
-        /// enabled only: 0 < level <= 1 (1 = fully whispered, i.e. aphonic).
+        /// enabled only: "whisper_mix" | "resynthesis_control" | "rough" | "tremor" |
+        /// "voice_breaks" | "diplophonia".
+        Required<std::string> profile{"degradation.profile"};
+        /// whisper_mix only: 0 < level <= 1 (the fraction of the voice's POWER that is breath
+        /// instead of voice; 1 = fully whispered, i.e. aphonic). A power fraction, not a
+        /// clinical severity unit.
         Required<float> level{"degradation.level"};
         /// enabled only: "probes" -> enrolled with the clean voice, verified with the degraded
         ///                           one (the voice was lost after enrolment);
         ///               "test"   -> enrolment and probes both degraded (dysphonic throughout).
         Required<std::string> scope{"degradation.scope"};
-        /// enabled only: seed of the whisper excitation (non-zero).
+        /// enabled only: seed of the random stream (non-zero): the whisper excitation, or the
+        /// per-cycle draws of the F0 profiles.
         Required<std::uint32_t> seed{"degradation.seed"};
+
+        /// rough only: local jitter / shimmer of the output, percent / dB (MEASURED units;
+        /// the realised value is calibrated in the tests, see VoiceDysphonia.hpp).
+        Required<float> jitter_pct{"degradation.jitter_pct"};
+        Required<float> shimmer_db{"degradation.shimmer_db"};
+        /// tremor only: peak F0 deviation (percent of F0) and sway rate (Hz).
+        Required<float> f0_depth_pct{"degradation.f0_depth_pct"};
+        Required<float> rate_hz{"degradation.rate_hz"};
+        /// voice_breaks only: "pitch_jump" | "aphonic", breaks per second of voiced speech,
+        /// and the length of one break in milliseconds.
+        Required<std::string> break_kind{"degradation.break_kind"};
+        Required<float> breaks_per_second{"degradation.breaks_per_second"};
+        Required<float> break_ms{"degradation.break_ms"};
+        /// diplophonia only: alternate cycles longer/shorter by period_alt_pct percent and
+        /// louder/softer by amp_alt_db dB.
+        Required<float> period_alt_pct{"degradation.period_alt_pct"};
+        Required<float> amp_alt_db{"degradation.amp_alt_db"};
     };
 
     /// Only when feature_extraction.strategy == "handcrafted".

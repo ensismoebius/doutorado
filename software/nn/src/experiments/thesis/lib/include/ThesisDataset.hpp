@@ -31,6 +31,12 @@ struct ThesisDatasetView
     /// (44100 / 1024, the Coretto base), wrong for any other base without an error.
     double voice_sample_rate = 0.0;
     double eeg_sample_rate = 0.0;
+    /// The rate the VOICE was recorded at, before the base wrote it at `voice_sample_rate`
+    /// (BIOMEX-DB: recorded at 16 kHz, stored upsampled to 44.1 kHz, so its 8-22 kHz band is
+    /// empty). The F0 degradations (VoiceDysphonia.hpp) analyse the voice at this rate: WORLD's
+    /// aperiodicity bands above the recording's Nyquist would be estimated from nothing.
+    /// 0 = not loaded, refused by require_rate like the others.
+    double voice_native_rate = 0.0;
 };
 
 /// The rate a reader of `view` needs, refused when the loader never set it.

@@ -48,6 +48,7 @@
   },
   "degradation": {
     "enabled": true,
+    "profile": "whisper_mix",
     "level": 1.0,
     "scope": "test",
     "seed": 7

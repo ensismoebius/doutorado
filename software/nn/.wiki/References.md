@@ -225,3 +225,8 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [83] I. Goodfellow, Y. Bengio, and A. Courville, *Deep Learning*. MIT Press, 2016, Sec. 7.8, Alg. 7.1. [Online]. Available: https://www.deeplearningbook.org (Early stopping returns the parameters of the best validation epoch, not the last: `BestWeightsCallback`.)
 
+## Simulated Dysphonia
+
+[84] M. Morise, F. Yokomori, and K. Ozawa, "WORLD: A vocoder-based high-quality speech synthesis system for real-time applications," *IEICE Trans. Inf. Syst.*, vol. E99-D, no. 7, pp. 1877–1884, 2016. [Online]. Available: https://doi.org/10.1587/transinf.2015EDP7457 (The analysis/synthesis the thesis dysphonia profiles `resynthesis_control`, `rough`, `tremor`, `voice_breaks`, `diplophonia` edit: Harvest F0, CheapTrick envelope, D4C aperiodicity; vendored from github.com/mmorise/World, modified BSD, `cmake/VendorWorld.cmake`. Read in full 2026-11-15.)
+
+[85] J. Kreiman and B. R. Gerratt, "Perception of aperiodicity in pathological voice," *J. Acoust. Soc. Am.*, vol. 117, no. 4, pp. 2201–2211, 2005. [Online]. Available: https://doi.org/10.1121/1.1858351 (Why `tremor` ties its amplitude depth to the F0 depth at a fixed ratio, `kTremorAmplitudeToF0Ratio`: much "amplitude" modulation is an artefact of F0 modulation; also the evidence that spectrally shaped noise is a limited model of dysphonia. Read in full 2026-11-15.)

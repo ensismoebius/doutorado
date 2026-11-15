@@ -46,6 +46,7 @@
   },
   "degradation": {
     "enabled": true,
+    "profile": "whisper_mix",
     "level": 0.75,
     "scope": "probes",
     "seed": 7

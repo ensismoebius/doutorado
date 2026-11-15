@@ -11,6 +11,9 @@
 # Cnpy integration
 include(cmake/VendorCnpy.cmake)
 
+# WORLD vocoder (simulated dysphonia, VoiceDysphonia.hpp)
+include(cmake/VendorWorld.cmake)
+
 # Argparse integration
 include(cmake/VendorArgparse.cmake)
 

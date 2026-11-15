@@ -124,3 +124,26 @@ target_include_directories(thesis_freearch_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_link_libraries(thesis_freearch_gtest PRIVATE google_test thesis_lib xtensor xtensor-blas cnpy-static OpenMP::OpenMP_CXX)
 gtest_discover_tests(thesis_freearch_gtest)
 configure_xtensor_parallel_target(thesis_freearch_gtest)
+
+# ── Simulated dysphonia (WORLD) ──────────────────────────────────────────────
+add_executable(thesis_voice_dysphonia_gtest
+    thesis_voice_dysphonia_gtest.cpp
+)
+
+target_include_directories(thesis_voice_dysphonia_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(thesis_voice_dysphonia_gtest
+    PRIVATE
+        google_test
+        thesis_lib
+        OpenMP::OpenMP_CXX   # the thread-independence test runs the calls in an OpenMP loop
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(thesis_voice_dysphonia_gtest)
+configure_xtensor_parallel_target(thesis_voice_dysphonia_gtest)

@@ -46,7 +46,7 @@ Map of the folder: [`src/experiments/thesis/README.md`](../../src/experiments/th
 | add, remove or change profiles | `scripts/pipeline/thesis/00_thesis_generate_profiles.py`, then run it | `python3 scripts/testing/test_thesis_phase_scripts.py` (`GeneratedTree`), `thesis_profile_audit_gtest` | regenerate the smoke mirror (`thesis_make_smoke_profiles.py`); the counts in `Experiments/Thesis.md` |
 | add a feature extractor | `lib/src/ThesisFeatureExtraction.cpp` (+ `FAMILIES` in the generator and `01_thesis_phase00_rank.py`) | `thesis_feature_extraction_gtest` | Phase 00 re-run; ch. 8 |
 | add a classifier or control | `lib/src/ThesisClassifiers.cpp` (+ type in `ThesisConfig`) | `thesis_classifiers_gtest` | Phase 01 re-run; ch. 8–9 |
-| change the simulated dysphonia | `lib/src/VoiceDegradation.cpp` | `VoiceDegradation` suite | regenerate `images/simulatedDysphonia.pdf`; ch. 8 §disfonia simulada |
+| change the simulated dysphonia | `lib/src/VoiceDegradation.cpp` (`whisper_mix`) or `lib/src/VoiceDysphonia.cpp` (WORLD profiles) | `VoiceDegradation` and `VoiceDysphonia*` suites | regenerate `images/simulatedDysphonia.pdf`; ch. 8 §disfonia simulada |
 | change which EEG goes with each voice trial | `lib/src/EegPairing.cpp` | `EegPairing` suite | delete the `.e05dscache` sidecars ([Data Bases](./Data-Bases.md)); re-run everything |
 | change a result file | `lib/src/ThesisOutput.cpp` | `thesis_output_gtest` | the readers in `scripts/pipeline/thesis/` and their tests |
 | run the experiment | — | — | [Running Thesis Profiles](./Running-Thesis-Profiles.md) |
