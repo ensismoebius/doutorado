@@ -186,10 +186,20 @@ decoded base, WORLD added nothing visible to it. By arithmetic, not measured: th
 the pronounced base are ~40 min per profile and level on one thread, divided by the thread count
 under OpenMP (one random stream per sample, so the result does not depend on the schedule).
 
-**Status.** The generators, the key and the tests exist. No generated profile uses the new
-generators yet: the levels are provisional (proposal §3.4.1) and the identity pilot (raw vs
-`resynthesis_control`, proposal §4.3) must run first. Nothing here claims a perceptual
-validation: no listener panel was available, so the validation is objective only.
+**Calibration (2026-11-15).** On 134 real vowels of S10 and S03, measured with Praat 6.1.38
+(Parselmouth): tremor reads back at 0.98 of the request, jitter at 0.65 (calibrated by asking
+more), shimmer saturates at 1.95 dB under Praat's standard settings, breaks at 1.07-1.22x the rate;
+diplophonia is **not validated** (Praat locks on the subharmonic of the high voice; 0.46 on the
+low one, cause unknown); the control keeps the energy but raises the HNR by 2.5-3.8 dB. Details:
+proposal §3.4.2; script `scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py`.
+
+**Identity pilot (2026-11-15): inconclusive** (proposal §4.3): with 15 dependent pairs the
+corrected interval is ~4x the ±0.01 margin; the DSNN's EER rose by +0.047 under resynthesis alone,
+not significantly. Under the pre-registered rule the WORLD profiles stay **out of the grid**; the
+thesis (ch. 8) says so, and its dysphonia conclusions hold for the whisper model only.
+
+**Status.** Generators, key, tests, calibration and pilot exist; the six pilot profiles are
+`profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
 
 ### 5. How stable is the Phase 00 winner?
 
@@ -354,6 +364,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --ae-input-reference results/thesis/ae_input_reference.csv \
   --base-facts results/thesis/base_facts.csv \
   --biomex-profiles src/experiments/thesis/profiles/biomex --biomex-results results/thesis/biomex \
+  --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
+  --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
 

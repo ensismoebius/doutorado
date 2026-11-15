@@ -2,6 +2,11 @@ numpy>=1.25
 scipy>=1.11
 tqdm
 
+# Praat (jitter, shimmer, HNR, pitch) for the dysphonia calibration
+# (scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py): one reference measurer for raw
+# and degraded voices alike. LOCAL only; the thesis binary does not need it.
+praat-parselmouth>=0.4.7
+
 # Live experiment-monitor dashboard (scripts/pipeline/meeting01/monitor.py).
 # Pure-Python. The monitor's --plain and --self-test modes need only the stdlib.
 rich>=13.0

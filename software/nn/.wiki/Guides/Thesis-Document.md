@@ -118,6 +118,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
   --biomex-profiles  src/experiments/thesis/profiles/biomex  --biomex-results  results/thesis/biomex \
   --ae-input-reference results/thesis/ae_input_reference.csv --base-facts results/thesis/base_facts.csv \
+  --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
+  --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex
 
 # 5. the PDF (§ Building the PDF)

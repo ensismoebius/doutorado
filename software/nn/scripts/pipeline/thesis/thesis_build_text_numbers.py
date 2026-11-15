@@ -51,6 +51,12 @@ The keys (printed with --list):
                                             verification counts, power below 2 Hz
                                             (scripts/analysis/thesis_base_facts.py, read from the
                                             bases and the verifiers' stamps)
+    cal.*                                   the WORLD dysphonia calibration measured with Praat
+                                            (05_thesis_dysphonia_calibration.py): versions, voices,
+                                            raw and control measures per speaker, read-back ratios,
+                                            the shimmer ceiling, the calibrated levels
+    pilot.*                                 the identity pilot verdict (06_thesis_identity_pilot.py):
+                                            per classifier and scope, mean dEER, interval, verdict
 
 The sentences, not only the numbers. A number that follows the data is not enough: "the
 same extractor wins on the three signals" has no number in it, and a re-run can make it
@@ -72,6 +78,8 @@ Usage:
         --base-facts results/thesis/base_facts.csv \\
         --biomex-profiles src/experiments/thesis/profiles/biomex \\
         --biomex-results results/thesis/biomex \\
+        --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \\
+        --identity-pilot results/thesis/pilot/pilot_verdict.json \\
         --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex [--list]
 """
 
@@ -527,6 +535,104 @@ def base_facts(n: Numbers, path: pathlib.Path) -> None:
                 fail(f"{path}: unknown kind {r['kind']!r} for {r['key']}")
 
 
+def dysphonia_calibration(n: Numbers, path: pathlib.Path) -> None:
+    """The WORLD profiles' calibration (05_thesis_dysphonia_calibration.py)."""
+    import json
+    if not path.is_file():
+        fail(f"{path} is missing; run scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py")
+    r = json.loads(path.read_text(encoding="utf-8"))
+    n.text("cal.praat", r["praat"])
+    n.text("cal.parselmouth", r["parselmouth"])
+    n.count("cal.excluded", len(r["excluded"]))
+    n.count("cal.tolerance.pct", round(100 * r["tolerance"]))
+    total = 0
+    for subj, d in r["per_subject"].items():
+        k = f"cal.{subj.lower()}"
+        total += d["voices"]
+        n.count(f"{k}.voices", d["voices"])
+        n.num(f"{k}.f0", d["f0_hz_mean"], 0)
+        for arm in ("raw", "control"):
+            n.num(f"{k}.{arm}.jitter", d[arm]["jitter_pct"], 2)
+            n.num(f"{k}.{arm}.shimmer", d[arm]["shimmer_db"], 2)
+            n.num(f"{k}.{arm}.hnr", d[arm]["hnr_db"], 1)
+        n.num(f"{k}.control.hnrchange", d["control"]["hnr_change_db"], 1)
+        n.num(f"{k}.control.rmschange", d["control"]["rms_change_db"], 2)
+        n.count(f"{k}.control.rmsok", d["control_within_1dB_rms"])
+        n.count(f"{k}.control.hnrok", d["control_within_1_5dB_hnr"])
+    n.count("cal.voices", total)
+    curves = r["curves"]
+
+    def at(axis, req):
+        c = curves[axis]
+        return c["mean_measured"][c["request"].index(req)]
+
+    # Read-back ratio: measured / requested in the middle of each sweep.
+    n.num("cal.jitter.ratio", at("jitter_pct", 6) / 6, 2)
+    n.num("cal.tremor.ratio", at("f0_depth_pct", 6) / 6, 2)
+    n.num("cal.shimmer.ceiling", max(curves["shimmer_db"]["mean_measured"]), 2)
+    n.num("cal.shimmer.maxreq", max(curves["shimmer_db"]["request"]), 0)
+    n.num("cal.diplo.ratio", at("period_alt_pct", 6) / 6, 2)
+    # Per speaker, from the rows (calibration.json keeps the mean over both speakers).
+    rows_path = path.with_name("measurements.csv")
+    if not rows_path.is_file():
+        fail(f"{rows_path} is missing; it is written with {path}")
+    with rows_path.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+
+    def speaker_ratio(axis, column, subject, request):
+        vals = [float(row[column]) for row in rows
+                if row["set"] == f"sweep:{axis}" and row["subject"] == subject
+                and float(row[f"req_{axis}"]) == request]
+        if not vals:
+            fail(f"{rows_path}: no {subject} row of the {axis} sweep at request {request}")
+        return statistics.mean(vals) / request
+
+    n.num("cal.diplo.s10.ratio", speaker_ratio("period_alt_pct", "alt_period_pct", "S10", 6.0), 2)
+    for subj in ("S10", "S03"):
+        n.num(f"cal.jitter.{subj.lower()}.ratio",
+              speaker_ratio("jitter_pct", "jitter_pct", subj, 6.0), 2)
+    for i, lv in enumerate(r["levels"]):
+        for axis, target in lv["targets"].items():
+            key = f"cal.lv.{lv['profile']}.{axis.replace('_', '')}.{str(target).replace('.', 'p')}"
+            if key + ".req" in n.values:
+                continue
+            n.num(key + ".req", lv["request"][axis], 2)
+            within = sum(v["within_tolerance"] for v in lv[axis].values())
+            count = sum(v["n"] for v in lv[axis].values())
+            n.count(key + ".within", within)
+            n.count(key + ".n", count)
+    n.count("cal.unreachable", len(r["unreachable_levels"]))
+    rates = [b["measured_mean_per_s"] / b["requested_per_s"] for b in r["breaks"]]
+    n.num("cal.breaks.ratio.min", min(rates), 2)
+    n.num("cal.breaks.ratio.max", max(rates), 2)
+    n.num("cal.minutes", r["seconds"] / 60, 0)
+
+
+def identity_pilot(n: Numbers, path: pathlib.Path) -> None:
+    """The identity pilot's verdict (06_thesis_identity_pilot.py)."""
+    import json
+    if not path.is_file():
+        fail(f"{path} is missing; run the pilot profiles, then "
+             f"scripts/pipeline/thesis/06_thesis_identity_pilot.py")
+    r = json.loads(path.read_text(encoding="utf-8"))
+    verdicts = {"transparent": "transparente", "not transparent": "não transparente",
+                "inconclusive": "inconclusivo"}
+    n.num("pilot.margin", r["margin"], 2)
+    n.put("pilot.overall", verdicts[r["overall"]], r["overall"])
+    for kind, scopes in r["arms"].items():
+        for scope, d in scopes.items():
+            k = f"pilot.{kind}.{scope}"
+            n.num(f"{k}.raw", d["mean_raw_eer"])
+            n.num(f"{k}.control", d["mean_control_eer"])
+            n.num(f"{k}.delta", d["mean_delta"])
+            n.num(f"{k}.lo", d["ci95"][0])
+            n.num(f"{k}.hi", d["ci95"][1])
+            n.put(f"{k}.verdict", verdicts[d["verdict"]], d["verdict"])
+            n.num(f"{k}.half", (d["ci95"][1] - d["ci95"][0]) / 2)
+            n.count(f"{k}.reppos", sum(m > 0 for m in d["per_repeat_mean_delta"]))
+            n.count(f"{k}.reps", len(d["per_repeat_mean_delta"]))
+
+
 # What the prose of chapters 4 (abstract), 8, 9 and 10 states in words. Each entry: the
 # sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
@@ -676,6 +782,36 @@ CLAIMS = [
      and v("siggroup.vsvoice.significant") == 0 and v("bxsiggroup.vsvoice.significant") > 0
      and v("siggroup.ctrl.cosine.significant") == 0
      and v("bxsiggroup.ctrl.cosine.significant") > 0),
+    ("ch8 cal: tremor does what is asked",
+     lambda v, t: v("cal.tremor.ratio") >= 0.95),
+    ("ch8 cal: jitter reads below the request, the same on both speakers",
+     lambda v, t: v("cal.jitter.ratio") < 0.9
+     and abs(v("cal.jitter.s10.ratio") - v("cal.jitter.s03.ratio")) <= 0.05),
+    ("ch8 cal: shimmer saturates near 2 dB although far more is requested",
+     lambda v, t: v("cal.shimmer.ceiling") < 2.1
+     and v("cal.shimmer.ceiling") < v("cal.shimmer.maxreq") / 2),
+    ("ch8 cal: diplophonia is not validated (the low voice reads well under the request)",
+     lambda v, t: v("cal.diplo.s10.ratio") < 0.6),
+    ("ch8 cal: the control keeps the energy of every trial (within 1 dB)",
+     lambda v, t: all(v(f"cal.{s}.control.rmsok") == v(f"cal.{s}.voices") for s in ("s10", "s03"))),
+    ("ch8 cal: the control makes both voices more periodic, few trials within 1.5 dB of HNR",
+     lambda v, t: all(v(f"cal.{s}.control.hnrchange") > 1.5
+                      and v(f"cal.{s}.control.hnrok") < v(f"cal.{s}.voices") / 2
+                      for s in ("s10", "s03"))),
+    ("ch8 pilot: inconclusive on the deciding classifier (cosine), both scopes",
+     lambda v, t: t("pilot.overall") == "inconclusive"
+     and all(t(f"pilot.cosine.{s}.verdict") == "inconclusive" for s in ("probes", "test"))),
+    ("ch8 pilot: the cosine interval is at least three times wider than the margin",
+     lambda v, t: all(v(f"pilot.cosine.{s}.half") >= 3 * v("pilot.margin")
+                      for s in ("probes", "test"))),
+    ("ch8 pilot: with the DSNN resynthesis raised the mean EER in both scopes and in every "
+     "repeat, by more than the full whisper did in the same Phase 01 cell (probes), and still "
+     "not significantly (the interval contains 0)",
+     lambda v, t: all(v(f"pilot.dsnn.{s}.delta") > 0 and v(f"pilot.dsnn.{s}.lo") < 0
+                      and v(f"pilot.dsnn.{s}.reppos") == v(f"pilot.dsnn.{s}.reps")
+                      for s in ("probes", "test"))
+     and v("pilot.dsnn.probes.delta") > v("p01.dysph.voice.probes.100.eer")
+     - v("p01.grid.voice.dep.flat.std.eer")),
     ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
      lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
      and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
@@ -703,7 +839,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Write the numbers the thesis prose quotes.")
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
                 "--phase01-results", "--biomex-profiles", "--biomex-results",
-                "--ae-input-reference", "--base-facts", "--out"):
+                "--ae-input-reference", "--base-facts", "--dysphonia-calibration",
+                "--identity-pilot", "--out"):
         ap.add_argument(arg, required=True)
     ap.add_argument("--list", action="store_true", help="also print every key and value")
     args = ap.parse_args()
@@ -716,6 +853,8 @@ def main() -> int:
     base_facts(n, pathlib.Path(args.base_facts))
     biomex(n, pathlib.Path(args.biomex_profiles), pathlib.Path(args.biomex_results),
            pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
+    dysphonia_calibration(n, pathlib.Path(args.dysphonia_calibration))
+    identity_pilot(n, pathlib.Path(args.identity_pilot))
     check_claims(n)
 
     lines = ["% GENERATED by software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py.",

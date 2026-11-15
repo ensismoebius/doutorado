@@ -152,6 +152,33 @@ Levels are chosen from three constraints: the measurable range (S10 realised jit
 
 Counts: 1 + 5 + 3 + 3 + 3 + 2 = 17 levels, against 4 for the whisper mix; with the two scopes that is 34 combinations per base against 8 today. The re-run cost is not estimated, and the identity pilot (§ 4.3) should come first. Every level also reports the harmonics-to-noise ratio of its output (§ 3.4), and the calibration test records which levels are not reachable on which voice instead of clamping them.
 
+#### 3.4.2 Calibration result (measured 2026-11-15)
+
+**How.** `scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py` compiles the thesis's own
+`VoiceDysphonia.cpp`, degrades every pronounced vowel trial of S10 (69 trials, mean F0 100 Hz)
+and S03 (65, 205 Hz), and measures raw and degraded versions with **Praat 6.1.38 through
+Parselmouth 0.4.7** (Boersma and Weenink 2021; Jadoul et al. 2018) on the longest voiced run
+of the raw trial. Sweep each axis, read the request whose *mean* measured value is the target,
+re-run at that request and count the voices within ±15 %. 134 trials, none excluded, 47 min
+on 10 processes. Output: `results/thesis/dysphonia_calibration/` (`calibration.json`,
+`measurements.csv`, one row per voice and request).
+
+| What | Read back by Praat | Verdict |
+|---|---|---|
+| `resynthesis_control` | RMS within 1 dB in 134/134; HNR **+2.5 dB (S10), +3.8 dB (S03)**, within ±1.5 dB in 4/69 and 0/65; jitter 0.39→0.29 % and 0.45→0.26 %, shimmer 0.23→0.17 and 0.24→0.13 dB | **fails** the acoustic criterion of § 4 item 1: resynthesis makes the voice *more periodic* than the recording |
+| `rough` jitter | ≈0.65 of the request (6 % → 3.9 %), monotone to 8.6 % at 15 %, both speakers alike | calibrated: 0.5 % ← request 0.62 (102/134 within ±15 %); 1 % ← 1.47 (101/134) |
+| `rough` shimmer | ≈1.0 of the request up to 1 dB, then **saturates at 1.95 dB** | 0.5 dB ← 0.47 (129/134); 1 dB ← 0.99 (132/134); **2 dB unreachable as measured**: Praat's standard maximum amplitude factor 1.6 (4.1 dB) discards the pairs that differ more, so the mean of the kept pairs cannot pass ~2 dB. Not a generator limit: with the factor at 3.0, S10's amplitude alternation reads exactly up to 8 dB |
+| `tremor` | 0.98 of the request | 2 % ← 2.04 (124/134); 4 % ← 4.08 (134/134); 10 % ← 10.21 (134/134) |
+| `voice_breaks` | 1.08–1.22 × the requested rate (density over the longest voiced run, which excludes the edges) | rates realised; no calibration needed |
+| `diplophonia` | S03: Praat locks on the subharmonic (~102 Hz) and reads ~0 alternation (reproduced on a synthetic 205 Hz vowel); S10: 0.46 of the request (a synthetic 100 Hz vowel: 0.85–0.97) | **not validated.** On high voices the reference measurer cannot read it (the literature's "jitter is undefined for diplophonia"); on S10 the cause of the loss is not identified (ruled out on synthetic vowels: level, F0 drift, aspiration noise, high-pass, source tilt). Kept out of any grid until resolved |
+
+Consequences for § 3.4.1: the three `rough` levels with 2 dB shimmer are unreachable as
+specified (their jitter targets are reachable: 7 % ← request ≈11.2); both `diplophonia` levels
+are out. Options for the user: shimmer 1.5 dB for those levels (reached at request ≈1.7), or
+report the 2 dB by the requested value with the ceiling stated. The failed acoustic control
+does not by itself block the grid: every profile is compared with the control, not the raw
+voice (§ 3.5); the identity pilot (§ 4.3) decides whether the control keeps the speaker.
+
 ### 3.5 The control arm
 
 A WORLD profile changes the signal even with no dysphonia (resynthesis). Every grid that uses a
@@ -222,6 +249,30 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    before any effect. The voice winner reads jitter and shimmer descriptors, and resynthesis lowers the
    measured jitter (calibration: S10 0.42 → 0.25 % on one vowel), so a non-transparent
    result is plausible and is reported as such, not tuned away.
+
+   **Pilot result (run 2026-11-15, 42 min locally; `results/thesis/pilot/pilot_verdict.json`,
+   `06_thesis_identity_pilot.py`): INCONCLUSIVE.**
+
+   | arm | raw EER | control EER | ΔEER | corrected 95 % interval | repeats > 0 | verdict |
+   |---|---|---|---|---|---|---|
+   | cosine, `probes` (decides) | 0.3821 | 0.4003 | +0.0182 | [−0.0227, +0.0591] | 3/3 | inconclusive |
+   | cosine, `test` (decides) | 0.3821 | 0.3894 | +0.0073 | [−0.0327, +0.0472] | 2/3 | inconclusive |
+   | DSNN, `probes` | 0.3199 | 0.3669 | +0.0470 | [−0.0194, +0.1133] | 3/3 | inconclusive |
+   | DSNN, `test` | 0.3199 | 0.3668 | +0.0469 | [−0.0403, +0.1341] | 3/3 | inconclusive |
+
+   What it means. (1) **The pilot could not have passed**: the corrected interval's half-width
+   (~0.04 on cosine) is four times the margin, so even a null effect reads inconclusive with
+   15 dependent pairs. That is a design flaw of the pilot, found by running it, not a property
+   of the control. (2) Every estimate points the same way: resynthesis raised the EER in 11 of 12
+   repeat means, and with the DSNN by +0.047, more than the full whisper in the same cell
+   (+0.041, Phase 01 `probes` l100). Suggestive, not significant. (3) Under the rule, the grid
+   does **not** start. The raw DSNN arm reproduces the committed Phase 01 cell (0.3199 vs 0.3180).
+
+   Ways forward (the user's decision): a test with power for a ±0.01 margin (more repeats, or a
+   paired per-utterance measure: the cosine similarity of each utterance's raw and
+   resynthesized feature vectors against the same-speaker spread, n = 1974 instead of 15); or
+   accept a non-neutral control, keep "profile minus control" (§ 3.5) and state the control's
+   own shift; or drop the WORLD profiles from the thesis.
 
 ## 5. Cost and risk (not measured)
 

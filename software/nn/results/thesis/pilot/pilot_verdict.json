@@ -1,0 +1,79 @@
+{
+ "margin": 0.01,
+ "decides": "cosine",
+ "overall": "inconclusive",
+ "arms": {
+  "cosine": {
+   "probes": {
+    "n_pairs": 15,
+    "mean_raw_eer": 0.3821,
+    "mean_control_eer": 0.4003,
+    "mean_delta": 0.0182,
+    "sd_delta": 0.0339,
+    "ci95": [
+     -0.0227,
+     0.0591
+    ],
+    "per_repeat_mean_delta": [
+     0.0308,
+     0.0144,
+     0.0095
+    ],
+    "verdict": "inconclusive"
+   },
+   "test": {
+    "n_pairs": 15,
+    "mean_raw_eer": 0.3821,
+    "mean_control_eer": 0.3894,
+    "mean_delta": 0.0073,
+    "sd_delta": 0.0331,
+    "ci95": [
+     -0.0327,
+     0.0472
+    ],
+    "per_repeat_mean_delta": [
+     0.0077,
+     -0.0128,
+     0.0269
+    ],
+    "verdict": "inconclusive"
+   }
+  },
+  "dsnn": {
+   "probes": {
+    "n_pairs": 15,
+    "mean_raw_eer": 0.3199,
+    "mean_control_eer": 0.3669,
+    "mean_delta": 0.047,
+    "sd_delta": 0.0549,
+    "ci95": [
+     -0.0194,
+     0.1133
+    ],
+    "per_repeat_mean_delta": [
+     0.0423,
+     0.0536,
+     0.045
+    ],
+    "verdict": "inconclusive"
+   },
+   "test": {
+    "n_pairs": 15,
+    "mean_raw_eer": 0.3199,
+    "mean_control_eer": 0.3668,
+    "mean_delta": 0.0469,
+    "sd_delta": 0.0722,
+    "ci95": [
+     -0.0403,
+     0.1341
+    ],
+    "per_repeat_mean_delta": [
+     0.0366,
+     0.0288,
+     0.0753
+    ],
+    "verdict": "inconclusive"
+   }
+  }
+ }
+}

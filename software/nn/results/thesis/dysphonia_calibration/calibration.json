@@ -1,0 +1,512 @@
+{
+ "praat": "6.1.38",
+ "parselmouth": "0.4.7",
+ "subjects": [
+  "S10",
+  "S03"
+ ],
+ "vowels": [
+  "A",
+  "E",
+  "I",
+  "O",
+  "U"
+ ],
+ "tolerance": 0.15,
+ "excluded": [],
+ "per_subject": {
+  "S10": {
+   "voices": 69,
+   "f0_hz_mean": 99.9,
+   "raw": {
+    "jitter_pct": 0.392,
+    "shimmer_db": 0.226,
+    "hnr_db": 25.9,
+    "tremor_depth_pct": 0.282
+   },
+   "control": {
+    "jitter_pct": 0.293,
+    "shimmer_db": 0.166,
+    "hnr_db": 28.391,
+    "tremor_depth_pct": 0.261,
+    "rms_change_db": 0.009,
+    "hnr_change_db": 2.492
+   },
+   "control_within_1dB_rms": 69,
+   "control_within_1_5dB_hnr": 4
+  },
+  "S03": {
+   "voices": 65,
+   "f0_hz_mean": 205.4,
+   "raw": {
+    "jitter_pct": 0.45,
+    "shimmer_db": 0.235,
+    "hnr_db": 25.587,
+    "tremor_depth_pct": 0.166
+   },
+   "control": {
+    "jitter_pct": 0.256,
+    "shimmer_db": 0.129,
+    "hnr_db": 29.338,
+    "tremor_depth_pct": 0.131,
+    "rms_change_db": 0.007,
+    "hnr_change_db": 3.75
+   },
+   "control_within_1dB_rms": 65,
+   "control_within_1_5dB_hnr": 0
+  }
+ },
+ "curves": {
+  "jitter_pct": {
+   "request": [
+    0.25,
+    0.5,
+    1,
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    15
+   ],
+   "mean_measured": [
+    0.321,
+    0.432,
+    0.709,
+    1.327,
+    1.968,
+    2.611,
+    3.891,
+    5.149,
+    6.347,
+    7.412,
+    8.628
+   ]
+  },
+  "shimmer_db": {
+   "request": [
+    0.25,
+    0.5,
+    1,
+    1.5,
+    2,
+    3,
+    4,
+    5
+   ],
+   "mean_measured": [
+    0.296,
+    0.526,
+    1.007,
+    1.402,
+    1.636,
+    1.838,
+    1.905,
+    1.951
+   ]
+  },
+  "f0_depth_pct": {
+   "request": [
+    1,
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    15
+   ],
+   "mean_measured": [
+    0.989,
+    1.961,
+    2.939,
+    3.918,
+    5.876,
+    7.836,
+    9.795,
+    11.755,
+    14.691
+   ]
+  },
+  "period_alt_pct": {
+   "request": [
+    2,
+    4,
+    6,
+    9,
+    12,
+    15,
+    18
+   ],
+   "mean_measured": [
+    0.916,
+    1.212,
+    1.525,
+    2.216,
+    2.962,
+    3.614,
+    4.193
+   ]
+  },
+  "amp_alt_db": {
+   "request": [
+    1,
+    2,
+    3,
+    4.5,
+    6,
+    8,
+    10
+   ],
+   "mean_measured": [
+    0.987,
+    1.168,
+    1.667,
+    2.458,
+    3.219,
+    4.253,
+    4.673
+   ]
+  }
+ },
+ "levels": [
+  {
+   "set": "level0",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 0.5,
+    "shimmer_db": 0.5
+   },
+   "request": {
+    "jitter_pct": 0.623,
+    "shimmer_db": 0.472
+   },
+   "unreachable_on_mean": [],
+   "jitter_pct": {
+    "S03": {
+     "mean": 0.49,
+     "sd": 0.075,
+     "within_tolerance": 47,
+     "n": 65
+    },
+    "S10": {
+     "mean": 0.502,
+     "sd": 0.063,
+     "within_tolerance": 55,
+     "n": 69
+    }
+   },
+   "shimmer_db": {
+    "S03": {
+     "mean": 0.486,
+     "sd": 0.027,
+     "within_tolerance": 63,
+     "n": 65
+    },
+    "S10": {
+     "mean": 0.512,
+     "sd": 0.034,
+     "within_tolerance": 66,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 25.31,
+    "S10": 25.78
+   }
+  },
+  {
+   "set": "level1",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 1,
+    "shimmer_db": 1
+   },
+   "request": {
+    "jitter_pct": 1.47,
+    "shimmer_db": 0.993
+   },
+   "unreachable_on_mean": [],
+   "jitter_pct": {
+    "S03": {
+     "mean": 0.999,
+     "sd": 0.138,
+     "within_tolerance": 50,
+     "n": 65
+    },
+    "S10": {
+     "mean": 0.992,
+     "sd": 0.138,
+     "within_tolerance": 51,
+     "n": 69
+    }
+   },
+   "shimmer_db": {
+    "S03": {
+     "mean": 0.978,
+     "sd": 0.061,
+     "within_tolerance": 63,
+     "n": 65
+    },
+    "S10": {
+     "mean": 1.021,
+     "sd": 0.047,
+     "within_tolerance": 69,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 20.92,
+    "S10": 22.31
+   }
+  },
+  {
+   "set": "level5",
+   "profile": "tremor",
+   "targets": {
+    "f0_depth_pct": 2
+   },
+   "request": {
+    "f0_depth_pct": 2.04
+   },
+   "unreachable_on_mean": [],
+   "f0_depth_pct": {
+    "S03": {
+     "mean": 1.989,
+     "sd": 0.095,
+     "within_tolerance": 65,
+     "n": 65
+    },
+    "S10": {
+     "mean": 2.011,
+     "sd": 0.21,
+     "within_tolerance": 59,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 28.69,
+    "S10": 27.66
+   }
+  },
+  {
+   "set": "level6",
+   "profile": "tremor",
+   "targets": {
+    "f0_depth_pct": 4
+   },
+   "request": {
+    "f0_depth_pct": 4.084
+   },
+   "unreachable_on_mean": [],
+   "f0_depth_pct": {
+    "S03": {
+     "mean": 3.998,
+     "sd": 0.095,
+     "within_tolerance": 65,
+     "n": 65
+    },
+    "S10": {
+     "mean": 4.002,
+     "sd": 0.211,
+     "within_tolerance": 69,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 27.45,
+    "S10": 26.36
+   }
+  },
+  {
+   "set": "level7",
+   "profile": "tremor",
+   "targets": {
+    "f0_depth_pct": 10
+   },
+   "request": {
+    "f0_depth_pct": 10.209
+   },
+   "unreachable_on_mean": [],
+   "f0_depth_pct": {
+    "S03": {
+     "mean": 10.009,
+     "sd": 0.099,
+     "within_tolerance": 65,
+     "n": 65
+    },
+    "S10": {
+     "mean": 9.993,
+     "sd": 0.211,
+     "within_tolerance": 69,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 23.88,
+    "S10": 22.9
+   }
+  }
+ ],
+ "unreachable_levels": [
+  {
+   "set": "level2",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 2,
+    "shimmer_db": 2
+   },
+   "request": {
+    "jitter_pct": 3.05
+   },
+   "unreachable_on_mean": [
+    "shimmer_db"
+   ]
+  },
+  {
+   "set": "level3",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 4,
+    "shimmer_db": 2
+   },
+   "request": {
+    "jitter_pct": 6.173
+   },
+   "unreachable_on_mean": [
+    "shimmer_db"
+   ]
+  },
+  {
+   "set": "level4",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 7,
+    "shimmer_db": 2
+   },
+   "request": {
+    "jitter_pct": 11.226
+   },
+   "unreachable_on_mean": [
+    "shimmer_db"
+   ]
+  },
+  {
+   "set": "level8",
+   "profile": "diplophonia",
+   "targets": {
+    "period_alt_pct": 6,
+    "amp_alt_db": 3
+   },
+   "request": {
+    "amp_alt_db": 5.568
+   },
+   "unreachable_on_mean": [
+    "period_alt_pct"
+   ]
+  },
+  {
+   "set": "level9",
+   "profile": "diplophonia",
+   "targets": {
+    "period_alt_pct": 12,
+    "amp_alt_db": 6
+   },
+   "request": {},
+   "unreachable_on_mean": [
+    "period_alt_pct",
+    "amp_alt_db"
+   ]
+  }
+ ],
+ "breaks": [
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 0.5,
+   "subject": "S03",
+   "measured_mean_per_s": 0.583,
+   "n": 65
+  },
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 0.5,
+   "subject": "S10",
+   "measured_mean_per_s": 0.61,
+   "n": 69
+  },
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 1,
+   "subject": "S03",
+   "measured_mean_per_s": 1.135,
+   "n": 65
+  },
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 1,
+   "subject": "S10",
+   "measured_mean_per_s": 1.15,
+   "n": 69
+  },
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 2,
+   "subject": "S03",
+   "measured_mean_per_s": 2.203,
+   "n": 65
+  },
+  {
+   "kind": "pitch_jump",
+   "requested_per_s": 2,
+   "subject": "S10",
+   "measured_mean_per_s": 2.173,
+   "n": 69
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 0.5,
+   "subject": "S03",
+   "measured_mean_per_s": 0.561,
+   "n": 65
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 0.5,
+   "subject": "S10",
+   "measured_mean_per_s": 0.577,
+   "n": 69
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 1,
+   "subject": "S03",
+   "measured_mean_per_s": 1.102,
+   "n": 65
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 1,
+   "subject": "S10",
+   "measured_mean_per_s": 1.084,
+   "n": 69
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 2,
+   "subject": "S03",
+   "measured_mean_per_s": 2.137,
+   "n": 65
+  },
+  {
+   "kind": "aphonic",
+   "requested_per_s": 2,
+   "subject": "S10",
+   "measured_mean_per_s": 2.135,
+   "n": 69
+  }
+ ],
+ "seconds": 2802.0
+}
