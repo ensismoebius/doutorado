@@ -137,6 +137,21 @@ makes no perceptual claim, decision 3). If CPPS is ever used for a breathy profi
 must measure real and simulated voices alike (Skowronski 2015: about 15 dB between programs;
 Maryn 2010 itself took CPPS from SpeechTool and the other five AVQI terms from Praat).
 
+#### 3.4.1 Proposed levels (provisional: each is a *measured* target, reached by the closed loop above)
+
+Levels are chosen from three constraints: the measurable range (S10 realised jitter 0.9/2.0/4.3/6.9/10.7 % for 1/3/6/10/15 % requested; S03 lower), the perceptual range of Kreiman and Gerratt (2005: scales 0–3 % jitter and 0–2 dB shimmer; limens about 2.3 % and 1.4 dB without noise), and where our own listening heard the effect. Nothing here claims a perceived severity (decision 3): the low levels are a dose-response start near the control, not "mild".
+
+| Profile | Levels (measured) | Basis | Open |
+|---|---|---|---|
+| `resynthesis_control` | 1 | no parameter | identity pilot (§ 4.3) |
+| `rough` | jitter 0.5 / 1 / 2 % with shimmer 0.5 / 1 / 2 dB, plus robustness 4 % and 7 % (shimmer 2 dB) | 0–2 % is the range Kreiman and Gerratt scale and where roughness still rose (Hillenbrand 1988, second hand); 4 % and 7 % were realised on S10 (nominal 6 and 10) | audibility below about 2 % was never isolated in our listening; shimmer realised on real vowels was not measured; 7 % may not be reachable on S03 |
+| `tremor` | F0 depth 2 / 4 / 10 %, rate 5 Hz | 4 % and 10 % heard and human in 3 of 3 trials; Kreiman and Gerratt's tremor rates averaged 6.45 Hz (median 6, range 2–10) | 2 % untested; the amplitude depth should follow from the F0 depth, not be a free knob: the same paper notes many "amplitude tremors" are artefacts of frequency modulation (Sundberg 1995; Kreiman 2003), so `am_depth_pct` becomes a fixed ratio, not a reported unit |
+| `voice_breaks`, `pitch_jump` | 0.5 / 1 / 2 jumps per second of voiced speech, factors ×1.5 and ×0.65, 80 ms | heard and human on S10 and S03 | utterance length differs by base, hence a rate, not a count per utterance |
+| `voice_breaks`, `aphonic` | same three rates, 80 ms gaps | heard, "human with defect" | the defect is unresolved; weakest evidence of the five |
+| `diplophonia` | period alternation 6 / 12 % with amplitude alternation 3 / 6 dB | heard as rough, not told apart from jitter | jitter and shimmer are undefined here; report only the two alternation values |
+
+Counts: 1 + 5 + 3 + 3 + 3 + 2 = 17 levels, against 4 for the whisper mix; with the two scopes that is 34 combinations per base against 8 today. The re-run cost is not estimated, and the identity pilot (§ 4.3) should come first. Every level also reports the harmonics-to-noise ratio of its output (§ 3.4), and the calibration test records which levels are not reachable on which voice instead of clamping them.
+
 ### 3.5 The control arm
 
 A WORLD profile changes the signal even with no dysphonia (resynthesis). Every grid that uses a
@@ -212,8 +227,9 @@ Decided 2026-11-15 (nothing implemented yet):
    a new fingerprint; an old-to-new table is needed.
 2. **Which profiles:** all five (`resynthesis_control`, `rough`, `tremor`, `voice_breaks`,
    `diplophonia`). Diplophonia was not told apart from jitter in listening and the aphonic
-   gaps sounded defective: both rest on weak evidence. Levels are still open; they are
-   calibrated in measured units (§ 3.4) before they go into a profile.
+   gaps sounded defective: both rest on weak evidence. Levels: a provisional set of 17 is in
+   § 3.4.1, awaiting the user's choice; each is calibrated in measured units (§ 3.4) before it
+   goes into a profile.
 3. **Perceptual validation:** none in the thesis, objective validation only (§ 4.2).
 4. **Identity check:** a minimal pilot before the grid, with a cost report and explicit
    confirmation (§ 4.3).
