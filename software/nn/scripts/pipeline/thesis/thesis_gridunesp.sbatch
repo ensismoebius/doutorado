@@ -11,6 +11,7 @@
 #   THESIS_PHASE=biomex  sbatch --array=0-47  scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=world   sbatch --array=0-149 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=bxworld sbatch --array=0-89  scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   (WORLD phases: one whole profile per task; see below)
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -26,12 +27,16 @@
 #   biomex    48 profiles x 3 repetitions = 144 units -> --array=0-47, 3 units per task
 #            (the BIOMEX-DB replication: 24 grid + controls, 24 dysphonia; <databases>/biomex.sqlite,
 #            read directly, no decoded cache)
-#   world    150 profiles x 3 repetitions = 450 units -> --array=0-149, 3 units per task
+#   world    150 units, one per WHOLE profile          -> --array=0-149, 1 unit per task
 #            (the WORLD grid on Coretto: 5 voice-reading sources x 2 scopes x (control + 14
-#            calibrated levels); proposal section 4.5. Each unit resynthesizes every voice with
-#            WORLD at one thread before it trains: that, not the training, is most of its time)
-#   bxworld   90 profiles x 3 repetitions = 270 units -> --array=0-89, 3 units per task
+#            calibrated levels); proposal section 4.5)
+#   bxworld   90 units, one per WHOLE profile          -> --array=0-89, 1 unit per task
 #            (the same grid on BIOMEX-DB: voice, earlypron, latepron)
+#            Not split by repetition: thesis.cpp extracts the clean features, resynthesizes
+#            every voice with WORLD and extracts again ONCE, before the repetition loop, and that
+#            is most of the time (measured 2026-11-16: 8501 s at one thread for the Coretto
+#            voice, 1974 utterances, without any training). Split, each repetition would redo it.
+#            BIOMEX-DB has ~3x the utterances, so one profile per task stays under the day.
 #   phase00  275 units, one per profile               -> --array=0-63, ~4-5 units per task
 #
 # Phase 00 keeps whole profiles: a handcrafted profile extracts its features ONCE for all
@@ -169,8 +174,8 @@ mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sor
 
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
-  phase00) SPLIT_REPEATS=0 ;;
-  phase01|biomex|world|bxworld) SPLIT_REPEATS=1 ;;
+  phase00|world|bxworld) SPLIT_REPEATS=0 ;;
+  phase01|biomex) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,
