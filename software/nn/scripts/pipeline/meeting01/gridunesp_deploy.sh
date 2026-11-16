@@ -207,8 +207,11 @@ if has_target thesis; then
   fi
   echo "[gridunesp-deploy] thesis dataset -> ~/${DATABASES_REL}/ on the cluster: ${thesis_files[*]}"
   ssh -o ControlPath="$CTRL_PATH" "${GRIDUNESP_USER}@${HOST}" "mkdir -p \"\$HOME/${DATABASES_REL}\""
-  rsync -a --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" "${thesis_files[@]}" \
-    "${GRIDUNESP_USER}@${HOST}:${DATABASES_REL}/"
+  # --partial-dir: a dropped connection (2026-11-16: broken pipe at 52 % of ~7.5 GB) keeps the
+  # partial file in .rsync-partial/ and the next deploy resumes it; it is never left under the
+  # base's own name, where a job would open a truncated base (plain --partial would do that).
+  rsync -a --partial-dir=.rsync-partial --info=progress2 -e "ssh -o ControlPath=${CTRL_PATH}" \
+    "${thesis_files[@]}" "${GRIDUNESP_USER}@${HOST}:${DATABASES_REL}/"
 fi
 
 echo "[gridunesp-deploy] remote environment + datasets + configure + build (reusing the same connection)"
