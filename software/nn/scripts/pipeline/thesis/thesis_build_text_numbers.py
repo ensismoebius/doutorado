@@ -825,6 +825,10 @@ CLAIMS = [
     ("ch8 cal: shimmer saturates near 2 dB although far more is requested",
      lambda v, t: v("cal.shimmer.ceiling") < 2.1
      and v("cal.shimmer.ceiling") < v("cal.shimmer.maxreq") / 2),
+    ("ch8 cal: the 1.5 dB shimmer of the strong rough levels is still followed by the "
+     "measurement (at least 90 % of the trials within tolerance), and every level is reachable",
+     lambda v, t: v("cal.lv.rough.shimmerdb.1p5.within") >= 0.9 * v("cal.lv.rough.shimmerdb.1p5.n")
+     and v("cal.unreachable") == 0),
     ("ch8 cal: diplophonia is not validated (the low voice reads well under the request)",
      lambda v, t: v("cal.diplo.s10.ratio") < 0.6),
     ("ch8 cal: the control keeps the energy of every trial (within 1 dB)",

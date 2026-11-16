@@ -59,9 +59,19 @@ voice, dependent text, flat CV, standardized; its own results_dir (results/thesi
   pil_<kind>_voice_control_<scope>  resynthesis_control, scope probes or test
   kind: dsnn (the cell of p01_dysph_*) and cosine (no training: the change of the features alone)
 
+WORLD grid (proposal section 4.5; decided 2026-11-16 after the powered identity test found the
+control NOT transparent, so every level is read against the control of its own cell): the cell
+of p01_dysph_* with the WORLD profiles, on both bases, each in its own phase directory:
+  p01w_<src>_<scope>_<level>    world/    Coretto: voice, early/late x pron/imag (5 sources)
+  bx01w_<src>_<scope>_<level>   bxworld/  BIOMEX-DB: voice, earlypron, latepron (3 sources)
+  scope probes | test; level control | rough-j05 j1 j2 j4 j7 | tremor-d2 d4 d10 |
+  jump-r05 r1 r2 | aphonic-r05 r1 r2 (diplophonia is out: not validated, proposal decision 8)
+The rough and tremor requests come from --calibration (calibration.json), never typed here.
+
 Run from software/nn:
     python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
-        --winners results/thesis/phase00/winners.json --fused voice
+        --winners results/thesis/phase00/winners.json --fused voice \
+        --calibration results/thesis/dysphonia_calibration/calibration.json
     python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py --phase00-only   # before ranking
 then regenerate the smoke mirror (scripts/testing/thesis_make_smoke_profiles.py).
 profiles.manifest records the winners file's sha256 and --fused; test_thesis_phase_scripts.py
@@ -327,6 +337,74 @@ def pilot(winners, fused):
                                   False, True, win, degradation=deg, **kw)
 
 
+# The WORLD grid (proposal section 4.5; decided 2026-11-16): the 14 calibrated levels and the
+# control. Rough and tremor levels are MEASURED targets: the request that reaches each comes
+# from calibration.json (05_thesis_dysphonia_calibration.py), never typed here. Break rates are
+# requested as such (their measured rates are in calibration.json "breaks").
+WORLD_TARGETS = (
+    [(f"rough-j{str(j).replace('.', '')}", "rough", {"jitter_pct": j, "shimmer_db": s})
+     for j, s in ((0.5, 0.5), (1, 1), (2, 1.5), (4, 1.5), (7, 1.5))]
+    + [(f"tremor-d{d}", "tremor", {"f0_depth_pct": d}) for d in (2, 4, 10)])
+WORLD_BREAKS = [(f"{short}-r{str(r).replace('.', '')}", kind, r)
+                for kind, short in (("pitch_jump", "jump"), ("aphonic", "aphonic"))
+                for r in (0.5, 1, 2)]
+# The same constants 05_thesis_dysphonia_calibration.py calibrated with (TREMOR_RATE_HZ,
+# BREAK_MS); test_thesis_phase_scripts.py checks they agree.
+TREMOR_RATE_HZ = 5.0
+BREAK_MS = 80.0
+WORLD_GRIDS = {"world": ("coretto2017", "p01w", ("voice", "earlypron", "earlyimag",
+                                                  "latepron", "lateimag")),
+               "bxworld": ("biomex2021", "bx01w", ("voice", "earlypron", "latepron"))}
+
+
+def load_calibration(path):
+    """calibration.json, refused unless every WORLD_TARGETS level is in it and reachable."""
+    with open(path, encoding="utf-8") as f:
+        cal = json.load(f)
+    found = {}
+    for name, prof, targets in WORLD_TARGETS:
+        hits = [lv for lv in cal["levels"] if lv["profile"] == prof and lv["targets"] == targets]
+        bad = [lv for lv in cal.get("unreachable_levels", [])
+               if lv["profile"] == prof and lv["targets"] == targets]
+        if bad or len(hits) != 1:
+            raise SystemExit(f"[generate] {path}: level {name} ({prof} {targets}) is "
+                             f"{'unreachable' if bad else f'found {len(hits)} times'} in the "
+                             f"calibration; re-run 05_thesis_dysphonia_calibration.py with its "
+                             f"LEVELS; nothing was written.")
+        req = hits[0]["request"]
+        if set(req) != set(targets):
+            raise SystemExit(f"[generate] {path}: level {name} has requests for {sorted(req)}, "
+                             f"not {sorted(targets)}; nothing was written.")
+        found[name] = req
+    return found
+
+
+def world_levels(requests):
+    """(level name, degradation keys) for the 14 levels and the control."""
+    yield "control", {"profile": "resynthesis_control"}
+    for name, prof, _ in WORLD_TARGETS:
+        keys = {"profile": prof, **requests[name]}
+        if prof == "tremor":
+            keys["rate_hz"] = TREMOR_RATE_HZ
+        yield name, keys
+    for name, kind, rate in WORLD_BREAKS:
+        yield name, {"profile": "voice_breaks", "break_kind": kind, "breaks_per_second": rate,
+                     "break_ms": BREAK_MS}
+
+
+def world(winners, fused, requests):
+    """The WORLD grid on both bases (see WORLD_GRIDS): every source that reads the voice x
+    scope x (control + 14 levels); DSNN, dependent, flat, std, as p01_dysph_*."""
+    for phase, (base, prefix, sources) in WORLD_GRIDS.items():
+        for src in sources:
+            for scope in ("probes", "test"):
+                for level, keys in world_levels(requests):
+                    deg = {"enabled": True, **keys, "scope": scope, "seed": DEGRADATION_SEED}
+                    yield phase01_profile(f"{prefix}_{src}_{scope}_{level}", src, "dsnn", "dep",
+                                          False, True, winner_for(winners, fused, src),
+                                          degradation=deg, base=base, phase=phase)
+
+
 def sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
@@ -344,6 +422,18 @@ def manifest_winners(path=None):
     return None
 
 
+def manifest_calibration(path=None):
+    """(calibration path relative to software/nn, sha256) as profiles.manifest records them,
+    or None for a --phase00-only tree."""
+    path = path or os.path.join(PROFILES, "profiles.manifest")
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("# calibration: "):
+                rel, _, sha = line[len("# calibration: "):].split()
+                return rel, sha
+    return None
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -354,21 +444,28 @@ def main(argv=None):
                            "BIOMEX-DB and pilot profiles.")
     ap.add_argument("--fused", choices=("voice", "eeg"),
                     help="Which signal's winner the fused sources use (required with --winners).")
+    ap.add_argument("--calibration",
+                    help="calibration.json from 05_thesis_dysphonia_calibration.py: the requests "
+                         "of the WORLD grid's levels (required with --winners).")
     args = ap.parse_args(argv)
-    if args.winners and not args.fused:
-        ap.error("--winners needs --fused voice|eeg (no default: it is a design choice)")
-    if args.phase00_only and args.fused:
-        ap.error("--fused applies only with --winners")
+    if args.winners and not (args.fused and args.calibration):
+        ap.error("--winners needs --fused voice|eeg (no default: it is a design choice) and "
+                 "--calibration results/thesis/dysphonia_calibration/calibration.json")
+    if args.phase00_only and (args.fused or args.calibration):
+        ap.error("--fused and --calibration apply only with --winners")
 
     # Build everything before touching the tree: a refusal leaves the profiles as they were.
     rows = list(phase00())
     header = ["# Written by scripts/pipeline/thesis/00_thesis_generate_profiles.py; do not edit."]
     if args.winners:
         winners = load_winners(args.winners)
+        requests = load_calibration(args.calibration)
         rows += (list(phase01(winners, args.fused)) + list(biomex(winners, args.fused))
-                 + list(pilot(winners, args.fused)))
+                 + list(pilot(winners, args.fused)) + list(world(winners, args.fused, requests)))
         rel = os.path.relpath(os.path.abspath(args.winners), NN)
         header.append(f"# winners: {rel} sha256 {sha256(args.winners)} {args.fused}")
+        rel = os.path.relpath(os.path.abspath(args.calibration), NN)
+        header.append(f"# calibration: {rel} sha256 {sha256(args.calibration)}")
     else:
         header.append("# phase00 only: no Phase 01 or BIOMEX-DB profile before the winners")
     seen = set()
@@ -377,7 +474,7 @@ def main(argv=None):
             raise SystemExit(f"[generate] {rel} would be written twice")
         seen.add(rel)
 
-    for sub in ("phase00", "phase01", "biomex", "pilot"):
+    for sub in ("phase00", "phase01", "biomex", "pilot", *WORLD_GRIDS):
         shutil.rmtree(os.path.join(PROFILES, sub), ignore_errors=True)
     for sub in sorted({rel.split("/")[0] for rel, _ in rows}):
         os.makedirs(os.path.join(PROFILES, sub))
@@ -395,8 +492,9 @@ def main(argv=None):
     n01 = sum(r.startswith("phase01/") for r in written)
     nbx = sum(r.startswith("biomex/") for r in written)
     npi = sum(r.startswith("pilot/") for r in written)
-    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB + {npi} pilot profiles "
-          f"-> {PROFILES}")
+    nw = {g: sum(r.startswith(f"{g}/") for r in written) for g in WORLD_GRIDS}
+    print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB + {npi} pilot + "
+          f"{nw['world']} WORLD + {nw['bxworld']} BIOMEX-DB WORLD profiles -> {PROFILES}")
 
 
 if __name__ == "__main__":

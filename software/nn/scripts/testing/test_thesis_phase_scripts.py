@@ -16,6 +16,7 @@ Run:  python3 scripts/testing/test_thesis_phase_scripts.py
 import csv
 import importlib.util
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -34,6 +35,11 @@ BIOMEX_TABLES = os.path.join(PIPELINE_DIR, "thesis_build_biomex_tables.py")
 GENERATE = os.path.join(PIPELINE_DIR, "00_thesis_generate_profiles.py")
 NN = os.path.dirname(os.path.dirname(HERE))
 TRACKED_WINNERS = os.path.join(NN, "results", "thesis", "phase00", "winners.json")
+TRACKED_CALIBRATION = os.path.join(NN, "results", "thesis", "dysphonia_calibration",
+                                   "calibration.json")
+HERE_PIPE = os.path.join(NN, "scripts", "pipeline", "thesis")
+CALIBRATION_SCRIPT = os.path.join(NN, "scripts", "pipeline", "thesis",
+                                  "05_thesis_dysphonia_calibration.py")
 SIGNALS = ("voice", "eegpron", "eegimag")
 
 
@@ -218,6 +224,12 @@ class PhaseScripts(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("--fused", r.stderr)
 
+    def test_generate_requires_the_calibration(self):
+        self.run_rank()
+        r = self.generate("--winners", self.winners, "--fused", "voice")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("--calibration", r.stderr)
+
     def test_generate_requires_winners_or_phase00_only(self):
         r = self.generate()
         self.assertNotEqual(r.returncode, 0)
@@ -292,11 +304,41 @@ class GeneratedTree(unittest.TestCase):
                          "winners.json changed after the profiles were generated: run "
                          "00_thesis_generate_profiles.py --winners ... --fused " + fused)
 
+    def test_the_manifest_names_the_tracked_calibration(self):
+        rel, sha = GEN.manifest_calibration()
+        self.assertEqual(os.path.join(NN, rel), TRACKED_CALIBRATION)
+        self.assertEqual(sha, GEN.sha256(TRACKED_CALIBRATION),
+                         "calibration.json changed after the profiles were generated: run "
+                         "00_thesis_generate_profiles.py ... --calibration " + rel)
+
+    def test_world_constants_are_the_calibrated_ones(self):
+        # The generator's tremor rate and break length must be those the calibration used.
+        with open(CALIBRATION_SCRIPT, encoding="utf-8") as f:
+            text = f.read()
+        for name in ("TREMOR_RATE_HZ", "BREAK_MS"):
+            m = re.search(rf"^{name} = ([0-9.]+)", text, re.M)
+            self.assertIsNotNone(m, name)
+            self.assertEqual(float(m.group(1)), getattr(GEN, name), name)
+
+    def test_world_grid_shape(self):
+        rows = list(GEN.world(GEN.load_winners(TRACKED_WINNERS), "voice",
+                              GEN.load_calibration(TRACKED_CALIBRATION)))
+        by_phase = {}
+        for rel, _ in rows:
+            by_phase[rel.split("/")[0]] = by_phase.get(rel.split("/")[0], 0) + 1
+        self.assertEqual(by_phase, {"world": 5 * 2 * 15, "bxworld": 3 * 2 * 15})
+        profiles = [p for _, p in rows]
+        self.assertTrue(all(p["degradation"]["profile"] != "diplophonia" for p in profiles))
+        controls = [p for p in profiles if p["degradation"]["profile"] == "resynthesis_control"]
+        self.assertEqual(len(controls), (5 + 3) * 2)
+
     def test_every_tracked_profile_is_what_the_generator_writes(self):
         _, _, fused = GEN.manifest_winners()
         winners = GEN.load_winners(TRACKED_WINNERS)
+        requests = GEN.load_calibration(TRACKED_CALIBRATION)
         rows = list(GEN.phase00()) + list(GEN.phase01(winners, fused)) + \
-            list(GEN.biomex(winners, fused)) + list(GEN.pilot(winners, fused))
+            list(GEN.biomex(winners, fused)) + list(GEN.pilot(winners, fused)) + \
+            list(GEN.world(winners, fused, requests))
         differ = []
         for rel, prof in rows:
             with open(os.path.join(GEN.PROFILES, rel), encoding="utf-8") as f:
@@ -306,6 +348,47 @@ class GeneratedTree(unittest.TestCase):
         with open(os.path.join(GEN.PROFILES, "profiles.manifest"), encoding="utf-8") as f:
             listed = sorted(l.strip() for l in f if l.strip() and not l.startswith("#"))
         self.assertEqual(listed, sorted(["debug.json"] + [rel for rel, _ in rows]))
+
+
+class WorldAnalysis(unittest.TestCase):
+    """08_thesis_world_analysis.py: its numpy margin is 07's margin (the powered test's
+    definition), and its Holm is the textbook one."""
+
+    def setUp(self):
+        self.m07 = _load(os.path.join(HERE_PIPE, "07_thesis_identity_margin.py"), "m07")
+        self.m08 = _load(os.path.join(HERE_PIPE, "08_thesis_world_analysis.py"), "m08")
+
+    def test_numpy_margin_equals_the_powered_test_margin(self):
+        import random
+        rng = random.Random(3)
+        centres = {s: [rng.gauss(0, 1) for _ in range(6)] for s in range(1, 6)}
+        meta, clean, probe = [], [], []
+        for s in centres:
+            for w in range(3):
+                for r in range(3):
+                    meta.append((len(meta), s, w))
+                    v = [c + rng.gauss(0, 0.8) for c in centres[s]]
+                    clean.append(v)
+                    probe.append([x + rng.gauss(0, 0.3) for x in v])
+        cz, pz = self.m07.standardize(clean, probe)
+        want = self.m07.margins(meta, cz, pz)
+        import numpy as np
+        ncz, npz = self.m08.standardize(np.array(clean), np.array(probe))
+        got = self.m08.margins(meta, ncz, npz)
+        for a, b in zip(want, got):
+            self.assertAlmostEqual(a, b, places=10)
+
+    def test_holm(self):
+        adj = self.m08.holm({"a": 0.01, "b": 0.04, "c": 0.03})
+        self.assertAlmostEqual(adj["a"], 0.03)
+        self.assertAlmostEqual(adj["c"], 0.06)
+        self.assertAlmostEqual(adj["b"], 0.06)   # monotone: never below the previous step
+
+    def test_levels_are_the_generators(self):
+        names = [lv for lv, _ in GEN.world_levels(GEN.load_calibration(TRACKED_CALIBRATION))]
+        self.assertEqual(names, ["control"] + self.m08.LEVELS)
+        self.assertEqual({b: (ph, pre, src) for b, (ph, pre, src) in self.m08.BASES.items()},
+                         {base: (ph, pre, src) for ph, (base, pre, src) in GEN.WORLD_GRIDS.items()})
 
 
 class Phase00Tables(unittest.TestCase):

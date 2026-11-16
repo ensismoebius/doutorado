@@ -1,0 +1,69 @@
+{
+  "experiment": {
+    "run_tag": "e05_p01w_earlypron_test_tremor-d10",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "source": "coretto2017",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+    "results_dir": "results/thesis/world",
+    "modality": "fused",
+    "fusion_mode": "early",
+    "eeg_condition": "pronounced",
+    "max_samples": 0
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "haar",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "layer_spec": [
+      "linear:128:relu",
+      "residual:2",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "dependent",
+    "enabled": true
+  },
+  "degradation": {
+    "enabled": true,
+    "profile": "tremor",
+    "f0_depth_pct": 10.209,
+    "rate_hz": 5.0,
+    "scope": "test",
+    "seed": 7
+  },
+  "training": {
+    "k_folds": 5,
+    "nested_cv": false,
+    "standardize_features": true,
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "weight_decay": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
+  }
+}

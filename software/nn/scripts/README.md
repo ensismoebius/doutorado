@@ -36,7 +36,7 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 
 | Script | Role |
 |---|---|
-| `00_thesis_generate_profiles.py` | writes every profile under `src/experiments/thesis/profiles/` and `profiles.manifest`. `--phase00-only` before the ranking; `--winners results/thesis/phase00/winners.json --fused voice` after it (the Phase 01 and BIOMEX profiles carry the winners) |
+| `00_thesis_generate_profiles.py` | writes every profile under `src/experiments/thesis/profiles/` and `profiles.manifest`. `--phase00-only` before the ranking; `--winners results/thesis/phase00/winners.json --fused voice --calibration results/thesis/dysphonia_calibration/calibration.json` after it (the Phase 01, BIOMEX, pilot and WORLD profiles carry the winners; the WORLD levels carry the calibrated requests) |
 | `01_thesis_phase00_rank.py` | reads the Phase 00 results each profile declares, picks the winner per signal and the best per family by `d_penalized`, writes `winners.json`; reports ties |
 | `03_thesis_phase01_significance.sh` | the declared significance families of Phase 01 → `results/thesis/phase01/significance_*.csv` |
 | `04_thesis_biomex_significance.sh` | the same families on the BIOMEX-DB replication → `results/thesis/biomex/significance_*.csv` |

@@ -264,6 +264,141 @@
    }
   },
   {
+   "set": "level2",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 2,
+    "shimmer_db": 1.5
+   },
+   "request": {
+    "jitter_pct": 3.05,
+    "shimmer_db": 1.709
+   },
+   "unreachable_on_mean": [],
+   "jitter_pct": {
+    "S03": {
+     "mean": 2.015,
+     "sd": 0.262,
+     "within_tolerance": 47,
+     "n": 65
+    },
+    "S10": {
+     "mean": 1.988,
+     "sd": 0.319,
+     "within_tolerance": 50,
+     "n": 69
+    }
+   },
+   "shimmer_db": {
+    "S03": {
+     "mean": 1.488,
+     "sd": 0.087,
+     "within_tolerance": 61,
+     "n": 65
+    },
+    "S10": {
+     "mean": 1.541,
+     "sd": 0.062,
+     "within_tolerance": 69,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 16.51,
+    "S10": 18.52
+   }
+  },
+  {
+   "set": "level3",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 4,
+    "shimmer_db": 1.5
+   },
+   "request": {
+    "jitter_pct": 6.173,
+    "shimmer_db": 1.709
+   },
+   "unreachable_on_mean": [],
+   "jitter_pct": {
+    "S03": {
+     "mean": 3.995,
+     "sd": 0.551,
+     "within_tolerance": 42,
+     "n": 65
+    },
+    "S10": {
+     "mean": 4.006,
+     "sd": 0.602,
+     "within_tolerance": 50,
+     "n": 69
+    }
+   },
+   "shimmer_db": {
+    "S03": {
+     "mean": 1.494,
+     "sd": 0.082,
+     "within_tolerance": 61,
+     "n": 65
+    },
+    "S10": {
+     "mean": 1.545,
+     "sd": 0.06,
+     "within_tolerance": 69,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 13.79,
+    "S10": 16.38
+   }
+  },
+  {
+   "set": "level4",
+   "profile": "rough",
+   "targets": {
+    "jitter_pct": 7,
+    "shimmer_db": 1.5
+   },
+   "request": {
+    "jitter_pct": 11.226,
+    "shimmer_db": 1.709
+   },
+   "unreachable_on_mean": [],
+   "jitter_pct": {
+    "S03": {
+     "mean": 6.86,
+     "sd": 0.785,
+     "within_tolerance": 53,
+     "n": 65
+    },
+    "S10": {
+     "mean": 7.209,
+     "sd": 0.992,
+     "within_tolerance": 50,
+     "n": 69
+    }
+   },
+   "shimmer_db": {
+    "S03": {
+     "mean": 1.491,
+     "sd": 0.101,
+     "within_tolerance": 62,
+     "n": 65
+    },
+    "S10": {
+     "mean": 1.566,
+     "sd": 0.063,
+     "within_tolerance": 68,
+     "n": 69
+    }
+   },
+   "hnr_db": {
+    "S03": 10.61,
+    "S10": 13.9
+   }
+  },
+  {
    "set": "level5",
    "profile": "tremor",
    "targets": {
@@ -351,77 +486,7 @@
    }
   }
  ],
- "unreachable_levels": [
-  {
-   "set": "level2",
-   "profile": "rough",
-   "targets": {
-    "jitter_pct": 2,
-    "shimmer_db": 2
-   },
-   "request": {
-    "jitter_pct": 3.05
-   },
-   "unreachable_on_mean": [
-    "shimmer_db"
-   ]
-  },
-  {
-   "set": "level3",
-   "profile": "rough",
-   "targets": {
-    "jitter_pct": 4,
-    "shimmer_db": 2
-   },
-   "request": {
-    "jitter_pct": 6.173
-   },
-   "unreachable_on_mean": [
-    "shimmer_db"
-   ]
-  },
-  {
-   "set": "level4",
-   "profile": "rough",
-   "targets": {
-    "jitter_pct": 7,
-    "shimmer_db": 2
-   },
-   "request": {
-    "jitter_pct": 11.226
-   },
-   "unreachable_on_mean": [
-    "shimmer_db"
-   ]
-  },
-  {
-   "set": "level8",
-   "profile": "diplophonia",
-   "targets": {
-    "period_alt_pct": 6,
-    "amp_alt_db": 3
-   },
-   "request": {
-    "amp_alt_db": 5.568
-   },
-   "unreachable_on_mean": [
-    "period_alt_pct"
-   ]
-  },
-  {
-   "set": "level9",
-   "profile": "diplophonia",
-   "targets": {
-    "period_alt_pct": 12,
-    "amp_alt_db": 6
-   },
-   "request": {},
-   "unreachable_on_mean": [
-    "period_alt_pct",
-    "amp_alt_db"
-   ]
-  }
- ],
+ "unreachable_levels": [],
  "breaks": [
   {
    "kind": "pitch_jump",
@@ -508,5 +573,5 @@
    "n": 69
   }
  ],
- "seconds": 2802.0
+ "seconds": 2900.9
 }

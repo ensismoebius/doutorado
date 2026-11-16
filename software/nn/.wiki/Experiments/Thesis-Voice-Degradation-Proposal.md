@@ -179,6 +179,13 @@ report the 2 dB by the requested value with the ceiling stated. The failed acous
 does not by itself block the grid: every profile is compared with the control, not the raw
 voice (§ 3.5); the identity pilot (§ 4.3) decides whether the control keeps the speaker.
 
+**Re-run 2026-11-16 with the decided levels (decision 7: shimmer 1.5 dB; decision 8: no
+diplophonia), 48 min.** Every level reachable on the mean (`unreachable_levels` empty). The
+three strong `rough` levels: shimmer 1.5 dB ← request 1.71, read back 1.49–1.57 dB, 130/134
+trials within ±15 %; jitter 2 % ← 3.05 (97/134), 4 % ← 6.17 (92/134), 7 % ← 11.23 (103/134).
+The other levels and the control repeat the first run (same seeds, same voices). The WORLD grid
+(§ 4.5) reads its requests from this `calibration.json`.
+
 ### 3.5 The control arm
 
 A WORLD profile changes the signal even with no dysphonia (resynthesis). Every grid that uses a
@@ -340,6 +347,48 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    control"; the thesis (ch. 8) reports the control's own shift and keeps the dysphonia
    conclusions of ch. 9 to the whisper model. A grid of "profile minus control" cells would be
    a new, expensive run: the user's decision.
+5. **The WORLD grid (decided 2026-11-16, one question at a time): run it, mirror `p01_dysph_*`
+   on both bases, confirmatory reading on the per-utterance margin, on GridUnesp.** *Rule fixed
+   and committed before any result of the grid* (`scripts/pipeline/thesis/08_thesis_world_analysis.py`
+   holds it in code).
+
+   *Why "profile minus control".* § 4.4 measured the control's own shift. A WORLD level compared
+   with the original voice would add that shift to the dysphonia's, so every comparison is
+   level − control, both through the same WORLD path:
+
+   ```
+   original --WORLD-------------------------> control   (resynthesis: measured in § 4.4)
+   original --WORLD + edited F0/amplitude---> level L   (resynthesis + dysphonia L)
+   L − control                                           (dysphonia L alone)
+   ```
+
+   *The grid.* The cell of `p01_dysph_*` (DSNN, dependent text, flat 5-fold CV, standardized,
+   3 repeats, Phase 00 winners): every source that reads the voice × scope (probes, test) ×
+   (control + 14 levels). Coretto: voice, early/late × pron/imag = 5 sources, 150 profiles
+   (`profiles/world/p01w_*`); BIOMEX-DB: voice, earlypron, latepron, 90 profiles
+   (`profiles/bxworld/bx01w_*`). Levels: rough jitter/shimmer 0.5/0.5, 1/1, 2/1.5, 4/1.5,
+   7/1.5 (% / dB, measured targets); tremor 2, 4, 10 % at 5 Hz; pitch jumps and aphonic gaps of
+   80 ms at 0.5, 1, 2 per second. The rough and tremor requests are read from the re-run
+   `calibration.json` by the generator (`--calibration`), never typed. No diplophonia (decision 8).
+
+   *Part A, confirmatory (the margin of § 4.4, unchanged definition).* For each level L, on
+   source voice: d_L(u) = margin(L features of u) − margin(control features of u); the speaker
+   means of d_L (Coretto 15, BIOMEX-DB 45); two-sided one-sample t against 0, df = speakers − 1;
+   Holm over the 14 levels of a base. L **changes identity beyond resynthesis** on a base when
+   its Holm p < 0.05 (the sign says which way). BIOMEX-DB is confirmatory: L **replicates** when
+   it is significant on both bases with the same sign. Features: `thesis_features` on
+   `world/p01w_voice_probes_<level>` and `bxworld/bx01w_voice_probes_<level>` (the tool degrades
+   every voice, so the scope does not matter), into `results/thesis/world_margin/`; the clean
+   features of the 15 runs of a base must be identical (checked).
+
+   *Part B, descriptive.* The EER of all 240 profiles, each level against the control of its own
+   (source, scope), corrected t (Nadeau–Bengio) on the 15 (repeat, fold) pairs, Holm over the 28
+   comparisons of one (base, source). Reported, never used for "changes identity": the pilot
+   showed this interval to be ~±0.07 EER.
+
+   *What the result permits.* Only statements of the form "level L moves the voice away from /
+   towards its speaker beyond what WORLD resynthesis does, by this much", per base, with the
+   measured acoustic value of L (calibration) beside it, never a perceived severity (decision 3).
 
 ## 5. Cost and risk (not measured)
 

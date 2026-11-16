@@ -205,7 +205,15 @@ by −0.0976 [−0.1523, −0.0429], 3.6x the whisper l25 yardstick (−0.0273),
 Exploratory: the shift sits in the extractor's per-band jitter/shimmer descriptors. Features from
 `thesis_features` (target of the same name, `tools/thesis_features.cpp`), analysis
 `scripts/pipeline/thesis/07_thesis_identity_margin.py`, results `results/thesis/identity_margin/`.
-A WORLD profile could only be read as "profile minus control"; none is in the grid.
+A WORLD profile could only be read as "profile minus control".
+
+**WORLD grid (decided 2026-11-16; proposal §4.5, rule committed before the run).** Every level
+against the control of its own cell. `profiles/world/p01w_*` (Coretto, 5 voice-reading sources
+x 2 scopes x (control + 14 levels) = 150) and `profiles/bxworld/bx01w_*` (BIOMEX-DB, voice /
+earlypron / latepron = 90), generated with `--calibration` (the rough and tremor requests come
+from `calibration.json`). Run on GridUnesp as `THESIS_PHASE=world` / `bxworld`. Confirmatory: the
+per-utterance margin, level minus control, source voice, Holm over 14 per base, replication on
+BIOMEX-DB; descriptive: the EER of every cell (`08_thesis_world_analysis.py`).
 
 **Status.** Generators, key, tests, calibration, pilot and powered test exist; the six pilot
 profiles are `profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
@@ -258,7 +266,7 @@ the audit accepts. The generator now takes the winners itself:
 
 | call | writes |
 |---|---|
-| `--winners results/thesis/phase00/winners.json --fused voice` | every profile, winners written in; the manifest records the winners' path, sha256 and `--fused` |
+| `--winners results/thesis/phase00/winners.json --fused voice --calibration results/thesis/dysphonia_calibration/calibration.json` | every profile, winners written in, WORLD levels from the calibration; the manifest records the winners' path, sha256 and `--fused`, and the calibration's path and sha256 |
 | `--phase00-only` | Phase 00 only, and removes `phase01/` and `biomex/`: before the ranking no Phase 01 profile can exist |
 | no argument, or `--winners` without `--fused` | nothing (refused); `--help` writes nothing either |
 
@@ -1134,7 +1142,7 @@ OMP_NUM_THREADS=1 ./out/build/max-performance/src/experiments/thesis/thesis \
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
 - **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eegpron`, `eegimag`: the EEG under each condition, [§1](#1-the-eeg-was-the-previous-trials-eeg)), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, plus PCA k = 8/16/32: 153 voice + 61 per EEG condition = **275** rankings, and score every combination with the paraconsistent metric, on the whole set and on 30 speaker subsets ([§5](#5-how-stable-is-the-phase-00-winner)). The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. The lowest-`D_penalized` combination per signal wins; each family's best is kept too, for the comparison set.
-- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). The `feature_extraction` block is the Phase 00 winner, written by the generator from `--winners` (there is no placeholder; see [§8](#8-the-profiles-are-generated)). Five sets (all generated): `p01_dsnn_*` the grid, 7 sources (voice, eegpron, eegimag, early/late fusion × condition) × text mode × CV scheme × raw/std = 56; `p01_ann_*` and `p01_cosine_*`, the controls, 7 × 2 text modes, flat, std = 28; `p01_dysph_*`, simulated dysphonia, the 5 voice-reading sources × scope × 4 levels = 40; `p01_cmp-<family>_*`, the best of each extractor family through the DSNN at the autoencoders' 100 epochs, 3 families × 3 signals × 2 text modes = 18. Total 142.
+- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). The `feature_extraction` block is the Phase 00 winner, written by the generator from `--winners` (there is no placeholder; see [§8](#8-the-profiles-are-generated)). Five sets (all generated): `p01_dsnn_*` the grid, 7 sources (voice, eegpron, eegimag, early/late fusion × condition) × text mode × CV scheme × raw/std = 56; `p01_ann_*` and `p01_cosine_*`, the controls, 7 × 2 text modes, flat, std = 28; `p01_dysph_*`, simulated dysphonia, the 5 voice-reading sources × scope × 4 levels = 40; `p01_cmp-<family>_*`, the best of each extractor family through the DSNN at the autoencoders' 100 epochs, 3 families × 3 signals × 2 text modes = 18. Total 142. The WORLD grid (`profiles/world/`, 150, and `profiles/bxworld/`, 90) uses the same cell as `p01_dysph_*` with the WORLD dysphonia profiles, in phase directories of its own ([§4.1](#41-the-other-dysphonia-generators-degradationprofile-2026-11-15)).
 
 **Automating the Phase 00 → Phase 01 hand-off** — three scripts remove the manual seams, and
 (since 2026-07-18) `run_thesis_profiles.sh phase00`/`all` chains all three itself once every

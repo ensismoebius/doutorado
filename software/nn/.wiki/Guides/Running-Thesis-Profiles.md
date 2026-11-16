@@ -231,7 +231,8 @@ extractor-comparison profiles of Phase 01 use.
 
 ```bash
 python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
-  --winners results/thesis/phase00/winners.json --fused voice
+  --winners results/thesis/phase00/winners.json --fused voice \
+  --calibration results/thesis/dysphonia_calibration/calibration.json
 ```
 
 `--fused voice|eeg` (required) chooses which signal's winner backs the fused profiles; the run of

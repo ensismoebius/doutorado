@@ -9,6 +9,8 @@
 #   THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=biomex  sbatch --array=0-47  scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=world   sbatch --array=0-149 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+#   THESIS_PHASE=bxworld sbatch --array=0-89  scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -24,6 +26,12 @@
 #   biomex    48 profiles x 3 repetitions = 144 units -> --array=0-47, 3 units per task
 #            (the BIOMEX-DB replication: 24 grid + controls, 24 dysphonia; <databases>/biomex.sqlite,
 #            read directly, no decoded cache)
+#   world    150 profiles x 3 repetitions = 450 units -> --array=0-149, 3 units per task
+#            (the WORLD grid on Coretto: 5 voice-reading sources x 2 scopes x (control + 14
+#            calibrated levels); proposal section 4.5. Each unit resynthesizes every voice with
+#            WORLD at one thread before it trains: that, not the training, is most of its time)
+#   bxworld   90 profiles x 3 repetitions = 270 units -> --array=0-89, 3 units per task
+#            (the same grid on BIOMEX-DB: voice, earlypron, latepron)
 #   phase00  275 units, one per profile               -> --array=0-63, ~4-5 units per task
 #
 # Phase 00 keeps whole profiles: a handcrafted profile extracts its features ONCE for all
@@ -128,8 +136,8 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 # ── What this task runs ───────────────────────────────────────────────────────────────────────
 PHASE="${THESIS_PHASE:-}"
 case "$PHASE" in
-  phase00|phase01|biomex) ;;
-  *) refuse "THESIS_PHASE must be phase00, phase01 or biomex (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
+  phase00|phase01|biomex|world|bxworld) ;;
+  *) refuse "THESIS_PHASE must be phase00, phase01, biomex, world or bxworld (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
 esac
 [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] ||
   refuse "submit as an array (sbatch --array=0-<N-1> ...); see the header of this file"
@@ -162,7 +170,7 @@ mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sor
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
   phase00) SPLIT_REPEATS=0 ;;
-  phase01|biomex) SPLIT_REPEATS=1 ;;
+  phase01|biomex|world|bxworld) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,
