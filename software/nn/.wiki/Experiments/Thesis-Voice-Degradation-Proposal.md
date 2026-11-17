@@ -419,6 +419,32 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
      the clean margin (0.0745 → 0.0097), against 25 % on Coretto (0.127 → 0.032). A floor effect
      on BIOMEX-DB is plausible, not tested.
 
+6. **The floor test (decided 2026-11-17, after the grid result: "pré-registrar e testar").**
+   *Rule committed before the run* (`scripts/pipeline/thesis/09_thesis_world_floor.py`, its
+   docstring). Not a blind pre-registration: the grid result and the exploratory 13 % / 25 % were
+   already seen; the per-speaker relation below was not.
+
+   *Prediction.* If BIOMEX-DB's null is a floor, the speakers who keep more margin after
+   resynthesis ("room") show a stronger (more negative) roughness effect.
+
+   *Why split.* Regressing d = margin(L) − margin(control) on margin(control) is biased towards
+   the predicted negative slope: the same noisy margin(control) sits in both with opposite signs
+   (regression to the mean). So room and effect come from disjoint utterances, centroids
+   included:
+
+   ```
+   each (speaker, word), in sample order:  u1 u2 u3 u4 u5 u6 ...
+                                            A  B  A  B  A  B
+   r = ( corr(room_A, effect_B) + corr(room_B, effect_A) ) / 2      over the 45 speakers
+   ```
+
+   effect = mean over the five roughness levels of margin(L) − margin(control). Two-sided
+   permutation test of the speakers' rooms (100000, seed 20261117). Floor **supported** when
+   p < 0.05 and r < 0; **contradicted** when p < 0.05 and r > 0; otherwise not supported. Only
+   roughness (the family with a clear Coretto effect; a floor limits decreases). Power: 80 % only
+   for |r| ≥ ~0.41 at 45 speakers, so a null does not exclude a weaker floor. Coretto: the same
+   numbers, descriptive.
+
 ## 5. Cost and risk (not measured)
 
 - Runtime of WORLD analysis per utterance, and the memory of the 1 ms frame matrices on

@@ -350,6 +350,44 @@ class GeneratedTree(unittest.TestCase):
         self.assertEqual(listed, sorted(["debug.json"] + [rel for rel, _ in rows]))
 
 
+class WorldFloor(unittest.TestCase):
+    """09_thesis_world_floor.py: the halves share no utterance and keep every (speaker, word);
+    the cross-half permutation test finds a planted room-effect relation and not a planted null."""
+
+    def setUp(self):
+        self.m09 = _load(os.path.join(HERE_PIPE, "09_thesis_world_floor.py"), "m09")
+
+    def test_halves_are_disjoint_and_cover_every_speaker_word(self):
+        meta = [(100 - i, s, w) for i, (s, w) in enumerate(
+            (s, w) for s in range(3) for w in range(2) for _ in range(5))]
+        a, b = self.m09.halves(meta)
+        self.assertEqual(set(a) & set(b), set())
+        self.assertEqual(sorted(set(a) | set(b)), list(range(len(meta))))
+        for half in (a, b):
+            self.assertEqual({(meta[i][1], meta[i][2]) for i in half},
+                             {(m[1], m[2]) for m in meta})
+
+    def test_halves_refuse_a_speaker_word_with_three_utterances(self):
+        meta = [(i, 0, 0) for i in range(3)] + [(10 + i, 1, 0) for i in range(4)]
+        with self.assertRaises(SystemExit):
+            self.m09.halves(meta)
+
+    def test_cross_half_finds_a_planted_relation_only(self):
+        import numpy as np
+        rng = np.random.default_rng(5)
+        room = rng.normal(0, 1, 45)
+        noise = lambda: rng.normal(0, 0.3, 45)
+        tied = self.m09.cross_half(room + noise(), -room + noise(), room + noise(),
+                                   -room + noise(), 2000, 1)
+        self.assertLess(tied["r"], -0.8)
+        self.assertLess(tied["p"], 0.01)
+        self.assertEqual(self.m09.verdict(tied), "supported")
+        free = self.m09.cross_half(room + noise(), rng.normal(0, 1, 45), room + noise(),
+                                   rng.normal(0, 1, 45), 2000, 1)
+        self.assertGreater(free["p"], 0.05)
+        self.assertEqual(self.m09.verdict(free), "not supported")
+
+
 class WorldAnalysis(unittest.TestCase):
     """08_thesis_world_analysis.py: its numpy margin is 07's margin (the powered test's
     definition), and its Holm is the textbook one."""
