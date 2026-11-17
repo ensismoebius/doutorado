@@ -172,6 +172,6 @@ File counts should be equal (minus any global-only skills not relevant to this p
 
 ## See also
 
-- [agent-customization](./agent-customization.md) — create/validate new skill files
+- [agent-customization](../agent-customization/SKILL.md) — create/validate new skill files
 - `cmake/GenerateLayers.cmake` — layer alias auto-generation
 - `include/layers/Layers.hpp` — canonical alias list

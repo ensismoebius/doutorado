@@ -126,7 +126,7 @@ Collect canonical citations for: LSTM, BPTT, SNNs + surrogate gradients, Autoenc
 7. `.wiki/Home.md` — final pass to add all links
 
 ### STEP 4 — CROSS-LINK
-Every article must link to at least 2 other wiki articles using relative Markdown links: `[Tensor](../Core/Tensor.md)`.
+Every article must link to at least 2 other wiki articles using relative Markdown links: (e.g. from `.wiki/Experiments/X.md`, link `../Core/Tensor.md` with the text "Tensor").
 
 ### STEP 5 — VALIDATE
 - List all `.wiki/` files, verify layout matches the structure above.
