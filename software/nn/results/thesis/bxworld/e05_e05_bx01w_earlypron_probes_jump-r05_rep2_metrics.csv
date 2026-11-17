@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.183007,0.888508,53886.948,110.798,results/thesis/bxworld/models/e05_bx01w_earlypron_probes_jump-r05_rep2/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.230123,0.853018,53928.728,110.935,results/thesis/bxworld/models/e05_bx01w_earlypron_probes_jump-r05_rep2/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.288525,0.788663,53705.278,111.283,results/thesis/bxworld/models/e05_bx01w_earlypron_probes_jump-r05_rep2/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.245492,0.835540,53924.301,111.043,results/thesis/bxworld/models/e05_bx01w_earlypron_probes_jump-r05_rep2/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.191176,0.894144,53303.297,97.587,results/thesis/bxworld/models/e05_bx01w_earlypron_probes_jump-r05_rep2/handcrafted-lfcc-fused-early/fold_4.bin

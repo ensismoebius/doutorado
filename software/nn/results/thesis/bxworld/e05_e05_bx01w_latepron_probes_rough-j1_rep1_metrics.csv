@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.196825,0.888304,58371.117,110.887,results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j1_rep1/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.212698,0.867933,58136.921,110.479,results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j1_rep1/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.149206,0.926523,58097.121,111.524,results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j1_rep1/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.332803,0.727367,59223.305,112.518,results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j1_rep1/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.222817,0.855213,59044.554,112.208,results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j1_rep1/handcrafted-lfcc-fused-late/fold_4.bin

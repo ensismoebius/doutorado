@@ -1,0 +1,228 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "eeg_condition": "pronounced",
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/bxworld",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
+      "source": "biomex2021"
+    },
+    "degradation": {
+      "break_kind": "aphonic",
+      "break_ms": 80.0,
+      "breaks_per_second": 2.0,
+      "enabled": true,
+      "profile": "voice_breaks",
+      "scope": "test",
+      "seed": 7
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_bx01w_latepron_test_aphonic-r2_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 14866591189244956587,
+  "dataset": {
+    "n_samples": 6294,
+    "n_stimuli": 10,
+    "n_subjects": 45
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.052207989193126796,
+      "energy": {
+        "accesses": 587457.5818745628,
+        "fp_adds": 190204.6251837284,
+        "fp_macs": 28717.0,
+        "mem_nj": 8043.744917224285,
+        "nj": 8365.131768720776,
+        "nj_as_executed": 19408.833446140135,
+        "nj_sram1m": 59067.14503895275,
+        "nj_sram32k": 12070.538488987744,
+        "nj_sram8k": 6195.962670242119,
+        "ops_nj": 321.386851496492,
+        "spikes": 1767.7368723643922
+      },
+      "feature_set": "handcrafted-lfcc-fused-late",
+      "final_sops": 143884,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 587548.2560386474,
+            "fp_adds": 190236.46376811594,
+            "fp_macs": 28717.0,
+            "mem_nj": 8043.9099128865255,
+            "nj": 8365.328228506494,
+            "nj_as_executed": 19409.029905925847,
+            "nj_sram1m": 59076.2439194847,
+            "nj_sram32k": 12072.383436392915,
+            "nj_sram8k": 6196.900876006441,
+            "ops_nj": 321.4183156199678,
+            "spikes": 1771.4814814814815
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0031360823195427656,
+          "fold": 0,
+          "infer_ms": 104.912594,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_test_aphonic-r2_rep2/handcrafted-lfcc-fused-late/fold_0.bin",
+          "train_ms": 58168.647694
+        },
+        {
+          "energy": {
+            "accesses": 574118.9402261713,
+            "fp_adds": 185747.40549273023,
+            "fp_macs": 28717.0,
+            "mem_nj": 7869.344708260288,
+            "nj": 8186.27933055431,
+            "nj_as_executed": 19229.981007973667,
+            "nj_sram1m": 57728.82864491115,
+            "nj_sram32k": 11799.313426817449,
+            "nj_sram8k": 6058.124024555736,
+            "ops_nj": 316.9346222940227,
+            "spikes": 1717.831987075929
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003443180350586772,
+          "fold": 1,
+          "infer_ms": 103.913909,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_test_aphonic-r2_rep2/handcrafted-lfcc-fused-late/fold_1.bin",
+          "train_ms": 56530.636577
+        },
+        {
+          "energy": {
+            "accesses": 579566.4765751212,
+            "fp_adds": 187578.36833602586,
+            "fp_macs": 28717.0,
+            "mem_nj": 7933.526304546582,
+            "nj": 8252.287501154013,
+            "nj_as_executed": 19295.98917857337,
+            "nj_sram1m": 58275.408854119545,
+            "nj_sram32k": 11910.090728109855,
+            "nj_sram8k": 6114.425962358643,
+            "ops_nj": 318.7611966074314,
+            "spikes": 1761.7172859450727
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0030261054635047913,
+          "fold": 2,
+          "infer_ms": 103.970568,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_test_aphonic-r2_rep2/handcrafted-lfcc-fused-late/fold_2.bin",
+          "train_ms": 56971.832434
+        },
+        {
+          "energy": {
+            "accesses": 578908.943457189,
+            "fp_adds": 187350.82390953152,
+            "fp_macs": 28717.0,
+            "mem_nj": 7930.117450233941,
+            "nj": 8248.653079636204,
+            "nj_as_executed": 19292.354757055557,
+            "nj_sram1m": 58209.429975121166,
+            "nj_sram32k": 11896.714498546042,
+            "nj_sram8k": 6107.625063974152,
+            "ops_nj": 318.53562940226175,
+            "spikes": 1741.9450726978998
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0030258633196353912,
+          "fold": 3,
+          "infer_ms": 106.207634,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_test_aphonic-r2_rep2/handcrafted-lfcc-fused-late/fold_3.bin",
+          "train_ms": 58428.061443
+        },
+        {
+          "energy": {
+            "accesses": 617145.2930756843,
+            "fp_adds": 200110.06441223834,
+            "fp_macs": 28717.0,
+            "mem_nj": 8441.826210194084,
+            "nj": 8773.110703752858,
+            "nj_as_executed": 19816.812381172218,
+            "nj_sram1m": 62045.81380112721,
+            "nj_sram32k": 12674.190355072464,
+            "nj_sram8k": 6502.737424315619,
+            "ops_nj": 331.2844935587762,
+            "spikes": 1845.708534621578
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003297592280432582,
+          "fold": 4,
+          "infer_ms": 104.01669,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_test_aphonic-r2_rep2/handcrafted-lfcc-fused-late/fold_4.bin",
+          "train_ms": 57439.093851
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.8604636756611905,
+      "mean_eer": 0.22549086574520522,
+      "mean_f1": null,
+      "mean_infer_ms": 104.60427899999999,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.4268218994140625,
+      "mean_train_ms": 57507.6543998,
+      "param_count": 47027,
+      "std_accuracy": null,
+      "std_auc": 0.04460530006007891,
+      "std_eer": 0.04205353487190415,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_bx01w_latepron_test_aphonic-r2_rep2",
+  "seed": 44,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

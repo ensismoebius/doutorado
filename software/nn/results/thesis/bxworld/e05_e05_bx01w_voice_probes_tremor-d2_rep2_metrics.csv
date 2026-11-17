@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,dependent,0,nan,nan,nan,nan,nan,0.321487,0.759103,52282.407,97.494,results/thesis/bxworld/models/e05_bx01w_voice_probes_tremor-d2_rep2/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,dependent,1,nan,nan,nan,nan,nan,0.264549,0.822120,52318.770,99.127,results/thesis/bxworld/models/e05_bx01w_voice_probes_tremor-d2_rep2/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,dependent,2,nan,nan,nan,nan,nan,0.340984,0.720230,52365.997,97.613,results/thesis/bxworld/models/e05_bx01w_voice_probes_tremor-d2_rep2/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,dependent,3,nan,nan,nan,nan,nan,0.288525,0.795852,52255.783,97.919,results/thesis/bxworld/models/e05_bx01w_voice_probes_tremor-d2_rep2/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,dependent,4,nan,nan,nan,nan,nan,0.343137,0.717995,52337.042,99.297,results/thesis/bxworld/models/e05_bx01w_voice_probes_tremor-d2_rep2/handcrafted-lfcc/fold_4.bin

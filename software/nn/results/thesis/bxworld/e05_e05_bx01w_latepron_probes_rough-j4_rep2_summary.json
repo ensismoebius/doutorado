@@ -1,0 +1,227 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "eeg_condition": "pronounced",
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/bxworld",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
+      "source": "biomex2021"
+    },
+    "degradation": {
+      "enabled": true,
+      "jitter_pct": 6.172999858856201,
+      "profile": "rough",
+      "scope": "probes",
+      "seed": 7,
+      "shimmer_db": 1.7089999914169312
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_bx01w_latepron_probes_rough-j4_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 9714340987966811637,
+  "dataset": {
+    "n_samples": 6294,
+    "n_stimuli": 10,
+    "n_subjects": 45
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.056556235708083026,
+      "energy": {
+        "accesses": 594719.7827101528,
+        "fp_adds": 192627.52210905857,
+        "fp_macs": 28717.0,
+        "mem_nj": 8141.235703576351,
+        "nj": 8465.043582107772,
+        "nj_as_executed": 19508.745259527128,
+        "nj_sram1m": 59795.78614954669,
+        "nj_sram32k": 12218.203532734478,
+        "nj_sram8k": 6271.00570563295,
+        "ops_nj": 323.80787853142186,
+        "spikes": 1786.4357763677845
+      },
+      "feature_set": "handcrafted-lfcc-fused-late",
+      "final_sops": 143884,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 599251.8132045087,
+            "fp_adds": 194140.06119162642,
+            "fp_macs": 28717.0,
+            "mem_nj": 8201.735898760891,
+            "nj": 8527.055036119988,
+            "nj_as_executed": 19570.756713539347,
+            "nj_sram1m": 60250.50045780997,
+            "nj_sram32k": 12310.355401449273,
+            "nj_sram8k": 6317.837269404186,
+            "ops_nj": 325.3191373590983,
+            "spikes": 1799.2383252818036
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0031360823195427656,
+          "fold": 0,
+          "infer_ms": 108.106761,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j4_rep2/handcrafted-lfcc-fused-late/fold_0.bin",
+          "train_ms": 55669.289363
+        },
+        {
+          "energy": {
+            "accesses": 579202.9079159936,
+            "fp_adds": 187443.86429725363,
+            "fp_macs": 28717.0,
+            "mem_nj": 7937.402711863527,
+            "nj": 8256.032420102621,
+            "nj_as_executed": 19299.734097521978,
+            "nj_sram1m": 58238.92049983846,
+            "nj_sram32k": 11902.687866558967,
+            "nj_sram8k": 6110.658787399031,
+            "ops_nj": 318.62970823909535,
+            "spikes": 1731.5605815831987
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003443180350586772,
+          "fold": 1,
+          "infer_ms": 107.390669,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j4_rep2/handcrafted-lfcc-fused-late/fold_1.bin",
+          "train_ms": 56871.050266
+        },
+        {
+          "energy": {
+            "accesses": 589065.8804523426,
+            "fp_adds": 190747.8578352181,
+            "fp_macs": 28717.0,
+            "mem_nj": 8060.923049963623,
+            "nj": 8382.851247701912,
+            "nj_as_executed": 19426.55292512126,
+            "nj_sram1m": 59228.516242972546,
+            "nj_sram32k": 12103.245806785138,
+            "nj_sram8k": 6212.587002261713,
+            "ops_nj": 321.9281977382876,
+            "spikes": 1786.600969305331
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0030261054635047913,
+          "fold": 2,
+          "infer_ms": 107.812949,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j4_rep2/handcrafted-lfcc-fused-late/fold_2.bin",
+          "train_ms": 56642.67644
+        },
+        {
+          "energy": {
+            "accesses": 585968.8691437803,
+            "fp_adds": 189706.352180937,
+            "fp_macs": 28717.0,
+            "mem_nj": 8024.815459462249,
+            "nj": 8345.704773517176,
+            "nj_as_executed": 19389.406450936534,
+            "nj_sram1m": 58917.77622843296,
+            "nj_sram32k": 12040.266696930534,
+            "nj_sram8k": 6180.57800549273,
+            "ops_nj": 320.8893140549273,
+            "spikes": 1760.3812600969306
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0030258633196353912,
+          "fold": 3,
+          "infer_ms": 103.318637,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j4_rep2/handcrafted-lfcc-fused-late/fold_3.bin",
+          "train_ms": 55811.401092
+        },
+        {
+          "energy": {
+            "accesses": 620109.4428341385,
+            "fp_adds": 201099.47504025765,
+            "fp_macs": 28717.0,
+            "mem_nj": 8481.301397831456,
+            "nj": 8813.574433097156,
+            "nj_as_executed": 19857.27611051651,
+            "nj_sram1m": 62343.217318679555,
+            "nj_sram32k": 12734.461891948471,
+            "nj_sram8k": 6533.3674636070855,
+            "ops_nj": 332.2730352657005,
+            "spikes": 1854.3977455716586
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003297592280432582,
+          "fold": 4,
+          "infer_ms": 105.403458,
+          "model_path": "results/thesis/bxworld/models/e05_bx01w_latepron_probes_rough-j4_rep2/handcrafted-lfcc-fused-late/fold_4.bin",
+          "train_ms": 55041.388676
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.8524816523656181,
+      "mean_eer": 0.23129888567448836,
+      "mean_f1": null,
+      "mean_infer_ms": 106.40649479999999,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.4268218994140625,
+      "mean_train_ms": 56007.1611674,
+      "param_count": 47027,
+      "std_accuracy": null,
+      "std_auc": 0.05373768632030957,
+      "std_eer": 0.04555604740445771,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_bx01w_latepron_probes_rough-j4_rep2",
+  "seed": 44,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

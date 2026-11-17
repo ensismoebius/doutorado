@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,dependent,0,nan,nan,nan,nan,nan,0.261905,0.821495,55303.231,128.522,results/thesis/bxworld/models/e05_bx01w_voice_probes_rough-j05_rep1/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,dependent,1,nan,nan,nan,nan,nan,0.302976,0.772520,55145.801,120.239,results/thesis/bxworld/models/e05_bx01w_voice_probes_rough-j05_rep1/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,dependent,2,nan,nan,nan,nan,nan,0.223810,0.856034,55155.444,120.290,results/thesis/bxworld/models/e05_bx01w_voice_probes_rough-j05_rep1/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,dependent,3,nan,nan,nan,nan,nan,0.349124,0.718732,55231.806,119.776,results/thesis/bxworld/models/e05_bx01w_voice_probes_rough-j05_rep1/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,dependent,4,nan,nan,nan,nan,nan,0.277778,0.808115,56183.684,116.544,results/thesis/bxworld/models/e05_bx01w_voice_probes_rough-j05_rep1/handcrafted-lfcc/fold_4.bin
