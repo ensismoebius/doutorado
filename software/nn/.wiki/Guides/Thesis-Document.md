@@ -36,7 +36,7 @@ All paths below are relative to the repository root unless stated.
 | `chapters/06-Introduction.tex` | context, gap and hypothesis, objectives, research questions, contributions |
 | `chapters/07-bibliographicRevision.tex` | concepts used, and the state of the art (systematic review + its 2026 update) |
 | `chapters/08-proposedApproach.tex` | the two bases, the strategy (Phase 00 / 01 / BIOMEX), the procedures, the simulated dysphonia |
-| `chapters/09-testsAndResults.tex` | Phase 00, Phase 01, the BIOMEX-DB replication, the research questions answered |
+| `chapters/09-testsAndResults.tex` | Phase 00, Phase 01, the BIOMEX-DB replication, the WORLD dysphonia grid, the research questions answered |
 | `chapters/10-conclusions.tex` | synthesis, contributions, limitations, future work |
 | `chapters/11-appendices.tex` | defects found and fixed, reproducibility, Bayesian inference, how to build a neural network, parallelism |
 | `tables/` | generated CSVs and `thesis_numbers.tex` (below); three hand-made `.tex` tables (`regularWaveletExample`, `packetWaveletExample`, `someWaveletsProperties`) |
@@ -148,9 +148,13 @@ results, only the method, and must be redrawn by hand when the method changes.
 ## Still open
 
 `issues.md` (status section at its top) holds the review items and what is left before the
-defence. On 2026-11-13 the items left for the author are: the Web of Science record of the review
-update (marked `\pendenteMarca` in ch. 7), the examining board, dedication / acknowledgements /
-epigraph, the catalog record, and the defence date (`chapters/data/date.tex` holds a placeholder).
+defence; its section "Leitura integral do PDF" (2026-11-17) holds the findings of the full read
+(groups A/B/C, all corrected). What only the author can close is marked in the text with
+`\pendenteMarca` (10 marks in the PDF on 2026-11-17): the catalog record, the examining board,
+the defence date (`chapters/data/date.tex`), dedication, acknowledgements, epigraph (front
+matter, `chapters/00-*.tex … 03-*.tex`); in ch. 7 the source of the Mel formula, the Mastrangelo
+(2019) chapter and the Web of Science record of the review update; in appendix D the text inside
+the Fig. 48 image. Remove each mark when its item is closed; none may reach the defence version.
 
 ## Related
 

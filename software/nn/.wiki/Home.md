@@ -125,6 +125,11 @@ Run in order; `thesis` is the primary experiment.
 - [Meeting01](./Experiments/Meeting01.md) — what spiking costs an autoencoder (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
+  - [Voice degradation proposal](./Experiments/Thesis-Voice-Degradation-Proposal.md) — the WORLD
+    dysphonia profiles: decisions, Praat calibration, the pre-registered identity tests, the
+    WORLD grid and the floor test, with their results
+  - [Profile fingerprints](./Experiments/Thesis-Profile-Fingerprints.md) — old → new
+    `config_hash` of the profiles `degradation.profile` changed
 - [paraconsistentGA](./Experiments/ParaconsistentGA.md) — NSGA-II search over autoencoder
   architectures, ranked by paraconsistent `d_penalized` under a latency constraint
   ([design spec](./Experiments/ParaconsistentGA-Design.md))
@@ -151,7 +156,7 @@ Run in order; `thesis` is the primary experiment.
 - [Data Bases](./Guides/Data-Bases.md) — obtaining, converting and verifying the Coretto and
   BIOMEX-DB SQLite files; the verification stamps the thesis quotes
 - [Running Thesis Profiles](./Guides/Running-Thesis-Profiles.md) — the thesis runner and the
-  full Phase 00 → Phase 01 → BIOMEX-DB pipeline
+  full Phase 00 → Phase 01 → BIOMEX-DB → WORLD dysphonia pipeline
 - [Thesis Document](./Guides/Thesis-Document.md) — the monograph: structure, generated tables
   and numbers (`\tn`), figures, building the PDF
 - [Re-run Runbook](./Guides/Re-run-Runbook.md) — regenerate every result, in dependency order

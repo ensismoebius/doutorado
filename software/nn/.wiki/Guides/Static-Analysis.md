@@ -87,7 +87,7 @@ versions disagree: a check one version reports, another may not. CI's log names 
 "Operating System" and the versions in its "Install dependencies" step; CI also prints the
 cppcheck findings when that step fails.
 
-| | Local (Arch) | CI (`ubuntu-latest`, 2026-11-14) |
+| | Local (Arch) | CI (`ubuntu-latest`, 2026-11-14, unchanged on 2026-11-17) |
 |---|---|---|
 | clang-tidy | 23 | 21 |
 | cppcheck | 2.22 | 2.19 |
@@ -115,6 +115,25 @@ fixes were sound but did not match what CI reported. Read the image from CI's lo
 
 `--suppress=unmatchedSuppression` is what lets one inline suppression serve several versions: a
 suppression only one version needs is not an error under the others.
+
+### A reference written through the pointers a function returns: `constParameterReference`
+
+CI's cppcheck (2.19) reported, on 2026-11-17, `constParameterReference` on
+`row_pointers(Matrix& m)` in `VoiceDysphonia.cpp`; the local 2.22 does not. The function only
+returns `m`'s row pointers, and WORLD writes the spectra through them afterwards, so `m` must stay
+non-const. cppcheck does not follow the mutable pointers out of the function and sees a parameter
+that is never written in it. This is a false positive, suppressed on that line with the reason
+(commit 5ad6874c7; the commit message says 2.13 by mistake, CI's log shows 2.19.0):
+
+```cpp
+// WORLD writes through the returned pointers, so m must be non-const; cppcheck's
+// constParameterReference does not follow the mutable pointers out of the function.
+// cppcheck-suppress constParameterReference
+auto row_pointers(Matrix& m) -> std::vector<double*>
+```
+
+Making `m` const would compile only with a `const_cast` on every row, which hides the write it
+exists to allow.
 
 ### An optional in a test: `if (!x) GTEST_FAIL()`, not `ASSERT_TRUE(x.has_value())`
 

@@ -183,6 +183,7 @@ so they are only valid after Phase 00 ran and its winners were written in.
 1 phase00 ──► (automatic, on a clean pass) 2 rank ─► 3 regenerate profiles ─► 4 Phase 00 tables
 5 phase01 ──► 6 Phase 01 tables, significance
 7 biomex  ──► 8 BIOMEX tables, significance
+9 WORLD dysphonia: a calibration (before 3) ─► b pilot ─► c identity margin ─► d grid ─► e floor
 then: the thesis numbers (Thesis Document guide)
 ```
 
@@ -236,7 +237,8 @@ python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
 ```
 
 `--fused voice|eeg` (required) chooses which signal's winner backs the fused profiles; the run of
-record uses `voice`. Single-signal profiles get their own signal's winner, and
+record uses `voice`. `--calibration` is the output of step 9a, which needs only the Coretto base,
+so it can run before Phase 00. Single-signal profiles get their own signal's winner, and
 `p01_cmp-<family>_<signal>_*` its family's best. The manifest records the winners file's sha256;
 `GeneratedTree` in `scripts/testing/test_thesis_phase_scripts.py` (run by CI) rebuilds the tree
 in memory and refuses any difference, so a stale tree fails CI loudly.
@@ -308,6 +310,85 @@ scripts/pipeline/thesis/04_thesis_biomex_significance.sh \
 
 Writes `tables/biomex_{auth,dysphonia}.csv` (each BIOMEX cell beside its Coretto cell) and
 `results/thesis/biomex/significance_*.csv` (the Coretto families, declared before reading).
+
+### 9. WORLD dysphonia — calibration, identity tests, grid, floor
+
+Why each step exists, and each pre-registered rule, is in
+[Experiment05 › other dysphonia generators](../Experiments/Thesis.md#41-the-other-dysphonia-generators-degradationprofile-2026-11-15) and the
+[proposal](../Experiments/Thesis-Voice-Degradation-Proposal.md) (§3.4 calibration, §4.3 pilot,
+§4.4 powered test, §4.5 grid and floor). Every rule was committed **before** its run; a new test
+gets its rule written into the script's docstring and committed first.
+
+The feature runs below use the `thesis_features` binary (`--config <profile> --out-dir <dir>`,
+both required): it writes the clean and degraded feature vector of every sample, one CSV row each,
+through the same loader, extractor and degradation the `thesis` binary runs.
+
+```bash
+BIN=out/build/max-performance/src/experiments/thesis
+cmake --build out/build/max-performance --target thesis thesis_features -j$(nproc)
+```
+
+**a. Calibration** (minutes, no training; Praat 6.1.38 through parselmouth). Finds, on real
+vowels, the request of each rough/tremor level that yields the measured target.
+
+```bash
+.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \
+  --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \
+  --subjects S10 S03 --jobs 10 --out-dir results/thesis/dysphonia_calibration
+```
+
+**b. Identity pilot** (does resynthesis alone move the EER? 6 profiles, ~42 min locally):
+
+```bash
+for f in src/experiments/thesis/profiles/pilot/*.json; do $BIN/thesis --config "$f"; done
+python3 scripts/pipeline/thesis/06_thesis_identity_pilot.py \
+  --results results/thesis/pilot --out results/thesis/pilot/pilot_verdict.json
+```
+
+**c. Powered identity test** (per-utterance margins, no training):
+
+```bash
+for p in pilot/pil_cosine_voice_control_probes phase01/p01_dysph_voice_probes_l25; do
+  $BIN/thesis_features --config src/experiments/thesis/profiles/$p.json \
+    --out-dir results/thesis/identity_margin
+done
+python3 scripts/pipeline/thesis/07_thesis_identity_margin.py \
+  --control results/thesis/identity_margin/e05_pil_cosine_voice_control_probes \
+  --whisper results/thesis/identity_margin/e05_p01_dysph_voice_probes_l25 \
+  --out results/thesis/identity_margin/identity_margin_verdict.json
+```
+
+**d. WORLD grid.** 150 Coretto profiles (`profiles/world/p01w_*`) and 90 BIOMEX-DB profiles
+(`profiles/bxworld/bx01w_*`), every level read against the control of its own cell. Run on
+GridUnesp, one whole profile per task (`THESIS_PHASE=world sbatch --array=0-149 …`,
+`THESIS_PHASE=bxworld sbatch --array=0-89 …`;
+[Experiment05 › Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12)).
+The confirmatory Part A reads features of the 15 `voice_probes` profiles of each base:
+
+```bash
+for f in src/experiments/thesis/profiles/world/p01w_voice_probes_*.json \
+         src/experiments/thesis/profiles/bxworld/bx01w_voice_probes_*.json; do
+  $BIN/thesis_features --config "$f" --out-dir results/thesis/world_margin
+done
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py \
+  --features results/thesis/world_margin \
+  --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
+  --out results/thesis/world_analysis
+```
+
+Writes `world_margin.json` (Part A), `world_eer.csv` (Part B) and `sig_*.csv`. It refuses when the
+clean features of the runs of one base differ, or a profile's results are missing.
+
+**e. Floor test** (is the BIOMEX-DB null a floor effect? cross-half correlation, 100000
+permutations):
+
+```bash
+python3 scripts/pipeline/thesis/09_thesis_world_floor.py \
+  --features results/thesis/world_margin --out results/thesis/world_analysis/world_floor.json
+```
+
+The number builder reads 9a–9d (`--dysphonia-calibration`, `--identity-pilot`,
+`--identity-margin`, `--world-analysis`; [Thesis Document › Results to text](Thesis-Document.md#results-to-text)).
 
 ## Decoded-dataset cache
 

@@ -570,7 +570,10 @@ another order), so the check uses sources the converter never reads:
 **Result on the whole base (2026-11-13): 45 volunteers, 6297 pairs, all equal to the originals
 (0 differences); stamp written.** 6297 = 45 × 140 − 3 (F017's unlabelled digit, M015's and
 M019's edge pairs). Five sessions have no CSV export (M003 ×2, M004 ×2, M026 01G10); their EDF
-is read by the same reader the other 85 sessions checked.
+is read by the same reader the other 85 sessions checked. *Since 2026-11-16 the base holds 6294
+pairs:* the 3 voice windows WORLD cannot analyse were left out and the base re-verified (6294
+equal, 0 differences, each left-out window refused by the WORLD path;
+[Data Bases](../Guides/Data-Bases.md)).
 
 A mutation test proves it can fail: one swapped voice, one changed label and one swapped
 EEG epoch in a copy were all reported, exit status 1. On success it writes
@@ -847,7 +850,7 @@ The thesis classifier is the **DSNN**. Two controls run on the same features and
 initial weights, and **`cosine`**, no network. The type `rnn` (`SimpleResNet`, a different and
 larger graph) was removed on 2026-11-12.
 
-**DSNN**: temporal deep **residual** spiking classifier (audit M-4). Each hidden block (`Linear → (tdBN) → LIF`, all `hidden_dim` wide) is wrapped in an identity skip connection `h_out = block(h) + h`; `residual:D` in the layer spec sets the number of such blocks. Skips are parameter-free (no added serialization state) and sit only around the equal-width hidden blocks — the input stage (`input_dim → hidden_dim`) and output stage carry none. This matches the deep-residual-SNN design that tdBN was introduced to train (Zheng et al., AAAI 2021). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
+**DSNN**: temporal deep **residual** spiking classifier (audit M-4). Each hidden block (`Linear → (tdBN) → LIF`, all `hidden_dim` wide) is wrapped in an identity skip connection `h_out = block(h) + h`; `residual:D` in the layer spec sets the number of such blocks. Skips are parameter-free (no added serialization state) and sit only around the equal-width hidden blocks — the input stage (`input_dim → hidden_dim`) and output stage carry none. This matches the deep-residual-SNN design that tdBN was introduced to train (Zheng et al., AAAI 2021). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean over the T steps of the final `Linear`'s output** (analog logits: that layer has no LIF after it, so it emits no spikes; it reads the last block's spikes plus the residual sums); the thesis text (chapters/08-proposedApproach.tex) states the same; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
 ### Regularization & Normalization
 

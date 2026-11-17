@@ -43,8 +43,8 @@ constexpr float kSnnVth = 1.0f;
 // kSnnTimeSteps. The static feature vector is rate-encoded by constant-current
 // injection: each of the T steps receives the same input row (time-major layout
 // (T*B, F) expected by LifBPTT). Spikes integrate over time through LifBPTT
-// neurons; the readout is the spike-count (mean firing rate over T) of the final
-// linear layer, giving class logits. Gradients flow through real BPTT.
+// neurons; the readout is the mean over T of the final linear layer's output (analog
+// logits: no LIF follows fc_out, so it emits no spikes). Gradients flow through real BPTT.
 //
 // Residual structure: each hidden block (Linear→(tdBN)→LIF, all hidden_dim wide)
 // is wrapped in an identity skip connection h_out = block(h) + h. Skips are
@@ -129,7 +129,7 @@ class ThesisDsnnClassifier : public Module<nn::Backend>
                 hidden_fc_[i], seed + 100U + static_cast<unsigned int>(i), "e05_dsnn");
     }
 
-    // input: (B, D). Returns logits (B, output_dim) = mean spike rate over T steps.
+    // input: (B, D). Returns logits (B, output_dim) = mean over the T steps of fc_out's output.
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // cppcheck-suppress duplInheritedMember ; reset_state() overrides Module's virtual

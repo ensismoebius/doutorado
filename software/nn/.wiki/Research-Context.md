@@ -19,13 +19,24 @@ The thesis proposes augmenting degraded-voice biometrics with **EEG signals capt
 
 Design and implement biometric algorithms capable of authenticating individuals who can only produce potentially degraded speech, by adding EEG imagined-speech signals to the acoustic voice information.
 
-### Current executable baseline (Experiment05)
+### Where the thesis stands (Experiment05, 2026-11-17)
 
-- E3 handcrafted: DTWPT + descriptors, swept in Phase 00
-- E3 automatic: SNN-AE and ANN-AE implemented and swept in Phase 00 (`autoencoder.model`)
-- E3 automatic PCA (linear reference): **implemented 2026-11-11** (`feature_extraction.strategy = "pca"`, profiles `p00_pca_k{8,16,32}_{voice,eeg}`); not yet run
-- LSTM-AE: still accepted by the code (`autoencoder.model = "lstm-ae"`), kept on purpose, used by no profile; it is no longer the default — since 2026-11-11 no thesis config key has a default (every key the run reads must be declared)
-- E4 classifiers: RNN and DSNN implemented in pipeline
+Every phase has run and its results are in the thesis text through generated numbers
+([Experiments/Thesis](Experiments/Thesis.md), [Thesis Document](Guides/Thesis-Document.md)).
+
+- E3 handcrafted: DTWPT + six descriptors per sub-band group, swept in Phase 00. **Winner on all
+  three signals** (voice, EEG pronounced, EEG imagined): Haar + Linear (c1)
+  (`p00_hc_haar_lfcc_c1_*`, lowest `d_penalized`)
+- E3 automatic: SNN-AE, ANN-AE and PCA (`p00_pca_k{8,16,32}_*`) swept in Phase 00; the best of
+  each family is ANN-AE (base) and PCA (k = 8), both behind the handcrafted winner, and PCA at
+  or ahead of the autoencoders
+- LSTM-AE: still accepted by the code (`autoencoder.model = "lstm-ae"`), kept on purpose, used by
+  no profile; no thesis config key has a default (every key the run reads must be declared)
+- E4 classifiers (Phase 01): the DSNN, its non-spiking twin (`ann`) and a training-free `cosine`
+  control, on voice, EEG and early/late fusions, in dependent and independent text modes
+- Replication: BIOMEX-DB (45 speakers, 6294 pairs), one round, nothing selected on it
+- Simulated dysphonia: the LPC whisper mix in Phase 01, and the WORLD profiles (rough, tremor,
+  pitch jumps, aphonic gaps), each read against a resynthesis control on both bases
 
 ### Feature extractors of the thesis (decided 2026-11-11)
 

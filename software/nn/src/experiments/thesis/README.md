@@ -2,7 +2,7 @@
 
 Biometric authentication of severely dysphonic speakers, helped by EEG of imagined and
 pronounced speech. One C++ binary, `thesis`, runs one **profile** (a JSON file that declares
-every setting; nothing has a default). The thesis is three sets of profiles run in order:
+every setting; nothing has a default). The thesis is these sets of profiles, run in order:
 
 ```
 Phase 00  rank feature extractors, no classifier        profiles/phase00/  275 profiles
@@ -12,7 +12,18 @@ Phase 01  authenticate with the winners             profiles/phase01/  142 profi
    │      (DSNN vs its ANN twin vs cosine; voice, EEG, fusions; simulated dysphonia; ...)
    ▼
 BIOMEX    replicate the Phase 01 cells on a second base  profiles/biomex/   48 profiles
+   │
+   ▼
+WORLD     simulated dysphonia, each level minus its resynthesis control
+          identity pilot (resynthesis alone)                profiles/pilot/     6 profiles
+          grid on Coretto / on BIOMEX-DB                    profiles/world/   150 profiles
+                                                            profiles/bxworld/  90 profiles
 ```
+
+A second binary, `thesis_features` (`tools/thesis_features.cpp`), writes the clean and degraded
+feature vector of every sample of a profile (one CSV row each), through the same loader,
+extractor and degradation as `thesis`; the identity and WORLD analyses
+(`scripts/pipeline/thesis/07_`, `08_`, `09_`) read them.
 
 **The protocol, its rationale and its history are in the wiki:
 [`.wiki/Experiments/Thesis.md`](../../../.wiki/Experiments/Thesis.md).** How to run the
@@ -29,6 +40,9 @@ cmake --build out/build/max-performance --target thesis -j$(nproc)
     --config src/experiments/thesis/profiles/phase00/p00_pca_k8_voice.json   # every repetition
 ./out/build/max-performance/src/experiments/thesis/thesis \
     --config <profile.json> --repeat 1               # only repetition 1 (what the cluster runs)
+cmake --build out/build/max-performance --target thesis_features -j$(nproc)
+./out/build/max-performance/src/experiments/thesis/thesis_features \
+    --config <profile.json> --out-dir <dir>          # feature CSVs, no classifier
 ```
 
 The binary accepts exactly `--config` and `--repeat`; anything else is refused. It reads the
@@ -52,10 +66,12 @@ Never write a profile by hand: they are generated (§ "Changing it" below).
 | `lib/*/ThesisClassifiers.*`, `ThesisDsnnClassifier.hpp`, `ThesisAnnClassifier.hpp`, `ThesisClassifiersInternal.hpp` | Phase 01: the DSNN, its non-spiking twin `ann`, the `cosine` control, EER scoring, nested/flat cross-validation |
 | `lib/*/VoiceDegradation.*` | the simulated dysphonia (LPC whisper mix; described step by step in thesis ch. 8) |
 | `lib/*/VoiceDysphonia.*` | the other simulated dysphonias (WORLD: `resynthesis_control`, `rough`, `tremor`, `voice_breaks`, `diplophonia`; selected by `degradation.profile`) |
+| `lib/*/DegradeVoices.*` | applies the profile's degradation to the voices; shared by `thesis` and `thesis_features`, so both degrade identically |
+| `tools/thesis_features.cpp` | the `thesis_features` binary (feature CSVs of a profile) |
 | `lib/*/ThesisOutput.*`, `ClassificationResult.hpp`, `FoldResult.hpp` | the result files |
 | `lib/include/IndexIntersection.hpp` | order-independent intersection of index lists (the July fold bug) |
-| `profiles/` | generated profiles: `phase00/`, `phase01/`, `biomex/`, `smoke/`, `profiles.manifest`; `debug.json` is a hand-kept quick-run profile |
-| `tests/` | 12 GoogleTest files built into 6 executables (below) |
+| `profiles/` | generated profiles: `phase00/`, `phase01/`, `biomex/`, `pilot/`, `world/`, `bxworld/`, `smoke/`, `profiles.manifest`; `debug.json` is a hand-kept quick-run profile |
+| `tests/` | 13 GoogleTest files (+ `ThesisTestConfig.hpp`) built into 7 executables (below) |
 
 ## Outputs
 
@@ -91,13 +107,13 @@ After any change that alters results, the profiles of record must run again; see
 ```bash
 cmake --build out/build/max-performance -j$(nproc) --target thesis_profile_audit_gtest \
     thesis_feature_extraction_gtest thesis_classifiers_gtest thesis_output_gtest \
-    thesis_spike_loss_e2e_gtest thesis_freearch_gtest
-for t in profile_audit feature_extraction classifiers output spike_loss_e2e freearch; do
+    thesis_spike_loss_e2e_gtest thesis_freearch_gtest thesis_voice_dysphonia_gtest
+for t in profile_audit feature_extraction classifiers output spike_loss_e2e freearch voice_dysphonia; do
     ./out/build/max-performance/src/experiments/thesis/tests/thesis_${t}_gtest || break
 done
 ```
 
-Running the six executables directly is the simplest complete run: `ctest -R` filters by
+Running the seven executables directly is the simplest complete run: `ctest -R` filters by
 GoogleTest suite name, and the suites here do not share a prefix (`Thesis*`, `AnnTwin`,
 `CosineControl`, `EegPairing`, `VoiceDegradation`, …), so `ctest -R Thesis` silently skips some.
 To run one suite: `ctest --test-dir out/build/max-performance -R 'VoiceDegradation' --output-on-failure`.

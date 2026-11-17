@@ -13,7 +13,7 @@ The software's own documentation is the wiki, in `software/nn/.wiki/`.
 | `07-articlesProduced/spm-featurearticle-latex/` | the IEEE Signal Processing Magazine feature-article templates | — |
 | `08-lectures/fronteiras-bitnets-redes-pulso/` | the BitNet / spiking-networks lecture (two decks from one body) | `make` in that folder; the live demos are `software/efficient_nn_lab/` (`abrir-demo.sh`) |
 | `01-researchNotesAndFiles/` | research notes | — |
-| `03-articlesToRead/`, `06-BooksToRead/` | the reading library (PDFs); local additions are often left untracked | — |
+| `03-articlesToRead/`, `06-BooksToRead/` | the reading library (PDFs, tracked); `forTesis/medicine/` holds the voice-quality papers read for the simulated dysphonia (Fant, Liljencrants and Lin 1985 — `1985_26_4_001-013.pdf`; Alku 1992; Hillenbrand 1994, 1996; Kreiman and Gerratt 2005; Maryn 2010; Englert 2017), summarized in `software/nn/.wiki/Experiments/Thesis-Voice-Degradation-Proposal.md` | — |
 | `projeto_de_pesquisa.pdf` | the original research proposal | — |
 
 Data in the papers is never typed by hand: the thesis's `tables/` and the paper's `data/` are

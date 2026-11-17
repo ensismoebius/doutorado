@@ -7,7 +7,7 @@ reference (why it exists, every argument, every refusal); this page says which o
 ```
 scripts/
   pipeline/          ordered chains that turn runs into paper/thesis material
-    thesis/            the thesis (Phase 00 → Phase 01 → BIOMEX-DB → tables → text numbers)
+    thesis/            the thesis (Phase 00 → Phase 01 → BIOMEX-DB → WORLD dysphonia → tables → text numbers)
     meeting01/         the conference paper (nested LOSO) + the GridUnesp cluster tooling
     paraconsistentGA/  the NSGA-II autoencoder search
   analysis/          one-off studies whose CSV a pipeline or the thesis reads
@@ -15,7 +15,7 @@ scripts/
   testing/           test suites, ground-truth fixture generators, the thesis profile runners
   ci/                CI gates (called by .github/workflows/ci.yml)
   dev/               developer tooling
-  lib/               shell helpers sourced by other scripts
+  lib/               helpers sourced or imported by other scripts
   requirements.txt   Python dependencies of all of the above
 ```
 
@@ -25,7 +25,8 @@ scripts in an ordered chain carry their position in the name (`01_`, `02_`, …)
 
 Python: `python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`. The heavy
 packages (`torch`, `snntorch`, …) are needed only by the PyTorch references and analyses;
-the pipeline scripts need only numpy and scipy, and several only the standard library.
+the pipeline scripts need only numpy and scipy, and several only the standard library; the
+dysphonia calibration (`05_`) also needs `praat-parselmouth` (Praat 6.1.38) and a C++ compiler.
 
 ---
 
@@ -40,12 +41,17 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `01_thesis_phase00_rank.py` | reads the Phase 00 results each profile declares, picks the winner per signal and the best per family by `d_penalized`, writes `winners.json`; reports ties |
 | `03_thesis_phase01_significance.sh` | the declared significance families of Phase 01 → `results/thesis/phase01/significance_*.csv` |
 | `04_thesis_biomex_significance.sh` | the same families on the BIOMEX-DB replication → `results/thesis/biomex/significance_*.csv` |
+| `05_thesis_dysphonia_calibration.py` | Praat (parselmouth) calibration of the WORLD rough/tremor requests on real vowels → `results/thesis/dysphonia_calibration/calibration.json` (needed by `00_ --calibration`); minutes, no training |
+| `06_thesis_identity_pilot.py` | verdict of the six `pilot/` profiles (does resynthesis alone move the EER?) → `results/thesis/pilot/pilot_verdict.json` |
+| `07_thesis_identity_margin.py` | the powered identity test on per-utterance margins (`thesis_features` output) → `results/thesis/identity_margin/identity_margin_verdict.json` |
+| `08_thesis_world_analysis.py` | the WORLD grid: Part A margins (confirmatory, each level minus its control) and Part B EER → `results/thesis/world_analysis/` |
+| `09_thesis_world_floor.py` | the pre-registered floor test of the BIOMEX-DB WORLD null → `results/thesis/world_analysis/world_floor.json` |
 | `thesis_cross_profile_significance.py` | the test engine both `.sh` call: per-fold metrics of a family of profiles vs a reference; `--pairing paired\|corrected\|independent`, Holm within the family |
 | `thesis_build_phase00_paraconsistent_tables.py` | `tables/phase00_{hc,ae,pca}_{voice,eegpron,eegimag}.csv` |
 | `thesis_build_phase01_auth_tables.py` | `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv` |
 | `thesis_build_biomex_tables.py` | `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell |
 | `thesis_build_text_numbers.py` | `tables/thesis_numbers.tex`: every number the prose quotes (`\tn{key}`), and `CLAIMS`, the qualitative sentences checked against the data |
-| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`) |
+| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`) |
 
 The profile runners themselves are in `testing/` (`run_thesis_profiles.sh`, `run_thesis_smoke.sh`).
 
@@ -116,6 +122,7 @@ Full procedure: [Data Bases](../.wiki/Guides/Data-Bases.md).
 | `biomex_inventory.py --src [--csv]` | what each BIOMEX volunteer folder holds (read before changing a rule) |
 | `biomex_to_sqlite.py --src --out` | the paired BIOMEX SQLite (`~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite`) |
 | `biomex_verify.py --src --db` | the converted SQLite re-derived by a second path → stamp `<db>.verified` |
+| `world_voicing.py --db` | which voices WORLD's Harvest cannot analyse (the 3 BIOMEX-DB windows the base leaves out); `biomex_verify.py` uses it to prove the list |
 | `sqlite_reader.py`, `verify_sqlite_roundtrip.py`, `verify_sqlite_full.py` | inspect a SQLite base; older MAT → SQLite fidelity checks |
 | `npz_to_pytorch.py` | convert `.npz` model files to PyTorch `.pt` |
 
@@ -180,3 +187,4 @@ Called from `.github/workflows/ci.yml`; renaming one needs the workflow changed 
 | Script | Role |
 |---|---|
 | `run_eta.sh` | work-weighted, EMA-smoothed ETA, sourced by `run_thesis_profiles.sh` and `01_meeting01_run_loso.sh` |
+| `thesis_dysphonia_lib.py` | compiles the thesis's own `VoiceDysphonia.cpp` (vendored WORLD) into a shared library for ctypes; used by `05_thesis_dysphonia_calibration.py` and `data/world_voicing.py` |

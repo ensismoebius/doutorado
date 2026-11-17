@@ -1,8 +1,15 @@
 # Proposal: dysphonia profiles beyond the whisper mix
 
-**Status: PROPOSAL, nothing implemented.** Written 2026-11-15 after an exploration session
-(literature, a WORLD prototype, four blind listening rounds). Current behaviour:
-[Thesis § 4 Simulated dysphonia](./Thesis.md#4-simulated-dysphonia).
+**Status (2026-11-17): implemented, run and in the thesis.** Written 2026-11-15 as a proposal
+after an exploration session (literature, a WORLD prototype, four blind listening rounds); §§ 1–3
+keep the reasoning as it was before anything was built. What happened since, in order: the
+profiles were implemented (`degradation.profile`, `VoiceDysphonia.cpp`), calibrated with Praat
+(§ 3.4.2), the identity pilot was inconclusive (§ 4.3), the powered test found the resynthesis
+control not transparent (§ 4.4), and the WORLD grid ran on both bases (§ 4.5): 9 of 14 levels
+move the Coretto margin beyond resynthesis, none on BIOMEX-DB, and the floor test does not
+explain that null. Current behaviour:
+[Thesis § 4 Simulated dysphonia](./Thesis.md#4-simulated-dysphonia); how to run it:
+[Running Thesis Profiles § 9](../Guides/Running-Thesis-Profiles.md#9-world-dysphonia--calibration-identity-tests-grid-floor).
 
 ## 1. The problem
 

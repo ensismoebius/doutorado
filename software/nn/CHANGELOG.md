@@ -2,6 +2,96 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-17 — full read of the thesis; WORLD grid results; floor test
+
+### Thesis text (`documentation/00-thesis/monography/`)
+
+- Full read of the PDF; findings in `issues.md` § "Leitura integral do PDF", corrected in three
+  commits: group A (8280b0599, the text describes the method that ran: the six descriptors per
+  sub-band group, how Mel/Bark/LFCC/MFCC/BFCC are realized on the DTWPT groups, the DSNN readout
+  as the mean of the logits over T), group B (3ab195841, statements no stronger than the data:
+  energy *estimated* from counted spikes, non-significance not read as equivalence, the
+  replication as one round without re-selection) and group C (b7065ecdf, form and bibliography).
+- Items only the author can close are marked `\pendenteMarca{[PENDENTE: …]}` (e6bc63aa9): catalog
+  record, examining board, defence date, dedication, acknowledgements, epigraph, the source of
+  the Mel formula, the Mastrangelo (2019) chapter, the Web of Science record, the Fig. 48 image.
+- `\dec` (tables read from CSV) prints a true minus sign.
+
+### Changed — generators
+
+- `thesis_build_text_numbers.py` takes a required `--profiles-manifest`: the profile counts the
+  pipeline figure quotes (`pilot.n.total`, `world.n.co`, `world.n.bx`) are counted from
+  `profiles.manifest`, and a missing or empty set is refused.
+- `thesis_build_phase01_auth_tables.py` labels the extractors of `tables/phase01_extractors.csv`
+  as the Phase 00 tables do ("Haar + Linear (c1)", "ANN-AE (base)", "PCA (k = 8)"); an unknown
+  size or model is refused.
+- `ThesisDsnnClassifier.hpp` and `Experiments/Thesis.md`: the readout is described as what the
+  code computes, the mean over T of the final `Linear`'s output (analog logits), not a spike count.
+
+### Fixed — CI
+
+- CI's cppcheck 2.19 (Ubuntu 26.04) reports `constParameterReference` on `row_pointers` in
+  `VoiceDysphonia.cpp` (WORLD writes through the returned pointers); suppressed on that line with
+  the reason (5ad6874c7, whose message says 2.13 by mistake). CI green on b7065ecdf.
+  `Guides/Static-Analysis.md` records the case.
+
+### Added — WORLD grid results and the floor test
+
+- Coretto grid (array 5328285, 150 profiles) and BIOMEX-DB grid (array 5328575, 90 profiles, on
+  the rebuilt base), Part A features (`results/thesis/world_margin/`) and
+  `08_thesis_world_analysis.py` → `results/thesis/world_analysis/`. Coretto: 9 of 14 levels move the
+  per-utterance margin beyond resynthesis; BIOMEX-DB: none, so no level replicates; EER: 0 of 224.
+- `09_thesis_world_floor.py` (rule committed first, 1fd75d377): the BIOMEX-DB null is not a
+  floor effect, r = +0.14, p = 0.218, of the sign opposite to the prediction.
+- BIOMEX-DB replication re-run on the base without the 3 WORLD-unanalysable pairs (array 5328574,
+  6294 pairs): EERs moved by at most 0.0053; every prose claim holds.
+- Thesis ch. 8–10, abstract and appendix B updated with generated numbers (`world.*` keys).
+
+## 2026-11-16 — WORLD grid profiles; BIOMEX-DB leaves out 3 voices
+
+### Added
+
+- The WORLD dysphonia grid, its analysis rule committed before any run (438c38df6):
+  `profiles/world/p01w_*` (Coretto, 5 voice-reading sources x 2 scopes x (control + 14 levels) =
+  150) and `profiles/bxworld/bx01w_*` (BIOMEX-DB, 90). Every level is read against the control of
+  its own cell. The generator takes `--calibration` (its sha256 goes in the manifest);
+  `thesis_gridunesp.sbatch` gains `THESIS_PHASE=world` (0-149) and `bxworld` (0-89), one whole
+  profile per task (31b0235b8: the extraction and resynthesis run once per profile).
+- `scripts/data/world_voicing.py`: which voices WORLD's Harvest cannot analyse.
+
+### Changed
+
+- BIOMEX-DB leaves out the 3 voice windows Harvest finds unvoiced (M006 "siete", two short M014
+  "seis"; `biomex_to_sqlite.py UNANALYSABLE_VOICES`); `biomex_verify.py` rebuilds each and requires
+  the WORLD path to refuse it and to accept every stored voice. The base has 6294 pairs; the other
+  pairs are byte-identical.
+
+### Fixed
+
+- `gridunesp_deploy.sh` resumes a base upload a dropped connection interrupted (`--partial-dir`),
+  so a job never opens a truncated base.
+
+## 2026-11-15 — WORLD dysphonia profiles, Praat calibration, identity tests
+
+### Added
+
+- `degradation.profile` selects the voice-degradation generator: `whisper_mix` (the previous one)
+  or the WORLD profiles `resynthesis_control`, `rough`, `tremor`, `voice_breaks`, `diplophonia`
+  (`VoiceDysphonia.cpp`; WORLD vendored at c794856b). Each profile declares only the keys it reads.
+  The 64 manifest profiles with an enabled degradation now declare `whisper_mix`, which changes
+  their config fingerprint (map in `Experiments/Thesis-Profile-Fingerprints.md`).
+- `thesis_voice_dysphonia_gtest`: closed-loop calibration on a synthetic vowel, control
+  transparency, determinism, concurrency, refusals.
+- `05_thesis_dysphonia_calibration.py`: the rough/tremor requests calibrated on 134 real vowels,
+  measured with Praat 6.1.38 (Parselmouth 0.4.7) → `results/thesis/dysphonia_calibration/`.
+- Identity pilot (`profiles/pilot/`, `06_thesis_identity_pilot.py`, rule committed first):
+  INCONCLUSIVE (15 dependent EER pairs cannot reach the ±0.01 margin).
+- Powered identity test (`tools/thesis_features`, `07_thesis_identity_margin.py`, rule committed
+  first): `resynthesis_control` is NOT transparent (margin shift −0.0976 against the whisper l25
+  yardstick −0.0273). Every WORLD profile is therefore read as "profile minus control".
+- Proposal page `Experiments/Thesis-Voice-Degradation-Proposal.md` (decisions, rules, results);
+  bibliography: Praat, Parselmouth, WORLD, Kreiman and Gerratt 2005, Englert et al. 2017.
+
 ## 2026-11-14 — every data base in one directory
 
 ### Changed

@@ -849,3 +849,10 @@ afirmações a ajustar; os C, forma.
 - **MASTRANGELO 2019** (`Tatum2019NormalAwakeAdultEEG2`): a busca não confirmou um capítulo de Mastrangelo, Scelsa e Pisani com o título "Normal Awake Adult EEG" (Mastrangelo aparece nos capítulos neonatais, "Normal Neonatal EEG", págs. 177–202). Só os separadores de autor foram corrigidos; o autor confere título, autores e capítulo no livro.
 - **Fig. 48**: a imagem (sem fonte editável) traz "0.5" e "Packet-wavelet"; a legenda agora explica o par de filtros e o ponto decimal da figura.
 - Só o autor: Comissão Examinadora, data, dedicatória, agradecimentos, epígrafe, ficha catalográfica.
+
+**Marcações no texto (2026-11-17, commit e6bc63aa9).** Cada pendência que só o autor resolve está
+marcada no PDF com `\pendenteMarca{[PENDENTE: …]}` (10 marcações): ficha catalográfica, composição
+da banca, data da defesa, dedicatória, agradecimentos, epígrafe, fonte da fórmula Mel, capítulo de
+Mastrangelo (2019), registro da busca no Web of Science e o texto da imagem da Fig. 48. Para
+listá-las: `pdftotext monografia.pdf - | grep PENDENTE`. Retirar cada uma ao resolver o item;
+nenhuma pode chegar à versão de defesa.

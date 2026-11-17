@@ -55,7 +55,7 @@ is verified by hash on download, so a re-download is the same input.
 ```
  biomex.sqlite, what it holds                       who reads it
  ──────────────────────────────────────────────     ───────────────────────────────
- speaker 1..45     excluded = 0   6297 pairs   ───► the thesis binary, base_facts, the verifier
+ speaker 1..45     excluded = 0   6294 pairs   ───► the thesis binary, base_facts, the verifier
  speaker 46..51    excluded = 1    560 pairs   ───► nobody (kept for the record)
 ```
 
@@ -70,15 +70,16 @@ stores 140 pairs built on that guess, flagged `excluded = 1`, and no reader sele
 | | `excluded = 0` (45 volunteers) | `excluded = 1` (6 volunteers) |
 |---|---|---|
 | ids | 1..45 (the order of the folders) | 46..51, after the kept ones |
-| pairs | 6297, verified against the originals | 560 (F007 140, M001 0, M007 0, M010 140, M018 140, M024 140), **not verified** |
+| pairs | 6294 (ids 1..6294), verified against the originals | 560 (F007 140, M001 0, M007 0, M010 140, M018 140, M024 140), **not verified** |
 | `excluded_reason` | `NULL` | why the rule dropped them, then `Stored: ...` what could still be paired (M001: two complete recordings, nothing says which the voice used, so no pairs for that session; M007: a digit pair 1.96 s apart, shorter than the 2 s epoch, so none) |
 | read by | `ThesisDataset.cpp`, `thesis_base_facts.py`, `biomex_verify.py` | nobody: each reader's query has `WHERE speaker.excluded = 0`, with a comment saying why |
 
 **Failure mode: silent.** A new query on `pair` without the `excluded = 0` join would still
 run, and would add 560 pairs of unverified origin to the data (and 6 speakers to the group
-count, which changes folds). The kept ids 1..45 and pair ids 1..6297 are deliberately
-unchanged by the excluded rows (they come after), so the folds of every earlier result stay
-the same. Test: `ExcludedSpeakersAreNeverRead` (C++, a truncated voice blob on an excluded
+count, which changes folds). The kept ids 1..45 and pair ids 1..6294 are deliberately
+unchanged by the excluded rows (they come after, 6295..6854), so the excluded rows never move
+a fold. (Leaving out the 3 WORLD-unanalysable pairs on 2026-11-16 did renumber the kept pairs;
+the BIOMEX-DB replication was re-run on that base, array 5328574.) Test: `ExcludedSpeakersAreNeverRead` (C++, a truncated voice blob on an excluded
 speaker would crash a reader that touched it) and `BaseFacts` in `test_thesis_base_checks.py`.
 
 All commands run from `software/nn/`. The scripts live in `scripts/data/` (conversion and
@@ -94,7 +95,7 @@ verification) and `scripts/analysis/` (facts the thesis quotes).
 | EEG | 6 channels (F3 F4 C3 C4 P3 P4), 1024 Hz | Emotiv Epoc, 14 channels, 128 Hz, written at the Coretto rates |
 | Voice | 44.1 kHz | 16 kHz, written at 44.1 kHz |
 | Source | authors' `.mat` files (DOI 10.1117/12.2255697); EEG re-hosted on Zenodo, record 19502780 | Mendeley Data, DOI 10.17632/s7chktmb6x.1, CC BY 4.0 |
-| SQLite schema | `subject`, `modalities`, `stimulus`, `trial` (9315), `eeg_samples` (9315), `audio_samples` (1974: pronounced trials only) | `speaker` (51: 45 with `excluded = 0`, 6 flagged `excluded = 1`), `stimulus` (10), `pair` (6297 read + 560 stored for the excluded), `recording` (key/value provenance); format `thesis-paired-v2` |
+| SQLite schema | `subject`, `modalities`, `stimulus`, `trial` (9315), `eeg_samples` (9315), `audio_samples` (1974: pronounced trials only) | `speaker` (51: 45 with `excluded = 0`, 6 flagged `excluded = 1`), `stimulus` (10), `pair` (6294 read + 560 stored for the excluded), `recording` (key/value provenance); format `thesis-paired-v2` |
 | Read by | `ThesisDataset.cpp`, `dataset.source = "coretto2017"` | `ThesisDataset.cpp`, `dataset.source = "biomex2021"` |
 
 The profile key `dataset.root` names the file (`<databases>/database.sqlite` or `<databases>/biomex.sqlite`).
@@ -153,8 +154,15 @@ python3 scripts/data/biomex_verify.py                           # checks it agai
   the base (`speaker.excluded = 1`) and never processed; see the table above.
 - **Edge pairs are dropped.** The EEG goes through the Coretto authors' own FIR filter. A pair
   whose EEG epoch lies within the filter's reach (788 samples) of a session edge cannot be
-  filtered like the others, so it is dropped (M015 and M019, one digit each). Result:
-  6297 pairs.
+  filtered like the others, so it is dropped (M015 and M019, one digit each).
+- **Voices WORLD cannot analyse are dropped (2026-11-16).** Every WORLD dysphonia profile starts
+  with Harvest's F0 contour; a voice with no voiced frame has no pitch to edit and is refused (no
+  fallback). Three windows do that: M006 01G10 series 1 digit 1 (a faint hum, no word) and two
+  very short M014 "seis". The user decided they leave the base: `UNANALYSABLE_VOICES` in
+  `biomex_to_sqlite.py` (a stale entry is refused); `biomex_verify.py` rebuilds each from the
+  originals and requires the WORLD path (`scripts/data/world_voicing.py`) to refuse it and to
+  accept every stored voice. Result: 6294 pairs = 45 × 140 − 6 (1 unlabelled digit, 2 edge, 3
+  unanalysable).
 - Both signals are written at the Coretto rates (44.1 kHz voice, 1024 Hz EEG), so the same
   extractors read both bases.
 
@@ -168,7 +176,8 @@ The stamp files are how a later step knows the SQLite it reads is the one that w
 ```
 <databases>/biomex.sqlite.verified
   line 1: 2a4aaf29…   sha256 of biomex.sqlite when it passed
-  line 2: {"volunteers": 45, "excluded": [...], "pairs_equal": 6297, "differences": 0, ...}
+  line 2: {"volunteers": 45, "excluded": [...], "pairs_equal": 6294, "differences": 0,
+           "edge_dropped": [...], "unanalysable": [3 windows], "world_refused_stored": 0, ...}
 ```
 
 `scripts/analysis/thesis_base_facts.py` reads both bases **and** both stamps:
