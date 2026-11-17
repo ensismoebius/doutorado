@@ -856,3 +856,26 @@ da banca, data da defesa, dedicatória, agradecimentos, epígrafe, fonte da fór
 Mastrangelo (2019), registro da busca no Web of Science e o texto da imagem da Fig. 48. Para
 listá-las: `pdftotext monografia.pdf - | grep PENDENTE`. Retirar cada uma ao resolver o item;
 nenhuma pode chegar à versão de defesa.
+
+## Segunda leitura independente: Gemini via Antigravity (2026-11-17)
+
+Protocolo em `review_antigravity.md`; relatório em `review_antigravity_report.md` (commit revisado
+`5a35becec`). Cada achado foi conferido no fonte e no código antes de corrigir.
+
+| Achado | Veredito | O que foi feito |
+|---|---|---|
+| A1 entrada da fusão precoce | procede em parte: o item "fusão precoce" já dizia que a taxa da voz vale para o vetor inteiro, mas a seção da entrada dos *autoencoders* não dizia o que isso faz com as 256 bandas | frase nova em `sec:aeEntrada`: banda $k$ ≈ $k\times86$ Hz na voz e $k\times2$ Hz no EEG; na fusão precoce cada banda soma as duas |
+| A2 índices da DCT trocados entre texto e código | não procede: a fórmula do texto é a usual e equivale à do código (o próprio relatório o diz) | nada |
+| B1 $\sqrt2+0{,}5858\approx2{,}4142$ | procede (a conta dá 2, como a Eq. do $\lambda$ impõe) | corrigido |
+| B2 "($dt=\tau$)" com $dt=1$, $\tau=5$ | procede | "($dt=\tau/5$)" |
+| B3 "$E_k$ a energia logarítmica" e depois $\log(E_k)$ | procede | "$E_k$ a energia"; o logaritmo de $E_k$ é que vai à DCT |
+| B4 AUC sem o meio ponto dos empates | procede (`eer_scorer.cpp` conta um empate como 1/2) | termo $\tfrac12 P(=)$ na definição |
+| B5 98,1 % e a Tabela 9 digitados | procede: também os níveis em dB, 2653 e 9315 | `thesis_eeg_band_power.py` grava níveis, parcelas e contagens; o gerador lê com `--eeg-band-power` (chaves `eegpow.*`, 2 CLAIMS novas); cap. 2 e cap. 5 usam `\tn` |
+| C1 Eq. 2.7, 4ª linha sem o sinal | procede: a correção do grupo C entrou na Eq. 2.6, não na 2.7 | corrigido |
+| C2 "se pretende-se" | procede | "se pretende" |
+| C3 `\cite` como parte da frase no Resumo | procede, e o mesmo erro estava em 57 outros lugares ("segundo (AUTOR, ano)", "proposta por (…)", "Adaptado de (…)") | todos `\citeonline`; no Abstract a frase foi reescrita com a citação entre parênteses (o `\citeonline` do abnTeX escreve "e" em inglês); "paraconsistência \cite{a}, \cite{b} é" virou uma citação só, com a vírgula |
+| C4 STDP depois de SVM | procede | ordem alfabética |
+| C5 `6400235` duplicada | procede | segunda entrada removida |
+| C6 siglas sem chaves ("Eeg-based") | procede: a regex do grupo C não pegava sigla com hífen | 37 títulos corrigidos (toda palavra com duas ou mais maiúsculas fora de chaves) |
+| C7 $\hat\rho$ sem o índice $i$ | procede | $\hat\rho_i$ |
+| C8 "base CN-Celeb" na coluna de sujeitos | procede | "3000 (base CN-Celeb)", da Tabela 1 de Wang et al. (2023) |

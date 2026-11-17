@@ -123,6 +123,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
   --world-analysis results/thesis/world_analysis \
   --profiles-manifest src/experiments/thesis/profiles/profiles.manifest \
+  --eeg-band-power results/thesis/eeg_band_power.csv \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex
 
 # 5. the PDF (§ Building the PDF)

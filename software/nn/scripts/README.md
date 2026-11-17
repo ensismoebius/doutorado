@@ -107,7 +107,7 @@ The paper's experiment is the nested leave-one-group-out grid of `profiles/meeti
 |---|---|---|
 | `thesis_base_facts.py --biomex --coretto --out` | `results/thesis/base_facts.csv`: the base facts ch. 8 states, from the bases and their verification stamps | `thesis_build_text_numbers.py` (`base.*`) |
 | `thesis_ae_input_reference.py --db --out` | `results/thesis/ae_input_reference.csv`: does the AE/PCA input carry the speaker (needs torch) | `thesis_build_text_numbers.py` (`aeinput.*`) |
-| `thesis_eeg_band_power.py --db --out` | `results/thesis/eeg_band_power.csv`: where the EEG power lies relative to the 32 Hz sub-bands | quoted in `issues.md` / ch. 8 discussion |
+| `thesis_eeg_band_power.py --db --out` | `results/thesis/eeg_band_power.csv`: where the EEG power lies relative to the 32 Hz sub-bands (levels, shares, blink count) | `thesis_build_text_numbers.py` (`eegpow.*`: ch. 2 table and text, ch. 5) |
 | `compare_ann_ae_torch.py`, `compare_lstm_ae_torch.py`, `snn_gap_ablation_torch.py` | Meeting01: PyTorch twins and ablations that explain the SNN-AE gap | the Meeting01 wiki page |
 
 ## data/ — the bases

@@ -8,7 +8,8 @@ the distributed database instead of assuming it (scipy only, none of the C++).
 
 WHAT. Welch spectrum (1 Hz bins) of every trial, mean over the six channels and over all
 trials; prints the level at chosen frequencies relative to the 8-12 Hz (alpha) level, the
-share of power per range, and the number of trials the database flags with a blink.
+share of power per range, and the number of trials the database flags with a blink. The CSV
+holds all of them, one row per quantity; thesis_build_text_numbers.py reads it (keys eegpow.*).
 
 Measured 2026-11-12 on the 9315 trials: -30 dB at 46 Hz, -58 dB at 50 Hz, -87 dB at 54 Hz
 (consistent with the FIR band-pass of 2-40 Hz the database authors apply,
@@ -49,18 +50,26 @@ def main() -> None:
         total = p.mean(0) if total is None else total + p.mean(0)
     pm = total / len(rows)
     ref = pm[(f >= 8) & (f <= 12)].mean()
+    blink = dict(con.execute("select blink, count(*) from eeg_samples group by blink").fetchall())
+    if set(blink) != {1, 2}:
+        raise SystemExit("unexpected blink flags %s (expected 1 = no blink, 2 = blink)" % blink)
+    # One row per quantity, read by thesis_build_text_numbers.py (keys eegpow.*): the thesis
+    # quotes these numbers, so they are generated, never typed.
     with open(args.out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["frequency_hz", "level_db_re_alpha"])
+        w.writerow(["quantity", "at", "value"])
         for hz in PROBES:
             i = int(np.argmin(np.abs(f - hz)))
             level = 10 * np.log10(pm[i] / ref)
-            w.writerow([hz, "%.1f" % level])
+            w.writerow(["level_db_re_alpha", hz, "%.4f" % level])
             print("%5d Hz  %7.1f dB re 8-12 Hz" % (hz, level))
-    for a, b in RANGES:
-        print("power %3d-%3d Hz: %5.1f%%" % (a, b, 100 * pm[(f >= a) & (f < b)].sum() / pm.sum()))
-    blink = con.execute("select blink, count(*) from eeg_samples group by blink").fetchall()
-    print("trials:", len(rows), " blink flag counts (1 = no blink, 2 = blink):", dict(blink))
+        for a, b in RANGES:
+            share = 100 * pm[(f >= a) & (f < b)].sum() / pm.sum()
+            w.writerow(["share_pct", "%d-%d" % (a, b), "%.4f" % share])
+            print("power %3d-%3d Hz: %5.1f%%" % (a, b, share))
+        w.writerow(["trials", "", len(rows)])
+        w.writerow(["blink_trials", "", blink[2]])
+    print("trials:", len(rows), " blink flag counts (1 = no blink, 2 = blink):", blink)
 
 
 if __name__ == "__main__":
