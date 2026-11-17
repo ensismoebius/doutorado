@@ -761,9 +761,13 @@ CLAIMS = [
      lambda v, t: v("base.coretto.s01o.base") == v("base.coretto.s01o.paper") + 1),
     ("ch8: with the same digital filter, BIOMEX-DB holds less power below 2 Hz than Coretto",
      lambda v, t: v("base.biomex.below2hz.pct") < v("base.coretto.below2hz.pct")),
-    ("ch8: the pairs left out are exactly the edge ones plus the unlabelled ones",
+    ("ch8: the pairs left out are exactly the edge ones, the unlabelled ones and the "
+     "WORLD-unanalysable ones (a hum-only window and two very short 'seis', two volunteers)",
      lambda v, t: v("base.biomex.pairs.dropped")
-     == v("base.biomex.pairs.edge") + v("base.biomex.pairs.unlabelled")),
+     == v("base.biomex.pairs.edge") + v("base.biomex.pairs.unlabelled")
+     + v("base.biomex.pairs.unanalysable")
+     and v("base.biomex.pairs.unanalysable") == 3
+     and t("base.biomex.pairs.unanalysable.list") == "M006, M014"),
     ("ch8: BIOMEX-DB is upsampled to the Coretto rates (written at 44.1 kHz / 1024 Hz)",
      lambda v, t: v("base.biomex.voice.sample.rate") == 44100
      and v("base.biomex.eeg.sample.rate") == 1024),

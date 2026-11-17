@@ -7,12 +7,14 @@ base.biomex.kept.f,count,24
 base.biomex.kept.m,count,21
 base.biomex.excluded,count,6
 base.biomex.excluded.list,text,"F007, M001, M007, M010, M018, M024"
-base.biomex.pairs,count,6297
+base.biomex.pairs,count,6294
 base.biomex.pairs.protocol,count,140
-base.biomex.pairs.dropped,count,3
+base.biomex.pairs.dropped,count,6
 base.biomex.pairs.edge,count,2
 base.biomex.pairs.edge.list,text,"M015, M019"
 base.biomex.pairs.unlabelled,count,1
+base.biomex.pairs.unanalysable,count,3
+base.biomex.pairs.unanalysable.list,text,"M006, M014"
 base.biomex.voice.shifted,count,15
 base.biomex.voice.cut,count,49
 base.biomex.csv.missing,count,5
