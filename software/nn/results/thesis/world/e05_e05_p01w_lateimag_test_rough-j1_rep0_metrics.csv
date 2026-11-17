@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.229412,0.871920,17585.795,31.919,results/thesis/world/models/e05_p01w_lateimag_test_rough-j1_rep0/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.236686,0.827159,17478.068,31.775,results/thesis/world/models/e05_p01w_lateimag_test_rough-j1_rep0/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.286458,0.819987,16826.960,34.390,results/thesis/world/models/e05_p01w_lateimag_test_rough-j1_rep0/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.375000,0.651180,17331.078,31.446,results/thesis/world/models/e05_p01w_lateimag_test_rough-j1_rep0/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.248649,0.854171,17050.261,35.001,results/thesis/world/models/e05_p01w_lateimag_test_rough-j1_rep0/handcrafted-lfcc-fused-late/fold_4.bin

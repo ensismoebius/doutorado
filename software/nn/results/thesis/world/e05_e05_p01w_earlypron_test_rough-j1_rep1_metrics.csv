@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.187500,0.904265,13974.181,23.966,results/thesis/world/models/e05_p01w_earlypron_test_rough-j1_rep1/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.248538,0.840806,14042.264,25.059,results/thesis/world/models/e05_p01w_earlypron_test_rough-j1_rep1/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.213889,0.880077,13855.492,25.809,results/thesis/world/models/e05_p01w_earlypron_test_rough-j1_rep1/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.166667,0.926883,13845.177,25.155,results/thesis/world/models/e05_p01w_earlypron_test_rough-j1_rep1/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.202381,0.900953,14092.742,23.738,results/thesis/world/models/e05_p01w_earlypron_test_rough-j1_rep1/handcrafted-lfcc-fused-early/fold_4.bin

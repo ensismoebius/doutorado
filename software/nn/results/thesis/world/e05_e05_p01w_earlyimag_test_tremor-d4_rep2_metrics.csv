@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.274854,0.820081,14723.692,25.464,results/thesis/world/models/e05_p01w_earlyimag_test_tremor-d4_rep2/handcrafted-lfcc-fused-early/fold_0.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.128342,0.951414,14431.080,28.686,results/thesis/world/models/e05_p01w_earlyimag_test_tremor-d4_rep2/handcrafted-lfcc-fused-early/fold_1.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.301136,0.787448,14659.619,26.604,results/thesis/world/models/e05_p01w_earlyimag_test_tremor-d4_rep2/handcrafted-lfcc-fused-early/fold_2.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.357988,0.703722,14808.749,26.228,results/thesis/world/models/e05_p01w_earlyimag_test_tremor-d4_rep2/handcrafted-lfcc-fused-early/fold_3.bin
+handcrafted-lfcc-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.183784,0.899679,14465.645,28.497,results/thesis/world/models/e05_p01w_earlyimag_test_tremor-d4_rep2/handcrafted-lfcc-fused-early/fold_4.bin

@@ -1,0 +1,227 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "eeg_condition": "pronounced",
+      "fusion_mode": "early",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/world",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+      "source": "coretto2017"
+    },
+    "degradation": {
+      "enabled": true,
+      "f0_depth_pct": 10.208999633789063,
+      "profile": "tremor",
+      "rate_hz": 5.0,
+      "scope": "probes",
+      "seed": 7
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01w_earlypron_probes_tremor-d10_rep0",
+      "seed": 42,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 17271833851308260448,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "fused",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.12343820080573091,
+      "energy": {
+        "accesses": 354734.5300913184,
+        "fp_adds": 116545.19988477882,
+        "fp_macs": 16399.0,
+        "mem_nj": 4804.1474225024895,
+        "nj": 4995.328926481747,
+        "nj_as_executed": 9810.524281320457,
+        "nj_sram1m": 35664.6345131111,
+        "nj_sram32k": 7285.872105805625,
+        "nj_sram8k": 3738.5268048924418,
+        "ops_nj": 191.1815039792573,
+        "spikes": 1462.959055215857
+      },
+      "feature_set": "handcrafted-lfcc-fused-early",
+      "final_sops": 91827,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 368525.3121387283,
+            "fp_adds": 121154.95953757224,
+            "fp_macs": 16399.0,
+            "mem_nj": 4986.860341226925,
+            "nj": 5182.644981689353,
+            "nj_as_executed": 9997.840336528063,
+            "nj_sram1m": 37048.315854335255,
+            "nj_sram32k": 7566.290883236993,
+            "nj_sram8k": 3881.037761849711,
+            "ops_nj": 195.78464046242775,
+            "spikes": 1529.1907514450868
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003758273320272565,
+          "fold": 0,
+          "infer_ms": 25.766527,
+          "model_path": "results/thesis/world/models/e05_p01w_earlypron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-early/fold_0.bin",
+          "train_ms": 14625.552239
+        },
+        {
+          "energy": {
+            "accesses": 366738.51744186046,
+            "fp_adds": 120552.09302325582,
+            "fp_macs": 16399.0,
+            "mem_nj": 4966.142983870968,
+            "nj": 5161.327114684922,
+            "nj_as_executed": 9976.52246952363,
+            "nj_sram1m": 36869.035875,
+            "nj_sram32k": 7529.954479651163,
+            "nj_sram8k": 3862.569305232558,
+            "ops_nj": 195.1841308139535,
+            "spikes": 1505.6220930232557
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.003908125218003988,
+          "fold": 1,
+          "infer_ms": 25.874942,
+          "model_path": "results/thesis/world/models/e05_p01w_earlypron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-early/fold_1.bin",
+          "train_ms": 14626.648844
+        },
+        {
+          "energy": {
+            "accesses": 330345.3487179487,
+            "fp_adds": 108404.51282051283,
+            "fp_macs": 16399.0,
+            "mem_nj": 4474.83005624483,
+            "nj": 4657.879449065344,
+            "nj_as_executed": 9473.074803904054,
+            "nj_sram1m": 33217.58426461538,
+            "nj_sram32k": 6789.956367179487,
+            "nj_sram8k": 3486.50288,
+            "ops_nj": 183.04939282051285,
+            "spikes": 1377.2
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.004710473120212555,
+          "fold": 2,
+          "infer_ms": 28.028347,
+          "model_path": "results/thesis/world/models/e05_p01w_earlypron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-early/fold_2.bin",
+          "train_ms": 14089.158066
+        },
+        {
+          "energy": {
+            "accesses": 359651.6742857143,
+            "fp_adds": 118195.2,
+            "fp_macs": 16399.0,
+            "mem_nj": 4865.931998156682,
+            "nj": 5058.759435870968,
+            "nj_as_executed": 9873.954790709678,
+            "nj_sram1m": 36157.99486628571,
+            "nj_sram32k": 7385.860923428571,
+            "nj_sram8k": 3789.3441805714283,
+            "ops_nj": 192.82743771428574,
+            "spikes": 1503.6228571428571
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0041061220690608025,
+          "fold": 3,
+          "infer_ms": 25.868219,
+          "model_path": "results/thesis/world/models/e05_p01w_earlypron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-early/fold_3.bin",
+          "train_ms": 14547.640373
+        },
+        {
+          "energy": {
+            "accesses": 348411.7978723404,
+            "fp_adds": 114419.23404255319,
+            "fp_macs": 16399.0,
+            "mem_nj": 4726.971733013041,
+            "nj": 4916.033651098147,
+            "nj_as_executed": 9731.229005936855,
+            "nj_sram1m": 35030.24170531915,
+            "nj_sram32k": 7157.2978755319145,
+            "nj_sram8k": 3673.1798968085104,
+            "ops_nj": 189.0619180851064,
+            "spikes": 1399.159574468085
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0038426092360168695,
+          "fold": 4,
+          "infer_ms": 27.430656,
+          "model_path": "results/thesis/world/models/e05_p01w_earlypron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-early/fold_4.bin",
+          "train_ms": 14298.74344
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7793824005497163,
+      "mean_eer": 0.28927035804847423,
+      "mean_f1": null,
+      "mean_infer_ms": 26.593738199999997,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.355991268157959,
+      "mean_train_ms": 14437.5485924,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.11665379946979185,
+      "std_eer": 0.09942946974851717,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01w_earlypron_probes_tremor-d10_rep0",
+  "seed": 42,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

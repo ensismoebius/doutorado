@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc,dsnn,dependent,0,nan,nan,nan,nan,nan,0.421053,0.617233,15153.709,26.638,results/thesis/world/models/e05_p01w_voice_test_aphonic-r2_rep2/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,dependent,1,nan,nan,nan,nan,nan,0.270053,0.818182,14744.649,28.989,results/thesis/world/models/e05_p01w_voice_test_aphonic-r2_rep2/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,dependent,2,nan,nan,nan,nan,nan,0.491477,0.530943,14976.440,27.003,results/thesis/world/models/e05_p01w_voice_test_aphonic-r2_rep2/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,dependent,3,nan,nan,nan,nan,nan,0.443787,0.596023,14594.236,25.428,results/thesis/world/models/e05_p01w_voice_test_aphonic-r2_rep2/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,dependent,4,nan,nan,nan,nan,nan,0.335135,0.728955,14013.320,27.435,results/thesis/world/models/e05_p01w_voice_test_aphonic-r2_rep2/handcrafted-lfcc/fold_4.bin

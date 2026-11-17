@@ -1,0 +1,226 @@
+{
+  "classifier": "dsnn",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "layer_spec": [
+        "linear:128:relu",
+        "residual:2",
+        "linear:N_speakers:identity"
+      ],
+      "text_mode": "dependent",
+      "type": "dsnn"
+    },
+    "dataset": {
+      "max_samples": 0,
+      "modality": "voice",
+      "results_dir": "results/thesis/world",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+      "source": "coretto2017"
+    },
+    "degradation": {
+      "break_kind": "pitch_jump",
+      "break_ms": 80.0,
+      "breaks_per_second": 0.5,
+      "enabled": true,
+      "profile": "voice_breaks",
+      "scope": "probes",
+      "seed": 7
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_p01w_voice_probes_jump-r05_rep2",
+      "seed": 44,
+      "seed_deterministic": false
+    },
+    "feature_extraction": {
+      "handcrafted": {
+        "cepstral": false,
+        "descriptors": [
+          "energy",
+          "zcr",
+          "entropy",
+          "teager",
+          "jitter",
+          "shimmer"
+        ],
+        "dtwpt_level": 4,
+        "scale": "lfcc",
+        "transform": "dtwpt",
+        "wavelet": "haar"
+      },
+      "strategy": "handcrafted"
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "training": {
+      "batch_normalization": "none",
+      "epochs": 50,
+      "firing_rate_reg_lambda": 0.0,
+      "gradient_clip_norm": 0.0,
+      "k_folds": 5,
+      "learning_rate": 0.0010000000474974513,
+      "nested_cv": false,
+      "optimizer_type": "adam",
+      "samples_per_batch": 32,
+      "standardize_features": true,
+      "weight_decay": 0.0
+    }
+  },
+  "config_hash": 18444707751407314337,
+  "dataset": {
+    "n_samples": 1974,
+    "n_stimuli": 11,
+    "n_subjects": 15
+  },
+  "modality": "voice",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.08883071493527375,
+      "energy": {
+        "accesses": 354135.3885537217,
+        "fp_adds": 116357.54362550649,
+        "fp_macs": 16399.0,
+        "mem_nj": 4789.557813931914,
+        "nj": 4980.548576612323,
+        "nj_as_executed": 9795.743931451032,
+        "nj_sram1m": 35604.52961805257,
+        "nj_sram32k": 7273.698533754839,
+        "nj_sram8k": 3732.344648217624,
+        "ops_nj": 190.99076268040676,
+        "spikes": 1493.8094509974035
+      },
+      "feature_set": "handcrafted-lfcc",
+      "final_sops": 81466,
+      "fold_models": [
+        {
+          "energy": {
+            "accesses": 331560.5,
+            "fp_adds": 108823.72413793103,
+            "fp_macs": 16399.0,
+            "mem_nj": 4484.05898591027,
+            "nj": 4667.523522691879,
+            "nj_as_executed": 9482.71887753059,
+            "nj_sram1m": 33339.51453678161,
+            "nj_sram32k": 6814.674536781609,
+            "nj_sram8k": 3499.0695367816093,
+            "ops_nj": 183.46453678160924,
+            "spikes": 1417.8735632183907
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.007294527720659971,
+          "fold": 0,
+          "infer_ms": 26.15881,
+          "model_path": "results/thesis/world/models/e05_p01w_voice_probes_jump-r05_rep2/handcrafted-lfcc/fold_0.bin",
+          "train_ms": 15002.926395
+        },
+        {
+          "energy": {
+            "accesses": 360424.2210526316,
+            "fp_adds": 118454.31578947368,
+            "fp_macs": 16399.0,
+            "mem_nj": 4875.702692699491,
+            "nj": 5068.788639541596,
+            "nj_as_executed": 9883.983994380307,
+            "nj_sram1m": 36235.50805210527,
+            "nj_sram32k": 7401.570367894738,
+            "nj_sram8k": 3797.3281573684217,
+            "ops_nj": 193.08594684210527,
+            "spikes": 1509.6894736842105
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.007852756418287754,
+          "fold": 1,
+          "infer_ms": 29.494216,
+          "model_path": "results/thesis/world/models/e05_p01w_voice_probes_jump-r05_rep2/handcrafted-lfcc/fold_1.bin",
+          "train_ms": 14691.80304
+        },
+        {
+          "energy": {
+            "accesses": 373594.9776536313,
+            "fp_adds": 122852.91620111732,
+            "fp_macs": 16399.0,
+            "mem_nj": 5052.261097495045,
+            "nj": 5249.740363975491,
+            "nj_as_executed": 10064.935718814202,
+            "nj_sram1m": 37556.97703184358,
+            "nj_sram32k": 7669.378819553072,
+            "nj_sram8k": 3933.4290430167603,
+            "ops_nj": 197.47926648044694,
+            "spikes": 1562.4972067039107
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.007019162178039551,
+          "fold": 2,
+          "infer_ms": 27.242783,
+          "model_path": "results/thesis/world/models/e05_p01w_voice_probes_jump-r05_rep2/handcrafted-lfcc/fold_2.bin",
+          "train_ms": 14901.374264
+        },
+        {
+          "energy": {
+            "accesses": 361439.9302325581,
+            "fp_adds": 118801.95348837209,
+            "fp_macs": 16399.0,
+            "mem_nj": 4884.876751687922,
+            "nj": 5078.307676687921,
+            "nj_as_executed": 9893.503031526632,
+            "nj_sram1m": 36337.423948255804,
+            "nj_sram32k": 7422.229529651162,
+            "nj_sram8k": 3807.830227325581,
+            "ops_nj": 193.43092500000003,
+            "spikes": 1536.2848837209303
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.0072379992343485355,
+          "fold": 3,
+          "infer_ms": 26.805618,
+          "model_path": "results/thesis/world/models/e05_p01w_voice_probes_jump-r05_rep2/handcrafted-lfcc/fold_3.bin",
+          "train_ms": 15042.695196
+        },
+        {
+          "energy": {
+            "accesses": 343657.31382978725,
+            "fp_adds": 112854.8085106383,
+            "fp_macs": 16399.0,
+            "mem_nj": 4650.889541866849,
+            "nj": 4838.382680164722,
+            "nj_as_executed": 9653.578035003433,
+            "nj_sram1m": 34553.2245212766,
+            "nj_sram32k": 7060.639414893617,
+            "nj_sram8k": 3624.066276595745,
+            "ops_nj": 187.49313829787235,
+            "spikes": 1442.7021276595744
+          },
+          "epochs_run": 50,
+          "final_train_loss": 0.006942161358892918,
+          "fold": 4,
+          "infer_ms": 28.95648,
+          "model_path": "results/thesis/world/models/e05_p01w_voice_probes_jump-r05_rep2/handcrafted-lfcc/fold_4.bin",
+          "train_ms": 14717.526373
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7123620698493907,
+      "mean_eer": 0.34617416152364944,
+      "mean_f1": null,
+      "mean_infer_ms": 27.7315814,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_spike_rate": 0.3390346527099609,
+      "mean_train_ms": 14871.2650536,
+      "param_count": 30869,
+      "std_accuracy": null,
+      "std_auc": 0.0950593427018985,
+      "std_eer": 0.07155314016036671,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_p01w_voice_probes_jump-r05_rep2",
+  "seed": 44,
+  "strategy": "handcrafted",
+  "text_mode": "dependent"
+}

@@ -1,0 +1,2 @@
+x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall specificity std_specificity eer std_eer ci95_eer auc std_auc
+0 handcrafted-lfcc-fused-early nan nan nan nan nan nan nan nan nan 0.199594 0.053068 0.065882 0.884761 0.053507

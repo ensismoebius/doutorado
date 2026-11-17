@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.297059,0.792803,17093.043,27.938,results/thesis/world/models/e05_p01w_latepron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.230769,0.841480,17476.507,30.870,results/thesis/world/models/e05_p01w_latepron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.213542,0.857463,16419.037,31.824,results/thesis/world/models/e05_p01w_latepron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.325581,0.707883,16942.193,27.335,results/thesis/world/models/e05_p01w_latepron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.281081,0.771205,16860.000,33.111,results/thesis/world/models/e05_p01w_latepron_probes_tremor-d10_rep0/handcrafted-lfcc-fused-late/fold_4.bin

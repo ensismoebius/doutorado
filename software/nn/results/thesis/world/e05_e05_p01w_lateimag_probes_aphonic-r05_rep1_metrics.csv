@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.107955,0.948525,16256.480,30.680,results/thesis/world/models/e05_p01w_lateimag_probes_aphonic-r05_rep1/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.207602,0.870832,16998.965,29.401,results/thesis/world/models/e05_p01w_lateimag_probes_aphonic-r05_rep1/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.241667,0.838750,15880.752,32.089,results/thesis/world/models/e05_p01w_lateimag_probes_aphonic-r05_rep1/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.161111,0.909306,15876.999,30.319,results/thesis/world/models/e05_p01w_lateimag_probes_aphonic-r05_rep1/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.169643,0.905152,16408.539,27.003,results/thesis/world/models/e05_p01w_lateimag_probes_aphonic-r05_rep1/handcrafted-lfcc-fused-late/fold_4.bin

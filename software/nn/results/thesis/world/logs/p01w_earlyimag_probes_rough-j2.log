@@ -1,0 +1,15 @@
+2026-11-16 20:47:07 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/database.sqlite.imagined-2026.e05dscache)
+[Thesis] run_tag=e05_p01w_earlyimag_probes_rough-j2 modality=fused strategy=handcrafted repeats=3 running=[0,3)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 1/3 (seed=42) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc-fused-early  acc=nan ±nan  EER=0.293174  spec=nan
+[Thesis] Done. Results written to results/thesis/world
+[Thesis] === Repeat 2/3 (seed=43) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc-fused-early  acc=nan ±nan  EER=0.216235  spec=nan
+[Thesis] Done. Results written to results/thesis/world
+[Thesis] === Repeat 3/3 (seed=44) ===
+[Thesis] Extracted 1 feature set(s).
+[Thesis] handcrafted-lfcc-fused-early  acc=nan ±nan  EER=0.22201  spec=nan
+[Thesis] Done. Results written to results/thesis/world
