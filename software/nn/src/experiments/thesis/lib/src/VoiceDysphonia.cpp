@@ -33,6 +33,9 @@ constexpr double kMeanAbsDifferenceOfGaussians = 1.1283791670955126;
 
 using Matrix = std::vector<std::vector<double>>;
 
+// WORLD writes through the returned pointers, so m must be non-const; cppcheck's
+// constParameterReference does not follow the mutable pointers out of the function.
+// cppcheck-suppress constParameterReference
 auto row_pointers(Matrix& m) -> std::vector<double*>
 {
     std::vector<double*> p(m.size());
