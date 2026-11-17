@@ -19,15 +19,15 @@
     node distance=0.5cm and 1.4cm
 ]
 
-\node[startstop] (start) {Sinal (voz ou EEG)};
+\node[startstop] (start) {Sinal (voz, EEG pronunciado\\ ou EEG imaginado)};
 \node[dec, below=of start] (loop)
-    {resta par\\ (wavelet, escala)?};
+    {resta\\ configuração?};
 \node[proc, below=1.1cm of loop] (extract)
-    {DTWPT com a wavelet $\rightarrow$ agrupar na escala\\ $\rightarrow$ descritores $\rightarrow$ vetor de características};
+    {manual: DTWPT $\rightarrow$ grupos na escala $\rightarrow$ 6 descritores\\ ou \textit{autoencoder} / PCA sobre o espectro\\ $\rightarrow$ vetor de características (3 repetições)};
 \node[proc, below=of extract] (score)
-    {engenharia paraconsistente:\\ calcular $\alpha$, $\beta$, $D_{\text{verdade}}$};
+    {engenharia paraconsistente: $\alpha$, $\beta$,\\ $D_{\text{penalizado}}$ médio das 3 repetições};
 \node[proc, right=of loop] (pick)
-    {vencedor $=$ combinação\\ de menor $D_{\text{verdade}}$};
+    {vencedor $=$ configuração de\\ menor $D_{\text{penalizado}}$;\\ e o melhor de cada família};
 \node[startstop, right=of pick] (stop) {Vetor vencedor do sinal};
 
 \draw[arr] (start)   -- (loop);

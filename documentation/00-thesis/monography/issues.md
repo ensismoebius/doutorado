@@ -785,7 +785,7 @@ afirmações a ajustar; os C, forma.
 
 | # | Onde | Problema | Conferido em |
 |---|---|---|---|
-| A1 | cap. 2 (2.1.3, págs. 27–31), cap. 3 (3.3, 3.3.1.1), cap. 4 e 5 ("energias de banda") | Todo extrator manual calcula **seis descritores por grupo de sub-bandas**: energia, taxa de cruzamentos por zero, entropia espectral, energia de Teager, *jitter* e *shimmer* (a Categoria 2 troca a energia pelos coeficientes cepstrais e mantém os outros cinco). O texto descreve a Categoria 1 como "energias de banda" e nunca define os outros cinco; só a pág. 118 (análise exploratória) fala em "seis descritores". Falta também a dimensão do vetor manual. | `00_thesis_generate_profiles.py` (`DESCRIPTORS`), `ThesisHandcraftedFeatures.cpp` |
+| A1 | cap. 2 (2.1.3, págs. 27–31), cap. 3 (3.3, 3.3.1.1), cap. 4 e 5 ("energias de banda") | Todo extrator manual calcula **seis descritores por grupo de sub-bandas**: energia, taxa de cruzamentos por zero, entropia de Shannon das amplitudes dos coeficientes, energia de Teager, *jitter* e *shimmer* (a Categoria 2 troca a energia pelos coeficientes cepstrais e mantém os outros cinco). O texto descreve a Categoria 1 como "energias de banda" e nunca define os outros cinco; só a pág. 118 (análise exploratória) fala em "seis descritores". Falta também a dimensão do vetor manual. | `00_thesis_generate_profiles.py` (`DESCRIPTORS`), `ThesisHandcraftedFeatures.cpp` |
 | A2 | 2.1.3.4–2.1.3.8 e Figuras 2–7 | Descrevem Mel com 13 intervalos, Bark com 24 componentes, LFCC por DFT e filtros triangulares de 300 a 3400 Hz, MFCC com Δ e ΔΔ. O implementado agrupa as 16 sub-bandas da DTWPT (na voz: Bark 9 grupos, Mel 11, linear 16, como a própria 2.1.3.9 mostra) e aplica log + DCT-II completa, sem Δ/ΔΔ. | idem |
 | A3 | 2.1.9 (págs. 52–54) | Diz que a tese usa duas padronizações, por característica no áudio e **por janela no EEG**. A tese aplica um único z-score por característica, ajustado no treino, a todos os sinais; a normalização por janela é do `meeting01`. | `ThesisClassifiersInternal.hpp` (`standardize_features`) |
 | A4 | Algoritmo 3.1 e Figura 45 (págs. 109–110) | Escolhem por menor D_verdade (o texto ao lado diz D_penalizado), varrem as 3 escalas em todo sinal (o EEG só usa a linear), não têm as Categorias 1/2, um só autoencoder, sem PCA; legenda "uma vez para a voz e uma vez para o EEG" (são três sinais). | texto de 3.3.1.1 |
@@ -794,6 +794,8 @@ afirmações a ajustar; os C, forma.
 | A7 | Apêndice C.3 (pág. 171) | Reivindica a regularização da taxa de disparo como "técnica proposta neste trabalho, não uma reprodução de técnica publicada"; penalidades de atividade com limites inferior e superior já existem (ex.: Zenke e Vogels 2021; Bellec et al. 2018). Citar, não reivindicar. | — |
 | A8 | Apêndice C, Eq. C.4 (pág. 171) | Valores intermediários errados: log(0,4) e log(1,6) aparecem como −0,3219 e 0,3219 (em ln: −0,9163 e 0,4700; o resultado, ≈ 0,193, fica quase igual por acaso). | cálculo |
 | A9 | Referências | `\ac{SVM}` sem sigla definida: o texto imprime "SVM!" com nota de rodapé "SVM!" (pág. 91). | `00-acronym.tex` |
+
+**Situação:** A1–A9 corrigidos em 2026-11-17 (commit do grupo A). Falta só a referência da fórmula Mel ($2595\log_{10}(1+f/700)$), citada no texto como expressão usual sem fonte: o livro de O'Shaughnessy não pôde ser conferido.
 
 ### B — afirmações a ajustar
 

@@ -62,7 +62,8 @@
 	sinal, marcado com $\dagger$, é escolhido entre as três famílias, e não
 	dentro de cada tabela. Para a voz, para o \ac{EEG} de fala pronunciada e para
 	o de fala imaginada, venceu a extração manual com a \textit{wavelet} Haar e
-	energias de banda em escala linear, sem a etapa cepstral --- a configuração
+	os seis descritores por banda em escala linear (Categoria~1, sem a etapa
+	cepstral; \autoref{sec:descritores}) --- a configuração
 	``\tn{p00.voice.winner.label}'' das tabelas ---, com $\bar{d}_{\text{pen}}$
 	de $\tn{p00.voice.winner.dpen}$, $\tn{p00.eegpron.winner.dpen}$ e
 	$\tn{p00.eegimag.winner.dpen}$, respectivamente. A marca aparece, portanto,
@@ -106,7 +107,7 @@
 	\tn{p00.voice.stab.fold.alt} extratores que vencem alguma dobra no lugar do
 	vencedor são todos de Categoria~1 (sem a etapa cepstral), e
 	\tn{p00.voice.stab.fold.alt.linear} deles usam a escala linear. A afirmação
-	que os dados sustentam para a voz é, portanto, ``energias de banda sem etapa
+	que os dados sustentam para a voz é, portanto, ``descritores por banda sem etapa
 	cepstral, preferencialmente em escala linear'', e não ``a \textit{wavelet}
 	Haar é a melhor''. Como a Fase~01 usa o vencedor escolhido com todos os
 	locutores, há nela um viés de seleção otimista na voz; ele é pequeno diante
@@ -286,9 +287,12 @@
 	($\tn{p01.std.eegfusion.std}$ contra $\tn{p01.std.eegfusion.raw}$): sem
 	padronização, essas fontes ficam entre $\tn{p01.std.eegfusion.raw.min}$ e
 	$\tn{p01.std.eegfusion.raw.max}$, perto do acaso. A explicação mais simples
-	é de escala: as energias de banda do \ac{EEG}, em unidades do amplificador,
-	têm ordens de grandeza muito diferentes entre si e das da voz, e sem
-	padronização as de maior valor dominam a entrada da rede. Essa explicação
+	é de escala: os seis descritores têm unidades diferentes (a energia e a
+	energia de Teager crescem com o quadrado da amplitude, a taxa de cruzamentos
+	por zero fica entre 0 e 1, a entropia é medida em bits), as energias do
+	\ac{EEG}, em unidades do amplificador, têm ordens de grandeza muito
+	diferentes das da voz, e sem padronização as de maior valor dominam a
+	entrada da rede. Essa explicação
 	não foi testada isoladamente.
 
 	\par \textbf{(iv) A validação plana dá \ac{EER} menor que a aninhada.} Isso
@@ -807,15 +811,20 @@
 	desempenho de forma sistemática; ela apenas não produz o melhor extrator. A
 	conclusão forte da Questão~2 vale para a voz, e não para os dois sinais.
 
-	\par Uma explicação plausível é que a \ac{DCT} concentra energia nos
-	primeiros coeficientes e descarta estrutura de banda fina que o critério
-	paraconsistente --- sensível à amplitude intraclasse --- aproveita. Isso não
-	contradiz a utilidade dos coeficientes cepstrais em reconhecimento de fala:
-	ali o objetivo é representar o \emph{conteúdo} falado de forma robusta ao
-	locutor, ao passo que aqui se busca o oposto --- preservar o que distingue
-	locutores. Uma etapa que normaliza diferenças de trato vocal é benéfica no
-	primeiro caso e prejudicial no segundo. A explicação é uma hipótese; não foi
-	testada.
+	\par A etapa cepstral desta tese não descarta informação: a \ac{DCT} é
+	aplicada por inteiro, sem truncar coeficientes (\autoref{sec:descritores}),
+	e é invertível; o logaritmo também é. O que ela muda é a \emph{distribuição}
+	da informação pelas colunas: cada coeficiente cepstral combina as energias
+	de todos os grupos, enquanto cada energia de banda fala de um grupo só. Uma
+	explicação plausível para a desvantagem cepstral na voz é que o critério
+	paraconsistente avalia cada característica separadamente (a faixa que cada
+	classe ocupa nela, \autoref{sec:analiseParaconsistente}), e uma diferença
+	entre locutores concentrada em poucas bandas fica nítida numa coluna de
+	energia e diluída entre todos os coeficientes cepstrais. Isso não contradiz
+	a utilidade dos coeficientes cepstrais em reconhecimento de fala: ali eles
+	são truncados para guardar o envelope espectral do \emph{conteúdo} falado,
+	ao passo que aqui se busca preservar o que distingue locutores. A explicação
+	é uma hipótese; não foi testada.
 
 	\subsection*{Questão 3 --- Autoencoders superam as técnicas manuais?}
 

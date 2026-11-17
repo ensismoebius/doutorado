@@ -22,11 +22,11 @@
 \node[src, below=of win] (build)
     {montar a fonte:\\ voz $\mid$ EEG $\mid$ fundida-precoce $\mid$ fundida-tardia};
 \node[proc, below=of build] (encode)
-    {codificar por injeção de corrente ($T$ passos)};
+    {o vetor entra como corrente, igual nos $T = 16$ passos};
 \node[proc, below=of encode] (dsnn)
-    {classificador DSNN residual (LIF + BPTT)\\ leitura $=$ taxa média de disparo};
+    {classificador DSNN residual (LIF + BPTT)\\ saída $=$ média dos \textit{logits} sobre os $T$ passos};
 \node[proc, below=of dsnn] (cv)
-    {validação cruzada por locutor (aninhada ou plana),\\ modo de texto dependente ou independente};
+    {validação cruzada por locutor (aninhada ou plana),\\ frases vistas ou não vistas};
 \node[startstop, below=of cv] (metrics) {EER e AUC (protocolo de verificação)};
 
 \draw[arr] (win)    -- (build);

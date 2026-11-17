@@ -500,19 +500,19 @@
 
 	\section{Decaimento de Peso (Regularização L2)}
 		\label{Apend:regularization}
-		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Sejam $L_{\text{dados}}$ a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), $\lambda$ o parâmetro de regularização e $\|W\|_2^2$ a norma L2 dos pesos. Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos \cite{krogh1991simple}:
+		\par Considere uma rede neural simples com pesos \( W \). Sejam $L_{\text{dados}}$ a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), $\lambda$ o parâmetro de regularização e $\|W\|_2^2$ a norma L2 dos pesos. Durante o treinamento, adiciona-se um termo de regularização à função de perda, que penaliza o quadrado dos pesos \cite{krogh1991simple}:
 		\begin{equation}
 			L_{\text{total}} = L_{\text{dados}} + \lambda \|W\|^2_2
 		\end{equation}
-		Vamos supor que nossa matriz de pesos \( W \) seja:
+		Suponha que a matriz de pesos \( W \) seja:
 		\[ W = \begin{bmatrix} 
-			1 & 0.5 \\
-			-0.3 & 0.8 \\
+			1 & 0{,}5 \\
+			-0{,}3 & 0{,}8 \\
 		\end{bmatrix} \]
-		Se definirmos \( \lambda = 0.1 \), o termo de regularização seria \( 0.1 \times (1^2 + 0.5^2 + (-0.3)^2 + 0.8^2) = 0.1 \times (1 + 0.25 + 0.09 + 0.64) = 0.1 \times 1.98 = 0.198 \).
+		Com \( \lambda = 0{,}1 \), o termo de regularização vale \( 0{,}1 \times (1^2 + 0{,}5^2 + (-0{,}3)^2 + 0{,}8^2) = 0{,}1 \times (1 + 0{,}25 + 0{,}09 + 0{,}64) = 0{,}1 \times 1{,}98 = 0{,}198 \).
 		Durante o treinamento, o otimizador atualiza os pesos considerando tanto a perda de dados quanto o termo de regularização. O termo de regularização incentiva pesos menores, prevenindo o sobreajuste.
 
-		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. Neste trabalho usa-se uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}), proposto por \cite{loshchilov2019decoupled} no algoritmo AdamW.
+		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. O \textit{framework} implementa uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}), proposto por \cite{loshchilov2019decoupled} no algoritmo AdamW.
 
 		\par A ideia é simples: em vez de modificar o gradiente, encolhe-se cada peso por uma pequena fração a cada passo de treinamento, logo após a atualização normal do otimizador. Sejam $\theta$ um peso qualquer da rede, $\eta$ a taxa de aprendizado e $\lambda$ o parâmetro que controla a força do decaimento:
 		\begin{equation}
@@ -528,7 +528,7 @@
 		\par Vamos considerar um autoencoder esparsificado com uma penalidade de esparsidade adicionada à função de perda para encorajar a esparsidade nas ativações das unidades ocultas.
 
 
-		\par Suponha que tenhamos uma camada oculta com valores de ativação \( h = [0.9, 0.1, 0.8, 0.05] \).
+		\par Seja uma camada oculta com valores de ativação \( h = [0{,}9;\ 0{,}1;\ 0{,}8;\ 0{,}05] \).
 
 		\par Segundo \cite{ng2011sparse}, o termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e $\hat{\rho}_i$, a média da ativação da unidade oculta $i$, somada sobre todas as unidades ocultas:
 
@@ -536,21 +536,21 @@
 			\Omega(h) = \sum_i (\rho \log(\rho / \hat{\rho}) + (1 - \rho) \log((1 - \rho) / (1 - \hat{\rho})))
 		\end{equation}
 
-		\par  Vamos supor $ \rho = 0.2 $. Se a média da ativação da unidade oculta $ i $ for $ \hat{\rho}_i = 0.5 $, então a penalidade de esparsidade para essa unidade seria:
+		\par Seja $\rho = 0{,}2$. Se a média da ativação da unidade oculta $i$ for $\hat{\rho}_i = 0{,}5$, a penalidade de esparsidade dessa unidade, com o logaritmo natural, é:
 		
 		\begin{equation}
 			\begin{aligned}
-				\Omega(h_i) &= (0.2 \log(0.2 / 0.5) + 0.8 \log(0.8 / 0.5)) \\
-							&= (0.2 \times -0.3219 + 0.8 \times 0.3219) \\
-							&= -0.0644 + 0.2575 \\
-							&= 0.1931 
+				\Omega(h_i) &= 0{,}2 \ln(0{,}2 / 0{,}5) + 0{,}8 \ln(0{,}8 / 0{,}5) \\
+							&= 0{,}2 \times (-0{,}9163) + 0{,}8 \times 0{,}4700 \\
+							&= -0{,}1833 + 0{,}3760 \\
+							&= 0{,}1927 
 			\end{aligned}
 		\end{equation}
 		\par Durante o treinamento, a penalidade de esparsidade incentiva a rede a ter ativações esparsas, focando em características importantes dos dados.
 
 	\section{Regularização da Taxa de Disparo em Redes Neurais de Pulsos}
 		\label{Apend:firingRateReg}
-		\par A penalidade de taxa de disparo descrita nesta seção é uma técnica \textbf{proposta neste trabalho} para o treinamento das RNPs do \autoref{ch:revisao} --- não é uma reprodução de uma técnica publicada, mas uma adaptação da ideia geral de penalidade de esparsidade (seção anterior) ao caráter binário e temporal dos neurônios de pulso.
+		\par Penalizar a atividade das camadas pulsantes é prática estabelecida no treino de RNPs por gradiente substituto \cite{zenke2021remarkable}. A forma usada aqui --- uma faixa $[r_{\min}, r_{\max}]$, com penalidade nula dentro dela e quadrática fora --- é uma escolha de implementação deste trabalho, que adapta a penalidade de esparsidade (seção anterior) ao caráter binário e temporal dos neurônios de pulso; não se reivindica novidade para ela.
 
 		\par Diferentemente de um neurônio clássico, que produz um número real, um neurônio de pulso só pode emitir $0$ ou $1$ a cada instante. A informação que ele transmite está, portanto, na \textbf{frequência} com que dispara ao longo do tempo --- a chamada \textit{taxa de disparo}. Um detalhe simples ilustra o problema: se um neurônio quase nunca dispara, ou se dispara a toda hora, ele praticamente não distingue um exemplo de outro. Surgem assim dois extremos que prejudicam o aprendizado:
 		\begin{itemize}
