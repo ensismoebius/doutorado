@@ -772,3 +772,71 @@ Push em 17/11 (CI em andamento).
 
 Falta, e depende do autor (sem mudança desde 13/11): Web of Science (`\pendenteMarca` no
 cap. 7), ficha catalográfica, dedicatória/agradecimentos/epígrafe, data da defesa, banca.
+
+---
+
+## Leitura integral do PDF (2026-11-17)
+
+Leitura das 175 páginas da versão de 17/11 (depois da grade WORLD e do teste de piso). Páginas
+pela numeração impressa. Os itens A mudam o que o texto afirma sobre o método; os B são
+afirmações a ajustar; os C, forma.
+
+### A — o texto descreve um método diferente do executado
+
+| # | Onde | Problema | Conferido em |
+|---|---|---|---|
+| A1 | cap. 2 (2.1.3, págs. 27–31), cap. 3 (3.3, 3.3.1.1), cap. 4 e 5 ("energias de banda") | Todo extrator manual calcula **seis descritores por grupo de sub-bandas**: energia, taxa de cruzamentos por zero, entropia espectral, energia de Teager, *jitter* e *shimmer* (a Categoria 2 troca a energia pelos coeficientes cepstrais e mantém os outros cinco). O texto descreve a Categoria 1 como "energias de banda" e nunca define os outros cinco; só a pág. 118 (análise exploratória) fala em "seis descritores". Falta também a dimensão do vetor manual. | `00_thesis_generate_profiles.py` (`DESCRIPTORS`), `ThesisHandcraftedFeatures.cpp` |
+| A2 | 2.1.3.4–2.1.3.8 e Figuras 2–7 | Descrevem Mel com 13 intervalos, Bark com 24 componentes, LFCC por DFT e filtros triangulares de 300 a 3400 Hz, MFCC com Δ e ΔΔ. O implementado agrupa as 16 sub-bandas da DTWPT (na voz: Bark 9 grupos, Mel 11, linear 16, como a própria 2.1.3.9 mostra) e aplica log + DCT-II completa, sem Δ/ΔΔ. | idem |
+| A3 | 2.1.9 (págs. 52–54) | Diz que a tese usa duas padronizações, por característica no áudio e **por janela no EEG**. A tese aplica um único z-score por característica, ajustado no treino, a todos os sinais; a normalização por janela é do `meeting01`. | `ThesisClassifiersInternal.hpp` (`standardize_features`) |
+| A4 | Algoritmo 3.1 e Figura 45 (págs. 109–110) | Escolhem por menor D_verdade (o texto ao lado diz D_penalizado), varrem as 3 escalas em todo sinal (o EEG só usa a linear), não têm as Categorias 1/2, um só autoencoder, sem PCA; legenda "uma vez para a voz e uma vez para o EEG" (são três sinais). | texto de 3.3.1.1 |
+| A5 | Figura 47 (pág. 121) | "leitura = taxa média de disparo"; 3.3.1.2.1 diz que a saída é a média dos *logits* da camada Linear sobre os T passos. Também "modo de texto dependente ou independente" (o texto usa frases vistas/não vistas). | 3.3.1.2.1 |
+| A6 | 2.2.2 + Tabela 8 (págs. 90–92) | Furlan (2021) é detecção de falsificação (*spoofing*), não verificação; texto "EER de 0,024390", tabela "2,44%". | o próprio parágrafo |
+| A7 | Apêndice C.3 (pág. 171) | Reivindica a regularização da taxa de disparo como "técnica proposta neste trabalho, não uma reprodução de técnica publicada"; penalidades de atividade com limites inferior e superior já existem (ex.: Zenke e Vogels 2021; Bellec et al. 2018). Citar, não reivindicar. | — |
+| A8 | Apêndice C, Eq. C.4 (pág. 171) | Valores intermediários errados: log(0,4) e log(1,6) aparecem como −0,3219 e 0,3219 (em ln: −0,9163 e 0,4700; o resultado, ≈ 0,193, fica quase igual por acaso). | cálculo |
+| A9 | Referências | `\ac{SVM}` sem sigla definida: o texto imprime "SVM!" com nota de rodapé "SVM!" (pág. 91). | `00-acronym.tex` |
+
+### B — afirmações a ajustar
+
+- **Energia "medida"**: Contribuições (pág. 22), título 3.3.1.2.7 e seu texto, 2.2.5 ("Esta tese mede a energia"), contribuição 3 do cap. 5. A energia é **estimada** por modelo analítico; os disparos é que são contados.
+- **Não significância lida como igualdade**: "atinge o mesmo nível de autenticação que a manual" (Q3, pág. 147), "empatam pelo classificador" (5.1), "O experimento mostra que o sistema não depende da periodicidade da voz" (4.2.4). Não há margem de equivalência: "não se distingue".
+- **Q2 (pág. 146)**: a hipótese diz que a DCT "descarta estrutura de banda fina", mas a DCT-II completa é inversível e nada é descartado; "normaliza diferenças de trato vocal" também não descreve log + DCT.
+- **3.3.3 (pág. 122)**: a DSNN "com o objetivo de minimizar o gasto de energia ... garantir eficiência energética", e "como bônus" a regularização reforça a eficiência; o resultado é o oposto, e a regularização está desligada no classificador. Escrever como motivação/hipótese.
+- **Apêndice C.1**: "Neste trabalho usa-se" o decaimento desacoplado — desligado em todas as execuções; "o *framework* implementa".
+- **Apêndice A (pág. 166)**: "cada número citado nos Capítulos 3 a 5 é lido dos resultados" — os números do estudo preliminar (pág. 102: 0,967; 0,675; 0,821 ± 0,255; 257–338×; 30–55×; 18,1 e 16,9 h) estão digitados. Gerar por `\tn` ou restringir a frase; "(18,1 e 16,9 horas)" é ambíguo.
+- **Hipótese principal (5.1)**: acrescentar que, na grade WORLD, nem o EER da voz muda — não há degradação que o EEG precise compensar nesses perfis.
+- **Contribuições**: a Introdução (1.5) lista 3 de método; o cap. 5 (5.2), 4 (acrescenta o protocolo com controles).
+- **Estrutura do trabalho (1.7)**: não cita a BIOMEX-DB (3.2) nem os Apêndices B e D.
+- **Comparação de extratores**: "100 épocas" (3.3.1.2.6, Tabela 25) contra 50 da grade, sem dizer por quê nem a qual rede se aplica.
+- **Replicação**: "executadas uma vez ... três repetições cada" (4.3, 5.1).
+- **Tabela 8**: a linha "Esta tese" só traz a base de Coretto; falta a replicação (45 locutores).
+- **Figura 43**: não mostra o piloto, o teste da ressíntese nem a grade WORLD (150 + 90).
+- **Histórico no corpo**: 2.1.3.9 (último parágrafo), 3.1 ("Até 12 de novembro de 2026, o carregador..."), 3.3.1.1.3 ("Uma versão anterior deste texto relatava...") — candidatos a remissão ao Apêndice A.
+- **Termos**: α/β são "fé/descrédito" no cap. 2 e "crença/descrença" no cap. 4; "trial" ao lado de "tentativa" (3.1); "fonada"/"fonatória" em vez de "pronunciada" (1.6); "a EER" (3.3.2) e "o EER" (resto); "Descida de Gradiente Emprestada" (gradiente substituto); "sendo T o passo temporal" (T é o número de passos); "ann-ae/latente 32" (Tabela 25) contra "ANN-AE (base)" (Fase 00); "hiperparâmetros" por "parâmetros" (2.1.12).
+- **Jargão de configuração no corpo**: `autoencoder.model = "lstm-ae"`, `classifier.enabled`, a especificação `["linear:128:relu", ...]` (que diz *relu* para uma camada LIF), "NaN", "o *pipeline* declara".
+- **2.1.10.9**: "He ... indicada para os neurônios de pulso (HE et al., 2015b)" — o artigo não trata de pulsos; "a rede residual e a rede neural de pulsos" (as duas redes são residuais: DSNN e gêmea).
+- **2.1.7**: amplitude da banda delta dada ("até 350 µV") e logo depois "as amplitudes das bandas Delta e Gamma não foram encontradas"; 2.1.8: "F7 e T5 mais próximos da área de Wernicke" (F7 é frontal).
+- **Remissões**: a previsão das codificações é citada como "subseção 3.3.1" em 4.1, 5.2, 5.4 e Apêndice A (é 3.3.1.1.3); "(seção 2.1)" para a engenharia paraconsistente (é 2.1.5); "formantes ... (seção 2.1)" dentro da própria 2.1.
+
+### C — forma
+
+- **Folha de rosto e aprovação**: "Qualificação apresentada" → "Tese apresentada"; aspas ‘Júlio de Mesquita Filho" (abre simples, fecha dupla); a resolver pelo autor: Comissão Examinadora, data, dedicatória ("Haha..."), agradecimentos, epígrafe.
+- **Resumo e *abstract***: a frase da grade WORLD diz "não se replicam na BIOMEX-DB" antes de a BIOMEX-DB ser apresentada (frase seguinte).
+- **Aspas retas coladas** em todo o estado da arte e em 2.1.6 ("left"e, "u"e, "ouve"a, "janelas deslizantes"ao, "podar"os): usar ``...''.
+- **Grafia no estado da arte**: "isquierda" (izquierda), "Random Forrest", "Referecing", "remoção ruídos", "Área Under the Curve", "Sensitividade" (também 3.3.2), "metodos", "0.65", "palavra curtas", "1KHz"/"8Khz"/"44.1kHz", "Gaussian Mixed Models", "Gate Recurrent Unit", "um serie", "totalizando um total", "do ERR foi criado", "EER de 3,64" sem % nem ponto, parênteses duplos em "((Tayebi Arasteh...))", "palavras-chaves".
+- **Cap. 2**: "Fourier de Tempo Reduzido" (Curto); "transformada de Fourier que utilizam"; Eq. 2.6 parece sem o sinal de menos na 4ª linha; "{1/2, −1/2}" só o passa-alta; "29,62" (Tab. 4 e Apêndice D); fragmento "onde: −1 ⩽ G1 e 1 ⩾ G2." solto depois do exemplo (pág. 42) e "0 ⩽ β ⩽ 1," com vírgula; "por não penalizar G2 = 0 oposto" (frase confusa); "A localização ... serão mostradas"; "não contêm" (Fig. 18, Fig. 35 ×2); frase truncada sobre o processamento semântico e "à condição resultante" (pág. 50); "os córtex motores"; "mais a diante"; "Umem" × "Vmem"; "valor soma"; legenda do Alg. 2.1 "da decaimento ... potencial de ação"; Alg. 2.2 "decrescente" (mostra o aumento); Alg. 2.3 "is threshold"; Fig. 28 "0,5 mA" × `I_in = 1`; "g(x)" por g(h); legenda da Fig. 37 com f(x) em vez de f(x̂); "como a mostrado", "a seguintes propriedades"; "os otimizadores tem".
+- **Cap. 3–4**: "de 0 à frequência de Nyquist"; legenda do Alg. 3.2 sem acentos; "na Capítulo 1"; Tabela 27 com hífen em vez de sinal de menos (−0,0009, −0,0060).
+- **Apêndices C e D**: decimais com ponto (0.5, 1.98…) e primeira pessoa ("Suponha que tenhamos", "nossa matriz"); Fig. 48 "filtro haar = {0.5, 0.5}" × legenda "1/2 e −1/2"; "Packet-wavelet" × "wavelet-packet".
+- **Referências** (`bibliography.bib`):
+  - ABDULGHANI 2023 duplicado (2023a = 2023b);
+  - Praat com "Acesso em: 2 jan. 2021" e URL repetida;
+  - notas internas em inglês impressas (COMŞA, GLOROT, HE 2015b, KIM e PANDA, LOSHCHILOV, VIIKKI, ZHENG) e "Copyright © 2012 Elsevier" (DEWITT);
+  - editores quebrados em CORETTO 2017 ("BRIEVA, J.; BRIEVA, J.; AND, I. L.");
+  - autores quebrados em MOCTEZUMA ("PINEDA, L. V. nor") e MASTRANGELO (cujo título repete o capítulo de MECARELLI);
+  - SALOMON com a série "Molecular biology intelligence unit";
+  - sem veículo: BUTTERWORTH 1930, BENGIO et al. "2014" (TPAMI 2013), PANACHAKEL 2020, POLIKAR;
+  - PANACHAKEL 2021 "IEEE Access, PP";
+  - HE 2015a e WANG 2019 como CoRR (publicados no CVPR);
+  - HERNÁNDEZ-DEL-TORO com metadados sujos;
+  - FURLAN 2026 "Artigo em revisão" com caminhos do repositório na referência (conferir o estado);
+  - caixa sem chaves ("eeg", "Cn-celeb", "broca’s", "russian");
+  - Tayebi Arasteh fora do padrão de caixa.
