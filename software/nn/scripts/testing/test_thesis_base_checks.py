@@ -200,13 +200,15 @@ class BaseFacts(unittest.TestCase):
                                             "M001: 01G10: 2 complete recordings",
                      "edge_dropped_pairs": "F001 01G04 series 10 digit 4",
                      "excluded_pairs": "F001 01G10 series 8 digit 7: no .lab line",
+                     "unanalysable_voice_pairs": "none",
                      "voice_windows_shifted": "3", "voice_words_cut": "2",
                      "voice_native_rate": "16000", "eeg_native_rate": "128",
                      "voice_sample_rate": "44100", "eeg_sample_rate": "1024",
                      "eeg_epoch_samples": str(EPOCH)}
         self.bx_facts = {"volunteers": 1, "excluded": ["F007", "M001"], "pairs_equal": 138,
                          "differences": 0, "sessions_without_csv": ["F001 01G10"],
-                         "edge_dropped": ["F001 01G04 series 10 digit 4"]}
+                         "edge_dropped": ["F001 01G04 series 10 digit 4"],
+                         "unanalysable": [], "world_refused_stored": 0}
         biomex_db(self.bx, ["F001"], self.pairs, self.info, excluded=["F007", "M001"])
         stamp(self.bx, self.bx_facts)
         # Coretto: 2 subjects, S01 with 2 pronounced /o/ trials; a slow drift in the EEG.
@@ -232,6 +234,7 @@ class BaseFacts(unittest.TestCase):
                 "base.biomex.excluded.list": "F007, M001", "base.biomex.pairs": "138",
                 "base.biomex.pairs.dropped": "2", "base.biomex.pairs.edge": "1",
                 "base.biomex.pairs.edge.list": "F001", "base.biomex.pairs.unlabelled": "1",
+                "base.biomex.pairs.unanalysable": "0",
                 "base.biomex.csv.missing": "1", "base.biomex.voice.shifted": "3",
                 "base.coretto.subjects": "2", "base.coretto.trials": "4",
                 "base.coretto.trials.imagined": "1", "base.coretto.s01o.base": "2",
@@ -272,7 +275,18 @@ class BaseFacts(unittest.TestCase):
         stamp(self.bx, dict(self.bx_facts, edge_dropped=[]))
         r = self.facts()
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("is not the 0 edge + 1 unlabelled pairs", r.stderr)
+        self.assertIn("is not the 0 edge + 1 unlabelled + 0 WORLD-unanalysable pairs", r.stderr)
+
+    def test_unanalysable_pairs_the_verifier_did_not_prove_are_refused(self):
+        con = sqlite3.connect(self.bx)
+        con.execute("UPDATE recording SET value = 'F001 01G10 series 2 digit 3' "
+                    "WHERE key = 'unanalysable_voice_pairs'")
+        con.commit()
+        con.close()
+        stamp(self.bx, self.bx_facts)          # the verifier proved none
+        r = self.facts()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("WORLD-unanalysable pairs", r.stderr)
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)

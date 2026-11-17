@@ -4,7 +4,10 @@
 The synthetic volunteer has the real layout (EDF at 128 Hz with COUNTER, INTERPOLATED, the
 14 channels and MARKER; one WAV + .lab per series) and a signature in every digit: in the
 EEG, a 10 Hz burst of amplitude 10 x code uV after the digit's marker; in the voice, a
-200 Hz tone of amplitude code/20 at the word's onset. A pair is right only if both
+200 Hz voiced sound (harmonics falling as 1/k^2) of RMS (code/20)/sqrt(2), a sine's of
+amplitude code/20, at the word's onset. Harmonics, not a pure tone: WORLD's Harvest, which the
+verifier runs on every window, finds no voiced frame in a pure 200 Hz sine (measured
+2026-11-16; with harmonics, or at 120 Hz, it does), as no real voice is one. A pair is right only if both
 signatures carry the same code, so these tests check the pairing itself, not just counts.
 
 Run:  python3 scripts/testing/test_biomex_convert.py
@@ -64,6 +67,12 @@ def write_edf(path, signals, labels, phys, dig):
         f.write(h + body)
 
 
+def voiced(tt):
+    """A 200 Hz voiced sound of a unit sine's RMS (1/sqrt(2)): harmonics 1..29 at 1/k^2."""
+    x = sum(np.sin(2 * np.pi * 200 * k * tt) / k ** 2 for k in range(1, 30))
+    return x / np.sqrt(np.mean(x ** 2)) / np.sqrt(2)
+
+
 def make_volunteer(root, vid="F999", typo=True, break_series=None, bad_marker=False,
                    word_len_s=WORD_LEN_S, g04_cut_s=0.0):
     for sub in ("EEG", "Voice"):
@@ -108,7 +117,7 @@ def make_volunteer(root, vid="F999", typo=True, break_series=None, bad_marker=Fa
                 on = int((WORD_ON_S + j * WORD_GAP_S) * VFS)
                 end = on + int(word_len_s * VFS)
                 tt = np.arange(end - on) / VFS
-                v[on:end] = (c / 20) * np.sin(2 * np.pi * 200 * tt)
+                v[on:end] = (c / 20) * voiced(tt)
                 spelled = "UN0" if (typo and w == "UNO") else w
                 lab += [(prev, on - 1, "SILENCIO"), (on, end, spelled)]
                 prev = end + 1
@@ -412,6 +421,70 @@ class BiomexConvert(unittest.TestCase):
             status = bv.main()
         self.assertEqual(status, 0, out.getvalue())
         self.assertIn("F999 01G04 series 10 digit 4: absent", out.getvalue())
+
+    def _verify(self, truth, unanalysable):
+        """biomex_verify.main() on self.out with the synthetic series as Table 1."""
+        table = {s: [[0 if c == 10 else c for ss, kk, _, c in sorted(truth)
+                      if (ss, kk) == (s, k)] for k in range(1, 11)] for s in bx.SESSIONS}
+        out = io.StringIO()
+        with mock.patch.object(bv, "TABLE1", table), contextlib.redirect_stdout(out), \
+                mock.patch.object(bx, "UNANALYSABLE_VOICES", unanalysable), \
+                mock.patch.object(sys, "argv", ["x", "--src", self.src, "--db", self.out,
+                                                "--jobs", "2"]):
+            status = bv.main()
+        return status, out.getvalue()
+
+    def test_a_listed_unanalysable_voice_is_left_out_and_must_be_refused_by_world(self):
+        truth = make_volunteer(self.src)
+        key = ("F999", "01G10", 2, 5)
+        # Silence word 5 of series 2 in the WAV: its window then holds no voiced frame.
+        wav = os.path.join(self.src, "F999", "Voice", "F999_01G10_2.wav")
+        lab = os.path.join(self.src, "F999", "Voice", "F999_01G10_2.lab")
+        on, end, _ = read(lab).splitlines()[2 * 5 - 1].split()
+        with wave.open(wav, "rb") as w:
+            params, pcm = w.getparams(), np.frombuffer(w.readframes(w.getnframes()), np.int16)
+        pcm = pcm.copy()
+        a, b = (int(int(t) * 1e-7 * params.framerate) for t in (on, end))
+        pcm[a:b] = 0
+        with wave.open(wav, "wb") as w:
+            w.setparams(params)
+            w.writeframes(pcm.tobytes())
+        with mock.patch.object(bx, "UNANALYSABLE_VOICES", {key}), \
+                mock.patch.object(sys, "argv", ["x", "--src", self.src, "--out", self.out]):
+            bx.main()
+        con = sqlite3.connect(self.out)
+        keys = {(s, k, j) for s, k, j in con.execute("SELECT session, series, position FROM pair")}
+        info = dict(con.execute("SELECT key, value FROM recording"))
+        con.close()
+        self.assertEqual(len(keys), 139)
+        self.assertNotIn(key[1:], keys)
+        self.assertEqual(info["unanalysable_voice_pairs"], "F999 01G10 series 2 digit 5")
+        # The verifier proves the entry: the rebuilt (silent) window is refused by WORLD, and
+        # every stored window (a 200 Hz voiced sound) is accepted.
+        status, log = self._verify(truth, {key})
+        self.assertEqual(status, 0, log)
+        self.assertIn("the WORLD path refuses its rebuilt window", log)
+        self.assertIn("139 stored voice windows checked, 0 refused", log)
+
+    def test_a_listed_voice_world_can_analyse_is_refused_by_the_verifier(self):
+        truth = make_volunteer(self.src)
+        key = ("F999", "01G10", 2, 5)           # a normal 200 Hz word: WORLD analyses it
+        with mock.patch.object(bx, "UNANALYSABLE_VOICES", {key}), \
+                mock.patch.object(sys, "argv", ["x", "--src", self.src, "--out", self.out]):
+            bx.main()
+        status, log = self._verify(truth, {key})
+        self.assertEqual(status, 1, log)
+        self.assertIn("but the WORLD path accepts its window", log)
+
+    def test_a_stale_unanalysable_entry_is_refused(self):
+        make_volunteer(self.src)
+        # A listed pair of a kept volunteer that the conversion never meets (no series 11).
+        with mock.patch.object(bx, "UNANALYSABLE_VOICES", {("F999", "01G10", 11, 1)}), \
+                mock.patch.object(sys, "argv", ["x", "--src", self.src, "--out", self.out]):
+            with self.assertRaises(SystemExit) as e:
+                bx.main()
+        self.assertIn("stale entry", str(e.exception))
+        self.assertFalse(os.path.exists(self.out))
 
     def test_the_eeg_filter_is_the_one_the_coretto_paper_gives(self):
         # Pressel Coretto et al. (SPIE 10160, 2017): FIR low-pass of order 372 and high-pass

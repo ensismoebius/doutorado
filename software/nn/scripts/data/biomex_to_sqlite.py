@@ -153,6 +153,20 @@ VOLUNTEER = re.compile(r"^[FM]\d{3}$")
 # (Listed by name: a word missing from a .lab is otherwise refused.)
 UNLABELLED_DIGITS = {("F017", "01G10", 8): (7, 126715626, 131048750)}
 
+# Voice windows the thesis's WORLD path cannot analyse: WORLD's Harvest finds no voiced frame in
+# them, so a WORLD dysphonia profile has no pitch to edit and refuses them (VoiceDysphonia.cpp).
+# Found 2026-11-16 when the WORLD grid stopped on one; a scan of all 6297 then-stored windows
+# with the thesis's own code (world_voicing.py) found exactly these three, and the user decided
+# they leave the base (not passed through undegraded, which would be a fallback):
+#   M006 01G10 series 1 digit 1 ("siete"): only a faint hum (RMS 0.0013, the base's median
+#        0.031); no word in the window;
+#   M014 01G10 series 3 digit 1 ("seis"): ~0.2 s of sound, then silence;
+#   M014 01G04 series 7 digit 3 ("seis"): ~0.3 s of sound, Harvest finds no voiced frame.
+# Listed by name, like UNLABELLED_DIGITS; biomex_verify.py proves the list: each listed window,
+# rebuilt from the originals, is refused by the WORLD path, and no stored window is.
+UNANALYSABLE_VOICES = {("M006", "01G10", 1, 1), ("M014", "01G10", 3, 1),
+                       ("M014", "01G04", 7, 3)}
+
 
 class ConversionError(Exception):
     pass
@@ -360,14 +374,17 @@ def eeg_chain(eeg_native, filters):
     return fftconvolve(x, hp[None, :], mode="same", axes=-1)
 
 
-def convert_volunteer(folder, vid, filters, edge_dropped, recordings=None):
+def convert_volunteer(folder, vid, filters, edge_dropped, recordings=None, unanalysable=None):
     """Every (session, series, position, digit, voice, eeg, interpolated) of a volunteer.
 
     A pair whose EEG epoch lies within FILTER_EDGE samples of either end of its session is
     left out and named in `edge_dropped` (decided 2026-11-13): there the Coretto filter reads
     zeros instead of EEG on one side, so the epoch would differ from every other one with
     nothing in the result to show it. A rule, not a per-file exception: it applies to every
-    volunteer (M015 and M019 end their 01G04 60 and 220 samples short after the last digit)."""
+    volunteer (M015 and M019 end their 01G04 60 and 220 samples short after the last digit).
+
+    A pair in UNANALYSABLE_VOICES is left out too and named in `unanalysable` (a list, required
+    for a kept volunteer: the caller checks every listed pair was met)."""
     epoch = int(round(EEG_EPOCH_S * EEG_RATE))
     win = int(round(VOICE_WINDOW_S * VOICE_RATE))
     out_epoch = epoch * EEG_UP
@@ -436,6 +453,12 @@ def convert_volunteer(folder, vid, filters, edge_dropped, recordings=None):
                                           f"voice window passes the end of its WAV")
                 if e0 < FILTER_EDGE or e0 + out_epoch + FILTER_EDGE > eeg_out.shape[1]:
                     edge_dropped.append(f"{where} series {k} digit {j}")
+                    continue
+                if (vid, session, k, j) in UNANALYSABLE_VOICES:
+                    if unanalysable is None:
+                        raise ConversionError(f"{where} series {k} digit {j} is listed in "
+                                              f"UNANALYSABLE_VOICES, but the caller keeps no list")
+                    unanalysable.append(f"{where} series {k} digit {j}")
                     continue
                 pairs.append({"session": session, "series": k, "position": j, "code": code,
                               "voice": voice_out[v0:v0 + out_win].astype(np.float32),
@@ -529,7 +552,7 @@ def main():
     for code, word in sorted(DIGIT_WORDS.items()):
         con.execute("INSERT INTO stimulus VALUES (?, ?)", (code, word.lower()))
     total = shifted = cut = 0
-    kept, excluded, edge_dropped = [], [], []
+    kept, excluded, edge_dropped, unanalysable = [], [], [], []
     for vid in volunteers:
         try:
             own_recordings(os.path.join(src, vid), vid)
@@ -559,7 +582,8 @@ def main():
     # and folds come from, so they must not move when excluded rows exist.
     for sid, vid in enumerate(kept, 1):
         try:
-            pairs = convert_volunteer(os.path.join(src, vid), vid, filters, edge_dropped)
+            pairs = convert_volunteer(os.path.join(src, vid), vid, filters, edge_dropped,
+                                      unanalysable=unanalysable)
         except ConversionError as e:
             con.close()
             os.remove(tmp)
@@ -590,9 +614,25 @@ def main():
         stored_excluded += len(pairs)
         print(f"[biomex] {vid}: excluded, {len(pairs)} pairs stored but never read "
               f"({'; '.join(notes)})")
+    # The listed pairs of the volunteers this conversion keeps (a test base of synthetic
+    # volunteers holds none of them): every one must have been met, or the entry is stale.
+    listed = sorted(f"{v} {s} series {k} digit {j}" for v, s, k, j in UNANALYSABLE_VOICES
+                    if v in kept)
+    if sorted(unanalysable) != listed:
+        con.close()
+        os.remove(tmp)
+        sys.exit(f"[biomex] refused: UNANALYSABLE_VOICES lists {listed}, the conversion met "
+                 f"{sorted(unanalysable)} (a listed pair that does not exist is a stale entry)")
     con.executemany("INSERT INTO recording VALUES (?, ?)",
                     [("voice_windows_shifted", str(shifted)), ("voice_words_cut", str(cut)),
-                     ("edge_dropped_pairs", " | ".join(edge_dropped) or "none")])
+                     ("edge_dropped_pairs", " | ".join(edge_dropped) or "none"),
+                     ("unanalysable_voice_pairs", " | ".join(listed) or "none"),
+                     ("unanalysable_voice_rule",
+                      "left out: WORLD's Harvest finds no voiced frame in the voice window, so "
+                      "the thesis's WORLD dysphonia profiles cannot edit it "
+                      "(biomex_to_sqlite.py UNANALYSABLE_VOICES; proved by biomex_verify.py)")])
+    for d in unanalysable:
+        print(f"[biomex] {d}: left out, WORLD finds no voiced frame in its voice window")
     for d in edge_dropped:
         print(f"[biomex] {d}: left out, its EEG epoch is within {FILTER_EDGE} samples of the "
               f"session's edge")

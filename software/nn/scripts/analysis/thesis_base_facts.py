@@ -127,9 +127,17 @@ def main() -> int:
     if edge != vf["edge_dropped"]:
         fail(f"edge-dropped pairs: base {edge}, verifier {vf['edge_dropped']}")
     unlabelled = [p for p in info["excluded_pairs"].split("; ") if p]
-    if PROTOCOL_PAIRS * len(kept) - pairs != len(edge) + len(unlabelled):
+    # Voice windows the thesis's WORLD path cannot analyse (biomex_to_sqlite.py
+    # UNANALYSABLE_VOICES, decided 2026-11-16): the verifier proved them from the originals.
+    unanalysable = ([] if info["unanalysable_voice_pairs"] == "none"
+                    else info["unanalysable_voice_pairs"].split(" | "))
+    if unanalysable != vf["unanalysable"] or vf["world_refused_stored"] != 0:
+        fail(f"WORLD-unanalysable pairs: base {unanalysable}, verifier {vf['unanalysable']} "
+             f"(stored windows refused: {vf['world_refused_stored']})")
+    if PROTOCOL_PAIRS * len(kept) - pairs != len(edge) + len(unlabelled) + len(unanalysable):
         fail(f"{len(kept)} x {PROTOCOL_PAIRS} - {pairs} pairs is not the {len(edge)} edge + "
-             f"{len(unlabelled)} unlabelled pairs the base names")
+             f"{len(unlabelled)} unlabelled + {len(unanalysable)} WORLD-unanalysable pairs "
+             f"the base names")
     recorded = kept + excluded
     put("base.biomex.recorded", "count", len(recorded))
     put("base.biomex.recorded.f", "count", sum(v.startswith("F") for v in recorded))
@@ -145,6 +153,9 @@ def main() -> int:
     put("base.biomex.pairs.edge", "count", len(edge))
     put("base.biomex.pairs.edge.list", "text", ", ".join(sorted({e.split()[0] for e in edge})))
     put("base.biomex.pairs.unlabelled", "count", len(unlabelled))
+    put("base.biomex.pairs.unanalysable", "count", len(unanalysable))
+    put("base.biomex.pairs.unanalysable.list", "text",
+        ", ".join(sorted({u.split()[0] for u in unanalysable})))
     put("base.biomex.voice.shifted", "count", int(info["voice_windows_shifted"]))
     put("base.biomex.voice.cut", "count", int(info["voice_words_cut"]))
     put("base.biomex.csv.missing", "count", len(vf["sessions_without_csv"]))

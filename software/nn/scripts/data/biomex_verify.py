@@ -16,7 +16,11 @@ path and compares, and checks the originals against two sources the converter ne
      scipy.io.wavfile (not the wave module), the voice window placed by a re-implementation of
      the rule, the EEG epoch from the EDF checked in (1);
   4. counts: 140 pairs per volunteer, and per digit what Table 1 implies (3: 15, 8: 13, every
-     other digit 14), speakers named and numbered as the folders.
+     other digit 14), speakers named and numbered as the folders;
+  5. the voice windows the thesis's WORLD path cannot analyse (biomex_to_sqlite.py
+     UNANALYSABLE_VOICES): each listed window, rebuilt here from the originals, must be refused
+     by that path and absent from the SQLite, and no stored window may be refused
+     (world_voicing.py, which runs the thesis's own C++, not a re-implementation).
 
 Exit status 1 on any difference; every difference is printed.
 
@@ -39,6 +43,7 @@ from scipy.signal import firwin, resample_poly
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import biomex_to_sqlite as bx  # noqa: E402
+import world_voicing  # noqa: E402
 from databases_dir import in_databases  # noqa: E402
 
 # Table 1 of the paper: (a) the 10-digit series, (b) the 4-digit series.
@@ -135,6 +140,8 @@ def main():
                     help="the extracted base, F001/, M001/, ... (default: %(default)s)")
     ap.add_argument("--db", default=in_databases("biomex.sqlite"),
                     help="the SQLite written by biomex_to_sqlite.py (default: %(default)s)")
+    ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1),
+                    help="processes for the WORLD check (default: %(default)s)")
     args = ap.parse_args()
     src, db = os.path.expanduser(args.src), os.path.expanduser(args.db)
     fails = []
@@ -215,6 +222,7 @@ def main():
     checked = 0
     no_csv = []
     edge_here = []
+    unanalysable_rebuilt = {}   # (5): the listed windows, rebuilt from the originals
     for vid in volunteers:
         folder = os.path.join(src, vid)
         digits = Counter()
@@ -285,6 +293,17 @@ def main():
                                  f"edge, yet the pair is stored")
                             stored.pop(key)
                         continue
+                    if key in bx.UNANALYSABLE_VOICES:
+                        expected[0 if code == 10 else code] -= 1
+                        if key in stored:
+                            fail(f"{key}: listed in UNANALYSABLE_VOICES, yet the pair is stored")
+                            stored.pop(key)
+                        if b is None:
+                            fail(f"{key}: listed in UNANALYSABLE_VOICES, but no window fits")
+                            continue
+                        v0 = int(round(b * bx.VOICE_UP / bx.VOICE_DOWN))
+                        unanalysable_rebuilt[key] = voice_up[v0:v0 + out_win].copy()
+                        continue
                     if key not in stored:
                         fail(f"{key}: missing from the SQLite")
                         continue
@@ -324,6 +343,35 @@ def main():
         fail(f"edge-dropped pairs: SQLite {edge_stored!r}, the rule here {edge_here}")
     for d in edge_here:
         print(f"[verify] {d}: absent, as its epoch is within the filter's edge")
+    # (5) the WORLD-unanalysable windows: the list is proved, not trusted.
+    listed = sorted(k for k in bx.UNANALYSABLE_VOICES if k[0] in volunteers)
+    want_meta = " | ".join(f"{v} {s} series {k} digit {j}" for v, s, k, j in listed) or "none"
+    if info.get("unanalysable_voice_pairs") != want_meta:
+        fail(f"recording.unanalysable_voice_pairs = {info.get('unanalysable_voice_pairs')!r}, "
+             f"the list here {want_meta!r}")
+    if sorted(unanalysable_rebuilt) != listed:
+        fail(f"UNANALYSABLE_VOICES lists {listed}; the originals hold windows for "
+             f"{sorted(unanalysable_rebuilt)}")
+    elif listed:
+        got = world_voicing.refused([unanalysable_rebuilt[k] for k in listed],
+                                    bx.OUT_VOICE_RATE, bx.VOICE_RATE, args.jobs)
+        for i, key in enumerate(listed):
+            if i in got:
+                print(f"[verify] {key}: absent; the WORLD path refuses its rebuilt window "
+                      f"({got[i][:80]})")
+            else:
+                fail(f"{key}: listed in UNANALYSABLE_VOICES, but the WORLD path accepts its "
+                     f"window rebuilt from the originals: remove it from the list")
+    kept_voices = con.execute(
+        "SELECT s.name, p.session, p.series, p.position, p.voice FROM pair p "
+        "JOIN speaker s ON s.id = p.speaker_id WHERE s.excluded = 0 ORDER BY p.id").fetchall()
+    got = world_voicing.refused([np.frombuffer(r[4], np.float32) for r in kept_voices],
+                                bx.OUT_VOICE_RATE, bx.VOICE_RATE, args.jobs)
+    for i, msg in sorted(got.items()):
+        fail(f"{kept_voices[i][:4]}: stored, but the WORLD path refuses it ({msg[:80]}); "
+             f"add it to UNANALYSABLE_VOICES if the user agrees")
+    print(f"[verify] WORLD path: {len(kept_voices)} stored voice windows checked, "
+          f"{len(got)} refused")
     con.close()
     print(f"[verify] {checked} pairs equal to the originals; {len(fails)} difference(s)")
     print(f"[verify] sessions with no CSV export to compare the EDF with: {len(no_csv)}"
@@ -345,7 +393,8 @@ def main():
         f.write(h.hexdigest() + "\n" + json.dumps({
             "volunteers": len(volunteers), "excluded": excluded, "pairs_equal": checked,
             "differences": 0, "sessions_without_csv": no_csv, "edge_dropped": edge_here,
-            "src": src}) + "\n")
+            "unanalysable": [f"{v} {s} series {k} digit {j}" for v, s, k, j in listed],
+            "world_refused_stored": 0, "src": src}) + "\n")
     print(f"[verify] stamp written: {stamp}")
     return 0
 
