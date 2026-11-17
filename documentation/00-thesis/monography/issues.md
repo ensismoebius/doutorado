@@ -752,3 +752,23 @@ Também em 2026-11-13: as tabelas sem estilo (particionamento espectral, valores
 taxa de disparo × escala dos pesos, potência do EEG, estado da arte, níveis de disfonia,
 apêndices A e B) passaram ao cabeçalho azul com listras da paleta Okabe-Ito; as figuras de
 codificação temporal e de disfonia simulada usam a mesma paleta.
+
+---
+
+## Situação em 2026-11-17
+
+Resolvido desde 13/11: a disfonia simulada ganhou, além do sussurro, perfis de edição da fonte
+pelo vocoder WORLD (rugosidade, tremor, quebras de sonoridade), calibrados com o Praat
+(cap. 8); a ressíntese sozinha não é transparente (teste com poder, cap. 8); a grade
+"nível menos controle" rodou nas duas bases (cap. 9, `sec:resultadosWorld`, Tabela de margem):
+na base de Coretto 9 dos 14 níveis mudam a margem de verificação por locução, na BIOMEX-DB
+nenhum, e nenhum muda o EER; o teste de efeito de piso, com regra comitada antes, não explica
+o nulo da BIOMEX-DB. A BIOMEX-DB perdeu os 3 pares que o WORLD não analisa (6294 pares). Item 1
+fica assim: a disfonia continua simulada, agora com dois modelos, e o texto diz o que cada um
+cobre. Apêndice B atualizado (scripts 04–09, perfis e resultados da disfonia; o
+`02_thesis_apply_winner.py`, que não existe mais, saiu); frases obsoletas sobre o extrator
+provisório e sobre os perfis "fora da grade" corrigidas; trabalhos futuros atualizados.
+Push em 17/11 (CI em andamento).
+
+Falta, e depende do autor (sem mudança desde 13/11): Web of Science (`\pendenteMarca` no
+cap. 7), ficha catalográfica, dedicatória/agradecimentos/epígrafe, data da defesa, banca.
