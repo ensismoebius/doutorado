@@ -226,7 +226,9 @@ test that followed (rule committed first, `09_thesis_world_floor.py`, proposal Â
 not support a floor: r = +0.14, p = 0.218 on BIOMEX-DB (Coretto, descriptive: r = +0.71, opposite
 sign too); the BIOMEX-DB null stays unexplained. `08_thesis_world_analysis.py` writes
 `results/thesis/world_analysis/{world_margin.json, world_eer.csv, sig_*.csv}`; the number builder
-reads it with `--world-analysis` (keys `world.*`).
+reads it with `--world-analysis` (keys `world.*`). The profile counts the figures quote
+(`pilot.n.total`, `world.n.co`, `world.n.bx`) come from `--profiles-manifest`
+(`MANIFEST_SETS` in `thesis_build_text_numbers.py`; a set the manifest does not list is refused).
 
 **Status.** Generators, key, tests, calibration, pilot, powered test and the WORLD grid are done; the six pilot
 profiles are `profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
@@ -398,6 +400,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
   --world-analysis results/thesis/world_analysis \
+  --profiles-manifest src/experiments/thesis/profiles/profiles.manifest \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
 

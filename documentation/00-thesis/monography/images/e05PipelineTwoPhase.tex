@@ -29,12 +29,15 @@
     {\textbf{Fase 01} --- \tn{p01.n.total} configurações: DSNN, controles, disfonia simulada\\ e comparação de extratores, sob verificação com locutores fora do treino};
 \node[proc, below=of p01] (bx)
     {\textbf{Replicação na BIOMEX-DB} --- \tn{bx.n.total} configurações,\\ com os vencedores da Fase 00 congelados};
-\node[startstop, below=of bx] (stop) {EER, AUC, energia de inferência e testes de significância};
+\node[proc, below=of bx] (world)
+    {\textbf{Disfonia pelo vocoder WORLD} --- piloto de identidade (\tn{pilot.n.total} configurações),\\ grade com controle de ressíntese: \tn{world.n.co} configurações na base de Coretto\\ e \tn{world.n.bx} na BIOMEX-DB, cada nível lido contra o seu controle; teste de piso};
+\node[startstop, below=of world] (stop) {EER, AUC, energia de inferência e testes de significância};
 
 \draw[arr] (start) -- (p00);
 \draw[arr] (p00)   -- (rank);
 \draw[arr] (rank)  -- (gen);
 \draw[arr] (gen)   -- (p01);
 \draw[arr] (p01)   -- (bx);
-\draw[arr] (bx)    -- (stop);
+\draw[arr] (bx)    -- (world);
+\draw[arr] (world) -- (stop);
 \end{tikzpicture}

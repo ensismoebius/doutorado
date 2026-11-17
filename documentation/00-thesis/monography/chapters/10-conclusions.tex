@@ -23,7 +23,7 @@
 		etapa cepstral.
 
 		\par \textbf{Os extratores automatizados perdem pelo critério
-		paraconsistente e empatam pelo classificador.} Na Fase~00, nenhum
+		paraconsistente e não se distinguem do manual pelo classificador.} Na Fase~00, nenhum
 		\textit{autoencoder} e nenhuma \ac{PCA} se aproximou do extrator manual.
 		Levados ao mesmo classificador, o melhor de cada família atinge \ac{EER}
 		que não se distingue do manual em nenhum dos três sinais, e no \ac{EEG}
@@ -46,8 +46,8 @@
 		\ac{EEG} não se distingue do \ac{EEG} sozinho, e o \ac{EEG} de fala
 		imaginada não se distingue do de fala pronunciada.
 
-		\par \textbf{Os resultados se repetem numa segunda base.} Executadas uma
-		vez na BIOMEX-DB, com os vencedores congelados e \tn{base.biomex.kept}
+		\par \textbf{Os resultados se repetem numa segunda base.} Executadas numa
+		única rodada na BIOMEX-DB, sem nova seleção, com os vencedores congelados e \tn{base.biomex.kept}
 		locutores (\autoref{sec:resultadosBiomex}), as mesmas configurações dão
 		\ac{EER} médio de $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$ nas
 		mesmas células da outra base, com a mesma melhor e a mesma pior célula. Das
@@ -92,6 +92,8 @@
 		--- o \ac{EEG} mantém a autenticação quando a voz de teste se degrada ---
 		é apoiada apenas na direção dos resultados: sob disfonia simulada, a voz
 		piora e as fusões se mantêm, mas nenhuma das diferenças é significativa.
+		Na grade WORLD, nem o \ac{EER} da voz muda: nesses perfis não há
+		degradação que o \ac{EEG} precise compensar, e a hipótese fica sem teste.
 		A primeira hipótese secundária não se confirmou: o critério
 		paraconsistente ordena extratores de uma mesma família, mas não antecipou
 		o desempenho entre famílias. A segunda foi refutada nesta tarefa: a rede
@@ -128,7 +130,8 @@
 			componente acrescenta}: a rede gêmea não pulsante, que difere da
 			\ac{DSNN} apenas no neurônio; o cosseno direto, que remove a rede; os
 			dois modos de texto com o mesmo conjunto de treino; e a energia de
-			inferência medida na passagem de teste em vez de presumida. Foram esses
+			inferência estimada a partir dos disparos contados na passagem de
+			teste, em vez de presumida. Foram esses
 			controles que mostraram que a rede de pulsos não contribui de forma
 			detectável nesta tarefa --- um resultado que o \ac{EER} da \ac{DSNN},
 			sozinho, não revelaria.
@@ -137,9 +140,9 @@
 			detectados} (os oito defeitos desse tipo encontrados durante o
 			desenvolvimento estão no \autoref{apend:defeitos}). O \ac{EEG} lido da tentativa anterior
 			(\autoref{sec:baseDeSinais}), a entrada sem informação de locutor dos
-			extratores automatizados (\autoref{sec:protocoloDuasFases}) e a
+			extratores automatizados (\autoref{sec:aeEntrada}) e a
 			previsão do piso de ruído das codificações temporais, ``confirmada''
-			por dados que não mediam outra coisa (\autoref{sec:protocoloDuasFases}),
+			por dados que não mediam outra coisa (\autoref{sec:codificacoesPrevisao}),
 			têm em comum não produzirem erro algum: todo o \textit{pipeline} roda,
 			converge e entrega números plausíveis. Os dois primeiros foram
 			confirmados por verificações externas ao \textit{pipeline} --- a
@@ -244,7 +247,7 @@
 			variando o número de passos $T$ e o limiar de disparo do \ac{SNN}-AE
 			com o restante fixo, para decidir se a desvantagem da codificação
 			direta vem da falta de integração temporal
-			(\autoref{sec:protocoloDuasFases});
+			(\autoref{sec:codificacoesPrevisao});
 
 			\item \textbf{Medir a energia do sistema completo}, incluindo o
 			extrator, e em \textit{hardware} neuromórfico, onde o custo de um

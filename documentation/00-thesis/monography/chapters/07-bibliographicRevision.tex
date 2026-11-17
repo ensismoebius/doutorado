@@ -31,6 +31,7 @@
 			\par A medição de $F_0$ está sujeita a contaminações surgidas das variações naturais de \textit{pitch} típicas da voz humana \cite{freitas2013avaliaccao}. A importância de se medir $F_0$ corretamente vem do fato de que, além de carregar boa parte da informação presente na fala, ela é a base para construção das outras medidas que compõem os sinais de voz, que são múltiplas de $F_0$.
 		
 		\subsubsection{Formantes}
+		\label{sec:formantes}
 			\par O sinal de excitação das pregas vocais é rico em harmônicas — frequências múltiplas da fundamental — que são atenuadas ou amplificadas pela geometria do trato vocal e nasal de cada locutor, gerando picos espectrais denominados formantes \cite{valencca2014analise,fant1960acoustic}. Independentemente do idioma, cada formante apresenta articulações universais: 
 			
 			\par A primeira ($F_1$) é associada à cavidade oral posterior, reflete a altura da língua (/i/: $\approx$240~Hz; /u/: $\approx$300~Hz; /a/: $\approx$700~Hz).
@@ -46,7 +47,7 @@
 		\subsection{Escalas e energias dos sinais}
 
 			\subsubsection{Pré-ênfase do sinal de voz}
-				\par Antes de calcular energias e coeficientes espectrais do áudio, aplica-se a \textbf{pré-ênfase}, um filtro que realça as altas frequências. A motivação é física: no sinal de voz, a fonte glotal impõe uma queda espectral de cerca de $-6$~dB por oitava, de modo que as formantes superiores --- justamente as mais discriminativas entre locutores (\autoref{sec:conceitos}) --- chegam atenuadas. A pré-ênfase compensa essa inclinação, equilibrando a energia entre bandas baixas e altas antes da extração de características \cite{rabiner1993fundamentals}.
+				\par Antes de calcular energias e coeficientes espectrais do áudio, aplica-se a \textbf{pré-ênfase}, um filtro que realça as altas frequências. A motivação é física: no sinal de voz, a fonte glotal impõe uma queda espectral de cerca de $-6$~dB por oitava, de modo que as formantes superiores --- justamente as mais discriminativas entre locutores (\autoref{sec:formantes}) --- chegam atenuadas. A pré-ênfase compensa essa inclinação, equilibrando a energia entre bandas baixas e altas antes da extração de características \cite{rabiner1993fundamentals}.
 
 				\par Sejam $x[n]$ a amostra de áudio no instante $n$, $y[n]$ a amostra após a pré-ênfase e $\alpha$ o coeficiente de pré-ênfase (tipicamente $0{,}95 \leqslant \alpha \leqslant 0{,}97$; este trabalho usa $\alpha=0{,}97$). O filtro é de primeira ordem:
 				\begin{equation}
@@ -225,7 +226,7 @@
 
 			\par \textbf{Consequência.} Para o EEG, a ``escala Bark'' nunca foi Bark: era uma reescala linear disfarçada, produzindo um vetor de características idêntico ao da escala linear. Isso foi confirmado empiricamente sobre as execuções da Fase 00: nos $46$ pares \textit{wavelet}~$\times$~categoria do EEG, as três escalas produziram $D_{\text{verdade}}$ idêntico \emph{bit a bit} --- $46$ de $46$. As únicas exceções aparentes, da \textit{wavelet} \texttt{daub32}, diferiam em $\approx\!1{,}5\times10^{-6}$, ruído de ponto flutuante originado da reexecução isolada daquelas configurações. Das $138$ configurações manuais de EEG, portanto, apenas $46$ eram genuinamente distintas: $92$ execuções eram duplicatas exatas. Por esse motivo o eixo da escala é aplicado somente à voz, e o EEG usa apenas a escala linear (\autoref{chap:propApproach}): $46$ configurações manuais por condição de \ac{EEG}, em vez de $138$, sem perda de informação alguma.
 
-			\par Vale registrar a consequência metodológica de não ter percebido isso antes. Como as três variantes empatavam exatamente, o vencedor da Fase 00 para o EEG era determinado pela ordem de desempate da rotina de ranqueamento, e vinha rotulado como \textit{bark}. Afirmar que ``a escala Bark venceu para o EEG'' seria falso: a Bark não produziu efeito algum, e o vetor vencedor é literalmente o da escala linear. A rotina de ranqueamento passou a detectar e reportar empates exatos de forma explícita, de modo que um desempate arbitrário não possa ser confundido com um resultado experimental.
+			\par Há uma consequência para a leitura dos resultados: quando três variantes empatam exatamente, o ``vencedor'' é decidido pela ordem de desempate, e um rótulo como ``a escala Bark venceu para o EEG'' seria falso. Por isso a rotina de ranqueamento reporta empates exatos de forma explícita, para que um desempate arbitrário não seja confundido com um resultado experimental.
 
 		\subsection{Filtros digitais \textit{wavelet}}
 			\par Filtros digitais \textit{wavelet} têm sido utilizados com sucesso para suprir as deficiências de janelamento de sinal apresentadas pelas Transformadas de Fourier e de Fourier de Tempo Reduzido. \textit{Wavelets} contam com variadas funções-filtro e têm tamanho de janela variável, o que permite uma análise multirresolução \cite{Rod5254905}. Particularmente, as \textit{wavelets} proporcionam a análise do sinal de forma detalhada tanto no espectro de baixa frequência quanto no de alta contando com diferentes funções-base não periódicas diferentemente da tradicional transformada de Fourier que utilizam somente as bases periódicas senoidal e cossenoidal.
@@ -413,13 +414,13 @@
 				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 		
-			\par Considerando os valores máximos e mínimos que $\alpha$ e $\beta$ podem assumir é possível ter a seguinte interpretação:
+			\par Por isso $\alpha$ é chamado de grau de crença e $\beta$ de grau de descrença. Considerando os valores máximos e mínimos que eles podem assumir, tem-se a seguinte interpretação:
 			
 			\begin{itemize}
-				\item Verdade $\rightarrow$ fé total ($\alpha = 1$) e nenhum descrédito ($\beta = 0$)
-				\item Ambiguidade $\rightarrow$ fé total ($\alpha = 1$) e descrédito total ($\beta = 1$)
-				\item Falsidade $\rightarrow$ fé nula ($\alpha = 0$) e descrédito total ($\beta = 1$)
-				\item Indefinição $\rightarrow$ fé nula ($\alpha = 0$) e nenhum descrédito ($\beta = 0$) \qquad.
+				\item Verdade $\rightarrow$ crença total ($\alpha = 1$) e nenhuma descrença ($\beta = 0$)
+				\item Ambiguidade $\rightarrow$ crença total ($\alpha = 1$) e descrença total ($\beta = 1$)
+				\item Falsidade $\rightarrow$ crença nula ($\alpha = 0$) e descrença total ($\beta = 1$)
+				\item Indefinição $\rightarrow$ crença nula ($\alpha = 0$) e nenhuma descrença ($\beta = 0$) \qquad.
 			\end{itemize}
 			
 			\par No entanto, é improvável que os valores de $\alpha$ e $\beta$ assumam valores inteiros, como na listagem apresentada anteriormente, uma vez que $\alpha,\beta \in \mathbb{R}$ e estão restritos aos intervalos $0 \leqslant \alpha \leqslant 1$ e $0 \leqslant \beta \leqslant 1$, 
@@ -554,7 +555,6 @@
 				
 			\end{itemize}
 			
-			\par As amplitudes das bandas Delta e Gamma não foram encontradas quando procuradas nas principais bases de dados.
 			
 			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme pode ser visto na \autoref{tb:brainRegions}.
 			
@@ -585,8 +585,8 @@
 				\label{fig:1020standardandlobes}
 			\end{figure}
 		
-			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de Broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala pronunciada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:loboparietal}, \autoref{fig:lobotemporal} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
-			\par No entanto, é importante ressaltar que a fala imaginada, diferentemente da fonada, não mobiliza os córtex motores de forma intensa, ativando de modo mais distribuído as regiões corticais associadas à linguagem e ao processamento fonológico. De acordo com \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013}, tais ativações se estendem por regiões temporais e parietais bilaterais, não se restringindo ao hemisfério dominante como ocorre na maioria dos processos de fala pronunciada.
+			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de Broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala pronunciada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:loboparietal}, \autoref{fig:lobotemporal} e a \autoref{fig:1020standardandlobes} o eletrodo temporal esquerdo T5 pode estar mais próximo da área de Wernicke, e os eletrodos frontais esquerdos F7 e F3 da área de Broca.
+			\par No entanto, é importante ressaltar que a fala imaginada, diferentemente da pronunciada, não mobiliza os córtex motores de forma intensa, ativando de modo mais distribuído as regiões corticais associadas à linguagem e ao processamento fonológico. De acordo com \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013}, tais ativações se estendem por regiões temporais e parietais bilaterais, não se restringindo ao hemisfério dominante como ocorre na maioria dos processos de fala pronunciada.
 			
 			\begin{figure}[H]
 				\centering
@@ -630,7 +630,7 @@
 			
 			\newpage
 			
-			\par O processamento fonológico se dá na região perissilviana do hemisfério dominante, já o semântico inclui áreas corticais de ambos os hemisférios para dar significado às palavras, nas áreas frontais, temporais e parietais, a articulação das palavras acontece. Quando se dá uma lesão em áreas como a de Wernicke, Broca ou em suas vizinhanças à condição resultante se dá o nome de \textbf{afasia} que podem ser fluentes (fala com ritmo normal porém  incoerente) ou não-fluentes (dificuldade e esforço na produção da fala mas, preservam a compreensão) \cite{pinto2012manual}. Portanto a fala tanto fonada quanto imaginada se realiza em quase todo o telencéfalo tendo como diferença a mobilização dos córtex motores quando o locutor ou locutora emite algum som.
+			\par O processamento fonológico se dá na região perissilviana do hemisfério dominante, já o semântico inclui áreas corticais de ambos os hemisférios para dar significado às palavras, nas áreas frontais, temporais e parietais, a articulação das palavras acontece. Quando se dá uma lesão em áreas como a de Wernicke, Broca ou em suas vizinhanças à condição resultante se dá o nome de \textbf{afasia} que podem ser fluentes (fala com ritmo normal porém  incoerente) ou não-fluentes (dificuldade e esforço na produção da fala mas, preservam a compreensão) \cite{pinto2012manual}. Portanto a fala tanto pronunciada quanto imaginada se realiza em quase todo o telencéfalo tendo como diferença a mobilização dos córtex motores quando o locutor ou locutora emite algum som.
 			
 			\begin{figure}[h]
 				\centering
@@ -645,7 +645,7 @@
 
 			\par Não é possível somar metros com quilogramas sem antes convertê-los a uma unidade comum; uma rede neural tem o mesmo problema com características de entrada em escalas diferentes. Se uma característica varia entre $0$ e $1$ e outra entre $0$ e $10\,000$, o gradiente da segunda domina a atualização dos pesos, e a rede aprende com ela, ignorando a primeira. Reescalonar as entradas para uma faixa comparável, com média próxima de zero, remove essa assimetria e estabiliza e acelera o treinamento por gradiente \cite{lecun1998efficient}.
 
-			\par Há duas estratégias usuais de padronização (\textit{z-score}), que respondem a comportamentos estatísticos opostos, detalhados a seguir: por característica e por janela. \textbf{Esta tese usa apenas a primeira}, em todos os sinais --- voz, \ac{EEG} e fusões ---, porque o que o classificador recebe é um vetor de características, cujas colunas têm significado fixo; a segunda é apresentada para contraste, por ser a usual no \ac{EEG} bruto. Uma terceira normalização --- a escala mín-máx para o intervalo $[0,1]$ --- é usada em contexto distinto: a engenharia paraconsistente de características (\autoref{sec:conceitos}) exige que todos os componentes dos vetores estejam em $[0,1]$ para que os coeficientes $\alpha$ e $\beta$ fiquem bem definidos; essa escala é aplicada apenas na etapa de avaliação paraconsistente, não na entrada dos classificadores.
+			\par Há duas estratégias usuais de padronização (\textit{z-score}), que respondem a comportamentos estatísticos opostos, detalhados a seguir: por característica e por janela. \textbf{Esta tese usa apenas a primeira}, em todos os sinais --- voz, \ac{EEG} e fusões ---, porque o que o classificador recebe é um vetor de características, cujas colunas têm significado fixo; a segunda é apresentada para contraste, por ser a usual no \ac{EEG} bruto. Uma terceira normalização --- a escala mín-máx para o intervalo $[0,1]$ --- é usada em contexto distinto: a engenharia paraconsistente de características (\autoref{sec:analiseParaconsistente}) exige que todos os componentes dos vetores estejam em $[0,1]$ para que os coeficientes $\alpha$ e $\beta$ fiquem bem definidos; essa escala é aplicada apenas na etapa de avaliação paraconsistente, não na entrada dos classificadores.
 
 			\par Antes de apresentar as duas fórmulas, definem-se os símbolos comuns:
 			\begin{itemize}
@@ -980,9 +980,9 @@
 			\begin{itemize}
 				\item \textbf{\ac{STDP}}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
 				
-				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
+				\item \textbf{Gradiente substituto} (\textit{surrogate gradient}): Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
 				
-				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos hiperparâmetros mais aptos ao longo de muitas gerações de redes.
+				\item \textbf{Algoritmos Evolutivos}: Selecionam os pesos das redes mais aptas ao longo de muitas gerações.
 				
 				\item \textbf{Reservatório/Computação Dinâmica}: estratégia que evita treinar a rede recorrente mantendo o \textbf{reservatório} --- uma rede recorrente com pesos e conectividade fixos --- e treinando apenas a camada de saída \cite{kasabov2019time}.
 
@@ -993,7 +993,7 @@
 
 			\par Redes recorrentes processam sequências: a saída em cada instante $t$ depende da entrada atual $x_t$ e do estado interno $h_{t-1}$ da etapa anterior. Isso cria dependências temporais que a retropropagação padrão não trata.
 
-			\par O BPTT resolve isso \textit{desenrolando} a rede no tempo, como ilustrado na \autoref{fig:bptt}: a rede é replicada $T$ vezes, sendo $T$ o passo temporal, com  todas essas cópias compartilhando os mesmos pesos $W$. Na propagação direta (\textit{forward}), o estado interno avança da esquerda para a direita: $h_t = f(h_{t-1}, x_t;\, W)$. Seja $\mathcal{L}$ a perda total da sequência e $\mathcal{L}_t$ a contribuição do passo $t$ para essa perda. Na retropropagação (\textit{backward}), o gradiente percorre o caminho inverso (da última cópia até a primeira) acumulando a contribuição de cada passo \cite{10242251}:
+			\par O BPTT resolve isso \textit{desenrolando} a rede no tempo, como ilustrado na \autoref{fig:bptt}: a rede é replicada $T$ vezes, sendo $T$ o número de passos de tempo, com  todas essas cópias compartilhando os mesmos pesos $W$. Na propagação direta (\textit{forward}), o estado interno avança da esquerda para a direita: $h_t = f(h_{t-1}, x_t;\, W)$. Seja $\mathcal{L}$ a perda total da sequência e $\mathcal{L}_t$ a contribuição do passo $t$ para essa perda. Na retropropagação (\textit{backward}), o gradiente percorre o caminho inverso (da última cópia até a primeira) acumulando a contribuição de cada passo \cite{10242251}:
 
 			\begin{equation}
 				\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial \mathbf{W}}
@@ -1140,7 +1140,7 @@
 					\item $b$ --- o vetor de vieses (\textit{bias}) da camada.
 				\end{itemize}
 
-				\par Este trabalho utiliza a inicialização de \textbf{He} (também chamada de \textbf{Kaiming}), na sua forma uniforme, indicada para ativações do tipo retificadora e para os neurônios de pulso \cite{he2015delving}. Cada peso é sorteado de forma independente e os vieses começam em zero:
+				\par Este trabalho utiliza a inicialização de \textbf{He} (também chamada de \textbf{Kaiming}), na sua forma uniforme, proposta para ativações do tipo retificadora \cite{he2015delving}. O artigo não trata de redes de pulsos; o uso aqui também nos neurônios de pulso se apoia numa analogia, explicada a seguir, e não numa demonstração. Cada peso é sorteado de forma independente e os vieses começam em zero:
 
 				\begin{equation}
 					\label{eq:kaiming}
@@ -1149,7 +1149,7 @@
 					b = 0.
 				\end{equation}
 
-				\par A escolha de $\ell = \sqrt{6/n_{in}}$ não é arbitrária. Para a distribuição uniforme em $[-\ell,\ell]$, a variância de cada peso é $\ell^2/3 = 2/n_{in}$. Esse valor é justamente o que \cite{he2015delving} demonstram manter a variância das ativações estável entre camadas quando a não-linearidade descarta cerca de metade dos sinais (como o retificador ou o disparo do neurônio). Assim, quanto mais entradas um neurônio possui (maior $n_{in}$), menor o intervalo de sorteio --- evitando que a soma de muitas entradas cresça sem controle.
+				\par A escolha de $\ell = \sqrt{6/n_{in}}$ não é arbitrária. Para a distribuição uniforme em $[-\ell,\ell]$, a variância de cada peso é $\ell^2/3 = 2/n_{in}$. Esse valor é justamente o que \cite{he2015delving} demonstram manter a variância das ativações estável entre camadas quando a não-linearidade descarta cerca de metade dos sinais, como faz o retificador. O disparo de um neurônio de pulso também deixa passar apenas parte das entradas, e é essa semelhança que motiva usar a mesma escala nele. Assim, quanto mais entradas um neurônio possui (maior $n_{in}$), menor o intervalo de sorteio --- evitando que a soma de muitas entradas cresça sem controle.
 
 				\par \textbf{Exemplo numérico.} Para uma camada com $n_{in}=64$ entradas, tem-se $\ell = \sqrt{6/64} = \sqrt{0{,}09375} \approx 0{,}306$. Portanto cada peso é sorteado uniformemente no intervalo $[-0{,}306,\ +0{,}306]$, como ilustra a \autoref{fig:kaimingdist}, e todos os vieses iniciam em $0$.
 
@@ -1161,7 +1161,7 @@
 					\label{fig:kaimingdist}
 				\end{figure}
 
-				\par \textbf{Reprodutibilidade.} O sorteio dos pesos usa um gerador de números pseudoaleatórios. Se esse gerador for iniciado a partir de uma \textbf{semente} fixa, a mesma sequência de pesos é obtida a cada execução, tornando os experimentos reprodutíveis. Neste trabalho, ambos os classificadores --- a rede residual e a rede neural de pulsos --- semeiam o gerador com a semente do experimento, de modo que uma mesma configuração produz sempre os mesmos pesos iniciais. O \autoref{lst:kaiming} descreve o procedimento em C simplificado, e a \autoref{fig:kaimingflux} apresenta o mesmo procedimento como fluxograma.
+				\par \textbf{Reprodutibilidade.} O sorteio dos pesos usa um gerador de números pseudoaleatórios. Se esse gerador for iniciado a partir de uma \textbf{semente} fixa, a mesma sequência de pesos é obtida a cada execução, tornando os experimentos reprodutíveis. Neste trabalho, ambos os classificadores --- a \ac{DSNN} e a sua gêmea não pulsante, as duas residuais --- semeiam o gerador com a semente do experimento, de modo que uma mesma configuração produz sempre os mesmos pesos iniciais. O \autoref{lst:kaiming} descreve o procedimento em C simplificado, e a \autoref{fig:kaimingflux} apresenta o mesmo procedimento como fluxograma.
 
 				\input{listings/kaimingInit.c.tex}
 
@@ -1315,7 +1315,7 @@
 			
 			\par Redes neurais muito profundas podem sofrer de problemas como o desaparecimento ou explosão do gradiente, onde os gradientes (ou seja, as direções para ajustar os pesos da rede) se tornam muito pequenos ou grandes à medida que são retro-propagados. Isso pode dificultar o treinamento eficaz das camadas mais profundas.
 
-			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, é possível juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização, diminui a ocorrência do desaparecimento ou explosão de gradientes. \cite{DBLP:journals/corr/HeZRS15}. 
+			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, é possível juntar várias dessas formando assim uma rede mais profunda e com mais parâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização, diminui a ocorrência do desaparecimento ou explosão de gradientes. \cite{DBLP:journals/corr/HeZRS15}. 
 			
 			\par Em vez de aprender a mapear diretamente de $x$ para $y$, as camadas da rede aprendem a mapear de $x$ para a diferença entre $x$ e $y$, ou seja, para o \textbf{resíduo}. Isso simplifica o treinamento, pois a rede precisa apenas ajustar os resíduos, em vez de aprender a mapear completamente as entradas para as saídas.
 			
@@ -1494,6 +1494,7 @@
 				\citeonline{fallahi2025advancing} & \ac{EEG} & 345 & verificação entre sessões; redes profundas & \ac{EER} 6,7\% (1 dia) a 14,3\% (1 ano) \\
 				\citeonline{morenorodriguez2021biomex} & voz e \ac{EEG} síncronos (14 canais), fala pronunciada & 51 & identificação bimodal & acurácia 97,6\% \\
 				Esta tese & voz e \ac{EEG} (6 canais), fala pronunciada e imaginada & 15 & verificação, locutores de teste fora do treino, sessão única; \ac{DTWPT} e \ac{DSNN} & \ac{EER} $\tn{p01.best.eer}$ (fusão); $\tn{p01.voice.best.eer}$ (voz) \\
+				Esta tese (replicação na BIOMEX-DB) & voz e \ac{EEG} (14 canais), fala pronunciada & \tn{base.biomex.kept} & mesmo protocolo, vencedores congelados, sem nova seleção & \ac{EER} $\tn{bx.best.eer}$ (fusão); $\tn{bx.dsnn.voice.dep.eer}$ (voz, frases vistas) \\
 			\end{longtable}
 			}
 		% packages.tex sets \LTpost to -30pt; without this the next paragraph overlaps the last row.
@@ -1536,5 +1537,5 @@
 				\item \textbf{Separação dos ritmos $\delta$, $\theta$, $\alpha$ e $\beta$} \cite{AgarwalPrabhakar2022Ebia}: com a \ac{DTWPT} de nível~4 a 1024\,Hz, cada sub-banda tem 32\,Hz (\autoref{tab:particaoEspectral}), e os quatro ritmos, todos abaixo de cerca de 30\,Hz, caem na \emph{primeira}. Somada ao filtro de 2 a 40\,Hz da base, essa partição concentra 98,1\% da potência na sub-banda~0 e deixa as sub-bandas 2 a 15 praticamente sem sinal. As características manuais do \ac{EEG} desta tese não distinguem os ritmos, e a maior parte das 16 sub-bandas descreve resíduo do filtro, e não atividade cerebral (leitura a partir da distribuição da potência; o conteúdo de cada característica não foi medido). Reamostrar o \ac{EEG} para 128\,Hz antes da decomposição, o que o filtro de 2 a 40\,Hz da base permite sem perda, daria sub-bandas de 4\,Hz no mesmo nível~4. É uma limitação do extrator manual para o \ac{EEG}, registrada no \autoref{chap:conclusions}.
 			\end{itemize}
 
-			\par \textbf{Energia das redes de pulso.} A literatura que conta os acessos à memória \cite{dampfhoffer2023snns,yan2024reconsidering} prevê vantagem para a rede de pulsos apenas com atividade muito esparsa e poucos passos de tempo. Esta tese mede a energia com um modelo que inclui a memória \cite{lemaire2022analytical} e compara a \ac{DSNN} com uma gêmea não pulsante de mesmo grafo (\autoref{sec:fase01}), em vez de presumir a vantagem.
+			\par \textbf{Energia das redes de pulso.} A literatura que conta os acessos à memória \cite{dampfhoffer2023snns,yan2024reconsidering} prevê vantagem para a rede de pulsos apenas com atividade muito esparsa e poucos passos de tempo. Esta tese estima a energia, a partir dos disparos contados, com um modelo que inclui a memória \cite{lemaire2022analytical} e compara a \ac{DSNN} com uma gêmea não pulsante de mesmo grafo (\autoref{sec:fase01}), em vez de presumir a vantagem.
 			

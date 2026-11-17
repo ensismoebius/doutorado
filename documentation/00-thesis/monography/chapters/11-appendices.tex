@@ -30,7 +30,7 @@
 			5 & 12/11/2026 & A montagem das dobras intersectava listas de índices não ordenadas com um algoritmo que exige listas ordenadas. Os conjuntos de treino perdiam, em média, 62\% das amostras (de 15\% a 78\%), muitas vezes restando 3 dos 12 locutores. & Auditoria do código da validação cruzada; a perda foi então medida sobre os tamanhos reais da base. \\
 			6 & 12/11/2026 & Na validação aninhada com frases não vistas, o treino externo incluía as frases reservadas para o teste. & Auditoria do código da validação aninhada, na mesma revisão dos itens 4 e 5. \\
 			7 & 12/11/2026 & Cada voz recebia o \ac{EEG} da tentativa \emph{anterior} (índice lido como se começasse em 1; começa em 0; \autoref{sec:baseDeSinais}). & Contagem de tentativas por modalidade: as tentativas com áudio são exatamente as de fala pronunciada, e o \ac{EEG} entregue era, em 141 casos, de fala imaginada. \\
-			8 & 12/11/2026 & Os \textit{autoencoders} e a \ac{PCA} recebiam a forma de onda promediada em 256 blocos, que não contém informação de locutor (\autoref{sec:protocoloDuasFases}). & Todo extrator automatizado tinha \ac{EER} entre $0{,}48$ e $0{,}52$. Um classificador linear sobre a própria entrada, sem extrator, identificava o locutor quase ao acaso (\autoref{tab:aeInput}). \\
+			8 & 12/11/2026 & Os \textit{autoencoders} e a \ac{PCA} recebiam a forma de onda promediada em 256 blocos, que não contém informação de locutor (\autoref{sec:aeEntrada}). & Todo extrator automatizado tinha \ac{EER} entre $0{,}48$ e $0{,}52$. Um classificador linear sobre a própria entrada, sem extrator, identificava o locutor quase ao acaso (\autoref{tab:aeInput}). \\
 		\end{longtable}
 		}
 		% packages.tex sets \LTpost to -30pt; without this the next paragraph overlaps the last row.
@@ -45,7 +45,7 @@
 
 		\par \textbf{Uma previsão ``confirmada'' por dados que não mediam nada.}
 		Enquanto o item~8 estava ativo, a ordem prevista para as codificações temporais
-		do \ac{SNN}-AE (\autoref{sec:protocoloDuasFases}) aparecia confirmada nos
+		do \ac{SNN}-AE (\autoref{sec:codificacoesPrevisao}) aparecia confirmada nos
 		resultados. Com a entrada sem informação de locutor, a única diferença entre as
 		codificações era o ruído que cada uma injeta, que é exatamente o que a previsão
 		descrevia. Com a entrada corrigida, a ordem se inverte. Uma concordância entre
@@ -56,9 +56,10 @@
 		A entrada dos extratores automatizados é comparada, em testes automatizados,
 		com bibliotecas de referência (SciPy e PyTorch). O programa recusa executar
 		quando falta um valor de configuração, em vez de assumir um valor padrão --- a
-		origem do item~3. E cada número citado nos Capítulos~\ref{chap:propApproach}
-		a~\ref{chap:conclusions} é lido dos resultados no momento da compilação do
-		texto, junto com a verificação de que cada afirmação qualitativa (``não é
+		origem do item~3. E cada número de resultado desta tese citado nos
+		Capítulos~\ref{chap:propApproach} a~\ref{chap:conclusions} é lido dos
+		resultados no momento da compilação do texto (a exceção são os números do
+		estudo preliminar \cite{furlan2026spiking}, citados do artigo), junto com a verificação de que cada afirmação qualitativa (``não é
 		significativo'', ``é o menor'') ainda vale para os números.
 
 	\chapter{Reprodutibilidade}

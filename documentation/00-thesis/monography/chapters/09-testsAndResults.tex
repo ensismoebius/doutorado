@@ -18,7 +18,7 @@
 	dois defeitos descritos no \autoref{chap:propApproach}: o \ac{EEG} lido da
 	tentativa errada (\autoref{sec:baseDeSinais}) e a entrada sem informação de
 	locutor dos \textit{autoencoders} e da \ac{PCA}
-	(\autoref{sec:protocoloDuasFases}). Tanto as tabelas quanto os números
+	(\autoref{sec:aeEntrada}). Tanto as tabelas quanto os números
 	citados nas frases são lidos por \textit{scripts} dos arquivos de resultado;
 	nenhum foi digitado.
 
@@ -54,8 +54,9 @@
 		\item $\bar{d}$: média do grau de verdade sem penalização --- a grandeza
 		chamada $D_{\text{verdade}}$ no \autoref{chap:propApproach} e $D_{1,0}$
 		na \autoref{sec:conceitos};
-		\item $\bar\alpha$ e $\bar\beta$: médias do grau de crença e do grau de
-		descrença.
+		\item $\bar\alpha$ e $\bar\beta$: médias do grau de crença $\alpha$ (a
+		similaridade intraclasse) e do grau de descrença $\beta$ (a sobreposição
+		entre classes), \autoref{sec:analiseParaconsistente}.
 	\end{itemize}
 
 	\par \textbf{O mesmo extrator vence nos três sinais.} O vencedor de cada
@@ -146,7 +147,7 @@
 		\item \textbf{Entre as codificações do \ac{SNN}-AE, a de latência é a
 		melhor e a direta, a pior}, em média, nos três sinais --- o oposto do
 		que o ruído de cada codificação faria prever
-		(\autoref{sec:protocoloDuasFases}).
+		(\autoref{sec:codificacoesPrevisao}).
 	\end{itemize}
 
 	\par Os $\bar\beta$ dos extratores automatizados continuam altos --- de
@@ -390,7 +391,7 @@
 	\subsection{Energia de inferência}
 
 	\par A Tabela~\ref{tab:phase01energy} traz a energia estimada por amostra de
-	teste para a \ac{DSNN} e para a rede gêmea, medida na passagem de teste
+	teste para a \ac{DSNN} e para a rede gêmea, estimada a partir da passagem de teste
 	(\autoref{sec:fase01}), e a razão entre as duas sob a estimativa primária e
 	sob as cinco variações de hipótese.
 
@@ -462,8 +463,10 @@
 	(seção anterior), não porque as duas fontes se compensem. Terceiro, o
 	sussurro sintético remove a periodicidade e preserva os formantes; ele
 	modela uma voz soprosa ou afônica, e não a disfonia em geral. O experimento
-	mostra que o sistema não depende da periodicidade da voz; não mostra como
-	ele se comporta com locutores disfônicos reais.
+	não detectou dependência do sistema em relação à periodicidade da voz, o que
+	não é o mesmo que mostrar que ela não existe: não há margem de
+	equivalência declarada, e a voz já parte de um \ac{EER} alto. Ele também
+	não mostra como o sistema se comporta com locutores disfônicos reais.
 
 	% Colunas: source,scope,eer_l0,eer_l25,eer_l50,eer_l75,eer_l100
 	\par\medskip
@@ -649,8 +652,9 @@
 	\par Esta seção responde a uma única pergunta: o que a Fase~01 concluiu na
 	base de \citeonline{10.1117/12.2255697} vale numa segunda base? O desenho está
 	na \autoref{sec:biomex}: os vencedores da Fase~00 foram congelados, e as
-	\tn{bx.n.total} configurações foram executadas uma vez na BIOMEX-DB, com
-	\tn{base.biomex.kept} locutores, três repetições cada (\tn{bx.n.units}
+	\tn{bx.n.total} configurações foram executadas numa única rodada na
+	BIOMEX-DB, sem nova seleção, com \tn{base.biomex.kept} locutores e as três
+	repetições de semente de cada configuração (\tn{bx.n.units}
 	execuções). Os testes de significância são os mesmos da Fase~01 (mesma
 	referência, mesmo pareamento, mesma correção de Holm dentro de cada família),
 	restritos às fontes que a BIOMEX-DB tem, e foram declarados antes de qualquer
@@ -846,9 +850,11 @@
 	\tn{p01.cmp.hc_better_ae} das \tn{p01.cmp.cells} combinações de sinal e modo
 	de texto, e menor que a \ac{PCA} em \tn{p01.cmp.hc_better_pca}; nenhuma
 	diferença é significativa. A afirmação que os dados sustentam é que, nesta
-	base e com este classificador, \textbf{a extração automatizada atinge o
-	mesmo nível de autenticação que a manual}, com um vetor de 8 a 32
-	características.
+	base e com este classificador, \textbf{a extração automatizada não se
+	distingue da manual na autenticação}, com um vetor de 8 a 32
+	características. Não se distinguir não é ser equivalente: nenhuma margem
+	de equivalência foi declarada antes da execução, e uma diferença menor que
+	a que estes testes detectam continua possível.
 
 	\par Duas observações completam a resposta. Primeiro, a \ac{PCA} acompanha
 	os \textit{autoencoders} nas duas medidas: tem \ac{EER} menor que o
@@ -861,7 +867,7 @@
 	de autenticação.
 
 	\par A comparação entre as duas medidas só existe porque a entrada dos
-	extratores automatizados foi corrigida (\autoref{sec:protocoloDuasFases}).
+	extratores automatizados foi corrigida (\autoref{sec:aeEntrada}).
 	Com a entrada anterior, os automatizados ficavam no acaso nas duas medidas,
 	e a conclusão --- errada --- era que a extração manual os superava em
 	ambas.

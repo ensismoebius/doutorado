@@ -819,6 +819,8 @@ afirmações a ajustar; os C, forma.
 - **2.1.7**: amplitude da banda delta dada ("até 350 µV") e logo depois "as amplitudes das bandas Delta e Gamma não foram encontradas"; 2.1.8: "F7 e T5 mais próximos da área de Wernicke" (F7 é frontal).
 - **Remissões**: a previsão das codificações é citada como "subseção 3.3.1" em 4.1, 5.2, 5.4 e Apêndice A (é 3.3.1.1.3); "(seção 2.1)" para a engenharia paraconsistente (é 2.1.5); "formantes ... (seção 2.1)" dentro da própria 2.1.
 
+**Situação:** B corrigido em 2026-11-17 (commit do grupo B). Os números do estudo preliminar continuam digitados, citados do artigo; o Apêndice A agora diz isso, em vez de gerá-los.
+
 ### C — forma
 
 - **Folha de rosto e aprovação**: "Qualificação apresentada" → "Tese apresentada"; aspas ‘Júlio de Mesquita Filho" (abre simples, fecha dupla); a resolver pelo autor: Comissão Examinadora, data, dedicatória ("Haha..."), agradecimentos, epígrafe.

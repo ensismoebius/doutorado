@@ -42,6 +42,7 @@ import pathlib
 import re
 import statistics
 import sys
+import importlib.util
 
 SET_PATTERNS = {
     "grid": re.compile(r"^p01_dsnn_([a-z]+)_(dep|indep)_(flat|nested)_(raw|std)$"),
@@ -257,15 +258,38 @@ def dysphonia_table(sets: dict, out_dir: pathlib.Path) -> None:
           ["source", "scope", "eer_l0"] + [f"eer_l{lv}" for lv in LEVELS], rows)
 
 
+def _phase00_tables():
+    path = pathlib.Path(__file__).resolve().parent / "thesis_build_phase00_paraconsistent_tables.py"
+    spec = importlib.util.spec_from_file_location("phase00_tables", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+P00 = _phase00_tables()
+
+
 def extractor_label(fe: dict) -> str:
     if fe["strategy"] == "handcrafted":
         hc = fe["handcrafted"]
-        return f"{hc['wavelet']}/{hc['scale']}/{'c2' if hc['cepstral'] else 'c1'}"
+        category = "c2" if hc["cepstral"] else "c1"
+        scale = (P00.C1_SCALE if category == "c1" else P00.C2_SCALE)[hc["scale"]]
+        return f"{P00.wavelet_label(hc['wavelet'])} + {scale} ({category})"
     if fe["strategy"] == "autoencoder":
+        # The Phase 00 tables' label (thesis_build_phase00_paraconsistent_tables.py), so one
+        # extractor reads the same in both chapters: size name from the latent width.
         ae = fe["autoencoder"]
-        enc = f"/{ae['encoding']}" if ae["model"] == "snn-ae" else ""
-        return f"{ae['model']}{enc}/latente {ae['encoder_layer_spec'][-1].split(':')[1]}"
-    return f"k = {fe['pca']['n_components']}"
+        latent = int(ae["encoder_layer_spec"][-1].split(":")[1])
+        sizes = {8: "tiny", 16: "small", 32: "base"}
+        if latent not in sizes:
+            raise SystemExit(f"[auth-tables] ERROR: autoencoder latent {latent} is not one of "
+                             f"the Phase 00 sizes {sorted(sizes)}")
+        if ae["model"] == "ann-ae":
+            return f"ANN-AE ({sizes[latent]})"
+        if ae["model"] == "snn-ae":
+            return f"SNN-AE {ae['encoding']} ({sizes[latent]})"
+        raise SystemExit(f"[auth-tables] ERROR: unknown autoencoder model {ae['model']}")
+    return f"PCA (k = {fe['pca']['n_components']})"
 
 
 def extractors_table(sets: dict, out_dir: pathlib.Path) -> None:
