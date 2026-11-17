@@ -15,7 +15,7 @@
       "max_samples": 0,
       "modality": "voice",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -60,9 +60,9 @@
       "weight_decay": 0.0
     }
   },
-  "config_hash": 18044597163777129439,
+  "config_hash": 7135221040781443419,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -70,7 +70,7 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.07239122507359529,
+      "ci95_eer": 0.0740685069508644,
       "energy": {
         "accesses": 35770.0,
         "fp_adds": 685.0,
@@ -101,11 +101,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004635668825358152,
+          "final_train_loss": 0.004701194353401661,
           "fold": 0,
-          "infer_ms": 3.688991,
+          "infer_ms": 3.464651,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep0/handcrafted-lfcc/fold_0.bin",
-          "train_ms": 3534.594591
+          "train_ms": 3470.034617
         },
         {
           "energy": {
@@ -122,11 +122,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004314055200666189,
+          "final_train_loss": 0.004325052257627249,
           "fold": 1,
-          "infer_ms": 3.462767,
+          "infer_ms": 3.509314,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep0/handcrafted-lfcc/fold_1.bin",
-          "train_ms": 3531.976833
+          "train_ms": 3461.20592
         },
         {
           "energy": {
@@ -143,11 +143,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004371395334601402,
+          "final_train_loss": 0.004380660597234964,
           "fold": 2,
-          "infer_ms": 3.547207,
+          "infer_ms": 3.457239,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep0/handcrafted-lfcc/fold_2.bin",
-          "train_ms": 3531.365714
+          "train_ms": 3469.594272
         },
         {
           "energy": {
@@ -164,11 +164,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004442627541720867,
+          "final_train_loss": 0.00440698117017746,
           "fold": 3,
-          "infer_ms": 3.533468,
+          "infer_ms": 3.525826,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep0/handcrafted-lfcc/fold_3.bin",
-          "train_ms": 3536.543623
+          "train_ms": 3454.659876
         },
         {
           "energy": {
@@ -185,26 +185,26 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004345458932220936,
+          "final_train_loss": 0.004299270920455456,
           "fold": 4,
-          "infer_ms": 3.574387,
+          "infer_ms": 3.445126,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep0/handcrafted-lfcc/fold_4.bin",
-          "train_ms": 3522.955419
+          "train_ms": 3461.2192
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.7868626187233401,
-      "mean_eer": 0.2870050757014996,
+      "mean_auc": 0.7926868638048377,
+      "mean_eer": 0.28116948012082266,
       "mean_f1": null,
-      "mean_infer_ms": 3.561364,
+      "mean_infer_ms": 3.4804311999999995,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
-      "mean_train_ms": 3531.4872359999995,
+      "mean_train_ms": 3463.3427770000003,
       "param_count": 34733,
       "std_accuracy": null,
-      "std_auc": 0.07201093317643467,
-      "std_eer": 0.05831113121003109,
+      "std_auc": 0.07520523770061543,
+      "std_eer": 0.059662181748576536,
       "std_f1": null,
       "std_specificity": null
     }

@@ -12,7 +12,7 @@
       "max_samples": 0,
       "modality": "fused",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -51,9 +51,9 @@
       "standardize_features": true
     }
   },
-  "config_hash": 613898511607707382,
+  "config_hash": 3650099111713079296,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -61,58 +61,58 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.05350868895705394,
+      "ci95_eer": 0.0534713698788858,
       "feature_set": "handcrafted-lfcc-fused-early",
       "fold_models": [
         {
           "epochs_run": 0,
           "fold": 0,
-          "infer_ms": 3.135948,
+          "infer_ms": 3.113481,
           "model_path": "",
           "train_ms": 0.0
         },
         {
           "epochs_run": 0,
           "fold": 1,
-          "infer_ms": 3.138203,
+          "infer_ms": 3.112176,
           "model_path": "",
           "train_ms": 0.0
         },
         {
           "epochs_run": 0,
           "fold": 2,
-          "infer_ms": 3.184674,
+          "infer_ms": 3.26102,
           "model_path": "",
           "train_ms": 0.0
         },
         {
           "epochs_run": 0,
           "fold": 3,
-          "infer_ms": 3.190386,
+          "infer_ms": 3.180629,
           "model_path": "",
           "train_ms": 0.0
         },
         {
           "epochs_run": 0,
           "fold": 4,
-          "infer_ms": 3.166905,
+          "infer_ms": 3.117882,
           "model_path": "",
           "train_ms": 0.0
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.777553445452255,
-      "mean_eer": 0.29464285714285715,
+      "mean_auc": 0.7775644368858654,
+      "mean_eer": 0.29460317460317464,
       "mean_f1": null,
-      "mean_infer_ms": 3.1632232,
+      "mean_infer_ms": 3.1570375999999998,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
       "mean_train_ms": 0.0,
       "param_count": 0,
       "std_accuracy": null,
-      "std_auc": 0.04908822076391229,
-      "std_eer": 0.043101248521204956,
+      "std_auc": 0.04905300027184367,
+      "std_eer": 0.043071188004043,
       "std_f1": null,
       "std_specificity": null
     }

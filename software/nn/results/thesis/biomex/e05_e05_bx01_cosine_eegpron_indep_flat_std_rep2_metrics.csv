@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc,cosine,independent,0,nan,nan,nan,nan,nan,0.358730,0.708225,0.000,3.270,
-handcrafted-lfcc,cosine,independent,1,nan,nan,nan,nan,nan,0.314286,0.772916,0.000,3.102,
-handcrafted-lfcc,cosine,independent,2,nan,nan,nan,nan,nan,0.325397,0.737288,0.000,3.126,
-handcrafted-lfcc,cosine,independent,3,nan,nan,nan,nan,nan,0.385119,0.663217,0.000,3.202,
-handcrafted-lfcc,cosine,independent,4,nan,nan,nan,nan,nan,0.251984,0.823197,0.000,3.103,
+handcrafted-lfcc,cosine,independent,0,nan,nan,nan,nan,nan,0.360119,0.708087,0.000,3.337,
+handcrafted-lfcc,cosine,independent,1,nan,nan,nan,nan,nan,0.314286,0.772914,0.000,3.175,
+handcrafted-lfcc,cosine,independent,2,nan,nan,nan,nan,nan,0.325397,0.737284,0.000,3.215,
+handcrafted-lfcc,cosine,independent,3,nan,nan,nan,nan,nan,0.385516,0.663292,0.000,3.206,
+handcrafted-lfcc,cosine,independent,4,nan,nan,nan,nan,nan,0.252381,0.823235,0.000,3.230,

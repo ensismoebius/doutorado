@@ -17,7 +17,7 @@
       "max_samples": 0,
       "modality": "fused",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -62,9 +62,9 @@
       "weight_decay": 0.0
     }
   },
-  "config_hash": 11932202588262031043,
+  "config_hash": 16851689975603903076,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -72,7 +72,7 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.040385132935228614,
+      "ci95_eer": 0.04470392823168243,
       "energy": {
         "accesses": 35770.0,
         "fp_adds": 685.0,
@@ -103,11 +103,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.006509359460324049,
+          "final_train_loss": 0.0065310802310705185,
           "fold": 0,
-          "infer_ms": 3.992718,
+          "infer_ms": 3.350608,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_earlypron_dep_flat_std_rep2/handcrafted-lfcc-fused-early/fold_0.bin",
-          "train_ms": 4012.247614
+          "train_ms": 3443.051807
         },
         {
           "energy": {
@@ -124,11 +124,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.006610746495425701,
+          "final_train_loss": 0.006634657736867666,
           "fold": 1,
-          "infer_ms": 3.995623,
+          "infer_ms": 3.4818,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_earlypron_dep_flat_std_rep2/handcrafted-lfcc-fused-early/fold_1.bin",
-          "train_ms": 4057.596837
+          "train_ms": 3427.424747
         },
         {
           "energy": {
@@ -145,11 +145,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.005207079462707043,
+          "final_train_loss": 0.005360415205359459,
           "fold": 2,
-          "infer_ms": 3.795308,
+          "infer_ms": 3.422962,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_earlypron_dep_flat_std_rep2/handcrafted-lfcc-fused-early/fold_2.bin",
-          "train_ms": 4013.915824
+          "train_ms": 3429.613295
         },
         {
           "energy": {
@@ -166,11 +166,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.006111627444624901,
+          "final_train_loss": 0.006568134296685457,
           "fold": 3,
-          "infer_ms": 3.851868,
+          "infer_ms": 3.464198,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_earlypron_dep_flat_std_rep2/handcrafted-lfcc-fused-early/fold_3.bin",
-          "train_ms": 4011.566673
+          "train_ms": 3439.029188
         },
         {
           "energy": {
@@ -187,26 +187,26 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.006531610619276762,
+          "final_train_loss": 0.00626794109120965,
           "fold": 4,
-          "infer_ms": 3.955496,
+          "infer_ms": 3.438348,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_earlypron_dep_flat_std_rep2/handcrafted-lfcc-fused-early/fold_4.bin",
-          "train_ms": 4060.653664
+          "train_ms": 3428.466737
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.8547850181498247,
-      "mean_eer": 0.22594381673322564,
+      "mean_auc": 0.8530507316999595,
+      "mean_eer": 0.2290395639129969,
       "mean_f1": null,
-      "mean_infer_ms": 3.9182026,
+      "mean_infer_ms": 3.4315832,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
-      "mean_train_ms": 4031.1961223999997,
+      "mean_train_ms": 3433.5171548,
       "param_count": 34733,
       "std_accuracy": null,
-      "std_auc": 0.03928888881689783,
-      "std_eer": 0.032530224251994526,
+      "std_auc": 0.04016839951217661,
+      "std_eer": 0.0360090138282831,
       "std_f1": null,
       "std_specificity": null
     }

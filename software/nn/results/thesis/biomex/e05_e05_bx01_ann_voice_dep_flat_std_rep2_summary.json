@@ -15,7 +15,7 @@
       "max_samples": 0,
       "modality": "voice",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -60,9 +60,9 @@
       "weight_decay": 0.0
     }
   },
-  "config_hash": 14524832113362421357,
+  "config_hash": 225284490557173305,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -70,7 +70,7 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.07982320568553616,
+      "ci95_eer": 0.07221313949798548,
       "energy": {
         "accesses": 35770.0,
         "fp_adds": 685.0,
@@ -101,11 +101,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004613795783370733,
+          "final_train_loss": 0.004495800472795963,
           "fold": 0,
-          "infer_ms": 3.523929,
+          "infer_ms": 3.606997,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep2/handcrafted-lfcc/fold_0.bin",
-          "train_ms": 3545.950205
+          "train_ms": 3621.136186
         },
         {
           "energy": {
@@ -122,11 +122,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004505937919020653,
+          "final_train_loss": 0.004457179922610521,
           "fold": 1,
-          "infer_ms": 3.466473,
+          "infer_ms": 3.724349,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep2/handcrafted-lfcc/fold_1.bin",
-          "train_ms": 3513.960077
+          "train_ms": 3602.057667
         },
         {
           "energy": {
@@ -143,11 +143,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.00428171968087554,
+          "final_train_loss": 0.004282516427338123,
           "fold": 2,
-          "infer_ms": 3.58545,
+          "infer_ms": 3.689331,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep2/handcrafted-lfcc/fold_2.bin",
-          "train_ms": 3528.625231
+          "train_ms": 3563.130202
         },
         {
           "energy": {
@@ -164,11 +164,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.0038433128502219915,
+          "final_train_loss": 0.0037529210094362497,
           "fold": 3,
-          "infer_ms": 3.538283,
+          "infer_ms": 3.788477,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep2/handcrafted-lfcc/fold_3.bin",
-          "train_ms": 3505.562445
+          "train_ms": 3591.807237
         },
         {
           "energy": {
@@ -185,26 +185,26 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004245775286108255,
+          "final_train_loss": 0.004266772884875536,
           "fold": 4,
-          "infer_ms": 3.52194,
+          "infer_ms": 3.639195,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_dep_flat_std_rep2/handcrafted-lfcc/fold_4.bin",
-          "train_ms": 3508.890884
+          "train_ms": 3607.33132
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.7898891952602327,
-      "mean_eer": 0.29068506187589466,
+      "mean_auc": 0.7903214208841652,
+      "mean_eer": 0.2931310939676417,
       "mean_f1": null,
-      "mean_infer_ms": 3.5272149999999995,
+      "mean_infer_ms": 3.6896698,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
-      "mean_train_ms": 3520.5977684,
+      "mean_train_ms": 3597.0925224000007,
       "param_count": 34733,
       "std_accuracy": null,
-      "std_auc": 0.08598325587967251,
-      "std_eer": 0.0642975915327113,
+      "std_auc": 0.07875007559945277,
+      "std_eer": 0.05816768328032081,
       "std_f1": null,
       "std_specificity": null
     }

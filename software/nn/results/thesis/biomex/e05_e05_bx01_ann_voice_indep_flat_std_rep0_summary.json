@@ -15,7 +15,7 @@
       "max_samples": 0,
       "modality": "voice",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -60,9 +60,9 @@
       "weight_decay": 0.0
     }
   },
-  "config_hash": 3609921205049582768,
+  "config_hash": 3728833533083029117,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -70,7 +70,7 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.061976499889667434,
+      "ci95_eer": 0.05630997074802771,
       "energy": {
         "accesses": 35770.0,
         "fp_adds": 685.0,
@@ -101,11 +101,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004635668825358152,
+          "final_train_loss": 0.004701194353401661,
           "fold": 0,
-          "infer_ms": 3.630073,
+          "infer_ms": 3.75461,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_0.bin",
-          "train_ms": 3593.646161
+          "train_ms": 3561.1771
         },
         {
           "energy": {
@@ -122,11 +122,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004314055200666189,
+          "final_train_loss": 0.004325052257627249,
           "fold": 1,
-          "infer_ms": 3.847905,
+          "infer_ms": 3.721238,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_1.bin",
-          "train_ms": 3622.245868
+          "train_ms": 3549.742479
         },
         {
           "energy": {
@@ -143,11 +143,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004371395334601402,
+          "final_train_loss": 0.004380660597234964,
           "fold": 2,
-          "infer_ms": 3.771117,
+          "infer_ms": 3.741932,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_2.bin",
-          "train_ms": 3648.715685
+          "train_ms": 3522.899035
         },
         {
           "energy": {
@@ -164,11 +164,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004442627541720867,
+          "final_train_loss": 0.00440698117017746,
           "fold": 3,
-          "infer_ms": 3.66627,
+          "infer_ms": 3.756151,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_3.bin",
-          "train_ms": 3563.352523
+          "train_ms": 3566.761296
         },
         {
           "energy": {
@@ -185,26 +185,26 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004345458932220936,
+          "final_train_loss": 0.004299270920455456,
           "fold": 4,
-          "infer_ms": 4.161538,
+          "infer_ms": 3.687261,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep0/handcrafted-lfcc/fold_4.bin",
-          "train_ms": 3588.334134
+          "train_ms": 3573.527262
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.7498520093222474,
-      "mean_eer": 0.3163095238095238,
+      "mean_auc": 0.7526192995716805,
+      "mean_eer": 0.31214285714285717,
       "mean_f1": null,
-      "mean_infer_ms": 3.8153806,
+      "mean_infer_ms": 3.7322384,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
-      "mean_train_ms": 3603.2588742,
+      "mean_train_ms": 3554.8214344,
       "param_count": 34733,
       "std_accuracy": null,
-      "std_auc": 0.06139402320303291,
-      "std_eer": 0.049922070158791285,
+      "std_auc": 0.05625337437611411,
+      "std_eer": 0.0453576809811292,
       "std_f1": null,
       "std_specificity": null
     }

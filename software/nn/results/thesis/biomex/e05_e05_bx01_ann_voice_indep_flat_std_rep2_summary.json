@@ -15,7 +15,7 @@
       "max_samples": 0,
       "modality": "voice",
       "results_dir": "results/thesis/biomex",
-      "root": "~/biomex.sqlite",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
       "source": "biomex2021"
     },
     "degradation": {
@@ -60,9 +60,9 @@
       "weight_decay": 0.0
     }
   },
-  "config_hash": 10315999078013615940,
+  "config_hash": 17222997616078151404,
   "dataset": {
-    "n_samples": 6297,
+    "n_samples": 6294,
     "n_stimuli": 10,
     "n_subjects": 45
   },
@@ -70,7 +70,7 @@
   "results": [
     {
       "ci95_accuracy": null,
-      "ci95_eer": 0.06000678804215658,
+      "ci95_eer": 0.057852738996723635,
       "energy": {
         "accesses": 35770.0,
         "fp_adds": 685.0,
@@ -101,11 +101,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004613795783370733,
+          "final_train_loss": 0.004495800472795963,
           "fold": 0,
-          "infer_ms": 3.565943,
+          "infer_ms": 3.718493,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep2/handcrafted-lfcc/fold_0.bin",
-          "train_ms": 3620.510243
+          "train_ms": 3585.594178
         },
         {
           "energy": {
@@ -122,11 +122,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004505937919020653,
+          "final_train_loss": 0.004457179922610521,
           "fold": 1,
-          "infer_ms": 4.081201,
+          "infer_ms": 3.828289,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep2/handcrafted-lfcc/fold_1.bin",
-          "train_ms": 3644.546003
+          "train_ms": 3559.257484
         },
         {
           "energy": {
@@ -143,11 +143,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.00428171968087554,
+          "final_train_loss": 0.004282516427338123,
           "fold": 2,
-          "infer_ms": 3.709893,
+          "infer_ms": 3.817358,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep2/handcrafted-lfcc/fold_2.bin",
-          "train_ms": 3655.792131
+          "train_ms": 3537.555401
         },
         {
           "energy": {
@@ -164,11 +164,11 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.0038433128502219915,
+          "final_train_loss": 0.0037529210094362497,
           "fold": 3,
-          "infer_ms": 3.730878,
+          "infer_ms": 3.643076,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep2/handcrafted-lfcc/fold_3.bin",
-          "train_ms": 3592.618402
+          "train_ms": 3543.657329
         },
         {
           "energy": {
@@ -185,26 +185,26 @@
             "spikes": 0.0
           },
           "epochs_run": 50,
-          "final_train_loss": 0.004245775286108255,
+          "final_train_loss": 0.004266772884875536,
           "fold": 4,
-          "infer_ms": 3.692269,
+          "infer_ms": 3.790428,
           "model_path": "results/thesis/biomex/models/e05_bx01_ann_voice_indep_flat_std_rep2/handcrafted-lfcc/fold_4.bin",
-          "train_ms": 3603.960252
+          "train_ms": 3557.199101
         }
       ],
       "mean_accuracy": null,
-      "mean_auc": 0.763910336356765,
-      "mean_eer": 0.3086904761904762,
+      "mean_auc": 0.7630198727639204,
+      "mean_eer": 0.3109126984126984,
       "mean_f1": null,
-      "mean_infer_ms": 3.7560368000000004,
+      "mean_infer_ms": 3.7595288000000004,
       "mean_precision": null,
       "mean_recall": null,
       "mean_specificity": null,
-      "mean_train_ms": 3623.4854062,
+      "mean_train_ms": 3556.6526986,
       "param_count": 34733,
       "std_accuracy": null,
-      "std_auc": 0.060834966370185345,
-      "std_eer": 0.04833546728158633,
+      "std_auc": 0.05865323273087287,
+      "std_eer": 0.046600380792949224,
       "std_f1": null,
       "std_specificity": null
     }

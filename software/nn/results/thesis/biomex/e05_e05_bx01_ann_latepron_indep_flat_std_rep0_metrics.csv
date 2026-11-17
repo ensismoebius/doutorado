@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc-fused-late,ann,independent,0,nan,nan,nan,nan,nan,0.215675,0.874382,4266.434,3.928,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_0.bin
-handcrafted-lfcc-fused-late,ann,independent,1,nan,nan,nan,nan,nan,0.184722,0.901510,4267.088,4.044,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_1.bin
-handcrafted-lfcc-fused-late,ann,independent,2,nan,nan,nan,nan,nan,0.253968,0.829605,4264.302,3.900,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_2.bin
-handcrafted-lfcc-fused-late,ann,independent,3,nan,nan,nan,nan,nan,0.261905,0.794747,4253.166,4.223,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_3.bin
-handcrafted-lfcc-fused-late,ann,independent,4,nan,nan,nan,nan,nan,0.315873,0.766079,4236.830,3.949,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_4.bin
+handcrafted-lfcc-fused-late,ann,independent,0,nan,nan,nan,nan,nan,0.219048,0.879919,4230.610,3.946,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_0.bin
+handcrafted-lfcc-fused-late,ann,independent,1,nan,nan,nan,nan,nan,0.192063,0.891999,4258.071,4.024,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_1.bin
+handcrafted-lfcc-fused-late,ann,independent,2,nan,nan,nan,nan,nan,0.257143,0.823827,4263.709,3.934,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_2.bin
+handcrafted-lfcc-fused-late,ann,independent,3,nan,nan,nan,nan,nan,0.263492,0.801466,4250.083,3.856,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_3.bin
+handcrafted-lfcc-fused-late,ann,independent,4,nan,nan,nan,nan,nan,0.312500,0.762712,4277.341,7.927,results/thesis/biomex/models/e05_bx01_ann_latepron_indep_flat_std_rep0/handcrafted-lfcc-fused-late/fold_4.bin

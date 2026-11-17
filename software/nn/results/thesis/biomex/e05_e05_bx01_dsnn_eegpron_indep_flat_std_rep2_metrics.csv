@@ -1,6 +1,6 @@
 feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
-handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.250794,0.849792,54484.278,108.790,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_0.bin
-handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.231746,0.854097,53968.358,104.157,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_1.bin
-handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.297619,0.792466,54225.457,108.301,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_2.bin
-handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.358333,0.701678,54326.934,111.581,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_3.bin
-handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.196627,0.880779,54166.785,103.021,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_4.bin
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.248810,0.846415,57146.942,110.890,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.250794,0.833521,57569.994,107.809,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_1.bin
+handcrafted-lfcc,dsnn,independent,2,nan,nan,nan,nan,nan,0.295437,0.786828,56879.267,111.148,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_2.bin
+handcrafted-lfcc,dsnn,independent,3,nan,nan,nan,nan,nan,0.361905,0.699462,57293.125,107.332,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_3.bin
+handcrafted-lfcc,dsnn,independent,4,nan,nan,nan,nan,nan,0.187302,0.888913,57254.465,112.007,results/thesis/biomex/models/e05_bx01_dsnn_eegpron_indep_flat_std_rep2/handcrafted-lfcc/fold_4.bin
